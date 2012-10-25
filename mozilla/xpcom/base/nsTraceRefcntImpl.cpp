@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   L. David Baron <dbaron@dbaron.org>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsTraceRefcntImpl.h"
 #include "nsXPCOMPrivate.h"
@@ -67,6 +34,7 @@
 #endif
 
 #include "mozilla/BlockingResourceBase.h"
+#include "mozilla/mozPoisonWrite.h"
 
 #ifdef HAVE_DLOPEN
 #include <dlfcn.h>
@@ -679,6 +647,7 @@ static bool InitLog(const char* envVar, const char* msg, FILE* *result)
       }
       stream = ::fopen(fname.get(), "w" FOPEN_NO_INHERIT);
       if (stream != NULL) {
+        MozillaRegisterDebugFD(fileno(stream));
         *result = stream;
         fprintf(stdout, "### %s defined -- logging %s to %s\n",
                 envVar, msg, fname.get());
@@ -867,7 +836,7 @@ static void InitTraceLog(void)
 
 extern "C" {
 
-static void PrintStackFrame(void *aPC, void *aClosure)
+static void PrintStackFrame(void *aPC, void *aSP, void *aClosure)
 {
   FILE *stream = (FILE*)aClosure;
   nsCodeAddressDetails details;
@@ -1268,6 +1237,17 @@ nsTraceRefcntImpl::Startup()
 {
 }
 
+static void maybeUnregisterAndCloseFile(FILE *&f) {
+  if (!f)
+    return;
+
+  int fd = fileno(f);
+  fclose(f);
+  if (fd != 1 && fd != 2)
+    MozillaUnRegisterDebugFD(fd);
+  f = nsnull;
+}
+
 void
 nsTraceRefcntImpl::Shutdown()
 {
@@ -1289,26 +1269,11 @@ nsTraceRefcntImpl::Shutdown()
     PL_HashTableDestroy(gSerialNumbers);
     gSerialNumbers = nsnull;
   }
-  if (gBloatLog) {
-    fclose(gBloatLog);
-    gBloatLog = nsnull;
-  }
-  if (gRefcntsLog) {
-    fclose(gRefcntsLog);
-    gRefcntsLog = nsnull;
-  }
-  if (gAllocLog) {
-    fclose(gAllocLog);
-    gAllocLog = nsnull;
-  }
-  if (gLeakyLog) {
-    fclose(gLeakyLog);
-    gLeakyLog = nsnull;
-  }
-  if (gCOMPtrLog) {
-    fclose(gCOMPtrLog);
-    gCOMPtrLog = nsnull;
-  }
+  maybeUnregisterAndCloseFile(gBloatLog);
+  maybeUnregisterAndCloseFile(gRefcntsLog);
+  maybeUnregisterAndCloseFile(gAllocLog);
+  maybeUnregisterAndCloseFile(gLeakyLog);
+  maybeUnregisterAndCloseFile(gCOMPtrLog);
 #endif
 }
 

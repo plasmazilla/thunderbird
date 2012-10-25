@@ -1,42 +1,9 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  * vim: set ts=8 sw=4 et tw=79 ft=cpp:
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is SpiderMonkey JavaScript engine.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Jason Orendorff <jorendorff@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef jsscriptinlines_h___
 #define jsscriptinlines_h___
@@ -57,12 +24,12 @@
 namespace js {
 
 inline
-Bindings::Bindings(JSContext *cx)
+Bindings::Bindings()
     : lastBinding(NULL), nargs(0), nvars(0), hasDup_(false)
 {}
 
 inline void
-Bindings::transfer(JSContext *cx, Bindings *bindings)
+Bindings::transfer(Bindings *bindings)
 {
     JS_ASSERT(!lastBinding);
     JS_ASSERT(!bindings->lastBinding || !bindings->lastBinding->inDictionary());
@@ -71,15 +38,6 @@ Bindings::transfer(JSContext *cx, Bindings *bindings)
 #ifdef DEBUG
     bindings->lastBinding = NULL;
 #endif
-}
-
-inline void
-Bindings::clone(JSContext *cx, Bindings *bindings)
-{
-    JS_ASSERT(!lastBinding);
-    JS_ASSERT(!bindings->lastBinding || !bindings->lastBinding->inDictionary());
-
-    *this = *bindings;
 }
 
 Shape *
@@ -94,11 +52,11 @@ Shape *
 Bindings::initialShape(JSContext *cx) const
 {
     /* Get an allocation kind to match an empty call object. */
-    gc::AllocKind kind = gc::FINALIZE_OBJECT4;
-    JS_ASSERT(gc::GetGCKindSlots(kind) == CallObject::RESERVED_SLOTS + 1);
+    gc::AllocKind kind = gc::FINALIZE_OBJECT2_BACKGROUND;
+    JS_ASSERT(gc::GetGCKindSlots(kind) == CallObject::RESERVED_SLOTS);
 
-    return EmptyShape::getInitialShape(cx, &CallClass, NULL, NULL, kind,
-                                       BaseShape::VAROBJ);
+    return EmptyShape::getInitialShape(cx, &CallClass, NULL, cx->global(),
+                                       kind, BaseShape::VAROBJ);
 }
 
 bool
@@ -116,6 +74,30 @@ bool
 Bindings::extensibleParents()
 {
     return lastBinding && lastBinding->extensibleParents();
+}
+
+uint16_t
+Bindings::formalIndexToSlot(uint16_t i)
+{
+    JS_ASSERT(i < nargs);
+    return CallObject::RESERVED_SLOTS + i;
+}
+
+uint16_t
+Bindings::varIndexToSlot(uint16_t i)
+{
+    JS_ASSERT(i < nvars);
+    return CallObject::RESERVED_SLOTS + i + nargs;
+}
+
+unsigned
+Bindings::argumentsVarIndex(JSContext *cx) const
+{
+    PropertyName *arguments = cx->runtime->atomState.argumentsAtom;
+    unsigned i;
+    DebugOnly<BindingKind> kind = lookup(cx, arguments, &i);
+    JS_ASSERT(kind == VARIABLE || kind == CONSTANT);
+    return i;
 }
 
 extern void
@@ -144,6 +126,18 @@ ScriptCounts::destroy(FreeOp *fop)
     fop->free_(pcCountsVector);
 }
 
+inline void
+MarkScriptFilename(JSRuntime *rt, const char *filename)
+{
+    /*
+     * As an invariant, a ScriptFilenameEntry should not be 'marked' outside of
+     * a GC. Since SweepScriptFilenames is only called during a full gc,
+     * to preserve this invariant, only mark during a full gc.
+     */
+    if (rt->gcIsFull)
+        ScriptFilenameEntry::fromFilename(filename)->marked = true;
+}
+
 } // namespace js
 
 inline void
@@ -170,7 +164,7 @@ JSScript::getCallerFunction()
 inline JSObject *
 JSScript::getRegExp(size_t index)
 {
-    JSObjectArray *arr = regexps();
+    js::ObjectArray *arr = regexps();
     JS_ASSERT(uint32_t(index) < arr->length);
     JSObject *obj = arr->vector[index];
     JS_ASSERT(obj->isRegExp());
@@ -197,42 +191,43 @@ JSScript::hasGlobal() const
      * which have had their scopes cleared. compileAndGo code should not run
      * anymore against such globals.
      */
-    JS_ASSERT(types && types->hasScope());
-    js::GlobalObject *obj = types->global;
-    return obj && !obj->isCleared();
+    return compileAndGo && !global().isCleared();
 }
 
-inline js::GlobalObject *
+inline js::GlobalObject &
 JSScript::global() const
 {
-    JS_ASSERT(hasGlobal());
-    return types->global;
+    /*
+     * A JSScript always marks its compartment's global (via bindings) so we
+     * can assert that maybeGlobal is non-null here.
+     */
+    return *compartment()->maybeGlobal();
 }
 
 inline bool
 JSScript::hasClearedGlobal() const
 {
-    JS_ASSERT(types && types->hasScope());
-    js::GlobalObject *obj = types->global;
-    return obj && obj->isCleared();
+    JS_ASSERT(types);
+    return global().isCleared();
 }
 
-inline js::types::TypeScriptNesting *
-JSScript::nesting() const
+#ifdef JS_METHODJIT
+inline bool
+JSScript::ensureHasJITInfo(JSContext *cx)
 {
-    JS_ASSERT(function() && types && types->hasScope());
-    return types->nesting;
+    if (jitInfo)
+        return true;
+    jitInfo = cx->new_<JITScriptSet>();
+    return jitInfo != NULL;
 }
 
 inline void
-JSScript::clearNesting()
+JSScript::destroyJITInfo(js::FreeOp *fop)
 {
-    js::types::TypeScriptNesting *nesting = this->nesting();
-    if (nesting) {
-        js::Foreground::delete_(nesting);
-        types->nesting = NULL;
-    }
+    fop->delete_(jitInfo);
+    jitInfo = NULL;
 }
+#endif /* JS_METHODJIT */
 
 inline void
 JSScript::writeBarrierPre(JSScript *script)
@@ -243,7 +238,7 @@ JSScript::writeBarrierPre(JSScript *script)
 
     JSCompartment *comp = script->compartment();
     if (comp->needsBarrier()) {
-        JS_ASSERT(!comp->rt->gcRunning);
+        JS_ASSERT(!comp->rt->isHeapBusy());
         JSScript *tmp = script;
         MarkScriptUnbarriered(comp->barrierTracer(), &tmp, "write barrier");
         JS_ASSERT(tmp == script);

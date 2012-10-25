@@ -10,90 +10,63 @@ import java.util.List;
 
 import org.json.JSONObject;
 
-import android.app.Activity;
-import android.content.Intent;
 import android.content.Context;
-import android.database.Cursor;
-import android.graphics.drawable.Drawable;
-import android.os.Bundle;
 import android.os.SystemClock;
 import android.util.AttributeSet;
-import android.util.DisplayMetrics;
+import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.Button;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ExpandableListView;
 import android.widget.SimpleExpandableListAdapter;
 import android.text.TextUtils;
-import android.util.Log;
 
-public class RemoteTabs extends GeckoActivity
-       implements ExpandableListView.OnGroupClickListener, ExpandableListView.OnChildClickListener, 
-                  TabsAccessor.OnQueryTabsCompleteListener {
+public class RemoteTabs extends LinearLayout
+                        implements TabsPanel.PanelView,
+                                   ExpandableListView.OnGroupClickListener,
+                                   ExpandableListView.OnChildClickListener, 
+                                   TabsAccessor.OnQueryTabsCompleteListener {
     private static final String LOGTAG = "GeckoRemoteTabs";
 
-    private static int sPreferredHeight;
-    private static int sChildItemHeight;
-    private static int sGroupItemHeight;
+    private Context mContext;
+
     private static ExpandableListView mList;
-    private static boolean mExitToTabsTray;
     
     private static ArrayList <ArrayList <HashMap <String, String>>> mTabsList;
-
-    // 50 for child + 2 for divider
-    private static final int CHILD_ITEM_HEIGHT = 52;
-
-    // 30 for group + 2 for divider
-    private static final int GROUP_ITEM_HEIGHT = 32;
 
     private static final String[] CLIENT_KEY = new String[] { "name" };
     private static final String[] TAB_KEY = new String[] { "title" };
     private static final int[] CLIENT_RESOURCE = new int[] { R.id.client };
     private static final int[] TAB_RESOURCE = new int[] { R.id.tab };
 
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    public RemoteTabs(Context context, AttributeSet attrs) {
+        super(context, attrs);
+        mContext = context;
 
-        setContentView(R.layout.remote_tabs);
+        LayoutInflater.from(context).inflate(R.layout.remote_tabs, this);
 
         mList = (ExpandableListView) findViewById(R.id.list);
         mList.setOnGroupClickListener(this);
         mList.setOnChildClickListener(this);
-
-        LinearLayout container = (LinearLayout) findViewById(R.id.container);
-        container.setOnClickListener(new Button.OnClickListener() {
-            public void onClick(View v) {
-                finishActivity();
-            }
-        });
-
-        DisplayMetrics metrics = new DisplayMetrics();
-        getWindowManager().getDefaultDisplay().getMetrics(metrics);
-
-        sChildItemHeight = (int) (CHILD_ITEM_HEIGHT * metrics.density);
-        sGroupItemHeight = (int) (GROUP_ITEM_HEIGHT * metrics.density);
-        sPreferredHeight = (int) (0.67 * metrics.heightPixels);
-
-        TabsAccessor.getTabs(getApplicationContext(), this);
-
-        // Exit to tabs-tray
-        mExitToTabsTray = getIntent().getBooleanExtra("exit-to-tabs-tray", false);
     }
 
     @Override
-    public void onBackPressed() {
-        if (mExitToTabsTray) {
-            startActivity(new Intent(this, TabsTray.class));
-            overridePendingTransition(R.anim.grow_fade_in, R.anim.shrink_fade_out);
-        }
-
-        finishActivity();
+    public ViewGroup getLayout() {
+        return this;
     }
 
-    void finishActivity() {
-        finish();
-        overridePendingTransition(0, R.anim.shrink_fade_out);
+    @Override
+    public void show() {
+        TabsAccessor.getTabs(mContext, this);
+    }
+
+    @Override
+    public void hide() {
+    }
+
+    void autoHideTabs() {
+        GeckoApp.mAppContext.autoHideTabs();
     }
 
     @Override
@@ -106,7 +79,7 @@ public class RemoteTabs extends GeckoActivity
     public boolean onChildClick(ExpandableListView parent, View view, int groupPosition, int childPosition, long id) {
         HashMap <String, String> tab = mTabsList.get(groupPosition).get(childPosition);
         if (tab == null) {
-            finishActivity();
+            autoHideTabs();
             return true;
         }
 
@@ -122,39 +95,15 @@ public class RemoteTabs extends GeckoActivity
 
         Log.d(LOGTAG, "Sending message to Gecko: " + SystemClock.uptimeMillis() + " - Tab:Add");
         GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("Tab:Add", args.toString()));
-        finishActivity();
+        autoHideTabs();
         return true;
-    }
-
-    // Tabs List Container holds the ExpandableListView
-    public static class TabsListContainer extends LinearLayout {
-        public TabsListContainer(Context context, AttributeSet attrs) {
-            super(context, attrs);
-        }
-
-        @Override
-        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            SimpleExpandableListAdapter adapter = (SimpleExpandableListAdapter) mList.getExpandableListAdapter();
-            if (adapter == null) {
-                super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-                return;
-            }
-
-            int groupCount = adapter.getGroupCount();
-            int childrenHeight = groupCount * sGroupItemHeight;
-            for (int i = 0; i < groupCount; i++)
-                 childrenHeight += adapter.getChildrenCount(i) * sChildItemHeight;
-
-            int restrictedHeightSpec = MeasureSpec.makeMeasureSpec(Math.min(childrenHeight, sPreferredHeight), MeasureSpec.EXACTLY);
-            super.onMeasure(widthMeasureSpec, restrictedHeightSpec);
-        }
     }
 
     @Override
     public void onQueryTabsComplete(List<TabsAccessor.RemoteTab> remoteTabsList) {
         ArrayList<TabsAccessor.RemoteTab> remoteTabs = new ArrayList<TabsAccessor.RemoteTab> (remoteTabsList);
         if (remoteTabs == null || remoteTabs.size() == 0) {
-            finishActivity();
+            autoHideTabs();
             return;
         }
         
@@ -185,7 +134,7 @@ public class RemoteTabs extends GeckoActivity
             tabsForClient.add(tab);
         }
         
-        mList.setAdapter(new SimpleExpandableListAdapter(getApplicationContext(),
+        mList.setAdapter(new SimpleExpandableListAdapter(mContext,
                                                          clients,
                                                          R.layout.remote_tabs_group,
                                                          CLIENT_KEY,

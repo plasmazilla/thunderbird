@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 package org.mozilla.gecko.gfx;
 
 import android.graphics.Rect;
@@ -246,6 +250,7 @@ public class PluginLayer extends TileLayer
         int positionHandle = context.positionHandle;
         int textureHandle = context.textureHandle;
 
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, getTextureID());
 
         // Make sure we are at position zero in the buffer

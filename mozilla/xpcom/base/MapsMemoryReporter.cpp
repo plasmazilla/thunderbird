@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 50; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim:set ts=2 sw=2 sts=2 ci et: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla.org code.
- *
- * The Initial Developer of the Original Code is the Mozilla Foundation.
- *
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Justin Lebar <justin.lebar@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
 
@@ -124,20 +91,19 @@ void GetBasename(const nsCString &aPath, nsACString &aOut)
 }
 
 // MapsReporter::CollectReports uses this stuct to keep track of whether it's
-// seen a mapping under 'smaps/resident', 'smaps/pss', 'smaps/vsize', and
-// 'smaps/swap'.
+// seen a mapping under 'rss', 'pss', 'size', and 'swap'.
 struct CategoriesSeen {
   CategoriesSeen() :
-    mSeenResident(false),
+    mSeenRss(false),
     mSeenPss(false),
-    mSeenVsize(false),
+    mSeenSize(false),
     mSeenSwap(false)
   {
   }
 
-  bool mSeenResident;
+  bool mSeenRss;
   bool mSeenPss;
-  bool mSeenVsize;
+  bool mSeenSize;
   bool mSeenSwap;
 };
 
@@ -229,17 +195,19 @@ MapsReporter::CollectReports(nsIMemoryMultiReporterCallback *aCb,
 
   fclose(f);
 
-  // For sure we should have created some node under 'smaps/resident' and
-  // 'smaps/vsize'; otherwise we're probably not reading smaps correctly.  If we
-  // didn't create a node under 'smaps/swap', create one here so about:memory
-  // knows to create an empty 'smaps/swap' tree.  See also bug 682735.
+  // For sure we should have created some node under 'rss' and
+  // 'size'; otherwise we're probably not reading smaps correctly.  If we
+  // didn't create a node under 'swap', create one here so about:memory
+  // knows to create an empty 'swap' tree;  it needs a 'total' child because
+  // about:memory expects at least one report whose path begins with 'swap/'.
 
-  NS_ASSERTION(categoriesSeen.mSeenVsize, "Didn't create a vsize node?");
-  NS_ASSERTION(categoriesSeen.mSeenVsize, "Didn't create a resident node?");
+  NS_ASSERTION(categoriesSeen.mSeenSize, "Didn't create a size node?");
+  NS_ASSERTION(categoriesSeen.mSeenRss, "Didn't create a rss node?");
+  NS_ASSERTION(categoriesSeen.mSeenPss, "Didn't create a pss node?");
   if (!categoriesSeen.mSeenSwap) {
     nsresult rv;
     rv = aCb->Callback(NS_LITERAL_CSTRING(""),
-                       NS_LITERAL_CSTRING("smaps/swap/total"),
+                       NS_LITERAL_CSTRING("swap/total"),
                        nsIMemoryReporter::KIND_NONHEAP,
                        nsIMemoryReporter::UNITS_BYTES,
                        0,
@@ -321,8 +289,11 @@ MapsReporter::ParseMapping(
   unsigned long long addrStart, addrEnd;
   char perms[5];
   unsigned long long offset;
-  char devMajor[3];
-  char devMinor[3];
+  // The 2.6 and 3.0 kernels allocate 12 bits for the major device number and
+  // 20 bits for the minor device number.  Future kernels might allocate more.
+  // 64 bits ought to be enough for anybody.
+  char devMajor[17];
+  char devMinor[17];
   unsigned int inode;
   char path[1025];
 
@@ -334,7 +305,9 @@ MapsReporter::ParseMapping(
   // with or without a path, but we don't want to look to a new line for the
   // path.  Thus we have %u%1024[^\n] at the end of the pattern.  This will
   // capture into the path some leading whitespace, which we'll later trim off.
-  int numRead = fscanf(aFile, "%llx-%llx %4s %llx %2s:%2s %u%1024[^\n]",
+  int numRead = fscanf(aFile,
+                       "%llx-%llx %4s %llx "
+                       "%16[0-9a-fA-F]:%16[0-9a-fA-F] %u%1024[^\n]",
                        &addrStart, &addrEnd, perms, &offset, devMajor,
                        devMinor, &inode, path);
 
@@ -502,12 +475,12 @@ MapsReporter::ParseMapBody(
 
   const char* category;
   if (strcmp(desc, "Size") == 0) {
-    category = "vsize";
-    aCategoriesSeen->mSeenVsize = true;
+    category = "size";
+    aCategoriesSeen->mSeenSize = true;
   }
   else if (strcmp(desc, "Rss") == 0) {
-    category = "resident";
-    aCategoriesSeen->mSeenResident = true;
+    category = "rss";
+    aCategoriesSeen->mSeenRss = true;
   }
   else if (strcmp(desc, "Pss") == 0) {
     category = "pss";
@@ -523,7 +496,6 @@ MapsReporter::ParseMapBody(
   }
 
   nsCAutoString path;
-  path.Append("smaps/");
   path.Append(category);
   path.Append("/");
   path.Append(aName);

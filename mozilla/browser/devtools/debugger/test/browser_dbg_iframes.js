@@ -14,7 +14,10 @@ function test() {
   debug_tab_pane(TEST_URL, function(aTab, aDebuggee, aPane) {
     gTab = aTab;
     gPane = aPane;
-    let gDebugger = gPane.debuggerWindow;
+    let gDebugger = gPane.contentWindow;
+
+    is(gDebugger.document.getElementById("close").getAttribute("hidden"), "false",
+      "The close button should be visible in a normal content debugger.");
 
     is(gDebugger.DebuggerController.activeThread.paused, false,
       "Should be running after debug_tab_pane.");
@@ -33,7 +36,7 @@ function test() {
 
         gDebugger.DebuggerController.activeThread.addOneTimeListener("resumed", function() {
           Services.tm.currentThread.dispatch({ run: function() {
-            closeDebuggerAndFinish(gTab);
+            closeDebuggerAndFinish();
           }}, 0);
         });
 

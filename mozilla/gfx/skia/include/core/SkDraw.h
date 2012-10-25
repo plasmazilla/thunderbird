@@ -77,7 +77,8 @@ public:
     */
     static bool DrawToMask(const SkPath& devPath, const SkIRect* clipBounds,
                            SkMaskFilter* filter, const SkMatrix* filterMatrix,
-                           SkMask* mask, SkMask::CreateMode mode);
+                           SkMask* mask, SkMask::CreateMode mode,
+                           SkPaint::Style style);
 
     enum RectType {
         kHair_RectType,
@@ -128,14 +129,15 @@ class SkGlyphCache;
 
 class SkTextToPathIter {
 public:
-    SkTextToPathIter(const char text[], size_t length, const SkPaint&,
-                     bool applyStrokeAndPathEffects, bool forceLinearTextOn);
+    SkTextToPathIter(const char text[], size_t length, const SkPaint& paint,
+                     bool applyStrokeAndPathEffects, bool useCanonicalTextSize = true);
     ~SkTextToPathIter();
 
     const SkPaint&  getPaint() const { return fPaint; }
     SkScalar        getPathScale() const { return fScale; }
 
     const SkPath*   next(SkScalar* xpos);   //!< returns nil when there are no more paths
+    bool            nextWithWhitespace(const SkPath** path, SkScalar* xpos);   //!< returns false when there are no more paths
 
 private:
     SkGlyphCache*   fCache;

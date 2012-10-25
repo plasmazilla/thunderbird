@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2007
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Alexander Surkov <surkov.alexander@gmail.com> (original author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsCoreUtils.h"
 
@@ -204,7 +171,7 @@ nsCoreUtils::GetAccessKeyFor(nsIContent *aContent)
   if (!aContent->HasAttr(kNameSpaceID_None, nsGkAtoms::accesskey))
     return 0;
 
-  nsCOMPtr<nsIPresShell> presShell = aContent->OwnerDoc()->GetShell();
+  nsIPresShell* presShell = aContent->OwnerDoc()->GetShell();
   if (!presShell)
     return 0;
 
@@ -291,37 +258,28 @@ nsCoreUtils::IsAncestorOf(nsINode *aPossibleAncestorNode,
 }
 
 nsresult
-nsCoreUtils::ScrollSubstringTo(nsIFrame *aFrame,
-                               nsIDOMNode *aStartNode, PRInt32 aStartIndex,
-                               nsIDOMNode *aEndNode, PRInt32 aEndIndex,
+nsCoreUtils::ScrollSubstringTo(nsIFrame* aFrame, nsRange* aRange,
                                PRUint32 aScrollType)
 {
   nsIPresShell::ScrollAxis vertical, horizontal;
   ConvertScrollTypeToPercents(aScrollType, &vertical, &horizontal);
 
-  return ScrollSubstringTo(aFrame, aStartNode, aStartIndex, aEndNode, aEndIndex,
-                           vertical, horizontal);
+  return ScrollSubstringTo(aFrame, aRange, vertical, horizontal);
 }
 
 nsresult
-nsCoreUtils::ScrollSubstringTo(nsIFrame *aFrame,
-                               nsIDOMNode *aStartNode, PRInt32 aStartIndex,
-                               nsIDOMNode *aEndNode, PRInt32 aEndIndex,
+nsCoreUtils::ScrollSubstringTo(nsIFrame* aFrame, nsRange* aRange,
                                nsIPresShell::ScrollAxis aVertical,
                                nsIPresShell::ScrollAxis aHorizontal)
 {
-  if (!aFrame || !aStartNode || !aEndNode)
+  if (!aFrame)
     return NS_ERROR_FAILURE;
 
   nsPresContext *presContext = aFrame->PresContext();
 
-  nsRefPtr<nsIDOMRange> scrollToRange = new nsRange();
   nsCOMPtr<nsISelectionController> selCon;
   aFrame->GetSelectionController(presContext, getter_AddRefs(selCon));
   NS_ENSURE_TRUE(selCon, NS_ERROR_FAILURE);
-
-  scrollToRange->SetStart(aStartNode, aStartIndex);
-  scrollToRange->SetEnd(aEndNode, aEndIndex);
 
   nsCOMPtr<nsISelection> selection;
   selCon->GetSelection(nsISelectionController::SELECTION_ACCESSIBILITY,
@@ -329,7 +287,7 @@ nsCoreUtils::ScrollSubstringTo(nsIFrame *aFrame,
 
   nsCOMPtr<nsISelectionPrivate> privSel(do_QueryInterface(selection));
   selection->RemoveAllRanges();
-  selection->AddRange(scrollToRange);
+  selection->AddRange(aRange);
 
   privSel->ScrollIntoViewInternal(
     nsISelectionController::SELECTION_ANCHOR_REGION,
@@ -755,7 +713,7 @@ nsAccessibleDOMStringList::Item(PRUint32 aIndex, nsAString& aResult)
 }
 
 NS_IMETHODIMP
-nsAccessibleDOMStringList::GetLength(PRUint32 *aLength)
+nsAccessibleDOMStringList::GetLength(PRUint32* aLength)
 {
   *aLength = mNames.Length();
 
@@ -763,7 +721,7 @@ nsAccessibleDOMStringList::GetLength(PRUint32 *aLength)
 }
 
 NS_IMETHODIMP
-nsAccessibleDOMStringList::Contains(const nsAString& aString, bool *aResult)
+nsAccessibleDOMStringList::Contains(const nsAString& aString, bool* aResult)
 {
   *aResult = mNames.Contains(aString);
 

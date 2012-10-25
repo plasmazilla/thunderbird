@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Steve Clark (buster@netscape.com)
- *   Ilya Konstantinov (mozilla-code@future.shiny.co.il)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "base/basictypes.h"
 
@@ -111,6 +77,7 @@ static const char* const sEventNames[] = {
   "MozRotateGesture",
   "MozTapGesture",
   "MozPressTapGesture",
+  "MozEdgeUIGesture",
   "MozTouchDown",
   "MozTouchMove",
   "MozTouchUp",
@@ -126,7 +93,10 @@ static const char* const sEventNames[] = {
   "animationend",
   "animationiteration",
   "devicemotion",
-  "deviceorientation"
+  "deviceorientation",
+  "deviceproximity",
+  "userproximity",
+  "devicelight"
 };
 
 static char *sPopupAllowedEvents;
@@ -206,7 +176,6 @@ NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsDOMEvent)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMEvent)
   NS_INTERFACE_MAP_ENTRY(nsIDOMEvent)
   NS_INTERFACE_MAP_ENTRY(nsIDOMNSEvent)
-  NS_INTERFACE_MAP_ENTRY(nsIPrivateDOMEvent)
   NS_INTERFACE_MAP_ENTRY(nsIJSNativeInitializer)
   NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(Event)
 NS_INTERFACE_MAP_END
@@ -427,7 +396,8 @@ nsDOMEvent::GetEventPhase(PRUint16* aEventPhase)
 {
   // Note, remember to check that this works also
   // if or when Bug 235441 is fixed.
-  if (mEvent->currentTarget == mEvent->target ||
+  if ((mEvent->currentTarget &&
+       mEvent->currentTarget == mEvent->target) ||
       ((mEvent->flags & NS_EVENT_FLAG_CAPTURE) &&
        (mEvent->flags & NS_EVENT_FLAG_BUBBLE))) {
     *aEventPhase = nsIDOMEvent::AT_TARGET;
@@ -436,7 +406,7 @@ nsDOMEvent::GetEventPhase(PRUint16* aEventPhase)
   } else if (mEvent->flags & NS_EVENT_FLAG_BUBBLE) {
     *aEventPhase = nsIDOMEvent::BUBBLING_PHASE;
   } else {
-    *aEventPhase = 0;
+    *aEventPhase = nsIDOMEvent::NONE;
   }
   return NS_OK;
 }
@@ -603,7 +573,8 @@ nsDOMEvent::InitEvent(const nsAString& aEventTypeArg, bool aCanBubbleArg, bool a
   return NS_OK;
 }
 
-NS_METHOD nsDOMEvent::DuplicatePrivateData()
+NS_IMETHODIMP
+nsDOMEvent::DuplicatePrivateData()
 {
   // FIXME! Simplify this method and make it somehow easily extendable,
   //        Bug 329127
@@ -679,6 +650,7 @@ NS_METHOD nsDOMEvent::DuplicatePrivateData()
       isInputEvent = true;
       keyEvent->keyCode = oldKeyEvent->keyCode;
       keyEvent->charCode = oldKeyEvent->charCode;
+      keyEvent->location = oldKeyEvent->location;
       keyEvent->isChar = oldKeyEvent->isChar;
       newEvent = keyEvent;
       break;
@@ -695,6 +667,7 @@ NS_METHOD nsDOMEvent::DuplicatePrivateData()
       mouseEvent->context = oldMouseEvent->context;
       mouseEvent->relatedTarget = oldMouseEvent->relatedTarget;
       mouseEvent->button = oldMouseEvent->button;
+      mouseEvent->buttons = oldMouseEvent->buttons;
       mouseEvent->pressure = oldMouseEvent->pressure;
       mouseEvent->inputSource = oldMouseEvent->inputSource;
       newEvent = mouseEvent;
@@ -712,6 +685,7 @@ NS_METHOD nsDOMEvent::DuplicatePrivateData()
       dragEvent->acceptActivation = oldDragEvent->acceptActivation;
       dragEvent->relatedTarget = oldDragEvent->relatedTarget;
       dragEvent->button = oldDragEvent->button;
+      dragEvent->buttons = oldDragEvent->buttons;
       static_cast<nsMouseEvent*>(dragEvent)->inputSource =
         static_cast<nsMouseEvent*>(oldDragEvent)->inputSource;
       newEvent = dragEvent;
@@ -753,6 +727,7 @@ NS_METHOD nsDOMEvent::DuplicatePrivateData()
       mouseScrollEvent->delta = oldMouseScrollEvent->delta;
       mouseScrollEvent->relatedTarget = oldMouseScrollEvent->relatedTarget;
       mouseScrollEvent->button = oldMouseScrollEvent->button;
+      mouseScrollEvent->buttons = oldMouseScrollEvent->buttons;
       static_cast<nsMouseEvent_base*>(mouseScrollEvent)->inputSource =
         static_cast<nsMouseEvent_base*>(oldMouseScrollEvent)->inputSource;
       newEvent = mouseScrollEvent;
@@ -865,6 +840,7 @@ NS_METHOD nsDOMEvent::DuplicatePrivateData()
       isInputEvent = true;
       simpleGestureEvent->direction = oldSimpleGestureEvent->direction;
       simpleGestureEvent->delta = oldSimpleGestureEvent->delta;
+      simpleGestureEvent->clickCount = oldSimpleGestureEvent->clickCount;
       newEvent = simpleGestureEvent;
       break;
     }
@@ -890,10 +866,14 @@ NS_METHOD nsDOMEvent::DuplicatePrivateData()
     }
     case NS_MOZTOUCH_EVENT:
     {
-      newEvent = new nsMozTouchEvent(false, msg, nsnull,
-                                     static_cast<nsMozTouchEvent*>(mEvent)->streamId);
-      NS_ENSURE_TRUE(newEvent, NS_ERROR_OUT_OF_MEMORY);
+      nsMozTouchEvent* oldMozTouchEvent = static_cast<nsMozTouchEvent*>(mEvent);
+      nsMozTouchEvent* mozTouchEvent =
+        new nsMozTouchEvent(false, msg, nsnull,
+                            static_cast<nsMozTouchEvent*>(mEvent)->streamId);
+      NS_ENSURE_TRUE(mozTouchEvent, NS_ERROR_OUT_OF_MEMORY);
       isInputEvent = true;
+      mozTouchEvent->buttons = oldMozTouchEvent->buttons;
+      newEvent = mozTouchEvent;
       break;
     }
     case NS_TOUCH_EVENT:
@@ -916,10 +896,7 @@ NS_METHOD nsDOMEvent::DuplicatePrivateData()
   if (isInputEvent) {
     nsInputEvent* oldInputEvent = static_cast<nsInputEvent*>(mEvent);
     nsInputEvent* newInputEvent = static_cast<nsInputEvent*>(newEvent);
-    newInputEvent->isShift = oldInputEvent->isShift;
-    newInputEvent->isControl = oldInputEvent->isControl;
-    newInputEvent->isAlt = oldInputEvent->isAlt;
-    newInputEvent->isMeta = oldInputEvent->isMeta;
+    newInputEvent->modifiers = oldInputEvent->modifiers;
   }
 
   newEvent->target                 = mEvent->target;
@@ -938,7 +915,8 @@ NS_METHOD nsDOMEvent::DuplicatePrivateData()
   return NS_OK;
 }
 
-NS_METHOD nsDOMEvent::SetTarget(nsIDOMEventTarget* aTarget)
+NS_IMETHODIMP
+nsDOMEvent::SetTarget(nsIDOMEventTarget* aTarget)
 {
 #ifdef DEBUG
   {
@@ -1527,6 +1505,8 @@ const char* nsDOMEvent::GetEventName(PRUint32 aEventType)
     return sEventNames[eDOMEvents_MozTapGesture];
   case NS_SIMPLE_GESTURE_PRESSTAP:
     return sEventNames[eDOMEvents_MozPressTapGesture];
+  case NS_SIMPLE_GESTURE_EDGEUI:
+    return sEventNames[eDOMEvents_MozEdgeUIGesture];
   case NS_MOZTOUCH_DOWN:
     return sEventNames[eDOMEvents_MozTouchDown];
   case NS_MOZTOUCH_MOVE:
@@ -1547,6 +1527,12 @@ const char* nsDOMEvent::GetEventName(PRUint32 aEventType)
     return sEventNames[eDOMEvents_devicemotion];
   case NS_DEVICE_ORIENTATION:
     return sEventNames[eDOMEvents_deviceorientation];
+  case NS_DEVICE_PROXIMITY:
+    return sEventNames[eDOMEvents_deviceproximity];
+  case NS_USER_PROXIMITY:
+    return sEventNames[eDOMEvents_userproximity];
+  case NS_DEVICE_LIGHT:
+    return sEventNames[eDOMEvents_devicelight];
   case NS_FULLSCREENCHANGE:
     return sEventNames[eDOMEvents_mozfullscreenchange];
   case NS_FULLSCREENERROR:
@@ -1576,7 +1562,7 @@ nsDOMEvent::GetDefaultPrevented(bool* aReturn)
   return GetPreventDefault(aReturn);
 }
 
-void
+NS_IMETHODIMP_(void)
 nsDOMEvent::Serialize(IPC::Message* aMsg, bool aSerializeInterfaceType)
 {
   if (aSerializeInterfaceType) {
@@ -1602,7 +1588,7 @@ nsDOMEvent::Serialize(IPC::Message* aMsg, bool aSerializeInterfaceType)
   // No timestamp serialization for now!
 }
 
-bool
+NS_IMETHODIMP_(bool)
 nsDOMEvent::Deserialize(const IPC::Message* aMsg, void** aIter)
 {
   nsString type;

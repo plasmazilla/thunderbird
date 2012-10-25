@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 40; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *  Vladimir Vukicevic <vladimir@pobox.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <windows.h>
 #include <winternl.h>
@@ -43,11 +11,7 @@
 
 #include <map>
 
-#ifdef XRE_WANT_DLL_BLOCKLIST
-#define XRE_SetupDllBlocklist SetupDllBlocklist
-#else
 #include "nsXULAppAPI.h"
-#endif
 
 #include "nsAutoPtr.h"
 #include "nsThreadUtils.h"
@@ -89,6 +53,11 @@ struct DllBlockInfo {
   // encoded as 0x AAAA BBBB CCCC DDDD ULL (spaces added for clarity),
   // but it's not required to be of that format.
   unsigned long long maxVersion;
+
+  enum {
+    FLAGS_DEFAULT = 0,
+    BLOCK_WIN8PLUS_ONLY = 1
+  } flags;
 };
 
 static DllBlockInfo sWindowsDllBlocklist[] = {
@@ -139,6 +108,11 @@ static DllBlockInfo sWindowsDllBlocklist[] = {
   // Topcrash with Roboform in Firefox 8 (bug 699134)
   {"rf-firefox.dll", MAKE_VERSION(7,6,1,0)},
   {"roboform.dll", MAKE_VERSION(7,6,1,0)},
+
+  // Topcrash with Babylon Toolbar on FF16+ (bug 721264)
+  {"babyfox.dll", ALL_VERSIONS},
+
+  {"sprotector.dll", ALL_VERSIONS, DllBlockInfo::BLOCK_WIN8PLUS_ONLY },
 
   // leave these two in always for tests
   { "mozdllblockingtest.dll", ALL_VERSIONS },
@@ -319,6 +293,16 @@ wchar_t* getFullPath (PWCHAR filePath, wchar_t* fname)
   return full_fname;
 }
 
+static bool
+IsWin8OrLater()
+{
+  OSVERSIONINFOW osInfo;
+  osInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFOW);
+  GetVersionExW(&osInfo);
+  return (osInfo.dwMajorVersion > 6) ||
+    (osInfo.dwMajorVersion >= 6 && osInfo.dwMinorVersion >= 2);
+}
+
 static NTSTATUS NTAPI
 patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileName, PHANDLE handle)
 {
@@ -405,6 +389,11 @@ patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileNam
 #ifdef DEBUG_very_verbose
     printf_stderr("LdrLoadDll: info->name: '%s'\n", info->name);
 #endif
+
+    if ((info->flags == DllBlockInfo::BLOCK_WIN8PLUS_ONLY) &&
+        !IsWin8OrLater()) {
+      goto continue_loading;
+    }
 
     if (info->maxVersion != ALL_VERSIONS) {
       ReentrancySentinel sentinel(dllName);

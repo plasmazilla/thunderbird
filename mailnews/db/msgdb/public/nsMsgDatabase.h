@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef _nsMsgDatabase_H_
 #define _nsMsgDatabase_H_
@@ -156,14 +124,14 @@ public:
    *                        The database is present (and was opened), but the
    *                        summary file is missing.
    */
-  virtual nsresult Open(nsILocalFile *aFolderName, bool aCreate,
+  virtual nsresult Open(nsIFile *aFolderName, bool aCreate,
                         bool aLeaveInvalidDB);
   virtual nsresult IsHeaderRead(nsIMsgDBHdr *hdr, bool *pRead);
   virtual nsresult MarkHdrReadInDB(nsIMsgDBHdr *msgHdr, bool bRead,
                                nsIDBChangeListener *instigator);
-  nsresult OpenInternal(nsILocalFile *aFolderName, bool aCreate,
+  nsresult OpenInternal(nsIFile *aFolderName, bool aCreate,
                         bool aLeaveInvalidDB, bool sync);
-  nsresult CheckForErrors(nsresult err, bool sync, nsILocalFile *summaryFile);
+  nsresult CheckForErrors(nsresult err, bool sync, nsIFile *summaryFile);
   virtual nsresult OpenMDB(const char *dbName, bool create, bool sync);
   virtual nsresult CloseMDB(bool commit);
   virtual nsresult CreateMsgHdr(nsIMdbRow* hdrRow, nsMsgKey key, nsIMsgDBHdr **result);
@@ -189,7 +157,7 @@ public:
   nsresult GetTableCreateIfMissing(const char *scope, const char *kind, nsIMdbTable **table, 
                                    mdb_token &scopeToken, mdb_token &kindToken);
 
-  static nsMsgDatabase* FindInCache(nsILocalFile *dbName);
+  static nsMsgDatabase* FindInCache(nsIFile *dbName);
   static nsIMsgDatabase* FindInCache(nsIMsgFolder *folder);
 
   //helper function to fill in nsStrings from hdr row cell contents.
@@ -268,7 +236,12 @@ protected:
 
   static nsTArray<nsMsgDatabase*>* m_dbCache;
   static nsTArray<nsMsgDatabase*>* GetDBCache();
-  
+
+  static PRTime gLastUseTime; // global last use time
+  PRTime m_lastUseTime;       // last use time for this db
+  // inline to make instrumentation as cheap as possible
+  inline void RememberLastUseTime() {gLastUseTime = m_lastUseTime = PR_Now();}
+
   static void    AddToCache(nsMsgDatabase* pMessageDB) 
   {
 #ifdef DEBUG_David_Bienvenu
@@ -282,7 +255,7 @@ protected:
     GetDBCache()->AppendElement(pMessageDB);
   }
   static void    RemoveFromCache(nsMsgDatabase* pMessageDB);
-  bool    MatchDbName(nsILocalFile *dbName);  // returns TRUE if they match
+  bool    MatchDbName(nsIFile *dbName);  // returns TRUE if they match
 
   // Flag handling routines
   virtual nsresult SetKeyFlag(nsMsgKey key, bool set, PRUint32 flag,
@@ -317,7 +290,7 @@ protected:
   virtual nsresult      InitExistingDB();
   virtual nsresult      InitNewDB();
   virtual nsresult      InitMDBInfo();
-  
+
   nsCOMPtr <nsIMsgFolder> m_folder;
   nsDBFolderInfo      *m_dbFolderInfo;
   nsMsgKey      m_nextPseudoMsgKey;
@@ -325,6 +298,7 @@ protected:
   nsIMdbStore   *m_mdbStore;
   nsIMdbTable   *m_mdbAllMsgHeadersTable;
   nsIMdbTable   *m_mdbAllThreadsTable;
+
   // Used for asynchronous db opens. If non-null, we're still opening
   // the underlying mork database. If null, the db has been completely opened.
   nsCOMPtr<nsIMdbThumb> m_thumb;

@@ -10,86 +10,136 @@ srcdir    = @srcdir@
 VPATH     = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
+
+USE_AUTOTARGETS_MK  = 1
+MAKEUTILS_UNIT_TEST = 1
 include $(topsrcdir)/config/makefiles/makeutils.mk
+
+dir-ts = .deps/test
+check-arglist        = $(dir-ts)/arglist.ts
+check-autotargets    = $(dir-ts)/autotargets_mk.ts
+check-export-targets = $(dir-ts)/export-targets-mk.ts
+check-XinY           = $(dir-ts)/check_XinY_mk.ts
+check-xpidl          = $(dir-ts)/xpidl-mk.ts
+check-tests =\
+  $(check-arglist) \
+  $(check-autotargets) \
+  $(check-export-targets) \
+  $(check-XinY) \
+  $(check-xpidl) \
+  $(NULL)
+
 
 ##------------------_##
 ##---]  TARGETS  [---##
 ##------------------_##
 all::
 
+clean:
+	$(RM) $(check-tests)
+	@$(MAKE) --no-print-directory -f $(srcdir)/check-xpidl.mk clean-xpidl topsrcdir=$(topsrcdir)
+
 ###########################################################################
-## This test target should really depend on a timestamp to only perform
-## work when makeutils.mk is modified.  That answer would require using a
-## 2nd makefile imposing more shell overhead.  Separate makefiles would be
-## very handy for testing when pwd==$src/ but for now avoid the overhead.
-##
-## Test logic will be interpreted at compile time, 'fast' and 'required' so
-## the test will always be run when testing is enabled.
-###########################################################################
-check::
+## Logic processed at compile time so be selective about when to test
+## $(MAKE) check VERBOSE=1
+ifneq ($(NULL),$(findstring check,$(MAKECMDGOALS))) #
+
+check-preqs =\
+  $(call mkdir_deps,$(dir-ts)) \
+  $(check-tests) \
+  $(NULL)
+
+check:: $(check-preqs)
 	@true
 
-## Logic processed at compile time so be selective about when to test
-ifneq ($(NULL),$(findstring check,$(MAKECMDGOALS)))
 
-$(info ===========================================================================)
-$(info Running test: $(MAKECMDGOALS): pwd=$(CURDIR))
-$(info ===========================================================================)
+ifdef VERBOSE #{ gmake check VERBOSE=1
+  $(info ===========================================================================)
+  $(info Running test: $(MAKECMDGOALS): pwd=$(CURDIR))
+  $(info ===========================================================================)
+endif #}
 
-## Silent errors are oh so much fun
-ifndef istype
-  $(error makeutils.mk was not included)
-endif
-
-# arg_scalar = [scalar|literal]
-arg_list = foo bar
-arg_ref  = arg_list
-
-## Identify type of function argument(s)
-########################################
-ifneq (scalar,$(call istype,arg_scalar))
-  $(error istype(arg_scalar)=scalar, found [$(call istype,arg_scalar)])
-endif
-ifneq (list,$(call istype,arg_list))
-  $(error istype(arg_list)=list, found [$(call istype,arg_list)])
-endif
-ifneq (list,$(call istype,arg_ref))
-  $(error istype(arg_ref)=list, found [$(call istype,arg_ref)])
+ifndef requiredfunction
+  $(error requiredfunction is not defined)
 endif
 
-## Type == scalar or a list of values
-#####################################
-ifneq (true,$(call isval,scalar))
-  $(error isval(scalar)=true, found [$(call isval,scalar)])
-endif
-ifneq ($(NULL),$(call isval,arg_list))
-  $(error isval(arg_list)=null, found [$(call isval,arg_list)])
-endif
 
-## type == reference: macro=>macro => $($(1))
-#############################################
-ifneq ($(NULL),$(call isvar,scalar))
-  $(error isvar(scalar)=$(NULL), found [$(call isvar,scalar)])
-endif
-ifneq (true,$(call isvar,arg_list))
-  $(error isvar(arg_list)=true, found [$(call isvar,arg_list)])
-endif
-ifneq (true,$(call isvar,arg_ref))
-  $(error isvar(arg_ref)=true, found [$(call isvar,arg_ref)])
-endif
+##################
+check-XinY-preqs=\
+  $(call mkdir_deps,$(dir-ts)) \
+  $(topsrcdir)/config/makefiles/makeutils.mk \
+  $(srcdir)/check_XinY.mk \
+  $(eval include $(srcdir)/check_XinY.mk) \
+  $(NULL)
 
-# Verify getargv expansion
-##########################
-ifneq (scalar,$(call getargv,scalar))
-  $(error getargv(scalar)=scalar, found [$(call getargv,scalar)])
-endif
-ifneq ($(arg_list),$(call getargv,arg_list))
-  $(error getargv(arg_list)=list, found [$(call getargv,arg_list)])
-endif
-ifneq (arg_list,$(call getargv,arg_ref))
-  $(error getargv(arg_ref)=list, found [$(call getargv,arg_ref)])
-endif
-
-endif # check in MAKECMDGOALS
+$(check-XinY): $(check-XinY-preqs)
+	@$(TOUCH) $@
+# </check-XinY.mk>
 
 
+###########################################################################
+## check-arglist.mk always invoked as a compile time test
+## maintain real file dependencies for use later on.
+check-arglist-preqs=\
+  $(call mkdir_deps,$(dir-ts)) \
+  $(topsrcdir)/config/makefiles/makeutils.mk \
+  $(srcdir)/check-arglist.mk \
+  $(eval include $(srcdir)/check-arglist.mk) \
+  $(NULL)
+
+$(check-arglist): $(check-arglist-preqs)
+	@$(TOUCH) $@
+# </check-arglist.mk>
+
+
+###########################################################################
+# <CHECK: autotargets.mk>
+check-autotargets-preqs=\
+  $(call mkdir_deps,$(dir-ts)) \
+  $(topsrcdir)/config/makefiles/makeutils.mk \
+  $(topsrcdir)/config/makefiles/autotargets.mk \
+  $(srcdir)/check-autotargets.mk \
+  $(eval include $(srcdir)/check-autotargets.mk) \
+  $(NULL)
+
+$(check-autotargets): $(check-autotargets-preqs)
+	@$(TOUCH) $@
+# </CHECK: autotargets.mk>
+
+
+###########################################################################
+# <CHECK: export-targets.mk>
+check-export-targets-preqs=\
+  $(call mkdir_deps,$(dir-ts)) \
+  $(topsrcdir)/config/makefiles/makeutils.mk \
+  $(topsrcdir)/config/makefiles/target_export.mk \
+  $(srcdir)/check-export-targets.mk \
+  checkup \
+  $(NULL)
+
+# include then test
+checkup: $(eval include $(srcdir)/check-export-targets.mk)
+
+$(check-export-targets): $(check-export-targets-preqs)
+	@$(TOUCH) $@
+# </CHECK: export-targets.mk>
+
+###########################################################################
+##{ <CHECK: xpidl.mk>
+check-xpidl-preqs=\
+  $(call mkdir_deps,$(dir-ts)) \
+  $(topsrcdir)/config/makefiles/makeutils.mk \
+  $(topsrcdir)/config/makefiles/xpidl.mk \
+  $(srcdir)/check-xpidl.mk \
+  $(NULL)
+
+check-xpidl-args =\
+  "topsrcdir=$(topsrcdir)" \
+  "srcdir=$(srcdir)" \
+  $(NULL)
+$(check-xpidl): $(check-xpidl-preqs)
+	$(MAKE) -f $(srcdir)/check-xpidl.mk check-xpidl $(check-xpidl-args)
+	@$(TOUCH) $@
+#} </check-xpidl.mk>
+
+endif #} findstring MAKECMDGOAL

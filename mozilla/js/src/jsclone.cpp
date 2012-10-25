@@ -1,40 +1,9 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is JavaScript structured data serialization.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Jason Orendorff <jorendorff@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#include "mozilla/FloatingPoint.h"
 
 #include "jsclone.h"
 #include "jsdate.h"
@@ -72,6 +41,10 @@ ReadStructuredClone(JSContext *cx, const uint64_t *data, size_t nbytes, Value *v
                     const JSStructuredCloneCallbacks *cb, void *cbClosure)
 {
     SCInput in(cx, data, nbytes);
+
+    /* XXX disallow callers from using internal pointers to GC things. */
+    SkipRoot skip(cx, &in);
+
     JSStructuredCloneReader r(in, cb, cbClosure);
     return r.read(vp);
 }
@@ -428,30 +401,40 @@ JS_PUBLIC_API(JSBool)
 JS_WriteTypedArray(JSStructuredCloneWriter *w, jsval v)
 {
     JS_ASSERT(v.isObject());
-    return w->writeTypedArray(&v.toObject());
+    JSObject *obj = &v.toObject();
+
+    // If the object is a security wrapper, try puncturing it. This may throw
+    // if the access is not allowed.
+    if (obj->isWrapper()) {
+        JSObject *unwrapped = UnwrapObjectChecked(w->context(), obj);
+        if (!unwrapped)
+            return false;
+        obj = unwrapped;
+    }
+
+    return w->writeTypedArray(obj);
 }
 
 bool
-JSStructuredCloneWriter::writeTypedArray(JSObject *obj)
+JSStructuredCloneWriter::writeTypedArray(JSObject *arr)
 {
-    JSObject *arr = TypedArray::getTypedArray(obj);
-    if (!out.writePair(ArrayTypeToTag(TypedArray::getType(arr)), TypedArray::getLength(arr)))
+    if (!out.writePair(ArrayTypeToTag(TypedArray::type(arr)), TypedArray::length(arr)))
         return false;
 
-    switch (TypedArray::getType(arr)) {
+    switch (TypedArray::type(arr)) {
     case TypedArray::TYPE_INT8:
     case TypedArray::TYPE_UINT8:
     case TypedArray::TYPE_UINT8_CLAMPED:
-        return out.writeArray((const uint8_t *) TypedArray::getDataOffset(arr), TypedArray::getLength(arr));
+        return out.writeArray((const uint8_t *) TypedArray::viewData(arr), TypedArray::length(arr));
     case TypedArray::TYPE_INT16:
     case TypedArray::TYPE_UINT16:
-        return out.writeArray((const uint16_t *) TypedArray::getDataOffset(arr), TypedArray::getLength(arr));
+        return out.writeArray((const uint16_t *) TypedArray::viewData(arr), TypedArray::length(arr));
     case TypedArray::TYPE_INT32:
     case TypedArray::TYPE_UINT32:
     case TypedArray::TYPE_FLOAT32:
-        return out.writeArray((const uint32_t *) TypedArray::getDataOffset(arr), TypedArray::getLength(arr));
+        return out.writeArray((const uint32_t *) TypedArray::viewData(arr), TypedArray::length(arr));
     case TypedArray::TYPE_FLOAT64:
-        return out.writeArray((const uint64_t *) TypedArray::getDataOffset(arr), TypedArray::getLength(arr));
+        return out.writeArray((const uint64_t *) TypedArray::viewData(arr), TypedArray::length(arr));
     default:
         JS_NOT_REACHED("unknown TypedArray type");
         return false;
@@ -461,9 +444,9 @@ JSStructuredCloneWriter::writeTypedArray(JSObject *obj)
 bool
 JSStructuredCloneWriter::writeArrayBuffer(JSObject *obj)
 {
-    obj = ArrayBuffer::getArrayBuffer(obj);
-    return out.writePair(SCTAG_ARRAY_BUFFER_OBJECT, obj->arrayBufferByteLength()) &&
-           out.writeBytes(obj->arrayBufferDataOffset(), obj->arrayBufferByteLength());
+    ArrayBufferObject &buffer = obj->asArrayBuffer();
+    return out.writePair(SCTAG_ARRAY_BUFFER_OBJECT, buffer.byteLength()) &&
+           out.writeBytes(buffer.dataPointer(), buffer.byteLength());
 }
 
 bool
@@ -504,37 +487,6 @@ JSStructuredCloneWriter::startObject(JSObject *obj)
     return out.writePair(obj->isArray() ? SCTAG_ARRAY_OBJECT : SCTAG_OBJECT_OBJECT, 0);
 }
 
-class AutoEnterCompartmentAndPushPrincipal : public JSAutoEnterCompartment
-{
-  public:
-    bool enter(JSContext *cx, JSObject *target) {
-        // First, enter the compartment.
-        if (!JSAutoEnterCompartment::enter(cx, target))
-            return false;
-
-        // We only need to push a principal if we changed compartments.
-        if (state != STATE_OTHER_COMPARTMENT)
-            return true;
-
-        // Push.
-        const JSSecurityCallbacks *cb = cx->runtime->securityCallbacks;
-        if (cb->pushContextPrincipal)
-          return cb->pushContextPrincipal(cx, target->principals(cx));
-        return true;
-    };
-
-    ~AutoEnterCompartmentAndPushPrincipal() {
-        // Pop the principal if necessary.
-        if (state == STATE_OTHER_COMPARTMENT) {
-            AutoCompartment *ac = getAutoCompartment();
-            const JSSecurityCallbacks *cb = ac->context->runtime->securityCallbacks;
-            if (cb->popContextPrincipal)
-              cb->popContextPrincipal(ac->context);
-        }
-    };
-};
-
-
 bool
 JSStructuredCloneWriter::startWrite(const Value &v)
 {
@@ -561,7 +513,7 @@ JSStructuredCloneWriter::startWrite(const Value &v)
 
         // If we unwrapped above, we'll need to enter the underlying compartment.
         // Let the AutoEnterCompartment do the right thing for us.
-        AutoEnterCompartmentAndPushPrincipal ac;
+        JSAutoEnterCompartment ac;
         if (!ac.enter(context(), obj))
             return false;
 
@@ -576,7 +528,7 @@ JSStructuredCloneWriter::startWrite(const Value &v)
             return startObject(obj);
         } else if (obj->isTypedArray()) {
             return writeTypedArray(obj);
-        } else if (obj->isArrayBuffer()) {
+        } else if (obj->isArrayBuffer() && obj->asArrayBuffer().hasData()) {
             return writeArrayBuffer(obj);
         } else if (obj->isBoolean()) {
             return out.writePair(SCTAG_BOOLEAN_OBJECT, obj->asBoolean().unbox());
@@ -603,16 +555,16 @@ JSStructuredCloneWriter::write(const Value &v)
         return false;
 
     while (!counts.empty()) {
-        RootedVarObject obj(context(), &objs.back().toObject());
+        RootedObject obj(context(), &objs.back().toObject());
 
         // The objects in |obj| can live in other compartments.
-        AutoEnterCompartmentAndPushPrincipal ac;
+        JSAutoEnterCompartment ac;
         if (!ac.enter(context(), obj))
             return false;
 
         if (counts.back()) {
             counts.back()--;
-            RootedVarId id(context(), ids.back());
+            RootedId id(context(), ids.back());
             ids.popBack();
             checkStack();
             if (JSID_IS_STRING(id) || JSID_IS_INT(id)) {
@@ -621,8 +573,8 @@ JSStructuredCloneWriter::write(const Value &v)
                  * The cost of re-checking could be avoided by using
                  * NativeIterators.
                  */
-                JSObject *obj2;
-                JSProperty *prop;
+                RootedObject obj2(context());
+                RootedShape prop(context());
                 if (!js_HasOwnProperty(context(), obj->getOps()->lookupGeneric, obj, id,
                                        &obj2, &prop)) {
                     return false;
@@ -751,27 +703,26 @@ JSStructuredCloneReader::readTypedArray(uint32_t tag, uint32_t nelems, Value *vp
         return false;
     vp->setObject(*obj);
 
-    JSObject *arr = TypedArray::getTypedArray(obj);
-    JS_ASSERT(TypedArray::getLength(arr) == nelems);
+    JS_ASSERT(TypedArray::length(obj) == nelems);
     switch (tag) {
       case SCTAG_TYPED_ARRAY_INT8:
-        return in.readArray((uint8_t *) JS_GetInt8ArrayData(arr, context()), nelems);
+        return in.readArray((uint8_t*) JS_GetInt8ArrayData(obj, context()), nelems);
       case SCTAG_TYPED_ARRAY_UINT8:
-        return in.readArray((uint8_t *) JS_GetUint8ArrayData(arr, context()), nelems);
+        return in.readArray(JS_GetUint8ArrayData(obj, context()), nelems);
       case SCTAG_TYPED_ARRAY_INT16:
-        return in.readArray((uint16_t *) JS_GetInt16ArrayData(arr, context()), nelems);
+        return in.readArray((uint16_t*) JS_GetInt16ArrayData(obj, context()), nelems);
       case SCTAG_TYPED_ARRAY_UINT16:
-        return in.readArray((uint16_t *) JS_GetUint16ArrayData(arr, context()), nelems);
+        return in.readArray(JS_GetUint16ArrayData(obj, context()), nelems);
       case SCTAG_TYPED_ARRAY_INT32:
-        return in.readArray((uint32_t *) JS_GetInt32ArrayData(arr, context()), nelems);
+        return in.readArray((uint32_t*) JS_GetInt32ArrayData(obj, context()), nelems);
       case SCTAG_TYPED_ARRAY_UINT32:
-        return in.readArray((uint32_t *) JS_GetUint32ArrayData(arr, context()), nelems);
+        return in.readArray(JS_GetUint32ArrayData(obj, context()), nelems);
       case SCTAG_TYPED_ARRAY_FLOAT32:
-        return in.readArray((uint32_t *) JS_GetFloat32ArrayData(arr, context()), nelems);
+        return in.readArray((uint32_t*) JS_GetFloat32ArrayData(obj, context()), nelems);
       case SCTAG_TYPED_ARRAY_FLOAT64:
-        return in.readArray((uint64_t *) JS_GetFloat64ArrayData(arr, context()), nelems);
+        return in.readArray((uint64_t*) JS_GetFloat64ArrayData(obj, context()), nelems);
       case SCTAG_TYPED_ARRAY_UINT8_CLAMPED:
-        return in.readArray((uint8_t *) JS_GetUint8ClampedArrayData(arr, context()), nelems);
+        return in.readArray(JS_GetUint8ClampedArrayData(obj, context()), nelems);
       default:
         JS_NOT_REACHED("unknown TypedArray type");
         return false;
@@ -781,12 +732,13 @@ JSStructuredCloneReader::readTypedArray(uint32_t tag, uint32_t nelems, Value *vp
 bool
 JSStructuredCloneReader::readArrayBuffer(uint32_t nbytes, Value *vp)
 {
-    JSObject *obj = ArrayBuffer::create(context(), nbytes);
+    JSObject *obj = ArrayBufferObject::create(context(), nbytes);
     if (!obj)
         return false;
     vp->setObject(*obj);
-    JS_ASSERT(obj->arrayBufferByteLength() == nbytes);
-    return in.readArray(obj->arrayBufferDataOffset(), nbytes);
+    ArrayBufferObject &buffer = obj->asArrayBuffer();
+    JS_ASSERT(buffer.byteLength() == nbytes);
+    return in.readArray(buffer.dataPointer(), nbytes);
 }
 
 bool
@@ -837,7 +789,7 @@ JSStructuredCloneReader::startRead(Value *vp)
         double d;
         if (!in.readDouble(&d) || !checkDouble(d))
             return false;
-        if (d == d && d != TIMECLIP(d)) {
+        if (!MOZ_DOUBLE_IS_NaN(d) && d != TimeClip(d)) {
             JS_ReportErrorNumber(context(), js_GetErrorMessage, NULL, JSMSG_SC_BAD_SERIALIZED_DATA,
                                  "date");
             return false;
@@ -943,7 +895,7 @@ JSStructuredCloneReader::readId(jsid *idp)
         JSAtom *atom = js_AtomizeString(context(), str);
         if (!atom)
             return false;
-        *idp = ATOM_TO_JSID(atom);
+        *idp = NON_INTEGER_ATOM_TO_JSID(atom);
         return true;
     }
     if (tag == SCTAG_NULL) {
@@ -961,10 +913,10 @@ JSStructuredCloneReader::read(Value *vp)
         return false;
 
     while (objs.length() != 0) {
-        JSObject *obj = &objs.back().toObject();
+        RootedObject obj(context(), &objs.back().toObject());
 
-        jsid id;
-        if (!readId(&id))
+        RootedId id(context());
+        if (!readId(id.address()))
             return false;
 
         if (JSID_IS_VOID(id)) {

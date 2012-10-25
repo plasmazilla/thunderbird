@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  * vim: sw=4 ts=4 et :
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Plugin App.
- *
- * The Initial Developer of the Original Code is
- *   Chris Jones <jones.chris.g@gmail.com>
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Jim Mathies <jmathies@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #if defined(MOZ_WIDGET_QT) && (MOZ_PLATFORM_MAEMO == 6)
 #include <QEvent>
@@ -77,9 +44,12 @@ using mozilla::ipc::ProcessChild;
 using namespace mozilla::plugins;
 using namespace std;
 
-#ifdef MOZ_WIDGET_GTK2
+#ifdef MOZ_WIDGET_GTK
 
 #include <gtk/gtk.h>
+#if (MOZ_WIDGET_GTK == 3)
+#include <gtk/gtkx.h>
+#endif
 #include <gdk/gdkx.h>
 #include <gdk/gdk.h>
 #include "gtk2xtbin.h"
@@ -263,7 +233,7 @@ PluginInstanceChild::InternalGetNPObjectForValue(NPNVariable aValue,
 #ifdef DEBUG
     {
         NPError currentResult;
-        PPluginScriptableObjectChild* currentActor;
+        PPluginScriptableObjectChild* currentActor = nsnull;
 
         switch (aValue) {
             case NPNVWindowNPObject:
@@ -429,6 +399,15 @@ PluginInstanceChild::NPN_GetValue(NPNVariable aVar,
         return NPERR_NO_ERROR;
     }
 
+#ifdef XP_WIN
+    case NPNVsupportsAsyncWindowsDXGISurfaceBool: {
+        bool val;
+        CallNPN_GetValue_DrawingModelSupport(NPNVsupportsAsyncWindowsDXGISurfaceBool, &val);
+        *((NPBool*)aValue) = val;
+        return NPERR_NO_ERROR;
+    }
+#endif
+
 #ifdef XP_MACOSX
    case NPNVsupportsCoreGraphicsBool: {
         *((NPBool*)aValue) = true;
@@ -548,7 +527,7 @@ PluginInstanceChild::NPN_SetValue(NPPVariable aVar, void* aValue)
         if (!CallNPN_SetValue_NPPVpluginDrawingModel(drawingModel, &optionalShmem, &handle, &rv))
             return NPERR_GENERIC_ERROR;
 
-        if (drawingModel == NPDrawingModelAsyncBitmapSurface) {
+        if (IsDrawingModelAsync(drawingModel)) {
             if (optionalShmem.type() != OptionalShmem::TShmem) {
                 return NPERR_GENERIC_ERROR;
             }
@@ -2425,6 +2404,26 @@ PluginInstanceChild::NPN_InitAsyncSurface(NPSize *size, NPImageFormat format,
 
             return NPERR_NO_ERROR;
         }
+#ifdef XP_WIN
+    case NPDrawingModelAsyncWindowsDXGISurface: {
+            if (size->width < 0 || size->height < 0) {
+                return NPERR_INVALID_PARAM;
+            }
+            bool result;
+            NPRemoteAsyncSurface remote;
+
+            if (!CallNPN_InitAsyncSurface(gfxIntSize(size->width, size->height), format, &remote, &result) || !result) {
+                return NPERR_OUT_OF_MEMORY_ERROR;
+            }
+
+            surface->format = remote.format();
+            surface->size.width = remote.size().width;
+            surface->size.height = remote.size().height;
+            surface->sharedHandle = remote.data().get_DXGISharedSurfaceHandle();
+
+            return NPERR_NO_ERROR;
+        }
+#endif
     }
 
     return NPERR_GENERIC_ERROR;
@@ -2459,6 +2458,23 @@ PluginInstanceChild::NPN_FinalizeAsyncSurface(NPAsyncSurface *surface)
 
             return DeallocateAsyncBitmapSurface(surface);
         }
+#ifdef XP_WIN
+    case NPDrawingModelAsyncWindowsDXGISurface: {
+            
+            {
+                CrossProcessMutexAutoLock autoLock(*mRemoteImageDataMutex);
+                RemoteImageData *data = mRemoteImageData;
+                if (data->mTextureHandle == surface->sharedHandle) {
+                    data->mTextureHandle = NULL;
+                    data->mSize = gfxIntSize(0, 0);
+                    data->mWasUpdated = true;
+                }
+            }
+
+            SendReleaseDXGISharedSurface(surface->sharedHandle);
+            return NPERR_NO_ERROR;
+        }
+#endif
     }
 
     return NPERR_GENERIC_ERROR;
@@ -2497,6 +2513,22 @@ PluginInstanceChild::NPN_SetCurrentAsyncSurface(NPAsyncSurface *surface, NPRect 
                 data->mWasUpdated = true;
                 break;
             }
+#ifdef XP_WIN
+        case NPDrawingModelAsyncWindowsDXGISurface:
+            {
+                AsyncBitmapData *bitmapData;
+              
+                CrossProcessMutexAutoLock autoLock(*mRemoteImageDataMutex);
+                data->mType = RemoteImageData::DXGI_TEXTURE_HANDLE;
+                data->mSize = gfxIntSize(surface->size.width, surface->size.height);
+                data->mFormat = surface->format == NPImageFormatBGRX32 ?
+                                RemoteImageData::BGRX32 : RemoteImageData::BGRA32;
+                data->mTextureHandle = surface->sharedHandle;
+
+                data->mWasUpdated = true;
+                break;
+            }
+#endif
         }
     }
 
@@ -2558,13 +2590,13 @@ PluginInstanceChild::AnswerHandleKeyEvent(const nsKeyEvent& aKeyEvent,
     AssertPluginThread();
 #if defined(MOZ_WIDGET_QT) && (MOZ_PLATFORM_MAEMO == 6)
     Qt::KeyboardModifiers modifier;
-    if (aKeyEvent.isShift)
+    if (aKeyEvent.IsShift())
         modifier |= Qt::ShiftModifier;
-    if (aKeyEvent.isControl)
+    if (aKeyEvent.IsControl())
         modifier |= Qt::ControlModifier;
-    if (aKeyEvent.isAlt)
+    if (aKeyEvent.IsAlt())
         modifier |= Qt::AltModifier;
-    if (aKeyEvent.isMeta)
+    if (aKeyEvent.IsMeta())
         modifier |= Qt::MetaModifier;
 
     QEvent::Type type;

@@ -1,73 +1,11 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Mobile Browser.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2008
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Matt Brubeck <mbrubeck@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #filter substitution
 
 pref("toolkit.defaultChromeURI", "chrome://browser/content/shell.xul");
 pref("browser.chromeURL", "chrome://browser/content/");
-#ifdef MOZ_OFFICIAL_BRANDING
-pref("browser.homescreenURL", "http://homescreen.gaiamobile.org/");
-#else
-pref("browser.homescreenURL", "http://homescreen.gaiamobile.org/");
-#endif
-
-// All the privileged domains
-// XXX TODO : we should read them from a file somewhere
-pref("b2g.privileged.domains", "http://browser.gaiamobile.org,
-	                            http://calculator.gaiamobile.org,
-	                            http://contacts.gaiamobile.org,
-	                            http://camera.gaiamobile.org,
-	                            http://clock.gaiamobile.org,
-	                            http://crystalskull.gaiamobile.org,
-	                            http://cubevid.gaiamobile.org,
-	                            http://dialer.gaiamobile.org,
-	                            http://gallery.gaiamobile.org,
-	                            http://homescreen.gaiamobile.org,
-	                            http://maps.gaiamobile.org,
-	                            http://market.gaiamobile.org,
-	                            http://music.gaiamobile.org,
-	                            http://penguinpop.gaiamobile.org,
-	                            http://settings.gaiamobile.org,
-	                            http://sms.gaiamobile.org,
-	                            http://towerjelly.gaiamobile.org,
-	                            http://video.gaiamobile.org");
-
-// URL for the dialer application.
-pref("dom.telephony.app.phone.url", "http://dialer.gaiamobile.org,http://homescreen.gaiamobile.org");
 
 // Device pixel to CSS px ratio, in percent. Set to -1 to calculate based on display density.
 pref("browser.viewport.scaleRatio", -1);
@@ -308,6 +246,7 @@ pref("ui.dragThresholdY", 25);
 // Layers Acceleration
 pref("layers.acceleration.disabled", false);
 pref("layers.offmainthreadcomposition.enabled", false);
+pref("layers.async-video.enabled", true);
 
 // Web Notifications
 pref("notification.feature.enabled", true);
@@ -319,6 +258,7 @@ pref("dom.indexedDB.warningQuota", 5);
 // prevent video elements from preloading too much data
 pref("media.preload.default", 1); // default to preload none
 pref("media.preload.auto", 2);    // preload metadata if preload=auto
+pref("media.cache_size", 4096);    // 4MB media cache
 
 //  0: don't show fullscreen keyboard
 //  1: always show fullscreen keyboard
@@ -425,26 +365,25 @@ pref("browser.link.open_newwindow", 3);
 // 2: don't divert window.open with features
 pref("browser.link.open_newwindow.restriction", 0);
 
-// Enable browser frame
+// Enable browser frames (including OOP, except on Windows, where it doesn't
+// work), but make in-process browser frames the default.
 pref("dom.mozBrowserFramesEnabled", true);
-pref("dom.mozBrowserFramesWhitelist", "http://homescreen.gaiamobile.org,http://browser.gaiamobile.org");
+
+pref("dom.ipc.tabs.disabled", false);
+
+pref("dom.ipc.browser_frames.oop_by_default", false);
 
 // Temporary permission hack for WebSMS
 pref("dom.sms.enabled", true);
-pref("dom.sms.whitelist", "file://,http://homescreen.gaiamobile.org,http://sms.gaiamobile.org");
-
-// Temporary permission hack for WebMobileConnection
-pref("dom.mobileconnection.whitelist", "http://homescreen.gaiamobile.org");
 
 // Temporary permission hack for WebContacts
 pref("dom.mozContacts.enabled", true);
-pref("dom.mozContacts.whitelist", "http://dialer.gaiamobile.org,http://sms.gaiamobile.org");
+
+// WebAlarms
+pref("dom.mozAlarms.enabled", true);
 
 // WebSettings
 pref("dom.mozSettings.enabled", true);
-
-// Ignore X-Frame-Options headers.
-pref("b2g.ignoreXFrameOptions", true);
 
 // controls if we want camera support
 pref("device.camera.enabled", true);
@@ -465,24 +404,23 @@ pref("b2g.remote-js.port", 9999);
 
 // Handle hardware buttons in the b2g chrome package
 pref("b2g.keys.menu.enabled", true);
-pref("b2g.keys.search.enabled", false);
 
-// Screen timeout in minutes
+// Screen timeout in seconds
 pref("power.screen.timeout", 60);
-pref("dom.power.whitelist", "http://homescreen.gaiamobile.org,http://settings.gaiamobile.org");
 
 pref("full-screen-api.enabled", true);
 
-pref("media.volume.steps", 10);
+#ifndef MOZ_WIDGET_GONK
+// If we're not actually on physical hardware, don't make the top level widget
+// fullscreen when transitioning to fullscreen. This means in emulated
+// environments (like the b2g desktop client) we won't make the client window
+// fill the whole screen, we'll just make the content fill the client window,
+// i.e. it won't give the impression to content that the number of device
+// screen pixels changes!
+pref("full-screen-api.ignore-widgets", true);
+#endif
 
-// Data connection settings. These will eventually live in the
-// navigator.settings API, or even in a database where we can look
-// it up automatically (bug 729440), but for this will have to do.
-pref("ril.data.enabled", false);
-pref("ril.data.roaming.enabled", false);
-pref("ril.data.apn", "");
-pref("ril.data.user", "");
-pref("ril.data.passwd", "");
+pref("media.volume.steps", 10);
 
 //Enable/disable marionette server, set listening port
 pref("marionette.defaultPrefs.enabled", true);
@@ -511,3 +449,31 @@ pref("app.update.download.backgroundInterval", 0);
 // field.
 pref("app.update.log", true);
 #endif
+
+// Extensions preferences
+pref("extensions.update.enabled", false);
+pref("extensions.getAddons.cache.enabled", false);
+
+// Context Menu
+pref("ui.click_hold_context_menus", true);
+pref("ui.click_hold_context_menus.delay", 1000);
+
+// Enable device storage
+pref("device.storage.enabled", true);
+
+pref("media.plugins.enabled", true);
+
+// Disable printing (particularly, window.print())
+pref("dom.disable_window_print", true);
+
+// Disable window.showModalDialog
+pref("dom.disable_window_showModalDialog", true);
+
+// Turns on gralloc-based direct texturing for Gonk
+pref("gfx.gralloc.enabled", false);
+
+// XXXX REMOVE FOR PRODUCTION. Turns on GC and CC logging 
+pref("javascript.options.mem.log", true);
+
+// Increase mark slice time from 10ms to 30ms
+pref("javascript.options.mem.gc_incremental_slice_ms", 30);

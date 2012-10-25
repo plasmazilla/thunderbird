@@ -13,7 +13,7 @@ function test() {
     gTab = aTab;
     gDebuggee = aDebuggee;
     gPane = aPane;
-    gDebugger = gPane.debuggerWindow;
+    gDebugger = gPane.contentWindow;
 
     testSimpleCall();
   });
@@ -23,8 +23,11 @@ function testSimpleCall() {
   gDebugger.DebuggerController.activeThread.addOneTimeListener("framesadded", function() {
     Services.tm.currentThread.dispatch({ run: function() {
 
-      let globalScope = gDebugger.DebuggerView.Properties.globalScope;
-      let localScope = gDebugger.DebuggerView.Properties.localScope;
+      let globalScope = gDebugger.DebuggerView.Properties.addScope("Global");
+      let localScope = gDebugger.DebuggerView.Properties.addScope("Local");
+      globalScope.empty();
+      localScope.empty();
+
       let windowVar = globalScope.addVar("window");
       let documentVar = globalScope.addVar("document");
       let localVar0 = localScope.addVar("localVariable");
@@ -79,10 +82,18 @@ function testSimpleCall() {
       ok(localVar5, "The localVar5 hasn't been created correctly.");
 
 
+      for each (let elt in globalScope.querySelector(".details").childNodes) {
+        info("globalScope :: " + {
+          id: elt.id, className: elt.className }.toSource());
+      }
       is(globalScope.querySelector(".details").childNodes.length, 2,
         "The globalScope doesn't contain all the created variable elements.");
 
-      is(localScope.querySelector(".details").childNodes.length, 7,
+      for each (let elt in localScope.querySelector(".details").childNodes) {
+        info("localScope :: " + {
+          id: elt.id, className: elt.className }.toSource());
+      }
+      is(localScope.querySelector(".details").childNodes.length, 6,
         "The localScope doesn't contain all the created variable elements.");
 
 
@@ -93,32 +104,32 @@ function testSimpleCall() {
         "The localVar5.someProp5 doesn't contain all the created properties.");
 
 
-      is(windowVar.querySelector(".info").textContent, "[object Window]",
+      is(windowVar.querySelector(".value").getAttribute("value"), "[object Window]",
         "The grip information for the windowVar wasn't set correctly.");
 
-      is(documentVar.querySelector(".info").textContent, "[object HTMLDocument]",
+      is(documentVar.querySelector(".value").getAttribute("value"), "[object HTMLDocument]",
         "The grip information for the documentVar wasn't set correctly.");
 
-      is(localVar0.querySelector(".info").textContent, "42",
+      is(localVar0.querySelector(".value").getAttribute("value"), "42",
         "The grip information for the localVar0 wasn't set correctly.");
 
-      is(localVar1.querySelector(".info").textContent, "true",
+      is(localVar1.querySelector(".value").getAttribute("value"), "true",
         "The grip information for the localVar1 wasn't set correctly.");
 
-      is(localVar2.querySelector(".info").textContent, "\"nasu\"",
+      is(localVar2.querySelector(".value").getAttribute("value"), "\"nasu\"",
         "The grip information for the localVar2 wasn't set correctly.");
 
-      is(localVar3.querySelector(".info").textContent, "undefined",
+      is(localVar3.querySelector(".value").getAttribute("value"), "undefined",
         "The grip information for the localVar3 wasn't set correctly.");
 
-      is(localVar4.querySelector(".info").textContent, "null",
+      is(localVar4.querySelector(".value").getAttribute("value"), "null",
         "The grip information for the localVar4 wasn't set correctly.");
 
-      is(localVar5.querySelector(".info").textContent, "[object Object]",
+      is(localVar5.querySelector(".value").getAttribute("value"), "[object Object]",
         "The grip information for the localVar5 wasn't set correctly.");
 
       gDebugger.DebuggerController.activeThread.resume(function() {
-        closeDebuggerAndFinish(gTab);
+        closeDebuggerAndFinish();
       });
     }}, 0);
   });

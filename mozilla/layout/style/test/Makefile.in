@@ -1,39 +1,7 @@
 #
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is mozilla.org code.
-#
-# The Initial Developer of the Original Code is
-# Mozilla Foundation.
-# Portions created by the Initial Developer are Copyright (C) 2007
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either of the GNU General Public License Version 2 or later (the "GPL"),
-# or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 DEPTH		= ../../..
 topsrcdir	= @top_srcdir@
@@ -65,23 +33,7 @@ HOST_SIMPLE_PROGRAMS	= $(addprefix host_, $(HOST_CPPSRCS:.cpp=$(HOST_BIN_SUFFIX)
 #CPP_UNIT_TESTS = TestCSSPropertyLookup.cpp
 #LIBS += ../nsCSSKeywords.$(OBJ_SUFFIX) ../nsCSSProps.$(OBJ_SUFFIX) $(XPCOM_LIBS)
 
-include $(topsrcdir)/config/rules.mk
-
-DEFINES += -DMOZILLA_INTERNAL_API -D_IMPL_NS_LAYOUT
-
-# FIXME: We don't seem to do auto-generated dependencies here.
-host_ListCSSProperties.$(OBJ_SUFFIX): $(srcdir)/../nsCSSPropList.h
-TestCSSPropertyLookup.$(OBJ_SUFFIX): $(srcdir)/../nsCSSProps.h $(srcdir)/../nsCSSKeywords.h
-
-css_properties.js: host_ListCSSProperties$(HOST_BIN_SUFFIX) css_properties_like_longhand.js Makefile
-	$(RM) $@
-	./host_ListCSSProperties$(HOST_BIN_SUFFIX) > $@
-	cat $(srcdir)/css_properties_like_longhand.js >> $@
-
-GARBAGE += css_properties.js
-
-
-_TEST_FILES =	test_acid3_test46.html \
+MOCHITEST_FILES =	test_acid3_test46.html \
 		test_animations.html \
 		test_any_dynamic.html \
 		test_at_rule_parse_serialize.html \
@@ -134,6 +86,7 @@ _TEST_FILES =	test_acid3_test46.html \
 		file_bug645998-1.css \
 		file_bug645998-2.css \
 		test_bug716226.html \
+		test_bug765590.html \
 		test_cascade.html \
 		test_ch_ex_no_infloops.html \
 		test_compute_data_with_start_struct.html \
@@ -233,6 +186,14 @@ _TEST_FILES =	test_acid3_test46.html \
 		test_bug721136.html \
 		$(NULL)
 
+ifdef MOZ_FLEXBOX
+MOCHITEST_FILES +=	\
+		test_flexbox_align_self_auto.html \
+		test_flexbox_flex_grow_and_shrink.html \
+		test_flexbox_flex_shorthand.html \
+		$(NULL)
+endif
+
 _VISITED_REFTEST_FILES = \
 		$(shell find $(topsrcdir)/layout/reftests/css-visited/ -name '*.html' -o -name '*.xhtml') \
 		$(topsrcdir)/layout/reftests/svg/pseudo-classes-02.svg \
@@ -243,20 +204,27 @@ _VISITED_REFTEST_FILES = \
 		$(NULL)
 
 ifneq (mobile,$(MOZ_BUILD_APP))
-_BROWSER_FILES = \
+MOCHITEST_BROWSER_FILES = \
 		browser_bug453896.js \
 		bug453896_iframe.html \
 		media_queries_iframe.html \
 		$(NULL)
 endif
 
-libs:: $(_TEST_FILES)
-	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)
+include $(topsrcdir)/config/rules.mk
+
+DEFINES += -DMOZILLA_INTERNAL_API -D_IMPL_NS_LAYOUT
+
+# FIXME: We don't seem to do auto-generated dependencies here.
+host_ListCSSProperties.$(OBJ_SUFFIX): $(srcdir)/../nsCSSPropList.h
+TestCSSPropertyLookup.$(OBJ_SUFFIX): $(srcdir)/../nsCSSProps.h $(srcdir)/../nsCSSKeywords.h
+
+css_properties.js: host_ListCSSProperties$(HOST_BIN_SUFFIX) css_properties_like_longhand.js Makefile
+	$(RM) $@
+	./host_ListCSSProperties$(HOST_BIN_SUFFIX) > $@
+	cat $(srcdir)/css_properties_like_longhand.js >> $@
+
+GARBAGE += css_properties.js
 
 libs:: $(_VISITED_REFTEST_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)/css-visited/
-
-ifneq (mobile,$(MOZ_BUILD_APP))
-libs:: $(_BROWSER_FILES)
-	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/browser/$(relativesrcdir)
-endif

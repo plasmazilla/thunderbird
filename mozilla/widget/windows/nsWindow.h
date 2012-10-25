@@ -1,47 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Robert O'Callahan <roc+moz@cs.cmu.edu>
- *   Dean Tessman <dean_tessman@hotmail.com>
- *   Makoto Kato  <m_kato@ga2.so-net.ne.jp>
- *   Dainis Jonitis <Dainis_Jonitis@swh-t.lv>
- *   Masayuki Nakano <masayuki@d-toybox.com>
- *   Ningjie Chen <chenn@email.uc.edu>
- *   Jim Mathies <jmathies@mozilla.com>.
- *   Mats Palmgren <matspal@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef Window_h__
 #define Window_h__
@@ -74,12 +34,14 @@
 
 #ifdef ACCESSIBILITY
 #include "OLEACC.H"
-#include "nsAccessible.h"
+#include "mozilla/a11y/Accessible.h"
 #endif
 
 #include "nsUXThemeData.h"
 
 #include "nsIDOMMouseEvent.h"
+
+#include "nsIIdleServiceInternal.h"
 
 /**
  * Forward class definitions
@@ -89,6 +51,13 @@ class nsNativeDragTarget;
 class nsIRollupListener;
 class nsIFile;
 class imgIContainer;
+
+namespace mozilla {
+namespace widget {
+class NativeKey;
+class ModifierKeyState;
+} // namespace widget
+} // namespacw mozilla;
 
 /**
  * Native WIN32 window wrapper.
@@ -100,6 +69,7 @@ class nsWindow : public nsBaseWidget
   typedef mozilla::TimeDuration TimeDuration;
   typedef mozilla::widget::WindowHook WindowHook;
   typedef mozilla::widget::TaskbarWindowPreview TaskbarWindowPreview;
+  typedef mozilla::widget::NativeKey NativeKey;
 public:
   nsWindow();
   virtual ~nsWindow();
@@ -221,11 +191,11 @@ public:
                                              PRUint16 aInputSource = nsIDOMMouseEvent::MOZ_SOURCE_MOUSE);
   virtual bool            DispatchWindowEvent(nsGUIEvent* event);
   virtual bool            DispatchWindowEvent(nsGUIEvent*event, nsEventStatus &aStatus);
-  virtual bool            DispatchKeyEvent(PRUint32 aEventType, WORD aCharCode,
-                                           const nsTArray<nsAlternativeCharCode>* aAlternativeChars,
-                                           UINT aVirtualCharCode, const MSG *aMsg,
-                                           const nsModifierKeyState &aModKeyState,
-                                           PRUint32 aFlags = 0);
+  void                    InitKeyEvent(nsKeyEvent& aKeyEvent,
+                                       const NativeKey& aNativeKey,
+                                       const mozilla::widget::ModifierKeyState &aModKeyState);
+  virtual bool            DispatchKeyEvent(nsKeyEvent& aKeyEvent,
+                                           const MSG *aMsgSentToPlugin);
   void                    DispatchPendingEvents();
   bool                    DispatchPluginEvent(UINT aMessage,
                                               WPARAM aWParam,
@@ -235,8 +205,8 @@ public:
   void                    SuppressBlurEvents(bool aSuppress); // Called from nsFilePicker
   bool                    BlurEventsSuppressed();
 #ifdef ACCESSIBILITY
-  nsAccessible* DispatchAccessibleEvent(PRUint32 aEventType);
-  nsAccessible* GetRootAccessible();
+  Accessible* DispatchAccessibleEvent(PRUint32 aEventType);
+  Accessible* GetRootAccessible();
 #endif // ACCESSIBILITY
 
   /**
@@ -308,6 +278,8 @@ public:
   bool                    const DestroyCalled() { return mDestroyCalled; }
 
   static void             SetupKeyModifiersSequence(nsTArray<KeyPair>* aArray, PRUint32 aModifiers);
+
+  virtual bool            UseOffMainThreadCompositing();
 protected:
 
   // A magic number to identify the FAKETRACKPOINTSCROLLABLE window created
@@ -393,22 +365,24 @@ protected:
   virtual void            OnDestroy();
   virtual bool            OnMove(PRInt32 aX, PRInt32 aY);
   virtual bool            OnResize(nsIntRect &aWindowRect);
+  /**
+   * @param aVirtualKeyCode     If caller knows which key exactly caused the
+   *                            aMsg, set the virtual key code.
+   *                            Otherwise, 0.
+   * @param aScanCode           If aVirutalKeyCode isn't 0, set the scan code.
+   */
   LRESULT                 OnChar(const MSG &aMsg,
-                                 nsModifierKeyState &aModKeyState,
+                                 const NativeKey& aNativeKey,
+                                 const mozilla::widget::ModifierKeyState &aModKeyState,
                                  bool *aEventDispatched,
                                  PRUint32 aFlags = 0);
   LRESULT                 OnKeyDown(const MSG &aMsg,
-                                    nsModifierKeyState &aModKeyState,
+                                    const mozilla::widget::ModifierKeyState &aModKeyState,
                                     bool *aEventDispatched,
                                     nsFakeCharMessage* aFakeCharMessage);
   LRESULT                 OnKeyUp(const MSG &aMsg,
-                                  nsModifierKeyState &aModKeyState,
+                                  const mozilla::widget::ModifierKeyState &aModKeyState,
                                   bool *aEventDispatched);
-  LRESULT                 OnCharRaw(UINT charCode, UINT aScanCode,
-                                    nsModifierKeyState &aModKeyState,
-                                    PRUint32 aFlags = 0,
-                                    const MSG *aMsg = nsnull,
-                                    bool *aEventDispatched = nsnull);
   bool                    OnGesture(WPARAM wParam, LPARAM lParam);
   bool                    OnTouch(WPARAM wParam, LPARAM lParam);
   bool                    OnHotKey(WPARAM wParam, LPARAM lParam);
@@ -457,6 +431,7 @@ private:
   nsTransparencyMode      GetWindowTranslucencyInner() const { return mTransparencyMode; }
   void                    ResizeTranslucentWindow(PRInt32 aNewWidth, PRInt32 aNewHeight, bool force = false);
   nsresult                UpdateTranslucentWindow();
+  void                    ClearTranslucentWindow();
   void                    SetupTranslucentWindowMemoryBitmap(nsTransparencyMode aMode);
   void                    UpdateGlass();
 protected:
@@ -468,7 +443,6 @@ protected:
   /**
    * Misc.
    */
-  UINT                    MapFromNativeToDOM(UINT aNativeKeyCode);
   void                    StopFlashing();
   static bool             IsTopLevelMouseExit(HWND aWnd);
   nsresult                SetWindowClipRegion(const nsTArray<nsIntRect>& aRects,
@@ -477,8 +451,6 @@ protected:
                                            PAINTSTRUCT ps, HDC aDC);
   static void             ActivateOtherWindowHelper(HWND aWnd);
   void                    ClearCachedResources();
-
-  nsPopupType PopupType() { return mPopupType; }
 
 protected:
   nsCOMPtr<nsIWidget>   mParent;
@@ -505,11 +477,13 @@ protected:
   InputContext mInputContext;
   nsNativeDragTarget*   mNativeDragTarget;
   HKL                   mLastKeyboardLayout;
-  nsPopupType           mPopupType;
   nsSizeMode            mOldSizeMode;
+  nsSizeMode            mLastSizeMode;
   WindowHook            mWindowHook;
   DWORD                 mAssumeWheelIsZoomUntil;
   PRUint32              mPickerDisplayCount;
+  HICON                 mIconSmall;
+  HICON                 mIconBig;
   static bool           sDropShadowEnabled;
   static PRUint32       sInstanceCount;
   static TriStateBool   sCanQuit;
@@ -545,7 +519,7 @@ protected:
   // Height of the caption plus border
   PRInt32               mCaptionHeight;
 
-  nsCOMPtr<nsIdleService> mIdleService;
+  nsCOMPtr<nsIIdleServiceInternal> mIdleService;
 
   // Hook Data Memebers for Dropdowns. sProcessHook Tells the
   // hook methods whether they should be processing the hook

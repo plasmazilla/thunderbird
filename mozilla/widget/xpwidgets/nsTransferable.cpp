@@ -1,42 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Mike Pinkerton (pinkerton@netscape.com)
- *   Dainis Jonitis (Dainis_Jonitis@swh-t.lv)
- *   Mats Palmgren <matpal@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
 Notes to self:
@@ -67,6 +32,7 @@ Notes to self:
 #include "nsIOutputStream.h"
 #include "nsIInputStream.h"
 #include "nsIFile.h"
+#include "nsILoadContext.h"
 #include "nsAutoPtr.h"
 
 NS_IMPL_ISUPPORTS1(nsTransferable, nsITransferable)
@@ -252,6 +218,10 @@ DataStruct::ReadCache(nsISupports** aData, PRUint32* aDataLen)
 //
 //-------------------------------------------------------------------------
 nsTransferable::nsTransferable()
+  : mPrivateData(false)
+#ifdef DEBUG
+  , mInitialized(false)
+#endif
 {
 }
 
@@ -265,6 +235,20 @@ nsTransferable::~nsTransferable()
 }
 
 
+NS_IMETHODIMP
+nsTransferable::Init(nsILoadContext* aContext)
+{
+  MOZ_ASSERT(!mInitialized);
+
+  if (aContext) {
+    mPrivateData = aContext->UsePrivateBrowsing();
+  }
+#ifdef DEBUG
+  mInitialized = true;
+#endif
+  return NS_OK;
+}
+
 //
 // GetTransferDataFlavors
 //
@@ -275,6 +259,8 @@ nsTransferable::~nsTransferable()
 nsresult
 nsTransferable::GetTransferDataFlavors(nsISupportsArray ** aDataFlavorList)
 {
+  MOZ_ASSERT(mInitialized);
+
   nsresult rv = NS_NewISupportsArray ( aDataFlavorList );
   if (NS_FAILED(rv)) return rv;
 
@@ -302,6 +288,8 @@ nsTransferable::GetTransferDataFlavors(nsISupportsArray ** aDataFlavorList)
 NS_IMETHODIMP
 nsTransferable::GetTransferData(const char *aFlavor, nsISupports **aData, PRUint32 *aDataLen)
 {
+  MOZ_ASSERT(mInitialized);
+
   NS_ENSURE_ARG_POINTER(aFlavor && aData && aDataLen);
 
   nsresult rv = NS_OK;
@@ -383,6 +371,8 @@ nsTransferable::GetTransferData(const char *aFlavor, nsISupports **aData, PRUint
 NS_IMETHODIMP
 nsTransferable::GetAnyTransferData(char **aFlavor, nsISupports **aData, PRUint32 *aDataLen)
 {
+  MOZ_ASSERT(mInitialized);
+
   NS_ENSURE_ARG_POINTER(aFlavor && aData && aDataLen);
 
   for ( PRUint32 i=0; i < mDataArray.Length(); ++i ) {
@@ -406,6 +396,8 @@ nsTransferable::GetAnyTransferData(char **aFlavor, nsISupports **aData, PRUint32
 NS_IMETHODIMP
 nsTransferable::SetTransferData(const char *aFlavor, nsISupports *aData, PRUint32 aDataLen)
 {
+  MOZ_ASSERT(mInitialized);
+
   NS_ENSURE_ARG(aFlavor);
 
   // first check our intrinsic flavors to see if one has been registered.
@@ -452,6 +444,8 @@ nsTransferable::SetTransferData(const char *aFlavor, nsISupports *aData, PRUint3
 NS_IMETHODIMP
 nsTransferable::AddDataFlavor(const char *aDataFlavor)
 {
+  MOZ_ASSERT(mInitialized);
+
   if (GetDataForFlavor (mDataArray, aDataFlavor) != mDataArray.NoIndex)
     return NS_ERROR_FAILURE;
 
@@ -471,6 +465,8 @@ nsTransferable::AddDataFlavor(const char *aDataFlavor)
 NS_IMETHODIMP
 nsTransferable::RemoveDataFlavor(const char *aDataFlavor)
 {
+  MOZ_ASSERT(mInitialized);
+
   PRUint32 idx;
   if ((idx = GetDataForFlavor(mDataArray, aDataFlavor)) != mDataArray.NoIndex) {
     mDataArray.RemoveElementAt (idx);
@@ -487,6 +483,8 @@ nsTransferable::RemoveDataFlavor(const char *aDataFlavor)
 NS_IMETHODIMP
 nsTransferable::IsLargeDataSet(bool *_retval)
 {
+  MOZ_ASSERT(mInitialized);
+
   NS_ENSURE_ARG_POINTER(_retval);
   *_retval = false;
   return NS_OK;
@@ -499,6 +497,8 @@ nsTransferable::IsLargeDataSet(bool *_retval)
   */
 NS_IMETHODIMP nsTransferable::SetConverter(nsIFormatConverter * aConverter)
 {
+  MOZ_ASSERT(mInitialized);
+
   mFormatConv = aConverter;
   return NS_OK;
 }
@@ -510,6 +510,8 @@ NS_IMETHODIMP nsTransferable::SetConverter(nsIFormatConverter * aConverter)
   */
 NS_IMETHODIMP nsTransferable::GetConverter(nsIFormatConverter * *aConverter)
 {
+  MOZ_ASSERT(mInitialized);
+
   NS_ENSURE_ARG_POINTER(aConverter);
   *aConverter = mFormatConv;
   NS_IF_ADDREF(*aConverter);
@@ -526,6 +528,8 @@ NS_IMETHODIMP nsTransferable::GetConverter(nsIFormatConverter * *aConverter)
 NS_IMETHODIMP
 nsTransferable::FlavorsTransferableCanImport(nsISupportsArray **_retval)
 {
+  MOZ_ASSERT(mInitialized);
+
   NS_ENSURE_ARG_POINTER(_retval);
   
   // Get the flavor list, and on to the end of it, append the list of flavors we
@@ -570,6 +574,8 @@ nsTransferable::FlavorsTransferableCanImport(nsISupportsArray **_retval)
 NS_IMETHODIMP
 nsTransferable::FlavorsTransferableCanExport(nsISupportsArray **_retval)
 {
+  MOZ_ASSERT(mInitialized);
+
   NS_ENSURE_ARG_POINTER(_retval);
   
   // Get the flavor list, and on to the end of it, append the list of flavors we
@@ -603,3 +609,15 @@ nsTransferable::FlavorsTransferableCanExport(nsISupportsArray **_retval)
 
   return NS_OK;
 } // FlavorsTransferableCanExport
+
+NS_IMETHODIMP
+nsTransferable::GetIsPrivateData(bool *aIsPrivateData)
+{
+  MOZ_ASSERT(mInitialized);
+
+  NS_ENSURE_ARG_POINTER(aIsPrivateData);
+
+  *aIsPrivateData = mPrivateData;
+
+  return NS_OK;
+}

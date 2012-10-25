@@ -1,42 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Uri Bernstein <uriber@gmail.com>
- *   Haamed Gheibi <gheibi@metanetworking.com>
- *   Ehsan Akhgari <ehsan.akhgari@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef IBMBIDI
 
@@ -164,14 +129,25 @@ struct BidiParagraphData {
     mPrevFrame = aBpd->mPrevFrame;
     mParagraphDepth = aBpd->mParagraphDepth + 1;
 
+    const nsStyleTextReset* text = aBDIFrame->GetStyleTextReset();
     bool isRTL = (NS_STYLE_DIRECTION_RTL ==
                   aBDIFrame->GetStyleVisibility()->mDirection);
-    mParaLevel = mParagraphDepth * 2;
-    if (isRTL) ++mParaLevel;
 
-    if (aBDIFrame->GetStyleTextReset()->mUnicodeBidi & NS_STYLE_UNICODE_BIDI_OVERRIDE) {
+    if (text->mUnicodeBidi & NS_STYLE_UNICODE_BIDI_PLAINTEXT) {
+      mParaLevel = NSBIDI_DEFAULT_LTR;
+    } else {
+      mParaLevel = mParagraphDepth * 2;
+      if (isRTL) ++mParaLevel;
+    }
+
+    if (text->mUnicodeBidi & NS_STYLE_UNICODE_BIDI_OVERRIDE) {
       PushBidiControl(isRTL ? kRLO : kLRO);
     }
+  }
+
+  void EmptyBuffer()
+  {
+    mBuffer.SetLength(0);
   }
 
   nsresult SetPara()
@@ -326,11 +302,10 @@ struct BidiParagraphData {
   {
     // Advance aLine to the line containing aFrame
     nsIFrame* child = aFrame;
-    nsFrameManager* frameManager = aFrame->PresContext()->FrameManager();
-    nsIFrame* parent = nsLayoutUtils::GetParentOrPlaceholderFor(frameManager, child);
+    nsIFrame* parent = nsLayoutUtils::GetParentOrPlaceholderFor(child);
     while (parent && !nsLayoutUtils::GetAsBlock(parent)) {
       child = parent;
-      parent = nsLayoutUtils::GetParentOrPlaceholderFor(frameManager, child);
+      parent = nsLayoutUtils::GetParentOrPlaceholderFor(child);
     }
     NS_ASSERTION (parent, "aFrame is not a descendent of aBlockFrame");
     while (!IsFrameInCurrentLine(aLineIter, aPrevFrame, child)) {
@@ -406,12 +381,20 @@ struct BidiLineData {
 /* Some helper methods for Resolve() */
 
 // Should this frame be split between text runs?
-bool
-IsBidiSplittable(nsIFrame* aFrame) {
-  nsIAtom* frameType = aFrame->GetType();
+static bool
+IsBidiSplittable(nsIFrame* aFrame)
+{
   // Bidi inline containers should be split, unless they're line frames.
   return aFrame->IsFrameOfType(nsIFrame::eBidiInlineContainer)
-    && frameType != nsGkAtoms::lineFrame;
+    && aFrame->GetType() != nsGkAtoms::lineFrame;
+}
+
+// Should this frame be treated as a leaf (e.g. when building mLogicalFrames)?
+static bool
+IsBidiLeaf(nsIFrame* aFrame)
+{
+  nsIFrame* kid = aFrame->GetFirstPrincipalChild();
+  return !kid || !aFrame->IsFrameOfType(nsIFrame::eBidiInlineContainer);
 }
 
 /**
@@ -437,14 +420,16 @@ SplitInlineAncestors(nsIFrame* aParent,
     nsIFrame* grandparent = parent->GetParent();
     NS_ASSERTION(grandparent, "Couldn't get parent's parent in nsBidiPresUtils::SplitInlineAncestors");
     
-    nsresult rv = presShell->FrameConstructor()->
-      CreateContinuingFrame(presContext, parent, grandparent, &newParent, false);
-    if (NS_FAILED(rv)) {
-      return rv;
-    }
-    
     // Split the child list after |frame|, unless it is the last child.
     if (!frame || frame->GetNextSibling()) {
+    
+      nsresult rv = presShell->FrameConstructor()->
+        CreateContinuingFrame(presContext, parent, grandparent,
+                              &newParent, false);
+      if (NS_FAILED(rv)) {
+        return rv;
+      }
+
       nsContainerFrame* container = do_QueryFrame(parent);
       nsFrameList tail = container->StealFramesAfter(frame);
 
@@ -459,13 +444,14 @@ SplitInlineAncestors(nsIFrame* aParent,
       if (NS_FAILED(rv)) {
         return rv;
       }
-    }
     
-    // The list name kNoReflowPrincipalList would indicate we don't want reflow
-    nsFrameList temp(newParent, newParent);
-    rv = grandparent->InsertFrames(nsIFrame::kNoReflowPrincipalList, parent, temp);
-    if (NS_FAILED(rv)) {
-      return rv;
+      // The list name kNoReflowPrincipalList would indicate we don't want reflow
+      nsFrameList temp(newParent, newParent);
+      rv = grandparent->InsertFrames(nsIFrame::kNoReflowPrincipalList,
+                                     parent, temp);
+      if (NS_FAILED(rv)) {
+        return rv;
+      }
     }
     
     frame = parent;
@@ -602,7 +588,7 @@ nsBidiPresUtils::Resolve(nsBlockFrame* aBlockFrame)
   BidiParagraphData bpd;
   bpd.Init(aBlockFrame);
 
-  // handle bidi-override being set on the block itself before calling
+  // Handle bidi-override being set on the block itself before calling
   // TraverseFrames.
   const nsStyleTextReset* text = aBlockFrame->GetStyleTextReset();
   PRUnichar ch = 0;
@@ -625,12 +611,17 @@ nsBidiPresUtils::Resolve(nsBlockFrame* aBlockFrame)
     bpd.mPrevFrame = nsnull;
     bpd.GetSubParagraph()->mPrevFrame = nsnull;
     TraverseFrames(aBlockFrame, &lineIter, block->GetFirstPrincipalChild(), &bpd);
+    // XXX what about overflow lines?
   }
 
   if (ch != 0) {
     bpd.PopBidiControl();
   }
 
+  BidiParagraphData* subParagraph = bpd.GetSubParagraph();
+  if (subParagraph->BufferLength()) {
+    ResolveParagraph(aBlockFrame, subParagraph);
+  }
   return ResolveParagraph(aBlockFrame, &bpd);
 }
 
@@ -909,13 +900,6 @@ nsBidiPresUtils::ResolveParagraph(nsBlockFrame* aBlockFrame,
   return rv;
 }
 
-// Should this frame be treated as a leaf (e.g. when building mLogicalFrames)?
-bool IsBidiLeaf(nsIFrame* aFrame) {
-  nsIFrame* kid = aFrame->GetFirstPrincipalChild();
-  return !kid
-    || !aFrame->IsFrameOfType(nsIFrame::eBidiInlineContainer);
-}
-
 void
 nsBidiPresUtils::TraverseFrames(nsBlockFrame*              aBlockFrame,
                                 nsBlockInFlowLineIterator* aLineIter,
@@ -1116,13 +1100,14 @@ nsBidiPresUtils::TraverseFrames(nsBlockFrame*              aBlockFrame,
           ResolveParagraphWithinBlock(aBlockFrame, aBpd);
         }
       }
-    }
-    else {
+    } else {
       // For a non-leaf frame, recurse into TraverseFrames
       nsIFrame* kid = frame->GetFirstPrincipalChild();
-      if (kid) {
+      nsIFrame* overflowKid = frame->GetFirstChild(nsIFrame::kOverflowList);
+      if (kid || overflowKid) {
         const nsStyleTextReset* text = frame->GetStyleTextReset();
-        if (text->mUnicodeBidi & NS_STYLE_UNICODE_BIDI_ISOLATE) {
+        if (text->mUnicodeBidi & NS_STYLE_UNICODE_BIDI_ISOLATE ||
+            text->mUnicodeBidi & NS_STYLE_UNICODE_BIDI_PLAINTEXT) {
           // css "unicode-bidi: isolate" and html5 bdi: 
           //  resolve the element as a separate paragraph
           BidiParagraphData* subParagraph = aBpd->GetSubParagraph();
@@ -1137,11 +1122,16 @@ nsBidiPresUtils::TraverseFrames(nsBlockFrame*              aBlockFrame,
            */
           bool isLastContinuation = !frame->GetNextContinuation();
           if (!frame->GetPrevContinuation() || !subParagraph->mReset) {
+            if (subParagraph->BufferLength()) {
+              ResolveParagraph(aBlockFrame, subParagraph);
+            }
             subParagraph->Reset(frame, aBpd);
           }
           TraverseFrames(aBlockFrame, aLineIter, kid, subParagraph);
+          TraverseFrames(aBlockFrame, aLineIter, overflowKid, subParagraph);
           if (isLastContinuation) {
             ResolveParagraph(aBlockFrame, subParagraph);
+            subParagraph->EmptyBuffer();
           }
 
           // Treat the element as a neutral character within its containing
@@ -1149,6 +1139,7 @@ nsBidiPresUtils::TraverseFrames(nsBlockFrame*              aBlockFrame,
           aBpd->AppendControlChar(kObjectSubstitute);
         } else {
           TraverseFrames(aBlockFrame, aLineIter, kid, aBpd);
+          TraverseFrames(aBlockFrame, aLineIter, overflowKid, aBpd);
         }
       }
     }

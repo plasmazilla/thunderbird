@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   John Gaunt (jgaunt@netscape.com)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef __nsAccessibilityService_h__
 #define __nsAccessibilityService_h__
@@ -59,17 +26,30 @@ namespace a11y {
  */
 FocusManager* FocusMgr();
 
+enum EPlatformDisabledState {
+  ePlatformIsForceEnabled = -1,
+  ePlatformIsEnabled = 0,
+  ePlatformIsDisabled = 1
+};
+
+/**
+ * Return the platform disabled state.
+ */
+EPlatformDisabledState PlatformDisabledState();
+
 #ifdef MOZ_ACCESSIBILITY_ATK
 /**
  * Perform initialization that should be done as soon as possible, in order
  * to minimize startup time.
- * XXX: this function and the next defined in nsApplicationAccessibleWrap.cpp
+ * XXX: this function and the next defined in ApplicationAccessibleWrap.cpp
  */
 void PreInit();
+#endif
 
+#if defined(MOZ_ACCESSIBILITY_ATK) || defined(XP_MACOSX)
 /**
  * Is platform accessibility enabled.
- * Only used on linux with atk for now.
+ * Only used on linux with atk and MacOS for now.
  */
 bool ShouldA11yBeEnabled();
 #endif
@@ -90,66 +70,77 @@ public:
   NS_DECL_NSIOBSERVER
 
   // nsIAccessibilityService
-  virtual nsAccessible* GetRootDocumentAccessible(nsIPresShell* aPresShell,
-                                                  bool aCanCreate);
-  already_AddRefed<nsAccessible>
+  virtual Accessible* GetRootDocumentAccessible(nsIPresShell* aPresShell,
+                                                bool aCanCreate);
+  already_AddRefed<Accessible>
     CreateHTMLButtonAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLBRAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLCanvasAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLCaptionAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLCheckboxAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLComboboxAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLFileInputAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLGroupboxAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLHRAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLImageAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLImageMapAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLLabelAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLLIAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLListboxAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLMediaAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLObjectFrameAccessible(nsObjectFrame* aFrame, nsIContent* aContent,
                                     nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLRadioButtonAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLTableAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLTableCellAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
-    CreateHTMLTextAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
+    CreateHTMLTableRowAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
+  already_AddRefed<Accessible>
+    CreateTextLeafAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
+  already_AddRefed<Accessible>
     CreateHTMLTextFieldAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHyperTextAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateOuterDocAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
 
-  virtual nsAccessible* AddNativeRootAccessible(void* aAtkAccessible);
-  virtual void RemoveNativeRootAccessible(nsAccessible* aRootAccessible);
+  /**
+   * Adds/remove ATK root accessible for gtk+ native window to/from children
+   * of the application accessible.
+   */
+  virtual Accessible* AddNativeRootAccessible(void* aAtkAccessible);
+  virtual void RemoveNativeRootAccessible(Accessible* aRootAccessible);
 
-  virtual void ContentRangeInserted(nsIPresShell* aPresShell,
-                                    nsIContent* aContainer,
-                                    nsIContent* aStartChild,
-                                    nsIContent* aEndChild);
+  /**
+   * Notification used to update the accessible tree when new content is
+   * inserted.
+   */
+  void ContentRangeInserted(nsIPresShell* aPresShell, nsIContent* aContainer,
+                            nsIContent* aStartChild, nsIContent* aEndChild);
 
-  virtual void ContentRemoved(nsIPresShell* aPresShell, nsIContent* aContainer,
-                              nsIContent* aChild);
+  /**
+   * Notification used to update the accessible tree when content is removed.
+   */
+  void ContentRemoved(nsIPresShell* aPresShell, nsIContent* aContainer,
+                      nsIContent* aChild);
 
   virtual void UpdateText(nsIPresShell* aPresShell, nsIContent* aContent);
 
@@ -171,9 +162,17 @@ public:
    */
   void UpdateImageMap(nsImageFrame* aImageFrame);
 
-  virtual void NotifyOfAnchorJumpTo(nsIContent *aTarget);
+  /**
+   * Notify accessibility that anchor jump has been accomplished to the given
+   * target. Used by layout.
+   */
+  void NotifyOfAnchorJumpTo(nsIContent *aTarget);
 
-  virtual void PresShellDestroyed(nsIPresShell* aPresShell);
+  /**
+   * Notify the accessibility service that the given presshell is
+   * being destroyed.
+   */
+  void PresShellDestroyed(nsIPresShell* aPresShell);
 
   /**
    * Notify that presshell is activated.
@@ -185,7 +184,7 @@ public:
    */
   void RecreateAccessible(nsIPresShell* aPresShell, nsIContent* aContent);
 
-  virtual void FireAccessibleEvent(PRUint32 aEvent, nsAccessible* aTarget);
+  virtual void FireAccessibleEvent(PRUint32 aEvent, Accessible* aTarget);
 
   // nsAccessibiltiyService
 
@@ -199,18 +198,12 @@ public:
    * one.
    *
    * @param  aNode             [in] the given node
-   * @param  aDoc              [in] the doc accessible of the node  
+   * @param  aDoc              [in] the doc accessible of the node
    * @param  aIsSubtreeHidden  [out, optional] indicates whether the node's
    *                             frame and its subtree is hidden
    */
-  nsAccessible* GetOrCreateAccessible(nsINode* aNode, nsDocAccessible* aDoc,
-                                      bool* aIsSubtreeHidden = nsnull);
-
-  /**
-   * Return an accessible for the given DOM node and eventually a presentation
-   * shell.
-   */
-  nsAccessible* GetAccessible(nsINode* aNode, nsIPresShell* aPresShell);
+  Accessible* GetOrCreateAccessible(nsINode* aNode, DocAccessible* aDoc,
+                                    bool* aIsSubtreeHidden = nsnull);
 
 private:
   // nsAccessibilityService creation is controlled by friend
@@ -234,29 +227,29 @@ private:
    * Create accessible for the element implementing nsIAccessibleProvider
    * interface.
    */
-  already_AddRefed<nsAccessible>
-    CreateAccessibleByType(nsIContent* aContent, nsDocAccessible* aDoc);
+  already_AddRefed<Accessible>
+    CreateAccessibleByType(nsIContent* aContent, DocAccessible* aDoc);
 
   /**
    * Create accessible for HTML node by tag name.
    */
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateHTMLAccessibleByMarkup(nsIFrame* aFrame, nsIContent* aContent,
-                                 nsDocAccessible* aDoc);
+                                 DocAccessible* aDoc);
 
   /**
    * Create accessible if parent is a deck frame.
    */
-  already_AddRefed<nsAccessible>
+  already_AddRefed<Accessible>
     CreateAccessibleForDeckChild(nsIFrame* aFrame, nsIContent* aContent,
-                                 nsDocAccessible* aDoc);
+                                 DocAccessible* aDoc);
 
 #ifdef MOZ_XUL
   /**
    * Create accessible for XUL tree element.
    */
-  already_AddRefed<nsAccessible>
-    CreateAccessibleForXULTree(nsIContent* aContent, nsDocAccessible* aDoc);
+  already_AddRefed<Accessible>
+    CreateAccessibleForXULTree(nsIContent* aContent, DocAccessible* aDoc);
 #endif
 
   /**
@@ -292,139 +285,6 @@ GetAccService()
 {
   return nsAccessibilityService::gAccessibilityService;
 }
-
-/**
- * Map nsIAccessibleRole constants to strings. Used by
- * nsIAccessibleRetrieval::getStringRole() method.
- */
-static const char kRoleNames[][20] = {
-  "nothing",             //ROLE_NOTHING
-  "titlebar",            //ROLE_TITLEBAR
-  "menubar",             //ROLE_MENUBAR
-  "scrollbar",           //ROLE_SCROLLBAR
-  "grip",                //ROLE_GRIP
-  "sound",               //ROLE_SOUND
-  "cursor",              //ROLE_CURSOR
-  "caret",               //ROLE_CARET
-  "alert",               //ROLE_ALERT
-  "window",              //ROLE_WINDOW
-  "internal frame",      //ROLE_INTERNAL_FRAME
-  "menupopup",           //ROLE_MENUPOPUP
-  "menuitem",            //ROLE_MENUITEM
-  "tooltip",             //ROLE_TOOLTIP
-  "application",         //ROLE_APPLICATION
-  "document",            //ROLE_DOCUMENT
-  "pane",                //ROLE_PANE
-  "chart",               //ROLE_CHART
-  "dialog",              //ROLE_DIALOG
-  "border",              //ROLE_BORDER
-  "grouping",            //ROLE_GROUPING
-  "separator",           //ROLE_SEPARATOR
-  "toolbar",             //ROLE_TOOLBAR
-  "statusbar",           //ROLE_STATUSBAR
-  "table",               //ROLE_TABLE
-  "columnheader",        //ROLE_COLUMNHEADER
-  "rowheader",           //ROLE_ROWHEADER
-  "column",              //ROLE_COLUMN
-  "row",                 //ROLE_ROW
-  "cell",                //ROLE_CELL
-  "link",                //ROLE_LINK
-  "helpballoon",         //ROLE_HELPBALLOON
-  "character",           //ROLE_CHARACTER
-  "list",                //ROLE_LIST
-  "listitem",            //ROLE_LISTITEM
-  "outline",             //ROLE_OUTLINE
-  "outlineitem",         //ROLE_OUTLINEITEM
-  "pagetab",             //ROLE_PAGETAB
-  "propertypage",        //ROLE_PROPERTYPAGE
-  "indicator",           //ROLE_INDICATOR
-  "graphic",             //ROLE_GRAPHIC
-  "statictext",          //ROLE_STATICTEXT
-  "text leaf",           //ROLE_TEXT_LEAF
-  "pushbutton",          //ROLE_PUSHBUTTON
-  "checkbutton",         //ROLE_CHECKBUTTON
-  "radiobutton",         //ROLE_RADIOBUTTON
-  "combobox",            //ROLE_COMBOBOX
-  "droplist",            //ROLE_DROPLIST
-  "progressbar",         //ROLE_PROGRESSBAR
-  "dial",                //ROLE_DIAL
-  "hotkeyfield",         //ROLE_HOTKEYFIELD
-  "slider",              //ROLE_SLIDER
-  "spinbutton",          //ROLE_SPINBUTTON
-  "diagram",             //ROLE_DIAGRAM
-  "animation",           //ROLE_ANIMATION
-  "equation",            //ROLE_EQUATION
-  "buttondropdown",      //ROLE_BUTTONDROPDOWN
-  "buttonmenu",          //ROLE_BUTTONMENU
-  "buttondropdowngrid",  //ROLE_BUTTONDROPDOWNGRID
-  "whitespace",          //ROLE_WHITESPACE
-  "pagetablist",         //ROLE_PAGETABLIST
-  "clock",               //ROLE_CLOCK
-  "splitbutton",         //ROLE_SPLITBUTTON
-  "ipaddress",           //ROLE_IPADDRESS
-  "accel label",         //ROLE_ACCEL_LABEL
-  "arrow",               //ROLE_ARROW
-  "canvas",              //ROLE_CANVAS
-  "check menu item",     //ROLE_CHECK_MENU_ITEM
-  "color chooser",       //ROLE_COLOR_CHOOSER
-  "date editor",         //ROLE_DATE_EDITOR
-  "desktop icon",        //ROLE_DESKTOP_ICON
-  "desktop frame",       //ROLE_DESKTOP_FRAME
-  "directory pane",      //ROLE_DIRECTORY_PANE
-  "file chooser",        //ROLE_FILE_CHOOSER
-  "font chooser",        //ROLE_FONT_CHOOSER
-  "chrome window",       //ROLE_CHROME_WINDOW
-  "glass pane",          //ROLE_GLASS_PANE
-  "html container",      //ROLE_HTML_CONTAINER
-  "icon",                //ROLE_ICON
-  "label",               //ROLE_LABEL
-  "layered pane",        //ROLE_LAYERED_PANE
-  "option pane",         //ROLE_OPTION_PANE
-  "password text",       //ROLE_PASSWORD_TEXT
-  "popup menu",          //ROLE_POPUP_MENU
-  "radio menu item",     //ROLE_RADIO_MENU_ITEM
-  "root pane",           //ROLE_ROOT_PANE
-  "scroll pane",         //ROLE_SCROLL_PANE
-  "split pane",          //ROLE_SPLIT_PANE
-  "table column header", //ROLE_TABLE_COLUMN_HEADER
-  "table row header",    //ROLE_TABLE_ROW_HEADER
-  "tear off menu item",  //ROLE_TEAR_OFF_MENU_ITEM
-  "terminal",            //ROLE_TERMINAL
-  "text container",      //ROLE_TEXT_CONTAINER
-  "toggle button",       //ROLE_TOGGLE_BUTTON
-  "tree table",          //ROLE_TREE_TABLE
-  "viewport",            //ROLE_VIEWPORT
-  "header",              //ROLE_HEADER
-  "footer",              //ROLE_FOOTER
-  "paragraph",           //ROLE_PARAGRAPH
-  "ruler",               //ROLE_RULER
-  "autocomplete",        //ROLE_AUTOCOMPLETE
-  "editbar",             //ROLE_EDITBAR
-  "entry",               //ROLE_ENTRY
-  "caption",             //ROLE_CAPTION
-  "document frame",      //ROLE_DOCUMENT_FRAME
-  "heading",             //ROLE_HEADING
-  "page",                //ROLE_PAGE
-  "section",             //ROLE_SECTION
-  "redundant object",    //ROLE_REDUNDANT_OBJECT
-  "form",                //ROLE_FORM
-  "ime",                 //ROLE_IME
-  "app root",            //ROLE_APP_ROOT
-  "parent menuitem",     //ROLE_PARENT_MENUITEM
-  "calendar",            //ROLE_CALENDAR
-  "combobox list",       //ROLE_COMBOBOX_LIST
-  "combobox option",     //ROLE_COMBOBOX_OPTION
-  "image map",           //ROLE_IMAGE_MAP
-  "listbox option",      //ROLE_OPTION
-  "listbox rich option", //ROLE_RICH_OPTION
-  "listbox",             //ROLE_LISTBOX
-  "flat equation",       //ROLE_FLAT_EQUATION
-  "gridcell",            //ROLE_GRID_CELL
-  "embedded object",     //ROLE_EMBEDDED_OBJECT
-  "note",                //ROLE_NOTE
-  "figure",              //ROLE_FIGURE
-  "check rich option"    //ROLE_CHECK_RICH_OPTION
-};
 
 /**
  * Map nsIAccessibleEvents constants to strings. Used by

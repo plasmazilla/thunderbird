@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla.org code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Jonas Sicking <jonas@sicking.cc> (Original Author)
- *   Daniel Witte <dwitte@stanford.edu>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsTObserverArray_h___
 #define nsTObserverArray_h___
@@ -178,6 +145,25 @@ class nsAutoTObserverArray : protected nsTObserverArray_base {
     //
     // Mutation methods
     //
+  
+    // Insert a given element at the given index.
+    // @param index  The index at which to insert item.
+    // @param item   The item to insert,
+    // @return       A pointer to the newly inserted element, or a null on DOM
+    template<class Item>
+    elem_type *InsertElementAt(index_type aIndex, const Item& aItem) {
+      elem_type* item = mArray.InsertElementAt(aIndex, aItem);
+      AdjustIterators(aIndex, 1);
+      return item;
+    }
+
+    // Same as above but without copy constructing.
+    // This is useful to avoid temporaries.
+    elem_type* InsertElementAt(index_type aIndex) {
+      elem_type* item = mArray.InsertElementAt(aIndex);
+      AdjustIterators(aIndex, 1);
+      return item;
+    }
 
     // Prepend an element to the array unless it already exists in the array.
     // 'operator==' must be defined for elem_type.
@@ -185,7 +171,13 @@ class nsAutoTObserverArray : protected nsTObserverArray_base {
     // @return       true if the element was found, or inserted successfully.
     template<class Item>
     bool PrependElementUnlessExists(const Item& item) {
-      return Contains(item) || mArray.InsertElementAt(0, item) != nsnull;
+      if (Contains(item)) {
+        return true;
+      }
+      
+      bool inserted = mArray.InsertElementAt(0, item) != nsnull;
+      AdjustIterators(0, 1);
+      return inserted;
     }
 
     // Append an element to the array.

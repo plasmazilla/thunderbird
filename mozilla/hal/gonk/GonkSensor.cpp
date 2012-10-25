@@ -38,6 +38,8 @@ HardwareSensorToHalSensor(int type)
       return SENSOR_ACCELERATION;
     case SENSOR_TYPE_PROXIMITY:
       return SENSOR_PROXIMITY;
+    case SENSOR_TYPE_LIGHT:
+      return SENSOR_LIGHT;
     case SENSOR_TYPE_GYROSCOPE:
       return SENSOR_GYROSCOPE;
     case SENSOR_TYPE_LINEAR_ACCELERATION:
@@ -62,6 +64,8 @@ HalSensorToHardwareSensor(SensorType type)
       return SENSOR_TYPE_ACCELEROMETER;
     case SENSOR_PROXIMITY:
       return SENSOR_TYPE_PROXIMITY;
+    case SENSOR_LIGHT:
+      return SENSOR_TYPE_LIGHT;
     case SENSOR_GYROSCOPE:
       return SENSOR_TYPE_GYROSCOPE;
     case SENSOR_LINEAR_ACCELERATION:
@@ -98,7 +102,7 @@ public:
       // Emulator is broken and gives us events without types set
       const sensor_t* sensors = NULL;
       SensorDevice& device = SensorDevice::getInstance();
-      size_t size = device.getSensorList(&sensors);
+      ssize_t size = device.getSensorList(&sensors);
       if (data.sensor < size)
         mSensorData.sensor() = HardwareSensorToHalSensor(sensors[data.sensor].type);
     }
@@ -109,6 +113,20 @@ public:
       mSensorValues.AppendElement(radToDeg(data.data[0]));
       mSensorValues.AppendElement(radToDeg(data.data[1]));
       mSensorValues.AppendElement(radToDeg(data.data[2]));
+    } else if (mSensorData.sensor() == SENSOR_PROXIMITY) {
+      mSensorValues.AppendElement(data.data[0]);
+      mSensorValues.AppendElement(0);     
+
+      // Determine the maxRange for this sensor.
+      const sensor_t* sensors = NULL;
+      ssize_t size = SensorDevice::getInstance().getSensorList(&sensors);
+      for (ssize_t i = 0; i < size; i++) {
+        if (sensors[i].type == SENSOR_TYPE_PROXIMITY) {
+          mSensorValues.AppendElement(sensors[i].maxRange);     
+        }
+      }
+    } else if (mSensorData.sensor() == SENSOR_LIGHT) {
+      mSensorValues.AppendElement(data.data[0]);
     } else {
       mSensorValues.AppendElement(data.data[0]);
       mSensorValues.AppendElement(data.data[1]);
@@ -168,9 +186,6 @@ class PollSensor {
       }
 
       for (int i = 0; i < n; ++i) {
-        if (SensorseventStatus(buffer[i]) == SENSOR_STATUS_UNRELIABLE) {
-          continue;
-        }
         NS_DispatchToMainThread(new SensorRunnable(buffer[i]));
       }
 
@@ -184,17 +199,15 @@ class PollSensor {
 
 nsCOMPtr<nsIRunnable> PollSensor::mRunnable = NULL;
 
-class SwitchSensor {
+class SwitchSensor : public RefCounted<SwitchSensor> {
   public:
-    NS_INLINE_DECL_REFCOUNTING(SwitchSensor)
-    
     SwitchSensor(bool aActivate, sensor_t aSensor, pthread_t aThreadId) :
       mActivate(aActivate), mSensor(aSensor), mThreadId(aThreadId) { }
 
     void Switch() {
       int index = HardwareSensorToHalSensor(mSensor.type);
 
-      MOZ_ASSERT(sSensorStatus[index].count == 0 || mActivate);
+      MOZ_ASSERT(sSensorStatus[index].count || mActivate);
 
       SensorDevice& device = SensorDevice::getInstance();
       
@@ -226,8 +239,8 @@ SetSensorState(SensorType aSensor, bool activate)
   int type = HalSensorToHardwareSensor(aSensor);
   const sensor_t* sensors = NULL;
   SensorDevice& device = SensorDevice::getInstance();
-  size_t size = device.getSensorList(&sensors);
-  for (size_t i = 0; i < size; i++) {
+  ssize_t size = device.getSensorList(&sensors);
+  for (ssize_t i = 0; i < size; i++) {
     if (sensors[i].type == type) {
       // Post an event to the sensor thread
       nsCOMPtr<nsIRunnable> event = NS_NewRunnableMethod(new SwitchSensor(activate, sensors[i], pthread_self()),

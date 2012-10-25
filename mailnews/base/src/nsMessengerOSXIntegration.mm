@@ -1,42 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mac OSX New Mail Notification Code..
- *
- * The Initial Developer of the Original Code is
- * The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2005
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *  Scott MacGregor <mscott@mozilla.org>
- *  Jon Baumgartner <jon@bergenstreetsoftware.com>
- *  David Humphrey <david.humphrey@senecac.on.ca>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef MOZ_LOGGING
 #define FORCE_PR_LOG /* Allow logging in the release build */
@@ -86,14 +51,18 @@
 #include "nsObjCExceptions.h"
 #include "nsComponentManagerUtils.h"
 #include "nsServiceManagerUtils.h"
+#include "mozINewMailNotificationService.h"
 
 #include <Carbon/Carbon.h>
 #import <Cocoa/Cocoa.h>
 
 #define kNewMailAlertIcon "chrome://messenger/skin/icons/new-mail-alert.png"
+#define kChatEnabledPref "mail.chat.enabled"
 #define kBiffShowAlertPref "mail.biff.show_alert"
-#define kCountInboxesPref "mail.notification.count.inbox_only"
+#define kBiffAnimateDockIconPref "mail.biff.animate_dock_icon"
 #define kMaxDisplayCount 10
+#define kNewChatMessageTopic "new-directed-incoming-message"
+#define kUnreadImCountChangedTopic "unread-im-count-changed"
 
 static PRLogModuleInfo *MsgDockCountsLogModule = nsnull;
 
@@ -197,11 +166,8 @@ nsMessengerOSXIntegration::nsMessengerOSXIntegration()
 {
   mBiffStateAtom = MsgGetAtom("BiffState");
   mNewMailReceivedAtom = MsgGetAtom("NewMailReceived");
-  mTotalUnreadMessagesAtom = MsgGetAtom("TotalUnreadMessages");
   mUnreadTotal = 0;
-  mNewTotal = 0;
-  mOnlyCountInboxes = true;
-  mDoneInitialCount = false;
+  mUnreadChat = 0;
 }
 
 nsMessengerOSXIntegration::~nsMessengerOSXIntegration()
@@ -217,6 +183,7 @@ NS_INTERFACE_MAP_BEGIN(nsMessengerOSXIntegration)
    NS_INTERFACE_MAP_ENTRY(nsIMessengerOSIntegration)
    NS_INTERFACE_MAP_ENTRY(nsIFolderListener)
    NS_INTERFACE_MAP_ENTRY(nsIObserver)
+   NS_INTERFACE_MAP_ENTRY(mozINewMailListener)
 NS_INTERFACE_MAP_END
 
 
@@ -226,17 +193,9 @@ nsMessengerOSXIntegration::Init()
   // need to register a named Growl notification
   nsresult rv;
   nsCOMPtr<nsIObserverService> observerService = do_GetService("@mozilla.org/observer-service;1", &rv);
-  if (NS_SUCCEEDED(rv))
-  {
-    observerService->AddObserver(this, "before-growl-registration", false);
-    observerService->AddObserver(this, "mail-startup-done", false);
-  }
-
-  nsCOMPtr<nsIMsgMailSession> mailSession = do_GetService(NS_MSGMAILSESSION_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
-
-  // because we care if the unread total count changes
-  return mailSession->AddFolderListener(this, nsIFolderListener::boolPropertyChanged | nsIFolderListener::intPropertyChanged);
+  observerService->AddObserver(this, "before-growl-registration", false);
+  return observerService->AddObserver(this, "mail-startup-done", false);
 }
 
 NS_IMETHODIMP
@@ -266,15 +225,39 @@ nsMessengerOSXIntegration::Observe(nsISupports* aSubject, const char* aTopic, co
   if (!strcmp(aTopic, "alertclickcallback"))
     return OnAlertClicked(aData);
 
-  // get the initial unread count for the dock icon and badge
-  if (!strcmp(aTopic, "mail-startup-done"))
-  {
+  if (!strcmp(aTopic, "mail-startup-done")) {
     nsresult rv;
     nsCOMPtr<nsIObserverService> observerService = do_GetService("@mozilla.org/observer-service;1", &rv);
-    if (NS_SUCCEEDED(rv))
+    if (NS_SUCCEEDED(rv)) {
       observerService->RemoveObserver(this, "mail-startup-done");
-    InitUnreadCount();
+
+      bool chatEnabled = false;
+      nsCOMPtr<nsIPrefBranch> pref(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
+      if (NS_SUCCEEDED(rv))
+        rv = pref->GetBoolPref(kChatEnabledPref, &chatEnabled);
+      if (NS_SUCCEEDED(rv) && chatEnabled) {
+        observerService->AddObserver(this, kNewChatMessageTopic, false);
+        observerService->AddObserver(this, kUnreadImCountChangedTopic, false);
+      }
+    }
+
+    // Register with the new mail service for changes to the unread message count
+    nsCOMPtr<mozINewMailNotificationService> newmail
+      = do_GetService(MOZ_NEWMAILNOTIFICATIONSERVICE_CONTRACTID, &rv);
+    NS_ENSURE_SUCCESS(rv, rv); // This should really be an assert with a helpful message
+    rv = newmail->AddListener(this, mozINewMailNotificationService::count);
+    NS_ENSURE_SUCCESS(rv, rv); // This should really be an assert with a helpful message
+
+    // Get the initial unread count. Ignore return value; if code above didn't fail, this won't
+    rv = newmail->GetMessageCount(&mUnreadTotal);
     BadgeDockIcon();
+
+    // register with the mail sesson for folder events
+    // we care about new count, biff status
+    nsCOMPtr<nsIMsgMailSession> mailSession = do_GetService(NS_MSGMAILSESSION_CONTRACTID, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    return mailSession->AddFolderListener(this, nsIFolderListener::boolPropertyChanged | nsIFolderListener::intPropertyChanged);
   }
 
   // register named Growl notification for new mail alerts.
@@ -298,6 +281,26 @@ nsMessengerOSXIntegration::Observe(nsISupports* aSubject, const char* aTopic, co
       }
     }
   }
+
+  if (!strcmp(aTopic, kNewChatMessageTopic)) {
+    // We don't have to bother about checking if the window is already focused
+    // before attempting to bounce the dock icon, as BounceDockIcon is
+    // implemented by a getAttention call which won't do anything if the window
+    // requesting attention is already focused.
+    return BounceDockIcon();
+  }
+
+  if (!strcmp(aTopic, kUnreadImCountChangedTopic)) {
+    nsresult rv;
+    nsCOMPtr<nsISupportsPRInt32> unreadCount = do_QueryInterface(aSubject, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = unreadCount->GetData(&mUnreadChat);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    return BadgeDockIcon();
+  }
+
   return NS_OK;
 }
 
@@ -432,11 +435,7 @@ nsMessengerOSXIntegration::ShowAlertMessage(const nsAString& aAlertTitle,
       }
     }
 
-    bool bounceDockIcon = false;
-    prefBranch->GetBoolPref("mail.biff.animate_dock_icon", &bounceDockIcon);
-
-    if (bounceDockIcon)
-      BounceDockIcon();
+    BounceDockIcon();
   }
 
   if (!showAlert || NS_FAILED(rv))
@@ -451,95 +450,33 @@ nsMessengerOSXIntegration::OnItemIntPropertyChanged(nsIMsgFolder *aFolder,
                                                     PRInt32 aOldValue,
                                                     PRInt32 aNewValue)
 {
-   // if we got new mail show an alert
-  if (mBiffStateAtom == aProperty)
+  // if we got new mail show an alert
+  if (aNewValue == nsIMsgFolder::nsMsgBiffState_NewMail)
   {
-    NS_ENSURE_TRUE(aFolder, NS_OK);
+    bool performingBiff = false;
+    nsCOMPtr<nsIMsgIncomingServer> server;
+    aFolder->GetServer(getter_AddRefs(server));
+    if (server)
+      server->GetPerformingBiff(&performingBiff);
+    if (!performingBiff)
+      return NS_OK; // kick out right now...
 
-    if (aNewValue == nsIMsgFolder::nsMsgBiffState_NewMail)
-    {
-      bool performingBiff = false;
-      nsCOMPtr<nsIMsgIncomingServer> server;
-      aFolder->GetServer(getter_AddRefs(server));
-      if (server)
-        server->GetPerformingBiff(&performingBiff);
-      if (!performingBiff)
-        return NS_OK; // kick out right now...
+    // Biff happens for the root folder, but we want info for the child with new mail
+    nsCString folderUri;
+    GetFirstFolderWithNewMail(aFolder, folderUri);
+    nsCOMPtr<nsIMsgFolder> childFolder;
+    nsresult rv = aFolder->GetChildWithURI(folderUri, true, true,
+                                           getter_AddRefs(childFolder));
+    if (NS_FAILED(rv) || !childFolder)
+      return NS_ERROR_FAILURE;
 
-      // Biff happens for the root folder, but we want info for the child with new mail
-      nsCString folderUri;
-      GetFirstFolderWithNewMail(aFolder, folderUri);
-      nsCOMPtr<nsIMsgFolder> childFolder;
-      nsresult rv = aFolder->GetChildWithURI(folderUri, true, true,
-                                             getter_AddRefs(childFolder));
-      if (NS_FAILED(rv) || !childFolder)
-        return NS_ERROR_FAILURE;
-
-      PRInt32 numNewMessages = 0;
-      childFolder->GetNumNewMessages(true, &numNewMessages);
-      FillToolTipInfo(childFolder, numNewMessages);
-
-      mNewTotal += numNewMessages;
-      BadgeDockIcon();
-    }
-    else if (aNewValue == nsIMsgFolder::nsMsgBiffState_NoMail)
-    {
-      // reset new message total
-      mNewTotal = 0;
-      BadgeDockIcon();
-    }
+    PRInt32 numNewMessages = 0;
+    childFolder->GetNumNewMessages(true, &numNewMessages);
+    FillToolTipInfo(childFolder, numNewMessages);
   }
   else if (mNewMailReceivedAtom == aProperty)
   {
-    nsCOMPtr<nsIMsgFolder> rootFolder;
-    nsresult rv = aFolder->GetRootFolder(getter_AddRefs(rootFolder));
-    NS_ENSURE_SUCCESS(rv, rv);
-
     FillToolTipInfo(aFolder, aNewValue);
-
-    mNewTotal += aNewValue;
-    BadgeDockIcon();
-  }
-  else if (mTotalUnreadMessagesAtom == aProperty)
-  {
-    // Insure we have already done an initial count so we don't double-count this change.
-    if (!mDoneInitialCount)
-    {
-      InitUnreadCount();
-      BadgeDockIcon();
-      // Return early, since the change below has just been counted.
-      return NS_OK;
-    }
-
-    PRUint32 flags;
-    nsresult rv = aFolder->GetFlags(&flags);
-    NS_ENSURE_SUCCESS(rv, rv);
-
-    // Count this folder if: 1) we want only inboxes and this is an inbox; or
-    // 2) we want any folder (see ConfirmShouldCount() for folders included).
-    if ((mOnlyCountInboxes && flags & nsMsgFolderFlags::Inbox) || !mOnlyCountInboxes)
-    {
-      // Give extensions a chance to suppress counting for this folder,
-      // and filter out ones we don't want to count.
-      bool countFolder;
-      rv = ConfirmShouldCount(aFolder, &countFolder);
-      NS_ENSURE_SUCCESS(rv, rv);
-
-      if (!countFolder)
-        return NS_OK;
-
-      // Increment count by difference, treating -1 (i.e., "don't know") as 0
-      mUnreadTotal += aNewValue - (aOldValue > -1 ? aOldValue : 0);
-      nsCString folderURI;
-      aFolder->GetURI(folderURI);
-      PR_LOG(MsgDockCountsLogModule, PR_LOG_ALWAYS,
-             ("changing unread to %d aNewValue = %d oldValue = %d for folder %s", 
-               mUnreadTotal, aNewValue, aOldValue, folderURI.get()));
-      
-      NS_ASSERTION(mUnreadTotal > -1, "Updated unread message count is less than zero.");
-
-      BadgeDockIcon();
-    }
   }
   return NS_OK;
 }
@@ -560,6 +497,17 @@ nsMessengerOSXIntegration::OnAlertFinished()
 nsresult
 nsMessengerOSXIntegration::BounceDockIcon()
 {
+  nsresult rv;
+  nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  bool bounceDockIcon = false;
+  rv = prefBranch->GetBoolPref(kBiffAnimateDockIconPref, &bounceDockIcon);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  if (!bounceDockIcon)
+    return NS_OK;
+
   nsCOMPtr<nsIWindowMediator> mediator(do_GetService(NS_WINDOWMEDIATOR_CONTRACTID));
   if (mediator)
   {
@@ -577,24 +525,24 @@ nsMessengerOSXIntegration::BounceDockIcon()
 nsresult
 nsMessengerOSXIntegration::RestoreDockIcon()
 {
+  NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
+
   id tile = [[NSApplication sharedApplication] dockTile];
   [tile setBadgeLabel: nil];
 
   return NS_OK;
+
+  NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
 
 nsresult
 nsMessengerOSXIntegration::BadgeDockIcon()
 {
-  // Use either unread messages as the count, or new messages as the count, depending on the preference
-  nsresult rv;
-  nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
-  NS_ENSURE_SUCCESS(rv, rv);
-  bool useNewCount = false;
-  prefBranch->GetBoolPref("mail.biff.use_new_count_in_mac_dock", &useNewCount);
+  NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
+  PRInt32 unreadCount = mUnreadTotal + mUnreadChat;
   // If count is less than one, we should restore the original dock icon.
-  if ((!useNewCount && mUnreadTotal < 1) || (useNewCount && mNewTotal < 1))
+  if (unreadCount < 1)
   {
     RestoreDockIcon();
     return NS_OK;
@@ -604,6 +552,7 @@ nsMessengerOSXIntegration::BadgeDockIcon()
   // Extensions might wish to transform "1000" into "100+" or some
   // other short string. Getting back the empty string will cause
   // nothing to be drawn and us to return early.
+  nsresult rv;
   nsCOMPtr<nsIObserverService> os
     (do_GetService("@mozilla.org/observer-service;1", &rv));
   if (NS_FAILED(rv))
@@ -621,12 +570,7 @@ nsMessengerOSXIntegration::BadgeDockIcon()
   }
 
   nsAutoString total;
-
-  if (useNewCount)
-    total.AppendInt(mNewTotal);
-  else
-    total.AppendInt(mUnreadTotal);
-
+  total.AppendInt(unreadCount);
   str->SetData(total);
   os->NotifyObservers(str, "before-unread-count-display",
                       total.get());
@@ -641,6 +585,8 @@ nsMessengerOSXIntegration::BadgeDockIcon()
   id tile = [[NSApplication sharedApplication] dockTile];
   [tile setBadgeLabel:[NSString stringWithFormat:@"%S", total.get()]];
   return NS_OK;
+
+  NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
 
 NS_IMETHODIMP
@@ -807,190 +753,13 @@ nsMessengerOSXIntegration::GetFirstFolderWithNewMail(nsIMsgFolder* aFolder, nsCS
   return NS_OK;
 }
 
-void
-nsMessengerOSXIntegration::InitUnreadCount()
+/*
+ * Method implementations for mozINewMailListener
+ */
+NS_IMETHODIMP
+nsMessengerOSXIntegration::OnCountChanged(PRUint32 count)
 {
-  // If we were forced to do a count early with an update, don't do it again on mail startup.
-  if (mDoneInitialCount)
-    return;
-  mDoneInitialCount = true;
-  if (!MsgDockCountsLogModule)
-    MsgDockCountsLogModule = PR_NewLogModule("DockCounts");
-  // We either count just inboxes, or all folders
-  nsresult rv;
-  nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
-  NS_ENSURE_SUCCESS(rv, );
-
-  rv = prefBranch->GetBoolPref(kCountInboxesPref, &mOnlyCountInboxes);
-  NS_ENSURE_SUCCESS(rv, );
-
-  nsCOMPtr<nsIMsgAccountManager> accountManager =
-    do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, );
-
-  nsCOMPtr<nsISupportsArray> servers;
-  rv = accountManager->GetAllServers(getter_AddRefs(servers));
-  NS_ENSURE_SUCCESS(rv, );
-
-  PRUint32 count;
-  rv = servers->Count(&count);
-  NS_ENSURE_SUCCESS(rv, );
-
-  mUnreadTotal = 0;
-
-  PRUint32 i;
-  for (i = 0; i < count; i++)
-  {
-    nsCOMPtr<nsIMsgIncomingServer> server = do_QueryElementAt(servers, i);
-    if (!server)
-      continue;
-
-    nsCOMPtr<nsIMsgFolder> rootFolder;
-    server->GetRootFolder(getter_AddRefs(rootFolder));
-    if (!rootFolder)
-      continue;
-
-    // Get a combined unread count for all desired folders
-    PRInt32 numUnread = 0;
-    if (mOnlyCountInboxes)
-    {
-      nsCOMPtr<nsIMsgFolder> inboxFolder;
-      rootFolder->GetFolderWithFlags(nsMsgFolderFlags::Inbox, getter_AddRefs(inboxFolder));
-      if (inboxFolder)
-      {
-        GetTotalUnread(inboxFolder, false, &numUnread);
-        nsCString folderURI;
-        inboxFolder->GetURI(folderURI);
-        PR_LOG(MsgDockCountsLogModule, PR_LOG_ALWAYS,
-               ("adding %d unread from %s", numUnread, folderURI.get()));
-      }
-    }
-    else
-    {
-      GetTotalUnread(rootFolder, true, &numUnread);
-      nsCString folderURI;
-      rootFolder->GetURI(folderURI);
-      PR_LOG(MsgDockCountsLogModule, PR_LOG_ALWAYS,
-             ("adding %d unread from %s", numUnread, folderURI.get()));
-      
-    }
-
-    mUnreadTotal += numUnread;
-     NS_ASSERTION(mUnreadTotal > -1, "Initial unread message count is less than zero.");
-  }
-  PR_LOG(MsgDockCountsLogModule, PR_LOG_ALWAYS,
-         ("initial unread count = %d", mUnreadTotal));
-}
-
-nsresult
-nsMessengerOSXIntegration::ConfirmShouldCount(nsIMsgFolder* aFolder, bool* aCountFolder)
-{
-  // We give extensions a chance to say yes/no to counting for a folder.  By
-  // default we count every folder that is mail and isn't 
-  // Trash, Junk, Drafts, "Outbox", or a Virtual folder.
-  nsCOMPtr<nsIMsgIncomingServer> server;
-  nsresult rv = aFolder->GetServer(getter_AddRefs(server));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  bool defaultValue = true;
-  nsCAutoString type;
-  rv = server->GetType(type);
-  if (NS_FAILED(rv) || (type.EqualsLiteral("rss") || type.EqualsLiteral("nntp")))
-  {
-    defaultValue = false;
-    return NS_OK;
-  }
-
-  nsCOMPtr<nsIObserverService> os =
-    do_GetService("@mozilla.org/observer-service;1", &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCOMPtr<nsISupportsPRBool> shouldCount =
-    do_CreateInstance(NS_SUPPORTS_PRBOOL_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  PRUint32 flags;
-  aFolder->GetFlags(&flags);
-  if ((flags & nsMsgFolderFlags::Trash)   ||
-      (flags & nsMsgFolderFlags::Drafts)  ||
-      (flags & nsMsgFolderFlags::Queue)   ||
-      (flags & nsMsgFolderFlags::Virtual) ||
-      (flags & nsMsgFolderFlags::Junk))
-    defaultValue = false;
-
-  rv = shouldCount->SetData(defaultValue);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCString folderUri;
-  rv = aFolder->GetURI(folderUri);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  rv = os->NotifyObservers(shouldCount, "before-count-unread-for-folder",
-                           NS_ConvertUTF8toUTF16(folderUri).get());
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  return shouldCount->GetData(aCountFolder);
-}
-
-nsresult
-nsMessengerOSXIntegration::GetTotalUnread(nsIMsgFolder* aFolder, bool deep, PRInt32* aTotal)
-{
-  // This simulates nsIMsgFolder::GetNumUnread, but gives extensions
-  // a chance to decide whether folders should be counted as part of
-  // the total.
-  *aTotal = 0;
-  bool countFolder;
-  nsresult rv = ConfirmShouldCount(aFolder, &countFolder);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  if (!countFolder)
-    return NS_OK;
-
-  PRInt32 total = 0;
-  rv = aFolder->GetNumUnread(false, &total);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  // Use zero instead of -1 (don't know) or other special nums.
-  total = total >= 0 ? total : 0;
-
-  if (deep)
-  {
-    bool hasChildren;
-    rv = aFolder->GetHasSubFolders(&hasChildren);
-    NS_ENSURE_SUCCESS(rv, rv);
-
-    PRUint32 flags;
-    aFolder->GetFlags(&flags);
-
-    if (hasChildren && !(flags & nsMsgFolderFlags::Virtual))
-    {
-      nsCOMPtr<nsISimpleEnumerator> children;
-      rv = aFolder->GetSubFolders(getter_AddRefs(children));
-      NS_ENSURE_SUCCESS(rv, rv);
-
-      nsCOMPtr<nsIMsgFolder> childFolder;
-      bool moreFolders;
-      while (NS_SUCCEEDED(children->HasMoreElements(&moreFolders)) &&
-             moreFolders)
-      {
-        nsCOMPtr<nsISupports> child;
-        rv = children->GetNext(getter_AddRefs(child));
-        if (NS_SUCCEEDED(rv) && child)
-        {
-          childFolder = do_QueryInterface(child, &rv);
-          if (NS_SUCCEEDED(rv) && childFolder)
-          {
-            PRInt32 childFolderCount = 0;
-            rv = GetTotalUnread(childFolder, true, &childFolderCount);
-            if (NS_FAILED(rv))
-              continue;
-
-            total += childFolderCount;
-          }
-        }
-      }
-    }
-  }
-  *aTotal = total;
+  mUnreadTotal = count;
+  BadgeDockIcon();
   return NS_OK;
 }

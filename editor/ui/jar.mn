@@ -1,3 +1,7 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 comm.jar:
 % content editor %content/editor/
 % overlay chrome://communicator/content/tasksOverlay.xul chrome://editor/content/editorTasksOverlay.xul
@@ -85,7 +89,6 @@ comm.jar:
       content/editor/EditorContextMenu.js                      (composer/content/EditorContextMenu.js)
       content/editor/EditorContextMenuOverlay.xul              (composer/content/EditorContextMenuOverlay.xul)
       content/editor/EditorAllTags.css                         (composer/content/EditorAllTags.css)
-      content/editor/EditorParagraphMarks.css                  (composer/content/EditorParagraphMarks.css)
       content/editor/editorOverlay.xul                         (composer/content/editorOverlay.xul) 
       content/editor/editingOverlay.xul                        (composer/content/editingOverlay.xul)
       content/editor/composerOverlay.xul                       (composer/content/composerOverlay.xul)

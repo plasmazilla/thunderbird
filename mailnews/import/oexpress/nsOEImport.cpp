@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
 /*
@@ -75,6 +42,8 @@
 #include "nsOEStringBundle.h"
 #include "nsIStringBundle.h"
 #include "nsUnicharUtils.h"
+#include "nsDirectoryServiceUtils.h"
+#include "nsDirectoryServiceDefs.h"
 
 #include "OEDebugLog.h"
 
@@ -100,9 +69,10 @@ public:
   /* nsISupportsArray FindMailboxes (in nsIFile location); */
   NS_IMETHOD FindMailboxes(nsIFile *location, nsISupportsArray **_retval);
 
-  /* void ImportMailbox (in nsIImportMailboxDescriptor source, in nsIFile destination, out boolean fatalError); */
-  NS_IMETHOD ImportMailbox(nsIImportMailboxDescriptor *source, nsIFile *destination,
-                PRUnichar **pErrorLog, PRUnichar **pSuccessLog, bool *fatalError);
+  NS_IMETHOD ImportMailbox(nsIImportMailboxDescriptor *source,
+                           nsIMsgFolder *dstFolder,
+                           PRUnichar **pErrorLog, PRUnichar **pSuccessLog,
+                           bool *fatalError);
 
   /* unsigned long GetImportProgress (); */
   NS_IMETHOD GetImportProgress(PRUint32 *_retval);
@@ -139,8 +109,7 @@ public:
 
   NS_IMETHOD GetNeedsFieldMap(nsIFile *pLoc, bool *_retval) { *_retval = false; return NS_OK;}
 
-  NS_IMETHOD GetDefaultLocation(nsIFile **location, bool *found, bool *userVerify)
-    { return NS_ERROR_FAILURE;}
+  NS_IMETHOD GetDefaultLocation(nsIFile **location, bool *found, bool *userVerify);
 
   NS_IMETHOD FindAddressBooks(nsIFile *location, nsISupportsArray **_retval);
 
@@ -341,7 +310,7 @@ NS_IMETHODIMP ImportOEMailImpl::GetDefaultLocation(nsIFile **ppLoc, bool *found,
 
   // use scanboxes to find the location.
   nsresult rv;
-  nsCOMPtr <nsILocalFile> file = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv);
+  nsCOMPtr <nsIFile> file = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv);
   if (NS_FAILED(rv))
     return rv;
 
@@ -420,25 +389,17 @@ void ImportOEMailImpl::SetLogs(nsString& success, nsString& error, PRUnichar **p
 }
 
 NS_IMETHODIMP ImportOEMailImpl::ImportMailbox(nsIImportMailboxDescriptor *pSource,
-                                              nsIFile *pDestination,
+                                              nsIMsgFolder *dstFolder,
                                               PRUnichar **pErrorLog,
                                               PRUnichar **pSuccessLog,
                                               bool *fatalError)
 {
-  NS_PRECONDITION(pSource != nsnull, "null ptr");
-  NS_PRECONDITION(pDestination != nsnull, "null ptr");
-  NS_PRECONDITION(fatalError != nsnull, "null ptr");
+  NS_ENSURE_ARG_POINTER(pSource);
+  NS_ENSURE_ARG_POINTER(dstFolder);
+  NS_ENSURE_ARG_POINTER(fatalError);
 
   nsString success;
   nsString error;
-  if (!pSource || !pDestination || !fatalError) {
-    nsOEStringBundle::GetStringByID(OEIMPORT_MAILBOX_BADPARAM, error);
-    if (fatalError)
-      *fatalError = true;
-    SetLogs(success, error, pErrorLog, pSuccessLog);
-    return NS_ERROR_NULL_POINTER;
-  }
-
   bool abort = false;
   nsString name;
   nsString pName;
@@ -453,7 +414,7 @@ NS_IMETHODIMP ImportOEMailImpl::ImportMailbox(nsIImportMailboxDescriptor *pSourc
     return NS_OK;
   }
 
-  nsCOMPtr <nsILocalFile> inFile;
+  nsCOMPtr <nsIFile> inFile;
   if (NS_FAILED(pSource->GetFile(getter_AddRefs(inFile)))) {
     ReportError(OEIMPORT_MAILBOX_BADSOURCEFILE, name, &error);
     SetLogs(success, error, pErrorLog, pSuccessLog);
@@ -469,11 +430,11 @@ NS_IMETHODIMP ImportOEMailImpl::ImportMailbox(nsIImportMailboxDescriptor *pSourc
   nsresult rv;
   if (nsOE5File::IsLocalMailFile(inFile)) {
     IMPORT_LOG1("Importing OE5 mailbox: %s!\n", NS_LossyConvertUTF16toASCII(name.get()));
-    rv = nsOE5File::ImportMailbox(&m_bytesDone, &abort, name, inFile, pDestination, &msgCount);
+    rv = nsOE5File::ImportMailbox( &m_bytesDone, &abort, name, inFile, dstFolder, &msgCount);
   }
   else {
-    if (CImportMailbox::ImportMailbox(&m_bytesDone, &abort, name, inFile, pDestination, &msgCount))
-      rv = NS_OK;
+    if (CImportMailbox::ImportMailbox( &m_bytesDone, &abort, name, inFile, dstFolder, &msgCount))
+       rv = NS_OK;
     else
       rv = NS_ERROR_FAILURE;
   }
@@ -519,6 +480,31 @@ ImportOEAddressImpl::~ImportOEAddressImpl()
 
 NS_IMPL_THREADSAFE_ISUPPORTS1(ImportOEAddressImpl, nsIImportAddressBooks)
 
+NS_IMETHODIMP ImportOEAddressImpl::GetDefaultLocation(nsIFile **aLocation,
+                                                      bool *aFound,
+                                                      bool *aUserVerify)
+{
+  NS_ENSURE_ARG_POINTER(aLocation);
+  NS_ENSURE_ARG_POINTER(aFound);
+  NS_ENSURE_ARG_POINTER(aUserVerify);
+
+  *aLocation = nsnull;
+  *aUserVerify = true;
+
+  CWAB *wab = new CWAB(nsnull);
+  *aFound = wab->IsAvailable();
+  delete wab;
+
+  if (*aFound) {
+    // Unfortunately WAB interface has no function to obtain address book location.
+    // So we set a fake location here.
+    if (NS_SUCCEEDED(NS_GetSpecialDirectory(NS_XPCOM_CURRENT_PROCESS_DIR, aLocation)))
+      *aUserVerify = false;
+  }
+
+  return NS_OK;
+}
+
 NS_IMETHODIMP ImportOEAddressImpl::GetAutoFind(PRUnichar **description, bool *_retval)
 {
   NS_PRECONDITION(description != nsnull, "null ptr");
@@ -526,7 +512,7 @@ NS_IMETHODIMP ImportOEAddressImpl::GetAutoFind(PRUnichar **description, bool *_r
   if (! description || !_retval)
     return NS_ERROR_NULL_POINTER;
 
-  *_retval = true;
+  *_retval = false;
   nsString str;
   str.Append(nsOEStringBundle::GetStringByID(OEIMPORT_AUTOFIND));
   *description = ToNewUnicode(str);
@@ -550,7 +536,20 @@ NS_IMETHODIMP ImportOEAddressImpl::FindAddressBooks(nsIFile *location, nsISuppor
 
   if (m_pWab)
     delete m_pWab;
-  m_pWab = new CWAB(nsnull);
+
+  nsCOMPtr<nsIFile> currentProcessDir;
+  rv = NS_GetSpecialDirectory(NS_XPCOM_CURRENT_PROCESS_DIR,
+                              getter_AddRefs(currentProcessDir));
+  bool equals = false;
+  currentProcessDir->Equals(location, &equals);
+  // If the location is not a fake, use it.
+  if (location && !equals) {
+    nsCOMPtr<nsIFile> localFile = do_QueryInterface(location, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+    m_pWab = new CWAB(localFile);
+  } else {
+    m_pWab = new CWAB(nsnull);
+  }
 
   nsIImportABDescriptor * pID;
   nsISupports * pInterface;

@@ -1,40 +1,7 @@
-# -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is mozilla.org code.
-#
-# The Initial Developer of the Original Code is
-# Netscape Communications Corporation.
-# Portions created by the Initial Developer are Copyright (C) 1998
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Seth Spitzer <sspitzer@netscape.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+/* -*- Mode: Javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
@@ -57,7 +24,6 @@ const kVcardFields =
           // Contact > Internet
          ["PrimaryEmail", "PrimaryEmail"],
          ["SecondEmail", "SecondEmail"],
-         ["ScreenName", "_AimScreenName"], // NB: AIM.
           // Contact > Phones
          ["WorkPhone", "WorkPhone"],
          ["HomePhone", "HomePhone"],
@@ -89,7 +55,17 @@ const kVcardFields =
          ["Custom3", "Custom3"],
          ["Custom4", "Custom4"],
           // Other > Notes
-         ["Notes", "Notes"]];
+         ["Notes", "Notes"],
+          // Chat
+         ["Gtalk", "_GoogleTalk"],
+         ["AIM", "_AimScreenName"],
+         ["Yahoo", "_Yahoo"],
+         ["Skype", "_Skype"],
+         ["QQ", "_QQ"],
+         ["MSN", "_MSN"],
+         ["ICQ", "_ICQ"],
+         ["XMPP", "_JabberId"]
+        ];
 
 const kDefaultYear = 2000;
 var gEditCard;
@@ -139,7 +115,7 @@ function OnLoadNewCard()
       // if we've got a display name, don't generate
       // a display name (and stomp on the existing display name)
       // when the user types a first or last name
-      if (gEditCard.card.displayName.length)
+      if (gEditCard.card.displayName)
         gEditCard.generateDisplayName = false;
     }
     if ("aimScreenName" in window.arguments[0])
@@ -547,6 +523,8 @@ function GetCardValues(cardproperty, doc)
   document.getElementById("PhotoType").value = photoType;
   loadPhoto(cardproperty);
   setCardEditorPhoto(photoType, cardproperty);
+
+  updateChatName();
 }
 
 // when the ab card dialog is being loaded to show a vCard,
@@ -901,6 +879,44 @@ function modifyDatepicker(aDatepicker) {
     if (aValue == null && aField.value != null)
       aField.value = null;
   }
+}
+
+const chatNameFieldIds =
+  ["Gtalk", "AIM", "Yahoo", "Skype", "QQ", "MSN", "ICQ", "XMPP"];
+
+/**
+ * Show the 'Chat' tab and focus the first field that has a value, or
+ * the first field if none of them has a value.
+ */
+function showChat()
+{
+  document.getElementById('abTabPanels').parentNode.selectedTab =
+    document.getElementById('chatTabButton');
+  for each (let id in chatNameFieldIds) {
+    let elt = document.getElementById(id);
+    if (elt.value) {
+      elt.focus();
+      return;
+    }
+  }
+  document.getElementById(chatNameFieldIds[0]).focus();
+}
+
+/**
+ * Fill in the value of the ChatName readonly field with the first
+ * value of the fields in the Chat tab.
+ */
+function updateChatName()
+{
+  let value = "";
+  for each (let id in chatNameFieldIds) {
+    let val = document.getElementById(id).value;
+    if (val) {
+      value = val;
+      break;
+    }
+  }
+  document.getElementById("ChatName").value = value;
 }
 
 /**

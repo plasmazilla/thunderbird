@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Mounir Lamouri <mounir.lamouri@mozilla.com> (Original Author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "SmsRequest.h"
 #include "nsIDOMClassInfo.h"
@@ -43,6 +11,7 @@
 #include "nsIDOMSmsCursor.h"
 #include "nsISmsRequestManager.h"
 #include "SmsManager.h"
+#include "mozilla/dom/DOMError.h"
 
 DOMCI_DATA(MozSmsRequest, mozilla::dom::sms::SmsRequest)
 
@@ -58,6 +27,7 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(SmsRequest,
   NS_CYCLE_COLLECTION_TRAVERSE_EVENT_HANDLER(success)
   NS_CYCLE_COLLECTION_TRAVERSE_EVENT_HANDLER(error)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mCursor)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mError)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(SmsRequest,
@@ -69,18 +39,17 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(SmsRequest,
   NS_CYCLE_COLLECTION_UNLINK_EVENT_HANDLER(success)
   NS_CYCLE_COLLECTION_UNLINK_EVENT_HANDLER(error)
   NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mCursor)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mError)
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 
 NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN_INHERITED(SmsRequest,
                                                nsDOMEventTargetHelper)
-  if (JSVAL_IS_GCTHING(tmp->mResult)) {
-    void *gcThing = JSVAL_TO_GCTHING(tmp->mResult);
-    NS_IMPL_CYCLE_COLLECTION_TRACE_JS_CALLBACK(gcThing, "mResult")
-  }
+  NS_IMPL_CYCLE_COLLECTION_TRACE_JSVAL_MEMBER_CALLBACK(mResult)
 NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(SmsRequest)
   NS_INTERFACE_MAP_ENTRY(nsIDOMMozSmsRequest)
+  NS_INTERFACE_MAP_ENTRY(nsIDOMDOMRequest)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMMozSmsRequest)
   NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(MozSmsRequest)
 NS_INTERFACE_MAP_END_INHERITING(nsDOMEventTargetHelper)
@@ -94,7 +63,6 @@ NS_IMPL_EVENT_HANDLER(SmsRequest, error)
 SmsRequest::SmsRequest(SmsManager* aManager)
   : mResult(JSVAL_VOID)
   , mResultRooted(false)
-  , mError(nsISmsRequestManager::SUCCESS_NO_ERROR)
   , mDone(false)
 {
   BindToOwner(aManager);
@@ -112,8 +80,7 @@ SmsRequest::Reset()
 {
   NS_ASSERTION(mDone, "mDone should be true if we try to reset!");
   NS_ASSERTION(mResult != JSVAL_VOID, "mResult should be set if we try to reset!");
-  NS_ASSERTION(mError == nsISmsRequestManager::SUCCESS_NO_ERROR,
-               "There should be no error if we try to reset!");
+  NS_ASSERTION(!mError, "There should be no error if we try to reset!");
 
   if (mResultRooted) {
     UnrootResult();
@@ -149,8 +116,7 @@ void
 SmsRequest::SetSuccess(bool aResult)
 {
   NS_PRECONDITION(!mDone, "mDone shouldn't have been set to true already!");
-  NS_PRECONDITION(mError == nsISmsRequestManager::SUCCESS_NO_ERROR,
-                  "mError shouldn't have been set!");
+  NS_PRECONDITION(!mError, "mError shouldn't have been set!");
   NS_PRECONDITION(mResult == JSVAL_NULL, "mResult shouldn't have been set!");
 
   mResult.setBoolean(aResult);
@@ -176,8 +142,7 @@ bool
 SmsRequest::SetSuccessInternal(nsISupports* aObject)
 {
   NS_PRECONDITION(!mDone, "mDone shouldn't have been set to true already!");
-  NS_PRECONDITION(mError == nsISmsRequestManager::SUCCESS_NO_ERROR,
-                  "mError shouldn't have been set!");
+  NS_PRECONDITION(!mError, "mError shouldn't have been set!");
   NS_PRECONDITION(mResult == JSVAL_VOID, "mResult shouldn't have been set!");
 
   nsresult rv;
@@ -217,13 +182,30 @@ void
 SmsRequest::SetError(PRInt32 aError)
 {
   NS_PRECONDITION(!mDone, "mDone shouldn't have been set to true already!");
-  NS_PRECONDITION(mError == nsISmsRequestManager::SUCCESS_NO_ERROR,
-                  "mError shouldn't have been set!");
+  NS_PRECONDITION(!mError, "mError shouldn't have been set!");
   NS_PRECONDITION(mResult == JSVAL_VOID, "mResult shouldn't have been set!");
+  NS_PRECONDITION(aError != nsISmsRequestManager::SUCCESS_NO_ERROR,
+                  "Can't call SetError() with SUCCESS_NO_ERROR!");
 
   mDone = true;
-  mError = aError;
   mCursor = nsnull;
+
+  switch (aError) {
+    case nsISmsRequestManager::NO_SIGNAL_ERROR:
+      mError = DOMError::CreateWithName(NS_LITERAL_STRING("NoSignalError"));
+      break;
+    case nsISmsRequestManager::NOT_FOUND_ERROR:
+      mError = DOMError::CreateWithName(NS_LITERAL_STRING("NotFoundError"));
+      break;
+    case nsISmsRequestManager::UNKNOWN_ERROR:
+      mError = DOMError::CreateWithName(NS_LITERAL_STRING("UnknownError"));
+      break;
+    case nsISmsRequestManager::INTERNAL_ERROR:
+      mError = DOMError::CreateWithName(NS_LITERAL_STRING("InternalError"));
+      break;
+    default: // SUCCESS_NO_ERROR is handled above.
+      MOZ_ASSERT(false, "Unknown error value.");
+  }
 }
 
 NS_IMETHODIMP
@@ -239,39 +221,13 @@ SmsRequest::GetReadyState(nsAString& aReadyState)
 }
 
 NS_IMETHODIMP
-SmsRequest::GetError(nsAString& aError)
+SmsRequest::GetError(nsIDOMDOMError** aError)
 {
-  if (!mDone) {
-    NS_ASSERTION(mError == nsISmsRequestManager::SUCCESS_NO_ERROR,
-                 "There should be no error if the request is still processing!");
-
-    SetDOMStringToNull(aError);
-    return NS_OK;
-  }
-
-  NS_ASSERTION(mError == nsISmsRequestManager::SUCCESS_NO_ERROR ||
-               mResult == JSVAL_VOID,
+  NS_ASSERTION(mDone || !mError, "mError should be null when pending");
+  NS_ASSERTION(!mError || mResult == JSVAL_VOID,
                "mResult should be void when there is an error!");
 
-  switch (mError) {
-    case nsISmsRequestManager::SUCCESS_NO_ERROR:
-      SetDOMStringToNull(aError);
-      break;
-    case nsISmsRequestManager::NO_SIGNAL_ERROR:
-      aError.AssignLiteral("NoSignalError");
-      break;
-    case nsISmsRequestManager::NOT_FOUND_ERROR:
-      aError.AssignLiteral("NotFoundError");
-      break;
-    case nsISmsRequestManager::UNKNOWN_ERROR:
-      aError.AssignLiteral("UnknownError");
-      break;
-    case nsISmsRequestManager::INTERNAL_ERROR:
-      aError.AssignLiteral("InternalError");
-      break;
-    default:
-      MOZ_ASSERT(false, "Unknown error value.");
-  }
+  NS_IF_ADDREF(*aError = mError);
 
   return NS_OK;
 }

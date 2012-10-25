@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Mobile Browser.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2008
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Matt Brubeck <mbrubeck@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #filter substitution
 
@@ -59,10 +26,7 @@ pref("toolkit.browser.contentViewExpire", 3000);
 pref("toolkit.defaultChromeURI", "chrome://browser/content/browser.xul");
 pref("browser.chromeURL", "chrome://browser/content/");
 
-pref("browser.tabs.warnOnClose", true);
-pref("browser.tabs.remote", true);
-
-pref("toolkit.screen.lock", false);
+pref("browser.tabs.remote", false);
 
 // From libpref/src/init/all.js, extended to allow a slightly wider zoom range.
 pref("zoom.minPercent", 20);
@@ -72,22 +36,10 @@ pref("toolkit.zoomManager.zoomValues", ".2,.3,.5,.67,.8,.9,1,1.1,1.2,1.33,1.5,1.
 // Mobile will use faster, less durable mode.
 pref("toolkit.storage.synchronous", 0);
 
-// disable telemetry for beta
-pref("toolkit.telemetry.enabled", false);
-
 // Device pixel to CSS px ratio, in percent. Set to -1 to calculate based on display density.
 pref("browser.viewport.scaleRatio", -1);
 pref("browser.viewport.desktopWidth", 980);
 
-#ifndef ANDROID
-#ifndef MOZ_PLATFORM_MAEMO
-// On desktop builds, simulate an MDPI tablet by default.
-pref("layout.css.dpi", 160);
-#else
-// Maemo X11 lies about its dpi
-pref("layout.css.dpi", 240);
-#endif
-#endif
 /* allow scrollbars to float above chrome ui */
 pref("ui.scrollbarsCanOverlapContent", 1);
 
@@ -125,13 +77,10 @@ pref("network.http.pipelining.ssl", true);
 pref("network.http.proxy.pipelining", true);
 pref("network.http.pipelining.maxrequests" , 6);
 pref("network.http.keep-alive.timeout", 600);
-pref("network.http.max-connections", 6);
-pref("network.http.max-connections-per-server", 4);
-pref("network.http.max-persistent-connections-per-server", 4);
-pref("network.http.max-persistent-connections-per-proxy", 4);
-#ifdef MOZ_PLATFORM_MAEMO
-pref("network.autodial-helper.enabled", true);
-#endif
+pref("network.http.max-connections", 20);
+pref("network.http.max-connections-per-server", 15);
+pref("network.http.max-persistent-connections-per-server", 6);
+pref("network.http.max-persistent-connections-per-proxy", 8);
 
 // See bug 545869 for details on why these are set the way they are
 pref("network.buffer.cache.count", 24);
@@ -206,6 +155,9 @@ pref("browser.formfill.enable", true);
 /* spellcheck */
 pref("layout.spellcheckDefault", 0);
 
+/* new html5 forms */
+pref("dom.experimental_forms", true);
+
 /* extension manager and xpinstall */
 pref("xpinstall.whitelist.add", "addons.mozilla.org");
 
@@ -269,10 +221,6 @@ pref("accessibility.typeaheadfind.casesensitive", 0);
 // zoom key(F7) conflicts with caret browsing on maemo
 pref("accessibility.browsewithcaret_shortcut.enabled", false);
 
-// Whether or not we show a dialog box informing the user that the update was
-// successfully applied.
-pref("app.update.showInstalledUI", false);
-
 // Whether the character encoding menu is under the main Firefox button. This
 // preference is a string so that localizers can alter it.
 pref("browser.menu.showCharacterEncoding", "chrome://browser/locale/browser.properties");
@@ -296,8 +244,8 @@ pref("browser.search.update", false);
 pref("browser.search.update.log", false);
 pref("browser.search.updateinterval", 6);
 
-// enable search suggestions by default
-pref("browser.search.suggest.enabled", true);
+// disable search suggestions by default
+pref("browser.search.suggest.enabled", false);
 
 // Tell the search service to load search plugins from the locale JAR
 pref("browser.search.loadFromJars", true);
@@ -369,7 +317,6 @@ pref("places.frecency.unvisitedTypedBonus", 200);
 // disable color management
 pref("gfx.color_management.mode", 0);
 
-#ifdef ANDROID
 // 0=fixed margin, 1=velocity bias, 2=dynamic resolution, 3=no margins, 4=prediction bias
 pref("gfx.displayport.strategy", 1);
 // all of the following displayport strategy prefs will be divided by 1000
@@ -388,7 +335,6 @@ pref("gfx.displayport.strategy_vb.danger_x_incr", -1); // additional danger zone
 pref("gfx.displayport.strategy_vb.danger_y_incr", -1); // additional danger zone on y-axis when multiplied by viewport height and velocity
 // prediction bias strategy options
 pref("gfx.displayport.strategy_pb.threshold", -1); // velocity threshold in inches/frame
-#endif
 
 // don't allow JS to move and resize existing windows
 pref("dom.disable_window_move_resize", true);
@@ -416,10 +362,6 @@ pref("privacy.item.geolocation", true);
 pref("privacy.item.siteSettings", true);
 pref("privacy.item.syncAccount", true);
 
-#ifdef MOZ_PLATFORM_MAEMO
-pref("plugins.force.wmode", "opaque");
-#endif
-
 // URL to the Learn More link XXX this is the firefox one.  Bug 495578 fixes this.
 pref("browser.geolocation.warning.infoURL", "http://www.mozilla.com/%LOCALE%/firefox/geolocation/");
 
@@ -436,11 +378,21 @@ pref("geo.enabled", true);
 // Disable methodjit in chrome to save memory
 pref("javascript.options.methodjit.chrome",  false);
 
-pref("javascript.options.mem.high_water_mark", 32);
-
 // Disable the JS engine's gc on memory pressure, since we do one in the mobile
 // browser (bug 669346).
 pref("javascript.options.gc_on_memory_pressure", false);
+
+#ifdef MOZ_PKG_SPECIAL
+// low memory devices
+pref("javascript.options.mem.gc_high_frequency_heap_growth_max", 120);
+pref("javascript.options.mem.gc_high_frequency_heap_growth_min", 101);
+pref("javascript.options.mem.gc_high_frequency_high_limit_mb", 40);
+pref("javascript.options.mem.gc_high_frequency_low_limit_mb", 10);
+pref("javascript.options.mem.gc_low_frequency_heap_growth", 105);
+pref("javascript.options.mem.high_water_mark", 16);
+#else
+pref("javascript.options.mem.high_water_mark", 32);
+#endif
 
 pref("dom.max_chrome_script_run_time", 0); // disable slow script dialog for chrome
 pref("dom.max_script_run_time", 20);
@@ -462,16 +414,8 @@ pref("browser.ui.touch.bottom", 16);
 pref("browser.ui.touch.weight.visited", 120); // percentage
 
 // plugins
-#if MOZ_PLATFORM_MAEMO == 6
-pref("plugin.disable", false);
-pref("dom.ipc.plugins.enabled", true);
-#elifdef ANDROID
 pref("plugin.disable", false);
 pref("dom.ipc.plugins.enabled", false);
-#else
-pref("plugin.disable", true);
-pref("dom.ipc.plugins.enabled", true);
-#endif
 
 pref("plugins.click_to_play", true);
 // Disabled because of thread safety problem
@@ -479,19 +423,12 @@ pref("plugins.click_to_play", true);
 // Bug 756253
 pref("plugins.use_placeholder", 0);
 
-// process priority
-// higher values give content process less CPU time
-#if MOZ_PLATFORM_MAEMO == 5
-pref("dom.ipc.content.nice", 10);
-#else
-pref("dom.ipc.content.nice", 1);
-#endif
-
 // product URLs
 // The breakpad report server to link to in about:crashes
 pref("breakpad.reportURL", "http://crash-stats.mozilla.com/report/index/");
 pref("app.support.baseURL", "http://support.mozilla.org/1/mobile/%VERSION%/%OS%/%LOCALE%/");
-pref("app.feedbackURL", "http://input.mozilla.com/feedback/");
+// Used to submit data to input from about:feedback
+pref("app.feedback.postURL", "http://m.input.mozilla.org/%LOCALE%/feedback");
 pref("app.privacyURL", "http://www.mozilla.com/%LOCALE%/m/privacy.html");
 pref("app.creditsURL", "http://www.mozilla.org/credits/");
 pref("app.channelURL", "http://www.mozilla.org/%LOCALE%/firefox/channel/");
@@ -501,10 +438,8 @@ pref("app.releaseNotesURL", "http://www.mozilla.com/%LOCALE%/mobile/%VERSION%/au
 pref("app.releaseNotesURL", "http://www.mozilla.com/%LOCALE%/mobile/%VERSION%/releasenotes/");
 #endif
 #if MOZ_UPDATE_CHANNEL == beta
-pref("app.featuresURL", "http://www.mozilla.com/%LOCALE%/mobile/beta/features/");
 pref("app.faqURL", "http://www.mozilla.com/%LOCALE%/mobile/beta/faq/");
 #else
-pref("app.featuresURL", "http://www.mozilla.com/%LOCALE%/mobile/features/");
 pref("app.faqURL", "http://www.mozilla.com/%LOCALE%/mobile/faq/");
 #endif
 pref("app.marketplaceURL", "https://marketplace.mozilla.org/");
@@ -550,17 +485,22 @@ pref("browser.search.param.yahoo-fr-cjkt", "moz35");
 pref("browser.search.param.yahoo-fr-ja", "mozff");
 #endif
 
-/* app update prefs */
-pref("app.update.timer", 60000); // milliseconds (1 min)
+/* prefs used by the update timer system (including blocklist pings) */
+pref("app.update.timerFirstInterval", 30000); // milliseconds
+pref("app.update.timerMinimumDelay", 30); // seconds
 
 #ifdef MOZ_UPDATER
+/* prefs used specifically for updating the app */
 pref("app.update.enabled", true);
-pref("app.update.timerFirstInterval", 20000); // milliseconds
 pref("app.update.auto", false);
 pref("app.update.channel", "@MOZ_UPDATE_CHANNEL@");
 pref("app.update.mode", 1);
 pref("app.update.silent", false);
+#ifdef MOZ_PKG_SPECIAL
+pref("app.update.url", "https://aus2.mozilla.org/update/4/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%-@MOZ_PKG_SPECIAL@/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PLATFORM_VERSION%/update.xml");
+#else
 pref("app.update.url", "https://aus2.mozilla.org/update/4/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PLATFORM_VERSION%/update.xml");
+#endif
 pref("app.update.promptWaitTime", 43200);
 pref("app.update.idletime", 60);
 pref("app.update.showInstalledUI", false);
@@ -572,7 +512,7 @@ pref("app.update.interval", 86400);
 pref("app.update.url.manual", "http://www.mozilla.com/%LOCALE%/m/");
 pref("app.update.url.details", "http://www.mozilla.com/%LOCALE%/mobile/releases/");
 #else
-pref("app.update.interval", 28800);
+pref("app.update.interval", 3600);
 pref("app.update.url.manual", "http://www.mozilla.com/%LOCALE%/mobile/");
 pref("app.update.url.details", "http://www.mozilla.com/%LOCALE%/mobile/");
 #endif
@@ -580,16 +520,6 @@ pref("app.update.url.details", "http://www.mozilla.com/%LOCALE%/mobile/");
 
 // replace newlines with spaces on paste into single-line text boxes
 pref("editor.singleLine.pasteNewlines", 2);
-
-#ifdef MOZ_PLATFORM_MAEMO
-// update fonts for better readability
-pref("font.default.x-baltic", "SwissA");
-pref("font.default.x-central-euro", "SwissA");
-pref("font.default.x-cyrillic", "SwissA");
-pref("font.default.x-unicode", "SwissA");
-pref("font.default.x-user-def", "SwissA");
-pref("font.default.x-western", "SwissA");
-#endif
 
 #ifdef MOZ_SERVICES_SYNC
 // sync service
@@ -616,14 +546,7 @@ pref("services.sync.prefs.sync.signon.rememberSignons", true);
 pref("ui.dragThresholdX", 25);
 pref("ui.dragThresholdY", 25);
 
-#if MOZ_PLATFORM_MAEMO == 6
 pref("layers.acceleration.disabled", false);
-#elifdef ANDROID
-pref("layers.acceleration.disabled", false);
-#else
-pref("layers.acceleration.disabled", true);
-#endif
-
 pref("layers.offmainthreadcomposition.enabled", true);
 
 pref("notification.feature.enabled", true);
@@ -731,9 +654,6 @@ pref("direct-texture.force.disabled", false);
 // show checkerboard pattern on android; we use background colour instead
 pref("gfx.show_checkerboard_pattern", true);
 
-pref("remote-debugger.enabled", false);
-pref("remote-debugger.port", 6000);
-
 // This fraction in 1000ths of velocity remains after every animation frame when the velocity is low.
 pref("ui.scrolling.friction_slow", -1);
 // This fraction in 1000ths of velocity remains after every animation frame when the velocity is high.
@@ -755,8 +675,29 @@ pref("ui.scrolling.min_scrollable_distance", -1);
 // interpolation frames for zoom animations.
 pref("ui.zooming.animation_frames", "");
 
+// Enable accessibility mode if platform accessibility is enabled.
+pref("accessibility.accessfu.activate", 2);
+// Enable explore by touch if it is enabled in the platform
+pref("accessibility.accessfu.explorebytouch", 2);
+
 // Mobile manages state by autodetection
 pref("network.manage-offline-status", true);
 
 // increase the timeout clamp for background tabs to 15 minutes
 pref("dom.min_background_timeout_value", 900000);
+
+// The default of font size in reader (1-7)
+pref("reader.font_size", 4);
+
+// The default of margin size in reader (5%-25%)
+pref("reader.margin_size", 5);
+
+// The default color scheme in reader (light, dark, sepia)
+pref("reader.color_scheme", "light");
+ 
+ // Used to show a first-launch tip in reader
+pref("reader.has_used_toolbar", false);
+
+// default orientation for the app, default to undefined
+// the java GeckoScreenOrientationListener needs this to be defined
+pref("app.orientation.default", "");

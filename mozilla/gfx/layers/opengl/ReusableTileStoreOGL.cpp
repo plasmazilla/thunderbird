@@ -13,7 +13,7 @@ ReusableTileStoreOGL::~ReusableTileStoreOGL()
     return;
 
   mContext->MakeCurrent();
-  for (int i = 0; i < mTiles.Length(); i++)
+  for (PRUint32 i = 0; i < mTiles.Length(); i++)
     mContext->fDeleteTextures(1, &mTiles[i]->mTexture.mTextureHandle);
   mTiles.Clear();
 }
@@ -55,7 +55,7 @@ ReusableTileStoreOGL::InvalidateTiles(TiledThebesLayerOGL* aLayer,
   // assumption is that anything within this area should be valid, so there's
   // no need to keep invalid tiles there.
   mContext->MakeCurrent();
-  for (int i = 0; i < mTiles.Length();) {
+  for (PRUint32 i = 0; i < mTiles.Length();) {
     ReusableTiledTextureOGL* tile = mTiles[i];
 
     // Check if the tile region is contained within the new valid region.
@@ -201,7 +201,8 @@ ReusableTileStoreOGL::DrawTiles(TiledThebesLayerOGL* aLayer,
                                 const nsIntRegion& aValidRegion,
                                 const gfxSize& aResolution,
                                 const gfx3DMatrix& aTransform,
-                                const nsIntPoint& aRenderOffset)
+                                const nsIntPoint& aRenderOffset,
+                                Layer* aMaskLayer)
 {
   // Walk up the tree, looking for a display-port - if we find one, we know
   // that this layer represents a content node and we can use its first
@@ -228,7 +229,7 @@ ReusableTileStoreOGL::DrawTiles(TiledThebesLayerOGL* aLayer,
   }
 
   // Render old tiles to fill in gaps we haven't had the time to render yet.
-  for (size_t i = 0; i < mTiles.Length(); i++) {
+  for (PRUint32 i = 0; i < mTiles.Length(); i++) {
     ReusableTiledTextureOGL* tile = mTiles[i];
 
     // Work out the scaling factor in case of resolution differences.
@@ -286,7 +287,7 @@ ReusableTileStoreOGL::DrawTiles(TiledThebesLayerOGL* aLayer,
     }
     nsIntPoint tileOffset(tile->mTileOrigin.x - tileStartX, tile->mTileOrigin.y - tileStartY);
     nsIntSize textureSize(tile->mTileSize, tile->mTileSize);
-    aLayer->RenderTile(tile->mTexture, transform, aRenderOffset, tileRegion, tileOffset, textureSize);
+    aLayer->RenderTile(tile->mTexture, transform, aRenderOffset, tileRegion, tileOffset, textureSize, aMaskLayer);
   }
 }
 

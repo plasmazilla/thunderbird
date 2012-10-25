@@ -1,48 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 // vim:set ts=2 sts=2 sw=2 et cin:
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Jacek Piskozub <piskozub@iopan.gda.pl>
- *   Leon Sha <leon.sha@sun.com>
- *   Roland Mainz <roland.mainz@informatik.med.uni-giessen.de>
- *   Robert O'Callahan <roc+moz@cs.cmu.edu>
- *   Christian Biesinger <cbiesinger@web.de>
- *   Josh Aas <josh@mozilla.com>
- *   Mats Palmgren <matspal@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* rendering objects for replaced elements implemented by a plugin */
 
@@ -86,7 +46,6 @@
 #include "nsIDOMWindow.h"
 #include "nsIDOMEventTarget.h"
 #include "nsIDOMNSEvent.h"
-#include "nsIPrivateDOMEvent.h"
 #include "nsIDocumentEncoder.h"
 #include "nsXPIDLString.h"
 #include "nsIDOMRange.h"
@@ -184,6 +143,11 @@ using mozilla::DefaultXDisplay;
 #define INCL_GPI
 #include <os2.h>
 #include "gfxOS2Surface.h"
+#endif
+
+#ifdef MOZ_WIDGET_ANDROID
+#include "AndroidBridge.h"
+#include "GLContext.h"
 #endif
 
 #ifdef CreateEvent // Thank you MS.
@@ -303,7 +267,7 @@ NS_QUERYFRAME_HEAD(nsObjectFrame)
 NS_QUERYFRAME_TAIL_INHERITING(nsObjectFrameSuper)
 
 #ifdef ACCESSIBILITY
-already_AddRefed<nsAccessible>
+already_AddRefed<Accessible>
 nsObjectFrame::CreateAccessible()
 {
   nsAccessibilityService* accService = nsIPresShell::AccService();
@@ -423,9 +387,10 @@ nsObjectFrame::PrepForDrawing(nsIWidget *aWidget)
   }
 
   if (mWidget) {
-    // XXX this breaks plugins in popups ... do we care?
-    nsIWidget* parentWidget = rpc->PresShell()->FrameManager()->GetRootFrame()->GetNearestWidget();
-    if (!parentWidget) {
+    // Disallow plugins in popups
+    nsIFrame* rootFrame = rpc->PresShell()->FrameManager()->GetRootFrame();
+    nsIWidget* parentWidget = rootFrame->GetNearestWidget();
+    if (!parentWidget || nsLayoutUtils::GetDisplayRootFrame(this) != rootFrame) {
       return NS_ERROR_FAILURE;
     }
 
@@ -781,20 +746,20 @@ nsObjectFrame::SetInstanceOwner(nsPluginInstanceOwner* aOwner)
       if (mWidget) {
         if (mInnerView) {
           mInnerView->DetachWidgetEventHandler(mWidget);
-        }
 
-        rpc->UnregisterPluginForGeometryUpdates(this);
-        // Make sure the plugin is hidden in case an update of plugin geometry
-        // hasn't happened since this plugin became hidden.
-        nsIWidget* parent = mWidget->GetParent();
-        if (parent) {
-          nsTArray<nsIWidget::Configuration> configurations;
-          this->GetEmptyClipConfiguration(&configurations);
-          parent->ConfigureChildren(configurations);
+          rpc->UnregisterPluginForGeometryUpdates(this);
+          // Make sure the plugin is hidden in case an update of plugin geometry
+          // hasn't happened since this plugin became hidden.
+          nsIWidget* parent = mWidget->GetParent();
+          if (parent) {
+            nsTArray<nsIWidget::Configuration> configurations;
+            this->GetEmptyClipConfiguration(&configurations);
+            parent->ConfigureChildren(configurations);
 
-          mWidget->Show(false);
-          mWidget->Enable(false);
-          mWidget->SetParent(nsnull);
+            mWidget->Show(false);
+            mWidget->Enable(false);
+            mWidget->SetParent(nsnull);
+          }
         }
       } else {
 #ifndef XP_MACOSX
@@ -932,7 +897,8 @@ public:
   }
 
   virtual LayerState GetLayerState(nsDisplayListBuilder* aBuilder,
-                                   LayerManager* aManager)
+                                   LayerManager* aManager,
+                                   const ContainerParameters& aParameters)
   {
     return LAYER_ACTIVE;
   }
@@ -971,6 +937,66 @@ nsDisplayPluginReadback::ComputeVisibility(nsDisplayListBuilder* aBuilder,
   return true;
 }
 
+#ifdef MOZ_WIDGET_ANDROID
+
+class nsDisplayPluginVideo : public nsDisplayItem {
+public:
+  nsDisplayPluginVideo(nsDisplayListBuilder* aBuilder, nsIFrame* aFrame, nsNPAPIPluginInstance::VideoInfo* aVideoInfo)
+    : nsDisplayItem(aBuilder, aFrame), mVideoInfo(aVideoInfo)
+  {
+    MOZ_COUNT_CTOR(nsDisplayPluginVideo);
+  }
+#ifdef NS_BUILD_REFCNT_LOGGING
+  virtual ~nsDisplayPluginVideo() {
+    MOZ_COUNT_DTOR(nsDisplayPluginVideo);
+  }
+#endif
+
+  virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder, bool* aSnap);
+  virtual bool ComputeVisibility(nsDisplayListBuilder* aBuilder,
+                                   nsRegion* aVisibleRegion,
+                                   const nsRect& aAllowVisibleRegionExpansion);
+
+  NS_DISPLAY_DECL_NAME("PluginVideo", TYPE_PLUGIN_VIDEO)
+
+  virtual already_AddRefed<Layer> BuildLayer(nsDisplayListBuilder* aBuilder,
+                                             LayerManager* aManager,
+                                             const ContainerParameters& aContainerParameters)
+  {
+    return static_cast<nsObjectFrame*>(mFrame)->BuildLayer(aBuilder, aManager, this);
+  }
+
+  virtual LayerState GetLayerState(nsDisplayListBuilder* aBuilder,
+                                   LayerManager* aManager,
+                                   const ContainerParameters& aParameters)
+  {
+    return LAYER_ACTIVE;
+  }
+
+  nsNPAPIPluginInstance::VideoInfo* VideoInfo() { return mVideoInfo; }
+
+private:
+  nsNPAPIPluginInstance::VideoInfo* mVideoInfo;
+};
+
+nsRect
+nsDisplayPluginVideo::GetBounds(nsDisplayListBuilder* aBuilder, bool* aSnap)
+{
+  *aSnap = false;
+  return GetDisplayItemBounds(aBuilder, this, mFrame);
+}
+
+bool
+nsDisplayPluginVideo::ComputeVisibility(nsDisplayListBuilder* aBuilder,
+                                           nsRegion* aVisibleRegion,
+                                           const nsRect& aAllowVisibleRegionExpansion)
+{
+  return nsDisplayItem::ComputeVisibility(aBuilder, aVisibleRegion,
+                                          aAllowVisibleRegionExpansion);
+}
+
+#endif
+
 nsRect
 nsDisplayPlugin::GetBounds(nsDisplayListBuilder* aBuilder, bool* aSnap)
 {
@@ -1000,10 +1026,8 @@ nsDisplayPlugin::ComputeVisibility(nsDisplayListBuilder* aBuilder,
 
 nsRegion
 nsDisplayPlugin::GetOpaqueRegion(nsDisplayListBuilder* aBuilder,
-                                 bool* aSnap,
-                                 bool* aForceTransparentSurface)
+                                 bool* aSnap)
 {
-  *aForceTransparentSurface = false;
   *aSnap = false;
   nsRegion result;
   nsObjectFrame* f = static_cast<nsObjectFrame*>(mFrame);
@@ -1057,6 +1081,10 @@ nsObjectFrame::ComputeWidgetGeometry(const nsRegion& aRegion,
       mInstanceOwner->UpdateWindowVisibility(!aRegion.IsEmpty());
     }
 #endif
+    return;
+  }
+
+  if (!mInnerView) {
     return;
   }
 
@@ -1122,6 +1150,9 @@ nsObjectFrame::IsOpaque() const
 {
 #if defined(XP_MACOSX)
   // ???
+  return false;
+#elif defined(MOZ_WIDGET_ANDROID)
+  // We don't know, so just assume transparent
   return false;
 #else
   return !IsTransparentMode();
@@ -1211,6 +1242,8 @@ nsObjectFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
         nsDisplayGeneric(aBuilder, this, PaintPrintPlugin, "PrintPlugin",
                          nsDisplayItem::TYPE_PRINT_PLUGIN));
   } else {
+    // We don't need this on Android, and it just confuses things
+#if !MOZ_WIDGET_ANDROID
     if (aBuilder->IsPaintingToWindow() &&
         GetLayerState(aBuilder, nsnull) == LAYER_ACTIVE &&
         IsTransparentMode()) {
@@ -1218,6 +1251,22 @@ nsObjectFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
           nsDisplayPluginReadback(aBuilder, this));
       NS_ENSURE_SUCCESS(rv, rv);
     }
+#endif
+
+#if MOZ_WIDGET_ANDROID
+    if (aBuilder->IsPaintingToWindow() &&
+        GetLayerState(aBuilder, nsnull) == LAYER_ACTIVE) {
+
+      nsTArray<nsNPAPIPluginInstance::VideoInfo*> videos;
+      mInstanceOwner->GetVideos(videos);
+      
+      for (int i = 0; i < videos.Length(); i++) {
+        rv = replacedContent.AppendNewToTop(new (aBuilder)
+          nsDisplayPluginVideo(aBuilder, this, videos[i]));
+        NS_ENSURE_SUCCESS(rv, rv);
+      }
+    }
+#endif
 
     rv = replacedContent.AppendNewToTop(new (aBuilder)
         nsDisplayPlugin(aBuilder, this));
@@ -1525,6 +1574,12 @@ nsObjectFrame::GetLayerState(nsDisplayListBuilder* aBuilder,
   }
 #endif
 
+#ifdef MOZ_WIDGET_ANDROID
+  // We always want a layer on Honeycomb and later
+  if (AndroidBridge::Bridge()->GetAPIVersion() >= 11)
+    return LAYER_ACTIVE;
+#endif
+
   if (!mInstanceOwner->UseAsyncRendering()) {
     return LAYER_NONE;
   }
@@ -1557,10 +1612,13 @@ nsObjectFrame::BuildLayer(nsDisplayListBuilder* aBuilder,
   }
 
   gfxIntSize size;
-  
-  if (mInstanceOwner->UseAsyncRendering()) {
+
+#ifdef XP_MACOSX
+  if (mInstanceOwner->GetDrawingModel() == NPDrawingModelCoreAnimation) {
     size = container->GetCurrentSize();
-  } else {
+  } else
+#endif
+  {
     size = gfxIntSize(window->width, window->height);
   }
 
@@ -1585,9 +1643,9 @@ nsObjectFrame::BuildLayer(nsDisplayListBuilder* aBuilder,
     ImageLayer* imglayer = static_cast<ImageLayer*>(layer.get());
     UpdateImageLayer(r);
 
-    if (!mInstanceOwner->UseAsyncRendering()) {
-      imglayer->SetScaleToSize(size, ImageLayer::SCALE_STRETCH);
-    }
+#ifdef XP_WIN
+    imglayer->SetScaleToSize(size, ImageLayer::SCALE_STRETCH);
+#endif
     imglayer->SetContainer(container);
     gfxPattern::GraphicsFilter filter =
       nsLayoutUtils::GetGraphicsFilterForFrame(this);
@@ -1600,6 +1658,32 @@ nsObjectFrame::BuildLayer(nsDisplayListBuilder* aBuilder,
     imglayer->SetFilter(filter);
 
     layer->SetContentFlags(IsOpaque() ? Layer::CONTENT_OPAQUE : 0);
+#ifdef MOZ_WIDGET_ANDROID
+  } else if (aItem->GetType() == nsDisplayItem::TYPE_PLUGIN_VIDEO) {
+    nsDisplayPluginVideo* videoItem = reinterpret_cast<nsDisplayPluginVideo*>(aItem);
+    nsNPAPIPluginInstance::VideoInfo* videoInfo = videoItem->VideoInfo();
+
+    nsRefPtr<ImageContainer> container = mInstanceOwner->GetImageContainerForVideo(videoInfo);
+    if (!container)
+      return nsnull;
+
+    if (!layer) {
+      // Initialize ImageLayer
+      layer = aManager->CreateImageLayer();
+      if (!layer)
+        return nsnull;
+    }
+
+    ImageLayer* imglayer = static_cast<ImageLayer*>(layer.get());
+    imglayer->SetContainer(container);
+
+    layer->SetContentFlags(IsOpaque() ? Layer::CONTENT_OPAQUE : 0);
+
+    // Set the offset and size according to the video dimensions
+    r.MoveBy(videoInfo->mDimensions.TopLeft());
+    size.width = videoInfo->mDimensions.width;
+    size.height = videoInfo->mDimensions.height;
+#endif
   } else {
     NS_ASSERTION(aItem->GetType() == nsDisplayItem::TYPE_PLUGIN_READBACK,
                  "Unknown item type");
@@ -2152,7 +2236,7 @@ nsObjectFrame::EndSwapDocShells(nsIContent* aContent, void*)
   nsObjectFrame* objectFrame = static_cast<nsObjectFrame*>(obj);
   nsRootPresContext* rootPC = objectFrame->PresContext()->GetRootPresContext();
   NS_ASSERTION(rootPC, "unable to register the plugin frame");
-  nsIWidget* widget = objectFrame->GetWidget();
+  nsIWidget* widget = objectFrame->mWidget;
   if (widget) {
     // Reparent the widget.
     nsIWidget* parent =

@@ -1,47 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- ***** BEGIN LICENSE BLOCK *****
-   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
-   -
-   - The contents of this file are subject to the Mozilla Public License Version
-   - 1.1 (the "License"); you may not use this file except in compliance with
-   - the License. You may obtain a copy of the License at
-   - http://www.mozilla.org/MPL/
-   -
-   - Software distributed under the License is distributed on an "AS IS" basis,
-   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-   - for the specific language governing rights and limitations under the
-   - License.
-   -
-   - The Original Code is Sun Microsystems code.
-   -
-   - The Initial Developer of the Original Code is Sun Microsystems.
-   - Portions created by the Initial Developer are Copyright (C) 2006
-   - the Initial Developer. All Rights Reserved.
-   -
-   - Contributor(s):
-   -   Michael Buettner <michael.buettner@sun.com>
-   -   Philipp Kewisch <mozilla@kewis.ch>
-   -   Stefan Sitter <ssitter@gmail.com>
-   -   Fred Jendrzejewski <fred.jen@web.de>
-   -   Markus Adrario <Mozilla@Adrario.de>
-   -   Gianfranco Balza <bv1578@gmail.com>
-   -
-   - Alternatively, the contents of this file may be used under the terms of
-   - either the GNU General Public License Version 2 or later (the "GPL"), or
-   - the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-   - in which case the provisions of the GPL or the LGPL are applicable instead
-   - of those above. If you wish to allow use of your version of this file only
-   - under the terms of either the GPL or the LGPL, and not to allow others to
-   - use your version of this file under the terms of the MPL, indicate your
-   - decision by deleting the provisions above and replace them with the notice
-   - and other provisions required by the GPL or the LGPL. If you do not delete
-   - the provisions above, a recipient may use your version of this file under
-   - the terms of any one of the MPL, the GPL or the LGPL.
-   -
-   - ***** END LICENSE BLOCK ***** -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <?xml-stylesheet type="text/css" href="chrome://global/skin/global.css"?>
 <?xml-stylesheet type="text/css" href="chrome://calendar/skin/calendar-alarms.css"?>
+<?xml-stylesheet type="text/css" href="chrome://calendar/skin/calendar-attendees.css"?>
 <?xml-stylesheet type="text/css" href="chrome://calendar/skin/calendar-event-dialog.css"?>
 <?xml-stylesheet type="text/css" href="chrome://calendar/content/calendar-event-dialog.css"?>
 <?xml-stylesheet type="text/css" href="chrome://calendar/content/datetimepickers/datetimepickers.css"?>
@@ -212,6 +176,8 @@
         <command id="cmd_attach_url"
                  disable-on-readonly="true"
                  oncommand="attachURL()"/>
+        <command id="cmd_attach_cloud"
+                 disable-on-readonly="true"/>
         <command id="cmd_openAttachment"
                  oncommand="openAttachment()"/>
         <command id="cmd_copyAttachment"
@@ -292,7 +258,16 @@
   </menupopup>
 
   <!-- Toolbox contains the toolbar and menubar -->
-    <toolbox id="event-toolbox" class="toolbox-top" mode="full">
+    <toolbox id="event-toolbox"
+             class="toolbox-top"
+             mode="full"
+             defaultmode="full"
+#ifdef XP_MACOSX
+             iconsize="small"
+             defaulticonsize="small"
+#endif
+             labelalign="end"
+             defaultlabelalign="end">
 
         <!-- Menubar -->
         <menubar id="event-menubar">
@@ -458,10 +433,16 @@
                             accesskey="&event.menu.options.attendees.accesskey;"
                             command="cmd_attendees"
                             disable-on-readonly="true"/>
-                  <menuitem id="options-attachments-menuitem"
-                            label="&event.menu.options.attachments.label;"
-                            accesskey="&event.menu.options.attachments.accesskey;"
-                            command="cmd_attach_url"/>
+                  <menu id="options-attachments-menu"
+                        label="&event.attachments.menubutton.label;"
+                        accesskey="&event.attachments.menubutton.accesskey;">
+                    <menupopup id="options-attachments-menupopup">
+                      <menuitem id="options-attachments-url-menuitem"
+                                label="&event.attachments.url.label;"
+                                accesskey="&event.attachments.url.accesskey;"
+                                command="cmd_attach_url"/>
+                    </menupopup>
+                  </menu>
                   <menuitem id="options-timezone-menuitem"
                             label="&event.menu.options.timezone2.label;"
                             accesskey="&event.menu.options.timezone2.accesskey;"
@@ -512,21 +493,21 @@
                                     accesskey="&event.menu.options.privacy.public.accesskey;"
                                     type="radio"
                                     privacy="PUBLIC"
-                                    oncommand="editPrivacy(this)"
+                                    oncommand="editPrivacy(this, event)"
                                     disable-on-readonly="true"/>
                           <menuitem id="options-privacy-confidential-menuitem"
                                     label="&event.menu.options.privacy.confidential.label;"
                                     accesskey="&event.menu.options.privacy.confidential.accesskey;"
                                     type="radio"
                                     privacy="CONFIDENTIAL"
-                                    oncommand="editPrivacy(this)"
+                                    oncommand="editPrivacy(this, event)"
                                     disable-on-readonly="true"/>
                           <menuitem id="options-privacy-private-menuitem"
                                     label="&event.menu.options.privacy.private.label;"
                                     accesskey="&event.menu.options.privacy.private.accesskey;"
                                     type="radio"
                                     privacy="PRIVATE"
-                                    oncommand="editPrivacy(this)"
+                                    oncommand="editPrivacy(this, event)"
                                     disable-on-readonly="true"/>
                       </menupopup>
                   </menu>
@@ -628,11 +609,18 @@
                 </menupopup>
             </toolbarbutton>
             <toolbarbutton id="button-url"
+                           type="menu-button"
                            mode="dialog"
                            class="cal-event-toolbarbutton toolbarbutton-1"
-                           label="&event.toolbar.attachments.label;"
+                           label="&event.attachments.menubutton.label;"
                            command="cmd_attach_url"
-                           disable-on-readonly="true"/>
+                           disable-on-readonly="true">
+              <menupopup id="button-attach-menupopup">
+                <menuitem id="button-attach-url"
+                          label="&event.attachments.url.label;"
+                          command="cmd_attach_url"/>
+              </menupopup>
+            </toolbarbutton>
             <toolbarbutton id="button-delete"
                            mode="dialog"
                            class="cal-event-toolbarbutton toolbarbutton-1"
@@ -1116,15 +1104,12 @@
                       collapsed="true"
                       pack="start">
         <hbox id="status-privacy-public-box" privacy="PUBLIC">
-          <image id="button-privacy-public" class="cal-statusbar-1"/>
           <label value="&event.menu.options.privacy.public.label;"/>
         </hbox>
         <hbox id="status-privacy-confidential-box" privacy="CONFIDENTIAL">
-          <image id="button-privacy-confidential" class="cal-statusbar-1"/>
           <label value="&event.menu.options.privacy.confidential.label;"/>
         </hbox>
         <hbox id="status-privacy-private-box" privacy="PRIVATE">
-          <image id="button-privacy-private" class="cal-statusbar-1"/>
           <label value="&event.menu.options.privacy.private.label;"/>
         </hbox>
       </statusbarpanel>

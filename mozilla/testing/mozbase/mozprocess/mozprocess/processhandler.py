@@ -1,41 +1,6 @@
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is mozprocess.
-#
-# The Initial Developer of the Original Code is
-#  The Mozilla Foundation.
-# Portions created by the Initial Developer are Copyright (C) 2011
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#  Clint Talbert <ctalbert@mozilla.com>
-#  Jonathan Griffin <jgriffin@mozilla.com>
-#  Jeff Hammel <jhammel@mozilla.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this file,
+# You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import logging
 import mozinfo
@@ -146,7 +111,7 @@ class ProcessHandlerMixin(object):
                     except BaseException, e:
                         if getattr(e, "errno", None) != 3:
                             # Error 3 is "no such process", which is ok
-                            print >> sys.stderr, "Could not kill process, could not find pid: %s" % self.pid
+                            print >> sys.stdout, "Could not kill process, could not find pid: %s, assuming it's already dead" % self.pid
                 else:
                     os.kill(self.pid, signal.SIGKILL)
                 if self.returncode is None:
@@ -400,7 +365,8 @@ falling back to not using job objects for managing child processes"""
                     except:
                         err = "IO Completion Port failed to signal process shutdown"
                     # Either way, let's try to get this code
-                    self.returncode = winprocess.GetExitCodeProcess(self._handle)
+                    if self._handle:
+                        self.returncode = winprocess.GetExitCodeProcess(self._handle)
                     self._cleanup()
 
                     if err is not None:
@@ -435,7 +401,8 @@ falling back to not using job objects for managing child processes"""
                             raise WinError(rc)
 
                     self._cleanup()
-                    return self.returncode
+
+                return self.returncode
 
             def _cleanup_job_io_port(self):
                 """ Do the job and IO port cleanup separately because there are
@@ -517,7 +484,7 @@ falling back to not using job objects for managing child processes"""
                  cmd,
                  args=None,
                  cwd=None,
-                 env=os.environ.copy(),
+                 env=None,
                  ignore_children = False,
                  processOutputLine=(),
                  onTimeout=(),
@@ -542,10 +509,13 @@ falling back to not using job objects for managing child processes"""
         self.cmd = cmd
         self.args = args
         self.cwd = cwd
-        self.env = env
         self.didTimeout = False
         self._ignore_children = ignore_children
         self.keywordargs = kwargs
+
+        if env is None:
+            env = os.environ.copy()
+        self.env = env
 
         # handlers
         self.processOutputLineHandlers = list(processOutputLine)
@@ -658,7 +628,6 @@ falling back to not using job objects for managing child processes"""
                 lineReadTimeout = timeout - (datetime.now() - self.startTime).seconds
             (line, self.didTimeout) = self.readWithTimeout(logsource, lineReadTimeout)
 
-
         if self.didTimeout:
             self.proc.kill()
             self.onTimeout()
@@ -703,7 +672,7 @@ falling back to not using job objects for managing child processes"""
             try:
                 (r, w, e) = select.select([f], [], [], timeout)
             except:
-                # TODO: return a blank line?
+                # return a blank line
                 return ('', True)
 
             if len(r) == 0:
@@ -743,6 +712,7 @@ class LogOutput(object):
         if self.file is not None:
             self.file.close()
 
+
 ### front end class with the default handlers
 
 class ProcessHandler(ProcessHandlerMixin):
@@ -756,7 +726,11 @@ class ProcessHandler(ProcessHandlerMixin):
         appended to the given file.
         """
 
-        kwargs.setdefault('processOutputLine', []).append(print_output)
+        kwargs.setdefault('processOutputLine', [])
+
+        # Print to standard output only if no outputline provided
+        if not kwargs['processOutputLine']:
+            kwargs['processOutputLine'].append(print_output)
 
         if logfile:
             logoutput = LogOutput(logfile)

@@ -1,41 +1,7 @@
 #filter substitution
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Firefox Mobile Test Framework.
- *
- * The Initial Developer of the Original Code is Mozilla.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- * Trevor Fairey <tnfairey@gmail.com>
- * David Burns <dburns@mozilla.com>
- * Joel Maher <joel.maher@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 package @ANDROID_PACKAGE_NAME@;
 
@@ -70,6 +36,7 @@ public class FennecNativeActions implements Actions {
     private Solo mSolo;
     private Instrumentation mInstr;
     private Activity mGeckoApp;
+    private Assert mAsserter;
 
     // Objects for reflexive access of fennec classes.
     private ClassLoader mClassLoader;
@@ -84,10 +51,11 @@ public class FennecNativeActions implements Actions {
     private Method mSetDrawListener;
     private static final String LOGTAG = "FennecNativeActions";
 
-    public FennecNativeActions(Activity activity, Solo robocop, Instrumentation instrumentation) {
+    public FennecNativeActions(Activity activity, Solo robocop, Instrumentation instrumentation, Assert asserter) {
         mSolo = robocop;
         mInstr = instrumentation;
         mGeckoApp = activity;
+        mAsserter = asserter;
         // Set up reflexive access of java classes and methods.
         try {
             mClassLoader = activity.getClassLoader();
@@ -151,6 +119,7 @@ public class FennecNativeActions implements Actions {
         private final String mGeckoEvent;
         private final Object[] mRegistrationParams;
         private boolean mEventReceived;
+        private static final int MAX_WAIT_MS = 90000;
 
         GeckoEventExpecter(String geckoEvent, Object[] registrationParams) {
             mGeckoEvent = geckoEvent;
@@ -158,12 +127,20 @@ public class FennecNativeActions implements Actions {
         }
 
         public synchronized void blockForEvent() {
+            long startTime = SystemClock.uptimeMillis();
+            long endTime = 0;
             while (! mEventReceived) {
                 try {
-                    this.wait();
+                    this.wait(MAX_WAIT_MS);
                 } catch (InterruptedException ie) {
                     FennecNativeDriver.log(LogLevel.ERROR, ie);
                     break;
+                }
+                endTime = SystemClock.uptimeMillis();
+                if (!mEventReceived && (endTime - startTime >= MAX_WAIT_MS)) {
+                    mAsserter.ok(false, "GeckoEventExpecter", 
+                        "blockForEvent timeout: "+mGeckoEvent);
+                    return;
                 }
             }
             FennecNativeDriver.log(FennecNativeDriver.LogLevel.DEBUG,
@@ -256,6 +233,7 @@ public class FennecNativeActions implements Actions {
     class PaintExpecter implements RepeatedEventExpecter {
         private Object mLayerClient;
         private boolean mPaintDone;
+        private static final int MAX_WAIT_MS = 90000;
 
         PaintExpecter() throws IllegalAccessException, InvocationTargetException {
             mLayerClient = mGetLayerClient.invoke(mGeckoApp);
@@ -270,12 +248,19 @@ public class FennecNativeActions implements Actions {
         }
 
         public synchronized void blockForEvent() {
+            long startTime = SystemClock.uptimeMillis();
+            long endTime = 0;
             while (!mPaintDone) {
                 try {
-                    this.wait();
+                    this.wait(MAX_WAIT_MS);
                 } catch (InterruptedException ie) {
                     FennecNativeDriver.log(LogLevel.ERROR, ie);
                     break;
+                }
+                endTime = SystemClock.uptimeMillis();
+                if (!mPaintDone && (endTime - startTime >= MAX_WAIT_MS)) {
+                    mAsserter.ok(false, "PaintExpecter", "blockForEvent timeout");
+                    return;
                 }
             }
             try {
@@ -294,16 +279,23 @@ public class FennecNativeActions implements Actions {
                 throw new IllegalArgumentException("millis must be > 0");
             }
             // wait for at least one event
+            long startTime = SystemClock.uptimeMillis();
+            long endTime = 0;
             while (!mPaintDone) {
                 try {
-                    this.wait();
+                    this.wait(MAX_WAIT_MS);
                 } catch (InterruptedException ie) {
                     FennecNativeDriver.log(LogLevel.ERROR, ie);
                     break;
                 }
+                endTime = SystemClock.uptimeMillis();
+                if (!mPaintDone && (endTime - startTime >= MAX_WAIT_MS)) {
+                    mAsserter.ok(false, "PaintExpecter", "blockUtilClear timeout");
+                    return;
+                }
             }
             // now wait for a period of millis where we don't get an event
-            long startTime = SystemClock.uptimeMillis();
+            startTime = SystemClock.uptimeMillis();
             while (true) {
                 try {
                     this.wait(millis);
@@ -311,7 +303,7 @@ public class FennecNativeActions implements Actions {
                     FennecNativeDriver.log(LogLevel.ERROR, ie);
                     break;
                 }
-                long endTime = SystemClock.uptimeMillis();
+                endTime = SystemClock.uptimeMillis();
                 if (endTime - startTime >= millis) {
                     // success
                     break;

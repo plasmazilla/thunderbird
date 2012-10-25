@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Eitan Isaacson <eitan@monotonous.org> (original author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef _nsAccessiblePivot_H_
 #define _nsAccessiblePivot_H_
@@ -46,8 +13,12 @@
 #include "nsTObserverArray.h"
 #include "nsCycleCollectionParticipant.h"
 
-class nsAccessible;
+class Accessible;
 class nsIAccessibleTraversalRule;
+
+// raised when current pivot's position is needed but it is not in the tree.
+#define NS_ERROR_NOT_IN_TREE \
+NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_GENERAL, 0x26)
 
 /**
  * Class represents an accessible pivot.
@@ -55,7 +26,7 @@ class nsIAccessibleTraversalRule;
 class nsAccessiblePivot: public nsIAccessiblePivot
 {
 public:
-  nsAccessiblePivot(nsAccessible* aRoot);
+  nsAccessiblePivot(Accessible* aRoot);
 
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
   NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsAccessiblePivot, nsIAccessiblePivot)
@@ -65,7 +36,7 @@ public:
   /*
    * A simple getter for the pivot's position.
    */
-  nsAccessible* Position() { return mPosition; }
+  Accessible* Position() { return mPosition; }
 
 private:
   nsAccessiblePivot() MOZ_DELETE;
@@ -73,47 +44,49 @@ private:
   void operator = (const nsAccessiblePivot&) MOZ_DELETE;
 
   /*
-   * Notify all observers on a pivot change.
+   * Notify all observers on a pivot change. Return true if it has changed and
+   * observers have been notified.
    */
-  void NotifyPivotChanged(nsAccessible* aOldAccessible,
-                          PRInt32 aOldStart, PRInt32 aOldEnd);
+  bool NotifyOfPivotChange(Accessible* aOldAccessible,
+                           PRInt32 aOldStart, PRInt32 aOldEnd,
+                           PivotMoveReason aReason);
 
   /*
    * Check to see that the given accessible is in the pivot's subtree.
    */
-  bool IsRootDescendant(nsAccessible* aAccessible);
+  bool IsRootDescendant(Accessible* aAccessible);
 
 
   /*
    * Search in preorder for the first accessible to match the rule.
    */
-  nsAccessible* SearchForward(nsAccessible* aAccessible,
-                              nsIAccessibleTraversalRule* aRule,
-                              bool searchCurrent,
-                              nsresult* rv);
+  Accessible* SearchForward(Accessible* aAccessible,
+                            nsIAccessibleTraversalRule* aRule,
+                            bool aSearchCurrent,
+                            nsresult* aResult);
 
   /*
    * Reverse search in preorder for the first accessible to match the rule.
    */
-  nsAccessible* SearchBackward(nsAccessible* aAccessible,
-                               nsIAccessibleTraversalRule* aRule,
-                               bool searchCurrent,
-                               nsresult* rv);
+  Accessible* SearchBackward(Accessible* aAccessible,
+                             nsIAccessibleTraversalRule* aRule,
+                             bool aSearchCurrent,
+                             nsresult* aResult);
 
   /*
-   * Update the pivot, and notify observers.
+   * Update the pivot, and notify observers. Return true if it moved.
    */
-  void MovePivotInternal(nsAccessible* aPosition);
+  bool MovePivotInternal(Accessible* aPosition, PivotMoveReason aReason);
 
   /*
    * The root accessible.
    */
-  nsRefPtr<nsAccessible> mRoot;
+  nsRefPtr<Accessible> mRoot;
 
   /*
    * The current pivot position.
    */
-  nsRefPtr<nsAccessible> mPosition;
+  nsRefPtr<Accessible> mPosition;
 
   /*
    * The text start offset ofthe pivot.

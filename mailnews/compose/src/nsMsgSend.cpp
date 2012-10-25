@@ -1,42 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Jean-Francois Ducarroz <ducarroz@netscape.com>
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Olivier Parniere BT Global Services / Etat francais Ministere de la Defense
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "nsMsgSend.h"
 #include "prmem.h"
 #include "nsMsgLocalFolderHdrs.h"
@@ -1468,33 +1433,29 @@ nsMsgComposeAndSend::GetEmbeddedObjectInfo(nsIDOMNode *node, nsMsgAttachmentData
       rv = fileUrl->GetFile(getter_AddRefs(aFile));
       if (NS_SUCCEEDED(rv) && aFile)
       {
-        nsCOMPtr<nsILocalFile> aLocalFile (do_QueryInterface(aFile));
-        if (aLocalFile)
+        rv = aFile->IsFile(&isAValidFile);
+        if (NS_FAILED(rv))
+          isAValidFile = false;
+        else
         {
-          rv = aLocalFile->IsFile(&isAValidFile);
-          if (NS_FAILED(rv))
-            isAValidFile = false;
-          else
+          if (anchor)
           {
-            if (anchor)
-            {
-              // One more test, if the anchor points to a local network server, let's check what the pref
-              // mail.compose.dont_attach_source_of_local_network_links tells us to do.
-              nsCAutoString urlSpec;
-              rv = attachment->m_url->GetSpec(urlSpec);
-              if (NS_SUCCEEDED(rv))
-                if (StringBeginsWith(urlSpec, NS_LITERAL_CSTRING("file://///")))
+            // One more test, if the anchor points to a local network server, let's check what the pref
+            // mail.compose.dont_attach_source_of_local_network_links tells us to do.
+            nsCAutoString urlSpec;
+            rv = attachment->m_url->GetSpec(urlSpec);
+            if (NS_SUCCEEDED(rv))
+              if (StringBeginsWith(urlSpec, NS_LITERAL_CSTRING("file://///")))
+              {
+                nsCOMPtr<nsIPrefBranch> pPrefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID));
+                if (pPrefBranch)
                 {
-                  nsCOMPtr<nsIPrefBranch> pPrefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID));
-                  if (pPrefBranch)
-                  {
-                    bool dontSend = false;
-                    rv = pPrefBranch->GetBoolPref(PREF_MAIL_DONT_ATTACH_SOURCE, &dontSend);
-                    if (dontSend)
-                      isAValidFile = false;
-                  }
+                  bool dontSend = false;
+                  rv = pPrefBranch->GetBoolPref(PREF_MAIL_DONT_ATTACH_SOURCE, &dontSend);
+                  if (dontSend)
+                    isAValidFile = false;
                 }
-            }
+              }
           }
         }
       }
@@ -1550,7 +1511,6 @@ nsMsgComposeAndSend::GetMultipartRelatedCount(bool forceToBeCalculated /*=false*
 
       PRInt32 i;
       nsCOMPtr<nsIDOMNode> node;
-      nsCOMPtr <nsISupports> isupp;
 
       for (i = count - 1, count = 0; i >= 0; i --)
       {
@@ -1559,11 +1519,20 @@ nsMsgComposeAndSend::GetMultipartRelatedCount(bool forceToBeCalculated /*=false*
         // now we need to get the element in the array and do the magic
         // to process this element.
         //
-        mEmbeddedObjectList->QueryElementAt(i, NS_GET_IID(nsIDOMNode), getter_AddRefs(node));
-        if (!node)
-          continue;
+        node = do_QueryElementAt(mEmbeddedObjectList, i, &rv);
         bool acceptObject = false;
-        rv = GetEmbeddedObjectInfo(node, &attachment, &acceptObject);
+        if (node)
+        {
+          rv = GetEmbeddedObjectInfo(node, &attachment, &acceptObject);
+        }
+        else // outlook/eudora import case
+        {
+          nsCOMPtr<nsIMsgEmbeddedImageData> imageData =
+            do_QueryElementAt(mEmbeddedObjectList, i, &rv);
+          if (!imageData)
+            continue;
+          acceptObject = true;
+        }
         if (NS_SUCCEEDED(rv) && acceptObject)
           count ++;
       }
@@ -1870,21 +1839,35 @@ nsMsgComposeAndSend::ProcessMultipartRelated(PRInt32 *aMailboxCount, PRInt32 *aN
   nsCOMPtr<nsIDOMNode> node;
   for (i = mPreloadedAttachmentCount; i < (mPreloadedAttachmentCount + multipartCount);)
   {
-
     // Ok, now we need to get the element in the array and do the magic
     // to process this element.
     //
 
     locCount++;
     mEmbeddedObjectList->QueryElementAt(locCount, NS_GET_IID(nsIDOMNode), getter_AddRefs(node));
-    if (!node)
-      return NS_ERROR_MIME_MPART_ATTACHMENT_ERROR;
-
-    bool acceptObject = false;
-    rv = GetEmbeddedObjectInfo(node, &attachment, &acceptObject);
-    NS_ENSURE_SUCCESS(rv, NS_ERROR_MIME_MPART_ATTACHMENT_ERROR);
-    if (!acceptObject)
+    if (node)
+    {
+      bool acceptObject = false;
+      rv = GetEmbeddedObjectInfo(node, &attachment, &acceptObject);
+      NS_ENSURE_SUCCESS(rv, NS_ERROR_MIME_MPART_ATTACHMENT_ERROR);
+      if (!acceptObject)
         continue;
+      nsString nodeValue;
+      node->GetNodeValue(nodeValue);
+      LossyCopyUTF16toASCII(nodeValue, m_attachments[i].m_contentId);
+    }
+    else
+    {
+      nsCOMPtr<nsIMsgEmbeddedImageData> imageData = do_QueryElementAt(mEmbeddedObjectList, locCount, &rv);
+      if (!imageData)
+        return NS_ERROR_MIME_MPART_ATTACHMENT_ERROR;
+      imageData->GetUri(getter_AddRefs(attachment.m_url));
+      if (!attachment.m_url)
+        return NS_ERROR_MIME_MPART_ATTACHMENT_ERROR;
+      imageData->GetCid(m_attachments[i].m_contentId);
+      imageData->GetName(attachment.m_realName);
+    }
+
 
     // MUST set this to get placed in the correct part of the message
     m_attachments[i].mMHTMLPart = true;
@@ -1933,11 +1916,7 @@ nsMsgComposeAndSend::ProcessMultipartRelated(PRInt32 *aMailboxCount, PRInt32 *aN
       if (m_attachments[i].mURL)
         msg_pick_real_name(&m_attachments[i], nsnull, mCompFields->GetCharacterSet());
 
-      nsString contentId;
-      node->GetNodeValue(contentId);
-      if (!contentId.IsEmpty())
-        m_attachments[i].m_contentId = NS_LossyConvertUTF16toASCII(contentId);
-      else
+      if (m_attachments[i].m_contentId.IsEmpty())
       {
         //
         // Next, generate a content id for use with this part
@@ -1964,7 +1943,10 @@ nsMsgComposeAndSend::ProcessMultipartRelated(PRInt32 *aMailboxCount, PRInt32 *aN
       }
     }
     else
+    {
       m_attachments[i].m_contentId = m_attachments[duplicateOf].m_contentId;
+      m_attachments[i].SetMimeDeliveryState(nsnull);
+    }
 
     //
     // Ok, while we are here, we should whack the DOM with the generated
@@ -2475,7 +2457,7 @@ nsMsgComposeAndSend::HackAttachments(nsIArray *attachments,
       // sniff the file and see if we can figure it out.
       if (!m_attachments[i].m_type.IsEmpty())
       {
-        nsCOMPtr<nsILocalFile> tmpFile;
+        nsCOMPtr<nsIFile> tmpFile;
         attachedFile->GetTmpFile(getter_AddRefs(tmpFile));
         if (m_attachments[i].m_type.LowerCaseEqualsLiteral(TEXT_HTML) && tmpFile)
         {
@@ -5203,14 +5185,14 @@ NS_IMETHODIMP nsMsgAttachedFile::SetOrigUrl(nsIURI *aOrigUrl)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgAttachedFile::GetTmpFile(nsILocalFile **aTmpFile)
+NS_IMETHODIMP nsMsgAttachedFile::GetTmpFile(nsIFile **aTmpFile)
 {
   NS_ENSURE_ARG_POINTER(aTmpFile);
   NS_IF_ADDREF(*aTmpFile = m_tmpFile);
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgAttachedFile::SetTmpFile(nsILocalFile *aTmpFile)
+NS_IMETHODIMP nsMsgAttachedFile::SetTmpFile(nsIFile *aTmpFile)
 {
   m_tmpFile = aTmpFile;
   return NS_OK;
@@ -5376,4 +5358,3 @@ NS_IMETHODIMP nsMsgAttachedFile::SetMaxLineLength(PRUint32 aMaxLineLength)
   m_maxLineLength = aMaxLineLength;
   return NS_OK;
 }
-

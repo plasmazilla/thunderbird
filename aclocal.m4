@@ -3,7 +3,6 @@ dnl Local autoconf macros used with mozilla
 dnl The contents of this file are under the Public Domain.
 dnl 
 
-builtin(include, mozilla/build/autoconf/glib.m4)dnl
 builtin(include, mozilla/build/autoconf/nspr.m4)dnl
 builtin(include, mozilla/build/autoconf/nss.m4)dnl
 builtin(include, mozilla/build/autoconf/pkg.m4)dnl
@@ -13,6 +12,7 @@ builtin(include, mozilla/build/autoconf/mozprog.m4)dnl
 builtin(include, mozilla/build/autoconf/acwinpaths.m4)dnl
 builtin(include, mozilla/build/autoconf/lto.m4)dnl
 builtin(include, mozilla/build/autoconf/frameptr.m4)dnl
+builtin(include, mozilla/build/autoconf/compiler-opts.m4)dnl
 
 MOZ_PROG_CHECKMSYS()
 

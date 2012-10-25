@@ -508,7 +508,7 @@ MockYouSendItCommitterSimple.prototype = {
       url = this._filenameURLMap[filename];
     else
       url = kDownloadURLPrefix + "/" + filename;
-
+    
     let injectedData = {
       clickableDownloadUrl: url,
     }
@@ -518,7 +518,7 @@ MockYouSendItCommitterSimple.prototype = {
     aResponse.setStatusLine(null, 200, "OK");
     aResponse.setHeader("Content-Type", "application/json");
     aResponse.write(JSON.stringify(data));
-
+    
     Services.obs.notifyObservers(null, "cloudfile:getFileURL", filename);
   },
 };

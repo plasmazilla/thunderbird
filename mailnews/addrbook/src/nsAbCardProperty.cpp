@@ -1,43 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Seth Spitzer <sspitzer@netscape.com>
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Mark Banner <mark@standard8.demon.co.uk>
- *   Joshua Cranmer <Pidgeot18@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsAbCardProperty.h"
 #include "nsAbBaseCID.h"
@@ -62,6 +26,8 @@
 #include "nsArrayEnumerator.h"
 #include "prmem.h"
 #include "mozilla/Services.h"
+#include "mozilla/Util.h"
+using namespace mozilla;
 
 #define PREF_MAIL_ADDR_BOOK_LASTNAMEFIRST "mail.addr_book.lastnamefirst"
 
@@ -83,8 +49,12 @@ static const AppendItem NAME_ATTRS_ARRAY[] = {
   {kDisplayNameProperty, "propertyDisplayName", eAppendLabel},
   {kNicknameProperty, "propertyNickname", eAppendLabel},
   {kPriEmailProperty, "", eAppendLine},
+#ifndef MOZ_THUNDERBIRD
   {k2ndEmailProperty, "", eAppendLine},
   {kScreenNameProperty, "propertyScreenName", eAppendLabel}
+#else
+  {k2ndEmailProperty, "", eAppendLine}
+#endif
 };
 
 static const AppendItem PHONE_ATTRS_ARRAY[] = {
@@ -120,6 +90,17 @@ static const AppendItem CUSTOM_ATTRS_ARRAY[] = {
   {kCustom3Property, "propertyCustom3", eAppendLabel},
   {kCustom4Property, "propertyCustom4", eAppendLabel},
   {kNotesProperty, "", eAppendLine}
+};
+
+static const AppendItem CHAT_ATTRS_ARRAY[] = {
+  {kGtalkProperty, "propertyGtalk", eAppendLabel},
+  {kAIMProperty, "propertyAIM", eAppendLabel},
+  {kYahooProperty, "propertyYahoo", eAppendLabel},
+  {kSkypeProperty, "propertySkype", eAppendLabel},
+  {kQQProperty, "propertyQQ", eAppendLabel},
+  {kMSNProperty, "propertyMSN", eAppendLabel},
+  {kICQProperty, "propertyICQ", eAppendLabel},
+  {kXMPPProperty, "propertyXMPP", eAppendLabel}
 };
 
 nsAbCardProperty::nsAbCardProperty()
@@ -305,35 +286,40 @@ NS_IMETHODIMP nsAbCardProperty::GetPropertyAsBool(const char *name, bool *value)
 
 NS_IMETHODIMP nsAbCardProperty::SetProperty(const nsACString &name, nsIVariant *value)
 {
-  return m_properties.Put(name, value);
+  m_properties.Put(name, value);
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsAbCardProperty::SetPropertyAsAString(const char *name, const nsAString &value) 
 {
   nsCOMPtr<nsIWritableVariant> variant = do_CreateInstance(NS_VARIANT_CONTRACTID);
   variant->SetAsAString(value);
-  return m_properties.Put(nsDependentCString(name), variant);
+  m_properties.Put(nsDependentCString(name), variant);
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsAbCardProperty::SetPropertyAsAUTF8String(const char *name, const nsACString &value) 
 {
   nsCOMPtr<nsIWritableVariant> variant = do_CreateInstance(NS_VARIANT_CONTRACTID);
   variant->SetAsAUTF8String(value);
-  return m_properties.Put(nsDependentCString(name), variant);
+  m_properties.Put(nsDependentCString(name), variant);
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsAbCardProperty::SetPropertyAsUint32(const char *name, PRUint32 value) 
 {
   nsCOMPtr<nsIWritableVariant> variant = do_CreateInstance(NS_VARIANT_CONTRACTID);
   variant->SetAsUint32(value);
-  return m_properties.Put(nsDependentCString(name), variant);
+  m_properties.Put(nsDependentCString(name), variant);
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsAbCardProperty::SetPropertyAsBool(const char *name, bool value) 
 {
   nsCOMPtr<nsIWritableVariant> variant = do_CreateInstance(NS_VARIANT_CONTRACTID);
   variant->SetAsBool(value);
-  return m_properties.Put(nsDependentCString(name), variant);
+  m_properties.Put(nsDependentCString(name), variant);
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsAbCardProperty::DeleteProperty(const nsACString &name)
@@ -812,6 +798,9 @@ nsresult nsAbCardProperty::ConvertToXMLPrintData(nsAString &aXMLSubstr)
 
   if (!m_IsMailList) {
     rv = AppendSection(CUSTOM_ATTRS_ARRAY, sizeof(CUSTOM_ATTRS_ARRAY)/sizeof(AppendItem), NS_LITERAL_STRING("headingOther"), bundle, conv, xmlStr);
+#ifdef MOZ_THUNDERBIRD
+    rv = AppendSection(CHAT_ATTRS_ARRAY, sizeof(CHAT_ATTRS_ARRAY)/sizeof(AppendItem), NS_LITERAL_STRING("headingChat"), bundle, conv, xmlStr);
+#endif
   }
   else {
     rv = AppendSection(CUSTOM_ATTRS_ARRAY, sizeof(CUSTOM_ATTRS_ARRAY)/sizeof(AppendItem), NS_LITERAL_STRING("headingDescription"),
@@ -1042,18 +1031,18 @@ nsresult nsAbCardProperty::AppendCityStateZip(const AppendItem &aItem,
 
   if (!cityResult.IsEmpty() && !stateResult.IsEmpty() && !zipResult.IsEmpty()) {
     const PRUnichar *formatStrings[] = { cityResult.get(), stateResult.get(), zipResult.get() };
-    rv = aBundle->FormatStringFromName(NS_LITERAL_STRING("cityAndStateAndZip").get(), formatStrings, NS_ARRAY_LENGTH(formatStrings), getter_Copies(formattedString));
+    rv = aBundle->FormatStringFromName(NS_LITERAL_STRING("cityAndStateAndZip").get(), formatStrings, ArrayLength(formatStrings), getter_Copies(formattedString));
     NS_ENSURE_SUCCESS(rv,rv);
   }
   else if (!cityResult.IsEmpty() && !stateResult.IsEmpty() && zipResult.IsEmpty()) {
     const PRUnichar *formatStrings[] = { cityResult.get(), stateResult.get() };
-    rv = aBundle->FormatStringFromName(NS_LITERAL_STRING("cityAndStateNoZip").get(), formatStrings, NS_ARRAY_LENGTH(formatStrings), getter_Copies(formattedString));
+    rv = aBundle->FormatStringFromName(NS_LITERAL_STRING("cityAndStateNoZip").get(), formatStrings, ArrayLength(formatStrings), getter_Copies(formattedString));
     NS_ENSURE_SUCCESS(rv,rv);
   }
   else if ((!cityResult.IsEmpty() && stateResult.IsEmpty() && !zipResult.IsEmpty()) ||
           (cityResult.IsEmpty() && !stateResult.IsEmpty() && !zipResult.IsEmpty())) {
     const PRUnichar *formatStrings[] = { cityResult.IsEmpty() ? stateResult.get() : cityResult.get(), zipResult.get() };
-    rv = aBundle->FormatStringFromName(NS_LITERAL_STRING("cityOrStateAndZip").get(), formatStrings, NS_ARRAY_LENGTH(formatStrings), getter_Copies(formattedString));
+    rv = aBundle->FormatStringFromName(NS_LITERAL_STRING("cityOrStateAndZip").get(), formatStrings, ArrayLength(formatStrings), getter_Copies(formattedString));
     NS_ENSURE_SUCCESS(rv,rv);
   }
   else {
@@ -1165,5 +1154,24 @@ NS_IMETHODIMP nsAbCardProperty::GeneratePhoneticName(bool aLastNameFirst,
     aResult += lastName;
   }
 
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsAbCardProperty::GenerateChatName(nsAString &aResult)
+{
+  aResult.Truncate();
+
+#define CHECK_CHAT_PROPERTY(aProtocol)                                       \
+  if (NS_SUCCEEDED(GetPropertyAsAString(k##aProtocol##Property, aResult)) && \
+      !aResult.IsEmpty())                                                    \
+    return NS_OK
+  CHECK_CHAT_PROPERTY(Gtalk);
+  CHECK_CHAT_PROPERTY(AIM);
+  CHECK_CHAT_PROPERTY(Yahoo);
+  CHECK_CHAT_PROPERTY(Skype);
+  CHECK_CHAT_PROPERTY(QQ);
+  CHECK_CHAT_PROPERTY(MSN);
+  CHECK_CHAT_PROPERTY(ICQ);
+  CHECK_CHAT_PROPERTY(XMPP);
   return NS_OK;
 }

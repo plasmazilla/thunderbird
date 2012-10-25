@@ -1,44 +1,10 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla Inspector Module.
- *
- * The Initial Developer of the Original Code is
- * The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Mike Ratcliffe <mratcliffe@mozilla.com> (Original Author)
- *   Rob Campbell <rcampbell@mozilla.com>
- *   Dave Camp <dcamp@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+const Cc = Components.classes;
 const Cu = Components.utils;
 const Ci = Components.interfaces;
 
@@ -151,6 +117,7 @@ function RuleViewTool(aInspector, aFrame)
 
   this._onChange = this.onChange.bind(this);
   this.inspector.on("change", this._onChange);
+  this.inspector.on("sidebaractivated-ruleview", this._onChange);
 
   this.onSelect();
 }
@@ -169,13 +136,11 @@ RuleViewTool.prototype = {
   },
 
   onChange: function RVT_onChange(aEvent, aFrom) {
-    // We're not that good yet at refreshing, only
-    // refresh when we really need to.
-    if (aFrom != "pseudoclass") {
+    if (aFrom == "ruleview" || aFrom == "createpanel") {
       return;
     }
 
-    if (this.inspector.locked) {
+    if (this.inspector.locked && this.inspector.isPanelVisible("ruleview")) {
       this.view.nodeChanged();
     }
   },
@@ -183,6 +148,7 @@ RuleViewTool.prototype = {
   destroy: function RVT_destroy() {
     this.inspector.removeListener("select", this._onSelect);
     this.inspector.removeListener("change", this._onChange);
+    this.inspector.removeListener("sidebaractivated-ruleview", this._onChange);
     this.view.element.removeEventListener("CssRuleViewChanged",
                                           this._changeHandler);
     this.view.element.removeEventListener("CssRuleViewCSSLinkClicked",
@@ -209,14 +175,13 @@ function ComputedViewTool(aInspector, aFrame)
 
   this._onSelect = this.onSelect.bind(this);
   this.inspector.on("select", this._onSelect);
-
   this._onChange = this.onChange.bind(this);
   this.inspector.on("change", this._onChange);
 
   // Since refreshes of the computed view are non-destructive,
   // refresh when the tab is changed so we can notice script-driven
   // changes.
-  this.inspector.on("sidebaractivated", this._onChange);
+  this.inspector.on("sidebaractivated-computedview", this._onChange);
 
   this.cssLogic.highlight(null);
   this.view.highlight(null);
@@ -236,19 +201,22 @@ ComputedViewTool.prototype = {
   onChange: function CVT_change(aEvent, aFrom)
   {
     if (aFrom == "computedview" ||
+        aFrom == "createpanel" ||
         this.inspector.selection != this.cssLogic.viewedElement) {
       return;
     }
 
-    this.cssLogic.highlight(this.inspector.selection);
-    this.view.refreshPanel();
+    if (this.inspector.locked && this.inspector.isPanelVisible("computedview")) {
+      this.cssLogic.highlight(this.inspector.selection);
+      this.view.refreshPanel();
+    }
   },
 
   destroy: function CVT_destroy(aContext)
   {
     this.inspector.removeListener("select", this._onSelect);
     this.inspector.removeListener("change", this._onChange);
-    this.inspector.removeListener("sidebaractivated", this._onChange);
+    this.inspector.removeListener("sidebaractivated-computedview", this._onChange);
     this.view.destroy();
     delete this.view;
 

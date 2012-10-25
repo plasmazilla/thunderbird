@@ -1,44 +1,9 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim:expandtab:shiftwidth=2:tabstop=2:
  */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Gijs Kruitbosch <gijskruitbosch@gmail.com>.
- * Portions created by the Initial Developer are Copyright (C) 2007
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *  Gijs Kruitbosch <gijskruitbosch@gmail.com>
- *  Edward Lee <edward.lee@engineering.uiuc.edu>
- *  Mike Kristoffersen <mozstuff@mikek.dk>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsIdleService.h"
 #include "nsString.h"
@@ -47,16 +12,17 @@
 #include "nsDebug.h"
 #include "nsCOMArray.h"
 #include "prinrval.h"
+#include "prlog.h"
 #include "mozilla/Services.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/Telemetry.h"
 
+#ifdef ANDROID
+#include <android/log.h>
+#endif
+
 using namespace mozilla;
 
-// observer topics used:
-#define OBSERVER_TOPIC_IDLE "idle"
-#define OBSERVER_TOPIC_BACK "back"
-#define OBSERVER_TOPIC_IDLE_DAILY "idle-daily"
 // interval in milliseconds between internal idle time requests.
 #define MIN_IDLE_POLL_INTERVAL_MSEC (5 * PR_MSEC_PER_SEC) /* 5 sec */
 
@@ -66,6 +32,10 @@ using namespace mozilla;
 #define PREF_LAST_DAILY "idle.lastDailyNotification"
 // Number of seconds in a day.
 #define SECONDS_PER_DAY 86400
+
+#ifdef PR_LOGGING
+static PRLogModuleInfo *sLog = NULL;
+#endif
 
 // Use this to find previously added observers in our array:
 class IdleListenerComparator
@@ -99,10 +69,14 @@ nsIdleServiceDaily::Observe(nsISupports *,
     mShutdownInProgress = true;
   }
 
-  if (mShutdownInProgress || strcmp(aTopic, OBSERVER_TOPIC_BACK) == 0) {
+  if (mShutdownInProgress || strcmp(aTopic, OBSERVER_TOPIC_ACTIVE) == 0) {
     return NS_OK;
   }
   MOZ_ASSERT(strcmp(aTopic, OBSERVER_TOPIC_IDLE) == 0);
+
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "IdleService", "Notifying idle-daily observers");
+#endif
 
   // Notify anyone who cares.
   nsCOMPtr<nsIObserverService> observerService =
@@ -125,6 +99,21 @@ nsIdleServiceDaily::Observe(nsISupports *,
   // Set the last idle-daily time pref.
   PRInt32 nowSec = static_cast<PRInt32>(PR_Now() / PR_USEC_PER_SEC);
   Preferences::SetInt(PREF_LAST_DAILY, nowSec);
+
+  // Force that to be stored so we don't retrigger twice a day under
+  // any circumstances.
+  nsIPrefService* prefs = Preferences::GetService();
+  if (prefs) {
+    prefs->SavePrefFile(nsnull);
+  }
+
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "IdleService", "Storing last idle time as %d",
+                      nowSec);
+#endif
+
+  // Note the moment we started our timer.
+  mDailyTimerStart  = PR_Now();
 
   // Start timer for the next check in one day.
   (void)mTimer->InitWithFuncCallback(DailyCallback,
@@ -157,10 +146,24 @@ nsIdleServiceDaily::Init()
 
   // Check if it has been a day since the last notification.
   if (nowSec - lastDaily > SECONDS_PER_DAY) {
+#ifdef ANDROID
+    __android_log_print(ANDROID_LOG_INFO, "IdleService", "DailyCallback started");
+#endif
+    // The timer would have been started after the previous idle-daily. Need to
+    // set this here so DailyCallback knows the timer didn't fire early.
+    mDailyTimerStart = lastDaily * PR_USEC_PER_SEC;
+
     // Wait for the user to become idle, so we can do todays idle tasks.
     DailyCallback(nsnull, this);
   }
   else {
+#ifdef ANDROID
+    __android_log_print(ANDROID_LOG_INFO, "IdleService", "Setting timer a day from now");
+#endif
+
+    // Note the moment we started our timer.
+    mDailyTimerStart  = PR_Now();
+
     // Start timer for the next check in one day.
     (void)mTimer->InitWithFuncCallback(DailyCallback,
                                        this,
@@ -189,7 +192,40 @@ nsIdleServiceDaily::~nsIdleServiceDaily()
 void
 nsIdleServiceDaily::DailyCallback(nsITimer* aTimer, void* aClosure)
 {
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "IdleService", "DailyCallback running");
+#endif
+
   nsIdleServiceDaily* me = static_cast<nsIdleServiceDaily*>(aClosure);
+
+  PRTime now = PR_Now();
+  PRTime launchTime = me->mDailyTimerStart + ((PRTime)SECONDS_PER_DAY * PR_USEC_PER_SEC);
+
+  // Check if it has been a day since we launched this timer.
+  if (now < launchTime) {
+      // Timer returned early, reschedule.
+      PRTime newTime = launchTime;
+
+      // Add 10 ms to ensure we don't undershoot, and never get a "0" timer.
+      newTime += 10 * PR_USEC_PER_MSEC;
+
+#ifdef ANDROID
+      __android_log_print(ANDROID_LOG_INFO, "IdleService",
+                          "DailyCallback resetting timer to %lld msec",
+                          (newTime - now) / PR_USEC_PER_MSEC);
+#endif
+
+      // Refire the timer.
+      (void)me->mTimer->InitWithFuncCallback(DailyCallback,
+                                             me,
+                                             (newTime - now) / PR_USEC_PER_MSEC,
+                                             nsITimer::TYPE_ONE_SHOT);
+      return;
+  }
+
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "IdleService", "DailyCallback registering Idle observer");
+#endif
 
   // The one thing we do every day is to start waiting for the user to "have
   // a significant idle time".
@@ -271,11 +307,28 @@ nsIdleServiceDaily::DailyCallback(nsITimer* aTimer, void* aClosure)
 ////////////////////////////////////////////////////////////////////////////////
 //// nsIdleService
 
+namespace { 
+nsIdleService* gIdleService;
+}
+
+already_AddRefed<nsIdleService>
+nsIdleService::GetInstance()
+{
+  nsRefPtr<nsIdleService> instance(gIdleService);
+  return instance.forget();
+}
+
 nsIdleService::nsIdleService() : mCurrentlySetToTimeoutAtInPR(0),
                                  mAnyObserverIdle(false),
                                  mDeltaToNextIdleSwitchInS(PR_UINT32_MAX),
-                                 mLastUserInteractionInPR(0)
+                                 mLastUserInteractionInPR(PR_Now())
 {
+#ifdef PR_LOGGING
+  if (sLog == NULL)
+    sLog = PR_NewLogModule("idleService");
+#endif
+  MOZ_ASSERT(!gIdleService);
+  gIdleService = this;
   mDailyIdle = new nsIdleServiceDaily(this);
   mDailyIdle->Init();
 }
@@ -285,11 +338,25 @@ nsIdleService::~nsIdleService()
   if(mTimer) {
     mTimer->Cancel();
   }
+
+
+  MOZ_ASSERT(gIdleService == this);
+  gIdleService = nsnull;
 }
+
+NS_IMPL_ISUPPORTS2(nsIdleService, nsIIdleService, nsIIdleServiceInternal)
 
 NS_IMETHODIMP
 nsIdleService::AddIdleObserver(nsIObserver* aObserver, PRUint32 aIdleTimeInS)
 {
+  PR_LOG(sLog, PR_LOG_DEBUG,
+         ("idleService: Register idle observer %x for %d seconds",
+          aObserver, aIdleTimeInS));
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "IdleService", "Register idle observer %x for %d seconds",
+                      aObserver, aIdleTimeInS);
+#endif
+
   NS_ENSURE_ARG_POINTER(aObserver);
   // We don't accept idle time at 0, and we can't handle idle time that are too
   // high either - no more than ~136 years.
@@ -310,10 +377,19 @@ nsIdleService::AddIdleObserver(nsIObserver* aObserver, PRUint32 aIdleTimeInS)
   }
 
   // Check if the newly added observer has a smaller wait time than what we
-  // are wating for now.
+  // are waiting for now.
   if (mDeltaToNextIdleSwitchInS > aIdleTimeInS) {
     // If it is, then this is the next to move to idle (at this point we
     // don't care if it should have switched already).
+    PR_LOG(sLog, PR_LOG_DEBUG,
+          ("idleService: Register: adjusting next switch from %d to %d seconds",
+           mDeltaToNextIdleSwitchInS, aIdleTimeInS));
+#ifdef ANDROID
+    __android_log_print(ANDROID_LOG_INFO, "IdleService",
+                        "Register: adjusting next switch from %d to %d seconds",
+                        mDeltaToNextIdleSwitchInS, aIdleTimeInS);
+#endif
+
     mDeltaToNextIdleSwitchInS = aIdleTimeInS;
   }
 
@@ -336,22 +412,44 @@ nsIdleService::RemoveIdleObserver(nsIObserver* aObserver, PRUint32 aTimeInS)
   // little while.
   IdleListenerComparator c;
   if (mArrayListeners.RemoveElement(listener, c)) {
+    PR_LOG(sLog, PR_LOG_DEBUG,
+           ("idleService: Remove idle observer %x (%d seconds)",
+            aObserver, aTimeInS));
+#ifdef ANDROID
+    __android_log_print(ANDROID_LOG_INFO, "IdleService",
+                        "Remove idle observer %x (%d seconds)",
+                        aObserver, aTimeInS);
+#endif
     return NS_OK;
   }
 
   // If we get here, we haven't removed anything:
+  PR_LOG(sLog, PR_LOG_WARNING, 
+         ("idleService: Failed to remove idle observer %x (%d seconds)",
+          aObserver, aTimeInS));
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "IdleService",
+                      "Failed to remove idle observer %x (%d seconds)",
+                      aObserver, aTimeInS);
+#endif
   return NS_ERROR_FAILURE;
 }
 
-void
+NS_IMETHODIMP
 nsIdleService::ResetIdleTimeOut(PRUint32 idleDeltaInMS)
 {
+  PR_LOG(sLog, PR_LOG_DEBUG,
+         ("idleService: Reset idle timeout (last interaction %u msec)",
+          idleDeltaInMS));
+
   // Store the time
   mLastUserInteractionInPR = PR_Now() - (idleDeltaInMS * PR_USEC_PER_MSEC);
 
   // If no one is idle, then we are done, any existing timers can keep running.
   if (!mAnyObserverIdle) {
-    return;
+    PR_LOG(sLog, PR_LOG_DEBUG,
+           ("idleService: Reset idle timeout: no idle observers"));
+    return NS_OK;
   }
 
   // Mark all idle services as non-idle, and calculate the next idle timeout.
@@ -386,7 +484,7 @@ nsIdleService::ResetIdleTimeOut(PRUint32 idleDeltaInMS)
 
   // Bail if nothing to do.
   if (!numberOfPendingNotifications) {
-    return;
+    return NS_OK;
   }
 
   // Now send "back" events to all, if any should have timed out allready, then
@@ -399,11 +497,19 @@ nsIdleService::ResetIdleTimeOut(PRUint32 idleDeltaInMS)
 
   // Send the "non-idle" events.
   while (numberOfPendingNotifications--) {
+    PR_LOG(sLog, PR_LOG_DEBUG,
+           ("idleService: Reset idle timeout: tell observer %x user is back",
+            notifyList[numberOfPendingNotifications]));
+#ifdef ANDROID
+    __android_log_print(ANDROID_LOG_INFO, "IdleService",
+                        "Reset idle timeout: tell observer %x user is back",
+                        notifyList[numberOfPendingNotifications]);
+#endif
     notifyList[numberOfPendingNotifications]->Observe(this,
-                                                      OBSERVER_TOPIC_BACK,
+                                                      OBSERVER_TOPIC_ACTIVE,
                                                       timeStr.get());
   }
-
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -419,21 +525,22 @@ nsIdleService::GetIdleTime(PRUint32* idleTime)
 
   bool polledIdleTimeIsValid = PollIdleTime(&polledIdleTimeMS);
 
-  // If we don't have any valid data, then we are not in idle - pr. definition.
-  if (!polledIdleTimeIsValid && 0 == mLastUserInteractionInPR) {
-    *idleTime = 0;
-    return NS_OK;
-  }
-
-  // If we never got a reset, just return the pulled time.
-  if (0 == mLastUserInteractionInPR) {
-    *idleTime = polledIdleTimeMS;
-    return NS_OK;
-  }
-
+  PR_LOG(sLog, PR_LOG_DEBUG,
+         ("idleService: Get idle time: polled %u msec, valid = %d",
+          polledIdleTimeMS, polledIdleTimeIsValid));
+  
   // timeSinceReset is in milliseconds.
   PRUint32 timeSinceResetInMS = (PR_Now() - mLastUserInteractionInPR) /
                                 PR_USEC_PER_MSEC;
+
+  PR_LOG(sLog, PR_LOG_DEBUG,
+         ("idleService: Get idle time: time since reset %u msec",
+          timeSinceResetInMS));
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "IdleService",
+                      "Get idle time: time since reset %u msec",
+                      timeSinceResetInMS);
+#endif
 
   // If we did't get pulled data, return the time since last idle reset.
   if (!polledIdleTimeIsValid) {
@@ -479,11 +586,26 @@ nsIdleService::IdleTimerCallback(void)
   PRUint32 currentIdleTimeInMS;
 
   if (NS_FAILED(GetIdleTime(&currentIdleTimeInMS))) {
+    PR_LOG(sLog, PR_LOG_ALWAYS,
+           ("idleService: Idle timer callback: failed to get idle time"));
+#ifdef ANDROID
+    __android_log_print(ANDROID_LOG_INFO, "IdleService",
+                        "Idle timer callback: failed to get idle time");
+#endif
     return;
   }
 
+  PR_LOG(sLog, PR_LOG_DEBUG,
+         ("idleService: Idle timer callback: current idle time %u msec",
+          currentIdleTimeInMS));
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "IdleService",
+                      "Idle timer callback: current idle time %u msec",
+                      currentIdleTimeInMS);
+#endif
+
   // Check if we have had some user interaction we didn't handle previously
-  // we do the caluculation in ms to lessen the chance for rounding errors to
+  // we do the calculation in ms to lessen the chance for rounding errors to
   // trigger wrong results, it is also very important that we call PR_Now AFTER
   // the call to GetIdleTime().
   if (((PR_Now() - mLastUserInteractionInPR) / PR_USEC_PER_MSEC) >
@@ -527,6 +649,8 @@ nsIdleService::IdleTimerCallback(void)
         notifyList.AppendObject(curListener.observer);
         // This listener is now idle.
         curListener.isIdle = true;
+        // Remember we have someone idle.
+        mAnyObserverIdle = true;
       } else {
         // Listeners that are not timed out yet are candidates for timing out.
         mDeltaToNextIdleSwitchInS = PR_MIN(mDeltaToNextIdleSwitchInS,
@@ -548,15 +672,20 @@ nsIdleService::IdleTimerCallback(void)
     return;
   }
 
-  // Remember we have someone idle.
-  mAnyObserverIdle = true;
-
   // We need a text string to send with any state change events.
   nsAutoString timeStr;
   timeStr.AppendInt(currentIdleTimeInS);
 
   // Notify all listeners that just timed out.
   while (numberOfPendingNotifications--) {
+    PR_LOG(sLog, PR_LOG_DEBUG,
+           ("idleService: Idle timer callback: tell observer %x user is idle",
+            notifyList[numberOfPendingNotifications]));
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "IdleService",
+                      "Idle timer callback: tell observer %x user is idle",
+                      notifyList[numberOfPendingNotifications]);
+#endif
     notifyList[numberOfPendingNotifications]->Observe(this,
                                                       OBSERVER_TOPIC_IDLE,
                                                       timeStr.get());
@@ -566,6 +695,15 @@ nsIdleService::IdleTimerCallback(void)
 void
 nsIdleService::SetTimerExpiryIfBefore(PRTime aNextTimeoutInPR)
 {
+  PR_LOG(sLog, PR_LOG_DEBUG,
+         ("idleService: SetTimerExpiryIfBefore: next timeout %lld usec",
+          aNextTimeoutInPR));
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "IdleService",
+                      "SetTimerExpiryIfBefore: next timeout %lld usec",
+                      aNextTimeoutInPR);
+#endif
+
   // Bail if we don't have a timer service.
   if (!mTimer) {
     return;
@@ -575,6 +713,10 @@ nsIdleService::SetTimerExpiryIfBefore(PRTime aNextTimeoutInPR)
   // then restart the timer.
   if (mCurrentlySetToTimeoutAtInPR > aNextTimeoutInPR ||
       !mCurrentlySetToTimeoutAtInPR) {
+
+#if defined(PR_LOGGING) || defined(ANDROID)
+    PRTime oldTimeout = mCurrentlySetToTimeoutAtInPR;
+#endif
 
     mCurrentlySetToTimeoutAtInPR = aNextTimeoutInPR ;
 
@@ -589,6 +731,15 @@ nsIdleService::SetTimerExpiryIfBefore(PRTime aNextTimeoutInPR)
 
     // Add 10 ms to ensure we don't undershoot, and never get a "0" timer.
     mCurrentlySetToTimeoutAtInPR += 10 * PR_USEC_PER_MSEC;
+
+    PR_LOG(sLog, PR_LOG_DEBUG,
+           ("idleService: reset timer expiry from %lld usec to %lld usec",
+            oldTimeout, mCurrentlySetToTimeoutAtInPR));
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "IdleService",
+                      "reset timer expiry from %lld usec to %lld usec",
+                      oldTimeout, mCurrentlySetToTimeoutAtInPR);
+#endif
 
     // Start the timer
     mTimer->InitWithFuncCallback(StaticIdleTimerCallback,
@@ -608,6 +759,12 @@ nsIdleService::ReconfigureTimer(void)
   if (!mAnyObserverIdle && PR_UINT32_MAX == mDeltaToNextIdleSwitchInS) {
     // If not, just let any existing timers run to completion
     // And bail out.
+    PR_LOG(sLog, PR_LOG_DEBUG,
+           ("idleService: ReconfigureTimer: no idle or waiting observers"));
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "IdleService",
+                      "ReconfigureTimer: no idle or waiting observers");
+#endif
     return;
   }
 
@@ -621,12 +778,30 @@ nsIdleService::ReconfigureTimer(void)
                              (((PRTime)mDeltaToNextIdleSwitchInS) *
                               PR_USEC_PER_SEC);
 
+  PR_LOG(sLog, PR_LOG_DEBUG,
+         ("idleService: next timeout %lld usec (%u msec from now)",
+          nextTimeoutAtInPR,
+          (PRUint32)((nextTimeoutAtInPR - curTimeInPR) / PR_USEC_PER_MSEC)));
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "IdleService",
+                      "next timeout %lld usec (%lld msec from now)",
+                      nextTimeoutAtInPR,
+                      ((nextTimeoutAtInPR - curTimeInPR) / PR_USEC_PER_MSEC));
+#endif
   // Check if we should correct the timeout time because we should poll before.
   if (mAnyObserverIdle && UsePollMode()) {
     PRTime pollTimeout = curTimeInPR +
-                         MIN_IDLE_POLL_INTERVAL_MSEC * PR_USEC_PER_SEC;
+                         MIN_IDLE_POLL_INTERVAL_MSEC * PR_USEC_PER_MSEC;
 
     if (nextTimeoutAtInPR > pollTimeout) {
+      PR_LOG(sLog, PR_LOG_DEBUG,
+           ("idleService: idle observers, reducing timeout to %u msec from now",
+            MIN_IDLE_POLL_INTERVAL_MSEC));
+#ifdef ANDROID
+      __android_log_print(ANDROID_LOG_INFO, "IdleService",
+                          "idle observers, reducing timeout to %u msec from now",
+                          MIN_IDLE_POLL_INTERVAL_MSEC);
+#endif
       nextTimeoutAtInPR = pollTimeout;
     }
   }

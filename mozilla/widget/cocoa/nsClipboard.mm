@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *    Josh Aas <josh@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef MOZ_LOGGING
 #define FORCE_PR_LOG
@@ -48,7 +15,7 @@
 #include "nsXPIDLString.h"
 #include "nsPrimitiveHelpers.h"
 #include "nsMemory.h"
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 #include "nsStringStream.h"
 #include "nsDragService.h"
 #include "nsEscape.h"
@@ -87,7 +54,7 @@ GetDataFromPasteboard(NSPasteboard* aPasteboard, NSString* aType)
   @try {
     data = [aPasteboard dataForType:aType];
   } @catch (NSException* e) {
-    NS_WARNING(nsPrintfCString(256, "Exception raised while getting data from the pasteboard: \"%s - %s\"", 
+    NS_WARNING(nsPrintfCString("Exception raised while getting data from the pasteboard: \"%s - %s\"", 
                                [[e name] UTF8String], [[e reason] UTF8String]).get());
   }
   return data;
@@ -198,6 +165,7 @@ nsClipboard::TransferableFromPasteboard(nsITransferable *aTransferable, NSPasteb
       break;
     }
     else if (flavorStr.EqualsLiteral(kJPEGImageMime) ||
+             flavorStr.EqualsLiteral(kJPGImageMime) ||
              flavorStr.EqualsLiteral(kPNGImageMime) ||
              flavorStr.EqualsLiteral(kGIFImageMime)) {
       // Figure out if there's data on the pasteboard we can grab (sanity check)
@@ -212,7 +180,8 @@ nsClipboard::TransferableFromPasteboard(nsITransferable *aTransferable, NSPasteb
 
       // Figure out what type we're converting to
       CFStringRef outputType = NULL; 
-      if (flavorStr.EqualsLiteral(kJPEGImageMime))
+      if (flavorStr.EqualsLiteral(kJPEGImageMime) ||
+          flavorStr.EqualsLiteral(kJPGImageMime))
         outputType = CFSTR("public.jpeg");
       else if (flavorStr.EqualsLiteral(kPNGImageMime))
         outputType = CFSTR("public.png");
@@ -372,6 +341,7 @@ nsClipboard::HasDataMatchingFlavors(const char** aFlavorList, PRUint32 aLength,
         break;
       }
     } else if (!strcmp(aFlavorList[i], kJPEGImageMime) ||
+               !strcmp(aFlavorList[i], kJPGImageMime) ||
                !strcmp(aFlavorList[i], kPNGImageMime) ||
                !strcmp(aFlavorList[i], kGIFImageMime)) {
       NSString* availableType = [generalPBoard availableTypeFromArray:
@@ -443,7 +413,8 @@ nsClipboard::PasteboardDictFromTransferable(nsITransferable* aTransferable)
       nsMemory::Free(data);
     }
     else if (flavorStr.EqualsLiteral(kPNGImageMime) || flavorStr.EqualsLiteral(kJPEGImageMime) ||
-             flavorStr.EqualsLiteral(kGIFImageMime) || flavorStr.EqualsLiteral(kNativeImageMime)) {
+             flavorStr.EqualsLiteral(kJPGImageMime) || flavorStr.EqualsLiteral(kGIFImageMime) ||
+             flavorStr.EqualsLiteral(kNativeImageMime)) {
       PRUint32 dataSize = 0;
       nsCOMPtr<nsISupports> transferSupports;
       aTransferable->GetTransferData(flavorStr, getter_AddRefs(transferSupports), &dataSize);

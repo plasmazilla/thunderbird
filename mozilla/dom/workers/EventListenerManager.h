@@ -10,6 +10,8 @@
 
 #include "prclist.h"
 
+#include "mozilla/ErrorResult.h"
+
 BEGIN_WORKERS_NAMESPACE
 
 class EventTarget;
@@ -31,7 +33,7 @@ public:
 #endif
 
   void
-  _Trace(JSTracer* aTrc) const
+  _trace(JSTracer* aTrc) const
   {
     if (!PR_CLIST_IS_EMPTY(&mCollectionHead)) {
       TraceInternal(aTrc);
@@ -39,7 +41,7 @@ public:
   }
 
   void
-  _Finalize(JSFreeOp* aFop)
+  _finalize(JSFreeOp* aFop)
   {
     if (!PR_CLIST_IS_EMPTY(&mCollectionHead)) {
       FinalizeInternal(aFop);
@@ -56,7 +58,7 @@ public:
 
   void
   AddEventListener(JSContext* aCx, const jsid& aType, JSObject* aListener,
-                   bool aCapturing, bool aWantsUntrusted, nsresult& aRv)
+                   bool aCapturing, bool aWantsUntrusted, ErrorResult& aRv)
   {
     Add(aCx, aType, aListener, aCapturing ? Capturing : Bubbling,
         aWantsUntrusted, aRv);
@@ -74,14 +76,14 @@ public:
 
   bool
   DispatchEvent(JSContext* aCx, const EventTarget& aTarget, JSObject* aEvent,
-                nsresult& aRv) const;
+                ErrorResult& aRv) const;
 
   JSObject*
   GetEventListener(const jsid& aType) const;
 
   void
   SetEventListener(JSContext* aCx, const jsid& aType, JSObject* aListener,
-                   nsresult& aRv)
+                   ErrorResult& aRv)
   {
     JSObject* existing = GetEventListener(aType);
     if (existing) {
@@ -114,7 +116,7 @@ private:
 
   void
   Add(JSContext* aCx, const jsid& aType, JSObject* aListener, Phase aPhase,
-      bool aWantsUntrusted, nsresult& aRv);
+      bool aWantsUntrusted, ErrorResult& aRv);
 
   void
   Remove(JSContext* aCx, const jsid& aType, JSObject* aListener, Phase aPhase,

@@ -6,6 +6,8 @@ const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
 const MARIONETTE_CONTRACTID = "@mozilla.org/marionette;1";
 const MARIONETTE_CID = Components.ID("{786a1369-dca5-4adc-8486-33d23c88010a}");
+const DEBUGGER_ENABLED_PREF = 'devtools.debugger.remote-enabled';
+const MARIONETTE_ENABLED_PREF = 'marionette.defaultPrefs.enabled';
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
@@ -29,7 +31,8 @@ MarionetteComponent.prototype = {
     let observerService = Services.obs;
     switch (aTopic) {
       case "profile-after-change":
-        if (Services.prefs.getBoolPref('marionette.defaultPrefs.enabled')) {
+        if (Services.prefs.prefHasUserValue(MARIONETTE_ENABLED_PREF) && 
+            Services.prefs.getBoolPref(MARIONETTE_ENABLED_PREF)) {
 
           this.logger.level = Log4Moz.Level["All"];
           let logf = FileUtils.getFile('ProfD', ['marionette.log']);
@@ -70,8 +73,18 @@ MarionetteComponent.prototype = {
       try {
         Cu.import('resource:///modules/devtools/dbg-server.jsm');
         DebuggerServer.addActors('chrome://marionette/content/marionette-actors.js');
-        DebuggerServer.initTransport();
+        // This pref is required for the remote debugger to open a socket,
+        // so force it to true.  See bug 761252.
+        let original = false;
+        try {
+          original = Services.prefs.getBoolPref(DEBUGGER_ENABLED_PREF);
+        }
+        catch(e) { }
+        Services.prefs.setBoolPref(DEBUGGER_ENABLED_PREF, true);
+        // Always allow remote connections.
+        DebuggerServer.initTransport(function () { return true; });
         DebuggerServer.openListener(port, true);
+        Services.prefs.setBoolPref(DEBUGGER_ENABLED_PREF, original);
       }
       catch(e) {
         this.logger.error('exception: ' + e.name + ', ' + e.message);

@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
   style="@style/SyncLayout" >
-  <LinearLayout
+  <TextView
+    style="@style/SyncTop"
     android:id="@+id/pair_top"
-    style="@style/SyncTop" >
-    <ImageView
-      style="@style/SyncTopIcon" />
-    <TextView
-      android:id="@+id/setup_title"
-      style="@style/SyncTextTitle"
-      android:text="@string/sync_title_pair" />
-  </LinearLayout>
+    android:text="@string/sync_title_pair" />
+
   <ScrollView
     style="@style/SyncLayout"
     android:layout_below="@id/pair_top"
@@ -26,7 +25,7 @@
         style="@style/SyncTextItem"
         android:layout_marginTop="20dp"
         android:layout_marginBottom="10dp"
-        android:text="@string/sync_subtitle_connect" />
+        android:text="@string/sync_subtitle_pair" />
 
       <TextView
         style="@style/SyncLinkItem"
@@ -62,7 +61,7 @@
         android:visibility="invisible" >
 
         <TextView
-          style="@style/SyncTextItem"
+          style="@style/SyncTextError"
           android:layout_margin="10dp"
           android:text="@string/sync_pair_tryagain"
           android:textSize="10dp" />

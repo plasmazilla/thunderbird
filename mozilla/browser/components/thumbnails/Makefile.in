@@ -14,13 +14,15 @@ EXTRA_COMPONENTS = \
 	PageThumbsProtocol.js \
 	$(NULL)
 
+EXTRA_JS_MODULES = \
+	PageThumbsWorker.js \
+	$(NULL)
+
 EXTRA_PP_JS_MODULES = \
 	PageThumbs.jsm \
 	$(NULL)
 
-ifdef ENABLE_TESTS
-	DIRS += test
-endif
+TEST_DIRS += test
 
 include $(topsrcdir)/config/rules.mk
 

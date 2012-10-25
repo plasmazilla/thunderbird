@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 body {
   font: -moz-window;
   color: WindowText;
@@ -122,9 +126,9 @@ html[dir=rtl] .expander {
 .close:hover,
 .expander:hover,
 .appTabIcon:hover {
-  -moz-transition-property: opacity;
-  -moz-transition-duration: 0.5s;
-  -moz-transition-timing-function: ease-out;
+  transition-property: opacity;
+  transition-duration: 0.5s;
+  transition-timing-function: ease-out;
 }
 
 .favicon img:hover, 

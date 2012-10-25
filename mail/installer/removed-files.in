@@ -60,6 +60,7 @@ components/nsBackgroundUpdateService.js
 components/nsCloseAllWindows.js
 components/nsComposerCmdLineHandler.js
 components/nsDownloadProgressListener.js
+components/nsDropbox.js
 components/nsExtensionManager.js
 components/nsInterfaceInfoToIDL.js
 components/nsLDAPPrefsService.js
@@ -1179,3 +1180,7 @@ components/xmlextras.xpt
 # ****************************************************************************
 # * End of XPTs at the time we started linking them on Linux and Mac.        *
 # ****************************************************************************
+#ifndef MOZ_MAINTENANCE_SERVICE
+maintenanceservice.exe
+maintenanceservice_installer.exe
+#endif

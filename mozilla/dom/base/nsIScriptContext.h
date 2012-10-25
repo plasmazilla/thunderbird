@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998-1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsIScriptContext_h__
 #define nsIScriptContext_h__
@@ -57,6 +25,7 @@ class nsIObjectOutputStream;
 template<class> class nsScriptObjectHolder;
 class nsIScriptObjectPrincipal;
 class nsIDOMWindow;
+class nsIURI;
 
 typedef void (*nsScriptTerminationFunc)(nsISupports* aRef);
 
@@ -76,8 +45,8 @@ NS_DEFINE_STATIC_IID_ACCESSOR(nsIScriptContextPrincipal,
                               NS_ISCRIPTCONTEXTPRINCIPAL_IID)
 
 #define NS_ISCRIPTCONTEXT_IID \
-{ 0xf1c8c13e, 0xc23b, 0x434e, \
-  { 0xa4, 0x77, 0xe0, 0x2f, 0xc3, 0x73, 0xf8, 0x71 } }
+{ 0x9a4df96d, 0xa231, 0x4108, \
+  { 0xb5, 0xbc, 0xaf, 0x67, 0x7a, 0x36, 0xa7, 0x44 } }
 
 /* This MUST match JSVERSION_DEFAULT.  This version stuff if we don't
    know what language we have is a little silly... */
@@ -291,27 +260,9 @@ public:
   virtual JSObject* GetNativeGlobal() = 0;
 
   /**
-   * Create a new global object that will be used for an inner window.
-   * Return the native global and an nsISupports 'holder' that can be used
-   * to manage the lifetime of it.
-   */
-  virtual nsresult CreateNativeGlobalForInner(
-                                      nsIScriptGlobalObject *aNewInner,
-                                      bool aIsChrome,
-                                      nsIPrincipal *aPrincipal,
-                                      JSObject** aNativeGlobal,
-                                      nsISupports **aHolder) = 0;
-
-  /**
    * Initialize the context generally. Does not create a global object.
    **/
   virtual nsresult InitContext() = 0;
-
-  /**
-   * Prepares this context for use with the current inner window for the
-   * context's global object. This must be called after CreateOuterObject.
-   */
-  virtual nsresult InitOuterWindow() = 0;
 
   /**
    * Check to see if context is as yet intialized. Used to prevent

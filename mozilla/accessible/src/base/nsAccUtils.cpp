@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2007
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Alexander Surkov <surkov.alexander@gmail.com> (original author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsAccUtils.h"
 
@@ -42,12 +9,12 @@
 #include "nsAccessibilityService.h"
 #include "nsARIAMap.h"
 #include "nsCoreUtils.h"
-#include "nsDocAccessible.h"
-#include "nsHyperTextAccessible.h"
+#include "DocAccessible.h"
+#include "HyperTextAccessible.h"
 #include "nsIAccessibleTypes.h"
-#include "nsTextAccessible.h"
 #include "Role.h"
 #include "States.h"
+#include "TextLeafAccessible.h"
 
 #include "nsIDOMXULContainerElement.h"
 #include "nsIDOMXULSelectCntrlEl.h"
@@ -101,7 +68,7 @@ nsAccUtils::SetAccGroupAttrs(nsIPersistentProperties *aAttributes,
 }
 
 PRInt32
-nsAccUtils::GetDefaultLevel(nsAccessible *aAccessible)
+nsAccUtils::GetDefaultLevel(Accessible* aAccessible)
 {
   roles::Role role = aAccessible->Role();
 
@@ -109,7 +76,7 @@ nsAccUtils::GetDefaultLevel(nsAccessible *aAccessible)
     return 1;
 
   if (role == roles::ROW) {
-    nsAccessible* parent = aAccessible->Parent();
+    Accessible* parent = aAccessible->Parent();
     // It is a row inside flatten treegrid. Group level is always 1 until it
     // is overriden by aria-level attribute.
     if (parent && parent->Role() == roles::TREE_TABLE) 
@@ -120,7 +87,7 @@ nsAccUtils::GetDefaultLevel(nsAccessible *aAccessible)
 }
 
 PRInt32
-nsAccUtils::GetARIAOrDefaultLevel(nsAccessible *aAccessible)
+nsAccUtils::GetARIAOrDefaultLevel(Accessible* aAccessible)
 {
   PRInt32 level = 0;
   nsCoreUtils::GetUIntAttr(aAccessible->GetContent(),
@@ -185,9 +152,8 @@ nsAccUtils::SetLiveContainerAttributes(nsIPersistentProperties *aAttributes,
       if (!live.IsEmpty()) {
         SetAccAttr(aAttributes, nsGkAtoms::containerLive, live);
         if (role) {
-          nsAccUtils::SetAccAttr(aAttributes,
-                                 nsGkAtoms::containerLiveRole,
-                                 NS_ConvertASCIItoUTF16(role->roleString));
+          nsAccUtils::SetAccAttr(aAttributes, nsGkAtoms::containerLiveRole,
+                                 role->ARIARoleString());
         }
       }
     }
@@ -246,11 +212,11 @@ nsAccUtils::GetARIAToken(dom::Element* aElement, nsIAtom* aAttr)
   return nsnull;
 }
 
-nsAccessible*
-nsAccUtils::GetAncestorWithRole(nsAccessible *aDescendant, PRUint32 aRole)
+Accessible*
+nsAccUtils::GetAncestorWithRole(Accessible* aDescendant, PRUint32 aRole)
 {
-  nsAccessible* document = aDescendant->Document();
-  nsAccessible* parent = aDescendant;
+  Accessible* document = aDescendant->Document();
+  Accessible* parent = aDescendant;
   while ((parent = parent->Parent())) {
     PRUint32 testRole = parent->Role();
     if (testRole == aRole)
@@ -262,8 +228,8 @@ nsAccUtils::GetAncestorWithRole(nsAccessible *aDescendant, PRUint32 aRole)
   return nsnull;
 }
 
-nsAccessible*
-nsAccUtils::GetSelectableContainer(nsAccessible* aAccessible, PRUint64 aState)
+Accessible*
+nsAccUtils::GetSelectableContainer(Accessible* aAccessible, PRUint64 aState)
 {
   if (!aAccessible)
     return nsnull;
@@ -271,7 +237,7 @@ nsAccUtils::GetSelectableContainer(nsAccessible* aAccessible, PRUint64 aState)
   if (!(aState & states::SELECTABLE))
     return nsnull;
 
-  nsAccessible* parent = aAccessible;
+  Accessible* parent = aAccessible;
   while ((parent = parent->Parent()) && !parent->IsSelect()) {
     if (Role(parent) == nsIAccessibleRole::ROLE_PANE)
       return nsnull;
@@ -280,14 +246,14 @@ nsAccUtils::GetSelectableContainer(nsAccessible* aAccessible, PRUint64 aState)
 }
 
 bool
-nsAccUtils::IsARIASelected(nsAccessible *aAccessible)
+nsAccUtils::IsARIASelected(Accessible* aAccessible)
 {
   return aAccessible->GetContent()->
     AttrValueIs(kNameSpaceID_None, nsGkAtoms::aria_selected,
                 nsGkAtoms::_true, eCaseMatters);
 }
 
-nsHyperTextAccessible*
+HyperTextAccessible*
 nsAccUtils::GetTextAccessibleFromSelection(nsISelection* aSelection)
 {
   // Get accessible from selection's focus DOM point (the DOM point where
@@ -306,9 +272,9 @@ nsAccUtils::GetTextAccessibleFromSelection(nsISelection* aSelection)
     nsCoreUtils::GetDOMNodeFromDOMPoint(focusNode, focusOffset);
 
   // Get text accessible containing the result node.
-  nsDocAccessible* doc = 
+  DocAccessible* doc = 
     GetAccService()->GetDocAccessible(resultNode->OwnerDoc());
-  nsAccessible* accessible = doc ? 
+  Accessible* accessible = doc ? 
     doc->GetAccessibleOrContainer(resultNode) : nsnull;
   if (!accessible) {
     NS_NOTREACHED("No nsIAccessibleText for selection change event!");
@@ -316,7 +282,7 @@ nsAccUtils::GetTextAccessibleFromSelection(nsISelection* aSelection)
   }
 
   do {
-    nsHyperTextAccessible* textAcc = accessible->AsHyperText();
+    HyperTextAccessible* textAcc = accessible->AsHyperText();
     if (textAcc)
       return textAcc;
 
@@ -405,8 +371,8 @@ nsAccUtils::GetScreenCoordsForWindow(nsAccessNode *aAccessNode)
 nsIntPoint
 nsAccUtils::GetScreenCoordsForParent(nsAccessNode *aAccessNode)
 {
-  nsDocAccessible* document = aAccessNode->Document();
-  nsAccessible* parent = document->GetContainerAccessible(aAccessNode->GetNode());
+  DocAccessible* document = aAccessNode->Document();
+  Accessible* parent = document->GetContainerAccessible(aAccessNode->GetNode());
   if (!parent)
     return nsIntPoint(0, 0);
 
@@ -443,10 +409,10 @@ nsAccUtils::GetLiveAttrValue(PRUint32 aRule, nsAString& aValue)
   return false;
 }
 
-#ifdef DEBUG_A11Y
+#ifdef DEBUG
 
 bool
-nsAccUtils::IsTextInterfaceSupportCorrect(nsAccessible *aAccessible)
+nsAccUtils::IsTextInterfaceSupportCorrect(Accessible* aAccessible)
 {
   // Don't test for accessible docs, it makes us create accessibles too
   // early and fire mutation events before we need to
@@ -454,9 +420,9 @@ nsAccUtils::IsTextInterfaceSupportCorrect(nsAccessible *aAccessible)
     return true;
 
   bool foundText = false;
-  PRInt32 childCount = aAccessible->GetChildCount();
-  for (PRint32 childIdx = 0; childIdx < childCount; childIdx++) {
-    nsAccessible *child = GetChildAt(childIdx);
+  PRUint32 childCount = aAccessible->ChildCount();
+  for (PRUint32 childIdx = 0; childIdx < childCount; childIdx++) {
+    Accessible* child = aAccessible->GetChildAt(childIdx);
     if (IsText(child)) {
       foundText = true;
       break;
@@ -470,17 +436,17 @@ nsAccUtils::IsTextInterfaceSupportCorrect(nsAccessible *aAccessible)
       return false;
   }
 
-  return true; 
+  return true;
 }
 #endif
 
 PRUint32
-nsAccUtils::TextLength(nsAccessible *aAccessible)
+nsAccUtils::TextLength(Accessible* aAccessible)
 {
   if (!IsText(aAccessible))
     return 1;
 
-  nsTextAccessible* textLeaf = aAccessible->AsTextLeaf();
+  TextLeafAccessible* textLeaf = aAccessible->AsTextLeaf();
   if (textLeaf)
     return textLeaf->Text().Length();
 
@@ -494,24 +460,24 @@ nsAccUtils::TextLength(nsAccessible *aAccessible)
 }
 
 bool
-nsAccUtils::MustPrune(nsIAccessible *aAccessible)
+nsAccUtils::MustPrune(Accessible* aAccessible)
 { 
-  PRUint32 role = nsAccUtils::Role(aAccessible);
+  roles::Role role = aAccessible->Role();
 
   // We don't prune buttons any more however AT don't expect children inside of
   // button in general, we allow menu buttons to have children to make them
   // accessible.
-  return role == nsIAccessibleRole::ROLE_MENUITEM || 
-    role == nsIAccessibleRole::ROLE_COMBOBOX_OPTION ||
-    role == nsIAccessibleRole::ROLE_OPTION ||
-    role == nsIAccessibleRole::ROLE_ENTRY ||
-    role == nsIAccessibleRole::ROLE_FLAT_EQUATION ||
-    role == nsIAccessibleRole::ROLE_PASSWORD_TEXT ||
-    role == nsIAccessibleRole::ROLE_TOGGLE_BUTTON ||
-    role == nsIAccessibleRole::ROLE_GRAPHIC ||
-    role == nsIAccessibleRole::ROLE_SLIDER ||
-    role == nsIAccessibleRole::ROLE_PROGRESSBAR ||
-    role == nsIAccessibleRole::ROLE_SEPARATOR;
+  return role == roles::MENUITEM || 
+    role == roles::COMBOBOX_OPTION ||
+    role == roles::OPTION ||
+    role == roles::ENTRY ||
+    role == roles::FLAT_EQUATION ||
+    role == roles::PASSWORD_TEXT ||
+    role == roles::TOGGLE_BUTTON ||
+    role == roles::GRAPHIC ||
+    role == roles::SLIDER ||
+    role == roles::PROGRESSBAR ||
+    role == roles::SEPARATOR;
 }
 
 nsresult

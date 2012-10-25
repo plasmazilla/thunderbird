@@ -1,48 +1,13 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Alec Flett <alecf@netscape.com>
- *   Brian Nesse <bnesse@netscape.com>
- *   Frederic Plourde <frederic.plourde@collabora.co.uk>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/dom/ContentChild.h"
 #include "nsXULAppAPI.h"
 
 #include "nsPrefBranch.h"
-#include "nsILocalFile.h"
+#include "nsILocalFile.h" // nsILocalFile used for backwards compatibility
 #include "nsIObserverService.h"
 #include "nsXPCOM.h"
 #include "nsISupportsPrimitives.h"
@@ -267,18 +232,19 @@ NS_IMETHODIMP nsPrefBranch::GetComplexValue(const char *aPrefName, const nsIID &
     return rv;
   }
 
-  if (aType.Equals(NS_GET_IID(nsILocalFile))) {
+  // also check nsILocalFile, for backwards compatibility
+  if (aType.Equals(NS_GET_IID(nsIFile)) || aType.Equals(NS_GET_IID(nsILocalFile))) {
     if (GetContentChild()) {
-      NS_ERROR("cannot get nsILocalFile pref from content process");
+      NS_ERROR("cannot get nsIFile pref from content process");
       return NS_ERROR_NOT_AVAILABLE;
     }
 
-    nsCOMPtr<nsILocalFile> file(do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv));
+    nsCOMPtr<nsIFile> file(do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv));
 
     if (NS_SUCCEEDED(rv)) {
       rv = file->SetPersistentDescriptor(utf8String);
       if (NS_SUCCEEDED(rv)) {
-        file.forget(reinterpret_cast<nsILocalFile**>(_retval));
+        file.forget(reinterpret_cast<nsIFile**>(_retval));
         return NS_OK;
       }
     }
@@ -303,15 +269,15 @@ NS_IMETHODIMP nsPrefBranch::GetComplexValue(const char *aPrefName, const nsIID &
       return NS_ERROR_FAILURE;
     nsCAutoString key(Substring(keyBegin, keyEnd));
     
-    nsCOMPtr<nsILocalFile> fromFile;        
+    nsCOMPtr<nsIFile> fromFile;
     nsCOMPtr<nsIProperties> directoryService(do_GetService(NS_DIRECTORY_SERVICE_CONTRACTID, &rv));
     if (NS_FAILED(rv))
       return rv;
-    rv = directoryService->Get(key.get(), NS_GET_IID(nsILocalFile), getter_AddRefs(fromFile));
+    rv = directoryService->Get(key.get(), NS_GET_IID(nsIFile), getter_AddRefs(fromFile));
     if (NS_FAILED(rv))
       return rv;
     
-    nsCOMPtr<nsILocalFile> theFile;
+    nsCOMPtr<nsIFile> theFile;
     rv = NS_NewNativeLocalFile(EmptyCString(), true, getter_AddRefs(theFile));
     if (NS_FAILED(rv))
       return rv;
@@ -352,8 +318,9 @@ NS_IMETHODIMP nsPrefBranch::SetComplexValue(const char *aPrefName, const nsIID &
 
   nsresult   rv = NS_NOINTERFACE;
 
-  if (aType.Equals(NS_GET_IID(nsILocalFile))) {
-    nsCOMPtr<nsILocalFile> file = do_QueryInterface(aValue);
+  // also check nsILocalFile, for backwards compatibility
+  if (aType.Equals(NS_GET_IID(nsIFile)) || aType.Equals(NS_GET_IID(nsILocalFile))) {
+    nsCOMPtr<nsIFile> file = do_QueryInterface(aValue);
     if (!file)
       return NS_NOINTERFACE;
     nsCAutoString descriptorString;
@@ -370,18 +337,18 @@ NS_IMETHODIMP nsPrefBranch::SetComplexValue(const char *aPrefName, const nsIID &
     if (!relFilePref)
       return NS_NOINTERFACE;
     
-    nsCOMPtr<nsILocalFile> file;
+    nsCOMPtr<nsIFile> file;
     relFilePref->GetFile(getter_AddRefs(file));
     if (!file)
       return NS_NOINTERFACE;
     nsCAutoString relativeToKey;
     (void) relFilePref->GetRelativeToKey(relativeToKey);
 
-    nsCOMPtr<nsILocalFile> relativeToFile;        
+    nsCOMPtr<nsIFile> relativeToFile;
     nsCOMPtr<nsIProperties> directoryService(do_GetService(NS_DIRECTORY_SERVICE_CONTRACTID, &rv));
     if (NS_FAILED(rv))
       return rv;
-    rv = directoryService->Get(relativeToKey.get(), NS_GET_IID(nsILocalFile), getter_AddRefs(relativeToFile));
+    rv = directoryService->Get(relativeToKey.get(), NS_GET_IID(nsIFile), getter_AddRefs(relativeToFile));
     if (NS_FAILED(rv))
       return rv;
 
@@ -591,12 +558,7 @@ NS_IMETHODIMP nsPrefBranch::AddObserver(const char *aDomain, nsIObserver *aObser
     return NS_OK;
   }
 
-  bool putSucceeded = mObservers.Put(pCallback, pCallback);
-
-  if (!putSucceeded) {
-    delete pCallback;
-    return NS_ERROR_FAILURE;
-  }
+  mObservers.Put(pCallback, pCallback);
 
   // We must pass a fully qualified preference name to the callback
   // aDomain == nsnull is the only possible failure, and we trapped it with
@@ -842,7 +804,7 @@ nsRelativeFilePref::~nsRelativeFilePref()
 {
 }
 
-NS_IMETHODIMP nsRelativeFilePref::GetFile(nsILocalFile **aFile)
+NS_IMETHODIMP nsRelativeFilePref::GetFile(nsIFile **aFile)
 {
   NS_ENSURE_ARG_POINTER(aFile);
   *aFile = mFile;
@@ -850,7 +812,7 @@ NS_IMETHODIMP nsRelativeFilePref::GetFile(nsILocalFile **aFile)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsRelativeFilePref::SetFile(nsILocalFile *aFile)
+NS_IMETHODIMP nsRelativeFilePref::SetFile(nsIFile *aFile)
 {
   mFile = aFile;
   return NS_OK;

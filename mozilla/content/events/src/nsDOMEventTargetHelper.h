@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is 
- * Mozilla Corporation
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *  Olli Pettay <Olli.Pettay@helsinki.fi>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsDOMEventTargetHelper_h_
 #define nsDOMEventTargetHelper_h_
@@ -49,8 +16,10 @@
 #include "nsEventListenerManager.h"
 #include "nsIScriptContext.h"
 #include "nsWrapperCache.h"
+#include "mozilla/ErrorResult.h"
+#include "mozilla/Attributes.h"
 
-class nsDOMEventListenerWrapper : public nsIDOMEventListener
+class nsDOMEventListenerWrapper MOZ_FINAL : public nsIDOMEventListener
 {
 public:
   nsDOMEventListenerWrapper(nsIDOMEventListener* aListener)
@@ -80,7 +49,7 @@ public:
   void AddEventListener(const nsAString& aType,
                         nsIDOMEventListener* aCallback, // XXX nullable
                         bool aCapture, Nullable<bool>& aWantsUntrusted,
-                        nsresult& aRv)
+                        mozilla::ErrorResult& aRv)
   {
     aRv = AddEventListener(aType, aCallback, aCapture,
                            !aWantsUntrusted.IsNull() && aWantsUntrusted.Value(),
@@ -88,11 +57,11 @@ public:
   }
   void RemoveEventListener(const nsAString& aType,
                            nsIDOMEventListener* aCallback,
-                           bool aCapture, nsresult& aRv)
+                           bool aCapture, mozilla::ErrorResult& aRv)
   {
     aRv = RemoveEventListener(aType, aCallback, aCapture);
   }
-  bool DispatchEvent(nsIDOMEvent* aEvent, nsresult& aRv)
+  bool DispatchEvent(nsIDOMEvent* aEvent, mozilla::ErrorResult& aRv)
   {
     bool result = false;
     aRv = DispatchEvent(aEvent, &result);
@@ -224,5 +193,51 @@ private:
   if (tmp->mOn##_event##Listener) {                                           \
     xpc_TryUnmarkWrappedGrayObject(tmp->mOn##_event##Listener->GetInner());   \
   }
+
+/* Use this macro to declare functions that forward the behavior of this
+ * interface to another object.
+ * This macro doesn't forward PreHandleEvent because sometimes subclasses
+ * want to override it.
+ */
+#define NS_FORWARD_NSIDOMEVENTTARGET_NOPREHANDLEEVENT(_to) \
+  NS_SCRIPTABLE NS_IMETHOD AddEventListener(const nsAString & type, nsIDOMEventListener *listener, bool useCapture, bool wantsUntrusted, PRUint8 _argc) { \
+    return _to AddEventListener(type, listener, useCapture, wantsUntrusted, _argc); \
+  } \
+  NS_IMETHOD AddSystemEventListener(const nsAString & type, nsIDOMEventListener *listener, bool aUseCapture, bool aWantsUntrusted, PRUint8 _argc) { \
+    return _to AddSystemEventListener(type, listener, aUseCapture, aWantsUntrusted, _argc); \
+  } \
+  NS_SCRIPTABLE NS_IMETHOD RemoveEventListener(const nsAString & type, nsIDOMEventListener *listener, bool useCapture) { \
+    return _to RemoveEventListener(type, listener, useCapture); \
+  } \
+  NS_IMETHOD RemoveSystemEventListener(const nsAString & type, nsIDOMEventListener *listener, bool aUseCapture) { \
+    return _to RemoveSystemEventListener(type, listener, aUseCapture); \
+  } \
+  NS_SCRIPTABLE NS_IMETHOD DispatchEvent(nsIDOMEvent *evt, bool *_retval NS_OUTPARAM) { \
+    return _to DispatchEvent(evt, _retval); \
+  } \
+  virtual nsIDOMEventTarget * GetTargetForDOMEvent(void) { \
+    return _to GetTargetForDOMEvent(); \
+  } \
+  virtual nsIDOMEventTarget * GetTargetForEventTargetChain(void) { \
+    return _to GetTargetForEventTargetChain(); \
+  } \
+  virtual nsresult WillHandleEvent(nsEventChainPostVisitor & aVisitor) { \
+    return _to WillHandleEvent(aVisitor); \
+  } \
+  virtual nsresult PostHandleEvent(nsEventChainPostVisitor & aVisitor) { \
+    return _to PostHandleEvent(aVisitor); \
+  } \
+  virtual nsresult DispatchDOMEvent(nsEvent *aEvent, nsIDOMEvent *aDOMEvent, nsPresContext *aPresContext, nsEventStatus *aEventStatus) { \
+    return _to DispatchDOMEvent(aEvent, aDOMEvent, aPresContext, aEventStatus); \
+  } \
+  virtual nsEventListenerManager * GetListenerManager(bool aMayCreate) { \
+    return _to GetListenerManager(aMayCreate); \
+  } \
+  virtual nsIScriptContext * GetContextForEventHandlers(nsresult *aRv NS_OUTPARAM) { \
+    return _to GetContextForEventHandlers(aRv); \
+  } \
+  virtual JSContext * GetJSContextForEventHandlers(void) { \
+    return _to GetJSContextForEventHandlers(); \
+  } 
 
 #endif // nsDOMEventTargetHelper_h_

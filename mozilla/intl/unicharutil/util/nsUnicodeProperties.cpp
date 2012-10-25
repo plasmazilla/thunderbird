@@ -1,44 +1,11 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Corporation code.
- *
- * The Initial Developer of the Original Code is Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2009-2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Jonathan Kew <jfkthame@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #define HB_DONT_DEFINE_STDINT  1
 
 #include "nsUnicodeProperties.h"
-#include "nsUnicodeScriptCodes.h"
 #include "nsUnicodePropertyData.cpp"
 
 #include "mozilla/Util.h"
@@ -47,6 +14,56 @@
 
 #define UNICODE_BMP_LIMIT 0x10000
 #define UNICODE_LIMIT     0x110000
+
+
+const nsCharProps1&
+GetCharProps1(PRUint32 aCh)
+{
+    if (aCh < UNICODE_BMP_LIMIT) {
+        return sCharProp1Values[sCharProp1Pages[0][aCh >> kCharProp1CharBits]]
+                               [aCh & ((1 << kCharProp1CharBits) - 1)];
+    }
+    if (aCh < (kCharProp1MaxPlane + 1) * 0x10000) {
+        return sCharProp1Values[sCharProp1Pages[sCharProp1Planes[(aCh >> 16) - 1]]
+                                               [(aCh & 0xffff) >> kCharProp1CharBits]]
+                               [aCh & ((1 << kCharProp1CharBits) - 1)];
+    }
+
+    // Default values for unassigned
+    static const nsCharProps1 undefined = {
+        0,       // Index to mirrored char offsets
+        0,       // Hangul Syllable type
+        0        // Combining class
+    };
+    return undefined;
+}
+
+const nsCharProps2&
+GetCharProps2(PRUint32 aCh)
+{
+    if (aCh < UNICODE_BMP_LIMIT) {
+        return sCharProp2Values[sCharProp2Pages[0][aCh >> kCharProp2CharBits]]
+                              [aCh & ((1 << kCharProp2CharBits) - 1)];
+    }
+    if (aCh < (kCharProp2MaxPlane + 1) * 0x10000) {
+        return sCharProp2Values[sCharProp2Pages[sCharProp2Planes[(aCh >> 16) - 1]]
+                                               [(aCh & 0xffff) >> kCharProp2CharBits]]
+                               [aCh & ((1 << kCharProp2CharBits) - 1)];
+    }
+
+    NS_NOTREACHED("Getting CharProps for codepoint outside Unicode range");
+    // Default values for unassigned
+    static const nsCharProps2 undefined = {
+        MOZ_SCRIPT_UNKNOWN,                      // Script code
+        0,                                       // East Asian Width
+        HB_UNICODE_GENERAL_CATEGORY_UNASSIGNED,  // General Category
+        eCharType_LeftToRight,                   // Bidi Category
+        mozilla::unicode::XIDMOD_NOT_CHARS,      // Xidmod
+        -1,                                      // Numeric Value
+        mozilla::unicode::HVT_NotHan             // Han variant
+    };
+    return undefined;
+}
 
 namespace mozilla {
 
@@ -113,81 +130,7 @@ nsIUGenCategory::nsUGenCategory sDetailedToGeneralCategory[] = {
 PRUint32
 GetMirroredChar(PRUint32 aCh)
 {
-    // all mirrored chars are in plane 0
-    if (aCh < UNICODE_BMP_LIMIT) {
-        int v = sMirrorValues[sMirrorPages[0][aCh >> kMirrorCharBits]]
-                             [aCh & ((1 << kMirrorCharBits) - 1)];
-        // The mirror value is stored as either an offset (if less than
-        // kSmallMirrorOffset) from the input character code, or as
-        // an index into the sDistantMirrors list. This allows the
-        // mirrored codes to be stored as 8-bit values, as most of them
-        // are references to nearby character codes.
-        if (v < kSmallMirrorOffset) {
-            return aCh + v;
-        }
-        return sDistantMirrors[v - kSmallMirrorOffset];
-    }
-    return aCh;
-}
-
-PRUint8
-GetCombiningClass(PRUint32 aCh)
-{
-    if (aCh < UNICODE_BMP_LIMIT) {
-        return sCClassValues[sCClassPages[0][aCh >> kCClassCharBits]]
-                            [aCh & ((1 << kCClassCharBits) - 1)];
-    }
-    if (aCh < (kCClassMaxPlane + 1) * 0x10000) {
-        return sCClassValues[sCClassPages[sCClassPlanes[(aCh >> 16) - 1]]
-                                         [(aCh & 0xffff) >> kCClassCharBits]]
-                            [aCh & ((1 << kCClassCharBits) - 1)];
-    }
-    return 0;
-}
-
-PRUint8
-GetGeneralCategory(PRUint32 aCh)
-{
-    if (aCh < UNICODE_BMP_LIMIT) {
-        return sCatEAWValues[sCatEAWPages[0][aCh >> kCatEAWCharBits]]
-                            [aCh & ((1 << kCatEAWCharBits) - 1)].mCategory;
-    }
-    if (aCh < (kCatEAWMaxPlane + 1) * 0x10000) {
-        return sCatEAWValues[sCatEAWPages[sCatEAWPlanes[(aCh >> 16) - 1]]
-                                         [(aCh & 0xffff) >> kCatEAWCharBits]]
-                            [aCh & ((1 << kCatEAWCharBits) - 1)].mCategory;
-    }
-    return PRUint8(HB_UNICODE_GENERAL_CATEGORY_UNASSIGNED);
-}
-
-PRUint8
-GetEastAsianWidth(PRUint32 aCh)
-{
-    if (aCh < UNICODE_BMP_LIMIT) {
-        return sCatEAWValues[sCatEAWPages[0][aCh >> kCatEAWCharBits]]
-                            [aCh & ((1 << kCatEAWCharBits) - 1)].mEAW;
-    }
-    if (aCh < (kCatEAWMaxPlane + 1) * 0x10000) {
-        return sCatEAWValues[sCatEAWPages[sCatEAWPlanes[(aCh >> 16) - 1]]
-                                         [(aCh & 0xffff) >> kCatEAWCharBits]]
-                            [aCh & ((1 << kCatEAWCharBits) - 1)].mEAW;
-    }
-    return 0;
-}
-
-PRInt32
-GetScriptCode(PRUint32 aCh)
-{
-    if (aCh < UNICODE_BMP_LIMIT) {
-        return sScriptValues[sScriptPages[0][aCh >> kScriptCharBits]]
-                            [aCh & ((1 << kScriptCharBits) - 1)];
-    }
-    if (aCh < (kScriptMaxPlane + 1) * 0x10000) {
-        return sScriptValues[sScriptPages[sScriptPlanes[(aCh >> 16) - 1]]
-                                         [(aCh & 0xffff) >> kScriptCharBits]]
-                            [aCh & ((1 << kScriptCharBits) - 1)];
-    }
-    return MOZ_SCRIPT_UNKNOWN;
+    return aCh + sMirrorOffsets[GetCharProps1(aCh).mMirrorOffsetIndex];
 }
 
 PRUint32
@@ -198,17 +141,6 @@ GetScriptTagForCode(PRInt32 aScriptCode)
         return 0;
     }
     return sScriptCodeToTag[aScriptCode];
-}
-
-HSType
-GetHangulSyllableType(PRUint32 aCh)
-{
-    // all Hangul chars are in plane 0
-    if (aCh < UNICODE_BMP_LIMIT) {
-        return HSType(sHangulValues[sHangulPages[0][aCh >> kHangulCharBits]]
-                                   [aCh & ((1 << kHangulCharBits) - 1)]);
-    }
-    return HST_NONE;
 }
 
 static inline PRUint32
@@ -273,6 +205,25 @@ GetTitlecaseForAll(PRUint32 aCh)
         return GetTitlecaseForLower(aCh ^ (mapValue & kCaseMapCharMask));
     }
     return aCh;
+}
+
+HanVariantType
+GetHanVariant(PRUint32 aCh)
+{
+    // In the sHanVariantValues array, data for 4 successive characters
+    // (2 bits each) is packed in to each PRUint8 entry, with the value
+    // for the lowest character stored in the least significant bits.
+    PRUint8 v = 0;
+    if (aCh < UNICODE_BMP_LIMIT) {
+        v = sHanVariantValues[sHanVariantPages[0][aCh >> kHanVariantCharBits]]
+                             [(aCh & ((1 << kHanVariantCharBits) - 1)) >> 2];
+    } else if (aCh < (kHanVariantMaxPlane + 1) * 0x10000) {
+        v = sHanVariantValues[sHanVariantPages[sHanVariantPlanes[(aCh >> 16) - 1]]
+                                              [(aCh & 0xffff) >> kHanVariantCharBits]]
+                             [(aCh & ((1 << kHanVariantCharBits) - 1)) >> 2];
+    }
+    // extract the appropriate 2-bit field from the value
+    return HanVariantType((v >> ((aCh & 3) * 2)) & 3);
 }
 
 bool

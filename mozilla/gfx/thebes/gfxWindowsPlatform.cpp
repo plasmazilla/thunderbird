@@ -1,42 +1,7 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Foundation code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2005
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Stuart Parmenter <stuart@mozilla.com>
- *   Vladimir Vukicevic <vladimir@pobox.com>
- *   Masayuki Nakano <masayuki@d-toybox.com>
- *   Masatoshi Kimura <VYV03354@nifty.ne.jp>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
 
@@ -52,7 +17,7 @@
 #include "nsTArray.h"
 
 #include "nsIWindowsRegKey.h"
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 #include "plbase64.h"
 #include "nsIXULRuntime.h"
 
@@ -152,6 +117,35 @@ NS_MEMORY_REPORTER_IMPLEMENT(
     "Video memory used by D2D surfaces.")
 
 #endif
+
+namespace
+{
+
+PRInt64 GetD2DVRAMUsageDrawTarget() {
+    return mozilla::gfx::Factory::GetD2DVRAMUsageDrawTarget();
+}
+
+PRInt64 GetD2DVRAMUsageSourceSurface() {
+    return mozilla::gfx::Factory::GetD2DVRAMUsageSourceSurface();
+}
+
+} // anonymous namespace
+
+NS_MEMORY_REPORTER_IMPLEMENT(
+    D2DVRAMDT,
+    "gfx-d2d-vram-drawtarget",
+    KIND_OTHER,
+    UNITS_BYTES,
+    GetD2DVRAMUsageDrawTarget,
+    "Video memory used by D2D DrawTargets.")
+
+NS_MEMORY_REPORTER_IMPLEMENT(
+    D2DVRAMSS,
+    "gfx-d2d-vram-sourcesurface",
+    KIND_OTHER,
+    UNITS_BYTES,
+    GetD2DVRAMUsageSourceSurface,
+    "Video memory used by D2D SourceSurfaces.")
 
 #define GFX_USE_CLEARTYPE_ALWAYS "gfx.font_rendering.cleartype.always_use_for_content"
 #define GFX_DOWNLOADABLE_FONTS_USE_CLEARTYPE "gfx.font_rendering.cleartype.use_for_downloadable_fonts"
@@ -365,6 +359,8 @@ gfxWindowsPlatform::gfxWindowsPlatform()
     NS_RegisterMemoryReporter(new NS_MEMORY_REPORTER_NAME(D2DVram));
     mD2DDevice = nsnull;
 #endif
+    NS_RegisterMemoryReporter(new NS_MEMORY_REPORTER_NAME(D2DVRAMDT));
+    NS_RegisterMemoryReporter(new NS_MEMORY_REPORTER_NAME(D2DVRAMSS));
 
     UpdateRenderMode();
 
@@ -530,10 +526,12 @@ gfxWindowsPlatform::VerifyD2DDevice(bool aAttemptForce)
             hr = factory1->EnumAdapters1(0, getter_AddRefs(adapter1));
 
             if (SUCCEEDED(hr) && adapter1) {
-                hr = adapter1->CheckInterfaceSupport(__uuidof(ID3D10Device1),
+                hr = adapter1->CheckInterfaceSupport(__uuidof(ID3D10Device),
                                                      nsnull);
                 if (FAILED(hr)) {
-                    adapter1 = nsnull;
+                    // We should return and not accelerate if we don't have
+                    // D3D 10.0 support.
+                    return;
                 }
             }
         }
@@ -698,20 +696,38 @@ gfxWindowsPlatform::CreateOffscreenSurface(const gfxIntSize& size,
 
 #ifdef CAIRO_HAS_WIN32_SURFACE
     if (mRenderMode == RENDER_GDI)
-        surf = new gfxWindowsSurface(size, gfxASurface::FormatFromContent(contentType));
+        surf = new gfxWindowsSurface(size, OptimalFormatForContent(contentType));
 #endif
 
 #ifdef CAIRO_HAS_D2D_SURFACE
     if (mRenderMode == RENDER_DIRECT2D)
-        surf = new gfxD2DSurface(size, gfxASurface::FormatFromContent(contentType));
+        surf = new gfxD2DSurface(size, OptimalFormatForContent(contentType));
 #endif
 
     if (surf == nsnull)
-        surf = new gfxImageSurface(size, gfxASurface::FormatFromContent(contentType));
+        surf = new gfxImageSurface(size, OptimalFormatForContent(contentType));
 
     NS_IF_ADDREF(surf);
 
     return surf;
+}
+
+already_AddRefed<gfxASurface>
+gfxWindowsPlatform::CreateOffscreenImageSurface(const gfxIntSize& aSize,
+                                                gfxASurface::gfxContentType aContentType)
+{
+#ifdef CAIRO_HAS_D2D_SURFACE
+    if (mRenderMode == RENDER_DIRECT2D) {
+        return new gfxImageSurface(aSize, OptimalFormatForContent(aContentType));
+    }
+#endif
+
+    nsRefPtr<gfxASurface> surface = CreateOffscreenSurface(aSize, aContentType);
+#ifdef DEBUG
+    nsRefPtr<gfxImageSurface> imageSurface = surface->GetAsImageSurface();
+    NS_ASSERTION(imageSurface, "Surface cannot be converted to a gfxImageSurface");
+#endif
+    return surface.forget();
 }
 
 RefPtr<ScaledFont>

@@ -1,41 +1,7 @@
 /* -*- Mode: javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dan Mosedale <dan.mosedale@oracle.com>
- *   Olivier Parniere BT Global Services / Etat francais Ministere de la Defense
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 // SpaceHit() function: whether spacebar advances to next unread message.
 pref("mail.advance_on_spacebar", true);
@@ -111,6 +77,10 @@ pref("mailnews.headers.showSender", false);
 // be greater than one hour so daylight savings time changes don't affect us.
 // We will still always regenerate .msf files if the file size changes.
 pref("mail.db_timestamp_leeway", 4000);
+// How long should we leave idle db's open, in milliseconds.
+pref("mail.db.idle_limit", 300000);
+// How many db's should we leave open? LRU db's will be closed first
+pref("mail.db.max_open", 30);
 
 pref("mail.imap.chunk_size",                65536);
 pref("mail.imap.min_chunk_size_threshold",  98304);
@@ -403,6 +373,9 @@ pref("mail.default_sendlater_uri", "mailbox://nobody@Local%20Folders/Unsent%20Me
 pref("mail.smtpservers", "");
 pref("mail.accountmanager.accounts", "");
 
+// Last used account key value
+pref("mail.account.lastKey", 0);
+
 pref("mail.server.default.port", -1);
 pref("mail.server.default.offline_support_level", -1);
 pref("mail.server.default.leave_on_server", false);
@@ -564,6 +537,8 @@ pref("rss.show.summary", 1);
 // 1 - open summary in new window
 // 2 - toggle load summary and content-base url in message pane
 pref("rss.show.content-base", 0);
+// Feeds system logging, uses log4moz conventions.
+pref("Feeds.logging.console", "Info");
 
 pref("mail.forward_message_mode", 0); // 0=default as attachment 2=forward as inline with attachments, (obsolete 4.x value)1=forward as quoted (mapped to 2 in mozilla)
 pref("mail.forward_add_extension", true); // add .eml extension when forwarding as attachment
@@ -773,6 +748,8 @@ pref("ldap_2.servers.osx.description", "chrome://messenger/locale/addressbook/ad
 pref("ldap_2.servers.osx.dirType", 3);
 pref("mail.notification.sound",             "");
 pref("mail.notification.count.inbox_only", true);
+// Work around bug 482811 by disabling slow script warning for chrome scripts on Mac
+pref("dom.max_chrome_script_run_time", 0);
 #endif
 
 // gtk2 (*nix) lacks transparent/translucent drag support (bug 376238), so we
@@ -839,3 +816,6 @@ pref("mail.nntp.qos", 0);
 // default value for IMAP4
 // in a DSCP environment this should be 56 (0x38, or AF13), ibid.
 pref("mail.imap.qos", 0);
+
+// PgpMime Addon
+pref("mail.pgpmime.addon_url", "https://addons.mozilla.org/addon/enigmail/");

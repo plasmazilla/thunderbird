@@ -7,14 +7,29 @@
 interface nsIArray;
 interface nsIDOMContact;
 
-[scriptable, uuid(27a568b0-cee1-11e0-9572-0800200c9a66)]
+[scriptable, uuid(eba48030-89e8-11e1-b0c4-0800200c9a66)]
 interface nsIDOMContactAddress : nsISupports
 {
+  attribute DOMString type;
   attribute DOMString streetAddress;
   attribute DOMString locality;
   attribute DOMString region;
   attribute DOMString postalCode;
   attribute DOMString countryName;
+};
+
+[scriptable, uuid(82601b20-89e8-11e1-b0c4-0800200c9a66)]
+interface nsIDOMContactTelephone : nsISupports
+{
+  attribute DOMString type;
+  attribute DOMString number;
+};
+
+[scriptable, uuid(94811520-c11f-11e1-afa7-0800200c9a66)]
+interface nsIDOMContactEmail : nsISupports
+{
+  attribute DOMString type;
+  attribute DOMString address;
 };
 
 [scriptable, uuid(e31daea0-0cb6-11e1-be50-0800200c9a66)]
@@ -23,12 +38,12 @@ interface nsIDOMContactFindOptions : nsISupports
   attribute DOMString filterValue;  // e.g. "Tom"
   attribute DOMString filterOp;     // e.g. "contains"
   attribute jsval filterBy;         // DOMString[], e.g. ["givenName", "nickname"]
-  attribute DOMString sortBy;       // e.g. "givenName"
+  attribute DOMString sortBy;       // "givenName" or "familyName"
   attribute DOMString sortOrder;    // e.g. "descending"
   attribute unsigned long filterLimit;
 };
 
-[scriptable, uuid(53ed7c20-ceda-11e0-9572-0800200c9a66)]
+[scriptable, uuid(f5181640-89e8-11e1-b0c4-0800200c9a66)]
 interface nsIDOMContactProperties : nsISupports
 {
   attribute jsval         name;               // DOMString[]
@@ -38,13 +53,14 @@ interface nsIDOMContactProperties : nsISupports
   attribute jsval         familyName;         // DOMString[]
   attribute jsval         honorificSuffix;    // DOMString[]
   attribute jsval         nickname;           // DOMString[]
-  attribute jsval         email;              // DOMString[]
+  attribute jsval         email;              // ContactEmail[]
   attribute jsval         photo;              // DOMString[]
   attribute jsval         url;                // DOMString[]
   attribute jsval         category;           // DOMString[]
   attribute jsval         adr;                // ContactAddress[]
-  attribute jsval         tel;                // DOMString[]
+  attribute jsval         tel;                // ContactTelephone[]
   attribute jsval         org;                // DOMString[]
+  attribute jsval         jobTitle;           // DOMString[]
   attribute jsval         bday;               // Date
   attribute jsval         note;               // DOMString[]
   attribute jsval         impp;               // DOMString[]

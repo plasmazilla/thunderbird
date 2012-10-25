@@ -1,51 +1,7 @@
 <?xml version="1.0"?>
-<!-- ***** BEGIN LICENSE BLOCK *****
-   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
-   -
-   - The contents of this file are subject to the Mozilla Public License Version
-   - 1.1 (the "License"); you may not use this file except in compliance with
-   - the License. You may obtain a copy of the License at
-   - http://www.mozilla.org/MPL/
-   -
-   - Software distributed under the License is distributed on an "AS IS" basis,
-   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-   - for the specific language governing rights and limitations under the
-   - License.
-   -
-   - The Original Code is OEone Calendar Code, released October 31st, 2001.
-   -
-   - The Initial Developer of the Original Code is
-   - OEone Corporation.
-   - Portions created by the Initial Developer are Copyright (C) 2001
-   - the Initial Developer. All Rights Reserved.
-   -
-   - Contributor(s):
-   -   Garth Smedley <garths@oeone.com>
-   -   Mike Potter <mikep@oeone.com>
-   -   Colin Phillips <colinp@oeone.com>
-   -   Chris Charabaruk <coldacid@djfly.org>
-   -   Karl Guertin <grayrest@grayrest.com>
-   -   Dan Parent <danp@oeone.com>
-   -   ArentJan Banck <ajbanck@planet.nl>
-   -   Eric Belhaire <belhaire@ief.u-psud.fr>
-   -   Stefan Sitter <ssitter@googlemail.com>
-   -   Philipp Kewisch <mozilla@kewis.ch>
-   -   Michael Buettner <michael.buettner@sun.com>
-   -   Simon Paquet <bugzilla@babylonsounds.com>
-   -
-   - Alternatively, the contents of this file may be used under the terms of
-   - either the GNU General Public License Version 2 or later (the "GPL"), or
-   - the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-   - in which case the provisions of the GPL or the LGPL are applicable instead
-   - of those above. If you wish to allow use of your version of this file only
-   - under the terms of either the GPL or the LGPL, and not to allow others to
-   - use your version of this file under the terms of the MPL, indicate your
-   - decision by deleting the provisions above and replace them with the notice
-   - and other provisions required by the LGPL or the GPL. If you do not delete
-   - the provisions above, a recipient may use your version of this file under
-   - the terms of any one of the MPL, the GPL or the LGPL.
-   -
-   - ***** END LICENSE BLOCK ***** -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <?xml-stylesheet href="chrome://global/skin/global.css" type="text/css" ?>
 <?xml-stylesheet href="chrome://calendar/skin/calendar-unifinder.css" type="text/css"?>
@@ -60,7 +16,7 @@
     <vbox id="bottom-events-box" insertbefore="calendar-nav-control" persist="height">
       <hbox id="unifinder-searchBox" persist="collapsed">
         <box align="center">
-          <menulist id="event-filter-menulist" value="next7days" persist="value">
+          <menulist id="event-filter-menulist" value="P7D" persist="value">
             <menupopup id="event-filter-menupopup" oncommand="refreshEventTree()">
               <menuitem id="event-filter-all"
                         label="&calendar.events.filter.all.label;"
@@ -70,13 +26,13 @@
                         value="today"/>
               <menuitem id="event-filter-next7days"
                         label="&calendar.events.filter.next7Days.label;"
-                        value="next7days"/>
+                        value="P7D"/>
               <menuitem id="event-filter-next14Days"
                         label="&calendar.events.filter.next14Days.label;"
-                        value="next14days"/>
+                        value="P14D"/>
               <menuitem id="event-filter-next31Days"
                         label="&calendar.events.filter.next31Days.label;"
-                        value="next31days"/>
+                        value="P31D"/>
               <menuitem id="event-filter-thisCalendarMonth"
                         label="&calendar.events.filter.thisCalendarMonth.label;"
                         value="thisCalendarMonth"/>
@@ -112,45 +68,52 @@
                    persist="hidden ordinal width"
                    flex="1"
                    itemproperty="title"
-                   label="&calendar.unifinder.tree.title.label;" />
+                   label="&calendar.unifinder.tree.title.label;"
+                   tooltiptext="&calendar.unifinder.tree.title.tooltip;"/>
           <splitter class="tree-splitter"/>
           <treecol id="unifinder-search-results-tree-col-startdate"
                    persist="hidden ordinal width"
                    flex="1"
                    itemproperty="startDate"
-                   label="&calendar.unifinder.tree.startdate.label;"/>
+                   label="&calendar.unifinder.tree.startdate.label;"
+                   tooltiptext="&calendar.unifinder.tree.startdate.tooltip;"/>
           <splitter class="tree-splitter"/>
           <treecol id="unifinder-search-results-tree-col-enddate"
                    persist="hidden ordinal width"
                    flex="1"
                    itemproperty="endDate"
-                   label="&calendar.unifinder.tree.enddate.label;"/>
+                   label="&calendar.unifinder.tree.enddate.label;"
+                   tooltiptext="&calendar.unifinder.tree.enddate.tooltip;"/>
           <splitter class="tree-splitter"/>
           <treecol id="unifinder-search-results-tree-col-categories"
                    persist="hidden ordinal width"
                    flex="1"
                    itemproperty="categories"
-                   label="&calendar.unifinder.tree.categories.label;"/>
+                   label="&calendar.unifinder.tree.categories.label;"
+                   tooltiptext="&calendar.unifinder.tree.categories.tooltip;"/>
           <splitter class="tree-splitter"/>
           <treecol id="unifinder-search-results-tree-col-location"
                    persist="hidden ordinal width"
                    flex="1"
                    hidden="true"
                    itemproperty="location"
-                   label="&calendar.unifinder.tree.location.label;"/>
+                   label="&calendar.unifinder.tree.location.label;"
+                   tooltiptext="&calendar.unifinder.tree.location.tooltip;"/>
           <splitter class="tree-splitter"/>
           <treecol id="unifinder-search-results-tree-col-status"
                    persist="hidden ordinal width"
                    flex="1"
                    hidden="true"
                    itemproperty="status"
-                   label="&calendar.unifinder.tree.status.label;"/>
+                   label="&calendar.unifinder.tree.status.label;"
+                   tooltiptext="&calendar.unifinder.tree.status.tooltip;"/>
           <treecol id="unifinder-search-results-tree-col-calendarname"
                    persist="hidden ordinal width"
                    flex="1"
                    hidden="true"
                    itemproperty="calendar"
-                   label="&calendar.unifinder.tree.calendarname.label;"/>
+                   label="&calendar.unifinder.tree.calendarname.label;"
+                   tooltiptext="&calendar.unifinder.tree.calendarname.tooltip;"/>
         </treecols>
 
         <!-- on mousedown here happens before onclick above -->

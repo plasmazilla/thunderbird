@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dean Tessman <dean_tessman@hotmail.com>
- *   Mats Palmgren <matspal@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsComboboxControlFrame_h___
 #define nsComboboxControlFrame_h___
@@ -98,7 +64,7 @@ public:
   virtual nsIFrame* CreateFrameFor(nsIContent* aContent);
 
 #ifdef ACCESSIBILITY
-  virtual already_AddRefed<nsAccessible> CreateAccessible();
+  virtual already_AddRefed<Accessible> CreateAccessible();
 #endif
 
   virtual nscoord GetMinWidth(nsRenderingContext *aRenderingContext);
@@ -135,7 +101,7 @@ public:
     return do_QueryFrame(mDropdownFrame);
   }
 
-#ifdef NS_DEBUG
+#ifdef DEBUG
   NS_IMETHOD GetFrameName(nsAString& aResult) const;
 #endif
   virtual void DestroyFrom(nsIFrame* aDestructRoot);
@@ -171,7 +137,16 @@ public:
    * @note This method might destroy |this|.
    */
   virtual void RollupFromList();
-  virtual void AbsolutelyPositionDropDown();
+
+  /**
+   * Return the available space above and below this frame for
+   * placing the drop-down list, and the current 2D translation.
+   * Note that either or both can be less than or equal to zero,
+   * if both are then the drop-down should be closed.
+   */
+  void GetAvailableDropdownSpace(nscoord* aAbove,
+                                 nscoord* aBelow,
+                                 nsPoint* aTranslation);
   virtual PRInt32 GetIndexOfDisplayArea();
   /**
    * @note This method might destroy |this|.
@@ -193,6 +168,7 @@ public:
    * @note This method might destroy |this|.
    */
   virtual nsIContent* Rollup(PRUint32 aCount, bool aGetLastRolledUp = false);
+  virtual void NotifyGeometryChange();
 
   /**
    * A combobox should roll up if a mousewheel event happens outside of
@@ -218,17 +194,27 @@ public:
   static bool ToolkitHasNativePopup();
 
 protected:
+  friend class RedisplayTextEvent;
+  friend class nsAsyncResize;
+  friend class nsResizeDropdownAtFinalPosition;
 
   // Utilities
   nsresult ReflowDropdown(nsPresContext*          aPresContext, 
                           const nsHTMLReflowState& aReflowState);
 
+  enum DropDownPositionState {
+    // can't show the dropdown at its current position
+    eDropDownPositionSuppressed,
+    // a resize reflow is pending, don't show it yet
+    eDropDownPositionPendingResize,
+    // the dropdown has its final size and position and can be displayed here
+    eDropDownPositionFinal
+  };
+  DropDownPositionState AbsolutelyPositionDropDown();
+
   // Helper for GetMinWidth/GetPrefWidth
   nscoord GetIntrinsicWidth(nsRenderingContext* aRenderingContext,
                             nsLayoutUtils::IntrinsicWidthType aType);
-protected:
-  class RedisplayTextEvent;
-  friend class RedisplayTextEvent;
 
   class RedisplayTextEvent : public nsRunnable {
   public:
@@ -276,9 +262,6 @@ protected:
   // size to the full width except the drop-marker.
   nscoord mDisplayWidth;
   
-  bool                  mDroppedDown;             // Current state of the dropdown list, true is dropped down
-  bool                  mInRedisplayText;
-
   nsRevocableEventPtr<RedisplayTextEvent> mRedisplayTextEvent;
 
   PRInt32               mRecentSelectedIndex;
@@ -289,9 +272,23 @@ protected:
   // then open or close the combo box.
   nsCOMPtr<nsIDOMEventListener> mButtonListener;
 
+  // The last y-positions used for estimating available space above and
+  // below for the dropdown list in GetAvailableDropdownSpace.  These are
+  // reset to nscoord_MIN in AbsolutelyPositionDropDown when placing the
+  // dropdown at its actual position.  The GetAvailableDropdownSpace call
+  // from nsListControlFrame::ReflowAsDropdown use the last position.
+  nscoord               mLastDropDownAboveScreenY;
+  nscoord               mLastDropDownBelowScreenY;
+  // Current state of the dropdown list, true is dropped down.
+  bool                  mDroppedDown;
+  // See comment in HandleRedisplayTextEvent().
+  bool                  mInRedisplayText;
+  // Acting on ShowDropDown(true) is delayed until we're focused.
+  bool                  mDelayedShowDropDown;
+
   // static class data member for Bug 32920
   // only one control can be focused at a time
-  static nsComboboxControlFrame * mFocused;
+  static nsComboboxControlFrame* sFocused;
 
 #ifdef DO_REFLOW_COUNTER
   PRInt32 mReflowId;

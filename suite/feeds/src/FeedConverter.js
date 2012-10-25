@@ -1,42 +1,7 @@
 /* -*- Mode: Javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Feed Stream Converter.
- *
- * The Initial Developer of the Original Code is Google Inc.
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ben Goodger <beng@google.com>
- *   Jeff Walden <jwalden+code@mit.edu>
- *   Will Guaraldi <will.guaraldi@pculture.org>
- *   Caio Tiago Oliveira <asrail@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/debug.js");
@@ -326,6 +291,13 @@ FeedConverter.prototype = {
     // The value doesn't matter.
     try {
       var httpChannel = channel.QueryInterface(Components.interfaces.nsIHttpChannel);
+      // Make sure to check requestSucceeded before the potentially-throwing
+      // getResponseHeader.
+      if (!httpChannel.requestSucceeded) {
+        // Just give up, but don't forget to cancel the channel first!
+        request.cancel(Components.results.NS_BINDING_ABORTED);
+        return;
+      }
       var noSniff = httpChannel.getResponseHeader("X-Moz-Is-Feed");
     }
     catch (ex) {
@@ -415,7 +387,7 @@ FeedResultService.prototype = {
       // Retrieving the shell service might fail on some systems, most
       // notably systems where GNOME is not installed.
       try {
-        var ss = Components.classes["@mozilla.org/suite/shell-feed-service;1"]
+        var ss = Components.classes["@mozilla.org/suite/shell-service;1"]
                            .getService(Components.interfaces.nsIShellService);
         ss.openApplicationWithURI(clientApp, spec);
       } catch(e) {
@@ -539,9 +511,13 @@ GenericProtocolHandler.prototype = {
     var prefix = /^feed:\/\//.test(spec) ? "http:" : "";
     var inner = this._ioSvc.newURI(spec.replace("feed:", prefix),
                                    originalCharset, baseURI);
-    var uri = Components.classes["@mozilla.org/network/util;1"]
-                        .getService(Components.interfaces.nsINetUtil)
-                        .newSimpleNestedURI(inner);
+    var netutil = Components.classes["@mozilla.org/network/util;1"]
+                            .getService(Components.interfaces.nsINetUtil);
+    if (netutil.URIChainHasFlags(inner,
+        Components.interfaces.nsIProtocolHandler.URI_INHERITS_SECURITY_CONTEXT))
+      throw Components.results.NS_ERROR_MALFORMED_URI;
+
+    var uri = netutil.newSimpleNestedURI(inner);
     uri.spec = inner.spec.replace(prefix, "feed:");
     return uri;
   },

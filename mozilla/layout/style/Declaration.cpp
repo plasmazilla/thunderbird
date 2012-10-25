@@ -1,43 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Daniel Glazman <glazman@netscape.com>
- *   Mats Palmgren <mats.palmgren@bredband.net>
- *   Jonathon Jongsma <jonathon.jongsma@collabora.co.uk>, Collabora Ltd.
- *   L. David Baron <dbaron@dbaron.org>, Mozilla Corporation
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * representation of a declaration block (or style attribute) in a CSS
@@ -300,7 +264,61 @@ Declaration::GetValue(nsCSSProperty aProperty, nsAString& aValue) const
       }
       break;
     }
+    case eCSSProperty_border_image: {
+      // Even though there are some cases where we could omit
+      // 'border-image-source' (when it's none), it's probably not a
+      // good idea since it's likely to be confusing.  It would also
+      // require adding the extra check that we serialize *something*.
+      AppendValueToString(eCSSProperty_border_image_source, aValue);
+
+      bool sliceDefault = data->HasDefaultBorderImageSlice();
+      bool widthDefault = data->HasDefaultBorderImageWidth();
+      bool outsetDefault = data->HasDefaultBorderImageOutset();
+
+      if (!sliceDefault || !widthDefault || !outsetDefault) {
+        aValue.Append(PRUnichar(' '));
+        AppendValueToString(eCSSProperty_border_image_slice, aValue);
+        if (!widthDefault || !outsetDefault) {
+          aValue.Append(NS_LITERAL_STRING(" /"));
+          if (!widthDefault) {
+            aValue.Append(PRUnichar(' '));
+            AppendValueToString(eCSSProperty_border_image_width, aValue);
+          }
+          if (!outsetDefault) {
+            aValue.Append(NS_LITERAL_STRING(" / "));
+            AppendValueToString(eCSSProperty_border_image_outset, aValue);
+          }
+        }
+      }
+
+      bool repeatDefault = data->HasDefaultBorderImageRepeat();
+      if (!repeatDefault) {
+        aValue.Append(PRUnichar(' '));
+        AppendValueToString(eCSSProperty_border_image_repeat, aValue);
+      }
+      break;
+    }
     case eCSSProperty_border: {
+      // If we have a non-default value for any of the properties that
+      // this shorthand sets but cannot specify, we have to return the
+      // empty string.
+      if (data->ValueFor(eCSSProperty_border_image_source)->GetUnit() !=
+            eCSSUnit_None ||
+          !data->HasDefaultBorderImageSlice() ||
+          !data->HasDefaultBorderImageWidth() ||
+          !data->HasDefaultBorderImageOutset() ||
+          !data->HasDefaultBorderImageRepeat() ||
+          data->ValueFor(eCSSProperty_border_top_colors)->GetUnit() !=
+            eCSSUnit_None ||
+          data->ValueFor(eCSSProperty_border_right_colors)->GetUnit() !=
+            eCSSUnit_None ||
+          data->ValueFor(eCSSProperty_border_bottom_colors)->GetUnit() !=
+            eCSSUnit_None ||
+          data->ValueFor(eCSSProperty_border_left_colors)->GetUnit() !=
+            eCSSUnit_None) {
+        break;
+      }
+
       const nsCSSProperty* subproptables[3] = {
         nsCSSProps::SubpropertyEntryFor(eCSSProperty_border_color),
         nsCSSProps::SubpropertyEntryFor(eCSSProperty_border_style),
@@ -593,7 +611,7 @@ Declaration::GetValue(nsCSSProperty aProperty, nsAString& aValue) const
         *data->ValueFor(eCSSProperty_text_decoration_style);
 
       NS_ABORT_IF_FALSE(decorationStyle.GetUnit() == eCSSUnit_Enumerated,
-                        nsPrintfCString(32, "bad text-decoration-style unit %d",
+                        nsPrintfCString("bad text-decoration-style unit %d",
                                         decorationStyle.GetUnit()).get());
 
       if (decorationColor.GetUnit() != eCSSUnit_Enumerated ||
@@ -609,10 +627,10 @@ Declaration::GetValue(nsCSSProperty aProperty, nsAString& aValue) const
         *data->ValueFor(eCSSProperty_text_decoration_line);
 
       NS_ABORT_IF_FALSE(textBlink.GetUnit() == eCSSUnit_Enumerated,
-                        nsPrintfCString(32, "bad text-blink unit %d",
+                        nsPrintfCString("bad text-blink unit %d",
                                         textBlink.GetUnit()).get());
       NS_ABORT_IF_FALSE(decorationLine.GetUnit() == eCSSUnit_Enumerated,
-                        nsPrintfCString(32, "bad text-decoration-line unit %d",
+                        nsPrintfCString("bad text-decoration-line unit %d",
                                         decorationLine.GetUnit()).get());
 
       bool blinkNone = (textBlink.GetIntValue() == NS_STYLE_TEXT_BLINK_NONE);
@@ -646,15 +664,15 @@ Declaration::GetValue(nsCSSProperty aProperty, nsAString& aValue) const
 
       NS_ABORT_IF_FALSE(transDuration.GetUnit() == eCSSUnit_List ||
                         transDuration.GetUnit() == eCSSUnit_ListDep,
-                        nsPrintfCString(32, "bad t-duration unit %d",
+                        nsPrintfCString("bad t-duration unit %d",
                                         transDuration.GetUnit()).get());
       NS_ABORT_IF_FALSE(transTiming.GetUnit() == eCSSUnit_List ||
                         transTiming.GetUnit() == eCSSUnit_ListDep,
-                        nsPrintfCString(32, "bad t-timing unit %d",
+                        nsPrintfCString("bad t-timing unit %d",
                                         transTiming.GetUnit()).get());
       NS_ABORT_IF_FALSE(transDelay.GetUnit() == eCSSUnit_List ||
                         transDelay.GetUnit() == eCSSUnit_ListDep,
-                        nsPrintfCString(32, "bad t-delay unit %d",
+                        nsPrintfCString("bad t-delay unit %d",
                                         transDelay.GetUnit()).get());
 
       const nsCSSValueList* dur = transDuration.GetListValue();
@@ -681,7 +699,7 @@ Declaration::GetValue(nsCSSProperty aProperty, nsAString& aValue) const
       } else {
         NS_ABORT_IF_FALSE(transProp.GetUnit() == eCSSUnit_List ||
                           transProp.GetUnit() == eCSSUnit_ListDep,
-                          nsPrintfCString(32, "bad t-prop unit %d",
+                          nsPrintfCString("bad t-prop unit %d",
                                           transProp.GetUnit()).get());
         const nsCSSValueList* pro = transProp.GetListValue();
         for (;;) {
@@ -725,7 +743,7 @@ Declaration::GetValue(nsCSSProperty aProperty, nsAString& aValue) const
         values[i] = data->ValueFor(subprops[i]);
         NS_ABORT_IF_FALSE(values[i]->GetUnit() == eCSSUnit_List ||
                           values[i]->GetUnit() == eCSSUnit_ListDep,
-                          nsPrintfCString(32, "bad a-duration unit %d",
+                          nsPrintfCString("bad a-duration unit %d",
                                           values[i]->GetUnit()).get());
         lists[i] = values[i]->GetListValue();
       }
@@ -782,6 +800,29 @@ Declaration::GetValue(nsCSSProperty aProperty, nsAString& aValue) const
       AppendValueToString(subprops[1], aValue);
       break;
     }
+#ifdef MOZ_FLEXBOX
+    case eCSSProperty_flex: {
+      // flex-grow, flex-shrink, flex-basis, separated by single space
+      const nsCSSProperty* subprops =
+        nsCSSProps::SubpropertyEntryFor(aProperty);
+
+      AppendValueToString(subprops[0], aValue);
+      aValue.Append(PRUnichar(' '));
+      AppendValueToString(subprops[1], aValue);
+      aValue.Append(PRUnichar(' '));
+      AppendValueToString(subprops[2], aValue);
+      break;
+    }
+#endif // MOZ_FLEXBOX
+    case eCSSProperty__moz_transform: {
+      // shorthands that are just aliases with different parsing rules
+      const nsCSSProperty* subprops =
+        nsCSSProps::SubpropertyEntryFor(aProperty);
+      NS_ABORT_IF_FALSE(subprops[1] == eCSSProperty_UNKNOWN,
+                        "must have exactly one subproperty");
+      AppendValueToString(subprops[0], aValue);
+      break;
+    }
     default:
       NS_ABORT_IF_FALSE(false, "no other shorthands");
       break;
@@ -791,7 +832,7 @@ Declaration::GetValue(nsCSSProperty aProperty, nsAString& aValue) const
 bool
 Declaration::GetValueIsImportant(const nsAString& aProperty) const
 {
-  nsCSSProperty propID = nsCSSProps::LookupProperty(aProperty);
+  nsCSSProperty propID = nsCSSProps::LookupProperty(aProperty, nsCSSProps::eAny);
   if (propID == eCSSProperty_UNKNOWN) {
     return false;
   }

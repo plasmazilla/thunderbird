@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ms2ger <ms2ger@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #ifndef nsIDocument_h___
 #define nsIDocument_h___
 
@@ -44,8 +11,6 @@
 #include "nsCOMPtr.h"
 #include "nsCOMArray.h"
 #include "nsIURI.h"
-#include "nsWeakPtr.h"
-#include "nsIWeakReferenceUtils.h"
 #include "nsILoadGroup.h"
 #include "nsCRT.h"
 #include "mozFlushType.h"
@@ -55,7 +20,6 @@
 #include "nsTHashtable.h"
 #include "nsHashKeys.h"
 #include "nsNodeInfoManager.h"
-#include "nsIStreamListener.h"
 #include "nsIVariant.h"
 #include "nsIObserver.h"
 #include "nsGkAtoms.h"
@@ -67,8 +31,12 @@
 #include "nsIFrameRequestCallback.h"
 #include "nsEventStates.h"
 #include "nsIStructuredCloneContainer.h"
-#include "nsIBFCacheEntry.h"
+#include "nsILoadContext.h"
 
+class nsIRequest;
+class nsPIDOMWindow;
+class nsIStreamListener;
+class nsIBFCacheEntry;
 class nsIContent;
 class nsPresContext;
 class nsIPresShell;
@@ -125,9 +93,8 @@ class Element;
 } // namespace mozilla
 
 #define NS_IDOCUMENT_IID \
-{ 0x8e51e6d9, 0x914d, 0x46ba, \
-  { 0xb3, 0x11, 0x2f, 0x27, 0x3d, 0xe6, 0x0d, 0x19 } }
-
+{ 0x8c6a1e62, 0xd5ad, 0x4297, \
+  { 0xb9, 0x41, 0x64, 0x49, 0x22, 0x2e, 0xc4, 0xf0 } }
 
 // Flag for AddStyleSheet().
 #define NS_STYLESHEET_FROM_CATALOG                (1 << 0)
@@ -536,9 +503,14 @@ public:
   virtual Element* FindContentForSubDocument(nsIDocument* aDocument) const = 0;
 
   /**
+   * Return the doctype for this document.
+   */
+  nsIContent* GetDocumentType() const;
+
+  /**
    * Return the root element for this document.
    */
-  Element *GetRootElement() const;
+  Element* GetRootElement() const;
 
 protected:
   virtual Element *GetRootElementInternal() const = 0;
@@ -708,6 +680,12 @@ public:
     return mWindow ? mWindow->GetOuterWindow() : GetWindowInternal();
   }
 
+  bool IsInBackgroundWindow() const
+  {
+    nsPIDOMWindow* outer = mWindow ? mWindow->GetOuterWindow() : nsnull;
+    return outer && outer->IsBackground();
+  }
+  
   /**
    * Return the inner window used as the script compilation scope for
    * this document. If you're not absolutely sure you need this, use
@@ -776,6 +754,14 @@ public:
    * Returns true if this document is in full-screen mode.
    */
   virtual bool IsFullScreenDoc() = 0;
+
+  /**
+   * Sets whether this document is approved for fullscreen mode.
+   * Documents aren't approved for fullscreen until chrome has sent a
+   * "fullscreen-approved" notification with a subject which is a pointer
+   * to the approved document.
+   */
+  virtual void SetApprovedForFullscreen(bool aIsApproved) = 0;
 
   /**
    * Exits all documents from DOM full-screen mode, and moves the top-level
@@ -900,6 +886,19 @@ public:
       CallQueryReferent(mDocumentContainer.get(), &container);
 
     return container;
+  }
+
+  /**
+   * Get the container's load context for this document.
+   */
+  nsILoadContext* GetLoadContext() const
+  {
+    nsCOMPtr<nsISupports> container = GetContainer();
+    if (container) {
+      nsCOMPtr<nsILoadContext> loadContext = do_QueryInterface(container);
+      return loadContext;
+    }
+    return nsnull;
   }
 
   /**
@@ -1138,6 +1137,14 @@ public:
    */
   virtual nsresult GetContentListFor(nsIContent* aContent,
                                      nsIDOMNodeList** aResult) = 0;
+
+  /**
+   * See GetAnonymousElementByAttribute on nsIDOMDocumentXBL.
+   */
+  virtual nsIContent*
+    GetAnonymousElementByAttribute(nsIContent* aElement,
+                                   nsIAtom* aAttrName,
+                                   const nsAString& aAttrValue) const = 0;
 
   /**
    * Helper for nsIDOMDocument::elementFromPoint implementation that allows
@@ -1618,7 +1625,7 @@ public:
     eDeprecatedOperationCount
   };
 #undef DEPRECATED_OPERATION
-  void WarnOnceAbout(DeprecatedOperations aOperation);
+  void WarnOnceAbout(DeprecatedOperations aOperation, bool asError = false);
 
   virtual void PostVisibilityUpdateEvent() = 0;
   
@@ -2053,6 +2060,12 @@ nsINode::GetOwnerDocument() const
   nsIDocument* ownerDoc = OwnerDoc();
 
   return ownerDoc != this ? ownerDoc : nsnull;
+}
+
+inline nsINode*
+nsINode::OwnerDocAsNode() const
+{
+  return OwnerDoc();
 }
 
 #endif /* nsIDocument_h___ */

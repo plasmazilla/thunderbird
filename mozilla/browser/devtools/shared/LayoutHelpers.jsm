@@ -1,45 +1,8 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ft=javascript ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla LayoutHelpers Module.
- *
- * The Initial Developer of the Original Code is
- * The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Rob Campbell <rcampbell@mozilla.com> (original author)
- *   Mihai Șucan <mihai.sucan@gmail.com>
- *   Julian Viereck <jviereck@mozilla.com>
- *   Paul Rouget <paul@mozilla.com>
- *   Kyle Simpson <ksimpson@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 const Cu = Components.utils;
 const Ci = Components.interfaces;
@@ -223,8 +186,7 @@ LayoutHelpers = {
    * @param integer aY
    * @returns Node|null the element node found at the given coordinates.
    */
-  getElementFromPoint: function LH_elementFromPoint(aDocument, aX, aY)
-  {
+  getElementFromPoint: function LH_elementFromPoint(aDocument, aX, aY) {
     let node = aDocument.elementFromPoint(aX, aY);
     if (node && node.contentDocument) {
       if (node instanceof Ci.nsIDOMHTMLIFrameElement) {
@@ -250,5 +212,102 @@ LayoutHelpers = {
       }
     }
     return node;
+  },
+
+  /**
+   * Scroll the document so that the element "elem" appears in the viewport.
+   *
+   * @param Element elem the element that needs to appear in the viewport.
+   * @param bool centered true if you want it centered, false if you want it to
+   * appear on the top of the viewport. It is true by default, and that is
+   * usually what you want.
+   */
+  scrollIntoViewIfNeeded:
+  function LH_scrollIntoViewIfNeeded(elem, centered) {
+    // We want to default to centering the element in the page,
+    // so as to keep the context of the element.
+    centered = centered === undefined? true: !!centered;
+
+    let win = elem.ownerDocument.defaultView;
+    let clientRect = elem.getBoundingClientRect();
+
+    // The following are always from the {top, bottom, left, right}
+    // of the viewport, to the {top, …} of the box.
+    // Think of them as geometrical vectors, it helps.
+    // The origin is at the top left.
+
+    let topToBottom = clientRect.bottom;
+    let bottomToTop = clientRect.top - win.innerHeight;
+    let leftToRight = clientRect.right;
+    let rightToLeft = clientRect.left - win.innerWidth;
+    let xAllowed = true;  // We allow one translation on the x axis,
+    let yAllowed = true;  // and one on the y axis.
+
+    // Whatever `centered` is, the behavior is the same if the box is
+    // (even partially) visible.
+
+    if ((topToBottom > 0 || !centered) && topToBottom <= elem.offsetHeight) {
+      win.scrollBy(0, topToBottom - elem.offsetHeight);
+      yAllowed = false;
+    } else
+    if ((bottomToTop < 0 || !centered) && bottomToTop >= -elem.offsetHeight) {
+      win.scrollBy(0, bottomToTop + elem.offsetHeight);
+      yAllowed = false;
+    }
+
+    if ((leftToRight > 0 || !centered) && leftToRight <= elem.offsetWidth) {
+      if (xAllowed) {
+        win.scrollBy(leftToRight - elem.offsetWidth, 0);
+        xAllowed = false;
+      }
+    } else
+    if ((rightToLeft < 0 || !centered) && rightToLeft >= -elem.offsetWidth) {
+      if (xAllowed) {
+        win.scrollBy(rightToLeft + elem.offsetWidth, 0);
+        xAllowed = false;
+      }
+    }
+
+    // If we want it centered, and the box is completely hidden,
+    // then we center it explicitly.
+
+    if (centered) {
+
+      if (yAllowed && (topToBottom <= 0 || bottomToTop >= 0)) {
+        win.scroll(win.scrollX,
+                   win.scrollY + clientRect.top
+                   - (win.innerHeight - elem.offsetHeight) / 2);
+      }
+
+      if (xAllowed && (leftToRight <= 0 || rightToLeft <= 0)) {
+        win.scroll(win.scrollX + clientRect.left
+                   - (win.innerWidth - elem.offsetWidth) / 2,
+                   win.scrollY);
+      }
+    }
+
+    if (win.parent !== win) {
+      // We are inside an iframe.
+      LH_scrollIntoViewIfNeeded(win.frameElement, centered);
+    }
+  },
+
+  /**
+   * Check if a node and its document are still alive
+   * and attached to the window.
+   *
+   * @param aNode
+   */
+  isNodeConnected: function LH_isNodeConnected(aNode)
+  {
+    try {
+      let connected = (aNode.ownerDocument && aNode.ownerDocument.defaultView &&
+                      !(aNode.compareDocumentPosition(aNode.ownerDocument.documentElement) &
+                      aNode.DOCUMENT_POSITION_DISCONNECTED));
+      return connected;
+    } catch (e) {
+      // "can't access dead object" error
+      return false;
+    }
   },
 };

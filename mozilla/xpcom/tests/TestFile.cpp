@@ -1,45 +1,14 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is XPCOM file tests.
- *
- * The Initial Developer of the Original Code is Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "prio.h"
 #include "prsystem.h"
 
 #include "TestHarness.h"
 
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 #include "nsDirectoryServiceDefs.h"
 #include "nsDirectoryServiceUtils.h"
 
@@ -54,18 +23,13 @@ static bool VerifyResult(nsresult aRV, const char* aMsg)
     return true;
 }
 
-static already_AddRefed<nsILocalFile> NewFile(nsIFile* aBase)
+static already_AddRefed<nsIFile> NewFile(nsIFile* aBase)
 {
     nsresult rv;
-    nsCOMPtr<nsILocalFile> file =
+    nsCOMPtr<nsIFile> file =
         do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv);
-    VerifyResult(rv, "Creating nsILocalFile");
-    nsCOMPtr<nsILocalFile> localBase = do_QueryInterface(aBase);
-    if (!localBase) {
-        fail("%s Base directory not a local file", gFunction);
-        return nsnull;
-    }
-    rv = file->InitWithFile(localBase);
+    VerifyResult(rv, "Creating nsIFile");
+    rv = file->InitWithFile(aBase);
     VerifyResult(rv, "InitWithFile");
     return file.forget();
 }
@@ -90,7 +54,7 @@ static nsCString FixName(const char* aName)
 static bool TestInvalidFileName(nsIFile* aBase, const char* aName)
 {
     gFunction = "TestInvalidFileName";
-    nsCOMPtr<nsILocalFile> file = NewFile(aBase);
+    nsCOMPtr<nsIFile> file = NewFile(aBase);
     if (!file)
         return false;
 
@@ -109,7 +73,7 @@ static bool TestInvalidFileName(nsIFile* aBase, const char* aName)
 static bool TestCreate(nsIFile* aBase, const char* aName, PRInt32 aType, PRInt32 aPerm)
 {
     gFunction = "TestCreate";
-    nsCOMPtr<nsILocalFile> file = NewFile(aBase);
+    nsCOMPtr<nsIFile> file = NewFile(aBase);
     if (!file)
         return false;
 
@@ -148,7 +112,7 @@ static bool TestCreate(nsIFile* aBase, const char* aName, PRInt32 aType, PRInt32
 static bool TestCreateUnique(nsIFile* aBase, const char* aName, PRInt32 aType, PRInt32 aPerm)
 {
     gFunction = "TestCreateUnique";
-    nsCOMPtr<nsILocalFile> file = NewFile(aBase);
+    nsCOMPtr<nsIFile> file = NewFile(aBase);
     if (!file)
         return false;
 
@@ -189,12 +153,12 @@ static bool TestCreateUnique(nsIFile* aBase, const char* aName, PRInt32 aType, P
     return true;
 }
 
-// Test nsILocalFile::OpenNSPRFileDesc with DELETE_ON_CLOSE, verifying that the file exists
+// Test nsIFile::OpenNSPRFileDesc with DELETE_ON_CLOSE, verifying that the file exists
 // and did not exist before, and leaving it there for future tests
 static bool TestDeleteOnClose(nsIFile* aBase, const char* aName, PRInt32 aFlags, PRInt32 aPerm)
 {
     gFunction = "TestDeleteOnClose";
-    nsCOMPtr<nsILocalFile> file = NewFile(aBase);
+    nsCOMPtr<nsIFile> file = NewFile(aBase);
     if (!file)
         return false;
 
@@ -213,7 +177,7 @@ static bool TestDeleteOnClose(nsIFile* aBase, const char* aName, PRInt32 aFlags,
     }
 
     PRFileDesc* fileDesc;
-    rv = file->OpenNSPRFileDesc(aFlags | nsILocalFile::DELETE_ON_CLOSE, aPerm, &fileDesc);  
+    rv = file->OpenNSPRFileDesc(aFlags | nsIFile::DELETE_ON_CLOSE, aPerm, &fileDesc);  
     if (!VerifyResult(rv, "OpenNSPRFileDesc"))
         return false;
     PRStatus status = PR_Close(fileDesc);
@@ -237,7 +201,7 @@ static bool TestDeleteOnClose(nsIFile* aBase, const char* aName, PRInt32 aFlags,
 static bool TestRemove(nsIFile* aBase, const char* aName, bool aRecursive)
 {
     gFunction = "TestDelete";
-    nsCOMPtr<nsILocalFile> file = NewFile(aBase);
+    nsCOMPtr<nsIFile> file = NewFile(aBase);
     if (!file)
         return false;
 
@@ -275,7 +239,7 @@ static bool TestRemove(nsIFile* aBase, const char* aName, bool aRecursive)
 static bool TestMove(nsIFile* aBase, nsIFile* aDestDir, const char* aName, const char* aNewName)
 {
     gFunction = "TestMove";
-    nsCOMPtr<nsILocalFile> file = NewFile(aBase);
+    nsCOMPtr<nsIFile> file = NewFile(aBase);
     if (!file)
         return false;
 
@@ -293,7 +257,7 @@ static bool TestMove(nsIFile* aBase, nsIFile* aDestDir, const char* aName, const
         return false;
     }
 
-    nsCOMPtr<nsILocalFile> newFile = NewFile(file);
+    nsCOMPtr<nsIFile> newFile = NewFile(file);
     nsCString newName = FixName(aNewName);
     rv = newFile->MoveToNative(aDestDir, newName);
     if (!VerifyResult(rv, "MoveToNative"))
@@ -338,7 +302,7 @@ static bool TestMove(nsIFile* aBase, nsIFile* aDestDir, const char* aName, const
 static bool TestCopy(nsIFile* aBase, nsIFile* aDestDir, const char* aName, const char* aNewName)
 {
     gFunction = "TestCopy";
-    nsCOMPtr<nsILocalFile> file = NewFile(aBase);
+    nsCOMPtr<nsIFile> file = NewFile(aBase);
     if (!file)
         return false;
 
@@ -356,7 +320,7 @@ static bool TestCopy(nsIFile* aBase, nsIFile* aDestDir, const char* aName, const
         return false;
     }
 
-    nsCOMPtr<nsILocalFile> newFile = NewFile(file);
+    nsCOMPtr<nsIFile> newFile = NewFile(file);
     nsCString newName = FixName(aNewName);
     rv = newFile->CopyToNative(aDestDir, newName);
     if (!VerifyResult(rv, "MoveToNative"))
@@ -400,7 +364,7 @@ static bool TestCopy(nsIFile* aBase, nsIFile* aDestDir, const char* aName, const
 static bool TestParent(nsIFile* aBase, nsIFile* aStart)
 {
     gFunction = "TestParent";
-    nsCOMPtr<nsILocalFile> file = NewFile(aStart);
+    nsCOMPtr<nsIFile> file = NewFile(aStart);
     if (!file)
         return false;
 
@@ -423,7 +387,7 @@ static bool TestParent(nsIFile* aBase, nsIFile* aStart)
 static bool TestNormalizeNativePath(nsIFile* aBase, nsIFile* aStart)
 {
     gFunction = "TestNormalizeNativePath";
-    nsCOMPtr<nsILocalFile> file = NewFile(aStart);
+    nsCOMPtr<nsIFile> file = NewFile(aStart);
     if (!file)
         return false;
 
@@ -477,7 +441,7 @@ int main(int argc, char** argv)
         return 1;
 
     // Initialize subdir object for later use
-    nsCOMPtr<nsILocalFile> subdir = NewFile(base);
+    nsCOMPtr<nsIFile> subdir = NewFile(base);
     if (!subdir)
         return 1;
     rv = subdir->AppendNative(nsDependentCString("subdir"));

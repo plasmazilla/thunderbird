@@ -1,42 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 sw=2 et tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Japan.
- * Portions created by the Initial Developer are Copyright (C) 2008
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Masayuki Nakano <masayuki@d-toybox.com>
- *   Ningjie Chen <chenn@email.uc.edu>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsContentEventHandler.h"
 #include "nsCOMPtr.h"
@@ -60,8 +26,6 @@
 #include "nsLayoutUtils.h"
 #include "nsIMEStateManager.h"
 #include "nsIObjectFrame.h"
-
-nsresult NS_NewContentIterator(nsIContentIterator** aInstancePtrResult);
 
 /******************************************************************/
 /* nsContentEventHandler                                          */
@@ -312,10 +276,7 @@ static PRUint32 ConvertToXPOffset(nsIContent* aContent, PRUint32 aNativeOffset)
 static nsresult GenerateFlatTextContent(nsRange* aRange,
                                         nsAFlatString& aString)
 {
-  nsCOMPtr<nsIContentIterator> iter;
-  nsresult rv = NS_NewContentIterator(getter_AddRefs(iter));
-  NS_ENSURE_SUCCESS(rv, rv);
-  NS_ASSERTION(iter, "NS_NewContentIterator succeeded, but the result is null");
+  nsCOMPtr<nsIContentIterator> iter = NS_NewContentIterator();
   iter->Init(aRange);
 
   NS_ASSERTION(aString.IsEmpty(), "aString must be empty string");
@@ -359,8 +320,8 @@ static nsresult GenerateFlatTextContent(nsRange* aRange,
 
 nsresult
 nsContentEventHandler::ExpandToClusterBoundary(nsIContent* aContent,
-                                                    bool aForward,
-                                                    PRUint32* aXPOffset)
+                                               bool aForward,
+                                               PRUint32* aXPOffset)
 {
   // XXX This method assumes that the frame boundaries must be cluster
   // boundaries. It's false, but no problem now, maybe.
@@ -368,7 +329,7 @@ nsContentEventHandler::ExpandToClusterBoundary(nsIContent* aContent,
       *aXPOffset == 0 || *aXPOffset == aContent->TextLength())
     return NS_OK;
 
-  NS_ASSERTION(*aXPOffset >= 0 && *aXPOffset <= aContent->TextLength(),
+  NS_ASSERTION(*aXPOffset <= aContent->TextLength(),
                "offset is out of range.");
 
   nsRefPtr<nsFrameSelection> fs = mPresShell->FrameSelection();
@@ -408,11 +369,8 @@ nsContentEventHandler::SetRangeFromFlatTextOffset(
                               PRUint32 aNativeLength,
                               bool aExpandToClusterBoundaries)
 {
-  nsCOMPtr<nsIContentIterator> iter;
-  nsresult rv = NS_NewContentIterator(getter_AddRefs(iter));
-  NS_ENSURE_SUCCESS(rv, rv);
-  NS_ASSERTION(iter, "NS_NewContentIterator succeeded, but the result is null");
-  rv = iter->Init(mRootContent);
+  nsCOMPtr<nsIContentIterator> iter = NS_NewContentIterator();
+  nsresult rv = iter->Init(mRootContent);
   NS_ENSURE_SUCCESS(rv, rv);
 
   PRUint32 nativeOffset = 0;
@@ -613,11 +571,8 @@ nsContentEventHandler::OnQueryTextRect(nsQueryContentEvent* aEvent)
   NS_ENSURE_SUCCESS(rv, rv);
 
   // used to iterate over all contents and their frames
-  nsCOMPtr<nsIContentIterator> iter;
-  rv = NS_NewContentIterator(getter_AddRefs(iter));
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsIContentIterator> iter = NS_NewContentIterator();
   iter->Init(range);
-  NS_ENSURE_SUCCESS(rv, rv);
 
   // get the starting frame
   PRInt32 offset = range->StartOffset();
@@ -949,10 +904,7 @@ nsContentEventHandler::GetFlatTextOffsetOfRange(nsIContent* aRootContent,
   NS_ASSERTION(startDOMNode, "startNode doesn't have nsIDOMNode");
   prev->SetEnd(startDOMNode, aNodeOffset);
 
-  nsCOMPtr<nsIContentIterator> iter;
-  nsresult rv = NS_NewContentIterator(getter_AddRefs(iter));
-  NS_ENSURE_SUCCESS(rv, rv);
-  NS_ASSERTION(iter, "NS_NewContentIterator succeeded, but the result is null");
+  nsCOMPtr<nsIContentIterator> iter = NS_NewContentIterator();
   iter->Init(prev);
 
   nsCOMPtr<nsINode> startNode = do_QueryInterface(startDOMNode);

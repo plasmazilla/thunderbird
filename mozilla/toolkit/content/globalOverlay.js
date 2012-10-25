@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 function closeWindow(aClose, aPromptFunction)
 {
 # Closing the last window doesn't quit the application on OS X.
@@ -12,20 +16,11 @@ function closeWindow(aClose, aPromptFunction)
     if (++windowCount == 2) 
       break;
   }
-
-  var inPrivateBrowsing = false;
-  try {
-    var pbSvc = Components.classes["@mozilla.org/privatebrowsing;1"]
-                          .getService(Components.interfaces.nsIPrivateBrowsingService);
-    inPrivateBrowsing = pbSvc.privateBrowsingEnabled;
-  } catch(e) {
-    // safe to ignore
-  }
-
+  
   // If we're down to the last window and someone tries to shut down, check to make sure we can!
   if (windowCount == 1 && !canQuitApplication("lastwindow"))
     return false;
-  else if (windowCount != 1 || inPrivateBrowsing)
+  else if (windowCount != 1)
 #endif
     if (typeof(aPromptFunction) == "function" && !aPromptFunction())
       return false;

@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
   style="@style/SyncLayout" >
-  <LinearLayout
-    android:id="@+id/waiting_top"
-    style="@style/SyncTop" >
-  <ImageView
-    style="@style/SyncTopIcon" />
   <TextView
-    style="@style/SyncTextTitle"
+    style="@style/SyncTop"
+    android:id="@+id/waiting_top"
     android:text="@string/sync_title_connect" />
-  </LinearLayout>
 
   <ProgressBar
     android:id="@+id/waiting_content1"

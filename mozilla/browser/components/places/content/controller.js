@@ -1,42 +1,7 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Places Command Controller.
- *
- * The Initial Developer of the Original Code is Google Inc.
- * Portions created by the Initial Developer are Copyright (C) 2005
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ben Goodger <beng@google.com>
- *   Myk Melez <myk@mozilla.org>
- *   Asaf Romano <mano@mozilla.com>
- *   Marco Bonardo <mak77@bonardo.net>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "NetUtil",
@@ -114,6 +79,8 @@ function PlacesController(aView) {
   XPCOMUtils.defineLazyGetter(this, "profileName", function () {
     return Services.dirsvc.get("ProfD", Ci.nsIFile).leafName;
   });
+
+  this._cachedLivemarkInfoObjects = new Map();
 }
 
 PlacesController.prototype = {
@@ -211,7 +178,7 @@ PlacesController.prototype = {
     case "placesCmd_reload":
       // Livemark containers
       var selectedNode = this._view.selectedNode;
-      return selectedNode && !!selectedNode._feedURI;
+      return selectedNode && this.hasCachedLivemarkInfo(selectedNode);
     case "placesCmd_sortBy:name":
       var selectedNode = this._view.selectedNode;
       return selectedNode &&
@@ -409,6 +376,7 @@ PlacesController.prototype = {
     // pasting of valid "text/unicode" and "text/x-moz-url" data
     var xferable = Cc["@mozilla.org/widget/transferable;1"].
                    createInstance(Ci.nsITransferable);
+    xferable.init(null);
 
     xferable.addDataFlavor(PlacesUtils.TYPE_X_MOZ_URL);
     xferable.addDataFlavor(PlacesUtils.TYPE_UNICODE);
@@ -504,7 +472,7 @@ PlacesController.prototype = {
             if (parentNode) {
               if (PlacesUtils.nodeIsTagQuery(parentNode))
                 nodeData["tagChild"] = true;
-              else if (parentNode._feedURI)
+              else if (this.hasCachedLivemarkInfo(parentNode))
                 nodeData["livemarkChild"] = true;
             }
           }
@@ -1073,8 +1041,9 @@ PlacesController.prototype = {
         addData(PlacesUtils.TYPE_X_MOZ_PLACE, i);
 
         // Drop the feed uri for livemark containers
-        if (node._feedURI) {
-          addURIData(i, node._feedURI.spec);
+        let livemarkInfo = this.getCachedLivemarkInfo(node);
+        if (livemarkInfo) {
+          addURIData(i, livemarkInfo.feedURI.spec);
         }
         else if (node.uri) {
           addURIData(i);
@@ -1093,6 +1062,7 @@ PlacesController.prototype = {
     try {
       let xferable = Cc["@mozilla.org/widget/transferable;1"].
                      createInstance(Ci.nsITransferable);
+      xferable.init(null);
       xferable.addDataFlavor(PlacesUtils.TYPE_X_MOZ_PLACE_ACTION)
       this.clipboard.getData(xferable, Ci.nsIClipboard.kGlobalClipboard);
       xferable.getTransferData(PlacesUtils.TYPE_X_MOZ_PLACE_ACTION, action, {});
@@ -1122,6 +1092,7 @@ PlacesController.prototype = {
   _clearClipboard: function PC__clearClipboard() {
     let xferable = Cc["@mozilla.org/widget/transferable;1"].
                    createInstance(Ci.nsITransferable);
+    xferable.init(null);
     // Empty transferables may cause crashes, so just add an unknown type.
     const TYPE = "text/x-moz-place-empty";
     xferable.addDataFlavor(TYPE);
@@ -1148,7 +1119,8 @@ PlacesController.prototype = {
       if (PlacesUtils.nodeIsFolder(node))
         copiedFolders.push(node);
 
-      let overrideURI = node._feedURI ? node._feedURI.spec : null;
+      let livemarkInfo = this.getCachedLivemarkInfo(node);
+      let overrideURI = livemarkInfo ? livemarkInfo.feedURI.spec : null;
       let resolveShortcuts = !PlacesControllerDragHelper.canMoveNode(node);
 
       contents.forEach(function (content) {
@@ -1166,6 +1138,7 @@ PlacesController.prototype = {
 
     let xferable = Cc["@mozilla.org/widget/transferable;1"].
                    createInstance(Ci.nsITransferable);
+    xferable.init(null);
     let hasData = false;
     // This order matters here!  It controls how this and other applications
     // select data to be inserted based on type.
@@ -1255,6 +1228,7 @@ PlacesController.prototype = {
 
     let xferable = Cc["@mozilla.org/widget/transferable;1"].
                    createInstance(Ci.nsITransferable);
+    xferable.init(null);
     // This order matters here!  It controls the preferred flavors for this
     // paste operation.
     [ PlacesUtils.TYPE_X_MOZ_PLACE,
@@ -1316,7 +1290,39 @@ PlacesController.prototype = {
     }
     if (insertedNodeIds.length > 0)
       this._view.selectItems(insertedNodeIds, false);
-  }
+  },
+
+  /**
+   * Cache the livemark info for a node.  This allows the controller and the
+   * views to treat the given node as a livemark.
+   * @param aNode
+   *        a places result node.
+   * @param aLivemarkInfo
+   *        a mozILivemarkInfo object.
+   */
+  cacheLivemarkInfo: function PC_cacheLivemarkInfo(aNode, aLivemarkInfo) {
+    this._cachedLivemarkInfoObjects.set(aNode, aLivemarkInfo);
+  },
+
+  /**
+   * Returns whether or not there's cached mozILivemarkInfo object for a node.
+   * @param aNode
+   *        a places result node.
+   * @return true if there's a cached mozILivemarkInfo object for
+   * aNode, false otherwise.
+   */
+  hasCachedLivemarkInfo: function PC_hasCachedLivemarkInfo(aNode)
+    this._cachedLivemarkInfoObjects.has(aNode),
+
+  /**
+   * Returns the cached livemark info for a node, if set by cacheLivemarkInfo,
+   * null otherwise.
+   * @param aNode
+   *        a places result node.
+   * @return the mozILivemarkInfo object for aNode, if set, null otherwise.
+   */
+  getCachedLivemarkInfo: function PC_getCachedLivemarkInfo(aNode)
+    this._cachedLivemarkInfoObjects.get(aNode, null)
 };
 
 /**

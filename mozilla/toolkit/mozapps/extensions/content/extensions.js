@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Extension Manager UI.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Blair McBride <bmcbride@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 "use strict";
 
@@ -316,8 +283,8 @@ var gEventManager = {
      "onUninstalled", "onInstalled", "onOperationCancelled",
      "onUpdateAvailable", "onUpdateFinished", "onCompatibilityUpdateAvailable",
      "onPropertyChanged"].forEach(function(aEvent) {
-      self[aEvent] = function() {
-        self.delegateAddonEvent(aEvent, Array.splice(arguments, 0));
+      self[aEvent] = function(...aArgs) {
+        self.delegateAddonEvent(aEvent, aArgs);
       };
     });
 
@@ -325,8 +292,8 @@ var gEventManager = {
      "onDownloadProgress", "onDownloadCancelled", "onInstallStarted",
      "onInstallEnded", "onInstallFailed", "onInstallCancelled",
      "onExternalInstall"].forEach(function(aEvent) {
-      self[aEvent] = function() {
-        self.delegateInstallEvent(aEvent, Array.splice(arguments, 0));
+      self[aEvent] = function(...aArgs) {
+        self.delegateInstallEvent(aEvent, aArgs);
       };
     });
 
@@ -344,9 +311,9 @@ var gEventManager = {
       
       var menuSep = document.getElementById("addonitem-menuseparator");
       var countEnabledMenuCmds = 0;
-      for (var i = 0; i < contextMenu.children.length; i++) {
-        if (contextMenu.children[i].nodeName == "menuitem" && 
-          gViewController.isCommandEnabled(contextMenu.children[i].command)) {
+      for (let child of contextMenu.children) {
+        if (child.nodeName == "menuitem" &&
+          gViewController.isCommandEnabled(child.command)) {
             countEnabledMenuCmds++;
         }
       }
@@ -399,8 +366,7 @@ var gEventManager = {
       return;
 
     var listeners = this._listeners[addon.id];
-    for (let i = 0; i < listeners.length; i++) {
-      let listener = listeners[i];
+    for (let listener of listeners) {
       if (!(aEvent in listener))
         continue;
       try {
@@ -419,8 +385,7 @@ var gEventManager = {
     if (existingAddon)
       this.delegateAddonEvent(aEvent, [existingAddon].concat(aParams));
 
-    for (let i = 0; i < this._installListeners.length; i++) {
-      let listener = this._installListeners[i];
+    for (let listener of this._installListeners) {
       if (!(aEvent in listener))
         continue;
       try {
@@ -640,6 +605,7 @@ var gViewController = {
 
     this.viewPort.selectedPanel = this.currentViewObj.node;
     this.viewPort.selectedPanel.setAttribute("loading", "true");
+    this.currentViewObj.node.focus();
 
     if (aViewId == aPreviousView)
       this.currentViewObj.refresh(view.param, ++this.currentViewRequest, aState);
@@ -2190,8 +2156,8 @@ var gSearchView = {
     if (!this.isSearching) {
       var isEmpty = true;
       var results = this._listBox.getElementsByTagName("richlistitem");
-      for (let i = 0; i < results.length; i++) {
-        var isRemote = (results[i].getAttribute("remote") == "true");
+      for (let result of results) {
+        var isRemote = (result.getAttribute("remote") == "true");
         if ((isRemote && !showLocal) || (!isRemote && showLocal)) {
           isEmpty = false;
           break;
@@ -2228,13 +2194,13 @@ var gSearchView = {
     var haystack = aStr.split(/\s+/);
     var needles = aQuery.split(/\s+/);
 
-    for (let n = 0; n < needles.length; n++) {
-      for (let h = 0; h < haystack.length; h++) {
-        if (haystack[h] == needles[n]) {
+    for (let needle of needles) {
+      for (let hay of haystack) {
+        if (hay == needle) {
           // matching whole words is best
           score += SEARCH_SCORE_MATCH_WHOLEWORD;
         } else {
-          let i = haystack[h].indexOf(needles[n]);
+          let i = hay.indexOf(needle);
           if (i == 0) // matching on word boundries is also good
             score += SEARCH_SCORE_MATCH_WORDBOUNDRY;
           else if (i > 0) // substring matches not so good
@@ -2318,8 +2284,7 @@ var gSearchView = {
   },
 
   removeInstall: function(aInstall) {
-    for (let i = 0; i < this._listBox.childNodes.length; i++) {
-      let item = this._listBox.childNodes[i];
+    for (let item of this._listBox.childNodes) {
       if (item.mInstall == aInstall) {
         this._listBox.removeChild(item);
         return;
@@ -2385,11 +2350,11 @@ var gListView = {
 
       var elements = [];
 
-      for (let i = 0; i < aAddonsList.length; i++)
-        elements.push(createItem(aAddonsList[i]));
+      for (let addonItem of aAddonsList)
+        elements.push(createItem(addonItem));
 
-      for (let i = 0; i < aInstallsList.length; i++)
-        elements.push(createItem(aInstallsList[i], true));
+      for (let installItem of aInstallsList)
+        elements.push(createItem(installItem, true));
 
       self.showEmptyNotice(elements.length == 0);
       if (elements.length > 0) {
@@ -2671,7 +2636,7 @@ var gDetailView = {
       downloadsRow.value = null;
     }
 
-    var canUpdate = !aIsRemote && hasPermission(aAddon, "upgrade");
+    var canUpdate = !aIsRemote && hasPermission(aAddon, "upgrade") && aAddon.id != AddonManager.hotfixID;
     document.getElementById("detail-updates-row").hidden = !canUpdate;
 
     if ("applyBackgroundUpdates" in aAddon) {
@@ -2731,10 +2696,10 @@ var gDetailView = {
 
       // Look for an add-on pending install
       AddonManager.getAllInstalls(function(aInstalls) {
-        for (let i = 0; i < aInstalls.length; i++) {
-          if (aInstalls[i].state == AddonManager.STATE_INSTALLED &&
-              aInstalls[i].addon.id == aAddonId) {
-            self._updateView(aInstalls[i].addon, false);
+        for (let install of aInstalls) {
+          if (install.state == AddonManager.STATE_INSTALLED &&
+              install.addon.id == aAddonId) {
+            self._updateView(install.addon, false);
             return;
           }
         }
@@ -2885,8 +2850,7 @@ var gDetailView = {
     var settings = xml.querySelectorAll(":root > setting");
 
     var firstSetting = null;
-    for (var i = 0; i < settings.length; i++) {
-      var setting = settings[i];
+    for (let setting of settings) {
 
       var desc = stripTextNodes(setting).trim();
       if (!setting.hasAttribute("desc"))
@@ -3175,8 +3139,7 @@ var gUpdatesView = {
   },
   
   maybeDisableUpdateSelected: function() {
-    for (let i = 0; i < this._listBox.childNodes.length; i++) {
-      let item = this._listBox.childNodes[i];
+    for (let item of this._listBox.childNodes) {
       if (item.includeUpdate) {
         this._updateSelected.disabled = false;
         return;
@@ -3186,8 +3149,7 @@ var gUpdatesView = {
   },
 
   installSelected: function() {
-    for (let i = 0; i < this._listBox.childNodes.length; i++) {
-      let item = this._listBox.childNodes[i];
+    for (let item of this._listBox.childNodes) {
       if (item.includeUpdate)
         item.upgrade();
     }

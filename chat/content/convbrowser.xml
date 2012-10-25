@@ -1,45 +1,8 @@
 <?xml version="1.0"?>
 
-<!-- ***** BEGIN LICENSE BLOCK *****
-   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
-   -
-   - The contents of this file are subject to the Mozilla Public License Version
-   - 1.1 (the "License"); you may not use this file except in compliance with
-   - the License. You may obtain a copy of the License at
-   - http://www.mozilla.org/MPL/
-   -
-   - Software distributed under the License is distributed on an "AS IS" basis,
-   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-   - for the specific language governing rights and limitations under the
-   - License.
-   -
-   - The Original Code is this file as it was released on March 28, 2001.
-   -
-   - The Initial Developer of the Original Code is
-   - Peter Annema.
-   - Portions created by the Initial Developer are Copyright (C) 2001
-   - the Initial Developer. All Rights Reserved.
-   -
-   - Contributor(s):
-   -   Peter Annema <disttsc@bart.nl> (Original Author of <browser>)
-   -   Peter Parente <parente@cs.unc.edu>
-   -   Christopher Thomas <cst@yecc.com>
-   -   Michael Ventnor <m.ventnor@gmail.com>
-   -   Florian Queze <florian@instantbird.org>
-   -
-   - Alternatively, the contents of this file may be used under the terms of
-   - either the GNU General Public License Version 2 or later (the "GPL"), or
-   - the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-   - in which case the provisions of the GPL or the LGPL are applicable instead
-   - of those above. If you wish to allow use of your version of this file only
-   - under the terms of either the GPL or the LGPL, and not to allow others to
-   - use your version of this file under the terms of the MPL, indicate your
-   - decision by deleting the provisions above and replace them with the notice
-   - and other provisions required by the GPL or the LGPL. If you do not delete
-   - the provisions above, a recipient may use your version of this file under
-   - the terms of any one of the MPL, the GPL or the LGPL.
-   -
-   - ***** END LICENSE BLOCK ***** -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <bindings id="browserBindings"
           xmlns="http://www.mozilla.org/xbl"
@@ -80,7 +43,7 @@
 
       <property name="theme"
                 readonly="true"
-                onget="return this._theme || (this._theme = getCurrentTheme());;"/>
+                onget="return this._theme || (this._theme = getCurrentTheme());"/>
 
       <field name="_conv">null</field>
 
@@ -172,6 +135,7 @@
                 readonly="true"/>
 
       <field name="magicCopyPref" readonly="true">"messenger.conversations.selections.magicCopyEnabled"</field>
+      <field name="magicCopyInitialized">false</field>
 
       <property name="magicCopyEnabled"
                 onget="return Services.prefs.getBoolPref(this.magicCopyPref);"
@@ -201,7 +165,6 @@
         <![CDATA[
           this.addEventListener("scroll", this.browserScroll);
           this.addEventListener("resize", this.browserResize);
-          Services.prefs.addObserver(this.magicCopyPref, this, false);
 
           if (!("cleanupImMarkup" in window))
             Components.utils.import("resource:///modules/imContentSink.jsm");
@@ -238,6 +201,9 @@
               // we polluted the global scope, so clean it up
               this._autoScrollPopup.parentNode.removeChild(this._autoScrollPopup);
             }
+
+            if (!this.magicCopyInitialized)
+              return;
 
             Services.prefs.removeObserver(this.magicCopyPref, this);
             if (this.magicCopyEnabled)
@@ -292,9 +258,11 @@
       <method name="appendMessage">
         <parameter name="aMsg"/>
         <parameter name="aContext"/>
+        <parameter name="aFirstUnread"/>
         <body>
           <![CDATA[
-            this._pendingMessages.push({msg: aMsg, context: aContext});
+            this._pendingMessages.push({msg: aMsg, context: aContext,
+                                        firstUnread: aFirstUnread});
             if (this._messageDisplayPending)
               return;
             this._messageDisplayPending = true;
@@ -319,10 +287,14 @@
             let i;
             for (i = this._nextPendingMessageIndex; i < max; ++i) {
               let msg = this._pendingMessages[i];
-              this.displayMessage(msg.msg, msg.context, i + 1 < max);
+              this.displayMessage(msg.msg, msg.context, i + 1 < max,
+                                  msg.firstUnread);
               if (Date.now() - begin > 40)
                 break;
             }
+            let event = document.createEvent("UIEvents");
+            event.initUIEvent("MessagesDisplayed", false, false, window, 0);
+            this.dispatchEvent(event);
             if (i < max - 1) {
               this._nextPendingMessageIndex = i + 1;
               if (this.progressBar) {
@@ -352,6 +324,7 @@
         <parameter name="aMsg"/>
         <parameter name="aContext"/>
         <parameter name="aNoAutoScroll"/>
+        <parameter name="aFirstUnread"/>
         <body>
           <![CDATA[
             let doc = this.contentDocument;
@@ -366,6 +339,9 @@
             // Automatically find and link freetext URLs
             if (!aMsg.noLinkification)
               csFlags |= cs.kURLs;
+
+            if (aFirstUnread)
+              this.setUnreadRuler();
 
             let msg = aMsg.originalMessage;
 
@@ -387,11 +363,49 @@
 
             aMsg.message = cleanupImMarkup(doc, msg.replace(/\r?\n/g, "<br/>"),
                                            null, this._textModifiers);
+
             let next = (aContext == this._lastMessageIsContext || aMsg.system) &&
                        isNextMessage(this.theme, aMsg, this._lastMessage);
-            let html = getHTMLForMessage(aMsg, this.theme, next, aContext);
-            let body = doc.getElementsByTagName("body")[0];
-            let newElt = insertHTMLForMessage(aMsg, html, doc, next);
+            let newElt;
+            if (next && aFirstUnread) {
+              // If there wasn't an unread ruler, this would be a Next message.
+              // Therefore, save that version for later.
+              let html = getHTMLForMessage(aMsg, this.theme, next, aContext);
+              let ruler = doc.getElementById("unread-ruler");
+              ruler.nextMsgHtml = html;
+
+              // Remember where the Next message(s) would have gone.
+              let insert = doc.getElementById("insert");
+              if (!insert) {
+                insert = doc.createElement("div");
+                ruler.parentNode.insertBefore(insert, ruler);
+              }
+              insert.id = "insert-before";
+
+              next = false;
+              html = getHTMLForMessage(aMsg, this.theme, next, aContext);
+              newElt = insertHTMLForMessage(aMsg, html, doc, next);
+              let marker = doc.createElement("div");
+              marker.id = "end-of-split-block";
+              newElt.parentNode.appendChild(marker);
+
+              // Bracket the place where additional Next messages will be added,
+              // if that's not after the end-of-split-block element.
+              insert = doc.getElementById("insert");
+              if (insert) {
+                marker = doc.createElement("div");
+                marker.id = "next-messages-start";
+                insert.parentNode.insertBefore(marker, insert);
+                marker = doc.createElement("div");
+                marker.id = "next-messages-end";
+                insert.parentNode.insertBefore(marker, insert.nextSibling);
+              }
+            }
+            else {
+              let html = getHTMLForMessage(aMsg, this.theme, next, aContext);
+              newElt = insertHTMLForMessage(aMsg, html, doc, next);
+            }
+
             if (!aNoAutoScroll) {
               newElt.getBoundingClientRect(); // avoid ireflow bugs
               if (this._autoScrollEnabled || this._updateAutoScrollEnabled())
@@ -406,17 +420,123 @@
         </body>
       </method>
 
+      <method name="setUnreadRuler">
+        <body>
+        <![CDATA[
+          // Remove any existing ruler (occurs when the window has lost focus).
+          this.removeUnreadRuler();
+
+          let doc = this.contentDocument;
+          let ruler = doc.createElement("hr");
+          ruler.id = "unread-ruler";
+          doc.getElementById("Chat").appendChild(ruler);
+       ]]>
+        </body>
+      </method>
+
+      <method name="removeUnreadRuler">
+        <body>
+        <![CDATA[
+          let doc = this.contentDocument;
+          let ruler = doc.getElementById("unread-ruler");
+          if (!ruler)
+            return;
+
+          // If a message block was split by the ruler, rejoin it.
+          let moveTo = doc.getElementById("insert-before");
+          if (moveTo) {
+            // Protect an existing insert node.
+            let actualInsert = doc.getElementById("insert");
+            if (actualInsert)
+              actualInsert.id = "actual-insert";
+
+            // Add first message following the ruler as a Next type message.
+            let range = doc.createRange();
+            let moveToParent = moveTo.parentNode;
+            range.selectNode(moveToParent);
+            let documentFragment = range.createContextualFragment(ruler.nextMsgHtml);
+            moveToParent.insertBefore(documentFragment, moveTo);
+
+            // If this added an insert node, insert the next messages there.
+            let insert = doc.getElementById("insert");
+            if (insert) {
+              moveToParent.removeChild(moveTo);
+              moveTo = insert;
+              moveToParent = moveTo.parentNode;
+            }
+
+            // Move remaining messages from the message block following the ruler.
+            let nextMessagesStart = doc.getElementById("next-messages-start");
+            if (nextMessagesStart) {
+              range = doc.createRange();
+              range.setStartAfter(nextMessagesStart);
+              range.setEndBefore(doc.getElementById("next-messages-end"));
+              moveToParent.insertBefore(range.extractContents(), moveTo);
+            }
+            moveToParent.removeChild(moveTo);
+
+            // Restore existing insert node.
+            if (actualInsert)
+              actualInsert.id = "insert";
+
+            // Delete surplus message block.
+            range = doc.createRange();
+            range.setStartAfter(ruler);
+            range.setEndAfter(doc.getElementById("end-of-split-block"));
+            range.deleteContents();
+          }
+          ruler.parentNode.removeChild(ruler);
+        ]]>
+        </body>
+      </method>
+
+      <method name="_getSections">
+        <body>
+        <![CDATA[
+          // If a section is displayed below this point, we assume not enough of
+          // it is visible, so we must scroll to it.
+          // The 3/4 constant is arbitrary, but it has to be greater than 1/2.
+          this._maximalSectionOffset = Math.round(this.clientHeight * 3 / 4);
+
+          // Get list of current section elements.
+          let sectionElements = [];
+          if (this._firstNonContextElt)
+            sectionElements.push(this._firstNonContextElt);
+          let ruler = this.contentDocument.getElementById("unread-ruler");
+          if (ruler)
+            sectionElements.push(ruler);
+
+          // Return ordered array of sections with entries
+          // [Y, scrollY such that Y is centered]
+          let sections = [];
+          let maxY = this.contentWindow.scrollMaxY;
+          for (let i = 0; i < sectionElements.length; ++i) {
+            let y = sectionElements[i].offsetTop;
+            // The section is unnecessary if close to top/bottom of conversation.
+            if (y < this._maximalSectionOffset || maxY < y)
+              continue;
+            sections.push([y, y - Math.round(this.clientHeight / 2)]);
+          }
+          sections.sort(function(a, b) a[0] - b[0]);
+          return sections;
+        ]]>
+        </body>
+      </method>
+
       <method name="scrollToPreviousSection">
         <body>
         <![CDATA[
-          let nonContextY =
-            this._firstNonContextElt ? this._firstNonContextElt.offsetTop : 0;
-          let sectionY =
-            Math.max(nonContextY - Math.round(this.clientHeight / 2), 0);
-          if (this.contentWindow.scrollY < nonContextY)
-            this.contentWindow.scrollTo(0, 0);
-          else
-            this.contentWindow.scrollTo(0, sectionY);
+          let sections = this._getSections();
+          let y = this.contentWindow.scrollY;
+          let newY = 0;
+          for (let i = sections.length - 1; i >= 0; --i) {
+            let section = sections[i];
+            if (y > section[0]) {
+              newY = section[1];
+              break;
+            }
+          }
+          this.contentWindow.scrollTo(0, newY);
           this._updateAutoScrollEnabled();
         ]]>
         </body>
@@ -425,15 +545,17 @@
       <method name="scrollToNextSection">
         <body>
         <![CDATA[
-          let maxY = this.contentWindow.scrollMaxY;
-          let nonContextY =
-            this._firstNonContextElt ? this._firstNonContextElt.offsetTop : maxY;
-          let sectionY =
-            (nonContextY < maxY) ? nonContextY - Math.round(this.clientHeight / 2) : maxY;
-          if (this.contentWindow.scrollY < sectionY)
-            this.contentWindow.scrollTo(0, sectionY);
-          else
-            this.contentWindow.scrollTo(0, maxY);
+          let sections = this._getSections();
+          let y = this.contentWindow.scrollY;
+          let newY = this.contentWindow.scrollMaxY;
+          for (let i = 0; i < sections.length; ++i) {
+            let section = sections[i];
+            if (y + this._maximalSectionOffset < section[0]) {
+              newY = section[1];
+              break;
+            }
+          }
+          this.contentWindow.scrollTo(0, newY);
           this._updateAutoScrollEnabled();
         ]]>
         </body>
@@ -606,6 +728,10 @@
                       .QueryInterface(Components.interfaces.nsISelectionPrivate)
                       .addSelectionListener(this);
                 }
+              }
+              if (!this.magicCopyInitialized) {
+                Services.prefs.addObserver(this.magicCopyPref, this, false);
+                this.magicCopyInitialized = true;
               }
 
               // We need to reset these variables here to avoid a race
@@ -996,12 +1122,6 @@
                action="this.scrollToPreviousSection(); event.preventDefault();"/>
 
       <handler event="keypress" keycode="VK_END"
-               action="this.scrollToNextSection(); event.preventDefault();"/>
-
-      <handler event="keypress" modifiers="control" keycode="VK_HOME"
-               action="this.scrollToPreviousSection(); event.preventDefault();"/>
-
-      <handler event="keypress" modifiers="control" keycode="VK_END"
                action="this.scrollToNextSection(); event.preventDefault();"/>
 
       <handler event="keypress" keycode="VK_F7" group="system">

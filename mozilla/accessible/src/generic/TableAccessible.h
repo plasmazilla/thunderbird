@@ -11,7 +11,7 @@
 #include "nsTArray.h"
 #include "prtypes.h"
 
-class nsAccessible;
+class Accessible;
 
 namespace mozilla {
 namespace a11y {
@@ -26,7 +26,7 @@ public:
   /**
    * Return the caption accessible if any for this table.
    */
-  virtual nsAccessible* Caption() { return nsnull; }
+  virtual Accessible* Caption() { return nsnull; }
 
   /**
    * Get the summary for this table.
@@ -46,28 +46,36 @@ public:
   /**
    * Return the accessible for the cell at the given row and column indices.
    */
-  virtual nsAccessible* CellAt(PRUint32 aRowIdx, PRUint32 aColIdx) { return nsnull; }
+  virtual Accessible* CellAt(PRUint32 aRowIdx, PRUint32 aColIdx) { return nsnull; }
 
   /**
    * Return the index of the cell at the given row and column.
    */
-  virtual PRInt32 CellIndexAt(PRUint32 aRowIdx, PRUint32 aColIdx) { return -1; }
+  virtual PRInt32 CellIndexAt(PRUint32 aRowIdx, PRUint32 aColIdx)
+    { return ColCount() * aRowIdx + aColIdx; }
 
   /**
    * Return the column index of the cell with the given index.
    */
-  virtual PRInt32 ColIndexAt(PRUint32 aCellIdx) { return -1; }
+  virtual PRInt32 ColIndexAt(PRUint32 aCellIdx) 
+    { return aCellIdx % ColCount(); }
 
   /**
    * Return the row index of the cell with the given index.
    */
-  virtual PRInt32 RowIndexAt(PRUint32 aCellIdx) { return -1; }
+  virtual PRInt32 RowIndexAt(PRUint32 aCellIdx) 
+    { return aCellIdx / ColCount(); }
 
   /**
    * Get the row and column indices for the cell at the given index.
    */
   virtual void RowAndColIndicesAt(PRUint32 aCellIdx, PRInt32* aRowIdx,
-                                  PRInt32* aColIdx) {}
+                                  PRInt32* aColIdx) 
+    { 
+      PRUint32 colCount = ColCount();
+      *aRowIdx = aCellIdx / colCount;
+      *aColIdx = aCellIdx % colCount;
+    }
 
   /**
    * Return the number of columns occupied by the cell at the given row and
@@ -126,17 +134,22 @@ public:
   /**
    * Get the set of selected cells.
    */
-  virtual void SelectedCells(nsTArray<nsAccessible*>* aCells) {}
+  virtual void SelectedCells(nsTArray<Accessible*>* aCells) = 0;
+
+  /**
+   * Get the set of selected cell indices.
+   */
+  virtual void SelectedCellIndices(nsTArray<PRUint32>* aCells) = 0;
 
   /**
    * Get the set of selected column indices.
    */
-  virtual void SelectedColIndices(nsTArray<PRUint32>* aCols) {}
+  virtual void SelectedColIndices(nsTArray<PRUint32>* aCols) = 0;
 
   /**
    * Get the set of selected row indices.
    */
-  virtual void SelectedRowIndices(nsTArray<PRUint32>* aRows) {}
+  virtual void SelectedRowIndices(nsTArray<PRUint32>* aRows) = 0;
 
   /**
    * Select the given column unselecting any other selected columns.

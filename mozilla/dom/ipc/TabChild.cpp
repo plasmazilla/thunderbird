@@ -1,40 +1,8 @@
 /* -*- Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil; tab-width: 8; -*- */
-/* vim: set sw=4 ts=8 et tw=80 : */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Content App.
- *
- * The Initial Developer of the Original Code is
- *   The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* vim: set sw=2 sts=2 ts=8 et tw=80 : */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "TabChild.h"
 #include "mozilla/IntentionalCrash.h"
@@ -64,7 +32,6 @@
 #include "nsIURI.h"
 #include "nsIWebBrowserFocus.h"
 #include "nsIDOMEvent.h"
-#include "nsIPrivateDOMEvent.h"
 #include "nsIComponentManager.h"
 #include "nsIServiceManager.h"
 #include "nsIJSRuntimeService.h"
@@ -79,8 +46,6 @@
 #include "nsIScriptContext.h"
 #include "nsInterfaceHashtable.h"
 #include "nsPresContext.h"
-#include "nsIDocument.h"
-#include "nsIDOMDocument.h"
 #include "nsIScriptGlobalObject.h"
 #include "nsWeakReference.h"
 #include "nsISecureBrowserUI.h"
@@ -91,12 +56,14 @@
 #include "nsEventListenerManager.h"
 #include "PCOMContentPermissionRequestChild.h"
 #include "xpcpublic.h"
+#include "IndexedDBChild.h"
 
 using namespace mozilla::dom;
 using namespace mozilla::ipc;
 using namespace mozilla::layers;
 using namespace mozilla::layout;
 using namespace mozilla::docshell;
+using namespace mozilla::dom::indexedDB;
 
 NS_IMPL_ISUPPORTS1(ContentListener, nsIDOMEventListener)
 
@@ -118,12 +85,14 @@ public:
 };
 
 
-TabChild::TabChild(PRUint32 aChromeFlags)
+TabChild::TabChild(PRUint32 aChromeFlags, bool aIsBrowserFrame)
   : mRemoteFrame(nsnull)
   , mTabChildGlobal(nsnull)
   , mChromeFlags(aChromeFlags)
   , mOuterRect(0, 0, 0, 0)
   , mLastBackgroundColor(NS_RGB(255, 255, 255))
+  , mDidFakeShow(false)
+  , mIsBrowserFrame(aIsBrowserFrame)
 {
     printf("creating %d!\n", NS_IsMainThread());
 }
@@ -151,7 +120,6 @@ NS_INTERFACE_MAP_BEGIN(TabChild)
   NS_INTERFACE_MAP_ENTRY(nsIWebBrowserChrome)
   NS_INTERFACE_MAP_ENTRY(nsIWebBrowserChrome2)
   NS_INTERFACE_MAP_ENTRY(nsIEmbeddingSiteWindow)
-  NS_INTERFACE_MAP_ENTRY(nsIEmbeddingSiteWindow2)
   NS_INTERFACE_MAP_ENTRY(nsIWebBrowserChromeFocus)
   NS_INTERFACE_MAP_ENTRY(nsIInterfaceRequestor)
   NS_INTERFACE_MAP_ENTRY(nsIWindowProvider)
@@ -363,6 +331,28 @@ TabChild::ProvideWindow(nsIDOMWindow* aParent, PRUint32 aChromeFlags,
 {
     *aReturn = nsnull;
 
+    // If aParent is inside an <iframe mozbrowser> and this isn't a request to
+    // open a modal-type window, we're going to create a new <iframe mozbrowser>
+    // and return its window here.
+    nsCOMPtr<nsIDocShell> docshell = do_GetInterface(aParent);
+    bool inBrowserFrame = false;
+    if (docshell) {
+      docshell->GetContainedInBrowserFrame(&inBrowserFrame);
+    }
+
+    if (inBrowserFrame &&
+        !(aChromeFlags & (nsIWebBrowserChrome::CHROME_MODAL |
+                          nsIWebBrowserChrome::CHROME_OPENAS_DIALOG |
+                          nsIWebBrowserChrome::CHROME_OPENAS_CHROME))) {
+
+      // Note that BrowserFrameProvideWindow may return NS_ERROR_ABORT if the
+      // open window call was canceled.  It's important that we pass this error
+      // code back to our caller.
+      return BrowserFrameProvideWindow(aParent, aURI, aName, aFeatures,
+                                       aWindowIsNew, aReturn);
+    }
+
+    // Otherwise, create a new top-level window.
     PBrowserChild* newChild;
     if (!CallCreateWindow(&newChild)) {
         return NS_ERROR_NOT_AVAILABLE;
@@ -375,6 +365,43 @@ TabChild::ProvideWindow(nsIDOMWindow* aParent, PRUint32 aChromeFlags,
     return NS_OK;
 }
 
+nsresult
+TabChild::BrowserFrameProvideWindow(nsIDOMWindow* aOpener,
+                                    nsIURI* aURI,
+                                    const nsAString& aName,
+                                    const nsACString& aFeatures,
+                                    bool* aWindowIsNew,
+                                    nsIDOMWindow** aReturn)
+{
+  *aReturn = nsnull;
+
+  nsRefPtr<TabChild> newChild =
+    static_cast<TabChild*>(Manager()->SendPBrowserConstructor(
+      /* aChromeFlags = */ 0,
+      /* aIsBrowserFrame = */ true));
+
+  nsCAutoString spec;
+  aURI->GetSpec(spec);
+
+  NS_ConvertUTF8toUTF16 url(spec);
+  nsString name(aName);
+  NS_ConvertUTF8toUTF16 features(aFeatures);
+  newChild->SendBrowserFrameOpenWindow(this, url, name,
+                                       features, aWindowIsNew);
+  if (!*aWindowIsNew) {
+    PBrowserChild::Send__delete__(newChild);
+    return NS_ERROR_ABORT;
+  }
+
+  // Unfortunately we don't get a window unless we've shown the frame.  That's
+  // pretty bogus; see bug 763602.
+  newChild->DoFakeShow();
+
+  nsCOMPtr<nsIDOMWindow> win = do_GetInterface(newChild->mWebNav);
+  win.forget(aReturn);
+  return NS_OK;
+}
+
 static nsInterfaceHashtable<nsPtrHashKey<PContentDialogChild>, nsIDialogParamBlock> gActiveDialogs;
 
 NS_IMETHODIMP
@@ -384,7 +411,7 @@ TabChild::OpenDialog(PRUint32 aType, const nsACString& aName,
                      nsIDOMElement* aFrameElement)
 {
   if (!gActiveDialogs.IsInitialized()) {
-    NS_ENSURE_STATE(gActiveDialogs.Init());
+    gActiveDialogs.Init();
   }
   InfallibleTArray<PRInt32> intParams;
   InfallibleTArray<nsString> stringParams;
@@ -392,7 +419,7 @@ TabChild::OpenDialog(PRUint32 aType, const nsACString& aName,
   PContentDialogChild* dialog =
     SendPContentDialogConstructor(aType, nsCString(aName),
                                   nsCString(aFeatures), intParams, stringParams);
-  NS_ENSURE_STATE(gActiveDialogs.Put(dialog, aArguments));
+  gActiveDialogs.Put(dialog, aArguments);
   nsIThread *thread = NS_GetCurrentThread();
   while (gActiveDialogs.GetWeak(dialog)) {
     if (!NS_ProcessNextEvent(thread)) {
@@ -515,9 +542,20 @@ TabChild::RecvLoadURL(const nsCString& uri)
     return true;
 }
 
+void
+TabChild::DoFakeShow()
+{
+  RecvShow(nsIntSize(0, 0));
+  mDidFakeShow = true;
+}
+
 bool
 TabChild::RecvShow(const nsIntSize& size)
 {
+    if (mDidFakeShow) {
+        return true;
+    }
+
     printf("[TabChild] SHOW (w,h)= (%d, %d)\n", size.width, size.height);
 
     nsCOMPtr<nsIBaseWindow> baseWindow = do_QueryInterface(mWebNav);
@@ -842,8 +880,7 @@ public:
     NS_NewDOMEvent(getter_AddRefs(event), nsnull, nsnull);
     if (event) {
       event->InitEvent(NS_LITERAL_STRING("unload"), false, false);
-      nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(event));
-      privateEvent->SetTrusted(true);
+      event->SetTrusted(true);
 
       bool dummy;
       mTabChildGlobal->DispatchEvent(event, &dummy);
@@ -907,9 +944,18 @@ TabChild::InitTabChildGlobal()
   
   NS_ENSURE_TRUE(InitTabChildGlobalInternal(scopeSupports), false); 
 
+  scope->Init();
+
   nsCOMPtr<nsPIWindowRoot> root = do_QueryInterface(chromeHandler);
   NS_ENSURE_TRUE(root, false);
   root->SetParentTarget(scope);
+
+  // Initialize the child side of the browser element machinery, if appropriate.
+  if (mIsBrowserFrame) {
+    RecvLoadRemoteScript(
+      NS_LITERAL_STRING("chrome://global/content/BrowserElementChild.js"));
+  }
+
   return true;
 }
 
@@ -940,7 +986,8 @@ TabChild::InitWidget(const nsIntSize& size)
     NS_ABORT_IF_FALSE(0 == remoteFrame->ManagedPLayersChild().Length(),
                       "shouldn't have a shadow manager yet");
     LayerManager::LayersBackend be;
-    PLayersChild* shadowManager = remoteFrame->SendPLayersConstructor(&be);
+    PRInt32 maxTextureSize;
+    PLayersChild* shadowManager = remoteFrame->SendPLayersConstructor(&be, &maxTextureSize);
     if (!shadowManager) {
       NS_WARNING("failed to construct LayersChild");
       // This results in |remoteFrame| being deleted.
@@ -953,6 +1000,7 @@ TabChild::InitWidget(const nsIntSize& size)
     NS_ABORT_IF_FALSE(lf && lf->HasShadowManager(),
                       "PuppetWidget should have shadow manager");
     lf->SetParentBackendType(be);
+    lf->SetMaxTextureSize(maxTextureSize);
 
     mRemoteFrame = remoteFrame;
     return true;
@@ -965,6 +1013,31 @@ TabChild::SetBackgroundColor(const nscolor& aColor)
     mLastBackgroundColor = aColor;
     SendSetBackgroundColor(mLastBackgroundColor);
   }
+}
+
+NS_IMETHODIMP
+TabChild::GetMessageManager(nsIContentFrameMessageManager** aResult)
+{
+  if (mTabChildGlobal) {
+    NS_ADDREF(*aResult = mTabChildGlobal);
+    return NS_OK;
+  }
+  *aResult = nsnull;
+  return NS_ERROR_FAILURE;
+}
+
+PIndexedDBChild*
+TabChild::AllocPIndexedDB(const nsCString& aASCIIOrigin, bool* /* aAllowed */)
+{
+  NS_NOTREACHED("Should never get here!");
+  return NULL;
+}
+
+bool
+TabChild::DeallocPIndexedDB(PIndexedDBChild* aActor)
+{
+  delete aActor;
+  return true;
 }
 
 static bool
@@ -990,13 +1063,19 @@ SendAsyncMessageToParent(void* aCallbackData,
 TabChildGlobal::TabChildGlobal(TabChild* aTabChild)
 : mTabChild(aTabChild)
 {
+}
+
+void
+TabChildGlobal::Init()
+{
+  NS_ASSERTION(!mMessageManager, "Re-initializing?!?");
   mMessageManager = new nsFrameMessageManager(false,
                                               SendSyncMessageToParent,
                                               SendAsyncMessageToParent,
                                               nsnull,
                                               mTabChild,
                                               nsnull,
-                                              aTabChild->GetJSContext());
+                                              mTabChild->GetJSContext());
 }
 
 NS_IMPL_CYCLE_COLLECTION_CLASS(TabChildGlobal)

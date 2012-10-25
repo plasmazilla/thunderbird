@@ -1,38 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Android code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Michael Wu <mwu@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * This custom library loading code is only meant to be called
@@ -94,20 +62,22 @@ extern "C" {
 }
 
 typedef int mozglueresult;
+typedef int64_t MOZTime;
 
 enum StartupEvent {
 #define mozilla_StartupTimeline_Event(ev, z) ev,
 #include "StartupTimeline.h"
 #undef mozilla_StartupTimeline_Event
+  MAX_STARTUP_EVENT_ID
 };
 
 using namespace mozilla;
 
-static uint64_t *sStartupTimeline;
-
-void StartupTimeline_Record(StartupEvent ev, struct timeval *tm)
+static MOZTime MOZ_Now()
 {
-  sStartupTimeline[ev] = (((uint64_t)tm->tv_sec * 1000000LL) + (uint64_t)tm->tv_usec);
+  struct timeval tm;
+  gettimeofday(&tm, 0);
+  return (((MOZTime)tm.tv_sec * 1000000LL) + (MOZTime)tm.tv_usec);
 }
 
 static struct mapping_info * lib_mapping = NULL;
@@ -353,15 +323,16 @@ SHELL_WRAPPER2(notifyFilePickerResult, jstring, jlong)
 SHELL_WRAPPER1_WITH_RETURN(getSurfaceBits, jobject, jobject)
 SHELL_WRAPPER1(onFullScreenPluginHidden, jobject)
 SHELL_WRAPPER1_WITH_RETURN(getNextMessageFromQueue, jobject, jobject)
+SHELL_WRAPPER2(onSurfaceTextureFrameAvailable, jobject, jint);
 
 static void * xul_handle = NULL;
 static void * sqlite_handle = NULL;
 static void * nss_handle = NULL;
 static void * nspr_handle = NULL;
 static void * plc_handle = NULL;
-static bool simple_linker_initialized = false;
 
 #ifdef MOZ_OLD_LINKER
+static bool simple_linker_initialized = false;
 static time_t apk_mtime = 0;
 #ifdef DEBUG
 extern "C" int extractLibs = 1;
@@ -434,6 +405,12 @@ extractFile(const char * path, Zip::Stream &s)
   munmap(buf, size);
 }
 #endif
+
+template <typename T> inline void
+xul_dlsym(const char *symbolName, T *value)
+{
+  *value = (T) (uintptr_t) __wrap_dlsym(xul_handle, symbolName);
+}
 
 #if defined(MOZ_CRASHREPORTER) || defined(MOZ_OLD_LINKER)
 static void
@@ -577,7 +554,6 @@ static void * mozload(const char * path, Zip *zip)
     return handle;
   }
 
-  bool skipLibCache = false;
   int fd;
   void * buf = NULL;
   uint32_t lib_size = s.GetUncompressedSize();
@@ -700,8 +676,7 @@ loadGeckoLibs(const char *apkName)
     apk_mtime = status.st_mtime;
 #endif
 
-  struct timeval t0, t1;
-  gettimeofday(&t0, 0);
+  MOZTime t0 = MOZ_Now();
   struct rusage usage1;
   getrusage(RUSAGE_THREAD, &usage1);
   
@@ -736,7 +711,7 @@ loadGeckoLibs(const char *apkName)
     return FAILURE;
   }
 
-#define GETFUNC(name) f_ ## name = (name ## _t) __wrap_dlsym(xul_handle, "Java_org_mozilla_gecko_GeckoAppShell_" #name)
+#define GETFUNC(name) xul_dlsym("Java_org_mozilla_gecko_GeckoAppShell_" #name, &f_ ## name)
   GETFUNC(nativeInit);
   GETFUNC(notifyGeckoOfEvent);
   GETFUNC(processNextNativeEvent);
@@ -772,19 +747,24 @@ loadGeckoLibs(const char *apkName)
   GETFUNC(getSurfaceBits);
   GETFUNC(onFullScreenPluginHidden);
   GETFUNC(getNextMessageFromQueue);
+  GETFUNC(onSurfaceTextureFrameAvailable);
 #undef GETFUNC
-  sStartupTimeline = (uint64_t *)__wrap_dlsym(xul_handle, "_ZN7mozilla15StartupTimeline16sStartupTimelineE");
-  gettimeofday(&t1, 0);
+
+  void (*XRE_StartupTimelineRecord)(int, MOZTime);
+  xul_dlsym("XRE_StartupTimelineRecord", &XRE_StartupTimelineRecord);
+
+  MOZTime t1 = MOZ_Now();
   struct rusage usage2;
   getrusage(RUSAGE_THREAD, &usage2);
-  __android_log_print(ANDROID_LOG_ERROR, "GeckoLibLoad", "Loaded libs in %ldms total, %ldms user, %ldms system, %ld faults",
-                      (t1.tv_sec - t0.tv_sec)*1000 + (t1.tv_usec - t0.tv_usec)/1000, 
+
+  __android_log_print(ANDROID_LOG_ERROR, "GeckoLibLoad", "Loaded libs in %lldms total, %ldms user, %ldms system, %ld faults",
+                      (t1 - t0) / 1000,
                       (usage2.ru_utime.tv_sec - usage1.ru_utime.tv_sec)*1000 + (usage2.ru_utime.tv_usec - usage1.ru_utime.tv_usec)/1000,
                       (usage2.ru_stime.tv_sec - usage1.ru_stime.tv_sec)*1000 + (usage2.ru_stime.tv_usec - usage1.ru_stime.tv_usec)/1000,
                       usage2.ru_majflt-usage1.ru_majflt);
 
-  StartupTimeline_Record(LINKER_INITIALIZED, &t0);
-  StartupTimeline_Record(LIBRARIES_LOADED, &t1);
+  XRE_StartupTimelineRecord(LINKER_INITIALIZED, t0);
+  XRE_StartupTimelineRecord(LIBRARIES_LOADED, t1);
   return SUCCESS;
 }
 
@@ -989,7 +969,8 @@ typedef void (*GeckoStart_t)(void *, const nsXREAppData *);
 extern "C" NS_EXPORT void JNICALL
 Java_org_mozilla_gecko_GeckoAppShell_nativeRun(JNIEnv *jenv, jclass jc, jstring jargs)
 {
-  GeckoStart_t GeckoStart = (GeckoStart_t) __wrap_dlsym(xul_handle, "GeckoStart");
+  GeckoStart_t GeckoStart;
+  xul_dlsym("GeckoStart", &GeckoStart);
   if (GeckoStart == NULL)
     return;
   // XXX: java doesn't give us true UTF8, we should figure out something
@@ -1033,12 +1014,11 @@ ChildProcessInit(int argc, char* argv[])
   // don't pass the last arg - it's only recognized by the lib cache
   argc--;
 
-  typedef GeckoProcessType (*XRE_StringToChildProcessType_t)(char*);
-  typedef mozglueresult (*XRE_InitChildProcess_t)(int, char**, GeckoProcessType);
-  XRE_StringToChildProcessType_t fXRE_StringToChildProcessType =
-    (XRE_StringToChildProcessType_t)__wrap_dlsym(xul_handle, "XRE_StringToChildProcessType");
-  XRE_InitChildProcess_t fXRE_InitChildProcess =
-    (XRE_InitChildProcess_t)__wrap_dlsym(xul_handle, "XRE_InitChildProcess");
+  GeckoProcessType (*fXRE_StringToChildProcessType)(char*);
+  xul_dlsym("XRE_StringToChildProcessType", &fXRE_StringToChildProcessType);
+
+  mozglueresult (*fXRE_InitChildProcess)(int, char**, GeckoProcessType);
+  xul_dlsym("XRE_InitChildProcess", &fXRE_InitChildProcess);
 
   GeckoProcessType proctype = fXRE_StringToChildProcessType(argv[--argc]);
 

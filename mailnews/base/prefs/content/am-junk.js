@@ -1,40 +1,7 @@
 /*
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is mozilla.org code.
-#
-# The Initial Developer of the Original Code is
-# Netscape Communications Corporation.
-# Portions created by the Initial Developer are Copyright (C) 2002
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#     Scott MacGregor <mscott@mozilla.org>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
@@ -45,7 +12,7 @@ var gPrefBranch = null;
 function onInit(aPageId, aServerId)
 {
   // manually adjust several pref UI elements
-  document.getElementById('spamLevel').checked =
+  document.getElementById('server.spamLevel.visible').checked =
     document.getElementById('server.spamLevel').value > 0;
 
   const am = MailServices.accounts;
@@ -126,7 +93,7 @@ function onInit(aPageId, aServerId)
 
     // Due to bug 448582, we have to use setAttribute to set the
     // checked value of the listitem.
-    abItem.setAttribute("checked",  (currentArray.indexOf(ab.URI) != -1));
+    abItem.setAttribute("checked", (currentArray.indexOf(ab.URI) != -1));
 
     abItems.push(abItem);
   }
@@ -143,6 +110,9 @@ function onInit(aPageId, aServerId)
   for (let i = 0; i < abItems.length; i++)
     wList.appendChild(abItems[i]);
 
+  // enable or disable the whitelist
+  onAdaptiveJunkToggle();
+
   // set up trusted IP headers
   var serverFilterList = document.getElementById("useServerFilterList");
   serverFilterList.value =
@@ -150,11 +120,10 @@ function onInit(aPageId, aServerId)
   if (!serverFilterList.selectedItem)
     serverFilterList.selectedIndex = 0;
 
-  updateMoveTargetMode(document.getElementById('server.moveOnSpam').checked);
-
   // enable or disable the useServerFilter checkbox
-  var checked = document.getElementById("server.useServerFilter").checked;
-  onServerFilterToggle(checked);
+  onCheckItem("useServerFilterList", ["server.useServerFilter"]);
+
+  updateMoveTargetMode(document.getElementById('server.moveOnSpam').checked);
 }
 
 function onPreInit(account, accountValues)
@@ -185,14 +154,22 @@ function updatePurgeSpam(aEnable, aPref)
     document.getElementById("server." + aPref).removeAttribute("disabled");
 }
 
-function updateSpamLevel()
+/**
+ * Called when someone checks or unchecks the adaptive junk mail checkbox.
+ * set the value of the hidden element accordingly
+ *
+ * @param  the boolean value of the checkbox
+ */
+function updateSpamLevel(aValue)
 {
-  document.getElementById('server.spamLevel').value =
-    document.getElementById('spamLevel').checked ? 100 : 0;
+  document.getElementById('server.spamLevel').value = aValue ? 100 : 0;
+  onAdaptiveJunkToggle();
 }
 
-// propagate changes to the server filter menu list back to 
-// our hidden wsm element.
+/**
+ * Propagate changes to the server filter menu list back to
+ * our hidden wsm element.
+ */
 function onServerFilterListChange()
 {
   document.getElementById('server.serverFilterName').value =
@@ -200,14 +177,23 @@ function onServerFilterListChange()
 }
 
 /**
- * Called when someone checks or unchecks the server-filter checkbox.  We need
- * to enable or disable the menulist accordingly
+ * Called when someone checks or unchecks the adaptive junk mail checkbox.
+ * We need to enable or disable the whitelist accordingly
  *
- * @param  the boolean value of the checkbox
+ * @param aValue  the boolean value of the checkbox
  */
-function onServerFilterToggle(aValue)
+function onAdaptiveJunkToggle()
 {
-  document.getElementById("useServerFilterList").disabled = !aValue;
+  onCheckItem("whiteListAbURI", ["server.spamLevel.visible"]);
+  onCheckItem("whiteListLabel", ["server.spamLevel.visible"]);
+
+  // Enable/disable individual listbox rows.
+  // Setting enable/disable on the parent listbox does not seem to work.
+  let wList = document.getElementById("whiteListAbURI");
+  let wListDisabled = wList.disabled;
+
+  for (let i = 0; i < wList.getRowCount(); i++)
+    wList.getItemAtIndex(i).disabled = wListDisabled;
 }
 
 function onSave()
@@ -215,8 +201,10 @@ function onSave()
   onSaveWhiteList();
 }
 
-// propagate changes to the whitelist menu list back to
-// our hidden wsm element.
+/**
+ * Propagate changes to the whitelist menu list back to
+ * our hidden wsm element.
+ */
 function onSaveWhiteList()
 {
   var wList = document.getElementById("whiteListAbURI");

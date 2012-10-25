@@ -1,40 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Instantbird messenging client, released
- * 2007.
- *
- * The Initial Developer of the Original Code is
- * Florian QUEZE <florian@instantbird.org>.
- * Portions created by the Initial Developer are Copyright (C) 2007
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Romain Bezut <romain@bezut.info>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 const {interfaces: Ci, utils: Cu} = Components;
 Cu.import("resource:///modules/imServices.jsm");
@@ -233,18 +199,14 @@ var gAccountManager = {
   connect: function am_connect() {
     let account = this.accountList.selectedItem.account;
     if (account.disconnected) {
-      let disconnect = document.getElementById("cmd_disconnect");
-      disconnect.setAttribute("disabled", "true");
-      this.restoreButtonTimer();
+      this.temporarilyDisableButtons();
       account.connect();
     }
   },
   disconnect: function am_disconnect() {
     let account = this.accountList.selectedItem.account;
     if (account.connected || account.connecting) {
-      let connect = document.getElementById("cmd_connect");
-      connect.setAttribute("disabled", "true");
-      this.restoreButtonTimer();
+      this.temporarilyDisableButtons();
       account.disconnect();
     }
   },
@@ -255,9 +217,13 @@ var gAccountManager = {
         item.refreshConnectedLabel();
     }
   },
-  /* This function restores the disabled attribute of the currently visible
-     button (and context menu item) after `this._disabledDelay` ms */
-  restoreButtonTimer: function am_restoreButtonTimer() {
+  /* This function disables the connect/disconnect buttons for
+   * `this._disabledDelay` ms before calling disableCommandItems to restore
+   * the state of the buttons.
+   */
+  temporarilyDisableButtons: function am_temporarilyDisableButtons() {
+    document.getElementById("cmd_disconnect").setAttribute("disabled", "true");
+    document.getElementById("cmd_connect").setAttribute("disabled", "true");
     clearTimeout(this.disableTimerID);
     this.accountList.focus();
     this.disableTimerID = setTimeout(function(aItem) {
@@ -327,44 +293,39 @@ var gAccountManager = {
       return;
 
     let account = selectedItem.account;
-    let activeCommandName =
-      (this.isOffline || account.disconnected) ? "connect" : "disconnect";
-    let activeCommandElt = document.getElementById("cmd_" + activeCommandName);
     let isCommandDisabled =
       (this.isOffline ||
        (account.disconnected &&
         account.connectionErrorReason == Ci.imIAccount.ERROR_UNKNOWN_PRPL));
-    
-    [[activeCommandElt, isCommandDisabled],
-     [document.getElementById("cmd_moveup"), accountList.selectedIndex == 0],
-     [document.getElementById("cmd_movedown"),
-      accountList.selectedIndex == accountList.itemCount - 1]
-    ].forEach(function (aEltArray) {
-      let [elt, state] = aEltArray;
+
+    let disabledItems = {
+      connect: isCommandDisabled,
+      disconnect: isCommandDisabled,
+      moveup: accountList.selectedIndex == 0,
+      movedown: accountList.selectedIndex == accountList.itemCount - 1
+    };
+    for each (let [name, state] in Iterator(disabledItems)) {
+      let elt = document.getElementById("cmd_" + name);
       if (state)
         elt.setAttribute("disabled", "true");
       else
         elt.removeAttribute("disabled");
-    });
+    }
   },
   onContextMenuShowing: function am_onContextMenuShowing() {
     let targetElt = document.popupNode;
     let isAccount = targetElt instanceof Ci.nsIDOMXULSelectControlItemElement;
     document.getElementById("contextAccountsItems").hidden = !isAccount;
     if (isAccount) {
-       /* we want to hide either "connect" or "disconnect" depending on the
-          context and we can't use the broadcast of the command element here
-          because the item already observes "contextAccountsItems" */
-      let itemNameToHide, itemNameToShow;
-      if (targetElt.account.disconnected)
-        [itemNameToHide, itemNameToShow] = ["disconnect",  "connect"];
-      else
-        [itemNameToHide, itemNameToShow] = ["connect", "disconnect"];
-      document.getElementById("context_" + itemNameToHide).hidden = true;
-      document.getElementById("context_" + itemNameToShow).hidden = false;
-
-      document.getElementById("context_cancelReconnection").hidden =
-        !targetElt.hasAttribute("reconnectPending");
+      let account = targetElt.account;
+      let hiddenItems = {
+        connect: !account.disconnected,
+        disconnect: account.disconnected || account.disconnecting,
+        cancelReconnection: !targetElt.hasAttribute("reconnectPending"),
+        accountsItemsSeparator: account.disconnecting
+      };
+      for (let name in hiddenItems)
+        document.getElementById("context_" + name).hidden = hiddenItems[name];
     }
   },
 

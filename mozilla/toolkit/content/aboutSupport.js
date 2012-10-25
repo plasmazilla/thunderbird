@@ -1,44 +1,11 @@
 # -*- Mode: js2; indent-tabs-mode: nil; js2-basic-offset: 2; -*-
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is aboutSupport.xhtml.
-#
-# The Initial Developer of the Original Code is
-# Mozilla Foundation
-# Portions created by the Initial Developer are Copyright (C) 2009
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Curtis Bartley <cbartley@mozilla.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cu = Components.utils;
+let Cc = Components.classes;
+let Ci = Components.interfaces;
+let Cu = Components.utils;
 
 Components.utils.import("resource://gre/modules/AddonManager.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
@@ -58,6 +25,7 @@ const PREFS_WHITELIST = [
   "browser.history_expire_",
   "browser.link.open_newwindow",
   "browser.places.",
+  "browser.privatebrowsing.",
   "browser.search.context.loadInBackground",
   "browser.search.log",
   "browser.search.openintab",
@@ -127,6 +95,7 @@ window.onload = function () {
   populateExtensionsSection();
   populateGraphicsSection();
   populateJavaScriptSection();
+  populateAccessibilitySection();
   populateLibVersionsSection();
 }
 
@@ -436,6 +405,27 @@ function populateJavaScriptSection() {
   document.getElementById("javascript-incremental-gc").textContent = enabled ? "1" : "0";
 }
 
+function populateAccessibilitySection() {
+  var active;
+  try {
+    active = Components.manager.QueryInterface(Ci.nsIServiceManager)
+      .isServiceInstantiatedByContractID(
+        "@mozilla.org/accessibilityService;1",
+        Ci.nsISupports);
+  } catch (ex) {
+    active = false;
+  }
+
+  document.getElementById("a11y-activated").textContent = active ? "1" : "0";
+
+  var forceDisabled = 0;
+  forceDisabled = getPrefValue("accessibility.force_disabled").value;
+
+  document.getElementById("a11y-force-disabled").textContent
+    = (forceDisabled == -1) ? "never" :
+	((forceDisabled == 1) ? "1" : "0");
+}
+
 function getPrefValue(aName) {
   let value = "";
   let type = Services.prefs.getPrefType(aName);
@@ -510,6 +500,12 @@ function appendChildren(parentElem, childNodes) {
     parentElem.appendChild(childNodes[i]);
 }
 
+function getLoadContext() {
+  return window.QueryInterface(Ci.nsIInterfaceRequestor)
+               .getInterface(Ci.nsIWebNavigation)
+               .QueryInterface(Ci.nsILoadContext);
+}
+
 function copyContentsToClipboard() {
   // Get the HTML and text representations for the important part of the page.
   let contentsDiv = document.getElementById("contents");
@@ -523,6 +519,7 @@ function copyContentsToClipboard() {
 
   let transferable = Cc["@mozilla.org/widget/transferable;1"]
                        .createInstance(Ci.nsITransferable);
+  transferable.init(getLoadContext());
 
   // Add the HTML flavor.
   transferable.addDataFlavor("text/html");
@@ -612,23 +609,8 @@ function openProfileDirectory() {
  * Profile reset is only supported for the default profile if the appropriate migrator exists.
  */
 function populateResetBox() {
-  let profileService = Cc["@mozilla.org/toolkit/profile-service;1"]
-                         .getService(Ci.nsIToolkitProfileService);
-  let currentProfileDir = Services.dirsvc.get("ProfD", Ci.nsIFile);
-
-#expand const MOZ_APP_NAME = "__MOZ_APP_NAME__";
-#expand const MOZ_BUILD_APP = "__MOZ_BUILD_APP__";
-
-  // Only show the reset box for the default profile if the self-migrator used for reset exists.
-  try {
-    if (!currentProfileDir.equals(profileService.selectedProfile.rootDir) ||
-        !("@mozilla.org/profile/migrator;1?app=" + MOZ_BUILD_APP + "&type=" + MOZ_APP_NAME in Cc))
-      return;
+  if (resetSupported())
     document.getElementById("reset-box").style.visibility = "visible";
-  } catch (e) {
-    // Catch exception when there is no selected profile.
-    Cu.reportError(e);
-  }
 }
 
 /**

@@ -1,43 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Alec Flett <alecf@netscape.com>
- *   Seth Spitzer <sspitzer@netscape.com>
- *   Bhuvan Racham <racham@netscape.com>
- *   David Bienvenu <bienvenu@mozilla.org>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * The account manager service - manages all accounts, servers, and identities
@@ -62,7 +26,7 @@
 #include "prprf.h"
 #include "nsIMsgFolderCache.h"
 #include "nsMsgUtils.h"
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 #include "nsIURL.h"
 #include "nsNetCID.h"
 #include "nsIPrefService.h"
@@ -338,21 +302,68 @@ NS_IMETHODIMP nsMsgAccountManager::Observe(nsISupports *aSubject, const char *aT
 }
 
 void
-nsMsgAccountManager::getUniqueAccountKey(const char * prefix,
-                                         nsISupportsArray *accounts,
+nsMsgAccountManager::getUniqueAccountKey(nsISupportsArray *accounts,
                                          nsCString& aResult)
 {
-  PRInt32 i=1;
-  findAccountByKeyEntry findEntry;
-  findEntry.account = nsnull;
+  PRInt32 lastKey = 0;
+  nsresult rv;
+  nsCOMPtr<nsIPrefService> prefservice(do_GetService(NS_PREFSERVICE_CONTRACTID,
+                                       &rv));
+  if (NS_SUCCEEDED(rv)) {
+    nsCOMPtr<nsIPrefBranch> prefBranch;
+    prefservice->GetBranch("", getter_AddRefs(prefBranch));
 
-  do {
+    rv = prefBranch->GetIntPref("mail.account.lastKey", &lastKey);
+    if (NS_FAILED(rv) || lastKey == 0) {
+      // If lastKey pref does not contain a valid value, loop over existing
+      // pref names mail.account.* .
+      nsCOMPtr<nsIPrefBranch> prefBranchAccount;
+      rv = prefservice->GetBranch("mail.account.", getter_AddRefs(prefBranchAccount));
+      if (NS_SUCCEEDED(rv)) {
+        PRUint32 prefCount;
+        char **prefList;
+        rv = prefBranchAccount->GetChildList("", &prefCount, &prefList);
+        if (NS_SUCCEEDED(rv)) {
+          // Pref names are of the format accountX.
+          // Find the maximum value of 'X' used so far.
+          for (PRUint32 i = 0; i < prefCount; i++) {
+            nsCString prefName;
+            prefName.Assign(prefList[i]);
+            if (StringBeginsWith(prefName, NS_LITERAL_CSTRING(ACCOUNT_PREFIX))) {
+              PRInt32 dotPos = prefName.FindChar('.');
+              if (dotPos != kNotFound) {
+                nsCString keyString(Substring(prefName, strlen(ACCOUNT_PREFIX),
+                                              dotPos - strlen(ACCOUNT_PREFIX)));
+                PRInt32 thisKey = keyString.ToInteger(&rv);
+                if (NS_SUCCEEDED(rv))
+                  lastKey = NS_MAX(lastKey, thisKey);
+              }
+            }
+          }
+          NS_FREE_XPCOM_ALLOCATED_POINTER_ARRAY(prefCount, prefList);
+        }
+      }
+    }
+
+    // Use next available key and store the value in the pref.
+    aResult.Assign(ACCOUNT_PREFIX);
+    aResult.AppendInt(++lastKey);
+    rv = prefBranch->SetIntPref("mail.account.lastKey", lastKey);
+  } else {
+    // If pref service is not working, try to find a free accountX key
+    // by checking which keys exist.
+    PRInt32 i = 1;
+    findAccountByKeyEntry findEntry;
     findEntry.account = nsnull;
-    aResult = prefix;
-    aResult.AppendInt(i++);
-    findEntry.key = aResult.get();
-    accounts->EnumerateForwards(findAccountByKey, (void *)&findEntry);
-  } while (findEntry.account);
+
+    do {
+      findEntry.account = nsnull;
+      aResult = ACCOUNT_PREFIX;
+      aResult.AppendInt(i++);
+      findEntry.key = aResult.get();
+      accounts->EnumerateForwards(findAccountByKey, (void *)&findEntry);
+    } while (findEntry.account);
+  }
 }
 
 nsresult
@@ -1657,7 +1668,7 @@ nsMsgAccountManager::CreateAccount(nsIMsgAccount **_retval)
   NS_ENSURE_ARG_POINTER(_retval);
 
   nsCAutoString key;
-  getUniqueAccountKey(ACCOUNT_PREFIX, m_accounts, key);
+  getUniqueAccountKey(m_accounts, key);
 
   return createKeyedAccount(key, _retval);
 }
@@ -2413,7 +2424,7 @@ nsMsgAccountManager::CreateLocalMailAccount()
   // under <profile dir>/Mail/Local Folders or
   // <"mail.directory" pref>/Local Folders
   nsCOMPtr <nsIFile> mailDir;
-  nsCOMPtr <nsILocalFile> localFile;
+  nsCOMPtr <nsIFile> localFile;
   bool dirExists;
 
   // we want <profile>/Mail
@@ -2983,7 +2994,7 @@ void VirtualFolderChangeListener::ProcessUpdateEvent(nsIMsgFolder *virtFolder,
   virtDB->Commit(nsMsgDBCommitType::kLargeCommit);
 }
 
-nsresult nsMsgAccountManager::GetVirtualFoldersFile(nsCOMPtr<nsILocalFile>& file)
+nsresult nsMsgAccountManager::GetVirtualFoldersFile(nsCOMPtr<nsIFile>& file)
 {
   nsCOMPtr<nsIFile> profileDir;
   nsresult rv = NS_GetSpecialDirectory(NS_APP_USER_PROFILE_50_DIR, getter_AddRefs(profileDir));
@@ -2997,7 +3008,7 @@ nsresult nsMsgAccountManager::GetVirtualFoldersFile(nsCOMPtr<nsILocalFile>& file
 
 NS_IMETHODIMP nsMsgAccountManager::LoadVirtualFolders()
 {
-  nsCOMPtr <nsILocalFile> file;
+  nsCOMPtr <nsIFile> file;
   GetVirtualFoldersFile(file);
   if (!file)
     return NS_ERROR_FAILURE;
@@ -3147,7 +3158,7 @@ NS_IMETHODIMP nsMsgAccountManager::SaveVirtualFolders()
   if (!m_virtualFoldersLoaded)
     return NS_OK;
 
-  nsCOMPtr<nsILocalFile> file;
+  nsCOMPtr<nsIFile> file;
   GetVirtualFoldersFile(file);
 
   // Open a buffered, safe output stream
@@ -3719,7 +3730,7 @@ NS_IMETHODIMP nsMsgAccountManager::OnItemEvent(nsIMsgFolder *aFolder, nsIAtom *a
 }
 
 NS_IMETHODIMP
-nsMsgAccountManager::FolderUriForPath(nsILocalFile *aLocalPath,
+nsMsgAccountManager::FolderUriForPath(nsIFile *aLocalPath,
                                                nsACString &aMailboxUri)
 {
   NS_ENSURE_ARG_POINTER(aLocalPath);
@@ -3743,7 +3754,7 @@ nsMsgAccountManager::FolderUriForPath(nsILocalFile *aLocalPath,
     nsCOMPtr<nsIMsgFolder> folder(do_QueryElementAt(folderArray, i, &rv));
     NS_ENSURE_SUCCESS(rv, rv);
 
-    nsCOMPtr<nsILocalFile> folderPath;
+    nsCOMPtr<nsIFile> folderPath;
     rv = folder->GetFilePath(getter_AddRefs(folderPath));
     NS_ENSURE_SUCCESS(rv, rv);
 

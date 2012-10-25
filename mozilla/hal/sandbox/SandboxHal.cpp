@@ -35,11 +35,11 @@ Hal()
 }
 
 void
-Vibrate(const nsTArray<uint32>& pattern, const WindowIdentifier &id)
+Vibrate(const nsTArray<uint32_t>& pattern, const WindowIdentifier &id)
 {
   HAL_LOG(("Vibrate: Sending to parent process."));
 
-  AutoInfallibleTArray<uint32, 8> p(pattern);
+  AutoInfallibleTArray<uint32_t, 8> p(pattern);
 
   WindowIdentifier newID(id);
   newID.AppendProcessID();
@@ -93,21 +93,21 @@ GetCurrentNetworkInformation(NetworkInformation* aNetworkInfo)
 }
 
 void
-EnableScreenOrientationNotifications()
+EnableScreenConfigurationNotifications()
 {
-  Hal()->SendEnableScreenOrientationNotifications();
+  Hal()->SendEnableScreenConfigurationNotifications();
 }
 
 void
-DisableScreenOrientationNotifications()
+DisableScreenConfigurationNotifications()
 {
-  Hal()->SendDisableScreenOrientationNotifications();
+  Hal()->SendDisableScreenConfigurationNotifications();
 }
 
 void
-GetCurrentScreenOrientation(ScreenOrientation* aScreenOrientation)
+GetCurrentScreenConfiguration(ScreenConfiguration* aScreenConfiguration)
 {
-  Hal()->SendGetCurrentScreenOrientation(aScreenOrientation);
+  Hal()->SendGetCurrentScreenConfiguration(aScreenConfiguration);
 }
 
 bool
@@ -260,18 +260,38 @@ GetCurrentSwitchState(SwitchDevice aDevice)
   return state;
 }
 
+bool
+EnableAlarm()
+{
+  NS_RUNTIMEABORT("Alarms can't be programmed from sandboxed contexts.  Yet.");
+  return false;
+}
+
+void
+DisableAlarm()
+{
+  NS_RUNTIMEABORT("Alarms can't be programmed from sandboxed contexts.  Yet.");
+}
+
+bool
+SetAlarm(long aSeconds, long aNanoseconds)
+{
+  NS_RUNTIMEABORT("Alarms can't be programmed from sandboxed contexts.  Yet.");
+  return false;
+}
+
 class HalParent : public PHalParent
                 , public BatteryObserver
                 , public NetworkObserver
                 , public ISensorObserver
                 , public WakeLockObserver
-                , public ScreenOrientationObserver
+                , public ScreenConfigurationObserver
                 , public SwitchObserver
 {
 public:
   NS_OVERRIDE virtual bool
   RecvVibrate(const InfallibleTArray<unsigned int>& pattern,
-              const InfallibleTArray<uint64> &id,
+              const InfallibleTArray<uint64_t> &id,
               PBrowserParent *browserParent)
   {
     // Check whether browserParent is active.  We should have already
@@ -297,7 +317,7 @@ public:
   }
 
   NS_OVERRIDE virtual bool
-  RecvCancelVibrate(const InfallibleTArray<uint64> &id,
+  RecvCancelVibrate(const InfallibleTArray<uint64_t> &id,
                     PBrowserParent *browserParent)
   {
     TabParent *tabParent = static_cast<TabParent*>(browserParent);
@@ -353,20 +373,20 @@ public:
   }
 
   NS_OVERRIDE virtual bool
-  RecvEnableScreenOrientationNotifications() {
-    hal::RegisterScreenOrientationObserver(this);
+  RecvEnableScreenConfigurationNotifications() {
+    hal::RegisterScreenConfigurationObserver(this);
     return true;
   }
 
   NS_OVERRIDE virtual bool
-  RecvDisableScreenOrientationNotifications() {
-    hal::UnregisterScreenOrientationObserver(this);
+  RecvDisableScreenConfigurationNotifications() {
+    hal::UnregisterScreenConfigurationObserver(this);
     return true;
   }
 
   NS_OVERRIDE virtual bool
-  RecvGetCurrentScreenOrientation(ScreenOrientation* aScreenOrientation) {
-    hal::GetCurrentScreenOrientation(aScreenOrientation);
+  RecvGetCurrentScreenConfiguration(ScreenConfiguration* aScreenConfiguration) {
+    hal::GetCurrentScreenConfiguration(aScreenConfiguration);
     return true;
   }
 
@@ -384,8 +404,8 @@ public:
     return true;
   }
 
-  void Notify(const ScreenOrientationWrapper& aScreenOrientation) {
-    unused << SendNotifyScreenOrientationChange(aScreenOrientation.orientation);
+  void Notify(const ScreenConfiguration& aScreenConfiguration) {
+    unused << SendNotifyScreenConfigurationChange(aScreenConfiguration);
   }
 
   NS_OVERRIDE virtual bool
@@ -574,8 +594,8 @@ public:
   }
 
   NS_OVERRIDE virtual bool
-  RecvNotifyScreenOrientationChange(const ScreenOrientation& aScreenOrientation) {
-    hal::NotifyScreenOrientationChange(aScreenOrientation);
+  RecvNotifyScreenConfigurationChange(const ScreenConfiguration& aScreenConfiguration) {
+    hal::NotifyScreenConfigurationChange(aScreenConfiguration);
     return true;
   }
 

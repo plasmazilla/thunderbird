@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *  David Bienvenu <dbienvenu@mozilla.com>
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /**
    Class for handling Berkeley Mailbox stores.
@@ -84,7 +52,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::DiscoverSubFolders(nsIMsgFolder *aParentFolder,
 {
   NS_ENSURE_ARG_POINTER(aParentFolder);
 
-  nsCOMPtr<nsILocalFile> path;
+  nsCOMPtr<nsIFile> path;
   nsresult rv = aParentFolder->GetFilePath(getter_AddRefs(path));
   if (NS_FAILED(rv))
     return rv;
@@ -101,7 +69,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::CreateFolder(nsIMsgFolder *aParent,
                                               const nsAString &aFolderName,
                                               nsIMsgFolder **aResult)
 {
-  nsCOMPtr<nsILocalFile> path;
+  nsCOMPtr<nsIFile> path;
   nsCOMPtr<nsIMsgFolder> child;
   nsresult rv = aParent->GetFilePath(getter_AddRefs(path));
   if (NS_FAILED(rv))
@@ -166,13 +134,13 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::CreateFolder(nsIMsgFolder *aParent,
 }
 
 NS_IMETHODIMP nsMsgBrkMBoxStore::GetSummaryFile(nsIMsgFolder *aFolder,
-                                                nsILocalFile **aSummaryFile)
+                                                nsIFile **aSummaryFile)
 {
   NS_ENSURE_ARG_POINTER(aFolder);
   NS_ENSURE_ARG_POINTER(aSummaryFile);
 
   nsresult rv;
-  nsCOMPtr<nsILocalFile> newSummaryLocation;
+  nsCOMPtr<nsIFile> newSummaryLocation;
   rv = aFolder->GetFilePath(getter_AddRefs(newSummaryLocation));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -197,7 +165,7 @@ void nsMsgBrkMBoxStore::GetMailboxModProperties(nsIMsgFolder *aFolder,
   // We'll simply return 0 on errors.
   *aDate = 0;
   *aSize = 0;
-  nsCOMPtr<nsILocalFile> pathFile;
+  nsCOMPtr<nsIFile> pathFile;
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(pathFile));
   NS_ENSURE_SUCCESS(rv, );
 
@@ -219,7 +187,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::HasSpaceAvailable(nsIMsgFolder *aFolder,
 {
   NS_ENSURE_ARG_POINTER(aResult);
   NS_ENSURE_ARG_POINTER(aFolder);
-  nsCOMPtr<nsILocalFile> pathFile;
+  nsCOMPtr<nsIFile> pathFile;
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(pathFile));
   NS_ENSURE_SUCCESS(rv, rv);
   PRInt64 fileSize;
@@ -250,7 +218,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::IsSummaryFileValid(nsIMsgFolder *aFolder,
     return NS_OK;
   }
 
-  nsCOMPtr<nsILocalFile> pathFile;
+  nsCOMPtr<nsIFile> pathFile;
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(pathFile));
   NS_ENSURE_SUCCESS(rv, rv);
   nsCOMPtr<nsIDBFolderInfo> folderInfo;
@@ -306,7 +274,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::SetSummaryFileValid(nsIMsgFolder *aFolder,
   if (!localFolder)
     return NS_OK;
 
-  nsCOMPtr<nsILocalFile> pathFile;
+  nsCOMPtr<nsIFile> pathFile;
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(pathFile));
   NS_ENSURE_SUCCESS(rv, rv);
   nsCOMPtr<nsIDBFolderInfo> folderInfo;
@@ -337,7 +305,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::DeleteFolder(nsIMsgFolder *aFolder)
 {
   NS_ENSURE_ARG_POINTER(aFolder);
   //Delete mailbox
-  nsCOMPtr<nsILocalFile> pathFile;
+  nsCOMPtr<nsIFile> pathFile;
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(pathFile));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -370,7 +338,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::RenameFolder(nsIMsgFolder *aFolder,
   nsString existingName;
   aFolder->GetName(existingName);
 
-  nsCOMPtr<nsILocalFile> oldPathFile;
+  nsCOMPtr<nsIFile> oldPathFile;
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(oldPathFile));
   if (NS_FAILED(rv))
     return rv;
@@ -382,17 +350,16 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::RenameFolder(nsIMsgFolder *aFolder,
 
   nsCOMPtr<nsISupports> parentSupport = do_QueryInterface(parentFolder);
 
-  nsCOMPtr<nsILocalFile> oldSummaryFile;
+  nsCOMPtr<nsIFile> oldSummaryFile;
   rv = GetSummaryFile(aFolder, getter_AddRefs(oldSummaryFile));
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIFile> dirFile;
   oldPathFile->Clone(getter_AddRefs(dirFile));
-  nsCOMPtr<nsILocalFile> localDirFile(do_QueryInterface(dirFile));
 
   if (numChildren > 0)
   {
-    rv = CreateDirectoryForFolder(localDirFile);
+    rv = CreateDirectoryForFolder(dirFile);
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
@@ -402,7 +369,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::RenameFolder(nsIMsgFolder *aFolder,
   nsCAutoString oldLeafName;
   oldPathFile->GetNativeLeafName(oldLeafName);
 
-  nsCOMPtr<nsILocalFile> parentPathFile;
+  nsCOMPtr<nsIFile> parentPathFile;
   parentFolder->GetFilePath(getter_AddRefs(parentPathFile));
   NS_ENSURE_SUCCESS(rv,rv);
 
@@ -432,7 +399,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::RenameFolder(nsIMsgFolder *aFolder,
     // rename "*.sbd" directory
     nsAutoString newNameDirStr(safeName);
     newNameDirStr += NS_LITERAL_STRING(".sbd");
-    localDirFile->MoveTo(nsnull, newNameDirStr);
+    dirFile->MoveTo(nsnull, newNameDirStr);
   }
 
   return parentFolder->AddSubfolder(safeName, aNewFolder);
@@ -458,14 +425,14 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::CopyFolder(nsIMsgFolder *aSrcFolder,
   srcDB = nsnull;
   aSrcFolder->ForceDBClosed();
 
-  nsCOMPtr<nsILocalFile> oldPath;
+  nsCOMPtr<nsIFile> oldPath;
   nsresult rv = aSrcFolder->GetFilePath(getter_AddRefs(oldPath));
   NS_ENSURE_SUCCESS(rv,rv);
 
-  nsCOMPtr<nsILocalFile> summaryFile;
+  nsCOMPtr<nsIFile> summaryFile;
   GetSummaryFileLocation(oldPath, getter_AddRefs(summaryFile));
 
-  nsCOMPtr<nsILocalFile> newPath;
+  nsCOMPtr<nsIFile> newPath;
   rv = aDstFolder->GetFilePath(getter_AddRefs(newPath));
   NS_ENSURE_SUCCESS(rv,rv);
 
@@ -593,7 +560,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::CopyFolder(nsIMsgFolder *aSrcFolder,
       nsCOMPtr<nsIMsgDatabase> srcDB;
       aSrcFolder->Delete();
 
-      nsCOMPtr<nsILocalFile> parentPath;
+      nsCOMPtr<nsIFile> parentPath;
       rv = msgParent->GetFilePath(getter_AddRefs(parentPath));
       NS_ENSURE_SUCCESS(rv,rv);
 
@@ -648,7 +615,7 @@ nsMsgBrkMBoxStore::GetNewMsgOutputStream(nsIMsgFolder *aFolder,
   m_streamOutstandingFolder = aFolder;
 #endif
   *aReusable = true;
-  nsCOMPtr<nsILocalFile> mboxFile;
+  nsCOMPtr<nsIFile> mboxFile;
   aFolder->GetFilePath(getter_AddRefs(mboxFile));
   nsCOMPtr<nsIMsgDatabase> db;
   aFolder->GetMsgDatabase(getter_AddRefs(db));
@@ -717,7 +684,7 @@ nsMsgBrkMBoxStore::DiscardNewMessage(nsIOutputStream *aOutputStream,
   PRUint64 hdrOffset;
   aNewHdr->GetMessageOffset(&hdrOffset);
   aOutputStream->Close();
-  nsCOMPtr<nsILocalFile> mboxFile;
+  nsCOMPtr<nsIFile> mboxFile;
   nsCOMPtr<nsIMsgFolder> folder;
   nsresult rv = aNewHdr->GetFolder(getter_AddRefs(folder));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -776,7 +743,7 @@ nsMsgBrkMBoxStore::GetMsgInputStream(nsIMsgFolder *aMsgFolder,
     *aOffset = ParseUint64Str(PromiseFlatCString(aMsgToken).get());
   *aReusable = true;
   nsCString URI;
-  nsCOMPtr<nsILocalFile> mboxFile;
+  nsCOMPtr<nsIFile> mboxFile;
 
   aMsgFolder->GetURI(URI);
   aMsgFolder->GetFilePath(getter_AddRefs(mboxFile));
@@ -836,7 +803,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::RebuildIndex(nsIMsgFolder *aFolder,
 {
   NS_ENSURE_ARG_POINTER(aFolder);
   // We don't use aMsgDB, but I think nsMsgMailDirStore needs it.
-  nsCOMPtr<nsILocalFile> pathFile;
+  nsCOMPtr<nsIFile> pathFile;
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(pathFile));
   if (NS_FAILED(rv))
     return rv;
@@ -887,7 +854,7 @@ nsMsgBrkMBoxStore::GetOutputStream(nsIArray *aHdrArray,
       m_outputStreams.Remove(URI);
     }
   }
-  nsCOMPtr<nsILocalFile> mboxFile;
+  nsCOMPtr<nsIFile> mboxFile;
   folder->GetFilePath(getter_AddRefs(mboxFile));
   if (!outputStream)
   {
@@ -1027,7 +994,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::ChangeKeywords(nsIArray *aHdrArray,
 // Iterates over the files in the "path" directory, and adds subfolders to
 // parent for each mailbox file found.
 nsresult
-nsMsgBrkMBoxStore::AddSubFolders(nsIMsgFolder *parent, nsCOMPtr<nsILocalFile> &path,
+nsMsgBrkMBoxStore::AddSubFolders(nsIMsgFolder *parent, nsCOMPtr<nsIFile> &path,
                                  bool deep)
 {
   nsresult rv;
@@ -1037,7 +1004,7 @@ nsMsgBrkMBoxStore::AddSubFolders(nsIMsgFolder *parent, nsCOMPtr<nsILocalFile> &p
   if (!isDirectory)
   {
     rv = path->Clone(getter_AddRefs(tmp));
-    path = do_QueryInterface(tmp);
+    path = tmp;
     NS_ENSURE_SUCCESS(rv, rv);
     nsAutoString leafName;
     path->GetLeafName(leafName);
@@ -1090,7 +1057,7 @@ nsMsgBrkMBoxStore::AddSubFolders(nsIMsgFolder *parent, nsCOMPtr<nsILocalFile> &p
         child->SetPrettyName(leafName);
       if (deep)
       {
-        nsCOMPtr<nsILocalFile> path;
+        nsCOMPtr<nsIFile> path;
         rv = child->GetFilePath(getter_AddRefs(path));
         AddSubFolders(child, path, true);
       }
@@ -1103,7 +1070,7 @@ nsMsgBrkMBoxStore::AddSubFolders(nsIMsgFolder *parent, nsCOMPtr<nsILocalFile> &p
    c:\Inbox, it will return c:\Inbox.sbd if it succeeds.  If that path doesn't
    currently exist then it will create it. Path is strictly an out parameter.
   */
-nsresult nsMsgBrkMBoxStore::CreateDirectoryForFolder(nsILocalFile *path)
+nsresult nsMsgBrkMBoxStore::CreateDirectoryForFolder(nsIFile *path)
 {
   nsresult rv = NS_OK;
 

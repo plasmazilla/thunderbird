@@ -1,49 +1,12 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla calendar code.
- *
- * The Initial Developer of the Original Code is
- *   Michiel van Leeuwen <mvl@exedo.nl>
- * Portions created by the Initial Developer are Copyright (C) 2004
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Vladimir Vukicevic <vladimir.vukicevic@oracle.com>
- *   Dan Mosedale <dan.mosedale@oracle.com>
- *   Joey Minta <jminta@gmail.com>
- *   Philipp Kewisch <mozilla@kewis.ch>
- *   Daniel Boelzle <daniel.boelzle@sun.com>
- *   Matthew Mecca <matthew.mecca@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
+Components.utils.import("resource://calendar/modules/calXMLUtils.jsm");
 Components.utils.import("resource://calendar/modules/calProviderUtils.jsm");
 
 //
@@ -59,6 +22,21 @@ const CI = Components.interfaces;
 const calIOperationListener = Components.interfaces.calIOperationListener;
 const calICalendar = Components.interfaces.calICalendar;
 const calIErrors = Components.interfaces.calIErrors;
+
+function icsNSResolver(prefix) {
+    const ns = {
+        D: "DAV:"
+    };
+
+    return ns[prefix] || null;
+}
+
+function icsXPath(aNode, aExpr, aType) {
+    return cal.xml.evalXPath(aNode, aExpr, icsNSResolver, aType);
+}
+function icsXPathFirst(aNode, aExpr, aType) {
+    return cal.xml.evalXPathFirst(aNode, aExpr, icsNSResolver, aType);
+}
 
 function calICSCalendar() {
     this.initProviderBase();
@@ -1010,27 +988,22 @@ httpHooks.prototype = {
                                                 .interfaces.nsIScriptableUnicodeConverter);
                 resultConverter.charset = "UTF-8";
 
-                var str;
                 try {
-                    str = resultConverter.convertFromByteArray(aResult, aResultLength);
+                    var str = resultConverter.convertFromByteArray(aResult, aResultLength);
+                    var multistatus = cal.xml.parseString(str);
                 } catch (e) {
                     cal.LOG("[calICSCalendar] Failed to fetch channel etag");
                 }
-                var multistatus = cal.safeNewXML(str);
-                try {
-                    thisHook.mEtag = multistatus..D::getetag;
-                } catch (e) {
-                    thisHook.mEtag = null;
-                }
+
+                thisHook.mEtag = icsXPathFirst(multistatus, "/D:propfind/D:response/D:propstat/D:prop/D:getetag");
                 aRespFunc();
             }
-            var D = new Namespace("D", "DAV:");
-            default xml namespace = D;
-            var queryXml = <D:propfind xmlns:D="DAV:">
-                    <D:prop>
-                      <D:getetag/>
-                    </D:prop>
-                  </D:propfind>;
+            let queryXml =
+                '<D:propfind xmlns:D="DAV:">' +
+                  '<D:prop>' +
+                    '<D:getetag/>' +
+                  '</D:prop>' +
+                '</D:propfind>';
 
             let etagChannel = cal.prepHttpChannel(aChannel.URI, queryXml,
                                                   "text/xml; charset=utf-8",

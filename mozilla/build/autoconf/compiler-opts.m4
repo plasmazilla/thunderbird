@@ -1,7 +1,85 @@
+dnl This Source Code Form is subject to the terms of the Mozilla Public
+dnl License, v. 2.0. If a copy of the MPL was not distributed with this
+dnl file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 dnl Add compiler specific options
 
+AC_DEFUN([MOZ_DEFAULT_COMPILER],
+[
+dnl Default to MSVC for win32 and gcc-4.2 for darwin
+dnl ==============================================================
+if test -z "$CROSS_COMPILE"; then
+case "$target" in
+*-mingw*)
+    if test -z "$CC"; then CC=cl; fi
+    if test -z "$CXX"; then CXX=cl; fi
+    if test -z "$CPP"; then CPP="cl -E -nologo"; fi
+    if test -z "$CXXCPP"; then CXXCPP="cl -TP -E -nologo"; ac_cv_prog_CXXCPP="$CXXCPP"; fi
+    if test -z "$LD"; then LD=link; fi
+    if test -z "$AS"; then
+        case "${target_cpu}" in
+        i*86)
+            AS=ml;
+            ;;
+        x86_64)
+            AS=ml64;
+            ;;
+        esac
+    fi
+    if test -z "$MIDL"; then MIDL=midl; fi
+
+    # need override this flag since we don't use $(LDFLAGS) for this.
+    if test -z "$HOST_LDFLAGS" ; then
+        HOST_LDFLAGS=" "
+    fi
+    ;;
+*-darwin*)
+    # we prefer gcc-4.2 over gcc on older darwin, so
+    # use that specific version if it's available.
+    # On newer versions of darwin, gcc is llvm-gcc while gcc-4.2 is the plain
+    # one, so we also try that first. If that fails, we fall back to clang
+    # as llvm-gcc is an unsupported dead end.
+    MOZ_PATH_PROGS(CC, $CC gcc-4.2 clang gcc)
+    MOZ_PATH_PROGS(CXX, $CXX g++-4.2 clang++ g++)
+    IS_LLVM_GCC=$($CC -v 2>&1 | grep llvm-gcc)
+    if test -n "$IS_LLVM_GCC"
+    then
+      echo llvm-gcc is known to be broken, please use gcc-4.2 or clang.
+      exit 1
+    fi
+    ;;
+esac
+fi
+])
+
+dnl ============================================================================
+dnl C++ rtti
+dnl We don't use it in the code, but it can be usefull for debugging, so give
+dnl the user the option of enabling it.
+dnl ============================================================================
+AC_DEFUN([MOZ_RTTI],
+[
+MOZ_ARG_ENABLE_BOOL(cpp-rtti,
+[  --enable-cpp-rtti       Enable C++ RTTI ],
+[ _MOZ_USE_RTTI=1 ],
+[ _MOZ_USE_RTTI= ])
+
+if test -z "$_MOZ_USE_RTTI"; then
+    if test "$GNU_CC"; then
+        CXXFLAGS="$CXXFLAGS -fno-rtti"
+    else
+        case "$target" in
+        *-mingw*)
+            CXXFLAGS="$CXXFLAGS -GR-"
+        esac
+    fi
+fi
+])
+
+dnl A high level macro for selecting compiler options.
 AC_DEFUN([MOZ_COMPILER_OPTS],
 [
+  MOZ_RTTI
 if test "$CLANG_CXX"; then
     ## We disable return-type-c-linkage because jsval is defined as a C++ type but is
     ## returned by C functions. This is possible because we use knowledge about the ABI
@@ -12,7 +90,7 @@ fi
 
 if test "$GNU_CC"; then
     CFLAGS="$CFLAGS -ffunction-sections -fdata-sections"
-    CXXFLAGS="$CXXFLAGS -ffunction-sections -fdata-sections"
+    CXXFLAGS="$CXXFLAGS -ffunction-sections -fdata-sections -fno-exceptions"
 fi
 
 dnl ========================================================

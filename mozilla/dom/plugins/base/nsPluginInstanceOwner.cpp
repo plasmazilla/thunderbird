@@ -1,48 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 // vim:set ts=2 sts=2 sw=2 et cin:
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Jacek Piskozub <piskozub@iopan.gda.pl>
- *   Leon Sha <leon.sha@sun.com>
- *   Roland Mainz <roland.mainz@informatik.med.uni-giessen.de>
- *   Robert O'Callahan <roc+moz@cs.cmu.edu>
- *   Christian Biesinger <cbiesinger@web.de>
- *   Josh Aas <josh@mozilla.com>
- *   Mats Palmgren <matspal@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef MOZ_WIDGET_QT
 #include <QWidget>
@@ -76,6 +36,7 @@ using mozilla::DefaultXDisplay;
 #include "nsSize.h"
 #include "nsDisplayList.h"
 #include "ImageLayers.h"
+#include "SharedTextureImage.h"
 #include "nsIDOMEventTarget.h"
 #include "nsObjectFrame.h"
 #include "nsIPluginDocument.h"
@@ -86,7 +47,6 @@ using mozilla::DefaultXDisplay;
 #include "nsIDocShellTreeItem.h"
 #include "nsIWebBrowserChrome.h"
 #include "nsLayoutUtils.h"
-#include "nsIPrivateDOMEvent.h"
 #include "nsIPluginWidget.h"
 #include "nsIViewManager.h"
 #include "nsIDocShellTreeOwner.h"
@@ -99,6 +59,7 @@ using mozilla::DefaultXDisplay;
 #include "nsIDOMDragEvent.h"
 #include "nsIScrollableFrame.h"
 #include "nsIImageLoadingContent.h"
+#include "nsIDocShell.h"
 
 #include "nsContentCID.h"
 #include "nsWidgetsCID.h"
@@ -124,7 +85,6 @@ static NS_DEFINE_CID(kAppShellCID, NS_APPSHELL_CID);
 #ifdef MOZ_WIDGET_ANDROID
 #include "ANPBase.h"
 #include "AndroidBridge.h"
-#include "AndroidMediaLayer.h"
 #include "nsWindow.h"
 
 static nsPluginInstanceOwner* sFullScreenInstance = nsnull;
@@ -210,6 +170,38 @@ static void OnDestroyImage(void* aPluginInstanceOwner)
 already_AddRefed<ImageContainer>
 nsPluginInstanceOwner::GetImageContainer()
 {
+#if MOZ_WIDGET_ANDROID
+  // Right now we only draw with Gecko layers on Honeycomb and higher. See Paint()
+  // for what we do on other versions.
+  if (AndroidBridge::Bridge()->GetAPIVersion() < 11)
+    return NULL;
+  
+  nsRefPtr<ImageContainer> container = LayerManager::CreateImageContainer();
+
+  Image::Format format = Image::SHARED_TEXTURE;
+  nsRefPtr<Image> img = container->CreateImage(&format, 1);
+
+  SharedTextureImage::Data data;
+  data.mHandle = mInstance->CreateSharedHandle();
+  data.mShareType = mozilla::gl::TextureImage::ThreadShared;
+  data.mInverted = mInstance->Inverted();
+
+  gfxRect r = GetPluginRect();
+  data.mSize = gfxIntSize(r.width, r.height);
+
+  SharedTextureImage* pluginImage = static_cast<SharedTextureImage*>(img.get());
+  pluginImage->SetData(data);
+
+  container->SetCurrentImage(img);
+
+  float xResolution = mObjectFrame->PresContext()->GetRootPresContext()->PresShell()->GetXResolution();
+  float yResolution = mObjectFrame->PresContext()->GetRootPresContext()->PresShell()->GetYResolution();
+  r.Scale(xResolution, yResolution);
+  mInstance->NotifySize(nsIntSize(r.width, r.height));
+
+  return container.forget();
+#endif
+
   if (mInstance) {
     nsRefPtr<ImageContainer> container;
     // Every call to nsIPluginInstance::GetImage() creates
@@ -346,9 +338,7 @@ nsPluginInstanceOwner::nsPluginInstanceOwner()
   mWaitingForPaint = false;
 
 #ifdef MOZ_WIDGET_ANDROID
-  mInverted = false;
   mFullScreen = false;
-  mLayer = nsnull;
   mJavaView = nsnull;
 #endif
 }
@@ -409,10 +399,12 @@ nsPluginInstanceOwner::~nsPluginInstanceOwner()
   }
 }
 
-NS_IMPL_ISUPPORTS3(nsPluginInstanceOwner,
+NS_IMPL_ISUPPORTS5(nsPluginInstanceOwner,
                    nsIPluginInstanceOwner,
                    nsIPluginTagInfo,
-                   nsIDOMEventListener)
+                   nsIDOMEventListener,
+                   nsIPrivacyTransitionObserver,
+                   nsISupportsWeakReference)
 
 nsresult
 nsPluginInstanceOwner::SetInstance(nsNPAPIPluginInstance *aInstance)
@@ -431,6 +423,17 @@ nsPluginInstanceOwner::SetInstance(nsNPAPIPluginInstance *aInstance)
   }
 
   mInstance = aInstance;
+
+  nsCOMPtr<nsIDocument> doc;
+  GetDocument(getter_AddRefs(doc));
+  if (doc) {
+    nsCOMPtr<nsPIDOMWindow> domWindow = doc->GetWindow();
+    if (domWindow) {
+      nsCOMPtr<nsIDocShell> docShell = domWindow->GetDocShell();
+      if (docShell)
+        docShell->AddWeakPrivacyTransitionObserver(this);
+    }
+  }
 
   return NS_OK;
 }
@@ -760,7 +763,7 @@ NS_IMETHODIMP nsPluginInstanceOwner::GetNetscapeWindow(void *value)
   }
 
   return rv;
-#elif (defined(MOZ_WIDGET_GTK2) || defined(MOZ_WIDGET_QT)) && defined(MOZ_X11)
+#elif (defined(MOZ_WIDGET_GTK) || defined(MOZ_WIDGET_QT)) && defined(MOZ_X11)
   // X11 window managers want the toplevel window for WM_TRANSIENT_FOR.
   nsIWidget* win = mObjectFrame->GetNearestWidget();
   if (!win)
@@ -1035,9 +1038,9 @@ NS_IMETHODIMP nsPluginInstanceOwner::GetDocumentEncoding(const char* *result)
     if (!gCharsetMap) {
       const int NUM_CHARSETS = sizeof(charsets) / sizeof(moz2javaCharset);
       gCharsetMap = new nsDataHashtable<nsDepCharHashKey, const char*>();
-      if (!gCharsetMap || !gCharsetMap->Init(NUM_CHARSETS))
+      if (!gCharsetMap)
         return NS_ERROR_OUT_OF_MEMORY;
-
+      gCharsetMap->Init(NUM_CHARSETS);
       for (PRUint16 i = 0; i < NUM_CHARSETS; i++) {
         gCharsetMap->Put(charsets[i].mozName, charsets[i].javaName);
       }
@@ -1751,26 +1754,6 @@ gfxRect nsPluginInstanceOwner::GetPluginRect()
   return gfxRect(intBounds);
 }
 
-void nsPluginInstanceOwner::SendSize(int width, int height)
-{
-  if (!mInstance)
-    return;
-
-  PRInt32 model = mInstance->GetANPDrawingModel();
-
-  if (model != kOpenGL_ANPDrawingModel)
-    return;
-
-  ANPEvent event;
-  event.inSize = sizeof(ANPEvent);
-  event.eventType = kDraw_ANPEventType;
-  event.data.draw.model = kOpenGL_ANPDrawingModel;
-  event.data.draw.data.surfaceSize.width = width;
-  event.data.draw.data.surfaceSize.height = height;
-
-  mInstance->HandleEvent(&event, nsnull);
-}
-
 bool nsPluginInstanceOwner::AddPluginView(const gfxRect& aRect /* = gfxRect(0, 0, 0, 0) */)
 {
   if (!mJavaView) {
@@ -1804,6 +1787,35 @@ void nsPluginInstanceOwner::RemovePluginView()
 
   if (mFullScreen)
     sFullScreenInstance = nsnull;
+}
+
+void nsPluginInstanceOwner::GetVideos(nsTArray<nsNPAPIPluginInstance::VideoInfo*>& aVideos)
+{
+  if (!mInstance)
+    return;
+
+  mInstance->GetVideos(aVideos);
+}
+
+already_AddRefed<ImageContainer> nsPluginInstanceOwner::GetImageContainerForVideo(nsNPAPIPluginInstance::VideoInfo* aVideoInfo)
+{
+  nsRefPtr<ImageContainer> container = LayerManager::CreateImageContainer();
+
+  Image::Format format = Image::SHARED_TEXTURE;
+  nsRefPtr<Image> img = container->CreateImage(&format, 1);
+
+  SharedTextureImage::Data data;
+
+  data.mHandle = mInstance->GLContext()->CreateSharedHandle(gl::TextureImage::ThreadShared, aVideoInfo->mSurfaceTexture, gl::GLContext::SurfaceTexture);
+  data.mShareType = mozilla::gl::TextureImage::ThreadShared;
+  data.mInverted = AndroidBridge::Bridge()->IsHoneycomb() ? true : mInstance->Inverted();
+  data.mSize = gfxIntSize(aVideoInfo->mDimensions.width, aVideoInfo->mDimensions.height);
+
+  SharedTextureImage* pluginImage = static_cast<SharedTextureImage*>(img.get());
+  pluginImage->SetData(data);
+  container->SetCurrentImage(img);
+
+  return container.forget();
 }
 
 void nsPluginInstanceOwner::Invalidate() {
@@ -1891,22 +1903,17 @@ nsresult nsPluginInstanceOwner::DispatchFocusToPlugin(nsIDOMEvent* aFocusEvent)
   }
 #endif
 
-  nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(aFocusEvent));
-  if (privateEvent) {
-    nsEvent * theEvent = privateEvent->GetInternalNSEvent();
-    if (theEvent) {
-      // we only care about the message in ProcessEvent
-      nsGUIEvent focusEvent(NS_IS_TRUSTED_EVENT(theEvent), theEvent->message,
-                            nsnull);
-      nsEventStatus rv = ProcessEvent(focusEvent);
-      if (nsEventStatus_eConsumeNoDefault == rv) {
-        aFocusEvent->PreventDefault();
-        aFocusEvent->StopPropagation();
-      }
-    }
-    else NS_ASSERTION(false, "nsPluginInstanceOwner::DispatchFocusToPlugin failed, focusEvent null");   
+  nsEvent* theEvent = aFocusEvent->GetInternalNSEvent();
+  if (theEvent) {
+    // we only care about the message in ProcessEvent
+    nsGUIEvent focusEvent(NS_IS_TRUSTED_EVENT(theEvent), theEvent->message,
+                          nsnull);
+    nsEventStatus rv = ProcessEvent(focusEvent);
+    if (nsEventStatus_eConsumeNoDefault == rv) {
+      aFocusEvent->PreventDefault();
+      aFocusEvent->StopPropagation();
+    }   
   }
-  else NS_ASSERTION(false, "nsPluginInstanceOwner::DispatchFocusToPlugin failed, privateEvent null");   
   
   return NS_OK;
 }    
@@ -1915,19 +1922,14 @@ nsresult nsPluginInstanceOwner::DispatchFocusToPlugin(nsIDOMEvent* aFocusEvent)
 nsresult nsPluginInstanceOwner::Text(nsIDOMEvent* aTextEvent)
 {
   if (mInstance) {
-    nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(aTextEvent));
-    if (privateEvent) {
-      nsEvent *event = privateEvent->GetInternalNSEvent();
-      if (event && event->eventStructType == NS_TEXT_EVENT) {
-        nsEventStatus rv = ProcessEvent(*static_cast<nsGUIEvent*>(event));
-        if (nsEventStatus_eConsumeNoDefault == rv) {
-          aTextEvent->PreventDefault();
-          aTextEvent->StopPropagation();
-        }
+    nsEvent *event = aTextEvent->GetInternalNSEvent();
+    if (event && event->eventStructType == NS_TEXT_EVENT) {
+      nsEventStatus rv = ProcessEvent(*static_cast<nsGUIEvent*>(event));
+      if (nsEventStatus_eConsumeNoDefault == rv) {
+        aTextEvent->PreventDefault();
+        aTextEvent->StopPropagation();
       }
-      else NS_ASSERTION(false, "nsPluginInstanceOwner::DispatchTextToPlugin failed, textEvent null");
     }
-    else NS_ASSERTION(false, "nsPluginInstanceOwner::DispatchTextToPlugin failed, privateEvent null");
   }
 
   return NS_OK;
@@ -1942,16 +1944,13 @@ nsresult nsPluginInstanceOwner::KeyPress(nsIDOMEvent* aKeyEvent)
     // KeyPress events are really synthesized keyDown events.
     // Here we check the native message of the event so that
     // we won't send the plugin two keyDown events.
-    nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(aKeyEvent));
-    if (privateEvent) {
-      nsEvent *theEvent = privateEvent->GetInternalNSEvent();
-      const EventRecord *ev;
-      if (theEvent &&
-          theEvent->message == NS_KEY_PRESS &&
-          (ev = (EventRecord*)(((nsGUIEvent*)theEvent)->pluginEvent)) &&
-          ev->what == keyDown)
-        return aKeyEvent->PreventDefault(); // consume event
-    }
+    nsEvent *theEvent = aKeyEvent->GetInternalNSEvent();
+    const EventRecord *ev;
+    if (theEvent &&
+        theEvent->message == NS_KEY_PRESS &&
+        (ev = (EventRecord*)(((nsGUIEvent*)theEvent)->pluginEvent)) &&
+        ev->what == keyDown)
+      return aKeyEvent->PreventDefault(); // consume event
 
     // Nasty hack to avoid recursive event dispatching with Java. Java can
     // dispatch key events to a TSM handler, which comes back and calls 
@@ -1993,19 +1992,14 @@ nsresult nsPluginInstanceOwner::DispatchKeyToPlugin(nsIDOMEvent* aKeyEvent)
 #endif
 
   if (mInstance) {
-    nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(aKeyEvent));
-    if (privateEvent) {
-      nsEvent *event = privateEvent->GetInternalNSEvent();
-      if (event && event->eventStructType == NS_KEY_EVENT) {
-        nsEventStatus rv = ProcessEvent(*static_cast<nsGUIEvent*>(event));
-        if (nsEventStatus_eConsumeNoDefault == rv) {
-          aKeyEvent->PreventDefault();
-          aKeyEvent->StopPropagation();
-        }
-      }
-      else NS_ASSERTION(false, "nsPluginInstanceOwner::DispatchKeyToPlugin failed, keyEvent null");   
+    nsEvent *event = aKeyEvent->GetInternalNSEvent();
+    if (event && event->eventStructType == NS_KEY_EVENT) {
+      nsEventStatus rv = ProcessEvent(*static_cast<nsGUIEvent*>(event));
+      if (nsEventStatus_eConsumeNoDefault == rv) {
+        aKeyEvent->PreventDefault();
+        aKeyEvent->StopPropagation();
+      }   
     }
-    else NS_ASSERTION(false, "nsPluginInstanceOwner::DispatchKeyToPlugin failed, privateEvent null");   
   }
 
   return NS_OK;
@@ -2032,18 +2026,13 @@ nsPluginInstanceOwner::MouseDown(nsIDOMEvent* aMouseEvent)
     }
   }
 
-  nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(aMouseEvent));
-  if (privateEvent) {
-    nsEvent* event = privateEvent->GetInternalNSEvent();
-      if (event && event->eventStructType == NS_MOUSE_EVENT) {
-        nsEventStatus rv = ProcessEvent(*static_cast<nsGUIEvent*>(event));
-      if (nsEventStatus_eConsumeNoDefault == rv) {
-        return aMouseEvent->PreventDefault(); // consume event
-      }
+  nsEvent* event = aMouseEvent->GetInternalNSEvent();
+    if (event && event->eventStructType == NS_MOUSE_EVENT) {
+      nsEventStatus rv = ProcessEvent(*static_cast<nsGUIEvent*>(event));
+    if (nsEventStatus_eConsumeNoDefault == rv) {
+      return aMouseEvent->PreventDefault(); // consume event
     }
-    else NS_ASSERTION(false, "nsPluginInstanceOwner::MouseDown failed, mouseEvent null");   
   }
-  else NS_ASSERTION(false, "nsPluginInstanceOwner::MouseDown failed, privateEvent null");   
   
   return NS_OK;
 }
@@ -2059,20 +2048,14 @@ nsresult nsPluginInstanceOwner::DispatchMouseToPlugin(nsIDOMEvent* aMouseEvent)
   if (!mWidgetVisible)
     return NS_OK;
 
-  nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(aMouseEvent));
-  if (privateEvent) {
-    nsEvent* event = privateEvent->GetInternalNSEvent();
-    if (event && event->eventStructType == NS_MOUSE_EVENT) {
-      nsEventStatus rv = ProcessEvent(*static_cast<nsGUIEvent*>(event));
-      if (nsEventStatus_eConsumeNoDefault == rv) {
-        aMouseEvent->PreventDefault();
-        aMouseEvent->StopPropagation();
-      }
+  nsEvent* event = aMouseEvent->GetInternalNSEvent();
+  if (event && event->eventStructType == NS_MOUSE_EVENT) {
+    nsEventStatus rv = ProcessEvent(*static_cast<nsGUIEvent*>(event));
+    if (nsEventStatus_eConsumeNoDefault == rv) {
+      aMouseEvent->PreventDefault();
+      aMouseEvent->StopPropagation();
     }
-    else NS_ASSERTION(false, "nsPluginInstanceOwner::DispatchMouseToPlugin failed, mouseEvent null");   
   }
-  else NS_ASSERTION(false, "nsPluginInstanceOwner::DispatchMouseToPlugin failed, privateEvent null");   
-  
   return NS_OK;
 }
 
@@ -2125,17 +2108,14 @@ nsPluginInstanceOwner::HandleEvent(nsIDOMEvent* aEvent)
 
   nsCOMPtr<nsIDOMDragEvent> dragEvent(do_QueryInterface(aEvent));
   if (dragEvent && mInstance) {
-    nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(aEvent));
-    if (privateEvent) {
-      nsEvent* ievent = privateEvent->GetInternalNSEvent();
-      if ((ievent && NS_IS_TRUSTED_EVENT(ievent)) &&
-           ievent->message != NS_DRAGDROP_ENTER && ievent->message != NS_DRAGDROP_OVER) {
-        aEvent->PreventDefault();
-      }
-
-      // Let the plugin handle drag events.
-      aEvent->StopPropagation();
+    nsEvent* ievent = aEvent->GetInternalNSEvent();
+    if ((ievent && NS_IS_TRUSTED_EVENT(ievent)) &&
+         ievent->message != NS_DRAGDROP_ENTER && ievent->message != NS_DRAGDROP_OVER) {
+      aEvent->PreventDefault();
     }
+
+    // Let the plugin handle drag events.
+    aEvent->StopPropagation();
   }
   return NS_OK;
 }
@@ -2144,10 +2124,10 @@ nsPluginInstanceOwner::HandleEvent(nsIDOMEvent* aEvent)
 static unsigned int XInputEventState(const nsInputEvent& anEvent)
 {
   unsigned int state = 0;
-  if (anEvent.isShift) state |= ShiftMask;
-  if (anEvent.isControl) state |= ControlMask;
-  if (anEvent.isAlt) state |= Mod1Mask;
-  if (anEvent.isMeta) state |= Mod4Mask;
+  if (anEvent.IsShift()) state |= ShiftMask;
+  if (anEvent.IsControl()) state |= ControlMask;
+  if (anEvent.IsAlt()) state |= Mod1Mask;
+  if (anEvent.IsMeta()) state |= Mod4Mask;
   return state;
 }
 #endif
@@ -2455,7 +2435,7 @@ nsEventStatus nsPluginInstanceOwner::ProcessEvent(const nsGUIEvent& anEvent)
         nsIntPoint rootPoint(-1,-1);
         if (widget)
           rootPoint = anEvent.refPoint + widget->WidgetToScreenOffset();
-#ifdef MOZ_WIDGET_GTK2
+#ifdef MOZ_WIDGET_GTK
         Window root = GDK_ROOT_WINDOW();
 #elif defined(MOZ_WIDGET_QT)
         Window root = RootWindowOfScreen(DefaultScreenOfDisplay(mozilla::DefaultXDisplay()));
@@ -2543,7 +2523,7 @@ nsEventStatus nsPluginInstanceOwner::ProcessEvent(const nsGUIEvent& anEvent)
       if (anEvent.pluginEvent)
         {
           XKeyEvent &event = pluginEvent.xkey;
-#ifdef MOZ_WIDGET_GTK2
+#ifdef MOZ_WIDGET_GTK
           event.root = GDK_ROOT_WINDOW();
           event.time = anEvent.time;
           const GdkEventKey* gdkEvent =
@@ -2815,10 +2795,6 @@ nsPluginInstanceOwner::Destroy()
 
 #if MOZ_WIDGET_ANDROID
   RemovePluginView();
-
-  if (mLayer)
-    mLayer->SetVisible(false);
-
 #endif
 
   if (mWidget) {
@@ -2934,26 +2910,10 @@ void nsPluginInstanceOwner::Paint(gfxContext* aContext,
 
   PRInt32 model = mInstance->GetANPDrawingModel();
 
-  gfxRect pluginRect = GetPluginRect();
-
   if (model == kSurface_ANPDrawingModel) {
-    if (!AddPluginView(pluginRect)) {
+    if (!AddPluginView(GetPluginRect())) {
       Invalidate();
     }
-    return;
-  }
-
-  if (model == kOpenGL_ANPDrawingModel) {
-    if (!mLayer)
-      mLayer = new AndroidMediaLayer();
-
-    mLayer->UpdatePosition(pluginRect);
-
-    float xResolution = mObjectFrame->PresContext()->GetRootPresContext()->PresShell()->GetXResolution();
-    float yResolution = mObjectFrame->PresContext()->GetRootPresContext()->PresShell()->GetYResolution();
-    pluginRect.Scale(xResolution, yResolution);
-
-    SendSize((int)pluginRect.width, (int)pluginRect.height);
     return;
   }
 
@@ -3069,17 +3029,11 @@ void nsPluginInstanceOwner::Paint(gfxContext* aContext,
   aContext->Translate(pluginRect.TopLeft());
 
   Renderer renderer(window, this, pluginSize, pluginDirtyRect);
-#ifdef MOZ_WIDGET_GTK2
-  // This is the visual used by the widgets, 24-bit if available.
-  GdkVisual* gdkVisual = gdk_rgb_get_visual();
-  Visual* visual = gdk_x11_visual_get_xvisual(gdkVisual);
-  Screen* screen =
-    gdk_x11_screen_get_xscreen(gdk_visual_get_screen(gdkVisual));
-#else
+
   Display* dpy = mozilla::DefaultXDisplay();
   Screen* screen = DefaultScreenOfDisplay(dpy);
   Visual* visual = DefaultVisualOfScreen(screen);
-#endif
+
   renderer.Draw(aContext, nsIntSize(window->width, window->height),
                 rendererFlags, screen, visual, nsnull);
 }
@@ -3471,7 +3425,6 @@ void* nsPluginInstanceOwner::FixUpPluginWindow(PRInt32 inPaintState)
   if (!mWidget || !mPluginWindow || !mInstance || !mObjectFrame)
     return nsnull;
 
-  NPDrawingModel drawingModel = GetDrawingModel();
   NPEventModel eventModel = GetEventModel();
 
   nsCOMPtr<nsIPluginWidget> pluginWidget = do_QueryInterface(mWidget);
@@ -3513,6 +3466,7 @@ void* nsPluginInstanceOwner::FixUpPluginWindow(PRInt32 inPaintState)
 
 #ifndef NP_NO_QUICKDRAW
   // set the port coordinates
+  NPDrawingModel drawingModel = GetDrawingModel();
   if (drawingModel == NPDrawingModelQuickDraw) {
     mPluginWindow->x = -static_cast<NP_Port*>(pluginPort)->portx;
     mPluginWindow->y = -static_cast<NP_Port*>(pluginPort)->porty;
@@ -3699,9 +3653,6 @@ nsPluginInstanceOwner::UpdateDocumentActiveState(bool aIsActive)
 
 #ifdef MOZ_WIDGET_ANDROID
   if (mInstance) {
-    if (mLayer)
-      mLayer->SetVisible(mPluginDocumentActiveState);
-
     if (!mPluginDocumentActiveState)
       RemovePluginView();
 
@@ -3831,6 +3782,11 @@ void nsPluginInstanceOwner::FixUpURLS(const nsString &name, nsAString &value)
     if (!newURL.IsEmpty())
       value = newURL;
   }
+}
+
+NS_IMETHODIMP nsPluginInstanceOwner::PrivateModeChanged(bool aEnabled)
+{
+  return mInstance ? mInstance->PrivateModeStateChanged(aEnabled) : NS_OK;
 }
 
 // nsPluginDOMContextMenuListener class implementation

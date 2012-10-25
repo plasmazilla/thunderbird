@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Blake Ross <blakeross@telocity.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsCOMPtr.h"
 #include "nsTextControlFrame.h"
@@ -48,13 +15,13 @@
 #include "nsIDocumentEncoder.h"
 #include "nsCaret.h"
 #include "nsISelectionListener.h"
-#include "nsISelectionPrivate.h"
 #include "nsIController.h"
 #include "nsIControllers.h"
 #include "nsIControllerContext.h"
 #include "nsGenericHTMLElement.h"
 #include "nsIEditorIMESupport.h"
 #include "nsIPhonetic.h"
+#include "nsTextFragment.h"
 #include "nsIEditorObserver.h"
 #include "nsEditProperty.h"
 #include "nsIDOMHTMLTextAreaElement.h"
@@ -73,13 +40,11 @@
 #include "nsIViewManager.h"
 #include "nsIDOMHTMLInputElement.h"
 #include "nsIDOMElement.h"
-#include "nsIDOMDocument.h"
 #include "nsIDOMHTMLElement.h"
 #include "nsIPresShell.h"
 
 #include "nsBoxLayoutState.h"
 //for keylistener for "return" check
-#include "nsIPrivateDOMEvent.h"
 #include "nsIDOMEventTarget.h"
 #include "nsIDocument.h" //observe documents to send onchangenotifications
 #include "nsIStyleSheet.h"//observe documents to send onchangenotifications
@@ -108,8 +73,11 @@
 #include "nsPresState.h"
 
 #include "mozilla/FunctionTimer.h"
+#include "mozilla/Selection.h"
 
 #define DEFAULT_COLUMN_WIDTH 20
+
+using namespace mozilla;
 
 nsIFrame*
 NS_NewTextControlFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
@@ -127,7 +95,7 @@ NS_QUERYFRAME_HEAD(nsTextControlFrame)
 NS_QUERYFRAME_TAIL_INHERITING(nsBoxFrame)
 
 #ifdef ACCESSIBILITY
-already_AddRefed<nsAccessible>
+already_AddRefed<Accessible>
 nsTextControlFrame::CreateAccessible()
 {
   nsAccessibilityService* accService = nsIPresShell::AccService();
@@ -169,7 +137,6 @@ nsTextControlFrame::nsTextControlFrame(nsIPresShell* aShell, nsStyleContext* aCo
   : nsStackFrame(aShell, aContext)
   , mUseEditor(false)
   , mIsProcessing(false)
-  , mFireChangeEventState(false)
 #ifdef DEBUG
   , mInEditorInitialization(false)
 #endif
@@ -665,39 +632,12 @@ void nsTextControlFrame::SetFocus(bool aOn, bool aRepaint)
   mScrollEvent.Revoke();
 
   if (!aOn) {
-    if (mUsePlaceholder) {
-      PRInt32 textLength;
-      GetTextLength(&textLength);
-
-      if (!textLength) {
-        nsWeakFrame weakFrame(this);
-
-        txtCtrl->SetPlaceholderClass(true, true);
-
-        if (!weakFrame.IsAlive()) {
-          return;
-        }
-      }
-    }
-
     return;
   }
 
   nsISelectionController* selCon = txtCtrl->GetSelectionController();
   if (!selCon)
     return;
-
-  if (mUsePlaceholder) {
-    nsWeakFrame weakFrame(this);
-
-    txtCtrl->SetPlaceholderClass(false, true);
-
-    if (!weakFrame.IsAlive()) {
-      return;
-    }
-  }
-
-  InitFocusedValue();
 
   nsCOMPtr<nsISelection> ourSel;
   selCon->GetSelection(nsISelectionController::SELECTION_NORMAL, 
@@ -878,6 +818,15 @@ nsTextControlFrame::ScrollSelectionIntoView()
   return NS_ERROR_FAILURE;
 }
 
+mozilla::dom::Element*
+nsTextControlFrame::GetRootNodeAndInitializeEditor()
+{
+  nsCOMPtr<nsIDOMElement> root;
+  GetRootNodeAndInitializeEditor(getter_AddRefs(root));
+  nsCOMPtr<mozilla::dom::Element> rootElem = do_QueryInterface(root);
+  return rootElem;
+}
+
 nsresult
 nsTextControlFrame::GetRootNodeAndInitializeEditor(nsIDOMElement **aRootElement)
 {
@@ -1026,58 +975,6 @@ nsTextControlFrame::SetSelectionEnd(PRInt32 aSelectionEnd)
 }
 
 nsresult
-nsTextControlFrame::DOMPointToOffset(nsIDOMNode* aNode,
-                                     PRInt32 aNodeOffset,
-                                     PRInt32* aResult)
-{
-  NS_ENSURE_ARG_POINTER(aNode && aResult);
-
-  *aResult = 0;
-
-  nsCOMPtr<nsIDOMElement> rootElement;
-  nsresult rv = GetRootNodeAndInitializeEditor(getter_AddRefs(rootElement));
-  nsCOMPtr<nsIDOMNode> rootNode(do_QueryInterface(rootElement));
-
-  NS_ENSURE_TRUE(rootNode, NS_ERROR_FAILURE);
-
-  nsCOMPtr<nsIDOMNodeList> nodeList;
-
-  rv = rootNode->GetChildNodes(getter_AddRefs(nodeList));
-  NS_ENSURE_SUCCESS(rv, rv);
-  NS_ENSURE_TRUE(nodeList, NS_ERROR_FAILURE);
-
-  PRUint32 length = 0;
-  rv = nodeList->GetLength(&length);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  if (!length || aNodeOffset < 0)
-    return NS_OK;
-
-  NS_ASSERTION(length <= 2, "We should have one text node and one mozBR at most");
-
-  nsCOMPtr<nsIDOMNode> firstNode;
-  rv = nodeList->Item(0, getter_AddRefs(firstNode));
-  NS_ENSURE_SUCCESS(rv, rv);
-  nsCOMPtr<nsIDOMText> textNode = do_QueryInterface(firstNode);
-
-  nsCOMPtr<nsIDOMText> nodeAsText = do_QueryInterface(aNode);
-  if (nodeAsText || (aNode == rootNode && aNodeOffset == 0)) {
-    // Selection is somewhere inside the text node; the offset is aNodeOffset
-    *aResult = aNodeOffset;
-  } else {
-    // Selection is on the mozBR node, so offset should be set to the length
-    // of the text node.
-    if (textNode) {
-      rv = textNode->GetLength(&length);
-      NS_ENSURE_SUCCESS(rv, rv);
-      *aResult = PRInt32(length);
-    }
-  }
-
-  return NS_OK;
-}
-
-nsresult
 nsTextControlFrame::OffsetToDOMPoint(PRInt32 aOffset,
                                      nsIDOMNode** aResult,
                                      PRInt32* aPosition)
@@ -1163,26 +1060,24 @@ nsTextControlFrame::GetSelectionRange(PRInt32* aSelectionStart,
   rv = selCon->GetSelection(nsISelectionController::SELECTION_NORMAL, getter_AddRefs(selection));  
   NS_ENSURE_SUCCESS(rv, rv);
   NS_ENSURE_TRUE(selection, NS_ERROR_FAILURE);
-
-  PRInt32 numRanges = 0;
-  selection->GetRangeCount(&numRanges);
-
-  if (numRanges < 1)
-    return NS_OK;
-
-  // We only operate on the first range in the selection!
+  nsCOMPtr<nsISelectionPrivate> selPriv = do_QueryInterface(selection);
+  NS_ENSURE_TRUE(selPriv, NS_ERROR_FAILURE);
+  nsRefPtr<nsFrameSelection> frameSel;
+  rv = selPriv->GetFrameSelection(getter_AddRefs(frameSel));
+  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_TRUE(frameSel, NS_ERROR_FAILURE);
+  nsRefPtr<Selection> typedSel =
+    frameSel->GetSelection(nsISelectionController::SELECTION_NORMAL);
+  NS_ENSURE_TRUE(typedSel, NS_ERROR_FAILURE);
 
   if (aDirection) {
-    nsCOMPtr<nsISelectionPrivate> selPriv = do_QueryInterface(selection);
-    if (selPriv) {
-      nsDirection direction = selPriv->GetSelectionDirection();
-      if (direction == eDirNext) {
-        *aDirection = eForward;
-      } else if (direction == eDirPrevious) {
-        *aDirection = eBackward;
-      } else {
-        NS_NOTREACHED("Invalid nsDirection enum value");
-      }
+    nsDirection direction = typedSel->GetSelectionDirection();
+    if (direction == eDirNext) {
+      *aDirection = eForward;
+    } else if (direction == eDirPrevious) {
+      *aDirection = eBackward;
+    } else {
+      NS_NOTREACHED("Invalid nsDirection enum value");
     }
   }
 
@@ -1190,40 +1085,10 @@ nsTextControlFrame::GetSelectionRange(PRInt32* aSelectionStart,
     return NS_OK;
   }
 
-  nsCOMPtr<nsIDOMRange> firstRange;
-  rv = selection->GetRangeAt(0, getter_AddRefs(firstRange));
-  NS_ENSURE_SUCCESS(rv, rv);
-  NS_ENSURE_TRUE(firstRange, NS_ERROR_FAILURE);
+  nsContentUtils::GetSelectionInTextControl(typedSel,
+    GetRootNodeAndInitializeEditor(), *aSelectionStart, *aSelectionEnd);
 
-  nsCOMPtr<nsIDOMNode> startNode, endNode;
-  PRInt32 startOffset = 0, endOffset = 0;
-
-  // Get the start point of the range.
-
-  rv = firstRange->GetStartContainer(getter_AddRefs(startNode));
-  NS_ENSURE_SUCCESS(rv, rv);
-  NS_ENSURE_TRUE(startNode, NS_ERROR_FAILURE);
-
-  rv = firstRange->GetStartOffset(&startOffset);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  // Get the end point of the range.
-
-  rv = firstRange->GetEndContainer(getter_AddRefs(endNode));
-  NS_ENSURE_SUCCESS(rv, rv);
-  NS_ENSURE_TRUE(endNode, NS_ERROR_FAILURE);
-
-  rv = firstRange->GetEndOffset(&endOffset);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  // Convert the start point to a selection offset.
-
-  rv = DOMPointToOffset(startNode, startOffset, aSelectionStart);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  // Convert the end point to a selection offset.
-
-  return DOMPointToOffset(endNode, endOffset, aSelectionEnd);
+  return NS_OK;
 }
 
 /////END INTERFACE IMPLEMENTATIONS
@@ -1379,28 +1244,6 @@ nsTextControlFrame::GetMaxLength(PRInt32* aSize)
   return false;
 }
 
-nsresult
-nsTextControlFrame::InitFocusedValue()
-{
-  return GetText(mFocusedValue);
-}
-
-NS_IMETHODIMP
-nsTextControlFrame::CheckFireOnChange()
-{
-  nsString value;
-  GetText(value);
-  if (!mFocusedValue.Equals(value))
-  {
-    mFocusedValue = value;
-    // Dispatch the change event.
-    nsContentUtils::DispatchTrustedEvent(mContent->OwnerDoc(), mContent,
-                                         NS_LITERAL_STRING("change"), true,
-                                         false);
-  }
-  return NS_OK;
-}
-
 // END IMPLEMENTING NS_IFORMCONTROLFRAME
 
 NS_IMETHODIMP
@@ -1450,9 +1293,7 @@ nsTextControlFrame::SetValueChanged(bool aValueChanged)
   nsCOMPtr<nsITextControlElement> txtCtrl = do_QueryInterface(GetContent());
   NS_ASSERTION(txtCtrl, "Content not a text control element");
 
-  if (mUsePlaceholder && !nsContentUtils::IsFocusedContent(mContent)) {
-    // If the content is focused, we don't care about the changes because
-    // the placeholder is going to be hidden/shown on blur.
+  if (mUsePlaceholder) {
     PRInt32 textLength;
     GetTextLength(&textLength);
 
@@ -1598,3 +1439,10 @@ nsTextControlFrame::RestoreState(nsPresState* aState)
   Properties().Set(ContentScrollPos(), new nsPoint(aState->GetScrollState()));
   return NS_OK;
 }
+
+NS_IMETHODIMP
+nsTextControlFrame::PeekOffset(nsPeekOffsetStruct *aPos)
+{
+  return NS_ERROR_FAILURE;
+}
+

@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 /* vim: set sw=4 ts=8 et tw=80 : */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Content App.
- *
- * The Initial Developer of the Original Code is
- *   The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Frederic Plourde <frederic.plourde@collabora.co.uk>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "ContentParent.h"
 
@@ -50,7 +17,6 @@
 #include "nsIWindowWatcher.h"
 #include "nsIDOMWindow.h"
 #include "nsIObserverService.h"
-#include "nsContentUtils.h"
 #include "nsAutoPtr.h"
 #include "nsCOMPtr.h"
 #include "nsServiceManagerUtils.h"
@@ -68,7 +34,6 @@
 #include "nsConsoleMessage.h"
 #include "nsAppDirectoryServiceDefs.h"
 #include "nsAppRunner.h"
-#include "IDBFactory.h"
 #if defined(MOZ_SYDNEYAUDIO)
 #include "AudioParent.h"
 #endif
@@ -111,7 +76,16 @@
 #include "nsWidgetsCID.h"
 #include "nsISupportsPrimitives.h"
 #include "mozilla/dom/sms/SmsParent.h"
+#include "mozilla/dom/devicestorage/DeviceStorageRequestParent.h"
 #include "nsDebugImpl.h"
+
+#include "nsAppDirectoryServiceDefs.h"
+#include "nsDirectoryServiceDefs.h"
+#include "mozilla/Preferences.h"
+
+#include "IDBFactory.h"
+#include "IndexedDatabaseManager.h"
+#include "IndexedDBParent.h"
 
 static NS_DEFINE_CID(kCClipboardCID, NS_CLIPBOARD_CID);
 static const char* sClipboardTextFlavors[] = { kUnicodeMime };
@@ -123,7 +97,9 @@ using namespace mozilla::net;
 using namespace mozilla::places;
 using mozilla::unused; // heh
 using base::KillProcess;
+using namespace mozilla::dom::devicestorage;
 using namespace mozilla::dom::sms;
+using namespace mozilla::dom::indexedDB;
 
 namespace mozilla {
 namespace dom {
@@ -162,7 +138,9 @@ MemoryReportRequestParent::~MemoryReportRequestParent()
     MOZ_COUNT_DTOR(MemoryReportRequestParent);
 }
 
-nsTArray<ContentParent*>* ContentParent::gContentParents;
+nsDataHashtable<nsStringHashKey, ContentParent*>* ContentParent::gAppContentParents;
+nsTArray<ContentParent*>* ContentParent::gNonAppContentParents;
+nsTArray<ContentParent*>* ContentParent::gPrivateContent;
 
 // The first content child has ID 1, so the chrome process can have ID 0.
 static PRUint64 gContentChildID = 1;
@@ -170,34 +148,72 @@ static PRUint64 gContentChildID = 1;
 ContentParent*
 ContentParent::GetNewOrUsed()
 {
-    if (!gContentParents)
-        gContentParents = new nsTArray<ContentParent*>();
+    if (!gNonAppContentParents)
+        gNonAppContentParents = new nsTArray<ContentParent*>();
 
     PRInt32 maxContentProcesses = Preferences::GetInt("dom.ipc.processCount", 1);
     if (maxContentProcesses < 1)
         maxContentProcesses = 1;
 
-    if (gContentParents->Length() >= PRUint32(maxContentProcesses)) {
-        ContentParent* p = (*gContentParents)[rand() % gContentParents->Length()];
-        NS_ASSERTION(p->IsAlive(), "Non-alive contentparent in gContentParents?");
+    if (gNonAppContentParents->Length() >= PRUint32(maxContentProcesses)) {
+        PRUint32 idx = rand() % gNonAppContentParents->Length();
+        ContentParent* p = (*gNonAppContentParents)[idx];
+        NS_ASSERTION(p->IsAlive(), "Non-alive contentparent in gNonAppContentParents?");
         return p;
     }
         
-    nsRefPtr<ContentParent> p = new ContentParent();
+    nsRefPtr<ContentParent> p =
+        new ContentParent(/* appManifestURL = */ EmptyString());
     p->Init();
-    gContentParents->AppendElement(p);
+    gNonAppContentParents->AppendElement(p);
     return p;
+}
+
+ContentParent*
+ContentParent::GetForApp(const nsAString& aAppManifestURL)
+{
+    if (aAppManifestURL.IsEmpty()) {
+        return GetNewOrUsed();
+    }
+
+    if (!gAppContentParents) {
+        gAppContentParents =
+            new nsDataHashtable<nsStringHashKey, ContentParent*>();
+        gAppContentParents->Init();
+    }
+
+    // Each app gets its own ContentParent instance.
+    ContentParent* p = gAppContentParents->Get(aAppManifestURL);
+    if (!p) {
+        p = new ContentParent(aAppManifestURL);
+        p->Init();
+        gAppContentParents->Put(aAppManifestURL, p);
+    }
+
+    return p;
+}
+
+static PLDHashOperator
+AppendToTArray(const nsAString& aKey, ContentParent* aValue, void* aArray)
+{
+    nsTArray<ContentParent*> *array =
+        static_cast<nsTArray<ContentParent*>*>(aArray);
+    array->AppendElement(aValue);
+    return PL_DHASH_NEXT;
 }
 
 void
 ContentParent::GetAll(nsTArray<ContentParent*>& aArray)
 {
-    if (!gContentParents) {
-        aArray.Clear();
-        return;
+    aArray.Clear();
+
+    if (gNonAppContentParents) {
+        aArray.AppendElements(*gNonAppContentParents);
     }
 
-    aArray = *gContentParents;
+    if (gAppContentParents) {
+        gAppContentParents->EnumerateRead(&AppendToTArray, &aArray);
+    }
 }
 
 void
@@ -211,6 +227,7 @@ ContentParent::Init()
         obs->AddObserver(this, "memory-pressure", false);
         obs->AddObserver(this, "child-gc-request", false);
         obs->AddObserver(this, "child-cc-request", false);
+        obs->AddObserver(this, "last-pb-context-exited", false);
 #ifdef ACCESSIBILITY
         obs->AddObserver(this, "a11y-init-or-shutdown", false);
 #endif
@@ -308,6 +325,7 @@ ContentParent::ActorDestroy(ActorDestroyReason why)
         obs->RemoveObserver(static_cast<nsIObserver*>(this), NS_IPC_IOSERVICE_SET_OFFLINE_TOPIC);
         obs->RemoveObserver(static_cast<nsIObserver*>(this), "child-gc-request");
         obs->RemoveObserver(static_cast<nsIObserver*>(this), "child-cc-request");
+        obs->RemoveObserver(static_cast<nsIObserver*>(this), "last-pb-context-exited");
 #ifdef ACCESSIBILITY
         obs->RemoveObserver(static_cast<nsIObserver*>(this), "a11y-init-or-shutdown");
 #endif
@@ -331,11 +349,25 @@ ContentParent::ActorDestroy(ActorDestroyReason why)
     if (mRunToCompletionDepth)
         mRunToCompletionDepth = 0;
 
-    if (gContentParents) {
-        gContentParents->RemoveElement(this);
-        if (!gContentParents->Length()) {
-            delete gContentParents;
-            gContentParents = NULL;
+    if (!mAppManifestURL.IsEmpty()) {
+        gAppContentParents->Remove(mAppManifestURL);
+        if (!gAppContentParents->Count()) {
+            delete gAppContentParents;
+            gAppContentParents = NULL;
+        }
+    } else {
+        gNonAppContentParents->RemoveElement(this);
+        if (!gNonAppContentParents->Length()) {
+            delete gNonAppContentParents;
+            gNonAppContentParents = NULL;
+        }
+    }
+
+    if (gPrivateContent) {
+        gPrivateContent->RemoveElement(this);
+        if (!gPrivateContent->Length()) {
+            delete gPrivateContent;
+            gPrivateContent = NULL;
         }
     }
 
@@ -379,9 +411,9 @@ ContentParent::ActorDestroy(ActorDestroyReason why)
 }
 
 TabParent*
-ContentParent::CreateTab(PRUint32 aChromeFlags)
+ContentParent::CreateTab(PRUint32 aChromeFlags, bool aIsBrowserFrame)
 {
-  return static_cast<TabParent*>(SendPBrowserConstructor(aChromeFlags));
+  return static_cast<TabParent*>(SendPBrowserConstructor(aChromeFlags, aIsBrowserFrame));
 }
 
 TestShellParent*
@@ -404,12 +436,13 @@ ContentParent::GetTestShellSingleton()
     return static_cast<TestShellParent*>(ManagedPTestShellParent()[0]);
 }
 
-ContentParent::ContentParent()
+ContentParent::ContentParent(const nsAString& aAppManifestURL)
     : mGeolocationWatchID(-1)
     , mRunToCompletionDepth(0)
     , mShouldCallUnblockChild(false)
     , mIsAlive(true)
     , mSendPermissionUpdates(false)
+    , mAppManifestURL(aAppManifestURL)
 {
     // From this point on, NS_WARNING, NS_ASSERTION, etc. should print out the
     // PID along with the warning.
@@ -442,8 +475,16 @@ ContentParent::~ContentParent()
         base::CloseProcessHandle(OtherProcess());
 
     NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
-    NS_ASSERTION(!gContentParents || !gContentParents->Contains(this),
-                 "Should have been removed in ActorDestroy");
+
+    // We should be removed from all these lists in ActorDestroy.
+    MOZ_ASSERT(!gPrivateContent || !gPrivateContent->Contains(this));
+    if (mAppManifestURL.IsEmpty()) {
+        MOZ_ASSERT(!gNonAppContentParents ||
+                   !gNonAppContentParents->Contains(this));
+    } else {
+        MOZ_ASSERT(!gAppContentParents ||
+                   !gAppContentParents->Get(mAppManifestURL));
+    }
 }
 
 bool
@@ -515,24 +556,6 @@ ContentParent::RecvReadPermissions(InfallibleTArray<IPC::Permission>* aPermissio
 }
 
 bool
-ContentParent::RecvGetIndexedDBDirectory(nsString* aDirectory)
-{
-    indexedDB::IDBFactory::NoteUsedByProcessType(GeckoProcessType_Content);
-
-    nsCOMPtr<nsIFile> dbDirectory;
-    nsresult rv = indexedDB::IDBFactory::GetDirectory(getter_AddRefs(dbDirectory));
-
-    if (NS_FAILED(rv)) {
-        NS_ERROR("Failed to get IndexedDB directory");
-        return true;
-    }
-
-    dbDirectory->GetPath(*aDirectory);
-
-    return true;
-}
-
-bool
 ContentParent::RecvSetClipboardText(const nsString& text, const PRInt32& whichClipboard)
 {
     nsresult rv;
@@ -548,6 +571,7 @@ ContentParent::RecvSetClipboardText(const nsString& text, const PRInt32& whichCl
     
     nsCOMPtr<nsITransferable> trans = do_CreateInstance("@mozilla.org/widget/transferable;1", &rv);
     NS_ENSURE_SUCCESS(rv, true);
+    trans->Init(nsnull);
     
     // If our data flavor has already been added, this will fail. But we don't care
     trans->AddDataFlavor(kUnicodeMime);
@@ -572,6 +596,7 @@ ContentParent::RecvGetClipboardText(const PRInt32& whichClipboard, nsString* tex
 
     nsCOMPtr<nsITransferable> trans = do_CreateInstance("@mozilla.org/widget/transferable;1", &rv);
     NS_ENSURE_SUCCESS(rv, true);
+    trans->Init(nsnull);
     
     clipboard->GetData(trans, whichClipboard);
     nsCOMPtr<nsISupports> tmp;
@@ -723,6 +748,9 @@ ContentParent::Observe(nsISupports* aSubject,
     else if (!strcmp(aTopic, "child-cc-request")){
         SendCycleCollect();
     }
+    else if (!strcmp(aTopic, "last-pb-context-exited")) {
+        unused << SendLastPrivateDocShellDestroyed();
+    }
 #ifdef ACCESSIBILITY
     // Make sure accessibility is running in content process when accessibility
     // gets initiated in chrome process.
@@ -736,7 +764,7 @@ ContentParent::Observe(nsISupports* aSubject,
 }
 
 PBrowserParent*
-ContentParent::AllocPBrowser(const PRUint32& aChromeFlags)
+ContentParent::AllocPBrowser(const PRUint32& aChromeFlags, const bool& aIsBrowserFrame)
 {
   TabParent* parent = new TabParent();
   if (parent){
@@ -750,6 +778,19 @@ ContentParent::DeallocPBrowser(PBrowserParent* frame)
 {
   TabParent* parent = static_cast<TabParent*>(frame);
   NS_RELEASE(parent);
+  return true;
+}
+
+PDeviceStorageRequestParent*
+ContentParent::AllocPDeviceStorageRequest(const DeviceStorageParams& aParams)
+{
+  return new DeviceStorageRequestParent(aParams);
+}
+
+bool
+ContentParent::DeallocPDeviceStorageRequest(PDeviceStorageRequestParent* doomed)
+{
+  delete doomed;
   return true;
 }
 
@@ -791,6 +832,42 @@ ContentParent::DeallocPHal(PHalParent* aHal)
 {
     delete aHal;
     return true;
+}
+
+PIndexedDBParent*
+ContentParent::AllocPIndexedDB()
+{
+  return new IndexedDBParent();
+}
+
+bool
+ContentParent::DeallocPIndexedDB(PIndexedDBParent* aActor)
+{
+  delete aActor;
+  return true;
+}
+
+bool
+ContentParent::RecvPIndexedDBConstructor(PIndexedDBParent* aActor)
+{
+  nsRefPtr<IndexedDatabaseManager> mgr = IndexedDatabaseManager::GetOrCreate();
+  NS_ENSURE_TRUE(mgr, false);
+
+  if (!IndexedDatabaseManager::IsMainProcess()) {
+    NS_RUNTIMEABORT("Not supported yet!");
+  }
+
+  nsRefPtr<IDBFactory> factory;
+  nsresult rv = IDBFactory::Create(getter_AddRefs(factory));
+  NS_ENSURE_SUCCESS(rv, false);
+
+  NS_ASSERTION(factory, "This should never be null!");
+
+  IndexedDBParent* actor = static_cast<IndexedDBParent*>(aActor);
+  actor->mFactory = factory;
+  actor->mASCIIOrigin = factory->GetASCIIOrigin();
+
+  return true;
 }
 
 PMemoryReportRequestParent*
@@ -1052,7 +1129,7 @@ ContentParent::RecvShowFilePicker(const PRInt16& mode,
         nsCOMPtr<nsISimpleEnumerator> fileIter;
         *result = filePicker->GetFiles(getter_AddRefs(fileIter));
 
-        nsCOMPtr<nsILocalFile> singleFile;
+        nsCOMPtr<nsIFile> singleFile;
         bool loop = true;
         while (NS_SUCCEEDED(fileIter->HasMoreElements(&loop)) && loop) {
             fileIter->GetNext(getter_AddRefs(singleFile));
@@ -1064,7 +1141,7 @@ ContentParent::RecvShowFilePicker(const PRInt16& mode,
         }
         return true;
     }
-    nsCOMPtr<nsILocalFile> file;
+    nsCOMPtr<nsIFile> file;
     filePicker->GetFile(getter_AddRefs(file));
 
     // even with NS_OK file can be null if nothing was selected 
@@ -1231,6 +1308,25 @@ ContentParent::RecvScriptError(const nsString& aMessage,
     return true;
 
   svc->LogMessage(msg);
+  return true;
+}
+
+bool
+ContentParent::RecvPrivateDocShellsExist(const bool& aExist)
+{
+  if (!gPrivateContent)
+    gPrivateContent = new nsTArray<ContentParent*>();
+  if (aExist) {
+    gPrivateContent->AppendElement(this);
+  } else {
+    gPrivateContent->RemoveElement(this);
+    if (!gPrivateContent->Length()) {
+      nsCOMPtr<nsIObserverService> obs = mozilla::services::GetObserverService();
+      obs->NotifyObservers(nsnull, "last-pb-context-exited", nsnull);
+      delete gPrivateContent;
+      gPrivateContent = NULL;
+    }
+  }
   return true;
 }
 

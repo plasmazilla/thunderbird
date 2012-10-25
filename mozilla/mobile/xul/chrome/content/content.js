@@ -1,4 +1,8 @@
 // -*- Mode: js2; tab-width: 2; indent-tabs-mode: nil; js2-basic-offset: 2; js2-skip-preprocessor-directives: t; -*-
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 // This stays here because otherwise it's hard to tell if there's a parsing error
 dump("###################################### content loaded\n");
 
@@ -1489,7 +1493,7 @@ var SelectionHandler = {
 
         if (pointInSelection && this.selectedText.length) {
           let clipboard = Cc["@mozilla.org/widget/clipboardhelper;1"].getService(Ci.nsIClipboardHelper);
-          clipboard.copyString(this.selectedText);
+          clipboard.copyString(this.selectedText, this.contentWindow.document);
           sendAsyncMessage("Browser:SelectionCopied", { succeeded: true });
         } else {
           sendAsyncMessage("Browser:SelectionCopied", { succeeded: false });

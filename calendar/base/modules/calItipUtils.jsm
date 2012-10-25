@@ -1,43 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Sun Microsystems code.
- *
- * The Initial Developer of the Original Code is
- *   Sun Microsystems, Inc.
- * Portions created by the Initial Developer are Copyright (C) 2008
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Daniel Boelzle <daniel.boelzle@sun.com>
- *   Philipp Kewisch <mozilla@kewis.ch>
- *   Clint Talbert <ctalbert.moz@gmail.com>
- *   Matthew Willis <lilmatt@mozilla.com>
- *   Simon Vaillancourt <simon.at.orcl@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://calendar/modules/calAlarmUtils.jsm");
@@ -588,9 +551,7 @@ cal.itip = {
 
         let autoResponse = { value: false }; // controls confirm to send email only once
 
-        let invitedAttendee = ((cal.calInstanceOf(aItem.calendar, Components.interfaces.calISchedulingSupport) &&
-                                aItem.calendar.isInvitation(aItem))
-                               ? aItem.calendar.getInvitedAttendee(aItem) : null);
+        let invitedAttendee = cal.isInvitation(aItem) && cal.getInvitedAttendee(aItem);
         if (invitedAttendee) { // actually is an invitation copy, fix attendee list to send REPLY
             /* We check if the attendee id matches one of of the
              * userAddresses. If they aren't equal, it means that
@@ -893,9 +854,21 @@ function sendMessage(aItem, aMethod, aRecipientsList, autoResponse) {
     if (aRecipientsList.length == 0) {
         return;
     }
-    if (cal.calInstanceOf(aItem.calendar, Components.interfaces.calISchedulingSupport) &&
-        aItem.calendar.canNotify(aMethod, aItem)) {
-        return; // provider will handle that
+    if (cal.calInstanceOf(aItem.calendar, Components.interfaces.calISchedulingSupport)) {
+        // HACK: Usage of QueryInterface kind of hackish, need to remove all
+        // calls of calInstanceOf since casting happens per-compartment.
+        //
+        // Works:
+        //   let foo = aItem.calendar;
+        //   (foo instanceof Ci.calISchedulingSupport);
+        //   cal.calInstanceOf(aItem.calendar, Ci.calISchedulingSupport) && aItem.calendar.canNotify();
+        // Fails:
+        //   let foo = aItem.calendar;
+        //   cal.calInstanceOf(aItem.calendar, Ci.calISchedulingSupport) && aItem.calendar.canNotify();
+        if (aItem.calendar.QueryInterface(Components.interfaces.calISchedulingSupport)
+                          .canNotify(aMethod, aItem)) {
+            return; //provider will handle that
+        }
     }
 
     let aTransport = aItem.calendar.getProperty("itip.transport");
@@ -1054,7 +1027,7 @@ ItipFindItemListener.prototype = {
                                                "invalid number of attendees in PUBLISH!");
                                     if (item.calendar.getProperty("itip.disableRevisionChecks") ||
                                         cal.itip.compare(itipItemItem, item) > 0) {
-                                        let newItem = updateItem(newItem, itipItemItem);
+                                        let newItem = updateItem(item, itipItemItem);
                                         let action = function(opListener) {
                                             return newItem.calendar.modifyItem(newItem, item, opListener);
                                         };

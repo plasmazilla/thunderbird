@@ -28,6 +28,15 @@ var AppsUI = {
   shortcut: null
 };
 
+function openLink(aElement) {
+  try {
+    let formatter = Cc["@mozilla.org/toolkit/URLFormatterService;1"].getService(Ci.nsIURLFormatter);
+    let url = formatter.formatURLPref(aElement.getAttribute("pref"));
+    let BrowserApp = gChromeWin.BrowserApp;
+    BrowserApp.addTab(url, { selected: true, parentId: BrowserApp.selectedTab.id });
+  } catch (ex) {}
+}
+
 function onLoad(aEvent) {
   try {
     let formatter = Cc["@mozilla.org/toolkit/URLFormatterService;1"].getService(Ci.nsIURLFormatter);
@@ -44,11 +53,23 @@ function onLoad(aEvent) {
   AppsUI.shortcut = contextmenus.add(gStrings.GetStringFromName("appsContext.shortcut"), contextmenus.SelectorContext("div[mozApp]"),
     function(aTarget) {
       let manifest = aTarget.manifest;
-      createShortcut(manifest.name, manifest.fullLaunchPath(), manifest.iconURLForSize("64"), "webapp");
+      let origin = Services.io.newURI(aTarget.app.origin, null, null);
+      gChromeWin.WebappsUI.createShortcut(manifest.name, manifest.fullLaunchPath(), gChromeWin.WebappsUI.getBiggestIcon(manifest.icons, origin), "webapp");
     });
   AppsUI.uninstall = contextmenus.add(gStrings.GetStringFromName("appsContext.uninstall"), contextmenus.SelectorContext("div[mozApp]"),
     function(aTarget) {
       aTarget.app.uninstall();
+
+      let manifest = aTarget.manifest;
+      gChromeWin.sendMessageToJava({
+        gecko: {
+          type: "Shortcut:Remove",
+          title: manifest.name,
+          url: manifest.fullLaunchPath(),
+          origin: aTarget.app.origin,
+          shortcutType: "webapp"
+        }
+      });
     });
 }
 
@@ -86,7 +107,8 @@ function addApplication(aApp) {
   container.setAttribute("title", manifest.name);
 
   let img = document.createElement("img");
-  img.src = manifest.iconURLForSize("64");
+  let origin = Services.io.newURI(aApp.origin, null, null);
+  img.src = gChromeWin.WebappsUI.getBiggestIcon(manifest.icons, origin);
   img.setAttribute("title", manifest.name);
 
   let title = document.createElement("div");
@@ -120,38 +142,4 @@ function onUninstall(aEvent) {
     if (!parent.firstChild)
       document.getElementById("noapps").className = "";
   }
-}
-
-function createShortcut(aTitle, aURL, aIconURL, aType) {
-  // The images are 64px, but Android will resize as needed.
-  // Bigger is better than too small.
-  const kIconSize = 64;
-
-  let canvas = document.createElement("canvas");
-
-  function _createShortcut() {
-    let icon = canvas.toDataURL("image/png", "");
-    canvas = null;
-    try {
-      let shell = Cc["@mozilla.org/browser/shell-service;1"].createInstance(Ci.nsIShellService);
-      shell.createShortcut(aTitle, aURL, icon, aType);
-    } catch(e) {
-      Cu.reportError(e);
-    }
-  }
-
-  canvas.width = canvas.height = kIconSize;
-  let ctx = canvas.getContext("2d");
-
-  let favicon = new Image();
-  favicon.onload = function() {
-    ctx.drawImage(favicon, 0, 0, kIconSize, kIconSize);
-    _createShortcut();
-  }
-
-  favicon.onerror = function() {
-    Cu.reportError("CreateShortcut: favicon image load error");
-  }
-
-  favicon.src = aIconURL;
 }

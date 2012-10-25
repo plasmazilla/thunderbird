@@ -1,40 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is browser notifications.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Gavin Sharp <gavin@gavinsharp.com> (Original Author)
- *   Margaret Leibovic <margaret.leibovic@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 var EXPORTED_SYMBOLS = ["PopupNotifications"];
 
@@ -45,6 +11,9 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 const NOTIFICATION_EVENT_DISMISSED = "dismissed";
 const NOTIFICATION_EVENT_REMOVED = "removed";
 const NOTIFICATION_EVENT_SHOWN = "shown";
+
+const ICON_SELECTOR = ".notification-anchor-icon";
+const ICON_ATTRIBUTE_SHOWING = "showing";
 
 /**
  * Notification object describes a single popup notification.
@@ -82,15 +51,18 @@ Notification.prototype = {
   },
 
   get anchorElement() {
-    if (!this.owner.iconBox)
+    let iconBox = this.owner.iconBox;
+    if (!iconBox)
       return null;
 
     let anchorElement = null;
     if (this.anchorID)
-      anchorElement = this.owner.iconBox.querySelector("#"+this.anchorID);
+      anchorElement = iconBox.querySelector("#"+this.anchorID);
 
+    // Use a default anchor icon if it's available
     if (!anchorElement)
-      anchorElement = this.owner.iconBox;
+      anchorElement = iconBox.querySelector("#default-notification-icon") ||
+                      iconBox;
 
     return anchorElement;
   }
@@ -393,6 +365,8 @@ PopupNotifications.prototype = {
     if (index == -1)
       return;
 
+    notification.anchorElement.removeAttribute(ICON_ATTRIBUTE_SHOWING);
+
     // remove the notification
     notifications.splice(index, 1);
     this._fireCallback(notification, NOTIFICATION_EVENT_REMOVED);
@@ -402,7 +376,11 @@ PopupNotifications.prototype = {
    * Dismisses the notification without removing it.
    */
   _dismiss: function PopupNotifications_dismiss() {
+    let browser = this.panel.firstChild &&
+                  this.panel.firstChild.notification.browser;
     this.panel.hidePopup();
+    if (browser)
+      browser.focus();
   },
 
   /**
@@ -502,21 +480,27 @@ PopupNotifications.prototype = {
    * selection changes.
    */
   _update: function PopupNotifications_update(anchor) {
+    if (this.iconBox) {
+      // hide icons of the previous tab.
+      this._hideIcons();
+    }
+
     let anchorElement, notificationsToShow = [];
-    let haveNotifications = this._currentNotifications.length > 0;
+    let currentNotifications = this._currentNotifications;
+    let haveNotifications = currentNotifications.length > 0;
     if (haveNotifications) {
       // Only show the notifications that have the passed-in anchor (or the
       // first notification's anchor, if none was passed in). Other
       // notifications will be shown once these are dismissed.
-      anchorElement = anchor || this._currentNotifications[0].anchorElement;
+      anchorElement = anchor || currentNotifications[0].anchorElement;
 
       if (this.iconBox) {
+        this._showIcons(currentNotifications);
         this.iconBox.hidden = false;
-        this.iconBox.setAttribute("anchorid", anchorElement.id);
       }
 
       // Also filter out notifications that have been dismissed.
-      notificationsToShow = this._currentNotifications.filter(function (n) {
+      notificationsToShow = currentNotifications.filter(function (n) {
         return !n.dismissed && n.anchorElement == anchorElement &&
                !n.options.neverShow;
       });
@@ -536,6 +520,22 @@ PopupNotifications.prototype = {
       // to not having any showable notifications)
       if (this.iconBox && !haveNotifications)
         this.iconBox.hidden = true;
+    }
+  },
+
+  _showIcons: function PopupNotifications_showIcons(aCurrentNotifications) {
+    for (let notification of aCurrentNotifications) {
+      let anchorElm = notification.anchorElement;
+      if (anchorElm) {
+        anchorElm.setAttribute(ICON_ATTRIBUTE_SHOWING, "true");
+      }
+    }
+  },
+
+  _hideIcons: function PopupNotifications_hideIcons() {
+    let icons = this.iconBox.querySelectorAll(ICON_SELECTOR);
+    for (let icon of icons) {
+      icon.removeAttribute(ICON_ATTRIBUTE_SHOWING);
     }
   },
 

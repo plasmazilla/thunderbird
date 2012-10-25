@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Nick Kreeger <nick.kreeger@park.edu>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "msgCore.h"    // precompiled header...
 #include "nsMsgImapCID.h"
@@ -2083,9 +2049,7 @@ nsresult nsImapService::OfflineAppendFromFile(nsIFile *aFile,
         nsCOMPtr <nsIMsgParseMailMsgState> msgParser = do_CreateInstance(NS_PARSEMAILMSGSTATE_CONTRACTID, &rv);
         msgParser->SetMailDB(destDB);
 
-        nsCOMPtr <nsILocalFile> localFile = do_QueryInterface(aFile);
-        if (NS_SUCCEEDED(rv))
-          rv = NS_NewLocalFileInputStream(getter_AddRefs(inputStream), localFile);
+        rv = NS_NewLocalFileInputStream(getter_AddRefs(inputStream), aFile);
         if (NS_SUCCEEDED(rv) && inputStream)
         {
           // now, copy the temp file to the offline store for the dest folder.
@@ -2572,87 +2536,92 @@ nsresult nsImapService::GetServerFromUrl(nsIImapUrl *aImapUrl, nsIMsgIncomingSer
 }
 
 NS_IMETHODIMP nsImapService::NewURI(const nsACString &aSpec,
-                                    const char *aOriginCharset,  // ignored 
+                                    const char *aOriginCharset,  // ignored
                                     nsIURI *aBaseURI,
                                     nsIURI **aRetVal)
 {
+  NS_ENSURE_ARG_POINTER(aRetVal);
+
   nsresult rv;
   nsCOMPtr<nsIImapUrl> aImapUrl = do_CreateInstance(kImapUrlCID, &rv);
-  if (NS_SUCCEEDED(rv))
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // now extract lots of fun information...
+  nsCOMPtr<nsIMsgMailNewsUrl> mailnewsUrl = do_QueryInterface(aImapUrl);
+  // nsCAutoString unescapedSpec(aSpec);
+  // nsUnescape(unescapedSpec.BeginWriting());
+
+  // set the spec
+  if (aBaseURI)
   {
-    // now extract lots of fun information...
-    nsCOMPtr<nsIMsgMailNewsUrl> mailnewsUrl = do_QueryInterface(aImapUrl);
-    //nsCAutoString unescapedSpec(aSpec);
-    // nsUnescape(unescapedSpec.BeginWriting());
-
-    // set the spec
-    if (aBaseURI) 
-    {
-      nsCAutoString newSpec;
-      aBaseURI->Resolve(aSpec, newSpec);
-      mailnewsUrl->SetSpec(newSpec);
-    } 
-    else 
-      mailnewsUrl->SetSpec(aSpec);
-
-    nsCString folderName;
-
-    // if we can't get a folder name out of the url then I think this is an error
-    aImapUrl->CreateCanonicalSourceFolderPathString(getter_Copies(folderName));
-    if (folderName.IsEmpty())
-    {
-      rv = mailnewsUrl->GetFileName(folderName);
-      NS_ENSURE_SUCCESS(rv, rv);
-    }
-
-    nsCOMPtr <nsIMsgIncomingServer> server;
-    rv = GetServerFromUrl(aImapUrl, getter_AddRefs(server));
-    // if we can't extract the imap server from this url then give up!!!
-    NS_ENSURE_SUCCESS(rv, rv);
-    NS_ENSURE_TRUE(server, NS_ERROR_FAILURE);
-
-    // now try to get the folder in question...
-    nsCOMPtr<nsIMsgFolder> rootFolder;
-    server->GetRootFolder(getter_AddRefs(rootFolder));
-    if (rootFolder && !folderName.IsEmpty())
-    {
-      nsCOMPtr<nsIMsgFolder> folder;
-      nsCOMPtr <nsIMsgImapMailFolder> imapRoot = do_QueryInterface(rootFolder, &rv);
-      nsCOMPtr <nsIMsgImapMailFolder> subFolder;
-      if (imapRoot)
-      {
-        imapRoot->FindOnlineSubFolder(folderName, getter_AddRefs(subFolder));
-        folder = do_QueryInterface(subFolder, &rv);
-      }
-      if (NS_SUCCEEDED(rv))
-      {
-        nsCOMPtr<nsIImapMessageSink> msgSink = do_QueryInterface(folder);
-        rv = aImapUrl->SetImapMessageSink(msgSink);
-
-        nsCOMPtr<nsIMsgFolder> msgFolder = do_QueryInterface(folder);
-        rv = SetImapUrlSink(msgFolder, aImapUrl);
-
-         nsCString messageIdString;
-         aImapUrl->GetListOfMessageIds(messageIdString);
-         if (!messageIdString.IsEmpty())
-        {
-          bool useLocalCache = false;
-          msgFolder->HasMsgOffline(atoi(messageIdString.get()), &useLocalCache);  
-          mailnewsUrl->SetMsgIsInLocalCache(useLocalCache);
-        }
-      }
-    }
-
-    // if we are fetching a part, be sure to enable fetch parts on demand
-    bool mimePartSelectorDetected = false;
-    aImapUrl->GetMimePartSelectorDetected(&mimePartSelectorDetected);
-    if (mimePartSelectorDetected)
-      aImapUrl->SetFetchPartsOnDemand(true);
-
-    // we got an imap url, so be sure to return it...
-    nsCOMPtr<nsIURI> imapUri = do_QueryInterface(aImapUrl);
-    imapUri.swap(*aRetVal);
+    nsCAutoString newSpec;
+    aBaseURI->Resolve(aSpec, newSpec);
+    rv = mailnewsUrl->SetSpec(newSpec);
   }
+  else
+  {
+    rv = mailnewsUrl->SetSpec(aSpec);
+  }
+
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCString folderName;
+  // if we can't get a folder name out of the url then I think this is an error
+  aImapUrl->CreateCanonicalSourceFolderPathString(getter_Copies(folderName));
+  if (folderName.IsEmpty())
+  {
+    rv = mailnewsUrl->GetFileName(folderName);
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
+
+  nsCOMPtr<nsIMsgIncomingServer> server;
+  rv = GetServerFromUrl(aImapUrl, getter_AddRefs(server));
+  // if we can't extract the imap server from this url then give up!!!
+  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_TRUE(server, NS_ERROR_FAILURE);
+
+  // now try to get the folder in question...
+  nsCOMPtr<nsIMsgFolder> rootFolder;
+  server->GetRootFolder(getter_AddRefs(rootFolder));
+  if (rootFolder && !folderName.IsEmpty())
+  {
+    nsCOMPtr<nsIMsgFolder> folder;
+    nsCOMPtr<nsIMsgImapMailFolder> imapRoot = do_QueryInterface(rootFolder, &rv);
+    nsCOMPtr<nsIMsgImapMailFolder> subFolder;
+    if (imapRoot)
+    {
+      imapRoot->FindOnlineSubFolder(folderName, getter_AddRefs(subFolder));
+      folder = do_QueryInterface(subFolder, &rv);
+    }
+    if (NS_SUCCEEDED(rv))
+    {
+      nsCOMPtr<nsIImapMessageSink> msgSink = do_QueryInterface(folder);
+      rv = aImapUrl->SetImapMessageSink(msgSink);
+
+      nsCOMPtr<nsIMsgFolder> msgFolder = do_QueryInterface(folder);
+      rv = SetImapUrlSink(msgFolder, aImapUrl);
+
+      nsCString messageIdString;
+      aImapUrl->GetListOfMessageIds(messageIdString);
+      if (!messageIdString.IsEmpty())
+      {
+        bool useLocalCache = false;
+        msgFolder->HasMsgOffline(atoi(messageIdString.get()), &useLocalCache);
+        mailnewsUrl->SetMsgIsInLocalCache(useLocalCache);
+      }
+    }
+  }
+
+  // if we are fetching a part, be sure to enable fetch parts on demand
+  bool mimePartSelectorDetected = false;
+  aImapUrl->GetMimePartSelectorDetected(&mimePartSelectorDetected);
+  if (mimePartSelectorDetected)
+    aImapUrl->SetFetchPartsOnDemand(true);
+
+  // we got an imap url, so be sure to return it...
+  nsCOMPtr<nsIURI> imapUri = do_QueryInterface(aImapUrl);
+
+  imapUri.swap(*aRetVal);
 
   return rv;
 }
@@ -2865,20 +2834,20 @@ NS_IMETHODIMP nsImapService::NewChannel(nsIURI *aURI, nsIChannel **aRetVal)
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::SetDefaultLocalPath(nsILocalFile *aPath)
+NS_IMETHODIMP nsImapService::SetDefaultLocalPath(nsIFile *aPath)
 {
   NS_ENSURE_ARG_POINTER(aPath);
 
   return NS_SetPersistentFile(PREF_MAIL_ROOT_IMAP_REL, PREF_MAIL_ROOT_IMAP, aPath);
 }
 
-NS_IMETHODIMP nsImapService::GetDefaultLocalPath(nsILocalFile **aResult)
+NS_IMETHODIMP nsImapService::GetDefaultLocalPath(nsIFile **aResult)
 {
   NS_ENSURE_ARG_POINTER(aResult);
   *aResult = nsnull;
 
   bool havePref;
-  nsCOMPtr<nsILocalFile> localFile;
+  nsCOMPtr<nsIFile> localFile;
   nsresult rv = NS_GetPersistentFile(PREF_MAIL_ROOT_IMAP_REL,
                                      PREF_MAIL_ROOT_IMAP,
                                      NS_APP_IMAP_MAIL_50_DIR,

@@ -1,42 +1,8 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code, released
- * March 31, 1998.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   John Bandhauer <jband@netscape.com> (original author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* Call context. */
 
@@ -56,7 +22,6 @@ XPCCallContext::XPCCallContext(XPCContext::LangType callerLanguage,
                                jsval *rval      /* = nsnull    */)
     :   mState(INIT_FAILED),
         mXPC(nsXPConnect::GetXPConnect()),
-        mThreadData(nsnull),
         mXPCContext(nsnull),
         mJSContext(cx),
         mContextPopRequired(false),
@@ -76,7 +41,6 @@ XPCCallContext::XPCCallContext(XPCContext::LangType callerLanguage,
                                XPCWrappedNativeTearOff* tearOff)
     :   mState(INIT_FAILED),
         mXPC(nsXPConnect::GetXPConnect()),
-        mThreadData(nsnull),
         mXPCContext(nsnull),
         mJSContext(cx),
         mContextPopRequired(false),
@@ -105,12 +69,7 @@ XPCCallContext::Init(XPCContext::LangType callerLanguage,
     if (!mXPC)
         return;
 
-    mThreadData = XPCPerThreadData::GetData(mJSContext);
-
-    if (!mThreadData)
-        return;
-
-    XPCJSContextStack* stack = mThreadData->GetJSContextStack();
+    XPCJSContextStack* stack = XPCJSRuntime::Get()->GetJSContextStack();
 
     if (!stack) {
         // If we don't have a stack we're probably in shutdown.
@@ -157,8 +116,8 @@ XPCCallContext::Init(XPCContext::LangType callerLanguage,
     mXPCContext = XPCContext::GetXPCContext(mJSContext);
     mPrevCallerLanguage = mXPCContext->SetCallingLangType(mCallerLanguage);
 
-    // hook into call context chain for our thread
-    mPrevCallContext = mThreadData->SetCallContext(this);
+    // hook into call context chain.
+    mPrevCallContext = XPCJSRuntime::Get()->SetCallContext(this);
 
     // We only need to addref xpconnect once so only do it if this is the first
     // context in the chain.
@@ -185,8 +144,6 @@ XPCCallContext::Init(XPCContext::LangType callerLanguage,
                                                                 &mFlattenedJSObject,
                                                                 &mTearOff);
         if (mWrapper) {
-            DEBUG_CheckWrapperThreadSafety(mWrapper);
-
             mFlattenedJSObject = mWrapper->GetFlatJSObject();
 
             if (mTearOff)
@@ -319,7 +276,6 @@ XPCCallContext::SystemIsBeingShutDown()
     // can be making this call on one thread for call contexts on another
     // thread.
     NS_WARNING("Shutting Down XPConnect even through there is a live XPCCallContext");
-    mThreadData = nsnull;
     mXPCContext = nsnull;
     mState = SYSTEM_SHUTDOWN;
     if (mPrevCallContext)
@@ -335,12 +291,8 @@ XPCCallContext::~XPCCallContext()
     if (mXPCContext) {
         mXPCContext->SetCallingLangType(mPrevCallerLanguage);
 
-#ifdef DEBUG
-        XPCCallContext* old = mThreadData->SetCallContext(mPrevCallContext);
+        DebugOnly<XPCCallContext*> old = XPCJSRuntime::Get()->SetCallContext(mPrevCallContext);
         NS_ASSERTION(old == this, "bad pop from per thread data");
-#else
-        (void) mThreadData->SetCallContext(mPrevCallContext);
-#endif
 
         shouldReleaseXPC = mPrevCallContext == nsnull;
     }
@@ -350,7 +302,7 @@ XPCCallContext::~XPCCallContext()
         JS_EndRequest(mJSContext);
 
     if (mContextPopRequired) {
-        XPCJSContextStack* stack = mThreadData->GetJSContextStack();
+        XPCJSContextStack* stack = XPCJSRuntime::Get()->GetJSContextStack();
         NS_ASSERTION(stack, "bad!");
         if (stack) {
             DebugOnly<JSContext*> poppedCX = stack->Pop();
@@ -364,8 +316,7 @@ XPCCallContext::~XPCCallContext()
             printf("!xpc - doing deferred destruction of JSContext @ %p\n",
                    mJSContext);
 #endif
-            NS_ASSERTION(!mThreadData->GetJSContextStack() ||
-                         !mThreadData->GetJSContextStack()->
+            NS_ASSERTION(!XPCJSRuntime::Get()->GetJSContextStack()->
                          DEBUG_StackHasJSContext(mJSContext),
                          "JSContext still in threadjscontextstack!");
 
@@ -518,8 +469,7 @@ XPCCallContext::GetLanguage(PRUint16 *aResult)
 void
 XPCLazyCallContext::AssertContextIsTopOfStack(JSContext* cx)
 {
-    XPCPerThreadData* tls = XPCPerThreadData::GetData(cx);
-    XPCJSContextStack* stack = tls->GetJSContextStack();
+    XPCJSContextStack* stack = XPCJSRuntime::Get()->GetJSContextStack();
 
     JSContext *topJSContext = stack->Peek();
     NS_ASSERTION(cx == topJSContext, "wrong context on XPCJSContextStack!");

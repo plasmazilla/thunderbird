@@ -24,7 +24,13 @@ public:
     { }
     virtual ~TestDataStructuresSub()
     { }
-    uint32 mI;
+    NS_OVERRIDE
+    virtual void ActorDestroy(ActorDestroyReason why)
+    {
+      if (Deletion != why)
+        fail("unexpected destruction!");
+    }
+  uint32 mI;
 };
 
 //-----------------------------------------------------------------------------
@@ -89,6 +95,10 @@ protected:
     virtual bool RecvTest6(
             const InfallibleTArray<IntDoubleArrays>& i1,
             InfallibleTArray<IntDoubleArrays>* o1);
+
+    NS_OVERRIDE
+    virtual bool RecvTest7_0(const ActorWrapper& i1,
+                             ActorWrapper* o1);
 
     NS_OVERRIDE
     virtual bool RecvTest7(
@@ -226,6 +236,7 @@ private:
     void Test4();
     void Test5();
     void Test6();
+    void Test7_0();
     void Test7();
     void Test8();
     void Test9();

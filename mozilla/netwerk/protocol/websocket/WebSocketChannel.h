@@ -1,42 +1,8 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set sw=2 ts=8 et tw=80 : */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Wellington Fernando de Macedo <wfernandom2004@gmail.com> (original author)
- *   Patrick McManus <mcmanus@ducksong.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef mozilla_net_WebSocketChannel_h
 #define mozilla_net_WebSocketChannel_h
@@ -75,6 +41,14 @@ class CallOnMessageAvailable;
 class CallOnStop;
 class CallOnServerClose;
 class CallAcknowledge;
+
+// Used to enforce "1 connecting websocket per host" rule, and reconnect delays
+enum wsConnectingState {
+  NOT_CONNECTING = 0,     // Not yet (or no longer) trying to open connection
+  CONNECTING_QUEUED,      // Waiting for other ws to same host to finish opening
+  CONNECTING_DELAYED,     // Delayed by "reconnect after failure" algorithm
+  CONNECTING_IN_PROGRESS  // Started connection: waiting for result
+};
 
 class WebSocketChannel : public BaseWebSocketChannel,
                          public nsIHttpUpgradeListener,
@@ -135,6 +109,7 @@ protected:
 private:
   friend class OutboundEnqueuer;
   friend class nsWSAdmissionManager;
+  friend class FailDelayManager;
   friend class CallOnMessageAvailable;
   friend class CallOnStop;
   friend class CallOnServerClose;
@@ -151,7 +126,7 @@ private:
   void GeneratePong(PRUint8 *payload, PRUint32 len);
   void GeneratePing();
 
-  nsresult BeginOpen();
+  void     BeginOpen();
   nsresult HandleExtensions();
   nsresult SetupRequest();
   nsresult ApplyForAdmission();
@@ -183,7 +158,11 @@ private:
   nsCOMPtr<nsIRandomGenerator>             mRandomGenerator;
 
   nsCString                       mHashedSecret;
+
+  // Used as key for connection managment: Initially set to hostname from URI,
+  // then to IP address (unless we're leaving DNS resolution to a proxy server)
   nsCString                       mAddress;
+  PRInt32                         mPort;          // WS server port
 
   nsCOMPtr<nsISocketTransport>    mTransport;
   nsCOMPtr<nsIAsyncInputStream>   mSocketIn;
@@ -194,6 +173,8 @@ private:
 
   nsCOMPtr<nsITimer>              mOpenTimer;
   PRUint32                        mOpenTimeout;  /* milliseconds */
+  wsConnectingState               mConnecting;   /* 0 if not connecting */
+  nsCOMPtr<nsITimer>              mReconnectDelayTimer;
 
   nsCOMPtr<nsITimer>              mPingTimer;
   PRUint32                        mPingTimeout;  /* milliseconds */
@@ -217,9 +198,9 @@ private:
   PRUint32                        mAutoFollowRedirects       : 1;
   PRUint32                        mReleaseOnTransmit         : 1;
   PRUint32                        mTCPClosed                 : 1;
-  PRUint32                        mOpenBlocked               : 1;
-  PRUint32                        mOpenRunning               : 1;
-  PRUint32                        mChannelWasOpened          : 1;
+  PRUint32                        mWasOpened                 : 1;
+  PRUint32                        mOpenedHttpChannel         : 1;
+  PRUint32                        mDataStarted               : 1;
   PRUint32                        mIncrementedSessionCount   : 1;
   PRUint32                        mDecrementedSessionCount   : 1;
 

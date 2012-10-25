@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #ifndef nsIContent_h___
 #define nsIContent_h___
 
@@ -77,8 +45,8 @@ enum nsLinkState {
 
 // IID for the nsIContent interface
 #define NS_ICONTENT_IID \
-{ 0xa887c108, 0xc25e, 0x42ab, \
-  { 0x87, 0xef, 0xad, 0x4b, 0xee, 0x50, 0x28, 0x28 } }
+{ 0x98fb308d, 0xc6dd, 0x4c6d, \
+  { 0xb7, 0x7c, 0x91, 0x18, 0x0c, 0xf0, 0x6f, 0x23 } }
 
 /**
  * A node of content in a document's content model. This interface
@@ -93,11 +61,11 @@ public:
   // nsIContent is that it exists with an IID
 
   nsIContent(already_AddRefed<nsINodeInfo> aNodeInfo)
-    : nsINode(aNodeInfo),
-      mPrimaryFrame(nsnull)
+    : nsINode(aNodeInfo)
   {
     NS_ASSERTION(mNodeInfo,
                  "No nsINodeInfo passed to nsIContent, PREPARE TO CRASH!!!");
+    SetNodeIsContent();
   }
 #endif // MOZILLA_INTERNAL_API
 
@@ -286,58 +254,57 @@ public:
    * Get the namespace that this element's tag is defined in
    * @return the namespace
    */
-  PRInt32 GetNameSpaceID() const
+  inline PRInt32 GetNameSpaceID() const
   {
     return mNodeInfo->NamespaceID();
-  }
-
-  /**
-   * Get the tag for this element. This will always return a non-null
-   * atom pointer (as implied by the naming of the method).
-   */
-  nsIAtom *Tag() const
-  {
-    return mNodeInfo->NameAtom();
   }
 
   /**
    * Get the NodeInfo for this element
    * @return the nodes node info
    */
-  nsINodeInfo *NodeInfo() const
+  inline nsINodeInfo* NodeInfo() const
   {
     return mNodeInfo;
   }
 
-  inline bool IsInNamespace(PRInt32 aNamespace) const {
+  inline bool IsInNamespace(PRInt32 aNamespace) const
+  {
     return mNodeInfo->NamespaceID() == aNamespace;
   }
 
-  inline bool IsHTML() const {
+  inline bool IsHTML() const
+  {
     return IsInNamespace(kNameSpaceID_XHTML);
   }
 
-  inline bool IsHTML(nsIAtom* aTag) const {
+  inline bool IsHTML(nsIAtom* aTag) const
+  {
     return mNodeInfo->Equals(aTag, kNameSpaceID_XHTML);
   }
 
-  inline bool IsSVG() const {
+  inline bool IsSVG() const
+  {
     return IsInNamespace(kNameSpaceID_SVG);
   }
 
-  inline bool IsSVG(nsIAtom* aTag) const {
+  inline bool IsSVG(nsIAtom* aTag) const
+  {
     return mNodeInfo->Equals(aTag, kNameSpaceID_SVG);
   }
 
-  inline bool IsXUL() const {
+  inline bool IsXUL() const
+  {
     return IsInNamespace(kNameSpaceID_XUL);
   }
 
-  inline bool IsMathML() const {
+  inline bool IsMathML() const
+  {
     return IsInNamespace(kNameSpaceID_MathML);
   }
 
-  inline bool IsMathML(nsIAtom* aTag) const {
+  inline bool IsMathML(nsIAtom* aTag) const
+  {
     return mNodeInfo->Equals(aTag, kNameSpaceID_MathML);
   }
 
@@ -849,8 +816,12 @@ public:
    * In the case of absolutely positioned elements and floated elements, this
    * frame is the out of flow frame, not the placeholder.
    */
-  nsIFrame* GetPrimaryFrame() const { return mPrimaryFrame; }
+  nsIFrame* GetPrimaryFrame() const
+  {
+    return IsInDoc() ? mPrimaryFrame : nsnull;
+  }
   void SetPrimaryFrame(nsIFrame* aFrame) {
+    NS_ASSERTION(IsInDoc(), "This will end badly!");
     NS_PRECONDITION(!aFrame || !mPrimaryFrame || aFrame == mPrimaryFrame,
                     "Losing track of existing primary frame");
     mPrimaryFrame = aFrame;
@@ -870,7 +841,7 @@ public:
    * host content.  When the content is in designMode, this returns its body
    * element.  Also, when the content isn't editable, this returns null.
    */
-  nsIContent* GetEditingHost();
+  mozilla::dom::Element* GetEditingHost();
 
   /**
    * Determing language. Look at the nearest ancestor element that has a lang
@@ -905,6 +876,7 @@ public:
   virtual bool IsPurple() = 0;
   virtual void RemovePurple() = 0;
 
+  virtual bool OwnedOnlyByTheDOMTree() { return false; }
 protected:
   /**
    * Hook for implementing GetID.  This is guaranteed to only be
@@ -918,11 +890,6 @@ private:
    * called if the NODE_MAY_HAVE_CLASS flag is set.
    */
   virtual const nsAttrValue* DoGetClasses() const = 0;
-
-  /**
-   * Pointer to our primary frame.  Might be null.
-   */
-  nsIFrame* mPrimaryFrame;
 
 public:
 #ifdef DEBUG
@@ -956,5 +923,11 @@ public:
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIContent, NS_ICONTENT_IID)
+
+inline nsIContent* nsINode::AsContent()
+{
+  MOZ_ASSERT(IsContent());
+  return static_cast<nsIContent*>(this);
+}
 
 #endif /* nsIContent_h___ */

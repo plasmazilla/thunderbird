@@ -1,41 +1,8 @@
 /* -*- Mode: javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ft=javascript ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dave Camp <dcamp@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 "use strict";
 /**
@@ -47,9 +14,13 @@ const Ci = Components.interfaces;
 const Cc = Components.classes;
 const CC = Components.Constructor;
 const Cu = Components.utils;
+const Cr = Components.results;
 
 Cu.import("resource://gre/modules/Services.jsm");
 let wantLogging = Services.prefs.getBoolPref("devtools.debugger.log");
+
+Cu.import("resource://gre/modules/jsdebugger.jsm");
+addDebuggerToGlobal(this);
 
 function dumpn(str) {
   if (wantLogging) {
@@ -61,6 +32,17 @@ function dbg_assert(cond, e) {
   if (!cond) {
     return e;
   }
+}
+
+/* Turn the error e into a string, without fail. */
+function safeErrorString(aError) {
+  try {
+    var s = aError.toString();
+    if (typeof s === "string")
+      return s;
+  } catch (ee) { }
+
+  return "<failed trying to find error description>";
 }
 
 loadSubScript.call(this, "chrome://global/content/devtools/dbg-transport.js");
@@ -77,32 +59,34 @@ var DebuggerServer = {
   _listener: null,
   _transportInitialized: false,
   xpcInspector: null,
+  _allowConnection: null,
 
   /**
    * Initialize the debugger server.
+   *
+   * @param function aAllowConnectionCallback
+   *        The embedder-provider callback, that decides whether an incoming
+   *        remote protocol conection should be allowed or refused.
    */
-  init: function DH_init() {
+  init: function DH_init(aAllowConnectionCallback) {
     if (this.initialized) {
       return;
     }
 
-    // Hack: Merely loading jsdebugger.jsm will not work, because it will load
-    // in the chrome compartment, and then we'd get a cross-compartment wrapper
-    // of that. The Debugger object must be created in the sandbox compartment,
-    // that is, this file's compartment.
-    const init = Cc["@mozilla.org/jsdebugger;1"].createInstance(Ci.IJSDebugger);
-    init.addClass();  // adds global variable Debugger to this global.
-
     this.xpcInspector = Cc["@mozilla.org/jsinspector;1"].getService(Ci.nsIJSInspector);
-    this.initTransport();
+    this.initTransport(aAllowConnectionCallback);
     this.addActors("chrome://global/content/devtools/dbg-script-actors.js");
   },
 
   /**
    * Initialize the debugger server's transport variables.  This can be
    * in place of init() for cases where the jsdebugger isn't needed.
+   *
+   * @param function aAllowConnectionCallback
+   *        The embedder-provider callback, that decides whether an incoming
+   *        remote protocol conection should be allowed or refused.
    */
-  initTransport: function DH_initTransport() {
+  initTransport: function DH_initTransport(aAllowConnectionCallback) {
     if (this._transportInitialized) {
       return;
     }
@@ -110,6 +94,7 @@ var DebuggerServer = {
     this._connections = {};
     this._nextConnID = 0;
     this._transportInitialized = true;
+    this._allowConnection = aAllowConnectionCallback;
   },
 
   get initialized() { return !!this.xpcInspector; },
@@ -138,18 +123,25 @@ var DebuggerServer = {
    *
    * @param aPort int
    *        The port to listen on.
-   * @param aLocalOnly bool
-   *        If true, server will listen on the loopback device.
    */
-  openListener: function DH_openListener(aPort, aLocalOnly) {
+  openListener: function DH_openListener(aPort) {
+    if (!Services.prefs.getBoolPref("devtools.debugger.remote-enabled")) {
+      return false;
+    }
     this._checkInit();
 
     if (this._listener) {
       throw "Debugging listener already open.";
     }
 
+    let localOnly = false;
+    // A preference setting can force binding on the loopback interface.
+    if (Services.prefs.getBoolPref("devtools.debugger.force-local")) {
+      localOnly = true;
+    }
+
     try {
-      let socket = new ServerSocket(aPort, aLocalOnly, 4);
+      let socket = new ServerSocket(aPort, localOnly, 4);
       socket.asyncListen(this);
       this._listener = socket;
     } catch (e) {
@@ -234,6 +226,9 @@ var DebuggerServer = {
    * after connectPipe() or after an incoming socket connection.
    */
   _onConnection: function DH_onConnection(aTransport) {
+    if (!this._allowConnection()) {
+      return;
+    }
     let connID = "conn" + this._nextConnID++ + '.';
     let conn = new DebuggerServerConnection(connID, aTransport);
     this._connections[connID] = conn;
@@ -371,7 +366,10 @@ DebuggerServerConnection.prototype = {
    * Remove a previously-added pool of actors to the connection.
    */
   removeActorPool: function DSC_removeActorPool(aActorPool) {
-    let index = this._extraPools.splice(this._extraPools.lastIndexOf(aActorPool), 1);
+    let index = this._extraPools.lastIndexOf(aActorPool);
+    if (index > -1) {
+      this._extraPools.splice(index, 1);
+    }
   },
 
   /**
@@ -445,11 +443,14 @@ DebuggerServerConnection.prototype = {
       } catch(e) {
         Cu.reportError(e);
         ret = { error: "unknownError",
-                message: "An unknown error has occurred while processing request." };
+                message: ("error occurred while processing '" + aPacket.type +
+                          "' request: " + safeErrorString(e)) };
       }
     } else {
       ret = { error: "unrecognizedPacketType",
-              message: 'Actor "' + actor.actorID + '" does not recognize the packet type "' + aPacket.type + '"' };
+              message: ('Actor "' + actor.actorID +
+                        '" does not recognize the packet type "' +
+                        aPacket.type + '"') };
     }
 
     if (!ret) {

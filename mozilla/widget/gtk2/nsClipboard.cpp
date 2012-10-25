@@ -1,40 +1,9 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 /* vim:expandtab:shiftwidth=4:tabstop=4:
  */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is Christopher Blizzard
- * <blizzard@mozilla.org>.  Portions created by the Initial Developer
- * are Copyright (C) 2001 the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
 
@@ -238,6 +207,7 @@ nsClipboard::SetData(nsITransferable *aTransferable,
             if (flavorStr.EqualsLiteral(kNativeImageMime) ||
                 flavorStr.EqualsLiteral(kPNGImageMime) ||
                 flavorStr.EqualsLiteral(kJPEGImageMime) ||
+                flavorStr.EqualsLiteral(kJPGImageMime) ||
                 flavorStr.EqualsLiteral(kGIFImageMime)) {
                 // don't bother adding image targets twice
                 if (!imagesAdded) {
@@ -345,12 +315,16 @@ nsClipboard::GetData(nsITransferable *aTransferable, PRInt32 aWhichClipboard)
 
             // For images, we must wrap the data in an nsIInputStream then return instead of break,
             // because that code below won't help us.
-            if (!strcmp(flavorStr, kJPEGImageMime) || !strcmp(flavorStr, kPNGImageMime) || !strcmp(flavorStr, kGIFImageMime)) {
-                GdkAtom atom;
-                if (!strcmp(flavorStr, kJPEGImageMime)) // This is image/jpg, but X only understands image/jpeg
-                    atom = gdk_atom_intern("image/jpeg", FALSE);
-                else
-                    atom = gdk_atom_intern(flavorStr, FALSE);
+            if (!strcmp(flavorStr, kJPEGImageMime) ||
+                !strcmp(flavorStr, kJPGImageMime) ||
+                !strcmp(flavorStr, kPNGImageMime) ||
+                !strcmp(flavorStr, kGIFImageMime)) {
+                // Emulate support for image/jpg
+                if (!strcmp(flavorStr, kJPGImageMime)) {
+                    flavorStr.Assign(kJPEGImageMime);
+                }
+
+                GdkAtom atom = gdk_atom_intern(flavorStr, FALSE);
 
                 GtkSelectionData *selectionData = wait_for_contents(clipboard, atom);
                 if (!selectionData)
@@ -472,8 +446,9 @@ nsClipboard::HasDataMatchingFlavors(const char** aFlavorList, PRUint32 aLength,
             if (!strcmp(atom_name, aFlavorList[i]))
                 *_retval = true;
 
-            // X clipboard wants image/jpeg, not image/jpg
-            if (!strcmp(aFlavorList[i], kJPEGImageMime) && !strcmp(atom_name, "image/jpeg"))
+            // X clipboard supports image/jpeg, but we want to emulate support
+            // for image/jpg as well
+            if (!strcmp(aFlavorList[i], kJPGImageMime) && !strcmp(atom_name, kJPEGImageMime))
                 *_retval = true;
 
             g_free(atom_name);
@@ -595,7 +570,7 @@ nsClipboard::SelectionGetEvent(GtkClipboard     *aClipboard,
     if (gtk_targets_include_image(&aSelectionData->target, 1, TRUE)) {
         // Look through our transfer data for the image
         static const char* const imageMimeTypes[] = {
-            kNativeImageMime, kPNGImageMime, kJPEGImageMime, kGIFImageMime };
+            kNativeImageMime, kPNGImageMime, kJPEGImageMime, kJPGImageMime, kGIFImageMime };
         nsCOMPtr<nsISupports> item;
         PRUint32 len;
         nsCOMPtr<nsISupportsInterfacePointer> ptrPrimitive;

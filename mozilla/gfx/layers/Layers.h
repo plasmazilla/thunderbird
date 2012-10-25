@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Corporation code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Robert O'Callahan <robert@ocallahan.org>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef GFX_LAYERS_H
 #define GFX_LAYERS_H
@@ -57,7 +25,9 @@
 #if defined(DEBUG) || defined(PR_LOGGING)
 #  include <stdio.h>            // FILE
 #  include "prlog.h"
-#  define MOZ_LAYERS_HAVE_LOG
+#  ifndef MOZ_LAYERS_HAVE_LOG
+#    define MOZ_LAYERS_HAVE_LOG
+#  endif
 #  define MOZ_LAYERS_LOG(_args)                             \
   PR_LOG(LayerManager::GetLog(), PR_LOG_DEBUG, _args)
 #else
@@ -85,6 +55,7 @@ class CanvasLayer;
 class ReadbackLayer;
 class ReadbackProcessor;
 class ShadowLayer;
+class ShadowableLayer;
 class ShadowLayerForwarder;
 class ShadowLayerManager;
 class SpecificLayerAttributes;
@@ -440,8 +411,21 @@ public:
 
   /**
    * Can be called anytime, from any thread.
+   *
+   * Creates an Image container which forwards its images to the compositor within
+   * layer transactions on the main thread.
    */
   static already_AddRefed<ImageContainer> CreateImageContainer();
+  
+  /**
+   * Can be called anytime, from any thread.
+   *
+   * Tries to create an Image container which forwards its images to the compositor 
+   * asynchronously using the ImageBridge IPDL protocol. If the protocol is not
+   * available, the returned ImageContainer will forward images within layer 
+   * transactions, just like if it was created with CreateImageContainer().
+   */
+  static already_AddRefed<ImageContainer> CreateAsynchronousImageContainer();
 
   /**
    * Type of layer manager his is. This is to be used sparsely in order to
@@ -451,12 +435,21 @@ public:
   virtual LayersBackend GetBackendType() = 0;
  
   /**
-   * Creates a layer which is optimized for inter-operating with this layer
+   * Creates a surface which is optimized for inter-operating with this layer
    * manager.
    */
   virtual already_AddRefed<gfxASurface>
     CreateOptimalSurface(const gfxIntSize &aSize,
                          gfxASurface::gfxImageFormat imageFormat);
+ 
+  /**
+   * Creates a surface for alpha masks which is optimized for inter-operating
+   * with this layer manager. In contrast to CreateOptimalSurface, this surface
+   * is optimised for drawing alpha only and we assume that drawing the mask
+   * is fairly simple.
+   */
+  virtual already_AddRefed<gfxASurface>
+    CreateOptimalMaskSurface(const gfxIntSize &aSize);
 
   /**
    * Creates a DrawTarget which is optimized for inter-operating with this
@@ -467,6 +460,12 @@ public:
                      mozilla::gfx::SurfaceFormat aFormat);
 
   virtual bool CanUseCanvasLayerForSize(const gfxIntSize &aSize) { return true; }
+
+  /**
+   * returns the maximum texture size on this layer backend, or PR_INT32_MAX
+   * if there is no maximum
+   */
+  virtual PRInt32 GetMaxTextureSize() const = 0;
 
   /**
    * Return the name of the layer manager's backend.
@@ -697,6 +696,35 @@ public:
 
   /**
    * CONSTRUCTION PHASE ONLY
+   * Set a layer to mask this layer.
+   *
+   * The mask layer should be applied using its effective transform (after it
+   * is calculated by ComputeEffectiveTransformForMaskLayer), this should use
+   * this layer's parent's transform and the mask layer's transform, but not
+   * this layer's. That is, the mask layer is specified relative to this layer's
+   * position in it's parent layer's coord space.
+   * Currently, only 2D translations are supported for the mask layer transform.
+   *
+   * Ownership of aMaskLayer passes to this.
+   * Typical use would be an ImageLayer with an alpha image used for masking.
+   * See also ContainerState::BuildMaskLayer in FrameLayerBuilder.cpp.
+   */
+  void SetMaskLayer(Layer* aMaskLayer)
+  {
+#ifdef DEBUG
+    if (aMaskLayer) {
+      gfxMatrix maskTransform;
+      bool maskIs2D = aMaskLayer->GetTransform().CanDraw2D(&maskTransform);
+      NS_ASSERTION(maskIs2D, "Mask layer has invalid transform.");
+    }
+#endif
+
+    mMaskLayer = aMaskLayer;
+    Mutated();
+  }
+
+  /**
+   * CONSTRUCTION PHASE ONLY
    * Tell this layer what its transform should be. The transformation
    * is applied when compositing the layer into its parent container.
    * XXX Currently only transformations corresponding to 2D affine transforms
@@ -708,7 +736,22 @@ public:
     Mutated();
   }
 
+  /**
+   * CONSTRUCTION PHASE ONLY
+   * A layer is "fixed position" when it draws content from a content
+   * (not chrome) document, the topmost content document has a root scrollframe
+   * with a displayport, but the layer does not move when that displayport scrolls.
+   */
   void SetIsFixedPosition(bool aFixedPosition) { mIsFixedPosition = aFixedPosition; }
+
+  /**
+   * CONSTRUCTION PHASE ONLY
+   * If a layer is "fixed position", this determines which point on the layer
+   * is considered the "anchor" point, that is, the point which remains in the
+   * same position when compositing the layer tree with a transformation
+   * (such as when asynchronously scrolling and zooming).
+   */
+  void SetFixedPositionAnchor(const gfxPoint& aAnchor) { mAnchor = aAnchor; }
 
   // These getters can be used anytime.
   float GetOpacity() { return mOpacity; }
@@ -722,6 +765,8 @@ public:
   virtual Layer* GetLastChild() { return nsnull; }
   const gfx3DMatrix& GetTransform() { return mTransform; }
   bool GetIsFixedPosition() { return mIsFixedPosition; }
+  gfxPoint GetFixedPositionAnchor() { return mAnchor; }
+  Layer* GetMaskLayer() { return mMaskLayer; }
 
   /**
    * DRAWING PHASE ONLY
@@ -804,6 +849,12 @@ public:
    */
   virtual ShadowLayer* AsShadowLayer() { return nsnull; }
 
+  /**
+   * Dynamic cast to a ShadowableLayer.  Return null if this is not a
+   * ShadowableLayer.  Can be used anytime.
+   */
+  virtual ShadowableLayer* AsShadowableLayer() { return nsnull; }
+
   // These getters can be used anytime.  They return the effective
   // values that should be used when drawing this layer to screen,
   // accounting for this layer possibly being a shadow.
@@ -836,7 +887,12 @@ public:
    * have already had ComputeEffectiveTransforms called.
    */
   virtual void ComputeEffectiveTransforms(const gfx3DMatrix& aTransformToSurface) = 0;
-  
+    
+  /**
+   * computes the effective transform for a mask layer, if this layer has one
+   */
+  void ComputeEffectiveTransformForMaskLayer(const gfx3DMatrix& aTransformToSurface);
+
   /**
    * Calculate the scissor rect required when rendering this layer.
    * Returns a rectangle relative to the intermediate surface belonging to the
@@ -891,6 +947,11 @@ public:
 
   static bool IsLogEnabled() { return LayerManager::IsLogEnabled(); }
 
+#ifdef DEBUG
+  void SetDebugColorIndex(PRUint32 aIndex) { mDebugColorIndex = aIndex; }
+  PRUint32 GetDebugColorIndex() { return mDebugColorIndex; }
+#endif
+
 protected:
   Layer(LayerManager* aManager, void* aImplData) :
     mManager(aManager),
@@ -898,11 +959,13 @@ protected:
     mNextSibling(nsnull),
     mPrevSibling(nsnull),
     mImplData(aImplData),
+    mMaskLayer(nsnull),
     mOpacity(1.0),
     mContentFlags(0),
     mUseClipRect(false),
     mUseTileSourceRect(false),
-    mIsFixedPosition(false)
+    mIsFixedPosition(false),
+    mDebugColorIndex(0)
     {}
 
   void Mutated() { mManager->Mutated(this); }
@@ -940,6 +1003,7 @@ protected:
   Layer* mNextSibling;
   Layer* mPrevSibling;
   void* mImplData;
+  nsRefPtr<Layer> mMaskLayer;
   LayerUserDataSet mUserData;
   nsIntRegion mVisibleRegion;
   gfx3DMatrix mTransform;
@@ -951,6 +1015,8 @@ protected:
   bool mUseClipRect;
   bool mUseTileSourceRect;
   bool mIsFixedPosition;
+  gfxPoint mAnchor;
+  DebugOnly<PRUint32> mDebugColorIndex;
 };
 
 /**
@@ -1015,6 +1081,7 @@ public:
                    "Residual translation out of range");
       mValidRegion.SetEmpty();
     }
+    ComputeEffectiveTransformForMaskLayer(aTransformToSurface);
   }
 
   bool UsedForReadback() { return mUsedForReadback; }
@@ -1206,6 +1273,7 @@ public:
     // Snap 0,0 to pixel boundaries, no extra internal transform.
     gfx3DMatrix idealTransform = GetLocalTransform()*aTransformToSurface;
     mEffectiveTransform = SnapTransform(idealTransform, gfxRect(0, 0, 0, 0), nsnull);
+    ComputeEffectiveTransformForMaskLayer(aTransformToSurface);
   }
 
 protected:
@@ -1296,6 +1364,7 @@ public:
         SnapTransform(GetLocalTransform(), gfxRect(0, 0, mBounds.width, mBounds.height),
                       nsnull)*
         SnapTransform(aTransformToSurface, gfxRect(0, 0, 0, 0), nsnull);
+    ComputeEffectiveTransformForMaskLayer(aTransformToSurface);
   }
 
 protected:

@@ -9,6 +9,7 @@
 #include "base/message_loop.h"
 
 #include "Hal.h"
+#include "mozilla/Monitor.h"
 #include "nsXULAppAPI.h"
 #include "UeventPoller.h"
 
@@ -21,6 +22,7 @@ namespace hal_impl {
 
 struct {const char* name; SwitchDevice device; } kSwitchNameMap[] = {
   { "h2w", SWITCH_HEADPHONES },
+  { "usb_configuration", SWITCH_USB },
   { NULL, SWITCH_DEVICE_UNKNOWN },
 };
 
@@ -111,7 +113,25 @@ private:
     //working around the android code not being const-correct
     NetlinkEvent *e = const_cast<NetlinkEvent*>(&event);
     const char* subsystem = e->getSubsystem();
- 
+
+    if (subsystem && (strcmp(subsystem, "android_usb") == 0)) {
+      // Under GB, usb cable plugin was done using a virtual switch
+      // (usb_configuration). Under ICS, they changed to using the
+      // android_usb device, so we emulate the usb_configuration switch.
+
+      *name = "usb_configuration";
+      const char *usb_state = e->findParam("USB_STATE");
+      if (!usb_state) {
+        return false;
+      }
+      if (strcmp(usb_state, "CONFIGURED") == 0) {
+        *state = "1";
+        return true;
+      }
+      *state = "0";
+      return true;
+    }
+
     if (!subsystem || strcmp(subsystem, "switch")) {
       return false;
     }
@@ -126,9 +146,8 @@ private:
   }
 
   SwitchDevice ProcessEvent(const NetlinkEvent& event, const char** name, const char** state) {
-    bool rv = GetEventInfo(event, name, state);
-    NS_ENSURE_TRUE(rv, SWITCH_DEVICE_UNKNOWN);
-    return NameToDevice(*name);
+    return GetEventInfo(event, name, state) ?
+      NameToDevice(*name) : SWITCH_DEVICE_UNKNOWN;
   }
 };
 
@@ -154,18 +173,27 @@ ReleaseResourceIfNeed()
 }
 
 static void
-EnableSwitchNotificationsIOThread(SwitchDevice aDevice)
+EnableSwitchNotificationsIOThread(SwitchDevice aDevice, Monitor *aMonitor)
 {
   InitializeResourceIfNeed();
   sSwitchObserver->EnableSwitch(aDevice);
+  {
+    MonitorAutoLock lock(*aMonitor);
+    lock.Notify();
+  }
 }
 
 void
 EnableSwitchNotifications(SwitchDevice aDevice)
 {
-  XRE_GetIOMessageLoop()->PostTask(
-      FROM_HERE,
-      NewRunnableFunction(EnableSwitchNotificationsIOThread, aDevice));
+  Monitor monitor("EnableSwitch.monitor");
+  {
+    MonitorAutoLock lock(monitor);
+    XRE_GetIOMessageLoop()->PostTask(
+        FROM_HERE,
+        NewRunnableFunction(EnableSwitchNotificationsIOThread, aDevice, &monitor));
+    lock.Wait();
+  }
 }
 
 static void

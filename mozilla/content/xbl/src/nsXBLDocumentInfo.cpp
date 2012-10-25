@@ -1,40 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 sw=2 et tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsXBLDocumentInfo.h"
 #include "nsHashtable.h"
@@ -59,12 +27,12 @@
 #include "mozilla/scache/StartupCache.h"
 #include "mozilla/scache/StartupCacheUtils.h"
 #include "nsCCUncollectableMarker.h"
-#include "mozilla/dom/bindings/Utils.h"
+#include "mozilla/dom/BindingUtils.h"
 
 using namespace mozilla::scache;
 using namespace mozilla;
 
-using mozilla::dom::bindings::DestroyProtoOrIfaceCache;
+using mozilla::dom::DestroyProtoOrIfaceCache;
 
 static const char kXBLCachePrefix[] = "xblcache";
 
@@ -76,14 +44,17 @@ class nsXBLDocGlobalObject : public nsIScriptGlobalObject,
                              public nsIScriptObjectPrincipal
 {
 public:
-  nsXBLDocGlobalObject(nsIScriptGlobalObjectOwner *aGlobalObjectOwner);
+  nsXBLDocGlobalObject(nsXBLDocumentInfo *aGlobalObjectOwner);
 
   // nsISupports interface
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
   
   // nsIScriptGlobalObject methods
   virtual nsresult EnsureScriptEnvironment();
-  virtual nsresult SetScriptContext(nsIScriptContext *aContext);
+  void ClearScriptContext()
+  {
+    mScriptContext = NULL;
+  }
 
   virtual nsIScriptContext *GetContext();
   virtual JSObject *GetGlobalJSObject();
@@ -106,13 +77,12 @@ public:
 protected:
   virtual ~nsXBLDocGlobalObject();
 
-  void SetContext(nsIScriptContext *aContext);
   nsIScriptContext *GetScriptContext();
 
   nsCOMPtr<nsIScriptContext> mScriptContext;
   JSObject *mJSObject;
 
-  nsIScriptGlobalObjectOwner* mGlobalObjectOwner; // weak reference
+  nsXBLDocumentInfo* mGlobalObjectOwner; // weak reference
   static JSClass gSharedGlobalClass;
 };
 
@@ -141,23 +111,23 @@ nsXBLDocGlobalObject::doCheckAccess(JSContext *cx, JSObject *obj, jsid id, PRUin
 }
 
 static JSBool
-nsXBLDocGlobalObject_getProperty(JSContext *cx, JSObject *obj,
-                                 jsid id, jsval *vp)
+nsXBLDocGlobalObject_getProperty(JSContext *cx, JSHandleObject obj,
+                                 JSHandleId id, jsval *vp)
 {
   return nsXBLDocGlobalObject::
     doCheckAccess(cx, obj, id, nsIXPCSecurityManager::ACCESS_GET_PROPERTY);
 }
 
 static JSBool
-nsXBLDocGlobalObject_setProperty(JSContext *cx, JSObject *obj,
-                                 jsid id, JSBool strict, jsval *vp)
+nsXBLDocGlobalObject_setProperty(JSContext *cx, JSHandleObject obj,
+                                 JSHandleId id, JSBool strict, jsval *vp)
 {
   return nsXBLDocGlobalObject::
     doCheckAccess(cx, obj, id, nsIXPCSecurityManager::ACCESS_SET_PROPERTY);
 }
 
 static JSBool
-nsXBLDocGlobalObject_checkAccess(JSContext *cx, JSObject *obj, jsid id,
+nsXBLDocGlobalObject_checkAccess(JSContext *cx, JSHandleObject obj, JSHandleId id,
                                  JSAccessMode mode, jsval *vp)
 {
   PRUint32 translated;
@@ -188,7 +158,7 @@ nsXBLDocGlobalObject_finalize(JSFreeOp *fop, JSObject *obj)
 }
 
 static JSBool
-nsXBLDocGlobalObject_resolve(JSContext *cx, JSObject *obj, jsid id)
+nsXBLDocGlobalObject_resolve(JSContext *cx, JSHandleObject obj, JSHandleId id)
 {
   JSBool did_resolve = JS_FALSE;
   return JS_ResolveStandardClass(cx, obj, id, &did_resolve);
@@ -211,7 +181,7 @@ JSClass nsXBLDocGlobalObject::gSharedGlobalClass = {
 // nsXBLDocGlobalObject
 //
 
-nsXBLDocGlobalObject::nsXBLDocGlobalObject(nsIScriptGlobalObjectOwner *aGlobalObjectOwner)
+nsXBLDocGlobalObject::nsXBLDocGlobalObject(nsXBLDocumentInfo *aGlobalObjectOwner)
     : mJSObject(nsnull),
       mGlobalObjectOwner(aGlobalObjectOwner) // weak reference
 {
@@ -264,33 +234,6 @@ XBL_ProtoErrorReporter(JSContext *cx,
 // nsIScriptGlobalObject methods
 //
 
-void
-nsXBLDocGlobalObject::SetContext(nsIScriptContext *aScriptContext)
-{
-  if (!aScriptContext) {
-    mScriptContext = nsnull;
-    return;
-  }
-  aScriptContext->WillInitializeContext();
-  // NOTE: We init this context with a NULL global, so we automatically
-  // hook up to the existing nsIScriptGlobalObject global setup by
-  // nsGlobalWindow.
-  DebugOnly<nsresult> rv;
-  rv = aScriptContext->InitContext();
-  NS_WARN_IF_FALSE(NS_SUCCEEDED(rv), "Script Language's InitContext failed");
-  aScriptContext->SetGCOnDestruction(false);
-  aScriptContext->DidInitializeContext();
-  // and we set up our global manually
-  mScriptContext = aScriptContext;
-}
-
-nsresult
-nsXBLDocGlobalObject::SetScriptContext(nsIScriptContext *aContext)
-{
-  SetContext(aContext);
-  return NS_OK;
-}
-
 nsIScriptContext *
 nsXBLDocGlobalObject::GetScriptContext()
 {
@@ -300,19 +243,28 @@ nsXBLDocGlobalObject::GetScriptContext()
 nsresult
 nsXBLDocGlobalObject::EnsureScriptEnvironment()
 {
-  if (mScriptContext)
-    return NS_OK; // already initialized for this lang
-  nsCOMPtr<nsIDOMScriptObjectFactory> factory = do_GetService(kDOMScriptObjectFactoryCID);
-  NS_ENSURE_TRUE(factory, NS_OK);
-
-  nsresult rv;
+  if (mScriptContext) {
+    // Already initialized.
+    return NS_OK;
+  }
 
   nsCOMPtr<nsIScriptRuntime> scriptRuntime;
-  rv = NS_GetScriptRuntimeByID(nsIProgrammingLanguage::JAVASCRIPT,
-                               getter_AddRefs(scriptRuntime));
-  NS_ENSURE_SUCCESS(rv, rv);
+  NS_GetJSRuntime(getter_AddRefs(scriptRuntime));
+  NS_ENSURE_TRUE(scriptRuntime, NS_OK);
+
   nsCOMPtr<nsIScriptContext> newCtx = scriptRuntime->CreateContext();
-  rv = SetScriptContext(newCtx);
+  MOZ_ASSERT(newCtx);
+
+  newCtx->WillInitializeContext();
+  // NOTE: We init this context with a NULL global, so we automatically
+  // hook up to the existing nsIScriptGlobalObject global setup by
+  // nsGlobalWindow.
+  nsresult rv = newCtx->InitContext();
+  NS_WARN_IF_FALSE(NS_SUCCEEDED(rv), "Script Language's InitContext failed");
+  newCtx->SetGCOnDestruction(false);
+  newCtx->DidInitializeContext();
+
+  mScriptContext = newCtx;
 
   JSContext *cx = mScriptContext->GetNativeContext();
   JSAutoRequest ar(cx);
@@ -328,6 +280,11 @@ nsXBLDocGlobalObject::EnsureScriptEnvironment()
   rv = xpc_CreateGlobalObject(cx, &gSharedGlobalClass, principal, nsnull,
                               false, &mJSObject, &compartment);
   NS_ENSURE_SUCCESS(rv, NS_OK);
+
+  // Set the location information for the new global, so that tools like
+  // about:memory may use that information
+  nsIURI *ownerURI = mGlobalObjectOwner->DocumentURI();
+  xpc::SetLocationForGlobal(mJSObject, ownerURI);
 
   ::JS_SetGlobalObject(cx, mJSObject);
 
@@ -495,11 +452,9 @@ NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN(nsXBLDocumentInfo)
 NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
 static void
-UnmarkXBLJSObject(PRUint32 aLangID, void* aP, const char* aName, void* aClosure)
+UnmarkXBLJSObject(void* aP, const char* aName, void* aClosure)
 {
-  if (aLangID == nsIProgrammingLanguage::JAVASCRIPT) {
-    xpc_UnmarkGrayObject(static_cast<JSObject*>(aP));
-  }
+  xpc_UnmarkGrayObject(static_cast<JSObject*>(aP));
 }
 
 static bool
@@ -560,7 +515,7 @@ nsXBLDocumentInfo::~nsXBLDocumentInfo()
   /* destructor code */
   if (mGlobalObject) {
     // remove circular reference
-    mGlobalObject->SetScriptContext(nsnull);
+    mGlobalObject->ClearScriptContext();
     mGlobalObject->ClearGlobalObjectOwner(); // just in case
   }
   if (mBindingTable) {

@@ -1,40 +1,8 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 /* vim: set sw=4 ts=8 et tw=80 : */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Content App.
- *
- * The Initial Developer of the Original Code is
- *   The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef mozilla_dom_ContentParent_h
 #define mozilla_dom_ContentParent_h
@@ -52,6 +20,7 @@
 #include "nsIDOMGeoPositionCallback.h"
 #include "nsIMemoryReporter.h"
 #include "nsCOMArray.h"
+#include "nsDataHashtable.h"
 
 class nsFrameMessageManager;
 namespace mozilla {
@@ -76,6 +45,15 @@ private:
 
 public:
     static ContentParent* GetNewOrUsed();
+
+    /**
+     * Get or create a content process for the given app.  A given app
+     * (identified by its manifest URL) gets one process all to itself.
+     *
+     * If the given manifest is the empty string, then this method is equivalent
+     * to GetNewOrUsed().
+     */
+    static ContentParent* GetForApp(const nsAString& aManifestURL);
     static void GetAll(nsTArray<ContentParent*>& aArray);
 
     NS_DECL_ISUPPORTS
@@ -83,7 +61,13 @@ public:
     NS_DECL_NSITHREADOBSERVER
     NS_DECL_NSIDOMGEOPOSITIONCALLBACK
 
-    TabParent* CreateTab(PRUint32 aChromeFlags);
+    /**
+     * Create a new tab.
+     *
+     * |aIsBrowserFrame| indicates whether this tab is part of an
+     * <iframe mozbrowser>.
+     */
+    TabParent* CreateTab(PRUint32 aChromeFlags, bool aIsBrowserFrame);
 
     TestShellParent* CreateTestShell();
     bool DestroyTestShell(TestShellParent* aTestShell);
@@ -109,20 +93,25 @@ protected:
     virtual void ActorDestroy(ActorDestroyReason why);
 
 private:
-    static nsTArray<ContentParent*>* gContentParents;
+    static nsDataHashtable<nsStringHashKey, ContentParent*> *gAppContentParents;
+    static nsTArray<ContentParent*>* gNonAppContentParents;
+    static nsTArray<ContentParent*>* gPrivateContent;
 
     // Hide the raw constructor methods since we don't want client code
     // using them.
     using PContentParent::SendPBrowserConstructor;
     using PContentParent::SendPTestShellConstructor;
 
-    ContentParent();
+    ContentParent(const nsAString& aAppManifestURL);
     virtual ~ContentParent();
 
     void Init();
 
-    virtual PBrowserParent* AllocPBrowser(const PRUint32& aChromeFlags);
+    virtual PBrowserParent* AllocPBrowser(const PRUint32& aChromeFlags, const bool& aIsBrowserFrame);
     virtual bool DeallocPBrowser(PBrowserParent* frame);
+
+    virtual PDeviceStorageRequestParent* AllocPDeviceStorageRequest(const DeviceStorageParams&);
+    virtual bool DeallocPDeviceStorageRequest(PDeviceStorageRequestParent*);
 
     virtual PCrashReporterParent* AllocPCrashReporter(const NativeThreadId& tid,
                                                       const PRUint32& processType);
@@ -133,6 +122,13 @@ private:
 
     NS_OVERRIDE virtual PHalParent* AllocPHal();
     NS_OVERRIDE virtual bool DeallocPHal(PHalParent*);
+
+    virtual PIndexedDBParent* AllocPIndexedDB();
+
+    virtual bool DeallocPIndexedDB(PIndexedDBParent* aActor);
+
+    virtual bool
+    RecvPIndexedDBConstructor(PIndexedDBParent* aActor);
 
     virtual PMemoryReportRequestParent* AllocPMemoryReportRequest();
     virtual bool DeallocPMemoryReportRequest(PMemoryReportRequestParent* actor);
@@ -167,8 +163,6 @@ private:
     virtual bool RecvReadFontList(InfallibleTArray<FontListEntry>* retValue);
 
     virtual bool RecvReadPermissions(InfallibleTArray<IPC::Permission>* aPermissions);
-
-    virtual bool RecvGetIndexedDBDirectory(nsString* aDirectory);
 
     virtual bool RecvSetClipboardText(const nsString& text, const PRInt32& whichClipboard);
     virtual bool RecvGetClipboardText(const PRInt32& whichClipboard, nsString* text);
@@ -222,6 +216,7 @@ private:
                                  const PRUint32& aFlags,
                                  const nsCString& aCategory);
 
+    virtual bool RecvPrivateDocShellsExist(const bool& aExist);
     GeckoChildProcessHost* mSubprocess;
 
     PRInt32 mGeolocationWatchID;
@@ -237,6 +232,7 @@ private:
     bool mIsAlive;
     bool mSendPermissionUpdates;
 
+    const nsString mAppManifestURL;
     nsRefPtr<nsFrameMessageManager> mMessageManager;
 
     friend class CrashReporterParent;

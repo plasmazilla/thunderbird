@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * Base class for all our document implementations.
@@ -100,6 +68,7 @@
 #include "nsIInlineEventHandlers.h"
 #include "nsDataHashtable.h"
 #include "mozilla/TimeStamp.h"
+#include "mozilla/Attributes.h"
 
 #define XML_DECLARATION_BITS_DECLARATION_EXISTS   (1 << 0)
 #define XML_DECLARATION_BITS_ENCODING_EXISTS      (1 << 1)
@@ -246,6 +215,10 @@ public:
     ChangeCallback mKey;
   };
 
+  static size_t SizeOfExcludingThis(nsIdentifierMapEntry* aEntry,
+                                    nsMallocSizeOfFun aMallocSizeOf,
+                                    void* aArg);
+
 private:
   void FireChangeCallbacks(Element* aOldElement, Element* aNewElement,
                            bool aImageOnly = false);
@@ -318,7 +291,7 @@ protected:
   nsIDocument*  mDocument;
 };
 
-class nsOnloadBlocker : public nsIRequest
+class nsOnloadBlocker MOZ_FINAL : public nsIRequest
 {
 public:
   nsOnloadBlocker() {}
@@ -420,7 +393,7 @@ protected:
   };
   friend class PendingLoad;
 
-  class LoadgroupCallbacks : public nsIInterfaceRequestor
+  class LoadgroupCallbacks MOZ_FINAL : public nsIInterfaceRequestor
   {
   public:
     LoadgroupCallbacks(nsIInterfaceRequestor* aOtherCallbacks)
@@ -441,8 +414,8 @@ protected:
     
     // XXXbz I wish we could just derive the _allcaps thing from _i
 #define DECL_SHIM(_i, _allcaps)                                              \
-    class _i##Shim : public nsIInterfaceRequestor,                           \
-                     public _i                                               \
+    class _i##Shim MOZ_FINAL : public nsIInterfaceRequestor,                 \
+                               public _i                                     \
     {                                                                        \
     public:                                                                  \
       _i##Shim(nsIInterfaceRequestor* aIfreq, _i* aRealPtr)                  \
@@ -452,8 +425,8 @@ protected:
         NS_ASSERTION(mRealPtr, "Expected non-null here");                    \
       }                                                                      \
       NS_DECL_ISUPPORTS                                                      \
-      NS_FORWARD_NSIINTERFACEREQUESTOR(mIfReq->);                            \
-      NS_FORWARD_##_allcaps(mRealPtr->);                                     \
+      NS_FORWARD_NSIINTERFACEREQUESTOR(mIfReq->)                             \
+      NS_FORWARD_##_allcaps(mRealPtr->)                                      \
     private:                                                                 \
       nsCOMPtr<nsIInterfaceRequestor> mIfReq;                                \
       nsCOMPtr<_i> mRealPtr;                                                 \
@@ -500,7 +473,8 @@ class nsDocument : public nsIDocument,
                    public nsIApplicationCacheContainer,
                    public nsStubMutationObserver,
                    public nsIDOMDocumentTouch,
-                   public nsIInlineEventHandlers
+                   public nsIInlineEventHandlers,
+                   public nsIObserver
 {
 public:
   typedef mozilla::dom::Element Element;
@@ -713,8 +687,6 @@ public:
 
   // nsINode
   virtual bool IsNodeOfType(PRUint32 aFlags) const;
-  virtual PRUint16 NodeType();
-  virtual void NodeName(nsAString& aNodeName);
   virtual nsIContent *GetChildAt(PRUint32 aIndex) const;
   virtual nsIContent * const * GetChildArray(PRUint32* aChildCount) const;
   virtual PRInt32 IndexOf(nsINode* aPossibleChild) const;
@@ -736,9 +708,6 @@ public:
                                    nsIDOMHTMLInputElement* aRadio);
   NS_IMETHOD GetCurrentRadioButton(const nsAString& aName,
                                    nsIDOMHTMLInputElement** aRadio);
-  NS_IMETHOD GetPositionInGroup(nsIDOMHTMLInputElement *aRadio,
-                                PRInt32 *aPositionIndex,
-                                PRInt32 *aItemsInGroup);
   NS_IMETHOD GetNextRadioButton(const nsAString& aName,
                                 const bool aPrevious,
                                 nsIDOMHTMLInputElement*  aFocusedRadio,
@@ -788,6 +757,9 @@ public:
   // nsIInlineEventHandlers
   NS_DECL_NSIINLINEEVENTHANDLERS
 
+  // nsIObserver
+  NS_DECL_NSIOBSERVER
+
   virtual nsresult Init();
   
   virtual void AddXMLEventsContent(nsIContent * aXMLEventsElement);
@@ -827,6 +799,10 @@ public:
                                                    nsIDOMNodeList** aResult);
   virtual NS_HIDDEN_(nsresult) GetContentListFor(nsIContent* aContent,
                                                  nsIDOMNodeList** aResult);
+  virtual NS_HIDDEN_(nsIContent*)
+    GetAnonymousElementByAttribute(nsIContent* aElement,
+                                   nsIAtom* aAttrName,
+                                   const nsAString& aAttrValue) const;
 
   virtual NS_HIDDEN_(nsresult) ElementFromPointHelper(float aX, float aY,
                                                       bool aIgnoreRootScrollFrame,
@@ -960,6 +936,8 @@ public:
   virtual void AsyncRequestFullScreen(Element* aElement);
   virtual void RestorePreviousFullScreenState();
   virtual bool IsFullScreenDoc();
+  virtual void SetApprovedForFullscreen(bool aIsApproved);
+
   static void ExitFullScreen();
 
   // This is called asynchronously by nsIDocument::AsyncRequestFullScreen()
@@ -970,7 +948,14 @@ public:
 
   // Removes all elements from the full-screen stack, removing full-scren
   // styles from the top element in the stack.
-  void ClearFullScreenStack();
+  void CleanupFullscreenState();
+
+  // Add/remove "fullscreen-approved" observer service notification listener.
+  // Chrome sends us a notification when fullscreen is approved for a
+  // document, with the notification subject as the document that was approved.
+  // We maintain this listener while in fullscreen mode.
+  nsresult AddFullscreenApprovedObserver();
+  nsresult RemoveFullscreenApprovedObserver();
 
   // Pushes aElement onto the full-screen stack, and removes full-screen styles
   // from the former full-screen stack top, and its ancestors, and applies the
@@ -999,6 +984,7 @@ public:
   virtual void DocSizeOfExcludingThis(nsWindowSizes* aWindowSizes) const;
   // DocSizeOfIncludingThis is inherited from nsIDocument.
 
+  virtual nsIDOMNode* AsDOMNode() { return this; }
 protected:
   friend class nsNodeUtils;
 
@@ -1133,6 +1119,15 @@ protected:
   // document is hidden/navigation occurs.
   static nsWeakPtr sFullScreenRootDoc;
 
+  // Weak reference to the document which owned the pending pointer lock
+  // element, at the time it requested pointer lock.
+  static nsWeakPtr sPendingPointerLockDoc;
+
+  // Weak reference to the element which requested pointer lock. This request
+  // is "pending", and will be processed once the element's document has had
+  // the "fullscreen" permission granted.
+  static nsWeakPtr sPendingPointerLockElement;
+
   // Stack of full-screen elements. When we request full-screen we push the
   // full-screen element onto this stack, and when we cancel full-screen we
   // pop one off this stack, restoring the previous full-screen state
@@ -1193,9 +1188,6 @@ protected:
   // "mozaudioavailable" event.
   bool mHasAudioAvailableListener:1;
 
-  // Whether we are currently in full-screen mode, as per the DOM API.
-  bool mIsFullScreen:1;
-
   // Whether we're currently under a FlushPendingNotifications call to
   // our presshell.  This is used to handle flush reentry correctly.
   bool mInFlush:1;
@@ -1203,6 +1195,21 @@ protected:
   // Parser aborted. True if the parser of this document was forcibly
   // terminated instead of letting it finish at its own pace.
   bool mParserAborted:1;
+
+  // Whether this document has been approved for fullscreen, either by explicit
+  // approval via the fullscreen-approval UI, or because it received
+  // approval because its document's host already had the "fullscreen"
+  // permission granted when the document requested fullscreen.
+  // 
+  // Note if a document's principal doesn't have a host, the permission manager
+  // can't store permissions for it, so we can only manage approval using this
+  // flag.
+  //
+  // Note we must track this separately from the "fullscreen" permission,
+  // so that pending pointer lock requests can determine whether documents
+  // whose principal doesn't have a host (i.e. those which can't store
+  // permissions in the permission manager) have been approved for fullscreen.
+  bool mIsApprovedForFullscreen:1;
 
   PRUint8 mXMLDeclarationBits;
 
@@ -1243,12 +1250,25 @@ private:
   nsresult CheckFrameOptions();
   nsresult InitCSP();
 
+  // Sets aElement to be the pending pointer lock element. Once this document's
+  // node principal's URI is granted the "fullscreen" permission, the pointer
+  // lock request will be processed. At any one time there can be only one
+  // pending pointer lock request; calling this clears the previous pending
+  // request.
+  static nsresult SetPendingPointerLockRequest(Element* aElement);
+
+  // Clears any pending pointer lock request.
+  static void ClearPendingPointerLockRequest(bool aDispatchErrorEvents);
+
   /**
-   * See if aDocument is a child of this.  If so, return the frame element in
-   * this document that holds currentDoc (or an ancestor).
+   * Find the (non-anonymous) content in this document for aFrame. It will
+   * be aFrame's content node if that content is in this document and not
+   * anonymous. Otherwise, when aFrame is in a subdocument, we use the frame
+   * element containing the subdocument containing aFrame, and/or find the
+   * nearest non-anonymous ancestor in this document.
+   * Returns null if there is no such element.
    */
-  already_AddRefed<nsIDOMElement>
-    CheckAncestryAndGetFrame(nsIDocument* aDocument) const;
+  nsIContent* GetContentInThisDocument(nsIFrame* aFrame) const;
 
   // Just like EnableStyleSheetsForSet, but doesn't check whether
   // aSheetSet is null and allows the caller to control whether to set

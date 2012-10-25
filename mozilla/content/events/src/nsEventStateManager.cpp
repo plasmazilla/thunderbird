@@ -1,48 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 sw=2 et tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Makoto Kato  <m_kato@ga2.so-net.ne.jp>
- *   Dean Tessman <dean_tessman@hotmail.com>
- *   Mats Palmgren <mats.palmgren@bredband.net>
- *   Masayuki Nakano <masayuki@d-toybox.com>
- *   Ginn Chen <ginn.chen@sun.com>
- *   Simon Bünzli <zeniko@gmail.com>
- *   Ehsan Akhgari <ehsan.akhgari@gmail.com>
- *   Ningjie Chen <chenn@email.uc.edu>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/dom/TabParent.h"
 
@@ -70,7 +30,6 @@
 #include "nsIBaseWindow.h"
 #include "nsISelection.h"
 #include "nsFrameSelection.h"
-#include "nsIPrivateDOMEvent.h"
 #include "nsPIDOMWindow.h"
 #include "nsPIWindowRoot.h"
 #include "nsIEnumerator.h"
@@ -100,6 +59,8 @@
 #include "nsIDOMUIEvent.h"
 #include "nsDOMDragEvent.h"
 #include "nsIDOMNSEditableElement.h"
+#include "nsIDOMMozBrowserFrame.h"
+#include "nsIMozBrowserFrame.h"
 
 #include "nsCaret.h"
 
@@ -135,6 +96,7 @@
 
 #include "mozilla/Preferences.h"
 #include "mozilla/LookAndFeel.h"
+#include "mozilla/Attributes.h"
 #include "sampler.h"
 
 #include "nsIDOMClientRect.h"
@@ -162,7 +124,6 @@ nsEventStateManager* nsEventStateManager::sActiveESM = nsnull;
 nsIDocument* nsEventStateManager::sMouseOverDocument = nsnull;
 nsWeakFrame nsEventStateManager::sLastDragOverFrame = nsnull;
 nsIntPoint nsEventStateManager::sLastRefPoint = nsIntPoint(0,0);
-nsIntPoint nsEventStateManager::sLastScreenOffset = nsIntPoint(0,0);
 nsIntPoint nsEventStateManager::sLastScreenPoint = nsIntPoint(0,0);
 nsIntPoint nsEventStateManager::sLastClientPoint = nsIntPoint(0,0);
 bool nsEventStateManager::sIsPointerLocked = false;
@@ -256,7 +217,7 @@ PrintDocTreeAll(nsIDocShellTreeItem* aItem)
 }
 #endif
 
-class nsUITimerCallback : public nsITimerCallback
+class nsUITimerCallback MOZ_FINAL : public nsITimerCallback
 {
 public:
   nsUITimerCallback() : mPreviousCount(0) {}
@@ -357,13 +318,13 @@ GetBasePrefKeyForMouseWheel(nsMouseScrollEvent* aEvent, nsACString& aPref)
   if (aEvent->scrollFlags & nsMouseScrollEvent::kIsHorizontal) {
     aPref.Append(horizscroll);
   }
-  if (aEvent->isShift) {
+  if (aEvent->IsShift()) {
     aPref.Append(withshift);
-  } else if (aEvent->isControl) {
+  } else if (aEvent->IsControl()) {
     aPref.Append(withcontrol);
-  } else if (aEvent->isAlt) {
+  } else if (aEvent->IsAlt()) {
     aPref.Append(withalt);
-  } else if (aEvent->isMeta) {
+  } else if (aEvent->IsMeta()) {
     aPref.Append(withmetakey);
   } else {
     aPref.Append(withno);
@@ -429,9 +390,11 @@ OutOfTime(PRUint32 aBaseTime, PRUint32 aThreshold)
 }
 
 static bool
-CanScrollInRange(nscoord aMin, nscoord aValue, nscoord aMax, PRInt32 aDirection)
+CanScrollInRange(nscoord aMin, nscoord aValue, nscoord aMax,
+                 PRInt32 aDirection, nscoord aOneDevPixel)
 {
-  return aDirection > 0 ? aValue < aMax : aMin < aValue;
+  return (aDirection > 0 ? aValue < aMax : aMin < aValue) &&
+         (aMax - aMin >= aOneDevPixel);
 }
 
 static bool
@@ -443,9 +406,14 @@ CanScrollOn(nsIScrollableFrame* aScrollFrame, PRInt32 aNumLines,
   nsPoint scrollPt = aScrollFrame->GetScrollPosition();
   nsRect scrollRange = aScrollFrame->GetScrollRange();
 
+  nscoord oneDevPixel =
+    aScrollFrame->GetScrolledFrame()->PresContext()->AppUnitsPerDevPixel();
+
   return aScrollHorizontal
-    ? CanScrollInRange(scrollRange.x, scrollPt.x, scrollRange.XMost(), aNumLines)
-    : CanScrollInRange(scrollRange.y, scrollPt.y, scrollRange.YMost(), aNumLines);
+    ? CanScrollInRange(scrollRange.x, scrollPt.x, scrollRange.XMost(),
+                       aNumLines, oneDevPixel)
+    : CanScrollInRange(scrollRange.y, scrollPt.y, scrollRange.YMost(),
+                       aNumLines, oneDevPixel);
 }
 
 void
@@ -1198,13 +1166,13 @@ nsEventStateManager::PreHandleEvent(nsPresContext* aPresContext,
       nsKeyEvent* keyEvent = (nsKeyEvent*)aEvent;
 
       PRInt32 modifierMask = 0;
-      if (keyEvent->isShift)
+      if (keyEvent->IsShift())
         modifierMask |= NS_MODIFIER_SHIFT;
-      if (keyEvent->isControl)
+      if (keyEvent->IsControl())
         modifierMask |= NS_MODIFIER_CONTROL;
-      if (keyEvent->isAlt)
+      if (keyEvent->IsAlt())
         modifierMask |= NS_MODIFIER_ALT;
-      if (keyEvent->isMeta)
+      if (keyEvent->IsMeta())
         modifierMask |= NS_MODIFIER_META;
 
       // Prevent keyboard scrolling while an accesskey modifier is in use.
@@ -1701,12 +1669,30 @@ nsEventStateManager::DispatchCrossProcessEvent(nsEvent* aEvent, nsIFrameLoader* 
 
 bool
 nsEventStateManager::IsRemoteTarget(nsIContent* target) {
-  return target &&
-         (target->Tag() == nsGkAtoms::browser ||
-          target->Tag() == nsGkAtoms::iframe) &&
-         target->IsXUL() &&
-         target->AttrValueIs(kNameSpaceID_None, nsGkAtoms::Remote,
-                             nsGkAtoms::_true, eIgnoreCase);
+  if (!target) {
+    return false;
+  }
+
+  // <browser/iframe remote=true> from XUL
+  if ((target->Tag() == nsGkAtoms::browser ||
+       target->Tag() == nsGkAtoms::iframe) &&
+      target->IsXUL() &&
+      target->AttrValueIs(kNameSpaceID_None, nsGkAtoms::Remote,
+                          nsGkAtoms::_true, eIgnoreCase)) {
+    return true;
+  }
+
+  // <frame/iframe mozbrowser>
+  nsCOMPtr<nsIMozBrowserFrame> browserFrame = do_QueryInterface(target);
+  if (browserFrame) {
+    bool isBrowser = false;
+    browserFrame->GetReallyIsBrowser(&isBrowser);
+    if (isBrowser) {
+      return !!TabParent::GetFrom(target);
+    }
+  }
+
+  return false;
 }
 
 
@@ -1922,6 +1908,7 @@ nsEventStateManager::FireContextClick()
                              type == NS_FORM_INPUT_URL ||
                              type == NS_FORM_INPUT_PASSWORD ||
                              type == NS_FORM_INPUT_FILE ||
+                             type == NS_FORM_INPUT_NUMBER ||
                              type == NS_FORM_TEXTAREA);
       }
       else if (tag == nsGkAtoms::applet ||
@@ -2004,10 +1991,8 @@ nsEventStateManager::BeginTrackingDragGesture(nsPresContext* aPresContext,
                                   getter_AddRefs(mGestureDownContent));
 
   mGestureDownFrameOwner = inDownFrame->GetContent();
-  mGestureDownShift = inDownEvent->isShift;
-  mGestureDownControl = inDownEvent->isControl;
-  mGestureDownAlt = inDownEvent->isAlt;
-  mGestureDownMeta = inDownEvent->isMeta;
+  mGestureModifiers = inDownEvent->modifiers;
+  mGestureDownButtons = inDownEvent->buttons;
 
   if (mClickHoldContextMenu) {
     // fire off a timer to track click-hold
@@ -2040,10 +2025,8 @@ nsEventStateManager::FillInEventFromGestureDown(nsMouseEvent* aEvent)
   // different
   nsIntPoint tmpPoint = aEvent->widget->WidgetToScreenOffset();
   aEvent->refPoint = mGestureDownPoint - tmpPoint;
-  aEvent->isShift = mGestureDownShift;
-  aEvent->isControl = mGestureDownControl;
-  aEvent->isAlt = mGestureDownAlt;
-  aEvent->isMeta = mGestureDownMeta;
+  aEvent->modifiers = mGestureModifiers;
+  aEvent->buttons = mGestureDownButtons;
 }
 
 //
@@ -2216,8 +2199,9 @@ nsEventStateManager::DetermineDragTarget(nsPresContext* aPresContext,
   // occurred, and aSelectionTarget is the node to use when a selection is used
   bool canDrag;
   nsCOMPtr<nsIContent> dragDataNode;
+  bool wasAlt = (mGestureModifiers & widget::MODIFIER_ALT) != 0;
   nsresult rv = nsContentAreaDragDrop::GetDragData(window, mGestureDownContent,
-                                                   aSelectionTarget, mGestureDownAlt,
+                                                   aSelectionTarget, wasAlt,
                                                    aDataTransfer, &canDrag, aSelection,
                                                    getter_AddRefs(dragDataNode));
   if (NS_FAILED(rv) || !canDrag)
@@ -2341,7 +2325,7 @@ nsEventStateManager::DoDefaultDragStart(nsPresContext* aPresContext,
   nsIDOMElement* dragImage = aDataTransfer->GetDragImage(&imageX, &imageY);
 
   nsCOMPtr<nsISupportsArray> transArray;
-  aDataTransfer->GetTransferables(getter_AddRefs(transArray));
+  aDataTransfer->GetTransferables(getter_AddRefs(transArray), dragTarget);
   if (!transArray)
     return false;
 
@@ -2574,10 +2558,8 @@ nsEventStateManager::SendLineScrollEvent(nsIFrame* aTargetFrame,
   event.refPoint = aEvent->refPoint;
   event.widget = aEvent->widget;
   event.time = aEvent->time;
-  event.isShift = aEvent->isShift;
-  event.isControl = aEvent->isControl;
-  event.isAlt = aEvent->isAlt;
-  event.isMeta = aEvent->isMeta;
+  event.modifiers = aEvent->modifiers;
+  event.buttons = aEvent->buttons;
   event.scrollFlags = aEvent->scrollFlags;
   event.delta = aNumLines;
   event.inputSource = static_cast<nsMouseEvent_base*>(aEvent)->inputSource;
@@ -2609,10 +2591,8 @@ nsEventStateManager::SendPixelScrollEvent(nsIFrame* aTargetFrame,
   event.refPoint = aEvent->refPoint;
   event.widget = aEvent->widget;
   event.time = aEvent->time;
-  event.isShift = aEvent->isShift;
-  event.isControl = aEvent->isControl;
-  event.isAlt = aEvent->isAlt;
-  event.isMeta = aEvent->isMeta;
+  event.modifiers = aEvent->modifiers;
+  event.buttons = aEvent->buttons;
   event.scrollFlags = aEvent->scrollFlags;
   event.inputSource = static_cast<nsMouseEvent_base*>(aEvent)->inputSource;
   event.delta = aPresContext->AppUnitsToIntCSSPixels(aEvent->delta * lineHeight);
@@ -3202,10 +3182,10 @@ nsEventStateManager::PostHandleEvent(nsPresContext* aPresContext,
         if (!mCurrentTarget) {
           GetEventTarget();
         }
-        if (mCurrentTarget) {
-          ret = CheckForAndDispatchClick(presContext, (nsMouseEvent*)aEvent,
-                                         aStatus);
-        }
+        // Make sure to dispatch the click even if there is no frame for
+        // the current target element. This is required for Web compatibility.
+        ret = CheckForAndDispatchClick(presContext, (nsMouseEvent*)aEvent,
+                                       aStatus);
       }
 
       nsIPresShell *shell = presContext->GetPresShell();
@@ -3408,10 +3388,8 @@ nsEventStateManager::PostHandleEvent(nsPresContext* aPresContext,
           event.refPoint += mouseEvent->widget->WidgetToScreenOffset();
         }
         event.refPoint -= widget->WidgetToScreenOffset();
-        event.isShift = mouseEvent->isShift;
-        event.isControl = mouseEvent->isControl;
-        event.isAlt = mouseEvent->isAlt;
-        event.isMeta = mouseEvent->isMeta;
+        event.modifiers = mouseEvent->modifiers;
+        event.buttons = mouseEvent->buttons;
         event.inputSource = mouseEvent->inputSource;
 
         nsEventStatus status = nsEventStatus_eIgnore;
@@ -3438,7 +3416,7 @@ nsEventStateManager::PostHandleEvent(nsPresContext* aPresContext,
     if (nsEventStatus_eConsumeNoDefault != *aStatus) {
       nsKeyEvent* keyEvent = (nsKeyEvent*)aEvent;
       //This is to prevent keyboard scrolling while alt modifier in use.
-      if (!keyEvent->isAlt) {
+      if (!keyEvent->IsAlt()) {
         switch(keyEvent->keyCode) {
           case NS_VK_TAB:
           case NS_VK_F6:
@@ -3446,10 +3424,10 @@ nsEventStateManager::PostHandleEvent(nsPresContext* aPresContext,
             nsIFocusManager* fm = nsFocusManager::GetFocusManager();
             if (fm && mDocument) {
               // Shift focus forward or back depending on shift key
-              bool isDocMove = ((nsInputEvent*)aEvent)->isControl ||
+              bool isDocMove = ((nsInputEvent*)aEvent)->IsControl() ||
                                  (keyEvent->keyCode == NS_VK_F6);
               PRUint32 dir =
-                static_cast<nsInputEvent*>(aEvent)->isShift ?
+                static_cast<nsInputEvent*>(aEvent)->IsShift() ?
                   (isDocMove ? static_cast<PRUint32>(nsIFocusManager::MOVEFOCUS_BACKWARDDOC) :
                                static_cast<PRUint32>(nsIFocusManager::MOVEFOCUS_BACKWARD)) :
                   (isDocMove ? static_cast<PRUint32>(nsIFocusManager::MOVEFOCUS_FORWARDDOC) :
@@ -3528,6 +3506,13 @@ void
 nsEventStateManager::NotifyDestroyPresContext(nsPresContext* aPresContext)
 {
   nsIMEStateManager::OnDestroyPresContext(aPresContext);
+  if (mHoverContent) {
+    // Bug 70855: Presentation is going away, possibly for a reframe.
+    // Reset the hover state so that if we're recreating the presentation,
+    // we won't have the old hover state still set in the new presentation,
+    // as if the new presentation is resized, a new element may be hovered. 
+    SetContentState(nsnull, NS_EVENT_STATE_HOVER);
+  }
 }
 
 void
@@ -3833,10 +3818,8 @@ nsEventStateManager::DispatchMouseEvent(nsGUIEvent* aEvent, PRUint32 aMessage,
   nsMouseEvent event(NS_IS_TRUSTED_EVENT(aEvent), aMessage, aEvent->widget,
                      nsMouseEvent::eReal);
   event.refPoint = aEvent->refPoint;
-  event.isShift = ((nsMouseEvent*)aEvent)->isShift;
-  event.isControl = ((nsMouseEvent*)aEvent)->isControl;
-  event.isAlt = ((nsMouseEvent*)aEvent)->isAlt;
-  event.isMeta = ((nsMouseEvent*)aEvent)->isMeta;
+  event.modifiers = ((nsMouseEvent*)aEvent)->modifiers;
+  event.buttons = ((nsMouseEvent*)aEvent)->buttons;
   event.pluginEvent = ((nsMouseEvent*)aEvent)->pluginEvent;
   event.relatedTarget = aRelatedContent;
   event.inputSource = static_cast<nsMouseEvent*>(aEvent)->inputSource;
@@ -3897,8 +3880,14 @@ public:
 
   ~MouseEnterLeaveDispatcher()
   {
-    for (PRInt32 i = 0; i < mTargets.Count(); ++i) {
-      mESM->DispatchMouseEvent(mEvent, mType, mTargets[i], mRelatedTarget);
+    if (mType == NS_MOUSEENTER) {
+      for (PRInt32 i = mTargets.Count() - 1; i >= 0; --i) {
+        mESM->DispatchMouseEvent(mEvent, mType, mTargets[i], mRelatedTarget);
+      }
+    } else {
+      for (PRInt32 i = 0; i < mTargets.Count(); ++i) {
+        mESM->DispatchMouseEvent(mEvent, mType, mTargets[i], mRelatedTarget);
+      }
     }
   }
 
@@ -4025,6 +4014,37 @@ nsEventStateManager::NotifyMouseOver(nsGUIEvent* aEvent, nsIContent* aContent)
   mFirstMouseOverEventElement = nsnull;
 }
 
+// Returns the center point of the window's inner content area.
+// This is in widget coordinates, i.e. relative to the widget's top
+// left corner, not in screen coordinates.
+static nsIntPoint
+GetWindowInnerRectCenter(nsPIDOMWindow* aWindow,
+                         nsIWidget* aWidget,
+                         nsPresContext* aContext)
+{
+  NS_ENSURE_TRUE(aWindow && aWidget && aContext, nsIntPoint(0,0));
+
+  float cssInnerX = 0.0;
+  aWindow->GetMozInnerScreenX(&cssInnerX);
+  PRInt32 innerX = PRInt32(NS_round(aContext->CSSPixelsToDevPixels(cssInnerX)));
+
+  float cssInnerY = 0.0;
+  aWindow->GetMozInnerScreenY(&cssInnerY);
+  PRInt32 innerY = PRInt32(NS_round(aContext->CSSPixelsToDevPixels(cssInnerY)));
+ 
+  PRInt32 innerWidth = 0;
+  aWindow->GetInnerWidth(&innerWidth);
+
+  PRInt32 innerHeight = 0;
+  aWindow->GetInnerHeight(&innerHeight);
+ 
+  nsIntRect screen;
+  aWidget->GetScreenBounds(screen);
+
+  return nsIntPoint(innerX - screen.x + innerWidth / 2,
+                    innerY - screen.y + innerHeight / 2);
+}
+
 void
 nsEventStateManager::GenerateMouseEnterExit(nsGUIEvent* aEvent)
 {
@@ -4039,24 +4059,24 @@ nsEventStateManager::GenerateMouseEnterExit(nsGUIEvent* aEvent)
   case NS_MOUSE_MOVE:
     {
       if (sIsPointerLocked && aEvent->widget) {
-        // Perform mouse lock by recentering the mouse directly, then remembering the deltas.
-        nsIntRect bounds;
-        aEvent->widget->GetScreenBounds(bounds);
-        aEvent->lastRefPoint = GetMouseCoords(bounds);
-
-        // refPoint should not be the centre on mousemove
-        if (aEvent->refPoint.x == aEvent->lastRefPoint.x &&
-            aEvent->refPoint.y == aEvent->lastRefPoint.y) {
-          aEvent->refPoint = sLastRefPoint;
-        } else {
-          aEvent->widget->SynthesizeNativeMouseMove(aEvent->lastRefPoint);
+        // Perform mouse lock by recentering the mouse directly, and storing
+        // the refpoints so movement deltas can be calculated.
+        nsIntPoint center = GetWindowInnerRectCenter(mDocument->GetWindow(),
+                                                     aEvent->widget,
+                                                     mPresContext);
+        aEvent->lastRefPoint = center;
+        if (aEvent->refPoint != center) {
+          // This mouse move doesn't finish at the center of the widget,
+          // dispatch a synthetic mouse move to return the mouse back to
+          // the center.
+          aEvent->widget->SynthesizeNativeMouseMove(center);
         }
       } else {
-        aEvent->lastRefPoint = nsIntPoint(sLastRefPoint.x, sLastRefPoint.y);
+        aEvent->lastRefPoint = sLastRefPoint;
       }
 
       // Update the last known refPoint with the current refPoint.
-      sLastRefPoint = nsIntPoint(aEvent->refPoint.x, aEvent->refPoint.y);
+      sLastRefPoint = aEvent->refPoint;
 
       // Get the target content target (mousemove target == mouseover target)
       nsCOMPtr<nsIContent> targetElement = GetEventTargetContent(aEvent);
@@ -4113,11 +4133,14 @@ nsEventStateManager::SetPointerLock(nsIWidget* aWidget,
 
   if (sIsPointerLocked) {
     // Store the last known ref point so we can reposition the pointer after unlock.
-    mPreLockPoint = sLastRefPoint + sLastScreenOffset;
+    mPreLockPoint = sLastRefPoint;
 
-    nsIntRect bounds;
-    aWidget->GetScreenBounds(bounds);
-    sLastRefPoint = GetMouseCoords(bounds);
+    // Fire a synthetic mouse move to ensure event state is updated. We first
+    // set the mouse to the center of the window, so that the mouse event
+    // doesn't report any movement.
+    sLastRefPoint = GetWindowInnerRectCenter(aElement->OwnerDoc()->GetWindow(),
+                                             aWidget,
+                                             mPresContext);
     aWidget->SynthesizeNativeMouseMove(sLastRefPoint);
 
     // Retarget all events to this element via capture.
@@ -4128,8 +4151,12 @@ nsEventStateManager::SetPointerLock(nsIWidget* aWidget,
       dragService->Suppress();
     }
   } else {
-    // Unlocking, so return pointer to the original position
-    aWidget->SynthesizeNativeMouseMove(sLastScreenPoint);
+    // Unlocking, so return pointer to the original position by firing a
+    // synthetic mouse event. We first reset sLastRefPoint to its
+    // pre-pointerlock position, so that the synthetic mouse event reports
+    // no movement.
+    sLastRefPoint = mPreLockPoint;
+    aWidget->SynthesizeNativeMouseMove(mPreLockPoint);
 
     // Don't retarget events to this element any more.
     nsIPresShell::SetCapturingContent(nsnull, CAPTURE_POINTERLOCK);
@@ -4139,31 +4166,6 @@ nsEventStateManager::SetPointerLock(nsIWidget* aWidget,
       dragService->Unsuppress();
     }
   }
-}
-
-nsIntPoint
-nsEventStateManager::GetMouseCoords(nsIntRect aBounds)
-{
-  NS_ASSERTION(sIsPointerLocked, "GetMouseCoords when not pointer locked!");
-
-  nsCOMPtr<nsIDocument> pointerLockedDoc =
-    do_QueryReferent(nsEventStateManager::sPointerLockedDoc);
-  if (!pointerLockedDoc) {
-    NS_WARNING("GetMouseCoords(): No Document");
-    return nsIntPoint(0, 0);
-  }
-
-  nsCOMPtr<nsPIDOMWindow> domWin = pointerLockedDoc->GetInnerWindow();
-  if (!domWin) {
-    NS_WARNING("GetMouseCoords(): No Window");
-    return nsIntPoint(0, 0);
-  }
-
-  int innerHeight;
-  domWin->GetInnerHeight(&innerHeight);
-
-  return nsIntPoint((aBounds.width / 2) + aBounds.x,
-                    (innerHeight / 2) + (aBounds.y + (aBounds.height - innerHeight)));
 }
 
 void
@@ -4246,10 +4248,8 @@ nsEventStateManager::FireDragEnterOrExit(nsPresContext* aPresContext,
   nsEventStatus status = nsEventStatus_eIgnore;
   nsDragEvent event(NS_IS_TRUSTED_EVENT(aEvent), aMsg, aEvent->widget);
   event.refPoint = aEvent->refPoint;
-  event.isShift = ((nsMouseEvent*)aEvent)->isShift;
-  event.isControl = ((nsMouseEvent*)aEvent)->isControl;
-  event.isAlt = ((nsMouseEvent*)aEvent)->isAlt;
-  event.isMeta = ((nsMouseEvent*)aEvent)->isMeta;
+  event.modifiers = ((nsMouseEvent*)aEvent)->modifiers;
+  event.buttons = ((nsMouseEvent*)aEvent)->buttons;
   event.relatedTarget = aRelatedTarget;
   event.inputSource = static_cast<nsMouseEvent*>(aEvent)->inputSource;
 
@@ -4408,10 +4408,8 @@ nsEventStateManager::CheckForAndDispatchClick(nsPresContext* aPresContext,
                        nsMouseEvent::eReal);
     event.refPoint = aEvent->refPoint;
     event.clickCount = aEvent->clickCount;
-    event.isShift = aEvent->isShift;
-    event.isControl = aEvent->isControl;
-    event.isAlt = aEvent->isAlt;
-    event.isMeta = aEvent->isMeta;
+    event.modifiers = aEvent->modifiers;
+    event.buttons = aEvent->buttons;
     event.time = aEvent->time;
     event.flags |= flags;
     event.button = aEvent->button;
@@ -4429,10 +4427,8 @@ nsEventStateManager::CheckForAndDispatchClick(nsPresContext* aPresContext,
                             aEvent->widget, nsMouseEvent::eReal);
         event2.refPoint = aEvent->refPoint;
         event2.clickCount = aEvent->clickCount;
-        event2.isShift = aEvent->isShift;
-        event2.isControl = aEvent->isControl;
-        event2.isAlt = aEvent->isAlt;
-        event2.isMeta = aEvent->isMeta;
+        event2.modifiers = aEvent->modifiers;
+        event2.buttons = aEvent->buttons;
         event2.flags |= flags;
         event2.button = aEvent->button;
         event2.inputSource = aEvent->inputSource;
@@ -5031,10 +5027,8 @@ nsEventStateManager::DoQueryScrollTargetInfo(nsQueryContentEvent* aEvent,
     aEvent->mInput.mMouseScrollEvent->message,
     aEvent->mInput.mMouseScrollEvent->widget);
 
-  msEvent.isShift = aEvent->mInput.mMouseScrollEvent->isShift;
-  msEvent.isControl = aEvent->mInput.mMouseScrollEvent->isControl;
-  msEvent.isAlt = aEvent->mInput.mMouseScrollEvent->isAlt;
-  msEvent.isMeta = aEvent->mInput.mMouseScrollEvent->isMeta;
+  msEvent.modifiers = aEvent->mInput.mMouseScrollEvent->modifiers;
+  msEvent.buttons = aEvent->mInput.mMouseScrollEvent->buttons;
 
   msEvent.scrollFlags = aEvent->mInput.mMouseScrollEvent->scrollFlags;
   msEvent.delta = ComputeWheelDeltaFor(aEvent->mInput.mMouseScrollEvent);

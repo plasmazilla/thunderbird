@@ -1,45 +1,16 @@
 #!/usr/bin/perl
 # -*- Mode: Perl; tab-width: 2; indent-tabs-mode: nil; -*-
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is Mozilla MathML Project.
-#
-# The Initial Developer of the Original Code is
-# Frederic Wang <fred.wang@free.fr>.
-# Portions created by the Initial Developer are Copyright (C) 2010
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use XML::XSLT;
-use XML::DOM;
+use XML::LibXSLT;
+use XML::LibXML;
+use LWP::Simple;
 
 # output files
+$FILE_UNICODE = "unicode.xml";
+$FILE_DICTIONARY = "dictionary.xml";
 $FILE_DIFFERENCES = "differences.txt";
 $FILE_NEW_DICTIONARY = "new_dictionary.txt";
 $FILE_SYNTAX_ERRORS = "syntax_errors.txt";
@@ -48,17 +19,51 @@ $FILE_JS = "tests/stretchy-and-large-operators.js";
 # our dictionary (property file)
 $MOZ_DICTIONARY = "mathfont.properties";
 
-# dictionary provided in "XML Entity Definitions for Characters"
-# The file unicode.xml is very large (> 5Mb), so it is expected that you
-# provide instead the XML file transformed by operatorDictionary.xsl.
-# > xsltproc -o dictionary.xml operatorDictionary.xsl unicode.xml
-$WG_DICTIONARY = "dictionary.xml";
+# dictionary provided by the W3C in "XML Entity Definitions for Characters"
+$WG_DICTIONARY_URL = "http://www.w3.org/2003/entities/2007xml/unicode.xml";
+
+# XSL stylesheet to extract relevant data from the dictionary
+$DICTIONARY_XSL = "operatorDictionary.xsl";
+
+# dictionary provided by the W3C transformed with operatorDictionary.xsl 
+$WG_DICTIONARY = $FILE_DICTIONARY;
 
 if (!($#ARGV >= 0 &&
-      ((($ARGV[0] eq "compare") && $#ARGV <= 1) ||
+      ((($ARGV[0] eq "download") && $#ARGV <= 1) ||
+       (($ARGV[0] eq "compare") && $#ARGV <= 1) ||
        (($ARGV[0] eq "check") && $#ARGV <= 0) ||
-       (($ARGV[0] eq "make-js") && $#ARGV <= 0)))) {
+       (($ARGV[0] eq "make-js") && $#ARGV <= 0) ||
+       (($ARGV[0] eq "clean") && $#ARGV <= 0)))) {
     &usage;
+}
+
+if ($ARGV[0] eq "download") {
+    if ($#ARGV == 1) {
+        $WG_DICTIONARY_URL = $ARGV[1];
+    }
+    print "Downloading $WG_DICTIONARY_URL...\n";
+    getstore($WG_DICTIONARY_URL, $FILE_UNICODE);
+
+    print "Converting $FILE_UNICODE into $FILE_DICTIONARY...\n";
+    my $xslt = XML::LibXSLT->new();
+    my $source = XML::LibXML->load_xml(location => $FILE_UNICODE);
+    my $style_doc = XML::LibXML->load_xml(location => $DICTIONARY_XSL,
+                                          no_cdata=>1);
+    my $stylesheet = $xslt->parse_stylesheet($style_doc);
+    my $results = $stylesheet->transform($source);
+    open($file, ">$FILE_DICTIONARY") || die ("Couldn't open $FILE_DICTIONARY!");
+    print $file $stylesheet->output_as_bytes($results);
+    close($file);
+    exit 0;
+}
+
+if ($ARGV[0] eq "clean") {
+    unlink($FILE_UNICODE,
+           $FILE_DICTIONARY,
+           $FILE_DIFFERENCES,
+           $FILE_NEW_DICTIONARY,
+           $FILE_SYNTAX_ERRORS);
+    exit 0;
 }
 
 if ($ARGV[0] eq "compare" && $#ARGV == 1) {
@@ -286,17 +291,13 @@ if ($ARGV[0] eq "check") {
 # 3) build %wg_hash and @wg_keys from the page $WG_DICTIONARY
 
 print "loading $WG_DICTIONARY...\n";
-$parser = new XML::DOM::Parser;
-$doc = $parser->parsefile($WG_DICTIONARY)->getDocumentElement;
+my $parser = XML::LibXML->new();
+my $doc = $parser->parse_file($WG_DICTIONARY);
 
 print "building dictionary...\n";
 @wg_keys = ();
-$entries = $doc->getElementsByTagName("entry");
-$n = $entries->getLength;
 
-for ($i = 0; $i < $n; $i++) {
-    $entry = $entries->item($i);
-    
+foreach my $entry ($doc->findnodes('/root/entry')) {
     # 3.1) build the key
     $key = "operator.";
 
@@ -329,19 +330,18 @@ for ($i = 0; $i < $n; $i++) {
     $value[8] = (m/^(.*)accent(.*)$/);
     $value[9] = (m/^(.*)fence(.*)$/);
     $value[10] = (m/^(.*)symmetric(.*)$/);
+    $value[15] = (m/^(.*)mirrorable(.*)$/);
     $value[11] = $entry->getAttribute("priority");
     $value[12] = $entry->getAttribute("linebreakstyle");
 
     # not stored in the WG dictionary
     $value[13] = ""; # direction
     $value[14] = ""; # integral
-    $value[15] = ""; # mirrorable
 
     # 3.3) save the key and value
     push(@wg_keys, $key);
     $wg_hash{$key} = [ @value ];
 }
-$doc->dispose;
 @wg_keys = reverse(@wg_keys);
 
 ################################################################################
@@ -444,9 +444,11 @@ exit 0;
 sub usage {
     # display the accepted command syntax and quit
     print "usage:\n";
-    print "  ./updateOperatorDictionary.pl compare [dictionary]\n";
+    print "  ./updateOperatorDictionary.pl download [unicode.xml]\n";
+    print "  ./updateOperatorDictionary.pl compare [dictionary.xml]\n";
     print "  ./updateOperatorDictionary.pl check\n";
     print "  ./updateOperatorDictionary.pl make-js\n";
+    print "  ./updateOperatorDictionary.pl clean\n";
     exit 0;
 }
 
@@ -462,6 +464,7 @@ sub generateCommon {
     if ($v[8]) { $entry = "$entry accent"; }
     if ($v[9]) { $entry = "$entry fence"; }
     if ($v[10]) { $entry = "$entry symmetric"; }
+    if ($v[15]) { $entry = "$entry mirrorable"; }
     return $entry;
 }
 

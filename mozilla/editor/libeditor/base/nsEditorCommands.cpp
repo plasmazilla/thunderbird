@@ -1,53 +1,32 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Kathleen Brade <brade@netscape.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
+#include "mozFlushType.h"
+#include "mozilla/Assertions.h"
+#include "nsCOMPtr.h"
 #include "nsCRT.h"
-#include "nsString.h"
-
-#include "nsIEditor.h"
-#include "nsIPlaintextEditor.h"
-#include "nsIEditorMailSupport.h"
-#include "nsISelectionController.h"
-#include "nsIClipboard.h"
-
+#include "nsDebug.h"
 #include "nsEditorCommands.h"
+#include "nsError.h"
+#include "nsIClipboard.h"
+#include "nsICommandParams.h"
+#include "nsID.h"
+#include "nsIDOMDocument.h"
 #include "nsIDocument.h"
+#include "nsIEditor.h"
+#include "nsIEditorMailSupport.h"
+#include "nsIPlaintextEditor.h"
+#include "nsISelection.h"
+#include "nsISelectionController.h"
+#include "nsITransferable.h"
+#include "nsString.h"
+#include "nsAString.h"
+#include "prtypes.h"
+
+class nsISupports;
 
 
 #define STATE_ENABLED  "state_enabled"
@@ -281,12 +260,8 @@ nsCutOrDeleteCommand::DoCommand(const char *aCommandName,
   {
     nsCOMPtr<nsISelection> selection;
     nsresult rv = editor->GetSelection(getter_AddRefs(selection));
-    if (NS_SUCCEEDED(rv) && selection)
-    {
-      bool isCollapsed;
-      rv = selection->GetIsCollapsed(&isCollapsed);
-      if (NS_SUCCEEDED(rv) && isCollapsed)
-        return editor->DeleteSelection(nsIEditor::eNext);
+    if (NS_SUCCEEDED(rv) && selection && selection->Collapsed()) {
+      return editor->DeleteSelection(nsIEditor::eNext, nsIEditor::eStrip);
     }
     return editor->Cut();
   }
@@ -379,12 +354,8 @@ nsCopyOrDeleteCommand::DoCommand(const char *aCommandName,
   {
     nsCOMPtr<nsISelection> selection;
     nsresult rv = editor->GetSelection(getter_AddRefs(selection));
-    if (NS_SUCCEEDED(rv) && selection)
-    {
-      bool isCollapsed;
-      rv = selection->GetIsCollapsed(&isCollapsed);
-      if (NS_SUCCEEDED(rv) && isCollapsed)
-        return editor->DeleteSelection(nsIEditor::eNextWord);
+    if (NS_SUCCEEDED(rv) && selection && selection->Collapsed()) {
+      return editor->DeleteSelection(nsIEditor::eNextWord, nsIEditor::eStrip);
     }
     return editor->Copy();
   }
@@ -568,66 +539,62 @@ nsSwitchTextDirectionCommand::GetCommandStateParams(const char *aCommandName,
 }
 
 NS_IMETHODIMP
-nsDeleteCommand::IsCommandEnabled(const char * aCommandName,
-                                  nsISupports *aCommandRefCon,
-                                  bool *outCmdEnabled)
+nsDeleteCommand::IsCommandEnabled(const char* aCommandName,
+                                  nsISupports* aCommandRefCon,
+                                  bool* outCmdEnabled)
 {
   NS_ENSURE_ARG_POINTER(outCmdEnabled);
   nsCOMPtr<nsIEditor> editor = do_QueryInterface(aCommandRefCon);
   *outCmdEnabled = false;
 
-  // we can delete when we can cut
   NS_ENSURE_TRUE(editor, NS_OK);
-    
-  bool isEditable = false;
-  nsresult rv = editor->GetIsSelectionEditable(&isEditable);
+
+  // We can generally delete whenever the selection is editable.  However,
+  // cmd_delete doesn't make sense if the selection is collapsed because it's
+  // directionless, which is the same condition under which we can't cut.
+  nsresult rv = editor->GetIsSelectionEditable(outCmdEnabled);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  if (!isEditable)
-    return NS_OK;
-  else if (!nsCRT::strcmp(aCommandName,"cmd_delete"))
-    return editor->CanCut(outCmdEnabled);
-  else if (!nsCRT::strcmp(aCommandName,"cmd_deleteCharBackward"))
-    *outCmdEnabled = true;
-  else if (!nsCRT::strcmp(aCommandName,"cmd_deleteCharForward"))
-    *outCmdEnabled = true;
-  else if (!nsCRT::strcmp(aCommandName,"cmd_deleteWordBackward"))
-    *outCmdEnabled = true;
-  else if (!nsCRT::strcmp(aCommandName,"cmd_deleteWordForward"))
-    *outCmdEnabled = true;
-  else if (!nsCRT::strcmp(aCommandName,"cmd_deleteToBeginningOfLine"))
-    *outCmdEnabled = true;
-  else if (!nsCRT::strcmp(aCommandName,"cmd_deleteToEndOfLine"))
-    *outCmdEnabled = true;  
+  if (!nsCRT::strcmp("cmd_delete", aCommandName) && *outCmdEnabled) {
+    rv = editor->CanCut(outCmdEnabled);
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
 
   return NS_OK;
 }
 
 
 NS_IMETHODIMP
-nsDeleteCommand::DoCommand(const char *aCommandName, nsISupports *aCommandRefCon)
+nsDeleteCommand::DoCommand(const char* aCommandName,
+                           nsISupports* aCommandRefCon)
 {
   nsCOMPtr<nsIEditor> editor = do_QueryInterface(aCommandRefCon);
   NS_ENSURE_TRUE(editor, NS_ERROR_FAILURE);
-    
-  nsIEditor::EDirection deleteDir = nsIEditor::eNone;
-  
-  if (!nsCRT::strcmp("cmd_delete",aCommandName))
-    deleteDir = nsIEditor::ePrevious;
-  else if (!nsCRT::strcmp("cmd_deleteCharBackward",aCommandName))
-    deleteDir = nsIEditor::ePrevious;
-  else if (!nsCRT::strcmp("cmd_deleteCharForward",aCommandName))
-    deleteDir = nsIEditor::eNext;
-  else if (!nsCRT::strcmp("cmd_deleteWordBackward",aCommandName))
-    deleteDir = nsIEditor::ePreviousWord;
-  else if (!nsCRT::strcmp("cmd_deleteWordForward",aCommandName))
-    deleteDir = nsIEditor::eNextWord;
-  else if (!nsCRT::strcmp("cmd_deleteToBeginningOfLine",aCommandName))
-    deleteDir = nsIEditor::eToBeginningOfLine;
-  else if (!nsCRT::strcmp("cmd_deleteToEndOfLine",aCommandName))
-    deleteDir = nsIEditor::eToEndOfLine;
 
-  return editor->DeleteSelection(deleteDir);
+  nsIEditor::EDirection deleteDir = nsIEditor::eNone;
+
+  if (!nsCRT::strcmp("cmd_delete", aCommandName)) {
+    // Really this should probably be eNone, but it only makes a difference if
+    // the selection is collapsed, and then this command is disabled.  So let's
+    // keep it as it always was to avoid breaking things.
+    deleteDir = nsIEditor::ePrevious;
+  } else if (!nsCRT::strcmp("cmd_deleteCharForward", aCommandName)) {
+    deleteDir = nsIEditor::eNext;
+  } else if (!nsCRT::strcmp("cmd_deleteCharBackward", aCommandName)) {
+    deleteDir = nsIEditor::ePrevious;
+  } else if (!nsCRT::strcmp("cmd_deleteWordBackward", aCommandName)) {
+    deleteDir = nsIEditor::ePreviousWord;
+  } else if (!nsCRT::strcmp("cmd_deleteWordForward", aCommandName)) {
+    deleteDir = nsIEditor::eNextWord;
+  } else if (!nsCRT::strcmp("cmd_deleteToBeginningOfLine", aCommandName)) {
+    deleteDir = nsIEditor::eToBeginningOfLine;
+  } else if (!nsCRT::strcmp("cmd_deleteToEndOfLine", aCommandName)) {
+    deleteDir = nsIEditor::eToEndOfLine;
+  } else {
+    MOZ_NOT_REACHED("Unrecognized nsDeleteCommand");
+  }
+
+  return editor->DeleteSelection(deleteDir, nsIEditor::eStrip);
 }
 
 NS_IMETHODIMP 
@@ -656,16 +623,18 @@ nsSelectAllCommand::IsCommandEnabled(const char * aCommandName,
   NS_ENSURE_ARG_POINTER(outCmdEnabled);
 
   nsresult rv = NS_OK;
-  *outCmdEnabled = false;
+  // You can always select all, unless the selection is editable,
+  // and the editable region is empty!
+  *outCmdEnabled = true;
   bool docIsEmpty;
- 
+
   // you can select all if there is an editor which is non-empty
   nsCOMPtr<nsIEditor> editor = do_QueryInterface(aCommandRefCon);
   if (editor) {
     rv = editor->GetDocumentIsEmpty(&docIsEmpty);
     NS_ENSURE_SUCCESS(rv, rv);
     *outCmdEnabled = !docIsEmpty;
-  } 
+  }
 
   return rv;
 }

@@ -1,68 +1,46 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "nscore.h"
-#include "nsIDOMDocument.h"
+#include <stdio.h>
+
+#include "mozilla/Assertions.h"
+#include "mozilla/dom/Element.h"
+#include "nsAString.h"
+#include "nsAlgorithm.h"
+#include "nsCOMPtr.h"
+#include "nsDebug.h"
+#include "nsEditProperty.h"
 #include "nsEditor.h"
+#include "nsEditorUtils.h"
+#include "nsError.h"
+#include "nsGkAtoms.h"
+#include "nsHTMLEditUtils.h"
+#include "nsHTMLEditor.h"
+#include "nsIAtom.h"
+#include "nsIContent.h"
 #include "nsIDOMElement.h"
 #include "nsIDOMNode.h"
-#include "nsIDOMNodeList.h"
 #include "nsIDOMRange.h"
+#include "nsIEditor.h"
 #include "nsIFrame.h"
+#include "nsIHTMLEditor.h"
+#include "nsINode.h"
 #include "nsIPresShell.h"
 #include "nsISelection.h"
-#include "nsISelectionPrivate.h"
-#include "nsLayoutCID.h"
-#include "nsIContent.h"
-#include "nsIContentIterator.h"
-#include "nsIAtom.h"
-#include "nsITableCellLayout.h" // For efficient access to table cell
-#include "nsITableLayout.h"     //  data owned by the table and cell frames
-#include "nsHTMLEditor.h"
 #include "nsISelectionPrivate.h"  // For nsISelectionPrivate::TABLESELECTION_ defines
-#include "nsTArray.h"
-
-#include "nsEditorUtils.h"
-#include "nsTextEditUtils.h"
-#include "nsHTMLEditUtils.h"
+#include "nsISupportsUtils.h"
+#include "nsITableCellLayout.h" // For efficient access to table cell
+#include "nsITableEditor.h"
+#include "nsITableLayout.h"     //  data owned by the table and cell frames
 #include "nsLayoutErrors.h"
-
-#include "mozilla/dom/Element.h"
+#include "nsLiteralString.h"
+#include "nsQueryFrame.h"
+#include "nsString.h"
+#include "nsTArray.h"
+#include "nscore.h"
+#include "prtypes.h"
 
 using namespace mozilla;
 
@@ -131,10 +109,7 @@ nsHTMLEditor::InsertCell(nsIDOMElement *aCell, PRInt32 aRowSpan, PRInt32 aColSpa
   NS_ENSURE_SUCCESS(res, res);
   NS_ENSURE_TRUE(cellParent, NS_ERROR_NULL_POINTER);
 
-
-  PRInt32 cellOffset;
-  res = GetChildOffset(aCell, cellParent, cellOffset);
-  NS_ENSURE_SUCCESS(res, res);
+  PRInt32 cellOffset = GetChildOffset(aCell, cellParent);
 
   nsCOMPtr<nsIDOMElement> newCell;
   if (aIsHeader)
@@ -694,8 +669,7 @@ nsHTMLEditor::InsertTableRow(PRInt32 aNumber, bool aAfter)
       parentRow->GetParentNode(getter_AddRefs(parentOfRow));
       NS_ENSURE_TRUE(parentOfRow, NS_ERROR_NULL_POINTER);
 
-      res = GetChildOffset(parentRow, parentOfRow, newRowOffset);
-      NS_ENSURE_SUCCESS(res, res);
+      newRowOffset = GetChildOffset(parentRow, parentOfRow);
       
       // Adjust for when adding past the end 
       if (aAfter && startRowIndex >= rowCount)
@@ -749,7 +723,7 @@ nsHTMLEditor::DeleteTable2(nsIDOMElement *aTable, nsISelection *aSelection)
     res = AppendNodeToSelectionAsRange(aTable);
   NS_ENSURE_SUCCESS(res, res);
 
-  return DeleteSelection(nsIEditor::eNext);
+  return DeleteSelection(nsIEditor::eNext, nsIEditor::eStrip);
 }
 
 NS_IMETHODIMP
@@ -1333,7 +1307,7 @@ nsHTMLEditor::DeleteRow(nsIDOMElement *aTable, PRInt32 aRowIndex)
 
   // The list of cells we will change rowspan in
   //  and the new rowspan values for each
-  nsTArray<nsIDOMElement*> spanCellList;
+  nsTArray<nsCOMPtr<nsIDOMElement> > spanCellList;
   nsTArray<PRInt32> newSpanList;
 
   // Scan through cells in row to do rowspan adjustments
@@ -2172,7 +2146,7 @@ nsHTMLEditor::JoinTableCells(bool aMergeNonContiguousContents)
     }
   
     // The list of cells we will delete after joining
-    nsTArray<nsIDOMElement*> deleteList;
+    nsTArray<nsCOMPtr<nsIDOMElement> > deleteList;
 
     // 2nd pass: Do the joining and merging
     for (rowIndex = 0; rowIndex < rowCount; rowIndex++)
@@ -2353,65 +2327,48 @@ nsHTMLEditor::MergeCells(nsCOMPtr<nsIDOMElement> aTargetCell,
                          nsCOMPtr<nsIDOMElement> aCellToMerge,
                          bool aDeleteCellToMerge)
 {
-  NS_ENSURE_TRUE(aTargetCell && aCellToMerge, NS_ERROR_NULL_POINTER);
-
-  nsresult res = NS_OK;
+  nsCOMPtr<dom::Element> targetCell = do_QueryInterface(aTargetCell);
+  nsCOMPtr<dom::Element> cellToMerge = do_QueryInterface(aCellToMerge);
+  NS_ENSURE_TRUE(targetCell && cellToMerge, NS_ERROR_NULL_POINTER);
 
   // Prevent rules testing until we're done
   nsAutoRules beginRulesSniffing(this, kOpDeleteNode, nsIEditor::eNext);
 
   // Don't need to merge if cell is empty
-  if (!IsEmptyCell(aCellToMerge))
-  {
+  if (!IsEmptyCell(cellToMerge)) {
     // Get index of last child in target cell
-    nsCOMPtr<nsIDOMNodeList> childNodes;
-    nsCOMPtr<nsIDOMNode> cellChild;
-    res = aTargetCell->GetChildNodes(getter_AddRefs(childNodes));
     // If we fail or don't have children, 
     //  we insert at index 0
     PRInt32 insertIndex = 0;
 
-    if ((NS_SUCCEEDED(res)) && (childNodes))
-    {
-      // Start inserting just after last child
-      PRUint32 len;
-      res = childNodes->GetLength(&len);
+    // Start inserting just after last child
+    PRUint32 len = targetCell->GetChildCount();
+    if (len == 1 && IsEmptyCell(targetCell)) {
+      // Delete the empty node
+      nsIContent* cellChild = targetCell->GetFirstChild();
+      nsresult res = DeleteNode(cellChild->AsDOMNode());
       NS_ENSURE_SUCCESS(res, res);
-      if (len == 1 && IsEmptyCell(aTargetCell))
-      {
-          // Delete the empty node
-          nsCOMPtr<nsIDOMNode> tempNode;
-          res = childNodes->Item(0, getter_AddRefs(cellChild));
-          NS_ENSURE_SUCCESS(res, res);
-          res = DeleteNode(cellChild);
-          NS_ENSURE_SUCCESS(res, res);
-          insertIndex = 0;
-      }
-      else
-        insertIndex = (PRInt32)len;
+      insertIndex = 0;
+    } else {
+      insertIndex = (PRInt32)len;
     }
 
     // Move the contents
-    bool hasChild;
-    aCellToMerge->HasChildNodes(&hasChild);
-    while (hasChild)
-    {
-      aCellToMerge->GetLastChild(getter_AddRefs(cellChild));
-      res = DeleteNode(cellChild);
+    while (cellToMerge->HasChildren()) {
+      nsCOMPtr<nsIDOMNode> cellChild = cellToMerge->GetLastChild()->AsDOMNode();
+      nsresult res = DeleteNode(cellChild);
       NS_ENSURE_SUCCESS(res, res);
 
       res = InsertNode(cellChild, aTargetCell, insertIndex);
       NS_ENSURE_SUCCESS(res, res);
-
-      aCellToMerge->HasChildNodes(&hasChild);
     }
   }
 
   // Delete cells whose contents were moved
   if (aDeleteCellToMerge)
-    res = DeleteNode(aCellToMerge);
+    return DeleteNode(aCellToMerge);
 
-  return res;
+  return NS_OK;
 }
 
 
@@ -2921,8 +2878,9 @@ nsHTMLEditor::GetCellContext(nsISelection **aSelection,
     *aCellParent = cellParent.get();
     NS_ADDREF(*aCellParent);
 
-    if (aCellOffset)
-      res = GetChildOffset(cell, cellParent, *aCellOffset);
+    if (aCellOffset) {
+      *aCellOffset = GetChildOffset(cell, cellParent);
+    }
   }
 
   return res;
@@ -3190,12 +3148,11 @@ nsHTMLEditor::SetSelectionAfterTableEdit(nsIDOMElement* aTable, PRInt32 aRow, PR
   // We didn't find a cell
   // Set selection to just before the table
   nsCOMPtr<nsIDOMNode> tableParent;
-  PRInt32 tableOffset;
   res = aTable->GetParentNode(getter_AddRefs(tableParent));
   if(NS_SUCCEEDED(res) && tableParent)
   {
-    if(NS_SUCCEEDED(GetChildOffset(aTable, tableParent, tableOffset)))
-      return selection->Collapse(tableParent, tableOffset);
+    PRInt32 tableOffset = GetChildOffset(aTable, tableParent);
+    return selection->Collapse(tableParent, tableOffset);
   }
   // Last resort: Set selection to start of doc
   // (it's very bad to not have a valid selection!)
@@ -3441,12 +3398,12 @@ nsHTMLEditor::AllCellsInColumnSelected(nsIDOMElement *aTable, PRInt32 aColIndex,
 }
 
 bool 
-nsHTMLEditor::IsEmptyCell(nsIDOMElement *aCell)
+nsHTMLEditor::IsEmptyCell(dom::Element* aCell)
 {
-  nsCOMPtr<dom::Element> cell = do_QueryInterface(aCell);
+  MOZ_ASSERT(aCell);
 
   // Check if target only contains empty text node or <br>
-  nsCOMPtr<nsINode> cellChild = cell->GetFirstChild();
+  nsCOMPtr<nsINode> cellChild = aCell->GetFirstChild();
   if (!cellChild) {
     return false;
   }

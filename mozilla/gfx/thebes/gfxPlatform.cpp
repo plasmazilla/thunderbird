@@ -1,53 +1,28 @@
-/* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Foundation code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2005
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Vladimir Vukicevic <vladimir@pobox.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 2 -*-
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef MOZ_LOGGING
 #define FORCE_PR_LOG /* Allow logging in the release build */
 #endif
+
+#include "mozilla/layers/CompositorParent.h"
+#include "mozilla/layers/ImageBridgeChild.h"
+
 #include "prlog.h"
+#include "prenv.h"
 
 #include "gfxPlatform.h"
+
+#include "nsXULAppAPI.h"
 
 #if defined(XP_WIN)
 #include "gfxWindowsPlatform.h"
 #include "gfxD2DSurface.h"
 #elif defined(XP_MACOSX)
 #include "gfxPlatformMac.h"
-#elif defined(MOZ_WIDGET_GTK2)
+#elif defined(MOZ_WIDGET_GTK)
 #include "gfxPlatformGtk.h"
 #elif defined(MOZ_WIDGET_QT)
 #include "gfxQtPlatform.h"
@@ -84,13 +59,19 @@
 #include "GLContext.h"
 #include "GLContextProvider.h"
 
+#ifdef MOZ_WIDGET_ANDROID
+#include "TexturePoolOGL.h"
+#endif
+
 #include "mozilla/FunctionTimer.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/Assertions.h"
+#include "mozilla/Attributes.h"
 
 #include "nsIGfxInfo.h"
 
 using namespace mozilla;
+using namespace mozilla::layers;
 
 gfxPlatform *gPlatform = nsnull;
 static bool gEverInitialized = false;
@@ -124,8 +105,8 @@ static PRLogModuleInfo *sCmapDataLog = nsnull;
 
 /* Class to listen for pref changes so that chrome code can dynamically
    force sRGB as an output profile. See Bug #452125. */
-class SRGBOverrideObserver : public nsIObserver,
-                             public nsSupportsWeakReference
+class SRGBOverrideObserver MOZ_FINAL : public nsIObserver,
+                                       public nsSupportsWeakReference
 {
 public:
     NS_DECL_ISUPPORTS
@@ -166,7 +147,7 @@ static const char* kObservedPrefs[] = {
     nsnull
 };
 
-class FontPrefsObserver : public nsIObserver
+class FontPrefsObserver MOZ_FINAL : public nsIObserver
 {
 public:
     NS_DECL_ISUPPORTS
@@ -274,6 +255,34 @@ gfxPlatform::Init()
     sCmapDataLog = PR_NewLogModule("cmapdata");;
 #endif
 
+    bool useOffMainThreadCompositing = false;
+#ifdef MOZ_X11
+    // On X11 platforms only use OMTC if firefox was initalized with thread-safe 
+    // X11 (else it would crash).
+    useOffMainThreadCompositing = (PR_GetEnv("MOZ_USE_OMTC") != NULL);
+#else
+    useOffMainThreadCompositing = Preferences::GetBool(
+          "layers.offmainthreadcomposition.enabled", 
+          false);
+    // Until https://bugzilla.mozilla.org/show_bug.cgi?id=745148 lands,
+    // we use either omtc or content processes, but not both.  Prefer
+    // OOP content to omtc.  (Currently, this only affects b2g.)
+    //
+    // See https://bugzilla.mozilla.org/show_bug.cgi?id=761962 .
+    if (!Preferences::GetBool("dom.ipc.tabs.disabled", true)) {
+        // Disable omtc if OOP content isn't force-disabled.
+        useOffMainThreadCompositing = false;
+    }
+#endif
+
+    if (useOffMainThreadCompositing && (XRE_GetProcessType() == 
+                                        GeckoProcessType_Default)) {
+        CompositorParent::StartUp();
+        if (Preferences::GetBool("layers.async-video.enabled",false)) {
+            ImageBridgeChild::StartUp();
+        }
+
+    }
 
     /* Initialize the GfxInfo service.
      * Note: we can't call functions on GfxInfo that depend
@@ -290,7 +299,7 @@ gfxPlatform::Init()
     gPlatform = new gfxWindowsPlatform;
 #elif defined(XP_MACOSX)
     gPlatform = new gfxPlatformMac;
-#elif defined(MOZ_WIDGET_GTK2)
+#elif defined(MOZ_WIDGET_GTK)
     gPlatform = new gfxPlatformGtk;
 #elif defined(MOZ_WIDGET_QT)
     gPlatform = new gfxQtPlatform;
@@ -339,6 +348,11 @@ gfxPlatform::Init()
 
     gPlatform->mWorkAroundDriverBugs = Preferences::GetBool("gfx.work-around-driver-bugs", true);
 
+#ifdef MOZ_WIDGET_ANDROID
+    // Texture pool init
+    mozilla::gl::TexturePoolOGL::Init();
+#endif
+
     // Force registration of the gfx component, thus arranging for
     // ::Shutdown to be called.
     nsCOMPtr<nsISupports> forceReg
@@ -375,6 +389,11 @@ gfxPlatform::Shutdown()
         gPlatform->mFontPrefsObserver = nsnull;
     }
 
+#ifdef MOZ_WIDGET_ANDROID
+    // Shut down the texture pool
+    mozilla::gl::TexturePoolOGL::Shutdown();
+#endif
+
     // Shut down the default GL context provider.
     mozilla::gl::GLContextProvider::Shutdown();
 
@@ -391,12 +410,20 @@ gfxPlatform::Shutdown()
     mozilla::gl::GLContextProviderEGL::Shutdown();
 #endif
 
+    // This will block this thread untill the ImageBridge protocol is completely
+    // deleted.
+    ImageBridgeChild::ShutDown();
+
+    CompositorParent::ShutDown();
+
     delete gPlatform;
     gPlatform = nsnull;
 }
 
 gfxPlatform::~gfxPlatform()
 {
+    mScreenReferenceSurface = nsnull;
+
     // The cairo folks think we should only clean up in debug builds,
     // but we're generally in the habit of trying to shut down as
     // cleanly as possible even in production code, so call this
@@ -414,6 +441,16 @@ gfxPlatform::~gfxPlatform()
     // leaked, and we hit them.
     FcFini();
 #endif
+}
+
+already_AddRefed<gfxASurface>
+gfxPlatform::CreateOffscreenImageSurface(const gfxIntSize& aSize,
+                                         gfxASurface::gfxContentType aContentType)
+{ 
+  nsRefPtr<gfxASurface> newSurface;
+  newSurface = new gfxImageSurface(aSize, OptimalFormatForContent(aContentType));
+
+  return newSurface.forget();
 }
 
 already_AddRefed<gfxASurface>
@@ -504,8 +541,14 @@ gfxPlatform::GetSourceSurfaceForSurface(DrawTarget *aTarget, gfxASurface *aSurfa
   if (!srcBuffer) {
     nsRefPtr<gfxImageSurface> imgSurface = aSurface->GetAsImageSurface();
 
+    bool isWin32ImageSurf = false;
+
+    if (imgSurface && aSurface->GetType() != gfxASurface::SurfaceTypeWin32) {
+      isWin32ImageSurf = true;
+    }
+
     if (!imgSurface) {
-      imgSurface = new gfxImageSurface(aSurface->GetSize(), gfxASurface::FormatFromContent(aSurface->GetContentType()));
+      imgSurface = new gfxImageSurface(aSurface->GetSize(), OptimalFormatForContent(aSurface->GetContentType()));
       nsRefPtr<gfxContext> ctx = new gfxContext(imgSurface);
       ctx->SetSource(aSurface);
       ctx->SetOperator(gfxContext::OPERATOR_SOURCE);
@@ -530,17 +573,36 @@ gfxPlatform::GetSourceSurfaceForSurface(DrawTarget *aTarget, gfxASurface *aSurfa
         NS_RUNTIMEABORT("Invalid surface format!");
     }
 
+    IntSize size = IntSize(imgSurface->GetSize().width, imgSurface->GetSize().height);
     srcBuffer = aTarget->CreateSourceSurfaceFromData(imgSurface->Data(),
-                                                     IntSize(imgSurface->GetSize().width, imgSurface->GetSize().height),
+                                                     size,
                                                      imgSurface->Stride(),
                                                      format);
+
+    if (!srcBuffer) {
+      // We need to check if our gfxASurface will keep the underlying data
+      // alive! This is true if gfxASurface actually -is- an ImageSurface or
+      // if it is a gfxWindowsSurface which supportes GetAsImageSurface.
+      if (imgSurface != aSurface && !isWin32ImageSurf) {
+        // This shouldn't happen for now, it can be easily supported by making
+        // a copy. For now let's just abort.
+        NS_RUNTIMEABORT("Attempt to create unsupported SourceSurface from"
+            "non-image surface.");
+        return nsnull;
+      }
+
+      srcBuffer = Factory::CreateWrappingDataSourceSurface(imgSurface->Data(),
+                                                           imgSurface->Stride(),
+                                                           size, format);
+
+    }
 
     cairo_surface_t *nullSurf =
 	cairo_null_surface_create(CAIRO_CONTENT_COLOR_ALPHA);
     cairo_surface_set_user_data(nullSurf,
-				&kSourceSurface,
-				imgSurface,
-				NULL);
+                                &kSourceSurface,
+                                imgSurface,
+                                NULL);
     cairo_surface_attach_snapshot(imgSurface->CairoSurface(), nullSurf, SourceSnapshotDetached);
     cairo_surface_destroy(nullSurf);
   }
@@ -600,8 +662,7 @@ gfxPlatform::GetThebesSurfaceForDrawTarget(DrawTarget *aTarget)
     }
 
     IntSize size = data->GetSize();
-    gfxASurface::gfxImageFormat format = gfxASurface::FormatFromContent(ContentForFormat(data->GetFormat()));
-
+    gfxASurface::gfxImageFormat format = OptimalFormatForContent(ContentForFormat(data->GetFormat()));
 
     // We need to make a copy here because data might change its data under us
     nsRefPtr<gfxImageSurface> imageSurf = new gfxImageSurface(gfxIntSize(size.width, size.height), format, false);
@@ -1076,6 +1137,22 @@ gfxPlatform::AppendPrefLang(eFontPrefLang aPrefLangs[], PRUint32& aLen, eFontPre
 }
 
 bool
+gfxPlatform::UseProgressiveTilePainting()
+{
+  static bool sUseProgressiveTilePainting;
+  static bool sUseProgressiveTilePaintingPrefCached = false;
+
+  if (!sUseProgressiveTilePaintingPrefCached) {
+    sUseProgressiveTilePaintingPrefCached = true;
+    mozilla::Preferences::AddBoolVarCache(&sUseProgressiveTilePainting,
+                                          "layers.progressive-paint",
+                                          false);
+  }
+
+  return sUseProgressiveTilePainting;
+}
+
+bool
 gfxPlatform::UseAzureContentDrawing()
 {
   static bool sAzureContentDrawingEnabled;
@@ -1083,7 +1160,7 @@ gfxPlatform::UseAzureContentDrawing()
 
   if (!sAzureContentDrawingPrefCached) {
     sAzureContentDrawingPrefCached = true;
-    mozilla::Preferences::AddBoolVarCache(&sAzureContentDrawingEnabled, 
+    mozilla::Preferences::AddBoolVarCache(&sAzureContentDrawingEnabled,
                                           "gfx.content.azure.enabled");
   }
 
@@ -1439,4 +1516,46 @@ gfxPlatform::GetScreenDepth() const
 {
     MOZ_ASSERT(false, "Not implemented on this platform");
     return 0;
+}
+
+mozilla::gfx::SurfaceFormat
+gfxPlatform::Optimal2DFormatForContent(gfxASurface::gfxContentType aContent)
+{
+  switch (aContent) {
+  case gfxASurface::CONTENT_COLOR:
+    switch (GetOffscreenFormat()) {
+    case gfxASurface::ImageFormatARGB32:
+      return mozilla::gfx::FORMAT_B8G8R8A8;
+    case gfxASurface::ImageFormatRGB24:
+      return mozilla::gfx::FORMAT_B8G8R8X8;
+    case gfxASurface::ImageFormatRGB16_565:
+      return mozilla::gfx::FORMAT_R5G6B5;
+    default:
+      NS_NOTREACHED("unknown gfxImageFormat for CONTENT_COLOR");
+      return mozilla::gfx::FORMAT_B8G8R8A8;
+    }
+  case gfxASurface::CONTENT_ALPHA:
+    return mozilla::gfx::FORMAT_A8;
+  case gfxASurface::CONTENT_COLOR_ALPHA:
+    return mozilla::gfx::FORMAT_B8G8R8A8;
+  default:
+    NS_NOTREACHED("unknown gfxContentType");
+    return mozilla::gfx::FORMAT_B8G8R8A8;
+  }
+}
+
+gfxImageFormat
+gfxPlatform::OptimalFormatForContent(gfxASurface::gfxContentType aContent)
+{
+  switch (aContent) {
+  case gfxASurface::CONTENT_COLOR:
+    return GetOffscreenFormat();
+  case gfxASurface::CONTENT_ALPHA:
+    return gfxASurface::ImageFormatA8;
+  case gfxASurface::CONTENT_COLOR_ALPHA:
+    return gfxASurface::ImageFormatARGB32;
+  default:
+    NS_NOTREACHED("unknown gfxContentType");
+    return gfxASurface::ImageFormatARGB32;
+  }
 }

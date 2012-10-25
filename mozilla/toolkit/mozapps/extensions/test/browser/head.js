@@ -132,10 +132,9 @@ registerCleanupFunction(function() {
   });
 });
 
-function log_exceptions(aCallback) {
+function log_exceptions(aCallback, ...aArgs) {
   try {
-    var args = Array.slice(arguments, 1);
-    return aCallback.apply(null, args);
+    return aCallback.apply(null, aArgs);
   }
   catch (e) {
     info("Exception thrown: " + e);
@@ -218,17 +217,17 @@ function check_all_in_list(aManager, aIds, aIgnoreExtras) {
     node = node.nextSibling;
   }
 
-  for (var i = 0; i < aIds.length; i++) {
-    if (inlist.indexOf(aIds[i]) == -1)
-      ok(false, "Should find " + aIds[i] + " in the list");
+  for (let id of aIds) {
+    if (inlist.indexOf(id) == -1)
+      ok(false, "Should find " + id + " in the list");
   }
 
   if (aIgnoreExtras)
     return;
 
-  for (i = 0; i < inlist.length; i++) {
-    if (aIds.indexOf(inlist[i]) == -1)
-      ok(false, "Shouldn't have seen " + inlist[i] + " in the list");
+  for (let inlistItem of inlist) {
+    if (aIds.indexOf(inlistItem) == -1)
+      ok(false, "Shouldn't have seen " + inlistItem + " in the list");
   }
 }
 
@@ -372,12 +371,11 @@ function wait_for_window_open(aCallback) {
   });
 }
 
-function get_string(aName) {
+function get_string(aName, ...aArgs) {
   var bundle = Services.strings.createBundle("chrome://mozapps/locale/extensions/extensions.properties");
-  if (arguments.length == 1)
+  if (aArgs.length == 0)
     return bundle.GetStringFromName(aName);
-  var args = Array.slice(arguments, 1);
-  return bundle.formatStringFromName(aName, args, args.length);
+  return bundle.formatStringFromName(aName, aArgs, aArgs.length);
 }
 
 function formatDate(aDate) {
@@ -756,9 +754,9 @@ MockProvider.prototype = {
    *         A callback to pass the Addon to
    */
   getAddonByID: function MP_getAddon(aId, aCallback) {
-    for (let i = 0; i < this.addons.length; i++) {
-      if (this.addons[i].id == aId) {
-        this._delayCallback(aCallback, this.addons[i]);
+    for (let addon of this.addons) {
+      if (addon.id == aId) {
+        this._delayCallback(aCallback, addon);
         return;
       }
     }
@@ -923,9 +921,7 @@ MockProvider.prototype = {
    *
    * @param aCallback Callback to eventually call
    */
-  _delayCallback: function MP_delayCallback(aCallback) {
-    var params = Array.splice(arguments, 1);
-
+  _delayCallback: function MP_delayCallback(aCallback, ...aArgs) {
     if (!this.useAsyncCallbacks) {
       aCallback.apply(null, params);
       return;
@@ -938,7 +934,7 @@ MockProvider.prototype = {
     var self = this;
     timer.initWithCallback(function() {
       self.callbackTimers.splice(pos, 1);
-      aCallback.apply(null, params);
+      aCallback.apply(null, aArgs);
     }, this.apiDelay, timer.TYPE_ONE_SHOT);
   }
 };

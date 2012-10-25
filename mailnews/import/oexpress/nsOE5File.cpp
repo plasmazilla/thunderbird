@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Phil Lacy <philbaseless-firefox@yahoo.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsOE5File.h"
 #include "OEDebugLog.h"
@@ -43,6 +10,8 @@
 #include "prprf.h"
 #include "nsMsgLocalFolderHdrs.h"
 #include "nsIOutputStream.h"
+#include "nsIMsgPluggableStore.h"
+#include "nsIMsgHdr.h"
 #include "nsNetUtil.h"
 #include "nsISeekableStream.h"
 #include "nsMsgMessageFlags.h"
@@ -270,21 +239,20 @@ bool nsOE5File::IsFromLine(char *pLine, PRUint32 len)
 #define  kMaxAttrCount       0x0030
 const char *nsOE5File::m_pFromLineSep = "From - Mon Jan 1 00:00:00 1965\x0D\x0A";
 
-nsresult nsOE5File::ImportMailbox(PRUint32 *pBytesDone, bool *pAbort, nsString& name, nsIFile *inFile, nsIFile *pDestination, PRUint32 *pCount)
+nsresult nsOE5File::ImportMailbox(PRUint32 *pBytesDone, bool *pAbort,
+                                  nsString& name, nsIFile *inFile,
+                                  nsIMsgFolder *dstFolder, PRUint32 *pCount)
 {
-  nsresult  rv;
   PRInt32    msgCount = 0;
   if (pCount)
     *pCount = 0;
 
-  nsCOMPtr <nsIInputStream> inputStream;
-  rv = NS_NewLocalFileInputStream(getter_AddRefs(inputStream), inFile);
-  if (NS_FAILED(rv))
-    return rv;
-  nsCOMPtr <nsIOutputStream> outputStream;
-  rv = MsgNewBufferedFileOutputStream(getter_AddRefs(outputStream), pDestination, -1, 0600);
-  if (NS_FAILED(rv))
-    return rv;
+  nsCOMPtr<nsIInputStream> inputStream;
+  nsresult rv = NS_NewLocalFileInputStream(getter_AddRefs(inputStream), inFile);
+  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsIMsgPluggableStore> msgStore;
+  rv = dstFolder->GetMsgStore(getter_AddRefs(msgStore));
+  NS_ENSURE_SUCCESS(rv, rv);
 
   PRUint32 *  pIndex;
   PRUint32  indexSize;
@@ -331,12 +299,24 @@ nsresult nsOE5File::ImportMailbox(PRUint32 *pBytesDone, bool *pAbort, nsString& 
   PRUint32  next, size;
   char *pStart, *pEnd, *partialLineStart;
   nsCAutoString partialLine, tempLine;
+  nsCOMPtr<nsIOutputStream> outputStream;
   rv = NS_OK;
 
   for (PRUint32 i = 0; (i < indexSize) && !(*pAbort); i++)
   {
     if (! pIndex[i])
       continue;
+
+    nsCOMPtr<nsIMsgDBHdr> msgHdr;
+    bool reusable;
+
+    rv = msgStore->GetNewMsgOutputStream(dstFolder, getter_AddRefs(msgHdr), &reusable,
+                                         getter_AddRefs(outputStream));
+    if (NS_FAILED(rv))
+    {
+      IMPORT_LOG1( "Mbx getting outputstream error: 0x%lx\n", rv);
+      break;
+    }
 
     if (ReadBytes(inputStream, block, pIndex[i], 16) && (block[0] == pIndex[i]) &&
       (block[2] < kMailboxBufferSize) && (ReadBytes(inputStream, pBuffer, kDontSeek, block[2])))
@@ -482,8 +462,16 @@ nsresult nsOE5File::ImportMailbox(PRUint32 *pBytesDone, bool *pAbort, nsString& 
       // when you open the folder.
       rv = outputStream->Write("\x0D\x0A", 2, &written);
 
-      if (NS_FAILED(rv))
+      if (NS_FAILED(rv)) {
+        IMPORT_LOG0( "Error writing message during OE import\n");
+        msgStore->DiscardNewMessage(outputStream, msgHdr);
         break;
+      }
+
+      msgStore->FinishNewMessage(outputStream, msgHdr);
+
+      if (!reusable)
+        outputStream->Close();
 
       msgCount++;
       if (pCount)
@@ -497,7 +485,8 @@ nsresult nsOE5File::ImportMailbox(PRUint32 *pBytesDone, bool *pAbort, nsString& 
       *pAbort = true;
     }
   }
-
+  if (outputStream)
+    outputStream->Close();
   delete [] pBuffer;
   delete [] pFlags;
   delete [] pTime;

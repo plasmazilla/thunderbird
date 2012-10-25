@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Thomas K. Dyas <tdyas@zecador.org>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsChildView_h_
 #define nsChildView_h_
@@ -42,7 +9,7 @@
 // formal protocols
 #include "mozView.h"
 #ifdef ACCESSIBILITY
-#include "nsAccessible.h"
+#include "mozilla/a11y/Accessible.h"
 #include "mozAccessibleProtocol.h"
 #endif
 
@@ -160,15 +127,22 @@ extern "C" long TSMProcessRawKeyEvent(EventRef carbonEvent);
 // Support for pixel scroll deltas, not part of NSEvent.h
 // See http://lists.apple.com/archives/cocoa-dev/2007/Feb/msg00050.html
 @interface NSEvent (DeviceDelta)
-  - (CGFloat)deviceDeltaX;
-  - (CGFloat)deviceDeltaY;
+// Leopard and SnowLeopard
+- (CGFloat)deviceDeltaX;
+- (CGFloat)deviceDeltaY;
+// Lion and above
+- (CGFloat)scrollingDeltaX;
+- (CGFloat)scrollingDeltaY;
+- (BOOL)hasPreciseScrollingDeltas;
 @end
 
-// Undocumented scrollPhase flag that lets us discern between real scrolls and
-// automatically firing momentum scroll events.
-@interface NSEvent (ScrollPhase)
-- (long long)_scrollPhase;
+#if !defined(MAC_OS_X_VERSION_10_6) || \
+MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6
+@interface NSEvent (SnowLeopardEventFeatures)
++ (NSUInteger)pressedMouseButtons;
++ (NSUInteger)modifierFlags;
 @end
+#endif
 
 // The following section, required to support fluid swipe tracking on OS X 10.7
 // and up, contains defines/declarations that are only available on 10.7 and up.
@@ -185,7 +159,6 @@ extern "C" long TSMProcessRawKeyEvent(EventRef carbonEvent);
 // friends are defined (in AvailabilityMacros.h) as decimal numbers (not
 // hexadecimal numbers).
 #if !defined(MAC_OS_X_VERSION_10_7) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7
-#ifdef __LP64__
 enum {
   NSEventPhaseNone        = 0,
   NSEventPhaseBegan       = 0x1 << 0,
@@ -196,6 +169,7 @@ enum {
 };
 typedef NSUInteger NSEventPhase;
 
+#ifdef __LP64__
 enum {
   NSEventSwipeTrackingLockDirection = 0x1 << 0,
   NSEventSwipeTrackingClampGestureAmount = 0x1 << 1
@@ -222,6 +196,15 @@ typedef NSInteger NSEventGestureAxis;
 @end
 #endif // #ifdef __LP64__
 #endif // #if !defined(MAC_OS_X_VERSION_10_7) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7
+
+// Undocumented scrollPhase flag that lets us discern between real scrolls and
+// automatically firing momentum scroll events.
+@interface NSEvent (ScrollPhase)
+// Leopard and SnowLeopard
+- (long long)_scrollPhase;
+// Lion and above
+- (NSEventPhase)momentumPhase;
+@end
 
 @interface ChildView : NSView<
 #ifdef ACCESSIBILITY
@@ -441,6 +424,7 @@ public:
   NS_IMETHOD              DispatchEvent(nsGUIEvent* event, nsEventStatus & aStatus);
 
   virtual bool            GetShouldAccelerate();
+  virtual bool            UseOffMainThreadCompositing();
 
   NS_IMETHOD        SetCursor(nsCursor aCursor);
   NS_IMETHOD        SetCursor(imgIContainer* aCursor, PRUint32 aHotspotX, PRUint32 aHotspotY);
@@ -497,7 +481,7 @@ public:
   virtual bool      DispatchWindowEvent(nsGUIEvent& event);
   
 #ifdef ACCESSIBILITY
-  already_AddRefed<nsAccessible> GetDocumentAccessible();
+  already_AddRefed<Accessible> GetDocumentAccessible();
 #endif
 
   virtual void CreateCompositor();

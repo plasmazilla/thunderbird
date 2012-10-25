@@ -1,38 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is Neil Deakin
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsGkAtoms.h"
 #include "nsXULPopupManager.h"
@@ -47,7 +16,6 @@
 #include "nsIDOMXULElement.h"
 #include "nsIXULDocument.h"
 #include "nsIXULTemplateBuilder.h"
-#include "nsIPrivateDOMEvent.h"
 #include "nsEventDispatcher.h"
 #include "nsEventStateManager.h"
 #include "nsCSSFrameConstructor.h"
@@ -71,11 +39,6 @@
 #include "mozilla/LookAndFeel.h"
 
 using namespace mozilla;
-
-#define FLAG_ALT        0x01
-#define FLAG_CONTROL    0x02
-#define FLAG_SHIFT      0x04
-#define FLAG_META       0x08
 
 const nsNavigationDirection DirectionFromKeyCodeTable[2][6] = {
   {
@@ -472,63 +435,47 @@ nsXULPopupManager::InitTriggerEvent(nsIDOMEvent* aEvent, nsIContent* aPopup,
 
     // get the event coordinates relative to the root frame of the document
     // containing the popup.
-    nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(aEvent));
-    if (privateEvent) {
-      NS_ASSERTION(aPopup, "Expected a popup node");
-      nsEvent* event;
-      event = privateEvent->GetInternalNSEvent();
-      if (event) {
-        if (event->eventStructType == NS_MOUSE_EVENT ||
-            event->eventStructType == NS_KEY_EVENT) {
-          nsInputEvent* inputEvent = static_cast<nsInputEvent*>(event);
-          if (inputEvent->isAlt) {
-            mCachedModifiers |= FLAG_ALT;
-          }
-          if (inputEvent->isControl) {
-            mCachedModifiers |= FLAG_CONTROL;
-          }
-          if (inputEvent->isShift) {
-            mCachedModifiers |= FLAG_SHIFT;
-          }
-          if (inputEvent->isMeta) {
-            mCachedModifiers |= FLAG_META;
-          }
-        }
-        nsIDocument* doc = aPopup->GetCurrentDoc();
-        if (doc) {
-          nsIPresShell* presShell = doc->GetShell();
-          nsPresContext* presContext;
-          if (presShell && (presContext = presShell->GetPresContext())) {
-            nsPresContext* rootDocPresContext =
-              presContext->GetRootPresContext();
-            if (!rootDocPresContext)
-              return;
-            nsIFrame* rootDocumentRootFrame = rootDocPresContext->
-                PresShell()->FrameManager()->GetRootFrame();
-            if ((event->eventStructType == NS_MOUSE_EVENT || 
-                 event->eventStructType == NS_MOUSE_SCROLL_EVENT) &&
-                 !(static_cast<nsGUIEvent *>(event))->widget) {
-              // no widget, so just use the client point if available
-              nsCOMPtr<nsIDOMMouseEvent> mouseEvent = do_QueryInterface(aEvent);
-              nsIntPoint clientPt;
-              mouseEvent->GetClientX(&clientPt.x);
-              mouseEvent->GetClientY(&clientPt.y);
+    NS_ASSERTION(aPopup, "Expected a popup node");
+    nsEvent* event = aEvent->GetInternalNSEvent();
+    if (event) {
+      if (event->eventStructType == NS_MOUSE_EVENT ||
+          event->eventStructType == NS_KEY_EVENT) {
+        mCachedModifiers = static_cast<nsInputEvent*>(event)->modifiers;
+      }
+      nsIDocument* doc = aPopup->GetCurrentDoc();
+      if (doc) {
+        nsIPresShell* presShell = doc->GetShell();
+        nsPresContext* presContext;
+        if (presShell && (presContext = presShell->GetPresContext())) {
+          nsPresContext* rootDocPresContext =
+            presContext->GetRootPresContext();
+          if (!rootDocPresContext)
+            return;
+          nsIFrame* rootDocumentRootFrame = rootDocPresContext->
+              PresShell()->FrameManager()->GetRootFrame();
+          if ((event->eventStructType == NS_MOUSE_EVENT || 
+               event->eventStructType == NS_MOUSE_SCROLL_EVENT) &&
+               !(static_cast<nsGUIEvent *>(event))->widget) {
+            // no widget, so just use the client point if available
+            nsCOMPtr<nsIDOMMouseEvent> mouseEvent = do_QueryInterface(aEvent);
+            nsIntPoint clientPt;
+            mouseEvent->GetClientX(&clientPt.x);
+            mouseEvent->GetClientY(&clientPt.y);
 
-              // XXX this doesn't handle IFRAMEs in transforms
-              nsPoint thisDocToRootDocOffset = presShell->FrameManager()->
-                GetRootFrame()->GetOffsetToCrossDoc(rootDocumentRootFrame);
-              // convert to device pixels
-              mCachedMousePoint.x = presContext->AppUnitsToDevPixels(
-                  nsPresContext::CSSPixelsToAppUnits(clientPt.x) + thisDocToRootDocOffset.x);
-              mCachedMousePoint.y = presContext->AppUnitsToDevPixels(
-                  nsPresContext::CSSPixelsToAppUnits(clientPt.y) + thisDocToRootDocOffset.y);
-            }
-            else if (rootDocumentRootFrame) {
-              nsPoint pnt =
-                nsLayoutUtils::GetEventCoordinatesRelativeTo(event, rootDocumentRootFrame);
-              mCachedMousePoint = nsIntPoint(rootDocPresContext->AppUnitsToDevPixels(pnt.x),
-                                             rootDocPresContext->AppUnitsToDevPixels(pnt.y));
-            }
+            // XXX this doesn't handle IFRAMEs in transforms
+            nsPoint thisDocToRootDocOffset = presShell->FrameManager()->
+              GetRootFrame()->GetOffsetToCrossDoc(rootDocumentRootFrame);
+            // convert to device pixels
+            mCachedMousePoint.x = presContext->AppUnitsToDevPixels(
+                nsPresContext::CSSPixelsToAppUnits(clientPt.x) + thisDocToRootDocOffset.x);
+            mCachedMousePoint.y = presContext->AppUnitsToDevPixels(
+                nsPresContext::CSSPixelsToAppUnits(clientPt.y) + thisDocToRootDocOffset.y);
+          }
+          else if (rootDocumentRootFrame) {
+            nsPoint pnt =
+              nsLayoutUtils::GetEventCoordinatesRelativeTo(event, rootDocumentRootFrame);
+            mCachedMousePoint = nsIntPoint(rootDocPresContext->AppUnitsToDevPixels(pnt.x),
+                                           rootDocPresContext->AppUnitsToDevPixels(pnt.y));
           }
         }
       }
@@ -1200,12 +1147,7 @@ nsXULPopupManager::FirePopupShowingEvent(nsIContent* aPopup,
   }
 
   event.refPoint = mCachedMousePoint;
-
-  event.isAlt = !!(mCachedModifiers & FLAG_ALT);
-  event.isControl = !!(mCachedModifiers & FLAG_CONTROL);
-  event.isShift = !!(mCachedModifiers & FLAG_SHIFT);
-  event.isMeta = !!(mCachedModifiers & FLAG_META);
-
+  event.modifiers = mCachedModifiers;
   nsEventDispatcher::Dispatch(popup, presContext, &event, nsnull, &status);
 
   mCachedMousePoint = nsIntPoint(0, 0);
@@ -1782,9 +1724,9 @@ nsXULPopupManager::CancelMenuTimer(nsMenuParent* aMenuParent)
 
 static nsGUIEvent* DOMKeyEventToGUIEvent(nsIDOMEvent* aEvent)
 {
-  nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(aEvent));
-  nsEvent* evt = privateEvent ? privateEvent->GetInternalNSEvent() : nsnull;
-  return (evt->eventStructType == NS_KEY_EVENT) ? static_cast<nsGUIEvent *>(evt) : nsnull;
+  nsEvent* evt = aEvent ? aEvent->GetInternalNSEvent() : nsnull;
+  return evt && evt->eventStructType == NS_KEY_EVENT ?
+         static_cast<nsGUIEvent *>(evt) : nsnull;
 }
 
 bool

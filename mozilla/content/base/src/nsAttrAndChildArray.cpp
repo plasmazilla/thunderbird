@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * IBM Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2003
- * IBM Corporation. All Rights Reserved.
- *
- * Contributor(s):
- *   IBM Corporation
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * Storage of the children and attributes of a DOM node; storage for
@@ -353,6 +320,39 @@ nsAttrAndChildArray::GetAttr(nsIAtom* aLocalName, PRInt32 aNamespaceID) const
 }
 
 const nsAttrValue*
+nsAttrAndChildArray::GetAttr(const nsAString& aName,
+                             nsCaseTreatment aCaseSensitive) const
+{
+  // Check whether someone is being silly and passing non-lowercase
+  // attr names.
+  if (aCaseSensitive == eIgnoreCase &&
+      nsContentUtils::StringContainsASCIIUpper(aName)) {
+    // Try again with a lowercased name, but make sure we can't reenter this
+    // block by passing eCaseSensitive for aCaseSensitive.
+    nsAutoString lowercase;
+    nsContentUtils::ASCIIToLower(aName, lowercase);
+    return GetAttr(lowercase, eCaseMatters);
+  }
+
+  PRUint32 i, slotCount = AttrSlotCount();
+  for (i = 0; i < slotCount && AttrSlotIsTaken(i); ++i) {
+    if (ATTRS(mImpl)[i].mName.QualifiedNameEquals(aName)) {
+      return &ATTRS(mImpl)[i].mValue;
+    }
+  }
+
+  if (mImpl && mImpl->mMappedAttrs) {
+    const nsAttrValue* val =
+      mImpl->mMappedAttrs->GetAttr(aName);
+    if (val) {
+      return val;
+    }
+  }
+
+  return nsnull;
+}
+
+const nsAttrValue*
 nsAttrAndChildArray::AttrAt(PRUint32 aPos) const
 {
   NS_ASSERTION(aPos < AttrCount(),
@@ -523,8 +523,8 @@ PRInt32
 nsAttrAndChildArray::IndexOfAttr(nsIAtom* aLocalName, PRInt32 aNamespaceID) const
 {
   PRInt32 idx;
-  if (mImpl && mImpl->mMappedAttrs) {
-    idx = mImpl->mMappedAttrs->IndexOfAttr(aLocalName, aNamespaceID);
+  if (mImpl && mImpl->mMappedAttrs && aNamespaceID == kNameSpaceID_None) {
+    idx = mImpl->mMappedAttrs->IndexOfAttr(aLocalName);
     if (idx >= 0) {
       return idx;
     }

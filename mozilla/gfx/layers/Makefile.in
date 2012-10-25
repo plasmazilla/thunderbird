@@ -1,39 +1,7 @@
 #
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is Mozilla Corporation code.
-#
-# The Initial Developer of the Original Code is Mozilla Foundation.
-# Portions created by the Initial Developer are Copyright (C) 2009
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Robert O'Callahan <robert@ocallahan.org>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either of the GNU General Public License Version 2 or later (the "GPL"),
-# or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 DEPTH       = ../..
 topsrcdir   = @top_srcdir@
@@ -65,15 +33,25 @@ EXPORTS = \
         BasicImplData.h \
         ImageLayers.h \
         Layers.h \
+        LayerManagerOGLShaders.h \
         LayerManagerOGL.h \
         LayerManagerOGLProgram.h \
         ReadbackLayer.h \
         LayerSorter.h \
+        TexturePoolOGL.h \
+        SharedTextureImage.h \
         $(NULL)
 
 CPPSRCS = \
         BasicImages.cpp \
-        BasicLayers.cpp \
+        BasicLayerManager.cpp \
+        BasicCanvasLayer.cpp \
+        BasicColorLayer.cpp \
+        BasicContainerLayer.cpp \
+        BasicImageLayer.cpp \
+        BasicLayersImpl.cpp \
+        BasicThebesLayer.cpp \
+        BasicBuffers.cpp \
         BasicTiledThebesLayer.cpp \
         Layers.cpp \
         RenderTrace.cpp \
@@ -87,8 +65,10 @@ CPPSRCS = \
         ThebesLayerOGL.cpp \
         TiledThebesLayerOGL.cpp \
         ReusableTileStoreOGL.cpp \
+        LayerManagerOGLProgram.cpp \
         LayerSorter.cpp \
         ImageLayers.cpp \
+        TexturePoolOGL.cpp \
         $(NULL)
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
@@ -135,17 +115,26 @@ EXPORTS_mozilla/layers =\
         CompositorCocoaWidgetHelper.h \
         CompositorChild.h \
         CompositorParent.h \
+        ImageBridgeChild.h \
+        ImageBridgeParent.h \
+        ImageContainerChild.h \
+        ImageContainerParent.h \
         ShadowLayers.h \
         ShadowLayersChild.h \
         ShadowLayersParent.h \
         ShadowLayersManager.h \
         RenderTrace.h \
+        SharedImageUtils.h \
         $(NULL)
 
 CPPSRCS += \
         CompositorCocoaWidgetHelper.cpp \
         CompositorChild.cpp \
         CompositorParent.cpp \
+        ImageBridgeChild.cpp \
+        ImageBridgeParent.cpp \
+        ImageContainerChild.cpp \
+        ImageContainerParent.cpp \
         ShadowLayers.cpp \
         ShadowLayerChild.cpp \
         ShadowLayersChild.cpp \
@@ -163,15 +152,16 @@ EXPORTS_mozilla/layers += ShadowLayerUtilsD3D10.h
 DEFINES	+= -DMOZ_ENABLE_D3D10_LAYER
 endif
 
+# NB: Gralloc is available on other platforms that use the android GL
+# libraries, but only Gonk is able to use it reliably because Gecko
+# has full system permissions there.
+ifeq ($(MOZ_WIDGET_TOOLKIT),gonk)
+EXPORTS_mozilla/layers += ShadowLayerUtilsGralloc.h
+CPPSRCS += ShadowLayerUtilsGralloc.cpp
+endif
+
 include $(topsrcdir)/config/rules.mk
 
 include $(topsrcdir)/ipc/chromium/chromium-config.mk
 
-CXXFLAGS += $(MOZ_CAIRO_CFLAGS) $(TK_CFLAGS)
-
-LayerManagerOGLShaders.h: LayerManagerOGLShaders.txt genshaders.py $(GLOBAL_DEPS)
-	$(PYTHON) $(srcdir)/opengl/genshaders.py $< $@
-
-LayerManagerOGL.$(OBJ_SUFFIX): LayerManagerOGLShaders.h
-
-GARBAGE += LayerManagerOGLShaders.h
+CXXFLAGS += $(MOZ_CAIRO_CFLAGS) $(MOZ_PIXMAN_CFLAGS) $(TK_CFLAGS)

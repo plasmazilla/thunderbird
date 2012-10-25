@@ -1,41 +1,8 @@
 #if 0
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is spotlight integration code.
- *
- * The Initial Developer of the Original Code is
- * David Bienvenu <bienvenu@mozilla.com>
- * Portions created by the Initial Developer are Copyright (C) 2007
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *  Siddharth Agarwal <sid1337@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * Common, useful functions for desktop search integration components.
@@ -56,6 +23,9 @@ const Cu = Components.utils;
 Cu.import("resource:///modules/gloda/log4moz.js");
 Cu.import("resource:///modules/iteratorUtils.jsm");
 Cu.import("resource:///modules/MailUtils.js");
+
+const PERM_DIRECTORY = parseInt("0755", 8);
+const PERM_FILE = parseInt("0644", 8);
 
 let SearchSupport =
 {
@@ -360,6 +330,7 @@ let SearchSupport =
       let numFolders = allFolders.Count();
       this._log.debug("in find next folder, lastFolderIndexedUri = " +
                       this._lastFolderIndexedUri);
+
       for each (var folder in fixIterator(allFolders, Ci.nsIMsgFolder))
       {
         let searchPath = this._getSearchPathForFolder(folder);
@@ -370,7 +341,7 @@ let SearchSupport =
           // Create the folder if it doesn't exist, so that we don't hit the
           // condition below later
           if (!searchPath.exists())
-            searchPath.create(Ci.nsIFile.DIRECTORY_TYPE, 0644);
+            searchPath.create(Ci.nsIFile.DIRECTORY_TYPE, PERM_DIRECTORY);
 
           yield folder;
           // We're back after yielding -- set the last folder indexed
@@ -387,7 +358,13 @@ let SearchSupport =
                             "corresponding search folder does not exist");
             // Create the folder, so that next time we're checking we don't hit
             // this
-            searchPath.create(Ci.nsIFile.DIRECTORY_TYPE, 0644);
+            searchPath.create(Ci.nsIFile.DIRECTORY_TYPE, PERM_DIRECTORY);
+            folder.setStringProperty(this._hdrIndexedProperty,
+                                     "" + (Date.now() / 1000));
+            yield folder;
+          }
+          // folder may need reindexing for other reasons
+          else if (this._pathNeedsReindexing(searchPath)) {
             folder.setStringProperty(this._hdrIndexedProperty,
                                      "" + (Date.now() / 1000));
             yield folder;
@@ -678,7 +655,7 @@ let SearchSupport =
           {
             try {
               // create the directory, if it doesn't exist
-              destFile.create(Ci.nsIFile.DIRECTORY_TYPE, 0644);
+              destFile.create(Ci.nsIFile.DIRECTORY_TYPE, PERM_DIRECTORY);
             }
             catch(ex) {SearchIntegration._log.warn(ex);}
           }
@@ -878,14 +855,14 @@ let SearchSupport =
           {
             try {
               // create the directory, if it doesn't exist
-              file.create(Ci.nsIFile.DIRECTORY_TYPE, 0644);
+              file.create(Ci.nsIFile.DIRECTORY_TYPE, PERM_DIRECTORY);
             }
             catch(ex) { this._log.error(ex); }
           }
 
           file.appendRelativePath(messageId + SearchIntegration._fileExt);
           SearchIntegration._log.debug("file path = " + file.path);
-          file.create(0, 0644);
+          file.create(0, PERM_FILE);
           let uri = folder.getUriForMsg(msgHdr);
           let msgService = SearchIntegration._messenger
             .messageServiceFromURI(uri);

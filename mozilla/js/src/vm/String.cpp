@@ -1,46 +1,13 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  * vim: set ts=4 sw=4 et tw=79 ft=cpp:
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is SpiderMonkey JavaScript engine.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Luke Wagner <luke@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/RangedPtr.h"
 
-#include "jsgcmark.h"
+#include "gc/Marking.h"
 
 #include "String.h"
 #include "String-inl.h"
@@ -367,14 +334,17 @@ JSDependentString::undepend(JSContext *cx)
     s[n] = 0;
     d.u1.chars = s;
 
-    /* TODO: explain why undepended. */
+    /*
+     * Transform *this into an undepended string so 'base' will remain rooted
+     * for the benefit of any other dependent string that depends on *this.
+     */
     d.lengthAndFlags = buildLengthAndFlags(n, UNDEPENDED_FLAGS);
 
     return &this->asFixed();
 }
 
 bool
-JSFlatString::isIndex(uint32_t *indexp) const
+JSFlatString::isIndexSlow(uint32_t *indexp) const
 {
     const jschar *s = charsZ();
     jschar ch = *s;
@@ -438,9 +408,9 @@ JSFlatString::isIndex(uint32_t *indexp) const
  * This is used when we generate our table of short strings, so the compiler is
  * happier if we use |c| as few times as possible.
  */
-#define FROM_SMALL_CHAR(c) ((c) + ((c) < 10 ? '0' :      \
-                                   (c) < 36 ? 'a' - 10 : \
-                                   'A' - 36))
+#define FROM_SMALL_CHAR(c) jschar((c) + ((c) < 10 ? '0' :      \
+                                         (c) < 36 ? 'a' - 10 : \
+                                         'A' - 36))
 
 /*
  * Declare length-2 strings. We only store strings where both characters are
@@ -462,7 +432,7 @@ StaticStrings::init(JSContext *cx)
     SwitchToCompartment sc(cx, cx->runtime->atomsCompartment);
 
     for (uint32_t i = 0; i < UNIT_STATIC_LIMIT; i++) {
-        jschar buffer[] = { i, 0x00 };
+        jschar buffer[] = { jschar(i), '\0' };
         JSFixedString *s = js_NewStringCopyN(cx, buffer, 1);
         if (!s)
             return false;
@@ -470,7 +440,7 @@ StaticStrings::init(JSContext *cx)
     }
 
     for (uint32_t i = 0; i < NUM_SMALL_CHARS * NUM_SMALL_CHARS; i++) {
-        jschar buffer[] = { FROM_SMALL_CHAR(i >> 6), FROM_SMALL_CHAR(i & 0x3F), 0x00 };
+        jschar buffer[] = { FROM_SMALL_CHAR(i >> 6), FROM_SMALL_CHAR(i & 0x3F), '\0' };
         JSFixedString *s = js_NewStringCopyN(cx, buffer, 2);
         if (!s)
             return false;
@@ -485,7 +455,10 @@ StaticStrings::init(JSContext *cx)
                 TO_SMALL_CHAR((i % 10) + '0');
             intStaticTable[i] = length2StaticTable[index];
         } else {
-            jschar buffer[] = { (i / 100) + '0', ((i / 10) % 10) + '0', (i % 10) + '0', 0x00 };
+            jschar buffer[] = { jschar('0' + (i / 100)),
+                                jschar('0' + ((i / 10) % 10)),
+                                jschar('0' + (i % 10)),
+                                '\0' };
             JSFixedString *s = js_NewStringCopyN(cx, buffer, 3);
             if (!s)
                 return false;

@@ -1,54 +1,26 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Indexed Database.
- *
- * The Initial Developer of the Original Code is
- * The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ben Turner <bent.mozilla@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#include "base/basictypes.h"
 
 #include "IDBKeyRange.h"
 
 #include "nsIXPConnect.h"
 
-#include "nsDOMClassInfo.h"
 #include "nsJSUtils.h"
 #include "nsThreadUtils.h"
 #include "nsContentUtils.h"
 
 #include "Key.h"
 
+#include "mozilla/dom/indexedDB/PIndexedDBIndex.h"
+#include "mozilla/dom/indexedDB/PIndexedDBObjectStore.h"
+
 USING_INDEXEDDB_NAMESPACE
+using namespace mozilla::dom::indexedDB::ipc;
 
 namespace {
 
@@ -117,9 +89,7 @@ ThrowException(JSContext* aCx,
                nsresult aErrorCode)
 {
   NS_ASSERTION(NS_FAILED(aErrorCode), "Not an error code!");
-  if (!JS_IsExceptionPending(aCx)) {
-    nsDOMClassInfo::ThrowJSException(aCx, aErrorCode);
-  }
+  xpc::Throw(aCx, aErrorCode);
 }
 
 inline
@@ -290,7 +260,9 @@ IDBKeyRange::FromJSVal(JSContext* aCx,
     nsCOMPtr<nsIXPConnectWrappedNative> wrapper;
     rv = xpc->GetWrappedNativeOfJSObject(aCx, JSVAL_TO_OBJECT(aVal),
                                          getter_AddRefs(wrapper));
-    NS_ENSURE_SUCCESS(rv, NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR);
+    if (NS_FAILED(rv)) {
+      return NS_ERROR_DOM_INDEXEDDB_DATA_ERR;
+    }
 
     nsCOMPtr<nsIIDBKeyRange> iface;
     if (!wrapper || !(iface = do_QueryInterface(wrapper->Native()))) {
@@ -305,6 +277,35 @@ IDBKeyRange::FromJSVal(JSContext* aCx,
   return NS_OK;
 }
 
+// static
+template <class T>
+already_AddRefed<IDBKeyRange>
+IDBKeyRange::FromSerializedKeyRange(const T& aKeyRange)
+{
+  nsRefPtr<IDBKeyRange> keyRange =
+    new IDBKeyRange(aKeyRange.lowerOpen(), aKeyRange.upperOpen(),
+                    aKeyRange.isOnly());
+  keyRange->Lower() = aKeyRange.lower();
+  if (!keyRange->IsOnly()) {
+    keyRange->Upper() = aKeyRange.upper();
+  }
+  return keyRange.forget();
+}
+
+template <class T>
+void
+IDBKeyRange::ToSerializedKeyRange(T& aKeyRange)
+{
+  aKeyRange.lowerOpen() = IsLowerOpen();
+  aKeyRange.upperOpen() = IsUpperOpen();
+  aKeyRange.isOnly() = IsOnly();
+
+  aKeyRange.lower() = Lower();
+  if (!IsOnly()) {
+    aKeyRange.upper() = Upper();
+  }
+}
+
 NS_IMPL_CYCLE_COLLECTION_CLASS(IDBKeyRange)
 
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(IDBKeyRange)
@@ -312,14 +313,8 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(IDBKeyRange)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
 NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN(IDBKeyRange)
-  if (JSVAL_IS_GCTHING(tmp->mCachedLowerVal)) {
-    void *gcThing = JSVAL_TO_GCTHING(tmp->mCachedLowerVal);
-    NS_IMPL_CYCLE_COLLECTION_TRACE_JS_CALLBACK(gcThing, "mCachedLowerVal")
-  }
-  if (JSVAL_IS_GCTHING(tmp->mCachedUpperVal)) {
-    void *gcThing = JSVAL_TO_GCTHING(tmp->mCachedUpperVal);
-    NS_IMPL_CYCLE_COLLECTION_TRACE_JS_CALLBACK(gcThing, "mCachedUpperVal")
-  }
+  NS_IMPL_CYCLE_COLLECTION_TRACE_JSVAL_MEMBER_CALLBACK(mCachedLowerVal)
+  NS_IMPL_CYCLE_COLLECTION_TRACE_JSVAL_MEMBER_CALLBACK(mCachedUpperVal)
 NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(IDBKeyRange)
@@ -413,3 +408,20 @@ IDBKeyRange::GetUpperOpen(bool* aUpperOpen)
   *aUpperOpen = mUpperOpen;
   return NS_OK;
 }
+
+// Explicitly instantiate for all our key range types... Grumble.
+template already_AddRefed<IDBKeyRange>
+IDBKeyRange::FromSerializedKeyRange<FIXME_Bug_521898_objectstore::KeyRange>
+(const FIXME_Bug_521898_objectstore::KeyRange& aKeyRange);
+
+template already_AddRefed<IDBKeyRange>
+IDBKeyRange::FromSerializedKeyRange<FIXME_Bug_521898_index::KeyRange>
+(const FIXME_Bug_521898_index::KeyRange& aKeyRange);
+
+template void
+IDBKeyRange::ToSerializedKeyRange<FIXME_Bug_521898_objectstore::KeyRange>
+(FIXME_Bug_521898_objectstore::KeyRange& aKeyRange);
+
+template void
+IDBKeyRange::ToSerializedKeyRange<FIXME_Bug_521898_index::KeyRange>
+(FIXME_Bug_521898_index::KeyRange& aKeyRange);

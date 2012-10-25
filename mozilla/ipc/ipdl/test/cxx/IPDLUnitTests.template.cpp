@@ -111,7 +111,7 @@ ${ENUM_TO_STRINGS}
 IPDLUnitTestType
 IPDLUnitTest()
 {
-    return IPDLUnitTestFromString(mozilla::_ipdltest::IPDLUnitTestName());
+    return IPDLUnitTestFromString(::mozilla::_ipdltest::IPDLUnitTestName());
 }
 
 
@@ -164,10 +164,6 @@ ${PARENT_ENABLED_CASES_PROC}
         return;                 // unreached
     }
 
-    // Create the two processes:
-    if (NS_FAILED(nsRegion::InitStatic()))
-        fail("initializing nsRegion");
-
     printf(MOZ_IPDL_TESTINFO_LABEL "| running test | %s\n", gIPDLUnitTestName);
 
     std::vector<std::string> testCaseArgs;
@@ -219,10 +215,6 @@ ${PARENT_ENABLED_CASES_THREAD}
         return;                 // unreached
     }
 
-    // Create the two threads:
-    if (NS_FAILED(nsRegion::InitStatic()))
-        fail("initializing nsRegion");
-
     printf(MOZ_IPDL_TESTINFO_LABEL "| running test | %s\n", gIPDLUnitTestName);
 
     std::vector<std::string> testCaseArgs;
@@ -258,7 +250,7 @@ DeleteParentActor()
 //===== TEMPLATED =====
 ${PARENT_DELETE_CASES}
 //-----------------------------------------------------------------------------
-    default:  mozilla::_ipdltest::fail("???");
+    default:  ::mozilla::_ipdltest::fail("???");
     }
 }
 
@@ -361,7 +353,7 @@ DeleteChildActor()
 //===== TEMPLATED =====
 ${CHILD_DELETE_CASES}
 //-----------------------------------------------------------------------------
-    default:  mozilla::_ipdltest::fail("???");
+    default:  ::mozilla::_ipdltest::fail("???");
     }
 }
 

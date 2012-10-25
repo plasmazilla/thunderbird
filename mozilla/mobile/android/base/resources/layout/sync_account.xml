@@ -1,17 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
   style="@style/SyncLayout" >
-  <LinearLayout
-    android:id="@+id/account_top"
-    style="@style/SyncTop">
-
-    <ImageView
-      style="@style/SyncTopIcon" />
-    <TextView
-      style="@style/SyncTextTitle"
+  <TextView
+      style="@style/SyncTop"
+      android:id="@+id/account_top"
       android:text="@string/sync_title_connect" />
-  </LinearLayout>
-
   <ScrollView
     android:id="@+id/account_content"
     style="@style/SyncLayout"
@@ -39,6 +36,10 @@
 	  <EditText android:id="@+id/keyInput"
 	    style="@style/SyncEditItem"
 	    android:hint="@string/sync_input_key" />
+
+	  <TextView android:id="@+id/cred_error"
+	    style="@style/SyncTextError"
+	    android:text="@string/sync_invalidcreds_label" />
 	
 	  <CheckBox android:id="@+id/checkbox_server"
 	    android:layout_width="wrap_content"
@@ -52,6 +53,10 @@
 	    android:visibility="gone"
 	    android:hint="@string/sync_input_server" />
 
+	  <TextView android:id="@+id/server_error"
+	    style="@style/SyncTextError"
+	    android:text="@string/sync_invalidserver_label" />
+
 	</LinearLayout>
   </ScrollView>
 
@@ -61,6 +66,7 @@
     android:orientation="horizontal" >
 
     <Button
+      android:id="@+id/accountCancelButton"
       style="@style/SyncButton"
       android:onClick="cancelClickHandler"
       android:text="@string/sync_button_cancel" />

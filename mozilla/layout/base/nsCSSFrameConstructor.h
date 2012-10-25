@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * construction of a frame tree that is nearly isomorphic to the content
@@ -47,7 +15,6 @@
 
 #include "nsCOMPtr.h"
 #include "nsILayoutHistoryState.h"
-#include "nsIXBLService.h"
 #include "nsQuoteList.h"
 #include "nsCounterManager.h"
 #include "nsHashKeys.h"
@@ -94,10 +61,6 @@ public:
 
   struct RestyleData;
   friend struct RestyleData;
-
-  // Maintain global objects - gXBLService
-  static nsIXBLService * GetXBLService();
-  static void ReleaseGlobals() { NS_IF_RELEASE(gXBLService); }
 
   // get the alternate text for a content node
   static void GetAlternateTextFor(nsIContent*    aContent,
@@ -953,6 +916,20 @@ private:
       // iterator must not be done when this is called.
       inline bool SkipItemsWantingParentType(ParentType aParentType);
 
+#ifdef MOZ_FLEXBOX
+      // Skip over non-replaced inline frames and positioned frames.
+      // Return whether the iterator is done after doing that.
+      // The iterator must not be done when this is called.
+      inline bool SkipItemsThatNeedAnonFlexItem(
+        const nsFrameConstructorState& aState);
+
+      // Skip to the first frame that is a non-replaced inline or is
+      // positioned.  Return whether the iterator is done after doing that.
+      // The iterator must not be done when this is called.
+      inline bool SkipItemsThatDontNeedAnonFlexItem(
+        const nsFrameConstructorState& aState);
+#endif // MOZ_FLEXBOX
+
       // Skip over whitespace.  Return whether the iterator is done after doing
       // that.  The iterator must not be done, and must be pointing to a
       // whitespace item when this is called.
@@ -1067,6 +1044,12 @@ private:
       return FCDATA_DESIRED_PARENT_TYPE(mFCData->mBits);
     }
 
+    // Indicates whether (when in a flexbox container) this item needs to be
+    // wrapped in an anonymous block.
+#ifdef MOZ_FLEXBOX
+    bool NeedsAnonFlexItem(const nsFrameConstructorState& aState);
+#endif // MOZ_FLEXBOX
+
     // Don't call this unless the frametree really depends on the answer!
     // Especially so for generated content, where we don't want to reframe
     // things.
@@ -1133,6 +1116,19 @@ private:
   private:
     FrameConstructionItem(const FrameConstructionItem& aOther) MOZ_DELETE; /* not implemented */
   };
+
+  /**
+   * Function to create the anonymous flex items that we need.
+   * aParentFrame _must_ be a nsFlexContainerFrame -- the caller is responsible
+   * for checking this.
+   * @param aItems the child frame construction items before pseudo creation
+   * @param aParentFrame the flex container frame
+   */
+#ifdef MOZ_FLEXBOX
+  void CreateNeededAnonFlexItems(nsFrameConstructorState& aState,
+                                    FrameConstructionItemList& aItems,
+                                    nsIFrame* aParentFrame);
+#endif // MOZ_FLEXBOX
 
   /**
    * Function to create the table pseudo items we need.
@@ -1355,6 +1351,18 @@ private:
                        nsStyleContext* aStyleContext);
 
 // SVG - rods
+  /**
+   * Construct an nsSVGOuterSVGFrame, the anonymous child that wraps its real
+   * children, and its descendant frames.  This is the FrameConstructionData
+   * callback used for the job.
+   */
+  nsresult ConstructOuterSVG(nsFrameConstructorState& aState,
+                             FrameConstructionItem&   aItem,
+                             nsIFrame*                aParentFrame,
+                             const nsStyleDisplay*    aDisplay,
+                             nsFrameItems&            aFrameItems,
+                             nsIFrame**               aNewFrame);
+
   static const FrameConstructionData* FindSVGData(Element* aElement,
                                                   nsIAtom* aTag,
                                                   PRInt32 aNameSpaceID,
@@ -1708,12 +1716,8 @@ private:
 
   // Capture state for the frame tree rooted at the frame associated with the
   // content object, aContent
-  nsresult CaptureStateForFramesOf(nsIContent* aContent,
-                                   nsILayoutHistoryState* aHistoryState);
-
-  // Capture state for the frame tree rooted at aFrame.
-  nsresult CaptureStateFor(nsIFrame*              aFrame,
-                           nsILayoutHistoryState* aHistoryState);
+  void CaptureStateForFramesOf(nsIContent* aContent,
+                               nsILayoutHistoryState* aHistoryState);
 
   //----------------------------------------
 
@@ -1868,8 +1872,6 @@ private:
 
   RestyleTracker mPendingRestyles;
   RestyleTracker mPendingAnimationRestyles;
-
-  static nsIXBLService * gXBLService;
 };
 
 #endif /* nsCSSFrameConstructor_h___ */

@@ -13,7 +13,7 @@ function test() {
     gTab = aTab;
     gDebuggee = aDebuggee;
     gPane = aPane;
-    gDebugger = gPane.debuggerWindow;
+    gDebugger = gPane.contentWindow;
 
     testSimpleCall();
   });
@@ -28,17 +28,17 @@ function testSimpleCall() {
       ok(testScope,
         "Should have created a scope.");
 
-      is(testScope.id, "test-scope",
+      is(testScope.id.substring(0, 4), "test",
         "The newly created scope should have the default id set.");
 
-      is(testScope.querySelector(".name").textContent, "test",
+      is(testScope.querySelector(".name").getAttribute("value"), "test",
         "Any new scope should have the designated title.");
 
       is(testScope.querySelector(".details").childNodes.length, 0,
         "Any new scope should have a container with no child nodes.");
 
-      is(gDebugger.DebuggerView.Properties._vars.childNodes.length, 5,
-        "Should have 5 scopes created: global, local, with, closure and test.");
+      is(gDebugger.DebuggerView.Properties._vars.childNodes.length, 3,
+        "Should have 3 scopes created.");
 
 
       ok(!testScope.expanded,
@@ -117,7 +117,7 @@ function testSimpleCall() {
         "Clicking again the testScope tilte should collapse it.");
 
       gDebugger.DebuggerController.activeThread.resume(function() {
-        closeDebuggerAndFinish(gTab);
+        closeDebuggerAndFinish();
       });
     }}, 0);
   });

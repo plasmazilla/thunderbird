@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Extension Manager UI.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Blair McBride <bmcbride@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 @import url("chrome://global/skin/inContentUI.css");
 
@@ -229,14 +196,14 @@
   border-bottom: 0;
   height: 0;
   opacity: 0;
-  -moz-transition-property: height, opacity;
-  -moz-transition-duration: 1s, 0.8s;
+  transition-property: height, opacity;
+  transition-duration: 1s, 0.8s;
 }
 
 .category:not([disabled]) {
   height: 52px;
-  -moz-transition-property: height, opacity;
-  -moz-transition-duration: 1s, 0.8s;
+  transition-property: height, opacity;
+  transition-duration: 1s, 0.8s;
 }
 
 .category[selected] {
@@ -593,14 +560,14 @@
   height: 0;
   overflow: hidden;
   opacity: 0;
-  -moz-transition-property: height, opacity;
-  -moz-transition-duration: 0.5s, 0.5s;
+  transition-property: height, opacity;
+  transition-duration: 0.5s, 0.5s;
 }
 
 .addon[show-relnotes] .relnotes-container {
   opacity: 1;
-  -moz-transition-property: height, opacity;
-  -moz-transition-duration: 0.5s, 0.5s;
+  transition-property: height, opacity;
+  transition-duration: 0.5s, 0.5s;
 }
 
 .addon .relnotes-header {
@@ -745,8 +712,8 @@
 
 #detail-view[loading-extended] .loading {
   opacity: 1;
-  -moz-transition-property: opacity;
-  -moz-transition-duration: 1s;
+  transition-property: opacity;
+  transition-duration: 1s;
 }
 
 .detail-view-container {
@@ -863,9 +830,9 @@
   background-color: #0459F7;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1),
               0 0 3.5px hsl(190, 90%, 80%);
-  -moz-transition: background-color .4s ease-in,
-                   border-color .3s ease-in,
-                   box-shadow .3s ease-in
+  transition: background-color .4s ease-in,
+              border-color .3s ease-in,
+              box-shadow .3s ease-in;
 }
 
 #detail-contrib-btn:active:hover {

@@ -1,41 +1,9 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*-
  * vim: sw=2 ts=8 et :
  */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at:
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Code.
- *
- * The Initial Developer of the Original Code is
- *   The Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -142,23 +110,14 @@ static void glxtest()
   typedef GLXFBConfig* (* PFNGLXQUERYVERSION) (Display *, int *, int *);
   PFNGLXQUERYVERSION glXQueryVersion = cast<PFNGLXQUERYVERSION>(dlsym(libgl, "glXQueryVersion"));
 
-  typedef GLXFBConfig* (* PFNGLXCHOOSEFBCONFIG) (Display *, int, const int *, int *);
-  PFNGLXCHOOSEFBCONFIG glXChooseFBConfig = cast<PFNGLXCHOOSEFBCONFIG>(glXGetProcAddress("glXChooseFBConfig"));
+  typedef XVisualInfo* (* PFNGLXCHOOSEVISUAL) (Display *, int, int *);
+  PFNGLXCHOOSEVISUAL glXChooseVisual = cast<PFNGLXCHOOSEVISUAL>(glXGetProcAddress("glXChooseVisual"));
 
-  typedef XVisualInfo* (* PFNGLXGETVISUALFROMFBCONFIG) (Display *, GLXFBConfig);
-  PFNGLXGETVISUALFROMFBCONFIG glXGetVisualFromFBConfig = cast<PFNGLXGETVISUALFROMFBCONFIG>(glXGetProcAddress("glXGetVisualFromFBConfig"));
-
-  typedef GLXPixmap (* PFNGLXCREATEPIXMAP) (Display *, GLXFBConfig, Pixmap, const int *);
-  PFNGLXCREATEPIXMAP glXCreatePixmap = cast<PFNGLXCREATEPIXMAP>(glXGetProcAddress("glXCreatePixmap"));
-
-  typedef GLXContext (* PFNGLXCREATENEWCONTEXT) (Display *, GLXFBConfig, int, GLXContext, Bool);
-  PFNGLXCREATENEWCONTEXT glXCreateNewContext = cast<PFNGLXCREATENEWCONTEXT>(glXGetProcAddress("glXCreateNewContext"));
+  typedef GLXContext (* PFNGLXCREATECONTEXT) (Display *, XVisualInfo *, GLXContext, Bool);
+  PFNGLXCREATECONTEXT glXCreateContext = cast<PFNGLXCREATECONTEXT>(glXGetProcAddress("glXCreateContext"));
 
   typedef Bool (* PFNGLXMAKECURRENT) (Display*, GLXDrawable, GLXContext);
   PFNGLXMAKECURRENT glXMakeCurrent = cast<PFNGLXMAKECURRENT>(glXGetProcAddress("glXMakeCurrent"));
-
-  typedef void (* PFNGLXDESTROYPIXMAP) (Display *, GLXPixmap);
-  PFNGLXDESTROYPIXMAP glXDestroyPixmap = cast<PFNGLXDESTROYPIXMAP>(glXGetProcAddress("glXDestroyPixmap"));
 
   typedef void (* PFNGLXDESTROYCONTEXT) (Display*, GLXContext);
   PFNGLXDESTROYCONTEXT glXDestroyContext = cast<PFNGLXDESTROYCONTEXT>(glXGetProcAddress("glXDestroyContext"));
@@ -168,12 +127,9 @@ static void glxtest()
 
   if (!glXQueryExtension ||
       !glXQueryVersion ||
-      !glXChooseFBConfig ||
-      !glXGetVisualFromFBConfig ||
-      !glXCreatePixmap ||
-      !glXCreateNewContext ||
+      !glXChooseVisual ||
+      !glXCreateContext ||
       !glXMakeCurrent ||
-      !glXDestroyPixmap ||
       !glXDestroyContext ||
       !glGetString)
   {
@@ -187,38 +143,36 @@ static void glxtest()
   ///// Check that the GLX extension is present /////
   if (!glXQueryExtension(dpy, NULL, NULL))
     fatal_error("GLX extension missing");
-  
-  ///// Check that the GLX version is >= 1.3, needed for glXCreatePixmap, bug 659932 /////
-  int majorVersion, minorVersion;
-  if (!glXQueryVersion(dpy, &majorVersion, &minorVersion))
-    fatal_error("Unable to query GLX version");
-
-  if (majorVersion < 1 || (majorVersion == 1 && minorVersion < 3))
-    fatal_error("GLX version older than the required 1.3");
 
   XSetErrorHandler(x_error_handler);
 
-  ///// Get a FBConfig and a visual /////
-  int attribs[] = {
-    GLX_DRAWABLE_TYPE, GLX_PIXMAP_BIT,
-    GLX_X_RENDERABLE, True,
-    0
-  };
-  int numReturned;
-  GLXFBConfig *fbConfigs = glXChooseFBConfig(dpy, DefaultScreen(dpy), attribs, &numReturned );
-  if (!fbConfigs)
-    fatal_error("No FBConfigs found");
-  XVisualInfo *vInfo = glXGetVisualFromFBConfig(dpy, fbConfigs[0]);
+  ///// Get a visual /////
+   int attribs[] = {
+      GLX_RGBA,
+      GLX_RED_SIZE, 1,
+      GLX_GREEN_SIZE, 1,
+      GLX_BLUE_SIZE, 1,
+      None };
+  XVisualInfo *vInfo = glXChooseVisual(dpy, DefaultScreen(dpy), attribs);
   if (!vInfo)
-    fatal_error("No visual found for first FBConfig");
+    fatal_error("No visuals found");
 
-  ///// Get a Pixmap and a GLXPixmap /////
-  Pixmap pixmap = XCreatePixmap(dpy, RootWindow(dpy, vInfo->screen), 4, 4, vInfo->depth);
-  GLXPixmap glxpixmap = glXCreatePixmap(dpy, fbConfigs[0], pixmap, NULL);
+  // using a X11 Window instead of a GLXPixmap does not crash
+  // fglrx in indirect rendering. bug 680644
+  Window window;
+  XSetWindowAttributes swa;
+  swa.colormap = XCreateColormap(dpy, RootWindow(dpy, vInfo->screen),
+                                 vInfo->visual, AllocNone);
+
+  swa.border_pixel = 0;
+  window = XCreateWindow(dpy, RootWindow(dpy, vInfo->screen),
+                       0, 0, 16, 16,
+                       0, vInfo->depth, InputOutput, vInfo->visual,
+                       CWBorderPixel | CWColormap, &swa);
 
   ///// Get a GL context and make it current //////
-  GLXContext context = glXCreateNewContext(dpy, fbConfigs[0], GLX_RGBA_TYPE, NULL, True);
-  glXMakeCurrent(dpy, glxpixmap, context);
+  GLXContext context = glXCreateContext(dpy, vInfo, NULL, True);
+  glXMakeCurrent(dpy, window, context);
 
   ///// Look for this symbol to determine texture_from_pixmap support /////
   void* glXBindTexImageEXT = glXGetProcAddress("glXBindTexImageEXT"); 
@@ -247,8 +201,8 @@ static void glxtest()
   ///// possible. Also we want to check that we're able to do that too without generating X errors.
   glXMakeCurrent(dpy, None, NULL); // must release the GL context before destroying it
   glXDestroyContext(dpy, context);
-  glXDestroyPixmap(dpy, glxpixmap);
-  XFreePixmap(dpy, pixmap);
+  XDestroyWindow(dpy, window);
+  XFreeColormap(dpy, swa.colormap);
   XCloseDisplay(dpy);
   dlclose(libgl);
 

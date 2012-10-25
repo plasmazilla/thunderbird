@@ -1,46 +1,9 @@
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is Mozprofile.
-#
-# The Initial Developer of the Original Code is
-#   The Mozilla Foundation.
-# Portions created by the Initial Developer are Copyright (C) 2011
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Andrew Halberstadt <halbersa@gmail.com>
-#   Mikeal Rogers <mikeal.rogers@gmail.com>
-#   Clint Talbert <ctalbert@mozilla.com>
-#   Jeff Hammel <jhammel@mozilla.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this file,
+# You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import os
 import shutil
-import sys
 import tempfile
 import urllib2
 import zipfile
@@ -61,11 +24,14 @@ class AddonManager(object):
         profile - the path to the profile for which we install addons
         """
         self.profile = profile
-        self.installed_addons = []
-        # keeps track of addons and manifests that were passed to install_addons
-        self.addons = []
-        self.manifests = []
 
+        # information needed for profile reset:
+        # https://github.com/mozilla/mozbase/blob/270a857328b130860d1b1b512e23899557a3c8f7/mozprofile/mozprofile/profile.py#L93
+        self.installed_addons = []
+        self.installed_manifests = []
+
+        # addons that we've installed; needed for cleanup
+        self._addon_dirs = []
 
     def install_addons(self, addons=None, manifests=None):
         """
@@ -77,6 +43,7 @@ class AddonManager(object):
         if addons:
             if isinstance(addons, basestring):
                 addons = [addons]
+            self.installed_addons.extend(addons)
             for addon in addons:
                 self.install_from_path(addon)
         # install addon manifests
@@ -85,14 +52,13 @@ class AddonManager(object):
                 manifests = [manifests]
             for manifest in manifests:
                 self.install_from_manifest(manifest)
-
+            self.installed_manifests.extended(manifests)
 
     def install_from_manifest(self, filepath):
         """
         Installs addons from a manifest
         filepath - path to the manifest of addons to install
         """
-        self.manifests.append(filepath)
         manifest = ManifestParser()
         manifest.read(filepath)
         addons = manifest.get()
@@ -191,7 +157,6 @@ class AddonManager(object):
         - path: url, path to .xpi, or directory of addons
         - unpack: whether to unpack unless specified otherwise in the install.rdf
         """
-        self.addons.append(path)
 
         # if the addon is a url, download it
         # note that this won't work with protocols urllib2 doesn't support
@@ -244,7 +209,7 @@ class AddonManager(object):
                 shutil.copy(xpifile, addon_path + '.xpi')
             else:
                 dir_util.copy_tree(addon, addon_path, preserve_symlinks=1)
-                self.installed_addons.append(addon_path)
+                self._addon_dirs.append(addon_path)
 
             # remove the temporary directory, if any
             if tmpdir:
@@ -256,6 +221,6 @@ class AddonManager(object):
 
     def clean_addons(self):
         """Cleans up addons in the profile."""
-        for addon in self.installed_addons:
+        for addon in self._addon_dirs:
             if os.path.isdir(addon):
                 dir_util.remove_tree(addon)

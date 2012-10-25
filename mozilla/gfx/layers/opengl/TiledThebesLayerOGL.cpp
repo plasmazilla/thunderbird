@@ -115,10 +115,9 @@ TiledThebesLayerOGL::TiledThebesLayerOGL(LayerManagerOGL *aManager)
   : ShadowThebesLayer(aManager, nsnull)
   , LayerOGL(aManager)
   , mVideoMemoryTiledBuffer(aManager->gl())
+  , mReusableTileStore(nsnull)
 {
   mImplData = static_cast<LayerOGL*>(this);
-  // XXX Add a pref for reusable tile store size
-  mReusableTileStore = new ReusableTileStoreOGL(aManager->gl(), 1);
 }
 
 TiledThebesLayerOGL::~TiledThebesLayerOGL()
@@ -131,7 +130,10 @@ TiledThebesLayerOGL::~TiledThebesLayerOGL()
 void
 TiledThebesLayerOGL::PaintedTiledLayerBuffer(const BasicTiledLayerBuffer* mTiledBuffer)
 {
+  mMainMemoryTiledBuffer.ReadUnlock();
   mMainMemoryTiledBuffer = *mTiledBuffer;
+  // TODO: Remove me once Bug 747811 lands.
+  delete mTiledBuffer;
   mRegionToUpload.Or(mRegionToUpload, mMainMemoryTiledBuffer.GetLastPaintRegion());
 
 }
@@ -141,6 +143,17 @@ TiledThebesLayerOGL::ProcessUploadQueue()
 {
   if (mRegionToUpload.IsEmpty())
     return;
+
+  // We should only be retaining old tiles if we're not fixed position.
+  // Fixed position layers don't/shouldn't move on the screen, so retaining
+  // tiles is not useful and often results in rendering artifacts.
+  if (mReusableTileStore && mIsFixedPosition) {
+    delete mReusableTileStore;
+    mReusableTileStore = nsnull;
+  } else if (!mReusableTileStore && !mIsFixedPosition) {
+    // XXX Add a pref for reusable tile store size
+    mReusableTileStore = new ReusableTileStoreOGL(gl(), 1);
+  }
 
   gfxSize resolution(1, 1);
   if (mReusableTileStore) {
@@ -189,20 +202,22 @@ TiledThebesLayerOGL::RenderTile(TiledTexture aTile,
                                 const nsIntPoint& aOffset,
                                 nsIntRegion aScreenRegion,
                                 nsIntPoint aTextureOffset,
-                                nsIntSize aTextureBounds)
+                                nsIntSize aTextureBounds,
+                                Layer* aMaskLayer)
 {
     gl()->fBindTexture(LOCAL_GL_TEXTURE_2D, aTile.mTextureHandle);
-    ColorTextureLayerProgram *program;
+    ShaderProgramOGL *program;
     if (aTile.mFormat == LOCAL_GL_RGB) {
-      program = mOGLManager->GetRGBXLayerProgram();
+      program = mOGLManager->GetProgram(gl::RGBXLayerProgramType, aMaskLayer);
     } else {
-      program = mOGLManager->GetBGRALayerProgram();
+      program = mOGLManager->GetProgram(gl::BGRALayerProgramType, aMaskLayer);
     }
     program->Activate();
     program->SetTextureUnit(0);
     program->SetLayerOpacity(GetEffectiveOpacity());
     program->SetLayerTransform(aTransform);
     program->SetRenderOffset(aOffset);
+    program->LoadMask(GetMaskLayer());
 
     nsIntRegionRectIterator it(aScreenRegion);
     for (const nsIntRect* rect = it.Next(); rect != nsnull; rect = it.Next()) {
@@ -222,12 +237,14 @@ TiledThebesLayerOGL::RenderLayer(int aPreviousFrameBuffer, const nsIntPoint& aOf
   gl()->fActiveTexture(LOCAL_GL_TEXTURE0);
   ProcessUploadQueue();
 
+  Layer* maskLayer = GetMaskLayer();
+
   // Render old tiles to fill in gaps we haven't had the time to render yet.
   if (mReusableTileStore) {
     mReusableTileStore->DrawTiles(this,
                                   mVideoMemoryTiledBuffer.GetValidRegion(),
                                   mVideoMemoryTiledBuffer.GetResolution(),
-                                  GetEffectiveTransform(), aOffset);
+                                  GetEffectiveTransform(), aOffset, maskLayer);
   }
 
   // Render valid tiles.
@@ -259,7 +276,7 @@ TiledThebesLayerOGL::RenderLayer(int aPreviousFrameBuffer, const nsIntPoint& aOf
         nsIntPoint tileOffset(x - tileStartX, y - tileStartY);
         uint16_t tileSize = mVideoMemoryTiledBuffer.GetTileLength();
         RenderTile(tileTexture, GetEffectiveTransform(), aOffset, tileDrawRegion,
-                   tileOffset, nsIntSize(tileSize, tileSize));
+                   tileOffset, nsIntSize(tileSize, tileSize), maskLayer);
       }
       tileY++;
       y += h;

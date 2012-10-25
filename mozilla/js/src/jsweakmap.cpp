@@ -1,43 +1,9 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  * vim: set ts=4 sw=4 et tw=99:
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla SpiderMonkey JavaScript 1.9 code, released
- * May 28, 2008.
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Andreas Gal <gal@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <string.h>
 #include "jsapi.h"
@@ -45,9 +11,9 @@
 #include "jsfriendapi.h"
 #include "jsgc.h"
 #include "jsobj.h"
-#include "jsgcmark.h"
 #include "jsweakmap.h"
 
+#include "gc/Marking.h"
 #include "vm/GlobalObject.h"
 
 #include "jsgcinlines.h"
@@ -137,7 +103,7 @@ GetObjectMap(JSObject *obj)
 }
 
 static JSObject *
-GetKeyArg(JSContext *cx, CallArgs &args) 
+GetKeyArg(JSContext *cx, CallArgs &args)
 {
     Value *vp = &args[0];
     if (vp->isPrimitive()) {
@@ -159,10 +125,11 @@ WeakMap_has(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
 
-    bool ok;
-    JSObject *obj = NonGenericMethodGuard(cx, args, WeakMap_has, &WeakMapClass, &ok);
-    if (!obj)
-        return ok;
+    JSObject *thisObj;
+    if (!NonGenericMethodGuard(cx, args, WeakMap_has, &WeakMapClass, &thisObj))
+        return false;
+    if (!thisObj)
+        return true;
 
     if (args.length() < 1) {
         JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL, JSMSG_MORE_ARGS_NEEDED,
@@ -173,7 +140,7 @@ WeakMap_has(JSContext *cx, unsigned argc, Value *vp)
     if (!key)
         return false;
 
-    ObjectValueMap *map = GetObjectMap(obj);
+    ObjectValueMap *map = GetObjectMap(thisObj);
     if (map) {
         ObjectValueMap::Ptr ptr = map->lookup(key);
         if (ptr) {
@@ -191,10 +158,11 @@ WeakMap_get(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
 
-    bool ok;
-    JSObject *obj = NonGenericMethodGuard(cx, args, WeakMap_get, &WeakMapClass, &ok);
-    if (!obj)
-        return ok;
+    JSObject *thisObj;
+    if (!NonGenericMethodGuard(cx, args, WeakMap_get, &WeakMapClass, &thisObj))
+        return false;
+    if (!thisObj)
+        return true;
 
     if (args.length() < 1) {
         JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL, JSMSG_MORE_ARGS_NEEDED,
@@ -205,7 +173,7 @@ WeakMap_get(JSContext *cx, unsigned argc, Value *vp)
     if (!key)
         return false;
 
-    ObjectValueMap *map = GetObjectMap(obj);
+    ObjectValueMap *map = GetObjectMap(thisObj);
     if (map) {
         ObjectValueMap::Ptr ptr = map->lookup(key);
         if (ptr) {
@@ -223,10 +191,11 @@ WeakMap_delete(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
 
-    bool ok;
-    JSObject *obj = NonGenericMethodGuard(cx, args, WeakMap_delete, &WeakMapClass, &ok);
-    if (!obj)
-        return ok;
+    JSObject *thisObj;
+    if (!NonGenericMethodGuard(cx, args, WeakMap_delete, &WeakMapClass, &thisObj))
+        return false;
+    if (!thisObj)
+        return true;
 
     if (args.length() < 1) {
         JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL, JSMSG_MORE_ARGS_NEEDED,
@@ -236,8 +205,8 @@ WeakMap_delete(JSContext *cx, unsigned argc, Value *vp)
     JSObject *key = GetKeyArg(cx, args);
     if (!key)
         return false;
-    
-    ObjectValueMap *map = GetObjectMap(obj);
+
+    ObjectValueMap *map = GetObjectMap(thisObj);
     if (map) {
         ObjectValueMap::Ptr ptr = map->lookup(key);
         if (ptr) {
@@ -256,10 +225,11 @@ WeakMap_set(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
 
-    bool ok;
-    JSObject *obj = NonGenericMethodGuard(cx, args, WeakMap_set, &WeakMapClass, &ok);
-    if (!obj)
-        return ok;
+    JSObject *thisObj;
+    if (!NonGenericMethodGuard(cx, args, WeakMap_set, &WeakMapClass, &thisObj))
+        return false;
+    if (!thisObj)
+        return true;
 
     if (args.length() < 1) {
         JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL, JSMSG_MORE_ARGS_NEEDED,
@@ -269,17 +239,17 @@ WeakMap_set(JSContext *cx, unsigned argc, Value *vp)
     JSObject *key = GetKeyArg(cx, args);
     if (!key)
         return false;
-    
+
     Value value = (args.length() > 1) ? args[1] : UndefinedValue();
 
-    ObjectValueMap *map = GetObjectMap(obj);
+    ObjectValueMap *map = GetObjectMap(thisObj);
     if (!map) {
-        map = cx->new_<ObjectValueMap>(cx, obj);
+        map = cx->new_<ObjectValueMap>(cx, thisObj);
         if (!map->init()) {
             cx->delete_(map);
             goto out_of_memory;
         }
-        obj->setPrivate(map);
+        thisObj->setPrivate(map);
     }
 
     if (!map->put(key, value))
@@ -308,7 +278,7 @@ JS_NondeterministicGetWeakMapKeys(JSContext *cx, JSObject *obj, JSObject **ret)
         *ret = NULL;
         return true;
     }
-    JSObject *arr = NewDenseEmptyArray(cx);
+    RootedObject arr(cx, NewDenseEmptyArray(cx));
     if (!arr)
         return false;
     ObjectValueMap *map = GetObjectMap(obj);
@@ -392,14 +362,14 @@ js_InitWeakMapClass(JSContext *cx, JSObject *obj)
 {
     JS_ASSERT(obj->isNative());
 
-    GlobalObject *global = &obj->asGlobal();
+    Rooted<GlobalObject*> global(cx, &obj->asGlobal());
 
-    JSObject *weakMapProto = global->createBlankPrototype(cx, &WeakMapClass);
+    RootedObject weakMapProto(cx, global->createBlankPrototype(cx, &WeakMapClass));
     if (!weakMapProto)
         return NULL;
 
-    JSFunction *ctor = global->createConstructor(cx, WeakMap_construct,
-                                                 CLASS_ATOM(cx, WeakMap), 0);
+    RootedFunction ctor(cx, global->createConstructor(cx, WeakMap_construct,
+                                                      CLASS_NAME(cx, WeakMap), 0));
     if (!ctor)
         return NULL;
 

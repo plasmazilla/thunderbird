@@ -1,43 +1,7 @@
 /* -*- Mode: c++; c-basic-offset: 4; indent-tabs-mode: nil; tab-width: 40; -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Vladimir Vukicevic <vladimir@pobox.com>
- *   Mark Steele <mwsteele@gmail.com>
- *   Bas Schouten <bschouten@mozilla.com>
- *   Jeff Gilbert <jgilbert@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef GLCONTEXT_H_
 #define GLCONTEXT_H_
@@ -59,6 +23,7 @@
 #include "gfxImageSurface.h"
 #include "gfxContext.h"
 #include "gfxRect.h"
+#include "gfx3DMatrix.h"
 #include "nsISupportsImpl.h"
 #include "prlink.h"
 
@@ -83,9 +48,11 @@ namespace mozilla {
 namespace gl {
 class GLContext;
 
+typedef uintptr_t SharedTextureHandle;
 
 enum ShaderProgramType {
     RGBALayerProgramType,
+    RGBALayerExternalProgramType,
     BGRALayerProgramType,
     RGBXLayerProgramType,
     BGRXLayerProgramType,
@@ -130,7 +97,13 @@ public:
     enum Flags {
         NoFlags          = 0x0,
         UseNearestFilter = 0x1,
-        NeedsYFlip       = 0x2
+        NeedsYFlip       = 0x2,
+        ForceSingleTile  = 0x4
+    };
+
+    enum TextureShareType {
+        ThreadShared     = 0x0,
+        ProcessShared    = 0x1
     };
 
     typedef gfxASurface::gfxContentType ContentType;
@@ -532,8 +505,7 @@ public:
     GLContext(const ContextFormat& aFormat,
               bool aIsOffscreen = false,
               GLContext *aSharedContext = nsnull)
-      : mFlushGuaranteesResolve(false),
-        mUserBoundDrawFBO(0),
+      : mUserBoundDrawFBO(0),
         mUserBoundReadFBO(0),
         mInternalBoundDrawFBO(0),
         mInternalBoundReadFBO(0),
@@ -589,7 +561,8 @@ public:
 
     enum ContextFlags {
         ContextFlagsNone = 0x0,
-        ContextFlagsGlobal = 0x1
+        ContextFlagsGlobal = 0x1,
+        ContextFlagsMesaLLVMPipe = 0x2
     };
 
     enum GLContextType {
@@ -746,6 +719,7 @@ public:
     bool CanUploadSubTextures();
     bool CanUploadNonPowerOfTwo();
     bool WantsSmallTiles();
+    virtual bool HasLockSurface() { return false; }
 
     /**
      * If this context wraps a double-buffered target, swap the back
@@ -817,23 +791,11 @@ public:
     bool IsOffscreen() {
         return mIsOffscreen;
     }
-
-private:
-    bool mFlushGuaranteesResolve;
-
-public:
-    void SetFlushGuaranteesResolve(bool aFlushGuaranteesResolve) {
-        mFlushGuaranteesResolve = aFlushGuaranteesResolve;
-    }
     
     // Before reads from offscreen texture
     void GuaranteeResolve() {
-        if (mFlushGuaranteesResolve) {
-            BlitDirtyFBOs();
-            fFlush();
-        } else {
-            fFinish();
-        }
+        BlitDirtyFBOs();
+        fFinish();
     }
 
     /*
@@ -846,7 +808,7 @@ public:
      */
     virtual bool ResizeOffscreen(const gfxIntSize& aNewSize) {
         if (mOffscreenDrawFBO || mOffscreenReadFBO)
-            return ResizeOffscreenFBO(aNewSize, mOffscreenReadFBO != 0);
+            return ResizeOffscreenFBOs(aNewSize, mOffscreenReadFBO != 0);
         return false;
     }
 
@@ -893,7 +855,75 @@ public:
         return IsExtensionSupported(EXT_framebuffer_blit) || IsExtensionSupported(ANGLE_framebuffer_blit);
     }
 
+    enum SharedTextureBufferType {
+        TextureID
+#ifdef MOZ_WIDGET_ANDROID
+        , SurfaceTexture
+#endif
+    };
 
+    /**
+     * Create new shared GLContext content handle, must be released by ReleaseSharedHandle.
+     */
+    virtual SharedTextureHandle CreateSharedHandle(TextureImage::TextureShareType aType) { return nsnull; }
+    /*
+     * Create a new shared GLContext content handle, using the passed buffer as a source.
+     * Must be released by ReleaseSharedHandle. UpdateSharedHandle will have no effect
+     * on handles created with this method, as the caller owns the source (the passed buffer)
+     * and is responsible for updating it accordingly.
+     */
+    virtual SharedTextureHandle CreateSharedHandle(TextureImage::TextureShareType aType,
+                                                   void* aBuffer,
+                                                   SharedTextureBufferType aBufferType) { return 0; }
+    /**
+     * Publish GLContext content to intermediate buffer attached to shared handle.
+     * Shared handle content is ready to be used after call returns, and no need extra Flush/Finish are required.
+     * GLContext must be current before this call
+     */
+    virtual void UpdateSharedHandle(TextureImage::TextureShareType aType,
+                                    SharedTextureHandle aSharedHandle) { }
+    /**
+     * - It is better to call ReleaseSharedHandle before original GLContext destroyed,
+     *     otherwise warning will be thrown on attempt to destroy Texture associated with SharedHandle, depends on backend implementation.
+     * - It does not require to be called on context where it was created,
+     *     because SharedHandle suppose to keep Context reference internally,
+     *     or don't require specific context at all, for example IPC SharedHandle.
+     * - Not recommended to call this between AttachSharedHandle and Draw Target call.
+     *      if it is really required for some special backend, then DetachSharedHandle API must be added with related implementation.
+     * - It is recommended to stop any possible access to SharedHandle (Attachments, pending GL calls) before calling Release,
+     *      otherwise some artifacts might appear or even crash if API backend implementation does not expect that.
+     * SharedHandle (currently EGLImage) does not require GLContext because it is EGL call, and can be destroyed
+     *   at any time, unless EGLImage have siblings (which are not expected with current API).
+     */
+    virtual void ReleaseSharedHandle(TextureImage::TextureShareType aType,
+                                     SharedTextureHandle aSharedHandle) { }
+
+
+    typedef struct {
+        GLenum mTarget;
+        ShaderProgramType mProgramType;
+        gfx3DMatrix mTextureTransform;
+    } SharedHandleDetails;
+
+    /**
+     * Returns information necessary for rendering a shared handle.
+     * These values change depending on what sharing mechanism is in use
+     */
+    virtual bool GetSharedHandleDetails(TextureImage::TextureShareType aType,
+                                        SharedTextureHandle aSharedHandle,
+                                        SharedHandleDetails& aDetails) { return false; }
+    /**
+     * Attach Shared GL Handle to GL_TEXTURE_2D target
+     * GLContext must be current before this call
+     */
+    virtual bool AttachSharedHandle(TextureImage::TextureShareType aType,
+                                    SharedTextureHandle aSharedHandle) { return false; }
+
+    /**
+     * Detach Shared GL Handle from GL_TEXTURE_2D target
+     */
+    virtual void DetachSharedHandle(TextureImage::TextureShareType aType,
+                                    SharedTextureHandle aSharedHandle) { return; }
 
 private:
     GLuint mUserBoundDrawFBO;
@@ -1111,7 +1141,7 @@ private:
                 // Assume IEEE 754 precision
                 range[0] = 127;
                 range[1] = 127;
-                *precision = 0;
+                *precision = 23;
                 break;
             case LOCAL_GL_LOW_INT:
             case LOCAL_GL_MEDIUM_INT:
@@ -1253,12 +1283,6 @@ public:
         BindUserReadFBO(read);
     }
 
-    void fFinish() {
-        BeforeGLReadCall();
-        raw_fFinish();
-        AfterGLReadCall();
-    }
-
     // Draw/Read
     void fBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) {
         BeforeGLDrawCall();
@@ -1397,6 +1421,10 @@ public:
      * \param aPixelBuffer Pass true to upload texture data with an
      *  offset from the base data (generally for pixel buffer objects), 
      *  otherwise textures are upload with an absolute pointer to the data.
+     * \param aTextureUnit, the texture unit used temporarily to upload the
+     *  surface. This testure may be overridden, clients should not rely on
+     *  the contents of this texture after this call or even on this
+     *  texture unit being active.
      * \return Shader program needed to render this texture.
      */
     ShaderProgramType UploadSurfaceToTexture(gfxASurface *aSurface, 
@@ -1404,7 +1432,8 @@ public:
                                              GLuint& aTexture,
                                              bool aOverwrite = false,
                                              const nsIntPoint& aSrcPoint = nsIntPoint(0, 0),
-                                             bool aPixelBuffer = false);
+                                             bool aPixelBuffer = false,
+                                             GLenum aTextureUnit = LOCAL_GL_TEXTURE0);
 
     
     void TexImage2D(GLenum target, GLint level, GLint internalformat, 
@@ -1492,6 +1521,7 @@ public:
                                                RectTriangles& aRects,
                                                bool aFlipY = false);
 
+
     /**
      * Known GL extensions that can be queried by
      * IsExtensionSupported.  The results of this are cached, and as
@@ -1522,6 +1552,10 @@ public:
         EXT_unpack_subimage,
         OES_standard_derivatives,
         EXT_texture_filter_anisotropic,
+        EXT_texture_compression_s3tc,
+        EXT_texture_compression_dxt1,
+        ANGLE_texture_compression_dxt3,
+        ANGLE_texture_compression_dxt5,
         EXT_framebuffer_blit,
         ANGLE_framebuffer_blit,
         EXT_framebuffer_multisample,
@@ -1530,6 +1564,8 @@ public:
         ARB_robustness,
         EXT_robustness,
         ARB_sync,
+        OES_EGL_image,
+        OES_EGL_sync,
         Extensions_Max
     };
 
@@ -1553,21 +1589,55 @@ public:
     // MacOS X builds; see bug 584919.  We can replace this with one
     // later on.  This is handy to use in WebGL contexts as well,
     // so making it public.
-    template<size_t setlen>
+    template<size_t Size>
     struct ExtensionBitset {
         ExtensionBitset() {
-            for (size_t i = 0; i < setlen; ++i)
-                values[i] = false;
+            for (size_t i = 0; i < Size; ++i)
+                extensions[i] = false;
+        }
+
+        void Load(const char* extStr, const char** extList, bool verbose = false) {
+            char* exts = strdup(extStr);
+
+            if (verbose)
+                printf_stderr("Extensions: %s\n", exts);
+
+            char* cur = exts;
+            bool done = false;
+            while (!done) {
+                char* space = strchr(cur, ' ');
+                if (space) {
+                    *space = '\0';
+                } else {
+                    done = true;
+                }
+
+                for (int i = 0; extList[i]; ++i) {
+                    if (strcmp(cur, extList[i]) == 0) {
+                        if (verbose)
+                            printf_stderr("Found extension %s\n", cur);
+                        extensions[i] = 1;
+                    }
+                }
+
+                cur = space + 1;
+            }
+
+            free(exts);
         }
 
         bool& operator[](size_t index) {
-            NS_ASSERTION(index < setlen, "out of range");
-            return values[index];
+            MOZ_ASSERT(index < Size, "out of range");
+            return extensions[index];
         }
 
-        bool values[setlen];
+        bool extensions[Size];
     };
 
+protected:
+    ExtensionBitset<Extensions_Max> mAvailableExtensions;
+
+public:
     /**
      * Context reset constants.
      * These are used to determine who is guilty when a context reset
@@ -1647,38 +1717,73 @@ protected:
     // Helper to create/resize an offscreen FBO,
     // for offscreen implementations that use FBOs.
     // Note that it does -not- clear the resized buffers.
-    bool ResizeOffscreenFBO(const gfxIntSize& aSize, const bool aUseReadFBO, const bool aDisableAA);
-    bool ResizeOffscreenFBO(const gfxIntSize& aSize, const bool aUseReadFBO) {
-        if (ResizeOffscreenFBO(aSize, aUseReadFBO, false))
-            return true;
-
-        if (!mCreationFormat.samples) {
-            NS_WARNING("ResizeOffscreenFBO failed to resize non-AA context!");
+    bool ResizeOffscreenFBOs(const ContextFormat& aCF, const gfxIntSize& aSize, const bool aNeedsReadBuffer);
+    bool ResizeOffscreenFBOs(const gfxIntSize& aSize, const bool aNeedsReadBuffer) {
+        if (!IsOffscreenSizeAllowed(aSize))
             return false;
-        } else {
-            NS_WARNING("ResizeOffscreenFBO failed to resize AA context! Falling back to no AA...");
+
+        ContextFormat format(mCreationFormat);
+
+        if (format.samples) {
+            // AA path
+            if (ResizeOffscreenFBOs(format, aSize, aNeedsReadBuffer))
+                return true;
+
+            NS_WARNING("ResizeOffscreenFBOs failed to resize an AA context! Falling back to no AA...");
+            format.samples = 0;
         }
 
-        if (DebugMode()) {
-            printf_stderr("Requested level of multisampling is unavailable, continuing without multisampling\n");
-        }
-
-        if (ResizeOffscreenFBO(aSize, aUseReadFBO, true))
+        if (ResizeOffscreenFBOs(format, aSize, aNeedsReadBuffer))
             return true;
 
-        NS_WARNING("ResizeOffscreenFBO failed to resize AA context even without AA!");
+        NS_WARNING("ResizeOffscreenFBOs failed to resize non-AA context!");
         return false;
     }
 
-    void DeleteOffscreenFBO();
+    struct GLFormats {
+        GLFormats()
+            : texColor(0)
+            , texColorType(0)
+            , rbColor(0)
+            , depthStencil(0)
+            , depth(0)
+            , stencil(0)
+            , samples(0)
+        {}
+
+        GLenum texColor;
+        GLenum texColorType;
+        GLenum rbColor;
+        GLenum depthStencil;
+        GLenum depth;
+        GLenum stencil;
+        GLsizei samples;
+    };
+
+    enum ColorByteOrder {
+      ForceRGBA,
+      DefaultByteOrder
+    };
+
+    GLFormats ChooseGLFormats(ContextFormat& aCF, GLContext::ColorByteOrder aByteOrder = GLContext::DefaultByteOrder);
+    void CreateTextureForOffscreen(const GLFormats& aFormats, const gfxIntSize& aSize,
+                                   GLuint& texture);
+    void CreateRenderbuffersForOffscreen(const GLContext::GLFormats& aFormats, const gfxIntSize& aSize,
+                                         GLuint& colorMSRB, GLuint& depthRB, GLuint& stencilRB);
+    bool AssembleOffscreenFBOs(const GLuint colorMSRB,
+                               const GLuint depthRB,
+                               const GLuint stencilRB,
+                               const GLuint texture,
+                               GLuint& drawFBO,
+                               GLuint& readFBO);
+
+    void DeleteOffscreenFBOs();
 
     GLuint mOffscreenDrawFBO;
     GLuint mOffscreenReadFBO;
     GLuint mOffscreenColorRB;
     GLuint mOffscreenDepthRB;
     GLuint mOffscreenStencilRB;
-
-    ExtensionBitset<Extensions_Max> mAvailableExtensions;
 
     // Clear to transparent black, with 0 depth and stencil,
     // while preserving current ClearColor etc. values.
@@ -2090,6 +2195,18 @@ public:
         AFTER_GL_CALL;
     }
 
+    void fCompressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const GLvoid *pixels) {
+        BEFORE_GL_CALL;
+        mSymbols.fCompressedTexImage2D(target, level, internalformat, width, height, border, imageSize, pixels);
+        AFTER_GL_CALL;
+    }
+
+    void fCompressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const GLvoid *pixels) {
+        BEFORE_GL_CALL;
+        mSymbols.fCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, imageSize, pixels);
+        AFTER_GL_CALL;
+    }
+
     void fCullFace(GLenum mode) {
         BEFORE_GL_CALL;
         mSymbols.fCullFace(mode);
@@ -2150,7 +2267,7 @@ public:
         AFTER_GL_CALL;
     }
 
-    void raw_fFinish() {
+    void fFinish() {
         BEFORE_GL_CALL;
         mSymbols.fFinish();
         AFTER_GL_CALL;
@@ -2395,6 +2512,12 @@ public:
     void fPixelStorei(GLenum pname, GLint param) {
         BEFORE_GL_CALL;
         mSymbols.fPixelStorei(pname, param);
+        AFTER_GL_CALL;
+    }
+
+    void fPointParameterf(GLenum pname, GLfloat param) {
+        BEFORE_GL_CALL;
+        mSymbols.fPointParameterf(pname, param);
         AFTER_GL_CALL;
     }
 
@@ -2987,6 +3110,14 @@ public:
      void GLAPIENTRY fGetSynciv(GLsync sync, GLenum pname, GLsizei bufSize, GLsizei *length, GLint *values) {
          BEFORE_GL_CALL;
          mSymbols.fGetSynciv(sync, pname, bufSize, length, values);
+         AFTER_GL_CALL;
+     }
+
+     // OES_EGL_image (GLES)
+     void fImageTargetTexture2D(GLenum target, GLeglImage image)
+     {
+         BEFORE_GL_CALL;
+         mSymbols.fImageTargetTexture2D(target, image);
          AFTER_GL_CALL;
      }
 

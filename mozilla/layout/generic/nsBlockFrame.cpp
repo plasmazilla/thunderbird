@@ -1,45 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 // vim:cindent:ts=2:et:sw=2:
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Steve Clark <buster@netscape.com>
- *   Robert O'Callahan <roc+moz@cs.cmu.edu>
- *   L. David Baron <dbaron@dbaron.org>
- *   IBM Corporation
- *   Mats Palmgren <matspal@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * rendering object for CSS display:block, inline-block, and list-item
@@ -438,6 +401,18 @@ nsBlockFrame::List(FILE* out, PRInt32 aIndent) const
     pseudoTag->ToString(atomString);
     fprintf(out, " pst=%s",
             NS_LossyConvertUTF16toASCII(atomString).get());
+  }
+  if (IsTransformed()) {
+    fprintf(out, " transformed");
+  }
+  if (ChildrenHavePerspective()) {
+    fprintf(out, " perspective");
+  }
+  if (Preserves3DChildren()) {
+    fprintf(out, " preserves-3d-children");
+  }
+  if (Preserves3D()) {
+    fprintf(out, " preserves-3d");
   }
   fputs("<\n", out);
 
@@ -2881,8 +2856,8 @@ nsBlockFrame::IsSelfEmpty()
 
   const nsStyleBorder* border = GetStyleBorder();
   const nsStylePadding* padding = GetStylePadding();
-  if (border->GetActualBorderWidth(NS_SIDE_TOP) != 0 ||
-      border->GetActualBorderWidth(NS_SIDE_BOTTOM) != 0 ||
+  if (border->GetComputedBorderWidth(NS_SIDE_TOP) != 0 ||
+      border->GetComputedBorderWidth(NS_SIDE_BOTTOM) != 0 ||
       !nsLayoutUtils::IsPaddingZero(padding->mPadding.GetTop()) ||
       !nsLayoutUtils::IsPaddingZero(padding->mPadding.GetBottom())) {
     return false;
@@ -4492,17 +4467,14 @@ nsBlockFrame::DrainOverflowLines()
 #ifdef DEBUG
   VerifyOverflowSituation();
 #endif
-  FrameLines* overflowLines = nsnull;
-  FrameLines* ourOverflowLines = nsnull;
 
-  // First grab the prev-in-flows overflow lines
-  nsBlockFrame* prevBlock = (nsBlockFrame*) GetPrevInFlow();
+  // Steal the prev-in-flow's overflow lines and prepend them.
+  bool didFindOverflow = false;
+  nsBlockFrame* prevBlock = static_cast<nsBlockFrame*>(GetPrevInFlow());
   if (prevBlock) {
     prevBlock->ClearLineCursor();
-    overflowLines = prevBlock->RemoveOverflowLines();
+    FrameLines* overflowLines = prevBlock->RemoveOverflowLines();
     if (overflowLines) {
-      NS_ASSERTION(!overflowLines->mLines.empty(),
-                   "overflow lines should never be set and empty");
       // Make all the frames on the overflow line list mine.
       ReparentFrames(overflowLines->mFrames, prevBlock, this);
 
@@ -4512,55 +4484,49 @@ nsBlockFrame::DrainOverflowLines()
         ReparentFrames(oofs.mList, prevBlock, this);
         mFloats.InsertFrames(nsnull, nsnull, oofs.mList);
       }
+
+      if (!mLines.empty()) {
+        // Remember to recompute the margins on the first line. This will
+        // also recompute the correct deltaY if necessary.
+        mLines.front()->MarkPreviousMarginDirty();
+      }
+      // The overflow lines have already been marked dirty and their previous
+      // margins marked dirty also.
+      
+      // Prepend the overflow frames/lines to our principal list.
+      mFrames.InsertFrames(nsnull, nsnull, overflowLines->mFrames);
+      mLines.splice(mLines.begin(), overflowLines->mLines);
+      NS_ASSERTION(overflowLines->mLines.empty(), "splice should empty list");
+      delete overflowLines;
+      didFindOverflow = true;
     }
-    
-    // The lines on the overflow list have already been marked dirty and their
-    // previous margins marked dirty also.
   }
 
-  // Don't need to reparent frames in our own overflow lines/oofs, because they're
+  // Now append our own overflow lines.
+  return DrainSelfOverflowList() || didFindOverflow;
+}
+
+bool
+nsBlockFrame::DrainSelfOverflowList()
+{
+  // No need to reparent frames in our own overflow lines/oofs, because they're
   // already ours. But we should put overflow floats back in mFloats.
-  ourOverflowLines = RemoveOverflowLines();
+  FrameLines* ourOverflowLines = RemoveOverflowLines();
   if (ourOverflowLines) {
     nsAutoOOFFrameList oofs(this);
     if (oofs.mList.NotEmpty()) {
-      // The overflow floats go after our regular floats
+      // The overflow floats go after our regular floats.
       mFloats.AppendFrames(nsnull, oofs.mList);
     }
-  }
-
-  if (!overflowLines && !ourOverflowLines) {
-    // nothing to do; always the case for non-constrained-height reflows
+  } else {
     return false;
   }
 
-  // Now join the line lists into mLines
-  if (overflowLines) {
-    if (!overflowLines->mLines.empty()) {
-      // Join the line lists
-      if (!mLines.empty()) {
-          // Remember to recompute the margins on the first line. This will
-          // also recompute the correct deltaY if necessary.
-          mLines.front()->MarkPreviousMarginDirty();
-      }
-      
-      // Join the sibling lists together
-      mFrames.InsertFrames(nsnull, nsnull, overflowLines->mFrames);
-
-      // Place overflow lines at the front of our line list
-      mLines.splice(mLines.begin(), overflowLines->mLines);
-      NS_ASSERTION(overflowLines->mLines.empty(), "splice should empty list");
-    }
-    delete overflowLines;
+  if (!ourOverflowLines->mLines.empty()) {
+    mFrames.AppendFrames(nsnull, ourOverflowLines->mFrames);
+    mLines.splice(mLines.end(), ourOverflowLines->mLines);
   }
-  if (ourOverflowLines) {
-    if (!ourOverflowLines->mLines.empty()) {
-      mFrames.AppendFrames(nsnull, ourOverflowLines->mFrames);
-      mLines.splice(mLines.end(), ourOverflowLines->mLines);
-    }
-    delete ourOverflowLines;
-  }
-
+  delete ourOverflowLines;
   return true;
 }
 
@@ -4955,7 +4921,7 @@ nsBlockFrame::AddFrames(nsFrameList& aFrameList, nsIFrame* aPrevSibling)
       // Mark prevSibLine dirty and as needing textrun invalidation, since
       // we may be breaking up text in the line. Its previous line may also
       // need to be invalidated because it may be able to pull some text up.
-      MarkLineDirty(prevSibLine);
+      MarkLineDirty(prevSibLine, lineList);
       // The new line will also need its textruns recomputed because of the
       // frame changes.
       line->MarkDirty();
@@ -5012,7 +4978,7 @@ nsBlockFrame::AddFrames(nsFrameList& aFrameList, nsIFrame* aPrevSibling)
       // We're adding inline content to prevSibLine, so we need to mark it
       // dirty, ensure its textruns are recomputed, and possibly do the same
       // to its previous line since that line may be able to pull content up.
-      MarkLineDirty(prevSibLine);
+      MarkLineDirty(prevSibLine, lineList);
     }
 
     aPrevSibling = newFrame;
@@ -6388,7 +6354,7 @@ nsBlockFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
 }
 
 #ifdef ACCESSIBILITY
-already_AddRefed<nsAccessible>
+already_AddRefed<Accessible>
 nsBlockFrame::CreateAccessible()
 {
   nsAccessibilityService* accService = nsIPresShell::AccService();

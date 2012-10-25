@@ -24,7 +24,7 @@ function test()
     gTab = aTab;
     gDebuggee = aDebuggee;
     gPane = aPane;
-    gDebugger = gPane.debuggerWindow;
+    gDebugger = gPane.contentWindow;
 
     testSelectLine();
   });
@@ -68,7 +68,7 @@ function testSelectLine() {
                "The correct line is selected.");
 
             gDebugger.DebuggerController.activeThread.resume(function() {
-              closeDebuggerAndFinish(gTab);
+              closeDebuggerAndFinish();
             });
           });
         });

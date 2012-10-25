@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
 
@@ -64,7 +31,7 @@
 #include "nsIImapIncomingServer.h"
 #include "nsINntpIncomingServer.h"
 #include "stdlib.h"
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 #include "nsISimpleEnumerator.h"
 #include "nsIMutableArray.h"
 #include "nsIDOMDocument.h"
@@ -81,12 +48,12 @@
 class WMSettings {
 public:
   static nsresult FindWMKey(nsIWindowsRegKey* akey);
-  static bool getOEacctFiles(nsILocalFile* file, nsCOMArray<nsILocalFile>& fileArray);
+  static bool getOEacctFiles(nsIFile* file, nsCOMArray<nsIFile>& fileArray);
   static nsresult GetValueForTag(nsIDOMDocument *xmlDoc,
                                  const nsAString& tagName,
                                  nsAString &value);
   static nsresult MakeXMLdoc(nsIDOMDocument** xmlDoc,
-                             nsILocalFile* file);
+                             nsIFile* file);
   static bool DoImport(nsIMsgAccount **ppAccount);
   static bool DoIMAPServer(nsIMsgAccountManager *pMgr,
                              nsIDOMDocument *xmlDoc,
@@ -195,8 +162,8 @@ nsresult WMSettings::FindWMKey(nsIWindowsRegKey* akey)
   return rv;
 }
 
-bool WMSettings::getOEacctFiles(nsILocalFile* file,
-                                  nsCOMArray<nsILocalFile>& fileArray)
+bool WMSettings::getOEacctFiles(nsIFile* file,
+                                  nsCOMArray<nsIFile>& fileArray)
 {
   nsresult rv;
   nsCOMPtr<nsISimpleEnumerator> entries;
@@ -210,7 +177,7 @@ bool WMSettings::getOEacctFiles(nsILocalFile* file,
     entries->GetNext(getter_AddRefs(sup));
     if (!sup)
       return false;
-    nsCOMPtr<nsILocalFile> fileX = do_QueryInterface(sup);
+    nsCOMPtr<nsIFile> fileX = do_QueryInterface(sup);
     if (!fileX)
       return false;
     nsString name;
@@ -245,7 +212,7 @@ nsresult WMSettings::GetValueForTag(nsIDOMDocument *xmlDoc,
 }
 
 nsresult WMSettings::MakeXMLdoc(nsIDOMDocument** xmlDoc,
-                                nsILocalFile* file)
+                                nsIFile* file)
 {
   nsresult rv;
   nsCOMPtr<nsIFileInputStream> stream =
@@ -304,9 +271,9 @@ bool WMSettings::DoImport(nsIMsgAccount **ppAccount)
     return false;
   }
 
-  nsCOMPtr<nsILocalFile> file(do_CreateInstance(NS_LOCAL_FILE_CONTRACTID));
+  nsCOMPtr<nsIFile> file(do_CreateInstance(NS_LOCAL_FILE_CONTRACTID));
   if (!file) {
-    IMPORT_LOG0("*** Failed to create an nsILocalFile!\n");
+    IMPORT_LOG0("*** Failed to create an nsIFile!\n");
     return false;
   }
   nsCOMPtr<nsIMsgAccountManager> accMgr =
@@ -330,7 +297,7 @@ bool WMSettings::DoImport(nsIMsgAccount **ppAccount)
     IMPORT_LOG0("*** Failed get store root!\n");
     return false;
   }
-  nsCOMArray<nsILocalFile> fileArray;
+  nsCOMArray<nsIFile> fileArray;
   if (!getOEacctFiles(file, fileArray)) {
     IMPORT_LOG0("*** Failed to get OEacctFiles!\n");
     return false;

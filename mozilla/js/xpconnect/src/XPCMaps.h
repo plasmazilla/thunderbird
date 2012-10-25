@@ -1,42 +1,8 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code, released
- * March 31, 1998.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   John Bandhauer <jband@netscape.com> (original author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* Private maps (hashtables). */
 
@@ -635,78 +601,7 @@ private:
     JSDHashTable *mTable;
 };
 
-class WrappedNative2WrapperMap
-{
-    static struct JSDHashTableOps sOps;
-
-    static void ClearLink(JSDHashTable* table, JSDHashEntryHdr* entry);
-    static void MoveLink(JSDHashTable* table, const JSDHashEntryHdr* from,
-                         JSDHashEntryHdr* to);
-
-public:
-    struct Link : public PRCList
-    {
-        JSObject *obj;
-    };
-
-    struct Entry : public JSDHashEntryHdr
-    {
-        // Note: key must be the flat JSObject for a wrapped native.
-        JSObject*         key;
-        Link              value;
-    };
-
-    static WrappedNative2WrapperMap* newMap(int size);
-
-    inline JSObject* Find(JSObject* wrapper)
-    {
-        NS_PRECONDITION(wrapper, "bad param");
-        Entry* entry = (Entry*)
-            JS_DHashTableOperate(mTable, wrapper, JS_DHASH_LOOKUP);
-        if (JS_DHASH_ENTRY_IS_FREE(entry))
-            return nsnull;
-        return entry->value.obj;
-    }
-
-    // Note: If the entry already exists, then this will overwrite the
-    // existing entry, returning the old value.
-    JSObject* Add(WrappedNative2WrapperMap* head,
-                  JSObject* wrappedObject,
-                  JSObject* wrapper);
-
-    // Function to find a link.
-    Link* FindLink(JSObject* wrappedObject)
-    {
-        Entry* entry = (Entry*)
-            JS_DHashTableOperate(mTable, wrappedObject, JS_DHASH_LOOKUP);
-        if (JS_DHASH_ENTRY_IS_BUSY(entry))
-            return &entry->value;
-        return nsnull;
-    }
-
-    // "Internal" function to add an empty link without doing unnecessary
-    // work.
-    bool AddLink(JSObject* wrappedObject, Link* oldLink);
-
-    inline void Remove(JSObject* wrapper)
-    {
-        NS_PRECONDITION(wrapper,"bad param");
-        JS_DHashTableOperate(mTable, wrapper, JS_DHASH_REMOVE);
-    }
-
-    inline uint32_t Count() {return mTable->entryCount;}
-    inline uint32_t Enumerate(JSDHashEnumerator f, void *arg)
-        {return JS_DHashTableEnumerate(mTable, f, arg);}
-
-    ~WrappedNative2WrapperMap();
-
-private:
-    WrappedNative2WrapperMap();    // no implementation
-    WrappedNative2WrapperMap(int size);
-
-private:
-    JSDHashTable *mTable;
-};
+/***************************************************************************/
 
 class JSObject2JSObjectMap
 {

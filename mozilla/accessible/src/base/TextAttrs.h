@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2007
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Alexander Surkov <surkov.alexander@gmail.com> (original author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsTextAttrs_h_
 #define nsTextAttrs_h_
@@ -44,17 +11,17 @@
 #include "nsIPersistentProperties2.h"
 #include "nsStyleConsts.h"
 
-class nsHyperTextAccessible;
+class HyperTextAccessible;
 
 namespace mozilla {
 namespace a11y {
 
 /**
  * Used to expose text attributes for the hyper text accessible (see
- * nsHyperTextAccessible class).
+ * HyperTextAccessible class).
  *
  * @note "invalid: spelling" text attribute is implemented entirely in
- *       nsHyperTextAccessible class.
+ *       HyperTextAccessible class.
  */
 class TextAttrsMgr
 {
@@ -62,9 +29,9 @@ public:
   /**
    * Constructor. Used to expose default text attributes.
    */
-  TextAttrsMgr(nsHyperTextAccessible* aHyperTextAcc) :
-    mHyperTextAcc(aHyperTextAcc), mIncludeDefAttrs(true),
-    mOffsetAcc(nsnull), mOffsetAccIdx(-1) { }
+  TextAttrsMgr(HyperTextAccessible* aHyperTextAcc) :
+    mOffsetAcc(nsnull),  mHyperTextAcc(aHyperTextAcc),
+    mOffsetAccIdx(-1), mIncludeDefAttrs(true) { }
 
   /**
    * Constructor. Used to expose text attributes at the given offset.
@@ -78,12 +45,12 @@ public:
    *                          should be calculated for
    * @param oOffsetAccIdx    [optional] index in parent of offset accessible
    */
-  TextAttrsMgr(nsHyperTextAccessible* aHyperTextAcc,
+  TextAttrsMgr(HyperTextAccessible* aHyperTextAcc,
                bool aIncludeDefAttrs,
-               nsAccessible* aOffsetAcc,
+               Accessible* aOffsetAcc,
                PRInt32 aOffsetAccIdx) :
-    mHyperTextAcc(aHyperTextAcc), mIncludeDefAttrs(aIncludeDefAttrs),
-    mOffsetAcc(aOffsetAcc), mOffsetAccIdx(aOffsetAccIdx) { }
+    mOffsetAcc(aOffsetAcc), mHyperTextAcc(aHyperTextAcc),
+    mOffsetAccIdx(aOffsetAccIdx), mIncludeDefAttrs(aIncludeDefAttrs) { }
 
   /*
    * Return text attributes and hyper text offsets where these attributes are
@@ -116,8 +83,8 @@ protected:
                 PRInt32* aStartHTOffset, PRInt32* aEndHTOffset);
 
 private:
-  nsAccessible* mOffsetAcc;
-  nsHyperTextAccessible* mHyperTextAcc;
+  Accessible* mOffsetAcc;
+  HyperTextAccessible* mHyperTextAcc;
   PRInt32 mOffsetAccIdx;
   bool mIncludeDefAttrs;
 
@@ -143,7 +110,7 @@ protected:
      * Return true if the text attribute value on the given element equals with
      * predefined attribute value.
      */
-    virtual bool Equal(nsIContent* aElm) = 0;
+    virtual bool Equal(Accessible* aAccessible) = 0;
   };
 
 
@@ -176,10 +143,10 @@ protected:
         ExposeValue(aAttributes, mRootNativeValue);
     }
 
-    virtual bool Equal(nsIContent* aElm)
+    virtual bool Equal(Accessible* aAccessible)
     {
       T nativeValue;
-      bool isDefined = GetValueFor(aElm, &nativeValue);
+      bool isDefined = GetValueFor(aAccessible, &nativeValue);
 
       if (!mIsDefined && !isDefined)
         return true;
@@ -200,7 +167,7 @@ protected:
                              const T& aValue) = 0;
 
     // Return native value for the given DOM element.
-    virtual bool GetValueFor(nsIContent* aElm, T* aValue) = 0;
+    virtual bool GetValueFor(Accessible* aAccessible, T* aValue) = 0;
 
     // Indicates if root value should be exposed.
     bool mGetRootValue;
@@ -224,19 +191,18 @@ protected:
   class LangTextAttr : public TTextAttr<nsString>
   {
   public:
-    LangTextAttr(nsHyperTextAccessible* aRoot, nsIContent* aRootElm,
+    LangTextAttr(HyperTextAccessible* aRoot, nsIContent* aRootElm,
                  nsIContent* aElm);
     virtual ~LangTextAttr() { }
 
   protected:
 
     // TextAttr
-    virtual bool GetValueFor(nsIContent* aElm, nsString* aValue);
+    virtual bool GetValueFor(Accessible* aAccessible, nsString* aValue);
     virtual void ExposeValue(nsIPersistentProperties* aAttributes,
                              const nsString& aValue);
 
   private:
-    bool GetLang(nsIContent* aElm, nsAString& aLang);
     nsCOMPtr<nsIContent> mRootContent;
   };
 
@@ -253,7 +219,7 @@ protected:
   protected:
 
     // TextAttr
-    virtual bool GetValueFor(nsIContent* aElm, nscolor* aValue);
+    virtual bool GetValueFor(Accessible* aAccessible, nscolor* aValue);
     virtual void ExposeValue(nsIPersistentProperties* aAttributes,
                              const nscolor& aValue);
 
@@ -275,7 +241,7 @@ protected:
   protected:
 
     // TTextAttr
-    virtual bool GetValueFor(nsIContent* aElm, nscolor* aValue);
+    virtual bool GetValueFor(Accessible* aAccessible, nscolor* aValue);
     virtual void ExposeValue(nsIPersistentProperties* aAttributes,
                              const nscolor& aValue);
   };
@@ -293,7 +259,7 @@ protected:
   protected:
 
     // TTextAttr
-    virtual bool GetValueFor(nsIContent* aElm, nsString* aValue);
+    virtual bool GetValueFor(Accessible* aAccessible, nsString* aValue);
     virtual void ExposeValue(nsIPersistentProperties* aAttributes,
                              const nsString& aValue);
 
@@ -312,10 +278,10 @@ protected:
     FontSizeTextAttr(nsIFrame* aRootFrame, nsIFrame* aFrame);
     virtual ~FontSizeTextAttr() { }
 
-  protected:
+  protected: 
 
     // TTextAttr
-    virtual bool GetValueFor(nsIContent* aElm, nscoord* aValue);
+    virtual bool GetValueFor(Accessible* aAccessible, nscoord* aValue);
     virtual void ExposeValue(nsIPersistentProperties* aAttributes,
                              const nscoord& aValue);
 
@@ -336,7 +302,7 @@ protected:
   protected:
 
     // TTextAttr
-    virtual bool GetValueFor(nsIContent* aContent, nscoord* aValue);
+    virtual bool GetValueFor(Accessible* aContent, nscoord* aValue);
     virtual void ExposeValue(nsIPersistentProperties* aAttributes,
                              const nscoord& aValue);
   };
@@ -354,12 +320,29 @@ protected:
   protected:
 
     // TTextAttr
-    virtual bool GetValueFor(nsIContent* aElm, PRInt32* aValue);
+    virtual bool GetValueFor(Accessible* aAccessible, PRInt32* aValue);
     virtual void ExposeValue(nsIPersistentProperties* aAttributes,
                              const PRInt32& aValue);
 
   private:
     PRInt32 GetFontWeight(nsIFrame* aFrame);
+  };
+
+  /**
+   * Class is used for the work with 'auto-generated' text attribute.
+   */
+  class AutoGeneratedTextAttr : public TTextAttr<bool>
+  {
+  public:
+    AutoGeneratedTextAttr(HyperTextAccessible* aHyperTextAcc,
+                          Accessible* aAccessible);
+    virtual ~AutoGeneratedTextAttr() { }
+
+  protected:
+    // TextAttr
+    virtual bool GetValueFor(Accessible* aAccessible, bool* aValue);
+    virtual void ExposeValue(nsIPersistentProperties* aAttributes,
+                             const bool& aValue);
   };
 
 
@@ -408,7 +391,7 @@ protected:
   protected:
 
     // TextAttr
-    virtual bool GetValueFor(nsIContent* aElm, TextDecorValue* aValue);
+    virtual bool GetValueFor(Accessible* aAccessible, TextDecorValue* aValue);
     virtual void ExposeValue(nsIPersistentProperties* aAttributes,
                              const TextDecorValue& aValue);
   };
@@ -433,7 +416,7 @@ protected:
   protected:
 
     // TextAttr
-    virtual bool GetValueFor(nsIContent* aElm, TextPosValue* aValue);
+    virtual bool GetValueFor(Accessible* aAccessible, TextPosValue* aValue);
     virtual void ExposeValue(nsIPersistentProperties* aAttributes,
                              const TextPosValue& aValue);
 

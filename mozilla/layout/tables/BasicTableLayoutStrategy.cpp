@@ -1,40 +1,8 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 // vim:cindent:ts=4:et:sw=4:
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla's table layout code.
- *
- * The Initial Developer of the Original Code is the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   L. David Baron <dbaron@dbaron.org> (original author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * Web-compatible algorithms that determine column and table widths,
@@ -112,6 +80,10 @@ GetWidthInfo(nsRenderingContext *aRenderingContext,
              nsIFrame *aFrame, bool aIsCell)
 {
     nscoord minCoord, prefCoord;
+    const nsStylePosition *stylePos = aFrame->GetStylePosition();
+    bool isQuirks = aFrame->PresContext()->CompatibilityMode() ==
+                    eCompatibility_NavQuirks;
+    nscoord boxSizingToBorderEdge = 0;
     if (aIsCell) {
         // If aFrame is a container for font size inflation, then shrink
         // wrapping inside of it should not apply font size inflation.
@@ -119,6 +91,43 @@ GetWidthInfo(nsRenderingContext *aRenderingContext,
 
         minCoord = aFrame->GetMinWidth(aRenderingContext);
         prefCoord = aFrame->GetPrefWidth(aRenderingContext);
+        // Until almost the end of this function, minCoord and prefCoord
+        // represent the box-sizing based width values (which mean they
+        // should include horizontal padding and border width when
+        // box-sizing is set to border-box).
+        // Note that this function returns border-box width, we add the
+        // outer edges near the end of this function.
+
+        // XXX Should we ignore percentage padding?
+        nsIFrame::IntrinsicWidthOffsetData offsets = aFrame->IntrinsicWidthOffsets(aRenderingContext);
+
+        // In quirks mode, table cell width should be content-box,
+        // but height should be border box.
+        // Because of this historic anomaly, we do not use quirk.css.
+        // (We can't specify one value of box-sizing for width and another
+        // for height).
+        // For this reason, we also do not use box-sizing for just one of
+        // them, as this may be confusing.
+        if (isQuirks) {
+            boxSizingToBorderEdge = offsets.hPadding + offsets.hBorder;
+        }
+        else {
+            switch (stylePos->mBoxSizing) {
+                case NS_STYLE_BOX_SIZING_CONTENT:
+                    boxSizingToBorderEdge = offsets.hPadding + offsets.hBorder;
+                    break;
+                case NS_STYLE_BOX_SIZING_PADDING:
+                    minCoord += offsets.hPadding;
+                    prefCoord += offsets.hPadding;
+                    boxSizingToBorderEdge = offsets.hBorder;
+                    break;
+                default:
+                    // NS_STYLE_BOX_SIZING_BORDER
+                    minCoord += offsets.hPadding + offsets.hBorder;
+                    prefCoord += offsets.hPadding + offsets.hBorder;
+                    break;
+            }
+        }
     } else {
         minCoord = 0;
         prefCoord = 0;
@@ -126,9 +135,6 @@ GetWidthInfo(nsRenderingContext *aRenderingContext,
     float prefPercent = 0.0f;
     bool hasSpecifiedWidth = false;
 
-    // XXXldb Should we consider -moz-box-sizing?
-
-    const nsStylePosition *stylePos = aFrame->GetStylePosition();
     const nsStyleCoord &width = stylePos->mWidth;
     nsStyleUnit unit = width.GetUnit();
     // NOTE: We're ignoring calc() units here, for lack of a sensible
@@ -136,6 +142,10 @@ GetWidthInfo(nsRenderingContext *aRenderingContext,
     // handled like 'auto' for table cells and columns.
     if (unit == eStyleUnit_Coord) {
         hasSpecifiedWidth = true;
+        // Note: since ComputeWidthValue was designed to return content-box
+        // width, it will (in some cases) subtract the box-sizing edges.
+        // We prevent this unwanted behavior by calling it with
+        // aContentEdgeToBoxSizing and aBoxSizingToMarginEdge set to 0.
         nscoord w = nsLayoutUtils::ComputeWidthValue(aRenderingContext,
                                                      aFrame, 0, 0, 0, width);
         // Quirk: A cell with "nowrap" set and a coord value for the
@@ -143,9 +153,7 @@ GetWidthInfo(nsRenderingContext *aRenderingContext,
         // that coord value as the minimum width.
         // This is kept up-to-date with dynamic changes to nowrap by code in
         // nsTableCellFrame::AttributeChanged
-        if (aIsCell && w > minCoord &&
-            aFrame->PresContext()->CompatibilityMode() ==
-              eCompatibility_NavQuirks &&
+        if (aIsCell && w > minCoord && isQuirks &&
             aFrame->GetContent()->HasAttr(kNameSpaceID_None,
                                           nsGkAtoms::nowrap)) {
             minCoord = w;
@@ -227,12 +235,8 @@ GetWidthInfo(nsRenderingContext *aRenderingContext,
 
     // XXX Should col frame have border/padding considered?
     if (aIsCell) {
-        nsIFrame::IntrinsicWidthOffsetData offsets =
-            aFrame->IntrinsicWidthOffsets(aRenderingContext);
-        // XXX Should we ignore percentage padding?
-        nscoord add = offsets.hPadding + offsets.hBorder;
-        minCoord += add;
-        prefCoord = NSCoordSaturatingAdd(prefCoord, add);
+        minCoord += boxSizingToBorderEdge;
+        prefCoord = NSCoordSaturatingAdd(prefCoord, boxSizingToBorderEdge);
     }
 
     return CellWidthInfo(minCoord, prefCoord, prefPercent, hasSpecifiedWidth);
@@ -265,7 +269,8 @@ BasicTableLayoutStrategy::ComputeColumnIntrinsicWidths(nsRenderingContext* aRend
     nsTableFrame *tableFrame = mTableFrame;
     nsTableCellMap *cellMap = tableFrame->GetCellMap();
 
-    SpanningCellSorter spanningCells(tableFrame->PresContext()->PresShell());
+    mozilla::AutoStackArena arena;
+    SpanningCellSorter spanningCells;
 
     // Loop over the columns to consider the columns and cells *without*
     // a colspan.

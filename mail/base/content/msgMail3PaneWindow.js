@@ -1,47 +1,7 @@
 /** ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code, released
- * March 31, 1998.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998-1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Jan Varga (varga@nixcorp.com)
- *   Håkan Waara (hwaara@chello.se)
- *   Neil Rashbrook (neil@parkwaycc.co.uk)
- *   Seth Spitzer <sspitzer@netscape.com>
- *   David Bienvenu <bienvenu@nventure.com>
- *   Jeremy Morton <bugzilla@game-point.net>
- *   Steffen Wilberg <steffen.wilberg@web.de>
- *   Joachim Herb <herb@leo.org>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource:///modules/folderUtils.jsm");
 Components.utils.import("resource:///modules/activity/activityModules.js");
@@ -53,6 +13,7 @@ Components.utils.import("resource:///modules/mailnewsMigrator.js");
 Components.utils.import("resource:///modules/sessionStoreManager.js");
 Components.utils.import("resource:///modules/summaryFrameManager.js");
 Components.utils.import("resource:///modules/mailInstrumentation.js");
+Components.utils.import("resource:///modules/msgDBCacheManager.js");
 
 /* This is where functions related to the 3 pane window are kept */
 
@@ -348,13 +309,16 @@ function AutoConfigWizard(okCallback)
   }
 
   if (gPrefBranch.getBoolPref("mail.provider.enabled")) {
-    // We need to let the event loop pump a little so that the 3pane finishes
-    // opening - so we use setTimeout. The 200ms is a bit arbitrary, but seems
-    // to be enough time to let the 3pane do it's thing, and not pull focus
-    // when the Account Provisioner modal window closes.
-    setTimeout(function() {
-      NewMailAccountProvisioner(msgWindow, { okCallback: okCallback });
-    }, 200);
+    Services.obs.addObserver({
+      observe: function(aSubject, aTopic, aData) {
+        if (aTopic == "mail-tabs-session-restored" && aSubject === window) {
+          // We're done here, unregister this observer.
+          Services.obs.removeObserver(this, "mail-tabs-session-restored");
+          NewMailAccountProvisioner(msgWindow, { okCallback: null });
+        }
+      }
+    }, "mail-tabs-session-restored", false);
+    okCallback();
   }
   else
     NewMailAccount(msgWindow, okCallback);
@@ -398,6 +362,7 @@ function OnLoadMessenger()
   MailOfflineMgr.init();
   CreateMailWindowGlobals();
   GetMessagePaneWrapper().collapsed = true;
+  msgDBCacheManager.init();
 
   // This needs to be before we throw up the account wizard on first run.
   try {
@@ -423,11 +388,6 @@ function OnLoadMessenger()
     tabmail.openFirstTab();
   }
 
-  // verifyAccounts returns true if the callback won't be called
-  // We also don't want the account wizard to open if any sort of account exists
-  if (verifyAccounts(LoadPostAccountWizard, false, AutoConfigWizard))
-    LoadPostAccountWizard();
-
   // Install the light-weight theme handlers
   let panelcontainer = document.getElementById("tabpanelcontainer");
   if (panelcontainer) {
@@ -445,6 +405,11 @@ function OnLoadMessenger()
   specialTabs.openSpecialTabsOnStartup();
   webSearchTabType.initialize();
   tabmail.registerTabType(accountProvisionerTabType);
+
+  // verifyAccounts returns true if the callback won't be called
+  // We also don't want the account wizard to open if any sort of account exists
+  if (verifyAccounts(LoadPostAccountWizard, false, AutoConfigWizard))
+    LoadPostAccountWizard();
 
   // Set up the summary frame manager to handle loading pages in the
   // multi-message pane
@@ -468,6 +433,7 @@ function LoadPostAccountWizard()
   MailMigrator.migratePostAccountWizard();
 
   accountManager.setSpecialFolders();
+
   try {
     accountManager.loadVirtualFolders();
   } catch (e) {Components.utils.reportError(e);}
@@ -638,6 +604,8 @@ function OnUnloadMessenger()
   let tabmail = document.getElementById("tabmail");
   tabmail._teardown();
 
+  webSearchTabType.shutdown();
+
   var mailSession = Components.classes["@mozilla.org/messenger/services/session;1"]
                               .getService(Components.interfaces.nsIMsgMailSession);
   mailSession.RemoveFolderListener(folderListener);
@@ -691,7 +659,7 @@ function atStartupRestoreTabs(aDontRestoreFirstTab) {
 
   // it's now safe to load extra Tabs.
   setTimeout(loadExtraTabs, 0);
-
+  Services.obs.notifyObservers(window, "mail-tabs-session-restored", null);
   return state ? true : false;
 }
 
@@ -782,12 +750,14 @@ function loadStartFolder(initialUri)
 
     // If a URI was explicitly specified, we'll just clobber the default tab
     let loadFolder = !atStartupRestoreTabs(!!initialUri);
+
     if (initialUri)
       loadFolder = true;
 
     //First get default account
     try
     {
+
         if(initialUri)
             startFolder = GetMsgFolderFromUri(initialUri);
         else
@@ -942,18 +912,10 @@ function UpgradeProfileAndBeUglyAboutIt()
   var threadPaneUIVersion;
 
   try {
-
     threadPaneUIVersion = gPrefBranch.getIntPref("mailnews.ui.threadpane.version");
-
     if (threadPaneUIVersion < 7)
     {
-      // Open a dialog explaining the major changes from version 2.
-      if (gPrefBranch.getBoolPref("mail.ui.show.migration.on.upgrade"))
-        // But let the main window finish opening first.
-        setTimeout(openFeatureConfigurator, 0, [true,]);
-
       gPrefBranch.setIntPref("mailnews.ui.threadpane.version", 7);
-
     } // version 7 upgrades
   }
   catch (ex) {

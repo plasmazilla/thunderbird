@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dean Tessman <dean_tessman@hotmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
 
@@ -58,6 +25,8 @@
 #include "nsIGfxInfo.h"
 #include "npapi.h"
 #include "base/thread.h"
+#include "prenv.h"
+#include "mozilla/Attributes.h"
 
 #ifdef DEBUG
 #include "nsIObserver.h"
@@ -77,6 +46,9 @@ using base::Thread;
 using mozilla::ipc::AsyncChannel;
 
 nsIContent* nsBaseWidget::mLastRollup = nsnull;
+// Global user preference for disabling native theme. Used
+// in NativeWindowTheme.
+bool            gDisableNativeTheme               = false;
 
 // nsBaseWidget
 NS_IMPL_ISUPPORTS1(nsBaseWidget, nsIWidget)
@@ -109,7 +81,6 @@ nsBaseWidget::nsBaseWidget()
 , mEventCallback(nsnull)
 , mViewCallback(nsnull)
 , mContext(nsnull)
-, mCompositorThread(nsnull)
 , mCursor(eCursor_standard)
 , mWindowType(eWindowType_child)
 , mBorderStyle(eBorderStyle_none)
@@ -123,6 +94,7 @@ nsBaseWidget::nsBaseWidget()
 , mZIndex(0)
 , mSizeMode(nsSizeMode_Normal)
 , mPopupLevel(ePopupLevelTop)
+, mPopupType(ePopupTypeAny)
 {
 #ifdef NOISY_WIDGET_LEAKS
   gNumWidgets++;
@@ -130,21 +102,40 @@ nsBaseWidget::nsBaseWidget()
 #endif
 
 #ifdef DEBUG
-    debug_RegisterPrefCallbacks();
+  debug_RegisterPrefCallbacks();
 #endif
 }
 
 
-static void DestroyCompositor(CompositorParent* aCompositorParent,
-                              CompositorChild* aCompositorChild,
-                              Thread* aCompositorThread)
+static void DeferredDestroyCompositor(CompositorParent* aCompositorParent,
+                              CompositorChild* aCompositorChild)
 {
     aCompositorChild->Destroy();
-    delete aCompositorThread;
     aCompositorParent->Release();
     aCompositorChild->Release();
 }
 
+void nsBaseWidget::DestroyCompositor() 
+{
+  if (mCompositorChild) {
+    mCompositorChild->SendWillStop();
+
+    // The call just made to SendWillStop can result in IPC from the
+    // CompositorParent to the CompositorChild (e.g. caused by the destruction
+    // of shared memory). We need to ensure this gets processed by the
+    // CompositorChild before it gets destroyed. It suffices to ensure that
+    // events already in the MessageLoop get processed before the
+    // CompositorChild is destroyed, so we add a task to the MessageLoop to
+    // handle compositor desctruction.
+    MessageLoop::current()->PostTask(FROM_HERE,
+               NewRunnableFunction(DeferredDestroyCompositor, mCompositorParent,
+                                   mCompositorChild));
+    // The DestroyCompositor task we just added to the MessageLoop will handle
+    // releasing mCompositorParent and mCompositorChild.
+    mCompositorParent.forget();
+    mCompositorChild.forget();
+  }
+}
 
 //-------------------------------------------------------------------------
 //
@@ -163,25 +154,7 @@ nsBaseWidget::~nsBaseWidget()
     mLayerManager = nsnull;
   }
 
-  if (mCompositorChild) {
-    mCompositorChild->SendWillStop();
-
-    // The call just made to SendWillStop can result in IPC from the
-    // CompositorParent to the CompositorChild (e.g. caused by the destruction
-    // of shared memory). We need to ensure this gets processed by the
-    // CompositorChild before it gets destroyed. It suffices to ensure that
-    // events already in the MessageLoop get processed before the
-    // CompositorChild is destroyed, so we add a task to the MessageLoop to
-    // handle compositor desctruction.
-    MessageLoop::current()->
-      PostTask(FROM_HERE,
-               NewRunnableFunction(DestroyCompositor, mCompositorParent,
-                                   mCompositorChild, mCompositorThread));
-    // The DestroyCompositor task we just added to the MessageLoop will handle
-    // releasing mCompositorParent and mCompositorChild.
-    mCompositorParent.forget();
-    mCompositorChild.forget();
-  }
+  DestroyCompositor();
 
 #ifdef NOISY_WIDGET_LEAKS
   gNumWidgets--;
@@ -204,6 +177,14 @@ void nsBaseWidget::BaseCreate(nsIWidget *aParent,
                               nsDeviceContext *aContext,
                               nsWidgetInitData *aInitData)
 {
+  static bool gDisableNativeThemeCached = false;
+  if (!gDisableNativeThemeCached) {
+    mozilla::Preferences::AddBoolVarCache(&gDisableNativeTheme,
+                                          "mozilla.widget.disable-native-theme",
+                                          gDisableNativeTheme);
+    gDisableNativeThemeCached = true;
+  }
+
   // save the event callback function
   mEventCallback = aHandleEventFunction;
   
@@ -222,6 +203,7 @@ void nsBaseWidget::BaseCreate(nsIWidget *aParent,
     mWindowType = aInitData->mWindowType;
     mBorderStyle = aInitData->mBorderStyle;
     mPopupLevel = aInitData->mPopupLevel;
+    mPopupType = aInitData->mPopupHint;
   }
 
   if (aParent) {
@@ -819,8 +801,12 @@ nsBaseWidget::GetShouldAccelerate()
   bool accelerateByDefault = false;
 #endif
 
+  // We don't want to accelerate small popup windows like menu, but we still 
+  // want to accelerate xul panels that may contain arbitrarily complex content.
+  bool isSmallPopup = ((mWindowType == eWindowType_popup) && 
+                      (mPopupType != ePopupTypePanel));
   // we should use AddBoolPrefVarCache
-  bool disableAcceleration =
+  bool disableAcceleration = isSmallPopup || 
     Preferences::GetBool("layers.acceleration.disabled", false);
   mForceLayersAcceleration =
     Preferences::GetBool("layers.acceleration.force-enabled", false);
@@ -860,6 +846,10 @@ nsBaseWidget::GetShouldAccelerate()
   
   if (!whitelisted) {
     NS_WARNING("OpenGL-accelerated layers are not supported on this system.");
+#ifdef MOZ_JAVA_COMPOSITOR
+    NS_RUNTIMEABORT("OpenGL-accelerated layers are a hard requirement on this platform. "
+                    "Cannot continue without support for them.");
+#endif
     return false;
   }
 
@@ -872,35 +862,56 @@ nsBaseWidget::GetShouldAccelerate()
 
 void nsBaseWidget::CreateCompositor()
 {
-  mCompositorThread = new Thread("CompositorThread");
-  mCompositorParent = new CompositorParent(this, mCompositorThread);
-  if (mCompositorThread->Start()) {
-    LayerManager* lm = CreateBasicLayerManager();
-    MessageLoop *childMessageLoop = mCompositorThread->message_loop();
-    mCompositorChild = new CompositorChild(lm);
-    AsyncChannel *parentChannel = mCompositorParent->GetIPCChannel();
-    AsyncChannel::Side childSide = mozilla::ipc::AsyncChannel::Child;
-    mCompositorChild->Open(parentChannel, childMessageLoop, childSide);
-    PLayersChild* shadowManager =
-      mCompositorChild->SendPLayersConstructor(LayerManager::LAYERS_OPENGL);
+  bool renderToEGLSurface = false;
+#ifdef MOZ_JAVA_COMPOSITOR
+  renderToEGLSurface = true;
+#endif
+  nsIntRect rect;
+  GetBounds(rect);
+  mCompositorParent =
+    new CompositorParent(this, renderToEGLSurface, rect.width, rect.height);
+  LayerManager* lm = CreateBasicLayerManager();
+  MessageLoop *childMessageLoop = CompositorParent::CompositorLoop();
+  mCompositorChild = new CompositorChild(lm);
+  AsyncChannel *parentChannel = mCompositorParent->GetIPCChannel();
+  AsyncChannel::Side childSide = mozilla::ipc::AsyncChannel::Child;
+  mCompositorChild->Open(parentChannel, childMessageLoop, childSide);
+  PRInt32 maxTextureSize;
+  PLayersChild* shadowManager;
+  if (mUseAcceleratedRendering) {
+    shadowManager = mCompositorChild->SendPLayersConstructor(LayerManager::LAYERS_OPENGL, &maxTextureSize);
+  } else {
+    shadowManager = mCompositorChild->SendPLayersConstructor(LayerManager::LAYERS_BASIC, &maxTextureSize);
+  }
 
-    if (shadowManager) {
-      ShadowLayerForwarder* lf = lm->AsShadowForwarder();
-      if (!lf) {
-        delete lm;
-        mCompositorChild = nsnull;
-        return;
-      }
-      lf->SetShadowManager(shadowManager);
-      lf->SetParentBackendType(LayerManager::LAYERS_OPENGL);
-
-      mLayerManager = lm;
-    } else {
-      NS_WARNING("fail to construct LayersChild");
+  if (shadowManager) {
+    ShadowLayerForwarder* lf = lm->AsShadowForwarder();
+    if (!lf) {
       delete lm;
       mCompositorChild = nsnull;
+      return;
     }
+    lf->SetShadowManager(shadowManager);
+    if (mUseAcceleratedRendering)
+      lf->SetParentBackendType(LayerManager::LAYERS_OPENGL);
+    else
+      lf->SetParentBackendType(LayerManager::LAYERS_BASIC);
+    lf->SetMaxTextureSize(maxTextureSize);
+
+    mLayerManager = lm;
+  } else {
+    // We don't currently want to support not having a LayersChild
+    NS_RUNTIMEABORT("failed to construct LayersChild");
+    delete lm;
+    mCompositorChild = nsnull;
   }
+}
+
+bool nsBaseWidget::UseOffMainThreadCompositing()
+{
+  bool isSmallPopup = ((mWindowType == eWindowType_popup) && 
+                      (mPopupType != ePopupTypePanel));
+  return CompositorParent::CompositorLoop() && !isSmallPopup;
 }
 
 LayerManager* nsBaseWidget::GetLayerManager(PLayersChild* aShadowManager,
@@ -912,18 +923,15 @@ LayerManager* nsBaseWidget::GetLayerManager(PLayersChild* aShadowManager,
 
     mUseAcceleratedRendering = GetShouldAccelerate();
 
+    // Try to use an async compositor first, if possible
+    if (UseOffMainThreadCompositing()) {
+      // e10s uses the parameter to pass in the shadow manager from the TabChild
+      // so we don't expect to see it there since this doesn't support e10s.
+      NS_ASSERTION(aShadowManager == nsnull, "Async Compositor not supported with e10s");
+      CreateCompositor();
+    }
+
     if (mUseAcceleratedRendering) {
-
-      // Try to use an async compositor first, if possible
-      bool useCompositor =
-        Preferences::GetBool("layers.offmainthreadcomposition.enabled", false);
-      if (useCompositor) {
-        // e10s uses the parameter to pass in the shadow manager from the TabChild
-        // so we don't expect to see it there since this doesn't support e10s.
-        NS_ASSERTION(aShadowManager == nsnull, "Async Compositor not supported with e10s");
-        CreateCompositor();
-      }
-
       if (!mLayerManager) {
         nsRefPtr<LayerManagerOGL> layerManager = new LayerManagerOGL(this);
         /**
@@ -1232,7 +1240,7 @@ nsBaseWidget::OverrideSystemMouseScrollSpeed(PRInt32 aOriginalDelta,
  * Returns true if the icon file exists and can be read.
  */
 static bool
-ResolveIconNameHelper(nsILocalFile *aFile,
+ResolveIconNameHelper(nsIFile *aFile,
                       const nsAString &aIconName,
                       const nsAString &aIconSuffix)
 {
@@ -1254,7 +1262,7 @@ ResolveIconNameHelper(nsILocalFile *aFile,
 void
 nsBaseWidget::ResolveIconName(const nsAString &aIconName,
                               const nsAString &aIconSuffix,
-                              nsILocalFile **aResult)
+                              nsIFile **aResult)
 { 
   *aResult = nsnull;
 
@@ -1274,7 +1282,7 @@ nsBaseWidget::ResolveIconName(const nsAString &aIconName,
       dirs->GetNext(getter_AddRefs(element));
       if (!element)
         continue;
-      nsCOMPtr<nsILocalFile> file = do_QueryInterface(element);
+      nsCOMPtr<nsIFile> file = do_QueryInterface(element);
       if (!file)
         continue;
       if (ResolveIconNameHelper(file, aIconName, aIconSuffix)) {
@@ -1286,8 +1294,8 @@ nsBaseWidget::ResolveIconName(const nsAString &aIconName,
 
   // then check the main app chrome directory
 
-  nsCOMPtr<nsILocalFile> file;
-  dirSvc->Get(NS_APP_CHROME_DIR, NS_GET_IID(nsILocalFile),
+  nsCOMPtr<nsIFile> file;
+  dirSvc->Get(NS_APP_CHROME_DIR, NS_GET_IID(nsIFile),
               getter_AddRefs(file));
   if (file && ResolveIconNameHelper(file, aIconName, aIconSuffix))
     NS_ADDREF(*aResult = file);
@@ -1455,7 +1463,7 @@ static void debug_SetCachedBoolPref(const char * aPrefName,bool aValue)
 }
 
 //////////////////////////////////////////////////////////////
-class Debug_PrefObserver : public nsIObserver {
+class Debug_PrefObserver MOZ_FINAL : public nsIObserver {
   public:
     NS_DECL_ISUPPORTS
     NS_DECL_NSIOBSERVER

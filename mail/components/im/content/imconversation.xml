@@ -1,41 +1,7 @@
 <?xml version="1.0"?>
-<!-- ***** BEGIN LICENSE BLOCK *****
-   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
-   -
-   - The contents of this file are subject to the Mozilla Public License Version
-   - 1.1 (the "License"); you may not use this file except in compliance with
-   - the License. You may obtain a copy of the License at
-   - http://www.mozilla.org/MPL/
-   -
-   - Software distributed under the License is distributed on an "AS IS" basis,
-   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-   - for the specific language governing rights and limitations under the
-   - License.
-   -
-   - The Original Code is the Instantbird messenging client, released
-   - 2007.
-   -
-   - The Initial Developer of the Original Code is
-   - Florian QUEZE <florian@instantbird.org>.
-   - Portions created by the Initial Developer are Copyright (C) 2007
-   - the Initial Developer. All Rights Reserved.
-   -
-   - Contributor(s):
-   -   Douglas Thrift <douglas@douglasthrift.net>
-   -
-   - Alternatively, the contents of this file may be used under the terms of
-   - either the GNU General Public License Version 2 or later (the "GPL"), or
-   - the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-   - in which case the provisions of the GPL or the LGPL are applicable instead
-   - of those above. If you wish to allow use of your version of this file only
-   - under the terms of either the GPL or the LGPL, and not to allow others to
-   - use your version of this file under the terms of the MPL, indicate your
-   - decision by deleting the provisions above and replace them with the notice
-   - and other provisions required by the GPL or the LGPL. If you do not delete
-   - the provisions above, a recipient may use your version of this file under
-   - the terms of any one of the MPL, the GPL or the LGPL.
-   -
-   - ***** END LICENSE BLOCK ***** -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 
 <!DOCTYPE bindings [
@@ -179,6 +145,7 @@
             let buddy = this.buddies[name];
             color = buddy.color;
             buddy.removeAttribute("inactive");
+            this._activeBuddies[name] = true;
           }
           else {
             // Buddy no longer in the room
@@ -886,6 +853,15 @@
        </body>
      </method>
 
+     <method name="_isBuddyActive">
+       <parameter name="aBuddyName"/>
+       <body>
+       <![CDATA[
+         return Object.prototype.hasOwnProperty.call(this._activeBuddies, aBuddyName);
+       ]]>
+       </body>
+     </method>
+
      <!-- Add a buddy in the visible list of participants -->
      <method name="addBuddy">
        <parameter name="aBuddy"/>
@@ -903,7 +879,8 @@
          var color = this._computeColor(name);
          var style = "color: hsl(" + color + ", 100%, 40%);";
          item.setAttribute("style", style);
-         item.setAttribute("inactive", "true");
+         if (!this._isBuddyActive(name))
+           item.setAttribute("inactive", "true");
          item.color = color;
          this.buddies[name] = item;
 
@@ -956,6 +933,14 @@
            return;
          }
 
+         if (this._isBuddyActive(aOldName)) {
+           delete this._activeBuddies[aOldName];
+           this._activeBuddies[aBuddy.name] = true;
+         }
+
+         if (!this.tab.selected)
+           return;
+
          // Is aOldName is not null, then we are renaming the buddy
          if (!this._hasBuddy(aOldName))
            throw "Updating a chat buddy that does not exist?!";
@@ -984,6 +969,8 @@
          var item = this.buddies[aName];
          item.parentNode.removeChild(item);
          delete this.buddies[aName];
+         if (this._isBuddyActive(aName))
+           delete this._activeBuddies[aName];
        ]]>
        </body>
      </method>
@@ -1004,9 +991,9 @@
             cti.removeAttribute("noTopic");
           }
           else {
-            cti.removeAttribute("statusTooltiptext");
-            cti.setAttribute("noTopic", "true");
             topic = this.bundle.GetStringFromName("noTopic");
+            cti.setAttribute("noTopic", "true");
+            cti.setAttribute("statusTooltiptext", topic);
           }
           cti.setAttribute("statusMessage", topic);
           cti.setAttribute("statusMessageWithDash", " - " + topic);
@@ -1059,17 +1046,20 @@
           let name = this._conv.title;//.replace(/^([a-zA-Z0-9.]+)[@\s].*/, "$1");
           if (typingState == Ci.prplIConvIM.TYPING) {
             cti.setAttribute("typing", "true");
-            cti.setAttribute("statusTypeTooltiptext",
-                             this.bundle.formatStringFromName("chat.contactIsTyping",
-                                                              [name], 1));
+            let typingMsg = this.bundle.formatStringFromName("chat.contactIsTyping",
+                                                             [name], 1);
+            cti.setAttribute("statusTypeTooltiptext", typingMsg);
+            cti.setAttribute("statusTooltiptext", typingMsg);
             cti.setAttribute("statusMessage",
                              this.bundle.GetStringFromName("chat.isTyping"));
           }
           else if (typingState == Ci.prplIConvIM.TYPED) {
             cti.setAttribute("typed", "true");
-            cti.setAttribute("statusTypeTooltiptext",
-                             this.bundle.formatStringFromName("chat.contactHasStoppedTyping",
-                                                              [name], 1));
+
+            let typedMsg = this.bundle.formatStringFromName("chat.contactHasStoppedTyping",
+                                                            [name], 1);
+            cti.setAttribute("statusTypeTooltiptext", typedMsg);
+            cti.setAttribute("statusTooltiptext", typedMsg);
             cti.setAttribute("statusMessage",
                              this.bundle.GetStringFromName("chat.hasStoppedTyping"));
           }
@@ -1124,6 +1114,9 @@
             cti.setAttribute("statusMessage", statusString + statusText);
             cti.setAttribute("status", Status.toAttribute(statusType));
             cti.setAttribute("statusTypeTooltiptext", statusString);
+            cti.setAttribute("statusTooltiptext", statusString + statusText);
+            cti.removeAttribute("topicEditable");
+            cti.removeAttribute("noTopic");
             this.updateTyping();
           }
        ]]>
@@ -1158,6 +1151,7 @@
            cti.setAttribute("displayName", this._conv.title);
            cti.setAttribute("status", "chat");
 
+           this._activeBuddies = {};
            this.showParticipants();
          }
 
@@ -1194,18 +1188,10 @@
            return;
          }
 
-         if (aTopic.indexOf("chat-buddy-") == 0 && !this.tab.selected)
-           return;
-
          switch(aTopic) {
          case "new-text":
            if (this.loaded)
              this.addMsg(aSubject);
-           break;
-
-         case "update-typing":
-           if (this.tab && this.tab.selected)
-             this.updateTyping();
            break;
 
          case "status-text-changed":
@@ -1225,11 +1211,14 @@
          case "update-buddy-status":
          case "update-buddy-icon":
          case "update-conv-chatleft":
+         case "update-typing":
            if (this.tab && this.tab.selected)
              this.updateConvStatus();
            break;
 
          case "chat-buddy-add":
+           if (!this.tab.selected)
+             break;
            aSubject.QueryInterface(Ci.nsISimpleEnumerator);
            while (aSubject.hasMoreElements())
              this.addBuddy(aSubject.getNext());
@@ -1238,6 +1227,14 @@
 
          case "chat-buddy-remove":
            aSubject.QueryInterface(Ci.nsISimpleEnumerator);
+           if (!this.tab.selected) {
+             while (aSubject.hasMoreElements()) {
+               let name = aSubject.getNext().QueryInterface(Ci.nsISupportsString).toString();
+               if (this._isBuddyActive(name))
+                 delete this._activeBuddies[name];
+             }
+             break;
+           }
            while (aSubject.hasMoreElements()) {
              let nick = aSubject.getNext();
              nick.QueryInterface(Ci.nsISupportsString);
@@ -1249,8 +1246,10 @@
          case "chat-buddy-update":
            this.updateBuddy(aSubject, aData);
            break;
+
          case "chat-update-topic":
-           this.updateTopic();
+           if (this.tab.selected)
+             this.updateTopic();
            break;
          }
        ]]>
@@ -1371,17 +1370,24 @@
          if (!this.hasAttribute("editing"))
            return;
 
+         let convBinding =
+           document.getElementById("conversationsDeck").selectedPanel;
+
          let elt = this.topic;
          if (aSave) {
            // apply the new topic only if it is different from the current one
            if (elt.value != elt.getAttribute("value"))
-             document.getBindingParent(this)._conv.topic = elt.value;
+             convBinding._conv.topic = elt.value;
          }
          this.removeAttribute("editing");
          elt.removeEventListener("keypress", this._topicKeyPress, true);
          delete this._topicKeyPress;
          elt.removeEventListener("blur", this._topicBlur, false);
          delete this._topicBlur;
+
+         // After removing the "editing" attribute, the focus is on an element
+         // that can't receive keyboard events, so move it to somewhere else.
+         convBinding.editor.focus();
        ]]>
        </body>
      </method>

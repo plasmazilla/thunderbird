@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Sun Microsystems code.
- *
- * The Initial Developer of the Original Code is
- *   Sun Microsystems, Inc.
- * Portions created by the Initial Developer are Copyright (C) 2007
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Daniel Boelzle <daniel.boelzle@sun.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /**
  * This script reads out the passed zones.tab and its timezone definitions and
@@ -122,19 +89,6 @@ function hashTimezone(tz) {
     ret += tz.latitude;
     ret += tz.longitude;
     return ret;
-}
-
-function createStatement(db, sql) {
-    try {
-        var stmt = db.createStatement(sql);
-        var wrapper = Components.classes["@mozilla.org/storage/statement-wrapper;1"]
-                                .createInstance(Components.interfaces.mozIStorageStatementWrapper);
-        wrapper.initialize(stmt);
-        return wrapper;
-    } catch (exc) {
-        throw ("mozStorage exception: createStatement failed, statement: '" + 
-               sql + "', error: '" + db.lastErrorString + "' - " + exc);
-    }
 }
 
 function ask(question, options) {
@@ -226,9 +180,10 @@ try {
                               .getService(Components.interfaces.mozIStorageService);
     var db = dbService.openDatabase(sqlTzFile);
 
-    var statement = createStatement(db, "SELECT * FROM tz_data WHERE alias IS NULL");
+    let statement;
     try {
-        while (statement.step()) {
+        statement = db.createStatement("SELECT * FROM tz_data WHERE alias IS NULL");
+        while (statement.executeStep()) {
             var row = statement.row;
             oldSet[row.tzid] = new calIntrinsicTimezone(row.latitude,
                                                         row.longitude,
@@ -237,16 +192,21 @@ try {
                                                                        "END:VCALENDAR\r\n").getFirstSubcomponent("VTIMEZONE"));
         }
     } finally {
-        statement.reset();
+        if (statement) {
+            statement.reset();
+        }
     }
-    statement = createStatement(db, "SELECT * FROM tz_data WHERE alias IS NOT NULL");
+
     try {
-        while (statement.step()) {
+        statement = db.createStatement("SELECT * FROM tz_data WHERE alias IS NOT NULL");
+        while (statement.executeStep()) {
             var row = statement.row;
             oldSet[row.tzid] = oldSet[row.alias];
         }
     } finally {
-        statement.reset();
+        if (statement) {
+            statement.reset();
+        }
     }
 
     // now compare new and old, what changed etc:
@@ -299,10 +259,10 @@ try {
                    "latitude  TEXT, " +
                    "longitude TEXT, " +
                    "component TEXT");
-    statement = createStatement(db,
-                                "INSERT INTO tz_data (tzid, alias, latitude, longitude, component) " +
-                                "VALUES (:tzid, :alias, :latitude, :longitude, :component)");
+
     try {
+        statement = db.createStatement("INSERT INTO tz_data (tzid, alias, latitude, longitude, component) " +
+                                       "VALUES (:tzid, :alias, :latitude, :longitude, :component)");
         for (var tzid in newSet) {
             statement.reset();
             var params = statement.params;
@@ -319,10 +279,12 @@ try {
             } else { // alias
                 params.alias = tz.tzid;
             }
-            statement.execute();
+            statement.executeStep();
         }
     } finally {
-        statement.reset();
+        if (statement) {
+            statement.reset();
+        }
     }
     db.executeSimpleSQL("UPDATE tz_version SET version = '" + arguments[2] + "'");
 

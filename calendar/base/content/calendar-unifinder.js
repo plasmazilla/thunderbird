@@ -1,51 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is OEone Calendar Code, released October 31st, 2001.
- *
- * The Initial Developer of the Original Code is
- * OEone Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2001
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Garth Smedley <garths@oeone.com>
- *   Mike Potter <mikep@oeone.com>
- *   Chris Charabaruk <coldacid@meldstar.com>
- *   Colin Phillips <colinp@oeone.com>
- *   ArentJan Banck <ajbanck@planet.nl>
- *   Eric Belhaire <eric.belhaire@ief.u-psud.fr>
- *   Matthew Willis <mattwillis@gmail.com>
- *   Michiel van Leeuwen <mvl@exedo.nl>
- *   Joey Minta <jminta@gmail.com>
- *   Dan Mosedale <dan.mosedale@oracle.com>
- *   Michael Buettner <michael.buettner@sun.com>
- *   Philipp Kewisch <mozilla@kewis.ch>
- *   Fred Jendrzejewski <fred.jen@web.de>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /**
  * U N I F I N D E R
@@ -248,7 +203,6 @@ function prepareCalendarUnifinder() {
 
         // Set up the filter
         unifinderTreeView.mFilter = new calFilter();
-        unifinderTreeView.mFilter.propertyFilter = "unifinder-search-field";
 
         // Set up the unifinder views.
         unifinderTreeView.treeElement = unifinderTree;
@@ -319,7 +273,8 @@ function finishCalendarUnifinder() {
  * Event listener for the view deck's dayselect event.
  */
 function unifinderDaySelect() {
-    if (getCurrentUnifinderFilter() == "current" || "currentview") {
+    let filter = getCurrentUnifinderFilter();
+    if (filter == "current" || filter == "currentview") {
         refreshEventTree();
     }
 }
@@ -877,6 +832,11 @@ var unifinderTreeView = {
  * applying the current filter.
  */
 function refreshEventTree() {
+    let field = document.getElementById("unifinder-search-field");
+    if (field) {
+        unifinderTreeView.mFilter.filterText = field.value;
+    }
+
     addItemsFromCalendar(getCompositeCalendar(),
                          addItemsFromCompositeCalendarInternal);
 }
@@ -949,10 +909,10 @@ function addItemsFromCalendar(aCalendar, aAddItemsInternalFunc) {
     filter |= aCalendar.ITEM_FILTER_TYPE_EVENT;
 
     // Not all xul might be there yet...
-    if (!document.getElementById(unifinderTreeView.mFilter.textFilterField)) {
+    if (!document.getElementById("unifinder-search-field")) {
         return;
     }
-    unifinderTreeView.mFilter.setDateFilter(getCurrentUnifinderFilter());
+    unifinderTreeView.mFilter.applyFilter(getCurrentUnifinderFilter());
 
     if (unifinderTreeView.mFilter.startDate && unifinderTreeView.mFilter.endDate) {
         filter |= aCalendar.ITEM_FILTER_CLASS_OCCURRENCES;

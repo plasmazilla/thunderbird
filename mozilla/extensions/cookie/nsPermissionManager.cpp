@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Michiel van Leeuwen (mvl@exedo.nl)
- *   Daniel Witte (dwitte@stanford.edu)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/dom/ContentParent.h"
 #include "mozilla/dom/ContentChild.h"
@@ -52,12 +18,10 @@
 #include "nsIIDNService.h"
 #include "nsAppDirectoryServiceDefs.h"
 #include "prprf.h"
-#include "mozIStorageService.h"
-#include "mozIStorageStatement.h"
-#include "mozIStorageConnection.h"
-#include "mozStorageHelper.h"
-#include "mozStorageCID.h"
+#include "mozilla/storage.h"
+#include "mozilla/Attributes.h"
 #include "nsXULAppAPI.h"
+#include "nsIPrincipal.h"
 
 static nsPermissionManager *gPermissionManager = nsnull;
 
@@ -140,6 +104,115 @@ nsHostEntry::nsHostEntry(const nsHostEntry& toCopy)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+
+/**
+ * Simple callback used by |AsyncClose| to trigger a treatment once
+ * the database is closed.
+ *
+ * Note: Beware that, if you hold onto a |CloseDatabaseListener| from a
+ * |nsPermissionManager|, this will create a cycle.
+ *
+ * Note: Once the callback has been called this DeleteFromMozHostListener cannot
+ * be reused.
+ */
+class CloseDatabaseListener MOZ_FINAL : public mozIStorageCompletionCallback
+{
+public:
+  NS_DECL_ISUPPORTS
+  NS_DECL_MOZISTORAGECOMPLETIONCALLBACK
+  /**
+   * @param aManager The owning manager.
+   * @param aRebuildOnSuccess If |true|, reinitialize the database once
+   * it has been closed. Otherwise, do nothing such.
+   */
+  CloseDatabaseListener(nsPermissionManager* aManager,
+                        bool aRebuildOnSuccess);
+
+protected:
+  nsRefPtr<nsPermissionManager> mManager;
+  bool mRebuildOnSuccess;
+};
+
+NS_IMPL_ISUPPORTS1(CloseDatabaseListener, mozIStorageCompletionCallback)
+
+CloseDatabaseListener::CloseDatabaseListener(nsPermissionManager* aManager,
+                                             bool aRebuildOnSuccess)
+  : mManager(aManager)
+  , mRebuildOnSuccess(aRebuildOnSuccess)
+{
+}
+
+NS_IMETHODIMP
+CloseDatabaseListener::Complete()
+{
+  // Help breaking cycles
+  nsRefPtr<nsPermissionManager> manager = mManager.forget();
+  if (mRebuildOnSuccess && !manager->mIsShuttingDown) {
+    return manager->InitDB(true);
+  }
+  return NS_OK;
+}
+
+
+/**
+ * Simple callback used by |RemoveAllInternal| to trigger closing
+ * the database and reinitializing it.
+ *
+ * Note: Beware that, if you hold onto a |DeleteFromMozHostListener| from a
+ * |nsPermissionManager|, this will create a cycle.
+ *
+ * Note: Once the callback has been called this DeleteFromMozHostListener cannot
+ * be reused.
+ */
+class DeleteFromMozHostListener MOZ_FINAL : public mozIStorageStatementCallback
+{
+public:
+  NS_DECL_ISUPPORTS
+  NS_DECL_MOZISTORAGESTATEMENTCALLBACK
+
+  /**
+   * @param aManager The owning manager.
+   */
+  DeleteFromMozHostListener(nsPermissionManager* aManager);
+
+protected:
+  nsRefPtr<nsPermissionManager> mManager;
+};
+
+NS_IMPL_ISUPPORTS1(DeleteFromMozHostListener, mozIStorageStatementCallback)
+
+DeleteFromMozHostListener::
+DeleteFromMozHostListener(nsPermissionManager* aManager)
+  : mManager(aManager)
+{
+}
+
+NS_IMETHODIMP DeleteFromMozHostListener::HandleResult(mozIStorageResultSet *)
+{
+  MOZ_NOT_REACHED("Should not get any results");
+  return NS_OK;
+}
+
+NS_IMETHODIMP DeleteFromMozHostListener::HandleError(mozIStorageError *)
+{
+  // Errors are handled in |HandleCompletion|
+  return NS_OK;
+}
+
+NS_IMETHODIMP DeleteFromMozHostListener::HandleCompletion(PRUint16 aReason)
+{
+  // Help breaking cycles
+  nsRefPtr<nsPermissionManager> manager = mManager.forget();
+
+  if (aReason == REASON_ERROR) {
+    manager->CloseDB(true);
+  }
+
+  return NS_OK;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // nsPermissionManager Implementation
 
 static const char kPermissionsFileName[] = "permissions.sqlite";
@@ -153,6 +226,7 @@ NS_IMPL_ISUPPORTS3(nsPermissionManager, nsIPermissionManager, nsIObserver, nsISu
 
 nsPermissionManager::nsPermissionManager()
  : mLargestID(0)
+ , mIsShuttingDown(false)
 {
 }
 
@@ -193,9 +267,7 @@ nsPermissionManager::Init()
 {
   nsresult rv;
 
-  if (!mHostTable.Init()) {
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
+  mHostTable.Init();
 
   mObserverService = do_GetService("@mozilla.org/observer-service;1", &rv);
   if (NS_SUCCEEDED(rv)) {
@@ -432,6 +504,19 @@ nsPermissionManager::Add(nsIURI     *aURI,
                      aExpireType, aExpireTime, eNotify, eWriteToDB);
 }
 
+NS_IMETHODIMP
+nsPermissionManager::AddFromPrincipal(nsIPrincipal* aPrincipal,
+                                      const char* aType, PRUint32 aPermission,
+                                      PRUint32 aExpireType, PRInt64 aExpireTime)
+{
+  NS_ENSURE_ARG_POINTER(aPrincipal);
+
+  nsCOMPtr<nsIURI> uri;
+  aPrincipal->GetURI(getter_AddRefs(uri));
+
+  return Add(uri, aType, aPermission, aExpireType, aExpireTime);
+}
+
 nsresult
 nsPermissionManager::AddInternal(const nsAFlatCString &aHost,
                                  const nsAFlatCString &aType,
@@ -611,42 +696,72 @@ nsPermissionManager::Remove(const nsACString &aHost,
 }
 
 NS_IMETHODIMP
+nsPermissionManager::RemoveFromPrincipal(nsIPrincipal* aPrincipal,
+                                         const char* aType)
+{
+  NS_ENSURE_ARG_POINTER(aPrincipal);
+
+  nsCOMPtr<nsIURI> uri;
+  aPrincipal->GetURI(getter_AddRefs(uri));
+  NS_ENSURE_TRUE(uri, NS_ERROR_FAILURE);
+
+  nsCAutoString host;
+  uri->GetHost(host);
+
+  return Remove(host, aType);
+}
+
+NS_IMETHODIMP
 nsPermissionManager::RemoveAll()
 {
   ENSURE_NOT_CHILD_PROCESS;
-
-  nsresult rv = RemoveAllInternal();
-  NotifyObservers(nsnull, NS_LITERAL_STRING("cleared").get());
-  return rv;
+  return RemoveAllInternal(true);
 }
 
 void
-nsPermissionManager::CloseDB()
+nsPermissionManager::CloseDB(bool aRebuildOnSuccess)
 {
   // Null the statements, this will finalize them.
   mStmtInsert = nsnull;
   mStmtDelete = nsnull;
   mStmtUpdate = nsnull;
   if (mDBConn) {
-    mozilla::DebugOnly<nsresult> rv = mDBConn->Close();
+    mozIStorageCompletionCallback* cb = new CloseDatabaseListener(this,
+           aRebuildOnSuccess);
+    mozilla::DebugOnly<nsresult> rv = mDBConn->AsyncClose(cb);
     MOZ_ASSERT(NS_SUCCEEDED(rv));
-    mDBConn = nsnull;
+    mDBConn = nsnull; // Avoid race conditions
   }
 }
 
 nsresult
-nsPermissionManager::RemoveAllInternal()
+nsPermissionManager::RemoveAllInternal(bool aNotifyObservers)
 {
+  // Remove from memory and notify immediately. Since the in-memory
+  // database is authoritative, we do not need confirmation from the
+  // on-disk database to notify observers.
   RemoveAllFromMemory();
+  if (aNotifyObservers) {
+    NotifyObservers(nsnull, NS_LITERAL_STRING("cleared").get());
+  }
 
   // clear the db
   if (mDBConn) {
-    nsresult rv = mDBConn->ExecuteSimpleSQL(NS_LITERAL_CSTRING("DELETE FROM moz_hosts"));
-    if (NS_FAILED(rv)) {
-      CloseDB();
-      rv = InitDB(true);
-      return rv;
+    nsCOMPtr<mozIStorageAsyncStatement> removeStmt;
+    nsresult rv = mDBConn->
+      CreateAsyncStatement(NS_LITERAL_CSTRING(
+         "DELETE FROM moz_hosts"
+      ), getter_AddRefs(removeStmt));
+    MOZ_ASSERT(NS_SUCCEEDED(rv));
+    if (!removeStmt) {
+      return NS_ERROR_UNEXPECTED;
     }
+    nsCOMPtr<mozIStoragePendingStatement> pending;
+    mozIStorageStatementCallback* cb = new DeleteFromMozHostListener(this);
+    rv = removeStmt->ExecuteAsync(cb, getter_AddRefs(pending));
+    MOZ_ASSERT(NS_SUCCEEDED(rv));
+
+    return rv;
   }
 
   return NS_OK;
@@ -666,6 +781,32 @@ nsPermissionManager::TestPermission(nsIURI     *aURI,
                                     PRUint32   *aPermission)
 {
   return CommonTestPermission(aURI, aType, aPermission, false);
+}
+
+NS_IMETHODIMP
+nsPermissionManager::TestPermissionFromPrincipal(nsIPrincipal* aPrincipal,
+                                                 const char* aType,
+                                                 PRUint32* aPermission)
+{
+  NS_ENSURE_ARG_POINTER(aPrincipal);
+
+  nsCOMPtr<nsIURI> uri;
+  aPrincipal->GetURI(getter_AddRefs(uri));
+
+  return TestPermission(uri, aType, aPermission);
+}
+
+NS_IMETHODIMP
+nsPermissionManager::TestExactPermissionFromPrincipal(nsIPrincipal* aPrincipal,
+                                                      const char* aType,
+                                                      PRUint32* aPermission)
+{
+  NS_ENSURE_ARG_POINTER(aPrincipal);
+
+  nsCOMPtr<nsIURI> uri;
+  aPrincipal->GetURI(getter_AddRefs(uri));
+
+  return TestExactPermission(uri, aType, aPermission);
 }
 
 nsresult
@@ -797,13 +938,14 @@ NS_IMETHODIMP nsPermissionManager::Observe(nsISupports *aSubject, const char *aT
   if (!nsCRT::strcmp(aTopic, "profile-before-change")) {
     // The profile is about to change,
     // or is going away because the application is shutting down.
+    mIsShuttingDown = true;
     if (!nsCRT::strcmp(someData, NS_LITERAL_STRING("shutdown-cleanse").get())) {
-      // clear the permissions file
-      RemoveAllInternal();
+      // Clear the permissions file and close the db asynchronously
+      RemoveAllInternal(false);
     } else {
       RemoveAllFromMemory();
+      CloseDB(false);
     }
-    CloseDB();
   }
   else if (!nsCRT::strcmp(aTopic, "profile-do-change")) {
     // the profile has already changed; init the db from the new location

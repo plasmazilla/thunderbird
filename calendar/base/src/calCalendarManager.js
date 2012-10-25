@@ -1,45 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Oracle Corporation code.
- *
- * The Initial Developer of the Original Code is Oracle Corporation
- * Portions created by the Initial Developer are Copyright (C) 2005
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Stuart Parmenter <stuart.parmenter@oracle.com>
- *   Matthew Willis <lilmatt@mozilla.com>
- *   Michiel van Leeuwen <mvl@exedo.nl>
- *   Martin Schroeder <mschroeder@mozilla.x-home.org>
- *   Philipp Kewisch <mozilla@kewis.ch>
- *   Daniel Boelzle <daniel.boelzle@sun.com>
- *   Simon Vaillancourt <simon.at.orcl@gmail.com>
- *   Lennart Bublies <Lennart.Bublies@gmx.de>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/AddonManager.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
@@ -51,14 +12,6 @@ const DB_SCHEMA_VERSION = 10;
 
 function getPrefBranchFor(id) {
     return (REGISTRY_BRANCH + id + ".");
-}
-
-function createStatement(dbconn, sql) {
-    let stmt = dbconn.createStatement(sql);
-    let wrapper = Components.classes["@mozilla.org/storage/statement-wrapper;1"]
-                            .createInstance(Components.interfaces.mozIStorageStatementWrapper);
-    wrapper.initialize(stmt);
-    return wrapper;
 }
 
 /**
@@ -412,12 +365,12 @@ calCalendarManager.prototype = {
     },
 
     migrateDB: function calmgr_migrateDB(db) {
-        let selectCalendars = createStatement(db, "SELECT * FROM cal_calendars");
-        let selectPrefs = createStatement(db, "SELECT name, value FROM cal_calendars_prefs WHERE calendar = :calendar");
+        let selectCalendars = db.createStatement("SELECT * FROM cal_calendars");
+        let selectPrefs = db.createStatement("SELECT name, value FROM cal_calendars_prefs WHERE calendar = :calendar");
         try {
             let sortOrder = {};
 
-            while (selectCalendars.step()) {
+            while (selectCalendars.executeStep()) {
                 let id = cal.getUUID(); // use fresh uuids
                 cal.setPref(getPrefBranchFor(id) + "type", selectCalendars.row.type);
                 cal.setPref(getPrefBranchFor(id) + "uri", selectCalendars.row.uri);
@@ -425,7 +378,7 @@ calCalendarManager.prototype = {
                 sortOrder[selectCalendars.row.id] = id;
                 // move over prefs:
                 selectPrefs.params.calendar = selectCalendars.row.id;
-                while (selectPrefs.step()) {
+                while (selectPrefs.executeStep()) {
                     let name = selectPrefs.row.name.toLowerCase(); // may come lower case, so force it to be
                     let value = selectPrefs.row.value;
                     switch (name) {
@@ -511,6 +464,8 @@ calCalendarManager.prototype = {
         } catch (exc) {
             db.rollbackTransaction();
             throw exc;
+        } finally {
+            db.close();
         }
     },
 
@@ -531,8 +486,8 @@ calCalendarManager.prototype = {
         }
 
         try {
-            stmt = createStatement(db, "SELECT version FROM " + table + " LIMIT 1");
-            if (stmt.step()) {
+            stmt = db.createStatement("SELECT version FROM " + table + " LIMIT 1");
+            if (stmt.executeStep()) {
                 version = stmt.row.version;
             }
             stmt.reset();

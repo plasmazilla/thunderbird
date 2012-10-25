@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsHTMLInputElement_h__
 #define nsHTMLInputElement_h__
@@ -53,6 +20,7 @@
 #include "nsIFile.h"
 
 class nsDOMFileList;
+class nsIFilePicker;
 class nsIRadioGroupContainer;
 class nsIRadioGroupVisitor;
 class nsIRadioVisitor;
@@ -69,7 +37,7 @@ public:
    * @param aURI URI of the current page
    * @param aFile path to the last used directory
    */
-  nsresult FetchLastUsedDirectory(nsIURI* aURI, nsILocalFile** aFile);
+  nsresult FetchLastUsedDirectory(nsIURI* aURI, nsIFile** aFile);
 
   /**
    * Store the last used directory for this location using the
@@ -78,7 +46,7 @@ public:
    * @param aFile file chosen by the user - the path to the parent of this
    *        file will be stored
    */
-  nsresult StoreLastUsedDirectory(nsIURI* aURI, nsILocalFile* aFile);
+  nsresult StoreLastUsedDirectory(nsIURI* aURI, nsIFile* aFile);
 };
 
 class nsHTMLInputElement : public nsGenericHTMLFormElement,
@@ -182,7 +150,6 @@ public:
   NS_IMETHOD_(void) GetDefaultValueFromContent(nsAString& aValue);
   NS_IMETHOD_(bool) ValueChanged() const;
   NS_IMETHOD_(void) GetTextEditorValue(nsAString& aValue, bool aIgnoreWrap) const;
-  NS_IMETHOD_(void) SetTextEditorValue(const nsAString& aValue, bool aUserInput);
   NS_IMETHOD_(nsIEditor*) GetTextEditor();
   NS_IMETHOD_(nsISelectionController*) GetSelectionController();
   NS_IMETHOD_(nsFrameSelection*) GetConstFrameSelection();
@@ -192,7 +159,6 @@ public:
   NS_IMETHOD_(nsIContent*) GetRootEditorNode();
   NS_IMETHOD_(nsIContent*) CreatePlaceholderNode();
   NS_IMETHOD_(nsIContent*) GetPlaceholderNode();
-  NS_IMETHOD_(void) UpdatePlaceholderText(bool aNotify);
   NS_IMETHOD_(void) SetPlaceholderClass(bool aVisible, bool aNotify);
   NS_IMETHOD_(void) InitializeKeyboardEventListeners();
   NS_IMETHOD_(void) OnValueChanged(bool aNotify);
@@ -223,11 +189,6 @@ public:
 
   NS_IMETHOD FireAsyncClickHandler();
 
-  virtual void UpdateEditableState(bool aNotify)
-  {
-    return UpdateEditableFormControlState(aNotify);
-  }
-
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(nsHTMLInputElement,
                                            nsGenericHTMLFormElement)
 
@@ -241,6 +202,8 @@ public:
 
   virtual nsXPCClassInfo* GetClassInfo();
 
+  virtual nsIDOMNode* AsDOMNode() { return this; }
+
   static nsHTMLInputElement* FromContent(nsIContent *aContent)
   {
     if (aContent->NodeInfo()->Equals(nsGkAtoms::input, kNameSpaceID_XHTML))
@@ -253,10 +216,16 @@ public:
   bool     IsValueMissing() const;
   bool     HasTypeMismatch() const;
   bool     HasPatternMismatch() const;
+  bool     IsRangeOverflow() const;
+  bool     IsRangeUnderflow() const;
+  bool     HasStepMismatch() const;
   void     UpdateTooLongValidityState();
   void     UpdateValueMissingValidityState();
   void     UpdateTypeMismatchValidityState();
   void     UpdatePatternMismatchValidityState();
+  void     UpdateRangeOverflowValidityState();
+  void     UpdateRangeUnderflowValidityState();
+  void     UpdateStepMismatchValidityState();
   void     UpdateAllValidityStates(bool aNotify);
   void     UpdateBarredFromConstraintValidation();
   nsresult GetValidationMessage(nsAString& aValidationMessage,
@@ -270,6 +239,23 @@ public:
    * @note This method shouldn't be called if the radio elemnet hasn't a group.
    */
   void     UpdateValueMissingValidityStateForRadio(bool aIgnoreSelf);
+
+  /**
+   * Set filters to the filePicker according to the accept attribute value.
+   *
+   * See:
+   * http://dev.w3.org/html5/spec/forms.html#attr-input-accept
+   *
+   * @note You should not call this function if the element has no @accept.
+   * @note "All Files" filter is always set, no matter if there is a valid
+   * filter specifed or not.
+   * @note If there is only one valid filter that is audio or video or image,
+   * it will be selected as the default filter. Otherwise "All files" remains
+   * the default filter.
+   * @note If more than one valid filter is found, the "All Supported Types"
+   * filter is added, which is the concatenation of all valid filters.
+   */
+  void SetFilePickerFiltersFromAccept(nsIFilePicker* filePicker);
 
   /**
    * Returns the filter which should be used for the file picker according to
@@ -300,6 +286,11 @@ public:
   bool DefaultChecked() const {
     return HasAttr(kNameSpaceID_None, nsGkAtoms::checked);
   }
+
+  /**
+   * Fires change event if mFocusedValue and current value held are unequal.
+   */
+  void FireChangeEventIfNeeded();
 
 protected:
   // Pull IsSingleLineTextControl into our scope, otherwise it'd be hidden
@@ -479,6 +470,26 @@ protected:
   bool DoesPatternApply() const;
 
   /**
+   * Returns if the min and max attributes apply for the current type.
+   */
+  bool DoesMinMaxApply() const;
+
+  /**
+   * Returns if the step attribute apply for the current type.
+   */
+  bool DoesStepApply() const { return DoesMinMaxApply(); }
+
+  /**
+   * Returns if stepDown and stepUp methods apply for the current type.
+   */
+  bool DoStepDownStepUpApply() const { return DoesStepApply(); }
+
+  /**
+   * Returns if valueAsNumber attribute applies for the current type.
+   */
+  bool DoesValueAsNumberApply() const { return DoesMinMaxApply(); }
+
+  /**
    * Returns if the maxlength attribute applies for the current type.
    */
   bool MaxLengthApplies() const { return IsSingleLineTextControl(false, mType); }
@@ -548,6 +559,62 @@ protected:
    */
   nsIRadioGroupContainer* GetRadioGroupContainer() const;
 
+  /**
+   * Returns the input element's value as a double-precision float.
+   * Returns NaN if the current element's value is not a floating point number.
+   *
+   * @return the input element's value as a double-precision float.
+   */
+  double GetValueAsDouble() const;
+
+  /**
+   * Sets the value of the element to the string representation of the double.
+   *
+   * @param aValue The double that will be used to set the value.
+   */
+  void SetValue(double aValue);
+
+  /**
+   * Update the HAS_RANGE bit field value.
+   */
+  void UpdateHasRange();
+
+  /**
+   * Returns the min attribute as a double.
+   * Returns NaN if the min attribute isn't a valid floating point number.
+   */
+  double GetMinAsDouble() const;
+
+  /**
+   * Returns the max attribute as a double.
+   * Returns NaN if the max attribute isn't a valid floating point number.
+   */
+  double GetMaxAsDouble() const;
+
+  /**
+   * Returns the current step value.
+   * Returns kStepAny if the current step is "any" string.
+   *
+   * @return the current step value.
+   */
+  double GetStep() const;
+
+  /**
+   * Return the base used to compute if a value matches step.
+   * Basically, it's the min attribute if present and a default value otherwise.
+   *
+   * @return The step base.
+   */
+  double GetStepBase() const;
+
+  /**
+   * Apply a step change from stepUp or stepDown by multiplying aStep by the
+   * current step value.
+   *
+   * @param aStep The value used to be multiplied against the step value.
+   */
+  nsresult ApplyStep(PRInt32 aStep);
+
   nsCOMPtr<nsIControllers> mControllers;
 
   /*
@@ -583,6 +650,20 @@ protected:
   nsRefPtr<nsDOMFileList>  mFileList;
 
   nsString mStaticDocFileList;
+  
+  /** 
+   * The value of the input element when first initialized and it is updated
+   * when the element is either changed through a script, focused or dispatches   
+   * a change event. This is to ensure correct future change event firing.
+   * NB: This is ONLY applicable where the element is a text control. ie,
+   * where type= "text", "email", "search", "tel", "url" or "password".
+   */
+  nsString mFocusedValue;  
+
+  // Default step base value when a type do not have specific one.
+  static const double kDefaultStepBase;
+  // Float alue returned by GetStep() when the step attribute is set to 'any'.
+  static const double kStepAny;
 
   /**
    * The type of this input (<input type=...>) as an integer.
@@ -602,6 +683,52 @@ protected:
   bool                     mInhibitRestoration  : 1;
   bool                     mCanShowValidUI      : 1;
   bool                     mCanShowInvalidUI    : 1;
+  bool                     mHasRange            : 1;
+
+private:
+  struct nsFilePickerFilter {
+    nsFilePickerFilter()
+      : mFilterMask(0), mIsTrusted(false) {}
+
+    nsFilePickerFilter(PRInt32 aFilterMask)
+      : mFilterMask(aFilterMask), mIsTrusted(true) {}
+
+    nsFilePickerFilter(const nsString& aTitle,
+                       const nsString& aFilter,
+                       const bool aIsTrusted = false)
+      : mFilterMask(0), mTitle(aTitle), mFilter(aFilter), mIsTrusted(aIsTrusted) {}
+
+    nsFilePickerFilter(const nsFilePickerFilter& other) {
+      mFilterMask = other.mFilterMask;
+      mTitle = other.mTitle;
+      mFilter = other.mFilter;
+      mIsTrusted = other.mIsTrusted;
+    }
+
+    bool operator== (const nsFilePickerFilter& other) const {
+      if ((mFilter == other.mFilter) && (mFilterMask == other.mFilterMask)) {
+        NS_ASSERTION(mIsTrusted == other.mIsTrusted,
+                     "Filter with similar list of extensions and mask should"
+                     " have the same trusted flag value");
+        return true;
+      } else {
+        return false;
+      }
+    }
+    
+    // Filter mask, using values defined in nsIFilePicker
+    PRInt32 mFilterMask;
+    // If mFilterMask is defined, mTitle and mFilter are useless and should be
+    // ignored
+    nsString mTitle;
+    nsString mFilter;
+    // mIsTrusted is true if mime type comes from a "trusted" source (e.g. our
+    // hard-coded set).
+    // false means it may come from an "untrusted" source (e.g. OS mime types
+    // mapping, which can be different accross OS, user's personal configuration, ...)
+    // For now, only mask filters are considered to be "trusted".
+    bool mIsTrusted; 
+  };
 };
 
 #endif

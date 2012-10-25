@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Seth Spitzer <sspitzer@netscape.com>
- *   Scott MacGregor <mscott@netscape.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* ****************************************************************************
  * ATTENTION! ATTENTION! ATTENTION! ATTENTION! ATTENTION! ATTENTION! ATTENTION!
@@ -180,7 +146,6 @@
 #include "nsAbLDAPDirectoryQuery.h"
 #include "nsAbLDAPCard.h"
 #include "nsAbLDAPDirFactory.h"
-#include "nsAbLDAPAutoCompFormatter.h"
 #include "nsAbLDAPReplicationService.h"
 #include "nsAbLDAPReplicationQuery.h"
 #include "nsAbLDAPReplicationData.h"
@@ -188,7 +153,10 @@
 // fix them.
 //#include "nsAbLDAPChangeLogQuery.h"
 //#include "nsAbLDAPChangeLogData.h"
+#ifndef MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE
+#include "nsAbLDAPAutoCompFormatter.h"
 #include "nsLDAPAutoCompleteSession.h"
+#endif
 #endif
 
 
@@ -326,6 +294,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 #include "nsFts3TokenizerCID.h"
 #include "nsFts3Tokenizer.h"
+
+////////////////////////////////////////////////////////////////////////////////
+// PGP/MIME includes
+////////////////////////////////////////////////////////////////////////////////
+#include "nsPgpMimeProxy.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // mailnews base factories
@@ -493,7 +466,6 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPDirectory)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPDirectoryQuery)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPCard)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPDirFactory)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPAutoCompFormatter)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPReplicationService)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPReplicationQuery)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPProcessReplicationData)
@@ -501,7 +473,10 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPProcessReplicationData)
 // fix them.
 //NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPChangeLogQuery)
 //NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPProcessChangeLogData)
+#ifndef MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPAutoCompFormatter)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsLDAPAutoCompleteSession)
+#endif
 #endif
 
 
@@ -545,8 +520,10 @@ NS_DEFINE_NAMED_CID(NS_ABLDAPDIRFACTORY_CID);
 NS_DEFINE_NAMED_CID(NS_ABLDAP_REPLICATIONSERVICE_CID);
 NS_DEFINE_NAMED_CID(NS_ABLDAP_REPLICATIONQUERY_CID);
 NS_DEFINE_NAMED_CID(NS_ABLDAP_PROCESSREPLICATIONDATA_CID);
+#ifndef MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE
 NS_DEFINE_NAMED_CID(NS_ABLDAPAUTOCOMPFORMATTER_CID);
 NS_DEFINE_NAMED_CID(NS_LDAPAUTOCOMPLETESESSION_CID);
+#endif
 #endif
 NS_DEFINE_NAMED_CID(NS_ABDIRECTORYQUERYPROXY_CID);
 #ifdef XP_MACOSX
@@ -800,6 +777,38 @@ static nsresult nsVCardMimeContentTypeHandlerConstructor(nsISupports *aOuter,
   return rv;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// PGP/MIME factories
+////////////////////////////////////////////////////////////////////////////////
+
+NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsPgpMimeProxy, Init)
+
+NS_DEFINE_NAMED_CID(NS_PGPMIMEPROXY_CID);
+
+NS_DEFINE_NAMED_CID(NS_PGPMIME_CONTENT_TYPE_HANDLER_CID);
+
+extern "C" MimeObjectClass *
+MIME_PgpMimeCreateContentTypeHandlerClass(const char *content_type,
+                                        contentTypeHandlerInitStruct *initStruct);
+
+static nsresult
+nsPgpMimeMimeContentTypeHandlerConstructor(nsISupports *aOuter,
+                                         REFNSIID aIID,
+                                         void **aResult)
+{
+  NS_ENSURE_ARG_POINTER(aResult);
+  NS_ENSURE_FALSE(aOuter, NS_ERROR_NO_AGGREGATION);
+  *aResult = nsnull;
+
+  nsRefPtr<nsMimeContentTypeHandler> inst(
+    new nsMimeContentTypeHandler("mulitpart/encrypted",
+                                 &MIME_PgpMimeCreateContentTypeHandlerClass));
+
+  NS_ENSURE_TRUE(inst, NS_ERROR_OUT_OF_MEMORY);
+
+  return inst->QueryInterface(aIID, aResult);
+}
+
 const mozilla::Module::CIDEntry kMailNewsCIDs[] = {
   // MailNews Base Entries
   { &kNS_MESSENGERBOOTSTRAP_CID, false, NULL, nsMessengerBootstrapConstructor },
@@ -898,8 +907,10 @@ const mozilla::Module::CIDEntry kMailNewsCIDs[] = {
   { &kNS_ABLDAP_REPLICATIONQUERY_CID, false, NULL, nsAbLDAPReplicationQueryConstructor },
   { &kNS_ABLDAP_PROCESSREPLICATIONDATA_CID, false, NULL, nsAbLDAPProcessReplicationDataConstructor },
   { &kNS_ABLDAPDIRFACTORY_CID, false, NULL, nsAbLDAPDirFactoryConstructor },
+#ifndef MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE
   { &kNS_ABLDAPAUTOCOMPFORMATTER_CID, false, NULL, nsAbLDAPAutoCompFormatterConstructor },
   { &kNS_LDAPAUTOCOMPLETESESSION_CID, false, NULL, nsLDAPAutoCompleteSessionConstructor },
+#endif
 #endif
   { &kNS_ABDIRECTORYQUERYPROXY_CID, false, NULL, nsAbDirectoryQueryProxyConstructor },
 #ifdef XP_MACOSX
@@ -997,6 +1008,9 @@ const mozilla::Module::CIDEntry kMailNewsCIDs[] = {
   { &kNS_MSGMDNGENERATOR_CID, false, NULL, nsMsgMdnGeneratorConstructor },
   // Vcard Entries
   { &kNS_VCARD_CONTENT_TYPE_HANDLER_CID, false, NULL, nsVCardMimeContentTypeHandlerConstructor},
+  // PGP/MIME Entries
+  { &kNS_PGPMIME_CONTENT_TYPE_HANDLER_CID, false, NULL, nsPgpMimeMimeContentTypeHandlerConstructor },
+  { &kNS_PGPMIMEPROXY_CID, false, NULL, nsPgpMimeProxyConstructor },
   // Tokenizer Entries
   { NULL }
 };
@@ -1101,8 +1115,10 @@ const mozilla::Module::ContractIDEntry kMailNewsContracts[] = {
   { NS_ABLDAP_PROCESSREPLICATIONDATA_CONTRACTID, &kNS_ABLDAP_PROCESSREPLICATIONDATA_CID },
   { NS_ABLDAPACDIRFACTORY_CONTRACTID, &kNS_ABLDAPDIRFACTORY_CID },
   { NS_ABLDAPSACDIRFACTORY_CONTRACTID, &kNS_ABLDAPDIRFACTORY_CID },
+#ifndef MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE
   { NS_ABLDAPAUTOCOMPFORMATTER_CONTRACTID, &kNS_ABLDAPAUTOCOMPFORMATTER_CID },
   { "@mozilla.org/autocompleteSession;1?type=ldap", &kNS_LDAPAUTOCOMPLETESESSION_CID },
+#endif
 #endif
 
   { NS_ABDIRECTORYQUERYPROXY_CONTRACTID, &kNS_ABDIRECTORYQUERYPROXY_CID },
@@ -1225,6 +1241,9 @@ const mozilla::Module::ContractIDEntry kMailNewsContracts[] = {
   { NS_MSGMDNGENERATOR_CONTRACTID, &kNS_MSGMDNGENERATOR_CID },
   // Vcard Entries
   { "@mozilla.org/mimecth;1?type=text/x-vcard", &kNS_VCARD_CONTENT_TYPE_HANDLER_CID },
+  // PGP/MIME Entries
+  { "@mozilla.org/mimecth;1?type=multipart/encrypted", &kNS_PGPMIME_CONTENT_TYPE_HANDLER_CID },
+  { NS_PGPMIMEPROXY_CONTRACTID, &kNS_PGPMIMEPROXY_CID },
   // Tokenizer Entries
   { NULL }
 };

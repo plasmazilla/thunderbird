@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the ContentSecurityPolicy module.
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Corporation
- *
- * Contributor(s):
- *   Sid Stamm <sid@mozilla.com>
- *   Brandon Sterne <bsterne@mozilla.com>
- *   Ian Melven <imelven@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
 /**
@@ -137,6 +104,34 @@ ContentSecurityPolicy.prototype = {
     return this._reportOnlyMode || this._policy.allowsEvalInScripts;
   },
 
+  get innerWindowID() {
+    let win = null;
+    let loadContext = null;
+
+    try {
+      loadContext = this._docRequest
+                        .notificationCallbacks.getInterface(Ci.nsILoadContext);
+    } catch (ex) {
+      try {
+        loadContext = this._docRequest.loadGroup
+                          .notificationCallbacks.getInterface(Ci.nsILoadContext);
+      } catch (ex) {
+      }
+    }
+
+    if (loadContext) {
+      win = loadContext.associatedWindow;
+    }
+    if (win) {
+      try {
+         let winUtils = win.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils);
+         return winUtils.currentInnerWindowID;
+      } catch (ex) {
+      }
+    }
+    return null;
+  },
+
   /**
    * Log policy violation on the Error Console and send a report if a report-uri
    * is present in the policy
@@ -203,9 +198,11 @@ ContentSecurityPolicy.prototype = {
     uri.userPass = '';
     this._request = uri.asciiSpec;
 
-    let referrer = aChannel.referrer.cloneIgnoringRef();
-    referrer.userPass = '';
-    this._referrer = referrer.asciiSpec;
+    if (aChannel.referrer) {
+      let referrer = aChannel.referrer.cloneIgnoringRef();
+      referrer.userPass = '';
+      this._referrer = referrer.asciiSpec;
+    }
   },
 
 /* ........ Methods .............. */
@@ -301,10 +298,17 @@ ContentSecurityPolicy.prototype = {
       if (aLineNum)
         report["csp-report"]["line-number"] = aLineNum;
 
-      CSPdebug("Constructed violation report:\n" + JSON.stringify(report));
+      var reportString = JSON.stringify(report);
+      CSPdebug("Constructed violation report:\n" + reportString);
 
-      CSPWarning("Directive \"" + violatedDirective + "\" violated"
-               + (blockedUri['asciiSpec'] ? " by " + blockedUri.asciiSpec : ""),
+      var violationMessage = null;
+      if(blockedUri["asciiSpec"]){
+         violationMessage = CSPLocalizer.getFormatStr("directiveViolatedWithURI", [violatedDirective, blockedUri.asciiSpec]);
+      } else {
+         violationMessage = CSPLocalizer.getFormatStr("directiveViolated", [violatedDirective]);
+      }
+      CSPWarning(violationMessage,
+                 this.innerWindowID,
                  (aSourceFile) ? aSourceFile : null,
                  (aScriptSample) ? decodeURIComponent(aScriptSample) : null,
                  (aLineNum) ? aLineNum : null);
@@ -317,30 +321,56 @@ ContentSecurityPolicy.prototype = {
         if (uris[i] === "")
           continue;
 
-        var failure = function(aEvt) {  
-          if (req.readyState == 4 && req.status != 200) {
-            CSPError("Failed to send report to " + uris[i]);
-          }  
-        };  
-        var req = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]  
-                    .createInstance(Ci.nsIXMLHttpRequest);  
-
         try {
-          req.open("POST", uris[i], true);
-          req.setRequestHeader('Content-Type', 'application/json');
-          req.upload.addEventListener("error", failure, false);
-          req.upload.addEventListener("abort", failure, false);
+          var chan = Services.io.newChannel(uris[i], null, null);
+          if(!chan) {
+            CSPdebug("Error creating channel for " + uris[i]);
+            continue;
+          }
 
-          // we need to set an nsIChannelEventSink on the XHR object
+          var content = Cc["@mozilla.org/io/string-input-stream;1"]
+                          .createInstance(Ci.nsIStringInputStream);
+          content.data = reportString + "\n\n";
+
+          // make sure this is an anonymous request (no cookies) so in case the
+          // policy URI is injected, it can't be abused for CSRF.
+          chan.loadFlags |= Ci.nsIChannel.LOAD_ANONYMOUS;
+
+          // we need to set an nsIChannelEventSink on the channel object
           // so we can tell it to not follow redirects when posting the reports
-          req.channel.notificationCallbacks = new CSPReportRedirectSink();
+          chan.notificationCallbacks = new CSPReportRedirectSink();
 
-          req.send(JSON.stringify(report));
+          chan.QueryInterface(Ci.nsIUploadChannel)
+              .setUploadStream(content, "application/json", content.available());
+
+          try {
+            // if this is an HTTP channel, set the request method to post
+            chan.QueryInterface(Ci.nsIHttpChannel);
+            chan.requestMethod = "POST";
+          } catch(e) {} // throws only if chan is not an nsIHttpChannel.
+
+          // check with the content policy service to see if we're allowed to
+          // send this request.
+          try {
+            var contentPolicy = Cc["@mozilla.org/layout/content-policy;1"]
+                                  .getService(Ci.nsIContentPolicy);
+            if (contentPolicy.shouldLoad(Ci.nsIContentPolicy.TYPE_OTHER,
+                                         chan.URI, null, null, null, null)
+                != Ci.nsIContentPolicy.ACCEPT) {
+              continue; // skip unauthorized URIs
+            }
+          } catch(e) {
+            continue; // refuse to load if we can't do a security check.
+          }
+
+          //send data (and set up error notifications)
+          chan.asyncOpen(new CSPViolationReportListener(uris[i]), null);
           CSPdebug("Sent violation report to " + uris[i]);
         } catch(e) {
           // it's possible that the URI was invalid, just log a
           // warning and skip over that.
-          CSPWarning("Tried to send report to invalid URI: \"" + uris[i] + "\"");
+          CSPWarning(CSPLocalizer.getFormatStr("triedToSendReport", [uris[i]]), this.innerWindowID);
+          CSPWarning(CSPLocalizer.getFormatStr("errorWas", [e.toString()]), this.innerWindowID);
         }
       }
     }
@@ -545,8 +575,7 @@ CSPReportRedirectSink.prototype = {
   // nsIChannelEventSink
   asyncOnChannelRedirect: function channel_redirect(oldChannel, newChannel,
                                                     flags, callback) {
-    CSPWarning("Post of violation report to " + oldChannel.URI.asciiSpec +
-               " failed, as a redirect occurred");
+    CSPWarning(CSPLocalizer.getFormatStr("reportPostRedirect", [oldChannel.URI.asciiSpec]));
 
     // cancel the old channel so XHR failure callback happens
     oldChannel.cancel(Cr.NS_ERROR_ABORT);

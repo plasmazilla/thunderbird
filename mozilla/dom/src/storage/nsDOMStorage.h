@@ -1,42 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Neil Deakin <enndeakin@sympatico.ca>
- *   Johnny Stenback <jst@mozilla.com>
- *   Ehsan Akhgari <ehsan.akhgari@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsDOMStorage_h___
 #define nsDOMStorage_h___
@@ -47,6 +12,7 @@
 #include "nsIDOMStorage.h"
 #include "nsIDOMStorageItem.h"
 #include "nsIPermissionManager.h"
+#include "nsIPrivacyTransitionObserver.h"
 #include "nsInterfaceHashtable.h"
 #include "nsVoidArray.h"
 #include "nsTArray.h"
@@ -54,12 +20,13 @@
 #include "nsIDOMToString.h"
 #include "nsDOMEvent.h"
 #include "nsIDOMStorageEvent.h"
-#include "nsIDOMStorageEventObsolete.h"
 #include "nsIDOMStorageManager.h"
 #include "nsCycleCollectionParticipant.h"
 #include "nsIObserver.h"
 #include "nsITimer.h"
 #include "nsWeakReference.h"
+#include "nsIInterfaceRequestor.h"
+#include "mozilla/Attributes.h"
 
 #include "nsDOMStorageDBWrapper.h"
 
@@ -102,9 +69,9 @@ public:
   nsRefPtr<nsDOMStorageItem> mItem;
 };
 
-class nsDOMStorageManager : public nsIDOMStorageManager
-                          , public nsIObserver
-                          , public nsSupportsWeakReference
+class nsDOMStorageManager MOZ_FINAL : public nsIDOMStorageManager
+                                    , public nsIObserver
+                                    , public nsSupportsWeakReference
 {
 public:
   // nsISupports
@@ -123,8 +90,6 @@ public:
 
   nsresult ClearAllStorages();
 
-  bool InPrivateBrowsingMode() { return mInPrivateBrowsing; }
-
   static nsresult Initialize();
   static nsDOMStorageManager* GetInstance();
   static void Shutdown();
@@ -140,17 +105,16 @@ public:
 protected:
 
   nsTHashtable<nsDOMStorageEntry> mStorages;
-  bool mInPrivateBrowsing;
 };
 
-class DOMStorageBase : public nsISupports
+class DOMStorageBase : public nsIPrivacyTransitionObserver
 {
 public:
   DOMStorageBase();
   DOMStorageBase(DOMStorageBase&);
 
-  virtual void InitAsSessionStorage(nsIURI* aDomainURI);
-  virtual void InitAsLocalStorage(nsIURI* aDomainURI, bool aCanUseChromePersist);
+  virtual void InitAsSessionStorage(nsIURI* aDomainURI, bool aPrivate);
+  virtual void InitAsLocalStorage(nsIURI* aDomainURI, bool aCanUseChromePersist, bool aPrivate);
 
   virtual nsTArray<nsString>* GetKeys(bool aCallerSecure) = 0;
   virtual nsresult GetLength(bool aCallerSecure, PRUint32* aLength) = 0;
@@ -162,7 +126,10 @@ public:
   virtual nsresult RemoveValue(bool aCallerSecure, const nsAString& aKey,
                                nsAString& aOldValue) = 0;
   virtual nsresult Clear(bool aCallerSecure, PRInt32* aOldCount) = 0;
-  
+
+  // Call nsDOMStorage::CanUseStorage with |this|
+  bool CanUseStorage();
+
   // If true, the contents of the storage should be stored in the
   // database, otherwise this storage should act like a session
   // storage.
@@ -171,6 +138,10 @@ public:
   // for mSessionOnly below.
   bool UseDB() {
     return mUseDB;
+  }
+
+  bool IsPrivate() {
+    return mInPrivateBrowsing;
   }
 
   // retrieve the value and secure state corresponding to a key out of storage.
@@ -234,21 +205,23 @@ protected:
   nsCString mQuotaDomainDBKey;
 
   bool mCanUseChromePersist;
+  bool mInPrivateBrowsing;
 };
 
-class DOMStorageImpl : public DOMStorageBase
-
+class DOMStorageImpl MOZ_FINAL : public DOMStorageBase
+                               , public nsSupportsWeakReference
 {
 public:
-  NS_DECL_CYCLE_COLLECTION_CLASS(DOMStorageImpl)
+  NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(DOMStorageImpl, nsIPrivacyTransitionObserver)
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
+  NS_DECL_NSIPRIVACYTRANSITIONOBSERVER
 
   DOMStorageImpl(nsDOMStorage*);
   DOMStorageImpl(nsDOMStorage*, DOMStorageImpl&);
   ~DOMStorageImpl();
 
-  virtual void InitAsSessionStorage(nsIURI* aDomainURI);
-  virtual void InitAsLocalStorage(nsIURI* aDomainURI, bool aCanUseChromePersist);
+  virtual void InitAsSessionStorage(nsIURI* aDomainURI, bool aPrivate);
+  virtual void InitAsLocalStorage(nsIURI* aDomainURI, bool aCanUseChromePersist, bool aPrivate);
 
   bool SessionOnly() {
     return mSessionOnly;
@@ -319,7 +292,7 @@ private:
   // Cross-process storage implementations never have InitAs(Session|Local|Global)Storage
   // called, so the appropriate initialization needs to happen from the child.
   void InitFromChild(bool aUseDB, bool aCanUseChromePersist, bool aSessionOnly,
-                     const nsACString& aDomain,
+                     bool aPrivate, const nsACString& aDomain,
                      const nsACString& aScopeDBKey,
                      const nsACString& aQuotaDomainDBKey,
                      const nsACString& aQuotaETLDplus1DomainDBKey,
@@ -342,7 +315,8 @@ private:
 class nsDOMStorage2;
 
 class nsDOMStorage : public nsIDOMStorageObsolete,
-                     public nsPIDOMStorage
+                     public nsPIDOMStorage,
+                     public nsIInterfaceRequestor
 {
 public:
   nsDOMStorage();
@@ -353,14 +327,17 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsDOMStorage, nsIDOMStorageObsolete)
 
   NS_DECL_NSIDOMSTORAGEOBSOLETE
+  NS_DECL_NSIINTERFACEREQUESTOR
 
   // Helpers for implementing nsIDOMStorage
   nsresult GetItem(const nsAString& key, nsAString& aData);
   nsresult Clear();
 
   // nsPIDOMStorage
-  virtual nsresult InitAsSessionStorage(nsIPrincipal *aPrincipal, const nsSubstring &aDocumentURI);
-  virtual nsresult InitAsLocalStorage(nsIPrincipal *aPrincipal, const nsSubstring &aDocumentURI);
+  virtual nsresult InitAsSessionStorage(nsIPrincipal *aPrincipal, const nsSubstring &aDocumentURI,
+                                        bool aPrivate);
+  virtual nsresult InitAsLocalStorage(nsIPrincipal *aPrincipal, const nsSubstring &aDocumentURI,
+                                      bool aPrivate);
   virtual already_AddRefed<nsIDOMStorage> Clone();
   virtual already_AddRefed<nsIDOMStorage> Fork(const nsSubstring &aDocumentURI);
   virtual bool IsForkOf(nsIDOMStorage* aThat);
@@ -372,7 +349,7 @@ public:
   // Check whether storage may be used by the caller, and whether it
   // is session only.  Returns true if storage may be used.
   static bool
-  CanUseStorage(bool* aSessionOnly);
+  CanUseStorage(DOMStorageBase* aStorage = nsnull);
 
   // Check whether this URI can use chrome persist storage.  This kind of
   // storage can bypass cookies limits, private browsing and uses the offline
@@ -386,11 +363,6 @@ public:
   CacheStoragePermissions();
 
   nsIDOMStorageItem* GetNamedItem(const nsAString& aKey, nsresult* aResult);
-
-  static nsDOMStorage* FromSupports(nsISupports* aSupports)
-  {
-    return static_cast<nsDOMStorage*>(static_cast<nsIDOMStorageObsolete*>(aSupports));
-  }
 
   nsresult SetSecure(const nsAString& aKey, bool aSecure)
   {
@@ -421,8 +393,9 @@ public:
   nsDOMStorage2* mEventBroadcaster;
 };
 
-class nsDOMStorage2 : public nsIDOMStorage,
-                      public nsPIDOMStorage
+class nsDOMStorage2 MOZ_FINAL : public nsIDOMStorage,
+                                public nsPIDOMStorage,
+                                public nsIInterfaceRequestor
 {
 public:
   // nsISupports
@@ -433,10 +406,13 @@ public:
   nsDOMStorage2();
 
   NS_DECL_NSIDOMSTORAGE
+  NS_DECL_NSIINTERFACEREQUESTOR
 
   // nsPIDOMStorage
-  virtual nsresult InitAsSessionStorage(nsIPrincipal *aPrincipal, const nsSubstring &aDocumentURI);
-  virtual nsresult InitAsLocalStorage(nsIPrincipal *aPrincipal, const nsSubstring &aDocumentURI);
+  virtual nsresult InitAsSessionStorage(nsIPrincipal *aPrincipal, const nsSubstring &aDocumentURI,
+                                        bool aPrivate);
+  virtual nsresult InitAsLocalStorage(nsIPrincipal *aPrincipal, const nsSubstring &aDocumentURI,
+                                      bool aPrivate);
   virtual already_AddRefed<nsIDOMStorage> Clone();
   virtual already_AddRefed<nsIDOMStorage> Fork(const nsSubstring &aDocumentURI);
   virtual bool IsForkOf(nsIDOMStorage* aThat);
@@ -448,9 +424,9 @@ public:
   void BroadcastChangeNotification(const nsSubstring &aKey,
                                    const nsSubstring &aOldValue,
                                    const nsSubstring &aNewValue);
-  nsresult InitAsSessionStorageFork(nsIPrincipal *aPrincipal,
-                                    const nsSubstring &aDocumentURI,
-                                    nsIDOMStorageObsolete* aStorage);
+  void InitAsSessionStorageFork(nsIPrincipal *aPrincipal,
+                                const nsSubstring &aDocumentURI,
+                                nsDOMStorage* aStorage);
 
 private:
   // storages bound to an origin hold the principal to
@@ -554,30 +530,6 @@ protected:
   nsString mUrl;
   nsCOMPtr<nsIDOMStorage> mStorageArea;
 };
-
-class nsDOMStorageEventObsolete : public nsDOMEvent,
-                          public nsIDOMStorageEventObsolete
-{
-public:
-  nsDOMStorageEventObsolete()
-    : nsDOMEvent(nsnull, nsnull)
-  {
-  }
-
-  virtual ~nsDOMStorageEventObsolete()
-  {
-  }
-
-  NS_DECL_ISUPPORTS
-  NS_DECL_NSIDOMSTORAGEEVENTOBSOLETE
-  NS_FORWARD_NSIDOMEVENT(nsDOMEvent::)
-
-protected:
-  nsString mDomain;
-};
-
-nsresult
-NS_NewDOMStorage(nsISupports* aOuter, REFNSIID aIID, void** aResult);
 
 nsresult
 NS_NewDOMStorage2(nsISupports* aOuter, REFNSIID aIID, void** aResult);

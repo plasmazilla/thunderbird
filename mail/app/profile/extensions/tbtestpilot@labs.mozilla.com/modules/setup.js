@@ -1,41 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Test Pilot.
- *
- * The Initial Developer of the Original Code is Mozilla.
- * Portions created by the Initial Developer are Copyright (C) 2007
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Atul Varma <atul@mozilla.com>
- *   Jono X <jono@mozilla.com>
- *   Raymond Lee <raymond@appcoast.com>
- *   Jorge Villalobos <jorge@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 EXPORTED_SYMBOLS = ["TestPilotSetup", "POPUP_SHOW_ON_NEW",
                     "POPUP_SHOW_ON_FINISH", "POPUP_SHOW_ON_RESULTS",
@@ -44,6 +9,9 @@ EXPORTED_SYMBOLS = ["TestPilotSetup", "POPUP_SHOW_ON_NEW",
 const Cc = Components.classes;
 const Ci = Components.interfaces;
 const Cu = Components.utils;
+
+Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://testpilot/modules/log4moz.js");
 
 const EXTENSION_ID = "tbtestpilot@labs.mozilla.com";
 const VERSION_PREF ="extensions.testpilot.lastversion";
@@ -56,6 +24,8 @@ const POPUP_CHECK_INTERVAL = "extensions.testpilot.popup.delayAfterStartup";
 const POPUP_REMINDER_INTERVAL = "extensions.testpilot.popup.timeBetweenChecks";
 const ALWAYS_SUBMIT_DATA = "extensions.testpilot.alwaysSubmitData";
 const UPDATE_CHANNEL_PREF = "app.update.channel";
+const LOADER_LOG = "extensions.testpilot.loader";
+const SETUP_LOG = "extensions.testpilot.setup";
 const LOG_FILE_NAME = "TestPilotErrorLog.log";
 const RANDOM_DEPLOY_PREFIX = "extensions.testpilot.deploymentRandomizer";
 
@@ -76,8 +46,7 @@ let TestPilotSetup = {
   __prefs: null,
   get _prefs() {
     if (this.__prefs == null) {
-      this.__prefs = Cc["@mozilla.org/preferences-service;1"]
-        .getService(Ci.nsIPrefBranch);
+      this.__prefs = Services.prefs;
     }
     return this.__prefs;
   },
@@ -89,10 +58,17 @@ let TestPilotSetup = {
       Components.utils.import("resource://testpilot/modules/lib/cuddlefish.js",
                         Cuddlefish);
       let repo = this._logRepo;
+      let logger = repo.getLogger(LOADER_LOG)
+      try {
+        logger.level = Log4Moz.Level[Services.prefs.getCharPref(LOADER_LOG + ".log")];
+      }
+      catch (e) {
+        logger.level = Log4Moz.Level.Error;
+      }
       this.__loader = new Cuddlefish.Loader(
           {rootPaths: ["resource://testpilot/modules/",
                      "resource://testpilot/modules/lib/"],
-           console: repo.getLogger("TestPilot.Loader")
+           console: logger
       });
     }
     return this.__loader;
@@ -123,18 +99,15 @@ let TestPilotSetup = {
     // Note: This hits the disk so it's an expensive operation; don't call it
     // on startup.
     if (this.__logRepo == null) {
-      let Log4MozModule = {};
-      Cu.import("resource://testpilot/modules/log4moz.js", Log4MozModule);
-      let props = Cc["@mozilla.org/file/directory_service;1"].
-                    getService(Ci.nsIProperties);
+      let props = Services.dirsvc;
       let logFile = props.get("ProfD", Components.interfaces.nsIFile);
       logFile.append(LOG_FILE_NAME);
-      let formatter = new Log4MozModule.Log4Moz.BasicFormatter;
-      let root = Log4MozModule.Log4Moz.repository.rootLogger;
-      root.level = Log4MozModule.Log4Moz.Level["All"];
-      let appender = new Log4MozModule.Log4Moz.RotatingFileAppender(logFile, formatter);
+      let formatter = new Log4Moz.BasicFormatter;
+      let root = Log4Moz.repository.rootLogger;
+      root.level = Log4Moz.Level.Error;
+      let appender = new Log4Moz.RotatingFileAppender(logFile, formatter);
       root.addAppender(appender);
-      this.__logRepo = Log4MozModule.Log4Moz.repository;
+      this.__logRepo = Log4Moz.repository;
     }
     return this.__logRepo;
   },
@@ -142,7 +115,13 @@ let TestPilotSetup = {
   __logger: null,
   get _logger() {
     if (this.__logger == null) {
-      this.__logger = this._logRepo.getLogger("TestPilot.Setup");
+      this.__logger = this._logRepo.getLogger(SETUP_LOG);
+      try {
+        this.__logger.level = Log4Moz.Level[Services.prefs.getCharPref(SETUP_LOG + ".log")];
+      }
+      catch (e) {
+        this.__logger.level = Log4Moz.Level.Error;
+      }
     }
     return this.__logger;
   },
@@ -159,9 +138,7 @@ let TestPilotSetup = {
   __stringBundle: null,
   get _stringBundle() {
     if (this.__stringBundle == null) {
-      this.__stringBundle =
-      Cc["@mozilla.org/intl/stringbundle;1"].
-        getService(Ci.nsIStringBundleService).
+      this.__stringBundle = Services.strings.
           createBundle("chrome://testpilot/locale/main.properties");
     }
     return this.__stringBundle;
@@ -185,8 +162,7 @@ let TestPilotSetup = {
 
   get _appID() {
     delete this._appID;
-    return this._appID = Components.classes["@mozilla.org/xre/app-info;1"]
-        .getService(Components.interfaces.nsIXULAppInfo).ID;
+    return this._appID = Services.appinfo.ID;
   },
 
   globalStartup: function TPS__doGlobalSetup() {
@@ -287,8 +263,7 @@ let TestPilotSetup = {
   },
 
   _getFrontBrowserWindow: function TPS__getFrontWindow() {
-    let wm = Cc["@mozilla.org/appshell/window-mediator;1"].
-               getService(Ci.nsIWindowMediator);
+    let wm = Services.wm;
     // TODO Is "most recent" the same as "front"?
     return wm.getMostRecentWindow("navigator:browser") ||
            wm.getMostRecentWindow("mail:3pane");
@@ -553,9 +528,7 @@ let TestPilotSetup = {
   },
 
   _isNewerThanMe: function TPS__isNewerThanMe(versionString) {
-    let result = Cc["@mozilla.org/xpcom/version-comparator;1"]
-                   .getService(Ci.nsIVersionComparator)
-                   .compare(this.version, versionString);
+    let result = Services.vc.compare(this.version, versionString);
     if (result < 0) {
       return true; // versionString is newer than my version
     } else {
@@ -564,11 +537,8 @@ let TestPilotSetup = {
   },
 
   _isNewerThanFirefox: function TPS__isNewerThanFirefox(versionString) {
-    let appVersion = Cc["@mozilla.org/xre/app-info;1"]
-                       .getService(Ci.nsIXULAppInfo).version;
-    let result = Cc["@mozilla.org/xpcom/version-comparator;1"]
-                   .getService(Ci.nsIVersionComparator)
-                   .compare(appVersion, versionString);
+    let appVersion = Services.appinfo.version;
+    let result = Services.vc.compare(appVersion, versionString);
     if (result < 0) {
       return true; // versionString is newer than Firefox
     } else {

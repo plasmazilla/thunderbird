@@ -1,56 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim:set ts=2 sts=2 sw=2 et cin: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dean Tessman <dean_tessman@hotmail.com>
- *   Ere Maijala <emaijala@kolumbus.fi>
- *   Mark Hammond <markh@activestate.com>
- *   Michael Lowe <michael.lowe@bigfoot.com>
- *   Peter Bajusz <hyp-x@inf.bme.hu>
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Robert O'Callahan <roc+moz@cs.cmu.edu>
- *   Roy Yokoyama <yokoyama@netscape.com>
- *   Makoto Kato  <m_kato@ga2.so-net.ne.jp>
- *   Masayuki Nakano <masayuki@d-toybox.com>
- *   Dainis Jonitis <Dainis_Jonitis@swh-t.lv>
- *   Christian Biesinger <cbiesinger@web.de>
- *   Mats Palmgren <matspal@gmail.com>
- *   Ningjie Chen <chenn@email.uc.edu>
- *   Jim Mathies <jmathies@mozilla.com>
- *   Kyle Huey <me@kylehuey.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * nsWindow - Native window management and event handling.
@@ -134,7 +86,6 @@
 #include "nsIClipboard.h"
 #include "nsIMM32Handler.h"
 #include "WinMouseScrollHandler.h"
-#include "nsILocalFile.h"
 #include "nsFontMetrics.h"
 #include "nsIFontEnumerator.h"
 #include "nsGUIEvent.h"
@@ -143,7 +94,6 @@
 #include "nsThreadUtils.h"
 #include "nsNativeCharsetUtils.h"
 #include "nsGkAtoms.h"
-#include "nsUnicharUtils.h"
 #include "nsCRT.h"
 #include "nsAppDirectoryServiceDefs.h"
 #include "nsXPIDLString.h"
@@ -164,6 +114,7 @@
 #include "nsISound.h"
 #include "WinTaskbar.h"
 #include "WinUtils.h"
+#include "WidgetUtils.h"
 
 #ifdef MOZ_ENABLE_D3D9_LAYER
 #include "LayerManagerD3D9.h"
@@ -186,6 +137,7 @@
 #if defined(ACCESSIBILITY)
 #include "oleidl.h"
 #include <winuser.h>
+#include "nsAccessibilityService.h"
 #include "nsIAccessibleDocument.h"
 #if !defined(WINABLEAPI)
 #include <winable.h>
@@ -301,10 +253,6 @@ PRLogModuleInfo* gWindowsLog                      = nsnull;
 // Kbd layout. Used throughout character processing.
 static KeyboardLayout gKbdLayout;
 
-// Global user preference for disabling native theme. Used
-// in NativeWindowTheme.
-bool            gDisableNativeTheme               = false;
-
 // Global used in Show window enumerations.
 static bool     gWindowsVisible                   = false;
 
@@ -360,6 +308,8 @@ nsWindow::nsWindow() : nsBaseWidget()
   }
 #endif
 
+  mIconSmall            = nsnull;
+  mIconBig              = nsnull;
   mWnd                  = nsnull;
   mPaintDC              = nsnull;
   mPrevWndProc          = nsnull;
@@ -378,8 +328,8 @@ nsWindow::nsWindow() : nsBaseWidget()
   mPickerDisplayCount   = 0;
   mWindowType           = eWindowType_child;
   mBorderStyle          = eBorderStyle_default;
-  mPopupType            = ePopupTypeAny;
   mOldSizeMode          = nsSizeMode_Normal;
+  mLastSizeMode         = nsSizeMode_Normal;
   mLastPoint.x          = 0;
   mLastPoint.y          = 0;
   mLastSize.width       = 0;
@@ -441,6 +391,13 @@ nsWindow::~nsWindow()
   // XXX How could this happen???
   if (NULL != mWnd)
     Destroy();
+
+  // Free app icon resources.  This must happen after `OnDestroy` (see bug 708033).
+  if (mIconSmall)
+    ::DestroyIcon(mIconSmall);
+
+  if (mIconBig)
+    ::DestroyIcon(mIconBig);
 
   sInstanceCount--;
 
@@ -517,7 +474,6 @@ nsWindow::Create(nsIWidget *aParent,
       WinUtils::GetNSWindowPtr((HWND)aNativeParent) : nsnull;
   }
 
-  mPopupType = aInitData->mPopupHint;
   mIsRTL = aInitData->mRTL;
 
   DWORD style = WindowStyle();
@@ -649,8 +605,6 @@ nsWindow::Create(nsIWidget *aParent,
         (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION)) ? 1 : 0;
     sSwitchKeyboardLayout =
       Preferences::GetBool("intl.keyboard.per_window_layout", false);
-    gDisableNativeTheme =
-      Preferences::GetBool("mozilla.widget.disable-native-theme", false);
   }
 
   return NS_OK;
@@ -902,32 +856,41 @@ DWORD nsWindow::WindowExStyle()
 // Subclass (or remove the subclass from) this component's nsWindow
 void nsWindow::SubclassWindow(BOOL bState)
 {
-  if (NULL != mWnd) {
-    //NS_PRECONDITION(::IsWindow(mWnd), "Invalid window handle");
-    if (!::IsWindow(mWnd)) {
+  if (bState) {
+    if (!mWnd || !IsWindow(mWnd)) {
       NS_ERROR("Invalid window handle");
     }
 
-    if (bState) {
-      // change the nsWindow proc
-      if (mUnicodeWidget)
-        mPrevWndProc = (WNDPROC)::SetWindowLongPtrW(mWnd, GWLP_WNDPROC,
-                                                (LONG_PTR)nsWindow::WindowProc);
-      else
-        mPrevWndProc = (WNDPROC)::SetWindowLongPtrA(mWnd, GWLP_WNDPROC,
-                                                (LONG_PTR)nsWindow::WindowProc);
-      NS_ASSERTION(mPrevWndProc, "Null standard window procedure");
-      // connect the this pointer to the nsWindow handle
-      WinUtils::SetNSWindowPtr(mWnd, this);
+    if (mUnicodeWidget) {
+      mPrevWndProc =
+        reinterpret_cast<WNDPROC>(
+          SetWindowLongPtrW(mWnd,
+                            GWLP_WNDPROC,
+                            reinterpret_cast<LONG_PTR>(nsWindow::WindowProc)));
+    } else {
+      mPrevWndProc =
+        reinterpret_cast<WNDPROC>(
+          SetWindowLongPtrA(mWnd,
+                            GWLP_WNDPROC,
+                            reinterpret_cast<LONG_PTR>(nsWindow::WindowProc)));
     }
-    else {
-      if (mUnicodeWidget)
-        ::SetWindowLongPtrW(mWnd, GWLP_WNDPROC, (LONG_PTR)mPrevWndProc);
-      else
-        ::SetWindowLongPtrA(mWnd, GWLP_WNDPROC, (LONG_PTR)mPrevWndProc);
-      WinUtils::SetNSWindowPtr(mWnd, NULL);
-      mPrevWndProc = NULL;
+    NS_ASSERTION(mPrevWndProc, "Null standard window procedure");
+    // connect the this pointer to the nsWindow handle
+    WinUtils::SetNSWindowPtr(mWnd, this);
+  } else {
+    if (IsWindow(mWnd)) {
+      if (mUnicodeWidget) {
+        SetWindowLongPtrW(mWnd,
+                          GWLP_WNDPROC,
+                          reinterpret_cast<LONG_PTR>(mPrevWndProc));
+      } else {
+        SetWindowLongPtrA(mWnd,
+                          GWLP_WNDPROC,
+                          reinterpret_cast<LONG_PTR>(mPrevWndProc));
+      }
     }
+    WinUtils::SetNSWindowPtr(mWnd, NULL);
+    mPrevWndProc = NULL;
   }
 }
 
@@ -1192,6 +1155,11 @@ NS_METHOD nsWindow::Show(bool bState)
         ::SendMessageW(mWnd, WM_CHANGEUISTATE, MAKEWPARAM(UIS_INITIALIZE, UISF_HIDEFOCUS | UISF_HIDEACCEL), 0);
       }
     } else {
+      // Clear contents to avoid ghosting of old content if we display
+      // this window again.
+      if (wasVisible && mTransparencyMode == eTransparencyTransparent) {
+        ClearTranslucentWindow();
+      }
       if (mWindowType != eWindowType_dialog) {
         ::ShowWindow(mWnd, SW_HIDE);
       } else {
@@ -1380,6 +1348,7 @@ NS_METHOD nsWindow::Move(PRInt32 aX, PRInt32 aY)
 
     SetThemeRegion();
   }
+  NotifyRollupGeometryChange(sRollupListener);
   return NS_OK;
 }
 
@@ -1417,6 +1386,7 @@ NS_METHOD nsWindow::Resize(PRInt32 aWidth, PRInt32 aHeight, bool aRepaint)
   if (aRepaint)
     Invalidate();
 
+  NotifyRollupGeometryChange(sRollupListener);
   return NS_OK;
 }
 
@@ -1456,6 +1426,7 @@ NS_METHOD nsWindow::Resize(PRInt32 aX, PRInt32 aY, PRInt32 aWidth, PRInt32 aHeig
   if (aRepaint)
     Invalidate();
 
+  NotifyRollupGeometryChange(sRollupListener);
   return NS_OK;
 }
 
@@ -1568,6 +1539,7 @@ NS_IMETHODIMP nsWindow::SetSizeMode(PRInt32 aMode) {
     return NS_OK;
 
   // save the requested state
+  mLastSizeMode = mSizeMode;
   rv = nsBaseWidget::SetSizeMode(aMode);
   if (NS_SUCCEEDED(rv) && mIsVisible) {
     int mode;
@@ -1607,7 +1579,7 @@ NS_IMETHODIMP nsWindow::SetSizeMode(PRInt32 aMode) {
     }
     // we dispatch an activate event here to ensure that the right child window
     // is focused
-    if (mode == SW_RESTORE || mode == SW_MAXIMIZE || mode == SW_SHOW)
+    if (mode == SW_MAXIMIZE || mode == SW_SHOW)
       DispatchFocusToTopLevelWindow(NS_ACTIVATE);
   }
   return rv;
@@ -1920,7 +1892,7 @@ nsWindow::GetNonClientMargins(nsIntMargin &margins)
   margins.top = GetSystemMetrics(SM_CYCAPTION);
   margins.bottom = GetSystemMetrics(SM_CYFRAME);
   margins.top += margins.bottom;
-  margins.left = margins.right = GetSystemMetrics(SM_CYFRAME);
+  margins.left = margins.right = GetSystemMetrics(SM_CXFRAME);
 
   return NS_OK;
 }
@@ -2836,7 +2808,7 @@ NS_METHOD nsWindow::SetIcon(const nsAString& aIconSpec)
 {
   // Assume the given string is a local identifier for an icon file.
 
-  nsCOMPtr<nsILocalFile> iconFile;
+  nsCOMPtr<nsIFile> iconFile;
   ResolveIconName(aIconSpec, NS_LITERAL_STRING(".ico"),
                   getter_AddRefs(iconFile));
   if (!iconFile)
@@ -2866,6 +2838,7 @@ NS_METHOD nsWindow::SetIcon(const nsAString& aIconSpec)
     HICON icon = (HICON) ::SendMessageW(mWnd, WM_SETICON, (WPARAM)ICON_BIG, (LPARAM)bigIcon);
     if (icon)
       ::DestroyIcon(icon);
+    mIconBig = bigIcon;
   }
 #ifdef DEBUG_SetIcon
   else {
@@ -2879,6 +2852,7 @@ NS_METHOD nsWindow::SetIcon(const nsAString& aIconSpec)
     HICON icon = (HICON) ::SendMessageW(mWnd, WM_SETICON, (WPARAM)ICON_SMALL, (LPARAM)smallIcon);
     if (icon)
       ::DestroyIcon(icon);
+    mIconSmall = smallIcon;
   }
 #ifdef DEBUG_SetIcon
   else {
@@ -3147,6 +3121,13 @@ GetLayerManagerPrefs(LayerManagerPrefs* aManagerPrefs)
     aManagerPrefs->mDisableAcceleration || safeMode;
 }
 
+bool
+nsWindow::UseOffMainThreadCompositing()
+{
+  // OMTC doesn't work on Windows right now.
+  return false;
+}
+
 LayerManager*
 nsWindow::GetLayerManager(PLayersChild* aShadowManager,
                           LayersBackend aBackendHint,
@@ -3244,8 +3225,18 @@ nsWindow::GetLayerManager(PLayersChild* aShadowManager,
     }
 
     // Fall back to software if we couldn't use any hardware backends.
-    if (!mLayerManager)
-      mLayerManager = CreateBasicLayerManager();
+    if (!mLayerManager) {
+      // Try to use an async compositor first, if possible
+      if (UseOffMainThreadCompositing()) {
+        // e10s uses the parameter to pass in the shadow manager from the TabChild
+        // so we don't expect to see it there since this doesn't support e10s.
+        NS_ASSERTION(aShadowManager == nsnull, "Async Compositor not supported with e10s");
+        CreateCompositor();
+      }
+
+      if (!mLayerManager)
+        mLayerManager = CreateBasicLayerManager();
+    }
   }
 
   NS_ASSERTION(mLayerManager, "Couldn't provide a valid layer manager.");
@@ -3550,66 +3541,30 @@ bool nsWindow::DispatchWindowEvent(nsGUIEvent* event, nsEventStatus &aStatus) {
   return ConvertStatus(aStatus);
 }
 
-bool nsWindow::DispatchKeyEvent(PRUint32 aEventType, WORD aCharCode,
-                   const nsTArray<nsAlternativeCharCode>* aAlternativeCharCodes,
-                   UINT aVirtualCharCode, const MSG *aMsg,
-                   const nsModifierKeyState &aModKeyState,
-                   PRUint32 aFlags)
+void nsWindow::InitKeyEvent(nsKeyEvent& aKeyEvent,
+                            const NativeKey& aNativeKey,
+                            const ModifierKeyState &aModKeyState)
+{
+  nsIntPoint point(0, 0);
+  InitEvent(aKeyEvent, &point);
+  aKeyEvent.location = aNativeKey.GetKeyLocation();
+  aModKeyState.InitInputEvent(aKeyEvent);
+}
+
+bool nsWindow::DispatchKeyEvent(nsKeyEvent& aKeyEvent,
+                                const MSG *aMsgSentToPlugin)
 {
   UserActivity();
 
-  nsKeyEvent event(true, aEventType, this);
-  nsIntPoint point(0, 0);
-
-  InitEvent(event, &point); // this add ref's event.widget
-
-  event.flags |= aFlags;
-  event.charCode = aCharCode;
-  if (aAlternativeCharCodes)
-    event.alternativeCharCodes.AppendElements(*aAlternativeCharCodes);
-  event.keyCode  = aVirtualCharCode;
-
-#ifdef KE_DEBUG
-  static cnt=0;
-  PR_LOG(gWindowsLog, PR_LOG_ALWAYS,
-         ("%d DispatchKE Type: %s charCode %d  keyCode %d ", cnt++, 
-          NS_KEY_PRESS == aEventType ? "PRESS : 
-                                       (aEventType == NS_KEY_UP ? "Up" : "Down"),
-          event.charCode, event.keyCode));
-
-  PR_LOG(gWindowsLog, PR_LOG_ALWAYS,
-         ("Shift: %s Control %s Alt: %s \n", (mIsShiftDown ? "D" : "U"), 
-         (mIsControlDown ? "D" : "U"), (mIsAltDown ? "D" : "U")));
-
-  PR_LOG(gWindowsLog, PR_LOG_ALWAYS,
-         ("[%c][%c][%c] <==   [%c][%c][%c][ space bar ][%c][%c][%c]\n",
-          IS_VK_DOWN(NS_VK_SHIFT) ? 'S' : ' ',
-          IS_VK_DOWN(NS_VK_CONTROL) ? 'C' : ' ',
-          IS_VK_DOWN(NS_VK_ALT) ? 'A' : ' ',
-          IS_VK_DOWN(VK_LSHIFT) ? 'S' : ' ',
-          IS_VK_DOWN(VK_LCONTROL) ? 'C' : ' ',
-          IS_VK_DOWN(VK_LMENU) ? 'A' : ' ',
-          IS_VK_DOWN(VK_RMENU) ? 'A' : ' ',
-          IS_VK_DOWN(VK_RCONTROL) ? 'C' : ' ',
-          IS_VK_DOWN(VK_RSHIFT) ? 'S' : ' '));
-#endif
-
-  event.isShift   = aModKeyState.mIsShiftDown;
-  event.isControl = aModKeyState.mIsControlDown;
-  event.isMeta    = false;
-  event.isAlt     = aModKeyState.mIsAltDown;
-
   NPEvent pluginEvent;
-  if (aMsg && PluginHasFocus()) {
-    pluginEvent.event = aMsg->message;
-    pluginEvent.wParam = aMsg->wParam;
-    pluginEvent.lParam = aMsg->lParam;
-    event.pluginEvent = (void *)&pluginEvent;
+  if (aMsgSentToPlugin && PluginHasFocus()) {
+    pluginEvent.event = aMsgSentToPlugin->message;
+    pluginEvent.wParam = aMsgSentToPlugin->wParam;
+    pluginEvent.lParam = aMsgSentToPlugin->lParam;
+    aKeyEvent.pluginEvent = (void *)&pluginEvent;
   }
 
-  bool result = DispatchWindowEvent(&event);
-
-  return result;
+  return DispatchWindowEvent(&aKeyEvent);
 }
 
 bool nsWindow::DispatchCommandEvent(PRUint32 aEventCommand)
@@ -3794,10 +3749,8 @@ bool nsWindow::DispatchMouseEvent(PRUint32 aEventType, WPARAM wParam,
     InitEvent(event, &eventPoint);
   }
 
-  event.isShift   = IS_VK_DOWN(NS_VK_SHIFT);
-  event.isControl = IS_VK_DOWN(NS_VK_CONTROL);
-  event.isMeta    = false;
-  event.isAlt     = IS_VK_DOWN(NS_VK_ALT);
+  ModifierKeyState modifierKeyState;
+  modifierKeyState.InitInputEvent(event);
   event.button    = aButton;
   event.inputSource = aInputSource;
 
@@ -3990,7 +3943,7 @@ bool nsWindow::DispatchMouseEvent(PRUint32 aEventType, WPARAM wParam,
 
 // Deal with accessibile event
 #ifdef ACCESSIBILITY
-nsAccessible*
+Accessible*
 nsWindow::DispatchAccessibleEvent(PRUint32 aEventType)
 {
   if (nsnull == mEventCallback) {
@@ -4000,10 +3953,8 @@ nsWindow::DispatchAccessibleEvent(PRUint32 aEventType)
   nsAccessibleEvent event(true, aEventType, this);
   InitEvent(event, nsnull);
 
-  event.isShift   = IS_VK_DOWN(NS_VK_SHIFT);
-  event.isControl = IS_VK_DOWN(NS_VK_CONTROL);
-  event.isMeta    = false;
-  event.isAlt     = IS_VK_DOWN(NS_VK_ALT);
+  ModifierKeyState modifierKeyState;
+  modifierKeyState.InitInputEvent(event);
 
   DispatchWindowEvent(&event);
 
@@ -5085,6 +5036,8 @@ bool nsWindow::ProcessMessage(UINT msg, WPARAM &wParam, LPARAM &lParam,
           nsMouseEvent event(true, NS_MOUSE_ACTIVATE, this,
                              nsMouseEvent::eReal);
           InitEvent(event);
+          ModifierKeyState modifierKeyState;
+          modifierKeyState.InitInputEvent(event);
           DispatchWindowEvent(&event);
           if (sSwitchKeyboardLayout && mLastKeyboardLayout)
             ActivateKeyboardLayout(mLastKeyboardLayout, 0);
@@ -5165,7 +5118,7 @@ bool nsWindow::ProcessMessage(UINT msg, WPARAM &wParam, LPARAM &lParam,
       // for details).
       DWORD objId = static_cast<DWORD>(lParam);
       if (objId == OBJID_CLIENT) { // oleacc.dll will be loaded dynamically
-        nsAccessible *rootAccessible = GetRootAccessible(); // Held by a11y cache
+        Accessible* rootAccessible = GetRootAccessible(); // Held by a11y cache
         if (rootAccessible) {
           IAccessible *msaaAccessible = NULL;
           rootAccessible->GetNativeInterface((void**)&msaaAccessible); // does an addref
@@ -5605,8 +5558,9 @@ LRESULT nsWindow::ProcessCharMessage(const MSG &aMsg, bool *aEventDispatched)
 
   // These must be checked here too as a lone WM_CHAR could be received
   // if a child window didn't handle it (for example Alt+Space in a content window)
-  nsModifierKeyState modKeyState;
-  return OnChar(aMsg, modKeyState, aEventDispatched);
+  ModifierKeyState modKeyState;
+  NativeKey nativeKey(gKbdLayout, this, aMsg);
+  return OnChar(aMsg, nativeKey, modKeyState, aEventDispatched);
 }
 
 LRESULT nsWindow::ProcessKeyUpMessage(const MSG &aMsg, bool *aEventDispatched)
@@ -5617,7 +5571,7 @@ LRESULT nsWindow::ProcessKeyUpMessage(const MSG &aMsg, bool *aEventDispatched)
          ("%s VK=%d\n", aMsg.message == WM_SYSKEYDOWN ?
                         "WM_SYSKEYUP" : "WM_KEYUP", aMsg.wParam));
 
-  nsModifierKeyState modKeyState;
+  ModifierKeyState modKeyState;
 
   // Note: the original code passed (HIWORD(lParam)) to OnKeyUp as
   // scan code. However, this breaks Alt+Num pad input.
@@ -5629,7 +5583,7 @@ LRESULT nsWindow::ProcessKeyUpMessage(const MSG &aMsg, bool *aEventDispatched)
   //  translating ALT+number key combinations.
 
   // ignore [shift+]alt+space so the OS can handle it
-  if (modKeyState.mIsAltDown && !modKeyState.mIsControlDown &&
+  if (modKeyState.IsAlt() && !modKeyState.IsControl() &&
       IS_VK_DOWN(NS_VK_SPACE)) {
     return FALSE;
   }
@@ -5661,7 +5615,7 @@ LRESULT nsWindow::ProcessKeyDownMessage(const MSG &aMsg,
   // nsWindow.h.
   AutoForgetRedirectedKeyDownMessage forgetRedirectedMessage(this, aMsg);
 
-  nsModifierKeyState modKeyState;
+  ModifierKeyState modKeyState;
 
   // Note: the original code passed (HIWORD(lParam)) to OnKeyDown as
   // scan code. However, this breaks Alt+Num pad input.
@@ -5673,12 +5627,12 @@ LRESULT nsWindow::ProcessKeyDownMessage(const MSG &aMsg,
   //  translating ALT+number key combinations.
 
   // ignore [shift+]alt+space so the OS can handle it
-  if (modKeyState.mIsAltDown && !modKeyState.mIsControlDown &&
+  if (modKeyState.IsAlt() && !modKeyState.IsControl() &&
       IS_VK_DOWN(NS_VK_SPACE))
     return FALSE;
 
   LRESULT result = 0;
-  if (modKeyState.mIsAltDown && nsIMM32Handler::IsStatusChanged()) {
+  if (modKeyState.IsAlt() && nsIMM32Handler::IsStatusChanged()) {
     nsIMM32Handler::NotifyEndStatusChange();
   } else if (!nsIMM32Handler::IsComposingOn(this)) {
     result = OnKeyDown(aMsg, modKeyState, aEventDispatched, nsnull);
@@ -5688,7 +5642,7 @@ LRESULT nsWindow::ProcessKeyDownMessage(const MSG &aMsg,
   }
 
   if (aMsg.wParam == VK_MENU ||
-      (aMsg.wParam == VK_F10 && !modKeyState.mIsShiftDown)) {
+      (aMsg.wParam == VK_F10 && !modKeyState.IsShift())) {
     // We need to let Windows handle this keypress,
     // by returning false, if there's a native menu
     // bar somewhere in our containing window hierarchy.
@@ -5716,10 +5670,26 @@ nsWindow::SynthesizeNativeKeyEvent(PRInt32 aNativeKeyboardLayout,
                                    const nsAString& aCharacters,
                                    const nsAString& aUnmodifiedCharacters)
 {
+  UINT keyboardLayoutListCount = ::GetKeyboardLayoutList(0, NULL);
+  NS_ASSERTION(keyboardLayoutListCount > 0,
+               "One keyboard layout must be installed at least");
+  HKL keyboardLayoutListBuff[50];
+  HKL* keyboardLayoutList =
+    keyboardLayoutListCount < 50 ? keyboardLayoutListBuff :
+                                   new HKL[keyboardLayoutListCount];
+  keyboardLayoutListCount =
+    ::GetKeyboardLayoutList(keyboardLayoutListCount, keyboardLayoutList);
+  NS_ASSERTION(keyboardLayoutListCount > 0,
+               "Failed to get all keyboard layouts installed on the system");
+
   nsPrintfCString layoutName("%08x", aNativeKeyboardLayout);
   HKL loadedLayout = LoadKeyboardLayoutA(layoutName.get(), KLF_NOTELLSHELL);
-  if (loadedLayout == NULL)
+  if (loadedLayout == NULL) {
+    if (keyboardLayoutListBuff != keyboardLayoutList) {
+      delete [] keyboardLayoutList;
+    }
     return NS_ERROR_NOT_AVAILABLE;
+  }
 
   // Setup clean key state and load desired layout
   BYTE originalKbdState[256];
@@ -5747,13 +5717,40 @@ nsWindow::SynthesizeNativeKeyEvent(PRInt32 aNativeKeyboardLayout,
       kbdState[keySpecific] = 0x81;
     }
     ::SetKeyboardState(kbdState);
-    nsModifierKeyState modKeyState;
-    MSG msg = WinUtils::InitMSG(WM_KEYDOWN, key, 0);
-    if (i == keySequence.Length() - 1 && aCharacters.Length() > 0) {
-      UINT scanCode = ::MapVirtualKeyEx(aNativeKeyCode, MAPVK_VK_TO_VSC,
-                                        gKbdLayout.GetLayout());
-      nsFakeCharMessage fakeMsg = { aCharacters.CharAt(0), scanCode };
-      OnKeyDown(msg, modKeyState, nsnull, &fakeMsg);
+    ModifierKeyState modKeyState;
+    UINT scanCode = ::MapVirtualKeyEx(aNativeKeyCode, MAPVK_VK_TO_VSC,
+                                      gKbdLayout.GetLayout());
+    LPARAM lParam = static_cast<LPARAM>(scanCode << 16);
+    // Add extended key flag to the lParam for right control key and right alt
+    // key.
+    if (keySpecific == VK_RCONTROL || keySpecific == VK_RMENU) {
+      lParam |= 0x1000000;
+    }
+    MSG msg = WinUtils::InitMSG(WM_KEYDOWN, key, lParam);
+    if (i == keySequence.Length() - 1) {
+      bool makeDeadCharMessage =
+        gKbdLayout.IsDeadKey(key, modKeyState) && aCharacters.IsEmpty();
+      nsAutoString chars(aCharacters);
+      if (makeDeadCharMessage) {
+        UniCharsAndModifiers deadChars =
+          gKbdLayout.GetUniCharsAndModifiers(key, modKeyState);
+        chars = deadChars.ToString();
+        NS_ASSERTION(chars.Length() == 1,
+                     "Dead char must be only one character");
+      }
+      if (chars.IsEmpty()) {
+        OnKeyDown(msg, modKeyState, nsnull, nsnull);
+      } else {
+        nsFakeCharMessage fakeMsg = { chars.CharAt(0), scanCode,
+                                      makeDeadCharMessage };
+        OnKeyDown(msg, modKeyState, nsnull, &fakeMsg);
+        for (PRUint32 j = 1; j < chars.Length(); j++) {
+          nsFakeCharMessage fakeMsg = { chars.CharAt(j), scanCode, false };
+          MSG msg = fakeMsg.GetCharMessage(mWnd);
+          NativeKey nativeKey(gKbdLayout, this, msg);
+          OnChar(msg, nativeKey, modKeyState, nsnull);
+        }
+      }
     } else {
       OnKeyDown(msg, modKeyState, nsnull, nsnull);
     }
@@ -5766,16 +5763,36 @@ nsWindow::SynthesizeNativeKeyEvent(PRInt32 aNativeKeyboardLayout,
       kbdState[keySpecific] = 0;
     }
     ::SetKeyboardState(kbdState);
-    nsModifierKeyState modKeyState;
-    MSG msg = WinUtils::InitMSG(WM_KEYUP, key, 0);
+    ModifierKeyState modKeyState;
+    UINT scanCode = ::MapVirtualKeyEx(aNativeKeyCode, MAPVK_VK_TO_VSC,
+                                      gKbdLayout.GetLayout());
+    LPARAM lParam = static_cast<LPARAM>(scanCode << 16);
+    // Add extended key flag to the lParam for right control key and right alt
+    // key.
+    if (keySpecific == VK_RCONTROL || keySpecific == VK_RMENU) {
+      lParam |= 0x1000000;
+    }
+    MSG msg = WinUtils::InitMSG(WM_KEYUP, key, lParam);
     OnKeyUp(msg, modKeyState, nsnull);
   }
 
   // Restore old key state and layout
   ::SetKeyboardState(originalKbdState);
-  gKbdLayout.LoadLayout(oldLayout);
+  gKbdLayout.LoadLayout(oldLayout, true);
 
-  UnloadKeyboardLayout(loadedLayout);
+  // Don't unload the layout if it's installed actually.
+  for (PRUint32 i = 0; i < keyboardLayoutListCount; i++) {
+    if (keyboardLayoutList[i] == loadedLayout) {
+      loadedLayout = 0;
+      break;
+    }
+  }
+  if (keyboardLayoutListBuff != keyboardLayoutList) {
+    delete [] keyboardLayoutList;
+  }
+  if (loadedLayout) {
+    ::UnloadKeyboardLayout(loadedLayout);
+  }
   return NS_OK;
 }
 
@@ -5930,6 +5947,12 @@ void nsWindow::OnWindowPosChanged(WINDOWPOS *wp, bool& result)
     InitEvent(event);
 
     result = DispatchWindowEvent(&event);
+
+    // If window was restored, NS_ACTIVATE dispatch was bypassed during the 
+    // SetSizeMode call originating from OnWindowPosChanging to avoid saving
+    // pre-restore attributes. Force dispatch now to get correct attributes.
+    if (mLastSizeMode != nsSizeMode_Normal && mSizeMode == nsSizeMode_Normal)
+      DispatchFocusToTopLevelWindow(NS_ACTIVATE);
 
     // Skip window size change events below on minimization.
     if (mSizeMode == nsSizeMode_Minimized)
@@ -6124,7 +6147,7 @@ void nsWindow::UserActivity()
 
   // Check that we now have the idle service.
   if (mIdleService) {
-    mIdleService->ResetIdleTimeOut();
+    mIdleService->ResetIdleTimeOut(0);
   }
 }
 
@@ -6152,6 +6175,8 @@ bool nsWindow::OnTouch(WPARAM wParam, LPARAM lParam)
       touchPoint.ScreenToClient(mWnd);
 
       nsMozTouchEvent touchEvent(true, msg, this, pInputs[i].dwID);
+      ModifierKeyState modifierKeyState;
+      modifierKeyState.InitInputEvent(touchEvent);
       touchEvent.inputSource = nsIDOMMouseEvent::MOZ_SOURCE_TOUCH;
       touchEvent.refPoint = touchPoint;
 
@@ -6177,10 +6202,9 @@ bool nsWindow::OnGesture(WPARAM wParam, LPARAM lParam)
 
     nsEventStatus status;
 
-    event.isShift   = IS_VK_DOWN(NS_VK_SHIFT);
-    event.isControl = IS_VK_DOWN(NS_VK_CONTROL);
-    event.isMeta    = false;
-    event.isAlt     = IS_VK_DOWN(NS_VK_ALT);
+    ModifierKeyState modifierKeyState;
+    modifierKeyState.InitInputEvent(event);
+
     event.button    = 0;
     event.time      = ::GetMessageTime();
     event.inputSource = nsIDOMMouseEvent::MOZ_SOURCE_TOUCH;
@@ -6218,10 +6242,8 @@ bool nsWindow::OnGesture(WPARAM wParam, LPARAM lParam)
   }
   
   // Polish up and send off the new event
-  event.isShift   = IS_VK_DOWN(NS_VK_SHIFT);
-  event.isControl = IS_VK_DOWN(NS_VK_CONTROL);
-  event.isMeta    = false;
-  event.isAlt     = IS_VK_DOWN(NS_VK_ALT);
+  ModifierKeyState modifierKeyState;
+  modifierKeyState.InitInputEvent(event);
   event.button    = 0;
   event.time      = ::GetMessageTime();
   event.inputSource = nsIDOMMouseEvent::MOZ_SOURCE_TOUCH;
@@ -6236,27 +6258,6 @@ bool nsWindow::OnGesture(WPARAM wParam, LPARAM lParam)
   mGesture.CloseGestureInfoHandle((HGESTUREINFO)lParam);
 
   return true; // Handled
-}
-
-static bool
-StringCaseInsensitiveEquals(const PRUnichar* aChars1, const PRUint32 aNumChars1,
-                            const PRUnichar* aChars2, const PRUint32 aNumChars2)
-{
-  if (aNumChars1 != aNumChars2)
-    return false;
-
-  nsCaseInsensitiveStringComparator comp;
-  return comp(aChars1, aChars2, aNumChars1, aNumChars2) == 0;
-}
-
-UINT nsWindow::MapFromNativeToDOM(UINT aNativeKeyCode)
-{
-  switch (aNativeKeyCode) {
-    case VK_OEM_1:     return NS_VK_SEMICOLON;     // 0xBA, For the US standard keyboard, the ';:' key
-    case VK_OEM_PLUS:  return NS_VK_ADD;           // 0xBB, For any country/region, the '+' key
-    case VK_OEM_MINUS: return NS_VK_SUBTRACT;      // 0xBD, For any country/region, the '-' key
-  }
-  return aNativeKeyCode;
 }
 
 /* static */
@@ -6277,18 +6278,18 @@ bool nsWindow::IsRedirectedKeyDownMessage(const MSG &aMsg)
  * looking at or touching the message queue.
  */
 LRESULT nsWindow::OnKeyDown(const MSG &aMsg,
-                            nsModifierKeyState &aModKeyState,
+                            const ModifierKeyState &aModKeyState,
                             bool *aEventDispatched,
                             nsFakeCharMessage* aFakeCharMessage)
 {
-  UINT virtualKeyCode =
-    aMsg.wParam != VK_PROCESSKEY ? aMsg.wParam : ::ImmGetVirtualKey(mWnd);
-  gKbdLayout.OnKeyDown(virtualKeyCode);
+  NativeKey nativeKey(gKbdLayout, this, aMsg);
+  UINT virtualKeyCode = nativeKey.GetOriginalVirtualKeyCode();
+  UniCharsAndModifiers inputtingChars =
+    gKbdLayout.OnKeyDown(virtualKeyCode, aModKeyState);
 
   // Use only DOMKeyCode for XP processing.
   // Use virtualKeyCode for gKbdLayout and native processing.
-  UINT DOMKeyCode = nsIMM32Handler::IsComposingOn(this) ?
-                      virtualKeyCode : MapFromNativeToDOM(virtualKeyCode);
+  PRUint32 DOMKeyCode = nativeKey.GetDOMKeyCode();
 
 #ifdef DEBUG
   //PR_LOG(gWindowsLog, PR_LOG_ALWAYS, ("In OnKeyDown virt: %d\n", DOMKeyCode));
@@ -6298,8 +6299,10 @@ LRESULT nsWindow::OnKeyDown(const MSG &aMsg,
   bool noDefault;
   if (aFakeCharMessage || !IsRedirectedKeyDownMessage(aMsg)) {
     nsIMEContext IMEContext(mWnd);
-    noDefault =
-      DispatchKeyEvent(NS_KEY_DOWN, 0, nsnull, DOMKeyCode, &aMsg, aModKeyState);
+    nsKeyEvent keydownEvent(true, NS_KEY_DOWN, this);
+    keydownEvent.keyCode = DOMKeyCode;
+    InitKeyEvent(keydownEvent, nativeKey, aModKeyState);
+    noDefault = DispatchKeyEvent(keydownEvent, &aMsg);
     if (aEventDispatched) {
       *aEventDispatched = true;
     }
@@ -6369,9 +6372,12 @@ LRESULT nsWindow::OnKeyDown(const MSG &aMsg,
     case NS_VK_ALT:
     case NS_VK_CAPS_LOCK:
     case NS_VK_NUM_LOCK:
-    case NS_VK_SCROLL_LOCK: return noDefault;
+    case NS_VK_SCROLL_LOCK:
+    case NS_VK_WIN:
+      return noDefault;
   }
 
+  bool isDeadKey = gKbdLayout.IsDeadKey(virtualKeyCode, aModKeyState);
   PRUint32 extraFlags = (noDefault ? NS_EVENT_FLAG_NO_DEFAULT : 0);
   MSG msg;
   BOOL gotMsg = aFakeCharMessage ||
@@ -6379,8 +6385,8 @@ LRESULT nsWindow::OnKeyDown(const MSG &aMsg,
   // Enter and backspace are always handled here to avoid for example the
   // confusion between ctrl-enter and ctrl-J.
   if (DOMKeyCode == NS_VK_RETURN || DOMKeyCode == NS_VK_BACK ||
-      ((aModKeyState.mIsControlDown || aModKeyState.mIsAltDown)
-       && !gKbdLayout.IsDeadKey() && KeyboardLayout::IsPrintableCharKey(virtualKeyCode)))
+      ((aModKeyState.IsControl() || aModKeyState.IsAlt())
+       && !isDeadKey && KeyboardLayout::IsPrintableCharKey(virtualKeyCode)))
   {
     // Remove a possible WM_CHAR or WM_SYSCHAR messages from the message queue.
     // They can be more than one because of:
@@ -6418,9 +6424,29 @@ LRESULT nsWindow::OnKeyDown(const MSG &aMsg,
             msg.message == WM_CHAR || msg.message == WM_SYSCHAR || msg.message == WM_DEADCHAR)) {
     if (aFakeCharMessage) {
       MSG msg = aFakeCharMessage->GetCharMessage(mWnd);
-      return OnCharRaw(aFakeCharMessage->mCharCode,
-                       aFakeCharMessage->mScanCode,
-                       aModKeyState, extraFlags, &msg);
+      if (msg.message == WM_DEADCHAR) {
+        return false;
+      }
+#ifdef DEBUG
+      if (KeyboardLayout::IsPrintableCharKey(virtualKeyCode)) {
+        nsPrintfCString log(
+          "virtualKeyCode=0x%02X, inputtingChar={ mChars=[ 0x%04X, 0x%04X, "
+          "0x%04X, 0x%04X, 0x%04X ], mLength=%d }, wParam=0x%04X",
+          virtualKeyCode, inputtingChars.mChars[0], inputtingChars.mChars[1],
+          inputtingChars.mChars[2], inputtingChars.mChars[3],
+          inputtingChars.mChars[4], inputtingChars.mLength, msg.wParam);
+        if (!inputtingChars.mLength) {
+          log.Insert("length is zero: ", 0);
+          NS_ERROR(log.get());
+          NS_ABORT();
+        } else if (inputtingChars.mChars[0] != msg.wParam) {
+          log.Insert("character mismatch: ", 0);
+          NS_ERROR(log.get());
+          NS_ABORT();
+        }
+      }
+#endif // #ifdef DEBUG
+      return OnChar(msg, nativeKey, aModKeyState, nsnull, extraFlags);
     }
 
     // If prevent default set for keydown, do same for keypress
@@ -6440,180 +6466,171 @@ LRESULT nsWindow::OnKeyDown(const MSG &aMsg,
             msg.message == WM_SYSCHAR ? "WM_SYSCHAR" : "WM_CHAR",
             msg.wParam, HIWORD(msg.lParam) & 0xFF));
 
-    BOOL result = OnChar(msg, aModKeyState, nsnull, extraFlags);
+    BOOL result = OnChar(msg, nativeKey, aModKeyState, nsnull, extraFlags);
     // If a syschar keypress wasn't processed, Windows may want to
     // handle it to activate a native menu.
     if (!result && msg.message == WM_SYSCHAR)
       ::DefWindowProcW(mWnd, msg.message, msg.wParam, msg.lParam);
     return result;
   }
-  else if (!aModKeyState.mIsControlDown && !aModKeyState.mIsAltDown &&
-             (KeyboardLayout::IsPrintableCharKey(virtualKeyCode) ||
-              KeyboardLayout::IsNumpadKey(virtualKeyCode)))
-  {
+  else if (!aModKeyState.IsControl() && !aModKeyState.IsAlt() &&
+           KeyboardLayout::IsPrintableCharKey(virtualKeyCode)) {
     // If this is simple KeyDown event but next message is not WM_CHAR,
     // this event may not input text, so we should ignore this event.
     // See bug 314130.
     return PluginHasFocus() && noDefault;
   }
 
-  if (gKbdLayout.IsDeadKey ())
+  if (isDeadKey) {
     return PluginHasFocus() && noDefault;
-
-  PRUint8 shiftStates[5];
-  PRUnichar uniChars[5];
-  PRUnichar shiftedChars[5] = {0, 0, 0, 0, 0};
-  PRUnichar unshiftedChars[5] = {0, 0, 0, 0, 0};
-  PRUnichar shiftedLatinChar = 0;
-  PRUnichar unshiftedLatinChar = 0;
-  PRUint32 numOfUniChars = 0;
-  PRUint32 numOfShiftedChars = 0;
-  PRUint32 numOfUnshiftedChars = 0;
-  PRUint32 numOfShiftStates = 0;
-
-  switch (virtualKeyCode) {
-    // keys to be sent as characters
-    case VK_ADD:       uniChars [0] = '+';  numOfUniChars = 1;  break;
-    case VK_SUBTRACT:  uniChars [0] = '-';  numOfUniChars = 1;  break;
-    case VK_DIVIDE:    uniChars [0] = '/';  numOfUniChars = 1;  break;
-    case VK_MULTIPLY:  uniChars [0] = '*';  numOfUniChars = 1;  break;
-    case VK_NUMPAD0:
-    case VK_NUMPAD1:
-    case VK_NUMPAD2:
-    case VK_NUMPAD3:
-    case VK_NUMPAD4:
-    case VK_NUMPAD5:
-    case VK_NUMPAD6:
-    case VK_NUMPAD7:
-    case VK_NUMPAD8:
-    case VK_NUMPAD9:
-      uniChars [0] = virtualKeyCode - VK_NUMPAD0 + '0';
-      numOfUniChars = 1;
-      break;
-    default:
-      if (KeyboardLayout::IsPrintableCharKey(virtualKeyCode)) {
-        numOfUniChars = numOfShiftStates =
-          gKbdLayout.GetUniChars(uniChars, shiftStates,
-                                 ArrayLength(uniChars));
-      }
-
-      if (aModKeyState.mIsControlDown ^ aModKeyState.mIsAltDown) {
-        PRUint8 capsLockState = (::GetKeyState(VK_CAPITAL) & 1) ? eCapsLock : 0;
-        numOfUnshiftedChars =
-          gKbdLayout.GetUniCharsWithShiftState(virtualKeyCode, capsLockState,
-                       unshiftedChars, ArrayLength(unshiftedChars));
-        numOfShiftedChars =
-          gKbdLayout.GetUniCharsWithShiftState(virtualKeyCode,
-                       capsLockState | eShift,
-                       shiftedChars, ArrayLength(shiftedChars));
-
-        // The current keyboard cannot input alphabets or numerics,
-        // we should append them for Shortcut/Access keys.
-        // E.g., for Cyrillic keyboard layout.
-        if (NS_VK_A <= DOMKeyCode && DOMKeyCode <= NS_VK_Z) {
-          shiftedLatinChar = unshiftedLatinChar = DOMKeyCode;
-          if (capsLockState)
-            shiftedLatinChar += 0x20;
-          else
-            unshiftedLatinChar += 0x20;
-          if (unshiftedLatinChar == unshiftedChars[0] &&
-              shiftedLatinChar == shiftedChars[0]) {
-              shiftedLatinChar = unshiftedLatinChar = 0;
-          }
-        } else {
-          PRUint16 ch = 0;
-          if (NS_VK_0 <= DOMKeyCode && DOMKeyCode <= NS_VK_9) {
-            ch = DOMKeyCode;
-          } else {
-            switch (virtualKeyCode) {
-              case VK_OEM_PLUS:   ch = '+'; break;
-              case VK_OEM_MINUS:  ch = '-'; break;
-            }
-          }
-          if (ch && unshiftedChars[0] != ch && shiftedChars[0] != ch) {
-            // Windows has assigned a virtual key code to the key even though
-            // the character can't be produced with this key.  That probably
-            // means the character can't be produced with any key in the
-            // current layout and so the assignment is based on a QWERTY
-            // layout.  Append this code so that users can access the shortcut.
-            unshiftedLatinChar = ch;
-          }
-        }
-
-        // If the charCode is not ASCII character, we should replace the
-        // charCode with ASCII character only when Ctrl is pressed.
-        // But don't replace the charCode when the charCode is not same as
-        // unmodified characters. In such case, Ctrl is sometimes used for a
-        // part of character inputting key combination like Shift.
-        if (aModKeyState.mIsControlDown) {
-          PRUint8 currentState = eCtrl;
-          if (aModKeyState.mIsShiftDown)
-            currentState |= eShift;
-
-          PRUint32 ch =
-            aModKeyState.mIsShiftDown ? shiftedLatinChar : unshiftedLatinChar;
-          if (ch &&
-              (numOfUniChars == 0 ||
-               StringCaseInsensitiveEquals(uniChars, numOfUniChars,
-                 aModKeyState.mIsShiftDown ? shiftedChars : unshiftedChars,
-                 aModKeyState.mIsShiftDown ? numOfShiftedChars :
-                                             numOfUnshiftedChars))) {
-            numOfUniChars = numOfShiftStates = 1;
-            uniChars[0] = ch;
-            shiftStates[0] = currentState;
-          }
-        }
-      }
   }
 
-  if (numOfUniChars > 0 || numOfShiftedChars > 0 || numOfUnshiftedChars > 0) {
-    PRUint32 num = NS_MAX(numOfUniChars,
-                          NS_MAX(numOfShiftedChars, numOfUnshiftedChars));
-    PRUint32 skipUniChars = num - numOfUniChars;
-    PRUint32 skipShiftedChars = num - numOfShiftedChars;
-    PRUint32 skipUnshiftedChars = num - numOfUnshiftedChars;
-    UINT keyCode = numOfUniChars == 0 ? DOMKeyCode : 0;
+  UniCharsAndModifiers shiftedChars;
+  UniCharsAndModifiers unshiftedChars;
+  PRUint32 shiftedLatinChar = 0;
+  PRUint32 unshiftedLatinChar = 0;
+
+  if (!KeyboardLayout::IsPrintableCharKey(virtualKeyCode)) {
+    inputtingChars.Clear();
+  }
+
+  if (aModKeyState.IsControl() ^ aModKeyState.IsAlt()) {
+    widget::ModifierKeyState capsLockState(
+      aModKeyState.GetModifiers() & MODIFIER_CAPSLOCK);
+    unshiftedChars =
+      gKbdLayout.GetUniCharsAndModifiers(virtualKeyCode, capsLockState);
+    capsLockState.Set(MODIFIER_SHIFT);
+    shiftedChars =
+      gKbdLayout.GetUniCharsAndModifiers(virtualKeyCode, capsLockState);
+
+    // The current keyboard cannot input alphabets or numerics,
+    // we should append them for Shortcut/Access keys.
+    // E.g., for Cyrillic keyboard layout.
+    capsLockState.Unset(MODIFIER_SHIFT);
+    WidgetUtils::GetLatinCharCodeForKeyCode(DOMKeyCode,
+                                            capsLockState.GetModifiers(),
+                                            &unshiftedLatinChar,
+                                            &shiftedLatinChar);
+
+    // If the shiftedLatinChar isn't 0, the key code is NS_VK_[A-Z].
+    if (shiftedLatinChar) {
+      // If the produced characters of the key on current keyboard layout
+      // are same as computed Latin characters, we shouldn't append the
+      // Latin characters to alternativeCharCode.
+      if (unshiftedLatinChar == unshiftedChars.mChars[0] &&
+          shiftedLatinChar == shiftedChars.mChars[0]) {
+        shiftedLatinChar = unshiftedLatinChar = 0;
+      }
+    } else if (unshiftedLatinChar) {
+      // If the shiftedLatinChar is 0, the keyCode doesn't produce
+      // alphabet character.  At that time, the character may be produced
+      // with Shift key.  E.g., on French keyboard layout, NS_VK_PERCENT
+      // key produces LATIN SMALL LETTER U WITH GRAVE (U+00F9) without
+      // Shift key but with Shift key, it produces '%'.
+      // If the unshiftedLatinChar is produced by the key on current
+      // keyboard layout, we shouldn't append it to alternativeCharCode.
+      if (unshiftedLatinChar == unshiftedChars.mChars[0] ||
+          unshiftedLatinChar == shiftedChars.mChars[0]) {
+        unshiftedLatinChar = 0;
+      }
+    }
+
+    // If the charCode is not ASCII character, we should replace the
+    // charCode with ASCII character only when Ctrl is pressed.
+    // But don't replace the charCode when the charCode is not same as
+    // unmodified characters. In such case, Ctrl is sometimes used for a
+    // part of character inputting key combination like Shift.
+    if (aModKeyState.IsControl()) {
+      PRUint32 ch =
+        aModKeyState.IsShift() ? shiftedLatinChar : unshiftedLatinChar;
+      if (ch &&
+          (!inputtingChars.mLength ||
+           inputtingChars.UniCharsCaseInsensitiveEqual(
+             aModKeyState.IsShift() ? shiftedChars : unshiftedChars))) {
+        inputtingChars.Clear();
+        inputtingChars.Append(ch, aModKeyState.GetModifiers());
+      }
+    }
+  }
+
+  if (inputtingChars.mLength ||
+      shiftedChars.mLength || unshiftedChars.mLength) {
+    PRUint32 num = NS_MAX(inputtingChars.mLength,
+                          NS_MAX(shiftedChars.mLength, unshiftedChars.mLength));
+    PRUint32 skipUniChars = num - inputtingChars.mLength;
+    PRUint32 skipShiftedChars = num - shiftedChars.mLength;
+    PRUint32 skipUnshiftedChars = num - unshiftedChars.mLength;
+    UINT keyCode = !inputtingChars.mLength ? DOMKeyCode : 0;
     for (PRUint32 cnt = 0; cnt < num; cnt++) {
       PRUint16 uniChar, shiftedChar, unshiftedChar;
       uniChar = shiftedChar = unshiftedChar = 0;
+      ModifierKeyState modKeyState(aModKeyState);
       if (skipUniChars <= cnt) {
-        if (cnt - skipUniChars  < numOfShiftStates) {
+        if (cnt - skipUniChars  < inputtingChars.mLength) {
           // If key in combination with Alt and/or Ctrl produces a different
           // character than without them then do not report these flags
           // because it is separate keyboard layout shift state. If dead-key
           // and base character does not produce a valid composite character
           // then both produced dead-key character and following base
           // character may have different modifier flags, too.
-          aModKeyState.mIsShiftDown =
-            (shiftStates[cnt - skipUniChars] & eShift) != 0;
-          aModKeyState.mIsControlDown =
-            (shiftStates[cnt - skipUniChars] & eCtrl) != 0;
-          aModKeyState.mIsAltDown =
-            (shiftStates[cnt - skipUniChars] & eAlt) != 0;
+          modKeyState.Unset(MODIFIER_SHIFT | MODIFIER_CONTROL | MODIFIER_ALT |
+                            MODIFIER_ALTGRAPH | MODIFIER_CAPSLOCK);
+          modKeyState.Set(inputtingChars.mModifiers[cnt - skipUniChars]);
         }
-        uniChar = uniChars[cnt - skipUniChars];
+        uniChar = inputtingChars.mChars[cnt - skipUniChars];
       }
       if (skipShiftedChars <= cnt)
-        shiftedChar = shiftedChars[cnt - skipShiftedChars];
+        shiftedChar = shiftedChars.mChars[cnt - skipShiftedChars];
       if (skipUnshiftedChars <= cnt)
-        unshiftedChar = unshiftedChars[cnt - skipUnshiftedChars];
+        unshiftedChar = unshiftedChars.mChars[cnt - skipUnshiftedChars];
       nsAutoTArray<nsAlternativeCharCode, 5> altArray;
 
       if (shiftedChar || unshiftedChar) {
         nsAlternativeCharCode chars(unshiftedChar, shiftedChar);
         altArray.AppendElement(chars);
       }
-      if (cnt == num - 1 && (unshiftedLatinChar || shiftedLatinChar)) {
-        nsAlternativeCharCode chars(unshiftedLatinChar, shiftedLatinChar);
-        altArray.AppendElement(chars);
+      if (cnt == num - 1) {
+        if (unshiftedLatinChar || shiftedLatinChar) {
+          nsAlternativeCharCode chars(unshiftedLatinChar, shiftedLatinChar);
+          altArray.AppendElement(chars);
+        }
+
+        // Typically, following virtual keycodes are used for a key which can
+        // input the character.  However, these keycodes are also used for
+        // other keys on some keyboard layout.  E.g., in spite of Shift+'1'
+        // inputs '+' on Thai keyboard layout, a key which is at '=/+'
+        // key on ANSI keyboard layout is VK_OEM_PLUS.  Native applications
+        // handle it as '+' key if Ctrl key is pressed.
+        PRUnichar charForOEMKeyCode = 0;
+        switch (virtualKeyCode) {
+          case VK_OEM_PLUS:   charForOEMKeyCode = '+'; break;
+          case VK_OEM_COMMA:  charForOEMKeyCode = ','; break;
+          case VK_OEM_MINUS:  charForOEMKeyCode = '-'; break;
+          case VK_OEM_PERIOD: charForOEMKeyCode = '.'; break;
+        }
+        if (charForOEMKeyCode &&
+            charForOEMKeyCode != unshiftedChars.mChars[0] &&
+            charForOEMKeyCode != shiftedChars.mChars[0] &&
+            charForOEMKeyCode != unshiftedLatinChar &&
+            charForOEMKeyCode != shiftedLatinChar) {
+          nsAlternativeCharCode OEMChars(charForOEMKeyCode, charForOEMKeyCode);
+          altArray.AppendElement(OEMChars);
+        }
       }
 
-      DispatchKeyEvent(NS_KEY_PRESS, uniChar, &altArray,
-                       keyCode, nsnull, aModKeyState, extraFlags);
+      nsKeyEvent keypressEvent(true, NS_KEY_PRESS, this);
+      keypressEvent.flags |= extraFlags;
+      keypressEvent.charCode = uniChar;
+      keypressEvent.alternativeCharCodes.AppendElements(altArray);
+      InitKeyEvent(keypressEvent, nativeKey, modKeyState);
+      DispatchKeyEvent(keypressEvent, nsnull);
     }
   } else {
-    DispatchKeyEvent(NS_KEY_PRESS, 0, nsnull, DOMKeyCode, nsnull, aModKeyState,
-                     extraFlags);
+    nsKeyEvent keypressEvent(true, NS_KEY_PRESS, this);
+    keypressEvent.flags |= extraFlags;
+    keypressEvent.keyCode = DOMKeyCode;
+    InitKeyEvent(keypressEvent, nativeKey, aModKeyState);
+    DispatchKeyEvent(keypressEvent, nsnull);
   }
 
   return noDefault;
@@ -6621,94 +6638,84 @@ LRESULT nsWindow::OnKeyDown(const MSG &aMsg,
 
 // OnKeyUp
 LRESULT nsWindow::OnKeyUp(const MSG &aMsg,
-                          nsModifierKeyState &aModKeyState,
+                          const ModifierKeyState &aModKeyState,
                           bool *aEventDispatched)
 {
-  UINT virtualKeyCode = aMsg.wParam;
-
+  // NOTE: VK_PROCESSKEY never comes with WM_KEYUP
   PR_LOG(gWindowsLog, PR_LOG_ALWAYS,
-         ("nsWindow::OnKeyUp VK=%d\n", virtualKeyCode));
-
-  if (!nsIMM32Handler::IsComposingOn(this)) {
-    virtualKeyCode = MapFromNativeToDOM(virtualKeyCode);
-  }
+         ("nsWindow::OnKeyUp wParam(VK)=%d\n", aMsg.wParam));
 
   if (aEventDispatched)
     *aEventDispatched = true;
-  return DispatchKeyEvent(NS_KEY_UP, 0, nsnull, virtualKeyCode, &aMsg,
-                          aModKeyState);
+  nsKeyEvent keyupEvent(true, NS_KEY_UP, this);
+  NativeKey nativeKey(gKbdLayout, this, aMsg);
+  keyupEvent.keyCode = nativeKey.GetDOMKeyCode();
+  InitKeyEvent(keyupEvent, nativeKey, aModKeyState);
+  return DispatchKeyEvent(keyupEvent, &aMsg);
 }
 
 // OnChar
-LRESULT nsWindow::OnChar(const MSG &aMsg, nsModifierKeyState &aModKeyState,
+LRESULT nsWindow::OnChar(const MSG &aMsg,
+                         const NativeKey& aNativeKey,
+                         const ModifierKeyState &aModKeyState,
                          bool *aEventDispatched, PRUint32 aFlags)
 {
-  return OnCharRaw(aMsg.wParam, HIWORD(aMsg.lParam) & 0xFF, aModKeyState,
-                   aFlags, &aMsg, aEventDispatched);
-}
-
-// OnCharRaw
-LRESULT nsWindow::OnCharRaw(UINT charCode, UINT aScanCode,
-                            nsModifierKeyState &aModKeyState, PRUint32 aFlags,
-                            const MSG *aMsg, bool *aEventDispatched)
-{
   // ignore [shift+]alt+space so the OS can handle it
-  if (aModKeyState.mIsAltDown && !aModKeyState.mIsControlDown &&
+  if (aModKeyState.IsAlt() && !aModKeyState.IsControl() &&
       IS_VK_DOWN(NS_VK_SPACE)) {
     return FALSE;
   }
-  
+
+  PRUint32 charCode = aMsg.wParam;
   // Ignore Ctrl+Enter (bug 318235)
-  if (aModKeyState.mIsControlDown && charCode == 0xA) {
+  if (aModKeyState.IsControl() && charCode == 0xA) {
     return FALSE;
   }
 
   // WM_CHAR with Control and Alt (== AltGr) down really means a normal character
-  bool saveIsAltDown = aModKeyState.mIsAltDown;
-  bool saveIsControlDown = aModKeyState.mIsControlDown;
-  if (aModKeyState.mIsAltDown && aModKeyState.mIsControlDown)
-    aModKeyState.mIsAltDown = aModKeyState.mIsControlDown = false;
-
-  wchar_t uniChar;
+  ModifierKeyState modKeyState(aModKeyState);
+  if (modKeyState.IsAlt() && modKeyState.IsControl()) {
+    modKeyState.Unset(MODIFIER_ALT | MODIFIER_CONTROL);
+  }
 
   if (nsIMM32Handler::IsComposingOn(this)) {
     ResetInputState();
   }
 
-  if (aModKeyState.mIsControlDown && charCode <= 0x1A) { // Ctrl+A Ctrl+Z, see Programming Windows 3.1 page 110 for details
+  wchar_t uniChar;
+  // Ctrl+A Ctrl+Z, see Programming Windows 3.1 page 110 for details
+  if (modKeyState.IsControl() && charCode <= 0x1A) {
     // need to account for shift here.  bug 16486
-    if (aModKeyState.mIsShiftDown)
+    if (modKeyState.IsShift()) {
       uniChar = charCode - 1 + 'A';
-    else
+    } else {
       uniChar = charCode - 1 + 'a';
-    charCode = 0;
-  }
-  else if (aModKeyState.mIsControlDown && charCode <= 0x1F) {
+    }
+  } else if (modKeyState.IsControl() && charCode <= 0x1F) {
     // Fix for 50255 - <ctrl><[> and <ctrl><]> are not being processed.
     // also fixes ctrl+\ (x1c), ctrl+^ (x1e) and ctrl+_ (x1f)
     // for some reason the keypress handler need to have the uniChar code set
     // with the addition of a upper case A not the lower case.
     uniChar = charCode - 1 + 'A';
-    charCode = 0;
   } else { // 0x20 - SPACE, 0x3D - EQUALS
-    if (charCode < 0x20 || (charCode == 0x3D && aModKeyState.mIsControlDown)) {
+    if (charCode < 0x20 || (charCode == 0x3D && modKeyState.IsControl())) {
       uniChar = 0;
     } else {
       uniChar = charCode;
-      charCode = 0;
     }
   }
 
   // Keep the characters unshifted for shortcuts and accesskeys and make sure
   // that numbers are always passed as such (among others: bugs 50255 and 351310)
-  if (uniChar && (aModKeyState.mIsControlDown || aModKeyState.mIsAltDown)) {
-    UINT virtualKeyCode = ::MapVirtualKeyEx(aScanCode, MAPVK_VSC_TO_VK,
+  if (uniChar && (modKeyState.IsControl() || modKeyState.IsAlt())) {
+    UINT virtualKeyCode = ::MapVirtualKeyEx(aNativeKey.GetScanCode(),
+                                            MAPVK_VSC_TO_VK,
                                             gKbdLayout.GetLayout());
     UINT unshiftedCharCode =
       virtualKeyCode >= '0' && virtualKeyCode <= '9' ? virtualKeyCode :
-        aModKeyState.mIsShiftDown ? ::MapVirtualKeyEx(virtualKeyCode,
-                                        MAPVK_VK_TO_CHAR,
-                                        gKbdLayout.GetLayout()) : 0;
+        modKeyState.IsShift() ? ::MapVirtualKeyEx(virtualKeyCode,
+                                                  MAPVK_VK_TO_CHAR,
+                                                  gKbdLayout.GetLayout()) : 0;
     // ignore diacritics (top bit set) and key mapping errors (char code 0)
     if ((INT)unshiftedCharCode > 0)
       uniChar = unshiftedCharCode;
@@ -6717,16 +6724,21 @@ LRESULT nsWindow::OnCharRaw(UINT charCode, UINT aScanCode,
   // Fix for bug 285161 (and 295095) which was caused by the initial fix for bug 178110.
   // When pressing (alt|ctrl)+char, the char must be lowercase unless shift is
   // pressed too.
-  if (!aModKeyState.mIsShiftDown && (saveIsAltDown || saveIsControlDown)) {
+  if (!modKeyState.IsShift() &&
+      (aModKeyState.IsAlt() || aModKeyState.IsControl())) {
     uniChar = towlower(uniChar);
   }
 
-  bool result = DispatchKeyEvent(NS_KEY_PRESS, uniChar, nsnull,
-                                   charCode, aMsg, aModKeyState, aFlags);
+  nsKeyEvent keypressEvent(true, NS_KEY_PRESS, this);
+  keypressEvent.flags |= aFlags;
+  keypressEvent.charCode = uniChar;
+  if (!keypressEvent.charCode) {
+    keypressEvent.keyCode = aNativeKey.GetDOMKeyCode();
+  }
+  InitKeyEvent(keypressEvent, aNativeKey, modKeyState);
+  bool result = DispatchKeyEvent(keypressEvent, &aMsg);
   if (aEventDispatched)
     *aEventDispatched = true;
-  aModKeyState.mIsAltDown = saveIsAltDown;
-  aModKeyState.mIsControlDown = saveIsControlDown;
   return result;
 }
 
@@ -6739,6 +6751,12 @@ nsWindow::SetupKeyModifiersSequence(nsTArray<KeyPair>* aArray, PRUint32 aModifie
       aArray->AppendElement(KeyPair(map[1], map[2]));
     }
   }
+}
+
+BOOL WINAPI EnumFirstChild(HWND hwnd, LPARAM lParam)
+{
+  *((HWND*)lParam) = hwnd;
+  return FALSE;
 }
 
 nsresult
@@ -6774,7 +6792,47 @@ nsWindow::ConfigureChildren(const nsTArray<Configuration>& aConfigurations)
         r.Sub(bounds, configuration.mBounds);
         r.MoveBy(-bounds.x,
                  -bounds.y);
-        w->Invalidate(r.GetBounds());
+        nsIntRect toInvalidate = r.GetBounds();
+
+        w->Invalidate(toInvalidate);
+
+        // XXX - Even more evil workaround!! See bug 762948, flash's bottom
+        // level sandboxed window doesn't seem to get our invalidate. We send
+        // an invalidate to it manually. This is totally specialized for this
+        // bug, for other child window structures this will just be a more or
+        // less bogus invalidate but since that should not have any bad
+        // side-effects this will have to do for now.
+        HWND current = (HWND)w->GetNativeData(NS_NATIVE_WINDOW);
+        POINT p = {configuration.mBounds.x, configuration.mBounds.y};
+
+        RECT windowRect;
+        RECT parentRect;
+
+        ::GetWindowRect(current, &parentRect);
+        
+        HWND next = current;
+
+        do {
+          current = next;
+
+          ::EnumChildWindows(current, &EnumFirstChild, (LPARAM)&next);
+
+          ::GetWindowRect(next, &windowRect);
+          // This is relative to the screen, adjust it to be relative to the
+          // window we're reconfiguring.
+          windowRect.left -= parentRect.left;
+          windowRect.top -= parentRect.top;
+        } while (next != current && windowRect.top == 0 && windowRect.left == 0);
+
+        if (windowRect.top == 0 && windowRect.left == 0) {
+          RECT rect;
+          rect.left   = toInvalidate.x;
+          rect.top    = toInvalidate.y;
+          rect.right  = toInvalidate.XMost();
+          rect.bottom = toInvalidate.YMost();
+
+          ::InvalidateRect(next, &rect, FALSE);
+        }
       }
     }
     rv = w->SetWindowClipRegion(configuration.mClipRegion, false);
@@ -6949,15 +7007,6 @@ void nsWindow::OnDestroy()
     mBrush = NULL;
   }
 
-  // Free app icon resources.
-  HICON icon;
-  icon = (HICON) ::SendMessageW(mWnd, WM_SETICON, (WPARAM)ICON_BIG, (LPARAM) 0);
-  if (icon)
-    ::DestroyIcon(icon);
-
-  icon = (HICON) ::SendMessageW(mWnd, WM_SETICON, (WPARAM)ICON_SMALL, (LPARAM) 0);
-  if (icon)
-    ::DestroyIcon(icon);
 
   // Destroy any custom cursor resources.
   if (mCursor == -1)
@@ -7300,7 +7349,7 @@ bool nsWindow::AssociateDefaultIMC(bool aAssociate)
 
 #ifdef DEBUG_WMGETOBJECT
 #define NS_LOG_WMGETOBJECT_WNDACC(aWnd)                                        \
-  nsAccessible* acc = aWnd ?                                                   \
+  Accessible* acc = aWnd ?                                                   \
     aWnd->DispatchAccessibleEvent(NS_GETACCESSIBLE) : nsnull;                  \
   PR_LOG(gWindowsLog, PR_LOG_ALWAYS, ("     acc: %p", acc));                   \
   if (acc) {                                                                   \
@@ -7339,30 +7388,12 @@ bool nsWindow::AssociateDefaultIMC(bool aAssociate)
 #define NS_LOG_WMGETOBJECT_WND(aMsg, aHwnd)
 #endif // DEBUG_WMGETOBJECT
 
-nsAccessible*
+Accessible*
 nsWindow::GetRootAccessible()
 {
-  // We want the ability to forcibly disable a11y on windows, because
-  // some non-a11y-related components attempt to bring it up.  See bug
-  // 538530 for details; we have a pref here that allows it to be disabled
-  // for performance and testing resons.
-  //
-  // This pref is checked only once, and the browser needs a restart to
-  // pick up any changes.
-  static int accForceDisable = -1;
-
-  if (accForceDisable == -1) {
-    const char* kPrefName = "accessibility.win32.force_disabled";
-    if (Preferences::GetBool(kPrefName, false)) {
-      accForceDisable = 1;
-    } else {
-      accForceDisable = 0;
-    }
-  }
-
-  // If the pref was true, return null here, disabling a11y.
-  if (accForceDisable)
-      return nsnull;
+  // If the pref was ePlatformIsDisabled, return null here, disabling a11y.
+  if (a11y::PlatformDisabledState() == a11y::ePlatformIsDisabled)
+    return nsnull;
 
   if (mInDtor || mOnDestroyCalled || mWindowType == eWindowType_invisible) {
     return nsnull;
@@ -7472,6 +7503,16 @@ void nsWindow::SetupTranslucentWindowMemoryBitmap(nsTransparencyMode aMode)
     mTransparentSurface = nsnull;
     mMemoryDC = NULL;
   }
+}
+
+void nsWindow::ClearTranslucentWindow()
+{
+  if (mTransparentSurface) {
+    nsRefPtr<gfxContext> thebesContext = new gfxContext(mTransparentSurface);
+    thebesContext->SetOperator(gfxContext::OPERATOR_CLEAR);
+    thebesContext->Paint();
+    UpdateTranslucentWindow();
+ }
 }
 
 nsresult nsWindow::UpdateTranslucentWindow()
@@ -7924,23 +7965,6 @@ nsWindow::DealWithPopups(HWND inWnd, UINT inMsg, WPARAM inWParam, LPARAM inLPara
  **
  **************************************************************
  **************************************************************/
-
-// nsModifierKeyState used in various character processing. 
-nsModifierKeyState::nsModifierKeyState()
-{
-  mIsShiftDown   = IS_VK_DOWN(NS_VK_SHIFT);
-  mIsControlDown = IS_VK_DOWN(NS_VK_CONTROL);
-  mIsAltDown     = IS_VK_DOWN(NS_VK_ALT);
-}
-
-void
-nsModifierKeyState::InitInputEvent(nsInputEvent& aInputEvent) const
-{
-  aInputEvent.isShift   = mIsShiftDown;
-  aInputEvent.isControl = mIsControlDown;
-  aInputEvent.isMeta    = false;
-  aInputEvent.isAlt     = mIsAltDown;
-}
 
 // Note that the result of GetTopLevelWindow method can be different from the
 // result of WinUtils::GetTopLevelHWND().  The result can be non-floating

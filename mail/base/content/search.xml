@@ -1,44 +1,8 @@
 <?xml version="1.0"?>
 
-<!-- ***** BEGIN LICENSE BLOCK *****
-  - Version: MPL 1.1/GPL 2.0/LGPL 2.1
-  -
-  - The contents of this file are subject to the Mozilla Public License Version
-  - 1.1 (the "License"); you may not use this file except in compliance with
-  - the License. You may obtain a copy of the License at
-  - http://www.mozilla.org/MPL/
-  -
-  - Software distributed under the License is distributed on an "AS IS" basis,
-  - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-  - for the specific language governing rights and limitations under the
-  - License.
-  -
-  - The Original Code is Mozilla Communicator client code, released
-  - March 31, 1998.
-  -
-  - The Initial Developer of the Original Code is
-  - Netscape Communications Corporation.
-  - Portions created by the Initial Developer are Copyright (C) 1998-1999
-  - the Initial Developer. All Rights Reserved.
-  -
-  - Contributor(s):
-  -   Scott MacGregor <mscott@mozilla.org>
-  -   Andrew Sutherland <asutherland@asutherland.org>
-  -   David Ascher <dascher@mozillamessaging.com>
-  -   Thomas Düllmann <bugzilla2009@duellmann24.net>
-  -
-  - Alternatively, the contents of this file may be used under the terms of
-  - either of the GNU General Public License Version 2 or later (the "GPL"),
-  - or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-  - in which case the provisions of the GPL or the LGPL are applicable instead
-  - of those above. If you wish to allow use of your version of this file only
-  - under the terms of either the GPL or the LGPL, and not to allow others to
-  - use your version of this file under the terms of the MPL, indicate your
-  - decision by deleting the provisions above and replace them with the notice
-  - and other provisions required by the GPL or the LGPL. If you do not delete
-  - the provisions above, a recipient may use your version of this file under
-  - the terms of any one of the MPL, the GPL or the LGPL.
-  - ***** END LICENSE BLOCK ***** -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+  - License, v. 2.0. If a copy of the MPL was not distributed with this
+  - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!DOCTYPE bindings [
 <!ENTITY % messengerDTD SYSTEM "chrome://messenger/locale/messenger.dtd">
@@ -105,32 +69,16 @@
           var prefBranch =
               Components.classes['@mozilla.org/preferences-service;1'].
               getService(Components.interfaces.nsIPrefBranch);
+          prefBranch.addObserver("mailnews.database.global.indexer.enabled",
+                                 this._prefObserver, false);
+
           this.glodaCompleter =
             Components.classes["@mozilla.org/autocomplete/search;1?name=gloda"]
                       .getService()
                       .wrappedJSObject;
           var observerSvc = Cc["@mozilla.org/observer-service;1"]
                             .getService(Ci.nsIObserverService);
-
-          if ((typeof gSearchInputObserversRegistered != "undefined" &&
-              gSearchInputObserversRegistered == false)) {
-            // due to a bug in XBL that means that destructors don't get
-            // called reliably, the customize toolbar path will end up creating
-            // two clones of this widget, and never destroy them.  So the destructor
-            // isn't reliably called, and so we must use a global to avoid
-            // registering ourselves for the same event multiple times (twice
-            // per invocation of the customize-toolbar).
-
-            // We need to test for undefined above because if the widget is
-            // created from the customize toolbar, its namespace won't include
-            // a definition of gSearchInputObserversRegistered -- and we don't
-            // care, since we don't want to register observers in that scope.
-
-            prefBranch.addObserver("mailnews.database.global.indexer.enabled",
-                                   this._prefObserver, false);
-            observerSvc.addObserver(this, "autocomplete-did-enter-text", false);
-            gSearchInputObserversRegistered = true;
-          }
+          observerSvc.addObserver(this, "autocomplete-did-enter-text", false);
 
           this.glodaEnabled =
             prefBranch.getBoolPref("mailnews.database.global.indexer.enabled");
@@ -235,7 +183,7 @@
         <parameter name="aData"/>
         <body><![CDATA[
         try {
-          if (aTopic == "autocomplete-did-enter-text") {
+          if (aTopic == "autocomplete-did-enter-text" && aSubject == this) {
             let selectedIndex = this.popup.selectedIndex;
             let curResult = this.glodaCompleter.curResult;
             if (! curResult)
@@ -243,20 +191,27 @@
             let row = curResult.getObjectAt(selectedIndex);
             if (row == null)
               return;
-            let theQuery = Gloda.newQuery(Gloda.NOUN_MESSAGE);
-            let tabmail = document.getElementById("tabmail");
             if (row.fullText) {
-              tabmail.openTab("glodaFacet", {
-                searcher: new GlodaMsgSearcher(null, row.item, row.andTerms)
-              });
+              // The autocomplete-did-enter-text notification is synchronously
+              // generated by nsAutoCompleteController which will attempt to
+              // call ClosePopup after we return and then tell the searchbox
+              // about the text entered.  Since doSearch may close the current
+              // tab (and thus destroy the XUL document that owns the popup and
+              // the input field), the search box may no longer have its XBL
+              // binding attached when we return and telling it about the
+              // entered text could fail.
+              // To avoid this, we defer the doSearch call to the next turn of
+              // the event loop by using setTimeout.
+              setTimeout(this.doSearch.bind(this), 0);
             } else if (row.nounDef) {
+              let theQuery = Gloda.newQuery(Gloda.NOUN_MESSAGE);
               if (row.nounDef.name == "tag") {
                 theQuery = theQuery.tags(row.item);
               } else if (row.nounDef.name == "identity") {
                 theQuery = theQuery.involves(row.item);
               }
               theQuery.orderBy('-date');
-              tabmail.openTab("glodaFacet", {
+              document.getElementById("tabmail").openTab("glodaFacet", {
                 query: theQuery
               });
             }
@@ -286,9 +241,18 @@
                 tabmail.closeTab();
               }
               this.value = ''; // clear our value, to avoid persistence
-              tabmail.openTab("glodaFacet", {
+              let args = {
                 searcher: new GlodaMsgSearcher(null, searchString)
-              });
+              };
+              let prefBranch =
+                Components.classes['@mozilla.org/preferences-service;1'].
+                getService(Components.interfaces.nsIPrefBranch);
+              if (prefBranch.getBoolPref("mail.chat.enabled")) {
+                if (!("GlodaIMSearcher" in window))
+                  Cu.import("resource:///modules/search_im.js");
+                args.IMSearcher = new GlodaIMSearcher(null, searchString);
+              }
+              tabmail.openTab("glodaFacet", args);
             }
           } catch (e) {
             logException(e);

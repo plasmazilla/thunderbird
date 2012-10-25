@@ -1,43 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 sw=2 et tw=78: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Johnny Stenback <jst@netscape.com> (original author)
- *   Boris Zbarsky <bzbarsky@mit.edu>
- *   Frederic Plourde <frederic.plourde@polymtl.ca>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * Class for managing loading of a subframe (creation of the docshell,
@@ -50,6 +15,7 @@
 
 #include "nsIDOMHTMLIFrameElement.h"
 #include "nsIDOMHTMLFrameElement.h"
+#include "nsIDOMMozBrowserFrame.h"
 #include "nsIDOMWindow.h"
 #include "nsIPresShell.h"
 #include "nsIContent.h"
@@ -330,6 +296,7 @@ nsFrameLoader::nsFrameLoader(Element* aOwner, bool aNetworkCreated)
   , mRemoteFrame(false)
   , mClipSubdocument(true)
   , mClampScrollPosition(true)
+  , mRemoteBrowserInitialized(false)
   , mCurrentRemoteFrame(nsnull)
   , mRemoteBrowser(nsnull)
   , mRenderMode(RENDER_MODE_DEFAULT)
@@ -457,8 +424,13 @@ nsFrameLoader::ReallyStartLoadingInternal()
       }
     }
 
-    // FIXME get error codes from child
-    mRemoteBrowser->LoadURL(mURIToLoad);
+    if (mRemoteBrowserShown || ShowRemoteFrame(nsIntSize(0, 0))) {
+      // FIXME get error codes from child
+      mRemoteBrowser->LoadURL(mURIToLoad);
+    } else {
+      NS_WARNING("[nsFrameLoader] ReallyStartLoadingInternal tried but couldn't show remote browser.\n");
+    }
+
     return NS_OK;
   }
 
@@ -651,7 +623,7 @@ SetTreeOwnerAndChromeEventHandlerOnDocshellTree(nsIDocShellTreeItem* aItem,
 
 /**
  * Set the type of the treeitem and hook it up to the treeowner.
- * @param aItem the treeitem we're wrking working with
+ * @param aItem the treeitem we're working with
  * @param aOwningContent the content node that owns aItem
  * @param aTreeOwner the relevant treeowner; might be null
  * @param aParentType the nsIDocShellTreeItem::GetType of our parent docshell
@@ -672,6 +644,8 @@ AddTreeItemToTreeOwner(nsIDocShellTreeItem* aItem, nsIContent* aOwningContent,
 
   if (aOwningContent->IsXUL()) {
       aOwningContent->GetAttr(kNameSpaceID_None, nsGkAtoms::type, value);
+  } else {
+      aOwningContent->GetAttr(kNameSpaceID_None, nsGkAtoms::mozframetype, value);
   }
 
   // we accept "content" and "content-xxx" values.
@@ -681,6 +655,16 @@ AddTreeItemToTreeOwner(nsIDocShellTreeItem* aItem, nsIContent* aOwningContent,
   isContent = value.LowerCaseEqualsLiteral("content") ||
     StringBeginsWith(value, NS_LITERAL_STRING("content-"),
                      nsCaseInsensitiveStringComparator());
+
+  // Force mozbrowser frames to always be typeContent, even if the
+  // mozbrowser interfaces are disabled.
+  nsCOMPtr<nsIDOMMozBrowserFrame> mozbrowser =
+    do_QueryInterface(aOwningContent);
+  if (mozbrowser) {
+    bool isMozbrowser = false;
+    mozbrowser->GetMozbrowser(&isMozbrowser);
+    isContent |= isMozbrowser;
+  }
 
   if (isContent) {
     // The web shell's type is content.
@@ -912,10 +896,29 @@ nsFrameLoader::ShowRemoteFrame(const nsIntSize& size)
   // cross-process layers; need to figure out what behavior we really
   // want here.  For now, hack.
   if (!mRemoteBrowserShown) {
+    if (!mOwnerContent ||
+        !mOwnerContent->GetCurrentDoc()) {
+      return false;
+    }
+
+    nsRefPtr<layers::LayerManager> layerManager =
+      nsContentUtils::LayerManagerForDocument(mOwnerContent->GetCurrentDoc());
+    if (!layerManager) {
+      // This is just not going to work.
+      return false;
+    }
+
     mRemoteBrowser->Show(size);
     mRemoteBrowserShown = true;
 
     EnsureMessageManager();
+
+    nsCOMPtr<nsIObserverService> os = services::GetObserverService();
+    if (OwnerIsBrowserFrame() && os && !mRemoteBrowserInitialized) {
+      os->NotifyObservers(NS_ISUPPORTS_CAST(nsIFrameLoader*, this),
+                          "remote-browser-frame-shown", NULL);
+      mRemoteBrowserInitialized = true;
+    }
   } else {
     nsRect dimensions;
     NS_ENSURE_SUCCESS(GetWindowDimensions(dimensions), false);
@@ -1356,21 +1359,67 @@ nsFrameLoader::SetOwnerContent(Element* aContent)
 }
 
 bool
+nsFrameLoader::OwnerIsBrowserFrame()
+{
+  nsCOMPtr<nsIMozBrowserFrame> browserFrame = do_QueryInterface(mOwnerContent);
+  bool isBrowser = false;
+  if (browserFrame) {
+    browserFrame->GetReallyIsBrowser(&isBrowser);
+  }
+  return isBrowser;
+}
+
+bool
+nsFrameLoader::OwnerIsAppFrame()
+{
+  nsCOMPtr<nsIMozBrowserFrame> browserFrame = do_QueryInterface(mOwnerContent);
+  bool isApp = false;
+  if (browserFrame) {
+    browserFrame->GetReallyIsApp(&isApp);
+  }
+  return isApp;
+}
+
+void
+nsFrameLoader::GetOwnerAppManifestURL(nsAString& aOut)
+{
+  aOut.Truncate();
+  nsCOMPtr<nsIMozBrowserFrame> browserFrame = do_QueryInterface(mOwnerContent);
+  if (browserFrame) {
+    browserFrame->GetAppManifestURL(aOut);
+  }
+}
+
+bool
 nsFrameLoader::ShouldUseRemoteProcess()
 {
-  // Check for *disabled* multi-process first: environment, pref
-  // Then check for *enabled* multi-process attribute
-  // Default is not-remote.
-
   if (PR_GetEnv("MOZ_DISABLE_OOP_TABS") ||
       Preferences::GetBool("dom.ipc.tabs.disabled", false)) {
     return false;
   }
 
-  return (bool) mOwnerContent->AttrValueIs(kNameSpaceID_None,
-                                           nsGkAtoms::Remote,
-                                           nsGkAtoms::_true,
-                                           eCaseMatters);
+  // If we're inside a content process, don't use a remote process for this
+  // frame; it won't work properly until bug 761935 is fixed.
+  if (XRE_GetProcessType() == GeckoProcessType_Content) {
+    return false;
+  }
+
+  // If we're an <iframe mozbrowser> and we don't have a "remote" attribute,
+  // fall back to the default.
+  if (OwnerIsBrowserFrame() &&
+      !mOwnerContent->HasAttr(kNameSpaceID_None, nsGkAtoms::Remote)) {
+
+    return Preferences::GetBool("dom.ipc.browser_frames.oop_by_default", false);
+  }
+
+  // Otherwise, we're remote if we have "remote=true" and we're either a
+  // browser frame or a XUL element.
+  return (OwnerIsBrowserFrame() ||
+          mOwnerContent->GetNameSpaceID() == kNameSpaceID_XUL) &&
+         mOwnerContent->AttrValueIs(kNameSpaceID_None,
+                                    nsGkAtoms::Remote,
+                                    nsGkAtoms::_true,
+                                    eCaseMatters);
 }
 
 nsresult
@@ -1487,13 +1536,6 @@ nsFrameLoader::MaybeCreateDocShell()
     mDocShell->SetChromeEventHandler(chromeEventHandler);
   }
 
-  nsCOMPtr<nsIMozBrowserFrame> browserFrame = do_QueryInterface(mOwnerContent);
-  if (browserFrame) {
-    bool isBrowserFrame = false;
-    browserFrame->GetReallyIsBrowser(&isBrowserFrame);
-    mDocShell->SetIsBrowserFrame(isBrowserFrame);
-  }
-
   // This is nasty, this code (the do_GetInterface(mDocShell) below)
   // *must* come *after* the above call to
   // mDocShell->SetChromeEventHandler() for the global window to get
@@ -1519,6 +1561,22 @@ nsFrameLoader::MaybeCreateDocShell()
   }
 
   EnsureMessageManager();
+
+  if (OwnerIsBrowserFrame()) {
+    mDocShell->SetIsBrowserFrame(true);
+
+    nsCOMPtr<nsIObserverService> os = services::GetObserverService();
+    if (os) {
+      os->NotifyObservers(NS_ISUPPORTS_CAST(nsIFrameLoader*, this),
+                          "in-process-browser-frame-shown", NULL);
+    }
+
+    if (mMessageManager) {
+      mMessageManager->LoadFrameScript(
+        NS_LITERAL_STRING("chrome://global/content/BrowserElementChild.js"),
+        /* allowDelayedLoad = */ true);
+    }
+  }
 
   return NS_OK;
 }
@@ -1842,24 +1900,27 @@ nsFrameLoader::TryRemoteBrowser()
 
   nsCOMPtr<nsIDocShellTreeItem> parentAsItem(do_QueryInterface(parentAsWebNav));
 
-  PRInt32 parentType;
-  parentAsItem->GetItemType(&parentType);
+  // <iframe mozbrowser> gets to skip these checks.
+  if (!OwnerIsBrowserFrame()) {
+    PRInt32 parentType;
+    parentAsItem->GetItemType(&parentType);
 
-  if (parentType != nsIDocShellTreeItem::typeChrome) {
-    return false;
-  }
+    if (parentType != nsIDocShellTreeItem::typeChrome) {
+      return false;
+    }
 
-  if (!mOwnerContent->IsXUL()) {
-    return false;
-  }
+    if (!mOwnerContent->IsXUL()) {
+      return false;
+    }
 
-  nsAutoString value;
-  mOwnerContent->GetAttr(kNameSpaceID_None, nsGkAtoms::type, value);
+    nsAutoString value;
+    mOwnerContent->GetAttr(kNameSpaceID_None, nsGkAtoms::type, value);
 
-  if (!value.LowerCaseEqualsLiteral("content") &&
-      !StringBeginsWith(value, NS_LITERAL_STRING("content-"),
-                        nsCaseInsensitiveStringComparator())) {
-    return false;
+    if (!value.LowerCaseEqualsLiteral("content") &&
+        !StringBeginsWith(value, NS_LITERAL_STRING("content-"),
+                          nsCaseInsensitiveStringComparator())) {
+      return false;
+    }
   }
 
   PRUint32 chromeFlags = 0;
@@ -1876,9 +1937,15 @@ nsFrameLoader::TryRemoteBrowser()
     return false;
   }
 
-  ContentParent* parent = ContentParent::GetNewOrUsed();
+  // If our owner has no app manifest URL, then this is equivalent to
+  // ContentParent::GetNewOrUsed().
+  nsAutoString appManifest;
+  GetOwnerAppManifestURL(appManifest);
+  ContentParent* parent = ContentParent::GetForApp(appManifest);
+
   NS_ASSERTION(parent->IsAlive(), "Process parent should be alive; something is very wrong!");
-  mRemoteBrowser = parent->CreateTab(chromeFlags);
+  mRemoteBrowser = parent->CreateTab(chromeFlags,
+                                     /* aIsBrowserFrame = */ OwnerIsBrowserFrame());
   if (mRemoteBrowser) {
     nsCOMPtr<nsIDOMElement> element = do_QueryInterface(mOwnerContent);
     mRemoteBrowser->SetOwnerElement(element);
@@ -2141,7 +2208,7 @@ nsFrameLoader::EnsureMessageManager()
     return rv;
   }
 
-  if (!mIsTopLevelContent && !mRemoteFrame) {
+  if (!mIsTopLevelContent && !OwnerIsBrowserFrame() && !mRemoteFrame) {
     return NS_OK;
   }
 
@@ -2159,10 +2226,11 @@ nsFrameLoader::EnsureMessageManager()
   NS_ENSURE_STATE(cx);
 
   nsCOMPtr<nsIDOMChromeWindow> chromeWindow =
-    do_QueryInterface(mOwnerContent->OwnerDoc()->GetWindow());
-  NS_ENSURE_STATE(chromeWindow);
+    do_QueryInterface(GetOwnerDoc()->GetWindow());
   nsCOMPtr<nsIChromeFrameMessageManager> parentManager;
-  chromeWindow->GetMessageManager(getter_AddRefs(parentManager));
+  if (chromeWindow) {
+    chromeWindow->GetMessageManager(getter_AddRefs(parentManager));
+  }
 
   if (ShouldUseRemoteProcess()) {
     mMessageManager = new nsFrameMessageManager(true,
@@ -2172,10 +2240,7 @@ nsFrameLoader::EnsureMessageManager()
                                                 mRemoteBrowserShown ? this : nsnull,
                                                 static_cast<nsFrameMessageManager*>(parentManager.get()),
                                                 cx);
-    NS_ENSURE_TRUE(mMessageManager, NS_ERROR_OUT_OF_MEMORY);
-  } else
-  {
-
+  } else {
     mMessageManager = new nsFrameMessageManager(true,
                                                 nsnull,
                                                 SendAsyncMessageToChild,
@@ -2183,7 +2248,6 @@ nsFrameLoader::EnsureMessageManager()
                                                 nsnull,
                                                 static_cast<nsFrameMessageManager*>(parentManager.get()),
                                                 cx);
-    NS_ENSURE_TRUE(mMessageManager, NS_ERROR_OUT_OF_MEMORY);
     mChildMessageManager =
       new nsInProcessTabChildGlobal(mDocShell, mOwnerContent, mMessageManager);
     mMessageManager->SetCallbackData(this);
@@ -2195,4 +2259,28 @@ nsIDOMEventTarget*
 nsFrameLoader::GetTabChildGlobalAsEventTarget()
 {
   return static_cast<nsInProcessTabChildGlobal*>(mChildMessageManager.get());
+}
+
+NS_IMETHODIMP
+nsFrameLoader::GetOwnerElement(nsIDOMElement **aElement)
+{
+  nsCOMPtr<nsIDOMElement> ownerElement = do_QueryInterface(mOwnerContent);
+  ownerElement.forget(aElement);
+  return NS_OK;
+}
+
+void
+nsFrameLoader::SetRemoteBrowser(nsITabParent* aTabParent)
+{
+  MOZ_ASSERT(!mRemoteBrowser);
+  MOZ_ASSERT(!mCurrentRemoteFrame);
+  mRemoteBrowser = static_cast<TabParent*>(aTabParent);
+
+  EnsureMessageManager();
+  nsCOMPtr<nsIObserverService> os = services::GetObserverService();
+  if (OwnerIsBrowserFrame() && os) {
+    mRemoteBrowserInitialized = true;
+    os->NotifyObservers(NS_ISUPPORTS_CAST(nsIFrameLoader*, this),
+                        "remote-browser-frame-shown", NULL);
+  }
 }

@@ -1,42 +1,9 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 /* vim:expandtab:shiftwidth=4:tabstop=4:
  */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is Christopher Blizzard
- * <blizzard@mozilla.org>.  Portions created by the Initial Developer
- * are Copyright (C) 2001 the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Mats Palmgren <mats.palmgren@bredband.net>
- *   Masayuki Nakano <masayuki@d-toybox.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef MOZ_PLATFORM_MAEMO
 #define MAEMO_CHANGES
@@ -911,18 +878,11 @@ nsGtkIMModule::OnRetrieveSurroundingNative(GtkIMContext *aContext)
         return FALSE;
     }
 
-    glong wbytes;
-    gchar *utf8_str = g_utf16_to_utf8((const gunichar2 *)uniStr.get(),
-                                      uniStr.Length(), NULL, &wbytes, NULL);
-    if (utf8_str == NULL) {
-        PR_LOG(gGtkIMLog, PR_LOG_ALWAYS,
-            ("    failed to convert utf16 string to utf8"));
-        return FALSE;
-    }
-    gtk_im_context_set_surrounding(aContext, utf8_str, wbytes,
-        g_utf8_offset_to_pointer(utf8_str, cursorPos) - utf8_str);
-    g_free(utf8_str);
-
+    NS_ConvertUTF16toUTF8 utf8Str(nsDependentSubstring(uniStr, 0, cursorPos));
+    PRUint32 cursorPosInUTF8 = utf8Str.Length();
+    AppendUTF16toUTF8(nsDependentSubstring(uniStr, cursorPos), utf8Str);
+    gtk_im_context_set_surrounding(aContext, utf8Str.get(), utf8Str.Length(),
+                                   cursorPosInUTF8);
     return TRUE;
 }
 
@@ -1568,6 +1528,12 @@ nsGtkIMModule::DeleteText(const PRInt32 aOffset, const PRUint32 aNChars)
         return NS_ERROR_NULL_POINTER;
     }
 
+    if (!aNChars) {
+        PR_LOG(gGtkIMLog, PR_LOG_ALWAYS,
+            ("    FAILED, aNChars must not be zero"));
+        return NS_ERROR_INVALID_ARG;
+    }
+
     nsRefPtr<nsWindow> lastFocusedWindow(mLastFocusedWindow);
     nsEventStatus status;
 
@@ -1600,11 +1566,67 @@ nsGtkIMModule::DeleteText(const PRInt32 aOffset, const PRUint32 aNChars)
         selOffset = querySelectedTextEvent.mReply.mOffset;
     }
 
+    // Get all text contents of the focused editor
+    nsQueryContentEvent queryTextContentEvent(true,
+                                              NS_QUERY_TEXT_CONTENT,
+                                              mLastFocusedWindow);
+    queryTextContentEvent.InitForQueryTextContent(0, PR_UINT32_MAX);
+    mLastFocusedWindow->DispatchEvent(&queryTextContentEvent, status);
+    NS_ENSURE_TRUE(queryTextContentEvent.mSucceeded, NS_ERROR_FAILURE);
+    if (queryTextContentEvent.mReply.mString.IsEmpty()) {
+        PR_LOG(gGtkIMLog, PR_LOG_ALWAYS,
+            ("    FAILED, there is no contents"));
+        return NS_ERROR_FAILURE;
+    }
+
+    NS_ConvertUTF16toUTF8 utf8Str(
+        nsDependentSubstring(queryTextContentEvent.mReply.mString,
+                             0, selOffset));
+    glong offsetInUTF8Characters =
+        g_utf8_strlen(utf8Str.get(), utf8Str.Length()) + aOffset;
+    if (offsetInUTF8Characters < 0) {
+        PR_LOG(gGtkIMLog, PR_LOG_ALWAYS,
+            ("    FAILED, aOffset is too small for current cursor pos "
+             "(computed offset: %d)",
+             offsetInUTF8Characters));
+        return NS_ERROR_FAILURE;
+    }
+
+    AppendUTF16toUTF8(
+        nsDependentSubstring(queryTextContentEvent.mReply.mString, selOffset),
+        utf8Str);
+    glong countOfCharactersInUTF8 =
+        g_utf8_strlen(utf8Str.get(), utf8Str.Length());
+    glong endInUTF8Characters =
+        offsetInUTF8Characters + aNChars;
+    if (countOfCharactersInUTF8 < endInUTF8Characters) {
+        PR_LOG(gGtkIMLog, PR_LOG_ALWAYS,
+            ("    FAILED, aNChars is too large for current contents "
+             "(content length: %d, computed end offset: %d)",
+             countOfCharactersInUTF8, endInUTF8Characters));
+        return NS_ERROR_FAILURE;
+    }
+
+    gchar* charAtOffset =
+        g_utf8_offset_to_pointer(utf8Str.get(), offsetInUTF8Characters);
+    gchar* charAtEnd =
+        g_utf8_offset_to_pointer(utf8Str.get(), endInUTF8Characters);
+
     // Set selection to delete
     nsSelectionEvent selectionEvent(true, NS_SELECTION_SET,
                                     mLastFocusedWindow);
-    selectionEvent.mOffset = selOffset + aOffset;
-    selectionEvent.mLength = aNChars;
+
+    nsDependentCSubstring utf8StrBeforeOffset(utf8Str, 0,
+                                              charAtOffset - utf8Str.get());
+    selectionEvent.mOffset =
+        NS_ConvertUTF8toUTF16(utf8StrBeforeOffset).Length();
+
+    nsDependentCSubstring utf8DeletingStr(utf8Str,
+                                          utf8StrBeforeOffset.Length(),
+                                          charAtEnd - charAtOffset);
+    selectionEvent.mLength =
+        NS_ConvertUTF8toUTF16(utf8DeletingStr).Length();
+
     selectionEvent.mReversed = false;
     selectionEvent.mExpandToClusterBoundary = false;
     lastFocusedWindow->DispatchEvent(&selectionEvent, status);

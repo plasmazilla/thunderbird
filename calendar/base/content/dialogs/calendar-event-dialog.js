@@ -1,48 +1,16 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Sun Microsystems code.
- *
- * The Initial Developer of the Original Code is Sun Microsystems.
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Michael Buettner <michael.buettner@sun.com>
- *   Philipp Kewisch <mozilla@kewis.ch>
- *   Martin Schroeder <mschroeder@mozilla.x-home.org>
- *   Fred Jendrzejewski <fred.jen@web.de>
- *   Daniel Boelzle <daniel.boelzle@sun.com>
- *   Markus Adrario <Mozilla@Adrario.de>
- *   Gianfranco Balza <bv1578@gmail.com>
- *   Matthew Mecca <matthew.mecca@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
+
+try {
+    Components.utils.import("resource:///modules/cloudFileAccounts.js");
+} catch (e) {
+    // This will fail on Seamonkey, but thats ok since the pref for cloudfiles
+    // is false, which means the UI will not be shown
+}
 
 // the following variables are constructed if the jsContext this file
 // belongs to gets constructed. all those variables are meant to be accessed
@@ -371,6 +339,7 @@ function loadDialog(item) {
     categoryMenuList.selectedIndex = indexToSelect;
 
     // Attachment
+    loadCloudProviders();
     var hasAttachments = capSupported("attachments");
     var attachments = item.getAttachments({});
     if (hasAttachments && attachments && attachments.length > 0) {
@@ -1656,6 +1625,43 @@ function updateShowTimeAs() {
                             gShowTimeAs == "TRANSPARENT" ? "true" : "false");
 }
 
+function loadCloudProviders() {
+    let cloudFileEnabled = cal.getPrefSafe("mail.cloud_files.enabled", false)
+    let cmd = document.getElementById("cmd_attach_cloud");
+
+    if (!cloudFileEnabled) {
+        // If cloud file support is disabled, just hide the attach item
+        cmd.hidden = true;
+        return;
+    }
+
+    cmd.hidden = (cloudFileAccounts.accounts.length == 0);
+    let toolbarPopup = document.getElementById("button-attach-menupopup");
+    let optionsPopup = document.getElementById("options-attachments-menupopup");
+    let attachmentPopup = document.getElementById("attachment-popup");
+
+    for (let [,cloudProvider] in Iterator(cloudFileAccounts.accounts)) {
+        let item = createXULElement("menuitem");
+        let displayName = cloudFileAccounts.getDisplayName(cloudProvider);
+        let label = cal.calGetString("calendar-event-dialog", "attachViaFilelink", [displayName]);
+        item.setAttribute("label", label);
+        item.setAttribute("observes", "cmd_attach_cloud");
+        item.setAttribute("oncommand", "attachFile(event.target.cloudProvider); event.stopPropagation();");
+
+        if (cloudProvider.iconClass) {
+            item.setAttribute("class", "menuitem-iconic");
+            item.setAttribute("image", cloudProvider.iconClass);
+        }
+
+        // Add the item to the different places we advertise cloud providers
+        toolbarPopup.appendChild(item.cloneNode()).cloudProvider = cloudProvider;
+        attachmentPopup.appendChild(item.cloneNode()).cloudProvider = cloudProvider;
+
+        // The last one doesn't need to clone, just use the item itself.
+        optionsPopup.appendChild(item).cloudProvider = cloudProvider;
+    }
+}
+
 /**
  * Prompts the user to attach an url to this item.
  */
@@ -1687,23 +1693,27 @@ function attachURL() {
     }
 }
 
-
 /**
- * This function is currently unused, since we don't support attaching files as
- * binary. This code can be used as soon as this works.
+ * Attach a file to the item. Not passing a cloud provider is currently unsupported.
+ *
+ * @param cloudProvider     If set, the cloud provider will be used for attaching
  */
-function attachFile() {
+function attachFile(cloudProvider) {
+    if (!cloudProvider) {
+        cal.ERROR("[calendar-event-dialog] Could not attach file wthout cloud provider" + cal.STACK(10));
+    }
+
     var files;
     try {
         const nsIFilePicker = Components.interfaces.nsIFilePicker;
-        var fp = Components.classes["@mozilla.org/filepicker;1"]
+        let fp = Components.classes["@mozilla.org/filepicker;1"]
                            .createInstance(nsIFilePicker);
         fp.init(window,
                 calGetString("calendar-event-dialog", "selectAFile"),
                 nsIFilePicker.modeOpenMultiple);
 
         // Check for the last directory
-        var lastDir = lastDirectory();
+        let lastDir = lastDirectory();
         if (lastDir) {
             fp.displayDirectory = lastDir;
         }
@@ -1723,11 +1733,11 @@ function attachFile() {
 
     // Create the attachment
     while (files.hasMoreElements()) {
-        var file = files.getNext().QueryInterface(Components.interfaces.nsILocalFile);
+        let file = files.getNext().QueryInterface(Components.interfaces.nsILocalFile);
 
-        var fileHandler = getIOService().getProtocolHandler("file")
-                                        .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
-        var uriSpec = fileHandler.getURLSpecFromFile(file);
+        let fileHandler = Services.io.getProtocolHandler("file")
+                                     .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+        let uriSpec = fileHandler.getURLSpecFromFile(file);
 
         if (!(uriSpec in gAttachMap)) {
             // If the attachment hasn't been added, then set the last display
@@ -1735,19 +1745,19 @@ function attachFile() {
             lastDirectory(uriSpec);
 
             // ... and add the attachment.
-            var attachment = createAttachment();
-            attachment.uri = makeURL(uriSpec);
-            // TODO: set the formattype, but this isn't urgent as we don't have
-            // a type sensitive dialog to start files.
-            addAttachment(attachment);
+            let attachment = cal.createAttachment();
+            if (cloudProvider) {
+                attachment.uri = makeURL(uriSpec);
+            } else {
+                // TODO read file into attachment
+            }
+            addAttachment(attachment, cloudProvider);
         }
     }
 }
 
 /**
  * Helper function to remember the last directory chosen when attaching files.
- * XXX This function is currently unused, will be needed when we support
- * attaching files.
  *
  * @param aFileUri    (optional) If passed, the last directory will be set and
  *                                 returned. If null, the last chosen directory
@@ -1785,11 +1795,62 @@ function makePrettyName(aUri){
 }
 
 /**
+ * Asynchronously uploads the given attachment to the cloud provider, updating
+ * the passed listItem as things progress.
+ *
+ * @param attachment        A calIAttachment to upload
+ * @param cloudProvider     The clould provider to upload to
+ * @param listItem          The listitem in attachment-link listbox to update.
+ */
+function uploadCloudAttachment(attachment, cloudProvider, listItem) {
+    let file = attachment.uri.QueryInterface(Components.interfaces.nsIFileURL).file;
+    listItem.attachLocalFile = file;
+    listItem.attachCloudProvider = cloudProvider;
+    cloudProvider.uploadFile(file, {
+        onStartRequest: function onStartRequest() {
+            listItem.setAttribute("image", "chrome://messenger/skin/icons/loading.png");
+        },
+
+        onStopRequest: function onStopRequest(aRequest, aContext, aStatusCode) {
+            if (Components.isSuccessCode(aStatusCode)) {
+                delete gAttachMap[attachment.hashId];
+                attachment.uri = makeURL(cloudProvider.urlForFile(file));
+                attachment.setParameter("FILENAME", file.leafName);
+                attachment.setParameter("PROVIDER", cloudProvider.type);
+                listItem.setAttribute("label", file.leafName);
+                gAttachMap[attachment.hashId] = attachment;
+                listItem.setAttribute("image", cloudProvider.iconClass);
+                updateAttachment();
+            } else {
+                cal.ERROR("[calendar-event-dialog] Uploading cloud attachment " +
+                          "failed. Status code: " + aStatusCode);
+
+                // Uploading failed. First of all, show an error icon. Also,
+                // delete it from the attach map now, this will make sure it is
+                // not serialized if the user saves.
+                listItem.setAttribute("image", "chrome://messenger/skin/icons/error.png");
+                delete gAttachMap[attachment.hashId];
+
+                // Keep the item for a while so the user can see something failed.
+                // When we have a nice notification bar, we can show more info
+                // about the failure.
+                setTimeout(function() {
+                    let documentLink = document.getElementById("attachment-link");
+                    documentLink.removeChild(listItem);
+                    updateAttachment();
+                }, 5000);
+            }
+        }
+    });
+}
+
+/**
  * Adds the given attachment to dialog controls.
  *
  * @param attachment    The calIAttachment object to add
+ * @param cloudProvider (optional) If set, the given cloud provider will be used.
  */
-function addAttachment(attachment) {
+function addAttachment(attachment, cloudProvider) {
     if (!attachment ||
         !attachment.hashId ||
         attachment.hashId in gAttachMap) {
@@ -1799,20 +1860,51 @@ function addAttachment(attachment) {
     // We currently only support uri attachments
     if (attachment.uri) {
         let documentLink = document.getElementById("attachment-link");
-        let item = documentLink.appendChild(createXULElement("listitem"));
+        let listItem = createXULElement("listitem");
 
         // Set listitem attributes
-        item.setAttribute("label", makePrettyName(attachment.uri));
-        item.setAttribute("crop", "end");
-        item.setAttribute("class", "listitem-iconic");
-        if (attachment.uri.schemeIs("file")) {
-            item.setAttribute("image", "moz-icon://" + attachment.uri);
+        listItem.setAttribute("label", makePrettyName(attachment.uri));
+        listItem.setAttribute("crop", "end");
+        listItem.setAttribute("class", "listitem-iconic");
+        listItem.setAttribute("tooltiptext", attachment.uri.spec);
+        if (cloudProvider) {
+            if (attachment.uri.schemeIs("file")) {
+                // Its still a local url, needs to be uploaded
+                listItem.setAttribute("image", "chrome://messenger/skin/icons/connecting.png");
+                uploadCloudAttachment(attachment, cloudProvider, listItem);
+            } else {
+                let leafName = attachment.getParameter("FILENAME");
+                listItem.setAttribute("image", cloudProvider.iconClass);
+                if (leafName) {
+                    listItem.setAttribute("label", leafName);
+                }
+            }
         } else {
-            item.setAttribute("image", "moz-icon://dummy.html");
+            if (attachment.uri.schemeIs("file")) {
+                listItem.setAttribute("image", "moz-icon://" + attachment.uri);
+            } else {
+                let leafName = attachment.getParameter("FILENAME");
+                let providerType = attachment.getParameter("PROVIDER");
+                let cloudFileEnabled = cal.getPrefSafe("mail.cloud_files.enabled", false);
+
+                if (leafName) {
+                    // TODO security issues?
+                    listItem.setAttribute("label", leafName);
+                }
+                if (providerType && cloudFileEnabled) {
+                    let cloudProvider = cloudFileAccounts.getProviderForType(providerType);
+                    listItem.setAttribute("image", cloudProvider.iconClass);
+                } else {
+                    listItem.setAttribute("image", "moz-icon://dummy.html");
+                }
+            }
         }
 
+        // Now that everything is set up, add it to the attachment box.
+        documentLink.appendChild(listItem);
+
         // full attachment object is stored here
-        item.attachment = attachment;
+        listItem.attachment = attachment;
 
         // Update the number of rows and save our attachment globally
         documentLink.rows = documentLink.getRowCount();
@@ -1828,9 +1920,31 @@ function addAttachment(attachment) {
  * XXX This could use a dialog maybe?
  */
 function deleteAttachment() {
-    var documentLink = document.getElementById("attachment-link");
-    delete gAttachMap[documentLink.selectedItem.attachment.hashId];
+    let documentLink = document.getElementById("attachment-link");
+    let item = documentLink.selectedItem;
+    delete gAttachMap[item.attachment.hashId];
     documentLink.removeItemAt(documentLink.selectedIndex);
+
+    if (item.attachLocalFile && item.attachCloudProvider) {
+        try {
+            item.attachCloudProvider.deleteFile(item.attachLocalFile, {
+                onStartRequest: function() {},
+                onStopRequest: function(aRequest, aContext, aStatusCode) {
+                    if (!Components.isSuccessCode(aStatusCode)) {
+                        // TODO With a notification bar, we could actually show this error.
+                        cal.ERROR("[calendar-event-dialog] Deleting cloud attachment " +
+                                  "failed, file will remain on server. " +
+                                  " Status code: " + aStatusCode);
+                    }
+                }
+            });
+        } catch (e) {
+            cal.ERROR("[calendar-event-dialog] Deleting cloud attachment " +
+                      "failed, file will remain on server. " +
+                      "Exception: " + e);
+        }
+    }
+
     updateAttachment();
 }
 
@@ -1940,9 +2054,11 @@ function updateCalendar() {
     gIsReadOnly = calendar.readOnly;
 
     // We might have to change the organizer, let's see
-    if (window.organizer && calendar.aclEntry) {
-      window.organizer.id = calendar.getProperty("organizerId");
-      window.organizer.commonName = calendar.getProperty("organizerCN");
+    let calendarOrgId = calendar.getProperty("organizerId");
+    if (window.organizer && calendar.aclEntry && calendarOrgId &&
+        calendar.id != item.calendar.id) {
+        window.organizer.id = calendarOrgId;
+        window.organizer.commonName = calendar.getProperty("organizerCN");
     }
 
     if (!canNotifyAttendees(calendar, item) && calendar.getProperty("imip.identity")) {
@@ -3088,29 +3204,7 @@ function showAttendeePopup(event) {
             responsiveAttendees++;
         }
 
-        // Construct the display string from common name and/or email address.
-        var re = new RegExp("^mailto:(.*)", "i");
-        var name = aAttendee.commonName;
-        if (name) {
-            var email = aAttendee.id;
-            if (email && email.length) {
-                if (re.test(email)) {
-                    name += ' <' + RegExp.$1 + '>';
-                } else {
-                    name += ' <' + email + '>';
-                }
-            }
-        } else {
-            var email = aAttendee.id;
-            if (email && email.length) {
-                if (re.test(email)) {
-                    name = RegExp.$1;
-                } else {
-                    name = email;
-                }
-            }
-        }
-        aNode.setAttribute("label", name);
+        aNode.setAttribute("label", aAttendee.toString());
         aNode.setAttribute("status", aAttendee.participationStatus);
         aNode.attendee = aAttendee;
     }

@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef _NSMSGUTILS_H
 #define _NSMSGUTILS_H
@@ -52,9 +20,9 @@
 #include "nsINetUtil.h"
 #include "nsServiceManagerUtils.h"
 #include "nsUnicharUtils.h"
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 
-class nsILocalFile;
+class nsIFile;
 class nsIPrefBranch;
 class nsIMsgFolder;
 class nsIMsgMessageService;
@@ -151,12 +119,12 @@ NS_MSG_BASE nsresult NS_GetPersistentFile(const char *relPrefName,
                                           const char *absPrefName,
                                           const char *dirServiceProp, // Can be NULL
                                           bool& gotRelPref,
-                                          nsILocalFile **aFile,
+                                          nsIFile **aFile,
                                           nsIPrefBranch *prefBranch = nsnull);
 
 NS_MSG_BASE nsresult NS_SetPersistentFile(const char *relPrefName,
                                           const char *absPrefName,
-                                          nsILocalFile *aFile,
+                                          nsIFile *aFile,
                                           nsIPrefBranch *prefBranch = nsnull);
 
 NS_MSG_BASE nsresult IsRFC822HeaderFieldName(const char *aHdr, bool *aResult);
@@ -195,17 +163,24 @@ NS_MSG_BASE void MsgGenerateNowStr(nsACString &nowStr);
 
 // Appends the correct summary file extension onto the supplied fileLocation
 // and returns it in summaryLocation.
-NS_MSG_BASE nsresult GetSummaryFileLocation(nsILocalFile* fileLocation,
-                                            nsILocalFile** summaryLocation);
+NS_MSG_BASE nsresult GetSummaryFileLocation(nsIFile* fileLocation,
+                                            nsIFile** summaryLocation);
 
 // Gets a special directory and appends the supplied file name onto it.
 NS_MSG_BASE nsresult GetSpecialDirectoryWithFileName(const char* specialDirName,
                                                      const char* fileName,
                                                      nsIFile** result);
 
-NS_MSG_BASE nsresult MsgGetFileStream(nsILocalFile *file, nsIOutputStream **fileStream);
+// cleanup temp files with the given filename and extension, including
+// the consecutive -NNNN ones that we can find. If there are holes, e.g.,
+// <filename>-1-10,12.<extension> exist, but <filename>-11.<extension> does not
+// we'll clean up 1-10. If the leaks are common, I think the gaps will tend to
+// be filled.
+NS_MSG_BASE nsresult MsgCleanupTempFiles(const char *fileName, const char *extension);
 
-NS_MSG_BASE nsresult MsgReopenFileStream(nsILocalFile *file, nsIInputStream *fileStream);
+NS_MSG_BASE nsresult MsgGetFileStream(nsIFile *file, nsIOutputStream **fileStream);
+
+NS_MSG_BASE nsresult MsgReopenFileStream(nsIFile *file, nsIInputStream *fileStream);
 
 // Automatically creates an output stream with a 4K buffer
 NS_MSG_BASE nsresult MsgNewBufferedFileOutputStream(nsIOutputStream **aResult, nsIFile *aFile, PRInt32 aIOFlags = -1, PRInt32 aPerm = -1);
@@ -216,8 +191,8 @@ NS_MSG_BASE bool MsgFindKeyword(const nsCString &keyword, nsCString &keywords, P
 
 NS_MSG_BASE bool MsgHostDomainIsTrusted(nsCString &host, nsCString &trustedMailDomains);
 
-// gets an nsILocalFile from a UTF-8 file:// path
-NS_MSG_BASE nsresult MsgGetLocalFileFromURI(const nsACString &aUTF8Path, nsILocalFile **aFile);
+// gets an nsIFile from a UTF-8 file:// path
+NS_MSG_BASE nsresult MsgGetLocalFileFromURI(const nsACString &aUTF8Path, nsIFile **aFile);
 
 NS_MSG_BASE void MsgStripQuotedPrintable (unsigned char *src);
 
@@ -304,10 +279,10 @@ NS_MSG_BASE PRUint64 ParseUint64Str(const char *str);
 /**
  * Detect charset of file
  *
- * @param      aFile    The target of nsILocalFile
+ * @param      aFile    The target of nsIFile
  * @param[out] aCharset The charset string
  */
-NS_MSG_BASE nsresult MsgDetectCharsetFromFile(nsILocalFile *aFile, nsACString &aCharset);
+NS_MSG_BASE nsresult MsgDetectCharsetFromFile(nsIFile *aFile, nsACString &aCharset);
 
 /*
  * Converts a buffer to plain text. Some conversions may
@@ -363,6 +338,8 @@ NS_MSG_BASE nsresult ConvertBufToPlainText(nsString &aConBuf, bool formatFlowed,
         (aString).ReplaceChar(aNeedle, aReplacement)
 #define MsgFind(str, what, ignore_case, offset) \
         (str).Find(what, ignore_case, offset)
+#define MsgCountChar(aString, aChar) \
+        (aString).CountChar(aChar)
 
 #else
 
@@ -410,15 +387,23 @@ inline PRInt32 MsgFind(nsAString &str, const char *what, bool ignore_case, PRUin
   return str.Find(what, offset, ignore_case);
 }
 
-inline PRInt32 MsgFind(nsACString &str, const char *what, bool ignore_case, PRUint32 offset)
+inline PRInt32 MsgFind(nsACString &str, const char *what, bool ignore_case, PRInt32 offset)
 {
+  /* See Find_ComputeSearchRange from nsStringObsolete.cpp */
+  if (offset < 0) {
+    offset = 0;
+  }
   if (ignore_case)
-    return str.Find(what, offset, CaseInsensitiveCompare);
-  return str.Find(what, offset);
+    return str.Find(nsDependentCString(what), offset, CaseInsensitiveCompare);
+  return str.Find(nsDependentCString(what), offset);
 }
 
-inline PRInt32 MsgFind(nsACString &str, const nsACString &what, bool ignore_case, PRUint32 offset)
+inline PRInt32 MsgFind(nsACString &str, const nsACString &what, bool ignore_case, PRInt32 offset)
 {
+  /* See Find_ComputeSearchRange from nsStringObsolete.cpp */
+  if (offset < 0) {
+    offset = 0;
+  }
   if (ignore_case)
     return str.Find(what, offset, CaseInsensitiveCompare);
   return str.Find(what, offset);
@@ -510,6 +495,22 @@ do_QueryElementAt( nsISupportsArray* array, PRUint32 aIndex, nsresult* aErrorPtr
 {
     return MsgQueryElementAt(array, aIndex, aErrorPtr);
 }
+/**
+ * Count occurences of specified character in string.
+ *
+ */
+inline
+PRUint32 MsgCountChar(nsACString &aString, PRUnichar aChar) {
+  const char *begin, *end;
+  PRUint32 num_chars = 0;
+  aString.BeginReading(&begin, &end);
+  for (const char *current = begin; current < end; ++current) {
+      if (*current == aChar)
+        ++num_chars;
+  }
+  return num_chars;
+}
+
 #endif
 
 #endif

@@ -1,45 +1,13 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *  Josh Aas <josh@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "base/basictypes.h"
 
 #include "jsapi.h"
 #include "jsfriendapi.h"
+#include "jswrapper.h"
 
 #include "nsIInterfaceRequestorUtils.h"
 #include "nsJSNPRuntime.h"
@@ -143,27 +111,27 @@ NPClass nsJSObjWrapper::sJSObjWrapperNPClass =
   };
 
 static JSBool
-NPObjWrapper_AddProperty(JSContext *cx, JSObject *obj, jsid id, jsval *vp);
+NPObjWrapper_AddProperty(JSContext *cx, JSHandleObject obj, JSHandleId id, jsval *vp);
 
 static JSBool
-NPObjWrapper_DelProperty(JSContext *cx, JSObject *obj, jsid id, jsval *vp);
+NPObjWrapper_DelProperty(JSContext *cx, JSHandleObject obj, JSHandleId id, jsval *vp);
 
 static JSBool
-NPObjWrapper_SetProperty(JSContext *cx, JSObject *obj, jsid id, JSBool strict, jsval *vp);
+NPObjWrapper_SetProperty(JSContext *cx, JSHandleObject obj, JSHandleId id, JSBool strict, jsval *vp);
 
 static JSBool
-NPObjWrapper_GetProperty(JSContext *cx, JSObject *obj, jsid id, jsval *vp);
+NPObjWrapper_GetProperty(JSContext *cx, JSHandleObject obj, JSHandleId id, jsval *vp);
 
 static JSBool
-NPObjWrapper_newEnumerate(JSContext *cx, JSObject *obj, JSIterateOp enum_op,
+NPObjWrapper_newEnumerate(JSContext *cx, JSHandleObject obj, JSIterateOp enum_op,
                           jsval *statep, jsid *idp);
 
 static JSBool
-NPObjWrapper_NewResolve(JSContext *cx, JSObject *obj, jsid id, unsigned flags,
-                        JSObject **objp);
+NPObjWrapper_NewResolve(JSContext *cx, JSHandleObject obj, JSHandleId id, unsigned flags,
+                        JSMutableHandleObject objp);
 
 static JSBool
-NPObjWrapper_Convert(JSContext *cx, JSObject *obj, JSType type, jsval *vp);
+NPObjWrapper_Convert(JSContext *cx, JSHandleObject obj, JSType type, jsval *vp);
 
 static void
 NPObjWrapper_Finalize(JSFreeOp *fop, JSObject *obj);
@@ -182,11 +150,17 @@ static JSClass sNPObjectJSWrapperClass =
   {
     NPRUNTIME_JSCLASS_NAME,
     JSCLASS_HAS_PRIVATE | JSCLASS_IMPLEMENTS_BARRIERS | JSCLASS_NEW_RESOLVE | JSCLASS_NEW_ENUMERATE,
-    NPObjWrapper_AddProperty, NPObjWrapper_DelProperty,
-    NPObjWrapper_GetProperty, NPObjWrapper_SetProperty,
+    NPObjWrapper_AddProperty,
+    NPObjWrapper_DelProperty,
+    NPObjWrapper_GetProperty,
+    NPObjWrapper_SetProperty,
     (JSEnumerateOp)NPObjWrapper_newEnumerate,
-    (JSResolveOp)NPObjWrapper_NewResolve, NPObjWrapper_Convert,
-    NPObjWrapper_Finalize, nsnull, NPObjWrapper_Call,
+    (JSResolveOp)NPObjWrapper_NewResolve,
+    NPObjWrapper_Convert,
+    NPObjWrapper_Finalize,
+    nsnull,                                                /* checkAccess */
+    NPObjWrapper_Call,
+    nsnull,                                                /* hasInstance */
     NPObjWrapper_Construct
   };
 
@@ -198,7 +172,7 @@ typedef struct NPObjectMemberPrivate {
 } NPObjectMemberPrivate;
 
 static JSBool
-NPObjectMember_Convert(JSContext *cx, JSObject *obj, JSType type, jsval *vp);
+NPObjectMember_Convert(JSContext *cx, JSHandleObject obj, JSType type, jsval *vp);
 
 static void
 NPObjectMember_Finalize(JSFreeOp *fop, JSObject *obj);
@@ -492,8 +466,28 @@ JSValToNPVariant(NPP npp, JSContext *cx, jsval val, NPVariant *variant)
     return true;
   }
 
-  NPObject *npobj =
-    nsJSObjWrapper::GetNewOrUsed(npp, cx, JSVAL_TO_OBJECT(val));
+  // The reflected plugin object may be in another compartment if the plugin
+  // element has since been adopted into a new document. We don't bother
+  // transplanting the plugin objects, and just do a unwrap with security
+  // checks if we encounter one of them as an argument. If the unwrap fails,
+  // we clear the pending exception and just run with the original wrapped object,
+  // since sometimes there are legitimate cases where a security wrapper ends
+  // up here (for example, Location objects, which are _always_ behind security
+  // wrappers).
+  //
+  // NB: In addition to clearing the pending exception, we also have to temporarily
+  // disable the error reporter, because SpiderMonkey calls it directly if there's
+  // no JS code on the stack, which might be the case here.
+  JSObject *obj = JSVAL_TO_OBJECT(val);
+  JSErrorReporter reporter = JS_SetErrorReporter(cx, NULL);
+  obj = js::UnwrapObjectChecked(cx, obj);
+  JS_SetErrorReporter(cx, reporter);
+  if (!obj) {
+    JS_ClearPendingException(cx);
+    obj = JSVAL_TO_OBJECT(val);
+  }
+
+  NPObject *npobj = nsJSObjWrapper::GetNewOrUsed(npp, cx, obj);
   if (!npobj) {
     return false;
   }
@@ -1153,13 +1147,31 @@ nsJSObjWrapper::GetNewOrUsed(NPP npp, JSContext *cx, JSObject *obj)
   return wrapper;
 }
 
-static NPObject *
-GetNPObject(JSObject *obj)
+// Climb the prototype chain, unwrapping as necessary until we find an NP object
+// wrapper.
+//
+// Because this function unwraps, its return value must be wrapped for the cx
+// compartment for callers that plan to hold onto the result or do anything
+// substantial with it.
+static JSObject *
+GetNPObjectWrapper(JSContext *cx, JSObject *obj, bool wrapResult = true)
 {
-  while (obj && JS_GetClass(obj) != &sNPObjectJSWrapperClass) {
+  while (obj && (obj = js::UnwrapObjectChecked(cx, obj))) {
+    if (JS_GetClass(obj) == &sNPObjectJSWrapperClass) {
+      if (wrapResult && !JS_WrapObject(cx, &obj)) {
+        return NULL;
+      }
+      return obj;
+    }
     obj = ::JS_GetPrototype(obj);
   }
+  return NULL;
+}
 
+static NPObject *
+GetNPObject(JSContext *cx, JSObject *obj)
+{
+  obj = GetNPObjectWrapper(cx, obj, /* wrapResult = */ false);
   if (!obj) {
     return nsnull;
   }
@@ -1171,9 +1183,9 @@ GetNPObject(JSObject *obj)
 // Does not actually add a property because this is always followed by a
 // SetProperty call.
 static JSBool
-NPObjWrapper_AddProperty(JSContext *cx, JSObject *obj, jsid id, jsval *vp)
+NPObjWrapper_AddProperty(JSContext *cx, JSHandleObject obj, JSHandleId id, jsval *vp)
 {
-  NPObject *npobj = GetNPObject(obj);
+  NPObject *npobj = GetNPObject(cx, obj);
 
   if (!npobj || !npobj->_class || !npobj->_class->hasProperty ||
       !npobj->_class->hasMethod) {
@@ -1212,9 +1224,9 @@ NPObjWrapper_AddProperty(JSContext *cx, JSObject *obj, jsid id, jsval *vp)
 }
 
 static JSBool
-NPObjWrapper_DelProperty(JSContext *cx, JSObject *obj, jsid id, jsval *vp)
+NPObjWrapper_DelProperty(JSContext *cx, JSHandleObject obj, JSHandleId id, jsval *vp)
 {
-  NPObject *npobj = GetNPObject(obj);
+  NPObject *npobj = GetNPObject(cx, obj);
 
   if (!npobj || !npobj->_class || !npobj->_class->hasProperty ||
       !npobj->_class->removeProperty) {
@@ -1243,9 +1255,9 @@ NPObjWrapper_DelProperty(JSContext *cx, JSObject *obj, jsid id, jsval *vp)
 }
 
 static JSBool
-NPObjWrapper_SetProperty(JSContext *cx, JSObject *obj, jsid id, JSBool strict, jsval *vp)
+NPObjWrapper_SetProperty(JSContext *cx, JSHandleObject obj, JSHandleId id, JSBool strict, jsval *vp)
 {
-  NPObject *npobj = GetNPObject(obj);
+  NPObject *npobj = GetNPObject(cx, obj);
 
   if (!npobj || !npobj->_class || !npobj->_class->hasProperty ||
       !npobj->_class->setProperty) {
@@ -1302,9 +1314,9 @@ NPObjWrapper_SetProperty(JSContext *cx, JSObject *obj, jsid id, JSBool strict, j
 }
 
 static JSBool
-NPObjWrapper_GetProperty(JSContext *cx, JSObject *obj, jsid id, jsval *vp)
+NPObjWrapper_GetProperty(JSContext *cx, JSHandleObject obj, JSHandleId id, jsval *vp)
 {
-  NPObject *npobj = GetNPObject(obj);
+  NPObject *npobj = GetNPObject(cx, obj);
 
   if (!npobj || !npobj->_class || !npobj->_class->hasProperty ||
       !npobj->_class->hasMethod || !npobj->_class->getProperty) {
@@ -1392,17 +1404,7 @@ static JSBool
 CallNPMethodInternal(JSContext *cx, JSObject *obj, unsigned argc, jsval *argv,
                      jsval *rval, bool ctorCall)
 {
-  while (obj && JS_GetClass(obj) != &sNPObjectJSWrapperClass) {
-    obj = ::JS_GetPrototype(obj);
-  }
-
-  if (!obj) {
-    ThrowJSException(cx, "NPMethod called on non-NPObject wrapped JSObject!");
-
-    return JS_FALSE;
-  }
-
-  NPObject *npobj = (NPObject *)::JS_GetPrivate(obj);
+  NPObject *npobj = GetNPObject(cx, obj);
 
   if (!npobj || !npobj->_class) {
     ThrowJSException(cx, "Bad NPObject as private data!");
@@ -1542,10 +1544,10 @@ struct NPObjectEnumerateState {
 };
 
 static JSBool
-NPObjWrapper_newEnumerate(JSContext *cx, JSObject *obj, JSIterateOp enum_op,
+NPObjWrapper_newEnumerate(JSContext *cx, JSHandleObject obj, JSIterateOp enum_op,
                           jsval *statep, jsid *idp)
 {
-  NPObject *npobj = GetNPObject(obj);
+  NPObject *npobj = GetNPObject(cx, obj);
   NPIdentifier *enum_value;
   uint32_t length;
   NPObjectEnumerateState *state;
@@ -1622,10 +1624,10 @@ NPObjWrapper_newEnumerate(JSContext *cx, JSObject *obj, JSIterateOp enum_op,
 }
 
 static JSBool
-NPObjWrapper_NewResolve(JSContext *cx, JSObject *obj, jsid id, unsigned flags,
-                        JSObject **objp)
+NPObjWrapper_NewResolve(JSContext *cx, JSHandleObject obj, JSHandleId id, unsigned flags,
+                        JSMutableHandleObject objp)
 {
-  NPObject *npobj = GetNPObject(obj);
+  NPObject *npobj = GetNPObject(cx, obj);
 
   if (!npobj || !npobj->_class || !npobj->_class->hasProperty ||
       !npobj->_class->hasMethod) {
@@ -1650,7 +1652,7 @@ NPObjWrapper_NewResolve(JSContext *cx, JSObject *obj, jsid id, unsigned flags,
         return JS_FALSE;
     }
 
-    *objp = obj;
+    objp.set(obj);
 
     return JS_TRUE;
   }
@@ -1666,7 +1668,7 @@ NPObjWrapper_NewResolve(JSContext *cx, JSObject *obj, jsid id, unsigned flags,
     JSFunction *fnc = ::JS_DefineFunctionById(cx, obj, id, CallNPMethod, 0,
                                               JSPROP_ENUMERATE);
 
-    *objp = obj;
+    objp.set(obj);
 
     return fnc != nsnull;
   }
@@ -1676,7 +1678,7 @@ NPObjWrapper_NewResolve(JSContext *cx, JSObject *obj, jsid id, unsigned flags,
 }
 
 static JSBool
-NPObjWrapper_Convert(JSContext *cx, JSObject *obj, JSType hint, jsval *vp)
+NPObjWrapper_Convert(JSContext *cx, JSHandleObject obj, JSType hint, jsval *vp)
 {
   JS_ASSERT(hint == JSTYPE_NUMBER || hint == JSTYPE_STRING || hint == JSTYPE_VOID);
 
@@ -1785,7 +1787,7 @@ nsNPObjWrapper::OnDestroy(NPObject *npobj)
     // Remove the npobj from the hash now that it went away.
     PL_DHashTableRawRemove(&sNPObjWrappers, entry);
 
-    OnWrapperDestroyed();
+    // The finalize hook will call OnWrapperDestroyed().
   }
 }
 
@@ -1804,7 +1806,11 @@ nsNPObjWrapper::GetNewOrUsed(NPP npp, JSContext *cx, NPObject *npobj)
   if (npobj->_class == &nsJSObjWrapper::sJSObjWrapperNPClass) {
     // npobj is one of our own, return its existing JSObject.
 
-    return ((nsJSObjWrapper *)npobj)->mJSObj;
+    JSObject *obj = ((nsJSObjWrapper *)npobj)->mJSObj;
+    if (!JS_WrapObject(cx, &obj)) {
+      return NULL;
+    }
+    return obj;
   }
 
   if (!npp) {
@@ -1835,8 +1841,13 @@ nsNPObjWrapper::GetNewOrUsed(NPP npp, JSContext *cx, NPObject *npobj)
   }
 
   if (PL_DHASH_ENTRY_IS_BUSY(entry) && entry->mJSObj) {
-    // Found a live NPObject wrapper, return it.
-    return entry->mJSObj;
+    // Found a live NPObject wrapper. It may not be in the same compartment
+    // as cx, so we need to wrap it before returning it.
+    JSObject *obj = entry->mJSObj;
+    if (!JS_WrapObject(cx, &obj)) {
+      return NULL;
+    }
+    return obj;
   }
 
   entry->mNPObj = npobj;
@@ -1985,8 +1996,7 @@ nsJSNPRuntime::OnPluginDestroy(NPP npp)
     return;
   }
 
-  JSContext *cx;
-  stack->GetSafeJSContext(&cx);
+  JSContext* cx = stack->GetSafeJSContext();
   if (!cx) {
     NS_ERROR("No safe JS context available!");
 
@@ -2067,7 +2077,9 @@ nsJSNPRuntime::OnPluginDestroy(NPP npp)
   // more than one of the plugin's scriptable objects on the prototype
   // chain).
   while (obj && (proto = ::JS_GetPrototype(obj))) {
-    if (JS_GetClass(proto) == &sNPObjectJSWrapperClass) {
+    // Unwrap while checking the jsclass - if the prototype is a wrapper for
+    // an NP object, that counts too.
+    if (JS_GetClass(js::UnwrapObject(proto)) == &sNPObjectJSWrapperClass) {
       // We found an NPObject on the proto chain, get its prototype...
       proto = ::JS_GetPrototype(proto);
 
@@ -2164,9 +2176,7 @@ CreateNPObjectMember(NPP npp, JSContext *cx, JSObject *obj, NPObject* npobj,
   // npobjWrapper is the JSObject through which we make sure we don't
   // outlive the underlying NPObject, so make sure it points to the
   // real JSObject wrapper for the NPObject.
-  while (JS_GetClass(obj) != &sNPObjectJSWrapperClass) {
-    obj = ::JS_GetPrototype(obj);
-  }
+  obj = GetNPObjectWrapper(cx, obj);
 
   memberPrivate->npobjWrapper = obj;
 
@@ -2180,7 +2190,7 @@ CreateNPObjectMember(NPP npp, JSContext *cx, JSObject *obj, NPObject* npobj,
 }
 
 static JSBool
-NPObjectMember_Convert(JSContext *cx, JSObject *obj, JSType type, jsval *vp)
+NPObjectMember_Convert(JSContext *cx, JSHandleObject obj, JSType type, jsval *vp)
 {
   NPObjectMemberPrivate *memberPrivate =
     (NPObjectMemberPrivate *)::JS_GetInstancePrivate(cx, obj,
@@ -2238,7 +2248,7 @@ NPObjectMember_Call(JSContext *cx, unsigned argc, jsval *vp)
   if (!memberPrivate || !memberPrivate->npobjWrapper)
     return JS_FALSE;
 
-  NPObject *npobj = GetNPObject(memberPrivate->npobjWrapper);
+  NPObject *npobj = GetNPObject(cx, memberPrivate->npobjWrapper);
   if (!npobj) {
     ThrowJSException(cx, "Call on invalid member object");
 

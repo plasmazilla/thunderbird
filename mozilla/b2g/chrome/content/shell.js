@@ -12,43 +12,40 @@ const Cr = Components.results;
 Cu.import('resource://gre/modules/XPCOMUtils.jsm');
 Cu.import('resource://gre/modules/Services.jsm');
 Cu.import('resource://gre/modules/ContactService.jsm');
+Cu.import('resource://gre/modules/SettingsChangeNotifier.jsm');
 Cu.import('resource://gre/modules/Webapps.jsm');
+Cu.import('resource://gre/modules/AlarmService.jsm');
 
-XPCOMUtils.defineLazyGetter(Services, 'env', function() {
-  return Cc['@mozilla.org/process/environment;1']
-           .getService(Ci.nsIEnvironment);
-});
+XPCOMUtils.defineLazyServiceGetter(Services, 'env',
+                                   '@mozilla.org/process/environment;1',
+                                   'nsIEnvironment');
 
-XPCOMUtils.defineLazyGetter(Services, 'ss', function() {
-  return Cc['@mozilla.org/content/style-sheet-service;1']
-           .getService(Ci.nsIStyleSheetService);
-});
+XPCOMUtils.defineLazyServiceGetter(Services, 'ss',
+                                   '@mozilla.org/content/style-sheet-service;1',
+                                   'nsIStyleSheetService');
 
-XPCOMUtils.defineLazyGetter(Services, 'idle', function() {
-  return Cc['@mozilla.org/widget/idleservice;1']
-           .getService(Ci.nsIIdleService);
-});
-
-XPCOMUtils.defineLazyGetter(Services, 'audioManager', function() {
 #ifdef MOZ_WIDGET_GONK
-  return Cc['@mozilla.org/telephony/audiomanager;1']
-           .getService(Ci.nsIAudioManager);
+XPCOMUtils.defineLazyServiceGetter(Services, 'audioManager',
+                                   '@mozilla.org/telephony/audiomanager;1',
+                                   'nsIAudioManager');
 #else
-  return {
-    "masterVolume": 0
-  };
+Services.audioManager = {
+  'masterVolume': 0
+};
 #endif
-});
 
-XPCOMUtils.defineLazyServiceGetter(Services, 'fm', function() {
-  return Cc['@mozilla.org/focus-manager;1']
-           .getService(Ci.nsFocusManager);
-});
+XPCOMUtils.defineLazyServiceGetter(Services, 'fm',
+                                   '@mozilla.org/focus-manager;1',
+                                   'nsIFocusManager');
 
 XPCOMUtils.defineLazyGetter(this, 'DebuggerServer', function() {
   Cu.import('resource://gre/modules/devtools/dbg-server.jsm');
   return DebuggerServer;
 });
+
+function getContentWindow() {
+  return shell.contentBrowser.contentWindow;
+}
 
 // FIXME Bug 707625
 // until we have a proper security model, add some rights to
@@ -56,10 +53,10 @@ XPCOMUtils.defineLazyGetter(this, 'DebuggerServer', function() {
 // XXX never grant 'content-camera' to non-gaia apps
 function addPermissions(urls) {
   let permissions = [
-    'indexedDB', 'indexedDB-unlimited', 'webapps-manage', 'offline-app', 'pin-app',
+    'indexedDB-unlimited', 'webapps-manage', 'offline-app', 'pin-app',
     'websettings-read', 'websettings-readwrite',
     'content-camera', 'webcontacts-manage', 'wifi-manage', 'desktop-notification',
-    'geolocation'
+    'geolocation', 'device-storage', 'alarms'
   ];
   urls.forEach(function(url) {
     url = url.trim();
@@ -73,8 +70,6 @@ function addPermissions(urls) {
 }
 
 var shell = {
-  isDebug: false,
-
   get contentBrowser() {
     delete this.contentBrowser;
     return this.contentBrowser = document.getElementById('homescreen');
@@ -90,6 +85,10 @@ var shell = {
     return Services.prefs.getCharPref('browser.homescreenURL');
   },
 
+  get manifestURL() {
+    return Services.prefs.getCharPref('browser.manifestURL');
+   },
+
   start: function shell_start() {
     let homeURL = this.homeURL;
     if (!homeURL) {
@@ -97,6 +96,27 @@ var shell = {
       alert(msg);
       return;
     }
+
+    let manifestURL = this.manifestURL;
+    // <html:iframe id="homescreen"
+    //              mozbrowser="true" mozallowfullscreen="true"
+    //              style="overflow: hidden; -moz-box-flex: 1; border: none;"
+    //              src="data:text/html;charset=utf-8,%3C!DOCTYPE html>%3Cbody style='background:black;'>"/>
+    let browserFrame =
+      document.createElementNS('http://www.w3.org/1999/xhtml', 'html:iframe');
+    browserFrame.setAttribute('id', 'homescreen');
+    browserFrame.setAttribute('mozbrowser', 'true');
+    browserFrame.setAttribute('mozapp', manifestURL);
+    browserFrame.setAttribute('mozallowfullscreen', 'true');
+    browserFrame.setAttribute('style', "overflow: hidden; -moz-box-flex: 1; border: none;");
+    browserFrame.setAttribute('src', "data:text/html;charset=utf-8,%3C!DOCTYPE html>%3Cbody style='background:black;");
+    document.getElementById('shell').appendChild(browserFrame);
+
+    browserFrame.contentWindow
+                .QueryInterface(Ci.nsIInterfaceRequestor)
+                .getInterface(Ci.nsIWebNavigation)
+                .sessionHistory = Cc["@mozilla.org/browser/shistory;1"]
+                                    .createInstance(Ci.nsISHistory);
 
     ['keydown', 'keypress', 'keyup'].forEach((function listenKey(type) {
       window.addEventListener(type, this, false, true);
@@ -106,7 +126,7 @@ var shell = {
     window.addEventListener('MozApplicationManifest', this);
     window.addEventListener('mozfullscreenchange', this);
     window.addEventListener('sizemodechange', this);
-    this.contentBrowser.addEventListener('load', this, true);
+    this.contentBrowser.addEventListener('mozbrowserloadstart', this, true);
 
     // Until the volume can be set from the content side, set it to a
     // a specific value when the device starts. This way the front-end
@@ -126,113 +146,60 @@ var shell = {
 
     addPermissions(domains.split(","));
 
-    // Load webapi.js as a frame script
-    let frameScriptUrl = 'chrome://browser/content/webapi.js';
-    try {
-      messageManager.loadFrameScript(frameScriptUrl, true);
-    } catch (e) {
-      dump('Error loading ' + frameScriptUrl + ' as a frame script: ' + e + '\n');
-    }
-
     CustomEventManager.init();
-
     WebappsHelper.init();
 
-    let browser = this.contentBrowser;
-    browser.homePage = homeURL;
-    browser.goHome();
+    // XXX could factor out into a settings->pref map.  Not worth it yet.
+    SettingsListener.observe("debug.fps.enabled", false, function(value) {
+      Services.prefs.setBoolPref("layers.acceleration.draw-fps", value);
+    });
+    SettingsListener.observe("debug.paint-flashing.enabled", false, function(value) {
+      Services.prefs.setBoolPref("nglayout.debug.paint_flashing", value);
+    });
+
+    this.contentBrowser.src = homeURL;
   },
 
   stop: function shell_stop() {
+    ['keydown', 'keypress', 'keyup'].forEach((function unlistenKey(type) {
+      window.removeEventListener(type, this, false, true);
+      window.removeEventListener(type, this, true, true);
+    }).bind(this));
+
     window.removeEventListener('MozApplicationManifest', this);
     window.removeEventListener('mozfullscreenchange', this);
     window.removeEventListener('sizemodechange', this);
+    this.contentBrowser.removeEventListener('mozbrowserloadstart', this, true);
+
+#ifndef MOZ_WIDGET_GONK
+    delete Services.audioManager;
+#endif
   },
 
-  toggleDebug: function shell_toggleDebug() {
-    this.isDebug = !this.isDebug;
-
-    if (this.isDebug) {
-      Services.prefs.setBoolPref("layers.acceleration.draw-fps", true);
-      Services.prefs.setBoolPref("nglayout.debug.paint_flashing", true);
-    } else {
-      Services.prefs.setBoolPref("layers.acceleration.draw-fps", false);
-      Services.prefs.setBoolPref("nglayout.debug.paint_flashing", false);
-    }
-  },
- 
-  changeVolume: function shell_changeVolume(delta) {
-    let steps = 10;
-    try {
-      steps = Services.prefs.getIntPref("media.volume.steps");
-      if (steps <= 0)
-        steps = 1;
-    } catch(e) {}
-
-    let audioManager = Services.audioManager;
-    if (!audioManager)
-      return;
-
-    let volume = audioManager.masterVolume + delta / steps;
-    if (volume > 1)
-      volume = 1;
-    if (volume < 0)
-      volume = 0;
-    audioManager.masterVolume = volume;
-  },
-
-  forwardKeyToHomescreen: function shell_forwardKeyToHomescreen(evt) {
+  forwardKeyToContent: function shell_forwardKeyToContent(evt) {
+    let content = shell.contentBrowser.contentWindow;
     let generatedEvent = content.document.createEvent('KeyboardEvent');
     generatedEvent.initKeyEvent(evt.type, true, true, evt.view, evt.ctrlKey,
                                 evt.altKey, evt.shiftKey, evt.metaKey,
                                 evt.keyCode, evt.charCode);
 
-    content.dispatchEvent(generatedEvent);
+    content.document.documentElement.dispatchEvent(generatedEvent);
   },
 
   handleEvent: function shell_handleEvent(evt) {
+    let content = this.contentBrowser.contentWindow;
     switch (evt.type) {
       case 'keydown':
       case 'keyup':
       case 'keypress':
-        // If the home key is pressed, always forward it to the homescreen
-        if (evt.eventPhase == evt.CAPTURING_PHASE) {
-          if (evt.keyCode == evt.VK_DOM_HOME) {
-            window.setTimeout(this.forwardKeyToHomescreen, 0, evt);
-            evt.preventDefault();
-            evt.stopPropagation();
-          } 
-          return;
-        }
-
-        // If one of the other keys is used in an application and is
-        // cancelled via preventDefault, do nothing.
-        let homescreen = (evt.target.ownerDocument.defaultView == content);
-        if (!homescreen && evt.defaultPrevented)
-          return;
-
-        // If one of the other keys is used in an application and is
-        // not used forward it to the homescreen
-        if (!homescreen)
-          window.setTimeout(this.forwardKeyToHomescreen, 0, evt);
-
-        // For debug purposes and because some of the APIs are not yet exposed
-        // to the content, let's react on some of the keyup events.
-        if (evt.type == 'keyup') {
-          switch (evt.keyCode) {
-            case evt.DOM_VK_F5:
-              if (Services.prefs.getBoolPref('b2g.keys.search.enabled'))
-                this.toggleDebug();
-              break;
-  
-            case evt.DOM_VK_PAGE_DOWN:
-              this.changeVolume(-1);
-              break;
-  
-            case evt.DOM_VK_PAGE_UP:
-              this.changeVolume(1);
-              break;
-          }
+        // Redirect the HOME key to System app and stop the applications from
+        // handling it.
+        let rootContentEvt = (evt.target.ownerDocument.defaultView == content);
+        if (!rootContentEvt && evt.eventPhase == evt.CAPTURING_PHASE &&
+            evt.keyCode == evt.DOM_VK_HOME) {
+          this.forwardKeyToContent(evt);
+          evt.preventDefault();
+          evt.stopImmediatePropagation();
         }
         break;
 
@@ -245,13 +212,16 @@ var shell = {
         break;
       case 'sizemodechange':
         if (window.windowState == window.STATE_MINIMIZED) {
-          this.contentBrowser.docShell.isActive = false;
+          this.contentBrowser.setVisible(false);
         } else {
-          this.contentBrowser.docShell.isActive = true;
+          this.contentBrowser.setVisible(true);
         }
         break;
-      case 'load':
-        this.contentBrowser.removeEventListener('load', this, true);
+      case 'mozbrowserloadstart':
+        if (content.document.location == 'about:blank')
+          return;
+
+        this.contentBrowser.removeEventListener('mozbrowserloadstart', this, true);
 
         let chromeWindow = window.QueryInterface(Ci.nsIDOMChromeWindow);
         chromeWindow.browserDOMWindow = new nsBrowserAccess();
@@ -301,70 +271,6 @@ var shell = {
   }
 };
 
-(function PowerManager() {
-  // This will eventually be moved to content, so use content API as
-  // much as possible here. TODO: Bug 738530
-  let power = navigator.mozPower;
-  let idleHandler = function idleHandler(subject, topic, time) {
-    if (topic === "idle") {
-      if (power.getWakeLockState("screen") != "locked-foreground") {
-        navigator.mozPower.screenEnabled = false;
-      }
-    }
-  }
-
-  let wakeLockHandler = function wakeLockHandler(topic, state) {
-    // Turn off the screen when no one needs the it or all of them are
-    // invisible, otherwise turn the screen on. Note that the CPU
-    // might go to sleep as soon as the screen is turned off and
-    // acquiring wake lock will not bring it back (actually the code
-    // is not executed at all).
-    if (topic == "screen") {
-      if (state != "locked-foreground") {
-        if (Services.idle.idleTime > idleTimeout*1000) {
-          navigator.mozPower.screenEnabled = false;
-        }
-      } else {
-        navigator.mozPower.screenEnabled = true;
-      }
-    }
-    if (topic == "cpu") {
-      navigator.mozPower.cpuSleepAllowed = (state != "locked-foreground" &&
-                                            state != "locked-background");
-    }
-  }
-
-  let idleTimeout = Services.prefs.getIntPref("power.screen.timeout");
-  if (!('mozSettings' in navigator))
-    return;
-
-  let request = navigator.mozSettings.getLock().get("power.screen.timeout");
-  request.onsuccess = function onSuccess() {
-    idleTimeout = request.result["power.screen.timeout"] || idleTimeout;
-    if (idleTimeout) {
-      Services.idle.addIdleObserver(idleHandler, idleTimeout);
-      power.addWakeLockListener(wakeLockHandler);
-    }
-  };
-
-  request.onerror = function onError() {
-    if (idleTimeout) {
-      Services.idle.addIdleObserver(idleHandler, idleTimeout);
-      power.addWakeLockListener(wakeLockHandler);
-    }
-  };
-
-  // XXX We may override other's callback here, but this is the only
-  // user of mozSettings in shell.js at this moment.
-  navigator.mozSettings.onsettingchange = function onSettingChange(e) {
-    if (e.settingName == "power.screen.timeout" && e.settingValue) {
-      Services.idle.removeIdleObserver(idleHandler, idleTimeout);
-      idleTimeout = e.settingValue;
-      Services.idle.addIdleObserver(idleHandler, idleTimeout);
-    }
-  };
-})();
-
 function nsBrowserAccess() {
 }
 
@@ -373,6 +279,7 @@ nsBrowserAccess.prototype = {
 
   openURI: function openURI(uri, opener, where, context) {
     // TODO This should be replaced by an 'open-browser-window' intent
+    let content = shell.contentBrowser.contentWindow;
     let contentWindow = content.wrappedJSObject;
     if (!('getApplicationManager' in contentWindow))
       return null;
@@ -395,15 +302,16 @@ nsBrowserAccess.prototype = {
   }
 };
 
-// Pipe `console` log messages to the nsIConsoleService which writes them
-// to logcat.
-Services.obs.addObserver(function onConsoleAPILogEvent(subject, topic, data) {
-  let message = subject.wrappedJSObject;
-  let prefix = "Content JS " + message.level.toUpperCase() +
-               " at " + message.filename + ":" + message.lineNumber +
-               " in " + (message.functionName || "anonymous") + ": ";
-  Services.console.logStringMessage(prefix + Array.join(message.arguments, " "));
-}, "console-api-log-event", false);
+// Listen for system messages and relay them to Gaia.
+Services.obs.addObserver(function(aSubject, aTopic, aData) {
+  let msg = JSON.parse(aData);
+  let origin = Services.io.newURI(msg.manifest, null, null).prePath;
+  shell.sendEvent(shell.contentBrowser.contentWindow,
+                  "mozChromeEvent", { type: "open-app",
+                                      url: msg.uri,
+                                      origin: origin,
+                                      manifest: msg.manifest } );
+}, "system-messages-open-app", false);
 
 (function Repl() {
   if (!Services.prefs.getBoolPref('b2g.remote-js.enabled')) {
@@ -454,22 +362,26 @@ Services.obs.addObserver(function onConsoleAPILogEvent(subject, topic, data) {
 var CustomEventManager = {
   init: function custevt_init() {
     window.addEventListener("ContentStart", (function(evt) {
+      let content = shell.contentBrowser.contentWindow;
       content.addEventListener("mozContentEvent", this, false, true);
     }).bind(this), false);
   },
 
   handleEvent: function custevt_handleEvent(evt) {
     let detail = evt.detail;
-    dump("XXX FIXME : Got a mozContentEvent: " + detail.type);
+    dump('XXX FIXME : Got a mozContentEvent: ' + detail.type + "\n");
 
     switch(detail.type) {
-      case "desktop-notification-click":
-      case "desktop-notification-close":
+      case 'desktop-notification-click':
+      case 'desktop-notification-close':
         AlertsHelper.handleEvent(detail);
         break;
-      case "webapps-install-granted":
-      case "webapps-install-denied":
+      case 'webapps-install-granted':
+      case 'webapps-install-denied':
         WebappsHelper.handleEvent(detail);
+        break;
+      case 'select-choicechange':
+        FormsHelper.handleEvent(detail);
         break;
     }
   }
@@ -498,10 +410,11 @@ var AlertsHelper = {
     return id;
   },
 
-  showAlertNotification: function alert_showAlertNotification(imageUrl, title, text, textClickable, 
+  showAlertNotification: function alert_showAlertNotification(imageUrl, title, text, textClickable,
                                                               cookie, alertListener, name) {
     let id = this.registerListener(cookie, alertListener);
-    shell.sendEvent(content, "mozChromeEvent", { type: "desktop-notification", id: id, icon: imageUrl, 
+    let content = shell.contentBrowser.contentWindow;
+    shell.sendEvent(content, "mozChromeEvent", { type: "desktop-notification", id: id, icon: imageUrl,
                                                  title: title, text: text } );
   }
 }
@@ -513,6 +426,7 @@ var WebappsHelper = {
   init: function webapps_init() {
     Services.obs.addObserver(this, "webapps-launch", false);
     Services.obs.addObserver(this, "webapps-ask-install", false);
+    DOMApplicationRegistry.allAppsLaunchable = true;
   },
 
   registerInstaller: function webapps_registerInstaller(data) {
@@ -537,6 +451,7 @@ var WebappsHelper = {
   },
 
   observe: function webapps_observe(subject, topic, data) {
+    let content = shell.contentBrowser.contentWindow;
     let json = JSON.parse(data);
     switch(topic) {
       case "webapps-launch":
@@ -545,7 +460,11 @@ var WebappsHelper = {
             return;
 
           let manifest = new DOMApplicationManifest(aManifest, json.origin);
-          shell.sendEvent(content, "mozChromeEvent", { type: "webapps-launch", url: manifest.fullLaunchPath(), origin: json.origin });
+          shell.sendEvent(content, "mozChromeEvent", {
+            "type": "webapps-launch",
+            "url": manifest.fullLaunchPath(json.startPoint),
+            "origin": json.origin
+          });
         });
         break;
       case "webapps-ask-install":
@@ -559,20 +478,62 @@ var WebappsHelper = {
 // Start the debugger server.
 function startDebugger() {
   if (!DebuggerServer.initialized) {
-    DebuggerServer.init();
+    // Allow remote connections.
+    DebuggerServer.init(function () { return true; });
     DebuggerServer.addActors('chrome://browser/content/dbg-browser-actors.js');
   }
 
-  let port = Services.prefs.getIntPref('devtools.debugger.port') || 6000;
+  let port = Services.prefs.getIntPref('devtools.debugger.remote-port') || 6000;
   try {
-    DebuggerServer.openListener(port, false);
+    DebuggerServer.openListener(port);
   } catch (e) {
     dump('Unable to start debugger server: ' + e + '\n');
   }
 }
 
 window.addEventListener('ContentStart', function(evt) {
-  if (Services.prefs.getBoolPref('devtools.debugger.enabled')) {
+  if (Services.prefs.getBoolPref('devtools.debugger.remote-enabled')) {
     startDebugger();
   }
-}, false);
+});
+
+// This is the backend for Gaia's screenshot feature.  Gaia requests a
+// screenshot by sending a mozContentEvent with detail.type set to
+// 'take-screenshot'.  Then we take a screenshot and send a
+// mozChromeEvent with detail.type set to 'take-screenshot-success'
+// and detail.file set to the an image/png blob
+window.addEventListener('ContentStart', function ss_onContentStart() {
+  let content = shell.contentBrowser.contentWindow;
+  content.addEventListener('mozContentEvent', function ss_onMozContentEvent(e) {
+    if (e.detail.type !== 'take-screenshot')
+      return;
+
+    try {
+      var canvas = document.createElementNS('http://www.w3.org/1999/xhtml',
+                                            'canvas');
+      var width = window.innerWidth;
+      var height = window.innerHeight;
+      canvas.setAttribute('width', width);
+      canvas.setAttribute('height', height);
+
+      var context = canvas.getContext('2d');
+      var flags =
+        context.DRAWWINDOW_DRAW_CARET |
+        context.DRAWWINDOW_DRAW_VIEW |
+        context.DRAWWINDOW_USE_WIDGET_LAYERS;
+      context.drawWindow(window, 0, 0, width, height,
+                         'rgb(255,255,255)', flags);
+
+      shell.sendEvent(content, 'mozChromeEvent', {
+          type: 'take-screenshot-success',
+          file: canvas.mozGetAsFile('screenshot', 'image/png')
+      });
+    } catch (e) {
+      dump('exception while creating screenshot: ' + e + '\n');
+      shell.sendEvent(content, 'mozChromeEvent', {
+        type: 'take-screenshot-error',
+        error: String(e)
+      });
+    }
+  });
+});

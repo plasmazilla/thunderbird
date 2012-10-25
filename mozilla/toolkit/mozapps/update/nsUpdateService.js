@@ -2,54 +2,16 @@
 
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /*
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is the Update Service.
-#
-# The Initial Developer of the Original Code is Ben Goodger.
-# Portions created by the Initial Developer are Copyright (C) 2004
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#  Ben Goodger <ben@mozilla.org> (Original Author)
-#  Darin Fisher <darin@meer.net>
-#  Ben Turner <bent.mozilla@gmail.com>
-#  Jeff Walden <jwalden+code@mit.edu>
-#  Alexander J. Vincent <ajvincent@gmail.com>
-#  Dão Gottwald <dao@mozilla.com>
-#  Robert Strong <robert.bugzilla@gmail.com>
-#  Brian R. Bondy <netzen@gmail.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK ***** */
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
+
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/FileUtils.jsm");
 Components.utils.import("resource://gre/modules/AddonManager.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
-Components.utils.import("resource://gre/modules/ctypes.jsm")
+Components.utils.import("resource://gre/modules/ctypes.jsm");
 
 const Cc = Components.classes;
 const Ci = Components.interfaces;
@@ -80,6 +42,7 @@ const PREF_APP_UPDATE_POSTUPDATE          = "app.update.postupdate";
 const PREF_APP_UPDATE_PROMPTWAITTIME      = "app.update.promptWaitTime";
 const PREF_APP_UPDATE_SHOW_INSTALLED_UI   = "app.update.showInstalledUI";
 const PREF_APP_UPDATE_SILENT              = "app.update.silent";
+const PREF_APP_UPDATE_STAGE_ENABLED       = "app.update.staging.enabled";
 const PREF_APP_UPDATE_URL                 = "app.update.url";
 const PREF_APP_UPDATE_URL_DETAILS         = "app.update.url.details";
 const PREF_APP_UPDATE_URL_OVERRIDE        = "app.update.url.override";
@@ -115,6 +78,11 @@ const KEY_UPDROOT         = "UpdRootD";
 #endif
 
 const DIR_UPDATES         = "updates";
+#ifdef XP_MACOSX
+const UPDATED_DIR         = "Updated.app";
+#else
+const UPDATED_DIR         = "updated";
+#endif
 const FILE_UPDATE_STATUS  = "update.status";
 const FILE_UPDATE_VERSION = "update.version";
 #ifdef MOZ_WIDGET_ANDROID
@@ -135,13 +103,15 @@ const STATE_DOWNLOADING     = "downloading";
 const STATE_PENDING         = "pending";
 const STATE_PENDING_SVC     = "pending-service";
 const STATE_APPLYING        = "applying";
+const STATE_APPLIED         = "applied";
+const STATE_APPLIED_SVC     = "applied-service";
 const STATE_SUCCEEDED       = "succeeded";
 const STATE_DOWNLOAD_FAILED = "download-failed";
 const STATE_FAILED          = "failed";
 
 // From updater/errors.h:
 const WRITE_ERROR        = 7;
-const UNEXPECTED_ERROR   = 8;
+// const UNEXPECTED_ERROR   = 8; // Replaced with errors 38-42
 const ELEVATION_CANCELED = 9;
 
 // Windows service specific errors
@@ -154,6 +124,16 @@ const SERVICE_STILL_APPLYING_ON_SUCCESS    = 29;
 const SERVICE_STILL_APPLYING_ON_FAILURE    = 30;
 const SERVICE_UPDATER_NOT_FIXED_DRIVE      = 31;
 const SERVICE_COULD_NOT_LOCK_UPDATER       = 32;
+const SERVICE_INSTALLDIR_ERROR             = 33;
+
+const WRITE_ERROR_ACCESS_DENIED       = 35;
+const WRITE_ERROR_SHARING_VIOLATION   = 36;
+const WRITE_ERROR_CALLBACK_APP        = 37;
+const INVALID_UPDATER_STATUS_CODE     = 38;
+const UNEXPECTED_BZIP_ERROR           = 39;
+const UNEXPECTED_MAR_ERROR            = 40;
+const UNEXPECTED_BSPATCH_ERROR        = 41;
+const UNEXPECTED_FILE_OPERATION_ERROR = 42;
 
 const CERT_ATTR_CHECK_FAILED_NO_UPDATE  = 100;
 const CERT_ATTR_CHECK_FAILED_HAS_UPDATE = 101;
@@ -340,15 +320,38 @@ XPCOMUtils.defineLazyGetter(this, "gOSVersion", function aus_gOSVersion() {
   return osVersion;
 });
 
+/**
+ * Tests to make sure that we can write to a given directory.
+ *
+ * @param updateTestFile a test file in the directory that needs to be tested.
+ * @param createDirectory whether a test directory should be created.
+ * @throws if we don't have right access to the directory.
+ */
+function testWriteAccess(updateTestFile, createDirectory) {
+  const NORMAL_FILE_TYPE = Ci.nsILocalFile.NORMAL_FILE_TYPE;
+  const DIRECTORY_TYPE = Ci.nsILocalFile.DIRECTORY_TYPE;
+  if (updateTestFile.exists())
+    updateTestFile.remove(false);
+  updateTestFile.create(createDirectory ? DIRECTORY_TYPE : NORMAL_FILE_TYPE,
+                        createDirectory ? FileUtils.PERMS_DIRECTORY : FileUtils.PERMS_FILE);
+  updateTestFile.remove(false);
+}
+
 XPCOMUtils.defineLazyGetter(this, "gCanApplyUpdates", function aus_gCanApplyUpdates() {
+  function submitHasPermissionsTelemetryPing(val) {
+      try {
+        let h = Services.telemetry.getHistogramById("UPDATER_HAS_PERMISSIONS");
+        h.add(+val);
+      } catch(e) {
+        // Don't allow any exception to be propagated.
+        Components.utils.reportError(e);
+      }
+  } 
+
   try {
-    const NORMAL_FILE_TYPE = Ci.nsILocalFile.NORMAL_FILE_TYPE;
     var updateTestFile = getUpdateFile([FILE_PERMS_TEST]);
     LOG("gCanApplyUpdates - testing write access " + updateTestFile.path);
-    if (updateTestFile.exists())
-      updateTestFile.remove(false);
-    updateTestFile.create(NORMAL_FILE_TYPE, FileUtils.PERMS_FILE);
-    updateTestFile.remove(false);
+    testWriteAccess(updateTestFile, false);
 #ifdef XP_WIN
     var sysInfo = Cc["@mozilla.org/system-info;1"].
                   getService(Ci.nsIPropertyBag2);
@@ -391,8 +394,7 @@ XPCOMUtils.defineLazyGetter(this, "gCanApplyUpdates", function aus_gCanApplyUpda
     }
 
     /**
-#      On Windows, we no longer store the update under the app dir if the app
-#      dir is under C:\Program Files.
+#      On Windows, we no longer store the update under the app dir.
 #
 #      If we are on Windows (including Vista, if we can't elevate) we need to
 #      to check that we can create and remove files from the actual app 
@@ -417,7 +419,7 @@ XPCOMUtils.defineLazyGetter(this, "gCanApplyUpdates", function aus_gCanApplyUpda
       LOG("gCanApplyUpdates - testing write access " + appDirTestFile.path);
       if (appDirTestFile.exists())
         appDirTestFile.remove(false)
-      appDirTestFile.create(NORMAL_FILE_TYPE, FileUtils.PERMS_FILE);
+      appDirTestFile.create(Ci.nsILocalFile.NORMAL_FILE_TYPE, FileUtils.PERMS_FILE);
       appDirTestFile.remove(false);
     }
 #endif //XP_WIN
@@ -425,10 +427,55 @@ XPCOMUtils.defineLazyGetter(this, "gCanApplyUpdates", function aus_gCanApplyUpda
   catch (e) {
      LOG("gCanApplyUpdates - unable to apply updates. Exception: " + e);
     // No write privileges to install directory
+    submitHasPermissionsTelemetryPing(false);
     return false;
   }
 
   LOG("gCanApplyUpdates - able to apply updates");
+  submitHasPermissionsTelemetryPing(true);
+  return true;
+});
+
+XPCOMUtils.defineLazyGetter(this, "gCanStageUpdates", function aus_gCanStageUpdates() {
+  // If background updates are disabled, then just bail out!
+  if (!getPref("getBoolPref", PREF_APP_UPDATE_STAGE_ENABLED, false)) {
+    LOG("gCanStageUpdates - staging updates is disabled by preference " + PREF_APP_UPDATE_STAGE_ENABLED);
+    return false;
+  }
+
+#ifdef XP_WIN
+  if (getPref("getBoolPref", PREF_APP_UPDATE_SERVICE_ENABLED, false)) {
+    // No need to perform directory write checks, the maintenance service will
+    // be able to write to all directories.
+    LOG("gCanStageUpdates - able to stage updates because we'll use the service");
+    return true;
+  }
+#endif
+
+  try {
+    var updateTestFile = getInstallDirRoot();
+    updateTestFile.append(FILE_PERMS_TEST);
+    LOG("gCanStageUpdates - testing write access " + updateTestFile.path);
+    testWriteAccess(updateTestFile, true);
+#ifndef XP_MACOSX
+    // On all platforms except Mac, we need to test the parent directory as well,
+    // as we need to be able to move files in that directory during the replacing
+    // step.
+    updateTestFile = getInstallDirRoot().parent;
+    updateTestFile.append(FILE_PERMS_TEST);
+    LOG("gCanStageUpdates - testing write access " + updateTestFile.path);
+    updateTestFile.createUnique(Ci.nsILocalFile.DIRECTORY_TYPE,
+                                FileUtils.PERMS_DIRECTORY);
+    updateTestFile.remove(false);
+#endif
+  }
+  catch (e) {
+     LOG("gCanStageUpdates - unable to stage updates. Exception: " + e);
+    // No write privileges
+    return false;
+  }
+
+  LOG("gCanStageUpdates - able to stage updates");
   return true;
 });
 
@@ -527,6 +574,22 @@ function getUpdateDirCreate(pathArray) {
 }
 
 /**
+ * Gets the root of the installation directory which is the application
+ * bundle directory on Mac OS X and the location of the application binary
+ * on all other platforms.
+ *
+ * @return nsIFile object for the directory
+ */
+function getInstallDirRoot() {
+  var dir = FileUtils.getDir(KEY_APPDIR, [], false);
+#ifdef XP_MACOSX
+  // On Mac, we store the Updated.app directory inside the bundle directory.
+  dir = dir.parent.parent;
+#endif
+  return dir;
+}
+
+/**
  * Gets the file at the specified hierarchy under the update root directory.
  * @param   pathArray
  *          An array of path components to locate beneath the directory
@@ -577,6 +640,31 @@ function getUpdatesDir() {
   // use the same target directory.
   return getUpdateDirCreate([DIR_UPDATES, "0"]);
 }
+
+#ifndef USE_UPDROOT
+/**
+ * Get the Active Updates directory inside the directory where we apply the
+ * background updates.
+ * @return The active updates directory inside the updated directory, as a
+ *         nsIFile object.
+ */
+function getUpdatesDirInApplyToDir() {
+  var dir = FileUtils.getDir(KEY_APPDIR, []);
+#ifdef XP_MACOSX
+  dir = dir.parent.parent; // the bundle directory
+#endif
+  dir.append(UPDATED_DIR);
+#ifdef XP_MACOSX
+  dir.append("Contents");
+  dir.append("MacOS");
+#endif
+  dir.append(DIR_UPDATES);
+  if (!dir.exists()) {
+    dir.create(Ci.nsILocalFile.DIRECTORY_TYPE, 0755);
+  }
+  return dir;
+}
+#endif
 
 /**
  * Reads the update state from the update.status file in the specified
@@ -648,8 +736,13 @@ function writeVersionFile(dir, version) {
 
 /**
  * Removes the contents of the Updates Directory
+ *
+ * @param aBackgroundUpdate Whether the update has been performed in the
+ *        background.  If this is true, we move the update log file to the
+ *        updated directory, so that it survives replacing the directories
+ *        later on.
  */
-function cleanUpUpdatesDir() {
+function cleanUpUpdatesDir(aBackgroundUpdate) {
   // Bail out if we don't have appropriate permissions
   try {
     var updateDir = getUpdatesDir();
@@ -663,8 +756,28 @@ function cleanUpUpdatesDir() {
     var f = e.getNext().QueryInterface(Ci.nsIFile);
     // Preserve the last update log file for debugging purposes
     if (f.leafName == FILE_UPDATE_LOG) {
+      var dir;
       try {
-        var dir = f.parent.parent;
+#ifdef USE_UPDROOT
+        // If we're on a platform which uses the update root directory, the log
+        // files are written outside of the application directory, so they will
+        // not get overwritten when we replace the directories after a
+        // background update.  Therefore, we don't need any special logic for
+        // that case here.
+        // Note that this currently only applies to Windows.
+        dir = f.parent.parent;
+#else
+        // If we don't use the update root directory, the log files are written
+        // inside the application directory.  In that case, we want to write
+        // the log files to the updated directory in the case of background
+        // updates, so that they would be available when we replace that
+        // directory with the application directory later on.
+        if (aBackgroundUpdate) {
+          dir = getUpdatesDirInApplyToDir();
+        } else {
+          dir = f.parent.parent;
+        }
+#endif
         var logFile = dir.clone();
         logFile.append(FILE_LAST_LOG);
         if (logFile.exists()) {
@@ -677,12 +790,23 @@ function cleanUpUpdatesDir() {
           }
         }
         f.moveTo(dir, FILE_LAST_LOG);
-        continue;
+        if (aBackgroundUpdate) {
+          // We're not going to delete any files, so we can just
+          // bail out of the loop right now.
+          break;
+        } else {
+          continue;
+        }
       }
       catch (e) {
         LOG("cleanUpUpdatesDir - failed to move file " + f.path + " to " +
             dir.path + " and rename it to " + FILE_LAST_LOG);
       }
+    } else if (aBackgroundUpdate) {
+      // Don't delete any files when an update has been staged, as
+      // we need to keep them around in case we would have to fall
+      // back to applying the update on application restart.
+      continue;
     }
     // Now, recursively remove this file.  The recursive removal is really
     // only needed on Mac OSX because this directory will contain a copy of
@@ -756,7 +880,7 @@ function getUpdateChannel() {
     channel = Services.prefs.getDefaultBranch(null).
               getCharPref(PREF_APP_UPDATE_CHANNEL);
   } catch (e) {
-    // Use the channel name that was preprocessed when building above.
+    // Use the channel name from above that was preprocessed when building.
   }
 
   try {
@@ -854,6 +978,91 @@ function readStringFromFile(file) {
             createInstance(Ci.nsIFileInputStream);
   fis.init(file, FileUtils.MODE_RDONLY, FileUtils.PERMS_FILE, 0);
   return readStringFromInputStream(fis);
+}
+
+function handleUpdateFailure(update, errorCode) {
+  update.errorCode = parseInt(errorCode);
+  if (update.errorCode == WRITE_ERROR || 
+      update.errorCode == WRITE_ERROR_ACCESS_DENIED ||
+      update.errorCode == WRITE_ERROR_SHARING_VIOLATION ||
+      update.errorCode == WRITE_ERROR_CALLBACK_APP) {
+    Cc["@mozilla.org/updates/update-prompt;1"].
+      createInstance(Ci.nsIUpdatePrompt).
+      showUpdateError(update);
+    writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
+    return true;
+  }
+
+  if (update.errorCode == ELEVATION_CANCELED) {
+    writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
+    return true;
+  }
+
+  if (update.errorCode == SERVICE_UPDATER_COULD_NOT_BE_STARTED ||
+      update.errorCode == SERVICE_NOT_ENOUGH_COMMAND_LINE_ARGS ||
+      update.errorCode == SERVICE_UPDATER_SIGN_ERROR ||
+      update.errorCode == SERVICE_UPDATER_COMPARE_ERROR ||
+      update.errorCode == SERVICE_UPDATER_IDENTITY_ERROR ||
+      update.errorCode == SERVICE_STILL_APPLYING_ON_SUCCESS ||
+      update.errorCode == SERVICE_STILL_APPLYING_ON_FAILURE ||
+      update.errorCode == SERVICE_UPDATER_NOT_FIXED_DRIVE ||
+      update.errorCode == SERVICE_COULD_NOT_LOCK_UPDATER ||
+      update.errorCode == SERVICE_INSTALLDIR_ERROR) {
+
+    var failCount = getPref("getIntPref", 
+                            PREF_APP_UPDATE_SERVICE_ERRORS, 0);
+    var maxFail = getPref("getIntPref", 
+                          PREF_APP_UPDATE_SERVICE_MAX_ERRORS, 
+                          DEFAULT_SERVICE_MAX_ERRORS);
+
+    // As a safety, when the service reaches maximum failures, it will
+    // disable itself and fallback to using the normal update mechanism
+    // without the service.
+    if (failCount >= maxFail) {
+      Services.prefs.setBoolPref(PREF_APP_UPDATE_SERVICE_ENABLED, false);
+      Services.prefs.clearUserPref(PREF_APP_UPDATE_SERVICE_ERRORS);
+    } else {
+      failCount++;
+      Services.prefs.setIntPref(PREF_APP_UPDATE_SERVICE_ERRORS, 
+                                failCount);
+    }
+
+    writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Fall back to downloading a complete update in case an update has failed.
+ *
+ * @param update the update object that has failed to apply.
+ * @param postStaging true if we have just attempted to stage an update.
+ */
+function handleFallbackToCompleteUpdate(update, postStaging) {
+  cleanupActiveUpdate();
+
+  update.statusText = gUpdateBundle.GetStringFromName("patchApplyFailure");
+  var oldType = update.selectedPatch ? update.selectedPatch.type
+                                     : "complete";
+  if (update.selectedPatch && oldType == "partial" && update.patchCount == 2) {
+    // Partial patch application failed, try downloading the complete
+    // update in the background instead.
+    LOG("UpdateService:_postUpdateProcessing - install of partial patch " +
+        "failed, downloading complete patch");
+    var status = Cc["@mozilla.org/updates/update-service;1"].
+                 getService(Ci.nsIApplicationUpdateService).
+                 downloadUpdate(update, !postStaging);
+    if (status == STATE_NONE)
+      cleanupActiveUpdate();
+  }
+  else {
+    LOG("handleFallbackToCompleteUpdate - install of complete or " +
+        "only one patch offered failed.");
+  }
+  update.QueryInterface(Ci.nsIWritablePropertyBag);
+  update.setProperty("patchingFailed", oldType);
 }
 
 /**
@@ -1372,6 +1581,34 @@ UpdateService.prototype = {
       return;
     }
 
+    if (status == STATE_APPLYING) {
+      // This indicates that the background updater service is in either of the
+      // following two states:
+      // 1. It is in the process of applying an update in the background, and
+      //    we just happen to be racing against that.
+      // 2. It has failed to apply an update for some reason, and we hit this
+      //    case because the updater process has set the update status to
+      //    applying, but has never finished.
+      // In order to differentiate between these two states, we look at the
+      // state field of the update object.  If it's "pending", then we know
+      // that this is the first time we're hitting this case, so we switch
+      // that state to "applying" and we just wait and hope for the best.
+      // If it's "applying", we know that we've already been here once, so
+      // we really want to start from a clean state.
+      if (update &&
+          (update.state == STATE_PENDING || update.state == STATE_PENDING_SVC)) {
+        LOG("UpdateService:_postUpdateProcessing - patch found in applying " +
+            "state for the first time");
+        update.state = STATE_APPLYING;
+        um.saveUpdates();
+      } else { // We get here even if we don't have an update object
+        LOG("UpdateService:_postUpdateProcessing - patch found in applying " +
+            "state for the second time");
+        cleanupActiveUpdate();
+      }
+      return;
+    }
+
     if (!update)
       update = new Update(null);
 
@@ -1379,8 +1616,29 @@ UpdateService.prototype = {
                    createInstance(Ci.nsIUpdatePrompt);
 
     update.state = status;
-    this._submitTelemetryPing(status);
+    this._sendStatusCodeTelemetryPing(status);
+
     if (status == STATE_SUCCEEDED) {
+      // Report telemetry that we want after each successful update.
+      // We do this only on successful updates so that we only get
+      // one report from each user for each version.  If a user cancels
+      // UAC for example, we don't want 2 reports from them on the same
+      // version.
+      this._sendBoolPrefTelemetryPing(PREF_APP_UPDATE_ENABLED,
+                                      "UPDATER_UPDATES_ENABLED");
+      this._sendBoolPrefTelemetryPing(PREF_APP_UPDATE_AUTO,
+                                      "UPDATER_UPDATES_AUTOMATIC");
+      this._sendBoolPrefTelemetryPing(PREF_APP_UPDATE_STAGE_ENABLED,
+                                      "UPDATER_STAGE_ENABLED");
+
+#ifdef XP_WIN
+      this._sendBoolPrefTelemetryPing(PREF_APP_UPDATE_SERVICE_ENABLED,
+                                      "UPDATER_SERVICE_ENABLED");
+      this._sendIntPrefTelemetryPing(PREF_APP_UPDATE_SERVICE_ERRORS,
+                                     "UPDATER_SERVICE_ERRORS");
+      this._sendServiceInstalledTelemetryPing();
+#endif
+
       update.statusText = gUpdateBundle.GetStringFromName("installSuccess");
 
       // Update the patch's metadata.
@@ -1403,75 +1661,98 @@ UpdateService.prototype = {
       var ary = status.split(":");
       update.state = ary[0];
       if (update.state == STATE_FAILED && ary[1]) {
-        update.errorCode = parseInt(ary[1]);
-        if (update.errorCode == WRITE_ERROR) {
-          prompter.showUpdateError(update);
-          writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
-          return;
-        }
-
-        if (update.errorCode == ELEVATION_CANCELED) {
-          writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
-          return;
-        }
-
-        if (update.errorCode == SERVICE_UPDATER_COULD_NOT_BE_STARTED ||
-            update.errorCode == SERVICE_NOT_ENOUGH_COMMAND_LINE_ARGS ||
-            update.errorCode == SERVICE_UPDATER_SIGN_ERROR ||
-            update.errorCode == SERVICE_UPDATER_COMPARE_ERROR ||
-            update.errorCode == SERVICE_UPDATER_IDENTITY_ERROR ||
-            update.errorCode == SERVICE_STILL_APPLYING_ON_SUCCESS ||
-            update.errorCode == SERVICE_STILL_APPLYING_ON_FAILURE ||
-            update.errorCode == SERVICE_UPDATER_NOT_FIXED_DRIVE ||
-            update.errorCode == SERVICE_COULD_NOT_LOCK_UPDATER) {
-
-          var failCount = getPref("getIntPref", 
-                                  PREF_APP_UPDATE_SERVICE_ERRORS, 0);
-          var maxFail = getPref("getIntPref", 
-                                PREF_APP_UPDATE_SERVICE_MAX_ERRORS, 
-                                DEFAULT_SERVICE_MAX_ERRORS);
-
-          // As a safety, when the service reaches maximum failures, it will
-          // disable itself and fallback to using the normal update mechanism
-          // without the service.
-          if (failCount >= maxFail) {
-            Services.prefs.setBoolPref(PREF_APP_UPDATE_SERVICE_ENABLED, false);
-            Services.prefs.clearUserPref(PREF_APP_UPDATE_SERVICE_ERRORS);
-          } else {
-            failCount++;
-            Services.prefs.setIntPref(PREF_APP_UPDATE_SERVICE_ERRORS, 
-                                      failCount);
-          }
-
-          writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
+        if (handleUpdateFailure(update, ary[1])) {
           return;
         }
       }
 
       // Something went wrong with the patch application process.
-      cleanupActiveUpdate();
+      handleFallbackToCompleteUpdate(update, false);
 
-      update.statusText = gUpdateBundle.GetStringFromName("patchApplyFailure");
-      var oldType = update.selectedPatch ? update.selectedPatch.type
-                                         : "complete";
-      if (update.selectedPatch && oldType == "partial" && update.patchCount == 2) {
-        // Partial patch application failed, try downloading the complete
-        // update in the background instead.
-        LOG("UpdateService:_postUpdateProcessing - install of partial patch " +
-            "failed, downloading complete patch");
-        var status = this.downloadUpdate(update, true);
-        if (status == STATE_NONE)
-          cleanupActiveUpdate();
-      }
-      else {
-        LOG("UpdateService:_postUpdateProcessing - install of complete or " +
-            "only one patch offered failed... showing error.");
-      }
-      update.QueryInterface(Ci.nsIWritablePropertyBag);
-      update.setProperty("patchingFailed", oldType);
       prompter.showUpdateError(update);
     }
   },
+
+  /**
+   * Submit a telemetry ping with the boolean value of a pref for a histogram
+   *
+   * @param  pref
+   *         The preference to report
+   * @param  histogram
+   *         The histogram ID to report to
+   */
+  _sendBoolPrefTelemetryPing: function AUS__boolTelemetryPing(pref, histogram) {
+    try {
+      // The getPref is already wrapped in a try/catch but we never
+      // want telemetry pings breaking app update so we just put it
+      // inside the try to be safe. 
+      let val = getPref("getBoolPref", pref, false);
+      Services.telemetry.getHistogramById(histogram).add(+val);
+    } catch(e) {
+      // Don't allow any exception to be propagated.
+      Components.utils.reportError(e);
+    }
+  },
+
+#ifdef XP_WIN
+  /**
+   * Submit a telemetry ping with a boolean value which indicates if the service
+   * is installed.
+   * Also submits a telemetry ping with a boolean value which indicates if the
+   * service was at some point installed, but is now uninstalled.
+   */
+  _sendServiceInstalledTelemetryPing: function AUS__svcInstallTelemetryPing() {
+    let installed = 0;
+    let attempted = 0;
+    try {
+      let wrk = Components.classes["@mozilla.org/windows-registry-key;1"]
+                .createInstance(Components.interfaces.nsIWindowsRegKey);
+      wrk.open(wrk.ROOT_KEY_LOCAL_MACHINE,
+               "SOFTWARE\\Mozilla\\MaintenanceService",
+               wrk.ACCESS_READ | wrk.WOW64_64);
+      attempted = wrk.readIntValue("Attempted");
+      installed = wrk.readIntValue("Installed");
+      wrk.close();
+    } catch(e) {
+    }
+    try {
+      let h = Services.telemetry.getHistogramById("UPDATER_SERVICE_INSTALLED");
+      h.add(installed);
+    } catch(e) {
+      // Don't allow any exception to be propagated.
+      Components.utils.reportError(e);
+    }
+    try {
+      let h = Services.telemetry.getHistogramById("UPDATER_SERVICE_MANUALLY_UNINSTALLED");
+      h.add(!installed && attempted ? 1 : 0);
+    } catch(e) {
+      // Don't allow any exception to be propagated.
+      Components.utils.reportError(e);
+    }
+  },
+#endif
+
+  /**
+   * Submit a telemetry ping with the int value of a pref for a histogram
+   *
+   * @param  pref
+   *         The preference to report
+   * @param histogram
+   *         The histogram ID to report to
+   */
+  _sendIntPrefTelemetryPing: function AUS__intTelemetryPing(pref, histogram) {
+    try {
+      // The getPref is already wrapped in a try/catch but we never
+      // want telemetry pings breaking app update so we just put it
+      // inside the try to be safe. 
+      let val = getPref("getIntPref", pref, 0);
+      Services.telemetry.getHistogramById(histogram).add(val);
+    } catch(e) {
+      // Don't allow any exception to be propagated.
+      Components.utils.reportError(e);
+    }
+  },
+
 
   /**
    * Submit the results of applying the update via telemetry.
@@ -1479,7 +1760,7 @@ UpdateService.prototype = {
    * @param  status
    *         The status of the update as read from the update.status file
    */
-  _submitTelemetryPing: function AUS__submitTelemetryPing(status) {
+  _sendStatusCodeTelemetryPing: function AUS__statusTelemetryPing(status) {
     try {
       let parts = status.split(":");
       if ((parts.length == 1 && status != STATE_SUCCEEDED) ||
@@ -1489,7 +1770,7 @@ UpdateService.prototype = {
       }
       let result = 0; // 0 means success
       if (parts.length > 1) {
-        result = parseInt(parts[1]) || UNEXPECTED_ERROR;
+        result = parseInt(parts[1]) || INVALID_UPDATER_STATUS_CODE;
       }
       Services.telemetry.getHistogramById("UPDATER_STATUS_CODES").add(result);
     } catch(e) {
@@ -1899,6 +2180,13 @@ UpdateService.prototype = {
   /**
    * See nsIUpdateService.idl
    */
+  get canStageUpdates() {
+    return gCanStageUpdates;
+  },
+
+  /**
+   * See nsIUpdateService.idl
+   */
   addDownloadListener: function AUS_addDownloadListener(listener) {
     if (!this._downloader) {
       LOG("UpdateService:addDownloadListener - no downloader!");
@@ -1959,6 +2247,26 @@ UpdateService.prototype = {
     return this._downloader.downloadUpdate(update);
   },
 
+  applyUpdateInBackground: function AUS_applyUpdateInBackground(update) {
+    // If we can't stage an update, then just bail out!
+    if (!gCanStageUpdates) {
+      return;
+    }
+
+    LOG("UpdateService:applyUpdateInBackground called with the following update: " +
+        update.name);
+
+    // Initiate the update in the background
+    try {
+      Cc["@mozilla.org/updates/update-processor;1"].
+        createInstance(Ci.nsIUpdateProcessor).
+        processUpdate(update);
+    } catch (e) {
+      // Fail gracefully in case the application does not support the update
+      // processor service.
+    }
+  },
+
   /**
    * See nsIUpdateService.idl
    */
@@ -1966,6 +2274,11 @@ UpdateService.prototype = {
     if (this.isDownloading)
       this._downloader.cancel();
   },
+
+  /**
+   * See nsIUpdateService.idl
+   */
+  getUpdatesDirectory: getUpdatesDir,
 
   /**
    * See nsIUpdateService.idl
@@ -2231,6 +2544,7 @@ UpdateManager.prototype = {
       for (let i = updates.length - 1; i >= 0; --i) {
         let state = updates[i].state;
         if (state == STATE_NONE || state == STATE_DOWNLOADING ||
+            state == STATE_APPLIED || state == STATE_APPLIED_SVC ||
             state == STATE_PENDING || state == STATE_PENDING_SVC) {
           updates.splice(i, 1);
         }
@@ -2238,6 +2552,49 @@ UpdateManager.prototype = {
 
       this._writeUpdatesToXMLFile(updates.slice(0, 10),
                                   getUpdateFile([FILE_UPDATES_DB]));
+    }
+  },
+
+  refreshUpdateStatus: function UM_refreshUpdateStatus(update) {
+    var updateSucceeded = true;
+    var status = readStatusFile(getUpdatesDir());
+    var ary = status.split(":");
+    update.state = ary[0];
+    if (update.state == STATE_FAILED && ary[1]) {
+      updateSucceeded = false;
+      if (!handleUpdateFailure(update, ary[1])) {
+        handleFallbackToCompleteUpdate(update, true);
+      }
+    }
+    if (update.state == STATE_APPLIED && shouldUseService()) {
+      writeStatusFile(getUpdatesDir(), update.state = STATE_APPLIED_SVC);
+    }
+    var um = Cc["@mozilla.org/updates/update-manager;1"].
+             getService(Ci.nsIUpdateManager);
+    um.saveUpdates();
+
+    if (update.state != STATE_PENDING && update.state != STATE_PENDING_SVC) {
+      // Destroy the updates directory, since we're done with it.
+      // Make sure to not do this when the updater has fallen back to
+      // non-staged updates.
+      cleanUpUpdatesDir(updateSucceeded);
+    }
+
+    // Send an observer notification which the update wizard uses in
+    // order to update its UI.
+    LOG("UpdateManager:refreshUpdateStatus - Notifying observers that " +
+        "the update was staged. state: " + update.state + ", status: " + status);
+    Services.obs.notifyObservers(null, "update-staged", update.state);
+
+    // Do this after *everything* else, since it will likely cause the app
+    // to shut down.
+    if (update.state == STATE_APPLIED) {
+      // Notify the user that an update has been staged and is ready for
+      // installation (i.e. that they should restart the application). We do
+      // not notify on failed update attempts.
+      var prompter = Cc["@mozilla.org/updates/update-prompt;1"].
+                     createInstance(Ci.nsIUpdatePrompt);
+      prompter.showUpdateDownloaded(update, true);
     }
   },
 
@@ -2560,8 +2917,12 @@ Downloader.prototype = {
    * Whether or not a patch has been downloaded and staged for installation.
    */
   get patchIsStaged() {
-    var readState = readStatusFile(getUpdatesDir()); 
-    return readState == STATE_PENDING || readState == STATE_PENDING_SVC;
+    var readState = readStatusFile(getUpdatesDir());
+    // Note that if we decide to download and apply new updates after another
+    // update has been successfully applied in the background, we need to stop
+    // checking for the APPLIED state here.
+    return readState == STATE_PENDING || readState == STATE_PENDING_SVC ||
+           readState == STATE_APPLIED || readState == STATE_APPLIED_SVC;
   },
 
   /**
@@ -2809,9 +3170,10 @@ Downloader.prototype = {
              getService(Ci.nsIUpdateManager);
     um.saveUpdates();
 
-    var listenerCount = this._listeners.length;
+    var listeners = this._listeners.concat();
+    var listenerCount = listeners.length;
     for (var i = 0; i < listenerCount; ++i)
-      this._listeners[i].onStartRequest(request, context);
+      listeners[i].onStartRequest(request, context);
   },
 
   /**
@@ -2829,9 +3191,10 @@ Downloader.prototype = {
                                              maxProgress) {
     LOG("Downloader:onProgress - progress: " + progress + "/" + maxProgress);
 
-    var listenerCount = this._listeners.length;
+    var listeners = this._listeners.concat();
+    var listenerCount = listeners.length;
     for (var i = 0; i < listenerCount; ++i) {
-      var listener = this._listeners[i];
+      var listener = listeners[i];
       if (listener instanceof Ci.nsIProgressEventSink)
         listener.onProgress(request, context, progress, maxProgress);
     }
@@ -2852,9 +3215,10 @@ Downloader.prototype = {
     LOG("Downloader:onStatus - status: " + status + ", statusText: " +
         statusText);
 
-    var listenerCount = this._listeners.length;
+    var listeners = this._listeners.concat();
+    var listenerCount = listeners.length;
     for (var i = 0; i < listenerCount; ++i) {
-      var listener = this._listeners[i];
+      var listener = listeners[i];
       if (listener instanceof Ci.nsIProgressEventSink)
         listener.onStatus(request, context, status, statusText);
     }
@@ -2874,6 +3238,8 @@ Downloader.prototype = {
       LOG("Downloader:onStopRequest - original URI spec: " + request.URI.spec +
           ", final URI spec: " + request.finalURI.spec + ", status: " + status);
 
+    // XXX ehsan shouldShowPrompt should always be false here.
+    // But what happens when there is already a UI showing?
     var state = this._patch.state;
     var shouldShowPrompt = false;
     var deleteActiveUpdate = false;
@@ -2885,7 +3251,7 @@ Downloader.prototype = {
         // download, since otherwise some kind of UI is already visible and
         // that UI will notify.
         if (this.background)
-          shouldShowPrompt = true;
+          shouldShowPrompt = !getPref("getBoolPref", PREF_APP_UPDATE_STAGE_ENABLED, false);
 
         // Tell the updater.exe we're ready to apply.
         writeStatusFile(getUpdatesDir(), state);
@@ -2944,9 +3310,10 @@ Downloader.prototype = {
     }
     um.saveUpdates();
 
-    var listenerCount = this._listeners.length;
+    var listeners = this._listeners.concat();
+    var listenerCount = listeners.length;
     for (var i = 0; i < listenerCount; ++i)
-      this._listeners[i].onStopRequest(request, context, status);
+      listeners[i].onStopRequest(request, context, status);
 
     this._request = null;
 
@@ -3003,6 +3370,14 @@ Downloader.prototype = {
                      createInstance(Ci.nsIUpdatePrompt);
       prompter.showUpdateDownloaded(this._update, true);
     }
+
+    if (state == STATE_PENDING || state == STATE_PENDING_SVC) {
+      // Initiate the background update job.
+      Cc["@mozilla.org/updates/update-service;1"].
+        getService(Ci.nsIApplicationUpdateService).
+        applyUpdateInBackground(this._update);
+    }
+
     // Prevent leaking the update object (bug 454964)
     this._update = null;
   },
@@ -3124,7 +3499,11 @@ UpdatePrompt.prototype = {
       return;
 
     // In some cases, we want to just show a simple alert dialog:
-    if (update.state == STATE_FAILED && update.errorCode == WRITE_ERROR) {
+    if (update.state == STATE_FAILED &&
+        (update.errorCode == WRITE_ERROR ||
+         update.errorCode == WRITE_ERROR_ACCESS_DENIED ||
+         update.errorCode == WRITE_ERROR_SHARING_VIOLATION ||
+         update.errorCode == WRITE_ERROR_CALLBACK_APP)) {
       var title = gUpdateBundle.GetStringFromName("updaterIOErrorTitle");
       var text = gUpdateBundle.formatStringFromName("updaterIOErrorMsg",
                                                     [Services.appinfo.name,

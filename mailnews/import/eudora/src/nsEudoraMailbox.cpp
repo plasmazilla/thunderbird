@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org Code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "msgCore.h"
 #include "nsCOMPtr.h"
@@ -46,7 +13,9 @@
 #include "nsMsgMessageFlags.h"
 #include "nsMailHeaders.h"
 #include "nsMsgLocalFolderHdrs.h"
-
+#include "nsIMsgFolder.h"
+#include "nsIMsgHdr.h"
+#include "nsIMsgPluggableStore.h"
 #include "nsMsgUtils.h"
 #include "nsCRT.h"
 #include "nsNetUtil.h"
@@ -229,7 +198,10 @@ nsresult nsEudoraMailbox::DeleteFile(nsIFile *pFile)
 #define kComposeErrorStr  "X-Eudora-Compose-Error: *****" "\x0D\x0A"
 #define kHTMLTag "<html>"
 
-nsresult nsEudoraMailbox::ImportMailbox(PRUint32 *pBytes, bool *pAbort, const PRUnichar *pName, nsIFile *pSrc, nsIFile *pDst, PRInt32 *pMsgCount)
+nsresult nsEudoraMailbox::ImportMailbox(PRUint32 *pBytes, bool *pAbort,
+                                        const PRUnichar *pName, nsIFile *pSrc,
+                                        nsIMsgFolder *dstFolder,
+                                        PRInt32 *pMsgCount)
 {
   nsCOMPtr<nsIFile>   tocFile;
   nsCOMPtr<nsIInputStream> srcInputStream;
@@ -237,19 +209,17 @@ nsresult nsEudoraMailbox::ImportMailbox(PRUint32 *pBytes, bool *pAbort, const PR
   nsCOMPtr<nsIOutputStream> mailOutputStream;
   bool                importWithoutToc = true;
   bool                deleteToc = false;
-  nsresult            rv;
   nsCOMPtr<nsIFile>   mailFile;
 
   if (pMsgCount)
     *pMsgCount = 0;
 
-  rv = pSrc->GetFileSize(&m_mailSize);
+  nsresult rv = pSrc->GetFileSize(&m_mailSize);
 
   rv = NS_NewLocalFileInputStream(getter_AddRefs(srcInputStream), pSrc);
-  if (NS_FAILED(rv))
-    return rv;
+  NS_ENSURE_SUCCESS(rv, rv);
 
-  NS_ADDREF(pSrc);
+  nsCOMPtr<nsIFile> srcFile(pSrc);
 
   // First, get the index file for this mailbox
   rv = FindTOCFile(pSrc, getter_AddRefs(tocFile), &deleteToc);
@@ -258,10 +228,9 @@ nsresult nsEudoraMailbox::ImportMailbox(PRUint32 *pBytes, bool *pAbort, const PR
     IMPORT_LOG0("Reading euroda toc file: ");
     DUMP_FILENAME(tocFile, true);
 
-    rv = MsgNewBufferedFileOutputStream(getter_AddRefs(mailOutputStream), pDst);
-    NS_ENSURE_SUCCESS(rv, rv);
     // Read the toc and import the messages
-    rv = ImportMailboxUsingTOC(pBytes, pAbort, srcInputStream, tocFile, mailOutputStream, pMsgCount);
+    rv = ImportMailboxUsingTOC(pBytes, pAbort, srcInputStream, tocFile,
+                               dstFolder, pMsgCount);
 
     // clean up
     if (deleteToc)
@@ -308,32 +277,52 @@ nsresult nsEudoraMailbox::ImportMailbox(PRUint32 *pBytes, bool *pAbort, const PR
     IMPORT_LOG0("Reading mailbox\n");
 
     if (NS_SUCCEEDED(rv))
-                {
+    {
       nsCString defaultDate;
       nsCAutoString bodyType;
 
       IMPORT_LOG0("Reading first message\n");
 
-      while (!*pAbort && NS_SUCCEEDED(rv = ReadNextMessage(&state, readBuffer, headers, body, defaultDate, bodyType, NULL))) {
+      nsCOMPtr<nsIOutputStream> outputStream;
+      nsCOMPtr<nsIMsgPluggableStore> msgStore;
+      rv = dstFolder->GetMsgStore(getter_AddRefs(msgStore));
+      NS_ENSURE_SUCCESS(rv, rv);
 
-        if (pBytes) {
+      while (!*pAbort && NS_SUCCEEDED(rv = ReadNextMessage( &state, readBuffer, headers, body, defaultDate, bodyType, NULL))) {
+
+        if (pBytes)
           *pBytes += body.m_writeOffset - 1 + headers.m_writeOffset - 1;
+
+        nsCOMPtr<nsIMsgDBHdr> msgHdr;
+        bool reusable;
+
+        rv = msgStore->GetNewMsgOutputStream(dstFolder, getter_AddRefs(msgHdr), &reusable,
+                                             getter_AddRefs(outputStream));
+        if (NS_FAILED(rv))
+          break;
+
+        rv = ImportMessage(headers, body, defaultDate, bodyType, outputStream, pMsgCount);
+
+        if (NS_SUCCEEDED(rv))
+          msgStore->FinishNewMessage(outputStream, msgHdr);
+        else {
+          msgStore->DiscardNewMessage(outputStream, msgHdr);
+          IMPORT_LOG0( "*** Error importing message\n");
         }
 
-        rv = ImportMessage(headers, body, defaultDate, bodyType, mailOutputStream, pMsgCount);
+        if (!reusable)
+          outputStream->Close();
 
         if (!readBuffer.m_bytesInBuf && (state.offset >= state.size))
           break;
       }
-
+      if (outputStream)
+        outputStream->Close();
     }
     else {
       IMPORT_LOG0("*** Error creating file spec for composition\n");
     }
   }
-
-  pSrc->Release();
-
   return rv;
 }
 
@@ -350,7 +339,7 @@ nsresult nsEudoraMailbox::ImportMailboxUsingTOC(
   bool *pAbort,
   nsIInputStream *pInputStream,
   nsIFile *tocFile,
-  nsIOutputStream *pDst,
+  nsIMsgFolder *dstFolder,
   PRInt32 *pMsgCount)
 {
   nsresult        rv = NS_OK;
@@ -382,13 +371,27 @@ nsresult nsEudoraMailbox::ImportMailboxUsingTOC(
   IMPORT_LOG0("Importing mailbox using TOC: ");
   DUMP_FILENAME(tocFile, true);
 
-  nsCOMPtr <nsISeekableStream> tocSeekableStream = do_QueryInterface(tocInputStream);
-  nsCOMPtr <nsISeekableStream> mailboxSeekableStream = do_QueryInterface(pInputStream);
+  nsCOMPtr<nsISeekableStream> tocSeekableStream = do_QueryInterface(tocInputStream);
+  nsCOMPtr<nsISeekableStream> mailboxSeekableStream = do_QueryInterface(pInputStream);
+  nsCOMPtr<nsIOutputStream> outputStream;
+  nsCOMPtr<nsIMsgPluggableStore> msgStore;
+
+  rv = dstFolder->GetMsgStore(getter_AddRefs(msgStore));
+  NS_ENSURE_SUCCESS(rv, rv);
+
   while (!*pAbort && (tocOffset < (PRInt32)tocSize)) {
     if (NS_FAILED(rv = tocSeekableStream->Seek(nsISeekableStream::NS_SEEK_SET, tocOffset)))
       break;
 
     if (NS_FAILED(rv = ReadTOCEntry(tocInputStream, tocEntry)))
+      break;
+
+    nsCOMPtr<nsIMsgDBHdr> msgHdr;
+    bool reusable;
+
+    rv = msgStore->GetNewMsgOutputStream(dstFolder, getter_AddRefs(msgHdr), &reusable,
+                                         getter_AddRefs(outputStream));
+    if (NS_FAILED(rv))
       break;
 
     // Quick and dirty way to read in and parse the message the way the rest
@@ -411,10 +414,17 @@ nsresult nsEudoraMailbox::ImportMailboxUsingTOC(
 
     if (NS_SUCCEEDED(rv = ReadNextMessage(&state, readBuffer, headers, body, defaultDate, bodyType, &tocEntry)))
     {
-      rv = ImportMessage(headers, body, defaultDate, bodyType, pDst, pMsgCount);
+      rv = ImportMessage(headers, body, defaultDate, bodyType, outputStream,
+                         pMsgCount);
 
       if (pBytes)
         *pBytes += tocEntry.m_Length;
+      if (NS_SUCCEEDED(rv))
+        msgStore->FinishNewMessage(outputStream, msgHdr);
+      else {
+        msgStore->DiscardNewMessage(outputStream, msgHdr);
+        IMPORT_LOG0( "*** Error importing message\n");
+      }
     }
 
     // We currently don't consider an error from ReadNextMessage or ImportMessage to be fatal.
@@ -422,7 +432,12 @@ nsresult nsEudoraMailbox::ImportMailboxUsingTOC(
     rv = NS_OK;
 
     tocOffset += kMsgHeaderSize;
+
+    if (!reusable)
+      outputStream->Close();
   }
+  if (outputStream)
+    outputStream->Close();
 
   if (NS_SUCCEEDED(rv)) {
     IMPORT_LOG0(" finished\n");
@@ -1298,7 +1313,7 @@ bool nsEudoraMailbox::AddAttachment(nsCString& fileName)
   IMPORT_LOG1("Found attachment: %s\n", fileName.get());
 
   nsresult rv;
-  nsCOMPtr <nsILocalFile>  pFile = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv);
+  nsCOMPtr <nsIFile>  pFile = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv);
   if (NS_FAILED(rv))
     return false;
 

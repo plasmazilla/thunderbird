@@ -1,39 +1,7 @@
 /* -*- Mode: c++; c-basic-offset: 4; tab-width: 20; indent-tabs-mode: nil; -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Android code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Vladimir Vukicevic <vladimir@pobox.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef AndroidBridge_h__
 #define AndroidBridge_h__
@@ -85,7 +53,6 @@ class NetworkInformation;
 } // namespace hal
 
 namespace dom {
-class ScreenOrientationWrapper;
 namespace sms {
 struct SmsFilterData;
 } // namespace sms
@@ -188,7 +155,7 @@ public:
         SCREENSHOT_UPDATE = 2
     };
 
-    nsresult TakeScreenshot(nsIDOMWindow *window, PRInt32 srcX, PRInt32 srcY, PRInt32 srcW, PRInt32 srcH, PRInt32 dstW, PRInt32 dstH, PRInt32 tabId, float scale, PRInt32 token);
+    nsresult TakeScreenshot(nsIDOMWindow *window, PRInt32 srcX, PRInt32 srcY, PRInt32 srcW, PRInt32 srcH, PRInt32 dstY, PRInt32 dstX, PRInt32 dstW, PRInt32 dstH, PRInt32 bufW, PRInt32 bufH, PRInt32 tabId, PRInt32 token, jobject buffer);
 
     static void NotifyPaintedRect(float top, float left, float bottom, float right);
 
@@ -207,7 +174,7 @@ public:
 
     void ScheduleRestart();
 
-    void SetLayerClient(jobject jobj);
+    void SetLayerClient(JNIEnv* env, jobject jobj);
     AndroidGeckoLayerClient &GetLayerClient() { return *mLayerClient; }
 
     void SetSurfaceView(jobject jobj);
@@ -293,7 +260,7 @@ public:
     void *CallEglCreateWindowSurface(void *dpy, void *config, AndroidGeckoSurfaceView& surfaceView);
 
     // Switch Java to composite with the Gecko Compositor thread
-    void RegisterCompositor();
+    void RegisterCompositor(JNIEnv* env = NULL, bool resetting = false);
     EGLSurface ProvideEGLSurface();
 
     bool GetStaticStringField(const char *classID, const char *field, nsAString &result, JNIEnv* env = nsnull);
@@ -323,13 +290,17 @@ public:
     enum {
         WINDOW_FORMAT_RGBA_8888          = 1,
         WINDOW_FORMAT_RGBX_8888          = 2,
-        WINDOW_FORMAT_RGB_565            = 4,
+        WINDOW_FORMAT_RGB_565            = 4
     };
 
     bool HasNativeWindowAccess();
 
     void *AcquireNativeWindow(JNIEnv* aEnv, jobject aSurface);
     void ReleaseNativeWindow(void *window);
+
+    void *AcquireNativeWindowFromSurfaceTexture(JNIEnv* aEnv, jobject aSurface);
+    void ReleaseNativeWindowForSurfaceTexture(void *window);
+
     bool SetNativeWindowFormat(void *window, int width, int height, int format);
 
     bool LockWindow(void *window, unsigned char **bits, int *width, int *height, int *format, int *stride);
@@ -364,31 +335,35 @@ public:
     void DisableNetworkNotifications();
 
     void SetFirstPaintViewport(const nsIntPoint& aOffset, float aZoom, const nsIntRect& aPageRect, const gfx::Rect& aCssPageRect);
-    void SetPageRect(float aZoom, const nsIntRect& aPageRect, const gfx::Rect& aCssPageRect);
+    void SetPageRect(const gfx::Rect& aCssPageRect);
     void SyncViewportInfo(const nsIntRect& aDisplayPort, float aDisplayResolution, bool aLayersUpdated,
                           nsIntPoint& aScrollOffset, float& aScaleX, float& aScaleY);
-
-    jobject CreateSurface();
-    void DestroySurface(jobject surface);
-    void ShowSurface(jobject surface, const gfxRect& aRect, bool aInverted, bool aBlend);
-    void HideSurface(jobject surface);
 
     void AddPluginView(jobject view, const gfxRect& rect, bool isFullScreen);
     void RemovePluginView(jobject view, bool isFullScreen);
 
-    // This method doesn't take a ScreenOrientation because it's an enum and
-    // that would require including the header which requires include IPC
-    // headers which requires including basictypes.h which requires a lot of
-    // changes...
-    void GetScreenOrientation(dom::ScreenOrientationWrapper& aOrientation);
+    // These methods don't use a ScreenOrientation because it's an
+    // enum and that would require including the header which requires
+    // include IPC headers which requires including basictypes.h which
+    // requires a lot of changes...
+    uint32_t GetScreenOrientation();
     void EnableScreenOrientationNotifications();
     void DisableScreenOrientationNotifications();
-    void LockScreenOrientation(const dom::ScreenOrientationWrapper& aOrientation);
+    void LockScreenOrientation(uint32_t aOrientation);
     void UnlockScreenOrientation();
 
     void PumpMessageLoop();
 
     void NotifyWakeLockChanged(const nsAString& topic, const nsAString& state);
+
+    int GetAPIVersion() { return mAPIVersion; }
+    bool IsHoneycomb() { return mAPIVersion >= 11 && mAPIVersion <= 13; }
+
+    void ScheduleComposite();
+    void RegisterSurfaceTextureFrameListener(jobject surfaceTexture, int id);
+    void UnregisterSurfaceTextureFrameListener(jobject surfaceTexture);
+
+    void GetGfxInfoData(nsACString& aRet);
 
 protected:
     static AndroidBridge *sBridge;
@@ -420,6 +395,8 @@ protected:
     bool mHasNativeBitmapAccess;
     bool mHasNativeWindowAccess;
     bool mHasNativeWindowFallback;
+
+    int mAPIVersion;
 
     nsCOMArray<nsIRunnable> mRunnableQueue;
 
@@ -510,6 +487,11 @@ protected:
     jmethodID jUnlockScreenOrientation;
     jmethodID jPumpMessageLoop;
     jmethodID jNotifyWakeLockChanged;
+    jmethodID jRegisterSurfaceTextureFrameListener;
+    jmethodID jUnregisterSurfaceTextureFrameListener;
+
+    // for GfxInfo (gfx feature detection and blacklisting)
+    jmethodID jGetGfxInfoData;
 
     // For native surface stuff
     jclass jSurfaceClass;
@@ -535,6 +517,7 @@ protected:
     int (* AndroidBitmap_unlockPixels)(JNIEnv *env, jobject bitmap);
 
     void* (*ANativeWindow_fromSurface)(JNIEnv *env, jobject surface);
+    void* (*ANativeWindow_fromSurfaceTexture)(JNIEnv *env, jobject surfaceTexture);
     void (*ANativeWindow_release)(void *window);
     int (*ANativeWindow_setBuffersGeometry)(void *window, int width, int height, int format);
 

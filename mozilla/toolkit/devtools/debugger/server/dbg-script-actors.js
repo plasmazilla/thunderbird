@@ -1,42 +1,8 @@
 /* -*- Mode: javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ft=javascript ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dave Camp <dcamp@mozilla.com>
- *   Panos Astithas <past@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 "use strict";
 /**
@@ -50,7 +16,8 @@
  *
  * @param aHooks object
  *        An object with preNest and postNest methods for calling when entering
- *        and exiting a nested event loop.
+ *        and exiting a nested event loop, as well as addToBreakpointPool and
+ *        removeFromBreakpointPool methods for handling breakpoint lifetime.
  */
 function ThreadActor(aHooks)
 {
@@ -75,16 +42,27 @@ ThreadActor.prototype = {
     return this._threadLifetimePool;
   },
 
-  _breakpointPool: null,
-  get breakpointActorPool() {
-    if (!this._breakpointPool) {
-      this._breakpointPool = new ActorPool(this.conn);
-      this.conn.addActorPool(this._breakpointPool);
-    }
-    return this._breakpointPool;
-  },
+  _breakpointStore: {},
 
   _scripts: {},
+
+  clearDebuggees: function TA_clearDebuggees() {
+    if (this._dbg) {
+      let debuggees = this._dbg.getDebuggees();
+      for (let debuggee of debuggees) {
+        this._dbg.removeDebuggee(debuggee);
+      }
+    }
+    this.conn.removeActorPool(this._threadLifetimePool || undefined);
+    this._threadLifetimePool = null;
+    // Unless we carefully take apart the scripts table this way, we end up
+    // leaking documents. It would be nice to track this down carefully, once
+    // we have the appropriate tools.
+    for (let url in this._scripts) {
+      delete this._scripts[url];
+    }
+    this._scripts = {};
+  },
 
   /**
    * Add a debuggee global to the Debugger object.
@@ -97,14 +75,17 @@ ThreadActor.prototype = {
 
     if (!this._dbg) {
       this._dbg = new Debugger();
+      this._dbg.uncaughtExceptionHook = this.uncaughtExceptionHook.bind(this);
+      this._dbg.onDebuggerStatement = this.onDebuggerStatement.bind(this);
+      this._dbg.onNewScript = this.onNewScript.bind(this);
+      // Keep the debugger disabled until a client attaches.
+      this.dbg.enabled = this._state != "detached";
     }
 
     this.dbg.addDebuggee(aGlobal);
-    this.dbg.uncaughtExceptionHook = this.uncaughtExceptionHook.bind(this);
-    this.dbg.onDebuggerStatement = this.onDebuggerStatement.bind(this);
-    this.dbg.onNewScript = this.onNewScript.bind(this);
-    // Keep the debugger disabled until a client attaches.
-    this.dbg.enabled = false;
+    for (let s of this.dbg.findScripts()) {
+      this._addScript(s);
+    }
   },
 
   /**
@@ -125,18 +106,14 @@ ThreadActor.prototype = {
     }
 
     this._state = "exited";
-    if (this.dbg) {
-      this.dbg.enabled = false;
-      this._dbg = null;
+
+    this.clearDebuggees();
+
+    if (!this._dbg) {
+      return;
     }
-    this.conn.removeActorPool(this._threadLifetimePool || undefined);
-    this._threadLifetimePool = null;
-    this.conn.removeActorPool(this._breakpointPool);
-    this._breakpointPool = null;
-    for (let url in this._scripts) {
-      delete this._scripts[url];
-    }
-    this._scripts = {};
+    this._dbg.enabled = false;
+    this._dbg = null;
   },
 
   /**
@@ -209,8 +186,10 @@ ThreadActor.prototype = {
       this.conn.send(packet);
       return this._nest();
     } catch(e) {
-      Cu.reportError("Got an exception during TA__pauseAndRespond: " + e +
-                     ": " + e.stack);
+      let msg = "Got an exception during TA__pauseAndRespond: " + e +
+                ": " + e.stack;
+      Cu.reportError(msg);
+      dumpn(msg);
       return undefined;
     }
   },
@@ -297,6 +276,10 @@ ThreadActor.prototype = {
           return { error: "badParameterType",
                    message: "Unknown resumeLimit type" };
       }
+    }
+
+    if (aRequest && aRequest.pauseOnExceptions) {
+      this.dbg.onExceptionUnwind = this.onExceptionUnwind.bind(this);
     }
     let packet = this._resumed();
     DebuggerServer.xpcInspector.exitNestedEventLoop();
@@ -408,19 +391,47 @@ ThreadActor.prototype = {
     }
 
     let location = aRequest.location;
-    if (!this._scripts[location.url] || location.line < 0) {
+    let line = location.line;
+    if (!this._scripts[location.url] || line < 0) {
       return { error: "noScript" };
     }
+
+    // Add the breakpoint to the store for later reuse, in case it belongs to a
+    // script that hasn't appeared yet.
+    if (!this._breakpointStore[location.url]) {
+      this._breakpointStore[location.url] = [];
+    }
+    let scriptBreakpoints = this._breakpointStore[location.url];
+    scriptBreakpoints[line] = {
+      url: location.url,
+      line: line,
+      column: location.column
+    };
+
+    return this._setBreakpoint(location);
+  },
+
+  /**
+   * Set a breakpoint using the jsdbg2 API. If the line on which the breakpoint
+   * is being set contains no code, then the breakpoint will slide down to the
+   * next line that has runnable code. In this case the server breakpoint cache
+   * will be updated, so callers that iterate over the breakpoint cache should
+   * take that into account.
+   *
+   * @param object aLocation
+   *        The location of the breakpoint as specified in the protocol.
+   */
+  _setBreakpoint: function TA__setBreakpoint(aLocation) {
     // Fetch the list of scripts in that url.
-    let scripts = this._scripts[location.url];
+    let scripts = this._scripts[aLocation.url];
     // Fetch the specified script in that list.
     let script = null;
-    for (let i = location.line; i >= 0; i--) {
+    for (let i = aLocation.line; i >= 0; i--) {
       // Stop when the first script that contains this location is found.
       if (scripts[i]) {
         // If that first script does not contain the line specified, it's no
         // good.
-        if (i + scripts[i].lineCount < location.line) {
+        if (i + scripts[i].lineCount < aLocation.line) {
           continue;
         }
         script = scripts[i];
@@ -428,15 +439,31 @@ ThreadActor.prototype = {
       }
     }
 
-    if (!script) {
-      return { error: "noScript" };
+    let location = { url: aLocation.url, line: aLocation.line };
+    // Get the list of cached breakpoints in this URL.
+    let scriptBreakpoints = this._breakpointStore[location.url];
+    let bpActor;
+    if (scriptBreakpoints &&
+        scriptBreakpoints[location.line] &&
+        scriptBreakpoints[location.line].actor) {
+      bpActor = scriptBreakpoints[location.line].actor;
+    }
+    if (!bpActor) {
+      bpActor = new BreakpointActor(this, location);
+      this._hooks.addToBreakpointPool(bpActor);
+      if (scriptBreakpoints[location.line]) {
+        scriptBreakpoints[location.line].actor = bpActor;
+      }
     }
 
-    script = this._getInnermostContainer(script, location.line);
-    let bpActor = new BreakpointActor(script, this);
-    this.breakpointActorPool.addActor(bpActor);
+    if (!script) {
+      return { error: "noScript", actor: bpActor.actorID };
+    }
 
-    let offsets = script.getLineOffsets(location.line);
+    script = this._getInnermostContainer(script, aLocation.line);
+    bpActor.addScript(script, this);
+
+    let offsets = script.getLineOffsets(aLocation.line);
     let codeFound = false;
     for (let i = 0; i < offsets.length; i++) {
       script.setBreakpoint(offsets[i], bpActor);
@@ -447,21 +474,29 @@ ThreadActor.prototype = {
     if (offsets.length == 0) {
       // No code at that line in any script, skipping forward.
       let lines = script.getAllOffsets();
-      for (let line = location.line; line < lines.length; ++line) {
+      let oldLine = aLocation.line;
+      for (let line = oldLine; line < lines.length; ++line) {
         if (lines[line]) {
           for (let i = 0; i < lines[line].length; i++) {
             script.setBreakpoint(lines[line][i], bpActor);
             codeFound = true;
           }
-          actualLocation = location;
-          actualLocation.line = line;
+          actualLocation = {
+            url: aLocation.url,
+            line: line,
+            column: aLocation.column
+          };
+          bpActor.location = actualLocation;
+          // Update the cache as well.
+          scriptBreakpoints[line] = scriptBreakpoints[oldLine];
+          scriptBreakpoints[line].line = line;
+          delete scriptBreakpoints[oldLine];
           break;
         }
       }
     }
     if (!codeFound) {
-      bpActor.onDelete();
-      return  { error: "noCodeAtLineColumn" };
+      return  { error: "noCodeAtLineColumn", actor: bpActor.actorID };
     }
 
     return { actor: bpActor.actorID, actualLocation: actualLocation };
@@ -498,9 +533,7 @@ ThreadActor.prototype = {
   onScripts: function TA_onScripts(aRequest) {
     // Get the script list from the debugger.
     for (let s of this.dbg.findScripts()) {
-      if (s.url.indexOf("chrome://") != 0) {
-        this._addScript(s);
-      }
+      this._addScript(s);
     }
     // Build the cache.
     let scripts = [];
@@ -526,7 +559,7 @@ ThreadActor.prototype = {
   /**
    * Handle a protocol request to pause the debuggee.
    */
-  onInterrupt: function TA_onScripts(aRequest) {
+  onInterrupt: function TA_onInterrupt(aRequest) {
     if (this.state == "exited") {
       return { type: "exited" };
     } else if (this.state == "paused") {
@@ -592,6 +625,7 @@ ThreadActor.prototype = {
 
     // Clear stepping hooks.
     this.dbg.onEnterFrame = undefined;
+    this.dbg.onExceptionUnwind = undefined;
     if (aFrame) {
       aFrame.onStep = undefined;
       aFrame.onPop = undefined;
@@ -714,29 +748,29 @@ ThreadActor.prototype = {
   },
 
   /**
-   * Create and return an environment actor that corresponds to the
-   * Debugger.Environment for the provided object.
-   * @param Debugger.Object aObject
-   *        The object whose lexical environment we want to extract.
+   * Create and return an environment actor that corresponds to the provided
+   * Debugger.Environment.
+   * @param Debugger.Environment aEnvironment
+   *        The lexical environment we want to extract.
    * @param object aPool
    *        The pool where the newly-created actor will be placed.
-   * @return The EnvironmentActor for aObject or undefined for host functions or
-   *         functions scoped to a non-debuggee global.
+   * @return The EnvironmentActor for aEnvironment or undefined for host
+   *         functions or functions scoped to a non-debuggee global.
    */
-  createEnvironmentActor: function TA_createEnvironmentActor(aObject, aPool) {
-    let environment = aObject.environment;
-    if (!environment) {
+  createEnvironmentActor:
+  function TA_createEnvironmentActor(aEnvironment, aPool) {
+    if (!aEnvironment) {
       return undefined;
     }
 
-    if (environment.actor) {
-      return environment.actor;
+    if (aEnvironment.actor) {
+      return aEnvironment.actor;
     }
 
-    let actor = new EnvironmentActor(aObject, this);
+    let actor = new EnvironmentActor(aEnvironment, this);
     this._environmentActors.push(actor);
     aPool.addActor(actor);
-    environment.actor = actor;
+    aEnvironment.actor = actor;
 
     return actor;
   },
@@ -859,6 +893,33 @@ ThreadActor.prototype = {
   },
 
   /**
+   * A function that the engine calls when an exception has been thrown and has
+   * propagated to the specified frame.
+   *
+   * @param aFrame Debugger.Frame
+   *        The youngest remaining stack frame.
+   * @param aValue object
+   *        The exception that was thrown.
+   */
+  onExceptionUnwind: function TA_onExceptionUnwind(aFrame, aValue) {
+    try {
+      let packet = this._paused(aFrame);
+      if (!packet) {
+        return undefined;
+      }
+
+      packet.why = { type: "exception",
+                     exception: this.createValueGrip(aValue) };
+      this.conn.send(packet);
+      return this._nest();
+    } catch(e) {
+      Cu.reportError("Got an exception during TA_onExceptionUnwind: " + e +
+                     ": " + e.stack);
+      return undefined;
+    }
+  },
+
+  /**
    * A function that the engine calls when a new script has been loaded into the
    * scope of the specified debuggee global.
    *
@@ -868,10 +929,16 @@ ThreadActor.prototype = {
    *        A Debugger.Object instance whose referent is the global object.
    */
   onNewScript: function TA_onNewScript(aScript, aGlobal) {
-    this._addScript(aScript);
-    // Notify the client.
-    this.conn.send({ from: this.actorID, type: "newScript",
-                     url: aScript.url, startLine: aScript.startLine });
+    if (this._addScript(aScript)) {
+      // Notify the client.
+      this.conn.send({
+        from: this.actorID,
+        type: "newScript",
+        url: aScript.url,
+        startLine: aScript.startLine,
+        lineCount: aScript.lineCount
+      });
+    }
   },
 
   /**
@@ -879,14 +946,39 @@ ThreadActor.prototype = {
    *
    * @param aScript Debugger.Script
    *        The source script that will be stored.
+   * @returns true, if the script was added, false otherwise.
    */
   _addScript: function TA__addScript(aScript) {
+    // Ignore XBL bindings for content debugging.
+    if (aScript.url.indexOf("chrome://") == 0) {
+      return false;
+    }
+    // Ignore about:* pages for content debugging.
+    if (aScript.url.indexOf("about:") == 0) {
+      return false;
+    }
     // Use a sparse array for storing the scripts for each URL in order to
     // optimize retrieval.
     if (!this._scripts[aScript.url]) {
       this._scripts[aScript.url] = [];
     }
     this._scripts[aScript.url][aScript.startLine] = aScript;
+
+    // Set any stored breakpoints.
+    let existing = this._breakpointStore[aScript.url];
+    if (existing) {
+      let endLine = aScript.startLine + aScript.lineCount - 1;
+      // Iterate over the lines backwards, so that sliding breakpoints don't
+      // affect the loop.
+      for (let line = existing.length - 1; line >= 0; line--) {
+        let bp = existing[line];
+        // Limit search to the line numbers contained in the new script.
+        if (bp && line >= aScript.startLine && line <= endLine) {
+          this._setBreakpoint(bp);
+        }
+      }
+    }
+    return true;
   }
 
 };
@@ -1054,7 +1146,7 @@ ObjectActor.prototype = {
     let descriptor = {};
     descriptor.configurable = aObject.configurable;
     descriptor.enumerable = aObject.enumerable;
-    if (aObject.value) {
+    if (aObject.value !== undefined) {
       descriptor.writable = aObject.writable;
       descriptor.value = this.threadActor.createValueGrip(aObject.value);
     } else {
@@ -1102,15 +1194,19 @@ ObjectActor.prototype = {
                         " 'Function' class." };
     }
 
-    let envActor = this.threadActor.createEnvironmentActor(this.obj,
+    let envActor = this.threadActor.createEnvironmentActor(this.obj.environment,
                                                            this.registeredPool);
     if (!envActor) {
       return { error: "notDebuggee",
                message: "cannot access the environment of this function." };
     }
 
+    // XXX: the following call of env.form() won't work until bug 747514 lands.
+    // We can't get to the frame that defined this function's environment,
+    // neither here, nor during ObjectActor's construction. Luckily, we don't
+    // use the 'scope' request in the debugger frontend.
     return { name: this.obj.name || null,
-             scope: envActor.form() };
+             scope: envActor.form(this.obj) };
   },
 
   /**
@@ -1228,20 +1324,13 @@ FrameActor.prototype = {
                  type: this.frame.type };
     if (this.frame.type === "call") {
       form.callee = this.threadActor.createValueGrip(this.frame.callee);
-      if (this.frame.callee.name) {
-        form.calleeName = this.frame.callee.name;
-      } else {
-        let desc = this.frame.callee.getOwnPropertyDescriptor("displayName");
-        if (desc && desc.value && typeof desc.value == "string") {
-          form.calleeName = desc.value;
-        }
-      }
+      form.calleeName = getFunctionName(this.frame.callee);
     }
 
     let envActor = this.threadActor
-                       .createEnvironmentActor(this.frame,
+                       .createEnvironmentActor(this.frame.environment,
                                                this.frameLifetimePool);
-    form.environment = envActor ? envActor.form() : envActor;
+    form.environment = envActor ? envActor.form(this.frame) : envActor;
     form.this = this.threadActor.createValueGrip(this.frame.this);
     form.arguments = this._args();
     if (this.frame.script) {
@@ -1299,19 +1388,34 @@ FrameActor.prototype.requestTypes = {
  * containing thread and are responsible for deleting breakpoints, handling
  * breakpoint hits and associating breakpoints with scripts.
  *
- * @param Debugger.Script aScript
- *        The script this breakpoint is set on.
  * @param ThreadActor aThreadActor
  *        The parent thread actor that contains this breakpoint.
+ * @param object aLocation
+ *        The location of the breakpoint as specified in the protocol.
  */
-function BreakpointActor(aScript, aThreadActor)
+function BreakpointActor(aThreadActor, aLocation)
 {
-  this.script = aScript;
+  this.scripts = [];
   this.threadActor = aThreadActor;
+  this.location = aLocation;
 }
 
 BreakpointActor.prototype = {
   actorPrefix: "breakpoint",
+
+  /**
+   * Called when this same breakpoint is added to another Debugger.Script
+   * instance, in the case of a page reload.
+   *
+   * @param aScript Debugger.Script
+   *        The new source script on which the breakpoint has been set.
+   * @param ThreadActor aThreadActor
+   *        The parent thread actor that contains this breakpoint.
+   */
+  addScript: function BA_addScript(aScript, aThreadActor) {
+    this.threadActor = aThreadActor;
+    this.scripts.push(aScript);
+  },
 
   /**
    * A function that the engine calls when a breakpoint has been hit.
@@ -1332,9 +1436,15 @@ BreakpointActor.prototype = {
    *        The protocol request object.
    */
   onDelete: function BA_onDelete(aRequest) {
-    this.threadActor.breakpointActorPool.removeActor(this.actorID);
-    this.script.clearBreakpoint(this);
-    this.script = null;
+    // Remove from the breakpoint store.
+    let scriptBreakpoints = this.threadActor._breakpointStore[this.location.url];
+    delete scriptBreakpoints[this.location.line];
+    // Remove the actual breakpoint.
+    this.threadActor._hooks.removeFromBreakpointPool(this.actorID);
+    for (let script of this.scripts) {
+      script.clearBreakpoint(this);
+    }
+    this.scripts = null;
 
     return { from: this.actorID };
   }
@@ -1350,14 +1460,14 @@ BreakpointActor.prototype.requestTypes = {
  * the bindings introduced by a lexical environment and assigning new values to
  * those identifier bindings.
  *
- * @param Debugger.Object aObject
- *        The object whose lexical environment will be used to create the actor.
+ * @param Debugger.Environment aEnvironment
+ *        The lexical environment that will be used to create the actor.
  * @param ThreadActor aThreadActor
  *        The parent thread actor that contains this environment.
  */
-function EnvironmentActor(aObject, aThreadActor)
+function EnvironmentActor(aEnvironment, aThreadActor)
 {
-  this.obj = aObject;
+  this.obj = aEnvironment;
   this.threadActor = aThreadActor;
 }
 
@@ -1365,41 +1475,52 @@ EnvironmentActor.prototype = {
   actorPrefix: "environment",
 
   /**
-   * Returns an environment form for use in a protocol message.
+   * Returns an environment form for use in a protocol message. Note that the
+   * requirement of passing the frame as a parameter is only temporary, since
+   * when bug 747514 lands, the environment will have a callee property that
+   * will contain it.
+   *
+   * @param Debugger.Frame aObject
+   *        The stack frame object whose environment bindings are being
+   *        generated.
    */
-  form: function EA_form() {
+  form: function EA_form(aObject) {
     // Debugger.Frame might be dead by the time we get here, which will cause
     // accessing its properties to throw.
-    if (!this.obj.live) {
+    if (!aObject.live) {
       return undefined;
     }
 
     let parent;
-    if (this.obj.environment.parent) {
-      parent = this.threadActor
-                   .createEnvironmentActor(this.obj.environment.parent,
-                                           this.registeredPool);
+    if (this.obj.parent) {
+      let thread = this.threadActor;
+      parent = thread.createEnvironmentActor(this.obj.parent,
+                                             this.registeredPool);
+    }
+    // Deduce the frame that created the parent scope in order to pass it to
+    // parent.form(). TODO: this can be removed after bug 747514 is done.
+    let parentFrame = aObject;
+    if (this.obj.type == "declarative" && aObject.older) {
+      parentFrame = aObject.older;
     }
     let form = { actor: this.actorID,
-                 parent: parent ? parent.form() : parent };
+                 parent: parent ? parent.form(parentFrame) : parent };
 
-    if (this.obj.environment.type == "object") {
-      if (this.obj.environment.parent) {
-        form.type = "with";
-      } else {
-        form.type = "object";
-      }
-      form.object = this.threadActor.createValueGrip(this.obj.environment.object);
-    } else {
-      if (this.obj.class == "Function") {
+    if (this.obj.type == "with") {
+      form.type = "with";
+      form.object = this.threadActor.createValueGrip(this.obj.object);
+    } else if (this.obj.type == "object") {
+      form.type = "object";
+      form.object = this.threadActor.createValueGrip(this.obj.object);
+    } else { // this.obj.type == "declarative"
+      if (aObject.callee) {
         form.type = "function";
-        form.function = this.threadActor.createValueGrip(this.obj);
-        form.functionName = this.obj.name;
+        form.function = this.threadActor.createValueGrip(aObject.callee);
+        form.functionName = getFunctionName(aObject.callee);
       } else {
         form.type = "block";
       }
-
-      form.bindings = this._bindings();
+      form.bindings = this._bindings(aObject);
     }
 
     return form;
@@ -1407,19 +1528,41 @@ EnvironmentActor.prototype = {
 
   /**
    * Return the identifier bindings object as required by the remote protocol
-   * specification.
+   * specification. Note that the requirement of passing the frame as a
+   * parameter is only temporary, since when bug 747514 lands, the environment
+   * will have a callee property that will contain it.
+   *
+   * @param Debugger.Frame aObject [optional]
+   *        The stack frame whose environment bindings are being generated. When
+   *        left unspecified, the bindings do not contain an 'arguments'
+   *        property.
    */
-  _bindings: function EA_bindings() {
+  _bindings: function EA_bindings(aObject) {
     let bindings = { arguments: [], variables: {} };
 
-    // TODO: this will be redundant after bug 692984 is fixed.
-    if (typeof this.obj.environment.getVariableDescriptor != "function") {
+    // TODO: this part should be removed in favor of the commented-out part
+    // below when getVariableDescriptor lands (bug 725815).
+    if (typeof this.obj.getVariable != "function") {
+    //if (typeof this.obj.getVariableDescriptor != "function") {
       return bindings;
     }
 
-    for (let name in this.obj.parameterNames) {
+    let parameterNames;
+    if (aObject && aObject.callee) {
+      parameterNames = aObject.callee.parameterNames;
+    }
+    for each (let name in parameterNames) {
       let arg = {};
-      let desc = this.obj.environment.getVariableDescriptor(name);
+      // TODO: this part should be removed in favor of the commented-out part
+      // below when getVariableDescriptor lands (bug 725815).
+      let desc = {
+        value: this.obj.getVariable(name),
+        configurable: false,
+        writable: true,
+        enumerable: true
+      };
+
+      // let desc = this.obj.getVariableDescriptor(name);
       let descForm = {
         enumerable: true,
         configurable: desc.configurable
@@ -1435,14 +1578,30 @@ EnvironmentActor.prototype = {
       bindings.arguments.push(arg);
     }
 
-    for (let name in this.obj.environment.names()) {
+    for each (let name in this.obj.names()) {
       if (bindings.arguments.some(function exists(element) {
                                     return !!element[name];
                                   })) {
         continue;
       }
 
-      let desc = this.obj.environment.getVariableDescriptor(name);
+      // TODO: this part should be removed in favor of the commented-out part
+      // below when getVariableDescriptor lands.
+      let desc = {
+        configurable: false,
+        writable: true,
+        enumerable: true
+      };
+      try {
+        desc.value = this.obj.getVariable(name);
+      } catch (e) {
+        // Avoid "Debugger scope is not live" errors for |arguments|, introduced
+        // in bug 746601.
+        if (name != "arguments") {
+          throw e;
+        }
+      }
+      //let desc = this.obj.getVariableDescriptor(name);
       let descForm = {
         enumerable: true,
         configurable: desc.configurable
@@ -1468,16 +1627,18 @@ EnvironmentActor.prototype = {
    *        The protocol request object.
    */
   onAssign: function EA_onAssign(aRequest) {
-    let desc = this.obj.environment.getVariableDescriptor(aRequest.name);
+    // TODO: enable the commented-out part when getVariableDescriptor lands
+    // (bug 725815).
+    /*let desc = this.obj.getVariableDescriptor(aRequest.name);
 
     if (!desc.writable) {
       return { error: "immutableBinding",
                message: "Changing the value of an immutable binding is not " +
                         "allowed" };
-    }
+    }*/
 
     try {
-      this.obj.environment.setVariable(aRequest.name, aRequest.value);
+      this.obj.setVariable(aRequest.name, aRequest.value);
     } catch (e) {
       if (e instanceof Debugger.DebuggeeWouldRun) {
         return { error: "threadWouldRun",
@@ -1507,3 +1668,22 @@ EnvironmentActor.prototype.requestTypes = {
   "assign": EnvironmentActor.prototype.onAssign,
   "bindings": EnvironmentActor.prototype.onBindings
 };
+
+/**
+ * Helper function to deduce the name of the provided function.
+ *
+ * @param Debugger.Object aFunction
+ *        The function whose name will be returned.
+ */
+function getFunctionName(aFunction) {
+  let name;
+  if (aFunction.name) {
+    name = aFunction.name;
+  } else {
+    let desc = aFunction.getOwnPropertyDescriptor("displayName");
+    if (desc && desc.value && typeof desc.value == "string") {
+      name = desc.value;
+    }
+  }
+  return name;
+}

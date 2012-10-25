@@ -1,47 +1,9 @@
 /* vim: set sw=2 sts=2 et cin: */
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla OS/2 libraries.
- *
- * The Initial Developer of the Original Code is
- * John Fairhurst, <john_fairhurst@iname.com>.
- * Portions created by the Initial Developer are Copyright (C) 1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   IBM Corp.
- *   Rich Walsh <dragtext@e-vertise.com>
- *   Dan Rosen <dr@netscape.com>
- *   Dainis Jonitis <Dainis_Jonitis@swh-t.lv>
- *   Peter Weilbacher <mozilla@Weilbacher.org>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK *****/
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 //=============================================================================
 /*
@@ -60,6 +22,7 @@
  *  - Window Message Handlers
  *  - Drag & Drop - Target methods
  *  - Keyboard Handlers
+ *  - IME
  *  - Event Dispatch
  *
  */
@@ -80,11 +43,10 @@
 #include "nsTHashtable.h"
 #include "nsGkAtoms.h"
 #include "wdgtos2rc.h"
-
 #include "mozilla/Preferences.h"
+#include <os2im.h>
 
 using namespace mozilla;
-
 //=============================================================================
 //  Macros
 //=============================================================================
@@ -201,9 +163,16 @@ static PRUint32     sDragStatus = 0;
 #ifdef DEBUG_FOCUS
   int currentWindowIdentifier = 0;
 #endif
+// IME stuffs
+static HMODULE sIm32Mod = NULLHANDLE;
+static APIRET (APIENTRY *spfnImGetInstance)(HWND, PHIMI);
+static APIRET (APIENTRY *spfnImReleaseInstance)(HWND, HIMI);
+static APIRET (APIENTRY *spfnImGetConversionString)(HIMI, ULONG, PVOID,
+                                                    PULONG);
+static APIRET (APIENTRY *spfnImGetResultString)(HIMI, ULONG, PVOID, PULONG);
+static APIRET (APIENTRY *spfnImRequestIME)(HIMI, ULONG, ULONG, ULONG);
 
 //-----------------------------------------------------------------------------
-
 static PRUint32     WMChar2KeyCode(MPARAM mp1, MPARAM mp2);
 
 //=============================================================================
@@ -227,7 +196,7 @@ nsWindow::nsWindow() : nsBaseWidget()
   mClipWnd            = 0;
   mCssCursorHPtr      = 0;
   mThebesSurface      = 0;
-
+  mIsComposing        = false;
   if (!gOS2Flags) {
     InitGlobals();
   }
@@ -312,8 +281,48 @@ void nsWindow::InitGlobals()
   if (Preferences::GetBool("os2.trackpoint", false)) {
     gOS2Flags |= kIsTrackPoint;
   }
+
+  InitIME();
 }
 
+//-----------------------------------------------------------------------------
+// Determine whether to use IME
+static
+void InitIME()
+{
+  if (!getenv("MOZ_IME_OVERTHESPOT")) {
+    CHAR szName[CCHMAXPATH];
+    ULONG rc;
+
+    rc = DosLoadModule(szName, sizeof(szName), "os2im", &sIm32Mod);
+
+    if (!rc)
+      rc = DosQueryProcAddr(sIm32Mod, 104, NULL,
+                            (PFN *)&spfnImGetInstance);
+
+    if (!rc)
+      rc = DosQueryProcAddr(sIm32Mod, 106, NULL,
+                            (PFN *)&spfnImReleaseInstance);
+
+    if (!rc)
+      rc = DosQueryProcAddr(sIm32Mod, 118, NULL,
+                            (PFN *)&spfnImGetConversionString);
+
+    if (!rc)
+      rc = DosQueryProcAddr(sIm32Mod, 122, NULL,
+                            (PFN *)&spfnImGetResultString);
+
+    if (!rc)
+      rc = DosQueryProcAddr(sIm32Mod, 131, NULL,
+                            (PFN *)&spfnImRequestIME);
+
+    if (rc) {
+      DosFreeModule(sIm32Mod);
+
+      sIm32Mod = NULLHANDLE;
+    }
+  }
+}
 //-----------------------------------------------------------------------------
 // Release Module-level variables.
 
@@ -804,7 +813,9 @@ void nsWindow::NS2PM_PARENT(POINTL& ptl)
 NS_METHOD nsWindow::Move(PRInt32 aX, PRInt32 aY)
 {
   if (mFrame) {
-    return mFrame->Move(aX, aY);
+    nsresult rv = mFrame->Move(aX, aY);
+    NotifyRollupGeometryChange(gRollupListener);
+    return rv;
   }
   Resize(aX, aY, mBounds.width, mBounds.height, false);
   return NS_OK;
@@ -815,7 +826,9 @@ NS_METHOD nsWindow::Move(PRInt32 aX, PRInt32 aY)
 NS_METHOD nsWindow::Resize(PRInt32 aWidth, PRInt32 aHeight, bool aRepaint)
 {
   if (mFrame) {
-    return mFrame->Resize(aWidth, aHeight, aRepaint);
+    nsresult rv = mFrame->Resize(aWidth, aHeight, aRepaint);
+    NotifyRollupGeometryChange(gRollupListener);
+    return rv;
   }
   Resize(mBounds.x, mBounds.y, aWidth, aHeight, aRepaint);
   return NS_OK;
@@ -827,7 +840,9 @@ NS_METHOD nsWindow::Resize(PRInt32 aX, PRInt32 aY,
                            PRInt32 aWidth, PRInt32 aHeight, bool aRepaint)
 {
   if (mFrame) {
-    return mFrame->Resize(aX, aY, aWidth, aHeight, aRepaint);
+    nsresult rv = mFrame->Resize(aX, aY, aWidth, aHeight, aRepaint);
+    NotifyRollupGeometryChange(gRollupListener);
+    return rv;
   }
 
   // For mWnd & eWindowType_child set the cached values upfront, see bug 286555.
@@ -865,6 +880,7 @@ NS_METHOD nsWindow::Resize(PRInt32 aX, PRInt32 aY,
     }
   }
 
+  NotifyRollupGeometryChange(gRollupListener);
   return NS_OK;
 }
 
@@ -1868,8 +1884,15 @@ MRESULT nsWindow::ProcessMessage(ULONG msg, MPARAM mp1, MPARAM mp2)
       OnDragDropMsg(msg, mp1, mp2, mresult);
       isDone = true;
       break;
-  }
 
+    case WM_QUERYCONVERTPOS:
+      isDone = OnQueryConvertPos(mp1, mresult);
+      break;
+
+    case WM_IMEREQUEST:
+      isDone = OnImeRequest(mp1, mp2);
+      break;
+  }
   // If an event handler signalled that we should consume the event,
   // return.  Otherwise, pass it on to the default wndproc.
   if (!isDone) {
@@ -2145,14 +2168,10 @@ bool nsWindow::OnMouseChord(MPARAM mp1, MPARAM mp2)
 
   event.keyCode     = NS_VK_INSERT;
   if (isCopy) {
-    event.isShift   = false;
-    event.isControl = true;
+    event.modifiers = widget::MODIFIER_CONTROL;
   } else {
-    event.isShift   = true;
-    event.isControl = false;
+    event.modifiers = widget::MODIFIER_SHIFT;
   }
-  event.isAlt       = false;
-  event.isMeta      = false;
   event.eventStructType = NS_KEY_EVENT;
   event.charCode    = 0;
 
@@ -2160,13 +2179,13 @@ bool nsWindow::OnMouseChord(MPARAM mp1, MPARAM mp2)
   if (SHORT1FROMMP(mp1) & (KC_VIRTUALKEY | KC_KEYUP | KC_LONEKEY)) {
     USHORT usVKey = SHORT2FROMMP(mp2);
     if (usVKey == VK_SHIFT) {
-      event.isShift = true;
+      event.modifiers |= widget::MODIFIER_SHIFT;
     }
     if (usVKey == VK_CTRL) {
-      event.isControl = true;
+      event.modifiers |= widget::MODIFIER_CONTROL;
     }
     if (usVKey == VK_ALTGRAF || usVKey == VK_ALT) {
-      event.isAlt = true;
+      event.modifiers |= widget::MODIFIER_ALT;
     }
   }
 
@@ -2419,6 +2438,206 @@ bool nsWindow::OnTranslateAccelerator(PQMSG pQmsg)
 
   return false;
 }
+bool nsWindow::OnQueryConvertPos(MPARAM mp1, MRESULT& mresult)
+{
+  PRECTL pCursorPos = (PRECTL)mp1;
+
+  nsIntPoint point(0, 0);
+
+  nsQueryContentEvent selection(true, NS_QUERY_SELECTED_TEXT, this);
+  InitEvent(selection, &point);
+  DispatchWindowEvent(&selection);
+  if (!selection.mSucceeded)
+    return false;
+
+  nsQueryContentEvent caret(true, NS_QUERY_CARET_RECT, this);
+  caret.InitForQueryCaretRect(selection.mReply.mOffset);
+  InitEvent(caret, &point);
+  DispatchWindowEvent(&caret);
+  if (!caret.mSucceeded)
+    return false;
+
+  pCursorPos->xLeft = caret.mReply.mRect.x;
+  pCursorPos->yBottom = caret.mReply.mRect.y;
+  pCursorPos->xRight = pCursorPos->xLeft + caret.mReply.mRect.width;
+  pCursorPos->yTop = pCursorPos->yBottom + caret.mReply.mRect.height;
+  NS2PM(*pCursorPos);
+
+  mresult = (MRESULT)QCP_CONVERT;
+
+  return true;
+}
+bool nsWindow::ImeResultString(HIMI himi)
+{
+  PCHAR pBuf;
+  ULONG ulBufLen;
+
+  // Get a buffer size
+  ulBufLen = 0;
+  if (spfnImGetResultString(himi, IMR_RESULT_RESULTSTRING, NULL, &ulBufLen))
+    return false;
+
+  pBuf = new CHAR[ulBufLen];
+  if (!pBuf)
+    return false;
+
+  if (spfnImGetResultString(himi, IMR_RESULT_RESULTSTRING, pBuf,
+                            &ulBufLen)) {
+    delete pBuf;
+
+    return false;
+  }
+
+  if (!mIsComposing) {
+    mLastDispatchedCompositionString.Truncate();
+
+    nsCompositionEvent start(true, NS_COMPOSITION_START, this);
+    InitEvent(start);
+    DispatchWindowEvent(&start);
+
+    mIsComposing = true;
+  }
+
+  nsAutoChar16Buffer outBuf;
+  PRInt32 outBufLen;
+  MultiByteToWideChar(0, pBuf, ulBufLen, outBuf, outBufLen);
+
+  delete pBuf;
+
+  nsAutoString compositionString(outBuf.Elements());
+
+  if (mLastDispatchedCompositionString != compositionString) {
+    nsCompositionEvent update(true, NS_COMPOSITION_UPDATE, this);
+    InitEvent(update);
+    update.data = compositionString;
+    mLastDispatchedCompositionString = compositionString;
+    DispatchWindowEvent(&update);
+  }
+
+  nsTextEvent text(true, NS_TEXT_TEXT, this);
+  InitEvent(text);
+  text.theText = compositionString;
+  DispatchWindowEvent(&text);
+
+  nsCompositionEvent end(true, NS_COMPOSITION_END, this);
+  InitEvent(end);
+  end.data = compositionString;
+  DispatchWindowEvent(&end);
+  mIsComposing = false;
+  mLastDispatchedCompositionString.Truncate();
+
+  return true;
+}
+
+bool nsWindow::ImeConversionString(HIMI himi)
+{
+  PCHAR pBuf;
+  ULONG ulBufLen;
+
+  // Get a buffer size
+  ulBufLen = 0;
+  if (spfnImGetConversionString(himi, IMR_CONV_CONVERSIONSTRING, NULL,
+                                &ulBufLen))
+    return false;
+
+  pBuf = new CHAR[ulBufLen];
+  if (!pBuf)
+    return false;
+
+  if (spfnImGetConversionString(himi, IMR_CONV_CONVERSIONSTRING, pBuf,
+                                &ulBufLen)) {
+    delete pBuf;
+
+    return false;
+  }
+
+  if (!mIsComposing) {
+    mLastDispatchedCompositionString.Truncate();
+
+    nsCompositionEvent start(true, NS_COMPOSITION_START, this);
+    InitEvent(start);
+    DispatchWindowEvent(&start);
+
+    mIsComposing = true;
+  }
+
+  nsAutoChar16Buffer outBuf;
+  PRInt32 outBufLen;
+  MultiByteToWideChar(0, pBuf, ulBufLen, outBuf, outBufLen);
+
+  delete pBuf;
+
+  nsAutoString compositionString(outBuf.Elements());
+
+  // Is a conversion string changed ?
+  if (mLastDispatchedCompositionString != compositionString) {
+    nsCompositionEvent update(true, NS_COMPOSITION_UPDATE, this);
+    InitEvent(update);
+    update.data = compositionString;
+    mLastDispatchedCompositionString = compositionString;
+    DispatchWindowEvent(&update);
+  }
+
+  nsAutoTArray<nsTextRange, 4> textRanges;
+
+  if (!compositionString.IsEmpty()) {
+    nsTextRange newRange;
+    newRange.mStartOffset = 0;
+    newRange.mEndOffset = compositionString.Length();
+    newRange.mRangeType = NS_TEXTRANGE_SELECTEDRAWTEXT;
+    textRanges.AppendElement(newRange);
+
+    newRange.mStartOffset = compositionString.Length();
+    newRange.mEndOffset = newRange.mStartOffset;
+    newRange.mRangeType = NS_TEXTRANGE_CARETPOSITION;
+    textRanges.AppendElement(newRange);
+  }
+
+  nsTextEvent text(true, NS_TEXT_TEXT, this);
+  InitEvent(text);
+  text.theText = compositionString;
+  text.rangeArray = textRanges.Elements();
+  text.rangeCount = textRanges.Length();
+  DispatchWindowEvent(&text);
+
+  if (compositionString.IsEmpty()) { // IME conversion was canceled ?
+    nsCompositionEvent end(true, NS_COMPOSITION_END, this);
+    InitEvent(end);
+    end.data = compositionString;
+    DispatchWindowEvent(&end);
+
+    mIsComposing = false;
+    mLastDispatchedCompositionString.Truncate();
+  }
+
+  return true;
+}
+
+bool nsWindow::OnImeRequest(MPARAM mp1, MPARAM mp2)
+{
+  HIMI himi;
+  bool rc;
+
+  if (!sIm32Mod)
+    return false;
+
+  if (SHORT1FROMMP(mp1) != IMR_CONVRESULT)
+    return false;
+
+  if (spfnImGetInstance(mWnd, &himi))
+    return false;
+
+  if (LONGFROMMP(mp2) & IMR_RESULT_RESULTSTRING)
+    rc = ImeResultString(himi);
+  else if (LONGFROMMP(mp2) & IMR_CONV_CONVERSIONSTRING)
+    rc = ImeConversionString(himi);
+  else
+    rc = true;
+
+  spfnImReleaseInstance(mWnd, himi);
+
+  return rc;
+}
 
 //-----------------------------------------------------------------------------
 // Key handler.  Specs for the various text messages are really confused;
@@ -2462,10 +2681,8 @@ bool nsWindow::DispatchKeyEvent(MPARAM mp1, MPARAM mp2)
                    this);
   InitEvent(event, &point);
   event.keyCode   = WMChar2KeyCode(mp1, mp2);
-  event.isShift   = (fsFlags & KC_SHIFT) ? true : false;
-  event.isControl = (fsFlags & KC_CTRL) ? true : false;
-  event.isAlt     = (fsFlags & KC_ALT) ? true : false;
-  event.isMeta    = false;
+  event.InitBasicModifiers(fsFlags & KC_CTRL, fsFlags & KC_ALT,
+                           fsFlags & KC_SHIFT, false);
   event.charCode  = 0;
 
   // Check for a scroll mouse event vs. a keyboard event.  The way we know
@@ -2522,15 +2739,15 @@ bool nsWindow::DispatchKeyEvent(MPARAM mp1, MPARAM mp2)
 
     pressEvent.charCode = outbuf[0];
 
-    if (pressEvent.isControl && !(fsFlags & (KC_VIRTUALKEY | KC_DEADKEY))) {
-      if (!pressEvent.isShift && (pressEvent.charCode >= 'A' && pressEvent.charCode <= 'Z')) {
+    if (pressEvent.IsControl() && !(fsFlags & (KC_VIRTUALKEY | KC_DEADKEY))) {
+      if (!pressEvent.IsShift() && (pressEvent.charCode >= 'A' && pressEvent.charCode <= 'Z')) {
         pressEvent.charCode = tolower(pressEvent.charCode);
       }
-      if (pressEvent.isShift && (pressEvent.charCode >= 'a' && pressEvent.charCode <= 'z')) {
+      if (pressEvent.IsShift() && (pressEvent.charCode >= 'a' && pressEvent.charCode <= 'z')) {
         pressEvent.charCode = toupper(pressEvent.charCode);
       }
       pressEvent.keyCode = 0;
-    } else if (!pressEvent.isControl && !pressEvent.isAlt && pressEvent.charCode != 0) {
+    } else if (!pressEvent.IsControl() && !pressEvent.IsAlt() && pressEvent.charCode != 0) {
       if (!(fsFlags & KC_VIRTUALKEY) || // not virtual key
           ((fsFlags & KC_CHAR) && !pressEvent.keyCode)) {
         pressEvent.keyCode = 0;
@@ -2799,10 +3016,9 @@ bool nsWindow::DispatchDragDropEvent(PRUint32 aMsg)
   nsDragEvent event(true, aMsg, this);
   InitEvent(event);
 
-  event.isShift   = isKeyDown(VK_SHIFT);
-  event.isControl = isKeyDown(VK_CTRL);
-  event.isAlt     = isKeyDown(VK_ALT) || isKeyDown(VK_ALTGRAF);
-  event.isMeta    = false;
+  event.InitBasicModifiers(isKeyDown(VK_CTRL),
+                           isKeyDown(VK_ALT) || isKeyDown(VK_ALTGRAF),
+                           isKeyDown(VK_SHIFT), false);
 
   return DispatchWindowEvent(&event);
 }
@@ -2846,6 +3062,14 @@ bool nsWindow::DispatchMouseEvent(PRUint32 aEventType, MPARAM mp1, MPARAM mp2,
                      ? nsMouseEvent::eContextMenuKey
                      : nsMouseEvent::eNormal);
   event.button = aButton;
+  if (aEventType == NS_MOUSE_BUTTON_DOWN && mIsComposing) {
+    // If IME is composing, let it complete.
+    HIMI himi;
+
+    spfnImGetInstance(mWnd, &himi);
+    spfnImRequestIME(himi, REQ_CONVERSIONSTRING, CNV_COMPLETE, 0);
+    spfnImReleaseInstance(mWnd, himi);
+  }
 
   if (aEventType == NS_MOUSE_ENTER || aEventType == NS_MOUSE_EXIT) {
     // Ignore enter/leave msgs forwarded from the frame to FID_CLIENT
@@ -2875,9 +3099,9 @@ bool nsWindow::DispatchMouseEvent(PRUint32 aEventType, MPARAM mp1, MPARAM mp2,
     }
 
     InitEvent(event, nsnull);
-    event.isShift   = isKeyDown(VK_SHIFT);
-    event.isControl = isKeyDown(VK_CTRL);
-    event.isAlt     = isKeyDown(VK_ALT) || isKeyDown(VK_ALTGRAF);
+    event.InitBasicModifiers(isKeyDown(VK_CTRL),
+                             isKeyDown(VK_ALT) || isKeyDown(VK_ALTGRAF),
+                             isKeyDown(VK_SHIFT), false);
   } else {
     POINTL ptl;
     if (aEventType == NS_CONTEXTMENU && aIsContextMenuKey) {
@@ -2892,11 +3116,9 @@ bool nsWindow::DispatchMouseEvent(PRUint32 aEventType, MPARAM mp1, MPARAM mp2,
     InitEvent(event, &pt);
 
     USHORT usFlags  = SHORT2FROMMP(mp2);
-    event.isShift   = (usFlags & KC_SHIFT) ? true : false;
-    event.isControl = (usFlags & KC_CTRL) ? true : false;
-    event.isAlt     = (usFlags & KC_ALT) ? true : false;
+    event.InitBasicModifiers(usFlags & KC_CTRL, usFlags & KC_ALT,
+                             usFlags & KC_SHIFT, false);
   }
-  event.isMeta = false;
 
   // Dblclicks are used to set the click count, then changed to mousedowns
   if (aEventType == NS_MOUSE_DOUBLECLICK &&
@@ -3010,10 +3232,9 @@ bool nsWindow::DispatchScrollEvent(ULONG msg, MPARAM mp1, MPARAM mp2)
   nsMouseScrollEvent scrollEvent(true, NS_MOUSE_SCROLL, this);
   InitEvent(scrollEvent);
 
-  scrollEvent.isShift     = isKeyDown(VK_SHIFT);
-  scrollEvent.isControl   = isKeyDown(VK_CTRL);
-  scrollEvent.isAlt       = isKeyDown(VK_ALT) || isKeyDown(VK_ALTGRAF);
-  scrollEvent.isMeta      = false;
+  scrollEvent.InitBasicModifiers(isKeyDown(VK_CTRL),
+                                 isKeyDown(VK_ALT) || isKeyDown(VK_ALTGRAF),
+                                 isKeyDown(VK_SHIFT), false);
   scrollEvent.scrollFlags = (msg == WM_HSCROLL) ?
                             nsMouseScrollEvent::kIsHorizontal :
                             nsMouseScrollEvent::kIsVertical;

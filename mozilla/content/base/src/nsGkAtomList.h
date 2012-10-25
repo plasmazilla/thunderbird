@@ -1,39 +1,9 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// IWYU pragma: private, include "nsGkAtoms.h"
 
 /*
   This file contains the list of all atoms used by gklayout;
@@ -63,6 +33,7 @@
 
 GK_ATOM(_empty, "")
 GK_ATOM(moz, "_moz")
+GK_ATOM(mozframetype, "mozframetype")
 GK_ATOM(mozallowfullscreen, "mozallowfullscreen")
 GK_ATOM(moztype, "_moz-type")
 GK_ATOM(mozdirty, "_moz_dirty")
@@ -71,6 +42,7 @@ GK_ATOM(mozeditorbogusnode, "_moz_editor_bogus_node")
 GK_ATOM(mozgeneratedcontentbefore, "_moz_generated_content_before")
 GK_ATOM(mozgeneratedcontentafter, "_moz_generated_content_after")
 GK_ATOM(mozgeneratedcontentimage, "_moz_generated_content_image")
+GK_ATOM(mozquote, "_moz_quote")
 GK_ATOM(_moz_original_size, "_moz_original_size")
 GK_ATOM(_moz_target, "_moz_target")
 GK_ATOM(_moz_type, "_moz-type")
@@ -107,6 +79,7 @@ GK_ATOM(ancestor, "ancestor")
 GK_ATOM(ancestorOrSelf, "ancestor-or-self")
 GK_ATOM(_and, "and")
 GK_ATOM(any, "any")
+GK_ATOM(mozapp, "mozapp")
 GK_ATOM(applet, "applet")
 GK_ATOM(applyImports, "apply-imports")
 GK_ATOM(applyTemplates, "apply-templates")
@@ -125,9 +98,7 @@ GK_ATOM(_auto, "auto")
 GK_ATOM(autocheck, "autocheck")
 GK_ATOM(autocomplete, "autocomplete")
 GK_ATOM(autofocus, "autofocus")
-#ifdef MOZ_MEDIA
 GK_ATOM(autoplay, "autoplay")
-#endif
 GK_ATOM(autorepeatbutton, "autorepeatbutton")
 GK_ATOM(axis, "axis")
 GK_ATOM(b, "b")
@@ -233,13 +204,14 @@ GK_ATOM(commandupdater, "commandupdater")
 GK_ATOM(comment, "comment")
 GK_ATOM(compact, "compact")
 GK_ATOM(concat, "concat")
-GK_ATOM(contenteditable, "contenteditable")
 GK_ATOM(conditions, "conditions")
 GK_ATOM(constructor, "constructor")
+GK_ATOM(consumeoutsideclicks, "consumeoutsideclicks")
 GK_ATOM(container, "container")
 GK_ATOM(containment, "containment")
 GK_ATOM(contains, "contains")
 GK_ATOM(content, "content")
+GK_ATOM(contenteditable, "contenteditable")
 GK_ATOM(headerContentDisposition, "content-disposition")
 GK_ATOM(headerContentLanguage, "content-language")
 GK_ATOM(contentLocation, "content-location")
@@ -250,9 +222,7 @@ GK_ATOM(context, "context")
 GK_ATOM(contextmenu, "contextmenu")
 GK_ATOM(contextmenulistener, "contextmenulistener")
 GK_ATOM(control, "control")
-#ifdef MOZ_MEDIA
 GK_ATOM(controls, "controls")
-#endif
 GK_ATOM(coords, "coords")
 GK_ATOM(copy, "copy")
 GK_ATOM(copyOf, "copy-of")
@@ -283,9 +253,7 @@ GK_ATOM(defaultchecked, "defaultchecked")
 GK_ATOM(defaultLabel, "defaultLabel")
 GK_ATOM(defaultselected, "defaultselected")
 GK_ATOM(defaultvalue, "defaultvalue")
-#ifdef MOZ_MEDIA
 GK_ATOM(defaultplaybackrate, "defaultplaybackrate")
-#endif
 GK_ATOM(defer, "defer")
 GK_ATOM(del, "del")
 GK_ATOM(descendant, "descendant")
@@ -535,9 +503,7 @@ GK_ATOM(load, "load")
 GK_ATOM(localedir, "localedir")
 GK_ATOM(localName, "local-name")
 GK_ATOM(longdesc, "longdesc")
-#ifdef MOZ_MEDIA
 GK_ATOM(loop, "loop")
-#endif
 GK_ATOM(low, "low")
 GK_ATOM(lowerFirst, "lower-first")
 GK_ATOM(lowest, "lowest")
@@ -574,6 +540,7 @@ GK_ATOM(message, "message")
 GK_ATOM(meta, "meta")
 GK_ATOM(meter, "meter")
 GK_ATOM(method, "method")
+GK_ATOM(microdataProperties, "microdataProperties")
 GK_ATOM(middle, "middle")
 GK_ATOM(min, "min")
 GK_ATOM(minheight, "minheight")
@@ -601,9 +568,7 @@ GK_ATOM(x_moz_errormessage, "x-moz-errormessage")
 GK_ATOM(msthemecompatible, "msthemecompatible")
 GK_ATOM(multicol, "multicol")
 GK_ATOM(multiple, "multiple")
-#ifdef MOZ_MEDIA
 GK_ATOM(muted, "muted")
-#endif
 GK_ATOM(name, "name")
 GK_ATOM(_namespace, "namespace")
 GK_ATOM(namespaceAlias, "namespace-alias")
@@ -791,9 +756,7 @@ GK_ATOM(phase, "phase")
 GK_ATOM(ping, "ping")
 GK_ATOM(placeholder, "placeholder")
 GK_ATOM(plaintext, "plaintext")
-#ifdef MOZ_MEDIA
 GK_ATOM(playbackrate, "playbackrate")
-#endif
 GK_ATOM(pointSize, "point-size")
 GK_ATOM(poly, "poly")
 GK_ATOM(polygon, "polygon")
@@ -809,17 +772,13 @@ GK_ATOM(popupshowing, "popupshowing")
 GK_ATOM(popupshown, "popupshown")
 GK_ATOM(popupsinherittooltip, "popupsinherittooltip")
 GK_ATOM(position, "position")
-#ifdef MOZ_MEDIA
 GK_ATOM(poster, "poster")
-#endif
 GK_ATOM(pre, "pre")
 GK_ATOM(preceding, "preceding")
 GK_ATOM(precedingSibling, "preceding-sibling")
 GK_ATOM(predicate, "predicate")
 GK_ATOM(prefix, "prefix")
-#ifdef MOZ_MEDIA
 GK_ATOM(preload, "preload")
-#endif
 GK_ATOM(preserve, "preserve")
 GK_ATOM(preserveSpace, "preserve-space")
 GK_ATOM(preventdefault, "preventdefault")
@@ -940,9 +899,7 @@ GK_ATOM(sortResource, "sortResource")
 GK_ATOM(sortResource2, "sortResource2")
 GK_ATOM(sortSeparators, "sortSeparators")
 GK_ATOM(sortStaticsLast, "sortStaticsLast")
-#ifdef MOZ_MEDIA
 GK_ATOM(source, "source")
-#endif
 GK_ATOM(space, "space")
 GK_ATOM(spacer, "spacer")
 GK_ATOM(span, "span")
@@ -966,6 +923,7 @@ GK_ATOM(statedatasource, "statedatasource")
 GK_ATOM(staticHint, "staticHint")
 GK_ATOM(statusbar, "statusbar")
 GK_ATOM(statustext, "statustext")
+GK_ATOM(step, "step")
 GK_ATOM(stop, "stop")
 GK_ATOM(stretch, "stretch")
 GK_ATOM(strike, "strike")
@@ -1078,11 +1036,9 @@ GK_ATOM(vendorUrl, "vendor-url")
 GK_ATOM(version, "version")
 GK_ATOM(vert, "vert")
 GK_ATOM(vertical, "vertical")
-#ifdef MOZ_MEDIA
 GK_ATOM(audio, "audio")
 GK_ATOM(video, "video")
 GK_ATOM(videocontrols, "videocontrols")
-#endif
 GK_ATOM(viewport, "viewport")
 GK_ATOM(viewport_height, "viewport-height")
 GK_ATOM(viewport_initial_scale, "viewport-initial-scale")
@@ -1362,6 +1318,7 @@ GK_ATOM(unicode_bidi, "unicode-bidi")
 GK_ATOM(userSpaceOnUse, "userSpaceOnUse")
 GK_ATOM(view, "view")
 GK_ATOM(viewBox, "viewBox")
+GK_ATOM(viewTarget, "viewTarget")
 GK_ATOM(vkern, "vkern")
 GK_ATOM(word_spacing, "word-spacing")
 GK_ATOM(x, "x")
@@ -1375,6 +1332,7 @@ GK_ATOM(y2, "y2")
 GK_ATOM(yChannelSelector, "yChannelSelector")
 GK_ATOM(z, "z")
 GK_ATOM(zoomAndPan, "zoomAndPan")
+GK_ATOM(vector_effect, "vector-effect")
 
 GK_ATOM(accumulate, "accumulate")
 GK_ATOM(additive, "additive")
@@ -1555,7 +1513,6 @@ GK_ATOM(matrixrow_, "matrixrow")
 GK_ATOM(maxsize_, "maxsize")
 GK_ATOM(mean_, "mean")
 GK_ATOM(median_, "median")
-GK_ATOM(mediummathspace_, "mediummathspace")
 GK_ATOM(menclose_, "menclose")
 GK_ATOM(merror_, "merror")
 GK_ATOM(mfenced_, "mfenced")
@@ -1599,13 +1556,6 @@ GK_ATOM(mtr_, "mtr")
 GK_ATOM(munder_, "munder")
 GK_ATOM(munderover_, "munderover")
 GK_ATOM(naturalnumbers_, "naturalnumbers")
-GK_ATOM(negativemediummathspace_, "negativemediummathspace")
-GK_ATOM(negativethickmathspace_, "negativethickmathspace")
-GK_ATOM(negativethinmathspace_, "negativethinmathspace")
-GK_ATOM(negativeverythickmathspace_, "negativeverythickmathspace")
-GK_ATOM(negativeverythinmathspace_, "negativeverythinmathspace")
-GK_ATOM(negativeveryverythickmathspace_, "negativeveryverythickmathspace")
-GK_ATOM(negativeveryverythinmathspace_, "negativeveryverythinmathspace")
 GK_ATOM(neq_, "neq")
 GK_ATOM(notanumber_, "notanumber")
 GK_ATOM(notation_, "notation")
@@ -1667,8 +1617,6 @@ GK_ATOM(symmetric_, "symmetric")
 GK_ATOM(tanh_, "tanh")
 GK_ATOM(tan_, "tan")
 GK_ATOM(tendsto_, "tendsto")
-GK_ATOM(thickmathspace_, "thickmathspace")
-GK_ATOM(thinmathspace_, "thinmathspace")
 GK_ATOM(times_, "times")
 GK_ATOM(transpose_, "transpose")
 GK_ATOM(union_, "union")
@@ -1676,10 +1624,6 @@ GK_ATOM(uplimit_, "uplimit")
 GK_ATOM(variance_, "variance")
 GK_ATOM(vectorproduct_, "vectorproduct")
 GK_ATOM(vector_, "vector")
-GK_ATOM(verythickmathspace_, "verythickmathspace")
-GK_ATOM(verythinmathspace_, "verythinmathspace")
-GK_ATOM(veryverythickmathspace_, "veryverythickmathspace")
-GK_ATOM(veryverythinmathspace_, "veryverythinmathspace")
 GK_ATOM(voffset_, "voffset")
 GK_ATOM(xref_, "xref")
 GK_ATOM(math, "math") // the only one without an underscore
@@ -1704,6 +1648,7 @@ GK_ATOM(onMozRotateGestureUpdate, "onMozRotateGestureUpdate")
 GK_ATOM(onMozRotateGesture, "onMozRotateGesture")
 GK_ATOM(onMozTapGesture, "onMozTapGesture")
 GK_ATOM(onMozPressTapGesture, "onMozPressTapGesture")
+GK_ATOM(onMozEdgeUIGesture, "onMozEdgeUIGesture")
 
 // Touch events
 GK_ATOM(onMozTouchDown, "onMozTouchDown")
@@ -1711,8 +1656,13 @@ GK_ATOM(onMozTouchMove, "onMozTouchMove")
 GK_ATOM(onMozTouchUp, "onMozTouchUp")
 
 // orientation support
-GK_ATOM(ondeviceorientation, "ondeviceorientation")
 GK_ATOM(ondevicemotion, "ondevicemotion")
+GK_ATOM(ondeviceorientation, "ondeviceorientation")
+GK_ATOM(ondeviceproximity, "ondeviceproximity")
+GK_ATOM(onuserproximity, "onuserproximity")
+
+// light sensor support
+GK_ATOM(ondevicelight, "ondevicelight")
 
 //---------------------------------------------------------------------------
 // Special atoms
@@ -1738,6 +1688,7 @@ GK_ATOM(comboboxControlFrame, "ComboboxControlFrame")
 GK_ATOM(comboboxDisplayFrame, "ComboboxDisplayFrame")
 GK_ATOM(deckFrame, "DeckFrame")
 GK_ATOM(fieldSetFrame, "FieldSetFrame")
+GK_ATOM(flexContainerFrame, "FlexContainerFrame")
 GK_ATOM(formControlFrame, "FormControlFrame") // radio or checkbox
 GK_ATOM(frameSetFrame, "FrameSetFrame")
 GK_ATOM(gfxButtonControlFrame, "gfxButtonControlFrame")
@@ -1801,6 +1752,7 @@ GK_ATOM(svgLinearGradientFrame, "SVGLinearGradientFrame")
 GK_ATOM(svgMarkerFrame, "SVGMarkerFrame")
 GK_ATOM(svgMaskFrame, "SVGMaskFrame")
 GK_ATOM(svgOuterSVGFrame, "SVGOuterSVGFrame")
+GK_ATOM(svgOuterSVGAnonChildFrame, "SVGOuterSVGAnonChildFrame")
 GK_ATOM(svgPathGeometryFrame, "SVGPathGeometryFrame")
 GK_ATOM(svgPatternFrame, "SVGPatternFrame")
 GK_ATOM(svgRadialGradientFrame, "SVGRadialGradientFrame")
@@ -1912,6 +1864,7 @@ GK_ATOM(az, "az")
 GK_ATOM(ba, "ba")
 GK_ATOM(crh, "crh")
 GK_ATOM(nl, "nl")
+GK_ATOM(el, "el")
 
 // Names for editor transactions
 GK_ATOM(TypingTxnName, "Typing")
@@ -1992,6 +1945,9 @@ GK_ATOM(scrollbars, "scrollbars")
 GK_ATOM(other,      "other")
 
 #ifdef ACCESSIBILITY
+GK_ATOM(alert, "alert")
+GK_ATOM(alertdialog, "alertdialog")
+GK_ATOM(application, "application")
 GK_ATOM(anonid, "anonid")
 GK_ATOM(aria_activedescendant, "aria-activedescendant")
 GK_ATOM(aria_atomic, "aria-atomic")
@@ -2029,9 +1985,11 @@ GK_ATOM(aria_valuemin, "aria-valuemin")
 GK_ATOM(aria_valuemax, "aria-valuemax")
 GK_ATOM(aria_valuetext, "aria-valuetext")
 GK_ATOM(AreaFrame, "AreaFrame")
+GK_ATOM(auto_generated, "auto-generated")
 GK_ATOM(backgroundColor, "background-color")
 GK_ATOM(checkable, "checkable")
 GK_ATOM(choices, "choices")
+GK_ATOM(columnheader, "columnheader")
 GK_ATOM(containerAtomic, "container-atomic")
 GK_ATOM(containerBusy, "container-busy")
 GK_ATOM(containerLive, "container-live")
@@ -2039,8 +1997,11 @@ GK_ATOM(containerLiveRole, "container-live-role")
 GK_ATOM(containerRelevant, "container-relevant")
 GK_ATOM(cycles, "cycles")
 GK_ATOM(datatable, "datatable")
+GK_ATOM(directory, "directory")
 GK_ATOM(droppable, "droppable")
 GK_ATOM(eventFromInput, "event-from-input")
+GK_ATOM(gridcell, "gridcell")
+GK_ATOM(heading, "heading")
 GK_ATOM(InlineBlockFrame, "InlineBlockFrame")
 GK_ATOM(inlinevalue, "inline")
 GK_ATOM(invalid, "invalid")
@@ -2053,13 +2014,22 @@ GK_ATOM(marginBottom, "margin-bottom")
 GK_ATOM(marginLeft, "margin-left")
 GK_ATOM(marginRight, "margin-right")
 GK_ATOM(marginTop, "margin-top")
+GK_ATOM(menuitemcheckbox, "menuitemcheckbox")
+GK_ATOM(menuitemradio, "menuitemradio")
 GK_ATOM(mixed, "mixed")
 GK_ATOM(multiline, "multiline")
 GK_ATOM(password, "password")
-GK_ATOM(posinset, "posinset") 
+GK_ATOM(posinset, "posinset")
+GK_ATOM(presentation, "presentation")
+GK_ATOM(progressbar, "progressbar")
+GK_ATOM(region, "region")
+GK_ATOM(rowheader, "rowheader")
 GK_ATOM(select1, "select1")
 GK_ATOM(setsize, "setsize")
+GK_ATOM(spinbutton, "spinbutton")
+GK_ATOM(status, "status")
 GK_ATOM(tableCellIndex, "table-cell-index")
+GK_ATOM(tablist, "tablist")
 GK_ATOM(textAlign, "text-align")
 GK_ATOM(textIndent, "text-indent")
 GK_ATOM(textLineThroughColor, "text-line-through-color")
@@ -2067,10 +2037,12 @@ GK_ATOM(textLineThroughStyle, "text-line-through-style")
 GK_ATOM(textPosition, "text-position")
 GK_ATOM(textUnderlineColor, "text-underline-color")
 GK_ATOM(textUnderlineStyle, "text-underline-style")
+GK_ATOM(timer, "timer")
 GK_ATOM(toolbarname, "toolbarname")
 GK_ATOM(toolbarseparator, "toolbarseparator")
 GK_ATOM(toolbarspacer, "toolbarspacer")
 GK_ATOM(toolbarspring, "toolbarspring")
+GK_ATOM(treegrid, "treegrid")
 GK_ATOM(_undefined, "undefined")
 GK_ATOM(xmlroles, "xml-roles")
 #endif

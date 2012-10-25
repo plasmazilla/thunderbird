@@ -1,40 +1,7 @@
 #! /bin/sh
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is the Mozilla build system
-#
-# The Initial Developer of the Original Code is
-# Ben Turner <mozilla@songbirdnest.com>
-#
-# Portions created by the Initial Developer are Copyright (C) 2007
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 # This file contains makefiles that will be generated for every XUL app.
 
@@ -51,6 +18,7 @@ MAKEFILES_dom="
   dom/interfaces/canvas/Makefile
   dom/interfaces/core/Makefile
   dom/interfaces/css/Makefile
+  dom/interfaces/devicestorage/Makefile
   dom/interfaces/events/Makefile
   dom/interfaces/geolocation/Makefile
   dom/interfaces/html/Makefile
@@ -67,11 +35,15 @@ MAKEFILES_dom="
   dom/interfaces/xbl/Makefile
   dom/interfaces/xpath/Makefile
   dom/interfaces/xul/Makefile
+  dom/alarm/Makefile
   dom/base/Makefile
   dom/battery/Makefile
+  dom/file/Makefile
   dom/indexedDB/Makefile
   dom/ipc/Makefile
   dom/locales/Makefile
+  dom/messages/Makefile
+  dom/messages/interfaces/Makefile
   dom/network/Makefile
   dom/network/interfaces/Makefile
   dom/network/src/Makefile
@@ -233,7 +205,6 @@ MAKEFILES_content="
   content/xul/document/public/Makefile
   content/xul/document/src/Makefile
   content/xbl/Makefile
-  content/xbl/public/Makefile
   content/xbl/src/Makefile
   content/xbl/builtin/Makefile
   content/xslt/Makefile
@@ -489,6 +460,7 @@ MAKEFILES_xulapp="
   toolkit/components/viewconfig/Makefile
   toolkit/components/viewsource/Makefile
   toolkit/devtools/Makefile
+  toolkit/identity/Makefile
   toolkit/locales/Makefile
   toolkit/mozapps/downloads/Makefile
   toolkit/mozapps/extensions/Makefile
@@ -608,7 +580,6 @@ elif [ "$MOZ_WIDGET_TOOLKIT" = "cocoa" ]; then
   add_makefiles "
     content/xbl/builtin/mac/Makefile
     dom/plugins/ipc/interpose/Makefile
-    dom/system/cocoa/Makefile
     image/decoders/icon/mac/Makefile
     intl/locale/src/mac/Makefile
     netwerk/system/mac/Makefile
@@ -739,6 +710,7 @@ if [ "$ENABLE_TESTS" ]; then
     docshell/test/Makefile
     docshell/test/chrome/Makefile
     docshell/test/navigation/Makefile
+    dom/alarm/test/Makefile
     dom/battery/test/Makefile
     dom/indexedDB/test/Makefile
     dom/indexedDB/test/unit/Makefile
@@ -901,6 +873,9 @@ if [ "$ENABLE_TESTS" ]; then
     toolkit/content/tests/chrome/rtltest/Makefile
     toolkit/content/tests/widgets/Makefile
     toolkit/devtools/debugger/tests/Makefile
+    toolkit/identity/tests/Makefile
+    toolkit/identity/tests/chrome/Makefile
+    toolkit/identity/tests/mochitest/Makefile
     toolkit/mozapps/downloads/tests/Makefile
     toolkit/mozapps/downloads/tests/chrome/Makefile
     toolkit/mozapps/extensions/test/Makefile
@@ -1150,7 +1125,7 @@ if [ "$DEHYDRA_PATH" ]; then
   "
 fi
 
-if [ "$MOZ_ANGLE" ]; then
+if [ "$MOZ_ANGLE_RENDERER" ]; then
   add_makefiles "
     gfx/angle/src/libGLESv2/Makefile
     gfx/angle/src/libEGL/Makefile
@@ -1159,7 +1134,6 @@ fi
 
 if [ "$MOZ_B2G_RIL" ]; then
   add_makefiles "
-    dom/system/b2g/Makefile
     dom/telephony/Makefile
     dom/wifi/Makefile
     ipc/ril/Makefile
@@ -1177,10 +1151,9 @@ if [ "$MOZ_CRASHREPORTER" ]; then
   "
   if [ "$OS_ARCH" = "WINNT" ]; then
     add_makefiles "
-      toolkit/crashreporter/google-breakpad/src/client/windows/crash_generation/Makefile
-      toolkit/crashreporter/google-breakpad/src/client/windows/handler/Makefile
-      toolkit/crashreporter/google-breakpad/src/client/windows/sender/Makefile
-      toolkit/crashreporter/google-breakpad/src/common/windows/Makefile
+      toolkit/crashreporter/breakpad-windows-libxul/Makefile
+      toolkit/crashreporter/breakpad-windows-standalone/Makefile
+      toolkit/crashreporter/injector/Makefile
     "
   elif [ "$OS_ARCH" = "Darwin" ]; then
     add_makefiles "
@@ -1363,7 +1336,7 @@ if [ "$MOZ_UPDATER" ]; then
     modules/libmar/src/Makefile
     modules/libmar/tool/Makefile
   "
-  if [ ! "$SYSTEM_BZ2" ]; then
+  if [ ! "$MOZ_NATIVE_BZ2" ]; then
     add_makefiles "
       modules/libbz2/Makefile
       modules/libbz2/src/Makefile
@@ -1498,14 +1471,14 @@ if [ "$MOZ_PSM" ]; then
   "
 fi
 
-if [ ! "$SYSTEM_JPEG" ]; then
+if [ ! "$MOZ_NATIVE_JPEG" ]; then
   add_makefiles "
     media/libjpeg/Makefile
     media/libjpeg/simd/Makefile
   "
 fi
 
-if [ ! "$SYSTEM_ZLIB" ]; then
+if [ ! "$MOZ_NATIVE_ZLIB" ]; then
   add_makefiles "
     modules/zlib/Makefile
     modules/zlib/src/Makefile
@@ -1518,7 +1491,7 @@ if [ "$MOZ_UPDATE_PACKAGING" ]; then
   "
 fi
 
-if [ ! "$SYSTEM_PNG" ]; then
+if [ ! "$MOZ_NATIVE_PNG" ]; then
   add_makefiles "
     media/libpng/Makefile
   "
@@ -1528,12 +1501,6 @@ if [ "$MOZ_JPROF" ]; then
   add_makefiles "
     tools/jprof/Makefile
     tools/jprof/stub/Makefile
-  "
-fi
-
-if [ "$MOZ_LEAKY" ]; then
-  add_makefiles "
-    tools/leaky/Makefile
   "
 fi
 
@@ -1581,6 +1548,12 @@ if [ "$MOZ_TREMOR" ]; then
   "
 fi
 
+if [ "$MOZ_OPUS" ]; then
+ add_makefiles "
+   media/libopus/Makefile
+ "
+fi
+
 if [ "$MOZ_OGG" ]; then
   add_makefiles "
     content/media/ogg/Makefile
@@ -1615,6 +1588,18 @@ if [ "$MOZ_WEBM" ]; then
   fi
 fi
 
+if [ "$MOZ_MEDIA_PLUGINS" ]; then
+  add_makefiles "
+    content/media/plugins/Makefile
+  "
+fi
+
+if [ "$MOZ_OMX_PLUGIN" ]; then
+  add_makefiles "
+    media/omx-plugin/Makefile
+  "
+fi
+
 if [ "$MOZ_WAVE" ]; then
  add_makefiles "
    content/media/wave/Makefile
@@ -1634,5 +1619,18 @@ if [ "$MOZ_SYDNEYAUDIO" ]; then
     media/libsydneyaudio/Makefile
     media/libsydneyaudio/include/Makefile
     media/libsydneyaudio/src/Makefile
+  "
+fi
+
+if [ "$MOZ_WEBRTC" ]; then
+ add_makefiles "
+   media/webrtc/Makefile
+ "
+fi
+
+if [ "$MOZ_SPEEX_RESAMPLER" ]; then
+  add_makefiles "
+    media/libspeex_resampler/Makefile
+    media/libspeex_resampler/src/Makefile
   "
 fi

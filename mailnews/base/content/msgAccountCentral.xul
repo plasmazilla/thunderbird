@@ -1,49 +1,16 @@
 <?xml version="1.0"?> 
-<!-- ***** BEGIN LICENSE BLOCK *****
- Version: MPL 1.1/GPL 2.0/LGPL 2.1
-
- The contents of this file are subject to the Mozilla Public License Version
- 1.1 (the "License"); you may not use this file except in compliance with
- the License. You may obtain a copy of the License at
- http://www.mozilla.org/MPL/
-
- Software distributed under the License is distributed on an "AS IS" basis,
- WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- for the specific language governing rights and limitations under the
- License.
-
- The Original Code is Mozilla Communicator client code, released
- March 31, 1998.
-
- The Initial Developer of the Original Code is
- Netscape Communications Corporation.
- Portions created by the Initial Developer are Copyright (C) 1998-1999
- the Initial Developer. All Rights Reserved.
-
- Contributor(s):
-
- Alternatively, the contents of this file may be used under the terms of
- either of the GNU General Public License Version 2 or later (the "GPL"),
- or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- in which case the provisions of the GPL or the LGPL are applicable instead
- of those above. If you wish to allow use of your version of this file only
- under the terms of either the GPL or the LGPL, and not to allow others to
- use your version of this file under the terms of the MPL, indicate your
- decision by deleting the provisions above and replace them with the notice
- and other provisions required by the GPL or the LGPL. If you do not delete
- the provisions above, a recipient may use your version of this file under
- the terms of any one of the MPL, the GPL or the LGPL.
-
- ***** END LICENSE BLOCK ***** -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <?xml-stylesheet href="chrome://messenger/skin/accountCentral.css" type="text/css"?>
 
 <!DOCTYPE page [
-   <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd">
+  <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd">
    %brandDTD;
   <!ENTITY % globalDTD SYSTEM "chrome://global/locale/global.dtd">
-  %globalDTD;
-   <!ENTITY % acctCentralDTD SYSTEM "chrome://messenger/locale/msgAccountCentral.dtd">
+   %globalDTD;
+  <!ENTITY % acctCentralDTD SYSTEM "chrome://messenger/locale/msgAccountCentral.dtd">
    %acctCentralDTD;
 ]>
 
@@ -52,17 +19,28 @@
   xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
   onload="OnInit();">
 
-  <stringbundle id="bundle_brand" src="chrome://branding/locale/brand.properties"/>
-  <stringbundle id="bundle_messenger" src="chrome://messenger/locale/messenger.properties"/>
-  <stringbundle id="bundle_prefs" src="chrome://messenger/locale/prefs.properties"/>
-  <script type="application/javascript" src="chrome://messenger/content/AccountManager.js"/>
-  <script type="application/javascript" src="chrome://messenger/content/accountUtils.js"/>
-  <script type="application/javascript" src="chrome://messenger/content/commandglue.js"/>
-  <script type="application/javascript" src="chrome://messenger/content/mailWindowOverlay.js"/>
-  <script type="application/javascript" src="chrome://messenger/content/mailWindow.js"/>
-  <script type="application/javascript" src="chrome://messenger/content/msgMail3PaneWindow.js"/>
-  <script type="application/javascript" src="chrome://messenger/content/widgetglue.js"/>
-  <script type="application/javascript" src="chrome://messenger/content/msgAccountCentral.js"/>
+  <stringbundle id="bundle_brand"
+                src="chrome://branding/locale/brand.properties"/>
+  <stringbundle id="bundle_messenger"
+                src="chrome://messenger/locale/messenger.properties"/>
+  <stringbundle id="bundle_prefs"
+                src="chrome://messenger/locale/prefs.properties"/>
+  <script type="application/javascript"
+          src="chrome://messenger/content/AccountManager.js"/>
+  <script type="application/javascript"
+          src="chrome://messenger/content/accountUtils.js"/>
+  <script type="application/javascript"
+          src="chrome://messenger/content/commandglue.js"/>
+  <script type="application/javascript"
+          src="chrome://messenger/content/mailWindowOverlay.js"/>
+  <script type="application/javascript"
+          src="chrome://messenger/content/mailWindow.js"/>
+  <script type="application/javascript"
+          src="chrome://messenger/content/msgMail3PaneWindow.js"/>
+  <script type="application/javascript"
+          src="chrome://messenger/content/widgetglue.js"/>
+  <script type="application/javascript"
+          src="chrome://messenger/content/msgAccountCentral.js"/>
 
   <grid id="acctCentralGrid" flex="1" style="overflow: auto;">
     <columns id="acctCentralColumns">
@@ -74,14 +52,15 @@
       <row id="acctCentralHeaderRow">
         <label id="AccountCentralTitle"/>
       </row>
-      <separator id="acctCentralHeader.separator"/>
+      <spacer id="acctCentralHeader.spacer" flex="2"/>
 
       <row id="EmailHeader" class="acctCentralTitleRow" collapsed="true">
         <hbox class="acctCentralRowTitleBox">
           <description>&emailSectionHdr.label;</description>
         </hbox>
       </row>
-      <separator id="EmailHeader.separator" class="thin" collapsed="true"/>
+
+      <spacer id="ReadMessages.spacer" flex="1" collapsed="true"/>
       <row id="ReadMessages" class="acctCentralRow" collapsed="true">
         <hbox>
           <label class="acctCentralText acctCentralLinkText"
@@ -90,7 +69,8 @@
                  onclick="ReadMessages();"/>
         </hbox>
       </row>
-      <separator id="ReadMessages.separator" class="thin" collapsed="true"/>
+
+      <spacer id="ComposeMessage.spacer" flex="1" collapsed="true"/>
       <row id="ComposeMessage" class="acctCentralRow" collapsed="true">
         <hbox>
           <label class="acctCentralText acctCentralLinkText"
@@ -99,7 +79,8 @@
                  onclick="ComposeAMessage();"/>
         </hbox>
       </row>
-      <separator id="ComposeMessage.separator" class="thin" collapsed="true"/>
+
+      <spacer id="JunkSettingsMail.spacer" flex="1" collapsed="true"/>
       <row id="JunkSettingsMail" class="acctCentralRow" collapsed="true">
         <hbox>
           <label class="acctCentralText acctCentralLinkText"
@@ -107,14 +88,15 @@
                  onclick="JunkSettings();"/>
         </hbox>
       </row>
-      <separator id="JunkSettingsMail.separator" class="thin" collapsed="true"/>
 
+      <spacer id="NewsHeader.spacer" flex="1" collapsed="true"/>
       <row id="NewsHeader" class="acctCentralTitleRow" collapsed="true">
         <hbox class="acctCentralRowTitleBox">
           <description>&newsSectionHdr.label;</description>
         </hbox>
       </row>
-      <separator id="NewsHeader.separator" class="thin" collapsed="true"/>
+
+      <spacer id="SubscribeNewsgroups.spacer" flex="1" collapsed="true"/>
       <row id="SubscribeNewsgroups" class="acctCentralRow" collapsed="true">
         <hbox>
           <label class="acctCentralText acctCentralLinkText"
@@ -123,7 +105,8 @@
                  onclick="Subscribe();"/>
         </hbox>
       </row>
-      <separator id="SubscribeNewsgroups.separator" class="thin" collapsed="true"/>
+
+      <spacer id="JunkSettingsNews.spacer" flex="1" collapsed="true"/>
       <row id="JunkSettingsNews" class="acctCentralRow" collapsed="true">
         <hbox>
           <label class="acctCentralText acctCentralLinkText"
@@ -131,33 +114,33 @@
                  onclick="JunkSettings();"/>
         </hbox>
       </row>
-      <separator id="JunkSettingsNews.separator" class="thin" collapsed="true"/>
 
+      <spacer id="rssHeader.spacer" flex="1" collapsed="true"/>
       <row id="rssHeader" class="acctCentralTitleRow" collapsed="true">
         <hbox class="acctCentralRowTitleBox">
           <description>&feedsSectionHdr.label;</description>
         </hbox>
       </row>
-      <separator id="rssHeader.separator" class="thin" collapsed="true"/>
+
+      <spacer id="SubscribeRSS.spacer" flex="1" collapsed="true"/>
       <row id="SubscribeRSS" class="acctCentralRow" collapsed="true">
         <hbox>
           <label class="acctCentralText acctCentralLinkText"
                  value="&subscribeFeeds.label;"
-                 chromedir="&locale.dir;" onclick="Subscribe();"/>
+                 chromedir="&locale.dir;"
+                 onclick="Subscribe();"/>
         </hbox>
       </row>
-      <separator id="SubscribeRSS.separator" class="thin" collapsed="true"/>
 
-      <separator id="MessagesSection.separator1" collapsed="true"/>
-      <separator id="MessagesSection.separator2" collapsed="true"/>
-      <separator id="MessagesSection.separator3" collapsed="true"/>
+      <spacer id="MessagesSection.spacer" class="big" flex="5" collapsed="true"/>
 
       <row id="AccountsHeader" class="acctCentralTitleRow" collapsed="true">
         <hbox class="acctCentralRowTitleBox">
           <description>&accountsSectionHdr.label;</description>
         </hbox>
       </row>
-      <separator id="AccountsHeader.separator" class="thin" collapsed="true"/>
+
+      <spacer id="AccountSettings.spacer" flex="1" collapsed="true"/>
       <row id="AccountSettings" class="acctCentralRow" collapsed="true">
         <hbox>
           <label class="acctCentralText acctCentralLinkText"
@@ -166,7 +149,8 @@
                  onclick="ViewSettings(null);"/>
         </hbox>
       </row>
-      <separator id="AccountSettings.separator" class="thin" collapsed="true"/>
+
+      <spacer id="CreateAccount.spacer" flex="1" collapsed="true"/>
       <row id="CreateAccount" class="acctCentralRow" collapsed="true">
         <hbox>
 #ifdef MOZ_THUNDERBIRD
@@ -182,18 +166,16 @@
 #endif
         </hbox>
       </row>
-      <separator id="CreateAccount.separator" class="thin" collapsed="true"/>
 
-      <separator id="AccountsSection.separator1" collapsed="true"/>
-      <separator id="AccountsSection.separator2" collapsed="true"/>
-      <separator id="AccountsSection.separator3" collapsed="true"/>
+      <spacer id="AccountsSection.spacer" class="big" flex="5" collapsed="true"/>
 
       <row id="AdvancedFeaturesHeader" class="acctCentralTitleRow" collapsed="true">
         <hbox class="acctCentralRowTitleBox">
           <description>&advFeaturesSectionHdr.label;</description>
         </hbox>
       </row>
-      <separator id="AdvancedFeaturesHeader.separator" class="thin" collapsed="true"/>
+
+      <spacer id="SearchMessages.spacer" flex="1" collapsed="true"/>
       <row id="SearchMessages" class="acctCentralRow" collapsed="true">
         <hbox>
           <label class="acctCentralText acctCentralLinkText"
@@ -202,7 +184,8 @@
                  onclick="SearchMessages();"/>
         </hbox>
       </row>
-      <separator id="SearchMessages.separator" class="thin" collapsed="true"/>
+
+      <spacer id="CreateFilters.spacer" flex="1" collapsed="true"/>
       <row id="CreateFilters" class="acctCentralRow" collapsed="true">
         <hbox>
           <label class="acctCentralText acctCentralLinkText"
@@ -211,7 +194,8 @@
                  onclick="CreateMsgFilters();"/>
         </hbox>
       </row>
-      <separator id="SubscribeImapFolders.separator" class="thin" collapsed="true"/>
+
+      <spacer id="SubscribeImapFolders.spacer" flex="1" collapsed="true"/>
       <row id="SubscribeImapFolders" class="acctCentralRow" collapsed="true">
         <hbox>
           <label class="acctCentralText acctCentralLinkText"
@@ -220,7 +204,8 @@
                  onclick="Subscribe();"/>
         </hbox>
       </row>
-      <separator id="CreateFilters.separator" class="thin" collapsed="true"/>
+
+      <spacer id="OfflineSettings.spacer" flex="1" collapsed="true"/>
       <row id="OfflineSettings" class="acctCentralRow" collapsed="true">
         <hbox>
           <label class="acctCentralText acctCentralLinkText"
@@ -229,7 +214,6 @@
                  onclick="ViewSettings('am-offline.xul');"/>
         </hbox>
       </row>
-      <separator id="OfflineSettings.separator" class="thin" collapsed="true"/>
     </rows>
   </grid>
 </page>

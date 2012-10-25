@@ -1,64 +1,32 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 /* vim: set sw=4 ts=8 et tw=80 : */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Content App.
- *
- * The Initial Developer of the Original Code is
- *   The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef mozilla_tabs_TabParent_h
 #define mozilla_tabs_TabParent_h
 
+#include "base/basictypes.h"
+
+#include "jsapi.h"
 #include "mozilla/dom/PBrowserParent.h"
 #include "mozilla/dom/PContentDialogParent.h"
 #include "mozilla/ipc/GeckoChildProcessHost.h"
-
-#include "jsapi.h"
 #include "nsCOMPtr.h"
-#include "nsITabParent.h"
-#include "nsIBrowserDOMWindow.h"
-#include "nsWeakReference.h"
-#include "nsIDialogParamBlock.h"
 #include "nsIAuthPromptProvider.h"
+#include "nsIBrowserDOMWindow.h"
+#include "nsIDialogParamBlock.h"
 #include "nsISecureBrowserUI.h"
+#include "nsITabParent.h"
+#include "nsWeakReference.h"
 
-class nsFrameLoader;
-class nsIURI;
-class nsIDOMElement;
 struct gfxMatrix;
-
 struct JSContext;
 struct JSObject;
+class nsFrameLoader;
+class nsIDOMElement;
+class nsIURI;
 
 namespace mozilla {
 namespace dom {
@@ -84,7 +52,11 @@ public:
 
     virtual bool RecvMoveFocus(const bool& aForward);
     virtual bool RecvEvent(const RemoteDOMEvent& aEvent);
-
+    virtual bool RecvBrowserFrameOpenWindow(PBrowserParent* aOpener,
+                                            const nsString& aURL,
+                                            const nsString& aName,
+                                            const nsString& aFeatures,
+                                            bool* aOutWindowOpened);
     virtual bool AnswerCreateWindow(PBrowserParent** retval);
     virtual bool RecvSyncMessage(const nsString& aMessage,
                                  const nsString& aJSON,
@@ -182,6 +154,10 @@ public:
     bool SendCompositionEvent(nsCompositionEvent& event);
     bool SendTextEvent(nsTextEvent& event);
     bool SendSelectionEvent(nsSelectionEvent& event);
+
+    static TabParent* GetFrom(nsFrameLoader* aFrameLoader);
+    static TabParent* GetFrom(nsIContent* aContent);
+
 protected:
     bool ReceiveMessage(const nsString& aMessage,
                         bool aSync,
@@ -189,6 +165,16 @@ protected:
                         InfallibleTArray<nsString>* aJSONRetVal = nsnull);
 
     void ActorDestroy(ActorDestroyReason why);
+
+    virtual PIndexedDBParent* AllocPIndexedDB(const nsCString& aASCIIOrigin,
+                                              bool* /* aAllowed */);
+
+    virtual bool DeallocPIndexedDB(PIndexedDBParent* aActor);
+
+    virtual bool
+    RecvPIndexedDBConstructor(PIndexedDBParent* aActor,
+                              const nsCString& aASCIIOrigin,
+                              bool* aAllowed);
 
     nsIDOMElement* mFrameElement;
     nsCOMPtr<nsIBrowserDOMWindow> mBrowserDOMWindow;
@@ -233,10 +219,12 @@ protected:
 
     float mDPI;
     bool mActive;
+    bool mShown;
 
 private:
     already_AddRefed<nsFrameLoader> GetFrameLoader() const;
     already_AddRefed<nsIWidget> GetWidget() const;
+    void TryCacheDPI();
 };
 
 } // namespace dom

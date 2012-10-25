@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 sw=2 et tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
        
   
 #include "nsIAtom.h"
@@ -489,7 +456,7 @@ void nsDTDContext::Push(nsCParserNode* aNode,
                         nsEntryStack* aStyleStack, 
                         bool aRefCntNode) {
   if(aNode) {
-#ifdef  NS_DEBUG
+#ifdef  DEBUG
     eHTMLTags theTag = (eHTMLTags)aNode->GetNodeType();
     int size = mStack.mCount;
     if (size < eMaxTags)
@@ -501,7 +468,7 @@ void nsDTDContext::Push(nsCParserNode* aNode,
 
 void nsDTDContext::PushTag(eHTMLTags aTag)
 {
-#ifdef NS_DEBUG
+#ifdef DEBUG
   if (mStack.mCount < eMaxTags) {
     mXTags[mStack.mCount] = aTag;
   }
@@ -515,7 +482,7 @@ nsDTDContext::PopEntry()
 {
   PRInt32 theSize = mStack.mCount;
   if(0<theSize) {
-#ifdef  NS_DEBUG
+#ifdef  DEBUG
     if (theSize <= eMaxTags)
       mXTags[theSize-1]=eHTMLTag_unknown;
 #endif
@@ -527,7 +494,7 @@ nsDTDContext::PopEntry()
 void nsDTDContext::PushEntry(nsTagEntry* aEntry, 
                              bool aRefCntNode)
 {
-#ifdef  NS_DEBUG
+#ifdef  DEBUG
     int size=mStack.mCount;
     if(size< eMaxTags && aEntry)
       mXTags[size]=aEntry->mTag;
@@ -547,7 +514,7 @@ nsDTDContext::MoveEntries(nsDTDContext& aDest,
   if (aCount > 0 && mStack.mCount >= aCount) {
     while (aCount) {
       aDest.PushEntry(&mStack.mEntries[--mStack.mCount], false);
-#ifdef  NS_DEBUG
+#ifdef  DEBUG
       if (mStack.mCount < eMaxTags) {
         mXTags[mStack.mCount] = eHTMLTag_unknown;
       }
@@ -568,7 +535,7 @@ nsCParserNode* nsDTDContext::Pop(nsEntryStack *&aChildStyleStack) {
 
   if(0<theSize) {
 
-#ifdef  NS_DEBUG
+#ifdef  DEBUG
     if ((theSize>0) && (theSize <= eMaxTags))
       mXTags[theSize-1]=eHTMLTag_unknown;
 #endif
@@ -794,7 +761,7 @@ void nsDTDContext::ReleaseGlobalObjects(void){
 
 static const size_t  kTokenBuckets[]       ={sizeof(CStartToken),sizeof(CAttributeToken),sizeof(CCommentToken),sizeof(CEndToken)};
 static const PRInt32 kNumTokenBuckets      = sizeof(kTokenBuckets) / sizeof(size_t);
-static const PRInt32 kInitialTokenPoolSize = NS_SIZE_IN_HEAP(sizeof(CToken)) * 200;
+static const PRInt32 kInitialTokenPoolSize = sizeof(CToken) * 200;
 
 /**
  * 
@@ -807,7 +774,7 @@ nsTokenAllocator::nsTokenAllocator() {
 
   mArenaPool.Init("TokenPool", kTokenBuckets, kNumTokenBuckets, kInitialTokenPoolSize);
 
-#ifdef NS_DEBUG
+#ifdef DEBUG
   int i=0;
   for(i=0;i<eToken_last-1;++i) {
     mTotals[i]=0;
@@ -852,7 +819,7 @@ CToken* nsTokenAllocator::CreateTokenOfType(eHTMLTokenTypes aType,eHTMLTags aTag
 
   CToken* result=0;
 
-#ifdef  NS_DEBUG
+#ifdef  DEBUG
     mTotals[aType-1]++;
 #endif
   switch(aType){
@@ -889,7 +856,7 @@ CToken* nsTokenAllocator::CreateTokenOfType(eHTMLTokenTypes aType,eHTMLTags aTag
 
   CToken* result=0;
 
-#ifdef  NS_DEBUG
+#ifdef  DEBUG
     mTotals[aType-1]++;
 #endif
   switch(aType){
@@ -955,7 +922,7 @@ nsNodeAllocator::nsNodeAllocator():mSharedNodes(0){
 #else 
   static const size_t  kNodeBuckets[]       = { sizeof(nsCParserNode), sizeof(nsCParserStartNode) };
   static const PRInt32 kNumNodeBuckets      = sizeof(kNodeBuckets) / sizeof(size_t);
-  static const PRInt32 kInitialNodePoolSize = NS_SIZE_IN_HEAP(sizeof(nsCParserNode)) * 35; // optimal size based on space-trace data
+  static const PRInt32 kInitialNodePoolSize = sizeof(nsCParserNode) * 35; // optimal size based on space-trace data
 nsNodeAllocator::nsNodeAllocator() {
   mNodePool.Init("NodePool", kNodeBuckets, kNumNodeBuckets, kInitialNodePoolSize);
 #endif

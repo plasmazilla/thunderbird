@@ -1,41 +1,8 @@
 /* -*- Mode: javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ft=javascript ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is JS Debugger Server code.
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dave Camp <dcamp@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 "use strict";
 /**
@@ -114,6 +81,7 @@ BrowserRootActor.prototype = {
 
     // Walk over open browser windows.
     let e = windowMediator.getEnumerator("navigator:browser");
+    let top = windowMediator.getMostRecentWindow("navigator:browser");
     let selected;
     while (e.hasMoreElements()) {
       let win = e.getNext();
@@ -126,12 +94,12 @@ BrowserRootActor.prototype = {
       let selectedBrowser = win.getBrowser().selectedBrowser;
       let browsers = win.getBrowser().browsers;
       for each (let browser in browsers) {
-        if (browser == selectedBrowser) {
+        if (browser == selectedBrowser && win == top) {
           selected = actorList.length;
         }
         let actor = this._tabActors.get(browser);
         if (!actor) {
-          actor = new BrowserTabActor(this.conn, browser);
+          actor = new BrowserTabActor(this.conn, browser, win.gBrowser);
           actor.parentID = this.actorID;
           this._tabActors.set(browser, actor);
         }
@@ -196,6 +164,9 @@ BrowserRootActor.prototype = {
   onWindowTitleChange: function BRA_onWindowTitleChange(aWindow, aTitle) { },
   onOpenWindow: function BRA_onOpenWindow(aWindow) { },
   onCloseWindow: function BRA_onCloseWindow(aWindow) {
+    // An nsIWindowMediatorListener's onCloseWindow method gets passed all
+    // sorts of windows; we only care about the tab containers. Those have
+    // 'getBrowser' methods.
     if (aWindow.getBrowser) {
       this.unwatchWindow(aWindow);
     }
@@ -217,11 +188,14 @@ BrowserRootActor.prototype.requestTypes = {
  *        The conection to the client.
  * @param aBrowser browser
  *        The browser instance that contains this tab.
+ * @param aTabBrowser tabbrowser
+ *        The tabbrowser that can receive nsIWebProgressListener events.
  */
-function BrowserTabActor(aConnection, aBrowser)
+function BrowserTabActor(aConnection, aBrowser, aTabBrowser)
 {
   this.conn = aConnection;
   this._browser = aBrowser;
+  this._tabbrowser = aTabBrowser;
 
   this._onWindowCreated = this.onWindowCreated.bind(this);
 }
@@ -241,6 +215,29 @@ BrowserTabActor.prototype = {
   _contextPool: null,
   get contextActorPool() { return this._contextPool; },
 
+  _pendingNavigation: null,
+
+  /**
+   * Add the specified breakpoint to the default actor pool connection, in order
+   * to be alive as long as the server is.
+   *
+   * @param BreakpointActor aActor
+   *        The actor object.
+   */
+  addToBreakpointPool: function BTA_addToBreakpointPool(aActor) {
+    this.conn.addActor(aActor);
+  },
+
+  /**
+   * Remove the specified breakpint from the default actor pool.
+   *
+   * @param string aActor
+   *        The actor ID.
+   */
+  removeFromBreakpointPool: function BTA_removeFromBreakpointPool(aActor) {
+    this.conn.removeActor(aActor);
+  },
+
   actorPrefix: "tab",
 
   grip: function BTA_grip() {
@@ -258,6 +255,10 @@ BrowserTabActor.prototype = {
    */
   disconnect: function BTA_disconnect() {
     this._detach();
+
+    if (this._progressListener) {
+      this._progressListener.destroy();
+    }
   },
 
   /**
@@ -274,7 +275,11 @@ BrowserTabActor.prototype = {
                        type: "tabDetached" });
     }
 
+    if (this._progressListener) {
+      this._progressListener.destroy();
+    }
     this._browser = null;
+    this._tabbrowser = null;
   },
 
   /**
@@ -295,6 +300,8 @@ BrowserTabActor.prototype = {
 
     // Watch for globals being created in this tab.
     this.browser.addEventListener("DOMWindowCreated", this._onWindowCreated, true);
+    this.browser.addEventListener("pageshow", this._onWindowCreated, true);
+    this._progressListener = new DebuggerProgressListener(this);
 
     this._attached = true;
   },
@@ -347,6 +354,7 @@ BrowserTabActor.prototype = {
     }
 
     this.browser.removeEventListener("DOMWindowCreated", this._onWindowCreated, true);
+    this.browser.removeEventListener("pageshow", this._onWindowCreated, true);
 
     this._popContext();
 
@@ -375,6 +383,10 @@ BrowserTabActor.prototype = {
     }
 
     this._detach();
+
+    if (this._progressListener) {
+      this._progressListener.destroy();
+    }
 
     return { type: "detached" };
   },
@@ -407,6 +419,10 @@ BrowserTabActor.prototype = {
                           .getInterface(Ci.nsIDOMWindowUtils);
     windowUtils.resumeTimeouts();
     windowUtils.suppressEventHandling(false);
+    if (this._pendingNavigation) {
+      this._pendingNavigation.resume();
+      this._pendingNavigation = null;
+    }
   },
 
   /**
@@ -415,10 +431,24 @@ BrowserTabActor.prototype = {
    */
   onWindowCreated: function BTA_onWindowCreated(evt) {
     if (evt.target === this.browser.contentDocument) {
+      // pageshow events for non-persisted pages have already been handled by a
+      // prior DOMWindowCreated event.
+      if (evt.type == "pageshow" && !evt.persisted) {
+        return;
+      }
       if (this._attached) {
+        this.threadActor.clearDebuggees();
+        this.threadActor.dbg.enabled = true;
+        if (this._progressListener) {
+          delete this._progressListener._needsTabNavigated;
+        }
         this.conn.send({ from: this.actorID, type: "tabNavigated",
                          url: this.browser.contentDocument.URL });
       }
+    }
+
+    if (this._attached) {
+      this._addDebuggees(evt.target.defaultView.wrappedJSObject);
     }
   }
 };
@@ -429,6 +459,71 @@ BrowserTabActor.prototype = {
 BrowserTabActor.prototype.requestTypes = {
   "attach": BrowserTabActor.prototype.onAttach,
   "detach": BrowserTabActor.prototype.onDetach
+};
+
+/**
+ * The DebuggerProgressListener object is an nsIWebProgressListener which
+ * handles onStateChange events for the inspected browser. If the user tries to
+ * navigate away from a paused page, the listener makes sure that the debuggee
+ * is resumed before the navigation begins.
+ *
+ * @param BrowserTabActor aBrowserTabActor
+ *        The tab actor associated with this listener.
+ */
+function DebuggerProgressListener(aBrowserTabActor) {
+  this._tabActor = aBrowserTabActor;
+  this._tabActor._tabbrowser.addProgressListener(this);
+}
+
+DebuggerProgressListener.prototype = {
+  onStateChange:
+  function DPL_onStateChange(aProgress, aRequest, aFlag, aStatus) {
+    let isStart = aFlag & Ci.nsIWebProgressListener.STATE_START;
+    let isStop = aFlag & Ci.nsIWebProgressListener.STATE_STOP;
+    let isDocument = aFlag & Ci.nsIWebProgressListener.STATE_IS_DOCUMENT;
+    let isNetwork = aFlag & Ci.nsIWebProgressListener.STATE_IS_NETWORK;
+    let isRequest = aFlag & Ci.nsIWebProgressListener.STATE_IS_REQUEST;
+    let isWindow = aFlag & Ci.nsIWebProgressListener.STATE_IS_WINDOW;
+
+    // Skip non-interesting states.
+    if (isStart && isDocument && isRequest && isNetwork) {
+      // If the request is about to happen in a new window, we are not concerned
+      // about the request.
+      if (aProgress.DOMWindow != this._tabActor.browser.contentWindow) {
+        return;
+      }
+
+      // If the debuggee is not paused, then proceed normally.
+      if (this._tabActor.threadActor.state != "paused") {
+        return;
+      }
+
+      aRequest.suspend();
+      this._tabActor.threadActor.onResume();
+      this._tabActor.threadActor.dbg.enabled = false;
+      this._tabActor._pendingNavigation = aRequest;
+      this._needsTabNavigated = true;
+    } else if (isStop && isWindow && isNetwork && this._needsTabNavigated) {
+      delete this._needsTabNavigated;
+      this._tabActor.threadActor.dbg.enabled = true;
+      this._tabActor.conn.send({
+        from: this._tabActor.actorID,
+        type: "tabNavigated",
+        url: this._tabActor.browser.contentDocument.URL
+      });
+
+      this.destroy();
+    }
+  },
+
+  /**
+   * Destroy the progress listener instance.
+   */
+  destroy: function DPL_destroy() {
+    this._tabActor._tabbrowser.removeProgressListener(this);
+    this._tabActor._progressListener = null;
+    this._tabActor = null;
+  }
 };
 
 /**

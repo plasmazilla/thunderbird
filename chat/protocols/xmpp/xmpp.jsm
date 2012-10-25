@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Instantbird.
- *
- * The Initial Developer of the Original Code is
- * Varuna JAYASIRI <vpjayasiri@gmail.com>.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Florian Quèze <florian@queze.net>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 const EXPORTED_SYMBOLS = [
   "XMPPConversationPrototype",
@@ -64,6 +31,9 @@ XPCOMUtils.defineLazyGetter(this, "NetUtil", function() {
   Components.utils.import("resource://gre/modules/NetUtil.jsm");
   return NetUtil;
 });
+XPCOMUtils.defineLazyServiceGetter(this, "imgTools",
+                                   "@mozilla.org/image/tools;1",
+                                   "imgITools");
 
 initLogModule("xmpp", this);
 
@@ -172,6 +142,11 @@ const XMPPMUCConversationPrototype = {
     if (!from) {
       flags.system = true;
       from = this.name;
+    }
+    else if (aStanza.attributes["type"] == "error") {
+      aMsg = _("connection.error.incorrectResponse");
+      flags.system = true;
+      flags.error = true;
     }
     else if (from == this._nick)
       flags.outgoing = true;
@@ -295,7 +270,14 @@ const XMPPConversationPrototype = {
   incomingMessage: function(aMsg, aStanza, aDate) {
     let from = aStanza.attributes["from"];
     this._targetResource = this._account._parseJID(from).resource;
-    let flags = {incoming: true, _alias: this.buddy.contactDisplayName};
+    let flags = {};
+    if (aStanza.attributes["type"] == "error") {
+      aMsg = _("connection.error.incorrectResponse");
+      flags.system = true;
+      flags.error = true;
+    }
+    else
+      flags = {incoming: true, _alias: this.buddy.contactDisplayName};
     if (aDate) {
       flags.time = aDate / 1000;
       flags.delayed = true;
@@ -361,6 +343,52 @@ const XMPPAccountBuddyPrototype = {
   },
 
   get normalizedName() this.userName,
+
+  // _rosterAlias is the value stored in the roster on the XMPP
+  // server. For most servers we will be read/write.
+  _rosterAlias: "",
+  set rosterAlias(aNewAlias) {
+    let old = this.displayName;
+    this._rosterAlias = aNewAlias;
+    if (old != this.displayName)
+      this._notifyObservers("display-name-changed", old);
+  },
+  // _vCardFormattedName is the display name the contact has set for
+  // himself in his vCard. It's read-only from our point of view.
+  _vCardFormattedName: "",
+  set vCardFormattedName(aNewFormattedName) {
+    let old = this.displayName;
+    this._vCardFormattedName = aNewFormattedName;
+    if (old != this.displayName)
+      this._notifyObservers("display-name-changed", old);
+  },
+
+  // _serverAlias is set by jsProtoHelper to the value we cached in sqlite.
+  // Use it only if we have neither of the other two values; usually because
+  // we haven't connected to the server yet.
+  get serverAlias() this._rosterAlias || this._vCardFormattedName || this._serverAlias,
+  set serverAlias(aNewAlias) {
+    if (!this._rosterItem) {
+      ERROR("attempting to update the server alias of an account buddy for " +
+            "which we haven't received a roster item.");
+      return;
+    }
+
+    let item = this._rosterItem;
+    if (aNewAlias)
+      item.attributes["name"] = aNewAlias;
+    else if ("name" in item.attributes)
+      delete item.attributes["name"];
+
+    let s = Stanza.iq("set", null, null,
+                      Stanza.node("query", Stanza.NS.roster, null, item));
+    this._account._connection.sendStanza(s);
+
+    // If we are going to change the alias on the server, discard the cached
+    // value that we got from our local sqlite storage at startup.
+    delete this._serverAlias;
+  },
+
   /* Display name of the buddy */
   get contactDisplayName() this.buddy.contact.displayName || this.displayName,
 
@@ -376,6 +404,7 @@ const XMPPAccountBuddyPrototype = {
     this._account._connection.sendStanza(s);
   },
 
+  _photoHash: null,
   _saveIcon: function(aPhotoNode) {
     let type = aPhotoNode.getElement(["TYPE"]).innerText;
     const kExt = {"image/gif": "gif", "image/jpeg": "jpg", "image/png": "png"};
@@ -384,11 +413,21 @@ const XMPPAccountBuddyPrototype = {
 
     let data = aPhotoNode.getElement(["BINVAL"]).innerText;
     let content = atob(data.replace(/[^A-Za-z0-9\+\/\=]/g, ""));
+
+    // Store a sha1 hash of the photo we have just received.
+    let ch = Cc["@mozilla.org/security/hash;1"].createInstance(Ci.nsICryptoHash);
+    ch.init(ch.SHA1);
+    let dataArray = [content.charCodeAt(i) for (i in content)];
+    ch.update(dataArray, dataArray.length);
+    let hash = ch.finish(false);
+    function toHexString(charCode) ("0" + charCode.toString(16)).slice(-2)
+    this._photoHash = [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
+
     let istream = Cc["@mozilla.org/io/string-input-stream;1"]
                   .createInstance(Ci.nsIStringInputStream);
     istream.setData(content, content.length);
 
-    let fileName = this.normalizedName + "." + kExt[type];
+    let fileName = this._photoHash + "." + kExt[type];
     let file = FileUtils.getFile("ProfD", ["icons",
                                            this.account.protocol.normalizedName,
                                            this.account.normalizedName,
@@ -424,8 +463,7 @@ const XMPPAccountBuddyPrototype = {
       if (preferred == resource)
         preferred = undefined;
     }
-    else if (type != "unsubscribe" && type != "unsubscribed" &&
-             type != "subscribed") {
+    else {
       let statusType = Ci.imIStatusInfo.STATUS_AVAILABLE;
       let show = aStanza.getElement(["show"]);
       if (show) {
@@ -463,6 +501,17 @@ const XMPPAccountBuddyPrototype = {
         priority: priority,
         stanza: aStanza
       };
+    }
+
+    let photo = aStanza.getElement(["x", "photo"]);
+    if (photo && photo.uri == Stanza.NS.vcard_update) {
+      let hash = photo.innerText;
+      if (hash && hash != this._photoHash)
+        this._account._requestVCard(this.normalizedName);
+      else if (!hash && this._photoHash) {
+        delete this._photoHash;
+        this.buddyIconFilename = "";
+      }
     }
 
     for (let r in this._resources) {
@@ -593,11 +642,16 @@ const XMPPAccountPrototype = {
           this._sendPresence();
       }).bind(this));
     }
-
-    if (aTopic != "status-changed")
-      return;
-
-    this._sendPresence();
+    else if (aTopic == "status-changed")
+      this._sendPresence();
+    else if (aTopic == "user-icon-changed") {
+      delete this._cachedUserIcon;
+      this._forceUserIconUpdate = true;
+      this._sendVCard();
+    }
+    else if (aTopic == "user-display-name-changed")
+      this._forceUserDisplayNameUpdate = true;
+      this._sendVCard();
   },
 
   /* GenericAccountPrototype events */
@@ -713,10 +767,8 @@ const XMPPAccountPrototype = {
         if (qe.uri != Stanza.NS.roster)
           continue;
 
-        for each (let item in qe.getChildren("item")) {
+        for each (let item in qe.getChildren("item"))
           this._onRosterItem(item, true);
-          let jid = item.attributes["jid"];
-        }
         return;
       }
     }
@@ -736,22 +788,8 @@ const XMPPAccountPrototype = {
     DEBUG("Received presence stanza for " + from);
 
     let jid = this._normalizeJID(from);
-    if (jid in this._buddies)
-      this._buddies[jid].onPresenceStanza(aStanza);
-    else if (jid in this._mucs) {
-      if (typeof(this._mucs[jid]) == "string") {
-        // We have attempted to join, but not created the conversation yet.
-        if (aStanza.attributes["type"] == "error") {
-          delete this._mucs[jid];
-          ERROR("Failed to join MUC: " + aStanza.convertToString());
-          return;
-        }
-        let nick = this._mucs[jid];
-        this._mucs[jid] = new this._MUCConversationConstructor(this, jid, nick);
-      }
-      this._mucs[jid].onPresenceStanza(aStanza);
-    }
-    else if (aStanza.attributes["type"] == "subscribe") {
+    let type = aStanza.attributes["type"];
+    if (type == "subscribe") {
       let authRequest = {
         _account: this,
         get account() this._account.imAccount,
@@ -778,6 +816,27 @@ const XMPPAccountPrototype = {
                                    null);
       this._pendingAuthRequests.push(authRequest);
     }
+    else if (type == "unsubscribe" || type == "unsubscribed" ||
+             type == "subscribed") {
+      // Nothing useful to do for these presence stanzas, as we will also
+      // receive a roster push containing more or less the same information
+      return;
+    }
+    else if (jid in this._buddies)
+      this._buddies[jid].onPresenceStanza(aStanza);
+    else if (jid in this._mucs) {
+      if (typeof(this._mucs[jid]) == "string") {
+        // We have attempted to join, but not created the conversation yet.
+        if (aStanza.attributes["type"] == "error") {
+          delete this._mucs[jid];
+          ERROR("Failed to join MUC: " + aStanza.convertToString());
+          return;
+        }
+        let nick = this._mucs[jid];
+        this._mucs[jid] = new this._MUCConversationConstructor(this, jid, nick);
+      }
+      this._mucs[jid].onPresenceStanza(aStanza);
+    }
     else if (from != this._connection._jid.jid)
       WARN("received presence stanza for unknown buddy " + from);
   },
@@ -786,6 +845,7 @@ const XMPPAccountPrototype = {
   onMessageStanza: function(aStanza) {
     let norm = this._normalizeJID(aStanza.attributes["from"]);
 
+    let type = aStanza.attributes["type"];
     let body;
     let b = aStanza.getElement(["body"]);
     if (b)
@@ -799,7 +859,8 @@ const XMPPAccountPrototype = {
       }
       if (date && isNaN(date))
         date = undefined;
-      if (aStanza.attributes["type"] == "groupchat") {
+      if (type == "groupchat" ||
+          (type == "error" && this._mucs.hasOwnProperty(norm))) {
         if (!this._mucs.hasOwnProperty(norm)) {
           WARN("Received a groupchat message for unknown MUC " + norm);
           return;
@@ -815,6 +876,10 @@ const XMPPAccountPrototype = {
 
     // Don't create a conversation to only display the typing notifications.
     if (!this._conv.hasOwnProperty(norm))
+      return;
+
+    // Ignore errors while delivering typing notifications.
+    if (type == "error")
       return;
 
     let state;
@@ -842,7 +907,8 @@ const XMPPAccountPrototype = {
   },
 
   /* Callbacks for Query stanzas */
-  /* When a vCard is recieved */
+  /* When a vCard is received */
+  _vCardReceived: false,
   onVCard: function(aStanza) {
     let jid = this._normalizeJID(aStanza.attributes["from"]);
     if (!jid || !this._buddies.hasOwnProperty(jid))
@@ -853,14 +919,20 @@ const XMPPAccountPrototype = {
     if (!vCard)
       return;
 
+    let foundFormattedName = false;
     for each (let c in vCard.children) {
       if (c.type != "node")
         continue;
-      if (c.localName == "FN")
-        buddy.serverAlias = c.innerText;
+      if (c.localName == "FN") {
+        buddy.vCardFormattedName = c.innerText;
+        foundFormattedName = true;
+      }
       if (c.localName == "PHOTO")
         buddy._saveIcon(c);
     }
+    if (!foundFormattedName && buddy._vCardFormattedName)
+      buddy.vCardFormattedName = "";
+    buddy._vCardReceived = true;
   },
 
   _normalizeJID: function(aJID) {
@@ -876,8 +948,18 @@ const XMPPAccountPrototype = {
     if (!match)
       return null;
 
-    return {jid: match[0], node: match[1], domain: match[2],
-            resource: match[3]};
+    let result = {
+      node: match[1].toLowerCase(),
+      domain: match[2].toLowerCase(),
+      resource: match[3]
+    };
+    let jid = result.domain;
+    if (result.node)
+      jid = result.node + "@" + jid;
+    if (result.resource)
+      jid += "/" + result.resource;
+    result.jid = jid;
+    return result;
   },
 
   _onRosterItem: function(aItem, aNotifyOfUpdates) {
@@ -891,12 +973,7 @@ const XMPPAccountPrototype = {
     let subscription =  "";
     if ("subscription" in aItem.attributes)
       subscription = aItem.attributes["subscription"];
-    if (subscription == "both" || subscription == "to") {
-      let s = Stanza.iq("get", null, jid,
-                        Stanza.node("vCard", Stanza.NS.vcard));
-      this._connection.sendStanza(s, this.onVCard, this);
-    }
-    else if (subscription == "remove") {
+    if (subscription == "remove") {
       this._forgetRosterItem(jid);
       return "";
     }
@@ -918,13 +995,21 @@ const XMPPAccountPrototype = {
       buddy = new this._accountBuddyConstructor(this, null, tag, jid);
     }
 
+    // We request the vCard only if we haven't received it yet and are
+    // subscribed to presence for that contact.
+    if ((subscription == "both" || subscription == "to") && !buddy._vCardReceived)
+      this._requestVCard(jid);
+
     let alias = "name" in aItem.attributes ? aItem.attributes["name"] : "";
     if (alias) {
       if (aNotifyOfUpdates && this._buddies.hasOwnProperty(jid))
-        buddy.serverAlias = alias;
+        buddy.rosterAlias = alias;
       else
-        buddy._serverAlias = alias;
+        buddy._rosterAlias = alias;
     }
+    else if (buddy._rosterAlias)
+      buddy.rosterAlias = "";
+
     if (subscription)
       buddy.subscription = subscription;
     if (!this._buddies.hasOwnProperty(jid)) {
@@ -933,11 +1018,21 @@ const XMPPAccountPrototype = {
     }
     else if (aNotifyOfUpdates)
       buddy._notifyObservers("status-detail-changed");
+
+    // Keep the xml nodes of the item so that we don't have to
+    // recreate them when changing something (eg. the alias) in it.
+    buddy._rosterItem = aItem;
+
     return jid;
   },
   _forgetRosterItem: function(aJID) {
     Services.contacts.accountBuddyRemoved(this._buddies[aJID]);
     delete this._buddies[aJID];
+  },
+  _requestVCard: function(aJID) {
+    let s = Stanza.iq("get", null, aJID,
+                      Stanza.node("vCard", Stanza.NS.vcard));
+    this._connection.sendStanza(s, this.onVCard, this);
   },
 
   /* When the roster is received */
@@ -966,6 +1061,7 @@ const XMPPAccountPrototype = {
         b.setStatus(Ci.imIStatusInfo.STATUS_OFFLINE, "");
     }
     this.reportConnected();
+    this._sendVCard();
   },
 
   /* Public methods */
@@ -1033,6 +1129,14 @@ const XMPPAccountPrototype = {
     this._connection.disconnect();
     delete this._connection;
 
+    // We won't receive "user-icon-changed" notifications while the
+    // account isn't connected, so clear the cache to avoid keeping an
+    // obsolete icon.
+    delete this._cachedUserIcon;
+    // Also clear the cached user vCard, as we will want to redownload it
+    // after reconnecting.
+    delete this._userVCard;
+
     this.reportDisconnected();
   },
 
@@ -1062,5 +1166,163 @@ const XMPPAccountPrototype = {
       children.push(Stanza.node("query", Stanza.NS.last, {seconds: time}));
     }
     this._connection.sendStanza(Stanza.presence({"xml:lang": "en"}, children));
+  },
+
+  _downloadingUserVCard: false,
+  _downloadUserVCard: function() {
+    // If a download is already in progress, don't start another one.
+    if (this._downloadingUserVCard)
+      return;
+    this._downloadingUserVCard = true;
+    let s = Stanza.iq("get", null, null,
+                      Stanza.node("vCard", Stanza.NS.vcard));
+    this._connection.sendStanza(s, this.onUserVCard, this);
+  },
+
+  onUserVCard: function(aStanza) {
+    delete this._downloadingUserVCard;
+    this._userVCard = aStanza.getElement(["vCard"]) || null;
+    // If a user icon exists in the vCard we received from the server,
+    // we need to ensure the line breaks in its binval are exactly the
+    // same as those we would include if we sent the icon, and that
+    // there isn't any other whitespace.
+    if (this._userVCard) {
+      let binval = this._userVCard.getElement(["PHOTO", "BINVAL"]);
+      if (binval && binval.children.length) {
+        binval = binval.children[0];
+        binval.text = binval.text.replace(/[^A-Za-z0-9\+\/\=]/g, "")
+                                 .replace(/.{74}/g, "$&\n");
+      }
+    }
+    this._sendVCard();
+  },
+
+  _cachingUserIcon: false,
+  _cacheUserIcon: function() {
+    if (this._cachingUserIcon)
+      return;
+
+    let userIcon = this.imAccount.statusInfo.getUserIcon();
+    if (!userIcon) {
+      this._cachedUserIcon = null;
+      this._sendVCard();
+      return;
+    }
+
+    this._cachingUserIcon = true;
+    let channel = Services.io.newChannelFromURI(userIcon);
+    NetUtil.asyncFetch(channel, (function(inputStream, resultCode) {
+      if (!Components.isSuccessCode(resultCode))
+        return;
+      try {
+        let readImage = {value: null};
+        let type = channel.contentType;
+        imgTools.decodeImageData(inputStream, type, readImage);
+        readImage = readImage.value;
+        let scaledImage;
+        if (readImage.width <= 96 && readImage.height <= 96)
+          scaledImage = imgTools.encodeImage(readImage, type);
+        else {
+          if (type != "image/jpeg")
+            type = "image/png";
+          scaledImage = imgTools.encodeScaledImage(readImage, type, 64, 64);
+        }
+
+        let bstream = Components.classes["@mozilla.org/binaryinputstream;1"].
+                      createInstance(Ci.nsIBinaryInputStream);
+        bstream.setInputStream(scaledImage);
+
+        let data = bstream.readBytes(bstream.available());
+        this._cachedUserIcon = {
+          type: type,
+          binval: btoa(data).replace(/.{74}/g, "$&\n")
+        };
+      } catch (e) {
+        Components.utils.reportError(e);
+        this._cachedUserIcon = null;
+      }
+      delete this._cachingUserIcon;
+      this._sendVCard();
+    }).bind(this));
+  },
+  _sendVCard: function() {
+    if (!this._connection)
+      return;
+
+    // We have to download the user's existing vCard before updating it.
+    // This lets us preserve the fields that we don't change or don't know.
+    // Some servers may reject a new vCard if we don't do this first.
+    if (!this.hasOwnProperty("_userVCard")) {
+      // The download of the vCard is asyncronous and will call _sendVCard back
+      // when the user's vCard has been received.
+      this._downloadUserVCard();
+      return;
+    }
+
+    // Read the local user icon asynchronously from the disk.
+    // _cacheUserIcon will call _sendVCard back once the icon is ready.
+    if (!this.hasOwnProperty("_cachedUserIcon")) {
+      this._cacheUserIcon();
+      return;
+    }
+
+    // If the user currently doesn't have any vCard on the server or
+    // the download failed, an empty new one.
+    if (!this._userVCard)
+      this._userVCard = Stanza.node("vCard", Stanza.NS.vcard);
+
+    // Keep a serialized copy of the existing user vCard so that we
+    // can avoid resending identical data to the server.
+    let existingVCard = this._userVCard.getXML();
+
+    let fn = this._userVCard.getElement(["FN"]);
+    let displayName = this.imAccount.statusInfo.displayName;
+    if (displayName) {
+      // If a display name is set locally, update or add an FN field to the vCard.
+      if (!fn)
+        this._userVCard.addChild(Stanza.node("FN", Stanza.NS.vcard, null, displayName));
+      else {
+        if (fn.children.length)
+          fn.children[0].text = displayName;
+        else
+          fn.addText(displayName);
+      }
+    }
+    else if ("_forceUserDisplayNameUpdate" in this) {
+      // We remove a display name stored on the server without replacing
+      // it with a new value only if this _sendVCard call is the result of
+      // a user action. This is to avoid removing data from the server each
+      // time the user connects from a new profile.
+      this._userVCard.children =
+        this._userVCard.children.filter(function (n) n.qName != "FN");
+    }
+    delete this._forceUserDisplayNameUpdate;
+
+    if (this._cachedUserIcon) {
+      // If we have a local user icon, update or add it in the PHOTO field.
+      let photoChildren = [
+        Stanza.node("TYPE", Stanza.NS.vcard, null, this._cachedUserIcon.type),
+        Stanza.node("BINVAL", Stanza.NS.vcard, null, this._cachedUserIcon.binval)
+      ];
+      let photo = this._userVCard.getElement(["PHOTO"]);
+      if (photo)
+        photo.children = photoChildren;
+      else
+        this._userVCard.addChild(Stanza.node("PHOTO", Stanza.NS.vcard, null,
+                                             photoChildren));
+    }
+    else if ("_forceUserIconUpdate" in this) {
+      // Like for the display name, we remove a photo without
+      // replacing it only if the call is caused by a user action.
+      this._userVCard.children =
+        this._userVCard.children.filter(function (n) n.qName != "PHOTO");
+    }
+    delete this._forceUserIconUpdate;
+
+    // Send the vCard only if it has really changed.
+    if (this._userVCard.getXML() != existingVCard)
+      this._connection.sendStanza(Stanza.iq("set", null, null, this._userVCard));
+    else
+      LOG("Not sending the vCard because the server stored vCard is identical.");
   }
 };

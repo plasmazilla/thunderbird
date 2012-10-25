@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dean Tessman <dean_tessman@hotmail.com>
- *   Stan Shebs <stanshebs@earthlink.net>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 //
 // Eric Vaughan
@@ -54,10 +20,10 @@
 #include "nsHTMLParts.h"
 #include "nsIPresShell.h"
 #include "nsCSSRendering.h"
+#include "nsDOMTouchEvent.h"
 #include "nsEventListenerManager.h"
 #include "nsIDOMEventTarget.h"
 #include "nsIDOMMouseEvent.h"
-#include "nsIDocument.h"
 #include "nsScrollbarButtonFrame.h"
 #include "nsISliderListener.h"
 #include "nsIScrollbarMediator.h"
@@ -472,9 +438,12 @@ nsSliderFrame::HandleEvent(nsPresContext* aPresContext,
   if (isDraggingThumb())
   {
     switch (aEvent->message) {
+    case NS_TOUCH_MOVE:
     case NS_MOUSE_MOVE: {
-      nsPoint eventPoint = nsLayoutUtils::GetEventCoordinatesRelativeTo(aEvent,
-                                                                         this);
+      nsPoint eventPoint;
+      if (!GetEventPoint(aEvent, eventPoint)) {
+        break;
+      }
       if (mChange) {
         // We're in the process of moving the thumb to the mouse,
         // but the mouse just moved.  Make sure to update our
@@ -514,6 +483,9 @@ nsSliderFrame::HandleEvent(nsPresContext* aPresContext,
             isMouseOutsideThumb = true;
         }
       }
+      if (aEvent->eventStructType == NS_TOUCH_EVENT) {
+        *aEventStatus = nsEventStatus_eConsumeNoDefault;
+      }
       if (isMouseOutsideThumb)
       {
         SetCurrentThumbPosition(scrollbar, mThumbStart, false, true, false);
@@ -525,8 +497,10 @@ nsSliderFrame::HandleEvent(nsPresContext* aPresContext,
     }
     break;
 
+    case NS_TOUCH_END:
     case NS_MOUSE_BUTTON_UP:
-      if (static_cast<nsMouseEvent*>(aEvent)->button == nsMouseEvent::eLeftButton ||
+      if (aEvent->message == NS_TOUCH_END ||
+          static_cast<nsMouseEvent*>(aEvent)->button == nsMouseEvent::eLeftButton ||
           (static_cast<nsMouseEvent*>(aEvent)->button == nsMouseEvent::eMiddleButton &&
            gMiddlePref)) {
         // stop capturing
@@ -548,16 +522,19 @@ nsSliderFrame::HandleEvent(nsPresContext* aPresContext,
                 nsMouseEvent::eLeftButton &&
 #ifdef XP_MACOSX
               // On Mac the option key inverts the scroll-to-here preference.
-              (static_cast<nsMouseEvent*>(aEvent)->isAlt != GetScrollToClick())) ||
+              (static_cast<nsMouseEvent*>(aEvent)->IsAlt() != GetScrollToClick())) ||
 #else
-              (static_cast<nsMouseEvent*>(aEvent)->isShift != GetScrollToClick())) ||
+              (static_cast<nsMouseEvent*>(aEvent)->IsShift() != GetScrollToClick())) ||
 #endif
              (gMiddlePref && aEvent->message == NS_MOUSE_BUTTON_DOWN &&
               static_cast<nsMouseEvent*>(aEvent)->button ==
-                nsMouseEvent::eMiddleButton)) {
+                nsMouseEvent::eMiddleButton) ||
+             (aEvent->message == NS_TOUCH_START && GetScrollToClick())) {
 
-    nsPoint eventPoint = nsLayoutUtils::GetEventCoordinatesRelativeTo(aEvent,
-                                                                      this);
+    nsPoint eventPoint;
+    if (!GetEventPoint(aEvent, eventPoint)) {
+      return NS_OK;
+    }
     nscoord pos = isHorizontal ? eventPoint.x : eventPoint.y;
 
     // adjust so that the middle of the thumb is placed under the click
@@ -575,6 +552,9 @@ nsSliderFrame::HandleEvent(nsPresContext* aPresContext,
     NS_ENSURE_TRUE(weakFrame.IsAlive(), NS_OK);
 
     DragThumb(true);
+    if (aEvent->eventStructType == NS_TOUCH_EVENT) {
+      *aEventStatus = nsEventStatus_eConsumeNoDefault;
+    }
 
     if (isHorizontal)
       mThumbStart = thumbFrame->GetPosition().x;
@@ -592,6 +572,40 @@ nsSliderFrame::HandleEvent(nsPresContext* aPresContext,
      HandleRelease(aPresContext, aEvent, aEventStatus);
 
   return nsFrame::HandleEvent(aPresContext, aEvent, aEventStatus);
+}
+
+bool
+nsSliderFrame::GetEventPoint(nsGUIEvent* aEvent, nsPoint &aPoint) {
+  nsIntPoint refPoint;
+  nsresult rv;
+  if (aEvent->eventStructType == NS_TOUCH_EVENT) {
+    rv = GetTouchPoint(static_cast<nsTouchEvent*>(aEvent), refPoint);
+    if (NS_FAILED(rv))
+       return false;
+  } else {
+    refPoint = aEvent->refPoint;
+  }
+  aPoint = nsLayoutUtils::GetEventCoordinatesRelativeTo(aEvent, refPoint, this);
+  return true;
+}
+
+bool
+nsSliderFrame::GetTouchPoint(nsTouchEvent* aEvent, nsIntPoint &aPoint)
+{
+  NS_ENSURE_ARG_POINTER(aEvent);
+  // return false if there is more than one touch on the page, or if
+  // we can't find a touch point
+  if (aEvent->touches.Length() != 1) {
+    return false;
+  }
+
+  nsIDOMTouch *touch = aEvent->touches.SafeElementAt(0);
+  if (!touch) {
+    return false;
+  }
+  nsDOMTouch* domtouch = static_cast<nsDOMTouch*>(touch);
+  aPoint = domtouch->mRefPoint;
+  return true;
 }
 
 // Helper function to collect the "scroll to click" metric. Beware of
@@ -859,44 +873,47 @@ nsSliderMediator::HandleEvent(nsIDOMEvent* aEvent)
 {
   // Only process the event if the thumb is not being dragged.
   if (mSlider && !mSlider->isDraggingThumb())
-    return mSlider->MouseDown(aEvent);
+    return mSlider->StartDrag(aEvent);
 
   return NS_OK;
 }
 
 nsresult
-nsSliderFrame::MouseDown(nsIDOMEvent* aMouseEvent)
+nsSliderFrame::StartDrag(nsIDOMEvent* aEvent)
 {
 #ifdef DEBUG_SLIDER
   printf("Begin dragging\n");
 #endif
 
-  nsCOMPtr<nsIDOMMouseEvent> mouseEvent(do_QueryInterface(aMouseEvent));
-  if (!mouseEvent)
-    return NS_OK;
-
   if (mContent->AttrValueIs(kNameSpaceID_None, nsGkAtoms::disabled,
                             nsGkAtoms::_true, eCaseMatters))
     return NS_OK;
 
-  PRUint16 button = 0;
-  mouseEvent->GetButton(&button);
-  if (!(button == 0 || (button == 1 && gMiddlePref)))
-    return NS_OK;
-
   bool isHorizontal = IsHorizontal();
-
   bool scrollToClick = false;
-#ifndef XP_MACOSX
-  // On Mac there's no scroll-to-here when clicking the thumb
-  mouseEvent->GetShiftKey(&scrollToClick);
-  if (button != 0) {
-    scrollToClick = true;
-  }
-#endif
 
-  nsPoint pt =  nsLayoutUtils::GetDOMEventCoordinatesRelativeTo(mouseEvent,
-                                                                this);
+  nsCOMPtr<nsIDOMMouseEvent> mouseEvent(do_QueryInterface(aEvent));
+  if (mouseEvent) {
+    PRUint16 button = 0;
+    mouseEvent->GetButton(&button);
+    if (!(button == 0 || (button == 1 && gMiddlePref)))
+      return NS_OK;
+  
+#ifndef XP_MACOSX
+    // On Mac there's no scroll-to-here when clicking the thumb
+    mouseEvent->GetShiftKey(&scrollToClick);
+    if (button != 0) {
+      scrollToClick = true;
+    }
+#endif
+  }
+
+  nsGUIEvent *event = static_cast<nsGUIEvent*>(aEvent->GetInternalNSEvent());
+
+  nsPoint pt;
+  if (!GetEventPoint(event, pt)) {
+    return NS_OK;
+  }
   nscoord pos = isHorizontal ? pt.x : pt.y;
 
   // If shift click or middle button, first
@@ -981,6 +998,9 @@ nsSliderFrame::AddListener()
   thumbFrame->GetContent()->
     AddSystemEventListener(NS_LITERAL_STRING("mousedown"), mMediator,
                            false, false);
+  thumbFrame->GetContent()->
+    AddSystemEventListener(NS_LITERAL_STRING("touchstart"), mMediator,
+                           false, false);
 }
 
 void
@@ -1001,13 +1021,21 @@ nsSliderFrame::HandlePress(nsPresContext* aPresContext,
                            nsGUIEvent*     aEvent,
                            nsEventStatus*  aEventStatus)
 {
-#ifdef XP_MACOSX
-  // On Mac the option key inverts the scroll-to-here preference.
-  if (((nsMouseEvent *)aEvent)->isAlt != GetScrollToClick())
-#else
-  if (((nsMouseEvent *)aEvent)->isShift != GetScrollToClick())
-#endif
+  if (aEvent->message == NS_TOUCH_START && GetScrollToClick()) {
+    printf("Bailing for touch\n");
     return NS_OK;
+  }
+
+  if (aEvent->message == NS_MOUSE_BUTTON_DOWN) {
+#ifdef XP_MACOSX
+    // On Mac the option key inverts the scroll-to-here preference.
+    if (((nsMouseEvent *)aEvent)->IsAlt() != GetScrollToClick()) {
+#else
+    if (((nsMouseEvent *)aEvent)->IsShift() != GetScrollToClick()) {
+#endif
+      return NS_OK;
+    }
+  }
 
   nsIFrame* thumbFrame = mFrames.FirstChild();
   if (!thumbFrame) // display:none?
@@ -1020,8 +1048,10 @@ nsSliderFrame::HandlePress(nsPresContext* aPresContext,
   nsRect thumbRect = thumbFrame->GetRect();
   
   nscoord change = 1;
-  nsPoint eventPoint = nsLayoutUtils::GetEventCoordinatesRelativeTo(aEvent,
-                                                                    this);
+  nsPoint eventPoint;
+  if (!GetEventPoint(aEvent, eventPoint)) {
+    return NS_OK;
+  }
   if (IsHorizontal() ? eventPoint.x < thumbRect.x 
                      : eventPoint.y < thumbRect.y)
     change = -1;

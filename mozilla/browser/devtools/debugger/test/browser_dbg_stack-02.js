@@ -14,7 +14,7 @@ function test() {
     gTab = aTab;
     gDebuggee = aDebuggee;
     gPane = aPane;
-    gDebugger = gPane.debuggerWindow;
+    gDebugger = gPane.contentWindow;
 
     testEvalCall();
   });
@@ -36,7 +36,7 @@ function testEvalCall() {
       is(childNodes.length, frames.querySelectorAll(".dbg-stackframe").length,
         "All children should be frames.");
 
-      is(frames.querySelector("#stackframe-0 .dbg-stackframe-name").textContent,
+      is(frames.querySelector("#stackframe-0 .dbg-stackframe-name").getAttribute("value"),
         "(eval)", "Frame name should be (eval)");
 
       ok(frames.querySelector("#stackframe-0").classList.contains("selected"),
@@ -68,7 +68,7 @@ function testEvalCall() {
          "Second frame should not be selected after click inside the first frame.");
 
       gDebugger.DebuggerController.activeThread.resume(function() {
-        closeDebuggerAndFinish(gTab);
+        closeDebuggerAndFinish();
       });
     }}, 0);
   });

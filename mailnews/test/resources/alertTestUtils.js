@@ -270,3 +270,12 @@ function registerAlertTestUtils()
                              "@mozilla.org/embedcomp/prompt-service;1",
                              alertUtilsPromptService);
 }
+
+// Dummy message window that ensures we get prompted for logins.
+var gDummyMsgWindow = {
+  authPrompt: Cc["@mozilla.org/login-manager/prompter;1"].getService(Ci.nsIAuthPrompt),
+  promptDialog: alertUtilsPrompts,
+
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsIMsgWindow,
+                                         Ci.nsISupportsWeakReference])
+};

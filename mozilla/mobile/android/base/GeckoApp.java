@@ -1,59 +1,18 @@
 /* -*- Mode: Java; c-basic-offset: 4; tab-width: 4; indent-tabs-mode: nil; -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Android code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009-2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Vladimir Vukicevic <vladimir@pobox.com>
- *   Matt Brubeck <mbrubeck@mozilla.com>
- *   Vivien Nicolas <vnicolas@mozilla.com>
- *   Sriram Ramasubramanian <sriram@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 package org.mozilla.gecko;
 
 import org.mozilla.gecko.db.BrowserDB;
-import org.mozilla.gecko.gfx.CairoImage;
-import org.mozilla.gecko.gfx.BufferedCairoImage;
-import org.mozilla.gecko.gfx.FloatSize;
 import org.mozilla.gecko.gfx.GeckoLayerClient;
-import org.mozilla.gecko.gfx.IntSize;
 import org.mozilla.gecko.gfx.Layer;
 import org.mozilla.gecko.gfx.LayerController;
 import org.mozilla.gecko.gfx.LayerView;
 import org.mozilla.gecko.gfx.PluginLayer;
-import org.mozilla.gecko.gfx.RectUtils;
-import org.mozilla.gecko.gfx.SurfaceTextureLayer;
-import org.mozilla.gecko.gfx.ViewportMetrics;
-import org.mozilla.gecko.gfx.ImmutableViewportMetrics;
+import org.mozilla.gecko.gfx.PointUtils;
+import org.mozilla.gecko.ui.PanZoomController;
 
 import java.io.*;
 import java.util.*;
@@ -62,7 +21,6 @@ import java.util.regex.Matcher;
 import java.util.zip.*;
 import java.net.URL;
 import java.nio.*;
-import java.nio.channels.FileChannel;
 import java.util.concurrent.*;
 import java.lang.reflect.*;
 import java.net.*;
@@ -72,10 +30,8 @@ import org.json.*;
 import android.os.*;
 import android.app.*;
 import android.text.*;
-import android.text.format.Time;
 import android.view.*;
 import android.view.inputmethod.*;
-import android.view.ViewGroup.LayoutParams;
 import android.content.*;
 import android.content.res.*;
 import android.graphics.*;
@@ -84,6 +40,8 @@ import android.graphics.drawable.BitmapDrawable;
 import android.widget.*;
 import android.hardware.*;
 import android.location.*;
+import android.view.accessibility.AccessibilityManager;
+import android.view.accessibility.AccessibilityEvent;
 
 import android.util.*;
 import android.net.*;
@@ -97,7 +55,9 @@ import dalvik.system.*;
 abstract public class GeckoApp
                 extends GeckoActivity 
                 implements GeckoEventListener, SensorEventListener, LocationListener,
-                           GeckoApplication.ApplicationLifecycleCallbacks {
+                           GeckoApplication.ApplicationLifecycleCallbacks,
+                           Tabs.OnTabsChangedListener, GeckoEventResponder
+{
     private static final String LOGTAG = "GeckoApp";
 
     public static enum StartupMode {
@@ -108,70 +68,67 @@ abstract public class GeckoApp
 
     public static final String ACTION_ALERT_CLICK   = "org.mozilla.gecko.ACTION_ALERT_CLICK";
     public static final String ACTION_ALERT_CLEAR   = "org.mozilla.gecko.ACTION_ALERT_CLEAR";
-    public static final String ACTION_WEBAPP        = "org.mozilla.gecko.WEBAPP";
+    public static final String ACTION_WEBAPP_PREFIX = "org.mozilla.gecko.WEBAPP";
     public static final String ACTION_DEBUG         = "org.mozilla.gecko.DEBUG";
     public static final String ACTION_BOOKMARK      = "org.mozilla.gecko.BOOKMARK";
     public static final String ACTION_LOAD          = "org.mozilla.gecko.LOAD";
     public static final String ACTION_UPDATE        = "org.mozilla.gecko.UPDATE";
     public static final String ACTION_INIT_PW       = "org.mozilla.gecko.INIT_PW";
-    public static final String SAVED_STATE_TITLE    = "title";
+    public static final String SAVED_STATE_TITLE         = "title";
+    public static final String SAVED_STATE_IN_BACKGROUND = "inBackground";
+
+    public static final String PREFS_NAME          = "GeckoApp";
+    public static final String PREFS_OOM_EXCEPTION = "OOMException";
+    public static final String PREFS_WAS_STOPPED   = "wasStopped";
 
     StartupMode mStartupMode = null;
-    private LinearLayout mMainLayout;
-    private RelativeLayout mGeckoLayout;
-    public static SurfaceView cameraView;
+    protected LinearLayout mMainLayout;
+    protected RelativeLayout mGeckoLayout;
+    public View getView() { return mGeckoLayout; }
+    public SurfaceView cameraView;
     public static GeckoApp mAppContext;
-    public static boolean mDOMFullScreen = false;
+    public boolean mDOMFullScreen = false;
+    protected MenuPanel mMenuPanel;
     protected Menu mMenu;
-    private static GeckoThread sGeckoThread = null;
+    private static GeckoThread sGeckoThread;
     public Handler mMainHandler;
     private GeckoProfile mProfile;
     public static boolean sIsGeckoReady = false;
     public static int mOrientation;
+    private boolean mIsRestoringActivity;
+    private String mCurrentResponse = "";
 
     private GeckoConnectivityReceiver mConnectivityReceiver;
     private GeckoBatteryManager mBatteryReceiver;
+    private PromptService mPromptService;
+    private TextSelection mTextSelection;
+    private Favicons mFavicons;
 
-    public static BrowserToolbar mBrowserToolbar;
-    public static DoorHangerPopup mDoorHangerPopup;
-    public static FormAssistPopup mFormAssistPopup;
-    public Favicons mFavicons;
+    public DoorHangerPopup mDoorHangerPopup;
+    public FormAssistPopup mFormAssistPopup;
+    public TabsPanel mTabsPanel;
 
-    private static LayerController mLayerController;
-    private static GeckoLayerClient mLayerClient;
-    private AboutHomeContent mAboutHomeContent;
-    private static AbsoluteLayout mPluginContainer;
+    private LayerController mLayerController;
+    private GeckoLayerClient mLayerClient;
+    private AbsoluteLayout mPluginContainer;
 
     private FullScreenHolder mFullScreenPluginContainer;
     private View mFullScreenPluginView;
-    
+
     private HashMap<String, PowerManager.WakeLock> mWakeLocks = new HashMap<String, PowerManager.WakeLock>();
 
-    private int mRestoreMode = GeckoAppShell.RESTORE_NONE;
+    protected int mRestoreMode = GeckoAppShell.RESTORE_NONE;
     private boolean mInitialized = false;
-
-    static class ExtraMenuItem implements MenuItem.OnMenuItemClickListener {
-        String label;
-        String icon;
-        int id;
-        public boolean onMenuItemClick(MenuItem item) {
-            Log.i(LOGTAG, "menu item clicked");
-            GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("Menu:Clicked", Integer.toString(id)));
-            return true;
-        }
-    }
-
-    static Vector<ExtraMenuItem> sExtraMenuItems = new Vector<ExtraMenuItem>();
 
     public enum LaunchState {Launching, WaitForDebugger,
                              Launched, GeckoRunning, GeckoExiting};
     private static LaunchState sLaunchState = LaunchState.Launching;
 
-    private ActivityResultHandlerMap mActivityResultHandlerMap = new ActivityResultHandlerMap();
-    private FilePickerResultHandlerSync mFilePickerResultHandlerSync = new FilePickerResultHandlerSync();
-    private AwesomebarResultHandler mAwesomebarResultHandler = new AwesomebarResultHandler();
-    private CameraImageResultHandler mCameraImageResultHandler = new CameraImageResultHandler();
-    private CameraVideoResultHandler mCameraVideoResultHandler = new CameraVideoResultHandler();
+    abstract public int getLayout();
+    abstract public boolean isBrowserToolbarSupported();
+    abstract public View getBrowserToolbar();
+    abstract public boolean hasTabsSideBar();
+    abstract protected String getDefaultProfileName();
 
     public static boolean checkLaunchState(LaunchState checkState) {
         synchronized(sLaunchState) {
@@ -196,6 +153,32 @@ abstract public class GeckoApp
         }
     }
 
+    void toggleChrome(final Boolean aShow) { }
+
+    void focusChrome() { }
+
+    public void onTabChanged(Tab tab, Tabs.TabEvents msg, Object data) {
+        // When a tab is closed, it is always unselected first.
+        // When a tab is unselected, another tab is always selected first.
+        switch(msg) {
+            case UNSELECTED:
+                hidePlugins(tab);
+                break;
+
+            case LOCATION_CHANGE:
+                // We only care about location change for the selected tab.
+                if (!Tabs.getInstance().isSelectedTab(tab))
+                    break;
+                // Fall through...
+            case SELECTED:
+                updatePopups(tab);
+                invalidateOptionsMenu();
+                break;
+        }
+    }
+
+    public void refreshChrome() { }
+
     public static final String PLUGIN_ACTION = "android.webkit.PLUGIN";
 
     /**
@@ -210,19 +193,39 @@ abstract public class GeckoApp
     private static final String TYPE_NATIVE = "native";
     public ArrayList<PackageInfo> mPackageInfoCache = new ArrayList<PackageInfo>();
 
+    // Returns null if plugins are blocked on the device.
     String[] getPluginDirectories() {
 
-        // An awful hack to detect Tegra devices. Easiest way to do it without spinning up a EGL context
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.HONEYCOMB) {
-            File tegraDriverPath = new File("/system/lib/hw/gralloc.tegra.so");
-            if (tegraDriverPath.exists())
-                return new String[0];
+        // An awful hack to detect Tegra devices. Easiest way to do it without spinning up a EGL context.
+        boolean isTegra = (new File("/system/lib/hw/gralloc.tegra.so")).exists();
+        if (isTegra) {
+            // disable Flash on Tegra ICS with CM9 and other custom firmware (bug 736421)
+            File vfile = new File("/proc/version");
+            FileReader vreader = null;
+            try {
+                if (vfile.canRead()) {
+                    vreader = new FileReader(vfile);
+                    String version = new BufferedReader(vreader).readLine();
+                    if (version.indexOf("CM9") != -1 ||
+                        version.indexOf("cyanogen") != -1 ||
+                        version.indexOf("Nova") != -1)
+                    {
+                        Log.w(LOGTAG, "Blocking plugins because of Tegra 2 + unofficial ICS bug (bug 736421)");
+                        return null;
+                    }
+                }
+            } catch (IOException ex) {
+                // nothing
+            } finally {
+                try {
+                    if (vreader != null) {
+                        vreader.close();
+                    }
+                } catch (IOException ex) {
+                    // nothing
+                }
+            }
         }
-
-        // we don't support Honeycomb
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB &&
-            Build.VERSION.SDK_INT < 14 /*Build.VERSION_CODES.ICE_CREAM_SANDWICH*/ )
-            return new String[0];
 
         Log.w(LOGTAG, "zerdatime " + SystemClock.uptimeMillis() + " - start of getPluginDirectories");
 
@@ -371,6 +374,13 @@ abstract public class GeckoApp
         return null;
     }
 
+    synchronized Favicons getFavicons() {
+        if (mFavicons == null)
+            mFavicons = new Favicons(this);
+
+        return mFavicons;
+    }
+
     Class<?> getPluginClass(String packageName, String className)
             throws NameNotFoundException, ClassNotFoundException {
         Context pluginContext = mAppContext.createPackageContext(packageName,
@@ -392,97 +402,116 @@ abstract public class GeckoApp
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu)
-    {
+    public boolean onCreateOptionsMenu(Menu menu) {
         mMenu = menu;
+
         MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.gecko_menu, menu);
+        inflater.inflate(R.menu.gecko_app_menu, mMenu);
         return true;
     }
 
     @Override
-    public boolean onPrepareOptionsMenu(Menu aMenu)
-    {
-        Iterator<ExtraMenuItem> i = sExtraMenuItems.iterator();
-        while (i.hasNext()) {
-            final ExtraMenuItem item = i.next();
-            if (aMenu.findItem(item.id) == null) {
-                final MenuItem mi = aMenu.add(Menu.NONE, item.id, Menu.NONE, item.label);
-                if (item.icon != null) {
-                    if (item.icon.startsWith("data")) {
-                        byte[] raw = GeckoAppShell.decodeBase64(item.icon.substring(22), GeckoAppShell.BASE64_DEFAULT);
-                        Bitmap bitmap = BitmapFactory.decodeByteArray(raw, 0, raw.length);
-                        BitmapDrawable drawable = new BitmapDrawable(bitmap);
-                        mi.setIcon(drawable);
-                    }
-                    else if (item.icon.startsWith("jar:") || item.icon.startsWith("file://")) {
-                        GeckoAppShell.getHandler().post(new Runnable() {
-                            public void run() {
-                                try {
-                                    URL url = new URL(item.icon);
-                                    InputStream is = (InputStream) url.getContent();
-                                    Drawable drawable = Drawable.createFromStream(is, "src");
-                                    mi.setIcon(drawable);
-                                } catch (Exception e) {
-                                    Log.w(LOGTAG, "onPrepareOptionsMenu: Unable to set icon", e);
-                                }
-                            }
-                        });
-                    }
-                }
-                mi.setOnMenuItemClickListener(item);
-            }
+    public MenuInflater getMenuInflater() {
+        if (Build.VERSION.SDK_INT >= 11)
+            return new GeckoMenuInflater(mAppContext);
+        else
+            return super.getMenuInflater();
+    }
+
+    public View getMenuPanel() {
+        return mMenuPanel;
+    }
+
+    // MenuPanel holds the scrollable Menu
+    public static class MenuPanel extends ScrollView {
+        public MenuPanel(Context context, AttributeSet attrs) {
+            super(context, attrs);
+            setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                                                       ViewGroup.LayoutParams.WRAP_CONTENT));
         }
 
-        if (!sIsGeckoReady)
-            aMenu.findItem(R.id.settings).setEnabled(false);
+        @Override
+        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
-        Tab tab = Tabs.getInstance().getSelectedTab();
-        MenuItem bookmark = aMenu.findItem(R.id.bookmark);
-        MenuItem forward = aMenu.findItem(R.id.forward);
-        MenuItem share = aMenu.findItem(R.id.share);
-        MenuItem saveAsPDF = aMenu.findItem(R.id.save_as_pdf);
-        MenuItem charEncoding = aMenu.findItem(R.id.char_encoding);
+            DisplayMetrics metrics = new DisplayMetrics();
+            ((Activity) GeckoApp.mAppContext).getWindowManager().getDefaultDisplay().getMetrics(metrics);
 
-        if (tab == null || tab.getURL() == null) {
-            bookmark.setEnabled(false);
-            forward.setEnabled(false);
-            share.setEnabled(false);
-            saveAsPDF.setEnabled(false);
+            // heightPixels changes during rotation.
+            int restrictedHeightSpec = MeasureSpec.makeMeasureSpec((int) (0.75 * metrics.heightPixels), MeasureSpec.AT_MOST);
+
+            super.onMeasure(widthMeasureSpec, restrictedHeightSpec);
+        }
+
+        @Override
+        public boolean dispatchPopulateAccessibilityEvent (AccessibilityEvent event) {
+            if (Build.VERSION.SDK_INT >= 14) // Build.VERSION_CODES.ICE_CREAM_SANDWICH
+                onPopulateAccessibilityEvent(event);
             return true;
         }
-        
-        bookmark.setEnabled(true);
-        bookmark.setCheckable(true);
-        
-        if (tab.isBookmark()) {
-            bookmark.setChecked(true);
-            bookmark.setIcon(R.drawable.ic_menu_bookmark_remove);
-        } else {
-            bookmark.setChecked(false);
-            bookmark.setIcon(R.drawable.ic_menu_bookmark_add);
+    }
+
+    @Override
+    public View onCreatePanelView(int featureId) {
+        if (Build.VERSION.SDK_INT >= 11 && featureId == Window.FEATURE_OPTIONS_PANEL) {
+            if (mMenuPanel == null) {
+                mMenuPanel = new MenuPanel(mAppContext, null);
+            } else {
+                // Prepare the panel everytime before showing the menu.
+                onPreparePanel(featureId, mMenuPanel, mMenu);
+            }
+
+            return mMenuPanel; 
+        }
+  
+        return super.onCreatePanelView(featureId);
+    }
+
+    @Override
+    public boolean onCreatePanelMenu(int featureId, Menu menu) {
+        if (Build.VERSION.SDK_INT >= 11 && featureId == Window.FEATURE_OPTIONS_PANEL) {
+            if (mMenuPanel == null) {
+                mMenuPanel = (MenuPanel) onCreatePanelView(featureId);
+            }
+
+            GeckoMenu gMenu = new GeckoMenu(mAppContext, null);
+            menu = gMenu;
+            mMenuPanel.addView(gMenu);
+
+            return onCreateOptionsMenu(menu);
         }
 
-        forward.setEnabled(tab.canDoForward());
+        return super.onCreatePanelMenu(featureId, menu);
+    }
 
-        // Disable share menuitem for about:, chrome:, file:, and resource: URIs
-        String scheme = Uri.parse(tab.getURL()).getScheme();
-        share.setEnabled(!(scheme.equals("about") || scheme.equals("chrome") ||
-                           scheme.equals("file") || scheme.equals("resource")));
+    @Override
+    public boolean onPreparePanel(int featureId, View view, Menu menu) {
+        if (Build.VERSION.SDK_INT >= 11 && featureId == Window.FEATURE_OPTIONS_PANEL)
+            return onPrepareOptionsMenu(menu);
 
-        // Disable save as PDF for about:home and xul pages
-        saveAsPDF.setEnabled(!(tab.getURL().equals("about:home") ||
-                               tab.getContentType().equals("application/vnd.mozilla.xul+xml")));
+        return super.onPreparePanel(featureId, view, menu);
+    }
 
-        charEncoding.setVisible(GeckoPreferences.getCharEncodingState());
+    @Override
+    public boolean onMenuOpened(int featureId, Menu menu) {
+        if (Build.VERSION.SDK_INT >= 11 && featureId == Window.FEATURE_OPTIONS_PANEL) {
+            if (mMenu == null) {
+                onCreatePanelMenu(featureId, menu);
+                onPreparePanel(featureId, mMenuPanel, mMenu);
+            }
 
-        return true;
+            // Scroll custom menu to the top
+            if (mMenuPanel != null)
+                mMenuPanel.scrollTo(0, 0);
+
+            return true;
+        }
+
+        return super.onMenuOpened(featureId, menu);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        Tab tab = null;
-        Intent intent = null;
         switch (item.getItemId()) {
             case R.id.quit:
                 synchronized(sLaunchState) {
@@ -494,63 +523,39 @@ abstract public class GeckoApp
                     sLaunchState = LaunchState.GeckoExiting;
                 }
                 return true;
-            case R.id.bookmark:
-                tab = Tabs.getInstance().getSelectedTab();
-                if (tab != null) {
-                    if (item.isChecked()) {
-                        tab.removeBookmark();
-                        Toast.makeText(this, R.string.bookmark_removed, Toast.LENGTH_SHORT).show();
-                        item.setIcon(R.drawable.ic_menu_bookmark_add);
-                    } else {
-                        tab.addBookmark();
-                        Toast.makeText(this, R.string.bookmark_added, Toast.LENGTH_SHORT).show();
-                        item.setIcon(R.drawable.ic_menu_bookmark_remove);
-                    }
-                }
-                return true;
-            case R.id.share:
-                tab = Tabs.getInstance().getSelectedTab();
-                if (tab != null) {
-                    String url = tab.getURL();
-                    if (url == null)
-                        return false;
-
-                    GeckoAppShell.openUriExternal(url, "text/plain", "", "",
-                                                  Intent.ACTION_SEND, tab.getTitle());
-                }
-                return true;
-            case R.id.reload:
-                doReload();
-                return true;
-            case R.id.forward:
-                doForward();
-                return true;
-            case R.id.save_as_pdf:
-                GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("SaveAs:PDF", null));
-                return true;
-            case R.id.settings:
-                intent = new Intent(this, GeckoPreferences.class);
-                startActivity(intent);
-                return true;
-            case R.id.site_settings:
-                GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("Permissions:Get", null));
-                return true;
-            case R.id.addons:
-                loadUrlInTab("about:addons");
-                return true;
-            case R.id.downloads:
-                loadUrlInTab("about:downloads");
-                return true;
-            case R.id.char_encoding:
-                GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("CharEncoding:Get", null));
-                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
     }
+ 
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // Custom Menu should be opened when hardware menu key is pressed.
+        if (Build.VERSION.SDK_INT >= 11 && keyCode == KeyEvent.KEYCODE_MENU) {
+            openOptionsMenu();
+            return true;
+        }
+
+        return super.onKeyDown(keyCode, event);
+    }
+
+    protected void shareCurrentUrl() {
+      Tab tab = Tabs.getInstance().getSelectedTab();
+      if (tab == null)
+        return;
+
+      String url = tab.getURL();
+      if (url == null)
+          return;
+
+      GeckoAppShell.openUriExternal(url, "text/plain", "", "",
+                                    Intent.ACTION_SEND, tab.getTitle());
+    }
 
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
+
+        Log.i(LOGTAG, "onSaveInstanceState");
 
         if (outState == null)
             outState = new Bundle();
@@ -558,6 +563,11 @@ abstract public class GeckoApp
         Tab tab = Tabs.getInstance().getSelectedTab();
         if (tab != null)
             outState.putString(SAVED_STATE_TITLE, tab.getDisplayTitle());
+
+        boolean inBackground =
+            ((GeckoApplication)getApplication()).isApplicationInBackground();
+
+        outState.putBoolean(SAVED_STATE_IN_BACKGROUND, inBackground);
     }
 
     public DisplayMetrics getDisplayMetrics() {
@@ -589,12 +599,20 @@ abstract public class GeckoApp
 
             int dw = tab.getThumbnailWidth();
             int dh = tab.getThumbnailHeight();
-            GeckoAppShell.sendEventToGecko(GeckoEvent.createScreenshotEvent(tab.getId(), 0, 0, 0, 0, 0, 0, dw, dh, GeckoAppShell.SCREENSHOT_THUMBNAIL));
+            GeckoAppShell.sendEventToGecko(GeckoEvent.createScreenshotEvent(tab.getId(), 0, 0, 0, 0, 0, 0, dw, dh, dw, dh, ScreenshotHandler.SCREENSHOT_THUMBNAIL, tab.getThumbnailBuffer()));
         }
     }
-    
+
+    void handleThumbnailData(Tab tab, ByteBuffer data) {
+        if (shouldUpdateThumbnail(tab)) {
+            Bitmap b = tab.getThumbnailBitmap();
+            b.copyPixelsFromBuffer(data);
+            processThumbnail(tab, b, null);
+        }
+    }
+
     void processThumbnail(Tab thumbnailTab, Bitmap bitmap, byte[] compressed) {
-        if (Tabs.getInstance().isSelectedTab(thumbnailTab)) {
+        if (shouldUpdateThumbnail(thumbnailTab)) {
             if (compressed == null) {
                 ByteArrayOutputStream bos = new ByteArrayOutputStream();
                 bitmap.compress(Bitmap.CompressFormat.PNG, 0, bos);
@@ -611,51 +629,16 @@ abstract public class GeckoApp
         }
     }
 
-    private void maybeCancelFaviconLoad(Tab tab) {
-        long faviconLoadId = tab.getFaviconLoadId();
-
-        if (faviconLoadId == Favicons.NOT_LOADING)
-            return;
-
-        // Cancel pending favicon load task
-        mFavicons.cancelFaviconLoad(faviconLoadId);
-
-        // Reset favicon load state
-        tab.setFaviconLoadId(Favicons.NOT_LOADING);
+    private boolean shouldUpdateThumbnail(Tab tab) {
+        return (Tabs.getInstance().isSelectedTab(tab) || areTabsShown());
     }
 
-    private void loadFavicon(final Tab tab) {
-        maybeCancelFaviconLoad(tab);
+    void updatePopups(final Tab tab) {
+        mDoorHangerPopup.updatePopup();
+    }
 
-        long id = mFavicons.loadFavicon(tab.getURL(), tab.getFaviconURL(),
-                        new Favicons.OnFaviconLoadedListener() {
-
-            public void onFaviconLoaded(String pageUrl, Drawable favicon) {
-                // Leave favicon UI untouched if we failed to load the image
-                // for some reason.
-                if (favicon == null)
-                    return;
-
-                Log.i(LOGTAG, "Favicon successfully loaded for URL = " + pageUrl);
-
-                // The tab might be pointing to another URL by the time the
-                // favicon is finally loaded, in which case we simply ignore it.
-                if (!tab.getURL().equals(pageUrl))
-                    return;
-
-                Log.i(LOGTAG, "Favicon is for current URL = " + pageUrl);
-
-                tab.updateFavicon(favicon);
-                tab.setFaviconLoadId(Favicons.NOT_LOADING);
-
-                if (Tabs.getInstance().isSelectedTab(tab))
-                    mBrowserToolbar.setFavicon(tab.getFavicon());
-
-                Tabs.getInstance().notifyListeners(tab, Tabs.TabEvents.FAVICON);
-            }
-        });
-
-        tab.setFaviconLoadId(id);
+    void addDoorHanger(String message, String value, JSONArray buttons, Tab tab, JSONObject options) {
+        mDoorHangerPopup.addDoorHanger(message, value, buttons, tab, options, null);
     }
 
     void handleLocationChange(final int tabId, final String uri,
@@ -665,32 +648,22 @@ abstract public class GeckoApp
         if (tab == null)
             return;
 
-        if (Tabs.getInstance().isSelectedTab(tab)) {
-            if (uri.equals("about:home"))
-                showAboutHome();
-            else 
-                hideAboutHome();
-        }
-        
+        // Only remove doorhangers if the popup is hidden or if we're navigating to a new URL
+        if (!mDoorHangerPopup.isShowing() || !uri.equals(tab.getURL()))
+            tab.removeTransientDoorHangers();
+
         tab.updateURL(uri);
         tab.setDocumentURI(documentURI);
 
-        if (sameDocument) {
-            mMainHandler.post(new Runnable() {
-                public void run() {
-                    if (Tabs.getInstance().isSelectedTab(tab)) {
-                        mBrowserToolbar.setTitle(uri);
-                    }
-                }
-            });
+        // We can get a location change event for the same document with an anchor tag
+        if (sameDocument)
             return;
-        }
 
         tab.setContentType(contentType);
-        tab.updateFavicon(null);
-        tab.updateFaviconURL(null);
-        tab.updateSecurityMode("unknown");
-        tab.removeTransientDoorHangers();
+        tab.clearFavicon();
+        tab.updateTitle(null);
+        tab.updateIdentityData(null);
+        tab.setReaderEnabled(false);
         tab.setAllowZoom(true);
         tab.setDefaultZoom(0);
         tab.setMinZoom(0);
@@ -698,85 +671,72 @@ abstract public class GeckoApp
         tab.setHasTouchListeners(false);
         tab.setCheckerboardColor(Color.WHITE);
 
-        maybeCancelFaviconLoad(tab);
-
         mMainHandler.post(new Runnable() {
             public void run() {
-                if (Tabs.getInstance().isSelectedTab(tab)) {
-                    mBrowserToolbar.setTitle(uri);
-                    mBrowserToolbar.setFavicon(null);
-                    mBrowserToolbar.setSecurityMode("unknown");
-                    invalidateOptionsMenu();
-                    mDoorHangerPopup.updatePopup();
-                    mBrowserToolbar.setShadowVisibility(!(tab.getURL().startsWith("about:")));
-
-                    if (tab != null)
-                        hidePlugins(tab);
-                }
+                Tabs.getInstance().notifyListeners(tab, Tabs.TabEvents.LOCATION_CHANGE);
             }
         });
     }
 
-    void handleSecurityChange(final int tabId, final String mode) {
+    void handleSecurityChange(final int tabId, final JSONObject identityData) {
         final Tab tab = Tabs.getInstance().getTab(tabId);
         if (tab == null)
             return;
 
-        tab.updateSecurityMode(mode);
-        
-        mMainHandler.post(new Runnable() { 
-            public void run() {
-                if (Tabs.getInstance().isSelectedTab(tab))
-                    mBrowserToolbar.setSecurityMode(mode);
+        tab.updateIdentityData(identityData);
+    }
+
+    void handleReaderEnabled(final int tabId) {
+        final Tab tab = Tabs.getInstance().getTab(tabId);
+        if (tab == null)
+            return;
+
+        tab.setReaderEnabled(true);
+    }
+
+    void handleFaviconRequest(final String url) {
+        (new GeckoAsyncTask<Void, Void, String>() {
+            @Override
+            public String doInBackground(Void... params) {
+                return getFavicons().getFaviconUrlForPageUrl(url);
             }
-        });
+
+            @Override
+            public void onPostExecute(String faviconUrl) {
+                JSONObject args = new JSONObject();
+
+                if (faviconUrl != null) {
+                    try {
+                        args.put("url", url);
+                        args.put("faviconUrl", faviconUrl);
+                    } catch (JSONException e) {
+                        Log.e(LOGTAG, "error building json arguments");
+                    }
+                }
+
+                GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("Reader:FaviconReturn", args.toString()));
+            }
+        }).execute();
     }
 
     void handleLoadError(final int tabId, final String uri, final String title) {
         final Tab tab = Tabs.getInstance().getTab(tabId);
         if (tab == null)
             return;
-    
+
         // When a load error occurs, the URLBar can get corrupt so we reset it
         mMainHandler.post(new Runnable() {
             public void run() {
-                if (Tabs.getInstance().isSelectedTab(tab)) {
-                    mBrowserToolbar.setTitle(tab.getDisplayTitle());
-                    mBrowserToolbar.setFavicon(tab.getFavicon());
-                    mBrowserToolbar.setSecurityMode(tab.getSecurityMode());
-                    mBrowserToolbar.setProgressVisibility(tab.getState() == Tab.STATE_LOADING);
-                    invalidateOptionsMenu();
-                }
+                Tabs.getInstance().notifyListeners(tab, Tabs.TabEvents.LOAD_ERROR);
             }
         });
     }
 
-    void handlePageShow(final int tabId) {
-        final Tab tab = Tabs.getInstance().getTab(tabId);
-        if (tab == null)
-            return;
-    
-        mMainHandler.post(new Runnable() {
-            public void run() {
-                loadFavicon(tab);
-            }
-        });
-    }
-
-    void updateAboutHomeTopSites() {
-        if (mAboutHomeContent == null)
-            return;
-
-        GeckoApp.mAppContext.mMainHandler.post(new Runnable() {
-            public void run() {
-                mAboutHomeContent.update(GeckoApp.mAppContext,
-                        EnumSet.of(AboutHomeContent.UpdateFlags.TOP_SITES));
-            }
-        });
-    }
+    void handlePageShow(final int tabId) { }
 
     void handleClearHistory() {
-        updateAboutHomeTopSites();
+        BrowserDB.clearHistory(getContentResolver());
+        getFavicons().clearFavicons();
     }
 
     public StartupMode getStartupMode() {
@@ -792,7 +752,10 @@ abstract public class GeckoApp
 
             // This key should be profile-dependent. For now, we're simply hardcoding
             // the "default" profile here.
-            String keyName = packageName + ".default.startup_version";
+            String profileName = getDefaultProfileName();
+            if (profileName == null)
+                profileName = "default";
+            String keyName = packageName + "." + profileName + ".startup_version";
             String appVersion = null;
 
             try {
@@ -824,43 +787,43 @@ abstract public class GeckoApp
         }
     }
 
-    void addTab() {
-        showAwesomebar(AwesomeBar.Type.ADD);
-    }
+    void addTab() { }
 
-    void showTabs() {
-        Intent intent = new Intent(mAppContext, TabsTray.class);
-        startActivity(intent);
-        overridePendingTransition(R.anim.grow_fade_in, 0);
+    public void showLocalTabs() { }
+
+    public void showRemoteTabs() { }
+
+    private void showTabs(TabsPanel.Panel panel) { }
+
+    public void hideTabs() { }
+
+    /**
+     * Close the tab UI indirectly (not as the result of a direct user
+     * action).  This does not force the UI to close; for example in Firefox
+     * tablet mode it will remain open unless the user explicitly closes it.
+     *
+     * @return True if the tab UI was hidden.
+     */
+    public boolean autoHideTabs() { return false; }
+
+    public boolean areTabsShown() { return false; }
+
+    public boolean hasPermanentMenuKey() {
+        boolean hasMenu = true;
+
+        if (Build.VERSION.SDK_INT >= 11)
+            hasMenu = false;
+
+        if (Build.VERSION.SDK_INT >= 14)
+            hasMenu = ViewConfiguration.get(GeckoApp.mAppContext).hasPermanentMenuKey();
+
+        return hasMenu;
     }
 
     public void handleMessage(String event, JSONObject message) {
         Log.i(LOGTAG, "Got message: " + event);
         try {
-            if (event.equals("Menu:Add")) {
-                ExtraMenuItem item = new ExtraMenuItem();
-                item.label = message.getString("name");
-                item.id = message.getInt("id");
-                try { // icon is optional
-                    item.icon = message.getString("icon");
-                } catch (Exception ex) { }
-                sExtraMenuItems.add(item);
-            } else if (event.equals("Menu:Remove")) {
-                // remove it from the menu and from our vector
-                Iterator<ExtraMenuItem> i = sExtraMenuItems.iterator();
-                int id = message.getInt("id");
-                while (i.hasNext()) {
-                    ExtraMenuItem item = i.next();
-                    if (item.id == id) {
-                        sExtraMenuItems.remove(item);
-                        if (mMenu == null)
-                            return;
-                        MenuItem menu = mMenu.findItem(id);
-                        if (menu != null)
-                            mMenu.removeItem(id);
-                    }
-                }
-            } else if (event.equals("Toast:Show")) {
+            if (event.equals("Toast:Show")) {
                 final String msg = message.getString("message");
                 final String duration = message.getString("duration");
                 handleShowToast(msg, duration);
@@ -890,8 +853,9 @@ abstract public class GeckoApp
                 final int tabId = message.getInt("tabID");
                 final String rel = message.getString("rel");
                 final String href = message.getString("href");
-                Log.i(LOGTAG, "link rel - " + rel + ", href - " + href);
-                handleLinkAdded(tabId, rel, href);
+                final int size = message.getInt("size");
+                Log.i(LOGTAG, "link rel - " + rel + ", href - " + href + ", size - " + size);
+                handleLinkAdded(tabId, rel, href, size);
             } else if (event.equals("DOMWindowClose")) {
                 final int tabId = message.getInt("tabID");
                 handleWindowClose(tabId);
@@ -909,9 +873,17 @@ abstract public class GeckoApp
                 handleLocationChange(tabId, uri, documentURI, contentType, sameDocument);
             } else if (event.equals("Content:SecurityChange")) {
                 final int tabId = message.getInt("tabID");
-                final String mode = message.getString("mode");
-                Log.i(LOGTAG, "Security Mode - " + mode);
-                handleSecurityChange(tabId, mode);
+                final JSONObject identity = message.getJSONObject("identity");
+                Log.i(LOGTAG, "Security Mode - " + identity.getString("mode"));
+                handleSecurityChange(tabId, identity);
+            } else if (event.equals("Content:ReaderEnabled")) {
+                final int tabId = message.getInt("tabID");
+                handleReaderEnabled(tabId);
+            } else if (event.equals("Reader:FaviconRequest")) {
+                final String url = message.getString("url");
+                handleFaviconRequest(url);
+            } else if (event.equals("Reader:GoToReadingList")) {
+                showReadingList();
             } else if (event.equals("Content:StateChange")) {
                 final int tabId = message.getInt("tabID");
                 final String uri = message.getString("uri");
@@ -925,7 +897,7 @@ abstract public class GeckoApp
                         handleDocumentStart(tabId, showProgress, uri);
                     } else if ((state & GeckoAppShell.WPL_STATE_STOP) != 0) {
                         Log.i(LOGTAG, "Got a document stop");
-                        handleDocumentStop(tabId, success, uri);
+                        handleDocumentStop(tabId, success);
                     }
                 }
             } else if (event.equals("Content:LoadError")) {
@@ -953,24 +925,11 @@ abstract public class GeckoApp
                 GeckoAppShell.sendPendingEventsToGecko();
                 connectGeckoLayerClient();
             } else if (event.equals("ToggleChrome:Hide")) {
-                mMainHandler.post(new Runnable() {
-                    public void run() {
-                        mBrowserToolbar.hide();
-                    }
-                });
+                toggleChrome(false);
             } else if (event.equals("ToggleChrome:Show")) {
-                mMainHandler.post(new Runnable() {
-                    public void run() {
-                        mBrowserToolbar.show();
-                    }
-                });
+                toggleChrome(true);
             } else if (event.equals("ToggleChrome:Focus")) {
-                mMainHandler.post(new Runnable() {
-                    public void run() {
-                        mBrowserToolbar.setVisibility(View.VISIBLE);
-                        mBrowserToolbar.requestFocusFromTouch();
-                    }
-                });
+                focusChrome();
             } else if (event.equals("DOMFullScreen:Start")) {
                 mDOMFullScreen = true;
             } else if (event.equals("DOMFullScreen:Stop")) {
@@ -1043,23 +1002,16 @@ abstract public class GeckoApp
                 }
             } else if (event.equals("Tab:HasTouchListener")) {
                 int tabId = message.getInt("tabID");
-                Tab tab = Tabs.getInstance().getTab(tabId);
+                final Tab tab = Tabs.getInstance().getTab(tabId);
                 tab.setHasTouchListeners(true);
-                if (Tabs.getInstance().isSelectedTab(tab)) {
-                    mMainHandler.post(new Runnable() {
-                        public void run() {
+                mMainHandler.post(new Runnable() {
+                    public void run() {
+                        if (Tabs.getInstance().isSelectedTab(tab))
                             mLayerController.getView().getTouchEventHandler().setWaitForTouchListeners(true);
-                        }
-                    });
-                }
+                    }
+                });
             } else if (event.equals("Session:StatePurged")) {
-                if (mAboutHomeContent != null) {
-                    mMainHandler.post(new Runnable() {
-                        public void run() {
-                            mAboutHomeContent.setLastTabsVisibility(false);
-                        }
-                    });
-                }
+                onStatePurged();
             } else if (event.equals("Bookmark:Insert")) {
                 final String url = message.getString("url");
                 final String title = message.getString("title");
@@ -1074,71 +1026,110 @@ abstract public class GeckoApp
                     }
                 });
             } else if (event.equals("Accessibility:Event")) {
-                final int eventType = message.getInt("eventType");
+                final AccessibilityEvent accEvent = AccessibilityEvent.obtain(message.getInt("eventType"));
+                accEvent.setClassName(LayerView.class.getName());
+                accEvent.setPackageName(mAppContext.getPackageName());
 
                 final JSONArray text = message.getJSONArray("text");
-                final int len = text.length();
-                final String[] textList = new String[len];
-                for (int i = 0; i < len; i++)
-                    textList[i] = text.getString(i);
+                for (int i = 0; i < text.length(); i++)
+                    accEvent.getText().add(text.getString(i));
 
-                final String description = message.optString("description");
-                final boolean enabled = message.optBoolean("enabled", true);
-                final boolean checked = message.optBoolean("checked");
-                final boolean password = message.optBoolean("password");
+                accEvent.setContentDescription(message.optString("description"));
+                accEvent.setEnabled(message.optBoolean("enabled", true));
+                accEvent.setChecked(message.optBoolean("checked"));
+                accEvent.setPassword(message.optBoolean("password"));
+                accEvent.setAddedCount(message.optInt("addedCount", -1));
+                accEvent.setRemovedCount(message.optInt("removedCount", -1));
+                accEvent.setFromIndex(message.optInt("fromIndex", -1));
+                accEvent.setItemCount(message.optInt("itemCount", -1));
+                accEvent.setCurrentItemIndex(message.optInt("currentItemIndex", -1));
+                accEvent.setBeforeText(message.optString("beforeText"));
+                if (Build.VERSION.SDK_INT >= 14) { // Build.VERSION_CODES.ICE_CREAM_SANDWICH
+                    accEvent.setToIndex(message.optInt("toIndex", -1));
+                    accEvent.setScrollable(message.optBoolean("scrollable"));
+                    accEvent.setScrollX(message.optInt("scrollX", -1));
+                    accEvent.setScrollY(message.optInt("scrollY", -1));
+                }
+                if (Build.VERSION.SDK_INT >= 15) { // Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1
+                    AccessibilityCompat.setMaxScrollX(accEvent, message.optInt("maxScrollX", -1));
+                    AccessibilityCompat.setMaxScrollY(accEvent, message.optInt("maxScrollY", -1));
+                }
+
                 mMainHandler.post(new Runnable() {
                     public void run() {
-                        GeckoAppShell.emitGeckoAccessibilityEvent(eventType, textList, description,
-                                                                  enabled, checked, password);
+                        AccessibilityManager accessibilityManager =
+                            (AccessibilityManager) mAppContext.getSystemService(Context.ACCESSIBILITY_SERVICE);
+                        try {
+                            accessibilityManager.sendAccessibilityEvent(accEvent);
+                        } catch (IllegalStateException e) {
+                            // Accessibility is off.
+                        }
                     }
                 });
+            } else if (event.equals("Accessibility:Ready")) {
+                updateAccessibilitySettings();
+            } else if (event.equals("Shortcut:Remove")) {
+                final String url = message.getString("url");
+                final String origin = message.getString("origin");
+                final String title = message.getString("title");
+                final String type = message.getString("shortcutType");
+                GeckoAppShell.removeShortcut(title, url, origin, type);
+            } else if (event.equals("WebApps:Open")) {
+                String url = message.getString("uri");
+                String origin = message.getString("origin");
+                Intent intent = GeckoAppShell.getWebAppIntent(url, origin, false);
+                if (intent == null)
+                    return;
+                Log.i(LOGTAG, "Open " + url + " (" + origin + ")");
+                startActivity(intent);
+            } else if (event.equals("WebApps:Install")) {
+                String name = message.getString("name");
+                String launchPath = message.getString("launchPath");
+                String iconURL = message.getString("iconURL");
+                String uniqueURI = message.getString("uniqueURI");
+
+                // installWebapp will return a File object pointing to the profile directory of the webapp
+                mCurrentResponse = GeckoAppShell.installWebApp(name, launchPath, uniqueURI, iconURL).toString();
+            } else if (event.equals("WebApps:Uninstall")) {
+                String uniqueURI = message.getString("uniqueURI");
+                GeckoAppShell.uninstallWebApp(uniqueURI);
+            } else if (event.equals("DesktopMode:Changed")) {
+                int tabId = message.getInt("tabId");
+                boolean desktopMode = message.getBoolean("desktopMode");
+                final Tab tab = Tabs.getInstance().getTab(tabId);
+                if (tab == null)
+                    return;
+
+                tab.setDesktopMode(desktopMode);
+                mMainHandler.post(new Runnable() {
+                    public void run() {
+                        if (tab == Tabs.getInstance().getSelectedTab())
+                            invalidateOptionsMenu();
+                    }
+                });
+            } else if (event.equals("Share:Text")) {
+                String text = message.getString("text");
+                GeckoAppShell.openUriExternal(text, "text/plain", "", "", Intent.ACTION_SEND, "");
+            } else if (event.equals("Share:Image")) {
+                String src = message.getString("url");
+                String type = message.getString("mime");
+                GeckoAppShell.shareImage(src, type);
+            } else if (event.equals("Sanitize:ClearHistory")) {
+                handleClearHistory();
             }
         } catch (Exception e) {
             Log.e(LOGTAG, "Exception handling message \"" + event + "\":", e);
         }
     }
 
-    public void showAboutHome() {
-        Runnable r = new AboutHomeRunnable(true);
-        mMainHandler.postAtFrontOfQueue(r);
+    public String getResponse() {
+        Log.i(LOGTAG, "Return " + mCurrentResponse);
+        String res = mCurrentResponse;
+        mCurrentResponse = "";
+        return res;
     }
 
-    public void hideAboutHome() {
-        Runnable r = new AboutHomeRunnable(false);
-        mMainHandler.postAtFrontOfQueue(r);
-    }
-
-    public class AboutHomeRunnable implements Runnable {
-        boolean mShow;
-        AboutHomeRunnable(boolean show) {
-            mShow = show;
-        }
-
-        public void run() {
-            mFormAssistPopup.hide();
-            if (mShow) {
-                if (mAboutHomeContent == null) {
-                    mAboutHomeContent = (AboutHomeContent) findViewById(R.id.abouthome_content);
-                    mAboutHomeContent.init();
-                    mAboutHomeContent.update(GeckoApp.mAppContext, AboutHomeContent.UpdateFlags.ALL);
-                    mAboutHomeContent.setUriLoadCallback(new AboutHomeContent.UriLoadCallback() {
-                        public void callback(String url) {
-                            mBrowserToolbar.setProgressVisibility(true);
-                            loadUrl(url, AwesomeBar.Type.EDIT);
-                        }
-                    });
-                } else {
-                    mAboutHomeContent.update(GeckoApp.mAppContext,
-                                             EnumSet.of(AboutHomeContent.UpdateFlags.TOP_SITES,
-                                                        AboutHomeContent.UpdateFlags.REMOTE_TABS));
-                }
-            
-                mAboutHomeContent.setVisibility(View.VISIBLE);
-            } else {
-                findViewById(R.id.abouthome_content).setVisibility(View.GONE);
-            }
-        } 
-    }
+    void onStatePurged() { }
 
     /**
      * @param aPermissions
@@ -1220,7 +1211,7 @@ abstract public class GeckoApp
             public void run() {
                 Tab tab = Tabs.getInstance().getTab(tabId);
                 if (tab != null)
-                    mDoorHangerPopup.addDoorHanger(message, value, buttons, tab, options);
+                    addDoorHanger(message, value, buttons, tab, options);
             }
         });
     }
@@ -1237,7 +1228,7 @@ abstract public class GeckoApp
                 if (tab == null)
                     return;
                 tab.removeDoorHanger(value);
-                mDoorHangerPopup.updatePopup();
+                updatePopups(tab);
             }
         });
     }
@@ -1248,23 +1239,18 @@ abstract public class GeckoApp
             return;
 
         tab.setState("about:home".equals(uri) ? Tab.STATE_SUCCESS : Tab.STATE_LOADING);
-        tab.updateSecurityMode("unknown");
+        tab.updateIdentityData(null);
+        tab.setReaderEnabled(false);
         if (Tabs.getInstance().isSelectedTab(tab))
             getLayerController().getView().getRenderer().resetCheckerboard();
         mMainHandler.post(new Runnable() {
             public void run() {
-                if (Tabs.getInstance().isSelectedTab(tab)) {
-                    mBrowserToolbar.setSecurityMode(tab.getSecurityMode());
-                    invalidateOptionsMenu();
-                    if (showProgress && tab.getState() == Tab.STATE_LOADING)
-                        mBrowserToolbar.setProgressVisibility(true);
-                }
-                Tabs.getInstance().notifyListeners(tab, Tabs.TabEvents.START);
+                Tabs.getInstance().notifyListeners(tab, Tabs.TabEvents.START, showProgress);
             }
         });
     }
 
-    void handleDocumentStop(int tabId, boolean success, final String uri) {
+    void handleDocumentStop(int tabId, boolean success) {
         final Tab tab = Tabs.getInstance().getTab(tabId);
         if (tab == null)
             return;
@@ -1273,16 +1259,15 @@ abstract public class GeckoApp
 
         mMainHandler.post(new Runnable() {
             public void run() {
-                if (Tabs.getInstance().isSelectedTab(tab)) {
-                    invalidateOptionsMenu();
-                    mBrowserToolbar.setProgressVisibility(false);
-                }
                 Tabs.getInstance().notifyListeners(tab, Tabs.TabEvents.STOP);
             }
         });
+
+        final String oldURL = tab.getURL();
         GeckoAppShell.getHandler().postDelayed(new Runnable() {
             public void run() {
-                if (!uri.equals(tab.getURL()))
+                // tab.getURL() may return null
+                if (!TextUtils.equals(oldURL, tab.getURL()))
                     return;
 
                 getAndProcessThumbnailForTab(tab);
@@ -1326,35 +1311,17 @@ abstract public class GeckoApp
             return;
 
         tab.updateTitle(title);
-
-        mMainHandler.post(new Runnable() {
-            public void run() {
-                if (Tabs.getInstance().isSelectedTab(tab))
-                    mBrowserToolbar.setTitle(tab.getDisplayTitle());
-                Tabs.getInstance().notifyListeners(tab, Tabs.TabEvents.TITLE);
-            }
-        });
     }
 
-    void handleLinkAdded(final int tabId, String rel, final String href) {
-        if (rel.indexOf("[icon]") != -1) {
-            final Tab tab = Tabs.getInstance().getTab(tabId);
-            if (tab != null) {
-                tab.updateFaviconURL(href);
+    void handleLinkAdded(final int tabId, String rel, final String href, int size) {
+        if (rel.indexOf("[icon]") == -1)
+            return; 
 
-                // If tab is not loading and the favicon is updated, we
-                // want to load the image straight away. If tab is still
-                // loading, we only load the favicon once the page's content
-                // is fully loaded (see handleContentLoaded()).
-                if (tab.getState() != Tab.STATE_LOADING) {
-                    mMainHandler.post(new Runnable() {
-                        public void run() {
-                            loadFavicon(tab);
-                        }
-                    });
-                }
-            }
-        }
+        final Tab tab = Tabs.getInstance().getTab(tabId);
+        if (tab == null)
+            return;
+
+        tab.updateFaviconURL(href, size);
     }
 
     void handleWindowClose(final int tabId) {
@@ -1465,49 +1432,26 @@ abstract public class GeckoApp
         });
     }
 
-    public Surface createSurface() {
-        Tabs tabs = Tabs.getInstance();
-        Tab tab = tabs.getSelectedTab();
-        if (tab == null)
-            return null;
-
-        SurfaceTextureLayer layer = SurfaceTextureLayer.create();
-        if (layer == null)
-            return null;
-
-        Surface surface = layer.getSurface();
-        tab.addPluginLayer(surface, layer);
-        return surface;
-    }
-
-    public void destroySurface(Surface surface) {
-        Tabs tabs = Tabs.getInstance();
-        Tab tab = tabs.getSelectedTab();
-        if (tab == null)
-            return;
-
-        Layer layer = tab.removePluginLayer(surface);
-        hidePluginLayer(layer);
-    }
-
-    public void showSurface(Surface surface, int x, int y,
-                            int w, int h, boolean inverted, boolean blend) {
-        Tabs tabs = Tabs.getInstance();
-        Tab tab = tabs.getSelectedTab();
-        if (tab == null)
-            return;
-
-        LayerView layerView = mLayerController.getView();
-        SurfaceTextureLayer layer = (SurfaceTextureLayer)tab.getPluginLayer(surface);
-        if (layer == null)
-            return;
-
-        layer.update(new Rect(x, y, x + w, y + h), inverted, blend);
-        layerView.addLayer(layer);
-
-        // FIXME: shouldn't be necessary, layer will request
-        // one when it gets first frame
-        layerView.requestRender();
+    public void updateAccessibilitySettings () {
+        mMainHandler.post(new Runnable() {
+                public void run() {
+                    JSONObject ret = new JSONObject();
+                    AccessibilityManager accessibilityManager =
+                        (AccessibilityManager) mAppContext.getSystemService(Context.ACCESSIBILITY_SERVICE);
+                    try {
+                        ret.put("enabled", accessibilityManager.isEnabled());
+                        if (Build.VERSION.SDK_INT >= 14) { // Build.VERSION_CODES.ICE_CREAM_SANDWICH
+                            ret.put("exploreByTouch", accessibilityManager.isTouchExplorationEnabled());
+                        } else {
+                            ret.put("exploreByTouch", false);
+                        }
+                    } catch (Exception ex) {
+                        Log.e(LOGTAG, "Error building JSON arguments for Accessibility:Settings:", ex);
+                    }
+                    GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("Accessibility:Settings",
+                                                                                   ret.toString()));
+                }
+            });
     }
     
     private void hidePluginLayer(Layer layer) {
@@ -1522,31 +1466,8 @@ abstract public class GeckoApp
         layerView.requestRender();
     }
 
-    public void hideSurface(Surface surface) {
-        Tabs tabs = Tabs.getInstance();
-        Tab tab = tabs.getSelectedTab();
-        if (tab == null)
-            return;
-
-        Layer layer = tab.getPluginLayer(surface);
-        if (layer == null)
-            return;
-
-        hidePluginLayer(layer);
-    }
-
     public void requestRender() {
         mLayerController.getView().requestRender();
-    }
-
-    public void hidePlugins() {
-        Tabs tabs = Tabs.getInstance();
-        Tab tab = tabs.getSelectedTab();
-
-        if (tab == null)
-            return;
-
-        hidePlugins(tab);
     }
     
     public void hidePlugins(Tab tab) {
@@ -1595,16 +1516,11 @@ abstract public class GeckoApp
         });
     }
 
-    // The ActionBar needs to be refreshed on rotation as different orientation uses different resources
-    public void refreshActionBar() {
-        if (Build.VERSION.SDK_INT >= 11) {
-            LinearLayout actionBar = (LinearLayout) getLayoutInflater().inflate(R.layout.browser_toolbar, null);
-            mBrowserToolbar.from(actionBar);
-            mBrowserToolbar.refresh();
-            invalidateOptionsMenu();
-            GeckoActionBar.setBackgroundDrawable(this, getResources().getDrawable(R.drawable.gecko_actionbar_bg));
-            GeckoActionBar.setCustomView(this, actionBar);
-        }
+    public boolean isTablet() {
+        int screenLayout = getResources().getConfiguration().screenLayout;
+        return (Build.VERSION.SDK_INT >= 11 &&
+                (((screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK) == Configuration.SCREENLAYOUT_SIZE_LARGE) || 
+                 ((screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK) == Configuration.SCREENLAYOUT_SIZE_XLARGE)));
     }
 
     /** Called when the activity is first created. */
@@ -1629,6 +1545,12 @@ abstract public class GeckoApp
         }
 
         GeckoAppShell.loadMozGlue();
+        if (sGeckoThread != null) {
+            // this happens when the GeckoApp activity is destroyed by android
+            // without killing the entire application (see bug 769269)
+            mIsRestoringActivity = true;
+        }
+
         mMainHandler = new Handler();
         Log.w(LOGTAG, "zerdatime " + SystemClock.uptimeMillis() + " - onCreate");
 
@@ -1638,29 +1560,60 @@ abstract public class GeckoApp
 
         mOrientation = getResources().getConfiguration().orientation;
 
-        setContentView(R.layout.gecko_app);
-
-        LinearLayout actionBar;
-        if (Build.VERSION.SDK_INT >= 11) {
-            actionBar = (LinearLayout) GeckoActionBar.getCustomView(this);
-        } else {
-            actionBar = (LinearLayout) findViewById(R.id.browser_toolbar);
-        }
-
-        mBrowserToolbar = new BrowserToolbar(mAppContext);
-        mBrowserToolbar.from(actionBar);
+        setContentView(getLayout());
 
         // setup gecko layout
         mGeckoLayout = (RelativeLayout) findViewById(R.id.gecko_layout);
         mMainLayout = (LinearLayout) findViewById(R.id.main_layout);
 
+        // add a browser-toolbar
+        if (isBrowserToolbarSupported())
+            mMainLayout.addView(getBrowserToolbar(), 0);
+
+        // setup tabs panel
+        mTabsPanel = (TabsPanel) findViewById(R.id.tabs_panel);
+
+        // check if the last run was exited due to a normal kill while
+        // we were in the background, or a more harsh kill while we were
+        // active
         if (savedInstanceState != null) {
-            mBrowserToolbar.setTitle(savedInstanceState.getString(SAVED_STATE_TITLE));
+            Log.i(LOGTAG, "Restoring from OOM");
             mRestoreMode = GeckoAppShell.RESTORE_OOM;
+
+            boolean wasInBackground =
+                savedInstanceState.getBoolean(SAVED_STATE_IN_BACKGROUND, false);
+            Log.i(LOGTAG, "Was in background: " + wasInBackground);
+
+            if (!wasInBackground) {
+                Telemetry.HistogramAdd("OUT_OF_MEMORY_KILLED", 1);
+            }
         }
+
+        GeckoBackgroundThread.getHandler().post(new Runnable() {
+            public void run() {
+                SharedPreferences prefs =
+                    GeckoApp.mAppContext.getSharedPreferences(PREFS_NAME, 0);
+
+                boolean wasOOM = prefs.getBoolean(PREFS_OOM_EXCEPTION, false);
+                boolean wasStopped = prefs.getBoolean(PREFS_WAS_STOPPED, true);
+                if (wasOOM || !wasStopped) {
+                    Log.i(LOGTAG, "Crashed due to OOM last run");
+                    Telemetry.HistogramAdd("OUT_OF_MEMORY_KILLED", 1);
+                }
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putBoolean(GeckoApp.PREFS_OOM_EXCEPTION, false);
+
+                // put a flag to check if we got a normal onSaveInstaceState
+                // on exit, or if we were suddenly killed (crash or native OOM)
+                editor.putBoolean(GeckoApp.PREFS_WAS_STOPPED, false);
+                editor.commit();
+            }
+        });
 
         ((GeckoApplication) getApplication()).addApplicationLifecycleCallbacks(this);
     }
+
+    void initializeChrome(String uri, Boolean isExternalURL) { }
 
     private void initialize() {
         mInitialized = true;
@@ -1670,14 +1623,35 @@ abstract public class GeckoApp
         Intent intent = getIntent();
         String action = intent.getAction();
         String args = intent.getStringExtra("args");
-        if (args != null && args.contains("-profile")) {
-            Pattern p = Pattern.compile("(?:-profile\\s*)(\\w*)(\\s*)");
-            Matcher m = p.matcher(args);
-            if (m.find()) {
-                mProfile = GeckoProfile.get(this, m.group(1));
-                mBrowserToolbar.setTitle(null);
+
+        String profileName = null;
+        String profilePath = null;
+        if (args != null) {
+            if (args.contains("-P")) {
+                Pattern p = Pattern.compile("(?:-P\\s*)(\\w*)(\\s*)");
+                Matcher m = p.matcher(args);
+                if (m.find()) {
+                    profileName = m.group(1);
+                }
+            }
+            if (args.contains("-profile")) {
+                Pattern p = Pattern.compile("(?:-profile\\s*)(\\S*)(\\s*)");
+                Matcher m = p.matcher(args);
+                if (m.find()) {
+                    profilePath =  m.group(1);
+                }
+                if (profileName == null) {
+                    profileName = getDefaultProfileName();
+                    if (profileName == null)
+                        profileName = "default";
+                }
+            }
+            if (profileName != null || profilePath != null) {
+                mProfile = GeckoProfile.get(this, profileName, profilePath);
             }
         }
+
+        BrowserDB.initialize(getProfile().getName());
 
         if (ACTION_UPDATE.equals(action) || args != null && args.contains("-alert update-app")) {
             Log.i(LOGTAG,"onCreate: Update request");
@@ -1688,24 +1662,15 @@ abstract public class GeckoApp
         String uri = getURIFromIntent(intent);
         if (uri != null && uri.length() > 0) {
             passedUri = uri;
-            mBrowserToolbar.setTitle(uri);
         }
 
-        if (mRestoreMode == GeckoAppShell.RESTORE_NONE && getProfile().shouldRestoreSession())
+        if (mRestoreMode == GeckoAppShell.RESTORE_NONE && getProfile().shouldRestoreSession()) {
+            Log.i(LOGTAG, "Restoring crash");
             mRestoreMode = GeckoAppShell.RESTORE_CRASH;
+        }
 
         boolean isExternalURL = passedUri != null && !passedUri.equals("about:home");
-        if (!isExternalURL) {
-            // show about:home if we aren't restoring previous session
-            if (mRestoreMode == GeckoAppShell.RESTORE_NONE) {
-                mBrowserToolbar.updateTabCount(1);
-                showAboutHome();
-            }
-        } else {
-            mBrowserToolbar.updateTabCount(1);
-        }
-
-        mBrowserToolbar.setProgressVisibility(isExternalURL || (mRestoreMode != GeckoAppShell.RESTORE_NONE));
+        initializeChrome(uri, isExternalURL);
 
         // Start migrating as early as possible, can do this in
         // parallel with Gecko load.
@@ -1725,35 +1690,9 @@ abstract public class GeckoApp
             passedUri = "about:empty";
         }
 
-        if (sGeckoThread == null) {
+        if (!mIsRestoringActivity) {
             sGeckoThread = new GeckoThread(intent, passedUri, mRestoreMode);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle(R.string.ics_dumbness_title);
-            builder.setMessage(R.string.ics_dumbness_message);
-            builder.setPositiveButton(R.string.ics_dumbness_ok, new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface dialog, int which) {
-                    final String ACTION = "android.intent.action.MAIN";
-                    final String PACKAGE = "com.android.settings";
-                    final String CLASS = PACKAGE + ".DevelopmentSettings";
-                    Intent intent = new Intent(ACTION);
-                    intent.setComponent(new ComponentName(PACKAGE, CLASS));
-                    startActivity(intent);
-                }
-            });
-            builder.setNegativeButton(R.string.button_cancel, new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface dialog, int which) {
-                }
-            });
-            AlertDialog dialog = builder.create();
-            dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
-                public void onDismiss(DialogInterface dialog) {
-                    System.exit(0);
-                }
-            });
-            dialog.show();
         }
-
         if (!ACTION_DEBUG.equals(action) &&
             checkAndSetLaunchState(LaunchState.Launching, LaunchState.Launched)) {
             sGeckoThread.start();
@@ -1769,9 +1708,8 @@ abstract public class GeckoApp
             Log.i(LOGTAG, "Intent : ACTION_DEBUG - waiting 5s before launching");
         }
 
-        mFavicons = new Favicons(this);
-
-        Tabs.getInstance().setContentResolver(getContentResolver()); 
+        Tabs.getInstance().setContentResolver(getContentResolver());
+        Tabs.registerOnTabsChangedListener(this);
 
         if (cameraView == null) {
             cameraView = new SurfaceView(this);
@@ -1794,12 +1732,7 @@ abstract public class GeckoApp
              * run experience, perhaps?
              */
             mLayerController = new LayerController(this);
-            View v = mLayerController.getView();
-
-            // Instead of flickering the checkerboard, show a white screen until Gecko paints
-            v.setBackgroundColor(Color.WHITE);
-
-            mGeckoLayout.addView(v, 0);
+            mLayerController.setView((LayerView)findViewById(R.id.layer_view));
         }
 
         mPluginContainer = (AbsoluteLayout) findViewById(R.id.plugin_container);
@@ -1817,9 +1750,12 @@ abstract public class GeckoApp
         GeckoAppShell.registerGeckoEventListener("log", GeckoApp.mAppContext);
         GeckoAppShell.registerGeckoEventListener("Content:LocationChange", GeckoApp.mAppContext);
         GeckoAppShell.registerGeckoEventListener("Content:SecurityChange", GeckoApp.mAppContext);
+        GeckoAppShell.registerGeckoEventListener("Content:ReaderEnabled", GeckoApp.mAppContext);
         GeckoAppShell.registerGeckoEventListener("Content:StateChange", GeckoApp.mAppContext);
         GeckoAppShell.registerGeckoEventListener("Content:LoadError", GeckoApp.mAppContext);
         GeckoAppShell.registerGeckoEventListener("Content:PageShow", GeckoApp.mAppContext);
+        GeckoAppShell.registerGeckoEventListener("Reader:FaviconRequest", GeckoApp.mAppContext);
+        GeckoAppShell.registerGeckoEventListener("Reader:GoToReadingList", this);
         GeckoAppShell.registerGeckoEventListener("onCameraCapture", GeckoApp.mAppContext);
         GeckoAppShell.registerGeckoEventListener("Doorhanger:Add", GeckoApp.mAppContext);
         GeckoAppShell.registerGeckoEventListener("Doorhanger:Remove", GeckoApp.mAppContext);
@@ -1841,6 +1777,15 @@ abstract public class GeckoApp
         GeckoAppShell.registerGeckoEventListener("Session:StatePurged", GeckoApp.mAppContext);
         GeckoAppShell.registerGeckoEventListener("Bookmark:Insert", GeckoApp.mAppContext);
         GeckoAppShell.registerGeckoEventListener("Accessibility:Event", GeckoApp.mAppContext);
+        GeckoAppShell.registerGeckoEventListener("Accessibility:Ready", GeckoApp.mAppContext);
+        GeckoAppShell.registerGeckoEventListener("Shortcut:Remove", GeckoApp.mAppContext);
+        GeckoAppShell.registerGeckoEventListener("WebApps:Open", GeckoApp.mAppContext);
+        GeckoAppShell.registerGeckoEventListener("WebApps:Install", GeckoApp.mAppContext);
+        GeckoAppShell.registerGeckoEventListener("WebApps:Uninstall", GeckoApp.mAppContext);
+        GeckoAppShell.registerGeckoEventListener("DesktopMode:Changed", GeckoApp.mAppContext);
+        GeckoAppShell.registerGeckoEventListener("Share:Text", GeckoApp.mAppContext);
+        GeckoAppShell.registerGeckoEventListener("Share:Image", GeckoApp.mAppContext);
+        GeckoAppShell.registerGeckoEventListener("Sanitize:ClearHistory", GeckoApp.mAppContext);
 
         if (SmsManager.getInstance() != null) {
           SmsManager.getInstance().start();
@@ -1851,6 +1796,11 @@ abstract public class GeckoApp
 
         mConnectivityReceiver = new GeckoConnectivityReceiver();
         mConnectivityReceiver.registerFor(mAppContext);
+
+        mPromptService = new PromptService();
+
+        mTextSelection = new TextSelection((TextSelectionHandle) findViewById(R.id.start_handle),
+                                           (TextSelectionHandle) findViewById(R.id.end_handle));
 
         GeckoNetworkManager.getInstance().init();
         GeckoNetworkManager.getInstance().start();
@@ -1880,6 +1830,16 @@ abstract public class GeckoApp
                 }
             }
         }, 50);
+
+        if (mIsRestoringActivity) {
+            setLaunchState(GeckoApp.LaunchState.GeckoRunning);
+            Tab selectedTab = Tabs.getInstance().getSelectedTab();
+            if (selectedTab != null)
+                Tabs.getInstance().selectTab(selectedTab.getId());
+            connectGeckoLayerClient();
+            GeckoAppShell.setLayerClient(getLayerClient());
+            GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("Viewport:Flush", null));
+        }
     }
 
     public GeckoProfile getProfile() {
@@ -2027,20 +1987,6 @@ abstract public class GeckoApp
             }
         }
         final String action = intent.getAction();
-        if (ACTION_DEBUG.equals(action) &&
-            checkAndSetLaunchState(LaunchState.Launching, LaunchState.WaitForDebugger)) {
-            mMainHandler.postDelayed(new Runnable() {
-                public void run() {
-                    Log.i(LOGTAG, "Launching from debug intent after 5s wait");
-                    setLaunchState(LaunchState.Launching);
-                    sGeckoThread.start();
-                }
-            }, 1000 * 5 /* 5 seconds */);
-            Log.i(LOGTAG, "Intent : ACTION_DEBUG - waiting 5s before launching");
-            return;
-        }
-        if (checkLaunchState(LaunchState.WaitForDebugger) || intent == getIntent())
-            return;
 
         if (Intent.ACTION_MAIN.equals(action)) {
             Log.i(LOGTAG, "Intent : ACTION_MAIN");
@@ -2048,7 +1994,7 @@ abstract public class GeckoApp
         }
         else if (ACTION_LOAD.equals(action)) {
             String uri = intent.getDataString();
-            loadUrl(uri, AwesomeBar.Type.EDIT);
+            loadUrl(uri, AwesomeBar.Target.CURRENT_TAB);
             Log.i(LOGTAG,"onNewIntent: " + uri);
         }
         else if (Intent.ACTION_VIEW.equals(action)) {
@@ -2056,10 +2002,10 @@ abstract public class GeckoApp
             GeckoAppShell.sendEventToGecko(GeckoEvent.createURILoadEvent(uri));
             Log.i(LOGTAG,"onNewIntent: " + uri);
         }
-        else if (ACTION_WEBAPP.equals(action)) {
+        else if (action != null && action.startsWith(ACTION_WEBAPP_PREFIX)) {
             String uri = getURIFromIntent(intent);
             GeckoAppShell.sendEventToGecko(GeckoEvent.createWebappLoadEvent(uri));
-            Log.i(LOGTAG,"Intent : WEBAPP - " + uri);
+            Log.i(LOGTAG,"Intent : WEBAPP (" + action + ") - " + uri);
         }
         else if (ACTION_BOOKMARK.equals(action)) {
             String uri = getURIFromIntent(intent);
@@ -2078,7 +2024,7 @@ abstract public class GeckoApp
             return uri;
 
         final String action = intent.getAction();
-        if (ACTION_WEBAPP.equals(action) || ACTION_BOOKMARK.equals(action)) {
+        if ((action != null && action.startsWith(ACTION_WEBAPP_PREFIX)) || ACTION_BOOKMARK.equals(action)) {
             uri = intent.getStringExtra("args");
             if (uri != null && uri.startsWith("--url=")) {
                 uri.replace("--url=", "");
@@ -2096,12 +2042,27 @@ abstract public class GeckoApp
         // Undo whatever we did in onPause.
         super.onResume();
 
+        SiteIdentityPopup.getInstance().dismiss();
+
         int newOrientation = getResources().getConfiguration().orientation;
 
         if (mOrientation != newOrientation) {
             mOrientation = newOrientation;
-            refreshActionBar();
+            refreshChrome();
         }
+
+        // User may have enabled/disabled accessibility.
+        updateAccessibilitySettings();
+
+        GeckoBackgroundThread.getHandler().post(new Runnable() {
+            public void run() {
+                SharedPreferences prefs =
+                    GeckoApp.mAppContext.getSharedPreferences(GeckoApp.PREFS_NAME, 0);
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putBoolean(GeckoApp.PREFS_WAS_STOPPED, false);
+                editor.commit();
+            }
+         });
     }
 
     @Override
@@ -2132,9 +2093,41 @@ abstract public class GeckoApp
     }
 
     @Override
+    public void onPause()
+    {
+        Log.i(LOGTAG, "pause");
+
+        // In some way it's sad that Android will trigger StrictMode warnings
+        // here as the whole point is to save to disk while the activity is not
+        // interacting with the user.
+        GeckoBackgroundThread.getHandler().post(new Runnable() {
+            public void run() {
+                SharedPreferences prefs =
+                    GeckoApp.mAppContext.getSharedPreferences(GeckoApp.PREFS_NAME, 0);
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putBoolean(GeckoApp.PREFS_WAS_STOPPED, true);
+                editor.commit();
+            }
+        });
+
+        super.onPause();
+    }
+
+    @Override
     public void onRestart()
     {
         Log.i(LOGTAG, "restart");
+
+        GeckoBackgroundThread.getHandler().post(new Runnable() {
+            public void run() {
+                SharedPreferences prefs =
+                    GeckoApp.mAppContext.getSharedPreferences(GeckoApp.PREFS_NAME, 0);
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putBoolean(GeckoApp.PREFS_WAS_STOPPED, false);
+                editor.commit();
+            }
+        });
+
         super.onRestart();
     }
 
@@ -2165,27 +2158,62 @@ abstract public class GeckoApp
         GeckoAppShell.unregisterGeckoEventListener("log", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("Content:LocationChange", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("Content:SecurityChange", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("Content:ReaderEnabled", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("Content:StateChange", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("Content:LoadError", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("Content:PageShow", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("Reader:FaviconRequest", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("Reader:GoToReadingList", this);
         GeckoAppShell.unregisterGeckoEventListener("onCameraCapture", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("Doorhanger:Add", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("Doorhanger:Remove", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("Menu:Add", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("Menu:Remove", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("Gecko:Ready", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("Toast:Show", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("DOMFullScreen:Start", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("DOMFullScreen:Stop", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("ToggleChrome:Hide", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("ToggleChrome:Show", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("ToggleChrome:Focus", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("Permissions:Data", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("CharEncoding:Data", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("CharEncoding:State", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("Update:Restart", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("Tab:HasTouchListener", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("Tab:ViewportMetadata", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("Session:StatePurged", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("Bookmark:Insert", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("Accessibility:Event", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("Accessibility:Ready", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("Shortcut:Remove", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("WebApps:Open", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("WebApps:Install", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("WebApps:Uninstall", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("DesktopMode:Changed", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("Share:Text", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("Share:Image", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("Sanitize:ClearHistory", GeckoApp.mAppContext);
 
-        if (mFavicons != null)
-            mFavicons.close();
+        deleteTempFiles();
+
+        if (mLayerController != null)
+            mLayerController.destroy();
+        if (mLayerClient != null)
+            mLayerClient.destroy();
+        if (mFormAssistPopup != null)
+            mFormAssistPopup.destroy();
+        if (mPromptService != null)
+            mPromptService.destroy();
+        if (mTextSelection != null)
+            mTextSelection.destroy();
+
+        GeckoAppShell.getHandler().post(new Runnable() {
+            public void run() {
+                if (mFavicons != null)
+                    mFavicons.close();
+            }
+        });
 
         if (SmsManager.getInstance() != null) {
             SmsManager.getInstance().stop();
@@ -2198,17 +2226,33 @@ abstract public class GeckoApp
         if (mBatteryReceiver != null)
             mBatteryReceiver.unregisterFor(mAppContext);
 
-        if (mAboutHomeContent != null)
-            mAboutHomeContent.onDestroy();
+        Tabs.unregisterOnTabsChangedListener(this);
 
         ((GeckoApplication) getApplication()).removeApplicationLifecycleCallbacks(this);
+    }
+
+    // Get a temporary directory, may return null
+    public static File getTempDirectory() {
+        File dir = mAppContext.getExternalFilesDir("temp");
+        return dir;
+    }
+
+    // Delete any files in our temporary directory
+    public static void deleteTempFiles() {
+        File dir = getTempDirectory();
+        if (dir == null)
+            return;
+        File[] files = dir.listFiles();
+        if (files == null)
+            return;
+        for (File file : files) {
+            file.delete();
+        }
     }
 
     @Override
     public void onContentChanged() {
         super.onContentChanged();
-        if (mAboutHomeContent != null)
-            mAboutHomeContent.onActivityContentChanged(this);
     }
 
 
@@ -2223,7 +2267,8 @@ abstract public class GeckoApp
             mOrientation = newConfig.orientation;
             if (mFormAssistPopup != null)
                 mFormAssistPopup.hide();
-            refreshActionBar();
+            SiteIdentityPopup.getInstance().dismiss();
+            refreshChrome();
         }
     }
 
@@ -2427,12 +2472,14 @@ abstract public class GeckoApp
                         long timeDiff = SystemClock.uptimeMillis() - currentTime;
                         Log.i(LOGTAG, "Profile migration took " + timeDiff + " ms");
 
-                        // Update about:home with the new information.
-                        updateAboutHomeTopSites();
+                        finishProfileMigration();
                     }
                 }}
             );
         }
+    }
+
+    protected void finishProfileMigration() {
     }
 
     private void checkMigrateSync() {
@@ -2447,253 +2494,62 @@ abstract public class GeckoApp
         }
     }
 
-    /**
-     * The FilePickerPromptRunnable has to be called to show an intent-like
-     * context menu UI using the PromptService.
-     */
-    private class FilePickerPromptRunnable implements Runnable {
-        public FilePickerPromptRunnable(String aTitle, PromptService.PromptListItem[] aItems) {
-            super();
-            mTitle = aTitle;
-            mItems = aItems;
-        }
-
-        public void run() {
-            GeckoAppShell.getPromptService().Show(mTitle, "", null, mItems, false);
-        }
-
-        private String mTitle;
-        private PromptService.PromptListItem[] mItems;
-    }
-
-    private int addIntentActivitiesToList(Intent intent, ArrayList<PromptService.PromptListItem> items, ArrayList<Intent> aIntents) {
-        PackageManager pm = mAppContext.getPackageManager();
-        final List<ResolveInfo> lri =
-            pm.queryIntentActivityOptions(GeckoApp.mAppContext.getComponentName(), null, intent, 0);
-
-        if (lri == null) {
-            return 0;
-        }
-
-        for (int i=0; i<lri.size(); i++) {
-            final ResolveInfo ri = lri.get(i);
-            Intent rintent = new Intent(intent);
-            rintent.setComponent(new ComponentName(
-                    ri.activityInfo.applicationInfo.packageName,
-                    ri.activityInfo.name));
-
-            PromptService.PromptListItem item = new PromptService.PromptListItem(ri.loadLabel(pm).toString());
-            item.icon = ri.loadIcon(pm);
-            items.add(item);
-            aIntents.add(rintent);
-        }
-
-        return lri.size();
-    }
-
-    private int AddFilePickingActivities(ArrayList<PromptService.PromptListItem> aItems, String aType, ArrayList<Intent> aIntents) {
-        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType(aType);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-
-        return addIntentActivitiesToList(intent, aItems, aIntents);
-    }
-
-    static private String generateImageName() {
-        Time now = new Time();
-        now.setToNow();
-        return now.format("%Y-%m-%d %H.%M.%S") + ".jpg";
-    }
-
-    private PromptService.PromptListItem[] getItemsAndIntentsForFilePicker(String aMimeType, ArrayList<Intent> aIntents) {
-        ArrayList<PromptService.PromptListItem> items = new ArrayList<PromptService.PromptListItem>();
-
-        if (aMimeType.equals("audio/*")) {
-            if (AddFilePickingActivities(items, "audio/*", aIntents) <= 0) {
-                AddFilePickingActivities(items, "*/*", aIntents);
-            }
-        } else if (aMimeType.equals("image/*")) {
-            mImageFilePath = generateImageName();
-            Intent intent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
-            intent.putExtra(MediaStore.EXTRA_OUTPUT,
-                            Uri.fromFile(new File(Environment.getExternalStorageDirectory(),
-                                                  mImageFilePath)));
-            addIntentActivitiesToList(intent, items, aIntents);
-
-            if (AddFilePickingActivities(items, "image/*", aIntents) <= 0) {
-              AddFilePickingActivities(items, "*/*", aIntents);
-            }
-        } else if (aMimeType.equals("video/*")) {
-            Intent intent = new Intent(android.provider.MediaStore.ACTION_VIDEO_CAPTURE);
-            addIntentActivitiesToList(intent, items, aIntents);
-
-            if (AddFilePickingActivities(items, "video/*", aIntents) <= 0) {
-              AddFilePickingActivities(items, "*/*", aIntents);
-            }
-        } else {
-            mImageFilePath = generateImageName();
-            Intent intent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
-            intent.putExtra(MediaStore.EXTRA_OUTPUT,
-                            Uri.fromFile(new File(Environment.getExternalStorageDirectory(),
-                                                  mImageFilePath)));
-            addIntentActivitiesToList(intent, items, aIntents);
-
-            intent = new Intent(android.provider.MediaStore.ACTION_VIDEO_CAPTURE);
-            addIntentActivitiesToList(intent, items, aIntents);
-
-            AddFilePickingActivities(items, "*/*", aIntents);
-        }
-
-        return items.toArray(new PromptService.PromptListItem[] {});
-    }
-
-    private String getFilePickerTitle(String aMimeType) {
-        if (aMimeType.equals("audio/*")) {
-            return getString(R.string.filepicker_audio_title);
-        } else if (aMimeType.equals("image/*")) {
-            return getString(R.string.filepicker_image_title);
-        } else if (aMimeType.equals("video/*")) {
-            return getString(R.string.filepicker_video_title);
-        } else {
-            return getString(R.string.filepicker_title);
-        }
-    }
-
-    private Intent getFilePickerIntent(String aMimeType) {
-        ArrayList<Intent> intents = new ArrayList<Intent>();
-        PromptService.PromptListItem[] items = getItemsAndIntentsForFilePicker(aMimeType, intents);
-
-        if (intents.size() == 0) {
-            Log.i(LOGTAG, "no activities for the file picker!");
-            return null;
-        }
-
-        if (intents.size() == 1)
-            return intents.get(0);
-
-        GeckoAppShell.getHandler().post(new FilePickerPromptRunnable(getFilePickerTitle(aMimeType), items));
-
-        String promptServiceResult = "";
-        try {
-            promptServiceResult = PromptService.waitForReturn();
-        } catch (InterruptedException e) {
-            Log.e(LOGTAG, "showing prompt failed: ",  e);
-            return null;
-        }
-
-        int itemId = -1;
-        try {
-            itemId = new JSONObject(promptServiceResult).getInt("button");
-
-            if (itemId == -1) {
-                return null;
-            }
-        } catch (org.json.JSONException e) {
-            Log.e(LOGTAG, "result from promptservice was invalid: ", e);
-            return null;
-        }
-
-        return intents.get(itemId);
-    }
-
-    private String mImageFilePath = "";
-    private SynchronousQueue<String> mFilePickerResult = new SynchronousQueue<String>();
-
-    public boolean showFilePicker(String aMimeType, ActivityResultHandler handler) {
-        Intent intent = getFilePickerIntent(aMimeType);
-
-        if (intent == null) {
-            return false;
-        }
-        startActivityForResult(intent, mActivityResultHandlerMap.put(handler));
-        return true;
-    }
-
-    public String showFilePicker(String aMimeType) {
-        Intent intent = getFilePickerIntent(aMimeType);
-
-        if (intent == null) {
-            return "";
-        }
-
-        if (intent.getAction().equals(android.provider.MediaStore.ACTION_IMAGE_CAPTURE)) {
-            startActivityForResult(intent, mActivityResultHandlerMap.put(mCameraImageResultHandler));
-        } else if (intent.getAction().equals(android.provider.MediaStore.ACTION_VIDEO_CAPTURE)) {
-            startActivityForResult(intent, mActivityResultHandlerMap.put(mCameraVideoResultHandler));
-        } else if (intent.getAction().equals(Intent.ACTION_GET_CONTENT)) {
-            startActivityForResult(intent, mActivityResultHandlerMap.put(mFilePickerResultHandlerSync));
-        } else {
-            Log.e(LOGTAG, "We should not get an intent with another action!");
-            return "";
-        }
-
-        String filePickerResult = "";
-
-        try {
-            while (null == (filePickerResult = mFilePickerResult.poll(1, TimeUnit.MILLISECONDS))) {
-                GeckoAppShell.processNextNativeEvent();
-            }
-        } catch (InterruptedException e) {
-            Log.e(LOGTAG, "showing file picker failed: ",  e);
-        }
-
-        return filePickerResult;
+    PromptService getPromptService() {
+        return mPromptService;
     }
 
     @Override
     public boolean onSearchRequested() {
-        return showAwesomebar(AwesomeBar.Type.EDIT);
+        return showAwesomebar(AwesomeBar.Target.CURRENT_TAB);
     }
 
-    public boolean showAwesomebar(AwesomeBar.Type aType) {
+    public boolean showAwesomebar(AwesomeBar.Target aTarget) {
+        return showAwesomebar(aTarget, null);
+    }
+
+    public boolean showAwesomebar(AwesomeBar.Target aTarget, String aUrl) {
         Intent intent = new Intent(getBaseContext(), AwesomeBar.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION | Intent.FLAG_ACTIVITY_NO_HISTORY);
-        intent.putExtra(AwesomeBar.TYPE_KEY, aType.name());
+        intent.putExtra(AwesomeBar.TARGET_KEY, aTarget.name());
 
-        if (aType != AwesomeBar.Type.ADD) {
-            // if we're not adding a new tab, show the old url
+        // if we were passed in a url, show it
+        if (aUrl != null && !TextUtils.isEmpty(aUrl)) {
+            intent.putExtra(AwesomeBar.CURRENT_URL_KEY, aUrl);
+        } else if (aTarget == AwesomeBar.Target.CURRENT_TAB) {
+            // otherwise, if we're editing the current tab, show its url
             Tab tab = Tabs.getInstance().getSelectedTab();
             if (tab != null) {
-                String url = tab.getURL();
-                if (url != null) {
-                    intent.putExtra(AwesomeBar.CURRENT_URL_KEY, url);
+
+                aUrl = tab.getURL();
+                if (aUrl != null) {
+                    intent.putExtra(AwesomeBar.CURRENT_URL_KEY, aUrl);
                 }
+
             }
         }
-        startActivityForResult(intent, mActivityResultHandlerMap.put(mAwesomebarResultHandler));
+
+        int requestCode = GeckoAppShell.sActivityHelper.makeRequestCodeForAwesomebar();
+        startActivityForResult(intent, requestCode);
         return true;
     }
 
-    public boolean doReload() {
-        Log.i(LOGTAG, "Reload requested");
-        Tab tab = Tabs.getInstance().getSelectedTab();
-        if (tab == null)
-            return false;
+    public void showReadingList() {
+        Intent intent = new Intent(getBaseContext(), AwesomeBar.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION | Intent.FLAG_ACTIVITY_NO_HISTORY);
+        intent.putExtra(AwesomeBar.TARGET_KEY, AwesomeBar.Target.CURRENT_TAB.toString());
+        intent.putExtra(AwesomeBar.READING_LIST_KEY, true);
 
-        return tab.doReload();
-    }
-
-    public boolean doForward() {
-        Log.i(LOGTAG, "Forward requested");
-        Tab tab = Tabs.getInstance().getSelectedTab();
-        if (tab == null)
-            return false;
-
-        return tab.doForward();
-    }
-
-    public boolean doStop() {
-        Log.i(LOGTAG, "Stop requested");
-        Tab tab = Tabs.getInstance().getSelectedTab();
-        if (tab == null)
-            return false;
-
-        return tab.doStop();
+        int requestCode = GeckoAppShell.sActivityHelper.makeRequestCodeForAwesomebar();
+        startActivityForResult(intent, requestCode);
     }
 
     @Override
     public void onBackPressed() {
-        if (mDoorHangerPopup.isShowing()) {
+        if (autoHideTabs()) {
+            return;
+        }
+
+        if (mDoorHangerPopup != null && mDoorHangerPopup.isShowing()) {
             mDoorHangerPopup.dismiss();
             return;
         }
@@ -2701,6 +2557,12 @@ abstract public class GeckoApp
         if (mFullScreenPluginView != null) {
             GeckoAppShell.onFullScreenPluginHidden(mFullScreenPluginView);
             removeFullScreenPluginView(mFullScreenPluginView);
+            return;
+        }
+
+        SiteIdentityPopup identityPopup = SiteIdentityPopup.getInstance();
+        if (identityPopup.isShowing()) {
+            identityPopup.dismiss();
             return;
         }
 
@@ -2736,156 +2598,17 @@ abstract public class GeckoApp
         moveTaskToBack(true);
     }
 
-    static int kCaptureIndex = 0;
-
-    public interface ActivityResultHandler {
-        public void onActivityResult(int resultCode, Intent data);
-    }
-
-    class ActivityResultHandlerMap {
-        private Map<Integer, ActivityResultHandler> mMap = new HashMap<Integer, ActivityResultHandler>();
-        private int mCounter = 0;
-
-        synchronized int put(ActivityResultHandler handler) {
-            mMap.put(mCounter, handler);
-            return mCounter++;
-        }
-
-        synchronized ActivityResultHandler getAndRemove(int i) {
-            return mMap.remove(i);
-        }
-    }
-
     @Override
-    protected void onActivityResult(int requestCode, int resultCode,
-                                    Intent data) {
-        ActivityResultHandler handler = mActivityResultHandlerMap.getAndRemove(requestCode);
-        if (handler != null)
-            handler.onActivityResult(resultCode, data);
-        else
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (!GeckoAppShell.sActivityHelper.handleActivityResult(requestCode, resultCode, data)) {
             super.onActivityResult(requestCode, resultCode, data);
-    }
-
-    static abstract class FilePickerResultHandler implements ActivityResultHandler {
-        String handleActivityResult(int resultCode, Intent data) {
-            if (data == null || resultCode != RESULT_OK)
-                return "";
-            Uri uri = data.getData();
-            if ("file".equals(uri.getScheme())) {
-                String path = uri.getPath();
-                return path == null ? "" : path;
-            }
-            try {
-                ContentResolver cr = GeckoApp.mAppContext.getContentResolver();
-                Cursor cursor = cr.query(uri, new String[] { OpenableColumns.DISPLAY_NAME },
-                                         null, null, null);
-                String name = null;
-                if (cursor != null) {
-                    try {
-                        if (cursor.moveToNext()) {
-                            name = cursor.getString(0);
-                        }
-                    } finally {
-                        cursor.close();
-                    }
-                }
-                String fileName = "tmp_";
-                String fileExt = null;
-                int period;
-                if (name == null || (period = name.lastIndexOf('.')) == -1) {
-                    String mimeType = cr.getType(uri);
-                    fileExt = "." + GeckoAppShell.getExtensionFromMimeType(mimeType);
-                } else {
-                    fileExt = name.substring(period);
-                    fileName = name.substring(0, period);
-                }
-                File file = File.createTempFile(fileName, fileExt, GeckoAppShell.getGREDir(GeckoApp.mAppContext));
-                FileOutputStream fos = new FileOutputStream(file);
-                InputStream is = cr.openInputStream(uri);
-                byte[] buf = new byte[4096];
-                int len = is.read(buf);
-                while (len != -1) {
-                    fos.write(buf, 0, len);
-                    len = is.read(buf);
-                }
-                fos.close();
-                String path = file.getAbsolutePath();
-                return path == null ? "" : path;
-            } catch (Exception e) {
-                Log.e(LOGTAG, "showing file picker", e);
-            }
-            return "";
-        }
-    }
-
-    class FilePickerResultHandlerSync extends FilePickerResultHandler {
-        public void onActivityResult(int resultCode, Intent data) {
-            try {
-                mFilePickerResult.put(handleActivityResult(resultCode, data));
-            } catch (InterruptedException e) {
-                Log.i(LOGTAG, "error returning file picker result", e);
-            }
-
-        }
-    }
-
-    class AwesomebarResultHandler implements ActivityResultHandler {
-        public void onActivityResult(int resultCode, Intent data) {
-            if (data != null) {
-                String url = data.getStringExtra(AwesomeBar.URL_KEY);
-                AwesomeBar.Type type = AwesomeBar.Type.valueOf(data.getStringExtra(AwesomeBar.TYPE_KEY));
-                String searchEngine = data.getStringExtra(AwesomeBar.SEARCH_KEY);
-                boolean userEntered = data.getBooleanExtra(AwesomeBar.USER_ENTERED_KEY, false);
-                if (url != null && url.length() > 0)
-                    loadRequest(url, type, searchEngine, userEntered);
-            }
-        }
-    }
-
-    class CameraImageResultHandler implements ActivityResultHandler {
-        public void onActivityResult(int resultCode, Intent data) {            
-            try {
-                if (resultCode != Activity.RESULT_OK) {
-                    mFilePickerResult.put("");
-                    return;
-                }
-
-                File file = new File(Environment.getExternalStorageDirectory(), mImageFilePath);
-                mImageFilePath = "";
-                mFilePickerResult.put(file.getAbsolutePath());
-            } catch (InterruptedException e) {
-                Log.i(LOGTAG, "error returning file picker result", e);
-            }
-        }
-    }
-
-    class CameraVideoResultHandler implements ActivityResultHandler {
-        public void onActivityResult(int resultCode, Intent data) {
-            try {
-                if (data == null || resultCode != Activity.RESULT_OK) {
-                    mFilePickerResult.put("");
-                    return;
-                }
-
-                Cursor cursor = managedQuery(data.getData(),
-                                             new String[] { MediaStore.Video.Media.DATA },
-                                             null,
-                                             null,
-                                             null);
-                cursor.moveToFirst();
-                mFilePickerResult.put(cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)));
-            } catch (InterruptedException e) {
-                Log.i(LOGTAG, "error returning file picker result", e);
-            }
-
         }
     }
 
     // If searchEngine is provided, url will be used as the search query.
     // Otherwise, the url is loaded.
-    private void loadRequest(String url, AwesomeBar.Type type, String searchEngine, boolean userEntered) {
-        mBrowserToolbar.setTitle(url);
-        Log.d(LOGTAG, type.name());
+    protected void loadRequest(String url, AwesomeBar.Target target, String searchEngine, boolean userEntered) {
+        Log.d(LOGTAG, target.name());
         JSONObject args = new JSONObject();
         try {
             args.put("url", url);
@@ -2894,7 +2617,8 @@ abstract public class GeckoApp
         } catch (Exception e) {
             Log.e(LOGTAG, "error building JSON arguments");
         }
-        if (type == AwesomeBar.Type.ADD) {
+
+        if (target == AwesomeBar.Target.NEW_TAB) {
             Log.d(LOGTAG, "Sending message to Gecko: " + SystemClock.uptimeMillis() + " - Tab:Add");
             GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("Tab:Add", args.toString()));
         } else {
@@ -2902,8 +2626,12 @@ abstract public class GeckoApp
         }
     }
 
-    public void loadUrl(String url, AwesomeBar.Type type) {
-        loadRequest(url, type, null, false);
+    public void loadUrl(String url) {
+        loadRequest(url, AwesomeBar.Target.CURRENT_TAB, null, false);
+    }
+
+    public void loadUrl(String url, AwesomeBar.Target target) {
+        loadRequest(url, target, null, false);
     }
 
     /**
@@ -2987,16 +2715,69 @@ abstract public class GeckoApp
         LayerController layerController = getLayerController();
         layerController.setLayerClient(mLayerClient);
 
-        layerController.getView().getTouchEventHandler().setOnTouchListener(new View.OnTouchListener() {
+        layerController.getView().getTouchEventHandler().setOnTouchListener(new ContentTouchListener() {
+            private PointF initialPoint = null;
+
+            @Override
             public boolean onTouch(View view, MotionEvent event) {
                 if (event == null)
                     return true;
+
+                if (super.onTouch(view, event))
+                    return true;
+
+                int action = event.getAction();
+                PointF point = new PointF(event.getX(), event.getY());
+                if ((action & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_DOWN) {
+                    initialPoint = point;
+                }
+
+                if (initialPoint != null && (action & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_MOVE) {
+                    if (PointUtils.subtract(point, initialPoint).length() < PanZoomController.PAN_THRESHOLD) {
+                        // Don't send the touchmove event if if the users finger hasn't move far
+                        // Necessary for Google Maps to work correctlly. See bug 771099.
+                        return true;
+                    } else {
+                        initialPoint = null;
+                    }
+                }
+
                 GeckoAppShell.sendEventToGecko(GeckoEvent.createMotionEvent(event));
                 return true;
             }
         });
     }
 
+    protected class ContentTouchListener implements OnInterceptTouchListener {
+        private boolean mIsHidingTabs = false;
+
+        @Override
+        public boolean onInterceptTouchEvent(View view, MotionEvent event) {
+            // If the tab tray is showing, hide the tab tray and don't send the event to content.
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN && autoHideTabs()) {
+                mIsHidingTabs = true;
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        public boolean onTouch(View view, MotionEvent event) {
+            if (mIsHidingTabs) {
+                // Keep consuming events until the gesture finishes.
+                int action = event.getActionMasked();
+                if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                    mIsHidingTabs = false;
+                }
+                return true;
+            }
+            return false;
+        }
+    }
+
+    public boolean linkerExtract() {
+        return false;
+    }
 
     private class FullScreenHolder extends FrameLayout {
 
@@ -3058,6 +2839,116 @@ abstract public class GeckoApp
         public boolean onTrackballEvent(MotionEvent event) {
             mFullScreenPluginView.onTrackballEvent(event);
             return true;
+        }
+    }
+
+    @Override
+    public boolean onContextItemSelected(MenuItem item) {
+        switch(item.getItemId()) {
+            case R.id.pasteandgo: {
+                String text = GeckoAppShell.getClipboardText();
+                if (text != null && !TextUtils.isEmpty(text)) {
+                    loadUrl(text, AwesomeBar.Target.CURRENT_TAB);
+                }
+                return true;
+            }
+            case R.id.paste: {
+                String text = GeckoAppShell.getClipboardText();
+                if (text != null && !TextUtils.isEmpty(text)) {
+                    showAwesomebar(AwesomeBar.Target.CURRENT_TAB, text);
+                }
+                return true;
+            }
+            case R.id.share: {
+                shareCurrentUrl();
+                return true;
+            }
+            case R.id.copyurl: {
+                Tab tab = Tabs.getInstance().getSelectedTab();
+                if (tab != null) {
+                    String url = tab.getURL();
+                    if (url != null) {
+                        GeckoAppShell.setClipboardText(url);
+                    }
+                }
+                return true;
+            }
+            case R.id.add_to_launcher: {
+                Tab tab = Tabs.getInstance().getSelectedTab();
+                if (tab != null) {
+                    String url = tab.getURL();
+                    String title = tab.getTitle();
+                    BitmapDrawable favicon = (BitmapDrawable)(tab.getFavicon());
+                    if (url != null && title != null) {
+                        GeckoAppShell.createShortcut(title, url, url, favicon == null ? null : favicon.getBitmap(), "");
+                    }
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static void assertOnUiThread() {
+        Thread uiThread = mAppContext.getMainLooper().getThread();
+        assertOnThread(uiThread);
+    }
+
+    public static void assertOnGeckoThread() {
+        assertOnThread(sGeckoThread);
+    }
+
+    private static void assertOnThread(Thread expectedThread) {
+        Thread currentThread = Thread.currentThread();
+        long currentThreadId = currentThread.getId();
+        long expectedThreadId = expectedThread.getId();
+
+        if (currentThreadId != expectedThreadId) {
+            throw new IllegalThreadStateException("Expected thread " + expectedThreadId + " (\""
+                                                  + expectedThread.getName()
+                                                  + "\"), but running on thread " + currentThreadId
+                                                  + " (\"" + currentThread.getName() + ")");
+        }
+    }
+
+    // SDK version 15 accessibility methods retrieved through reflection.
+    private static class AccessibilityCompat {
+        private static boolean mInitialized = false;
+        private static Method mAccessibilityEvent_setMaxScrollX = null;
+        private static Method mAccessibilityEvent_setMaxScrollY = null;
+
+        private static void initialize () {
+            try {
+                mAccessibilityEvent_setMaxScrollX =
+                    AccessibilityEvent.class.getMethod("setMaxScrollX", int.class);
+                mAccessibilityEvent_setMaxScrollY =
+                    AccessibilityEvent.class.getMethod("setMaxScrollY", int.class);
+            } catch (NoSuchMethodException e) {
+                Log.e(LOGTAG, "Error initializing AccessibilityCompat: " + e);
+            }
+            mInitialized = true;
+        }
+
+        public static void setMaxScrollX (AccessibilityEvent event, int maxScrollX) {
+            if (!mInitialized)
+                initialize();
+            try {
+                if (mAccessibilityEvent_setMaxScrollX != null)
+                    mAccessibilityEvent_setMaxScrollX.invoke(event, maxScrollX);
+            } catch (Exception e) {
+                Log.e(LOGTAG, "Error invoking AccessibilityEvent.setMaxScrollX: " + e);
+            }
+        }
+
+        public static void setMaxScrollY (AccessibilityEvent event, int maxScrollY) {
+            if (!mInitialized)
+                initialize();
+            try {
+                if (mAccessibilityEvent_setMaxScrollY != null)
+                    mAccessibilityEvent_setMaxScrollY.invoke(event, maxScrollY);
+            } catch (Exception e) {
+                Log.e(LOGTAG, "Error invoking AccessibilityEvent.setMaxScrollY: " + e);
+            }
         }
     }
 }

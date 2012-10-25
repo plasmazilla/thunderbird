@@ -1,38 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla SVG project.
- *
- * The Initial Developer of the Original Code is IBM Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2005
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef NS_SVGUTILS_H
 #define NS_SVGUTILS_H
@@ -45,6 +14,7 @@
 #include "gfxPoint.h"
 #include "gfxRect.h"
 #include "nsAlgorithm.h"
+#include "nsChangeHint.h"
 #include "nsColor.h"
 #include "nsCOMPtr.h"
 #include "nsID.h"
@@ -143,6 +113,9 @@ IsSVGWhitespace(PRUnichar aChar)
  */
 bool NS_SMILEnabled();
 
+bool NS_SVGDisplayListHitTestingEnabled();
+bool NS_SVGDisplayListPaintingEnabled();
+
 /**
  * Sometimes we need to distinguish between an empty box and a box
  * that contains an element that has no size e.g. a point at the origin.
@@ -188,7 +161,25 @@ private:
 class NS_STACK_CLASS SVGAutoRenderState
 {
 public:
-  enum RenderMode { NORMAL, CLIP, CLIP_MASK };
+  enum RenderMode {
+    /**
+     * Used to inform SVG frames that they should paint as normal.
+     */
+    NORMAL, 
+    /** 
+     * Used to inform SVG frames when they are painting as the child of a
+     * simple clipPath. In this case they should only draw their basic geometry
+     * as a path. They should not fill, stroke, or paint anything else.
+     */
+    CLIP, 
+    /** 
+     * Used to inform SVG frames when they are painting as the child of a
+     * complex clipPath that requires the use of a clip mask. In this case they
+     * should only draw their basic geometry as a path and then fill it using
+     * fully opaque white. They should not stroke, or paint anything else.
+     */
+    CLIP_MASK 
+  };
 
   SVGAutoRenderState(nsRenderingContext *aContext, RenderMode aMode);
   ~SVGAutoRenderState();
@@ -225,6 +216,8 @@ public:
   typedef mozilla::SVGAnimatedPreserveAspectRatio SVGAnimatedPreserveAspectRatio;
   typedef mozilla::SVGPreserveAspectRatio SVGPreserveAspectRatio;
 
+  static void Init();
+
   /*
    * Get the parent element of an nsIContent
    */
@@ -234,6 +227,16 @@ public:
    * Get the outer SVG element of an nsIContent
    */
   static nsSVGSVGElement *GetOuterSVGElement(nsSVGElement *aSVGElement);
+
+  /**
+   * Activates the animation element aContent as a result of navigation to the
+   * fragment identifier that identifies aContent. aContent must be an instance
+   * of nsSVGAnimationElement.
+   *
+   * This is just a shim to allow nsSVGAnimationElement::ActivateByHyperlink to
+   * be called from layout/base without adding to that directory's include paths.
+   */
+  static void ActivateByHyperlink(nsIContent *aContent);
 
   /*
    * Get the number of CSS px (user units) per em (i.e. the em-height in user
@@ -315,17 +318,14 @@ public:
    * returns nsnull.
    */
   static nsSVGDisplayContainerFrame* GetNearestSVGViewport(nsIFrame *aFrame);
-  
+
   /**
-   * Figures out the worst case invalidation area for a frame, taking
-   * filters into account.
-   * Note that the caller is responsible for making sure that any cached
-   * covered regions in the frame tree rooted at aFrame are up to date.
-   * @param aRect the area in app units that needs to be invalidated in aFrame
-   * @return the rect in app units that should be invalidated, taking
-   * filters into account. Will return aRect when no filters are present.
+   * Returns the frame's post-filter visual overflow rect when passed the
+   * frame's pre-filter visual overflow rect. If the frame is not currently
+   * being filtered, this function simply returns aUnfilteredRect.
    */
-  static nsRect FindFilterInvalidation(nsIFrame *aFrame, const nsRect& aRect);
+  static nsRect GetPostFilterVisualOverflowRect(nsIFrame *aFrame,
+                                                const nsRect &aUnfilteredRect);
 
   /**
    * Invalidates the area that is painted by the frame without updating its
@@ -333,8 +333,14 @@ public:
    *
    * This is similar to InvalidateOverflowRect(). It will go away when we
    * support display list based invalidation of SVG.
+   *
+   * @param aBoundsSubArea If non-null, a sub-area of aFrame's pre-filter
+   *   visual overflow rect that should be invalidated instead of aFrame's
+   *   entire visual overflow rect.
    */
-  static void InvalidateBounds(nsIFrame *aFrame, bool aDuringUpdate = false);
+  static void InvalidateBounds(nsIFrame *aFrame, bool aDuringUpdate = false,
+                               const nsRect *aBoundsSubArea = nsnull,
+                               PRUint32 aFlags = 0);
 
   /**
    * Schedules an update of the frame's bounds (which will in turn invalidate
@@ -464,10 +470,28 @@ public:
    * child SVG frame, container SVG frame, or a regular frame.
    * For regular frames, we just return an identity matrix.
    */
-  static gfxMatrix GetCanvasTM(nsIFrame* aFrame);
+  static gfxMatrix GetCanvasTM(nsIFrame* aFrame, PRUint32 aFor);
 
-  /*
-   * Tells child frames that something that might affect them has changed
+  /**
+   * Returns the transform from aFrame's user space to canvas space. Only call
+   * with SVG frames. This is like GetCanvasTM, except that it only includes
+   * the transforms from aFrame's user space (i.e. the coordinate context
+   * established by its 'transform' attribute, or else the coordinate context
+   * that its _parent_ establishes for its children) to outer-<svg> device
+   * space. Specifically, it does not include any other transforms introduced
+   * by the frame such as x/y offsets and viewBox attributes.
+   */
+  static gfxMatrix GetUserToCanvasTM(nsIFrame* aFrame, PRUint32 aFor);
+
+  /**
+   * Notify the descendants of aFrame of a change to one of their ancestors
+   * that might affect them.
+   *
+   * If the changed ancestor renders and needs to be invalidated, it should
+   * call nsSVGUtils::InvalidateAndScheduleBoundsUpdate or
+   * nsSVGUtils::InvalidateBounds _before_ calling this method. That makes it
+   * cheaper when descendants schedule their own bounds update because the code
+   * that walks up the parent chain marking dirty bits can stop earlier.
    */
   static void
   NotifyChildrenOfSVGChange(nsIFrame *aFrame, PRUint32 aFlags);
@@ -567,17 +591,18 @@ public:
                        nsIFrame *aFrame);
 
   enum BBoxFlags {
-    eBBoxIncludeFill          = 1 << 0,
-    eBBoxIgnoreFillIfNone     = 1 << 1,
-    eBBoxIncludeStroke        = 1 << 2,
-    eBBoxIgnoreStrokeIfNone   = 1 << 3,
-    eBBoxIncludeMarkers       = 1 << 4
+    eBBoxIncludeFill           = 1 << 0,
+    eBBoxIncludeFillGeometry   = 1 << 1,
+    eBBoxIncludeStroke         = 1 << 2,
+    eBBoxIncludeStrokeGeometry = 1 << 3,
+    eBBoxIncludeMarkers        = 1 << 4
   };
   /**
    * Get the SVG bbox (the SVG spec's simplified idea of bounds) of aFrame in
    * aFrame's userspace.
    */
-  static gfxRect GetBBox(nsIFrame *aFrame, PRUint32 aFlags = eBBoxIncludeFill);
+  static gfxRect GetBBox(nsIFrame *aFrame,
+                         PRUint32 aFlags = eBBoxIncludeFillGeometry);
 
   /**
    * Convert a userSpaceOnUse/objectBoundingBoxUnits rectangle that's specified
@@ -603,9 +628,15 @@ public:
 #ifdef DEBUG
   static void
   WritePPM(const char *fname, gfxImageSurface *aSurface);
+#endif
 
   static bool OuterSVGIsCallingUpdateBounds(nsIFrame *aFrame);
-#endif
+
+  /*
+   * Get any additional transforms that apply only to stroking
+   * e.g. non-scaling-stroke
+   */
+  static gfxMatrix GetStrokeTransform(nsIFrame *aFrame);
 
   /**
    * Compute the maximum possible device space stroke extents of a path given
@@ -636,16 +667,6 @@ public:
     return NS_lround(NS_MAX(double(PR_INT32_MIN),
                             NS_MIN(double(PR_INT32_MAX), aVal)));
   }
-
-  /**
-   * Given a nsIContent* that is actually an nsSVGSVGElement*, this method
-   * checks whether it currently has a valid viewBox, and returns true if so.
-   *
-   * No other type of element should be passed to this method.
-   * (In debug builds, anything non-<svg> will trigger an abort; in non-debug
-   * builds, it will trigger a false return-value as a safe fallback.)
-   */
-  static bool RootSVGElementHasViewbox(const nsIContent *aRootSVGElem);
 
   static void GetFallbackOrPaintColor(gfxContext *aContext,
                                       nsStyleContext *aStyleContext,

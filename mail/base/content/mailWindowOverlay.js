@@ -1,54 +1,7 @@
 /* -*- indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code, released
- * March 31, 1998.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998-1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   timeless
- *   slucy@objectivesw.co.uk
- *   Håkan Waara <hwaara@chello.se>
- *   Jan Varga <varga@nixcorp.com>
- *   Seth Spitzer <sspitzer@netscape.com>
- *   David Bienvenu <bienvenu@nventure.com>
- *   Karsten Düsterloh <mnyromyr@tprac.de>
- *   Christopher Thomas <cst@yecc.com>
- *   Jeremy Morton <bugzilla@game-point.net>
- *   Andrew Sutherland <asutherland@asutherland.org>
- *   Dan Mosedale <dmose@mozilla.org>
- *   Michiel van Leeuwen <mvl@exedo.nl>
- *   Joachim Herb <herb@leo.org>
- *   Thomas Düllmann <bugzilla2010@duellmann24.net>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource:///modules/gloda/dbview.js");
 
@@ -610,8 +563,10 @@ function ToggleMessageTagKey(keyNumber)
     return;
 
   let tagArray = MailServices.tags.getAllTags({});
-  let key = tagArray[keyNumber-1].key;
+  if (keyNumber > tagArray.length)
+    return;
 
+  let key = tagArray[keyNumber - 1].key;
   let curKeys = msgHdr.getStringProperty("keywords").split(" ");
   if (msgHdr.label)
     curKeys.push("$label" + msgHdr.label);
@@ -677,6 +632,11 @@ function AddTag()
                                  args);
 }
 
+function ManageTags()
+{
+  openOptionsDialog("paneDisplay", "tagTab");
+}
+
 function AddTagCallback(name, color)
 {
   var tagService = Components.classes["@mozilla.org/messenger/tagservice;1"]
@@ -714,8 +674,10 @@ function InitMessageTags(menuPopup)
   var tagArray = tagService.getAllTags({});
   var tagCount = tagArray.length;
 
-  // remove any existing non-static entries...  (clear tags list before rebuilding it)
-  for (var i = menuPopup.childNodes.length; i > 4; --i)
+  // Remove any existing non-static entries... (clear tags list before rebuilding it)
+  // "5" is the number of menu items (including separators) on the top of the menu
+  // that should not be cleared.
+  for (let i = menuPopup.childNodes.length; i > 5; --i)
     menuPopup.removeChild(menuPopup.lastChild);
 
   // create label and accesskey for the static remove item
@@ -774,16 +736,17 @@ function InitRecentlyClosedTabsPopup(menuPopup)
   }
   
   // "Restore All Tabs" with only one entry does not make sense 
-  if (tabs.length <= 1)
-    return;
+  if (tabs.length > 1) {
+    menuPopup.appendChild(document.createElement("menuseparator"));
   
-  menuPopup.appendChild(document.createElement("menuseparator"));
-  
-  let menuItem = document.createElement("menuitem");
-  menuItem.setAttribute("label", document.getElementById("bundle_messenger")
-                                         .getString("restoreAllTabs"));
-  menuItem.setAttribute("oncommand","goRestoreAllTabs();");
-  menuPopup.appendChild(menuItem);
+    let menuItem = document.createElement("menuitem");
+    menuItem.setAttribute("label", document.getElementById("bundle_messenger")
+                                           .getString("restoreAllTabs"));
+    menuItem.setAttribute("oncommand","goRestoreAllTabs();");
+    menuPopup.appendChild(menuItem);
+  }
+
+  return true;
 }
 
 function goRestoreAllTabs()
@@ -1064,8 +1027,7 @@ function UpdateReplyButtons()
   let replyToSenderButton = document.getElementById("hdrReplyToSenderButton");
   if (replyToSenderButton)
   {
-    if (gFolderDisplay.selectedMessageIsFeed ||
-        gFolderDisplay.selectedMessageIsNews)
+    if (gFolderDisplay.selectedMessageIsFeed)
       replyToSenderButton.hidden = true;
     else if (smartReplyButton)
       replyToSenderButton.hidden = (buttonToShow == "reply");
@@ -1428,7 +1390,7 @@ BatchMessageMover.prototype = {
       }
       let archiveFolder = GetMsgFolderFromUri(archiveFolderUri, false);
 
-      let copyBatchKey = msgHdr.folder.URI + '\000' + monthFolderName;
+      let copyBatchKey = msgHdr.folder.URI + '\0' + monthFolderName;
       if (archiveGranularity >= Components.interfaces.nsIMsgIdentity
                                           .perMonthArchiveFolders)
         copyBatchKey += msgYear;
@@ -2365,6 +2327,9 @@ function SpaceHit(event)
   else if (focusedElement && !hRefForClickEvent(event))
     return;
 
+  if (!contentWindow)
+    return;
+
   var rssiframe = contentWindow.document.getElementById('_mailrssiframe');
   // If we are displaying an RSS article, we really want to scroll
   // the nested iframe.
@@ -2703,7 +2668,9 @@ var gMessageNotificationBar =
     var desc = document.getElementById("bundle_messenger")
                        .getFormattedString("alwaysLoadRemoteContentForSender2",
                                            [emailAddress ? emailAddress : aMsgHdr.author]);
-    document.getElementById("allowRemoteContentForAuthorDesc").value = desc;
+    var authorDesc = document.getElementById("allowRemoteContentForAuthorDesc");
+    authorDesc.value = desc;
+    authorDesc.setAttribute("tooltiptext", desc);
     this.updateMsgNotificationBar(kMsgNotificationRemoteImages, true);
   },
 
@@ -3256,16 +3223,14 @@ function FeedSetContentView(val)
       if (wintype == "mail:3pane") {
         // Get quickmode per feed pref from feeds.rdf
         var quickMode, targetRes;
-        var scriptLoader = Components.classes["@mozilla.org/moz/jssubscript-loader;1"]
-                           .getService(Components.interfaces.mozIJSSubScriptLoader);
-        if (scriptLoader && typeof FZ_NS == 'undefined')
-          scriptLoader.loadSubScript("chrome://messenger-newsblog/content/utils.js");
+        if (!("FeedUtils" in window))
+          Services.scriptloader.loadSubScript("chrome://messenger-newsblog/content/utils.js");
         try
         {
-          var targetRes = getParentTargetForChildResource(
-                          gFolderDisplay.displayedFolder.URI,
-                          FZ_QUICKMODE,
-                          gFolderDisplay.displayedFolder.server);
+          var targetRes = FeedUtils.getParentTargetForChildResource(
+                            gFolderDisplay.displayedFolder.URI,
+                            FeedUtils.FZ_QUICKMODE,
+                            gFolderDisplay.displayedFolder.server);
         }
         catch (ex) {};
 

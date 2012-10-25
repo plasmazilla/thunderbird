@@ -1,38 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla SVG project.
- *
- * The Initial Developer of the Original Code is IBM Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2005
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef __NS_SVGFILTERINSTANCE_H__
 #define __NS_SVGFILTERINSTANCE_H__
@@ -65,9 +34,13 @@ class nsSVGFilterPaintCallback;
  *
  * Definition of "filter space": filter space is a coordinate system that is
  * aligned with the user space of the filtered element, with its origin located
- * at the top left of the filter region (as returned by GetFilterRect,
- * specifically), and with one unit equal in size to one pixel of the offscreen
- * surface into which the filter output would/will be painted.
+ * at the top left of the filter region (as specified by our ctor's
+ * aFilterRegion, and returned by our GetFilterRegion, specifically), and with
+ * one unit equal in size to one pixel of the offscreen surface into which the
+ * filter output would/will be painted.
+ *
+ * The definition of "filter region" can be found here:
+ * http://www.w3.org/TR/SVG11/filters.html#FilterEffectsRegion
  */
 class NS_STACK_CLASS nsSVGFilterInstance
 {
@@ -80,7 +53,7 @@ public:
    *   element.
    * @param aTargetBBox The filtered element's bbox, in the filtered element's
    *   user space.
-   * @param aFilterRect The "filter region", in the filtered element's user
+   * @param aFilterRegion The "filter region", in the filtered element's user
    *   space. The caller must have already expanded the region out so that its
    *   edges coincide with pixel boundaries in the offscreen surface that
    *   would/will be created to paint the filter output.
@@ -90,36 +63,38 @@ public:
    *   space to outer-<svg> device space.
    * @param aTargetBounds The pre-filter paint bounds of the filtered element,
    *   in filter space.
-   * @param aDirtyOutputRect [optional] The bounds of the post-filter area that
-   *   has to be repainted, in filter space. Only required if you will call
-   *   ComputeSourceNeededRect() or Render().
-   * @param aDirtyInputRect [optional] The bounds of the pre-filter area of the
-   *   filtered element that changed, in filter space. Only required if you
-   *   will call ComputeOutputDirtyRect().
+   * @param aPostFilterDirtyRect [optional] The bounds of the post-filter area
+   *   that has to be repainted, in filter space. Only required if you will
+   *   call ComputeSourceNeededRect() or Render().
+   * @param aPreFilterDirtyRect [optional] The bounds of the pre-filter area of
+   *   the filtered element that changed, in filter space. Only required if you
+   *   will call ComputePostFilterDirtyRect().
    * @param aPrimitiveUnits The value from the 'primitiveUnits' attribute.
    */
   nsSVGFilterInstance(nsIFrame *aTargetFrame,
                       nsSVGFilterPaintCallback *aPaintCallback,
                       const nsSVGFilterElement *aFilterElement,
                       const gfxRect &aTargetBBox,
-                      const gfxRect& aFilterRect,
+                      const gfxRect& aFilterRegion,
                       const nsIntSize& aFilterSpaceSize,
                       const gfxMatrix &aFilterSpaceToDeviceSpaceTransform,
+                      const gfxMatrix &aFilterSpaceToFrameSpaceInCSSPxTransform,
                       const nsIntRect& aTargetBounds,
-                      const nsIntRect& aDirtyOutputRect,
-                      const nsIntRect& aDirtyInputRect,
+                      const nsIntRect& aPostFilterDirtyRect,
+                      const nsIntRect& aPreFilterDirtyRect,
                       PRUint16 aPrimitiveUnits) :
     mTargetFrame(aTargetFrame),
     mPaintCallback(aPaintCallback),
     mFilterElement(aFilterElement),
     mTargetBBox(aTargetBBox),
     mFilterSpaceToDeviceSpaceTransform(aFilterSpaceToDeviceSpaceTransform),
-    mFilterRect(aFilterRect),
+    mFilterSpaceToFrameSpaceInCSSPxTransform(aFilterSpaceToFrameSpaceInCSSPxTransform),
+    mFilterRegion(aFilterRegion),
     mFilterSpaceSize(aFilterSpaceSize),
     mSurfaceRect(nsIntPoint(0, 0), aFilterSpaceSize),
     mTargetBounds(aTargetBounds),
-    mDirtyOutputRect(aDirtyOutputRect),
-    mDirtyInputRect(aDirtyInputRect),
+    mPostFilterDirtyRect(aPostFilterDirtyRect),
+    mPreFilterDirtyRect(aPreFilterDirtyRect),
     mPrimitiveUnits(aPrimitiveUnits) {
   }
 
@@ -129,7 +104,7 @@ public:
    * coincide with pixel boundaries of the offscreen surface into which the
    * filtered output would/will be painted.
    */
-  gfxRect GetFilterRect() const { return mFilterRect; }
+  gfxRect GetFilterRegion() const { return mFilterRegion; }
 
   /**
    * Returns the size of the user specified "filter region", in filter space.
@@ -157,25 +132,25 @@ public:
    * Allocates a gfxASurface, renders the filtered element into the surface,
    * and then returns the surface via the aOutput outparam. The area that
    * needs to be painted must have been specified before calling this method
-   * by passing it as the aDirtyOutputRect argument to the
+   * by passing it as the aPostFilterDirtyRect argument to the
    * nsSVGFilterInstance constructor.
    */
   nsresult Render(gfxASurface** aOutput);
 
   /**
-   * Sets the aDirty outparam to the post-filter bounds in filter space of the
-   * area that would be dirtied by mTargetFrame when a given pre-filter area of
-   * mTargetFrame is dirtied. The pre-filter area must have been specified
-   * before calling this method by passing it as the aDirtyInputRect argument
-   * to the nsSVGFilterInstance constructor.
+   * Sets the aPostFilterDirtyRect outparam to the post-filter bounds in filter
+   * space of the area that would be dirtied by mTargetFrame when a given
+   * pre-filter area of mTargetFrame is dirtied. The pre-filter area must have
+   * been specified before calling this method by passing it as the
+   * aPreFilterDirtyRect argument to the nsSVGFilterInstance constructor.
    */
-  nsresult ComputeOutputDirtyRect(nsIntRect* aDirty);
+  nsresult ComputePostFilterDirtyRect(nsIntRect* aPostFilterDirtyRect);
 
   /**
    * Sets the aDirty outparam to the pre-filter bounds in filter space of the
    * area of mTargetFrame that is needed in order to paint the filtered output
    * for a given post-filter dirtied area. The post-filter area must have been
-   * specified before calling this method by passing it as the aDirtyOutputRect
+   * specified before calling this method by passing it as the aPostFilterDirtyRect
    * argument to the nsSVGFilterInstance constructor.
    */
   nsresult ComputeSourceNeededRect(nsIntRect* aDirty);
@@ -218,6 +193,21 @@ public:
   }
 
   gfxPoint FilterSpaceToUserSpace(const gfxPoint& aPt) const;
+
+  /**
+   * Returns the transform from filter space to frame space, in CSS px. This
+   * transform does not transform to frame space in its normal app units, since
+   * app units are ints, requiring appropriate rounding which can't be done by
+   * a transform matrix. Callers have to do that themselves as appropriate for
+   * their needs.
+   */
+  gfxMatrix GetFilterSpaceToFrameSpaceInCSSPxTransform() const {
+    return mFilterSpaceToFrameSpaceInCSSPxTransform;
+  }
+
+  PRInt32 AppUnitsPerCSSPixel() const {
+    return mTargetFrame->PresContext()->AppUnitsPerCSSPixel();
+  }
 
 private:
   typedef nsSVGFE::Image Image;
@@ -321,14 +311,14 @@ private:
 
   /**
    * Computes the filter space bounds of the areas that we actually *need* from
-   * each filter primitive's output, based on the value of mDirtyOutputRect. 
+   * each filter primitive's output, based on the value of mPostFilterDirtyRect.
    * This sets mResultNeededBox on the items in the filter graph.
    */
    void ComputeNeededBoxes();
 
   /**
    * Computes the filter space bounds of the area of each filter primitive
-   * that will change, based on the value of mDirtyInputRect.
+   * that will change, based on the value of mPreFilterDirtyRect.
    * This sets mResultChangeBox on the items in the filter graph.
    */
   void ComputeResultChangeBoxes();
@@ -391,7 +381,8 @@ private:
   gfxRect                 mTargetBBox;
 
   gfxMatrix               mFilterSpaceToDeviceSpaceTransform;
-  gfxRect                 mFilterRect;
+  gfxMatrix               mFilterSpaceToFrameSpaceInCSSPxTransform;
+  gfxRect                 mFilterRegion;
   nsIntSize               mFilterSpaceSize;
   nsIntRect               mSurfaceRect;
 
@@ -406,7 +397,7 @@ private:
    * bounds of the dirty area that needs to be repainted. (As bounds-of-bounds,
    * this may be a fair bit bigger than we actually need, unfortunately.)
    */
-  nsIntRect               mDirtyOutputRect;
+  nsIntRect               mPostFilterDirtyRect;
 
   /**
    * If set, this is the filter space bounds of the outer-<svg> device bounds
@@ -414,7 +405,7 @@ private:
    * bounds-of-bounds, this may be a fair bit bigger than we actually need,
    * unfortunately.)
    */
-  nsIntRect               mDirtyInputRect;
+  nsIntRect               mPreFilterDirtyRect;
 
   /**
    * The 'primitiveUnits' attribute value (objectBoundingBox or userSpaceOnUse).

@@ -6,9 +6,11 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsGenericHTMLElement.h"
-#include "nsIDOMHTMLFrameElement.h"
+#include "nsIFrameLoader.h"
 #include "nsIMozBrowserFrame.h"
 #include "nsIDOMEventListener.h"
+
+#include "nsFrameLoader.h"
 
 /**
  * A helper class for frame elements
@@ -23,6 +25,7 @@ public:
     : nsGenericHTMLElement(aNodeInfo)
     , mNetworkCreated(aFromParser == mozilla::dom::FROM_PARSER_NETWORK)
     , mBrowserFrameListenersRegistered(false)
+    , mFrameLoaderCreationDisallowed(false)
   {
   }
 
@@ -50,7 +53,7 @@ public:
                            bool aNotify);
   virtual void DestroyContent();
 
-  nsresult CopyInnerTo(nsGenericElement* aDest) const;
+  nsresult CopyInnerTo(nsGenericElement* aDest);
 
   // nsIDOMHTMLElement
   NS_IMETHOD GetTabIndex(PRInt32 *aTabIndex);
@@ -97,4 +100,5 @@ protected:
   bool                    mNetworkCreated;
 
   bool                    mBrowserFrameListenersRegistered;
+  bool                    mFrameLoaderCreationDisallowed;
 };

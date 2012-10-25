@@ -1,42 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Boris Zbarsky <bzbarsky@mit.edu>.
- * Portions created by the Initial Developer are Copyright (C) 2002
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Boris Zbarsky <bzbarsky@mit.edu> (original author)
- *   L. David Baron <dbaron@dbaron.org>, Mozilla Corporation
- *   Mats Palmgren <matspal@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsLayoutUtils_h__
 #define nsLayoutUtils_h__
@@ -53,8 +18,13 @@ class nsDisplayItem;
 class nsFontMetrics;
 class nsClientRectList;
 class nsFontFaceList;
+class nsHTMLCanvasElement;
+class nsHTMLVideoElement;
+class nsIImageLoadingContent;
+class nsHTMLImageElement;
 
 #include "prtypes.h"
+#include "nsChangeHint.h"
 #include "nsStyleContext.h"
 #include "nsAutoPtr.h"
 #include "nsStyleSet.h"
@@ -340,8 +310,13 @@ public:
                                             nsDisplayListBuilder* aBuilder,
                                             bool* aShouldFixToViewport = nsnull);
 
-  static bool ScrolledByViewportScrolling(nsIFrame* aActiveScrolledRoot,
-                                            nsDisplayListBuilder* aBuilder);
+  /**
+   * Returns true if aActiveScrolledRoot is in a content document,
+   * and its topmost content document ancestor has a root scroll frame with
+   * a displayport set, and aActiveScrolledRoot is scrolled by that scrollframe.
+   */
+  static bool IsScrolledByRootContentDocumentDisplayportScrolling(nsIFrame* aActiveScrolledRoot,
+                                                                  nsDisplayListBuilder* aBuilder);
 
   /**
     * GetScrollableFrameFor returns the scrollable frame for a scrolled frame
@@ -754,6 +729,13 @@ public:
    */
   static void GetAllInFlowRects(nsIFrame* aFrame, nsIFrame* aRelativeTo,
                                 RectCallback* aCallback, PRUint32 aFlags = 0);
+  /**
+   * The same as GetAllInFlowRects, but it collects the CSS padding-boxes
+   * rather than the CSS border-boxes. SVG frames are handled the same way
+   * as in GetAllInFlowRects.
+   */
+  static void GetAllInFlowPaddingRects(nsIFrame* aFrame, nsIFrame* aRelativeTo,
+                                RectCallback* aCallback, PRUint32 aFlags = 0);
 
   /**
    * Computes the union of all rects returned by GetAllInFlowRects. If
@@ -764,6 +746,14 @@ public:
    */
   static nsRect GetAllInFlowRectsUnion(nsIFrame* aFrame, nsIFrame* aRelativeTo,
                                        PRUint32 aFlags = 0);
+
+  /**
+   * The same as GetAllInFlowRectsUnion, but it computes the union of the
+   * rects returned by GetAllInFlowPaddingRects.
+   */
+  static nsRect GetAllInFlowPaddingRectsUnion(nsIFrame* aFrame,
+                                              nsIFrame* aRelativeTo,
+                                              PRUint32 aFlags = 0);
 
   enum {
     EXCLUDE_BLUR_SHADOWS = 0x01
@@ -834,8 +824,13 @@ public:
    * If aFrame is an out of flow frame, return its placeholder, otherwise
    * return its parent.
    */
-  static nsIFrame* GetParentOrPlaceholderFor(nsFrameManager* aFrameManager,
-                                             nsIFrame* aFrame);
+  static nsIFrame* GetParentOrPlaceholderFor(nsIFrame* aFrame);
+
+  /**
+   * If aFrame is an out of flow frame, return its placeholder, otherwise
+   * return its (possibly cross-doc) parent.
+   */
+  static nsIFrame* GetParentOrPlaceholderForCrossDoc(nsIFrame* aFrame);
 
   /**
    * Get a frame's next-in-flow, or, if it doesn't have one, its special sibling.
@@ -1423,6 +1418,17 @@ public:
 
   static SurfaceFromElementResult SurfaceFromElement(mozilla::dom::Element *aElement,
                                                      PRUint32 aSurfaceFlags = 0);
+  static SurfaceFromElementResult SurfaceFromElement(nsIImageLoadingContent *aElement,
+                                                     PRUint32 aSurfaceFlags = 0);
+  // Need an nsHTMLImageElement overload, because otherwise the
+  // nsIImageLoadingContent and mozilla::dom::Element overloads are ambiguous
+  // for nsHTMLImageElement.
+  static SurfaceFromElementResult SurfaceFromElement(nsHTMLImageElement *aElement,
+                                                     PRUint32 aSurfaceFlags = 0);
+  static SurfaceFromElementResult SurfaceFromElement(nsHTMLCanvasElement *aElement,
+                                                     PRUint32 aSurfaceFlags = 0);
+  static SurfaceFromElementResult SurfaceFromElement(nsHTMLVideoElement *aElement,
+                                                     PRUint32 aSurfaceFlags = 0);
 
   /**
    * When the document is editable by contenteditable attribute of its root
@@ -1501,6 +1507,12 @@ public:
    * background.
    */
   static bool UseBackgroundNearestFiltering();
+
+  /**
+   * Checks whether we want to use the GPU to scale images when
+   * possible.
+   */
+  static bool GPUImageScalingEnabled();
 
   /**
    * Unions the overflow areas of all non-popup children of aFrame with
@@ -1636,6 +1648,15 @@ public:
   static void DeregisterImageRequest(nsPresContext* aPresContext,
                                      imgIRequest* aRequest,
                                      bool* aRequestRegistered);
+
+  /**
+   * Shim to nsCSSFrameConstructor::PostRestyleEvent. Exists so that we
+   * can avoid including nsCSSFrameConstructor.h and all its dependencies
+   * in content files.
+   */
+  static void PostRestyleEvent(mozilla::dom::Element* aElement,
+                               nsRestyleHint aRestyleHint,
+                               nsChangeHint aMinChangeHint);
 
 #ifdef DEBUG
   /**

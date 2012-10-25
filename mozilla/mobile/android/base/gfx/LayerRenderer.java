@@ -1,41 +1,7 @@
 /* -*- Mode: Java; c-basic-offset: 4; tab-width: 20; indent-tabs-mode: nil; -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Android code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009-2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Patrick Walton <pcwalton@mozilla.com>
- *   Chris Lord <chrislord.net@gmail.com>
- *   Arkady Blyakher <rkadyb@mit.edu>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 package org.mozilla.gecko.gfx;
 
@@ -97,7 +63,8 @@ public class LayerRenderer {
     private final ScrollbarLayer mHorizScrollLayer;
     private final ScrollbarLayer mVertScrollLayer;
     private final FadeRunnable mFadeRunnable;
-    private final FloatBuffer mCoordBuffer;
+    private ByteBuffer mCoordByteBuffer;
+    private FloatBuffer mCoordBuffer;
     private RenderContext mLastPageContext;
     private int mMaxTextureSize;
     private int mBackgroundColor;
@@ -138,6 +105,11 @@ public class LayerRenderer {
 
     // The shaders run on the GPU directly, the vertex shader is only applying the
     // matrix transform detailed above
+
+    // Note we flip the y-coordinate in the vertex shader from a
+    // coordinate system with (0,0) in the top left to one with (0,0) in
+    // the bottom left.
+
     public static final String DEFAULT_VERTEX_SHADER =
         "uniform mat4 uTMatrix;\n" +
         "attribute vec4 vPosition;\n" +
@@ -145,22 +117,25 @@ public class LayerRenderer {
         "varying vec2 vTexCoord;\n" +
         "void main() {\n" +
         "    gl_Position = uTMatrix * vPosition;\n" +
-        "    vTexCoord = aTexCoord;\n" +
+        "    vTexCoord.x = aTexCoord.x;\n" +
+        "    vTexCoord.y = 1.0 - aTexCoord.y;\n" +
         "}\n";
 
-    // Note we flip the y-coordinate in the fragment shader from a
-    // coordinate system with (0,0) in the top left to one with (0,0) in
-    // the bottom left.
+    // We use highp because the screenshot textures
+    // we use are large and we stretch them alot
+    // so we need all the precision we can get.
+    // Unfortunately, highp is not required by ES 2.0
+    // so on GPU's like Mali we end up getting mediump
     public static final String DEFAULT_FRAGMENT_SHADER =
-        "precision mediump float;\n" +
+        "precision highp float;\n" +
         "varying vec2 vTexCoord;\n" +
         "uniform sampler2D sTexture;\n" +
         "void main() {\n" +
-        "    gl_FragColor = texture2D(sTexture, vec2(vTexCoord.x, 1.0 - vTexCoord.y));\n" +
+        "    gl_FragColor = texture2D(sTexture, vTexCoord);\n" +
         "}\n";
 
-    public void setCheckerboardBitmap(Bitmap bitmap, RectF pageRect) {
-        mCheckerboardLayer.setBitmap(bitmap);
+    public void setCheckerboardBitmap(ByteBuffer data, int width, int height, RectF pageRect, Rect copyRect) {
+        mCheckerboardLayer.setBitmap(data, width, height, copyRect);
         mCheckerboardLayer.beginTransaction();
         try {
             mCheckerboardLayer.setPosition(RectUtils.round(pageRect));
@@ -209,12 +184,25 @@ public class LayerRenderer {
 
         // Initialize the FloatBuffer that will be used to store all vertices and texture
         // coordinates in draw() commands.
-        ByteBuffer byteBuffer = GeckoAppShell.allocateDirectBuffer(COORD_BUFFER_SIZE * 4);
-        byteBuffer.order(ByteOrder.nativeOrder());
-        mCoordBuffer = byteBuffer.asFloatBuffer();
+        mCoordByteBuffer = GeckoAppShell.allocateDirectBuffer(COORD_BUFFER_SIZE * 4);
+        mCoordByteBuffer.order(ByteOrder.nativeOrder());
+        mCoordBuffer = mCoordByteBuffer.asFloatBuffer();
     }
 
-    void onSurfaceCreated(GL10 gl, EGLConfig config) {
+    @Override
+    protected void finalize() throws Throwable {
+        try {
+            if (mCoordByteBuffer != null) {
+                GeckoAppShell.freeDirectBuffer(mCoordByteBuffer);
+                mCoordByteBuffer = null;
+                mCoordBuffer = null;
+            }
+        } finally {
+            super.finalize();
+        }
+    }
+
+    void onSurfaceCreated(EGLConfig config) {
         checkMonitoringEnabled();
         createDefaultProgram();
         activateDefaultProgram();
@@ -271,8 +259,6 @@ public class LayerRenderer {
     }
 
     public void addLayer(Layer layer) {
-        LayerController controller = mView.getController();
-
         synchronized (mExtraLayers) {
             if (mExtraLayers.contains(layer)) {
                 mExtraLayers.remove(layer);
@@ -283,8 +269,6 @@ public class LayerRenderer {
     }
 
     public void removeLayer(Layer layer) {
-        LayerController controller = mView.getController();
-
         synchronized (mExtraLayers) {
             mExtraLayers.remove(layer);
         }
@@ -636,11 +620,21 @@ public class LayerRenderer {
                 // Find out how much of the viewport area is valid
                 Rect viewport = RectUtils.round(mPageContext.viewport);
                 Region validRegion = rootLayer.getValidRegion(mPageContext);
+
+                /* restrict the viewport to page bounds so we don't
+                 * count overscroll as checkerboard */
+                if (!viewport.intersect(mPageRect)) {
+                    /* if the rectangles don't intersect
+                       intersect() doesn't change viewport
+                       so we set it to empty by hand */
+                    viewport.setEmpty();
+                }
                 validRegion.op(viewport, Region.Op.INTERSECT);
 
                 float checkerboard = 0.0f;
-                if (!(validRegion.isRect() && validRegion.getBounds().equals(viewport))) {
-                    int screenArea = viewport.width() * viewport.height();
+
+                int screenArea = viewport.width() * viewport.height();
+                if (screenArea > 0 && !(validRegion.isRect() && validRegion.getBounds().equals(viewport))) {
                     validRegion.op(viewport, Region.Op.REVERSE_DIFFERENCE);
 
                     // XXX The assumption here is that a Region never has overlapping

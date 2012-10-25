@@ -1,42 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Seth Spitzer <sspitzer@netscape.com>
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Mark Banner <mark@standard8.demon.co.uk>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsAbManager.h"
 #include "nsAbBaseCID.h"
@@ -60,7 +25,7 @@
 #include "nsVCardObj.h"
 #include "nsIAbLDAPAttributeMap.h"
 #include "nsICommandLine.h"
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 #include "nsIMutableArray.h"
 #include "nsArrayUtils.h"
 #include "nsDirectoryServiceUtils.h"
@@ -72,6 +37,8 @@
 #include "nsIIOService.h"
 #include "nsAbQueryStringToExpression.h"
 #include "mozilla/Services.h"
+#include "mozilla/Util.h"
+using namespace mozilla;
 
 struct ExportAttributesTableStruct
 {
@@ -456,7 +423,7 @@ NS_IMETHODIMP nsAbManager::NotifyDirectoryDeleted(nsIAbDirectory *aParentDirecto
   return NS_OK;
 }
 
-NS_IMETHODIMP nsAbManager::GetUserProfileDirectory(nsILocalFile **userDir)
+NS_IMETHODIMP nsAbManager::GetUserProfileDirectory(nsIFile **userDir)
 {
   NS_ENSURE_ARG_POINTER(userDir);
   *userDir = nsnull;
@@ -578,7 +545,7 @@ NS_IMETHODIMP nsAbManager::ExportAddressBook(nsIDOMWindow *aParentWin, nsIAbDire
   if (dialogResult == nsIFilePicker::returnCancel)
     return rv;
 
-  nsCOMPtr<nsILocalFile> localFile;
+  nsCOMPtr<nsIFile> localFile;
   rv = filePicker->GetFile(getter_AddRefs(localFile));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -645,7 +612,7 @@ NS_IMETHODIMP nsAbManager::ExportAddressBook(nsIDOMWindow *aParentWin, nsIAbDire
 }
 
 nsresult
-nsAbManager::ExportDirectoryToDelimitedText(nsIAbDirectory *aDirectory, const char *aDelim, PRUint32 aDelimLen, nsILocalFile *aLocalFile)
+nsAbManager::ExportDirectoryToDelimitedText(nsIAbDirectory *aDirectory, const char *aDelim, PRUint32 aDelimLen, nsIFile *aLocalFile)
 {
   nsCOMPtr <nsISimpleEnumerator> cardsEnumerator;
   nsCOMPtr <nsIAbCard> card;
@@ -677,7 +644,7 @@ nsAbManager::ExportDirectoryToDelimitedText(nsIAbDirectory *aDirectory, const ch
   nsCString revisedName;
   nsString columnName;
 
-  for (i = 0; i < NS_ARRAY_LENGTH(EXPORT_ATTRIBUTES_TABLE); i++) {
+  for (i = 0; i < ArrayLength(EXPORT_ATTRIBUTES_TABLE); i++) {
     if (EXPORT_ATTRIBUTES_TABLE[i].plainTextStringID != 0) {
 
       // We don't need to truncate the string here as getter_Copies will
@@ -697,7 +664,7 @@ nsAbManager::ExportDirectoryToDelimitedText(nsIAbDirectory *aDirectory, const ch
       if (revisedName.Length() != writeCount)
         return NS_ERROR_FAILURE;
 
-      if (i < NS_ARRAY_LENGTH(EXPORT_ATTRIBUTES_TABLE) - 1) {
+      if (i < ArrayLength(EXPORT_ATTRIBUTES_TABLE) - 1) {
         rv = outputStream->Write(aDelim, aDelimLen, &writeCount);
         NS_ENSURE_SUCCESS(rv,rv);
 
@@ -734,7 +701,7 @@ nsAbManager::ExportDirectoryToDelimitedText(nsIAbDirectory *aDirectory, const ch
           nsString value;
           nsCString valueCStr;
 
-          for (i = 0; i < NS_ARRAY_LENGTH(EXPORT_ATTRIBUTES_TABLE); i++) {
+          for (i = 0; i < ArrayLength(EXPORT_ATTRIBUTES_TABLE); i++) {
             if (EXPORT_ATTRIBUTES_TABLE[i].plainTextStringID != 0) {
               rv = card->GetPropertyAsAString(EXPORT_ATTRIBUTES_TABLE[i].abPropertyName, value);
               if (NS_FAILED(rv))
@@ -800,7 +767,7 @@ nsAbManager::ExportDirectoryToDelimitedText(nsIAbDirectory *aDirectory, const ch
               continue; // go to next field
             }
 
-            if (i < NS_ARRAY_LENGTH(EXPORT_ATTRIBUTES_TABLE) - 1) {
+            if (i < ArrayLength(EXPORT_ATTRIBUTES_TABLE) - 1) {
               rv = outputStream->Write(aDelim, aDelimLen, &writeCount);
               NS_ENSURE_SUCCESS(rv,rv);
               if (aDelimLen != writeCount)
@@ -827,7 +794,7 @@ nsAbManager::ExportDirectoryToDelimitedText(nsIAbDirectory *aDirectory, const ch
 }
 
 nsresult
-nsAbManager::ExportDirectoryToLDIF(nsIAbDirectory *aDirectory, nsILocalFile *aLocalFile)
+nsAbManager::ExportDirectoryToLDIF(nsIAbDirectory *aDirectory, nsIFile *aLocalFile)
 {
   nsCOMPtr <nsISimpleEnumerator> cardsEnumerator;
   nsCOMPtr <nsIAbCard> card;
@@ -903,7 +870,7 @@ nsAbManager::ExportDirectoryToLDIF(nsIAbDirectory *aDirectory, nsILocalFile *aLo
 
           nsCAutoString ldapAttribute;
 
-          for (i = 0; i < NS_ARRAY_LENGTH(EXPORT_ATTRIBUTES_TABLE); i++) {
+          for (i = 0; i < ArrayLength(EXPORT_ATTRIBUTES_TABLE); i++) {
             if (NS_SUCCEEDED(attrMap->GetFirstAttribute(nsDependentCString(EXPORT_ATTRIBUTES_TABLE[i].abPropertyName),
                                                         ldapAttribute)) &&
                 !ldapAttribute.IsEmpty()) {

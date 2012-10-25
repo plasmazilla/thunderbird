@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 #include <dlfcn.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -219,7 +223,8 @@ class SamplerThread : public Thread {
   // Implement Thread::Run().
   virtual void Run() {
     while (SamplerRegistry::sampler->IsActive()) {
-      SampleContext(SamplerRegistry::sampler);
+      if (!SamplerRegistry::sampler->IsPaused())
+        SampleContext(SamplerRegistry::sampler);
       OS::Sleep(interval_);
     }
   }
@@ -291,6 +296,7 @@ Sampler::Sampler(int interval, bool profiling)
     : // isolate_(isolate),
       interval_(interval),
       profiling_(profiling),
+      paused_(false),
       active_(false) /*,
       samples_taken_(0)*/ {
   data_ = new PlatformData;

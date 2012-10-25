@@ -1,54 +1,29 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Original Author: Daniel Glazman <glazman@netscape.com>
- *   Ms2ger <ms2ger@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsHTMLCSSUtils_h__
 #define nsHTMLCSSUtils_h__
 
-#include "nsCOMPtr.h"
-#include "nsString.h"
-#include "nsTArray.h"
-#include "nsIDOMNode.h"
-#include "nsIDOMElement.h"
-#include "nsIHTMLEditor.h"
-#include "ChangeCSSInlineStyleTxn.h"
-#include "nsEditProperty.h"
-#include "nsIDOMCSSStyleDeclaration.h"
+#include "nsCOMPtr.h"                   // for already_AddRefed
+#include "nsTArray.h"                   // for nsTArray
+#include "nscore.h"                     // for nsAString, nsresult, nsnull
+#include "prtypes.h"                    // for PRUint8, PRInt32, PRUint32
+
+class ChangeCSSInlineStyleTxn;
+class nsIAtom;
+class nsIContent;
+class nsIDOMCSSStyleDeclaration;
+class nsIDOMElement;
+class nsIDOMNode;
+class nsINode;
+class nsString;
+namespace mozilla {
+namespace dom {
+class Element;
+}  // namespace dom
+}  // namespace mozilla
 
 #define SPECIFIED_STYLE_TYPE    1
 #define COMPUTED_STYLE_TYPE     2
@@ -106,10 +81,20 @@ public:
     * @return               a boolean saying if the tag/attribute has a css equiv
     * @param aNode          [IN] a DOM node
     * @param aProperty      [IN] an atom containing a HTML tag name
-    * @param aAttribute     [IN] a string containing the name of a HTML attribute carried by the element above
+    * @param aAttribute     [IN] a string containing the name of a HTML
+    *                            attribute carried by the element above
+    * @param aValue         [IN] an optional string containing the attribute's
+    *                            HTML value -- this matters for <font size>,
+    *                            since size=7 has no CSS equivalent.  Make sure
+    *                            you pass the HTML value (e.g. "4"), not the
+    *                            CSS value (e.g. "large").
     */
-  bool IsCSSEditableProperty(nsIContent* aNode, nsIAtom* aProperty, const nsAString* aAttribute);
-  bool IsCSSEditableProperty(nsIDOMNode* aNode, nsIAtom* aProperty, const nsAString* aAttribute);
+  bool IsCSSEditableProperty(nsIContent* aNode, nsIAtom* aProperty,
+                             const nsAString* aAttribute,
+                             const nsAString* aValue = nsnull);
+  bool IsCSSEditableProperty(nsIDOMNode* aNode, nsIAtom* aProperty,
+                             const nsAString* aAttribute,
+                             const nsAString* aValue = nsnull);
 
   /** adds/remove a CSS declaration to the STYLE atrribute carried by a given element
     *
@@ -209,8 +194,16 @@ public:
     * @param aIsSet         [OUT] a boolean being true if the css properties are set
     * @param aValueString   [IN/OUT] the attribute value (in) the list of css values (out)
     * @param aStyleType     [IN] SPECIFIED_STYLE_TYPE to query the specified style values
-                                 COMPUTED_STYLE_TYPE  to query the computed style values
+    *                            COMPUTED_STYLE_TYPE  to query the computed style values
+    *
+    * The nsIContent variant returns aIsSet instead of using an out parameter.
     */
+  bool IsCSSEquivalentToHTMLInlineStyleSet(nsIContent* aContent,
+                                           nsIAtom* aProperty,
+                                           const nsAString* aAttribute,
+                                           const nsAString& aValue,
+                                           PRUint8 aStyleType);
+
   nsresult    IsCSSEquivalentToHTMLInlineStyleSet(nsIDOMNode * aNode,
                                                   nsIAtom * aHTMLProperty,
                                                   const nsAString * aAttribute,
@@ -228,7 +221,15 @@ public:
     * @param aCount         [OUT] the number of CSS properties set by the call
     * @param aSuppressTransaction [IN] a boolean indicating, when true,
     *                                  that no transaction should be recorded
+    *
+    * aCount is returned by the dom::Element variant instead of being an out
+    * parameter.
     */
+  PRInt32     SetCSSEquivalentToHTMLStyle(mozilla::dom::Element* aElement,
+                                          nsIAtom* aProperty,
+                                          const nsAString* aAttribute,
+                                          const nsAString* aValue,
+                                          bool aSuppressTransaction);
   nsresult    SetCSSEquivalentToHTMLStyle(nsIDOMNode * aNode,
                                           nsIAtom * aHTMLProperty,
                                           const nsAString * aAttribute,
@@ -266,7 +267,7 @@ public:
     *
     * @param aIsCSSPrefChecked [IN] the new boolean state for the pref
     */
-  nsresult    SetCSSEnabled(bool aIsCSSPrefChecked);
+  void        SetCSSEnabled(bool aIsCSSPrefChecked);
 
   /** retrieves the mIsCSSPrefChecked private member, true if the css pref is checked,
     * false if it is not
@@ -283,6 +284,8 @@ public:
     * @param aFirstNode           [IN] a DOM node
     * @param aSecondNode          [IN] a DOM node
     */
+  bool ElementsSameStyle(mozilla::dom::Element* aFirstNode,
+                         mozilla::dom::Element* aSecondNode);
   bool ElementsSameStyle(nsIDOMNode *aFirstNode, nsIDOMNode *aSecondNode);
 
   /** get the specified inline styles (style attribute) for an element

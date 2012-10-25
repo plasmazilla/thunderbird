@@ -1,44 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 sw=2 et tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Travis Bogard <travis@netscape.com>
- *   Dan Rosen <dr@netscape.com>
- *   Vidur Apparao <vidur@netscape.com>
- *   Johnny Stenback <jst@netscape.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsGlobalWindow_h___
 #define nsGlobalWindow_h___
@@ -98,6 +62,9 @@
 #include "mozilla/TimeStamp.h"
 #include "nsIDOMTouchEvent.h"
 #include "nsIInlineEventHandlers.h"
+#include "nsWrapperCacheInlines.h"
+#include "nsIDOMApplicationRegistry.h"
+#include "nsIIdleObserver.h"
 
 // JS includes
 #include "jsapi.h"
@@ -112,6 +79,12 @@
 // During click or mousedown events (and others, see nsDOMEvent) we allow modal
 // dialogs up to this limit, even if they were disabled.
 #define MAX_DIALOG_COUNT 10
+
+// Idle fuzz time upper limit
+#define MAX_IDLE_FUZZ_TIME_MS 90000
+
+// Min idle notification time in seconds.
+#define MIN_IDLE_NOTIFICATION_TIME_S 1
 
 class nsIDOMBarProp;
 class nsIDocument;
@@ -129,13 +102,13 @@ class nsIDocShellLoadInfo;
 class WindowStateHolder;
 class nsGlobalWindowObserver;
 class nsGlobalWindow;
-class nsDummyJavaPluginOwner;
 class PostMessageEvent;
 class nsRunnable;
 class nsDOMEventTargetHelper;
 class nsDOMOfflineResourceList;
 class nsDOMMozURLProperty;
 class nsDOMWindowUtils;
+class nsIIdleService;
 
 #ifdef MOZ_DISABLE_DOMCRYPTO
 class nsIDOMCrypto;
@@ -230,6 +203,37 @@ private:
   nsAutoRefCnt mRefCnt;
 };
 
+struct IdleObserverHolder
+{
+  nsCOMPtr<nsIIdleObserver> mIdleObserver;
+  PRUint32 mTimeInS;
+  bool mPrevNotificationIdle;
+
+  IdleObserverHolder()
+    : mTimeInS(0), mPrevNotificationIdle(false)
+  {
+    MOZ_COUNT_CTOR(IdleObserverHolder);
+  }
+
+  IdleObserverHolder(const IdleObserverHolder& aOther)
+    : mIdleObserver(aOther.mIdleObserver), mTimeInS(aOther.mTimeInS),
+      mPrevNotificationIdle(aOther.mPrevNotificationIdle)
+  {
+    MOZ_COUNT_CTOR(IdleObserverHolder);
+  }
+
+  bool operator==(const IdleObserverHolder& aOther) const {
+    return
+      mIdleObserver == aOther.mIdleObserver &&
+      mTimeInS == aOther.mTimeInS;
+  }
+
+  ~IdleObserverHolder()
+  {
+    MOZ_COUNT_DTOR(IdleObserverHolder);
+  }
+};
+
 //*****************************************************************************
 // nsGlobalWindow: Global Object for Scripting
 //*****************************************************************************
@@ -261,7 +265,8 @@ class nsGlobalWindow : public nsPIDOMWindow,
                        public PRCListStr,
                        public nsIDOMWindowPerformance,
                        public nsITouchEventReceiver,
-                       public nsIInlineEventHandlers
+                       public nsIInlineEventHandlers,
+                       public nsPIDOMWindow2 // mozilla16-only
 {
 public:
   friend class nsDOMMozURLProperty;
@@ -300,10 +305,6 @@ public:
 
   virtual nsIScriptContext *GetScriptContext();
 
-  // Set a new script language context for this global.  The native global
-  // for the context is created by the context's GetNativeGlobal() method.
-  virtual nsresult SetScriptContext(nsIScriptContext *aContext);
-  
   virtual void OnFinalize(JSObject* aObject);
   virtual void SetScriptsEnabled(bool aEnabled, bool aFireTimeouts);
 
@@ -337,8 +338,10 @@ public:
   virtual NS_HIDDEN_(void) SetIsBackground(bool aIsBackground);
   virtual NS_HIDDEN_(void) SetChromeEventHandler(nsIDOMEventTarget* aChromeEventHandler);
 
-  virtual NS_HIDDEN_(void) SetOpenerScriptPrincipal(nsIPrincipal* aPrincipal);
-  virtual NS_HIDDEN_(nsIPrincipal*) GetOpenerScriptPrincipal();
+  virtual NS_HIDDEN_(void) SetOpenerScriptPrincipal(nsIPrincipal* aPrincipal) {}; // mozilla16 IID compat
+  // This lives on nsPIDOMWindow2 for mozilla16.
+  virtual NS_HIDDEN_(void) SetInitialPrincipalToSubject();
+  virtual NS_HIDDEN_(nsIPrincipal*) GetOpenerScriptPrincipal() { return NULL; }; // mozilla16 IID compat
 
   virtual NS_HIDDEN_(PopupControlState) PushPopupControlState(PopupControlState state, bool aForce) const;
   virtual NS_HIDDEN_(void) PopPopupControlState(PopupControlState state) const;
@@ -359,6 +362,7 @@ public:
   virtual NS_HIDDEN_(bool) WouldReuseInnerWindow(nsIDocument *aNewDocument);
 
   virtual NS_HIDDEN_(void) SetDocShell(nsIDocShell* aDocShell);
+  virtual void DetachFromDocShell();
   virtual NS_HIDDEN_(nsresult) SetNewDocument(nsIDocument *aDocument,
                                               nsISupports *aState,
                                               bool aForceReuseInnerWindow);
@@ -376,7 +380,9 @@ public:
   virtual NS_HIDDEN_(void) MaybeUpdateTouchState();
   virtual NS_HIDDEN_(void) UpdateTouchState();
   virtual NS_HIDDEN_(bool) DispatchCustomEvent(const char *aEventName);
+  virtual NS_HIDDEN_(void) RefreshCompartmentPrincipal();
   virtual NS_HIDDEN_(nsresult) SetFullScreenInternal(bool aIsFullScreen, bool aRequireTrust);
+  virtual NS_HIDDEN_(bool) IsPartOfApp();
 
   // nsIDOMStorageIndexedDB
   NS_DECL_NSIDOMSTORAGEINDEXEDDB
@@ -402,12 +408,32 @@ public:
     return FromSupports(wrapper->Native());
   }
 
+  /**
+   * Wrap nsIDOMWindow::GetTop so we can overload the inline GetTop()
+   * implementation below.  (nsIDOMWindow::GetTop simply calls
+   * nsIDOMWindow::GetRealTop().)
+   */
+  nsresult GetTop(nsIDOMWindow **aWindow)
+  {
+    return nsIDOMWindow::GetTop(aWindow);
+  }
+
   inline nsGlobalWindow *GetTop()
   {
     nsCOMPtr<nsIDOMWindow> top;
     GetTop(getter_AddRefs(top));
     if (top)
-      return static_cast<nsGlobalWindow *>(static_cast<nsIDOMWindow *>(top.get()));
+      return static_cast<nsGlobalWindow *>(top.get());
+    return nsnull;
+  }
+
+  inline nsGlobalWindow* GetScriptableTop()
+  {
+    nsCOMPtr<nsIDOMWindow> top;
+    GetScriptableTop(getter_AddRefs(top));
+    if (top) {
+      return static_cast<nsGlobalWindow *>(top.get());
+    }
     return nsnull;
   }
 
@@ -492,8 +518,6 @@ public:
   NS_DECL_CYCLE_COLLECTION_SKIPPABLE_SCRIPT_HOLDER_CLASS_AMBIGUOUS(nsGlobalWindow,
                                                                    nsIScriptGlobalObject)
 
-  void InitJavaProperties();
-
   virtual NS_HIDDEN_(JSObject*)
     GetCachedXBLPrototypeHandler(nsXBLPrototypeHandler* aKey);
 
@@ -564,9 +588,46 @@ public:
   void AddEventTargetObject(nsDOMEventTargetHelper* aObject);
   void RemoveEventTargetObject(nsDOMEventTargetHelper* aObject);
 
+  void NotifyIdleObserver(IdleObserverHolder* aIdleObserverHolder,
+                          bool aCallOnidle);
+  nsresult HandleIdleActiveEvent();
+  bool ContainsIdleObserver(nsIIdleObserver* aIdleObserver, PRUint32 timeInS);
+  void HandleIdleObserverCallback();
+
 protected:
+  // Array of idle observers that are notified of idle events.
+  nsTObserverArray<IdleObserverHolder> mIdleObservers;
+
+  // Idle timer used for function callbacks to notify idle observers.
+  nsCOMPtr<nsITimer> mIdleTimer;
+
+  // Idle fuzz time added to idle timer callbacks.
+  PRUint32 mIdleFuzzFactor;
+
+  // Index in mArrayIdleObservers
+  // Next idle observer to notify user idle status
+  PRInt32 mIdleCallbackIndex;
+
+  // If false then the topic is "active"
+  // If true then the topic is "idle"
+  bool mCurrentlyIdle;
+
+  // Set to true when a fuzz time needs to be applied
+  // to active notifications to the idle observer.
+  bool mAddActiveEventFuzzTime;
+
+  nsCOMPtr <nsIIdleService> mIdleService;
+
+  static bool sIdleObserversAPIFuzzTimeDisabled;
+
   friend class HashchangeCallback;
   friend class nsBarProp;
+
+  enum TriState {
+    TriState_Unknown = -1,
+    TriState_False,
+    TriState_True
+  };
 
   // Object Management
   virtual ~nsGlobalWindow();
@@ -574,11 +635,20 @@ protected:
   void ClearControllers();
   nsresult FinalClose();
 
+  inline void MaybeClearInnerWindow(nsGlobalWindow* aExpectedInner)
+  {
+    if(mInnerWindow == aExpectedInner) {
+      mInnerWindow = nsnull;
+    }
+  }
+
   void FreeInnerObjects();
   JSObject *CallerGlobal();
   nsGlobalWindow *CallerInnerWindow();
 
-  nsresult InnerSetNewDocument(nsIDocument* aDocument);
+  // Only to be called on an inner window.
+  // aDocument must not be null.
+  void InnerSetNewDocument(nsIDocument* aDocument);
 
   nsresult DefineArgumentsProperty(nsIArray *aArguments);
 
@@ -669,6 +739,11 @@ protected:
   // The timeout implementation functions.
   void RunTimeout(nsTimeout *aTimeout);
   void RunTimeout() { RunTimeout(nsnull); }
+  // Return true if |aTimeout| was cleared while its handler ran.
+  bool RunTimeoutHandler(nsTimeout* aTimeout, nsIScriptContext* aScx);
+  // Return true if |aTimeout| needs to be reinserted into the timeout list.
+  bool RescheduleTimeout(nsTimeout* aTimeout, const TimeStamp& now,
+                         bool aRunningPendingTimeouts);
 
   void ClearAllTimeouts();
   // Insert aTimeout into the list, before all timeouts that would
@@ -694,6 +769,16 @@ protected:
                            const nsAString &aPopupWindowName,
                            const nsAString &aPopupWindowFeatures);
   void FireOfflineStatusEvent();
+
+  nsresult ScheduleNextIdleObserverCallback();
+  PRUint32 GetFuzzTimeMS();
+  nsresult ScheduleActiveTimerCallback();
+  PRUint32 FindInsertionIndex(IdleObserverHolder* aIdleObserver);
+  virtual nsresult RegisterIdleObserver(nsIIdleObserver* aIdleObserverPtr);
+  nsresult FindIndexOfElementToRemove(nsIIdleObserver* aIdleObserver,
+                                      PRInt32* aRemoveElementIndex);
+  virtual nsresult UnregisterIdleObserver(nsIIdleObserver* aIdleObserverPtr);
+
   nsresult FireHashchange(const nsAString &aOldURL, const nsAString &aNewURL);
 
   void FlushPendingNotifications(mozFlushType aType);
@@ -719,7 +804,7 @@ protected:
   nsresult GetScrollXY(PRInt32* aScrollX, PRInt32* aScrollY,
                        bool aDoFlush);
   nsresult GetScrollMaxXY(PRInt32* aScrollMaxX, PRInt32* aScrollMaxY);
-  
+
   nsresult GetOuterSize(nsIntSize* aSizeCSSPixels);
   nsresult SetOuterSize(PRInt32 aLengthCSSPixels, bool aIsWidth);
   nsRect GetInnerScreenRect();
@@ -796,7 +881,7 @@ protected:
 
   static void NotifyDOMWindowFrozen(nsGlobalWindow* aWindow);
   static void NotifyDOMWindowThawed(nsGlobalWindow* aWindow);
-  
+
   void ClearStatus();
 
   virtual void UpdateParentTarget();
@@ -810,12 +895,19 @@ protected:
   nsresult CloneStorageEvent(const nsAString& aType,
                              nsCOMPtr<nsIDOMStorageEvent>& aEvent);
 
+  void SetIsApp(bool aValue);
+  nsresult SetApp(const nsAString& aManifestURL);
+  nsresult GetApp(mozIDOMApplication** aApplication);
+
+  // Implements Get{Real,Scriptable}Top.
+  nsresult GetTopImpl(nsIDOMWindow **aWindow, bool aScriptable);
+
   // When adding new member variables, be careful not to create cycles
   // through JavaScript.  If there is any chance that a member variable
   // could own objects that are implemented in JavaScript, then those
   // objects will keep the global object (this object) alive.  To prevent
   // these cycles, ownership of such members must be released in
-  // |CleanUp| and |SetDocShell|.
+  // |CleanUp| and |DetachFromDocShell|.
 
   // This member is also used on both inner and outer windows, but
   // for slightly different purposes. On inner windows it means the
@@ -825,10 +917,6 @@ protected:
   // we're in the middle of doing just that.
   bool                          mIsFrozen : 1;
 
-  // True if the Java properties have been initialized on this
-  // window. Only used on inner windows.
-  bool                          mDidInitJavaProperties : 1;
-  
   // These members are only used on outer window objects. Make sure
   // you never set any of these on an inner object!
   bool                          mFullScreen : 1;
@@ -846,6 +934,8 @@ protected:
 
   // Track what sorts of events we need to fire when thawed
   bool                          mFireOfflineStatusChangeEventOnThaw : 1;
+  bool                          mNotifyIdleObserversIdleOnThaw : 1;
+  bool                          mNotifyIdleObserversActiveOnThaw : 1;
 
   // Indicates whether we're in the middle of creating an initializing
   // a new inner window object.
@@ -881,6 +971,11 @@ protected:
   // whether we've sent the destroy notification for our window id
   bool                   mNotifiedIDDestroyed : 1;
 
+  // Whether the window is the window of an application frame.
+  // This is TriState_Unknown if the object is the content window of an
+  // iframe which is neither mozBrowser nor mozApp.
+  TriState               mIsApp : 2;
+
   nsCOMPtr<nsIScriptContext>    mContext;
   nsWeakPtr                     mOpener;
   nsCOMPtr<nsIControllers>      mControllers;
@@ -909,8 +1004,6 @@ protected:
   nsCOMPtr<nsIDOMStorage>      mSessionStorage;
 
   nsCOMPtr<nsIXPConnectJSObjectHolder> mInnerWindowHolder;
-  nsCOMPtr<nsIPrincipal> mOpenerScriptPrincipal; // strong; used to determine
-                                                 // whether to clear scope
 
   // These member variable are used only on inner windows.
   nsRefPtr<nsEventListenerManager> mListenerManager;
@@ -928,13 +1021,8 @@ protected:
   nsRefPtr<nsLocation>          mLocation;
   nsRefPtr<nsHistory>           mHistory;
 
-  // Holder of the dummy java plugin, used to expose window.java and
-  // window.packages.
-  nsRefPtr<nsDummyJavaPluginOwner> mDummyJavaPluginOwner;
-
   // These member variables are used on both inner and the outer windows.
   nsCOMPtr<nsIPrincipal> mDocumentPrincipal;
-  nsCOMPtr<nsIDocument> mDoc;  // For fast access to principals
   JSObject* mJSObject;
 
   typedef nsCOMArray<nsIDOMStorageEvent> nsDOMStorageEventArray;
@@ -979,6 +1067,10 @@ protected:
   nsTHashtable<nsPtrHashKey<nsDOMEventTargetHelper> > mEventTargetObjects;
 
   nsTArray<PRUint32> mEnabledSensors;
+
+  // The application associated with this window.
+  // This should only be non-null if mIsApp's value is TriState_True.
+  nsCOMPtr<mozIDOMApplication> mApp;
 
   friend class nsDOMScriptableHelper;
   friend class nsDOMWindowUtils;

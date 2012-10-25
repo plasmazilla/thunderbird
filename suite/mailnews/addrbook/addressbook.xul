@@ -1,42 +1,7 @@
 <?xml version="1.0"?> 
-<!-- ***** BEGIN LICENSE BLOCK *****
- Version: MPL 1.1/GPL 2.0/LGPL 2.1
-
- The contents of this file are subject to the Mozilla Public License Version
- 1.1 (the "License"); you may not use this file except in compliance with
- the License. You may obtain a copy of the License at
- http://www.mozilla.org/MPL/
-
- Software distributed under the License is distributed on an "AS IS" basis,
- WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- for the specific language governing rights and limitations under the
- License.
-
- The Original Code is Mozilla Communicator client code, released
- March 31, 1998.
-
- The Initial Developer of the Original Code is
- Netscape Communications Corporation.
- Portions created by the Initial Developer are Copyright (C) 1998-1999
- the Initial Developer. All Rights Reserved.
-
- Contributor(s):
-   Seth Spitzer <sspitzer@netscape.com>
-   Ian Neal <iann_bugzilla@blueyonder.co.uk>
-
- Alternatively, the contents of this file may be used under the terms of
- either of the GNU General Public License Version 2 or later (the "GPL"),
- or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- in which case the provisions of the GPL or the LGPL are applicable instead
- of those above. If you wish to allow use of your version of this file only
- under the terms of either the GPL or the LGPL, and not to allow others to
- use your version of this file under the terms of the MPL, indicate your
- decision by deleting the provisions above and replace them with the notice
- and other provisions required by the GPL or the LGPL. If you do not delete
- the provisions above, a recipient may use your version of this file under
- the terms of any one of the MPL, the GPL or the LGPL.
-
- ***** END LICENSE BLOCK ***** -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <?xml-stylesheet href="chrome://messenger/skin/addressbook/addressbook.css" type="text/css"?> 
 <?xml-stylesheet href="chrome://messenger/skin/addressbook/addressPanes.css"
@@ -46,7 +11,6 @@
 <?xul-overlay href="chrome://communicator/content/tasksOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/contentAreaContextOverlay.xul"?>
 <?xul-overlay href="chrome://messenger/content/addressbook/abResultsPaneOverlay.xul"?>
-<?xul-overlay href="chrome://messenger/content/addressbook/abCardViewOverlay.xul"?>
 <?xul-overlay href="chrome://navigator/content/platformMailOverlay.xul"?>
 
 <!DOCTYPE window [
@@ -64,6 +28,7 @@
 
 <window xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:html="http://www.w3.org/1999/xhtml"
     id="addressbookWindow"
     height="450"
     width="750"
@@ -71,6 +36,7 @@
     lightweightthemes="true"
     lightweightthemesfooter="status-bar"
     windowtype="mail:addressbook"
+    macanimationtype="document"
     persist="width height screenX screenY sizemode"
     toggletoolbar="true"
     onload="OnLoadAddressBook()"
@@ -91,6 +57,7 @@
 <script type="application/javascript" src="chrome://communicator/content/contentAreaClick.js"/>
 <script type="application/javascript" src="chrome://global/content/printUtils.js"/>
 <script type="application/javascript" src="chrome://messenger/content/msgPrintEngine.js"/>
+<script type="application/javascript" src="chrome://messenger/content/addressbook/abCardViewOverlay.js"/>
 
   <commandset id="addressBook">
     <commandset id="CommandUpdate_AddressBook"
@@ -111,7 +78,6 @@
     <command id="cmd_printPreviewCard" oncommand="AbPrintPreviewCard()"/>
     <command id="cmd_printAddressBook" oncommand="AbPrintAddressBook()"/>
     <command id="cmd_printPreviewAddressBook" oncommand="AbPrintPreviewAddressBook()"/>
-    <command id="cmd_quit"/>
     <command id="cmd_close" oncommand="AbClose()"/>
     <command id="cmd_properties" oncommand="goDoCommand('button_edit');"/>
     <command id="cmd_undo"/>
@@ -130,14 +96,14 @@
     <command id="button_delete" oncommand="goDoCommand('button_delete');"/>
     <command id="cmd_swapFirstNameLastName" oncommand="AbSwapFirstNameLastName()"/>
     <commandset id="tasksCommands"/>
-    <command id="cmd_CustomizeToolbars"
-             oncommand="goCustomizeToolbar(getAbToolbox());"/>
   </commandset>
 
 <broadcasterset id="abBroadcasters">
   <!-- Edit Menu -->
   <broadcaster id="Communicator:WorkMode"/>
 </broadcasterset>
+
+<broadcasterset id="mainBroadcasterSet"/>
 
 <keyset id="tasksKeys">
   <!-- File Menu -->
@@ -150,7 +116,6 @@
   <key id="key_printCard" key="&printContactViewCmd.key;"
        command="cmd_printCard" modifiers="accel"/>
   <key id="key_close"/>
-  <key id="key_quit"/>
   <!-- Edit Menu -->
   <key id="key_delete"/>
   <key id="key_delete2"/> <!-- secondary delete key -->
@@ -242,40 +207,57 @@
                  align="center">
       <menubar id="ab-menubar">
         <menu id="menu_File">
-            <menupopup id="menu_FilePopup">
-                <menu id="menu_New">
-                    <menupopup id="menu_NewPopup">
-                      <menuitem label="&newContact.label;"
-                                accesskey="&newContact.accesskey;"
-                                oncommand="AbNewCard();"/>
-                      <menuitem label="&newListCmd.label;" accesskey="&newListCmd.accesskey;" command="cmd_newlist"/>
-                      <menuitem label="&newAddressBookCmd.label;" accesskey="&newAddressBookCmd.accesskey;" oncommand="AbNewAddressBook()"/>
-                      <menuitem label="&newLDAPDirectoryCmd.label;" id="addLDAP" accesskey="&newLDAPDirectoryCmd.accesskey;" oncommand="AbNewLDAPDirectory()"/>
-                      <menuseparator/>
-                      <menuitem id="menu_newNavigator"/>
-                      <menuitem id="menu_newMessage"
-                                label="&newMessageCmd.label;"
-                                accesskey="&newMessageCmd.accesskey;"
-                                key="key_newMessage"
-                                command="cmd_newMessage"/>
-                      <menuitem id="menu_newEditor"/>
-                    </menupopup>
-                </menu>
-                <menuitem id="menu_close"/>
+          <menupopup id="menu_FilePopup">
+            <menu id="menu_New">
+              <menupopup id="menu_NewPopup">
+                <menuitem id="menu_newContact"
+                          label="&newContact.label;"
+                          accesskey="&newContact.accesskey;"
+                          oncommand="AbNewCard();"/>
+                <menuitem id="menu_newList"
+                          label="&newListCmd.label;"
+                          accesskey="&newListCmd.accesskey;"
+                          command="cmd_newlist"/>
+                <menuitem id="menu_newAddrbook"
+                          label="&newAddressBookCmd.label;"
+                          accesskey="&newAddressBookCmd.accesskey;"
+                          oncommand="AbNewAddressBook();"/>
+                <menuitem id="addLDAP"
+                          label="&newLDAPDirectoryCmd.label;"
+                          accesskey="&newLDAPDirectoryCmd.accesskey;"
+                          oncommand="AbNewLDAPDirectory();"/>
                 <menuseparator/>
-        <menuitem id="menu_printSetup"/>
-        <menuitem id="printPreviewMenuItem"
-                  label="&printPreviewContactViewCmd.label;"
-                  accesskey="&printPreviewContactViewCmd.accesskey;"
-                  command="cmd_printPreviewCard"/>
-        <menuitem id="printPreviewAddressBook" label="&printPreviewAddressBook.label;" accesskey="&printPreviewAddressBook.accesskey;" command="cmd_printPreviewAddressBook"/>
-              <menuitem id="printMenuItem" label="&printContactViewCmd.label;"
-                        accesskey="&printContactViewCmd.accesskey;"
-                        key="key_printCard" command="cmd_printCard"/>
-              <menuitem id="printAddressBook" label="&printAddressBook.label;" accesskey="&printAddressBook.accesskey;" command="cmd_printAddressBook"/>
-            </menupopup>
+                <menuitem id="menu_newNavigator"/>
+                <menuitem id="menu_newMessage"
+                          label="&newMessageCmd.label;"
+                          accesskey="&newMessageCmd.accesskey;"
+                          key="key_newMessage"
+                          command="cmd_newMessage"/>
+                <menuitem id="menu_newEditor"/>
+              </menupopup>
+            </menu>
+            <menuitem id="menu_close"/>
+            <menuseparator/>
+            <menuitem id="menu_printSetup"/>
+            <menuitem id="printPreviewMenuItem"
+                      label="&printPreviewContactViewCmd.label;"
+                      accesskey="&printPreviewContactViewCmd.accesskey;"
+                      command="cmd_printPreviewCard"/>
+            <menuitem id="printPreviewAddressBook"
+                      label="&printPreviewAddressBook.label;"
+                      accesskey="&printPreviewAddressBook.accesskey;"
+                      command="cmd_printPreviewAddressBook"/>
+            <menuitem id="printMenuItem" label="&printContactViewCmd.label;"
+                      accesskey="&printContactViewCmd.accesskey;"
+                      key="key_printCard"
+                      command="cmd_printCard"/>
+            <menuitem id="printAddressBook"
+                      label="&printAddressBook.label;"
+                      accesskey="&printAddressBook.accesskey;"
+                      command="cmd_printAddressBook"/>
+          </menupopup>
         </menu>
-        
+
         <menu id="menu_Edit">
           <menupopup id="menu_EditPopup">
             <menuitem id="menu_undo"/>
@@ -302,21 +284,34 @@
           </menupopup>
         </menu>
         <menu id="menu_View">
-            <menupopup id="menu_View_Popup">
-                <menu id="menu_Toolbars">
-                    <menupopup id="view_toolbars_popup"
-                               onpopupshowing="onViewToolbarsPopupShowing(event)"
-                               oncommand="onViewToolbarCommand(event);">
-                        <menuitem id="menu_showTaskbar"/>
-                        <menuseparator/>
-                        <menuitem id="menu_showCardPane"
-                                  label="&showCardPane.label;"
-                                  accesskey="&showCardPane.accesskey;"
-                                  oncommand="goToggleSplitter('results-splitter', 'menu_showCardPane')"
-                                  checked="true" type="checkbox"/>
-                    </menupopup>
-                </menu>
-                <menuseparator/>
+          <menupopup id="menu_View_Popup">
+            <menu id="menu_Toolbars">
+              <menupopup id="view_toolbars_popup"
+                         onpopupshowing="onViewToolbarsPopupShowing(event);"
+                         oncommand="onViewToolbarCommand(event);">
+                <menuitem id="menu_showTaskbar"/>
+              </menupopup>
+            </menu>
+            <menu id="menu_Layout"
+                  label="&layoutMenu.label;"
+                  accesskey="&layoutMenu.accesskey;">
+              <menupopup id="view_layout_popup"
+                         onpopupshowing="InitViewLayoutMenuPopup(event);">
+                <menuitem id="menu_showDirectoryPane"
+                          label="&showDirectoryPane.label;"
+                          accesskey="&showDirectoryPane.accesskey;"
+                          oncommand="togglePaneSplitter('dirTree-splitter');"
+                          checked="true"
+                          type="checkbox"/>
+                <menuitem id="menu_showCardPane"
+                          label="&showContactPane2.label;"
+                          accesskey="&showContactPane2.accesskey;"
+                          oncommand="togglePaneSplitter('results-splitter');"
+                          checked="true"
+                          type="checkbox"/>
+              </menupopup>
+            </menu>
+            <menuseparator id="viewMenuAfterLayoutSeparator"/>
                 <menu id="menu_ShowNameAs" label="&menu_ShowNameAs.label;" accesskey="&menu_ShowNameAs.accesskey;">
                     <menupopup id="menuShowNameAsPopup">
                         <menuitem type="radio" name="shownameas"
@@ -538,7 +533,125 @@
       
       <!-- card view -->
       <hbox id="CardViewOuterBox" flex="1" persist="height">
-        <vbox id="CardViewBox" style="height:170px; min-height:1px; min-width:1px"/>
+        <vbox id="CardViewBox"
+              flex="1"
+              style="height:170px; min-height:1px; min-width:1px">
+          <vbox id="CardViewInnerBox" collapsed="true" flex="1">
+            <description id="CardTitle"/>
+            <hbox style="width:100%" flex="1">
+              <vbox id="cvbPhoto"
+                    class="cardViewGroup"
+                    align="center"
+                    style="min-width: 10ch; max-width: 10ch;">
+                <image id="cvPhoto" style="max-width: 10ch; max-height: 10ch;"/>
+              </vbox>
+              <vbox flex="1">
+                <vbox id="cvbContact" class="cardViewGroup">
+                  <description class="CardViewHeading" id="cvhContact">&contact.heading;</description>
+                  <description class="CardViewLink" id="cvListNameBox">
+                    <html:p><html:a href="" id="cvListName"/></html:p>
+                  </description>
+                  <description class="CardViewText" id="cvDisplayName"/>
+                  <description class="CardViewText" id="cvNickname"/>
+                  <description class="CardViewLink" id="cvEmail1Box">
+                    <html:a href="" id="cvEmail1"/>
+                  </description>
+                  <description class="CardViewLink" id="cvEmail2Box">
+                    <html:a href="" id="cvEmail2"/>
+                  </description>
+                  <description class="CardViewLink" id="cvScreennameBox">
+                    <html:a href="" id="cvScreenname"/>
+                  </description>
+                </vbox>
+                <vbox id="cvbHome" class="cardViewGroup">
+                  <description class="CardViewHeading" id="cvhHome">&home.heading;</description>
+                  <hbox>
+                    <vbox flex="1">
+                      <description class="CardViewText" id="cvHomeAddress"/>
+                      <description class="CardViewText" id="cvHomeAddress2"/>
+                      <description class="CardViewText" id="cvHomeCityStZip"/>
+                      <description class="CardViewText" id="cvHomeCountry"/>
+                    </vbox>
+                    <vbox id="cvbHomeMapItBox" pack="end">
+                      <button id="cvHomeMapIt"
+                              url=""
+                              label="&mapItButton.label;"
+                              oncommand="MapIt('cvHomeMapIt');"
+                              tooltiptext="&mapIt.tooltip;"/>
+                    </vbox>
+                  </hbox>
+                  <description class="CardViewLink" id="cvHomeWebPageBox">
+                    <html:a onclick="return openLink(event);"
+                            href=""
+                            id="cvHomeWebPage"/>
+                  </description>
+                </vbox>
+                <vbox id="cvbOther" class="cardViewGroup">
+                  <description class="CardViewHeading" id="cvhOther">&other.heading;</description>
+                  <description class="CardViewText" id="cvBirthday"/>
+                  <description class="CardViewText" id="cvCustom1"/>
+                  <description class="CardViewText" id="cvCustom2"/>
+                  <description class="CardViewText" id="cvCustom3"/>
+                  <description class="CardViewText" id="cvCustom4"/>
+                  <description class="CardViewText" id="cvNotes"
+                               style="white-space: pre-wrap;"/>
+                  <hbox>
+                    <image id="cvBuddyIcon"/>
+                  </hbox>
+                </vbox>
+                <!-- the description and addresses groups are only for
+                      mailing lists -->
+                <vbox id="cvbDescription" class="cardViewGroup">
+                  <description class="CardViewHeading" id="cvhDescription">&description.heading;</description>
+                  <description class="CardViewText" id="cvDescription"/>
+                </vbox>
+                <vbox id="cvbAddresses" class="cardViewGroup">
+                  <description class="CardViewHeading" id="cvhAddresses">&addresses.heading;</description>
+                  <vbox id="cvAddresses"/>
+                </vbox>
+              </vbox>
+
+              <spacer style="width:20px"/>
+
+              <vbox flex="1">
+                <vbox id="cvbPhone" class="cardViewGroup">
+                  <description class="CardViewHeading" id="cvhPhone">&phone.heading;</description>
+                  <description class="CardViewText" id="cvPhWork"/>
+                  <description class="CardViewText" id="cvPhHome"/>
+                  <description class="CardViewText" id="cvPhFax"/>
+                  <description class="CardViewText" id="cvPhCellular"/>
+                  <description class="CardViewText" id="cvPhPager"/>
+                </vbox>
+                <vbox id="cvbWork" class="cardViewGroup">
+                  <description class="CardViewHeading" id="cvhWork">&work.heading;</description>
+                  <description class="CardViewText" id="cvJobTitle"/>
+                  <description class="CardViewText" id="cvDepartment"/>
+                  <description class="CardViewText" id="cvCompany"/>
+                  <hbox>
+                    <vbox flex="1">
+                      <description class="CardViewText" id="cvWorkAddress"/>
+                      <description class="CardViewText" id="cvWorkAddress2"/>
+                      <description class="CardViewText" id="cvWorkCityStZip"/>
+                      <description class="CardViewText" id="cvWorkCountry"/>
+                    </vbox>
+                    <vbox id="cvbWorkMapItBox" pack="end">
+                      <button id="cvWorkMapIt"
+                              url=""
+                              label="&mapItButton.label;"
+                              oncommand="MapIt('cvWorkMapIt');"
+                              tooltiptext="&mapIt.tooltip;"/>
+                    </vbox>
+                  </hbox>
+                  <description class="CardViewLink" id="cvWorkWebPageBox">
+                    <html:a onclick="return openLink(event);"
+                            href=""
+                            id="cvWorkWebPage"/>
+                  </description>
+                </vbox>
+              </vbox>
+            </hbox>
+          </vbox>
+        </vbox>
       </hbox>
     </vbox>
   </hbox>

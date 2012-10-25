@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 2 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Corporation code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Bas Schouten <bschouten@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef MOZILLA_GFX_DRAWTARGETD2D_H_
 #define MOZILLA_GFX_DRAWTARGETD2D_H_
@@ -52,12 +20,17 @@
 #include <unordered_set>
 #endif
 
+struct IDWriteFactory;
+
 namespace mozilla {
 namespace gfx {
 
 class SourceSurfaceD2DTarget;
 class SourceSurfaceD2D;
 class GradientStopsD2D;
+class ScaledFontDWrite;
+
+const int32_t kLayerCacheSize = 5;
 
 struct PrivateD3D10DataD2D
 {
@@ -150,15 +123,23 @@ public:
   bool Init(const IntSize &aSize, SurfaceFormat aFormat);
   bool Init(ID3D10Texture2D *aTexture, SurfaceFormat aFormat);
   bool InitD3D10Data();
+  uint32_t GetByteSize() const;
+  TemporaryRef<ID2D1Layer> GetCachedLayer();
+  void PopCachedLayer(ID2D1RenderTarget *aRT);
 
   static ID2D1Factory *factory();
   static TemporaryRef<ID2D1StrokeStyle> CreateStrokeStyleForOptions(const StrokeOptions &aStrokeOptions);
+  static IDWriteFactory *GetDWriteFactory();
 
   operator std::string() const {
     std::stringstream stream;
     stream << "DrawTargetD2D(" << this << ")";
     return stream.str();
   }
+
+  static uint64_t mVRAMUsageDT;
+  static uint64_t mVRAMUsageSS;
+
 private:
   friend class AutoSaveRestoreClippedOut;
   friend class SourceSurfaceD2DTarget;
@@ -187,20 +168,35 @@ private:
   ID2D1RenderTarget *GetRTForOperation(CompositionOp aOperator, const Pattern &aPattern);
   void FinalizeRTForOperation(CompositionOp aOperator, const Pattern &aPattern, const Rect &aBounds);  void EnsureViews();
   void PopAllClips();
+  void PushClipsToRT(ID2D1RenderTarget *aRT);
+  void PopClipsFromRT(ID2D1RenderTarget *aRT);
 
-  TemporaryRef<ID2D1RenderTarget> CreateRTForTexture(ID3D10Texture2D *aTexture);
+  // This function ensures mCurrentClipMaskTexture contains a texture containing
+  // a mask corresponding with the current DrawTarget clip.
+  void EnsureClipMaskTexture();
+
+  bool FillGlyphsManual(ScaledFontDWrite *aFont,
+                        const GlyphBuffer &aBuffer,
+                        const Color &aColor,
+                        IDWriteRenderingParams *aParams,
+                        const DrawOptions &aOptions = DrawOptions());
+
+  TemporaryRef<ID2D1RenderTarget> CreateRTForTexture(ID3D10Texture2D *aTexture, SurfaceFormat aFormat);
   TemporaryRef<ID2D1Geometry> GetClippedGeometry();
 
   TemporaryRef<ID2D1Brush> CreateBrushForPattern(const Pattern &aPattern, Float aAlpha = 1.0f);
 
-  TemporaryRef<ID3D10Texture1D> CreateGradientTexture(const GradientStopsD2D *aStops);
+  TemporaryRef<ID3D10Texture2D> CreateGradientTexture(const GradientStopsD2D *aStops);
+  TemporaryRef<ID3D10Texture2D> CreateTextureForAnalysis(IDWriteGlyphRunAnalysis *aAnalysis, const IntRect &aBounds);
 
-  // This creates a partially uploaded bitmap for a SourceSurfaceD2D that is
-  // too big to fit in a bitmap. It adjusts the passed Matrix to accomodate the
-  // partial upload.
-  TemporaryRef<ID2D1Bitmap> CreatePartialBitmapForSurface(SourceSurfaceD2D *aSurface, Matrix &aMatrix);
+  // This creates a (partially) uploaded bitmap for a DataSourceSurface. It
+  // uploads the minimum requirement and possibly downscales. It adjusts the
+  // input Matrix to compensate.
+  TemporaryRef<ID2D1Bitmap> CreatePartialBitmapForSurface(DataSourceSurface *aSurface, Matrix &aMatrix,
+                                                          ExtendMode aExtendMode);
 
   void SetupEffectForRadialGradient(const RadialGradientPattern *aPattern);
+  void SetupStateForRendering();
 
   static const uint32_t test = 4;
 
@@ -208,7 +204,12 @@ private:
 
   RefPtr<ID3D10Device1> mDevice;
   RefPtr<ID3D10Texture2D> mTexture;
+  RefPtr<ID3D10Texture2D> mCurrentClipMaskTexture;
+  RefPtr<ID2D1PathGeometry> mCurrentClippedGeometry;
   mutable RefPtr<ID2D1RenderTarget> mRT;
+
+  // We store this to prevent excessive SetTextRenderingParams calls.
+  RefPtr<IDWriteRenderingParams> mTextRenderingParams;
 
   // Temporary texture and render target used for supporting alternative operators.
   RefPtr<ID3D10Texture2D> mTempTexture;
@@ -226,6 +227,13 @@ private:
     RefPtr<PathD2D> mPath;
   };
   std::vector<PushedClip> mPushedClips;
+
+  // We cache ID2D1Layer objects as it causes D2D to keep around textures that
+  // serve as the temporary surfaces for these operations. As texture creation
+  // is quite expensive this considerably improved performance.
+  // Careful here, RAII will not ensure destruction of the RefPtrs.
+  RefPtr<ID2D1Layer> mCachedLayers[kLayerCacheSize];
+  uint32_t mCurrentCachedLayer;
   
   // The latest snapshot of this surface. This needs to be told when this
   // target is modified. We keep it alive as a cache.
@@ -239,6 +247,7 @@ private:
   bool mClipsArePushed;
   PrivateD3D10DataD2D *mPrivateData;
   static ID2D1Factory *mFactory;
+  static IDWriteFactory *mDWriteFactory;
 };
 
 }

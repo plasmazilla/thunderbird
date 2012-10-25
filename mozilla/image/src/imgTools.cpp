@@ -1,40 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2007
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Justin Dolske <dolske@mozilla.com> (original author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "imgTools.h"
 #include "nsCOMPtr.h"
@@ -134,12 +102,14 @@ NS_IMETHODIMP imgTools::EncodeImage(imgIContainer *aContainer,
                                     const nsAString& aOutputOptions,
                                     nsIInputStream **aStream)
 {
-    return EncodeScaledImage(aContainer,
-                             aMimeType,
-                             0,
-                             0,
-                             aOutputOptions,
-                             aStream);
+  nsresult rv;
+
+  // Use frame 0 from the image container.
+  nsRefPtr<gfxImageSurface> frame;
+  rv = GetFirstImageFrame(aContainer, getter_AddRefs(frame));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return EncodeImageData(frame, aMimeType, aOutputOptions, aStream);
 }
 
 NS_IMETHODIMP imgTools::EncodeScaledImage(imgIContainer *aContainer,
@@ -149,19 +119,110 @@ NS_IMETHODIMP imgTools::EncodeScaledImage(imgIContainer *aContainer,
                                           const nsAString& aOutputOptions,
                                           nsIInputStream **aStream)
 {
-  nsresult rv;
-  bool doScaling = true;
-  PRUint8 *bitmapData;
-  PRUint32 bitmapDataLength, strideSize;
+  NS_ENSURE_ARG(aScaledWidth >= 0 && aScaledHeight >= 0);
 
   // If no scaled size is specified, we'll just encode the image at its
   // original size (no scaling).
   if (aScaledWidth == 0 && aScaledHeight == 0) {
-    doScaling = false;
-  } else {
-    NS_ENSURE_ARG(aScaledWidth > 0);
-    NS_ENSURE_ARG(aScaledHeight > 0);
+    return EncodeImage(aContainer, aMimeType, aOutputOptions, aStream);
   }
+
+  // Use frame 0 from the image container.
+  nsRefPtr<gfxImageSurface> frame;
+  nsresult rv = GetFirstImageFrame(aContainer, getter_AddRefs(frame));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  PRInt32 frameWidth = frame->Width(), frameHeight = frame->Height();
+
+  // If the given width or height is zero we'll replace it with the image's
+  // original dimensions.
+  if (aScaledWidth == 0) {
+    aScaledWidth = frameWidth;
+  } else if (aScaledHeight == 0) {
+    aScaledHeight = frameHeight;
+  }
+
+  // Create a temporary image surface
+  nsRefPtr<gfxImageSurface> dest = new gfxImageSurface(gfxIntSize(aScaledWidth, aScaledHeight),
+                                                       gfxASurface::ImageFormatARGB32);
+  gfxContext ctx(dest);
+
+  // Set scaling
+  gfxFloat sw = (double) aScaledWidth / frameWidth;
+  gfxFloat sh = (double) aScaledHeight / frameHeight;
+  ctx.Scale(sw, sh);
+
+  // Paint a scaled image
+  ctx.SetOperator(gfxContext::OPERATOR_SOURCE);
+  ctx.SetSource(frame);
+  ctx.Paint();
+
+  return EncodeImageData(dest, aMimeType, aOutputOptions, aStream);
+}
+
+NS_IMETHODIMP imgTools::EncodeCroppedImage(imgIContainer *aContainer,
+                                           const nsACString& aMimeType,
+                                           PRInt32 aOffsetX,
+                                           PRInt32 aOffsetY,
+                                           PRInt32 aWidth,
+                                           PRInt32 aHeight,
+                                           const nsAString& aOutputOptions,
+                                           nsIInputStream **aStream)
+{
+  NS_ENSURE_ARG(aOffsetX >= 0 && aOffsetY >= 0 && aWidth >= 0 && aHeight >= 0);
+
+  // Offsets must be zero when no width and height are given or else we're out
+  // of bounds.
+  NS_ENSURE_ARG(aWidth + aHeight > 0 || aOffsetX + aOffsetY == 0);
+
+  // If no size is specified then we'll preserve the image's original dimensions
+  // and don't need to crop.
+  if (aWidth == 0 && aHeight == 0) {
+    return EncodeImage(aContainer, aMimeType, aOutputOptions, aStream);
+  }
+
+  // Use frame 0 from the image container.
+  nsRefPtr<gfxImageSurface> frame;
+  nsresult rv = GetFirstImageFrame(aContainer, getter_AddRefs(frame));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  PRInt32 frameWidth = frame->Width(), frameHeight = frame->Height();
+
+  // If the given width or height is zero we'll replace it with the image's
+  // original dimensions.
+  if (aWidth == 0) {
+    aWidth = frameWidth;
+  } else if (aHeight == 0) {
+    aHeight = frameHeight;
+  }
+
+  // Check that the given crop rectangle is within image bounds.
+  NS_ENSURE_ARG(frameWidth >= aOffsetX + aWidth &&
+                frameHeight >= aOffsetY + aHeight);
+
+  // Create a temporary image surface
+  nsRefPtr<gfxImageSurface> dest = new gfxImageSurface(gfxIntSize(aWidth, aHeight),
+                                                       gfxASurface::ImageFormatARGB32);
+  gfxContext ctx(dest);
+
+  // Set translate
+  ctx.Translate(gfxPoint(-aOffsetX, -aOffsetY));
+
+  // Paint a scaled image
+  ctx.SetOperator(gfxContext::OPERATOR_SOURCE);
+  ctx.SetSource(frame);
+  ctx.Paint();
+
+  return EncodeImageData(dest, aMimeType, aOutputOptions, aStream);
+}
+
+NS_IMETHODIMP imgTools::EncodeImageData(gfxImageSurface *aSurface,
+                                        const nsACString& aMimeType,
+                                        const nsAString& aOutputOptions,
+                                        nsIInputStream **aStream)
+{
+  PRUint8 *bitmapData;
+  PRUint32 bitmapDataLength, strideSize;
 
   // Get an image encoder for the media type
   nsCAutoString encoderCID(
@@ -171,65 +232,39 @@ NS_IMETHODIMP imgTools::EncodeScaledImage(imgIContainer *aContainer,
   if (!encoder)
     return NS_IMAGELIB_ERROR_NO_ENCODER;
 
-  // Use frame 0 from the image container.
-  nsRefPtr<gfxImageSurface> frame;
-  rv = aContainer->CopyFrame(imgIContainer::FRAME_CURRENT, true,
-                             getter_AddRefs(frame));
-  NS_ENSURE_SUCCESS(rv, rv);
-  if (!frame)
-    return NS_ERROR_NOT_AVAILABLE;
-
-  PRInt32 w = frame->Width(), h = frame->Height();
-  if (!w || !h)
+  bitmapData = aSurface->Data();
+  if (!bitmapData)
     return NS_ERROR_FAILURE;
 
-  nsRefPtr<gfxImageSurface> dest;
+  strideSize = aSurface->Stride();
 
-  if (!doScaling) {
-    // If we're not scaling the image, use the actual width/height.
-    aScaledWidth  = w;
-    aScaledHeight = h;
-
-    bitmapData = frame->Data();
-    if (!bitmapData)
-      return NS_ERROR_FAILURE;
-
-    strideSize = frame->Stride();
-    bitmapDataLength = aScaledHeight * strideSize;
-
-  } else {
-    // Prepare to draw a scaled version of the image to a temporary surface...
-
-    // Create a temporary image surface
-    dest = new gfxImageSurface(gfxIntSize(aScaledWidth, aScaledHeight),
-                               gfxASurface::ImageFormatARGB32);
-    gfxContext ctx(dest);
-
-    // Set scaling
-    gfxFloat sw = (double) aScaledWidth / w;
-    gfxFloat sh = (double) aScaledHeight / h;
-    ctx.Scale(sw, sh);
-
-    // Paint a scaled image
-    ctx.SetOperator(gfxContext::OPERATOR_SOURCE);
-    ctx.SetSource(frame);
-    ctx.Paint();
-
-    bitmapData = dest->Data();
-    strideSize = dest->Stride();
-    bitmapDataLength = aScaledHeight * strideSize;
-  }
+  PRInt32 width = aSurface->Width(), height = aSurface->Height();
+  bitmapDataLength = height * strideSize;
 
   // Encode the bitmap
-  rv = encoder->InitFromData(bitmapData,
-                             bitmapDataLength,
-                             aScaledWidth,
-                             aScaledHeight,
-                             strideSize,
-                             imgIEncoder::INPUT_FORMAT_HOSTARGB,
-                             aOutputOptions);
+  nsresult rv = encoder->InitFromData(bitmapData,
+                                      bitmapDataLength,
+                                      width,
+                                      height,
+                                      strideSize,
+                                      imgIEncoder::INPUT_FORMAT_HOSTARGB,
+                                      aOutputOptions);
 
   NS_ENSURE_SUCCESS(rv, rv);
 
   return CallQueryInterface(encoder, aStream);
+}
+
+NS_IMETHODIMP imgTools::GetFirstImageFrame(imgIContainer *aContainer,
+                                           gfxImageSurface **aSurface)
+{
+  nsRefPtr<gfxImageSurface> frame;
+  nsresult rv = aContainer->CopyFrame(imgIContainer::FRAME_CURRENT, true,
+                                      getter_AddRefs(frame));
+  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_TRUE(frame, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(frame->Width() && frame->Height(), NS_ERROR_FAILURE);
+
+  frame.forget(aSurface);
+  return NS_OK;
 }

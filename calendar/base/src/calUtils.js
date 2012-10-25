@@ -1,42 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Calendar component utils.
- *
- * The Initial Developer of the Original Code is
- *   Joey Minta <jminta@gmail.com>
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Philipp Kewisch <mozilla@kewis.ch>
- *   Daniel Boelzle <daniel.boelzle@sun.com>
- *   Berend Cornelius <berend.cornelius@sun.com>
- *   Roman Kaeppeler <rkaeppeler@web.de>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* This file contains commonly used functions in a centralized place so that
  * various components (and other js scopes) don't need to replicate them. Note
@@ -398,7 +362,17 @@ function userCanModifyItem(aItem) {
  * @return              True if there is a match
  */
 function attendeeMatchesAddresses(anAttendee, addresses) {
-    let attId = anAttendee.id.toLowerCase().replace(/^mailto:/, "");
+    let attId = anAttendee.id;
+    if (!attId.match(/^mailto:/i)) {
+        // Looks like its not a normal attendee, possibly urn:uuid:...
+        // Try getting the email through the EMAIL property.
+        let emailProp = anAttendee.getProperty("EMAIL");
+        if (emailProp) {
+            attId = emailProp;
+        }
+    }
+
+    attId = attId.toLowerCase().replace(/^mailto:/, "");
     for each (let address in addresses) {
         if (attId == address.toLowerCase().replace(/^mailto:/, "")) {
             return true;
@@ -686,13 +660,66 @@ function getLocalizedPref(aPrefName, aDefault) {
  * @return array of category names
  */
 function getPrefCategoriesArray() {
-    var categories = getLocalizedPref("calendar.categories.names", null);
+    let categories = getLocalizedPref("calendar.categories.names", null);
+
     // If no categories are configured load a default set from properties file
-    if (!categories || categories == "") {
-        categories = calGetString("categories", "categories2");
-        setLocalizedPref("calendar.categories.names", categories);
+    if (!categories) {
+        categories = setupDefaultCategories();
     }
     return categoriesStringToArray(categories);
+}
+
+/**
+ * Sets up the default categories from the localized string
+ *
+ * @return      The default set of categories as a comma separated string.
+ */
+function setupDefaultCategories() {
+    // First, set up the category names
+    let categories = calGetString("categories", "categories2");
+    setLocalizedPref("calendar.categories.names", categories);
+
+    // Now, initialize the category default colors
+    let categoryArray = categoriesStringToArray(categories);
+    for each (let category in categoryArray) {
+        let prefName = formatStringForCSSRule(category);
+        setPref("calendar.category.color." + prefName,
+                hashColor(category),
+                "CHAR");
+    }
+
+    // Return the list of categories for further processing
+    return categories;
+}
+
+/**
+ * Hash the given string into a color from the color palette of the standard
+ * color picker.
+ *
+ * @param str           The string to hash into a color.
+ * @return              The hashed color.
+ */
+function hashColor(str) {
+    // This is the palette of colors in the current colorpicker implementation.
+    // Unfortunately, there is no easy way to extract these colors from the
+    // binding directly.
+    const colorPalette = ["#FFFFFF", "#FFCCCC", "#FFCC99", "#FFFF99", "#FFFFCC",
+                          "#99FF99", "#99FFFF", "#CCFFFF", "#CCCCFF", "#FFCCFF",
+                          "#CCCCCC", "#FF6666", "#FF9966", "#FFFF66", "#FFFF33",
+                          "#66FF99", "#33FFFF", "#66FFFF", "#9999FF", "#FF99FF",
+                          "#C0C0C0", "#FF0000", "#FF9900", "#FFCC66", "#FFFF00",
+                          "#33FF33", "#66CCCC", "#33CCFF", "#6666CC", "#CC66CC",
+                          "#999999", "#CC0000", "#FF6600", "#FFCC33", "#FFCC00",
+                          "#33CC00", "#00CCCC", "#3366FF", "#6633FF", "#CC33CC",
+                          "#666666", "#990000", "#CC6600", "#CC9933", "#999900",
+                          "#009900", "#339999", "#3333FF", "#6600CC", "#993399",
+                          "#333333", "#660000", "#993300", "#996633", "#666600",
+                          "#006600", "#336666", "#000099", "#333399", "#663366",
+                          "#000000", "#330000", "#663300", "#663333", "#333300",
+                          "#003300", "#003333", "#000066", "#330099", "#330033"];
+
+    let sum = Array.map(str || " ", function(e) e.charCodeAt(0)).reduce(function(a,b) a + b);
+    return colorPalette[sum % colorPalette.length];
 }
 
 /**

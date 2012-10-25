@@ -1,68 +1,55 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla.org.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corp.
- * Portions created by the Initial Developer are Copyright (C) 2003
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Daniel Glazman (glazman@netscape.com) (Original author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <math.h>
 
-#include "nsHTMLEditor.h"
-
-#include "nsIContent.h"
-#include "nsIDocument.h"
-#include "nsIEditor.h"
-#include "nsIPresShell.h"
-
-#include "nsISelection.h"
-
-#include "nsTextEditUtils.h"
-#include "nsEditorUtils.h"
-#include "nsHTMLEditUtils.h"
-#include "nsTextEditRules.h"
-#include "nsHTMLEditRules.h"
-
-#include "nsIDOMHTMLElement.h"
-#include "nsIDOMNodeList.h"
-
-#include "nsIDOMEventTarget.h"
-
-#include "nsIDOMCSSValue.h"
-#include "nsIDOMCSSPrimitiveValue.h"
-#include "nsIDOMRGBColor.h"
-
 #include "mozilla/Preferences.h"
+#include "mozilla/Selection.h"
 #include "mozilla/dom/Element.h"
+#include "mozilla/mozalloc.h"
+#include "nsAString.h"
+#include "nsAlgorithm.h"
+#include "nsAutoPtr.h"
+#include "nsCOMPtr.h"
+#include "nsDebug.h"
+#include "nsEditProperty.h"
+#include "nsEditRules.h"
+#include "nsEditor.h"
+#include "nsEditorUtils.h"
+#include "nsError.h"
+#include "nsGkAtoms.h"
+#include "nsHTMLCSSUtils.h"
+#include "nsHTMLEditRules.h"
+#include "nsHTMLEditUtils.h"
+#include "nsHTMLEditor.h"
+#include "nsHTMLObjectResizer.h"
+#include "nsIContent.h"
+#include "nsIDOMCSSPrimitiveValue.h"
+#include "nsIDOMCSSStyleDeclaration.h"
+#include "nsIDOMCSSValue.h"
+#include "nsIDOMElement.h"
+#include "nsIDOMEventListener.h"
+#include "nsIDOMEventTarget.h"
+#include "nsIDOMNode.h"
+#include "nsIDOMRGBColor.h"
+#include "nsIDOMWindow.h"
+#include "nsIEditor.h"
+#include "nsIHTMLEditor.h"
+#include "nsIHTMLObjectResizer.h"
+#include "nsINode.h"
+#include "nsIPresShell.h"
+#include "nsISelection.h"
+#include "nsISupportsImpl.h"
+#include "nsISupportsUtils.h"
+#include "nsLiteralString.h"
+#include "nsReadableUtils.h"
+#include "nsString.h"
+#include "nsStringFwd.h"
+#include "nsTextEditRules.h"
+#include "nsTextEditUtils.h"
+#include "nscore.h"
+#include "prtypes.h"
 
 using namespace mozilla;
 
@@ -79,16 +66,13 @@ nsHTMLEditor::AbsolutePositionSelection(bool aEnabled)
   
   // the line below does not match the code; should it be removed?
   // Find out if the selection is collapsed:
-  nsCOMPtr<nsISelection> selection;
-  nsresult res = GetSelection(getter_AddRefs(selection));
-  NS_ENSURE_SUCCESS(res, res);
+  nsRefPtr<Selection> selection = GetSelection();
   NS_ENSURE_TRUE(selection, NS_ERROR_NULL_POINTER);
 
-  nsTextRulesInfo ruleInfo(aEnabled ?
-                           nsTextEditRules::kSetAbsolutePosition :
-                           nsTextEditRules::kRemoveAbsolutePosition);
+  nsTextRulesInfo ruleInfo(aEnabled ? kOpSetAbsolutePosition :
+                                      kOpRemoveAbsolutePosition);
   bool cancel, handled;
-  res = mRules->WillDoAction(selection, &ruleInfo, &cancel, &handled);
+  nsresult res = mRules->WillDoAction(selection, &ruleInfo, &cancel, &handled);
   if (NS_FAILED(res) || cancel)
     return res;
   
@@ -195,14 +179,12 @@ nsHTMLEditor::RelativeChangeZIndex(PRInt32 aChange)
   
   // brade: can we get rid of this comment?
   // Find out if the selection is collapsed:
-  nsCOMPtr<nsISelection> selection;
-  nsresult res = GetSelection(getter_AddRefs(selection));
-  NS_ENSURE_SUCCESS(res, res);
+  nsRefPtr<Selection> selection = GetSelection();
   NS_ENSURE_TRUE(selection, NS_ERROR_NULL_POINTER);
-  nsTextRulesInfo ruleInfo((aChange < 0) ? nsTextEditRules::kDecreaseZIndex:
-                                           nsTextEditRules::kIncreaseZIndex);
+  nsTextRulesInfo ruleInfo(aChange < 0 ? kOpDecreaseZIndex :
+                                         kOpIncreaseZIndex);
   bool cancel, handled;
-  res = mRules->WillDoAction(selection, &ruleInfo, &cancel, &handled);
+  nsresult res = mRules->WillDoAction(selection, &ruleInfo, &cancel, &handled);
   if (cancel || NS_FAILED(res))
     return res;
   
@@ -527,7 +509,6 @@ nsHTMLEditor::AbsolutelyPositionElement(nsIDOMElement * aElement,
     return NS_OK;
 
   nsAutoEditBatch batchIt(this);
-  nsresult res;
 
   if (aEnabled) {
     PRInt32 x, y;
@@ -544,25 +525,17 @@ nsHTMLEditor::AbsolutelyPositionElement(nsIDOMElement * aElement,
 
     // we may need to create a br if the positioned element is alone in its
     // container
-    nsCOMPtr<nsIDOMNode> parentNode;
-    res = aElement->GetParentNode(getter_AddRefs(parentNode));
-    NS_ENSURE_SUCCESS(res, res);
+    nsCOMPtr<nsINode> element = do_QueryInterface(aElement);
+    NS_ENSURE_STATE(element);
 
-    nsCOMPtr<nsIDOMNodeList> childNodes;
-    res = parentNode->GetChildNodes(getter_AddRefs(childNodes));
-    NS_ENSURE_SUCCESS(res, res);
-    NS_ENSURE_TRUE(childNodes, NS_ERROR_NULL_POINTER);
-    PRUint32 childCount;
-    res = childNodes->GetLength(&childCount);
-    NS_ENSURE_SUCCESS(res, res);
-
-    if (childCount == 1) {
+    nsINode* parentNode = element->GetNodeParent();
+    if (parentNode->GetChildCount() == 1) {
       nsCOMPtr<nsIDOMNode> brNode;
-      res = CreateBR(parentNode, 0, address_of(brNode));
+      nsresult res = CreateBR(parentNode->AsDOMNode(), 0, address_of(brNode));
+      NS_ENSURE_SUCCESS(res, res);
     }
   }
   else {
-    res = NS_OK;
     mHTMLCSSUtils->RemoveCSSProperty(aElement,
                                      nsEditProperty::cssPosition,
                                      EmptyString(), false);
@@ -589,12 +562,13 @@ nsHTMLEditor::AbsolutelyPositionElement(nsIDOMElement * aElement,
     if (element && element->IsHTML(nsGkAtoms::div) && !HasStyleOrIdOrClass(element)) {
       nsHTMLEditRules* htmlRules = static_cast<nsHTMLEditRules*>(mRules.get());
       NS_ENSURE_TRUE(htmlRules, NS_ERROR_FAILURE);
-      res = htmlRules->MakeSureElemStartsOrEndsOnCR(aElement);
+      nsresult res = htmlRules->MakeSureElemStartsOrEndsOnCR(aElement);
       NS_ENSURE_SUCCESS(res, res);
       res = RemoveContainer(aElement);
+      NS_ENSURE_SUCCESS(res, res);
     }
   }
-  return res;
+  return NS_OK;
 }
 
 NS_IMETHODIMP

@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Tim Copperfield <timecop@network.email.ne.jp>
- *   Roland Mainz <roland.mainz@informatik.med.uni-giessen.de>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 #ifdef MOZ_WIDGET_ANDROID
 // For ScreenOrientation.h and Hal.h
 #include "base/basictypes.h"
@@ -52,7 +19,6 @@
 #include "nsPluginHost.h"
 #include "nsPluginSafety.h"
 #include "nsPluginLogging.h"
-#include "nsIPrivateBrowsingService.h"
 #include "nsContentUtils.h"
 
 #include "nsIDocument.h"
@@ -74,9 +40,16 @@
 #include "mozilla/Mutex.h"
 #include "mozilla/CondVar.h"
 #include "AndroidBridge.h"
-#include "IPCMessageUtils.h"
 #include "mozilla/dom/ScreenOrientation.h"
 #include "mozilla/Hal.h"
+#include "GLContextProvider.h"
+#include "TexturePoolOGL.h"
+
+using namespace mozilla;
+using namespace mozilla::gl;
+
+typedef nsNPAPIPluginInstance::TextureInfo TextureInfo;
+typedef nsNPAPIPluginInstance::VideoInfo VideoInfo;
 
 class PluginEventRunnable : public nsRunnable
 {
@@ -100,13 +73,82 @@ private:
   bool mCanceled;
 };
 
+static nsRefPtr<GLContext> sPluginContext = nsnull;
+
+static bool EnsureGLContext()
+{
+  if (!sPluginContext) {
+    sPluginContext = GLContextProvider::CreateOffscreen(gfxIntSize(16, 16));
+  }
+
+  return sPluginContext != nsnull;
+}
+
+class SharedPluginTexture {
+public:
+  NS_INLINE_DECL_REFCOUNTING(SharedPluginTexture)
+
+  SharedPluginTexture() : mLock("SharedPluginTexture.mLock")
+  {
+  }
+
+  ~SharedPluginTexture()
+  {
+  }
+
+  TextureInfo Lock()
+  {
+    if (!EnsureGLContext()) {
+      mTextureInfo.mTexture = 0;
+      return mTextureInfo;
+    }
+
+    if (!mTextureInfo.mTexture && sPluginContext->MakeCurrent()) {
+      sPluginContext->fGenTextures(1, &mTextureInfo.mTexture);
+    }
+
+    mLock.Lock();
+    return mTextureInfo;
+  }
+
+  void Release(TextureInfo& aTextureInfo)
+  {
+    mTextureInfo = aTextureInfo;
+    mLock.Unlock();
+  } 
+
+  SharedTextureHandle CreateSharedHandle()
+  {
+    MutexAutoLock lock(mLock);
+
+    if (!EnsureGLContext())
+      return nsnull;
+
+    if (mTextureInfo.mWidth == 0 || mTextureInfo.mHeight == 0)
+      return nsnull;
+
+    SharedTextureHandle handle = sPluginContext->CreateSharedHandle(TextureImage::ThreadShared, (void*)mTextureInfo.mTexture, GLContext::TextureID);
+
+    // We want forget about this now, so delete the texture. Assigning it to zero
+    // ensures that we create a new one in Lock()
+    sPluginContext->fDeleteTextures(1, &mTextureInfo.mTexture);
+    mTextureInfo.mTexture = 0;
+    
+    return handle;
+  }
+
+private:
+  TextureInfo mTextureInfo;
+
+  Mutex mLock;
+};
+
 #endif
 
 using namespace mozilla;
 using namespace mozilla::plugins::parent;
 
 static NS_DEFINE_IID(kIOutputStreamIID, NS_IOUTPUTSTREAM_IID);
-static NS_DEFINE_IID(kIPluginStreamListenerIID, NS_IPLUGINSTREAMLISTENER_IID);
 
 NS_IMPL_THREADSAFE_ISUPPORTS0(nsNPAPIPluginInstance)
 
@@ -114,12 +156,12 @@ nsNPAPIPluginInstance::nsNPAPIPluginInstance()
   :
     mDrawingModel(kDefaultDrawingModel),
 #ifdef MOZ_WIDGET_ANDROID
-    mSurface(nsnull),
     mANPDrawingModel(0),
     mOnScreen(true),
     mFullScreenOrientation(dom::eScreenOrientation_LandscapePrimary),
     mWakeLocked(false),
     mFullScreen(false),
+    mInverted(false),
 #endif
     mRunning(NOT_STARTED),
     mWindowless(false),
@@ -154,10 +196,6 @@ nsNPAPIPluginInstance::~nsNPAPIPluginInstance()
     PR_Free((void *)mMIMEType);
     mMIMEType = nsnull;
   }
-
-#if MOZ_WIDGET_ANDROID
-  SetWakeLock(false);
-#endif
 }
 
 void
@@ -165,6 +203,22 @@ nsNPAPIPluginInstance::Destroy()
 {
   Stop();
   mPlugin = nsnull;
+
+#if MOZ_WIDGET_ANDROID
+  if (mContentSurface)
+    mContentSurface->SetFrameAvailableCallback(nsnull);
+  
+  mContentTexture = nsnull;
+  mContentSurface = nsnull;
+
+  std::map<void*, VideoInfo*>::iterator it;
+  for (it = mVideos.begin(); it != mVideos.end(); it++) {
+    it->second->mSurfaceTexture->SetFrameAvailableCallback(nsnull);
+    delete it->second;
+  }
+  mVideos.clear();
+  SetWakeLock(false);
+#endif
 }
 
 TimeStamp
@@ -189,7 +243,7 @@ nsresult nsNPAPIPluginInstance::Initialize(nsNPAPIPlugin *aPlugin, nsIPluginInst
       PL_strcpy(mMIMEType, aMIMEType);
     }
   }
-
+  
   return Start();
 }
 
@@ -553,14 +607,15 @@ nsNPAPIPluginInstance::NewStreamFromPlugin(const char* type, const char* target,
 
 nsresult
 nsNPAPIPluginInstance::NewStreamListener(const char* aURL, void* notifyData,
-                                         nsIPluginStreamListener** listener)
+                                         nsNPAPIPluginStreamListener** listener)
 {
-  nsNPAPIPluginStreamListener* stream = new nsNPAPIPluginStreamListener(this, notifyData, aURL);
-  NS_ENSURE_TRUE(stream, NS_ERROR_OUT_OF_MEMORY);
+  nsRefPtr<nsNPAPIPluginStreamListener> sl = new nsNPAPIPluginStreamListener(this, notifyData, aURL);
 
-  mStreamListeners.AppendElement(stream);
+  mStreamListeners.AppendElement(sl);
 
-  return stream->QueryInterface(kIPluginStreamListenerIID, (void**)listener);
+  sl.forget(listener);
+
+  return NS_OK;
 }
 
 nsresult nsNPAPIPluginInstance::Print(NPPrint* platformPrint)
@@ -803,8 +858,26 @@ void nsNPAPIPluginInstance::NotifyFullScreen(bool aFullScreen)
   SendLifecycleEvent(this, mFullScreen ? kEnterFullScreen_ANPLifecycleAction : kExitFullScreen_ANPLifecycleAction);
 
   if (mFullScreen && mFullScreenOrientation != dom::eScreenOrientation_None) {
-    AndroidBridge::Bridge()->LockScreenOrientation(dom::ScreenOrientationWrapper(static_cast<mozilla::dom::ScreenOrientation>(mFullScreenOrientation)));
+    AndroidBridge::Bridge()->LockScreenOrientation(mFullScreenOrientation);
   }
+}
+
+void nsNPAPIPluginInstance::NotifySize(nsIntSize size)
+{
+  if (kOpenGL_ANPDrawingModel != GetANPDrawingModel() ||
+      size == mCurrentSize)
+    return;
+
+  mCurrentSize = size;
+
+  ANPEvent event;
+  event.inSize = sizeof(ANPEvent);
+  event.eventType = kDraw_ANPEventType;
+  event.data.draw.model = kOpenGL_ANPDrawingModel;
+  event.data.draw.data.surfaceSize.width = size.width;
+  event.data.draw.data.surfaceSize.height = size.height;
+
+  HandleEvent(&event, nsnull);
 }
 
 void nsNPAPIPluginInstance::SetANPDrawingModel(PRUint32 aModel)
@@ -842,7 +915,7 @@ void nsNPAPIPluginInstance::SetFullScreenOrientation(PRUint32 orientation)
     // We're already fullscreen so immediately apply the orientation change
 
     if (mFullScreenOrientation != dom::eScreenOrientation_None) {
-      AndroidBridge::Bridge()->LockScreenOrientation(dom::ScreenOrientationWrapper(static_cast<mozilla::dom::ScreenOrientation>(mFullScreenOrientation)));
+      AndroidBridge::Bridge()->LockScreenOrientation(mFullScreenOrientation);
     } else if (oldOrientation != dom::eScreenOrientation_None) {
       // We applied an orientation when we entered fullscreen, but
       // we don't want it anymore
@@ -865,6 +938,128 @@ void nsNPAPIPluginInstance::SetWakeLock(bool aLocked)
   hal::ModifyWakeLock(NS_LITERAL_STRING("nsNPAPIPluginInstance"),
                       mWakeLocked ? hal::WAKE_LOCK_ADD_ONE : hal::WAKE_LOCK_REMOVE_ONE,
                       hal::WAKE_LOCK_NO_CHANGE);
+}
+
+void nsNPAPIPluginInstance::EnsureSharedTexture()
+{
+  if (!mContentTexture)
+    mContentTexture = new SharedPluginTexture();
+}
+
+GLContext* nsNPAPIPluginInstance::GLContext()
+{
+  if (!EnsureGLContext())
+    return nsnull;
+
+  return sPluginContext;
+}
+
+TextureInfo nsNPAPIPluginInstance::LockContentTexture()
+{
+  EnsureSharedTexture();
+  return mContentTexture->Lock();
+}
+
+void nsNPAPIPluginInstance::ReleaseContentTexture(TextureInfo& aTextureInfo)
+{
+  EnsureSharedTexture();
+  mContentTexture->Release(aTextureInfo);
+}
+
+nsSurfaceTexture* nsNPAPIPluginInstance::CreateSurfaceTexture()
+{
+  if (!EnsureGLContext())
+    return nsnull;
+
+  GLuint texture = TexturePoolOGL::AcquireTexture();
+  if (!texture)
+    return nsnull;
+
+  nsSurfaceTexture* surface = nsSurfaceTexture::Create(texture);
+  if (!surface)
+    return nsnull;
+
+  nsCOMPtr<nsIRunnable> frameCallback = NS_NewRunnableMethod(this, &nsNPAPIPluginInstance::OnSurfaceTextureFrameAvailable);
+  surface->SetFrameAvailableCallback(frameCallback);
+  return surface;
+}
+
+void nsNPAPIPluginInstance::OnSurfaceTextureFrameAvailable()
+{
+  if (mRunning == RUNNING && mOwner)
+    RedrawPlugin();
+}
+
+void* nsNPAPIPluginInstance::AcquireContentWindow()
+{
+  if (!mContentSurface) {
+    mContentSurface = CreateSurfaceTexture();
+
+    if (!mContentSurface)
+      return nsnull;
+  }
+
+  return mContentSurface->GetNativeWindow();
+}
+
+SharedTextureHandle nsNPAPIPluginInstance::CreateSharedHandle()
+{
+  if (mContentTexture) {
+    return mContentTexture->CreateSharedHandle();
+  } else if (mContentSurface) {
+    EnsureGLContext();
+    return sPluginContext->CreateSharedHandle(TextureImage::ThreadShared, mContentSurface, GLContext::SurfaceTexture);
+  } else return nsnull;
+}
+
+void* nsNPAPIPluginInstance::AcquireVideoWindow()
+{
+  nsSurfaceTexture* surface = CreateSurfaceTexture();
+  if (!surface)
+    return nsnull;
+
+  VideoInfo* info = new VideoInfo(surface);
+
+  void* window = info->mSurfaceTexture->GetNativeWindow();
+  mVideos.insert(std::pair<void*, VideoInfo*>(window, info));
+
+  return window;
+}
+
+void nsNPAPIPluginInstance::ReleaseVideoWindow(void* window)
+{
+  std::map<void*, VideoInfo*>::iterator it = mVideos.find(window);
+  if (it == mVideos.end())
+    return;
+
+  delete it->second;
+  mVideos.erase(window);
+}
+
+void nsNPAPIPluginInstance::SetVideoDimensions(void* window, gfxRect aDimensions)
+{
+  std::map<void*, VideoInfo*>::iterator it;
+
+  it = mVideos.find(window);
+  if (it == mVideos.end())
+    return;
+
+  it->second->mDimensions = aDimensions;
+}
+
+void nsNPAPIPluginInstance::GetVideos(nsTArray<VideoInfo*>& aVideos)
+{
+  std::map<void*, VideoInfo*>::iterator it;
+  for (it = mVideos.begin(); it != mVideos.end(); it++)
+    aVideos.AppendElement(it->second);
+}
+
+void nsNPAPIPluginInstance::SetInverted(bool aInverted)
+{
+  if (aInverted == mInverted)
+    return;
+
+  mInverted = aInverted;
 }
 
 #endif
@@ -906,63 +1101,6 @@ nsNPAPIPluginInstance::GetJSObject(JSContext *cx, JSObject** outObject)
   *outObject = nsNPObjWrapper::GetNewOrUsed(&mNPP, cx, npobj);
 
   _releaseobject(npobj);
-
-  return NS_OK;
-}
-
-nsresult
-nsNPAPIPluginInstance::DefineJavaProperties()
-{
-  NPObject *plugin_obj = nsnull;
-
-  // The dummy Java plugin's scriptable object is what we want to
-  // expose as window.Packages. And Window.Packages.java will be
-  // exposed as window.java.
-
-  // Get the scriptable plugin object.
-  nsresult rv = GetValueFromPlugin(NPPVpluginScriptableNPObject, &plugin_obj);
-
-  if (NS_FAILED(rv) || !plugin_obj) {
-    return NS_ERROR_FAILURE;
-  }
-
-  // Get the NPObject wrapper for window.
-  NPObject *window_obj = _getwindowobject(&mNPP);
-
-  if (!window_obj) {
-    _releaseobject(plugin_obj);
-
-    return NS_ERROR_FAILURE;
-  }
-
-  NPIdentifier java_id = _getstringidentifier("java");
-  NPIdentifier packages_id = _getstringidentifier("Packages");
-
-  NPObject *java_obj = nsnull;
-  NPVariant v;
-  OBJECT_TO_NPVARIANT(plugin_obj, v);
-
-  // Define the properties.
-
-  bool ok = _setproperty(&mNPP, window_obj, packages_id, &v);
-  if (ok) {
-    ok = _getproperty(&mNPP, plugin_obj, java_id, &v);
-
-    if (ok && NPVARIANT_IS_OBJECT(v)) {
-      // Set java_obj so that we properly release it at the end of
-      // this function.
-      java_obj = NPVARIANT_TO_OBJECT(v);
-
-      ok = _setproperty(&mNPP, window_obj, java_id, &v);
-    }
-  }
-
-  _releaseobject(window_obj);
-  _releaseobject(plugin_obj);
-  _releaseobject(java_obj);
-
-  if (!ok)
-    return NS_ERROR_FAILURE;
 
   return NS_OK;
 }
@@ -1217,7 +1355,7 @@ nsNPAPIPluginInstance::GetPluginAPIVersion(PRUint16* version)
 }
 
 nsresult
-nsNPAPIPluginInstance::PrivateModeStateChanged()
+nsNPAPIPluginInstance::PrivateModeStateChanged(bool enabled)
 {
   if (RUNNING != mRunning)
     return NS_OK;
@@ -1229,23 +1367,15 @@ nsNPAPIPluginInstance::PrivateModeStateChanged()
 
   NPPluginFuncs* pluginFunctions = mPlugin->PluginFuncs();
 
-  if (pluginFunctions->setvalue) {
-    PluginDestructionGuard guard(this);
-    
-    nsCOMPtr<nsIPrivateBrowsingService> pbs = do_GetService(NS_PRIVATE_BROWSING_SERVICE_CONTRACTID);
-    if (pbs) {
-      bool pme = false;
-      nsresult rv = pbs->GetPrivateBrowsingEnabled(&pme);
-      if (NS_FAILED(rv))
-        return rv;
+  if (!pluginFunctions->setvalue)
+    return NS_ERROR_FAILURE;
 
-      NPError error;
-      NPBool value = static_cast<NPBool>(pme);
-      NS_TRY_SAFE_CALL_RETURN(error, (*pluginFunctions->setvalue)(&mNPP, NPNVprivateModeBool, &value), this);
-      return (error == NPERR_NO_ERROR) ? NS_OK : NS_ERROR_FAILURE;
-    }
-  }
-  return NS_ERROR_FAILURE;
+  PluginDestructionGuard guard(this);
+    
+  NPError error;
+  NPBool value = static_cast<NPBool>(enabled);
+  NS_TRY_SAFE_CALL_RETURN(error, (*pluginFunctions->setvalue)(&mNPP, NPNVprivateModeBool, &value), this);
+  return (error == NPERR_NO_ERROR) ? NS_OK : NS_ERROR_FAILURE;
 }
 
 class DelayUnscheduleEvent : public nsRunnable {
@@ -1313,6 +1443,9 @@ nsNPAPIPluginInstance::TimerWithID(uint32_t id, PRUint32* index)
 uint32_t
 nsNPAPIPluginInstance::ScheduleTimer(uint32_t interval, NPBool repeat, void (*timerFunc)(NPP npp, uint32_t timerID))
 {
+  if (RUNNING != mRunning)
+    return 0;
+
   nsNPAPITimer *newTimer = new nsNPAPITimer();
 
   newTimer->inCallback = false;

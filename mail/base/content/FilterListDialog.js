@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code, released
- * March 31, 1998.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998-1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Mark Banner <mark@standard8.demon.co.uk>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 
@@ -252,18 +218,34 @@ function onEditFilter()
 
 function onNewFilter(emailAddress)
 {
-  var args = {filterList: gCurrentFilterList};
+  let list = document.getElementById("filterList");
+  let filterNodes = list.childNodes;
+  let selectedFilter = currentFilter();
+  // if no filter is selected use the first position, starting at 1
+  let position = 1;
+  if (selectedFilter) {
+    // The filterNodes[0] item is the list header, skip it.
+    for (let i = 1; i < filterNodes.length; i++) {
+      if (filterNodes[i]._filter == selectedFilter) {
+        position = i;
+        break;
+      }
+    }
+  }
+
+  // The returned position is offset by 1 (due to the list header)
+  // compared to filter indexes in gCurrentFilterList.
+  let args = {filterList: gCurrentFilterList, filterPosition: position - 1};
 
   window.openDialog("chrome://messenger/content/FilterEditor.xul", "FilterEditor", "chrome,modal,titlebar,resizable,centerscreen", args);
 
   if ("refresh" in args && args.refresh) {
     rebuildFilterList(gCurrentFilterList);
 
-    // the new filter is always added as first item on top. Select it.
-    let list = document.getElementById("filterList");
+    // select the new filter, it is at the position of previous selection
     list.clearSelection();
-    list.addItemToSelection(list.childNodes[1]);
-    updateViewPosition(1);
+    list.addItemToSelection(list.childNodes[position]);
+    updateViewPosition(position);
   }
 }
 

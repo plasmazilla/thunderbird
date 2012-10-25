@@ -1,39 +1,6 @@
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is mozilla.org code.
-#
-# The Initial Developer of the Original Code is Joel Maher.
-#
-# Portions created by the Initial Developer are Copyright (C) 2010
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-# Joel Maher <joel.maher@gmail.com> (Original Developer)
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import sys
 import os
@@ -95,12 +62,12 @@ class RemoteOptions(MochitestOptions):
 
         self.add_option("--http-port", action = "store",
                     type = "string", dest = "httpPort",
-                    help = "ip address where the remote web server is hosted at")
+                    help = "http port of the remote web server")
         defaults["httpPort"] = automation.DEFAULT_HTTP_PORT
 
         self.add_option("--ssl-port", action = "store",
                     type = "string", dest = "sslPort",
-                    help = "ip address where the remote web server is hosted at")
+                    help = "ssl port of the remote web server")
         defaults["sslPort"] = automation.DEFAULT_SSL_PORT
 
         self.add_option("--pidfile", action = "store",
@@ -454,6 +421,7 @@ def main():
         fHandle.write("profile=%s\n" % (mochitest.remoteProfile))
         fHandle.write("logfile=%s\n" % (options.remoteLogFile))
         fHandle.write("host=http://mochi.test:8888/tests\n")
+        fHandle.write("rawhost=http://%s:%s/tests\n" % (options.remoteWebServer, options.httpPort))
         fHandle.close()
         deviceRoot = dm.getDeviceRoot()
       
@@ -472,6 +440,7 @@ def main():
 
         appname = options.app
         retVal = None
+        logcat = []
         for test in robocop_tests:
             if options.testPath and options.testPath != test['name']:
                 continue
@@ -482,7 +451,9 @@ def main():
             options.browserArgs.append("org.mozilla.roboexample.test/android.test.InstrumentationTestRunner")
 
             try:
+                dm.recordLogcat()
                 retVal = mochitest.runTests(options)
+                logcat = dm.getLogcat()
                 mochitest.addLogData()
             except:
                 print "TEST-UNEXPECTED-FAIL | %s | Exception caught while running robocop tests." % sys.exc_info()[1]
@@ -497,10 +468,12 @@ def main():
             print "No tests run. Did you pass an invalid TEST_PATH?"
             retVal = 1
 
-        retVal = mochitest.printLog() 
+        retVal = mochitest.printLog()
     else:
       try:
+        dm.recordLogcat()
         retVal = mochitest.runTests(options)
+        logcat = dm.getLogcat()
       except:
         print "TEST-UNEXPECTED-FAIL | %s | Exception caught while running tests." % sys.exc_info()[1]
         mochitest.stopWebServer(options)
@@ -511,6 +484,7 @@ def main():
             pass
         sys.exit(1)
 
+    print ''.join(logcat[-500:-1])
     sys.exit(retVal)
         
 if __name__ == "__main__":

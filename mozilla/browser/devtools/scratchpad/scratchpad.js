@@ -1,44 +1,7 @@
 /* vim:set ts=2 sw=2 sts=2 et:
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Scratchpad.
- *
- * The Initial Developer of the Original Code is
- * The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Rob Campbell <robcee@mozilla.com> (original author)
- *   Erik Vold <erikvvold@gmail.com>
- *   David Dahl <ddahl@mozilla.com>
- *   Mihai Sucan <mihai.sucan@gmail.com>
- *   Kenny Heaton <kennyheaton@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK *****/
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * Original version history can be found here:
@@ -61,12 +24,14 @@ Cu.import("resource://gre/modules/NetUtil.jsm");
 Cu.import("resource:///modules/PropertyPanel.jsm");
 Cu.import("resource:///modules/source-editor.jsm");
 Cu.import("resource:///modules/devtools/scratchpad-manager.jsm");
+Cu.import("resource://gre/modules/jsdebugger.jsm");
 
 
 const SCRATCHPAD_CONTEXT_CONTENT = 1;
 const SCRATCHPAD_CONTEXT_BROWSER = 2;
 const SCRATCHPAD_L10N = "chrome://browser/locale/devtools/scratchpad.properties";
 const DEVTOOLS_CHROME_ENABLED = "devtools.chrome.enabled";
+const PREF_RECENT_FILES_MAX = "devtools.scratchpad.recentFilesMax";
 const BUTTON_POSITION_SAVE = 0;
 const BUTTON_POSITION_CANCEL = 1;
 const BUTTON_POSITION_DONT_SAVE = 2;
@@ -196,7 +161,7 @@ var Scratchpad = {
    * @param object aState
    *        An object with filename and executionContext properties.
    */
-  setState: function SP_getState(aState)
+  setState: function SP_setState(aState)
   {
     if (aState.filename) {
       this.setFilename(aState.filename);
@@ -295,6 +260,7 @@ var Scratchpad = {
       this._chromeSandbox = new Cu.Sandbox(this.browserWindow,
         { sandboxPrototype: this.browserWindow, wantXrays: false, 
           sandboxName: 'scratchpad-chrome'});
+      addDebuggerToGlobal(this._chromeSandbox);
 
       this._previousBrowserWindow = this.browserWindow;
     }
@@ -522,11 +488,11 @@ var Scratchpad = {
                GetStringFromName("propertyPanel.updateButton.label"),
         accesskey: this.strings.
                    GetStringFromName("propertyPanel.updateButton.accesskey"),
-        oncommand: function () {
+        oncommand: function _SP_PP_Update_onCommand() {
           let [error, result] = self.evalForContext(aEvalString);
 
           if (!error) {
-            propPanel.treeView.data = result;
+            propPanel.treeView.data = { object: result };
           }
         }
       });
@@ -534,8 +500,9 @@ var Scratchpad = {
 
     let doc = this.browserWindow.document;
     let parent = doc.getElementById("mainPopupSet");
-    let title = aOutputObject.toString();
-    propPanel = new PropertyPanel(parent, doc, title, aOutputObject, buttons);
+    let title = String(aOutputObject);
+    propPanel = new PropertyPanel(parent, title, { object: aOutputObject },
+                                  buttons);
 
     let panel = propPanel.panel;
     panel.setAttribute("class", "scratchpad_propertyPanel");
@@ -649,19 +616,203 @@ var Scratchpad = {
 
   /**
    * Open a file to edit in the Scratchpad.
+   *
+   * @param integer aIndex
+   *        Optional integer: clicked menuitem in the 'Open Recent'-menu.
    */
-  openFile: function SP_openFile()
+  openFile: function SP_openFile(aIndex)
   {
-    let fp = Cc["@mozilla.org/filepicker;1"].createInstance(Ci.nsIFilePicker);
-    fp.init(window, this.strings.GetStringFromName("openFile.title"),
-            Ci.nsIFilePicker.modeOpen);
-    fp.defaultString = "";
-    if (fp.show() != Ci.nsIFilePicker.returnCancel) {
-      this.setFilename(fp.file.path);
-      this.importFromFile(fp.file, false);
+    let fp;
+    if (!aIndex && aIndex !== 0) {
+      fp = Cc["@mozilla.org/filepicker;1"].createInstance(Ci.nsIFilePicker);
+      fp.init(window, this.strings.GetStringFromName("openFile.title"),
+              Ci.nsIFilePicker.modeOpen);
+      fp.defaultString = "";
+    }
+
+    if (aIndex > -1 || fp.show() != Ci.nsIFilePicker.returnCancel) {
+      this.promptSave(function(aCloseFile, aSaved, aStatus) {
+        let shouldOpen = aCloseFile;
+        if (aSaved && !Components.isSuccessCode(aStatus)) {
+          shouldOpen = false;
+        }
+
+        if (shouldOpen) {
+          this._skipClosePrompt = true;
+
+          let file;
+          if (fp) {
+            file = fp.file;
+          } else {
+            file = Components.classes["@mozilla.org/file/local;1"].
+                   createInstance(Components.interfaces.nsILocalFile);
+            let filePath = this.getRecentFiles()[aIndex];
+            file.initWithPath(filePath);
+          }
+
+          this.setFilename(file.path);
+          this.importFromFile(file, false);
+          this.setRecentFile(file);
+        }
+      }.bind(this));
     }
   },
 
+  /**
+   * Get recent files.
+   *
+   * @return Array
+   *         File paths.
+   */
+  getRecentFiles: function SP_getRecentFiles()
+  {
+    let maxRecent = Services.prefs.getIntPref(PREF_RECENT_FILES_MAX);
+    let branch = Services.prefs.
+                 getBranch("devtools.scratchpad.");
+
+    let filePaths = [];
+    if (branch.prefHasUserValue("recentFilePaths")) {
+      filePaths = JSON.parse(branch.getCharPref("recentFilePaths"));
+    }
+
+    return filePaths;
+  },
+
+  /**
+   * Save a recent file in a JSON parsable string.
+   *
+   * @param nsILocalFile aFile
+   *        The nsILocalFile we want to save as a recent file.
+   */
+  setRecentFile: function SP_setRecentFile(aFile)
+  {
+    let maxRecent = Services.prefs.getIntPref(PREF_RECENT_FILES_MAX);
+    if (maxRecent < 1) {
+      return;
+    }
+
+    let filePaths = this.getRecentFiles();
+    let filesCount = filePaths.length;
+    let pathIndex = filePaths.indexOf(aFile.path);
+
+    // We are already storing this file in the list of recent files.
+    if (pathIndex > -1) {
+      // If it's already the most recent file, we don't have to do anything.
+      if (pathIndex === (filesCount - 1)) {
+        // Updating the menu to clear the disabled state from the wrong menuitem
+        // in rare cases when two or more Scratchpad windows are open and the
+        // same file has been opened in two or more windows.
+        this.populateRecentFilesMenu();
+        return;
+      }
+
+      // It is not the most recent file. Remove it from the list, we add it as
+      // the most recent farther down.
+      filePaths.splice(pathIndex, 1);
+    }
+    // If we are not storing the file and the 'recent files'-list is full,
+    // remove the oldest file from the list.
+    else if (filesCount === maxRecent) {
+      filePaths.shift();
+    }
+
+    filePaths.push(aFile.path);
+
+    let branch = Services.prefs.
+                 getBranch("devtools.scratchpad.");
+    branch.setCharPref("recentFilePaths", JSON.stringify(filePaths));
+    return;
+  },
+
+  /**
+   * Populates the 'Open Recent'-menu.
+   */
+  populateRecentFilesMenu: function SP_populateRecentFilesMenu()
+  {
+    let maxRecent = Services.prefs.getIntPref(PREF_RECENT_FILES_MAX);
+    let recentFilesMenu = document.getElementById("sp-open_recent-menu");
+
+    if (maxRecent < 1) {
+      recentFilesMenu.setAttribute("hidden", true);
+      return;
+    }
+
+    let recentFilesPopup = recentFilesMenu.firstChild;
+    let filePaths = this.getRecentFiles();
+    let filename = this.getState().filename;
+
+    recentFilesMenu.setAttribute("disabled", true);
+    while (recentFilesPopup.hasChildNodes()) {
+      recentFilesPopup.removeChild(recentFilesPopup.firstChild);
+    }
+
+    if (filePaths.length > 0) {
+      recentFilesMenu.removeAttribute("disabled");
+
+      // Print out menuitems with the most recent file first.
+      for (let i = filePaths.length - 1; i >= 0; --i) {
+        let menuitem = document.createElement("menuitem");
+        menuitem.setAttribute("type", "radio");
+        menuitem.setAttribute("label", filePaths[i]);
+
+        if (filePaths[i] === filename) {
+          menuitem.setAttribute("checked", true);
+          menuitem.setAttribute("disabled", true);
+        }
+
+        menuitem.setAttribute("oncommand", "Scratchpad.openFile(" + i + ");");
+        recentFilesPopup.appendChild(menuitem);
+      }
+
+      recentFilesPopup.appendChild(document.createElement("menuseparator"));
+      let clearItems = document.createElement("menuitem");
+      clearItems.setAttribute("id", "sp-menu-clear_recent");
+      clearItems.setAttribute("label",
+                              this.strings.
+                              GetStringFromName("clearRecentMenuItems.label"));
+      clearItems.setAttribute("command", "sp-cmd-clearRecentFiles");
+      recentFilesPopup.appendChild(clearItems);
+    }
+  },
+
+  /**
+   * Clear all recent files.
+   */
+  clearRecentFiles: function SP_clearRecentFiles()
+  {
+    Services.prefs.clearUserPref("devtools.scratchpad.recentFilePaths");
+  },
+
+  /**
+   * Handle changes to the 'PREF_RECENT_FILES_MAX'-preference.
+   */
+  handleRecentFileMaxChange: function SP_handleRecentFileMaxChange()
+  {
+    let maxRecent = Services.prefs.getIntPref(PREF_RECENT_FILES_MAX);
+    let menu = document.getElementById("sp-open_recent-menu");
+
+    // Hide the menu if the 'PREF_RECENT_FILES_MAX'-pref is set to zero or less.
+    if (maxRecent < 1) {
+      menu.setAttribute("hidden", true);
+    } else {
+      if (menu.hasAttribute("hidden")) {
+        if (!menu.firstChild.hasChildNodes()) {
+          this.populateRecentFilesMenu();
+        }
+
+        menu.removeAttribute("hidden");
+      }
+
+      let filePaths = this.getRecentFiles();
+      if (maxRecent < filePaths.length) {
+        let branch = Services.prefs.
+                     getBranch("devtools.scratchpad.");
+        let diff = filePaths.length - maxRecent;
+        filePaths.splice(0, diff);
+        branch.setCharPref("recentFilePaths", JSON.stringify(filePaths));
+      }
+    }
+  },
   /**
    * Save the textbox content to the currently open file.
    *
@@ -680,6 +831,7 @@ var Scratchpad = {
     this.exportToFile(file, true, false, function(aStatus) {
       if (Components.isSuccessCode(aStatus)) {
         this.editor.dirty = false;
+        this.setRecentFile(file);
       }
       if (aCallback) {
         aCallback(aStatus);
@@ -705,6 +857,7 @@ var Scratchpad = {
       this.exportToFile(fp.file, true, false, function(aStatus) {
         if (Components.isSuccessCode(aStatus)) {
           this.editor.dirty = false;
+          this.setRecentFile(fp.file);
         }
         if (aCallback) {
           aCallback(aStatus);
@@ -861,6 +1014,9 @@ var Scratchpad = {
     this.initialized = true;
 
     this._triggerObservers("Ready");
+
+    this.populateRecentFilesMenu();
+    PreferenceObserver.init();
   },
 
   /**
@@ -921,6 +1077,8 @@ var Scratchpad = {
     this.resetContext();
     this.editor.removeEventListener(SourceEditor.EVENTS.DIRTY_CHANGED,
                                     this._onDirtyChanged);
+    PreferenceObserver.uninit();
+
     this.editor.destroy();
     this.editor = null;
     this.initialized = false;
@@ -1095,6 +1253,48 @@ var Scratchpad = {
     this.browserWindow.focus();
     this.gBrowser.selectedTab = newTab;
   },
+};
+
+/**
+ * The PreferenceObserver listens for preference changes while Scratchpad is
+ * running.
+ */
+var PreferenceObserver = {
+  _initialized: false,
+
+  init: function PO_init()
+  {
+    if (this._initialized) {
+      return;
+    }
+
+    this.branch = Services.prefs.getBranch("devtools.scratchpad.");
+    this.branch.addObserver("", this, false);
+    this._initialized = true;
+  },
+
+  observe: function PO_observe(aMessage, aTopic, aData)
+  {
+    if (aTopic != "nsPref:changed") {
+      return;
+    }
+
+    if (aData == "recentFilesMax") {
+      Scratchpad.handleRecentFileMaxChange();
+    }
+    else if (aData == "recentFilePaths") {
+      Scratchpad.populateRecentFilesMenu();
+    }
+  },
+
+  uninit: function PO_uninit () {
+    if (!this.branch) {
+      return;
+    }
+
+    this.branch.removeObserver("", this);
+    this.branch = null;
+  }
 };
 
 XPCOMUtils.defineLazyGetter(Scratchpad, "strings", function () {

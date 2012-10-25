@@ -1,45 +1,8 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 /* vim: set ts=4 sw=4 et tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Chris Waterson <waterson@netscape.com>
- *   Ben Goodger <ben@netscape.com>
- *   Pete Collins <petejc@collab.net>
- *   Dan Rosen <dr@netscape.com>
- *   Johnny Stenback <jst@netscape.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
 
@@ -71,7 +34,6 @@
 #include "nsIContentViewer.h"
 #include "nsGUIEvent.h"
 #include "nsIDOMXULElement.h"
-#include "nsIPrivateDOMEvent.h"
 #include "nsIRDFNode.h"
 #include "nsIRDFRemoteDataSource.h"
 #include "nsIRDFService.h"
@@ -97,7 +59,7 @@
 #include "rdf.h"
 #include "nsIFrame.h"
 #include "mozilla/FunctionTimer.h"
-#include "nsIXBLService.h"
+#include "nsXBLService.h"
 #include "nsCExternalHandlerService.h"
 #include "nsMimeTypes.h"
 #include "nsIObjectInputStream.h"
@@ -1736,10 +1698,7 @@ nsXULDocument::AddElementToDocumentPost(Element* aElement)
     // We need to pay special attention to the keyset tag to set up a listener
     if (aElement->NodeInfo()->Equals(nsGkAtoms::keyset, kNameSpaceID_XUL)) {
         // Create our XUL key listener and hook it up.
-        nsCOMPtr<nsIXBLService> xblService(do_GetService("@mozilla.org/xbl;1"));
-        if (xblService) {
-            xblService->AttachGlobalKeyHandler(aElement);
-        }
+        nsXBLService::AttachGlobalKeyHandler(aElement);
     }
 
     // See if we need to attach a XUL template to this node
@@ -1812,10 +1771,7 @@ nsXULDocument::RemoveSubtreeFromDocument(nsIContent* aContent)
     nsresult rv;
 
     if (aElement->NodeInfo()->Equals(nsGkAtoms::keyset, kNameSpaceID_XUL)) {
-        nsCOMPtr<nsIXBLService> xblService(do_GetService("@mozilla.org/xbl;1"));
-        if (xblService) {
-            xblService->DetachGlobalKeyHandler(aElement);
-        }
+        nsXBLService::DetachGlobalKeyHandler(aElement);
     }
 
     // 1. Remove any children from the document.
@@ -1873,10 +1829,7 @@ nsXULDocument::SetTemplateBuilderFor(nsIContent* aContent,
             return NS_OK;
         }
         mTemplateBuilderTable = new BuilderTable;
-        if (! mTemplateBuilderTable || !mTemplateBuilderTable->Init()) {
-            mTemplateBuilderTable = nsnull;
-            return NS_ERROR_OUT_OF_MEMORY;
-        }
+        mTemplateBuilderTable->Init();
     }
 
     if (aBuilder) {
@@ -1951,7 +1904,7 @@ nsXULDocument::RemoveElementFromRefMap(Element* aElement)
 //
 
 NS_IMETHODIMP
-nsXULDocument::CloneNode(bool aDeep, nsIDOMNode** aReturn)
+nsXULDocument::CloneNode(bool aDeep, PRUint8 aOptionalArgc, nsIDOMNode** aReturn)
 {
     // We don't allow cloning of a document
     *aReturn = nsnull;
@@ -2420,9 +2373,10 @@ nsXULDocument::PrepareToWalk()
 
     PRUint32 piInsertionPoint = 0;
     if (mState != eState_Master) {
-        piInsertionPoint = IndexOf(GetRootElement());
-        NS_ASSERTION(piInsertionPoint >= 0,
+        PRInt32 indexOfRoot = IndexOf(GetRootElement());
+        NS_ASSERTION(indexOfRoot >= 0,
                      "No root content when preparing to walk overlay!");
+        piInsertionPoint = indexOfRoot;
     }
 
     const nsTArray<nsRefPtr<nsXULPrototypePI> >& processingInstructions =
@@ -2649,9 +2603,9 @@ nsXULDocument::LoadOverlay(const nsAString& aURL, nsIObserver* aObserver)
 
     if (aObserver) {
         nsIObserver* obs = nsnull;
-        NS_ENSURE_TRUE(mOverlayLoadObservers.IsInitialized() || mOverlayLoadObservers.Init(), 
-                       NS_ERROR_OUT_OF_MEMORY);
-        
+        if (!mOverlayLoadObservers.IsInitialized()) {
+            mOverlayLoadObservers.Init();
+        }
         obs = mOverlayLoadObservers.GetWeak(uri);
 
         if (obs) {
@@ -3248,8 +3202,9 @@ nsXULDocument::DoneWalking()
                 // XXXbz really, we shouldn't be firing binding constructors
                 // until after StartLayout returns!
 
-                NS_ENSURE_TRUE(mPendingOverlayLoadNotifications.IsInitialized() || mPendingOverlayLoadNotifications.Init(), 
-                               NS_ERROR_OUT_OF_MEMORY);
+                if (!mPendingOverlayLoadNotifications.IsInitialized()) {
+                    mPendingOverlayLoadNotifications.Init();
+                }
                 
                 mPendingOverlayLoadNotifications.Get(overlayURI, getter_AddRefs(obs));
                 if (!obs) {
@@ -3388,18 +3343,12 @@ nsXULDocument::LoadScript(nsXULPrototypeScript* aScriptProto, bool* aBlock)
     bool useXULCache = nsXULPrototypeCache::GetInstance()->IsEnabled();
 
     if (isChromeDoc && useXULCache) {
-        PRUint32 fetchedLang = nsIProgrammingLanguage::UNKNOWN;
         JSScript* newScriptObject =
             nsXULPrototypeCache::GetInstance()->GetScript(
-                                   aScriptProto->mSrcURI,
-                                   &fetchedLang);
+                                   aScriptProto->mSrcURI);
         if (newScriptObject) {
             // The script language for a proto must remain constant - we
             // can't just change it for this unexpected language.
-            if (aScriptProto->mScriptObject.mLangID != fetchedLang) {
-                NS_ERROR("XUL cache gave me an incorrect script language");
-                return NS_ERROR_UNEXPECTED;
-            }
             aScriptProto->Set(newScriptObject);
         }
 
@@ -3563,7 +3512,6 @@ nsXULDocument::OnStreamComplete(nsIStreamLoader* aLoader,
             if (useXULCache && IsChromeURI(mDocumentURI)) {
                 nsXULPrototypeCache::GetInstance()->PutScript(
                                    scriptProto->mSrcURI,
-                                   scriptProto->mScriptObject.mLangID,
                                    scriptProto->mScriptObject.mObject);
             }
 

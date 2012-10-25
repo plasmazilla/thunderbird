@@ -1,43 +1,7 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Corporation code.
- *
- * The Initial Developer of the Original Code is Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Stuart Parmenter <stuart@mozilla.com>
- *   Masayuki Nakano <masayuki@d-toybox.com>
- *   Mats Palmgren <mats.palmgren@bredband.net>
- *   John Daggett <jdaggett@mozilla.com>
- *   Jonathan Kew <jfkthame@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
 
@@ -197,11 +161,13 @@ FontTypeToOutPrecision(PRUint8 fontType)
 GDIFontEntry::GDIFontEntry(const nsAString& aFaceName,
                            gfxWindowsFontType aFontType,
                            bool aItalic, PRUint16 aWeight, PRInt16 aStretch,
-                           gfxUserFontData *aUserFontData)
+                           gfxUserFontData *aUserFontData,
+                           bool aFamilyHasItalicFace)
     : gfxFontEntry(aFaceName),
       mWindowsFamily(0), mWindowsPitch(0),
       mFontType(aFontType),
       mForceGDI(false),
+      mFamilyHasItalicFace(aFamilyHasItalicFace),
       mCharset(), mUnicodeRanges()
 {
     mUserFontData = aUserFontData;
@@ -229,6 +195,7 @@ GDIFontEntry::ReadCMAP()
         mFontType != GFX_FONT_TYPE_TRUETYPE) 
     {
         mCharacterMap = new gfxCharacterMap();
+        mCharacterMap->mBuildOnTheFly = true;
         return NS_ERROR_FAILURE;
     }
 
@@ -438,7 +405,7 @@ GDIFontEntry::InitLogFont(const nsAString& aName,
                           gfxWindowsFontType aFontType)
 {
 #define CLIP_TURNOFF_FONTASSOCIATION 0x40
-    
+
     mLogFont.lfHeight = -1;
 
     // Fill in logFont structure
@@ -468,12 +435,14 @@ GDIFontEntry*
 GDIFontEntry::CreateFontEntry(const nsAString& aName,
                               gfxWindowsFontType aFontType, bool aItalic,
                               PRUint16 aWeight, PRInt16 aStretch,
-                              gfxUserFontData* aUserFontData)
+                              gfxUserFontData* aUserFontData,
+                              bool aFamilyHasItalicFace)
 {
     // jtdfix - need to set charset, unicode ranges, pitch/family
 
     GDIFontEntry *fe = new GDIFontEntry(aName, aFontType, aItalic,
-                                        aWeight, aStretch, aUserFontData);
+                                        aWeight, aStretch, aUserFontData,
+                                        aFamilyHasItalicFace);
 
     return fe;
 }
@@ -530,10 +499,14 @@ GDIFontFamily::FamilyAddStylesProc(const ENUMLOGFONTEXW *lpelfe,
         }
     }
 
+    // We can't set the hasItalicFace flag correctly here,
+    // because we might not have seen the family's italic face(s) yet.
+    // Later code does _not_ rely on this flag for platform fonts;
+    // it is only needed for fonts loaded with src:local
     fe = GDIFontEntry::CreateFontEntry(nsDependentString(lpelfe->elfFullName),
                                        feType, (logFont.lfItalic == 0xFF),
                                        (PRUint16) (logFont.lfWeight), 0,
-                                       nsnull);
+                                       nsnull, false);
     if (!fe)
         return 1;
 
@@ -784,24 +757,28 @@ gfxGDIFontList::LookupLocalFont(const gfxProxyFontEntry *aProxyEntry,
         return nsnull;
     }
 
-    // create a new font entry with the proxy entry style characteristics
-    PRUint16 w = (aProxyEntry->mWeight == 0 ? 400 : aProxyEntry->mWeight);
     bool isCFF = false; // jtdfix -- need to determine this
     
     // use the face name from the lookup font entry, which will be the localized
     // face name which GDI mapping tables use (e.g. with the system locale set to
     // Dutch, a fullname of 'Arial Bold' will find a font entry with the face name
     // 'Arial Vet' which can be used as a key in GDI font lookups).
-    gfxFontEntry *fe = GDIFontEntry::CreateFontEntry(lookup->Name(), 
+    GDIFontEntry *fe = GDIFontEntry::CreateFontEntry(lookup->Name(), 
         gfxWindowsFontType(isCFF ? GFX_FONT_TYPE_PS_OPENTYPE : GFX_FONT_TYPE_TRUETYPE) /*type*/, 
-        PRUint32(aProxyEntry->mItalic ? NS_FONT_STYLE_ITALIC : NS_FONT_STYLE_NORMAL), 
-        w, aProxyEntry->mStretch, nsnull);
+        lookup->mItalic ? NS_FONT_STYLE_ITALIC : NS_FONT_STYLE_NORMAL,
+        lookup->mWeight, aProxyEntry->mStretch, nsnull,
+        lookup->Family()->HasItalicFace());
         
     if (!fe)
         return nsnull;
 
     fe->mIsUserFont = true;
     fe->mIsLocalUserFont = true;
+
+    // make the new font entry match the proxy entry style characteristics
+    fe->mWeight = (aProxyEntry->mWeight == 0 ? 400 : aProxyEntry->mWeight);
+    fe->mItalic = aProxyEntry->mItalic;
+
     return fe;
 }
 
@@ -1012,7 +989,7 @@ gfxGDIFontList::MakePlatformFont(const gfxProxyFontEntry *aProxyEntry,
     GDIFontEntry *fe = GDIFontEntry::CreateFontEntry(uniqueName, 
         gfxWindowsFontType(isCFF ? GFX_FONT_TYPE_PS_OPENTYPE : GFX_FONT_TYPE_TRUETYPE) /*type*/, 
         PRUint32(aProxyEntry->mItalic ? NS_FONT_STYLE_ITALIC : NS_FONT_STYLE_NORMAL), 
-        w, aProxyEntry->mStretch, winUserFontData);
+        w, aProxyEntry->mStretch, winUserFontData, false);
 
     if (!fe)
         return fe;

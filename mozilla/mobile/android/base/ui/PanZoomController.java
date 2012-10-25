@@ -1,40 +1,7 @@
 /* -*- Mode: Java; c-basic-offset: 4; tab-width: 20; indent-tabs-mode: nil; -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Android code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009-2012
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Patrick Walton <pcwalton@mozilla.com>
- *   Kartikaya Gupta <kgupta@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 package org.mozilla.gecko.ui;
 
@@ -175,6 +142,13 @@ public class PanZoomController
         GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent(MESSAGE_PREFS_GET, prefs.toString()));
     }
 
+    public void destroy() {
+        GeckoAppShell.unregisterGeckoEventListener(MESSAGE_ZOOM_RECT, this);
+        GeckoAppShell.unregisterGeckoEventListener(MESSAGE_ZOOM_PAGE, this);
+        GeckoAppShell.unregisterGeckoEventListener(MESSAGE_PREFS_DATA, this);
+        mSubscroller.destroy();
+    }
+
     // for debugging bug 713011; it can be taken out once that is resolved.
     private void checkMainThread() {
         if (mMainThread != Thread.currentThread()) {
@@ -184,7 +158,6 @@ public class PanZoomController
     }
 
     public void handleMessage(String event, JSONObject message) {
-        Log.i(LOGTAG, "Got message: " + event);
         try {
             if (MESSAGE_ZOOM_RECT.equals(event)) {
                 float x = (float)message.getDouble("x");
@@ -303,11 +276,11 @@ public class PanZoomController
     }
 
     /** This function must be called on the UI thread. */
-    public void waitingForTouchListeners(MotionEvent event) {
+    public void startingNewEventBlock(MotionEvent event, boolean waitingForTouchListeners) {
         checkMainThread();
-        if ((event.getAction() & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_DOWN) {
+        mSubscroller.cancel();
+        if (waitingForTouchListeners && (event.getAction() & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_DOWN) {
             // this is the first touch point going down, so we enter the pending state
-            mSubscroller.cancel();
             // seting the state will kill any animations in progress, possibly leaving
             // the page in overscroll
             mState = PanZoomState.WAITING_LISTENERS;
@@ -349,7 +322,6 @@ public class PanZoomController
         // user is taking control of movement, so stop
         // any auto-movement we have going
         stopAnimationTimer();
-        mSubscroller.cancel();
 
         switch (mState) {
         case ANIMATED_ZOOM:
@@ -790,7 +762,6 @@ public class PanZoomController
     private void finishAnimation() {
         checkMainThread();
 
-        Log.d(LOGTAG, "Finishing animation at " + mController.getViewportMetrics());
         stopAnimationTimer();
 
         // Force a viewport synchronisation
@@ -804,8 +775,6 @@ public class PanZoomController
     }
 
     private ViewportMetrics getValidViewportMetrics(ViewportMetrics viewportMetrics) {
-        Log.d(LOGTAG, "generating valid viewport using " + viewportMetrics);
-
         /* First, we adjust the zoom factor so that we can make no overscrolled area visible. */
         float zoomFactor = viewportMetrics.getZoomFactor();
         RectF pageRect = viewportMetrics.getPageRect();
@@ -858,7 +827,6 @@ public class PanZoomController
 
         /* Now we pan to the right origin. */
         viewportMetrics.setViewport(viewportMetrics.getClampedViewport());
-        Log.d(LOGTAG, "generated valid viewport as " + viewportMetrics);
 
         return viewportMetrics;
     }
@@ -892,8 +860,6 @@ public class PanZoomController
      */
     @Override
     public boolean onScaleBegin(SimpleScaleGestureDetector detector) {
-        Log.d(LOGTAG, "onScaleBegin in " + mState);
-
         if (mState == PanZoomState.ANIMATED_ZOOM)
             return false;
 
@@ -909,9 +875,7 @@ public class PanZoomController
 
     @Override
     public boolean onScale(SimpleScaleGestureDetector detector) {
-        Log.d(LOGTAG, "onScale in state " + mState);
-
-        if (GeckoApp.mDOMFullScreen)
+        if (GeckoApp.mAppContext == null || GeckoApp.mAppContext.mDOMFullScreen)
             return false;
 
         if (mState != PanZoomState.PINCHING)
@@ -977,8 +941,6 @@ public class PanZoomController
 
     @Override
     public void onScaleEnd(SimpleScaleGestureDetector detector) {
-        Log.d(LOGTAG, "onScaleEnd in " + mState);
-
         if (mState == PanZoomState.ANIMATED_ZOOM)
             return;
 
@@ -1030,26 +992,27 @@ public class PanZoomController
     @Override
     public boolean onSingleTapUp(MotionEvent motionEvent) {
         // When zooming is enabled, wait to see if there's a double-tap.
-        if (mController.getAllowZoom())
-            return false;
-        sendPointToGecko("Gesture:SingleTap", motionEvent);
-        return true;
+        if (!mController.getAllowZoom()) {
+            sendPointToGecko("Gesture:SingleTap", motionEvent);
+        }
+        // return false because we still want to get the ACTION_UP event that triggers this
+        return false;
     }
 
     @Override
     public boolean onSingleTapConfirmed(MotionEvent motionEvent) {
         // When zooming is disabled, we handle this in onSingleTapUp.
-        if (!mController.getAllowZoom())
-            return false;
-        sendPointToGecko("Gesture:SingleTap", motionEvent);
+        if (mController.getAllowZoom()) {
+            sendPointToGecko("Gesture:SingleTap", motionEvent);
+        }
         return true;
     }
 
     @Override
     public boolean onDoubleTap(MotionEvent motionEvent) {
-        if (!mController.getAllowZoom())
-            return false;
-        sendPointToGecko("Gesture:DoubleTap", motionEvent);
+        if (mController.getAllowZoom()) {
+            sendPointToGecko("Gesture:DoubleTap", motionEvent);
+        }
         return true;
     }
 

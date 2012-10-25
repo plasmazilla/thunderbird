@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Hal.h"
 #include "mozilla/HalSensor.h"
@@ -51,7 +19,6 @@
 #include "nsITextControlFrame.h"
 #include "nsGkAtoms.h"
 #include "nsPIDOMWindow.h"
-#include "nsIPrivateDOMEvent.h"
 #include "nsIJSEventListener.h"
 #include "prmem.h"
 #include "nsIScriptGlobalObject.h"
@@ -73,7 +40,7 @@
 #include "nsMutationEvent.h"
 #include "nsIXPConnect.h"
 #include "nsDOMCID.h"
-#include "nsIScriptObjectOwner.h" // for nsIScriptEventHandlerOwner
+#include "nsIScriptEventHandlerOwner.h"
 #include "nsFocusManager.h"
 #include "nsIDOMElement.h"
 #include "nsContentUtils.h"
@@ -178,7 +145,7 @@ nsEventListenerManager::Shutdown()
   nsDOMEvent::Shutdown();
 }
 
-NS_IMPL_CYCLE_COLLECTION_CLASS(nsEventListenerManager)
+NS_IMPL_CYCLE_COLLECTION_NATIVE_CLASS(nsEventListenerManager)
 
 NS_IMPL_CYCLE_COLLECTION_ROOT_NATIVE(nsEventListenerManager, AddRef)
 NS_IMPL_CYCLE_COLLECTION_UNROOT_NATIVE(nsEventListenerManager, Release)
@@ -246,14 +213,20 @@ nsEventListenerManager::AddEventListener(nsIDOMEventListener *aListener,
   ls->mListener = aListener;
   ls->mEventType = aType;
   ls->mTypeAtom = aTypeAtom;
-  ls->mWrappedJS = false;
   ls->mFlags = aFlags;
   ls->mHandlerIsString = false;
 
-  nsCOMPtr<nsIXPConnectWrappedJS> wjs = do_QueryInterface(aListener);
-  if (wjs) {
-    ls->mWrappedJS = true;
+  // Detect the type of event listener.
+  nsCOMPtr<nsIXPConnectWrappedJS> wjs;
+  if (aFlags & NS_PRIV_EVENT_FLAG_SCRIPT) {
+    ls->mListenerType = eJSEventListener;
+  } else if ((wjs = do_QueryInterface(aListener))) {
+    ls->mListenerType = eWrappedJSListener;
+  } else {
+    ls->mListenerType = eNativeListener;
   }
+
+
   if (aFlags & NS_EVENT_FLAG_SYSTEM_EVENT) {
     mMayHaveSystemGroupListeners = true;
   }
@@ -282,6 +255,10 @@ nsEventListenerManager::AddEventListener(nsIDOMEventListener *aListener,
     // Go from our target to the nearest enclosing DOM window.
     nsPIDOMWindow* window = GetInnerWindowForTarget();
     if (window) {
+      nsCOMPtr<nsIDocument> doc = do_QueryInterface(window->GetExtantDocument());
+      if (doc) {
+        doc->WarnOnceAbout(nsIDocument::eMutationEvent);
+      }
       // If aType is NS_MUTATION_SUBTREEMODIFIED, we need to listen all
       // mutations. nsContentUtils::HasMutationListeners relies on this.
       window->SetMutationListeners((aType == NS_MUTATION_SUBTREEMODIFIED) ?
@@ -290,6 +267,10 @@ nsEventListenerManager::AddEventListener(nsIDOMEventListener *aListener,
     }
   } else if (aTypeAtom == nsGkAtoms::ondeviceorientation) {
     EnableDevice(NS_DEVICE_ORIENTATION);
+  } else if (aTypeAtom == nsGkAtoms::ondeviceproximity || aTypeAtom == nsGkAtoms::onuserproximity) {
+    EnableDevice(NS_DEVICE_PROXIMITY);
+  } else if (aTypeAtom == nsGkAtoms::ondevicelight) {
+    EnableDevice(NS_DEVICE_LIGHT);
   } else if (aTypeAtom == nsGkAtoms::ondevicemotion) {
     EnableDevice(NS_DEVICE_MOTION);
   } else if ((aType >= NS_MOZTOUCH_DOWN && aType <= NS_MOZTOUCH_UP) ||
@@ -301,7 +282,9 @@ nsEventListenerManager::AddEventListener(nsIDOMEventListener *aListener,
               aTypeAtom == nsGkAtoms::ontouchcancel)) {
     mMayHaveTouchEventListener = true;
     nsPIDOMWindow* window = GetInnerWindowForTarget();
-    if (window)
+    // we don't want touchevent listeners added by scrollbars to flip this flag
+    // so we ignore listeners created with system event flag
+    if (window && !(aFlags & NS_EVENT_FLAG_SYSTEM_EVENT))
       window->SetHasTouchEventListeners();
   } else if (aTypeAtom == nsGkAtoms::onmouseenter ||
              aTypeAtom == nsGkAtoms::onmouseleave) {
@@ -325,6 +308,9 @@ nsEventListenerManager::IsDeviceType(PRUint32 aType)
   switch (aType) {
     case NS_DEVICE_ORIENTATION:
     case NS_DEVICE_MOTION:
+    case NS_DEVICE_LIGHT:
+    case NS_DEVICE_PROXIMITY:
+    case NS_USER_PROXIMITY:
       return true;
     default:
       break;
@@ -345,6 +331,13 @@ nsEventListenerManager::EnableDevice(PRUint32 aType)
   switch (aType) {
     case NS_DEVICE_ORIENTATION:
       window->EnableDeviceSensor(SENSOR_ORIENTATION);
+      break;
+    case NS_DEVICE_PROXIMITY:
+    case NS_USER_PROXIMITY:
+      window->EnableDeviceSensor(SENSOR_PROXIMITY);
+      break;
+    case NS_DEVICE_LIGHT:
+      window->EnableDeviceSensor(SENSOR_LIGHT);
       break;
     case NS_DEVICE_MOTION:
       window->EnableDeviceSensor(SENSOR_ACCELERATION);
@@ -375,6 +368,13 @@ nsEventListenerManager::DisableDevice(PRUint32 aType)
       window->DisableDeviceSensor(SENSOR_ACCELERATION);
       window->DisableDeviceSensor(SENSOR_LINEAR_ACCELERATION);
       window->DisableDeviceSensor(SENSOR_GYROSCOPE);
+      break;
+    case NS_DEVICE_PROXIMITY:
+    case NS_USER_PROXIMITY:
+      window->DisableDeviceSensor(SENSOR_PROXIMITY);
+      break;
+    case NS_DEVICE_LIGHT:
+      window->DisableDeviceSensor(SENSOR_LIGHT);
       break;
     default:
       NS_WARNING("Disabling an unknown device sensor.");
@@ -411,7 +411,7 @@ nsEventListenerManager::RemoveEventListener(nsIDOMEventListener *aListener,
         mNoListenerForEvent = NS_EVENT_TYPE_NULL;
         mNoListenerForEventAtom = nsnull;
 
-        if (deviceType) {
+        if (!deviceType) {
           return;
         }
         --typeCount;
@@ -466,7 +466,8 @@ nsEventListenerManager::FindJSEventListener(PRUint32 aEventType,
   for (PRUint32 i = 0; i < count; ++i) {
     ls = &mListeners.ElementAt(i);
     if (EVENT_TYPE_EQUALS(ls, aEventType, aTypeAtom) &&
-        ls->mFlags & NS_PRIV_EVENT_FLAG_SCRIPT) {
+        (ls->mListenerType == eJSEventListener))
+    {
       return ls;
     }
   }
@@ -804,7 +805,7 @@ nsEventListenerManager::HandleEventSubType(nsListenerStruct* aListenerStruct,
 
   // If this is a script handler and we haven't yet
   // compiled the event handler itself
-  if ((aListenerStruct->mFlags & NS_PRIV_EVENT_FLAG_SCRIPT) &&
+  if ((aListenerStruct->mListenerType == eJSEventListener) &&
       aListenerStruct->mHandlerIsString) {
     nsIJSEventListener *jslistener = aListenerStruct->GetJSListener();
     result = CompileEventHandlerInternal(aListenerStruct,
@@ -871,13 +872,28 @@ nsEventListenerManager::HandleEventInternal(nsPresContext* aPresContext,
               break;
             }
           }
+
+          // Push the appropriate context. Note that we explicitly don't push a
+          // context in the case that the listener is non-scripted, in which case
+          // it's the native code's responsibility to push a context if it ever
+          // enters JS. Ideally we'd do things this way for all scripted callbacks,
+          // but that would involve a lot of changes and context pushing is going
+          // away soon anyhow.
+          //
+          // NB: Since we're looping here, the no-RePush() case needs to actually be
+          // a Pop(), otherwise we might end up with whatever was pushed in a
+          // previous iteration.
+          if (ls->mListenerType == eNativeListener) {
+            aPusher->Pop();
+          } else if (!aPusher->RePush(aCurrentTarget)) {
+            continue;
+          }
+
           nsRefPtr<nsIDOMEventListener> kungFuDeathGrip = ls->mListener;
-          if (aPusher->RePush(aCurrentTarget)) {
-            if (NS_FAILED(HandleEventSubType(ls, ls->mListener, *aDOMEvent,
-                                             aCurrentTarget, aFlags,
-                                             aPusher))) {
-              aEvent->flags |= NS_EVENT_FLAG_EXCEPTION_THROWN;
-            }
+          if (NS_FAILED(HandleEventSubType(ls, ls->mListener, *aDOMEvent,
+                                           aCurrentTarget, aFlags,
+                                           aPusher))) {
+            aEvent->flags |= NS_EVENT_FLAG_EXCEPTION_THROWN;
           }
         }
       }
@@ -1000,7 +1016,7 @@ nsEventListenerManager::GetListenerInfo(nsCOMArray<nsIEventListenerInfo>* aList)
     bool allowsUntrusted = !!(ls.mFlags & NS_PRIV_EVENT_UNTRUSTED_PERMITTED);
     // If this is a script handler and we haven't yet
     // compiled the event handler itself go ahead and compile it
-    if ((ls.mFlags & NS_PRIV_EVENT_FLAG_SCRIPT) && ls.mHandlerIsString) {
+    if ((ls.mListenerType == eJSEventListener) && ls.mHandlerIsString) {
       CompileEventHandlerInternal(const_cast<nsListenerStruct*>(&ls),
                                   true, nsnull);
     }
@@ -1115,7 +1131,7 @@ nsEventListenerManager::UnmarkGrayJSListeners()
     if (jsl) {
       xpc_UnmarkGrayObject(jsl->GetHandler());
       xpc_UnmarkGrayObject(jsl->GetEventScope());
-    } else if (ls.mWrappedJS) {
+    } else if (ls.mListenerType == eWrappedJSListener) {
       xpc_TryUnmarkWrappedGrayObject(ls.mListener);
     }
   }

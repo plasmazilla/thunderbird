@@ -228,13 +228,13 @@ nsYouSendIt.prototype = {
    *                  states of the upload procedure.
    */
   _finishUpload: function nsYouSendIt__finishUpload(aFile, aCallback) {
-    let exceedsLimit = Ci.nsIMsgCloudFileProvider.uploadExceedsFileLimit;
-    let exceedsQuota = Ci.nsIMsgCloudFileProvider.uploadWouldExceedQuota;
-
+    if (aFile.fileSize > 2147483648)
+      return this._fileExceedsLimit(aCallback, '2GB', 0);
     if (aFile.fileSize > this._maxFileSize)
-      return aCallback.onStopRequest(null, null, exceedsLimit);
+      return this._fileExceedsLimit(aCallback, 'Limit', 0);
     if (aFile.fileSize > this._availableStorage)
-      return aCallback.onStopRequest(null, null, exceedsQuota);
+      return this._fileExceedsLimit(aCallback, 'Quota', 
+                                    aFile.fileSize + this._fileSpaceUsed);
 
     delete this._userInfo; // force us to update userInfo on every upload.
 
@@ -248,6 +248,28 @@ nsYouSendIt.prototype = {
 
     this._uploadingFile = aFile;
     this._uploader.startUpload();
+  },
+
+  /**
+   * A private function called when upload exceeds file limit.
+   *
+   * @param aCallback the nsIRequestObserver for monitoring the start and stop
+   *                  states of the upload procedure.
+   */
+  _fileExceedsLimit: function nsYouSendIt__fileExceedsLimit(aCallback, aType, aStorageSize) {
+    let cancel = Ci.nsIMsgCloudFileProvider.uploadCanceled;
+
+    let args = {storage: aStorageSize};
+    args.wrappedJSObject = args;
+    let ww = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
+                    .getService(Components.interfaces.nsIWindowWatcher);
+    ww.openWindow(null, 
+                  "chrome://messenger/content/cloudfile/YouSendIt/"
+                  + "fileExceeds" + aType + ".xul",
+                  "YouSendIt", "chrome,centerscreen,dialog,modal,resizable=yes", 
+                  args).focus(); 
+                  
+    return aCallback.onStopRequest(null, null, cancel);
   },
 
   /**
@@ -628,15 +650,9 @@ nsYouSendIt.prototype = {
    * @param aError an error to get the URL for.
    */
   providerUrlForError: function nsYouSendIt_providerUrlForError(aError) {
-    let exceedsLimit = Ci.nsIMsgCloudFileProvider.uploadExceedsFileLimit;
-    let exceedsQuota = Ci.nsIMsgCloudFileProvider.uploadWouldExceedQuota;
-    
-    if (aError == exceedsLimit)
-      return "https://www.yousendit.com/prosignup?p_code=pro&s=4001636&cid=pm-4001636";
-      
-    return (aError == exceedsQuota) 
-      ? "https://www.yousendit.com/prosignup?p_code=pro&s=4001637&cid=pm-4001637"
-      : "https://www.yousendit.com";
+    if (aError == Ci.nsIMsgCloudFileProvider.uploadExceedsFileLimit)
+      return "http://www.yousendit.com";
+    return "";
   },
 
   /**
@@ -1004,9 +1020,13 @@ nsYouSendItFileUploader.prototype = {
       "\r\nContent-Disposition: form-data; name=\"bid\"\r\n\r\n" +
        this._urlInfo.fileId;
 
+    let fileName = /^[\040-\176]+$/.test(this.file.leafName) 
+        ? this.file.leafName 
+        : encodeURIComponent(this.file.leafName);
+
     fileContents += "\r\n--" + boundary +
       "\r\nContent-Disposition: form-data; name=\"fname\"; filename=\"" +
-      this.file.leafName + "\"\r\nContent-Type: application/octet-stream" +
+      fileName + "\"\r\nContent-Type: application/octet-stream" +
       "\r\n\r\n";
 
     // Since js doesn't like binary data in strings, we're going to create
@@ -1202,7 +1222,7 @@ nsYouSendItFileUploader.prototype = {
     let tempfile = Cc["@mozilla.org/file/directory_service;1"]
       .getService(Ci.nsIProperties).get("TmpD", Ci.nsIFile);
     tempfile.append(leafName)
-    tempfile.createUnique(Components.interfaces.nsIFile.NORMAL_FILE_TYPE, 0666);
+    tempfile.createUnique(Components.interfaces.nsIFile.NORMAL_FILE_TYPE, parseInt("0666", 8));
     // do whatever you need to the created file
     return tempfile.clone()
   },

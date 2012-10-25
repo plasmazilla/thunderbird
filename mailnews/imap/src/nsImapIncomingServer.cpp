@@ -1,45 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   David Bienvenu <bienvenu@nventure.com>
- *   Jeff Tsai <jefft@netscape.com>
- *   Scott MacGregor <mscott@netscape.com>
- *   Seth Spitzer <sspitzer@netscape.com>
- *   Alec Flett <alecf@netscape.com>
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "msgCore.h"
 #include "nsMsgImapCID.h"
@@ -175,10 +137,6 @@ NS_IMETHODIMP nsImapIncomingServer::SetKey(const nsACString& aKey)  // override 
   if (!otherUsersNamespace.IsEmpty())
       hostSession->SetNamespaceFromPrefForHost(key.get(), otherUsersNamespace.get(),
                                                kOtherUsersNamespace);
-  PRInt32 capability;
-  rv = GetCapabilityPref(&capability);
-  NS_ENSURE_SUCCESS(rv, rv);
-  hostSession->SetCapabilityForHost(key.get(), capability);
   return rv;
 }
 
@@ -399,9 +357,6 @@ nsImapIncomingServer::SetDeleteModel(PRInt32 ivalue)
 NS_IMPL_SERVERPREF_INT(nsImapIncomingServer, TimeOutLimits,
                        "timeout")
 
-NS_IMPL_SERVERPREF_INT(nsImapIncomingServer, CapabilityPref,
-                       "capability")
-
 NS_IMPL_SERVERPREF_STR(nsImapIncomingServer, ServerIDPref,
                        "serverIDResponse")
 
@@ -423,6 +378,11 @@ NS_IMPL_SERVERPREF_BOOL(nsImapIncomingServer, MimePartsOnDemand,
 NS_IMPL_SERVERPREF_BOOL(nsImapIncomingServer, SendID,
                        "send_client_info")
 
+NS_IMPL_SERVERPREF_BOOL(nsImapIncomingServer, CapabilityACL,
+                       "cacheCapa.acl")
+NS_IMPL_SERVERPREF_BOOL(nsImapIncomingServer, CapabilityQuota,
+                       "cacheCapa.quota")
+
 NS_IMETHODIMP
 nsImapIncomingServer::GetIsAOLServer(bool *aBool)
 {
@@ -438,6 +398,14 @@ nsImapIncomingServer::SetIsAOLServer(bool aBool)
     m_capability |= kAOLImapCapability;
   else
     m_capability &= ~kAOLImapCapability;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsImapIncomingServer::UpdateTrySTARTTLSPref(bool aStartTLSSucceeded)
+{
+  SetSocketType(aStartTLSSucceeded ? nsMsgSocketType::alwaysSTARTTLS :
+                                     nsMsgSocketType::plain);
   return NS_OK;
 }
 
@@ -2209,10 +2177,11 @@ nsImapIncomingServer::PromptPassword(nsIMsgWindow *aMsgWindow,
 }
 
 // for the nsIImapServerSink interface
-NS_IMETHODIMP nsImapIncomingServer::SetCapability(PRUint32 capability)
+NS_IMETHODIMP nsImapIncomingServer::SetCapability(eIMAPCapabilityFlags capability)
 {
   m_capability = capability;
-  SetCapabilityPref(capability);
+  SetCapabilityACL(capability & kACLCapability);
+  SetCapabilityQuota(capability & kQuotaCapability);
   return NS_OK;
 }
 
@@ -3128,11 +3097,13 @@ NS_IMETHODIMP nsImapIncomingServer::SetSocketType(PRInt32 aSocketType)
 }
 
 NS_IMETHODIMP
-nsImapIncomingServer::OnUserOrHostNameChanged(const nsACString& oldName, const nsACString& newName)
+nsImapIncomingServer::OnUserOrHostNameChanged(const nsACString& oldName,
+                                              const nsACString& newName,
+                                              bool hostnameChanged)
 {
   nsresult rv;
   // 1. Do common things in the base class.
-  rv = nsMsgIncomingServer::OnUserOrHostNameChanged(oldName, newName);
+  rv = nsMsgIncomingServer::OnUserOrHostNameChanged(oldName, newName, hostnameChanged);
   NS_ENSURE_SUCCESS(rv,rv);
 
   // 2. Reset 'HaveWeEverDiscoveredFolders' flag so the new folder list can be

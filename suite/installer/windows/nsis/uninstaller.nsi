@@ -1,42 +1,10 @@
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is the Mozilla Installer code.
-#
-# The Initial Developer of the Original Code is Mozilla Foundation
-# Portions created by the Initial Developer are Copyright (C) 2006
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#  Robert Strong <robert.bugzilla@gmail.com>
-#  Frank Wein <mcsmurf@mcsmurf.de>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 # Also requires:
 # AppAssocReg http://nsis.sourceforge.net/Application_Association_Registration_plug-in
+# CityHash    http://mxr.mozilla.org/mozilla-central/source/other-licenses/nsis/Contrib/CityHash
 # ShellLink   http://nsis.sourceforge.net/ShellLink_plug-in
 # UAC         http://nsis.sourceforge.net/UAC_plug-in
 
@@ -68,6 +36,7 @@ Var TmpVal
 !include WinVer.nsh
 !include WordFunc.nsh
 
+!insertmacro GetSize
 !insertmacro GetOptions
 !insertmacro GetParameters
 !insertmacro GetParent
@@ -96,6 +65,7 @@ VIAddVersionKey "OriginalFilename" "helper.exe"
 !insertmacro FindSMProgramsDir
 !insertmacro GetLongPath
 !insertmacro GetPathFromString
+!insertmacro InitHashAppModelId
 !insertmacro IsHandlerForInstallDir
 !insertmacro RegCleanMain
 !insertmacro RegCleanUninstall
@@ -113,6 +83,7 @@ VIAddVersionKey "OriginalFilename" "helper.exe"
 !insertmacro un.DeleteShortcuts
 !insertmacro un.GetLongPath
 !insertmacro un.GetSecondInstallPath
+!insertmacro un.InitHashAppModelId
 !insertmacro un.ManualCloseAppPrompt
 !insertmacro un.ParseUninstallLog
 !insertmacro un.RegCleanAppHandler
@@ -130,11 +101,15 @@ VIAddVersionKey "OriginalFilename" "helper.exe"
 !insertmacro UninstallOnInitCommon
 
 !insertmacro un.OnEndCommon
+!insertmacro un.UninstallUnOnInitCommon
 
 Name "${BrandFullName}"
 OutFile "helper.exe"
-InstallDirRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${BrandFullNameInternal} (${AppVersion})" "InstallLocation"
-InstallDir "$PROGRAMFILES\${BrandFullName}"
+!ifdef HAVE_64BIT_OS
+  InstallDir "$PROGRAMFILES64\${BrandFullName}\"
+!else
+  InstallDir "$PROGRAMFILES32\${BrandFullName}\"
+!endif
 ShowUnInstDetails nevershow
 
 ################################################################################
@@ -215,8 +190,18 @@ Section "Uninstall"
   ${un.RegCleanUninstall}
   ${un.DeleteShortcuts}
 
+  ; setup the application model id registration value
+  ${un.InitHashAppModelId} "$INSTDIR" "Software\Mozilla\${AppName}\TaskBarIDs"
+
   ; Unregister resources associated with Win7 taskbar jump lists.
-  ApplicationID::UninstallJumpLists "${AppUserModelID}"
+  ${If} ${AtLeastWin7}
+  ${AndIf} "$AppUserModelID" != ""
+    ApplicationID::UninstallJumpLists "$AppUserModelID"
+  ${EndIf}
+
+  ; Remove any app model id's stored in the registry for this install path
+  DeleteRegValue HKCU "Software\Mozilla\${AppName}\TaskBarIDs" "$INSTDIR"
+  DeleteRegValue HKLM "Software\Mozilla\${AppName}\TaskBarIDs" "$INSTDIR"
 
   ClearErrors
   WriteRegStr HKLM "Software\Mozilla" "${BrandShortName}InstallerTest" "Write Test"
@@ -552,22 +537,17 @@ FunctionEnd
 # Initialization Functions
 
 Function .onInit
+  ; We need this set up for most of the helper.exe operations.
+  !ifdef AppName
+  ${InitHashAppModelId} "$INSTDIR" "Software\Mozilla\${AppName}\TaskBarIDs"
+  !endif
   ${UninstallOnInitCommon}
 FunctionEnd
 
 Function un.onInit
-  ${un.GetParent} "$INSTDIR" $INSTDIR
-  ${un.GetLongPath} "$INSTDIR" $INSTDIR
-  ${Unless} ${FileExists} "$INSTDIR\${FileMainEXE}"
-    Abort
-  ${EndUnless}
-
   StrCpy $LANGUAGE 0
-  ${un.SetBrandNameVars} "$INSTDIR\distribution\setup.ini"
 
-  ; Initialize $hHeaderBitmap to prevent redundant changing of the bitmap if
-  ; the user clicks the back button
-  StrCpy $hHeaderBitmap ""
+  ${un.UninstallUnOnInitCommon}
 
   !insertmacro InitInstallOptionsFile "unconfirm.ini"
 FunctionEnd

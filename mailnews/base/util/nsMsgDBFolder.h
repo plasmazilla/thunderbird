@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsMsgDBFolder_h__
 #define nsMsgDBFolder_h__
@@ -49,7 +17,7 @@
 #include "nsIDBChangeListener.h"
 #include "nsIMsgPluggableStore.h"
 #include "nsIURL.h"
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 #include "nsWeakReference.h"
 #include "nsIMsgFilterList.h"
 #include "nsIUrlListener.h"
@@ -109,9 +77,9 @@ public:
   void ChangeNumPendingUnread(PRInt32 delta);
   void ChangeNumPendingTotalMessages(PRInt32 delta);
 
-  nsresult CreateDirectoryForFolder(nsILocalFile **result);
-  nsresult CreateBackupDirectory(nsILocalFile **result);
-  nsresult GetBackupSummaryFile(nsILocalFile **result, const nsACString& newName);
+  nsresult CreateDirectoryForFolder(nsIFile **result);
+  nsresult CreateBackupDirectory(nsIFile **result);
+  nsresult GetBackupSummaryFile(nsIFile **result, const nsACString& newName);
   nsresult GetMsgPreviewTextFromStream(nsIMsgDBHdr *msgHdr, nsIInputStream *stream);
   nsresult HandleAutoCompactEvent(nsIMsgWindow *aMsgWindow);
 protected:
@@ -146,15 +114,15 @@ protected:
   nsresult CheckWithNewMessagesStatus(bool messageAdded);
   void     UpdateNewMessages();
   nsresult OnHdrAddedOrDeleted(nsIMsgDBHdr *hdrChanged, bool added);
-  nsresult CreateFileForDB(const nsAString& userLeafName, nsILocalFile *baseDir,
-                           nsILocalFile **dbFile);
+  nsresult CreateFileForDB(const nsAString& userLeafName, nsIFile *baseDir,
+                           nsIFile **dbFile);
 
-  nsresult GetFolderCacheKey(nsILocalFile **aFile, bool createDBIfMissing = false);
-  nsresult GetFolderCacheElemFromFile(nsILocalFile *file, nsIMsgFolderCacheElement **cacheElement);
-  nsresult AddDirectorySeparator(nsILocalFile *path);
+  nsresult GetFolderCacheKey(nsIFile **aFile, bool createDBIfMissing = false);
+  nsresult GetFolderCacheElemFromFile(nsIFile *file, nsIMsgFolderCacheElement **cacheElement);
+  nsresult AddDirectorySeparator(nsIFile *path);
   nsresult CheckIfFolderExists(const nsAString& newFolderName, nsIMsgFolder *parentFolder, nsIMsgWindow *msgWindow);
 
-  nsresult GetSummaryFile(nsILocalFile** aSummaryFile);
+  nsresult GetSummaryFile(nsIFile** aSummaryFile);
 
   // Returns true if: a) there is no need to prompt or b) the user is already
   // logged in or c) the user logged in successfully.
@@ -257,7 +225,7 @@ protected:
   bool mIsServerIsValid;
   bool mIsServer;
   nsString mName;
-  nsCOMPtr<nsILocalFile> mPath;
+  nsCOMPtr<nsIFile> mPath;
   nsCString mBaseMessageURI; //The uri with the message scheme
 
   bool mInVFEditSearchScope ; // non persistant state used by the virtual folder UI

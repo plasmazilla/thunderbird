@@ -1,40 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Sun Microsystems code.
- *
- * The Initial Developer of the Original Code is
- *   Philipp Kewisch <mozilla@kewis.ch>
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Wolfgang Sourdeau <wsourdeau@inverse.ca>
- *   Simon Vaillancourt <simon.at.orcl@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
@@ -368,31 +334,31 @@ webDavSyncHandler.prototype = {
             return;
         }
 
-        let C = new Namespace("C", "urn:ietf:params:xml:ns:caldav");
-        let D = new Namespace("D", "DAV:");
-        default xml namespace = D;
-        let queryXml =
-          <sync-collection>
-            <sync-token/>
-            <prop>
-              <getcontenttype/>
-              <getetag/>
-            </prop>
-          </sync-collection>;
 
+        let syncTokenString = "<sync-token/>";
         if (this.calendar.mWebdavSyncToken && this.calendar.mWebdavSyncToken.length > 0) {
-            queryXml.D::["sync-token"] = this.calendar.mWebdavSyncToken;
+            let syncToken = cal.xml.escapeString(this.calendar.mWebdavSyncToken);
+            syncTokenString = "<sync-token>" + syncToken + "</sync-token>";
         }
 
-        let queryString = xmlHeader + queryXml.toXMLString();
+        let queryXml =
+          xmlHeader +
+          '<sync-collection xmlns="DAV:">' +
+            syncTokenString +
+            '<prop>' +
+              '<getcontenttype/>' +
+              '<getetag/>' +
+            '</prop>' +
+          '</sync-collection>';
+
         let requestUri = this.calendar.makeUri(null, this.baseUri);
 
         if (this.calendar.verboseLogging()) {
-            cal.LOG("CalDAV: send(" + requestUri.spec + "): " + queryString);
+            cal.LOG("CalDAV: send(" + requestUri.spec + "): " + queryXml);
         }
         cal.LOG("CalDAV: webdav-sync Token: " + this.calendar.mWebdavSyncToken);
         let httpchannel = cal.prepHttpChannel(requestUri,
-                                              queryString,
+                                              queryXml,
                                               "text/xml; charset=utf-8",
                                               this.calendar);
         httpchannel.setRequestHeader("Depth", "1", false);
@@ -708,33 +674,33 @@ multigetSyncHandler.prototype = {
             this.calendar.checkDavResourceType(this.changeLogListener);
             return;
         }
-        let C = new Namespace("C", "urn:ietf:params:xml:ns:caldav");
-        let D = new Namespace("D", "DAV:");
-        let queryXml =
-          <calendar-multiget xmlns:D={D} xmlns={C}>
-            <D:prop>
-              <D:getetag/>
-              <calendar-data/>
-            </D:prop>
-          </calendar-multiget>;
 
         let batchSize = cal.getPrefSafe("calendar.caldav.multigetBatchSize", 100);
+        let hrefString = "";
         while (this.itemsNeedFetching.length && batchSize > 0) {
-            batchSize --;
+            batchSize--;
             // ensureEncodedPath extracts only the path component of the item and
             // encodes it before it is sent to the server
             let locpath = this.calendar.ensureEncodedPath(this.itemsNeedFetching.pop());
-            queryXml.D::prop += <D:href xmlns:D={D}>{locpath}</D:href>;
+            hrefString += "<D:href>" + cal.xml.escapeString(locpath) + "</D:href>";
         }
 
-        let multigetQueryString = xmlHeader + queryXml.toXMLString();
+        let queryXml =
+          xmlHeader +
+          '<C:calendar-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">' +
+            '<D:prop>' +
+              '<D:getetag/>' +
+              '<C:calendar-data/>' +
+            '</D:prop>' +
+            hrefString +
+          '</C:calendar-multiget>';
 
         let requestUri = this.calendar.makeUri(null, this.baseUri);
         if (this.calendar.verboseLogging()) {
             cal.LOG("CalDAV: send(" + requestUri.spec + "): " + queryXml);
         }
         let httpchannel = cal.prepHttpChannel(requestUri,
-                                              multigetQueryString,
+                                              queryXml,
                                               "text/xml; charset=utf-8",
                                               this.calendar);
         httpchannel.setRequestHeader("Depth", "1", false);

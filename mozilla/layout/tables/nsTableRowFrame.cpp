@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "nsTableRowFrame.h"
 #include "nsTableRowGroupFrame.h"
 #include "nsIPresShell.h"
@@ -50,6 +18,9 @@
 #include "nsTableColFrame.h"
 #include "nsCOMPtr.h"
 #include "nsDisplayList.h"
+#ifdef ACCESSIBILITY
+#include "nsAccessibilityService.h"
+#endif
 
 using namespace mozilla;
 
@@ -636,11 +607,33 @@ nsTableRowFrame::CalculateCellActualHeight(nsTableCellFrame* aCellFrame,
   PRInt32 rowSpan = tableFrame->GetEffectiveRowSpan(*aCellFrame);
   
   switch (position->mHeight.GetUnit()) {
-    case eStyleUnit_Coord:
-      specifiedHeight = position->mHeight.GetCoordValue();
+    case eStyleUnit_Coord: {
+      nscoord outsideBoxSizing = 0;
+      // In quirks mode, table cell width should be content-box, but height
+      // should be border-box.
+      // Because of this historic anomaly, we do not use quirk.css
+      // (since we can't specify one value of box-sizing for width and another
+      // for height)
+      if (PresContext()->CompatibilityMode() != eCompatibility_NavQuirks) {
+        switch (position->mBoxSizing) {
+          case NS_STYLE_BOX_SIZING_CONTENT:
+            outsideBoxSizing = aCellFrame->GetUsedBorderAndPadding().TopBottom();
+            break;
+          case NS_STYLE_BOX_SIZING_PADDING:
+            outsideBoxSizing = aCellFrame->GetUsedBorder().TopBottom();
+            break;
+          default:
+            // NS_STYLE_BOX_SIZING_BORDER
+            break;
+        }
+      }
+
+      specifiedHeight = position->mHeight.GetCoordValue() + outsideBoxSizing;
+
       if (1 == rowSpan) 
         SetFixedHeight(specifiedHeight);
       break;
+    }
     case eStyleUnit_Percent: {
       if (1 == rowSpan) 
         SetPctHeight(position->mHeight.GetPercentValue());
@@ -1346,7 +1339,19 @@ void nsTableRowFrame::SetContinuousBCBorderWidth(PRUint8     aForSide,
       NS_ERROR("invalid NS_SIDE arg");
   }
 }
+#ifdef ACCESSIBILITY
+already_AddRefed<Accessible>
+nsTableRowFrame::CreateAccessible()
+{
+  nsAccessibilityService* accService = nsIPresShell::AccService();
+  if (accService) {
+    return accService->CreateHTMLTableRowAccessible(mContent,
+                                                    PresContext()->PresShell());
+  }
 
+  return nsnull;
+}
+#endif
 /**
  * Sets the NS_ROW_HAS_CELL_WITH_STYLE_HEIGHT bit to indicate whether
  * this row has any cells that have non-auto-height.  (Row-spanning

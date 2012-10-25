@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- *   Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Thunderbird Mail Client.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Andrew Sutherland <asutherland@asutherland.org>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 var Ci = Components.interfaces;
 var Cc = Components.classes;
@@ -736,7 +703,10 @@ function _wait_for_generic_load(aDetails, aURLOrPredicate) {
   // Lie to mozmill to convince it to not explode because these frames never
   // get a mozmillDocumentLoaded attribute (bug 666438).
   let contentWindow = aDetails.contentWindow;
-  contentWindow.mozmillDocumentLoaded = true;
+  let windowId = contentWindow.QueryInterface(Ci.nsIInterfaceRequestor)
+                              .getInterface(Ci.nsIDOMWindowUtils)
+                              .outerWindowID;
+  controller.windowMap.update(windowId, "loaded", true);
   let cwc = new controller.MozMillController(contentWindow);
   return augment_controller(cwc);
 }
@@ -934,8 +904,9 @@ var AugmentEverybodyWith = {
       if (aRootPopup.state == "closed")
         aRootPopup.openPopup(null, "", 0, 0, true, true);
       if (aRootPopup.state != "open") { // handle "showing"
-        utils.waitFor(function () aRootPopup.state == "open",
-                      "Popup never opened!", 1000, 50);
+        utils.waitFor(function() { return aRootPopup.state == "open"; },
+                      "Popup never opened! id=" + aRootPopup.id +
+                      ", state=" + aRootPopup.state, 5000, 50);
       }
       // These popups sadly do not close themselves, so we need to keep track
       //  of them so we can make sure they end up closed.
@@ -971,17 +942,19 @@ var AugmentEverybodyWith = {
         if ("menupopup" in matchingNode) {
           curPopup = matchingNode.menupopup;
           closeStack.push(curPopup);
-          utils.waitFor(function () curPopup.state == "open",
-                        "Popup never opened at action depth: " + iAction,
-                        1000, 50);
+          utils.waitFor(function() { return curPopup.state == "open"; },
+                        "Popup never opened at action depth " + iAction +
+                        "; id=" + curPopup.id + ", state=" + curPopup.state,
+                        5000, 50);
         }
       }
 
       while (closeStack.length) {
         curPopup = closeStack.pop();
         this.keypress(new elib.Elem(curPopup), "VK_ESCAPE", {});
-        utils.waitFor(function () curPopup.state == "closed",
-                      "Popup did not close!", 1000, 50);
+        utils.waitFor(function() { return curPopup.state == "closed"; },
+                      "Popup did not close! id=" + curPopup.id +
+                      ", state=" +  curPopup.state, 5000, 50);
       }
     },
 
@@ -1243,18 +1216,6 @@ var PerWindowTypeAugmentations = {
         return this.folderDisplay.view.dbView;
       }
     }
-  },
-
-  /**
-   * The feature configurator.
-   */
-  "mailnews:featureconfigurator": {
-    elementsToExpose: {
-      contentFrame: "contentFrame",
-    },
-    globalsToExposeViaGetters: {
-      featureConfigurator: "FeatureConfigurator",
-    },
   },
 };
 
@@ -1732,22 +1693,16 @@ function screenshotToDataURL(aWindow) {
   // (We may need to do this for popups...)
   /*
   // - find all the sub-windows and render them
-  function isVisible(aElem) {
-    if (aElem.hidden || aElem.collapsed)
-      return false;
-    let parent = aElem.parentNode;
-    if (parent == null)
-      return true;
-    if (("selectedPanel" in parent) &&
-        parent.selectedPanel != aElem)
-      return false;
-    return isVisible(parent);
-  }
+
+  // function isVisible(aElem) has been moved to test-dom-helpers.js and
+  // renamed into element_visible_recursive(). If you resurrect the following
+  // function subrenderCandidates, then make sure that you import
+  // test-dom-helpers.js.
 
   function subrenderCandidates(aElements) {
     for (let i = 0; i < aElements.length; i++) {
       let elem = aElements[i];
-      if (isVisible(elem)) {
+      if (element_visible_recursive(elem)) {
         let rect = elem.getBoundingClientRect();
         ctx.save();
         ctx.translate(rect.left, rect.top);

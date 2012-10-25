@@ -1,40 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim:set tw=80 expandtab softtabstop=2 ts=2 sw=2: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #ifndef nsGenericHTMLElement_h___
 #define nsGenericHTMLElement_h___
 
@@ -42,7 +10,6 @@
 #include "nsIDOMHTMLElement.h"
 #include "nsINameSpaceManager.h"  // for kNameSpaceID_None
 #include "nsIFormControl.h"
-#include "nsFrameLoader.h"
 #include "nsGkAtoms.h"
 #include "nsContentCreatorFunctions.h"
 
@@ -65,6 +32,9 @@ struct nsSize;
 class nsHTMLFormElement;
 class nsIDOMDOMStringMap;
 class nsIDOMHTMLMenuElement;
+class nsIDOMHTMLCollection;
+class nsDOMSettableTokenList;
+class nsIDOMHTMLPropertiesCollection;
 
 typedef nsMappedAttributeElement nsGenericHTMLElementBase;
 
@@ -101,7 +71,7 @@ public:
                              void **aInstancePtr);
 
   // From nsGenericElement
-  nsresult CopyInnerTo(nsGenericElement* aDest) const;
+  nsresult CopyInnerTo(nsGenericElement* aDest);
 
   // Implementation for nsIDOMElement
   NS_METHOD SetAttribute(const nsAString& aName,
@@ -146,6 +116,26 @@ public:
   NS_IMETHOD SetSpellcheck(bool aSpellcheck);
   NS_IMETHOD GetDraggable(bool* aDraggable);
   NS_IMETHOD SetDraggable(bool aDraggable);
+  NS_IMETHOD GetItemScope(bool* aItemScope);
+  NS_IMETHOD SetItemScope(bool aItemScope);
+  NS_IMETHOD GetItemValue(nsIVariant** aValue);
+  NS_IMETHOD SetItemValue(nsIVariant* aValue);
+protected:
+  // These methods are used to implement element-specific behavior of Get/SetItemValue
+  // when an element has @itemprop but no @itemscope.
+  virtual void GetItemValueText(nsAString& text);
+  virtual void SetItemValueText(const nsAString& text);
+  nsDOMSettableTokenList* GetTokenList(nsIAtom* aAtom);
+public:
+  NS_IMETHOD GetItemType(nsIVariant** aType);
+  NS_IMETHOD SetItemType(nsIVariant* aType);
+  NS_IMETHOD GetItemId(nsAString& aId);
+  NS_IMETHOD SetItemId(const nsAString& aId);
+  NS_IMETHOD GetItemRef(nsIVariant** aRef);
+  NS_IMETHOD SetItemRef(nsIVariant* aValue);
+  NS_IMETHOD GetItemProp(nsIVariant** aProp);
+  NS_IMETHOD SetItemProp(nsIVariant* aValue);
+  NS_IMETHOD GetProperties(nsIDOMHTMLPropertiesCollection** aReturn);
   NS_IMETHOD GetAccessKey(nsAString &aAccessKey);
   NS_IMETHOD SetAccessKey(const nsAString& aAccessKey);
   NS_IMETHOD GetAccessKeyLabel(nsAString& aLabel);
@@ -156,6 +146,11 @@ public:
   // Callback for destructor of of dataset to ensure to null out weak pointer.
   nsresult ClearDataset();
   nsresult GetContextMenu(nsIDOMHTMLMenuElement** aContextMenu);
+
+  /**
+   * Get width and height, using given image request if attributes are unset.
+   */
+  nsSize GetWidthHeightForImage(imgIRequest *aImageRequest);
 
 protected:
   nsresult GetMarkup(bool aIncludeSelf, nsAString& aMarkup);
@@ -545,6 +540,8 @@ public:
     return HasAttr(kNameSpaceID_None, nsGkAtoms::hidden);
   }
 
+  virtual bool IsLabelable() const;
+
 protected:
   /**
    * Add/remove this element to the documents name cache
@@ -692,19 +689,6 @@ protected:
   NS_HIDDEN_(nsresult) SetUnsignedIntAttr(nsIAtom* aAttr, PRUint32 aValue);
 
   /**
-   * Helper method for NS_IMPL_DOUBLE_ATTR macro.
-   * Gets the double-value of an attribute, returns specified default value
-   * if the attribute isn't set or isn't set to a double. Only works for
-   * attributes in null namespace.
-   *
-   * @param aAttr    name of attribute.
-   * @param aDefault default-value to return if attribute isn't set.
-   * @param aResult  result value [out]
-   */
-  NS_HIDDEN_(nsresult) GetDoubleAttr(nsIAtom* aAttr, double aDefault, double* aValue);
-
-  /**
-   * Helper method for NS_IMPL_DOUBLE_ATTR macro.
    * Sets value of attribute to specified double. Only works for attributes
    * in null namespace.
    *
@@ -816,9 +800,6 @@ private:
   void ChangeEditableState(PRInt32 aChange);
 };
 
-
-//----------------------------------------------------------------------
-
 class nsHTMLFieldSetElement;
 
 /**
@@ -902,6 +883,8 @@ public:
   virtual bool IsHTMLFocusable(bool aWithMouse, bool* aIsFocusable,
                                  PRInt32* aTabIndex);
 
+  virtual bool IsLabelable() const;
+
 protected:
   virtual nsresult BeforeSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
                                  const nsAttrValueOrString* aValue,
@@ -909,8 +892,6 @@ protected:
 
   virtual nsresult AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
                                 const nsAttrValue* aValue, bool aNotify);
-
-  void UpdateEditableFormControlState(bool aNotify);
 
   /**
    * This method will update the form owner, using @form or looking to a parent.
@@ -1095,26 +1076,6 @@ PR_STATIC_ASSERT(ELEMENT_TYPE_SPECIFIC_BITS_OFFSET + 1 < 32);
   }
 
 /**
- * A macro to implement the getter and setter for a given double-precision
- * floating point valued content property. The method uses GetDoubleAttr and
- * SetDoubleAttr methods.
- */
-#define NS_IMPL_DOUBLE_ATTR(_class, _method, _atom)                    \
-  NS_IMPL_DOUBLE_ATTR_DEFAULT_VALUE(_class, _method, _atom, 0.0)
-
-#define NS_IMPL_DOUBLE_ATTR_DEFAULT_VALUE(_class, _method, _atom, _default) \
-  NS_IMETHODIMP                                                             \
-  _class::Get##_method(double* aValue)                                      \
-  {                                                                         \
-    return GetDoubleAttr(nsGkAtoms::_atom, _default, aValue);               \
-  }                                                                         \
-  NS_IMETHODIMP                                                             \
-  _class::Set##_method(double aValue)                                       \
-  {                                                                         \
-    return SetDoubleAttr(nsGkAtoms::_atom, aValue);                         \
-  }
-
-/**
  * A macro to implement the getter and setter for a given content
  * property that needs to return a URI in string form.  The method
  * uses the generic GetAttr and SetAttr methods.  This macro is much
@@ -1206,31 +1167,6 @@ PR_STATIC_ASSERT(ELEMENT_TYPE_SPECIFIC_BITS_OFFSET + 1 < 32);
   _class::Set##_method(const nsAString& aValue)                           \
   {                                                                       \
     return SetAttrHelper(nsGkAtoms::_atom, aValue);                       \
-  }
-
-/**
- * A macro to implement the getter and setter for a given content
- * property that needs to set a positive integer. The method uses
- * the generic GetAttr and SetAttr methods. This macro is much like
- * the NS_IMPL_NON_NEGATIVE_INT_ATTR macro except the exception is
- * thrown also when the value is equal to 0.
- */
-#define NS_IMPL_POSITIVE_INT_ATTR(_class, _method, _atom)                 \
-  NS_IMPL_POSITIVE_INT_ATTR_DEFAULT_VALUE(_class, _method, _atom, 1)
-
-#define NS_IMPL_POSITIVE_INT_ATTR_DEFAULT_VALUE(_class, _method, _atom, _default)  \
-  NS_IMETHODIMP                                                           \
-  _class::Get##_method(PRInt32* aValue)                                   \
-  {                                                                       \
-    return GetIntAttr(nsGkAtoms::_atom, _default, aValue);                \
-  }                                                                       \
-  NS_IMETHODIMP                                                           \
-  _class::Set##_method(PRInt32 aValue)                                    \
-  {                                                                       \
-    if (aValue <= 0) {                                                    \
-      return NS_ERROR_DOM_INDEX_SIZE_ERR;                                 \
-    }                                                                     \
-    return SetIntAttr(nsGkAtoms::_atom, aValue);                          \
   }
 
 /**
@@ -1443,6 +1379,45 @@ PR_STATIC_ASSERT(ELEMENT_TYPE_SPECIFIC_BITS_OFFSET + 1 < 32);
   NS_SCRIPTABLE NS_IMETHOD Blur() { \
     return _to Blur(); \
   } \
+  NS_SCRIPTABLE NS_IMETHOD GetItemScope(bool* aItemScope) { \
+    return _to GetItemScope(aItemScope); \
+  } \
+  NS_SCRIPTABLE NS_IMETHOD SetItemScope(bool aItemScope) { \
+    return _to SetItemScope(aItemScope); \
+  } \
+  NS_SCRIPTABLE NS_IMETHOD GetItemType(nsIVariant** aType) { \
+    return _to GetItemType(aType); \
+  } \
+  NS_SCRIPTABLE NS_IMETHOD SetItemType(nsIVariant* aType) { \
+    return _to SetItemType(aType); \
+  } \
+  NS_SCRIPTABLE NS_IMETHOD GetItemId(nsAString& aId) { \
+    return _to GetItemId(aId); \
+  } \
+  NS_SCRIPTABLE NS_IMETHOD SetItemId(const nsAString& aId) { \
+    return _to SetItemId(aId); \
+  } \
+  NS_SCRIPTABLE NS_IMETHOD GetProperties(nsIDOMHTMLPropertiesCollection** aReturn) { \
+    return _to GetProperties(aReturn); \
+  } \
+  NS_SCRIPTABLE NS_IMETHOD GetItemValue(nsIVariant** aValue) { \
+    return _to GetItemValue(aValue); \
+  } \
+  NS_SCRIPTABLE NS_IMETHOD SetItemValue(nsIVariant* aValue) { \
+    return _to SetItemValue(aValue); \
+  } \
+  NS_SCRIPTABLE NS_IMETHOD GetItemRef(nsIVariant** aRef) { \
+    return _to GetItemRef(aRef); \
+  } \
+  NS_SCRIPTABLE NS_IMETHOD SetItemRef(nsIVariant* aRef) { \
+    return _to SetItemRef(aRef); \
+  } \
+  NS_SCRIPTABLE NS_IMETHOD GetItemProp(nsIVariant** aProp) { \
+    return _to GetItemProp(aProp); \
+  } \
+  NS_SCRIPTABLE NS_IMETHOD SetItemProp(nsIVariant* aProp) { \
+    return _to SetItemProp(aProp); \
+  } \
   NS_SCRIPTABLE NS_IMETHOD GetAccessKey(nsAString& aAccessKey) { \
     return _to GetAccessKey(aAccessKey); \
   } \
@@ -1578,6 +1553,7 @@ NS_DECLARE_NS_NEW_HTML_ELEMENT(Map)
 NS_DECLARE_NS_NEW_HTML_ELEMENT(Menu)
 NS_DECLARE_NS_NEW_HTML_ELEMENT(MenuItem)
 NS_DECLARE_NS_NEW_HTML_ELEMENT(Meta)
+NS_DECLARE_NS_NEW_HTML_ELEMENT(Meter)
 NS_DECLARE_NS_NEW_HTML_ELEMENT(Object)
 NS_DECLARE_NS_NEW_HTML_ELEMENT(OptGroup)
 NS_DECLARE_NS_NEW_HTML_ELEMENT(Option)

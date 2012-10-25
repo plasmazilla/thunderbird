@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef _nsIImapHostSessionList_H_
 #define _nsIImapHostSessionList_H_
@@ -45,10 +13,9 @@ class nsIMAPBodyShellCache;
 class nsIMAPBodyShell;
 class nsIImapIncomingServer;
 
-// 2a8e21fe-e3c4-11d2-a504-0060b0fc04b7
-
+// f4d89e3e-77da-492c-962b-7835f0742c22
 #define NS_IIMAPHOSTSESSIONLIST_IID \
-{ 0x2a8e21fe, 0xe3c4, 0x11d2, {0xa5, 0x04, 0x00, 0x60, 0xb0, 0xfc, 0x04, 0xb7 } }
+{ 0xf4d89e3e, 0x77da, 0x492c, {0x96, 0x2b, 0x78, 0x35, 0xf0, 0x74, 0x2c, 0x22 } }
 
 // this is an interface to a linked list of host info's    
 class nsIImapHostSessionList : public nsISupports
@@ -61,8 +28,6 @@ public:
   NS_IMETHOD ResetAll() = 0;
 
   // Capabilities
-  NS_IMETHOD  GetCapabilityForHost(const char *serverKey, PRUint32 &result) = 0;
-  NS_IMETHOD  SetCapabilityForHost(const char *serverKey, PRUint32 capability) = 0;
   NS_IMETHOD  GetHostHasAdminURL(const char *serverKey, bool &result) = 0;
   NS_IMETHOD  SetHostHasAdminURL(const char *serverKey, bool hasAdminUrl) = 0;
   // Subscription

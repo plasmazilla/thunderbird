@@ -3,10 +3,10 @@ mochikit.jar:
   content/browser-harness.xul (browser-harness.xul)
   content/browser-test.js (browser-test.js)
   content/browser-test-overlay.xul (browser-test-overlay.xul)
+  content/cc-analyzer.js (cc-analyzer.js)
   content/chrome-harness.js (chrome-harness.js)
   content/harness-overlay.xul (harness-overlay.xul)
   content/harness.xul (harness.xul)
-  content/mozprefs.js (mozprefs.js)
   content/redirect.html (redirect.html)
   content/server.js (server.js)
   content/dynamic/getMyDirectory.sjs (dynamic/getMyDirectory.sjs)
@@ -24,6 +24,7 @@ mochikit.jar:
   content/tests/SimpleTest/TestRunner.js (tests/SimpleTest/TestRunner.js)
   content/tests/SimpleTest/WindowSnapshot.js (tests/SimpleTest/WindowSnapshot.js)
   content/tests/SimpleTest/MockObjects.js (tests/SimpleTest/MockObjects.js)
+  content/tests/SimpleTest/NativeKeyCodes.js (tests/SimpleTest/NativeKeyCodes.js)
   content/tests/SimpleTest/docshell_helpers.js (../../docshell/test/chrome/docshell_helpers.js)
 
 % resource mochikit %modules/

@@ -1,42 +1,9 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  * vim: set ts=4 sw=4 et tw=99:
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla SpiderMonkey JavaScript 1.9 code, released
- * May 28, 2008.
- *
- * The Initial Developer of the Original Code is
- *   Brendan Eich <brendan@mozilla.org>
- *
- * Contributor(s):
- *   David Anderson <danderson@mozilla.com>
- *   David Mandelin <dmandelin@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #if !defined jsjaeger_baseassembler_h__ && defined JS_METHODJIT
 #define jsjaeger_baseassembler_h__
@@ -51,6 +18,7 @@
 #include "CodeGenIncludes.h"
 #include "jsobjinlines.h"
 #include "jsscopeinlines.h"
+#include "jstypedarrayinlines.h"
 
 namespace js {
 namespace mjit {
@@ -192,7 +160,7 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::MIPSRegiste
         loadPtr(Address(obj, JSObject::offsetOfShape()), shape);
     }
 
-    Jump guardShape(RegisterID objReg, const Shape *shape) {
+    Jump guardShape(RegisterID objReg, Shape *shape) {
         return branchPtr(NotEqual, Address(objReg, JSObject::offsetOfShape()), ImmPtr(shape));
     }
 
@@ -348,7 +316,7 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::MIPSRegiste
     // stack space must be reserved up-front, and is aligned on an 8-byte
     // boundary.
     //
-    // Returns an offset that can be used to index into this stack 
+    // Returns an offset that can be used to index into this stack
     StackMarker allocStack(uint32_t bytes, uint32_t alignment = 4) {
         bytes += align(bytes + extraStackSpace, alignment);
         subPtr(Imm32(bytes), stackPointerRegister);
@@ -567,6 +535,17 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::MIPSRegiste
         }
     }
 
+    void storeArg(uint32_t i, Imm32 imm) {
+        JS_ASSERT(callIsAligned);
+        RegisterID to;
+        if (Registers::regForArg(callConvention, i, &to)) {
+            move(imm, to);
+            availInCall.takeRegUnchecked(to);
+        } else {
+            store32(imm, addressOfArg(i));
+        }
+    }
+
     // High-level call helper, given an optional function pointer and a
     // calling convention. setupABICall() must have been called beforehand,
     // as well as each numbered argument stored with storeArg().
@@ -581,7 +560,7 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::MIPSRegiste
         // that make 12 insufficent.  In case 16 is also insufficent, I've bumped
         // it to 20.
         ensureSpace(20);
-        int initFlushCount = flushCount();
+        DebugOnly<int> initFlushCount = flushCount();
 #endif
         // [Bug 614953]: This can only be made conditional once the ARM back-end
         // is able to distinguish and patch both call sequences. Other
@@ -633,10 +612,10 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::MIPSRegiste
                               pc, pinlined, fd);                              \
     }
 
-    STUB_CALL_TYPE(JSObjStub);
-    STUB_CALL_TYPE(VoidPtrStubUInt32);
-    STUB_CALL_TYPE(VoidStubUInt32);
-    STUB_CALL_TYPE(VoidStub);
+    STUB_CALL_TYPE(JSObjStub)
+    STUB_CALL_TYPE(VoidPtrStubUInt32)
+    STUB_CALL_TYPE(VoidStubUInt32)
+    STUB_CALL_TYPE(VoidStub)
 
 #undef STUB_CALL_TYPE
 
@@ -920,7 +899,7 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::MIPSRegiste
     }
 
     void loadObjProp(JSObject *obj, RegisterID objReg,
-                     const js::Shape *shape,
+                     js::Shape *shape,
                      RegisterID typeReg, RegisterID dataReg)
     {
         if (obj->isFixedSlot(shape->slot()))
@@ -1276,7 +1255,8 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::MIPSRegiste
     /*
      * Get a free object for the specified GC kind in compartment, writing it
      * to result and filling it in according to templateObject. Returns a jump
-     * taken if a free thing was not retrieved.
+     * taken if a free thing was not retrieved. Note: don't call this directly,
+     * use Compiler::getNewObject instead.
      */
     Jump getNewObject(JSContext *cx, RegisterID result, JSObject *templateObject)
     {
@@ -1395,7 +1375,7 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::MIPSRegiste
 };
 
 /* Return f<true> if the script is strict mode code, f<false> otherwise. */
-#define STRICT_VARIANT(f)                                                     \
+#define STRICT_VARIANT(script, f)                                             \
     (FunctionTemplateConditional(script->strictModeCode,                      \
                                  f<true>, f<false>))
 

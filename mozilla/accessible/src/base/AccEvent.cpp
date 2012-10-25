@@ -1,53 +1,18 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2003
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Aaron Leventhal <aaronl@netscape.com> <original author>
- *   Alexander Surkov <surkov.alexander@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "AccEvent.h"
 
+#include "ApplicationAccessibleWrap.h"
 #include "nsAccessibilityService.h"
 #include "nsAccUtils.h"
-#include "nsApplicationAccessibleWrap.h"
-#include "nsDocAccessible.h"
+#include "DocAccessible.h"
 #include "nsIAccessibleText.h"
 #include "nsAccEvent.h"
 #include "States.h"
 
-#include "nsIDOMDocument.h"
 #include "nsEventStateManager.h"
 #include "nsIServiceManager.h"
 #ifdef MOZ_XUL
@@ -63,7 +28,7 @@ using namespace mozilla::a11y;
 ////////////////////////////////////////////////////////////////////////////////
 // AccEvent constructors
 
-AccEvent::AccEvent(PRUint32 aEventType, nsAccessible* aAccessible,
+AccEvent::AccEvent(PRUint32 aEventType, Accessible* aAccessible,
                    EIsFromUserInput aIsFromUserInput, EEventRule aEventRule) :
   mEventType(aEventType), mEventRule(aEventRule), mAccessible(aAccessible)
 {
@@ -80,7 +45,7 @@ AccEvent::AccEvent(PRUint32 aEventType, nsINode* aNode,
 ////////////////////////////////////////////////////////////////////////////////
 // AccEvent public methods
 
-nsAccessible *
+Accessible* 
 AccEvent::GetAccessible()
 {
   if (!mAccessible)
@@ -98,7 +63,7 @@ AccEvent::GetNode()
   return mNode;
 }
 
-nsDocAccessible*
+DocAccessible*
 AccEvent::GetDocAccessible()
 {
   if (mAccessible)
@@ -122,7 +87,7 @@ AccEvent::CreateXPCOMObject()
 ////////////////////////////////////////////////////////////////////////////////
 // AccEvent cycle collection
 
-NS_IMPL_CYCLE_COLLECTION_CLASS(AccEvent)
+NS_IMPL_CYCLE_COLLECTION_NATIVE_CLASS(AccEvent)
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_NATIVE(AccEvent)
   NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mAccessible)
@@ -139,10 +104,17 @@ NS_IMPL_CYCLE_COLLECTION_UNROOT_NATIVE(AccEvent, Release)
 ////////////////////////////////////////////////////////////////////////////////
 // AccEvent protected methods
 
-nsAccessible*
+Accessible*
 AccEvent::GetAccessibleForNode() const
 {
-  return mNode ? GetAccService()->GetAccessible(mNode, nsnull) : nsnull;
+  if (mNode) {
+    DocAccessible* document =
+      GetAccService()->GetDocAccessible(mNode->OwnerDoc());
+    if (document)
+      return document->GetAccessible(mNode);
+  }
+
+  return nsnull;
 }
 
 void
@@ -155,7 +127,7 @@ AccEvent::CaptureIsFromUserInput(EIsFromUserInput aIsFromUserInput)
     // XXX: remove this hack during reorganization of 506907. Meanwhile we
     // want to get rid an assertion for application accessible events which
     // don't have DOM node (see bug 506206).
-    nsApplicationAccessible *applicationAcc =
+    ApplicationAccessible* applicationAcc =
       nsAccessNode::GetApplicationAccessible();
 
     if (mAccessible != static_cast<nsIAccessible*>(applicationAcc))
@@ -195,7 +167,7 @@ AccEvent::CaptureIsFromUserInput(EIsFromUserInput aIsFromUserInput)
 // support correct state change coalescence (XXX Bug 569356). Also we need to
 // decide how to coalesce events created via accessible (instead of node).
 AccStateChangeEvent::
-  AccStateChangeEvent(nsAccessible* aAccessible, PRUint64 aState,
+  AccStateChangeEvent(Accessible* aAccessible, PRUint64 aState,
                       bool aIsEnabled, EIsFromUserInput aIsFromUserInput):
   AccEvent(nsIAccessibleEvent::EVENT_STATE_CHANGE, aAccessible,
            aIsFromUserInput, eAllowDupes),
@@ -220,7 +192,7 @@ AccStateChangeEvent::
   // Use GetAccessibleForNode() because we do not want to store an accessible
   // since it leads to problems with delayed events in the case when
   // an accessible gets reorder event before delayed event is processed.
-  nsAccessible *accessible = GetAccessibleForNode();
+  Accessible* accessible = GetAccessibleForNode();
   mIsEnabled = accessible && ((accessible->State() & mState) != 0);
 }
 
@@ -238,7 +210,7 @@ AccStateChangeEvent::CreateXPCOMObject()
 ////////////////////////////////////////////////////////////////////////////////
 
 // Note: we pass in eAllowDupes to the base class because we don't support text
-// events coalescence. We fire delayed text change events in nsDocAccessible but
+// events coalescence. We fire delayed text change events in DocAccessible but
 // we continue to base the event off the accessible object rather than just the
 // node. This means we won't try to create an accessible based on the node when
 // we are ready to fire the event and so we will no longer assert at that point
@@ -246,7 +218,7 @@ AccStateChangeEvent::CreateXPCOMObject()
 // a defunct accessible so the behaviour should be equivalent.
 // XXX revisit this when coalescence is faster (eCoalesceFromSameSubtree)
 AccTextChangeEvent::
-  AccTextChangeEvent(nsAccessible* aAccessible, PRInt32 aStart,
+  AccTextChangeEvent(Accessible* aAccessible, PRInt32 aStart,
                      const nsAString& aModifiedText, bool aIsInserted,
                      EIsFromUserInput aIsFromUserInput)
   : AccEvent(aIsInserted ?
@@ -277,7 +249,7 @@ AccTextChangeEvent::CreateXPCOMObject()
 ////////////////////////////////////////////////////////////////////////////////
 
 AccMutationEvent::
-  AccMutationEvent(PRUint32 aEventType, nsAccessible* aTarget,
+  AccMutationEvent(PRUint32 aEventType, Accessible* aTarget,
                    nsINode* aTargetNode) :
   AccEvent(aEventType, aTarget, eAutoDetect, eCoalesceFromSameSubtree)
 {
@@ -290,7 +262,7 @@ AccMutationEvent::
 ////////////////////////////////////////////////////////////////////////////////
 
 AccHideEvent::
-  AccHideEvent(nsAccessible* aTarget, nsINode* aTargetNode) :
+  AccHideEvent(Accessible* aTarget, nsINode* aTargetNode) :
   AccMutationEvent(::nsIAccessibleEvent::EVENT_HIDE, aTarget, aTargetNode)
 {
   mParent = mAccessible->Parent();
@@ -312,7 +284,7 @@ AccHideEvent::CreateXPCOMObject()
 ////////////////////////////////////////////////////////////////////////////////
 
 AccShowEvent::
-  AccShowEvent(nsAccessible* aTarget, nsINode* aTargetNode) :
+  AccShowEvent(Accessible* aTarget, nsINode* aTargetNode) :
   AccMutationEvent(::nsIAccessibleEvent::EVENT_SHOW, aTarget, aTargetNode)
 {
 }
@@ -323,7 +295,7 @@ AccShowEvent::
 ////////////////////////////////////////////////////////////////////////////////
 
 AccCaretMoveEvent::
-  AccCaretMoveEvent(nsAccessible* aAccessible, PRInt32 aCaretOffset) :
+  AccCaretMoveEvent(Accessible* aAccessible, PRInt32 aCaretOffset) :
   AccEvent(::nsIAccessibleEvent::EVENT_TEXT_CARET_MOVED, aAccessible),
   mCaretOffset(aCaretOffset)
 {
@@ -350,7 +322,7 @@ AccCaretMoveEvent::CreateXPCOMObject()
 ////////////////////////////////////////////////////////////////////////////////
 
 AccSelChangeEvent::
-  AccSelChangeEvent(nsAccessible* aWidget, nsAccessible* aItem,
+  AccSelChangeEvent(Accessible* aWidget, Accessible* aItem,
                     SelChangeType aSelChangeType) :
     AccEvent(0, aItem, eAutoDetect, eCoalesceSelectionChange),
     mWidget(aWidget), mItem(aItem), mSelChangeType(aSelChangeType),
@@ -372,7 +344,7 @@ AccSelChangeEvent::
 ////////////////////////////////////////////////////////////////////////////////
 
 AccTableChangeEvent::
-  AccTableChangeEvent(nsAccessible* aAccessible, PRUint32 aEventType,
+  AccTableChangeEvent(Accessible* aAccessible, PRUint32 aEventType,
                       PRInt32 aRowOrColIndex, PRInt32 aNumRowsOrCols) :
   AccEvent(aEventType, aAccessible),
   mRowOrColIndex(aRowOrColIndex), mNumRowsOrCols(aNumRowsOrCols)
@@ -393,11 +365,13 @@ AccTableChangeEvent::CreateXPCOMObject()
 ////////////////////////////////////////////////////////////////////////////////
 
 AccVCChangeEvent::
-  AccVCChangeEvent(nsAccessible* aAccessible,
+  AccVCChangeEvent(Accessible* aAccessible,
                    nsIAccessible* aOldAccessible,
-                   PRInt32 aOldStart, PRInt32 aOldEnd) :
+                   PRInt32 aOldStart, PRInt32 aOldEnd,
+                   PRInt16 aReason) :
     AccEvent(::nsIAccessibleEvent::EVENT_VIRTUALCURSOR_CHANGED, aAccessible),
-    mOldAccessible(aOldAccessible), mOldStart(aOldStart), mOldEnd(aOldEnd)
+    mOldAccessible(aOldAccessible), mOldStart(aOldStart), mOldEnd(aOldEnd),
+    mReason(aReason)
 {
 }
 

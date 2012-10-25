@@ -1,41 +1,6 @@
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is the Mozilla Installer code.
-#
-# The Initial Developer of the Original Code is Mozilla Foundation
-# Portions created by the Initial Developer are Copyright (C) 2006
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#  Robert Strong <robert.bugzilla@gmail.com>
-#  Ehsan Akhgari <ehsan.akhgari@gmail.com>
-#  Amir Szekely <kichik@gmail.com>
-#  Brian R. Bondy <netzen@gmail.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 
 ################################################################################
@@ -112,20 +77,6 @@
 ; WinVer.nsh so include it with the /NOFATAL option.
 !ifndef ___WINVER__NSH___
   !include /NONFATAL WinVer.nsh
-!endif
-
-; Add Windows 7 / 2008 support for versions of WinVer.nsh that don't support
-; them. This can be removed after bug 571381 is fixed.
-!ifndef WINVER_7
-  !define WINVER_7 0x601
-
-  !macro __MOZ__WinVer_DefineOSTests Test
-    !insertmacro __WinVer_DefineOSTest ${Test} 7
-  !macroend
-
-  !insertmacro __MOZ__WinVer_DefineOSTests AtLeast
-  !insertmacro __MOZ__WinVer_DefineOSTests Is
-  !insertmacro __MOZ__WinVer_DefineOSTests AtMost
 !endif
 
 !include x64.nsh
@@ -4896,6 +4847,11 @@
               StrCpy $AddStartMenuSC "1"
             ${EndIf}
 
+            ReadINIStr $R8 $R7 "Install" "MaintenanceService"
+            ${If} $R8 == "false"
+              StrCpy $InstallMaintenanceService "0"
+            ${EndIf}
+
             !ifndef NO_STARTMENU_DIR
               ReadINIStr $R8 $R7 "Install" "StartMenuDirectoryName"
               ${If} $R8 != ""
@@ -5773,8 +5729,12 @@
         ${LogMsg} "OS Name    : Windows 2003"
       ${ElseIf} ${IsWinVista}
         ${LogMsg} "OS Name    : Windows Vista"
-      ${ElseIf} ${AtLeastWinVista} ; Workaround for NSIS 2.33 WinVer.nsh not knowing Win7
-        ${LogMsg} "OS Name    : Windows 7 or above"
+      ${ElseIf} ${IsWin7}
+        ${LogMsg} "OS Name    : Windows 7"
+      ${ElseIf} ${IsWin8}
+        ${LogMsg} "OS Name    : Windows 8"
+      ${ElseIf} ${AtLeastWin8}
+        ${LogMsg} "OS Name    : Above Windows 8"
       ${Else}
         ${LogMsg} "OS Name    : Unable to detect"
       ${EndIf}
@@ -6998,3 +6958,107 @@
     !verbose pop
   !endif
 !macroend
+
+!ifdef MOZ_METRO
+; Removes the CEH registration if it's set to our installation directory.
+; If it's set to some other installation directory, then it should be removed
+; by that installation. 
+!macro RemoveDEHRegistrationIfMatchingCall un
+  Function ${un}RemoveDEHRegistrationIfMatchingCall
+    ; Move the old $R0 on the stack and set it to DEH ID
+    Exch $R0
+    ; Backup the old values of R8 and R7 on the stack
+    Push $R8
+    Push $R7
+
+    ReadRegStr $R8 HKCU "Software\Classes\CLSID\$R0\LocalServer32" ""
+    ${${un}GetLongPath} "$INSTDIR" $R7
+    StrCmp "$R8" "" next +1
+    IfFileExists "$R8" +1 clearHKCU
+    ${${un}GetParent} "$R8" $R8
+    ${${un}GetLongPath} "$R8" $R8
+    StrCmp "$R7" "$R8" clearHKCU next
+    clearHKCU:
+    DeleteRegKey HKCU "Software\Classes\CLSID\$R0"
+    DeleteRegValue HKCU \
+                   "Software\Classes\$AppUserModelID\.exe\shell\open\command" \
+                   "DelegateExecute"
+    next:
+
+    ReadRegStr $R8 HKLM "Software\Classes\CLSID\$R0\LocalServer32" ""
+    ${${un}GetLongPath} "$INSTDIR" $R7
+    StrCmp "$R8" "" done +1
+    IfFileExists "$R8" +1 clearHKLM
+    ${${un}GetParent} "$R8" $R8
+    ${${un}GetLongPath} "$R8" $R8
+    StrCmp "$R7" "$R8" clearHKLM done
+    clearHKLM:
+    DeleteRegKey HKLM "Software\Classes\CLSID\$R0"
+    DeleteRegValue HKLM \
+                   "Software\Classes\$AppUserModelID\.exe\shell\open\command" \
+                   "DelegateExecute"
+    done:
+
+    ; Restore the stack back to its original state
+    Pop $R7
+    Pop $R8
+    Pop $R0
+  FunctionEnd
+!macroend
+
+!macro RemoveDEHRegistrationIfMatching
+  !insertmacro RemoveDEHRegistrationIfMatchingCall ""
+!macroend
+
+!macro un.RemoveDEHRegistrationIfMatching
+  !insertmacro RemoveDEHRegistrationIfMatchingCall "un."
+!macroend
+
+!macro CleanupMetroBrowserHandlerValues un DELEGATE_EXECUTE_HANDLER_ID
+  Push ${DELEGATE_EXECUTE_HANDLER_ID}
+  Call ${un}RemoveDEHRegistrationIfMatchingCall
+!macroend
+!define CleanupMetroBrowserHandlerValues '!insertmacro CleanupMetroBrowserHandlerValues ""'
+!define un.CleanupMetroBrowserHandlerValues '!insertmacro CleanupMetroBrowserHandlerValues "un."'
+
+!macro AddMetroBrowserHandlerValues DELEGATE_EXECUTE_HANDLER_ID \
+                                    DELEGATE_EXECUTE_HANDLER_PATH \
+                                    APP_USER_MODEL_ID \
+                                    PROTOCOL_ACTIVATION_ID \
+                                    FILE_ACTIVATION_ID
+  ; Win8 doesn't use conventional progid command data to launch anymore.
+  ; Instead it uses a delegate execute handler which is a light weight COM
+  ; server for choosing the metro or desktop browser to launch depending
+  ; on the current environment (metro/desktop) it was activated in.
+  WriteRegStr SHCTX "Software\Classes\${APP_USER_MODEL_ID}" "" ""
+  WriteRegStr SHCTX "Software\Classes\${APP_USER_MODEL_ID}\.exe" "" ""
+  WriteRegStr SHCTX "Software\Classes\${APP_USER_MODEL_ID}\.exe\shell" "" "open"
+  WriteRegStr SHCTX "Software\Classes\${APP_USER_MODEL_ID}\.exe\shell\open" "CommandId" "open"
+  WriteRegStr SHCTX "Software\Classes\${APP_USER_MODEL_ID}\.exe\shell\open\command" "" "$2"
+  WriteRegStr SHCTX "Software\Classes\${APP_USER_MODEL_ID}\.exe\shell\open\command" "DelegateExecute" "${DELEGATE_EXECUTE_HANDLER_ID}"
+
+  ; Augment the url handler registrations with additional data needed for Metro
+  WriteRegStr SHCTX "Software\Classes\${PROTOCOL_ACTIVATION_ID}" "AppUserModelID" "${APP_USER_MODEL_ID}"
+  WriteRegStr SHCTX "Software\Classes\${PROTOCOL_ACTIVATION_ID}\Application" "AppUserModelID" "${APP_USER_MODEL_ID}"
+  WriteRegStr SHCTX "Software\Classes\${PROTOCOL_ACTIVATION_ID}\Application" "ApplicationName" "$BrandShortName"
+  WriteRegStr SHCTX "Software\Classes\${PROTOCOL_ACTIVATION_ID}\Application" "ApplicationIcon" "$INSTDIR\${FileMainEXE},0"
+  WriteRegStr SHCTX "Software\Classes\${PROTOCOL_ACTIVATION_ID}\Application" "ApplicationCompany" "${CompanyName}"
+  WriteRegStr SHCTX "Software\Classes\${PROTOCOL_ACTIVATION_ID}\Application" "ApplicationDescription" "$(REG_APP_DESC)"
+  WriteRegStr SHCTX "Software\Classes\${PROTOCOL_ACTIVATION_ID}\shell" "" "open"
+  WriteRegStr SHCTX "Software\Classes\${PROTOCOL_ACTIVATION_ID}\shell\open" "CommandId" "open"
+  WriteRegStr SHCTX "Software\Classes\${PROTOCOL_ACTIVATION_ID}\shell\open\command" "DelegateExecute" "${DELEGATE_EXECUTE_HANDLER_ID}"
+
+  ; Augment the file handler registrations with additional data needed for Metro
+  WriteRegStr SHCTX "Software\Classes\${FILE_ACTIVATION_ID}" "AppUserModelID" "${APP_USER_MODEL_ID}"
+  WriteRegStr SHCTX "Software\Classes\${FILE_ACTIVATION_ID}\shell" "" "open"
+  WriteRegStr SHCTX "Software\Classes\${FILE_ACTIVATION_ID}\shell\open" "CommandId" "open"
+  WriteRegStr SHCTX "Software\Classes\${FILE_ACTIVATION_ID}\shell\open\command" "DelegateExecute" "${DELEGATE_EXECUTE_HANDLER_ID}"
+
+  ; Win8 Metro delegate execute handler registration
+  WriteRegStr SHCTX "Software\Classes\CLSID\${DELEGATE_EXECUTE_HANDLER_ID}" "" "$BrandShortName CommandExecuteHandler"
+  WriteRegStr SHCTX "Software\Classes\CLSID\${DELEGATE_EXECUTE_HANDLER_ID}" "AppId" "${DELEGATE_EXECUTE_HANDLER_ID}"
+  WriteRegStr SHCTX "Software\Classes\CLSID\${DELEGATE_EXECUTE_HANDLER_ID}\LocalServer32" "" "${DELEGATE_EXECUTE_HANDLER_PATH}"
+!macroend
+!define AddMetroBrowserHandlerValues "!insertmacro AddMetroBrowserHandlerValues"
+!endif ;end MOZ_METRO
+

@@ -39,28 +39,30 @@ let TestObserver = {
 };
 
 function tabLoad(aEvent) {
-  browser.removeEventListener(aEvent.type, arguments.callee, true);
+  browser.removeEventListener(aEvent.type, tabLoad, true);
 
-  openConsole();
-
-  let hudId = HUDService.getHudIdByWindow(content);
-  hud = HUDService.hudReferences[hudId];
-
-  Services.console.registerListener(TestObserver);
-
-  content.location = TEST_URI;
+  openConsole(null, function(aHud) {
+    hud = aHud;
+    Services.console.registerListener(TestObserver);
+    content.location = TEST_URI;
+  });
 }
 
 function performTest() {
-  let textContent = hud.outputNode.textContent;
-  isnot(textContent.indexOf("ws://0.0.0.0:81"), -1,
-        "first error message found");
-  isnot(textContent.indexOf("ws://0.0.0.0:82"), -1,
-        "second error message found");
-
   Services.console.unregisterListener(TestObserver);
   Services.prefs.setBoolPref(pref_ws, oldPref_ws);
-  finishTest();
+
+  waitForSuccess({
+    name: "websocket error messages displayed",
+    validatorFn: function()
+    {
+      let textContent = hud.outputNode.textContent;
+      return textContent.indexOf("ws://0.0.0.0:81") > -1 &&
+             textContent.indexOf("ws://0.0.0.0:82") > -1;
+    },
+    successFn: finishTest,
+    failureFn: finishTest,
+  });
 }
 
 function test() {

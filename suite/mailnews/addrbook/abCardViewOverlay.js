@@ -1,42 +1,7 @@
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code, released
- * March 31, 1998.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998-1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Alec Flett <alecf@netscape.com>
- *   Seth Spitzer <sspitzer@netscape.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 //NOTE: gAddressBookBundle must be defined and set or this Overlay won't work
 
@@ -46,9 +11,10 @@ gPrefs = gPrefs.QueryInterface(Components.interfaces.nsIPrefBranch);
 
 var gProfileDirURL;
 
-var gMapItURLFormat = GetLocalizedStringPref("mail.addr_book.mapit_url.format");
+var gMapItURLFormat;
 
 var gFileHandler = Services.io.getProtocolHandler("file").QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+var gPhotoDisplayHandlers = {};
 
 var zListName;
 var zPrimaryEmail;
@@ -71,6 +37,8 @@ var cvData;
 
 function OnLoadCardView()
 {
+  gMapItURLFormat = GetLocalizedStringPref("mail.addr_book.mapit_url.format");
+
   zPrimaryEmail = gAddressBookBundle.getString("propertyPrimaryEmail");
   zSecondaryEmail = gAddressBookBundle.getString("propertySecondaryEmail");
   zScreenName = gAddressBookBundle.getString("propertyScreenName");
@@ -204,7 +172,7 @@ function DisplayCardViewPane(realCard)
   };
 
   // Contact photo
-  cvData.cvPhoto.setAttribute("src", getPhotoURI(card.getProperty("PhotoName")));
+  displayPhoto(card, cvData.cvPhoto);
 
   var titleString;
   if (generatedName == "")
@@ -535,3 +503,59 @@ function openLink(aEvent)
   return false;
 }
 
+/* Display the contact photo from the nsIAbCard in the IMG element.
+ * If the photo cannot be displayed, show the generic contact
+ * photo.
+ */
+function displayPhoto(aCard, aImg)
+{
+  var type = aCard.getProperty("PhotoType", "");
+  if (!gPhotoDisplayHandlers[type] ||
+      !gPhotoDisplayHandlers[type](aCard, aImg))
+    gPhotoDisplayHandlers["generic"](aCard, aImg);
+}
+
+/* In order to display the contact photos in the card view, there
+ * must be a registered photo display handler for the card photo
+ * type.  The generic, file, and web photo types are handled
+ * by default.
+ *
+ * A photo display handler is a function that behaves as follows:
+ *
+ * function(aCard, aImg):
+ *    The function is responsible for determining how to retrieve
+ *    the photo from nsIAbCard aCard, and for displaying it in img
+ *    img element aImg.  Returns true if successful.  If it returns
+ *    false, the generic photo display handler will be called.
+ *
+ * The following display handlers are for the generic, file and
+ * web photo types.
+ */
+
+var gGenericPhotoDisplayHandler = function(aCard, aImg)
+{
+  aImg.setAttribute("src", defaultPhotoURI);
+  return true;
+};
+
+var gPhotoNameDisplayHandler = function(aCard, aImg)
+{
+  var photoSrc = getPhotoURI(aCard.getProperty("PhotoName"));
+  aImg.setAttribute("src", photoSrc);
+  return true;
+};
+
+/* In order for a photo display handler to be registered for
+ * a particular photo type, it must be registered here.
+ */
+function registerPhotoDisplayHandler(aType, aPhotoDisplayHandler)
+{
+  if (!gPhotoDisplayHandlers[aType])
+    gPhotoDisplayHandlers[aType] = aPhotoDisplayHandler;
+}
+
+registerPhotoDisplayHandler("generic", gGenericPhotoDisplayHandler);
+// File and Web are treated the same, and therefore use the
+// same handler.
+registerPhotoDisplayHandler("file", gPhotoNameDisplayHandler);
+registerPhotoDisplayHandler("web", gPhotoNameDisplayHandler);

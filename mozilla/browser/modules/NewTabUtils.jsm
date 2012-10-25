@@ -16,16 +16,17 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PlacesUtils",
   "resource://gre/modules/PlacesUtils.jsm");
 
-XPCOMUtils.defineLazyServiceGetter(this, "gPrivateBrowsing",
-  "@mozilla.org/privatebrowsing;1", "nsIPrivateBrowsingService");
-
-XPCOMUtils.defineLazyModuleGetter(this, "Dict", "resource://gre/modules/Dict.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "PageThumbs",
+  "resource:///modules/PageThumbs.jsm");
 
 // The preference that tells whether this feature is enabled.
 const PREF_NEWTAB_ENABLED = "browser.newtabpage.enabled";
 
 // The maximum number of results we want to retrieve from history.
 const HISTORY_RESULTS_LIMIT = 100;
+
+// The gather telemetry topic.
+const TOPIC_GATHER_TELEMETRY = "gather-telemetry";
 
 /**
  * Singleton that provides storage functionality.
@@ -49,28 +50,6 @@ let Storage = {
   },
 
   /**
-   * The current storage used to persist New Tab Page data. If we're currently
-   * in private browsing mode this will return a PrivateBrowsingStorage
-   * instance.
-   */
-  get currentStorage() {
-    let storage = this.domStorage;
-
-    // Check if we're starting in private browsing mode.
-    if (gPrivateBrowsing.privateBrowsingEnabled)
-      storage = new PrivateBrowsingStorage(storage);
-
-    // Register an observer to listen for private browsing mode changes.
-    Services.obs.addObserver(this, "private-browsing", true);
-
-    // Cache this value, overwrite the getter.
-    let descriptor = {value: storage, enumerable: true, writable: true};
-    Object.defineProperty(this, "currentStorage", descriptor);
-
-    return storage;
-  },
-
-  /**
    * Gets the value for a given key from the storage.
    * @param aKey The storage key (a string).
    * @param aDefault A default value if the key doesn't exist.
@@ -80,7 +59,7 @@ let Storage = {
     let value;
 
     try {
-      value = JSON.parse(this.currentStorage.getItem(aKey));
+      value = JSON.parse(this.domStorage.getItem(aKey));
     } catch (e) {}
 
     return value || aDefault;
@@ -92,89 +71,20 @@ let Storage = {
    * @param aValue The value to set.
    */
   set: function Storage_set(aKey, aValue) {
-    this.currentStorage.setItem(aKey, JSON.stringify(aValue));
+    this.domStorage.setItem(aKey, JSON.stringify(aValue));
   },
 
   /**
    * Clears the storage and removes all values.
    */
   clear: function Storage_clear() {
-    this.currentStorage.clear();
-  },
-
-  /**
-   * Implements the nsIObserver interface to get notified about private
-   * browsing mode changes.
-   */
-  observe: function Storage_observe(aSubject, aTopic, aData) {
-    if (aData == "enter") {
-      // When switching to private browsing mode we keep the current state
-      // of the grid and provide a volatile storage for it that is
-      // discarded upon leaving private browsing.
-      this.currentStorage = new PrivateBrowsingStorage(this.domStorage);
-    } else {
-      // Reset to normal DOM storage.
-      this.currentStorage = this.domStorage;
-
-      // When switching back from private browsing we need to reset the
-      // grid and re-read its values from the underlying storage. We don't
-      // want any data from private browsing to show up.
-      PinnedLinks.resetCache();
-      BlockedLinks.resetCache();
-    }
+    this.domStorage.clear();
   },
 
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIObserver,
                                          Ci.nsISupportsWeakReference])
 };
 
-/**
- * This class implements a temporary storage used while the user is in private
- * browsing mode. It is discarded when leaving pb mode.
- */
-function PrivateBrowsingStorage(aStorage) {
-  this._data = new Dict();
-
-  for (let i = 0; i < aStorage.length; i++) {
-    let key = aStorage.key(i);
-    this._data.set(key, aStorage.getItem(key));
-  }
-}
-
-PrivateBrowsingStorage.prototype = {
-  /**
-   * The data store.
-   */
-  _data: null,
-
-  /**
-   * Gets the value for a given key from the storage.
-   * @param aKey The storage key.
-   * @param aDefault A default value if the key doesn't exist.
-   * @return The value for the given key.
-   */
-  getItem: function PrivateBrowsingStorage_getItem(aKey) {
-    return this._data.get(aKey);
-  },
-
-  /**
-   * Sets the storage value for a given key.
-   * @param aKey The storage key.
-   * @param aValue The value to set.
-   */
-  setItem: function PrivateBrowsingStorage_setItem(aKey, aValue) {
-    this._data.set(aKey, aValue);
-  },
-
-  /**
-   * Clears the storage and removes all values.
-   */
-  clear: function PrivateBrowsingStorage_clear() {
-    this._data.listkeys().forEach(function (aKey) {
-      this._data.del(aKey);
-    }, this);
-  }
-};
 
 /**
  * Singleton that serves as a registry for all open 'New Tab Page's.
@@ -205,7 +115,8 @@ let AllPages = {
    */
   unregister: function AllPages_unregister(aPage) {
     let index = this._pages.indexOf(aPage);
-    this._pages.splice(index, 1);
+    if (index > -1)
+      this._pages.splice(index, 1);
   },
 
   /**
@@ -303,7 +214,7 @@ let PinnedLinks = {
     this.unpin(aLink);
 
     this.links[aIndex] = aLink;
-    Storage.set("pinnedLinks", this.links);
+    this.save();
   },
 
   /**
@@ -314,8 +225,15 @@ let PinnedLinks = {
     let index = this._indexOfLink(aLink);
     if (index != -1) {
       this.links[index] = null;
-      Storage.set("pinnedLinks", this.links);
+      this.save();
     }
+  },
+
+  /**
+   * Saves the current list of pinned links.
+   */
+  save: function PinnedLinks_save() {
+    Storage.set("pinnedLinks", this.links);
   },
 
   /**
@@ -376,11 +294,10 @@ let BlockedLinks = {
    */
   block: function BlockedLinks_block(aLink) {
     this.links[aLink.url] = 1;
+    this.save();
 
     // Make sure we unpin blocked links.
     PinnedLinks.unpin(aLink);
-
-    Storage.set("blockedLinks", this.links);
   },
 
   /**
@@ -388,8 +305,17 @@ let BlockedLinks = {
    * @param aLink The link to unblock.
    */
   unblock: function BlockedLinks_unblock(aLink) {
-    if (this.isBlocked(aLink))
+    if (this.isBlocked(aLink)) {
       delete this.links[aLink.url];
+      this.save();
+    }
+  },
+
+  /**
+   * Saves the current list of blocked links.
+   */
+  save: function BlockedLinks_save() {
+    Storage.set("blockedLinks", this.links);
   },
 
   /**
@@ -586,9 +512,84 @@ let Links = {
 };
 
 /**
+ * Singleton used to collect telemetry data.
+ *
+ */
+let Telemetry = {
+  /**
+   * Initializes object.
+   */
+  init: function Telemetry_init() {
+    Services.obs.addObserver(this, TOPIC_GATHER_TELEMETRY, false);
+  },
+
+  /**
+   * Collects data.
+   */
+  _collect: function Telemetry_collect() {
+    let probes = [
+      { histogram: "NEWTAB_PAGE_ENABLED",
+        value: AllPages.enabled },
+      { histogram: "NEWTAB_PAGE_PINNED_SITES_COUNT",
+        value: PinnedLinks.links.length },
+      { histogram: "NEWTAB_PAGE_BLOCKED_SITES_COUNT",
+        value: Object.keys(BlockedLinks.links).length }
+    ];
+
+    probes.forEach(function Telemetry_collect_forEach(aProbe) {
+      Services.telemetry.getHistogramById(aProbe.histogram)
+        .add(aProbe.value);
+    });
+  },
+
+  /**
+   * Listens for gather telemetry topic.
+   */
+  observe: function Telemetry_observe(aSubject, aTopic, aData) {
+    this._collect();
+  }
+};
+
+let ExpirationFilter = {
+  init: function ExpirationFilter_init() {
+    PageThumbs.addExpirationFilter(this);
+  },
+
+  filterForThumbnailExpiration:
+  function ExpirationFilter_filterForThumbnailExpiration(aCallback) {
+    if (!AllPages.enabled) {
+      aCallback([]);
+      return;
+    }
+
+    Links.populateCache(function () {
+      let urls = [];
+
+      // Add all URLs to the list that we want to keep thumbnails for.
+      for (let link of Links.getLinks().slice(0, 25)) {
+        if (link && link.url)
+          urls.push(link.url);
+      }
+
+      aCallback(urls);
+    });
+  }
+};
+
+/**
  * Singleton that provides the public API of this JSM.
  */
 let NewTabUtils = {
+  _initialized: false,
+
+  init: function NewTabUtils_init() {
+    if (!this._initialized) {
+      this._initialized = true;
+      ExpirationFilter.init();
+      Telemetry.init();
+    }
+  },
+
   /**
    * Restores all sites that have been removed from the grid.
    */

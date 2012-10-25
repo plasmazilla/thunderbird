@@ -7,21 +7,18 @@ topsrcdir = @top_srcdir@
 srcdir    = @srcdir@
 VPATH     = @srcdir@
 
-include $(topsrcdir)/config/config.mk
+include $(DEPTH)/config/autoconf.mk
 
 # Build a binary bootstrapping with XRE_main
 PROGRAM   = webapprt-stub$(BIN_SUFFIX)
 
 CPPSRCS   = webapprt.cpp
 
+# Statically link against the CRT
+USE_STATIC_LIBS = 1
 # Don't create a dependency on mozglue, which is impossible (difficult?)
 # to dynamically link into our executable, as we copy it to arbitrary locations.
 MOZ_GLUE_LDFLAGS =
-
-# mozglue uses mfbt's Assertions.cpp, which provides MOZ_ASSERT, which lots
-# of code in libxpcom uses, so we have to do the same.
-VPATH += $(topsrcdir)/mfbt
-CPPSRCS += Assertions.cpp
 
 LOCAL_INCLUDES += -I$(topsrcdir)/toolkit/xre
 LOCAL_INCLUDES += -I$(topsrcdir)/xpcom/base
@@ -32,7 +29,7 @@ DEFINES += -DXPCOM_GLUE
 STL_FLAGS=
 
 LIBS = \
-  $(XPCOM_STANDALONE_GLUE_LDOPTS) \
+  $(XPCOM_STANDALONE_STATICRUNTIME_GLUE_LDOPTS) \
   $(NULL)
 
 ifndef MOZ_WINCONSOLE
@@ -72,12 +69,12 @@ endif
 # Uninstaller
 ifdef LOCALE_MERGEDIR
 PPL_LOCALE_ARGS = \
-  --l10n-dir=$(LOCALE_MERGEDIR)/webapprt/webapp-uninstaller \
-  --l10n-dir=$(call EXPAND_LOCALE_SRCDIR,webapprt/locales)/webapp-uninstaller \
-  --l10n-dir=$(topsrcdir)/webapprt/locales/en-US/webapp-uninstaller \
+  --l10n-dir=$(LOCALE_MERGEDIR)/browser/webapp-uninstaller \
+  --l10n-dir=$(call EXPAND_LOCALE_SRCDIR,browser/locales)/webapp-uninstaller \
+  --l10n-dir=$(topsrcdir)/browser/locales/en-US/webapp-uninstaller \
   $(NULL)
 else
-PPL_LOCALE_ARGS=$(call EXPAND_LOCALE_SRCDIR,webapprt/locales)/webapp-uninstaller
+PPL_LOCALE_ARGS=$(call EXPAND_LOCALE_SRCDIR,browser/locales)/webapp-uninstaller
 endif
 
 libs::

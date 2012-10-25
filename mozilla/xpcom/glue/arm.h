@@ -1,38 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is arm.h
- *
- * The Initial Developer of the Original Code is the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Timothy B. Terriberry <tterriberry@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* compile-time and runtime tests for whether to use SSE instructions */
 
@@ -105,6 +73,19 @@
 #    endif
 #  endif
 
+  // ARMv7 support was merged in gcc 4.3.
+#  if __GNUC__> 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+#    if defined(HAVE_ARM_SIMD)
+#      define MOZILLA_MAY_SUPPORT_ARMV7 1
+#    endif
+#  endif
+
+  // When using -mfpu=neon, gcc generates neon instructions.
+
+#  if defined(__ARM_NEON__)
+#    define MOZILLA_PRESUME_NEON 1
+#  endif
+
   // Currently we only have CPU detection for Linux via /proc/cpuinfo
 #  if defined(__linux__) || defined(ANDROID)
 #    define MOZILLA_ARM_HAVE_CPUID_DETECTION 1
@@ -113,15 +94,15 @@
 #elif defined(_MSC_VER) && defined(_M_ARM)
 
 #  define MOZILLA_ARM_HAVE_CPUID_DETECTION 1
-  // I don't know how to do arch detection at compile time for MSVC, so assume
-  // the worst for now.
-#  define MOZILLA_ARM_ARCH 3
+  // _M_ARM on MSVC has current cpu architecture.
+#  define MOZILLA_ARM_ARCH _M_ARM
 
   // MSVC only allows external asm for ARM, so we don't have to rely on
   // compiler support.
 #  define MOZILLA_MAY_SUPPORT_EDSP 1
 #  if defined(HAVE_ARM_SIMD)
 #    define MOZILLA_MAY_SUPPORT_ARMV6 1
+#    define MOZILLA_MAY_SUPPORT_ARMV7 1
 #  endif
 #  if defined(HAVE_ARM_NEON)
 #    define MOZILLA_MAY_SUPPORT_NEON 1
@@ -138,6 +119,9 @@ namespace mozilla {
 #endif
 #if !defined(MOZILLA_PRESUME_ARMV6)
     extern bool NS_COM_GLUE armv6_enabled;
+#endif
+#if !defined(MOZILLA_PRESUME_ARMV7)
+    extern bool NS_COM_GLUE armv7_enabled;
 #endif
 #if !defined(MOZILLA_PRESUME_NEON)
     extern bool NS_COM_GLUE neon_enabled;
@@ -163,6 +147,16 @@ namespace mozilla {
   inline bool supports_armv6() { return arm_private::armv6_enabled; }
 #else
   inline bool supports_armv6() { return false; }
+#endif
+
+#if defined(MOZILLA_PRESUME_ARMV7)
+#  define MOZILLA_MAY_SUPPORT_ARMV7 1
+  inline bool supports_armv7() { return true; }
+#elif defined(MOZILLA_MAY_SUPPORT_ARMV7) \
+   && defined(MOZILLA_ARM_HAVE_CPUID_DETECTION)
+  inline bool supports_armv7() { return arm_private::armv7_enabled; }
+#else
+  inline bool supports_armv7() { return false; }
 #endif
 
 #if defined(MOZILLA_PRESUME_NEON)

@@ -13,9 +13,10 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
-import android.view.View.OnTouchListener;
+
 import org.mozilla.gecko.ui.PanZoomController;
 import org.mozilla.gecko.ui.SimpleScaleGestureDetector;
+import org.mozilla.gecko.OnInterceptTouchListener;
 import org.mozilla.gecko.Tab;
 import org.mozilla.gecko.Tabs;
 
@@ -67,7 +68,7 @@ public final class TouchEventHandler implements Tabs.OnTabsChangedListener {
     private final ListenerTimeoutProcessor mListenerTimeoutProcessor;
 
     // the listener we use to notify gecko of touch events
-    private OnTouchListener mOnTouchListener;
+    private OnInterceptTouchListener mOnTouchListener;
 
     // whether or not we should wait for touch listeners to respond (this state is
     // per-tab and is updated when we switch tabs).
@@ -148,6 +149,16 @@ public final class TouchEventHandler implements Tabs.OnTabsChangedListener {
             return true;
         }
 
+        if (mOnTouchListener.onInterceptTouchEvent(mView, event)) {
+            return true;
+        }
+
+        // if this is a hover event just notify gecko, we don't have any interest in the java layer.
+        if (isHoverEvent(event)) {
+            mOnTouchListener.onTouch(mView, event);
+            return true;
+        }
+
         if (isDownEvent(event)) {
             // this is the start of a new block of events! whee!
             mHoldInQueue = mWaitForTouchListeners;
@@ -161,7 +172,7 @@ public final class TouchEventHandler implements Tabs.OnTabsChangedListener {
                 // other blocks waiting in the queue, then we should let the pan/zoom controller
                 // know we are waiting for the touch listeners to run
                 if (mEventQueue.isEmpty()) {
-                    mPanZoomController.waitingForTouchListeners(event);
+                    mPanZoomController.startingNewEventBlock(event, true);
                 }
             } else {
                 // we're not going to be holding this block of events in the queue, but we need
@@ -169,6 +180,7 @@ public final class TouchEventHandler implements Tabs.OnTabsChangedListener {
                 // in the right order as notifications come in. we use a single null event in
                 // the queue as a placeholder for a block of events that has already been dispatched.
                 mEventQueue.add(null);
+                mPanZoomController.startingNewEventBlock(event, false);
             }
 
             // set the timeout so that we dispatch these events and update mProcessingBalance
@@ -221,8 +233,13 @@ public final class TouchEventHandler implements Tabs.OnTabsChangedListener {
     }
 
     /* This function MUST be called on the UI thread. */
-    public void setOnTouchListener(OnTouchListener onTouchListener) {
+    public void setOnTouchListener(OnInterceptTouchListener onTouchListener) {
         mOnTouchListener = onTouchListener;
+    }
+
+    private boolean isHoverEvent(MotionEvent event) {
+        int action = (event.getAction() & MotionEvent.ACTION_MASK);
+        return (action == MotionEvent.ACTION_HOVER_ENTER || action == MotionEvent.ACTION_HOVER_MOVE || action == MotionEvent.ACTION_HOVER_EXIT);
     }
 
     private boolean isDownEvent(MotionEvent event) {
@@ -240,16 +257,7 @@ public final class TouchEventHandler implements Tabs.OnTabsChangedListener {
      */
     private void dispatchEvent(MotionEvent event) {
         if (mGestureDetector.onTouchEvent(event)) {
-            // An up/cancel event should get passed to both detectors, in
-            // case it comes from a pointer the scale detector is tracking.
-            switch (event.getAction() & MotionEvent.ACTION_MASK) {
-                case MotionEvent.ACTION_POINTER_UP:
-                case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_CANCEL:
-                    break;
-                default:
-                    return;
-            }
+            return;
         }
         mScaleGestureDetector.onTouchEvent(event);
         if (mScaleGestureDetector.isInProgress()) {
@@ -309,7 +317,7 @@ public final class TouchEventHandler implements Tabs.OnTabsChangedListener {
                 // we have finished processing the block we were interested in.
                 // now we wait for the next call to processEventBlock
                 if (event != null) {
-                    mPanZoomController.waitingForTouchListeners(event);
+                    mPanZoomController.startingNewEventBlock(event, true);
                 }
                 break;
             }
@@ -335,7 +343,7 @@ public final class TouchEventHandler implements Tabs.OnTabsChangedListener {
 
     // Tabs.OnTabsChangedListener implementation
 
-    public void onTabChanged(Tab tab, Tabs.TabEvents msg) {
+    public void onTabChanged(Tab tab, Tabs.TabEvents msg, Object data) {
         if ((Tabs.getInstance().isSelectedTab(tab) && msg == Tabs.TabEvents.STOP) || msg == Tabs.TabEvents.SELECTED) {
             mWaitForTouchListeners = tab.getHasTouchListeners();
         }

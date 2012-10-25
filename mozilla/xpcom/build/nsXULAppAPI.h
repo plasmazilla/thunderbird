@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2002
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *  Brian Ryner <bryner@brianryner.com>
- *  Benjamin Smedberg <benjamin@smedbergs.us>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef _nsXULAppAPI_h__
 #define _nsXULAppAPI_h__
@@ -149,6 +115,24 @@
 #define XRE_APP_DISTRIBUTION_DIR "XREAppDist"
 
 /**
+ * A directory service key which provides the update directory.
+ * At present this is supported only on Windows.
+ * Windows: Documents and Settings\<User>\Local Settings\Application Data\
+ *          <Vendor>\<Application>\<relative path to app dir from Program Files>
+ * If appDir is not under the Program Files, directory service will fail.
+ * Callers should fallback to appDir.
+ */
+#define XRE_UPDATE_ROOT_DIR "UpdRootD"
+
+/**
+ * Platform flag values for XRE_main.
+ *
+ * XRE_MAIN_FLAG_USE_METRO - On Windows, use the winrt backend. Defaults
+ * to win32 backend.
+ */
+#define XRE_MAIN_FLAG_USE_METRO 0x01
+
+/**
  * Begin an XUL application. Does not return until the user exits the
  * application.
  *
@@ -158,23 +142,25 @@
  *
  * @param aAppData  Information about the application to be run.
  *
+ * @param aFlags    Platform specific flags.
+ *
  * @return         A native result code suitable for returning from main().
  *
  * @note           If the binary is linked against the standalone XPCOM glue,
  *                 XPCOMGlueStartup() should be called before this method.
- *
  */
 XRE_API(int,
-        XRE_main, (int argc, char* argv[], const nsXREAppData* sAppData))
+        XRE_main, (int argc, char* argv[], const nsXREAppData* aAppData,
+                   PRUint32 aFlags))
 
 /**
  * Given a path relative to the current working directory (or an absolute
- * path), return an appropriate nsILocalFile object.
+ * path), return an appropriate nsIFile object.
  *
  * @note Pass UTF8 strings on Windows... native charset on other platforms.
  */
 XRE_API(nsresult,
-        XRE_GetFileFromPath, (const char *aPath, nsILocalFile* *aResult))
+        XRE_GetFileFromPath, (const char *aPath, nsIFile* *aResult))
 
 /**
  * Get the path of the running application binary and store it in aResult.
@@ -183,7 +169,7 @@ XRE_API(nsresult,
  *                the binary path have failed.
  */
 XRE_API(nsresult,
-        XRE_GetBinaryPath, (const char *argv0, nsILocalFile* *aResult))
+        XRE_GetBinaryPath, (const char *argv0, nsIFile* *aResult))
 
 /**
  * Get the static module built in to libxul.
@@ -199,7 +185,7 @@ XRE_API(const mozilla::Module*,
  *                    as long as the XPCOM reference is held.
  */
 XRE_API(nsresult,
-        XRE_LockProfileDirectory, (nsILocalFile* aDirectory,
+        XRE_LockProfileDirectory, (nsIFile* aDirectory,
                                    nsISupports* *aLockObject))
 
 /**
@@ -223,8 +209,8 @@ XRE_API(nsresult,
  */
 
 XRE_API(nsresult,
-        XRE_InitEmbedding2, (nsILocalFile *aLibXULDirectory,
-                             nsILocalFile *aAppDirectory,
+        XRE_InitEmbedding2, (nsIFile *aLibXULDirectory,
+                             nsIFile *aAppDirectory,
                              nsIDirectoryServiceProvider *aAppDirProvider))
 
 /**
@@ -259,7 +245,7 @@ enum NSLocationType
 
 XRE_API(nsresult,
         XRE_AddManifestLocation, (NSLocationType aType,
-                                  nsILocalFile* aLocation))
+                                  nsIFile* aLocation))
 
 /**
  * Register XPCOM components found in a JAR.
@@ -280,7 +266,7 @@ XRE_API(nsresult,
  */
 XRE_API(nsresult,
         XRE_AddJarManifestLocation, (NSLocationType aType,
-                                     nsILocalFile* aLocation))
+                                     nsIFile* aLocation))
 
 /**
  * Fire notifications to inform the toolkit about a new profile. This
@@ -326,7 +312,7 @@ XRE_API(void,
  *                 XRE_FreeAppData.
  */
 XRE_API(nsresult,
-        XRE_CreateAppData, (nsILocalFile* aINIFile,
+        XRE_CreateAppData, (nsIFile* aINIFile,
                             nsXREAppData **aAppData))
 
 /**
@@ -337,7 +323,7 @@ XRE_API(nsresult,
  * @param aAppData The nsXREAppData structure to fill.
  */
 XRE_API(nsresult,
-        XRE_ParseAppData, (nsILocalFile* aINIFile,
+        XRE_ParseAppData, (nsIFile* aINIFile,
                            nsXREAppData *aAppData))
 
 /**
@@ -381,7 +367,8 @@ XRE_API(GeckoProcessType,
 #if defined(MOZ_CRASHREPORTER)
 // Used in the "master" parent process hosting the crash server
 XRE_API(bool,
-        XRE_TakeMinidumpForChild, (PRUint32 aChildPid, nsILocalFile** aDump))
+        XRE_TakeMinidumpForChild, (PRUint32 aChildPid, nsIFile** aDump,
+                                   PRUint32* aSequence))
 
 // Used in child processes.
 XRE_API(bool,
@@ -453,8 +440,28 @@ XRE_API(void,
 XRE_API(void,
         XRE_TelemetryAccumulate, (int aID, PRUint32 aSample))
 
+XRE_API(void,
+        XRE_StartupTimelineRecord, (int aEvent, PRTime aWhen))
 
 XRE_API(void,
-        XRE_InitOmnijar, (nsILocalFile* greOmni,
-                          nsILocalFile* appOmni))
+        XRE_InitOmnijar, (nsIFile* greOmni,
+                          nsIFile* appOmni))
+
+#ifdef XP_WIN
+/**
+ * Valid environment types for XRE_GetWindowsEnvironment.
+ */
+enum WindowsEnvironmentType {
+  WindowsEnvironmentType_Desktop = 0,
+  WindowsEnvironmentType_Metro = 1
+};
+
+/**
+ * Retrieve the Windows desktop environment libXUL is running
+ * under. Valid after a call to XRE_main.
+ */
+XRE_API(WindowsEnvironmentType,
+        XRE_GetWindowsEnvironment, ())
+#endif // XP_WIN
+
 #endif // _nsXULAppAPI_h__

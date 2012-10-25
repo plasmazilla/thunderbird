@@ -1,6 +1,6 @@
-/* This Source Code is subject to the terms of the Mozilla Public License
- * version 2.0 (the "License"). You can obtain a copy of the License at
- * http://mozilla.org/MPL/2.0/. */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 "use strict";
 
@@ -40,7 +40,7 @@ function getMigrationBundle() {
 /**
  * Figure out what is the default browser, and if there is a migrator
  * for it, return that migrator's internal name.
- * For the time being, the "internal name" of a migrator is its contract-id
+ * For the time being, the "internal name" of a migraotr is its contract-id
  * trailer (e.g. ie for @mozilla.org/profile/migrator;1?app=browser&type=ie),
  * but it will soon be exposed properly.
  */

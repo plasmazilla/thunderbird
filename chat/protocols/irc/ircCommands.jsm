@@ -1,47 +1,21 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Instantbird.
- *
- * The Initial Developer of the Original Code is
- * Patrick Cloke <clokep@gmail.com>.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 // This is to be exported directly onto the IRC prplIProtocol object, directly
 // implementing the commands field before we register them.
 const EXPORTED_SYMBOLS = ["commands"];
 
-Components.utils.import("resource:///modules/ircUtils.jsm");
+const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
+
+Cu.import("resource:///modules/ircUtils.jsm");
+Cu.import("resource:///modules/imServices.jsm");
+
+// Shortcut to get the JavaScript conversation object.
+function getConv(aConv) aConv.wrappedJSObject;
 
 // Shortcut to get the JavaScript account object.
-function getAccount(aConv) aConv.wrappedJSObject._account;
+function getAccount(aConv) getConv(aConv)._account;
 
 // Trim leading and trailing spaces and split a string by any type of space.
 function splitInput(aString) aString.trim().split(/\s+/);
@@ -100,9 +74,8 @@ function actionCommand(aMsg, aConv) {
     return false;
 
   // Show the action on our conversation.
-  let account = getAccount(aConv);
-  account.getConversation(aConv.name)
-         .writeMessage(account._nickname, "/me " + aMsg, {outgoing: true});
+  getConv(aConv).writeMessage(getAccount(aConv)._nickname, "/me " + aMsg,
+                              {outgoing: true});
   return true;
 }
 
@@ -132,6 +105,14 @@ function ctcpCommand(aConv, aTarget, aCommand, aMsg) {
     return false;
 
   getAccount(aConv).sendCTCPMessage(aCommand, aMsg, aTarget, false);
+  return true;
+}
+
+function whoisCommand(aMsg, aConv) {
+  aMsg = aMsg.trim();
+  if (!aMsg || aMsg.indexOf(" ") != -1)
+    return false;
+  getConv(aConv).requestBuddyInfo(aMsg);
   return true;
 }
 
@@ -237,7 +218,7 @@ var commands = [
         // If a new mode and a nick are given, then we need to provide the
         // current conversation's name.
         if (isMode(params[0]) && !isMode(params[1]))
-          params = [aConv.name, params[1], params[0]];
+          params = [aConv.name, params[0], params[1]];
         // Otherwise, the input must be a channel name or the user's own nick
         // and a mode.
         else if ((!isChannelName && !isOwnNick) || !isMode(params[1]))
@@ -259,7 +240,15 @@ var commands = [
   {
     name: "nick",
     get helpString() _("command.nick", "nick"),
-    run: function(aMsg, aConv) simpleCommand(aConv, "NICK", aMsg)
+    run: function(aMsg, aConv) {
+      let newNick = aMsg.trim();
+      if (newNick.indexOf(/\s+/) != -1)
+        return false;
+      // The user wants to change their nick, so overwrite the account
+      // nickname for this session.
+      getAccount(aConv)._requestedNickname = newNick;
+      return simpleCommand(aConv, "NICK", newNick);
+    }
   },
   {
     name: "nickserv",
@@ -290,7 +279,7 @@ var commands = [
     name: "part",
     get helpString() _("command.part", "part"),
     run: function (aMsg, aConv) {
-      aConv.wrappedJSObject.part(aMsg);
+      getConv(aConv).part(aMsg);
       return true;
     }
   },
@@ -362,8 +351,15 @@ var commands = [
     run: function(aMsg, aConv) simpleCommand(aConv, "WALLOPS", aMsg)
   },
   {
+    name: "whois",
+    get helpString() _("command.whois", "whois"),
+    run: whoisCommand
+  },
+  {
     name: "whowas",
     get helpString() _("command.whowas", "whowas"),
-    run: function(aMsg, aConv) simpleCommand(aConv, "WHOWAS", aMsg)
+    // We can run whoisCommand here as that will automatically execute whowas
+    // if the nick is offline (and show the nick is actually online if not).
+    run: whoisCommand
   }
 ];

@@ -7,11 +7,11 @@ topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
 
+include $(DEPTH)/config/autoconf.mk
+
 # This switches $(INSTALL) to copy mode, like $(SYSINSTALL), so things that
 # shouldn't get 755 perms need $(IFLAGS1) for either way of calling nsinstall.
 NSDISTMODE = copy
-
-include $(topsrcdir)/config/config.mk
 
 PROGRAM = webapprt-stub$(BIN_SUFFIX)
 
@@ -21,11 +21,6 @@ CMMSRCS = webapprt.mm
 # to dynamically link into our executable, as we copy it to arbitrary locations.
 MOZ_GLUE_LDFLAGS =
 MOZ_GLUE_PROGRAM_LDFLAGS =
-
-# mozglue uses mfbt's Assertions.cpp, which provides MOZ_ASSERT, which lots
-# of code in libxpcom uses, so we have to do the same.
-VPATH += $(topsrcdir)/mfbt
-CPPSRCS = Assertions.cpp
 
 LOCAL_INCLUDES += -I$(topsrcdir)/toolkit/xre
 LOCAL_INCLUDES += -I$(topsrcdir)/xpcom/base
