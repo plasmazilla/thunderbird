@@ -1,26 +1,23 @@
-From: Christoph Goehre <chris@sigxcpu.org>
-Date: Sat, 2 Apr 2011 23:22:40 +0200
+From: =?UTF-8?q?Guido=20G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Thu, 25 Oct 2012 19:37:44 +0200
 Subject: stop configure if '--with-system-bz2' was passed, but no libbz2 is
  around
 
 ---
- mozilla/configure.in |    6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ mozilla/configure.in |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-Index: icedove/mozilla/configure.in
-===================================================================
---- icedove.orig/mozilla/configure.in	2012-10-13 15:56:50.478438271 +0530
-+++ icedove/mozilla/configure.in	2012-10-13 15:57:06.710439024 +0530
-@@ -4410,8 +4410,10 @@
- if test -z "$BZ2_DIR" -o "$BZ2_DIR" = no; then
-     SYSTEM_BZ2=
+diff --git a/mozilla/configure.in b/mozilla/configure.in
+index e731a93..11419ef 100644
+--- a/mozilla/configure.in
++++ b/mozilla/configure.in
+@@ -4065,7 +4065,8 @@ if test -z "$BZ2_DIR" -o "$BZ2_DIR" = no; then
+     MOZ_NATIVE_BZ2=
  else
--    AC_CHECK_LIB(bz2, BZ2_bzread, [SYSTEM_BZ2=1 BZ2_LIBS="-lbz2"],
--	[SYSTEM_BZ2= BZ2_CFLAGS= BZ2_LIBS=])
-+    AC_CHECK_LIB(bz2, BZ2_bzread, [SYSTEM_BZ2=1 BZ2_LIBS="-lbz2"], [
-+        echo "You have run configure with --with-system-bz2, but there is no libbz2 around."
-+        exit 1
-+        ], $BZ2_LIBS)
+     AC_CHECK_LIB(bz2, BZ2_bzread, [MOZ_NATIVE_BZ2=1 MOZ_BZ2_LIBS="-lbz2"],
+-	[MOZ_NATIVE_BZ2= MOZ_BZ2_CFLAGS= MOZ_BZ2_LIBS=])
++    [echo "You have run configure with --with-system-bz2, but there is no libbz2 around."
++     exit 1], $MOZ_BZ2_LIBS)
  fi
  CFLAGS=$_SAVE_CFLAGS
  LDFLAGS=$_SAVE_LDFLAGS
