@@ -1,0 +1,94 @@
+From ce5d46f4211a6ffc4aa3134d0350e11df2cf5ea6 Mon Sep 17 00:00:00 2001
+From: Andrew McCreight <amccreight@mozilla.com>
+Date: Mon, 10 Sep 2012 12:43:45 -0700
+Subject: Bug 775868 - add checks to DOMWindowUtils, fix tests.
+ r=smaug,bholley a=akeybl
+
+---
+ mozilla/dom/src/base/nsDOMWindowUtils.cpp |   28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)
+
+diff --git a/mozilla/dom/src/base/nsDOMWindowUtils.cpp b/mozilla/dom/src/base/nsDOMWindowUtils.cpp
+index 45ba6d1..2b3449d 100644
+--- a/mozilla/dom/src/base/nsDOMWindowUtils.cpp
++++ b/mozilla/dom/src/base/nsDOMWindowUtils.cpp
+@@ -98,6 +98,10 @@ nsDOMWindowUtils::~nsDOMWindowUtils()
+ NS_IMETHODIMP
+ nsDOMWindowUtils::GetImageAnimationMode(PRUint16 *aMode)
+ {
++  PRBool hasCap = PR_FALSE;
++  if (NS_FAILED(nsContentUtils::GetSecurityManager()->IsCapabilityEnabled("UniversalXPConnect", &hasCap)) || !hasCap)
++    return NS_ERROR_DOM_SECURITY_ERR;
++
+   NS_ENSURE_ARG_POINTER(aMode);
+   *aMode = 0;
+   if (mWindow) {
+@@ -117,6 +121,10 @@ nsDOMWindowUtils::GetImageAnimationMode(PRUint16 *aMode)
+ NS_IMETHODIMP
+ nsDOMWindowUtils::SetImageAnimationMode(PRUint16 aMode)
+ {
++  PRBool hasCap = PR_FALSE;
++  if (NS_FAILED(nsContentUtils::GetSecurityManager()->IsCapabilityEnabled("UniversalXPConnect", &hasCap)) || !hasCap)
++    return NS_ERROR_DOM_SECURITY_ERR;
++
+   if (mWindow) {
+     nsIDocShell *docShell = mWindow->GetDocShell();
+     if (docShell) {
+@@ -173,6 +181,10 @@ nsDOMWindowUtils::GetDocumentMetadata(const nsAString& aName,
+ NS_IMETHODIMP
+ nsDOMWindowUtils::Redraw(PRUint32 aCount, PRUint32 *aDurationOut)
+ {
++  PRBool hasCap = PR_FALSE;
++  if (NS_FAILED(nsContentUtils::GetSecurityManager()->IsCapabilityEnabled("UniversalXPConnect", &hasCap)) || !hasCap)
++    return NS_ERROR_DOM_SECURITY_ERR;
++
+   nsresult rv;
+ 
+   if (aCount == 0)
+@@ -503,6 +515,10 @@ nsDOMWindowUtils::GarbageCollect()
+ NS_IMETHODIMP
+ nsDOMWindowUtils::ProcessUpdates()
+ {
++  PRBool hasCap = PR_FALSE;
++  if (NS_FAILED(nsContentUtils::GetSecurityManager()->IsCapabilityEnabled("UniversalXPConnect", &hasCap)) || !hasCap)
++    return NS_ERROR_DOM_SECURITY_ERR;
++
+   nsCOMPtr<nsIDocShell> docShell = mWindow->GetDocShell();
+   if (!docShell) 
+     return NS_ERROR_UNEXPECTED;
+@@ -588,6 +604,10 @@ nsDOMWindowUtils::ElementFromPoint(PRInt32 aX, PRInt32 aY,
+                                    PRBool aFlushLayout,
+                                    nsIDOMElement** aReturn)
+ {
++  PRBool hasCap = PR_FALSE;
++  if (NS_FAILED(nsContentUtils::GetSecurityManager()->IsCapabilityEnabled("UniversalXPConnect", &hasCap)) || !hasCap)
++    return NS_ERROR_DOM_SECURITY_ERR;
++
+   nsCOMPtr<nsIDocument> doc(do_QueryInterface(mWindow->GetExtantDocument()));
+   NS_ENSURE_STATE(doc);
+   
+@@ -701,6 +721,10 @@ nsDOMWindowUtils::CompareCanvases(nsIDOMHTMLCanvasElement *aCanvas1,
+ NS_IMETHODIMP
+ nsDOMWindowUtils::ClearMozAfterPaintEvents()
+ {
++  PRBool hasCap = PR_FALSE;
++  if (NS_FAILED(nsContentUtils::GetSecurityManager()->IsCapabilityEnabled("UniversalXPConnect", &hasCap)) || !hasCap)
++    return NS_ERROR_DOM_SECURITY_ERR;
++
+   if (mWindow) {
+     nsIDocShell *docShell = mWindow->GetDocShell();
+     if (docShell) {
+@@ -737,6 +761,10 @@ nsDOMWindowUtils::SuppressEventHandling(PRBool aSuppress)
+ NS_IMETHODIMP
+ nsDOMWindowUtils::GetScrollXY(PRBool aFlushLayout, PRInt32* aScrollX, PRInt32* aScrollY)
+ {
++  PRBool hasCap = PR_FALSE;
++  if (NS_FAILED(nsContentUtils::GetSecurityManager()->IsCapabilityEnabled("UniversalXPConnect", &hasCap)) || !hasCap)
++    return NS_ERROR_DOM_SECURITY_ERR;
++
+   nsCOMPtr<nsIDocument> doc(do_QueryInterface(mWindow->GetExtantDocument()));
+   NS_ENSURE_STATE(doc);
+ 
+-- 
+1.7.10.4
+

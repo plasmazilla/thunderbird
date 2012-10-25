@@ -1,0 +1,47 @@
+From f6884d92f08f7946b5f3693680d679ca590ac347 Mon Sep 17 00:00:00 2001
+From: Olli Pettay <Olli.Pettay@helsinki.fi>
+Date: Tue, 25 Sep 2012 01:50:02 +0300
+Subject: bug 787704, better to remember addref/release sContent in
+ IMEStateManager, r=masayuki a=akeybl
+
+---
+ mozilla/content/events/src/nsIMEStateManager.cpp |    9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/mozilla/content/events/src/nsIMEStateManager.cpp b/mozilla/content/events/src/nsIMEStateManager.cpp
+index fa08fdd..2add843 100755
+--- a/mozilla/content/events/src/nsIMEStateManager.cpp
++++ b/mozilla/content/events/src/nsIMEStateManager.cpp
+@@ -69,7 +69,7 @@ nsIMEStateManager::OnDestroyPresContext(nsPresContext* aPresContext)
+   NS_ENSURE_ARG_POINTER(aPresContext);
+   if (aPresContext != sPresContext)
+     return NS_OK;
+-  sContent = nsnull;
++  NS_IF_RELEASE(sContent);
+   sPresContext = nsnull;
+   return NS_OK;
+ }
+@@ -92,7 +92,7 @@ nsIMEStateManager::OnRemoveContent(nsPresContext* aPresContext,
+       widget->ResetInputState();
+   }
+ 
+-  sContent = nsnull;
++  NS_IF_RELEASE(sContent);
+   sPresContext = nsnull;
+ 
+   return NS_OK;
+@@ -152,7 +152,10 @@ nsIMEStateManager::OnChangeFocus(nsPresContext* aPresContext,
+   }
+ 
+   sPresContext = aPresContext;
+-  sContent = aContent;
++  if (sContent != aContent) {
++    NS_IF_RELEASE(sContent);
++    NS_IF_ADDREF(sContent = aContent);
++  }
+ 
+   return NS_OK;
+ }
+-- 
+1.7.10.4
+

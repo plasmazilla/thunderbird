@@ -1,0 +1,31 @@
+From 6e2da9534f94192c4fcf7dd267371ab15ea29200 Mon Sep 17 00:00:00 2001
+From: Matthew Gregan <kinetik@flim.org>
+Date: Tue, 28 Aug 2012 18:21:58 +1200
+Subject: Bug 785967 - Reject Wave files with invalid data block size in the
+ format chunk. r=doublec a=lsblakk
+
+---
+ mozilla/content/media/video/src/nsWaveDecoder.cpp |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mozilla/content/media/video/src/nsWaveDecoder.cpp b/mozilla/content/media/video/src/nsWaveDecoder.cpp
+index 9731c6a..b5f7cb7 100644
+--- a/mozilla/content/media/video/src/nsWaveDecoder.cpp
++++ b/mozilla/content/media/video/src/nsWaveDecoder.cpp
+@@ -1066,10 +1066,12 @@ nsWaveStateMachine::LoadFormatChunk()
+   // Make sure metadata is fairly sane.  The rate check is fairly arbitrary,
+   // but the channels check is intentionally limited to mono or stereo
+   // because that's what the audio backend currently supports.
++  unsigned int actualSampleSize = sampleFormat == 8 ? 1 : 2 * channels;
+   if (rate < 100 || rate > 96000 ||
+       channels < 1 || channels > 2 ||
+       (sampleSize != 1 && sampleSize != 2 && sampleSize != 4) ||
+-      (sampleFormat != 8 && sampleFormat != 16)) {
++      (sampleFormat != 8 && sampleFormat != 16) ||
++      sampleSize != actualSampleSize) {
+     NS_WARNING("Invalid WAVE metadata");
+     return PR_FALSE;
+   }
+-- 
+1.7.10.4
+

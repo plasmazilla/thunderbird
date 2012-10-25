@@ -1,0 +1,43 @@
+From d5394f67ad4702f038fb99b511d2e0556a5d7716 Mon Sep 17 00:00:00 2001
+From: Olli Pettay <Olli.Pettay@helsinki.fi>
+Date: Fri, 21 Sep 2012 10:39:16 +0300
+Subject: Bug 790856, ensure bounds on the previous viewer, r=bz, a=akeybl
+
+---
+ mozilla/layout/base/nsDocumentViewer.cpp |    6 ++++--
+ mozilla/layout/base/nsIPresShell.h       |    2 +-
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/mozilla/layout/base/nsDocumentViewer.cpp b/mozilla/layout/base/nsDocumentViewer.cpp
+index 220f0ef..bedfcab 100644
+--- a/mozilla/layout/base/nsDocumentViewer.cpp
++++ b/mozilla/layout/base/nsDocumentViewer.cpp
+@@ -1870,8 +1870,10 @@ DocumentViewerImpl::SetBounds(const nsRect& aBounds)
+   // relating to things being hidden while something is loaded.  It so
+   // happens that Firefox does this a good bit with its infobar, and it
+   // looks ugly if we don't do this.
+-  if (mPreviousViewer)
+-    mPreviousViewer->SetBounds(aBounds);
++  if (mPreviousViewer) {
++    nsCOMPtr<nsIContentViewer> previousViewer = mPreviousViewer;
++    previousViewer->SetBounds(aBounds);
++  }
+ 
+ #if defined(NS_PRINTING) && defined(NS_PRINT_PREVIEW)
+   if (GetIsPrintPreview() && !mPrintEngine->GetIsCreatingPrintPreview()) {
+diff --git a/mozilla/layout/base/nsIPresShell.h b/mozilla/layout/base/nsIPresShell.h
+index 755f892..efee2bb 100644
+--- a/mozilla/layout/base/nsIPresShell.h
++++ b/mozilla/layout/base/nsIPresShell.h
+@@ -101,7 +101,7 @@ class gfxContext;
+ class nsPIDOMEventTarget;
+ 
+ typedef short SelectionType;
+-typedef PRUint32 nsFrameState;
++typedef PRUint64 nsFrameState;
+ 
+ // fa1bf801-9fb6-4d19-8d33-698e9961fc10
+ #define NS_IPRESSHELL_IID \
+-- 
+1.7.10.4
+

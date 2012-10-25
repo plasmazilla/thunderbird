@@ -200,3 +200,14 @@ security/squeeze13/0008-bug-769303-precompute-intrinsic-width-of-floats.-r-r.pat
 security/squeeze13/0009-Bug-771994-Make-nsRangeStore-refcounted-r-ehsan-a-ls.patch
 security/squeeze13/0010-Bug-778428-Refcount-arrays-of-nodes-in-editor-r-ehsa.patch
 security/squeeze13/0011-Bug-782141-Don-t-mix-signed-and-unsigned-variables-i.patch
+security/squeeze14/0001-Bug-775868-add-checks-to-DOMWindowUtils-fix-tests.-r.patch
+security/squeeze14/0002-Bug-776323-part-1-Fix-crash-due-to-silly-logic-error.patch
+security/squeeze14/0003-Bug-783260-Push-some-principals-on-esr10.-v1-a-akeyb.patch
+security/squeeze14/0004-Bug-783502-MIME-parsing-fix.-r-jcduell-a-akeybl.patch
+security/squeeze14/0005-Bug-785574-Add-a-script-blocker-in-nsHTMLEditor-SetA.patch
+security/squeeze14/0006-Bug-785720-Move-the-MathML-token-frame-leading-trail.patch
+security/squeeze14/0007-Bug-785967-Reject-Wave-files-with-invalid-data-block.patch
+security/squeeze14/0008-bug-787704-better-to-remember-addref-release-sConten.patch
+security/squeeze14/0009-Bug-787722-Prevent-out-of-bounds-read-writes-under-n.patch
+security/squeeze14/0010-Bug-788950-Prevent-mRules-from-dying-in-DoInsertHTML.patch
+security/squeeze14/0011-Bug-790856-ensure-bounds-on-the-previous-viewer-r-bz.patch

@@ -1,0 +1,30 @@
+From 613df62533ae9f4612112b1d304093005e4e12f3 Mon Sep 17 00:00:00 2001
+From: Jonathan Watt <jwatt@jwatt.org>
+Date: Thu, 13 Sep 2012 12:23:28 +0100
+Subject: Bug 787722 - Prevent out-of-bounds read/writes under
+ nsSVGFELightingElement::Filter. r=roc, a=lsblakk.
+
+---
+ mozilla/content/svg/content/src/nsSVGFilters.cpp |    6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/mozilla/content/svg/content/src/nsSVGFilters.cpp b/mozilla/content/svg/content/src/nsSVGFilters.cpp
+index 64d83aa..5b968d4 100644
+--- a/mozilla/content/svg/content/src/nsSVGFilters.cpp
++++ b/mozilla/content/svg/content/src/nsSVGFilters.cpp
+@@ -181,6 +181,12 @@ nsSVGFE::SetupScalingFilter(nsSVGFilterInstance *aInstance,
+   if (NS_FAILED(nsSVGUtils::GfxRectToIntRect(r, &result.mDataRect)))
+     return result;
+   
++  // Rounding in the code above can mean that result.mDataRect is not contained
++  // within the bounds of the surfaces that we're about to create. We must
++  // clamp to these bounds to prevent out-of-bounds reads and writes:
++  result.mDataRect.IntersectRect(result.mDataRect,
++                                 nsIntRect(nsIntPoint(), nsIntSize(scaledSize.width, scaledSize.height)));
++
+ #ifdef DEBUG_tor
+   fprintf(stderr, "scaled size %d %d\n", scaledSize.width, scaledSize.height);
+ #endif
+-- 
+1.7.10.4
+

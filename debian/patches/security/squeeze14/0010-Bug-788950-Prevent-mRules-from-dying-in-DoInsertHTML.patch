@@ -1,0 +1,27 @@
+From e783b1f877a7e5ec567ed244a8c09d7a6548d673 Mon Sep 17 00:00:00 2001
+From: Aryeh Gregor <ayg@aryeh.name>
+Date: Sun, 16 Sep 2012 13:13:31 +0300
+Subject: Bug 788950 - Prevent mRules from dying in DoInsertHTMLWithContext;
+ r=ehsan a=bajaj
+
+---
+ mozilla/editor/libeditor/html/nsHTMLDataTransfer.cpp |    3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mozilla/editor/libeditor/html/nsHTMLDataTransfer.cpp b/mozilla/editor/libeditor/html/nsHTMLDataTransfer.cpp
+index dc25ac6..ce30f77 100644
+--- a/mozilla/editor/libeditor/html/nsHTMLDataTransfer.cpp
++++ b/mozilla/editor/libeditor/html/nsHTMLDataTransfer.cpp
+@@ -290,6 +290,9 @@ nsHTMLEditor::DoInsertHTMLWithContext(const nsAString & aInputString,
+ {
+   if (!mRules) return NS_ERROR_NOT_INITIALIZED;
+ 
++  // Prevent the edit rules object from dying
++  nsCOMPtr<nsIEditRules> kungFuDeathGrip(mRules);
++
+   // force IME commit; set up rules sniffing and batching
+   ForceCompositionEnd();
+   nsAutoEditBatch beginBatching(this);
+-- 
+1.7.10.4
+

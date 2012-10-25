@@ -1,0 +1,26 @@
+From 64da021068e785d54c6c90b6d3fa9c4909ae1341 Mon Sep 17 00:00:00 2001
+From: Ehsan Akhgari <ehsan@mozilla.com>
+Date: Wed, 29 Aug 2012 16:43:32 -0400
+Subject: Bug 785574 - Add a script blocker in
+ nsHTMLEditor::SetAttributeOrEquivalent; r=bzbarsky a=lsblakk
+
+---
+ mozilla/editor/libeditor/html/nsHTMLEditor.cpp |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mozilla/editor/libeditor/html/nsHTMLEditor.cpp b/mozilla/editor/libeditor/html/nsHTMLEditor.cpp
+index 928c036..fd69c16 100644
+--- a/mozilla/editor/libeditor/html/nsHTMLEditor.cpp
++++ b/mozilla/editor/libeditor/html/nsHTMLEditor.cpp
+@@ -5310,6 +5310,8 @@ nsHTMLEditor::SetAttributeOrEquivalent(nsIDOMElement * aElement,
+                                        const nsAString & aValue,
+                                        PRBool aSuppressTransaction)
+ {
++  nsAutoScriptBlocker scriptBlocker;
++
+   PRBool useCSS;
+   nsresult res = NS_OK;
+   GetIsCSSEnabled(&useCSS);
+-- 
+1.7.10.4
+

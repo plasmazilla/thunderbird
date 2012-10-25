@@ -1,0 +1,28 @@
+From 10bc7e0fca9950703cb1ffe57fb0962e5f1fe1b9 Mon Sep 17 00:00:00 2001
+From: "julian.reschke@gmx.de" <julian.reschke@gmx.de>
+Date: Thu, 20 Sep 2012 16:52:26 -0400
+Subject: Bug 783502: MIME parsing fix. r=jcduell, a=akeybl
+
+---
+ mozilla/netwerk/mime/src/nsMIMEHeaderParamImpl.cpp |    5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/mozilla/netwerk/mime/src/nsMIMEHeaderParamImpl.cpp b/mozilla/netwerk/mime/src/nsMIMEHeaderParamImpl.cpp
+index 5409653..d0d94d4 100644
+--- a/mozilla/netwerk/mime/src/nsMIMEHeaderParamImpl.cpp
++++ b/mozilla/netwerk/mime/src/nsMIMEHeaderParamImpl.cpp
+@@ -231,9 +231,8 @@ nsMIMEHeaderParamImpl::GetParameterInternal(const char *aHeaderValue,
+       // The value is a quoted string. 
+       ++str;
+       valueStart = str;
+-      for (valueEnd = str; *valueEnd; ++valueEnd)
+-      {
+-        if (*valueEnd == '\\')
++      for (valueEnd = str; *valueEnd; ++valueEnd) {
++        if (*valueEnd == '\\' && *(valueEnd + 1))
+           ++valueEnd;
+         else if (*valueEnd == '"')
+           break;
+-- 
+1.7.10.4
+

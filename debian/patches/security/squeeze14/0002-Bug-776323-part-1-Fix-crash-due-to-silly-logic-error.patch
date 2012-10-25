@@ -1,0 +1,64 @@
+From ed31e364bc9c828acd1f7890c1046d377aa28ac3 Mon Sep 17 00:00:00 2001
+From: Aryeh Gregor <ayg@aryeh.name>
+Date: Mon, 23 Jul 2012 13:27:22 +0300
+Subject: Bug 776323 part 1 - Fix crash due to silly logic error in
+ nsSelectionState::SaveSelection; r=ehsan a=bajaj
+
+---
+ mozilla/editor/libeditor/base/crashtests/776323.html |   18 ++++++++++++++++++
+ .../editor/libeditor/base/crashtests/crashtests.list |    1 +
+ mozilla/editor/libeditor/base/nsSelectionState.cpp   |    4 +---
+ 3 files changed, 20 insertions(+), 3 deletions(-)
+ create mode 100644 mozilla/editor/libeditor/base/crashtests/776323.html
+
+diff --git a/mozilla/editor/libeditor/base/crashtests/776323.html b/mozilla/editor/libeditor/base/crashtests/776323.html
+new file mode 100644
+index 0000000..9fc2776
+--- /dev/null
++++ b/mozilla/editor/libeditor/base/crashtests/776323.html
+@@ -0,0 +1,18 @@
++<!DOCTYPE html>
++<html contenteditable="true">
++<head>
++<script>
++
++function boom()
++{
++  document.execCommand("inserthtml", false, "b");
++  var myrange = document.createRange();
++  myrange.selectNodeContents(document.getElementsByTagName("img")[0]);
++  window.getSelection().addRange(myrange);
++  document.execCommand("strikethrough", false, null);
++}
++
++</script>
++</head>
++<body onload="boom();"><img></body>
++</html>
+diff --git a/mozilla/editor/libeditor/base/crashtests/crashtests.list b/mozilla/editor/libeditor/base/crashtests/crashtests.list
+index 71ad6cc..9451c14 100644
+--- a/mozilla/editor/libeditor/base/crashtests/crashtests.list
++++ b/mozilla/editor/libeditor/base/crashtests/crashtests.list
+@@ -3,3 +3,4 @@ load 402172-1.html
+ load 407256-1.html
+ load 430624-1.html
+ load 459613.html
++load 776323.html
+diff --git a/mozilla/editor/libeditor/base/nsSelectionState.cpp b/mozilla/editor/libeditor/base/nsSelectionState.cpp
+index 9de9581..8cbe7c2 100644
+--- a/mozilla/editor/libeditor/base/nsSelectionState.cpp
++++ b/mozilla/editor/libeditor/base/nsSelectionState.cpp
+@@ -81,9 +81,7 @@ nsSelectionState::SaveSelection(nsISelection *aSel)
+   // if we need more items in the array, new them
+   if (arrayCount<rangeCount)
+   {
+-    PRInt32 count = rangeCount-arrayCount;
+-    for (i=0; i<count; i++)
+-    {
++    for (i = arrayCount; i < rangeCount; i++) {
+       mArray.AppendElement();
+       mArray[i] = new nsRangeStore();
+     }
+-- 
+1.7.10.4
+

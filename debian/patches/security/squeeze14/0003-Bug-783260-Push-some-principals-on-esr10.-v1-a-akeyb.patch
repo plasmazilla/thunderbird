@@ -1,0 +1,109 @@
+From 0e1ea6d73bade245dabdf22ecd835ce358256926 Mon Sep 17 00:00:00 2001
+From: Bobby Holley <bobbyholley@gmail.com>
+Date: Fri, 14 Sep 2012 12:17:49 +0200
+Subject: Bug 783260 - Push some principals on esr10. v1 a=akeybl
+
+---
+ mozilla/modules/plugin/base/src/nsJSNPRuntime.cpp |   30 +++++++++++++++++++++
+ 1 file changed, 30 insertions(+)
+
+diff --git a/mozilla/modules/plugin/base/src/nsJSNPRuntime.cpp b/mozilla/modules/plugin/base/src/nsJSNPRuntime.cpp
+index 93427e7..b0d666a 100644
+--- a/mozilla/modules/plugin/base/src/nsJSNPRuntime.cpp
++++ b/mozilla/modules/plugin/base/src/nsJSNPRuntime.cpp
+@@ -50,6 +50,8 @@
+ #include "nsIDOMElement.h"
+ #include "prmem.h"
+ #include "nsIContent.h"
++#include "nsContentUtils.h"
++#include "nsIScriptSecurityManager.h"
+ 
+ // FIXME(bug 332648): Give me a real API please!
+ #include "jscntxt.h"
+@@ -560,6 +562,27 @@ GetProperty(JSContext *cx, JSObject *obj, NPIdentifier identifier, jsval *rval)
+   return ::JS_GetElement(cx, obj, JSVAL_TO_INT(id), rval);
+ }
+ 
++class AutoPushContextPrincipal
++{
++  public:
++    AutoPushContextPrincipal(JSContext *cx) : mCx(cx)
++    {
++        mSSM = do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID);
++        if (!mSSM)
++            return;
++        mSSM->PushContextPrincipal(cx, NULL, mSSM->GetCxSubjectPrincipal(mCx));
++    }
++    ~AutoPushContextPrincipal()
++    {
++        if (mSSM)
++            mSSM->PopContextPrincipal(mCx);
++    }
++
++  private:
++    JSContext *mCx;
++    nsCOMPtr<nsIScriptSecurityManager_1_9_2> mSSM;
++};
++
+ // static
+ bool
+ nsJSObjWrapper::NP_HasMethod(NPObject *npobj, NPIdentifier identifier)
+@@ -583,6 +606,7 @@ nsJSObjWrapper::NP_HasMethod(NPObject *npobj, NPIdentifier identifier)
+ 
+   AutoCXPusher pusher(cx);
+   JSAutoRequest ar(cx);
++  AutoPushContextPrincipal prinPush(cx);
+   AutoJSExceptionReporter reporter(cx);
+ 
+   jsval v;
+@@ -618,6 +642,7 @@ doInvoke(NPObject *npobj, NPIdentifier method, const NPVariant *args,
+ 
+   AutoCXPusher pusher(cx);
+   JSAutoRequest ar(cx);
++  AutoPushContextPrincipal prinPush(cx);
+   AutoJSExceptionReporter reporter(cx);
+ 
+   if ((jsval)method != JSVAL_VOID) {
+@@ -731,6 +756,7 @@ nsJSObjWrapper::NP_HasProperty(NPObject *npobj, NPIdentifier identifier)
+ 
+   AutoCXPusher pusher(cx);
+   JSAutoRequest ar(cx);
++  AutoPushContextPrincipal prinPush(cx);
+   AutoJSExceptionReporter reporter(cx);
+ 
+   if (JSVAL_IS_STRING(id)) {
+@@ -771,6 +797,7 @@ nsJSObjWrapper::NP_GetProperty(NPObject *npobj, NPIdentifier identifier,
+ 
+   AutoCXPusher pusher(cx);
+   JSAutoRequest ar(cx);
++  AutoPushContextPrincipal prinPush(cx);
+   AutoJSExceptionReporter reporter(cx);
+ 
+   jsval v;
+@@ -805,6 +832,7 @@ nsJSObjWrapper::NP_SetProperty(NPObject *npobj, NPIdentifier identifier,
+   AutoCXPusher pusher(cx);
+   JSAutoRequest ar(cx);
+   AutoJSExceptionReporter reporter(cx);
++  AutoPushContextPrincipal prinPush(cx);
+ 
+   jsval v = NPVariantToJSVal(npp, cx, value);
+   JSAutoTempValueRooter tvr(cx, v);
+@@ -852,6 +880,7 @@ nsJSObjWrapper::NP_RemoveProperty(NPObject *npobj, NPIdentifier identifier)
+   JSAutoRequest ar(cx);
+   AutoJSExceptionReporter reporter(cx);
+   jsval deleted = JSVAL_FALSE;
++  AutoPushContextPrincipal prinPush(cx);
+ 
+   if (JSVAL_IS_STRING(id)) {
+     JSString *str = JSVAL_TO_STRING(id);
+@@ -928,6 +957,7 @@ nsJSObjWrapper::NP_Enumerate(NPObject *npobj, NPIdentifier **identifier,
+   AutoCXPusher pusher(cx);
+   JSAutoRequest ar(cx);
+   AutoJSExceptionReporter reporter(cx);
++  AutoPushContextPrincipal prinPush(cx);
+ 
+   JSIdArray *ida = ::JS_Enumerate(cx, npjsobj->mJSObj);
+   if (!ida) {
+-- 
+1.7.10.4
+

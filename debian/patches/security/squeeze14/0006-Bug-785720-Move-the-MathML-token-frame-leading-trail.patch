@@ -1,0 +1,338 @@
+From 248bf8a7be4cf2dd17dfdd0404623a0429a80142 Mon Sep 17 00:00:00 2001
+From: Ehsan Akhgari <ehsan@mozilla.com>
+Date: Thu, 30 Aug 2012 21:32:02 -0400
+Subject: Bug 785720 - Move the MathML token frame leading/trailing whitespace
+ trimming logic to nsTextFrame; r=roc a=lsblakk
+
+---
+ mozilla/layout/generic/nsIFrame.h                  |    4 +-
+ mozilla/layout/generic/nsTextFrame.h               |    5 ++
+ mozilla/layout/generic/nsTextFrameThebes.cpp       |   16 +++--
+ .../layout/mathml/base/src/nsMathMLTokenFrame.cpp  |   65 ++++++++++++--------
+ .../layout/mathml/base/src/nsMathMLTokenFrame.h    |   16 +++--
+ mozilla/layout/mathml/base/src/nsMathMLmoFrame.cpp |    1 +
+ mozilla/layout/reftests/mathml/reftest.list        |    3 +
+ .../reftests/mathml/whitespace-trim-1-ref.html     |    2 +
+ .../layout/reftests/mathml/whitespace-trim-1.html  |    2 +
+ .../reftests/mathml/whitespace-trim-2-ref.html     |    2 +
+ .../layout/reftests/mathml/whitespace-trim-2.html  |    2 +
+ .../reftests/mathml/whitespace-trim-3-ref.html     |    2 +
+ .../layout/reftests/mathml/whitespace-trim-3.html  |    2 +
+ 13 files changed, 86 insertions(+), 36 deletions(-)
+ create mode 100644 mozilla/layout/reftests/mathml/whitespace-trim-1-ref.html
+ create mode 100644 mozilla/layout/reftests/mathml/whitespace-trim-1.html
+ create mode 100644 mozilla/layout/reftests/mathml/whitespace-trim-2-ref.html
+ create mode 100644 mozilla/layout/reftests/mathml/whitespace-trim-2.html
+ create mode 100644 mozilla/layout/reftests/mathml/whitespace-trim-3-ref.html
+ create mode 100644 mozilla/layout/reftests/mathml/whitespace-trim-3.html
+
+diff --git a/mozilla/layout/generic/nsIFrame.h b/mozilla/layout/generic/nsIFrame.h
+index f1cdf06..0526860 100644
+--- a/mozilla/layout/generic/nsIFrame.h
++++ b/mozilla/layout/generic/nsIFrame.h
+@@ -144,10 +144,10 @@ typedef PRUint32 nsSplittableType;
+  * Frame state bits. Any bits not listed here are reserved for future
+  * extensions, but must be stored by the frames.
+  */
+-typedef PRUint32 nsFrameState;
++typedef PRUint64 nsFrameState;
+ 
+ enum {
+-  NS_FRAME_IN_REFLOW =                          0x00000001,
++  NS_FRAME_IN_REFLOW =                          0x00000001L,
+ 
+   // This is only set during painting
+   NS_FRAME_FORCE_DISPLAY_LIST_DESCEND_INTO =    0x00000001,
+diff --git a/mozilla/layout/generic/nsTextFrame.h b/mozilla/layout/generic/nsTextFrame.h
+index 6e7c9d5..7a06b8c 100644
+--- a/mozilla/layout/generic/nsTextFrame.h
++++ b/mozilla/layout/generic/nsTextFrame.h
+@@ -67,6 +67,11 @@ class PropertyProvider;
+ // reflow
+ #define TEXT_HAS_NONCOLLAPSED_CHARACTERS 0x80000000
+ 
++// This state bit is set on frames which are forced to trim their leading and
++// trailing whitespaces
++#define TEXT_FORCE_TRIM_WHITESPACE       (nsFrameState(1) << 32)
++
++
+ class nsTextFrame : public nsFrame {
+ public:
+   friend class nsContinuingTextFrame;
+diff --git a/mozilla/layout/generic/nsTextFrameThebes.cpp b/mozilla/layout/generic/nsTextFrameThebes.cpp
+index 0aa5ee0..048255c 100644
+--- a/mozilla/layout/generic/nsTextFrameThebes.cpp
++++ b/mozilla/layout/generic/nsTextFrameThebes.cpp
+@@ -173,6 +173,9 @@
+ // nsTextFrame.h has
+ // #define TEXT_HAS_NONCOLLAPSED_CHARACTERS 0x80000000
+ 
++// nsTextFrame.h has
++// #define TEXT_FORCE_TRIM_WHITESPACE       (nsFrameState(1) << 32)
++
+ /*
+  * Some general notes
+  * 
+@@ -5972,7 +5975,8 @@ nsTextFrame::Reflow(nsPresContext*           aPresContext,
+       length = newLineOffset + 1 - offset;
+     }
+   }
+-  if (atStartOfLine && !textStyle->WhiteSpaceIsSignificant()) {
++  if ((atStartOfLine && !textStyle->WhiteSpaceIsSignificant()) ||
++      (GetStateBits() & TEXT_FORCE_TRIM_WHITESPACE)) {
+     // Skip leading whitespace. Make sure we don't skip a 'pre-line'
+     // newline if there is one.
+     PRInt32 skipLength = newLineOffset >= 0 ? length - 1 : length;
+@@ -6112,7 +6116,8 @@ nsTextFrame::Reflow(nsPresContext*           aPresContext,
+   PRBool usedHyphenation;
+   gfxFloat trimmedWidth = 0;
+   gfxFloat availWidth = aReflowState.availableWidth;
+-  PRBool canTrimTrailingWhitespace = !textStyle->WhiteSpaceIsSignificant();
++  PRBool canTrimTrailingWhitespace = !textStyle->WhiteSpaceIsSignificant() ||
++                            (GetStateBits() & TEXT_FORCE_TRIM_WHITESPACE);
+   PRInt32 unusedOffset;  
+   gfxBreakPriority breakPriority;
+   lineLayout.GetLastOptionalBreakPosition(&unusedOffset, &breakPriority);
+@@ -6172,11 +6177,12 @@ nsTextFrame::Reflow(nsPresContext*           aPresContext,
+     // the line. (If we actually do end up at the end of the line, we'll have
+     // to trim it off again in TrimTrailingWhiteSpace, and we'd like to avoid
+     // having to re-do it.)
+-    if (brokeText) {
++    if (brokeText ||
++        (GetStateBits() & TEXT_FORCE_TRIM_WHITESPACE)) {
+       // We're definitely going to break so our trailing whitespace should
+-      // definitely be timmed. Record that we've already done it.
++      // definitely be trimmed. Record that we've already done it.
+       AddStateBits(TEXT_TRIMMED_TRAILING_WHITESPACE);
+-    } else {
++    } else if (!(GetStateBits() & TEXT_FORCE_TRIM_WHITESPACE)) {
+       // We might not be at the end of the line. (Note that even if this frame
+       // ends in breakable whitespace, it might not be at the end of the line
+       // because it might be followed by breakable, but preformatted, whitespace.)
+diff --git a/mozilla/layout/mathml/base/src/nsMathMLTokenFrame.cpp b/mozilla/layout/mathml/base/src/nsMathMLTokenFrame.cpp
+index 3dad4b8..d4df168 100644
+--- a/mozilla/layout/mathml/base/src/nsMathMLTokenFrame.cpp
++++ b/mozilla/layout/mathml/base/src/nsMathMLTokenFrame.cpp
+@@ -47,6 +47,7 @@
+ #include "nsContentUtils.h"
+ #include "nsCSSFrameConstructor.h"
+ #include "nsMathMLTokenFrame.h"
++#include "nsTextFrame.h"
+ 
+ nsIFrame*
+ NS_NewMathMLTokenFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
+@@ -84,6 +85,7 @@ nsMathMLTokenFrame::GetMathMLFrameType()
+   else if(style.EqualsLiteral("invariant")) {
+     nsAutoString data;
+     nsContentUtils::GetNodeTextContent(mContent, PR_FALSE, data);
++    data.CompressWhitespace();
+     eMATHVARIANT variant = nsMathMLOperators::LookupInvariantChar(data);
+ 
+     switch (variant) {
+@@ -101,36 +103,20 @@ nsMathMLTokenFrame::GetMathMLFrameType()
+   return eMathMLFrameType_UprightIdentifier;
+ }
+ 
+-static void
+-CompressWhitespace(nsIContent* aContent)
++void
++nsMathMLTokenFrame::ForceTrimChildTextFrames()
+ {
+-  PRUint32 numKids = aContent->GetChildCount();
+-  for (PRUint32 kid = 0; kid < numKids; kid++) {
+-    nsIContent* cont = aContent->GetChildAt(kid);
+-    if (cont && cont->IsNodeOfType(nsINode::eTEXT)) {
+-      nsAutoString text;
+-      cont->AppendTextTo(text);
+-      text.CompressWhitespace();
+-      cont->SetText(text, PR_FALSE); // not meant to be used if notify is needed
++  // Set flags on child text frames to force them to trim their leading and
++  // trailing whitespaces.
++  for (nsIFrame* childFrame = GetFirstChild(nsnull); childFrame;
++       childFrame = childFrame->GetNextSibling()) {
++    if (childFrame->GetType() == nsGkAtoms::textFrame) {
++      childFrame->AddStateBits(TEXT_FORCE_TRIM_WHITESPACE);
+     }
+   }
+ }
+ 
+ NS_IMETHODIMP
+-nsMathMLTokenFrame::Init(nsIContent*      aContent,
+-                         nsIFrame*        aParent,
+-                         nsIFrame*        aPrevInFlow)
+-{
+-  // leading and trailing whitespace doesn't count -- bug 15402
+-  // brute force removal for people who do <mi> a </mi> instead of <mi>a</mi>
+-  // XXX the best fix is to skip these in nsTextFrame
+-  CompressWhitespace(aContent);
+-
+-  // let the base class do its Init()
+-  return nsMathMLContainerFrame::Init(aContent, aParent, aPrevInFlow);
+-}
+-
+-NS_IMETHODIMP
+ nsMathMLTokenFrame::SetInitialChildList(nsIAtom*        aListName,
+                                         nsIFrame*       aChildList)
+ {
+@@ -139,11 +125,41 @@ nsMathMLTokenFrame::SetInitialChildList(nsIAtom*        aListName,
+   if (NS_FAILED(rv))
+     return rv;
+ 
++  ForceTrimChildTextFrames();
++
+   SetQuotes(PR_FALSE);
+   ProcessTextData();
+   return rv;
+ }
+ 
++NS_IMETHODIMP
++nsMathMLTokenFrame::AppendFrames(nsIAtom* aListName,
++                                 nsIFrame* aChildList)
++{
++  nsresult rv = nsMathMLContainerFrame::AppendFrames(aListName, aChildList);
++  if (NS_FAILED(rv))
++    return rv;
++
++  ForceTrimChildTextFrames();
++
++  return rv;
++}
++
++NS_IMETHODIMP
++nsMathMLTokenFrame::InsertFrames(nsIAtom* aListName,
++                                 nsIFrame* aPrevFrame,
++                                 nsIFrame* aChildList)
++{
++  nsresult rv = nsMathMLContainerFrame::InsertFrames(aListName, aPrevFrame,
++                                                     aChildList);
++  if (NS_FAILED(rv))
++    return rv;
++
++  ForceTrimChildTextFrames();
++
++  return rv;
++}
++
+ nsresult
+ nsMathMLTokenFrame::Reflow(nsPresContext*          aPresContext,
+                            nsHTMLReflowMetrics&     aDesiredSize,
+@@ -317,6 +333,7 @@ nsMathMLTokenFrame::SetTextStyle()
+   // Get the text content that we enclose and its length
+   nsAutoString data;
+   nsContentUtils::GetNodeTextContent(mContent, PR_FALSE, data);
++  data.CompressWhitespace();
+   PRInt32 length = data.Length();
+   if (!length)
+     return PR_FALSE;
+diff --git a/mozilla/layout/mathml/base/src/nsMathMLTokenFrame.h b/mozilla/layout/mathml/base/src/nsMathMLTokenFrame.h
+index dff8f7e..41d5631 100644
+--- a/mozilla/layout/mathml/base/src/nsMathMLTokenFrame.h
++++ b/mozilla/layout/mathml/base/src/nsMathMLTokenFrame.h
+@@ -53,15 +53,19 @@ public:
+   virtual eMathMLFrameType GetMathMLFrameType();
+ 
+   NS_IMETHOD
+-  Init(nsIContent*      aContent,
+-       nsIFrame*        aParent,
+-       nsIFrame*        aPrevInFlow);
+-
+-  NS_IMETHOD
+   SetInitialChildList(nsIAtom*        aListName,
+                       nsIFrame*       aChildList);
+ 
+   NS_IMETHOD
++  AppendFrames(nsIAtom*               aListName,
++               nsIFrame*              aChildList);
++
++  NS_IMETHOD
++  InsertFrames(nsIAtom*               aListName,
++               nsIFrame*              aPrevFrame,
++               nsIFrame*              aChildList);
++
++  NS_IMETHOD
+   Reflow(nsPresContext*          aPresContext,
+          nsHTMLReflowMetrics&     aDesiredSize,
+          const nsHTMLReflowState& aReflowState,
+@@ -101,6 +105,8 @@ protected:
+ 
+   // helper to set the quotes of <ms>
+   void SetQuotes(PRBool aNotify);
++
++  void ForceTrimChildTextFrames();
+ };
+ 
+ #endif /* nsMathMLTokentFrame_h___ */
+diff --git a/mozilla/layout/mathml/base/src/nsMathMLmoFrame.cpp b/mozilla/layout/mathml/base/src/nsMathMLmoFrame.cpp
+index 0ff6aea..f19749e 100644
+--- a/mozilla/layout/mathml/base/src/nsMathMLmoFrame.cpp
++++ b/mozilla/layout/mathml/base/src/nsMathMLmoFrame.cpp
+@@ -164,6 +164,7 @@ nsMathMLmoFrame::ProcessTextData()
+ 
+   nsAutoString data;
+   nsContentUtils::GetNodeTextContent(mContent, PR_FALSE, data);
++  data.CompressWhitespace();
+   PRInt32 length = data.Length();
+   PRUnichar ch = (length == 0) ? kNullCh : data[0];
+ 
+diff --git a/mozilla/layout/reftests/mathml/reftest.list b/mozilla/layout/reftests/mathml/reftest.list
+index 46609fb..56cffcc 100644
+--- a/mozilla/layout/reftests/mathml/reftest.list
++++ b/mozilla/layout/reftests/mathml/reftest.list
+@@ -6,3 +6,6 @@
+ != stretchy-underbar-1.xhtml stretchy-underbar-1-ref.xhtml 
+ == table-width-1.xhtml table-width-1-ref.xhtml
+ == underbar-width-1.xhtml underbar-width-1-ref.xhtml
++== whitespace-trim-1.html whitespace-trim-1-ref.html
++== whitespace-trim-2.html whitespace-trim-2-ref.html
++== whitespace-trim-3.html whitespace-trim-3-ref.html
+diff --git a/mozilla/layout/reftests/mathml/whitespace-trim-1-ref.html b/mozilla/layout/reftests/mathml/whitespace-trim-1-ref.html
+new file mode 100644
+index 0000000..b2145de
+--- /dev/null
++++ b/mozilla/layout/reftests/mathml/whitespace-trim-1-ref.html
+@@ -0,0 +1,2 @@
++<!DOCTYPE html>
++<math><mo minsize="10em">(</mo></math>
+diff --git a/mozilla/layout/reftests/mathml/whitespace-trim-1.html b/mozilla/layout/reftests/mathml/whitespace-trim-1.html
+new file mode 100644
+index 0000000..59aeb9a
+--- /dev/null
++++ b/mozilla/layout/reftests/mathml/whitespace-trim-1.html
+@@ -0,0 +1,2 @@
++<!DOCTYPE html>
++<math><mo minsize="10em"> ( </mo></math>
+diff --git a/mozilla/layout/reftests/mathml/whitespace-trim-2-ref.html b/mozilla/layout/reftests/mathml/whitespace-trim-2-ref.html
+new file mode 100644
+index 0000000..8b8f7b8
+--- /dev/null
++++ b/mozilla/layout/reftests/mathml/whitespace-trim-2-ref.html
+@@ -0,0 +1,2 @@
++<!DOCTYPE html>
++<math><mi>(</mi></math>
+diff --git a/mozilla/layout/reftests/mathml/whitespace-trim-2.html b/mozilla/layout/reftests/mathml/whitespace-trim-2.html
+new file mode 100644
+index 0000000..d1c27c6
+--- /dev/null
++++ b/mozilla/layout/reftests/mathml/whitespace-trim-2.html
+@@ -0,0 +1,2 @@
++<!DOCTYPE html>
++<math><mi> ( </mi></math>
+diff --git a/mozilla/layout/reftests/mathml/whitespace-trim-3-ref.html b/mozilla/layout/reftests/mathml/whitespace-trim-3-ref.html
+new file mode 100644
+index 0000000..4a9928a
+--- /dev/null
++++ b/mozilla/layout/reftests/mathml/whitespace-trim-3-ref.html
+@@ -0,0 +1,2 @@
++<!DOCTYPE html>
++<math><mi mathvariant="italic">&#x210e;</mi></math>
+diff --git a/mozilla/layout/reftests/mathml/whitespace-trim-3.html b/mozilla/layout/reftests/mathml/whitespace-trim-3.html
+new file mode 100644
+index 0000000..61f1688
+--- /dev/null
++++ b/mozilla/layout/reftests/mathml/whitespace-trim-3.html
+@@ -0,0 +1,2 @@
++<!DOCTYPE html>
++<math><mi mathvariant="italic"> &#x210e; </mi></math>
+-- 
+1.7.10.4
+
