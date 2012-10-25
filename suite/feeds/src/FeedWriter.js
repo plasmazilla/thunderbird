@@ -1,45 +1,7 @@
 /* -*- Mode: Javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Feed Writer.
- *
- * The Initial Developer of the Original Code is Google Inc.
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ben Goodger <beng@google.com>
- *   Jeff Walden <jwalden+code@mit.edu>
- *   Asaf Romano <mano@mozilla.com>
- *   Robert Sayre <sayrer@gmail.com>
- *   Michael Ventnor <m.ventnor@gmail.com>
- *   Will Guaraldi <will.guaraldi@pculture.org>
- *   Caio Tiago Oliveira <asrail@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
@@ -53,7 +15,7 @@ const TYPE_MAYBE_FEED = "application/vnd.mozilla.maybe.feed";
 const TYPE_MAYBE_AUDIO_FEED = "application/vnd.mozilla.maybe.audio.feed";
 const TYPE_MAYBE_VIDEO_FEED = "application/vnd.mozilla.maybe.video.feed";
 const STRING_BUNDLE_URI = "chrome://communicator/locale/feeds/subscribe.properties";
-const SUBSCRIBE_PAGE_URI = "chrome://communicator/content/feeds/subscribe.xhtml";
+const FEEDHANDLER_URI = "about:feeds";
 
 const PREF_SELECTED_APP = "browser.feeds.handlers.application";
 const PREF_SELECTED_WEB = "browser.feeds.handlers.webservice";
@@ -282,7 +244,7 @@ FeedWriter.prototype = {
   get _faviconService() {
     if (!this.__faviconService)
       this.__faviconService = Components.classes["@mozilla.org/browser/favicon-service;1"]
-                                        .getService(Components.interfaces.nsIFaviconService);
+                                        .getService(Components.interfaces.mozIAsyncFavicons);
 
     return this.__faviconService;
   },
@@ -987,7 +949,7 @@ FeedWriter.prototype = {
 
     // List the default feed reader
     try {
-      this._defaultSystemReader = Components.classes["@mozilla.org/suite/shell-feed-service;1"]
+      this._defaultSystemReader = Components.classes["@mozilla.org/suite/shell-service;1"]
                                             .getService(Components.interfaces.nsIShellService)
                                             .defaultFeedReader;
       menuItem = liveBookmarksMenuItem.cloneNode(false);
@@ -1117,10 +1079,9 @@ FeedWriter.prototype = {
                       .QueryInterface(Components.interfaces.nsIDocShell)
                       .currentDocumentChannel;
 
-    var uri = makeURI(SUBSCRIBE_PAGE_URI);
-    var resolvedURI = Components.classes["@mozilla.org/chrome/chrome-registry;1"]
-                                .getService(Components.interfaces.nsIChromeRegistry)
-                                .convertChromeURL(uri);
+    var resolvedURI = Components.classes["@mozilla.org/network/io-service;1"]
+                                .getService(Components.interfaces.nsIIOService)
+                                .newChannel(FEEDHANDLER_URI, null, null).URI;
 
     if (resolvedURI.equals(chan.URI))
       return chan.originalURI;
@@ -1358,7 +1319,7 @@ FeedWriter.prototype = {
     }
     let faviconURI = makeURI(readerURI.resolve("/favicon.ico"));
     let self = this;
-    this._faviconService.setAndLoadFaviconForPage(readerURI, faviconURI, false,
+    this._faviconService.setAndFetchFaviconForPage(readerURI, faviconURI, false,
       function(aURI, aDataLen, aData, aMimeType) {
         if (aDataLen > 0) {
           let dataURL = "data:" + aMimeType + ";base64," +

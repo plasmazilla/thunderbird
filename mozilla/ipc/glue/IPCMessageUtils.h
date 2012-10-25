@@ -1,40 +1,8 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set sw=2 ts=8 et tw=80 : */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla IPC.
- *
- * The Initial Developer of the Original Code is
- *   Ben Turner <bent.mozilla@gmail.com>.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef __IPC_GLUE_IPCMESSAGEUTILS_H__
 #define __IPC_GLUE_IPCMESSAGEUTILS_H__
@@ -76,10 +44,11 @@ using mozilla::layers::LayerManager;
 
 namespace mozilla {
 
-typedef gfxPattern::GraphicsFilter GraphicsFilterType;
-typedef gfxASurface::gfxSurfaceType gfxSurfaceType;
-typedef LayerManager::LayersBackend LayersBackend;
+typedef gfxASurface::gfxContentType gfxContentType;
 typedef gfxASurface::gfxImageFormat PixelFormat;
+typedef gfxASurface::gfxSurfaceType gfxSurfaceType;
+typedef gfxPattern::GraphicsFilter GraphicsFilterType;
+typedef LayerManager::LayersBackend LayersBackend;
 
 // This is a cross-platform approximation to HANDLE, which we expect
 // to be typedef'd to void* or thereabouts.
@@ -460,6 +429,27 @@ struct ParamTraits<gfxMatrix>
 };
 
 template<>
+struct ParamTraits<gfxPoint>
+{
+  typedef gfxPoint paramType;
+
+  static void Write(Message* aMsg, const paramType& aParam)
+  {
+    WriteParam(aMsg, aParam.x);
+    WriteParam(aMsg, aParam.y);
+  }
+
+  static bool Read(const Message* aMsg, void** aIter, paramType* aResult)
+  {
+    if (ReadParam(aMsg, aIter, &aResult->x) &&
+        ReadParam(aMsg, aIter, &aResult->y))
+      return true;
+
+    return false;
+  }
+};
+
+template<>
 struct ParamTraits<gfxSize>
 {
   typedef gfxSize paramType;
@@ -506,140 +496,40 @@ struct ParamTraits<gfx3DMatrix>
   }
 };
 
- template<>
-struct ParamTraits<mozilla::GraphicsFilterType>
-{
-  typedef mozilla::GraphicsFilterType paramType;
+template <>
+struct ParamTraits<mozilla::gfxContentType>
+  : public EnumSerializer<mozilla::gfxContentType,
+                          gfxASurface::CONTENT_COLOR,
+                          gfxASurface::CONTENT_SENTINEL>
+{};
 
-  static void Write(Message* msg, const paramType& param)
-  {
-    switch (param) {
-    case gfxPattern::FILTER_FAST:
-    case gfxPattern::FILTER_GOOD:
-    case gfxPattern::FILTER_BEST:
-    case gfxPattern::FILTER_NEAREST:
-    case gfxPattern::FILTER_BILINEAR:
-    case gfxPattern::FILTER_GAUSSIAN:
-      WriteParam(msg, int32(param));
-      return;
-
-    }
-    NS_RUNTIMEABORT("not reached");
-  }
-
-  static bool Read(const Message* msg, void** iter, paramType* result)
-  {
-    int32 filter;
-    if (!ReadParam(msg, iter, &filter))
-      return false;
-
-    switch (filter) {
-    case gfxPattern::FILTER_FAST:
-    case gfxPattern::FILTER_GOOD:
-    case gfxPattern::FILTER_BEST:
-    case gfxPattern::FILTER_NEAREST:
-    case gfxPattern::FILTER_BILINEAR:
-    case gfxPattern::FILTER_GAUSSIAN:
-      *result = paramType(filter);
-      return true;
-
-    default:
-      return false;
-    }
-  }
-};
-
- template<>
+template <>
 struct ParamTraits<mozilla::gfxSurfaceType>
-{
-  typedef mozilla::gfxSurfaceType paramType;
+  : public EnumSerializer<gfxASurface::gfxSurfaceType,
+                          gfxASurface::SurfaceTypeImage,
+                          gfxASurface::SurfaceTypeMax>
+{};
 
-  static void Write(Message* msg, const paramType& param)
-  {
-    if (gfxASurface::SurfaceTypeImage <= param &&
-        param < gfxASurface::SurfaceTypeMax) {
-      WriteParam(msg, int32(param));
-      return;
-    }
-    NS_RUNTIMEABORT("surface type not reached");
-  }
+template <>
+struct ParamTraits<mozilla::GraphicsFilterType>
+  : public EnumSerializer<mozilla::GraphicsFilterType,
+                          gfxPattern::FILTER_FAST,
+                          gfxPattern::FILTER_SENTINEL>
+{};
 
-  static bool Read(const Message* msg, void** iter, paramType* result)
-  {
-    int32 filter;
-    if (!ReadParam(msg, iter, &filter))
-      return false;
-
-    if (gfxASurface::SurfaceTypeImage <= filter &&
-        filter < gfxASurface::SurfaceTypeMax) {
-      *result = paramType(filter);
-      return true;
-    }
-    return false;
-  }
-};
-
-template<>
+template <>
 struct ParamTraits<mozilla::LayersBackend>
-{
-  typedef mozilla::LayersBackend paramType;
+  : public EnumSerializer<mozilla::LayersBackend,
+                          LayerManager::LAYERS_NONE,
+                          LayerManager::LAYERS_LAST>
+{};
 
-  static void Write(Message* msg, const paramType& param)
-  {
-    if (LayerManager::LAYERS_NONE <= param &&
-        param < LayerManager::LAYERS_LAST) {
-      WriteParam(msg, int32(param));
-      return;
-    }
-    NS_RUNTIMEABORT("backend type not reached");
-  }
-
-  static bool Read(const Message* msg, void** iter, paramType* result)
-  {
-    int32 type;
-    if (!ReadParam(msg, iter, &type))
-      return false;
-
-    if (LayerManager::LAYERS_NONE <= type &&
-        type < LayerManager::LAYERS_LAST) {
-      *result = paramType(type);
-      return true;
-    }
-    return false;
-  }
-};
-
-template<>
+template <>
 struct ParamTraits<mozilla::PixelFormat>
-{
-  typedef mozilla::PixelFormat paramType;
-
-  static bool IsLegalPixelFormat(const paramType& format)
-  {
-    return (gfxASurface::ImageFormatARGB32 <= format &&
-            format < gfxASurface::ImageFormatUnknown);
-  }
-
-  static void Write(Message* msg, const paramType& param)
-  {
-    if (!IsLegalPixelFormat(param)) {
-      NS_RUNTIMEABORT("Unknown pixel format");
-    }
-    WriteParam(msg, int32(param));
-    return;
-  }
-
-  static bool Read(const Message* msg, void** iter, paramType* result)
-  {
-    int32 format;
-    if (!ReadParam(msg, iter, &format) ||
-        !IsLegalPixelFormat(paramType(format))) {
-      return false;
-    }
-    *result = paramType(format);
-    return true;
-  }
-};
+  : public EnumSerializer<mozilla::PixelFormat,
+                          gfxASurface::ImageFormatARGB32,
+                          gfxASurface::ImageFormatUnknown>
+{};
 
 template<>
 struct ParamTraits<gfxRGBA>

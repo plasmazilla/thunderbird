@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2007
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Alexander Surkov <surkov.alexander@gmail.com> (original author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsAccUtils_h_
 #define nsAccUtils_h_
@@ -55,14 +22,10 @@
 #include "nsPoint.h"
 
 class nsAccessNode;
-class nsAccessible;
-class nsHyperTextAccessible;
-class nsHTMLTableAccessible;
-class nsDocAccessible;
+class Accessible;
+class HyperTextAccessible;
+class DocAccessible;
 struct nsRoleMapEntry;
-#ifdef MOZ_XUL
-class nsXULTreeAccessible;
-#endif
 
 class nsAccUtils
 {
@@ -99,13 +62,13 @@ public:
   /**
    * Get default value of the level for the given accessible.
    */
-  static PRInt32 GetDefaultLevel(nsAccessible *aAcc);
+  static PRInt32 GetDefaultLevel(Accessible* aAcc);
 
   /**
    * Return ARIA level value or the default one if ARIA is missed for the
    * given accessible.
    */
-  static PRInt32 GetARIAOrDefaultLevel(nsAccessible *aAccessible);
+  static PRInt32 GetARIAOrDefaultLevel(Accessible* aAccessible);
 
   /**
    * Compute group level for nsIDOMXULContainerItemElement node.
@@ -140,7 +103,7 @@ public:
   /**
    * Return document accessible for the given DOM node.
    */
-  static nsDocAccessible *GetDocAccessibleFor(nsINode *aNode)
+  static DocAccessible* GetDocAccessibleFor(nsINode* aNode)
   {
     nsIPresShell *presShell = nsCoreUtils::GetPresShellFor(aNode);
     return GetAccService()->GetDocAccessible(presShell);
@@ -149,7 +112,7 @@ public:
   /**
    * Return document accessible for the given docshell.
    */
-  static nsDocAccessible *GetDocAccessibleFor(nsIDocShellTreeItem *aContainer)
+  static DocAccessible* GetDocAccessibleFor(nsIDocShellTreeItem* aContainer)
   {
     nsCOMPtr<nsIDocShell> docShell(do_QueryInterface(aContainer));
     nsCOMPtr<nsIPresShell> presShell;
@@ -165,8 +128,8 @@ public:
     * @return               the ancestor accessible with the given role, or
     *                       nsnull if no match is found
     */
-   static nsAccessible * GetAncestorWithRole(nsAccessible *aDescendant,
-                                             PRUint32 aRole);
+   static Accessible* GetAncestorWithRole(Accessible* aDescendant,
+                                          PRUint32 aRole);
 
   /**
    * Return single or multi selectable container for the given item.
@@ -174,14 +137,14 @@ public:
    * @param  aAccessible  [in] the item accessible
    * @param  aState       [in] the state of the item accessible
    */
-  static nsAccessible* GetSelectableContainer(nsAccessible* aAccessible,
-                                              PRUint64 aState);
+  static Accessible* GetSelectableContainer(Accessible* aAccessible,
+                                            PRUint64 aState);
 
   /**
    * Return true if the DOM node of given accessible has aria-selected="true"
    * attribute.
    */
-  static bool IsARIASelected(nsAccessible *aAccessible);
+  static bool IsARIASelected(Accessible* aAccessible);
 
   /**
    * Return text accessible containing focus point of the given selection.
@@ -190,7 +153,7 @@ public:
    * @param aSelection  [in] the given selection
    * @return            text accessible
    */
-  static nsHyperTextAccessible*
+  static HyperTextAccessible*
     GetTextAccessibleFromSelection(nsISelection* aSelection);
 
   /**
@@ -270,12 +233,12 @@ public:
    */
   static bool GetLiveAttrValue(PRUint32 aRule, nsAString& aValue);
 
-#ifdef DEBUG_A11Y
+#ifdef DEBUG
   /**
    * Detect whether the given accessible object implements nsIAccessibleText,
    * when it is text or has text child node.
    */
-  static bool IsTextInterfaceSupportCorrect(nsAccessible *aAccessible);
+  static bool IsTextInterfaceSupportCorrect(Accessible* aAccessible);
 #endif
 
   /**
@@ -291,7 +254,7 @@ public:
   /**
    * Return text length of the given accessible, return 0 on failure.
    */
-  static PRUint32 TextLength(nsAccessible *aAccessible);
+  static PRUint32 TextLength(Accessible* aAccessible);
 
   /**
    * Return true if the given accessible is embedded object.
@@ -328,7 +291,7 @@ public:
    * Return true if the given accessible can't have children. Used when exposing
    * to platform accessibility APIs, should the children be pruned off?
    */
-  static bool MustPrune(nsIAccessible *aAccessible);
+  static bool MustPrune(Accessible* aAccessible);
 
   /**
    * Search hint enum constants. Used by GetHeaderCellsFor() method.

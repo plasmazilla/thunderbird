@@ -1,43 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 sw=2 et tw=78: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code, released
- * March 31, 1998.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Johnny Stenback <jst@netscape.com>
- *   Christopher A. Aillon <christopher@aillon.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* A namespace class for static layout utilities. */
 
@@ -51,11 +16,8 @@
 #include "nsCOMPtr.h"
 #include "nsAString.h"
 #include "nsPrintfCString.h"
-#include "nsUnicharUtils.h"
-#include "nsServiceManagerUtils.h"
 #include "nsIScriptGlobalObject.h"
 #include "nsIScriptContext.h"
-#include "nsIDOMScriptObjectFactory.h"
 #include "nsDOMCID.h"
 #include "nsContentUtils.h"
 #include "nsIXPConnect.h"
@@ -63,7 +25,7 @@
 #include "mozilla/dom/Element.h"
 #include "nsIDocument.h"
 #include "nsINodeInfo.h"
-#include "nsReadableUtils.h"
+#include "nsIIdleService.h"
 #include "nsIDOMDocument.h"
 #include "nsIDOMNodeList.h"
 #include "nsIDOMNode.h"
@@ -71,7 +33,6 @@
 #include "nsNetCID.h"
 #include "nsNetUtil.h"
 #include "nsIScriptSecurityManager.h"
-#include "nsDOMError.h"
 #include "nsPIDOMWindow.h"
 #include "nsIJSContextStack.h"
 #include "nsIDocShell.h"
@@ -80,21 +41,13 @@
 #include "nsIParser.h"
 #include "nsIFragmentContentSink.h"
 #include "nsIContentSink.h"
-#include "nsIHTMLContentSink.h"
-#include "nsIXMLContentSink.h"
-#include "nsHTMLParts.h"
-#include "nsIServiceManager.h"
-#include "nsIAttribute.h"
 #include "nsContentList.h"
 #include "nsIHTMLDocument.h"
-#include "nsIDOMHTMLDocument.h"
-#include "nsIDOMHTMLCollection.h"
 #include "nsIDOMHTMLFormElement.h"
 #include "nsIDOMHTMLElement.h"
 #include "nsIForm.h"
 #include "nsIFormControl.h"
 #include "nsGkAtoms.h"
-#include "nsISupportsPrimitives.h"
 #include "imgIDecoderObserver.h"
 #include "imgIRequest.h"
 #include "imgIContainer.h"
@@ -108,11 +61,9 @@
 #include "nsIObserverService.h"
 #include "nsContentPolicyUtils.h"
 #include "nsNodeInfoManager.h"
-#include "nsIXBLService.h"
 #include "nsCRT.h"
 #include "nsIDOMEvent.h"
 #include "nsIDOMEventTarget.h"
-#include "nsIPrivateDOMEvent.h"
 #ifdef MOZ_XTF
 #include "nsIXTFService.h"
 static NS_DEFINE_CID(kXTFServiceCID, NS_XTFSERVICE_CID);
@@ -124,30 +75,24 @@ static NS_DEFINE_CID(kXTFServiceCID, NS_XTFSERVICE_CID);
 #include "nsUnicodeProperties.h"
 #include "harfbuzz/hb.h"
 #include "nsIJSRuntimeService.h"
-#include "nsIDOMDocumentXBL.h"
 #include "nsBindingManager.h"
 #include "nsIURI.h"
 #include "nsIURL.h"
-#include "nsXBLBinding.h"
-#include "nsXBLPrototypeBinding.h"
-#include "nsEscape.h"
 #include "nsICharsetConverterManager.h"
 #include "nsEventListenerManager.h"
 #include "nsAttrName.h"
 #include "nsIDOMUserDataHandler.h"
 #include "nsContentCreatorFunctions.h"
-#include "nsGUIEvent.h"
 #include "nsMutationEvent.h"
 #include "nsIMEStateManager.h"
 #include "nsContentErrors.h"
 #include "nsUnicharUtilCIID.h"
-#include "nsCompressedCharMap.h"
 #include "nsINativeKeyBindings.h"
 #include "nsIDOMNSEvent.h"
 #include "nsXULPopupManager.h"
 #include "nsIPermissionManager.h"
-#include "nsIContentPrefService.h"
 #include "nsIScriptObjectPrincipal.h"
+#include "nsNullPrincipal.h"
 #include "nsIRunnable.h"
 #include "nsDOMJSUtils.h"
 #include "nsGenericHTMLElement.h"
@@ -160,16 +105,11 @@ static NS_DEFINE_CID(kXTFServiceCID, NS_XTFSERVICE_CID);
 #include "nsCPrefetchService.h"
 #include "nsIChromeRegistry.h"
 #include "nsEventDispatcher.h"
-#include "nsIMIMEHeaderParam.h"
 #include "nsIDOMXULCommandEvent.h"
-#include "nsIDOMDragEvent.h"
 #include "nsDOMDataTransfer.h"
 #include "nsHtml5Module.h"
 #include "nsPresContext.h"
 #include "nsLayoutStatics.h"
-#include "nsLayoutUtils.h"
-#include "nsFrameManager.h"
-#include "BasicLayers.h"
 #include "nsFocusManager.h"
 #include "nsTextEditorState.h"
 #include "nsIPluginHost.h"
@@ -179,6 +119,8 @@ static NS_DEFINE_CID(kXTFServiceCID, NS_XTFSERVICE_CID);
 #include "nsIDOMHTMLInputElement.h"
 #include "nsParserConstants.h"
 #include "nsIWebNavigation.h"
+#include "nsTextFragment.h"
+#include "mozilla/Selection.h"
 
 #ifdef IBMBIDI
 #include "nsIBidiKeyboard.h"
@@ -202,17 +144,24 @@ static NS_DEFINE_CID(kXTFServiceCID, NS_XTFSERVICE_CID);
 #include "nsHTMLMediaElement.h"
 #endif
 #include "nsDOMTouchEvent.h"
-#include "nsIScriptElement.h"
 #include "nsIContentViewer.h"
 #include "nsIObjectLoadingContent.h"
 #include "nsCCUncollectableMarker.h"
 #include "mozilla/Base64.h"
 #include "mozilla/Preferences.h"
 #include "nsDOMMutationObserver.h"
-
-#include "nsWrapperCacheInlines.h"
 #include "nsIDOMDocumentType.h"
 #include "nsCharSeparatedTokenizer.h"
+#include "nsICharsetDetector.h"
+#include "nsICharsetDetectionObserver.h"
+#include "nsIPlatformCharset.h"
+#include "nsIEditor.h"
+#include "nsIEditorDocShell.h"
+#include "mozilla/Attributes.h"
+#include "nsIParserService.h"
+#include "nsIDOMScriptObjectFactory.h"
+
+#include "nsWrapperCacheInlines.h"
 
 extern "C" int MOZ_XMLTranslateEntity(const char* ptr, const char* end,
                                       const char** next, PRUnichar* result);
@@ -225,21 +174,6 @@ using namespace mozilla::widget;
 using namespace mozilla;
 
 const char kLoadAsData[] = "loadAsData";
-
-/**
- * Default values for the ViewportInfo structure.
- */
-static const float    kViewportMinScale = 0.0;
-static const float    kViewportMaxScale = 10.0;
-static const PRUint32 kViewportMinWidth = 200;
-static const PRUint32 kViewportMaxWidth = 10000;
-static const PRUint32 kViewportMinHeight = 223;
-static const PRUint32 kViewportMaxHeight = 10000;
-static const PRInt32  kViewportDefaultScreenWidth = 980;
-
-static const char kJSStackContractID[] = "@mozilla.org/js/xpc/ContextStack;1";
-static NS_DEFINE_CID(kParserServiceCID, NS_PARSERSERVICE_CID);
-static NS_DEFINE_CID(kCParserCID, NS_PARSER_CID);
 
 nsIDOMScriptObjectFactory *nsContentUtils::sDOMScriptObjectFactory = nsnull;
 nsIXPConnect *nsContentUtils::sXPConnect;
@@ -288,7 +222,7 @@ nsString* nsContentUtils::sModifierSeparator = nsnull;
 bool nsContentUtils::sInitialized = false;
 bool nsContentUtils::sIsFullScreenApiEnabled = false;
 bool nsContentUtils::sTrustedFullScreenOnly = true;
-bool nsContentUtils::sFullScreenKeyInputRestricted = true;
+bool nsContentUtils::sIsIdleObserverAPIEnabled = false;
 
 PRUint32 nsContentUtils::sHandlingInputTimeout = 1000;
 
@@ -296,6 +230,23 @@ nsHtml5StringParser* nsContentUtils::sHTMLFragmentParser = nsnull;
 nsIParser* nsContentUtils::sXMLFragmentParser = nsnull;
 nsIFragmentContentSink* nsContentUtils::sXMLFragmentSink = nsnull;
 bool nsContentUtils::sFragmentParsingActive = false;
+
+namespace {
+
+/**
+ * Default values for the ViewportInfo structure.
+ */
+static const float    kViewportMinScale = 0.0;
+static const float    kViewportMaxScale = 10.0;
+static const PRUint32 kViewportMinWidth = 200;
+static const PRUint32 kViewportMaxWidth = 10000;
+static const PRUint32 kViewportMinHeight = 223;
+static const PRUint32 kViewportMaxHeight = 10000;
+static const PRInt32  kViewportDefaultScreenWidth = 980;
+
+static const char kJSStackContractID[] = "@mozilla.org/js/xpc/ContextStack;1";
+static NS_DEFINE_CID(kParserServiceCID, NS_PARSERSERVICE_CID);
+static NS_DEFINE_CID(kCParserCID, NS_PARSER_CID);
 
 static PLDHashTable sEventListenerManagersHash;
 
@@ -338,13 +289,35 @@ EventListenerManagerHashClearEntry(PLDHashTable *table, PLDHashEntryHdr *entry)
   lm->~EventListenerManagerMapEntry();
 }
 
-class nsSameOriginChecker : public nsIChannelEventSink,
-                            public nsIInterfaceRequestor
+class SameOriginChecker MOZ_FINAL : public nsIChannelEventSink,
+                                    public nsIInterfaceRequestor
 {
   NS_DECL_ISUPPORTS
   NS_DECL_NSICHANNELEVENTSINK
   NS_DECL_NSIINTERFACEREQUESTOR
 };
+
+class CharsetDetectionObserver MOZ_FINAL : public nsICharsetDetectionObserver
+{
+public:
+  NS_DECL_ISUPPORTS
+
+  NS_IMETHOD Notify(const char *aCharset, nsDetectionConfident aConf)
+  {
+    mCharset = aCharset;
+    return NS_OK;
+  }
+
+  const nsACString& GetResult() const
+  {
+    return mCharset;
+  }
+
+private:
+  nsCString mCharset;
+};
+
+} // anonymous namespace
 
 /* static */
 TimeDuration
@@ -425,8 +398,7 @@ nsContentUtils::Init()
   Preferences::AddBoolVarCache(&sTrustedFullScreenOnly,
                                "full-screen-api.allow-trusted-requests-only");
 
-  Preferences::AddBoolVarCache(&sFullScreenKeyInputRestricted,
-                               "full-screen-api.key-input-restricted");
+  sIsIdleObserverAPIEnabled = Preferences::GetBool("dom.idle-observers-api.enabled", true);
 
   Preferences::AddUintVarCache(&sHandlingInputTimeout,
                                "dom.event.handling-user-input-time-limit",
@@ -552,30 +524,14 @@ nsContentUtils::InitializeEventTable() {
   sAtomEventTable = new nsDataHashtable<nsISupportsHashKey, EventNameMapping>;
   sStringEventTable = new nsDataHashtable<nsStringHashKey, EventNameMapping>;
   sUserDefinedEvents = new nsCOMArray<nsIAtom>(64);
-
-  if (!sAtomEventTable || !sStringEventTable || !sUserDefinedEvents ||
-      !sAtomEventTable->Init(int(ArrayLength(eventArray) / 0.75) + 1) ||
-      !sStringEventTable->Init(int(ArrayLength(eventArray) / 0.75) + 1)) {
-    delete sAtomEventTable;
-    sAtomEventTable = nsnull;
-    delete sStringEventTable;
-    sStringEventTable = nsnull;
-    delete sUserDefinedEvents;
-    sUserDefinedEvents = nsnull;
-    return false;
-  }
+  sAtomEventTable->Init(int(ArrayLength(eventArray) / 0.75) + 1);
+  sStringEventTable->Init(int(ArrayLength(eventArray) / 0.75) + 1);
 
   // Subtract one from the length because of the trailing null
   for (PRUint32 i = 0; i < ArrayLength(eventArray) - 1; ++i) {
-    if (!sAtomEventTable->Put(eventArray[i].mAtom, eventArray[i]) ||
-        !sStringEventTable->Put(Substring(nsDependentAtomString(eventArray[i].mAtom), 2),
-                                eventArray[i])) {
-      delete sAtomEventTable;
-      sAtomEventTable = nsnull;
-      delete sStringEventTable;
-      sStringEventTable = nsnull;
-      return false;
-    }
+    sAtomEventTable->Put(eventArray[i].mAtom, eventArray[i]);
+    sStringEventTable->Put(Substring(nsDependentAtomString(eventArray[i].mAtom), 2),
+                           eventArray[i]);
   }
 
   return true;
@@ -598,15 +554,9 @@ nsContentUtils::InitializeTouchEventTable()
     };
     // Subtract one from the length because of the trailing null
     for (PRUint32 i = 0; i < ArrayLength(touchEventArray) - 1; ++i) {
-      if (!sAtomEventTable->Put(touchEventArray[i].mAtom, touchEventArray[i]) ||
-          !sStringEventTable->Put(Substring(nsDependentAtomString(touchEventArray[i].mAtom), 2),
-                                  touchEventArray[i])) {
-        delete sAtomEventTable;
-        sAtomEventTable = nsnull;
-        delete sStringEventTable;
-        sStringEventTable = nsnull;
-        return;
-      }
+      sAtomEventTable->Put(touchEventArray[i].mAtom, touchEventArray[i]);
+      sStringEventTable->Put(Substring(nsDependentAtomString(touchEventArray[i].mAtom), 2),
+                             touchEventArray[i]);
     }
   }
 }
@@ -899,6 +849,22 @@ nsContentUtils::SplitMimeType(const nsAString& aValue, nsString& aType,
     aType = aValue;
   }
   aType.StripWhitespace();
+}
+
+nsresult 
+nsContentUtils::IsUserIdle(PRUint32 aRequestedIdleTimeInMS, bool* aUserIsIdle)
+{
+  nsresult rv;
+  nsCOMPtr<nsIIdleService> idleService = 
+    do_GetService("@mozilla.org/widget/idleservice;1", &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+    
+  PRUint32 idleTimeInMS;
+  rv = idleService->GetIdleTime(&idleTimeInMS);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  *aUserIsIdle = idleTimeInMS >= aRequestedIdleTimeInMS;
+  return NS_OK;
 }
 
 /**
@@ -1306,6 +1272,59 @@ nsContentUtils::ParseIntMarginValue(const nsAString& aString, nsIntMargin& resul
   return true;
 }
 
+// static
+PRInt32
+nsContentUtils::ParseLegacyFontSize(const nsAString& aValue)
+{
+  nsAString::const_iterator iter, end;
+  aValue.BeginReading(iter);
+  aValue.EndReading(end);
+
+  while (iter != end && nsContentUtils::IsHTMLWhitespace(*iter)) {
+    ++iter;
+  }
+
+  if (iter == end) {
+    return 0;
+  }
+
+  bool relative = false;
+  bool negate = false;
+  if (*iter == PRUnichar('-')) {
+    relative = true;
+    negate = true;
+    ++iter;
+  } else if (*iter == PRUnichar('+')) {
+    relative = true;
+    ++iter;
+  }
+
+  if (*iter < PRUnichar('0') || *iter > PRUnichar('9')) {
+    return 0;
+  }
+
+  // We don't have to worry about overflow, since we can bail out as soon as
+  // we're bigger than 7.
+  PRInt32 value = 0;
+  while (iter != end && *iter >= PRUnichar('0') && *iter <= PRUnichar('9')) {
+    value = 10*value + (*iter - PRUnichar('0'));
+    if (value >= 7) {
+      break;
+    }
+    ++iter;
+  }
+
+  if (relative) {
+    if (negate) {
+      value = 3 - value;
+    } else {
+      value = 3 + value;
+    }
+  }
+
+  return clamped(value, 1, 7);
+}
+
 /* static */
 void
 nsContentUtils::GetOfflineAppManifest(nsIDocument *aDocument, nsIURI **aURI)
@@ -1622,8 +1641,7 @@ nsContentUtils::TraceSafeJSContext(JSTracer* aTrc)
   if (!sThreadJSContextStack) {
     return;
   }
-  JSContext* cx = nsnull;
-  sThreadJSContextStack->GetSafeJSContext(&cx);
+  JSContext* cx = sThreadJSContextStack->GetSafeJSContext();
   if (!cx) {
     return;
   }
@@ -2753,18 +2771,44 @@ nsContentUtils::IsDraggableLink(const nsIContent* aContent) {
   return aContent->IsLink(getter_AddRefs(absURI));
 }
 
-bool
-nsContentUtils::IsSitePermAllow(nsIURI* aURI, const char* aType)
+static bool
+TestSitePerm(nsIPrincipal* aPrincipal, const char* aType, PRUint32 aPerm)
 {
+  if (nsContentUtils::IsSystemPrincipal(aPrincipal)) {
+    // System principal is always allowed and never denied permission.
+    return aPerm == nsIPermissionManager::ALLOW_ACTION;
+  }
+
+  nsCOMPtr<nsIURI> uri;
+  if (NS_FAILED(!aPrincipal ||
+      aPrincipal->GetURI(getter_AddRefs(uri))) ||
+      !uri) {
+    // We always deny (i.e. don't allow) the permission if we don't
+    // have a principal or we don't know the URI.
+    return aPerm != nsIPermissionManager::ALLOW_ACTION;
+  }
+
   nsCOMPtr<nsIPermissionManager> permMgr =
     do_GetService("@mozilla.org/permissionmanager;1");
   NS_ENSURE_TRUE(permMgr, false);
 
   PRUint32 perm;
-  nsresult rv = permMgr->TestPermission(aURI, aType, &perm);
+  nsresult rv = permMgr->TestPermission(uri, aType, &perm);
   NS_ENSURE_SUCCESS(rv, false);
   
-  return perm == nsIPermissionManager::ALLOW_ACTION;
+  return perm == aPerm;
+}
+
+bool
+nsContentUtils::IsSitePermAllow(nsIPrincipal* aPrincipal, const char* aType)
+{
+  return TestSitePerm(aPrincipal, aType, nsIPermissionManager::ALLOW_ACTION);
+}
+
+bool
+nsContentUtils::IsSitePermDeny(nsIPrincipal* aPrincipal, const char* aType)
+{
+  return TestSitePerm(aPrincipal, aType, nsIPermissionManager::DENY_ACTION);
 }
 
 static const char *gEventNames[] = {"event"};
@@ -3323,16 +3367,13 @@ nsresult GetEventAndTarget(nsIDocument* aDoc, nsISupports* aTarget,
     domDoc->CreateEvent(NS_LITERAL_STRING("Events"), getter_AddRefs(event));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(event));
-  NS_ENSURE_TRUE(privateEvent, NS_ERROR_FAILURE);
-
   rv = event->InitEvent(aEventName, aCanBubble, aCancelable);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = privateEvent->SetTrusted(aTrusted);
+  rv = event->SetTrusted(aTrusted);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = privateEvent->SetTarget(target);
+  rv = event->SetTarget(target);
   NS_ENSURE_SUCCESS(rv, rv);
 
   event.forget(aEvent);
@@ -3399,18 +3440,9 @@ nsContentUtils::DispatchChromeEvent(nsIDocument *aDoc,
   if (!aDoc->GetWindow())
     return NS_ERROR_INVALID_ARG;
 
-  nsIDOMEventTarget* piTarget = aDoc->GetWindow()->GetChromeEventHandler();
+  nsIDOMEventTarget* piTarget = aDoc->GetWindow()->GetParentTarget();
   if (!piTarget)
     return NS_ERROR_INVALID_ARG;
-
-  nsCOMPtr<nsIFrameLoaderOwner> flo = do_QueryInterface(piTarget);
-  if (flo) {
-    nsRefPtr<nsFrameLoader> fl = flo->GetFrameLoader();
-    if (fl) {
-      nsIDOMEventTarget* t = fl->GetTabChildGlobalAsEventTarget();
-      piTarget = t ? t : piTarget;
-    }
-  }
 
   nsEventStatus status = nsEventStatus_eIgnore;
   rv = piTarget->DispatchDOMEvent(nsnull, event, nsnull, &status);
@@ -3527,6 +3559,89 @@ nsContentUtils::CheckForBOM(const unsigned char* aBuffer, PRUint32 aLength,
   }
 
   return found;
+}
+
+NS_IMPL_ISUPPORTS1(CharsetDetectionObserver,
+                   nsICharsetDetectionObserver)
+
+/* static */
+nsresult
+nsContentUtils::GuessCharset(const char *aData, PRUint32 aDataLen,
+                             nsACString &aCharset)
+{
+  // First try the universal charset detector
+  nsCOMPtr<nsICharsetDetector> detector =
+    do_CreateInstance(NS_CHARSET_DETECTOR_CONTRACTID_BASE
+                      "universal_charset_detector");
+  if (!detector) {
+    // No universal charset detector, try the default charset detector
+    const nsAdoptingCString& detectorName =
+      Preferences::GetLocalizedCString("intl.charset.detector");
+    if (!detectorName.IsEmpty()) {
+      nsCAutoString detectorContractID;
+      detectorContractID.AssignLiteral(NS_CHARSET_DETECTOR_CONTRACTID_BASE);
+      detectorContractID += detectorName;
+      detector = do_CreateInstance(detectorContractID.get());
+    }
+  }
+
+  nsresult rv;
+
+  // The charset detector doesn't work for empty (null) aData. Testing
+  // aDataLen instead of aData so that we catch potential errors.
+  if (detector && aDataLen) {
+    nsRefPtr<CharsetDetectionObserver> observer =
+      new CharsetDetectionObserver();
+
+    rv = detector->Init(observer);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    bool dummy;
+    rv = detector->DoIt(aData, aDataLen, &dummy);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = detector->Done();
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    aCharset = observer->GetResult();
+  } else {
+    // no charset detector available, check the BOM
+    unsigned char sniffBuf[3];
+    PRUint32 numRead =
+      (aDataLen >= sizeof(sniffBuf) ? sizeof(sniffBuf) : aDataLen);
+    memcpy(sniffBuf, aData, numRead);
+
+    bool bigEndian;
+    if (CheckForBOM(sniffBuf, numRead, aCharset, &bigEndian) &&
+        aCharset.EqualsLiteral("UTF-16")) {
+      if (bigEndian) {
+        aCharset.AppendLiteral("BE");
+      }
+      else {
+        aCharset.AppendLiteral("LE");
+      }
+    }
+  }
+
+  if (aCharset.IsEmpty()) {
+    // no charset detected, default to the system charset
+    nsCOMPtr<nsIPlatformCharset> platformCharset =
+      do_GetService(NS_PLATFORMCHARSET_CONTRACTID, &rv);
+    if (NS_SUCCEEDED(rv)) {
+      rv = platformCharset->GetCharset(kPlatformCharsetSel_PlainTextInFile,
+                                       aCharset);
+      if (NS_FAILED(rv)) {
+        NS_WARNING("Failed to get the system charset!");
+      }
+    }
+  }
+
+  if (aCharset.IsEmpty()) {
+    // no sniffed or default charset, assume UTF-8
+    aCharset.AssignLiteral("UTF-8");
+  }
+
+  return NS_OK;
 }
 
 /* static */
@@ -4068,7 +4183,7 @@ nsContentUtils::ConvertToPlainText(const nsAString& aSourceBuffer,
   nsCOMPtr<nsIURI> uri;
   NS_NewURI(getter_AddRefs(uri), "about:blank");
   nsCOMPtr<nsIPrincipal> principal =
-    do_CreateInstance("@mozilla.org/nullprincipal;1");
+    do_CreateInstance(NS_NULLPRINCIPAL_CONTRACTID);
   nsCOMPtr<nsIDOMDocument> domDocument;
   nsresult rv = nsContentUtils::CreateDocument(EmptyString(),
                                                EmptyString(),
@@ -4338,6 +4453,17 @@ nsContentUtils::DropJSObjects(void* aScriptObjectHolder)
   return rv;
 }
 
+#ifdef DEBUG
+/* static */
+bool
+nsContentUtils::AreJSObjectsHeld(void* aScriptHolder)
+{
+  bool isHeld = false;
+  sXPConnect->TestJSHolder(aScriptHolder, &isHeld);
+  return isHeld;
+}
+#endif
+
 /* static */
 void
 nsContentUtils::NotifyInstalledMenuKeyboardListener(bool aInstalling)
@@ -4414,6 +4540,29 @@ nsContentUtils::IsSystemPrincipal(nsIPrincipal* aPrincipal)
   return NS_SUCCEEDED(rv) && isSystem;
 }
 
+bool
+nsContentUtils::CombineResourcePrincipals(nsCOMPtr<nsIPrincipal>* aResourcePrincipal,
+                                          nsIPrincipal* aExtraPrincipal)
+{
+  if (!aExtraPrincipal) {
+    return false;
+  }
+  if (!*aResourcePrincipal) {
+    *aResourcePrincipal = aExtraPrincipal;
+    return true;
+  }
+  if (*aResourcePrincipal == aExtraPrincipal) {
+    return false;
+  }
+  bool subsumes;
+  if (NS_SUCCEEDED((*aResourcePrincipal)->Subsumes(aExtraPrincipal, &subsumes)) &&
+      subsumes) {
+    return false;
+  }
+  sSecurityManager->GetSystemPrincipal(getter_AddRefs(*aResourcePrincipal));
+  return true;
+}
+
 /* static */
 void
 nsContentUtils::TriggerLink(nsIContent *aContent, nsPresContext *aPresContext,
@@ -4460,6 +4609,19 @@ nsContentUtils::TriggerLink(nsIContent *aContent, nsPresContext *aPresContext,
 }
 
 /* static */
+void
+nsContentUtils::GetLinkLocation(Element* aElement, nsString& aLocationString)
+{
+  nsCOMPtr<nsIURI> hrefURI = aElement->GetHrefURI();
+  if (hrefURI) {
+    nsCAutoString specUTF8;
+    nsresult rv = hrefURI->GetSpec(specUTF8);
+    if (NS_SUCCEEDED(rv))
+      CopyUTF8toUTF16(specUTF8, aLocationString);
+  }
+}
+
+/* static */
 nsIWidget*
 nsContentUtils::GetTopLevelWidget(nsIWidget* aWidget)
 {
@@ -4489,10 +4651,7 @@ nsContentUtils::GetLocalizedEllipsis()
 nsEvent*
 nsContentUtils::GetNativeEvent(nsIDOMEvent* aDOMEvent)
 {
-  nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(aDOMEvent));
-  if (!privateEvent)
-    return nsnull;
-  return privateEvent->GetInternalNSEvent();
+  return aDOMEvent ? aDOMEvent->GetInternalNSEvent() : nsnull;
 }
 
 //static
@@ -4589,7 +4748,7 @@ nsContentUtils::GetAccelKeyCandidates(nsIDOMKeyEvent* aDOMKeyEvent,
     }
 
     PRUint32 len = nativeKeyEvent->alternativeCharCodes.Length();
-    if (!nativeKeyEvent->isShift) {
+    if (!nativeKeyEvent->IsShift()) {
       for (PRUint32 i = 0; i < len; ++i) {
         PRUint32 ch =
           nativeKeyEvent->alternativeCharCodes[i].mUnshiftedCharCode;
@@ -5306,6 +5465,13 @@ nsContentUtils::GetCurrentJSContext()
 }
 
 /* static */
+JSContext *
+nsContentUtils::GetSafeJSContext()
+{
+  return sThreadJSContextStack->GetSafeJSContext();
+}
+
+/* static */
 nsresult
 nsContentUtils::ASCIIToLower(nsAString& aStr)
 {
@@ -5470,11 +5636,28 @@ nsContentUtils::EqualsLiteralIgnoreASCIICase(const nsAString& aStr1,
 }
 
 /* static */
+bool
+nsContentUtils::StringContainsASCIIUpper(const nsAString& aStr)
+{
+  const PRUnichar* iter = aStr.BeginReading();
+  const PRUnichar* end = aStr.EndReading();
+  while (iter != end) {
+    PRUnichar c = *iter;
+    if (c >= 'A' && c <= 'Z') {
+      return true;
+    }
+    ++iter;
+  }
+
+  return false;
+}
+
+/* static */
 nsIInterfaceRequestor*
 nsContentUtils::GetSameOriginChecker()
 {
   if (!sSameOriginChecker) {
-    sSameOriginChecker = new nsSameOriginChecker();
+    sSameOriginChecker = new SameOriginChecker();
     NS_IF_ADDREF(sSameOriginChecker);
   }
   return sSameOriginChecker;
@@ -5506,15 +5689,15 @@ nsContentUtils::CheckSameOrigin(nsIChannel *aOldChannel, nsIChannel *aNewChannel
   return rv;
 }
 
-NS_IMPL_ISUPPORTS2(nsSameOriginChecker,
+NS_IMPL_ISUPPORTS2(SameOriginChecker,
                    nsIChannelEventSink,
                    nsIInterfaceRequestor)
 
 NS_IMETHODIMP
-nsSameOriginChecker::AsyncOnChannelRedirect(nsIChannel *aOldChannel,
-                                            nsIChannel *aNewChannel,
-                                            PRUint32 aFlags,
-                                            nsIAsyncVerifyRedirectCallback *cb)
+SameOriginChecker::AsyncOnChannelRedirect(nsIChannel *aOldChannel,
+                                          nsIChannel *aNewChannel,
+                                          PRUint32 aFlags,
+                                          nsIAsyncVerifyRedirectCallback *cb)
 {
   NS_PRECONDITION(aNewChannel, "Redirecting to null channel?");
 
@@ -5527,7 +5710,7 @@ nsSameOriginChecker::AsyncOnChannelRedirect(nsIChannel *aOldChannel,
 }
 
 NS_IMETHODIMP
-nsSameOriginChecker::GetInterface(const nsIID & aIID, void **aResult)
+SameOriginChecker::GetInterface(const nsIID & aIID, void **aResult)
 {
   return QueryInterface(aIID, aResult);
 }
@@ -5772,8 +5955,6 @@ nsContentUtils::DispatchXULCommand(nsIContent* aTarget,
   domDoc->CreateEvent(NS_LITERAL_STRING("xulcommandevent"),
                       getter_AddRefs(event));
   nsCOMPtr<nsIDOMXULCommandEvent> xulCommand = do_QueryInterface(event);
-  nsCOMPtr<nsIPrivateDOMEvent> pEvent = do_QueryInterface(xulCommand);
-  NS_ENSURE_STATE(pEvent);
   nsresult rv = xulCommand->InitCommandEvent(NS_LITERAL_STRING("command"),
                                              true, true, doc->GetWindow(),
                                              0, aCtrl, aAlt, aShift, aMeta,
@@ -6003,17 +6184,21 @@ public:
                                      const char *objName)
   {
   }
+
   NS_IMETHOD_(void) NoteXPCOMRoot(nsISupports *root)
   {
   }
-  NS_IMETHOD_(void) NoteRoot(PRUint32 langID, void* root,
-                             nsCycleCollectionParticipant* helper)
+  NS_IMETHOD_(void) NoteJSRoot(void* root)
   {
   }
-  NS_IMETHOD_(void) NoteScriptChild(PRUint32 langID, void* child)
+  NS_IMETHOD_(void) NoteNativeRoot(void* root,
+                                   nsCycleCollectionParticipant* helper)
   {
-    if (langID == nsIProgrammingLanguage::JAVASCRIPT &&
-        child == mWrapper) {
+  }
+
+  NS_IMETHOD_(void) NoteJSChild(void* child)
+  {
+    if (child == mWrapper) {
       mFound = true;
     }
   }
@@ -6040,12 +6225,11 @@ private:
 };
 
 static void
-DebugWrapperTraceCallback(PRUint32 langID, void *p, const char *name,
-                          void *closure)
+DebugWrapperTraceCallback(void *p, const char *name, void *closure)
 {
   DebugWrapperTraversalCallback* callback =
     static_cast<DebugWrapperTraversalCallback*>(closure);
-  callback->NoteScriptChild(langID, p);
+  callback->NoteJSChild(p);
 }
 
 // static
@@ -6091,6 +6275,12 @@ nsContentUtils::IsSubDocumentTabbable(nsIContent* aContent)
   nsIDocument* doc = aContent->GetCurrentDoc();
   if (!doc) {
     return false;
+  }
+
+  // If the subdocument lives in another process, the frame is
+  // tabbable.
+  if (nsEventStateManager::IsRemoteTarget(aContent)) {
+    return true;
   }
 
   // XXXbz should this use OwnerDoc() for GetSubDocumentFor?
@@ -6261,7 +6451,7 @@ nsContentUtils::AllowXULXBLForPrincipal(nsIPrincipal* aPrincipal)
   
   return princURI &&
          ((sAllowXULXBL_for_file && SchemeIs(princURI, "file")) ||
-          IsSitePermAllow(princURI, "allowXULXBL"));
+          IsSitePermAllow(aPrincipal, "allowXULXBL"));
 }
 
 already_AddRefed<nsIDocumentLoaderFactory>
@@ -6314,6 +6504,21 @@ nsContentUtils::FindInternalContentViewer(const char* aType,
   if (nsHTMLMediaElement::IsWebMEnabled()) {
     for (unsigned int i = 0; i < ArrayLength(nsHTMLMediaElement::gWebMTypes); ++i) {
       const char* type = nsHTMLMediaElement::gWebMTypes[i];
+      if (!strcmp(aType, type)) {
+        docFactory = do_GetService("@mozilla.org/content/document-loader-factory;1");
+        if (docFactory && aLoaderType) {
+          *aLoaderType = TYPE_CONTENT;
+        }
+        return docFactory.forget();
+      }
+    }
+  }
+#endif
+
+#ifdef MOZ_GSTREAMER
+  if (nsHTMLMediaElement::IsH264Enabled()) {
+    for (unsigned int i = 0; i < ArrayLength(nsHTMLMediaElement::gH264Types); ++i) {
+      const char* type = nsHTMLMediaElement::gH264Types[i];
       if (!strcmp(aType, type)) {
         docFactory = do_GetService("@mozilla.org/content/document-loader-factory;1");
         if (docFactory && aLoaderType) {
@@ -6434,17 +6639,24 @@ nsContentUtils::IsFullScreenApiEnabled()
   return sIsFullScreenApiEnabled;
 }
 
-bool nsContentUtils::IsRequestFullScreenAllowed()
+bool
+nsContentUtils::IsRequestFullScreenAllowed()
 {
   return !sTrustedFullScreenOnly ||
          nsEventStateManager::IsHandlingUserInput() ||
          IsCallerChrome();
 }
 
+/* static */
 bool
-nsContentUtils::IsFullScreenKeyInputRestricted()
+nsContentUtils::HaveEqualPrincipals(nsIDocument* aDoc1, nsIDocument* aDoc2)
 {
-  return sFullScreenKeyInputRestricted;
+  if (!aDoc1 || !aDoc2) {
+    return false;
+  }
+  bool principalsEqual = false;
+  aDoc1->NodePrincipal()->Equals(aDoc2->NodePrincipal(), &principalsEqual);
+  return principalsEqual;
 }
 
 static void
@@ -6563,8 +6775,7 @@ nsContentUtils::TraceWrapper(nsWrapperCache* aCache, TraceCallback aCallback,
   if (aCache->PreservingWrapper()) {
     JSObject *wrapper = aCache->GetWrapperPreserveColor();
     if (wrapper) {
-      aCallback(nsIProgrammingLanguage::JAVASCRIPT, wrapper,
-                "Preserved wrapper", aClosure);
+      aCallback(wrapper, "Preserved wrapper", aClosure);
     }
   }
 }
@@ -6610,4 +6821,147 @@ nsContentUtils::JSArrayToAtomArray(JSContext* aCx, const JS::Value& aJSArray,
     aRetVal.AppendObject(a);
   }
   return NS_OK;
+}
+
+// static
+nsresult
+nsContentUtils::IsOnPrefWhitelist(nsPIDOMWindow* aWindow,
+                                  const char* aPrefURL, bool* aAllowed)
+{
+  // Make sure we're dealing with an inner window.
+  nsPIDOMWindow* innerWindow = aWindow->IsInnerWindow() ?
+    aWindow :
+    aWindow->GetCurrentInnerWindow();
+  NS_ENSURE_TRUE(innerWindow, NS_ERROR_FAILURE);
+
+  // Make sure we're being called from a window that we have permission to
+  // access.
+  if (!nsContentUtils::CanCallerAccess(innerWindow)) {
+    return NS_ERROR_DOM_SECURITY_ERR;
+  }
+
+  // Need the document in order to make security decisions.
+  nsCOMPtr<nsIDocument> document =
+    do_QueryInterface(innerWindow->GetExtantDocument());
+  NS_ENSURE_TRUE(document, NS_NOINTERFACE);
+
+  // Do security checks. We assume that chrome is always allowed.
+  if (nsContentUtils::IsSystemPrincipal(document->NodePrincipal())) {
+    *aAllowed = true;
+    return NS_OK;    
+  }
+
+  // We also allow a comma seperated list of pages specified by
+  // preferences.  
+  nsCOMPtr<nsIURI> originalURI;
+  nsresult rv =
+    document->NodePrincipal()->GetURI(getter_AddRefs(originalURI));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsIURI> documentURI;
+  rv = originalURI->Clone(getter_AddRefs(documentURI));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // Strip the query string (if there is one) before comparing.
+  nsCOMPtr<nsIURL> documentURL = do_QueryInterface(documentURI);
+  if (documentURL) {
+    rv = documentURL->SetQuery(EmptyCString());
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
+
+  bool allowed = false;
+
+  // The pref may not exist but in that case we deny access just as we do if
+  // the url doesn't match.
+  nsCString whitelist;
+  if (NS_SUCCEEDED(Preferences::GetCString(aPrefURL,
+                                           &whitelist))) {
+    nsCOMPtr<nsIIOService> ios = do_GetIOService();
+    NS_ENSURE_TRUE(ios, NS_ERROR_FAILURE);
+
+    nsCCharSeparatedTokenizer tokenizer(whitelist, ',');
+    while (tokenizer.hasMoreTokens()) {
+      nsCOMPtr<nsIURI> uri;
+      if (NS_SUCCEEDED(NS_NewURI(getter_AddRefs(uri), tokenizer.nextToken(),
+                                 nsnull, nsnull, ios))) {
+        rv = documentURI->EqualsExceptRef(uri, &allowed);
+        NS_ENSURE_SUCCESS(rv, rv);
+
+        if (allowed) {
+          break;
+        }
+      }
+    }
+  }
+  *aAllowed = allowed;
+  return NS_OK;
+}
+
+// static
+void
+nsContentUtils::GetSelectionInTextControl(Selection* aSelection,
+                                          Element* aRoot,
+                                          PRInt32& aOutStartOffset,
+                                          PRInt32& aOutEndOffset)
+{
+  MOZ_ASSERT(aSelection && aRoot);
+
+  if (!aSelection->GetRangeCount()) {
+    // Nothing selected
+    aOutStartOffset = aOutEndOffset = 0;
+    return;
+  }
+
+  nsCOMPtr<nsINode> anchorNode = aSelection->GetAnchorNode();
+  PRInt32 anchorOffset = aSelection->GetAnchorOffset();
+  nsCOMPtr<nsINode> focusNode = aSelection->GetFocusNode();
+  PRInt32 focusOffset = aSelection->GetFocusOffset();
+
+  // We have at most two children, consisting of an optional text node followed
+  // by an optional <br>.
+  NS_ASSERTION(aRoot->GetChildCount() <= 2, "Unexpected children");
+  nsCOMPtr<nsIContent> firstChild = aRoot->GetFirstChild();
+#ifdef DEBUG
+  nsCOMPtr<nsIContent> lastChild = aRoot->GetLastChild();
+  NS_ASSERTION(anchorNode == aRoot || anchorNode == firstChild ||
+               anchorNode == lastChild, "Unexpected anchorNode");
+  NS_ASSERTION(focusNode == aRoot || focusNode == firstChild ||
+               focusNode == lastChild, "Unexpected focusNode");
+#endif
+  if (!firstChild || !firstChild->IsNodeOfType(nsINode::eTEXT)) {
+    // No text node, so everything is 0
+    anchorOffset = focusOffset = 0;
+  } else {
+    // First child is text.  If the anchor/focus is already in the text node,
+    // or the start of the root node, no change needed.  If it's in the root
+    // node but not the start, or in the trailing <br>, we need to set the
+    // offset to the end.
+    if ((anchorNode == aRoot && anchorOffset != 0) ||
+        (anchorNode != aRoot && anchorNode != firstChild)) {
+      anchorOffset = firstChild->Length();
+    }
+    if ((focusNode == aRoot && focusOffset != 0) ||
+        (focusNode != aRoot && focusNode != firstChild)) {
+      focusOffset = firstChild->Length();
+    }
+  }
+
+  // Make sure aOutStartOffset <= aOutEndOffset.
+  aOutStartOffset = NS_MIN(anchorOffset, focusOffset);
+  aOutEndOffset = NS_MAX(anchorOffset, focusOffset);
+}
+
+nsIEditor*
+nsContentUtils::GetHTMLEditor(nsPresContext* aPresContext)
+{
+  nsCOMPtr<nsISupports> container = aPresContext->GetContainer();
+  nsCOMPtr<nsIEditorDocShell> editorDocShell(do_QueryInterface(container));
+  bool isEditable;
+  if (!editorDocShell ||
+      NS_FAILED(editorDocShell->GetEditable(&isEditable)) || !isEditable)
+    return nsnull;
+
+  nsCOMPtr<nsIEditor> editor;
+  editorDocShell->GetEditor(getter_AddRefs(editor));
+  return editor;
 }

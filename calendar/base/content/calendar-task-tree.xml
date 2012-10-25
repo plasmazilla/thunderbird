@@ -1,51 +1,7 @@
 <?xml version="1.0"?>
-<!-- ***** BEGIN LICENSE BLOCK *****
-   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
-   -
-   - The contents of this file are subject to the Mozilla Public License Version
-   - 1.1 (the "License"); you may not use this file except in compliance with
-   - the License. You may obtain a copy of the License at
-   - http://www.mozilla.org/MPL/
-   -
-   - Software distributed under the License is distributed on an "AS IS" basis,
-   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-   - for the specific language governing rights and limitations under the
-   - License.
-   -
-   - The Original Code is OEone Calendar Code, released October 31st, 2001.
-   -
-   - The Initial Developer of the Original Code is OEone Corporation.
-   - Portions created by the Initial Developer are Copyright (C) 2001
-   - the Initial Developer. All Rights Reserved.
-   -
-   - Contributor(s):
-   -   Garth Smedley <garths@oeone.com>
-   -   Mike Potter <mikep@oeone.com>
-   -   Chris Charabaruk <coldacid@meldstar.com>
-   -   Colin Phillips <colinp@oeone.com>
-   -   ArentJan Banck <ajbanck@planet.nl>
-   -   Curtis Jewell <csjewell@mail.freeshell.org>
-   -   Eric Belhaire <eric.belhaire@ief.u-psud.fr>
-   -   Mark Swaffer <swaff@fudo.org>
-   -   Michael Buettner <michael.buettner@sun.com>
-   -   Philipp Kewisch <mozilla@kewis.ch>
-   -   Lars Wohlfahrt <thetux.moz@googlemail.com>
-   -   Fred Jendrzejewski <fred.jen@web.de>
-   -   Matthew Mecca <matthew.mecca@gmail.com>
-   -
-   - Alternatively, the contents of this file may be used under the terms of
-   - either the GNU General Public License Version 2 or later (the "GPL"), or
-   - the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-   - in which case the provisions of the GPL or the LGPL are applicable instead
-   - of those above. If you wish to allow use of your version of this file only
-   - under the terms of either the GPL or the LGPL, and not to allow others to
-   - use your version of this file under the terms of the MPL, indicate your
-   - decision by deleting the provisions above and replace them with the notice
-   - and other provisions required by the GPL or the LGPL. If you do not delete
-   - the provisions above, a recipient may use your version of this file under
-   - the terms of any one of the MPL, the GPL or the LGPL.
-   -
-   - ***** END LICENSE BLOCK ***** -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!DOCTYPE dialog [
   <!ENTITY % dtd1 SYSTEM "chrome://calendar/locale/global.dtd" > %dtd1;
@@ -75,7 +31,8 @@
                        cycler="true"
                        sortKey="completedDate"
                        itemproperty="completed"
-                       label="&calendar.unifinder.tree.done.label;">
+                       label="&calendar.unifinder.tree.done.label;"
+                       tooltiptext="&calendar.unifinder.tree.done.tooltip;">
             <xul:image anonid="checkboximg" />
           </xul:treecol>
           <xul:splitter class="tree-splitter" ordinal="2"/>
@@ -84,56 +41,72 @@
                        minwidth="17"
                        fixed="true"
                        itemproperty="priority"
-                       label="&calendar.unifinder.tree.priority.label;">
+                       label="&calendar.unifinder.tree.priority.label;"
+                       tooltiptext="&calendar.unifinder.tree.priority.tooltip;">
             <xul:image anonid="priorityimg"/>
           </xul:treecol>
           <xul:splitter class="tree-splitter" ordinal="4"/>
           <xul:treecol anonid="calendar-task-tree-col-title"
                        flex="1"
                        itemproperty="title"
-                       label="&calendar.unifinder.tree.title.label;"/>
+                       label="&calendar.unifinder.tree.title.label;"
+                       tooltiptext="&calendar.unifinder.tree.title.tooltip;"/>
           <xul:splitter class="tree-splitter" ordinal="6"/>
           <xul:treecol anonid="calendar-task-tree-col-entrydate"
                        itemproperty="entryDate"
-                       flex="1" label="&calendar.unifinder.tree.startdate.label;"/>
+                       flex="1"
+                       label="&calendar.unifinder.tree.startdate.label;"
+                       tooltiptext="&calendar.unifinder.tree.startdate.tooltip;"/>
           <xul:splitter class="tree-splitter" ordinal="8"/>
           <xul:treecol anonid="calendar-task-tree-col-duedate"
                        itemproperty="dueDate"
-                       flex="1" label="&calendar.unifinder.tree.duedate.label;"/>
+                       flex="1"
+                       label="&calendar.unifinder.tree.duedate.label;"
+                       tooltiptext="&calendar.unifinder.tree.duedate.tooltip;"/>
           <xul:splitter class="tree-splitter" ordinal="10"/>
           <xul:treecol anonid="calendar-task-tree-col-duration"
                        sortKey="dueDate"
                        itemproperty="duration"
-                       flex="1" label="&calendar.unifinder.tree.duration.label;"/>
+                       flex="1"
+                       label="&calendar.unifinder.tree.duration.label;"
+                       tooltiptext="&calendar.unifinder.tree.duration.tooltip;"/>
           <xul:splitter class="tree-splitter" ordinal="12"/>
           <xul:treecol anonid="calendar-task-tree-col-completeddate"
                        itemproperty="completedDate"
-                       flex="1" label="&calendar.unifinder.tree.completeddate.label;"/>
+                       flex="1"
+                       label="&calendar.unifinder.tree.completeddate.label;"
+                       tooltiptext="&calendar.unifinder.tree.completeddate.tooltip;"/>
           <xul:splitter class="tree-splitter" ordinal="14"/>
           <xul:treecol anonid="calendar-task-tree-col-percentcomplete"
                        flex="1"
                        type="progressmeter"
                        minwidth="19"
                        itemproperty="percentComplete"
-                       label="&calendar.unifinder.tree.percentcomplete.label;"/>
+                       label="&calendar.unifinder.tree.percentcomplete.label;"
+                       tooltiptext="&calendar.unifinder.tree.percentcomplete.tooltip;"/>
           <xul:splitter class="tree-splitter" ordinal="16"/>
           <xul:treecol anonid="calendar-task-tree-col-categories"
                        itemproperty="categories"
-                       flex="1" label="&calendar.unifinder.tree.categories.label;"/>
+                       flex="1"
+                       label="&calendar.unifinder.tree.categories.label;"
+                       tooltiptext="&calendar.unifinder.tree.categories.tooltip;"/>
           <xul:splitter class="tree-splitter" ordinal="18"/>
           <xul:treecol anonid="calendar-task-tree-col-location"
                        itemproperty="location"
-                       label="&calendar.unifinder.tree.location.label;"/>
+                       label="&calendar.unifinder.tree.location.label;"
+                       tooltiptext="&calendar.unifinder.tree.location.tooltip;"/>
           <xul:splitter class="tree-splitter" ordinal="20"/>
           <xul:treecol anonid="calendar-task-tree-col-status"
                        flex="1"
                        itemproperty="status"
-                       label="&calendar.unifinder.tree.status.label;"/>
+                       label="&calendar.unifinder.tree.status.label;"
+                       tooltiptext="&calendar.unifinder.tree.status.tooltip;"/>
           <xul:splitter class="tree-splitter" ordinal="22"/>
           <xul:treecol anonid="calendar-task-tree-col-calendarname"
                        flex="1"
                        itemproperty="calendar"
-                       label="&calendar.unifinder.tree.calendarname.label;"/>
+                       label="&calendar.unifinder.tree.calendarname.label;"
+                       tooltiptext="&calendar.unifinder.tree.calendarname.tooltip;"/>
         </xul:treecols>
         <xul:treechildren tooltip="taskTreeTooltip"/>
       </xul:tree>
@@ -424,6 +397,7 @@
               let itemsToAdd = [];
               aNewItems = aNewItems || [];
               aOldItems = aOldItems || [];
+              let _this = this;
 
               this.treebox.beginUpdateBatch();
 
@@ -445,31 +419,25 @@
               }, this);
 
               // modified items may need to be added, update, or removed
-              modItems.mArray.forEach(function(item) {
-                  let inFilter = this.binding.mFilter.isItemInFilters(item) && 
-                                 !(item.isCompleted && !this.binding.showCompleted);
-
-                  if (item.hashId in this.binding.mHash2Index) {
+              this.binding.mFilter.filterItems(modItems.mArray, function(item, inFilter) {
+                  if (item.hashId in _this.binding.mHash2Index) {
                       if (inFilter) {
                           // make sure we're using the new version of a modified item
-                          this.binding.mTaskArray[this.binding.mHash2Index[item.hashId]] = item;
+                          _this.binding.mTaskArray[_this.binding.mHash2Index[item.hashId]] = item;
                       } else {
                           // the modified item needs to be removed, it no longer matches the
                           // applied filter.
-                          remIndexes.push(this.binding.mHash2Index[item.hashId]);
-                          delete this.binding.mHash2Index[item.hashId];
+                          remIndexes.push(_this.binding.mHash2Index[item.hashId]);
+                          delete _this.binding.mHash2Index[item.hashId];
                       }
                   } else if (inFilter) {
                       // the modified item needs to be added, it now matches the applied filter.
                       itemsToAdd.push(item);
                   }
-              }, this);
+              });
 
               // find new items that need to be added
-              itemsToAdd = itemsToAdd.concat(addItems.mArray.filter(function(item) {
-                  return this.binding.mFilter.isItemInFilters(item) && 
-                         !(item.isCompleted && !this.binding.showCompleted);
-              }, this));
+              itemsToAdd = itemsToAdd.concat(this.binding.mFilter.filterItems(addItems.mArray));
 
               // remove the old items working backward from the end so the indexes stay valid
               remIndexes.sort(function(a, b) {return b - a;}).forEach(function(index) {
@@ -892,7 +860,8 @@
                   let occs = [aItem];
                   if (this.binding.mFilter.endDate) {
                       // get occurrences of repeating items
-                      occs = aItem.getOccurrencesBetween(this.binding.mFilter.startDate,
+                      occs = aItem.getOccurrencesBetween(this.binding.mFilter.startDate || 
+                                                         cal.createDateTime(),
                                                          this.binding.mFilter.endDate,
                                                          {});
                   }
@@ -905,10 +874,12 @@
                   let newOccs = [aNewItem];
                   let oldOccs = [aOldItem];
                   if (this.binding.mFilter.endDate) {
-                      newOccs = aNewItem.getOccurrencesBetween(this.binding.mFilter.startDate,
+                      newOccs = aNewItem.getOccurrencesBetween(this.binding.mFilter.startDate ||
+                                                               cal.createDateTime(),
                                                                this.binding.mFilter.endDate,
                                                                {});
-                      oldOccs = aOldItem.getOccurrencesBetween(this.binding.mFilter.startDate,
+                      oldOccs = aOldItem.getOccurrencesBetween(this.binding.mFilter.startDate ||
+                                                               cal.createDateTime(),
                                                                this.binding.mFilter.endDate,
                                                                {});
                   }
@@ -926,7 +897,8 @@
                   let occs = [aDeletedItem];
                   if (this.binding.mFilter.endDate) {
                       // get occurrences of repeating items
-                      occs = aDeletedItem.getOccurrencesBetween(this.binding.mFilter.startDate,
+                      occs = aDeletedItem.getOccurrencesBetween(this.binding.mFilter.startDate ||
+                                                                cal.createDateTime(),
                                                                 this.binding.mFilter.endDate,
                                                                 {});
                   }
@@ -1021,12 +993,14 @@
                       aCalendar.ITEM_FILTER_COMPLETED_ALL;
                   filter |= aCalendar.ITEM_FILTER_TYPE_TODO;
 
+                  let startDate = savedThis.mFilter.startDate;
                   if (savedThis.mFilter.endDate) {
                       filter |= aCalendar.ITEM_FILTER_CLASS_OCCURRENCES;
+                      startDate = startDate || cal.createDateTime();
                   }
                   aCalendar.getItems(filter,
                                      0,
-                                     savedThis.mFilter.startDate,
+                                     startDate,
                                      savedThis.mFilter.endDate,
                                      refreshListener);
               }
@@ -1167,23 +1141,45 @@
         ]]></body>
       </method>
 
+      <method name="doUpdateFilter">
+        <parameter name="aFilter"/>
+        <body><![CDATA[
+            let needsRefresh = false;
+            let oldStart = this.mFilter.mStartDate;
+            let oldEnd = this.mFilter.mEndDate;
+            let filterText = this.mFilter.filterText || "";
+
+            if (aFilter) {
+                let props = this.mFilter.filterProperties;
+                this.mFilter.applyFilter(aFilter);
+                needsRefresh = !props || !props.equals(this.mFilter.filterProperties);
+            } else {
+                this.mFilter.updateFilterDates();
+            }
+
+            if (this.mTextFilterField) {
+                let field = document.getElementById(this.mTextFilterField);
+                if (field) {
+                    this.mFilter.filterText = field.value;
+                    needsRefresh = needsRefresh || filterText.toLowerCase() != this.mFilter.filterText.toLowerCase();
+                }
+            }
+
+            // we only need to refresh the tree if the filter properties or date range changed
+            if (needsRefresh ||
+                !((!oldStart && !this.mFilter.mStartDate) ||
+                  (oldStart && this.mFilter.mStartDate && oldStart.compare(this.mFilter.mStartDate) == 0)) ||
+                !((!oldEnd && !this.mFilter.mEndDate) ||
+                  (oldEnd && this.mFilter.mEndDate && oldEnd.compare(this.mFilter.mEndDate) == 0))) {
+                this.refresh();
+            }
+        ]]></body>
+      </method>
+
       <method name="updateFilter">
         <parameter name="aFilter"/>
         <body><![CDATA[
-            this.mFilter.textFilterField = this.mTextFilterField;
-            this.mFilter.propertyFilter = aFilter || this.mFilter.propertyFilter || "all";
-            this.mDateRangeFilter = aFilter || this.mDateRangeFilter;
-            if (this.mDateRangeFilter) {
-                this.mFilter.setDateFilter(this.mDateRangeFilter);
-            } else {
-                let oneDay = cal.createDuration();
-                oneDay.days = 1;
-                this.mFilter.startDate = cal.createDateTime();
-                this.mFilter.endDate = this.getInitialDate().clone();
-                this.mFilter.endDate.addDuration(oneDay);
-            }
-
-            this.refresh();
+            this.doUpdateFilter(aFilter);
         ]]></body>
       </method>
 
@@ -1290,11 +1286,8 @@
         <body><![CDATA[
             this.mFilter.selectedDate = agendaListbox.today && agendaListbox.today.start ? 
                                         agendaListbox.today.start : now();
-            this.mFilter.propertyFilter = aFilter || this.mFilter.propertyFilter || "all";
-            this.mDateRangeFilter = aFilter || this.mDateRangeFilter || "all";
-            this.mFilter.setDateFilter(this.mDateRangeFilter);
 
-            this.refresh();
+            this.doUpdateFilter(aFilter);
         ]]></body>
       </method>
     </implementation>    

@@ -1,40 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- *   Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Thunderbird.
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010-2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   David Ascher <dascher@mozilla.com>
- *   Jim Porter <squibblyflabbetydoo@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -85,6 +51,25 @@ let webSearchTabType = {
 
     let tabmail = document.getElementById("tabmail");
     tabmail.registerTabType(this);
+    Services.obs.addObserver(this, "browser-search-engine-modified", false);
+  },
+
+  shutdown: function webSearchTabType_shutdown() {
+    try {
+      Services.obs.removeObserver(this, "browser-search-engine-modified");
+    }
+    catch (e) {
+      dump("webSearchTabType: failed to remove search-engine-modified observer: " +
+           e.toString() + "\n");
+    }
+    let browser = document.getElementById("dummywebsearchbrowser");
+    try {
+      Services.obs.removeObserver(browser, "browser:purge-session-history");
+    }
+    catch (e) {
+      dump("webSearchTabType: failed to remove browser:purge-session-history observer: " +
+           e.toString() + "\n");
+    }
   },
 
   openTab: function onTabOpened(aTab, aArgs) {
@@ -133,17 +118,7 @@ let webSearchTabType = {
     aTab.currentEngine = aArgs.engine;
     aTab.query = aArgs.query;
 
-    for each (let engine in Services.search.getVisibleEngines()) {
-      let button = document.createElement("toolbarbutton");
-      button.setAttribute("type", "radio");
-      button.setAttribute("group", "engines");
-      button.setAttribute("image", engine.iconURI.spec);
-      button.setAttribute("tooltiptext", engine.name);
-      button.engine = engine;
-      if (aArgs.engine.name == engine.name)
-        button.setAttribute("checked", true);
-      aTab.engines.appendChild(button);
-    }
+    this._setEngineButtons(aTab, aArgs.engine.name);
 
     // Now set up the listeners.
     this._setUpTitleListener(aTab);
@@ -171,12 +146,52 @@ let webSearchTabType = {
     }, true);
 
     aTab.browser.loadURIWithFlags(aArgs.contentPage, null, null, null,
-                                  aArgs.postData);
+                                  (aArgs.postData || null));
 
     goUpdateCommand("cmd_goBackSearch");
     goUpdateCommand("cmd_goForwardSearch");
 
     this.lastBrowserId++;
+  },
+
+  _setEngineButtons: function webSearchTab_setEngineButtons(aTab, currentEngineName) {
+    // Default to the passed-in default for current engine, will be overridden
+    // if an existing engine is checked
+    let checkedEngine = currentEngineName;
+
+    // Clear out any existing search engine buttons
+    let ch = null;
+    while ((ch = aTab.engines.lastChild)) {
+      if (ch.getAttribute("checked")) {
+        checkedEngine = ch.getAttribute("tooltiptext");
+      }
+      aTab.engines.removeChild(ch);
+    }
+
+    // Register new buttons for all the search engines
+    for each (let engine in Services.search.getVisibleEngines()) {
+      let button = document.createElement("toolbarbutton");
+      button.setAttribute("type", "radio");
+      button.setAttribute("group", "engines");
+      button.setAttribute("image",
+          engine.iconURI ? engine.iconURI.spec : "resource://gre-resources/broken-image.png");
+      button.setAttribute("tooltiptext", engine.name);
+      button.engine = engine;
+      if (checkedEngine == engine.name)
+        button.setAttribute("checked", true);
+      aTab.engines.appendChild(button);
+    }
+  },
+
+  // receive updates when the list of search engines changes
+  observe: function webSearchTab_observe(aEngine, aTopic, aVerb) {
+    if (aTopic == "browser-search-engine-modified") {
+      let tabmail = document.getElementById("tabmail");
+      let searchTabs = tabmail.tabModes["webSearchTab"].tabs;
+      for (let i = 0 ; i < searchTabs.length ; i++) {
+        this._setEngineButtons(searchTabs[i], null);
+      }
+    }
   },
 
   persistTab: function onPersistTab(aTab) {
@@ -223,6 +238,7 @@ let webSearchTabType = {
         }
       }
     }
+    return false;
   },
 
   commands: {
@@ -252,7 +268,7 @@ let webSearchTabType = {
 
   isCommandEnabled: function isCommandEnabled(aCommand, aTab) {
     if (!this.supportsCommand(aCommand))
-      return;
+      return false;
 
     if (aCommand in this.commands)
       return this.commands[aCommand].isEnabled(aTab);

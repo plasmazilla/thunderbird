@@ -1,41 +1,7 @@
 /* -*- Mode: Java; c-basic-offset: 4; tab-width: 20; indent-tabs-mode: nil; -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Android code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Vladimir Vukicevic <vladimir@pobox.com>
- *   Wes Johnston <wjohnston@mozilla.com>
- *   Mark Finkle <mfinkle@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 package org.mozilla.gecko;
 
@@ -45,61 +11,66 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ContentResolver;
 import android.content.Context;
-import android.content.res.Resources;
 import android.content.res.Configuration;
-import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
+import android.text.InputType;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.ActionMode;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.EditorInfo;
-import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ExpandableListView;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.TabWidget;
 import android.widget.Toast;
 
-import java.net.URLEncoder;
-import java.util.Map;
-
-import org.mozilla.gecko.db.BrowserContract.Bookmarks;
-import org.mozilla.gecko.db.BrowserDB.URLColumns;
 import org.mozilla.gecko.db.BrowserDB;
+import org.mozilla.gecko.db.BrowserContract.Bookmarks;
 
-import org.json.JSONObject;
+import java.net.URLEncoder;
+import java.util.Arrays;
+import java.util.Collection;
 
-public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
+public class AwesomeBar extends GeckoActivity {
     private static final String LOGTAG = "GeckoAwesomeBar";
+
+    private static final Collection<String> sSwypeInputMethods = Arrays.asList(new String[] {
+                                                                 InputMethods.METHOD_SWYPE,
+                                                                 InputMethods.METHOD_SWYPE_BETA,
+                                                                 });
 
     static final String URL_KEY = "url";
     static final String CURRENT_URL_KEY = "currenturl";
-    static final String TYPE_KEY = "type";
+    static final String TARGET_KEY = "target";
     static final String SEARCH_KEY = "search";
     static final String USER_ENTERED_KEY = "user_entered";
-    static enum Type { ADD, EDIT };
+    static final String READING_LIST_KEY = "reading_list";
+    static enum Target { NEW_TAB, CURRENT_TAB };
 
-    private String mType;
+    private String mTarget;
     private AwesomeBarTabs mAwesomeTabs;
-    private AwesomeBarEditText mText;
+    private CustomEditText mText;
     private ImageButton mGoButton;
     private ContentResolver mResolver;
     private ContextMenuSubject mContextMenuSubject;
+    private boolean mIsUsingSwype;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -113,7 +84,7 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
         setContentView(R.layout.awesomebar);
 
         mGoButton = (ImageButton) findViewById(R.id.awesomebar_button);
-        mText = (AwesomeBarEditText) findViewById(R.id.awesomebar_text);
+        mText = (CustomEditText) findViewById(R.id.awesomebar_text);
 
         TabWidget tabWidget = (TabWidget) findViewById(android.R.id.tabs);
         tabWidget.setDividerDrawable(null);
@@ -124,8 +95,20 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
                 openUrlAndFinish(url);
             }
 
-            public void onSearch(String engine) {
-                openSearchAndFinish(mText.getText().toString(), engine);
+            public void onSearch(String engine, String text) {
+                openSearchAndFinish(text, engine);
+            }
+
+            public void onEditSuggestion(final String text) {
+                GeckoApp.mAppContext.mMainHandler.post(new Runnable() {
+                    public void run() {
+                        mText.setText(text);
+                        mText.setSelection(mText.getText().length());
+                        mText.requestFocus();
+                        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                        imm.showSoftInput(mText, InputMethodManager.SHOW_IMPLICIT);
+                    }
+                });
             }
         });
 
@@ -135,31 +118,15 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
             }
         });
 
-        Resources resources = getResources();
-        
-        int padding[] = { mText.getPaddingLeft(),
-                          mText.getPaddingTop(),
-                          mText.getPaddingRight(),
-                          mText.getPaddingBottom() };
-
-        GeckoStateListDrawable states = new GeckoStateListDrawable();
-        states.initializeFilter(GeckoApp.mBrowserToolbar.getHighlightColor());
-        states.addState(new int[] { android.R.attr.state_focused }, resources.getDrawable(R.drawable.address_bar_url_pressed));
-        states.addState(new int[] { android.R.attr.state_pressed }, resources.getDrawable(R.drawable.address_bar_url_pressed));
-        states.addState(new int[] { }, resources.getDrawable(R.drawable.address_bar_url_default));
-        mText.setBackgroundDrawable(states);
-
-        mText.setPadding(padding[0], padding[1], padding[2], padding[3]);
-
         Intent intent = getIntent();
         String currentUrl = intent.getStringExtra(CURRENT_URL_KEY);
-        mType = intent.getStringExtra(TYPE_KEY);
+        mTarget = intent.getStringExtra(TARGET_KEY);
         if (currentUrl != null) {
             mText.setText(currentUrl);
             mText.selectAll();
         }
 
-        mText.setOnKeyPreImeListener(new AwesomeBarEditText.OnKeyPreImeListener() {
+        mText.setOnKeyPreImeListener(new CustomEditText.OnKeyPreImeListener() {
             public boolean onKeyPreIme(View v, int keyCode, KeyEvent event) {
                 // We only want to process one event per tap
                 if (event.getAction() != KeyEvent.ACTION_DOWN)
@@ -202,12 +169,13 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
 
                 // If the AwesomeBar has a composition string, don't call updateGoButton().
                 // That method resets IME and composition state will be broken.
-                if (hasCompositionString(s)) {
-                    return;
+                if (!hasCompositionString(s)) {
+                    updateGoButton(text);
                 }
 
-                // no composition string. It is safe to update IME flags.
-                updateGoButton(text);
+                if (Build.VERSION.SDK_INT >= 11) {
+                    getActionBar().hide();
+                }
             }
 
             public void beforeTextChanged(CharSequence s, int start, int count,
@@ -235,23 +203,81 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
             }
         });
 
-        registerForContextMenu(mAwesomeTabs.findViewById(R.id.all_pages_list));
-        registerForContextMenu(mAwesomeTabs.findViewById(R.id.bookmarks_list));
-        registerForContextMenu(mAwesomeTabs.findViewById(R.id.history_list));
+        mText.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            public void onFocusChange(View v, boolean hasFocus) {
+                if (v == null || hasFocus) {
+                    return;
+                }
 
-        GeckoAppShell.registerGeckoEventListener("SearchEngines:Data", this);
-        GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("SearchEngines:Get", null));
+                InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                try {
+                    imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+                } catch (NullPointerException e) {
+                    Log.e(LOGTAG, "InputMethodManagerService, why are you throwing"
+                                  + " a NullPointerException? See bug 782096", e);
+                }
+            }
+        });
+
+        mText.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                if (Build.VERSION.SDK_INT >= 11) {
+                    CustomEditText text = (CustomEditText) v;
+
+                    if (text.getSelectionStart() == text.getSelectionEnd())
+                        return false;
+
+                    getActionBar().show();
+                    return false;
+                }
+
+                return false;
+            }
+        });
+
+        mText.setOnSelectionChangedListener(new CustomEditText.OnSelectionChangedListener() {
+            @Override
+            public void onSelectionChanged(int selStart, int selEnd) {
+                if (Build.VERSION.SDK_INT >= 11 && selStart == selEnd) {
+                    getActionBar().hide();
+                }
+            }
+        });
+
+        boolean showReadingList = intent.getBooleanExtra(READING_LIST_KEY, false);
+        if (showReadingList) {
+            BookmarksTab bookmarksTab = mAwesomeTabs.getBookmarksTab();
+            bookmarksTab.setShowReadingList(true);
+            mAwesomeTabs.setCurrentTabByTag(bookmarksTab.getTag());
+        }
     }
 
-    public void handleMessage(String event, JSONObject message) {
-        try {
-            if (event.equals("SearchEngines:Data")) {
-                mAwesomeTabs.setSearchEngines(message.getJSONArray("searchEngines"));
-            }
-        } catch (Exception e) {
-            // do nothing
-            Log.i(LOGTAG, "handleMessage throws " + e + " for message: " + event);
-        }
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+
+        // The Awesome Bar will receive focus when the Awesome Screen first opens or after the user
+        // closes the "Select Input Method" window. If the input method changes to or from Swype,
+        // then toggle the URL mode flag. Swype's URL mode disables the automatic word spacing that
+        // Swype users expect when entering search queries, but does not add any special VKB keys
+        // like ".com" or "/" that would be useful for entering URLs.
+
+        if (!hasFocus)
+            return;
+
+        boolean wasUsingSwype = mIsUsingSwype;
+        mIsUsingSwype = sSwypeInputMethods.contains(InputMethods.getCurrentInputMethod(this));
+
+        if (mIsUsingSwype == wasUsingSwype)
+            return;
+
+        int currentInputType = mText.getInputType();
+        int newInputType = mIsUsingSwype
+                           ? (currentInputType & ~InputType.TYPE_TEXT_VARIATION_URI)    // URL=OFF
+                           : (currentInputType | InputType.TYPE_TEXT_VARIATION_URI);    // URL=ON
+
+        mText.setRawInputType(newInputType);
     }
 
     @Override
@@ -333,7 +359,7 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
     private void openUrlAndFinish(String url) {
         Intent resultIntent = new Intent();
         resultIntent.putExtra(URL_KEY, url);
-        resultIntent.putExtra(TYPE_KEY, mType);
+        resultIntent.putExtra(TARGET_KEY, mTarget);
         finishWithResult(resultIntent);
     }
 
@@ -349,7 +375,7 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
 
         Intent resultIntent = new Intent();
         resultIntent.putExtra(URL_KEY, url);
-        resultIntent.putExtra(TYPE_KEY, mType);
+        resultIntent.putExtra(TARGET_KEY, mTarget);
         resultIntent.putExtra(USER_ENTERED_KEY, true);
         finishWithResult(resultIntent);
     }
@@ -357,18 +383,22 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
     private void openSearchAndFinish(String url, String engine) {
         Intent resultIntent = new Intent();
         resultIntent.putExtra(URL_KEY, url);
-        resultIntent.putExtra(TYPE_KEY, mType);
+        resultIntent.putExtra(TARGET_KEY, mTarget);
         resultIntent.putExtra(SEARCH_KEY, engine);
         finishWithResult(resultIntent);
     }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // Galaxy Note sends key events for the stylus that are outside of the
+        // valid keyCode range (see bug 758427)
+        if (keyCode > KeyEvent.getMaxKeyCode())
+            return true;
+
         // This method is called only if the key event was not handled
         // by any of the views, which usually means the edit box lost focus
         if (keyCode == KeyEvent.KEYCODE_BACK ||
             keyCode == KeyEvent.KEYCODE_MENU ||
-            keyCode == KeyEvent.KEYCODE_SEARCH ||
             keyCode == KeyEvent.KEYCODE_DPAD_UP ||
             keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
             keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
@@ -378,6 +408,12 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
             keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
             keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
             return super.onKeyDown(keyCode, event);
+        } else if (keyCode == KeyEvent.KEYCODE_SEARCH) {
+             mText.setText("");
+             mText.requestFocus();
+             InputMethodManager imm = (InputMethodManager) mText.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+             imm.showSoftInput(mText, InputMethodManager.SHOW_IMPLICIT);
+             return true;
         } else {
             int selStart = -1;
             int selEnd = -1;
@@ -420,7 +456,6 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
     public void onDestroy() {
         super.onDestroy();
         mAwesomeTabs.destroy();
-        GeckoAppShell.unregisterGeckoEventListener("SearchEngines:Data", this);
     }
 
     @Override
@@ -434,7 +469,7 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
         cancelAndFinish();
     }
 
-    private class ContextMenuSubject {
+    static public class ContextMenuSubject {
         public int id;
         public String url;
         public byte[] favicon;
@@ -454,74 +489,8 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
     public void onCreateContextMenu(ContextMenu menu, View view, ContextMenuInfo menuInfo) {
         super.onCreateContextMenu(menu, view, menuInfo);
         ListView list = (ListView) view;
-        mContextMenuSubject = null;
-
-        if (list == findViewById(R.id.history_list)) {
-            if (!(menuInfo instanceof ExpandableListView.ExpandableListContextMenuInfo)) {
-                Log.e(LOGTAG, "menuInfo is not ExpandableListContextMenuInfo");
-                return;
-            }
-
-            ExpandableListView.ExpandableListContextMenuInfo info = (ExpandableListView.ExpandableListContextMenuInfo) menuInfo;
-            int childPosition = ExpandableListView.getPackedPositionChild(info.packedPosition);
-            int groupPosition = ExpandableListView.getPackedPositionGroup(info.packedPosition);
-
-            // Check if long tap is on a header row
-            if (groupPosition < 0 || childPosition < 0)
-                return;
-
-            ExpandableListView exList = (ExpandableListView) list;
-
-            // The history list is backed by a SimpleExpandableListAdapter
-            @SuppressWarnings("rawtypes")
-            Map map = (Map) exList.getExpandableListAdapter().getChild(groupPosition, childPosition);
-            mContextMenuSubject = new ContextMenuSubject(-1, (String)map.get(URLColumns.URL),
-                    (byte[]) map.get(URLColumns.FAVICON), (String)map.get(URLColumns.TITLE), null);
-        } else {
-            if (!(menuInfo instanceof AdapterView.AdapterContextMenuInfo)) {
-                Log.e(LOGTAG, "menuInfo is not AdapterContextMenuInfo");
-                return;
-            }
-
-            AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) menuInfo;
-            Object selectedItem = list.getItemAtPosition(info.position);
-
-            if (!(selectedItem instanceof Cursor)) {
-                Log.e(LOGTAG, "item at " + info.position + " is not a Cursor");
-                return;
-            }
-
-            Cursor cursor = (Cursor) selectedItem;
-
-            // Don't show the context menu for folders
-            if (!(list == findViewById(R.id.bookmarks_list) &&
-                  cursor.getInt(cursor.getColumnIndexOrThrow(Bookmarks.TYPE)) == Bookmarks.TYPE_FOLDER)) {
-                String keyword = null;
-                int keywordCol = cursor.getColumnIndex(URLColumns.KEYWORD);
-                if (keywordCol != -1)
-                    keyword = cursor.getString(keywordCol);
-
-                mContextMenuSubject = new ContextMenuSubject(cursor.getInt(cursor.getColumnIndexOrThrow(Bookmarks._ID)),
-                                                             cursor.getString(cursor.getColumnIndexOrThrow(URLColumns.URL)),
-                                                             cursor.getBlob(cursor.getColumnIndexOrThrow(URLColumns.FAVICON)),
-                                                             cursor.getString(cursor.getColumnIndexOrThrow(URLColumns.TITLE)),
-                                                             keyword
-                );
-            }
-        }
-
-        if (mContextMenuSubject == null)
-            return;
-
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.awesomebar_contextmenu, menu);
-        
-        if (list != findViewById(R.id.bookmarks_list)) {
-            menu.findItem(R.id.remove_bookmark).setVisible(false);
-            menu.findItem(R.id.edit_bookmark).setVisible(false);
-        }
-
-        menu.setHeaderTitle(mContextMenuSubject.title);
+        AwesomeBarTab tab = mAwesomeTabs.getAwesomeBarTabForView(view);
+        mContextMenuSubject = tab.getSubject(menu, view, menuInfo);
     }
 
     @Override
@@ -542,7 +511,7 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
                     break;
                 }
 
-                GeckoApp.mAppContext.loadUrl(url, AwesomeBar.Type.ADD);
+                GeckoApp.mAppContext.loadUrl(url, AwesomeBar.Target.NEW_TAB);
                 Toast.makeText(this, R.string.new_tab_opened, Toast.LENGTH_SHORT).show();
                 break;
             }
@@ -607,7 +576,14 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
                 break;
             }
             case R.id.remove_bookmark: {
-                (new GeckoAsyncTask<Void, Void, Void>() {
+                (new AsyncTask<Void, Void, Void>() {
+                    private boolean mInReadingList;
+
+                    @Override
+                    public void onPreExecute() {
+                        mInReadingList = mAwesomeTabs.isInReadingList();
+                    }
+
                     @Override
                     public Void doInBackground(Void... params) {
                         BrowserDB.removeBookmark(mResolver, id);
@@ -616,7 +592,30 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
 
                     @Override
                     public void onPostExecute(Void result) {
-                        Toast.makeText(AwesomeBar.this, R.string.bookmark_removed, Toast.LENGTH_SHORT).show();
+                        int messageId = R.string.bookmark_removed;
+                        if (mInReadingList) {
+                            messageId = R.string.reading_list_removed;
+
+                            GeckoEvent e = GeckoEvent.createBroadcastEvent("Reader:Remove", url);
+                            GeckoAppShell.sendEventToGecko(e);
+                        }
+
+                        Toast.makeText(AwesomeBar.this, messageId, Toast.LENGTH_SHORT).show();
+                    }
+                }).execute();
+                break;
+            }
+            case R.id.remove_history: {
+                (new GeckoAsyncTask<Void, Void, Void>() {
+                    @Override
+                    public Void doInBackground(Void... params) {
+                        BrowserDB.removeHistoryEntry(mResolver, id);
+                        return null;
+                    }
+
+                    @Override
+                    public void onPostExecute(Void result) {
+                        Toast.makeText(AwesomeBar.this, R.string.history_removed, Toast.LENGTH_SHORT).show();
                     }
                 }).execute();
                 break;
@@ -652,6 +651,12 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
         return true;
     }
 
+    public static String getReaderForUrl(String url) {
+        // FIXME: still need to define the final way to open items from
+        // reading list. For now, we're using an about:reader page.
+        return "about:reader?url=" + Uri.encode(url) + "&readingList=1";
+    }
+
     private static boolean hasCompositionString(Editable content) {
         Object[] spans = content.getSpans(0, content.length(), Object.class);
         if (spans != null) {
@@ -663,30 +668,5 @@ public class AwesomeBar extends GeckoActivity implements GeckoEventListener {
             }
         }
         return false;
-    }
-
-    public static class AwesomeBarEditText extends EditText {
-        OnKeyPreImeListener mOnKeyPreImeListener;
-
-        public interface OnKeyPreImeListener {
-            public boolean onKeyPreIme(View v, int keyCode, KeyEvent event);
-        }
-
-        public AwesomeBarEditText(Context context, AttributeSet attrs) {
-            super(context, attrs);
-            mOnKeyPreImeListener = null;
-        }
-
-        @Override
-        public boolean onKeyPreIme(int keyCode, KeyEvent event) {
-            if (mOnKeyPreImeListener != null)
-                return mOnKeyPreImeListener.onKeyPreIme(this, keyCode, event);
-
-            return false;
-        }
-
-        public void setOnKeyPreImeListener(OnKeyPreImeListener listener) {
-            mOnKeyPreImeListener = listener;
-        }
     }
 }

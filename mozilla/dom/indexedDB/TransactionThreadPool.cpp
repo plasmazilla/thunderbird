@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Indexed Database.
- *
- * The Initial Developer of the Original Code is
- * The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ben Turner <bent.mozilla@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "TransactionThreadPool.h"
 
@@ -90,7 +57,7 @@ CheckOverlapAndMergeObjectStores(nsTArray<nsString>& aLockedStores,
 
 BEGIN_INDEXEDDB_NAMESPACE
 
-class FinishTransactionRunnable : public nsIRunnable
+class FinishTransactionRunnable MOZ_FINAL : public nsIRunnable
 {
 public:
   NS_DECL_ISUPPORTS
@@ -164,13 +131,13 @@ TransactionThreadPool::Init()
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
-  if (!mTransactionsInProgress.Init()) {
-    NS_WARNING("Failed to init hash!");
-    return NS_ERROR_FAILURE;
-  }
+  mTransactionsInProgress.Init();
 
   nsresult rv;
   mThreadPool = do_CreateInstance(NS_THREADPOOL_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = mThreadPool->SetName(NS_LITERAL_CSTRING("IndexedDB Trans"));
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = mThreadPool->SetThreadLimit(kThreadLimit);
@@ -252,8 +219,14 @@ TransactionThreadPool::FinishTransaction(IDBTransaction* aTransaction)
     mTransactionsInProgress.Remove(databaseId);
 
     // See if we need to fire any complete callbacks.
-    for (PRUint32 index = 0; index < mCompleteCallbacks.Length(); index++) {
-      MaybeFireCallback(index);
+    PRUint32 index = 0;
+    while (index < mCompleteCallbacks.Length()) {
+      if (MaybeFireCallback(mCompleteCallbacks[index])) {
+        mCompleteCallbacks.RemoveElementAt(index);
+      }
+      else {
+        index++;
+      }
     }
   }
   else {
@@ -468,10 +441,7 @@ TransactionThreadPool::Dispatch(IDBTransaction* aTransaction,
   }
 
   if (autoDBTransactionInfo) {
-    if (!mTransactionsInProgress.Put(databaseId, autoDBTransactionInfo)) {
-      NS_WARNING("Failed to put!");
-      return NS_ERROR_OUT_OF_MEMORY;
-    }
+    mTransactionsInProgress.Put(databaseId, autoDBTransactionInfo);
     autoDBTransactionInfo.forget();
   }
 
@@ -498,7 +468,10 @@ TransactionThreadPool::WaitForAllDatabasesToComplete(
     NS_ERROR("This should never fail!");
   }
 
-  MaybeFireCallback(mCompleteCallbacks.Length() - 1);
+  if (MaybeFireCallback(*callback)) {
+    mCompleteCallbacks.RemoveElementAt(mCompleteCallbacks.Length() - 1);
+  }
+
   return true;
 }
 
@@ -579,25 +552,20 @@ TransactionThreadPool::HasTransactionsForDatabase(IDBDatabase* aDatabase)
   return false;
 }
 
-void
-TransactionThreadPool::MaybeFireCallback(PRUint32 aCallbackIndex)
+bool
+TransactionThreadPool::MaybeFireCallback(DatabasesCompleteCallback& aCallback)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
-  DatabasesCompleteCallback& callback = mCompleteCallbacks[aCallbackIndex];
-
-  bool freeToRun = true;
-  for (PRUint32 index = 0; index < callback.mDatabases.Length(); index++) {
-    if (mTransactionsInProgress.Get(callback.mDatabases[index]->Id(), nsnull)) {
-      freeToRun = false;
-      break;
+  for (PRUint32 index = 0; index < aCallback.mDatabases.Length(); index++) {
+    if (mTransactionsInProgress.Get(aCallback.mDatabases[index]->Id(),
+                                    nsnull)) {
+      return false;
     }
   }
 
-  if (freeToRun) {
-    callback.mCallback->Run();
-    mCompleteCallbacks.RemoveElementAt(aCallbackIndex);
-  }
+  aCallback.mCallback->Run();
+  return true;
 }
 
 TransactionThreadPool::

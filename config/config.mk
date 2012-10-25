@@ -1,40 +1,7 @@
 #
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is mozilla.org code.
-#
-# The Initial Developer of the Original Code is
-# Netscape Communications Corporation.
-# Portions created by the Initial Developer are Copyright (C) 1998
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Benjamin Smedberg <benjamin@smedbergs.us>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either of the GNU General Public License Version 2 or later (the "GPL"),
-# or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #
 # config.mk
@@ -152,6 +119,10 @@ MKDIR ?= mkdir
 SLEEP ?= sleep
 TOUCH ?= touch
 
+ifdef .PYMAKE
+PYCOMMANDPATH += $(MOZILLA_SRCDIR)/config
+endif
+
 # determine debug-related options
 _DEBUG_CFLAGS :=
 _DEBUG_LDFLAGS :=
@@ -192,17 +163,6 @@ OS_CXXFLAGS += -Zi -UDEBUG -DNDEBUG
 OS_CFLAGS += -Zi -UDEBUG -DNDEBUG
 OS_LDFLAGS += -DEBUG -OPT:REF
 endif # MOZ_DEBUG_SYMBOLS
-
-ifdef MOZ_QUANTIFY
-# -FIXED:NO is needed for Quantify to work, but it increases the size
-# of executables, so only use it if building for Quantify.
-WIN32_EXE_LDFLAGS += -FIXED:NO
-
-# We need -OPT:NOICF to prevent identical methods from being merged together.
-# Otherwise, Quantify doesn't know which method was actually called when it's
-# showing you the profile.
-OS_LDFLAGS += -OPT:NOICF
-endif
 
 #
 # Handle trace-malloc in optimized builds.
@@ -366,8 +326,6 @@ MY_RULES	:= $(DEPTH)/config/myrules.mk
 # Default command macros; can be overridden in <arch>.mk.
 #
 CCC		= $(CXX)
-PURIFY		= purify $(PURIFYOPTIONS)
-QUANTIFY	= quantify $(QUANTIFYOPTIONS)
 XPIDL_LINK = $(PYTHON) $(LIBXUL_DIST)/sdk/bin/xpt.py link
 
 INCLUDES = \
@@ -617,18 +575,34 @@ endif
 PWD := $(CURDIR)
 endif
 
+NSINSTALL_PY := $(PYTHON) $(call core_abspath,$(MOZILLA_SRCDIR)/config/nsinstall.py)
+# For Pymake, whereever we use nsinstall.py we're also going to try to make it
+# a native command where possible. Since native commands can't be used outside
+# of single-line commands, we continue to provide INSTALL for general use.
+# Single-line commands should be switched over to install_cmd.
+NSINSTALL_NATIVECMD := %nsinstall nsinstall
+
 ifdef NSINSTALL_BIN
-NSINSTALL	= $(CYGWIN_WRAPPER) $(NSINSTALL_BIN)
+NSINSTALL = $(NSINSTALL_BIN)
 else
 ifeq (OS2,$(CROSS_COMPILE)$(OS_ARCH))
-NSINSTALL	= $(MOZ_TOOLS_DIR)/nsinstall
+NSINSTALL = $(MOZ_TOOLS_DIR)/nsinstall
 else
-NSINSTALL	= $(CONFIG_TOOLS)/nsinstall$(HOST_BIN_SUFFIX)
+ifeq ($(HOST_OS_ARCH),WINNT)
+NSINSTALL = $(NSINSTALL_PY)
+else
+NSINSTALL = $(CONFIG_TOOLS)/nsinstall$(HOST_BIN_SUFFIX)
+endif # WINNT
 endif # OS2
 endif # NSINSTALL_BIN
 
+
 ifeq (,$(CROSS_COMPILE)$(filter-out WINNT OS2, $(OS_ARCH)))
-INSTALL		= $(NSINSTALL)
+INSTALL = $(NSINSTALL) -t
+ifdef .PYMAKE
+install_cmd = $(NSINSTALL_NATIVECMD) -t $(1)
+endif # .PYMAKE
+
 else
 
 # This isn't laid out as conditional directives so that NSDISTMODE can be
@@ -637,16 +611,17 @@ INSTALL         = $(if $(filter copy, $(NSDISTMODE)), $(NSINSTALL) -t, $(if $(fi
 
 endif # WINNT/OS2
 
-# Use nsinstall in copy mode to install files on the system
-SYSINSTALL	= $(NSINSTALL) -t
+# The default for install_cmd is simply INSTALL
+install_cmd ?= $(INSTALL) $(1)
 
-# Directory nsinstall. Windows and OS/2 nsinstall can't recursively copy
-# directories.
-ifneq (,$(filter WINNT os2-emx,$(HOST_OS_ARCH)))
-DIR_INSTALL = $(PYTHON) $(MOZILLA_SRCDIR)/config/nsinstall.py
-else
+# Use nsinstall in copy mode to install files on the system
+SYSINSTALL  = $(NSINSTALL) -t
+# This isn't necessarily true, just here
+sysinstall_cmd = install_cmd
+
+# Directory nsinstall.
 DIR_INSTALL = $(INSTALL)
-endif # WINNT
+dir_install_cmd = install_cmd
 
 ifeq ($(OS_ARCH),WINNT)
 ifneq (,$(CYGDRIVE_MOUNT))
@@ -714,8 +689,8 @@ CREATE_PRECOMPLETE_CMD = $(PYTHON) $(call core_abspath,$(MOZILLA_SRCDIR)/config/
 
 LIBS_DESC_SUFFIX = desc
 EXPAND_LIBS = $(PYTHON) -I$(MOZDEPTH)/config $(MOZILLA_SRCDIR)/config/expandlibs.py
-EXPAND_LIBS_EXEC = $(PYTHON) $(MOZILLA_SRCDIR)/config/pythonpath.py -I$(MOZDEPTH)/config $(MOZILLA_SRCDIR)/config/expandlibs_exec.py
-EXPAND_LIBS_GEN = $(PYTHON) $(MOZILLA_SRCDIR)/config/pythonpath.py -I$(MOZDEPTH)/config $(MOZILLA_SRCDIR)/config/expandlibs_gen.py
+EXPAND_LIBS_EXEC = $(PYTHON) $(MOZILLA_SRCDIR)/config/pythonpath.py -I$(MOZDEPTH)/config $(MOZILLA_SRCDIR)/config/expandlibs_exec.py $(if $@,--depend $(MDDEPDIR)/$(basename $(@F)).pp --target $@)
+EXPAND_LIBS_GEN = $(PYTHON) $(MOZILLA_SRCDIR)/config/pythonpath.py -I$(MOZDEPTH)/config $(MOZILLA_SRCDIR)/config/expandlibs_gen.py $(if $@,--depend $(MDDEPDIR)/$(basename $(@F)).pp)
 EXPAND_AR = $(EXPAND_LIBS_EXEC) --extract -- $(AR)
 EXPAND_CC = $(EXPAND_LIBS_EXEC) --uselist -- $(CC)
 EXPAND_CCC = $(EXPAND_LIBS_EXEC) --uselist -- $(CCC)

@@ -78,7 +78,8 @@ public:
                  const nsIntRegion& aValidRegion,
                  const gfxSize& aResolution,
                  const gfx3DMatrix& aTransform,
-                 const nsIntPoint& aRenderOffset);
+                 const nsIntPoint& aRenderOffset,
+                 Layer* aMaskLayer);
 
 protected:
   // Invalidates tiles contained within the valid region, or intersecting with

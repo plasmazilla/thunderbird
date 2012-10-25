@@ -53,9 +53,9 @@
       testRole("p", ROLE_PARAGRAPH);
 
       // Test dl, dt, dd
-      testRole("definitionlist", ROLE_LIST);
-      testRole("definitionterm", ROLE_LISTITEM);
-      testRole("definitiondescription", ROLE_PARAGRAPH);
+      testRole("definitionlist", ROLE_DEFINITION_LIST);
+      testRole("definitionterm", ROLE_TERM);
+      testRole("definitiondescription", ROLE_DEFINITION);
 
       // Has click, mousedown or mouseup listeners.
       testRole("span1", ROLE_TEXT_CONTAINER);
@@ -76,7 +76,7 @@
     Mozilla Bug 472326
   </a><br>
   <a target="_blank" href="https://bugzilla.mozilla.org/show_bug.cgi?id=474261"
-      title="Test remaining implementations in nsHypertextAccessible::GetRole">
+      title="Test remaining implementations in nsHyperTextAccessible::GetRole">
     bug 474261
   </a><br>
   <a target="_blank"

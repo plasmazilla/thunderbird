@@ -1,49 +1,13 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Indexed Database.
- *
- * The Initial Developer of the Original Code is
- * The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ben Turner <bent.mozilla@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef mozilla_dom_indexeddb_indexeddatabasemanager_h__
 #define mozilla_dom_indexeddb_indexeddatabasemanager_h__
 
-#include "mozilla/dom/indexedDB/FileManager.h"
 #include "mozilla/dom/indexedDB/IndexedDatabase.h"
-#include "mozilla/dom/indexedDB/IDBDatabase.h"
-#include "mozilla/dom/indexedDB/IDBRequest.h"
 
 #include "mozilla/Mutex.h"
 
@@ -60,16 +24,21 @@
 #define INDEXEDDB_MANAGER_CONTRACTID "@mozilla.org/dom/indexeddb/manager;1"
 
 class mozIStorageQuotaCallback;
+class nsIAtom;
+class nsIFile;
 class nsITimer;
+class nsPIDOMWindow;
+class nsEventChainPostVisitor;
 
 BEGIN_INDEXEDDB_NAMESPACE
 
 class AsyncConnectionHelper;
-
 class CheckQuotaHelper;
+class FileManager;
+class IDBDatabase;
 
-class IndexedDatabaseManager : public nsIIndexedDatabaseManager,
-                               public nsIObserver
+class IndexedDatabaseManager MOZ_FINAL : public nsIIndexedDatabaseManager,
+                                         public nsIObserver
 {
   friend class IDBDatabase;
 
@@ -106,26 +75,29 @@ public:
 
   static bool IsClosed();
 
-  typedef void (*WaitingOnDatabasesCallback)(nsTArray<nsRefPtr<IDBDatabase> >&, void*);
+  typedef void
+  (*WaitingOnDatabasesCallback)(nsTArray<nsRefPtr<IDBDatabase> >&, void*);
 
   // Acquire exclusive access to the database given (waits for all others to
   // close).  If databases need to close first, the callback will be invoked
   // with an array of said databases.
   nsresult AcquireExclusiveAccess(IDBDatabase* aDatabase,
+                                  const nsACString& aOrigin,
                                   AsyncConnectionHelper* aHelper,
                                   WaitingOnDatabasesCallback aCallback,
                                   void* aClosure)
   {
     NS_ASSERTION(aDatabase, "Need a DB here!");
-    return AcquireExclusiveAccess(aDatabase->Origin(), aDatabase, aHelper,
+    return AcquireExclusiveAccess(aOrigin, aDatabase, aHelper, nsnull,
                                   aCallback, aClosure);
   }
-  nsresult AcquireExclusiveAccess(const nsACString& aOrigin, 
-                                  AsyncConnectionHelper* aHelper,
+
+  nsresult AcquireExclusiveAccess(const nsACString& aOrigin,
+                                  nsIRunnable* aRunnable,
                                   WaitingOnDatabasesCallback aCallback,
                                   void* aClosure)
   {
-    return AcquireExclusiveAccess(aOrigin, nsnull, aHelper, aCallback,
+    return AcquireExclusiveAccess(aOrigin, nsnull, nsnull, aRunnable, aCallback,
                                   aClosure);
   }
 
@@ -177,6 +149,16 @@ public:
   static nsresult
   GetASCIIOriginFromWindow(nsPIDOMWindow* aWindow, nsCString& aASCIIOrigin);
 
+  static bool
+  IsMainProcess()
+#ifdef DEBUG
+  ;
+#else
+  {
+    return sIsMainProcess;
+  }
+#endif
+
   already_AddRefed<FileManager>
   GetOrCreateFileManager(const nsACString& aOrigin,
                          const nsAString& aDatabaseName);
@@ -193,6 +175,16 @@ public:
   nsresult AsyncDeleteFile(FileManager* aFileManager,
                            PRInt64 aFileId);
 
+  const nsString&
+  GetBaseDirectory() const
+  {
+    return mDatabaseBasePath;
+  }
+
+  nsresult
+  GetDirectoryForOrigin(const nsACString& aASCIIOrigin,
+                        nsIFile** aDirectory) const;
+
   static mozilla::Mutex& FileMutex()
   {
     IndexedDatabaseManager* mgr = Get();
@@ -201,13 +193,20 @@ public:
     return mgr->mFileMutex;
   }
 
+  static already_AddRefed<nsIAtom>
+  GetDatabaseId(const nsACString& aOrigin,
+                const nsAString& aName);
+
+  static nsresult
+  FireWindowOnError(nsPIDOMWindow* aOwner, nsEventChainPostVisitor& aVisitor);
 private:
   IndexedDatabaseManager();
   ~IndexedDatabaseManager();
 
-  nsresult AcquireExclusiveAccess(const nsACString& aOrigin, 
+  nsresult AcquireExclusiveAccess(const nsACString& aOrigin,
                                   IDBDatabase* aDatabase,
                                   AsyncConnectionHelper* aHelper,
+                                  nsIRunnable* aRunnable,
                                   WaitingOnDatabasesCallback aCallback,
                                   void* aClosure);
 
@@ -232,25 +231,56 @@ private:
   // directory that contains them before dispatching itself back to the main
   // thread. When back on the main thread the runnable will notify the
   // IndexedDatabaseManager that the job has been completed.
-  class OriginClearRunnable : public nsIRunnable
+  class OriginClearRunnable MOZ_FINAL : public nsIRunnable
   {
+    enum CallbackState {
+      // Not yet run.
+      Pending = 0,
+
+      // Running on the main thread in the callback for OpenAllowed.
+      OpenAllowed,
+
+      // Running on the IO thread.
+      IO,
+
+      // Running on the main thread after all work is done.
+      Complete
+    };
+
   public:
     NS_DECL_ISUPPORTS
     NS_DECL_NSIRUNNABLE
 
-    OriginClearRunnable(const nsACString& aOrigin,
-                        nsIThread* aThread)
+    OriginClearRunnable(const nsACString& aOrigin)
     : mOrigin(aOrigin),
-      mThread(aThread),
-      mFirstCallback(true)
+      mCallbackState(Pending)
     { }
 
-    nsCString mOrigin;
-    nsCOMPtr<nsIThread> mThread;
-    bool mFirstCallback;
-  };
+    void AdvanceState()
+    {
+      switch (mCallbackState) {
+        case Pending:
+          mCallbackState = OpenAllowed;
+          return;
+        case OpenAllowed:
+          mCallbackState = IO;
+          return;
+        case IO:
+          mCallbackState = Complete;
+          return;
+        default:
+          NS_NOTREACHED("Can't advance past Complete!");
+      }
+    }
 
-  bool IsClearOriginPending(const nsACString& origin);
+    static void InvalidateOpenedDatabases(
+                                   nsTArray<nsRefPtr<IDBDatabase> >& aDatabases,
+                                   void* aClosure);
+
+  private:
+    nsCString mOrigin;
+    CallbackState mCallbackState;
+  };
 
   // Responsible for calculating the amount of space taken up by databases of a
   // certain origin. Created when nsIIDBIndexedDatabaseManager::GetUsageForURI
@@ -261,8 +291,24 @@ private:
   // before dispatching itself back to the main thread. When on the main thread
   // the runnable will call the callback and then notify the
   // IndexedDatabaseManager that the job has been completed.
-  class AsyncUsageRunnable : public nsIRunnable
+  class AsyncUsageRunnable MOZ_FINAL : public nsIRunnable
   {
+    enum CallbackState {
+      // Not yet run.
+      Pending = 0,
+
+      // Running on the main thread in the callback for OpenAllowed.
+      OpenAllowed,
+
+      // Running on the IO thread.
+      IO,
+
+      // Running on the main thread after all work is done.
+      Complete,
+
+      // Running on the main thread after skipping the work
+      Shortcut
+    };
   public:
     NS_DECL_ISUPPORTS
     NS_DECL_NSIRUNNABLE
@@ -274,6 +320,25 @@ private:
     // Sets the canceled flag so that the callback is never called.
     void Cancel();
 
+    void AdvanceState()
+    {
+      switch (mCallbackState) {
+        case Pending:
+          mCallbackState = OpenAllowed;
+          return;
+        case OpenAllowed:
+          mCallbackState = IO;
+          return;
+        case IO:
+          mCallbackState = Complete;
+          return;
+        default:
+          NS_NOTREACHED("Can't advance past Complete!");
+      }
+    }
+
+    nsresult TakeShortcut();
+
     // Run calls the RunInternal method and makes sure that we always dispatch
     // to the main thread in case of an error.
     inline nsresult RunInternal();
@@ -283,10 +348,12 @@ private:
 
     nsCOMPtr<nsIURI> mURI;
     nsCString mOrigin;
+
     nsCOMPtr<nsIIndexedDatabaseUsageCallback> mCallback;
     PRUint64 mUsage;
     PRUint64 mFileUsage;
     PRInt32 mCanceled;
+    CallbackState mCallbackState;
   };
 
   // Called when AsyncUsageRunnable has finished its Run() method.
@@ -309,21 +376,25 @@ private:
     const nsCString mOrigin;
     nsCOMPtr<nsIAtom> mId;
     nsRefPtr<AsyncConnectionHelper> mHelper;
+    nsCOMPtr<nsIRunnable> mRunnable;
     nsTArray<nsCOMPtr<nsIRunnable> > mDelayedRunnables;
     nsTArray<nsRefPtr<IDBDatabase> > mDatabases;
   };
 
   // A callback runnable used by the TransactionPool when it's safe to proceed
   // with a SetVersion/DeleteDatabase/etc.
-  class WaitForTransactionsToFinishRunnable : public nsIRunnable
+  class WaitForTransactionsToFinishRunnable MOZ_FINAL : public nsIRunnable
   {
   public:
-    WaitForTransactionsToFinishRunnable(SynchronizedOp* aOp)
-    : mOp(aOp)
+    WaitForTransactionsToFinishRunnable(SynchronizedOp* aOp,
+                                        PRUint32 aCountdown)
+    : mOp(aOp), mCountdown(aCountdown)
     {
       NS_ASSERTION(mOp, "Why don't we have a runnable?");
       NS_ASSERTION(mOp->mDatabases.IsEmpty(), "We're here too early!");
-      NS_ASSERTION(mOp->mHelper, "What are we supposed to do when we're done?");
+      NS_ASSERTION(mOp->mHelper || mOp->mRunnable,
+                   "What are we supposed to do when we're done?");
+      NS_ASSERTION(mCountdown, "Wrong countdown!");
     }
 
     NS_DECL_ISUPPORTS
@@ -332,9 +403,29 @@ private:
   private:
     // The IndexedDatabaseManager holds this alive.
     SynchronizedOp* mOp;
+    PRUint32 mCountdown;
   };
 
-  class AsyncDeleteFileRunnable : public nsIRunnable
+  class WaitForLockedFilesToFinishRunnable MOZ_FINAL : public nsIRunnable
+  {
+  public:
+    WaitForLockedFilesToFinishRunnable()
+    : mBusy(true)
+    { }
+
+    NS_DECL_ISUPPORTS
+    NS_DECL_NSIRUNNABLE
+
+    bool IsBusy() const
+    {
+      return mBusy;
+    }
+
+  private:
+    bool mBusy;
+  };
+
+  class AsyncDeleteFileRunnable MOZ_FINAL : public nsIRunnable
   {
   public:
     NS_DECL_ISUPPORTS
@@ -347,7 +438,26 @@ private:
     nsString mFilePath;
   };
 
-  static nsresult DispatchHelper(AsyncConnectionHelper* aHelper);
+  static nsresult RunSynchronizedOp(IDBDatabase* aDatabase,
+                                    SynchronizedOp* aOp);
+
+  SynchronizedOp* FindSynchronizedOp(const nsACString& aOrigin,
+                                     nsIAtom* aId)
+  {
+    for (PRUint32 index = 0; index < mSynchronizedOps.Length(); index++) {
+      const nsAutoPtr<SynchronizedOp>& currentOp = mSynchronizedOps[index];
+      if (currentOp->mOrigin == aOrigin &&
+          (!currentOp->mId || currentOp->mId == aId)) {
+        return currentOp;
+      }
+    }
+    return nsnull;
+  }
+
+  bool IsClearOriginPending(const nsACString& aOrigin)
+  {
+    return !!FindSynchronizedOp(aOrigin, nsnull);
+  }
 
   // Maintains a list of live databases per origin.
   nsClassHashtable<nsCStringHashKey, nsTArray<IDBDatabase*> > mLiveDatabases;
@@ -388,6 +498,10 @@ private:
   // It's s also used to atomically update FileInfo.mRefCnt, FileInfo.mDBRefCnt
   // and FileInfo.mSliceRefCnt
   mozilla::Mutex mFileMutex;
+
+  nsString mDatabaseBasePath;
+
+  static bool sIsMainProcess;
 };
 
 class AutoEnterWindow

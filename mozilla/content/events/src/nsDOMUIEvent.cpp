@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Steve Clark (buster@netscape.com)
- *   Ilya Konstantinov (mozilla-code@future.shiny.co.il)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "base/basictypes.h"
 #include "IPC/IPCMessageUtils.h"
@@ -51,6 +17,10 @@
 #include "nsIFrame.h"
 #include "nsIScrollableFrame.h"
 #include "DictionaryHelpers.h"
+#include "mozilla/Util.h"
+#include "mozilla/Assertions.h"
+
+using namespace mozilla;
 
 nsDOMUIEvent::nsDOMUIEvent(nsPresContext* aPresContext, nsGUIEvent* aEvent)
   : nsDOMEvent(aPresContext, aEvent ?
@@ -58,7 +28,6 @@ nsDOMUIEvent::nsDOMUIEvent(nsPresContext* aPresContext, nsGUIEvent* aEvent)
                static_cast<nsEvent *>(new nsUIEvent(false, 0, 0)))
   , mClientPoint(0, 0), mLayerPoint(0, 0), mPagePoint(0, 0), mMovementPoint(0, 0)
   , mIsPointerLocked(nsEventStateManager::sIsPointerLocked)
-  , mLastScreenPoint(nsEventStateManager::sLastScreenPoint)
   , mLastClientPoint(nsEventStateManager::sLastClientPoint)
 {
   if (aEvent) {
@@ -125,6 +94,13 @@ NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(nsDOMUIEvent)
   NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(UIEvent)
 NS_INTERFACE_MAP_END_INHERITING(nsDOMEvent)
 
+static nsIntPoint
+DevPixelsToCSSPixels(const nsIntPoint& aPoint, nsPresContext* aContext)
+{
+  return nsIntPoint(aContext->DevPixelsToIntCSSPixels(aPoint.x),
+                    aContext->DevPixelsToIntCSSPixels(aPoint.y));
+}
+
 nsIntPoint
 nsDOMUIEvent::GetMovementPoint()
 {
@@ -133,6 +109,7 @@ nsDOMUIEvent::GetMovementPoint()
   }
 
   if (!mEvent ||
+      !((nsGUIEvent*)mEvent)->widget ||
        (mEvent->eventStructType != NS_MOUSE_EVENT &&
         mEvent->eventStructType != NS_POPUP_EVENT &&
         mEvent->eventStructType != NS_MOUSE_SCROLL_EVENT &&
@@ -142,31 +119,10 @@ nsDOMUIEvent::GetMovementPoint()
     return nsIntPoint(0, 0);
   }
 
-  if (!((nsGUIEvent*)mEvent)->widget) {
-    return mEvent->lastRefPoint;
-  }
-
-  // Calculate the delta between the previous screen point and the current one.
-  nsIntPoint currentPoint = CalculateScreenPoint(mPresContext, mEvent);
-
-  // Adjust previous event's refPoint so it compares to current screenX, screenY
-  nsIntPoint offset = mEvent->lastRefPoint +
-    ((nsGUIEvent*)mEvent)->widget->WidgetToScreenOffset();
-  nscoord factor = mPresContext->DeviceContext()->UnscaledAppUnitsPerDevPixel();
-  nsIntPoint lastPoint = nsIntPoint(nsPresContext::AppUnitsToIntCSSPixels(offset.x * factor),
-                                    nsPresContext::AppUnitsToIntCSSPixels(offset.y * factor));
-
-  return currentPoint - lastPoint;
-}
-
-nsIntPoint
-nsDOMUIEvent::GetScreenPoint()
-{
-  if (mIsPointerLocked) {
-    return mLastScreenPoint;
-  }
-
-  return CalculateScreenPoint(mPresContext, mEvent);
+  // Calculate the delta between the last screen point and the current one.
+  nsIntPoint current = DevPixelsToCSSPixels(mEvent->refPoint, mPresContext);
+  nsIntPoint last = DevPixelsToCSSPixels(mEvent->lastRefPoint, mPresContext);
+  return current - last;
 }
 
 nsIntPoint
@@ -406,7 +362,7 @@ nsDOMUIEvent::GetIsChar(bool* aIsChar)
   }
 }
 
-NS_METHOD
+NS_IMETHODIMP
 nsDOMUIEvent::DuplicatePrivateData()
 {
   mClientPoint = nsDOMEvent::GetClientCoords(mPresContext,
@@ -430,7 +386,7 @@ nsDOMUIEvent::DuplicatePrivateData()
   return rv;
 }
 
-void
+NS_IMETHODIMP_(void)
 nsDOMUIEvent::Serialize(IPC::Message* aMsg, bool aSerializeInterfaceType)
 {
   if (aSerializeInterfaceType) {
@@ -444,13 +400,113 @@ nsDOMUIEvent::Serialize(IPC::Message* aMsg, bool aSerializeInterfaceType)
   IPC::WriteParam(aMsg, detail);
 }
 
-bool
+NS_IMETHODIMP_(bool)
 nsDOMUIEvent::Deserialize(const IPC::Message* aMsg, void** aIter)
 {
   NS_ENSURE_TRUE(nsDOMEvent::Deserialize(aMsg, aIter), false);
   NS_ENSURE_TRUE(IPC::ReadParam(aMsg, aIter, &mDetail), false);
   return true;
 }
+
+// XXX Following struct and array are used only in
+//     nsDOMUIEvent::ComputeModifierState(), but if we define them in it,
+//     we fail to build on Mac at calling mozilla::ArrayLength().
+struct nsModifierPair
+{
+  mozilla::widget::Modifier modifier;
+  const char* name;
+};
+static const nsModifierPair kPairs[] = {
+  { widget::MODIFIER_ALT,        NS_DOM_KEYNAME_ALT },
+  { widget::MODIFIER_ALTGRAPH,   NS_DOM_KEYNAME_ALTGRAPH },
+  { widget::MODIFIER_CAPSLOCK,   NS_DOM_KEYNAME_CAPSLOCK },
+  { widget::MODIFIER_CONTROL,    NS_DOM_KEYNAME_CONTROL },
+  { widget::MODIFIER_FN,         NS_DOM_KEYNAME_FN },
+  { widget::MODIFIER_META,       NS_DOM_KEYNAME_META },
+  { widget::MODIFIER_NUMLOCK,    NS_DOM_KEYNAME_NUMLOCK },
+  { widget::MODIFIER_SCROLLLOCK, NS_DOM_KEYNAME_SCROLLLOCK },
+  { widget::MODIFIER_SHIFT,      NS_DOM_KEYNAME_SHIFT },
+  { widget::MODIFIER_SYMBOLLOCK, NS_DOM_KEYNAME_SYMBOLLOCK },
+  { widget::MODIFIER_OS,         NS_DOM_KEYNAME_OS }
+};
+
+/* static */
+mozilla::widget::Modifiers
+nsDOMUIEvent::ComputeModifierState(const nsAString& aModifiersList)
+{
+  if (aModifiersList.IsEmpty()) {
+    return 0;
+  }
+
+  // Be careful about the performance.  If aModifiersList is too long,
+  // parsing it needs too long time.
+  // XXX Should we abort if aModifiersList is too long?
+
+  Modifiers modifiers = 0;
+
+  nsAString::const_iterator listStart, listEnd;
+  aModifiersList.BeginReading(listStart);
+  aModifiersList.EndReading(listEnd);
+
+  for (PRUint32 i = 0; i < mozilla::ArrayLength(kPairs); i++) {
+    nsAString::const_iterator start(listStart), end(listEnd);
+    if (!FindInReadable(NS_ConvertASCIItoUTF16(kPairs[i].name), start, end)) {
+      continue;
+    }
+
+    if ((start != listStart && !NS_IsAsciiWhitespace(*(--start))) ||
+        (end != listEnd && !NS_IsAsciiWhitespace(*(end)))) {
+      continue;
+    }
+    modifiers |= kPairs[i].modifier;
+  }
+
+  return modifiers;
+}
+
+bool
+nsDOMUIEvent::GetModifierStateInternal(const nsAString& aKey)
+{
+  nsInputEvent* inputEvent = static_cast<nsInputEvent*>(mEvent);
+  if (aKey.EqualsLiteral(NS_DOM_KEYNAME_SHIFT)) {
+    return inputEvent->IsShift();
+  }
+  if (aKey.EqualsLiteral(NS_DOM_KEYNAME_CONTROL)) {
+    return inputEvent->IsControl();
+  }
+  if (aKey.EqualsLiteral(NS_DOM_KEYNAME_META)) {
+    return inputEvent->IsMeta();
+  }
+  if (aKey.EqualsLiteral(NS_DOM_KEYNAME_ALT)) {
+    return inputEvent->IsAlt();
+  }
+
+  if (aKey.EqualsLiteral(NS_DOM_KEYNAME_ALTGRAPH)) {
+    return inputEvent->IsAltGraph();
+  }
+  if (aKey.EqualsLiteral(NS_DOM_KEYNAME_OS)) {
+    return inputEvent->IsOS();
+  }
+
+  if (aKey.EqualsLiteral(NS_DOM_KEYNAME_CAPSLOCK)) {
+    return inputEvent->IsCapsLocked();
+  }
+  if (aKey.EqualsLiteral(NS_DOM_KEYNAME_NUMLOCK)) {
+    return inputEvent->IsNumLocked();
+  }
+
+  if (aKey.EqualsLiteral(NS_DOM_KEYNAME_FN)) {
+    return inputEvent->IsFn();
+  }
+  if (aKey.EqualsLiteral(NS_DOM_KEYNAME_SCROLLLOCK)) {
+    return inputEvent->IsScrollLocked();
+  }
+  if (aKey.EqualsLiteral(NS_DOM_KEYNAME_SYMBOLLOCK)) {
+    return inputEvent->IsSymbolLocked();
+  }
+  return false;
+}
+
 
 nsresult NS_NewDOMUIEvent(nsIDOMEvent** aInstancePtrResult,
                           nsPresContext* aPresContext,

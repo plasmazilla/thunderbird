@@ -1,3 +1,7 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 # Additional mailnews targets to call automated test suites
 include $(topsrcdir)/mailnews/testsuite-targets.mk
 
@@ -85,10 +89,9 @@ stage-mozilla-tests: make-stage-dir
 stage-mozmill: make-stage-dir
 	$(MAKE) -C $(DEPTH)/mail/test/mozmill stage-package
 
-# This will get replaced by actual logic in a subsequent patch.
 stage-modules: make-stage-dir
 	$(NSINSTALL) -D $(PKG_STAGE)/modules
-	$(TOUCH) $(PKG_STAGE)/modules/.dummy
+	cp -RL $(DEPTH)/mozilla/_tests/modules $(PKG_STAGE)
 
 .PHONY: \
   package-tests make-stage-dir stage-mozmill stage-modules

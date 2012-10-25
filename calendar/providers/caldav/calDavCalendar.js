@@ -1,55 +1,12 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Oracle Corporation code.
- *
- * The Initial Developer of the Original Code is
- *  Oracle Corporation
- * Portions created by the Initial Developer are Copyright (C) 2004
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Vladimir Vukicevic <vladimir.vukicevic@oracle.com>
- *   Dan Mosedale <dan.mosedale@oracle.com>
- *   Mike Shaver <mike.x.shaver@oracle.com>
- *   Gary van der Merwe <garyvdm@gmail.com>
- *   Bruno Browning <browning@uwalumni.com>
- *   Matthew Willis <lilmatt@mozilla.com>
- *   Daniel Boelzle <daniel.boelzle@sun.com>
- *   Philipp Kewisch <mozilla@kewis.ch>
- *   Wolfgang Sourdeau <wsourdeau@inverse.ca>
- *   Simon Vaillancourt <simon.at.orcl@gmail.com>
- *   Dimas Perez Gago <dimassevfc@gmail.com>
- *   Stefan Fleiter <stefan.fleiter@web.de>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
+Components.utils.import("resource://calendar/modules/calXMLUtils.jsm");
 Components.utils.import("resource://calendar/modules/calIteratorUtils.jsm");
 Components.utils.import("resource://calendar/modules/calProviderUtils.jsm");
 Components.utils.import("resource://calendar/modules/calAuthUtils.jsm");
@@ -59,7 +16,29 @@ Components.utils.import("resource://calendar/modules/calAuthUtils.jsm");
 //
 
 const xmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n';
+
+const davNS = "DAV:"
+const caldavNS = "urn:ietf:params:xml:ns:caldav";
+const calservNS = "http://calendarserver.org/ns/";
+
 const cICL = Components.interfaces.calIChangeLog;
+
+function caldavNSResolver(prefix) {
+    const ns = {
+        D: davNS,
+        C: caldavNS,
+        CS: calservNS
+    };
+
+    return ns[prefix] || null;
+}
+
+function caldavXPath(aNode, aExpr, aType) {
+    return cal.xml.evalXPath(aNode, aExpr, caldavNSResolver, aType);
+}
+function caldavXPathFirst(aNode, aExpr, aType) {
+    return cal.xml.evalXPathFirst(aNode, aExpr, caldavNSResolver, aType);
+}
 
 function calDavCalendar() {
     this.initProviderBase();
@@ -116,6 +95,8 @@ calDavCalendar.prototype = {
                         Components.interfaces.calIFreeBusyProvider,
                         Components.interfaces.nsIChannelEventSink,
                         Components.interfaces.calIItipTransport,
+                        Components.interfaces.calISchedulingSupport,
+                        Components.interfaces.calICalendar,
                         Components.interfaces.calIChangeLog,
                         calICalDavCalendar,
                         Components.interfaces.nsIClassInfo,
@@ -603,7 +584,7 @@ calDavCalendar.prototype = {
                 let responseBody="";
                 try {
                     responseBody = cal.convertByteArray(aResult, aResultLength);
-                } catch(e) {}
+                } catch (e) {}
 
                 cal.ERROR("CalDAV: Unexpected status adding item to " +
                           thisCalendar.name + ": " + status + "\n" +
@@ -756,7 +737,7 @@ calDavCalendar.prototype = {
                 let responseBody="";
                 try {
                     responseBody = cal.convertByteArray(aResult, aResultLength);
-                } catch(e) {}
+                } catch (e) {}
 
                 cal.ERROR("CalDAV: Unexpected status modifying item to " +
                         thisCalendar.name + ": " + status + "\n" +
@@ -934,7 +915,7 @@ calDavCalendar.prototype = {
                 let responseBody="";
                 try {
                     responseBody = cal.convertByteArray(aResult, aResultLength);
-                } catch(e) {}
+                } catch (e) {}
 
                 cal.ERROR("CalDAV: Unexpected status deleting item from " +
                           thisCalendar.name + ": " + status + "\n" +
@@ -1323,15 +1304,15 @@ calDavCalendar.prototype = {
             this.getUpdatedItems(this.calendarUri, aChangeLogListener);
             return;
         }
-        var thisCalendar = this;
+        let thisCalendar = this;
+        let queryXml =
+            xmlHeader +
+            '<D:propfind xmlns:D="DAV:" xmlns:CS="http://calendarserver.org/ns/">' +
+              '<D:prop>' +
+                '<CS:getctag/>' +
+              '</D:prop>' +
+            '</D:propfind>';
 
-        var D = new Namespace("D", "DAV:");
-        var CS = new Namespace("CS", "http://calendarserver.org/ns/");
-        var queryXml = <D:propfind xmlns:D={D} xmlns:CS={CS}>
-                        <D:prop>
-                            <CS:getctag/>
-                        </D:prop>
-                        </D:propfind>;
         if (this.verboseLogging()) {
             cal.LOG("CalDAV: send(" + this.makeUri().spec + "): " + queryXml);
         }
@@ -1383,7 +1364,7 @@ calDavCalendar.prototype = {
             }
 
             try {
-                var multistatus = cal.safeNewXML(str);
+                var multistatus = cal.xml.parseString(str);
             } catch (ex) {
                 cal.LOG("CalDAV: Failed to get ctag from server for calendar " +
                         thisCalendar.name);
@@ -1394,8 +1375,8 @@ calDavCalendar.prototype = {
                 return;
             }
 
-            var ctag = multistatus..CS::getctag.toString();
-            if (!ctag.length || ctag != thisCalendar.mCtag) {
+            let ctag = caldavXPathFirst(multistatus, "/D:multistatus/D:response/D:propstat/D:prop/CS:getctag/text()");
+            if (!ctag || ctag != thisCalendar.mCtag) {
                 // ctag mismatch, need to fetch calendar-data
                 thisCalendar.mCtag = ctag;
                 thisCalendar.saveCalendarProperties();
@@ -1476,26 +1457,23 @@ calDavCalendar.prototype = {
             return;
         }
 
-        let C = new Namespace("C", "urn:ietf:params:xml:ns:caldav");
-        let D = new Namespace("D", "DAV:");
-        default xml namespace = C;
+        let queryXml =
+            xmlHeader +
+            '<D:propfind xmlns:D="DAV:">' +
+              '<D:prop>' +
+                '<D:getcontenttype/>' +
+                '<D:resourcetype/>' +
+                '<D:getetag/>' +
+              '</D:prop>' +
+            '</D:propfind>';
 
-        let queryXml = <D:propfind xmlns:D="DAV:">
-                        <D:prop>
-                            <D:getcontenttype/>
-                            <D:resourcetype/>
-                            <D:getetag/>
-                        </D:prop>
-                       </D:propfind>;
-
-        let queryString = xmlHeader + queryXml.toXMLString();
         let requestUri = this.makeUri(null, aUri);
         if (this.verboseLogging()) {
-            cal.LOG("CalDAV: send(" + requestUri.spec + "): " + queryString);
+            cal.LOG("CalDAV: send(" + requestUri.spec + "): " + queryXml);
         }
 
         let httpchannel = cal.prepHttpChannel(requestUri,
-                                              queryString,
+                                              queryXml,
                                               "text/xml; charset=utf-8",
                                               this);
         httpchannel.requestMethod = "PROPFIND";
@@ -1531,22 +1509,23 @@ calDavCalendar.prototype = {
     checkDavResourceType: function caldav_checkDavResourceType(aChangeLogListener) {
         this.ensureTargetCalendar();
 
-        var resourceTypeXml = null;
-        var resourceType = kDavResourceTypeNone;
-        var thisCalendar = this;
+        let resourceTypeXml = null;
+        let resourceType = kDavResourceTypeNone;
+        let thisCalendar = this;
 
-        var C = new Namespace("C", "urn:ietf:params:xml:ns:caldav");
-        var D = new Namespace("D", "DAV:");
-        var CS = new Namespace("CS", "http://calendarserver.org/ns/");
-        var queryXml = <D:propfind xmlns:D="DAV:" xmlns:CS={CS} xmlns:C={C}>
-                        <D:prop>
-                            <D:resourcetype/>
-                            <D:owner/>
-                            <D:supported-report-set/>
-                            <C:supported-calendar-component-set/>
-                            <CS:getctag/>
-                        </D:prop>
-                        </D:propfind>;
+        let queryXml =
+            xmlHeader +
+            '<D:propfind xmlns:D="DAV:" xmlns:CS="http://calendarserver.org/ns/" xmlns:C="urn:ietf:params:xml:ns:caldav">' +
+              '<D:prop>' +
+                '<D:resourcetype/>' +
+                '<D:owner/>' +
+                '<D:current-user-principal/>' +
+                '<D:supported-report-set/>' +
+                '<C:supported-calendar-component-set/>' +
+                '<CS:getctag/>' +
+              '</D:prop>' +
+            '</D:propfind>';
+
         if (this.verboseLogging()) {
             cal.LOG("CalDAV: send: " + queryXml);
         }
@@ -1616,8 +1595,10 @@ calDavCalendar.prototype = {
             }
 
             try {
-                var multistatus = cal.safeNewXML(str);
+                var multistatus = cal.xml.parseString(str);
             } catch (ex) {
+                cal.LOG("CalDAV: Failed to determine resource type for" +
+                        thisCalendar.name + ": " + ex);
                 thisCalendar.completeCheckServerInfo(aChangeLogListener,
                                                      Components.interfaces.calIErrors.DAV_NOT_DAV);
                 return;
@@ -1625,14 +1606,15 @@ calDavCalendar.prototype = {
 
             // check for webdav-sync capability
             // http://tools.ietf.org/html/draft-daboo-webdav-sync
-            if (multistatus..D::["supported-report-set"]..D::["sync-collection"].length() > 0) {
+            if (caldavXPath(multistatus, "/D:multistatus/D:response/D:propstat/D:prop" +
+                                 "/D:supported-report-set/D:supported-report/D:report/D:sync-collection")) {
                 cal.LOG("CalDAV: Collection has webdav sync support");
                 thisCalendar.mHasWebdavSyncSupport = true;
             }
 
             // check for server-side ctag support only if webdav sync is not available
-            var ctag = multistatus..CS::["getctag"].toString();
-            if (!thisCalendar.mHasWebdavSyncSupport && ctag.length) {
+            let ctag = caldavXPathFirst(multistatus, "/D:multistatus/D:response/D:propstat/D:prop/CS:getctag/text()");
+            if (!thisCalendar.mHasWebdavSyncSupport && ctag) {
                 // We compare the stored ctag with the one we just got, if
                 // they don't match, we update the items in safeRefresh.
                 if (ctag == thisCalendar.mCtag) {
@@ -1647,43 +1629,42 @@ calDavCalendar.prototype = {
                 }
             }
 
-            supportedComponentsXml = multistatus..C::["supported-calendar-component-set"];
-            // use supported-calendar-component-set if the server supports it; some do not
-            if (supportedComponentsXml.C::comp.length() > 0) {
-                thisCalendar.mSupportedItemTypes.length = 0;
-                for each (let sc in supportedComponentsXml.C::comp) {
-                    // accept name attribute from all namespaces to workaround Cosmo bug
-                    // see bug 605378 comment 6
-                    let comp = sc.@*::name.toString();
 
-                    if (thisCalendar.mGenerallySupportedItemTypes.indexOf(comp) >= 0) {
-                        cal.LOG("Adding supported item: " + comp + " for calendar: " + thisCalendar.name);
-                        thisCalendar.mSupportedItemTypes.push(comp);
-                    }
-                }
+            // Use supported-calendar-component-set if the server supports it; some do not
+            // Accept name attribute from all namespaces to workaround Cosmo bug see bug 605378 comment 6
+            let supportedComponents = caldavXPath(multistatus,
+                "/D:multistatus/D:response/D:propstat/D:prop/C:supported-calendar-component-set/C:comp/@*[local-name()='name']");
+            if (supportedComponents && supportedComponents.length) {
+                thisCalendar.mSupportedItemTypes = [ compName
+                    for each (compName in supportedComponents)
+                    if (thisCalendar.mGenerallySupportedItemTypes.indexOf(compName) >= 0)
+                ];
+                cal.LOG("Adding supported items: " + thisCalendar.mSupportedItemTypes.join(",") + " for calendar: " + thisCalendar.name);
             }
 
             // check if owner is specified; might save some work
-            thisCalendar.mPrincipalUrl = multistatus..D::["owner"]..D::href.toString() || null;
+            let owner = caldavXPathFirst(multistatus, "/D:multistatus/D:response/D:propstat/D:prop/D:owner/D:href/text()");
+            let cuprincipal = caldavXPathFirst(multistatus, "/D:multistatus/D:response/D:propstat/D:prop/D:current-user-principal/D:href/text()");
+            if (cuprincipal) {
+                thisCalendar.mPrincipalUrl = cuprincipal;
+                cal.LOG("CalDAV: Found principal url from DAV:current-user-principal " + thisCalendar.mPrincipalUrl);
+            } else if (owner) {
+                thisCalendar.mPrincipalUrl = owner;
+                cal.LOG("CalDAV: Found principal url from DAV:owner " + thisCalendar.mPrincipalUrl);
+            }
 
-            var resourceTypeXml = multistatus..D::["resourcetype"];
-            if (resourceTypeXml.length() == 0) {
+            let resourceTypeXml = caldavXPath(multistatus, "/D:multistatus/D:response/D:propstat/D:prop/D:resourcetype");
+            if (!resourceTypeXml) {
                 resourceType = kDavResourceTypeNone;
-            } else if (resourceTypeXml.toString().indexOf("calendar") != -1) {
+            } else if (caldavXPath(resourceTypeXml[0], "C:calendar")) {
                 resourceType = kDavResourceTypeCalendar;
-            } else if (resourceTypeXml.toString().indexOf("collection") != -1) {
+            } else if (caldavXPath(resourceTypeXml[0], "D:collection")) {
                 resourceType = kDavResourceTypeCollection;
             }
 
-            // specialcasing so as not to break older SOGo revs. Remove when
-            // versions with fixed principal-URL PROPFIND bug are out there
-            if (resourceTypeXml.toString().indexOf("groupdav") != -1) {
-                thisCalendar.mPrincipalUrl = null;
-            }
-            // end of SOGo specialcasing
-
             if (resourceType == kDavResourceTypeNone &&
                 !thisCalendar.mDisabled) {
+                cal.LOG("CalDAV: No resource type received, " + thisCalendar.name + " doesn't seem to point to a DAV resource");
                 thisCalendar.completeCheckServerInfo(aChangeLogListener,
                                                      Components.interfaces.calIErrors.DAV_NOT_DAV);
                 return;
@@ -1691,6 +1672,7 @@ calDavCalendar.prototype = {
 
             if ((resourceType == kDavResourceTypeCollection) &&
                 !thisCalendar.mDisabled) {
+                cal.LOG("CalDAV: " + thisCalendar.name + " points to a DAV resource, but not a CalDAV calendar");
                 thisCalendar.completeCheckServerInfo(aChangeLogListener,
                                                      Components.interfaces.calIErrors.DAV_DAV_NOT_CALDAV);
                 return;
@@ -1821,15 +1803,15 @@ calDavCalendar.prototype = {
         }
 
         let homeSet = this.makeUri(null, this.mCalHomeSet);
-        var thisCalendar = this;
+        let thisCalendar = this;
 
-        var D = new Namespace("D", "DAV:");
-        var queryXml =
-            <D:propfind xmlns:D="DAV:">
-                <D:prop>
-                    <D:principal-collection-set/>
-                </D:prop>
-            </D:propfind>;
+        let queryXml =
+            xmlHeader +
+            '<D:propfind xmlns:D="DAV:">' +
+              '<D:prop>' +
+                '<D:principal-collection-set/>' +
+              '</D:prop>' +
+            '</D:propfind>';
 
         if (this.verboseLogging()) {
             cal.LOG("CalDAV: send: " + homeSet.spec + "\n"  + queryXml);
@@ -1865,12 +1847,19 @@ calDavCalendar.prototype = {
                 cal.LOG("CalDAV: recv: " + str);
             }
 
-            let multistatus = cal.safeNewXML(str);
-            var pcs = multistatus..D::["principal-collection-set"]..D::href;
-            var nsList = [];
-            for (var ns in pcs) {
-                var nsPath = thisCalendar.ensureDecodedPath(pcs[ns].toString());
-                nsList.push(nsPath);
+            try {
+                var multistatus = cal.xml.parseString(str);
+            } catch (ex) {
+                cal.LOG("CalDAV: Failed to propstat principal namespace for " + thisCalendar.name);
+                thisCalendar.completeCheckServerInfo(aChangeLogListener,
+                                                     Components.results.NS_ERROR_FAILURE);
+                return;
+            }
+
+            let pcs = caldavXPath(multistatus, "/D:multistatus/D:response/D:propstat/D:prop/D:principal-collection-set/D:href/text()");
+            let nsList = [];
+            if (pcs) {
+                nsList = pcs.map(function(x) thisCalendar.ensureDecodedPath(x));
             }
 
             thisCalendar.checkPrincipalsNameSpace(nsList, aChangeLogListener);
@@ -1910,43 +1899,38 @@ calDavCalendar.prototype = {
         }
 
         // Remove trailing slash, if its there
-        var homePath = this.ensureEncodedPath(this.mCalHomeSet.spec.replace(/\/$/,""));
-
-        var C = new Namespace("C", "urn:ietf:params:xml:ns:caldav");
-        var D = new Namespace("D", "DAV:");
-        default xml namespace = C;
-
-        var queryXml;
-        var queryMethod;
-        var queryDepth;
+        let homePath = this.ensureEncodedPath(this.mCalHomeSet.spec.replace(/\/$/,""));
+        let queryXml, queryMethod, queryDepth;
         if (this.mPrincipalUrl) {
-            queryXml = <D:propfind xmlns:D="DAV:"
-                                   xmlns:C="urn:ietf:params:xml:ns:caldav">
-                <D:prop>
-                    <C:calendar-home-set/>
-                    <C:calendar-user-address-set/>
-                    <C:schedule-inbox-URL/>
-                    <C:schedule-outbox-URL/>
-                </D:prop>
-            </D:propfind>;
+            queryXml =
+                xmlHeader +
+                '<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">' +
+                  '<D:prop>' +
+                    '<C:calendar-home-set/>' +
+                    '<C:calendar-user-address-set/>' +
+                    '<C:schedule-inbox-URL/>' +
+                    '<C:schedule-outbox-URL/>' +
+                  '</D:prop>' +
+                '</D:propfind>';
             queryMethod = "PROPFIND";
             queryDepth = 0;
         } else {
-            queryXml = <D:principal-property-search xmlns:D="DAV:"
-                                                    xmlns:C="urn:ietf:params:xml:ns:caldav">
-            <D:property-search>
-                <D:prop>
-                    <C:calendar-home-set/>
-                </D:prop>
-                <D:match>{homePath}</D:match>
-            </D:property-search>
-                <D:prop>
-                    <C:calendar-home-set/>
-                    <C:calendar-user-address-set/>
-                    <C:schedule-inbox-URL/>
-                    <C:schedule-outbox-URL/>
-                </D:prop>
-            </D:principal-property-search>;
+            queryXml =
+                xmlHeader +
+                '<D:principal-property-search xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">' +
+                '<D:property-search>' +
+                    '<D:prop>' +
+                        '<C:calendar-home-set/>' +
+                    '</D:prop>' +
+                    '<D:match>' + cal.xml.escapeString(homePath) + '</D:match>' +
+                '</D:property-search>' +
+                    '<D:prop>' +
+                        '<C:calendar-home-set/>' +
+                        '<C:calendar-user-address-set/>' +
+                        '<C:schedule-inbox-URL/>' +
+                        '<C:schedule-outbox-URL/>' +
+                    '</D:prop>' +
+                '</D:principal-property-search>';
             queryMethod = "REPORT";
             queryDepth = 1;
         }
@@ -1992,65 +1976,61 @@ calDavCalendar.prototype = {
                 return;
             }
 
-            let multistatus = cal.safeNewXML(str);
-            let multistatusLength = multistatus.*::response.length();
+            try {
+                var multistatus = cal.xml.parseString(str);
+            } catch (ex) {
+                cal.LOG("CalDAV: Could not parse multistatus response: " + ex + "\n" + str);
+                doesntSupportScheduling();
+                return;
+            }
 
-            for each (let response in multistatus.*::response) {
-                let responseCHS = null;
-                try {
-                    responseCHS = response..*::["calendar-home-set"]..*::href[0]
-                                          .toString().replace(/([^\/])$/, "$1/");
-                } catch (ex) {}
+            let homeSets = caldavXPath(multistatus, "/D:multistatus/D:response/D:propstat/D:prop/C:calendar-home-set/D:href/text()");
+            function homeSetMatches(homeSet) {
+                let normalized = homeSet.replace(/([^\/])$/, "$1/");
+                let chs = thisCalendar.mCalHomeSet;
+                return normalized == chs.path || normalized == chs.spec;
+            }
 
-                if (multistatusLength > 1 &&
-                    (responseCHS != thisCalendar.mCalHomeSet.path &&
-                     responseCHS != thisCalendar.mCalHomeSet.spec)) {
-                    // If there are multiple home sets, then we need to match
-                    // the home url. If there is only one, we can assume its the
-                    // correct one, even if the home set doesn't quite match.
-                    continue;
-                }
-                for each (let addrHref in response..*::["calendar-user-address-set"]..*::href) {
-                    if (addrHref.toString().substr(0, 7).toLowerCase() == "mailto:") {
-                        thisCalendar.mCalendarUserAddress = addrHref.toString();
+            // If there are multiple home sets, we need to match the email addresses for scheduling.
+            // If there is only one, assume its the right one.
+            // TODO with multiple address sets, we should just use the ACL manager.
+            if (homeSets && (homeSets.length == 1 || homeSets.some(homeSetMatches))) {
+                let cuaSets = caldavXPath(multistatus, "/D:multistatus/D:response/D:propstat/D:prop/C:calendar-user-address-set/D:href/text()");
+                for each (let addr in cuaSets) {
+                    if (addr.match(/^mailto:/i)) {
+                        thisCalendar.mCalendarUserAddress = addr;
                     }
                 }
-                let ibUrl = thisCalendar.mUri.clone();
-                try {
-                    ibUrl.path = thisCalendar.ensureDecodedPath(response..*::["schedule-inbox-URL"]..*::href[0].toString());
-                } catch (ex) {
+
+                function createBoxUrl(path) {
+                    let url = thisCalendar.mUri.clone();
+                    url.path = thisCalendar.ensureDecodedPath(path);
+                    // Make sure the uri has a / at the end, as we do with the calendarUri.
+                    if (url.path.charAt(url.path.length - 1) != '/') {
+                        url.path += "/";
+                    }
+                    return url;
+                }
+
+                let inboxPath = caldavXPathFirst(multistatus, "/D:multistatus/D:response/D:propstat/D:prop/C:schedule-inbox-URL/D:href/text()");
+                if (!inboxPath) {
                     // most likely this is a Kerio server that omits the "href"
-                    ibUrl.path = thisCalendar.ensureDecodedPath(response..*::["schedule-inbox-URL"].toString());
+                    inboxPath = caldavXPathFirst(multistatus, "/D:multistatus/D:response/D:propstat/D:prop/C:schedule-inbox-URL/text()");
                 }
+                thisCalendar.mInboxUrl = createBoxUrl(inboxPath);
 
-                // Make sure the inbox uri has a / at the end, as we do with the
-                // calendarUri.
-                if (ibUrl.path.charAt(ibUrl.path.length - 1) != '/') {
-                    ibUrl.path += "/";
-                }
-
-                thisCalendar.mInboxUrl = ibUrl;
-                if (thisCalendar.calendarUri.spec == ibUrl.spec) {
+                if (thisCalendar.calendarUri.spec == thisCalendar.mInboxUrl.spec) {
                     // If the inbox matches the calendar uri (i.e SOGo), then we
                     // don't need to poll the inbox.
                     thisCalendar.mShouldPollInbox = false;
                 }
 
-                let obUrl = thisCalendar.mUri.clone();
-                try {
-                    obUrl.path = thisCalendar.ensureDecodedPath(response..*::["schedule-outbox-URL"]..*::href[0].toString());
-                } catch (ex) {
+                let outboxPath = caldavXPathFirst(multistatus, "/D:multistatus/D:response/D:propstat/D:prop/C:schedule-outbox-URL/D:href/text()");
+                if (!outboxPath) {
                     // most likely this is a Kerio server that omits the "href"
-                    obUrl.path = thisCalendar.ensureDecodedPath(response..*::["schedule-outbox-URL"].toString());
+                    outboxPath = caldavXPathFirst(multistatus, "/D:multistatus/D:response/D:propstat/D:prop/C:schedule-outbox-URL/text()");
                 }
-
-                // Make sure the outbox uri has a / at the end, as we do with
-                // the calendarUri.
-                if (obUrl.path.charAt(obUrl.path.length - 1) != '/') {
-                    obUrl.path += "/";
-                }
-
-                thisCalendar.mOutboxUrl = obUrl;
+                thisCalendar.mOutboxUrl = createBoxUrl(outboxPath);
             }
 
             if (!thisCalendar.calendarUserAddress ||
@@ -2265,12 +2245,17 @@ calDavCalendar.prototype = {
                 fbTypeMap["BUSY"] = calIFreeBusyInterval.BUSY;
                 fbTypeMap["BUSY-UNAVAILABLE"] = calIFreeBusyInterval.BUSY_UNAVAILABLE;
                 fbTypeMap["BUSY-TENTATIVE"] = calIFreeBusyInterval.BUSY_TENTATIVE;
-                var C = new Namespace("C", "urn:ietf:params:xml:ns:caldav");
-                var D = new Namespace("D", "DAV:");
 
-                let response = cal.safeNewXML(str);
-                let status = response..C::response..C::["request-status"];
-                if (status.substr(0,1) != 2) {
+                try {
+                    var fbResult = cal.xml.parseString(str);
+                } catch (ex) {
+                    cal.LOG("CalDAV: Could not parse freebusy response " + ex);
+                    aListener.onResult(null, null);
+                    return;
+                }
+
+                let status = caldavXPathFirst(fbResult, "/C:schedule-response/C:response/C:request-status/text()");
+                if (!status || status.substr(0,1) != "2") {
                     cal.LOG("CalDAV: Got status " + status + " in response to " +
                             "freebusy query for " + thisCalendar.name) ;
                     aListener.onResult(null, null);
@@ -2281,9 +2266,9 @@ calDavCalendar.prototype = {
                             "freebusy query for" + thisCalendar.name);
                 }
 
-                var caldata = response..C::response..C::["calendar-data"];
+                let caldata = caldavXPathFirst(fbResult, "/C:schedule-response/C:response/C:calendar-data/text()");
                 try {
-                    let calComp = getIcsService().parseICS(caldata, null);
+                    let calComp = cal.getIcsService().parseICS(caldata, null);
                     for (let fbComp in cal.ical.calendarComponentIterator(calComp)) {
                         let interval;
 
@@ -2592,19 +2577,26 @@ calDavCalendar.prototype = {
                                 thisCalendar.name);
                     }
 
-                    var C = new Namespace("C", "urn:ietf:params:xml:ns:caldav");
-                    var D = new Namespace("D", "DAV:");
-                    let responseXML = cal.safeNewXML(str);
+                    try {
+                        var responseXML = cal.xml.parseString(str);
+                    } catch (ex) {
+                        cal.LOG("CalDAV: Could not parse multistatus response: " + ex + "\n" + str);
+                        return;
+                    }
 
                     var remainingAttendees = [];
-                    for each (let response in responseXML.*::response) {
-                        var recip = response..C::recipient..D::href;
-                        var status = response..C::["request-status"];
+                    // TODO The following XPath expressions are currently
+                    // untested code, as I don't have a caldav-sched server
+                    // available. If you find someone who does, please test!
+                    let responses = caldavXPath(responseXML, "/C:schedule-response/C:response");
+                    for each (let response in responses) {
+                        let recip = caldavXPathFirst(response, "C:recipient/D:href/text()");
+                        let status = caldavXPathFirst(response, "C:request-status/text()");
                         if (status.substr(0, 1) != "2") {
                             if (thisCalendar.verboseLogging()) {
-                                cal.LOG("CalDAV: failed delivery to " + recip);
+                                cal.LOG("CalDAV: Failed scheduling delivery to " + recip);
                             }
-                            for each (var att in aRecipients) {
+                            for each (let att in aRecipients) {
                                 if (att.id.toLowerCase() == recip.toLowerCase()) {
                                     remainingAttendees.push(att);
                                     break;
@@ -2684,7 +2676,7 @@ calDavCalendar.prototype = {
                 if (hdrValue) {
                     aNewChannel.setRequestHeader(aHdr, hdrValue, false);
                 }
-            } catch(e) {
+            } catch (e) {
                 if (e.code != Components.results.NS_ERROR_NOT_AVAILIBLE) {
                     // The header could possibly not be availible, ignore that
                     // case but throw otherwise

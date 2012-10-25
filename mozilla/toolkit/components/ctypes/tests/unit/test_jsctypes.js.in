@@ -1,42 +1,7 @@
 /* -*-  Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2; -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is js-ctypes.
- *
- * The Initial Developer of the Original Code is
- * The Mozilla Foundation <http://www.mozilla.org/>.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *  Fredrik Larsson <nossralf@gmail.com>
- *  Mark Finkle <mark.finkle@gmail.com>, <mfinkle@mozilla.com>
- *  Dan Witte <dwitte@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 try {
   // We might be running without privileges, in which case it's up to the
@@ -166,6 +131,18 @@ function run_test()
   run_wrapped_integer_tests(library, ctypes.intptr_t, "intptr_t", ctypes.size_t.size, true,
                             ctypes.Int64, "ctypes.Int64", slimits);
 
+  if (ctypes.off_t.size == 8) {
+    slimits = s64limits;
+    ulimits = u64limits;
+  } else if (ctypes.off_t.size == 4) {
+    slimits = s32limits;
+    ulimits = u32limits;
+  } else {
+    do_throw("ctypes.off_t is not 4 or 8 bytes");
+  }
+  run_wrapped_integer_tests(library, ctypes.off_t, "off_t", ctypes.off_t.size, true,
+                            ctypes.Int64, "ctypes.Int64", slimits);
+
   // Test the character types.
   run_char_tests(library, ctypes.char, "char", 1, true, [-0x80, 0x7f]);
   run_char_tests(library, ctypes.signed_char, "signed_char", 1, true, [-0x80, 0x7f]);
@@ -281,6 +258,7 @@ function run_abstract_class_tests()
   do_check_throws(function() { ctypes.CType.prototype.ptr; }, Error);
   do_check_throws(function() { ctypes.CType.prototype.array(); }, Error);
 
+
   // toString and toSource are called by the web console during inspection,
   // so we don't want them to throw.
   do_check_eq(typeof ctypes.CType.prototype.toString(), 'string');
@@ -313,7 +291,6 @@ function run_abstract_class_tests()
   do_check_throws(function() { ctypes.CData.prototype.value = null; }, Error);
   do_check_throws(function() { ctypes.CData.prototype.address(); }, Error);
   do_check_throws(function() { ctypes.CData.prototype.readString(); }, Error);
-
 
   // toString and toSource are called by the web console during inspection,
   // so we don't want them to throw.
@@ -668,6 +645,17 @@ function run_basic_abi_tests(library, t, name, toprimitive,
   // Check the alignment of the type, and its behavior in a struct,
   // against what C says.
   check_struct_stats(library, t);
+  
+  // Check the ToSource functions defined in the namespace ABI
+  do_check_eq(ctypes.default_abi.toSource(), "ctypes.default_abi");
+
+  let exn;
+  try {
+    ctypes.default_abi.toSource.call(null);
+  } catch(x) {
+    exn = x;
+  }
+  do_check_true(!!exn); // Check that some exception was raised
 }
 
 function run_single_abi_tests(decl, abi, t, toprimitive,
@@ -1763,6 +1751,19 @@ function run_PointerType_tests() {
   do_check_eq(ptrValue(z_t()), 0);
   let z = ctypes.int32_t.array(0)().address();
   do_check_eq(z.contents.length, 0);
+
+  // Check that you can use an ArrayBuffer as a pointer
+  let c_arraybuffer = new ArrayBuffer(24);
+  let c_int32 = new Int32Array(c_arraybuffer);
+  for (let i = 0; i < 6; ++i) {
+    c_int32[i] = i;
+  }
+  let c_ptr = ctypes.int32_t.ptr(c_arraybuffer);
+  do_check_eq(c_ptr.contents, 0);
+  let c_array = ctypes.cast(c_ptr, ctypes.ArrayType(ctypes.int32_t, 6).ptr).contents;
+  for (let i = 0; i < 6; ++i) {
+    do_check_eq(c_array[i], c_int32[i]);
+  }
 }
 
 function run_FunctionType_tests() {
@@ -2009,6 +2010,25 @@ function run_ArrayType_tests() {
   do_check_throws(function() { c.value = [1, 2, 3, 4, 5, 6, 7]; }, Error);
   do_check_throws(function() { c.value = [1, 2, 7.4, 4, 5, 6]; }, TypeError);
   do_check_throws(function() { c.value = []; }, Error);
+
+  // Check that you can use an ArrayBuffer with the right size for an array
+  let c_arraybuffer = new ArrayBuffer(24);
+  let c_int32 = new Int32Array(c_arraybuffer);
+  for (let i = 0; i < 6; ++i) {
+    c_int32[i] = i + 101;
+  }
+  c.value = c_arraybuffer;
+  do_check_eq(c[3], 104);
+  do_check_eq(c.toSource(), "ctypes.int32_t.array(6)([101, 102, 103, 104, 105, 106])");
+  do_check_eq(c.toSource(), c.toString());
+  eval("let c2 = " + c.toSource());
+  do_check_eq(c2.constructor.name, "int32_t[6]");
+  do_check_eq(c2.length, 6);
+  do_check_eq(c2[3], c[3]);
+
+  // Check that you cannot use an ArrayBuffer with the wrong size for an array
+  c_arraybuffer = new ArrayBuffer(20);
+  do_check_throws(function () { c.value = c_arraybuffer; }, Error);
 }
 
 function run_type_toString_tests() {

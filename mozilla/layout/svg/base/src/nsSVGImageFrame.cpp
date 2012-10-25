@@ -1,38 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla SVG project.
- *
- * The Initial Developer of the Original Code is IBM Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2004
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 // Keep in (case-insensitive) order:
 #include "gfxContext.h"
@@ -123,8 +92,9 @@ public:
 
 private:
   gfxMatrix GetRasterImageTransform(PRInt32 aNativeWidth,
-                                    PRInt32 aNativeHeight);
-  gfxMatrix GetVectorImageTransform();
+                                    PRInt32 aNativeHeight,
+                                    PRUint32 aFor);
+  gfxMatrix GetVectorImageTransform(PRUint32 aFor);
   bool      TransformContextForPainting(gfxContext* aGfxContext);
 
   nsCOMPtr<imgIDecoderObserver> mListener;
@@ -252,7 +222,9 @@ nsSVGImageFrame::AttributeChanged(PRInt32         aNameSpaceID,
 }
 
 gfxMatrix
-nsSVGImageFrame::GetRasterImageTransform(PRInt32 aNativeWidth, PRInt32 aNativeHeight)
+nsSVGImageFrame::GetRasterImageTransform(PRInt32 aNativeWidth,
+                                         PRInt32 aNativeHeight,
+                                         PRUint32 aFor)
 {
   float x, y, width, height;
   nsSVGImageElement *element = static_cast<nsSVGImageElement*>(mContent);
@@ -264,11 +236,11 @@ nsSVGImageFrame::GetRasterImageTransform(PRInt32 aNativeWidth, PRInt32 aNativeHe
                                     0, 0, aNativeWidth, aNativeHeight,
                                     element->mPreserveAspectRatio);
 
-  return viewBoxTM * gfxMatrix().Translate(gfxPoint(x, y)) * GetCanvasTM();
+  return viewBoxTM * gfxMatrix().Translate(gfxPoint(x, y)) * GetCanvasTM(aFor);
 }
 
 gfxMatrix
-nsSVGImageFrame::GetVectorImageTransform()
+nsSVGImageFrame::GetVectorImageTransform(PRUint32 aFor)
 {
   float x, y, width, height;
   nsSVGImageElement *element = static_cast<nsSVGImageElement*>(mContent);
@@ -278,7 +250,7 @@ nsSVGImageFrame::GetVectorImageTransform()
   // "native size" that the SVG image has, and it will handle viewBox and
   // preserveAspectRatio on its own once we give it a region to draw into.
 
-  return gfxMatrix().Translate(gfxPoint(x, y)) * GetCanvasTM();
+  return gfxMatrix().Translate(gfxPoint(x, y)) * GetCanvasTM(aFor);
 }
 
 bool
@@ -286,7 +258,7 @@ nsSVGImageFrame::TransformContextForPainting(gfxContext* aGfxContext)
 {
   gfxMatrix imageTransform;
   if (mImageContainer->GetType() == imgIContainer::TYPE_VECTOR) {
-    imageTransform = GetVectorImageTransform();
+    imageTransform = GetVectorImageTransform(FOR_PAINTING);
   } else {
     PRInt32 nativeWidth, nativeHeight;
     if (NS_FAILED(mImageContainer->GetWidth(&nativeWidth)) ||
@@ -294,7 +266,8 @@ nsSVGImageFrame::TransformContextForPainting(gfxContext* aGfxContext)
         nativeWidth == 0 || nativeHeight == 0) {
       return false;
     }
-    imageTransform = GetRasterImageTransform(nativeWidth, nativeHeight);
+    imageTransform =
+      GetRasterImageTransform(nativeWidth, nativeHeight, FOR_PAINTING);
   }
 
   if (imageTransform.IsSingular()) {
@@ -346,7 +319,7 @@ nsSVGImageFrame::PaintSVG(nsRenderingContext *aContext,
     if (GetStyleDisplay()->IsScrollableOverflow()) {
       gfxRect clipRect = nsSVGUtils::GetClipRectForFrame(this, x, y,
                                                          width, height);
-      nsSVGUtils::SetClipRect(ctx, GetCanvasTM(), clipRect);
+      nsSVGUtils::SetClipRect(ctx, GetCanvasTM(FOR_PAINTING), clipRect);
     }
 
     if (!TransformContextForPainting(ctx)) {
@@ -371,7 +344,8 @@ nsSVGImageFrame::PaintSVG(nsRenderingContext *aContext,
       dirtyRect = aDirtyRect->ToAppUnits(appUnitsPerDevPx);
       // Adjust dirtyRect to match our local coordinate system.
       nsRect rootRect =
-        nsSVGUtils::TransformFrameRectToOuterSVG(mRect, GetCanvasTM(), PresContext());
+        nsSVGUtils::TransformFrameRectToOuterSVG(mRect,
+                      GetCanvasTM(FOR_PAINTING), PresContext());
       dirtyRect.MoveBy(-rootRect.TopLeft());
     }
 
@@ -456,7 +430,8 @@ nsSVGImageFrame::GetFrameForPoint(const nsPoint &aPoint)
       }
 
       if (!nsSVGUtils::HitTestRect(
-               GetRasterImageTransform(nativeWidth, nativeHeight),
+               GetRasterImageTransform(nativeWidth, nativeHeight,
+                                       FOR_HIT_TESTING),
                0, 0, nativeWidth, nativeHeight,
                PresContext()->AppUnitsToDevPixels(aPoint.x),
                PresContext()->AppUnitsToDevPixels(aPoint.y))) {
@@ -496,12 +471,12 @@ nsSVGImageFrame::UpdateBounds()
     return;
   }
 
-  gfxContext context(gfxPlatform::GetPlatform()->ScreenReferenceSurface());
+  gfxContext tmpCtx(gfxPlatform::GetPlatform()->ScreenReferenceSurface());
 
   gfxMatrix identity;
-  GeneratePath(&context, &identity);
+  GeneratePath(&tmpCtx, identity);
 
-  gfxRect extent = context.GetUserPathExtent();
+  gfxRect extent = tmpCtx.GetUserPathExtent();
 
   if (!extent.IsEmpty()) {
     mRect = nsLayoutUtils::RoundGfxRectToAppRect(extent, 
@@ -512,15 +487,33 @@ nsSVGImageFrame::UpdateBounds()
 
   // See bug 614732 comment 32.
   mCoveredRegion = nsSVGUtils::TransformFrameRectToOuterSVG(
-    mRect, GetCanvasTM(), PresContext());
+    mRect, GetCanvasTM(FOR_OUTERSVG_TM), PresContext());
+
+  if (mState & NS_FRAME_FIRST_REFLOW) {
+    // Make sure we have our filter property (if any) before calling
+    // FinishAndStoreOverflow (subsequent filter changes are handled off
+    // nsChangeHint_UpdateEffects):
+    nsSVGEffects::UpdateEffects(this);
+  }
+
+  // We only invalidate if we are dirty, if our outer-<svg> has already had its
+  // initial reflow (since if it hasn't, its entire area will be invalidated
+  // when it gets that initial reflow), and if our parent is not dirty (since
+  // if it is, then it will invalidate its entire new area, which will include
+  // our new area).
+  bool invalidate = (mState & NS_FRAME_IS_DIRTY) &&
+    !(GetParent()->GetStateBits() &
+       (NS_FRAME_FIRST_REFLOW | NS_FRAME_IS_DIRTY));
+
+  nsRect overflow = nsRect(nsPoint(0,0), mRect.Size());
+  nsOverflowAreas overflowAreas(overflow, overflow);
+  FinishAndStoreOverflow(overflowAreas, mRect.Size());
 
   mState &= ~(NS_FRAME_FIRST_REFLOW | NS_FRAME_IS_DIRTY |
               NS_FRAME_HAS_DIRTY_CHILDREN);
 
-  if (!(GetParent()->GetStateBits() & NS_FRAME_FIRST_REFLOW)) {
-    // We only invalidate if our outer-<svg> has already had its
-    // initial reflow (since if it hasn't, its entire area will be
-    // invalidated when it gets that initial reflow):
+  if (invalidate) {
+    // XXXSDL Let FinishAndStoreOverflow do this.
     nsSVGUtils::InvalidateBounds(this, true);
   }
 }

@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsIPrefLocalizedString.h"
 #include "nsILineInputStream.h"
@@ -74,7 +42,7 @@
 
 #define AD_WORKING_BUFF_SIZE                  8192
 
-extern void         MacGetFileType(nsILocalFile *fs, bool *useDefault, char **type, char **encoding);
+extern void         MacGetFileType(nsIFile *fs, bool *useDefault, char **type, char **encoding);
 
 #include "nsILocalFileMac.h"
 
@@ -463,7 +431,7 @@ nsMsgAttachmentHandler::PickCharset()
   if (!m_charset.IsEmpty() || !m_type.LowerCaseEqualsLiteral(TEXT_PLAIN))
     return NS_OK;
 
-  nsCOMPtr<nsILocalFile> tmpFile =
+  nsCOMPtr<nsIFile> tmpFile =
     do_QueryInterface(mTmpFile);
   if (!tmpFile)
     return NS_OK;
@@ -676,7 +644,7 @@ nsMsgAttachmentHandler::SnarfAttachment(nsMsgCompFields *compFields)
     nsCAutoString unescapedFilePath;
     MsgUnescapeString(filePath, 0, unescapedFilePath);
 
-    nsCOMPtr<nsILocalFile> sourceFile;
+    nsCOMPtr<nsIFile> sourceFile;
     NS_NewNativeLocalFile(unescapedFilePath, true, getter_AddRefs(sourceFile));
     if (!sourceFile)
       return NS_ERROR_FAILURE;
@@ -953,7 +921,7 @@ nsMsgAttachmentHandler::ConvertToAppleEncoding(const nsCString &aFileURI,
 #endif // XP_MACOSX
 
 nsresult
-nsMsgAttachmentHandler::LoadDataFromFile(nsILocalFile *file, nsString &sigData, bool charsetConversion)
+nsMsgAttachmentHandler::LoadDataFromFile(nsIFile *file, nsString &sigData, bool charsetConversion)
 {
   PRInt32       readSize;
   char          *readBuf;
@@ -1030,7 +998,7 @@ nsMsgAttachmentHandler::UrlExit(nsresult status, const PRUnichar* aMsg)
     mOutFile->Close();
     mOutFile = nsnull;
   }
-  // this silliness is because Windows nsILocalFile caches its file size
+  // this silliness is because Windows nsIFile caches its file size
   // so if an output stream writes to it, it will still return the original
   // cached size.
   if (mTmpFile)
@@ -1168,7 +1136,7 @@ nsMsgAttachmentHandler::UrlExit(nsresult status, const PRUnichar* aMsg)
             (void) outputStream->Write(tData.get(), tData.Length(), &bytesWritten);
           }
           outputStream->Close();
-          // this silliness is because Windows nsILocalFile caches its file size
+          // this silliness is because Windows nsIFile caches its file size
           // so if an output stream writes to it, it will still return the original
           // cached size.
           if (mTmpFile)
@@ -1223,6 +1191,7 @@ nsMsgAttachmentHandler::UrlExit(nsresult status, const PRUnichar* aMsg)
         if ( (!next->mURL) && (next->m_uri.IsEmpty()) )
         {
           attachments[i].m_done = true;
+          attachments[i].SetMimeDeliveryState(nsnull);
           m_mime_delivery_state->GetPendingAttachmentCount(&pendingAttachmentCount);
           m_mime_delivery_state->SetPendingAttachmentCount(pendingAttachmentCount - 1);
           next->mPartUserOmissionOverride = true;

@@ -12,13 +12,14 @@ do_load_httpd_js();
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/LightweightThemeManager.jsm");
 
-const gTestUUID = "3512c938-d9d2-4722-a575-a7f67086d3b2";
 const PATH = "/submit/telemetry/test-ping";
-const SAVED_PATH = "/submit/telemetry/" + gTestUUID;
 const SERVER = "http://localhost:4444";
 const IGNORE_HISTOGRAM = "test::ignore_me";
 const IGNORE_HISTOGRAM_TO_CLONE = "MEMORY_HEAP_ALLOCATED";
 const IGNORE_CLONED_HISTOGRAM = "test::ignore_me_also";
+const ADDON_NAME = "Telemetry test addon";
+const ADDON_HISTOGRAM = "addon-histogram";
+const FLASH_VERSION = "1.1.1.1";
 
 const BinaryInputStream = Components.Constructor(
   "@mozilla.org/binaryinputstream;1",
@@ -32,8 +33,14 @@ var gFinished = false;
 function telemetry_ping () {
   const TelemetryPing = Cc["@mozilla.org/base/telemetry-ping;1"].getService(Ci.nsIObserver);
   TelemetryPing.observe(null, "test-gather-startup", null);
-  TelemetryPing.observe(null, "test-enable-persistent-telemetry-send", null);
+  TelemetryPing.observe(null, "test-enable-load-save-notifications", null);
   TelemetryPing.observe(null, "test-ping", SERVER);
+}
+
+// Mostly useful so that you can dump payloads from decodeRequestPayload.
+function dummyHandler(request, response) {
+  let p = decodeRequestPayload(request);
+  return p;
 }
 
 function nonexistentServerObserver(aSubject, aTopic, aData) {
@@ -42,28 +49,40 @@ function nonexistentServerObserver(aSubject, aTopic, aData) {
   httpserver.start(4444);
 
   // Provide a dummy function so it returns 200 instead of 404 to telemetry.
-  httpserver.registerPathHandler(PATH, function () {});
+  httpserver.registerPathHandler(PATH, dummyHandler);
   Services.obs.addObserver(telemetryObserver, "telemetry-test-xhr-complete", false);
   telemetry_ping();
 }
 
-function telemetryObserver(aSubject, aTopic, aData) {
-  Services.obs.removeObserver(telemetryObserver, aTopic);
-  httpserver.registerPathHandler(PATH, checkPersistedHistograms);
+function setupTestData() {
   Telemetry.newHistogram(IGNORE_HISTOGRAM, 1, 2, 3, Telemetry.HISTOGRAM_BOOLEAN);
   Telemetry.histogramFrom(IGNORE_CLONED_HISTOGRAM, IGNORE_HISTOGRAM_TO_CLONE);
   Services.startup.interrupted = true;
-  let dirService = Cc["@mozilla.org/file/directory_service;1"]
-                    .getService(Ci.nsIProperties);
-  let tmpDir = dirService.get("TmpD", Ci.nsILocalFile);
+  Telemetry.registerAddonHistogram(ADDON_NAME, ADDON_HISTOGRAM, 1, 5, 6,
+                                   Telemetry.HISTOGRAM_LINEAR);
+  h1 = Telemetry.getAddonHistogram(ADDON_NAME, ADDON_HISTOGRAM);
+  h1.add(1);
+}
+
+function getSavedHistogramsFile(basename) {
+  let tmpDir = Services.dirsvc.get("ProfD", Ci.nsIFile);
   let histogramsFile = tmpDir.clone();
-  histogramsFile.append("saved-histograms.dat");
+  histogramsFile.append(basename);
   if (histogramsFile.exists()) {
     histogramsFile.remove(true);
   }
   do_register_cleanup(function () histogramsFile.remove(true));
+  return histogramsFile;
+}
+
+function telemetryObserver(aSubject, aTopic, aData) {
+  Services.obs.removeObserver(telemetryObserver, aTopic);
+  httpserver.registerPathHandler(PATH, checkHistogramsSync);
+  let histogramsFile = getSavedHistogramsFile("saved-histograms.dat");
+  setupTestData();
+
   const TelemetryPing = Cc["@mozilla.org/base/telemetry-ping;1"].getService(Ci.nsIObserver);
-  TelemetryPing.observe(histogramsFile, "test-save-histograms", gTestUUID);
+  TelemetryPing.observe(histogramsFile, "test-save-histograms", null);
   TelemetryPing.observe(histogramsFile, "test-load-histograms", null);
   telemetry_ping();
 }
@@ -107,7 +126,8 @@ function checkPayloadInfo(payload, reason) {
     appVersion: "1", 
     appName: "XPCShell", 
     appBuildID: "2007010101",
-    platformBuildID: "2007010101"
+    platformBuildID: "2007010101",
+    flashVersion: FLASH_VERSION
   };
 
   for (let f in expected_info) {
@@ -134,19 +154,10 @@ function checkPayloadInfo(payload, reason) {
   }
 }
 
-function checkPersistedHistograms(request, response) {
+function checkPayload(request, reason, successfulPings) {
   let payload = decodeRequestPayload(request);
 
-  checkPayloadInfo(payload, "saved-session");
-  httpserver.registerPathHandler(PATH, checkHistograms);
-}
-
-function checkHistograms(request, response) {
-  // do not need the http server anymore
-  httpserver.stop(do_test_finished);
-  let payload = decodeRequestPayload(request);
-
-  checkPayloadInfo(payload, "test-ping");
+  checkPayloadInfo(payload, reason);
   do_check_eq(request.getHeader("content-type"), "application/json; charset=UTF-8");
   do_check_true(payload.simpleMeasurements.uptime >= 0);
   do_check_true(payload.simpleMeasurements.startupInterrupted === 1);
@@ -180,16 +191,81 @@ function checkHistograms(request, response) {
     range: [1, 2],
     bucket_count: 3,
     histogram_type: 2,
-    values: {0:1, 1:1, 2:0},
-    sum: 1
+    values: {0:1, 1:successfulPings, 2:0},
+    sum: successfulPings
   };
   let tc = payload.histograms[TELEMETRY_SUCCESS];
-  do_check_eq(uneval(tc), 
-              uneval(expected_tc));
+  do_check_eq(uneval(tc), uneval(expected_tc));
+
+  // The ping should include data from memory reporters.  We can't check that
+  // this data is correct, because we can't control the values returned by the
+  // memory reporters.  But we can at least check that the data is there.
+  //
+  // It's important to check for the presence of reporters with a mix of units,
+  // because TelemetryPing has separate logic for each one.  But we can't
+  // currently check UNITS_COUNT_CUMULATIVE or UNITS_PERCENTAGE because
+  // Telemetry doesn't touch a memory reporter with these units that's
+  // available on all platforms.
+
+  do_check_true('MEMORY_JS_GC_HEAP' in payload.histograms); // UNITS_BYTES
+  do_check_true('MEMORY_JS_COMPARTMENTS_SYSTEM' in payload.histograms); // UNITS_COUNT
+
+  // We should have included addon histograms.
+  do_check_true("addonHistograms" in payload);
+  do_check_true(ADDON_NAME in payload.addonHistograms);
+  do_check_true(ADDON_HISTOGRAM in payload.addonHistograms[ADDON_NAME]);
 
   do_check_true(("mainThread" in payload.slowSQL) &&
                 ("otherThreads" in payload.slowSQL));
+}
+
+function checkPersistedHistogramsSync(request, response) {
+  // Even though we have had two successful pings when this handler is
+  // run, we only had one successful ping when the histograms were
+  // saved.
+  checkPayload(request, "saved-session", 1);
+
+  Services.obs.addObserver(runAsyncTestObserver, "telemetry-test-xhr-complete", false);
+}
+
+function checkHistogramsSync(request, response) {
+  httpserver.registerPathHandler(PATH, checkPersistedHistogramsSync);
+  checkPayload(request, "test-ping", 1);
+}
+
+function runAsyncTestObserver(aSubject, aTopic, aData) {
+  Services.obs.removeObserver(runAsyncTestObserver, aTopic);
+  httpserver.registerPathHandler(PATH, checkHistogramsAsync);
+  let histogramsFile = getSavedHistogramsFile("saved-histograms2.dat");
+
+  const TelemetryPing = Cc["@mozilla.org/base/telemetry-ping;1"].getService(Ci.nsIObserver);
+  Services.obs.addObserver(function(aSubject, aTopic, aData) {
+    Services.obs.removeObserver(arguments.callee, aTopic);
+
+    Services.obs.addObserver(function(aSubject, aTopic, aData) {
+      Services.obs.removeObserver(arguments.callee, aTopic);
+      telemetry_ping();
+    }, "telemetry-test-load-complete", false);
+
+    TelemetryPing.observe(histogramsFile, "test-load-histograms", "async");
+  }, "telemetry-test-save-complete", false);
+  TelemetryPing.observe(histogramsFile, "test-save-histograms", "async");
+}
+
+function checkPersistedHistogramsAsync(request, response) {
+  // do not need the http server anymore
+  httpserver.stop(do_test_finished);
+  // Even though we have had four successful pings when this handler is
+  // run, we only had three successful pings when the histograms were
+  // saved.
+  checkPayload(request, "saved-session", 3);
+
   gFinished = true;
+}
+
+function checkHistogramsAsync(request, response) {
+  httpserver.registerPathHandler(PATH, checkPersistedHistogramsAsync);
+  checkPayload(request, "test-ping", 3);
 }
 
 // copied from toolkit/mozapps/extensions/test/xpcshell/head_addons.js
@@ -252,6 +328,40 @@ function dummyTheme(id) {
   };
 }
 
+// A fake plugin host for testing flash version telemetry
+var PluginHost = {
+  getPluginTags: function(countRef) {
+    let plugins = [{name: "Shockwave Flash", version: FLASH_VERSION}];
+    countRef.value = plugins.length;
+    return plugins;
+  },
+
+  QueryInterface: function(iid) {
+    if (iid.equals(Ci.nsIPluginHost)
+     || iid.equals(Ci.nsISupports))
+      return this;
+  
+    throw Components.results.NS_ERROR_NO_INTERFACE;
+  }
+}
+
+var PluginHostFactory = {
+  createInstance: function (outer, iid) {
+    if (outer != null)
+      throw Components.results.NS_ERROR_NO_AGGREGATION;
+    return PluginHost.QueryInterface(iid);
+  }
+};
+
+const PLUGINHOST_CONTRACTID = "@mozilla.org/plugin/host;1";
+const PLUGINHOST_CID = Components.ID("{2329e6ea-1f15-4cbe-9ded-6e98e842de0e}");
+
+function registerFakePluginHost() {
+  var registrar = Components.manager.QueryInterface(Ci.nsIComponentRegistrar);
+  registrar.registerFactory(PLUGINHOST_CID, "Fake Plugin Host",
+                            PLUGINHOST_CONTRACTID, PluginHostFactory);
+}
+
 function run_test() {
   try {
     var gfxInfo = Cc["@mozilla.org/gfx/info;1"].getService(Ci.nsIGfxInfoDebug);
@@ -272,10 +382,13 @@ function run_test() {
   gInternalManager.observe(null, "addons-startup", null);
   LightweightThemeManager.currentTheme = dummyTheme("1234");
 
+  // fake plugin host for consistent flash version data
+  registerFakePluginHost();
+
   Services.obs.addObserver(nonexistentServerObserver, "telemetry-test-xhr-complete", false);
   telemetry_ping();
   // spin the event loop
   do_test_pending();
   // ensure that test runs to completion
   do_register_cleanup(function () do_check_true(gFinished));
- }
+}

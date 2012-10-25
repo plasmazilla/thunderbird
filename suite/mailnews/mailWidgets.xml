@@ -1,4 +1,8 @@
 <?xml version="1.0"?>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 
 <bindings   id="mailBindings"
             xmlns="http://www.mozilla.org/xbl"
@@ -206,7 +210,7 @@
                  anonid="headerValue" flex="1" readonly="true" context="copyUrlPopup"/>
       </xul:hbox>
     </content>
-    
+
     <implementation>
       <method name="setDataTransfer">
         <parameter name="aEvent"/>
@@ -308,12 +312,12 @@
 
             try
             {
-              if ("AddExtraAddressProcessing" in top)
-                AddExtraAddressProcessing(aAddress.emailAddress, aEmailNode);
+              if ("UpdateEmailNodeDetails" in top)
+                UpdateEmailNodeDetails(aAddress.emailAddress, aEmailNode);
             }
             catch(ex)
             {
-              dump("AddExtraAddressProcessing failed: " + ex + "\n");
+              dump("UpdateEmailNodeDetails failed: " + ex + "\n");
             }
           ]]>
         </body>
@@ -385,6 +389,11 @@
             while (index < numAddresses && index < aNumAddressesToShow)
             {
               var newAddressNode = document.createElement("mail-emailaddress");
+
+              // Stash the headerName somewhere that UpdateEmailNodeDetails
+              // will be able to find it.
+              newAddressNode.setAttribute("headerName", this.headerName);
+
               if (index)
               {
                 var textNode = document.createElement("text");
@@ -858,7 +867,7 @@
       <property name="label" onget="return document.getAnonymousNodes(this)[0].selectedItem.getAttribute('label');">
       </property>
       <property name="validMenuitem" readonly="true">
-      <!-- Prepare menulist selection, adding a missing hidden menuitem if needed, and 
+      <!-- Prepare menulist selection, adding a missing hidden menuitem if needed, and
         updating the disabled state of the menulist label. -->
         <getter>
           <![CDATA[
@@ -1576,7 +1585,7 @@
 
         // initialize the has attachment status picker
         this.initialize(document.getAnonymousNodes(this)[7], bundle);
-        
+
         // initialize the junk score origin picker
         this.initialize(document.getAnonymousNodes(this)[8], bundle);
 
@@ -1911,6 +1920,7 @@
           var server = msgFolder.server;
           var popupValue = null;
           // Use the full newsgroup name as tooltip for abbreviated newsgroups.
+          // Else show full cell content as tooltip for cropped cells.
           if (col.id == "folderNameCol" && !msgFolder.isServer &&
               !(msgFolder.flags & Components.interfaces.nsMsgFolderFlags.Virtual) &&
               (server instanceof Components.interfaces.nsINntpIncomingServer) &&
@@ -1918,7 +1928,6 @@
           {
             popupValue = msgFolder.name;
           }
-          // Show full cell content as tooltip for cropped cells.
           else if (folderTree.treeBoxObject.isCellCropped(row, col))
           {
             popupValue = folderTree.view.getCellText(row, col);
@@ -1928,18 +1937,13 @@
           {
             let tooltip = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", "label");
             tooltip.setAttribute("value", popupValue);
-            tooltip.className = "tooltip-label";
             let folderSummary = document.getAnonymousNodes(this)[0];
             document.getAnonymousNodes(folderSummary)[0].appendChild(tooltip);
-            return true;
           }
 
-          // Disable extended alerts (sender/subject/preview) until implemented (bug 505056)
-          return false;
-/*
-          var asyncResults = {};
-          return document.getAnonymousNodes(this)[0].parseFolder(msgFolder, null, asyncResults);
-*/
+          var newMessages = document.getAnonymousNodes(this)[0]
+                                    .parseFolder(msgFolder, null, {});
+          return popupValue || newMessages;
         ]]>
       </handler>
 

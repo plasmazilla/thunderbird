@@ -1,46 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Jean-Francois Ducarroz <ducarroz@netscape.com>
- *   Ben Bucksch <mozilla@bucksch.org>
- *   Håkan Waara <hwaara@chello.se>
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Masayuki Nakano <masayuki@d-toybox.com>
- *   Olivier Parniere BT Global Services / Etat francais Ministere de la Defense
- *   Jeff Beckley <beckley@qualcomm.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsMsgCompose.h"
 #include "nsIScriptGlobalObject.h"
@@ -1023,6 +984,8 @@ nsMsgCompose::Initialize(nsIMsgComposeParams *aParams,
 
 nsresult nsMsgCompose::SetDocumentCharset(const char *aCharset)
 {
+  NS_ENSURE_TRUE(m_compFields && m_editor, NS_ERROR_NOT_INITIALIZED);
+
   // Set charset, this will be used for the MIME charset labeling.
   m_compFields->SetCharacterSet(aCharset);
 
@@ -1493,6 +1456,10 @@ NS_IMETHODIMP nsMsgCompose::CloseWindow(bool recycleIt)
   rv = composeService->UnregisterComposeDocShell(mDocShell);
   NS_ENSURE_SUCCESS(rv, rv);
   mDocShell = nsnull;
+
+  // ensure that the destructor of nsMsgSend is invoked to remove
+  // temporary files.
+  mMsgSend = nsnull;
 
   recycleIt = recycleIt && !IsLastWindow();
   if (recycleIt)
@@ -2300,6 +2267,12 @@ NS_IMETHODIMP nsMsgCompose::GetMessageSend(nsIMsgSend **_retval)
   NS_ENSURE_ARG_POINTER(_retval);
   *_retval = mMsgSend;
   NS_IF_ADDREF(*_retval);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgCompose::ClearMessageSend()
+{
+  mMsgSend = nsnull;
   return NS_OK;
 }
 
@@ -3200,8 +3173,9 @@ NS_IMETHODIMP nsMsgCompose::GetType(MSG_ComposeType *aType)
 NS_IMETHODIMP
 nsMsgCompose::QuoteMessage(const char *msgURI)
 {
-  nsresult    rv;
+  NS_ENSURE_ARG_POINTER(msgURI);
 
+  nsresult rv;
   mQuotingToFollow = false;
 
   // Create a mime parser (nsIStreamConverter)!
@@ -3797,6 +3771,7 @@ nsMsgComposeSendListener::OnStopCopy(nsresult aStatus)
         msgCompose->CloseWindow(true);
       }
     }
+    msgCompose->ClearMessageSend();
   }
 
   return rv;
@@ -4042,7 +4017,7 @@ NS_IMETHODIMP nsMsgComposeSendListener::OnSecurityChange(nsIWebProgress *aWebPro
 }
 
 nsresult
-nsMsgCompose::ConvertHTMLToText(nsILocalFile *aSigFile, nsString &aSigData)
+nsMsgCompose::ConvertHTMLToText(nsIFile *aSigFile, nsString &aSigData)
 {
   nsAutoString origBuf;
 
@@ -4055,7 +4030,7 @@ nsMsgCompose::ConvertHTMLToText(nsILocalFile *aSigFile, nsString &aSigData)
 }
 
 nsresult
-nsMsgCompose::ConvertTextToHTML(nsILocalFile *aSigFile, nsString &aSigData)
+nsMsgCompose::ConvertTextToHTML(nsIFile *aSigFile, nsString &aSigData)
 {
   nsresult    rv;
   nsAutoString    origBuf;
@@ -4079,7 +4054,7 @@ nsMsgCompose::ConvertTextToHTML(nsILocalFile *aSigFile, nsString &aSigData)
 }
 
 nsresult
-nsMsgCompose::LoadDataFromFile(nsILocalFile *file, nsString &sigData,
+nsMsgCompose::LoadDataFromFile(nsIFile *file, nsString &sigData,
                                bool aAllowUTF8, bool aAllowUTF16)
 {
   PRInt32       readSize;
@@ -4220,7 +4195,7 @@ nsMsgCompose::ProcessSignature(nsIMsgIdentity *identity, bool aQuoted, nsString 
   bool         sig_bottom = true;
   bool          suppressSigSep = false;
 
-  nsCOMPtr<nsILocalFile> sigFile;
+  nsCOMPtr<nsIFile> sigFile;
   if (identity)
   {
     if (!CheckIncludeSignaturePrefs(identity))

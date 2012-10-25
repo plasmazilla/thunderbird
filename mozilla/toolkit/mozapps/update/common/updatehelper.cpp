@@ -1,41 +1,13 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is common code between maintenanceservice and updater
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Brian R. Bondy <netzen@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <windows.h>
+
+// Needed for CreateToolhelp32Snapshot
+#include <tlhelp32.h>
+#ifndef ONLY_SERVICE_LAUNCHING
+
 #include <stdio.h>
 #include "shlobj.h"
 #include "updatehelper.h"
@@ -43,8 +15,6 @@
 
 // Needed for PathAppendW
 #include <shlwapi.h>
-// Needed for CreateToolhelp32Snapshot
-#include <tlhelp32.h>
 #pragma comment(lib, "shlwapi.lib") 
 
 WCHAR* MakeCommandLine(int argc, WCHAR **argv);
@@ -214,17 +184,13 @@ LaunchWinPostProcess(const WCHAR *installationDir,
  * Starts the upgrade process for update of the service if it is
  * already installed.
  *
- * @param  argc The argc value normally sent to updater.exe
- * @param  argv The argv value normally sent to updater.exe
+ * @param  installDir the installation directory where
+ *         maintenanceservice_installer.exe is located.
  * @return TRUE if successful
  */
 BOOL
-StartServiceUpdate(int argc, LPWSTR *argv)
+StartServiceUpdate(LPCWSTR installDir)
 {
-  if (argc < 2) {
-    return FALSE;
-  }
-
   // Get a handle to the local computer SCM database
   SC_HANDLE manager = OpenSCManager(NULL, NULL, 
                                     SC_MANAGER_ALL_ACCESS);
@@ -252,7 +218,7 @@ StartServiceUpdate(int argc, LPWSTR *argv)
   PROCESS_INFORMATION pi = {0};
 
   WCHAR maintserviceInstallerPath[MAX_PATH + 1];
-  wcscpy(maintserviceInstallerPath, argv[2]);
+  wcscpy(maintserviceInstallerPath, installDir);
   PathAppendSafe(maintserviceInstallerPath, 
                  L"maintenanceservice_installer.exe");
   WCHAR cmdLine[64];
@@ -261,13 +227,15 @@ StartServiceUpdate(int argc, LPWSTR *argv)
                                                 cmdLine, 
                                                 NULL, NULL, FALSE, 
                                                 0, 
-                                                NULL, argv[2], &si, &pi);
+                                                NULL, installDir, &si, &pi);
   if (svcUpdateProcessStarted) {
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
   }
   return svcUpdateProcessStarted;
 }
+
+#endif 
 
 /**
  * Executes a maintenance service command
@@ -326,6 +294,8 @@ StartServiceCommand(int argc, LPCWSTR* argv)
   CloseServiceHandle(serviceManager);
   return lastError;
 }
+
+#ifndef ONLY_SERVICE_LAUNCHING
 
 /**
  * Launch a service initiated action for a software update with the 
@@ -435,6 +405,8 @@ WriteStatusFailure(LPCWSTR updateDirPath, int errorCode)
   CloseHandle(statusFile);
   return ok && wrote == toWrite;
 }
+
+#endif
 
 /**
  * Waits for a service to enter a stopped state.
@@ -568,6 +540,8 @@ WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
   return lastServiceState;
 }
 
+#ifndef ONLY_SERVICE_LAUNCHING
+
 /**
  * Determines if there is at least one process running for the specified
  * application. A match will be found across any session for any user.
@@ -653,6 +627,8 @@ DoesFallbackKeyExist()
   return TRUE;
 }
 
+#endif
+
 /**
  * Determines if the file system for the specified file handle is local
  * @param file path to check the filesystem type for, must be at most MAX_PATH
@@ -671,4 +647,57 @@ IsLocalFile(LPCWSTR file, BOOL &isLocal)
   PathStripToRootW(rootPath);
   isLocal = GetDriveTypeW(rootPath) == DRIVE_FIXED;
   return TRUE;
+}
+
+
+/**
+ * Determines the DWORD value of a registry key value
+ *
+ * @param key       The base key to where the value name exists
+ * @param valueName The name of the value
+ * @param retValue  Out parameter which will hold the value
+ * @return TRUE on success
+*/
+static BOOL
+GetDWORDValue(HKEY key, LPCWSTR valueName, DWORD &retValue)
+{
+  DWORD regDWORDValueSize = sizeof(DWORD);
+  LONG retCode = RegQueryValueExW(key, valueName, 0, NULL, 
+                                  reinterpret_cast<LPBYTE>(&retValue),
+                                  &regDWORDValueSize);
+  return ERROR_SUCCESS == retCode;
+}
+
+/**
+ * Determines if the the system's elevation type allows
+ * unprmopted elevation.  This may not 100% reflect reality since
+ * a reboot is necessary to change the UAC level.
+ *
+ * @param isUnpromptedElevation Out parameter which specifies if unprompted
+ *                              elevation is allowed.
+ * @return TRUE if the value was obtained successfully.
+*/
+BOOL
+IsUnpromptedElevation(BOOL &isUnpromptedElevation)
+{
+  LPCWSTR UACBaseRegKey =
+    L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System";
+  HKEY baseKey;
+  LONG retCode = RegOpenKeyExW(HKEY_LOCAL_MACHINE, 
+                               UACBaseRegKey, 0,
+                               KEY_READ, &baseKey);
+  if (retCode != ERROR_SUCCESS) {
+    return FALSE;
+  } 
+
+  DWORD enabled, consent, secureDesktop;
+  BOOL success = GetDWORDValue(baseKey, L"EnableLUA", enabled);
+  success = success && 
+            GetDWORDValue(baseKey, L"ConsentPromptBehaviorAdmin", consent);
+  success = success &&
+            GetDWORDValue(baseKey, L"PromptOnSecureDesktop", secureDesktop);
+  isUnpromptedElevation = enabled && !consent && !secureDesktop;
+
+  RegCloseKey(baseKey);
+  return success;
 }

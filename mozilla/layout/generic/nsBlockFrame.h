@@ -1,40 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 // vim:cindent:ts=2:et:sw=2:
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * rendering object for CSS display:block, inline-block, and list-item
@@ -208,7 +176,7 @@ public:
 #endif
 
 #ifdef ACCESSIBILITY
-  virtual already_AddRefed<nsAccessible> CreateAccessible();
+  virtual already_AddRefed<Accessible> CreateAccessible();
 #endif
 
   // line cursor methods to speed up searching for the line(s)
@@ -260,6 +228,28 @@ public:
     return HasOutsideBullet() || HasInsideBullet();
   }
 
+  /**
+   * @return true if this frame has an inside bullet frame.
+   */
+  bool HasInsideBullet() const {
+    return 0 != (mState & NS_BLOCK_FRAME_HAS_INSIDE_BULLET);
+  }
+
+  /**
+   * @return true if this frame has an outside bullet frame.
+   */
+  bool HasOutsideBullet() const {
+    return 0 != (mState & NS_BLOCK_FRAME_HAS_OUTSIDE_BULLET);
+  }
+
+  /**
+   * @return the bullet frame or nsnull if we don't have one.
+   */
+  nsBulletFrame* GetBullet() const {
+    nsBulletFrame* outside = GetOutsideBullet();
+    return outside ? outside : GetInsideBullet();
+  }
+
   virtual void MarkIntrinsicWidthsDirty();
 private:
   void CheckIntrinsicCacheAgainstShrinkWrapState();
@@ -277,6 +267,12 @@ public:
   NS_IMETHOD AttributeChanged(PRInt32         aNameSpaceID,
                               nsIAtom*        aAttribute,
                               PRInt32         aModType);
+
+  /**
+   * Move any frames on our overflow list to the end of our principal list.
+   * @return true if there were any overflow frames
+   */
+  virtual bool DrainSelfOverflowList();
 
   virtual nsresult StealFrame(nsPresContext* aPresContext,
                               nsIFrame*      aChild,
@@ -762,23 +758,9 @@ protected:
   void SetOverflowOutOfFlows(const nsFrameList& aList, nsFrameList* aPropValue);
 
   /**
-   * @return true if this frame has an inside bullet frame.
-   */
-  bool HasInsideBullet() const {
-    return 0 != (mState & NS_BLOCK_FRAME_HAS_INSIDE_BULLET);
-  }
-
-  /**
    * @return the inside bullet frame or nsnull if we don't have one.
    */
   nsBulletFrame* GetInsideBullet() const;
-
-  /**
-   * @return true if this frame has an outside bullet frame.
-   */
-  bool HasOutsideBullet() const {
-    return 0 != (mState & NS_BLOCK_FRAME_HAS_OUTSIDE_BULLET);
-  }
 
   /**
    * @return the outside bullet frame or nsnull if we don't have one.
@@ -790,14 +772,6 @@ protected:
    */
   nsFrameList* GetOutsideBulletList() const;
 
-  /**
-   * @return the bullet frame or nsnull if we don't have one.
-   */
-  nsBulletFrame* GetBullet() const {
-    nsBulletFrame* outside = GetOutsideBullet();
-    return outside ? outside : GetInsideBullet();
-  }
-  
   /**
    * @return true if this frame has pushed floats.
    */
@@ -813,7 +787,7 @@ protected:
   // Remove and return the pushed floats list.
   nsFrameList* RemovePushedFloats();
 
-#ifdef NS_DEBUG
+#ifdef DEBUG
   void VerifyLines(bool aFinalCheckOK);
   void VerifyOverflowSituation();
   PRInt32 GetDepth() const;

@@ -1,42 +1,7 @@
 #
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is mozilla.org code.
-#
-# The Initial Developer of the Original Code is
-# the Mozilla Foundation.
-# Portions created by the Initial Developer are Copyright (C) 1998
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Robert Sayre <sayrer@gmail.com>
-#   Jeff Walden <jwalden+bmo@mit.edu>
-#   Serge Gautherie <sgautherie.bz@free.fr>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 """
 Runs the Mochitest test harness.
@@ -174,6 +139,16 @@ class MochitestOptions(optparse.OptionParser):
                     help = "run browser chrome Mochitests")
     defaults["browserChrome"] = False
 
+    self.add_option("--webapprt-content",
+                    action = "store_true", dest = "webapprtContent",
+                    help = "run WebappRT content tests")
+    defaults["webapprtContent"] = False
+
+    self.add_option("--webapprt-chrome",
+                    action = "store_true", dest = "webapprtChrome",
+                    help = "run WebappRT chrome tests")
+    defaults["webapprtChrome"] = False
+
     self.add_option("--a11y",
                     action = "store_true", dest = "a11y",
                     help = "run accessibility Mochitests");
@@ -240,13 +215,18 @@ class MochitestOptions(optparse.OptionParser):
 
     self.add_option("--run-only-tests",
                     action = "store", type="string", dest = "runOnlyTests",
-                    help = "JSON list of tests that we only want to run, cannot be specified with --exclude-tests.")
+                    help = "JSON list of tests that we only want to run, cannot be specified with --exclude-tests. [DEPRECATED- please use --test-manifest]")
     defaults["runOnlyTests"] = None
 
     self.add_option("--exclude-tests",
                     action = "store", type="string", dest = "excludeTests",
-                    help = "JSON list of tests that we want to not run, cannot be specified with --run-only-tests.")
+                    help = "JSON list of tests that we want to not run, cannot be specified with --run-only-tests. [DEPRECATED- please use --test-manifest]")
     defaults["excludeTests"] = None
+
+    self.add_option("--test-manifest",
+                    action = "store", type="string", dest = "testManifest",
+                    help = "JSON list of tests to specify 'runtests' and 'excludetests'.")
+    defaults["testManifest"] = None
 
     self.add_option("--failure-file",
                     action = "store", type="string", dest = "failureFile",
@@ -317,15 +297,25 @@ See <http://mochikit.com/doc/html/MochiKit/Logging.html> for details on the logg
                    mochitest.vmwareHelperPath)
 
     if options.runOnlyTests != None and options.excludeTests != None:
-      self.error("We can only support --run-only-tests OR --exclude-tests, not both.")
+      self.error("We can only support --run-only-tests OR --exclude-tests, not both.  Please consider using --test-manifest instead.")
+
+    if options.testManifest != None and (options.runOnlyTests != None or options.excludeTests != None):
+      self.error("Please use --test-manifest only and not --run-only-tests or --exclude-tests.")
       
     if options.runOnlyTests:
       if not os.path.exists(os.path.abspath(options.runOnlyTests)):
         self.error("unable to find --run-only-tests file '%s'" % options.runOnlyTests);
+      options.testManifest = options.runOnlyTests
+      options.runOnly = True
         
     if options.excludeTests:
       if not os.path.exists(os.path.abspath(options.excludeTests)):
         self.error("unable to find --exclude-tests file '%s'" % options.excludeTests);
+      options.testManifest = options.excludeTests
+      options.runOnly = False
+
+    if options.webapprtContent and options.webapprtChrome:
+      self.error("Only one of --webapprt-content and --webapprt-chrome may be given.")
 
     return options
 
@@ -346,6 +336,7 @@ class MochitestServer:
     self.webServer = options.webServer
     self.httpPort = options.httpPort
     self.shutdownURL = "http://%(server)s:%(port)s/server/shutdown" % { "server" : self.webServer, "port" : self.httpPort }
+    self.testPrefix = "'webapprt_'" if options.webapprtContent else "undefined"
 
   def start(self):
     "Run the Mochitest server, returning the process ID of the server."
@@ -358,8 +349,8 @@ class MochitestServer:
     args = ["-g", self._xrePath,
             "-v", "170",
             "-f", "./" + "httpd.js",
-            "-e", "const _PROFILE_PATH = '%(profile)s';const _SERVER_PORT = '%(port)s'; const _SERVER_ADDR ='%(server)s';" % 
-                   {"profile" : self._profileDir.replace('\\', '\\\\'), "port" : self.httpPort, "server" : self.webServer },
+            "-e", "const _PROFILE_PATH = '%(profile)s';const _SERVER_PORT = '%(port)s'; const _SERVER_ADDR = '%(server)s'; const _TEST_PREFIX = %(testPrefix)s;" %
+                   {"profile" : self._profileDir.replace('\\', '\\\\'), "port" : self.httpPort, "server" : self.webServer, "testPrefix" : self.testPrefix },
             "-f", "./" + "server.js"]
 
     xpcshell = os.path.join(self._utilityPath,
@@ -570,7 +561,7 @@ class Mochitest(object):
     # allow relative paths for logFile
     if options.logFile:
       options.logFile = self.getLogFilePath(options.logFile)
-    if options.browserChrome or options.chrome or options.a11y:
+    if options.browserChrome or options.chrome or options.a11y or options.webapprtChrome:
       self.makeTestConfig(options)
     else:
       if options.autorun:
@@ -597,12 +588,14 @@ class Mochitest(object):
         self.urlOpts.append("repeat=%d" % options.repeat)
       if os.path.isfile(os.path.join(self.oldcwd, os.path.dirname(__file__), self.TEST_PATH, options.testPath)) and options.repeat > 0:
         self.urlOpts.append("testname=%s" % ("/").join([self.TEST_PATH, options.testPath]))
-      if options.runOnlyTests:
-        self.urlOpts.append("runOnlyTests=%s" % options.runOnlyTests)
+      if options.testManifest:
+        self.urlOpts.append("testManifest=%s" % options.testManifest)
+        if options.runOnly:
+          self.urlOpts.append("runOnly=true")
+        else:
+          self.urlOpts.append("runOnly=false")
       if options.failureFile:
         self.urlOpts.append("failureFile=%s" % options.failureFile)
-      elif options.excludeTests:
-        self.urlOpts.append("excludeTests=%s" % options.excludeTests)
 
   def cleanup(self, manifest, options):
     """ remove temporary files and profile """
@@ -662,6 +655,10 @@ class Mochitest(object):
     if len(self.urlOpts) > 0:
       testURL += "?" + "&".join(self.urlOpts)
 
+    if options.webapprtContent:
+      options.browserArgs.extend(('-test-mode', testURL))
+      testURL = None
+
     # Remove the leak detection file so it can't "leak" to the tests run.
     # The file is not there if leak logging was not enabled in the application build.
     if os.path.exists(self.leak_report_file):
@@ -674,12 +671,6 @@ class Mochitest(object):
       timeout = None
     else:
       timeout = 330.0 # default JS harness timeout is 300 seconds
-
-    # it's a debug build, we can parse leaked DOMWindows and docShells
-    if Automation.IS_DEBUG_BUILD:
-      logger = ShutdownLeakLogger(self.automation.log)
-    else:
-      logger = None
 
     if options.vmwareRecording:
       self.startVMwareRecording(options);
@@ -694,13 +685,12 @@ class Mochitest(object):
                                   certPath=options.certPath,
                                   debuggerInfo=debuggerInfo,
                                   symbolsPath=options.symbolsPath,
-                                  logger = logger,
                                   timeout = timeout)
     except KeyboardInterrupt:
       self.automation.log.info("INFO | runtests.py | Received keyboard interrupt.\n");
       status = -1
     except:
-      self.automation.log.info("INFO | runtests.py | Received unexpected exception while running application '%s'\n" % (sys.exc_info()[1]))
+      self.automation.log.exception("INFO | runtests.py | Received unexpected exception while running application\n")
       status = 1
 
     if options.vmwareRecording:
@@ -709,9 +699,6 @@ class Mochitest(object):
     self.stopWebServer(options)
     self.stopWebSocketServer(options)
     processLeakLog(self.leak_report_file, options.leakThreshold)
-
-    if logger:
-      logger.parse()
 
     self.automation.log.info("\nINFO | runtests.py | Running tests: end.")
 
@@ -754,7 +741,9 @@ class Mochitest(object):
       testRoot = 'browser'
     elif (options.a11y):
       testRoot = 'a11y'
- 
+    elif (options.webapprtChrome):
+      testRoot = 'webapprtChrome'
+
     if "MOZ_HIDE_RESULTS_TABLE" in os.environ and os.environ["MOZ_HIDE_RESULTS_TABLE"] == "1":
       options.hideResultsTable = True
 
@@ -816,13 +805,15 @@ toolbar#nav-bar {
       self.automation.log.warning("TEST-UNEXPECTED-FAIL | invalid setup: missing mochikit extension")
       return None
 
-    # Support Firefox (browser), B2G (shell) and SeaMonkey (navigator).
+    # Support Firefox (browser), B2G (shell), SeaMonkey (navigator), and Webapp
+    # Runtime (webapp).
     chrome = ""
-    if options.browserChrome or options.chrome or options.a11y:
+    if options.browserChrome or options.chrome or options.a11y or options.webapprtChrome:
       chrome += """
 overlay chrome://browser/content/browser.xul chrome://mochikit/content/browser-test-overlay.xul
 overlay chrome://browser/content/shell.xul chrome://mochikit/content/browser-test-overlay.xul
 overlay chrome://navigator/content/navigator.xul chrome://mochikit/content/browser-test-overlay.xul
+overlay chrome://webapprt/content/webapp.xul chrome://mochikit/content/browser-test-overlay.xul
 """
 
     self.installChromeJar(jarDir, chrome, options)

@@ -1,54 +1,23 @@
 //* -*- Mode: c++; c-basic-offset: 4; tab-width: 40; indent-tabs-mode: nil -*- */
 /* vim: set ts=40 sw=4 et tw=99: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla SpiderMonkey bytecode type inference
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Brian Hackett <bhackett@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* Definitions related to javascript type inference. */
 
 #ifndef jsinfer_h___
 #define jsinfer_h___
 
+#include "mozilla/Attributes.h"
+
 #include "jsalloc.h"
-#include "jscell.h"
 #include "jsfriendapi.h"
 #include "jsprvtd.h"
 
 #include "ds/LifoAlloc.h"
 #include "gc/Barrier.h"
+#include "gc/Heap.h"
 #include "js/HashTable.h"
 
 namespace JS {
@@ -56,6 +25,9 @@ struct TypeInferenceSizes;
 }
 
 namespace js {
+
+class CallObject;
+
 namespace types {
 
 /* Type set entry for either a JSObject with singleton type or a non-singleton TypeObject. */
@@ -107,10 +79,7 @@ class Type
         return data > JSVAL_TYPE_UNKNOWN;
     }
 
-    TypeObjectKey *objectKey() const {
-        JS_ASSERT(isObject());
-        return (TypeObjectKey *) data;
-    }
+    inline TypeObjectKey *objectKey() const;
 
     /* Accessors for JSObject types */
 
@@ -118,10 +87,7 @@ class Type
         return isObject() && !!(data & 1);
     }
 
-    JSObject *singleObject() const {
-        JS_ASSERT(isSingleObject());
-        return (JSObject *) (data ^ 1);
-    }
+    inline JSObject *singleObject() const;
 
     /* Accessors for TypeObject types */
 
@@ -129,10 +95,7 @@ class Type
         return isObject() && !(data & 1);
     }
 
-    TypeObject *typeObject() const {
-        JS_ASSERT(isTypeObject());
-        return (TypeObject *) data;
-    }
+    inline TypeObject *typeObject() const;
 
     bool operator == (Type o) const { return data == o.data; }
     bool operator != (Type o) const { return data != o.data; }
@@ -314,17 +277,17 @@ enum {
     /* Whether any objects this represents are not typed arrays. */
     OBJECT_FLAG_NON_TYPED_ARRAY       = 0x00040000,
 
+    /* Whether any objects this represents are not DOM objects. */
+    OBJECT_FLAG_NON_DOM               = 0x00080000,
+
     /* Whether any represented script is considered uninlineable. */
-    OBJECT_FLAG_UNINLINEABLE          = 0x00080000,
+    OBJECT_FLAG_UNINLINEABLE          = 0x00100000,
 
     /* Whether any objects have an equality hook. */
-    OBJECT_FLAG_SPECIAL_EQUALITY      = 0x00100000,
+    OBJECT_FLAG_SPECIAL_EQUALITY      = 0x00200000,
 
     /* Whether any objects have been iterated over. */
-    OBJECT_FLAG_ITERATED              = 0x00200000,
-
-    /* Outer function which has been marked reentrant. */
-    OBJECT_FLAG_REENTRANT_FUNCTION    = 0x00400000,
+    OBJECT_FLAG_ITERATED              = 0x00400000,
 
     /* For a global object, whether flags were set on the RegExpStatics. */
     OBJECT_FLAG_REGEXP_FLAGS_SET      = 0x00800000,
@@ -504,9 +467,6 @@ class TypeSet
 
     /* Get the single value which can appear in this type set, otherwise NULL. */
     JSObject *getSingleton(JSContext *cx, bool freeze = true);
-
-    /* Whether all objects in this set are parented to a particular global. */
-    bool hasGlobalObject(JSContext *cx, JSObject *global);
 
     inline void clearObjects();
 
@@ -827,7 +787,7 @@ struct TypeObject : gc::Cell
      * assignment, and the own types of the property will be used instead of
      * aggregate types.
      */
-    inline TypeSet *getProperty(JSContext *cx, jsid id, bool assign);
+    inline TypeSet *getProperty(JSContext *cx, jsid id, bool own);
 
     /* Get a property only if it already exists. */
     inline TypeSet *maybeGetProperty(JSContext *cx, jsid id);
@@ -842,7 +802,7 @@ struct TypeObject : gc::Cell
      * Get the global object which all objects of this type are parented to,
      * or NULL if there is none known.
      */
-    inline JSObject *getGlobal();
+    //inline JSObject *getGlobal();
 
     /* Helpers */
 
@@ -911,7 +871,7 @@ UseNewType(JSContext *cx, JSScript *script, jsbytecode *pc);
 
 /* Whether to use a new type object for an initializer opcode at script/pc. */
 bool
-UseNewTypeForInitializer(JSContext *cx, JSScript *script, jsbytecode *pc);
+UseNewTypeForInitializer(JSContext *cx, JSScript *script, jsbytecode *pc, JSProtoKey key);
 
 /*
  * Whether Array.prototype, or an object on its proto chain, has an
@@ -934,8 +894,8 @@ struct TypeCallsite
     bool isNew;
 
     /* Types of each argument to the call. */
-    TypeSet **argumentTypes;
     unsigned argumentCount;
+    TypeSet **argumentTypes;
 
     /* Types of the this variable. */
     TypeSet *thisTypes;
@@ -947,89 +907,6 @@ struct TypeCallsite
                         bool isNew, unsigned argumentCount);
 };
 
-/*
- * Information attached to outer and inner function scripts nested in one
- * another for tracking the reentrance state for outer functions. This state is
- * used to generate fast accesses to the args and vars of the outer function.
- *
- * A function is non-reentrant if, at any point in time, only the most recent
- * activation (i.e. call object) is live. An activation is live if either the
- * activation is on the stack, or a transitive inner function parented to the
- * activation is on the stack.
- *
- * Because inner functions can be (and, quite often, are) stored in object
- * properties and it is difficult to build a fast and robust escape analysis
- * to cope with such flow, we detect reentrance dynamically. For the outer
- * function, we keep track of the call object for the most recent activation,
- * and the number of frames for the function and its inner functions which are
- * on the stack.
- *
- * If the outer function is called while frames associated with a previous
- * activation are on the stack, the outer function is reentrant. If an inner
- * function is called whose scope does not match the most recent activation,
- * the outer function is reentrant.
- *
- * The situation gets trickier when there are several levels of nesting.
- *
- * function foo() {
- *   var a;
- *   function bar() {
- *     var b;
- *     function baz() { return a + b; }
- *   }
- * }
- *
- * At calls to 'baz', we don't want to do the scope check for the activations
- * of both 'foo' and 'bar', but rather 'bar' only. For this to work, a call to
- * 'baz' which is a reentrant call on 'foo' must also be a reentrant call on
- * 'bar'. When 'foo' is called, we clear the most recent call object for 'bar'.
- */
-struct TypeScriptNesting
-{
-    /*
-     * If this is an inner function, the outer function. If non-NULL, this will
-     * be the immediate nested parent of the script (even if that parent has
-     * been marked reentrant). May be NULL even if the script has a nested
-     * parent, if NAME accesses cannot be tracked into the parent (either the
-     * script extends its scope with eval() etc., or the parent can make new
-     * scope chain objects with 'let' or 'with').
-     */
-    JSScript *parent;
-
-    /* If this is an outer function, list of inner functions. */
-    JSScript *children;
-
-    /* Link for children list of parent. */
-    JSScript *next;
-
-    /* If this is an outer function, the most recent activation. */
-    JSObject *activeCall;
-
-    /*
-     * If this is an outer function, pointers to the most recent activation's
-     * arguments and variables arrays. These could be referring either to stack
-     * values in activeCall's frame (if it has not finished yet) or to the
-     * internal slots of activeCall (if the frame has finished). Pointers to
-     * these fields can be embedded directly in JIT code (though remember to
-     * use 'addDependency == true' when calling resolveNameAccess).
-     */
-    const Value *argArray;
-    const Value *varArray;
-
-    /* Number of frames for this function on the stack. */
-    uint32_t activeFrames;
-
-    TypeScriptNesting() { PodZero(this); }
-    ~TypeScriptNesting();
-};
-
-/* Construct nesting information for script wrt its parent. */
-bool CheckScriptNesting(JSContext *cx, JSScript *script);
-
-/* Track nesting state when calling or finishing an outer/inner function. */
-void NestingPrologue(JSContext *cx, StackFrame *fp);
-void NestingEpilogue(StackFrame *fp);
-
 /* Persistent type information for a script, retained across GCs. */
 class TypeScript
 {
@@ -1038,27 +915,9 @@ class TypeScript
     /* Analysis information for the script, cleared on each GC. */
     analyze::ScriptAnalysis *analysis;
 
-    /*
-     * Information about the scope in which a script executes. This information
-     * is not set until the script has executed at least once and SetScope
-     * called, before that 'global' will be poisoned per GLOBAL_MISSING_SCOPE.
-     */
-    static const size_t GLOBAL_MISSING_SCOPE = 0x1;
-
-    /* Global object for the script, if compileAndGo. */
-    HeapPtr<GlobalObject> global;
-
   public:
-
-    /* Nesting state for outer or inner function scripts. */
-    TypeScriptNesting *nesting;
-
     /* Dynamic types generated at points within this script. */
     TypeResult *dynamicList;
-
-    inline TypeScript();
-
-    bool hasScope() { return size_t(global.get()) != GLOBAL_MISSING_SCOPE; }
 
     /* Array of type type sets for variables and JOF_TYPESET ops. */
     TypeSet *typeArray() { return (TypeSet *) (uintptr_t(this) + sizeof(TypeScript)); }
@@ -1122,7 +981,6 @@ class TypeScript
     static inline void SetArgument(JSContext *cx, JSScript *script, unsigned arg, const js::Value &value);
 
     static void Sweep(FreeOp *fop, JSScript *script);
-    inline void trace(JSTracer *trc);
     void destroy();
 };
 
@@ -1139,28 +997,51 @@ typedef HashMap<AllocationSiteKey,ReadBarriered<TypeObject>,AllocationSiteKey,Sy
 struct RecompileInfo
 {
     JSScript *script;
-    bool constructing:1;
-    uint32_t chunkIndex:31;
+    bool constructing : 1;
+    bool barriers : 1;
+    uint32_t chunkIndex:30;
 
     bool operator == (const RecompileInfo &o) const {
-        return script == o.script && constructing == o.constructing && chunkIndex == o.chunkIndex;
+        return script == o.script
+            && constructing == o.constructing
+            && barriers == o.barriers
+            && chunkIndex == o.chunkIndex;
     }
 };
 
 /* Type information for a compartment. */
 struct TypeCompartment
 {
+    /* Constraint solving worklist structures. */
+
+    /*
+     * Worklist of types which need to be propagated to constraints. We use a
+     * worklist to avoid blowing the native stack.
+     */
+    struct PendingWork
+    {
+        TypeConstraint *constraint;
+        TypeSet *source;
+        Type type;
+    };
+    PendingWork *pendingArray;
+    unsigned pendingCount;
+    unsigned pendingCapacity;
+
+    /* Whether we are currently resolving the pending worklist. */
+    bool resolving;
+
     /* Whether type inference is enabled in this compartment. */
     bool inferenceEnabled;
-
-    /* Number of scripts in this compartment. */
-    unsigned scriptCount;
 
     /*
      * Bit set if all current types must be marked as unknown, and all scripts
      * recompiled. Caused by OOM failure within inference operations.
      */
     bool pendingNukeTypes;
+
+    /* Number of scripts in this compartment. */
+    unsigned scriptCount;
 
     /* Pending recompilations to perform before execution of JIT code can resume. */
     Vector<RecompileInfo> *pendingRecompiles;
@@ -1191,25 +1072,6 @@ struct TypeCompartment
     void fixArrayType(JSContext *cx, JSObject *obj);
     void fixObjectType(JSContext *cx, JSObject *obj);
 
-    /* Constraint solving worklist structures. */
-
-    /*
-     * Worklist of types which need to be propagated to constraints. We use a
-     * worklist to avoid blowing the native stack.
-     */
-    struct PendingWork
-    {
-        TypeConstraint *constraint;
-        TypeSet *source;
-        Type type;
-    };
-    PendingWork *pendingArray;
-    unsigned pendingCount;
-    unsigned pendingCapacity;
-
-    /* Whether we are currently resolving the pending worklist. */
-    bool resolving;
-
     /* Logging fields */
 
     /* Counts of stack type sets with some number of possible operand types. */
@@ -1239,10 +1101,11 @@ struct TypeCompartment
      * js_ObjectClass).
      */
     TypeObject *newTypeObject(JSContext *cx, JSScript *script,
-                              JSProtoKey kind, JSObject *proto, bool unknown = false);
+                              JSProtoKey kind, JSObject *proto,
+                              bool unknown = false, bool isDOM = false);
 
     /* Make an object for an allocation site. */
-    TypeObject *newAllocationSiteTypeObject(JSContext *cx, const AllocationSiteKey &key);
+    TypeObject *newAllocationSiteTypeObject(JSContext *cx, AllocationSiteKey key);
 
     void nukeTypes(FreeOp *fop);
     void processPendingRecompiles(FreeOp *fop);
@@ -1297,13 +1160,9 @@ inline const char * TypeObjectString(TypeObject *type) { return NULL; }
 #endif
 
 /* Print a warning, dump state and abort the program. */
-void TypeFailure(JSContext *cx, const char *fmt, ...);
+MOZ_NORETURN void TypeFailure(JSContext *cx, const char *fmt, ...);
 
 } /* namespace types */
 } /* namespace js */
-
-namespace JS {
-    template<> class AnchorPermitted<js::types::TypeObject *> { };
-}
 
 #endif // jsinfer_h___

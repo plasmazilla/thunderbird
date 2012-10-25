@@ -1,3 +1,7 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 toolkit.jar:
 % skin global classic/1.0 %skin/classic/global/ os=WINNT osversion<6
 % skin global classic/1.0 %skin/classic/global/ os!=WINNT
@@ -44,7 +48,7 @@ toolkit.jar:
         skin/classic/global/radio.css
         skin/classic/global/resizer.css
         skin/classic/global/richlistbox.css
-*       skin/classic/global/scale.css
+        skin/classic/global/scale.css
         skin/classic/global/scrollbars.css                       (xulscrollbars.css)
         skin/classic/global/scrollbox.css
         skin/classic/global/spinbuttons.css
@@ -52,7 +56,7 @@ toolkit.jar:
         skin/classic/global/tabbox.css
         skin/classic/global/tabprompts.css
         skin/classic/global/textbox.css
-*       skin/classic/global/toolbar.css
+        skin/classic/global/toolbar.css
         skin/classic/global/toolbarbutton.css
         skin/classic/global/TopLevelImageDocument.css
         skin/classic/global/TopLevelVideoDocument.css
@@ -78,11 +82,10 @@ toolkit.jar:
         skin/classic/global/arrow/arrow-up-dis.gif               (arrow/arrow-up-dis.gif)
         skin/classic/global/arrow/arrow-up-hov.gif               (arrow/arrow-up-hov.gif)
         skin/classic/global/arrow/arrow-up-sharp.gif             (arrow/arrow-up-sharp.gif)
-        skin/classic/global/arrow/panelarrow-up.png              (arrow/panelarrow-up.png)
-        skin/classic/global/arrow/panelarrow-down.png            (arrow/panelarrow-down.png)
-        skin/classic/global/arrow/panelarrow-horiz.png           (arrow/panelarrow-horiz.png)
         skin/classic/global/arrow/panelarrow-horizontal.svg      (arrow/panelarrow-horizontal.svg)
+        skin/classic/global/arrow/panelarrow-horizontal-white.png (arrow/panelarrow-horizontal-white.png)
         skin/classic/global/arrow/panelarrow-vertical.svg        (arrow/panelarrow-vertical.svg)
+        skin/classic/global/arrow/panelarrow-vertical-white.png  (arrow/panelarrow-vertical-white.png)
         skin/classic/global/checkbox/cbox-check.gif              (checkbox/cbox-check.gif)
         skin/classic/global/checkbox/cbox-check-dis.gif          (checkbox/cbox-check-dis.gif)
         skin/classic/global/console/console.css                  (console/console.css)
@@ -146,6 +149,7 @@ toolkit.jar:
         skin/classic/global/media/playButton.png                 (media/playButton.png)
         skin/classic/global/media/muteButton.png                 (media/muteButton.png)
         skin/classic/global/media/unmuteButton.png               (media/unmuteButton.png)
+        skin/classic/global/media/noAudio.png                    (media/noAudio.png)
         skin/classic/global/media/fullscreenButton.png           (media/fullscreenButton.png)
         skin/classic/global/media/scrubberThumb.png              (media/scrubberThumb.png)
         skin/classic/global/media/scrubberThumbWide.png          (media/scrubberThumbWide.png)
@@ -167,7 +171,6 @@ toolkit.jar:
         skin/classic/global/splitter/grip-left.gif               (splitter/grip-left.gif)
         skin/classic/global/splitter/grip-right.gif              (splitter/grip-right.gif)
         skin/classic/global/toolbar/chevron.gif                  (toolbar/chevron.gif)
-        skin/classic/global/toolbar/Lighten.png                  (toolbar/Lighten.png)
         skin/classic/global/toolbar/spring.png                   (toolbar/spring.png)
         skin/classic/global/tree/columnpicker.gif                (tree/columnpicker.gif)
         skin/classic/global/tree/sort-asc.png                    (tree/sort-asc.png)
@@ -187,7 +190,7 @@ toolkit.jar:
         skin/classic/aero/global/aboutSupport.css
         skin/classic/aero/global/appPicker.css
         skin/classic/aero/global/arrow.css
-*       skin/classic/aero/global/autocomplete.css
+*       skin/classic/aero/global/autocomplete.css                        (autocomplete-aero.css)
         skin/classic/aero/global/button.css
         skin/classic/aero/global/checkbox.css
         skin/classic/aero/global/colorpicker.css
@@ -213,7 +216,7 @@ toolkit.jar:
         skin/classic/aero/global/numberbox.css
 *       skin/classic/aero/global/notification.css                        (notification-aero.css)
         skin/classic/aero/global/passwordmgr.css
-*       skin/classic/aero/global/popup.css                               (popup-aero.css)
+*       skin/classic/aero/global/popup.css
         skin/classic/aero/global/preferences.css
         skin/classic/aero/global/printPageSetup.css
         skin/classic/aero/global/printPreview.css
@@ -221,7 +224,7 @@ toolkit.jar:
         skin/classic/aero/global/radio.css
         skin/classic/aero/global/resizer.css
         skin/classic/aero/global/richlistbox.css
-*       skin/classic/aero/global/scale.css
+        skin/classic/aero/global/scale.css
         skin/classic/aero/global/scrollbars.css                          (xulscrollbars.css)
         skin/classic/aero/global/scrollbox.css
         skin/classic/aero/global/spinbuttons.css
@@ -229,7 +232,7 @@ toolkit.jar:
         skin/classic/aero/global/tabbox.css
         skin/classic/aero/global/tabprompts.css
 *       skin/classic/aero/global/textbox.css                             (textbox-aero.css)
-*       skin/classic/aero/global/toolbar.css
+        skin/classic/aero/global/toolbar.css
 *       skin/classic/aero/global/toolbarbutton.css                       (toolbarbutton-aero.css)
         skin/classic/aero/global/TopLevelImageDocument.css
         skin/classic/aero/global/TopLevelVideoDocument.css
@@ -255,11 +258,10 @@ toolkit.jar:
         skin/classic/aero/global/arrow/arrow-up-dis.gif                  (arrow/arrow-up-dis.gif)
         skin/classic/aero/global/arrow/arrow-up-hov.gif                  (arrow/arrow-up-hov.gif)
         skin/classic/aero/global/arrow/arrow-up-sharp.gif                (arrow/arrow-up-sharp.gif)
-        skin/classic/aero/global/arrow/panelarrow-up.png                 (arrow/panelarrow-up-aero.png)
-        skin/classic/aero/global/arrow/panelarrow-down.png               (arrow/panelarrow-down-aero.png)
-        skin/classic/aero/global/arrow/panelarrow-horiz.png              (arrow/panelarrow-horiz-aero.png)
         skin/classic/aero/global/arrow/panelarrow-horizontal.svg         (arrow/panelarrow-horizontal.svg)
+        skin/classic/aero/global/arrow/panelarrow-horizontal-white.png   (arrow/panelarrow-horizontal-white.png)
         skin/classic/aero/global/arrow/panelarrow-vertical.svg           (arrow/panelarrow-vertical.svg)
+        skin/classic/aero/global/arrow/panelarrow-vertical-white.png     (arrow/panelarrow-vertical-white.png)
         skin/classic/aero/global/checkbox/cbox-check.gif                 (checkbox/cbox-check.gif)
         skin/classic/aero/global/checkbox/cbox-check-dis.gif             (checkbox/cbox-check-dis.gif)
 *       skin/classic/aero/global/console/console.css                     (console/console-aero.css)
@@ -323,6 +325,7 @@ toolkit.jar:
         skin/classic/aero/global/media/playButton.png                    (media/playButton.png)
         skin/classic/aero/global/media/muteButton.png                    (media/muteButton.png)
         skin/classic/aero/global/media/unmuteButton.png                  (media/unmuteButton.png)
+        skin/classic/aero/global/media/noAudio.png                       (media/noAudio.png)
         skin/classic/aero/global/media/fullscreenButton.png              (media/fullscreenButton.png)
         skin/classic/aero/global/media/scrubberThumb.png                 (media/scrubberThumb.png)
         skin/classic/aero/global/media/scrubberThumbWide.png             (media/scrubberThumbWide.png)
@@ -344,7 +347,6 @@ toolkit.jar:
         skin/classic/aero/global/splitter/grip-left.gif                  (splitter/grip-left.gif)
         skin/classic/aero/global/splitter/grip-right.gif                 (splitter/grip-right.gif)
         skin/classic/aero/global/toolbar/chevron.gif                     (toolbar/chevron.gif)
-        skin/classic/aero/global/toolbar/Lighten.png                     (toolbar/Lighten.png)
         skin/classic/aero/global/toolbar/spring.png                      (toolbar/spring-aero.png)
         skin/classic/aero/global/tree/columnpicker.gif                   (tree/columnpicker.gif)
         skin/classic/aero/global/tree/sort-asc.png                       (tree/sort-asc-aero.png)

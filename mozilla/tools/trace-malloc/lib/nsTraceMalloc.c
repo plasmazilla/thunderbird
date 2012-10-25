@@ -1,43 +1,9 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  * vim:cindent:ts=8:et:sw=4:
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is nsTraceMalloc.c/bloatblame.c code, released
- * April 19, 2000.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Brendan Eich, 14-April-2000
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #ifdef NS_TRACE_MALLOC
  /*
   * TODO:
@@ -69,6 +35,7 @@
 #include "nsStackWalk.h"
 #include "nsTraceMallocCallbacks.h"
 #include "nsTypeInfo.h"
+#include "mozilla/mozPoisonWrite.h"
 
 #if defined(XP_MACOSX)
 
@@ -926,7 +893,7 @@ calltree(void **stack, size_t num_stack_entries, tm_thread *t)
  * reverse it in calltree.
  */
 static void
-stack_callback(void *pc, void *closure)
+stack_callback(void *pc, void *sp, void *closure)
 {
     stack_buffer_info *info = (stack_buffer_info*) closure;
 
@@ -1363,6 +1330,9 @@ NS_TraceMallocStartup(int logfd)
     PR_ASSERT(logfp == &default_logfile);
     tracing_enabled = (logfd >= 0);
 
+    if (logfd >= 3)
+        MozillaRegisterDebugFD(logfd);
+
     /* stacks are disabled if this env var is set to a non-empty value */
     stack_disable_env = PR_GetEnv("NS_TRACE_MALLOC_DISABLE_STACKS");
     stacks_enabled = !stack_disable_env || !*stack_disable_env;
@@ -1561,6 +1531,7 @@ NS_TraceMallocShutdown(void)
         log_tmstats(fp);
         flush_logfile(fp);
         if (fp->fd >= 0) {
+            MozillaUnRegisterDebugFD(fp->fd);
             close(fp->fd);
             fp->fd = -1;
         }
@@ -1697,6 +1668,7 @@ NS_TraceMallocCloseLogFD(int fd)
     }
 
     TM_EXIT_LOCK_AND_UNSUPPRESS_TRACING(t);
+    MozillaUnRegisterDebugFD(fd);
     close(fd);
 }
 
@@ -1791,6 +1763,7 @@ NS_TraceMallocDumpAllocations(const char *pathname)
 {
     FILE *ofp;
     int rv;
+    int fd;
 
     tm_thread *t = tm_get_thread();
 
@@ -1798,12 +1771,15 @@ NS_TraceMallocDumpAllocations(const char *pathname)
 
     ofp = fopen(pathname, WRITE_FLAGS);
     if (ofp) {
+        MozillaRegisterDebugFD(fileno(ofp));
         if (allocations) {
             PL_HashTableEnumerateEntries(allocations, allocation_enumerator,
                                          ofp);
         }
         rv = ferror(ofp) ? -1 : 0;
-        fclose(ofp);
+        fd = fileno(ofp);
+        fclose(ofp); /* May call write. */
+        MozillaUnRegisterDebugFD(fd);
     } else {
         rv = -1;
     }

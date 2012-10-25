@@ -1,42 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org Code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Mark Banner <mark@standard8.demon.co.uk>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
 /*
@@ -135,14 +101,14 @@ private:
                       PRUnichar **pSuccess);
   static void ReportError(PRInt32 errorNum, nsString& name, nsString *pStream,
                           nsIStringBundle* pBundle);
-  static void SanitizeSampleData(nsCString& val);
+  static void SanitizeSampleData(nsString& val);
 
 private:
   nsTextAddress m_text;
   bool m_haveDelim;
-  nsCOMPtr<nsILocalFile> m_fileLoc;
+  nsCOMPtr<nsIFile> m_fileLoc;
   nsCOMPtr<nsIStringBundle> m_notProxyBundle;
-  char m_delim;
+  PRUnichar m_delim;
   PRUint32 m_bytesImported;
 };
 
@@ -551,13 +517,13 @@ NS_IMETHODIMP ImportAddressImpl::GetNeedsFieldMap(nsIFile *aLocation, bool *_ret
   return NS_OK;
 }
 
-void ImportAddressImpl::SanitizeSampleData(nsCString& val)
+void ImportAddressImpl::SanitizeSampleData(nsString& val)
 {
   // remove any line-feeds...
-  PRInt32 offset = val.Find(NS_LITERAL_CSTRING("\x0D\x0A"));
+  PRInt32 offset = val.Find(NS_LITERAL_STRING("\x0D\x0A"));
   while (offset != -1) {
-    val.Replace(offset, 2, ", ");
-    offset = val.Find(NS_LITERAL_CSTRING("\x0D\x0A"), offset + 2);
+    val.Replace(offset, 2, NS_LITERAL_STRING(", "));
+    offset = val.Find(NS_LITERAL_STRING("\x0D\x0A"), offset + 2);
   }
   offset = val.FindChar(13);
   while (offset != -1) {
@@ -604,21 +570,17 @@ NS_IMETHODIMP ImportAddressImpl::GetSampleData(PRInt32 index, bool *pFound, PRUn
     return NS_OK;
   }
 
-  nsCString line;
+  nsAutoString line;
   rv = nsTextAddress::ReadRecordNumber(m_fileLoc, line, index);
   if (NS_SUCCEEDED(rv)) {
     nsString str;
-    nsCString field;
-    nsString uField;
+    nsString field;
     PRInt32 fNum = 0;
-    while (nsTextAddress::GetField(line.get(), line.Length(), fNum, field, m_delim)) {
+    while (nsTextAddress::GetField(line, fNum, field, m_delim)) {
       if (fNum)
         str.Append(PRUnichar('\n'));
       SanitizeSampleData(field);
-      rv = nsMsgI18NConvertToUnicode(nsMsgI18NFileSystemCharset(),
-                                     field, uField);
-
-      str.Append(uField);
+      str.Append(field);
       fNum++;
       field.Truncate();
     }

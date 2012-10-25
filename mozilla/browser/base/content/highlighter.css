@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
 #highlighter-container {
   pointer-events: none;
 }
@@ -12,13 +16,18 @@
   overflow: hidden;
 }
 
+#highlighter-veil-container:not([dim]) > .highlighter-veil,
+#highlighter-veil-container:not([dim]) > hbox > .highlighter-veil {
+  visibility: hidden;
+}
+
 #highlighter-veil-container:not([disable-transitions]) > .highlighter-veil,
 #highlighter-veil-container:not([disable-transitions]) > #highlighter-veil-middlebox,
 #highlighter-veil-container:not([disable-transitions]) > #highlighter-veil-middlebox > .highlighter-veil,
 #highlighter-veil-container:not([disable-transitions]) > #highlighter-veil-middlebox > #highlighter-veil-transparentbox {
-  -moz-transition-property: width, height;
-  -moz-transition-duration: 0.1s;
-  -moz-transition-timing-function: linear;
+  transition-property: width, height;
+  transition-duration: 0.1s;
+  transition-timing-function: linear;
 }
 
 #highlighter-veil-bottombox,
@@ -44,9 +53,9 @@
 }
 
 #highlighter-nodeinfobar-container:not([disable-transitions]) {
-  -moz-transition-property: top, left;
-  -moz-transition-duration: 0.1s;
-  -moz-transition-timing-function: linear;
+  transition-property: top, left;
+  transition-duration: 0.1s;
+  transition-timing-function: linear;
 }
 
 #highlighter-nodeinfobar-text {
@@ -101,14 +110,21 @@ html|*#highlighter-nodeinfobar-tagname {
   display: none;
 }
 
+#inspector-option-toolbarbutton > .toolbarbutton-menu-dropmarker {
+  display: none;
+}
+
 #inspector-layoutview-container > iframe {
-  -moz-transition-property: height;
-  -moz-transition-duration: 0.1s;
   /* header size */
-  height: 22px;
+  height: 28px;
+}
+
+#inspector-layoutview-container:not([disable-transitions]) > iframe {
+  transition-property: height;
+  transition-duration: 0.2s;
 }
 
 #inspector-layoutview-container > iframe[open] {
-  /* header size + layout view size: 22px + 155px */
-  height: 177px;
+  /* header size + layout view size: 28px + 145px */
+  height: 173px;
 }

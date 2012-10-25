@@ -1,54 +1,18 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
 
-#include "nsIDOMHTMLImageElement.h"
+#include "nsHTMLImageElement.h"
 #include "nsIDOMEventTarget.h"
-#include "nsGenericHTMLElement.h"
-#include "nsImageLoadingContent.h"
 #include "nsGkAtoms.h"
 #include "nsStyleConsts.h"
 #include "nsPresContext.h"
 #include "nsMappedAttributes.h"
-#include "nsIJSNativeInitializer.h"
 #include "nsSize.h"
 #include "nsIDocument.h"
-#include "nsIDOMDocument.h"
 #include "nsIScriptContext.h"
 #include "nsIURL.h"
 #include "nsIIOService.h"
@@ -79,101 +43,6 @@
 
 using namespace mozilla;
 using namespace mozilla::dom;
-
-// XXX nav attrs: suppress
-
-class nsHTMLImageElement : public nsGenericHTMLElement,
-                           public nsImageLoadingContent,
-                           public nsIDOMHTMLImageElement,
-                           public nsIJSNativeInitializer
-{
-public:
-  nsHTMLImageElement(already_AddRefed<nsINodeInfo> aNodeInfo);
-  virtual ~nsHTMLImageElement();
-
-  // nsISupports
-  NS_DECL_ISUPPORTS_INHERITED
-
-  // nsIDOMNode
-  NS_FORWARD_NSIDOMNODE(nsGenericHTMLElement::)
-
-  // nsIDOMElement
-  NS_FORWARD_NSIDOMELEMENT(nsGenericHTMLElement::)
-
-  // nsIDOMHTMLElement
-  NS_FORWARD_NSIDOMHTMLELEMENT_BASIC(nsGenericHTMLElement::)
-  NS_SCRIPTABLE NS_IMETHOD Click() {
-    return nsGenericHTMLElement::Click();
-  }
-  NS_SCRIPTABLE NS_IMETHOD GetTabIndex(PRInt32* aTabIndex) {
-    return nsGenericHTMLElement::GetTabIndex(aTabIndex);
-  }
-  NS_SCRIPTABLE NS_IMETHOD SetTabIndex(PRInt32 aTabIndex) {
-    return nsGenericHTMLElement::SetTabIndex(aTabIndex);
-  }
-  NS_SCRIPTABLE NS_IMETHOD Focus() {
-    return nsGenericHTMLElement::Focus();
-  }
-  NS_SCRIPTABLE NS_IMETHOD GetDraggable(bool* aDraggable);
-  NS_SCRIPTABLE NS_IMETHOD GetInnerHTML(nsAString& aInnerHTML) {
-    return nsGenericHTMLElement::GetInnerHTML(aInnerHTML);
-  }
-  NS_SCRIPTABLE NS_IMETHOD SetInnerHTML(const nsAString& aInnerHTML) {
-    return nsGenericHTMLElement::SetInnerHTML(aInnerHTML);
-  }
-
-  // nsIDOMHTMLImageElement
-  NS_DECL_NSIDOMHTMLIMAGEELEMENT
-
-  // override from nsImageLoadingContent
-  CORSMode GetCORSMode();
-
-  // nsIJSNativeInitializer
-  NS_IMETHOD Initialize(nsISupports* aOwner, JSContext* aContext,
-                        JSObject* aObj, PRUint32 argc, jsval* argv);
-
-  // nsIContent
-  virtual bool ParseAttribute(PRInt32 aNamespaceID,
-                                nsIAtom* aAttribute,
-                                const nsAString& aValue,
-                                nsAttrValue& aResult);
-  virtual nsChangeHint GetAttributeChangeHint(const nsIAtom* aAttribute,
-                                              PRInt32 aModType) const;
-  NS_IMETHOD_(bool) IsAttributeMapped(const nsIAtom* aAttribute) const;
-  virtual nsMapRuleToAttributesFunc GetAttributeMappingFunction() const;
-
-  virtual nsresult PreHandleEvent(nsEventChainPreVisitor& aVisitor);
-
-  bool IsHTMLFocusable(bool aWithMouse, bool *aIsFocusable, PRInt32 *aTabIndex);
-
-  // SetAttr override.  C++ is stupid, so have to override both
-  // overloaded methods.
-  nsresult SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
-                   const nsAString& aValue, bool aNotify)
-  {
-    return SetAttr(aNameSpaceID, aName, nsnull, aValue, aNotify);
-  }
-  virtual nsresult SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
-                           nsIAtom* aPrefix, const nsAString& aValue,
-                           bool aNotify);
-  virtual nsresult UnsetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
-                             bool aNotify);
-
-  virtual nsresult BindToTree(nsIDocument* aDocument, nsIContent* aParent,
-                              nsIContent* aBindingParent,
-                              bool aCompileEventHandlers);
-
-  virtual nsEventStates IntrinsicState() const;
-  virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
-
-  nsresult CopyInnerTo(nsGenericElement* aDest) const;
-
-  void MaybeLoadImage();
-  virtual nsXPCClassInfo* GetClassInfo();
-protected:
-  nsIntPoint GetXY();
-  nsSize GetWidthHeight();
-};
 
 nsGenericHTMLElement*
 NS_NewHTMLImageElement(already_AddRefed<nsINodeInfo> aNodeInfo,
@@ -246,6 +115,18 @@ NS_IMPL_URI_ATTR(nsHTMLImageElement, Src, src)
 NS_IMPL_STRING_ATTR(nsHTMLImageElement, UseMap, usemap)
 NS_IMPL_INT_ATTR(nsHTMLImageElement, Vspace, vspace)
 
+void
+nsHTMLImageElement::GetItemValueText(nsAString& aValue)
+{
+  GetSrc(aValue);
+}
+
+void
+nsHTMLImageElement::SetItemValueText(const nsAString& aValue)
+{
+  SetSrc(aValue);
+}
+
 // crossorigin is not "limited to only known values" per spec, so it's
 // just a string attr purposes of the DOM crossOrigin property.
 NS_IMPL_STRING_ATTR(nsHTMLImageElement, CrossOrigin, crossorigin)
@@ -314,49 +195,10 @@ nsHTMLImageElement::GetY(PRInt32* aY)
   return NS_OK;
 }
 
-nsSize
-nsHTMLImageElement::GetWidthHeight()
-{
-  nsSize size(0,0);
-
-  nsIFrame* frame = GetPrimaryFrame(Flush_Layout);
-
-  if (frame) {
-    size = frame->GetContentRect().Size();
-
-    size.width = nsPresContext::AppUnitsToIntCSSPixels(size.width);
-    size.height = nsPresContext::AppUnitsToIntCSSPixels(size.height);
-  } else {
-    const nsAttrValue* value;
-    nsCOMPtr<imgIContainer> image;
-    if (mCurrentRequest) {
-      mCurrentRequest->GetImage(getter_AddRefs(image));
-    }
-
-    if ((value = GetParsedAttr(nsGkAtoms::width)) &&
-        value->Type() == nsAttrValue::eInteger) {
-      size.width = value->GetIntegerValue();
-    } else if (image) {
-      image->GetWidth(&size.width);
-    }
-
-    if ((value = GetParsedAttr(nsGkAtoms::height)) &&
-        value->Type() == nsAttrValue::eInteger) {
-      size.height = value->GetIntegerValue();
-    } else if (image) {
-      image->GetHeight(&size.height);
-    }
-  }
-
-  NS_ASSERTION(size.width >= 0, "negative width");
-  NS_ASSERTION(size.height >= 0, "negative height");
-  return size;
-}
-
 NS_IMETHODIMP
 nsHTMLImageElement::GetHeight(PRUint32* aHeight)
 {
-  *aHeight = GetWidthHeight().height;
+  *aHeight = GetWidthHeightForImage(mCurrentRequest).height;
 
   return NS_OK;
 }
@@ -364,17 +206,13 @@ nsHTMLImageElement::GetHeight(PRUint32* aHeight)
 NS_IMETHODIMP
 nsHTMLImageElement::SetHeight(PRUint32 aHeight)
 {
-  nsAutoString val;
-  val.AppendInt(aHeight);
-
-  return nsGenericHTMLElement::SetAttr(kNameSpaceID_None, nsGkAtoms::height,
-                                       val, true);
+  return nsGenericHTMLElement::SetUnsignedIntAttr(nsGkAtoms::height, aHeight);
 }
 
 NS_IMETHODIMP
 nsHTMLImageElement::GetWidth(PRUint32* aWidth)
 {
-  *aWidth = GetWidthHeight().width;
+  *aWidth = GetWidthHeightForImage(mCurrentRequest).width;
 
   return NS_OK;
 }
@@ -382,11 +220,7 @@ nsHTMLImageElement::GetWidth(PRUint32* aWidth)
 NS_IMETHODIMP
 nsHTMLImageElement::SetWidth(PRUint32 aWidth)
 {
-  nsAutoString val;
-  val.AppendInt(aWidth);
-
-  return nsGenericHTMLElement::SetAttr(kNameSpaceID_None, nsGkAtoms::width,
-                                       val, true);
+  return nsGenericHTMLElement::SetUnsignedIntAttr(nsGkAtoms::width, aWidth);
 }
 
 bool
@@ -689,7 +523,7 @@ nsHTMLImageElement::GetNaturalWidth(PRUint32* aNaturalWidth)
 }
 
 nsresult
-nsHTMLImageElement::CopyInnerTo(nsGenericElement* aDest) const
+nsHTMLImageElement::CopyInnerTo(nsGenericElement* aDest)
 {
   if (aDest->OwnerDoc()->IsStaticDocument()) {
     CreateStaticImageClone(static_cast<nsHTMLImageElement*>(aDest));

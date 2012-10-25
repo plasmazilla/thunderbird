@@ -1,44 +1,7 @@
 /* -*- Mode: Javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998-2007
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   smorrison@gte.com
- *   Terry Hayes <thayes@netscape.com>
- *   Daniel Brooks <db48x@yahoo.com>
- *   Florian QUEZE <f.qu@queze.net>
- *   Erik Fabert <jerfa@yahoo.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 //******** define a js object to implement nsITreeView
 function pageInfoTreeView(copycol)
@@ -1380,35 +1343,53 @@ function formatDate(datestr, unknown)
                                     date.getHours(), date.getMinutes(), date.getSeconds());
 }
 
-function doCopy()
+function getSelectedItems(linksMode)
+{
+  // linksMode is a boolean that is used to determine 
+  // whether the getSelectedItems() function needs to
+  // run with urlSecurityCheck() or not.  
+
+  var elem = document.commandDispatcher.focusedElement;
+
+  var view = elem.view;
+  var selection = view.selection;
+  var text = [], tmp = '';
+  var min = {}, max = {};
+
+  var count = selection.getRangeCount();
+
+  for (var i = 0; i < count; i++) {
+    selection.getRangeAt(i, min, max);
+
+    for (var row = min.value; row <= max.value; row++) {
+      view.performActionOnRow("copy", row);
+
+      tmp = elem.getAttribute("copybuffer");
+      if (tmp)
+      {
+        try {
+          if (linksMode)
+            urlSecurityCheck(tmp, gDocument.nodePrincipal);
+          text.push(tmp);
+        }
+        catch (e) {
+        }
+      }
+      elem.removeAttribute("copybuffer");
+    }
+  }
+  
+  return text;
+}
+
+function doCopy(isLinkMode)
 {
   if (!gClipboardHelper)
     return;
 
-  var elem = document.commandDispatcher.focusedElement;
+  var text = getSelectedItems(isLinkMode);
 
-  if (elem && "treeBoxObject" in elem) {
-    var view = elem.view;
-    var selection = view.selection;
-    var text = [], tmp = '';
-    var min = {}, max = {};
-
-    var count = selection.getRangeCount();
-
-    for (var i = 0; i < count; i++) {
-      selection.getRangeAt(i, min, max);
-
-      for (var row = min.value; row <= max.value; row++) {
-        view.performActionOnRow("copy", row);
-
-        tmp = elem.getAttribute("copybuffer");
-        if (tmp)
-          text.push(tmp);
-        elem.removeAttribute("copybuffer");
-      }
-    }
-    gClipboardHelper.copyString(text.join("\n"));
-  }
+  gClipboardHelper.copyString(text.join("\n"), gDocument);
 }
 
 function doSelectAll()
@@ -1417,4 +1398,12 @@ function doSelectAll()
 
   if (elem && "treeBoxObject" in elem)
     elem.view.selection.selectAll();
+}
+
+function onOpenIn(mode)
+{
+  var linkList = getSelectedItems(true);
+
+  if (linkList.length)
+    openUILinkArrayIn(linkList, mode);
 }

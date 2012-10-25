@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Corporation code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Bas Schouten <bschouten@mozilla.org>
- *   Frederic Plourde <frederic.plourde@collabora.co.uk>
- *   Vladimir Vukicevic <vladimir@pobox.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/layers/PLayers.h"
 
@@ -51,8 +17,7 @@
 #include "TiledThebesLayerOGL.h"
 #include "mozilla/TimeStamp.h"
 #include "mozilla/Preferences.h"
-
-#include "LayerManagerOGLShaders.h"
+#include "TexturePoolOGL.h"
 
 #include "gfxContext.h"
 #include "gfxUtils.h"
@@ -80,7 +45,7 @@ using namespace mozilla::gfx;
 using namespace mozilla::gl;
 
 #ifdef CHECK_CURRENT_PROGRAM
-int LayerManagerOGLProgram::sCurrentProgramKey = 0;
+int ShaderProgramOGL::sCurrentProgramKey = 0;
 #endif
 
 /**
@@ -136,8 +101,11 @@ LayerManagerOGL::CleanupResources()
 
   ctx->MakeCurrent();
 
-  for (unsigned int i = 0; i < mPrograms.Length(); ++i)
-    delete mPrograms[i];
+  for (PRUint32 i = 0; i < mPrograms.Length(); ++i) {
+    for (PRUint32 type = MaskNone; type < NumMaskTypes; ++type) {
+      delete mPrograms[i].mVariations[type];
+    }
+  }
   mPrograms.Clear();
 
   ctx->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, 0);
@@ -181,13 +149,31 @@ LayerManagerOGL::CreateContext()
   return context.forget();
 }
 
+void
+LayerManagerOGL::AddPrograms(ShaderProgramType aType)
+{
+  for (PRUint32 maskType = MaskNone; maskType < NumMaskTypes; ++maskType) {
+    if (ProgramProfileOGL::ProgramExists(aType, static_cast<MaskType>(maskType))) {
+      mPrograms[aType].mVariations[maskType] = new ShaderProgramOGL(this->gl(),
+        ProgramProfileOGL::GetProfileFor(aType, static_cast<MaskType>(maskType)));
+    } else {
+      mPrograms[aType].mVariations[maskType] = nsnull;
+    }
+  }
+}
+
 bool
 LayerManagerOGL::Initialize(nsRefPtr<GLContext> aContext, bool force)
 {
   ScopedGfxFeatureReporter reporter("GL Layers", force);
 
-  // Do not allow double intiailization
-  NS_ABORT_IF_FALSE(mGLContext == nsnull, "Don't reiniailize layer managers");
+  // Do not allow double initialization
+  NS_ABORT_IF_FALSE(mGLContext == nsnull, "Don't reinitialize layer managers");
+
+#ifdef MOZ_WIDGET_ANDROID
+  if (!aContext)
+    NS_RUNTIMEABORT("We need a context on Android");
+#endif
 
   if (!aContext)
     return false;
@@ -205,55 +191,16 @@ LayerManagerOGL::Initialize(nsRefPtr<GLContext> aContext, bool force)
                                  LOCAL_GL_ONE, LOCAL_GL_ONE);
   mGLContext->fEnable(LOCAL_GL_BLEND);
 
-  // We unfortunately can't do generic initialization here, since the
-  // concrete type actually matters.  This macro generates the
-  // initialization using a concrete type and index.
-#define SHADER_PROGRAM(penum, ptype, vsstr, fsstr) do {                           \
-    NS_ASSERTION(programIndex++ == penum, "out of order shader initialization!"); \
-    ptype *p = new ptype(mGLContext);                                             \
-    if (!p->Initialize(vsstr, fsstr)) {                                           \
-      delete p;                                                                   \
-      return false;                                                            \
-    }                                                                             \
-    mPrograms.AppendElement(p);                                                   \
-  } while (0)
+  mPrograms.AppendElements(NumProgramTypes);
+  for (int type = 0; type < NumProgramTypes; ++type) {
+    AddPrograms(static_cast<ShaderProgramType>(type));
+  }
 
+  // initialise a common shader to check that we can actually compile a shader
+  if (!mPrograms[gl::RGBALayerProgramType].mVariations[MaskNone]->Initialize()) {
+    return false;
+  }
 
-  // NOTE: Order matters here, and should be in the same order as the
-  // ProgramType enum!
-#ifdef DEBUG
-  GLint programIndex = 0;
-#endif
-
-  /* Layer programs */
-  SHADER_PROGRAM(RGBALayerProgramType, ColorTextureLayerProgram,
-                 sLayerVS, sRGBATextureLayerFS);
-  SHADER_PROGRAM(BGRALayerProgramType, ColorTextureLayerProgram,
-                 sLayerVS, sBGRATextureLayerFS);
-  SHADER_PROGRAM(RGBXLayerProgramType, ColorTextureLayerProgram,
-                 sLayerVS, sRGBXTextureLayerFS);
-  SHADER_PROGRAM(BGRXLayerProgramType, ColorTextureLayerProgram,
-                 sLayerVS, sBGRXTextureLayerFS);
-  SHADER_PROGRAM(RGBARectLayerProgramType, ColorTextureLayerProgram,
-                 sLayerVS, sRGBARectTextureLayerFS);
-  SHADER_PROGRAM(ColorLayerProgramType, SolidColorLayerProgram,
-                 sLayerVS, sSolidColorLayerFS);
-  SHADER_PROGRAM(YCbCrLayerProgramType, YCbCrTextureLayerProgram,
-                 sLayerVS, sYCbCrTextureLayerFS);
-  SHADER_PROGRAM(ComponentAlphaPass1ProgramType, ComponentAlphaTextureLayerProgram,
-                 sLayerVS, sComponentPass1FS);
-  SHADER_PROGRAM(ComponentAlphaPass2ProgramType, ComponentAlphaTextureLayerProgram,
-                 sLayerVS, sComponentPass2FS);
-  /* Copy programs (used for final framebuffer blit) */
-  SHADER_PROGRAM(Copy2DProgramType, CopyProgram,
-                 sCopyVS, sCopy2DFS);
-  SHADER_PROGRAM(Copy2DRectProgramType, CopyProgram,
-                 sCopyVS, sCopy2DRectFS);
-
-#undef SHADER_PROGRAM
-
-  NS_ASSERTION(programIndex == NumProgramTypes,
-               "not all programs were initialized!");
 
   mGLContext->fGenFramebuffers(1, &mBackBufferFBO);
 
@@ -479,6 +426,13 @@ LayerManagerOGL::EndTransaction(DrawThebesLayerCallback aCallback,
 #endif
 }
 
+already_AddRefed<gfxASurface>
+LayerManagerOGL::CreateOptimalMaskSurface(const gfxIntSize &aSize)
+{
+  return gfxPlatform::GetPlatform()->
+    CreateOffscreenImageSurface(aSize, gfxASurface::CONTENT_ALPHA);
+}
+
 already_AddRefed<ThebesLayer>
 LayerManagerOGL::CreateThebesLayer()
 {
@@ -555,7 +509,7 @@ bool LayerManagerOGL::sDrawFPS = false;
 /* This function tries to stick to portable C89 as much as possible
  * so that it can be easily copied into other applications */
 void
-LayerManagerOGL::FPSState::DrawFPS(GLContext* context, CopyProgram* copyprog)
+LayerManagerOGL::FPSState::DrawFPS(GLContext* context, ShaderProgramOGL* copyprog)
 {
   fcount++;
 
@@ -666,8 +620,8 @@ LayerManagerOGL::FPSState::DrawFPS(GLContext* context, CopyProgram* copyprog)
 
   // enable our vertex attribs; we'll call glVertexPointer below
   // to fill with the correct data.
-  GLint vcattr = copyprog->AttribLocation(CopyProgram::VertexCoordAttrib);
-  GLint tcattr = copyprog->AttribLocation(CopyProgram::TexCoordAttrib);
+  GLint vcattr = copyprog->AttribLocation(ShaderProgramOGL::VertexCoordAttrib);
+  GLint tcattr = copyprog->AttribLocation(ShaderProgramOGL::TexCoordAttrib);
 
   context->fEnableVertexAttribArray(vcattr);
   context->fEnableVertexAttribArray(tcattr);
@@ -693,16 +647,17 @@ LayerManagerOGL::FPSState::DrawFPS(GLContext* context, CopyProgram* copyprog)
 // |aTexSize| is the actual size of the texture, as it can be larger
 // than the rectangle given by |aTexCoordRect|.
 void 
-LayerManagerOGL::BindAndDrawQuadWithTextureRect(LayerProgram *aProg,
+LayerManagerOGL::BindAndDrawQuadWithTextureRect(ShaderProgramOGL *aProg,
                                                 const nsIntRect& aTexCoordRect,
                                                 const nsIntSize& aTexSize,
                                                 GLenum aWrapMode /* = LOCAL_GL_REPEAT */,
                                                 bool aFlipped /* = false */)
 {
+  NS_ASSERTION(aProg->HasInitialized(), "Shader program not correctly initialized");
   GLuint vertAttribIndex =
-    aProg->AttribLocation(LayerProgram::VertexAttrib);
+    aProg->AttribLocation(ShaderProgramOGL::VertexCoordAttrib);
   GLuint texCoordAttribIndex =
-    aProg->AttribLocation(LayerProgram::TexCoordAttrib);
+    aProg->AttribLocation(ShaderProgramOGL::TexCoordAttrib);
   NS_ASSERTION(texCoordAttribIndex != GLuint(-1), "no texture coords?");
 
   // clear any bound VBO so that glVertexAttribPointer() goes back to
@@ -797,6 +752,10 @@ LayerManagerOGL::Render()
     MakeCurrent();
   }
 
+#if MOZ_WIDGET_ANDROID
+  TexturePoolOGL::Fill(gl());
+#endif
+
   SetupBackBuffer(width, height);
   SetupPipeline(width, height, ApplyWorldTransform);
 
@@ -858,7 +817,7 @@ LayerManagerOGL::Render()
   }
 
   if (sDrawFPS) {
-    mFPS.DrawFPS(mGLContext, GetCopy2DProgram());
+    mFPS.DrawFPS(mGLContext, GetProgram(Copy2DProgramType));
   }
 
   if (mGLContext->IsDoubleBuffered()) {
@@ -872,10 +831,10 @@ LayerManagerOGL::Render()
 
   mGLContext->fActiveTexture(LOCAL_GL_TEXTURE0);
 
-  CopyProgram *copyprog = GetCopy2DProgram();
+  ShaderProgramOGL *copyprog = GetProgram(Copy2DProgramType);
 
   if (mFBOTextureTarget == LOCAL_GL_TEXTURE_RECTANGLE_ARB) {
-    copyprog = GetCopy2DRectProgram();
+    copyprog = GetProgram(Copy2DRectProgramType);
   }
 
   mGLContext->fBindTexture(mFBOTextureTarget, mBackBufferTexture);
@@ -884,9 +843,7 @@ LayerManagerOGL::Render()
   copyprog->SetTextureUnit(0);
 
   if (copyprog->GetTexCoordMultiplierUniformLocation() != -1) {
-    float f[] = { float(width), float(height) };
-    copyprog->SetUniform(copyprog->GetTexCoordMultiplierUniformLocation(),
-                         2, f);
+    copyprog->SetTexCoordMultiplier(width, height);
   }
 
   // we're going to use client-side vertex arrays for this.
@@ -898,8 +855,8 @@ LayerManagerOGL::Render()
 
   // enable our vertex attribs; we'll call glVertexPointer below
   // to fill with the correct data.
-  GLint vcattr = copyprog->AttribLocation(CopyProgram::VertexCoordAttrib);
-  GLint tcattr = copyprog->AttribLocation(CopyProgram::TexCoordAttrib);
+  GLint vcattr = copyprog->AttribLocation(ShaderProgramOGL::VertexCoordAttrib);
+  GLint tcattr = copyprog->AttribLocation(ShaderProgramOGL::TexCoordAttrib);
 
   mGLContext->fEnableVertexAttribArray(vcattr);
   mGLContext->fEnableVertexAttribArray(tcattr);
@@ -924,13 +881,12 @@ LayerManagerOGL::Render()
                          right * 2.0f - 1.0f,
                          -(bottom * 2.0f - 1.0f) };
 
-    // Use flipped texture coordinates since our
-    // projection matrix also has a flip and we
-    // need to cancel that out.
-    float coords[] = { left, bottom,
-                       right, bottom,
-                       left, top,
-                       right, top };
+    // Use inverted texture coordinates since our projection matrix also has a
+    // flip and we need to cancel that out.
+    float coords[] = { left, 1 - top,
+                       right, 1 - top,
+                       left, 1 - bottom,
+                       right, 1 - bottom };
 
     mGLContext->fVertexAttribPointer(vcattr,
                                      2, LOCAL_GL_FLOAT,
@@ -1111,38 +1067,16 @@ LayerManagerOGL::CopyToTarget(gfxContext *aTarget)
   aTarget->Paint();
 }
 
-LayerManagerOGL::ProgramType LayerManagerOGL::sLayerProgramTypes[] = {
-  gl::RGBALayerProgramType,
-  gl::BGRALayerProgramType,
-  gl::RGBXLayerProgramType,
-  gl::BGRXLayerProgramType,
-  gl::RGBARectLayerProgramType,
-  gl::ColorLayerProgramType,
-  gl::YCbCrLayerProgramType,
-  gl::ComponentAlphaPass1ProgramType,
-  gl::ComponentAlphaPass2ProgramType
-};
-
-#define FOR_EACH_LAYER_PROGRAM(vname)                       \
-  for (size_t lpindex = 0;                                  \
-       lpindex < ArrayLength(sLayerProgramTypes);           \
-       ++lpindex)                                           \
-  {                                                         \
-    LayerProgram *vname = static_cast<LayerProgram*>        \
-      (mPrograms[sLayerProgramTypes[lpindex]]);             \
-    do
-
-#define FOR_EACH_LAYER_PROGRAM_END              \
-    while (0);                                  \
-  }                                             \
-
 void
 LayerManagerOGL::SetLayerProgramProjectionMatrix(const gfx3DMatrix& aMatrix)
 {
-  FOR_EACH_LAYER_PROGRAM(lp) {
-    lp->Activate();
-    lp->SetProjectionMatrix(aMatrix);
-  } FOR_EACH_LAYER_PROGRAM_END
+  for (unsigned int i = 0; i < mPrograms.Length(); ++i) {
+    for (PRUint32 mask = MaskNone; mask < NumMaskTypes; ++mask) {
+      if (mPrograms[i].mVariations[mask]) {
+        mPrograms[i].mVariations[mask]->CheckAndSetProjectionMatrix(aMatrix);
+      }
+    }
+  }
 }
 
 static GLenum
@@ -1316,7 +1250,6 @@ LayerManagerOGL::CreateShadowCanvasLayer()
   }
   return nsRefPtr<ShadowCanvasLayerOGL>(new ShadowCanvasLayerOGL(this)).forget();
 }
-
 
 } /* layers */
 } /* mozilla */

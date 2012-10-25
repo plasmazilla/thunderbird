@@ -1,40 +1,7 @@
 #
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is this file as it was released upon August 6, 1998.
-#
-# The Initial Developer of the Original Code is
-# Christopher Seawood.
-# Portions created by the Initial Developer are Copyright (C) 1998
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Benjamin Smedberg <benjamin@smedbergs.us>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either of the GNU General Public License Version 2 or later (the "GPL"),
-# or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 # A netscape style .mk file for autoconf builds
 
@@ -55,6 +22,8 @@ MOZ_APP_DISPLAYNAME = @MOZ_APP_DISPLAYNAME@
 MOZ_APP_VERSION = @MOZ_APP_VERSION@
 MOZ_APP_MAXVERSION = @MOZ_APP_MAXVERSION@
 MOZ_MACBUNDLE_NAME= @MOZ_MACBUNDLE_NAME@
+MAR_CHANNEL_ID = @MAR_CHANNEL_ID@
+ACCEPTED_MAR_CHANNEL_IDS = @ACCEPTED_MAR_CHANNEL_IDS@
 
 MOZ_PKG_SPECIAL = @MOZ_PKG_SPECIAL@
 
@@ -120,6 +89,8 @@ MOZ_UNIVERSALCHARDET = @MOZ_UNIVERSALCHARDET@
 ACCESSIBILITY = @ACCESSIBILITY@
 MOZ_LDAP_XPCOM = @MOZ_LDAP_XPCOM@
 MOZ_BRANDING_DIRECTORY = @MOZ_BRANDING_DIRECTORY@
+MOZ_MAINTENANCE_SERVICE	= @MOZ_MAINTENANCE_SERVICE@
+MOZ_VERIFY_MAR_SIGNATURE	= @MOZ_VERIFY_MAR_SIGNATURE@
 MOZ_UPDATER	= @MOZ_UPDATER@
 MOZ_UPDATE_CHANNEL = @MOZ_UPDATE_CHANNEL@
 MOZ_UPDATE_PACKAGING	= @MOZ_UPDATE_PACKAGING@
@@ -239,8 +210,6 @@ MOZ_FRAMEPTR_FLAGS = @MOZ_FRAMEPTR_FLAGS@
 MOZ_OPTIMIZE_FLAGS = @MOZ_OPTIMIZE_FLAGS@
 MOZ_OPTIMIZE_LDFLAGS = @MOZ_OPTIMIZE_LDFLAGS@
 MOZ_OPTIMIZE_SIZE_TWEAK = @MOZ_OPTIMIZE_SIZE_TWEAK@
-
-MOZ_RTTI_FLAGS_ON = @_MOZ_RTTI_FLAGS_ON@
 
 PROFILE_GEN_CFLAGS = @PROFILE_GEN_CFLAGS@
 PROFILE_GEN_LDFLAGS = @PROFILE_GEN_LDFLAGS@
@@ -496,7 +465,6 @@ MOZILLA_OFFICIAL = @MOZILLA_OFFICIAL@
 # Win32 options
 MOZ_BROWSE_INFO	= @MOZ_BROWSE_INFO@
 MOZ_TOOLS_DIR	= @MOZ_TOOLS_DIR@
-MOZ_QUANTIFY	= @MOZ_QUANTIFY@
 MSMANIFEST_TOOL = @MSMANIFEST_TOOL@
 MOZ_GLUE_LDFLAGS = @MOZ_GLUE_LDFLAGS@
 MOZ_GLUE_PROGRAM_LDFLAGS = @MOZ_GLUE_PROGRAM_LDFLAGS@
@@ -507,6 +475,7 @@ MOZ_MAPINFO	= @MOZ_MAPINFO@
 
 MOZ_THUNDERBIRD = @MOZ_THUNDERBIRD@
 MOZ_INCOMPLETE_EXTERNAL_LINKAGE = @MOZ_INCOMPLETE_EXTERNAL_LINKAGE@
+MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE = @MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE@
 MOZ_SUNBIRD	= @MOZ_SUNBIRD@
 MOZ_SUITE	= @MOZ_SUITE@
 WINCE		= @WINCE@
@@ -522,6 +491,10 @@ HAVE_DTRACE= @HAVE_DTRACE@
 
 VISIBILITY_FLAGS = @VISIBILITY_FLAGS@
 
+MOZ_SERVICES_AITC = @MOZ_SERVICES_AITC@
+MOZ_SERVICES_NOTIFICATIONS = @MOZ_SERVICES_NOTIFICATIONS@
+MOZ_SERVICES_SYNC = @MOZ_SERVICES_SYNC@
+ 
 MOZ_OFFICIAL_BRANDING = @MOZ_OFFICIAL_BRANDING@
 
 JS_SHARED_LIBRARY = @JS_SHARED_LIBRARY@

@@ -12,36 +12,30 @@
   <script type="text/javascript;version=1.7">
   function testSteps()
   {
-    denyUnlimitedQuota();
-
     const READ_WRITE = IDBTransaction.READ_WRITE;
     const DEFAULT_QUOTA_MB = 50;
 
     const name = window.location.pathname;
-    const description = "My Test Database";
 
     const objectStoreName = "Blobs";
 
     const testData = { key: 0, value: {} };
     const fileData = { key: 1, file: null };
 
-    let request = mozIndexedDB.open(name, 1, description);
+    let request = indexedDB.open(name, 1);
     request.onerror = errorHandler;
     request.onupgradeneeded = grabEventAndContinueHandler;
     request.onsuccess = grabEventAndContinueHandler;
     let event = yield;
 
     is(event.type, "upgradeneeded", "Got correct event type");
-     
+
     let db = event.target.result;
 
     let objectStore = db.createObjectStore(objectStoreName, { });
     objectStore.add(testData.value, testData.key);
 
-    let usage = getUsageSync();
-
-    let size = (DEFAULT_QUOTA_MB + 1) * 1024 * 1024 - usage;
-
+    let size = (DEFAULT_QUOTA_MB + 1) * 1024 * 1024 - getUsageSync();
     fileData.file = getNullFile("random.bin", size);
 
     event = yield;
@@ -70,6 +64,6 @@
 
 </head>
 
-<body onload="runTest();"></body>
+<body onload="runTest(true);"></body>
 
 </html>

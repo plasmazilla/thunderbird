@@ -1,40 +1,6 @@
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is mozilla.org code.
-#
-# The Initial Developer of the Original Code is Joel Maher.
-#
-# Portions created by the Initial Developer are Copyright (C) 2010
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#  Joel Maher <joel.maher@gmail.com> (Original Developer)
-#  Clint Talbert <cmtalbert@gmail.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import sys
 import os
@@ -221,7 +187,7 @@ class ReftestServer:
         pid = self._process.pid
         if pid < 0:
             print "Error starting server."
-            sys.exit(2)
+            return 2
         self._automation.log.info("INFO | remotereftests.py | Server pid: %d", pid)
 
         if (self.pidFile != ""):
@@ -242,7 +208,7 @@ class ReftestServer:
         else:
             print "Timed out while waiting for server startup."
             self.stop()
-            sys.exit(1)
+            return 1
 
     def stop(self):
         try:
@@ -306,7 +272,7 @@ class RemoteReftest(RefTest):
         options.xrePath = self.findPath(paths)
         if options.xrePath == None:
             print "ERROR: unable to find xulrunner path for %s, please specify with --xre-path" % (os.name)
-            sys.exit(1)
+            return 1
         paths.append("bin")
         paths.append(os.path.join("..", "bin"))
 
@@ -319,15 +285,20 @@ class RemoteReftest(RefTest):
         options.utilityPath = self.findPath(paths, xpcshell)
         if options.utilityPath == None:
             print "ERROR: unable to find utility path for %s, please specify with --utility-path" % (os.name)
-            sys.exit(1)
+            return 1
 
         options.serverProfilePath = tempfile.mkdtemp()
         self.server = ReftestServer(localAutomation, options, self.scriptDir)
-        self.server.start()
+        retVal = self.server.start()
+        if retVal:
+            return retVal
+        retVal = self.server.ensureReady(self.SERVER_STARTUP_TIMEOUT)
+        if retVal:
+            return retVal
 
-        self.server.ensureReady(self.SERVER_STARTUP_TIMEOUT)
         options.xrePath = remoteXrePath
         options.utilityPath = remoteUtilityPath
+        return 0
          
     def stopWebServer(self, options):
         self.server.stop()
@@ -385,14 +356,14 @@ user_pref("capability.principal.codebase.p2.id", "http://%s:%s");
             except:
                 print "Warning: cleaning up pidfile '%s' was unsuccessful from the test harness" % self.pidFile
 
-def main():
+def main(args):
     automation = RemoteAutomation(None)
     parser = RemoteOptions(automation)
     options, args = parser.parse_args()
 
     if (options.deviceIP == None):
         print "Error: you must provide a device IP to connect to via the --device option"
-        sys.exit(1)
+        return 1
 
     try:
         if (options.dm_trans == "adb"):
@@ -404,7 +375,7 @@ def main():
             dm = devicemanagerSUT.DeviceManagerSUT(options.deviceIP, options.devicePort)
     except devicemanager.DMError:
         print "Error: exception while initializing devicemanager.  Most likely the device is not in a testable state."
-        sys.exit(1)
+        return 1
 
     automation.setDeviceManager(dm)
 
@@ -415,7 +386,7 @@ def main():
     options = parser.verifyRemoteOptions(options)
     if (options == None):
         print "ERROR: Invalid options specified, use --help for a list of valid options"
-        sys.exit(1)
+        return 1
 
     if not options.ignoreWindowSize:
         parts = dm.getInfo('screen')['screen'][0].split()
@@ -423,7 +394,7 @@ def main():
         height = int(parts[1].split(':')[1])
         if (width < 1050 or height < 1050):
             print "ERROR: Invalid screen resolution %sx%s, please adjust to 1366x1050 or higher" % (width, height)
-            sys.exit(1)
+            return 1
 
     automation.setAppName(options.app)
     automation.setRemoteProfile(options.remoteProfile)
@@ -442,10 +413,12 @@ def main():
         manifest = "http://" + str(options.remoteWebServer) + ":" + str(options.httpPort) + "/" + manifestPath
     else:
         print "ERROR: Could not find test manifest '%s'" % manifest
-        sys.exit(1)
+        return 1
 
     # Start the webserver
-    reftest.startWebServer(options)
+    retVal = reftest.startWebServer(options)
+    if retVal:
+        return retVal
 
     procName = options.app.split('/')[-1]
     if (dm.processExist(procName)):
@@ -453,18 +426,23 @@ def main():
 
 #an example manifest name to use on the cli
 #    manifest = "http://" + options.remoteWebServer + "/reftests/layout/reftests/reftest-sanity/reftest.list"
+    logcat = []
     try:
         cmdlineArgs = ["-reftest", manifest]
         if options.bootstrap:
             cmdlineArgs = []
+        dm.recordLogcat()
         reftest.runTests(manifest, options, cmdlineArgs)
+        logcat = dm.getLogcat()
     except:
         print "TEST-UNEXPECTED-FAIL | | exception while running reftests"
         reftest.stopWebServer(options)
-        sys.exit(1)
+        return 1
 
     reftest.stopWebServer(options)
+    print ''.join(logcat[-500:-1])
+    return 0
 
 if __name__ == "__main__":
-    main()
-    
+    sys.exit(main(sys.argv[1:]))
+

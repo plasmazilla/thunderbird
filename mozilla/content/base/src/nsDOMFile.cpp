@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozila.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2007
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dave Camp <dcamp@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsDOMFile.h"
 
@@ -47,7 +14,6 @@
 #include "nsICharsetConverterManager.h"
 #include "nsIConverterInputStream.h"
 #include "nsIDocument.h"
-#include "nsIDOMDocument.h"
 #include "nsIFileStreams.h"
 #include "nsIInputStream.h"
 #include "nsIIPCSerializable.h"
@@ -61,9 +27,10 @@
 #include "nsIUUIDGenerator.h"
 #include "nsBlobProtocolHandler.h"
 #include "nsStringStream.h"
-#include "CheckedInt.h"
 #include "nsJSUtils.h"
+#include "mozilla/CheckedInt.h"
 #include "mozilla/Preferences.h"
+#include "mozilla/Attributes.h"
 
 #include "plbase64.h"
 #include "prmem.h"
@@ -77,8 +44,8 @@ using namespace mozilla::dom;
 // ensure that the buffer underlying the stream we get
 // from NS_NewByteInputStream is held alive as long as the
 // stream is.  We do that by passing back this class instead.
-class DataOwnerAdapter : public nsIInputStream,
-                         public nsISeekableStream
+class DataOwnerAdapter MOZ_FINAL : public nsIInputStream,
+                                   public nsISeekableStream
 {
   typedef nsDOMMemoryFile::DataOwner DataOwner;
 public:
@@ -136,29 +103,18 @@ nsresult DataOwnerAdapter::Create(DataOwner* aDataOwner,
 ////////////////////////////////////////////////////////////////////////////
 // nsDOMFileBase implementation
 
-DOMCI_DATA(File, nsDOMFileBase)
-DOMCI_DATA(Blob, nsDOMFileBase)
-
-NS_INTERFACE_MAP_BEGIN(nsDOMFileBase)
-  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMFile)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMBlob)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMBlob_GECKO_13)
-  NS_INTERFACE_MAP_ENTRY_CONDITIONAL(nsIDOMFile, mIsFile)
-  NS_INTERFACE_MAP_ENTRY(nsIXHRSendable)
-  NS_INTERFACE_MAP_ENTRY(nsIMutable)
-  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO_CONDITIONAL(File, mIsFile)
-  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO_CONDITIONAL(Blob, !mIsFile)
-NS_INTERFACE_MAP_END
-
-// Threadsafe when GetMutable() == false
-NS_IMPL_THREADSAFE_ADDREF(nsDOMFileBase)
-NS_IMPL_THREADSAFE_RELEASE(nsDOMFileBase)
-
 NS_IMETHODIMP
 nsDOMFileBase::GetName(nsAString &aFileName)
 {
   NS_ASSERTION(mIsFile, "Should only be called on files");
   aFileName = mName;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDOMFileBase::GetLastModifiedDate(JSContext* cx, JS::Value *aLastModifiedDate)
+{
+  aLastModifiedDate->setNull();
   return NS_OK;
 }
 
@@ -228,7 +184,7 @@ ParseSize(PRInt64 aSize, PRInt64& aStart, PRInt64& aEnd)
     newEndOffset = aSize;
   }
 
-  if (!newStartOffset.valid() || !newEndOffset.valid() ||
+  if (!newStartOffset.isValid() || !newEndOffset.isValid() ||
       newStartOffset.value() >= newEndOffset.value()) {
     aStart = aEnd = 0;
   }
@@ -265,10 +221,24 @@ nsDOMFileBase::Slice(PRInt64 aStart, PRInt64 aEnd,
 
 NS_IMETHODIMP
 nsDOMFileBase::MozSlice(PRInt64 aStart, PRInt64 aEnd,
-                        const nsAString& aContentType, PRUint8 optional_argc,
+                        const nsAString& aContentType, 
+                        JSContext* aCx,
+                        PRUint8 optional_argc,
                         nsIDOMBlob **aBlob)
 {
   MOZ_ASSERT(NS_IsMainThread());
+
+  nsIScriptGlobalObject* sgo = nsJSUtils::GetDynamicScriptGlobal(aCx);
+  if (sgo) {
+    nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(sgo);
+    if (window) {
+      nsCOMPtr<nsIDocument> document =
+        do_QueryInterface(window->GetExtantDocument());
+      if (document) {
+        document->WarnOnceAbout(nsIDocument::eMozSlice);
+      }
+    }
+  }
 
   return Slice(aStart, aEnd, aContentType, optional_argc, aBlob);
 }
@@ -315,7 +285,7 @@ nsDOMFileBase::GetFileId()
 {
   PRInt64 id = -1;
 
-  if (IsStoredFile() && IsWholeFile()) {
+  if (IsStoredFile() && IsWholeFile() && !IsSnapshot()) {
     if (!indexedDB::IndexedDatabaseManager::IsClosed()) {
       indexedDB::IndexedDatabaseManager::FileMutex().Lock();
     }
@@ -366,7 +336,14 @@ nsDOMFileBase::GetFileInfo(indexedDB::FileManager* aFileManager)
   // A slice created from a stored file must keep the file info alive.
   // However, we don't support sharing of slices yet, so the slice must be
   // copied again. That's why we have to ignore the first file info.
-  PRUint32 startIndex = IsStoredFile() && !IsWholeFile() ? 1 : 0;
+  // Snapshots are handled in a similar way (they have to be copied).
+  PRUint32 startIndex;
+  if (IsStoredFile() && (!IsWholeFile() || IsSnapshot())) {
+    startIndex = 1;
+  }
+  else {
+    startIndex = 0;
+  }
 
   MutexAutoLock lock(indexedDB::IndexedDatabaseManager::FileMutex());
 
@@ -433,9 +410,47 @@ nsDOMFileBase::SetMutable(bool aMutable)
 }
 
 ////////////////////////////////////////////////////////////////////////////
+// nsDOMFile implementation
+
+DOMCI_DATA(File, nsDOMFile)
+DOMCI_DATA(Blob, nsDOMFile)
+
+NS_INTERFACE_MAP_BEGIN(nsDOMFile)
+  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMFile)
+  NS_INTERFACE_MAP_ENTRY(nsIDOMBlob)
+  NS_INTERFACE_MAP_ENTRY_CONDITIONAL(nsIDOMFile, mIsFile)
+  NS_INTERFACE_MAP_ENTRY(nsIXHRSendable)
+  NS_INTERFACE_MAP_ENTRY(nsIMutable)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO_CONDITIONAL(File, mIsFile)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO_CONDITIONAL(Blob, !mIsFile)
+NS_INTERFACE_MAP_END
+
+// Threadsafe when GetMutable() == false
+NS_IMPL_THREADSAFE_ADDREF(nsDOMFile)
+NS_IMPL_THREADSAFE_RELEASE(nsDOMFile)
+
+////////////////////////////////////////////////////////////////////////////
+// nsDOMFileCC implementation
+
+NS_IMPL_CYCLE_COLLECTION_0(nsDOMFileCC)
+
+NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsDOMFileCC)
+  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMFile)
+  NS_INTERFACE_MAP_ENTRY(nsIDOMBlob)
+  NS_INTERFACE_MAP_ENTRY_CONDITIONAL(nsIDOMFile, mIsFile)
+  NS_INTERFACE_MAP_ENTRY(nsIXHRSendable)
+  NS_INTERFACE_MAP_ENTRY(nsIMutable)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO_CONDITIONAL(File, mIsFile)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO_CONDITIONAL(Blob, !mIsFile)
+NS_INTERFACE_MAP_END
+
+NS_IMPL_CYCLE_COLLECTING_ADDREF(nsDOMFileCC)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(nsDOMFileCC)
+
+////////////////////////////////////////////////////////////////////////////
 // nsDOMFileFile implementation
 
-NS_IMPL_ISUPPORTS_INHERITED1(nsDOMFileFile, nsDOMFileBase,
+NS_IMPL_ISUPPORTS_INHERITED1(nsDOMFileFile, nsDOMFile,
                              nsIJSNativeInitializer)
 
 already_AddRefed<nsIDOMBlob>
@@ -459,6 +474,22 @@ nsDOMFileFile::GetMozFullPathInternal(nsAString &aFilename)
 {
   NS_ASSERTION(mIsFile, "Should only be called on files");
   return mFile->GetPath(aFilename);
+}
+
+NS_IMETHODIMP
+nsDOMFileFile::GetLastModifiedDate(JSContext* cx, JS::Value *aLastModifiedDate)
+{
+  PRInt64 msecs;
+  mFile->GetLastModifiedTime(&msecs);
+  JSObject* date = JS_NewDateObjectMsec(cx, msecs);
+  if (date) {
+    aLastModifiedDate->setObject(*date);
+  }
+  else {
+    aLastModifiedDate->setNull();
+  }
+
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -528,7 +559,7 @@ nsDOMFileFile::Initialize(nsISupports* aOwner,
                           JSContext* aCx,
                           JSObject* aObj,
                           PRUint32 aArgc,
-                          jsval* aArgv)
+                          JS::Value* aArgv)
 {
   nsresult rv;
 
@@ -544,14 +575,13 @@ nsDOMFileFile::Initialize(nsISupports* aOwner,
   // We expect to get a path to represent as a File object,
   // or an nsIFile
   nsCOMPtr<nsIFile> file;
-  if (!JSVAL_IS_STRING(aArgv[0])) {
+  if (!aArgv[0].isString()) {
     // Lets see if it's an nsIFile
-    if (!JSVAL_IS_OBJECT(aArgv[0])) {
+    if (!aArgv[0].isObject()) {
       return NS_ERROR_UNEXPECTED; // We're not interested
     }
 
-    JSObject* obj = JSVAL_TO_OBJECT(aArgv[0]);
-    NS_ASSERTION(obj, "This is a bit odd");
+    JSObject* obj = &aArgv[0].toObject();
 
     // Is it an nsIFile
     file = do_QueryInterface(
@@ -569,12 +599,8 @@ nsDOMFileFile::Initialize(nsISupports* aOwner,
       return NS_ERROR_XPC_BAD_CONVERT_JS;
     }
 
-    nsCOMPtr<nsILocalFile> localFile;
-    rv = NS_NewLocalFile(xpcomStr, false, getter_AddRefs(localFile));
+    rv = NS_NewLocalFile(xpcomStr, false, getter_AddRefs(file));
     NS_ENSURE_SUCCESS(rv, rv);
-
-    file = do_QueryInterface(localFile);
-    NS_ASSERTION(file, "This should never happen");
   }
 
   bool exists;
@@ -619,16 +645,7 @@ nsDOMMemoryFile::GetInternalStream(nsIInputStream **aStream)
 
 DOMCI_DATA(FileList, nsDOMFileList)
 
-NS_IMPL_CYCLE_COLLECTION_CLASS(nsDOMFileList)
-NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsDOMFileList)
-  NS_IMPL_CYCLE_COLLECTION_UNLINK_PRESERVED_WRAPPER
-NS_IMPL_CYCLE_COLLECTION_UNLINK_END
-NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsDOMFileList)
-  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_SCRIPT_OBJECTS
-NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
-NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN(nsDOMFileList)
-  NS_IMPL_CYCLE_COLLECTION_TRACE_PRESERVED_WRAPPER
-NS_IMPL_CYCLE_COLLECTION_TRACE_END
+NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE_0(nsDOMFileList)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsDOMFileList)
   NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY

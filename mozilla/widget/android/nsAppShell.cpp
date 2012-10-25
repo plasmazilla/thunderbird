@@ -1,44 +1,13 @@
 /* -*- Mode: c++; tab-width: 40; indent-tabs-mode: nil; c-basic-offset: 4; -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2009-2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Vladimir Vukicevic <vladimir@pobox.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 // Make sure the order of included headers
 #include "base/basictypes.h"
 #include "nspr/prtypes.h"
+#include "base/message_loop.h"
+#include "base/task.h"
 
 #include "mozilla/Hal.h"
 #include "nsAppShell.h"
@@ -55,6 +24,7 @@
 #include "nsIDOMClientRect.h"
 #include "nsIDOMWakeLockListener.h"
 #include "nsIPowerManagerService.h"
+#include "nsFrameManager.h"
 
 #include "mozilla/Services.h"
 #include "mozilla/unused.h"
@@ -98,6 +68,34 @@ nsAppShell *nsAppShell::gAppShell = nsnull;
 
 NS_IMPL_ISUPPORTS_INHERITED1(nsAppShell, nsBaseAppShell, nsIObserver)
 
+class ScreenshotRunnable : public nsRunnable {
+public:
+    ScreenshotRunnable(nsIAndroidBrowserApp* aBrowserApp, int aTabId, nsTArray<nsIntPoint>& aPoints, int aToken, RefCountedJavaObject* aBuffer):
+        mBrowserApp(aBrowserApp), mPoints(aPoints), mTabId(aTabId), mToken(aToken), mBuffer(aBuffer) {}
+
+    virtual nsresult Run() {
+        nsCOMPtr<nsIDOMWindow> domWindow;
+        nsCOMPtr<nsIBrowserTab> tab;
+        mBrowserApp->GetBrowserTab(mTabId, getter_AddRefs(tab));
+        if (!tab)
+            return NS_OK;
+
+        tab->GetWindow(getter_AddRefs(domWindow));
+        if (!domWindow)
+            return NS_OK;
+
+        NS_ASSERTION(mPoints.Length() == 5, "Screenshot event does not have enough coordinates");
+
+        AndroidBridge::Bridge()->TakeScreenshot(domWindow, mPoints[0].x, mPoints[0].y, mPoints[1].x, mPoints[1].y, mPoints[2].x, mPoints[2].y, mPoints[3].x, mPoints[3].y, mPoints[4].x, mPoints[4].y, mTabId, mToken, mBuffer->GetObject());
+        return NS_OK;
+    }
+private:
+    nsCOMPtr<nsIAndroidBrowserApp> mBrowserApp;
+    nsTArray<nsIntPoint> mPoints;
+    int mTabId, mToken;
+    nsRefPtr<RefCountedJavaObject> mBuffer;
+};
+
 class AfterPaintListener : public nsIDOMEventListener {
   public:
     NS_DECL_ISUPPORTS
@@ -120,27 +118,28 @@ class AfterPaintListener : public nsIDOMEventListener {
     }
 
     virtual nsresult HandleEvent(nsIDOMEvent* aEvent) {
+        PRUint32 generation = nsFrameManager::GetGlobalGenerationNumber();
+        if (mLastGeneration == generation) {
+            // the frame tree has not changed since our last AfterPaint
+            // so we can drop this event.
+            return NS_OK;
+        }
+
+        mLastGeneration = generation;
+
         nsCOMPtr<nsIDOMNotifyPaintEvent> paintEvent = do_QueryInterface(aEvent);
         if (!paintEvent)
             return NS_OK;
 
-        nsCOMPtr<nsIDOMClientRectList> rects;
-        paintEvent->GetClientRects(getter_AddRefs(rects));
-        if (!rects)
-            return NS_OK;
-        PRUint32 length;
-        rects->GetLength(&length);
-        for (PRUint32 i = 0; i < length; ++i) {
-            float top, left, bottom, right;
-            nsCOMPtr<nsIDOMClientRect> rect = rects->GetItemAt(i);
-            if (!rect)
-                continue;
-            rect->GetTop(&top);
-            rect->GetLeft(&left);
-            rect->GetRight(&right);
-            rect->GetBottom(&bottom);
-            AndroidBridge::NotifyPaintedRect(top, left, bottom, right);
-        }
+        nsCOMPtr<nsIDOMClientRect> rect;
+        paintEvent->GetBoundingClientRect(getter_AddRefs(rect));
+        float top, left, bottom, right;
+        rect->GetTop(&top);
+        rect->GetLeft(&left);
+        rect->GetRight(&right);
+        rect->GetBottom(&bottom);
+        __android_log_print(ANDROID_LOG_INFO, "GeckoScreenshot", "rect: %f, %f, %f, %f", top, left, right, bottom);
+        AndroidBridge::NotifyPaintedRect(top, left, bottom, right);
         return NS_OK;
     }
 
@@ -150,6 +149,7 @@ class AfterPaintListener : public nsIDOMEventListener {
     }
 
   private:
+    PRUint32 mLastGeneration;
     nsCOMPtr<nsIDOMEventTarget> mEventTarget;
 };
 
@@ -364,12 +364,13 @@ nsAppShell::ProcessNextNativeEvent(bool mayWait)
           case hal::SENSOR_LINEAR_ACCELERATION:
           case hal::SENSOR_ACCELERATION:
           case hal::SENSOR_GYROSCOPE:
+          case hal::SENSOR_PROXIMITY:
             values.AppendElement(curEvent->X());
             values.AppendElement(curEvent->Y()); 
             values.AppendElement(curEvent->Z());
             break;
 
-        case hal::SENSOR_PROXIMITY:
+        case hal::SENSOR_LIGHT:
             values.AppendElement(curEvent->X());
             break;
 
@@ -492,21 +493,13 @@ nsAppShell::ProcessNextNativeEvent(bool mayWait)
             break;
 
         PRInt32 token = curEvent->Flags();
-
-        nsCOMPtr<nsIDOMWindow> domWindow;
-        nsCOMPtr<nsIBrowserTab> tab;
-        mBrowserApp->GetBrowserTab(curEvent->MetaState(), getter_AddRefs(tab));
-        if (!tab)
-            break;
-
-        tab->GetWindow(getter_AddRefs(domWindow));
-        if (!domWindow)
-            break;
-
-        float scale = 1.0;
+        PRInt32 tabId = curEvent->MetaState();
         nsTArray<nsIntPoint> points = curEvent->Points();
-        NS_ASSERTION(points.Length() == 4, "Screenshot event does not have enough coordinates");
-        bridge->TakeScreenshot(domWindow, points[0].x, points[0].y, points[1].x, points[1].y, points[3].x, points[3].y, curEvent->MetaState(), scale, curEvent->Flags());
+        RefCountedJavaObject* buffer = curEvent->ByteBuffer();
+        nsCOMPtr<ScreenshotRunnable> sr = 
+            new ScreenshotRunnable(mBrowserApp, tabId, points, token, buffer);
+        MessageLoop::current()->PostIdleTask(
+            FROM_HERE, NewRunnableMethod(sr.get(), &ScreenshotRunnable::Run));
         break;
     }
 
@@ -596,7 +589,28 @@ nsAppShell::ProcessNextNativeEvent(bool mayWait)
     }
 
     case AndroidGeckoEvent::SCREENORIENTATION_CHANGED: {
-        hal::NotifyScreenOrientationChange(static_cast<dom::ScreenOrientation>(curEvent->ScreenOrientation()));
+        nsresult rv;
+        nsCOMPtr<nsIScreenManager> screenMgr =
+            do_GetService("@mozilla.org/gfx/screenmanager;1", &rv);
+        if (NS_FAILED(rv)) {
+            NS_ERROR("Can't find nsIScreenManager!");
+            break;
+        }
+
+        nsIntRect rect;
+        PRInt32 colorDepth, pixelDepth;
+        dom::ScreenOrientation orientation;
+        nsCOMPtr<nsIScreen> screen;
+
+        screenMgr->GetPrimaryScreen(getter_AddRefs(screen));
+        screen->GetRect(&rect.x, &rect.y, &rect.width, &rect.height);
+        screen->GetColorDepth(&colorDepth);
+        screen->GetPixelDepth(&pixelDepth);
+        orientation =
+            static_cast<dom::ScreenOrientation>(curEvent->ScreenOrientation());
+
+        hal::NotifyScreenConfigurationChange(
+            hal::ScreenConfiguration(rect, orientation, colorDepth, pixelDepth));
         break;
     }
 
@@ -677,7 +691,7 @@ nsAppShell::PostEvent(AndroidGeckoEvent *ae)
         case AndroidGeckoEvent::COMPOSITOR_RESUME:
             // Give priority to these events, but maintain their order wrt each other.
             {
-                int i = 0;
+                PRUint32 i = 0;
                 while (i < mEventQueue.Length() &&
                        (mEventQueue[i]->Type() == AndroidGeckoEvent::COMPOSITOR_PAUSE ||
                         mEventQueue[i]->Type() == AndroidGeckoEvent::COMPOSITOR_RESUME)) {
@@ -789,7 +803,8 @@ nsresult
 nsAppShell::AddObserver(const nsAString &aObserverKey, nsIObserver *aObserver)
 {
     NS_ASSERTION(aObserver != nsnull, "nsAppShell::AddObserver: aObserver is null!");
-    return mObserversHash.Put(aObserverKey, aObserver) ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
+    mObserversHash.Put(aObserverKey, aObserver);
+    return NS_OK;
 }
 
 /**

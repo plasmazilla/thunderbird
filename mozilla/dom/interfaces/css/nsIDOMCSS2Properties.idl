@@ -1,44 +1,7 @@
 /* -*- Mode: IDL; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Vidur Apparao <vidur@netscape.com> (original author)
- *   Johnny Stenback <jst@netscape.com>
- *   Jonathon Jongsma <jonathon.jongsma@collabora.co.uk>, Collabora Ltd.
- *   Robert Longson <longsonr@gmail.com>
- *   Mats Palmgren <matspal@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "domstubs.idl"
 
@@ -51,7 +14,7 @@
  * http://www.w3.org/TR/DOM-Level-2-Style
  */
 
-[builtinclass, scriptable, uuid(0640c095-3d15-4b18-aca9-5a65d866978f)]
+[builtinclass, scriptable, uuid(492673d6-039b-4d94-a598-dbf82abc174f)]
 interface nsIDOMCSS2Properties : nsISupports
 {
            attribute DOMString        background;
@@ -475,6 +438,9 @@ interface nsIDOMCSS2Properties : nsISupports
            attribute DOMString        textRendering;
                                         // raises(DOMException) on setting
 
+           attribute DOMString        vectorEffect;
+                                        // raises(DOMException) on setting
+
            /* Non-DOM 2 extensions */
 
            /* Mozilla extension CSS properties */
@@ -639,7 +605,7 @@ interface nsIDOMCSS2Properties : nsISupports
            attribute DOMString        MozStackSizing;
                                         // raises(DOMException) on setting
 
-           attribute DOMString        MozBorderImage;
+           attribute DOMString        borderImage;
                                         // raises(DOMException) on setting
 
            attribute DOMString        MozColumns;
@@ -657,10 +623,31 @@ interface nsIDOMCSS2Properties : nsISupports
            attribute DOMString        MozColumnRuleColor;
                                         // raises(DOMException) on setting
 
+           attribute DOMString        wordBreak;
+                                        // raises(DOMException) on setting
+
            attribute DOMString        wordWrap;
                                         // raises(DOMException) on setting
 
            attribute DOMString        MozHyphens;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        transform;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        transformOrigin;
+                                        // raises(DOMException) on setting 
+
+           attribute DOMString        perspective;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        perspectiveOrigin;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        backfaceVisibility;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        transformStyle;
                                         // raises(DOMException) on setting
 
            attribute DOMString        MozTransform;
@@ -699,6 +686,21 @@ interface nsIDOMCSS2Properties : nsISupports
            attribute DOMString        MozTextDecorationStyle;
                                         // raises(DOMException) on setting
 
+           attribute DOMString        transitionProperty;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        transitionDuration;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        transitionDelay;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        transitionTimingFunction;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        transition;
+                                        // raises(DOMException) on setting
+
            attribute DOMString        MozTransitionProperty;
                                         // raises(DOMException) on setting
 
@@ -721,6 +723,33 @@ interface nsIDOMCSS2Properties : nsISupports
                                         // raises(DOMException) on setting
 
            attribute DOMString        resize;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        animationName;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        animationDuration;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        animationDelay;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        animationTimingFunction;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        animationDirection;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        animationFillMode;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        animationIterationCount;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        animationPlayState;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        animation;
                                         // raises(DOMException) on setting
 
            attribute DOMString        MozAnimationName;
@@ -752,4 +781,54 @@ interface nsIDOMCSS2Properties : nsISupports
 
            attribute DOMString        MozTextSizeAdjust;
                                         // raises(DOMException) on setting
+
+           attribute DOMString        borderImageSource;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        borderImageSlice;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        borderImageWidth;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        borderImageOutset;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        borderImageRepeat;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        MozBorderImage;
+                                        // raises(DOMException) on setting
+
+/* XXXdholbert NOTE: Flexbox properties are commented out here, until our
+   layout engine responds to them.  In builds with MOZ_FLEXBOX enabled, this
+   block should be uncommented (and this interface's uuid should be revved).
+   (This would be #ifdef MOZ_FLEXBOX, if that worked in IDL files.)
+           attribute DOMString        MozAlignItems;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        MozAlignSelf;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        MozFlex;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        MozFlexBasis;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        MozFlexDirection;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        MozFlexGrow;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        MozFlexShrink;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        MozOrder;
+                                        // raises(DOMException) on setting
+
+           attribute DOMString        MozJustifyContent;
+                                        // raises(DOMException) on setting
+*/
 };

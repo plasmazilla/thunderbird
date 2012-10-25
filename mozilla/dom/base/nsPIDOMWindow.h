@@ -1,40 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 sw=2 et tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
 #ifndef nsPIDOMWindow_h__
@@ -48,13 +16,13 @@
 #include "nsIDOMEventTarget.h"
 #include "nsIDOMDocument.h"
 #include "nsCOMPtr.h"
-#include "nsEvent.h"
 #include "nsIURI.h"
 
 #define DOM_WINDOW_DESTROYED_TOPIC "dom-window-destroyed"
 #define DOM_WINDOW_FROZEN_TOPIC "dom-window-frozen"
 #define DOM_WINDOW_THAWED_TOPIC "dom-window-thawed"
 
+class nsIIdleObserver;
 class nsIPrincipal;
 
 // Popup control state enum. The values in this enum must go from most
@@ -80,8 +48,8 @@ class nsIArray;
 class nsPIWindowRoot;
 
 #define NS_PIDOMWINDOW_IID \
-{ 0x9aef58e9, 0x5225, 0x4e58, \
-  { 0x9a, 0xfb, 0xe6, 0x63, 0x97, 0x1d, 0x86, 0x88 } }
+{ 0x0c4d0b84, 0xb524, 0x4572, \
+  { 0x8e, 0xd1, 0x7f, 0x78, 0x14, 0x7c, 0x4d, 0xf1 } }
 
 class nsPIDOMWindow : public nsIDOMWindowInternal
 {
@@ -101,6 +69,9 @@ public:
                     "active state is only maintained on outer windows");
     mIsActive = aActive;
   }
+
+  virtual nsresult RegisterIdleObserver(nsIIdleObserver* aIdleObserver) = 0;
+  virtual nsresult UnregisterIdleObserver(nsIIdleObserver* aIdleObserver) = 0;
 
   bool IsActive()
   {
@@ -195,6 +166,10 @@ public:
   nsIDOMDocument* GetExtantDocument() const
   {
     return mDocument;
+  }
+  nsIDocument* GetExtantDoc() const
+  {
+    return mDoc;
   }
 
   // Internal getter/setter for the frame element, this version of the
@@ -291,14 +266,10 @@ public:
     return win->mIsHandlingResizeEvent;
   }
 
-  // Tell this window who opened it.  This only has an effect if there is
-  // either no document currently in the window or if the document is the
-  // original document this window came with (an about:blank document either
-  // preloaded into it when it was created, or created by
-  // CreateAboutBlankContentViewer()).
-  virtual void SetOpenerScriptPrincipal(nsIPrincipal* aPrincipal) = 0;
-  // Ask this window who opened it.
+  // These functions are no-ops and return NULL/void. We're leaving it in for
+  // mozilla16 to avoid the IID rev.
   virtual nsIPrincipal* GetOpenerScriptPrincipal() = 0;
+  virtual void SetOpenerScriptPrincipal(nsIPrincipal* aPrincipal) = 0;
 
   virtual PopupControlState PushPopupControlState(PopupControlState aState,
                                                   bool aForce) const = 0;
@@ -379,9 +350,15 @@ public:
   }
 
   /**
-   * Set or unset the docshell in the window.
+   * Set the docshell in the window.  Must not be called with a null docshell
+   * (use DetachFromDocShell for that).
    */
   virtual void SetDocShell(nsIDocShell *aDocShell) = 0;
+
+  /**
+   * Detach an outer window from its docshell.
+   */
+  virtual void DetachFromDocShell() = 0;
 
   /**
    * Set a new document in the window. Calling this method will in
@@ -392,6 +369,8 @@ public:
    * called with a pointer to the current document, in that case the
    * document remains unchanged, but a new inner window will be
    * created.
+   *
+   * aDocument must not be null.
    */
   virtual nsresult SetNewDocument(nsIDocument *aDocument,
                                   nsISupports *aState,
@@ -486,12 +465,7 @@ public:
   void SetHasMouseEnterLeaveEventListeners()
   {
     mMayHaveMouseEnterLeaveEventListener = true;
-  }  
-
-  /**
-   * Initialize window.java and window.Packages.
-   */
-  virtual void InitJavaProperties() = 0;
+  }
 
   virtual JSObject* GetCachedXBLPrototypeHandler(nsXBLPrototypeHandler* aKey) = 0;
   virtual void CacheXBLPrototypeHandler(nsXBLPrototypeHandler* aKey,
@@ -611,6 +585,19 @@ public:
    */
   virtual bool DispatchCustomEvent(const char *aEventName) = 0;
 
+  /**
+   * Notify the active inner window that the document principal may have changed
+   * and that the compartment principal needs to be updated.
+   */
+  virtual void RefreshCompartmentPrincipal() = 0;
+
+  /**
+   * Returns if the window is part of an application.
+   * It will check for the window app state and its parents until a window has
+   * an app state different from |TriState_Unknown|.
+   */
+  virtual bool IsPartOfApp() = 0;
+
 protected:
   // The nsPIDOMWindow constructor. The aOuterWindow argument should
   // be null if and only if the created window itself is an outer
@@ -633,6 +620,7 @@ protected:
   // sure you keep them in sync!
   nsCOMPtr<nsIDOMEventTarget> mChromeEventHandler; // strong
   nsCOMPtr<nsIDOMDocument> mDocument; // strong
+  nsCOMPtr<nsIDocument> mDoc; // strong, for fast access
 
   nsCOMPtr<nsIDOMEventTarget> mParentTarget; // strong
 
@@ -748,5 +736,20 @@ private:
 };
 
 #define nsAutoPopupStatePusher NS_AUTO_POPUP_STATE_PUSHER
+
+#define NS_PIDOMWINDOW2_IID \
+{ 0x9884e714, 0xc5b7, 0x49ec, \
+  { 0x96, 0xd9, 0xdd, 0xf1, 0x35, 0x30, 0xe1, 0xb0 } }
+
+class nsPIDOMWindow2 : public nsISupports
+{
+public:
+  NS_DECLARE_STATIC_IID_ACCESSOR(NS_PIDOMWINDOW2_IID)
+  // Set the window up with an about:blank document with the current subject
+  // principal.
+  virtual void SetInitialPrincipalToSubject() = 0;
+};
+
+NS_DEFINE_STATIC_IID_ACCESSOR(nsPIDOMWindow2, NS_PIDOMWINDOW2_IID)
 
 #endif // nsPIDOMWindow_h__

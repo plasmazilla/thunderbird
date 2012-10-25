@@ -1,3 +1,7 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 
 #filter substitution
 
@@ -78,6 +82,7 @@
   locale/@AB_CD@/messenger/mime.properties                              (%chrome/messenger/mime.properties)
   locale/@AB_CD@/messenger/mimeheader.properties                        (%chrome/messenger/mimeheader.properties)
   locale/@AB_CD@/messenger/smime.properties                             (%chrome/messenger/smime.properties)
+  locale/@AB_CD@/messenger/pgpmime.properties                           (%chrome/messenger/pgpmime.properties)
   locale/@AB_CD@/messenger/markByDate.dtd                               (%chrome/messenger/markByDate.dtd)
   locale/@AB_CD@/messenger/am-mdn.dtd                                   (%chrome/messenger/am-mdn.dtd)
   locale/@AB_CD@/messenger/am-mdn.properties                            (%chrome/messenger/am-mdn.properties)
@@ -99,7 +104,6 @@
   locale/@AB_CD@/messenger/wmImportMsgs.properties                      (%chrome/messenger/wmImportMsgs.properties)
   locale/@AB_CD@/messenger/outlookImportMsgs.properties                 (%chrome/messenger/outlookImportMsgs.properties)
   locale/@AB_CD@/messenger/shutdownWindow.properties                    (%chrome/messenger/shutdownWindow.properties)
-  locale/@AB_CD@/messenger/featureConfigurator.dtd                      (%chrome/messenger/featureConfigurator.dtd)
   locale/@AB_CD@/messenger/configEditorOverlay.dtd                      (%chrome/messenger/configEditorOverlay.dtd)
   locale/@AB_CD@/messenger/gloda.properties                             (%chrome/messenger/gloda.properties)
   locale/@AB_CD@/messenger/glodaComplete.properties                     (%chrome/messenger/glodaComplete.properties)
@@ -109,12 +113,12 @@
   locale/@AB_CD@/messenger/quickFilterBar.dtd                           (%chrome/messenger/quickFilterBar.dtd)
   locale/@AB_CD@/messenger/safeMode.dtd                                 (%chrome/messenger/safeMode.dtd)
   locale/@AB_CD@/messenger/taskbar.properties                           (%chrome/messenger/taskbar.properties)
+  locale/@AB_CD@/messenger/junkLog.dtd                                  (%chrome/messenger/junkLog.dtd)
   locale/@AB_CD@/messenger/addressbook/abMainWindow.dtd                 (%chrome/messenger/addressbook/abMainWindow.dtd)
   locale/@AB_CD@/messenger/addressbook/abNewCardDialog.dtd              (%chrome/messenger/addressbook/abNewCardDialog.dtd)
   locale/@AB_CD@/messenger/addressbook/abContactsPanel.dtd              (%chrome/messenger/addressbook/abContactsPanel.dtd)
   locale/@AB_CD@/messenger/addressbook/abAddressBookNameDialog.dtd      (%chrome/messenger/addressbook/abAddressBookNameDialog.dtd)
   locale/@AB_CD@/messenger/addressbook/abCardOverlay.dtd                (%chrome/messenger/addressbook/abCardOverlay.dtd)
-  locale/@AB_CD@/messenger/addressbook/abCardViewOverlay.dtd            (%chrome/messenger/addressbook/abCardViewOverlay.dtd)
   locale/@AB_CD@/messenger/addressbook/abResultsPaneOverlay.dtd         (%chrome/messenger/addressbook/abResultsPaneOverlay.dtd)
   locale/@AB_CD@/messenger/addressbook/abMailListDialog.dtd             (%chrome/messenger/addressbook/abMailListDialog.dtd)
   locale/@AB_CD@/messenger/addressbook/addressBook.properties           (%chrome/messenger/addressbook/addressBook.properties)
@@ -124,10 +128,16 @@
   locale/@AB_CD@/messenger/addressbook/replicationProgress.properties   (%chrome/messenger/addressbook/replicationProgress.properties)
   locale/@AB_CD@/messenger/cloudfile/addAccountDialog.dtd               (%chrome/messenger/cloudfile/addAccountDialog.dtd)
   locale/@AB_CD@/messenger/cloudfile/management.dtd                     (%chrome/messenger/cloudfile/management.dtd)
-  locale/@AB_CD@/messenger/cloudfile/Dropbox/management.dtd             (%chrome/messenger/cloudfile/Dropbox/management.dtd)
-  locale/@AB_CD@/messenger/cloudfile/Dropbox/settings.dtd               (%chrome/messenger/cloudfile/Dropbox/settings.dtd)
+  locale/@AB_CD@/messenger/cloudfile/UbuntuOne/management.dtd           (%chrome/messenger/cloudfile/UbuntuOne/management.dtd)
+  locale/@AB_CD@/messenger/cloudfile/UbuntuOne/settings.dtd             (%chrome/messenger/cloudfile/UbuntuOne/settings.dtd)
   locale/@AB_CD@/messenger/cloudfile/YouSendIt/management.dtd           (%chrome/messenger/cloudfile/YouSendIt/management.dtd)
   locale/@AB_CD@/messenger/cloudfile/YouSendIt/settings.dtd             (%chrome/messenger/cloudfile/YouSendIt/settings.dtd)
+  locale/@AB_CD@/messenger/cloudfile/YouSendIt/fileExceedsLimit.dtd     (%chrome/messenger/cloudfile/YouSendIt/fileExceedsLimit.dtd)
+  locale/@AB_CD@/messenger/cloudfile/YouSendIt/fileExceedsQuota.dtd     (%chrome/messenger/cloudfile/YouSendIt/fileExceedsQuota.dtd)
+  locale/@AB_CD@/messenger/cloudfile/YouSendIt/fileExceeds2GB.dtd       (%chrome/messenger/cloudfile/YouSendIt/fileExceeds2GB.dtd)
+  locale/@AB_CD@/messenger/cloudfile/Box/settings.dtd                   (%chrome/messenger/cloudfile/Box/settings.dtd)
+  locale/@AB_CD@/messenger/cloudfile/Box/management.dtd                 (%chrome/messenger/cloudfile/Box/management.dtd)
+  locale/@AB_CD@/messenger/cloudfile/Box/auth.dtd                       (%chrome/messenger/cloudfile/Box/auth.dtd)
   locale/@AB_CD@/messenger/messengercompose/messengercompose.dtd        (%chrome/messenger/messengercompose/messengercompose.dtd)
   locale/@AB_CD@/messenger/messengercompose/addressingWidgetOverlay.dtd (%chrome/messenger/messengercompose/addressingWidgetOverlay.dtd)
   locale/@AB_CD@/messenger/messengercompose/askSendFormat.dtd           (%chrome/messenger/messengercompose/askSendFormat.dtd)
@@ -143,7 +153,6 @@
   locale/@AB_CD@/messenger/preferences/compose.dtd                      (%chrome/messenger/preferences/compose.dtd)
   locale/@AB_CD@/messenger/preferences/sendoptions.dtd                  (%chrome/messenger/preferences/sendoptions.dtd)
   locale/@AB_CD@/messenger/preferences/security.dtd                     (%chrome/messenger/preferences/security.dtd)
-  locale/@AB_CD@/messenger/preferences/junkLog.dtd                      (%chrome/messenger/preferences/junkLog.dtd)
   locale/@AB_CD@/messenger/preferences/advanced.dtd                     (%chrome/messenger/preferences/advanced.dtd)
   locale/@AB_CD@/messenger/preferences/attachmentReminder.dtd           (%chrome/messenger/preferences/attachmentReminder.dtd)
   locale/@AB_CD@/messenger/preferences/receipts.dtd                     (%chrome/messenger/preferences/receipts.dtd)

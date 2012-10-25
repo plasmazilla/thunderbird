@@ -1,42 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 // vim: ft=cpp tw=78 sw=2 et ts=2
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Boris Zbarsky <bzbarsky@mit.edu>.
- * Portions created by the Initial Developer are Copyright (C) 2003
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Christian Biesinger <cbiesinger@web.de>
- *   Bobby Holley <bobbyholley@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * A base class which implements nsIImageLoadingContent and can be
@@ -305,14 +271,6 @@ nsImageLoadingContent::OnStopDecode(imgIRequest* aRequest,
   }
   NS_ABORT_IF_FALSE(aRequest == mCurrentRequest,
                     "One way or another, we should be current by now");
-
-  if (mCurrentRequestNeedsResetAnimation) {
-    nsCOMPtr<imgIContainer> container;
-    mCurrentRequest->GetImage(getter_AddRefs(container));
-    if (container)
-      container->ResetAnimation();
-    mCurrentRequestNeedsResetAnimation = false;
-  }
 
   // We just loaded all the data we're going to get. If we're visible and
   // haven't done an initial paint (*), we want to make sure the image starts
@@ -613,6 +571,7 @@ nsImageLoadingContent::LoadImageWithChannel(nsIChannel* aChannel,
                          getter_AddRefs(req));
   if (NS_SUCCEEDED(rv)) {
     TrackImage(req);
+    ResetAnimationIfNeeded();
   } else {
     // If we don't have a current URI, we might as well store this URI so people
     // know what we tried (and failed) to load.
@@ -780,6 +739,7 @@ nsImageLoadingContent::LoadImage(nsIURI* aNewURI,
                                  getter_AddRefs(req));
   if (NS_SUCCEEDED(rv)) {
     TrackImage(req);
+    ResetAnimationIfNeeded();
 
     // Handle cases when we just ended up with a pending request but it's
     // already done.  In that situation we have to synchronously switch that
@@ -1054,14 +1014,49 @@ nsImageLoadingContent::PreparePendingRequest()
   return mPendingRequest;
 }
 
+namespace {
+
+class ImageRequestAutoLock
+{
+public:
+  ImageRequestAutoLock(imgIRequest* aRequest)
+    : mRequest(aRequest)
+  {
+    if (mRequest) {
+      mRequest->LockImage();
+    }
+  }
+
+  ~ImageRequestAutoLock()
+  {
+    if (mRequest) {
+      mRequest->UnlockImage();
+    }
+  }
+
+private:
+  nsCOMPtr<imgIRequest> mRequest;
+};
+
+} // anonymous namespace
+
 void
 nsImageLoadingContent::MakePendingRequestCurrent()
 {
   MOZ_ASSERT(mPendingRequest);
+
+  // Lock mCurrentRequest for the duration of this method.  We do this because
+  // PrepareCurrentRequest() might unlock mCurrentRequest.  If mCurrentRequest
+  // and mPendingRequest are both requests for the same image, unlocking
+  // mCurrentRequest before we lock mPendingRequest can cause the lock count
+  // to go to 0 and the image to be discarded!
+  ImageRequestAutoLock autoLock(mCurrentRequest);
+
   PrepareCurrentRequest() = mPendingRequest;
   mPendingRequest = nsnull;
   mCurrentRequestNeedsResetAnimation = mPendingRequestNeedsResetAnimation;
   mPendingRequestNeedsResetAnimation = false;
+  ResetAnimationIfNeeded();
 }
 
 void
@@ -1124,6 +1119,18 @@ nsImageLoadingContent::GetRegisteredFlagForRequest(imgIRequest* aRequest)
     return &mPendingRequestRegistered;
   } else {
     return nsnull;
+  }
+}
+
+void
+nsImageLoadingContent::ResetAnimationIfNeeded()
+{
+  if (mCurrentRequest && mCurrentRequestNeedsResetAnimation) {
+    nsCOMPtr<imgIContainer> container;
+    mCurrentRequest->GetImage(getter_AddRefs(container));
+    if (container)
+      container->ResetAnimation();
+    mCurrentRequestNeedsResetAnimation = false;
   }
 }
 

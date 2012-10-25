@@ -1,44 +1,9 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set sw=2 ts=8 et tw=80 : */
 
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- *  The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Daniel Witte <dwitte@mozilla.com>
- *   Frederic Plourde <bugzillaFred@gmail.com>
- *   Jason Duell <jduell.mcbugs@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/net/HttpBaseChannel.h"
 
@@ -53,6 +18,7 @@
 #include "nsIResumableChannel.h"
 #include "nsIApplicationCacheChannel.h"
 #include "nsEscape.h"
+#include "nsStreamListenerWrapper.h"
 
 #include "prnetdb.h"
 
@@ -82,7 +48,6 @@ HttpBaseChannel::HttpBaseChannel()
   , mTimingEnabled(false)
   , mAllowSpdy(true)
   , mSuspendCount(0)
-  , mRedirectedCachekeys(nsnull)
 {
   LOG(("Creating HttpBaseChannel @%x\n", this));
 
@@ -163,7 +128,7 @@ HttpBaseChannel::Init(nsIURI *aURI,
 
   rv = gHttpHandler->
       AddStandardRequestHeaders(&mRequestHead.Headers(), aCaps,
-                                !mConnectionInfo->UsingSSL() &&
+                                !mConnectionInfo->UsingConnect() &&
                                 mConnectionInfo->UsingHttpProxy());
 
   return rv;
@@ -1428,36 +1393,6 @@ HttpBaseChannel::GetEntityID(nsACString& aEntityID)
 }
 
 //-----------------------------------------------------------------------------
-// nsStreamListenerWrapper <private>
-//-----------------------------------------------------------------------------
-
-// Wrapper class to make replacement of nsHttpChannel's listener
-// from JavaScript possible. It is workaround for bug 433711.
-class nsStreamListenerWrapper : public nsIStreamListener
-{
-public:
-  nsStreamListenerWrapper(nsIStreamListener *listener);
-
-  NS_DECL_ISUPPORTS
-  NS_FORWARD_NSIREQUESTOBSERVER(mListener->)
-  NS_FORWARD_NSISTREAMLISTENER(mListener->)
-
-private:
-  ~nsStreamListenerWrapper() {}
-  nsCOMPtr<nsIStreamListener> mListener;
-};
-
-nsStreamListenerWrapper::nsStreamListenerWrapper(nsIStreamListener *listener)
-  : mListener(listener)
-{
-  NS_ASSERTION(mListener, "no stream listener specified");
-}
-
-NS_IMPL_ISUPPORTS2(nsStreamListenerWrapper,
-                   nsIStreamListener,
-                   nsIRequestObserver)
-
-//-----------------------------------------------------------------------------
 // nsHttpChannel::nsITraceableChannel
 //-----------------------------------------------------------------------------
 
@@ -1582,12 +1517,11 @@ HttpBaseChannel::IsSafeMethod(nsHttpAtom method)
 nsresult
 HttpBaseChannel::SetupReplacementChannel(nsIURI       *newURI, 
                                          nsIChannel   *newChannel,
-                                         bool          preserveMethod,
-                                         bool          forProxy)
+                                         bool          preserveMethod)
 {
   LOG(("HttpBaseChannel::SetupReplacementChannel "
-     "[this=%p newChannel=%p preserveMethod=%d forProxy=%d]",
-     this, newChannel, preserveMethod, forProxy));
+     "[this=%p newChannel=%p preserveMethod=%d]",
+     this, newChannel, preserveMethod));
   PRUint32 newLoadFlags = mLoadFlags | LOAD_REPLACE;
   // if the original channel was using SSL and this channel is not using
   // SSL, then no need to inhibit persistent caching.  however, if the
@@ -1687,8 +1621,7 @@ HttpBaseChannel::SetupReplacementChannel(nsIURI       *newURI,
     if (mRedirectedCachekeys) {
         LOG(("HttpBaseChannel::SetupReplacementChannel "
              "[this=%p] transferring chain of redirect cache-keys", this));
-        httpInternal->SetCacheKeysRedirectChain(mRedirectedCachekeys);
-        mRedirectedCachekeys = nsnull;
+        httpInternal->SetCacheKeysRedirectChain(mRedirectedCachekeys.forget());
     }
   }
   
@@ -1710,21 +1643,6 @@ HttpBaseChannel::SetupReplacementChannel(nsIURI       *newURI,
   nsCOMPtr<nsITimedChannel> timed(do_QueryInterface(newChannel));
   if (timed)
     timed->SetTimingEnabled(mTimingEnabled);
-
-  if (forProxy) {
-    // Transfer all the headers from the previous channel
-    //  this is needed for any headers that are not covered by the code above
-    //  or have been set separately. e.g. manually setting Referer without
-    //  setting up mReferrer
-    PRUint32 count = mRequestHead.Headers().Count();
-    for (PRUint32 i = 0; i < count; ++i) {
-      nsHttpAtom header;
-      const char *value = mRequestHead.Headers().PeekHeaderAt(i, header);
-
-      httpChannel->SetRequestHeader(nsDependentCString(header),
-                                    nsDependentCString(value), false);
-    }
-  }
 
   return NS_OK;
 }

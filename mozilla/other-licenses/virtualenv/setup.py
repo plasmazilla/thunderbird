@@ -1,68 +1,92 @@
-import sys, os
+import os
+import re
+import shutil
+import sys
+
 try:
     from setuptools import setup
-    kw = {'entry_points':
-          """[console_scripts]\nvirtualenv = virtualenv:main\n""",
-          'zip_safe': False}
+    setup_params = {
+        'entry_points': {
+            'console_scripts': [
+                'virtualenv=virtualenv:main',
+                'virtualenv-%s.%s=virtualenv:main' % sys.version_info[:2]
+            ],
+        },
+        'zip_safe': False,
+        'test_suite': 'nose.collector',
+        'tests_require': ['nose', 'Mock'],
+    }
 except ImportError:
     from distutils.core import setup
     if sys.platform == 'win32':
-        print 'Note: without Setuptools installed you will have to use "python -m virtualenv ENV"'
+        print('Note: without Setuptools installed you will have to use "python -m virtualenv ENV"')
+        setup_params = {}
     else:
-        kw = {'scripts': ['scripts/virtualenv']}
-import re
+        script = 'scripts/virtualenv'
+        script_ver = script + '-%s.%s' % sys.version_info[:2]
+        shutil.copy(script, script_ver)
+        setup_params = {'scripts': [script, script_ver]}
 
 here = os.path.dirname(os.path.abspath(__file__))
-
-## Figure out the version from virtualenv.py:
-version_re = re.compile(
-    r'virtualenv_version = "(.*?)"')
-fp = open(os.path.join(here, 'virtualenv.py'))
-version = None
-for line in fp:
-    match = version_re.search(line)
-    if match:
-        version = match.group(1)
-        break
-else:
-    raise Exception("Cannot find version in virtualenv.py")
-fp.close()
 
 ## Get long_description from index.txt:
 f = open(os.path.join(here, 'docs', 'index.txt'))
 long_description = f.read().strip()
 long_description = long_description.split('split here', 1)[1]
 f.close()
+f = open(os.path.join(here, 'docs', 'news.txt'))
+long_description += "\n\n" + f.read()
+f.close()
 
-## A warning just for Ian (related to distribution):
+
+def get_version():
+    f = open(os.path.join(here, 'virtualenv.py'))
+    version_file = f.read()
+    f.close()
+    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
+                              version_file, re.M)
+    if version_match:
+        return version_match.group(1)
+    raise RuntimeError("Unable to find version string.")
+
+
+# Hack to prevent stupid TypeError: 'NoneType' object is not callable error on
+# exit of python setup.py test # in multiprocessing/util.py _exit_function when
+# running python setup.py test (see
+# http://www.eby-sarna.com/pipermail/peak/2010-May/003357.html)
 try:
-    import getpass
+    import multiprocessing
 except ImportError:
-    is_ianb = False
-else:
-    is_ianb = getpass.getuser() == 'ianb'
+    pass
 
-if is_ianb and 'register' in sys.argv:
-    if 'hg tip\n~~~~~~' in long_description:
-        print >> sys.stderr, (
-            "WARNING: hg tip is in index.txt")
-
-setup(name='virtualenv',
-      version=version,
-      description="Virtual Python Environment builder",
-      long_description=long_description,
-      classifiers=[
+setup(
+    name='virtualenv',
+    # If you change the version here, change it in virtualenv.py and
+    # docs/conf.py as well
+    version=get_version(),
+    description="Virtual Python Environment builder",
+    long_description=long_description,
+    classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
-      ],
-      keywords='setuptools deployment installation distutils',
-      author='Ian Bicking',
-      author_email='ianb@colorstudy.com',
-      url='http://virtualenv.openplans.org',
-      license='MIT',
-      py_modules=['virtualenv'],
-      packages=['virtualenv_support'],
-      package_data={'virtualenv_support': ['*-py%s.egg' % sys.version[:3], '*.tar.gz']},
-      **kw
-      )
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.4',
+        'Programming Language :: Python :: 2.5',
+        'Programming Language :: Python :: 2.6',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.1',
+        'Programming Language :: Python :: 3.2',
+    ],
+    keywords='setuptools deployment installation distutils',
+    author='Ian Bicking',
+    author_email='ianb@colorstudy.com',
+    maintainer='Jannis Leidel, Carl Meyer and Brian Rosner',
+    maintainer_email='python-virtualenv@groups.google.com',
+    url='http://www.virtualenv.org',
+    license='MIT',
+    py_modules=['virtualenv'],
+    packages=['virtualenv_support'],
+    package_data={'virtualenv_support': ['*-py%s.egg' % sys.version[:3], '*.tar.gz']},
+    **setup_params)

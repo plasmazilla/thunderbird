@@ -74,7 +74,7 @@ extern "C" {
 #endif
 
 static JSBool
-global_enumerate(JSContext *cx, JSObject *obj)
+global_enumerate(JSContext *cx, JSHandleObject *obj)
 {
 #ifdef LAZY_STANDARD_CLASSES
     return JS_EnumerateStandardClasses(cx, obj);
@@ -84,7 +84,8 @@ global_enumerate(JSContext *cx, JSObject *obj)
 }
 
 static JSBool
-global_resolve(JSContext *cx, JSObject *obj, jsval id, unsigned flags, JSObject **objp)
+global_resolve(JSContext *cx, JSHandleObject obj, JSHandleId id, unsigned flags,
+	       MutableHandleObject objp)
 {
 #ifdef LAZY_STANDARD_CLASSES
     if ((flags & JSRESOLVE_ASSIGNING) == 0) {
@@ -93,7 +94,7 @@ global_resolve(JSContext *cx, JSObject *obj, jsval id, unsigned flags, JSObject 
         if (!JS_ResolveStandardClass(cx, obj, id, &resolved))
             return JS_FALSE;
         if (resolved) {
-            *objp = obj;
+            objp.set(obj);
             return JS_TRUE;
         }
     }
@@ -138,7 +139,7 @@ global_resolve(JSContext *cx, JSObject *obj, jsval id, unsigned flags, JSObject 
                 fun = JS_DefineFunction(cx, obj, name, Exec, 0, JSPROP_ENUMERATE);
                 ok = (fun != NULL);
                 if (ok)
-                    *objp = obj;
+                    objp.set(obj);
                 break;
             }
         }
@@ -155,7 +156,7 @@ JSClass global_class = {
     JS_PropertyStub,  JS_PropertyStub,
     JS_PropertyStub,  JS_PropertyStub,
     global_enumerate, (JSResolveOp) global_resolve,
-    JS_ConvertStub
+    JS_ConvertStub,   JS_FinalizeStub
 };
 
 SkJS::SkJS(void* hwnd) : SkOSWindow(hwnd) {

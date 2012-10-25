@@ -13,45 +13,46 @@ const TEST_URI = "http://example.com/browser/browser/devtools/webconsole/test/te
 let newTabIsOpen = false;
 
 function tabLoaded(aEvent) {
-  gBrowser.selectedBrowser.removeEventListener(aEvent.type, arguments.callee, true);
+  gBrowser.selectedBrowser.removeEventListener(aEvent.type, tabLoaded, true);
 
-  HUDService.activateHUDForContext(gBrowser.selectedTab);
-
-  gBrowser.selectedBrowser.addEventListener("load", tabReloaded, true);
-  expectUncaughtException();
-  content.location.reload();
+  openConsole(gBrowser.selectedTab, function() {
+    gBrowser.selectedBrowser.addEventListener("load", tabReloaded, true);
+    expectUncaughtException();
+    content.location.reload();
+  });
 }
 
 function tabReloaded(aEvent) {
-  gBrowser.selectedBrowser.removeEventListener(aEvent.type, arguments.callee, true);
+  gBrowser.selectedBrowser.removeEventListener(aEvent.type, tabReloaded, true);
 
   let hudId = HUDService.getHudIdByWindow(content);
   let HUD = HUDService.hudReferences[hudId];
   ok(HUD, "Web Console is open");
 
-  isnot(HUD.outputNode.textContent.indexOf("fooBug597756_error"), -1,
-    "error message must be in console output");
+  waitForSuccess({
+    name: "error message displayed",
+    validatorFn: function() {
+      return HUD.outputNode.textContent.indexOf("fooBug597756_error") > -1;
+    },
+    successFn: function() {
+      if (newTabIsOpen) {
+        finishTest();
+        return;
+      }
+      closeConsole(gBrowser.selectedTab, function() {
+        gBrowser.removeCurrentTab();
 
-  executeSoon(function() {
-    if (newTabIsOpen) {
-      testEnd();
-      return;
-    }
+        let newTab = gBrowser.addTab();
+        gBrowser.selectedTab = newTab;
 
-    let newTab = gBrowser.addTab();
-    gBrowser.removeCurrentTab();
-    gBrowser.selectedTab = newTab;
-
-    newTabIsOpen = true;
-    gBrowser.selectedBrowser.addEventListener("load", tabLoaded, true);
-    expectUncaughtException();
-    content.location = TEST_URI;
+        newTabIsOpen = true;
+        gBrowser.selectedBrowser.addEventListener("load", tabLoaded, true);
+        expectUncaughtException();
+        content.location = TEST_URI;
+      });
+    },
+    failureFn: finishTest,
   });
-}
-
-function testEnd() {
-  gBrowser.removeCurrentTab();
-  executeSoon(finishTest);
 }
 
 function test() {

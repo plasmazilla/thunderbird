@@ -93,11 +93,7 @@ TestRunner._checkForHangs = function() {
     if ("SimpleTest" in win) {
       win.SimpleTest.ok(false, msg);
     } else if ("W3CTest" in win) {
-      win.W3CTest.report({
-        "message": msg,
-        "result": false,
-        "todo": false
-      });
+      win.W3CTest.logFailure(msg);
     }
   }
 
@@ -105,7 +101,7 @@ TestRunner._checkForHangs = function() {
     if ("SimpleTest" in win) {
       win.SimpleTest.finish();
     } else if ("W3CTest" in win) {
-      win.W3CTest.kill();
+      win.W3CTest.timeout();
     }
   }
 
@@ -170,10 +166,12 @@ TestRunner.setFailureFile = function(fileName) {
     TestRunner._failureFile = fileName;
 }
 
-TestRunner.generateFailureList = function() {
-    var failures = new SpecialPowersLogger(TestRunner._failureFile);
-    failures.log(JSON.stringify(TestRunner._failedTests));
-    failures.close();
+TestRunner.generateFailureList = function () {
+    if (TestRunner._failureFile) {
+        var failures = new SpecialPowersLogger(TestRunner._failureFile);
+        failures.log(JSON.stringify(TestRunner._failedTests));
+        failures.close();
+    }
 };
 
 /**

@@ -1,3 +1,7 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 toolkit.jar:
 % skin global classic/1.0 %skin/classic/global/
   skin/classic/global/10pct_transparent_grey.png
@@ -40,7 +44,7 @@ toolkit.jar:
   skin/classic/global/resizer.css
   skin/classic/global/richlistbox.css
   skin/classic/global/scrollbars.css                                 (nativescrollbars.css)
-* skin/classic/global/scale.css
+  skin/classic/global/scale.css
   skin/classic/global/scrollbox.css
   skin/classic/global/spinbuttons.css
   skin/classic/global/splitter.css
@@ -142,6 +146,7 @@ toolkit.jar:
   skin/classic/global/media/playButton.png                           (media/playButton.png)
   skin/classic/global/media/muteButton.png                           (media/muteButton.png)
   skin/classic/global/media/unmuteButton.png                         (media/unmuteButton.png)
+  skin/classic/global/media/noAudio.png                              (media/noAudio.png)
   skin/classic/global/media/fullscreenButton.png                     (media/fullscreenButton.png)
   skin/classic/global/media/scrubberThumb.png                        (media/scrubberThumb.png)
   skin/classic/global/media/scrubberThumbWide.png                    (media/scrubberThumbWide.png)

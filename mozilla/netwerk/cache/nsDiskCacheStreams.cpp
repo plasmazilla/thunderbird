@@ -1,42 +1,8 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is nsDiskCacheStreams.cpp, released
- * June 13, 2001.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2001
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Gordon Sheridan <gordon@netscape.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
 #include "nsDiskCache.h"
@@ -142,11 +108,25 @@ nsDiskCacheInputStream::Read(char * buffer, PRUint32 count, PRUint32 * bytesRead
 {
     *bytesRead = 0;
 
-    if (mClosed)
+    if (mClosed) {
+        CACHE_LOG_DEBUG(("CACHE: nsDiskCacheInputStream::Read "
+                         "[stream=%p] stream was closed",
+                         this, buffer, count));
         return NS_OK;
+    }
     
-    if (mPos == mStreamEnd)  return NS_OK;
-    if (mPos > mStreamEnd)   return NS_ERROR_UNEXPECTED;
+    if (mPos == mStreamEnd) {
+        CACHE_LOG_DEBUG(("CACHE: nsDiskCacheInputStream::Read "
+                         "[stream=%p] stream at end of file",
+                         this, buffer, count));
+        return NS_OK;
+    }
+    if (mPos > mStreamEnd) {
+        CACHE_LOG_DEBUG(("CACHE: nsDiskCacheInputStream::Read "
+                         "[stream=%p] stream past end of file (!)",
+                         this, buffer, count));
+        return NS_ERROR_UNEXPECTED;
+    }
     
     if (count > mStreamEnd - mPos)
         count = mStreamEnd - mPos;
@@ -154,7 +134,14 @@ nsDiskCacheInputStream::Read(char * buffer, PRUint32 count, PRUint32 * bytesRead
     if (mFD) {
         // just read from file
         PRInt32  result = PR_Read(mFD, buffer, count);
-        if (result < 0)  return  NS_ErrorAccordingToNSPR();
+        if (result < 0) {
+            PRErrorCode error = PR_GetError();
+            nsresult rv = NS_ErrorAccordingToNSPR();
+            CACHE_LOG_DEBUG(("CACHE: nsDiskCacheInputStream::Read PR_Read failed"
+                             "[stream=%p, rv=%d, NSPR error %s",
+                             this, PRIntn(rv), PR_ErrorToName(error)));
+            return rv;
+        }
         
         mPos += (PRUint32)result;
         *bytesRead = (PRUint32)result;
@@ -168,6 +155,9 @@ nsDiskCacheInputStream::Read(char * buffer, PRUint32 count, PRUint32 * bytesRead
         // no data source for input stream
     }
 
+    CACHE_LOG_DEBUG(("CACHE: nsDiskCacheInputStream::Read "
+                     "[stream=%p, count=%ud, byteRead=%ud] ",
+                     this, PRUintn(count), PRUintn(*bytesRead)));
     return NS_OK;
 }
 
@@ -474,7 +464,7 @@ nsDiskCacheStreamIO::ClearBinding()
 nsresult
 nsDiskCacheStreamIO::CloseOutputStream(nsDiskCacheOutputStream *  outputStream)
 {
-    nsCacheServiceAutoLock lock; // grab service lock
+    nsCacheServiceAutoLock lock(LOCK_TELEM(NSDISKCACHESTREAMIO_CLOSEOUTPUTSTREAM)); // grab service lock
     return CloseOutputStreamInternal(outputStream);
 }
 
@@ -606,7 +596,7 @@ nsDiskCacheStreamIO::Write( const char * buffer,
                             PRUint32 *   bytesWritten)
 {
     nsresult    rv = NS_OK;
-    nsCacheServiceAutoLock lock; // grab service lock
+    nsCacheServiceAutoLock lock(LOCK_TELEM(NSDISKCACHESTREAMIO_WRITE)); // grab service lock
     if (!mBinding)  return NS_ERROR_NOT_AVAILABLE;
 
     if (mInStreamCount) {
@@ -713,6 +703,8 @@ nsDiskCacheStreamIO::OpenCacheFile(PRIntn flags, PRFileDesc ** fd)
 {
     NS_ENSURE_ARG_POINTER(fd);
     
+    CACHE_LOG_DEBUG(("nsDiskCacheStreamIO::OpenCacheFile"));
+
     nsresult         rv;
     nsDiskCacheMap * cacheMap = mDevice->CacheMap();
     

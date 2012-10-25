@@ -1,3 +1,7 @@
+; This Source Code Form is subject to the terms of the Mozilla Public
+; License, v. 2.0. If a copy of the MPL was not distributed with this
+; file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 ; Package file for the Thunderbird build.
 ;
 ; Packaging manifest is used to copy files from dist/bin
@@ -110,6 +114,7 @@
 @BINPATH@/@MOZ_APP_NAME@
 #endif
 @BINPATH@/application.ini
+@BINPATH@/update-settings.ini
 @BINPATH@/blocklist.xml
 @BINPATH@/platform.ini
 #ifdef XP_OS2
@@ -171,8 +176,8 @@
 @BINPATH@/components/nsActivityManager.js
 @BINPATH@/components/nsActivityManagerUI.js
 @BINPATH@/components/nsYouSendIt.js
-@BINPATH@/components/nsDropbox.js
 @BINPATH@/components/nsUbuntuOne.js
+@BINPATH@/components/nsBox.js
 @BINPATH@/components/cloudFileAccounts.js
 @BINPATH@/components/nsAddrbook.manifest
 @BINPATH@/components/nsMailNewsCommandLineHandler.js
@@ -213,6 +218,9 @@
 @BINPATH@/components/glautocomp.js
 @BINPATH@/components/gloda.manifest
 @BINPATH@/components/jsmimeemitter.js
+
+; New message notification
+@BINPATH@/components/newMailNotificationService.js
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Mail Extensions (smime, etc.)
@@ -404,6 +412,7 @@
 @BINPATH@/components/content_xtf.xpt
 @BINPATH@/components/html5.xpt
 @BINPATH@/components/htmlparser.xpt
+@BINPATH@/components/identity.xpt
 @BINPATH@/components/layout_base.xpt
 @BINPATH@/components/layout_forms.xpt
 #ifdef NS_PRINTING
@@ -489,6 +498,9 @@
 #ifdef MOZ_ENABLE_DBUS
 @BINPATH@/components/@DLL_PREFIX@dbusservice@DLL_SUFFIX@
 #endif
+#ifdef MOZ_ENABLE_PROFILER_SPS
+@BINPATH@/components/profiler.xpt
+#endif
 
 ; rdf
 @BINPATH@/components/rdf.xpt
@@ -505,6 +517,7 @@
 @BINPATH@/components/dom_base.xpt
 @BINPATH@/components/dom_battery.xpt
 @BINPATH@/components/dom_canvas.xpt
+@BINPATH@/components/dom_contacts.xpt
 @BINPATH@/components/dom_core.xpt
 @BINPATH@/components/dom_css.xpt
 @BINPATH@/components/dom_events.xpt
@@ -627,6 +640,8 @@
 @BINPATH@/components/chardet.xpt
 @BINPATH@/components/ConsoleAPI.js
 @BINPATH@/components/ConsoleAPI.manifest
+@BINPATH@/components/ContactManager.js
+@BINPATH@/components/ContactManager.manifest
 @BINPATH@/components/contentAreaDropListener.js
 @BINPATH@/components/contentAreaDropListener.manifest
 @BINPATH@/components/contentSecurityPolicy.js
@@ -706,6 +721,13 @@
 @BINPATH@/updater.app/
 #else
 @BINPATH@/updater@BIN_SUFFIX@
+#endif
+
+; [MaintenanceService]
+;
+#ifdef MOZ_MAINTENANCE_SERVICE
+@BINPATH@/maintenanceservice.exe
+@BINPATH@/maintenanceservice_installer.exe
 #endif
 
 ; [crash reporter]

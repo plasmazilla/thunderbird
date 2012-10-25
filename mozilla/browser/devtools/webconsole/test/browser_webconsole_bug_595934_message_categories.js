@@ -40,76 +40,79 @@ const TESTS = [
     },
   },
   { // #5
+    file: "test-bug-595934-workers.html",
+    category: "Web Worker",
+    matchString: "fooBarWorker",
+    expectError: true,
+  },
+  { // #6
     file: "test-bug-595934-malformedxml.xhtml",
     category: "malformed-xml",
     matchString: "no element found",
   },
-  { // #6
+  { // #7
     file: "test-bug-595934-svg.xhtml",
     category: "SVG",
     matchString: "fooBarSVG",
   },
-  { // #7
+  { // #8
     file: "test-bug-595934-dom-html-external.html",
     category: "DOM:HTML",
     matchString: "document.all",
   },
-  { // #8
+  { // #9
     file: "test-bug-595934-dom-events-external2.html",
     category: "DOM Events",
     matchString: "preventBubble()",
   },
-  { // #9
+  { // #10
     file: "test-bug-595934-canvas.html",
     category: "Canvas",
     matchString: "strokeStyle",
   },
-  { // #10
+  { // #11
     file: "test-bug-595934-css-parser.html",
     category: "CSS Parser",
     matchString: "foobarCssParser",
   },
-  { // #11
+  { // #12
     file: "test-bug-595934-malformedxml-external.html",
     category: "malformed-xml",
     matchString: "</html>",
   },
-  { // #12
+  { // #14
     file: "test-bug-595934-empty-getelementbyid.html",
     category: "DOM",
     matchString: "getElementById",
   },
-  { // #13
+  { // #15
     file: "test-bug-595934-canvas-css.html",
     category: "CSS Parser",
     matchString: "foobarCanvasCssParser",
   },
-  { // #14
+  { // #16
     file: "test-bug-595934-image.html",
     category: "Image",
     matchString: "corrupt",
   },
-  /* Disabled until bug 675221 lands.
-  { // #7
-    file: "test-bug-595934-workers.html",
-    category: "Web Worker",
-    matchString: "fooBarWorker",
-  },*/
 ];
 
 let pos = -1;
 
 let foundCategory = false;
 let foundText = false;
+let pageLoaded = false;
+let pageError = false;
 let output = null;
 let jsterm = null;
+let testEnded = false;
 
 let TestObserver = {
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIObserver]),
 
   observe: function test_observe(aSubject)
   {
-    if (!(aSubject instanceof Ci.nsIScriptError)) {
+    if (testEnded || !(aSubject instanceof Ci.nsIScriptError)) {
       return;
     }
 
@@ -118,30 +121,23 @@ let TestObserver = {
 
     if (aSubject.category == TESTS[pos].category) {
       foundCategory = true;
-      if (foundText) {
-        executeSoon(testNext);
-      }
     }
     else {
       ok(false, aSubject.sourceName + ':' + aSubject.lineNumber + '; ' +
                 aSubject.errorMessage);
-      executeSoon(finish);
+      testEnded = true;
     }
   }
 };
 
-function tabLoad(aEvent) {
-  browser.removeEventListener(aEvent.type, arguments.callee, true);
-
-  openConsole();
-
-  let hudId = HUDService.getHudIdByWindow(content);
-  let hud = HUDService.hudReferences[hudId];
+function consoleOpened(hud) {
   output = hud.outputNode;
   output.addEventListener("DOMNodeInserted", onDOMNodeInserted, false);
   jsterm = hud.jsterm;
 
   Services.console.registerListener(TestObserver);
+
+  registerCleanupFunction(testEnd);
 
   executeSoon(testNext);
 }
@@ -150,33 +146,60 @@ function testNext() {
   jsterm.clearOutput();
   foundCategory = false;
   foundText = false;
+  pageLoaded = false;
+  pageError = false;
 
   pos++;
   if (pos < TESTS.length) {
+    waitForSuccess({
+      name: "test #" + pos + " succesful finish",
+      validatorFn: function()
+      {
+        return foundCategory && foundText && pageLoaded && pageError;
+      },
+      successFn: testNext,
+      failureFn: function() {
+        info("foundCategory " + foundCategory + " foundText " + foundText +
+             " pageLoaded " + pageLoaded + " pageError " + pageError);
+        finishTest();
+      },
+    });
+
     let test = TESTS[pos];
     let testLocation = TESTS_PATH + test.file;
-    if (test.onload) {
-      browser.addEventListener("load", function(aEvent) {
-        if (content.location.href == testLocation) {
-          browser.removeEventListener(aEvent.type, arguments.callee, true);
-          test.onload(aEvent);
-        }
-      }, true);
-    }
+    browser.addEventListener("load", function onLoad(aEvent) {
+      if (content.location.href != testLocation) {
+        return;
+      }
+      browser.removeEventListener(aEvent.type, onLoad, true);
+
+      pageLoaded = true;
+      test.onload && test.onload(aEvent);
+
+      if (test.expectError) {
+        content.addEventListener("error", function _onError() {
+          content.removeEventListener("error", _onError);
+          pageError = true;
+        });
+        expectUncaughtException();
+      }
+      else {
+        pageError = true;
+      }
+    }, true);
 
     content.location = testLocation;
   }
   else {
-    executeSoon(finish);
+    testEnded = true;
+    executeSoon(finishTest);
   }
 }
 
 function testEnd() {
-  Services.prefs.clearUserPref("devtools.gcli.enable");
   Services.console.unregisterListener(TestObserver);
   output.removeEventListener("DOMNodeInserted", onDOMNodeInserted, false);
-  output = jsterm = null;
-  finishTest();
+  TestObserver = output = jsterm = null;
 }
 
 function onDOMNodeInserted(aEvent) {
@@ -185,17 +208,13 @@ function onDOMNodeInserted(aEvent) {
   if (foundText) {
     ok(foundText, "test #" + pos + ": message found '" + TESTS[pos].matchString + "'");
   }
-
-  if (foundCategory) {
-    executeSoon(testNext);
-  }
 }
 
 function test() {
-  Services.prefs.setBoolPref("devtools.gcli.enable", false);
-  registerCleanupFunction(testEnd);
-
   addTab("data:text/html;charset=utf-8,Web Console test for bug 595934 - message categories coverage.");
-  browser.addEventListener("load", tabLoad, true);
+  browser.addEventListener("load", function onLoad() {
+    browser.removeEventListener("load", onLoad, true);
+    openConsole(null, consoleOpened);
+  }, true);
 }
 

@@ -1,41 +1,9 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  * vim: set ts=8 sw=4 et tw=99:
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is SpiderMonkey method-guard code.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2012
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* Method prologue type-checking and unwrapping of the this parameter. */
 
@@ -64,31 +32,36 @@ ReportIncompatibleMethod(JSContext *cx, CallReceiver call, Class *clasp);
  * NonGenericMethodGuard performs this checking. Canonical usage is:
  *
  *   CallArgs args = ...
- *   bool ok;
- *   JSObject *thisObj = NonGenericMethodGuard(cx, args, clasp, &ok);
+ *   JSObject *thisObj;
+ *   if (!NonGenericMethodGuard(cx, args, clasp, &thisObj))
+ *     return false;
  *   if (!thisObj)
- *     return ok;
+ *     return true;
  *
- * Specifically: if obj is a proxy, NonGenericMethodGuard will call the
- * object's ProxyHandler's nativeCall hook (which may recursively call
- * args.callee in args.thisv's compartment). Thus, there are three possible
- * post-conditions:
+ * Specifically: if args.thisv is a proxy, NonGenericMethodGuard will call its
+ * ProxyHandler's nativeCall hook (which may recursively call args.callee in
+ * args.thisv's compartment). These are the possible post-conditions:
  *
- *   1. thisv is an object of the given clasp: the caller may proceed;
+ *   1. NonGenericMethodGuard returned false because it encountered an error:
+ *      args.thisv wasn't an object, was an object of the wrong class, was a
+ *      proxy to an object of the wrong class, or was a proxy to an object of
+ *      the right class but the recursive call to args.callee failed. This case
+ *      should be handled like any other failure: propagate it, or catch it and
+ *      continue.
+ *   2. NonGenericMethodGuard returned true, and thisObj was nulled out.  In
+ *      this case args.thisv was a proxy to an object with the desired class,
+ *      and recursive invocation of args.callee succeeded. This completes the
+ *      invocation of args.callee, so return true.
+ *   3. NonGenericMethodGuard returned true, and thisObj was set to a non-null
+ *      pointer. In this case args.thisv was exactly an object of the desired
+ *      class, and not a proxy to one. Finish up the call using thisObj as the
+ *      this object provided to the call, which will have clasp as its class.
  *
- *   2. there was an error: the caller must return 'false';
- *
- *   3. thisv wrapped an object of the given clasp and the native was reentered
- *      and completed succesfully: the caller must return 'true'.
- *
- * Case 1 is indicated by a non-NULL return value; case 2 by a NULL return
- * value with *ok == false; and case 3 by a NULL return value with *ok == true.
- *
- * NB: since this guard may reenter the native, the guard must be placed before
- * any effectful operations are performed.
+ * Be careful! This guard may reenter the native, so the guard must be placed
+ * before any effectful operations are performed.
  */
-inline JSObject *
-NonGenericMethodGuard(JSContext *cx, CallArgs args, Native native, Class *clasp, bool *ok);
+inline bool
+NonGenericMethodGuard(JSContext *cx, CallArgs args, Native native, Class *clasp, JSObject **thisObj);
 
 /*
  * NonGenericMethodGuard tests args.thisv's class using 'clasp'. If more than

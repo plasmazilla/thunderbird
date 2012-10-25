@@ -23,12 +23,13 @@ include moz-only/reftest.list
 include svg-integration/reftest.list
 
 == altGlyph-01.svg altGlyph-01-ref.svg
+== border-radius-01.html pass.svg
 == cssComment-in-attribute-01.svg cssComment-in-attribute-01-ref.svg
 == clip-01.svg pass.svg
 == clip-02a.svg clip-02-ref.svg
 == clip-02b.svg clip-02-ref.svg
 == clipPath-advanced-01.svg pass.svg
-== clipPath-and-shape-rendering-01.svg clipPath-and-shape-rendering-01-ref.svg
+fuzzy-if(/^Windows\x20NT\x206\.1/.test(http.oscpu),1,2) == clipPath-and-shape-rendering-01.svg clipPath-and-shape-rendering-01-ref.svg # bug 614840
 == clipPath-basic-01.svg pass.svg
 == clipPath-basic-02.svg pass.svg
 == clipPath-basic-03.svg pass.svg
@@ -109,8 +110,10 @@ random-if(/^Windows\x20NT\x205\.1/.test(http.oscpu)) == dynamic-text-04.svg dyna
 == dynamic-use-04.svg pass.svg
 == dynamic-use-05.svg pass.svg
 == dynamic-use-06.svg pass.svg
-random == dynamic-use-nested-01.svg dynamic-use-nested-01-ref.svg # bug 467498
+random == dynamic-use-nested-01a.svg dynamic-use-nested-01-ref.svg
+random == dynamic-use-nested-01b.svg dynamic-use-nested-01-ref.svg
 == dynamic-use-remove-width.svg dynamic-use-remove-width-ref.svg
+== fragmentIdentifier-01.xhtml pass.svg
 == linked-filter-01.svg pass.svg
 == linked-pattern-01.svg pass.svg
 == use-01.svg pass.svg
@@ -166,6 +169,7 @@ fails == inline-in-xul-basic-01.xul pass.svg
 == markers-and-group-opacity-01.svg markers-and-group-opacity-01-ref.svg
 == marker-attribute-01.svg pass.svg
 == marker-viewBox-01.svg marker-viewBox-01-ref.svg
+== marker-orientation-01.svg marker-orientation-01-ref.svg
 == mask-basic-01.svg pass.svg
 == mask-basic-02.svg mask-basic-02-ref.svg
 == mask-extref-dataURI-01.svg pass.svg
@@ -173,6 +177,8 @@ fails == inline-in-xul-basic-01.xul pass.svg
 == mask-transformed-01.svg mask-transformed-01-ref.svg
 == nested-viewBox-01.svg pass.svg
 == nesting-invalid-01.svg nesting-invalid-01-ref.svg
+== non-scaling-stroke-01.svg non-scaling-stroke-01-ref.svg 
+fuzzy-if(Android,9,61) == non-scaling-stroke-02.svg non-scaling-stroke-02-ref.svg 
 == objectBoundingBox-and-clipPath.svg pass.svg
 # Bug 588684
 random-if(gtk2Widget) == objectBoundingBox-and-fePointLight-01.svg objectBoundingBox-and-fePointLight-01-ref.svg
@@ -237,6 +243,7 @@ random-if(gtk2Widget) == objectBoundingBox-and-fePointLight-02.svg objectBoundin
 == suspend-07.svg pass.svg
 == suspend-08.svg pass.svg
 == symbol-01.svg symbol-01-ref.svg
+== text-font-size-01.svg pass.svg
 random-if(gtk2Widget) == text-font-weight-01.svg text-font-weight-01-ref.svg # bug 386713
 == text-gradient-01.svg text-gradient-01-ref.svg
 random-if(winWidget) == text-gradient-02.svg text-gradient-02-ref.svg # see bug 590101
@@ -247,12 +254,12 @@ random-if(winWidget) == text-gradient-02.svg text-gradient-02-ref.svg # see bug 
 # Tests for bug 546813: sanity-check using HTML text, then test SVG behavior.
 fails-if(Android) != text-language-00.xhtml text-language-00-ref.xhtml
 fails-if(Android) random-if(gtk2Widget) != text-language-01.xhtml text-language-01-ref.xhtml # Fails on Linux tryserver due to lack of CJK fonts.
-== text-layout-01.svg text-layout-01-ref.svg
+fuzzy-if(OSX==10.8,14,11) == text-layout-01.svg text-layout-01-ref.svg
 == text-layout-02.svg text-layout-02-ref.svg
 == text-layout-03.svg text-layout-03-ref.svg
 == text-layout-04.svg text-layout-04-ref.svg
 == text-layout-05.svg text-layout-05-ref.svg
-== text-layout-06.svg text-layout-06-ref.svg
+fuzzy-if(cocoaWidget&&layersGPUAccelerated,1,3) == text-layout-06.svg text-layout-06-ref.svg
 == text-layout-07.svg text-layout-07-ref.svg
 == text-scale-01.svg text-scale-01-ref.svg
 == text-stroke-scaling-01.svg text-stroke-scaling-01-ref.svg
@@ -262,6 +269,7 @@ fails-if(Android) random-if(gtk2Widget) != text-language-01.xhtml text-language-
 == stroke-linecap-square-w-zero-length-segs-02.svg pass.svg
 == textPath-01.svg textPath-01-ref.svg
 == textPath-02.svg pass.svg
+== textPath-03.svg pass.svg
 == text-style-01a.svg text-style-01-ref.svg
 == text-style-01b.svg text-style-01-ref.svg
 == text-style-01c.svg text-style-01-ref.svg
@@ -298,5 +306,5 @@ random-if(/^Windows\x20NT\x205\.1/.test(http.oscpu)) == tspan-rotate-06.svg tspa
 
 == svg-effects-area-unzoomed.xhtml svg-effects-area-unzoomed-ref.xhtml
 == svg-effects-area-zoomed-in.xhtml svg-effects-area-zoomed-in-ref.xhtml
-fails == svg-effects-area-zoomed-out.xhtml svg-effects-area-zoomed-out-ref.xhtml # Bug 541270
+== svg-effects-area-zoomed-out.xhtml svg-effects-area-zoomed-out-ref.xhtml
 == href-attr-change-restyles.svg href-attr-change-restyles-ref.svg

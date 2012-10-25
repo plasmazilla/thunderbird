@@ -1,47 +1,13 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Vladimir Vukicevic <vladimir@pobox.com> (original author)
- *   Mark Steele <mwsteele@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "WebGLContext.h"
 
+#include "mozilla/CheckedInt.h"
 #include "mozilla/Preferences.h"
-
-#include "CheckedInt.h"
+#include "mozilla/Services.h"
 
 #include "jsfriendapi.h"
 
@@ -51,6 +17,7 @@
 
 #include <algorithm>
 
+#include "mozilla/Services.h"
 #include "nsIObserverService.h"
 
 using namespace mozilla;
@@ -89,7 +56,7 @@ WebGLProgram::UpdateInfo()
             if (loc < mContext->mGLMaxVertexAttribs) {
                 mAttribsInUse[loc] = true;
             } else {
-                mContext->ErrorInvalidOperation("program exceeds MAX_VERTEX_ATTRIBS");
+                mContext->GenerateWarning("program exceeds MAX_VERTEX_ATTRIBS");
                 return false;
             }
         }
@@ -104,7 +71,7 @@ WebGLProgram::UpdateInfo()
  */
 
 bool
-WebGLContext::ValidateBuffers(PRInt32 *maxAllowedCount, const char *info)
+WebGLContext::ValidateBuffers(int32_t *maxAllowedCount, const char *info)
 {
 #ifdef DEBUG
     GLint currentProgram = 0;
@@ -118,8 +85,8 @@ WebGLContext::ValidateBuffers(PRInt32 *maxAllowedCount, const char *info)
 
     *maxAllowedCount = -1;
 
-    PRUint32 attribs = mAttribBuffers.Length();
-    for (PRUint32 i = 0; i < attribs; ++i) {
+    uint32_t attribs = mAttribBuffers.Length();
+    for (uint32_t i = 0; i < attribs; ++i) {
         const WebGLVertexAttribData& vd = mAttribBuffers[i];
 
         // If the attrib array isn't enabled, there's nothing to check;
@@ -143,8 +110,8 @@ WebGLContext::ValidateBuffers(PRInt32 *maxAllowedCount, const char *info)
         CheckedInt32 checked_sizeOfLastElement
           = CheckedInt32(vd.componentSize()) * vd.size;
 
-        if (!checked_byteLength.valid() ||
-            !checked_sizeOfLastElement.valid())
+        if (!checked_byteLength.isValid() ||
+            !checked_sizeOfLastElement.isValid())
         {
           ErrorInvalidOperation("%s: integer overflow occured while checking vertex attrib %d", info, i);
           return false;
@@ -156,7 +123,7 @@ WebGLContext::ValidateBuffers(PRInt32 *maxAllowedCount, const char *info)
           CheckedInt32 checked_maxAllowedCount
             = ((checked_byteLength - checked_sizeOfLastElement) / vd.actualStride()) + 1;
 
-          if (!checked_maxAllowedCount.valid()) {
+          if (!checked_maxAllowedCount.isValid()) {
             ErrorInvalidOperation("%s: integer overflow occured while checking vertex attrib %d", info, i);
             return false;
           }
@@ -348,7 +315,7 @@ bool WebGLContext::ValidateGLSLVariableName(const nsAString& name, const char *i
     if (name.IsEmpty())
         return false;
 
-    const PRUint32 maxSize = 256;
+    const uint32_t maxSize = 256;
     if (name.Length() > maxSize) {
         ErrorInvalidValue("%s: identifier is %d characters long, exceeds the maximum allowed length of %d characters",
                           info, name.Length(), maxSize);
@@ -364,7 +331,7 @@ bool WebGLContext::ValidateGLSLVariableName(const nsAString& name, const char *i
 
 bool WebGLContext::ValidateGLSLString(const nsAString& string, const char *info)
 {
-    for (PRUint32 i = 0; i < string.Length(); ++i) {
+    for (uint32_t i = 0; i < string.Length(); ++i) {
         if (!ValidateGLSLCharacter(string.CharAt(i))) {
              ErrorInvalidValue("%s: string contains the illegal character '%d'", info, string.CharAt(i));
              return false;
@@ -374,10 +341,123 @@ bool WebGLContext::ValidateGLSLString(const nsAString& string, const char *info)
     return true;
 }
 
-PRUint32 WebGLContext::GetTexelSize(WebGLenum format, WebGLenum type)
+bool WebGLContext::ValidateTexImage2DTarget(WebGLenum target, WebGLsizei width, WebGLsizei height,
+                                            const char* info)
 {
+    switch (target) {
+        case LOCAL_GL_TEXTURE_2D:
+            break;
+        case LOCAL_GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+        case LOCAL_GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+        case LOCAL_GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+        case LOCAL_GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+        case LOCAL_GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+        case LOCAL_GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
+            if (width != height) {
+                ErrorInvalidValue("%s: with cube map targets, width and height must be equal", info);
+                return false;
+            }
+            break;
+        default:
+            ErrorInvalidEnum("%s: invalid target enum 0x%x", info, target);
+            return false;
+    }
+
+    return true;
+}
+
+bool WebGLContext::ValidateCompressedTextureSize(WebGLint level, WebGLenum format, WebGLsizei width,
+                                                 WebGLsizei height, uint32_t byteLength, const char* info)
+{
+    CheckedUint32 calculated_byteLength = 0;
+    CheckedUint32 checked_byteLength = byteLength;
+    if (!checked_byteLength.isValid()) {
+        ErrorInvalidValue("%s: data length out of bounds", info);
+        return false;
+    }
+
+    switch (format) {
+        case LOCAL_GL_COMPRESSED_RGB_S3TC_DXT1_EXT:
+        case LOCAL_GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
+        {
+            calculated_byteLength = ((CheckedUint32(width) + 3) / 4) * ((CheckedUint32(height) + 3) / 4) * 8;
+            if (!calculated_byteLength.isValid() || !(checked_byteLength == calculated_byteLength)) {
+                ErrorInvalidValue("%s: data size does not match dimensions", info);
+                return false;
+            }
+            break;
+        }
+        case LOCAL_GL_COMPRESSED_RGBA_S3TC_DXT3_EXT:
+        case LOCAL_GL_COMPRESSED_RGBA_S3TC_DXT5_EXT:
+        {
+            calculated_byteLength = ((CheckedUint32(width) + 3) / 4) * ((CheckedUint32(height) + 3) / 4) * 16;
+            if (!calculated_byteLength.isValid() || !(checked_byteLength == calculated_byteLength)) {
+                ErrorInvalidValue("%s: data size does not match dimensions", info);
+                return false;
+            }
+            break;
+        }
+    }
+
+    switch (format) {
+        case LOCAL_GL_COMPRESSED_RGB_S3TC_DXT1_EXT:
+        case LOCAL_GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
+        case LOCAL_GL_COMPRESSED_RGBA_S3TC_DXT3_EXT:
+        case LOCAL_GL_COMPRESSED_RGBA_S3TC_DXT5_EXT:
+        {
+            if (level == 0 && width % 4 == 0 && height % 4 == 0) {
+                return true;
+            }
+            if (level > 0
+                && (width == 0 || width == 1 || width == 2 || width % 4 == 0)
+                && (height == 0 || height == 1 || height == 2 || height % 4 == 0))
+            {
+                return true;
+            }
+        }
+    }
+
+    ErrorInvalidOperation("%s: level parameter does not match width and height", info);
+    return false;
+}
+
+bool WebGLContext::ValidateLevelWidthHeightForTarget(WebGLenum target, WebGLint level, WebGLsizei width,
+                                                     WebGLsizei height, const char* info)
+{
+    WebGLsizei maxTextureSize = MaxTextureSizeForTarget(target);
+
+    if (level < 0) {
+        ErrorInvalidValue("%s: level must be >= 0", info);
+        return false;
+    }
+
+    if (!(maxTextureSize >> level)) {
+        ErrorInvalidValue("%s: 2^level exceeds maximum texture size", info);
+        return false;
+    }
+
+    if (width < 0 || height < 0) {
+        ErrorInvalidValue("%s: width and height must be >= 0", info);
+        return false;
+    }
+
+    if (width > maxTextureSize || height > maxTextureSize) {
+        ErrorInvalidValue("%s: width or height exceeds maximum texture size", info);
+        return false;
+    }
+
+    return true;
+}
+
+uint32_t WebGLContext::GetBitsPerTexel(WebGLenum format, WebGLenum type)
+{
+    // If there is no defined format or type, we're not taking up any memory
+    if (!format || !type) {
+        return 0;
+    }
+
     if (type == LOCAL_GL_UNSIGNED_BYTE || type == LOCAL_GL_FLOAT) {
-        int multiplier = type == LOCAL_GL_FLOAT ? 4 : 1;
+        int multiplier = type == LOCAL_GL_FLOAT ? 32 : 8;
         switch (format) {
             case LOCAL_GL_ALPHA:
             case LOCAL_GL_LUMINANCE:
@@ -388,6 +468,12 @@ PRUint32 WebGLContext::GetTexelSize(WebGLenum format, WebGLenum type)
                 return 3 * multiplier;
             case LOCAL_GL_RGBA:
                 return 4 * multiplier;
+            case LOCAL_GL_COMPRESSED_RGB_S3TC_DXT1_EXT:
+            case LOCAL_GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
+                return 4;
+            case LOCAL_GL_COMPRESSED_RGBA_S3TC_DXT3_EXT:
+            case LOCAL_GL_COMPRESSED_RGBA_S3TC_DXT5_EXT:
+                return 8;
             default:
                 break;
         }
@@ -395,7 +481,7 @@ PRUint32 WebGLContext::GetTexelSize(WebGLenum format, WebGLenum type)
                type == LOCAL_GL_UNSIGNED_SHORT_5_5_5_1 ||
                type == LOCAL_GL_UNSIGNED_SHORT_5_6_5)
     {
-        return 2;
+        return 16;
     }
 
     NS_ABORT();
@@ -403,10 +489,10 @@ PRUint32 WebGLContext::GetTexelSize(WebGLenum format, WebGLenum type)
 }
 
 bool WebGLContext::ValidateTexFormatAndType(WebGLenum format, WebGLenum type, int jsArrayType,
-                                              PRUint32 *texelSize, const char *info)
+                                              uint32_t *texelSize, const char *info)
 {
     if (type == LOCAL_GL_UNSIGNED_BYTE ||
-        (IsExtensionEnabled(WebGL_OES_texture_float) && type == LOCAL_GL_FLOAT))
+        (IsExtensionEnabled(OES_texture_float) && type == LOCAL_GL_FLOAT))
     {
         if (jsArrayType != -1) {
             if ((type == LOCAL_GL_UNSIGNED_BYTE && jsArrayType != js::ArrayBufferView::TYPE_UINT8) ||
@@ -517,23 +603,9 @@ WebGLContext::InitAndValidateGL()
 
     GLenum error = gl->fGetError();
     if (error != LOCAL_GL_NO_ERROR) {
-        LogMessage("GL error 0x%x occurred during OpenGL context initialization, before WebGL initialization!", error);
+        GenerateWarning("GL error 0x%x occurred during OpenGL context initialization, before WebGL initialization!", error);
         return false;
     }
-
-#ifdef ANDROID
-    // bug 736123, blacklist WebGL on Adreno
-    bool forceEnabled = Preferences::GetBool("webgl.force-enabled", false);
-    if (!forceEnabled) {
-        int renderer = gl->Renderer();
-        if (renderer == gl::GLContext::RendererAdreno200 ||
-            renderer == gl::GLContext::RendererAdreno205)
-        {
-            LogMessage("WebGL blocked on this Adreno driver!");
-            return false;
-        }
-    }
-#endif
 
     mMinCapability = Preferences::GetBool("webgl.min_capability_mode", false);
     mDisableExtensions = Preferences::GetBool("webgl.disable-extensions", false);
@@ -566,7 +638,7 @@ WebGLContext::InitAndValidateGL()
         gl->fGetIntegerv(LOCAL_GL_MAX_VERTEX_ATTRIBS, &mGLMaxVertexAttribs);
     }
     if (mGLMaxVertexAttribs < 8) {
-        LogMessage("GL_MAX_VERTEX_ATTRIBS: %d is < 8!", mGLMaxVertexAttribs);
+        GenerateWarning("GL_MAX_VERTEX_ATTRIBS: %d is < 8!", mGLMaxVertexAttribs);
         return false;
     }
 
@@ -581,7 +653,7 @@ WebGLContext::InitAndValidateGL()
         gl->fGetIntegerv(LOCAL_GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &mGLMaxTextureUnits);
     }
     if (mGLMaxTextureUnits < 8) {
-        LogMessage("GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS: %d is < 8!", mGLMaxTextureUnits);
+        GenerateWarning("GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS: %d is < 8!", mGLMaxTextureUnits);
         return false;
     }
 
@@ -622,7 +694,7 @@ WebGLContext::InitAndValidateGL()
             // before we start, we check that no error already occurred, to prevent hiding it in our subsequent error handling
             error = gl->GetAndClearError();
             if (error != LOCAL_GL_NO_ERROR) {
-                LogMessage("GL error 0x%x occurred during WebGL context initialization!", error);
+                GenerateWarning("GL error 0x%x occurred during WebGL context initialization!", error);
                 return false;
             }
 
@@ -642,7 +714,7 @@ WebGLContext::InitAndValidateGL()
                     mGLMaxVaryingVectors = 16; // = 64/4, 64 is the min value for maxVertexOutputComponents in OpenGL 3.2 spec
                     break;
                 default:
-                    LogMessage("GL error 0x%x occurred during WebGL context initialization!", error);
+                    GenerateWarning("GL error 0x%x occurred during WebGL context initialization!", error);
                     return false;
             }   
         }
@@ -674,6 +746,15 @@ WebGLContext::InitAndValidateGL()
         }
     }
 
+#ifdef XP_MACOSX
+    if (gl->WorkAroundDriverBugs() &&
+        gl->Vendor() == gl::GLContext::VendorATI) {
+        // The Mac ATI driver, in all known OSX version up to and including 10.8,
+        // renders points sprites upside-down. Apple bug 11778921
+        gl->fPointParameterf(LOCAL_GL_POINT_SPRITE_COORD_ORIGIN, LOCAL_GL_LOWER_LEFT);
+    }
+#endif
+
     // Check the shader validator pref
     NS_ENSURE_TRUE(Preferences::GetRootBranch(), false);
 
@@ -684,17 +765,20 @@ WebGLContext::InitAndValidateGL()
     // initialize shader translator
     if (mShaderValidation) {
         if (!ShInitialize()) {
-            LogMessage("GLSL translator initialization failed!");
+            GenerateWarning("GLSL translator initialization failed!");
             return false;
         }
     }
 #endif
 
+    // Mesa can only be detected with the GL_VERSION string, of the form "2.1 Mesa 7.11.0"
+    mIsMesa = strstr((const char *)(gl->fGetString(LOCAL_GL_VERSION)), "Mesa");
+
     // notice that the point of calling GetAndClearError here is not only to check for error,
     // it is also to reset the error flags so that a subsequent WebGL getError call will give the correct result.
     error = gl->GetAndClearError();
     if (error != LOCAL_GL_NO_ERROR) {
-        LogMessage("GL error 0x%x occurred during WebGL context initialization!", error);
+        GenerateWarning("GL error 0x%x occurred during WebGL context initialization!", error);
         return false;
     }
 

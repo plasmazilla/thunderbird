@@ -1,3 +1,7 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 browser.jar:
 % skin browser classic/1.0 %skin/classic/browser/
   skin/classic/browser/sanitizeDialog.css                   (sanitizeDialog.css)
@@ -64,6 +68,9 @@ browser.jar:
   skin/classic/browser/newtab/controls.png                  (newtab/controls.png)
   skin/classic/browser/newtab/noise.png                     (newtab/noise.png)
   skin/classic/browser/setDesktopBackground.css
+  skin/classic/browser/share-button.png
+  skin/classic/browser/share-button-active.png
+  skin/classic/browser/share-button-shared.png
   skin/classic/browser/monitor.png
   skin/classic/browser/monitor_16-10.png
   skin/classic/browser/places/allBookmarks.png              (places/allBookmarks.png)
@@ -103,8 +110,13 @@ browser.jar:
 #endif
   skin/classic/browser/preferences/saveFile.png             (preferences/saveFile.png)
 * skin/classic/browser/preferences/preferences.css          (preferences/preferences.css)
+* skin/classic/browser/preferences/in-content/preferences.css (preferences/in-content/preferences.css)
   skin/classic/browser/preferences/applications.css         (preferences/applications.css)
   skin/classic/browser/preferences/aboutPermissions.css     (preferences/aboutPermissions.css)
+  skin/classic/browser/social/social.png                    (social/social.png)
+  skin/classic/browser/social/panelarrow-down.png           (social/panelarrow-down.png)
+  skin/classic/browser/social/panelarrow-horiz.png          (social/panelarrow-horiz.png)
+  skin/classic/browser/social/panelarrow-up.png             (social/panelarrow-up.png)
   skin/classic/browser/tabbrowser/alltabs-box-bkgnd-icon.png             (tabbrowser/alltabs-box-bkgnd-icon.png)
   skin/classic/browser/tabbrowser/newtab.png                             (tabbrowser/newtab.png)
   skin/classic/browser/tabbrowser/connecting.png                         (tabbrowser/connecting.png)
@@ -173,7 +185,7 @@ browser.jar:
   skin/classic/browser/devtools/breadcrumbs/rtl-start-selected.png           (devtools/breadcrumbs/rtl-start-selected.png)
   skin/classic/browser/devtools/splitview.css               (devtools/splitview.css)
   skin/classic/browser/devtools/styleeditor.css             (devtools/styleeditor.css)
-  skin/classic/browser/devtools/debugger.css                (devtools/debugger.css)
+* skin/classic/browser/devtools/debugger.css                (devtools/debugger.css)
   skin/classic/browser/devtools/magnifying-glass.png        (devtools/magnifying-glass.png)
   skin/classic/browser/devtools/itemToggle.png              (devtools/itemToggle.png)
   skin/classic/browser/devtools/itemArrow-rtl.png           (devtools/itemArrow-rtl.png)
@@ -183,8 +195,19 @@ browser.jar:
   skin/classic/browser/devtools/dropmarker.png              (devtools/dropmarker.png)
   skin/classic/browser/devtools/treepanel-button.png        (devtools/treepanel-button.png)
   skin/classic/browser/devtools/layout-background.png       (devtools/layout-background.png)
+  skin/classic/browser/devtools/layout-background-grid.png  (devtools/layout-background-grid.png)
   skin/classic/browser/devtools/layoutview.css              (devtools/layoutview.css)
   skin/classic/browser/devtools/layout-buttons.png          (devtools/layout-buttons.png)
+  skin/classic/browser/devtools/debugger-pause.png          (devtools/debugger-pause.png)
+  skin/classic/browser/devtools/debugger-play.png           (devtools/debugger-play.png)
+  skin/classic/browser/devtools/debugger-step-in.png        (devtools/debugger-step-in.png)
+  skin/classic/browser/devtools/debugger-step-out.png       (devtools/debugger-step-out.png)
+  skin/classic/browser/devtools/debugger-step-over.png      (devtools/debugger-step-over.png)
+  skin/classic/browser/devtools/inspector-option-icon.png   (devtools/inspector-option-icon.png)
+  skin/classic/browser/devtools/responsive-se-resizer.png   (devtools/responsive-se-resizer.png)
+  skin/classic/browser/devtools/responsive-vertical-resizer.png (devtools/responsive-vertical-resizer.png)
+  skin/classic/browser/devtools/responsive-background.png   (devtools/responsive-background.png)
+  skin/classic/browser/devtools/tools-icons-small.png       (devtools/tools-icons-small.png)
 #ifdef MOZ_SERVICES_SYNC
   skin/classic/browser/sync-throbber.png
   skin/classic/browser/sync-16.png

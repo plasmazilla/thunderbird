@@ -1,44 +1,7 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Places Organizer.
- *
- * The Initial Developer of the Original Code is Google Inc.
- * Portions created by the Initial Developer are Copyright (C) 2005-2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ben Goodger <beng@google.com>
- *   Annie Sullivan <annie.sullivan@gmail.com>
- *   Asaf Romano <mano@mozilla.com>
- *   Ehsan Akhgari <ehsan.akhgari@gmail.com>
- *   Drew Willcoxon <adw@mozilla.com>
- *   Steffen Wilberg <steffen.wilberg@web.de>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource:///modules/MigrationUtils.jsm");
 
@@ -241,16 +204,13 @@ var PlacesOrganizer = {
     }
 
     // Update the selected folder title where it appears in the UI: the folder
-    // scope button, "Find in <current collection>" command, and the search box
-    // emptytext.  They must be updated even if the selection hasn't changed --
+    // scope button, and the search box emptytext.
+    // They must be updated even if the selection hasn't changed --
     // specifically when node's title changes.  In that case a selection event
     // is generated, this method is called, but the selection does not change.
     var folderButton = document.getElementById("scopeBarFolder");
     var folderTitle = node.title || folderButton.getAttribute("emptytitle");
     folderButton.setAttribute("label", folderTitle);
-    var cmd = document.getElementById("OrganizerCommand_find:current");
-    var label = PlacesUIUtils.getFormattedString("findInPrefix", [folderTitle]);
-    cmd.setAttribute("label", label);
     if (PlacesSearchBox.filterCollection == "collection")
       PlacesSearchBox.updateCollectionTitle(folderTitle);
 
@@ -925,18 +885,20 @@ var PlacesSearchBox = {
   },
 
   /**
-   * Finds across all bookmarks
+   * Finds across all history, downloads or all bookmarks.
    */
   findAll: function PSB_findAll() {
-    PlacesQueryBuilder.setScope("bookmarks");
-    this.focus();
-  },
-
-  /**
-   * Finds in the currently selected Place.
-   */
-  findCurrent: function PSB_findCurrent() {
-    PlacesQueryBuilder.setScope("collection");
+    switch (this.filterCollection) {
+      case "history":
+        PlacesQueryBuilder.setScope("history");
+        break;
+      case "downloads":
+        PlacesQueryBuilder.setScope("downloads");
+        break;
+      default:
+        PlacesQueryBuilder.setScope("bookmarks");
+        break;
+    }
     this.focus();
   },
 
@@ -947,12 +909,15 @@ var PlacesSearchBox = {
    */
   updateCollectionTitle: function PSB_updateCollectionTitle(aTitle) {
     let title = "";
+    // This is needed when a user performs a folder-specific search
+    // using the scope bar, removes the search-string, and unfocuses
+    // the search box, at least until the removal of the scope bar.
     if (aTitle) {
       title = PlacesUIUtils.getFormattedString("searchCurrentDefault",
                                                [aTitle]);
     }
     else {
-      switch(this.filterCollection) {
+      switch (this.filterCollection) {
         case "history":
           title = PlacesUIUtils.getString("searchHistory");
           break;

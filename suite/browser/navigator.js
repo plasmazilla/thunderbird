@@ -1,43 +1,7 @@
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Blake Ross <blakeross@telocity.com>
- *   Peter Annema <disttsc@bart.nl>
- *   Dean Tessman <dean_tessman@hotmail.com>
- *   Nils Maier <maierman@web.de>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource:///modules/DownloadTaskbarIntegration.jsm");
@@ -228,7 +192,7 @@ const gFormSubmitObserver = {
 
 /**
 * Pref listener handler functions.
-* Both functions assume that observer.domain is set to 
+* Both functions assume that observer.domain is set to
 * the pref domain we want to start/stop listening to.
 */
 function addPrefListener(observer)
@@ -479,7 +443,7 @@ function Startup()
 
   gBrowser = document.getElementById("content");
   gURLBar = document.getElementById("urlbar");
-  
+
   SetPageProxyState("invalid", null);
 
   var webNavigation;
@@ -535,7 +499,7 @@ function Startup()
 
   window.browserContentListener =
     new nsBrowserContentListener(window, getBrowser());
-  
+
   // Add a capturing event listener to the content area
   // (rjc note: not the entire window, otherwise we'll get sidebar pane loads too!)
   //  so we'll be notified when onloads complete.
@@ -618,7 +582,7 @@ function Startup()
     if (uriArray.length > 0)
       window.setTimeout(function(arg) { for (var i in arg) gBrowser.addTab(arg[i]); }, 0, uriArray);
   }
-    
+
   if (/^\s*$/.test(uriToLoad))
     uriToLoad = "about:blank";
 
@@ -664,8 +628,8 @@ function Startup()
 
   // ensure login manager is loaded
   Components.classes["@mozilla.org/login-manager;1"].getService();
-  
-  // called when we go into full screen, even if it is 
+
+  // called when we go into full screen, even if it is
   // initiated by a web page script
   addEventListener("fullscreen", onFullScreen, true);
 
@@ -1001,7 +965,7 @@ function BrowserHandleShiftBackspace()
     case 1:
       goDoCommand("cmd_scrollPageDown");
       break;
-  } 
+  }
 }
 
 function SetGroupHistory(popupMenu, direction)
@@ -1328,7 +1292,8 @@ function BrowserOpenTab()
 {
   if (!gInPrintPreviewMode) {
     var uriToLoad;
-    switch (GetIntPref("browser.tabs.loadOnNewTab", 0))
+    var tabPref = GetIntPref("browser.tabs.loadOnNewTab",0);
+    switch (tabPref)
     {
       default:
         uriToLoad = "about:blank";
@@ -1355,7 +1320,11 @@ function BrowserOpenTab()
       return;
     }
 
-    gBrowser.selectedTab = gBrowser.addTab(uriToLoad);
+    if (tabPref == 2)
+      OpenSessionHistoryIn("tabfocused", 0);
+    else
+      gBrowser.selectedTab = gBrowser.addTab(uriToLoad);
+
     if (uriToLoad == "about:blank" && isElementVisible(gURLBar))
       setTimeout(WindowFocusTimerCallback, 0, gURLBar);
     else
@@ -1368,7 +1337,7 @@ function BrowserOpenSyncTabs()
   switchToTabHavingURI("about:sync-tabs", true);
 }
 
-/* Show file picker dialog configured for opening a file, and return 
+/* Show file picker dialog configured for opening a file, and return
  * the selected nsIFileURL instance. */
 function selectFileToOpen(label, prefRoot)
 {
@@ -1551,7 +1520,7 @@ function BrowserCloseWindow()
   // to fix this eventually but by replicating the code here, we
   // provide a means of saving position (it just requires that the
   // user close the window via File->Close (vs. close box).
-  
+
   // Get the current window position/size.
   var x = window.screenX;
   var y = window.screenY;
@@ -1628,14 +1597,14 @@ function handleURLBarCommand(aUserAction, aTriggeringEvent)
          ('button'  in aTriggeringEvent && aTriggeringEvent.button == 1))) {
       // Check if user requests Tabs instead of windows
       if (GetBoolPref("browser.tabs.opentabfor.urlbar", false)) {
+        // Reset url in the urlbar
+        URLBarSetURI();
         // Open link in new tab
         var t = browser.addTab(url, {allowThirdPartyFixup: true, postData: postData.value});
 
         // Focus new tab unless shift is pressed
-        if (!shiftPressed) {
-          browser.userTypedValue = null;
+        if (!shiftPressed)
           browser.selectedTab = t;
-        }
       } else {
         // Open a new window with the URL
         var newWin = openDialog(getBrowserURL(), "_blank", "all,dialog=no", url,
@@ -1791,6 +1760,7 @@ function readFromClipboard()
     var trans = Components.classes["@mozilla.org/widget/transferable;1"]
                           .createInstance(Components.interfaces.nsITransferable);
 
+    trans.init(null);
     trans.addDataFlavor("text/unicode");
     // If available, use selection clipboard, otherwise global one
     if (clipboard.supportsSelectionClipboard())
@@ -2200,8 +2170,8 @@ function URLBarClickHandler(aEvent)
 function checkForDefaultBrowser()
 {
   const NS_SHELLSERVICE_CID = "@mozilla.org/suite/shell-service;1";
-  
-  if (NS_SHELLSERVICE_CID in Components.classes) {
+
+  if (NS_SHELLSERVICE_CID in Components.classes) try {
     const nsIShellService = Components.interfaces.nsIShellService;
     var shellService = Components.classes["@mozilla.org/suite/shell-service;1"]
                                  .getService(nsIShellService);
@@ -2215,10 +2185,11 @@ function checkForDefaultBrowser()
       window.openDialog("chrome://communicator/content/defaultClientDialog.xul",
                         "DefaultClient",
                         "modal,centerscreen,chrome,resizable=no"); 
-      // Force the sidebar to build since the windows 
+      // Force the sidebar to build since the windows
       // integration dialog has come up.
       SidebarRebuild();
     }
+  } catch (e) {
   }
 }
 
@@ -2229,12 +2200,10 @@ function ShowAndSelectContentsOfURLBar()
     return;
   }
 
-  if (!gURLBar.readOnly) {
-    if (gURLBar.value)
-      gURLBar.select();
-    else
-      gURLBar.focus();
-  }
+  if (gURLBar.value)
+    gURLBar.select();
+  else
+    gURLBar.focus();
 }
 
 // If "ESC" is pressed in the url bar, we replace the urlbar's value with the url of the page
@@ -2245,7 +2214,7 @@ function handleURLBarRevert()
   var throbberElement = document.getElementById("navigator-throbber");
 
   var isScrolling = gURLBar.userAction == "scrolling";
-  
+
   // don't revert to last valid url unless page is NOT loading
   // and user is NOT key-scrolling through autocomplete list
   if (!throbberElement.hasAttribute("busy") && !isScrolling) {
@@ -2300,15 +2269,6 @@ function SetPageProxyState(aState, aURI)
   }
 }
 
-function PageProxyDragGesture(aEvent)
-{
-  if (gProxyButton.getAttribute("pageproxystate") == "valid") {
-    nsDragAndDrop.startDrag(aEvent, proxyIconDNDObserver);
-    return true;
-  }
-  return false;
-}
-
 function handlePageProxyClick(aEvent)
 {
   switch (aEvent.button) {
@@ -2324,7 +2284,7 @@ function handlePageProxyClick(aEvent)
 }
 
 function updateComponentBarBroadcaster()
-{ 
+{
   var compBarBroadcaster = document.getElementById('cmd_viewcomponentbar');
   var taskBarBroadcaster = document.getElementById('cmd_viewtaskbar');
   var compBar = document.getElementById('component-bar');
@@ -2392,7 +2352,7 @@ function StatusbarViewPopupManager()
     hostPort = getBrowser().selectedBrowser.currentURI.hostPort;
   }
   catch(ex) { }
-  
+
   // Open Data Manager permissions pane site and type prefilled to add.
   toDataManager(hostPort + "|permissions|add|popup");
 }
@@ -2481,7 +2441,7 @@ function WindowIsClosing()
 
   for (var i = 0; reallyClose && i < numtabs; ++i) {
     var ds = browser.getBrowserForTab(cn[i]).docShell;
-  
+
     if (ds.contentViewer && !ds.contentViewer.permitUnload())
       reallyClose = false;
   }
@@ -2801,7 +2761,7 @@ function AddKeywordForSearchField() {
       formData.push(encodeNameValuePair(el.name, "") + "%s");
       continue;
     }
-    
+
     type = el.type;
 
     if (((el instanceof HTMLInputElement && el.mozIsTextField(true)) ||

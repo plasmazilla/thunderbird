@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "nsIDOMHTMLLinkElement.h"
 #include "nsIDOMLinkStyle.h"
 #include "nsGenericHTMLElement.h"
@@ -50,7 +18,6 @@
 #include "nsNetUtil.h"
 #include "nsIDocument.h"
 #include "nsIDOMEvent.h"
-#include "nsIPrivateDOMEvent.h"
 #include "nsIDOMEventTarget.h"
 #include "nsContentUtils.h"
 #include "nsPIDOMWindow.h"
@@ -120,12 +87,16 @@ public:
   virtual nsEventStates IntrinsicState() const;
 
   virtual nsXPCClassInfo* GetClassInfo();
+  virtual nsIDOMNode* AsDOMNode() { return this; }
 protected:
   virtual already_AddRefed<nsIURI> GetStyleSheetURL(bool* aIsInline);
   virtual void GetStyleSheetInfo(nsAString& aTitle,
                                  nsAString& aType,
                                  nsAString& aMedia,
                                  bool* aIsAlternate);
+protected:
+  virtual void GetItemValueText(nsAString& text);
+  virtual void SetItemValueText(const nsAString& text);
 };
 
 
@@ -202,6 +173,18 @@ NS_IMPL_STRING_ATTR(nsHTMLLinkElement, Rel, rel)
 NS_IMPL_STRING_ATTR(nsHTMLLinkElement, Rev, rev)
 NS_IMPL_STRING_ATTR(nsHTMLLinkElement, Target, target)
 NS_IMPL_STRING_ATTR(nsHTMLLinkElement, Type, type)
+
+void
+nsHTMLLinkElement::GetItemValueText(nsAString& aValue)
+{
+  GetHref(aValue);
+}
+
+void
+nsHTMLLinkElement::SetItemValueText(const nsAString& aValue)
+{
+  SetHref(aValue);
+}
 
 nsresult
 nsHTMLLinkElement::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
@@ -305,20 +288,23 @@ nsHTMLLinkElement::SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
     Link::ResetLinkState(!!aNotify);
   }
 
-  if (NS_SUCCEEDED(rv)) {
+  if (NS_SUCCEEDED(rv) && aNameSpaceID == kNameSpaceID_None &&
+      (aName == nsGkAtoms::href ||
+       aName == nsGkAtoms::rel ||
+       aName == nsGkAtoms::title ||
+       aName == nsGkAtoms::media ||
+       aName == nsGkAtoms::type)) {
     bool dropSheet = false;
-    if (aNameSpaceID == kNameSpaceID_None && aName == nsGkAtoms::rel &&
-        GetStyleSheet()) {
+    if (aName == nsGkAtoms::rel && GetStyleSheet()) {
       PRUint32 linkTypes = nsStyleLinkElement::ParseLinkTypes(aValue);
       dropSheet = !(linkTypes & STYLESHEET);          
     }
     
     UpdateStyleSheetInternal(nsnull,
                              dropSheet ||
-                             (aNameSpaceID == kNameSpaceID_None &&
-                              (aName == nsGkAtoms::title ||
-                               aName == nsGkAtoms::media ||
-                               aName == nsGkAtoms::type)));
+                             (aName == nsGkAtoms::title ||
+                              aName == nsGkAtoms::media ||
+                              aName == nsGkAtoms::type));
   }
 
   return rv;
@@ -330,13 +316,15 @@ nsHTMLLinkElement::UnsetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
 {
   nsresult rv = nsGenericHTMLElement::UnsetAttr(aNameSpaceID, aAttribute,
                                                 aNotify);
-  if (NS_SUCCEEDED(rv)) {
-    UpdateStyleSheetInternal(nsnull,
-                             aNameSpaceID == kNameSpaceID_None &&
-                             (aAttribute == nsGkAtoms::rel ||
-                              aAttribute == nsGkAtoms::title ||
-                              aAttribute == nsGkAtoms::media ||
-                              aAttribute == nsGkAtoms::type));
+  // Since removing href or rel makes us no longer link to a
+  // stylesheet, force updates for those too.
+  if (NS_SUCCEEDED(rv) && aNameSpaceID == kNameSpaceID_None &&
+      (aAttribute == nsGkAtoms::href ||
+       aAttribute == nsGkAtoms::rel ||
+       aAttribute == nsGkAtoms::title ||
+       aAttribute == nsGkAtoms::media ||
+       aAttribute == nsGkAtoms::type)) {
+    UpdateStyleSheetInternal(nsnull, true);
   }
 
   // The ordering of the parent class's UnsetAttr call and Link::ResetLinkState

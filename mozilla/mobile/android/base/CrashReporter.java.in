@@ -1,39 +1,7 @@
 /* -*- Mode: Java; tab-width: 20; indent-tabs-mode: nil; -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Android code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Brad Lassey <blassey@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #filter substitution
 package @ANDROID_PACKAGE_NAME@;
@@ -56,6 +24,7 @@ import java.nio.channels.FileChannel;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -64,7 +33,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 
+import org.mozilla.gecko.GeckoApp;
 import org.mozilla.gecko.R;
+
 
 public class CrashReporter extends Activity
 {
@@ -76,9 +47,9 @@ public class CrashReporter extends Activity
     private static final String NOTES_KEY = "Notes";
     private static final String SERVER_URL_KEY = "ServerURL";
 
-    private static final String CRASH_REPORT_DIR = "/data/data/@ANDROID_PACKAGE_NAME@/files/mozilla/Crash Reports/";
-    private static final String PENDING_DIR = CRASH_REPORT_DIR + "pending";
-    private static final String SUBMITTED_DIR = CRASH_REPORT_DIR + "submitted";
+    private static final String CRASH_REPORT_SUFFIX = "/mozilla/Crash Reports/";
+    private static final String PENDING_SUFFIX = CRASH_REPORT_SUFFIX + "pending";
+    private static final String SUBMITTED_SUFFIX = CRASH_REPORT_SUFFIX + "submitted";
 
     private Handler mHandler;
     private ProgressDialog mProgressDialog;
@@ -144,7 +115,7 @@ public class CrashReporter extends Activity
         final Button closeButton = (Button) findViewById(R.id.close);
         String passedMinidumpPath = getIntent().getStringExtra(PASSED_MINI_DUMP_KEY);
         File passedMinidumpFile = new File(passedMinidumpPath);
-        File pendingDir = new File(PENDING_DIR);
+        File pendingDir = new File(getFilesDir(), PENDING_SUFFIX);
         pendingDir.mkdirs();
         mPendingMinidumpFile = new File(pendingDir, passedMinidumpFile.getName());
         moveFile(passedMinidumpFile, mPendingMinidumpFile);
@@ -155,6 +126,14 @@ public class CrashReporter extends Activity
 
         mExtrasStringMap = new HashMap<String, String>();
         readStringsFromFile(mPendingExtrasFile.getPath(), mExtrasStringMap);
+
+        // Set the flag that indicates we were stopped as expected, as
+        // we will send a crash report, so it is not a silent OOM crash.
+        SharedPreferences prefs =
+            getSharedPreferences(GeckoApp.PREFS_NAME, 0);
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putBoolean(GeckoApp.PREFS_WAS_STOPPED, true);
+        editor.commit();
     }
 
     private void backgroundSendReport() {
@@ -305,7 +284,8 @@ public class CrashReporter extends Activity
             readStringsFromReader(br, responseMap);
 
             if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
-                File submittedDir = new File(SUBMITTED_DIR);
+                File submittedDir = new File(getFilesDir(),
+                                             SUBMITTED_SUFFIX);
                 submittedDir.mkdirs();
                 minidumpFile.delete();
                 extrasFile.delete();

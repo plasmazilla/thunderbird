@@ -1,11 +1,18 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 DOM_SRCDIRS = \
   dom/base \
   dom/battery \
+  dom/file \
   dom/power \
+  dom/media \
   dom/network/src \
   dom/settings \
   dom/sms/src \
   dom/contacts \
+  dom/alarm \
   dom/src/events \
   dom/src/storage \
   dom/src/offline \

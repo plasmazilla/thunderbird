@@ -1,40 +1,9 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Google Calendar Provider code.
- *
- * The Initial Developer of the Original Code is
- *   Philipp Kewisch <mozilla@kewis.ch>
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
+Components.utils.import("resource://calendar/modules/calXMLUtils.jsm");
 Components.utils.import("resource://calendar/modules/calProviderUtils.jsm");
 
 // This constant is an arbitrary large number. It is used to tell google to get
@@ -50,7 +19,7 @@ calGoogleSessionManager.prototype = {
     mSessionMap: {},
 
     getInterfaces: function cI_cGSM_getInterfaces (aCount) {
-        var ifaces = [
+        const ifaces = [
             Components.interfaces.nsISupports,
             Components.interfaces.calIGoogleSessionManager,
             Components.interfaces.nsIClassInfo
@@ -274,7 +243,6 @@ calGoogleSession.prototype = {
             // Start logging in
             this.mLoggingIn = true;
 
-
             if (this.mGooglePass === undefined) {
                 // This happens only on the first run. Try to get the password
                 // from the password manager.
@@ -296,12 +264,12 @@ calGoogleSession.prototype = {
             // Check if we have a password. If not, authentication may have
             // failed.
             if (!this.mGooglePass) {
-                var username = { value: this.mGoogleUser };
-                var password = { value: null };
-                var persist = { value: false };
+                let username = { value: this.mGoogleUser };
+                let password = { value: null };
+                let persist = { value: false };
 
                 // Try getting a new password, potentially switching sesssions.
-                var calendarName = (aCalendar ?
+                let calendarName = (aCalendar ?
                                     aCalendar.googleCalendarName :
                                     this.mGoogleUser);
 
@@ -316,7 +284,7 @@ calGoogleSession.prototype = {
                     // If a different username was entered, switch sessions
 
                     if (aCalendar && username.value != this.mGoogleUser) {
-                        var newSession = getGoogleSessionManager()
+                        let newSession = getGoogleSessionManager()
                                          .getSessionByUsername(username.value,
                                                                true);
                         newSession.password = password.value;
@@ -392,14 +360,14 @@ calGoogleSession.prototype = {
             ASSERT(this.mGooglePass);
 
             // Get Version info
-            var appInfo = Components.classes["@mozilla.org/xre/app-info;1"].
+            let appInfo = Components.classes["@mozilla.org/xre/app-info;1"].
                           getService(Components.interfaces.nsIXULAppInfo);
-            var source = appInfo.vendor + "-" +
+            let source = appInfo.vendor + "-" +
                          appInfo.name + "-" +
                          appInfo.version;
 
             // Request Login
-            var request = new calGoogleRequest(this);
+            let request = new calGoogleRequest(this);
 
             request.type = request.LOGIN;
             request.calendar = aCalendar;
@@ -457,7 +425,7 @@ calGoogleSession.prototype = {
                 this.failQueue(aOperation.status);
             }
         } else {
-            var start = aData.indexOf("Auth=");
+            let start = aData.indexOf("Auth=");
             if (start == -1) {
                 // The Auth token could not be extracted
                 this.mLoggingIn = false;
@@ -482,7 +450,7 @@ calGoogleSession.prototype = {
                 }
 
                 // Process Items that were requested while logging in
-                var request;
+                let request;
                 // Extra parentheses to avoid js strict warning.
                 while ((request = this.mItemQueue.shift())) {
                     cal.LOG("[calGoogleCalendar] Processing Queue Item: " + request.uri);
@@ -567,10 +535,10 @@ calGoogleSession.prototype = {
             aRangeEnd.isDate = false;
         }
 
-        var rfcRangeStart = cal.toRFC3339(aRangeStart);
-        var rfcRangeEnd = cal.toRFC3339(aRangeEnd);
+        let rfcRangeStart = cal.toRFC3339(aRangeStart);
+        let rfcRangeEnd = cal.toRFC3339(aRangeEnd);
 
-        var request = new calGoogleRequest(this);
+        let request = new calGoogleRequest(this);
 
         request.type = request.GET;
         request.uri = "https://www.google.com/calendar/feeds/" +
@@ -588,7 +556,7 @@ calGoogleSession.prototype = {
         request.addQueryParameter("start-min", rfcRangeStart);
         request.addQueryParameter("start-max", rfcRangeEnd);
 
-        var session = this;
+        let session = this;
         request.responseListener = {
             onResult: function cGS_getFreeBusyIntervals_onResult(aOperation, aData) {
                 session.getFreeBusyIntervals_response(aOperation,
@@ -609,12 +577,6 @@ calGoogleSession.prototype = {
                                                                           aRangeStart,
                                                                           aRangeEnd) {
         // Prepare Namespaces
-        var gCal = new Namespace("gCal",
-                                 "http://schemas.google.com/gCal/2005");
-        var gd = new Namespace("gd", "http://schemas.google.com/g/2005");
-        var atom = new Namespace("", "http://www.w3.org/2005/Atom");
-        default xml namespace = atom;
-
         if (aOperation.status == kGOOGLE_LOGIN_FAILED ||
             !Components.isSuccessCode(aOperation.status)) {
             aOperation.operationListener.onResult(aOperation, null);
@@ -622,20 +584,15 @@ calGoogleSession.prototype = {
         }
 
         // A feed was passed back, parse it.
-        var xml = cal.safeNewXML(aData);
-        var timezoneString = xml.gCal::timezone.@value.toString() || "UTC";
-        var timezone = cal.getTimezoneService().getTimezone(timezoneString);
+        let xml = cal.xml.parseString(aData);
+        let timezoneString = gdataXPathFirst(xml, 'atom:feed/gCal:timezone/@value') || "UTC";
+        let timezone = gdataTimezoneService.getTimezone(timezoneString);
 
-        // This line is needed, otherwise the for each () block will never
-        // be entered. It may seem strange, but if you don't believe me, try
-        // it!
-        xml.link.(@rel);
-
-        var intervals = [];
+        let intervals = [];
         const fbtypes = Components.interfaces.calIFreeBusyInterval;
-        for each (var entry in xml.entry) {
-            let start = cal.fromRFC3339(entry.gd::when.@startTime.toString(), timezone);
-            let end = cal.fromRFC3339(entry.gd::when.@endTime.toString(), timezone);
+        for each (let entry in gdataXPath(xml, 'atom:feed/atom:entry')) {
+            let start = cal.fromRFC3339(gdataXPathFirst(entry, 'gd:when/@startTime'), timezone);
+            let end = cal.fromRFC3339(gdataXPathFirst(entry, 'gd:when/@endTime'), timezone);
             let interval = new cal.FreeBusyInterval(aCalId, fbtypes.BUSY, start, end);
             LOGinterval(interval);
             intervals.push(interval);

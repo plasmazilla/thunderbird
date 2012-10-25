@@ -1,12 +1,10 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 classic.jar:
   skin/classic/communicator/smileys.css                       (mail/smileys.css)
 % skin messenger classic/1.0 %skin/classic/messenger/
-  skin/classic/messenger/featureConfigurator.css              (mail/featureConfigurator.css)
-  skin/classic/messenger/featureConfigurators/subpage.css     (mail/featureConfigurators/subpage.css)
-  skin/classic/messenger/featureConfigurators/animation.png   (mail/featureConfigurators/animation.png)
-  skin/classic/messenger/featureConfigurators/compact-header.png    (mail/featureConfigurators/compact-header.png)
-  skin/classic/messenger/featureConfigurators/folder-columns.png    (mail/featureConfigurators/folder-columns.png)
-  skin/classic/messenger/featureConfigurators/toolbars.png    (mail/featureConfigurators/toolbars.png)
   skin/classic/messenger/primaryToolbar.css                   (mail/primaryToolbar.css)
   skin/classic/messenger/aboutSupport.css                     (../qute/mail/aboutSupport.css)
   skin/classic/messenger/accountCentral.css                   (mail/accountCentral.css)
@@ -92,6 +90,9 @@ classic.jar:
   skin/classic/messenger/addressbook/icons/remote-addrbook-error.png      (mail/addrbook/remote-addrbook-error.png)
   skin/classic/messenger/addressbook/icons/secure-remote-addrbook.png     (mail/addrbook/secure-remote-addrbook.png)
   skin/classic/messenger/cloudfile/addAccountDialog.css       (mail/cloudfile/addAccountDialog.css)
+  skin/classic/messenger/cloudfile/YouSendIt/settings.css               (mail/cloudfile/YouSendIt/settings.css)
+  skin/classic/messenger/cloudfile/YouSendIt/fileExceedsLimit.css       (mail/cloudfile/YouSendIt/fileExceedsLimit.css)
+  skin/classic/messenger/cloudfile/YouSendIt/check.png                  (mail/cloudfile/YouSendIt/check.png)
   skin/classic/messenger/messengercompose/messengercompose.css (mail/compose/messengercompose.css)
   skin/classic/messenger/messengercompose/editorOverlay.css    (mail/compose/editorOverlay.css)
   skin/classic/messenger/messengercompose/compose-toolbar.png  (mail/compose/compose-toolbar.png)
@@ -164,6 +165,8 @@ classic.jar:
   skin/classic/messenger/icons/readcol.svg                    (mail/icons/readcol.svg)
   skin/classic/messenger/icons/search-arrow.png               (mail/icons/search-arrow.png)
   skin/classic/messenger/icons/close-button.png               (mail/icons/close-button.png)
+  skin/classic/messenger/icons/closeTab.svg                   (mail/icons/closeTab.svg)
+  skin/classic/messenger/icons/closeTab-active.svg            (mail/icons/closeTab-active.svg)
   skin/classic/messenger/icons/remote-blocked.png             (mail/icons/remote-blocked.png)
   skin/classic/messenger/icons/phishing.png                   (mail/icons/phishing.png)
   skin/classic/messenger/icons/junk.png                       (mail/icons/junk.png)
@@ -177,7 +180,12 @@ classic.jar:
   skin/classic/messenger/icons/dropmarker-hover.svg           (mail/icons/dropmarker-hover.svg)
   skin/classic/messenger/icons/filterbar.png                  (mail/icons/filterbar.png)
   skin/classic/messenger/icons/red_pin.png                    (mail/icons/red_pin.png)
-  skin/classic/messenger/icons/tab.png                        (mail/icons/tab.png)
+  skin/classic/messenger/icons/tabActiveEnd.svg               (mail/icons/tabActiveEnd.svg)
+  skin/classic/messenger/icons/tabActiveMiddle.svg            (mail/icons/tabActiveMiddle.svg)
+  skin/classic/messenger/icons/tabActiveStart.svg             (mail/icons/tabActiveStart.svg)
+  skin/classic/messenger/icons/tabBackgroundEnd.png           (mail/icons/tabBackgroundEnd.png)
+  skin/classic/messenger/icons/tabBackgroundMiddle.png        (mail/icons/tabBackgroundMiddle.png)
+  skin/classic/messenger/icons/tabBackgroundStart.png         (mail/icons/tabBackgroundStart.png)
   skin/classic/messenger/icons/tabDragIndicator.png           (mail/icons/tabDragIndicator.png)
   skin/classic/messenger/icons/button-archive.svg             (mail/icons/button-archive.svg)
   skin/classic/messenger/icons/button-delete.svg              (mail/icons/button-delete.svg)
@@ -250,6 +258,6 @@ classic.jar:
   skin/classic/messenger/newmailaccount/success-compose.png             (mail/newmailaccount/success-compose.png)
   skin/classic/messenger/newmailaccount/success-signature.png           (mail/newmailaccount/success-signature.png)
   skin/classic/messenger/newmailaccount/search.png                      (mail/newmailaccount/search.png)
-  skin/classic/messenger/icons/dropbox.png                    (mail/icons/dropbox.png)
   skin/classic/messenger/icons/ubuntuone.png                    (mail/icons/ubuntuone.png)
   skin/classic/messenger/icons/yousendit.png                  (mail/icons/yousendit.png)
+  skin/classic/messenger/icons/box-logo.png                   (mail/icons/box-logo.png)

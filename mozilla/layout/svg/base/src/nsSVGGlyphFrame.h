@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla SVG project.
- *
- * The Initial Developer of the Original Code is
- * Crocodile Clips Ltd..
- * Portions created by the Initial Developer are Copyright (C) 2002
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Alex Fritze <alex.fritze@crocodile-clips.com> (original author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef __NS_SVGGLYPHFRAME_H__
 #define __NS_SVGGLYPHFRAME_H__
@@ -64,6 +31,9 @@ class nsSVGGlyphFrame : public nsSVGGlyphFrameBase,
                         public nsISVGGlyphFragmentNode,
                         public nsISVGChildFrame
 {
+  class AutoCanvasTMForMarker;
+  friend class AutoCanvasTMForMarker;
+  friend class CharacterIterator;
   friend nsIFrame*
   NS_NewSVGGlyphFrame(nsIPresShell* aPresShell, nsStyleContext* aContext);
 protected:
@@ -71,6 +41,7 @@ protected:
     : nsSVGGlyphFrameBase(aContext),
       mTextRun(nsnull),
       mStartIndex(0),
+      mGetCanvasTMForFlag(nsISVGChildFrame::FOR_OUTERSVG_TM),
       mCompressWhitespace(true),
       mTrimLeadingWhitespace(false),
       mTrimTrailingWhitespace(false)
@@ -185,12 +156,9 @@ public:
   virtual void UpdateBounds();
   virtual void NotifySVGChanged(PRUint32 aFlags);
   NS_IMETHOD_(bool) IsDisplayContainer() { return false; }
-  NS_IMETHOD_(bool) HasValidCoveredRect() {
-    return !(GetStateBits() & NS_STATE_SVG_NONDISPLAY_CHILD);
-  }
 
   // nsSVGGeometryFrame methods
-  gfxMatrix GetCanvasTM();
+  gfxMatrix GetCanvasTM(PRUint32 aFor);
 
   // nsISVGGlyphFragmentNode interface:
   // These do not use the global transform if NS_STATE_NONDISPLAY_CHILD
@@ -207,8 +175,30 @@ public:
     }
   }
 
-protected:
-  friend class CharacterIterator;
+private:
+
+  /**
+   * This class exists purely because it would be too messy to pass the "for"
+   * flag for GetCanvasTM through the call chains to the GetCanvasTM() call in
+   * EnsureTextRun.
+   */
+  class AutoCanvasTMForMarker {
+  public:
+    AutoCanvasTMForMarker(nsSVGGlyphFrame *aFrame, PRUint32 aFor)
+      : mFrame(aFrame)
+    {
+      mOldFor = mFrame->mGetCanvasTMForFlag;
+      mFrame->mGetCanvasTMForFlag = aFor;
+    }
+    ~AutoCanvasTMForMarker()
+    {
+      // Default
+      mFrame->mGetCanvasTMForFlag = mOldFor;
+    }
+  private:
+    nsSVGGlyphFrame *mFrame;
+    PRUint32 mOldFor;
+  };
 
   // Use a power of 2 here. It's not so important to match
   // nsDeviceContext::AppUnitsPerDevPixel, but since we do a lot of
@@ -244,7 +234,7 @@ protected:
                       gfxPattern *aStrokePattern = nsnull);
 
   void NotifyGlyphMetricsChange();
-  void SetupGlobalTransform(gfxContext *aContext);
+  void SetupGlobalTransform(gfxContext *aContext, PRUint32 aFor);
   nsresult GetHighlight(PRUint32 *charnum, PRUint32 *nchars,
                         nscolor *foreground, nscolor *background);
   float GetSubStringAdvance(PRUint32 charnum, PRUint32 fragmentChars,
@@ -263,6 +253,7 @@ protected:
   gfxPoint mPosition;
   // The start index into the position and rotation data
   PRUint32 mStartIndex;
+  PRUint32 mGetCanvasTMForFlag;
   bool mCompressWhitespace;
   bool mTrimLeadingWhitespace;
   bool mTrimTrailingWhitespace;

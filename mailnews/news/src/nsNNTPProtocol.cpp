@@ -1,47 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Scott MacGregor <mscott@netscape.com>
- *   Seth Spitzer <sspitzer@netscape.com>
- *   Alec Flett <alecf@netscape.com>
- *   David Bienvenu <bienvenu@nventure.com>
- *   Jeff Tsai <jefft@netscape.com>
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Håkan Waara <hwaara@chello.se>
- *   Joshua Cranmer <Pidgeot18@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef MOZ_LOGGING
 #define FORCE_PR_LOG /* Allow logging in the release build (sorry this breaks the PCH) */
@@ -362,19 +322,19 @@ void nsNNTPProtocol::Cleanup()  //free char* member variables
   PR_FREEIF(m_cancelID);
 }
 
-NS_IMETHODIMP nsNNTPProtocol::Initialize(nsIURI * aURL, nsIMsgWindow *aMsgWindow)
+NS_IMETHODIMP nsNNTPProtocol::Initialize(nsIURI *aURL, nsIMsgWindow *aMsgWindow)
 {
-  nsresult rv = NS_OK;
-
   if (aMsgWindow) {
     m_msgWindow = aMsgWindow;
   }
   nsMsgProtocol::InitFromURI(aURL);
 
   nsCOMPtr<nsIMsgIncomingServer> server = do_QueryInterface(m_nntpServer);
+  NS_ASSERTION(m_nntpServer, "nsNNTPProtocol need an m_nntpServer.");
+  NS_ENSURE_TRUE(m_nntpServer, NS_ERROR_UNEXPECTED);
 
-  rv = m_nntpServer->GetMaxArticles(&m_maxArticles);
-  NS_ENSURE_SUCCESS(rv,rv);
+  nsresult rv = m_nntpServer->GetMaxArticles(&m_maxArticles);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   PRInt32 socketType;
   rv = server->GetSocketType(&socketType);
@@ -384,7 +344,7 @@ NS_IMETHODIMP nsNNTPProtocol::Initialize(nsIURI * aURL, nsIMsgWindow *aMsgWindow
   rv = m_url->GetPort(&port);
   if (NS_FAILED(rv) || (port<=0)) {
     rv = server->GetPort(&port);
-    if (NS_FAILED(rv)) return rv;
+    NS_ENSURE_SUCCESS(rv, rv);
 
     if (port<=0) {
       port = (socketType == nsMsgSocketType::SSL) ?
@@ -392,20 +352,20 @@ NS_IMETHODIMP nsNNTPProtocol::Initialize(nsIURI * aURL, nsIMsgWindow *aMsgWindow
     }
 
     rv = m_url->SetPort(port);
-    if (NS_FAILED(rv)) return rv;
+    NS_ENSURE_SUCCESS(rv, rv);
   }
 
-  NS_PRECONDITION(m_url , "invalid URL passed into NNTP Protocol");
+  NS_PRECONDITION(m_url, "invalid URL passed into NNTP Protocol");
 
   m_runningURL = do_QueryInterface(m_url, &rv);
-  if (NS_FAILED(rv)) return rv;
+  NS_ENSURE_SUCCESS(rv, rv);
   SetIsBusy(true);
 
   nsCString group;
 
   // Initialize m_newsAction before possible use in ParseURL method
   m_runningURL->GetNewsAction(&m_newsAction);
-  
+
   // parse url to get the msg folder and check if the message is in the folder's
   // local cache before opening a new socket and trying to download the message
   rv = ParseURL(m_url, group, m_messageID);
@@ -4400,7 +4360,7 @@ nsresult nsNNTPProtocol::ProcessProtocolState(nsIURI * url, nsIInputStream * inp
 {
   PRInt32 status = 0;
   nsCOMPtr<nsIMsgMailNewsUrl> mailnewsurl = do_QueryInterface(m_runningURL);
-  if (!mailnewsurl || !m_nntpServer)
+  if (inputStream && (!mailnewsurl || !m_nntpServer))
   {
     // In these cases, we are going to return since our data is effectively
     // invalid. However, nsInputStream would really rather that we at least read
@@ -4423,7 +4383,7 @@ nsresult nsNNTPProtocol::ProcessProtocolState(nsIURI * url, nsIInputStream * inp
     // already closed our socket and we are merely flushing out the socket
     // receive queue. Since the user told us to stop, don't process any more
     // input.
-    return inputStream->Close();
+    return inputStream ? inputStream->Close() : NS_OK;
   }
 
   ClearFlag(NNTP_PAUSE_FOR_READ);

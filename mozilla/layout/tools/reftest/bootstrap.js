@@ -22,6 +22,11 @@ function setDefaultPrefs() {
     branch.setIntPref("hangmonitor.timeout", 0);
     // Ensure autoplay is enabled for all platforms.
     branch.setBoolPref("media.autoplay.enabled", true);
+    // Disable updates
+    branch.setBoolPref("app.update.enabled", false);
+    // Disable addon updates and prefetching so we don't leak them
+    branch.setBoolPref("extensions.update.enabled", false);
+    branch.setBoolPref("extensions.getAddons.cache.enabled", false);
 }
 
 var windowListener = {

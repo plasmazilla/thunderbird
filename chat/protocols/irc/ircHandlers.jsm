@@ -1,38 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Instantbird.
- *
- * The Initial Developer of the Original Code is
- * Patrick Cloke <clokep@gmail.com>.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 const EXPORTED_SYMBOLS = ["ircHandlers"];
 
@@ -47,6 +15,9 @@ var ircHandlers = {
    *   name        The display name of the handler.
    *   priority    The priority of the handler (0 is default, positive is
    *               higher priority)
+   *   isEnabled   A function where 'this' is bound to the account object. This
+   *               should reflect whether this handler should be used for this
+   *               account.
    *   commands    An object of commands, each command is a function which
    *               accepts a message object and has 'this' bound to the account
    *               object. It should return whether the message was successfully
@@ -60,11 +31,18 @@ var ircHandlers = {
   _ctcpHandlers: [],
   // Object to hold the DCC handlers, expects the same fields as _ircHandlers.
   _dccHandlers: [],
+  // Object to hold the Services handlers, expects the same fields as
+  // _ircHandlers.
+  _servicesHandlers: [],
 
   _registerHandler: function(aArray, aHandler) {
     // Protect ourselves from adding broken handlers.
     if (!("commands" in aHandler)) {
       ERROR("IRC handlers must have a \"commands\" property: " + aHandler.name);
+      return false;
+    }
+    if (!("isEnabled" in aHandler)) {
+      ERROR("IRC handlers must have a \"isEnabled\" property: " + aHandler.name);
       return false;
     }
 
@@ -97,6 +75,11 @@ var ircHandlers = {
   unregisterDCCHandler: function(aHandler)
     this._unregisterHandler(this._dccHandlers, aHandler),
 
+  registerServicesHandler: function(aHandler)
+    this._registerHandler(this._servicesHandlers, aHandler),
+  unregisterServicesHandler: function(aHandler)
+    this._unregisterHandler(this._servicesHandlers, aHandler),
+
   // Handle a message based on a set of handlers.
   _handleMessage: function(aHandlers, aAccount, aMessage, aCommand) {
     // Loop over each handler and run the command until one handles the message.
@@ -105,7 +88,8 @@ var ircHandlers = {
         // Attempt to execute the command, by checking if the handler has the
         // command.
         // Parse the command with the JavaScript account object as "this".
-        if (hasOwnProperty(handler.commands, aCommand) &&
+        if (handler.isEnabled.call(aAccount) &&
+            hasOwnProperty(handler.commands, aCommand) &&
             handler.commands[aCommand].call(aAccount, aMessage)) {
           DEBUG(JSON.stringify(aMessage));
           return true;
@@ -136,15 +120,21 @@ var ircHandlers = {
                         aMessage.ctcp.command),
 
   // aMessage is a DCC Message, which inherits from a CTCP Message.
-  handleDCCPMessage: function(aAccount, aMessage)
+  handleDCCMessage: function(aAccount, aMessage)
     this._handleMessage(this._dccHandlers, aAccount, aMessage,
                         aMessage.ctcp.dcc.type),
+
+  // aMessage is a Services Message.
+  handleServicesMessage: function(aAccount, aMessage)
+    this._handleMessage(this._servicesHandlers, aAccount, aMessage,
+                        aMessage.serviceName),
 
   // Checking if handlers exist.
   get hasHandlers() this._ircHandlers.length > 0,
   get hasISUPPORTHandlers() this._isupportHandlers.length > 0,
   get hasCTCPHandlers() this._ctcpHandlers.length > 0,
   get hasDCCHandlers() this._dccHandlers.length > 0,
+  get hasServicesHandlers() this._servicesHandlers.length > 0,
 
   // Some constant priorities.
   get LOW_PRIORITY() -100,

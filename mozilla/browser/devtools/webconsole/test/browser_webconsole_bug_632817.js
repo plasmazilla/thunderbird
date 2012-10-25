@@ -18,50 +18,64 @@ function test()
 {
   addTab("data:text/html;charset=utf-8,Web Console network logging tests");
 
-  browser.addEventListener("load", function() {
-    browser.removeEventListener("load", arguments.callee, true);
+  browser.addEventListener("load", function onLoad() {
+    browser.removeEventListener("load", onLoad, true);
 
-    openConsole();
+    openConsole(null, function(aHud) {
+      hud = aHud;
 
-    hud = HUDService.getHudByWindow(content);
-    ok(hud, "Web Console is now open");
+      HUDService.lastFinishedRequestCallback = function(aRequest) {
+        lastRequest = aRequest.log.entries[0];
+        if (requestCallback) {
+          requestCallback();
+        }
+      };
 
-    HUDService.lastFinishedRequestCallback = function(aRequest) {
-      lastRequest = aRequest;
-      if (requestCallback) {
-        requestCallback();
-      }
-    };
-
-    executeSoon(testPageLoad);
+      executeSoon(testPageLoad);
+    });
   }, true);
 }
 
 function testPageLoad()
 {
-  browser.addEventListener("load", function(aEvent) {
-    browser.removeEventListener(aEvent.type, arguments.callee, true);
-
+  requestCallback = function() {
     // Check if page load was logged correctly.
     ok(lastRequest, "Page load was logged");
-    is(lastRequest.url, TEST_NETWORK_REQUEST_URI,
+    is(lastRequest.request.url, TEST_NETWORK_REQUEST_URI,
       "Logged network entry is page load");
-    is(lastRequest.method, "GET", "Method is correct");
+    is(lastRequest.request.method, "GET", "Method is correct");
     lastRequest = null;
+    requestCallback = null;
     executeSoon(testPageLoadBody);
-  }, true);
+  };
 
   content.location = TEST_NETWORK_REQUEST_URI;
 }
 
 function testPageLoadBody()
 {
+  let loaded = false;
+  let requestCallbackInvoked = false;
+
   // Turn off logging of request bodies and check again.
-  browser.addEventListener("load", function(aEvent) {
-    browser.removeEventListener(aEvent.type, arguments.callee, true);
+  requestCallback = function() {
     ok(lastRequest, "Page load was logged again");
     lastRequest = null;
-    executeSoon(testXhrGet);
+    requestCallback = null;
+    requestCallbackInvoked = true;
+
+    if (loaded) {
+      executeSoon(testXhrGet);
+    }
+  };
+
+  browser.addEventListener("load", function onLoad() {
+    browser.removeEventListener("load", onLoad, true);
+    loaded = true;
+
+    if (requestCallbackInvoked) {
+      executeSoon(testXhrGet);
+    }
   }, true);
 
   content.location.reload();
@@ -71,7 +85,7 @@ function testXhrGet()
 {
   requestCallback = function() {
     ok(lastRequest, "testXhrGet() was logged");
-    is(lastRequest.method, "GET", "Method is correct");
+    is(lastRequest.request.method, "GET", "Method is correct");
     lastRequest = null;
     requestCallback = null;
     executeSoon(testXhrPost);
@@ -85,7 +99,7 @@ function testXhrPost()
 {
   requestCallback = function() {
     ok(lastRequest, "testXhrPost() was logged");
-    is(lastRequest.method, "POST", "Method is correct");
+    is(lastRequest.request.method, "POST", "Method is correct");
     lastRequest = null;
     requestCallback = null;
     executeSoon(testFormSubmission);
@@ -99,12 +113,23 @@ function testFormSubmission()
 {
   // Start the form submission test. As the form is submitted, the page is
   // loaded again. Bind to the load event to catch when this is done.
-  browser.addEventListener("load", function(aEvent) {
-    browser.removeEventListener(aEvent.type, arguments.callee, true);
+  requestCallback = function() {
     ok(lastRequest, "testFormSubmission() was logged");
-    is(lastRequest.method, "POST", "Method is correct");
-    executeSoon(testLiveFilteringOnSearchStrings);
-  }, true);
+    is(lastRequest.request.method, "POST", "Method is correct");
+    waitForSuccess({
+      name: "all network request displayed",
+      validatorFn: function() {
+        return hud.outputNode.querySelectorAll(".webconsole-msg-network")
+               .length == 5;
+      },
+      successFn: testLiveFilteringOnSearchStrings,
+      failureFn: function() {
+        let nodes = hud.outputNode.querySelectorAll(".webconsole-msg-network");
+        info("nodes: " + nodes.length + "\n");
+        finishTest();
+      },
+    });
+  };
 
   let form = content.document.querySelector("form");
   ok(form, "we have the HTML form");
@@ -112,9 +137,6 @@ function testFormSubmission()
 }
 
 function testLiveFilteringOnSearchStrings() {
-  browser.removeEventListener("DOMContentLoaded",
-                              testLiveFilteringOnSearchStrings, false);
-
   setStringFilter("http");
   isnot(countMessageNodes(), 0, "the log nodes are not hidden when the " +
     "search string is set to \"http\"");
@@ -146,6 +168,9 @@ function testLiveFilteringOnSearchStrings() {
   is(countMessageNodes(), 0, "the log nodes are hidden when searching for " +
     "the string \"foo\"bar'baz\"boo'\"");
 
+  HUDService.lastFinishedRequestCallback = null;
+  lastRequest = null;
+  requestCallback = null;
   finishTest();
 }
 

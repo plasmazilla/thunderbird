@@ -15,7 +15,7 @@ function test() {
   debug_tab_pane(DEBUGGER_TAB_URL, function(aTab, aDebuggee, aPane) {
     gTab = aTab;
     gPane = aPane;
-    gDebugger = gPane.debuggerWindow;
+    gDebugger = gPane.contentWindow;
 
     testCleanExit();
   });
@@ -27,7 +27,7 @@ function testCleanExit() {
       is(gDebugger.DebuggerController.activeThread.paused, true,
         "Should be paused after the debugger statement.");
 
-      closeDebuggerAndFinish(gTab);
+      closeDebuggerAndFinish();
     }}, 0);
   });
 

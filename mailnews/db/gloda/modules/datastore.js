@@ -1,40 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- *   Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Thunderbird Global Database.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2008
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Andrew Sutherland <asutherland@asutherland.org>
- *   Siddharth Agarwal <sid.bugzilla@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* This file looks to Myk Melez <myk@mozilla.org>'s Mozilla Labs snowl
  * project's (http://hg.mozilla.org/labs/snowl/) modules/datastore.js
@@ -717,6 +683,7 @@ var GlodaDatastore = {
   kSpecialColumnParent: 16|2,
   kSpecialString: 32,
   kSpecialFulltext: 64,
+  IGNORE_FACET: {},
 
   kConstraintIdIn: 0,
   kConstraintIn: 1,
@@ -1034,6 +1001,12 @@ var GlodaDatastore = {
   _prefBranch: null,
 
   /**
+   * The unique ID assigned to an index when it has been built. This value
+   * changes once the index has been rebuilt.
+   */
+  _datastoreID: null,
+
+  /**
    * Initialize logging, create the database if it doesn't exist, "upgrade" it
    *  if it does and it's not up-to-date, fill our authoritative folder uri/id
    *  mapping.
@@ -1080,7 +1053,7 @@ var GlodaDatastore = {
 
     // Create the file if it does not exist
     if (!dbFile.exists()) {
-      this._log.debug("Creating database because it does't exist.");
+      this._log.debug("Creating database because it doesn't exist.");
       dbConnection = this._createDB(dbService, dbFile);
     }
     // It does exist, but we (someday) might need to upgrade the schema
@@ -1134,6 +1107,14 @@ var GlodaDatastore = {
           this._log.debug("Migration call completed.");
         }
         // else: this database is juuust right.
+
+        // If we never had a datastore ID, make sure to create one now.
+        if (!this._prefBranch.prefHasUserValue("id")) {
+          this._datastoreID = this._generateDatastoreID();
+          this._prefBranch.setCharPref("id", this._datastoreID);
+        } else {
+          this._datastoreID = this._prefBranch.getCharPref("id");
+        }
       }
       // Handle corrupt databases, other oddities
       catch (ex) {
@@ -1281,6 +1262,19 @@ var GlodaDatastore = {
     this.syncConnection = null;
   },
 
+  /**
+   * Generates and returns a UUID.
+   *
+   * @return a UUID as a string, ex: "c4dd0159-9287-480f-a648-a4613e147fdb"
+   */
+  _generateDatastoreID: function gloda_ds_generateDatastoreID() {
+    let uuidGen = Cc["@mozilla.org/uuid-generator;1"]
+                    .getService(Ci.nsIUUIDGenerator);
+    let uuid = uuidGen.generateUUID().toString();
+    // We snip off the { and } from each end of the UUID.
+    return uuid.substring(1, uuid.length - 2);
+  },
+
   _determineCachePages: function gloda_ds_determineCachePages(aDBConn) {
     try {
       // For the details of the computations, one should read
@@ -1337,6 +1331,12 @@ var GlodaDatastore = {
     var tokenizer = Cc["@mozilla.org/messenger/fts3tokenizer;1"].
                       getService(Ci.nsIFts3Tokenizer);
     tokenizer.registerTokenizer(dbConnection);
+
+    // We're creating a new database, so let's generate a new ID for this
+    // version of the datastore. This way, indexers can know when the index
+    // has been rebuilt in the event that they need to rebuild dependent data.
+    this._datastoreID = this._generateDatastoreID();
+    this._prefBranch.setCharPref("id", this._datastoreID);
 
     dbConnection.beginTransaction();
     try {

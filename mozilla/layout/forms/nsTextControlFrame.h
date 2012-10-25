@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsTextControlFrame_h___
 #define nsTextControlFrame_h___
@@ -58,6 +26,11 @@ class nsIAccessible;
 #endif
 class EditorInitializerEntryTracker;
 class nsTextEditorState;
+namespace mozilla {
+namespace dom {
+class Element;
+}
+}
 
 class nsTextControlFrame : public nsStackFrame,
                            public nsIAnonymousContentCreator,
@@ -102,10 +75,10 @@ public:
   virtual bool IsLeaf() const;
   
 #ifdef ACCESSIBILITY
-  virtual already_AddRefed<nsAccessible> CreateAccessible();
+  virtual already_AddRefed<Accessible> CreateAccessible();
 #endif
 
-#ifdef NS_DEBUG
+#ifdef DEBUG
   NS_IMETHOD GetFrameName(nsAString& aResult) const
   {
     aResult.AssignLiteral("nsTextControlFrame");
@@ -143,7 +116,6 @@ public:
 
   NS_IMETHOD    GetEditor(nsIEditor **aEditor);
   NS_IMETHOD    GetTextLength(PRInt32* aTextLength);
-  NS_IMETHOD    CheckFireOnChange();
   NS_IMETHOD    SetSelectionStart(PRInt32 aSelectionStart);
   NS_IMETHOD    SetSelectionEnd(PRInt32 aSelectionEnd);
   NS_IMETHOD    SetSelectionRange(PRInt32 aSelectionStart,
@@ -183,6 +155,8 @@ public:
 
   nsresult GetText(nsString& aText);
 
+  NS_IMETHOD PeekOffset(nsPeekOffsetStruct *aPos);
+
   NS_DECL_QUERYFRAME
 
   // Temp reference to scriptrunner
@@ -192,39 +166,17 @@ public:
 
 public: //for methods who access nsTextControlFrame directly
   void SetValueChanged(bool aValueChanged);
-  /** Called when the frame is focused, to remember the value for onChange. */
-  nsresult InitFocusedValue();
-
-  void SetFireChangeEventState(bool aNewState)
-  {
-    mFireChangeEventState = aNewState;
-  }
-
-  bool GetFireChangeEventState() const
-  {
-    return mFireChangeEventState;
-  }    
-
+  
   // called by the focus listener
   nsresult MaybeBeginSecureKeyboardInput();
   void MaybeEndSecureKeyboardInput();
 
   NS_STACK_CLASS class ValueSetter {
   public:
-    ValueSetter(nsTextControlFrame* aFrame,
-                nsIEditor* aEditor,
-                bool aHasFocusValue)
-      : mFrame(aFrame)
-      , mEditor(aEditor)
-      // This method isn't used for user-generated changes, except for calls
-      // from nsFileControlFrame which sets mFireChangeEventState==true and
-      // restores it afterwards (ie. we want 'change' events for those changes).
-      // Focused value must be updated to prevent incorrect 'change' events,
-      // but only if user hasn't changed the value.
-      , mFocusValueInit(!mFrame->mFireChangeEventState && aHasFocusValue)
+    ValueSetter(nsIEditor* aEditor)
+      : mEditor(aEditor)
       , mCanceled(false)
     {
-      MOZ_ASSERT(aFrame);
       MOZ_ASSERT(aEditor);
 
       // To protect against a reentrant call to SetValue, we check whether
@@ -244,17 +196,10 @@ public: //for methods who access nsTextControlFrame directly
       if (mCanceled) {
         return;
       }
-
-      if (mFocusValueInit) {
-        // Reset mFocusedValue so the onchange event doesn't fire incorrectly.
-        mFrame->InitFocusedValue();
-      }
     }
 
   private:
-    nsTextControlFrame* mFrame;
     nsCOMPtr<nsIEditor> mEditor;
-    bool mFocusValueInit;
     bool mOuterTransaction;
     bool mCanceled;
   };
@@ -344,7 +289,6 @@ protected:
     nsTextControlFrame* mFrame;
   };
 
-  nsresult DOMPointToOffset(nsIDOMNode* aNode, PRInt32 aNodeOffset, PRInt32 *aResult);
   nsresult OffsetToDOMPoint(PRInt32 aOffset, nsIDOMNode** aResult, PRInt32* aPosition);
 
   /**
@@ -405,6 +349,7 @@ private:
   /**
    * Return the root DOM element, and implicitly initialize the editor if needed.
    */
+  mozilla::dom::Element* GetRootNodeAndInitializeEditor();
   nsresult GetRootNodeAndInitializeEditor(nsIDOMElement **aRootElement);
 
   void FinishedInitializer() {
@@ -415,9 +360,6 @@ private:
   // these packed bools could instead use the high order bits on mState, saving 4 bytes 
   bool mUseEditor;
   bool mIsProcessing;
-  // Calls to SetValue will be treated as user values (i.e. trigger onChange
-  // eventually) when mFireChangeEventState==true, this is used by nsFileControlFrame.
-  bool mFireChangeEventState;
   // Keep track if we have asked a placeholder node creation.
   bool mUsePlaceholder;
 
@@ -426,7 +368,6 @@ private:
   friend class EditorInitializerEntryTracker;
 #endif
 
-  nsString mFocusedValue;
   nsRevocableEventPtr<ScrollOnFocusEvent> mScrollEvent;
 };
 

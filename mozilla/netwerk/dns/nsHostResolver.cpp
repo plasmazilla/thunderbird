@@ -1,39 +1,7 @@
 /* vim:set ts=4 sw=4 sts=4 et cin: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla.
- *
- * The Initial Developer of the Original Code is IBM Corporation.
- * Portions created by IBM Corporation are Copyright (C) 2003
- * IBM Corporation. All Rights Reserved.
- *
- * Contributor(s):
- *   IBM Corp.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #if defined(MOZ_LOGGING)
 #define FORCE_PR_LOG
@@ -63,6 +31,7 @@
 #include "pldhash.h"
 #include "plstr.h"
 #include "nsURLHelper.h"
+#include "nsThreadUtils.h"
 
 #include "mozilla/HashFunctions.h"
 #include "mozilla/FunctionTimer.h"
@@ -180,8 +149,7 @@ private:
 #define RES_KEY_FLAGS(_f) ((_f) & nsHostResolver::RES_CANON_NAME)
 
 nsHostRecord::nsHostRecord(const nsHostKey *key)
-    : _refc(1)
-    , addr_info_lock("nsHostRecord.addr_info_lock")
+    : addr_info_lock("nsHostRecord.addr_info_lock")
     , addr_info_gencnt(0)
     , addr_info(nsnull)
     , addr(nsnull)
@@ -195,7 +163,6 @@ nsHostRecord::nsHostRecord(const nsHostKey *key)
     flags = key->flags;
     af = key->af;
 
-    NS_LOG_ADDREF(this, 1, "nsHostRecord", sizeof(nsHostRecord));
     expiration = NowInMinutes();
 
     PR_INIT_CLIST(this);
@@ -212,6 +179,7 @@ nsHostRecord::Create(const nsHostKey *key, nsHostRecord **result)
     // allocated after it.
     void *place = ::operator new(size);
     *result = new(place) nsHostRecord(key);
+    NS_ADDREF(*result);
     return NS_OK;
 }
 
@@ -574,7 +542,7 @@ nsHostResolver::ResolveHost(const char            *host,
                 LOG(("using cached record\n"));
                 // put reference to host record on stack...
                 result = he->rec;
-                Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD, METHOD_HIT);
+                Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD2, METHOD_HIT);
 
                 // For entries that are in the grace period, or all cached
                 // negative entries, use the cache but start a new lookup in
@@ -588,13 +556,13 @@ nsHostResolver::ResolveHost(const char            *host,
                     if (!he->rec->negative) {
                         // negative entries are constantly being refreshed, only
                         // track positive grace period induced renewals
-                        Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD,
+                        Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD2,
                                               METHOD_RENEWAL);
                     }
                 }
                 
                 if (he->rec->negative) {
-                    Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD,
+                    Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD2,
                                           METHOD_NEGATIVE_HIT);
                     status = NS_ERROR_UNKNOWN_HOST;
                 }
@@ -602,7 +570,7 @@ nsHostResolver::ResolveHost(const char            *host,
             // if the host name is an IP address literal and has been parsed,
             // go ahead and use it.
             else if (he->rec->addr) {
-                Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD,
+                Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD2,
                                       METHOD_LITERAL);
                 result = he->rec;
             }
@@ -618,14 +586,14 @@ nsHostResolver::ResolveHost(const char            *host,
                 else
                     memcpy(he->rec->addr, &tempAddr, sizeof(PRNetAddr));
                 // put reference to host record on stack...
-                Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD,
+                Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD2,
                                       METHOD_LITERAL);
                 result = he->rec;
             }
             else if (mPendingCount >= MAX_NON_PRIORITY_REQUESTS &&
                      !IsHighPriority(flags) &&
                      !he->rec->resolving) {
-                Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD,
+                Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD2,
                                       METHOD_OVERFLOW);
                 // This is a lower priority request and we are swamped, so refuse it.
                 rv = NS_ERROR_DNS_LOOKUP_QUEUE_FULL;
@@ -638,7 +606,7 @@ nsHostResolver::ResolveHost(const char            *host,
                 if (!he->rec->resolving) {
                     he->rec->flags = flags;
                     rv = IssueLookup(he->rec);
-                    Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD,
+                    Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD2,
                                           METHOD_NETWORK_FIRST);
                     if (NS_FAILED(rv))
                         PR_REMOVE_AND_INIT_LINK(callback);
@@ -646,7 +614,7 @@ nsHostResolver::ResolveHost(const char            *host,
                         LOG(("dns lookup blocking pending getaddrinfo query"));
                 }
                 else if (he->rec->onQueue) {
-                    Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD,
+                    Telemetry::Accumulate(Telemetry::DNS_LOOKUP_METHOD2,
                                           METHOD_NETWORK_SHARED);
 
                     // Consider the case where we are on a pending queue of 
@@ -985,6 +953,10 @@ void
 nsHostResolver::ThreadFunc(void *arg)
 {
     LOG(("nsHostResolver::ThreadFunc entering\n"));
+
+    static nsThreadPoolNaming naming;
+    naming.SetThreadPoolName(NS_LITERAL_CSTRING("DNS Resolver"));
+
 #if defined(RES_RETRY_ON_FAILURE)
     nsResState rs;
 #endif

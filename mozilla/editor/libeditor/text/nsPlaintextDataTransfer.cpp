@@ -1,77 +1,50 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
-
-#include "nsPlaintextEditor.h"
-
-#include "nsIDOMDocument.h"
-#include "nsIDocument.h"
-#include "nsIContent.h"
-#include "nsIFormControl.h"
-#include "nsIDOMEventTarget.h" 
-#include "nsIDOMNSEvent.h"
-#include "nsIDOMMouseEvent.h"
-#include "nsIDOMDragEvent.h"
-#include "nsISelection.h"
+#include "nsAString.h"
+#include "nsCOMPtr.h"
 #include "nsCRT.h"
-#include "nsServiceManagerUtils.h"
-#include "nsIPrivateDOMEvent.h"
-
-#include "nsIDOMRange.h"
-#include "nsIDOMDOMStringList.h"
-#include "nsIDocumentEncoder.h"
-#include "nsISupportsPrimitives.h"
-
-// Drag & Drop, Clipboard
-#include "nsIClipboard.h"
-#include "nsITransferable.h"
-#include "nsIDragService.h"
-#include "nsIDOMUIEvent.h"
-#include "nsCopySupport.h"
-#include "nsITransferable.h"
-
-// Misc
-#include "nsEditorUtils.h"
-#include "nsContentCID.h"
-#include "nsISelectionPrivate.h"
-#include "nsFrameSelection.h"
-#include "nsEventDispatcher.h"
+#include "nsComponentManagerUtils.h"
 #include "nsContentUtils.h"
+#include "nsDebug.h"
+#include "nsEditor.h"
+#include "nsEditorUtils.h"
+#include "nsError.h"
+#include "nsGUIEvent.h"
+#include "nsIClipboard.h"
+#include "nsIContent.h"
+#include "nsIDOMDataTransfer.h"
+#include "nsIDOMDocument.h"
+#include "nsIDOMDragEvent.h"
+#include "nsIDOMEvent.h"
+#include "nsIDOMNode.h"
+#include "nsIDOMRange.h"
+#include "nsIDOMUIEvent.h"
+#include "nsIDocument.h"
+#include "nsIDragService.h"
+#include "nsIDragSession.h"
+#include "nsIEditor.h"
+#include "nsIEditorIMESupport.h"
+#include "nsIFormControl.h"
+#include "nsIPlaintextEditor.h"
+#include "nsISelection.h"
+#include "nsISupportsPrimitives.h"
+#include "nsITransferable.h"
+#include "nsIVariant.h"
+#include "nsLiteralString.h"
+#include "nsPlaintextEditor.h"
+#include "nsSelectionState.h"
+#include "nsServiceManagerUtils.h"
+#include "nsString.h"
+#include "nsXPCOM.h"
+#include "nscore.h"
+#include "prtypes.h"
+
+class nsILoadContext;
+class nsISupports;
 
 using namespace mozilla;
 
@@ -83,6 +56,10 @@ NS_IMETHODIMP nsPlaintextEditor::PrepareTransferable(nsITransferable **transfera
 
   // Get the nsITransferable interface for getting the data from the clipboard
   if (transferable) {
+    nsCOMPtr<nsIDocument> destdoc = GetDocument();
+    nsILoadContext* loadContext = destdoc ? destdoc->GetLoadContext() : nsnull;
+    (*transferable)->Init(loadContext);
+
     (*transferable)->AddDataFlavor(kUnicodeMime);
     (*transferable)->AddDataFlavor(kMozTextInternal);
   };
@@ -109,7 +86,7 @@ nsresult nsPlaintextEditor::InsertTextAt(const nsAString &aStringToInsert,
       // Use an auto tracker so that our drop point is correctly
       // positioned after the delete.
       nsAutoTrackDOMPoint tracker(mRangeUpdater, &targetNode, &targetOffset);
-      res = DeleteSelection(eNone);
+      res = DeleteSelection(eNone, eStrip);
       NS_ENSURE_SUCCESS(res, res);
     }
 
@@ -196,8 +173,7 @@ nsresult nsPlaintextEditor::InsertFromDrop(nsIDOMEvent* aDropEvent)
   nsCOMPtr<nsIDragSession> dragSession = nsContentUtils::GetDragSession();
   NS_ASSERTION(dragSession, "No drag session");
 
-  nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(aDropEvent));
-  nsDragEvent* dragEventInternal = static_cast<nsDragEvent *>(privateEvent->GetInternalNSEvent());
+  nsDragEvent* dragEventInternal = static_cast<nsDragEvent *>(aDropEvent->GetInternalNSEvent());
   if (nsContentUtils::CheckForSubFrameDrop(dragSession, dragEventInternal)) {
     return NS_OK;
   }
@@ -235,9 +211,7 @@ nsresult nsPlaintextEditor::InsertFromDrop(nsIDOMEvent* aDropEvent)
   NS_ENSURE_SUCCESS(rv, rv);
   NS_ENSURE_TRUE(selection, NS_ERROR_FAILURE);
 
-  bool isCollapsed;
-  rv = selection->GetIsCollapsed(&isCollapsed);
-  NS_ENSURE_SUCCESS(rv, rv);
+  bool isCollapsed = selection->Collapsed();
 
   nsCOMPtr<nsIDOMNode> sourceNode;
   dataTransfer->GetMozSourceNode(getter_AddRefs(sourceNode));
@@ -261,10 +235,8 @@ nsresult nsPlaintextEditor::InsertFromDrop(nsIDOMEvent* aDropEvent)
     //      The decision for dropping before or after the
     //      subtree should really be done based on coordinates.
 
-    rv = GetNodeLocation(userSelectNode, address_of(newSelectionParent),
-                         &newSelectionOffset);
+    newSelectionParent = GetNodeLocation(userSelectNode, &newSelectionOffset);
 
-    NS_ENSURE_SUCCESS(rv, rv);
     NS_ENSURE_TRUE(newSelectionParent, NS_ERROR_FAILURE);
   }
 

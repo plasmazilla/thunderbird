@@ -1,42 +1,7 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Foundation code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2005-2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Stuart Parmenter <stuart@mozilla.com>
- *   Masayuki Nakano <masayuki@d-toybox.com>
- *   John Daggett <jdaggett@mozilla.com>
- *   Jonathan Kew <jfkthame@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef GFX_FONT_H
 #define GFX_FONT_H
@@ -60,6 +25,9 @@
 #include "gfxPattern.h"
 #include "mozilla/HashFunctions.h"
 #include "nsIMemoryReporter.h"
+#include "gfxFontFeatures.h"
+#include "mozilla/gfx/Types.h"
+#include "mozilla/Attributes.h"
 
 typedef struct _cairo_scaled_font cairo_scaled_font_t;
 
@@ -84,27 +52,7 @@ typedef struct _hb_blob_t hb_blob_t;
 
 #define NO_FONT_LANGUAGE_OVERRIDE      0
 
-// An OpenType feature tag and value pair
-struct THEBES_API gfxFontFeature {
-    PRUint32 mTag; // see http://www.microsoft.com/typography/otspec/featuretags.htm
-    PRUint32 mValue; // 0 = off, 1 = on, larger values may be used as parameters
-                     // to features that select among multiple alternatives
-};
-
 struct FontListSizes;
-
-inline bool
-operator<(const gfxFontFeature& a, const gfxFontFeature& b)
-{
-    return (a.mTag < b.mTag) || ((a.mTag == b.mTag) && (a.mValue < b.mValue));
-}
-
-inline bool
-operator==(const gfxFontFeature& a, const gfxFontFeature& b)
-{
-    return (a.mTag == b.mTag) && (a.mValue == b.mValue);
-}
-
 
 struct THEBES_API gfxFontStyle {
     gfxFontStyle();
@@ -112,7 +60,6 @@ struct THEBES_API gfxFontStyle {
                  gfxFloat aSize, nsIAtom *aLanguage,
                  float aSizeAdjust, bool aSystemFont,
                  bool aPrinterFont,
-                 const nsString& aFeatureSettings,
                  const nsString& aLanguageOverride);
     gfxFontStyle(const gfxFontStyle& aStyle);
 
@@ -696,6 +643,17 @@ public:
     // if so set the mIsSimpleFamily flag (defaults to False before we've checked)
     void CheckForSimpleFamily();
 
+    // check whether the family has any faces that are marked as Italic
+    bool HasItalicFace() const {
+        size_t count = mAvailableFonts.Length();
+        for (size_t i = 0; i < count; ++i) {
+            if (mAvailableFonts[i] && mAvailableFonts[i]->IsItalic()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // For memory reporter
     virtual void SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf,
                                      FontListSizes*    aSizes) const;
@@ -860,7 +818,7 @@ public:
                              FontCacheSizes*   aSizes) const;
 
 protected:
-    class MemoryReporter
+    class MemoryReporter MOZ_FINAL
         : public nsIMemoryMultiReporter
     {
     public:
@@ -1172,6 +1130,13 @@ public:
                            const PRUnichar *aText) = 0;
 
     gfxFont *GetFont() const { return mFont; }
+
+    // returns true if features exist in output, false otherwise
+    static bool
+    MergeFontFeatures(const nsTArray<gfxFontFeature>& aStyleRuleFeatures,
+                      const nsTArray<gfxFontFeature>& aFontFeatures,
+                      bool aDisableLigatures,
+                      nsDataHashtable<nsUint32HashKey,PRUint32>& aMergedFeatures);
 
 protected:
     // the font this shaper is working with
@@ -1503,6 +1468,8 @@ public:
 
     // This is called by the default Draw() implementation above.
     virtual bool SetupCairoFont(gfxContext *aContext) = 0;
+
+    virtual bool AllowSubpixelAA() { return true; }
 
     bool IsSyntheticBold() { return mApplySyntheticBold; }
 
@@ -3018,7 +2985,8 @@ public:
 
         return static_cast<gfxFont*>(mFonts[i]);
     }
-    virtual PRUint32 FontListLength() const {
+
+    PRUint32 FontListLength() const {
         return mFonts.Length();
     }
 
@@ -3212,6 +3180,12 @@ protected:
                                bool aUseFontSet,
                                FontCreationCallback fc,
                                void *closure);
+
+    // Helper for font-matching:
+    // see if aCh is supported in any of the other faces from aFont's family;
+    // if so return the best style match, else return null.
+    already_AddRefed<gfxFont> TryOtherFamilyMembers(gfxFont* aFont,
+                                                    PRUint32 aCh);
 
     static bool FontResolverProc(const nsAString& aName, void *aClosure);
 

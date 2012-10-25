@@ -1,42 +1,10 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 2 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Corporation code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Vladimir Vukicevic <vladimir@pobox.com>
- *   Bas Schouten <bschouten@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
+#include "ipc/AutoOpenSurface.h"
 #include "mozilla/layers/PLayers.h"
 #include "mozilla/layers/ShadowLayers.h"
 #include "ShadowBufferD3D9.h"
@@ -246,9 +214,9 @@ CanvasLayerD3D9::RenderLayer()
   SetShaderTransformAndOpacity();
 
   if (mHasAlpha) {
-    mD3DManager->SetShaderMode(DeviceManagerD3D9::RGBALAYER);
+    mD3DManager->SetShaderMode(DeviceManagerD3D9::RGBALAYER, GetMaskLayer());
   } else {
-    mD3DManager->SetShaderMode(DeviceManagerD3D9::RGBLAYER);
+    mD3DManager->SetShaderMode(DeviceManagerD3D9::RGBLAYER, GetMaskLayer());
   }
 
   if (mFilter == gfxPattern::FILTER_NEAREST) {
@@ -344,12 +312,11 @@ ShadowCanvasLayerD3D9::Swap(const CanvasSurface& aNewFront,
   NS_ASSERTION(aNewFront.type() == CanvasSurface::TSurfaceDescriptor, 
     "ShadowCanvasLayerD3D9::Swap expected CanvasSurface surface");
 
-  nsRefPtr<gfxASurface> surf = 
-    ShadowLayerForwarder::OpenDescriptor(aNewFront);
+  AutoOpenSurface surf(OPEN_READ_ONLY, aNewFront);
   if (!mBuffer) {
     Init(needYFlip);
   }
-  mBuffer->Upload(surf, GetVisibleRegion().GetBounds());
+  mBuffer->Upload(surf.Get(), GetVisibleRegion().GetBounds());
 
   *aNewBack = aNewFront;
 }

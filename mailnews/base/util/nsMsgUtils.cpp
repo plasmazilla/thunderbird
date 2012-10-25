@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Prasad Sunkari <prasad@medhas.org>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "msgCore.h"
 #include "nsIMsgHdr.h"
@@ -72,6 +38,7 @@
 #include "nsICryptoHash.h"
 #include "nsNativeCharsetUtils.h"
 #include "nsDirectoryServiceUtils.h"
+#include "nsDirectoryServiceDefs.h"
 #include "nsIRssIncomingServer.h"
 #include "nsIMsgFolder.h"
 #include "nsIMsgMessageService.h"
@@ -102,6 +69,8 @@
 #include "nsICharsetConverterManager.h"
 #include "nsIDocumentEncoder.h"
 #include "mozilla/Services.h"
+#include "mozilla/Util.h"
+using namespace mozilla;
 
 static NS_DEFINE_CID(kImapUrlCID, NS_IMAPURL_CID);
 static NS_DEFINE_CID(kCMailboxUrl, NS_MAILBOXURL_CID);
@@ -535,7 +504,7 @@ nsresult FormatFileSize(PRUint64 size, bool useKB, nsAString &formattedSize)
 
   // Convert to next unit if it needs 4 digits (after rounding), but only if
   // we know the name of the next unit
-  while ((unitSize >= 999.5) && (unitIndex < NS_ARRAY_LENGTH(sizeAbbrNames)))
+  while ((unitSize >= 999.5) && (unitIndex < ArrayLength(sizeAbbrNames)))
   {
       unitSize /= 1024;
       unitIndex++;
@@ -965,7 +934,7 @@ GetOrCreateFolder(const nsACString &aURI, nsIUrlListener *aListener)
   rv = msgFolder->GetParent(getter_AddRefs(parent));
   if (NS_FAILED(rv) || !parent)
   {
-    nsCOMPtr <nsILocalFile> folderPath;
+    nsCOMPtr <nsIFile> folderPath;
     // for local folders, path is to the berkeley mailbox.
     // for imap folders, path needs to have .msf appended to the name
     msgFolder->GetFilePath(getter_AddRefs(folderPath));
@@ -1186,7 +1155,7 @@ NS_MSG_BASE nsresult NS_GetPersistentFile(const char *relPrefName,
                                           const char *absPrefName,
                                           const char *dirServiceProp,
                                           bool& gotRelPref,
-                                          nsILocalFile **aFile,
+                                          nsIFile **aFile,
                                           nsIPrefBranch *prefBranch)
 {
     NS_ENSURE_ARG_POINTER(aFile);
@@ -1204,7 +1173,7 @@ NS_MSG_BASE nsresult NS_GetPersistentFile(const char *relPrefName,
         prefBranch = mainBranch;
     }
 
-    nsCOMPtr<nsILocalFile> localFile;
+    nsCOMPtr<nsIFile> localFile;
 
     // Get the relative first
     nsCOMPtr<nsIRelativeFilePref> relFilePref;
@@ -1220,13 +1189,13 @@ NS_MSG_BASE nsresult NS_GetPersistentFile(const char *relPrefName,
     // If not, get the old absolute
     if (!localFile) {
         prefBranch->GetComplexValue(absPrefName,
-                                    NS_GET_IID(nsILocalFile), getter_AddRefs(localFile));
+                                    NS_GET_IID(nsIFile), getter_AddRefs(localFile));
 
         // If not, and given a dirServiceProp, use directory service.
         if (!localFile && dirServiceProp) {
             nsCOMPtr<nsIProperties> dirService(do_GetService("@mozilla.org/file/directory_service;1"));
             if (!dirService) return NS_ERROR_FAILURE;
-            dirService->Get(dirServiceProp, NS_GET_IID(nsILocalFile), getter_AddRefs(localFile));
+            dirService->Get(dirServiceProp, NS_GET_IID(nsIFile), getter_AddRefs(localFile));
             if (!localFile) return NS_ERROR_FAILURE;
         }
     }
@@ -1243,7 +1212,7 @@ NS_MSG_BASE nsresult NS_GetPersistentFile(const char *relPrefName,
 
 NS_MSG_BASE nsresult NS_SetPersistentFile(const char *relPrefName,
                                           const char *absPrefName,
-                                          nsILocalFile *aFile,
+                                          nsIFile *aFile,
                                           nsIPrefBranch *prefBranch)
 {
     NS_ENSURE_ARG(relPrefName);
@@ -1261,7 +1230,7 @@ NS_MSG_BASE nsresult NS_SetPersistentFile(const char *relPrefName,
 
     // Write the absolute for backwards compatibilty's sake.
     // Or, if aPath is on a different drive than the profile dir.
-    nsresult rv = prefBranch->SetComplexValue(absPrefName, NS_GET_IID(nsILocalFile), aFile);
+    nsresult rv = prefBranch->SetComplexValue(absPrefName, NS_GET_IID(nsIFile), aFile);
 
     // Write the relative path.
     nsCOMPtr<nsIRelativeFilePref> relFilePref;
@@ -1350,10 +1319,10 @@ void Seconds2PRTime(PRUint32 seconds, PRTime *prTime)
   LL_MUL((*prTime), intermediateResult, microSecondsPerSecond);
 }
 
-nsresult GetSummaryFileLocation(nsILocalFile* fileLocation, nsILocalFile** summaryLocation)
+nsresult GetSummaryFileLocation(nsIFile* fileLocation, nsIFile** summaryLocation)
 {
   nsresult rv;
-  nsCOMPtr <nsILocalFile> newSummaryLocation = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv);
+  nsCOMPtr <nsIFile> newSummaryLocation = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
   newSummaryLocation->InitWithFile(fileLocation);
@@ -1393,8 +1362,40 @@ nsresult GetSpecialDirectoryWithFileName(const char* specialDirName,
   return (*result)->AppendNative(nsDependentCString(fileName));
 }
 
+// Cleans up temp files with matching names
+nsresult MsgCleanupTempFiles(const char *fileName, const char *extension)
+{
+  nsCOMPtr<nsIFile> tmpFile;
+  nsCString rootName(fileName);
+  rootName.Append(".");
+  rootName.Append(extension);
+  nsresult rv = GetSpecialDirectoryWithFileName(NS_OS_TEMP_DIR,
+                                                rootName.get(),
+                                                getter_AddRefs(tmpFile));
 
-nsresult MsgGetFileStream(nsILocalFile *file, nsIOutputStream **fileStream)
+  NS_ENSURE_SUCCESS(rv, rv);
+  int index = 1;
+  bool exists;
+  do
+  {
+    tmpFile->Exists(&exists);
+    if (exists)
+    {
+      tmpFile->Remove(false);
+      nsCString leafName(fileName);
+      leafName.Append("-");
+      leafName.AppendInt(index);
+      leafName.Append(".");
+      leafName.Append(extension);
+        // start with "Picture-1.jpg" after "Picture.jpg" exists
+      tmpFile->SetNativeLeafName(leafName);
+    }
+  }
+  while (exists && ++index < 10000);
+  return NS_OK;
+}
+
+nsresult MsgGetFileStream(nsIFile *file, nsIOutputStream **fileStream)
 {
   nsMsgFileStream *newFileStream = new nsMsgFileStream;
   NS_ENSURE_TRUE(newFileStream, NS_ERROR_OUT_OF_MEMORY);
@@ -1404,7 +1405,7 @@ nsresult MsgGetFileStream(nsILocalFile *file, nsIOutputStream **fileStream)
   return rv;
 }
 
-nsresult MsgReopenFileStream(nsILocalFile *file, nsIInputStream *fileStream)
+nsresult MsgReopenFileStream(nsIFile *file, nsIInputStream *fileStream)
 {
   nsMsgFileStream *msgFileStream = static_cast<nsMsgFileStream *>(fileStream);
   if (msgFileStream)
@@ -1509,7 +1510,7 @@ bool MsgHostDomainIsTrusted(nsCString &host, nsCString &trustedMailDomains)
   return domainIsTrusted;
 }
 
-nsresult MsgGetLocalFileFromURI(const nsACString &aUTF8Path, nsILocalFile **aFile)
+nsresult MsgGetLocalFileFromURI(const nsACString &aUTF8Path, nsIFile **aFile)
 {
   nsresult rv;
   nsCOMPtr<nsIURI> argURI;
@@ -1931,7 +1932,11 @@ NS_MSG_BASE void MsgReplaceSubstring(nsACString &str, const char *what, const ch
   PRUint32 whatLength = strlen(what);
   PRInt32 i = 0;
 
-  while ((i = str.Find(what, i)) != kNotFound)
+  /* We have to create nsDependentCString from 'what' because there's no
+   * str.Find(char *what, int offset) but there is only
+   * str.Find(char *what, int length) */
+  nsDependentCString what_dependent(what);
+  while ((i = str.Find(what_dependent, i)) != kNotFound)
   {
     str.Replace(i, whatLength, replacement, replacementLength);
     i += replacementLength;
@@ -2254,7 +2259,7 @@ private:
 NS_IMPL_ISUPPORTS1(CharsetDetectionObserver, nsICharsetDetectionObserver)
 
 NS_MSG_BASE nsresult
-MsgDetectCharsetFromFile(nsILocalFile *aFile, nsACString &aCharset)
+MsgDetectCharsetFromFile(nsIFile *aFile, nsACString &aCharset)
 {
   // First try the universal charset detector
   nsCOMPtr<nsICharsetDetector> detector

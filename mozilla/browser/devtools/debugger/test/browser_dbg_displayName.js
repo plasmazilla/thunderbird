@@ -15,7 +15,7 @@ function test() {
     gTab = aTab;
     gDebuggee = aDebuggee;
     gPane = aPane;
-    gDebugger = gPane.debuggerWindow;
+    gDebugger = gPane.contentWindow;
 
     testAnonCall();
   });
@@ -33,7 +33,7 @@ function testAnonCall() {
       is(frames.querySelectorAll(".dbg-stackframe").length, 3,
         "Should have three frames.");
 
-      is(frames.querySelector("#stackframe-0 .dbg-stackframe-name").textContent,
+      is(frames.querySelector("#stackframe-0 .dbg-stackframe-name").getAttribute("value"),
         "anonFunc", "Frame name should be anonFunc");
 
       resumeAndFinish();

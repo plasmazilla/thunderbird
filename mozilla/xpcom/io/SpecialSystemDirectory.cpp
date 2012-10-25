@@ -1,44 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code, released
- * March 31, 1998.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Doug Turner <dougt@netscape.com>
- *   IBM Corp.
- *   Fredrik Holmqvist <thesuckiestemail@yahoo.se>
- *   Jungshik Shin <jshin@i18nl10n.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "SpecialSystemDirectory.h"
 #include "nsString.h"
@@ -119,7 +82,7 @@ void StartupSpecialSystemDirectory()
 
 #if defined (XP_WIN)
 
-static nsresult GetKnownFolder(GUID* guid, nsILocalFile** aFile)
+static nsresult GetKnownFolder(GUID* guid, nsIFile** aFile)
 {
     if (!guid || !gGetKnownFolderPath)
         return NS_ERROR_FAILURE;
@@ -139,7 +102,7 @@ static nsresult GetKnownFolder(GUID* guid, nsILocalFile** aFile)
 }
 
 //----------------------------------------------------------------------------------------
-static nsresult GetWindowsFolder(int folder, nsILocalFile** aFile)
+static nsresult GetWindowsFolder(int folder, nsIFile** aFile)
 //----------------------------------------------------------------------------------------
 {
     WCHAR path_orig[MAX_PATH + 3];
@@ -165,7 +128,7 @@ static nsresult GetWindowsFolder(int folder, nsILocalFile** aFile)
  * querying the registry when the call to SHGetSpecialFolderPathW is unable to
  * provide these paths (Bug 513958).
  */
-static nsresult GetRegWindowsAppDataFolder(bool aLocal, nsILocalFile** aFile)
+static nsresult GetRegWindowsAppDataFolder(bool aLocal, nsIFile** aFile)
 {
     HKEY key;
     NS_NAMED_LITERAL_STRING(keyName,
@@ -200,7 +163,7 @@ static nsresult GetRegWindowsAppDataFolder(bool aLocal, nsILocalFile** aFile)
 
 #if defined(XP_UNIX)
 static nsresult
-GetUnixHomeDir(nsILocalFile** aFile)
+GetUnixHomeDir(nsIFile** aFile)
 {
 #ifdef VMS
     char *pHome;
@@ -395,14 +358,14 @@ static const PRUint8 xdg_user_dir_offsets[] = {
 
 static nsresult
 GetUnixXDGUserDirectory(SystemDirectories aSystemDirectory,
-                        nsILocalFile** aFile)
+                        nsIFile** aFile)
 {
     char *dir = xdg_user_dir_lookup
                     (xdg_user_dirs + xdg_user_dir_offsets[aSystemDirectory -
                                                          Unix_XDG_Desktop]);
 
     nsresult rv;
-    nsCOMPtr<nsILocalFile> file;
+    nsCOMPtr<nsIFile> file;
     if (dir) {
         rv = NS_NewNativeLocalFile(nsDependentCString(dir), true,
                                    getter_AddRefs(file));
@@ -459,7 +422,7 @@ GetUnixXDGUserDirectory(SystemDirectories aSystemDirectory,
 
 nsresult
 GetSpecialSystemDirectory(SystemDirectories aSystemSystemDirectory,
-                          nsILocalFile** aFile)
+                          nsIFile** aFile)
 {
 #if defined(XP_WIN)
     WCHAR path[MAX_PATH];
@@ -889,7 +852,7 @@ GetSpecialSystemDirectory(SystemDirectories aSystemSystemDirectory,
 
 #if defined (MOZ_WIDGET_COCOA)
 nsresult
-GetOSXFolderType(short aDomain, OSType aFolderType, nsILocalFile **localFile)
+GetOSXFolderType(short aDomain, OSType aFolderType, nsIFile **localFile)
 {
     OSErr err;
     FSRef fsRef;

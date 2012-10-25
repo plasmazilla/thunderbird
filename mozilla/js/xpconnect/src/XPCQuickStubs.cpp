@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2008
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Jason Orendorff <jorendorff@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
 
@@ -46,6 +13,7 @@
 #include "XPCInlines.h"
 #include "XPCQuickStubs.h"
 #include "XPCWrapper.h"
+#include "mozilla/dom/BindingUtils.h"
 
 using namespace mozilla;
 
@@ -395,31 +363,31 @@ xpc_qsThrow(JSContext *cx, nsresult rv)
 static void
 GetMemberInfo(JSObject *obj, jsid memberId, const char **ifaceName)
 {
-    // Get the interface name.  From DefinePropertyIfFound (in
-    // xpcwrappednativejsops.cpp) and XPCThrower::Verbosify.
-    //
-    // We could instead make the quick stub could pass in its interface name,
-    // but this code often produces a more specific error message, e.g.
     *ifaceName = "Unknown";
 
-    NS_ASSERTION(IS_WRAPPER_CLASS(js::GetObjectClass(obj)) ||
-                 js::GetObjectClass(obj) == &XPC_WN_Tearoff_JSClass,
-                 "obj must be a wrapper");
-    XPCWrappedNativeProto *proto;
-    if (IS_SLIM_WRAPPER(obj)) {
-        proto = GetSlimWrapperProto(obj);
-    } else {
-        XPCWrappedNative *wrapper = (XPCWrappedNative *) js::GetObjectPrivate(obj);
-        proto = wrapper->GetProto();
-    }
-    if (proto) {
-        XPCNativeSet *set = proto->GetSet();
-        if (set) {
-            XPCNativeMember *member;
-            XPCNativeInterface *iface;
+    // Don't try to generate a useful name if there are security wrappers,
+    // because it isn't worth the risk of something going wrong just to generate
+    // an error message. Instead, only handle the simple case where we have the
+    // reflector in hand.
+    if (IS_WRAPPER_CLASS(js::GetObjectClass(obj))) {
+        XPCWrappedNativeProto *proto;
+        if (IS_SLIM_WRAPPER_OBJECT(obj)) {
+            proto = GetSlimWrapperProto(obj);
+        } else {
+            MOZ_ASSERT(IS_WN_WRAPPER_OBJECT(obj));
+            XPCWrappedNative *wrapper =
+                static_cast<XPCWrappedNative *>(js::GetObjectPrivate(obj));
+            proto = wrapper->GetProto();
+        }
+        if (proto) {
+            XPCNativeSet *set = proto->GetSet();
+            if (set) {
+                XPCNativeMember *member;
+                XPCNativeInterface *iface;
 
-            if (set->FindMember(memberId, &member, &iface))
-                *ifaceName = iface->GetNameString();
+                if (set->FindMember(memberId, &member, &iface))
+                    *ifaceName = iface->GetNameString();
+            }
         }
     }
 }
@@ -581,7 +549,7 @@ xpc_qsThrowBadSetterValue(JSContext *cx, nsresult rv,
 }
 
 JSBool
-xpc_qsGetterOnlyPropertyStub(JSContext *cx, JSObject *obj, jsid id, JSBool strict, jsval *vp)
+xpc_qsGetterOnlyPropertyStub(JSContext *cx, JSHandleObject obj, JSHandleId id, JSBool strict, jsval *vp)
 {
     return JS_ReportErrorFlagsAndNumber(cx,
                                         JSREPORT_WARNING | JSREPORT_STRICT |
@@ -728,20 +696,28 @@ getWrapper(JSContext *cx,
     *cur = nsnull;
     *tearoff = nsnull;
 
+    js::Class* clasp = js::GetObjectClass(obj);
+    if (dom::IsDOMClass(clasp) ||
+        dom::binding::instanceIsProxy(obj)) {
+        *cur = obj;
+
+        return NS_OK;
+    }
+
     // Handle tearoffs.
     //
     // If |obj| is of the tearoff class, that means we're dealing with a JS
     // object reflection of a particular interface (ie, |foo.nsIBar|). These
     // JS objects are parented to their wrapper, so we snag the tearoff object
     // along the way (if desired), and then set |obj| to its parent.
-    if (js::GetObjectClass(obj) == &XPC_WN_Tearoff_JSClass) {
+    if (clasp == &XPC_WN_Tearoff_JSClass) {
         *tearoff = (XPCWrappedNativeTearOff*) js::GetObjectPrivate(obj);
         obj = js::GetObjectParent(obj);
     }
 
     // If we've got a WN or slim wrapper, store things the way callers expect.
     // Otherwise, leave things null and return.
-    if (IS_WRAPPER_CLASS(js::GetObjectClass(obj))) {
+    if (IS_WRAPPER_CLASS(clasp)) {
         if (IS_WN_WRAPPER_OBJECT(obj))
             *wrapper = (XPCWrappedNative*) js::GetObjectPrivate(obj);
         else
@@ -774,14 +750,23 @@ castNative(JSContext *cx,
     } else if (cur) {
         nsISupports *native;
         QITableEntry *entries;
-        if (IS_SLIM_WRAPPER(cur)) {
+        js::Class* clasp = js::GetObjectClass(cur);
+        if (dom::IsDOMClass(clasp)) {
+            dom::DOMJSClass* domClass = dom::DOMJSClass::FromJSClass(clasp);
+            if (!domClass->mDOMObjectIsISupports) {
+                *pThisRef = nsnull;
+                return NS_ERROR_ILLEGAL_VALUE;
+            }
+            native = dom::UnwrapDOMObject<nsISupports>(cur);
+            entries = nsnull;
+        } else if (dom::binding::instanceIsProxy(cur)) {
+            native = static_cast<nsISupports*>(js::GetProxyPrivate(cur).toPrivate());
+            entries = nsnull;
+        } else if (IS_WRAPPER_CLASS(clasp) && IS_SLIM_WRAPPER_OBJECT(cur)) {
             native = static_cast<nsISupports*>(xpc_GetJSPrivate(cur));
             entries = GetOffsetsFromSlimWrapper(cur);
         } else {
-            NS_ABORT_IF_FALSE(mozilla::dom::binding::instanceIsProxy(cur),
-                              "what kind of wrapper is this?");
-            native = static_cast<nsISupports*>(js::GetProxyPrivate(cur).toPrivate());
-            entries = nsnull;
+            MOZ_NOT_REACHED("what kind of wrapper is this?");
         }
 
         if (NS_SUCCEEDED(getNative(native, entries, cur, iid, ppThis, pThisRef, vp))) {
@@ -821,24 +806,24 @@ xpc_qsUnwrapThisFromCcxImpl(XPCCallContext &ccx,
 }
 
 JSObject*
-xpc_qsUnwrapObj(jsval v, nsISupports **ppArgRef, nsresult *rv)
+xpc_qsUnwrapObj(JS::Value v, nsISupports **ppArgRef, nsresult *rv)
 {
-    if (JSVAL_IS_VOID(v) || JSVAL_IS_NULL(v)) {
+    if (v.isNullOrUndefined()) {
         *ppArgRef = nsnull;
         *rv = NS_OK;
         return nsnull;
     }
 
-    if (!JSVAL_IS_OBJECT(v)) {
+    if (!v.isObject()) {
         *ppArgRef = nsnull;
-        *rv = ((JSVAL_IS_INT(v) && JSVAL_TO_INT(v) == 0)
+        *rv = ((v.isInt32() && v.toInt32() == 0)
                ? NS_ERROR_XPC_BAD_CONVERT_JS_ZERO_ISNOT_NULL
                : NS_ERROR_XPC_BAD_CONVERT_JS);
         return nsnull;
     }
 
     *rv = NS_OK;
-    return JSVAL_TO_OBJECT(v);
+    return &v.toObject();
 }
 
 nsresult
@@ -860,13 +845,8 @@ xpc_qsUnwrapArgImpl(JSContext *cx,
     XPCWrappedNative *wrapper;
     XPCWrappedNativeTearOff *tearoff;
     JSObject *obj2;
-    if (mozilla::dom::binding::instanceIsProxy(src)) {
-        wrapper = nsnull;
-        obj2 = src;
-    } else {
-        rv = getWrapper(cx, src, &wrapper, &obj2, &tearoff);
-        NS_ENSURE_SUCCESS(rv, rv);
-    }
+    rv = getWrapper(cx, src, &wrapper, &obj2, &tearoff);
+    NS_ENSURE_SUCCESS(rv, rv);
 
     if (wrapper || obj2) {
         if (NS_FAILED(castNative(cx, wrapper, obj2, tearoff, iid, ppArg,
@@ -1074,15 +1054,11 @@ xpc_qsVariantToJsval(XPCLazyCallContext &lccx,
 void
 xpc_qsAssertContextOK(JSContext *cx)
 {
-    XPCPerThreadData *thread = XPCPerThreadData::GetData(cx);
-    XPCJSContextStack* stack = thread->GetJSContextStack();
+    XPCJSContextStack* stack = XPCJSRuntime::Get()->GetJSContextStack();
 
     JSContext *topJSContext = stack->Peek();
 
     // This is what we're actually trying to assert here.
     NS_ASSERTION(cx == topJSContext, "wrong context on XPCJSContextStack!");
-
-    NS_ASSERTION(XPCPerThreadData::IsMainThread(cx),
-                 "XPConnect quick stub called on non-main thread");
 }
 #endif

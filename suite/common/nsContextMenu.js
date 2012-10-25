@@ -1,45 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code, released
- * March 31, 1998.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   William A. ("PowerGUI") Law <law@netscape.com>
- *   Blake Ross <blakeross@telocity.com>
- *   Gervase Markham <gerv@gerv.net>
- *   Kathleen Brade <brade@pearlcrescent.com>
- *   Mark Smith <mcs@pearlcrescent.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*------------------------------ nsContextMenu ---------------------------------
 |   This JavaScript "class" is used to implement the browser's content-area    |
@@ -198,14 +160,21 @@ nsContextMenu.prototype = {
                     this.onCanvas || this.onVideo || this.onAudio));
     // Set As Wallpaper depends on whether an image was clicked on,
     // and requires the shell service.
-    var hasShell = "@mozilla.org/suite/shell-service;1" in Components.classes;
+    var canSetDesktopBackground = false;
+    if ("@mozilla.org/suite/shell-service;1" in Components.classes) try {
+      canSetDesktopBackground =
+          Components.classes["@mozilla.org/suite/shell-service;1"]
+                    .getService(Components.interfaces.nsIShellService)
+                    .canSetDesktopBackground;
+    } catch (e) {
+    }
     this.showItem("context-setWallpaper",
-                  hasShell && (this.onLoadedImage || this.onStandaloneImage));
+                  canSetDesktopBackground && (this.onLoadedImage || this.onStandaloneImage));
 
     this.showItem("context-sep-image",
                   this.onLoadedImage || this.onStandaloneImage);
 
-    if (hasShell && this.onLoadedImage)
+    if (canSetDesktopBackground && this.onLoadedImage)
       // Disable the Set As Wallpaper menu item if we're still trying to load the image
       this.setItemAttr("context-setWallpaper", "disabled",
                        (("complete" in this.target) && !this.target.complete) ? "true" : null);
@@ -308,16 +277,19 @@ nsContextMenu.prototype = {
   initSpellingItems: function() {
     var canSpell = InlineSpellCheckerUI.canSpellCheck;
     var onMisspelling = InlineSpellCheckerUI.overMisspelling;
+    var showUndo = InlineSpellCheckerUI.enabled &&
+                   InlineSpellCheckerUI.canUndo();
     this.showItem("spell-check-enabled", canSpell);
     this.showItem("spell-separator", canSpell || this.possibleSpellChecking);
     if (canSpell)
       this.setItemAttr("spell-check-enabled", "checked", InlineSpellCheckerUI.enabled);
     this.showItem("spell-add-to-dictionary", onMisspelling);
+    this.showItem("spell-undo-add-to-dictionary", showUndo);
     this.showItem("spell-ignore-word", onMisspelling);
 
     // suggestion list
     this.showItem("spell-add-separator", onMisspelling);
-    this.showItem("spell-suggestions-separator", onMisspelling);
+    this.showItem("spell-suggestions-separator", onMisspelling || showUndo);
     if (onMisspelling) {
       var suggestionsSeparator = document.getElementById("spell-add-separator");
       var numsug = InlineSpellCheckerUI.addSuggestionsToMenu(suggestionsSeparator.parentNode, suggestionsSeparator, 5);
@@ -526,7 +498,15 @@ nsContextMenu.prototype = {
         this.onCanvas = true;
       }
       else if (this.target instanceof HTMLVideoElement) {
-        this.onVideo = true;
+        // Gecko always creates a HTMLVideoElement when loading an ogg file
+        // directly. If the media is actually audio, be smarter and provide
+        // a context menu with audio operations.
+        if (this.target.readyState >= this.target.HAVE_METADATA &&
+            (this.target.videoWidth == 0 || this.target.videoHeight == 0))
+          this.onAudio = true;
+        else
+          this.onVideo = true;
+
         this.mediaURL = this.target.currentSrc || this.target.src;
       }
       else if (this.target instanceof HTMLAudioElement) {
@@ -874,7 +854,7 @@ nsContextMenu.prototype = {
       let uri = makeURI(this.mediaURL);
       let url = uri.QueryInterface(Components.interfaces.nsIURL);
       if (url.fileBaseName)
-        name = url.fileBaseName + ".jpg";
+        name = decodeURI(url.fileBaseName) + ".jpg";
     } catch (e) { }
     var video = this.target;
     var canvas = document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
@@ -1077,7 +1057,7 @@ nsContextMenu.prototype = {
     }
   },
 
-  // Backwards-compatability wrapper
+  // Backwards-compatibility wrapper
   saveImage: function() {
     if (this.onCanvas || this.onImage)
       this.saveMedia();
@@ -1107,7 +1087,7 @@ nsContextMenu.prototype = {
   copyEmail: function() {
     var clipboard = this.getService("@mozilla.org/widget/clipboardhelper;1",
                                     Components.interfaces.nsIClipboardHelper);
-    clipboard.copyString(this.getEmail());
+    clipboard.copyString(this.getEmail(), this.target.ownerDocument);
   },
 
   bookmarkThisPage : function() {
@@ -1441,7 +1421,7 @@ nsContextMenu.prototype = {
   copyMediaLocation: function() {
     var clipboard = Components.classes["@mozilla.org/widget/clipboardhelper;1"]
                     .getService(Components.interfaces.nsIClipboardHelper);
-    clipboard.copyString(this.mediaURL);
+    clipboard.copyString(this.mediaURL, this.target.ownerDocument);
   },
 
   get imageURL() {

@@ -1,43 +1,7 @@
-# -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is Mozilla Communicator client code, released
-# March 31, 1998.
-#
-# The Initial Developer of the Original Code is
-# Netscape Communications Corporation.
-# Portions created by the Initial Developer are Copyright (C) 1998-1999
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Paul Hangas <hangas@netscape.com>
-#   Alec Flett <alecf@netscape.com>
-#   Seth Spitzer <sspitzer@netscape.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+/* -*- Mode: Javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 //NOTE: gAddressBookBundle must be defined and set or this Overlay won't work
 
@@ -55,7 +19,6 @@ var gPhotoDisplayHandlers = {};
 var zListName;
 var zPrimaryEmail;
 var zSecondaryEmail;
-var zScreenName;
 var zNickname;
 var zDisplayName;
 var zWork;
@@ -68,6 +31,14 @@ var zCustom1;
 var zCustom2;
 var zCustom3;
 var zCustom4;
+var zGtalk;
+var zAIM;
+var zYahoo;
+var zSkype;
+var zQQ;
+var zMSN;
+var zICQ;
+var zXMPP;
 
 var cvData;
 
@@ -75,7 +46,6 @@ function OnLoadCardView()
 {
   zPrimaryEmail = gAddressBookBundle.getString("propertyPrimaryEmail");
   zSecondaryEmail = gAddressBookBundle.getString("propertySecondaryEmail");
-  zScreenName = gAddressBookBundle.getString("propertyScreenName");
   zNickname = gAddressBookBundle.getString("propertyNickname");
   zDisplayName = gAddressBookBundle.getString("propertyDisplayName");
   zListName = gAddressBookBundle.getString("propertyListName");
@@ -89,6 +59,14 @@ function OnLoadCardView()
   zCustom2 = gAddressBookBundle.getString("propertyCustom2");
   zCustom3 = gAddressBookBundle.getString("propertyCustom3");
   zCustom4 = gAddressBookBundle.getString("propertyCustom4");
+  zGtalk = gAddressBookBundle.getString("propertyGtalk");
+  zAIM = gAddressBookBundle.getString("propertyAIM");
+  zYahoo = gAddressBookBundle.getString("propertyYahoo");
+  zSkype = gAddressBookBundle.getString("propertySkype");
+  zQQ = gAddressBookBundle.getString("propertyQQ");
+  zMSN = gAddressBookBundle.getString("propertyMSN");
+  zICQ = gAddressBookBundle.getString("propertyICQ");
+  zXMPP = gAddressBookBundle.getString("propertyXMPP");
 
   var doc = document;
 
@@ -108,8 +86,6 @@ function OnLoadCardView()
   cvData.cvDisplayName  = doc.getElementById("cvDisplayName");
   cvData.cvEmail1Box    = doc.getElementById("cvEmail1Box");
   cvData.cvEmail1      = doc.getElementById("cvEmail1");
-  cvData.cvScreennameBox    = doc.getElementById("cvScreennameBox");
-  cvData.cvScreenname    = doc.getElementById("cvScreenname");
   cvData.cvBuddyIcon              = doc.getElementById("cvBuddyIcon");
   cvData.cvListNameBox    = doc.getElementById("cvListNameBox");
   cvData.cvListName               = doc.getElementById("cvListName");
@@ -167,6 +143,17 @@ function OnLoadCardView()
   cvData.cvWorkWebPage  = doc.getElementById("cvWorkWebPage");
   cvData.cvbPhoto = doc.getElementById("cvbPhoto");
   cvData.cvPhoto  = doc.getElementById("cvPhoto");
+  // Chat section
+  cvData.cvbChat      = doc.getElementById("cvbChat");
+  cvData.cvhChat      = doc.getElementById("cvhChat");
+  cvData.cvGtalk      = doc.getElementById("cvGtalk");
+  cvData.cvAIM        = doc.getElementById("cvAIM");
+  cvData.cvYahoo      = doc.getElementById("cvYahoo");
+  cvData.cvSkype      = doc.getElementById("cvSkype");
+  cvData.cvQQ         = doc.getElementById("cvQQ");
+  cvData.cvMSN        = doc.getElementById("cvMSN");
+  cvData.cvICQ        = doc.getElementById("cvICQ");
+  cvData.cvXMPP       = doc.getElementById("cvXMPP");
 }
 
 // XXX todo
@@ -227,10 +214,9 @@ function DisplayCardViewPane(realCard)
   cvSetNodeWithLabel(data.cvNickname, zNickname, card.getProperty("NickName"));
 
   if (card.isMailList) {
-    // email1, display name and screenname always hidden when a mailing list.
+    // email1 and display name always hidden when a mailing list.
     cvSetVisible(data.cvDisplayName, false);
     cvSetVisible(data.cvEmail1Box, false);
-    cvSetVisible(data.cvScreennameBox, false);
 
     visible = HandleLink(data.cvListName, zListName, card.displayName, data.cvListNameBox, "mailto:" + encodeURIComponent(GenerateAddressFromCard(card))) || visible;
   }
@@ -243,12 +229,6 @@ function DisplayCardViewPane(realCard)
     visible = HandleLink(data.cvEmail1, zPrimaryEmail, card.primaryEmail, data.cvEmail1Box, "mailto:" + card.primaryEmail) || visible;
   }
 
-  var goimURL = "aim:goim?screenname=" + card.getProperty("_AimScreenName");
-  var hasScreenName = HandleLink(data.cvScreenname, zScreenName,
-                                 card.getProperty("_AimScreenName"),
-                                 data.cvScreennameBox, goimURL);
-
-   visible = hasScreenName || visible;
    visible = HandleLink(data.cvEmail2, zSecondaryEmail,
                         card.getProperty("SecondEmail"), data.cvEmail2Box,
                         "mailto:" + card.getProperty("SecondEmail")) || visible;
@@ -295,8 +275,9 @@ function DisplayCardViewPane(realCard)
     visible = cvAddAddressNodes(data.cvAddresses, card.mailListURI);
     cvSetVisible(data.cvbAddresses, visible);
 
-    // Other section, not shown for mailing lists.
+    // Other and Chat sections, not shown for mailing lists.
     cvSetVisible(data.cvbOther, false);
+    cvSetVisible(data.cvbChat, false);
   }
   else {
     // Other section
@@ -333,6 +314,26 @@ function DisplayCardViewPane(realCard)
 
     cvSetVisible(data.cvhOther, visible);
     cvSetVisible(data.cvbOther, visible);
+
+    // Chat section
+    visible = cvSetNodeWithLabel(data.cvGtalk, zGtalk,
+                                 card.getProperty("_GoogleTalk"));
+    visible = cvSetNodeWithLabel(data.cvAIM, zAIM,
+                                 card.getProperty("_AimScreenName")) || visible;
+    visible = cvSetNodeWithLabel(data.cvYahoo, zYahoo,
+                                 card.getProperty("_Yahoo")) || visible;
+    visible = cvSetNodeWithLabel(data.cvSkype, zSkype,
+                                 card.getProperty("_Skype")) || visible;
+    visible = cvSetNodeWithLabel(data.cvQQ, zQQ,
+                                 card.getProperty("_QQ")) || visible;
+    visible = cvSetNodeWithLabel(data.cvMSN, zMSN,
+                                 card.getProperty("_MSN")) || visible;
+    visible = cvSetNodeWithLabel(data.cvICQ, zICQ,
+                                 card.getProperty("_ICQ")) || visible;
+    visible = cvSetNodeWithLabel(data.cvXMPP, zXMPP,
+                                 card.getProperty("_JabberId")) || visible;
+    cvSetVisible(data.cvhChat, visible);
+    cvSetVisible(data.cvbChat, visible);
 
     // hide description section, not show for non-mailing lists
     cvSetVisible(data.cvbDescription, false);
@@ -476,25 +477,12 @@ function cvSetCityStateZip(node, city, state, zip)
 
 function cvSetNode(node, text)
 {
-  if ( node )
-  {
-    if ( !node.hasChildNodes() )
-    {
-      var textNode = document.createTextNode(text);
-      node.appendChild(textNode);
-    }
-    else if ( node.childNodes.length == 1 )
-      node.childNodes[0].nodeValue = text;
+  if (!node)
+    return false;
 
-    var visible;
-
-    if ( text )
-      visible = true;
-    else
-      visible = false;
-
-    cvSetVisible(node, visible);
-  }
+  node.textContent = text;
+  let visible = !!text;
+  cvSetVisible(node, visible);
 
   return visible;
 }

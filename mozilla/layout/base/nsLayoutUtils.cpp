@@ -1,42 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 sw=2 et tw=78: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   L. David Baron <dbaron@dbaron.org>, Mozilla Corporation
- *   Mats Palmgren <matspal@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
 
@@ -44,7 +10,6 @@
 #include "nsIFormControlFrame.h"
 #include "nsPresContext.h"
 #include "nsIContent.h"
-#include "nsIDOMDocument.h"
 #include "nsIDOMHTMLDocument.h"
 #include "nsIDOMHTMLElement.h"
 #include "nsFrameList.h"
@@ -57,7 +22,6 @@
 #include "nsPlaceholderFrame.h"
 #include "nsIScrollableFrame.h"
 #include "nsCSSFrameConstructor.h"
-#include "nsIPrivateDOMEvent.h"
 #include "nsIDOMEvent.h"
 #include "nsGUIEvent.h"
 #include "nsDisplayList.h"
@@ -91,6 +55,7 @@
 #ifdef MOZ_MEDIA
 #include "nsHTMLVideoElement.h"
 #endif
+#include "nsHTMLImageElement.h"
 #include "imgIRequest.h"
 #include "nsIImageLoadingContent.h"
 #include "nsCOMPtr.h"
@@ -143,11 +108,7 @@ static ContentMap* sContentMap = NULL;
 static ContentMap& GetContentMap() {
   if (!sContentMap) {
     sContentMap = new ContentMap();
-#ifdef DEBUG
-    nsresult rv =
-#endif
     sContentMap->Init();
-    NS_ABORT_IF_FALSE(NS_SUCCEEDED(rv), "Could not initialize map.");
   }
   return *sContentMap;
 }
@@ -180,6 +141,20 @@ nsLayoutUtils::UseBackgroundNearestFiltering()
   }
 
   return sUseBackgroundNearestFilteringEnabled;
+}
+
+bool
+nsLayoutUtils::GPUImageScalingEnabled()
+{
+  static bool sGPUImageScalingEnabled;
+  static bool sGPUImageScalingPrefInitialised = false;
+
+  if (!sGPUImageScalingPrefInitialised) {
+    sGPUImageScalingPrefInitialised = true;
+    sGPUImageScalingEnabled = mozilla::Preferences::GetBool("layout.gpu-image-scaling.enabled", false);
+  }
+
+  return sGPUImageScalingEnabled;
 }
 
 void
@@ -413,7 +388,7 @@ nsLayoutUtils::GetChildListNameFor(nsIFrame* aChildFrame)
     }
   }
 
-#ifdef NS_DEBUG
+#ifdef DEBUG
   // Verify that the frame is actually in that child list or in the
   // corresponding overflow list.
   nsIFrame* parent = aChildFrame->GetParent();
@@ -691,12 +666,12 @@ nsLayoutUtils::DoCompareTreePosition(nsIContent* aContent1,
 }
 
 static nsIFrame* FillAncestors(nsIFrame* aFrame,
-                               nsIFrame* aStopAtAncestor, nsFrameManager* aFrameManager,
+                               nsIFrame* aStopAtAncestor,
                                nsTArray<nsIFrame*>* aAncestors)
 {
   while (aFrame && aFrame != aStopAtAncestor) {
     aAncestors->AppendElement(aFrame);
-    aFrame = nsLayoutUtils::GetParentOrPlaceholderFor(aFrameManager, aFrame);
+    aFrame = nsLayoutUtils::GetParentOrPlaceholderFor(aFrame);
   }
   return aFrame;
 }
@@ -729,17 +704,16 @@ nsLayoutUtils::DoCompareTreePosition(nsIFrame* aFrame1,
     NS_ERROR("no common ancestor at all, different documents");
     return 0;
   }
-  nsFrameManager* frameManager = presContext->PresShell()->FrameManager();
 
   nsAutoTArray<nsIFrame*,20> frame1Ancestors;
-  if (!FillAncestors(aFrame1, aCommonAncestor, frameManager, &frame1Ancestors)) {
+  if (!FillAncestors(aFrame1, aCommonAncestor, &frame1Ancestors)) {
     // We reached the root of the frame tree ... if aCommonAncestor was set,
     // it is wrong
     aCommonAncestor = nsnull;
   }
 
   nsAutoTArray<nsIFrame*,20> frame2Ancestors;
-  if (!FillAncestors(aFrame2, aCommonAncestor, frameManager, &frame2Ancestors) &&
+  if (!FillAncestors(aFrame2, aCommonAncestor, &frame2Ancestors) &&
       aCommonAncestor) {
     // We reached the root of the frame tree ... aCommonAncestor was wrong.
     // Try again with no hint.
@@ -883,11 +857,17 @@ nsLayoutUtils::GetActiveScrolledRootFor(nsDisplayItem* aItem,
 }
 
 bool
-nsLayoutUtils::ScrolledByViewportScrolling(nsIFrame* aActiveScrolledRoot,
-                                           nsDisplayListBuilder* aBuilder)
+nsLayoutUtils::IsScrolledByRootContentDocumentDisplayportScrolling(nsIFrame* aActiveScrolledRoot,
+                                                                   nsDisplayListBuilder* aBuilder)
 {
-  nsIFrame* rootScrollFrame =
-    aBuilder->ReferenceFrame()->PresContext()->GetPresShell()->GetRootScrollFrame();
+  nsPresContext* presContext = aActiveScrolledRoot->PresContext()->
+          GetToplevelContentDocumentPresContext();
+  if (!presContext)
+    return false;
+
+  nsIFrame* rootScrollFrame = presContext->GetPresShell()->GetRootScrollFrame();
+  if (!rootScrollFrame || !nsLayoutUtils::GetDisplayPort(rootScrollFrame->GetContent(), nsnull))
+    return false;
   return nsLayoutUtils::IsAncestorFrameCrossDoc(rootScrollFrame, aActiveScrolledRoot);
 }
 
@@ -905,13 +885,14 @@ nsLayoutUtils::GetNearestScrollableFrameForDirection(nsIFrame* aFrame,
       nsRect scrollRange = scrollableFrame->GetScrollRange();
       // Require visible scrollbars or something to scroll to in
       // the given direction.
+      nscoord oneDevPixel = f->PresContext()->DevPixelsToAppUnits(1);
       if (aDirection == eVertical ?
           (ss.mVertical != NS_STYLE_OVERFLOW_HIDDEN &&
            ((scrollbarVisibility & nsIScrollableFrame::VERTICAL) ||
-            scrollRange.height > 0)) :
+            scrollRange.height >= oneDevPixel)) :
           (ss.mHorizontal != NS_STYLE_OVERFLOW_HIDDEN &&
            ((scrollbarVisibility & nsIScrollableFrame::HORIZONTAL) ||
-            scrollRange.width > 0)))
+            scrollRange.width >= oneDevPixel)))
         return scrollableFrame;
     }
   }
@@ -956,11 +937,9 @@ nsLayoutUtils::HasPseudoStyle(nsIContent* aContent,
 nsPoint
 nsLayoutUtils::GetDOMEventCoordinatesRelativeTo(nsIDOMEvent* aDOMEvent, nsIFrame* aFrame)
 {
-  nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(aDOMEvent));
-  NS_ASSERTION(privateEvent, "bad implementation");
-  if (!privateEvent)
+  if (!aDOMEvent)
     return nsPoint(NS_UNCONSTRAINEDSIZE, NS_UNCONSTRAINEDSIZE);
-  nsEvent *event = privateEvent->GetInternalNSEvent();
+  nsEvent *event = aDOMEvent->GetInternalNSEvent();
   if (!event)
     return nsPoint(NS_UNCONSTRAINEDSIZE, NS_UNCONSTRAINEDSIZE);
   return GetEventCoordinatesRelativeTo(event, aFrame);
@@ -1406,6 +1385,7 @@ nsLayoutUtils::GetFrameForPoint(nsIFrame* aFrame, nsPoint aPt,
                                 bool aShouldIgnoreSuppression,
                                 bool aIgnoreRootScrollFrame)
 {
+  SAMPLE_LABEL("nsLayoutUtils", "GetFrameForPoint");
   nsresult rv;
   nsAutoTArray<nsIFrame*,8> outFrames;
   rv = GetFramesForArea(aFrame, nsRect(aPt, nsSize(1, 1)), outFrames,
@@ -1420,6 +1400,7 @@ nsLayoutUtils::GetFramesForArea(nsIFrame* aFrame, const nsRect& aRect,
                                 bool aShouldIgnoreSuppression,
                                 bool aIgnoreRootScrollFrame)
 {
+  SAMPLE_LABEL("nsLayoutUtils","GetFramesForArea");
   nsDisplayListBuilder builder(aFrame, nsDisplayListBuilder::EVENT_DELIVERY,
 		                       false);
   nsDisplayList list;
@@ -1560,6 +1541,7 @@ nsLayoutUtils::PaintFrame(nsRenderingContext* aRenderingContext, nsIFrame* aFram
                           const nsRegion& aDirtyRegion, nscolor aBackstop,
                           PRUint32 aFlags)
 {
+  SAMPLE_LABEL("nsLayoutUtils","PaintFrame");
   if (aFlags & PAINT_WIDGET_LAYERS) {
     nsIView* view = aFrame->GetView();
     if (!(view && view->GetWidget() && GetDisplayRootFrame(aFrame) == aFrame)) {
@@ -1666,9 +1648,10 @@ nsLayoutUtils::PaintFrame(nsRenderingContext* aRenderingContext, nsIFrame* aFram
 
   nsRect dirtyRect = visibleRegion.GetBounds();
   builder.EnterPresShell(aFrame, dirtyRect);
-
+  {
+  SAMPLE_LABEL("nsLayoutUtils","PaintFrame::BuildDisplayList");
   rv = aFrame->BuildDisplayListForStackingContext(&builder, dirtyRect, &list);
-
+  }
   const bool paintAllContinuations = aFlags & PAINT_ALL_CONTINUATIONS;
   NS_ASSERTION(!paintAllContinuations || !aFrame->GetPrevContinuation(),
                "If painting all continuations, the frame must be "
@@ -1689,6 +1672,7 @@ nsLayoutUtils::PaintFrame(nsRenderingContext* aRenderingContext, nsIFrame* aFram
     nsIFrame* page = aFrame;
     nscoord y = aFrame->GetSize().height;
     while ((page = GetNextPage(page)) != nsnull) {
+      SAMPLE_LABEL("nsLayoutUtils","PaintFrame::BuildDisplayListForExtraPage");
       rv = BuildDisplayListForExtraPage(&builder, page, y, &list);
       if (NS_FAILED(rv))
         break;
@@ -1700,6 +1684,7 @@ nsLayoutUtils::PaintFrame(nsRenderingContext* aRenderingContext, nsIFrame* aFram
     nsIFrame* currentFrame = aFrame;
     while (NS_SUCCEEDED(rv) &&
            (currentFrame = currentFrame->GetNextContinuation()) != nsnull) {
+      SAMPLE_LABEL("nsLayoutUtils","PaintFrame::ContinuationsBuildDisplayList");
       nsRect frameDirty = dirtyRect - builder.ToReferenceFrame(currentFrame);
       rv = currentFrame->BuildDisplayListForStackingContext(&builder,
                                                             frameDirty, &list);
@@ -1941,21 +1926,25 @@ nsLayoutUtils::GetAllInFlowBoxes(nsIFrame* aFrame, BoxCallback* aCallback)
   }
 }
 
-struct BoxToBorderRect : public nsLayoutUtils::BoxCallback {
+struct BoxToRect : public nsLayoutUtils::BoxCallback {
+  typedef nsSize (*GetRectFromFrameFun)(nsIFrame*);
+
   nsIFrame* mRelativeTo;
   nsLayoutUtils::RectCallback* mCallback;
   PRUint32 mFlags;
+  GetRectFromFrameFun mRectFromFrame;
 
-  BoxToBorderRect(nsIFrame* aRelativeTo, nsLayoutUtils::RectCallback* aCallback,
-                  PRUint32 aFlags)
-    : mRelativeTo(aRelativeTo), mCallback(aCallback), mFlags(aFlags) {}
+  BoxToRect(nsIFrame* aRelativeTo, nsLayoutUtils::RectCallback* aCallback,
+            PRUint32 aFlags, GetRectFromFrameFun aRectFromFrame)
+    : mRelativeTo(aRelativeTo), mCallback(aCallback), mFlags(aFlags),
+      mRectFromFrame(aRectFromFrame) {}
 
   virtual void AddBox(nsIFrame* aFrame) {
     nsRect r;
     nsIFrame* outer = nsSVGUtils::GetOuterSVGFrameAndCoveredRegion(aFrame, &r);
     if (!outer) {
       outer = aFrame;
-      r = nsRect(nsPoint(0, 0), aFrame->GetSize());
+      r = nsRect(nsPoint(0, 0), mRectFromFrame(aFrame));
     }
     if (mFlags & nsLayoutUtils::RECTS_ACCOUNT_FOR_TRANSFORMS) {
       r = nsLayoutUtils::TransformFrameRectToAncestor(outer, r, mRelativeTo);
@@ -1966,11 +1955,31 @@ struct BoxToBorderRect : public nsLayoutUtils::BoxCallback {
   }
 };
 
+static nsSize
+GetFrameBorderSize(nsIFrame* aFrame)
+{
+  return aFrame->GetSize();
+}
+
 void
 nsLayoutUtils::GetAllInFlowRects(nsIFrame* aFrame, nsIFrame* aRelativeTo,
                                  RectCallback* aCallback, PRUint32 aFlags)
 {
-  BoxToBorderRect converter(aRelativeTo, aCallback, aFlags);
+  BoxToRect converter(aRelativeTo, aCallback, aFlags, &GetFrameBorderSize);
+  GetAllInFlowBoxes(aFrame, &converter);
+}
+
+static nsSize
+GetFramePaddingSize(nsIFrame* aFrame)
+{
+  return aFrame->GetPaddingRect().Size();
+}
+
+void
+nsLayoutUtils::GetAllInFlowPaddingRects(nsIFrame* aFrame, nsIFrame* aRelativeTo,
+                                        RectCallback* aCallback, PRUint32 aFlags)
+{
+  BoxToRect converter(aRelativeTo, aCallback, aFlags, &GetFramePaddingSize);
   GetAllInFlowBoxes(aFrame, &converter);
 }
 
@@ -2004,6 +2013,17 @@ nsLayoutUtils::GetAllInFlowRectsUnion(nsIFrame* aFrame, nsIFrame* aRelativeTo,
                                       PRUint32 aFlags) {
   RectAccumulator accumulator;
   GetAllInFlowRects(aFrame, aRelativeTo, &accumulator, aFlags);
+  return accumulator.mResultRect.IsEmpty() ? accumulator.mFirstRect
+          : accumulator.mResultRect;
+}
+
+nsRect
+nsLayoutUtils::GetAllInFlowPaddingRectsUnion(nsIFrame* aFrame,
+                                             nsIFrame* aRelativeTo,
+                                             PRUint32 aFlags)
+{
+  RectAccumulator accumulator;
+  GetAllInFlowPaddingRects(aFrame, aRelativeTo, &accumulator, aFlags);
   return accumulator.mResultRect.IsEmpty() ? accumulator.mFirstRect
           : accumulator.mResultRect;
 }
@@ -2109,23 +2129,31 @@ nsLayoutUtils::GetNonGeneratedAncestor(nsIFrame* aFrame)
   if (!(aFrame->GetStateBits() & NS_FRAME_GENERATED_CONTENT))
     return aFrame;
 
-  nsFrameManager* frameManager = aFrame->PresContext()->FrameManager();
   nsIFrame* f = aFrame;
   do {
-    f = GetParentOrPlaceholderFor(frameManager, f);
+    f = GetParentOrPlaceholderFor(f);
   } while (f->GetStateBits() & NS_FRAME_GENERATED_CONTENT);
   return f;
 }
 
 nsIFrame*
-nsLayoutUtils::GetParentOrPlaceholderFor(nsFrameManager* aFrameManager,
-                                         nsIFrame* aFrame)
+nsLayoutUtils::GetParentOrPlaceholderFor(nsIFrame* aFrame)
 {
   if ((aFrame->GetStateBits() & NS_FRAME_OUT_OF_FLOW)
       && !aFrame->GetPrevInFlow()) {
-    return aFrameManager->GetPlaceholderFrameFor(aFrame);
+    return aFrame->PresContext()->PresShell()->FrameManager()->
+      GetPlaceholderFrameFor(aFrame);
   }
   return aFrame->GetParent();
+}
+
+nsIFrame*
+nsLayoutUtils::GetParentOrPlaceholderForCrossDoc(nsIFrame* aFrame)
+{
+  nsIFrame* f = GetParentOrPlaceholderFor(aFrame);
+  if (f)
+    return f;
+  return GetCrossDocParentFrame(aFrame);
 }
 
 nsIFrame*
@@ -4066,7 +4094,7 @@ nsLayoutUtils::IsReallyFixedPos(nsIFrame* aFrame)
 }
 
 nsLayoutUtils::SurfaceFromElementResult
-nsLayoutUtils::SurfaceFromElement(dom::Element* aElement,
+nsLayoutUtils::SurfaceFromElement(nsIImageLoadingContent* aElement,
                                   PRUint32 aSurfaceFlags)
 {
   SurfaceFromElementResult result;
@@ -4081,101 +4109,6 @@ nsLayoutUtils::SurfaceFromElement(dom::Element* aElement,
     wantImageSurface = true;
   }
 
-  // If it's a <canvas>, we may be able to just grab its internal surface
-  if (nsHTMLCanvasElement* canvas = nsHTMLCanvasElement::FromContent(aElement)) {
-    gfxIntSize size = canvas->GetSize();
-
-    nsRefPtr<gfxASurface> surf;
-
-    if (!forceCopy && canvas->CountContexts() == 1) {
-      nsICanvasRenderingContextInternal *srcCanvas = canvas->GetContextAtIndex(0);
-      rv = srcCanvas->GetThebesSurface(getter_AddRefs(surf));
-
-      if (NS_FAILED(rv))
-        surf = nsnull;
-    }
-
-    if (surf && wantImageSurface && surf->GetType() != gfxASurface::SurfaceTypeImage)
-      surf = nsnull;
-
-    if (!surf) {
-      if (wantImageSurface) {
-        surf = new gfxImageSurface(size, gfxASurface::ImageFormatARGB32);
-      } else {
-        surf = gfxPlatform::GetPlatform()->CreateOffscreenSurface(size, gfxASurface::CONTENT_COLOR_ALPHA);
-      }
-
-      nsRefPtr<gfxContext> ctx = new gfxContext(surf);
-      // XXX shouldn't use the external interface, but maybe we can layerify this
-      PRUint32 flags = premultAlpha ? nsHTMLCanvasElement::RenderFlagPremultAlpha : 0;
-      rv = canvas->RenderContextsExternal(ctx, gfxPattern::FILTER_NEAREST, flags);
-      if (NS_FAILED(rv))
-        return result;
-    }
-
-    // Ensure that any future changes to the canvas trigger proper invalidation,
-    // in case this is being used by -moz-element()
-    canvas->MarkContextClean();
-
-    result.mSurface = surf;
-    result.mSize = size;
-    result.mPrincipal = aElement->NodePrincipal();
-    result.mIsWriteOnly = canvas->IsWriteOnly();
-
-    return result;
-  }
-
-#ifdef MOZ_MEDIA
-  // Maybe it's <video>?
-  if (nsHTMLVideoElement* video = nsHTMLVideoElement::FromContent(aElement)) {
-    PRUint16 readyState;
-    if (NS_SUCCEEDED(video->GetReadyState(&readyState)) &&
-        (readyState == nsIDOMHTMLMediaElement::HAVE_NOTHING ||
-         readyState == nsIDOMHTMLMediaElement::HAVE_METADATA)) {
-      result.mIsStillLoading = true;
-      return result;
-    }
-
-    // If it doesn't have a principal, just bail
-    nsCOMPtr<nsIPrincipal> principal = video->GetCurrentPrincipal();
-    if (!principal)
-      return result;
-
-    ImageContainer *container = video->GetImageContainer();
-    if (!container)
-      return result;
-
-    gfxIntSize size;
-    nsRefPtr<gfxASurface> surf = container->GetCurrentAsSurface(&size);
-    if (!surf)
-      return result;
-
-    if (wantImageSurface && surf->GetType() != gfxASurface::SurfaceTypeImage) {
-      nsRefPtr<gfxImageSurface> imgSurf =
-        new gfxImageSurface(size, gfxASurface::ImageFormatARGB32);
-
-      nsRefPtr<gfxContext> ctx = new gfxContext(imgSurf);
-      ctx->SetOperator(gfxContext::OPERATOR_SOURCE);
-      ctx->DrawSurface(surf, size);
-      surf = imgSurf;
-    }
-
-    result.mCORSUsed = video->GetCORSMode() != CORS_NONE;
-    result.mSurface = surf;
-    result.mSize = size;
-    result.mPrincipal = principal.forget();
-    result.mIsWriteOnly = false;
-
-    return result;
-  }
-#endif
-
-  // Finally, check if it's a normal image
-  nsCOMPtr<nsIImageLoadingContent> imageLoader = do_QueryInterface(aElement);
-
-  if (!imageLoader)
-    return result;
-
   // Push a null JSContext on the stack so that code that runs within
   // the below code doesn't think it's being called by JS. See bug
   // 604262.
@@ -4183,8 +4116,8 @@ nsLayoutUtils::SurfaceFromElement(dom::Element* aElement,
   pusher.PushNull();
 
   nsCOMPtr<imgIRequest> imgRequest;
-  rv = imageLoader->GetRequest(nsIImageLoadingContent::CURRENT_REQUEST,
-                               getter_AddRefs(imgRequest));
+  rv = aElement->GetRequest(nsIImageLoadingContent::CURRENT_REQUEST,
+                            getter_AddRefs(imgRequest));
   if (NS_FAILED(rv) || !imgRequest)
     return result;
 
@@ -4262,6 +4195,152 @@ nsLayoutUtils::SurfaceFromElement(dom::Element* aElement,
   result.mImageRequest = imgRequest.forget();
 
   return result;
+}
+
+nsLayoutUtils::SurfaceFromElementResult
+nsLayoutUtils::SurfaceFromElement(nsHTMLImageElement *aElement,
+                                  PRUint32 aSurfaceFlags)
+{
+  return SurfaceFromElement(static_cast<nsIImageLoadingContent*>(aElement),
+                            aSurfaceFlags);
+}
+
+nsLayoutUtils::SurfaceFromElementResult
+nsLayoutUtils::SurfaceFromElement(nsHTMLCanvasElement* aElement,
+                                  PRUint32 aSurfaceFlags)
+{
+  SurfaceFromElementResult result;
+  nsresult rv;
+
+  bool forceCopy = (aSurfaceFlags & SFE_WANT_NEW_SURFACE) != 0;
+  bool wantImageSurface = (aSurfaceFlags & SFE_WANT_IMAGE_SURFACE) != 0;
+  bool premultAlpha = (aSurfaceFlags & SFE_NO_PREMULTIPLY_ALPHA) == 0;
+
+  if (!premultAlpha) {
+    forceCopy = true;
+    wantImageSurface = true;
+  }
+
+  gfxIntSize size = aElement->GetSize();
+
+  nsRefPtr<gfxASurface> surf;
+
+  if (!forceCopy && aElement->CountContexts() == 1) {
+    nsICanvasRenderingContextInternal *srcCanvas = aElement->GetContextAtIndex(0);
+    rv = srcCanvas->GetThebesSurface(getter_AddRefs(surf));
+
+    if (NS_FAILED(rv))
+      surf = nsnull;
+  }
+
+  if (surf && wantImageSurface && surf->GetType() != gfxASurface::SurfaceTypeImage)
+    surf = nsnull;
+
+  if (!surf) {
+    if (wantImageSurface) {
+      surf = new gfxImageSurface(size, gfxASurface::ImageFormatARGB32);
+    } else {
+      surf = gfxPlatform::GetPlatform()->CreateOffscreenSurface(size, gfxASurface::CONTENT_COLOR_ALPHA);
+    }
+
+    nsRefPtr<gfxContext> ctx = new gfxContext(surf);
+    // XXX shouldn't use the external interface, but maybe we can layerify this
+    PRUint32 flags = premultAlpha ? nsHTMLCanvasElement::RenderFlagPremultAlpha : 0;
+    rv = aElement->RenderContextsExternal(ctx, gfxPattern::FILTER_NEAREST, flags);
+    if (NS_FAILED(rv))
+      return result;
+  }
+
+  // Ensure that any future changes to the canvas trigger proper invalidation,
+  // in case this is being used by -moz-element()
+  aElement->MarkContextClean();
+
+  result.mSurface = surf;
+  result.mSize = size;
+  result.mPrincipal = aElement->NodePrincipal();
+  result.mIsWriteOnly = aElement->IsWriteOnly();
+
+  return result;
+}
+
+nsLayoutUtils::SurfaceFromElementResult
+nsLayoutUtils::SurfaceFromElement(nsHTMLVideoElement* aElement,
+                                  PRUint32 aSurfaceFlags)
+{
+  SurfaceFromElementResult result;
+
+  bool wantImageSurface = (aSurfaceFlags & SFE_WANT_IMAGE_SURFACE) != 0;
+  bool premultAlpha = (aSurfaceFlags & SFE_NO_PREMULTIPLY_ALPHA) == 0;
+
+  if (!premultAlpha) {
+    wantImageSurface = true;
+  }
+
+  PRUint16 readyState;
+  if (NS_SUCCEEDED(aElement->GetReadyState(&readyState)) &&
+      (readyState == nsIDOMHTMLMediaElement::HAVE_NOTHING ||
+       readyState == nsIDOMHTMLMediaElement::HAVE_METADATA)) {
+    result.mIsStillLoading = true;
+    return result;
+  }
+
+  // If it doesn't have a principal, just bail
+  nsCOMPtr<nsIPrincipal> principal = aElement->GetCurrentPrincipal();
+  if (!principal)
+    return result;
+
+  ImageContainer *container = aElement->GetImageContainer();
+  if (!container)
+    return result;
+
+  gfxIntSize size;
+  nsRefPtr<gfxASurface> surf = container->GetCurrentAsSurface(&size);
+  if (!surf)
+    return result;
+
+  if (wantImageSurface && surf->GetType() != gfxASurface::SurfaceTypeImage) {
+    nsRefPtr<gfxImageSurface> imgSurf =
+      new gfxImageSurface(size, gfxASurface::ImageFormatARGB32);
+
+    nsRefPtr<gfxContext> ctx = new gfxContext(imgSurf);
+    ctx->SetOperator(gfxContext::OPERATOR_SOURCE);
+    ctx->DrawSurface(surf, size);
+    surf = imgSurf;
+  }
+
+  result.mCORSUsed = aElement->GetCORSMode() != CORS_NONE;
+  result.mSurface = surf;
+  result.mSize = size;
+  result.mPrincipal = principal.forget();
+  result.mIsWriteOnly = false;
+
+  return result;
+}
+
+nsLayoutUtils::SurfaceFromElementResult
+nsLayoutUtils::SurfaceFromElement(dom::Element* aElement,
+                                  PRUint32 aSurfaceFlags)
+{
+  // If it's a <canvas>, we may be able to just grab its internal surface
+  if (nsHTMLCanvasElement* canvas = nsHTMLCanvasElement::FromContent(aElement)) {
+    return SurfaceFromElement(canvas, aSurfaceFlags);
+  }
+
+#ifdef MOZ_MEDIA
+  // Maybe it's <video>?
+  if (nsHTMLVideoElement* video = nsHTMLVideoElement::FromContent(aElement)) {
+    return SurfaceFromElement(video, aSurfaceFlags);
+  }
+#endif
+
+  // Finally, check if it's a normal image
+  nsCOMPtr<nsIImageLoadingContent> imageLoader = do_QueryInterface(aElement);
+
+  if (!imageLoader) {
+    return SurfaceFromElementResult();
+  }
+
+  return SurfaceFromElement(imageLoader, aSurfaceFlags);
 }
 
 /* static */
@@ -4582,6 +4661,22 @@ nsLayoutUtils::DeregisterImageRequest(nsPresContext* aPresContext,
       if (aRequestRegistered) {
         *aRequestRegistered = false;
       }
+    }
+  }
+}
+
+/* static */
+void
+nsLayoutUtils::PostRestyleEvent(Element* aElement,
+                                nsRestyleHint aRestyleHint,
+                                nsChangeHint aMinChangeHint)
+{
+  nsIDocument* doc = aElement->GetCurrentDoc();
+  if (doc) {
+    nsCOMPtr<nsIPresShell> presShell = doc->GetShell();
+    if (presShell) {
+      presShell->FrameConstructor()->PostRestyleEvent(
+        aElement, aRestyleHint, aMinChangeHint);
     }
   }
 }

@@ -1,44 +1,7 @@
 /* -*- Mode: Java; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998-1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Sammy Ford (sford@swbell.net)
- *   Dan Haddix (dan6992@hotmail.com)
- *   John Ratke (jratke@owc.net)
- *   Ryan Cassin (rcassin@supernova.org)
- *   Daniel Glazman (glazman@netscape.com)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource:///modules/editorUtilities.jsm");
 
@@ -55,7 +18,6 @@ const kDisplayModeMenuIDs = ["viewNormalMode", "viewAllTagsMode", "viewSourceMod
 const kDisplayModeTabIDS = ["NormalModeButton", "TagModeButton", "SourceModeButton", "PreviewModeButton"];
 const kNormalStyleSheet = "chrome://editor/content/EditorContent.css";
 const kAllTagsStyleSheet = "chrome://editor/content/EditorAllTags.css";
-const kParagraphMarksStyleSheet = "chrome://editor/content/EditorParagraphMarks.css";
 const kContentEditableStyleSheet = "resource://gre/res/contenteditable.css";
 
 const kTextMimeType = "text/plain";
@@ -1723,7 +1685,8 @@ function SetEditMode(mode)
     gSourceTextEditor.removeDocumentStateListener(gSourceTextListener);
     gSourceTextEditor.enableUndo(false);
     gSourceTextEditor.selectAll();
-    gSourceTextEditor.deleteSelection(gSourceTextEditor.eNone);
+    gSourceTextEditor.deleteSelection(gSourceTextEditor.eNone,
+                                      gSourceTextEditor.eStrip);
     gSourceTextEditor.resetModificationCount();
 
     gContentWindow.focus();
@@ -1866,28 +1829,6 @@ function SetDisplayMode(mode)
   
 
   return true;
-}
-
-function EditorToggleParagraphMarks()
-{
-  var menuItem = document.getElementById("viewParagraphMarks");
-  if (menuItem)
-  {
-    // Note that the 'type="checbox"' mechanism automatically
-    //  toggles the "checked" state before the oncommand is called,
-    //  so if "checked" is true now, it was just switched to that mode
-    var checked = menuItem.getAttribute("checked");
-    try {
-      var editor = GetCurrentEditor();
-      editor.QueryInterface(nsIEditorStyleSheets);
-
-      if (checked == "true")
-        editor.addOverrideStyleSheet(kParagraphMarksStyleSheet);
-      else
-        editor.enableStyleSheet(kParagraphMarksStyleSheet, false);
-    }
-    catch(e) { return; }
-  }
 }
 
 function UpdateWindowTitle()

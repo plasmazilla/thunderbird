@@ -1,44 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2002
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *  Brian Ryner <bryner@brianryner.com>  (Original Author)
- *  Pierre Chanial <p_ch@verizon.net>
- *  Michael Ventnor <m.ventnor@gmail.com>
- *  Martin Stransky <stransky@redhat.com>
- *  Jan Horak <jhorak@redhat.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * This file contains painting functions for each of the gtk2 widgets.
@@ -715,9 +678,9 @@ ensure_tree_header_cell_widget()
         gtk_tree_view_append_column(GTK_TREE_VIEW(gTreeViewWidget), lastTreeViewColumn);
 
         /* Use the middle column's header for our button */
-        /* TODO */
-        gTreeHeaderCellWidget = NULL;
-        gTreeHeaderSortArrowWidget = NULL;
+        /* TODO, but they can't be NULL */
+        gTreeHeaderCellWidget = gtk_button_new_with_label("M");
+        gTreeHeaderSortArrowWidget = gtk_button_new();
     }
     return MOZ_GTK_SUCCESS;
 }
@@ -2296,9 +2259,9 @@ moz_gtk_tabpanels_paint(cairo_t *cr, GdkRectangle* rect,
      */
     /* left side */
     cairo_save(cr);
-    cairo_rectangle(rect->x, rect->y,
+    cairo_rectangle(cr, rect->x, rect->y,
                     rect->x + rect->width / 2,
-                    rect->y + rect->height)
+                    rect->y + rect->height);
     cairo_clip(cr);
     gtk_render_frame_gap(style, cr,
                          rect->x, rect->y,
@@ -2308,9 +2271,9 @@ moz_gtk_tabpanels_paint(cairo_t *cr, GdkRectangle* rect,
     
     /* right side */
     cairo_save(cr);
-    cairo_rectangle(rect->x + rect->width / 2, rect->y,
+    cairo_rectangle(cr, rect->x + rect->width / 2, rect->y,
                     rect->x + rect->width,
-                    rect->y + rect->height)
+                    rect->y + rect->height);
     cairo_clip(cr);
     gtk_render_frame_gap(style, cr,
                          rect->x, rect->y,
@@ -2465,19 +2428,21 @@ moz_gtk_menu_item_paint(cairo_t *cr, GdkRectangle* rect,
     GtkStyleContext* style;
     GtkWidget* item_widget;
 
-    if (state->inHover && !state->disabled) {
-        gtk_style_context_save(style);
-        style = gtk_widget_get_style_context(item_widget);
-    
+    if (state->inHover && !state->disabled) {   
         if (flags & MOZ_TOPLEVEL_MENU_ITEM) {
             ensure_menu_bar_item_widget();
             item_widget = gMenuBarItemWidget;
-            gtk_style_context_add_class(style, GTK_STYLE_CLASS_MENUBAR);
         } else {
             ensure_menu_item_widget();
             item_widget = gMenuItemWidget;
         }
-      
+        style = gtk_widget_get_style_context(item_widget);
+        gtk_style_context_save(style);
+
+        if (flags & MOZ_TOPLEVEL_MENU_ITEM) {
+            gtk_style_context_add_class(style, GTK_STYLE_CLASS_MENUBAR);
+        }
+
         gtk_widget_set_direction(item_widget, direction);
         gtk_style_context_add_class(style, GTK_STYLE_CLASS_MENUITEM);
         gtk_style_context_set_state(style, GetStateFlagsFromGtkWidgetState(state));
@@ -3283,6 +3248,12 @@ moz_gtk_shutdown()
     /* This will destroy all of our widgets */
     if (gProtoWindow)
         gtk_widget_destroy(gProtoWindow);
+
+    /* TODO - replace it with appropriate widgets */
+    if (gTreeHeaderCellWidget)
+        gtk_widget_destroy(gTreeHeaderCellWidget);
+    if (gTreeHeaderSortArrowWidget)
+        gtk_widget_destroy(gTreeHeaderSortArrowWidget);
 
     gProtoWindow = NULL;
     gProtoLayout = NULL;

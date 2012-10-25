@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Mats Palmgren <matspal@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * Implementation of the DOM nsIDOMRange object.
@@ -66,9 +33,6 @@
 
 using namespace mozilla;
 
-nsresult NS_NewContentIterator(nsIContentIterator** aInstancePtrResult);
-nsresult NS_NewContentSubtreeIterator(nsIContentIterator** aInstancePtrResult);
-
 /******************************************************
  * stack based utilty class for managing monitor
  ******************************************************/
@@ -82,9 +46,6 @@ nsresult NS_NewContentSubtreeIterator(nsIContentIterator** aInstancePtrResult);
     }                                                                              \
     if (!nsContentUtils::CanCallerAccess(node_)) {                                 \
       return NS_ERROR_DOM_SECURITY_ERR;                                            \
-    }                                                                              \
-    if (mIsDetached) {                                                             \
-      return NS_ERROR_DOM_INVALID_STATE_ERR;                                       \
     }                                                                              \
   PR_END_MACRO
 
@@ -653,9 +614,6 @@ nsRange::IsPointInRange(nsIDOMNode* aParent, PRInt32 aOffset, bool* aResult)
 NS_IMETHODIMP
 nsRange::ComparePoint(nsIDOMNode* aParent, PRInt32 aOffset, PRInt16* aResult)
 {
-  if (mIsDetached)
-    return NS_ERROR_DOM_INVALID_STATE_ERR;
-
   // our range is in a good state?
   if (!mIsPositioned) 
     return NS_ERROR_NOT_INITIALIZED;
@@ -755,8 +713,7 @@ nsRange::DoSetRange(nsINode* aStartN, PRInt32 aStartOffset,
       if (newCommonAncestor) {
         RegisterCommonAncestor(newCommonAncestor);
       } else {
-        NS_ASSERTION(mIsDetached || !mIsPositioned,
-                     "unexpected disconnected nodes");
+        NS_ASSERTION(!mIsPositioned, "unexpected disconnected nodes");
         mInSelection = false;
       }
     }
@@ -844,8 +801,6 @@ nsRange::GetEndOffset(PRInt32* aEndOffset)
 NS_IMETHODIMP
 nsRange::GetCollapsed(bool* aIsCollapsed)
 {
-  if(mIsDetached)
-    return NS_ERROR_DOM_INVALID_STATE_ERR;
   if (!mIsPositioned)
     return NS_ERROR_NOT_INITIALIZED;
 
@@ -858,8 +813,6 @@ NS_IMETHODIMP
 nsRange::GetCommonAncestorContainer(nsIDOMNode** aCommonParent)
 {
   *aCommonParent = nsnull;
-  if(mIsDetached)
-    return NS_ERROR_DOM_INVALID_STATE_ERR;
   if (!mIsPositioned)
     return NS_ERROR_NOT_INITIALIZED;
 
@@ -1049,8 +1002,6 @@ nsRange::SetEndAfter(nsIDOMNode* aSibling)
 NS_IMETHODIMP
 nsRange::Collapse(bool aToStart)
 {
-  if(mIsDetached)
-    return NS_ERROR_DOM_INVALID_STATE_ERR;
   if (!mIsPositioned)
     return NS_ERROR_NOT_INITIALIZED;
 
@@ -1216,8 +1167,7 @@ RangeSubtreeIterator::Init(nsIDOMRange *aRange)
     // Now create a Content Subtree Iterator to be used
     // for the subtrees between the end points!
 
-    res = NS_NewContentSubtreeIterator(getter_AddRefs(mIter));
-    if (NS_FAILED(res)) return res;
+    mIter = NS_NewContentSubtreeIterator();
 
     res = mIter->Init(aRange);
     if (NS_FAILED(res)) return res;
@@ -1496,14 +1446,31 @@ PrependChild(nsIDOMNode* aParent, nsIDOMNode* aChild)
   return aParent->InsertBefore(aChild, first, getter_AddRefs(tmpNode));
 }
 
+// Helper function for CutContents, making sure that the current node wasn't
+// removed by mutation events (bug 766426)
+static bool
+ValidateCurrentNode(nsRange* aRange, RangeSubtreeIterator& aIter)
+{
+  bool before, after;
+  nsCOMPtr<nsIDOMNode> domNode = aIter.GetCurrentNode();
+  if (!domNode) {
+    // We don't have to worry that the node was removed if it doesn't exist,
+    // e.g., the iterator is done.
+    return true;
+  }
+  nsCOMPtr<nsINode> node = do_QueryInterface(domNode);
+  MOZ_ASSERT(node);
+
+  nsresult res = nsRange::CompareNodeToRange(node, aRange, &before, &after);
+
+  return NS_SUCCEEDED(res) && !before && !after;
+}
+
 nsresult nsRange::CutContents(nsIDOMDocumentFragment** aFragment)
 { 
   if (aFragment) {
     *aFragment = nsnull;
   }
-
-  if (IsDetached())
-    return NS_ERROR_DOM_INVALID_STATE_ERR;
 
   nsresult rv;
 
@@ -1626,8 +1593,11 @@ nsresult nsRange::CutContents(nsIDOMDocumentFragment** aFragment)
               nodeToResult = clone;
             }
 
+            nsMutationGuard guard;
             rv = charData->DeleteData(startOffset, endOffset - startOffset);
             NS_ENSURE_SUCCESS(rv, rv);
+            NS_ENSURE_STATE(!guard.Mutated(0) ||
+                            ValidateCurrentNode(this, iter));
           }
 
           handled = true;
@@ -1641,9 +1611,12 @@ nsresult nsRange::CutContents(nsIDOMDocumentFragment** aFragment)
 
           if (dataLength >= (PRUint32)startOffset)
           {
+            nsMutationGuard guard;
             nsCOMPtr<nsIDOMCharacterData> cutNode;
             rv = SplitDataNode(charData, startOffset, getter_AddRefs(cutNode));
             NS_ENSURE_SUCCESS(rv, rv);
+            NS_ENSURE_STATE(!guard.Mutated(1) ||
+                            ValidateCurrentNode(this, iter));
             nodeToResult = cutNode;
           }
 
@@ -1656,6 +1629,7 @@ nsresult nsRange::CutContents(nsIDOMDocumentFragment** aFragment)
 
         if (endOffset >= 0)
         {
+          nsMutationGuard guard;
           nsCOMPtr<nsIDOMCharacterData> cutNode;
           /* The Range spec clearly states clones get cut and original nodes
              remain behind, so use false as the last parameter.
@@ -1663,6 +1637,8 @@ nsresult nsRange::CutContents(nsIDOMDocumentFragment** aFragment)
           rv = SplitDataNode(charData, endOffset, getter_AddRefs(cutNode),
                              false);
           NS_ENSURE_SUCCESS(rv, rv);
+          NS_ENSURE_STATE(!guard.Mutated(1) ||
+                          ValidateCurrentNode(this, iter));
           nodeToResult = cutNode;
         }
 
@@ -1734,12 +1710,20 @@ nsresult nsRange::CutContents(nsIDOMDocumentFragment** aFragment)
         NS_ENSURE_SUCCESS(rv, rv);
       }
 
+      nsMutationGuard guard;
+      nsCOMPtr<nsIDOMNode> parent;
+      nodeToResult->GetParentNode(getter_AddRefs(parent));
       rv = closestAncestor ? PrependChild(closestAncestor, nodeToResult)
                            : PrependChild(commonCloneAncestor, nodeToResult);
       NS_ENSURE_SUCCESS(rv, rv);
+      NS_ENSURE_STATE(!guard.Mutated(parent ? 2 : 1) ||
+                      ValidateCurrentNode(this, iter));
     } else if (nodeToResult) {
+      nsMutationGuard guard;
       rv = RemoveNode(nodeToResult);
       NS_ENSURE_SUCCESS(rv, rv);
+      NS_ENSURE_STATE(!guard.Mutated(1) ||
+                      ValidateCurrentNode(this, iter));
     }
 
     if (!iter.IsDone() && retval) {
@@ -1782,8 +1766,6 @@ nsRange::CompareBoundaryPoints(PRUint16 aHow, nsIDOMRange* aOtherRange,
   nsRange* otherRange = static_cast<nsRange*>(aOtherRange);
   NS_ENSURE_TRUE(otherRange, NS_ERROR_NULL_POINTER);
 
-  if(mIsDetached || otherRange->IsDetached())
-    return NS_ERROR_DOM_INVALID_STATE_ERR;
   if (!mIsPositioned || !otherRange->IsPositioned())
     return NS_ERROR_NOT_INITIALIZED;
 
@@ -1883,9 +1865,6 @@ nsRange::CloneParentsBetween(nsIDOMNode *aAncestor,
 NS_IMETHODIMP
 nsRange::CloneContents(nsIDOMDocumentFragment** aReturn)
 {
-  if (IsDetached())
-    return NS_ERROR_DOM_INVALID_STATE_ERR;
-
   nsresult res;
   nsCOMPtr<nsIDOMNode> commonAncestor;
   res = GetCommonAncestorContainer(getter_AddRefs(commonAncestor));
@@ -2075,33 +2054,23 @@ nsRange::CloneContents(nsIDOMDocumentFragment** aReturn)
   return NS_OK;
 }
 
-nsresult
-nsRange::CloneRange(nsRange** aReturn) const
+already_AddRefed<nsRange>
+nsRange::CloneRange() const
 {
-  if(mIsDetached)
-    return NS_ERROR_DOM_INVALID_STATE_ERR;
-
-  if (aReturn == 0)
-    return NS_ERROR_NULL_POINTER;
-
   nsRefPtr<nsRange> range = new nsRange();
 
   range->SetMaySpanAnonymousSubtrees(mMaySpanAnonymousSubtrees);
 
   range->DoSetRange(mStartParent, mStartOffset, mEndParent, mEndOffset, mRoot);
 
-  range.forget(aReturn);
-
-  return NS_OK;
+  return range.forget();
 }
 
 NS_IMETHODIMP
 nsRange::CloneRange(nsIDOMRange** aReturn)
 {
-  nsRefPtr<nsRange> range;
-  nsresult rv = CloneRange(getter_AddRefs(range));
-  range.forget(aReturn);
-  return rv;
+  *aReturn = CloneRange().get();
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -2265,9 +2234,6 @@ nsRange::SurroundContents(nsIDOMNode* aNewParent)
 NS_IMETHODIMP
 nsRange::ToString(nsAString& aReturn)
 { 
-  if(mIsDetached)
-    return NS_ERROR_DOM_INVALID_STATE_ERR;
-
   // clear the string
   aReturn.Truncate();
   
@@ -2305,10 +2271,8 @@ nsRange::ToString(nsAString& aReturn)
      revisit - there are potential optimizations here and also tradeoffs.
   */
 
-  nsCOMPtr<nsIContentIterator> iter;
-  nsresult rv = NS_NewContentIterator(getter_AddRefs(iter));
-  NS_ENSURE_SUCCESS(rv, rv);
-  rv = iter->Init(this);
+  nsCOMPtr<nsIContentIterator> iter = NS_NewContentIterator();
+  nsresult rv = iter->Init(this);
   NS_ENSURE_SUCCESS(rv, rv);
   
   nsString tempString;
@@ -2359,17 +2323,8 @@ nsRange::ToString(nsAString& aReturn)
 NS_IMETHODIMP
 nsRange::Detach()
 {
-  if(mIsDetached)
-    return NS_ERROR_DOM_INVALID_STATE_ERR;
-
-  if (IsInSelection()) {
-    ::InvalidateAllFrames(GetRegisteredCommonAncestor());
-  }
-
+  // No-op, but still set mIsDetached for telemetry (bug 702948)
   mIsDetached = true;
-
-  DoSetRange(nsnull, 0, nsnull, 0, nsnull);
-  
   return NS_OK;
 }
 

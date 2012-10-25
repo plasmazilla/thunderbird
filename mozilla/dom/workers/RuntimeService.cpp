@@ -1,48 +1,14 @@
 /* -*- Mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; tab-width: 40 -*- */
 /* vim: set ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Web Workers.
- *
- * The Initial Developer of the Original Code is
- *   The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ben Turner <bent.mozilla@gmail.com> (Original Author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
 
 #include "RuntimeService.h"
 
 #include "nsIDOMChromeWindow.h"
-#include "nsIDocument.h"
 #include "nsIEffectiveTLDService.h"
 #include "nsIObserverService.h"
 #include "nsIPlatformCharset.h"
@@ -53,7 +19,7 @@
 #include "nsITimer.h"
 #include "nsPIDOMWindow.h"
 
-#include "mozilla/dom/bindings/EventTargetBinding.h"
+#include "mozilla/dom/EventTargetBinding.h"
 #include "mozilla/Preferences.h"
 #include "nsContentUtils.h"
 #include "nsDOMJSUtils.h"
@@ -69,8 +35,10 @@
 #include "Worker.h"
 #include "WorkerPrivate.h"
 
+#include "OSFileConstants.h"
+
 using namespace mozilla;
-using namespace mozilla::dom::bindings::prototypes;
+using namespace mozilla::dom;
 
 USING_WORKERS_NAMESPACE
 
@@ -180,6 +148,7 @@ enum {
   PREF_methodjit,
   PREF_methodjit_always,
   PREF_typeinference,
+  PREF_allow_xml,
   PREF_jit_hardening,
   PREF_mem_max,
 
@@ -199,6 +168,7 @@ const char* gPrefsToWatch[] = {
   JS_OPTIONS_DOT_STR "methodjit.content",
   JS_OPTIONS_DOT_STR "methodjit_always",
   JS_OPTIONS_DOT_STR "typeinference",
+  JS_OPTIONS_DOT_STR "allow_xml",
   JS_OPTIONS_DOT_STR "jit_hardening",
   JS_OPTIONS_DOT_STR "mem.max"
 
@@ -246,6 +216,9 @@ PrefCallback(const char* aPrefName, void* aClosure)
     }
     if (Preferences::GetBool(gPrefsToWatch[PREF_typeinference])) {
       newOptions |= JSOPTION_TYPE_INFERENCE;
+    }
+    if (Preferences::GetBool(gPrefsToWatch[PREF_allow_xml])) {
+      newOptions |= JSOPTION_ALLOW_XML;
     }
 
     RuntimeService::SetDefaultJSContextOptions(newOptions);
@@ -394,14 +367,14 @@ BEGIN_WORKERS_NAMESPACE
 
 // Entry point for the DOM.
 JSBool
-ResolveWorkerClasses(JSContext* aCx, JSObject* aObj, jsid aId, unsigned aFlags,
-                     JSObject** aObjp)
+ResolveWorkerClasses(JSContext* aCx, JSHandleObject aObj, JSHandleId aId, unsigned aFlags,
+                     JSMutableHandleObject aObjp)
 {
   AssertIsOnMainThread();
 
-  // Don't care about assignments or declarations, bail now.
-  if (aFlags & (JSRESOLVE_ASSIGNING | JSRESOLVE_DECLARING)) {
-    *aObjp = nsnull;
+  // Don't care about assignments, bail now.
+  if (aFlags & JSRESOLVE_ASSIGNING) {
+    aObjp.set(nsnull);
     return true;
   }
 
@@ -423,7 +396,7 @@ ResolveWorkerClasses(JSContext* aCx, JSObject* aObj, jsid aId, unsigned aFlags,
   bool shouldResolve = false;
 
   for (PRUint32 i = 0; i < ID_COUNT; i++) {
-    if (aId == gStringIDs[i]) {
+    if (gStringIDs[i] == aId) {
       nsIScriptSecurityManager* ssm = nsContentUtils::GetSecurityManager();
       NS_ASSERTION(ssm, "This should never be null!");
 
@@ -437,7 +410,7 @@ ResolveWorkerClasses(JSContext* aCx, JSObject* aObj, jsid aId, unsigned aFlags,
 
       // Don't resolve if this is ChromeWorker and we're not chrome. Otherwise
       // always resolve.
-      shouldResolve = aId == gStringIDs[ID_ChromeWorker] ? isChrome : true;
+      shouldResolve = gStringIDs[ID_ChromeWorker] == aId ? isChrome : true;
       break;
     }
   }
@@ -445,11 +418,11 @@ ResolveWorkerClasses(JSContext* aCx, JSObject* aObj, jsid aId, unsigned aFlags,
   if (shouldResolve) {
     // Don't do anything if workers are disabled.
     if (!isChrome && !Preferences::GetBool(PREF_WORKERS_ENABLED)) {
-      *aObjp = nsnull;
+      aObjp.set(nsnull);
       return true;
     }
 
-    JSObject* eventTarget = EventTarget_workers::GetProtoObject(aCx, aObj, aObj);
+    JSObject* eventTarget = EventTargetBinding_workers::GetProtoObject(aCx, aObj, aObj);
     if (!eventTarget) {
       return false;
     }
@@ -467,12 +440,12 @@ ResolveWorkerClasses(JSContext* aCx, JSObject* aObj, jsid aId, unsigned aFlags,
       return false;
     }
 
-    *aObjp = aObj;
+    aObjp.set(aObj);
     return true;
   }
 
   // Not resolved.
-  *aObjp = nsnull;
+  aObjp.set(nsnull);
   return true;
 }
 
@@ -639,11 +612,7 @@ RuntimeService::RegisterWorker(JSContext* aCx, WorkerPrivate* aWorkerPrivate)
 
       domainInfo = new WorkerDomainInfo();
       domainInfo->mDomain = domain;
-
-      if (!mDomainMap.Put(domain, domainInfo)) {
-        delete domainInfo;
-        domainInfo = nsnull;
-      }
+      mDomainMap.Put(domain, domainInfo);
     }
 
     if (domainInfo) {
@@ -696,13 +665,7 @@ RuntimeService::RegisterWorker(JSContext* aCx, WorkerPrivate* aWorkerPrivate)
       NS_ASSERTION(!parent, "Shouldn't have a parent here!");
 
       windowArray = new nsTArray<WorkerPrivate*>(1);
-
-      if (!mWindowMap.Put(window, windowArray)) {
-        delete windowArray;
-        UnregisterWorker(aCx, aWorkerPrivate);
-        JS_ReportOutOfMemory(aCx);
-        return false;
-      }
+      mWindowMap.Put(window, windowArray);
     }
 
     NS_ASSERTION(!windowArray->Contains(aWorkerPrivate),
@@ -819,8 +782,9 @@ RuntimeService::ScheduleWorker(JSContext* aCx, WorkerPrivate* aWorkerPrivate)
   }
 
   if (!thread) {
-    if (NS_FAILED(NS_NewThread(getter_AddRefs(thread), nsnull,
-                               WORKER_STACK_SIZE))) {
+    if (NS_FAILED(NS_NewNamedThread("DOM Worker",
+                                    getter_AddRefs(thread), nsnull,
+                                    WORKER_STACK_SIZE))) {
       UnregisterWorker(aCx, aWorkerPrivate);
       JS_ReportError(aCx, "Could not create new thread!");
       return false;
@@ -915,11 +879,8 @@ RuntimeService::Init()
   mIdleThreadTimer = do_CreateInstance(NS_TIMER_CONTRACTID);
   NS_ENSURE_STATE(mIdleThreadTimer);
 
-  bool ok = mDomainMap.Init();
-  NS_ENSURE_STATE(ok);
-
-  ok = mWindowMap.Init();
-  NS_ENSURE_STATE(ok);
+  mDomainMap.Init();
+  mWindowMap.Init();
 
   nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
   NS_ENSURE_TRUE(obs, NS_ERROR_FAILURE);
@@ -967,6 +928,11 @@ RuntimeService::Init()
   if (NS_SUCCEEDED(rv)) {
     rv = platformCharset->GetCharset(kPlatformCharsetSel_PlainTextInFile,
                                      mSystemCharset);
+  }
+
+  rv = InitOSFileConstants();
+  if (NS_FAILED(rv)) {
+    return rv;
   }
 
   return NS_OK;
@@ -1083,6 +1049,8 @@ RuntimeService::Cleanup()
       mObserved = NS_FAILED(rv);
     }
   }
+
+  CleanupOSFileConstants();
 }
 
 // static
@@ -1336,8 +1304,8 @@ RuntimeService::AutoSafeJSContext::GetSafeContext()
   nsIThreadJSContextStack* stack = nsContentUtils::ThreadJSContextStack();
   NS_ASSERTION(stack, "This should never be null!");
 
-  JSContext* cx;
-  if (NS_FAILED(stack->GetSafeJSContext(&cx))) {
+  JSContext* cx = stack->GetSafeJSContext();
+  if (!cx) {
     NS_ERROR("Couldn't get safe JSContext!");
     return nsnull;
   }

@@ -1,40 +1,7 @@
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Alec Flett <alecf@netscape.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /**
  * Communicator Shared Utility Library
@@ -311,6 +278,17 @@ function goToggleToolbar( id, elementID )
 
 var gCustomizeSheet = false;
 
+function SuiteCustomizeToolbar(aMenuItem)
+{
+  let toolbar = aMenuItem.parentNode.triggerNode;
+  while (toolbar.localName != "toolbar") {
+    toolbar = toolbar.parentNode;
+    if (!toolbar)
+      return false;
+  }
+  return goCustomizeToolbar(toolbar.toolbox);
+}
+
 function goCustomizeToolbar(toolbox)
 {
   /* If the toolbox has a method "customizeInit" then call it first.
@@ -341,8 +319,8 @@ function goCustomizeToolbar(toolbox)
     // Open the panel, but make it invisible until the iframe has loaded so
     // that the user doesn't see a white flash.
     panel.style.visibility = "hidden";
-    toolbox.addEventListener("beforecustomization", function () {
-      toolbox.removeEventListener("beforecustomization", arguments.callee, false);
+    toolbox.addEventListener("beforecustomization", function toolboxBeforeCustom() {
+      toolbox.removeEventListener("beforecustomization", toolboxBeforeCustom, false);
       panel.style.removeProperty("visibility");
     }, false);
     panel.openPopup(toolbox, "after_start", 0, 0);
@@ -373,9 +351,19 @@ function onViewToolbarsPopupShowing(aEvent, aInsertPoint)
   while (toolbar.localName != "toolbar")
     toolbar = toolbar.parentNode;
   var toolbox = toolbar.toolbox;
-
+  var externalToolbars = Array.filter(toolbox.externalToolbars,
+                                      function(toolbar) {
+                                        return toolbar.hasAttribute("toolbarname")});
   var toolbars = Array.slice(toolbox.getElementsByAttribute("toolbarname", "*"));
-  toolbars = toolbars.concat(toolbox.externalToolbars);
+  toolbars = toolbars.concat(externalToolbars);
+  var menusep = document.getElementById("toolbarmode-sep");
+
+  var menubar = toolbox.getElementsByAttribute("type", "menubar").item(0);
+  if (!menubar || !toolbars.length) {
+    menusep.hidden = true;
+    return;
+  }
+  menusep.hidden = false;
 
   toolbars.forEach(function(bar) {
     let menuItem = document.createElement("menuitem");
@@ -1287,6 +1275,21 @@ function GetIntPref(aPrefName, aDefaultValue)
   return aDefaultValue;
 }
 
+/**
+ * Toggle a splitter to show or hide some piece of UI (e.g. the message preview
+ * pane).
+ *
+ * @param aSplitterId the splitter that should be toggled
+ */
+function togglePaneSplitter(aSplitterId)
+{
+  var splitter = document.getElementById(aSplitterId);
+  if (splitter.getAttribute("state") == "collapsed")
+    splitter.setAttribute("state", "open");
+  else
+    splitter.setAttribute("state", "collapsed");
+}
+
 // openUILink handles clicks on UI elements that cause URLs to load.
 function openUILink(url, e, ignoreButton, ignoreSave, allowKeywordFixup, postData, referrerUrl)
 {
@@ -1527,10 +1530,10 @@ function switchToTabHavingURI(aURI, aOpenNew, aCallback) {
     let where = newWindowPref == kNewTab ? "tabfocused" : "window";
     let browserWin = openUILinkIn(aURI.spec, where);
     if (aCallback) {
-      browserWin.addEventListener("pageshow", function(event) {
+      browserWin.addEventListener("pageshow", function browserWinPageShow(event) {
         if (event.target.location.href != aURI.spec)
           return;
-        browserWin.removeEventListener("pageshow", arguments.callee, true);
+        browserWin.removeEventListener("pageshow", browserWinPageShow, true);
         aCallback(browserWin.getBrowser().selectedBrowser);
       }, true);
     }
@@ -1598,28 +1601,83 @@ function loadAddSearchEngines() {
 
 function FillInHTMLTooltip(tipElement)
 {
-  if (tipElement.namespaceURI == "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul")
+  // Don't show the tooltip if the tooltip node is a document or disconnected.
+  if (!tipElement.ownerDocument ||
+      (tipElement.ownerDocument.compareDocumentPosition(tipElement) & document.DOCUMENT_POSITION_DISCONNECTED))
     return false;
 
-  while (tipElement instanceof Element) {
-    if (tipElement.hasAttribute("title")) {
-      var defView = tipElement.ownerDocument.defaultView;
-      var titleText = tipElement.getAttribute("title");
-      // XXX Work around bug 350679:
-      // "Tooltips can be fired in documents with no view".
-      if (!defView || !titleText)
-        return false;
+  var defView = tipElement.ownerDocument.defaultView;
+  // XXX Work around bug 350679:
+  // "Tooltips can be fired in documents with no view".
+  if (!defView)
+    return false;
 
-      var tipNode = document.getElementById("aHTMLTooltip");
-      tipNode.style.direction = defView.getComputedStyle(tipElement, "")
-                                       .getPropertyValue("direction");
-      tipNode.label = titleText;
-      return true;
+  const XLinkNS = "http://www.w3.org/1999/xlink";
+  const XULNS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
+
+  var titleText = null;
+  var XLinkTitleText = null;
+  var SVGTitleText = null;
+  var lookingForSVGTitle = true;
+  var direction = defView.getComputedStyle(tipElement, "")
+                         .getPropertyValue("direction");
+
+  // If the element is invalid per HTML5 Forms specifications and has no title,
+  // show the constraint validation error message.
+  if ((tipElement instanceof HTMLInputElement ||
+       tipElement instanceof HTMLTextAreaElement ||
+       tipElement instanceof HTMLSelectElement ||
+       tipElement instanceof HTMLButtonElement) &&
+      !tipElement.hasAttribute("title") &&
+      (!tipElement.form || !tipElement.form.noValidate)) {
+    // If the element is barred from constraint validation or is valid,
+    // the validation message will be the empty string.
+    titleText = tipElement.validationMessage || null;
+  }
+
+  while ((titleText == null) && (XLinkTitleText == null) &&
+         (SVGTitleText == null) && tipElement) {
+    if (tipElement.nodeType == Node.ELEMENT_NODE &&
+        tipElement.namespaceURI != XULNS) {
+      titleText = tipElement.getAttribute("title");
+      if ((tipElement instanceof HTMLAnchorElement ||
+           tipElement instanceof HTMLAreaElement ||
+           tipElement instanceof HTMLLinkElement ||
+           tipElement instanceof SVGAElement) && tipElement.href) {
+        XLinkTitleText = tipElement.getAttributeNS(XLinkNS, "title");
+      }
+      if (lookingForSVGTitle &&
+          (!(tipElement instanceof SVGElement) ||
+           tipElement.parentNode.nodeType == Node.DOCUMENT_NODE)) {
+        lookingForSVGTitle = false;
+      }
+      if (lookingForSVGTitle) {
+        let length = tipElement.childNodes.length;
+        for (let i = 0; i < length; i++) {
+          let childNode = tipElement.childNodes[i];
+          if (childNode instanceof SVGTitleElement) {
+            SVGTitleText = childNode.textContent;
+            break;
+          }
+        }
+      }
+      direction = defView.getComputedStyle(tipElement, "")
+                         .getPropertyValue("direction");
     }
     tipElement = tipElement.parentNode;
   }
 
-  return false;
+  var tipNode = document.getElementById("aHTMLTooltip");
+  tipNode.style.direction = direction;
+
+  return [titleText, XLinkTitleText, SVGTitleText].some(function (t) {
+    if (t && /\S/.test(t)) {
+      // Make CRLF and CR render one line break each.
+      tipNode.setAttribute("label", t.replace(/\r\n?/g, "\n"));
+      return true;
+    }
+    return false;
+  });
 }
 
 function GetFileFromString(aString)

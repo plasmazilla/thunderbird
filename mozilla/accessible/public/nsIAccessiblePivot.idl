@@ -1,45 +1,13 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Eitan Isaacson <eitan@monotonous.org> (original author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsISupports.idl"
 
 typedef short TextBoundaryType;
+typedef short PivotMoveReason;
 
 interface nsIAccessible;
 interface nsIAccessibleText;
@@ -52,13 +20,21 @@ interface nsIAccessiblePivotObserver;
  * provides traversal methods to move the pivot to next/prev state that complies 
  * to a given rule.
  */
-[scriptable, uuid(689058ae-e301-444f-acb0-b5c2b189f350)]
+[scriptable, uuid(15ff23de-879e-47ea-b536-6532466108c5)]
 interface nsIAccessiblePivot : nsISupports
 {
   const TextBoundaryType CHAR_BOUNDARY = 0;
   const TextBoundaryType WORD_BOUNDARY = 1;
   const TextBoundaryType LINE_BOUNDARY = 2;
   const TextBoundaryType ATTRIBUTE_RANGE_BOUNDARY = 3;
+
+  const PivotMoveReason REASON_NONE = 0;
+  const PivotMoveReason REASON_NEXT = 1;
+  const PivotMoveReason REASON_PREV = 2;
+  const PivotMoveReason REASON_FIRST = 3;
+  const PivotMoveReason REASON_LAST = 4;
+  const PivotMoveReason REASON_TEXT = 5;
+  const PivotMoveReason REASON_POINT = 6;
 
   /**
    * The accessible the pivot is currently pointed at.
@@ -94,20 +70,32 @@ interface nsIAccessiblePivot : nsISupports
                     in long aStartOffset, in long aEndOffset);
 
   /**
-   * Move pivot to next object complying to given traversal rule.
+   * Move pivot to next object, from current position or given anchor,
+   * complying to given traversal rule.
    *
-   * @param aRule [in] traversal rule to use.
+   * @param aRule         [in] traversal rule to use.
+   * @param aAnchor       [in] accessible to start search from, if not provided,
+   *                           current position will be used.
+   * @param aIncludeStart [in] include anchor accessible in search.
    * @return true on success, false if there are no new nodes to traverse to.
    */
-  boolean moveNext(in nsIAccessibleTraversalRule aRule);
+  [optional_argc] boolean moveNext(in nsIAccessibleTraversalRule aRule,
+                                   [optional] in nsIAccessible aAnchor,
+                                   [optional] in boolean aIncludeStart);
 
   /**
-   * Move pivot to previous object complying to given traversal rule.
+   * Move pivot to previous object, from current position or given anchor,
+   * complying to given traversal rule.
    *
-   * @param aRule [in] traversal rule to use.
+   * @param aRule         [in] traversal rule to use.
+   * @param aAnchor       [in] accessible to start search from, if not provided,
+   *                           current position will be used.
+   * @param aIncludeStart [in] include anchor accessible in search.
    * @return true on success, false if there are no new nodes to traverse to.
    */
-  boolean movePrevious(in nsIAccessibleTraversalRule aRule);
+  [optional_argc] boolean movePrevious(in nsIAccessibleTraversalRule aRule,
+                                       [optional] in nsIAccessible aAnchor,
+                                       [optional] in boolean aIncludeStart);
 
   /**
    * Move pivot to first object in subtree complying to given traversal rule.
@@ -144,6 +132,20 @@ interface nsIAccessiblePivot : nsISupports
   boolean movePreviousByText(in TextBoundaryType aBoundary);
 
   /**
+   * Move pivot to given coordinate in screen pixels.
+   *
+   * @param aRule          [in]  raversal rule to use.
+   * @param aX             [in]  screen's x coordinate
+   * @param aY             [in]  screen's y coordinate
+   * @param aIgnoreNoMatch [in]  don't unset position if no object was found at
+   *                       point.
+   * @return true on success, false if the pivot has not been moved.
+   */
+  boolean moveToPoint(in nsIAccessibleTraversalRule aRule,
+                      in long aX, in long aY,
+                      in boolean aIgnoreNoMatch);
+
+  /**
    * Add an observer for pivot changes.
    *
    * @param aObserver [in] the observer object to be notified of pivot changes.
@@ -171,10 +173,12 @@ interface nsIAccessiblePivotObserver : nsISupports
    * @param aOldAccessible [in] the old pivot position before the change, or null.
    * @param aOldStart      [in] the old start offset, or -1.
    * @param aOldEnd        [in] the old end offset, or -1.
+   * @param aReason        [in] the reason for the pivot change.
    */
   void onPivotChanged(in nsIAccessiblePivot aPivot,
                       in nsIAccessible aOldAccessible,
-                      in long aOldStart, in long aOldEnd);
+                      in long aOldStart, in long aOldEnd,
+                      in PivotMoveReason aReason);
 };
 
 [scriptable, uuid(307d98b6-dba9-49cf-ba17-ef8b053044eb)]

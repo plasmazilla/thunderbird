@@ -1,44 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the nsSessionStore component.
- *
- * The Initial Developer of the Original Code is
- * Simon Bünzli <zeniko@gmail.com>
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dietrich Ayala <dietrich@mozilla.com>
- *   Ehsan Akhgari <ehsan.akhgari@gmail.com>
- *   Paul O’Shannessy <paul@oshannessy.com>
- *   Nils Maier <maierman@web.de>
- *   Michael Kraft <morac99-firefox@yahoo.com>
- *   Misak Khachatryan <misak.bugzilla@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /**
  * Session Storage and Restoration
@@ -404,8 +366,8 @@ SessionStoreService.prototype = {
 
     switch (aTopic) {
     case "domwindowopened": // catch new windows
-      aSubject.addEventListener("load", function(aEvent) {
-        aEvent.currentTarget.removeEventListener("load", arguments.callee, false);
+      aSubject.addEventListener("load", function aSubjectLoad(aEvent) {
+        aEvent.currentTarget.removeEventListener("load", aSubjectLoad, false);
         _this.onLoad(aEvent.currentTarget);
       }, false);
       break;
@@ -1106,25 +1068,24 @@ SessionStoreService.prototype = {
     let closedTab = closedTabs[aIndex];
     if (aIndex in this._windows[aWindow.__SSi]._closedTabs)
       this._windows[aWindow.__SSi]._closedTabs.splice(aIndex, 1);
-    var browser = aWindow.getBrowser();
-    var index = browser.savedBrowsers.indexOf(closedTab);
+    var tabbrowser = aWindow.getBrowser();
+    var index = tabbrowser.savedBrowsers.indexOf(closedTab);
     this._sendWindowStateEvent(aWindow, "Busy");
     if (index != -1)
       // SeaMonkey has its own undoclosetab functionality
-      return browser.restoreTab(index);
+      return tabbrowser.restoreTab(index);
 
     // create a new tab
-    var tab = browser.addTab();
+    var tab = tabbrowser.addTab();
 
     // restore the tab's position
-    browser.moveTabTo(tab, closedTab.pos);
+    tabbrowser.moveTabTo(tab, closedTab.pos);
 
     // restore tab content
     this.restoreHistoryPrecursor(aWindow, [tab], [closedTab.state], 1, 0, 0);
 
-    // focus the tab's content area
-    var content = browser.getBrowserForTab(tab).contentWindow;
-    aWindow.setTimeout(function() { content.focus(); }, 0);
+    // focus the tab's content area (bug 342432)
+    tab.linkedBrowser.focus();
 
     return tab;
   },
@@ -1141,10 +1102,10 @@ SessionStoreService.prototype = {
     var closedTab = closedTabs[aIndex];
     if (aIndex in this._windows[aWindow.__SSi]._closedTabs)
       this._windows[aWindow.__SSi]._closedTabs.splice(aIndex, 1);
-    var browser = aWindow.getBrowser();
-    var index = browser.savedBrowsers.indexOf(closedTab);
+    var tabbrowser = aWindow.getBrowser();
+    var index = tabbrowser.savedBrowsers.indexOf(closedTab);
     if (index != -1)
-      browser.forgetSavedBrowser(aIndex);
+      tabbrowser.forgetSavedBrowser(aIndex);
   },
 
   getClosedWindowCount: function sss_getClosedWindowCount() {
@@ -2417,12 +2378,6 @@ SessionStoreService.prototype = {
     this.restoreHistoryPrecursor(aWindow, tabs, winData.tabs,
       (aOverwriteTabs ? (parseInt(winData.selected) || 1) : 0), 0, 0);
 
-    // This will force the keypress listener that Panorama has to attach if it
-    // isn't already. This will be the case if tab view wasn't entered or there
-    // were only visible tabs when TabView.init was first called.
-    // Misak:uncomment after we actially get Panorama
-    //aWindow.TabView.init();
-
     // set smoothScroll back to the original value
     tabstrip.smoothScroll = smoothScroll;
 
@@ -3356,7 +3311,7 @@ SessionStoreService.prototype = {
                               .createInstance(Components.interfaces.nsISupportsString);
     argString.data = "about:blank";
 
-    var features = "chrome,dialog=no,all";
+    var features = "chrome,dialog=no,macsuppressanimation,all";
     var winState = aState.windows[0];
     for (var aAttr in WINDOW_ATTRIBUTES) {
       // Use !isNaN as an easy way to ignore sizemode and check for numbers
@@ -3904,7 +3859,7 @@ SessionStoreService.prototype = {
     // Initialize the file output stream.
     var ostream = Components.classes["@mozilla.org/network/safe-file-output-stream;1"]
                             .createInstance(Components.interfaces.nsIFileOutputStream);
-    ostream.init(aFile, 0x02 | 0x08 | 0x20, 0600, ostream.DEFER_OPEN);
+    ostream.init(aFile, 0x02 | 0x08 | 0x20, parseInt("0600", 8), ostream.DEFER_OPEN);
 
     // Obtain a converter to convert our data to a UTF-8 encoded input stream.
     var converter = Components.classes["@mozilla.org/intl/scriptableunicodeconverter"]

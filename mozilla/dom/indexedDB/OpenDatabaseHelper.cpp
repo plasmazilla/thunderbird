@@ -1,52 +1,18 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Indexed Database.
- *
- * The Initial Developer of the Original Code is
- * The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ben Turner <bent.mozilla@gmail.com>
- *   Kyle Huey <me@kylehuey.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "OpenDatabaseHelper.h"
 
 #include "nsIFile.h"
 
 #include "mozilla/storage.h"
-#include "nsContentUtils.h"
 #include "nsEscape.h"
 #include "nsThreadUtils.h"
 #include "snappy/snappy.h"
 #include "test_quota.h"
 
+#include "nsIBFCacheEntry.h"
 #include "IDBEvents.h"
 #include "IDBFactory.h"
 #include "IndexedDatabaseManager.h"
@@ -83,18 +49,6 @@ MakeSchemaVersion(PRUint32 aMajorSchemaVersion,
 
 const PRInt32 kSQLiteSchemaVersion = PRInt32((kMajorSchemaVersion << 4) +
                                              kMinorSchemaVersion);
-
-inline
-PRUint32 GetMajorSchemaVersion(PRInt32 aSchemaVersion)
-{
-  return PRUint32(aSchemaVersion) >> 4;
-}
-
-inline
-PRUint32 GetMinorSchemaVersion(PRInt32 aSchemaVersion)
-{
-  return PRUint32(aSchemaVersion) & 0xF;
-}
 
 nsresult
 GetDatabaseFilename(const nsAString& aName,
@@ -853,7 +807,7 @@ UpgradeSchemaFrom7To8(mozIStorageConnection* aConnection)
   return NS_OK;
 }
 
-class CompressDataBlobsFunction : public mozIStorageFunction
+class CompressDataBlobsFunction MOZ_FINAL : public mozIStorageFunction
 {
 public:
   NS_DECL_ISUPPORTS
@@ -1095,7 +1049,7 @@ UpgradeSchemaFrom10_0To11_0(mozIStorageConnection* aConnection)
   return NS_OK;
 }
 
-class EncodeKeysFunction : public mozIStorageFunction
+class EncodeKeysFunction MOZ_FINAL : public mozIStorageFunction
 {
 public:
   NS_DECL_ISUPPORTS
@@ -1364,6 +1318,7 @@ class SetVersionHelper : public AsyncConnectionHelper,
                          public IDBTransactionListener
 {
   friend class VersionChangeEventsRunnable;
+
 public:
   SetVersionHelper(IDBTransaction* aTransaction,
                    IDBOpenDBRequest* aRequest,
@@ -1380,21 +1335,41 @@ public:
 
   NS_DECL_ISUPPORTS_INHERITED
 
-  nsresult GetSuccessResult(JSContext* aCx,
-                            jsval* aVal);
+  virtual nsresult GetSuccessResult(JSContext* aCx,
+                                    jsval* aVal) MOZ_OVERRIDE;
 
 protected:
-  nsresult DoDatabaseWork(mozIStorageConnection* aConnection);
-  nsresult Init();
+  virtual nsresult Init() MOZ_OVERRIDE;
+
+  virtual nsresult DoDatabaseWork(mozIStorageConnection* aConnection)
+                                  MOZ_OVERRIDE;
 
   // SetVersionHelper never fires an error event at the request.  It hands that
   // responsibility back to the OpenDatabaseHelper
-  void OnError() { }
+  virtual void OnError() MOZ_OVERRIDE
+  { }
 
   // Need an upgradeneeded event here.
-  already_AddRefed<nsDOMEvent> CreateSuccessEvent();
+  virtual already_AddRefed<nsDOMEvent> CreateSuccessEvent() MOZ_OVERRIDE;
 
-  nsresult NotifyTransactionComplete(IDBTransaction* aTransaction);
+  virtual nsresult NotifyTransactionPreComplete(IDBTransaction* aTransaction)
+                                                MOZ_OVERRIDE;
+  virtual nsresult NotifyTransactionPostComplete(IDBTransaction* aTransaction)
+                                                 MOZ_OVERRIDE;
+
+  virtual ChildProcessSendResult
+  MaybeSendResponseToChildProcess(nsresult aResultCode) MOZ_OVERRIDE
+  {
+    return Success_NotSent;
+  }
+
+  virtual nsresult UnpackResponseFromParentProcess(
+                                            const ResponseValue& aResponseValue)
+                                            MOZ_OVERRIDE
+  {
+    MOZ_NOT_REACHED("Should never get here!");
+    return NS_ERROR_UNEXPECTED;
+  }
 
   PRUint64 RequestedVersion() const
   {
@@ -1445,6 +1420,7 @@ protected:
   {
     mOpenHelper->NotifyDeleteFinished();
   }
+
   nsresult OnSuccess()
   {
     return mOpenHelper->NotifyDeleteFinished();
@@ -1454,6 +1430,21 @@ protected:
   {
     return 0;
   }
+
+  virtual ChildProcessSendResult
+  MaybeSendResponseToChildProcess(nsresult aResultCode) MOZ_OVERRIDE
+  {
+    return Success_NotSent;
+  }
+
+  virtual nsresult UnpackResponseFromParentProcess(
+                                            const ResponseValue& aResponseValue)
+                                            MOZ_OVERRIDE
+  {
+    MOZ_NOT_REACHED("Should never get here!");
+    return NS_ERROR_UNEXPECTED;
+  }
+
 private:
   // In-params
   nsRefPtr<OpenDatabaseHelper> mOpenHelper;
@@ -1559,14 +1550,9 @@ NS_IMPL_THREADSAFE_ISUPPORTS1(OpenDatabaseHelper, nsIRunnable);
 nsresult
 OpenDatabaseHelper::Init()
 {
-  nsCString str(mASCIIOrigin);
-  str.Append("*");
-  str.Append(NS_ConvertUTF16toUTF8(mName));
+  mDatabaseId = IndexedDatabaseManager::GetDatabaseId(mASCIIOrigin, mName);
+  NS_ENSURE_TRUE(mDatabaseId, NS_ERROR_FAILURE);
 
-  nsCOMPtr<nsIAtom> atom = do_GetAtom(str);
-  NS_ENSURE_TRUE(atom, NS_ERROR_FAILURE);
-
-  atom.swap(mDatabaseId);
   return NS_OK;
 }
 
@@ -1650,7 +1636,11 @@ OpenDatabaseHelper::DoDatabaseWork()
   nsCOMPtr<mozIStorageConnection> connection;
   rv = CreateDatabaseConnection(mName, dbFile, fileManagerDirectory,
                                 getter_AddRefs(connection));
-  NS_ENSURE_SUCCESS(rv, NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR);
+  if (NS_FAILED(rv) &&
+      NS_ERROR_GET_MODULE(rv) != NS_ERROR_MODULE_DOM_INDEXEDDB) {
+    rv = NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR;
+  }
+  NS_ENSURE_SUCCESS(rv, rv);
 
   rv = IDBFactory::LoadDatabaseInformation(connection, mDatabaseId,
                                            &mCurrentVersion, mObjectStores);
@@ -1717,6 +1707,7 @@ OpenDatabaseHelper::CreateDatabaseConnection(
                                         nsIFile* aFileManagerDirectory,
                                         mozIStorageConnection** aConnection)
 {
+  NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
   NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
 
   NS_NAMED_LITERAL_CSTRING(quotaVFSName, "quota");
@@ -1850,7 +1841,12 @@ OpenDatabaseHelper::CreateDatabaseConnection(
       NS_ASSERTION(schemaVersion == kSQLiteSchemaVersion, "Huh?!");
     }
 
-    rv = transaction.Commit();
+    rv = transaction.Commit();    
+    if (rv == NS_ERROR_FILE_NO_DEVICE_SPACE) {
+      // mozstorage translates SQLITE_FULL to NS_ERROR_FILE_NO_DEVICE_SPACE,
+      // which we know better as NS_ERROR_DOM_INDEXEDDB_QUOTA_ERR.
+      rv = NS_ERROR_DOM_INDEXEDDB_QUOTA_ERR;
+    }
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
@@ -1895,15 +1891,14 @@ OpenDatabaseHelper::StartSetVersion()
   IndexedDatabaseManager* mgr = IndexedDatabaseManager::Get();
   NS_ASSERTION(mgr, "This should never be null!");
 
-  rv = mgr->AcquireExclusiveAccess(mDatabase, helper,
-            &VersionChangeEventsRunnable::QueueVersionChange<SetVersionHelper>,
+  rv = mgr->AcquireExclusiveAccess(mDatabase, mDatabase->Origin(), helper,
+             &VersionChangeEventsRunnable::QueueVersionChange<SetVersionHelper>,
                                    helper);
   NS_ENSURE_SUCCESS(rv, NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR);
 
   // The SetVersionHelper is responsible for dispatching us back to the
   // main thread again and changing the state to eSetVersionCompleted.
   mState = eSetVersionPending;
-
   return NS_OK;
 }
 
@@ -1925,8 +1920,8 @@ OpenDatabaseHelper::StartDelete()
   IndexedDatabaseManager* mgr = IndexedDatabaseManager::Get();
   NS_ASSERTION(mgr, "This should never be null!");
 
-  rv = mgr->AcquireExclusiveAccess(mDatabase, helper,
-        &VersionChangeEventsRunnable::QueueVersionChange<DeleteDatabaseHelper>,
+  rv = mgr->AcquireExclusiveAccess(mDatabase, mDatabase->Origin(), helper,
+         &VersionChangeEventsRunnable::QueueVersionChange<DeleteDatabaseHelper>,
                                    helper);
   NS_ENSURE_SUCCESS(rv, NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR);
 
@@ -1972,12 +1967,6 @@ OpenDatabaseHelper::Run()
 
     switch (mState) {
       case eSetVersionCompleted: {
-        // Allow transaction creation/other version change transactions to proceed
-        // before we fire events.  Other version changes will be postd to the end
-        // of the event loop, and will be behind whatever the page does in
-        // its error/success event handlers.
-        mDatabase->ExitSetVersionTransaction();
-
         mState = eFiringEvents;
         break;
       }
@@ -2031,6 +2020,8 @@ OpenDatabaseHelper::Run()
 
     return NS_OK;
   }
+
+  NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
   // If we're on the DB thread, do that
   NS_ASSERTION(mState == eDBWork, "Why are we here?");
@@ -2148,8 +2139,11 @@ OpenDatabaseHelper::NotifySetVersionFinished()
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread");
   NS_ASSERTION(mState = eSetVersionPending, "How did we get here?");
 
+  // Allow transaction creation to proceed.
+  mDatabase->ExitSetVersionTransaction();
+
   mState = eSetVersionCompleted;
-  
+
   // Dispatch ourself back to the main thread
   return NS_DispatchToCurrentThread(this);
 }
@@ -2306,7 +2300,17 @@ SetVersionHelper::CreateSuccessEvent()
 }
 
 nsresult
-SetVersionHelper::NotifyTransactionComplete(IDBTransaction* aTransaction)
+SetVersionHelper::NotifyTransactionPreComplete(IDBTransaction* aTransaction)
+{
+  NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
+  NS_ASSERTION(aTransaction, "This is unexpected.");
+  NS_ASSERTION(mOpenRequest, "Why don't we have a request?");
+
+  return mOpenHelper->NotifySetVersionFinished();
+}
+
+nsresult
+SetVersionHelper::NotifyTransactionPostComplete(IDBTransaction* aTransaction)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(aTransaction, "This is unexpected.");
@@ -2320,13 +2324,12 @@ SetVersionHelper::NotifyTransactionComplete(IDBTransaction* aTransaction)
 
   // If the transaction was aborted, we should throw an error message.
   if (aTransaction->IsAborted()) {
-    mOpenHelper->SetError(NS_ERROR_DOM_INDEXEDDB_ABORT_ERR);
+    mOpenHelper->SetError(aTransaction->GetAbortCode());
   }
 
   mOpenRequest->SetTransaction(nsnull);
   mOpenRequest = nsnull;
 
-  rv = mOpenHelper->NotifySetVersionFinished();
   mOpenHelper = nsnull;
 
   return rv;
@@ -2337,9 +2340,12 @@ DeleteDatabaseHelper::DoDatabaseWork(mozIStorageConnection* aConnection)
 {
   NS_ASSERTION(!aConnection, "How did we get a connection here?");
 
+  IndexedDatabaseManager* mgr = IndexedDatabaseManager::Get();
+  NS_ASSERTION(mgr, "This should never fail!");
+
   nsCOMPtr<nsIFile> directory;
-  nsresult rv = IDBFactory::GetDirectoryForOrigin(mASCIIOrigin,
-                                                  getter_AddRefs(directory));
+  nsresult rv = mgr->GetDirectoryForOrigin(mASCIIOrigin,
+                                           getter_AddRefs(directory));
   NS_ENSURE_SUCCESS(rv, NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR);
 
   NS_ASSERTION(directory, "What?");

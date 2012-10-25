@@ -1,40 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Instantbird messenging client, released
- * 2011.
- *
- * The Initial Developer of the Original Code is
- * Florian QUEZE <florian@instantbird.org>.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Romain Bezut <romain@bezut.info>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 Cu.import("resource:///modules/imXPCOMUtils.jsm");
@@ -256,8 +222,10 @@ imAccount.prototype = {
           this.prefBranch.prefHasUserValue(kPrefAccountAutoJoin)) {
         let autojoin = this.prefBranch.getCharPref(kPrefAccountAutoJoin);
         if (autojoin) {
-          for each (let room in autojoin.split(","))
-            this.joinChat(this.getChatRoomDefaultFieldValues(room));
+          for each (let room in autojoin.trim().split(/,\s*/)) {
+            if (room)
+              this.joinChat(this.getChatRoomDefaultFieldValues(room));
+          }
         }
       }
     }
@@ -306,8 +274,13 @@ imAccount.prototype = {
   timeOfNextReconnect: 0,
   _reconnectTimer: null,
   _startReconnectTimer: function() {
+    if (Services.io.offline) {
+      Cu.reportError("_startReconnectTimer called while offline");
+      return;
+    }
+
     /* If the last successful connection is older than 10 seconds, reset the
-     number of reconnection attemps. */
+       number of reconnection attemps. */
     const kTimeBeforeSuccessfulConnection = 10;
     if (this.timeOfLastConnect &&
         this.timeOfLastConnect + kTimeBeforeSuccessfulConnection * 1000 < Date.now()) {
@@ -546,7 +519,11 @@ imAccount.prototype = {
     let login = Cc["@mozilla.org/login-manager/loginInfo;1"]
                 .createInstance(Ci.nsILoginInfo);
     let passwordURI = "im://" + this.protocol.id;
-    login.init(passwordURI, null, passwordURI, this.normalizedName, "", "", "");
+    // The password is stored with the normalizedName. If the protocol
+    // plugin is missing, we can't access the normalizedName, but in
+    // lots of cases this.name is equivalent.
+    let name = this.prplAccount ? this.normalizedName : this.name;
+    login.init(passwordURI, null, passwordURI, name, "", "", "");
     let logins = LoginManager.findLogins({}, passwordURI, null, passwordURI);
     for each (let l in logins) {
       if (login.matches(l, true)) {
@@ -587,6 +564,9 @@ imAccount.prototype = {
     throw Cr.NS_ERROR_NOT_IMPLEMENTED;
   },
   connect: function() {
+    if (!this.prplAccount)
+      throw Cr.NS_ERROR_NOT_IMPLEMENTED;
+
     if (this._passwordRequired) {
       // If the previous connection attempt failed because we have a wrong password,
       // clear the passwor cache so that if there's no password in the password
@@ -618,12 +598,11 @@ imAccount.prototype = {
           // Disconnect or reconnect the account automatically, otherwise notify
           // the prplAccount instance.
           let statusType = aSubject.statusType;
-          if (statusType == Ci.imIStatusInfo.STATUS_OFFLINE &&
-              this.connected)
-            this.prplAccount.disconnect();
-          else if (statusType == Ci.imIStatusInfo.STATUS_OFFLINE &&
-                   this._reconnectTimer)
+          if (statusType == Ci.imIStatusInfo.STATUS_OFFLINE) {
+            if (this.connected || this.connecting)
+              this.prplAccount.disconnect();
             this.cancelReconnection();
+          }
           else if (statusType > Ci.imIStatusInfo.STATUS_OFFLINE &&
                    this.disconnected)
             this.prplAccount.connect();
@@ -635,14 +614,18 @@ imAccount.prototype = {
       this.statusInfo.addObserver(this._statusObserver);
     }
 
-    this._ensurePrplAccount.connect();
+    if (!Services.io.offline &&
+        this.statusInfo.statusType > Ci.imIStatusInfo.STATUS_OFFLINE &&
+        this.disconnected)
+      this.prplAccount.connect();
   },
   disconnect: function() {
     if (this._statusObserver) {
       this.statusInfo.removeObserver(this._statusObserver);
       delete this._statusObserver;
     }
-    this._ensurePrplAccount.disconnect();
+    if (!this.disconnected)
+      this._ensurePrplAccount.disconnect();
   },
 
   get disconnected() this.connectionState == Ci.imIAccount.STATE_DISCONNECTED,
@@ -808,12 +791,6 @@ AccountsService.prototype = {
       return;
     }
 
-    /* If the application was started offline, disable auto-login */
-    if (!Services.io.manageOfflineStatus && Services.io.offline) {
-      this.autoLoginStatus = Ci.imIAccountsService.AUTOLOGIN_START_OFFLINE;
-      return;
-    }
-
     /* Check if we crashed at the last startup during autologin */
     let autoLoginPending;
     if (prefs.getPrefType(kPrefAutologinPending) == prefs.PREF_INVALID ||
@@ -885,9 +862,6 @@ AccountsService.prototype = {
   },
 
   processAutoLogin: function() {
-    if (Services.io.offline)
-      throw Cr.NS_ERROR_FAILURE;
-
     for each (let account in this._accounts)
       account.checkAutoLogin();
 

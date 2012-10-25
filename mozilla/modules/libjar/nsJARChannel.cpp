@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org Code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Jeff Walden <jwalden+code@mit.edu>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsJAR.h"
 #include "nsJARChannel.h"
@@ -219,7 +186,8 @@ nsJARInputThunk::IsNonBlocking(bool *nonBlocking)
 
 
 nsJARChannel::nsJARChannel()
-    : mContentLength(-1)
+    : mAppURI(nsnull)
+    , mContentLength(-1)
     , mLoadFlags(LOAD_NORMAL)
     , mStatus(NS_OK)
     , mIsPending(false)
@@ -509,67 +477,21 @@ nsJARChannel::SetOriginalURI(nsIURI *aURI)
 NS_IMETHODIMP
 nsJARChannel::GetURI(nsIURI **aURI)
 {
-    NS_IF_ADDREF(*aURI = mJarURI);
+    if (mAppURI) {
+        NS_IF_ADDREF(*aURI = mAppURI);
+    } else {
+        NS_IF_ADDREF(*aURI = mJarURI);
+    }
+
     return NS_OK;
 }
 
 NS_IMETHODIMP
-nsJARChannel::GetOwner(nsISupports **result)
+nsJARChannel::GetOwner(nsISupports **aOwner)
 {
-    nsresult rv;
-
-    if (mOwner) {
-        NS_ADDREF(*result = mOwner);
-        return NS_OK;
-    }
-
-    if (!mJarInput) {
-        *result = nsnull;
-        return NS_OK;
-    }
-
-    //-- Verify signature, if one is present, and set owner accordingly
-    nsCOMPtr<nsIZipReader> jarReader;
-    mJarInput->GetJarReader(getter_AddRefs(jarReader));
-    if (!jarReader)
-        return NS_ERROR_NOT_INITIALIZED;
-
-    nsCOMPtr<nsIPrincipal> cert;
-    rv = jarReader->GetCertificatePrincipal(mJarEntry, getter_AddRefs(cert));
-    if (NS_FAILED(rv)) return rv;
-
-    if (cert) {
-        nsCAutoString certFingerprint;
-        rv = cert->GetFingerprint(certFingerprint);
-        if (NS_FAILED(rv)) return rv;
-
-        nsCAutoString subjectName;
-        rv = cert->GetSubjectName(subjectName);
-        if (NS_FAILED(rv)) return rv;
-
-        nsCAutoString prettyName;
-        rv = cert->GetPrettyName(prettyName);
-        if (NS_FAILED(rv)) return rv;
-
-        nsCOMPtr<nsISupports> certificate;
-        rv = cert->GetCertificate(getter_AddRefs(certificate));
-        if (NS_FAILED(rv)) return rv;
-        
-        nsCOMPtr<nsIScriptSecurityManager> secMan = 
-                 do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID, &rv);
-        if (NS_FAILED(rv)) return rv;
-
-        rv = secMan->GetCertificatePrincipal(certFingerprint, subjectName,
-                                             prettyName, certificate,
-                                             mJarBaseURI,
-                                             getter_AddRefs(cert));
-        if (NS_FAILED(rv)) return rv;
-
-        mOwner = do_QueryInterface(cert, &rv);
-        if (NS_FAILED(rv)) return rv;
-
-        NS_ADDREF(*result = mOwner);
-    }
+    // JAR signatures are not processed to avoid main-thread network I/O (bug 726125)
+    *aOwner = mOwner;
+    NS_IF_ADDREF(*aOwner);
     return NS_OK;
 }
 
@@ -788,6 +710,20 @@ NS_IMETHODIMP
 nsJARChannel::GetIsUnsafe(bool *isUnsafe)
 {
     *isUnsafe = mIsUnsafe;
+    return NS_OK;
+}
+
+NS_IMETHODIMP
+nsJARChannel::SetAppURI(nsIURI *aURI) {
+    NS_ENSURE_ARG_POINTER(aURI);
+
+    nsCAutoString scheme;
+    aURI->GetScheme(scheme);
+    if (!scheme.EqualsLiteral("app")) {
+        return NS_ERROR_INVALID_ARG;
+    }
+
+    mAppURI = aURI;
     return NS_OK;
 }
 

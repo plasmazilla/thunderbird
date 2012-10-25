@@ -1,42 +1,9 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  * vim: set ts=8 sw=4 et tw=99:
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code, released
- * March 31, 1998.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998-2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef ParseNode_h__
 #define ParseNode_h__
@@ -47,6 +14,7 @@
 
 #include "frontend/ParseMaps.h"
 #include "frontend/TokenStream.h"
+#include "frontend/TreeContext.h"
 
 namespace js {
 
@@ -60,38 +28,33 @@ namespace js {
  */
 class UpvarCookie
 {
-    uint32_t value;
-
-    static const uint32_t FREE_VALUE = 0xfffffffful;
+    uint16_t level_;
+    uint16_t slot_;
 
     void checkInvariants() {
         JS_STATIC_ASSERT(sizeof(UpvarCookie) == sizeof(uint32_t));
-        JS_STATIC_ASSERT(UPVAR_LEVEL_LIMIT < FREE_LEVEL);
     }
 
   public:
-    /*
-     * All levels above-and-including FREE_LEVEL are reserved so that
-     * FREE_VALUE can be used as a special value.
-     */
-    static const uint16_t FREE_LEVEL = 0x3fff;
+    // FREE_LEVEL is a distinguished value used to indicate the cookie is free.
+    static const uint16_t FREE_LEVEL = 0xffff;
 
-    /*
-     * If a function has a higher static level than this limit, we will not
-     * optimize it using UPVAR opcodes.
-     */
-    static const uint16_t UPVAR_LEVEL_LIMIT = 16;
     static const uint16_t CALLEE_SLOT = 0xffff;
-    static bool isLevelReserved(uint16_t level) { return level >= FREE_LEVEL; }
 
-    bool isFree() const { return value == FREE_VALUE; }
-    /* isFree check should be performed before using these accessors. */
-    uint16_t level() const { JS_ASSERT(!isFree()); return uint16_t(value >> 16); }
-    uint16_t slot() const { JS_ASSERT(!isFree()); return uint16_t(value); }
+    static bool isLevelReserved(uint16_t level) { return level == FREE_LEVEL; }
 
-    void set(const UpvarCookie &other) { set(other.level(), other.slot()); }
-    void set(uint16_t newLevel, uint16_t newSlot) { value = (uint32_t(newLevel) << 16) | newSlot; }
-    void makeFree() { set(0xffff, 0xffff); JS_ASSERT(isFree()); }
+    bool isFree() const { return level_ == FREE_LEVEL; }
+    uint16_t level() const { JS_ASSERT(!isFree()); return level_; }
+    uint16_t slot()  const { JS_ASSERT(!isFree()); return slot_; }
+
+    // This fails and issues an error message if newLevel is too large.
+    bool set(JSContext *cx, unsigned newLevel, uint16_t newSlot);
+
+    void makeFree() {
+        level_ = FREE_LEVEL;
+        slot_ = 0;      // value doesn't matter, won't be used
+        JS_ASSERT(isFree());
+    }
 };
 
 /*
@@ -196,6 +159,7 @@ enum ParseNodeKind {
     PNK_FORHEAD,
     PNK_ARGSBODY,
     PNK_UPVARS,
+    PNK_SPREAD,
 
     /*
      * The following parse node kinds occupy contiguous ranges to enable easy
@@ -272,6 +236,7 @@ enum ParseNodeKind {
  *                            defined (free variables, either global property
  *                            references or reference errors).
  *                          pn_tree: PNK_ARGSBODY or PNK_STATEMENTLIST node
+ * PNK_SPREAD   unary       pn_kid: expression being spread
  *
  * <Statements>
  * PNK_STATEMENTLIST list   pn_head: list of pn_count statements
@@ -612,9 +577,7 @@ struct ParseNode {
     TokenPos            pn_pos;         /* two 16-bit pairs here, for 64 bits */
     int32_t             pn_offset;      /* first generated bytecode offset */
     ParseNode           *pn_next;       /* intrinsic link in parent PN_LIST */
-    ParseNode           *pn_link;       /* def/use link (alignment freebie);
-                                           also links FunctionBox::methods
-                                           lists of would-be |this| methods */
+    ParseNode           *pn_link;       /* def/use link (alignment freebie) */
 
     union {
         struct {                        /* list of next-linked nodes */
@@ -637,7 +600,7 @@ struct ParseNode {
         } binary;
         struct {                        /* one kid if unary */
             ParseNode   *kid;
-            JSBool      hidden;         /* hidden genexp-induced JSOP_YIELD
+            bool        hidden;         /* hidden genexp-induced JSOP_YIELD
                                            or directive prologue member (as
                                            pn_prologue) */
         } unary;
@@ -648,8 +611,8 @@ struct ParseNode {
                 ObjectBox     *objbox;  /* block or regexp object */
             };
             union {
-                ParseNode    *expr;     /* function body, var initializer, or
-                                           base object of PNK_DOT */
+                ParseNode    *expr;     /* function body, var initializer, argument default,
+                                           or base object of PNK_DOT */
                 Definition   *lexdef;   /* lexical definition for this use */
             };
             UpvarCookie cookie;         /* upvar cookie with absolute frame
@@ -715,7 +678,7 @@ struct ParseNode {
         pn_next = pn_link = NULL;
     }
 
-    static ParseNode *create(ParseNodeKind kind, ParseNodeArity arity, TreeContext *tc);
+    static ParseNode *create(ParseNodeKind kind, ParseNodeArity arity, Parser *parser);
 
   public:
     /*
@@ -732,7 +695,7 @@ struct ParseNode {
      */
     static ParseNode *
     newBinaryOrAppend(ParseNodeKind kind, JSOp op, ParseNode *left, ParseNode *right,
-                      TreeContext *tc);
+                      Parser *parser);
 
     inline PropertyName *atom() const;
 
@@ -766,14 +729,17 @@ struct ParseNode {
 #define PND_ASSIGNED    0x08            /* set if ever LHS of assignment */
 #define PND_TOPLEVEL    0x10            /* see isTopLevel() below */
 #define PND_BLOCKCHILD  0x20            /* use or def is direct block child */
-#define PND_GVAR        0x40            /* gvar binding, can't close over
-                                           because it could be deleted */
-#define PND_PLACEHOLDER 0x80            /* placeholder definition for lexdep */
-#define PND_BOUND      0x100            /* bound to a stack or global slot */
-#define PND_DEOPTIMIZED 0x200           /* former pn_used name node, pn_lexdef
+#define PND_PLACEHOLDER 0x40            /* placeholder definition for lexdep */
+#define PND_BOUND       0x80            /* bound to a stack or global slot */
+#define PND_DEOPTIMIZED 0x100           /* former pn_used name node, pn_lexdef
                                            still valid, but this use no longer
                                            optimizable via an upvar opcode */
-#define PND_CLOSED      0x400           /* variable is closed over */
+#define PND_CLOSED      0x200           /* variable is closed over */
+#define PND_DEFAULT     0x400           /* definition is an arg with a default */
+#define PND_IMPLICITARGUMENTS 0x800     /* the definition is a placeholder for
+                                           'arguments' that has been converted
+                                           into a definition after the function
+                                           body has been parsed. */
 
 /* Flags to propagate from uses to definition. */
 #define PND_USE2DEF_FLAGS (PND_ASSIGNED | PND_CLOSED)
@@ -820,6 +786,7 @@ struct ParseNode {
     bool isDeoptimized() const  { return test(PND_DEOPTIMIZED); }
     bool isAssigned() const     { return test(PND_ASSIGNED); }
     bool isClosed() const       { return test(PND_CLOSED); }
+    bool isImplicitArguments() const { return test(PND_IMPLICITARGUMENTS); }
 
     /*
      * True iff this definition creates a top-level binding in the overall
@@ -845,48 +812,6 @@ struct ParseNode {
                isKind(PNK_TRUE) ||
                isKind(PNK_FALSE) ||
                isKind(PNK_NULL);
-    }
-
-    /*
-     * True if this statement node could be a member of a Directive Prologue: an
-     * expression statement consisting of a single string literal.
-     *
-     * This considers only the node and its children, not its context. After
-     * parsing, check the node's pn_prologue flag to see if it is indeed part of
-     * a directive prologue.
-     *
-     * Note that a Directive Prologue can contain statements that cannot
-     * themselves be directives (string literals that include escape sequences
-     * or escaped newlines, say). This member function returns true for such
-     * nodes; we use it to determine the extent of the prologue.
-     * isEscapeFreeStringLiteral, below, checks whether the node itself could be
-     * a directive.
-     */
-    bool isStringExprStatement() const {
-        if (getKind() == PNK_SEMI) {
-            JS_ASSERT(pn_arity == PN_UNARY);
-            ParseNode *kid = pn_kid;
-            return kid && kid->getKind() == PNK_STRING && !kid->pn_parens;
-        }
-        return false;
-    }
-
-    /*
-     * Return true if this node, known to be an unparenthesized string literal,
-     * could be the string of a directive in a Directive Prologue. Directive
-     * strings never contain escape sequences or line continuations.
-     */
-    bool isEscapeFreeStringLiteral() const {
-        JS_ASSERT(isKind(PNK_STRING) && !pn_parens);
-
-        /*
-         * If the string's length in the source code is its length as a value,
-         * accounting for the quotes, then it must not contain any escape
-         * sequences or line continuations.
-         */
-        JSString *str = pn_atom;
-        return (pn_pos.begin.lineno == pn_pos.end.lineno &&
-                pn_pos.begin.index + str->length() + 2 == pn_pos.end.index);
     }
 
     /* Return true if this node appears in a Directive Prologue. */
@@ -961,6 +886,12 @@ struct ParseNode {
         pn_count++;
     }
 
+    void checkListConsistency()
+#ifndef DEBUG
+    {}
+#endif
+    ;
+
     bool getConstantValue(JSContext *cx, bool strictChecks, Value *vp);
     inline bool isConstant();
 
@@ -979,8 +910,8 @@ struct ParseNode {
 };
 
 struct NullaryNode : public ParseNode {
-    static inline NullaryNode *create(ParseNodeKind kind, TreeContext *tc) {
-        return (NullaryNode *)ParseNode::create(kind, PN_NULLARY, tc);
+    static inline NullaryNode *create(ParseNodeKind kind, Parser *parser) {
+        return (NullaryNode *)ParseNode::create(kind, PN_NULLARY, parser);
     }
 
 #ifdef DEBUG
@@ -995,8 +926,8 @@ struct UnaryNode : public ParseNode {
         pn_kid = kid;
     }
 
-    static inline UnaryNode *create(ParseNodeKind kind, TreeContext *tc) {
-        return (UnaryNode *)ParseNode::create(kind, PN_UNARY, tc);
+    static inline UnaryNode *create(ParseNodeKind kind, Parser *parser) {
+        return (UnaryNode *)ParseNode::create(kind, PN_UNARY, parser);
     }
 
 #ifdef DEBUG
@@ -1019,8 +950,8 @@ struct BinaryNode : public ParseNode {
         pn_right = right;
     }
 
-    static inline BinaryNode *create(ParseNodeKind kind, TreeContext *tc) {
-        return (BinaryNode *)ParseNode::create(kind, PN_BINARY, tc);
+    static inline BinaryNode *create(ParseNodeKind kind, Parser *parser) {
+        return (BinaryNode *)ParseNode::create(kind, PN_BINARY, parser);
     }
 
 #ifdef DEBUG
@@ -1039,8 +970,8 @@ struct TernaryNode : public ParseNode {
         pn_kid3 = kid3;
     }
 
-    static inline TernaryNode *create(ParseNodeKind kind, TreeContext *tc) {
-        return (TernaryNode *)ParseNode::create(kind, PN_TERNARY, tc);
+    static inline TernaryNode *create(ParseNodeKind kind, Parser *parser) {
+        return (TernaryNode *)ParseNode::create(kind, PN_TERNARY, parser);
     }
 
 #ifdef DEBUG
@@ -1049,8 +980,8 @@ struct TernaryNode : public ParseNode {
 };
 
 struct ListNode : public ParseNode {
-    static inline ListNode *create(ParseNodeKind kind, TreeContext *tc) {
-        return (ListNode *)ParseNode::create(kind, PN_LIST, tc);
+    static inline ListNode *create(ParseNodeKind kind, Parser *parser) {
+        return (ListNode *)ParseNode::create(kind, PN_LIST, parser);
     }
 
 #ifdef DEBUG
@@ -1059,8 +990,8 @@ struct ListNode : public ParseNode {
 };
 
 struct FunctionNode : public ParseNode {
-    static inline FunctionNode *create(ParseNodeKind kind, TreeContext *tc) {
-        return (FunctionNode *)ParseNode::create(kind, PN_FUNC, tc);
+    static inline FunctionNode *create(ParseNodeKind kind, Parser *parser) {
+        return (FunctionNode *)ParseNode::create(kind, PN_FUNC, parser);
     }
 
 #ifdef DEBUG
@@ -1069,7 +1000,7 @@ struct FunctionNode : public ParseNode {
 };
 
 struct NameNode : public ParseNode {
-    static NameNode *create(ParseNodeKind kind, JSAtom *atom, TreeContext *tc);
+    static NameNode *create(ParseNodeKind kind, JSAtom *atom, Parser *parser, TreeContext *tc);
 
     inline void initCommon(TreeContext *tc);
 
@@ -1079,14 +1010,14 @@ struct NameNode : public ParseNode {
 };
 
 struct NameSetNode : public ParseNode {
-    static inline NameSetNode *create(ParseNodeKind kind, TreeContext *tc) {
-        return (NameSetNode *)ParseNode::create(kind, PN_NAMESET, tc);
+    static inline NameSetNode *create(ParseNodeKind kind, Parser *parser) {
+        return (NameSetNode *)ParseNode::create(kind, PN_NAMESET, parser);
     }
 };
 
 struct LexicalScopeNode : public ParseNode {
-    static inline LexicalScopeNode *create(ParseNodeKind kind, TreeContext *tc) {
-        return (LexicalScopeNode *)ParseNode::create(kind, PN_NAME, tc);
+    static inline LexicalScopeNode *create(ParseNodeKind kind, Parser *parser) {
+        return (LexicalScopeNode *)ParseNode::create(kind, PN_NAME, parser);
     }
 };
 
@@ -1327,7 +1258,7 @@ class PropertyByValue : public ParseNode {
 };
 
 ParseNode *
-CloneLeftHandSide(ParseNode *opn, TreeContext *tc);
+CloneLeftHandSide(ParseNode *opn, Parser *parser);
 
 #ifdef DEBUG
 void DumpParseTree(ParseNode *pn, int indent = 0);
@@ -1437,17 +1368,12 @@ struct Definition : public ParseNode
 {
     bool isFreeVar() const {
         JS_ASSERT(isDefn());
-        return pn_cookie.isFree() || test(PND_GVAR);
-    }
-
-    bool isGlobal() const {
-        JS_ASSERT(isDefn());
-        return test(PND_GVAR);
+        return pn_cookie.isFree();
     }
 
     enum Kind { VAR, CONST, LET, FUNCTION, ARG, UNKNOWN };
 
-    bool isBindingForm() { return int(kind()) <= int(LET); }
+    bool canHaveInitializer() { return int(kind()) <= int(LET) || kind() == ARG; }
 
     static const char *kindString(Kind kind);
 
@@ -1520,7 +1446,7 @@ ParseNode::resolve()
 }
 
 inline void
-LinkUseToDef(ParseNode *pn, Definition *dn, TreeContext *tc)
+LinkUseToDef(ParseNode *pn, Definition *dn)
 {
     JS_ASSERT(!pn->isUsed());
     JS_ASSERT(!pn->isDefn());
@@ -1537,26 +1463,35 @@ struct ObjectBox {
     ObjectBox           *emitLink;
     JSObject            *object;
     bool                isFunctionBox;
-};
 
-#define JSFB_LEVEL_BITS 14
+    ObjectBox(ObjectBox *traceLink, JSObject *obj);
+};
 
 struct FunctionBox : public ObjectBox
 {
-    ParseNode           *node;
-    FunctionBox         *siblings;
-    FunctionBox         *kids;
-    FunctionBox         *parent;
-    ParseNode           *methods;               /* would-be methods set on this;
-                                                   these nodes are linked via
-                                                   pn_link, since lambdas are
-                                                   neither definitions nor uses
-                                                   of a binding */
-    Bindings            bindings;               /* bindings for this function */
-    uint32_t            queued:1,
-                        inLoop:1,               /* in a loop in parent function */
-                        level:JSFB_LEVEL_BITS;
-    uint32_t            tcflags;
+    ParseNode       *node;
+    FunctionBox     *siblings;
+    FunctionBox     *kids;
+    FunctionBox     *parent;
+    Bindings        bindings;               /* bindings for this function */
+    uint16_t        level;
+    uint16_t        ndefaults;
+    StrictMode::StrictModeState strictModeState;
+    bool            inLoop:1;               /* in a loop in parent function */
+    bool            inWith:1;               /* some enclosing scope is a with-statement
+                                               or E4X filter-expression */
+    bool            inGenexpLambda:1;       /* lambda from generator expression */
+
+    ContextFlags    cxFlags;
+
+    FunctionBox(ObjectBox* traceListHead, JSObject *obj, ParseNode *fn, TreeContext *tc,
+                StrictMode::StrictModeState sms);
+
+    bool funIsHeavyweight()      const { return cxFlags.funIsHeavyweight; }
+    bool funIsGenerator()        const { return cxFlags.funIsGenerator; }
+    bool funHasExtensibleScope() const { return cxFlags.funHasExtensibleScope; }
+
+    void setFunIsHeavyweight()         { cxFlags.funIsHeavyweight = true; }
 
     JSFunction *function() const { return (JSFunction *) object; }
 
@@ -1566,48 +1501,7 @@ struct FunctionBox : public ObjectBox
      */
     bool inAnyDynamicScope() const;
 
-    /* 
-     * Must this function's descendants be marked as having an extensible
-     * ancestor?
-     */
-    bool scopeIsExtensible() const;
-};
-
-struct FunctionBoxQueue {
-    FunctionBox         **vector;
-    size_t              head, tail;
-    size_t              lengthMask;
-
-    size_t count()  { return head - tail; }
-    size_t length() { return lengthMask + 1; }
-
-    FunctionBoxQueue()
-      : vector(NULL), head(0), tail(0), lengthMask(0) { }
-
-    bool init(uint32_t count) {
-        lengthMask = JS_BITMASK(JS_CEILING_LOG2W(count));
-        vector = (FunctionBox **) OffTheBooks::malloc_(sizeof(FunctionBox) * length());
-        return !!vector;
-    }
-
-    ~FunctionBoxQueue() { UnwantedForeground::free_(vector); }
-
-    void push(FunctionBox *funbox) {
-        if (!funbox->queued) {
-            JS_ASSERT(count() < length());
-            vector[head++ & lengthMask] = funbox;
-            funbox->queued = true;
-        }
-    }
-
-    FunctionBox *pull() {
-        if (tail == head)
-            return NULL;
-        JS_ASSERT(tail < head);
-        FunctionBox *funbox = vector[tail++ & lengthMask];
-        funbox->queued = false;
-        return funbox;
-    }
+    void recursivelySetStrictMode(StrictMode::StrictModeState strictness);
 };
 
 } /* namespace js */

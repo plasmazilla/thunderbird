@@ -1,41 +1,8 @@
 /* -*- Mode: c++; c-basic-offset: 4; tab-width: 40; indent-tabs-mode: nil -*- */
 /* vim: set ts=40 sw=4 et tw=99: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla SpiderMonkey bytecode analysis
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Brian Hackett <bhackett@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "jsanalyze.h"
 #include "jsautooplen.h"
@@ -156,7 +123,7 @@ ScriptAnalysis::analyzeBytecode(JSContext *cx)
     PodZero(escapedSlots, numSlots);
 
     if (script->bindingsAccessedDynamically || script->compartment()->debugMode() ||
-        script->argumentsHasLocalBinding())
+        script->argumentsHasVarBinding())
     {
         for (unsigned i = 0; i < nargs; i++)
             escapedSlots[ArgSlot(i)] = true;
@@ -188,11 +155,11 @@ ScriptAnalysis::analyzeBytecode(JSContext *cx)
 
     bool heavyweight = script->function() && script->function()->isHeavyweight();
 
-    isCompileable = true;
+    isJaegerCompileable = true;
 
     isInlineable = true;
     if (script->numClosedArgs() || script->numClosedVars() || heavyweight ||
-        script->bindingsAccessedDynamically || script->argumentsHasLocalBinding() ||
+        script->bindingsAccessedDynamically || script->argumentsHasVarBinding() ||
         cx->compartment->debugMode())
     {
         isInlineable = false;
@@ -340,7 +307,8 @@ ScriptAnalysis::analyzeBytecode(JSContext *cx)
 
           case JSOP_QNAMEPART:
           case JSOP_QNAMECONST:
-            isCompileable = false;
+            isJaegerCompileable = false;
+            /* FALL THROUGH */
           case JSOP_NAME:
           case JSOP_CALLNAME:
           case JSOP_BINDNAME:
@@ -352,37 +320,31 @@ ScriptAnalysis::analyzeBytecode(JSContext *cx)
 
           case JSOP_GETALIASEDVAR:
           case JSOP_CALLALIASEDVAR:
-          case JSOP_SETALIASEDVAR:
+          case JSOP_SETALIASEDVAR: {
             JS_ASSERT(!isInlineable);
             usesScopeChain_ = true;
-            /* XXX: this can be removed after bug 659577. */
-            if (ScopeCoordinate(pc).binding >= script->nfixed)
-                localsAliasStack_ = true;
             break;
+          }
 
           case JSOP_DEFFUN:
           case JSOP_DEFVAR:
           case JSOP_DEFCONST:
           case JSOP_SETCONST:
-            extendsScope_ = true;
             isInlineable = canTrackVars = false;
             break;
 
           case JSOP_EVAL:
-            extendsScope_ = true;
             isInlineable = canTrackVars = false;
             break;
 
           case JSOP_ENTERWITH:
-            addsScopeObjects_ = true;
-            isCompileable = isInlineable = canTrackVars = false;
+            isJaegerCompileable = isInlineable = canTrackVars = false;
             break;
 
           case JSOP_ENTERLET0:
           case JSOP_ENTERLET1:
           case JSOP_ENTERBLOCK:
           case JSOP_LEAVEBLOCK:
-            addsScopeObjects_ = true;
             isInlineable = false;
             break;
 
@@ -621,11 +583,12 @@ ScriptAnalysis::analyzeBytecode(JSContext *cx)
           case JSOP_HOLE:
           case JSOP_LOOPHEAD:
           case JSOP_LOOPENTRY:
+          case JSOP_ACTUALSFILLED:
             break;
 
           default:
             if (!(js_CodeSpec[op].format & JOF_DECOMPOSE))
-                isCompileable = isInlineable = false;
+                isJaegerCompileable = isInlineable = false;
             break;
         }
 
@@ -977,7 +940,7 @@ ScriptAnalysis::analyzeLifetimes(JSContext *cx)
     ranLifetimes_ = true;
 }
 
-#ifdef DEBUG
+#ifdef JS_METHODJIT_SPEW
 void
 LifetimeVariable::print() const
 {
@@ -1500,6 +1463,11 @@ ScriptAnalysis::analyzeSSA(JSContext *cx)
             stack[stackDepth - 1].v = code->poppedValues[1];
             break;
 
+          case JSOP_SPREAD:
+          case JSOP_INITELEM_INC:
+            stack[stackDepth - 2].v = code->poppedValues[2];
+            break;
+
           case JSOP_INITELEM:
             stack[stackDepth - 1].v = code->poppedValues[2];
             break;
@@ -1565,7 +1533,7 @@ ScriptAnalysis::analyzeSSA(JSContext *cx)
             break;
           }
 
-          case JSOP_TRY: { 
+          case JSOP_TRY: {
             JSTryNote *tn = script->trynotes()->vector;
             JSTryNote *tnlimit = tn + script->trynotes()->length;
             for (; tn < tnlimit; tn++) {
@@ -1899,18 +1867,8 @@ ScriptAnalysis::freezeNewValues(JSContext *cx, uint32_t offset)
     cx->delete_(pending);
 }
 
-struct NeedsArgsObjState
-{
-    JSContext *cx;
-    Vector<SSAValue, 16> seen;
-    bool canOptimizeApply;
-    bool haveOptimizedApply;
-    NeedsArgsObjState(JSContext *cx)
-      : cx(cx), seen(cx), canOptimizeApply(true), haveOptimizedApply(false) {}
-};
-
 bool
-ScriptAnalysis::needsArgsObj(NeedsArgsObjState &state, const SSAValue &v)
+ScriptAnalysis::needsArgsObj(JSContext *cx, SeenVector &seen, const SSAValue &v)
 {
     /*
      * trackUseChain is false for initial values of variables, which
@@ -1919,18 +1877,18 @@ ScriptAnalysis::needsArgsObj(NeedsArgsObjState &state, const SSAValue &v)
     if (!trackUseChain(v))
         return false;
 
-    for (unsigned i = 0; i < state.seen.length(); i++) {
-        if (v == state.seen[i])
+    for (unsigned i = 0; i < seen.length(); i++) {
+        if (v == seen[i])
             return false;
     }
-    if (!state.seen.append(v)) {
-        state.cx->compartment->types.setPendingNukeTypes(state.cx);
+    if (!seen.append(v)) {
+        cx->compartment->types.setPendingNukeTypes(cx);
         return true;
     }
 
     SSAUseChain *use = useChain(v);
     while (use) {
-        if (needsArgsObj(state, use))
+        if (needsArgsObj(cx, seen, use))
             return true;
         use = use->next;
     }
@@ -1939,10 +1897,10 @@ ScriptAnalysis::needsArgsObj(NeedsArgsObjState &state, const SSAValue &v)
 }
 
 bool
-ScriptAnalysis::needsArgsObj(NeedsArgsObjState &state, SSAUseChain *use)
+ScriptAnalysis::needsArgsObj(JSContext *cx, SeenVector &seen, SSAUseChain *use)
 {
     if (!use->popped)
-        return needsArgsObj(state, SSAValue::PhiValue(use->offset, use->u.phi));
+        return needsArgsObj(cx, seen, SSAValue::PhiValue(use->offset, use->u.phi));
 
     jsbytecode *pc = script->code + use->offset;
     JSOp op = JSOp(*pc);
@@ -1950,27 +1908,21 @@ ScriptAnalysis::needsArgsObj(NeedsArgsObjState &state, SSAUseChain *use)
     if (op == JSOP_POP || op == JSOP_POPN)
         return false;
 
-#ifdef JS_METHODJIT
     /* SplatApplyArgs can read fp->canonicalActualArg(i) directly. */
-    if (state.canOptimizeApply && op == JSOP_FUNAPPLY && GET_ARGC(pc) == 2 && use->u.which == 0) {
+    if (op == JSOP_FUNAPPLY && GET_ARGC(pc) == 2 && use->u.which == 0) {
+#ifdef JS_METHODJIT
         JS_ASSERT(mjit::IsLowerableFunCallOrApply(pc));
-        state.haveOptimizedApply = true;
-        state.canOptimizeApply = false;
+#endif
         return false;
     }
-#endif
 
     /* arguments[i] can read fp->canonicalActualArg(i) directly. */
-    if (!state.haveOptimizedApply && op == JSOP_GETELEM && use->u.which == 1) {
-        state.canOptimizeApply = false;
+    if (op == JSOP_GETELEM && use->u.which == 1)
         return false;
-    }
 
     /* arguments.length length can read fp->numActualArgs() directly. */
-    if (!state.haveOptimizedApply && op == JSOP_LENGTH) {
-        state.canOptimizeApply = false;
+    if (op == JSOP_LENGTH)
         return false;
-    }
 
     /* Allow assignments to non-closed locals (but not arguments). */
 
@@ -1978,12 +1930,12 @@ ScriptAnalysis::needsArgsObj(NeedsArgsObjState &state, SSAUseChain *use)
         uint32_t slot = GetBytecodeSlot(script, pc);
         if (!trackSlot(slot))
             return true;
-        return needsArgsObj(state, SSAValue::PushedValue(use->offset, 0)) ||
-               needsArgsObj(state, SSAValue::WrittenVar(slot, use->offset));
+        return needsArgsObj(cx, seen, SSAValue::PushedValue(use->offset, 0)) ||
+               needsArgsObj(cx, seen, SSAValue::WrittenVar(slot, use->offset));
     }
 
     if (op == JSOP_GETLOCAL)
-        return needsArgsObj(state, SSAValue::PushedValue(use->offset, 0));
+        return needsArgsObj(cx, seen, SSAValue::PushedValue(use->offset, 0));
 
     return true;
 }
@@ -1991,20 +1943,24 @@ ScriptAnalysis::needsArgsObj(NeedsArgsObjState &state, SSAUseChain *use)
 bool
 ScriptAnalysis::needsArgsObj(JSContext *cx)
 {
-    JS_ASSERT(script->argumentsHasLocalBinding());
+    JS_ASSERT(script->argumentsHasVarBinding());
 
     /*
      * Since let variables and dynamic name access are not tracked, we cannot
-     * soundly perform this analysis in their presence. Also, debuggers may
-     * want to see 'arguments', so assume every arguments object escapes.
+     * soundly perform this analysis in their presence. Debuggers may want to
+     * see 'arguments', so assume every arguments object escapes. Generators
+     * can be suspended when the speculation fails, so disallow it also.
      */
-    if (script->bindingsAccessedDynamically || localsAliasStack() || cx->compartment->debugMode())
+    if (script->bindingsAccessedDynamically || script->numClosedArgs() > 0 ||
+        localsAliasStack() || cx->compartment->debugMode() || script->isGenerator)
+    {
         return true;
+    }
 
     unsigned pcOff = script->argumentsBytecode() - script->code;
 
-    NeedsArgsObjState state(cx);
-    return needsArgsObj(state, SSAValue::PushedValue(pcOff, 0));
+    SeenVector seen(cx);
+    return needsArgsObj(cx, seen, SSAValue::PushedValue(pcOff, 0));
 }
 
 CrossSSAValue
@@ -2137,7 +2093,7 @@ ScriptAnalysis::printSSA(JSContext *cx)
         }
     }
 
-    printf("\n"); 
+    printf("\n");
 }
 
 void

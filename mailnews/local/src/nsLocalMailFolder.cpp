@@ -1,50 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   jefft@netscape.com
- *   putterman@netscape.com
- *   bienvenu@nventure.com
- *   warren@netscape.com
- *   alecf@netscape.com
- *   sspitzer@netscape.com
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Howard Chu <hyc@highlandsun.com>
- *   William Bonnet <wbonnet@on-x.com>
- *   Siddharth Agarwal <sid1337@gmail.com>
- *   Andrew Sutherland <asutherland@asutherland.org>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
@@ -268,7 +225,7 @@ nsMsgLocalMailFolder::GetSubFolders(nsISimpleEnumerator **aResult)
     // This should add all existing folders as sub-folders of this folder.
     rv = msgStore->DiscoverSubFolders(this, true);
 
-    nsCOMPtr<nsILocalFile> path;
+    nsCOMPtr<nsIFile> path;
     rv = GetFilePath(getter_AddRefs(path));
     if (NS_FAILED(rv))
       return rv;
@@ -333,6 +290,8 @@ NS_IMETHODIMP nsMsgLocalMailFolder::GetDatabaseWOReparse(nsIMsgDatabase **aDatab
     }
   }
   NS_IF_ADDREF(*aDatabase = mDatabase);
+  if (mDatabase)
+    mDatabase->SetLastUseTime(PR_Now());
   return rv;
 }
 
@@ -355,7 +314,7 @@ NS_IMETHODIMP nsMsgLocalMailFolder::GetDatabaseWithReparse(nsIUrlListener *aRepa
 
   if (!mDatabase)
   {
-    nsCOMPtr <nsILocalFile> pathFile;
+    nsCOMPtr <nsIFile> pathFile;
     rv = GetFilePath(getter_AddRefs(pathFile));
     if (NS_FAILED(rv))
       return rv;
@@ -403,7 +362,7 @@ NS_IMETHODIMP nsMsgLocalMailFolder::GetDatabaseWithReparse(nsIUrlListener *aRepa
 
         mDatabase = nsnull;
       }
-      nsCOMPtr <nsILocalFile> summaryFile;
+      nsCOMPtr <nsIFile> summaryFile;
       rv = GetSummaryFileLocation(pathFile, getter_AddRefs(summaryFile));
       NS_ENSURE_SUCCESS(rv, rv);
       // Remove summary file.
@@ -511,7 +470,7 @@ nsMsgLocalMailFolder::GetMessages(nsISimpleEnumerator **result)
 NS_IMETHODIMP nsMsgLocalMailFolder::GetFolderURL(nsACString& aUrl)
 {
   nsresult rv;
-  nsCOMPtr<nsILocalFile> path;
+  nsCOMPtr<nsIFile> path;
   rv = GetFilePath(getter_AddRefs(path));
   if (NS_FAILED(rv))
     return rv;
@@ -813,7 +772,7 @@ NS_IMETHODIMP nsMsgLocalMailFolder::Delete()
   rv = server->GetMsgStore(getter_AddRefs(msgStore));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr <nsILocalFile> summaryFile;
+  nsCOMPtr <nsIFile> summaryFile;
   rv = msgStore->GetSummaryFile(this, getter_AddRefs(summaryFile));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -1057,7 +1016,7 @@ nsresult nsMsgLocalMailFolder::OpenDatabase()
   NS_ENSURE_SUCCESS(rv, rv);
 
   bool folderEmpty = false;
-  nsCOMPtr <nsILocalFile> file;
+  nsCOMPtr <nsIFile> file;
   rv = GetFilePath(getter_AddRefs(file));
 
   rv = msgDBService->OpenFolderDB(this, true, getter_AddRefs(mDatabase));
@@ -1179,7 +1138,7 @@ NS_IMETHODIMP nsMsgLocalMailFolder::GetSizeOnDisk(PRUint32* aSize)
   nsresult rv = NS_OK;
   if (!mFolderSize)
   {
-    nsCOMPtr <nsILocalFile> file;
+    nsCOMPtr <nsIFile> file;
     rv = GetFilePath(getter_AddRefs(file));
     NS_ENSURE_SUCCESS(rv, rv);
     PRInt64 folderSize;
@@ -1327,7 +1286,7 @@ nsMsgLocalMailFolder::InitCopyState(nsISupports* aSupport,
                                     nsIMsgWindow *msgWindow, bool isFolder,
                                     bool allowUndo)
 {
-  nsCOMPtr<nsILocalFile> path;
+  nsCOMPtr<nsIFile> path;
 
   NS_ASSERTION(!mCopyState, "already copying a msg into this folder");
   if (mCopyState)
@@ -1547,6 +1506,10 @@ nsMsgLocalMailFolder::CopyMessages(nsIMsgFolder* srcFolder, nsIArray*
       if (txnMgr)
         txnMgr->DoTransaction(undoTxn);
     }
+    if (isMove)
+      srcFolder->NotifyFolderEvent(NS_SUCCEEDED(rv) ? mDeleteOrMoveMsgCompletedAtom :
+                                                      mDeleteOrMoveMsgFailedAtom);
+
     return rv;
   }
   // If the store doesn't do the copy, we'll stream the source messages into
@@ -2053,6 +2016,8 @@ NS_IMETHODIMP nsMsgLocalMailFolder::BeginCopy(nsIMsgDBHdr *message)
   if (mCopyState->m_message)
     mCopyState->m_message->GetFlags(&(mCopyState->m_flags));
   DisplayMoveCopyStatusMsg();
+  if (mCopyState->m_listener)
+    mCopyState->m_listener->OnProgress(mCopyState->m_curCopyIndex, mCopyState->m_totalMsgCount);
   // if we're copying more than one message, StartMessage will handle this.
   return !mCopyState->m_copyingMultipleMessages ? WriteStartOfNewMessage() : rv;
 }
@@ -2296,6 +2261,8 @@ NS_IMETHODIMP nsMsgLocalMailFolder::EndCopy(bool aCopySucceeded)
       mCopyState->m_fileStream->Close();
     else
       mCopyState->m_fileStream->Flush();
+    mCopyState->m_msgStore->FinishNewMessage(mCopyState->m_fileStream,
+                                             mCopyState->m_newHdr);
   }
   //Copy the header to the new database
   if (mCopyState->m_message)

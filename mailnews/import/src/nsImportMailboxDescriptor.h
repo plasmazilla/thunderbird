@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsImportMailboxDescriptor_h___
 #define nsImportMailboxDescriptor_h___
@@ -41,7 +9,7 @@
 #include "nscore.h"
 #include "nsStringGlue.h"
 #include "nsIImportMailboxDescriptor.h"
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 #include "nsCOMPtr.h"
 
 ////////////////////////////////////////////////////////////////////////
@@ -71,8 +39,8 @@ public:
   NS_IMETHOD  GetImport(bool *pImport) { *pImport = m_import; return NS_OK;}
   NS_IMETHOD  SetImport(bool doImport) { m_import = doImport; return NS_OK;}
 
-  /* readonly attribute nsILocalFile file; */
-  NS_IMETHOD GetFile(nsILocalFile * *aFile) { if (m_pFile) { NS_ADDREF(*aFile = m_pFile); return NS_OK;} else return NS_ERROR_FAILURE; }
+  /* readonly attribute nsIFile file; */
+  NS_IMETHOD GetFile(nsIFile * *aFile) { if (m_pFile) { NS_ADDREF(*aFile = m_pFile); return NS_OK;} else return NS_ERROR_FAILURE; }
 
 
 
@@ -85,7 +53,7 @@ private:
   PRUint32    m_id;      // used by creator of the structure
   PRUint32    m_depth;    // depth in the hierarchy
   nsString    m_displayName;// name of this mailbox
-  nsCOMPtr <nsILocalFile> m_pFile;  // source file (if applicable)
+  nsCOMPtr <nsIFile> m_pFile;  // source file (if applicable)
   PRUint32    m_size;
   bool        m_import;    // import it or not?
 };

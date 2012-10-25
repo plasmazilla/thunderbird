@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Mike McCabe <mccabe@netscape.com>
- *   John Bandhauer <jband@netscape.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* Implementation of xptiInterfaceInfoManager. */
 
@@ -47,6 +13,7 @@
 #include "mozilla/FunctionTimer.h"
 #include "nsDirectoryService.h"
 #include "mozilla/FileUtils.h"
+#include "nsIMemoryReporter.h"
 
 using namespace mozilla;
 
@@ -58,6 +25,41 @@ static xptiInterfaceInfoManager* gInterfaceInfoManager = nsnull;
 #ifdef DEBUG
 static int gCallCount = 0;
 #endif
+
+
+NS_MEMORY_REPORTER_MALLOC_SIZEOF_FUN(XPTMallocSizeOf, "xpti-working-set")
+
+size_t
+xptiInterfaceInfoManager::SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf)
+{
+    size_t n = aMallocSizeOf(this);
+    ReentrantMonitorAutoEnter monitor(mWorkingSet.mTableReentrantMonitor);
+    // The entries themselves are allocated out of an arena accounted
+    // for elsewhere, so don't measure them
+    n += mWorkingSet.mIIDTable.SizeOfExcludingThis(NULL, XPTMallocSizeOf);
+    n += mWorkingSet.mNameTable.SizeOfExcludingThis(NULL, XPTMallocSizeOf);
+    return n;
+}
+
+// static
+PRInt64
+xptiInterfaceInfoManager::GetXPTIWorkingSetSize()
+{
+    size_t n = XPT_SizeOfArena(gXPTIStructArena, XPTMallocSizeOf);
+
+    if (gInterfaceInfoManager) {
+        n += gInterfaceInfoManager->SizeOfIncludingThis(XPTMallocSizeOf);
+    }
+
+    return n;
+}
+
+NS_MEMORY_REPORTER_IMPLEMENT(xptiWorkingSet,
+                             "explicit/xpti-working-set",
+                             KIND_HEAP,
+                             UNITS_BYTES,
+                             xptiInterfaceInfoManager::GetXPTIWorkingSetSize,
+                             "Memory used by the XPCOM typelib system.")
 
 // static
 xptiInterfaceInfoManager*
@@ -84,6 +86,7 @@ xptiInterfaceInfoManager::xptiInterfaceInfoManager()
         mAdditionalManagersLock(
             "xptiInterfaceInfoManager.mAdditionalManagersLock")
 {
+    NS_RegisterMemoryReporter(new NS_MEMORY_REPORTER_NAME(xptiWorkingSet));
 }
 
 xptiInterfaceInfoManager::~xptiInterfaceInfoManager()

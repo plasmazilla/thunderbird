@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Maintenance service file system monitoring.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Brian R. Bondy <netzen@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <shlobj.h>
 #include <shlwapi.h>
@@ -113,6 +80,46 @@ IsStatusApplying(LPCWSTR updateDirPath, BOOL &isApplying)
   return TRUE;
 }
 
+/**
+ * Determines whether we're staging an update.
+ *
+ * @param argc    The argc value normally sent to updater.exe
+ * @param argv    The argv value normally sent to updater.exe
+ * @param boolean True if we're staging an update
+ */
+static bool
+IsUpdateBeingStaged(int argc, LPWSTR *argv)
+{
+  // PID will be set to -1 if we're supposed to stage an update.
+  return argc == 4 && !wcscmp(argv[3], L"-1");
+}
+
+/**
+ * Gets the installation directory from the arguments passed to updater.exe.
+ *
+ * @param argcTmp    The argc value normally sent to updater.exe
+ * @param argvTmp    The argv value normally sent to updater.exe
+ * @param aResultDir Buffer to hold the installation directory.
+ */
+static BOOL
+GetInstallationDir(int argcTmp, LPWSTR *argvTmp, WCHAR aResultDir[MAX_PATH])
+{
+  if (argcTmp < 2) {
+    return FALSE;
+  }
+  wcscpy(aResultDir, argvTmp[2]);
+  WCHAR* backSlash = wcsrchr(aResultDir, L'\\');
+  // Make sure that the path does not include trailing backslashes
+  if (backSlash && (backSlash[1] == L'\0')) {
+    *backSlash = L'\0';
+  }
+  bool backgroundUpdate = IsUpdateBeingStaged(argcTmp, argvTmp);
+  bool replaceRequest = (argcTmp >= 4 && wcsstr(argvTmp[3], L"/replace"));
+  if (backgroundUpdate || replaceRequest) {
+    return PathRemoveFileSpecW(aResultDir);
+  }
+  return TRUE;
+}
 
 /**
  * Runs an update process as the service using the SYSTEM account.
@@ -126,6 +133,7 @@ IsStatusApplying(LPCWSTR updateDirPath, BOOL &isApplying)
 BOOL
 StartUpdateProcess(int argc,
                    LPWSTR *argv,
+                   LPCWSTR installDir,
                    BOOL &processStarted)
 {
   LOG(("Starting update process as the service in session 0.\n"));
@@ -241,8 +249,8 @@ StartUpdateProcess(int argc,
 
     // Only run the PostUpdate if the update was successful
     if (updateWasSuccessful && argc > 2) {
-      LPCWSTR installationDir = argv[2];
       LPCWSTR updateInfoDir = argv[1];
+      bool backgroundUpdate = IsUpdateBeingStaged(argc, argv);
 
       // Launch the PostProcess with admin access in session 0.  This is
       // actually launching the post update process but it takes in the 
@@ -251,9 +259,16 @@ StartUpdateProcess(int argc,
       // the unelevated updater.exe after the update process is complete
       // from the service.  We don't know here which session to start
       // the user PostUpdate process from.
-      LOG(("Launching post update process as the service in session 0.\n"));
-      if (!LaunchWinPostProcess(installationDir, updateInfoDir, true, NULL)) {
-        LOG(("The post update process could not be launched.\n"));
+      // Note that we don't need to do this if we're just staging the
+      // update in the background, as the PostUpdate step runs when
+      // performing the replacing in that case.
+      if (!backgroundUpdate) {
+        LOG(("Launching post update process as the service in session 0.\n"));
+        if (!LaunchWinPostProcess(installDir, updateInfoDir, true, NULL)) {
+          LOG(("The post update process could not be launched."
+               " installDir: %ls, updateInfoDir: %ls\n",
+               installDir, updateInfoDir));
+        }
       }
     }
   }
@@ -289,6 +304,16 @@ ProcessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
     return FALSE;
   }
 
+  WCHAR installDir[MAX_PATH] = {L'\0'};
+  if (!GetInstallationDir(argc, argv, installDir)) {
+    LOG(("Could not get the installation directory"));
+    if (!WriteStatusFailure(argv[1],
+                            SERVICE_INSTALLDIR_ERROR)) {
+      LOG(("Could not write update.status for GetInstallationDir failure.\n"));
+    }
+    return FALSE;
+  }
+
   // Make sure the path to the updater to use for the update is local.
   // We do this check to make sure that file locking is available for
   // race condition security checks.
@@ -319,9 +344,9 @@ ProcessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
 
   // Verify that the updater.exe that we are executing is the same
   // as the one in the installation directory which we are updating.
-  // The installation dir that we are installing to is argv[2].
-  WCHAR installDirUpdater[MAX_PATH + 1];
-  wcsncpy(installDirUpdater, argv[2], MAX_PATH);
+  // The installation dir that we are installing to is installDir.
+  WCHAR installDirUpdater[MAX_PATH + 1] = {L'\0'};
+  wcsncpy(installDirUpdater, installDir, MAX_PATH);
   if (!PathAppendSafe(installDirUpdater, L"updater.exe")) {
     LOG(("Install directory updater could not be determined.\n"));
     result = FALSE;
@@ -389,21 +414,24 @@ ProcessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
   // Check for updater.exe sign problems
   BOOL updaterSignProblem = FALSE;
 #ifndef DISABLE_UPDATER_AUTHENTICODE_CHECK
-  updaterSignProblem = !DoesBinaryMatchAllowedCertificates(argv[2],
+  updaterSignProblem = !DoesBinaryMatchAllowedCertificates(installDir,
                                                            argv[0]);
 #endif
 
   // Only proceed with the update if we have no signing problems
   if (!updaterSignProblem) {
     BOOL updateProcessWasStarted = FALSE;
-    if (StartUpdateProcess(argc, argv,
+    if (StartUpdateProcess(argc, argv, installDir,
                            updateProcessWasStarted)) {
       LOG(("updater.exe was launched and run successfully!\n"));
       LogFlush();
 
-      // We might not execute code after StartServiceUpdate because
-      // the service installer will stop the service if it is running.
-      StartServiceUpdate(argc, argv);
+      // Don't attempt to update the service when the update is being staged.
+      if (!IsUpdateBeingStaged(argc, argv)) {
+        // We might not execute code after StartServiceUpdate because
+        // the service installer will stop the service if it is running.
+        StartServiceUpdate(installDir);
+      }
     } else {
       result = FALSE;
       LOG(("Error running update process. Updating update.status"

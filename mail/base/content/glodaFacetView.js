@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- *   Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Thunderbird Global Database.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Andrew Sutherland <asutherland@asutherland.org>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * This file provides the global context for the faceting environment.  In the
@@ -52,7 +19,7 @@ const Cu = Components.utils;
 
 Cu.import("resource:///modules/gloda/log4moz.js");
 Cu.import("resource:///modules/StringBundle.js");
-Cu.import("resource:///modules/PluralForm.jsm");
+Cu.import("resource://gre/modules/PluralForm.jsm");
 Cu.import("resource:///modules/errUtils.js");
 Cu.import("resource:///modules/templateUtils.js");
 
@@ -329,15 +296,7 @@ ActiveNonSingularConstraint.prototype = {
 };
 
 var FacetContext = {
-  get facetDriver() {
-    if (!("GlodaIMSearcher" in window))
-      Cu.import("resource:///modules/search_im.js");
-    let nounName =
-      this.searcher instanceof GlodaIMSearcher ? "im-conversation" : "message";
-    delete this.facetDriver;
-    this.facetDriver = new FacetDriver(Gloda.lookupNounDef(nounName), window);
-    return this.facetDriver;
-  },
+  facetDriver: new FacetDriver(Gloda.lookupNounDef("message"), window),
 
   /**
    * The root collection which our active set is a subset of.  We hold onto this
@@ -420,6 +379,8 @@ var FacetContext = {
     else
       this._sortBy = '-date';
     this.fullSet = this._removeDupes(this._collection.items.concat());
+    if ("IMCollection" in this)
+      this.fullSet = this.fullSet.concat(this.IMCollection.items);
     this.build(this.fullSet);
   },
 
@@ -838,30 +799,27 @@ var FacetContext = {
   /**
    * Show the conversation in a new glodaList tab.
    *
-   * @param {GlodaConversation} aConversation The conversation to show.
+   * @param {glodaFacetBindings.xml#result-message} aResultMessage The
+   *     result the user wants to see in more details.
    * @param {Boolean} [aBackground] Whether it should be in the background.
    */
-  showConversationInTab: function(aMessage, aBackground) {
+  showConversationInTab: function(aResultMessage, aBackground) {
     let tabmail = this.rootWin.document.getElementById("tabmail");
+    let message = aResultMessage.message;
+    if ("IMCollection" in this &&
+        message instanceof Gloda.lookupNounDef("im-conversation").clazz) {
+      tabmail.openTab("chat", {
+        convType: "log",
+        conv: message,
+        searchTerm: aResultMessage.firstMatchText,
+        background: aBackground
+      });
+      return;
+    }
     tabmail.openTab("glodaList", {
-      conversation: aMessage.conversation,
-      message: aMessage,
-      title: aMessage.conversation.subject,
-      background: aBackground
-    });
-  },
-
-  /**
-   * Show the conversation in a new glodaList tab.
-   *
-   * @param {GlodaIMConversation} aConversation The conversation to show.
-   * @param {Boolean} [aBackground] Whether it should be in the background.
-   */
-  showIMConversationInTab: function(aConversation, aBackground) {
-    let tabmail = this.rootWin.document.getElementById("tabmail");
-    tabmail.openTab("chat", {
-      convType: "log",
-      conv: aConversation,
+      conversation: message.conversation,
+      message: message,
+      title: message.conversation.subject,
       background: aBackground
     });
   },
@@ -890,7 +848,9 @@ var FacetContext = {
   onItemsRemoved: function(aItems, aCollection) {
   },
   onQueryCompleted: function(aCollection) {
-    this.initialBuild();
+    if (this.tab.query.completed &&
+        (!("IMQuery" in this.tab) || this.tab.IMQuery.completed))
+      this.initialBuild();
   }
 };
 
@@ -917,21 +877,27 @@ function reachOutAndTouchFrame() {
   parentWin.tab = null;
   $(window).resize(function() {
     document.getElementById("facet-date").build(true);
-  })
+  });
   // we need to hook the context up as a listener in all cases since
   //  removal notifications are required.
   if ("searcher" in aTab) {
     FacetContext.searcher = aTab.searcher;
     aTab.searcher.listener = FacetContext;
+    if ("IMSearcher" in aTab) {
+      FacetContext.IMSearcher = aTab.IMSearcher;
+      aTab.IMSearcher.listener = FacetContext;
+    }
   }
   else {
     FacetContext.searcher = null;
     aTab.collection.listener = FacetContext;
   }
   FacetContext.collection = aTab.collection;
+  if ("IMCollection" in aTab)
+    FacetContext.IMCollection = aTab.IMCollection;
 
   // if it has already completed, we need to prod things
-  if (aTab.query.completed)
+  if (aTab.query.completed && (!("IMQuery" in aTab) || aTab.IMQuery.completed))
     FacetContext.initialBuild();
 }
 

@@ -1,45 +1,13 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "nsOEScanBoxes.h"
 #include "nsMsgUtils.h"
 #include "nsIComponentManager.h"
 #include "nsIServiceManager.h"
 #include "nsIImportService.h"
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 #include "nsIImportMailboxDescriptor.h"
 #include "nsOERegUtil.h"
 #include "nsOE5File.h"
@@ -48,6 +16,8 @@
 #include "nsIInputStream.h"
 #include "nsISeekableStream.h"
 #include "plstr.h"
+#include <windows.h>
+#include "nsIWindowsRegKey.h"
 
 #ifdef MOZILLA_INTERNAL_API
 #include "nsNativeCharsetUtils.h"
@@ -55,6 +25,8 @@
 #include "nsMsgI18N.h"
 #define NS_CopyNativeToUnicode(source, dest) \
         nsMsgI18NConvertToUnicode(nsMsgI18NFileSystemCharset(), source, dest)
+#define NS_CopyUnicodeToNative(source, dest) \
+        nsMsgI18NConvertFromUnicode(nsMsgI18NFileSystemCharset(), source, dest)
 #endif
 
 /*
@@ -99,65 +71,71 @@ nsOEScanBoxes::~nsOEScanBoxes()
 
 bool nsOEScanBoxes::Find50Mail(nsIFile *pWhere)
 {
-  nsresult   rv;
-  bool      success = false;
-  HKEY    sKey;
-        nsCOMPtr <nsILocalFile> localWhere = do_QueryInterface(pWhere);
+  nsAutoString userId;
+  nsresult rv = nsOERegUtil::GetDefaultUserId(userId);
+  if (NS_FAILED(rv))
+    return false;
 
-  if (::RegOpenKeyEx(HKEY_CURRENT_USER, "Identities", 0, KEY_QUERY_VALUE, &sKey) == ERROR_SUCCESS) {
-    BYTE *  pBytes = nsOERegUtil::GetValueBytes(sKey, "Default User ID");
-    ::RegCloseKey(sKey);
-    if (pBytes) {
-      nsCString  key("Identities\\");
-      key += (const char *)pBytes;
-      nsOERegUtil::FreeValueBytes(pBytes);
-      key += "\\Software\\Microsoft\\Outlook Express\\5.0";
-      if (::RegOpenKeyEx(HKEY_CURRENT_USER, key.get(), 0, KEY_QUERY_VALUE, &sKey) == ERROR_SUCCESS) {
-        pBytes = nsOERegUtil::GetValueBytes(sKey, "Store Root");
-        if (pBytes) {
-          localWhere->InitWithNativePath(nsDependentCString((const char *)pBytes));
+  nsAutoString path(NS_LITERAL_STRING("Identities\\"));
+  path.Append(userId);
+  path.AppendLiteral("\\Software\\Microsoft\\Outlook Express\\5.0");
 
-          IMPORT_LOG1("Setting native path: %s\n", pBytes);
+  nsCOMPtr<nsIWindowsRegKey> key =
+    do_CreateInstance("@mozilla.org/windows-registry-key;1", &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
 
-          nsOERegUtil::FreeValueBytes(pBytes);
-          bool    isDir = false;
-          rv = pWhere->IsDirectory(&isDir);
-          if (isDir && NS_SUCCEEDED(rv))
-            success = true;
-        }
-        ::RegCloseKey(sKey);
-      }
-    }
-  }
+  rv = key->Open(nsIWindowsRegKey::ROOT_KEY_CURRENT_USER,
+                 path,
+                 nsIWindowsRegKey::ACCESS_QUERY_VALUE);
+  if (NS_FAILED(rv))
+    return false;
 
-  return success;
+  nsAutoString storeRoot;
+  key->ReadStringValue(NS_LITERAL_STRING("Store Root"), storeRoot);
+  if (NS_FAILED(rv))
+    return false;
+
+  nsCOMPtr<nsIFile> localWhere = do_QueryInterface(pWhere);
+  localWhere->InitWithPath(storeRoot);
+
+  nsCAutoString nativeStoreRoot;
+  NS_CopyUnicodeToNative(storeRoot, nativeStoreRoot);
+  IMPORT_LOG1("Setting native path: %s\n", nativeStoreRoot.get());
+
+  bool isDir = false;
+  rv = localWhere->IsDirectory(&isDir);
+  return isDir;
 }
 
 bool nsOEScanBoxes::FindMail(nsIFile *pWhere)
 {
-  nsresult   rv;
-  bool      success = false;
-  HKEY    sKey;
-        nsCOMPtr <nsILocalFile> localWhere = do_QueryInterface(pWhere);
-
   if (Find50Mail(pWhere))
     return true;
 
-  if (::RegOpenKeyEx(HKEY_CURRENT_USER, "Software\\Microsoft\\Outlook Express", 0, KEY_QUERY_VALUE, &sKey) == ERROR_SUCCESS) {
-    LPBYTE  pBytes = nsOERegUtil::GetValueBytes(sKey, "Store Root");
-    if (pBytes) {
-      localWhere->InitWithNativePath(nsDependentCString((const char *) pBytes));
-      pWhere->AppendNative(NS_LITERAL_CSTRING("Mail"));
-      bool    isDir = false;
-      rv = pWhere->IsDirectory(&isDir);
-      if (isDir && NS_SUCCEEDED(rv))
-        success = true;
-      delete [] pBytes;
-    }
-    ::RegCloseKey(sKey);
-  }
+  nsresult rv;
+  nsCOMPtr<nsIWindowsRegKey> key =
+    do_CreateInstance("@mozilla.org/windows-registry-key;1", &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
 
-  return success;
+  rv = key->Open(nsIWindowsRegKey::ROOT_KEY_CURRENT_USER,
+                 NS_LITERAL_STRING("Software\\Microsoft\\Outlook Express"),
+                 nsIWindowsRegKey::ACCESS_QUERY_VALUE);
+  if (NS_FAILED(rv))
+    return false;
+
+  nsAutoString storeRoot;
+  key->ReadStringValue(NS_LITERAL_STRING("Store Root"), storeRoot);
+  if (NS_FAILED(rv))
+    return false;
+
+  nsCOMPtr<nsIFile> localWhere = do_QueryInterface(pWhere);
+  localWhere->InitWithPath(storeRoot);
+  localWhere->AppendNative(NS_LITERAL_CSTRING("Mail"));
+
+  bool isDir = false;
+  rv = localWhere->IsDirectory(&isDir);
+
+  return isDir;
 }
 
 bool nsOEScanBoxes::GetMailboxes(nsIFile *pWhere, nsISupportsArray **pArray)
@@ -584,7 +562,7 @@ bool nsOEScanBoxes::Scan50MailboxDir(nsIFile * srcDir)
   {
     nsCOMPtr<nsISupports> aSupport;
     rv = directoryEnumerator->GetNext(getter_AddRefs(aSupport));
-    nsCOMPtr<nsILocalFile> entry(do_QueryInterface(aSupport, &rv));
+    nsCOMPtr<nsIFile> entry(do_QueryInterface(aSupport, &rv));
     directoryEnumerator->HasMoreElements(&hasMore);
 
     isFile = false;
@@ -651,7 +629,7 @@ void nsOEScanBoxes::ScanMailboxDir(nsIFile * srcDir)
   {
     nsCOMPtr<nsISupports> aSupport;
     rv = directoryEnumerator->GetNext(getter_AddRefs(aSupport));
-    nsCOMPtr<nsILocalFile> entry(do_QueryInterface(aSupport, &rv));
+    nsCOMPtr<nsIFile> entry(do_QueryInterface(aSupport, &rv));
     directoryEnumerator->HasMoreElements(&hasMore);
 
     isFile = false;
@@ -752,7 +730,7 @@ void nsOEScanBoxes::BuildMailboxList(MailboxEntry *pBox, nsIFile * root, PRInt32
   }
 
   nsresult            rv;
-  nsCOMPtr <nsILocalFile> file;
+  nsCOMPtr <nsIFile> file;
   MailboxEntry *  pChild;
   nsIImportMailboxDescriptor *  pID;
   nsISupports *          pInterface;
@@ -770,8 +748,7 @@ void nsOEScanBoxes::BuildMailboxList(MailboxEntry *pBox, nsIFile * root, PRInt32
       pID->SetDisplayName((PRUnichar *)pBox->mailName.get());
       if (!pBox->fileName.IsEmpty()) {
         pID->GetFile(getter_AddRefs(file));
-                                nsCOMPtr <nsILocalFile> localRoot = do_QueryInterface(root);
-        file->InitWithFile(localRoot);
+        file->InitWithFile(root);
         file->AppendNative(pBox->fileName);
         size = 0;
         file->GetFileSize(&size);

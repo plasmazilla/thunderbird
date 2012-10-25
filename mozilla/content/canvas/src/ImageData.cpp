@@ -8,6 +8,7 @@
 
 #include "nsDOMClassInfoID.h"
 #include "nsContentUtils.h"
+#include "mozilla/dom/CanvasRenderingContext2DBinding.h"
 
 #include "jsapi.h"
 
@@ -28,7 +29,7 @@ NS_INTERFACE_MAP_END
 NS_IMPL_CYCLE_COLLECTION_CLASS(ImageData)
 
 NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN(ImageData)
-  NS_IMPL_CYCLE_COLLECTION_TRACE_JS_CALLBACK(tmp->mData, "mData")
+  NS_IMPL_CYCLE_COLLECTION_TRACE_JS_MEMBER_CALLBACK(mData)
 NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(ImageData)

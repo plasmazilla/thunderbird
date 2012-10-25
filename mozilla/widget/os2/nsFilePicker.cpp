@@ -1,48 +1,15 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla browser.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Stuart Parmenter <pavlov@netscape.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsCOMPtr.h"
 #include "nsReadableUtils.h"
 #include "nsNetUtil.h"
 #include "nsIServiceManager.h"
 #include "nsIPlatformCharset.h"
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 #include "nsIURL.h"
 #include "nsIStringBundle.h"
 #include "nsEnumeratorUtils.h"
@@ -290,7 +257,7 @@ NS_IMETHODIMP nsFilePicker::Show(PRInt16 *retval)
 
         if (filedlg.papszFQFilename) {
           for (ULONG i=0;i<filedlg.ulFQFCount;i++) {
-            nsCOMPtr<nsILocalFile> file = do_CreateInstance("@mozilla.org/file/local;1", &rv);
+            nsCOMPtr<nsIFile> file = do_CreateInstance("@mozilla.org/file/local;1", &rv);
             NS_ENSURE_SUCCESS(rv,rv);
 
             rv = file->InitWithNativePath(nsDependentCString(*(filedlg.papszFQFilename)[i]));
@@ -301,7 +268,7 @@ NS_IMETHODIMP nsFilePicker::Show(PRInt16 *retval)
           }
           WinFreeFileDlgList(filedlg.papszFQFilename);
         } else {
-          nsCOMPtr<nsILocalFile> file = do_CreateInstance("@mozilla.org/file/local;1", &rv);
+          nsCOMPtr<nsIFile> file = do_CreateInstance("@mozilla.org/file/local;1", &rv);
           NS_ENSURE_SUCCESS(rv,rv);
 
           rv = file->InitWithNativePath(nsDependentCString(filedlg.szFullFile));
@@ -338,25 +305,22 @@ NS_IMETHODIMP nsFilePicker::Show(PRInt16 *retval)
 
     nsresult rv;
     // Remember last used directory.
-    nsCOMPtr<nsILocalFile> file(do_CreateInstance("@mozilla.org/file/local;1", &rv));
+    nsCOMPtr<nsIFile> file(do_CreateInstance("@mozilla.org/file/local;1", &rv));
     NS_ENSURE_SUCCESS(rv, rv);
 
     file->InitWithNativePath(mFile);
     nsCOMPtr<nsIFile> dir;
     if (NS_SUCCEEDED(file->GetParent(getter_AddRefs(dir)))) {
-      nsCOMPtr<nsILocalFile> localDir(do_QueryInterface(dir));
-      if (localDir) {
-        nsCAutoString newDir;
-        localDir->GetNativePath(newDir);
-        if(!newDir.IsEmpty())
-          PL_strncpyz(mLastUsedDirectory, newDir.get(), MAX_PATH+1);
-        // Update mDisplayDirectory with this directory, also.
-        // Some callers rely on this.
-        if (!mDisplayDirectory)
-           mDisplayDirectory = do_CreateInstance("@mozilla.org/file/local;1");
-        if (mDisplayDirectory)
-           mDisplayDirectory->InitWithNativePath( nsDependentCString(mLastUsedDirectory) );
-      }
+      nsCAutoString newDir;
+      dir->GetNativePath(newDir);
+      if(!newDir.IsEmpty())
+        PL_strncpyz(mLastUsedDirectory, newDir.get(), MAX_PATH+1);
+      // Update mDisplayDirectory with this directory, also.
+      // Some callers rely on this.
+      if (!mDisplayDirectory)
+         mDisplayDirectory = do_CreateInstance("@mozilla.org/file/local;1");
+      if (mDisplayDirectory)
+         mDisplayDirectory->InitWithNativePath( nsDependentCString(mLastUsedDirectory) );
     }
 
     if (mMode == modeSave) {
@@ -377,14 +341,14 @@ NS_IMETHODIMP nsFilePicker::Show(PRInt16 *retval)
 
 
 
-NS_IMETHODIMP nsFilePicker::GetFile(nsILocalFile **aFile)
+NS_IMETHODIMP nsFilePicker::GetFile(nsIFile **aFile)
 {
   NS_ENSURE_ARG_POINTER(aFile);
 
   if (mFile.IsEmpty())
       return NS_OK;
 
-  nsCOMPtr<nsILocalFile> file(do_CreateInstance("@mozilla.org/file/local;1"));
+  nsCOMPtr<nsIFile> file(do_CreateInstance("@mozilla.org/file/local;1"));
     
   NS_ENSURE_TRUE(file, NS_ERROR_FAILURE);
 
@@ -399,7 +363,7 @@ NS_IMETHODIMP nsFilePicker::GetFile(nsILocalFile **aFile)
 NS_IMETHODIMP nsFilePicker::GetFileURL(nsIURI **aFileURL)
 {
   *aFileURL = nsnull;
-  nsCOMPtr<nsILocalFile> file;
+  nsCOMPtr<nsIFile> file;
   nsresult rv = GetFile(getter_AddRefs(file));
   if (!file)
     return rv;

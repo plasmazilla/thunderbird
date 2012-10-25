@@ -1,43 +1,7 @@
 /* -*- Mode: javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code, released
- * March 31, 1998.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998-1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Karsten Düsterloh <mnyromyr@tprac.de>
- *   Manuel Reimer <manuel.reimer@gmx.de>
- *   Markus Hossner <markushossner@gmx.de>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
@@ -127,6 +91,10 @@ var gExpandedHeaderList = [ {name:"subject"},
                             {name:"content-base"},
                             {name:"tags"} ];
 
+// These are all the items that use a mail-multi-emailHeaderField widget and
+// therefore may require updating if the address book changes.
+const gEmailAddressHeaderNames = ["from", "reply-to", "to", "cc", "bcc"];
+
 // Now, for each view the message pane can generate, we need a global table of headerEntries. These
 // header entry objects are generated dynamically based on the static data in the header lists (see above)
 // and elements we find in the DOM based on properties in the header lists.
@@ -148,6 +116,10 @@ var currentHeaderData = {};
 // uri --> an RDF URI which refers to the message containig the attachment
 // isExternalAttachment --> boolean flag stating whether the attachment is external or not.
 var currentAttachments = new Array();
+
+const nsIAbDirectory = Components.interfaces.nsIAbDirectory;
+const nsIAbListener = Components.interfaces.nsIAbListener;
+const nsIAbCard = Components.interfaces.nsIAbCard;
 
 // createHeaderEntry --> our constructor method which creates a header Entry
 // based on an entry in one of the header lists. A header entry is different from a header list.
@@ -193,6 +165,12 @@ function createHeaderEntry(prefix, headerListInfo)
     this.outputFunction = headerListInfo.outputFunction;
   else
     this.outputFunction = updateHeaderValue;
+
+  // Stash this so that the <mail-multi-emailheaderfield/> binding can
+  // later attach it to any <mail-emailaddress> tags it creates for later
+  // extraction and use by UpdateEmailNodeDetails.
+  this.enclosingBox.headerName = headerListInfo.name;
+
 }
 
 function initializeHeaderViewTables()
@@ -261,6 +239,12 @@ function OnLoadMsgHeaderPane()
 
   initializeHeaderViewTables();
 
+  // Add an address book listener so we can update the header view when things
+  // change.
+  Components.classes["@mozilla.org/abmanager;1"]
+            .getService(Components.interfaces.nsIAbManager)
+            .addAddressBookListener(AddressBookListener, nsIAbListener.all);
+
   var toggleHeaderView = GetHeaderPane();
   var initialCollapsedSetting = toggleHeaderView.getAttribute("state");
   if (initialCollapsedSetting == "true")
@@ -275,6 +259,10 @@ function OnLoadMsgHeaderPane()
 function OnUnloadMsgHeaderPane()
 {
   pref.removeObserver("mail.showCondensedAddresses", MsgHdrViewObserver);
+
+  Components.classes["@mozilla.org/abmanager;1"]
+            .getService(Components.interfaces.nsIAbManager)
+            .removeAddressBookListener(AddressBookListener);
 
   // dispatch an event letting any listeners know that we have unloaded the message pane
   var event = document.createEvent('Events');
@@ -297,6 +285,53 @@ const MsgHdrViewObserver =
     }
   }
 };
+
+var AddressBookListener =
+{
+  onItemAdded: function(aParentDir, aItem) {
+    OnAddressBookDataChanged(nsIAbListener.itemAdded,
+                             aParentDir, aItem);
+  },
+  onItemRemoved: function(aParentDir, aItem) {
+    OnAddressBookDataChanged(aItem instanceof nsIAbCard ?
+                               nsIAbListener.directoryItemRemoved :
+                               nsIAbListener.directoryRemoved,
+                             aParentDir, aItem);
+  },
+  onItemPropertyChanged: function(aItem, aProperty, aOldValue, aNewValue) {
+    // We only need updates for card changes, address book and mailing list
+    // ones don't affect us here.
+    if (aItem instanceof nsIAbCard)
+      OnAddressBookDataChanged(nsIAbListener.itemChanged, null, aItem);
+  }
+};
+
+function OnAddressBookDataChanged(aAction, aParentDir, aItem)
+{
+  gEmailAddressHeaderNames.forEach(function (aHeaderName)
+  {
+    var headerEntry = null;
+
+    // Ensure both collapsed and expanded are updated in case we toggle
+    // between the two.
+    if (aHeaderName in gCollapsedHeaderView)
+    {
+      headerEntry = gCollapsedHeaderView[aHeaderName];
+      if (headerEntry)
+        headerEntry.enclosingBox.updateExtraAddressProcessing(aAction,
+                                                              aParentDir,
+                                                              aItem);
+    }
+    if (aHeaderName in gExpandedHeaderView)
+    {
+      headerEntry = gExpandedHeaderView[aHeaderName];
+      if (headerEntry)
+        headerEntry.enclosingBox.updateExtraAddressProcessing(aAction,
+                                                              aParentDir,
+                                                              aItem);
+    }
+  });
+}
 
 // The messageHeaderSink is the class that gets notified of a message's headers as we display the message
 // through our mime converter.
@@ -1112,69 +1147,172 @@ function setFromBuddyIcon(email)
 
 function updateEmailAddressNode(emailAddressNode, address)
 {
-  emailAddressNode.setAttribute("label", address.fullAddress || address.displayName);
   emailAddressNode.setAttribute("emailAddress", address.emailAddress);
   emailAddressNode.setAttribute("fullAddress", address.fullAddress);
   emailAddressNode.setAttribute("displayName", address.displayName);
-  emailAddressNode.removeAttribute("tooltiptext");
 
-  AddExtraAddressProcessing(address.emailAddress, emailAddressNode);
+  UpdateEmailNodeDetails(address.emailAddress, emailAddressNode);
 }
 
-// If the email address is found in any of the address books,
-// then consider this user a 'known' user and use the display name.
-function AddExtraAddressProcessing(emailAddress, addressNode)
+function UpdateEmailNodeDetails(aEmailAddress, aDocumentNode, aCardDetails)
 {
-  if (!gShowCondensedEmailAddresses)
-    return;
+  // If we haven't been given specific details, search for a card.
+  var cardDetails = aCardDetails || GetCardForEmail(aEmailAddress);
+  aDocumentNode.cardDetails = cardDetails;
 
+  var condense = gShowCondensedEmailAddresses;
   // Get the id of the mail-multi-emailHeaderField binding parent.
-  var parentElementId = addressNode.parentNode.parentNode.parentNode.id;
+  var parentElementId = aDocumentNode.parentNode.parentNode.parentNode.id;
   // Don't condense the address for the from and reply-to fields.
   // Ids: "collapsedfromValue", "expandedfromBox", "expandedreply-toBox".
   if (/^(collapsedfromValue|expanded(from|reply-to)Box)$/.test(parentElementId))
-    return;
+    condense = false;
 
-  // TODO: Maybe do domain matches too (i.e. any email from someone in my
-  // company should use the friendly display name).
+  var displayName = "";
+  if (condense && cardDetails.card)
+  {
+    if (cardDetails.card.getProperty("PreferDisplayName", true) != true)
+      displayName = aDocumentNode.getAttribute("displayName");
+    if (!displayName)
+      displayName = cardDetails.card.displayName;
+  }
 
-  var card = getCardForAddress(emailAddress);
-  if (!(card && card.displayName))
-    return;
+  if (displayName)
+  {
+    aDocumentNode.setAttribute("tooltiptext", aEmailAddress);
+  }
+  else
+  {
+    aDocumentNode.removeAttribute("tooltiptext");
+    displayName = aDocumentNode.getAttribute("fullAddress") ||
+                  aDocumentNode.getAttribute("displayName");
+  }
 
-  addressNode.setAttribute("label", card.displayName);
-  addressNode.setAttribute("tooltiptext", emailAddress);
+  aDocumentNode.setAttribute("label", displayName);
 }
 
-function fillEmailAddressPopup(emailAddressNode)
+function UpdateExtraAddressProcessing(aAddressData, aDocumentNode, aAction,
+                                      aParentDir, aItem)
+{
+  switch (aAction)
+  {
+    case nsIAbListener.itemChanged:
+      if (aAddressData &&
+          aDocumentNode.cardDetails.card &&
+          aItem.hasEmailAddress(aAddressData.emailAddress)) {
+        aDocumentNode.cardDetails.card = aItem;
+        UpdateEmailNodeDetails(aAddressData.emailAddress, aDocumentNode,
+                               aDocumentNode.cardDetails);
+      }
+      break;
+    case nsIAbListener.itemAdded:
+      // Is it a new address book?
+      if (aItem instanceof nsIAbDirectory)
+      {
+        // If we don't have a match, search again for updates (e.g. a interface
+        // to an existing book may just have been added).
+        if (!aDocumentNode.cardDetails.card)
+          UpdateEmailNodeDetails(aAddressData.emailAddress, aDocumentNode);
+      }
+      else if (aItem instanceof nsIAbCard)
+      {
+        // If we don't have a card, does this new one match?
+        if (!aDocumentNode.cardDetails.card &&
+            aItem.hasEmailAddress(aAddressData.emailAddress))
+        {
+          // Just in case we have a bogus parent directory.
+          if (aParentDir instanceof nsIAbDirectory)
+          {
+            let cardDetails = { book: aParentDir, card: aItem };
+            UpdateEmailNodeDetails(aAddressData.emailAddress, aDocumentNode,
+                                   cardDetails);
+          }
+          else
+          {
+            UpdateEmailNodeDetails(aAddressData.emailAddress, aDocumentNode);
+          }
+        }
+      }
+      break;
+    case nsIAbListener.directoryItemRemoved:
+      // Unfortunately we don't necessarily get the same card object back.
+      if (aAddressData &&
+          aDocumentNode.cardDetails.card &&
+          aDocumentNode.cardDetails.book == aParentDir &&
+          aItem.hasEmailAddress(aAddressData.emailAddress))
+      {
+        UpdateEmailNodeDetails(aAddressData.emailAddress, aDocumentNode);
+      }
+      break;
+    case nsIAbListener.directoryRemoved:
+      if (aDocumentNode.cardDetails.book == aItem)
+        UpdateEmailNodeDetails(aAddressData.emailAddress, aDocumentNode);
+      break;
+  }
+}
+
+function SetupEmailAddressPopup(aAddressNode)
 {
   document.getElementById("emailAddressPlaceHolder")
-          .setAttribute("label", emailAddressNode.getAttribute("emailAddress"));
+          .setAttribute("label", aAddressNode.getAttribute("emailAddress"));
+
+  var addItem = document.getElementById("addToAddressBookItem");
+  var editItem = document.getElementById("editContactItem");
+  var viewItem = document.getElementById("viewContactItem");
+
+  if (aAddressNode.cardDetails.card)
+  {
+    addItem.setAttribute("hidden", true);
+    if (!aAddressNode.cardDetails.book.readOnly)
+    {
+      editItem.removeAttribute("hidden");
+      viewItem.setAttribute("hidden", true);
+    }
+    else
+    {
+      editItem.setAttribute("hidden", true);
+      viewItem.removeAttribute("hidden");
+    }
+  }
+  else
+  {
+    addItem.removeAttribute("hidden");
+    editItem.setAttribute("hidden", true);
+    viewItem.setAttribute("hidden", true);
+  }
 }
 
 /**
- * Returns a card matching the given address, or |null|.
- * Searches all (searchable) address books, until a (first) card is found.
+ * Returns an object with two properties, book and card. If the email address
+ * is found in the address books, then book will contain an nsIAbDirectory,
+ * and card will contain an nsIAbCard. If the email address is not found, both
+ * properties will be null.
  *
  * @param emailAddress The email address to find.
- * @return A card, or |null|.
+ * @return An object with two properties, book and card.
  * @see nsIAbDirectory.cardForEmailAddress()
  */
-function getCardForAddress(emailAddress)
+function GetCardForEmail(aEmailAddress)
 {
   var books = Components.classes["@mozilla.org/abmanager;1"]
                         .getService(Components.interfaces.nsIAbManager)
                         .directories;
-  while (books.hasMoreElements())
+
+  var result = { book: null, card: null};
+
+  while (!result.card && books.hasMoreElements())
   {
     var ab = books.getNext();
-    if (ab instanceof Components.interfaces.nsIAbDirectory)
+    if (ab instanceof nsIAbDirectory)
     {
       try
       {
-        var card = ab.cardForEmailAddress(emailAddress);
+        var card = ab.cardForEmailAddress(aEmailAddress);
         if (card)
-          return card;
+        {
+          result.book = ab;
+          result.card = card;
+        }
       }
       catch (ex)
       {
@@ -1183,7 +1321,7 @@ function getCardForAddress(emailAddress)
     }
   }
 
-  return null;
+  return result;
 }
 
 /**
@@ -1695,7 +1833,7 @@ function CopyWebsiteAddress(websiteAddressNode)
     var contractid = "@mozilla.org/widget/clipboardhelper;1";
     var iid = Components.interfaces.nsIClipboardHelper;
     var clipboard = Components.classes[contractid].getService(iid);
-    clipboard.copyString(websiteAddress);
+    clipboard.copyString(websiteAddress, document);
   }
 }
 

@@ -1,46 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Blake Ross <blaker@netscape.com> (Original Author)
- *   Ben Goodger <ben@netscape.com> (Original Author)
- *   Shawn Wilsher <me@shawnwilsher.com>
- *   Srirang G Doddihal <brahmana@doddihal.com>
- *   Edward Lee <edward.lee@engineering.uiuc.edu>
- *   Graeme McCutcheon <graememcc_firefox@graeme-online.co.uk>
- *   Ehsan Akhgari <ehsan.akhgari@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
 
@@ -87,6 +48,10 @@
 #include "AndroidBridge.h"
 #endif
 
+#ifdef MOZ_WIDGET_GTK2
+#include <gtk/gtk.h>
+#endif
+
 using namespace mozilla;
 
 #define DOWNLOAD_MANAGER_BUNDLE "chrome://mozapps/locale/downloads/downloads.properties"
@@ -131,6 +96,9 @@ nsDownloadManager::GetSingleton()
 
   gDownloadManagerService = new nsDownloadManager();
   if (gDownloadManagerService) {
+#if defined(MOZ_WIDGET_GTK2)
+    g_type_init();
+#endif
     NS_ADDREF(gDownloadManagerService);
     if (NS_FAILED(gDownloadManagerService->Init()))
       NS_RELEASE(gDownloadManagerService);
@@ -1072,7 +1040,7 @@ nsDownloadManager::GetDownloadFromDB(PRUint32 aID, nsDownload **retVal)
         do_CreateInstance(NS_LOCALHANDLERAPP_CONTRACTID, &rv);
       NS_ENSURE_SUCCESS(rv, rv);
 
-      nsCOMPtr<nsILocalFile> localExecutable;
+      nsCOMPtr<nsIFile> localExecutable;
       rv = NS_NewNativeLocalFile(EmptyCString(), false,
                                  getter_AddRefs(localExecutable));
       NS_ENSURE_SUCCESS(rv, rv);
@@ -1137,9 +1105,9 @@ nsDownloadManager::GetActiveDownloads(nsISimpleEnumerator **aResult)
  * this should be kept in sync with nsExternalHelperAppService.cpp
  */
 NS_IMETHODIMP
-nsDownloadManager::GetDefaultDownloadsDirectory(nsILocalFile **aResult)
+nsDownloadManager::GetDefaultDownloadsDirectory(nsIFile **aResult)
 {
-  nsCOMPtr<nsILocalFile> downloadDir;
+  nsCOMPtr<nsIFile> downloadDir;
 
   nsresult rv;
   nsCOMPtr<nsIProperties> dirService =
@@ -1163,12 +1131,12 @@ nsDownloadManager::GetDefaultDownloadsDirectory(nsILocalFile **aResult)
 
 #if defined (XP_MACOSX)
   rv = dirService->Get(NS_OSX_DEFAULT_DOWNLOAD_DIR,
-                       NS_GET_IID(nsILocalFile),
+                       NS_GET_IID(nsIFile),
                        getter_AddRefs(downloadDir));
   NS_ENSURE_SUCCESS(rv, rv);
 #elif defined(XP_WIN)
   rv = dirService->Get(NS_WIN_DEFAULT_DOWNLOAD_DIR,
-                       NS_GET_IID(nsILocalFile),
+                       NS_GET_IID(nsIFile),
                        getter_AddRefs(downloadDir));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -1184,7 +1152,7 @@ nsDownloadManager::GetDefaultDownloadsDirectory(nsILocalFile **aResult)
   if (version < 6) { // XP/2K
     // First get "My Documents"
     rv = dirService->Get(NS_WIN_PERSONAL_DIR,
-                         NS_GET_IID(nsILocalFile),
+                         NS_GET_IID(nsIFile),
                          getter_AddRefs(downloadDir));
     NS_ENSURE_SUCCESS(rv, rv);
 
@@ -1209,7 +1177,7 @@ nsDownloadManager::GetDefaultDownloadsDirectory(nsILocalFile **aResult)
     // we found most apropriate to be the default target folder for downloads
     // on the platform.
     rv = dirService->Get(NS_UNIX_XDG_DOCUMENTS_DIR,
-                         NS_GET_IID(nsILocalFile),
+                         NS_GET_IID(nsIFile),
                          getter_AddRefs(downloadDir));
 #elif defined(MOZ_WIDGET_ANDROID)
     // Android doesn't have a $HOME directory, and by default we only have
@@ -1225,12 +1193,12 @@ nsDownloadManager::GetDefaultDownloadsDirectory(nsILocalFile **aResult)
     }
 #else
   rv = dirService->Get(NS_UNIX_DEFAULT_DOWNLOAD_DIR,
-                       NS_GET_IID(nsILocalFile),
+                       NS_GET_IID(nsIFile),
                        getter_AddRefs(downloadDir));
   // fallback to Home/Downloads
   if (NS_FAILED(rv)) {
     rv = dirService->Get(NS_UNIX_HOME_DIR,
-                         NS_GET_IID(nsILocalFile),
+                         NS_GET_IID(nsIFile),
                          getter_AddRefs(downloadDir));
     NS_ENSURE_SUCCESS(rv, rv);
     rv = downloadDir->Append(folderName);
@@ -1239,7 +1207,7 @@ nsDownloadManager::GetDefaultDownloadsDirectory(nsILocalFile **aResult)
 #endif
 #else
   rv = dirService->Get(NS_OS_HOME_DIR,
-                       NS_GET_IID(nsILocalFile),
+                       NS_GET_IID(nsIFile),
                        getter_AddRefs(downloadDir));
   NS_ENSURE_SUCCESS(rv, rv);
   rv = downloadDir->Append(folderName);
@@ -1256,7 +1224,7 @@ nsDownloadManager::GetDefaultDownloadsDirectory(nsILocalFile **aResult)
 #define NS_PREF_DIR            "dir"
 
 NS_IMETHODIMP
-nsDownloadManager::GetUserDownloadsDirectory(nsILocalFile **aResult)
+nsDownloadManager::GetUserDownloadsDirectory(nsIFile **aResult)
 {
   nsresult rv;
   nsCOMPtr<nsIProperties> dirService =
@@ -1280,12 +1248,12 @@ nsDownloadManager::GetUserDownloadsDirectory(nsILocalFile **aResult)
   switch(val) {
     case 0: // Desktop
       {
-        nsCOMPtr<nsILocalFile> downloadDir;
+        nsCOMPtr<nsIFile> downloadDir;
         nsCOMPtr<nsIProperties> dirService =
            do_GetService(NS_DIRECTORY_SERVICE_CONTRACTID, &rv);
         NS_ENSURE_SUCCESS(rv, rv);
         rv = dirService->Get(NS_OS_DESKTOP_DIR,
-                             NS_GET_IID(nsILocalFile),
+                             NS_GET_IID(nsIFile),
                              getter_AddRefs(downloadDir));
         NS_ENSURE_SUCCESS(rv, rv);
         downloadDir.forget(aResult);
@@ -1296,9 +1264,9 @@ nsDownloadManager::GetUserDownloadsDirectory(nsILocalFile **aResult)
       return GetDefaultDownloadsDirectory(aResult);
     case 2: // Custom
       {
-        nsCOMPtr<nsILocalFile> customDirectory;
+        nsCOMPtr<nsIFile> customDirectory;
         prefBranch->GetComplexValue(NS_PREF_DIR,
-                                    NS_GET_IID(nsILocalFile),
+                                    NS_GET_IID(nsIFile),
                                     getter_AddRefs(customDirectory));
         if (customDirectory) {
           bool exists = false;
@@ -1328,7 +1296,7 @@ nsDownloadManager::GetUserDownloadsDirectory(nsILocalFile **aResult)
         rv = GetDefaultDownloadsDirectory(aResult);
         if (NS_SUCCEEDED(rv)) {
           (void)prefBranch->SetComplexValue(NS_PREF_DIR,
-                                            NS_GET_IID(nsILocalFile),
+                                            NS_GET_IID(nsIFile),
                                             *aResult);
         }
         return rv;
@@ -1345,7 +1313,7 @@ nsDownloadManager::AddDownload(DownloadType aDownloadType,
                                const nsAString& aDisplayName,
                                nsIMIMEInfo *aMIMEInfo,
                                PRTime aStartTime,
-                               nsILocalFile *aTempFile,
+                               nsIFile *aTempFile,
                                nsICancelable *aCancelable,
                                nsIDownload **aDownload)
 {
@@ -1406,10 +1374,7 @@ nsDownloadManager::AddDownload(DownloadType aDownloadType,
     if (locHandlerApp) {
       nsCOMPtr<nsIFile> executable;
       (void)locHandlerApp->GetExecutable(getter_AddRefs(executable));
-      nsCOMPtr<nsILocalFile> locExecutable = do_QueryInterface(executable);
-
-      if (locExecutable)
-        (void)locExecutable->GetPersistentDescriptor(persistentDescriptor);
+      (void)executable->GetPersistentDescriptor(persistentDescriptor);
     }
 
     (void)aMIMEInfo->GetPreferredAction(&action);
@@ -1545,7 +1510,7 @@ nsDownloadManager::CancelDownload(PRUint32 aID)
       dl->mTempFile->Remove(false);
   }
 
-  nsCOMPtr<nsILocalFile> file;
+  nsCOMPtr<nsIFile> file;
   if (NS_SUCCEEDED(dl->GetTargetFile(getter_AddRefs(file))))
   {
     bool exists;
@@ -2308,7 +2273,7 @@ nsDownload::SetState(DownloadState aState)
         }
       }
 
-#if defined(XP_WIN) || defined(XP_MACOSX) || defined(MOZ_WIDGET_ANDROID)
+#if defined(XP_WIN) || defined(XP_MACOSX) || defined(MOZ_WIDGET_ANDROID) || defined(MOZ_WIDGET_GTK2)
       nsCOMPtr<nsIFileURL> fileURL = do_QueryInterface(mTarget);
       nsCOMPtr<nsIFile> file;
       nsAutoString path;
@@ -2318,8 +2283,8 @@ nsDownload::SetState(DownloadState aState)
           file &&
           NS_SUCCEEDED(file->GetPath(path))) {
 
-#ifdef XP_WIN
-        // On windows, add the download to the system's "recent documents"
+#if defined(XP_WIN) || defined(MOZ_WIDGET_GTK2)
+        // On Windows and Gtk, add the download to the system's "recent documents"
         // list, with a pref to disable.
         {
           bool addToRecentDocs = true;
@@ -2328,7 +2293,18 @@ nsDownload::SetState(DownloadState aState)
 
           if (addToRecentDocs &&
               !nsDownloadManager::gDownloadManagerService->mInPrivateBrowsing) {
+#ifdef XP_WIN
             ::SHAddToRecentDocs(SHARD_PATHW, path.get());
+#elif defined(MOZ_WIDGET_GTK2)
+            GtkRecentManager* manager = gtk_recent_manager_get_default();
+
+            gchar* uri = g_filename_to_uri(NS_ConvertUTF16toUTF8(path).get(),
+                                           NULL, NULL);
+            if (uri) {
+              gtk_recent_manager_add_item(manager, uri);
+              g_free(uri);
+            }
+#endif
           }
         }
 #endif
@@ -2587,7 +2563,7 @@ nsDownload::OnStateChange(nsIWebProgress *aWebProgress,
       // Our best bet is the file itself, but if for some reason it's gone or
       // if we have multiple files, the next best is what we've calculated.
       PRInt64 fileSize;
-      nsCOMPtr<nsILocalFile> file;
+      nsCOMPtr<nsIFile> file;
       //  We need a nsIFile clone to deal with file size caching issues. :(
       nsCOMPtr<nsIFile> clone;
       if (!mHasMultipleFiles &&
@@ -2648,7 +2624,7 @@ nsDownload::Init(nsIURI *aSource,
                  const nsAString& aDisplayName,
                  nsIMIMEInfo *aMIMEInfo,
                  PRTime aStartTime,
-                 nsILocalFile *aTempFile,
+                 nsIFile *aTempFile,
                  nsICancelable *aCancelable)
 {
   NS_WARNING("Huh...how did we get here?!");
@@ -2730,7 +2706,7 @@ nsDownload::GetMIMEInfo(nsIMIMEInfo **aMIMEInfo)
 }
 
 NS_IMETHODIMP
-nsDownload::GetTargetFile(nsILocalFile **aTargetFile)
+nsDownload::GetTargetFile(nsIFile **aTargetFile)
 {
   nsresult rv;
 
@@ -2834,7 +2810,7 @@ nsDownload::ExecuteDesiredAction()
 nsresult
 nsDownload::MoveTempToTarget()
 {
-  nsCOMPtr<nsILocalFile> target;
+  nsCOMPtr<nsIFile> target;
   nsresult rv = GetTargetFile(getter_AddRefs(target));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -2863,7 +2839,7 @@ nsresult
 nsDownload::OpenWithApplication()
 {
   // First move the temporary file to the target location
-  nsCOMPtr<nsILocalFile> target;
+  nsCOMPtr<nsIFile> target;
   nsresult rv = GetTargetFile(getter_AddRefs(target));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -2903,8 +2879,13 @@ nsDownload::OpenWithApplication()
 
     // Even if we are unable to get this service we return the result
     // of LaunchWithFile() which makes more sense.
-    if (appLauncher)
-      (void)appLauncher->DeleteTemporaryFileOnExit(target);
+    if (appLauncher) {
+      if (nsDownloadManager::gDownloadManagerService->mInPrivateBrowsing) {
+        (void)appLauncher->DeleteTemporaryPrivateFileWhenPossible(target);
+      } else {
+        (void)appLauncher->DeleteTemporaryFileOnExit(target);
+      }
+    }
   }
 
   return retVal;
@@ -2984,7 +2965,7 @@ nsDownload::Resume()
 
   // Make sure we can get a file, either the temporary or the real target, for
   // both purposes of file size and a target to write to
-  nsCOMPtr<nsILocalFile> targetLocalFile(mTempFile);
+  nsCOMPtr<nsIFile> targetLocalFile(mTempFile);
   if (!targetLocalFile) {
     rv = GetTargetFile(getter_AddRefs(targetLocalFile));
     NS_ENSURE_SUCCESS(rv, rv);

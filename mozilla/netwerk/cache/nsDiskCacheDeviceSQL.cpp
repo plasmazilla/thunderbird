@@ -1,43 +1,10 @@
 /* vim:set ts=2 sw=2 sts=2 et cin: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla.
- *
- * The Initial Developer of the Original Code is IBM Corporation.
- * Portions created by IBM Corporation are Copyright (C) 2004
- * IBM Corporation. All Rights Reserved.
- *
- * Contributor(s):
- *   Darin Fisher <darin@meer.net>
- *   Dave Camp <dcamp@mozilla.com>
- *   Honza Bambas <honzab@firemni.cz>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
+#include "mozilla/Attributes.h"
 
 #include "nsCache.h"
 #include "nsDiskCache.h"
@@ -253,11 +220,39 @@ nsOfflineCacheEvictionFunction::Apply()
   Reset();
 }
 
+class nsOfflineCacheDiscardCache : public nsRunnable
+{
+public:
+  nsOfflineCacheDiscardCache(nsOfflineCacheDevice *device,
+			     nsCString &group,
+			     nsCString &clientID)
+    : mDevice(device)
+    , mGroup(group)
+    , mClientID(clientID)
+  {
+  }
+
+  NS_IMETHOD Run()
+  {
+    if (mDevice->IsActiveCache(mGroup, mClientID))
+    {
+      mDevice->DeactivateGroup(mGroup);
+    }
+
+    return mDevice->EvictEntries(mClientID.get());
+  }
+
+private:
+  nsRefPtr<nsOfflineCacheDevice> mDevice;
+  nsCString mGroup;
+  nsCString mClientID;
+};
+
 /******************************************************************************
  * nsOfflineCacheDeviceInfo
  */
 
-class nsOfflineCacheDeviceInfo : public nsICacheDeviceInfo
+class nsOfflineCacheDeviceInfo MOZ_FINAL : public nsICacheDeviceInfo
 {
 public:
   NS_DECL_ISUPPORTS
@@ -287,7 +282,7 @@ nsOfflineCacheDeviceInfo::GetUsageReport(char ** usageReport)
   buffer.AssignLiteral("  <tr>\n"
                        "    <th>Cache Directory:</th>\n"
                        "    <td>");
-  nsILocalFile *cacheDir = mDevice->CacheDirectory();
+  nsIFile *cacheDir = mDevice->CacheDirectory();
   if (!cacheDir)
     return NS_OK;
 
@@ -333,7 +328,7 @@ nsOfflineCacheDeviceInfo::GetMaximumSize(PRUint32 *aMaximumSize)
  * nsOfflineCacheBinding
  */
 
-class nsOfflineCacheBinding : public nsISupports
+class nsOfflineCacheBinding MOZ_FINAL : public nsISupports
 {
 public:
   NS_DECL_ISUPPORTS
@@ -482,7 +477,7 @@ CreateCacheEntry(nsOfflineCacheDevice *device,
  * nsOfflineCacheEntryInfo
  */
 
-class nsOfflineCacheEntryInfo : public nsICacheEntryInfo
+class nsOfflineCacheEntryInfo MOZ_FINAL : public nsICacheEntryInfo
 {
 public:
   NS_DECL_ISUPPORTS
@@ -664,6 +659,17 @@ nsApplicationCache::GetClientID(nsACString &out)
 }
 
 NS_IMETHODIMP
+nsApplicationCache::GetProfileDirectory(nsIFile **out)
+{
+  if (mDevice->BaseDirectory())
+      NS_ADDREF(*out = mDevice->BaseDirectory());
+  else
+      *out = nsnull;
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 nsApplicationCache::GetActive(bool *out)
 {
   NS_ENSURE_TRUE(mDevice, NS_ERROR_NOT_AVAILABLE);
@@ -679,6 +685,10 @@ nsApplicationCache::Activate()
   NS_ENSURE_TRUE(mDevice, NS_ERROR_NOT_AVAILABLE);
 
   mDevice->ActivateCache(mGroup, mClientID);
+
+  if (mDevice->AutoShutdown(this))
+    mDevice = nsnull;
+
   return NS_OK;
 }
 
@@ -690,12 +700,10 @@ nsApplicationCache::Discard()
 
   mValid = false;
 
-  if (mDevice->IsActiveCache(mGroup, mClientID))
-  {
-    mDevice->DeactivateGroup(mGroup);
-  }
-
-  return mDevice->EvictEntries(mClientID.get());
+  nsRefPtr<nsIRunnable> ev =
+    new nsOfflineCacheDiscardCache(mDevice, mGroup, mClientID);
+  nsresult rv = nsCacheService::DispatchToCacheIOThread(ev);
+  return rv;
 }
 
 NS_IMETHODIMP
@@ -826,6 +834,7 @@ nsOfflineCacheDevice::nsOfflineCacheDevice()
   : mDB(nsnull)
   , mCacheCapacity(0)
   , mDeltaCounter(0)
+  , mAutoShutdown(false)
 {
 }
 
@@ -1182,16 +1191,15 @@ nsOfflineCacheDevice::Init()
 nsresult
 nsOfflineCacheDevice::InitActiveCaches()
 {
-  NS_ENSURE_TRUE(mCaches.Init(), NS_ERROR_OUT_OF_MEMORY);
-  NS_ENSURE_TRUE(mActiveCachesByGroup.Init(), NS_ERROR_OUT_OF_MEMORY);
+  mCaches.Init();
+  mActiveCachesByGroup.Init();
 
-  nsresult rv = mActiveCaches.Init(5);
-  NS_ENSURE_SUCCESS(rv, rv);
+  mActiveCaches.Init(5);
 
   AutoResetStatement statement(mStatement_EnumerateGroups);
 
   bool hasRows;
-  rv = statement->ExecuteStep(&hasRows);
+  nsresult rv = statement->ExecuteStep(&hasRows);
   NS_ENSURE_SUCCESS(rv, rv);
 
   while (hasRows)
@@ -2112,7 +2120,7 @@ nsOfflineCacheDevice::CreateApplicationCache(const nsACString &group,
 
   // Include the timestamp to guarantee uniqueness across runs, and
   // the gNextTemporaryClientID for uniqueness within a second.
-  clientID.Append(nsPrintfCString(64, "|%016lld|%d",
+  clientID.Append(nsPrintfCString("|%016lld|%d",
                                   now / PR_USEC_PER_SEC,
                                   gNextTemporaryClientID++));
 
@@ -2374,7 +2382,7 @@ nsOfflineCacheDevice::GetGroupForCache(const nsACString &clientID,
  */
 
 void
-nsOfflineCacheDevice::SetCacheParentDirectory(nsILocalFile *parentDir)
+nsOfflineCacheDevice::SetCacheParentDirectory(nsIFile *parentDir)
 {
   if (Initialized())
   {
@@ -2396,6 +2404,8 @@ nsOfflineCacheDevice::SetCacheParentDirectory(nsILocalFile *parentDir)
     return;
   }
 
+  mBaseDirectory = parentDir;
+
   // cache dir may not exist, but that's ok
   nsCOMPtr<nsIFile> dir;
   rv = parentDir->Clone(getter_AddRefs(dir));
@@ -2412,4 +2422,24 @@ void
 nsOfflineCacheDevice::SetCapacity(PRUint32 capacity)
 {
   mCacheCapacity = capacity * 1024;
+}
+
+bool
+nsOfflineCacheDevice::AutoShutdown(nsIApplicationCache * aAppCache)
+{
+  if (!mAutoShutdown)
+    return false;
+
+  mAutoShutdown = false;
+
+  Shutdown();
+
+  nsRefPtr<nsCacheService> cacheService = nsCacheService::GlobalInstance();
+  cacheService->RemoveCustomOfflineDevice(this);
+
+  nsCAutoString clientID;
+  aAppCache->GetClientID(clientID);
+  mCaches.Remove(clientID);
+
+  return true;
 }

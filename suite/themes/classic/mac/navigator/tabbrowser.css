@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 
@@ -102,7 +106,6 @@ tabpanels {
   -moz-border-left-colors: rgba(0, 0, 0, 0.08) #888;
   -moz-border-right-colors: rgba(0, 0, 0, 0.08) #888;
   margin-top: 1px;
-  -moz-user-focus: normal;
 }
 
 .tabbrowser-tab:focus {
@@ -119,12 +122,10 @@ tabpanels {
   -moz-border-left-colors: transparent transparent;
 }
 
-.toolbarbutton-text {
+.tabs-newbutton > .toolbarbutton-text,
+.tabs-alltabs-button > .toolbarbutton-text,
+.tabs-closebutton > .toolbarbutton-text {
   display: none;
-}
-
-.toolbarbutton-icon {
-  margin: 0 !important; /* needs to override communicator.css */
 }
 
 /* ::::: Tab scrollbox arrow ::::: */
@@ -190,6 +191,10 @@ tabpanels {
   list-style-image: url("chrome://global/skin/icons/loading_16.png") !important;
 }
 
+.alltabs-item[tabIsScrolled] {
+  font-style: italic;
+}
+
 /* ::::: close button ::::: */
 
 .tabs-closebutton {
@@ -219,7 +224,7 @@ tabpanels {
   -moz-margin-start: -6px;
   position: relative;
 }
- 
+
 .tab-drop-indicator {
   height: 11px;
   width: 11px;

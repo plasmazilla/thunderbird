@@ -17,7 +17,7 @@ function test()
   debug_tab_pane(TAB_URL, function(aTab, aDebuggee, aPane) {
     gTab = aTab;
     gPane = aPane;
-    gDebugger = gPane.debuggerWindow;
+    gDebugger = gPane.contentWindow;
 
     testFrameParameters();
   });
@@ -27,17 +27,17 @@ function testFrameParameters()
 {
   dump("Started testFrameParameters!\n");
 
-  gDebugger.addEventListener("Debugger:FetchedParameters", function test() {
-    dump("Entered Debugger:FetchedParameters!\n");
+  gDebugger.addEventListener("Debugger:FetchedVariables", function test() {
+    dump("Entered Debugger:FetchedVariables!\n");
 
-    gDebugger.removeEventListener("Debugger:FetchedParameters", test, false);
+    gDebugger.removeEventListener("Debugger:FetchedVariables", test, false);
     Services.tm.currentThread.dispatch({ run: function() {
 
       dump("After currentThread.dispatch!\n");
 
       var frames = gDebugger.DebuggerView.StackFrames._frames,
           childNodes = frames.childNodes,
-          localScope = gDebugger.DebuggerView.Properties.localScope,
+          localScope = gDebugger.DebuggerView.Properties._vars.firstChild,
           localNodes = localScope.querySelector(".details").childNodes;
 
       dump("Got our variables:\n");
@@ -52,32 +52,41 @@ function testFrameParameters()
       is(frames.querySelectorAll(".dbg-stackframe").length, 3,
         "Should have three frames.");
 
-      is(localNodes.length, 8,
+      is(localNodes.length, 11,
         "The localScope should contain all the created variable elements.");
 
-      is(localNodes[0].querySelector(".info").textContent, "[object Proxy]",
+      is(localNodes[0].querySelector(".value").getAttribute("value"), "[object Proxy]",
         "Should have the right property value for 'this'.");
 
-      is(localNodes[1].querySelector(".info").textContent, "[object Arguments]",
-        "Should have the right property value for 'arguments'.");
-
-      is(localNodes[2].querySelector(".info").textContent, "[object Object]",
+      is(localNodes[1].querySelector(".value").getAttribute("value"), "[object Object]",
         "Should have the right property value for 'aArg'.");
 
-      is(localNodes[3].querySelector(".info").textContent, '"beta"',
+      is(localNodes[2].querySelector(".value").getAttribute("value"), '"beta"',
         "Should have the right property value for 'bArg'.");
 
-      is(localNodes[4].querySelector(".info").textContent, "3",
+      is(localNodes[3].querySelector(".value").getAttribute("value"), "3",
         "Should have the right property value for 'cArg'.");
 
-      is(localNodes[5].querySelector(".info").textContent, "false",
+      is(localNodes[4].querySelector(".value").getAttribute("value"), "false",
         "Should have the right property value for 'dArg'.");
 
-      is(localNodes[6].querySelector(".info").textContent, "null",
+      is(localNodes[5].querySelector(".value").getAttribute("value"), "null",
         "Should have the right property value for 'eArg'.");
 
-      is(localNodes[7].querySelector(".info").textContent, "undefined",
+      is(localNodes[6].querySelector(".value").getAttribute("value"), "undefined",
         "Should have the right property value for 'fArg'.");
+
+      is(localNodes[7].querySelector(".value").getAttribute("value"), "1",
+       "Should have the right property value for 'a'.");
+
+      is(localNodes[8].querySelector(".value").getAttribute("value"), "[object Arguments]",
+        "Should have the right property value for 'arguments'.");
+
+      is(localNodes[9].querySelector(".value").getAttribute("value"), "[object Object]",
+       "Should have the right property value for 'b'.");
+
+      is(localNodes[10].querySelector(".value").getAttribute("value"), "[object Object]",
+       "Should have the right property value for 'c'.");
 
       resumeAndFinish();
     }}, 0);
@@ -89,16 +98,15 @@ function testFrameParameters()
 }
 
 function resumeAndFinish() {
-  gDebugger.DebuggerController.activeThread.addOneTimeListener("framescleared", function() {
-    Services.tm.currentThread.dispatch({ run: function() {
-      var frames = gDebugger.DebuggerView.StackFrames._frames;
+  gDebugger.addEventListener("Debugger:AfterFramesCleared", function listener() {
+    gDebugger.removeEventListener("Debugger:AfterFramesCleared", listener, true);
 
-      is(frames.querySelectorAll(".dbg-stackframe").length, 0,
-        "Should have no frames.");
+    var frames = gDebugger.DebuggerView.StackFrames._frames;
+    is(frames.querySelectorAll(".dbg-stackframe").length, 0,
+      "Should have no frames.");
 
-      closeDebuggerAndFinish(gTab);
-    }}, 0);
-  });
+    closeDebuggerAndFinish();
+  }, true);
 
   gDebugger.DebuggerController.activeThread.resume();
 }

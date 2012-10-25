@@ -1,43 +1,9 @@
 #filter substitution
 <?xml version="1.0"?>
 
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is Mozilla Communicator client code, released
-# March 31, 1998.
-#
-# The Initial Developer of the Original Code is
-# Netscape Communications Corporation.
-# Portions created by the Initial Developer are Copyright (C) 1998-1999
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Mark Banner <bugzilla@standard8.plus.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 <?xml-stylesheet href="chrome://messenger/skin/mailWindow1.css" type="text/css"?>
 <?xml-stylesheet href="chrome://gloda/content/glodacomplete.css" type="text/css"?>
@@ -75,6 +41,7 @@
   -  3-pane view inside of tabs.
   -->
 <window id="messengerWindow"
+        xmlns:svg="http://www.w3.org/2000/svg"
         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
         title="&titledefault.label;@PRE_RELEASE_SUFFIX@"
         titlemodifier="&titledefault.label;@PRE_RELEASE_SUFFIX@"
@@ -88,20 +55,6 @@
         macanimationtype="document"
         lightweightthemes="true"
         lightweightthemesfooter="status-bar">
-
-
-<!--This (strange!) element is here to support recovering customized toolbars in
-    the featureConfigurator code.  We just want to access the persisted data.
-
-    If this not an upgrade from 2 to 3, then there won't be any persisted
-    currentset, and we want the original defaultset -->
-<data id="mail-bar2" persist="currentset iconsize labelalign"
-#ifdef XP_MACOSX
-  defaultset="button-getmsg,button-newmsg,button-address,spacer,button-reply,button-replyall,button-replylist,button-forward,spacer,button-tag,button-delete,button-junk,button-print,spacer,button-goback,button-goforward,spring,gloda-search,throbber-box"
-#else
-  defaultset="button-getmsg,button-newmsg,button-address,separator,button-reply,button-replyall,button-replylist,button-forward,separator,button-tag,button-delete,button-junk,button-print,separator,button-goback,button-goforward,spring,gloda-search"
-#endif
-/>
 
 <stringbundleset id="stringbundleset">
   <stringbundle id="bundle_brand" src="chrome://branding/locale/brand.properties"/>
@@ -148,6 +101,7 @@
   <commandset id="mailMessageMenuItems"/>
   <commandset id="mailToolbarItems"/>
   <commandset id="mailGetMsgMenuItems"/>
+  <commandset id="mailTagMenuItems"/>
   <commandset id="mailMarkMenuItems"/>
   <commandset id="mailToolsMenuItems"/>
   <commandset id="globalEditMenuItems"/>
@@ -587,5 +541,12 @@
     <statusbarpanel id="unreadMessageCount"/>
     <statusbarpanel id="totalMessageCount"/>
   </statusbar>
+
+  <svg:svg height="0">
+    <svg:clipPath id="tab-curve-clip-path" clipPathUnits="userSpaceOnUse">
+      <svg:path d="m 0,28 5,0 4,-3 3,-4 1,-5 1,-5 3,-5 4,-4 4,-2 5,0 0,31 -30,0 z"/>
+    </svg:clipPath>
+  </svg:svg>
+
 </window>
 

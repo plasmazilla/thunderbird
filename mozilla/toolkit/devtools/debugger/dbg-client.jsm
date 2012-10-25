@@ -1,43 +1,8 @@
 /* -*- Mode: javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ft=javascript ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Debug Protocol Client code.
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dave Camp <dcamp@mozilla.com> (original author)
- *   Panos Astithas <past@mozilla.com>
- *   Mihai Sucan <mihai.sucan@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 "use strict";
 const Ci = Components.interfaces;
@@ -184,7 +149,9 @@ function eventSource(aProto) {
         listener.apply(null, arguments);
       } catch (e) {
         // Prevent a bad listener from interfering with the others.
-        Cu.reportError(e);
+        let msg = e + ": " + e.stack;
+        Cu.reportError(msg);
+        dumpn(msg);
       }
     }
   }
@@ -211,10 +178,22 @@ const UnsolicitedNotifications = {
 };
 
 /**
+ * Set of pause types that are sent by the server and not as an immediate
+ * response to a client request.
+ */
+const UnsolicitedPauses = {
+  "resumeLimit": "resumeLimit",
+  "debuggerStatement": "debuggerStatement",
+  "breakpoint": "breakpoint",
+  "watchpoint": "watchpoint"
+};
+
+/**
  * Set of debug protocol request types that specify the protocol request being
  * sent to the server.
  */
 const DebugProtocolTypes = {
+  "assign": "assign",
   "attach": "attach",
   "clientEvaluate": "clientEvaluate",
   "delete": "delete",
@@ -375,10 +354,11 @@ DebuggerClient.prototype = {
    */
   request: function DC_request(aRequest, aOnResponse) {
     if (!this._connected) {
-      throw "Have not yet received a hello packet from the server.";
+      throw Error("Have not yet received a hello packet from the server.");
     }
     if (!aRequest.to) {
-      throw "Request packet has no destination.";
+      let type = aRequest.type || "";
+      throw Error("'" + type + "' request packet has no destination.");
     }
 
     this._pendingRequests.push({ to: aRequest.to,
@@ -431,17 +411,27 @@ DebuggerClient.prototype = {
       }
 
       let onResponse;
-      // Don't count unsolicited notifications as responses.
+      // Don't count unsolicited notifications or pauses as responses.
       if (aPacket.from in this._activeRequests &&
-          !(aPacket.type in UnsolicitedNotifications)) {
+          !(aPacket.type in UnsolicitedNotifications) &&
+          !(aPacket.type == ThreadStateTypes.paused &&
+            aPacket.why.type in UnsolicitedPauses)) {
         onResponse = this._activeRequests[aPacket.from].onResponse;
         delete this._activeRequests[aPacket.from];
       }
 
-      // paused/resumed/detached get special treatment...
+      // Packets that indicate thread state changes get special treatment.
       if (aPacket.type in ThreadStateTypes &&
           aPacket.from in this._threadClients) {
         this._threadClients[aPacket.from]._onThreadState(aPacket);
+      }
+      // On navigation the server resumes, so the client must resume as well.
+      // We achive that by generating a fake resumption packet that triggers
+      // the client's thread state change listeners.
+      if (aPacket.type == UnsolicitedNotifications.tabNavigated &&
+          aPacket.from in this._tabClients) {
+        let resumption = { from: this.activeThread._actor, type: "resumed" };
+        this.activeThread._onThreadState(resumption);
       }
       this.notify(aPacket.type, aPacket);
 
@@ -449,7 +439,7 @@ DebuggerClient.prototype = {
         onResponse(aPacket);
       }
     } catch(ex) {
-      dumpn("Error handling response: " + ex + " - " + ex.stack);
+      dumpn("Error handling response: " + ex + " - stack:\n" + ex.stack);
       Cu.reportError(ex);
     }
 
@@ -531,12 +521,14 @@ ThreadClient.prototype = {
   get state() { return this._state; },
   get paused() { return this._state === "paused"; },
 
+  _pauseOnExceptions: false,
+
   _actor: null,
   get actor() { return this._actor; },
 
   _assertPaused: function TC_assertPaused(aCommand) {
     if (!this.paused) {
-      throw aCommand + " command sent while not paused.";
+      throw Error(aCommand + " command sent while not paused.");
     }
   },
 
@@ -558,8 +550,12 @@ ThreadClient.prototype = {
     this._state = "resuming";
 
     let self = this;
-    let packet = { to: this._actor, type: DebugProtocolTypes.resume,
-                   resumeLimit: aLimit };
+    let packet = {
+      to: this._actor,
+      type: DebugProtocolTypes.resume,
+      resumeLimit: aLimit,
+      pauseOnExceptions: this._pauseOnExceptions
+    };
     this._client.request(packet, function(aResponse) {
       if (aResponse.error) {
         // There was an error resuming, back to paused state.
@@ -617,8 +613,41 @@ ThreadClient.prototype = {
   },
 
   /**
+   * Enable or disable pausing when an exception is thrown.
+   *
+   * @param boolean aFlag
+   *        Enables pausing if true, disables otherwise.
+   * @param function aOnResponse
+   *        Called with the response packet.
+   */
+  pauseOnExceptions: function TC_pauseOnExceptions(aFlag, aOnResponse) {
+    this._pauseOnExceptions = aFlag;
+    // If the debuggee is paused, the value of the flag will be communicated in
+    // the next resumption. Otherwise we have to force a pause in order to send
+    // the flag.
+    if (!this.paused) {
+      this.interrupt(function(aResponse) {
+        if (aResponse.error) {
+          // Can't continue if pausing failed.
+          aOnResponse(aResponse);
+          return;
+        }
+        this.resume(aOnResponse);
+      }.bind(this));
+    }
+  },
+
+  /**
    * Send a clientEvaluate packet to the debuggee. Response
    * will be a resume packet.
+   *
+   * @param string aFrame
+   *        The actor ID of the frame where the evaluation should take place.
+   * @param string aExpression
+   *        The expression that will be evaluated in the scope of the frame
+   *        above.
+   * @param function aOnResponse
+   *        Called with the response packet.
    */
   eval: function TC_eval(aFrame, aExpression, aOnResponse) {
     this._assertPaused("eval");
@@ -665,9 +694,9 @@ ThreadClient.prototype = {
   /**
    * Request to set a breakpoint in the specified location.
    *
-   * @param aLocation object
+   * @param object aLocation
    *        The source location object where the breakpoint will be set.
-   * @param aOnResponse integer
+   * @param function aOnResponse
    *        Called with the thread's response.
    */
   setBreakpoint: function TC_setBreakpoint(aLocation, aOnResponse) {
@@ -676,24 +705,18 @@ ThreadClient.prototype = {
       let packet = { to: this._actor, type: DebugProtocolTypes.setBreakpoint,
                      location: aLocation };
       this._client.request(packet, function (aResponse) {
-          if (aOnResponse) {
-            if (aResponse.error) {
-              if (aCallback) {
-                aCallback(aOnResponse.bind(undefined, aResponse));
-              } else {
-                aOnResponse(aResponse);
-              }
-              return;
-            }
-            let bpClient = new BreakpointClient(this._client, aResponse.actor,
-                                                aLocation);
-            if (aCallback) {
-              aCallback(aOnResponse(aResponse, bpClient));
-            } else {
-              aOnResponse(aResponse, bpClient);
-            }
+        // Ignoring errors, since the user may be setting a breakpoint in a
+        // dead script that will reappear on a page reload.
+        if (aOnResponse) {
+          let bpClient = new BreakpointClient(this._client, aResponse.actor,
+                                              aLocation);
+          if (aCallback) {
+            aCallback(aOnResponse(aResponse, bpClient));
+          } else {
+            aOnResponse(aResponse, bpClient);
           }
-        }.bind(this));
+        }
+      }.bind(this));
     }.bind(this);
 
     // If the debuggee is paused, just set the breakpoint.
@@ -723,12 +746,20 @@ ThreadClient.prototype = {
     this._client.request(packet, aOnResponse);
   },
 
-  /**
-   * A cache of source scripts. Clients can observe the scriptsadded and
-   * scriptscleared event to keep up to date on changes to this cache,
-   * and can fill it using the fillScripts method.
-   */
-  get cachedScripts() { return this._scriptCache; },
+  _doInterrupted: function TC_doInterrupted(aAction, aError) {
+    if (this.paused) {
+      aAction();
+      return;
+    }
+    this.interrupt(function(aResponse) {
+      if (aResponse) {
+        aError(aResponse);
+        return;
+      }
+      aAction();
+      this.resume(function() {});
+    }.bind(this));
+  },
 
   /**
    * Ensure that source scripts have been loaded in the

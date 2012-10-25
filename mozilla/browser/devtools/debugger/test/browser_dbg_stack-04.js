@@ -14,7 +14,7 @@ function test() {
     gTab = aTab;
     gDebuggee = aDebuggee;
     gPane = aPane;
-    gDebugger = gPane.debuggerWindow;
+    gDebugger = gPane.contentWindow;
 
     testEvalCallResume();
   });
@@ -37,7 +37,8 @@ function testEvalCallResume() {
         "All children should be frames.");
 
 
-      gDebugger.DebuggerController.activeThread.addOneTimeListener("framescleared", function() {
+      gDebugger.addEventListener("Debugger:AfterFramesCleared", function listener() {
+        gDebugger.removeEventListener("Debugger:AfterFramesCleared", listener, true);
 
         is(frames.querySelectorAll(".dbg-stackframe").length, 0,
           "Should have no frames after resume");
@@ -48,8 +49,8 @@ function testEvalCallResume() {
         is(frames.querySelectorAll(".empty").length, 1,
            "Should have the empty list explanation.");
 
-        closeDebuggerAndFinish(gTab);
-      });
+        closeDebuggerAndFinish();
+      }, true);
 
       gDebugger.DebuggerController.activeThread.resume();
     }}, 0);

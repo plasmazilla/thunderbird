@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Mats Palmgren <matspal@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nscore.h"
 #include "nsCOMPtr.h"
@@ -62,7 +28,6 @@
 #include "nsEventListenerManager.h"
 #include "nsIDOMKeyEvent.h"
 #include "nsIDOMMouseEvent.h"
-#include "nsIPrivateDOMEvent.h"
 #include "nsXPCOM.h"
 #include "nsISupportsPrimitives.h"
 #include "nsIComponentManager.h"
@@ -83,11 +48,12 @@
 #include "nsDisplayList.h"
 #include "nsContentUtils.h"
 #include "mozilla/LookAndFeel.h"
+#include "mozilla/Attributes.h"
 
 using namespace mozilla;
 
 // Constants
-const nscoord kMaxDropDownRows          = 20; // This matches the setting for 4.x browsers
+const PRInt32 kMaxDropDownRows          = 20; // This matches the setting for 4.x browsers
 const PRInt32 kNothingSelected          = -1;
 
 // Static members
@@ -109,7 +75,7 @@ DOMTimeStamp nsListControlFrame::gLastKeyTime = 0;
  * Frames are not refcounted so they can't be used as event listeners.
  *****************************************************************************/
 
-class nsListEventListener : public nsIDOMEventListener
+class nsListEventListener MOZ_FINAL : public nsIDOMEventListener
 {
 public:
   nsListEventListener(nsListControlFrame *aFrame)
@@ -146,6 +112,7 @@ nsListControlFrame::nsListControlFrame(
   : nsHTMLScrollFrame(aShell, aContext, false),
     mMightNeedSecondPass(false),
     mHasPendingInterruptAtStartOfReflow(false),
+    mDropdownCanGrow(false),
     mLastDropdownComputedHeight(NS_UNCONSTRAINEDSIZE)
 {
   mComboboxFrame      = nsnull;
@@ -309,7 +276,7 @@ NS_QUERYFRAME_HEAD(nsListControlFrame)
 NS_QUERYFRAME_TAIL_INHERITING(nsHTMLScrollFrame)
 
 #ifdef ACCESSIBILITY
-already_AddRefed<nsAccessible>
+already_AddRefed<Accessible>
 nsListControlFrame::CreateAccessible()
 {
   nsAccessibilityService* accService = nsIPresShell::AccService();
@@ -341,26 +308,6 @@ GetMaxOptionHeight(nsIFrame* aContainer)
       result = optionHeight;
   }
   return result;
-}
-
-static PRUint32
-GetNumberOfOptionsRecursive(nsIContent* aContent)
-{
-  if (!aContent) {
-    return 0;
-  }
-
-  PRUint32 optionCount = 0;
-  for (nsIContent* cur = aContent->GetFirstChild();
-       cur;
-       cur = cur->GetNextSibling()) {
-    if (cur->IsHTML(nsGkAtoms::option)) {
-      ++optionCount;
-    } else if (cur->IsHTML(nsGkAtoms::optgroup)) {
-      optionCount += GetNumberOfOptionsRecursive(cur);
-    }
-  }
-  return optionCount;
 }
 
 //-----------------------------------------------------------------
@@ -563,11 +510,12 @@ nsListControlFrame::ReflowAsDropdown(nsPresContext*           aPresContext,
 
 #ifdef DEBUG
   nscoord oldHeightOfARow = HeightOfARow();
+  nscoord oldVisibleHeight = (GetStateBits() & NS_FRAME_FIRST_REFLOW) ?
+    NS_UNCONSTRAINEDSIZE : GetScrolledFrame()->GetSize().height;
 #endif
 
   nsHTMLReflowState state(aReflowState);
 
-  nscoord oldVisibleHeight;
   if (!(GetStateBits() & NS_FRAME_FIRST_REFLOW)) {
     // When not doing an initial reflow, and when the height is auto, start off
     // with our computed height set to what we'd expect our height to be.
@@ -575,11 +523,6 @@ nsListControlFrame::ReflowAsDropdown(nsPresContext*           aPresContext,
     // NS_UNCONSTRAINEDSIZE in cases when last time we didn't have to constrain
     // the height.  That's fine; just do the same thing as last time.
     state.SetComputedHeight(mLastDropdownComputedHeight);
-    oldVisibleHeight = GetScrolledFrame()->GetSize().height;
-  } else {
-    // Set oldVisibleHeight to something that will never test true against a
-    // real height.
-    oldVisibleHeight = NS_UNCONSTRAINEDSIZE;
   }
 
   nsresult rv = nsHTMLScrollFrame::Reflow(aPresContext, aDesiredSize,
@@ -621,53 +564,49 @@ nsListControlFrame::ReflowAsDropdown(nsPresContext*           aPresContext,
   // implementation detail of nsHTMLScrollFrame that we're depending on?
   nsHTMLScrollFrame::DidReflow(aPresContext, &state, aStatus);
 
-  // Now compute the height we want to have
-  mNumDisplayRows = kMaxDropDownRows;
-  if (visibleHeight > mNumDisplayRows * heightOfARow) {
-    visibleHeight = mNumDisplayRows * heightOfARow;
-    // This is an adaptive algorithm for figuring out how many rows 
-    // should be displayed in the drop down. The standard size is 20 rows, 
-    // but on 640x480 it is typically too big.
-    // This takes the height of the screen divides it by two and then subtracts off 
-    // an estimated height of the combobox. I estimate it by taking the max element size
-    // of the drop down and multiplying it by 2 (this is arbitrary) then subtract off
-    // the border and padding of the drop down (again rather arbitrary)
-    // This all breaks down if the font of the combobox is a lot larger then the option items
-    // or CSS style has set the height of the combobox to be rather large.
-    // We can fix these cases later if they actually happen.
-    nsRect screen = nsFormControlFrame::GetUsableScreenRect(aPresContext);
-    nscoord screenHeight = screen.height;
+  // Now compute the height we want to have.
+  // Note: no need to apply min/max constraints, since we have no such
+  // rules applied to the combobox dropdown.
 
-    nscoord availDropHgt = (screenHeight / 2) - (heightOfARow*2); // approx half screen minus combo size
-    availDropHgt -= aReflowState.mComputedBorderPadding.top + aReflowState.mComputedBorderPadding.bottom;
-
-    nscoord hgt = visibleHeight + aReflowState.mComputedBorderPadding.top + aReflowState.mComputedBorderPadding.bottom;
-    if (heightOfARow > 0) {
-      if (hgt > availDropHgt) {
-        visibleHeight = (availDropHgt / heightOfARow) * heightOfARow;
-      }
-      mNumDisplayRows = visibleHeight / heightOfARow;
-    } else {
-      // Hmmm, not sure what to do here. Punt, and make both of them one
-      visibleHeight   = 1;
-      mNumDisplayRows = 1;
-    }
-
-    state.SetComputedHeight(mNumDisplayRows * heightOfARow);
-    // Note: no need to apply min/max constraints, since we have no such
-    // rules applied to the combobox dropdown.
-    // XXXbz this is ending up too big!!  Figure out why.
-  } else if (visibleHeight == 0) {
+  mDropdownCanGrow = false;
+  if (visibleHeight <= 0 || heightOfARow <= 0) {
     // Looks like we have no options.  Just size us to a single row height.
     state.SetComputedHeight(heightOfARow);
+    mNumDisplayRows = 1;
   } else {
-    // Not too big, not too small.  Just use it!
-    state.SetComputedHeight(NS_UNCONSTRAINEDSIZE);
+    nsComboboxControlFrame* combobox = static_cast<nsComboboxControlFrame*>(mComboboxFrame);
+    nsPoint translation;
+    nscoord above, below;
+    combobox->GetAvailableDropdownSpace(&above, &below, &translation);
+    if (above <= 0 && below <= 0) {
+      state.SetComputedHeight(heightOfARow);
+      mNumDisplayRows = 1;
+      mDropdownCanGrow = GetNumberOfOptions() > 1;
+    } else {
+      nscoord bp = aReflowState.mComputedBorderPadding.TopBottom();
+      nscoord availableHeight = NS_MAX(above, below) - bp;
+      nscoord newHeight;
+      PRInt32 rows;
+      if (visibleHeight <= availableHeight) {
+        // The dropdown fits in the available height.
+        rows = GetNumberOfOptions();
+        mNumDisplayRows = clamped(rows, 1, kMaxDropDownRows);
+        if (mNumDisplayRows == rows) {
+          newHeight = visibleHeight;  // use the exact height
+        } else {
+          newHeight = mNumDisplayRows * heightOfARow; // approximate
+        }
+      } else {
+        rows = availableHeight / heightOfARow;
+        mNumDisplayRows = clamped(rows, 1, kMaxDropDownRows);
+        newHeight = mNumDisplayRows * heightOfARow; // approximate
+      }
+      state.SetComputedHeight(newHeight);
+      mDropdownCanGrow = visibleHeight - newHeight >= heightOfARow &&
+                         mNumDisplayRows != kMaxDropDownRows;
+    }
   }
 
-  // Note: At this point, state.mComputedHeight can be NS_UNCONSTRAINEDSIZE in
-  // cases when there were some options, but not too many (so no scrollbar was
-  // needed).  That's fine; just store that.
   mLastDropdownComputedHeight = state.ComputedHeight();
 
   nsHTMLScrollFrame::WillReflow(aPresContext);
@@ -1017,7 +956,7 @@ nsListControlFrame::SetInitialChildList(ChildListID    aListID,
 
 //---------------------------------------------------------
 nsresult
-nsListControlFrame::GetSizeAttribute(PRInt32 *aSize) {
+nsListControlFrame::GetSizeAttribute(PRUint32 *aSize) {
   nsresult rv = NS_OK;
   nsIDOMHTMLSelectElement* selectElement;
   rv = mContent->QueryInterface(NS_GET_IID(nsIDOMHTMLSelectElement),(void**) &selectElement);
@@ -1652,18 +1591,6 @@ nsListControlFrame::GetFormProperty(nsIAtom* aName, nsAString& aValue) const
 }
 
 void
-nsListControlFrame::SyncViewWithFrame()
-{
-    // Resync the view's position with the frame.
-    // The problem is the dropdown's view is attached directly under
-    // the root view. This means its view needs to have its coordinates calculated
-    // as if it were in it's normal position in the view hierarchy.
-  mComboboxFrame->AbsolutelyPositionDropDown();
-
-  nsContainerFrame::PositionFrameView(this);
-}
-
-void
 nsListControlFrame::AboutToDropDown()
 {
   NS_ASSERTION(IsInDropDownMode(),
@@ -1727,14 +1654,7 @@ nsListControlFrame::DidReflow(nsPresContext*           aPresContext,
   bool wasInterrupted = !mHasPendingInterruptAtStartOfReflow &&
                           aPresContext->HasPendingInterrupt();
 
-  if (IsInDropDownMode()) 
-  {
-    //SyncViewWithFrame();
-    rv = nsHTMLScrollFrame::DidReflow(aPresContext, aReflowState, aStatus);
-    SyncViewWithFrame();
-  } else {
-    rv = nsHTMLScrollFrame::DidReflow(aPresContext, aReflowState, aStatus);
-  }
+  rv = nsHTMLScrollFrame::DidReflow(aPresContext, aReflowState, aStatus);
 
   if (mNeedToReset && !wasInterrupted) {
     mNeedToReset = false;
@@ -1904,9 +1824,8 @@ nsListControlFrame::MouseUp(nsIDOMEvent* aMouseEvent)
     // depeneding on whether the clickCount is non-zero.
     // So we cheat here by either setting or unsetting the clcikCount in the native event
     // so the right thing happens for the onclick event
-    nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(aMouseEvent));
     nsMouseEvent * mouseEvent;
-    mouseEvent = (nsMouseEvent *) privateEvent->GetInternalNSEvent();
+    mouseEvent = (nsMouseEvent *) aMouseEvent->GetInternalNSEvent();
 
     PRInt32 selectedIndex;
     if (NS_SUCCEEDED(GetIndexFromDOMEvent(aMouseEvent, selectedIndex))) {
@@ -2205,25 +2124,12 @@ nsListControlFrame::ScrollToFrame(nsIContent* aOptElement)
   // otherwise we find the content's frame and scroll to it
   nsIFrame *childFrame = aOptElement->GetPrimaryFrame();
   if (childFrame) {
-    nsPoint pt = GetScrollPosition();
-    // get the scroll port rect relative to the scrolled frame
-    nsRect rect = GetScrollPortRect() + pt;
-    // get the option's rect relative to the scrolled frame
-    nsRect fRect(childFrame->GetOffsetTo(GetScrolledFrame()),
-                 childFrame->GetSize());
-
-    // See if the selected frame (fRect) is inside the scrollport
-    // area (rect). Check only the vertical dimension. Don't
-    // scroll just because there's horizontal overflow.
-    if (!(rect.y <= fRect.y && fRect.YMost() <= rect.YMost())) {
-      // figure out which direction we are going
-      if (fRect.YMost() > rect.YMost()) {
-        pt.y = fRect.y - (rect.height - fRect.height);
-      } else {
-        pt.y = fRect.y;
-      }
-      ScrollTo(nsPoint(fRect.x, pt.y), nsIScrollableFrame::INSTANT);
-    }
+    PresContext()->PresShell()->
+      ScrollFrameRectIntoView(childFrame,
+                              nsRect(nsPoint(0, 0), childFrame->GetSize()),
+                              nsIPresShell::ScrollAxis(), nsIPresShell::ScrollAxis(),
+                              nsIPresShell::SCROLL_OVERFLOW_HIDDEN |
+                              nsIPresShell::SCROLL_FIRST_ANCESTOR_ONLY);
   }
   return NS_OK;
 }
@@ -2470,13 +2376,13 @@ nsListControlFrame::KeyPress(nsIDOMEvent* aKeyEvent)
     case nsIDOMKeyEvent::DOM_VK_PAGE_UP: {
       AdjustIndexForDisabledOpt(mEndSelectionIndex, newIndex,
                                 (PRInt32)numOptions,
-                                -NS_MAX(1, mNumDisplayRows-1), -1);
+                                -NS_MAX(1, PRInt32(mNumDisplayRows-1)), -1);
       } break;
 
     case nsIDOMKeyEvent::DOM_VK_PAGE_DOWN: {
       AdjustIndexForDisabledOpt(mEndSelectionIndex, newIndex,
                                 (PRInt32)numOptions,
-                                NS_MAX(1, mNumDisplayRows-1), 1);
+                                NS_MAX(1, PRInt32(mNumDisplayRows-1)), 1);
       } break;
 
     case nsIDOMKeyEvent::DOM_VK_HOME: {

@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-"use strict"
+"use strict";
 
 let DEBUG = 0;
 if (DEBUG)
@@ -37,6 +37,7 @@ let DOMContactManager = {
     var idbManager = Components.classes["@mozilla.org/dom/indexeddb/manager;1"].getService(Ci.nsIIndexedDatabaseManager);
     idbManager.initWindowless(myGlobal);
     this._db = new ContactDB(myGlobal);
+    this._db.init(myGlobal);
 
     Services.obs.addObserver(this, "profile-before-change", false);
 
@@ -61,21 +62,53 @@ let DOMContactManager = {
     this._messages = null;
     if (this._db)
       this._db.close();
+    this._db = null;
   },
 
   receiveMessage: function(aMessage) {
-    function sortfunction(a, b){
-      let x, y;
-      if (a.properties[msg.findOptions.sortBy])
-        x = a.properties[msg.findOptions.sortBy][0].toLowerCase();
-      if (b.properties[msg.findOptions.sortBy])
-        y = b.properties[msg.findOptions.sortBy][0].toLowerCase();
-      if (msg.findOptions == 'ascending')
-        return ((x < y) ? -1 : ((x > y) ? 1 : 0));
-      return ((x < y) ? 1 : ((x > y) ? -1 : 0));
-    }
     debug("Fallback DOMContactManager::receiveMessage " + aMessage.name);
     let msg = aMessage.json;
+
+    /*
+     * Sorting the contacts by sortBy field. sortBy can either be familyName or givenName.
+     * If 2 entries have the same sortyBy field or no sortBy field is present, we continue 
+     * sorting with the other sortyBy field.
+     */
+    function sortfunction(a, b){
+      let x, y;
+      let sortByNameSet = true;
+      let result = 0;
+      let sortBy = msg.findOptions.sortBy;
+      let sortOrder = msg.findOptions.sortOrder;
+      if (!a.properties[sortBy] || !(x = a.properties[sortBy][0].toLowerCase())) {
+        sortByNameSet = false;
+      }
+
+      if (!b.properties[sortBy] || !(y = b.properties[sortBy][0].toLowerCase())) {
+        if (sortByNameSet) {
+          return sortOrder == 'ascending' ? 1 : -1;
+        }
+      }
+
+      if (sortByNameSet) {
+        result = x.localeCompare(y);
+      }
+
+      if (result == 0) {
+        // If 2 entries have the same sortBy (familyName or givenName) field,
+        // we have to continue sorting.
+        let otherSortBy = sortBy == "familyName" ? "givenName" : "familyName";
+        if (!a.properties[otherSortBy] || !(x = a.properties[otherSortBy][0].toLowerCase())) {
+          return sortOrder == 'ascending' ? 1 : -1;
+        }
+        if (!b.properties[otherSortBy] || !(y = b.properties[otherSortBy][0].toLowerCase())) {
+          return sortOrder == 'ascending' ? 1 : -1;
+        }
+        result = x.localeCompare(y);
+      }
+      return sortOrder == 'ascending' ? result : -result;
+    }
+
     switch (aMessage.name) {
       case "Contacts:Find":
         let result = new Array();
@@ -93,21 +126,28 @@ let DOMContactManager = {
             debug("result:" + JSON.stringify(result));
             ppmm.sendAsyncMessage("Contacts:Find:Return:OK", {requestID: msg.requestID, contacts: result});
           }.bind(this),
-          function(aErrorMsg) { ppmm.sendAsyncMessage("Contacts:Find:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }) }.bind(this), 
+          function(aErrorMsg) { ppmm.sendAsyncMessage("Contacts:Find:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }) }.bind(this),
           msg.findOptions);
         break;
       case "Contact:Save":
-        this._db.saveContact(msg.contact, function() { ppmm.sendAsyncMessage("Contact:Save:Return:OK", { requestID: msg.requestID }); }.bind(this), 
-                             function(aErrorMsg) { ppmm.sendAsyncMessage("Contact:Save:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }); }.bind(this));
+        this._db.saveContact(
+          msg.contact, 
+          function() { ppmm.sendAsyncMessage("Contact:Save:Return:OK", { requestID: msg.requestID, contactID: msg.contact.id }); }.bind(this),
+          function(aErrorMsg) { ppmm.sendAsyncMessage("Contact:Save:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }); }.bind(this)
+        );
         break;
       case "Contact:Remove":
-        this._db.removeContact(msg.id, 
-                               function() { ppmm.sendAsyncMessage("Contact:Remove:Return:OK", { requestID: msg.requestID }); }.bind(this), 
-                               function(aErrorMsg) { ppmm.sendAsyncMessage("Contact:Remove:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }); }.bind(this));
+        this._db.removeContact(
+          msg.id, 
+          function() { ppmm.sendAsyncMessage("Contact:Remove:Return:OK", { requestID: msg.requestID, contactID: msg.id }); }.bind(this),
+          function(aErrorMsg) { ppmm.sendAsyncMessage("Contact:Remove:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }); }.bind(this)
+        );
         break;
       case "Contacts:Clear":
-        this._db.clear(function() { ppmm.sendAsyncMessage("Contacts:Clear:Return:OK", { requestID: msg.requestID }); }.bind(this),
-                       function(aErrorMsg) { ppmm.sendAsyncMessage("Contacts:Clear:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }); }.bind(this));
+        this._db.clear(
+          function() { ppmm.sendAsyncMessage("Contacts:Clear:Return:OK", { requestID: msg.requestID }); }.bind(this),
+          function(aErrorMsg) { ppmm.sendAsyncMessage("Contacts:Clear:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }); }.bind(this)
+        );
     }
   }
 }

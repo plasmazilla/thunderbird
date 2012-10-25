@@ -40,8 +40,8 @@ extern "C" {
 
     cubeb_stream_start(stm);
     for (;;) {
-      cubeb_get_time(stm, &ts);
-      printf("time=%lu\n", ts);
+      cubeb_stream_get_position(stm, &ts);
+      printf("time=%llu\n", ts);
       sleep(1);
     }
     cubeb_stream_stop(stm);
@@ -64,10 +64,9 @@ extern "C" {
     @endcode
 
     @code
-    int state_cb(cubeb_stream * stm, void * user, cubeb_state state)
+    void state_cb(cubeb_stream * stm, void * user, cubeb_state state)
     {
       printf("state=%d\n", state);
-      return CUBEB_OK;
     }
     @endcode
 */
@@ -89,7 +88,7 @@ typedef enum {
   CUBEB_SAMPLE_FLOAT32LE,
   /**< Big endian 32-bit IEEE floating point PCM. */
   CUBEB_SAMPLE_FLOAT32BE,
-#ifdef WORDS_BIGENDIAN
+#if defined(WORDS_BIGENDIAN) || defined(__BIG_ENDIAN__)
   /**< Native endian 16-bit signed PCM. */
   CUBEB_SAMPLE_S16NE = CUBEB_SAMPLE_S16BE,
   /**< Native endian 32-bit IEEE floating point PCM. */
@@ -141,12 +140,10 @@ typedef long (* cubeb_data_callback)(cubeb_stream * stream,
 /** User supplied state callback.
     @param stream
     @param user_ptr
-    @param state
-    @retval CUBEB_OK
-    @retval CUBEB_ERROR */
-typedef int (* cubeb_state_callback)(cubeb_stream * stream,
-                                     void * user_ptr,
-                                     cubeb_state state);
+    @param state */
+typedef void (* cubeb_state_callback)(cubeb_stream * stream,
+                                      void * user_ptr,
+                                      cubeb_state state);
 
 /** Initialize an application context.  This will perform any library or
     application scoped initialization.
@@ -155,6 +152,11 @@ typedef int (* cubeb_state_callback)(cubeb_stream * stream,
     @retval CUBEB_OK
     @retval CUBEB_ERROR */
 int cubeb_init(cubeb ** context, char const * context_name);
+
+/** Get a read-only string identifying this context's current backend.
+    @param context
+    @retval Read-only string identifying current backend. */
+char const * cubeb_get_backend_id(cubeb * context);
 
 /** Destroy an application context.
     @param context */

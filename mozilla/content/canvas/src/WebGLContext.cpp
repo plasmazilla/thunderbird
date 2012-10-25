@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Vladimir Vukicevic <vladimir@pobox.com> (original author)
- *   Mark Steele <mwsteele@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "WebGLContext.h"
 #include "WebGLExtensions.h"
@@ -69,10 +35,12 @@
 #include "prenv.h"
 
 #include "mozilla/Preferences.h"
+#include "mozilla/Services.h"
 #include "mozilla/Telemetry.h"
 
 #include "nsIObserverService.h"
-
+#include "mozilla/Services.h"
+#include "mozilla/dom/WebGLRenderingContextBinding.h"
 
 using namespace mozilla;
 using namespace mozilla::gl;
@@ -106,15 +74,14 @@ NS_NewCanvasRenderingContextWebGL(nsIDOMWebGLRenderingContext** aResult)
 }
 
 WebGLContext::WebGLContext()
-    : mCanvasElement(nsnull),
-      gl(nsnull)
+    : gl(nsnull)
 {
-    mEnabledExtensions.SetLength(WebGLExtensionID_Max);
+    SetIsDOMBinding();
+    mExtensions.SetLength(WebGLExtensionID_number_of_extensions);
 
     mGeneration = 0;
     mInvalidated = false;
     mResetLayer = true;
-    mVerbose = false;
     mOptionsFrozen = false;
 
     mActiveTexture = 0;
@@ -187,6 +154,8 @@ WebGLContext::WebGLContext()
     mContextRestorer = do_CreateInstance("@mozilla.org/timer;1");
     mContextStatus = ContextStable;
     mContextLostErrorSet = false;
+
+    mAlreadyGeneratedWarnings = 0;
 }
 
 WebGLContext::~WebGLContext()
@@ -195,6 +164,14 @@ WebGLContext::~WebGLContext()
     WebGLMemoryMultiReporterWrapper::RemoveWebGLContext(this);
     TerminateContextLossTimer();
     mContextRestorer = nsnull;
+}
+
+JSObject*
+WebGLContext::WrapObject(JSContext *cx, JSObject *scope,
+                         bool *triedToWrap)
+{
+    return dom::WebGLRenderingContextBinding::Wrap(cx, scope, this,
+                                                   triedToWrap);
 }
 
 void
@@ -225,18 +202,18 @@ WebGLContext::DestroyResourcesAndContext()
 
     mAttribBuffers.Clear();
 
-    while (mTextures.Length())
-        mTextures.Last()->DeleteOnce();
-    while (mBuffers.Length())
-        mBuffers.Last()->DeleteOnce();
-    while (mRenderbuffers.Length())
-        mRenderbuffers.Last()->DeleteOnce();
-    while (mFramebuffers.Length())
-        mFramebuffers.Last()->DeleteOnce();
-    while (mShaders.Length())
-        mShaders.Last()->DeleteOnce();
-    while (mPrograms.Length())
-        mPrograms.Last()->DeleteOnce();
+    while (!mTextures.isEmpty())
+        mTextures.getLast()->DeleteOnce();
+    while (!mBuffers.isEmpty())
+        mBuffers.getLast()->DeleteOnce();
+    while (!mRenderbuffers.isEmpty())
+        mRenderbuffers.getLast()->DeleteOnce();
+    while (!mFramebuffers.isEmpty())
+        mFramebuffers.getLast()->DeleteOnce();
+    while (!mShaders.isEmpty())
+        mShaders.getLast()->DeleteOnce();
+    while (!mPrograms.isEmpty())
+        mPrograms.getLast()->DeleteOnce();
 
     if (mBlackTexturesAreInitialized) {
         gl->fDeleteTextures(1, &mBlackTexture2D);
@@ -251,7 +228,9 @@ WebGLContext::DestroyResourcesAndContext()
     // We just got rid of everything, so the context had better
     // have been going away.
 #ifdef DEBUG
-    printf_stderr("--- WebGL context destroyed: %p\n", gl.get());
+    if (gl->DebugMode()) {
+        printf_stderr("--- WebGL context destroyed: %p\n", gl.get());
+    }
 #endif
 
     gl = nsnull;
@@ -266,10 +245,10 @@ WebGLContext::Invalidate()
     if (!mCanvasElement)
         return;
 
-    nsSVGEffects::InvalidateDirectRenderingObservers(HTMLCanvasElement());
+    nsSVGEffects::InvalidateDirectRenderingObservers(mCanvasElement);
 
     mInvalidated = true;
-    HTMLCanvasElement()->InvalidateCanvasContent(nsnull);
+    mCanvasElement->InvalidateCanvasContent(nsnull);
 }
 
 /* readonly attribute nsIDOMHTMLCanvasElement canvas; */
@@ -284,14 +263,6 @@ WebGLContext::GetCanvas(nsIDOMHTMLCanvasElement **canvas)
 //
 // nsICanvasRenderingContextInternal
 //
-
-NS_IMETHODIMP
-WebGLContext::SetCanvasElement(nsHTMLCanvasElement* aParentCanvas)
-{
-    mCanvasElement = aParentCanvas;
-
-    return NS_OK;
-}
 
 static bool
 GetBoolFromPropertyBag(nsIPropertyBag *bag, const char *propName, bool *boolResult)
@@ -330,7 +301,7 @@ WebGLContext::SetContextOptions(nsIPropertyBag *aOptions)
     newOpts.depth |= newOpts.stencil;
 
 #if 0
-    LogMessage("aaHint: %d stencil: %d depth: %d alpha: %d premult: %d preserve: %d\n",
+    GenerateWarning("aaHint: %d stencil: %d depth: %d alpha: %d premult: %d preserve: %d\n",
                newOpts.antialias ? 1 : 0,
                newOpts.stencil ? 1 : 0,
                newOpts.depth ? 1 : 0,
@@ -355,7 +326,7 @@ WebGLContext::SetDimensions(PRInt32 width, PRInt32 height)
     /*** early success return cases ***/
   
     if (mCanvasElement) {
-        HTMLCanvasElement()->InvalidateCanvas();
+        mCanvasElement->InvalidateCanvas();
     }
 
     if (gl && mWidth == width && mHeight == height)
@@ -403,17 +374,15 @@ WebGLContext::SetDimensions(PRInt32 width, PRInt32 height)
 #endif
     bool forceEnabled =
         Preferences::GetBool("webgl.force-enabled", false);
+    bool useMesaLlvmPipe =
+        Preferences::GetBool("gfx.prefer-mesa-llvmpipe", false);
     bool disabled =
         Preferences::GetBool("webgl.disabled", false);
-    bool verbose =
-        Preferences::GetBool("webgl.verbose", false);
 
     ScopedGfxFeatureReporter reporter("WebGL", forceEnabled);
 
     if (disabled)
         return NS_ERROR_FAILURE;
-
-    mVerbose = verbose;
 
     // We're going to create an entirely new context.  If our
     // generation is not 0 right now (that is, if this isn't the first
@@ -423,7 +392,7 @@ WebGLContext::SetDimensions(PRInt32 width, PRInt32 height)
     // If incrementing the generation would cause overflow,
     // don't allow it.  Allowing this would allow us to use
     // resource handles created from older context generations.
-    if (!(mGeneration+1).valid())
+    if (!(mGeneration + 1).isValid())
         return NS_ERROR_FAILURE; // exit without changing the value of mGeneration
 
     gl::ContextFormat format(gl::ContextFormat::BasicRGBA32);
@@ -492,7 +461,7 @@ WebGLContext::SetDimensions(PRInt32 width, PRInt32 height)
 
 #ifdef XP_WIN
     // allow forcing GL and not EGL/ANGLE
-    if (PR_GetEnv("MOZ_WEBGL_FORCE_OPENGL")) {
+    if (useMesaLlvmPipe || PR_GetEnv("MOZ_WEBGL_FORCE_OPENGL")) {
         preferEGL = false;
         useANGLE = false;
         useOpenGL = true;
@@ -503,10 +472,10 @@ WebGLContext::SetDimensions(PRInt32 width, PRInt32 height)
     if (forceOSMesa) {
         gl = gl::GLContextProviderOSMesa::CreateOffscreen(gfxIntSize(width, height), format);
         if (!gl || !InitAndValidateGL()) {
-            LogMessage("OSMesa forced, but creating context failed -- aborting!");
+            GenerateWarning("OSMesa forced, but creating context failed -- aborting!");
             return NS_ERROR_FAILURE;
         }
-        LogMessage("Using software rendering via OSMesa (THIS WILL BE SLOW)");
+        GenerateWarning("Using software rendering via OSMesa (THIS WILL BE SLOW)");
     }
 
 #ifdef XP_WIN
@@ -514,7 +483,7 @@ WebGLContext::SetDimensions(PRInt32 width, PRInt32 height)
     if (!gl && (preferEGL || useANGLE) && !preferOpenGL) {
         gl = gl::GLContextProviderEGL::CreateOffscreen(gfxIntSize(width, height), format);
         if (!gl || !InitAndValidateGL()) {
-            LogMessage("Error during ANGLE OpenGL ES initialization");
+            GenerateWarning("Error during ANGLE OpenGL ES initialization");
             return NS_ERROR_FAILURE;
         }
     }
@@ -522,9 +491,14 @@ WebGLContext::SetDimensions(PRInt32 width, PRInt32 height)
 
     // try the default provider, whatever that is
     if (!gl && useOpenGL) {
-        gl = gl::GLContextProvider::CreateOffscreen(gfxIntSize(width, height), format);
+        GLContext::ContextFlags flag = useMesaLlvmPipe 
+                                       ? GLContext::ContextFlagsMesaLLVMPipe
+                                       : GLContext::ContextFlagsNone;
+        gl = gl::GLContextProvider::CreateOffscreen(gfxIntSize(width, height), 
+                                                               format, flag);
         if (gl && !InitAndValidateGL()) {
-            LogMessage("Error during OpenGL initialization");
+            GenerateWarning("Error during %s initialization", 
+                            useMesaLlvmPipe ? "Mesa LLVMpipe" : "OpenGL");
             return NS_ERROR_FAILURE;
         }
     }
@@ -534,21 +508,23 @@ WebGLContext::SetDimensions(PRInt32 width, PRInt32 height)
         gl = gl::GLContextProviderOSMesa::CreateOffscreen(gfxIntSize(width, height), format);
         if (gl) {
             if (!InitAndValidateGL()) {
-                LogMessage("Error during OSMesa initialization");
+                GenerateWarning("Error during OSMesa initialization");
                 return NS_ERROR_FAILURE;
             } else {
-                LogMessage("Using software rendering via OSMesa (THIS WILL BE SLOW)");
+                GenerateWarning("Using software rendering via OSMesa (THIS WILL BE SLOW)");
             }
         }
     }
 
     if (!gl) {
-        LogMessage("Can't get a usable WebGL context");
+        GenerateWarning("Can't get a usable WebGL context");
         return NS_ERROR_FAILURE;
     }
 
 #ifdef DEBUG
-    printf_stderr ("--- WebGL context created: %p\n", gl.get());
+    if (gl->DebugMode()) {
+        printf_stderr("--- WebGL context created: %p\n", gl.get());
+    }
 #endif
 
     mWidth = width;
@@ -747,7 +723,7 @@ WebGLContext::GetCanvasLayer(nsDisplayListBuilder* aBuilder,
       // releasing the reference to the element.
       // The userData will receive DidTransactionCallbacks, which flush the
       // the invalidation state to indicate that the canvas is up to date.
-      userData = new WebGLContextUserData(HTMLCanvasElement());
+      userData = new WebGLContextUserData(mCanvasElement);
       canvasLayer->SetDidTransactionCallback(
               WebGLContextUserData::DidTransactionCallback, userData);
     }
@@ -783,21 +759,34 @@ WebGLContext::GetCanvasLayer(nsDisplayListBuilder* aBuilder,
 NS_IMETHODIMP
 WebGLContext::GetContextAttributes(jsval *aResult)
 {
+    ErrorResult rv;
+    JSObject* obj = GetContextAttributes(rv);
+    if (rv.Failed())
+        return rv.ErrorCode();
+
+    *aResult = JS::ObjectOrNullValue(obj);
+    return NS_OK;
+}
+
+JSObject*
+WebGLContext::GetContextAttributes(ErrorResult &rv)
+{
     if (!IsContextStable())
     {
-        *aResult = OBJECT_TO_JSVAL(NULL);
-        return NS_OK;
+        return NULL;
     }
 
     JSContext *cx = nsContentUtils::GetCurrentJSContext();
-    if (!cx)
-        return NS_ERROR_FAILURE;
+    if (!cx) {
+        rv.Throw(NS_ERROR_FAILURE);
+        return NULL;
+    }
 
     JSObject *obj = JS_NewObject(cx, NULL, NULL, NULL);
-    if (!obj)
-        return NS_ERROR_FAILURE;
-
-    *aResult = OBJECT_TO_JSVAL(obj);
+    if (!obj) {
+        rv.Throw(NS_ERROR_FAILURE);
+        return NULL;
+    }
 
     gl::ContextFormat cf = gl->ActualFormat();
 
@@ -816,11 +805,11 @@ WebGLContext::GetContextAttributes(jsval *aResult)
                            mOptions.preserveDrawingBuffer ? JSVAL_TRUE : JSVAL_FALSE,
                            NULL, NULL, JSPROP_ENUMERATE))
     {
-        *aResult = JSVAL_VOID;
-        return NS_ERROR_FAILURE;
+        rv.Throw(NS_ERROR_FAILURE);
+        return NULL;
     }
 
-    return NS_OK;
+    return obj;
 }
 
 /* [noscript] DOMString mozGetUnderlyingParamString(in WebGLenum pname); */
@@ -852,28 +841,35 @@ WebGLContext::MozGetUnderlyingParamString(PRUint32 pname, nsAString& retval)
     return NS_OK;
 }
 
-bool WebGLContext::IsExtensionSupported(WebGLExtensionID ei)
+bool WebGLContext::IsExtensionSupported(WebGLExtensionID ext)
 {
-    bool isSupported;
+    bool isSupported = false;
 
-    switch (ei) {
-        case WebGL_OES_texture_float:
+    switch (ext) {
+        case OES_standard_derivatives:
+        case WEBGL_lose_context:
+            // We always support these extensions.
+            isSupported = true;
+            break;
+        case OES_texture_float:
             isSupported = gl->IsExtensionSupported(gl->IsGLES2() ? GLContext::OES_texture_float 
                                                                  : GLContext::ARB_texture_float);
-	    break;
-        case WebGL_OES_standard_derivatives:
-            // We always support this extension.
-            isSupported = true;
             break;
-        case WebGL_EXT_texture_filter_anisotropic:
+        case EXT_texture_filter_anisotropic:
             isSupported = gl->IsExtensionSupported(GLContext::EXT_texture_filter_anisotropic);
             break;
-        case WebGL_MOZ_WEBGL_lose_context:
-            // We always support this extension.
-            isSupported = true;
+        case WEBGL_compressed_texture_s3tc:
+            if (gl->IsExtensionSupported(GLContext::EXT_texture_compression_s3tc)) {
+                isSupported = true;
+            } else if (gl->IsExtensionSupported(GLContext::EXT_texture_compression_dxt1) &&
+                       gl->IsExtensionSupported(GLContext::ANGLE_texture_compression_dxt3) &&
+                       gl->IsExtensionSupported(GLContext::ANGLE_texture_compression_dxt5))
+            {
+                isSupported = true;
+            }
             break;
         default:
-            isSupported = false;
+            MOZ_ASSERT(false, "should not get there.");
     }
 
     return isSupported;
@@ -882,56 +878,83 @@ bool WebGLContext::IsExtensionSupported(WebGLExtensionID ei)
 NS_IMETHODIMP
 WebGLContext::GetExtension(const nsAString& aName, nsIWebGLExtension **retval)
 {
-    *retval = nsnull;
-    if (!IsContextStable())
-        return NS_OK;
-    
-    if (mDisableExtensions) {
-        return NS_OK;
-    }
-
-    // handle simple extensions that don't need custom objects first
-    WebGLExtensionID ei = WebGLExtensionID_Max;
-    if (aName.EqualsLiteral("OES_texture_float")) {
-        if (IsExtensionSupported(WebGL_OES_texture_float))
-            ei = WebGL_OES_texture_float;
-    }
-    else if (aName.EqualsLiteral("OES_standard_derivatives")) {
-        if (IsExtensionSupported(WebGL_OES_standard_derivatives))
-            ei = WebGL_OES_standard_derivatives;
-    }
-    else if (aName.EqualsLiteral("MOZ_EXT_texture_filter_anisotropic")) {
-        if (IsExtensionSupported(WebGL_EXT_texture_filter_anisotropic))
-            ei = WebGL_EXT_texture_filter_anisotropic;
-    }
-    else if (aName.EqualsLiteral("MOZ_WEBGL_lose_context")) {
-        if (IsExtensionSupported(WebGL_MOZ_WEBGL_lose_context))
-            ei = WebGL_MOZ_WEBGL_lose_context;
-    }
-
-    if (ei != WebGLExtensionID_Max) {
-        if (!IsExtensionEnabled(ei)) {
-            switch (ei) {
-                case WebGL_OES_standard_derivatives:
-                    mEnabledExtensions[ei] = new WebGLExtensionStandardDerivatives(this);
-                    break;
-                case WebGL_EXT_texture_filter_anisotropic:
-                    mEnabledExtensions[ei] = new WebGLExtensionTextureFilterAnisotropic(this);
-                    break;
-                case WebGL_MOZ_WEBGL_lose_context:
-                    mEnabledExtensions[ei] = new WebGLExtensionLoseContext(this);
-                    break;
-                // create an extension for any types that don't
-                // have any additional tokens or methods
-                default:
-                    mEnabledExtensions[ei] = new WebGLExtension(this);
-                    break;
-            }
-        }
-        NS_ADDREF(*retval = mEnabledExtensions[ei]);
-    }
-
+    *retval = GetExtension(aName);
+    NS_IF_ADDREF(*retval);
     return NS_OK;
+}
+
+nsIWebGLExtension*
+WebGLContext::GetExtension(const nsAString& aName)
+{
+    if (!IsContextStable())
+        return nsnull;
+
+    if (mDisableExtensions) {
+        return nsnull;
+    }
+
+    WebGLExtensionID ext = WebGLExtensionID_unknown_extension;
+
+    if (aName.Equals(NS_LITERAL_STRING("OES_texture_float"),
+        nsCaseInsensitiveStringComparator()))
+    {
+        if (IsExtensionSupported(OES_texture_float))
+            ext = OES_texture_float;
+    }
+    else if (aName.Equals(NS_LITERAL_STRING("OES_standard_derivatives"),
+             nsCaseInsensitiveStringComparator()))
+    {
+        if (IsExtensionSupported(OES_standard_derivatives))
+            ext = OES_standard_derivatives;
+    }
+    else if (aName.Equals(NS_LITERAL_STRING("MOZ_EXT_texture_filter_anisotropic"),
+             nsCaseInsensitiveStringComparator()))
+    {
+        if (IsExtensionSupported(EXT_texture_filter_anisotropic))
+            ext = EXT_texture_filter_anisotropic;
+    }
+    else if (aName.Equals(NS_LITERAL_STRING("MOZ_WEBGL_lose_context"),
+             nsCaseInsensitiveStringComparator()))
+    {
+        if (IsExtensionSupported(WEBGL_lose_context))
+            ext = WEBGL_lose_context;
+    }
+    else if (aName.Equals(NS_LITERAL_STRING("MOZ_WEBGL_compressed_texture_s3tc"),
+             nsCaseInsensitiveStringComparator()))
+    {
+        if (IsExtensionSupported(WEBGL_compressed_texture_s3tc))
+            ext = WEBGL_compressed_texture_s3tc;
+    }
+
+    if (ext == WebGLExtensionID_unknown_extension) {
+      return nsnull;
+    }
+
+    if (!mExtensions[ext]) {
+        switch (ext) {
+            case OES_standard_derivatives:
+                mExtensions[ext] = new WebGLExtensionStandardDerivatives(this);
+                break;
+            case EXT_texture_filter_anisotropic:
+                mExtensions[ext] = new WebGLExtensionTextureFilterAnisotropic(this);
+                break;
+            case WEBGL_lose_context:
+                mExtensions[ext] = new WebGLExtensionLoseContext(this);
+                break;
+            case WEBGL_compressed_texture_s3tc:
+                mExtensions[ext] = new WebGLExtensionCompressedTextureS3TC(this);
+                break;
+            default:
+                // create a generic WebGLExtension object for any extensions that don't
+                // have any additional tokens or methods. We still need these to be separate
+                // objects in case the user might extend the corresponding JS objects with custom
+                // properties.
+                mExtensions[ext] = new WebGLExtension(this);
+                break;
+        }
+    }
+
+    return mExtensions[ext];
 }
 
 void
@@ -1024,13 +1047,13 @@ WebGLContext::EnsureBackbufferClearedAsNeeded()
     Invalidate();
 }
 
-nsresult
+void
 WebGLContext::DummyFramebufferOperation(const char *info)
 {
     WebGLenum status;
     CheckFramebufferStatus(LOCAL_GL_FRAMEBUFFER, &status);
     if (status == LOCAL_GL_FRAMEBUFFER_COMPLETE)
-        return NS_OK;
+        return;
     else
         return ErrorInvalidFramebufferOperation("%s: incomplete framebuffer", info);
 }
@@ -1054,7 +1077,7 @@ WebGLContext::Notify(nsITimer* timer)
 {
     TerminateContextLossTimer();
 
-    if (!HTMLCanvasElement()) {
+    if (!mCanvasElement) {
         // the canvas is gone. That happens when the page was closed before we got
         // this timer event. In this case, there's nothing to do here, just don't crash.
         return NS_OK;
@@ -1064,8 +1087,8 @@ WebGLContext::Notify(nsITimer* timer)
     // that now.
     if (mContextStatus == ContextLostAwaitingEvent) {
         bool defaultAction;
-        nsContentUtils::DispatchTrustedEvent(HTMLCanvasElement()->OwnerDoc(),
-                                             (nsIDOMHTMLCanvasElement*) HTMLCanvasElement(),
+        nsContentUtils::DispatchTrustedEvent(mCanvasElement->OwnerDoc(),
+                                             static_cast<nsIDOMHTMLCanvasElement*>(mCanvasElement),
                                              NS_LITERAL_STRING("webglcontextlost"),
                                              true,
                                              true,
@@ -1093,8 +1116,8 @@ WebGLContext::Notify(nsITimer* timer)
             return NS_OK;
         }
         mContextStatus = ContextStable;
-        nsContentUtils::DispatchTrustedEvent(HTMLCanvasElement()->OwnerDoc(),
-                                             (nsIDOMHTMLCanvasElement*) HTMLCanvasElement(),
+        nsContentUtils::DispatchTrustedEvent(mCanvasElement->OwnerDoc(),
+                                             static_cast<nsIDOMHTMLCanvasElement*>(mCanvasElement),
                                              NS_LITERAL_STRING("webglcontextrestored"),
                                              true,
                                              true);
@@ -1191,23 +1214,35 @@ NS_IMPL_CYCLE_COLLECTING_ADDREF(WebGLContext)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(WebGLContext)
 
 NS_IMPL_CYCLE_COLLECTION_CLASS(WebGLContext)
+
+NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN(WebGLContext)
+  NS_IMPL_CYCLE_COLLECTION_TRACE_PRESERVED_WRAPPER
+NS_IMPL_CYCLE_COLLECTION_TRACE_END
+
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(WebGLContext)
   NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mCanvasElement)
-  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSTARRAY(mEnabledExtensions)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSTARRAY(mExtensions)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_PRESERVED_WRAPPER
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
+
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(WebGLContext)
-  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mCanvasElement)
-  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSTARRAY_OF_NSCOMPTR(mEnabledExtensions)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR_AMBIGUOUS(mCanvasElement, nsINode)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSTARRAY_OF_NSCOMPTR(mExtensions)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_SCRIPT_OBJECTS
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
 DOMCI_DATA(WebGLRenderingContext, WebGLContext)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(WebGLContext)
+  NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
   NS_INTERFACE_MAP_ENTRY(nsIDOMWebGLRenderingContext)
   NS_INTERFACE_MAP_ENTRY(nsICanvasRenderingContextInternal)
   NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
   NS_INTERFACE_MAP_ENTRY(nsITimerCallback)
-  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMWebGLRenderingContext)
+  // If the exact way we cast to nsISupports here ever changes, fix our
+  // PreCreate hook!
+  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports,
+                                   nsICanvasRenderingContextInternal)
   NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(WebGLRenderingContext)
 NS_INTERFACE_MAP_END
 
@@ -1288,6 +1323,12 @@ NS_INTERFACE_MAP_BEGIN(WebGLUniformLocation)
   NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(WebGLUniformLocation)
 NS_INTERFACE_MAP_END
 
+JSObject*
+WebGLUniformLocation::WrapObject(JSContext *cx, JSObject *scope)
+{
+    return dom::WebGLUniformLocationBinding::Wrap(cx, scope, this);
+}
+
 NS_IMPL_ADDREF(WebGLShaderPrecisionFormat)
 NS_IMPL_RELEASE(WebGLShaderPrecisionFormat)
 
@@ -1325,19 +1366,7 @@ NAME_NOT_SUPPORTED(WebGLRenderbuffer)
 
 // WebGLExtension
 
-NS_IMPL_CYCLE_COLLECTION_CLASS(WebGLExtension)
-
-NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN(WebGLExtension)
-  NS_IMPL_CYCLE_COLLECTION_TRACE_PRESERVED_WRAPPER
-NS_IMPL_CYCLE_COLLECTION_TRACE_END
-
-NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(WebGLExtension)
-  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_SCRIPT_OBJECTS
-NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
-
-NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(WebGLExtension)
-  NS_IMPL_CYCLE_COLLECTION_UNLINK_PRESERVED_WRAPPER
-NS_IMPL_CYCLE_COLLECTION_UNLINK_END
+NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE_0(WebGLExtension)
   
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(WebGLExtension)
   NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
@@ -1355,10 +1384,7 @@ DOMCI_DATA(WebGLExtension, WebGLExtension)
 NS_IMETHODIMP
 WebGLContext::GetDrawingBufferWidth(WebGLsizei *aWidth)
 {
-    if (!IsContextStable())
-        return NS_OK;
-
-    *aWidth = mWidth;
+    *aWidth = GetDrawingBufferWidth();
     return NS_OK;
 }
 
@@ -1366,10 +1392,7 @@ WebGLContext::GetDrawingBufferWidth(WebGLsizei *aWidth)
 NS_IMETHODIMP
 WebGLContext::GetDrawingBufferHeight(WebGLsizei *aHeight)
 {
-    if (!IsContextStable())
-        return NS_OK;
-
-    *aHeight = mHeight;
+    *aHeight = GetDrawingBufferHeight();
     return NS_OK;
 }
 
@@ -1437,32 +1460,30 @@ WebGLShaderPrecisionFormat::GetPrecision(WebGLint *aPrecision)
 NS_IMETHODIMP
 WebGLContext::GetSupportedExtensions(nsIVariant **retval)
 {
-    *retval = nsnull;
-    if (!IsContextStable())
-        return NS_OK;
-    
-    if (mDisableExtensions) {
+    Nullable< nsTArray<nsString> > extensions;
+    GetSupportedExtensions(extensions);
+
+    if (extensions.IsNull()) {
+        *retval = nsnull;
         return NS_OK;
     }
-    
+
     nsCOMPtr<nsIWritableVariant> wrval = do_CreateInstance("@mozilla.org/variant;1");
     NS_ENSURE_TRUE(wrval, NS_ERROR_FAILURE);
 
-    nsTArray<const char *> extList;
-
-    if (IsExtensionSupported(WebGL_OES_texture_float))
-        extList.InsertElementAt(extList.Length(), "OES_texture_float");
-    if (IsExtensionSupported(WebGL_OES_standard_derivatives))
-        extList.InsertElementAt(extList.Length(), "OES_standard_derivatives");
-    if (IsExtensionSupported(WebGL_EXT_texture_filter_anisotropic))
-        extList.InsertElementAt(extList.Length(), "MOZ_EXT_texture_filter_anisotropic");
-    if (IsExtensionSupported(WebGL_MOZ_WEBGL_lose_context))
-        extList.InsertElementAt(extList.Length(), "MOZ_WEBGL_lose_context");
+    const nsTArray<nsString>& extList = extensions.Value();
 
     nsresult rv;
     if (extList.Length() > 0) {
-        rv = wrval->SetAsArray(nsIDataType::VTYPE_CHAR_STR, nsnull,
-                               extList.Length(), &extList[0]);
+        // nsIVariant can't handle SetAsArray with the AString or
+        // DOMString type, so we have to spoon-feed it something it
+        // knows how to handle.
+        nsTArray<const PRUnichar*> exts(extList.Length());
+        for (PRUint32 i = 0; i < extList.Length(); ++i) {
+            exts.AppendElement(extList[i].get());
+        }
+        rv = wrval->SetAsArray(nsIDataType::VTYPE_WCHAR_STR, nsnull,
+                               exts.Length(), exts.Elements());
     } else {
         rv = wrval->SetAsEmptyArray();
     }
@@ -1471,6 +1492,32 @@ WebGLContext::GetSupportedExtensions(nsIVariant **retval)
 
     *retval = wrval.forget().get();
     return NS_OK;
+
+}
+
+void
+WebGLContext::GetSupportedExtensions(Nullable< nsTArray<nsString> > &retval)
+{
+    retval.SetNull();
+    if (!IsContextStable())
+        return;
+    
+    if (mDisableExtensions) {
+        return;
+    }
+
+    nsTArray<nsString>& arr = retval.SetValue();
+    
+    if (IsExtensionSupported(OES_texture_float))
+        arr.AppendElement(NS_LITERAL_STRING("OES_texture_float"));
+    if (IsExtensionSupported(OES_standard_derivatives))
+        arr.AppendElement(NS_LITERAL_STRING("OES_standard_derivatives"));
+    if (IsExtensionSupported(EXT_texture_filter_anisotropic))
+        arr.AppendElement(NS_LITERAL_STRING("MOZ_EXT_texture_filter_anisotropic"));
+    if (IsExtensionSupported(WEBGL_lose_context))
+        arr.AppendElement(NS_LITERAL_STRING("MOZ_WEBGL_lose_context"));
+    if (IsExtensionSupported(WEBGL_compressed_texture_s3tc))
+        arr.AppendElement(NS_LITERAL_STRING("MOZ_WEBGL_compressed_texture_s3tc"));
 }
 
 NS_IMETHODIMP
@@ -1478,11 +1525,4 @@ WebGLContext::IsContextLost(WebGLboolean *retval)
 {
     *retval = mContextStatus != ContextStable;
     return NS_OK;
-}
-
-// Internalized version of IsContextLost.
-bool
-WebGLContext::IsContextStable()
-{
-    return mContextStatus == ContextStable;
 }

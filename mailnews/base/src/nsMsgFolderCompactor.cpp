@@ -1,45 +1,13 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2001
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "msgCore.h"    // precompiled header...
 #include "nsCOMPtr.h"
 #include "nsIMsgFolder.h"
 #include "nsAutoPtr.h"
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 #include "nsNetUtil.h"
 #include "nsIMsgHdr.h"
 #include "nsIStreamListener.h"
@@ -112,7 +80,7 @@ void nsFolderCompactState::CleanupTempFilesAfterError()
   CloseOutputStream();
   if (m_db)
     m_db->ForceClosed();
-  nsCOMPtr <nsILocalFile> summaryFile;
+  nsCOMPtr <nsIFile> summaryFile;
   GetSummaryFileLocation(m_file, getter_AddRefs(summaryFile)); 
   m_file->Remove(false);
   summaryFile->Remove(false);
@@ -201,7 +169,7 @@ nsFolderCompactState::Compact(nsIMsgFolder *folder, bool aOfflineStore,
    nsCOMPtr<nsIMsgDatabase> db;
    nsCOMPtr<nsIDBFolderInfo> folderInfo;
    nsCOMPtr<nsIMsgDatabase> mailDBFactory;
-   nsCOMPtr<nsILocalFile> path;
+   nsCOMPtr<nsIFile> path;
    nsCString baseMessageURI;
 
    nsCOMPtr <nsIMsgLocalMailFolder> localFolder = do_QueryInterface(folder, &rv);
@@ -281,7 +249,7 @@ nsresult nsFolderCompactState::ShowStatusMsg(const nsString& aMsg)
 
 nsresult
 nsFolderCompactState::Init(nsIMsgFolder *folder, const char *baseMsgUri, nsIMsgDatabase *db,
-                           nsILocalFile *path, nsIMsgWindow *aMsgWindow)
+                           nsIFile *path, nsIMsgWindow *aMsgWindow)
 {
   nsresult rv;
 
@@ -405,14 +373,14 @@ nsFolderCompactState::FinishCompact()
     return NS_ERROR_NOT_INITIALIZED;
 
   // All okay time to finish up the compact process
-  nsCOMPtr<nsILocalFile> path;
+  nsCOMPtr<nsIFile> path;
   nsCOMPtr<nsIDBFolderInfo> folderInfo;
 
   // get leaf name and database name of the folder
   nsresult rv = m_folder->GetFilePath(getter_AddRefs(path));
-  nsCOMPtr <nsILocalFile> folderPath = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv);
+  nsCOMPtr <nsIFile> folderPath = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
-  nsCOMPtr <nsILocalFile> summaryFile;
+  nsCOMPtr <nsIFile> summaryFile;
   folderPath->InitWithFile(path);
   // need to make sure we put the .msf file in the same directory
   // as the original mailbox, so resolve symlinks.
@@ -439,7 +407,7 @@ nsFolderCompactState::FinishCompact()
     m_db = nsnull;
   }
 
-  nsCOMPtr <nsILocalFile> newSummaryFile;
+  nsCOMPtr <nsIFile> newSummaryFile;
   GetSummaryFileLocation(m_file, getter_AddRefs(newSummaryFile));
 
   nsCOMPtr <nsIDBFolderInfo> transferInfo;
@@ -1026,7 +994,7 @@ nsresult
 nsOfflineStoreCompactState::FinishCompact()
 {
   // All okay time to finish up the compact process
-  nsCOMPtr<nsILocalFile> path;
+  nsCOMPtr<nsIFile> path;
   PRUint32 flags;
 
     // get leaf name and database name of the folder

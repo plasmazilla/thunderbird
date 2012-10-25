@@ -1,43 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Lightning code.
- *
- * The Initial Developer of the Original Code is Oracle Corporation
- * Portions created by the Initial Developer are Copyright (C) 2005
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Mike Shaver <shaver@mozilla.org>
- *   Vladimir Vukicevic <vladimir@pobox.com>
- *   Joey Minta <jminta@gmail.com>
- *   Simon Paquet <bugzilla@babylonsounds.com>
- *   Philipp Kewisch <mozilla@kewis.ch>
- *   Lars Wohlfahrt <thetux.moz@googlemail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or 
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* Calendar list rules */
 #calendar-panel {
@@ -60,20 +23,20 @@ radio[pane=paneLightning] {
 /* ::: new tab buttons ::: */
 #calendar-tab-button {
     list-style-image: url(chrome://lightning/skin/mode-switch-icons.png);
-    -moz-image-region: rect(0px 24px 24px 0px);
+    -moz-image-region: rect(0px 98px 18px 80px);
 }
 
-#calendar-tab-button[disabled] {
-    -moz-image-region: rect(48px 24px 72px 0px);
+#calendar-tab-button:not([disabled]):active {
+    -moz-image-region: rect(18px 98px 36px 80px);
 }
 
 #task-tab-button {
     list-style-image: url(chrome://lightning/skin/mode-switch-icons.png);
-    -moz-image-region: rect(0px 48px 24px 24px);
+    -moz-image-region: rect(0px 116px 18px 98px);
 }
 
-#task-tab-button[disabled] {
-    -moz-image-region: rect(48px 48px 72px 24px);
+#task-tab-button:not([disabled]):active {
+    -moz-image-region: rect(18px 116px 36px 98px);
 }
 
 /* ::: tab icons ::: */
@@ -104,18 +67,18 @@ radio[pane=paneLightning] {
 
 /* Write button */
 #newMsgButton-mail-menuitem {
-  list-style-image: url(chrome://messenger/skin/icons/mail-toolbar-small.png);
-  -moz-image-region: rect(0px 48px 24px 24px);
+  list-style-image: url(chrome://calendar/skin/toolbar.png);
+  -moz-image-region: rect(18px 90px 36px 72px);
 }
 
 #newMsgButton-calendar-menuitem {
-  list-style-image: url(chrome://calendar/skin/toolbar-small.png);
-  -moz-image-region: rect(74px 16px 90px 0px);
+  list-style-image: url(chrome://calendar/skin/toolbar.png);
+  -moz-image-region: rect(18px 36px 36px 18px);
 }
 
 #newMsgButton-task-menuitem {
-  list-style-image: url(chrome://calendar/skin/toolbar-small.png);
-  -moz-image-region: rect(74px 376px 90px 360px);
+  list-style-image: url(chrome://calendar/skin/toolbar.png);
+  -moz-image-region: rect(18px 72px 36px 54px);
 }
 
 /* Today pane button in status bar */
@@ -125,21 +88,22 @@ radio[pane=paneLightning] {
   min-height: 0;
   margin: 1px 0 0;
   -moz-appearance: none;
-  border-radius: 3px;
   padding: 0 2px !important;
-  border: 1px solid transparent;
-}
-
-#calendar-status-todaypane-button:hover {
-  border: 1px solid ThreeDShadow;
-  background-color: transparent !important;
-  background-image: none !important;
-  -moz-appearance: none;
+  border: none;
+  background-color: transparent;
 }
 
 #calendar-status-todaypane-button > stack > .toolbarbutton-icon-begin {
-  list-style-image: url(chrome://calendar/skin/toolbar-small.png);
-  -moz-image-region: rect(0px 640px 16px 624px);
+  list-style-image: url(chrome://calendar/skin/toolbar.png);
+  -moz-image-region: rect(1px 161px 18px 145px);
+}
+
+#calendar-status-todaypane-button:active > stack > .toolbarbutton-icon-begin {
+  -moz-image-region: rect(19px 161px 36px 145px);
+}
+
+#calendar-status-todaypane-button[checked="true"] > stack > .toolbarbutton-icon-begin {
+  -moz-image-region: rect(37px 161px 54px 145px);
 }
 
 #calendar-status-todaypane-button > stack > .toolbarbutton-day-text {
@@ -149,13 +113,18 @@ radio[pane=paneLightning] {
   font-family: Arial, Helvetica, sans-serif;
   font-weight: bold;
   text-shadow: none;
-  color: DarkBlue;
+  color: #0969B2;
   background-color: transparent;
 }
 
 /* shift the today pane button label up by one pixel to center it */
 #calendar-status-todaypane-button > .toolbarbutton-text {
   margin: 0 6px 1px !important;
+}
+
+#calendar-status-todaypane-button[checked="true"] > .toolbarbutton-text {
+  color: #0969B2;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 #calendar-status-todaypane-button > .toolbarbutton-icon-end {

@@ -6,17 +6,12 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsGenericHTMLFrameElement.h"
-#include "nsIWebProgress.h"
-#include "nsIPrivateDOMEvent.h"
-#include "nsIDOMCustomEvent.h"
-#include "nsIVariant.h"
 #include "nsIInterfaceRequestorUtils.h"
-#include "nsWeakPtr.h"
-#include "nsVariant.h"
 #include "nsContentUtils.h"
-#include "nsEventDispatcher.h"
-#include "nsAsyncDOMEvent.h"
 #include "mozilla/Preferences.h"
+#include "nsIAppsService.h"
+#include "nsServiceManagerUtils.h"
+#include "nsIDOMApplicationRegistry.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -99,7 +94,7 @@ nsGenericHTMLFrameElement::GetContentWindow(nsIDOMWindow** aContentWindow)
 nsresult
 nsGenericHTMLFrameElement::EnsureFrameLoader()
 {
-  if (!GetParent() || !IsInDoc() || mFrameLoader) {
+  if (!GetParent() || !IsInDoc() || mFrameLoader || mFrameLoaderCreationDisallowed) {
     // If frame loader is there, we just keep it around, cached
     return NS_OK;
   }
@@ -111,6 +106,16 @@ nsGenericHTMLFrameElement::EnsureFrameLoader()
     return NS_OK;
   }
 
+  return NS_OK;
+}
+
+nsresult
+nsGenericHTMLFrameElement::CreateRemoteFrameLoader(nsITabParent* aTabParent)
+{
+  MOZ_ASSERT(!mFrameLoader);
+  EnsureFrameLoader();
+  NS_ENSURE_STATE(mFrameLoader);
+  mFrameLoader->SetRemoteBrowser(aTabParent);
   return NS_OK;
 }
 
@@ -226,7 +231,7 @@ nsGenericHTMLFrameElement::DestroyContent()
 }
 
 nsresult
-nsGenericHTMLFrameElement::CopyInnerTo(nsGenericElement* aDest) const
+nsGenericHTMLFrameElement::CopyInnerTo(nsGenericElement* aDest)
 {
   nsresult rv = nsGenericHTMLElement::CopyInnerTo(aDest);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -263,8 +268,9 @@ nsGenericHTMLFrameElement::IsHTMLFocusable(bool aWithMouse,
 }
 
 /**
- * Return true if this frame element has permission to send mozbrowser
- * events, and false otherwise.
+ * Return true if this frame element really is a mozbrowser or mozapp.  (It
+ * needs to have the right attributes, and its creator must have the right
+ * permissions.)
  */
 nsresult
 nsGenericHTMLFrameElement::GetReallyIsBrowser(bool *aOut)
@@ -284,15 +290,79 @@ nsGenericHTMLFrameElement::GetReallyIsBrowser(bool *aOut)
   }
 
   // Fail if the node principal isn't trusted.
+  // TODO: check properly for mozApps rights when mozApps will be less hacky.
   nsIPrincipal *principal = NodePrincipal();
   nsCOMPtr<nsIURI> principalURI;
   principal->GetURI(getter_AddRefs(principalURI));
-  if (!nsContentUtils::URIIsChromeOrInPref(principalURI,
+  if (!nsContentUtils::IsSystemPrincipal(principal) &&
+      !nsContentUtils::URIIsChromeOrInPref(principalURI,
                                            "dom.mozBrowserFramesWhitelist")) {
     return NS_OK;
   }
 
   // Otherwise, succeed.
   *aOut = true;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsGenericHTMLFrameElement::GetReallyIsApp(bool *aOut)
+{
+  nsAutoString manifestURL;
+  GetAppManifestURL(manifestURL);
+
+  *aOut = !manifestURL.IsEmpty();
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsGenericHTMLFrameElement::GetAppManifestURL(nsAString& aOut)
+{
+  aOut.Truncate();
+
+  // At the moment, you can't be an app without being a browser.
+  bool isBrowser = false;
+  GetReallyIsBrowser(&isBrowser);
+  if (!isBrowser) {
+    return NS_OK;
+  }
+
+  // TODO: We surely need a permissions check here, particularly once we no
+  // longer rely on the mozbrowser permission check.
+
+  nsAutoString manifestURL;
+  GetAttr(kNameSpaceID_None, nsGkAtoms::mozapp, manifestURL);
+  if (manifestURL.IsEmpty()) {
+    return NS_OK;
+  }
+
+  nsCOMPtr<nsIAppsService> appsService = do_GetService(APPS_SERVICE_CONTRACTID);
+  NS_ENSURE_STATE(appsService);
+
+  nsCOMPtr<mozIDOMApplication> app;
+  appsService->GetAppByManifestURL(manifestURL, getter_AddRefs(app));
+
+  if (app) {
+    aOut.Assign(manifestURL);
+  }
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsGenericHTMLFrameElement::DisallowCreateFrameLoader()
+{
+  MOZ_ASSERT(!mFrameLoader);
+  MOZ_ASSERT(!mFrameLoaderCreationDisallowed);
+  mFrameLoaderCreationDisallowed = true;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsGenericHTMLFrameElement::AllowCreateFrameLoader()
+{
+  MOZ_ASSERT(!mFrameLoader);
+  MOZ_ASSERT(mFrameLoaderCreationDisallowed);
+  mFrameLoaderCreationDisallowed = false;
   return NS_OK;
 }

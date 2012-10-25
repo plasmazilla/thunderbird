@@ -1,43 +1,8 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set sw=2 ts=8 et tw=80 : */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Wellington Fernando de Macedo.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *    Wellington Fernando de Macedo <wfernandom2004@gmail.com> (original author)
- *    Patrick McManus <mcmanus@ducksong.com>
- *    Jason Duell <jduell.mcbugs@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
 
@@ -55,7 +20,6 @@
 #include "nsDOMClassInfoID.h"
 #include "jsapi.h"
 #include "nsIURL.h"
-#include "nsIPrivateDOMEvent.h"
 #include "nsICharsetConverterManager.h"
 #include "nsIUnicodeEncoder.h"
 #include "nsThreadUtils.h"
@@ -109,6 +73,27 @@ using namespace mozilla;
     }                                                                     \
   PR_END_MACRO
 
+class CallDispatchConnectionCloseEvents: public nsRunnable
+{
+public:
+CallDispatchConnectionCloseEvents(nsWebSocket *aWebSocket)
+  : mWebSocket(aWebSocket)
+  {}
+
+  NS_IMETHOD Run()
+  {
+    mWebSocket->DispatchConnectionCloseEvents();
+    return NS_OK;
+  }
+
+private:
+  nsRefPtr<nsWebSocket> mWebSocket;
+};
+
+//-----------------------------------------------------------------------------
+// nsWebSocket
+//-----------------------------------------------------------------------------
+
 nsresult
 nsWebSocket::PrintErrorOnConsole(const char *aBundleURI,
                                  const PRUnichar *aError,
@@ -159,37 +144,43 @@ nsWebSocket::PrintErrorOnConsole(const char *aBundleURI,
   return NS_OK;
 }
 
-// when this is called the browser side wants no more part of it
 nsresult
 nsWebSocket::CloseConnection(PRUint16 aReasonCode,
                              const nsACString& aReasonString)
 {
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "Not running on main thread");
-  if (mDisconnected)
-    return NS_OK;
-
-  // Disconnect() can release this object, so we keep a
-  // reference until the end of the method
-  nsRefPtr<nsWebSocket> kungfuDeathGrip = this;
-
-  if (mReadyState == nsIWebSocket::CONNECTING) {
-    SetReadyState(nsIWebSocket::CLOSED);
-    if (mChannel) {
-      mChannel->Close(aReasonCode, aReasonString);
-    }
-    Disconnect();
+  if (mReadyState == nsIWebSocket::CLOSING ||
+      mReadyState == nsIWebSocket::CLOSED) {
     return NS_OK;
   }
 
-  SetReadyState(nsIWebSocket::CLOSING);
-
-  if (mDisconnected) {
-    SetReadyState(nsIWebSocket::CLOSED);
-    Disconnect();
-    return NS_OK;
+  // The common case...
+  if (mChannel) {
+    mReadyState = nsIWebSocket::CLOSING;
+    return mChannel->Close(aReasonCode, aReasonString);
   }
 
-  return mChannel->Close(aReasonCode, aReasonString);
+  // No channel, but not disconnected: canceled or failed early
+  //
+  MOZ_ASSERT(mReadyState == nsIWebSocket::CONNECTING,
+             "Should only get here for early websocket cancel/error");
+
+  // Server won't be sending us a close code, so use what's passed in here.
+  mCloseEventCode = aReasonCode;
+  CopyUTF8toUTF16(aReasonString, mCloseEventReason);
+
+  mReadyState = nsIWebSocket::CLOSING;
+
+  // Can be called from Cancel() or Init() codepaths, so need to dispatch
+  // onerror/onclose asynchronously
+  ScheduleConnectionCloseEvents(
+                    nsnull,
+                    (aReasonCode == nsIWebSocketChannel::CLOSE_NORMAL ||
+                     aReasonCode == nsIWebSocketChannel::CLOSE_GOING_AWAY) ?
+                     NS_OK : NS_ERROR_FAILURE,
+                    false);
+
+  return NS_OK;
 }
 
 nsresult
@@ -226,13 +217,10 @@ nsWebSocket::FailConnection(PRUint16 aReasonCode,
                             const nsACString& aReasonString)
 {
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "Not running on main thread");
+
   ConsoleError();
-
+  mFailed = true;
   CloseConnection(aReasonCode, aReasonString);
-
-  nsresult rv = CreateAndDispatchSimpleEvent(NS_LITERAL_STRING("error"));
-  if (NS_FAILED(rv))
-    NS_WARNING("Failed to dispatch the error event");
 
   return NS_OK;
 }
@@ -275,7 +263,11 @@ nsresult
 nsWebSocket::DoOnMessageAvailable(const nsACString & aMsg, bool isBinary)
 {
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "Not running on main thread");
-  NS_ABORT_IF_FALSE(!mDisconnected, "Received message after disconnecting");
+
+  if (mReadyState == nsIWebSocket::CLOSED) {
+    NS_ERROR("Received message after CLOSED");
+    return NS_ERROR_UNEXPECTED;
+  }
 
   if (mReadyState == nsIWebSocket::OPEN) {
     // Dispatch New Message
@@ -286,8 +278,8 @@ nsWebSocket::DoOnMessageAvailable(const nsACString & aMsg, bool isBinary)
   } else {
     // CLOSING should be the only other state where it's possible to get msgs
     // from channel: Spec says to drop them.
-    NS_ASSERTION(mReadyState == nsIWebSocket::CLOSING,
-                 "Received message while CONNECTING or CLOSED");
+    MOZ_ASSERT(mReadyState == nsIWebSocket::CLOSING,
+               "Received message while CONNECTING or CLOSED");
   }
 
   return NS_OK;
@@ -310,13 +302,20 @@ NS_IMETHODIMP
 nsWebSocket::OnStart(nsISupports *aContext)
 {
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "Not running on main thread");
-  if (mDisconnected)
+
+  // This is the only function that sets OPEN, and should be called only once
+  MOZ_ASSERT(mReadyState != nsIWebSocket::OPEN,
+             "readyState already OPEN! OnStart called twice?");
+
+  // Nothing to do if we've already closed/closing
+  if (mReadyState != nsIWebSocket::CONNECTING) {
     return NS_OK;
+  }
 
   // Attempt to kill "ghost" websocket: but usually too early for check to fail
   nsresult rv = CheckInnerWindowCorrectness();
   if (NS_FAILED(rv)) {
-    FailConnectionQuietly();
+    CloseConnection(nsIWebSocketChannel::CLOSE_GOING_AWAY);
     return rv;
   }
 
@@ -327,34 +326,62 @@ nsWebSocket::OnStart(nsISupports *aContext)
   mChannel->GetExtensions(mEstablishedExtensions);
   UpdateURI();
 
-  SetReadyState(nsIWebSocket::OPEN);
+  mReadyState = nsIWebSocket::OPEN;
+
+  // Call 'onopen'
+  rv = CreateAndDispatchSimpleEvent(NS_LITERAL_STRING("open"));
+  if (NS_FAILED(rv)) {
+    NS_WARNING("Failed to dispatch the open event");
+  }
+
+  UpdateMustKeepAlive();
+
   return NS_OK;
 }
 
 NS_IMETHODIMP
 nsWebSocket::OnStop(nsISupports *aContext, nsresult aStatusCode)
 {
+  // We can be CONNECTING here if connection failed.
+  // We can be OPEN if we have encountered a fatal protocol error
+  // We can be CLOSING if close() was called and/or server initiated close.
+  MOZ_ASSERT(mReadyState != nsIWebSocket::CLOSED,
+             "Shouldn't already be CLOSED when OnStop called");
+
+  // called by network stack, not JS, so can dispatch JS events synchronously
+  return ScheduleConnectionCloseEvents(aContext, aStatusCode, true);
+}
+
+nsresult
+nsWebSocket::ScheduleConnectionCloseEvents(nsISupports *aContext,
+                                           nsresult aStatusCode,
+                                           bool sync)
+{
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "Not running on main thread");
-  if (mDisconnected)
-    return NS_OK;
 
-  mCloseEventWasClean = NS_SUCCEEDED(aStatusCode);
+  // no-op if some other code has already initiated close event
+  if (!mOnCloseScheduled) {
+    mCloseEventWasClean = NS_SUCCEEDED(aStatusCode);
 
-  if (aStatusCode == NS_BASE_STREAM_CLOSED &&
-      mReadyState >= nsIWebSocket::CLOSING) {
-    // don't generate an error event just because of an unclean close
-    aStatusCode = NS_OK;
+    if (aStatusCode == NS_BASE_STREAM_CLOSED) {
+      // don't generate an error event just because of an unclean close
+      aStatusCode = NS_OK;
+    }
+
+    if (NS_FAILED(aStatusCode)) {
+      ConsoleError();
+      mFailed = true;
+    }
+
+    mOnCloseScheduled = true;
+
+    if (sync) {
+      DispatchConnectionCloseEvents();
+    } else {
+      NS_DispatchToMainThread(new CallDispatchConnectionCloseEvents(this),
+                              NS_DISPATCH_NORMAL);
+    }
   }
-
-  if (NS_FAILED(aStatusCode)) {
-    ConsoleError();
-    nsresult rv = CreateAndDispatchSimpleEvent(NS_LITERAL_STRING("error"));
-    if (NS_FAILED(rv))
-      NS_WARNING("Failed to dispatch the error event");
-  }
-
-  SetReadyState(nsIWebSocket::CLOSED);
-  Disconnect();
 
   return NS_OK;
 }
@@ -377,19 +404,17 @@ nsWebSocket::OnServerClose(nsISupports *aContext, PRUint16 aCode,
 {
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "Not running on main thread");
 
-  NS_ABORT_IF_FALSE(mReadyState != nsIWebSocket::CONNECTING,
-                    "Received server close before connected?");
-
-  if (mReadyState == nsIWebSocket::CLOSED) {
-    NS_WARNING("Received server close after already closed!");
-    return NS_ERROR_UNEXPECTED;
-  }
+  MOZ_ASSERT(mReadyState != nsIWebSocket::CONNECTING,
+             "Received server close before connected?");
+  MOZ_ASSERT(mReadyState != nsIWebSocket::CLOSED,
+             "Received server close after already closed!");
 
   // store code/string for onclose DOM event
   mCloseEventCode = aCode;
   CopyUTF8toUTF16(aReason, mCloseEventReason);
 
   if (mReadyState == nsIWebSocket::OPEN) {
+    // Server initiating close.
     // RFC 6455, 5.5.1: "When sending a Close frame in response, the endpoint
     // typically echos the status code it received".
     // But never send certain codes, per section 7.4.1
@@ -399,9 +424,8 @@ nsWebSocket::OnServerClose(nsISupports *aContext, PRUint16 aCode,
       CloseConnection(aCode, aReason);
     }
   } else {
-    // Nothing else to do: OnStop does the rest of the work.
-    NS_ASSERTION (mReadyState == nsIWebSocket::CLOSING, "unknown state");
-    NS_ASSERTION(!mDisconnected, "should not be disconnected during CLOSING");
+    // We initiated close, and server has replied: OnStop does rest of the work.
+    MOZ_ASSERT(mReadyState == nsIWebSocket::CLOSING, "unknown state");
   }
 
   return NS_OK;
@@ -416,7 +440,7 @@ nsWebSocket::GetInterface(const nsIID &aIID, void **aResult)
 {
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "Not running on main thread");
 
-  if (mDisconnected)
+  if (mReadyState == nsIWebSocket::CLOSED)
     return NS_ERROR_FAILURE;
 
   if (aIID.Equals(NS_GET_IID(nsIAuthPrompt)) ||
@@ -446,7 +470,8 @@ nsWebSocket::GetInterface(const nsIID &aIID, void **aResult)
 
 nsWebSocket::nsWebSocket() : mKeepingAlive(false),
                              mCheckMustKeepAlive(true),
-                             mTriggeredCloseEvent(false),
+                             mOnCloseScheduled(false),
+                             mFailed(false),
                              mDisconnected(false),
                              mCloseEventWasClean(false),
                              mCloseEventCode(nsIWebSocketChannel::CLOSE_ABNORMAL),
@@ -464,7 +489,10 @@ nsWebSocket::~nsWebSocket()
 {
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "Not running on main thread");
 
-  Disconnect();
+  // If we threw during Init we never called disconnect
+  if (!mDisconnected) {
+    Disconnect();
+  }
   nsLayoutStatics::Release();
 }
 
@@ -546,7 +574,7 @@ nsWebSocket::DisconnectFromOwner()
   NS_DISCONNECT_EVENT_HANDLER(Message)
   NS_DISCONNECT_EVENT_HANDLER(Close)
   NS_DISCONNECT_EVENT_HANDLER(Error)
-  FailConnectionQuietly();
+  CloseConnection(nsIWebSocketChannel::CLOSE_GOING_AWAY);
   DontKeepAliveAnyMore();
 }
 
@@ -566,7 +594,7 @@ nsWebSocket::Initialize(nsISupports* aOwner,
                         JSContext* aContext,
                         JSObject* aObject,
                         PRUint32 aArgc,
-                        jsval* aArgv)
+                        JS::Value* aArgv)
 {
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "Not running on main thread");
   nsAutoString urlParam;
@@ -612,11 +640,10 @@ nsWebSocket::Initialize(nsISupports* aOwner,
   nsTArray<nsString> protocolArray;
 
   if (aArgc == 2) {
-    JSObject *jsobj;
+    if (aArgv[1].isObject() &&
+        JS_IsArrayObject(aContext, &aArgv[1].toObject())) {
+      JSObject* jsobj = &aArgv[1].toObject();
 
-    if (JSVAL_IS_OBJECT(aArgv[1]) &&
-        (jsobj = JSVAL_TO_OBJECT(aArgv[1])) &&
-        JS_IsArrayObject(aContext, jsobj)) {
       uint32_t len;
       JS_GetArrayLength(aContext, jsobj, &len);
       
@@ -741,31 +768,30 @@ nsWebSocket::EstablishConnection()
   return NS_OK;
 }
 
-class nsWSCloseEvent : public nsRunnable
+void
+nsWebSocket::DispatchConnectionCloseEvents()
 {
-public:
-nsWSCloseEvent(nsWebSocket *aWebSocket, bool aWasClean, 
-               PRUint16 aCode, const nsString &aReason)
-    : mWebSocket(aWebSocket),
-      mWasClean(aWasClean),
-      mCode(aCode),
-      mReason(aReason)
-  {}
+  nsresult rv;
 
-  NS_IMETHOD Run()
-  {
-    nsresult rv = mWebSocket->CreateAndDispatchCloseEvent(mWasClean,
-                                                          mCode, mReason);
-    mWebSocket->UpdateMustKeepAlive();
-    return rv;
+  mReadyState = nsIWebSocket::CLOSED;
+
+  // Call 'onerror' if needed
+  if (mFailed) {
+    nsresult rv = CreateAndDispatchSimpleEvent(NS_LITERAL_STRING("error"));
+    if (NS_FAILED(rv)) {
+      NS_WARNING("Failed to dispatch the error event");
+    }
   }
 
-private:
-  nsRefPtr<nsWebSocket> mWebSocket;
-  bool mWasClean;
-  PRUint16 mCode;
-  nsString mReason;
-};
+  rv = CreateAndDispatchCloseEvent(mCloseEventWasClean, mCloseEventCode,
+                                   mCloseEventReason);
+  if (NS_FAILED(rv)) {
+    NS_WARNING("Failed to dispatch the close event");
+  }
+
+  UpdateMustKeepAlive();
+  Disconnect();
+}
 
 nsresult
 nsWebSocket::CreateAndDispatchSimpleEvent(const nsString& aName)
@@ -786,8 +812,7 @@ nsWebSocket::CreateAndDispatchSimpleEvent(const nsString& aName)
   rv = event->InitEvent(aName, false, false);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsIPrivateDOMEvent> privateEvent = do_QueryInterface(event);
-  rv = privateEvent->SetTrusted(true);
+  rv = event->SetTrusted(true);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return DispatchDOMEvent(nsnull, event, nsnull, nsnull);
@@ -857,8 +882,7 @@ nsWebSocket::CreateAndDispatchMessageEvent(const nsACString& aData,
                                       EmptyString(), nsnull);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsIPrivateDOMEvent> privateEvent = do_QueryInterface(event);
-  rv = privateEvent->SetTrusted(true);
+  rv = event->SetTrusted(true);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return DispatchDOMEvent(nsnull, event, nsnull, nsnull);
@@ -891,8 +915,6 @@ nsWebSocket::CreateAndDispatchCloseEvent(bool aWasClean,
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "Not running on main thread");
   nsresult rv;
 
-  mTriggeredCloseEvent = true;
-
   rv = CheckInnerWindowCorrectness();
   if (NS_FAILED(rv)) {
     return NS_OK;
@@ -911,8 +933,7 @@ nsWebSocket::CreateAndDispatchCloseEvent(bool aWasClean,
                                   aWasClean, aCode, aReason);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsIPrivateDOMEvent> privateEvent = do_QueryInterface(event);
-  rv = privateEvent->SetTrusted(true);
+  rv = event->SetTrusted(true);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return DispatchDOMEvent(nsnull, event, nsnull, nsnull);
@@ -922,58 +943,6 @@ bool
 nsWebSocket::PrefEnabled()
 {
   return Preferences::GetBool("network.websocket.enabled", true);
-}
-
-void
-nsWebSocket::SetReadyState(PRUint16 aNewReadyState)
-{
-  NS_ABORT_IF_FALSE(NS_IsMainThread(), "Not running on main thread");
-  nsresult rv;
-
-  if (mReadyState == aNewReadyState) {
-    return;
-  }
-
-  NS_ABORT_IF_FALSE((aNewReadyState == nsIWebSocket::OPEN)    ||
-                    (aNewReadyState == nsIWebSocket::CLOSING) ||
-                    (aNewReadyState == nsIWebSocket::CLOSED),
-                    "unexpected readyState");
-
-  if (aNewReadyState == nsIWebSocket::OPEN) {
-    NS_ABORT_IF_FALSE(mReadyState == nsIWebSocket::CONNECTING,
-                      "unexpected readyState transition");
-    mReadyState = aNewReadyState;
-
-    rv = CreateAndDispatchSimpleEvent(NS_LITERAL_STRING("open"));
-    if (NS_FAILED(rv)) {
-      NS_WARNING("Failed to dispatch the open event");
-    }
-    UpdateMustKeepAlive();
-    return;
-  }
-
-  if (aNewReadyState == nsIWebSocket::CLOSING) {
-    NS_ABORT_IF_FALSE((mReadyState == nsIWebSocket::CONNECTING) ||
-                      (mReadyState == nsIWebSocket::OPEN),
-                      "unexpected readyState transition");
-    mReadyState = aNewReadyState;
-    return;
-  }
-
-  if (aNewReadyState == nsIWebSocket::CLOSED) {
-    mReadyState = aNewReadyState;
-
-    // The close event must be dispatched asynchronously.
-    rv = NS_DispatchToMainThread(new nsWSCloseEvent(this, mCloseEventWasClean,
-                                                    mCloseEventCode,
-                                                    mCloseEventReason),
-                                 NS_DISPATCH_NORMAL);
-    if (NS_FAILED(rv)) {
-      NS_WARNING("Failed to dispatch the close event");
-      mTriggeredCloseEvent = true;
-      UpdateMustKeepAlive();
-    }
-  }
 }
 
 nsresult
@@ -1102,9 +1071,7 @@ nsWebSocket::UpdateMustKeepAlive()
 
       case nsIWebSocket::CLOSED:
       {
-        shouldKeepAlive =
-          (!mTriggeredCloseEvent &&
-           mListenerManager->HasListenersFor(NS_LITERAL_STRING("close")));
+        shouldKeepAlive = false;
       }
     }
   }
@@ -1127,14 +1094,6 @@ nsWebSocket::DontKeepAliveAnyMore()
     static_cast<nsIDOMEventTarget*>(this)->Release();
   }
   mCheckMustKeepAlive = false;
-}
-
-void
-nsWebSocket::FailConnectionQuietly()
-{
-  // Fail without console error or JS onerror message: onmessage/onclose will
-  // also be blocked so long as CheckInnerWindowCorrectness is failing.
-  CloseConnection(nsIWebSocketChannel::CLOSE_GOING_AWAY);
 }
 
 nsresult
@@ -1284,26 +1243,6 @@ NS_WEBSOCKET_IMPL_DOMEVENTLISTENER(error, mOnErrorListener)
 NS_WEBSOCKET_IMPL_DOMEVENTLISTENER(message, mOnMessageListener)
 NS_WEBSOCKET_IMPL_DOMEVENTLISTENER(close, mOnCloseListener)
 
-static bool
-ContainsUnpairedSurrogates(const nsAString& aData)
-{
-  // Check for unpaired surrogates.
-  PRUint32 i, length = aData.Length();
-  for (i = 0; i < length; ++i) {
-    if (NS_IS_LOW_SURROGATE(aData[i])) {
-      return true;
-    }
-    if (NS_IS_HIGH_SURROGATE(aData[i])) {
-      ++i;
-      if (i == length || !NS_IS_LOW_SURROGATE(aData[i])) {
-        return true;
-      }
-      continue;
-    }
-  }
-  return false;
-}
-
 NS_IMETHODIMP
 nsWebSocket::Send(nsIVariant *aData, JSContext *aCx)
 {
@@ -1328,8 +1267,8 @@ nsWebSocket::Send(nsIVariant *aData, JSContext *aCx)
     return NS_OK;
   }
 
-  NS_ASSERTION(mReadyState == nsIWebSocket::OPEN,
-               "Unknown state in nsWebSocket::Send");
+  MOZ_ASSERT(mReadyState == nsIWebSocket::OPEN,
+             "Unknown state in nsWebSocket::Send");
 
   if (msgStream) {
     rv = mChannel->SendBinaryStream(msgStream, msgLen);
@@ -1414,63 +1353,10 @@ nsWebSocket::GetSendParams(nsIVariant *aData, nsCString &aStringOut,
   nsString text;
   text.Adopt(data, len);
 
-  if (ContainsUnpairedSurrogates(text)) {
-    return NS_ERROR_DOM_SYNTAX_ERR;
-  }
-
-  rv = ConvertTextToUTF8(text, aStringOut);
-  NS_ENSURE_SUCCESS(rv, rv);
+  CopyUTF16toUTF8(text, aStringOut);
 
   aIsBinary = false;
   aOutgoingLength = aStringOut.Length();
-  return NS_OK;
-}
-
-nsresult
-nsWebSocket::ConvertTextToUTF8(const nsString& aMessage, nsCString& buf)
-{
-  NS_ABORT_IF_FALSE(NS_IsMainThread(), "Not running on main thread");
-  nsresult rv;
-
-  nsCOMPtr<nsICharsetConverterManager> ccm =
-    do_GetService(NS_CHARSETCONVERTERMANAGER_CONTRACTID, &rv);
-  SUCCESS_OR_FAIL_WEBSOCKET(rv, rv);
-
-  nsCOMPtr<nsIUnicodeEncoder> converter;
-  rv = ccm->GetUnicodeEncoder("UTF-8", getter_AddRefs(converter));
-  SUCCESS_OR_FAIL_WEBSOCKET(rv, rv);
-
-  rv = converter->SetOutputErrorBehavior(nsIUnicodeEncoder::kOnError_Replace,
-                                         nsnull, UTF_8_REPLACEMENT_CHAR);
-  SUCCESS_OR_FAIL_WEBSOCKET(rv, rv);
-
-  PRInt32 inLen = aMessage.Length();
-  PRInt32 maxLen;
-  rv = converter->GetMaxLength(aMessage.BeginReading(), inLen, &maxLen);
-  SUCCESS_OR_FAIL_WEBSOCKET(rv, rv);
-
-  buf.SetLength(maxLen);
-  TRUE_OR_FAIL_WEBSOCKET(buf.Length() == static_cast<PRUint32>(maxLen),
-                         NS_ERROR_OUT_OF_MEMORY);
-
-  char* start = buf.BeginWriting();
-
-  PRInt32 outLen = maxLen;
-  rv = converter->Convert(aMessage.BeginReading(), &inLen, start, &outLen);
-  if (NS_SUCCEEDED(rv)) {
-    PRInt32 outLen2 = maxLen - outLen;
-    rv = converter->Finish(start + outLen, &outLen2);
-    outLen += outLen2;
-  }
-  if (NS_FAILED(rv) || rv == NS_ERROR_UENC_NOMAPPING) {
-    // Yes, NS_ERROR_UENC_NOMAPPING is a success code
-    return NS_ERROR_DOM_SYNTAX_ERR;
-  }
-
-  buf.SetLength(outLen);
-  TRUE_OR_FAIL_WEBSOCKET(buf.Length() == static_cast<PRUint32>(outLen),
-                         NS_ERROR_UNEXPECTED);
-
   return NS_OK;
 }
 
@@ -1490,9 +1376,6 @@ nsWebSocket::Close(PRUint16 code, const nsAString & reason, PRUint8 argc)
 
   nsCAutoString closeReason;
   if (argc >= 2) {
-    if (ContainsUnpairedSurrogates(reason)) {
-      return NS_ERROR_DOM_SYNTAX_ERR;
-    }
     CopyUTF16toUTF8(reason, closeReason);
 
     // The API requires the UTF-8 string to be 123 or less bytes
@@ -1507,10 +1390,6 @@ nsWebSocket::Close(PRUint16 code, const nsAString & reason, PRUint8 argc)
   }
 
   if (mReadyState == nsIWebSocket::CONNECTING) {
-    // FailConnection() can release the object, so we keep a reference
-    // before calling it
-    nsRefPtr<nsWebSocket> kungfuDeathGrip = this;
-
     FailConnection(closeCode, closeReason);
     return NS_OK;
   }
@@ -1626,8 +1505,11 @@ nsWebSocket::Init(nsIPrincipal* aPrincipal,
   }
 
   // the constructor should throw a SYNTAX_ERROR only if it fails to parse the
-  // url parameter, so we don't care about the EstablishConnection result.
-  EstablishConnection();
+  // url parameter, so don't throw if EstablishConnection fails, and call
+  // onerror/onclose asynchronously
+  if (NS_FAILED(EstablishConnection())) {
+    FailConnection(nsIWebSocketChannel::CLOSE_ABNORMAL);
+  }
 
   return NS_OK;
 }
@@ -1654,7 +1536,7 @@ nsWebSocket::Observe(nsISupports* aSubject,
   if ((strcmp(aTopic, DOM_WINDOW_FROZEN_TOPIC) == 0) ||
       (strcmp(aTopic, DOM_WINDOW_DESTROYED_TOPIC) == 0))
   {
-    FailConnectionQuietly();
+    CloseConnection(nsIWebSocketChannel::CLOSE_GOING_AWAY);
   }
 
   return NS_OK;
@@ -1675,7 +1557,7 @@ nsWebSocket::GetName(nsACString &aName)
 NS_IMETHODIMP
 nsWebSocket::IsPending(bool *aValue)
 {
-  *aValue = !mDisconnected;
+  *aValue = (mReadyState != nsIWebSocket::CLOSED);
   return NS_OK;
 }
 
@@ -1692,10 +1574,12 @@ nsWebSocket::Cancel(nsresult aStatus)
 {
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "Not running on main thread");
 
-  if (mDisconnected)
+  if (mReadyState == CLOSING || mReadyState == CLOSED) {
     return NS_OK;
+  }
 
   ConsoleError();
+
   return CloseConnection(nsIWebSocketChannel::CLOSE_GOING_AWAY);
 }
 

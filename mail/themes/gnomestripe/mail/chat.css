@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 %include ../../../components/im/themes/chat.css
 
 /* Adaptation of #folderpane_splitter -> #listSplitter, #threadpane-splitter -> #contextSplitter */
@@ -44,10 +48,19 @@ imcontact {
   -moz-padding-end: 2px;
 }
 
-imconv[selected],
-imcontact[selected] {
+:-moz-any(imconv, imcontact, imgroup) {
+  border: 1px solid transparent;
+}
+
+:-moz-any(imconv, imcontact, imgroup)[selected] {
+  background-color: -moz-cellhighlight;
+  color: -moz-cellhighlighttext;
+}
+
+#contactlistbox:focus > :-moz-any(imconv, imcontact, imgroup)[selected] {
   background-color: Highlight;
   color: HighlightText;
+  border: 1px dotted #F3D982;
 }
 
 .conv-hbox {

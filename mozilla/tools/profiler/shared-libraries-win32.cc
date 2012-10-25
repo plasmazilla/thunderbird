@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *  Jeff Muizelaar <jmuizelaar@mozilla.com>
- *  Vladan Djeric <vdjeric@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <windows.h>
 #include <tlhelp32.h>
@@ -122,7 +88,24 @@ SharedLibraryInfo SharedLibraryInfo::GetInfoForSelf()
       nsID pdbSig;
       uint32_t pdbAge;
       char *pdbName = NULL;
-      if (GetPdbInfo((uintptr_t)module.modBaseAddr, pdbSig, pdbAge, &pdbName)) {
+
+      // Load the module again to make sure that its handle will remain remain
+      // valid as we attempt to read the PDB information from it.  We load the
+      // DLL as a datafile so that if the module actually gets unloaded between
+      // the call to Module32Next and the following LoadLibraryEx, we don't end
+      // up running the now newly loaded module's DllMain function.  If the
+      // module is already loaded, LoadLibraryEx just increments its refcount.
+      //
+      // Note that because of the race condition above, merely loading the DLL
+      // again is not safe enough, therefore we also need to make sure that we
+      // can read the memory mapped at the base address before we can safely
+      // proceed to actually access those pages.
+      HMODULE handleLock = LoadLibraryEx(module.szExePath, NULL, LOAD_LIBRARY_AS_DATAFILE);
+      MEMORY_BASIC_INFORMATION vmemInfo = {0};
+      if (handleLock &&
+          sizeof(vmemInfo) == VirtualQuery(module.modBaseAddr, &vmemInfo, sizeof(vmemInfo)) &&
+          vmemInfo.State == MEM_COMMIT &&
+          GetPdbInfo((uintptr_t)module.modBaseAddr, pdbSig, pdbAge, &pdbName)) {
         SharedLibrary shlib((uintptr_t)module.modBaseAddr,
                             (uintptr_t)module.modBaseAddr+module.modBaseSize,
                             0, // DLLs are always mapped at offset 0 on Windows
@@ -132,6 +115,7 @@ SharedLibraryInfo SharedLibraryInfo::GetInfoForSelf()
                             module.szModule);
         sharedLibraryInfo.AddSharedLibrary(shlib);
       }
+      FreeLibrary(handleLock); // ok to free null handles
     } while (Module32Next(snap, &module));
   }
 

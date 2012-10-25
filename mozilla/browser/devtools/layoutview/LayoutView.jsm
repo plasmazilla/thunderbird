@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ft=javascript ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla Layout Module.
- *
- * The Initial Developer of the Original Code is
- * The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2012
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Paul Rouget <paul@mozilla.com> (original author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 "use strict";
 
@@ -43,6 +10,7 @@ const Cu = Components.utils;
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/inspector.jsm");
 Cu.import("resource:///modules/devtools/LayoutHelpers.jsm");
+Cu.import("resource:///modules/devtools/CssLogic.jsm");
 
 var EXPORTED_SYMBOLS = ["LayoutView"];
 
@@ -57,6 +25,7 @@ function LayoutView(aOptions)
 
 LayoutView.prototype = {
   init: function LV_init() {
+    this.cssLogic = new CssLogic();
 
     this.update = this.update.bind(this);
     this.onMessage = this.onMessage.bind(this);
@@ -73,13 +42,16 @@ LayoutView.prototype = {
     // We update the values when:
     //  a node is locked
     //  we get the MozAfterPaint event and the node is locked
-    function onLock() {
-      this.undim();
-      this.update();
-      // We make sure we never add 2 listeners.
-      if (!this.trackingPaint) {
-        this.browser.addEventListener("MozAfterPaint", this.update, true);
-        this.trackingPaint = true;
+    function onSelect() {
+      if (this.inspector.locked) {
+        this.cssLogic.highlight(this.inspector.selection);
+        this.undim();
+        this.update();
+        // We make sure we never add 2 listeners.
+        if (!this.trackingPaint) {
+          this.browser.addEventListener("MozAfterPaint", this.update, true);
+          this.trackingPaint = true;
+        }
       }
     }
 
@@ -89,13 +61,16 @@ LayoutView.prototype = {
       this.dim();
     }
 
-    this.onLock = onLock.bind(this);
+    this.onSelect= onSelect.bind(this);
     this.onUnlock = onUnlock.bind(this);
-    this.inspector.on("locked", this.onLock);
+    this.inspector.on("select", this.onSelect);
     this.inspector.on("unlocked", this.onUnlock);
 
     // Build the layout view in the sidebar.
     this.buildView();
+
+    this.bound_handleKeypress = this.handleKeypress.bind(this);
+    this.iframe.addEventListener("keypress", this.bound_handleKeypress, true);
 
     // Get messages from the iframe.
     this.inspector.chromeWindow.addEventListener("message", this.onMessage, true);
@@ -148,9 +123,10 @@ LayoutView.prototype = {
    * Destroy the nodes. Remove listeners.
    */
   destroy: function LV_destroy() {
-    this.inspector.removeListener("locked", this.onLock);
+    this.inspector.removeListener("select", this.onSelect);
     this.inspector.removeListener("unlocked", this.onUnlock);
     this.browser.removeEventListener("MozAfterPaint", this.update, true);
+    this.iframe.removeEventListener("keypress", this.bound_handleKeypress, true);
     this.inspector.chromeWindow.removeEventListener("message", this.onMessage, true);
     this.close();
     this.iframe = null;
@@ -187,7 +163,7 @@ LayoutView.prototype = {
     // inside the iframe.
 
     if (this.inspector.locked)
-      this.onLock();
+      this.onSelect();
     else
       this.onUnlock();
 
@@ -216,6 +192,28 @@ LayoutView.prototype = {
   },
 
   /**
+   * Handle keypress.
+   */
+   handleKeypress: function LV_handleKeypress(event) {
+     let win = this.inspector.chromeWindow;
+
+     // avoid scroll
+     if (event.keyCode == win.KeyEvent.DOM_VK_LEFT ||
+         event.keyCode == win.KeyEvent.DOM_VK_RIGHT ||
+         event.keyCode == win.KeyEvent.DOM_VK_UP ||
+         event.keyCode == win.KeyEvent.DOM_VK_DOWN ||
+         event.keyCode == win.KeyEvent.DOM_VK_PAGE_UP ||
+         event.keyCode == win.KeyEvent.DOM_VK_PAGE_DOWN) {
+
+        event.preventDefault();
+     }
+
+     if (event.charCode == win.KeyEvent.DOM_VK_SPACE) {
+       this.toggle(true);
+     }
+   },
+
+  /**
    * Open the view container.
    *
    * @param aUserAction Is the action triggered by the user (click on the
@@ -228,6 +226,9 @@ LayoutView.prototype = {
     if (aUserAction) {
       this.inspector._layoutViewIsOpen = true;
       Services.prefs.setBoolPref("devtools.layoutview.open", true);
+      this.view.removeAttribute("disable-transitions");
+    } else {
+      this.view.setAttribute("disable-transitions", "true");
     }
     this.iframe.setAttribute("open", "true");
     this.update();
@@ -246,6 +247,9 @@ LayoutView.prototype = {
     if (aUserAction) {
       this.inspector._layoutViewIsOpen = false;
       Services.prefs.setBoolPref("devtools.layoutview.open", false);
+      this.view.removeAttribute("disable-transitions");
+    } else {
+      this.view.setAttribute("disable-transitions", "true");
     }
     this.iframe.removeAttribute("open");
   },
@@ -282,7 +286,11 @@ LayoutView.prototype = {
    */
   update: function LV_update() {
     let node = this.inspector.selection;
-    if (!node || !this.documentReady) return;
+    if (!node ||
+        !LayoutHelpers.isNodeConnected(node) ||
+        !this.documentReady) {
+      return;
+    }
 
     // First, we update the first part of the layout view, with
     // the size of the element.
@@ -290,7 +298,12 @@ LayoutView.prototype = {
     let clientRect = node.getBoundingClientRect();
     let width = Math.round(clientRect.width);
     let height = Math.round(clientRect.height);
-    this.doc.querySelector("#element-size").textContent =  width + "x" + height;
+
+    let elt = this.doc.querySelector("#element-size");
+    let newLabel = width + "x" + height;
+    if (elt.textContent != newLabel) {
+      elt.textContent = newLabel;
+    }
 
     // If the view is closed, no need to do anything more.
     if (!this.isOpen) return;
@@ -302,6 +315,16 @@ LayoutView.prototype = {
       let selector = this.map[i].selector;
       let property = this.map[i].property;
       this.map[i].value = parseInt(style.getPropertyValue(property));
+    }
+
+    let margins = this.processMargins(node);
+    if ("top" in margins) this.map.marginTop.value = "auto";
+    if ("right" in margins) this.map.marginRight.value = "auto";
+    if ("bottom" in margins) this.map.marginBottom.value = "auto";
+    if ("left" in margins) this.map.marginLeft.value = "auto";
+
+    for (let i in this.map) {
+      let selector = this.map[i].selector;
       let span = this.doc.querySelector(selector);
       span.textContent = this.map[i].value;
     }
@@ -313,5 +336,22 @@ LayoutView.prototype = {
               this.map.paddingTop.value + this.map.paddingBottom.value;
 
     this.doc.querySelector(".size > span").textContent = width + "x" + height;
+  },
+
+  /**
+   * Find margins declared 'auto'
+   */
+  processMargins: function LV_processMargins(node) {
+    let margins = {};
+
+    for each (let prop in ["top", "bottom", "left", "right"]) {
+      let info = this.cssLogic.getPropertyInfo("margin-" + prop);
+      let selectors = info.matchedSelectors;
+      if (selectors && selectors.length > 0 && selectors[0].value == "auto") {
+        margins[prop] = "auto";
+      }
+    }
+
+    return margins;
   },
 }

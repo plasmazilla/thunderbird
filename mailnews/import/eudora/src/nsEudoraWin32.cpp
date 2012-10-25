@@ -1,42 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org Code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Jeff Beckley <beckley@qualcomm.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsCOMPtr.h"
 #include "nsMsgUtils.h"
@@ -108,7 +74,7 @@ bool nsEudoraWin32::FindEudoraLocation(nsIFile **pFolder, bool findIni)
 {
   bool result = false;
   bool    exists = false;
-  nsCOMPtr <nsILocalFile> eudoraPath = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID);
+  nsCOMPtr <nsIFile> eudoraPath = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID);
   // look in the registry to see where eudora is installed?
   HKEY  sKey;
   if (::RegOpenKeyEx(HKEY_CURRENT_USER, "Software\\Qualcomm\\Eudora\\CommandLine", 0, KEY_QUERY_VALUE, &sKey) == ERROR_SUCCESS)
@@ -283,7 +249,7 @@ nsresult nsEudoraWin32::IterateMailDir(nsIFile *pFolder, nsISupportsArray *pArra
   {
     nsCOMPtr<nsISupports> aSupport;
     rv = directoryEnumerator->GetNext(getter_AddRefs(aSupport));
-    nsCOMPtr<nsILocalFile> entry(do_QueryInterface(aSupport, &rv));
+    nsCOMPtr<nsIFile> entry(do_QueryInterface(aSupport, &rv));
     directoryEnumerator->HasMoreElements(&hasMore);
 
     if (NS_SUCCEEDED(rv))
@@ -484,12 +450,11 @@ nsresult nsEudoraWin32::FoundMailbox(nsIFile *mailFile, const char *pName, nsISu
     desc->SetDisplayName(displayName.get());
     desc->SetDepth(m_depth);
     desc->SetSize(sz);
-    nsCOMPtr <nsILocalFile> pFile = nsnull;
+    nsCOMPtr <nsIFile> pFile = nsnull;
     desc->GetFile(getter_AddRefs(pFile));
     if (pFile)
     {
-      nsCOMPtr <nsILocalFile> localMailFile = do_QueryInterface(mailFile);
-      pFile->InitWithFile(localMailFile);
+      pFile->InitWithFile(mailFile);
     }
     rv = desc->QueryInterface(kISupportsIID, (void **) &pInterface);
     pArray->AppendElement(pInterface);
@@ -525,12 +490,11 @@ nsresult nsEudoraWin32::FoundMailFolder(nsIFile *mailFolder, const char *pName, 
     desc->SetDisplayName(displayName.get());
     desc->SetDepth(m_depth);
     desc->SetSize(sz);
-    nsCOMPtr <nsILocalFile> pFile = nsnull;
+    nsCOMPtr <nsIFile> pFile = nsnull;
     desc->GetFile(getter_AddRefs(pFile));
     if (pFile)
     {
-      nsCOMPtr <nsILocalFile> localMailFile = do_QueryInterface(mailFolder);
-      pFile->InitWithFile(localMailFile);
+      pFile->InitWithFile(mailFolder);
     }
     rv = desc->QueryInterface(kISupportsIID, (void **) &pInterface);
     pArray->AppendElement(pInterface);
@@ -702,7 +666,7 @@ bool nsEudoraWin32::GetMailboxNameHierarchy(const nsACString& pEudoraLocation, c
     return false;
 
   nsresult rv;
-  nsCOMPtr <nsILocalFile> descMap = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID);
+  nsCOMPtr <nsIFile> descMap = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID);
 
   rv = descMap->InitWithNativePath(pEudoraLocation);
   NS_ENSURE_SUCCESS(rv, false);
@@ -1020,9 +984,7 @@ nsresult nsEudoraWin32::GetAttachmentInfo(const char *pFileName, nsIFile *pFile,
 {
   nsresult  rv;
   mimeType.Truncate();
-  nsCOMPtr <nsILocalFile> pLocalFile = do_QueryInterface(pFile, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-  pLocalFile->InitWithNativePath(nsDependentCString(pFileName));
+  pFile->InitWithNativePath(nsDependentCString(pFileName));
   bool      isFile = false;
   bool      exists = false;
   if (NS_FAILED(rv = pFile->Exists(&exists)))
@@ -1074,7 +1036,7 @@ nsresult nsEudoraWin32::GetAttachmentInfo(const char *pFileName, nsIFile *pFile,
       {
         nsCString   nativePath;
         altFile->GetNativePath(nativePath);
-        pLocalFile->InitWithNativePath(nativePath);
+        pFile->InitWithNativePath(nativePath);
       }
     }
   }
@@ -1119,9 +1081,6 @@ bool nsEudoraWin32::FindMimeIniFile(nsIFile *pFile)
   nsresult rv = pFile->GetDirectoryEntries(getter_AddRefs(directoryEnumerator));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr <nsILocalFile> pLocalFile = do_QueryInterface(pFile, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
   directoryEnumerator->HasMoreElements(&hasMore);
   bool              isFile;
   nsCOMPtr<nsIFile> entry;
@@ -1135,7 +1094,7 @@ bool nsEudoraWin32::FindMimeIniFile(nsIFile *pFile)
   {
     nsCOMPtr<nsISupports> aSupport;
     rv = directoryEnumerator->GetNext(getter_AddRefs(aSupport));
-    nsCOMPtr<nsILocalFile> entry(do_QueryInterface(aSupport, &rv));
+    nsCOMPtr<nsIFile> entry(do_QueryInterface(aSupport, &rv));
     directoryEnumerator->HasMoreElements(&hasMore);
 
 
@@ -1168,11 +1127,11 @@ bool nsEudoraWin32::FindMimeIniFile(nsIFile *pFile)
               entry->GetLastModifiedTime(&modDate2);
               pFile->GetLastModifiedTime(&modDate1);
               if (modDate2 > modDate1)
-                pLocalFile->InitWithFile(entry);
+                pFile->InitWithFile(entry);
             }
             else
             {
-              pLocalFile->InitWithFile(entry);
+              pFile->InitWithFile(entry);
               found = true;
             }
           }
@@ -1209,7 +1168,7 @@ void nsEudoraWin32::GetMimeTypeFromExtension(nsCString& ext, nsCString& mimeType
   // mime type list
   if (!m_pMimeSection)
   {
-    nsCOMPtr <nsILocalFile> pFile = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID);
+    nsCOMPtr <nsIFile> pFile = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID);
     if (!pFile)
       return;
 
@@ -1359,10 +1318,9 @@ bool nsEudoraWin32::FindAddressFolder(nsIFile **pFolder)
 nsresult nsEudoraWin32::FindAddressBooks(nsIFile *pRoot, nsISupportsArray **ppArray)
 {
   nsresult rv;
-  nsCOMPtr<nsILocalFile> file = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv);
+  nsCOMPtr<nsIFile> file = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
-  nsCOMPtr<nsILocalFile> localRoot = do_QueryInterface(pRoot);
-  rv = file->InitWithFile(localRoot);
+  rv = file->InitWithFile(pRoot);
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = NS_NewISupportsArray(ppArray);
@@ -1411,7 +1369,7 @@ nsresult nsEudoraWin32::FindAddressBooks(nsIFile *pRoot, nsISupportsArray **ppAr
   }
 
   // Try the default directory
-  rv =   rv = file->InitWithFile(localRoot);
+  rv = file->InitWithFile(pRoot);
   if (NS_FAILED(rv))
     return rv;
   rv = file->AppendNative(NS_LITERAL_CSTRING("Nickname"));
@@ -1428,7 +1386,7 @@ nsresult nsEudoraWin32::FindAddressBooks(nsIFile *pRoot, nsISupportsArray **ppAr
   }
 
   // Try the ini file to find other directories!
-  rv =   rv = file->InitWithFile(localRoot);
+  rv = file->InitWithFile(pRoot);
   if (NS_FAILED(rv))
     return rv;
   rv = file->AppendNative(NS_LITERAL_CSTRING("eudora.ini"));
@@ -1441,7 +1399,7 @@ nsresult nsEudoraWin32::FindAddressBooks(nsIFile *pRoot, nsISupportsArray **ppAr
 
   if (!isFile || !exists)
   {
-    rv = file->InitWithFile(localRoot);
+    rv = file->InitWithFile(pRoot);
     if (NS_FAILED(rv))
       return NS_OK;
     if (!FindMimeIniFile(file))
@@ -1515,9 +1473,6 @@ nsresult nsEudoraWin32::ScanAddressDir(nsIFile *pDir, nsISupportsArray *pArray, 
   nsresult rv = pDir->GetDirectoryEntries(getter_AddRefs(directoryEnumerator));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr <nsILocalFile> pLocalFile = do_QueryInterface(pDir, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
   directoryEnumerator->HasMoreElements(&hasMore);
   bool              isFile;
   nsCOMPtr<nsIFile> entry;
@@ -1531,7 +1486,7 @@ nsresult nsEudoraWin32::ScanAddressDir(nsIFile *pDir, nsISupportsArray *pArray, 
   {
     nsCOMPtr<nsISupports> aSupport;
     rv = directoryEnumerator->GetNext(getter_AddRefs(aSupport));
-    nsCOMPtr<nsILocalFile> entry(do_QueryInterface(aSupport, &rv));
+    nsCOMPtr<nsIFile> entry(do_QueryInterface(aSupport, &rv));
     directoryEnumerator->HasMoreElements(&hasMore);
 
     if (NS_SUCCEEDED(rv))
@@ -1591,9 +1546,6 @@ nsresult nsEudoraWin32::FoundAddressBook(nsIFile *file, const PRUnichar *pName, 
       leaf.SetLength(leaf.Length() - 4);
   }
 
-  nsCOMPtr<nsILocalFile> fileLoc = do_QueryInterface(file, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
   rv = impSvc->CreateNewABDescriptor(getter_AddRefs(desc));
   if (NS_SUCCEEDED(rv))
   {
@@ -1601,7 +1553,7 @@ nsresult nsEudoraWin32::FoundAddressBook(nsIFile *file, const PRUnichar *pName, 
     file->GetFileSize(&sz);
     desc->SetPreferredName(name);
     desc->SetSize((PRUint32) sz);
-    desc->SetAbFile(fileLoc);
+    desc->SetAbFile(file);
     rv = desc->QueryInterface(kISupportsIID, (void **) &pInterface);
     pArray->AppendElement(pInterface);
     pInterface->Release();

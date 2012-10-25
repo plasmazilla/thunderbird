@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 2 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Corporation code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Bas Schouten <bschouten@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <algorithm>
 
@@ -463,6 +431,14 @@ LayerManagerD3D10::CreateOptimalSurface(const gfxIntSize &aSize,
   return surface.forget();
 }
 
+
+already_AddRefed<gfxASurface>
+LayerManagerD3D10::CreateOptimalMaskSurface(const gfxIntSize &aSize)
+{
+  return CreateOptimalSurface(aSize, gfxASurface::ImageFormatARGB32);
+}
+
+
 TemporaryRef<DrawTarget>
 LayerManagerD3D10::CreateDrawTarget(const IntSize &aSize,
                                     SurfaceFormat aFormat)
@@ -476,7 +452,6 @@ LayerManagerD3D10::CreateDrawTarget(const IntSize &aSize,
   
   CD3D10_TEXTURE2D_DESC desc(DXGI_FORMAT_B8G8R8A8_UNORM, aSize.width, aSize.height, 1, 1);
   desc.BindFlags = D3D10_BIND_RENDER_TARGET | D3D10_BIND_SHADER_RESOURCE;
-  desc.MiscFlags = D3D10_RESOURCE_MISC_GDI_COMPATIBLE;
   
   HRESULT hr = device()->CreateTexture2D(&desc, NULL, getter_AddRefs(texture));
 
@@ -840,6 +815,87 @@ LayerManagerD3D10::ReportFailure(const nsACString &aMsg, HRESULT aCode)
 LayerD3D10::LayerD3D10(LayerManagerD3D10 *aManager)
   : mD3DManager(aManager)
 {
+}
+
+ID3D10EffectTechnique*
+LayerD3D10::SelectShader(PRUint8 aFlags)
+{
+  switch (aFlags) {
+  case (SHADER_RGBA | SHADER_NON_PREMUL | SHADER_LINEAR | SHADER_MASK):
+    return effect()->GetTechniqueByName("RenderRGBALayerNonPremulMask");
+  case (SHADER_RGBA | SHADER_NON_PREMUL | SHADER_LINEAR | SHADER_NO_MASK):
+    return effect()->GetTechniqueByName("RenderRGBALayerNonPremul");
+  case (SHADER_RGBA | SHADER_NON_PREMUL | SHADER_POINT | SHADER_NO_MASK):
+    return effect()->GetTechniqueByName("RenderRGBALayerNonPremulPoint");
+  case (SHADER_RGBA | SHADER_NON_PREMUL | SHADER_POINT | SHADER_MASK):
+    return effect()->GetTechniqueByName("RenderRGBALayerNonPremulPointMask");
+  case (SHADER_RGBA | SHADER_PREMUL | SHADER_LINEAR | SHADER_MASK_3D):
+    return effect()->GetTechniqueByName("RenderRGBALayerPremulMask3D");
+  case (SHADER_RGBA | SHADER_PREMUL | SHADER_LINEAR | SHADER_MASK):
+    return effect()->GetTechniqueByName("RenderRGBALayerPremulMask");
+  case (SHADER_RGBA | SHADER_PREMUL | SHADER_LINEAR | SHADER_NO_MASK):
+    return effect()->GetTechniqueByName("RenderRGBALayerPremul");
+  case (SHADER_RGBA | SHADER_PREMUL | SHADER_POINT | SHADER_MASK):
+    return effect()->GetTechniqueByName("RenderRGBALayerPremulPointMask");
+  case (SHADER_RGBA | SHADER_PREMUL | SHADER_POINT | SHADER_NO_MASK):
+    return effect()->GetTechniqueByName("RenderRGBALayerPremulPoint");
+  case (SHADER_RGB | SHADER_PREMUL | SHADER_POINT | SHADER_MASK):
+    return effect()->GetTechniqueByName("RenderRGBLayerPremulPointMask");
+  case (SHADER_RGB | SHADER_PREMUL | SHADER_POINT | SHADER_NO_MASK):
+    return effect()->GetTechniqueByName("RenderRGBLayerPremulPoint");
+  case (SHADER_RGB | SHADER_PREMUL | SHADER_LINEAR | SHADER_MASK):
+    return effect()->GetTechniqueByName("RenderRGBLayerPremulMask");
+  case (SHADER_RGB | SHADER_PREMUL | SHADER_LINEAR | SHADER_NO_MASK):
+    return effect()->GetTechniqueByName("RenderRGBLayerPremul");
+  case (SHADER_SOLID | SHADER_MASK):
+    return effect()->GetTechniqueByName("RenderSolidColorLayerMask");
+  case (SHADER_SOLID | SHADER_NO_MASK):
+    return effect()->GetTechniqueByName("RenderSolidColorLayer");
+  case (SHADER_COMPONENT_ALPHA | SHADER_MASK):
+    return effect()->GetTechniqueByName("RenderComponentAlphaLayerMask");
+  case (SHADER_COMPONENT_ALPHA | SHADER_NO_MASK):
+    return effect()->GetTechniqueByName("RenderComponentAlphaLayer");
+  case (SHADER_YCBCR | SHADER_MASK):
+    return effect()->GetTechniqueByName("RenderYCbCrLayerMask");
+  case (SHADER_YCBCR | SHADER_NO_MASK):
+    return effect()->GetTechniqueByName("RenderYCbCrLayer");
+  default:
+    NS_ERROR("Invalid shader.");
+    return nsnull;
+  }
+}
+
+PRUint8
+LayerD3D10::LoadMaskTexture()
+{
+  if (Layer* maskLayer = GetLayer()->GetMaskLayer()) {
+    gfxIntSize size;
+    nsRefPtr<ID3D10ShaderResourceView> maskSRV =
+      static_cast<LayerD3D10*>(maskLayer->ImplData())->GetAsTexture(&size);
+  
+    if (!maskSRV) {
+      return SHADER_NO_MASK;
+    }
+
+    gfxMatrix maskTransform;
+    bool maskIs2D = maskLayer->GetEffectiveTransform().CanDraw2D(&maskTransform);
+    NS_ASSERTION(maskIs2D, "How did we end up with a 3D transform here?!");
+    gfxRect bounds = gfxRect(gfxPoint(), size);
+    bounds = maskTransform.TransformBounds(bounds);
+
+    effect()->GetVariableByName("vMaskQuad")->AsVector()->SetFloatVector(
+      ShaderConstantRectD3D10(
+        (float)bounds.x,
+        (float)bounds.y,
+        (float)bounds.width,
+        (float)bounds.height)
+      );
+
+    effect()->GetVariableByName("tMask")->AsShaderResource()->SetResource(maskSRV);
+    return SHADER_MASK;
+  }
+
+  return SHADER_NO_MASK; 
 }
 
 WindowLayer::WindowLayer(LayerManagerD3D10* aManager)

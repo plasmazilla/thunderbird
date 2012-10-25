@@ -36,8 +36,7 @@ config_unix = {
 
 config = sys.modules['expandlibs_config'] = imp.new_module('expandlibs_config')
 
-from expandlibs import LibDescriptor, ExpandArgs, relativize
-from expandlibs_deps import ExpandLibsDeps, split_args
+from expandlibs import LibDescriptor, ExpandArgs, relativize, ExpandLibsDeps
 from expandlibs_gen import generate
 from expandlibs_exec import ExpandArgsMore, SectionFinder
 
@@ -213,12 +212,6 @@ class TestExpandLibsDeps(TestExpandInit):
         args = self.arg_files + [self.tmpfile('liby', Lib('y'))]
         self.assertRelEqual(ExpandLibsDeps(args), ExpandArgs(args))
 
-class TestSplitArgs(unittest.TestCase):
-    def test_split_args(self):
-        self.assertEqual(split_args(['a', '=', 'b', 'c']), {'a': ['b', 'c']})
-        self.assertEqual(split_args(['a', '=', 'b', 'c', ',', 'd', '=', 'e', 'f', 'g', ',', 'h', '=', 'i']),
-                         {'a': ['b', 'c'], 'd': ['e', 'f', 'g'], 'h': ['i']})
-
 class TestExpandArgsMore(TestExpandInit):
     def test_makelist(self):
         '''Test grouping object files in lists'''
@@ -237,7 +230,7 @@ class TestExpandArgsMore(TestExpandInit):
             if config.EXPAND_LIBS_LIST_STYLE == "linkerscript":
                 self.assertNotEqual(args[3][0], '@')
                 filename = args[3]
-                content = ["INPUT(%s)" % relativize(f) for f in objs]
+                content = ['INPUT("%s")' % relativize(f) for f in objs]
                 with open(filename, 'r') as f:
                     self.assertEqual([l.strip() for l in f.readlines() if len(l.strip())], content)
             elif config.EXPAND_LIBS_LIST_STYLE == "list":

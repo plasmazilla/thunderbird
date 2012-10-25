@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 /* vim: set sw=4 ts=4 et : */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Plugin App.
- *
- * The Initial Developer of the Original Code is
- * Ben Turner <bent.mozilla@gmail.com>.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Chris Jones <jones.chris.g@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef MOZ_WIDGET_QT
 #include <QtCore/QTimer>
@@ -50,11 +17,15 @@
 
 #include "mozilla/ipc/SyncChannel.h"
 
-#ifdef MOZ_WIDGET_GTK2
+#ifdef MOZ_WIDGET_GTK
 #include <gtk/gtk.h>
+#if (MOZ_WIDGET_GTK == 3)
+#include <gtk/gtkx.h>
+#endif
+#include "gtk2compat.h"
 #endif
 
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 
 #include "pratom.h"
 #include "nsDebug.h"
@@ -123,7 +94,7 @@ PluginModuleChild::PluginModuleChild()
   , mInitializeFunc(0)
 #if defined(OS_WIN) || defined(OS_MACOSX)
   , mGetEntryPointsFunc(0)
-#elif defined(MOZ_WIDGET_GTK2)
+#elif defined(MOZ_WIDGET_GTK)
   , mNestedLoopTimerId(0)
 #elif defined(MOZ_WIDGET_QT)
   , mNestedLoopTimerObject(0)
@@ -177,26 +148,15 @@ PluginModuleChild::Init(const std::string& aPluginFilename,
 
     NS_ASSERTION(aChannel, "need a channel");
 
-    if (!mObjectMap.Init()) {
-       NS_WARNING("Failed to initialize object hashtable!");
-       return false;
-    }
-
-    if (!mStringIdentifiers.Init()) {
-       NS_ERROR("Failed to initialize string identifier hashtable!");
-       return false;
-    }
-
-    if (!mIntIdentifiers.Init()) {
-       NS_ERROR("Failed to initialize int identifier hashtable!");
-       return false;
-    }
+    mObjectMap.Init();
+    mStringIdentifiers.Init();
+    mIntIdentifiers.Init();
 
     if (!InitGraphics())
         return false;
 
     mPluginFilename = aPluginFilename.c_str();
-    nsCOMPtr<nsILocalFile> localFile;
+    nsCOMPtr<nsIFile> localFile;
     NS_NewLocalFile(NS_ConvertUTF8toUTF16(mPluginFilename),
                     true,
                     getter_AddRefs(localFile));
@@ -222,8 +182,9 @@ PluginModuleChild::Init(const std::string& aPluginFilename,
     if (!mLibrary)
 #endif
     {
-        DebugOnly<nsresult> rv = pluginFile.LoadPlugin(&mLibrary);
-        NS_ASSERTION(NS_OK == rv, "trouble with mPluginFile");
+        nsresult rv = pluginFile.LoadPlugin(&mLibrary);
+        if (NS_FAILED(rv))
+            return false;
     }
     NS_ASSERTION(mLibrary, "couldn't open shared object");
 
@@ -273,7 +234,7 @@ PluginModuleChild::Init(const std::string& aPluginFilename,
     return true;
 }
 
-#if defined(MOZ_WIDGET_GTK2)
+#if defined(MOZ_WIDGET_GTK)
 typedef void (*GObjectDisposeFn)(GObject*);
 typedef gboolean (*GtkWidgetScrollEventFn)(GtkWidget*, GdkEventScroll*);
 typedef void (*GtkPlugEmbeddedFn)(GtkPlug*);
@@ -313,16 +274,16 @@ wrap_gtk_plug_dispose(GObject* object) {
 static gboolean
 gtk_plug_scroll_event(GtkWidget *widget, GdkEventScroll *gdk_event)
 {
-    if (!GTK_WIDGET_TOPLEVEL(widget)) // in same process as its GtkSocket
+    if (!gtk_widget_is_toplevel(widget)) // in same process as its GtkSocket
         return FALSE; // event not handled; propagate to GtkSocket
 
-    GdkWindow* socket_window = GTK_PLUG(widget)->socket_window;
+    GdkWindow* socket_window = gtk_plug_get_socket_window(GTK_PLUG(widget));
     if (!socket_window)
         return FALSE;
 
     // Propagate the event to the embedder.
-    GdkScreen* screen = gdk_drawable_get_screen(socket_window);
-    GdkWindow* plug_window = widget->window;
+    GdkScreen* screen = gdk_window_get_screen(socket_window);
+    GdkWindow* plug_window = gtk_widget_get_window(widget);
     GdkWindow* event_window = gdk_event->window;
     gint x = gdk_event->x;
     gint y = gdk_event->y;
@@ -368,9 +329,9 @@ gtk_plug_scroll_event(GtkWidget *widget, GdkEventScroll *gdk_event)
 
     memset(&xevent, 0, sizeof(xevent));
     xevent.xbutton.type = ButtonPress;
-    xevent.xbutton.window = GDK_WINDOW_XWINDOW(socket_window);
-    xevent.xbutton.root = GDK_WINDOW_XWINDOW(gdk_screen_get_root_window(screen));
-    xevent.xbutton.subwindow = GDK_WINDOW_XWINDOW(plug_window);
+    xevent.xbutton.window = gdk_x11_window_get_xid(socket_window);
+    xevent.xbutton.root = gdk_x11_window_get_xid(gdk_screen_get_root_window(screen));
+    xevent.xbutton.subwindow = gdk_x11_window_get_xid(plug_window);
     xevent.xbutton.time = gdk_event->time;
     xevent.xbutton.x = x;
     xevent.xbutton.y = y;
@@ -398,7 +359,7 @@ gtk_plug_scroll_event(GtkWidget *widget, GdkEventScroll *gdk_event)
 
 static void
 wrap_gtk_plug_embedded(GtkPlug* plug) {
-    GdkWindow* socket_window = plug->socket_window;
+    GdkWindow* socket_window = gtk_plug_get_socket_window(plug);
     if (socket_window) {
         if (gtk_check_version(2,18,7) != NULL // older
             && g_object_get_data(G_OBJECT(socket_window),
@@ -541,7 +502,7 @@ PluginModuleChild::ShouldContinueFromReplyTimeout()
 bool
 PluginModuleChild::InitGraphics()
 {
-#if defined(MOZ_WIDGET_GTK2)
+#if defined(MOZ_WIDGET_GTK)
     // Work around plugins that don't interact well with GDK
     // client-side windows.
     PR_SetEnv("GDK_NATIVE_WINDOWS=1");
@@ -1116,7 +1077,7 @@ _getvalue(NPP aNPP,
     switch (aVariable) {
         // Copied from nsNPAPIPlugin.cpp
         case NPNVToolkit:
-#if defined(MOZ_WIDGET_GTK2) || defined(MOZ_WIDGET_QT)
+#if defined(MOZ_WIDGET_GTK) || defined(MOZ_WIDGET_QT)
             *static_cast<NPNToolkitType*>(aValue) = NPNVGtk2;
             return NPERR_NO_ERROR;
 #endif
@@ -1126,8 +1087,7 @@ _getvalue(NPP aNPP,
         case NPNVasdEnabledBool: // Intentional fall-through
         case NPNVisOfflineBool: // Intentional fall-through
         case NPNVSupportsXEmbedBool: // Intentional fall-through
-        case NPNVSupportsWindowless: // Intentional fall-through
-        case NPNVprivateModeBool: {
+        case NPNVSupportsWindowless: { // Intentional fall-through
             NPError result;
             bool value;
             PluginModuleChild::current()->

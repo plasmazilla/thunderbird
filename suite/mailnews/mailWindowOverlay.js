@@ -1,52 +1,8 @@
 /* -*- Mode: javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 sw=2 sts=2 et :*/
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code, released
- * March 31, 1998.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998-1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   timeless
- *   slucy@objectivesw.co.uk
- *   Håkan Waara <hwaara@chello.se>
- *   Jan Varga <varga@ku.sk>
- *   Seth Spitzer <sspitzer@netscape.com>
- *   David Bienvenu <bienvenu@netscape.com>
- *   Ian Neal <iann_bugzilla@blueyonder.co.uk>
- *   Karsten Düsterloh <mnyromyr@tprac.de>
- *   Christopher Thomas <cst@yecc.com>
- *   Jeremy Morton <bugzilla@game-point.net>
- *   Jens Hatlak <jh@junetz.de>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
@@ -2620,9 +2576,35 @@ var gMessageNotificationBar =
     this.updateMsgNotificationBar(kMsgNotificationPhishingBar, phishingMsg);
   },
 
-  setMDNMsg: function(aMdnGenerator, aMsgHeader)
+  setMDNMsg: function(aMdnGenerator, aMsgHeader, aMimeHdr)
   {
     this.mdnGenerator = aMdnGenerator;
+    // Return receipts can be RFC 3798 "Disposition-Notification-To",
+    // or non-standard "Return-Receipt-To".
+    var mdnHdr = aMimeHdr.extractHeader("Disposition-Notification-To", false) ||
+                 aMimeHdr.extractHeader("Return-Receipt-To", false);
+    var fromHdr = aMimeHdr.extractHeader("From", false);
+
+    var mdnAddr = MailServices.headerParser
+                              .extractHeaderAddressMailboxes(mdnHdr);
+    var fromAddr = MailServices.headerParser
+                               .extractHeaderAddressMailboxes(fromHdr);
+
+    var authorName = MailServices.headerParser
+                                 .extractHeaderAddressName(aMsgHeader.mime2DecodedAuthor) ||
+                     aMsgHeader.author;
+
+    var barMsg;
+    // If the return receipt doesn't go to the sender address, note that in the
+    // notification.
+    if (mdnAddr != fromAddr)
+      barMsg = gMessengerBundle.getFormattedString("mdnBarMessageAddressDiffers",
+                                                   [authorName, mdnAddr]);
+    else
+      barMsg = gMessengerBundle.getFormattedString("mdnBarMessageNormal",
+                                                   [authorName]);
+    document.getElementById("mdnBarMessage").textContent = barMsg;
+
     this.updateMsgNotificationBar(kMsgNotificationMDN, true);
   },
 
@@ -2650,8 +2632,7 @@ var gMessageNotificationBar =
   },
 
   /**
-   * @param aFlag  kMsgNotificationPhishingBar, kMsgNotificationJunkBar, or
-   *               kMsgNotificationRemoteImages
+   * @param aFlag one of the |mBarFlagValues| values
    * @return true if aFlag is currently set for the loaded message
    */
   isFlagSet: function(aFlag)
@@ -2892,12 +2873,12 @@ function OnMsgLoaded(aUrl)
     HandleMDNResponse(aUrl);
 }
 
-//
-// This function handles all mdn response generation (ie, imap and pop).
-// For pop the msg uid can be 0 (ie, 1st msg in a local folder) so no
-// need to check uid here. No one seems to set mimeHeaders to null so
-// no need to check it either.
-//
+/*
+ * This function handles all mdn response generation (ie, imap and pop).
+ * For pop the msg uid can be 0 (ie, 1st msg in a local folder) so no
+ * need to check uid here. No one seems to set mimeHeaders to null so
+ * no need to check it either.
+ */
 function HandleMDNResponse(aUrl)
 {
   if (!aUrl)
@@ -2935,9 +2916,7 @@ function HandleMDNResponse(aUrl)
 
   // After a msg is downloaded it's already marked READ at this point so we must check if
   // the msg has a "Disposition-Notification-To" header and no MDN report has been sent yet.
-  var msgFlags = msgHdr.flags;
-  if ((msgFlags & Components.interfaces.nsMsgMessageFlags.IMAPDeleted) ||
-      (msgFlags & Components.interfaces.nsMsgMessageFlags.MDNReportSent))
+  if (msgHdr.flags & Components.interfaces.nsMsgMessageFlags.MDNReportSent)
     return;
 
   var DNTHeader = mimeHdr.extractHeader("Disposition-Notification-To", false);
@@ -2955,7 +2934,7 @@ function HandleMDNResponse(aUrl)
                                      mimeHdr,
                                      false);
   if (askUser)
-    gMessageNotificationBar.setMDNMsg(mdnGenerator, msgHdr);
+    gMessageNotificationBar.setMDNMsg(mdnGenerator, msgHdr, mimeHdr);
 }
 
 function SendMDNResponse()
@@ -3102,14 +3081,14 @@ function FeedSetContentView(val)
       if (wintype == "mail:3pane") {
         // Get quickmode per feed pref from feeds.rdf
         var quickMode, targetRes;
-        if (typeof FZ_NS == 'undefined')
+        if (!("FeedUtils" in window))
           Services.scriptloader.loadSubScript("chrome://messenger-newsblog/content/utils.js");
         try
         {
-          var targetRes = getParentTargetForChildResource(
-                          gMsgFolderSelected.URI,
-                          FZ_QUICKMODE,
-                          gMsgFolderSelected.server);
+          var targetRes = FeedUtils.getParentTargetForChildResource(
+                            gFolderDisplay.displayedFolder.URI,
+                            FeedUtils.FZ_QUICKMODE,
+                            gFolderDisplay.displayedFolder.server);
         }
         catch (ex) {};
 

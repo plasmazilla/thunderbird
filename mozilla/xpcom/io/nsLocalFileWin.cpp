@@ -1,44 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */ 
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code, released
- * March 31, 1998.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998-1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Doug Turner <dougt@netscape.com>
- *   Dean Tessman <dean_tessman@hotmail.com>
- *   Brodie Thiesfield <brofield@jellycan.com>
- *   Jungshik Shin <jshin@i18nl10n.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
 
@@ -253,9 +216,21 @@ private:
         seinfo.lpParameters =  NULL;
         seinfo.lpDirectory  = NULL;
         seinfo.nShow  = SW_SHOWNORMAL;
+
+        // Use the directory of the file we're launching as the working
+        // directory.  That way if we have a self extracting EXE it won't
+        // suggest to extract to the install directory.
+        WCHAR workingDirectory[MAX_PATH + 1] = { L'\0' };
+        wcsncpy(workingDirectory,  mResolvedPath.get(), MAX_PATH);
+        if (PathRemoveFileSpecW(workingDirectory)) {
+            seinfo.lpDirectory = workingDirectory;
+        } else {
+            NS_WARNING("Could not set working directory for launched file.");
+        }
         
-        if (ShellExecuteExW(&seinfo))
+        if (ShellExecuteExW(&seinfo)) {
             return NS_OK;
+        }
         DWORD r = GetLastError();
         // if the file has no association, we launch windows' 
         // "what do you want to do" dialog
@@ -648,11 +623,11 @@ OpenFile(const nsAFlatString &name, PRIntn osflags, PRIntn mode,
             flags = OPEN_EXISTING;
     }
 
-    if (osflags & nsILocalFile::DELETE_ON_CLOSE) {
+    if (osflags & nsIFile::DELETE_ON_CLOSE) {
       flag6 |= FILE_FLAG_DELETE_ON_CLOSE;
     }
 
-    if (osflags & nsILocalFile::OS_READAHEAD) {
+    if (osflags & nsIFile::OS_READAHEAD) {
       flag6 |= FILE_FLAG_SEQUENTIAL_SCAN;
     }
 
@@ -851,7 +826,7 @@ class nsDirEnumerator : public nsISimpleEnumerator,
         {
         }
 
-        nsresult Init(nsILocalFile* parent)
+        nsresult Init(nsIFile* parent)
         {
             nsAutoString filepath;
             parent->GetTarget(filepath);
@@ -959,9 +934,9 @@ class nsDirEnumerator : public nsISimpleEnumerator,
         }
 
     protected:
-        nsDir*                  mDir;
-        nsCOMPtr<nsILocalFile>  mParent;
-        nsCOMPtr<nsILocalFile>  mNext;
+        nsDir*             mDir;
+        nsCOMPtr<nsIFile>  mParent;
+        nsCOMPtr<nsIFile>  mNext;
 };
 
 NS_IMPL_ISUPPORTS2(nsDirEnumerator, nsISimpleEnumerator, nsIDirectoryEnumerator)
@@ -1701,11 +1676,11 @@ nsLocalFile::GetVersionInfoField(const char* aField, nsAString& _retval)
 }
 
 NS_IMETHODIMP
-nsLocalFile::SetShortcut(nsILocalFile* targetFile,
-                         nsILocalFile* workingDir,
+nsLocalFile::SetShortcut(nsIFile* targetFile,
+                         nsIFile* workingDir,
                          const PRUnichar* args,
                          const PRUnichar* description,
-                         nsILocalFile* iconFile,
+                         nsIFile* iconFile,
                          PRInt32 iconIndex)
 {
     bool exists;
@@ -1962,7 +1937,7 @@ nsLocalFile::CopyMove(nsIFile *aParentDir, const nsAString &newName, bool follow
                     nsAutoString target;
                     newParentDir->GetTarget(target);
 
-                    nsCOMPtr<nsILocalFile> realDest = new nsLocalFile();
+                    nsCOMPtr<nsIFile> realDest = new nsLocalFile();
                     if (realDest == nsnull)
                         return NS_ERROR_OUT_OF_MEMORY;
 
@@ -2591,8 +2566,7 @@ nsLocalFile::GetDiskSpaceAvailable(PRInt64 *aDiskSpaceAvailable)
       // Since GetDiskFreeSpaceExW works only on directories, use the parent.
       nsCOMPtr<nsIFile> parent;
       if (NS_SUCCEEDED(GetParent(getter_AddRefs(parent))) && parent) {
-        nsCOMPtr<nsILocalFile> localParent = do_QueryInterface(parent);
-        return localParent->GetDiskSpaceAvailable(aDiskSpaceAvailable);
+        return parent->GetDiskSpaceAvailable(aDiskSpaceAvailable);
       }
     }
 
@@ -2642,7 +2616,7 @@ nsLocalFile::GetParent(nsIFile * *aParent)
     else
         parentPath.AssignLiteral("\\\\.");
 
-    nsCOMPtr<nsILocalFile> localFile;
+    nsCOMPtr<nsIFile> localFile;
     nsresult rv = NS_NewLocalFile(parentPath, mFollowSymlinks, getter_AddRefs(localFile));
 
     if (NS_SUCCEEDED(rv) && localFile) {
@@ -3125,6 +3099,13 @@ nsLocalFile::SetFileAttributesWin(PRUint32 aAttribs)
         dwAttrs |= FILE_ATTRIBUTE_NOT_CONTENT_INDEXED;
     }
 
+    if (aAttribs & WFA_READONLY) {
+      dwAttrs |= FILE_ATTRIBUTE_READONLY;
+    } else if ((aAttribs & WFA_READWRITE) &&
+               (dwAttrs & FILE_ATTRIBUTE_READONLY)) {
+      dwAttrs &= ~FILE_ATTRIBUTE_READONLY;
+    }
+
     if (SetFileAttributesW(mWorkingPath.get(), dwAttrs) == 0)
       return NS_ERROR_FAILURE;
     return NS_OK;
@@ -3191,7 +3172,7 @@ nsLocalFile::Launch()
 }
 
 nsresult
-NS_NewLocalFile(const nsAString &path, bool followLinks, nsILocalFile* *result)
+NS_NewLocalFile(const nsAString &path, bool followLinks, nsIFile* *result)
 {
     nsLocalFile* file = new nsLocalFile();
     if (file == nsnull)
@@ -3360,7 +3341,7 @@ nsLocalFile::GetNativeTarget(nsACString &_retval)
 }
 
 nsresult
-NS_NewNativeLocalFile(const nsACString &path, bool followLinks, nsILocalFile* *result)
+NS_NewNativeLocalFile(const nsACString &path, bool followLinks, nsIFile* *result)
 {
     nsAutoString buf;
     nsresult rv = NS_CopyNativeToUnicode(path, buf);
@@ -3479,7 +3460,7 @@ NS_IMETHODIMP nsDriveEnumerator::GetNext(nsISupports **aNext)
     nsString drive(Substring(mStartOfCurrentDrive, driveEnd));
     mStartOfCurrentDrive = ++driveEnd;
 
-    nsILocalFile *file;
+    nsIFile *file;
     nsresult rv = NS_NewLocalFile(drive, false, &file);
 
     *aNext = file;

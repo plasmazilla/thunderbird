@@ -131,6 +131,27 @@ DeviceTabActor.prototype = {
     return this._contextPool;
   },
 
+  /**
+   * Add the specified breakpoint to the default actor pool connection, in order
+   * to be alive as long as the server is.
+   *
+   * @param BreakpointActor actor
+   *        The actor object.
+   */
+  addToBreakpointPool: function DTA_addToBreakpointPool(actor) {
+    this.conn.addActor(actor);
+  },
+
+  /**
+   * Remove the specified breakpint from the default actor pool.
+   *
+   * @param string actor
+   *        The actor ID.
+   */
+  removeFromBreakpointPool: function DTA_removeFromBreakpointPool(actor) {
+    this.conn.removeActor(actor);
+  },
+
   actorPrefix: 'tab',
 
   grip: function DTA_grip() {
@@ -140,7 +161,7 @@ DeviceTabActor.prototype = {
                'tab should have an actorID.');
     return {
       'actor': this.actorID,
-      'title': this.browser.contentTitle,
+      'title': this.browser.title,
       'url': this.browser.document.documentURI
     }
   },
@@ -201,7 +222,7 @@ DeviceTabActor.prototype = {
     this.conn.addActorPool(this._contextPool);
 
     this.threadActor = new ThreadActor(this);
-    this._addDebuggees(this.browser.content.wrappedJSObject);
+    this._addDebuggees(this.browser.wrappedJSObject);
     this._contextPool.addActor(this.threadActor);
   },
 
@@ -272,7 +293,7 @@ DeviceTabActor.prototype = {
    * Prepare to enter a nested event loop by disabling debuggee events.
    */
   preNest: function DTA_preNest() {
-    let windowUtils = this.browser.content
+    let windowUtils = this.browser
                           .QueryInterface(Ci.nsIInterfaceRequestor)
                           .getInterface(Ci.nsIDOMWindowUtils);
     windowUtils.suppressEventHandling(true);
@@ -283,7 +304,7 @@ DeviceTabActor.prototype = {
    * Prepare to exit a nested event loop by enabling debuggee events.
    */
   postNest: function DTA_postNest(aNestData) {
-    let windowUtils = this.browser.content
+    let windowUtils = this.browser
                           .QueryInterface(Ci.nsIInterfaceRequestor)
                           .getInterface(Ci.nsIDOMWindowUtils);
     windowUtils.resumeTimeouts();

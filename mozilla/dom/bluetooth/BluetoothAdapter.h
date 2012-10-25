@@ -11,6 +11,7 @@
 #include "nsDOMEventTargetHelper.h"
 #include "nsIDOMBluetoothAdapter.h"
 #include "nsIDOMDOMRequest.h"
+#include "mozilla/Observer.h"
 
 class nsIEventTarget;
 
@@ -18,9 +19,10 @@ BEGIN_BLUETOOTH_NAMESPACE
 
 class BluetoothAdapter : public nsDOMEventTargetHelper
                        , public nsIDOMBluetoothAdapter
+                       , public BluetoothEventObserver
 {
 public:
-  NS_DECL_ISUPPORTS
+  NS_DECL_ISUPPORTS_INHERITED
   NS_DECL_NSIDOMBLUETOOTHADAPTER
 
   NS_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetHelper::)
@@ -28,17 +30,16 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(BluetoothAdapter,
                                            nsDOMEventTargetHelper)
 
-  BluetoothAdapter(nsPIDOMWindow*);
+  static already_AddRefed<BluetoothAdapter>
+  Create(const nsCString& name);
 
-  inline void SetEnabledInternal(bool aEnabled) {mEnabled = aEnabled;}
-
+  void Notify(const BluetoothEvent& aParam);
 protected:
-  bool mEnabled;
-
-  NS_DECL_EVENT_HANDLER(enabled)
-
+  nsCString mName;
 private:
-  nsCOMPtr<nsIEventTarget> mToggleBtThread;
+  BluetoothAdapter() {}
+  BluetoothAdapter(const nsCString& name);
+  ~BluetoothAdapter();
 };
 
 END_BLUETOOTH_NAMESPACE

@@ -1,40 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Instantbird messenging client, released
- * 2010.
- *
- * The Initial Developer of the Original Code is
- * Florian QUEZE <florian@instantbird.org>.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Patrick Cloke <clokep@instantbird.org>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 const {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
 
@@ -351,9 +317,16 @@ Conversation.prototype = {
     this.notifyObservers(new nsSimpleEnumerator([chatBuddy]),
                          "chat-buddy-add");
   },
+  setTopic: function(aTopic, aTopicSetter) {
+    const kEntities = {amp: "&", gt: ">", lt: "<"};
+    let topic =
+      aTopic.replace(/&([gl]t|amp);/g, function(str, entity) kEntities[entity]);
+    GenericConvChatPrototype.setTopic.call(this, topic, aTopicSetter);
+  },
   get name() this.nick + " timeline",
   get title() _("timeline", this.nick),
-  get nick() "@" + this._account.name
+  get nick() "@" + this._account.name,
+  set nick(aNick) {}
 };
 
 function Account(aProtocol, aImAccount)
@@ -367,10 +340,11 @@ Account.prototype = {
 
   get maxMessageLength() 140,
 
-  consumerKey: "TSuyS1ieRAkB3qWv8yyEw",
-  consumerSecret: "DKtKaSf5a7pBNhdBsSZHTnI5Y03hRlPFYWmb4xXBlkU",
+  consumerKey: Services.prefs.getCharPref("chat.twitter.consumerKey"),
+  consumerSecret: Services.prefs.getCharPref("chat.twitter.consumerSecret"),
   completionURI: "http://oauthcallback.local/",
   baseURI: "https://api.twitter.com/",
+  _lastMsgId: "",
 
   // Use this to keep track of the pending timeline requests. We attempt to fetch
   // home_timeline, @ mentions and tracked keywords (i.e. 3 timelines)
@@ -395,10 +369,8 @@ Account.prototype = {
       let result = prefValue[this.consumerKey];
       this.token = result.oauth_token;
       this.tokenSecret = result.oauth_token_secret;
-      if (result.screen_name && result.screen_name != this.name) {
-        this.onError(_("connection.error.userMismatch"));
+      if (!this.fixAccountName(result))
         return;
-      }
     }
 
     // Get a new token if needed...
@@ -548,8 +520,10 @@ Account.prototype = {
       let lastMsgId = this.prefs.getCharPref("lastMessageId");
       // Check that the ID is made up of all digits, otherwise the server will
       // croak on our request.
-      if (/^\d+$/.test(lastMsgId))
+      if (/^\d+$/.test(lastMsgId)) {
         lastMsgParam = "&since_id=" + lastMsgId;
+        this._lastMsgId = lastMsgId;
+      }
       else
         WARN("invalid value for the lastMessageId preference: " + lastMsgId);
     }
@@ -563,7 +537,8 @@ Account.prototype = {
 
     let track = this.getString("track");
     if (track) {
-      getParams = "?q=" + track.split(",").join(" OR ") + lastMsgParam;
+      let trackQuery = track.split(",").map(encodeURIComponent).join(" OR ");
+      getParams = "?q=" + trackQuery + lastMsgParam;
       let url = "http://search.twitter.com/search.json" + getParams;
       this._pendingRequests.push(doXHRequest(url, null, null,
                                              this.onSearchResultsReceived,
@@ -573,14 +548,26 @@ Account.prototype = {
 
   get timeline() this._timeline || (this._timeline = new Conversation(this)),
   displayMessages: function(aMessages) {
+    let lastMsgId = this._lastMsgId;
     for each (let tweet in aMessages) {
       if (!("user" in tweet) || !("text" in tweet) || !("id_str" in tweet) ||
          tweet.id_str in this._knownMessageIds)
         continue;
-      this._knownMessageIds[tweet.id_str] = tweet;
+      let id = tweet.id_str;
+      // Update the last known message.
+      // Compare the length of the ids first, and then the text.
+      // This avoids converting tweet ids into rounded numbers.
+      if (id.length > lastMsgId.length ||
+          (id.length == lastMsgId.length && id > lastMsgId))
+        lastMsgId = id;
+      this._knownMessageIds[id] = tweet;
       if ("description" in tweet.user)
         this._userInfo[tweet.user.screen_name] = tweet.user;
       this.timeline.displayTweet(tweet);
+    }
+    if (lastMsgId != this._lastMsgId) {
+      this._lastMsgId = lastMsgId;
+      this.prefs.setCharPref("lastMessageId", this._lastMsgId);
     }
   },
 
@@ -706,13 +693,13 @@ Account.prototype = {
 
   _streamingRequest: null,
   _pendingData: "",
-  _receivedLength: 0,
   openStream: function() {
     let track = this.getString("track");
     this._streamingRequest =
       this.signAndSend("https://userstream.twitter.com/2/user.json",
                        null, track ? [["track", track]] : [],
                        this.openStream, this.onStreamError, this);
+    this._streamingRequest.responseType = "moz-chunked-text";
     this._streamingRequest.onprogress = this.onDataAvailable.bind(this);
   },
   onStreamError: function(aError) {
@@ -720,12 +707,10 @@ Account.prototype = {
     this.gotDisconnected(Ci.prplIAccount.ERROR_NETWORK_ERROR, aError);
   },
   onDataAvailable: function(aRequest) {
-    let text = aRequest.target.responseText;
-    let newText = this._pendingData + text.slice(this._receivedLength);
+    let newText = this._pendingData + aRequest.target.response;
     DEBUG("Received data: " + newText);
     let messages = newText.split(/\r\n?/);
     this._pendingData = messages.pop();
-    this._receivedLength = text.length;
     for each (let message in messages) {
       if (!message.trim())
         continue;
@@ -788,11 +773,14 @@ Account.prototype = {
   },
   requestAuthorization: function() {
     this.reportConnecting(_("connection.requestAuth"));
-    let url = this.baseURI + "oauth/authorize?oauth_token=";
+    let url = this.baseURI + "oauth/authorize?" +
+      "force_login=true&" + // ignore cookies
+      "screen_name=" + this.name + "&" + // prefill the user name input box
+      "oauth_token=" + this.token;
     this._browserRequest = {
       get promptText() _("authPrompt"),
       account: this,
-      url: url + this.token,
+      url: url,
       _active: true,
       cancelled: function() {
         if (!this._active)
@@ -871,10 +859,8 @@ Account.prototype = {
   onAccessTokenReceived: function(aData) {
     LOG("Received access token.");
     let result = this._parseURLData(aData);
-    if (result.screen_name && result.screen_name != this.name) {
-      this.onError(_("connection.error.userMismatch"));
+    if (!this.fixAccountName(result))
       return;
-    }
 
     let prefValue = {};
     try {
@@ -888,7 +874,20 @@ Account.prototype = {
 
     this.getTimelines();
   },
+  fixAccountName: function(aAuthResult) {
+    if (!aAuthResult.screen_name || aAuthResult.screen_name == this.name)
+      return true;
 
+    if (aAuthResult.screen_name.toLowerCase() != this.name.toLowerCase()) {
+      this.onError(_("connection.error.userMismatch"));
+      return false;
+    }
+
+    LOG("Fixing the case of the account name: " +
+        this.name + " -> " + aAuthResult.screen_name);
+    this.__defineGetter__("name", function() aAuthResult.screen_name);
+    return true;
+  },
 
   cleanUp: function() {
     this.finishAuthorizationRequest();
@@ -925,17 +924,6 @@ Account.prototype = {
   },
   unInit: function() {
     this.cleanUp();
-    // If we've received any messages, update the last known message.
-    let newestMessageId = "";
-    for (let id in this._knownMessageIds) {
-      // Compare the length of the ids first, and then the text.
-      // This avoids converting tweet ids into rounded numbers.
-      if (id.length > newestMessageId.length ||
-          (id.length == newestMessageId.length && id > newestMessageId))
-        newestMessageId = id;
-    }
-    if (newestMessageId)
-      this.prefs.setCharPref("lastMessageId", newestMessageId);
   },
   disconnect: function() {
     this.gotDisconnected();

@@ -1,41 +1,7 @@
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Thunderbird Activity Manager.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Mark Banner <bugzilla@standard8.plus.com>
- *   David Ascher <dascher@mozillamessaging.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 const EXPORTED_SYMBOLS = ['moveCopyModule'];
 
@@ -51,11 +17,11 @@ const nsActWarning = Components.Constructor("@mozilla.org/activity-warning;1",
                                             "nsIActivityWarning", "init");
 const nsMsgFolderFlags = Ci.nsMsgFolderFlags;
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
 Components.utils.import("resource:///modules/gloda/log4moz.js");
-
-
 
 // This module provides a link between the move/copy code and the activity
 // manager.
@@ -77,13 +43,10 @@ let moveCopyModule =
 
   get bundle() {
     delete this.bundle;
-    let bundleSvc = Cc["@mozilla.org/intl/stringbundle;1"]
-                      .getService(Ci.nsIStringBundleService);
-
-    return this.bundle = bundleSvc
+    return this.bundle = Services.strings
       .createBundle("chrome://messenger/locale/activity.properties");
   },
-  
+
   getString: function(stringName) {
     try {
       return this.bundle.GetStringFromName(stringName)
@@ -222,12 +185,10 @@ let moveCopyModule =
   },
 
   folderDeleted : function(aFolder) {
-    let acctMgr = Components.classes["@mozilla.org/messenger/account-manager;1"]
-                            .getService(Components.interfaces.nsIMsgAccountManager);
     let server = aFolder.server;
     // If the account has been removed, we're going to ignore this notification.
     try {
-      acctMgr.FindServer(server.username, server.hostName, server.type);
+      MailServices.accounts.FindServer(server.username, server.hostName, server.type);
     }
     catch(ex) {return;}
 
@@ -240,7 +201,7 @@ let moveCopyModule =
       displayText = this.getString("emptiedTrash");
     else
       displayText = this.getString("deletedFolder").replace("#1", aFolder.prettiestName);
-    
+
     // create an activity event
     let event = new nsActEvent(displayText,
                                aFolder.server,
@@ -250,7 +211,7 @@ let moveCopyModule =
 
     event.addSubject(aFolder);
     event.iconClass = "deleteMail";
-        
+
     // When we rename, we get a delete event as well as a rename, so store
     // the last folder we deleted
     this.lastFolder = {};
@@ -338,16 +299,11 @@ let moveCopyModule =
 
   init: function() {
     // XXX when do we need to remove ourselves?
-    let notificationService = Components.classes["@mozilla.org/messenger/msgnotificationservice;1"]
-                                 .getService(Components.interfaces.nsIMsgFolderNotificationService);
-    notificationService.addListener(this,
-                                    notificationService.msgsDeleted |
-                                    notificationService.msgsMoveCopyCompleted |
-                                    notificationService.folderDeleted |
-                                    notificationService.folderMoveCopyCompleted |
-                                    notificationService.folderRenamed);
+    MailServices.mfn.addListener(this,
+                                 MailServices.mfn.msgsDeleted |
+                                 MailServices.mfn.msgsMoveCopyCompleted |
+                                 MailServices.mfn.folderDeleted |
+                                 MailServices.mfn.folderMoveCopyCompleted |
+                                 MailServices.mfn.folderRenamed);
   }
 }
-
-
-

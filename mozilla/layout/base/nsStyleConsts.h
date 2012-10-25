@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Mats Palmgren <matspal@gmail.com>
- *   Jonathon Jongsma <jonathon.jongsma@collabora.co.uk>, Collabora Ltd.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* constants used in the style struct data provided by nsStyleContext */
 
@@ -243,7 +209,9 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 
 // See nsStyleDisplay
 #define NS_STYLE_ANIMATION_DIRECTION_NORMAL       0
-#define NS_STYLE_ANIMATION_DIRECTION_ALTERNATE    1
+#define NS_STYLE_ANIMATION_DIRECTION_REVERSE      1
+#define NS_STYLE_ANIMATION_DIRECTION_ALTERNATE    2
+#define NS_STYLE_ANIMATION_DIRECTION_ALTERNATE_REVERSE    3
 
 // See nsStyleDisplay
 #define NS_STYLE_ANIMATION_FILL_MODE_NONE         0
@@ -327,9 +295,12 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 #define NS_STYLE_BORDER_STYLE_AUTO              10 // for outline-style only
 
 // See nsStyleBorder mBorderImage
-#define NS_STYLE_BORDER_IMAGE_STRETCH           0
-#define NS_STYLE_BORDER_IMAGE_REPEAT            1
-#define NS_STYLE_BORDER_IMAGE_ROUND             2
+#define NS_STYLE_BORDER_IMAGE_REPEAT_STRETCH    0
+#define NS_STYLE_BORDER_IMAGE_REPEAT_REPEAT     1
+#define NS_STYLE_BORDER_IMAGE_REPEAT_ROUND      2
+
+#define NS_STYLE_BORDER_IMAGE_SLICE_NOFILL      0
+#define NS_STYLE_BORDER_IMAGE_SLICE_FILL        1
 
 // See nsStyleDisplay
 #define NS_STYLE_CLEAR_NONE                     0
@@ -421,6 +392,46 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 #define NS_STYLE_DISPLAY_POPUP                  27
 #define NS_STYLE_DISPLAY_GROUPBOX               28
 #endif
+#ifdef MOZ_FLEXBOX
+#define NS_STYLE_DISPLAY_FLEX                   29
+#define NS_STYLE_DISPLAY_INLINE_FLEX            30
+#endif // MOZ_FLEXBOX
+
+#ifdef MOZ_FLEXBOX
+// See nsStylePosition
+#define NS_STYLE_ALIGN_ITEMS_FLEX_START         0
+#define NS_STYLE_ALIGN_ITEMS_FLEX_END           1
+#define NS_STYLE_ALIGN_ITEMS_CENTER             2
+#define NS_STYLE_ALIGN_ITEMS_BASELINE           3
+#define NS_STYLE_ALIGN_ITEMS_STRETCH            4
+
+// For convenience/clarity (since we use this default value in multiple places)
+#define NS_STYLE_ALIGN_ITEMS_INITIAL_VALUE      NS_STYLE_ALIGN_ITEMS_STRETCH
+
+// The "align-self" property accepts all of the normal "align-items" values
+// (above) plus a special 'auto' value that computes to the parent's
+// "align-items" value. Our computed style code internally represents 'auto'
+// with this enum until we actually evaluate it:
+#define NS_STYLE_ALIGN_SELF_AUTO                5
+
+// See nsStylePosition
+#define NS_STYLE_FLEX_DIRECTION_ROW             0
+#define NS_STYLE_FLEX_DIRECTION_ROW_REVERSE     1
+#define NS_STYLE_FLEX_DIRECTION_COLUMN          2
+#define NS_STYLE_FLEX_DIRECTION_COLUMN_REVERSE  3
+
+// See nsStylePosition
+// NOTE: This is the initial value of the integer-valued 'order' property
+// (rather than an internal numerical representation of some keyword).
+#define NS_STYLE_ORDER_INITIAL                  0
+
+// See nsStylePosition
+#define NS_STYLE_JUSTIFY_CONTENT_FLEX_START     0
+#define NS_STYLE_JUSTIFY_CONTENT_FLEX_END       1
+#define NS_STYLE_JUSTIFY_CONTENT_CENTER         2
+#define NS_STYLE_JUSTIFY_CONTENT_SPACE_BETWEEN  3
+#define NS_STYLE_JUSTIFY_CONTENT_SPACE_AROUND   4
+#endif // MOZ_FLEXBOX
 
 // See nsStyleDisplay
 #define NS_STYLE_FLOAT_NONE                     0
@@ -706,6 +717,11 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 #define NS_STYLE_WHITESPACE_PRE_LINE            4
 
 // See nsStyleText
+#define NS_STYLE_WORDBREAK_NORMAL               0
+#define NS_STYLE_WORDBREAK_BREAK_ALL            1
+#define NS_STYLE_WORDBREAK_KEEP_ALL             2
+
+// See nsStyleText
 #define NS_STYLE_WORDWRAP_NORMAL                0
 #define NS_STYLE_WORDWRAP_BREAK_WORD            1
 
@@ -806,6 +822,7 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 #define NS_STYLE_GRADIENT_SIZE_CLOSEST_CORNER   1
 #define NS_STYLE_GRADIENT_SIZE_FARTHEST_SIDE    2
 #define NS_STYLE_GRADIENT_SIZE_FARTHEST_CORNER  3
+#define NS_STYLE_GRADIENT_SIZE_EXPLICIT_SIZE    4
 
 // See nsStyleSVG
 
@@ -864,6 +881,10 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 #define NS_STYLE_COLOR_INTERPOLATION_AUTO           0
 #define NS_STYLE_COLOR_INTERPOLATION_SRGB           1
 #define NS_STYLE_COLOR_INTERPOLATION_LINEARRGB      2
+
+// vector-effect
+#define NS_STYLE_VECTOR_EFFECT_NONE                 0
+#define NS_STYLE_VECTOR_EFFECT_NON_SCALING_STROKE   1
 
 // 3d Transforms - Backface visibility
 #define NS_STYLE_BACKFACE_VISIBILITY_VISIBLE        1

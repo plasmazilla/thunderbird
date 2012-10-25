@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- *   Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Thunderbird Global Database.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2008
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Andrew Sutherland <asutherland@asutherland.org>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 const EXPORTED_SYMBOLS = ['Gloda'];
 
@@ -287,6 +254,17 @@ var Gloda = {
    *  "yield aCallbackHandle.doneWithResult(myResult);".
    */
   kWorkDoneWithResult: 4,
+
+  /**
+   * Callers should access the unique ID for the GlodaDatastore
+   * with this getter. If the GlodaDatastore has not been
+   * initialized, this value is null.
+   *
+   * @return a UUID as a string, ex: "c4dd0159-9287-480f-a648-a4613e147fdb"
+   */
+  get datastoreID() {
+    return GlodaDatastore._datastoreID;
+  },
 
   /**
    * Lookup a gloda message from an nsIMsgDBHdr, with the result returned as a
@@ -696,6 +674,11 @@ var Gloda = {
    */
   BUILT_IN: "built-in",
 
+  /**
+   * Special sentinel value that will cause facets to skip a noun instance
+   * when an attribute has this value.
+   */
+  IGNORE_FACET: GlodaDatastore.IGNORE_FACET,
 
   /*
    * The following are explicit noun IDs.  While most extension-provided nouns
@@ -795,6 +778,10 @@ var Gloda = {
    * An attachment to a message. A message may have many different attachments.
    */
   NOUN_ATTACHMENT: GlodaAttachment.prototype.NOUN_ID, // 105
+  /**
+   * An account related to a message. A message can have only one account.
+   */
+  NOUN_ACCOUNT: GlodaAccount.prototype.NOUN_ID, // 106
 
   /**
    * Parameterized identities, for use in the from-me, to-me, cc-me optimization
@@ -1240,6 +1227,30 @@ var Gloda = {
         else
           return [null, GlodaDatastore._mapFolder(aFolderOrGlodaFolder).id];
       }}, this.NOUN_FOLDER);
+    this.defineNoun({
+      name: "account",
+      clazz: GlodaAccount,
+      allowsArbitraryAttrs: false,
+      isPrimitive: false,
+      equals: function(a, b) {
+        if (a && !b || !a && b)
+          return false;
+        if (!a && !b)
+          return true;
+        return a.id == b.id;
+      },
+      comparator: function gloda_account_comparator(a, b) {
+        if (a == null) {
+          if (b == null)
+            return 0;
+          else
+            return 1;
+        }
+        else if (b == null) {
+          return -1;
+        }
+        return a.name.localeCompare(b.name);
+      }}, this.NOUN_ACCOUNT);
     this.defineNoun({
       name: "conversation",
       clazz: GlodaConversation,
@@ -2061,9 +2072,11 @@ var Gloda = {
       if (oldValue !== undefined || !aIsConceptuallyNew)
         aOldItem[key] = value;
 
-      // the new canQuery property has to be explicitly set to generate entries
-      // in the messageAttributes table, hence making the message query-able.
-      if (!attrib.canQuery) {
+      // the new canQuery property has to be set to true to generate entries
+      // in the messageAttributes table. Any other truthy value (like a non
+      // empty string), will still make the message query-able but without
+      // using the database.
+      if (attrib.canQuery !== true) {
         continue;
       }
 
@@ -2168,7 +2181,7 @@ var Gloda = {
       //  should no longer have these values
       delete aOldItem[key];
 
-      if (!attrib.canQuery) {
+      if (attrib.canQuery !== true) {
         this._log.debug("Not inserting attribute "+attrib.attributeName
             +" into the db, since we don't plan on querying on it");
         continue;

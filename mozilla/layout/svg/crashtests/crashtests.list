@@ -78,6 +78,7 @@ load 461289-1.svg
 load 464374-1.svg
 load 466585-1.svg
 load 467323-1.svg
+load 467498-1.svg
 load 470124-1.svg
 load 474700-1.svg
 load 472782-1.svg
@@ -97,7 +98,7 @@ load 522394-2.svg
 load 522394-3.svg
 load extref-test-1.xhtml
 load 566216-1.svg
-load 587336-1.html
+skip-if(Android&&!browserIsRemote) load 587336-1.html
 load 590291-1.svg
 load 601999-1.html
 load 605626-1.svg
@@ -127,3 +128,7 @@ load 725918-1.svg
 load 732836-1.svg
 load 740627-1.svg
 load 740627-2.svg
+load 757704-1.svg
+load 757718-1.svg
+load 767056-1.svg
+

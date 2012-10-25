@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 /* vim: set ts=4 sw=4 sts=4 tw=80 et: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Gonk.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Michael Wu <mwu@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #define _GNU_SOURCE
 
@@ -50,10 +17,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "mozilla/Hal.h"
+#include "base/basictypes.h"
 #include "nscore.h"
 #include "mozilla/FileUtils.h"
-#include "mozilla/HalSensor.h"
+#include "mozilla/Hal.h"
 #include "mozilla/Mutex.h"
 #include "mozilla/Services.h"
 #include "nsAppShell.h"
@@ -64,6 +31,7 @@
 #include "nsIScreen.h"
 #include "nsScreenManagerGonk.h"
 #include "nsWindow.h"
+#include "OrientationObserver.h"
 
 #include "android/log.h"
 #include "libui/EventHub.h"
@@ -80,9 +48,9 @@
     (void)0
 #endif
 
-using namespace mozilla;
 using namespace android;
-using namespace hal;
+using namespace mozilla;
+using namespace mozilla::dom;
 
 bool gDrawRequest = false;
 static nsAppShell *gAppShell = NULL;
@@ -148,10 +116,6 @@ sendMouseEvent(PRUint32 msg, uint64_t timeMs, int x, int y)
     event.refPoint.x = x;
     event.refPoint.y = y;
     event.time = timeMs;
-    event.isShift = false;
-    event.isControl = false;
-    event.isMeta = false;
-    event.isAlt = false;
     event.button = nsMouseEvent::eLeftButton;
     if (msg != NS_MOUSE_MOVE)
         event.clickCount = 1;
@@ -199,10 +163,6 @@ sendTouchEvent(UserInputData& data)
     nsTouchEvent event(true, msg, NULL);
 
     event.time = data.timeMs;
-    event.isShift = false;
-    event.isControl = false;
-    event.isMeta = false;
-    event.isAlt = false;
 
     int32_t i;
     if (msg == NS_TOUCH_END) {
@@ -225,6 +185,7 @@ sendKeyEventWithMsg(PRUint32 keyCode,
 {
     nsKeyEvent event(true, msg, NULL);
     event.keyCode = keyCode;
+    event.location = nsIDOMKeyEvent::DOM_KEY_LOCATION_MOBILE;
     event.time = timeMs;
     event.flags |= flags;
     return nsWindow::DispatchInputEvent(event);
@@ -242,35 +203,17 @@ sendKeyEvent(PRUint32 keyCode, bool down, uint64_t timeMs)
     }
 }
 
+// Defines kKeyMapping
+#include "GonkKeyMapping.h"
+
 static void
 maybeSendKeyEvent(int keyCode, bool pressed, uint64_t timeMs)
 {
-    switch (keyCode) {
-    case KEY_BACK:
-        sendKeyEvent(NS_VK_ESCAPE, pressed, timeMs);
-        break;
-    case KEY_MENU:
-         sendKeyEvent(NS_VK_CONTEXT_MENU, pressed, timeMs);
-        break;
-    case KEY_SEARCH:
-        sendKeyEvent(NS_VK_F5, pressed, timeMs);
-        break;
-    case KEY_HOME:
-        sendKeyEvent(NS_VK_HOME, pressed, timeMs);
-        break;
-    case KEY_POWER:
-        sendKeyEvent(NS_VK_SLEEP, pressed, timeMs);
-        break;
-    case KEY_VOLUMEUP:
-        sendKeyEvent(NS_VK_PAGE_UP, pressed, timeMs);
-        break;
-    case KEY_VOLUMEDOWN:
-        sendKeyEvent(NS_VK_PAGE_DOWN, pressed, timeMs);
-        break;
-    default:
+    if (keyCode < ArrayLength(kKeyMapping) && kKeyMapping[keyCode])
+        sendKeyEvent(kKeyMapping[keyCode], pressed, timeMs);
+    else
         VERBOSE_LOG("Got unknown key event code. type 0x%04x code 0x%04x value %d",
                     keyCode, pressed);
-    }
 }
 
 class GeckoInputReaderPolicy : public InputReaderPolicyInterface {
@@ -280,7 +223,11 @@ public:
 
     virtual void getReaderConfiguration(InputReaderConfiguration* outConfig);
     virtual sp<PointerControllerInterface> obtainPointerController(int32_t
-deviceId) { return NULL; };
+deviceId)
+    {
+        MOZ_NOT_REACHED("Input device configuration failed.");
+        return NULL;
+    };
     void setDisplayInfo();
 
 protected:
@@ -411,7 +358,7 @@ GeckoInputDispatcher::dispatchOnce()
         break;
     }
     case UserInputData::KEY_DATA:
-        maybeSendKeyEvent(data.key.scanCode,
+        maybeSendKeyEvent(data.key.keyCode,
                           data.action == AKEY_EVENT_ACTION_DOWN,
                           data.timeMs);
         break;
@@ -524,81 +471,15 @@ GeckoInputDispatcher::unregisterInputChannel(const sp<InputChannel>& inputChanne
     return OK;
 }
 
-class ScreenRotateEvent : public nsRunnable {
-public:
-  ScreenRotateEvent(nsIScreen* aScreen, PRUint32 aRotation)
-    : mScreen(aScreen),
-      mRotation(aRotation) {
-  }
-  NS_IMETHOD Run() {
-    return mScreen->SetRotation(mRotation);
-  }
-
-private:
-  nsCOMPtr<nsIScreen> mScreen;
-  PRUint32 mRotation;
-};
-
-class OrientationSensorObserver : public ISensorObserver {
-public:
-  OrientationSensorObserver ()
-    : mLastUpdate(0) {
-  }
-  void Notify(const SensorData& aSensorData) {
-    nsCOMPtr<nsIScreenManager> screenMgr =
-        do_GetService("@mozilla.org/gfx/screenmanager;1");
-    nsCOMPtr<nsIScreen> screen;
-    screenMgr->GetPrimaryScreen(getter_AddRefs(screen));
-
-    MOZ_ASSERT(aSensorData.sensor() == SensorType::SENSOR_ORIENTATION);
-    InfallibleTArray<float> values = aSensorData.values();
-    // float azimuth = values[0]; // unused
-    float pitch = values[1];
-    float roll = values[2];
-    PRUint32 rotation;
-    if (roll > 45)
-      rotation = nsIScreen::ROTATION_90_DEG;
-    else if (roll < -45)
-      rotation = nsIScreen::ROTATION_270_DEG;
-    else if (pitch < -45)
-      rotation = nsIScreen::ROTATION_0_DEG;
-    else if (pitch > 45)
-      rotation = nsIScreen::ROTATION_180_DEG;
-    else
-      return;  // don't rotate if undecidable
-
-    PRUint32 currRotation;
-    nsresult res;
-    res = screen->GetRotation(&currRotation);
-    if (NS_FAILED(res) || rotation == currRotation)
-      return;
-
-    PRTime now = PR_Now();
-    MOZ_ASSERT(now > mLastUpdate);
-    if (now - mLastUpdate < sMinUpdateInterval)
-      return;
-
-    mLastUpdate = now;
-    NS_DispatchToMainThread(new ScreenRotateEvent(screen, rotation));
-
-  }
-private:
-  PRTime mLastUpdate;
-  static const PRTime sMinUpdateInterval = 500 * 1000; // 500 ms
-};
-
 nsAppShell::nsAppShell()
     : mNativeCallbackRequest(false)
     , mHandlers()
-    , mObserver(new OrientationSensorObserver())
 {
     gAppShell = this;
-    RegisterSensorObserver(SENSOR_ORIENTATION, mObserver);
 }
 
 nsAppShell::~nsAppShell()
 {
-    UnregisterSensorObserver(SENSOR_ORIENTATION, mObserver);
     status_t result = mReaderThread->requestExitAndWait();
     if (result)
         LOG("Could not stop reader thread - %d", result);
@@ -623,6 +504,13 @@ nsAppShell::Init()
     // Delay initializing input devices until the screen has been
     // initialized (and we know the resolution).
     return rv;
+}
+
+NS_IMETHODIMP
+nsAppShell::Exit()
+{
+  OrientationObserver::GetInstance()->DisableAutoOrientation();
+  return nsBaseAppShell::Exit();
 }
 
 void
@@ -704,8 +592,20 @@ nsAppShell::NotifyNativeEvent()
     write(signalfds[1], "w", 1);
 }
 
-/*static*/ void
+/* static */ void
 nsAppShell::NotifyScreenInitialized()
 {
     gAppShell->InitInputDevices();
+
+    // Getting the instance of OrientationObserver to initialize it.
+    OrientationObserver::GetInstance();
+}
+
+/* static */ void
+nsAppShell::NotifyScreenRotation()
+{
+    gAppShell->mReaderPolicy->setDisplayInfo();
+    gAppShell->mReader->requestRefreshConfiguration(InputReaderConfiguration::CHANGE_DISPLAY_INFO);
+
+    hal::NotifyScreenConfigurationChange(nsScreenGonk::GetConfiguration());
 }

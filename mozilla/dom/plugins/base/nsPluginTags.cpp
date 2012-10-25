@@ -1,49 +1,13 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Sean Echevarria <sean@beatnik.com>
- *   Håkan Waara <hwaara@chello.se>
- *   Josh Aas <josh@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsPluginTags.h"
 
 #include "prlink.h"
 #include "plstr.h"
 #include "nsIPluginInstanceOwner.h"
-#include "nsIDocument.h"
 #include "nsServiceManagerUtils.h"
 #include "nsPluginsDir.h"
 #include "nsPluginHost.h"
@@ -51,7 +15,6 @@
 #include "nsIPlatformCharset.h"
 #include "nsICharsetConverterManager.h"
 #include "nsPluginLogging.h"
-#include "nsICategoryManager.h"
 #include "nsNPAPIPlugin.h"
 #include "mozilla/TimeStamp.h"
 #include "mozilla/Preferences.h"
@@ -81,7 +44,6 @@ mMimeDescriptions(aPluginTag->mMimeDescriptions),
 mExtensions(aPluginTag->mExtensions),
 mLibrary(nsnull),
 mIsJavaPlugin(aPluginTag->mIsJavaPlugin),
-mIsNPRuntimeEnabledJavaPlugin(aPluginTag->mIsNPRuntimeEnabledJavaPlugin),
 mIsFlashPlugin(aPluginTag->mIsFlashPlugin),
 mFileName(aPluginTag->mFileName),
 mFullPath(aPluginTag->mFullPath),
@@ -97,7 +59,6 @@ mName(aPluginInfo->fName),
 mDescription(aPluginInfo->fDescription),
 mLibrary(nsnull),
 mIsJavaPlugin(false),
-mIsNPRuntimeEnabledJavaPlugin(false),
 mIsFlashPlugin(false),
 mFileName(aPluginInfo->fFileName),
 mFullPath(aPluginInfo->fFullPath),
@@ -128,7 +89,6 @@ mName(aName),
 mDescription(aDescription),
 mLibrary(nsnull),
 mIsJavaPlugin(false),
-mIsNPRuntimeEnabledJavaPlugin(false),
 mIsFlashPlugin(false),
 mFileName(aFileName),
 mFullPath(aFullPath),
@@ -158,20 +118,8 @@ void nsPluginTag::InitMime(const char* const* aMimeTypes,
   }
 
   for (PRUint32 i = 0; i < aVariantCount; i++) {
-    if (!aMimeTypes[i]) {
+    if (!aMimeTypes[i] || !nsPluginHost::IsTypeWhitelisted(aMimeTypes[i])) {
       continue;
-    }
-
-    // If we already marked this as a Java plugin, a later MIME type will tell
-    // us if it is npruntime-enabled.
-    if (mIsJavaPlugin) {
-      if (strcmp(aMimeTypes[i], "application/x-java-vm-npruntime") == 0) {
-        // This "magic MIME type" should not be exposed, but is just a signal
-        // to the browser that this is new-style java.
-        // Don't add it or its associated information to our arrays.
-        mIsNPRuntimeEnabledJavaPlugin = true;
-        continue;
-      }
     }
 
     // Look for certain special plugins.
@@ -347,8 +295,7 @@ nsPluginTag::SetDisabled(bool aDisabled)
     UnMark(NS_PLUGIN_FLAG_ENABLED);
   else
     Mark(NS_PLUGIN_FLAG_ENABLED);
-  
-  mPluginHost->UpdatePluginInfo(this);
+
   return NS_OK;
 }
 
@@ -369,89 +316,41 @@ nsPluginTag::SetBlocklisted(bool aBlocklisted)
     Mark(NS_PLUGIN_FLAG_BLOCKLISTED);
   else
     UnMark(NS_PLUGIN_FLAG_BLOCKLISTED);
-  
-  mPluginHost->UpdatePluginInfo(nsnull);
+
   return NS_OK;
 }
 
-void
-nsPluginTag::RegisterWithCategoryManager(bool aOverrideInternalTypes,
-                                         nsPluginTag::nsRegisterType aType)
+NS_IMETHODIMP
+nsPluginTag::GetClicktoplay(bool *aClicktoplay)
 {
-  PLUGIN_LOG(PLUGIN_LOG_NORMAL,
-             ("nsPluginTag::RegisterWithCategoryManager plugin=%s, removing = %s\n",
-              mFileName.get(), aType == ePluginUnregister ? "yes" : "no"));
-  
-  nsCOMPtr<nsICategoryManager> catMan = do_GetService(NS_CATEGORYMANAGER_CONTRACTID);
-  if (!catMan)
-    return;
-  
-  const char *contractId = "@mozilla.org/content/plugin/document-loader-factory;1";
-  
-  // A preference controls whether or not the full page plugin is disabled for
-  // a particular type. The string must be in the form:
-  //   type1,type2,type3,type4
-  // Note: need an actual interface to control this and subsequent disabling 
-  // (and other plugin host settings) so applications can reliably disable 
-  // plugins - without relying on implementation details such as prefs/category
-  // manager entries.
-  nsCAutoString overrideTypesFormatted;
-  if (aType != ePluginUnregister) {
-    overrideTypesFormatted.Assign(',');
-    nsAdoptingCString overrideTypes =
-      Preferences::GetCString("plugin.disable_full_page_plugin_for_types");
-    overrideTypesFormatted += overrideTypes;
-    overrideTypesFormatted.Append(',');
+  *aClicktoplay = HasFlag(NS_PLUGIN_FLAG_CLICKTOPLAY);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsPluginTag::SetClicktoplay(bool aClicktoplay)
+{
+  if (HasFlag(NS_PLUGIN_FLAG_CLICKTOPLAY) == aClicktoplay) {
+    return NS_OK;
   }
   
-  nsACString::const_iterator start, end;
-  for (PRUint32 i = 0; i < mMimeTypes.Length(); i++) {
-    if (aType == ePluginUnregister) {
-      nsXPIDLCString value;
-      if (NS_SUCCEEDED(catMan->GetCategoryEntry("Gecko-Content-Viewers",
-                                                mMimeTypes[i].get(),
-                                                getter_Copies(value)))) {
-        // Only delete the entry if a plugin registered for it
-        if (strcmp(value, contractId) == 0) {
-          catMan->DeleteCategoryEntry("Gecko-Content-Viewers",
-                                      mMimeTypes[i].get(),
-                                      true);
-        }
-      }
-    } else {
-      overrideTypesFormatted.BeginReading(start);
-      overrideTypesFormatted.EndReading(end);
-      
-      nsCAutoString commaSeparated; 
-      commaSeparated.Assign(',');
-      commaSeparated += mMimeTypes[i];
-      commaSeparated.Append(',');
-      if (!FindInReadable(commaSeparated, start, end)) {
-        catMan->AddCategoryEntry("Gecko-Content-Viewers",
-                                 mMimeTypes[i].get(),
-                                 contractId,
-                                 false, /* persist: broken by bug 193031 */
-                                 aOverrideInternalTypes, /* replace if we're told to */
-                                 nsnull);
-      }
-    }
-    
-    PLUGIN_LOG(PLUGIN_LOG_NOISY,
-               ("nsPluginTag::RegisterWithCategoryManager mime=%s, plugin=%s\n",
-                mMimeTypes[i].get(), mFileName.get()));
+  if (aClicktoplay) {
+    Mark(NS_PLUGIN_FLAG_CLICKTOPLAY);
+  } else {
+    UnMark(NS_PLUGIN_FLAG_CLICKTOPLAY);
   }
+  
+  mPluginHost->UpdatePluginInfo(nsnull);
+  return NS_OK;
 }
 
 void nsPluginTag::Mark(PRUint32 mask)
 {
   bool wasEnabled = IsEnabled();
   mFlags |= mask;
-  // Update entries in the category manager if necessary.
+
   if (mPluginHost && wasEnabled != IsEnabled()) {
-    if (wasEnabled)
-      RegisterWithCategoryManager(false, nsPluginTag::ePluginUnregister);
-    else
-      RegisterWithCategoryManager(false, nsPluginTag::ePluginRegister);
+    mPluginHost->UpdatePluginInfo(this);
   }
 }
 
@@ -459,12 +358,9 @@ void nsPluginTag::UnMark(PRUint32 mask)
 {
   bool wasEnabled = IsEnabled();
   mFlags &= ~mask;
-  // Update entries in the category manager if necessary.
+
   if (mPluginHost && wasEnabled != IsEnabled()) {
-    if (wasEnabled)
-      RegisterWithCategoryManager(false, nsPluginTag::ePluginUnregister);
-    else
-      RegisterWithCategoryManager(false, nsPluginTag::ePluginRegister);
+    mPluginHost->UpdatePluginInfo(this);
   }
 }
 

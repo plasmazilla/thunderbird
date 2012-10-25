@@ -1,6 +1,13 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 import datetime
+from mozprocess import ProcessHandlerMixin
+import multiprocessing
 import os
 import re
+import platform
 import shutil
 import socket
 import subprocess
@@ -11,11 +18,27 @@ import time
 from emulator_battery import EmulatorBattery
 
 
+class LogcatProc(ProcessHandlerMixin):
+    """Process handler for logcat which saves all output to a logfile.
+    """
+
+    def __init__(self, logfile, cmd, **kwargs):
+        self.logfile = logfile
+        kwargs.setdefault('processOutputLine', []).append(self.log_output)
+        ProcessHandlerMixin.__init__(self, cmd, **kwargs)
+
+    def log_output(self, line):
+        f = open(self.logfile, 'a')
+        f.write(line + "\n")
+        f.flush()
+
+
 class Emulator(object):
 
     deviceRe = re.compile(r"^emulator-(\d+)(\s*)(.*)$")
 
-    def __init__(self, homedir=None, noWindow=False):
+    def __init__(self, homedir=None, noWindow=False, logcat_dir=None, arch="x86",
+                 emulatorBinary=None, res='480x800', userdata=None):
         self.port = None
         self._emulator_launched = False
         self.proc = None
@@ -23,42 +46,68 @@ class Emulator(object):
         self.telnet = None
         self._tmp_userdata = None
         self._adb_started = False
+        self.logcat_dir = logcat_dir
+        self.logcat_proc = None
+        self.arch = arch
+        self.binary = emulatorBinary
+        self.res = res
         self.battery = EmulatorBattery(self)
         self.homedir = homedir
         self.noWindow = noWindow
         if self.homedir is not None:
             self.homedir = os.path.expanduser(homedir)
+        self.dataImg = userdata
+        self.copy_userdata = self.dataImg is None
 
     def _check_for_b2g(self):
         if self.homedir is None:
             self.homedir = os.getenv('B2G_HOME')
         if self.homedir is None:
             raise Exception('Must define B2G_HOME or pass the homedir parameter')
+        self._check_file(self.homedir)
 
-        self.adb = os.path.join(self.homedir,
-                                'glue/gonk/out/host/linux-x86/bin/adb')
+        oldstyle_homedir = os.path.join(self.homedir, 'glue/gonk-ics')
+        if os.access(oldstyle_homedir, os.F_OK):
+            self.homedir = oldstyle_homedir
+
+        if self.arch not in ("x86", "arm"):
+            raise Exception("Emulator architecture must be one of x86, arm, got: %s" %
+                            self.arch)
+
+        host_dir = "linux-x86"
+        if platform.system() == "Darwin":
+            host_dir = "darwin-x86"
+
+        host_bin_dir = os.path.join("out/host", host_dir, "bin")
+
+        if self.arch == "x86":
+            binary = os.path.join(host_bin_dir, "emulator-x86")
+            kernel = "prebuilts/qemu-kernel/x86/kernel-qemu"
+            sysdir = "out/target/product/generic_x86"
+            self.tail_args = []
+        else:
+            binary = os.path.join(host_bin_dir, "emulator")
+            kernel = "prebuilts/qemu-kernel/arm/kernel-qemu-armv7"
+            sysdir = "out/target/product/generic"
+            self.tail_args = ["-cpu", "cortex-a8"]
+
+        self.adb = os.path.join(self.homedir, host_bin_dir, "adb")
         if not os.access(self.adb, os.F_OK):
             self.adb = os.path.join(self.homedir, 'bin/adb')
 
-        self.binary = os.path.join(self.homedir,
-                                   'glue/gonk/out/host/linux-x86/bin/emulator')
-        if not os.access(self.binary, os.F_OK):
-            self.binary = os.path.join(self.homedir, 'bin/emulator')
+        if not self.binary:
+            self.binary = os.path.join(self.homedir, binary)
+
         self._check_file(self.binary)
 
-        self.kernelImg = os.path.join(self.homedir,
-                                      'boot/kernel-android-qemu/arch/arm/boot/zImage')
-        if not os.access(self.kernelImg, os.F_OK):
-            self.kernelImg = os.path.join(self.homedir, 'zImage')
+        self.kernelImg = os.path.join(self.homedir, kernel)
         self._check_file(self.kernelImg)
 
-        self.sysDir = os.path.join(self.homedir, 
-                                   'glue/gonk/out/target/product/generic/')
-        if not os.access(self.sysDir, os.F_OK):
-            self.sysDir = os.path.join(self.homedir, 'generic/')
+        self.sysDir = os.path.join(self.homedir, sysdir)
         self._check_file(self.sysDir)
 
-        self.dataImg = os.path.join(self.sysDir, 'userdata.img')
+        if not self.dataImg:
+            self.dataImg = os.path.join(self.sysDir, 'userdata.img')
         self._check_file(self.dataImg)
 
     def __del__(self):
@@ -83,8 +132,8 @@ class Emulator(object):
         qemuArgs.extend(['-memory', '512',
                          '-partition-size', '512',
                          '-verbose',
-                         '-skin', '480x800',
-                         '-qemu', '-cpu', 'cortex-a8'])
+                         '-skin', self.res,
+                         '-qemu'] + self.tail_args)
         return qemuArgs
 
     @property
@@ -152,6 +201,8 @@ class Emulator(object):
                 os.remove(self._tmp_userdata)
                 self._tmp_userdata = None
             return retcode
+        if self.logcat_proc:
+            self.logcat_proc.kill()
         return 0
 
     def _get_adb_devices(self):
@@ -200,12 +251,13 @@ class Emulator(object):
         self._check_for_b2g()
         self.start_adb()
 
-        # Make a copy of the userdata.img for this instance of the emulator
-        # to use.
-        self._tmp_userdata = tempfile.mktemp(prefix='marionette')
-        shutil.copyfile(self.dataImg, self._tmp_userdata)
         qemu_args = self.args[:]
-        qemu_args[qemu_args.index('-data') + 1] = self._tmp_userdata
+        if self.copy_userdata:
+            # Make a copy of the userdata.img for this instance of the emulator
+            # to use.
+            self._tmp_userdata = tempfile.mktemp(prefix='marionette')
+            shutil.copyfile(self.dataImg, self._tmp_userdata)
+            qemu_args[qemu_args.index('-data') + 1] = self._tmp_userdata
 
         original_online, original_offline = self._get_adb_devices()
 
@@ -223,8 +275,48 @@ class Emulator(object):
         self.port = int(list(online - original_online)[0])
         self._emulator_launched = True
 
+        if self.logcat_dir:
+            self.save_logcat()
+
+        # setup DNS fix for networking
+        self._run_adb(['-s', 'emulator-%d' % self.port,
+                       'shell', 'setprop', 'net.dns1', '10.0.2.3'])
+
+    def _save_logcat_proc(self, filename, cmd):
+        self.logcat_proc = LogcatProc(filename, cmd)
+        self.logcat_proc.run()
+        self.logcat_proc.waitForFinish()
+        self.logcat_proc = None
+
+    def rotate_log(self, srclog, index=1):
+        """ Rotate a logfile, by recursively rotating logs further in the sequence,
+            deleting the last file if necessary.
+        """
+        destlog = os.path.join(self.logcat_dir, 'emulator-%d.%d.log' % (self.port, index))
+        if os.access(destlog, os.F_OK):
+            if index == 3:
+                os.remove(destlog)
+            else:
+                self.rotate_log(destlog, index+1)
+        shutil.move(srclog, destlog)
+
+    def save_logcat(self):
+        """ Save the output of logcat to a file.
+        """
+        filename = os.path.join(self.logcat_dir, "emulator-%d.log" % self.port)
+        if os.access(filename, os.F_OK):
+            self.rotate_log(filename)
+        cmd = [self.adb, '-s', 'emulator-%d' % self.port, 'logcat']
+
+        # We do this in a separate process because we call mozprocess's
+        # waitForFinish method to process logcat's output, and this method
+        # blocks.
+        proc = multiprocessing.Process(target=self._save_logcat_proc, args=(filename, cmd))
+        proc.daemon = True
+        proc.start()
+
     def setup_port_forwarding(self, remote_port):
-        """ Setup TCP port forwarding to the specified port on the device,
+        """ Set up TCP port forwarding to the specified port on the device,
             using any availble local port, and return the local port.
         """
 

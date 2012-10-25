@@ -1,44 +1,9 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  * vim: set ts=8 sw=4 et tw=78:
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code, released
- * March 31, 1998.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   John Bandhauer <jband@netscape.com> (original author)
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* Sharable code and data for wrapper around JSObjects. */
 
@@ -48,6 +13,7 @@
 #include "XPCWrapper.h"
 #include "AccessCheck.h"
 #include "nsJSUtils.h"
+#include "mozilla/Attributes.h"
 
 #include "jsapi.h"
 
@@ -247,8 +213,7 @@ nsXPCWrappedJSClass::CallQueryInterfaceOnJSObject(XPCCallContext& ccx,
     // whether or not a content object is capable of implementing the
     // interface (i.e. whether the interface is scriptable) and most content
     // objects don't have QI implementations anyway. Also see bug 503926.
-    if (XPCPerThreadData::IsMainThread(ccx) &&
-        !xpc::AccessCheck::isChrome(js::GetObjectCompartment(jsobj))) {
+    if (!xpc::AccessCheck::isChrome(js::GetObjectCompartment(jsobj))) {
         return nsnull;
     }
 
@@ -308,14 +273,14 @@ nsXPCWrappedJSClass::CallQueryInterfaceOnJSObject(XPCCallContext& ccx,
 
             if (JS_GetPendingException(cx, &jsexception)) {
                 nsresult rv;
-                if (JSVAL_IS_OBJECT(jsexception)) {
+                if (jsexception.isObject()) {
                     // XPConnect may have constructed an object to represent a
                     // C++ QI failure. See if that is the case.
                     nsCOMPtr<nsIXPConnectWrappedNative> wrapper;
 
                     nsXPConnect::GetXPConnect()->
                         GetWrappedNativeOfJSObject(ccx,
-                                                   JSVAL_TO_OBJECT(jsexception),
+                                                   &jsexception.toObject(),
                                                    getter_AddRefs(wrapper));
 
                     if (wrapper) {
@@ -529,8 +494,7 @@ static JSContext *
 GetContextFromObject(JSObject *obj)
 {
     // Don't stomp over a running context.
-    XPCJSContextStack* stack =
-        XPCPerThreadData::GetData(nsnull)->GetJSContextStack();
+    XPCJSContextStack* stack = XPCJSRuntime::Get()->GetJSContextStack();
 
     if (stack && stack->Peek())
         return nsnull;
@@ -556,7 +520,7 @@ GetContextFromObject(JSObject *obj)
     return nsnull;
 }
 
-class SameOriginCheckedComponent : public nsISecurityCheckedComponent
+class SameOriginCheckedComponent MOZ_FINAL : public nsISecurityCheckedComponent
 {
 public:
     SameOriginCheckedComponent(nsXPCWrappedJS* delegate)
@@ -716,9 +680,6 @@ nsXPCWrappedJSClass::DelegatedQueryInterface(nsXPCWrappedJS* self,
         // UniversalXPConnect type check.
 
         *aInstancePtr = nsnull;
-
-        if (!XPCPerThreadData::IsMainThread(ccx.GetJSContext()))
-            return NS_NOINTERFACE;
 
         nsXPConnect *xpc = nsXPConnect::GetXPConnect();
         nsCOMPtr<nsIScriptSecurityManager> secMan =
@@ -1011,7 +972,7 @@ nsXPCWrappedJSClass::CheckForException(XPCCallContext & ccx,
 
         /* cleanup and set failed even if we can't build an exception */
         if (!xpc_exception) {
-            ccx.GetThreadData()->SetException(nsnull); // XXX necessary?
+            XPCJSRuntime::Get()->SetPendingException(nsnull); // XXX necessary?
         }
     }
 
@@ -1138,7 +1099,7 @@ nsXPCWrappedJSClass::CheckForException(XPCCallContext & ccx,
             // Whether or not it passes the 'reportable' test, it might
             // still be an error and we have to do the right thing here...
             if (NS_FAILED(e_result)) {
-                ccx.GetThreadData()->SetException(xpc_exception);
+                XPCJSRuntime::Get()->SetPendingException(xpc_exception);
                 return e_result;
             }
         }
@@ -1150,17 +1111,6 @@ nsXPCWrappedJSClass::CheckForException(XPCCallContext & ccx,
     }
     return NS_ERROR_FAILURE;
 }
-
-class ContextPrincipalGuard
-{
-    nsIScriptSecurityManager *ssm;
-    XPCCallContext &ccx;
-  public:
-    ContextPrincipalGuard(XPCCallContext &ccx)
-      : ssm(nsnull), ccx(ccx) {}
-    void principalPushed(nsIScriptSecurityManager *ssm) { this->ssm = ssm; }
-    ~ContextPrincipalGuard() { if (ssm) ssm->PopContextPrincipal(ccx); }
-};
 
 NS_IMETHODIMP
 nsXPCWrappedJSClass::CallMethod(nsXPCWrappedJS* wrapper, uint16_t methodIndex,
@@ -1189,7 +1139,7 @@ nsXPCWrappedJSClass::CallMethod(nsXPCWrappedJS* wrapper, uint16_t methodIndex,
         return retval;
 
     XPCContext *xpcc = ccx.GetXPCContext();
-    JSContext *cx = ccx.GetJSContext();
+    JSContext *cx = xpc_UnmarkGrayContext(ccx.GetJSContext());
 
     if (!cx || !xpcc || !IsReflectable(methodIndex))
         return NS_ERROR_FAILURE;
@@ -1205,7 +1155,6 @@ nsXPCWrappedJSClass::CallMethod(nsXPCWrappedJS* wrapper, uint16_t methodIndex,
 
     JS::AutoValueVector args(cx);
     AutoScriptEvaluate scriptEval(cx);
-    ContextPrincipalGuard principalGuard(ccx);
 
     // XXX ASSUMES that retval is last arg. The xpidl compiler ensures this.
     uint8_t paramCount = info->num_args;
@@ -1217,29 +1166,7 @@ nsXPCWrappedJSClass::CallMethod(nsXPCWrappedJS* wrapper, uint16_t methodIndex,
 
     xpcc->SetPendingResult(pending_result);
     xpcc->SetException(nsnull);
-    ccx.GetThreadData()->SetException(nsnull);
-
-    if (XPCPerThreadData::IsMainThread(ccx)) {
-        // TODO Remove me in favor of security wrappers.
-        nsIScriptSecurityManager *ssm = XPCWrapper::GetSecurityManager();
-        if (ssm) {
-            nsIPrincipal *objPrincipal =
-                xpc::AccessCheck::getPrincipal(js::GetObjectCompartment(obj));
-            if (objPrincipal) {
-                JSStackFrame* fp = nsnull;
-                nsresult rv =
-                    ssm->PushContextPrincipal(ccx, JS_FrameIterator(ccx, &fp),
-                                              objPrincipal);
-                if (NS_FAILED(rv)) {
-                    JS_ReportOutOfMemory(ccx);
-                    retval = NS_ERROR_OUT_OF_MEMORY;
-                    goto pre_call_clean_up;
-                }
-
-                principalGuard.principalPushed(ssm);
-            }
-        }
-    }
+    XPCJSRuntime::Get()->SetPendingException(nsnull);
 
     // We use js_Invoke so that the gcthings we use as args will be rooted by
     // the engine as we do conversions and prepare to do the function call.
@@ -1544,7 +1471,7 @@ pre_call_clean_up:
         return CheckForException(ccx, name, GetInterfaceName(), forceReport);
     }
 
-    ccx.GetThreadData()->SetException(nsnull); // XXX necessary?
+    XPCJSRuntime::Get()->SetPendingException(nsnull); // XXX necessary?
 
     // convert out args and result
     // NOTE: this is the total number of native params, not just the args

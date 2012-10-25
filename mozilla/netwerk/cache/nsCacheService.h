@@ -1,45 +1,8 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is nsCacheService.h, released
- * February 10, 2001.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2001
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Gordon Sheridan  <gordon@netscape.com>
- *   Patrick C. Beard <beard@netscape.com>
- *   Darin Fisher     <darin@netscape.com>
- *   Ehsan Akhgari    <ehsan.akhgari@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
 #ifndef _nsCacheService_h_
@@ -54,8 +17,10 @@
 #include "nsIObserver.h"
 #include "nsString.h"
 #include "nsTArray.h"
+#include "nsRefPtrHashtable.h"
 #include "mozilla/CondVar.h"
 #include "mozilla/Mutex.h"
+#include "mozilla/Telemetry.h"
 
 class nsCacheRequest;
 class nsCacheProfilePrefObserver;
@@ -137,8 +102,7 @@ public:
     static
     nsCacheService * GlobalInstance()   { return gService; }
 
-    static
-    PRInt64 MemoryDeviceSize();
+    static PRInt64   MemoryDeviceSize();
     
     static nsresult  DoomEntry(nsCacheEntry * entry);
 
@@ -149,6 +113,15 @@ public:
      */
 
     nsresult GetOfflineDevice(nsOfflineCacheDevice ** aDevice);
+
+    /**
+     * Creates an offline cache device that works over a specific profile directory.
+     * A tool to preload offline cache for profiles different from the current
+     * application's profile directory.
+     */
+    nsresult GetCustomOfflineDevice(nsIFile *aProfileDir,
+                                    PRInt32 aQuota,
+                                    nsOfflineCacheDevice **aDevice);
 
     // This method may be called to release an object while the cache service
     // lock is being held.  If a non-null target is specified and the target
@@ -214,12 +187,17 @@ private:
      * Internal Methods
      */
 
-    static void      Lock();
+    static void      Lock(::mozilla::Telemetry::ID mainThreadLockerID);
     static void      Unlock();
 
     nsresult         CreateDiskDevice();
     nsresult         CreateOfflineDevice();
+    nsresult         CreateCustomOfflineDevice(nsIFile *aProfileDir,
+                                               PRInt32 aQuota,
+                                               nsOfflineCacheDevice **aDevice);
     nsresult         CreateMemoryDevice();
+
+    nsresult         RemoveCustomOfflineDevice(nsOfflineCacheDevice *aDevice);
 
     nsresult         CreateRequest(nsCacheSession *   session,
                                    const nsACString & clientKey,
@@ -273,6 +251,11 @@ private:
                                        PLDHashEntryHdr * hdr,
                                        PRUint32          number,
                                        void *            arg);
+
+    static
+    PLDHashOperator  ShutdownCustomCacheDeviceEnum(const nsAString& aProfileDir,
+                                                   nsRefPtr<nsOfflineCacheDevice>& aDevice,
+                                                   void* aUserArg);
 #if defined(PR_LOGGING)
     void LogCacheStatistics();
 #endif
@@ -306,6 +289,8 @@ private:
     nsDiskCacheDevice *             mDiskDevice;
     nsOfflineCacheDevice *          mOfflineDevice;
 
+    nsRefPtrHashtable<nsStringHashKey, nsOfflineCacheDevice> mCustomOfflineDevices;
+
     nsCacheEntryHashTable           mActiveEntries;
     PRCList                         mDoomedEntries;
 
@@ -327,12 +312,15 @@ private:
  *  nsCacheServiceAutoLock
  ******************************************************************************/
 
+#define LOCK_TELEM(x) \
+  (::mozilla::Telemetry::CACHE_SERVICE_LOCK_WAIT_MAINTHREAD_##x)
+
 // Instantiate this class to acquire the cache service lock for a particular
 // execution scope.
 class nsCacheServiceAutoLock {
 public:
-    nsCacheServiceAutoLock() {
-        nsCacheService::Lock();
+    nsCacheServiceAutoLock(mozilla::Telemetry::ID mainThreadLockerID) {
+        nsCacheService::Lock(mainThreadLockerID);
     }
     ~nsCacheServiceAutoLock() {
         nsCacheService::Unlock();

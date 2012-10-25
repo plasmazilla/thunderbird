@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim:set ts=2 sw=2 sts=2 ci et: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla.org code.
- *
- * The Initial Developer of the Original Code is the Mozilla Foundation.
- * 
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Justin Lebar <justin.lebar@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/AvailableMemoryTracker.h"
 #include "nsThread.h"
@@ -370,7 +337,7 @@ public:
 
   NS_IMETHOD GetPath(nsACString &aPath)
   {
-    aPath.AssignLiteral("low-memory-events-virtual");
+    aPath.AssignLiteral("low-memory-events/virtual");
     return NS_OK;
   }
 
@@ -396,7 +363,7 @@ public:
         "value.");
     }
     else {
-      aDescription.Append(nsPrintfCString(1024,
+      aDescription.Append(nsPrintfCString(
         "We fire such an event if we notice there is less than %d MB of virtual "
         "address space available (controlled by the "
         "'memory.low_virtual_mem_threshold_mb' pref).  We'll likely crash if "
@@ -438,7 +405,7 @@ public:
         "value.");
     }
     else {
-      aDescription.Append(nsPrintfCString(1024,
+      aDescription.Append(nsPrintfCString(
         "We fire such an event if we notice there is less than %d MB of "
         "available commit space (controlled by the "
         "'memory.low_commit_space_threshold_mb' pref).  Windows will likely "
@@ -458,7 +425,7 @@ public:
 
   NS_IMETHOD GetPath(nsACString &aPath)
   {
-    aPath.AssignLiteral("low-memory-events-physical");
+    aPath.AssignLiteral("low-memory-events/physical");
     return NS_OK;
   }
 
@@ -480,7 +447,7 @@ public:
         "value.");
     }
     else {
-      aDescription.Append(nsPrintfCString(1024,
+      aDescription.Append(nsPrintfCString(
         "We fire such an event if we notice there is less than %d MB of "
         "available physical memory (controlled by the "
         "'memory.low_physical_memory_threshold_mb' pref).  The machine will start "
@@ -501,6 +468,7 @@ namespace AvailableMemoryTracker {
 
 void Activate()
 {
+#if defined(_M_IX86)
   MOZ_ASSERT(sInitialized);
   MOZ_ASSERT(!sHooksActive);
 
@@ -527,21 +495,26 @@ void Activate()
     NS_RegisterMemoryReporter(new NumLowVirtualMemoryEventsMemoryReporter());
   }
   sHooksActive = true;
+#endif
 }
 
 void Init()
 {
+  // Do nothing on x86-64, because nsWindowsDllInterceptor is not thread-safe
+  // on 64-bit.  (On 32-bit, it's probably thread-safe.)  Even if we run Init()
+  // before any other of our threads are running, another process may have
+  // started a remote thread which could call VirtualAlloc!
+  //
+  // Moreover, the benefit of this code is less clear when we're a 64-bit
+  // process, because we aren't going to run out of virtual memory, and the
+  // system is likely to have a fair bit of physical memory.
+
+#if defined(_M_IX86)
   // Don't register the hooks if we're a build instrumented for PGO: If we're
   // an instrumented build, the compiler adds function calls all over the place
   // which may call VirtualAlloc; this makes it hard to prevent
   // VirtualAllocHook from reentering itself.
-
   if (!PR_GetEnv("MOZ_PGO_INSTRUMENTED")) {
-    // Careful, this is not thread-safe!  AddHook sets up the trampoline before
-    // writing to the out param, and anyway, it writes to the function
-    // non-atomically.  So this must happen before any other threads which
-    // might call VirtualAlloc, MapViewOfFile, or CreateDIBSection start up.
-
     sKernel32Intercept.Init("Kernel32.dll");
     sKernel32Intercept.AddHook("VirtualAlloc",
       reinterpret_cast<intptr_t>(VirtualAllocHook),
@@ -557,6 +530,7 @@ void Init()
   }
 
   sInitialized = true;
+#endif
 }
 
 } // namespace AvailableMemoryTracker

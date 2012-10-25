@@ -1,42 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Places Browser Integration
- *
- * The Initial Developer of the Original Code is Google Inc.
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ben Goodger <beng@google.com>
- *   Annie Sullivan <annie.sullivan@gmail.com>
- *   Joe Hughes <joe@retrovirus.com>
- *   Asaf Romano <mano@mozilla.com>
- *   Ehsan Akhgari <ehsan.akhgari@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 var StarUI = {
   _itemId: -1,
@@ -164,21 +128,22 @@ var StarUI = {
       return;
     }
 
-    var loadObserver = {
-      _self: this,
-      _itemId: aItemId,
-      _anchorElement: aAnchorElement,
-      _position: aPosition,
-      observe: function (aSubject, aTopic, aData) {
-        this._self._overlayLoading = false;
-        this._self._overlayLoaded = true;
-        this._self._doShowEditBookmarkPanel(this._itemId, this._anchorElement,
-                                            this._position);
-      }
-    };
     this._overlayLoading = true;
-    document.loadOverlay("chrome://communicator/content/bookmarks/editBookmarkOverlay.xul",
-                         loadObserver);
+    document.loadOverlay(
+      "chrome://communicator/content/bookmarks/editBookmarkOverlay.xul",
+      (function (aSubject, aTopic, aData) {
+        // Move the header (star, title, button) into the grid,
+        // so that it aligns nicely with the other items (bug 484022).
+        let header = this._element("editBookmarkPanelHeader");
+        let rows = this._element("editBookmarkPanelGrid").lastChild;
+        rows.insertBefore(header, rows.firstChild);
+        header.hidden = false;
+
+        this._overlayLoading = false;
+        this._overlayLoaded = true;
+        this._doShowEditBookmarkPanel(aItemId, aAnchorElement, aPosition);
+      }).bind(this)
+    );
   },
 
   _doShowEditBookmarkPanel:
@@ -187,13 +152,6 @@ var StarUI = {
       return;
 
     this._blockCommands(); // un-done in the popuphiding handler
-
-    // Move the header (star, title, possibly a button) into the grid,
-    // so that it aligns nicely with the other items (bug 484022).
-    var rows = this._element("editBookmarkPanelGrid").lastChild;
-    var header = this._element("editBookmarkPanelHeader");
-    rows.insertBefore(header, rows.firstChild);
-    header.hidden = false;
 
     // Set panel title:
     // if we are batching, i.e. the bookmark has been added now,
@@ -875,17 +833,33 @@ let PlacesToolbarHelper = {
   },
 
   init: function PTH_init() {
-    if (this._viewElt)
-      new PlacesToolbar(this._place);
+    let viewElt = this._viewElt;
+    if (!viewElt || viewElt._placesView)
+      return;
+
+    // If the bookmarks toolbar item is hidden because the parent toolbar is
+    // collapsed or hidden (i.e. in a popup), spare the initialization.  Also,
+    // there is no need to initialize the toolbar if customizing because
+    // init() will be called when the customization is done.
+    let toolbar = viewElt.parentNode.parentNode;
+    if (toolbar.collapsed ||
+        getComputedStyle(toolbar, "").display == "none" ||
+        this._isCustomizing)
+      return;
+
+    new PlacesToolbar(this._place);
   },
 
   customizeStart: function PTH_customizeStart() {
     let viewElt = this._viewElt;
     if (viewElt && viewElt._placesView)
       viewElt._placesView.uninit();
+
+    this._isCustomizing = true;
   },
 
   customizeDone: function PTH_customizeDone() {
+    this._isCustomizing = false;
     this.init();
   }
 };

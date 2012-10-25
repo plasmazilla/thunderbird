@@ -1,39 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* vim: set ts=2 et sw=2 tw=80: */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* representation of simple property values within CSS declarations */
 
@@ -654,7 +623,7 @@ nsCSSValue::BufferFromString(const nsString& aValue)
     return buffer;
   }
 
-  PRUnichar length = aValue.Length();
+  nsString::size_type length = aValue.Length();
 
   // NOTE: Alloc prouduces a new, already-addref'd (refcnt = 1) buffer.
   // NOTE: String buffer allocation is currently fallible.
@@ -752,14 +721,6 @@ nsCSSValue::AppendToString(nsCSSProperty aProperty, nsAString& aResult) const
     nsCSSValue::Array *array = GetArrayValue();
     bool mark = false;
     for (size_t i = 0, i_end = array->Count(); i < i_end; ++i) {
-      if (aProperty == eCSSProperty_border_image && i >= 5) {
-        if (array->Item(i).GetUnit() == eCSSUnit_Null) {
-          continue;
-        }
-        if (i == 5) {
-          aResult.AppendLiteral(" /");
-        }
-      }
       if (mark && array->Item(i).GetUnit() != eCSSUnit_Null) {
         if (unit == eCSSUnit_Array &&
             eCSSProperty_transition_timing_function != aProperty)
@@ -947,37 +908,90 @@ nsCSSValue::AppendToString(nsCSSProperty aProperty, nsAString& aResult) const
   else if (eCSSUnit_Gradient == unit) {
     nsCSSValueGradient* gradient = GetGradientValue();
 
+    if (gradient->mIsLegacySyntax) {
+      aResult.AppendLiteral("-moz-");
+    }
     if (gradient->mIsRepeating) {
-      if (gradient->mIsRadial)
-        aResult.AppendLiteral("-moz-repeating-radial-gradient(");
-      else
-        aResult.AppendLiteral("-moz-repeating-linear-gradient(");
+      aResult.AppendLiteral("repeating-");
+    }
+    if (gradient->mIsRadial) {
+      aResult.AppendLiteral("radial-gradient(");
     } else {
-      if (gradient->mIsRadial)
-        aResult.AppendLiteral("-moz-radial-gradient(");
-      else
-        aResult.AppendLiteral("-moz-linear-gradient(");
+      aResult.AppendLiteral("linear-gradient(");
     }
 
-    if (gradient->mIsToCorner) {
-      aResult.AppendLiteral("to");
-      NS_ABORT_IF_FALSE(gradient->mBgPos.mXValue.GetUnit() == eCSSUnit_Enumerated &&
-                        gradient->mBgPos.mYValue.GetUnit() == eCSSUnit_Enumerated,
-                        "unexpected unit");
-      if (!(gradient->mBgPos.mXValue.GetIntValue() & NS_STYLE_BG_POSITION_CENTER)) {
-        aResult.AppendLiteral(" ");
-        gradient->mBgPos.mXValue.AppendToString(eCSSProperty_background_position,
-                                                aResult);
+    bool needSep = false;
+    if (gradient->mIsRadial && !gradient->mIsLegacySyntax) {
+      if (!gradient->mIsExplicitSize) {
+        if (gradient->GetRadialShape().GetUnit() != eCSSUnit_None) {
+          NS_ABORT_IF_FALSE(gradient->GetRadialShape().GetUnit() ==
+                            eCSSUnit_Enumerated,
+                            "bad unit for radial gradient shape");
+          PRInt32 intValue = gradient->GetRadialShape().GetIntValue();
+          NS_ABORT_IF_FALSE(intValue != NS_STYLE_GRADIENT_SHAPE_LINEAR,
+                            "radial gradient with linear shape?!");
+          AppendASCIItoUTF16(nsCSSProps::ValueToKeyword(intValue,
+                                 nsCSSProps::kRadialGradientShapeKTable),
+                             aResult);
+          needSep = true;
+        }
+
+        if (gradient->GetRadialSize().GetUnit() != eCSSUnit_None) {
+          if (needSep) {
+            aResult.AppendLiteral(" ");
+          }
+          NS_ABORT_IF_FALSE(gradient->GetRadialSize().GetUnit() ==
+                            eCSSUnit_Enumerated,
+                            "bad unit for radial gradient size");
+          PRInt32 intValue = gradient->GetRadialSize().GetIntValue();
+          AppendASCIItoUTF16(nsCSSProps::ValueToKeyword(intValue,
+                                 nsCSSProps::kRadialGradientSizeKTable),
+                             aResult);
+          needSep = true;
+        }
+      } else {
+        NS_ABORT_IF_FALSE(gradient->GetRadiusX().GetUnit() != eCSSUnit_None,
+                          "bad unit for radial gradient explicit size");
+        gradient->GetRadiusX().AppendToString(aProperty, aResult);
+        if (gradient->GetRadiusY().GetUnit() != eCSSUnit_None) {
+          aResult.AppendLiteral(" ");
+          gradient->GetRadiusY().AppendToString(aProperty, aResult);
+        }
+        needSep = true;
       }
-      if (!(gradient->mBgPos.mYValue.GetIntValue() & NS_STYLE_BG_POSITION_CENTER)) {
-        aResult.AppendLiteral(" ");
-        gradient->mBgPos.mYValue.AppendToString(eCSSProperty_background_position,
-                                                aResult);
+    }
+    if (!gradient->mIsRadial && !gradient->mIsLegacySyntax) {
+      if (gradient->mBgPos.mXValue.GetUnit() != eCSSUnit_None ||
+          gradient->mBgPos.mYValue.GetUnit() != eCSSUnit_None) {
+        MOZ_ASSERT(gradient->mAngle.GetUnit() == eCSSUnit_None);
+        NS_ABORT_IF_FALSE(gradient->mBgPos.mXValue.GetUnit() == eCSSUnit_Enumerated &&
+                          gradient->mBgPos.mYValue.GetUnit() == eCSSUnit_Enumerated,
+                          "unexpected unit");
+        aResult.AppendLiteral("to");
+        if (!(gradient->mBgPos.mXValue.GetIntValue() & NS_STYLE_BG_POSITION_CENTER)) {
+          aResult.AppendLiteral(" ");
+          gradient->mBgPos.mXValue.AppendToString(eCSSProperty_background_position,
+                                                  aResult);
+        }
+        if (!(gradient->mBgPos.mYValue.GetIntValue() & NS_STYLE_BG_POSITION_CENTER)) {
+          aResult.AppendLiteral(" ");
+          gradient->mBgPos.mYValue.AppendToString(eCSSProperty_background_position,
+                                                  aResult);
+        }
+        needSep = true;
+      } else if (gradient->mAngle.GetUnit() != eCSSUnit_None) {
+        gradient->mAngle.AppendToString(aProperty, aResult);
+        needSep = true;
       }
-      aResult.AppendLiteral(", ");
     } else if (gradient->mBgPos.mXValue.GetUnit() != eCSSUnit_None ||
         gradient->mBgPos.mYValue.GetUnit() != eCSSUnit_None ||
         gradient->mAngle.GetUnit() != eCSSUnit_None) {
+      if (needSep) {
+        aResult.AppendLiteral(" ");
+      }
+      if (gradient->mIsRadial && !gradient->mIsLegacySyntax) {
+        aResult.AppendLiteral("at ");
+      }
       if (gradient->mBgPos.mXValue.GetUnit() != eCSSUnit_None) {
         gradient->mBgPos.mXValue.AppendToString(eCSSProperty_background_position,
                                                 aResult);
@@ -989,19 +1003,25 @@ nsCSSValue::AppendToString(nsCSSProperty aProperty, nsAString& aResult) const
         aResult.AppendLiteral(" ");
       }
       if (gradient->mAngle.GetUnit() != eCSSUnit_None) {
+        NS_ABORT_IF_FALSE(gradient->mIsLegacySyntax,
+                          "angle is allowed only for legacy syntax");
         gradient->mAngle.AppendToString(aProperty, aResult);
       }
-      aResult.AppendLiteral(", ");
+      needSep = true;
     }
 
-    if (gradient->mIsRadial &&
-        (gradient->mRadialShape.GetUnit() != eCSSUnit_None ||
-         gradient->mRadialSize.GetUnit() != eCSSUnit_None)) {
-      if (gradient->mRadialShape.GetUnit() != eCSSUnit_None) {
-        NS_ABORT_IF_FALSE(gradient->mRadialShape.GetUnit() ==
+    if (gradient->mIsRadial && gradient->mIsLegacySyntax &&
+        (gradient->GetRadialShape().GetUnit() != eCSSUnit_None ||
+         gradient->GetRadialSize().GetUnit() != eCSSUnit_None)) {
+      MOZ_ASSERT(!gradient->mIsExplicitSize);
+      if (needSep) {
+        aResult.AppendLiteral(", ");
+      }
+      if (gradient->GetRadialShape().GetUnit() != eCSSUnit_None) {
+        NS_ABORT_IF_FALSE(gradient->GetRadialShape().GetUnit() ==
                           eCSSUnit_Enumerated,
                           "bad unit for radial gradient shape");
-        PRInt32 intValue = gradient->mRadialShape.GetIntValue();
+        PRInt32 intValue = gradient->GetRadialShape().GetIntValue();
         NS_ABORT_IF_FALSE(intValue != NS_STYLE_GRADIENT_SHAPE_LINEAR,
                           "radial gradient with linear shape?!");
         AppendASCIItoUTF16(nsCSSProps::ValueToKeyword(intValue,
@@ -1010,15 +1030,18 @@ nsCSSValue::AppendToString(nsCSSProperty aProperty, nsAString& aResult) const
         aResult.AppendLiteral(" ");
       }
 
-      if (gradient->mRadialSize.GetUnit() != eCSSUnit_None) {
-        NS_ABORT_IF_FALSE(gradient->mRadialSize.GetUnit() ==
+      if (gradient->GetRadialSize().GetUnit() != eCSSUnit_None) {
+        NS_ABORT_IF_FALSE(gradient->GetRadialSize().GetUnit() ==
                           eCSSUnit_Enumerated,
                           "bad unit for radial gradient size");
-        PRInt32 intValue = gradient->mRadialSize.GetIntValue();
+        PRInt32 intValue = gradient->GetRadialSize().GetIntValue();
         AppendASCIItoUTF16(nsCSSProps::ValueToKeyword(intValue,
                                nsCSSProps::kRadialGradientSizeKTable),
                            aResult);
       }
+      needSep = true;
+    }
+    if (needSep) {
       aResult.AppendLiteral(", ");
     }
 
@@ -1044,7 +1067,14 @@ nsCSSValue::AppendToString(nsCSSProperty aProperty, nsAString& aResult) const
   } else if (eCSSUnit_List == unit || eCSSUnit_ListDep == unit) {
     GetListValue()->AppendToString(aProperty, aResult);
   } else if (eCSSUnit_PairList == unit || eCSSUnit_PairListDep == unit) {
-    GetPairListValue()->AppendToString(aProperty, aResult);
+    switch (aProperty) {
+      case eCSSProperty_font_feature_settings:
+        nsStyleUtil::AppendFontFeatureSettings(*this, aResult);
+        break;
+      default:
+        GetPairListValue()->AppendToString(aProperty, aResult);
+        break;
+    }
   }
 
   switch (unit) {
@@ -1372,17 +1402,31 @@ nsCSSRect::AppendToString(nsCSSProperty aProperty, nsAString& aResult) const
                     mTop.GetUnit() != eCSSUnit_Initial,
                     "parser should have used a bare value");
 
-  NS_NAMED_LITERAL_STRING(comma, ", ");
+  if (eCSSProperty_border_image_slice == aProperty ||
+      eCSSProperty_border_image_width == aProperty ||
+      eCSSProperty_border_image_outset == aProperty) {
+    NS_NAMED_LITERAL_STRING(space, " ");
 
-  aResult.AppendLiteral("rect(");
-  mTop.AppendToString(aProperty, aResult);
-  aResult.Append(comma);
-  mRight.AppendToString(aProperty, aResult);
-  aResult.Append(comma);
-  mBottom.AppendToString(aProperty, aResult);
-  aResult.Append(comma);
-  mLeft.AppendToString(aProperty, aResult);
-  aResult.Append(PRUnichar(')'));
+    mTop.AppendToString(aProperty, aResult);
+    aResult.Append(space);
+    mRight.AppendToString(aProperty, aResult);
+    aResult.Append(space);
+    mBottom.AppendToString(aProperty, aResult);
+    aResult.Append(space);
+    mLeft.AppendToString(aProperty, aResult);
+  } else {
+    NS_NAMED_LITERAL_STRING(comma, ", ");
+
+    aResult.AppendLiteral("rect(");
+    mTop.AppendToString(aProperty, aResult);
+    aResult.Append(comma);
+    mRight.AppendToString(aProperty, aResult);
+    aResult.Append(comma);
+    mBottom.AppendToString(aProperty, aResult);
+    aResult.Append(comma);
+    mLeft.AppendToString(aProperty, aResult);
+    aResult.Append(PRUnichar(')'));
+  }
 }
 
 void nsCSSRect::SetAllSidesTo(const nsCSSValue& aValue)
@@ -1717,23 +1761,24 @@ nsCSSValueGradient::nsCSSValueGradient(bool aIsRadial,
                                        bool aIsRepeating)
   : mIsRadial(aIsRadial),
     mIsRepeating(aIsRepeating),
-    mIsToCorner(false),
+    mIsLegacySyntax(false),
+    mIsExplicitSize(false),
     mBgPos(eCSSUnit_None),
-    mAngle(eCSSUnit_None),
-    mRadialShape(eCSSUnit_None),
-    mRadialSize(eCSSUnit_None)
+    mAngle(eCSSUnit_None)
 {
+  mRadialValues[0].SetNoneValue();
+  mRadialValues[1].SetNoneValue();
 }
 
 size_t
 nsCSSValueGradient::SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf) const
 {
   size_t n = aMallocSizeOf(this);
-  n += mBgPos      .SizeOfExcludingThis(aMallocSizeOf);
-  n += mAngle      .SizeOfExcludingThis(aMallocSizeOf);
-  n += mRadialShape.SizeOfExcludingThis(aMallocSizeOf);
-  n += mRadialSize .SizeOfExcludingThis(aMallocSizeOf);
-  n += mStops      .SizeOfExcludingThis(aMallocSizeOf);
+  n += mBgPos.SizeOfExcludingThis(aMallocSizeOf);
+  n += mAngle.SizeOfExcludingThis(aMallocSizeOf);
+  n += mRadialValues[0].SizeOfExcludingThis(aMallocSizeOf);
+  n += mRadialValues[1].SizeOfExcludingThis(aMallocSizeOf);
+  n += mStops.SizeOfExcludingThis(aMallocSizeOf);
   for (PRUint32 i = 0; i < mStops.Length(); i++) {
     n += mStops[i].SizeOfExcludingThis(aMallocSizeOf);
   }

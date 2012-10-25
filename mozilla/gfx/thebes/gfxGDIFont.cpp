@@ -1,43 +1,7 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Foundation code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2005-2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Stuart Parmenter <stuart@mozilla.com>
- *   Masayuki Nakano <masayuki@d-toybox.com>
- *   Mats Palmgren <mats.palmgren@bredband.net>
- *   John Daggett <jdaggett@mozilla.com>
- *   Jonathan Kew <jfkthame@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "gfxGDIFont.h"
 #include "gfxGDIShaper.h"
@@ -310,11 +274,30 @@ gfxGDIFont::Initialize()
 
     LOGFONTW logFont;
 
+    // Figure out if we want to do synthetic oblique styling.
+    GDIFontEntry* fe = static_cast<GDIFontEntry*>(GetFontEntry());
+    bool wantFakeItalic =
+        (mStyle.style & (NS_FONT_STYLE_ITALIC | NS_FONT_STYLE_OBLIQUE)) &&
+        !fe->IsItalic();
+
+    // If the font's family has an actual italic face (but font matching
+    // didn't choose it), we have to use a cairo transform instead of asking
+    // GDI to italicize, because that would use a different face and result
+    // in a possible glyph ID mismatch between shaping and rendering.
+    //
+    // The font entry's mFamilyHasItalicFace flag is needed for user fonts
+    // where the *CSS* family may not know about italic faces that are present
+    // in the *GDI* family, and which GDI would use if we asked it to perform
+    // the "italicization".
+    bool useCairoFakeItalic = wantFakeItalic &&
+        (fe->Family()->HasItalicFace() || fe->mFamilyHasItalicFace);
+
     if (mAdjustedSize == 0.0) {
         mAdjustedSize = mStyle.size;
         if (mStyle.sizeAdjust != 0.0 && mAdjustedSize > 0.0) {
             // to implement font-size-adjust, we first create the "unadjusted" font
-            FillLogFont(logFont, mAdjustedSize);
+            FillLogFont(logFont, mAdjustedSize,
+                        wantFakeItalic && !useCairoFakeItalic);
             mFont = ::CreateFontIndirectW(&logFont);
 
             // initialize its metrics so we can calculate size adjustment
@@ -342,7 +325,7 @@ gfxGDIFont::Initialize()
 
     // this may end up being zero
     mAdjustedSize = ROUND(mAdjustedSize);
-    FillLogFont(logFont, mAdjustedSize);
+    FillLogFont(logFont, mAdjustedSize, wantFakeItalic && !useCairoFakeItalic);
     mFont = ::CreateFontIndirectW(&logFont);
 
     mMetrics = new gfxFont::Metrics;
@@ -387,7 +370,7 @@ gfxGDIFont::Initialize()
         } else {
             // Make a best-effort guess at extended metrics
             // this is based on general typographic guidelines
-            
+
             // GetTextMetrics can fail if the font file has been removed
             // or corrupted recently.
             BOOL result = GetTextMetrics(dc.GetDC(), &metrics);
@@ -464,8 +447,9 @@ gfxGDIFont::Initialize()
     cairo_matrix_init_identity(&ctm);
     cairo_matrix_init_scale(&sizeMatrix, mAdjustedSize, mAdjustedSize);
 
-    bool italic = (mStyle.style & (NS_FONT_STYLE_ITALIC | NS_FONT_STYLE_OBLIQUE));
-    if (italic && !mFontEntry->IsItalic()) {
+    if (useCairoFakeItalic) {
+        // Skew the matrix to do fake italic if it wasn't already applied
+        // via the LOGFONT
         double skewfactor = OBLIQUE_SKEW_FACTOR;
         cairo_matrix_t style;
         cairo_matrix_init(&style,
@@ -515,7 +499,8 @@ gfxGDIFont::Initialize()
 }
 
 void
-gfxGDIFont::FillLogFont(LOGFONTW& aLogFont, gfxFloat aSize)
+gfxGDIFont::FillLogFont(LOGFONTW& aLogFont, gfxFloat aSize,
+                        bool aUseGDIFakeItalic)
 {
     GDIFontEntry *fe = static_cast<GDIFontEntry*>(GetFontEntry());
 
@@ -537,6 +522,11 @@ gfxGDIFont::FillLogFont(LOGFONTW& aLogFont, gfxFloat aSize)
 
     fe->FillLogFont(&aLogFont, weight, aSize, 
                     (mAntialiasOption == kAntialiasSubpixel) ? true : false);
+
+    // If GDI synthetic italic is wanted, force the lfItalic field to true
+    if (aUseGDIFakeItalic) {
+        aLogFont.lfItalic = 1;
+    }
 }
 
 PRInt32

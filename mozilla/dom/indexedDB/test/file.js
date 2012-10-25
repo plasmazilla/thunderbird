@@ -3,25 +3,31 @@
  * http://creativecommons.org/publicdomain/zero/1.0/
  */
 
-var manager = null;
 var bufferCache = [];
 var utils = SpecialPowers.getDOMWindowUtils(window);
 
-function getBuffer(size)
-{
-  let buffer = new ArrayBuffer(size);
-  is(buffer.byteLength, size, "Correct byte length");
-  return buffer;
+if (!SpecialPowers.isMainProcess()) {
+  window.runTest = function() {
+    todo(false, "Test disabled in child processes, for now");
+    finishTest();
+  }
 }
 
-function getRandomBuffer(size)
+function getView(size)
 {
-  let buffer = getBuffer(size);
+  let buffer = new ArrayBuffer(size);
   let view = new Uint8Array(buffer);
+  is(buffer.byteLength, size, "Correct byte length");
+  return view;
+}
+
+function getRandomView(size)
+{
+  let view = getView(size);
   for (let i = 0; i < size; i++) {
     view[i] = parseInt(Math.random() * 255)
   }
-  return buffer;
+  return view;
 }
 
 function compareBuffers(buffer1, buffer2)
@@ -39,34 +45,34 @@ function compareBuffers(buffer1, buffer2)
   return true;
 }
 
-function getBlob(type, buffer)
+function getBlob(type, view)
 {
-  return new Blob([buffer], {type: type});
+  return utils.getBlob([view], {type: type});
 }
 
-function getFile(name, type, buffer)
+function getFile(name, type, view)
 {
-  return new Blob([buffer], {type: type});
+  return utils.getFile(name, [view], {type: type});
 }
 
 function getRandomBlob(size)
 {
-  return getBlob("binary/random", getRandomBuffer(size));
+  return getBlob("binary/random", getRandomView(size));
 }
 
 function getRandomFile(name, size)
 {
-  return getFile(name, "binary/random", getRandomBuffer(size));
+  return getFile(name, "binary/random", getRandomView(size));
 }
 
 function getNullBlob(size)
 {
-  return getBlob("binary/null", getBuffer(size));
+  return getBlob("binary/null", getView(size));
 }
 
 function getNullFile(name, size)
 {
-  return getFile(name, "binary/null", getBuffer(size));
+  return getFile(name, "binary/null", getView(size));
 }
 
 function verifyBuffers(buffer1, buffer2)
@@ -164,12 +170,9 @@ function grabFileUsageAndContinueHandler(usage, fileUsage)
 
 function getUsage(usageHandler)
 {
-  netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
-
-  if (!manager) {
-    manager = Components.classes["@mozilla.org/dom/indexeddb/manager;1"]
-              .getService(Components.interfaces.nsIIndexedDatabaseManager);
-  }
+  let comp = SpecialPowers.wrap(Components);
+  let idbManager = comp.classes["@mozilla.org/dom/indexeddb/manager;1"]
+                       .getService(comp.interfaces.nsIIndexedDatabaseManager);
 
   let uri = SpecialPowers.getDocumentURIObject(window.document);
   let callback = {
@@ -178,7 +181,7 @@ function getUsage(usageHandler)
     }
   };
 
-  manager.getUsageForURI(uri, callback);
+  idbManager.getUsageForURI(uri, callback);
 }
 
 function getUsageSync()
@@ -189,10 +192,10 @@ function getUsageSync()
     usage = aUsage;
   });
 
-  netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
-  let thread = Components.classes["@mozilla.org/thread-manager;1"]
-                         .getService(Components.interfaces.nsIThreadManager)
-                         .currentThread;
+  let comp = SpecialPowers.wrap(Components);
+  let thread = comp.classes["@mozilla.org/thread-manager;1"]
+                   .getService(comp.interfaces.nsIThreadManager)
+                   .currentThread;
   while (!usage) {
     thread.processNextEvent(true);
   }
@@ -203,6 +206,11 @@ function getUsageSync()
 function scheduleGC()
 {
   SpecialPowers.exactGC(window, continueToNextStep);
+}
+
+function getFileId(file)
+{
+  return utils.getFileId(file);
 }
 
 function hasFileInfo(name, id)

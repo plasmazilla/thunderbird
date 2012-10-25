@@ -1,38 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla SVG project.
- *
- * The Initial Developer of the Original Code is IBM Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2005
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 // Main header first:
 #include "nsSVGFilterInstance.h"
@@ -62,14 +31,14 @@ nsSVGFilterInstance::GetPrimitiveNumber(PRUint8 aCtxType, float aValue) const
 
   switch (aCtxType) {
   case nsSVGUtils::X:
-    return value * mFilterSpaceSize.width / mFilterRect.Width();
+    return value * mFilterSpaceSize.width / mFilterRegion.Width();
   case nsSVGUtils::Y:
-    return value * mFilterSpaceSize.height / mFilterRect.Height();
+    return value * mFilterSpaceSize.height / mFilterRegion.Height();
   case nsSVGUtils::XY:
   default:
     return value * nsSVGUtils::ComputeNormalizedHypotenuse(
-                     mFilterSpaceSize.width / mFilterRect.Width(),
-                     mFilterSpaceSize.height / mFilterRect.Height());
+                     mFilterSpaceSize.width / mFilterRegion.Width(),
+                     mFilterSpaceSize.height / mFilterRegion.Height());
   }
 }
 
@@ -114,27 +83,27 @@ nsSVGFilterInstance::CreateImage()
 gfxRect
 nsSVGFilterInstance::UserSpaceToFilterSpace(const gfxRect& aRect) const
 {
-  gfxRect r = aRect - mFilterRect.TopLeft();
-  r.Scale(mFilterSpaceSize.width / mFilterRect.Width(),
-          mFilterSpaceSize.height / mFilterRect.Height());
+  gfxRect r = aRect - mFilterRegion.TopLeft();
+  r.Scale(mFilterSpaceSize.width / mFilterRegion.Width(),
+          mFilterSpaceSize.height / mFilterRegion.Height());
   return r;
 }
 
 gfxPoint
 nsSVGFilterInstance::FilterSpaceToUserSpace(const gfxPoint& aPt) const
 {
-  return gfxPoint(aPt.x * mFilterRect.Width() / mFilterSpaceSize.width + mFilterRect.X(),
-                  aPt.y * mFilterRect.Height() / mFilterSpaceSize.height + mFilterRect.Y());
+  return gfxPoint(aPt.x * mFilterRegion.Width() / mFilterSpaceSize.width + mFilterRegion.X(),
+                  aPt.y * mFilterRegion.Height() / mFilterSpaceSize.height + mFilterRegion.Y());
 }
 
 gfxMatrix
 nsSVGFilterInstance::GetUserSpaceToFilterSpaceTransform() const
 {
-  gfxFloat widthScale = mFilterSpaceSize.width / mFilterRect.Width();
-  gfxFloat heightScale = mFilterSpaceSize.height / mFilterRect.Height();
+  gfxFloat widthScale = mFilterSpaceSize.width / mFilterRegion.Width();
+  gfxFloat heightScale = mFilterSpaceSize.height / mFilterRegion.Height();
   return gfxMatrix(widthScale, 0.0f,
                    0.0f, heightScale,
-                   -mFilterRect.X() * widthScale, -mFilterRect.Y() * heightScale);
+                   -mFilterRegion.X() * widthScale, -mFilterRegion.Y() * heightScale);
 }
 
 void
@@ -308,7 +277,7 @@ nsSVGFilterInstance::ComputeNeededBoxes()
   // In the end, we need whatever the final filter primitive will draw that
   // intersects the destination dirty area.
   mPrimitives[mPrimitives.Length() - 1].mResultNeededBox.IntersectRect(
-    mPrimitives[mPrimitives.Length() - 1].mResultBoundingBox, mDirtyOutputRect);
+    mPrimitives[mPrimitives.Length() - 1].mResultBoundingBox, mPostFilterDirtyRect);
 
   for (PRInt32 i = mPrimitives.Length() - 1; i >= 0; --i) {
     PrimitiveInfo* info = &mPrimitives[i];
@@ -553,9 +522,9 @@ nsSVGFilterInstance::Render(gfxASurface** aOutput)
 }
 
 nsresult
-nsSVGFilterInstance::ComputeOutputDirtyRect(nsIntRect* aDirty)
+nsSVGFilterInstance::ComputePostFilterDirtyRect(nsIntRect* aPostFilterDirtyRect)
 {
-  *aDirty = nsIntRect();
+  *aPostFilterDirtyRect = nsIntRect();
 
   nsresult rv = BuildSources();
   if (NS_FAILED(rv))
@@ -572,12 +541,12 @@ nsSVGFilterInstance::ComputeOutputDirtyRect(nsIntRect* aDirty)
 
   ComputeResultBoundingBoxes();
 
-  mSourceColorAlpha.mResultChangeBox = mDirtyInputRect;
-  mSourceAlpha.mResultChangeBox = mDirtyInputRect;
+  mSourceColorAlpha.mResultChangeBox = mPreFilterDirtyRect;
+  mSourceAlpha.mResultChangeBox = mPreFilterDirtyRect;
   ComputeResultChangeBoxes();
 
   PrimitiveInfo* result = &mPrimitives[mPrimitives.Length() - 1];
-  *aDirty = result->mResultChangeBox;
+  *aPostFilterDirtyRect = result->mResultChangeBox;
   return NS_OK;
 }
 

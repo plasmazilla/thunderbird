@@ -2,45 +2,9 @@
 
 <!--
 
- ***** BEGIN LICENSE BLOCK *****
- Version: MPL 1.1/GPL 2.0/LGPL 2.1
-
- The contents of this file are subject to the Mozilla Public License Version
- 1.1 (the "License"); you may not use this file except in compliance with
- the License. You may obtain a copy of the License at
- http://www.mozilla.org/MPL/
-
- Software distributed under the License is distributed on an "AS IS" basis,
- WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- for the specific language governing rights and limitations under the
- License.
-
- The Original Code is Mozilla Communicator client code, released
- March 31, 1998.
-
- The Initial Developer of the Original Code is
- Netscape Communications Corporation.
- Portions created by the Initial Developer are Copyright (C) 1998-2003
- the Initial Developer. All Rights Reserved.
-
- Contributor(s):
-   Håkan Waara <hwaara@chello.se>
-   bienvenu@nventure.com
-   Matthew Willis <mattwillis@gmail.com>
-
- Alternatively, the contents of this file may be used under the terms of
- either of the GNU General Public License Version 2 or later (the "GPL"),
- or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- in which case the provisions of the GPL or the LGPL are applicable instead
- of those above. If you wish to allow use of your version of this file only
- under the terms of either the GPL or the LGPL, and not to allow others to
- use your version of this file under the terms of the MPL, indicate your
- decision by deleting the provisions above and replace them with the notice
- and other provisions required by the GPL or the LGPL. If you do not delete
- the provisions above, a recipient may use your version of this file under
- the terms of any one of the MPL, the GPL or the LGPL.
-
- ***** END LICENSE BLOCK ***** -->
+ This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <?xml-stylesheet href="chrome://messenger/skin/accountManage.css" type="text/css"?>
 <?xml-stylesheet href="chrome://messenger/skin/messenger.css" type="text/css"?>
@@ -88,12 +52,12 @@
                        prefstring="mail.server.%serverkey%.realhostname" class="uri-element"/>
               <label hidefor="movemail" value="&port.label;"
                      accesskey="&port.accesskey;" control="server.port"/>
-              <label id="fixedServerPort" hidefor="movemail" 
+              <label id="fixedServerPort" hidefor="movemail"
                      collapsed="true" use="server.port"/>
               <textbox wsm_persist="true" size="3" id="server.port"
-                       preftype="int" hidefor="movemail" 
+                       preftype="int" hidefor="movemail"
                        prefstring="mail.server.%serverkey%.port"
-                       type="number" max="65535"/>
+                       type="number" min="1" max="65535" increment="1"/>
               <label value="&serverPortDefault.label;" hidefor="movemail"/>
               <label id="defaultPort" hidefor="movemail"/>
           </hbox>
@@ -180,7 +144,7 @@
     <hbox align="center">
       <checkbox wsm_persist="true" id="server.doBiff" label="&biffStart.label;"
                 accesskey="&biffStart.accesskey;"
-                oncommand="onCheckItem('server.biffMinutes', this.id);"
+                oncommand="onCheckItem('server.biffMinutes', [this.id]);"
                 prefattribute="value"
                 prefstring="mail.server.%serverkey%.check_new_mail"/>
       <textbox wsm_persist="true" id="server.biffMinutes"
@@ -218,9 +182,9 @@
                   accesskey="&deleteByAgeFromServer.accesskey;"
                   prefattribute="value"
                   prefstring="mail.server.%serverkey%.delete_by_age_from_server"/>
-        <textbox wsm_persist="true" id="pop3.numDaysToLeaveOnServer" size="3" 
+        <textbox wsm_persist="true" id="pop3.numDaysToLeaveOnServer" size="3"
                  aria-labelledby="pop3.deleteByAgeFromServer pop3.numDaysToLeaveOnServer daysEnd"
-                 preftype="int"
+                 preftype="int" type="number" min="1" increment="1"
                  prefstring="mail.server.%serverkey%.num_days_to_leave_on_server"/>
         <label id="daysEnd" control="pop3.numDaysToLeaveOnServer" value="&daysEnd.label;"/>
       </hbox>
@@ -314,7 +278,7 @@
       <checkbox wsm_persist="true" id="nntp.notifyOn"
                 label="&maxMessagesStart.label;"
                 accesskey="&maxMessagesStart.accesskey;"
-                oncommand="onCheckItem('nntp.maxArticles', this.id);"
+                oncommand="onCheckItem('nntp.maxArticles', [this.id]);"
                 prefattribute="value"
                 prefstring="mail.server.%serverkey%.notify.on"/>
       <textbox wsm_persist="true" id="nntp.maxArticles"

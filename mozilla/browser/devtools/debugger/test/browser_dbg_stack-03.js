@@ -14,7 +14,7 @@ function test() {
     gTab = aTab;
     gDebuggee = aDebuggee;
     gPane = aPane;
-    gDebugger = gPane.debuggerWindow;
+    gDebugger = gPane.contentWindow;
 
     testRecurse();
   });
@@ -48,7 +48,7 @@ function testRecurse() {
             "Should have reached the recurse limit.");
 
           gDebugger.DebuggerController.activeThread.resume(function() {
-            closeDebuggerAndFinish(gTab);
+            closeDebuggerAndFinish();
           });
         });
 

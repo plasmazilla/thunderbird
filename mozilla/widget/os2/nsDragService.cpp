@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * IBM Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Rich Walsh <dragtext@e-vertise.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #define INCL_DOSMISC
 #define INCL_DOSERRORS
@@ -45,7 +12,7 @@
 #include "nsXPIDLString.h"
 #include "nsReadableUtils.h"
 #include "nsIWebBrowserPersist.h"
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 #include "nsIURI.h"
 #include "nsIURL.h"
 #include "nsNetUtil.h"
@@ -96,7 +63,7 @@ nsresult GetAtom( ATOM aAtom, char** outText);
 nsresult GetFileName(PDRAGITEM pditem, char** outText);
 nsresult GetFileContents(PCSZ pszPath, char** outText);
 nsresult GetTempFileName(char** outText);
-void     SaveTypeAndSource(nsILocalFile *file, nsIDOMDocument *domDoc,
+void     SaveTypeAndSource(nsIFile *file, nsIDOMDocument *domDoc,
                            PCSZ pszType);
 int      UnicodeToCodepage( const nsAString& inString, char **outText);
 int      CodepageToUnicode( const nsACString& inString, PRUnichar **outText);
@@ -527,7 +494,7 @@ nsresult nsDragService::SaveAsContents(PCSZ pszDest, nsIURL* aURL)
   if (!webPersist)
     return NS_ERROR_FAILURE;
 
-  nsCOMPtr<nsILocalFile> file;
+  nsCOMPtr<nsIFile> file;
   NS_NewNativeLocalFile(nsDependentCString(pszDest), true,
                         getter_AddRefs(file));
   if (!file)
@@ -556,7 +523,7 @@ nsresult nsDragService::SaveAsURL(PCSZ pszDest, nsIURI* aURI)
   if (strUri.IsEmpty())
     return NS_ERROR_FAILURE;
 
-  nsCOMPtr<nsILocalFile> file;
+  nsCOMPtr<nsIFile> file;
   NS_NewNativeLocalFile(nsDependentCString(pszDest), true,
                         getter_AddRefs(file));
   if (!file)
@@ -588,7 +555,7 @@ nsresult nsDragService::SaveAsText(PCSZ pszDest, nsISupportsString* aString)
   if (strData.IsEmpty())
     return NS_ERROR_FAILURE;
 
-  nsCOMPtr<nsILocalFile> file;
+  nsCOMPtr<nsIFile> file;
   NS_NewNativeLocalFile(nsDependentCString(pszDest), true,
                         getter_AddRefs(file));
   if (!file)
@@ -877,6 +844,7 @@ NS_IMETHODIMP nsDragService::NativeDragEnter(PDRAGINFO pdinfo)
     nsCOMPtr<nsITransferable> trans(
             do_CreateInstance("@mozilla.org/widget/transferable;1", &rv));
     if (trans) {
+      trans->Init(nsnull);
 
       bool isUrl = DrgVerifyType(pditem, "UniformResourceLocator");
       bool isAlt = (WinGetKeyState(HWND_DESKTOP, VK_ALT) & 0x8000);
@@ -909,7 +877,7 @@ NS_IMETHODIMP nsDragService::NativeDragEnter(PDRAGINFO pdinfo)
         else
         if (isFQFile && !isAlt &&
             NS_SUCCEEDED(GetFileName(pditem, getter_Copies(someText)))) {
-          nsCOMPtr<nsILocalFile> file;
+          nsCOMPtr<nsIFile> file;
           if (NS_SUCCEEDED(NS_NewNativeLocalFile(someText, true,
                                                  getter_AddRefs(file)))) {
             nsCAutoString textStr;
@@ -1170,7 +1138,7 @@ NS_IMETHODIMP nsDragService::NativeDrop(PDRAGINFO pdinfo, HWND hwnd,
           rv = GetFileContents(fileName.get(), getter_Copies(dropText));
         else {
           isUrl = true;
-          nsCOMPtr<nsILocalFile> file;
+          nsCOMPtr<nsIFile> file;
           if (NS_SUCCEEDED(NS_NewNativeLocalFile(fileName,
                                          true, getter_AddRefs(file)))) {
             nsCAutoString textStr;
@@ -1472,7 +1440,7 @@ nsresult RenderToOS2FileComplete(PDRAGTRANSFER pdxfer, USHORT usResult,
       if (content)
         rv = GetFileContents(gTempFile, outText);
       else {
-        nsCOMPtr<nsILocalFile> file;
+        nsCOMPtr<nsIFile> file;
         if (NS_SUCCEEDED(NS_NewNativeLocalFile(nsDependentCString(gTempFile),
                                          true, getter_AddRefs(file)))) {
           nsCAutoString textStr;
@@ -1709,7 +1677,7 @@ nsresult GetTempFileName(char** outText)
 // set the file's .TYPE and .SUBJECT EAs;  since this is non-critical
 // (though highly desirable), errors aren't reported
 
-void SaveTypeAndSource(nsILocalFile *file, nsIDOMDocument *domDoc,
+void SaveTypeAndSource(nsIFile *file, nsIDOMDocument *domDoc,
                        PCSZ pszType)
 {
   if (!file)

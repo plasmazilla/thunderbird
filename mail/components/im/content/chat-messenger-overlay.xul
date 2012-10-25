@@ -1,39 +1,7 @@
 <?xml version="1.0"?>
-<!-- ***** BEGIN LICENSE BLOCK *****
-   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
-   -
-   - The contents of this file are subject to the Mozilla Public License Version
-   - 1.1 (the "License"); you may not use this file except in compliance with
-   - the License. You may obtain a copy of the License at
-   - http://www.mozilla.org/MPL/
-   -
-   - Software distributed under the License is distributed on an "AS IS" basis,
-   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-   - for the specific language governing rights and limitations under the
-   - License.
-   -
-   - The Original Code is Mozilla Thunderbird.
-   -
-   - The Initial Developer of the Original Code is
-   - Florian QUEZE <florian@queze.net>.
-   - Portions created by the Initial Developer are Copyright (C) 2011
-   - the Initial Developer. All Rights Reserved.
-   -
-   - Contributor(s):
-   -
-   - Alternatively, the contents of this file may be used under the terms of
-   - either the GNU General Public License Version 2 or later (the "GPL"), or
-   - the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-   - in which case the provisions of the GPL or the LGPL are applicable instead
-   - of those above. If you wish to allow use of your version of this file only
-   - under the terms of either the GPL or the LGPL, and not to allow others to
-   - use your version of this file under the terms of the MPL, indicate your
-   - decision by deleting the provisions above and replace them with the notice
-   - and other provisions required by the GPL or the LGPL. If you do not delete
-   - the provisions above, a recipient may use your version of this file under
-   - the terms of any one of the MPL, the GPL or the LGPL.
-   -
-   - ***** END LICENSE BLOCK ***** -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
 <?xml-stylesheet href="chrome://messenger/content/chat/chat.css" type="text/css"?>
@@ -52,7 +20,8 @@
 
 <overlay id="chat-messenger-overlay"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-
+  <script type="application/javascript"
+          src="chrome://messenger/content/jsTreeView.js"/>
   <script type="application/javascript"
           src="chrome://messenger/content/chat/chat-messenger-overlay.js"/>
   <script type="application/javascript"
@@ -128,12 +97,11 @@
   <tabpanels id="tabpanelcontainer">
     <vbox>
       <toolbox id="chat-view-toolbox" class="mail-toolbox"
+               mode="full" defaultmode="full"
                labelalign="end" defaultlabelalign="end">
         <toolbar class="inline-toolbar chromeclass-toolbar"
                  id="chat-toobar"
                  fullscreentoolbar="true"
-                 mode="full"
-                 defaultmode="full"
                  customizable="true"
                  context="chat-toolbar-context-menu"
 #ifdef XP_MACOSX
@@ -152,9 +120,11 @@
                          oncommand="chatHandler.joinChat()"/>
           <toolbaritem id="chat-status-selector"
                        orient="horizontal"
-                       class="toolbarbutton-1"
                        align="center" flex="1">
-            <button type="menu" id="statusTypeIcon" status="available">
+            <toolbarbutton type="menu"
+                           id="statusTypeIcon"
+                           class="toolbarbutton-1"
+                           status="available">
               <menupopup id="setStatusTypeMenupopup"
                          oncommand="statusSelector.editStatus(event);">
                 <menuitem id="statusTypeAvailable" label="&status.available;"
@@ -165,8 +135,9 @@
                 <menuitem id="statusTypeOffline" label="&status.offline;"
                           status="offline" class="menuitem-iconic"/>
               </menupopup>
-            </button>
+            </toolbarbutton>
             <label id="statusMessage" crop="end" flex="1" value=""
+                   class="statusMessageToolbarItem"
                    onclick="statusSelector.statusMessageClick();"/>
           </toolbaritem>
           <toolbarbutton id="button-chat-accounts"
@@ -183,11 +154,14 @@
                      flex="1"
                      type="glodacomplete"
                      searchbutton="true"
+                     autocompletesearch="gloda"
+                     autocompletepopup="PopupGlodaAutocomplete"
+                     autocompletesearchparam="global"
                      enablehistory="false"
                      timeout="200"
                      maxlength="192"
                      placeholder=""
-                     emptytextbase="&searchAllChatMessages.label.base;"
+                     emptytextbase="&search.label.base;"
                      keyLabelNonMac="&search.keyLabel.nonmac;"
                      keyLabelMac="&search.keyLabel.mac;"
                      >
@@ -259,7 +233,8 @@
                   </hbox>
                 </vbox>
                 <vbox flex="1" id="logDisplayBrowserBox">
-                  <browser id="conv-log-browser" type="content-conversation" contextmenu="chatConversationContextMenu" flex="1"/>
+                  <browser id="conv-log-browser" type="content-conversation" contextmenu="chatConversationContextMenu" flex="1"
+                           tooltip="aHTMLTooltip"/>
                   <progressmeter id="log-browserProgress" hidden="true"/>
                   <findbar id="log-findbar" browserid="conv-log-browser"/>
                 </vbox>
@@ -271,25 +246,34 @@
           <splitter id="contextSplitter" hidden="true" collapse="after"/>
           <vbox id="contextPane" hidden="true" width="250" persist="width">
             <toolbar class="conv-top-info" id="conv-top-info"/>
-            <vbox flex="1" class="conv-chat" width="150">
-              <hbox align="baseline" class="conv-nicklist-header">
-                <label class="conv-nicklist-header-label"
-                       id="participantLabel" control="participantCount"
-                       value="&chat.participants;"/>
-                <textbox flex="1" readonly="true" class="plain" id="participantCount"/>
-              </hbox>
-              <listbox id="nicklist" class="conv-nicklist"
-                       flex="1" seltype="multiple"
-                       tooltip="buddyTooltip"
-                       onclick="chatHandler.onNickClick(event);"
-                       onkeypress="chatHandler.onNicklistKeyPress(event);"/>
-            </vbox>
-            <splitter id="logsSplitter" class="conv-chat"/>
-            <vbox flex="1" id="previousConversations">
-              <label class="conv-logs-header-label"
-                     id="participantLabel"
-                     value="&chat.previousConversations;"/>
-              <listbox flex="1" id="logList" onselect="chatHandler.onLogSelect();"/>
+            <vbox id="contextPaneFlexibleBox" flex="1">
+              <vbox flex="1" class="conv-chat" width="150">
+                <hbox align="baseline" class="conv-nicklist-header">
+                  <label class="conv-nicklist-header-label"
+                         id="participantLabel" control="participantCount"
+                         value="&chat.participants;"/>
+                  <textbox flex="1" readonly="true" class="plain" id="participantCount"/>
+                </hbox>
+                <listbox id="nicklist" class="conv-nicklist"
+                         flex="1" seltype="multiple"
+                         tooltip="buddyTooltip"
+                         onclick="chatHandler.onNickClick(event);"
+                         onkeypress="chatHandler.onNicklistKeyPress(event);"/>
+              </vbox>
+              <splitter id="logsSplitter" class="conv-chat" collapse="after"/>
+              <vbox flex="1" id="previousConversations">
+                <label class="conv-logs-header-label"
+                       id="participantLabel"
+                       value="&chat.previousConversations;"/>
+                <tree id="logTree" flex="1" hidecolumnpicker="true" seltype="single"
+                      context="logTreeContext" onselect="chatHandler.onLogSelect();">
+                  <treecols>
+                    <treecol id="logCol" flex="1" primary="true" hideheader="true"
+                             crop="center" ignorecolumnpicker="true"/>
+                  </treecols>
+                  <treechildren/>
+                </tree>
+              </vbox>
             </vbox>
           </vbox>
         </hbox>

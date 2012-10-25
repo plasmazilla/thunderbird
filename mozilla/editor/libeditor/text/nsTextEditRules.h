@@ -1,50 +1,29 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsTextEditRules_h__
 #define nsTextEditRules_h__
 
 #include "nsCOMPtr.h"
-
-#include "nsPlaintextEditor.h"
-#include "nsIDOMNode.h"
-
+#include "nsCycleCollectionParticipant.h"
 #include "nsEditRules.h"
+#include "nsEditor.h"
+#include "nsIEditor.h"
+#include "nsISupportsImpl.h"
 #include "nsITimer.h"
+#include "nsPlaintextEditor.h"
+#include "nsString.h"
+#include "nscore.h"
+#include "prtypes.h"
+
+class nsIDOMElement;
+class nsIDOMNode;
+class nsISelection;
+namespace mozilla {
+class Selection;
+}  // namespace mozilla
 
 /** Object that encapsulates HTML text-specific editing rules.
   *  
@@ -70,47 +49,18 @@ public:
   // nsIEditRules methods
   NS_IMETHOD Init(nsPlaintextEditor *aEditor);
   NS_IMETHOD DetachEditor();
-  NS_IMETHOD BeforeEdit(PRInt32 action, nsIEditor::EDirection aDirection);
-  NS_IMETHOD AfterEdit(PRInt32 action, nsIEditor::EDirection aDirection);
-  NS_IMETHOD WillDoAction(nsISelection *aSelection, nsRulesInfo *aInfo, bool *aCancel, bool *aHandled);
+  NS_IMETHOD BeforeEdit(nsEditor::OperationID action,
+                        nsIEditor::EDirection aDirection);
+  NS_IMETHOD AfterEdit(nsEditor::OperationID action,
+                       nsIEditor::EDirection aDirection);
+  NS_IMETHOD WillDoAction(mozilla::Selection* aSelection, nsRulesInfo* aInfo,
+                          bool* aCancel, bool* aHandled);
   NS_IMETHOD DidDoAction(nsISelection *aSelection, nsRulesInfo *aInfo, nsresult aResult);
   NS_IMETHOD DocumentIsEmpty(bool *aDocumentIsEmpty);
   NS_IMETHOD DocumentModified();
 
-  // nsTextEditRules action id's
-  enum 
-  {
-    kDefault             = 0,
-    // any editor that has a txn mgr
-    kUndo                = 1000,
-    kRedo                = 1001,
-    // text actions
-    kInsertText          = 2000,
-    kInsertTextIME       = 2001,
-    kDeleteSelection     = 2002,
-    kSetTextProperty     = 2003,
-    kRemoveTextProperty  = 2004,
-    kOutputText          = 2005,
-    // html only action
-    kInsertBreak         = 3000,
-    kMakeList            = 3001,
-    kIndent              = 3002,
-    kOutdent             = 3003,
-    kAlign               = 3004,
-    kMakeBasicBlock      = 3005,
-    kRemoveList          = 3006,
-    kMakeDefListItem     = 3007,
-    kInsertElement       = 3008,
-    kLoadHTML            = 3013,
-    kSetAbsolutePosition = 3015,
-    kRemoveAbsolutePosition = 3016,
-    kDecreaseZIndex      = 3017,
-    kIncreaseZIndex      = 3018
-
-  };
-  
 public:
-  nsresult ResetIMETextPWBuf();
+  void ResetIMETextPWBuf();
 
   /**
    * Handles the newline characters either according to aNewLineHandling
@@ -146,13 +96,13 @@ public:
    * @param aLength the number of password characters that aOutString should
    *        contain.
    */
-  static nsresult FillBufWithPWChars(nsAString *aOutString, PRInt32 aLength);
+  static void FillBufWithPWChars(nsAString *aOutString, PRInt32 aLength);
 
 protected:
 
   // nsTextEditRules implementation methods
-  nsresult WillInsertText(  PRInt32          aAction,
-                            nsISelection *aSelection, 
+  nsresult WillInsertText(  nsEditor::OperationID aAction,
+                            mozilla::Selection* aSelection,
                             bool            *aCancel,
                             bool            *aHandled,
                             const nsAString *inString,
@@ -161,14 +111,14 @@ protected:
   nsresult DidInsertText(nsISelection *aSelection, nsresult aResult);
   nsresult GetTopEnclosingPre(nsIDOMNode *aNode, nsIDOMNode** aOutPreNode);
 
-  nsresult WillInsertBreak(nsISelection *aSelection, bool *aCancel,
+  nsresult WillInsertBreak(mozilla::Selection* aSelection, bool* aCancel,
                            bool *aHandled, PRInt32 aMaxLength);
   nsresult DidInsertBreak(nsISelection *aSelection, nsresult aResult);
 
   nsresult WillInsert(nsISelection *aSelection, bool *aCancel);
   nsresult DidInsert(nsISelection *aSelection, nsresult aResult);
 
-  nsresult WillDeleteSelection(nsISelection *aSelection, 
+  nsresult WillDeleteSelection(mozilla::Selection* aSelection,
                                nsIEditor::EDirection aCollapsedAction, 
                                bool *aCancel,
                                bool *aHandled);
@@ -217,16 +167,17 @@ protected:
 
   /** returns a truncated insertion string if insertion would place us
       over aMaxLength */
-  nsresult TruncateInsertionIfNeeded(nsISelection             *aSelection, 
+  nsresult TruncateInsertionIfNeeded(mozilla::Selection*       aSelection,
                                      const nsAString          *aInString,
                                      nsAString                *aOutString,
                                      PRInt32                   aMaxLength,
                                      bool                     *aTruncated);
 
   /** Remove IME composition text from password buffer */
-  nsresult RemoveIMETextFromPWBuf(PRUint32 &aStart, nsAString *aIMEString);
+  void RemoveIMETextFromPWBuf(PRInt32 &aStart, nsAString *aIMEString);
 
-  nsresult CreateMozBR(nsIDOMNode *inParent, PRInt32 inOffset, nsCOMPtr<nsIDOMNode> *outBRNode);
+  nsresult CreateMozBR(nsIDOMNode* inParent, PRInt32 inOffset,
+                       nsIDOMNode** outBRNode = nsnull);
 
   nsresult CheckBidiLevelForDeletion(nsISelection         *aSelection,
                                      nsIDOMNode           *aSelNode, 
@@ -282,7 +233,7 @@ protected:
                                                // characters not visually 
                                                // adjacent to the caret without
                                                // moving the caret first.
-  PRInt32              mTheAction;     // the top level editor action
+  nsEditor::OperationID mTheAction;     // the top level editor action
   nsCOMPtr<nsITimer>   mTimer;
   PRUint32             mLastStart, mLastLength;
 
@@ -297,13 +248,14 @@ class nsTextRulesInfo : public nsRulesInfo
 {
  public:
  
-  nsTextRulesInfo(int aAction) : 
+  nsTextRulesInfo(nsEditor::OperationID aAction) :
     nsRulesInfo(aAction),
     inString(0),
     outString(0),
     outputFormat(0),
     maxLength(-1),
     collapsedAction(nsIEditor::eNext),
+    stripWrappers(nsIEditor::eStrip),
     bOrdered(false),
     entireList(false),
     bulletType(0),
@@ -322,6 +274,7 @@ class nsTextRulesInfo : public nsRulesInfo
   
   // kDeleteSelection
   nsIEditor::EDirection collapsedAction;
+  nsIEditor::EStripWrappers stripWrappers;
   
   // kMakeList
   bool bOrdered;

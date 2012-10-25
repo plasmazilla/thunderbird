@@ -1,51 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Robert O'Callahan <robert@ocallahan.org>
- *   Roger B. Sidje <rbs@maths.uq.edu.au>
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Prabhat Hegde <prabhat.hegde@sun.com>
- *   Tomi Leppikangas <tomi.leppikangas@oulu.fi>
- *   Roland Mainz <roland.mainz@informatik.med.uni-giessen.de>
- *   Daniel Glazman <glazman@netscape.com>
- *   Neil Deakin <neil@mozdevgroup.com>
- *   Masayuki Nakano <masayuki@d-toybox.com>
- *   Mats Palmgren <matspal@gmail.com>
- *   Uri Bernstein <uriber@gmail.com>
- *   Stephen Blackheath <entangled.mooched.stephen@blacksapphire.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsTextFrame_h__
 #define nsTextFrame_h__
@@ -64,6 +20,10 @@ class PropertyProvider;
 // This state bit is set on frames that have some non-collapsed characters after
 // reflow
 #define TEXT_HAS_NONCOLLAPSED_CHARACTERS NS_FRAME_STATE_BIT(31)
+
+// This state bit is set on frames which are forced to trim their leading and
+// trailing whitespaces
+#define TEXT_FORCE_TRIM_WHITESPACE       NS_FRAME_STATE_BIT(32)
 
 #define TEXT_HAS_FONT_INFLATION          NS_FRAME_STATE_BIT(61)
 
@@ -160,7 +120,7 @@ public:
    * This is called only on the primary text frame. It indicates that
    * the selection state of the given character range has changed.
    * Text in the range is unconditionally invalidated
-   * (nsTypedSelection::Repaint depends on this).
+   * (Selection::Repaint depends on this).
    * @param aSelected true if the selection has been added to the range,
    * false otherwise
    * @param aType the type of selection added or removed
@@ -222,7 +182,7 @@ public:
   }
   
 #ifdef ACCESSIBILITY
-  virtual already_AddRefed<nsAccessible> CreateAccessible();
+  virtual already_AddRefed<Accessible> CreateAccessible();
 #endif
 
   float GetFontSizeInflation() const;
@@ -429,7 +389,9 @@ public:
 
   void ClearTextRuns() {
     ClearTextRun(nsnull, nsTextFrame::eInflated);
-    ClearTextRun(nsnull, nsTextFrame::eNotInflated);
+    if (HasFontSizeInflation()) {
+      ClearTextRun(nsnull, nsTextFrame::eNotInflated);
+    }
   }
 
   // Get the DOM content range mapped by this frame after excluding
@@ -438,7 +400,7 @@ public:
   struct TrimmedOffsets {
     PRInt32 mStart;
     PRInt32 mLength;
-    PRInt32 GetEnd() { return mStart + mLength; }
+    PRInt32 GetEnd() const { return mStart + mLength; }
   };
   TrimmedOffsets GetTrimmedOffsets(const nsTextFragment* aFrag,
                                    bool aTrimAfter);
@@ -498,7 +460,8 @@ protected:
                       gfxContext* aCtx,
                       const nscolor& aForegroundColor,
                       const nsCharClipDisplayItem::ClipEdges& aClipEdges,
-                      nscoord aLeftSideOffset);
+                      nscoord aLeftSideOffset,
+                      gfxRect& aBoundingBox);
 
   struct LineDecoration {
     nsIFrame* mFrame;

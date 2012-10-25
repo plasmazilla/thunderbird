@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  * vim: sw=4 ts=4 et :
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Plugin App.
- *
- * The Initial Developer of the Original Code is
- *   Chris Jones <jones.chris.g@gmail.com>
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Jim Mathies <jmathies@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "PluginInstanceParent.h"
 #include "BrowserStreamParent.h"
@@ -61,6 +28,7 @@
 
 #if defined(OS_WIN)
 #include <windowsx.h>
+#include "gfxWindowsPlatform.h"
 #include "mozilla/plugins/PluginSurfaceParent.h"
 
 // Plugin focus event for widget.
@@ -68,7 +36,7 @@ extern const PRUnichar* kOOPPPluginFocusEventId;
 UINT gOOPPPluginFocusEvent =
     RegisterWindowMessage(kOOPPPluginFocusEventId);
 extern const PRUnichar* kFlashFullscreenClass;
-#elif defined(MOZ_WIDGET_GTK2)
+#elif defined(MOZ_WIDGET_GTK)
 #include <gdk/gdk.h>
 #elif defined(XP_MACOSX)
 #include <ApplicationServices/ApplicationServices.h>
@@ -104,6 +72,9 @@ PluginInstanceParent::PluginInstanceParent(PluginModuleParent* parent,
     , mShColorSpace(nsnull)
 #endif
 {
+#ifdef OS_WIN
+    mTextureMap.Init();
+#endif
 }
 
 PluginInstanceParent::~PluginInstanceParent()
@@ -137,7 +108,8 @@ PluginInstanceParent::~PluginInstanceParent()
 bool
 PluginInstanceParent::Init()
 {
-    return !!mScriptableObjects.Init();
+    mScriptableObjects.Init();
+    return true;
 }
 
 void
@@ -326,6 +298,24 @@ PluginInstanceParent::AnswerNPN_GetValue_NPNVprivateModeBool(bool* value,
 }
 
 bool
+PluginInstanceParent::AnswerNPN_GetValue_DrawingModelSupport(const NPNVariable& model, bool* value)
+{
+    *value = false;
+
+#ifdef XP_WIN
+    switch (model) {
+        case NPNVsupportsAsyncWindowsDXGISurfaceBool: {
+            if (gfxWindowsPlatform::GetPlatform()->GetRenderMode() == gfxWindowsPlatform::RENDER_DIRECT2D) {
+                *value = true;
+            }
+        }
+    }
+#endif
+
+    return true;
+}
+
+bool
 PluginInstanceParent::AnswerNPN_GetValue_NPNVdocumentOrigin(nsCString* value,
                                                             NPError* result)
 {
@@ -381,6 +371,8 @@ bool
 PluginInstanceParent::AnswerNPN_SetValue_NPPVpluginDrawingModel(
     const int& drawingModel, OptionalShmem *shmem, CrossProcessMutexHandle *mutex, NPError* result)
 {
+    *shmem = null_t();
+
 #ifdef XP_MACOSX
     if (drawingModel == NPDrawingModelCoreAnimation ||
         drawingModel == NPDrawingModelInvalidatingCoreAnimation) {
@@ -390,15 +382,26 @@ PluginInstanceParent::AnswerNPN_SetValue_NPPVpluginDrawingModel(
         mDrawingModel = drawingModel;
         *result = mNPNIface->setvalue(mNPP, NPPVpluginDrawingModel,
                                   (void*)NPDrawingModelCoreGraphics);
-        *shmem = null_t();
     } else
 #endif
-    if (drawingModel == NPDrawingModelAsyncBitmapSurface) {
+    if (drawingModel == NPDrawingModelAsyncBitmapSurface
+#ifdef XP_WIN
+        || drawingModel == NPDrawingModelAsyncWindowsDXGISurface
+#endif
+        ) {
         ImageContainer *container = GetImageContainer();
         if (!container) {
             *result = NPERR_GENERIC_ERROR;
             return true;
         }
+
+#ifdef XP_WIN
+        if (drawingModel == NPDrawingModelAsyncWindowsDXGISurface &&
+            gfxWindowsPlatform::GetPlatform()->GetRenderMode() != gfxWindowsPlatform::RENDER_DIRECT2D) {
+            *result = NPERR_GENERIC_ERROR;
+            return true;
+        }
+#endif
 
         mDrawingModel = drawingModel;
         *result = mNPNIface->setvalue(mNPP, NPPVpluginDrawingModel,
@@ -1200,8 +1203,7 @@ PluginInstanceParent::NPP_HandleEvent(void* event)
             }
         }
         if (DoublePassRenderingEvent() == npevent->event) {
-            CallPaint(npremoteevent, &handled);
-            return handled;
+            return CallPaint(npremoteevent, &handled) && handled;
         }
 
         switch (npevent->event) {
@@ -1209,7 +1211,9 @@ PluginInstanceParent::NPP_HandleEvent(void* event)
             {
                 RECT rect;
                 SharedSurfaceBeforePaint(rect, npremoteevent);
-                CallPaint(npremoteevent, &handled);
+                if (!CallPaint(npremoteevent, &handled)) {
+                    handled = false;
+                }
                 SharedSurfaceAfterPaint(npevent);
                 return handled;
             }
@@ -1237,10 +1241,7 @@ PluginInstanceParent::NPP_HandleEvent(void* event)
             case WM_WINDOWPOSCHANGED:
             {
                 // We send this in nsObjectFrame just before painting
-                SendWindowPosChanged(npremoteevent);
-                // nsObjectFrame doesn't care whether we handle this
-                // or not, just returning 1 for good hygiene
-                return 1;
+                return SendWindowPosChanged(npremoteevent);
             }
             break;
         }
@@ -1267,7 +1268,7 @@ PluginInstanceParent::NPP_HandleEvent(void* event)
         // Release any active pointer grab so that the plugin X client can
         // grab the pointer if it wishes.
         Display *dpy = DefaultXDisplay();
-#  ifdef MOZ_WIDGET_GTK2
+#  ifdef MOZ_WIDGET_GTK
         // GDK attempts to (asynchronously) track whether there is an active
         // grab so ungrab through GDK.
         gdk_pointer_ungrab(npevent->xbutton.time);
@@ -1544,7 +1545,8 @@ PluginInstanceParent::RegisterNPObjectForActor(
     NS_ASSERTION(aObject && aActor, "Null pointers!");
     NS_ASSERTION(mScriptableObjects.IsInitialized(), "Hash not initialized!");
     NS_ASSERTION(!mScriptableObjects.Get(aObject, nsnull), "Duplicate entry!");
-    return !!mScriptableObjects.Put(aObject, aActor);
+    mScriptableObjects.Put(aObject, aActor);
+    return true;
 }
 
 void
@@ -1725,7 +1727,43 @@ PluginInstanceParent::AnswerNPN_InitAsyncSurface(const gfxIntSize& size,
             surfData->format() = format;
             surfData->data() = sharedMem;
             *result = true;
+            return true;
         }
+#ifdef XP_WIN
+    case NPDrawingModelAsyncWindowsDXGISurface: {
+            ID3D10Device1 *device = gfxWindowsPlatform::GetPlatform()->GetD3D10Device();
+
+            nsRefPtr<ID3D10Texture2D> texture;
+            
+            CD3D10_TEXTURE2D_DESC desc(DXGI_FORMAT_B8G8R8A8_UNORM, size.width, size.height, 1, 1);
+            desc.MiscFlags = D3D10_RESOURCE_MISC_SHARED_KEYEDMUTEX;
+            desc.BindFlags = D3D10_BIND_RENDER_TARGET | D3D10_BIND_SHADER_RESOURCE;
+            if (FAILED(device->CreateTexture2D(&desc, NULL, getter_AddRefs(texture)))) {
+                *result = false;
+                return true;
+            }
+
+            nsRefPtr<IDXGIResource> resource;
+            if (FAILED(texture->QueryInterface(IID_IDXGIResource, getter_AddRefs(resource)))) {
+                *result = false;
+                return true;
+            }
+
+            HANDLE sharedHandle;
+
+            if (FAILED(resource->GetSharedHandle(&sharedHandle))) {
+                *result = false;
+                return true;
+            }
+            
+            surfData->size() = size;
+            surfData->data() = sharedHandle;
+            surfData->format() = format;
+
+            mTextureMap.Put(sharedHandle, texture);
+            *result = true;
+        }
+#endif
     }
 
     return true;
@@ -1751,6 +1789,15 @@ PluginInstanceParent::RecvNegotiatedCarbon()
         return false;
     }
     inst->CarbonNPAPIFailure();
+    return true;
+}
+
+bool
+PluginInstanceParent::RecvReleaseDXGISharedSurface(const DXGISharedSurfaceHandle &aHandle)
+{
+#ifdef XP_WIN
+    mTextureMap.Remove(aHandle);
+#endif
     return true;
 }
 
@@ -1792,7 +1839,7 @@ PluginInstanceParent::PluginWindowHookProc(HWND hWnd,
     switch (message) {
         case WM_SETFOCUS:
         // Let the child plugin window know it should take focus.
-        self->CallSetPluginFocus();
+        unused << self->CallSetPluginFocus();
         break;
 
         case WM_CLOSE:
@@ -1821,7 +1868,7 @@ PluginInstanceParent::SubclassPluginWindow(HWND aWnd)
         mPluginWndProc = 
             (WNDPROC)::SetWindowLongPtrA(mPluginHWND, GWLP_WNDPROC,
                          reinterpret_cast<LONG_PTR>(PluginWindowHookProc));
-        bool bRes = ::SetPropW(mPluginHWND, kPluginInstanceParentProperty, this);
+        DebugOnly<bool> bRes = ::SetPropW(mPluginHWND, kPluginInstanceParentProperty, this);
         NS_ASSERTION(mPluginWndProc,
           "PluginInstanceParent::SubclassPluginWindow failed to set subclass!");
         NS_ASSERTION(bRes,

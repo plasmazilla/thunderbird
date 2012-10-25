@@ -2,7 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Cu.import("resource://testing-common/httpd.js");
 Cu.import("resource://services-common/log4moz.js");
+Cu.import("resource://services-common/utils.js");
+
+let btoa = Cu.import("resource://services-common/log4moz.js").btoa;
+let atob = Cu.import("resource://services-common/log4moz.js").atob;
 
 function do_check_empty(obj) {
   do_check_attribute_count(obj, 0);
@@ -54,13 +59,15 @@ function initTestLogging(level) {
   };
   LogStats.prototype.__proto__ = new Log4Moz.Formatter();
 
-  var log = Log4Moz.repository.rootLogger;
-  var logStats = new LogStats();
-  var appender = new Log4Moz.DumpAppender(logStats);
+  let log = Log4Moz.repository.rootLogger;
+  let logStats = new LogStats();
+  let appender = new Log4Moz.DumpAppender(logStats);
 
-  if (typeof(level) == "undefined")
+  if (typeof(level) == "undefined") {
     level = "Debug";
+  }
   getTestLogger().level = Log4Moz.Level[level];
+  Log4Moz.repository.getLogger("Services").level = Log4Moz.Level[level];
 
   log.level = Log4Moz.Level.Trace;
   appender.level = Log4Moz.Level.Trace;
@@ -75,9 +82,19 @@ function getTestLogger(component) {
   return Log4Moz.repository.getLogger("Testing");
 }
 
+/**
+ * Obtain a port number to run a server on.
+ *
+ * In the ideal world, this would be dynamic so multiple servers could be run
+ * in parallel.
+ */
+function get_server_port() {
+  return 8080;
+}
+
 function httpd_setup (handlers, port) {
   let port   = port || 8080;
-  let server = new nsHttpServer();
+  let server = new HttpServer();
   for (let path in handlers) {
     server.registerPathHandler(path, handlers[path]);
   }
@@ -86,7 +103,7 @@ function httpd_setup (handlers, port) {
   } catch (ex) {
     _("==========================================");
     _("Got exception starting HTTP server on port " + port);
-    _("Error: " + Utils.exceptionStr(ex));
+    _("Error: " + CommonUtils.exceptionStr(ex));
     _("Is there a process already listening on port " + port + "?");
     _("==========================================");
     do_throw(ex);
@@ -114,14 +131,20 @@ function httpd_handler(statusCode, status, body) {
  * all available input is read.
  */
 function readBytesFromInputStream(inputStream, count) {
-  var BinaryInputStream = Components.Constructor(
-      "@mozilla.org/binaryinputstream;1",
-      "nsIBinaryInputStream",
-      "setInputStream");
-  if (!count) {
-    count = inputStream.available();
-  }
-  return new BinaryInputStream(inputStream).readBytes(count);
+  return CommonUtils.readBytesFromInputStream(inputStream, count);
+}
+
+/*
+ * Ensure exceptions from inside callbacks leads to test failures.
+ */
+function ensureThrows(func) {
+  return function() {
+    try {
+      func.apply(this, arguments);
+    } catch (ex) {
+      do_throw(ex);
+    }
+  };
 }
 
 /**

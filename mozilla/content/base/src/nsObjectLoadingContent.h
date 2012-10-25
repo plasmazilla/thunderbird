@@ -1,40 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 // vim:set et cin sw=2 sts=2:
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla <object> loading code.
- *
- * The Initial Developer of the Original Code is
- * Christian Biesinger <cbiesinger@web.de>.
- * Portions created by the Initial Developer are Copyright (C) 2005
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * A base class implementing nsIObjectLoadingContent for use by
@@ -70,7 +38,9 @@ enum PluginSupportState {
   ePluginOutdated,     // The plugin is considered outdated, but not disabled
   ePluginOtherState,   // Something else (e.g. uninitialized or not a plugin)
   ePluginCrashed,
-  ePluginClickToPlay   // The plugin is disabled until the user clicks on it
+  ePluginClickToPlay,  // The plugin is disabled until the user clicks on it
+  ePluginVulnerableUpdatable, // The plugin is vulnerable (update available)
+  ePluginVulnerableNoUpdate   // The plugin is vulnerable (no update available)
 };
 
 /**
@@ -377,10 +347,10 @@ class nsObjectLoadingContent : public nsImageLoadingContent
     nsCString                   mContentType;
 
     /**
-     * The channel that's currently being loaded. This is a weak reference.
+     * The channel that's currently being loaded.
      * Non-null between asyncOpen and onStopRequest.
      */
-    nsIChannel*                 mChannel;
+    nsCOMPtr<nsIChannel>        mChannel;
 
     // The data we were last asked to load
     nsCOMPtr<nsIURI>            mURI;
@@ -404,9 +374,11 @@ class nsObjectLoadingContent : public nsImageLoadingContent
     // it may lose the flag.
     bool                        mNetworkCreated : 1;
 
-    // Used to keep track of whether or not a plugin should be played.
-    // This is used for click-to-play plugins.
-    bool                        mShouldPlay : 1;
+    // Used to keep track of if a plugin is blocked by click-to-play.
+    // True indicates the plugin is not click-to-play or it has been clicked by
+    // the user.
+    // False indicates the plugin is click-to-play and has not yet been clicked.
+    bool                        mCTPPlayable    : 1;
 
     // Used to keep track of whether or not a plugin has been played.
     // This is used for click-to-play plugins.

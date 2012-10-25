@@ -1,46 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
  * vim:expandtab:shiftwidth=2:tabstop=2:cin:
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla browser.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications, Inc.
- * Portions created by the Initial Developer are Copyright (C) 1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Scott MacGregor <mscott@netscape.com>
- *   Bill Law <law@netscape.com>
- *   Christian Biesinger <cbiesinger@web.de>
- *   Dan Mosedale <dmose@mozilla.org>
- *   Myk Melez <myk@mozilla.org>
- *   Ehsan Akhgari <ehsan.akhgari@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef MOZ_LOGGING
 #define FORCE_PR_LOG
@@ -80,6 +42,7 @@
 #include "nsThreadUtils.h"
 #include "nsAutoPtr.h"
 #include "nsIMutableArray.h"
+#include "nsILoadContext.h"
 
 // used to access our datastore of user-configured helper applications
 #include "nsIHandlerService.h"
@@ -137,8 +100,6 @@
 #include "nsIRandomGenerator.h"
 #include "plbase64.h"
 #include "prmem.h"
-
-#include "nsIPrivateBrowsingService.h"
 
 #include "ContentChild.h"
 #include "nsXULAppAPI.h"
@@ -337,7 +298,7 @@ static nsresult GetDownloadDirectory(nsIFile **_directory)
     case NS_FOLDER_VALUE_CUSTOM:
       {
         Preferences::GetComplex(NS_PREF_DOWNLOAD_DIR,
-                                NS_GET_IID(nsILocalFile),
+                                NS_GET_IID(nsIFile),
                                 getter_AddRefs(dir));
         if (!dir) break;
 
@@ -372,7 +333,7 @@ static nsresult GetDownloadDirectory(nsIFile **_directory)
   char* downloadDir = getenv("DOWNLOADS_DIRECTORY");
   nsresult rv;
   if (downloadDir) {
-    nsCOMPtr<nsILocalFile> ldir; 
+    nsCOMPtr<nsIFile> ldir; 
     rv = NS_NewNativeLocalFile(nsDependentCString(downloadDir),
                                true, getter_AddRefs(ldir));
     NS_ENSURE_SUCCESS(rv, rv);
@@ -432,10 +393,16 @@ static nsDefaultMimeTypeEntry defaultMimeEntries [] =
   { VIDEO_OGG, "ogg" },
   { APPLICATION_OGG, "ogg" },
   { AUDIO_OGG, "oga" },
+#ifdef MOZ_OPUS
+  { AUDIO_OGG, "opus" },
+#endif
 #endif
 #ifdef MOZ_WEBM
   { VIDEO_WEBM, "webm" },
   { AUDIO_WEBM, "webm" },
+#endif
+#ifdef MOZ_GSTREAMER
+  { VIDEO_MP4, "mp4" },
 #endif
 #ifdef MOZ_RAW
   { VIDEO_RAW, "yuv" }
@@ -505,8 +472,10 @@ static nsExtraMimeTypeEntry extraMimeEntries [] =
   { VIDEO_OGG, "ogg", "Ogg Video" },
   { APPLICATION_OGG, "ogg", "Ogg Video"},
   { AUDIO_OGG, "oga", "Ogg Audio" },
+  { AUDIO_OGG, "opus", "Opus Audio" },
   { VIDEO_WEBM, "webm", "Web Media Video" },
   { AUDIO_WEBM, "webm", "Web Media Audio" },
+  { VIDEO_MP4, "mp4", "MPEG-4 Video" },
   { VIDEO_RAW, "yuv", "Raw YUV Video" },
   { AUDIO_WAV, "wav", "Waveform Audio" }
 };
@@ -534,18 +503,11 @@ NS_IMPL_ISUPPORTS6(
   nsIObserver,
   nsISupportsWeakReference)
 
-nsExternalHelperAppService::nsExternalHelperAppService() :
-  mInPrivateBrowsing(false)
+nsExternalHelperAppService::nsExternalHelperAppService()
 {
 }
 nsresult nsExternalHelperAppService::Init()
 {
-  nsCOMPtr<nsIPrivateBrowsingService> pbs =
-    do_GetService(NS_PRIVATE_BROWSING_SERVICE_CONTRACTID);
-  if (pbs) {
-    pbs->GetPrivateBrowsingEnabled(&mInPrivateBrowsing);
-  }
-
   // Add an observer for profile change
   nsCOMPtr<nsIObserverService> obs = mozilla::services::GetObserverService();
   if (!obs)
@@ -561,7 +523,7 @@ nsresult nsExternalHelperAppService::Init()
 
   nsresult rv = obs->AddObserver(this, "profile-before-change", true);
   NS_ENSURE_SUCCESS(rv, rv);
-  return obs->AddObserver(this, NS_PRIVATE_BROWSING_SWITCH_TOPIC, true);
+  return obs->AddObserver(this, "last-pb-context-exited", true);
 }
 
 nsExternalHelperAppService::~nsExternalHelperAppService()
@@ -786,7 +748,7 @@ nsresult nsExternalHelperAppService::GetFileTokenForPath(const PRUnichar * aPlat
 {
   nsDependentString platformAppPath(aPlatformAppPath);
   // First, check if we have an absolute path
-  nsILocalFile* localFile = nsnull;
+  nsIFile* localFile = nsnull;
   nsresult rv = NS_NewLocalFile(platformAppPath, true, &localFile);
   if (NS_SUCCEEDED(rv)) {
     *aFile = localFile;
@@ -953,34 +915,43 @@ NS_IMETHODIMP nsExternalHelperAppService::GetApplicationDescription(const nsACSt
 // Methods related to deleting temporary files on exit
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-NS_IMETHODIMP nsExternalHelperAppService::DeleteTemporaryFileOnExit(nsIFile * aTemporaryFile)
+/* static */
+nsresult
+nsExternalHelperAppService::DeleteTemporaryFileHelper(nsIFile * aTemporaryFile,
+                                                      nsCOMArray<nsIFile> &aFileList)
 {
-  nsresult rv = NS_OK;
   bool isFile = false;
-  nsCOMPtr<nsILocalFile> localFile (do_QueryInterface(aTemporaryFile, &rv));
-  NS_ENSURE_SUCCESS(rv, rv);
 
   // as a safety measure, make sure the nsIFile is really a file and not a directory object.
-  localFile->IsFile(&isFile);
+  aTemporaryFile->IsFile(&isFile);
   if (!isFile) return NS_OK;
 
-  if (mInPrivateBrowsing)
-    mTemporaryPrivateFilesList.AppendObject(localFile);
-  else
-    mTemporaryFilesList.AppendObject(localFile);
+  aFileList.AppendObject(aTemporaryFile);
 
   return NS_OK;
 }
 
-void nsExternalHelperAppService::FixFilePermissions(nsILocalFile* aFile)
+NS_IMETHODIMP
+nsExternalHelperAppService::DeleteTemporaryFileOnExit(nsIFile* aTemporaryFile)
+{
+  return DeleteTemporaryFileHelper(aTemporaryFile, mTemporaryFilesList);
+}
+
+NS_IMETHODIMP
+nsExternalHelperAppService::DeleteTemporaryPrivateFileWhenPossible(nsIFile* aTemporaryFile)
+{
+  return DeleteTemporaryFileHelper(aTemporaryFile, mTemporaryPrivateFilesList);
+}
+
+void nsExternalHelperAppService::FixFilePermissions(nsIFile* aFile)
 {
   // This space intentionally left blank
 }
 
-void nsExternalHelperAppService::ExpungeTemporaryFilesHelper(nsCOMArray<nsILocalFile> &fileList)
+void nsExternalHelperAppService::ExpungeTemporaryFilesHelper(nsCOMArray<nsIFile> &fileList)
 {
   PRInt32 numEntries = fileList.Count();
-  nsILocalFile* localFile;
+  nsIFile* localFile;
   for (PRInt32 index = 0; index < numEntries; index++)
   {
     localFile = fileList[index];
@@ -1085,13 +1056,8 @@ nsExternalHelperAppService::Observe(nsISupports *aSubject, const char *aTopic, c
 {
   if (!strcmp(aTopic, "profile-before-change")) {
     ExpungeTemporaryFiles();
-  } else if (!strcmp(aTopic, NS_PRIVATE_BROWSING_SWITCH_TOPIC)) {
-    if (NS_LITERAL_STRING(NS_PRIVATE_BROWSING_ENTER).Equals(someData))
-      mInPrivateBrowsing = true;
-    else if (NS_LITERAL_STRING(NS_PRIVATE_BROWSING_LEAVE).Equals(someData)) {
-      mInPrivateBrowsing = false;
-      ExpungeTemporaryPrivateFiles();
-    }
+  } else if (!strcmp(aTopic, "last-pb-context-exited")) {
+    ExpungeTemporaryPrivateFiles();
   }
   return NS_OK;
 }
@@ -1904,8 +1870,7 @@ nsresult nsExternalAppHandler::ExecuteDesiredAction()
       }
       else if(action == nsIMIMEInfo::saveToDisk)
       {
-        nsCOMPtr<nsILocalFile> destfile(do_QueryInterface(mFinalFileDestination));
-        mExtProtSvc->FixFilePermissions(destfile);
+        mExtProtSvc->FixFilePermissions(mFinalFileDestination);
       }
     }
 
@@ -1957,9 +1922,8 @@ nsresult nsExternalAppHandler::InitializeDownload(nsITransfer* aTransfer)
   rv = NS_NewFileURI(getter_AddRefs(target), mFinalFileDestination);
   if (NS_FAILED(rv)) return rv;
   
-  nsCOMPtr<nsILocalFile> lf(do_QueryInterface(mTempFile));
   rv = aTransfer->Init(mSourceUrl, target, EmptyString(),
-                       mMimeInfo, mTimeDownloadStarted, lf, this);
+                       mMimeInfo, mTimeDownloadStarted, mTempFile, this);
   if (NS_FAILED(rv)) return rv;
 
   // Now let's add the download to history
@@ -2008,7 +1972,7 @@ nsresult nsExternalAppHandler::CreateProgressListener()
   return rv;
 }
 
-nsresult nsExternalAppHandler::PromptForSaveToFile(nsILocalFile ** aNewFile, const nsAFlatString &aDefaultFile, const nsAFlatString &aFileExtension)
+nsresult nsExternalAppHandler::PromptForSaveToFile(nsIFile ** aNewFile, const nsAFlatString &aDefaultFile, const nsAFlatString &aFileExtension)
 {
   // invoke the dialog!!!!! use mWindowContext as the window context parameter for the dialog request
   // Convert to use file picker? No, then embeddors could not do any sort of
@@ -2044,10 +2008,8 @@ nsresult nsExternalAppHandler::MoveFile(nsIFile * aNewFileLocation)
   nsresult rv = NS_OK;
   NS_ASSERTION(mStopRequestIssued, "uhoh, how did we get here if we aren't done getting data?");
  
-  nsCOMPtr<nsILocalFile> fileToUse = do_QueryInterface(aNewFileLocation);
-
   // if the on stop request was actually issued then it's now time to actually perform the file move....
-  if (mStopRequestIssued && fileToUse)
+  if (mStopRequestIssued && aNewFileLocation)
   {
     // Unfortunately, MoveTo will fail if a file already exists at the user specified location....
     // but the user has told us, this is where they want the file! (when we threw up the save to file dialog,
@@ -2055,16 +2017,16 @@ nsresult nsExternalAppHandler::MoveFile(nsIFile * aNewFileLocation)
     // fileToUse if it already exists.
     bool equalToTempFile = false;
     bool filetoUseAlreadyExists = false;
-    fileToUse->Equals(mTempFile, &equalToTempFile);
-    fileToUse->Exists(&filetoUseAlreadyExists);
+    aNewFileLocation->Equals(mTempFile, &equalToTempFile);
+    aNewFileLocation->Exists(&filetoUseAlreadyExists);
     if (filetoUseAlreadyExists && !equalToTempFile)
-      fileToUse->Remove(false);
+      aNewFileLocation->Remove(false);
 
      // extract the new leaf name from the file location
      nsAutoString fileName;
-     fileToUse->GetLeafName(fileName);
+     aNewFileLocation->GetLeafName(fileName);
      nsCOMPtr<nsIFile> directoryLocation;
-     rv = fileToUse->GetParent(getter_AddRefs(directoryLocation));
+     rv = aNewFileLocation->GetParent(getter_AddRefs(directoryLocation));
      if (directoryLocation)
      {
        rv = mTempFile->MoveTo(directoryLocation, fileName);
@@ -2073,7 +2035,7 @@ nsresult nsExternalAppHandler::MoveFile(nsIFile * aNewFileLocation)
      {
        // Send error notification.        
        nsAutoString path;
-       fileToUse->GetPath(path);
+       aNewFileLocation->GetPath(path);
        SendStatusChange(kWriteError, rv, nsnull, path);
        Cancel(rv); // Cancel (and clean up temp file).
      }
@@ -2081,7 +2043,7 @@ nsresult nsExternalAppHandler::MoveFile(nsIFile * aNewFileLocation)
      else
      {
        // tag the file with its source URI
-       nsCOMPtr<nsILocalFileOS2> localFileOS2 = do_QueryInterface(fileToUse);
+       nsCOMPtr<nsILocalFileOS2> localFileOS2 = do_QueryInterface(aNewFileLocation);
        if (localFileOS2)
        {
          nsCAutoString url;
@@ -2114,7 +2076,7 @@ NS_IMETHODIMP nsExternalAppHandler::SaveToDisk(nsIFile * aNewFileLocation, bool 
   // The helper app dialog has told us what to do.
   mReceivedDispositionInfo = true;
 
-  nsCOMPtr<nsILocalFile> fileToUse = do_QueryInterface(aNewFileLocation);
+  nsCOMPtr<nsIFile> fileToUse = do_QueryInterface(aNewFileLocation);
   if (!fileToUse)
   {
     nsAutoString leafName;
@@ -2217,9 +2179,20 @@ nsresult nsExternalAppHandler::OpenWithApplication()
                            false);
 #endif
 
+    // See whether the channel has been opened in private browsing mode
+    NS_ASSERTION(mRequest, "This should never be called with a null request");
+    bool inPrivateBrowsing = false;
+    nsCOMPtr<nsIChannel> channel = do_QueryInterface(mRequest);
+    if (channel)
+    {
+      nsCOMPtr<nsILoadContext> loadContext;
+      NS_QueryNotificationCallbacks(channel, loadContext);
+      inPrivateBrowsing = loadContext && loadContext->UsePrivateBrowsing();
+    }
+
     // make the tmp file readonly so users won't edit it and lose the changes
     // only if we're going to delete the file
-    if (deleteTempFileOnExit || mExtProtSvc->InPrivateBrowsing())
+    if (deleteTempFileOnExit || inPrivateBrowsing)
       mFinalFileDestination->SetPermissions(0400);
 
     rv = mMimeInfo->LaunchWithFile(mFinalFileDestination);
@@ -2233,8 +2206,11 @@ nsresult nsExternalAppHandler::OpenWithApplication()
     }
     // Always schedule files to be deleted at the end of the private browsing
     // mode, regardless of the value of the pref.
-    else if (deleteTempFileOnExit || mExtProtSvc->InPrivateBrowsing()) {
+    else if (deleteTempFileOnExit) {
       mExtProtSvc->DeleteTemporaryFileOnExit(mFinalFileDestination);
+    }
+    else if (inPrivateBrowsing) {
+      mExtProtSvc->DeleteTemporaryPrivateFileWhenPossible(mFinalFileDestination);
     }
   }
 

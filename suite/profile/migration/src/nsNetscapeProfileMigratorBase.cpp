@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is The Browser Profile Migrator.
- *
- * The Initial Developer of the Original Code is Ben Goodger.
- * Portions created by the Initial Developer are Copyright (C) 2004
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *  Ben Goodger <ben@bengoodger.com>
- *  Ian Neal <iann_bugzilla@blueyonder.co.uk>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsAppDirectoryServiceDefs.h"
 #include "nsSuiteProfileMigratorUtils.h"
@@ -274,7 +241,7 @@ nsNetscapeProfileMigratorBase::SetFile(PrefTransform* aTransform,
     if (NS_FAILED(rv)) {
       // Okay it wasn't a URL spec so assume it is a localfile,
       // if this fails then just don't set anything.
-      nsCOMPtr<nsILocalFile> localFile;
+      nsCOMPtr<nsIFile> localFile;
       rv = NS_NewNativeLocalFile(fileURL, false, getter_AddRefs(localFile));
       if (NS_FAILED(rv))
         return NS_OK;  
@@ -347,16 +314,13 @@ nsNetscapeProfileMigratorBase::GetSourceProfile(const PRUnichar* aProfile)
 }
 
 nsresult
-nsNetscapeProfileMigratorBase::GetProfileDataFromProfilesIni(nsILocalFile* aDataDir,
+nsNetscapeProfileMigratorBase::GetProfileDataFromProfilesIni(nsIFile* aDataDir,
                                                              nsIMutableArray* aProfileNames,
                                                              nsIMutableArray* aProfileLocations)
 {
   nsresult rv;
-  nsCOMPtr<nsIFile> dataDir;
-  rv = aDataDir->Clone(getter_AddRefs(dataDir));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCOMPtr<nsILocalFile> profileIni(do_QueryInterface(dataDir, &rv));
+  nsCOMPtr<nsIFile> profileIni;
+  rv = aDataDir->Clone(getter_AddRefs(profileIni));
   NS_ENSURE_SUCCESS(rv, rv);
 
   profileIni->Append(NS_LITERAL_STRING("profiles.ini"));
@@ -399,7 +363,7 @@ nsNetscapeProfileMigratorBase::GetProfileDataFromProfilesIni(nsILocalFile* aData
       continue;
     }
 
-    nsCOMPtr<nsILocalFile> rootDir;
+    nsCOMPtr<nsIFile> rootDir;
     rv = NS_NewNativeLocalFile(EmptyCString(), true, getter_AddRefs(rootDir));
     NS_ENSURE_SUCCESS(rv, rv);
 
@@ -496,10 +460,9 @@ nsNetscapeProfileMigratorBase::RecursiveCopy(nsIFile* srcDir,
       rv = dirEntry->IsDirectory(&isDir);
       if (NS_SUCCEEDED(rv)) {
         if (isDir) {
-          nsCOMPtr<nsIFile> destClone;
-          rv = destDir->Clone(getter_AddRefs(destClone));
+          nsCOMPtr<nsIFile> newChild;
+          rv = destDir->Clone(getter_AddRefs(newChild));
           if (NS_SUCCEEDED(rv)) {
-            nsCOMPtr<nsILocalFile> newChild(do_QueryInterface(destClone));
             nsAutoString leafName;
             dirEntry->GetLeafName(leafName);
 
@@ -622,10 +585,10 @@ nsNetscapeProfileMigratorBase::WriteBranch(const char * branchName,
 }
 
 nsresult
-nsNetscapeProfileMigratorBase::GetFileValue(nsIPrefBranch* aPrefBranch, const char* aRelPrefName, const char* aPrefName, nsILocalFile** aReturnFile)
+nsNetscapeProfileMigratorBase::GetFileValue(nsIPrefBranch* aPrefBranch, const char* aRelPrefName, const char* aPrefName, nsIFile** aReturnFile)
 {
   nsCString prefValue;
-  nsCOMPtr<nsILocalFile> theFile;
+  nsCOMPtr<nsIFile> theFile;
   nsresult rv = aPrefBranch->GetCharPref(aRelPrefName, getter_Copies(prefValue));
   if (NS_SUCCEEDED(rv)) {
     // The pref has the format: [ProfD]a/b/c
@@ -641,7 +604,7 @@ nsNetscapeProfileMigratorBase::GetFileValue(nsIPrefBranch* aPrefBranch, const ch
       return rv;
   } else {
     rv = aPrefBranch->GetComplexValue(aPrefName,
-                                      NS_GET_IID(nsILocalFile),
+                                      NS_GET_IID(nsIFile),
                                       getter_AddRefs(theFile));
   }
 
@@ -880,8 +843,8 @@ nsNetscapeProfileMigratorBase::CopySignatureFiles(PBStructArray &aIdentities,
     // multiple signatures that live below the seamonkey profile root
     if (StringEndsWith(prefName, NS_LITERAL_CSTRING(".sig_file")))
     {
-      // turn the pref into a nsILocalFile
-      nsCOMPtr<nsILocalFile> srcSigFile =
+      // turn the pref into a nsIFile
+      nsCOMPtr<nsIFile> srcSigFile =
         do_CreateInstance(NS_LOCAL_FILE_CONTRACTID);
       srcSigFile->SetPersistentDescriptor(nsDependentCString(pref->stringValue));
 
@@ -902,8 +865,7 @@ nsNetscapeProfileMigratorBase::CopySignatureFiles(PBStructArray &aIdentities,
 
         // now write out the new descriptor
         nsCAutoString descriptorString;
-        nsCOMPtr<nsILocalFile> localFile = do_QueryInterface(targetSigFile);
-        localFile->GetPersistentDescriptor(descriptorString);
+        targetSigFile->GetPersistentDescriptor(descriptorString);
         NS_Free(pref->stringValue);
         pref->stringValue = ToNewCString(descriptorString);
       }
@@ -950,7 +912,7 @@ nsNetscapeProfileMigratorBase::CopyMailFolderPrefs(PBStructArray &aMailServers,
       nsCString serverType;
       serverBranch->GetCharPref("type", getter_Copies(serverType));
 
-      nsCOMPtr<nsILocalFile> sourceMailFolder;
+      nsCOMPtr<nsIFile> sourceMailFolder;
       nsresult rv = GetFileValue(serverBranch, "directory-rel", "directory",
                                  getter_AddRefs(sourceMailFolder));
       NS_ENSURE_SUCCESS(rv, rv);
@@ -990,8 +952,7 @@ nsNetscapeProfileMigratorBase::CopyMailFolderPrefs(PBStructArray &aMailServers,
         // transformed into the new profile's pref.js has the right file
         // location.
         nsCAutoString descriptorString;
-        nsCOMPtr<nsILocalFile> localFile = do_QueryInterface(targetMailFolder);
-        localFile->GetPersistentDescriptor(descriptorString);
+        targetMailFolder->GetPersistentDescriptor(descriptorString);
         NS_Free(pref->stringValue);
         pref->stringValue = ToNewCString(descriptorString);
       }
@@ -1004,8 +965,8 @@ nsNetscapeProfileMigratorBase::CopyMailFolderPrefs(PBStructArray &aMailServers,
       mTargetProfile->Clone(getter_AddRefs(targetNewsRCFile));
       targetNewsRCFile->Append(NEWS_DIR_50_NAME);
 
-      // turn the pref into a nsILocalFile
-      nsCOMPtr<nsILocalFile> srcNewsRCFile =
+      // turn the pref into a nsIFile
+      nsCOMPtr<nsIFile> srcNewsRCFile =
         do_CreateInstance(NS_LOCAL_FILE_CONTRACTID);
       srcNewsRCFile->SetPersistentDescriptor(
         nsDependentCString(pref->stringValue));
@@ -1022,8 +983,7 @@ nsNetscapeProfileMigratorBase::CopyMailFolderPrefs(PBStructArray &aMailServers,
 
         // now write out the new descriptor
         nsCAutoString descriptorString;
-        nsCOMPtr<nsILocalFile> localFile = do_QueryInterface(targetNewsRCFile);
-        localFile->GetPersistentDescriptor(descriptorString);
+        targetNewsRCFile->GetPersistentDescriptor(descriptorString);
         NS_Free(pref->stringValue);
         pref->stringValue = ToNewCString(descriptorString);
       }

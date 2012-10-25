@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 "use strict";
 
 const Cc = Components.classes;
@@ -24,9 +28,6 @@ function tabbrowserString(name) tabbrowserBundle.GetStringFromName(name);
 XPCOMUtils.defineLazyGetter(this, "gPrefBranch", function() {
   return Services.prefs.getBranch("browser.panorama.");
 });
-
-XPCOMUtils.defineLazyServiceGetter(this, "gPrivateBrowsing",
-  "@mozilla.org/privatebrowsing;1", "nsIPrivateBrowsingService");
 
 XPCOMUtils.defineLazyModuleGetter(this, "gPageThumbnails",
   "resource:///modules/PageThumbs.jsm", "PageThumbs");
@@ -73,4 +74,5 @@ let AllTabs = {
 #include drag.js
 #include trench.js
 #include search.js
+#include telemetry.js
 #include ui.js

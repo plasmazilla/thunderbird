@@ -50,6 +50,8 @@ cp $1/src/ports/*.h ./src/ports/
 cp $1/src/ports/*.cpp ./src/ports/
 cp $1/src/svg/*.cpp ./src/svg/
 cp $1/src/svg/*.h ./src/svg/
+cp $1/src/sfnt/*.cpp ./src/sfnt/
+cp $1/src/sfnt/*.h ./src/sfnt/
 cp $1/src/text/*.cpp ./src/text/
 cp $1/src/utils/mac/SampleApp-Info.plist ./src/utils/mac/
 cp $1/src/utils/mac/SampleApp.xib ./src/utils/mac/
@@ -92,25 +94,7 @@ else
   echo "Remember to update README_MOZILLA with the version details."
 fi
 
-# Bug 689069 - Patch to get arm opts to build with frame pointers enabled.
-patch -p3 < arm-opts.patch
-# Bug 687188 - Skia radial gradients should use the 0/1 color stop values for clamping.
-patch -p3 < fix-gradient-clamp.patch
-# Bug 687189 - Implement SkPaint::getPosTextPath.
-patch -p3 < getpostextpath.patch
-# Bug 688365 - Enable Skia 'New AA' mode.
-patch -p3 < new-aa.patch
-# Bug 688366 - Fix Skia marking radial gradients with the same radius as invalid.
-patch -p3 < radial-gradients.patch
-# Fix restrict keyword problem for VS2005
-patch -p3 < skia_restrict_problem.patch
-# Changes to SkUserConfig.h - no bug
-patch -p3 < user-config.patch
-# Bug 715718 - Unitialized variable 'margin' in compute_bounds : SkDraw.cpp
-patch -p3 < uninitialized-margin.patch
-# Bug 722011 - Fix comma at end of enum list
-patch -p3 < fix-comma-end-enum-list.patch
-# Bug 719872 - Fix crash on Android by reverting to older FontHost impl
-patch -p3 < old-android-fonthost.patch
-# Bug 731384 - Fix compile errors on older versions of clang
-patch -p3 < SkPostConfig.patch
+for file in `ls patches/*.patch`; do
+  echo "Applying patch $file"
+  patch -p3 < $file
+done

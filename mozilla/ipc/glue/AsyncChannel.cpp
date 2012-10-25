@@ -1,41 +1,9 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  * vim: sw=4 ts=4 et :
  */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Plugin App.
- *
- * The Initial Developer of the Original Code is
- *   Chris Jones <jones.chris.g@gmail.com>
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/ipc/AsyncChannel.h"
 #include "mozilla/ipc/BrowserProcessSubThread.h"
@@ -45,7 +13,8 @@
 #include "nsTraceRefcnt.h"
 #include "nsXULAppAPI.h"
 
-using mozilla::MonitorAutoLock;
+using namespace mozilla;
+using namespace std;
 
 template<>
 struct RunnableMethodTraits<mozilla::ipc::AsyncChannel>
@@ -147,7 +116,6 @@ AsyncChannel::ProcessLink::Open(mozilla::ipc::Transport* aTransport,
     // FIXME need to check for valid channel
 
     mTransport = aTransport;
-    mExistingListener = mTransport->set_listener(this);
 
     // FIXME figure out whether we're in parent or child, grab IO loop
     // appropriately
@@ -164,9 +132,6 @@ AsyncChannel::ProcessLink::Open(mozilla::ipc::Transport* aTransport,
         mChan->mChild = false;
         needOpen = false;
         aIOLoop = XRE_GetIOMessageLoop();
-        // FIXME assuming that the parent waits for the OnConnected event.
-        // FIXME see GeckoChildProcessHost.cpp.  bad assumption!
-        mChan->mChannelState = ChannelConnected;
     }
 
     mIOLoop = aIOLoop;
@@ -174,14 +139,27 @@ AsyncChannel::ProcessLink::Open(mozilla::ipc::Transport* aTransport,
     NS_ASSERTION(mIOLoop, "need an IO loop");
     NS_ASSERTION(mChan->mWorkerLoop, "need a worker loop");
 
-    if (needOpen) {             // child process
+    {
         MonitorAutoLock lock(*mChan->mMonitor);
 
-        mIOLoop->PostTask(FROM_HERE, 
-                          NewRunnableMethod(this, &ProcessLink::OnChannelOpened));
+        if (needOpen) {
+            // Transport::Connect() has not been called.  Call it so
+            // we start polling our pipe and processing outgoing
+            // messages.
+            mIOLoop->PostTask(
+                FROM_HERE,
+                NewRunnableMethod(this, &ProcessLink::OnChannelOpened));
+        } else {
+            // Transport::Connect() has already been called.  Take
+            // over the channel from the previous listener and process
+            // any queued messages.
+            mIOLoop->PostTask(
+                FROM_HERE,
+                NewRunnableMethod(this, &ProcessLink::OnTakeConnectedChannel));
+        }
 
         // FIXME/cjones: handle errors
-        while (mChan->mChannelState != ChannelConnected) {
+        while (!mChan->Connected()) {
             mChan->mMonitor->Wait();
         }
     }
@@ -514,6 +492,8 @@ AsyncChannel::OnNotifyMaybeChannelError()
     AssertWorkerThread();
     mMonitor->AssertNotCurrentThreadOwns();
 
+    mChannelErrorTask = NULL;
+
     // OnChannelError holds mMonitor when it posts this task and this
     // task cannot be allowed to run until OnChannelError has
     // exited. We enforce that order by grabbing the mutex here which
@@ -700,9 +680,45 @@ AsyncChannel::ProcessLink::OnChannelOpened()
     mChan->AssertLinkThread();
     {
         MonitorAutoLock lock(*mChan->mMonitor);
+
+        mExistingListener = mTransport->set_listener(this);
+#ifdef DEBUG
+        if (mExistingListener) {
+            queue<Message> pending;
+            mExistingListener->GetQueuedMessages(pending);
+            MOZ_ASSERT(pending.empty());
+        }
+#endif  // DEBUG
+
         mChan->mChannelState = ChannelOpening;
+        lock.Notify();
     }
     /*assert*/mTransport->Connect();
+}
+
+void
+AsyncChannel::ProcessLink::OnTakeConnectedChannel()
+{
+    AssertIOThread();
+
+    queue<Message> pending;
+    {
+        MonitorAutoLock lock(*mChan->mMonitor);
+
+        mChan->mChannelState = ChannelConnected;
+
+        mExistingListener = mTransport->set_listener(this);
+        if (mExistingListener) {
+            mExistingListener->GetQueuedMessages(pending);
+        }
+        lock.Notify();
+    }
+
+    // Dispatch whatever messages the previous listener had queued up.
+    while (!pending.empty()) {
+        OnMessageReceived(pending.front());
+        pending.pop();
+    }
 }
 
 void
@@ -776,12 +792,26 @@ AsyncChannel::OnChannelErrorFromLink()
 }
 
 void
+AsyncChannel::CloseWithError()
+{
+    AssertWorkerThread();
+
+    MonitorAutoLock lock(*mMonitor);
+    if (ChannelConnected != mChannelState) {
+        return;
+    }
+    SynchronouslyClose();
+    mChannelState = ChannelError;
+    PostErrorNotifyTask();
+}
+
+void
 AsyncChannel::PostErrorNotifyTask()
 {
-    AssertLinkThread();
     mMonitor->AssertCurrentThreadOwns();
 
-    NS_ASSERTION(!mChannelErrorTask, "OnChannelError called twice?");
+    if (mChannelErrorTask)
+        return;
 
     // This must be the last code that runs on this thread!
     mChannelErrorTask =

@@ -1,40 +1,8 @@
 /* -*- Mode: c++; c-basic-offset: 4; tab-width: 40; indent-tabs-mode: nil -*- */
 /* vim: set ts=40 sw=4 et tw=99: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla SpiderMonkey bytecode analysis
- *
- * The Initial Developer of the Original Code is
- *   Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* Definitions for javascript analysis. */
 
@@ -395,12 +363,11 @@ static inline uint32_t GetBytecodeSlot(JSScript *script, jsbytecode *pc)
       case JSOP_CALLALIASEDVAR:
       case JSOP_SETALIASEDVAR:
       {
-          ScopeCoordinate sc = ScopeCoordinate(pc);
-          return script->bindings.bindingIsArg(sc.binding)
-                 ? ArgSlot(script->bindings.bindingToArg(sc.binding))
-                 : LocalSlot(script, script->bindings.bindingToLocal(sc.binding));
+        unsigned index;
+        return ScopeCoordinateToFrameIndex(script, pc, &index) == FrameIndex_Local
+               ? LocalSlot(script, index)
+               : ArgSlot(index);
       }
-
 
       case JSOP_THIS:
         return ThisSlot();
@@ -612,7 +579,7 @@ struct LifetimeVariable
         return offset;
     }
 
-#ifdef DEBUG
+#ifdef JS_METHODJIT_SPEW
     void print() const;
 #endif
 };
@@ -876,11 +843,9 @@ class ScriptAnalysis
     bool usesThisValue_:1;
     bool hasFunctionCalls_:1;
     bool modifiesArguments_:1;
-    bool extendsScope_:1;
-    bool addsScopeObjects_:1;
     bool localsAliasStack_:1;
     bool isInlineable:1;
-    bool isCompileable:1;
+    bool isJaegerCompileable:1;
     bool canTrackVars:1;
 
     uint32_t numReturnSites_;
@@ -891,12 +856,12 @@ class ScriptAnalysis
 
   public:
 
-    ScriptAnalysis(JSScript *script) { 
+    ScriptAnalysis(JSScript *script) {
         PodZero(this);
         this->script = script;
 #ifdef DEBUG
         this->originalDebugMode_ = script->compartment()->debugMode();
-#endif        
+#endif
     }
 
     bool ranBytecode() { return ranBytecode_; }
@@ -915,7 +880,7 @@ class ScriptAnalysis
     bool OOM() { return outOfMemory; }
     bool failed() { return hadFailure; }
     bool inlineable(uint32_t argc) { return isInlineable && argc == script->function()->nargs; }
-    bool compileable() { return isCompileable; }
+    bool jaegerCompileable() { return isJaegerCompileable; }
 
     /* Whether there are POPV/SETRVAL bytecodes which can write to the frame's rval. */
     bool usesReturnValue() const { return usesReturnValue_; }
@@ -932,15 +897,6 @@ class ScriptAnalysis
      * object cannot escape, the arguments are never modified within the script.
      */
     bool modifiesArguments() { return modifiesArguments_; }
-
-    /*
-     * True if the script may extend declarations in its top level scope with
-     * dynamic fun/var declarations or through eval.
-     */
-    bool extendsScope() { return extendsScope_; }
-
-    /* True if the script may add block or with objects to its scope chain. */
-    bool addsScopeObjects() { return addsScopeObjects_; }
 
     /*
      * True if there are any LOCAL opcodes aliasing values on the stack (above
@@ -1150,25 +1106,6 @@ class ScriptAnalysis
         return lifetimes[slot];
     }
 
-    /*
-     * If a NAME or similar opcode is definitely accessing a particular slot
-     * of a script this one is nested in, get that script/slot.
-     */
-    struct NameAccess {
-        JSScript *script;
-        types::TypeScriptNesting *nesting;
-        uint32_t slot;
-
-        /* Decompose the slot above. */
-        bool arg;
-        uint32_t index;
-
-        const Value **basePointer() const {
-            return arg ? &nesting->argArray : &nesting->varArray;
-        }
-    };
-    NameAccess resolveNameAccess(JSContext *cx, jsid id, bool addDependency = false);
-
     void printSSA(JSContext *cx);
     void printTypes(JSContext *cx);
 
@@ -1238,8 +1175,10 @@ class ScriptAnalysis
 
     /* Type inference helpers */
     bool analyzeTypesBytecode(JSContext *cx, unsigned offset, TypeInferenceState &state);
-    bool needsArgsObj(NeedsArgsObjState &state, const SSAValue &v);
-    bool needsArgsObj(NeedsArgsObjState &state, SSAUseChain *use);
+
+    typedef Vector<SSAValue, 16> SeenVector;
+    bool needsArgsObj(JSContext *cx, SeenVector &seen, const SSAValue &v);
+    bool needsArgsObj(JSContext *cx, SeenVector &seen, SSAUseChain *use);
     bool needsArgsObj(JSContext *cx);
 
   public:

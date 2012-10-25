@@ -1,38 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Instantbird.
- *
- * The Initial Developer of the Original Code is
- * Patrick Cloke <clokep@gmail.com>.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * This contains the implementation for the basic Internet Relay Chat (IRC)
@@ -69,38 +37,43 @@ function privmsg(aAccount, aMessage, aIsNotification) {
     params.notification = true;
   aAccount.getConversation(aAccount.isMUCName(aMessage.params[0]) ?
                            aMessage.params[0] : aMessage.nickname)
-          .writeMessage(aMessage.nickname || aMessage.source,
+          .writeMessage(aMessage.nickname || aMessage.servername,
                         aMessage.params[1], params);
   return true;
 }
 
 // Display the message and remove them from the rooms they're in.
 function leftRoom(aAccount, aNicks, aChannels, aSource, aReason, aKicked) {
-  let msgId = aKicked ? "kicked" : "parted";
+  let msgId = "message." +  (aKicked ? "kicked" : "parted");
   // If a part message was included, include it.
-  let reason = aReason ? _("message." + msgId + ".reason", aReason) : "";
-  function __(aYou, aNick) {
+  let reason = aReason ? _(msgId + ".reason", aReason) : "";
+  function __(aNick, aYou) {
     // If the user is kicked, we need to say who kicked them.
-    if (aKicked)
-      return _("message." + msgId + aYou, aNick, aSource, reason);
-    return _("message." + msgId + aYou, aNick, reason);
+    let msgId2 = msgId + (aYou ? ".you" : "");
+    if (aKicked) {
+      if (aYou)
+        return _(msgId2, aSource, reason);
+      return _(msgId2, aNick, aSource, reason);
+    }
+    if (aYou)
+      return _(msgId2, reason);
+    return _(msgId2, aNick, reason);
   }
 
   for each (let channelName in aChannels) {
+    if (!aAccount.hasConversation(channelName))
+      continue; // Handle when we closed the window
+    let conversation = aAccount.getConversation(channelName);
     for each (let nick in aNicks) {
-      if (!aAccount.hasConversation(channelName))
-        continue; // Handle when we closed the window
-      let conversation = aAccount.getConversation(channelName);
-
       let msg;
       if (aAccount.normalize(nick) == aAccount.normalize(aAccount._nickname)) {
-        msg = __(".you", reason);
+        msg = __(nick, true);
         // If the user left, mark the conversation as no longer being active.
         conversation.left = true;
         conversation.notifyObservers(conversation, "update-conv-chatleft");
       }
       else
-        msg = __("", nick);
+        msg = __(nick);
 
       conversation.writeMessage(aSource, msg, {system: true});
       conversation.removeParticipant(nick, true);
@@ -112,8 +85,8 @@ function leftRoom(aAccount, aNicks, aChannels, aSource, aReason, aKicked) {
 function writeMessage(aAccount, aMessage, aString, aType) {
   let type = {};
   type[aType] = true;
-  aAccount.getConversation(aMessage.source)
-          .writeMessage(aMessage.source, aString, type);
+  aAccount.getConversation(aMessage.servername)
+          .writeMessage(aMessage.servername, aString, type);
   return true;
 }
 
@@ -128,14 +101,30 @@ function serverMessage(aAccount, aMsg, aNoLastParam) {
                       "system");
 }
 
-function errorMessage(aAccount, aMessage, aError)
-  writeMessage(aAccount, aMessage, aError, "error")
+function serverErrorMessage(aAccount, aMessage, aError) {
+  // If we don't want to show messages from the server, just mark it as handled.
+  if (!aAccount._showServerTab)
+    return true;
+
+  return writeMessage(aAccount, aMessage, aError, "error")
+}
+
+function conversationErrorMessage(aAccount, aMessage, aError) {
+  let conv = aAccount.getConversation(aMessage.params[1]);
+  conv.writeMessage(aMessage.servername, _(aError, aMessage.params[1]),
+                    {error: true, system: true});
+  delete conv._pendingMessage;
+  return true;
+}
 
 function setWhoIs(aAccount, aMessage, aFields) {
   let buddyName = aAccount.normalize(aMessage.params[1], aAccount.userPrefixes);
   // If the buddy isn't in the list yet, add it.
   if (!hasOwnProperty(aAccount.whoisInformation, buddyName))
     aAccount.whoisInformation[buddyName] = {};
+
+  // Set non-normalized nickname field.
+  aAccount.whoisInformation[buddyName]["nick"] = aMessage.params[1];
 
   // Set the WHOIS fields.
   for (let field in aFields)
@@ -180,6 +169,7 @@ var ircBase = {
   // Parameters
   name: "RFC 2812", // Name identifier
   priority: ircHandlers.DEFAULT_PRIORITY,
+  isEnabled: function() true,
 
   // The IRC commands that can be handled.
   commands: {
@@ -225,7 +215,7 @@ var ircBase = {
           // Don't worry about adding ourself, RPL_NAMES takes care of that
           // case.
           conversation.getParticipant(aMessage.nickname, true);
-          let msg = _("message.join", aMessage.nickname, aMessage.source);
+          let msg = _("message.join", aMessage.nickname, aMessage.source || "");
           conversation.writeMessage(aMessage.nickname, msg, {system: true,
                                                              noLinkification: true});
         }
@@ -238,27 +228,37 @@ var ircBase = {
     },
     "KICK": function(aMessage) {
       // KICK <channel> *( "," <channel> ) <user> *( "," <user> ) [<comment>]
+      let comment = aMessage.params.length == 3 ? aMessage.params[2] : null;
+      // Some servers (moznet) send the kicker as the comment.
+      if (comment == aMessage.nickname)
+        comment = null;
       return leftRoom(this, aMessage.params[1].split(","),
                       aMessage.params[0].split(","), aMessage.nickname,
-                      aMessage.params.length == 3 ? aMessage.params[2] : null,
-                      true);
+                      comment, true);
     },
     "MODE": function(aMessage) {
       // MODE <nickname> *( ( "+" / "-") *( "i" / "w" / "o" / "O" / "r" ) )
-      // If less than 3 parameter is given, the mode is your usermode.
+      // MODE <channel> *( ( "-" / "+" ) *<modes> *<modeparams> )
       if (aMessage.params.length >= 3) {
-        // Update the mode of the ConvChatBuddy.
+        // If there are 3 parameters given, then the mode of a participant is
+        // being given: update the mode of the ConvChatBuddy.
         let conversation = this.getConversation(aMessage.params[0]);
-        let convChatBuddy = conversation.getParticipant(aMessage.params[2]);
-        convChatBuddy.setMode(aMessage.params[1]);
+        conversation.getParticipant(aMessage.params[2])
+                    .setMode(aMessage.params[1], aMessage.nickname);
 
-        // Notify the UI of changes.
-        let msg = _("message.mode", aMessage.params[1], aMessage.params[2],
-                    aMessage.nickname);
-        conversation.writeMessage(aMessage.nickname, msg, {system: true});
-        conversation.notifyObservers(convChatBuddy, "chat-buddy-update");
+        return true;
       }
-      return true;
+      if (this.isMUCName(aMessage.params[0])) {
+        // Otherwise if the first parameter is a channel name, it's a channel
+        // mode.
+        this.getConversation(aMessage.params[0])
+            .setMode(aMessage.params[1], aMessage);
+
+        return true;
+      }
+      // Otherwise the user's own mode is being returned to them.
+      // TODO
+      return false;
     },
     "NICK": function(aMessage) {
       // NICK <nickname>
@@ -276,7 +276,7 @@ var ircBase = {
     "PART": function(aMessage) {
       // PART <channel> *( "," <channel> ) [ <Part Message> ]
       return leftRoom(this, [aMessage.nickname], aMessage.params[0].split(","),
-                      aMessage.source,
+                      aMessage.source || "",
                       aMessage.params.length == 2 ? aMessage.params[1] : null);
     },
     "PING": function(aMessage) {
@@ -304,10 +304,14 @@ var ircBase = {
       for each (let conversation in this._conversations) {
         if (conversation.isChat &&
             conversation.hasParticipant(aMessage.nickname)) {
-          conversation.writeMessage(aMessage.source, msg, {system: true});
+          conversation.writeMessage(aMessage.servername, msg, {system: true});
           conversation.removeParticipant(aMessage.nickname, true);
         }
       }
+
+      // Remove from the whois table.
+      this.removeBuddyInfo(aMessage.nickname);
+
       // If the leaver is a buddy, mark as offline.
       let buddy = this.getBuddy(aMessage.nickname);
       if (buddy)
@@ -315,13 +319,13 @@ var ircBase = {
       return true;
     },
     "SQUIT": function(aMessage) {
-      // XXX do we need this?
-      return false;
+      // <server> <comment>
+      return true;
     },
     "TOPIC": function(aMessage) {
       // TOPIC <channel> [ <topic> ]
       // Show topic as a message.
-      let source = aMessage.nickname || aMessage.source;
+      let source = aMessage.nickname || aMessage.servername;
       let conversation = this.getConversation(aMessage.params[0]);
       let topic = aMessage.params[1];
       let message;
@@ -622,6 +626,9 @@ var ircBase = {
       // <nick> :<away message>
       // TODO set user as away on buddy list / conversation lists
       // TODO Display an autoResponse if this is after sending a private message
+      // If the conversation is waiting for a response, it's received one.
+      if (this.hasConversation(aMessage.params[1]))
+        delete this.getConversation(aMessage.params[1])._pendingMessage;
       return setWhoIs(this, aMessage, {away: aMessage.params[2]});
     },
     "302": function(aMessage) { // RPL_USERHOST
@@ -687,6 +694,7 @@ var ircBase = {
     },
     "314": function(aMessage) { // RPL_WHOWASUSER
       // <nick> <user> <host> * :<real name>
+      setWhoIs(this, aMessage, {offline: true});
       let source = aMessage.params[2] + "@" + aMessage.params[3];
       return setWhoIs(this, aMessage, {realname: aMessage.params[5],
                                        connectedFrom: source});
@@ -711,11 +719,17 @@ var ircBase = {
       // <nick> :End of WHOIS list
       // We've received everything about WHOIS, tell the tooltip that is waiting
       // for this information.
-      let buddyName = this.normalize(aMessage.params[1]);
+      let nick = this.normalize(aMessage.params[1]);
 
-      // Notify the tooltip.
-      Services.obs.notifyObservers(this.getBuddyInfo(buddyName),
-                                   "user-info-received", buddyName);
+      if (hasOwnProperty(this.whoisInformation, nick)) {
+        Services.obs.notifyObservers(this.getBuddyInfo(nick),
+                                     "user-info-received", nick);
+      }
+      else {
+        // If there is no whois information stored at this point, the nick
+        // is either offline or does not exist, so we run WHOWAS.
+        this.requestOfflineBuddyInfo(nick);
+      }
       return true;
     },
     "319": function(aMessage) { // RPL_WHOISCHANNELS
@@ -745,8 +759,10 @@ var ircBase = {
      */
     "324": function(aMessage) { // RPL_CHANNELMODEIS
       // <channel> <mode> <mode params>
-      // TODO parse this and have the UI respond accordingly.
-      return false;
+      this.getConversation(aMessage.params[1]).setMode(aMessage.params[2],
+                                                       aMessage);
+
+      return true;
     },
     "325": function(aMessage) { // RPL_UNIQOPIS
       // <channel> <nickname>
@@ -757,18 +773,23 @@ var ircBase = {
       // <channel> :No topic is set
       let conversation = this.getConversation(aMessage.params[1]);
       conversation.setTopic(""); // Clear the topic.
-      let msg = _("message.topicRemoved", conversation.name);
+      let msg = _("message.topicNotSet", conversation.name);
       conversation.writeMessage(null, msg, {system: true});
-      return false;
+      return true;
     },
     "332": function(aMessage) { // RPL_TOPIC
       // <channel> :<topic>
       // Update the topic UI
       let conversation = this.getConversation(aMessage.params[1]);
-      conversation.setTopic(ctcpFormatToText(aMessage.params[2]));
+      let topic = aMessage.params[2];
+      conversation.setTopic(topic ? ctcpFormatToText(topic) : "");
       // Send the topic as a message.
-      let msg = _("message.topic", conversation.name, aMessage.params[2]);
-      conversation.writeMessage(null, msg, {system: true});
+      let message;
+      if (topic)
+        message = _("message.topic", conversation.name, topic);
+      else
+        message = _("message.topicNotSet", conversation.name);
+      conversation.writeMessage(null, message, {system: true});
       return true;
     },
     "333": function(aMessage) { // nonstandard
@@ -833,8 +854,10 @@ var ircBase = {
      */
     "353": function(aMessage) { // RPL_NAMREPLY
       // <target> ( "=" / "*" / "@" ) <channel> :[ "@" / "+" ] <nick> *( " " [ "@" / "+" ] <nick> )
-      // TODO Keep if this is secret (@), private (*) or public (=)
       let conversation = this.getConversation(aMessage.params[2]);
+      // Keep if this is secret (@), private (*) or public (=).
+      conversation.setModesFromRestriction(aMessage.params[1]);
+      // Add the participants.
       let newParticipants = [];
       aMessage.params[3].trim().split(" ").forEach(function(aNick)
         newParticipants.push(conversation.getParticipant(aNick, false)));
@@ -877,6 +900,17 @@ var ircBase = {
     "366": function(aMessage) { // RPL_ENDOFNAMES
       // <target> <channel> :End of NAMES list
       // All participants have already been added by the 353 handler.
+
+      // This assumes that this is the last message received when joining a
+      // channel, so a few "clean up" tasks are done here.
+      let conversation = this.getConversation(aMessage.params[1]);
+      // Update whether the topic is editable.
+      conversation.checkTopicSettable();
+
+      // If we haven't received the MODE yet, request it.
+      if (!conversation._receivedInitialMode)
+        this.sendMessage("MODE", aMessage.params[1]);
+
       return true;
     },
     /*
@@ -894,8 +928,12 @@ var ircBase = {
     },
     "369": function(aMessage) { // RPL_ENDOFWHOWAS
       // <nick> :End of WHOWAS
-      // TODO
-      return false;
+      // We've received everything about WHOWAS, tell the tooltip that is waiting
+      // for this information.
+      let nick = this.normalize(aMessage.params[1]);
+      Services.obs.notifyObservers(this.getBuddyInfo(nick),
+                                   "user-info-received", nick);
+      return true;
     },
 
     /*
@@ -987,8 +1025,18 @@ var ircBase = {
       // Error messages, Implement Section 5.2 of RFC 2812
     "401": function(aMessage) { // ERR_NOSUCHNICK
       // <nickname> :No such nick/channel
-      // TODO Parse & display an error to the user.
-      return false;
+      // Can arise in response to /mode, /invite, /kill, /msg, /whois.
+      // TODO Handled in the conversation for /whois and /mgs so far.
+      let msgId = "error.noSuch" +
+        (this.isMUCName(aMessage.params[1]) ? "Channel" : "Nick");
+      if (this.hasConversation(aMessage.params[1])) {
+        // If the conversation exists and we just sent a message from it, then
+        // notify that the user is offline.
+        if (this.getConversation(aMessage.params[1])._pendingMessage)
+          conversationErrorMessage(this, aMessage, msgId);
+      }
+
+      return serverErrorMessage(this, aMessage, _(msgId, aMessage.params[1]));
     },
     "402": function(aMessage) { // ERR_NOSUCHSERVER
       // <server name> :No such server
@@ -997,28 +1045,28 @@ var ircBase = {
     },
     "403": function(aMessage) { // ERR_NOSUCHCHANNEL
       // <channel name> :No such channel
-      return errorMessage(this, aMessage,
-                          _("error.noChannel", aMessage.params[0]));
+      return conversationErrorMessage(this, aMessage, "error.noChannel");
     },
-    "404": function(aMessage) { // ERR_CANNONTSENDTOCHAN
+    "404": function(aMessage) { // ERR_CANNOTSENDTOCHAN
       // <channel name> :Cannot send to channel
-      // TODO handle that the channel didn't receive the message.
-      return false;
+      // Notify the user that they can't send to that channel.
+      return conversationErrorMessage(this, aMessage,
+                                      "error.cannotSendToChannel");
     },
     "405": function(aMessage) { // ERR_TOOMANYCHANNELS
       // <channel name> :You have joined too many channels
-      return errorMessage(this, aMessage,
-                          _("error.tooManyChannels", aMessage.params[0]));
+      return serverErrorMessage(this, aMessage,
+                                _("error.tooManyChannels", aMessage.params[0]));
     },
     "406": function(aMessage) { // ERR_WASNOSUCHNICK
       // <nickname> :There was no such nickname
-      // TODO Error saying the nick never existed.
-      return false;
+      // Can arise in response to WHOWAS.
+      return serverErrorMessage(this, aMessage,
+                                _("error.wasNoSuchNick", aMessage.params[1]));
     },
     "407": function(aMessage) { // ERR_TOOMANYTARGETS
-      // <target> :<error code> recipients. <abord message>
-      // TODO
-      return false;
+      // <target> :<error code> recipients. <abort message>
+      return conversationErrorMessage(this, aMessage, "error.nonUniqueTarget");
     },
     "408": function(aMessage) { // ERR_NOSUCHSERVICE
       // <service name> :No such service
@@ -1032,28 +1080,34 @@ var ircBase = {
     },
     "411": function(aMessage) { // ERR_NORECIPIENT
       // :No recipient given (<command>)
-      ERROR("ERR_NORECIPIENT:\n" + aMessage.params[0]);
+      // If this happens a real error with the protocol occurred.
+      ERROR("ERR_NORECIPIENT: No recipient given for PRIVMSG.");
       return true;
     },
     "412": function(aMessage) { // ERR_NOTEXTTOSEND
       // :No text to send
-      // TODO Message was not sent.
+      // If this happens a real error with the protocol occurred: we should
+      // always block the user from sending empty messages.
+      ERROR("ERR_NOTEXTTOSEND: No text to send for PRIVMSG.");
       return true;
     },
     "413": function(aMessage) { // ERR_NOTOPLEVEL
       // <mask> :No toplevel domain specified
-      // TODO Message was not sent.
-      return false;
+      // If this response is received, a real error occurred in the protocol.
+      ERROR("ERR_NOTOPLEVEL: Toplevel domain not specified.");
+      return true;
     },
     "414": function(aMessage) { // ERR_WILDTOPLEVEL
       // <mask> :Wildcard in toplevel domain
-      // TODO Message was not sent.
-      return false;
+      // If this response is received, a real error occurred in the protocol.
+      ERROR("ERR_WILDTOPLEVEL: Wildcard toplevel domain specified.");
+      return true;
     },
     "415": function(aMessage) { // ERR_BADMASK
       // <mask> :Bad Server/host mask
-      // TODO Message was not sent.
-      return false;
+      // If this response is received, a real error occurred in the protocol.
+      ERROR("ERR_BADMASK: Bad server/host mask specified.");
+      return true;
     },
     "421": function(aMessage) { // ERR_UNKNOWNCOMMAND
       // <command> :Unknown command
@@ -1155,13 +1209,13 @@ var ircBase = {
     },
     "465": function(aMessage) { // ERR_YOUREBANEDCREEP
       // :You are banned from this server
-      errorMessage(this, aMessage, _("error.banned"));
+      serverErrorMessage(this, aMessage, _("error.banned"));
       this.gotDisconnected(Ci.prplIAccount.ERROR_OTHER_ERROR,
                            _("error.banned")); // Notify account manager.
       return true;
     },
     "466": function(aMessage) { // ERR_YOUWILLBEBANNED
-      return errorMessage(this, aMessage, _("error.bannedSoon"));
+      return serverErrorMessage(this, aMessage, _("error.bannedSoon"));
     },
     "467": function(aMessage) { // ERR_KEYSET
       // <channel> :Channel key already set
@@ -1215,8 +1269,7 @@ var ircBase = {
     },
     "482": function(aMessage) { // ERR_CHANOPRIVSNEEDED
       // <channel> :You're not channel operator
-      // TODO ask for auth?
-      return false;
+      return conversationErrorMessage(this, aMessage, "error.notChannelOp");
     },
     "483": function(aMessage) { // ERR_CANTKILLSERVER
       // :You can't kill a server!
@@ -1251,7 +1304,7 @@ var ircBase = {
     },
     "502": function(aMessage) { // ERR_USERSDONTMATCH
       // :Cannot change mode for other users
-      return errorMessage(this, aMessage, _("error.mode.wrongUser"));
+      return serverErrorMessage(this, aMessage, _("error.mode.wrongUser"));
     }
   }
 };

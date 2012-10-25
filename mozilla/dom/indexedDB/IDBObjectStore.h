@@ -1,41 +1,8 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Indexed Database.
- *
- * The Initial Developer of the Original Code is
- * The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ben Turner <bent.mozilla@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef mozilla_dom_indexeddb_idbobjectstore_h__
 #define mozilla_dom_indexeddb_idbobjectstore_h__
@@ -48,6 +15,7 @@
 #include "nsCycleCollectionParticipant.h"
 
 #include "mozilla/dom/indexedDB/IDBTransaction.h"
+#include "mozilla/dom/indexedDB/KeyPath.h"
 
 class nsIScriptContext;
 class nsPIDOMWindow;
@@ -55,34 +23,36 @@ class nsPIDOMWindow;
 BEGIN_INDEXEDDB_NAMESPACE
 
 class AsyncConnectionHelper;
+class IDBCursor;
+class IDBKeyRange;
+class IDBRequest;
+class IndexedDBObjectStoreChild;
+class IndexedDBObjectStoreParent;
 class Key;
 
-struct ObjectStoreInfo;
 struct IndexInfo;
 struct IndexUpdateInfo;
+struct ObjectStoreInfo;
 struct StructuredCloneReadInfo;
 struct StructuredCloneWriteInfo;
 
-class IDBObjectStore : public nsIIDBObjectStore
+class IDBObjectStore MOZ_FINAL : public nsIIDBObjectStore
 {
 public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
   NS_DECL_NSIIDBOBJECTSTORE
 
-  NS_DECL_CYCLE_COLLECTION_CLASS(IDBObjectStore)
+  NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS(IDBObjectStore)
 
   static already_AddRefed<IDBObjectStore>
   Create(IDBTransaction* aTransaction,
          ObjectStoreInfo* aInfo,
-         nsIAtom* aDatabaseId);
-
-  static bool
-  IsValidKeyPath(JSContext* aCx, const nsAString& aKeyPath);
+         nsIAtom* aDatabaseId,
+         bool aCreating);
 
   static nsresult
   AppendIndexUpdateInfo(PRInt64 aIndexID,
-                        const nsAString& aKeyPath,
-                        const nsTArray<nsString>& aKeyPathArray,
+                        const KeyPath& aKeyPath,
                         bool aUnique,
                         bool aMultiEntry,
                         JSContext* aCx,
@@ -101,7 +71,7 @@ public:
   GetStructuredCloneReadInfoFromStatement(mozIStorageStatement* aStatement,
                                           PRUint32 aDataIndex,
                                           PRUint32 aFileIdsIndex,
-                                          FileManager* aFileManager,
+                                          IDBDatabase* aDatabase,
                                           StructuredCloneReadInfo& aInfo);
 
   static void
@@ -154,24 +124,14 @@ public:
     return mId;
   }
 
-  const nsString& KeyPath() const
+  const KeyPath& GetKeyPath() const
   {
     return mKeyPath;
   }
 
-  const bool HasKeyPath() const
+  const bool HasValidKeyPath() const
   {
-    return !mKeyPath.IsVoid() || !mKeyPathArray.IsEmpty();
-  }
-
-  bool UsesKeyPathArray() const
-  {
-    return !mKeyPathArray.IsEmpty();
-  }
-  
-  const nsTArray<nsString>& KeyPathArray() const
-  {
-    return mKeyPathArray;
+    return mKeyPath.IsValid();
   }
 
   IDBTransaction* Transaction()
@@ -183,6 +143,85 @@ public:
   {
     return mInfo;
   }
+
+  void
+  SetActor(IndexedDBObjectStoreChild* aActorChild)
+  {
+    NS_ASSERTION(!aActorChild || !mActorChild, "Shouldn't have more than one!");
+    mActorChild = aActorChild;
+  }
+
+  void
+  SetActor(IndexedDBObjectStoreParent* aActorParent)
+  {
+    NS_ASSERTION(!aActorParent || !mActorParent,
+                 "Shouldn't have more than one!");
+    mActorParent = aActorParent;
+  }
+
+  IndexedDBObjectStoreChild*
+  GetActorChild() const
+  {
+    return mActorChild;
+  }
+
+  IndexedDBObjectStoreParent*
+  GetActorParent() const
+  {
+    return mActorParent;
+  }
+
+  nsresult
+  CreateIndexInternal(const IndexInfo& aInfo,
+                      IDBIndex** _retval);
+
+  nsresult
+  IndexInternal(const nsAString& aName,
+                IDBIndex** _retval);
+
+  nsresult AddOrPutInternal(
+                      const SerializedStructuredCloneWriteInfo& aCloneWriteInfo,
+                      const Key& aKey,
+                      const InfallibleTArray<IndexUpdateInfo>& aUpdateInfoArray,
+                      bool aOverwrite,
+                      IDBRequest** _retval);
+
+  nsresult GetInternal(IDBKeyRange* aKeyRange,
+                       JSContext* aCx,
+                       IDBRequest** _retval);
+
+  nsresult GetAllInternal(IDBKeyRange* aKeyRange,
+                          PRUint32 aLimit,
+                          JSContext* aCx,
+                          IDBRequest** _retval);
+
+  nsresult DeleteInternal(IDBKeyRange* aKeyRange,
+                          JSContext* aCx,
+                          IDBRequest** _retval);
+
+  nsresult ClearInternal(JSContext* aCx,
+                         IDBRequest** _retval);
+
+  nsresult CountInternal(IDBKeyRange* aKeyRange,
+                         JSContext* aCx,
+                         IDBRequest** _retval);
+
+  nsresult OpenCursorInternal(IDBKeyRange* aKeyRange,
+                              size_t aDirection,
+                              JSContext* aCx,
+                              IDBRequest** _retval);
+
+  nsresult OpenCursorFromChildProcess(
+                            IDBRequest* aRequest,
+                            size_t aDirection,
+                            const Key& aKey,
+                            const SerializedStructuredCloneReadInfo& aCloneInfo,
+                            IDBCursor** _retval);
+
+  void
+  SetInfo(ObjectStoreInfo* aInfo);
+
+  static JSClass sDummyPropJSClass;
 
 protected:
   IDBObjectStore();
@@ -199,22 +238,25 @@ protected:
                     const jsval& aKey,
                     JSContext* aCx,
                     PRUint8 aOptionalArgCount,
-                    nsIIDBRequest** _retval,
-                    bool aOverwrite);
+                    bool aOverwrite,
+                    IDBRequest** _retval);
 
 private:
   nsRefPtr<IDBTransaction> mTransaction;
 
   PRInt64 mId;
   nsString mName;
-  nsString mKeyPath;
-  nsTArray<nsString> mKeyPathArray;
+  KeyPath mKeyPath;
+  JS::Value mCachedKeyPath;
+  bool mRooted;
   bool mAutoIncrement;
   nsCOMPtr<nsIAtom> mDatabaseId;
   nsRefPtr<ObjectStoreInfo> mInfo;
-  PRUint32 mStructuredCloneVersion;
 
   nsTArray<nsRefPtr<IDBIndex> > mCreatedIndexes;
+
+  IndexedDBObjectStoreChild* mActorChild;
+  IndexedDBObjectStoreParent* mActorParent;
 };
 
 END_INDEXEDDB_NAMESPACE

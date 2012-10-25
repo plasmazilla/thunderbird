@@ -1,43 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2002
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *  Brian Ryner <bryner@brianryner.com>
- *  Benjamin Smedberg <bsmedberg@covad.net>
- *  Ben Goodger <ben@mozilla.org>
- *  Jens Bannmann <jens.b@web.de>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsAppRunner.h"
 #include "nsToolkitCompsCID.h"
@@ -48,7 +12,7 @@
 #include "nsIJSRuntimeService.h"
 #include "nsIAppStartup.h"
 #include "nsIDirectoryEnumerator.h"
-#include "nsILocalFile.h"
+#include "nsIFile.h"
 #include "nsIObserver.h"
 #include "nsIObserverService.h"
 #include "nsIProfileChangeStatus.h"
@@ -99,14 +63,13 @@
 
 #define PREF_OVERRIDE_DIRNAME "preferences"
 
-static already_AddRefed<nsILocalFile>
+static already_AddRefed<nsIFile>
 CloneAndAppend(nsIFile* aFile, const char* name)
 {
   nsCOMPtr<nsIFile> file;
   aFile->Clone(getter_AddRefs(file));
-  nsCOMPtr<nsILocalFile> lfile = do_QueryInterface(file);
-  lfile->AppendNative(nsDependentCString(name));
-  return lfile.forget();
+  file->AppendNative(nsDependentCString(name));
+  return file.forget();
 }
 
 nsXREDirProvider* gDirServiceProvider = nsnull;
@@ -122,9 +85,15 @@ nsXREDirProvider::~nsXREDirProvider()
   gDirServiceProvider = nsnull;
 }
 
+nsXREDirProvider*
+nsXREDirProvider::GetSingleton()
+{
+  return gDirServiceProvider;
+}
+
 nsresult
 nsXREDirProvider::Initialize(nsIFile *aXULAppDir,
-                             nsILocalFile *aGREDir,
+                             nsIFile *aGREDir,
                              nsIDirectoryServiceProvider* aAppProvider)
 {
   NS_ENSURE_ARG(aXULAppDir);
@@ -183,6 +152,50 @@ NS_IMETHODIMP_(nsrefcnt)
 nsXREDirProvider::Release()
 {
   return 0;
+}
+
+nsresult
+nsXREDirProvider::GetUserProfilesRootDir(nsIFile** aResult,
+                                         const nsACString* aProfileName,
+                                         const nsACString* aAppName,
+                                         const nsACString* aVendorName)
+{
+  nsCOMPtr<nsIFile> file;
+  nsresult rv = GetUserDataDirectory(getter_AddRefs(file),
+                                     false,
+                                     aProfileName, aAppName, aVendorName);
+
+  if (NS_SUCCEEDED(rv)) {
+#if !defined(XP_UNIX) || defined(XP_MACOSX)
+    rv = file->AppendNative(NS_LITERAL_CSTRING("Profiles"));
+#endif
+    // We must create the profile directory here if it does not exist.
+    rv |= EnsureDirectoryExists(file);
+  }
+  file.swap(*aResult);
+  return rv;
+}
+
+nsresult
+nsXREDirProvider::GetUserProfilesLocalDir(nsIFile** aResult,
+                                          const nsACString* aProfileName,
+                                          const nsACString* aAppName,
+                                          const nsACString* aVendorName)
+{
+  nsCOMPtr<nsIFile> file;
+  nsresult rv = GetUserDataDirectory(getter_AddRefs(file),
+                                     true,
+                                     aProfileName, aAppName, aVendorName);
+
+  if (NS_SUCCEEDED(rv)) {
+#if !defined(XP_UNIX) || defined(XP_MACOSX)
+    rv = file->AppendNative(NS_LITERAL_CSTRING("Profiles"));
+#endif
+    // We must create the profile directory here if it does not exist.
+    rv |= EnsureDirectoryExists(file);
+  }
+  file.swap(*aResult);
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -259,7 +272,7 @@ nsXREDirProvider::GetFile(const char* aProperty, bool* aPersistent,
   }
   else if (!strcmp(aProperty, NS_APP_APPLICATION_REGISTRY_DIR) ||
            !strcmp(aProperty, XRE_USER_APP_DATA_DIR)) {
-    rv = GetUserAppDataDirectory((nsILocalFile**)(nsIFile**) getter_AddRefs(file));
+    rv = GetUserAppDataDirectory(getter_AddRefs(file));
   }
   else if (!strcmp(aProperty, XRE_UPDATE_ROOT_DIR)) {
 #if defined(XP_WIN)
@@ -270,36 +283,18 @@ nsXREDirProvider::GetFile(const char* aProperty, bool* aPersistent,
 #endif
   }
   else if (!strcmp(aProperty, NS_APP_APPLICATION_REGISTRY_FILE)) {
-    rv = GetUserAppDataDirectory((nsILocalFile**)(nsIFile**) getter_AddRefs(file));
+    rv = GetUserAppDataDirectory(getter_AddRefs(file));
     if (NS_SUCCEEDED(rv))
       rv = file->AppendNative(NS_LITERAL_CSTRING(APP_REGISTRY_NAME));
   }
   else if (!strcmp(aProperty, NS_APP_USER_PROFILES_ROOT_DIR)) {
-    rv = GetUserAppDataDirectory((nsILocalFile**)(nsIFile**) getter_AddRefs(file));
-
-    if (NS_SUCCEEDED(rv)) {
-#if !defined(XP_UNIX) || defined(XP_MACOSX)
-      rv = file->AppendNative(NS_LITERAL_CSTRING("Profiles"));
-#endif
-
-      // We must create the profile directory here if it does not exist.
-      rv |= EnsureDirectoryExists(file);
-    }
+    rv = GetUserProfilesRootDir(getter_AddRefs(file), nsnull, nsnull, nsnull);
   }
   else if (!strcmp(aProperty, NS_APP_USER_PROFILES_LOCAL_ROOT_DIR)) {
-    rv = GetUserLocalDataDirectory((nsILocalFile**)(nsIFile**) getter_AddRefs(file));
-
-    if (NS_SUCCEEDED(rv)) {
-#if !defined(XP_UNIX) || defined(XP_MACOSX)
-      rv = file->AppendNative(NS_LITERAL_CSTRING("Profiles"));
-#endif
-
-      // We must create the profile directory here if it does not exist.
-      rv |= EnsureDirectoryExists(file);
-    }
+    rv = GetUserProfilesLocalDir(getter_AddRefs(file), nsnull, nsnull, nsnull);
   }
   else if (!strcmp(aProperty, XRE_EXECUTABLE_FILE) && gArgv[0]) {
-    nsCOMPtr<nsILocalFile> lf;
+    nsCOMPtr<nsIFile> lf;
     rv = XRE_GetBinaryPath(gArgv[0], getter_AddRefs(lf));
     if (NS_SUCCEEDED(rv))
       file = lf;
@@ -322,7 +317,7 @@ nsXREDirProvider::GetFile(const char* aProperty, bool* aPersistent,
 #if defined(XP_UNIX) || defined(XP_MACOSX)
   else if (!strcmp(aProperty, XRE_SYS_LOCAL_EXTENSION_PARENT_DIR)) {
 #ifdef ENABLE_SYSTEM_EXTENSION_DIRS
-    return GetSystemExtensionsDirectory((nsILocalFile**)(nsIFile**) aFile);
+    return GetSystemExtensionsDirectory(aFile);
 #else
     return NS_ERROR_FAILURE;
 #endif
@@ -333,7 +328,7 @@ nsXREDirProvider::GetFile(const char* aProperty, bool* aPersistent,
 #ifdef ENABLE_SYSTEM_EXTENSION_DIRS
     static const char *const sysLExtDir = "/usr/share/mozilla/extensions";
     return NS_NewNativeLocalFile(nsDependentCString(sysLExtDir),
-                                 false, (nsILocalFile**)(nsIFile**) aFile);
+                                 false, aFile);
 #else
     return NS_ERROR_FAILURE;
 #endif
@@ -341,7 +336,7 @@ nsXREDirProvider::GetFile(const char* aProperty, bool* aPersistent,
 #endif
   else if (!strcmp(aProperty, XRE_USER_SYS_EXTENSION_DIR)) {
 #ifdef ENABLE_SYSTEM_EXTENSION_DIRS
-    return GetSysUserExtensionsDirectory((nsILocalFile**)(nsIFile**) aFile);
+    return GetSysUserExtensionsDirectory(aFile);
 #else
     return NS_ERROR_FAILURE;
 #endif
@@ -526,7 +521,7 @@ LoadExtensionDirectories(nsINIParser &parser,
     if (NS_FAILED(rv))
       return;
 
-    nsCOMPtr<nsILocalFile> dir = do_CreateInstance("@mozilla.org/file/local;1", &rv);
+    nsCOMPtr<nsIFile> dir = do_CreateInstance("@mozilla.org/file/local;1", &rv);
     if (NS_FAILED(rv))
       continue;
 
@@ -539,7 +534,7 @@ LoadExtensionDirectories(nsINIParser &parser,
       XRE_AddJarManifestLocation(aType, dir);
     }
     else {
-      nsCOMPtr<nsILocalFile> manifest =
+      nsCOMPtr<nsIFile> manifest =
         CloneAndAppend(dir, "chrome.manifest");
       XRE_AddManifestLocation(aType, manifest);
     }
@@ -558,7 +553,7 @@ nsXREDirProvider::LoadExtensionBundleDirectories()
 
     extensionsINI->AppendNative(NS_LITERAL_CSTRING("extensions.ini"));
 
-    nsCOMPtr<nsILocalFile> extensionsINILF =
+    nsCOMPtr<nsIFile> extensionsINILF =
       do_QueryInterface(extensionsINI);
     if (!extensionsINILF)
       return;
@@ -599,7 +594,7 @@ nsXREDirProvider::LoadAppBundleDirs()
   while (NS_SUCCEEDED(files->GetNextFile(getter_AddRefs(subdir))) && subdir) {
     mAppBundleDirectories.AppendObject(subdir);
 
-    nsCOMPtr<nsILocalFile> manifest =
+    nsCOMPtr<nsIFile> manifest =
       CloneAndAppend(subdir, "chrome.manifest");
     XRE_AddManifestLocation(NS_COMPONENT_LOCATION, manifest);
   }
@@ -797,7 +792,7 @@ nsXREDirProvider::DoStartup()
   return NS_OK;
 }
 
-class ProfileChangeStatusImpl : public nsIProfileChangeStatus
+class ProfileChangeStatusImpl MOZ_FINAL : public nsIProfileChangeStatus
 {
 public:
   NS_DECL_ISUPPORTS
@@ -975,14 +970,22 @@ nsXREDirProvider::GetUpdateRootDir(nsIFile* *aResult)
   if (longPath.Length() < programFilesLen)
     return NS_ERROR_FAILURE;
 
-  if (_wcsnicmp(programFiles.get(), longPath.get(), programFilesLen) != 0)
-    return NS_ERROR_FAILURE;
+  nsAutoString programName;
+  if (_wcsnicmp(programFiles.get(), longPath.get(), programFilesLen) == 0) {
+    programName = Substring(longPath, programFilesLen);
+  } else {
+    // We need the update root directory to live outside of the installation
+    // directory, because otherwise the updater writing the log file can cause
+    // the directory to be locked, which prevents it from being replaced after
+    // background updates.
+    programName.AssignASCII(MOZ_APP_NAME);
+  }
 
-  nsCOMPtr<nsILocalFile> updRoot;
+  nsCOMPtr<nsIFile> updRoot;
   rv = GetUserLocalDataDirectory(getter_AddRefs(updRoot));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = updRoot->AppendRelativePath(Substring(longPath, programFilesLen));
+  rv = updRoot->AppendRelativePath(programName);
   NS_ENSURE_SUCCESS(rv, rv);
 
   NS_ADDREF(*aResult = updRoot);
@@ -1033,11 +1036,11 @@ nsXREDirProvider::GetProfileDir(nsIFile* *aResult)
 }
 
 nsresult
-nsXREDirProvider::GetUserDataDirectoryHome(nsILocalFile** aFile, bool aLocal)
+nsXREDirProvider::GetUserDataDirectoryHome(nsIFile** aFile, bool aLocal)
 {
   // Copied from nsAppFileLocationProvider (more or less)
   nsresult rv;
-  nsCOMPtr<nsILocalFile> localDir;
+  nsCOMPtr<nsIFile> localDir;
 
 #if defined(XP_MACOSX)
   FSRef fsRef;
@@ -1124,9 +1127,9 @@ nsXREDirProvider::GetUserDataDirectoryHome(nsILocalFile** aFile, bool aLocal)
 }
 
 nsresult
-nsXREDirProvider::GetSysUserExtensionsDirectory(nsILocalFile** aFile)
+nsXREDirProvider::GetSysUserExtensionsDirectory(nsIFile** aFile)
 {
-  nsCOMPtr<nsILocalFile> localDir;
+  nsCOMPtr<nsIFile> localDir;
   nsresult rv = GetUserDataDirectoryHome(getter_AddRefs(localDir), false);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -1142,10 +1145,10 @@ nsXREDirProvider::GetSysUserExtensionsDirectory(nsILocalFile** aFile)
 
 #if defined(XP_UNIX) || defined(XP_MACOSX)
 nsresult
-nsXREDirProvider::GetSystemExtensionsDirectory(nsILocalFile** aFile)
+nsXREDirProvider::GetSystemExtensionsDirectory(nsIFile** aFile)
 {
   nsresult rv;
-  nsCOMPtr<nsILocalFile> localDir;
+  nsCOMPtr<nsIFile> localDir;
 #if defined(XP_MACOSX)
   FSRef fsRef;
   OSErr err = ::FSFindFolder(kOnSystemDisk, kApplicationSupportFolderType, kCreateFolder, &fsRef);
@@ -1188,13 +1191,16 @@ nsXREDirProvider::GetSystemExtensionsDirectory(nsILocalFile** aFile)
 #endif
 
 nsresult
-nsXREDirProvider::GetUserDataDirectory(nsILocalFile** aFile, bool aLocal)
+nsXREDirProvider::GetUserDataDirectory(nsIFile** aFile, bool aLocal,
+                                       const nsACString* aProfileName,
+                                       const nsACString* aAppName,
+                                       const nsACString* aVendorName)
 {
-  nsCOMPtr<nsILocalFile> localDir;
+  nsCOMPtr<nsIFile> localDir;
   nsresult rv = GetUserDataDirectoryHome(getter_AddRefs(localDir), aLocal);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = AppendProfilePath(localDir);
+  rv = AppendProfilePath(localDir, aProfileName, aAppName, aVendorName);
   NS_ENSURE_SUCCESS(rv, rv);
 
 #ifdef DEBUG_jungshik
@@ -1312,37 +1318,58 @@ nsXREDirProvider::AppendSysUserExtensionPath(nsIFile* aFile)
 
 
 nsresult
-nsXREDirProvider::AppendProfilePath(nsIFile* aFile)
+nsXREDirProvider::AppendProfilePath(nsIFile* aFile,
+                                    const nsACString* aProfileName,
+                                    const nsACString* aAppName,
+                                    const nsACString* aVendorName)
 {
   NS_ASSERTION(aFile, "Null pointer!");
+  
+  if (!gAppData) {
+    return NS_ERROR_FAILURE;
+  }
+
+  nsCAutoString profile;
+  nsCAutoString appName;
+  nsCAutoString vendor;
+  if (aProfileName && !aProfileName->IsEmpty()) {
+    profile = *aProfileName;
+  } else if (aAppName) {
+    appName = *aAppName;
+    if (aVendorName) {
+      vendor = *aVendorName;
+    }
+  } else if (gAppData->profile) {
+    profile = gAppData->profile;
+  } else {
+    appName = gAppData->name;
+    vendor = gAppData->vendor;
+  }
 
   nsresult rv;
 
-  if (!gAppData)
-    return NS_ERROR_FAILURE;
-
 #if defined (XP_MACOSX)
-  if (gAppData->profile) {
-    rv = AppendProfileString(aFile, gAppData->profile);
+  if (!profile.IsEmpty()) {
+    rv = AppendProfileString(aFile, profile.get());
   }
   else {
     // Note that MacOS ignores the vendor when creating the profile hierarchy -
     // all application preferences directories live alongside one another in
     // ~/Library/Application Support/
-    rv = aFile->AppendNative(nsDependentCString(gAppData->name));
+    rv = aFile->AppendNative(appName);
   }
   NS_ENSURE_SUCCESS(rv, rv);
 
 #elif defined(XP_WIN) || defined(XP_OS2)
-  if (gAppData->profile) {
-    rv = AppendProfileString(aFile, gAppData->profile);
+  if (!profile.IsEmpty()) {
+    rv = AppendProfileString(aFile, profile.get());
   }
   else {
-    if (gAppData->vendor) {
-      rv = aFile->AppendNative(nsDependentCString(gAppData->vendor));
+    if (!vendor.IsEmpty()) {
+      rv = aFile->AppendNative(vendor);
       NS_ENSURE_SUCCESS(rv, rv);
     }
-    rv = aFile->AppendNative(nsDependentCString(gAppData->name));
+    rv = aFile->AppendNative(appName);
   }
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -1350,15 +1377,18 @@ nsXREDirProvider::AppendProfilePath(nsIFile* aFile)
   // The directory used for storing profiles
   // The parent of this directory is set in GetUserDataDirectoryHome
   // XXX: handle gAppData->profile properly
+  // XXXsmaug ...and the rest of the profile creation!
+  MOZ_ASSERT(!aAppName,
+             "Profile creation for external applications is not implemented!");
   rv = aFile->AppendNative(nsDependentCString("mozilla"));
   NS_ENSURE_SUCCESS(rv, rv);
 #elif defined(XP_UNIX)
   // Make it hidden (i.e. using the ".")
   nsCAutoString folder(".");
 
-  if (gAppData->profile) {
+  if (!profile.IsEmpty()) {
     // Skip any leading path characters
-    const char* profileStart = gAppData->profile;
+    const char* profileStart = profile.get();
     while (*profileStart == '/' || *profileStart == '\\')
       profileStart++;
 
@@ -1373,8 +1403,8 @@ nsXREDirProvider::AppendProfilePath(nsIFile* aFile)
     rv = AppendProfileString(aFile, folder.BeginReading());
   }
   else {
-    if (gAppData->vendor) {
-      folder.Append(gAppData->vendor);
+    if (!vendor.IsEmpty()) {
+      folder.Append(vendor);
       ToLowerCase(folder);
 
       rv = aFile->AppendNative(folder);
@@ -1383,7 +1413,7 @@ nsXREDirProvider::AppendProfilePath(nsIFile* aFile)
       folder.Truncate();
     }
 
-    folder.Append(gAppData->name);
+    folder.Append(appName);
     ToLowerCase(folder);
 
     rv = aFile->AppendNative(folder);

@@ -22,7 +22,7 @@ function test() {
     gTab = aTab;
     gDebuggee = aDebuggee;
     gPane = aPane;
-    gDebugger = gPane.debuggerWindow;
+    gDebugger = gPane.contentWindow;
 
     gDebugger.DebuggerController.activeThread.addOneTimeListener("framesadded", function() {
       framesAdded = true;
@@ -98,7 +98,7 @@ function testRecurse()
   gDebugger.DebuggerController.activeThread.resume(function() {
     is(gDebugger.editor.getDebugLocation(), -1,
        "editor debugger location is correct after resume.");
-    closeDebuggerAndFinish(gTab);
+    closeDebuggerAndFinish();
   });
 }
 

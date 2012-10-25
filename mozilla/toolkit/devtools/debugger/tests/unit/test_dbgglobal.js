@@ -9,17 +9,18 @@ function run_test()
   // Should get an exception if we try to interact with DebuggerServer
   // before we initialize it...
   check_except(function() {
-    DebuggerServer.openListener(2929, true);
+    DebuggerServer.openListener(2929);
   });
   check_except(DebuggerServer.closeListener);
   check_except(DebuggerServer.connectPipe);
 
-  DebuggerServer.init();
+  // Allow incoming connections.
+  DebuggerServer.init(function () { return true; });
 
   // These should still fail because we haven't added a createRootActor
   // implementation yet.
   check_except(function() {
-    DebuggerServer.openListener(2929, true);
+    DebuggerServer.openListener(2929);
   });
   check_except(DebuggerServer.closeListener);
   check_except(DebuggerServer.connectPipe);
@@ -27,7 +28,7 @@ function run_test()
   DebuggerServer.addActors("resource://test/testactors.js");
 
   // Now they should work.
-  DebuggerServer.openListener(2929, true);
+  DebuggerServer.openListener(2929);
   DebuggerServer.closeListener();
 
   // Make sure we got the test's root actor all set up.

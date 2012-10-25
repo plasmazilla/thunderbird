@@ -1,45 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
  * vim: set ts=2 sw=2 et tw=78:
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Steve Clark <buster@netscape.com>
- *   Håkan Waara <hwaara@chello.se>
- *   Dan Rosen <dr@netscape.com>
- *   Daniel Glazman <glazman@netscape.com>
- *   Mats Palmgren <mats.palmgren@bredband.net>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK *****
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
 /* arena allocation for the frame tree and closely-related objects */
@@ -52,6 +15,7 @@
 #include "prmem.h"
 #include "prinit.h"
 #include "prlog.h"
+#include "nsArenaMemoryStats.h"
 
 #ifdef MOZ_CRASHREPORTER
 #include "nsICrashReporter.h"
@@ -267,7 +231,7 @@ ARENA_POISON_init()
   bool enabled;
   if (cr && NS_SUCCEEDED(cr->GetEnabled(&enabled)) && enabled) {
     cr->AnnotateCrashReport(NS_LITERAL_CSTRING("FramePoisonBase"),
-                            nsPrintfCString(17, "%.16llx", PRUint64(rgnbase)));
+                            nsPrintfCString("%.16llx", PRUint64(rgnbase)));
     cr->AnnotateCrashReport(NS_LITERAL_CSTRING("FramePoisonSize"),
                             nsPrintfCString("%lu", PRUint32(rgnsize)));
   }
@@ -288,12 +252,13 @@ public:
   typedef PRUint32 KeyType;
   nsTArray<void *> mEntries;
   size_t mEntrySize;
+  size_t mEntriesEverAllocated;
 
-protected:
   typedef const void* KeyTypePointer;
   KeyTypePointer mKey;
 
-  FreeList(KeyTypePointer aKey) : mEntrySize(0), mKey(aKey) {}
+  FreeList(KeyTypePointer aKey)
+  : mEntrySize(0), mEntriesEverAllocated(0), mKey(aKey) {}
   // Default copy constructor and destructor are ok.
 
   bool KeyEquals(KeyTypePointer const aKey) const
@@ -306,7 +271,6 @@ protected:
   { return NS_PTR_TO_INT32(aKey); }
 
   enum { ALLOW_MEMMOVE = false };
-  friend class nsTHashtable<FreeList>;
 };
 
 }
@@ -337,9 +301,6 @@ struct nsPresArena::State {
     // If there is no free-list entry for this type already, we have
     // to create one now, to record its size.
     FreeList* list = mFreeLists.PutEntry(aCode);
-    if (!list) {
-      return nsnull;
-    }
 
     nsTArray<void*>::index_type len = list->mEntries.Length();
     if (list->mEntrySize == 0) {
@@ -369,6 +330,7 @@ struct nsPresArena::State {
     }
 
     // Allocate a new chunk from the arena
+    list->mEntriesEverAllocated++;
     PL_ARENA_ALLOCATE(result, &mPool, aSize);
     return result;
   }
@@ -389,7 +351,14 @@ struct nsPresArena::State {
     list->mEntries.AppendElement(aPtr);
   }
 
-  size_t SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf) const
+  static size_t SizeOfFreeListEntryExcludingThis(FreeList* aEntry,
+                                                 nsMallocSizeOfFun aMallocSizeOf,
+                                                 void *)
+  {
+    return aEntry->mEntries.SizeOfExcludingThis(aMallocSizeOf);
+  }
+
+  size_t SizeOfIncludingThisFromMalloc(nsMallocSizeOfFun aMallocSizeOf) const
   {
     size_t n = aMallocSizeOf(this);
 
@@ -401,14 +370,79 @@ struct nsPresArena::State {
       n += aMallocSizeOf(arena);
       arena = arena->next;
     }
+    n += mFreeLists.SizeOfExcludingThis(SizeOfFreeListEntryExcludingThis,
+                                        aMallocSizeOf);
     return n;
+  }
+
+  struct EnumerateData {
+    nsArenaMemoryStats* stats;
+    size_t total;
+  };
+
+  static PLDHashOperator FreeListEnumerator(FreeList* aEntry, void* aData)
+  {
+    EnumerateData* data = static_cast<EnumerateData*>(aData);
+    // Note that we're not measuring the size of the entries on the free
+    // list here.  The free list knows how many objects we've allocated
+    // ever (which includes any objects that may be on the FreeList's
+    // |mEntries| at this point) and we're using that to determine the
+    // total size of objects allocated with a given ID.
+    size_t totalSize = aEntry->mEntrySize * aEntry->mEntriesEverAllocated;
+    size_t* p;
+
+    switch (NS_PTR_TO_INT32(aEntry->mKey)) {
+#define FRAME_ID(classname)                                        \
+      case nsQueryFrame::classname##_id:                           \
+        p = &data->stats->FRAME_ID_STAT_FIELD(classname);          \
+        break;
+#include "nsFrameIdList.h"
+#undef FRAME_ID
+    case nsLineBox_id:
+      p = &data->stats->mLineBoxes;
+      break;
+    case nsRuleNode_id:
+      p = &data->stats->mRuleNodes;
+      break;
+    case nsStyleContext_id:
+      p = &data->stats->mStyleContexts;
+      break;
+    default:
+      return PL_DHASH_NEXT;
+    }
+
+    *p += totalSize;
+    data->total += totalSize;
+
+    return PL_DHASH_NEXT;
+  }
+
+  void SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf,
+                           nsArenaMemoryStats* aArenaStats)
+  {
+    // We do a complicated dance here because we want to measure the
+    // space taken up by the different kinds of objects in the arena,
+    // but we don't have pointers to those objects.  And even if we did,
+    // we wouldn't be able to use aMallocSizeOf on them, since they were
+    // allocated out of malloc'd chunks of memory.  So we compute the
+    // size of the arena as known by malloc and we add up the sizes of
+    // all the objects that we care about.  Subtracting these two
+    // quantities gives us a catch-all "other" number, which includes
+    // slop in the arena itself as well as the size of objects that
+    // we've not measured explicitly.
+
+    size_t mallocSize = SizeOfIncludingThisFromMalloc(aMallocSizeOf);
+    EnumerateData data = { aArenaStats, 0 };
+    mFreeLists.EnumerateEntries(FreeListEnumerator, &data);
+    aArenaStats->mOther = mallocSize - data.total;
   }
 };
 
-size_t
-nsPresArena::SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf) const
+void
+nsPresArena::SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf,
+                                 nsArenaMemoryStats* aArenaStats)
 {
-  return mState ? mState->SizeOfIncludingThis(aMallocSizeOf) : 0;
+  mState->SizeOfIncludingThis(aMallocSizeOf, aArenaStats);
 }
 
 #else
@@ -435,11 +469,9 @@ struct nsPresArena::State
   }
 };
 
-size_t
-nsPresArena::SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf) const
-{
-  return 0;
-}
+void
+nsPresArena::SizeOfExcludingThis(nsMallocSizeOfFun, nsArenaMemoryStats*)
+{}
 
 #endif // DEBUG_TRACEMALLOC_PRESARENA
 
@@ -456,28 +488,38 @@ nsPresArena::~nsPresArena()
 void*
 nsPresArena::AllocateBySize(size_t aSize)
 {
-  return mState->Allocate(PRUint32(aSize) |
-                          PRUint32(nsQueryFrame::NON_FRAME_MARKER),
+  return mState->Allocate(PRUint32(aSize) | PRUint32(NON_OBJECT_MARKER),
                           aSize);
 }
 
 void
 nsPresArena::FreeBySize(size_t aSize, void* aPtr)
 {
-  mState->Free(PRUint32(aSize) |
-               PRUint32(nsQueryFrame::NON_FRAME_MARKER), aPtr);
+  mState->Free(PRUint32(aSize) | PRUint32(NON_OBJECT_MARKER), aPtr);
 }
 
 void*
-nsPresArena::AllocateByCode(nsQueryFrame::FrameIID aCode, size_t aSize)
+nsPresArena::AllocateByFrameID(nsQueryFrame::FrameIID aID, size_t aSize)
 {
-  return mState->Allocate(aCode, aSize);
+  return mState->Allocate(aID, aSize);
 }
 
 void
-nsPresArena::FreeByCode(nsQueryFrame::FrameIID aCode, void* aPtr)
+nsPresArena::FreeByFrameID(nsQueryFrame::FrameIID aID, void* aPtr)
 {
-  mState->Free(aCode, aPtr);
+  mState->Free(aID, aPtr);
+}
+
+void*
+nsPresArena::AllocateByObjectID(ObjectID aID, size_t aSize)
+{
+  return mState->Allocate(aID, aSize);
+}
+
+void
+nsPresArena::FreeByObjectID(ObjectID aID, void* aPtr)
+{
+  mState->Free(aID, aPtr);
 }
 
 /* static */ uintptr_t

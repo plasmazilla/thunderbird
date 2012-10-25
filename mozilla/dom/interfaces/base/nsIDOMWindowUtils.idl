@@ -1,39 +1,7 @@
 /* -*- Mode: IDL; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla.org
- * Portions created by the Initial Developer are Copyright (C) 2004
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsISupports.idl"
 
@@ -70,8 +38,9 @@ interface nsIDOMFile;
 interface nsIFile;
 interface nsIDOMTouch;
 interface nsIDOMClientRect;
+interface mozIDOMApplication;
 
-[scriptable, uuid(2b3ac53c-2a88-421f-af09-f10665c88acf)]
+[scriptable, uuid(858578f1-9653-4d5c-821a-07479bf2d9b2)]
 interface nsIDOMWindowUtils : nsISupports {
 
   /**
@@ -199,6 +168,24 @@ interface nsIDOMWindowUtils : nsISupports {
    */
   attribute boolean isFirstPaint;
 
+  /**
+   * Following modifiers are for sent*Event() except sendNative*Event().
+   * NOTE: MODIFIER_ALT, MODIFIER_CONTROL, MODIFIER_SHIFT and MODIFIER_META
+   *       are must be same values as nsIDOMNSEvent::*_MASK for backward
+   *       compatibility.
+   */
+  const long MODIFIER_ALT        = 0x0001;
+  const long MODIFIER_CONTROL    = 0x0002;
+  const long MODIFIER_SHIFT      = 0x0004;
+  const long MODIFIER_META       = 0x0008;
+  const long MODIFIER_ALTGRAPH   = 0x0010;
+  const long MODIFIER_CAPSLOCK   = 0x0020;
+  const long MODIFIER_FN         = 0x0040;
+  const long MODIFIER_NUMLOCK    = 0x0080;
+  const long MODIFIER_SCROLLLOCK = 0x0100;
+  const long MODIFIER_SYMBOLLOCK = 0x0200;
+  const long MODIFIER_OS         = 0x0400;
+
   /** Synthesize a mouse event. The event types supported are:
    *    mousedown, mouseup, mousemove, mouseover, mouseout, contextmenu
    *
@@ -226,7 +213,7 @@ interface nsIDOMWindowUtils : nsISupports {
    * @param aY y offset in CSS pixels
    * @param aButton button to synthesize
    * @param aClickCount number of clicks that have been performed
-   * @param aModifiers modifiers pressed, using constants defined in nsIDOMNSEvent
+   * @param aModifiers modifiers pressed, using constants defined as MODIFIER_*
    * @param aIgnoreRootScrollFrame whether the event should ignore viewport bounds
    *                           during dispatch
    */
@@ -259,7 +246,7 @@ interface nsIDOMWindowUtils : nsISupports {
    * @param rotationAngles array of angles in degrees for each touch to be sent
    * @param forces array of forces (floats from 0 to 1) for each touch to be sent
    * @param count number of touches in this set
-   * @param aModifiers modifiers pressed, using constants defined in nsIDOMNSEvent
+   * @param aModifiers modifiers pressed, using constants defined as MODIFIER_*
    * @param aIgnoreRootScrollFrame whether the event should ignore viewport bounds
    *                           during dispatch
    *
@@ -306,7 +293,7 @@ interface nsIDOMWindowUtils : nsISupports {
    * @param aScrollFlags flag bits --- see nsMouseScrollFlags in nsGUIEvent.h
    * @param aDelta the direction and amount to scroll (in lines or pixels,
    * depending on the event type)
-   * @param aModifiers modifiers pressed, using constants defined in nsIDOMNSEvent
+   * @param aModifiers modifiers pressed, using constants defined as MODIFIER_*
    */
   void sendMouseScrollEvent(in AString aType,
                             in float aX,
@@ -329,18 +316,31 @@ interface nsIDOMWindowUtils : nsISupports {
    * @param aType event type
    * @param aKeyCode key code
    * @param aCharCode character code
-   * @param aModifiers modifiers pressed, using constants defined in nsIDOMNSEvent
-   * @param aPreventDefault if true, preventDefault() the event before dispatch
+   * @param aModifiers modifiers pressed, using constants defined as MODIFIER_*
+   * @param aAdditionalFlags special flags for the key event, see KEY_FLAG_*.
    *
    * @return false if the event had preventDefault() called on it,
    *               true otherwise.  In other words, true if and only if the
    *               default action was taken.
    */
+
+  // If this is set, preventDefault() the event before dispatch.
+  const unsigned long KEY_FLAG_PREVENT_DEFAULT   = 0x0001;
+
+  // if one of these flags is set, the KeyboardEvent.location will be the value.
+  // Otherwise, it will be computed from aKeyCode.
+  const unsigned long KEY_FLAG_LOCATION_STANDARD = 0x0010;
+  const unsigned long KEY_FLAG_LOCATION_LEFT     = 0x0020;
+  const unsigned long KEY_FLAG_LOCATION_RIGHT    = 0x0040;
+  const unsigned long KEY_FLAG_LOCATION_NUMPAD   = 0x0080;
+  const unsigned long KEY_FLAG_LOCATION_MOBILE   = 0x0100;
+  const unsigned long KEY_FLAG_LOCATION_JOYSTICK = 0x0200;
+
   boolean sendKeyEvent(in AString aType,
                        in long aKeyCode,
                        in long aCharCode,
                        in long aModifiers,
-                       [optional] in boolean aPreventDefault);
+                       [optional] in unsigned long aAdditionalFlags);
 
   /**
    * See nsIWidget::SynthesizeNativeKeyEvent
@@ -348,6 +348,8 @@ interface nsIDOMWindowUtils : nsISupports {
    * Cannot be accessed from unprivileged context (not content-accessible)
    * Will throw a DOM security error if called without UniversalXPConnect
    * privileges.
+   *
+   * When you use this for tests, use the constants defined in NativeKeyCodes.js
    */
   void sendNativeKeyEvent(in long aNativeKeyboardLayout,
                           in long aNativeKeyCode,
@@ -491,8 +493,8 @@ interface nsIDOMWindowUtils : nsISupports {
   /** Synthesize a simple gesture event for a window. The event types
    *  supported are: MozSwipeGesture, MozMagnifyGestureStart,
    *  MozMagnifyGestureUpdate, MozMagnifyGesture, MozRotateGestureStart,
-   *  MozRotateGestureUpdate, MozRotateGesture, MozPressTapGesture, and
-   *  MozTapGesture.
+   *  MozRotateGestureUpdate, MozRotateGesture, MozPressTapGesture,
+   *  MozTapGesture, and MozEdgeUIGesture.
    *
    * Cannot be accessed from unprivileged context (not
    * content-accessible) Will throw a DOM security error if called
@@ -504,13 +506,15 @@ interface nsIDOMWindowUtils : nsISupports {
    * @param aDirection direction, using constants defined in nsIDOMSimpleGestureEvent
    * @param aDelta  amount of magnification or rotation for magnify and rotation events
    * @param aModifiers modifiers pressed, using constants defined in nsIDOMNSEvent
+   * @param aClickCount For tap gestures, the number of taps.
    */
   void sendSimpleGestureEvent(in AString aType,
                               in float aX,
                               in float aY,
                               in unsigned long aDirection,
                               in double aDelta,
-                              in long aModifiers);
+                              in long aModifiers,
+                              [optional] in unsigned long aClickCount);
 
   /**
    * Retrieve the element at point aX, aY in the window's document.
@@ -1041,12 +1045,30 @@ interface nsIDOMWindowUtils : nsISupports {
    */
   boolean checkAndClearPaintedState(in nsIDOMElement aElement);
 
-  /*
-   * Get internal id of the stored blob.
+  /**
+   * Internal file constructor intended for testing of File objects.
+   * Example of constructor usage:
+   *   getFile("myfile.txt", [b1, "foo"], { type: "text/plain" })
    */
-  long long getFileId(in nsIDOMBlob aBlob);
+  [optional_argc, implicit_jscontext]
+  nsIDOMFile getFile(in DOMString aName, [optional] in jsval aBlobParts,
+                     [optional] in jsval aParameters);
 
-  /*
+  /**
+   * Internal blob constructor intended for testing of Blob objects.
+   * Example of constructor usage:
+   *   getBlob([b1, "foo"], { type: "text/plain" })
+   */
+  [optional_argc, implicit_jscontext]
+  nsIDOMBlob getBlob([optional] in jsval aBlobParts,
+                     [optional] in jsval aParameters);
+
+  /**
+   * Get internal id of the stored blob, file or file handle.
+   */
+  [implicit_jscontext] long long getFileId(in jsval aFile);
+
+  /**
    * Get file ref count info for given database and file id.
    *
    */
@@ -1126,4 +1148,27 @@ interface nsIDOMWindowUtils : nsISupports {
    * The caller of this method must have UniversalXPConnect privileges.
    */
   void setScrollPositionClampingScrollPortSize(in float aWidth, in float aHeight);
+
+  /**
+   * Mark if the window is an application window or not.
+   * This should only be set for top-level mozApp or mozBrowser frames.
+   * It should not be set for other frames unless you want a frame (and its
+   * children) to have a different value for IsPartOfApp than the frame's
+   * parent.
+   */
+  void setIsApp(in boolean value);
+
+  /**
+   * Associate the window with an application by passing the URL of the
+   * application's manifest.
+   *
+   * This method will throw an exception if the manifest URL isn't a valid URL
+   * or isn't the manifest URL of an installed application.
+   */
+  void setApp(in DOMString manifestURL);
+  /**
+    * Retrieves the Application object associated to this window.
+    * Can be null if |setApp()| has not been called.
+    */
+  mozIDOMApplication getApp();
 };

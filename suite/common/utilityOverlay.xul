@@ -1,4 +1,8 @@
 <?xml version="1.0"?>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 
 <?xul-overlay href="chrome://communicator/content/platformCommunicatorOverlay.xul"?>
 
@@ -29,6 +33,10 @@
     <stringbundle id="bundle_utilityOverlay"
                   src="chrome://communicator/locale/utilityOverlay.properties"/>
   </stringbundleset>
+
+<broadcasterset id="mainBroadcasterSet">
+  <broadcaster id="cmd_CustomizeToolbars"/>
+</broadcasterset>
 
   <!-- online/offline status indicators -->   
   <broadcaster id="Communicator:WorkMode"
@@ -112,9 +120,10 @@
 
     <menuseparator id="toolbar-customize-sep"/>
     <menuitem id = "customize_toolbars"
-              command="cmd_CustomizeToolbars"
+              observes="cmd_CustomizeToolbars"
               label="&customizeToolbarContext.label;"
-              accesskey="&customizeToolbarContext.accesskey;"/>
+              accesskey="&customizeToolbarContext.accesskey;"
+              oncommand="return SuiteCustomizeToolbar(this);"/>
 
   </menupopup>
 
@@ -131,6 +140,10 @@
             label="&offlineGoOfflineCmd.label;"
             accesskey="&offlineGoOfflineCmd.accesskey;"
             observes="Communicator:WorkMode"/>
+
+  <keyset id="tasksKeys">
+    <key id="key_quit"/>
+  </keyset>
 
   <!-- File Menu -->
   <menu id="menu_File"
@@ -351,6 +364,7 @@
               oncommandupdate="goUpdateFindTypeMenuItems()"/>
 
   <commandset id="tasksCommands">
+    <command id="cmd_quit" oncommand="goQuitApplication();"/>
     <command id="cmd_openHelp"
              oncommand="openHelp('welcome', 'chrome://communicator/locale/help/suitehelp.rdf');"/>
   </commandset>

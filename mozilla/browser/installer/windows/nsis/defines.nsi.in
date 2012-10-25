@@ -1,4 +1,7 @@
 #filter substitution
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 # These defines should match application.ini settings
 !define AppName               "Firefox"
@@ -48,6 +51,10 @@
 
 #ifdef MOZ_MAINTENANCE_SERVICE
 !define MOZ_MAINTENANCE_SERVICE
+#endif
+
+#ifdef MOZ_METRO
+!define MOZ_METRO
 #endif
 
 # File details shared by both the installer and uninstaller

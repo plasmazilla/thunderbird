@@ -1,41 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Telephony.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Philipp von Weitershausen <philipp@weitershausen.de>
- *   Ben Turner <bent.mozilla@gmail.com>
- *   Sinker Li <thinker@codemud.net>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsISupports.idl"
 #include "nsIMobileConnectionProvider.idl"
@@ -44,7 +9,7 @@ interface nsIDOMMozMobileConnectionInfo;
 interface nsIDOMDOMRequest;
 interface nsIDOMWindow;
 
-[scriptable, uuid(03eafd60-d138-4f09-81b4-90cd4996b3c7)]
+[scriptable, uuid(c14c71b8-afba-403b-8320-94593de9380f)]
 interface nsIRILTelephonyCallback : nsISupports
 {
   /**
@@ -56,14 +21,17 @@ interface nsIRILTelephonyCallback : nsISupports
    *        One of the nsIRadioInterfaceLayer::CALL_STATE_* values.
    * @param number
    *        Number of the other party.
+   * @param isActive
+   *        Indicates whether this call is the currently active one.
    */
   void callStateChanged(in unsigned long callIndex,
                         in unsigned short callState,
-                        in AString number);
+                        in AString number,
+                        in boolean isActive);
 
   /**
-   * Called when nsIRadioInterfaceLayer is asked to enumerate the current
-   * telephony call state (nsIRadioInterfaceLayer::enumerateCalls). This is
+   * Called when nsIRILContentHelper is asked to enumerate the current
+   * telephony call state (nsIRILContentHelper::enumerateCalls). This is
    * called once per call that is currently managed by the RIL.
    *
    * @param callIndex
@@ -81,32 +49,42 @@ interface nsIRILTelephonyCallback : nsISupports
                              in unsigned short callState,
                              in AString number,
                              in boolean isActive);
+
+  /**
+   * Called when RIL error occurs.
+   *
+   * @param callIndex
+   *        Call identifier assigned by the RIL. -1 if no connection
+   * @param error
+   *        Error from RIL.
+   */
+  void notifyError(in long callIndex,
+                   in AString error);
 };
 
-[scriptable, uuid(66a55943-e63b-4731-aece-9c04bfc14019)]
+[scriptable, uuid(8a711703-1ee5-4675-9d9a-0b188e944cfe)]
 interface nsIRILDataCallInfo : nsISupports
 {
-  readonly attribute unsigned long callState;
+  /**
+   * Current data call state, one of the
+   * nsINetworkInterface::NETWORK_STATE_* constants.
+   */
+  readonly attribute unsigned long state;
   readonly attribute AString cid;
   readonly attribute AString apn;
+  readonly attribute AString ifname;
 };
 
-[scriptable, uuid(cea91bcb-3cfb-42bb-8638-dae89e8870fc)]
+[scriptable, uuid(5bcac053-c245-46f0-bb45-d0039bfb89f5)]
 interface nsIRILDataCallback : nsISupports
 {
   /**
    * Notified when a data call changes state.
    *
-   * @param cid
-   *        The CID of the data call.
-   * @param interfaceName
-   *        Name of the associated network interface.
-   * @param dataState
-   *        One of the nsIRadioInterfaceLayer::DATACALL_STATE_* values.
+   * @param dataCall
+   *        A nsIRILDataCallInfo object.
    */
-  void dataCallStateChanged(in AString cid,
-                            in AString interfaceName,
-                            in unsigned short callState);
+  void dataCallStateChanged(in nsIRILDataCallInfo dataCall);
 
   /**
    * Called when nsIRadioInterfaceLayer is asked to enumerate the current
@@ -121,42 +99,29 @@ interface nsIRILDataCallback : nsISupports
                            in unsigned long length);
 };
 
+[scriptable, function, uuid(2bc2f51a-78be-4c0e-95dd-55a3ce2ded40)]
+interface nsIRILContactCallback : nsISupports
+{
+  /**
+   * Called when nsIRadioInterfaceLayer is asked to provide ICC contacts.
+   *
+   * @param type
+   *        Type of the dialling number, i.e. ADN, FDN.
+   * @param contacts
+   *        Array of the ICC contacts of the specified type.
+   */
+  void receiveContactsList(in DOMString type, in jsval contacts);
+};
+
 /**
  * Helper that runs in the content process and exposes information
  * to the DOM.
  */
-[scriptable, uuid(cc9832fd-d3ce-4cab-9abe-48c6046bcebe)]
+[scriptable, uuid(2f8b0929-2ecf-498c-bfa7-42690509696e)]
 interface nsIRILContentHelper : nsIMobileConnectionProvider
 {
-};
-
-[scriptable, uuid(d2025763-fc32-436e-b207-0228ea1ccd12)]
-interface nsIRadioInterfaceLayer : nsISupports
-{
-  const unsigned short CALL_STATE_UNKNOWN = 0;
-  const unsigned short CALL_STATE_DIALING = 1;
-  const unsigned short CALL_STATE_ALERTING = 2;
-  const unsigned short CALL_STATE_BUSY = 3;
-  const unsigned short CALL_STATE_CONNECTING = 4;
-  const unsigned short CALL_STATE_CONNECTED = 5;
-  const unsigned short CALL_STATE_HOLDING = 6;
-  const unsigned short CALL_STATE_HELD = 7;
-  const unsigned short CALL_STATE_RESUMING = 8;
-  const unsigned short CALL_STATE_DISCONNECTING = 9;
-  const unsigned short CALL_STATE_DISCONNECTED = 10;
-  const unsigned short CALL_STATE_INCOMING = 11;
-
-  // Keep consistent with GECKO_DATACALL_STATE_* values in ril_consts.js
-  const unsigned short DATACALL_STATE_UNKNOWN = 0;
-  const unsigned short DATACALL_STATE_CONNECTING = 1;
-  const unsigned short DATACALL_STATE_CONNECTED = 2;
-  const unsigned short DATACALL_STATE_DISCONNECTING = 3;
-  const unsigned short DATACALL_STATE_DISCONNECTED = 4;
-
-  readonly attribute jsval radioState;
-
-  void registerCallback(in nsIRILTelephonyCallback callback);
-  void unregisterCallback(in nsIRILTelephonyCallback callback);
+  void registerTelephonyCallback(in nsIRILTelephonyCallback callback);
+  void unregisterTelephonyCallback(in nsIRILTelephonyCallback callback);
 
   /**
    * Will continue calling callback.enumerateCallState until the callback
@@ -180,6 +145,104 @@ interface nsIRadioInterfaceLayer : nsISupports
 
   attribute bool microphoneMuted;
   attribute bool speakerEnabled;
+};
+
+[scriptable, uuid(fd9e8b38-b839-4d56-8482-3bf1f5c8f2ee)]
+interface nsIICCRecords : nsISupports
+{
+  /**
+   * Mobile Subscriber ISDN Number
+   */
+  readonly attribute DOMString msisdn;
+
+  /**
+   * Administrative Data
+   */
+  readonly attribute jsval ad;
+
+  /**
+   * International Mobile Subscriber Identity
+   */
+  readonly attribute DOMString imsi;
+
+  /**
+   * Mobile Country Code
+   */
+  readonly attribute unsigned short mcc;
+
+  /**
+   * Mobile Network Code
+   */
+  readonly attribute unsigned short mnc;
+
+  /**
+   * USIM Service Table
+   */
+  readonly attribute jsval ust;
+
+  /**
+   * Abbreviated dialling numbers
+   */
+  readonly attribute jsval adn;
+
+  /**
+   * Fixed Dialling Numbers
+   */
+  readonly attribute jsval fdn;
+};
+
+[scriptable, uuid(1b47459d-d0bc-4e91-8509-cc106054b9ee)]
+interface nsICellLocation : nsISupports
+{
+  /**
+   * Location Area Code
+   */
+  readonly attribute unsigned short lac;
+
+  /**
+   * Cell Identity
+   */
+  readonly attribute unsigned long cid;
+};
+
+[scriptable, uuid(a6f6977e-f4ee-42b4-ae79-798c8c47c360)]
+interface nsIRilContext : nsISupports
+{
+  readonly attribute DOMString radioState;
+
+  readonly attribute DOMString cardState;
+
+  readonly attribute nsIICCRecords icc;
+
+  readonly attribute nsICellLocation cell;
+
+  readonly attribute nsIDOMMozMobileConnectionInfo voice;
+
+  readonly attribute nsIDOMMozMobileConnectionInfo data;
+};
+
+[scriptable, uuid(8b649965-6687-46a8-88fa-a5495ce90735)]
+interface nsIRadioInterfaceLayer : nsISupports
+{
+  const unsigned short CALL_STATE_UNKNOWN = 0;
+  const unsigned short CALL_STATE_DIALING = 1;
+  const unsigned short CALL_STATE_ALERTING = 2;
+  const unsigned short CALL_STATE_BUSY = 3;
+  const unsigned short CALL_STATE_CONNECTING = 4;
+  const unsigned short CALL_STATE_CONNECTED = 5;
+  const unsigned short CALL_STATE_HOLDING = 6;
+  const unsigned short CALL_STATE_HELD = 7;
+  const unsigned short CALL_STATE_RESUMING = 8;
+  const unsigned short CALL_STATE_DISCONNECTING = 9;
+  const unsigned short CALL_STATE_DISCONNECTED = 10;
+  const unsigned short CALL_STATE_INCOMING = 11;
+
+  /**
+   * Activates or deactivates radio power.
+   */
+  void setRadioEnabled(in bool value);
+
+  readonly attribute nsIRilContext rilContext;
 
   /**
    * PDP APIs
@@ -205,4 +268,9 @@ interface nsIRadioInterfaceLayer : nsISupports
                in DOMString message,
                in long requestId,
                in unsigned long long processId);
+
+  /**
+   * ICC-related functionality.
+   */
+  void getICCContacts(in DOMString type, in nsIRILContactCallback callback);
 };

@@ -2,57 +2,9 @@
 <?xml version="1.0"?>
 # -*- Mode: HTML -*-
 #
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is Mozilla Communicator client code, released
-# March 31, 1998.
-#
-# The Initial Developer of the Original Code is
-# Netscape Communications Corporation.
-# Portions created by the Initial Developer are Copyright (C) 1998-2000
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Blake Ross <blake@cs.stanford.edu>
-#   David Hyatt <hyatt@mozilla.org>
-#   Joe Hewitt <hewitt@netscape.com>
-#   Pierre Chanial <chanial@noos.fr>
-#   Dean Tessman <dean_tessman@hotmail.com>
-#   Johnathan Nightingale <johnath@mozilla.com>
-#   Dão Gottwald <dao@mozilla.com>
-#   Ehsan Akhgari <ehsan.akhgari@gmail.com>
-#   Robert Strong <robert.bugzilla@gmail.com>
-#   Rob Campbell <rcampbell@mozilla.com>
-#   Patrick Walton <pcwalton@mozilla.com>
-#   David Dahl <ddahl@mozilla.com>
-#   Frank Yan <fyan@mozilla.com>
-#   Victor Porof <vporof@mozilla.com>
-#   Paul Rouget <paul@mozilla.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 <?xml-stylesheet href="chrome://browser/content/browser.css" type="text/css"?>
 <?xml-stylesheet href="chrome://browser/content/places/places.css" type="text/css"?>
@@ -72,7 +24,7 @@
         xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
         xmlns:svg="http://www.w3.org/2000/svg"
         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
-        onload="BrowserStartup()" onunload="BrowserShutdown()" onclose="return WindowIsClosing();"
+        onload="gBrowserInit.onLoad()" onunload="gBrowserInit.onUnload()" onclose="return WindowIsClosing();"
         title="&mainWindow.title;@PRE_RELEASE_SUFFIX@"
         title_normal="&mainWindow.title;@PRE_RELEASE_SUFFIX@"
 #ifdef XP_MACOSX
@@ -185,6 +137,7 @@
            footertype="promobox"
            orient="vertical"
            ignorekeys="true"
+           consumeoutsideclicks="true"
            hidden="true"
            onpopupshown="StarUI.panelShown(event);"
            aria-labelledby="editBookmarkPanelTitle">
@@ -229,6 +182,49 @@
       </hbox>
     </panel>
 
+    <panel id="editSharePopup"
+           type="arrow"
+           orient="vertical"
+           ignorekeys="true"
+           hidden="true"
+           onpopupshown="SocialShareButton.panelShown(event);"
+           consumeoutsideclicks="true"
+           level="top">
+      <hbox id="editSharePopupBottomButtons" pack="end">
+#ifdef XP_UNIX
+        <button id="editSharePopupUndoButton"
+                class="editSharePopupBottomButton"
+                label="&social.sharePopup.undo.label;"
+                accesskey="&social.sharePopup.undo.accesskey;"
+                command="Social:UnsharePage"/>
+        <button id="editSharePopupOkButton"
+                class="editSharePopupBottomButton"
+                default="true"
+                autofocus="autofocus"
+                label="&social.sharePopup.ok.label;"
+                accesskey="&social.sharePopup.ok.accesskey;"
+                oncommand="SocialShareButton.dismissSharePopup();"/>
+#else
+        <button id="editSharePopupOkButton"
+                class="editSharePopupBottomButton"
+                default="true"
+                autofocus="autofocus"
+                label="&social.sharePopup.ok.label;"
+                accesskey="&social.sharePopup.ok.accesskey;"
+                oncommand="SocialShareButton.dismissSharePopup();"/>
+        <button id="editSharePopupUndoButton"
+                class="editSharePopupBottomButton"
+                label="&social.sharePopup.undo.label;"
+                accesskey="&social.sharePopup.undo.accesskey;"
+                command="Social:UnsharePage"/>
+#endif
+      </hbox>
+    </panel>
+
+    <panel id="social-notification-panel" type="arrow" hidden="true" noautofocus="true">
+      <browser id="social-notification-browser" type="content" flex="1"/>
+    </panel>
+
     <menupopup id="inspector-node-popup">
       <menuitem id="inspectorHTMLCopyInner"
                 label="&inspectorHTMLCopyInner.label;"
@@ -252,7 +248,6 @@
                 type="checkbox"
                 label="&viewTabsOnTop.label;"
                 accesskey="&viewTabsOnTop.accesskey;"/>
-      <menuseparator/>
       <menuitem command="cmd_CustomizeToolbars"
                 label="&viewCustomizeToolbar.label;"
                 accesskey="&viewCustomizeToolbar.accesskey;"/>
@@ -308,6 +303,7 @@
            type="arrow"
            hidden="true"
            noautofocus="true"
+           consumeoutsideclicks="true"
            onpopupshown="gIdentityHandler.onPopupShown(event);"
            level="top">
       <hbox id="identity-popup-container" align="top">
@@ -393,11 +389,8 @@
     <tooltip id="bhTooltip"/>
 
     <panel id="customizeToolbarSheetPopup"
-           noautohide="true">
-      <iframe id="customizeToolbarSheetIFrame"
-              style="&dialog.dimensions;"
-              hidden="true"/>
-    </panel>
+           noautohide="true"
+           sheetstyle="&dialog.dimensions;"/>
 
     <tooltip id="tabbrowser-tab-tooltip" onpopupshowing="gBrowser.createTooltip(event);"/>
 
@@ -409,7 +402,7 @@
       <label class="tooltip-label" value="&backForwardButtonMenu.tooltip;"/>
 #endif
     </tooltip>
-  
+
     <tooltip id="forward-button-tooltip">
       <label class="tooltip-label" value="&forwardButton.tooltip;"/>
 #ifdef XP_MACOSX
@@ -536,19 +529,16 @@
                We only add the identity-box button to the tab order when the location bar
                has focus, otherwise pressing F6 focuses it instead of the location bar -->
           <box id="identity-box" role="button"
+               align="center"
                onclick="gIdentityHandler.handleIdentityButtonEvent(event);"
                onkeypress="gIdentityHandler.handleIdentityButtonEvent(event);"
                ondragstart="gIdentityHandler.onDragStart(event);">
-            <hbox id="identity-box-inner" align="center">
-              <hbox id="page-proxy-stack"
-                    onclick="PageProxyClickHandler(event);">
-                <image id="page-proxy-favicon"
-                       pageproxystate="invalid"/>
-              </hbox>
-              <hbox id="identity-icon-labels">
-                <label id="identity-icon-label" class="plain" flex="1"/>
-                <label id="identity-icon-country-label" class="plain"/>
-              </hbox>
+            <image id="page-proxy-favicon"
+                   onclick="PageProxyClickHandler(event);"
+                   pageproxystate="invalid"/>
+            <hbox id="identity-icon-labels">
+              <label id="identity-icon-label" class="plain" flex="1"/>
+              <label id="identity-icon-country-label" class="plain"/>
             </hbox>
           </box>
           <box id="urlbar-display-box" align="center">
@@ -560,6 +550,12 @@
                    hidden="true"
                    tooltiptext="&pageReportIcon.tooltip;"
                    onclick="gPopupBlockerObserver.onReportButtonClick(event);"/>
+
+            <label id="share-button-status" collapsed="true" role="status"/>
+            <image id="share-button"
+                   class="urlbar-icon"
+                   hidden="true"
+                   onclick="SocialShareButton.onClick(event);"/>
 
             <image id="star-button"
                    class="urlbar-icon"
@@ -611,6 +607,45 @@
                      ondragexit="homeButtonObserver.onDragExit(event)"
                      onclick="BrowserGoHome(event);"
                      aboutHomeOverrideTooltip="&abouthome.pageTitle;"/>
+
+      <toolbaritem id="social-toolbar-button"
+                   class="toolbarbutton-1 chromeclass-toolbar-additional"
+                   removable="false"
+                   title="&socialToolbar.title;"
+                   hidden="true">
+        <hbox id="social-toolbar-button-box" class="social-statusarea-container">
+          <button id="social-provider-image" type="menu">
+            <menupopup id="social-statusarea-popup">
+              <hbox id="social-statusarea-user" pack="left" align="center">
+                <image id="social-statusarea-user-portrait"/>
+                <vbox>
+                  <label id="social-statusarea-notloggedin"
+                         value="&social.notLoggedIn.label;"/>
+                  <button id="social-statusarea-username"
+                          oncommand="SocialUI.showProfile(); document.getElementById('social-statusarea-popup').hidePopup();"/>
+                </vbox>
+              </hbox>
+            </menupopup>
+          </button>
+          <hbox id="social-status-iconbox" flex="1">
+            <box class="social-notification-icon-container" collapsed="true"
+                     onclick="SocialToolbar.showAmbientPopup(this);">
+              <image class="social-notification-icon-image"/>
+              <box class="social-notification-icon-counter" collapsed="true"/>
+            </box>
+            <box class="social-notification-icon-container" collapsed="true"
+                     onclick="SocialToolbar.showAmbientPopup(this);">
+              <image class="social-notification-icon-image"/>
+              <box class="social-notification-icon-counter" collapsed="true"/>
+            </box>
+            <box class="social-notification-icon-container" collapsed="true"
+                     onclick="SocialToolbar.showAmbientPopup(this);">
+              <image class="social-notification-icon-image"/>
+              <box class="social-notification-icon-counter" collapsed="true"/>
+            </box>
+          </hbox>
+        </hbox>
+      </toolbaritem>
 
       <toolbaritem id="bookmarks-menu-button-container"
                    class="chromeclass-toolbar-additional"
@@ -989,9 +1024,22 @@
 
   <hbox id="full-screen-warning-container" hidden="true" fadeout="true">
     <hbox style="width: 100%;" pack="center"> <!-- Inner hbox needed due to bug 579776. -->
-      <hbox id="full-screen-warning-message">
-        <description id="full-screen-warning-text" value="&domFullScreenWarning.label;"></description>
-      </hbox>
+      <vbox id="full-screen-warning-message" align="center">
+        <description id="full-screen-domain-text"/>
+        <description class="full-screen-description" value="&fullscreenExitHint.value;"/>
+        <vbox id="full-screen-approval-pane" align="center">
+          <description class="full-screen-description" value="&fullscreenApproval.value;"/>
+          <hbox>
+            <button label="&fullscreenAllowButton.label;"
+                    oncommand="FullScreen.setFullscreenAllowed(true);"
+                    class="full-screen-approval-button"/>
+            <button label="&fullscreenExitButton.label;"
+                    oncommand="FullScreen.setFullscreenAllowed(false);"
+                    class="full-screen-approval-button"/>
+          </hbox>
+          <checkbox id="full-screen-remember-decision"/>
+        </vbox>
+      </vbox>
     </hbox>
   </hbox>
 
@@ -1002,9 +1050,28 @@
              hidden="true">
 #ifdef XP_MACOSX
       <toolbarbutton id="highlighter-closebutton"
+                     class="devtools-closebutton"
                      oncommand="InspectorUI.closeInspectorUI(false);"
                      tooltiptext="&inspectCloseButton.tooltiptext;"/>
 #endif
+      <toolbarbutton id="inspector-option-toolbarbutton"
+                     type="menu"
+                     tabindex="0"
+                     tooltiptext="&inspectOptionButton.tooltiptext;">
+        <menupopup id="inspector-option-popup"
+                   position="before_start">
+          <menuitem id="inspectorToggleVeil"
+                    type="checkbox"
+                    label="&inspectorToggleVeil.label;"
+                    accesskey="&inspectorToggleVeil.accesskey;"
+                    command="Inspector:ToggleVeil"/>
+          <menuitem id="inspectorToggleInfobar"
+                    type="checkbox"
+                    label="&inspectorToggleInfobar.label;"
+                    accesskey="&inspectorToggleInfobar.accesskey;"
+                    command="Inspector:ToggleInfobar"/>
+        </menupopup>
+      </toolbarbutton>
       <toolbarbutton id="inspector-inspect-toolbutton"
                      class="devtools-toolbarbutton"
                      command="Inspector:Inspect"/>
@@ -1035,10 +1102,55 @@
       </hbox>
 #ifndef XP_MACOSX
       <toolbarbutton id="highlighter-closebutton"
+                     class="devtools-closebutton"
                      oncommand="InspectorUI.closeInspectorUI(false);"
                      tooltiptext="&inspectCloseButton.tooltiptext;"/>
 #endif
     </toolbar>
+
+    <toolbar id="developer-toolbar"
+             class="devtools-toolbar"
+             hidden="true">
+#ifdef XP_MACOSX
+          <toolbarbutton id="developer-toolbar-closebutton"
+                         class="devtools-closebutton"
+                         oncommand="DeveloperToolbar.hide();"
+                         tooltiptext="&devToolbarCloseButton.tooltiptext;"/>
+#endif
+          <stack class="gclitoolbar-stack-node" flex="1">
+            <hbox class="gclitoolbar-prompt">
+              <label class="gclitoolbar-prompt-label">&#187;</label>
+            </hbox>
+            <hbox class="gclitoolbar-complete-node"/>
+            <textbox class="gclitoolbar-input-node" rows="1"/>
+          </stack>
+          <toolbarbutton id="developer-toolbar-webconsole"
+                         label="&webConsoleButton.label;"
+                         class="developer-toolbar-button"
+                         command="Tools:WebConsole"/>
+          <toolbarbutton id="developer-toolbar-inspector"
+                         label="&inspectorButton.label;"
+                         class="developer-toolbar-button"
+                         hidden="true"
+                         command="Tools:Inspect"/>
+          <toolbarbutton id="developer-toolbar-styleeditor"
+                         label="&styleeditor.label;"
+                         class="developer-toolbar-button"
+                         hidden="true"
+                         command="Tools:StyleEditor"/>
+          <toolbarbutton id="developer-toolbar-debugger"
+                         label="&debuggerMenu.label2;"
+                         class="developer-toolbar-button"
+                         hidden="true"
+                         command="Tools:Debugger"/>
+#ifndef XP_MACOSX
+          <toolbarbutton id="developer-toolbar-closebutton"
+                         class="devtools-closebutton"
+                         oncommand="DeveloperToolbar.hide();"
+                         tooltiptext="&devToolbarCloseButton.tooltiptext;"/>
+#endif
+   </toolbar>
+
     <toolbar id="addon-bar"
              toolbarname="&addonBarCmd.label;" accesskey="&addonBarCmd.accesskey;"
              collapsed="true"
@@ -1058,58 +1170,34 @@
 
 #ifndef XP_UNIX
   <svg:svg height="0">
-    <svg:mask id="winstripe-keyhole-forward-mask" maskContentUnits="objectBoundingBox">
-      <svg:rect x="0" y="0" width="1" height="1" fill="white"/>
-      <svg:circle cx="-0.34" cy="0.5" r="0.61"/>
-    </svg:mask>
-    <svg:mask id="winstripe-urlbar-back-button-mask" maskContentUnits="userSpaceOnUse">
-      <svg:rect x="0" y="0" width="10000" height="50" fill="white"/>
-      <svg:circle cx="-11" cy="18" r="15"/>
-    </svg:mask>
+    <svg:clipPath id="winstripe-keyhole-forward-clip-path" clipPathUnits="objectBoundingBox">
+      <svg:path d="M 0,0 C 0.16,0.11 0.28,0.29 0.28,0.5 0.28,0.71 0.16,0.89 0,1 L 1,1 1,0 0,0 z"/>
+    </svg:clipPath>
+    <svg:clipPath id="winstripe-urlbar-back-button-clip-path" clipPathUnits="userSpaceOnUse">
+      <svg:path d="M 0,0 0,7.8 C 2.5,11 4,14 4,18 4,22 2.5,25 0,28 l 0,22 10000,0 0,-50 L 0,0 z"/>
+    </svg:clipPath>
   </svg:svg>
 #endif
 #ifdef XP_MACOSX
   <svg:svg height="0">
-    <svg:mask id="pinstripe-keyhole-forward-mask" maskContentUnits="objectBoundingBox">
-      <svg:rect x="0" y="0" width="1" height="1" fill="white"/>
-      <svg:circle cx="-0.41" cy="0.5" r="0.65"/>
-    </svg:mask>
-    <svg:mask id="pinstripe-urlbar-back-button-mask" maskContentUnits="userSpaceOnUse">
-      <svg:rect x="0" y="-5" width="10000" height="55" fill="white"/>
-      <svg:circle cx="-9" cy="11" r="15"/>
-    </svg:mask>
-    <svg:mask id="pinstripe-tab-ontop-left-curve-mask" maskContentUnits="userSpaceOnUse">
-      <svg:circle cx="9" cy="3" r="3" fill="white"/>
-      <svg:rect x="9" y="0" width="3" height="3" fill="white"/>
-      <svg:rect x="6" y="3" width="6" height="19" fill="white"/>
-      <svg:rect x="1" y="17" width="5" height="5" fill="white"/>
-      <svg:circle cx="1" cy="17" r="5"/>
-      <svg:rect x="0" y="22" width="12" height="1" fill="white"/>
-    </svg:mask>
-    <svg:mask id="pinstripe-tab-ontop-right-curve-mask" maskContentUnits="userSpaceOnUse">
-      <svg:circle cx="3" cy="3" r="3" fill="white"/>
-      <svg:rect x="0" y="0" width="3" height="3" fill="white"/>
-      <svg:rect x="0" y="3" width="6" height="19" fill="white"/>
-      <svg:rect x="6" y="17" width="5" height="5" fill="white"/>
-      <svg:circle cx="11" cy="17" r="5"/>
-      <svg:rect x="0" y="22" width="12" height="1" fill="white"/>
-    </svg:mask>
-    <svg:mask id="pinstripe-tab-onbottom-left-curve-mask" maskContentUnits="userSpaceOnUse">
-      <svg:circle cx="9" cy="20" r="3" fill="white"/>
-      <svg:rect x="9" y="20" width="3" height="3" fill="white"/>
-      <svg:rect x="6" y="1" width="6" height="19" fill="white"/>
-      <svg:rect x="1" y="1" width="5" height="5" fill="white"/>
-      <svg:circle cx="1" cy="6" r="5"/>
-      <svg:rect x="0" y="0" width="12" height="1" fill="white"/>
-    </svg:mask>
-    <svg:mask id="pinstripe-tab-onbottom-right-curve-mask" maskContentUnits="userSpaceOnUse">
-      <svg:circle cx="3" cy="20" r="3" fill="white"/>
-      <svg:rect x="0" y="20" width="3" height="3" fill="white"/>
-      <svg:rect x="0" y="1" width="6" height="19" fill="white"/>
-      <svg:rect x="6" y="1" width="5" height="5" fill="white"/>
-      <svg:circle cx="11" cy="6" r="5"/>
-      <svg:rect x="0" y="0" width="12" height="1" fill="white"/>
-    </svg:mask>
+    <svg:clipPath id="pinstripe-keyhole-forward-clip-path" clipPathUnits="objectBoundingBox">
+      <svg:path d="M 0,0 C 0.15,0.12 0.25,0.3 0.25,0.5 0.25,0.7 0.15,0.88 0,1 L 1,1 1,0 0,0 z"/>
+    </svg:clipPath>
+    <svg:clipPath id="pinstripe-urlbar-back-button-clip-path" clipPathUnits="userSpaceOnUse">
+      <svg:path d="m 0,-5 0,4.03 C 3.6,1.8 6,6.1 6,11 6,16 3.6,20 0,23 l 0,27 10000,0 0,-55 L 0,-5 z"/>
+    </svg:clipPath>
+    <svg:clipPath id="pinstripe-tab-ontop-left-curve-clip-path" clipPathUnits="userSpaceOnUse">
+      <svg:path d="M 9,0 C 7.3,0 6,1.3 6,3 l 0,14 c 0,3 -2.2,5 -5,5 l -1,0 0,1 12,0 0,-1 0,-19 0,-3 -3,0 z"/>
+    </svg:clipPath>
+    <svg:clipPath id="pinstripe-tab-ontop-right-curve-clip-path" clipPathUnits="userSpaceOnUse">
+      <svg:path d="m 0,0 0,3 0,19 0,1 12,0 0,-1 -1,0 C 8.2,22 6,20 6,17 L 6,3 C 6,1.3 4.7,0 3,0 L 0,0 z"/>
+    </svg:clipPath>
+    <svg:clipPath id="pinstripe-tab-onbottom-left-curve-clip-path" clipPathUnits="userSpaceOnUse">
+      <svg:path d="m 0,0 0,1 1,0 c 2.8,0 5,2.2 5,5 l 0,14 c 0,2 1.3,3 3,3 l 3,0 0,-3 L 12,1 12,0 0,0 z"/>
+    </svg:clipPath>
+    <svg:clipPath id="pinstripe-tab-onbottom-right-curve-clip-path" clipPathUnits="userSpaceOnUse">
+      <svg:path d="m 0,0 0,1 0,19 0,3 3,0 c 1.7,0 3,-1 3,-3 L 6,6 C 6,3.2 8.2,1 11,1 L 12,1 12,0 0,0 z"/>
+    </svg:clipPath>
   </svg:svg>
 #endif
 

@@ -29,10 +29,7 @@ NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN_INHERITED(IDBWrapperCache,
                                                nsDOMEventTargetHelper)
   // Don't need NS_IMPL_CYCLE_COLLECTION_TRACE_PRESERVED_WRAPPER because
   // nsDOMEventTargetHelper does it for us.
-  if (tmp->mScriptOwner) {
-    NS_IMPL_CYCLE_COLLECTION_TRACE_JS_CALLBACK(tmp->mScriptOwner,
-                                               "mScriptOwner")
-  }
+  NS_IMPL_CYCLE_COLLECTION_TRACE_JS_MEMBER_CALLBACK(mScriptOwner)
 NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(IDBWrapperCache)
@@ -51,13 +48,7 @@ IDBWrapperCache::~IDBWrapperCache()
 bool
 IDBWrapperCache::SetScriptOwner(JSObject* aScriptOwner)
 {
-  if (!aScriptOwner) {
-    NS_ASSERTION(!mScriptOwner,
-                 "Don't null out existing owner, we need to call "
-                 "DropJSObjects!");
-
-    return true;
-  }
+  NS_ASSERTION(aScriptOwner, "This should never be null!");
 
   mScriptOwner = aScriptOwner;
 
@@ -73,3 +64,12 @@ IDBWrapperCache::SetScriptOwner(JSObject* aScriptOwner)
 
   return true;
 }
+
+#ifdef DEBUG
+void
+IDBWrapperCache::AssertIsRooted() const
+{
+  NS_ASSERTION(nsContentUtils::AreJSObjectsHeld(const_cast<IDBWrapperCache*>(this)),
+               "Why aren't we rooted?!");
+}
+#endif

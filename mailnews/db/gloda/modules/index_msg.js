@@ -1,42 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- *   Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Thunderbird Global Database.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2008
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Andrew Sutherland <asutherland@asutherland.org>
- *   Kent James <kent@caspia.com>
- *   Siddharth Agarwal <sid.bugzilla@gmail.com>
- *   Dan Mosedale <dmose@mozillamessaging.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 "use strict";
 
@@ -496,6 +460,7 @@ var GlodaMsgIndexer = {
       getService(Ci.nsIMsgMailSession);
     this._folderListener._init(this);
     mailSession.AddFolderListener(this._folderListener,
+                                  Ci.nsIFolderListener.intPropertyChanged |
                                   Ci.nsIFolderListener.propertyFlagChanged |
                                   Ci.nsIFolderListener.event);
 
@@ -508,6 +473,7 @@ var GlodaMsgIndexer = {
         Ci.nsIMsgFolderNotificationService.msgsDeleted |
         Ci.nsIMsgFolderNotificationService.msgsMoveCopyCompleted |
         Ci.nsIMsgFolderNotificationService.msgKeyChanged |
+        Ci.nsIMsgFolderNotificationService.folderAdded |
         Ci.nsIMsgFolderNotificationService.folderDeleted |
         Ci.nsIMsgFolderNotificationService.folderMoveCopyCompleted |
         Ci.nsIMsgFolderNotificationService.folderRenamed |
@@ -2602,6 +2568,19 @@ var GlodaMsgIndexer = {
                                 ex.stack + " \n\n");
       }
     },
+
+    /**
+     * Detect newly added folders before they get messages so we map them before
+     * they get any messages added to them.  If we only hear about them after
+     * they get their 1st message, then we will mark them filthy, but if we mark
+     * them before that, they get marked clean.
+     */
+    folderAdded: function gloda_indexer_folderAdded(aMsgFolder) {
+      // This is invoked for its side-effect of invoking _mapFolder and doing so
+      // only after filtering out folders we don't care about.
+      GlodaMsgIndexer.shouldIndexFolder(aMsgFolder);
+    },
+
     /**
      * Handles folder no-longer-exists-ence.  We mark all messages as deleted
      *  and remove the folder from our URI table.  Currently, if a folder that
@@ -2835,6 +2814,7 @@ var GlodaMsgIndexer = {
       this._kKeywordsAtom = atomService.getAtom("Keywords");
       this._kStatusAtom = atomService.getAtom("Status");
       this._kFlaggedAtom = atomService.getAtom("Flagged");
+      this._kFolderFlagAtom = atomService.getAtom("FolderFlag");
     },
 
     OnItemAdded: function gloda_indexer_OnItemAdded(aParentItem, aItem) {
@@ -2844,8 +2824,18 @@ var GlodaMsgIndexer = {
     OnItemPropertyChanged: function gloda_indexer_OnItemPropertyChanged(
                              aItem, aProperty, aOldValue, aNewValue) {
     },
+    /**
+     * Detect changes to folder flags and reset our indexing priority.  This
+     * is important because (all?) folders start out without any flags and
+     * then get their flags added to them.
+     */
     OnItemIntPropertyChanged: function gloda_indexer_OnItemIntPropertyChanged(
-                                aItem, aProperty, aOldValue, aNewValue) {
+                                aFolderItem, aProperty, aOldValue, aNewValue) {
+      if (aProperty !== this._kFolderFlagAtom)
+        return;
+      if (!GlodaMsgIndexer.shouldIndexFolder(aFolderItem))
+        return;
+      GlodaMsgIndexer.resetFolderIndexingPriority(aFolderItem);
     },
     OnItemBoolPropertyChanged: function gloda_indexer_OnItemBoolPropertyChanged(
                                 aItem, aProperty, aOldValue, aNewValue) {

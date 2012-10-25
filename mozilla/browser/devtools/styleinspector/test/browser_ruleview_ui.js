@@ -13,30 +13,6 @@ let doc;
 let ruleDialog;
 let ruleView;
 
-function waitForEditorFocus(aParent, aCallback)
-{
-  aParent.addEventListener("focus", function onFocus(evt) {
-    if (inplaceEditor(evt.target)) {
-      aParent.removeEventListener("focus", onFocus, true);
-      let editor = inplaceEditor(evt.target);
-      executeSoon(function() {
-        aCallback(editor);
-      });
-    }
-  }, true);
-}
-
-function waitForEditorBlur(aEditor, aCallback)
-{
-  let input = aEditor.input;
-  input.addEventListener("blur", function onBlur() {
-    input.removeEventListener("blur", onBlur, false);
-    executeSoon(function() {
-      aCallback();
-    });
-  }, false);
-}
-
 var gRuleViewChanged = false;
 function ruleViewChanged()
 {
@@ -112,7 +88,15 @@ function testCreateNew()
   let elementRuleEditor = ruleView.element.children[0]._ruleEditor;
   waitForEditorFocus(elementRuleEditor.element, function onNewElement(aEditor) {
     is(inplaceEditor(elementRuleEditor.newPropSpan), aEditor, "Next focused editor should be the new property editor.");
+
     let input = aEditor.input;
+
+    ok(input.selectionStart === 0 && input.selectionEnd === input.value.length, "Editor contents are selected.");
+
+    // Try clicking on the editor's input again, shouldn't cause trouble (see bug 761665).
+    EventUtils.synthesizeMouse(input, 1, 1, { }, ruleDialog);
+    input.select();
+
     input.value = "background-color";
 
     waitForEditorFocus(elementRuleEditor.element, function onNewValue(aEditor) {
@@ -145,16 +129,38 @@ function testEditProperty()
   let propEditor = idRuleEditor.rule.textProps[0].editor;
   waitForEditorFocus(propEditor.element, function onNewElement(aEditor) {
     is(inplaceEditor(propEditor.nameSpan), aEditor, "Next focused editor should be the name editor.");
+
     let input = aEditor.input;
+
+    dump("SELECTION END IS: " + input.selectionEnd + "\n");
+    ok(input.selectionStart === 0 && input.selectionEnd === input.value.length, "Editor contents are selected.");
+
+    // Try clicking on the editor's input again, shouldn't cause trouble (see bug 761665).
+    EventUtils.synthesizeMouse(input, 1, 1, { }, ruleDialog);
+    input.select();
+
     waitForEditorFocus(propEditor.element, function onNewName(aEditor) {
       expectChange();
-      input = aEditor.input;
       is(inplaceEditor(propEditor.valueSpan), aEditor, "Focus should have moved to the value.");
+
+      input = aEditor.input;
+
+      ok(input.selectionStart === 0 && input.selectionEnd === input.value.length, "Editor contents are selected.");
+
+      // Try clicking on the editor's input again, shouldn't cause trouble (see bug 761665).
+      EventUtils.synthesizeMouse(input, 1, 1, { }, ruleDialog);
+      input.select();
 
       waitForEditorBlur(aEditor, function() {
         expectChange();
         is(idRuleEditor.rule.style.getPropertyValue("border-color"), "red",
            "border-color should have been set.");
+
+        let props = ruleView.element.querySelectorAll(".ruleview-property");
+        for (let i = 0; i < props.length; i++) {
+          is(props[i].hasAttribute("dirty"), i <= 1,
+            "props[" + i + "] marked dirty as appropriate");
+        }
         testDisableProperty();
       });
 

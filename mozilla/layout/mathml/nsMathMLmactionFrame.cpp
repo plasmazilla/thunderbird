@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla MathML Project.
- *
- * The Initial Developer of the Original Code is
- * The University Of Queensland.
- * Portions created by the Initial Developer are Copyright (C) 1999
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Roger B. Sidje <rbs@maths.uq.edu.au>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsCOMPtr.h"
 #include "nsFrame.h"
@@ -52,6 +19,7 @@
 #include "nsIInterfaceRequestor.h"
 #include "nsIInterfaceRequestorUtils.h"
 #include "nsIDOMElement.h"
+#include "nsTextFragment.h"
 
 #include "nsIDOMEventTarget.h"
 
@@ -59,17 +27,47 @@
 #include "nsAutoPtr.h"
 #include "nsStyleSet.h"
 #include "nsDisplayList.h"
-#include "nsContentUtils.h"
 
 //
 // <maction> -- bind actions to a subexpression - implementation
 //
 
-#define NS_MATHML_ACTION_TYPE_NONE         0
-#define NS_MATHML_ACTION_TYPE_TOGGLE       1
-#define NS_MATHML_ACTION_TYPE_STATUSLINE   2
-#define NS_MATHML_ACTION_TYPE_TOOLTIP      3 // unsupported
+enum nsMactionActionTypes {
+  NS_MATHML_ACTION_TYPE_CLASS_ERROR            = 0x10,
+  NS_MATHML_ACTION_TYPE_CLASS_USE_SELECTION    = 0x20,
+  NS_MATHML_ACTION_TYPE_CLASS_IGNORE_SELECTION = 0x40,
+  NS_MATHML_ACTION_TYPE_CLASS_BITMASK          = 0xF0,
 
+  NS_MATHML_ACTION_TYPE_NONE       = NS_MATHML_ACTION_TYPE_CLASS_ERROR|0x01,
+
+  NS_MATHML_ACTION_TYPE_TOGGLE     = NS_MATHML_ACTION_TYPE_CLASS_USE_SELECTION|0x01,
+  NS_MATHML_ACTION_TYPE_UNKNOWN    = NS_MATHML_ACTION_TYPE_CLASS_USE_SELECTION|0x02,
+
+  NS_MATHML_ACTION_TYPE_STATUSLINE = NS_MATHML_ACTION_TYPE_CLASS_IGNORE_SELECTION|0x01,
+  NS_MATHML_ACTION_TYPE_TOOLTIP    = NS_MATHML_ACTION_TYPE_CLASS_IGNORE_SELECTION|0x02
+};
+
+
+// helper function to parse actiontype attribute
+static PRInt32
+GetActionType(nsIContent* aContent)
+{
+  nsAutoString value;
+
+  if (aContent) {
+    if (!aContent->GetAttr(kNameSpaceID_None, nsGkAtoms::actiontype_, value))
+      return NS_MATHML_ACTION_TYPE_NONE; 
+  }
+
+  if (value.EqualsLiteral("toggle"))
+    return NS_MATHML_ACTION_TYPE_TOGGLE;
+  if (value.EqualsLiteral("statusline"))
+    return NS_MATHML_ACTION_TYPE_STATUSLINE;
+  if (value.EqualsLiteral("tooltip"))
+    return NS_MATHML_ACTION_TYPE_TOOLTIP;
+
+  return NS_MATHML_ACTION_TYPE_UNKNOWN;
+}
 
 nsIFrame*
 NS_NewMathMLmactionFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
@@ -98,34 +96,12 @@ nsMathMLmactionFrame::Init(nsIContent*      aContent,
                            nsIFrame*        aParent,
                            nsIFrame*        aPrevInFlow)
 {
-  nsAutoString value, prefix;
-
   // Init our local attributes
 
   mChildCount = -1; // these will be updated in GetSelectedFrame()
   mSelection = 0;
   mSelectedFrame = nsnull;
-  nsRefPtr<nsStyleContext> newStyleContext;
-
-  mActionType = NS_MATHML_ACTION_TYPE_NONE;
-  aContent->GetAttr(kNameSpaceID_None, nsGkAtoms::actiontype_, value);
-  if (!value.IsEmpty()) {
-    if (value.EqualsLiteral("toggle"))
-      mActionType = NS_MATHML_ACTION_TYPE_TOGGLE;
-
-    // XXX use goto to jump out of these if?
-
-    if (NS_MATHML_ACTION_TYPE_NONE == mActionType) {
-      // expected tooltip prefix (8ch)...
-      if (8 < value.Length() && 0 == value.Find("tooltip#"))
-        mActionType = NS_MATHML_ACTION_TYPE_TOOLTIP;
-    }
-
-    if (NS_MATHML_ACTION_TYPE_NONE == mActionType) {
-      if (value.EqualsLiteral("statusline"))
-        mActionType = NS_MATHML_ACTION_TYPE_STATUSLINE;
-    }
-  }
+  mActionType = GetActionType(aContent);
 
   // Let the base class do the rest
   return nsMathMLContainerFrame::Init(aContent, aParent, aPrevInFlow);
@@ -171,6 +147,26 @@ nsMathMLmactionFrame::GetSelectedFrame()
   nsAutoString value;
   PRInt32 selection; 
 
+  if ((mActionType & NS_MATHML_ACTION_TYPE_CLASS_BITMASK) == 
+       NS_MATHML_ACTION_TYPE_CLASS_ERROR) {
+    // Mark mSelection as an error.
+    mSelection = -1;
+    mSelectedFrame = nsnull;
+    return mSelectedFrame;
+  }
+
+  // Selection is not applied to tooltip and statusline.
+  // Thereby return the first child.
+  if ((mActionType & NS_MATHML_ACTION_TYPE_CLASS_BITMASK) == 
+       NS_MATHML_ACTION_TYPE_CLASS_IGNORE_SELECTION) {
+    // We don't touch mChildCount here. It's incorrect to assign it 1,
+    // and it's inefficient to count the children. It's fine to leave
+    // it be equal -1 because it's not used with other actiontypes.
+    mSelection = 1;
+    mSelectedFrame = mFrames.FirstChild();
+    return mSelectedFrame;
+  }
+
   GetAttribute(mContent, mPresentationData.mstyle, nsGkAtoms::selection_,
                value);
   if (!value.IsEmpty()) {
@@ -183,8 +179,8 @@ nsMathMLmactionFrame::GetSelectedFrame()
 
   if (-1 != mChildCount) { // we have been in this function before...
     // cater for invalid user-supplied selection
-    if (selection > mChildCount || selection < 1) 
-      selection = 1;
+    if (selection > mChildCount || selection < 1)
+      selection = -1;
     // quick return if it is identical with our cache
     if (selection == mSelection) 
       return mSelectedFrame;
@@ -202,11 +198,12 @@ nsMathMLmactionFrame::GetSelectedFrame()
     childFrame = childFrame->GetNextSibling();
   }
   // cater for invalid user-supplied selection
-  if (selection > count || selection < 1) 
-    selection = 1;
+  if (selection > count || selection < 1)
+    selection = -1;
 
   mChildCount = count;
   mSelection = selection;
+  TransmitAutomaticData();
 
   return mSelectedFrame;
 }
@@ -236,12 +233,56 @@ nsMathMLmactionFrame::SetInitialChildList(ChildListID     aListID,
   return rv;
 }
 
+NS_IMETHODIMP
+nsMathMLmactionFrame::AttributeChanged(PRInt32  aNameSpaceID,
+                                       nsIAtom* aAttribute,
+                                       PRInt32  aModType)
+{
+  bool needsReflow = false;
+
+  if (aAttribute == nsGkAtoms::actiontype_) {
+    // updating mActionType ...
+    PRInt32 oldActionType = mActionType;
+    mActionType = GetActionType(mContent);
+
+    // Initiate a reflow when actiontype classes are different.
+    if ((oldActionType & NS_MATHML_ACTION_TYPE_CLASS_BITMASK) !=
+          (mActionType & NS_MATHML_ACTION_TYPE_CLASS_BITMASK)) {
+      needsReflow = true;
+    }
+  } else if (aAttribute == nsGkAtoms::selection_) {
+    if ((mActionType & NS_MATHML_ACTION_TYPE_CLASS_BITMASK) == 
+         NS_MATHML_ACTION_TYPE_CLASS_USE_SELECTION) {
+      needsReflow = true;
+    }
+  } else {
+    // let the base class handle other attribute changes
+    return 
+      nsMathMLContainerFrame::AttributeChanged(aNameSpaceID, 
+                                               aAttribute, aModType);
+  }
+
+  if (needsReflow) {
+    PresContext()->PresShell()->
+      FrameNeedsReflow(this, nsIPresShell::eTreeChange, NS_FRAME_IS_DIRTY);
+  }
+
+  return NS_OK;
+}
+
 //  Only paint the selected child...
 NS_IMETHODIMP
 nsMathMLmactionFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
                                        const nsRect&           aDirtyRect,
                                        const nsDisplayListSet& aLists)
 {
+  // Report an error if something wrong was found in this frame.
+  // We can't call nsDisplayMathMLError from here,
+  // so ask nsMathMLContainerFrame to do the work for us.
+  if (NS_MATHML_HAS_ERROR(mPresentationData.flags)) {
+    return nsMathMLContainerFrame::BuildDisplayList(aBuilder, aDirtyRect, aLists);
+  }
+
   nsresult rv = DisplayBorderBackgroundOutline(aBuilder, aLists);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -254,7 +295,7 @@ nsMathMLmactionFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
-#if defined(NS_DEBUG) && defined(SHOW_BOUNDING_BOX)
+#if defined(DEBUG) && defined(SHOW_BOUNDING_BOX)
   // visual debug
   rv = DisplayBoundingMetrics(aBuilder, this, mReference, mBoundingMetrics, aLists);
 #endif
@@ -295,10 +336,15 @@ nsMathMLmactionFrame::Place(nsRenderingContext& aRenderingContext,
                             bool                 aPlaceOrigin,
                             nsHTMLReflowMetrics& aDesiredSize)
 {
+  nsIFrame* childFrame = GetSelectedFrame();
+
+  if (mSelection == -1) {
+    return ReflowError(aRenderingContext, aDesiredSize);
+  }
+
   aDesiredSize.width = aDesiredSize.height = 0;
   aDesiredSize.ascent = 0;
   mBoundingMetrics = nsBoundingMetrics();
-  nsIFrame* childFrame = GetSelectedFrame();
   if (childFrame) {
     GetReflowAndBoundingMetricsFor(childFrame, aDesiredSize, mBoundingMetrics);
     if (aPlaceOrigin) {

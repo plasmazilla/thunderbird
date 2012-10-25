@@ -1,64 +1,28 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2003
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Original Author: Aaron Leventhal (aaronl@netscape.com)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsAccessNodeWrap.h"
 
 #include "AccessibleApplication.h"
+#include "ApplicationAccessibleWrap.h"
 #include "ISimpleDOMNode_i.c"
 
 #include "Compatibility.h"
 #include "nsAccessibilityService.h"
-#include "nsApplicationAccessibleWrap.h"
 #include "nsCoreUtils.h"
-#include "nsRootAccessible.h"
 #include "nsWinUtils.h"
+#include "RootAccessible.h"
 #include "Statistics.h"
 
 #include "nsAttrName.h"
-#include "nsIDocument.h"
 #include "nsIDOMNodeList.h"
 #include "nsIDOMHTMLElement.h"
 #include "nsIFrame.h"
 #include "nsINameSpaceManager.h"
 #include "nsPIDOMWindow.h"
 #include "nsIServiceManager.h"
-
-#include "mozilla/Preferences.h"
 
 using namespace mozilla;
 using namespace mozilla::a11y;
@@ -70,7 +34,7 @@ AccTextChangeEvent* nsAccessNodeWrap::gTextEvent = nsnull;
 ////////////////////////////////////////////////////////////////////////////////
 
 nsAccessNodeWrap::
-  nsAccessNodeWrap(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsAccessNodeWrap(nsIContent* aContent, DocAccessible* aDoc) :
   nsAccessNode(aContent, aDoc)
 {
 }
@@ -121,22 +85,13 @@ nsAccessNodeWrap::QueryService(REFGUID guidService, REFIID iid, void** ppv)
 {
   *ppv = nsnull;
 
-  static const GUID IID_SimpleDOMDeprecated = {0x0c539790,0x12e4,0x11cf,0xb6,0x61,0x00,0xaa,0x00,0x4c,0xd6,0xd8};
-
   // Provide a special service ID for getting the accessible for the browser tab
   // document that contains this accessible object. If this accessible object
   // is not inside a browser tab then the service fails with E_NOINTERFACE.
   // A use case for this is for screen readers that need to switch context or
   // 'virtual buffer' when focus moves from one browser tab area to another.
-  static const GUID SID_IAccessibleContentDocument = {0xa5d8e1f3,0x3571,0x4d8f,0x95,0x21,0x07,0xed,0x28,0xfb,0x07,0x2e};
-
-  if (guidService != IID_ISimpleDOMNode &&
-      guidService != IID_SimpleDOMDeprecated &&
-      guidService != IID_IAccessible &&  guidService != IID_IAccessible2 &&
-      guidService != IID_IAccessibleApplication &&
-      guidService != SID_IAccessibleContentDocument)
-    return E_INVALIDARG;
-
+  static const GUID SID_IAccessibleContentDocument =
+    { 0xa5d8e1f3,0x3571,0x4d8f,0x95,0x21,0x07,0xed,0x28,0xfb,0x07,0x2e };
   if (guidService == SID_IAccessibleContentDocument) {
     if (iid != IID_IAccessible)
       return E_NOINTERFACE;
@@ -162,7 +117,7 @@ nsAccessNodeWrap::QueryService(REFGUID guidService, REFIID iid, void** ppv)
       return E_NOINTERFACE;
 
     // Make sure this is a document.
-    nsDocAccessible* docAcc = nsAccUtils::GetDocAccessibleFor(root);
+    DocAccessible* docAcc = nsAccUtils::GetDocAccessibleFor(root);
     if (!docAcc)
       return E_UNEXPECTED;
 
@@ -173,8 +128,8 @@ nsAccessNodeWrap::QueryService(REFGUID guidService, REFIID iid, void** ppv)
   }
 
   // Can get to IAccessibleApplication from any node via QS
-  if (iid == IID_IAccessibleApplication) {
-    nsApplicationAccessible *applicationAcc = GetApplicationAccessible();
+  if (guidService == IID_IAccessibleApplication) {
+    ApplicationAccessible* applicationAcc = GetApplicationAccessible();
     if (!applicationAcc)
       return E_NOINTERFACE;
 
@@ -196,7 +151,14 @@ nsAccessNodeWrap::QueryService(REFGUID guidService, REFIID iid, void** ppv)
    * }
    */
 
-  return QueryInterface(iid, ppv);
+  static const GUID IID_SimpleDOMDeprecated =
+    { 0x0c539790,0x12e4,0x11cf,0xb6,0x61,0x00,0xaa,0x00,0x4c,0xd6,0xd8 };
+  if (guidService == IID_ISimpleDOMNode ||
+      guidService == IID_SimpleDOMDeprecated ||
+      guidService == IID_IAccessible ||  guidService == IID_IAccessible2)
+    return QueryInterface(iid, ppv);
+
+  return E_INVALIDARG;
 }
 
 //-----------------------------------------------------
@@ -413,7 +375,7 @@ nsAccessNodeWrap::MakeAccessNode(nsINode *aNode)
   nsAccessNodeWrap *newNode = NULL;
 
   ISimpleDOMNode *iNode = NULL;
-  nsAccessible* acc = mDoc->GetAccessible(aNode);
+  Accessible* acc = mDoc->GetAccessible(aNode);
   if (acc) {
     IAccessible *msaaAccessible = nsnull;
     acc->GetNativeInterface((void**)&msaaAccessible); // addrefs
@@ -431,7 +393,6 @@ nsAccessNodeWrap::MakeAccessNode(nsINode *aNode)
     if (!newNode)
       return NULL;
 
-    newNode->Init();
     iNode = static_cast<ISimpleDOMNode*>(newNode);
     iNode->AddRef();
   }
@@ -588,8 +549,6 @@ void nsAccessNodeWrap::InitAccessibility()
   Compatibility::Init();
 
   nsWinUtils::MaybeStartWindowEmulation();
-
-  nsAccessNode::InitXPAccessibility();
 }
 
 void nsAccessNodeWrap::ShutdownAccessibility()
@@ -643,7 +602,7 @@ GetHRESULT(nsresult aResult)
   }
 }
 
-nsRefPtrHashtable<nsPtrHashKey<void>, nsDocAccessible> nsAccessNodeWrap::sHWNDCache;
+nsRefPtrHashtable<nsPtrHashKey<void>, DocAccessible> nsAccessNodeWrap::sHWNDCache;
 
 LRESULT CALLBACK
 nsAccessNodeWrap::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -656,7 +615,7 @@ nsAccessNodeWrap::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_GETOBJECT:
     {
       if (lParam == OBJID_CLIENT) {
-        nsDocAccessible* document = sHWNDCache.GetWeak(static_cast<void*>(hWnd));
+        DocAccessible* document = sHWNDCache.GetWeak(static_cast<void*>(hWnd));
         if (document) {
           IAccessible* msaaAccessible = NULL;
           document->GetNativeInterface((void**)&msaaAccessible); // does an addref

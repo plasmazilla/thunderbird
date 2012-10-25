@@ -1,4 +1,8 @@
 #! /usr/bin/env python
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 #
 # Script name:   talos_from_code.py
 # Purpose:       Read from a talos.json file the different files to download for a talos job
@@ -48,8 +52,8 @@ def main():
         entity = get_value(jsonFilename, key)
         if passesRestrictions(options.talos_json_url, entity["url"]):
             # the key is at the same time the filename e.g. talos.zip
+            print "INFO: Downloading %s as %s" % (entity["url"], os.path.join(entity["path"], key))
             download_file(entity["url"], entity["path"], key)
-            print "INFO: %s -> %s" % (entity["url"], os.path.join(entity["path"], key))
         else:
             print "ERROR: You have tried to download a file " + \
                   "from: %s " % fileUrl + \

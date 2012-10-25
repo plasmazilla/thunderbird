@@ -1,54 +1,33 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Benoit Girard <bgirard@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <stdlib.h>
 #include <signal.h>
-#include "thread_helper.h"
+#include <stdarg.h>
+#include "mozilla/ThreadLocal.h"
 #include "nscore.h"
 #include "jsapi.h"
 #include "mozilla/TimeStamp.h"
 #include "mozilla/Util.h"
 
+/* QT has a #define for the word "slots" and jsfriendapi.h has a struct with
+ * this variable name, causing compilation problems. Alleviate this for now by
+ * removing this #define */
+#ifdef MOZ_WIDGET_QT
+#undef slots
+#endif
+#include "jsfriendapi.h"
+
 using mozilla::TimeStamp;
 using mozilla::TimeDuration;
 
-extern mozilla::tls::key pkey_stack;
-extern mozilla::tls::key pkey_ticker;
+struct ProfileStack;
+class TableTicker;
+
+extern mozilla::ThreadLocal<ProfileStack *> tlsStack;
+extern mozilla::ThreadLocal<TableTicker *> tlsTicker;
 extern bool stack_key_initialized;
 
 #ifndef SAMPLE_FUNCTION_NAME
@@ -80,6 +59,7 @@ extern bool stack_key_initialized;
 #define SAMPLER_APPEND_LINE_NUMBER(id) SAMPLER_APPEND_LINE_NUMBER_EXPAND(id, __LINE__)
 
 #define SAMPLE_LABEL(name_space, info) mozilla::SamplerStackFrameRAII SAMPLER_APPEND_LINE_NUMBER(sampler_raii)(name_space "::" info)
+#define SAMPLE_LABEL_PRINTF(name_space, info, format, ...) mozilla::SamplerStackFramePrintfRAII SAMPLER_APPEND_LINE_NUMBER(sampler_raii)(name_space "::" info, format, __VA_ARGS__)
 #define SAMPLE_MARKER(info) mozilla_sampler_add_marker(info)
 
 /* we duplicate this code here to avoid header dependencies
@@ -154,7 +134,7 @@ LinuxKernelMemoryBarrierFunc pLinuxKernelMemoryBarrier __attribute__((weak)) =
 
 // Returns a handdle to pass on exit. This can check that we are popping the
 // correct callstack.
-inline void* mozilla_sampler_call_enter(const char *aInfo);
+inline void* mozilla_sampler_call_enter(const char *aInfo, void *aFrameAddress = NULL, bool aCopy = false);
 inline void  mozilla_sampler_call_exit(void* handle);
 inline void  mozilla_sampler_add_marker(const char *aInfo);
 
@@ -175,7 +155,7 @@ class NS_STACK_CLASS SamplerStackFrameRAII {
 public:
   // we only copy the strings at save time, so to take multiple parameters we'd need to copy them then.
   SamplerStackFrameRAII(const char *aInfo) {
-    mHandle = mozilla_sampler_call_enter(aInfo);
+    mHandle = mozilla_sampler_call_enter(aInfo, this, false);
   }
   ~SamplerStackFrameRAII() {
     mozilla_sampler_call_exit(mHandle);
@@ -184,7 +164,66 @@ private:
   void* mHandle;
 };
 
+static const int SAMPLER_MAX_STRING = 128;
+class NS_STACK_CLASS SamplerStackFramePrintfRAII {
+public:
+  // we only copy the strings at save time, so to take multiple parameters we'd need to copy them then.
+  SamplerStackFramePrintfRAII(const char *aDefault, const char *aFormat, ...) {
+    if (mozilla_sampler_is_active()) {
+      va_list args;
+      va_start(args, aFormat);
+      char buff[SAMPLER_MAX_STRING];
+
+      // We have to use seperate printf's because we're using
+      // the vargs.
+#if _MSC_VER
+      _vsnprintf(buff, SAMPLER_MAX_STRING, aFormat, args);
+      _snprintf(mDest, SAMPLER_MAX_STRING, "%s %s", aDefault, buff);
+#else
+      vsnprintf(buff, SAMPLER_MAX_STRING, aFormat, args);
+      snprintf(mDest, SAMPLER_MAX_STRING, "%s %s", aDefault, buff);
+#endif
+      mHandle = mozilla_sampler_call_enter(mDest, this, true);
+      va_end(args);
+    } else {
+      mHandle = mozilla_sampler_call_enter(aDefault);
+    }
+  }
+  ~SamplerStackFramePrintfRAII() {
+    mozilla_sampler_call_exit(mHandle);
+  }
+private:
+  char mDest[SAMPLER_MAX_STRING];
+  void* mHandle;
+};
+
 } //mozilla
+
+class StackEntry
+{
+public:
+  // Encode the address and aCopy by dropping the last bit of aStackAddress
+  // and storing aCopy there.
+  static const void* EncodeStackAddress(const void* aStackAddress, bool aCopy) {
+    aStackAddress = reinterpret_cast<const void*>(
+                      reinterpret_cast<uintptr_t>(aStackAddress) & ~0x1);
+    if (!aCopy)
+      aStackAddress = reinterpret_cast<const void*>(
+                        reinterpret_cast<uintptr_t>(aStackAddress) | 0x1);
+    return aStackAddress;
+  }
+
+  bool isCopyLabel() const volatile {
+    return !((uintptr_t)mStackAddress & 0x1);
+  }
+
+  const char* mLabel;
+  // Tagged pointer. Less significant bit used to
+  // track if mLabel needs a copy. Note that we don't
+  // need the last bit of the stack address for proper ordering.
+  // Last bit 1 = Don't copy, Last bit 0 = Copy.
+  const void* mStackAddress;
+};
 
 // the SamplerStack members are read by signal
 // handlers, so the mutation of them needs to be signal-safe.
@@ -194,8 +233,8 @@ public:
   ProfileStack()
     : mStackPointer(0)
     , mMarkerPointer(0)
-    , mDroppedStackEntries(0)
     , mQueueClearMarker(false)
+    , mStartJSSampling(false)
   { }
 
   void addMarker(const char *aMarker)
@@ -221,7 +260,7 @@ public:
       clearMarkers();
     }
     if (aMarkerId < 0 ||
-	static_cast<mozilla::sig_safe_t>(aMarkerId) >= mMarkerPointer) {
+      static_cast<mozilla::sig_safe_t>(aMarkerId) >= mMarkerPointer) {
       return NULL;
     }
     return mMarkers[aMarkerId];
@@ -236,51 +275,88 @@ public:
 
   void push(const char *aName)
   {
+    push(aName, NULL, false);
+  }
+
+  void push(const char *aName, void *aStackAddress, bool aCopy)
+  {
     if (size_t(mStackPointer) >= mozilla::ArrayLength(mStack)) {
-      mDroppedStackEntries++;
+      mStackPointer++;
       return;
     }
 
     // Make sure we increment the pointer after the name has
     // been written such that mStack is always consistent.
-    mStack[mStackPointer] = aName;
+    mStack[mStackPointer].mLabel = aName;
+    mStack[mStackPointer].mStackAddress = StackEntry::EncodeStackAddress(aStackAddress, aCopy);
+
     // Prevent the optimizer from re-ordering these instructions
     STORE_SEQUENCER();
     mStackPointer++;
   }
   void pop()
   {
-    if (mDroppedStackEntries > 0) {
-      mDroppedStackEntries--;
-    } else {
-      mStackPointer--;
-    }
+    mStackPointer--;
   }
   bool isEmpty()
   {
     return mStackPointer == 0;
   }
 
+  void sampleRuntime(JSRuntime *runtime) {
+    mRuntime = runtime;
+    JS_STATIC_ASSERT(sizeof(mStack[0]) == sizeof(js::ProfileEntry));
+    js::SetRuntimeProfilingStack(runtime,
+                                 (js::ProfileEntry*) mStack,
+                                 (uint32_t*) &mStackPointer,
+                                 mozilla::ArrayLength(mStack));
+    if (mStartJSSampling)
+      enableJSSampling();
+  }
+  void enableJSSampling() {
+    if (mRuntime) {
+      js::EnableRuntimeProfilingStack(mRuntime, true);
+      mStartJSSampling = false;
+    } else {
+      mStartJSSampling = true;
+    }
+  }
+  void disableJSSampling() {
+    mStartJSSampling = false;
+    if (mRuntime)
+      js::EnableRuntimeProfilingStack(mRuntime, false);
+  }
+
   // Keep a list of active checkpoints
-  char const * volatile mStack[1024];
+  StackEntry volatile mStack[1024];
   // Keep a list of active markers to be applied to the next sample taken
   char const * volatile mMarkers[1024];
   volatile mozilla::sig_safe_t mStackPointer;
   volatile mozilla::sig_safe_t mMarkerPointer;
-  volatile mozilla::sig_safe_t mDroppedStackEntries;
   // We don't want to modify _markers from within the signal so we allow
   // it to queue a clear operation.
   volatile mozilla::sig_safe_t mQueueClearMarker;
+  // The runtime which is being sampled
+  JSRuntime *mRuntime;
+  // Start JS Profiling when possible
+  bool mStartJSSampling;
 };
 
-inline void* mozilla_sampler_call_enter(const char *aInfo)
+inline ProfileStack* mozilla_profile_stack(void)
+{
+  if (!stack_key_initialized)
+    return NULL;
+  return tlsStack.get();
+}
+
+inline void* mozilla_sampler_call_enter(const char *aInfo, void *aFrameAddress, bool aCopy)
 {
   // check if we've been initialized to avoid calling pthread_getspecific
-  // with a null pkey_stack which will return undefined results.
+  // with a null tlsStack which will return undefined results.
   if (!stack_key_initialized)
     return NULL;
 
-  ProfileStack *stack = mozilla::tls::get<ProfileStack>(pkey_stack);
+  ProfileStack *stack = tlsStack.get();
   // we can't infer whether 'stack' has been initialized
   // based on the value of stack_key_intiailized because
   // 'stack' is only intialized when a thread is being
@@ -288,7 +364,7 @@ inline void* mozilla_sampler_call_enter(const char *aInfo)
   if (!stack) {
     return stack;
   }
-  stack->push(aInfo);
+  stack->push(aInfo, aFrameAddress, aCopy);
 
   // The handle is meant to support future changes
   // but for now it is simply use to save a call to
@@ -309,7 +385,7 @@ inline void mozilla_sampler_call_exit(void *aHandle)
 
 inline void mozilla_sampler_add_marker(const char *aMarker)
 {
-  ProfileStack *stack = mozilla::tls::get<ProfileStack>(pkey_stack);
+  ProfileStack *stack = tlsStack.get();
   if (!stack) {
     return;
   }

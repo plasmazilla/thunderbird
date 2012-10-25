@@ -1,38 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Thunderbird.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation <http://www.mozilla.org/>.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsSyncRunnableHelpers.h"
 #include "nsIMsgMailNewsUrl.h"
@@ -436,8 +404,8 @@ NS_SYNCRUNNABLEMETHOD2(ImapMailFolderSink, SetAppendMsgUid, nsMsgKey, nsIImapUrl
 NS_SYNCRUNNABLEMETHOD2(ImapMailFolderSink, GetMessageId, nsIImapUrl *, nsACString &)
 
 NS_SYNCRUNNABLEMETHOD2(ImapMessageSink, SetupMsgWriteStream, nsIFile *, bool)
-NS_SYNCRUNNABLEMETHOD4(ImapMessageSink, ParseAdoptedMsgLine, const char *, nsMsgKey, PRInt32, nsIImapUrl *)
-NS_SYNCRUNNABLEMETHOD3(ImapMessageSink, NormalEndMsgWriteStream, nsMsgKey, bool, nsIImapUrl *)
+NS_SYNCRUNNABLEMETHOD3(ImapMessageSink, ParseAdoptedMsgLine, const char *, nsMsgKey, nsIImapUrl *)
+NS_SYNCRUNNABLEMETHOD4(ImapMessageSink, NormalEndMsgWriteStream, nsMsgKey, bool, nsIImapUrl *, PRInt32)
 NS_SYNCRUNNABLEMETHOD0(ImapMessageSink, AbortMsgWriteStream)
 NS_SYNCRUNNABLEMETHOD0(ImapMessageSink, BeginMessageUpload)
 NS_SYNCRUNNABLEMETHOD4(ImapMessageSink, NotifyMessageFlags, PRUint32, const nsACString &, nsMsgKey, PRUint64)
@@ -458,7 +426,7 @@ NS_SYNCRUNNABLEMETHOD3(ImapServerSink, OnlineFolderRename, nsIMsgWindow *, const
 NS_SYNCRUNNABLEMETHOD2(ImapServerSink, FolderIsNoSelect, const nsACString &, bool *)
 NS_SYNCRUNNABLEMETHOD2(ImapServerSink, SetFolderAdminURL, const nsACString &, const nsACString &)
 NS_SYNCRUNNABLEMETHOD2(ImapServerSink, FolderVerifiedOnline, const nsACString &, bool *)
-NS_SYNCRUNNABLEMETHOD1(ImapServerSink, SetCapability, PRUint32)
+NS_SYNCRUNNABLEMETHOD1(ImapServerSink, SetCapability, eIMAPCapabilityFlags)
 NS_SYNCRUNNABLEMETHOD1(ImapServerSink, SetServerID, const nsACString &)
 NS_SYNCRUNNABLEMETHOD2(ImapServerSink, LoadNextQueuedUrl, nsIImapProtocol *, bool *)
 NS_SYNCRUNNABLEMETHOD2(ImapServerSink, PrepareToRetryUrl, nsIImapUrl *, nsIImapMockChannel **)
@@ -479,3 +447,4 @@ NS_SYNCRUNNABLEMETHOD0(ImapServerSink, ForgetPassword)
 NS_SYNCRUNNABLEMETHOD1(ImapServerSink, GetShowAttachmentsInline, bool *)
 NS_SYNCRUNNABLEMETHOD3(ImapServerSink, CramMD5Hash, const char *, const char *, char **)
 NS_SYNCRUNNABLEMETHOD1(ImapServerSink, GetLoginUsername, nsACString &)
+NS_SYNCRUNNABLEMETHOD1(ImapServerSink, UpdateTrySTARTTLSPref, bool)

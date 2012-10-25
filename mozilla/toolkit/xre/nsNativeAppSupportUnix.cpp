@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Unix Native App Support.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2007
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Michael Wu <flamingice@sourmilk.net>    (original author)
- *   Michael Ventnor <m.ventnor@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsNativeAppSupportBase.h"
 #include "nsCOMPtr.h"
@@ -433,6 +399,7 @@ nsNativeAppSupportUnix::Start(bool *aRetVal)
 {
   NS_ASSERTION(gAppData, "gAppData must not be null.");
 
+#if (MOZ_WIDGET_GTK == 2)
   if (gtk_major_version < MIN_GTK_MAJOR_VERSION ||
       (gtk_major_version == MIN_GTK_MAJOR_VERSION && gtk_minor_version < MIN_GTK_MINOR_VERSION)) {
     GtkWidget* versionErrDialog = gtk_message_dialog_new(NULL,
@@ -449,6 +416,7 @@ nsNativeAppSupportUnix::Start(bool *aRetVal)
     gtk_widget_destroy(versionErrDialog);
     exit(0);
   }
+#endif
 
 #if (MOZ_PLATFORM_MAEMO == 5)
   /* zero state out. */
@@ -493,7 +461,7 @@ nsNativeAppSupportUnix::Start(bool *aRetVal)
 
   *aRetVal = true;
 
-#ifdef MOZ_X11
+#if defined(MOZ_X11) && (MOZ_WIDGET_GTK == 2)
 
   PRLibrary *gnomeuiLib = PR_LoadLibrary("libgnomeui-2.so.0");
   if (!gnomeuiLib)
@@ -516,7 +484,7 @@ nsNativeAppSupportUnix::Start(bool *aRetVal)
     return NS_OK;
   }
 
-#endif /* MOZ_X11 */
+#endif /* MOZ_X11 && (MOZ_WIDGET_GTK == 2) */
 
 #ifdef ACCESSIBILITY
   // We will load gail, atk-bridge by ourself later
@@ -527,11 +495,11 @@ nsNativeAppSupportUnix::Start(bool *aRetVal)
   setenv(accEnv, "0", 1);
 #endif
 
-#ifdef MOZ_X11
+#if defined(MOZ_X11) && (MOZ_WIDGET_GTK == 2)
   if (!gnome_program_get()) {
     gnome_program_init("Gecko", "1.0", libgnomeui_module_info_get(), gArgc, gArgv, NULL);
   }
-#endif /* MOZ_X11 */
+#endif /* MOZ_X11 && (MOZ_WIDGET_GTK == 2) */
 
 #ifdef ACCESSIBILITY
   if (accOldValue) { 
@@ -545,7 +513,8 @@ nsNativeAppSupportUnix::Start(bool *aRetVal)
   // gnome_program_init causes atexit handlers to be registered. Strange
   // crashes will occur if these libraries are unloaded.
 
-#ifdef MOZ_X11
+  // TODO GTK3 - see Bug 694570 - Stop using libgnome and libgnomeui on Linux
+#if defined(MOZ_X11) && (MOZ_WIDGET_GTK == 2)
   gnome_client_set_restart_command = (_gnome_client_set_restart_command_fn)
     PR_FindFunctionSymbol(gnomeuiLib, "gnome_client_set_restart_command");
 
@@ -588,7 +557,7 @@ nsNativeAppSupportUnix::Start(bool *aRetVal)
   if (argv1) {
     gnome_client_set_restart_command(client, 1, &argv1);
   }
-#endif /* MOZ_X11 */
+#endif /* MOZ_X11 && (MOZ_WIDGET_GTK == 2) */
 
   return NS_OK;
 }

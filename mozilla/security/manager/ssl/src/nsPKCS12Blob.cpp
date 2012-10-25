@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ian McGreer <mcgreer@netscape.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /* $Id: nsPKCS12Blob.cpp,v 1.49 2007/09/05 07:13:46 jwalden%mit.edu Exp $ */
 
 #include "prmem.h"
@@ -42,7 +9,6 @@
 #include "nsISupportsArray.h"
 #include "nsIFile.h"
 #include "nsNetUtil.h"
-#include "nsILocalFile.h"
 #include "nsIDirectoryService.h"
 #include "nsThreadUtils.h"
 
@@ -129,7 +95,7 @@ nsPKCS12Blob::SetToken(nsIPK11Token *token)
 // Given a file handle, read a PKCS#12 blob from that file, decode it,
 // and import the results into the token.
 nsresult
-nsPKCS12Blob::ImportFromFile(nsILocalFile *file)
+nsPKCS12Blob::ImportFromFile(nsIFile *file)
 {
   nsNSSShutDownPreventionLock locker;
   nsresult rv = NS_OK;
@@ -169,7 +135,7 @@ nsPKCS12Blob::ImportFromFile(nsILocalFile *file)
 }
 
 nsresult
-nsPKCS12Blob::ImportFromFileHelper(nsILocalFile *file, 
+nsPKCS12Blob::ImportFromFileHelper(nsIFile *file, 
                                    nsPKCS12Blob::ImportMode aImportMode,
                                    nsPKCS12Blob::RetryReason &aWantRetry)
 {
@@ -342,7 +308,7 @@ isExtractable(SECKEYPrivateKey *privKey)
 //       open output file as nsIFileStream object?
 //       set appropriate error codes
 nsresult
-nsPKCS12Blob::ExportToFile(nsILocalFile *file, 
+nsPKCS12Blob::ExportToFile(nsIFile *file, 
                            nsIX509Cert **certs, int numCerts)
 {
   nsNSSShutDownPreventionLock locker;
@@ -353,7 +319,7 @@ nsPKCS12Blob::ExportToFile(nsILocalFile *file,
   SECItem unicodePw;
   nsAutoString filePath;
   int i;
-  nsCOMPtr<nsILocalFile> localFileRef;
+  nsCOMPtr<nsIFile> localFileRef;
   NS_ASSERTION(mToken, "Need to set the token before exporting");
   // init slot
 
@@ -456,11 +422,11 @@ nsPKCS12Blob::ExportToFile(nsILocalFile *file,
   this->mTmpFile = NULL;
   file->GetPath(filePath);
   // Use the nsCOMPtr var localFileRef so that
-  // the reference to the nsILocalFile we create gets released as soon as
+  // the reference to the nsIFile we create gets released as soon as
   // we're out of scope, ie when this function exits.
   if (filePath.RFind(".p12", true, -1, 4) < 0) {
     // We're going to add the .p12 extension to the file name just like
-    // Communicator used to.  We create a new nsILocalFile and initialize
+    // Communicator used to.  We create a new nsIFile and initialize
     // it with the new patch.
     filePath.AppendLiteral(".p12");
     localFileRef = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv);
@@ -579,7 +545,7 @@ nsPKCS12Blob::getPKCS12FilePassword(SECItem *unicodePw)
 //
 // Given a decoder, read bytes from file and input them to the decoder.
 nsresult
-nsPKCS12Blob::inputToDecoder(SEC_PKCS12DecoderContext *dcx, nsILocalFile *file)
+nsPKCS12Blob::inputToDecoder(SEC_PKCS12DecoderContext *dcx, nsIFile *file)
 {
   nsNSSShutDownPreventionLock locker;
   nsresult rv;

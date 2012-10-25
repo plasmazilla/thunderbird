@@ -1,67 +1,42 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Neil Deakin <neil@mozdevgroup.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "mozilla/Util.h"
+#include <stddef.h>                     // for NULL
 
-#include "nscore.h"
-#include "nsLayoutCID.h"
-#include "nsIAtom.h"
-#include "nsStaticAtom.h"
-#include "nsString.h"
-#include "nsIEnumerator.h"
-#include "nsIContent.h"
-#include "nsIContentIterator.h"
-#include "nsIDOMNodeList.h"
-#include "nsIDOMRange.h"
-#include "nsContentUtils.h"
-#include "nsISelection.h"
-#include "nsIPlaintextEditor.h"
+#include "mozilla/Assertions.h"         // for MOZ_ASSERT, etc
+#include "mozilla/mozalloc.h"           // for operator new, etc
+#include "nsAString.h"                  // for nsAString_internal::Length, etc
+#include "nsAutoPtr.h"                  // for nsRefPtr
+#include "nsContentUtils.h"             // for nsContentUtils
+#include "nsDebug.h"                    // for NS_ENSURE_TRUE, etc
+#include "nsDependentSubstring.h"       // for Substring
+#include "nsError.h"                    // for NS_OK, NS_ERROR_FAILURE, etc
+#include "nsFilteredContentIterator.h"  // for nsFilteredContentIterator
+#include "nsIContent.h"                 // for nsIContent, etc
+#include "nsIContentIterator.h"         // for nsIContentIterator
+#include "nsID.h"                       // for NS_GET_IID
+#include "nsIDOMDocument.h"             // for nsIDOMDocument
+#include "nsIDOMElement.h"              // for nsIDOMElement
+#include "nsIDOMHTMLDocument.h"         // for nsIDOMHTMLDocument
+#include "nsIDOMHTMLElement.h"          // for nsIDOMHTMLElement
+#include "nsIDOMNode.h"                 // for nsIDOMNode, etc
+#include "nsIDOMRange.h"                // for nsIDOMRange, etc
+#include "nsIEditor.h"                  // for nsIEditor, etc
+#include "nsINode.h"                    // for nsINode
+#include "nsIPlaintextEditor.h"         // for nsIPlaintextEditor
+#include "nsISelection.h"               // for nsISelection
+#include "nsISelectionController.h"     // for nsISelectionController, etc
+#include "nsISupportsBase.h"            // for nsISupports
+#include "nsISupportsUtils.h"           // for NS_IF_ADDREF, NS_ADDREF, etc
+#include "nsITextServicesFilter.h"      // for nsITextServicesFilter
+#include "nsIWordBreaker.h"             // for nsWordRange, nsIWordBreaker
+#include "nsRange.h"                    // for nsRange
+#include "nsStaticAtom.h"               // for NS_STATIC_ATOM, etc
+#include "nsString.h"                   // for nsString, nsAutoString
 #include "nsTextServicesDocument.h"
-#include "nsFilteredContentIterator.h"
-
-#include "nsIDOMElement.h"
-#include "nsIDOMHTMLElement.h"
-#include "nsIDOMHTMLDocument.h"
-
-#include "nsLWBrkCIID.h"
-#include "nsIWordBreaker.h"
-#include "nsIServiceManager.h"
+#include "nscore.h"                     // for nsresult, NS_IMETHODIMP, etc
 
 #define LOCK_DOC(doc)
 #define UNLOCK_DOC(doc)
@@ -100,7 +75,7 @@ public:
 };
 
 #define TS_ATOM(name_, value_) nsIAtom* nsTextServicesDocument::name_ = 0;
-#include "nsTSAtomList.h"
+#include "nsTSAtomList.h" // IWYU pragma: keep
 #undef TS_ATOM
 
 nsTextServicesDocument::nsTextServicesDocument()
@@ -121,7 +96,7 @@ nsTextServicesDocument::~nsTextServicesDocument()
 }
 
 #define TS_ATOM(name_, value_) NS_STATIC_ATOM_BUFFER(name_##_buffer, value_)
-#include "nsTSAtomList.h"
+#include "nsTSAtomList.h" // IWYU pragma: keep
 #undef TS_ATOM
 
 /* static */
@@ -130,7 +105,7 @@ nsTextServicesDocument::RegisterAtoms()
 {
   static const nsStaticAtom ts_atoms[] = {
 #define TS_ATOM(name_, value_) NS_STATIC_ATOM(name_##_buffer, &name_),
-#include "nsTSAtomList.h"
+#include "nsTSAtomList.h" // IWYU pragma: keep
 #undef TS_ATOM
   };
 
@@ -820,13 +795,11 @@ nsTextServicesDocument::LastSelectedBlock(TSDBlockSelectionStatus *aSelStatus,
 
     while (!iter->IsDone())
     {
-      nsCOMPtr<nsIContent> content = do_QueryInterface(iter->GetCurrentNode());
-
-      if (IsTextNode(content))
-      {
+      if (iter->GetCurrentNode()->NodeType() == nsIDOMNode::TEXT_NODE) {
         // We found a text node, so position the document's
         // iterator at the beginning of the block, then get
         // the selection in terms of the string offset.
+        nsCOMPtr<nsIContent> content = iter->GetCurrentNode()->AsContent();
 
         result = mIterator->PositionAt(content);
 
@@ -945,12 +918,10 @@ nsTextServicesDocument::LastSelectedBlock(TSDBlockSelectionStatus *aSelStatus,
 
   while (!iter->IsDone())
   {
-    nsCOMPtr<nsIContent> content = do_QueryInterface(iter->GetCurrentNode());
-
-    if (IsTextNode(content))
-    {
+    if (iter->GetCurrentNode()->NodeType() == nsIDOMNode::TEXT_NODE) {
       // We found a text node! Adjust the document's iterator to point
       // to the beginning of its text block, then get the current selection.
+      nsCOMPtr<nsIContent> content = iter->GetCurrentNode()->AsContent();
 
       result = mIterator->PositionAt(content);
 
@@ -1378,7 +1349,7 @@ nsTextServicesDocument::DeleteSelection()
 
   // Now delete the actual content!
 
-  result = editor->DeleteSelection(nsIEditor::ePrevious);
+  result = editor->DeleteSelection(nsIEditor::ePrevious, nsIEditor::eStrip);
 
   if (NS_FAILED(result))
   {
@@ -1412,13 +1383,13 @@ nsTextServicesDocument::DeleteSelection()
 
       nsCOMPtr<nsIContent> curContent;
 
-      if (mIteratorStatus != nsTextServicesDocument::eIsDone)
-      {
+      if (mIteratorStatus != nsTextServicesDocument::eIsDone &&
+          mIterator->GetCurrentNode()->IsContent()) {
         // The old iterator is still pointing to something valid,
         // so get its current node so we can restore it after we
         // create the new iterator!
 
-        curContent = do_QueryInterface(mIterator->GetCurrentNode());
+        curContent = mIterator->GetCurrentNode()->AsContent();
       }
 
       // Create the new iterator.
@@ -2140,23 +2111,12 @@ nsTextServicesDocument::CreateDocumentContentRootToNodeOffsetRange(nsIDOMNode *a
     // The range should begin at (aParent, aOffset) and
     // extend to the end of the document.
 
-    nsCOMPtr<nsIDOMNodeList> nodeList;
-    PRUint32 nodeListLength;
-
     startNode   = aParent;
     startOffset = aOffset;
     endNode     = bodyNode;
-    endOffset   = 0;
 
-    rv = bodyNode->GetChildNodes(getter_AddRefs(nodeList));
-    NS_ENSURE_SUCCESS(rv, NS_ERROR_FAILURE);
-
-    if (nodeList) {
-      rv = nodeList->GetLength(&nodeListLength);
-      NS_ENSURE_SUCCESS(rv, NS_ERROR_FAILURE);
-
-      endOffset = (PRInt32)nodeListLength;
-    }
+    nsCOMPtr<nsINode> body = do_QueryInterface(bodyNode);
+    endOffset = body ? PRInt32(body->GetChildCount()) : 0;
   }
 
   return nsRange::CreateRange(startNode, startOffset, endNode, endOffset,
@@ -2596,32 +2556,17 @@ nsTextServicesDocument::GetSelection(nsITextServicesDocument::TSDBlockSelectionS
 nsresult
 nsTextServicesDocument::GetCollapsedSelection(nsITextServicesDocument::TSDBlockSelectionStatus *aSelStatus, PRInt32 *aSelOffset, PRInt32 *aSelLength)
 {
-  nsresult result;
   nsCOMPtr<nsISelection> selection;
-
-  result = mSelCon->GetSelection(nsISelectionController::SELECTION_NORMAL, getter_AddRefs(selection));
-
+  nsresult result = mSelCon->GetSelection(nsISelectionController::SELECTION_NORMAL, getter_AddRefs(selection));
   NS_ENSURE_SUCCESS(result, result);
-
   NS_ENSURE_TRUE(selection, NS_ERROR_FAILURE);
 
   // The calling function should have done the GetIsCollapsed()
   // check already. Just assume it's collapsed!
-
-  nsCOMPtr<nsIDOMRange> range;
-  OffsetEntry *entry;
-  nsCOMPtr<nsIDOMNode> parent;
-  PRInt32 offset, tableCount, i;
-  PRInt32 e1s1, e2s1;
-
-  OffsetEntry *eStart, *eEnd;
-  PRInt32 eStartOffset, eEndOffset;
-
-
   *aSelStatus = nsITextServicesDocument::eBlockOutside;
   *aSelOffset = *aSelLength = -1;
 
-  tableCount = mOffsetTable.Length();
+  PRInt32 tableCount = mOffsetTable.Length();
 
   if (tableCount == 0)
     return NS_OK;
@@ -2629,54 +2574,51 @@ nsTextServicesDocument::GetCollapsedSelection(nsITextServicesDocument::TSDBlockS
   // Get pointers to the first and last offset entries
   // in the table.
 
-  eStart = mOffsetTable[0];
-
+  OffsetEntry* eStart = mOffsetTable[0];
+  OffsetEntry* eEnd;
   if (tableCount > 1)
     eEnd = mOffsetTable[tableCount - 1];
   else
     eEnd = eStart;
 
-  eStartOffset = eStart->mNodeOffset;
-  eEndOffset   = eEnd->mNodeOffset + eEnd->mLength;
+  PRInt32 eStartOffset = eStart->mNodeOffset;
+  PRInt32 eEndOffset   = eEnd->mNodeOffset + eEnd->mLength;
 
+  nsCOMPtr<nsIDOMRange> range;
   result = selection->GetRangeAt(0, getter_AddRefs(range));
-
   NS_ENSURE_SUCCESS(result, result);
 
-  result = range->GetStartContainer(getter_AddRefs(parent));
-
+  nsCOMPtr<nsIDOMNode> domParent;
+  result = range->GetStartContainer(getter_AddRefs(domParent));
   NS_ENSURE_SUCCESS(result, result);
 
+  nsCOMPtr<nsINode> parent = do_QueryInterface(domParent);
+  MOZ_ASSERT(parent);
+
+  PRInt32 offset;
   result = range->GetStartOffset(&offset);
-
   NS_ENSURE_SUCCESS(result, result);
 
-  e1s1 = nsContentUtils::ComparePoints(eStart->mNode, eStartOffset,
-                                       parent, offset);
-  e2s1 = nsContentUtils::ComparePoints(eEnd->mNode, eEndOffset,
-                                       parent, offset);
+  PRInt32 e1s1 = nsContentUtils::ComparePoints(eStart->mNode, eStartOffset,
+                                               domParent, offset);
+  PRInt32 e2s1 = nsContentUtils::ComparePoints(eEnd->mNode, eEndOffset,
+                                               domParent, offset);
 
-  if (e1s1 > 0 || e2s1 < 0)
-  {
-    // We're done if the caret is outside the
-    // current text block.
-
+  if (e1s1 > 0 || e2s1 < 0) {
+    // We're done if the caret is outside the current text block.
     return NS_OK;
   }
 
-  if (IsTextNode(parent))
-  {
+  if (parent->NodeType() == nsIDOMNode::TEXT_NODE) {
     // Good news, the caret is in a text node. Look
     // through the offset table for the entry that
     // matches its parent and offset.
 
-    for (i = 0; i < tableCount; i++)
-    {
-      entry = mOffsetTable[i];
-
+    for (PRInt32 i = 0; i < tableCount; i++) {
+      OffsetEntry* entry = mOffsetTable[i];
       NS_ENSURE_TRUE(entry, NS_ERROR_FAILURE);
 
-      if (entry->mNode == parent.get() &&
+      if (entry->mNode == domParent.get() &&
           entry->mNodeOffset <= offset && offset <= (entry->mNodeOffset + entry->mLength))
       {
         *aSelStatus = nsITextServicesDocument::eBlockContains;
@@ -2700,25 +2642,15 @@ nsTextServicesDocument::GetCollapsedSelection(nsITextServicesDocument::TSDBlockS
   // child of this non-text node. Then look for the closest text
   // node.
 
-  nsCOMPtr<nsIDOMNode> node, saveNode;
-  nsCOMPtr<nsIDOMNodeList> children;
-  nsCOMPtr<nsIContentIterator> iter;
-  bool hasChildren;
-
   result = CreateRange(eStart->mNode, eStartOffset, eEnd->mNode, eEndOffset, getter_AddRefs(range));
-
   NS_ENSURE_SUCCESS(result, result);
 
+  nsCOMPtr<nsIContentIterator> iter;
   result = CreateContentIterator(range, getter_AddRefs(iter));
-
   NS_ENSURE_SUCCESS(result, result);
 
-  result = parent->HasChildNodes(&hasChildren);
-
-  NS_ENSURE_SUCCESS(result, result);
-
-  if (hasChildren)
-  {
+  nsIContent* saveNode;
+  if (parent->HasChildren()) {
     // XXX: We need to make sure that all of parent's
     //      children are in the text block.
 
@@ -2727,120 +2659,73 @@ nsTextServicesDocument::GetCollapsedSelection(nsITextServicesDocument::TSDBlockS
 
     PRUint32 childIndex = (PRUint32)offset;
 
-    result = parent->GetChildNodes(getter_AddRefs(children));
-
-    NS_ENSURE_SUCCESS(result, result);
-
-    NS_ENSURE_TRUE(children, NS_ERROR_FAILURE);
-
-    if (childIndex > 0)
-    {
-      PRUint32 numChildren;
-
-      result = children->GetLength(&numChildren);
-
-      NS_ENSURE_SUCCESS(result, result);
-
+    if (childIndex > 0) {
+      PRUint32 numChildren = parent->GetChildCount();
       NS_ASSERTION(childIndex <= numChildren, "Invalid selection offset!");
 
-      if (childIndex > numChildren)
+      if (childIndex > numChildren) {
         childIndex = numChildren;
+      }
 
       childIndex -= 1;
     }
 
-    result = children->Item(childIndex, getter_AddRefs(saveNode));
-
-    NS_ENSURE_SUCCESS(result, result);
-
-    nsCOMPtr<nsIContent> content(do_QueryInterface(saveNode));
-
+    nsIContent* content = parent->GetChildAt(childIndex);
     NS_ENSURE_TRUE(content, NS_ERROR_FAILURE);
 
     result = iter->PositionAt(content);
-
     NS_ENSURE_SUCCESS(result, result);
-  }
-  else
-  {
+
+    saveNode = content;
+  } else {
     // The parent has no children, so position the iterator
     // on the parent.
-
-    nsCOMPtr<nsIContent> content(do_QueryInterface(parent));
-
-    NS_ENSURE_TRUE(content, NS_ERROR_FAILURE);
+    NS_ENSURE_TRUE(parent->IsContent(), NS_ERROR_FAILURE);
+    nsCOMPtr<nsIContent> content = parent->AsContent();
 
     result = iter->PositionAt(content);
-
     NS_ENSURE_SUCCESS(result, result);
 
-    saveNode = parent;
+    saveNode = content;
   }
 
   // Now iterate to the left, towards the beginning of
   // the text block, to find the first text node you
   // come across.
 
-  while (!iter->IsDone())
-  {
-    nsCOMPtr<nsIContent> content = do_QueryInterface(iter->GetCurrentNode());
-
-    if (IsTextNode(content))
-    {
-      node = do_QueryInterface(content);
-
-      NS_ENSURE_TRUE(node, NS_ERROR_FAILURE);
-
+  nsIContent* node = nsnull;
+  while (!iter->IsDone()) {
+    nsINode* current = iter->GetCurrentNode();
+    if (current->NodeType() == nsIDOMNode::TEXT_NODE) {
+      node = static_cast<nsIContent*>(current);
       break;
     }
-
-    node = nsnull;
 
     iter->Prev();
   }
 
-  if (node)
-  {
+  if (node) {
     // We found a node, now set the offset to the end
     // of the text node.
-
-    nsAutoString str;
-    result = node->GetNodeValue(str);
-
-    NS_ENSURE_SUCCESS(result, result);
-
-    offset = str.Length();
-  }
-  else
-  {
+    offset = node->TextLength();
+  } else {
     // We should never really get here, but I'm paranoid.
 
     // We didn't find a text node above, so iterate to
     // the right, towards the end of the text block, looking
     // for a text node.
 
-    {
-      nsCOMPtr<nsIContent> content(do_QueryInterface(saveNode));
+    result = iter->PositionAt(saveNode);
+    NS_ENSURE_SUCCESS(result, result);
 
-      result = iter->PositionAt(content);
+    node = nsnull;
+    while (!iter->IsDone()) {
+      nsINode* current = iter->GetCurrentNode();
 
-      NS_ENSURE_SUCCESS(result, result);
-    }
-
-    while (!iter->IsDone())
-    {
-      nsCOMPtr<nsIContent> content = do_QueryInterface(iter->GetCurrentNode());
-
-      if (IsTextNode(content))
-      {
-        node = do_QueryInterface(content);
-
-        NS_ENSURE_TRUE(node, NS_ERROR_FAILURE);
-
+      if (current->NodeType() == nsIDOMNode::TEXT_NODE) {
+        node = static_cast<nsIContent*>(current);
         break;
       }
-
-      node = nsnull;
 
       iter->Next();
     }
@@ -2848,18 +2733,16 @@ nsTextServicesDocument::GetCollapsedSelection(nsITextServicesDocument::TSDBlockS
     NS_ENSURE_TRUE(node, NS_ERROR_FAILURE);
 
     // We found a text node, so set the offset to
-    // the begining of the node.
+    // the beginning of the node.
 
     offset = 0;
   }
 
-  for (i = 0; i < tableCount; i++)
-  {
-    entry = mOffsetTable[i];
-
+  for (PRInt32 i = 0; i < tableCount; i++) {
+    OffsetEntry* entry = mOffsetTable[i];
     NS_ENSURE_TRUE(entry, NS_ERROR_FAILURE);
 
-    if (entry->mNode == node.get() &&
+    if (entry->mNode == node->AsDOMNode() &&
         entry->mNodeOffset <= offset && offset <= (entry->mNodeOffset + entry->mLength))
     {
       *aSelStatus = nsITextServicesDocument::eBlockContains;
@@ -3283,7 +3166,9 @@ nsTextServicesDocument::FirstTextNodeInCurrentBlock(nsIContentIterator *iter)
 
   while (!iter->IsDone())
   {
-    nsCOMPtr<nsIContent> content = do_QueryInterface(iter->GetCurrentNode());
+    nsCOMPtr<nsIContent> content = iter->GetCurrentNode()->IsContent()
+                                   ? iter->GetCurrentNode()->AsContent()
+                                   : nsnull;
 
     if (IsTextNode(content))
     {
@@ -3354,7 +3239,9 @@ nsTextServicesDocument::FirstTextNodeInNextBlock(nsIContentIterator *aIterator)
 
   while (!aIterator->IsDone())
   {
-    nsCOMPtr<nsIContent> content = do_QueryInterface(aIterator->GetCurrentNode());
+    nsCOMPtr<nsIContent> content = aIterator->GetCurrentNode()->IsContent()
+                                   ? aIterator->GetCurrentNode()->AsContent()
+                                   : nsnull;
 
     if (IsTextNode(content))
     {
@@ -3400,7 +3287,9 @@ nsTextServicesDocument::GetFirstTextNodeInPrevBlock(nsIContent **aContent)
 
   if (!mIterator->IsDone())
   {
-    nsCOMPtr<nsIContent> current = do_QueryInterface(mIterator->GetCurrentNode());
+    nsCOMPtr<nsIContent> current = mIterator->GetCurrentNode()->IsContent()
+                                   ? mIterator->GetCurrentNode()->AsContent()
+                                   : nsnull;
     current.forget(aContent);
   }
 
@@ -3434,7 +3323,9 @@ nsTextServicesDocument::GetFirstTextNodeInNextBlock(nsIContent **aContent)
 
   if (!mIterator->IsDone())
   {
-    nsCOMPtr<nsIContent> current = do_QueryInterface(mIterator->GetCurrentNode());
+    nsCOMPtr<nsIContent> current = mIterator->GetCurrentNode()->IsContent()
+                                   ? mIterator->GetCurrentNode()->AsContent()
+                                   : nsnull;
     current.forget(aContent);
   }
 
@@ -3494,7 +3385,9 @@ nsTextServicesDocument::CreateOffsetTable(nsTArray<OffsetEntry*> *aOffsetTable,
 
   while (!aIterator->IsDone())
   {
-    nsCOMPtr<nsIContent> content = do_QueryInterface(aIterator->GetCurrentNode());
+    nsCOMPtr<nsIContent> content = aIterator->GetCurrentNode()->IsContent()
+                                   ? aIterator->GetCurrentNode()->AsContent()
+                                   : nsnull;
 
     if (IsTextNode(content))
     {
@@ -3746,19 +3639,10 @@ nsTextServicesDocument::FindWordBounds(nsTArray<OffsetEntry*> *aOffsetTable,
   const PRUnichar *str = aBlockStr->get();
   PRUint32 strLen = aBlockStr->Length();
 
-  nsIWordBreaker *aWordBreaker;
-
-  result = CallGetService(NS_WBRK_CONTRACTID, &aWordBreaker);
-  NS_ENSURE_SUCCESS(result, result);
-
-  nsWordRange res = aWordBreaker->FindWord(str, strLen, strOffset);
-  NS_IF_RELEASE(aWordBreaker);
-  if(res.mBegin > strLen)
-  {
-    if(!str)
-      return NS_ERROR_NULL_POINTER;
-    else
-      return NS_ERROR_ILLEGAL_VALUE;
+  nsIWordBreaker* wordBreaker = nsContentUtils::WordBreaker();
+  nsWordRange res = wordBreaker->FindWord(str, strLen, strOffset);
+  if (res.mBegin > strLen) {
+    return str ? NS_ERROR_ILLEGAL_VALUE : NS_ERROR_NULL_POINTER;
   }
 
   // Strip out the NBSPs at the ends

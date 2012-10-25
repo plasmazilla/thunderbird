@@ -1,8 +1,12 @@
 // -*- Mode: js2; tab-width: 2; indent-tabs-mode: nil; js2-basic-offset: 2; js2-skip-preprocessor-directives: t; -*-
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 var ContextCommands = {
   copy: function cc_copy() {
     let clipboard = Cc["@mozilla.org/widget/clipboardhelper;1"].getService(Ci.nsIClipboardHelper);
-    clipboard.copyString(ContextHelper.popupState.string);
+    clipboard.copyString(ContextHelper.popupState.string, Browser.contentWindow.document);
 
     let target = ContextHelper.popupState.target;
     if (target)
@@ -68,22 +72,22 @@ var ContextCommands = {
 
   copyLink: function cc_copyLink() {
     let clipboard = Cc["@mozilla.org/widget/clipboardhelper;1"].getService(Ci.nsIClipboardHelper);
-    clipboard.copyString(ContextHelper.popupState.linkURL);
+    clipboard.copyString(ContextHelper.popupState.linkURL, Browser.contentWindow.document);
   },
 
   copyEmail: function cc_copyEmail() {
       let clipboard = Cc["@mozilla.org/widget/clipboardhelper;1"].getService(Ci.nsIClipboardHelper);
-      clipboard.copyString(ContextHelper.popupState.linkURL.substr(ContextHelper.popupState.linkURL.indexOf(':')+1));
+      clipboard.copyString(ContextHelper.popupState.linkURL.substr(ContextHelper.popupState.linkURL.indexOf(':')+1), Browser.contentWindow.document);
   },
 
   copyPhone: function cc_copyPhone() {
       let clipboard = Cc["@mozilla.org/widget/clipboardhelper;1"].getService(Ci.nsIClipboardHelper);
-      clipboard.copyString(ContextHelper.popupState.linkURL.substr(ContextHelper.popupState.linkURL.indexOf(':')+1));
+      clipboard.copyString(ContextHelper.popupState.linkURL.substr(ContextHelper.popupState.linkURL.indexOf(':')+1), Browser.contentWindow.document);
   },
 
   copyImageLocation: function cc_copyImageLocation() {
       let clipboard = Cc["@mozilla.org/widget/clipboardhelper;1"].getService(Ci.nsIClipboardHelper);
-      clipboard.copyString(ContextHelper.popupState.mediaURL);
+      clipboard.copyString(ContextHelper.popupState.mediaURL, Browser.contentWindow.document);
   },
 
   shareLink: function cc_shareLink() {

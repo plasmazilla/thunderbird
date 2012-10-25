@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 
 #ifndef __nsMsgBodyHandler_h
 #define __nsMsgBodyHandler_h
@@ -56,7 +60,7 @@ protected:
 
   nsIMsgSearchScopeTerm *m_scope;
   nsCOMPtr <nsILineInputStream> m_fileLineStream;
-  nsCOMPtr <nsILocalFile> m_localFile;
+  nsCOMPtr <nsIFile> m_localFile;
 
   /**
    * The number of lines in the message.  If |m_lineCountInBodyLines| then this

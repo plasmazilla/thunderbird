@@ -1,45 +1,16 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 2 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Corporation code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Bas Schouten <bschouten@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef MOZILLA_GFX_HELPERSD2D_H_
 #define MOZILLA_GFX_HELPERSD2D_H_
 
 #include <d2d1.h>
+#include <dwrite.h>
 #include "2D.h"
+
+#include "ScaledFontDWrite.h"
 
 namespace mozilla {
 namespace gfx {
@@ -61,7 +32,7 @@ static inline D2D1_RECT_F D2DRect(const Rect &aRect)
 
 static inline D2D1_EXTEND_MODE D2DExtend(ExtendMode aExtendMode)
 {
-  D2D1_EXTEND_MODE extend = D2D1_EXTEND_MODE_CLAMP;
+  D2D1_EXTEND_MODE extend;
   switch (aExtendMode) {
   case EXTEND_REPEAT:
     extend = D2D1_EXTEND_MODE_WRAP;
@@ -69,6 +40,8 @@ static inline D2D1_EXTEND_MODE D2DExtend(ExtendMode aExtendMode)
   case EXTEND_REFLECT:
     extend = D2D1_EXTEND_MODE_MIRROR;
     break;
+  default:
+    extend = D2D1_EXTEND_MODE_CLAMP;
   }
 
   return extend;
@@ -79,9 +52,9 @@ static inline D2D1_BITMAP_INTERPOLATION_MODE D2DFilter(const Filter &aFilter)
   switch (aFilter) {
   case FILTER_POINT:
     return D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR;
+  default:
+    return D2D1_BITMAP_INTERPOLATION_MODE_LINEAR;
   }
-
-  return D2D1_BITMAP_INTERPOLATION_MODE_LINEAR;
 }
 
 static inline D2D1_ANTIALIAS_MODE D2DAAMode(AntialiasMode aMode)
@@ -89,9 +62,9 @@ static inline D2D1_ANTIALIAS_MODE D2DAAMode(AntialiasMode aMode)
   switch (aMode) {
   case AA_NONE:
     return D2D1_ANTIALIAS_MODE_ALIASED;
+  default:
+    return D2D1_ANTIALIAS_MODE_PER_PRIMITIVE;
   }
-
-  return D2D1_ANTIALIAS_MODE_PER_PRIMITIVE;
 }
 
 static inline D2D1_MATRIX_3X2_F D2DMatrix(const Matrix &aTransform)
@@ -122,9 +95,9 @@ static inline SurfaceFormat ToPixelFormat(const D2D1_PIXEL_FORMAT &aFormat)
     } else {
       return FORMAT_B8G8R8A8;
     }
+  default:
+    return FORMAT_B8G8R8A8;
   }
-
-  return FORMAT_B8G8R8A8;
 }
 
 static inline Rect ToRect(const D2D1_RECT_F &aRect)
@@ -141,9 +114,9 @@ static inline DXGI_FORMAT DXGIFormat(SurfaceFormat aFormat)
     return DXGI_FORMAT_B8G8R8A8_UNORM;
   case FORMAT_A8:
     return DXGI_FORMAT_A8_UNORM;
+  default:
+    return DXGI_FORMAT_UNKNOWN;
   }
-
-  return DXGI_FORMAT_UNKNOWN;
 }
 
 static inline D2D1_ALPHA_MODE AlphaMode(SurfaceFormat aFormat)
@@ -151,9 +124,9 @@ static inline D2D1_ALPHA_MODE AlphaMode(SurfaceFormat aFormat)
   switch (aFormat) {
   case FORMAT_B8G8R8X8:
     return D2D1_ALPHA_MODE_IGNORE;
+  default:
+    return D2D1_ALPHA_MODE_PREMULTIPLIED;
   }
-
-  return D2D1_ALPHA_MODE_PREMULTIPLIED;
 }
 
 static inline D2D1_PIXEL_FORMAT D2DPixelFormat(SurfaceFormat aFormat)
@@ -161,17 +134,7 @@ static inline D2D1_PIXEL_FORMAT D2DPixelFormat(SurfaceFormat aFormat)
   return D2D1::PixelFormat(DXGIFormat(aFormat), AlphaMode(aFormat));
 }
 
-static inline int BytesPerPixel(SurfaceFormat aFormat)
-{
-  switch (aFormat) {
-  case FORMAT_A8:
-    return 1;
-  default:
-    return 4;
-  }
-}
-
-static bool IsPatternSupportedByD2D(const Pattern &aPattern)
+static inline bool IsPatternSupportedByD2D(const Pattern &aPattern)
 {
   if (aPattern.GetType() != PATTERN_RADIAL_GRADIENT) {
     return false;
@@ -211,6 +174,78 @@ struct ShaderConstantRectD3D10
   // For easy passing to SetVertexShaderConstantF.
   operator float* () { return &mX; }
 };
+
+static inline DWRITE_MATRIX
+DWriteMatrixFromMatrix(Matrix &aMatrix)
+{
+  DWRITE_MATRIX mat;
+  mat.m11 = aMatrix._11;
+  mat.m12 = aMatrix._12;
+  mat.m21 = aMatrix._21;
+  mat.m22 = aMatrix._22;
+  mat.dx = aMatrix._31;
+  mat.dy = aMatrix._32;
+  return mat;
+}
+
+class AutoDWriteGlyphRun : public DWRITE_GLYPH_RUN
+{
+    static const unsigned kNumAutoGlyphs = 256;
+
+public:
+    AutoDWriteGlyphRun() {
+        glyphCount = 0;
+    }
+
+    ~AutoDWriteGlyphRun() {
+        if (glyphCount > kNumAutoGlyphs) {
+            delete[] glyphIndices;
+            delete[] glyphAdvances;
+            delete[] glyphOffsets;
+        }
+    }
+
+    void allocate(unsigned aNumGlyphs) {
+        glyphCount = aNumGlyphs;
+        if (aNumGlyphs <= kNumAutoGlyphs) {
+            glyphIndices = &mAutoIndices[0];
+            glyphAdvances = &mAutoAdvances[0];
+            glyphOffsets = &mAutoOffsets[0];
+        } else {
+            glyphIndices = new UINT16[aNumGlyphs];
+            glyphAdvances = new FLOAT[aNumGlyphs];
+            glyphOffsets = new DWRITE_GLYPH_OFFSET[aNumGlyphs];
+        }
+    }
+
+private:
+    DWRITE_GLYPH_OFFSET mAutoOffsets[kNumAutoGlyphs];
+    FLOAT               mAutoAdvances[kNumAutoGlyphs];
+    UINT16              mAutoIndices[kNumAutoGlyphs];
+};
+
+static inline void
+DWriteGlyphRunFromGlyphs(const GlyphBuffer &aGlyphs, ScaledFontDWrite *aFont, AutoDWriteGlyphRun *run)
+{
+  run->allocate(aGlyphs.mNumGlyphs);
+
+  FLOAT *advances = const_cast<FLOAT*>(run->glyphAdvances);
+  UINT16 *indices = const_cast<UINT16*>(run->glyphIndices);
+  DWRITE_GLYPH_OFFSET *offsets = const_cast<DWRITE_GLYPH_OFFSET*>(run->glyphOffsets);
+
+  memset(advances, 0, sizeof(FLOAT) * aGlyphs.mNumGlyphs);
+  for (unsigned int i = 0; i < aGlyphs.mNumGlyphs; i++) {
+    indices[i] = aGlyphs.mGlyphs[i].mIndex;
+    offsets[i].advanceOffset = aGlyphs.mGlyphs[i].mPosition.x;
+    offsets[i].ascenderOffset = -aGlyphs.mGlyphs[i].mPosition.y;
+  }
+    
+  run->bidiLevel = 0;
+  run->fontFace = aFont->mFontFace;
+  run->fontEmSize = aFont->mSize;
+  run->glyphCount = aGlyphs.mNumGlyphs;
+  run->isSideways = FALSE;
+}
 
 }
 }

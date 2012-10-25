@@ -1,49 +1,8 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ft=javascript ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Mozilla Inspector Module.
- *
- * The Initial Developer of the Original Code is
- * The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Rob Campbell <rcampbell@mozilla.com> (original author)
- *   Mihai Șucan <mihai.sucan@gmail.com>
- *   Julian Viereck <jviereck@mozilla.com>
- *   Paul Rouget <paul@mozilla.com>
- *   Kyle Simpson <ksimpson@mozilla.com>
- *   Johan Charlez <johan.charlez@gmail.com>
- *   Mike Ratcliffe <mratcliffe@mozilla.com>
- *   Murali S R <murali.sr92@yahoo.com>
- *   Dave Camp <dcamp@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 const Cc = Components.classes;
 const Cu = Components.utils;
@@ -85,6 +44,10 @@ const INSPECTOR_NOTIFICATIONS = {
 
 const PSEUDO_CLASSES = [":hover", ":active", ":focus"];
 
+// Timer, in milliseconds, between change events fired by
+// things like resize events.
+const LAYOUT_CHANGE_TIMER = 250;
+
 /**
  * Represents an open instance of the Inspector for a tab.
  * This is the object handed out to sidebars and other API consumers.
@@ -102,7 +65,10 @@ function Inspector(aIUI)
 {
   this._IUI = aIUI;
   this._winID = aIUI.winID;
+  this._browser = aIUI.browser;
   this._listeners = {};
+
+  this._browser.addEventListener("resize", this, true);
 }
 
 Inspector.prototype = {
@@ -147,7 +113,19 @@ Inspector.prototype = {
    */
   change: function Inspector_change(aContext)
   {
+    this._cancelLayoutChange();
     this._IUI.nodeChanged(aContext);
+  },
+
+  /**
+   * Returns true if a given sidebar panel is currently visible.
+   * @param string aPanelName
+   *        The panel name as registered with registerSidebar
+   */
+  isPanelVisible: function Inspector_isPanelVisible(aPanelName)
+  {
+    return this._IUI.sidebar.visible &&
+           this._IUI.sidebar.activePanel === aPanelName;
   },
 
   /**
@@ -155,8 +133,74 @@ Inspector.prototype = {
    */
   _destroy: function Inspector__destroy()
   {
+    this._cancelLayoutChange();
+    this._browser.removeEventListener("resize", this, true);
     delete this._IUI;
     delete this._listeners;
+  },
+
+  /**
+   * Event handler for DOM events.
+   *
+   * @param DOMEvent aEvent
+   */
+  handleEvent: function Inspector_handleEvent(aEvent)
+  {
+    switch(aEvent.type) {
+      case "resize":
+        this._scheduleLayoutChange();
+    }
+  },
+
+  /**
+   * Schedule a low-priority change event for things like paint
+   * and resize.
+   */
+  _scheduleLayoutChange: function Inspector_scheduleLayoutChange()
+  {
+    if (this._timer) {
+      return null;
+    }
+    this._timer = this._IUI.win.setTimeout(function() {
+      this.change("layout");
+    }.bind(this), LAYOUT_CHANGE_TIMER);
+  },
+
+  /**
+   * Cancel a pending low-priority change event if any is
+   * scheduled.
+   */
+  _cancelLayoutChange: function Inspector_cancelLayoutChange()
+  {
+    if (this._timer) {
+      this._IUI.win.clearTimeout(this._timer);
+      delete this._timer;
+    }
+  },
+
+  /**
+   * Called by InspectorUI after a tab switch, when the
+   * inspector is no longer the active tab.
+   */
+  _freeze: function Inspector__freeze()
+  {
+    this._cancelLayoutChange();
+    this._browser.removeEventListener("resize", this, true);
+    this._frozen = true;
+  },
+
+  /**
+   * Called by InspectorUI after a tab switch when the
+   * inspector is back to being the active tab.
+   */
+  _thaw: function Inspector__thaw()
+  {
+    if (!this._frozen) {
+      return;
+    }
+
+    this._browser.addEventListener("resize", this, true);
+    delete this._frozen;
   },
 
   /// Event stuff.  Would like to refactor this eventually.
@@ -217,8 +261,21 @@ Inspector.prototype = {
   {
     if (!(aEvent in this._listeners))
       return;
-    for each (let listener in this._listeners[aEvent]) {
-      listener.apply(null, arguments);
+
+    let originalListeners = this._listeners[aEvent];
+    for (let listener of this._listeners[aEvent]) {
+      // If the inspector was destroyed during event emission, stop
+      // emitting.
+      if (!this._listeners) {
+        break;
+      }
+
+      // If listeners were removed during emission, make sure the
+      // event handler we're going to fire wasn't removed.
+      if (originalListeners === this._listeners[aEvent] ||
+          this._listeners[aEvent].some(function(l) l === listener)) {
+        listener.apply(null, arguments);
+      }
     }
   }
 }
@@ -295,9 +352,9 @@ InspectorUI.prototype = {
     let keysbundle = Services.strings.createBundle("chrome://global-platform/locale/platformKeys.properties");
     let separator = keysbundle.GetStringFromName("MODIFIER_SEPARATOR");
 
-    // Inspect Button - the shortcut string is built from the <key> element
-
     let button, tooltip;
+
+    // Inspect Button - the shortcut string is built from the <key> element
 
     let key = this.chromeDoc.getElementById("key_inspect");
 
@@ -323,11 +380,14 @@ InspectorUI.prototype = {
 
       combo.push(key.getAttribute("key"));
 
-      tooltip = this.strings.formatStringFromName("inspectButton.tooltiptext",
+      tooltip = this.strings.formatStringFromName("inspectButtonWithShortcutKey.tooltip",
         [combo.join(separator)], 1);
-      button = this.chromeDoc.getElementById("inspector-inspect-toolbutton");
-      button.setAttribute("tooltiptext", tooltip);
+    } else {
+      tooltip = this.strings.GetStringFromName("inspectButton.tooltip");
     }
+
+    button = this.chromeDoc.getElementById("inspector-inspect-toolbutton");
+    button.setAttribute("tooltiptext", tooltip);
 
     // Markup Button - the shortcut string is built from the accesskey attribute
 
@@ -380,7 +440,7 @@ InspectorUI.prototype = {
   /**
    * Toggle the TreePanel.
    */
-  toggleHTMLPanel: function TP_toggle()
+  toggleHTMLPanel: function IUI_toggleHTMLPanel()
   {
     if (this.treePanel.isOpen()) {
       this.treePanel.close();
@@ -400,7 +460,39 @@ InspectorUI.prototype = {
    */
   get isInspectorOpen()
   {
-    return this.toolbar && !this.toolbar.hidden && this.highlighter;
+    return !!(this.toolbar && !this.toolbar.hidden && this.highlighter);
+  },
+
+  /**
+   * Toggle highlighter veil.
+   */
+  toggleVeil: function IUI_toggleVeil()
+  {
+    if (this.currentInspector._highlighterShowVeil) {
+      this.highlighter.hideVeil();
+      this.currentInspector._highlighterShowVeil = false;
+      Services.prefs.setBoolPref("devtools.inspector.highlighterShowVeil", false);
+    } else {
+      this.highlighter.showVeil();
+      this.currentInspector._highlighterShowVeil = true;
+      Services.prefs.setBoolPref("devtools.inspector.highlighterShowVeil", true);
+    }
+  },
+
+  /**
+   * Toggle highlighter infobar.
+   */
+  toggleInfobar: function IUI_toggleInfobar()
+  {
+    if (this.currentInspector._highlighterShowInfobar) {
+      this.highlighter.hideInfobar();
+      this.currentInspector._highlighterShowInfobar = false;
+      Services.prefs.setBoolPref("devtools.inspector.highlighterShowInfobar", false);
+    } else {
+      this.highlighter.showInfobar();
+      this.currentInspector._highlighterShowInfobar = true;
+      Services.prefs.setBoolPref("devtools.inspector.highlighterShowInfobar", true);
+    }
   },
 
   /**
@@ -454,15 +546,16 @@ InspectorUI.prototype = {
     this.win = this.browser.contentWindow;
     this.winID = this.getWindowID(this.win);
     this.toolbar = this.chromeDoc.getElementById("inspector-toolbar");
-    this.inspectMenuitem = this.chromeDoc.getElementById("Tools:Inspect");
-    this.inspectToolbutton =
-      this.chromeDoc.getElementById("inspector-inspect-toolbutton");
+    this.inspectCommand = this.chromeDoc.getElementById("Inspector:Inspect");
+
+    // Update menus:
+    this.inspectorUICommand = this.chromeDoc.getElementById("Tools:Inspect");
+    this.inspectorUICommand.setAttribute("checked", "true");
 
     this.chromeWin.Tilt.setup();
 
     this.treePanel = new TreePanel(this.chromeWin, this);
     this.toolbar.hidden = false;
-    this.inspectMenuitem.setAttribute("checked", true);
 
     // initialize the HTML Breadcrumbs
     this.breadcrumbs = new HTMLBreadcrumbs(this);
@@ -499,7 +592,7 @@ InspectorUI.prototype = {
     // is limited to some specific elements and has moved the focus somewhere else.
     // So in this case, we want to focus the content window.
     // See: https://developer.mozilla.org/en/XUL_Tutorial/Focus_and_Selection#Platform_Specific_Behaviors
-    if (!this.toolbar.querySelector("-moz-focusring")) {
+    if (!this.toolbar.querySelector(":-moz-focusring")) {
       this.win.focus();
     }
 
@@ -518,6 +611,7 @@ InspectorUI.prototype = {
     // Has this windowID been inspected before?
     if (this.store.hasID(this.winID)) {
       this._currentInspector = this.store.getInspector(this.winID);
+      this._currentInspector._thaw();
       let selectedNode = this.currentInspector._selectedNode;
       if (selectedNode) {
         this.inspectNode(selectedNode);
@@ -540,6 +634,12 @@ InspectorUI.prototype = {
       inspector._activeSidebar =
         Services.prefs.getCharPref("devtools.inspector.activeSidebar");
 
+      inspector._highlighterShowVeil =
+        Services.prefs.getBoolPref("devtools.inspector.highlighterShowVeil");
+
+      inspector._highlighterShowInfobar =
+        Services.prefs.getBoolPref("devtools.inspector.highlighterShowInfobar");
+
       this.win.addEventListener("pagehide", this, true);
 
       this._currentInspector = inspector;
@@ -553,15 +653,10 @@ InspectorUI.prototype = {
    setupNavigationKeys: function IUI_setupNavigationKeys()
    {
      // UI elements that are arrow keys sensitive:
-     // - highlighter veil;
-     // - content window (when the highlighter `veil is pointer-events:none`;
      // - the Inspector toolbar.
 
      this.onKeypress = this.onKeypress.bind(this);
 
-     this.highlighter.highlighterContainer.addEventListener("keypress",
-       this.onKeypress, true);
-     this.win.addEventListener("keypress", this.onKeypress, true);
      this.toolbar.addEventListener("keypress", this.onKeypress, true);
    },
 
@@ -570,9 +665,6 @@ InspectorUI.prototype = {
    */
    removeNavigationKeys: function IUI_removeNavigationKeys()
    {
-      this.highlighter.highlighterContainer.removeEventListener("keypress",
-        this.onKeypress, true);
-      this.win.removeEventListener("keypress", this.onKeypress, true);
       this.toolbar.removeEventListener("keypress", this.onKeypress, true);
    },
 
@@ -645,11 +737,15 @@ InspectorUI.prototype = {
       this.breadcrumbs = null;
     }
 
-    delete this._currentInspector;
-    if (!aKeepInspector)
+    if (aKeepInspector) {
+      this._currentInspector._freeze();
+    } else {
       this.store.deleteInspector(this.winID);
+    }
+    delete this._currentInspector;
 
-    this.inspectMenuitem.setAttribute("checked", false);
+    this.inspectorUICommand.setAttribute("checked", "false");
+
     this.browser = this.win = null; // null out references to browser and window
     this.winID = null;
     this.selection = null;
@@ -658,6 +754,8 @@ InspectorUI.prototype = {
 
     delete this.treePanel;
     delete this.stylePanel;
+    delete this.inspectorUICommand;
+    delete this.inspectCommand;
     delete this.toolbar;
 
     Services.obs.notifyObservers(null, INSPECTOR_NOTIFICATIONS.CLOSED, null);
@@ -677,7 +775,7 @@ InspectorUI.prototype = {
     if (this.treePanel && this.treePanel.editingContext)
       this.treePanel.closeEditor();
 
-    this.inspectToolbutton.checked = true;
+    this.inspectCommand.setAttribute("checked", "true");
 
     this.inspecting = true;
     this.highlighter.unlock();
@@ -687,6 +785,7 @@ InspectorUI.prototype = {
 
   _notifySelected: function IUI__notifySelected(aFrom)
   {
+    this._currentInspector._cancelLayoutChange();
     this._currentInspector._emit("select", aFrom);
   },
 
@@ -702,9 +801,13 @@ InspectorUI.prototype = {
       return;
     }
 
-    this.inspectToolbutton.checked = false;
+    this.inspectCommand.setAttribute("checked", "false");
 
     this.inspecting = false;
+
+    if (this.closing)
+      return;
+
     if (this.highlighter.getNode()) {
       this.select(this.highlighter.getNode(), true, !aPreventScroll);
     } else {
@@ -750,7 +853,7 @@ InspectorUI.prototype = {
 
     this.breadcrumbs.update();
     this.chromeWin.Tilt.update(aNode);
-    this.treePanel.select(aNode, aScroll);
+    this.treePanel.select(aNode, aScroll, aFrom);
 
     this._notifySelected(aFrom);
   },
@@ -786,7 +889,9 @@ InspectorUI.prototype = {
   clearPseudoClassLocks: function IUI_clearPseudoClassLocks()
   {
     this.breadcrumbs.nodeHierarchy.forEach(function(crumb) {
-      DOMUtils.clearPseudoClassLocks(crumb.node);
+      if (LayoutHelpers.isNodeConnected(crumb.node)) {
+        DOMUtils.clearPseudoClassLocks(crumb.node);
+      }
     });
   },
 
@@ -844,6 +949,23 @@ InspectorUI.prototype = {
 
     if (this.currentInspector._sidebarOpen) {
       this._sidebar.show();
+    }
+
+    let menu = this.chromeDoc.getElementById("inspectorToggleVeil");
+    if (this.currentInspector._highlighterShowVeil) {
+      menu.setAttribute("checked", "true");
+    } else {
+      menu.removeAttribute("checked");
+      this.highlighter.hideVeil();
+    }
+
+    menu = this.chromeDoc.getElementById("inspectorToggleInfobar");
+    if (this.currentInspector._highlighterShowInfobar) {
+      menu.setAttribute("checked", "true");
+      this.highlighter.showInfobar();
+    } else {
+      menu.removeAttribute("checked");
+      this.highlighter.hideInfobar();
     }
 
     Services.obs.notifyObservers({wrappedJSObject: this},
@@ -980,7 +1102,7 @@ InspectorUI.prototype = {
    */
   copyInnerHTML: function IUI_copyInnerHTML()
   {
-    clipboardHelper.copyString(this.selection.innerHTML);
+    clipboardHelper.copyString(this.selection.innerHTML, this.selection.ownerDocument);
   },
 
   /**
@@ -989,7 +1111,7 @@ InspectorUI.prototype = {
    */
   copyOuterHTML: function IUI_copyOuterHTML()
   {
-    clipboardHelper.copyString(this.selection.outerHTML);
+    clipboardHelper.copyString(this.selection.outerHTML, this.selection.ownerDocument);
   },
 
   /**
@@ -1110,7 +1232,7 @@ InspectorUI.prototype = {
 
   /**
    * Destroy the InspectorUI instance. This is called by the InspectorUI API
-   * "user", see BrowserShutdown() in browser.js.
+   * "user", see gBrowserInit.onUnload() in browser.js.
    */
   destroy: function IUI_destroy()
   {
@@ -1459,6 +1581,10 @@ InspectorStyleSidebar.prototype = {
     let frame = this._chromeDoc.createElement("iframe");
     frame.setAttribute("flex", "1");
     frame._toolID = aRegObj.id;
+
+    // This is needed to enable tooltips inside the iframe document.
+    frame.setAttribute("tooltip", "aHTMLTooltip");
+
     this._deck.appendChild(frame);
 
     // wire up button to show the iframe
@@ -1620,7 +1746,13 @@ InspectorStyleSidebar.prototype = {
       aTool.context = aTool.registration.load(this._inspector, aTool.frame);
 
       this._inspector._emit("sidebaractivated", aTool.id);
-      this._inspector._emit("sidebaractivated-" + aTool.id);
+
+      // Send an event specific to the activation of this panel.  For
+      // this initial event, include a "createpanel" argument
+      // to let panels watch sidebaractivated to refresh themselves
+      // but ignore the one immediately after their load.
+      // I don't really like this, we should find a better solution.
+      this._inspector._emit("sidebaractivated-" + aTool.id, "createpanel");
     }.bind(this);
     aTool.frame.addEventListener("load", aTool.onLoad, true);
     aTool.frame.setAttribute("src", aTool.registration.contentURL);
@@ -1788,7 +1920,7 @@ HTMLBreadcrumbs.prototype = {
 
     let classesLabel = this.IUI.chromeDoc.createElement("label");
     classesLabel.className = "inspector-breadcrumbs-classes plain";
-    
+
     let pseudosLabel = this.IUI.chromeDoc.createElement("label");
     pseudosLabel.className = "inspector-breadcrumbs-pseudo-classes plain";
 
@@ -2017,6 +2149,7 @@ HTMLBreadcrumbs.prototype = {
     };
 
     button.onclick = (function _onBreadcrumbsRightClick(aEvent) {
+      button.focus();
       if (aEvent.button == 2) {
         this.openSiblingMenu(button, aNode);
       }

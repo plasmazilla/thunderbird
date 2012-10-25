@@ -1,41 +1,7 @@
 #filter substitution
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Firefox Mobile Test Framework.
- *
- * The Initial Developer of the Original Code is Mozilla.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- * Trevor Fairey <tnfairey@gmail.com>
- * David Burns <dburns@mozilla.com>
- * Joel Maher <joel.maher@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 package @ANDROID_PACKAGE_NAME@;
 
@@ -70,7 +36,7 @@ import org.json.*;
 import com.jayway.android.robotium.solo.Solo;
 
 public class FennecNativeDriver implements Driver {
-    private static final int FRAME_TIME_THRESHOLD = 17;     // allow 17ms per frame (~60fps)
+    private static final int FRAME_TIME_THRESHOLD = 25;     // allow 25ms per frame (40fps)
 
     // Map of IDs to element names.
     private HashMap mLocators = null;
@@ -203,14 +169,21 @@ public class FennecNativeDriver implements Driver {
         return mGeckoWidth;
     }
 
+    /** Find the named element in the list of known Fennec views. 
+     *  @return An Element representing the view, or null if the view is not found.
+     */
     public Element findElement(Activity activity, String name) {
         if (name == null) {
-            throw new IllegalArgumentException("Can not findElements when passed a null");
+            FennecNativeDriver.log(FennecNativeDriver.LogLevel.ERROR,
+                "Can not findElements when passed a null");
+            return null;
         }
         if (mLocators.containsKey(name)) {
             return new FennecNativeElement(Integer.decode((String)mLocators.get(name)), activity, mSolo);
         }
-        throw new RoboCopException("Element does not exist in the list");
+        FennecNativeDriver.log(FennecNativeDriver.LogLevel.ERROR,
+            "findElement: Element '"+name+"' does not exist in the list");
+        return null;
     }
 
     public void startFrameRecording() {
@@ -231,20 +204,27 @@ public class FennecNativeDriver implements Driver {
         try {
             Object [] params = null;
             List<Long> frames = (List<Long>)_stopFrameRecording.invoke(null, params);
-            int numDelays = 0;
+            int badness = 0;
             for (int i = 1; i < frames.size(); i++) {
-                if (frames.get(i) - frames.get(i-1) > FRAME_TIME_THRESHOLD) {
-                    numDelays++;
+                long frameTime = frames.get(i) - frames.get(i - 1);
+                int delay = (int)(frameTime - FRAME_TIME_THRESHOLD);
+                // for each frame we miss, add the square of the delay. This
+                // makes large delays much worse than small delays.
+                if (delay > 0) {
+                    badness += delay * delay;
                 }
             }
-            return numDelays;
+            // Don't do any averaging of the numbers because really we want to
+            // know how bad the jank was at its worst
+            return badness;
         } catch (IllegalAccessException e) {
             log(LogLevel.ERROR, e);
         } catch (InvocationTargetException e) {
             log(LogLevel.ERROR, e);
         }
 
-        return 0;
+        // higher values are worse, and the test failing is the worst!
+        return Integer.MAX_VALUE;
     }
 
     public void startCheckerboardRecording() {
@@ -265,11 +245,11 @@ public class FennecNativeDriver implements Driver {
         try {
             Object [] params = null;
             List<Float> checkerboard = (List<Float>)_stopCheckerboardRecording.invoke(null, params);
-            float completeness = 0;
+            float total = 0;
             for (float val : checkerboard) {
-                completeness += (1.0f - val);
+                total += val;
             }
-            return completeness / (float)checkerboard.size();
+            return total * 100.0f;
         } catch (IllegalAccessException e) {
             log(LogLevel.ERROR, e);
         } catch (InvocationTargetException e) {

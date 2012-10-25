@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 2 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Corporation code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Robert O'Callahan <robert@ocallahan.org>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef GFX_IMAGELAYER_H
 #define GFX_IMAGELAYER_H
@@ -52,6 +20,13 @@
 #ifdef XP_MACOSX
 #include "nsIOSurface.h"
 #endif
+#ifdef XP_WIN
+struct ID3D10Texture2D;
+struct ID3D10Device;
+struct ID3D10ShaderResourceView;
+
+typedef void* HANDLE;
+#endif
 
 namespace mozilla {
 
@@ -61,6 +36,9 @@ class Shmem;
 }
 
 namespace layers {
+
+class ImageContainerChild;
+class ImageBridgeChild;
 
 enum StereoMode {
   STEREO_MODE_MONO,
@@ -131,7 +109,17 @@ public:
     /**
      * An bitmap image that can be shared with a remote process.
      */
-    REMOTE_IMAGE_BITMAP
+    REMOTE_IMAGE_BITMAP,
+
+    /**
+     * A OpenGL texture that can be shared across threads or processes
+     */
+    SHARED_TEXTURE,
+
+    /**
+     * An DXGI shared surface handle that can be shared with a remote process.
+     */
+    REMOTE_IMAGE_DXGI_TEXTURE
   };
 
   Format GetFormat() { return mFormat; }
@@ -209,6 +197,7 @@ class CompositionNotifySink
 {
 public:
   virtual void DidComposite() = 0;
+  virtual ~CompositionNotifySink() {}
 };
 
 /**
@@ -255,7 +244,17 @@ struct RemoteImageData {
     /**
      * This is a format that uses raw bitmap data.
      */
-    RAW_BITMAP
+    RAW_BITMAP,
+
+    /**
+     * This is a format that uses a pointer to a texture do draw directly
+     * from a shared texture. Any process may have created this texture handle,
+     * the process creating the texture handle is responsible for managing it's
+     * lifetime by managing the lifetime of the first D3D texture object this
+     * handle was created for. It must also ensure the handle is not set
+     * current anywhere when the last reference to this object is released.
+     */
+    DXGI_TEXTURE_HANDLE
   };
   /* These formats describe the format in the memory byte-order */
   enum Format {
@@ -280,6 +279,9 @@ struct RemoteImageData {
       unsigned char *mData;
       int mStride;
     } mBitmap;
+#ifdef XP_WIN
+    HANDLE mTextureHandle;
+#endif
   };
 };
 
@@ -292,18 +294,11 @@ struct RemoteImageData {
  */
 class THEBES_API ImageContainer {
   NS_INLINE_DECL_THREADSAFE_REFCOUNTING(ImageContainer)
-
 public:
-  ImageContainer() :
-    mReentrantMonitor("ImageContainer.mReentrantMonitor"),
-    mPaintCount(0),
-    mPreviousImagePainted(false),
-    mImageFactory(new ImageFactory()),
-    mRecycleBin(new BufferRecycleBin()),
-    mRemoteData(nsnull),
-    mRemoteDataMutex(nsnull),
-    mCompositionNotifySink(nsnull)
-  {}
+
+  enum { DISABLE_ASYNC = 0x0, ENABLE_ASYNC = 0x01 };
+
+  ImageContainer(int flag = 0);
 
   ~ImageContainer();
 
@@ -326,11 +321,50 @@ public:
    * aImage can be null. While it's null, nothing will be painted.
    * 
    * The Image data must not be modified after this method is called!
+   * Note that this must not be called if ENABLE_ASYNC has not been set.
+   *
+   * Implementations must call CurrentImageChanged() while holding
+   * mReentrantMonitor.
+   *
+   * If this ImageContainer has an ImageContainerChild for async video: 
+   * Schelude a task to send the image to the compositor using the 
+   * PImageBridge protcol without using the main thread.
+   */
+  void SetCurrentImage(Image* aImage);
+
+  /**
+   * Set an Image as the current image to display. The Image must have
+   * been created by this ImageContainer.
+   * Must be called on the main thread, within a layers transaction. 
+   * 
+   * This method takes mReentrantMonitor
+   * when accessing thread-shared state.
+   * aImage can be null. While it's null, nothing will be painted.
+   * 
+   * The Image data must not be modified after this method is called!
+   * Note that this must not be called if ENABLE_ASYNC been set.
    *
    * Implementations must call CurrentImageChanged() while holding
    * mReentrantMonitor.
    */
-  void SetCurrentImage(Image* aImage);
+  void SetCurrentImageInTransaction(Image* aImage);
+
+  /**
+   * Returns true if this ImageContainer uses the ImageBridge IPDL protocol.
+   *
+   * Can be called from any thread.
+   */
+  bool IsAsync() const;
+
+  /**
+   * If this ImageContainer uses ImageBridge, returns the ID associated to
+   * this container, for use in the ImageBridge protocol.
+   * Returns 0 if this ImageContainer does not use ImageBridge. Note that
+   * 0 is always an invalid ID for asynchronous image containers. 
+   *
+   * Can be called from ay thread.
+   */
+  PRUint64 GetAsyncContainerID() const;
 
   /**
    * Returns if the container currently has an image.
@@ -483,6 +517,8 @@ public:
 protected:
   typedef mozilla::ReentrantMonitor ReentrantMonitor;
 
+  void SetCurrentImageInternal(Image* aImage);
+
   // This is called to ensure we have an active image, this may not be true
   // when we're storing image information in a RemoteImageData structure.
   // NOTE: If we have remote data mRemoteDataMutex should be locked when
@@ -536,6 +572,15 @@ protected:
   CrossProcessMutex *mRemoteDataMutex;
 
   CompositionNotifySink *mCompositionNotifySink;
+
+  // This member points to an ImageContainerChild if this ImageContainer was 
+  // sucessfully created with ENABLE_ASYNC, or points to null otherwise.
+  // 'unsuccessful' in this case only means that the ImageContainerChild could not
+  // be created, most likely because off-main-thread compositing is not enabled.
+  // In this case the ImageContainer is perfectly usable, but it will forward 
+  // frames to the compositor through transactions in the main thread rather than 
+  // asynchronusly using the ImageBridge IPDL protocol.
+  nsRefPtr<ImageContainerChild> mImageContainerChild;
 };
  
 class AutoLockImage
@@ -633,12 +678,22 @@ public:
     mEffectiveTransform =
         SnapTransform(GetLocalTransform(), snap, nsnull)*
         SnapTransform(aTransformToSurface, gfxRect(0, 0, 0, 0), nsnull);
+    ComputeEffectiveTransformForMaskLayer(aTransformToSurface);
+  }
+
+  /**
+   * if true, the image will only be backed by a single tile texture
+   */
+  void SetForceSingleTile(bool aForceSingleTile)
+  {
+    mForceSingleTile = aForceSingleTile;
+    Mutated();
   }
 
 protected:
   ImageLayer(LayerManager* aManager, void* aImplData)
     : Layer(aManager, aImplData), mFilter(gfxPattern::FILTER_GOOD)
-    , mScaleMode(SCALE_NONE) {}
+    , mScaleMode(SCALE_NONE), mForceSingleTile(false) {}
 
   virtual nsACString& PrintInfo(nsACString& aTo, const char* aPrefix);
 
@@ -647,6 +702,7 @@ protected:
   gfxPattern::GraphicsFilter mFilter;
   gfxIntSize mScaleToSize;
   ScaleMode mScaleMode;
+  bool mForceSingleTile;
 };
 
 /****** Image subtypes for the different formats ******/
@@ -721,8 +777,17 @@ public:
    * Make a copy of the YCbCr data into local storage.
    *
    * @param aData           Input image data.
+   * @param aYOffset        Pixels to skip between lines in the Y plane.
+   * @param aYSkip          Pixels to skip between pixels in the Y plane.
+   * @param aCbOffset       Pixels to skip between lines in the Cb plane.
+   * @param aCbSkip         Pixels to skip between pixels in the Cb plane.
+   * @param aCrOffset       Pixels to skip between lines in the Cr plane.
+   * @param aCrSkip         Pixels to skip between pixels in the Cr plane.
    */
-  void CopyData(const Data& aData);
+  void CopyData(const Data& aData,
+                PRInt32 aYOffset = 0, PRInt32 aYSkip = 0,
+                PRInt32 aCbOffset = 0, PRInt32 aCbSkip = 0,
+                PRInt32 aCrOffset = 0, PRInt32 aCrSkip = 0);
 
   /**
    * Return a buffer to store image data in.

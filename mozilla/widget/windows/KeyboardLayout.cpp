@@ -1,49 +1,26 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Dainis Jonitis, <Dainis_Jonitis@exigengroup.lv>.
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/Util.h"
 
 #include "KeyboardLayout.h"
+#include "nsWindow.h"
+#include "nsIMM32Handler.h"
 
 #include "nsMemory.h"
 #include "nsToolkit.h"
 #include "nsQuickSort.h"
 #include "nsAlgorithm.h"
+#include "nsGUIEvent.h"
+#include "nsUnicharUtils.h"
+#include "WidgetUtils.h"
+#include "WinUtils.h"
 
+#include "nsIDOMKeyEvent.h"
+
+#include <windows.h>
 #include <winuser.h>
 
 #ifndef WINABLEAPI
@@ -97,9 +74,152 @@ public:
 };
 
 
+/*****************************************************************************
+ * mozilla::widget::ModifierKeyState
+ *****************************************************************************/
+
+void
+ModifierKeyState::Update()
+{
+  mModifiers = 0;
+  if (IS_VK_DOWN(VK_SHIFT)) {
+    mModifiers |= MODIFIER_SHIFT;
+  }
+  if (IS_VK_DOWN(VK_CONTROL)) {
+    mModifiers |= MODIFIER_CONTROL;
+  }
+  if (IS_VK_DOWN(VK_MENU)) {
+    mModifiers |= MODIFIER_ALT;
+  }
+  if (IS_VK_DOWN(VK_LWIN) || IS_VK_DOWN(VK_RWIN)) {
+    mModifiers |= MODIFIER_OS;
+  }
+  if (::GetKeyState(VK_CAPITAL) & 1) {
+    mModifiers |= MODIFIER_CAPSLOCK;
+  }
+  if (::GetKeyState(VK_NUMLOCK) & 1) {
+    mModifiers |= MODIFIER_NUMLOCK;
+  }
+  if (::GetKeyState(VK_SCROLL) & 1) {
+    mModifiers |= MODIFIER_SCROLLLOCK;
+  }
+
+  EnsureAltGr();
+}
+
+void
+ModifierKeyState::InitInputEvent(nsInputEvent& aInputEvent) const
+{
+  aInputEvent.modifiers = mModifiers;
+
+  switch(aInputEvent.eventStructType) {
+    case NS_MOUSE_EVENT:
+    case NS_MOUSE_SCROLL_EVENT:
+    case NS_DRAG_EVENT:
+    case NS_SIMPLE_GESTURE_EVENT:
+    case NS_MOZTOUCH_EVENT:
+      InitMouseEvent(aInputEvent);
+      break;
+  }
+}
+
+void
+ModifierKeyState::InitMouseEvent(nsInputEvent& aMouseEvent) const
+{
+  NS_ASSERTION(aMouseEvent.eventStructType == NS_MOUSE_EVENT ||
+               aMouseEvent.eventStructType == NS_MOUSE_SCROLL_EVENT ||
+               aMouseEvent.eventStructType == NS_DRAG_EVENT ||
+               aMouseEvent.eventStructType == NS_SIMPLE_GESTURE_EVENT ||
+               aMouseEvent.eventStructType == NS_MOZTOUCH_EVENT,
+               "called with non-mouse event");
+
+  nsMouseEvent_base& mouseEvent = static_cast<nsMouseEvent_base&>(aMouseEvent);
+  mouseEvent.buttons = 0;
+  if (::GetKeyState(VK_LBUTTON) < 0) {
+    mouseEvent.buttons |= nsMouseEvent::eLeftButtonFlag;
+  }
+  if (::GetKeyState(VK_RBUTTON) < 0) {
+    mouseEvent.buttons |= nsMouseEvent::eRightButtonFlag;
+  }
+  if (::GetKeyState(VK_MBUTTON) < 0) {
+    mouseEvent.buttons |= nsMouseEvent::eMiddleButtonFlag;
+  }
+  if (::GetKeyState(VK_XBUTTON1) < 0) {
+    mouseEvent.buttons |= nsMouseEvent::e4thButtonFlag;
+  }
+  if (::GetKeyState(VK_XBUTTON2) < 0) {
+    mouseEvent.buttons |= nsMouseEvent::e5thButtonFlag;
+  }
+}
+
+/*****************************************************************************
+ * mozilla::widget::UniCharsAndModifiers
+ *****************************************************************************/
+
+void
+UniCharsAndModifiers::Append(PRUnichar aUniChar, Modifiers aModifiers)
+{
+  MOZ_ASSERT(mLength < 5);
+  mChars[mLength] = aUniChar;
+  mModifiers[mLength] = aModifiers;
+  mLength++;
+}
+
+void
+UniCharsAndModifiers::FillModifiers(Modifiers aModifiers)
+{
+  for (PRUint32 i = 0; i < mLength; i++) {
+    mModifiers[i] = aModifiers;
+  }
+}
+
+bool
+UniCharsAndModifiers::UniCharsEqual(const UniCharsAndModifiers& aOther) const
+{
+  if (mLength != aOther.mLength) {
+    return false;
+  }
+  return !memcmp(mChars, aOther.mChars, mLength * sizeof(PRUnichar));
+}
+
+bool
+UniCharsAndModifiers::UniCharsCaseInsensitiveEqual(
+                        const UniCharsAndModifiers& aOther) const
+{
+  if (mLength != aOther.mLength) {
+    return false;
+  }
+
+  nsCaseInsensitiveStringComparator comp;
+  return !comp(mChars, aOther.mChars, mLength, aOther.mLength);
+}
+
+UniCharsAndModifiers&
+UniCharsAndModifiers::operator+=(const UniCharsAndModifiers& aOther)
+{
+  PRUint32 copyCount = NS_MIN(aOther.mLength, 5 - mLength);
+  NS_ENSURE_TRUE(copyCount > 0, *this);
+  memcpy(&mChars[mLength], aOther.mChars, copyCount * sizeof(PRUnichar));
+  memcpy(&mModifiers[mLength], aOther.mModifiers,
+         copyCount * sizeof(Modifiers));
+  mLength += copyCount;
+  return *this;
+}
+
+UniCharsAndModifiers
+UniCharsAndModifiers::operator+(const UniCharsAndModifiers& aOther) const
+{
+  UniCharsAndModifiers result(*this);
+  result += aOther;
+  return result;
+}
+
+/*****************************************************************************
+ * mozilla::widget::VirtualKey
+ *****************************************************************************/
 
 inline PRUnichar
-VirtualKey::GetCompositeChar(PRUint8 aShiftState, PRUnichar aBaseChar) const
+VirtualKey::GetCompositeChar(ShiftState aShiftState, PRUnichar aBaseChar) const
 {
   return mShiftStates[aShiftState].DeadKey.Table->GetCompositeChar(aBaseChar);
 }
@@ -112,7 +232,7 @@ VirtualKey::MatchingDeadKeyTable(const DeadKeyEntry* aDeadKeyArray,
     return nsnull;
   }
 
-  for (PRUint32 shiftState = 0; shiftState < 16; shiftState++) {
+  for (ShiftState shiftState = 0; shiftState < 16; shiftState++) {
     if (!IsDeadKey(shiftState)) {
       continue;
     }
@@ -126,7 +246,7 @@ VirtualKey::MatchingDeadKeyTable(const DeadKeyEntry* aDeadKeyArray,
 }
 
 void
-VirtualKey::SetNormalChars(PRUint8 aShiftState,
+VirtualKey::SetNormalChars(ShiftState aShiftState,
                            const PRUnichar* aChars,
                            PRUint32 aNumOfChars)
 {
@@ -147,7 +267,7 @@ VirtualKey::SetNormalChars(PRUint8 aShiftState,
 }
 
 void
-VirtualKey::SetDeadChar(PRUint8 aShiftState, PRUnichar aDeadChar)
+VirtualKey::SetDeadChar(ShiftState aShiftState, PRUnichar aDeadChar)
 {
   NS_ASSERTION(aShiftState < ArrayLength(mShiftStates), "invalid index");
 
@@ -157,73 +277,243 @@ VirtualKey::SetDeadChar(PRUint8 aShiftState, PRUnichar aDeadChar)
   mShiftStates[aShiftState].DeadKey.Table = nsnull;
 }
 
-PRUint32
-VirtualKey::GetUniChars(PRUint8 aShiftState,
-                        PRUnichar* aUniChars,
-                        PRUint8* aFinalShiftState) const
+UniCharsAndModifiers
+VirtualKey::GetUniChars(ShiftState aShiftState) const
 {
-  *aFinalShiftState = aShiftState;
-  PRUint32 numOfChars = GetNativeUniChars(aShiftState, aUniChars);
+  UniCharsAndModifiers result = GetNativeUniChars(aShiftState);
 
-  if (!(aShiftState & (eAlt | eCtrl))) {
-    return numOfChars;
+  const ShiftState STATE_ALT_CONTROL = (STATE_ALT | STATE_CONTROL);
+  if (!(aShiftState & STATE_ALT_CONTROL)) {
+    return result;
   }
 
-  PRUnichar unshiftedChars[5];
-  PRUint32 numOfUnshiftedChars =
-    GetNativeUniChars(aShiftState & ~(eAlt | eCtrl), unshiftedChars);
-
-  if (!numOfChars) {
-    if (!numOfUnshiftedChars) {
-      return 0;
-    }
-    memcpy(aUniChars, unshiftedChars,
-           numOfUnshiftedChars * sizeof(PRUnichar));
-    return numOfUnshiftedChars;
+  if (!result.mLength) {
+    result = GetNativeUniChars(aShiftState & ~STATE_ALT_CONTROL);
+    result.FillModifiers(ShiftStateToModifiers(aShiftState));
+    return result;
   }
 
-  if ((aShiftState & (eAlt | eCtrl)) == (eAlt | eCtrl)) {
+  if ((aShiftState & STATE_ALT_CONTROL) == STATE_ALT_CONTROL) {
     // Even if the shifted chars and the unshifted chars are same, we
     // should consume the Alt key state and the Ctrl key state when
     // AltGr key is pressed. Because if we don't consume them, the input
     // events are ignored on nsEditor. (I.e., Users cannot input the
     // characters with this key combination.)
-    *aFinalShiftState &= ~(eAlt | eCtrl);
-  } else if (!(numOfChars == numOfUnshiftedChars &&
-               !memcmp(aUniChars, unshiftedChars,
-                       numOfChars * sizeof(PRUnichar)))) {
+    Modifiers finalModifiers = ShiftStateToModifiers(aShiftState);
+    finalModifiers &= ~(MODIFIER_ALT | MODIFIER_CONTROL);
+    result.FillModifiers(finalModifiers);
+    return result;
+  }
+
+  UniCharsAndModifiers unmodifiedReslt =
+    GetNativeUniChars(aShiftState & ~STATE_ALT_CONTROL);
+  if (!result.UniCharsEqual(unmodifiedReslt)) {
     // Otherwise, we should consume the Alt key state and the Ctrl key state
     // only when the shifted chars and unshifted chars are different.
-    *aFinalShiftState &= ~(eAlt | eCtrl);
+    Modifiers finalModifiers = ShiftStateToModifiers(aShiftState);
+    finalModifiers &= ~(MODIFIER_ALT | MODIFIER_CONTROL);
+    result.FillModifiers(finalModifiers);
   }
-  return numOfChars;
+  return result;
 }
 
 
-PRUint32
-VirtualKey::GetNativeUniChars(PRUint8 aShiftState,
-                              PRUnichar* aUniChars) const
+UniCharsAndModifiers
+VirtualKey::GetNativeUniChars(ShiftState aShiftState) const
 {
+  UniCharsAndModifiers result;
+  Modifiers modifiers = ShiftStateToModifiers(aShiftState);
   if (IsDeadKey(aShiftState)) {
-    if (aUniChars) {
-      aUniChars[0] = mShiftStates[aShiftState].DeadKey.DeadChar;
-    }
-    return 1;
+    result.Append(mShiftStates[aShiftState].DeadKey.DeadChar, modifiers);
+    return result;
   }
 
   PRUint32 index;
   PRUint32 len = ArrayLength(mShiftStates[aShiftState].Normal.Chars);
   for (index = 0;
        index < len && mShiftStates[aShiftState].Normal.Chars[index]; index++) {
-    if (aUniChars) {
-      aUniChars[index] = mShiftStates[aShiftState].Normal.Chars[index];
-    }
+    result.Append(mShiftStates[aShiftState].Normal.Chars[index], modifiers);
   }
-  return index;
+  return result;
 }
 
+// static
+void
+VirtualKey::FillKbdState(PBYTE aKbdState,
+                         const ShiftState aShiftState)
+{
+  NS_ASSERTION(aShiftState < 16, "aShiftState out of range");
+
+  if (aShiftState & STATE_SHIFT) {
+    aKbdState[VK_SHIFT] |= 0x80;
+  } else {
+    aKbdState[VK_SHIFT]  &= ~0x80;
+    aKbdState[VK_LSHIFT] &= ~0x80;
+    aKbdState[VK_RSHIFT] &= ~0x80;
+  }
+
+  if (aShiftState & STATE_CONTROL) {
+    aKbdState[VK_CONTROL] |= 0x80;
+  } else {
+    aKbdState[VK_CONTROL]  &= ~0x80;
+    aKbdState[VK_LCONTROL] &= ~0x80;
+    aKbdState[VK_RCONTROL] &= ~0x80;
+  }
+
+  if (aShiftState & STATE_ALT) {
+    aKbdState[VK_MENU] |= 0x80;
+  } else {
+    aKbdState[VK_MENU]  &= ~0x80;
+    aKbdState[VK_LMENU] &= ~0x80;
+    aKbdState[VK_RMENU] &= ~0x80;
+  }
+
+  if (aShiftState & STATE_CAPSLOCK) {
+    aKbdState[VK_CAPITAL] |= 0x01;
+  } else {
+    aKbdState[VK_CAPITAL] &= ~0x01;
+  }
+}
+
+/*****************************************************************************
+ * mozilla::widget::NativeKey
+ *****************************************************************************/
+
+NativeKey::NativeKey(const KeyboardLayout& aKeyboardLayout,
+                     nsWindow* aWindow,
+                     const MSG& aKeyOrCharMessage) :
+  mDOMKeyCode(0), mVirtualKeyCode(0), mOriginalVirtualKeyCode(0)
+{
+  mScanCode = WinUtils::GetScanCode(aKeyOrCharMessage.lParam);
+  mIsExtended = WinUtils::IsExtendedScanCode(aKeyOrCharMessage.lParam);
+  switch (aKeyOrCharMessage.message) {
+    case WM_KEYDOWN:
+    case WM_KEYUP:
+    case WM_SYSKEYDOWN:
+    case WM_SYSKEYUP:
+      mOriginalVirtualKeyCode = static_cast<PRUint8>(aKeyOrCharMessage.wParam);
+      switch (aKeyOrCharMessage.wParam) {
+        case VK_CONTROL:
+        case VK_MENU:
+        case VK_SHIFT:
+          mVirtualKeyCode = static_cast<PRUint8>(
+            ::MapVirtualKeyEx(GetScanCodeWithExtendedFlag(),
+                              MAPVK_VSC_TO_VK_EX, aKeyboardLayout.GetLayout()));
+          break;
+        case VK_PROCESSKEY:
+          mVirtualKeyCode = mOriginalVirtualKeyCode =
+            static_cast<PRUint8>(
+              ::ImmGetVirtualKey(aWindow->GetWindowHandle()));
+          break;
+        default:
+          mVirtualKeyCode = mOriginalVirtualKeyCode;
+          break;
+      }
+      break;
+    case WM_CHAR:
+    case WM_UNICHAR:
+    case WM_SYSCHAR:
+      // We cannot compute the virtual key code from WM_CHAR message on WinXP
+      // and 
+      if (mIsExtended &&
+          WinUtils::GetWindowsVersion() < WinUtils::VISTA_VERSION) {
+        break;
+      }
+      mVirtualKeyCode = mOriginalVirtualKeyCode = static_cast<PRUint8>(
+        ::MapVirtualKeyEx(GetScanCodeWithExtendedFlag(),
+                          MAPVK_VSC_TO_VK_EX, aKeyboardLayout.GetLayout()));
+      break;
+    default:
+      MOZ_NOT_REACHED("Unsupported message");
+      break;
+  }
+
+  if (!mVirtualKeyCode) {
+    mVirtualKeyCode = mOriginalVirtualKeyCode;
+  }
+
+  mDOMKeyCode =
+    aKeyboardLayout.ConvertNativeKeyCodeToDOMKeyCode(mOriginalVirtualKeyCode);
+}
+
+UINT
+NativeKey::GetScanCodeWithExtendedFlag() const
+{
+  // MapVirtualKeyEx() has been improved for supporting extended keys since
+  // Vista.  When we call it for mapping a scancode of an extended key and
+  // a virtual keycode, we need to add 0xE000 to the scancode.
+  // On Win XP and Win Server 2003, this doesn't support. On them, we have
+  // no way to get virtual keycodes from scancode of extended keys.
+  if (!mIsExtended ||
+      WinUtils::GetWindowsVersion() < WinUtils::VISTA_VERSION) {
+    return mScanCode;
+  }
+  return (0xE000 | mScanCode);
+}
+
+PRUint32
+NativeKey::GetKeyLocation() const
+{
+  switch (mVirtualKeyCode) {
+    case VK_LSHIFT:
+    case VK_LCONTROL:
+    case VK_LMENU:
+    case VK_LWIN:
+      return nsIDOMKeyEvent::DOM_KEY_LOCATION_LEFT;
+
+    case VK_RSHIFT:
+    case VK_RCONTROL:
+    case VK_RMENU:
+    case VK_RWIN:
+      return nsIDOMKeyEvent::DOM_KEY_LOCATION_RIGHT;
+
+    case VK_RETURN:
+      return !mIsExtended ? nsIDOMKeyEvent::DOM_KEY_LOCATION_STANDARD :
+                            nsIDOMKeyEvent::DOM_KEY_LOCATION_NUMPAD;
+
+    case VK_INSERT:
+    case VK_DELETE:
+    case VK_END:
+    case VK_DOWN:
+    case VK_NEXT:
+    case VK_LEFT:
+    case VK_CLEAR:
+    case VK_RIGHT:
+    case VK_HOME:
+    case VK_UP:
+    case VK_PRIOR:
+      return mIsExtended ? nsIDOMKeyEvent::DOM_KEY_LOCATION_STANDARD :
+                           nsIDOMKeyEvent::DOM_KEY_LOCATION_NUMPAD;
+
+    // NumLock key isn't included due to IE9's behavior.
+    case VK_NUMPAD0:
+    case VK_NUMPAD1:
+    case VK_NUMPAD2:
+    case VK_NUMPAD3:
+    case VK_NUMPAD4:
+    case VK_NUMPAD5:
+    case VK_NUMPAD6:
+    case VK_NUMPAD7:
+    case VK_NUMPAD8:
+    case VK_NUMPAD9:
+    case VK_DECIMAL:
+    case VK_DIVIDE:
+    case VK_MULTIPLY:
+    case VK_SUBTRACT:
+    case VK_ADD:
+      return nsIDOMKeyEvent::DOM_KEY_LOCATION_NUMPAD;
+
+    default:
+      return nsIDOMKeyEvent::DOM_KEY_LOCATION_STANDARD;
+  }
+}
+
+/*****************************************************************************
+ * mozilla::widget::KeyboardLayout
+ *****************************************************************************/
+
 KeyboardLayout::KeyboardLayout() :
-  mKeyboardLayout(0)
+  mKeyboardLayout(0), mPendingKeyboardLayout(0)
 {
   mDeadKeyTableListHead = nsnull;
 
@@ -244,132 +534,116 @@ KeyboardLayout::IsPrintableCharKey(PRUint8 aVirtualKey)
 }
 
 bool
-KeyboardLayout::IsNumpadKey(PRUint8 aVirtualKey)
+KeyboardLayout::IsDeadKey(PRUint8 aVirtualKey,
+                          const ModifierKeyState& aModKeyState) const
 {
-  return VK_NUMPAD0 <= aVirtualKey && aVirtualKey <= VK_DIVIDE;
+  PRInt32 virtualKeyIndex = GetKeyIndex(aVirtualKey);
+  if (virtualKeyIndex < 0) {
+    return false;
+  }
+
+  return mVirtualKeys[virtualKeyIndex].IsDeadKey(
+           VirtualKey::ModifiersToShiftState(aModKeyState.GetModifiers()));
 }
 
-void
-KeyboardLayout::OnKeyDown(PRUint8 aVirtualKey)
+UniCharsAndModifiers
+KeyboardLayout::OnKeyDown(PRUint8 aVirtualKey,
+                          const ModifierKeyState& aModKeyState)
 {
-  mLastVirtualKeyIndex = GetKeyIndex(aVirtualKey);
+  if (mPendingKeyboardLayout) {
+    LoadLayout(mPendingKeyboardLayout);
+  }
 
-  if (mLastVirtualKeyIndex < 0) {
+  PRInt32 virtualKeyIndex = GetKeyIndex(aVirtualKey);
+
+  if (virtualKeyIndex < 0) {
     // Does not produce any printable characters, but still preserves the
     // dead-key state.
-    mNumOfChars = 0;
-    return;
+    return UniCharsAndModifiers();
   }
 
-  BYTE kbdState[256];
-  if (!::GetKeyboardState(kbdState)) {
-    return;
-  }
+  PRUint8 shiftState =
+    VirtualKey::ModifiersToShiftState(aModKeyState.GetModifiers());
 
-  mLastShiftState = GetShiftState(kbdState);
-
-  if (mVirtualKeys[mLastVirtualKeyIndex].IsDeadKey(mLastShiftState)) {
+  if (mVirtualKeys[virtualKeyIndex].IsDeadKey(shiftState)) {
     if (mActiveDeadKey < 0) {
       // Dead-key state activated. No characters generated.
       mActiveDeadKey = aVirtualKey;
-      mDeadKeyShiftState = mLastShiftState;
-      mNumOfChars = 0;
-      return;
+      mDeadKeyShiftState = shiftState;
+      return UniCharsAndModifiers();
     }
 
     // Dead-key followed by another dead-key. Reset dead-key state and
     // return both dead-key characters.
     PRInt32 activeDeadKeyIndex = GetKeyIndex(mActiveDeadKey);
-    mVirtualKeys[activeDeadKeyIndex].GetUniChars(mDeadKeyShiftState,
-                                                 mChars, mShiftStates);
-    mVirtualKeys[mLastVirtualKeyIndex].GetUniChars(mLastShiftState,
-                                                   &mChars[1],
-                                                   &mShiftStates[1]);
-    mNumOfChars = 2;
+    UniCharsAndModifiers result =
+      mVirtualKeys[activeDeadKeyIndex].GetUniChars(mDeadKeyShiftState);
+    result += mVirtualKeys[virtualKeyIndex].GetUniChars(shiftState);
     DeactivateDeadKeyState();
-    return;
+    return result;
   }
 
-  PRUint8 finalShiftState;
-  PRUnichar uniChars[5];
-  PRUint32 numOfBaseChars =
-    mVirtualKeys[mLastVirtualKeyIndex].GetUniChars(mLastShiftState, uniChars,
-                                                   &finalShiftState);
+  UniCharsAndModifiers baseChars =
+    mVirtualKeys[virtualKeyIndex].GetUniChars(shiftState);
   if (mActiveDeadKey < 0) {
     // No dead-keys are active. Just return the produced characters.
-    memcpy(mChars, uniChars, numOfBaseChars * sizeof(PRUnichar));
-    memset(mShiftStates, finalShiftState, numOfBaseChars);
-    mNumOfChars = numOfBaseChars;
-    return;
+    return baseChars;
   }
 
   // Dead-key was active. See if pressed base character does produce
   // valid composite character.
   PRInt32 activeDeadKeyIndex = GetKeyIndex(mActiveDeadKey);
-  PRUnichar compositeChar = (numOfBaseChars == 1 && uniChars[0]) ?
+  PRUnichar compositeChar = (baseChars.mLength == 1 && baseChars.mChars[0]) ?
     mVirtualKeys[activeDeadKeyIndex].GetCompositeChar(mDeadKeyShiftState,
-                                                      uniChars[0]) : 0;
+                                                      baseChars.mChars[0]) : 0;
   if (compositeChar) {
     // Active dead-key and base character does produce exactly one
     // composite character.
-    mChars[0] = compositeChar;
-    mShiftStates[0] = finalShiftState;
-    mNumOfChars = 1;
-  } else {
-    // There is no valid dead-key and base character combination.
-    // Return dead-key character followed by base character.
-    mVirtualKeys[activeDeadKeyIndex].GetUniChars(mDeadKeyShiftState,
-                                                 mChars, mShiftStates);
-    memcpy(&mChars[1], uniChars, numOfBaseChars * sizeof(PRUnichar));
-    memset(&mShiftStates[1], finalShiftState, numOfBaseChars);
-    mNumOfChars = numOfBaseChars + 1;
+    UniCharsAndModifiers result;
+    result.Append(compositeChar, baseChars.mModifiers[0]);
+    DeactivateDeadKeyState();
+    return result;
   }
 
+  // There is no valid dead-key and base character combination.
+  // Return dead-key character followed by base character.
+  UniCharsAndModifiers result =
+    mVirtualKeys[activeDeadKeyIndex].GetUniChars(mDeadKeyShiftState);
+  result += baseChars;
   DeactivateDeadKeyState();
+
+  return result;
 }
 
-PRUint32
-KeyboardLayout::GetUniChars(PRUnichar* aUniChars,
-                            PRUint8* aShiftStates,
-                            PRUint32 aMaxChars) const
+UniCharsAndModifiers
+KeyboardLayout::GetUniCharsAndModifiers(
+                  PRUint8 aVirtualKey,
+                  const ModifierKeyState& aModKeyState) const
 {
-  PRUint32 chars = NS_MIN<PRUint32>(mNumOfChars, aMaxChars);
-
-  memcpy(aUniChars, mChars, chars * sizeof(PRUnichar));
-  memcpy(aShiftStates, mShiftStates, chars);
-
-  return chars;
-}
-
-PRUint32
-KeyboardLayout::GetUniCharsWithShiftState(PRUint8 aVirtualKey,
-                                          PRUint8 aShiftStates,
-                                          PRUnichar* aUniChars,
-                                          PRUint32 aMaxChars) const
-{
+  UniCharsAndModifiers result;
   PRInt32 key = GetKeyIndex(aVirtualKey);
   if (key < 0) {
-    return 0;
+    return result;
   }
-  PRUint8 finalShiftState;
-  PRUnichar uniChars[5];
-  PRUint32 numOfBaseChars =
-    mVirtualKeys[key].GetUniChars(aShiftStates, uniChars, &finalShiftState);
-  PRUint32 chars = NS_MIN(numOfBaseChars, aMaxChars);
-  memcpy(aUniChars, uniChars, chars * sizeof(PRUnichar));
-  return chars;
+  return mVirtualKeys[key].
+    GetUniChars(VirtualKey::ModifiersToShiftState(aModKeyState.GetModifiers()));
 }
 
 void
-KeyboardLayout::LoadLayout(HKL aLayout)
+KeyboardLayout::LoadLayout(HKL aLayout, bool aLoadLater)
 {
+  if (aLoadLater) {
+    mPendingKeyboardLayout = aLayout;
+    return;
+  }
+
+  mPendingKeyboardLayout = 0;
+
   if (mKeyboardLayout == aLayout) {
     return;
   }
 
   mKeyboardLayout = aLayout;
-
-  PRUint32 shiftState;
 
   BYTE kbdState[256];
   memset(kbdState, 0, sizeof(kbdState));
@@ -382,7 +656,6 @@ KeyboardLayout::LoadLayout(HKL aLayout)
   PRUint16 shiftStatesWithBaseChars = 0;
 
   mActiveDeadKey = -1;
-  mNumOfChars = 0;
 
   ReleaseDeadKeyTables();
 
@@ -391,8 +664,8 @@ KeyboardLayout::LoadLayout(HKL aLayout)
   // For each shift state gather all printable characters that are produced
   // for normal case when no any dead-key is active.
 
-  for (shiftState = 0; shiftState < 16; shiftState++) {
-    SetShiftState(kbdState, shiftState);
+  for (VirtualKey::ShiftState shiftState = 0; shiftState < 16; shiftState++) {
+    VirtualKey::FillKbdState(kbdState, shiftState);
     for (PRUint32 virtualKey = 0; virtualKey < 256; virtualKey++) {
       PRInt32 vki = GetKeyIndex(virtualKey);
       if (vki < 0) {
@@ -425,12 +698,12 @@ KeyboardLayout::LoadLayout(HKL aLayout)
 
   // Now process each dead-key to find all its base characters and resulting
   // composite characters.
-  for (shiftState = 0; shiftState < 16; shiftState++) {
+  for (VirtualKey::ShiftState shiftState = 0; shiftState < 16; shiftState++) {
     if (!(shiftStatesWithDeadKeys & (1 << shiftState))) {
       continue;
     }
 
-    SetShiftState(kbdState, shiftState);
+    VirtualKey::FillKbdState(kbdState, shiftState);
 
     for (PRUint32 virtualKey = 0; virtualKey < 256; virtualKey++) {
       PRInt32 vki = GetKeyIndex(virtualKey);
@@ -453,62 +726,20 @@ KeyboardLayout::LoadLayout(HKL aLayout)
   ::SetKeyboardState(originalKbdState);
 }
 
-
-PRUint8
-KeyboardLayout::GetShiftState(const PBYTE aKbdState)
-{
-  bool isShift = (aKbdState[VK_SHIFT] & 0x80) != 0;
-  bool isCtrl  = (aKbdState[VK_CONTROL] & 0x80) != 0;
-  bool isAlt   = (aKbdState[VK_MENU] & 0x80) != 0;
-  bool isCaps  = (aKbdState[VK_CAPITAL] & 0x01) != 0;
-
-  return ((isCaps << 3) | (isAlt << 2) | (isCtrl << 1) | isShift);
-}
-
-void
-KeyboardLayout::SetShiftState(PBYTE aKbdState, PRUint8 aShiftState)
-{
-  NS_ASSERTION(aShiftState < 16, "aShiftState out of range");
-
-  if (aShiftState & eShift) {
-    aKbdState[VK_SHIFT] |= 0x80;
-  } else {
-    aKbdState[VK_SHIFT]  &= ~0x80;
-    aKbdState[VK_LSHIFT] &= ~0x80;
-    aKbdState[VK_RSHIFT] &= ~0x80;
-  }
-
-  if (aShiftState & eCtrl) {
-    aKbdState[VK_CONTROL] |= 0x80;
-  } else {
-    aKbdState[VK_CONTROL]  &= ~0x80;
-    aKbdState[VK_LCONTROL] &= ~0x80;
-    aKbdState[VK_RCONTROL] &= ~0x80;
-  }
-
-  if (aShiftState & eAlt) {
-    aKbdState[VK_MENU] |= 0x80;
-  } else {
-    aKbdState[VK_MENU]  &= ~0x80;
-    aKbdState[VK_LMENU] &= ~0x80;
-    aKbdState[VK_RMENU] &= ~0x80;
-  }
-
-  if (aShiftState & eCapsLock) {
-    aKbdState[VK_CAPITAL] |= 0x01;
-  } else {
-    aKbdState[VK_CAPITAL] &= ~0x01;
-  }
-}
-
 inline PRInt32
 KeyboardLayout::GetKeyIndex(PRUint8 aVirtualKey)
 {
-// Currently these 50 (NS_NUM_OF_KEYS) virtual keys are assumed
+// Currently these 68 (NS_NUM_OF_KEYS) virtual keys are assumed
 // to produce visible representation:
 // 0x20 - VK_SPACE          ' '
 // 0x30..0x39               '0'..'9'
 // 0x41..0x5A               'A'..'Z'
+// 0x60..0x69               '0'..'9' on numpad
+// 0x6A - VK_MULTIPLY       '*' on numpad
+// 0x6B - VK_ADD            '+' on numpad
+// 0x6D - VK_SUBTRACT       '-' on numpad
+// 0x6E - VK_DECIMAL        '.' on numpad
+// 0x6F - VK_DIVIDE         '/' on numpad
 // 0x6E - VK_DECIMAL        '.'
 // 0xBA - VK_OEM_1          ';:' for US
 // 0xBB - VK_OEM_PLUS       '+' any country
@@ -522,6 +753,10 @@ KeyboardLayout::GetKeyIndex(PRUint8 aVirtualKey)
 // 0xDD - VK_OEM_6          ']}' for US
 // 0xDE - VK_OEM_7          ''"' for US
 // 0xDF - VK_OEM_8
+// 0xE1 - no name
+// 0xE2 - VK_OEM_102        '\_' for JIS
+// 0xE3 - no name
+// 0xE4 - no name
 
   static const PRInt8 xlat[256] =
   {
@@ -533,15 +768,15 @@ KeyboardLayout::GetKeyIndex(PRUint8 aVirtualKey)
      1,  2,  3,  4,  5,  6,  7,  8,  9, 10, -1, -1, -1, -1, -1, -1,   // 30
     -1, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,   // 40
     26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, -1, -1, -1, -1, -1,   // 50
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 37, -1,   // 60
+    37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, -1, 49, 50, 51,   // 60
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,   // 70
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,   // 80
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,   // 90
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,   // A0
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 38, 39, 40, 41, 42, 43,   // B0
-    44, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,   // C0
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 45, 46, 47, 48, 49,   // D0
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,   // E0
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 52, 53, 54, 55, 56, 57,   // B0
+    58, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,   // C0
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 59, 60, 61, 62, 63,   // D0
+    -1, 64, 65, 66, 67, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,   // E0
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1    // F0
   };
 
@@ -624,7 +859,7 @@ KeyboardLayout::DeactivateDeadKeyState()
   BYTE kbdState[256];
   memset(kbdState, 0, sizeof(kbdState));
 
-  SetShiftState(kbdState, mDeadKeyShiftState);
+  VirtualKey::FillKbdState(kbdState, mDeadKeyShiftState);
 
   EnsureDeadKeyActive(false, mActiveDeadKey, kbdState);
   mActiveDeadKey = -1;
@@ -665,13 +900,14 @@ KeyboardLayout::GetDeadKeyCombinations(PRUint8 aDeadKey,
       continue;
     }
 
-    SetShiftState(kbdState, shiftState);
+    VirtualKey::FillKbdState(kbdState, shiftState);
 
     for (PRUint32 virtualKey = 0; virtualKey < 256; virtualKey++) {
       PRInt32 vki = GetKeyIndex(virtualKey);
       // Dead-key can pair only with such key that produces exactly one base
       // character.
-      if (vki >= 0 && mVirtualKeys[vki].GetNativeUniChars(shiftState) == 1) {
+      if (vki >= 0 &&
+          mVirtualKeys[vki].GetNativeUniChars(shiftState).mLength == 1) {
         // Ensure dead-key is in active state, when it swallows entered
         // character and waits for the next pressed key.
         if (!deadKeyActive) {
@@ -727,6 +963,165 @@ KeyboardLayout::GetDeadKeyCombinations(PRUint8 aDeadKey,
   return entries;
 }
 
+PRUint32
+KeyboardLayout::ConvertNativeKeyCodeToDOMKeyCode(UINT aNativeKeyCode) const
+{
+  // Alphabet or Numeric or Numpad or Function keys
+  if ((aNativeKeyCode >= 0x30 && aNativeKeyCode <= 0x39) ||
+      (aNativeKeyCode >= 0x41 && aNativeKeyCode <= 0x5A) ||
+      (aNativeKeyCode >= 0x60 && aNativeKeyCode <= 0x87)) {
+    return static_cast<PRUint32>(aNativeKeyCode);
+  }
+  switch (aNativeKeyCode) {
+    // Following keycodes are same as our DOM keycodes
+    case VK_CANCEL:
+    case VK_BACK:
+    case VK_TAB:
+    case VK_CLEAR:
+    case VK_RETURN:
+    case VK_SHIFT:
+    case VK_CONTROL:
+    case VK_MENU: // Alt
+    case VK_PAUSE:
+    case VK_CAPITAL: // CAPS LOCK
+    case VK_KANA: // same as VK_HANGUL
+    case VK_JUNJA:
+    case VK_FINAL:
+    case VK_HANJA: // same as VK_KANJI
+    case VK_ESCAPE:
+    case VK_CONVERT:
+    case VK_NONCONVERT:
+    case VK_ACCEPT:
+    case VK_MODECHANGE:
+    case VK_SPACE:
+    case VK_PRIOR: // PAGE UP
+    case VK_NEXT: // PAGE DOWN
+    case VK_END:
+    case VK_HOME:
+    case VK_LEFT:
+    case VK_UP:
+    case VK_RIGHT:
+    case VK_DOWN:
+    case VK_SELECT:
+    case VK_PRINT:
+    case VK_EXECUTE:
+    case VK_SNAPSHOT:
+    case VK_INSERT:
+    case VK_DELETE:
+    case VK_APPS: // Context Menu
+    case VK_SLEEP:
+    case VK_NUMLOCK:
+    case VK_SCROLL: // SCROLL LOCK
+      return PRUint32(aNativeKeyCode);
+
+    case VK_HELP:
+      return NS_VK_HELP;
+
+    // Windows key should be mapped to a Win keycode
+    // They should be able to be distinguished by DOM3 KeyboardEvent.location
+    case VK_LWIN:
+    case VK_RWIN:
+      return NS_VK_WIN;
+
+    // Following keycodes are not defined in our DOM keycodes.
+    case VK_BROWSER_BACK:
+    case VK_BROWSER_FORWARD:
+    case VK_BROWSER_REFRESH:
+    case VK_BROWSER_STOP:
+    case VK_BROWSER_SEARCH:
+    case VK_BROWSER_FAVORITES:
+    case VK_BROWSER_HOME:
+    case VK_VOLUME_MUTE:
+    case VK_VOLUME_DOWN:
+    case VK_VOLUME_UP:
+    case VK_MEDIA_NEXT_TRACK:
+    case VK_MEDIA_STOP:
+    case VK_MEDIA_PLAY_PAUSE:
+    case VK_LAUNCH_MAIL:
+    case VK_LAUNCH_MEDIA_SELECT:
+    case VK_LAUNCH_APP1:
+    case VK_LAUNCH_APP2:
+    case VK_ATTN: // Attension key of IBM midrange computers, e.g., AS/400
+    case VK_CRSEL: // Cursor Selection
+    case VK_EXSEL: // Extend Selection
+    case VK_EREOF: // Erase EOF key of IBM 3270 keyboard layout
+    case VK_PLAY:
+    case VK_ZOOM:
+    case VK_PA1: // PA1 key of IBM 3270 keyboard layout
+    case VK_OEM_CLEAR:
+      return 0;
+
+    // Following keycodes are only used by Nokia/Ericsson, we don't define them
+    case VK_OEM_RESET:
+    case VK_OEM_JUMP:
+    case VK_OEM_PA1:
+    case VK_OEM_PA2:
+    case VK_OEM_PA3:
+    case VK_OEM_WSCTRL:
+    case VK_OEM_CUSEL:
+    case VK_OEM_ATTN:
+    case VK_OEM_FINISH:
+    case VK_OEM_COPY:
+    case VK_OEM_AUTO:
+    case VK_OEM_ENLW:
+    case VK_OEM_BACKTAB:
+      return 0;
+
+    // Following keycodes are OEM keys which are keycodes for non-alphabet and
+    // non-numeric keys, we should compute each keycode of them from unshifted
+    // character which is inputted by each key.  But if the unshifted character
+    // is not an ASCII character but shifted character is an ASCII character,
+    // we should refer it.
+    case VK_OEM_1:
+    case VK_OEM_PLUS:
+    case VK_OEM_COMMA:
+    case VK_OEM_MINUS:
+    case VK_OEM_PERIOD:
+    case VK_OEM_2:
+    case VK_OEM_3:
+    case VK_OEM_4:
+    case VK_OEM_5:
+    case VK_OEM_6:
+    case VK_OEM_7:
+    case VK_OEM_8:
+    case 0xE1: // OEM specific
+    case VK_OEM_102:
+    case 0xE3: // OEM specific
+    case 0xE4: // OEM specific
+    {
+      NS_ASSERTION(IsPrintableCharKey(aNativeKeyCode),
+                   "The key must be printable");
+      ModifierKeyState modKeyState(0);
+      UniCharsAndModifiers uniChars =
+        GetUniCharsAndModifiers(aNativeKeyCode, modKeyState);
+      if (uniChars.mLength != 1 ||
+          uniChars.mChars[0] < ' ' || uniChars.mChars[0] > 0x7F) {
+        modKeyState.Set(MODIFIER_SHIFT);
+        uniChars = GetUniCharsAndModifiers(aNativeKeyCode, modKeyState);
+        if (uniChars.mLength != 1 ||
+            uniChars.mChars[0] < ' ' || uniChars.mChars[0] > 0x7F) {
+          return 0;
+        }
+      }
+      return WidgetUtils::ComputeKeyCodeFromChar(uniChars.mChars[0]);
+    }
+
+    // VK_PROCESSKEY means IME already consumed the key event.
+    case VK_PROCESSKEY:
+      return 0;
+    // VK_PACKET is generated by SendInput() API, we don't need to
+    // care this message as key event.
+    case VK_PACKET:
+      return 0;
+  }
+  NS_WARNING("Unknown key code comes, please check latest MSDN document,"
+             " there may be some new keycodes we have not known.");
+  return 0;
+}
+
+/*****************************************************************************
+ * mozilla::widget::DeadKeyTable
+ *****************************************************************************/
 
 PRUnichar
 DeadKeyTable::GetCompositeChar(PRUnichar aBaseChar) const

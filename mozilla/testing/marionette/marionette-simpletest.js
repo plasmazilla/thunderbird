@@ -5,16 +5,20 @@
  * The Marionette object, passed to the script context.
  */
 
-function Marionette(is_async, window, context, logObj) {
-  this.is_async = is_async;
+function Marionette(scope, window, context, logObj, perfData) {
+  this.scope = scope;
   this.window = window;
   this.tests = [];
   this.logObj = logObj;
+  this.perfData = perfData;
   this.context = context;
-  this.exports = ['ok', 'is', 'isnot', 'log', 'getLogs', 'generate_results', 'waitFor'];
+  this.timeout = 0;
 }
 
 Marionette.prototype = {
+  exports: ['ok', 'is', 'isnot', 'log', 'getLogs', 'generate_results', 'waitFor',
+            'runEmulatorCmd', 'addPerfData', 'getPerfData'],
+
   ok: function Marionette__ok(condition, name, diag) {
     let test = {'result': !!condition, 'name': name, 'diag': diag};
     this.logResult(test, "TEST-PASS", "TEST-UNEXPECTED-FAIL");
@@ -33,6 +37,14 @@ Marionette.prototype = {
     let diag = pass ? this.repr(a) + " should not equal " + this.repr(b)
                     : "didn't expect " + this.repr(a) + ", but got it";
     this.ok(pass, name, diag);
+  },
+
+  addPerfData: function Marionette__addPerfData(testSuite, testName, data) {
+    this.perfData.addPerfData(testSuite, testName, data);
+  },
+
+  getPerfData: function Marionette__getPerfData() {
+    return this.perfData.perfData;
   },
 
   log: function Marionette__log(msg, level) {
@@ -62,6 +74,8 @@ Marionette.prototype = {
                        'diag': this.tests[i].diag});
       }
     }
+    // Reset state in case this object is reused for more tests.
+    this.tests = [];
     return {"passed": passed, "failed": failed, "failures": failures};
   },
 
@@ -116,17 +130,24 @@ Marionette.prototype = {
       return ostring;
   },
 
-  defaultWaitForTimeout: 10000,
   waitFor: function test_waitFor(callback, test, timeout) {
       if (test()) {
           callback();
           return;
       }
       timeout = timeout || Date.now();
-      if (Date.now() - timeout > this.defaultWaitForTimeout) {
-          throw 'waitFor timeout';
+      if (Date.now() - timeout > this.timeout) {
+        dump("waitFor timeout: " + test.toString() + "\n");
+        // the script will timeout here, so no need to raise a separate
+        // timeout exception
+        return;
       }
       this.window.setTimeout(this.waitFor.bind(this), 100, callback, test, timeout);
   },
+
+  runEmulatorCmd: function runEmulatorCmd(cmd, callback) {
+    this.scope.runEmulatorCmd(cmd, callback);
+  },
+
 };
 

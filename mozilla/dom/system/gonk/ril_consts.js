@@ -1,41 +1,14 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is RIL JS Worker.
- *
- * The Initial Developer of the Original Code is
- * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Kyle Machulis <kyle@nonpolynomial.com>
- *   Philipp von Weitershausen <philipp@weitershausen.de>
- *   Fernando Jimenez <ferjmoreno@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// Set to true to debug all RIL layers
+const DEBUG_ALL = false;
+
+// Set individually to debug specific layers
+const DEBUG_WORKER = false || DEBUG_ALL;
+const DEBUG_CONTENT_HELPER = false || DEBUG_ALL;
+const DEBUG_RIL = false || DEBUG_ALL;
 
 const REQUEST_GET_SIM_STATUS = 1;
 const REQUEST_ENTER_SIM_PIN = 2;
@@ -145,6 +118,7 @@ const REQUEST_CDMA_GET_SUBSCRIPTION_SOURCE = 104;
 const REQUEST_ISIM_AUTHENTICATION = 105;
 const REQUEST_ACKNOWLEDGE_INCOMING_GSM_SMS_WITH_PDU = 106;
 const REQUEST_STK_SEND_ENVELOPE_WITH_STATUS = 107;
+const REQUEST_DIAL_EMERGENCY_CALL = 10016;
 
 // Akami/Maguro specific parcel types.
 const REQUEST_VOICE_RADIO_TECH = 105;
@@ -241,6 +215,19 @@ const ERROR_SS_MODIFIED_TO_USSD = 24;
 const ERROR_SS_MODIFIED_TO_SS = 25;
 const ERROR_SUBSCRIPTION_NOT_SUPPORTED = 26;
 
+const GECKO_ERROR_SUCCESS = null;
+const GECKO_ERROR_RADIO_NOT_AVAILABLE = "RadioNotAvailable";
+const GECKO_ERROR_GENERIC_FAILURE = "GenericFailure";
+const GECKO_ERROR_REQUEST_NOT_SUPPORTED = "RequestNotSupported";
+const GECKO_ERROR_ILLEGAL_SIM_OR_ME = "IllegalSIMorME";
+
+const RIL_ERROR_TO_GECKO_ERROR = {};
+RIL_ERROR_TO_GECKO_ERROR[ERROR_SUCCESS] = GECKO_ERROR_SUCCESS;
+RIL_ERROR_TO_GECKO_ERROR[ERROR_RADIO_NOT_AVAILABLE] = GECKO_ERROR_RADIO_NOT_AVAILABLE;
+RIL_ERROR_TO_GECKO_ERROR[ERROR_GENERIC_FAILURE] = GECKO_ERROR_GENERIC_FAILURE;
+RIL_ERROR_TO_GECKO_ERROR[ERROR_REQUEST_NOT_SUPPORTED] = GECKO_ERROR_REQUEST_NOT_SUPPORTED;
+RIL_ERROR_TO_GECKO_ERROR[ERROR_ILLEGAL_SIM_OR_ME] = GECKO_ERROR_ILLEGAL_SIM_OR_ME;
+
 // 3GPP 23.040 clause 9.2.3.6 TP-Message-Reference(TP-MR):
 // The number of times the MS automatically repeats the SMS-SUBMIT shall be in
 // the range 1 to 3 but the precise number is an implementation matter.
@@ -316,8 +303,24 @@ const CARD_APPTYPE_ISIM = 5;
 
 const CARD_MAX_APPS = 8;
 
+const NETWORK_STATE_UNKNOWN = "unknown";
+const NETWORK_STATE_AVAILABLE = "available";
+const NETWORK_STATE_CONNECTED = "connected";
+const NETWORK_STATE_FORBIDDEN = "forbidden";
+
 const NETWORK_SELECTION_MODE_AUTOMATIC = 0;
 const NETWORK_SELECTION_MODE_MANUAL = 1;
+
+const NETWORK_INFO_VOICE_REGISTRATION_STATE = "voiceRegistrationState";
+const NETWORK_INFO_DATA_REGISTRATION_STATE = "dataRegistrationState";
+const NETWORK_INFO_OPERATOR = "operator";
+const NETWORK_INFO_NETWORK_SELECTION_MODE = "networkSelectionMode";
+const NETWORK_INFO_MESSAGE_TYPES = [
+  NETWORK_INFO_VOICE_REGISTRATION_STATE,
+  NETWORK_INFO_DATA_REGISTRATION_STATE,
+  NETWORK_INFO_OPERATOR,
+  NETWORK_INFO_NETWORK_SELECTION_MODE
+];
 
 const PREFERRED_NETWORK_TYPE_GSM_WCDMA = 0;
 const PREFERRED_NETWORK_TYPE_GSM_ONLY = 1;
@@ -339,6 +342,10 @@ const NETWORK_CREG_STATE_SEARCHING = 2;
 const NETWORK_CREG_STATE_DENIED = 3;
 const NETWORK_CREG_STATE_UNKNOWN = 4;
 const NETWORK_CREG_STATE_REGISTERED_ROAMING = 5;
+const NETWORK_CREG_STATE_NOT_SEARCHING_EMERGENCY_CALLS = 10;
+const NETWORK_CREG_STATE_SEARCHING_EMERGENCY_CALLS = 12;
+const NETWORK_CREG_STATE_DENIED_EMERGENCY_CALLS = 13;
+const NETWORK_CREG_STATE_UNKNOWN_EMERGENCY_CALLS = 14;
 
 const NETWORK_CREG_TECH_UNKNOWN = 0;
 const NETWORK_CREG_TECH_GPRS = 1;
@@ -363,6 +370,7 @@ const CALL_STATE_DIALING = 2;
 const CALL_STATE_ALERTING = 3;
 const CALL_STATE_INCOMING = 4;
 const CALL_STATE_WAITING = 5;
+const CALL_STATE_BUSY = 6;
 
 const TOA_INTERNATIONAL = 0x91;
 const TOA_UNKNOWN = 0x81;
@@ -383,6 +391,7 @@ const ICC_COMMAND_UPDATE_RECORD = 0xdc;
 // ICC constants, GSM SIM file ids from TS 51.011
 const ICC_EF_ICCID  = 0x2fe2;
 const ICC_EF_IMG    = 0x4f20;
+const ICC_EF_PBR    = 0x4f30;
 const ICC_EF_SST    = 0x6f38;
 const ICC_EF_UST    = 0x6f38; // For USIM
 const ICC_EF_ADN    = 0x6f3a;
@@ -452,6 +461,39 @@ const ICC_STATUS_WITH_RESPONSE_DATA = 0x9f;
 const ICC_STATUS_ERROR_WRONG_LENGTH = 0x67;
 const ICC_STATUS_ERROR_COMMAND_NOT_ALLOWED = 0x69;
 const ICC_STATUS_ERROR_WRONG_PARAMETERS = 0x6a;
+
+// ICC call barring facility.
+// TS 27.007, clause 7.4, +CLCK
+const ICC_CB_FACILITY_SIM = "SC";
+
+// ICC service class
+// TS 27.007, clause 7.4, +CLCK
+const ICC_SERVICE_CLASS_NONE = 0; // no user input
+const ICC_SERVICE_CLASS_VOICE = (1 << 0);
+const ICC_SERVICE_CLASS_DATA = (1 << 1);
+const ICC_SERVICE_CLASS_FAX = (1 << 2);
+const ICC_SERVICE_CLASS_SMS = (1 << 3);
+const ICC_SERVICE_CLASS_DATA_SYNC = (1 << 4);
+const ICC_SERVICE_CLASS_DATA_ASYNC = (1 << 5);
+const ICC_SERVICE_CLASS_PACKET = (1 << 6);
+const ICC_SERVICE_CLASS_PAD = (1 << 7);
+const ICC_SERVICE_CLASS_MAX = (1 << 7); // Max ICC_SERVICE_CLASS value
+
+const ICC_USIM_TYPE1_TAG   = 0xa8;
+const ICC_USIM_TYPE2_TAG   = 0xa9;
+const ICC_USIM_TYPE3_TAG   = 0xaa;
+const ICC_USIM_EFADN_TAG   = 0xc0;
+const ICC_USIM_EFIAP_TAG   = 0xc1;
+const ICC_USIM_EFEXT1_TAG  = 0xc2;
+const ICC_USIM_EFSNE_TAG   = 0xc3;
+const ICC_USIM_EFANR_TAG   = 0xc4;
+const ICC_USIM_EFPBC_TAG   = 0xc5;
+const ICC_USIM_EFGRP_TAG   = 0xc6;
+const ICC_USIM_EFAAS_TAG   = 0xc7;
+const ICC_USIM_EFGSD_TAG   = 0xc8;
+const ICC_USIM_EFUID_TAG   = 0xc9;
+const ICC_USIM_EFEMAIL_TAG = 0xca;
+const ICC_USIM_EFCCP1_TAG  = 0xcb;
 
 /**
  * GSM PDU constants
@@ -1347,6 +1389,20 @@ const GECKO_NETWORK_STATE_SUSPENDED = 2;
 const GECKO_NETWORK_STATE_DISCONNECTING = 3;
 const GECKO_NETWORK_STATE_DISCONNECTED = 4;
 
+// Used for QUERY_AVAILABLE_NETWORKS status of "unknown"
+const GECKO_QAN_STATE_UNKNOWN = null;
+
+const CALL_FAIL_UNOBTAINABLE_NUMBER = 1;
+const CALL_FAIL_NORMAL = 16;
+const CALL_FAIL_BUSY = 17;
+const CALL_FAIL_CONGESTION = 34;
+const CALL_FAIL_ACM_LIMIT_EXCEEDED = 68;
+const CALL_FAIL_CALL_BARRED = 240;
+const CALL_FAIL_FDN_BLOCKED = 241;
+const CALL_FAIL_IMSI_UNKNOWN_IN_VLR = 242;
+const CALL_FAIL_IMEI_NOT_ACCEPTED = 243;
+const CALL_FAIL_ERROR_UNSPECIFIED = 0xffff;
+
 // Other Gecko-specific constants
 const GECKO_RADIOSTATE_UNAVAILABLE   = null;
 const GECKO_RADIOSTATE_OFF           = "off";
@@ -1359,6 +1415,33 @@ const GECKO_CARDSTATE_PUK_REQUIRED   = "puk_required";
 const GECKO_CARDSTATE_NETWORK_LOCKED = "network_locked";
 const GECKO_CARDSTATE_NOT_READY      = null;
 const GECKO_CARDSTATE_READY          = "ready";
+
+const GECKO_NETWORK_SELECTION_UNKNOWN   = null;
+const GECKO_NETWORK_SELECTION_AUTOMATIC = "automatic";
+const GECKO_NETWORK_SELECTION_MANUAL    = "manual";
+
+const GECKO_CALL_ERROR_BAD_NUMBER             = "BadNumberError";
+const GECKO_CALL_ERROR_NORMAL_CALL_CLEARING   = "NormalCallClearingError";
+const GECKO_CALL_ERROR_BUSY                   = "BusyError";
+const GECKO_CALL_ERROR_CONGESTION             = "CongestionError";
+const GECKO_CALL_ERROR_INCOMING_CALL_EXCEEDED = "IncomingCallExceededError";
+const GECKO_CALL_ERROR_BARRED                 = "BarredError";
+const GECKO_CALL_ERROR_FDN_BLOCKED            = "FDNBlockedError";
+const GECKO_CALL_ERROR_SUBSCRIBER_UNKNOWN     = "SubscriberUnknownError";
+const GECKO_CALL_ERROR_DEVICE_NOT_ACCEPTED    = "DeviceNotAcceptedError";
+const GECKO_CALL_ERROR_UNSPECIFIED            = "UnspecifiedError";
+
+const RIL_CALL_FAILCAUSE_TO_GECKO_CALL_ERROR = {};
+RIL_CALL_FAILCAUSE_TO_GECKO_CALL_ERROR[CALL_FAIL_UNOBTAINABLE_NUMBER] = GECKO_CALL_ERROR_BAD_NUMBER;
+RIL_CALL_FAILCAUSE_TO_GECKO_CALL_ERROR[CALL_FAIL_NORMAL]              = GECKO_CALL_ERROR_NORMAL_CALL_CLEARING;
+RIL_CALL_FAILCAUSE_TO_GECKO_CALL_ERROR[CALL_FAIL_BUSY]                = GECKO_CALL_ERROR_BUSY;
+RIL_CALL_FAILCAUSE_TO_GECKO_CALL_ERROR[CALL_FAIL_CONGESTION]          = GECKO_CALL_ERROR_CONGESTION;
+RIL_CALL_FAILCAUSE_TO_GECKO_CALL_ERROR[CALL_FAIL_ACM_LIMIT_EXCEEDED]  = GECKO_CALL_ERROR_INCOMING_CALL_EXCEEDED;
+RIL_CALL_FAILCAUSE_TO_GECKO_CALL_ERROR[CALL_FAIL_CALL_BARRED]         = GECKO_CALL_ERROR_BARRED;
+RIL_CALL_FAILCAUSE_TO_GECKO_CALL_ERROR[CALL_FAIL_FDN_BLOCKED]         = GECKO_CALL_ERROR_FDN_BLOCKED;
+RIL_CALL_FAILCAUSE_TO_GECKO_CALL_ERROR[CALL_FAIL_IMSI_UNKNOWN_IN_VLR] = GECKO_CALL_ERROR_SUBSCRIBER_UNKNOWN;
+RIL_CALL_FAILCAUSE_TO_GECKO_CALL_ERROR[CALL_FAIL_IMEI_NOT_ACCEPTED]   = GECKO_CALL_ERROR_DEVICE_NOT_ACCEPTED;
+RIL_CALL_FAILCAUSE_TO_GECKO_CALL_ERROR[CALL_FAIL_ERROR_UNSPECIFIED]   = GECKO_CALL_ERROR_UNSPECIFIED;
 
 const GECKO_RADIO_TECH = [
   null,

@@ -1,47 +1,7 @@
 # -*- indent-tabs-mode: nil -*-
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is the Browser Search Service.
-#
-# The Initial Developer of the Original Code is
-# Giorgio Maone
-# Portions created by the Initial Developer are Copyright (C) 2005
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Giorgio Maone <g.maone@informaction.com>
-#   Seth Spitzer <sspitzer@mozilla.com>
-#   Asaf Romano <mano@mozilla.com>
-#   Marco Bonardo <mak77@bonardo.net>
-#   Dietrich Ayala <dietrich@mozilla.com>
-#   Ehsan Akhgari <ehsan.akhgari@gmail.com>
-#   Nils Maier <maierman@web.de>
-#   Robert Strong <robert.bugzilla@gmail.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 const Ci = Components.interfaces;
 const Cc = Components.classes;
@@ -67,6 +27,15 @@ XPCOMUtils.defineLazyModuleGetter(this, "BookmarkHTMLUtils",
 
 XPCOMUtils.defineLazyModuleGetter(this, "webappsUI", 
                                   "resource:///modules/webappsUI.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "PageThumbs",
+                                  "resource:///modules/PageThumbs.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "NewTabUtils",
+                                  "resource:///modules/NewTabUtils.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "PdfJs",
+                                  "resource://pdf.js/PdfJs.jsm");
 
 const PREF_PLUGINS_NOTIFYUSER = "plugins.update.notifyUser";
 const PREF_PLUGINS_UPDATEURL  = "plugins.update.url";
@@ -216,6 +185,9 @@ BrowserGlue.prototype = {
       case "weave:service:ready":
         this._setSyncAutoconnectDelay();
         break;
+      case "weave:engine:clients:display-uri":
+        this._onDisplaySyncURI(subject);
+        break;
 #endif
       case "session-save":
         this._setPrefToSaveSession(true);
@@ -299,6 +271,7 @@ BrowserGlue.prototype = {
 #endif
 #ifdef MOZ_SERVICES_SYNC
     os.addObserver(this, "weave:service:ready", false);
+    os.addObserver(this, "weave:engine:clients:display-uri", false);
 #endif
     os.addObserver(this, "session-save", false);
     os.addObserver(this, "places-init-complete", false);
@@ -326,6 +299,7 @@ BrowserGlue.prototype = {
 #endif
 #ifdef MOZ_SERVICES_SYNC
     os.removeObserver(this, "weave:service:ready", false);
+    os.removeObserver(this, "weave:engine:clients:display-uri", false);
 #endif
     os.removeObserver(this, "session-save");
     if (this._isIdleObserver)
@@ -364,6 +338,11 @@ BrowserGlue.prototype = {
     // Initialize webapps UI
     webappsUI.init();
 
+    PageThumbs.init();
+    NewTabUtils.init();
+
+    PdfJs.init();
+
     Services.obs.notifyObservers(null, "browser-ui-startup-complete", "");
   },
 
@@ -385,6 +364,7 @@ BrowserGlue.prototype = {
   _onProfileShutdown: function BG__onProfileShutdown() {
     this._shutdownPlaces();
     this._sanitizer.onShutdown();
+    PageThumbs.uninit();
   },
 
   // All initial windows have opened.
@@ -453,7 +433,9 @@ BrowserGlue.prototype = {
           (ss.sessionType == Ci.nsISessionStartup.RECOVER_SESSION);
       }
       catch (ex) { /* never mind; suppose SessionStore is broken */ }
-      if (shouldCheck && !shell.isDefaultBrowser(true) && !willRecoverSession) {
+      if (shouldCheck &&
+          !shell.isDefaultBrowser(true, false) &&
+          !willRecoverSession) {
         Services.tm.mainThread.dispatch(function() {
           var win = this.getMostRecentBrowserWindow();
           var brandBundle = win.document.getElementById("bundle_brand");
@@ -470,8 +452,22 @@ BrowserGlue.prototype = {
           var rv = ps.confirmEx(win, promptTitle, promptMessage,
                                 ps.STD_YES_NO_BUTTONS,
                                 null, null, null, checkboxLabel, checkEveryTime);
-          if (rv == 0)
-            shell.setDefaultBrowser(true, false);
+          if (rv == 0) {
+            var claimAllTypes = true;
+#ifdef XP_WIN
+            try {
+              // In Windows 8, the UI for selecting default protocol is much
+              // nicer than the UI for setting file type associations. So we
+              // only show the protocol association screen on Windows 8.
+              // Windows 8 is version 6.2.
+              let version = Cc["@mozilla.org/system-info;1"]
+                              .getService(Ci.nsIPropertyBag2)
+                              .getProperty("version");
+              claimAllTypes = (parseFloat(version) < 6.2);
+            } catch (ex) { }
+#endif
+            shell.setDefaultBrowser(claimAllTypes, false);
+          }
           shell.shouldCheckDefaultBrowser = checkEveryTime.value;
         }.bind(this), Ci.nsIThread.DISPATCH_NORMAL);
       }
@@ -505,10 +501,13 @@ BrowserGlue.prototype = {
     var windowcount = 0;
     var pagecount = 0;
     var browserEnum = Services.wm.getEnumerator("navigator:browser");
+    let allWindowsPrivate = true;
     while (browserEnum.hasMoreElements()) {
       windowcount++;
 
       var browser = browserEnum.getNext();
+      if (("gPrivateBrowsingUI" in browser) && !browser.gPrivateBrowsingUI.privateWindow)
+        allWindowsPrivate = false;
       var tabbrowser = browser.document.getElementById("content");
       if (tabbrowser)
         pagecount += tabbrowser.browsers.length - tabbrowser._numPinnedTabs;
@@ -520,13 +519,6 @@ BrowserGlue.prototype = {
 
     if (!aQuitType)
       aQuitType = "quit";
-
-    // Never show a prompt inside private browsing mode
-    var inPrivateBrowsing = Cc["@mozilla.org/privatebrowsing;1"].
-                            getService(Ci.nsIPrivateBrowsingService).
-                            privateBrowsingEnabled;
-    if (inPrivateBrowsing)
-      return;
 
     var showPrompt = false;
     var mostRecentBrowserWindow;
@@ -558,6 +550,10 @@ BrowserGlue.prototype = {
       aCancelQuit.data = !mostRecentBrowserWindow.gBrowser.warnAboutClosingTabs(true);
       return;
     }
+
+    // Never show a prompt inside private browsing mode
+    if (allWindowsPrivate)
+      return;
 
     if (!showPrompt)
       return;
@@ -811,7 +807,7 @@ BrowserGlue.prototype = {
     try {
       // This will throw NS_ERROR_NOT_AVAILABLE if the notification cannot
       // be displayed per the idl.
-      notifier.showAlertNotification("post-update-notification", title, text,
+      notifier.showAlertNotification(null, title, text,
                                      true, url, clickCallback);
     }
     catch (e) {
@@ -1536,6 +1532,29 @@ BrowserGlue.prototype = {
 #endif
   },
 
+#ifdef MOZ_SERVICES_SYNC
+  /**
+   * Called as an observer when Sync's "display URI" notification is fired.
+   *
+   * We open the received URI in a background tab.
+   *
+   * Eventually, this will likely be replaced by a more robust tab syncing
+   * feature. This functionality is considered somewhat evil by UX because it
+   * opens a new tab automatically without any prompting. However, it is a
+   * lesser evil than sending a tab to a specific device (from e.g. Fennec)
+   * and having nothing happen on the receiving end.
+   */
+  _onDisplaySyncURI: function _onDisplaySyncURI(data) {
+    try {
+      let tabbrowser = this.getMostRecentBrowserWindow().gBrowser;
+
+      // The payload is wrapped weirdly because of how Sync does notifications.
+      tabbrowser.addTab(data.wrappedJSObject.object.uri);
+    } catch (ex) {
+      Cu.reportError("Error displaying tab received by Sync: " + ex);
+    }
+  },
+#endif
 
   // for XPCOM
   classID:          Components.ID("{eab9012e-5f74-4cbc-b2b5-a590235513cc}"),
@@ -1596,13 +1615,15 @@ ContentPermissionPrompt.prototype = {
     var mainAction = {
       label: browserBundle.GetStringFromName("geolocation.shareLocation"),
       accessKey: browserBundle.GetStringFromName("geolocation.shareLocation.accesskey"),
-      callback: function(notification) {
+      callback: function() {
         request.allow();
       },
     };
 
     var message;
     var secondaryActions = [];
+    var requestingWindow = request.window.top;
+    var chromeWin = getChromeWindow(requestingWindow).wrappedJSObject;
 
     // Different message/options if it is a local file
     if (requestingURI.schemeIs("file")) {
@@ -1613,11 +1634,7 @@ ContentPermissionPrompt.prototype = {
                                                    [requestingURI.host], 1);
 
       // Don't offer to "always/never share" in PB mode
-      var inPrivateBrowsing = Cc["@mozilla.org/privatebrowsing;1"].
-                              getService(Ci.nsIPrivateBrowsingService).
-                              privateBrowsingEnabled;
-
-      if (!inPrivateBrowsing) {
+      if (("gPrivateBrowsingUI" in chromeWin) && !chromeWin.gPrivateBrowsingUI.privateWindow) {
         secondaryActions.push({
           label: browserBundle.GetStringFromName("geolocation.alwaysShareLocation"),
           accessKey: browserBundle.GetStringFromName("geolocation.alwaysShareLocation.accesskey"),
@@ -1637,8 +1654,6 @@ ContentPermissionPrompt.prototype = {
       }
     }
 
-    var requestingWindow = request.window.top;
-    var chromeWin = getChromeWindow(requestingWindow).wrappedJSObject;
     var browser = chromeWin.gBrowser.getBrowserForDocument(requestingWindow.document);
 
     chromeWin.PopupNotifications.show(browser, "geolocation", message, "geo-notification-icon",

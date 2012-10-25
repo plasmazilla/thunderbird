@@ -30,6 +30,7 @@ build/Makefile
 build/pgo/Makefile
 build/pgo/blueprint/Makefile
 build/pgo/js-input/Makefile
+build/virtualenv/Makefile
 config/Makefile
 config/autoconf.mk
 config/nspr/Makefile
@@ -58,9 +59,14 @@ if [ ! "$LIBXUL_SDK" ]; then
     mozglue/Makefile
     mozglue/build/Makefile
   "
-  if [ "$MOZ_MEMORY" ]; then
+  if [ "$MOZ_JEMALLOC" ]; then
     add_makefiles "
       memory/jemalloc/Makefile
+    "
+  fi
+  if [ "$MOZ_MEMORY" ]; then
+    add_makefiles "
+      memory/mozjemalloc/Makefile
       memory/build/Makefile
     "
   fi
@@ -89,6 +95,11 @@ if [ "$OS_ARCH" != "WINNT" -a "$OS_ARCH" != "OS2" ]; then
   add_makefiles "
     build/unix/Makefile
   "
+  if [ "$STDCXX_COMPAT" ]; then
+    add_makefiles "
+      build/unix/stdc++compat/Makefile
+    "
+  fi
   if [ "$USE_ELF_HACK" ]; then
     add_makefiles "
       build/unix/elfhack/Makefile
@@ -106,7 +117,6 @@ if [ "$ENABLE_MARIONETTE" ]; then
   add_makefiles "
     testing/marionette/Makefile
     testing/marionette/components/Makefile
-    testing/marionette/tests/Makefile
   "
 fi
 

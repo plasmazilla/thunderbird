@@ -6,7 +6,7 @@
 %include defines.inc
 
 html {
-  font-family: "Droid Sans",helvetica,arial,clean,sans-serif;
+  font-family: Roboto,"Droid Sans",helvetica,arial,clean,sans-serif;
   font-size: 18px;
   background-image: url("chrome://browser/skin/images/about-bg-lightblue.png");
   -moz-text-size-adjust: none;
@@ -74,6 +74,7 @@ li:active .details {
   position: absolute;
   top: 27px;
   left: 27px;
+  pointer-events: none;
 }
 
 .details {
@@ -102,6 +103,11 @@ li:active .details {
 .domain,
 .size {
   display: inline;
+}
+
+.displayState {
+  color:gray;
+  margin-bottom: -3px; /* Prevent overflow that hides bottom border */
 }
 
 .size:after {

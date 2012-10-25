@@ -1,6 +1,6 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this file,
- * You can obtain one at http://mozilla.org/MPL/2.0/. */
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 package org.mozilla.gecko.sync.middleware;
 
@@ -107,18 +107,6 @@ public class Crypto5MiddlewareRepositorySession extends MiddlewareRepositorySess
         return;
       }
       next.onFetchedRecord(transformed);
-    }
-
-    @Override
-    public void onFetchSucceeded(Record[] records, long fetchEnd) {
-      for (Record record : records) {
-        try {
-          this.onFetchedRecord(record);
-        } catch (Exception e) {
-          this.onFetchFailed(e, record);
-        }
-      }
-      this.onFetchCompleted(fetchEnd);
     }
 
     @Override

@@ -1,41 +1,8 @@
 /* -*- Mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; tab-width: 40 -*- */
 /* vim: set ts=2 et sw=2 tw=80: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Telephony.
- *
- * The Initial Developer of the Original Code is
- *   The Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ben Turner <bent.mozilla@gmail.com> (Original Author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "SystemWorkerManager.h"
 
@@ -48,17 +15,40 @@
 
 #include "jsfriendapi.h"
 #include "mozilla/dom/workers/Workers.h"
+#ifdef MOZ_WIDGET_GONK
+#include "AutoMounter.h"
+#endif
 #include "mozilla/ipc/Ril.h"
+#ifdef MOZ_B2G_BT
+#include "mozilla/ipc/DBusThread.h"
+#include "BluetoothFirmware.h"
+#include "BluetoothUtils.h"
+#endif
 #include "nsContentUtils.h"
 #include "nsServiceManagerUtils.h"
 #include "nsThreadUtils.h"
 #include "nsRadioInterfaceLayer.h"
 #include "WifiWorker.h"
 
+#undef LOG
+#if defined(MOZ_WIDGET_GONK)
+#include <android/log.h>
+#define LOG(args...)  __android_log_print(ANDROID_LOG_INFO, "GonkBluetooth", args);
+#else
+#define BTDEBUG true
+#define LOG(args...) if(BTDEBUG) printf(args);
+#endif
+
 
 USING_WORKERS_NAMESPACE
 using namespace mozilla::dom::gonk;
 using namespace mozilla::ipc;
+#ifdef MOZ_WIDGET_GONK
+using namespace mozilla::system;
+#endif
+#ifdef MOZ_B2G_BT
+using namespace mozilla::dom::bluetooth;
+#endif
 
 namespace {
 
@@ -212,23 +202,45 @@ SystemWorkerManager::~SystemWorkerManager()
 nsresult
 SystemWorkerManager::Init()
 {
+  if (XRE_GetProcessType() != GeckoProcessType_Default) {
+    return NS_ERROR_NOT_AVAILABLE;
+  }
+
   NS_ASSERTION(NS_IsMainThread(), "We can only initialize on the main thread");
   NS_ASSERTION(!mShutdown, "Already shutdown!");
 
-  JSContext *cx;
-  nsresult rv = nsContentUtils::ThreadJSContextStack()->GetSafeJSContext(&cx);
-  NS_ENSURE_SUCCESS(rv, rv);
+  JSContext* cx = nsContentUtils::ThreadJSContextStack()->GetSafeJSContext();
+  NS_ENSURE_TRUE(cx, NS_ERROR_FAILURE);
 
   nsCxPusher pusher;
-  if (!cx || !pusher.Push(cx, false)) {
+  if (!pusher.Push(cx, false)) {
     return NS_ERROR_FAILURE;
   }
 
-  rv = InitRIL(cx);
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsresult rv = InitRIL(cx);
+  if (NS_FAILED(rv)) {
+    NS_WARNING("Failed to initialize RIL/Telephony!");
+    return rv;
+  }
 
   rv = InitWifi(cx);
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (NS_FAILED(rv)) {
+    NS_WARNING("Failed to initialize WiFi Networking!");
+    return rv;
+  }
+
+#ifdef MOZ_B2G_BT
+  rv = InitBluetooth(cx);
+  if (NS_FAILED(rv)) {
+    NS_WARNING("Failed to initialize Bluetooth!");
+    return rv;
+  }
+
+#endif
+
+#ifdef MOZ_WIDGET_GONK
+  InitAutoMounter();
+#endif
 
   nsCOMPtr<nsIObserverService> obs =
     do_GetService(NS_OBSERVERSERVICE_CONTRACTID);
@@ -238,7 +250,10 @@ SystemWorkerManager::Init()
   }
 
   rv = obs->AddObserver(this, WORKERS_SHUTDOWN_TOPIC, false);
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (NS_FAILED(rv)) {
+    NS_WARNING("Failed to initialize worker shutdown event!");
+    return rv;
+  }
 
   return NS_OK;
 }
@@ -250,8 +265,14 @@ SystemWorkerManager::Shutdown()
 
   mShutdown = true;
 
-  StopRil();
+#ifdef MOZ_WIDGET_GONK
+  ShutdownAutoMounter();
+#endif
 
+  StopRil();
+#ifdef MOZ_B2G_BT
+  StopDBus();
+#endif
   mRILWorker = nsnull;
   nsCOMPtr<nsIWifi> wifi(do_QueryInterface(mWifiWorker));
   if (wifi) {
@@ -361,6 +382,29 @@ SystemWorkerManager::InitWifi(JSContext *cx)
   NS_ENSURE_TRUE(worker, NS_ERROR_FAILURE);
 
   mWifiWorker = worker;
+  return NS_OK;
+}
+
+nsresult
+SystemWorkerManager::InitBluetooth(JSContext *cx)
+{
+#ifdef MOZ_B2G_BT
+#ifdef MOZ_WIDGET_GONK
+  // We need a platform specific check here to make sure of when we're
+  // running on an emulator. Therefore, if we're compiled with gonk,
+  // see if we can load functions out of bluedroid. If not, assume
+  // it's an emulator and don't start the bluetooth thread.
+  if(EnsureBluetoothInit()) {
+#endif
+    StartDBus();
+    StartBluetoothConnection();
+#ifdef MOZ_WIDGET_GONK
+  }
+  else {
+    LOG("Bluedroid functions not available, assuming running on simulator. Not starting DBus thread.");
+  }
+#endif
+#endif
   return NS_OK;
 }
 

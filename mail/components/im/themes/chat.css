@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 @import url("chrome://messenger/skin/imStatus.css");
 
 .im-placeholder-screen {
@@ -64,6 +68,10 @@ imconv[attention] {
 .contactDisplayName,
 .convDisplayName {
   -moz-margin-end: 0;
+}
+
+imcontact[aliasing] .contactDisplayName {
+  -moz-binding: url("chrome://global/content/bindings/textbox.xml#textbox");
 }
 
 .contactStatusText,
@@ -327,7 +335,7 @@ grippy {
   border-style: none;
 }
 
-#logList {
+#logTree {
   margin: 0 0;
 }
 
@@ -383,7 +391,7 @@ grippy {
               inset 0 1px 2px rgba(0, 0, 0, 0.7);
 }
 
-.conv-nicklist, #logList {
+.conv-nicklist, #logTree {
   -moz-appearance: none;
   width: 250px;
   border: 0px;
@@ -489,30 +497,36 @@ imgroup[closed] .twisty {
   list-style-image: url('chrome://chat/skin/offline-16.png');
 }
 
-
 #statusTypeIcon {
-  margin: 0 0;
-  width: 16px;
-  height: 16px;
-  min-height: 16px;
-  min-width: 16px;
+  min-width: 40px;
+}
+
+/* show the status icon also in text mode */
+toolbar[mode="text"] #statusTypeIcon > .toolbarbutton-icon {
+  display: -moz-box;
+}
+
+.statusMessageToolbarItem {
+  margin: 2px 4px;
+  -moz-margin-start: -1px;
+  padding: 3px 5px 4px;
+  border: 1px solid transparent;
+}
+
+#chat-status-selector:hover > .statusMessageToolbarItem,
+.statusMessageToolbarItem:focus {
+  border-color: ThreeDShadow;
+}
+
+.statusMessageToolbarItem[statusType="offline"],
+.statusMessageToolbarItem[disabled] {
+  border: none;
+}
+
+#chat-status-selector > .statusMessageToolbarItem[editing] {
   -moz-appearance: none;
-  background: transparent;
-  box-shadow: none;
-  border: none;
-}
-
-#statusTypeIcon dropmarker {
-  display: none;
-}
-
-%ifdef XP_WIN
-#statusTypeIcon .button-box {
-  padding: 0 0;
-  border: none;
-}
-%endif
-
-#statusMessage {
-  margin: 0 8px;
+  -moz-padding-start: 4px;
+  -moz-padding-end: 4px;
+  border-color: ThreeDShadow;
+  background-color: -moz-field;
 }

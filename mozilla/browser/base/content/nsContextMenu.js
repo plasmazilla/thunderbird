@@ -1,66 +1,6 @@
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is mozilla.org code.
-#
-# The Initial Developer of the Original Code is
-# Netscape Communications Corporation.
-# Portions created by the Initial Developer are Copyright (C) 1998
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Blake Ross <blake@cs.stanford.edu>
-#   David Hyatt <hyatt@mozilla.org>
-#   Peter Annema <disttsc@bart.nl>
-#   Dean Tessman <dean_tessman@hotmail.com>
-#   Kevin Puetz <puetzk@iastate.edu>
-#   Ben Goodger <ben@netscape.com>
-#   Pierre Chanial <chanial@noos.fr>
-#   Jason Eager <jce2@po.cwru.edu>
-#   Joe Hewitt <hewitt@netscape.com>
-#   Alec Flett <alecf@netscape.com>
-#   Asaf Romano <mozilla.mano@sent.com>
-#   Jason Barnabe <jason_barnabe@fastmail.fm>
-#   Peter Parente <parente@cs.unc.edu>
-#   Giorgio Maone <g.maone@informaction.com>
-#   Tom Germeau <tom.germeau@epigoon.com>
-#   Jesse Ruderman <jruderman@gmail.com>
-#   Joe Hughes <joe@retrovirus.com>
-#   Pamela Greene <pamg.bugs@gmail.com>
-#   Michael Ventnor <ventnors_dogs234@yahoo.com.au>
-#   Simon Bünzli <zeniko@gmail.com>
-#   Gijs Kruitbosch <gijskruitbosch@gmail.com>
-#   Ehsan Akhgari <ehsan.akhgari@gmail.com>
-#   Dan Mosedale <dmose@mozilla.org>
-#   Justin Dolske <dolske@mozilla.com>
-#   Kathleen Brade <brade@pearlcrescent.com>
-#   Mark Smith <mcs@pearlcrescent.com>
-#   Kailas Patil <patilkr24@gmail.com>
-#   Rob Campbell <rcampbell@mozilla.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 function nsContextMenu(aXulMenu, aBrowser, aIsShift) {
   this.shouldDisplay = true;
@@ -114,6 +54,7 @@ nsContextMenu.prototype = {
     this.initSaveItems();
     this.initClipboardItems();
     this.initMediaPlayerItems();
+    this.initLeaveDOMFullScreenItems();
   },
 
   initPageMenuSeparator: function CM_initPageMenuSeparator() {
@@ -207,12 +148,23 @@ nsContextMenu.prototype = {
                        this.onTextInput);
     this.showItem("context-back", shouldShow);
     this.showItem("context-forward", shouldShow);
-    this.showItem("context-reload", shouldShow);
-    this.showItem("context-stop", shouldShow);
+    var shouldShowReload = XULBrowserWindow.stopCommand.getAttribute("disabled") == "true";
+    this.showItem("context-reload", shouldShow && shouldShowReload);
+    this.showItem("context-stop", shouldShow && !shouldShowReload);
     this.showItem("context-sep-stop", shouldShow);
 
     // XXX: Stop is determined in browser.js; the canStop broadcaster is broken
     //this.setItemAttrFromNode( "context-stop", "disabled", "canStop" );
+  },
+
+  initLeaveDOMFullScreenItems: function CM_initLeaveFullScreenItem() {
+    // only show the option if the user is in DOM fullscreen
+    var shouldShow = (this.target.ownerDocument.mozFullScreenElement != null);
+    this.showItem("context-leave-dom-fullscreen", shouldShow);
+
+    // Explicitly show if in DOM fullscreen, but do not hide it has already been shown
+    if (shouldShow)
+        this.showItem("context-media-sep-commands", true);
   },
 
   initSaveItems: function CM_initSaveItems() {
@@ -220,11 +172,9 @@ nsContextMenu.prototype = {
                        this.isContentSelected || this.onImage ||
                        this.onCanvas || this.onVideo || this.onAudio);
     this.showItem("context-savepage", shouldShow);
-    this.showItem("context-sendpage", shouldShow);
 
-    // Save+Send link depends on whether we're in a link, or selected text matches valid URL pattern.
+    // Save link depends on whether we're in a link, or selected text matches valid URL pattern.
     this.showItem("context-savelink", this.onSaveableLink || this.onPlainTextLink);
-    this.showItem("context-sendlink", this.onSaveableLink || this.onPlainTextLink);
 
     // Save image depends on having loaded its content, video and audio don't.
     this.showItem("context-saveimage", this.onLoadedImage || this.onCanvas);
@@ -879,6 +829,10 @@ nsContextMenu.prototype = {
       video.mozRequestFullScreen();
   },
 
+  leaveDOMFullScreen: function() {
+    document.mozCancelFullScreen();
+  },
+
   // Change current window to the URL of the background image.
   viewBGImage: function(e) {
     urlSecurityCheck(this.bgImageURL,
@@ -1095,11 +1049,6 @@ nsContextMenu.prototype = {
     this.saveHelper(this.linkURL, linkText, null, true, doc);
   },
 
-  sendLink: function() {
-    // we don't know the title of the link so pass in an empty string
-    MailIntegration.sendMessage( this.linkURL, "" );
-  },
-
   // Backwards-compatibility wrapper
   saveImage : function() {
     if (this.onCanvas || this.onImage)
@@ -1162,7 +1111,7 @@ nsContextMenu.prototype = {
 
     var clipboard = Cc["@mozilla.org/widget/clipboardhelper;1"].
                     getService(Ci.nsIClipboardHelper);
-    clipboard.copyString(addresses);
+    clipboard.copyString(addresses, document);
   },
 
   ///////////////
@@ -1448,10 +1397,6 @@ nsContextMenu.prototype = {
     saveDocument(this.browser.contentDocument);
   },
 
-  sendPage: function CM_sendPage() {
-    MailIntegration.sendLinkForWindow(this.browser.contentWindow);  
-  },
-
   printFrame: function CM_printFrame() {
     PrintUtils.print(this.target.ownerDocument.defaultView);
   },
@@ -1498,7 +1443,7 @@ nsContextMenu.prototype = {
   copyMediaLocation : function () {
     var clipboard = Cc["@mozilla.org/widget/clipboardhelper;1"].
                     getService(Ci.nsIClipboardHelper);
-    clipboard.copyString(this.mediaURL);
+    clipboard.copyString(this.mediaURL, document);
   },
 
   get imageURL() {

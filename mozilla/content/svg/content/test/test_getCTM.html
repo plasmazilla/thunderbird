@@ -84,8 +84,8 @@ function runTest()
   is((function(){try{return outer.getScreenCTM().e}catch(e){return e}})(), 46, "outer.getScreenCTM().e");
   is((function(){try{return outer.getScreenCTM().f}catch(e){return e}})(), 69, "outer.getScreenCTM().f");
   // outer.farthestViewportElement == null (but actually == root)
-  is((function(){try{return outer2.getScreenCTM().e}catch(e){return e}})(), -50, "outer2.getScreenCTM().e");
-  is((function(){try{return outer2.getScreenCTM().f}catch(e){return e}})(), -50, "outer2.getScreenCTM().f");
+  is((function(){try{return outer2.getScreenCTM().e}catch(e){return e}})(), -19, "outer2.getScreenCTM().e");
+  is((function(){try{return outer2.getScreenCTM().f}catch(e){return e}})(), -8, "outer2.getScreenCTM().f");
   // g2.farthestViewportElement == outer (but actually == root)
   is((function(){try{return g2.getScreenCTM().e}catch(e){return e}})(), 646, "g2.getScreenCTM().e");
   is((function(){try{return g2.getScreenCTM().f}catch(e){return e}})(), 769, "g2.getScreenCTM().f");

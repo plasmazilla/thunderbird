@@ -1,4 +1,15 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 %include chat.css
+
+.statusMessageToolbarItem {
+  margin: 0 1px;
+  -moz-margin-start: -2px;
+  padding: 3px 3px 4px;
+  border-radius: 2px;
+}
 
 #chat-toobar {
   padding: 1px 0;
@@ -59,6 +70,26 @@
 }
 
 @media (-moz-windows-default-theme) {
+  #statusTypeIcon .toolbarbutton-menu-dropmarker {
+    padding: 1px 3px;
+    list-style-image: url("chrome://messenger/skin/icons/toolbarbutton-arrow.png");
+  }
+
+  #chat-status-selector:hover > .statusMessageToolbarItem,
+  .statusMessageToolbarItem:focus {
+    border-color: hsla(210, 54%, 20%, .25) hsla(210, 54%, 20%, .27)
+                  hsla(210, 54%, 20%, .3);
+  }
+
+  #chat-status-selector > .statusMessageToolbarItem[editing] {
+    -moz-appearance: none;
+    -moz-padding-start: 2px;
+    -moz-padding-end: 2px;
+    border-color: hsla(206, 100%, 60%, .65) hsla(206, 100%, 55%, .65)
+                  hsla(206, 100%, 50%, .65);
+    background-color: -moz-field;
+  }
+
   #listPaneBox {
     background-color: rgb(238,243,250);
   }
@@ -89,33 +120,61 @@
     background-color: rgb(233,239,245);
   }
 
-  imconv,
-  imcontact {
+  :-moz-any(imconv, imcontact, imgroup) {
     min-height: 1.7em;
     color: -moz-FieldText !important;
+    -moz-margin-start: 1px;
+    -moz-margin-end: 1px;
     border-radius: 3px;
-    border: 1px solid transparent;
+    border: 2px solid transparent;
     background-color: transparent;
+    background-origin: border-box;
   }
 
-  imconv[selected],
-  imcontact[selected],
-  imconv:hover,
-  imcontact:hover {
-    border: 1px solid Highlight;
-    background-image: -moz-linear-gradient(rgba(255,255,255,.98), rgba(255,255,255,.82));
-    background-repeat: no-repeat;
-    background-color: Highlight;
-    background-size: 100% 100%;
-    -moz-border-top-colors: Highlight rgba(255,255,255,.4);
-    -moz-border-right-colors: Highlight rgba(255,255,255,.4);
-    -moz-border-left-colors: Highlight rgba(255,255,255,.4);
-    -moz-border-bottom-colors: Highlight rgba(255,255,255,.6);
+  :-moz-any(imconv, imcontact, imgroup)[selected] {
+    background-image: -moz-linear-gradient(rgba(190, 190, 190, .1),
+                                           rgba(190, 190, 190, .4));
+    background-color: transparent;
+    -moz-border-top-colors: rgb(217, 217, 217) rgba(255, 255, 255, .4);
+    -moz-border-right-colors: rgb(217, 217, 217) rgba(255, 255, 255, .4);
+    -moz-border-left-colors: rgb(217, 217, 217) rgba(255, 255, 255, .4);
+    -moz-border-bottom-colors: rgb(217, 217, 217) rgba(255, 255, 255, .6);
   }
 
-  imconv[selected][current],
-  imcontact[selected][current] {
-    background-image: -moz-linear-gradient(rgba(255,255,255,.85), rgba(255,255,255,.6));
+  :-moz-any(imconv, imcontact, imgroup):hover {
+    background-image: -moz-linear-gradient(rgba(131, 183, 249, .05),
+                                           rgba(131, 183, 249, .16));
+    -moz-border-top-colors: rgb(184, 214, 251) rgba(255, 255, 255, .4);
+    -moz-border-right-colors: rgb(184, 214, 251) rgba(255, 255, 255, .4);
+    -moz-border-left-colors: rgb(184, 214, 251) rgba(255, 255, 255, .4);
+    -moz-border-bottom-colors: rgb(184, 214, 251) rgba(255, 255, 255, .6);
+  }
+
+  :-moz-any(imconv, imcontact, imgroup)[selected]:hover {
+    background-image: -moz-linear-gradient(rgba(131, 183, 249, .28),
+                                           rgba(131, 183, 249, .50));
+    -moz-border-top-colors: rgb(125, 162, 206) rgba(255, 255, 255, .4);
+    -moz-border-right-colors: rgb(125, 162, 206) rgba(255, 255, 255, .4);
+    -moz-border-left-colors: rgb(125, 162, 206) rgba(255, 255, 255, .4);
+    -moz-border-bottom-colors: rgb(125, 162, 206) rgba(255, 255, 255, .6);
+  }
+
+  #contactlistbox:focus > :-moz-any(imconv, imcontact, imgroup)[selected] {
+    background-image: -moz-linear-gradient(rgba(131, 183, 249, .16),
+                                           rgba(131, 183, 249, .375));
+    background-color: transparent;
+    border: 2px solid transparent;
+    -moz-border-top-colors: rgb(132, 172, 221) rgba(255, 255, 255, .4);
+    -moz-border-right-colors: rgb(132, 172, 221) rgba(255, 255, 255, .4);
+    -moz-border-left-colors: rgb(132, 172, 221) rgba(255, 255, 255, .4);
+    -moz-border-bottom-colors: rgb(132, 172, 221) rgba(255, 255, 255, .6);
+  }
+
+  #contactlistbox:focus > :-moz-any(imconv, imcontact, imgroup)[selected][current] {
+    -moz-border-top-colors: rgb(125, 162, 206) rgba(255, 255, 255, .4);
+    -moz-border-right-colors: rgb(125, 162, 206) rgba(255, 255, 255, .4);
+    -moz-border-left-colors: rgb(125, 162, 206) rgba(255, 255, 255, .4);
+    -moz-border-bottom-colors: rgb(125, 162, 206) rgba(255, 255, 255, .6);
   }
 
   .listitem-iconic[selected] > .listcell-iconic > .listcell-label,
@@ -123,23 +182,10 @@
     color: -moz-dialogtext !important;
   }
 
-  #logList > listitem,
   #nicklist > listitem {
     border-width: 1px !important;
     outline: none !important;
   }
-}
-
-/* Default icons have a built-in glow, so they are 18*18px even in small mode,
-   except for the large back icon, which is why the code below uses 'auto'
-   rather than 18px. This will pick the correct size based on the image
-   region. */
-:-moz-any(
-    #button-add-buddy, #button-join-chat, #button-chat-accounts
-  ) .toolbarbutton-icon {
-  margin: 0 !important;
-  width: auto !important;
-  height: auto !important;
 }
 
 #button-add-buddy,
@@ -147,7 +193,7 @@
 toolbar[iconsize="small"] #button-add-buddy,
 toolbar[iconsize="small"] #button-add-buddy[disabled] {
   list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.png");
-  -moz-image-region: rect(0px 18px 18px 0px);
+  -moz-image-region: rect(1px 17px 17px 1px);
 }
 
 #button-join-chat,
@@ -155,7 +201,7 @@ toolbar[iconsize="small"] #button-add-buddy[disabled] {
 toolbar[iconsize="small"] #button-join-chat,
 toolbar[iconsize="small"] #button-join-chat[disabled] {
   list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.png");
-  -moz-image-region: rect(0px 36px 18px 18px);
+  -moz-image-region: rect(1px 35px 17px 19px);
 }
 
 #button-chat-accounts,
@@ -163,5 +209,5 @@ toolbar[iconsize="small"] #button-join-chat[disabled] {
 toolbar[iconsize="small"] #button-chat-accounts,
 toolbar[iconsize="small"] #button-chat-accounts[disabled] {
   list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.png");
-  -moz-image-region: rect(0px 54px 18px 36px);
+  -moz-image-region: rect(1px 53px 17px 37px);
 }

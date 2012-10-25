@@ -1,45 +1,7 @@
-# -*- Mode: Javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is Mozilla Addressbook.
-#
-# The Initial Developer of the Original Code is
-# Netscape Communications Corp.
-# Portions created by the Initial Developer are Copyright (C) 1999-2001
-# the Initial Developer. All Rights Reserved.
-#
-# Original Author:
-#   Paul Hangas <hangas@netscape.com>
-#
-# Contributor(s):
-#   Seth Spitzer <sspitzer@netscape.com>
-#   Mark Banner <mark@standard8.demon.co.uk>
-#   Joey Minta <jminta@gmail.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+/* -*- Mode: Javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 // Ensure the activity modules are loaded for this window.
@@ -60,6 +22,9 @@ var gPreviousDirTreeIndex = -1;
 var msgWindow = Components.classes["@mozilla.org/messenger/msgwindow;1"]
                           .createInstance(Components.interfaces.nsIMsgWindow);
 
+let chatHandler = {};
+Components.utils.import("resource:///modules/chatHandler.jsm", chatHandler);
+
 // Constants that correspond to choices
 // in Address Book->View -->Show Name as
 const kDisplayName = 0;
@@ -67,6 +32,12 @@ const kLastNameFirst = 1;
 const kFirstNameFirst = 2;
 const kLDAPDirectory = 0; // defined in nsDirPrefs.h
 const kPABDirectory  = 2; // defined in nsDirPrefs.h
+
+// These chat properties are the ones that our IM component supports. If a
+// contact has a value for one of these properties, we can communicate with
+// that contact (assuming that the user has added that value to their list
+// of IM contacts).
+const kChatProperties = ["_GoogleTalk", "_JabberId"];
 
 // Note: We need to keep this listener as it does not just handle dir
 // pane deletes but also deletes of address books and lists from places like
@@ -174,6 +145,10 @@ function OnLoadAddressBook()
     document.documentElement.setAttribute("screenX", screen.availLeft);
     document.documentElement.setAttribute("screenY", screen.availTop);
   }
+
+  if (!chatHandler.ChatCore.initialized)
+    chatHandler.ChatCore.init();
+
   setTimeout(delayedOnLoadAddressBook, 0); // when debugging, set this to 5000, so you can see what happens after the window comes up.
 }
 
@@ -210,6 +185,10 @@ function delayedOnLoadAddressBook()
 
 
   gDirTree.controllers.appendController(DirPaneController);
+  gAbResultsTree.controllers.appendController(abResultsController);
+  // Force command update for the benefit of DirPaneController and
+  // abResultsController
+  CommandUpdate_AddressBook();
 
   // initialize the customizeDone method on the customizeable toolbar
   var toolbox = document.getElementById("ab-toolbox");
@@ -293,6 +272,7 @@ function CommandUpdate_AddressBook()
   goUpdateCommand('cmd_delete');
   goUpdateCommand('button_delete');
   goUpdateCommand('cmd_newlist');
+  goUpdateCommand('cmd_chatWithCard');
 }
 
 function ResultsPaneSelectionChanged()
@@ -656,36 +636,83 @@ function LaunchUrl(url)
 
 function AbIMSelected()
 {
-  var cards = GetSelectedAbCards();
-  var count = cards.length;
+  let cards = GetSelectedAbCards();
 
-  var screennames;
-  var screennameCount = 0;
+  if (cards.length != 1) {
+    Components.utils.reportError("AbIMSelected should only be called when 1"
+                                 + " card is selected. There are " + cards.length
+                                 + " cards selected.");
+    return;
+  }
 
-  for (var i=0;i<count;i++) {
-    var screenname = cards[i].getProperty("_AimScreenName", "");
-    if (screenname) {
-      if (screennameCount == 0)
-        screennames = screenname;
-      else
-        screennames += "," + screenname;
+  let card = cards[0];
 
-      screennameCount++
+  // We want to open a conversation with the first online username that we can
+  // find. Failing that, we'll take the first offline (but still chat-able)
+  // username we can find.
+  //
+  // First, sort the IM usernames into two groups - online contacts go into
+  // the "online" group, and offline (but chat-able) contacts go into the
+  // "offline" group.
+
+  let online = [];
+  let offline = [];
+
+  for each (let [, chatProperty] in Iterator(kChatProperties)) {
+    let chatID = card.getProperty(chatProperty, "");
+
+    if (chatID && (chatID in chatHandler.allContacts)) {
+      let chatContact = chatHandler.allContacts[chatID];
+      if (chatContact.online)
+        online.push(chatContact);
+      else if (chatContact.canSendMessage)
+        offline.push(chatContact);
     }
   }
 
-  var url = "aim:";
+  let selectedContact;
 
-  if (screennameCount == 0)
-    url += "goim";
-  else if (screennameCount == 1)
-    url += "goim?screenname=" + screennames;
-  else {
-    url += "SendChatInvite?listofscreennames=" + screennames;
-    url += "&message=" + gAddressBookBundle.getString("joinMeInThisChat");
+  // If we have any contacts in the online group, we'll take the first one.
+  if (online.length)
+    selectedContact = online[0];
+  // If not, we'll take the first contact in the offline group.
+  else if (offline.length)
+    selectedContact = offline[0];
+
+  // If we found a contact we can chat with, open / focus the chat tab with
+  // a conversation opened with that contact.
+  if (selectedContact) {
+    let prplConv = selectedContact.createConversation();
+    let uiConv = Services.conversations.getUIConversation(prplConv);
+    let win = Services.wm.getMostRecentWindow("mail:3pane");
+
+    if (win) {
+      win.focus();
+      win.showChatTab();
+      win.chatHandler.focusConversation(uiConv);
+    }
+    else {
+      window.openDialog("chrome://messenger/content/", "_blank",
+                        "chrome,extrachrome,menubar,resizable,scrollbars,status,toolbar",
+                        null, {tabType: "chat",
+                               tabParams: {convType: "focus", conv: uiConv}});
+    }
+
+    return;
   }
 
-  LaunchUrl(url);
+  // Ok, if we get here, we're going the old route of trying to use AIM.
+  let AIM = card.getProperty("_AimScreenName", "");
+  if (AIM) {
+    LaunchUrl("aim:goim?screenname=" + AIM);
+    return;
+  }
+
+  // And if we got here, that means we couldn't find *any* usernames we could
+  // chat with. That really shouldn't be possible, since the isEnabled for
+  // cmd_chatWithCard makes checks for this sort of thing, but we'll throw
+  // an exception for good measure.
+  throw new Error("Couldn't find any usernames to chat with for this card.");
 }
 
 function getMailToolbox()
@@ -727,4 +754,59 @@ function AbShowHideOSXAddressBook()
       gAddressBookBundle.getString(kOSXPrefBase + ".description"),
       kOSXDirectoryURI, 3, kOSXPrefBase);
   }
+}
+
+let abResultsController = {
+  commands: {
+    cmd_chatWithCard: {
+      isEnabled: function() {
+        let selected = GetSelectedAbCards();
+
+        if (selected.length != 1)
+          return false;
+
+        let selectedCard = selected[0];
+
+        let isIMContact = kChatProperties.some(function(aProperty) {
+          let contactName = selectedCard.getProperty(aProperty, "");
+
+          if (!contactName)
+            return false;
+
+          return (contactName in chatHandler.allContacts
+                  && chatHandler.allContacts[contactName].canSendMessage);
+        });
+
+        let hasAIM = selectedCard.getProperty("_AimScreenName", "");
+
+        return isIMContact || hasAIM;
+      },
+
+      doCommand: function() {
+        AbIMSelected();
+      },
+    }
+  },
+
+  supportsCommand: function(aCommand) {
+    return (aCommand in this.commands);
+  },
+
+  isCommandEnabled: function(aCommand) {
+    if (!this.supportsCommand(aCommand))
+      return false;
+
+    return this.commands[aCommand].isEnabled();
+  },
+
+  doCommand: function(aCommand) {
+    if (!this.supportsCommand(aCommand))
+      return;
+    let cmd = this.commands[aCommand];
+    if (!cmd.isEnabled())
+      return;
+    cmd.doCommand();
+  },
+
+  onEvent: function(aEvent) {}
 }

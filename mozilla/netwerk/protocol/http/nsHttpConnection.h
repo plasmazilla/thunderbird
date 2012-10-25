@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications.
- * Portions created by the Initial Developer are Copyright (C) 2001
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Darin Fisher <darin@netscape.com> (original author)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef nsHttpConnection_h__
 #define nsHttpConnection_h__
@@ -46,7 +13,7 @@
 #include "nsCOMPtr.h"
 #include "nsAutoPtr.h"
 #include "prinrval.h"
-#include "SpdySession.h"
+#include "ASpdySession.h"
 #include "mozilla/TimeStamp.h"
 
 #include "nsIStreamListener.h"
@@ -107,7 +74,7 @@ public:
     // XXX document when these are ok to call
 
     bool     SupportsPipelining();
-    bool     IsKeepAlive() { return mUsingSpdy ||
+    bool     IsKeepAlive() { return mUsingSpdyVersion ||
                                     (mKeepAliveMask && mKeepAlive); }
     bool     CanReuse();   // can this connection be reused?
     bool     CanDirectlyActivate();
@@ -164,7 +131,8 @@ public:
     void BeginIdleMonitoring();
     void EndIdleMonitoring();
 
-    bool UsingSpdy() { return mUsingSpdy; }
+    bool UsingSpdy() { return !!mUsingSpdyVersion; }
+    bool EverUsedSpdy() { return mEverUsedSpdy; }
 
     // true when connection SSL NPN phase is complete and we know
     // authoritatively whether UsingSpdy() or not.
@@ -183,6 +151,8 @@ public:
     void  ReadTimeoutTick();
 
     PRInt64 BytesWritten() { return mTotalBytesWritten; }
+
+    void    PrintDiagnostics(nsCString &log);
 
 private:
     // called to cause the underlying socket to start speaking SSL
@@ -207,8 +177,8 @@ private:
     // redirections
     void     HandleAlternateProtocol(nsHttpResponseHead *);
 
-    // Start the Spdy transaction handler when NPN indicates spdy/2
-    void     StartSpdy();
+    // Start the Spdy transaction handler when NPN indicates spdy/*
+    void     StartSpdy(PRUint8 versionLevel);
 
     // Directly Add a transaction to an active connection for SPDY
     nsresult AddTransaction(nsAHttpTransaction *, PRInt32);
@@ -249,6 +219,7 @@ private:
 
     bool                            mKeepAlive;
     bool                            mKeepAliveMask;
+    bool                            mDontReuse;
     bool                            mSupportsPipelining;
     bool                            mIsReused;
     bool                            mCompletedProxyConnect;
@@ -270,12 +241,15 @@ private:
     // SPDY related
     bool                            mNPNComplete;
     bool                            mSetupNPNCalled;
-    bool                            mUsingSpdy;
-    nsRefPtr<mozilla::net::SpdySession> mSpdySession;
+
+    // version level in use, 0 if unused
+    PRUint8                         mUsingSpdyVersion;
+
+    nsRefPtr<mozilla::net::ASpdySession> mSpdySession;
     PRInt32                         mPriority;
     bool                            mReportedSpdy;
 
-    // mUsingSpdy is cleared when mSpdySession is freed, this is permanent
+    // mUsingSpdyVersion is cleared when mSpdySession is freed, this is permanent
     bool                            mEverUsedSpdy;
 };
 

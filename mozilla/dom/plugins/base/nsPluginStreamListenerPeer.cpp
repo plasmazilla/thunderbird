@@ -1,42 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Sean Echevarria <sean@beatnik.com>
- *   Håkan Waara <hwaara@chello.se>
- *   Josh Aas <josh@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsPluginStreamListenerPeer.h"
 #include "nsIStreamConverterService.h"
@@ -62,6 +27,7 @@
 #include "nsNetUtil.h"
 #include "nsPluginNativeWindow.h"
 #include "sampler.h"
+#include "nsObjectLoadingContent.h"
 
 #define MAGIC_REQUEST_CONTEXT 0x01020304
 
@@ -299,13 +265,11 @@ public:
 
 // nsPluginStreamListenerPeer
 
-NS_IMPL_ISUPPORTS8(nsPluginStreamListenerPeer,
+NS_IMPL_ISUPPORTS6(nsPluginStreamListenerPeer,
                    nsIStreamListener,
                    nsIRequestObserver,
                    nsIHttpHeaderVisitor,
                    nsISupportsWeakReference,
-                   nsIPluginStreamInfo,
-                   nsINPAPIPluginStreamInfo,
                    nsIInterfaceRequestor,
                    nsIChannelEventSink)
 
@@ -334,7 +298,7 @@ nsPluginStreamListenerPeer::~nsPluginStreamListenerPeer()
 #endif
 
   if (mPStreamListener) {
-    mPStreamListener->SetStreamListenerPeer(this);
+    mPStreamListener->SetStreamListenerPeer(nsnull);
   }
 
   // close FD of mFileCacheOutputStream if it's still open
@@ -351,7 +315,7 @@ nsPluginStreamListenerPeer::~nsPluginStreamListenerPeer()
 // Called as a result of GetURL and PostURL
 nsresult nsPluginStreamListenerPeer::Initialize(nsIURI *aURL,
                                                 nsNPAPIPluginInstance *aInstance,
-                                                nsIPluginStreamListener* aListener)
+                                                nsNPAPIPluginStreamListener* aListener)
 {
 #ifdef PLUGIN_LOGGING
   nsCAutoString urlSpec;
@@ -367,7 +331,7 @@ nsresult nsPluginStreamListenerPeer::Initialize(nsIURI *aURL,
   
   mPluginInstance = aInstance;
 
-  mPStreamListener = static_cast<nsNPAPIPluginStreamListener*>(aListener);
+  mPStreamListener = aListener;
   mPStreamListener->SetStreamListenerPeer(this);
 
   mPendingRequests = 1;
@@ -379,11 +343,6 @@ nsresult nsPluginStreamListenerPeer::Initialize(nsIURI *aURL,
   return NS_OK;
 }
 
-/* Called by NewEmbeddedPluginStream() - if this is called, we weren't
- * able to load the plugin, so we need to load it later once we figure
- * out the mimetype.  In order to load it later, we need the plugin
- * instance owner.
- */
 nsresult nsPluginStreamListenerPeer::InitializeEmbedded(nsIURI *aURL,
                                                         nsNPAPIPluginInstance* aInstance,
                                                         nsObjectLoadingContent *aContent)
@@ -397,7 +356,12 @@ nsresult nsPluginStreamListenerPeer::InitializeEmbedded(nsIURI *aURL,
   
   PR_LogFlush();
 #endif
-  
+
+  // We have to have one or the other.
+  if (!aInstance && !aContent) {
+    return NS_ERROR_FAILURE;
+  }
+
   mURL = aURL;
   
   if (aInstance) {
@@ -670,7 +634,7 @@ NS_IMETHODIMP nsPluginStreamListenerPeer::OnStatus(nsIRequest *request,
   return NS_OK;
 }
 
-NS_IMETHODIMP
+nsresult
 nsPluginStreamListenerPeer::GetContentType(char** result)
 {
   *result = const_cast<char*>(mContentType.get());
@@ -678,28 +642,28 @@ nsPluginStreamListenerPeer::GetContentType(char** result)
 }
 
 
-NS_IMETHODIMP
+nsresult
 nsPluginStreamListenerPeer::IsSeekable(bool* result)
 {
   *result = mSeekable;
   return NS_OK;
 }
 
-NS_IMETHODIMP
+nsresult
 nsPluginStreamListenerPeer::GetLength(PRUint32* result)
 {
   *result = mLength;
   return NS_OK;
 }
 
-NS_IMETHODIMP
+nsresult
 nsPluginStreamListenerPeer::GetLastModified(PRUint32* result)
 {
   *result = mModified;
   return NS_OK;
 }
 
-NS_IMETHODIMP
+nsresult
 nsPluginStreamListenerPeer::GetURL(const char** result)
 {
   *result = mURLSpec.get();
@@ -742,7 +706,7 @@ nsPluginStreamListenerPeer::MakeByteRangeString(NPByteRange* aRangeList, nsACStr
   return;
 }
 
-NS_IMETHODIMP
+nsresult
 nsPluginStreamListenerPeer::RequestRead(NPByteRange* rangeList)
 {
   nsCAutoString rangeString;
@@ -805,14 +769,14 @@ nsPluginStreamListenerPeer::RequestRead(NPByteRange* rangeList)
   return rv;
 }
 
-NS_IMETHODIMP
+nsresult
 nsPluginStreamListenerPeer::GetStreamOffset(PRInt32* result)
 {
   *result = mStreamOffset;
   return NS_OK;
 }
 
-NS_IMETHODIMP
+nsresult
 nsPluginStreamListenerPeer::SetStreamOffset(PRInt32 value)
 {
   mStreamOffset = value;
@@ -1125,7 +1089,7 @@ nsresult nsPluginStreamListenerPeer::SetUpStreamListener(nsIRequest *request,
       return NS_ERROR_FAILURE;
     }
 
-    nsCOMPtr<nsIPluginStreamListener> streamListener;
+    nsRefPtr<nsNPAPIPluginStreamListener> streamListener;
     rv = mPluginInstance->NewStreamListener(nsnull, nsnull,
                                             getter_AddRefs(streamListener));
     if (NS_FAILED(rv) || !streamListener) {
@@ -1175,7 +1139,7 @@ nsresult nsPluginStreamListenerPeer::SetUpStreamListener(nsIRequest *request,
       }
 
       // Assemble everything and pass to listener.
-      nsPrintfCString status(100, "HTTP%s %lu %s", ver.get(), statusNum,
+      nsPrintfCString status("HTTP%s %lu %s", ver.get(), statusNum,
                              statusText.get());
       static_cast<nsIHTTPHeaderListener*>(mPStreamListener)->StatusLine(status.get());
     }
@@ -1324,11 +1288,11 @@ nsPluginStreamListenerPeer::GetInterface(const nsIID& aIID, void** result)
 class ChannelRedirectProxyCallback : public nsIAsyncVerifyRedirectCallback
 {
 public:
-  ChannelRedirectProxyCallback(nsINPAPIPluginStreamInfo* listener,
+  ChannelRedirectProxyCallback(nsPluginStreamListenerPeer* listener,
                                nsIAsyncVerifyRedirectCallback* parent,
                                nsIChannel* oldChannel,
                                nsIChannel* newChannel)
-    : mWeakListener(do_GetWeakReference(listener))
+    : mWeakListener(do_GetWeakReference(static_cast<nsIStreamListener*>(listener)))
     , mParent(parent)
     , mOldChannel(oldChannel)
     , mNewChannel(newChannel)
@@ -1343,9 +1307,9 @@ public:
   NS_IMETHODIMP OnRedirectVerifyCallback(nsresult result)
   {
     if (NS_SUCCEEDED(result)) {
-      nsCOMPtr<nsINPAPIPluginStreamInfo> listener = do_QueryReferent(mWeakListener);
+      nsCOMPtr<nsIStreamListener> listener = do_QueryReferent(mWeakListener);
       if (listener)
-        listener->ReplaceRequest(mOldChannel, mNewChannel);
+        static_cast<nsPluginStreamListenerPeer*>(listener.get())->ReplaceRequest(mOldChannel, mNewChannel);
     }
     return mParent->OnRedirectVerifyCallback(result);
   }

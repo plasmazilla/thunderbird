@@ -1,40 +1,7 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is thebes gfx code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2008-2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   John Daggett <jdaggett@mozilla.com>
- *   Jonathan Kew <jfkthame@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef MOZ_LOGGING
 #define FORCE_PR_LOG /* Allow logging in the release build */
@@ -77,7 +44,8 @@ gfxProxyFontEntry::gfxProxyFontEntry(const nsTArray<gfxFontFaceSrc>& aFontFaceSr
              gfxSparseBitSet *aUnicodeRanges)
     : gfxFontEntry(NS_LITERAL_STRING("Proxy"), aFamily),
       mLoadingState(NOT_LOADING),
-      mUnsupportedFormat(false)
+      mUnsupportedFormat(false),
+      mLoader(nsnull)
 {
     mIsProxy = true;
     mSrcList = aFontFaceSrcList;
@@ -117,7 +85,7 @@ gfxUserFontSet::AddFontFace(const nsAString& aFamilyName,
                             PRUint32 aWeight,
                             PRUint32 aStretch,
                             PRUint32 aItalicStyle,
-                            const nsString& aFeatureSettings,
+                            const nsTArray<gfxFontFeature>& aFeatureSettings,
                             const nsString& aLanguageOverride,
                             gfxSparseBitSet *aUnicodeRanges)
 {
@@ -140,15 +108,12 @@ gfxUserFontSet::AddFontFace(const nsAString& aFamilyName,
     }
 
     // construct a new face and add it into the family
-    nsTArray<gfxFontFeature> featureSettings;
-    gfxFontStyle::ParseFontFeatureSettings(aFeatureSettings,
-                                           featureSettings);
     PRUint32 languageOverride =
         gfxFontStyle::ParseFontLanguageOverride(aLanguageOverride);
     proxyEntry =
         new gfxProxyFontEntry(aFontFaceSrcList, family, aWeight, aStretch,
                               aItalicStyle,
-                              featureSettings,
+                              aFeatureSettings,
                               languageOverride,
                               aUnicodeRanges);
     family->AddFontEntry(proxyEntry);
@@ -357,11 +322,38 @@ private:
     off_t        mOff;
 };
 
+#ifdef MOZ_OTS_REPORT_ERRORS
+struct OTSCallbackUserData {
+    gfxUserFontSet    *mFontSet;
+    gfxProxyFontEntry *mProxy;
+};
+
+/* static */ bool
+gfxUserFontSet::OTSMessage(void *aUserData, const char *format, ...)
+{
+    va_list va;
+    va_start(va, format);
+
+    // buf should be more than adequate for any message OTS generates,
+    // so we don't worry about checking the result of vsnprintf()
+    char buf[512];
+    (void)vsnprintf(buf, sizeof(buf), format, va);
+
+    va_end(va);
+
+    OTSCallbackUserData *d = static_cast<OTSCallbackUserData*>(aUserData);
+    d->mFontSet->LogMessage(d->mProxy, buf);
+
+    return false;
+}
+#endif
+
 // Call the OTS library to sanitize an sfnt before attempting to use it.
 // Returns a newly-allocated block, or NULL in case of fatal errors.
-static const PRUint8*
-SanitizeOpenTypeData(const PRUint8* aData, PRUint32 aLength,
-                     PRUint32& aSaneLength, bool aIsCompressed)
+const PRUint8*
+gfxUserFontSet::SanitizeOpenTypeData(gfxProxyFontEntry *aProxy,
+                                     const PRUint8* aData, PRUint32 aLength,
+                                     PRUint32& aSaneLength, bool aIsCompressed)
 {
     // limit output/expansion to 256MB
     ExpandingMemoryStream output(aIsCompressed ? aLength * 2 : aLength,
@@ -371,7 +363,19 @@ SanitizeOpenTypeData(const PRUint8* aData, PRUint32 aLength,
 #else
 #define PRESERVE_GRAPHITE false
 #endif
-    if (ots::Process(&output, aData, aLength, PRESERVE_GRAPHITE)) {
+
+#ifdef MOZ_OTS_REPORT_ERRORS
+    OTSCallbackUserData userData;
+    userData.mFontSet = this;
+    userData.mProxy = aProxy;
+#define ERROR_REPORTING_ARGS &gfxUserFontSet::OTSMessage, &userData,
+#else
+#define ERROR_REPORTING_ARGS
+#endif
+
+    if (ots::Process(&output, aData, aLength,
+                     ERROR_REPORTING_ARGS
+                     PRESERVE_GRAPHITE)) {
         aSaneLength = output.Tell();
         return static_cast<PRUint8*>(output.forget());
     } else {
@@ -459,6 +463,10 @@ gfxUserFontSet::OnLoadComplete(gfxProxyFontEntry *aProxy,
                                const PRUint8 *aFontData, PRUint32 aLength,
                                nsresult aDownloadStatus)
 {
+    // forget about the loader, as we no longer potentially need to cancel it
+    // if the entry is obsoleted
+    aProxy->mLoader = nsnull;
+
     // download successful, make platform font using font data
     if (NS_SUCCEEDED(aDownloadStatus)) {
         gfxFontEntry *fe = LoadFont(aProxy, aFontData, aLength);
@@ -663,7 +671,7 @@ gfxUserFontSet::LoadFont(gfxProxyFontEntry *aProxy,
         // if necessary. The original data in aFontData is left unchanged.
         PRUint32 saneLen;
         const PRUint8* saneData =
-            SanitizeOpenTypeData(aFontData, aLength, saneLen,
+            SanitizeOpenTypeData(aProxy, aFontData, aLength, saneLen,
                                  fontType == GFX_USERFONT_WOFF);
         if (!saneData) {
             LogMessage(aProxy, "rejected by sanitizer");

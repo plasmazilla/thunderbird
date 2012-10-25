@@ -1,42 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   IBM Corp.
- *   Henry Sobotka
- *   Benjamin Smedberg <benjamin@smedbergs.us>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 // Chromium headers must come before Mozilla headers.
 #include "base/process_util.h"
@@ -76,6 +41,13 @@
 #if defined(XP_WIN)
 #include <tchar.h>
 #include "nsString.h"
+#endif
+
+#if defined(XP_MACOSX)
+#include <stdbool.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/sysctl.h>
 #endif
 
 #include "mozilla/mozalloc_abort.h"
@@ -168,6 +140,40 @@ NS_IMETHODIMP
 nsDebugImpl::GetAssertionCount(PRInt32* aResult)
 {
   *aResult = gAssertionCount;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDebugImpl::GetIsDebuggerAttached(bool* aResult)
+{
+  *aResult = false;
+
+#if defined(XP_WIN)
+  *aResult = ::IsDebuggerPresent();
+#elif defined(XP_MACOSX)
+  // Specify the info we're looking for
+  int mib[4];
+  mib[0] = CTL_KERN;
+  mib[1] = KERN_PROC;
+  mib[2] = KERN_PROC_PID;
+  mib[3] = getpid();
+  size_t mibSize = sizeof(mib) / sizeof(int);
+
+  struct kinfo_proc info;
+  size_t infoSize = sizeof(info);
+  memset(&info, 0, infoSize);
+
+  if (sysctl(mib, mibSize, &info, &infoSize, NULL, 0)) {
+    // if the call fails, default to false
+    *aResult = false;
+    return NS_OK;
+  }
+
+  if (info.kp_proc.p_flag & P_TRACED) {
+    *aResult = true;
+  }
+#endif
+
   return NS_OK;
 }
 

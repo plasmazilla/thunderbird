@@ -1,65 +1,35 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Ryan Cassin <rcassin@supernova.org>
- *   Daniel Glazman <glazman@netscape.com>
- *   Charles Manske <cmanske@netscape.com>
- *   Kathleen Brade <brade@netscape.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
-#include "nsIEditor.h"
-#include "nsIEditingSession.h"
-#include "nsIPlaintextEditor.h"
-#include "nsIHTMLEditor.h"
-#include "nsIHTMLObjectResizer.h"
-#include "nsIHTMLInlineTableEditor.h"
+#include "nsAutoPtr.h"                  // for nsRefPtr, getter_AddRefs, etc
+#include "nsCOMPtr.h"                   // for nsCOMPtr, do_QueryInterface, etc
+#include "nsCRT.h"                      // for nsCRT
+#include "nsComposerCommands.h"         // for nsSetDocumentOptionsCommand, etc
+#include "nsDebug.h"                    // for NS_ENSURE_ARG_POINTER, etc
+#include "nsError.h"                    // for NS_ERROR_INVALID_ARG, etc
+#include "nsICommandParams.h"           // for nsICommandParams
+#include "nsIDOMDocument.h"             // for nsIDOMDocument
+#include "nsIDocShell.h"                // for nsIDocShell
+#include "nsIDocument.h"                // for nsIDocument
+#include "nsIEditingSession.h"          // for nsIEditingSession, etc
+#include "nsIEditor.h"                  // for nsIEditor
+#include "nsIHTMLEditor.h"              // for nsIHTMLEditor
+#include "nsIHTMLInlineTableEditor.h"   // for nsIHTMLInlineTableEditor
+#include "nsIHTMLObjectResizer.h"       // for nsIHTMLObjectResizer
+#include "nsIPlaintextEditor.h"         // for nsIPlaintextEditor, etc
+#include "nsIPresShell.h"               // for nsIPresShell
+#include "nsISelectionController.h"     // for nsISelectionController
+#include "nsISupportsImpl.h"            // for nsPresContext::Release
+#include "nsISupportsUtils.h"           // for NS_IF_ADDREF
+#include "nsIURI.h"                     // for nsIURI
+#include "nsPresContext.h"              // for nsPresContext
+#include "nscore.h"                     // for NS_IMETHODIMP, nsresult, etc
+#include "prtypes.h"                    // for PRUint32, PRInt32
 
-#include "nsIDOMDocument.h"
-#include "nsIDocument.h"
-#include "nsISelectionController.h"
-#include "nsIPresShell.h"
-#include "nsPresContext.h"
-#include "nsIDocShell.h"
-#include "nsIURI.h"
-
-#include "nsCOMPtr.h"
-
-#include "nsComposerCommands.h"
-#include "nsICommandParams.h"
-#include "nsCRT.h"
+class nsISupports;
 
 //defines
 #define STATE_ENABLED  "state_enabled"
@@ -220,12 +190,9 @@ nsSetDocumentStateCommand::IsCommandEnabled(const char * aCommandName,
                                             nsISupports *refCon,
                                             bool *outCmdEnabled)
 {
+  // These commands are always enabled
   NS_ENSURE_ARG_POINTER(outCmdEnabled);
-  nsCOMPtr<nsIEditor> editor = do_QueryInterface(refCon);
-  if (editor)
-    return editor->GetIsSelectionEditable(outCmdEnabled);
-
-  *outCmdEnabled = false;
+  *outCmdEnabled = true;
   return NS_OK;
 }
 

@@ -1,45 +1,7 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Chris Waterson <waterson@netscape.com>
- *   Pierre Phaneuf <pp@ludusdesign.com>
- *   Peter Annema <disttsc@bart.nl>
- *   Brendan Eich <brendan@mozilla.org>
- *   Mike Shaver <shaver@mozilla.org>
- *   Mark Hammond <mhammond@skippinet.com.au>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK *****
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  *
  * This Original Code has been modified by IBM Corporation.
  * Modifications made by IBM described herein are
@@ -59,7 +21,6 @@
 #include "nsDOMError.h"
 #include "nsDOMString.h"
 #include "nsIDOMEvent.h"
-#include "nsIPrivateDOMEvent.h"
 #include "nsHashtable.h"
 #include "nsIAtom.h"
 #include "nsIBaseWindow.h"
@@ -97,7 +58,6 @@
 #include "nsIWidget.h"
 #include "nsIXULDocument.h"
 #include "nsIXULTemplateBuilder.h"
-#include "nsIXBLService.h"
 #include "nsLayoutCID.h"
 #include "nsContentCID.h"
 #include "nsRDFCID.h"
@@ -127,6 +87,7 @@
 #include "rdf.h"
 #include "nsIControllers.h"
 #include "nsAttrValueOrString.h"
+#include "mozilla/Attributes.h"
 
 // The XUL doc interface
 #include "nsIDOMXULDocument.h"
@@ -143,13 +104,10 @@
 
 namespace css = mozilla::css;
 
-// Global object maintenance
-nsIXBLService * nsXULElement::gXBLService = nsnull;
-
 /**
  * A tearoff class for nsXULElement to implement nsIScriptEventHandlerOwner.
  */
-class nsScriptEventHandlerOwnerTearoff : public nsIScriptEventHandlerOwner
+class nsScriptEventHandlerOwnerTearoff MOZ_FINAL : public nsIScriptEventHandlerOwner
 {
 public:
     nsScriptEventHandlerOwnerTearoff(nsXULElement* aElement)
@@ -188,8 +146,8 @@ PRUint32             nsXULPrototypeAttribute::gNumCacheSets;
 PRUint32             nsXULPrototypeAttribute::gNumCacheFills;
 #endif
 
-class nsXULElementTearoff : public nsIDOMElementCSSInlineStyle,
-                            public nsIFrameLoaderOwner
+class nsXULElementTearoff MOZ_FINAL : public nsIDOMElementCSSInlineStyle,
+                                      public nsIFrameLoaderOwner
 {
 public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
@@ -430,7 +388,7 @@ nsXULElement::Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const
 
     // Note that we're _not_ copying mControllers.
 
-    nsresult rv = CopyInnerTo(element);
+    nsresult rv = const_cast<nsXULElement*>(this)->CopyInnerTo(element);
     if (NS_SUCCEEDED(rv)) {
         NS_ADDREF(*aResult = element);
     }
@@ -798,7 +756,7 @@ nsScriptEventHandlerOwnerTearoff::CompileEventHandler(
 
             if (!elem->mHoldsScriptObject) {
                 rv = nsContentUtils::HoldJSObjects(
-                    elem, &NS_CYCLE_COLLECTION_NAME(nsXULPrototypeNode));
+                    elem, NS_CYCLE_COLLECTION_PARTICIPANT(nsXULPrototypeNode));
                 NS_ENSURE_SUCCESS(rv, rv);
             }
 
@@ -1200,6 +1158,28 @@ nsXULElement::InternalGetExistingAttrNameFromQName(const nsAString& aStr) const
     }
 
     return nsnull;
+}
+
+const nsAttrValue*
+nsXULElement::GetAttrValue(const nsAString& aName)
+{
+  const nsAttrValue* val =
+      mAttrsAndChildren.GetAttr(aName, eCaseMatters);
+  if (val) {
+      return val;
+  }
+
+  if (mPrototype) {
+      PRUint32 i, count = mPrototype->mNumAttributes;
+      for (i = 0; i < count; ++i) {
+          nsXULPrototypeAttribute *protoAttr = &mPrototype->mAttributes[i];
+          if (protoAttr->mName.QualifiedNameEquals(aName)) {
+              return &protoAttr->mValue;
+          }
+      }
+  }
+
+  return nsnull;
 }
 
 bool
@@ -1665,10 +1645,10 @@ nsXULElement::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
                   NS_IS_TRUSTED_EVENT(aVisitor.mEvent),
                   aVisitor.mDOMEvent,
                   nsnull,
-                  orig->isControl,
-                  orig->isAlt,
-                  orig->isShift,
-                  orig->isMeta);
+                  orig->IsControl(),
+                  orig->IsAlt(),
+                  orig->IsShift(),
+                  orig->IsMeta());
             } else {
                 NS_WARNING("A XUL element is attached to a command that doesn't exist!\n");
             }
@@ -2563,18 +2543,16 @@ NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN(nsXULPrototypeNode)
             PRUint32 i;
             for (i = 0; i < elem->mNumAttributes; ++i) {
                 JSObject* handler = elem->mAttributes[i].mEventHandler;
-                NS_IMPL_CYCLE_COLLECTION_TRACE_CALLBACK(nsIProgrammingLanguage::JAVASCRIPT,
-                                                        handler,
-                                                        "mAttributes[i].mEventHandler")
+                NS_IMPL_CYCLE_COLLECTION_TRACE_JS_CALLBACK(handler,
+                                                           "mAttributes[i].mEventHandler")
             }
         }
     }
     else if (tmp->mType == nsXULPrototypeNode::eType_Script) {
         nsXULPrototypeScript *script =
             static_cast<nsXULPrototypeScript*>(tmp);
-        NS_IMPL_CYCLE_COLLECTION_TRACE_CALLBACK(script->mScriptObject.mLangID,
-                                                script->mScriptObject.mObject,
-                                                "mScriptObject.mObject")
+        NS_IMPL_CYCLE_COLLECTION_TRACE_JS_CALLBACK(script->mScriptObject.mObject,
+                                                   "mScriptObject.mObject")
     }
 NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
@@ -2655,8 +2633,6 @@ nsXULPrototypeElement::Serialize(nsIObjectOutputStream* aStream,
         case eType_Script:
             rv |= aStream->Write32(child->mType);
             nsXULPrototypeScript* script = static_cast<nsXULPrototypeScript*>(child);
-
-            rv |= aStream->Write32(script->mScriptObject.mLangID);
 
             rv |= aStream->Write8(script->mOutOfLine);
             if (! script->mOutOfLine) {
@@ -2763,11 +2739,8 @@ nsXULPrototypeElement::Deserialize(nsIObjectInputStream* aStream,
                                          aNodeInfos);
                 break;
             case eType_Script: {
-                PRUint32 langID = nsIProgrammingLanguage::UNKNOWN;
-                rv |= aStream->Read32(&langID);
-
                 // language version/options obtained during deserialization.
-                nsXULPrototypeScript* script = new nsXULPrototypeScript(langID, 0, 0);
+                nsXULPrototypeScript* script = new nsXULPrototypeScript(0, 0);
                 if (! script)
                     return NS_ERROR_OUT_OF_MEMORY;
                 child = script;
@@ -2885,17 +2858,15 @@ nsXULPrototypeElement::Unlink()
 // nsXULPrototypeScript
 //
 
-nsXULPrototypeScript::nsXULPrototypeScript(PRUint32 aLangID, PRUint32 aLineNo, PRUint32 aVersion)
+nsXULPrototypeScript::nsXULPrototypeScript(PRUint32 aLineNo, PRUint32 aVersion)
     : nsXULPrototypeNode(eType_Script),
       mLineNo(aLineNo),
       mSrcLoading(false),
       mOutOfLine(true),
       mSrcLoadWaiters(nsnull),
       mLangVersion(aVersion),
-      mScriptObject(aLangID)
+      mScriptObject()
 {
-    NS_ASSERTION(aLangID != nsIProgrammingLanguage::UNKNOWN,
-                 "The language ID must be known and constant");
 }
 
 
@@ -3026,23 +2997,10 @@ nsXULPrototypeScript::DeserializeOutOfLine(nsIObjectInputStream* aInput,
             useXULCache = cache->IsEnabled();
 
             if (useXULCache) {
-                PRUint32 newLangID = nsIProgrammingLanguage::UNKNOWN;
                 JSScript* newScriptObject =
-                    cache->GetScript(mSrcURI, &newLangID);
-                if (newScriptObject) {
-                    // Things may blow here if we simply change the script
-                    // language - other code may already have pre-fetched the
-                    // global for the language. (You can see this code by
-                    // setting langID to UNKNOWN in the nsXULPrototypeScript
-                    // ctor and not setting it until the scriptObject is set -
-                    // code that pre-fetches these globals will then start
-                    // asserting.)
-                    if (mScriptObject.mLangID != newLangID) {
-                        NS_ERROR("XUL cache gave different language?");
-                        return NS_ERROR_UNEXPECTED;
-                    }
+                    cache->GetScript(mSrcURI);
+                if (newScriptObject)
                     Set(newScriptObject);
-                }
             }
         }
 
@@ -3066,11 +3024,8 @@ nsXULPrototypeScript::DeserializeOutOfLine(nsIObjectInputStream* aInput,
                 if (useXULCache && mSrcURI) {
                     bool isChrome = false;
                     mSrcURI->SchemeIs("chrome", &isChrome);
-                    if (isChrome) {
-                        cache->PutScript(mSrcURI,
-                                         mScriptObject.mLangID,
-                                         mScriptObject.mObject);
-                    }
+                    if (isChrome)
+                        cache->PutScript(mSrcURI, mScriptObject.mObject);
                 }
                 cache->FinishInputStream(mSrcURI);
             } else {
@@ -3166,7 +3121,7 @@ nsXULPrototypeScript::Set(JSScript* aObject)
     }
 
     nsresult rv = nsContentUtils::HoldJSObjects(
-        this, &NS_CYCLE_COLLECTION_NAME(nsXULPrototypeNode));
+        this, NS_CYCLE_COLLECTION_PARTICIPANT(nsXULPrototypeNode));
     if (NS_SUCCEEDED(rv)) {
         mScriptObject.mObject = aObject;
     }

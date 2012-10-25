@@ -3,14 +3,18 @@
  *
  * Tests JS_TransplantObject
  */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 
 #include "tests.h"
 #include "jsobj.h"
 #include "jswrapper.h"
 
-struct OuterWrapper : js::Wrapper
+struct OuterWrapper : js::DirectWrapper
 {
-    OuterWrapper() : Wrapper(0) {}
+    OuterWrapper() : DirectWrapper(0) {}
 
     virtual bool isOuterWindow() {
         return true;
@@ -59,9 +63,9 @@ BEGIN_TEST(testBug604087)
 {
     JSObject *outerObj = js::Wrapper::New(cx, global, global->getProto(), global,
                                           &OuterWrapper::singleton);
-    JSObject *compartment2 = JS_NewCompartmentAndGlobalObject(cx, getGlobalClass(), NULL);
-    JSObject *compartment3 = JS_NewCompartmentAndGlobalObject(cx, getGlobalClass(), NULL);
-    JSObject *compartment4 = JS_NewCompartmentAndGlobalObject(cx, getGlobalClass(), NULL);
+    JSObject *compartment2 = JS_NewGlobalObject(cx, getGlobalClass(), NULL);
+    JSObject *compartment3 = JS_NewGlobalObject(cx, getGlobalClass(), NULL);
+    JSObject *compartment4 = JS_NewGlobalObject(cx, getGlobalClass(), NULL);
 
     JSObject *c2wrapper = wrap(cx, outerObj, compartment2);
     CHECK(c2wrapper);

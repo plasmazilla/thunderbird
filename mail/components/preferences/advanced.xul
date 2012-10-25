@@ -1,41 +1,8 @@
 <?xml version="1.0"?>
 # -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 4 -*-
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is the Thunderbird Preferences System.
-#
-# The Initial Developer of the Original Code is
-# Scott MacGregor.
-# Portions created by the Initial Developer are Copyright (C) 2005
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Scott MacGregor <mscott@mozilla.org>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 <!DOCTYPE overlay [
 <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd">
@@ -67,6 +34,14 @@
       <preference id="mail.preferences.advanced.selectedTabIndex"
                   name="mail.preferences.advanced.selectedTabIndex" type="int"/>
       <!-- General tab -->
+
+      <preference id="general.autoScroll"
+                  name="general.autoScroll"
+                  type="bool"/>
+      <preference id="general.smoothScroll"
+                  name="general.smoothScroll"
+                  type="bool"/>
+
       <preference id="mailnews.database.global.indexer.enabled" 
                   name="mailnews.database.global.indexer.enabled" 
                   type="bool"/>
@@ -112,8 +87,10 @@
       <preference id="mail.close_message_window.on_delete" 
                   name="mail.close_message_window.on_delete" type="bool"/>
       <!-- Network tab -->
-      <preference id="mail.prompt_purge_threshhold"          name="mail.prompt_purge_threshhold"    type="bool"/>
-      <preference id="mail.purge_threshhold_mb"              name="mail.purge_threshhold_mb"  type="int"/>
+      <preference id="mail.prompt_purge_threshhold"
+                  name="mail.prompt_purge_threshhold" type="bool"/>
+      <preference id="mail.purge_threshhold_mb"
+                  name="mail.purge_threshhold_mb" type="int"/>
       <preference id="browser.cache.disk.capacity"
                   name="browser.cache.disk.capacity" type="int"/>
       <!-- Update tab -->
@@ -129,6 +106,12 @@
       <preference id="app.update.disable_button.showUpdateHistory"
                   name="app.update.disable_button.showUpdateHistory"
                   type="bool"/>
+
+#ifdef MOZ_MAINTENANCE_SERVICE
+      <preference id="app.update.service.enabled"
+                  name="app.update.service.enabled"
+                  type="bool"/>
+#endif
 #endif
       <preference id="extensions.update.enabled" name="extensions.update.enabled" type="bool"
                   onchange="gAdvancedPane.updateAddonUpdateUI();"/>
@@ -152,6 +135,11 @@
     <stringbundle id="bundleBrand" src="chrome://branding/locale/brand.properties"/>
 #endif
 
+    <commandset id="networkTabCommandSet">
+      <command id="cmd_toggleCompact"
+               oncommand="gAdvancedPane.updateCompactOptions();"/>
+    </commandset>
+
     <tabbox id="advancedPrefs" flex="1" onselect="gAdvancedPane.tabSelectionChanged();">
       <tabs>
         <tab label="&itemGeneral.label;"/>
@@ -170,6 +158,20 @@
                     accesskey="&showReturnReceipts.accesskey;"
                     oncommand="gAdvancedPane.showReturnReceipts();"/>
           </hbox>
+
+          <!-- Scrolling -->
+          <groupbox id="scrollingGroup">
+            <caption label="&scrolling.label;"/>
+
+            <checkbox id="useAutoScroll"
+                      label="&useAutoScroll.label;"
+                      accesskey="&useAutoScroll.accesskey;"
+                      preference="general.autoScroll"/>
+            <checkbox id="useSmoothScrolling"
+                      label="&useSmoothScrolling.label;"
+                      accesskey="&useSmoothScrolling.accesskey;"
+                      preference="general.smoothScroll"/>
+          </groupbox>
 
 #ifdef HAVE_SHELL_SERVICE
           <groupbox id="systemDefaultsGroup" orient="vertical">
@@ -207,7 +209,7 @@
                           label="&submitTelemetry.label;"
                           accesskey="&submitTelemetry.accesskey;"/>
               </hbox>
-              <hbox>
+              <hbox class="indent">
                 <label id="telemetryInfoLink"
                        class="text-link"
                        onclick="if (event.button == 0) openPrivacyPolicy('tab');"
@@ -338,13 +340,17 @@
                       oncommand="gAdvancedPane.clearCache();"/>
             </hbox>
             <hbox align="center">
-                <checkbox id="offlineCompactFolder" label="&offlineCompact.label;" accesskey="&offlineCompact.accesskey;"
+                <checkbox id="offlineCompactFolder"
+                          label="&offlineCompactFolders.label;"
+                          accesskey="&offlineCompactFolders.accesskey;"
+                          command="cmd_toggleCompact"
+                          aria-labelledby="offlineCompactFolder offlineCompactFolderMin compactFolderMB"
                           preference="mail.prompt_purge_threshhold"/>
-                <textbox id="offlineCompactFolderMin" size="5" value="20"
+                <textbox id="offlineCompactFolderMin" size="4" value="20"
                          type="number" min="1" max="2048" increment="10"
                          preference="mail.purge_threshhold_mb"
                          aria-labelledby="offlineCompactFolder offlineCompactFolderMin compactFolderMB"/>
-                <label id="compactFolderMB" value="&mb.label;"/>
+                <label id="compactFolderMB" value="&offlineCompactFoldersMB.label;"/>
             </hbox>
           </groupbox>
         </tabpanel>
@@ -391,6 +397,13 @@
                     preference="app.update.disable_button.showUpdateHistory"
                     oncommand="gAdvancedPane.showUpdates();"/>
           </hbox>
+
+#ifdef MOZ_MAINTENANCE_SERVICE
+            <checkbox id="useService"
+                      label="&useService.label;"
+                      accesskey="&useService.accesskey;"
+                      preference="app.update.service.enabled"/>
+#endif
 #endif
         </tabpanel>
 

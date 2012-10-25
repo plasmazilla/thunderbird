@@ -1,41 +1,6 @@
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.   
-#
-# The Original Code is Test Automation Framework.
-#
-# The Initial Developer of the Original Code is Joel Maher.
-#
-# Portions created by the Initial Developer are Copyright (C) 2009
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Joel Maher <joel.maher@gmail.com> (Original Developer)
-#   Clint Talbert <cmtalbert@gmail.com>
-#   Mark Cote <mcote@mozilla.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this file,
+# You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import socket
 import SocketServer
@@ -70,7 +35,7 @@ class DeviceManagerSUT(DeviceManager):
   base_prompt_re = '\$\>'
   prompt_sep = '\x00'
   prompt_regex = '.*(' + base_prompt_re + prompt_sep + ')'
-  agentErrorRE = re.compile('^##AGENT-WARNING##.*')
+  agentErrorRE = re.compile('^##AGENT-WARNING##\ ?(.*)')
 
   # TODO: member variable to indicate error conditions.
   # This should be set to a standard error from the errno module.
@@ -79,26 +44,23 @@ class DeviceManagerSUT(DeviceManager):
   # The error would be set where appropriate--so sendCMD() could set socket errors,
   # pushFile() and other file-related commands could set filesystem errors, etc.
 
-  def __init__(self, host, port = 20701, retrylimit = 5):
+  def __init__(self, host, port = 20701, retrylimit = 5, deviceRoot = None):
     self.host = host
     self.port = port
     self.retrylimit = retrylimit
     self.retries = 0
     self._sock = None
+    self.deviceRoot = deviceRoot
     if self.getDeviceRoot() == None:
         raise BaseException("Failed to connect to SUT Agent and retrieve the device root.")
 
   def _cmdNeedsResponse(self, cmd):
     """ Not all commands need a response from the agent:
-        * if the cmd matches the pushRE then it is the first half of push
-          and therefore we want to wait until the second half before looking
-          for a response
         * rebt obviously doesn't get a response
         * uninstall performs a reboot to ensure starting in a clean state and
           so also doesn't look for a response
     """
-    noResponseCmds = [re.compile('^push .*$'),
-                      re.compile('^rebt'),
+    noResponseCmds = [re.compile('^rebt'),
                       re.compile('^uninst .*$'),
                       re.compile('^pull .*$')]
 
@@ -154,7 +116,7 @@ class DeviceManagerSUT(DeviceManager):
 
     return False
 
-  def sendCmds(self, cmdlist, outputfile, timeout = None, newline = True):
+  def sendCmds(self, cmdlist, outputfile, timeout = None):
     '''
     a wrapper for _doCmds that loops up to self.retrylimit iterations.
     this allows us to move the retry logic outside of the _doCmds() to make it
@@ -166,7 +128,7 @@ class DeviceManagerSUT(DeviceManager):
     done = False
     while self.retries < self.retrylimit:
       try:
-        self._doCmds(cmdlist, outputfile, timeout, newline)
+        self._doCmds(cmdlist, outputfile, timeout)
         return
       except AgentError, err:
         # re-raise error if it's fatal (i.e. the device got the command but
@@ -179,18 +141,18 @@ class DeviceManagerSUT(DeviceManager):
 
     raise AgentError("unable to connect to %s after %s attempts" % (self.host, self.retrylimit))
 
-  def runCmds(self, cmdlist, timeout = None, newline = True):
+  def runCmds(self, cmdlist, timeout = None):
     '''
     similar to sendCmds, but just returns any output as a string instead of
     writing to a file. this is normally what you want to call to send a set
     of commands to the agent
     '''
     outputfile = StringIO.StringIO()
-    self.sendCmds(cmdlist, outputfile, timeout, newline)
+    self.sendCmds(cmdlist, outputfile, timeout)
     outputfile.seek(0)
     return outputfile.read()
 
-  def _doCmds(self, cmdlist, outputfile, timeout, newline):
+  def _doCmds(self, cmdlist, outputfile, timeout):
     promptre = re.compile(self.prompt_regex + '$')
     shouldCloseSocket = False
     recvGuard = 1000
@@ -213,26 +175,32 @@ class DeviceManagerSUT(DeviceManager):
         raise AgentError("unable to connect socket: "+str(msg))
 
     for cmd in cmdlist:
-      if newline: cmd += '\r\n'
+      cmdline = '%s\r\n' % cmd['cmd']
 
       try:
-        numbytes = self._sock.send(cmd)
-        if (numbytes != len(cmd)):
-          raise AgentError("ERROR: our cmd was %s bytes and we only sent %s" % (len(cmd),
-                                                                                numbytes))
-        if (self.debug >= 4): print "send cmd: " + str(cmd)
+        sent = self._sock.send(cmdline)
+        if sent != len(cmdline):
+          raise AgentError("ERROR: our cmd was %s bytes and we "
+                           "only sent %s" % (len(cmdline), sent))
+        if cmd.get('data'):
+          sent = self._sock.send(cmd['data'])
+          if sent != len(cmd['data']):
+              raise AgentError("ERROR: we had %s bytes of data to send, but "
+                               "only sent %s" % (len(cmd['data'], sent)))
+
+        if (self.debug >= 4): print "sent cmd: " + str(cmd['cmd'])
       except socket.error, msg:
         self._sock.close()
         self._sock = None
         if self.debug >= 1:
-          print "Error sending data to socket. cmd="+str(cmd)+"; err="+str(msg)
+          print "Error sending data to socket. cmd="+str(cmd['cmd'])+"; err="+str(msg)
         return False
 
       # Check if the command should close the socket
-      shouldCloseSocket = self._shouldCmdCloseSocket(cmd)
+      shouldCloseSocket = self._shouldCmdCloseSocket(cmd['cmd'])
 
       # Handle responses from commands
-      if (self._cmdNeedsResponse(cmd)):
+      if (self._cmdNeedsResponse(cmd['cmd'])):
         found = False
         loopguard = 0
         data = ""
@@ -248,14 +216,16 @@ class DeviceManagerSUT(DeviceManager):
           except socket.error, msg:
             self._sock.close()
             self._sock = None
-            raise AgentError("Error receiving data from socket. cmd="+str(cmd)+"; err="+str(msg))
+            raise AgentError("Error receiving data from socket. cmd="+str(cmd['cmd'])+"; err="+str(msg))
 
           data += temp
 
           # If something goes wrong in the agent it will send back a string that
-          # starts with '##AGENT-ERROR##'
-          if self.agentErrorRE.match(data):
-            raise AgentError("Agent Error processing command: %s" % cmd, fatal=True)
+          # starts with '##AGENT-WARNING##'
+          errorMatch = self.agentErrorRE.match(data)
+          if errorMatch:
+            raise AgentError("Agent Error processing command '%s'; err='%s'" %
+                             (cmd['cmd'], errorMatch.group(1)), fatal=True)
 
           for line in data.splitlines():
             if promptre.match(line):
@@ -290,15 +260,15 @@ class DeviceManagerSUT(DeviceManager):
   # success: <return code>
   # failure: None
   def shell(self, cmd, outputfile, env=None, cwd=None):
-    cmdline = subprocess.list2cmdline(cmd)
+    cmdline = self._escapedCommandLine(cmd)
     if env:
       cmdline = '%s %s' % (self.formatEnvString(env), cmdline)
 
     try:
       if cwd:
-        self.sendCmds(['execcwd %s %s' % (cwd, cmdline)], outputfile)
+        self.sendCmds([{ 'cmd': 'execcwd %s %s' % (cwd, cmdline) }], outputfile)
       else:
-        self.sendCmds(['exec %s' % cmdline], outputfile)
+        self.sendCmds([{ 'cmd': 'exec su -c "%s"' % cmdline }], outputfile)
     except AgentError:
       return None
 
@@ -307,7 +277,7 @@ class DeviceManagerSUT(DeviceManager):
     if lastline:
       m = re.search('return code \[([0-9]+)\]', lastline)
       if m:
-        return m.group(1)
+        return int(m.group(1))
 
     # woops, we couldn't find an end of line/return value
     return None
@@ -341,9 +311,11 @@ class DeviceManagerSUT(DeviceManager):
     f.close()
 
     try:
-      retVal = self.runCmds(['push ' + destname + ' ' + str(filesize) + '\r\n', data], newline = False)
-    except AgentError:
-      retVal = False
+      retVal = self.runCmds([{ 'cmd': 'push ' + destname + ' ' + str(filesize),
+                               'data': data }])
+    except AgentError, e:
+      print "error pushing file: %s" % e.msg
+      return False
   
     if (self.debug >= 3): print "push returned: " + str(retVal)
 
@@ -378,7 +350,7 @@ class DeviceManagerSUT(DeviceManager):
       return name
     else:
       try:
-        retVal = self.runCmds(['mkdr ' + name])
+        retVal = self.runCmds([{ 'cmd': 'mkdr ' + name }])
       except AgentError:
         retVal = None
       return retVal
@@ -407,7 +379,7 @@ class DeviceManagerSUT(DeviceManager):
   #  failure: None
   def pushDir(self, localDir, remoteDir):
     if (self.debug >= 2): print "pushing directory: %s to %s" % (localDir, remoteDir)
-    for root, dirs, files in os.walk(localDir):
+    for root, dirs, files in os.walk(localDir, followlinks=True):
       parts = root.split(localDir)
       for file in files:
         remoteRoot = remoteDir + '/' + parts[1]
@@ -428,10 +400,10 @@ class DeviceManagerSUT(DeviceManager):
   #  success: True
   #  failure: False
   def dirExists(self, dirname):
-    match = ".*" + dirname + "$"
+    match = ".*" + dirname.replace('^', '\^') + "$"
     dirre = re.compile(match)
     try:
-      data = self.runCmds(['cd ' + dirname, 'cwd'])
+      data = self.runCmds([ { 'cmd': 'cd ' + dirname }, { 'cmd': 'cwd' }])
     except AgentError:
       return False
 
@@ -467,7 +439,7 @@ class DeviceManagerSUT(DeviceManager):
     if (self.dirExists(rootdir) == False):
       return []
     try:
-      data = self.runCmds(['cd ' + rootdir, 'ls'])
+      data = self.runCmds([{ 'cmd': 'cd ' + rootdir }, { 'cmd': 'ls' }])
     except AgentError:
       return []
 
@@ -484,7 +456,7 @@ class DeviceManagerSUT(DeviceManager):
   def removeFile(self, filename):
     if (self.debug>= 2): print "removing file: " + filename
     try:
-      retVal = self.runCmds(['rm ' + filename])
+      retVal = self.runCmds([{ 'cmd': 'rm ' + filename }])
     except AgentError:
       return None
 
@@ -497,7 +469,7 @@ class DeviceManagerSUT(DeviceManager):
   #  failure: None
   def removeDir(self, remoteDir):
     try:
-      retVal = self.runCmds(['rmdr ' + remoteDir])
+      retVal = self.runCmds([{ 'cmd': 'rmdr ' + remoteDir }])
     except AgentError:
       return None
 
@@ -509,7 +481,7 @@ class DeviceManagerSUT(DeviceManager):
   #  failure: []
   def getProcessList(self):
     try:
-      data = self.runCmds(['ps'])
+      data = self.runCmds([{ 'cmd': 'ps' }])
     except AgentError:
       return []
 
@@ -542,7 +514,7 @@ class DeviceManagerSUT(DeviceManager):
         return None
     
     try:
-      data = self.runCmds(['exec ' + appname])
+      data = self.runCmds([{ 'cmd': 'exec ' + appname }])
     except AgentError:
       return None
 
@@ -591,7 +563,7 @@ class DeviceManagerSUT(DeviceManager):
     if forceKill:
       print "WARNING: killProcess(): forceKill parameter unsupported on SUT"
     try:
-      data = self.runCmds(['kill ' + appname])
+      data = self.runCmds([{ 'cmd': 'kill ' + appname }])
     except AgentError:
       return False
 
@@ -603,7 +575,7 @@ class DeviceManagerSUT(DeviceManager):
   #  failure: None
   def getTempDir(self):
     try:
-      data = self.runCmds(['tmpd'])
+      data = self.runCmds([{ 'cmd': 'tmpd' }])
     except AgentError:
       return None
 
@@ -615,7 +587,7 @@ class DeviceManagerSUT(DeviceManager):
   #  failure: None
   def catFile(self, remoteFile):
     try:
-      data = self.runCmds(['cat ' + remoteFile])
+      data = self.runCmds([{ 'cmd': 'cat ' + remoteFile }])
     except AgentError:
       return None
 
@@ -684,7 +656,7 @@ class DeviceManagerSUT(DeviceManager):
     # or, if error,
     # <filename>,-1\n<error message>
     try:
-      data = self.runCmds(['pull ' + remoteFile])
+      data = self.runCmds([{ 'cmd': 'pull ' + remoteFile }])
     except AgentError:
       return None
 
@@ -803,7 +775,7 @@ class DeviceManagerSUT(DeviceManager):
   #  Throws a FileError exception when null (invalid dir/filename)
   def isDir(self, remotePath):
     try:
-      data = self.runCmds(['isdir ' + remotePath])
+      data = self.runCmds([{ 'cmd': 'isdir ' + remotePath }])
     except AgentError:
       # normally there should be no error here; a nonexistent file/directory will
       # return the string "<filename>: No such file or directory".
@@ -839,7 +811,7 @@ class DeviceManagerSUT(DeviceManager):
   #  failure: None
   def getRemoteHash(self, filename):
     try:
-      data = self.runCmds(['hash ' + filename])
+      data = self.runCmds([{ 'cmd': 'hash ' + filename }])
     except AgentError:
       return None
 
@@ -867,22 +839,26 @@ class DeviceManagerSUT(DeviceManager):
   #  success: path for device root
   #  failure: None
   def getDeviceRoot(self):
-    try:
-      data = self.runCmds(['testroot'])
-    except:
-      return None
+    if self.deviceRoot:
+      deviceRoot = self.deviceRoot
+    else:
+      try:
+        data = self.runCmds([{ 'cmd': 'testroot' }])
+      except:
+        return None
 
-    deviceRoot = data.strip() + '/tests'
+      deviceRoot = data.strip() + '/tests'
 
     if (not self.dirExists(deviceRoot)):
       if (self.mkDir(deviceRoot) == None):
         return None
 
-    return deviceRoot
+    self.deviceRoot = deviceRoot
+    return self.deviceRoot
 
   def getAppRoot(self, packageName):
     try:
-      data = self.runCmds(['getapproot '+packageName])
+      data = self.runCmds([{ 'cmd': 'getapproot '+packageName }])
     except:
       return None
 
@@ -910,7 +886,7 @@ class DeviceManagerSUT(DeviceManager):
       return None
 
     try:
-      data = self.runCmds(['cd ' + dir, 'unzp ' + filename])
+      data = self.runCmds([{ 'cmd': 'cd ' + dir }, { 'cmd': 'unzp ' + filename }])
     except AgentError:
       return None
 
@@ -931,7 +907,8 @@ class DeviceManagerSUT(DeviceManager):
       try:
         destname = '/data/data/com.mozilla.SUTAgentAndroid/files/update.info'
         data = "%s,%s\rrebooting\r" % (ipAddr, port)
-        self.runCmds(['push ' + destname + ' ' + str(len(data)) + '\r\n', data], newline = False)
+        self.runCmds([{ 'cmd': 'push %s %s' % (destname, len(data)),
+                        'data': data }])
       except AgentError:
         return None
 
@@ -941,7 +918,7 @@ class DeviceManagerSUT(DeviceManager):
       callbacksvr = callbackServer(ip, port, self.debug)
 
     try:
-      status = self.runCmds([cmd])
+      status = self.runCmds([{ 'cmd': cmd }])
     except AgentError:
       return None
 
@@ -958,6 +935,7 @@ class DeviceManagerSUT(DeviceManager):
   # uptime - uptime of the device
   # systime - system time of the device
   # screen - screen resolution
+  # rotation - rotation of the device (in degrees)
   # memory - memory stats
   # process - list of running processes (same as ps)
   # disk - total, free, available bytes on disk
@@ -971,13 +949,13 @@ class DeviceManagerSUT(DeviceManager):
     result = {}
     collapseSpaces = re.compile('  +')
 
-    directives = ['os', 'id','uptime','systime','screen','memory','process',
+    directives = ['os','id','uptime','systime','screen','rotation','memory','process',
                   'disk','power']
     if (directive in directives):
       directives = [directive]
 
     for d in directives:
-      data = self.runCmds(['info ' + d])
+      data = self.runCmds([{ 'cmd': 'info ' + d }])
       if (data is None):
         continue
       data = collapseSpaces.sub(' ', data)
@@ -1014,7 +992,7 @@ class DeviceManagerSUT(DeviceManager):
     if destPath:
       cmd += ' ' + destPath
     try:
-      data = self.runCmds([cmd])
+      data = self.runCmds([{ 'cmd': cmd }])
     except AgentError:
       return None
 
@@ -1040,7 +1018,7 @@ class DeviceManagerSUT(DeviceManager):
     if installPath:
       cmd += ' ' + installPath
     try:
-      data = self.runCmds([cmd])
+      data = self.runCmds([{ 'cmd': cmd }])
     except AgentError:
       return None
 
@@ -1085,7 +1063,7 @@ class DeviceManagerSUT(DeviceManager):
     if (self.debug >= 3): print "INFO: updateApp using command: " + str(cmd)
 
     try:
-      status = self.runCmds([cmd])
+      status = self.runCmds([{ 'cmd': cmd }])
     except AgentError:
       return None
 
@@ -1105,7 +1083,7 @@ class DeviceManagerSUT(DeviceManager):
   #  failure: None
   def getCurrentTime(self):
     try:
-      data = self.runCmds(['clok'])
+      data = self.runCmds([{ 'cmd': 'clok' }])
     except AgentError:
       return None
 
@@ -1209,11 +1187,22 @@ class DeviceManagerSUT(DeviceManager):
 
     if (self.debug >= 3): print "INFO: adjusting screen resolution to %s, %s and rebooting" % (width, height)
     try:
-      self.runCmds(["exec setprop persist.tegra.dpy%s.mode.width %s" % (screentype, width)])
-      self.runCmds(["exec setprop persist.tegra.dpy%s.mode.height %s" % (screentype, height)])
+      self.runCmds([{ 'cmd': "exec setprop persist.tegra.dpy%s.mode.width %s" % (screentype, width) }])
+      self.runCmds([{ 'cmd': "exec setprop persist.tegra.dpy%s.mode.height %s" % (screentype, height) }])
     except AgentError:
       return False
 
+    return True
+
+  # external function
+  # returns:
+  #  success: True
+  #  failure: False
+  def chmodDir(self, remoteDir):
+    try:
+      self.runCmds([{ 'cmd': "chmod "+remoteDir }])
+    except AgentError:
+      return False
     return True
 
 gCallbackData = ''

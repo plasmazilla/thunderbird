@@ -1,45 +1,13 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*-
  * vim: sw=2 ts=8 et :
  */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at:
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Code.
- *
- * The Initial Developer of the Original Code is
- *   The Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2010
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Chris Jones <jones.chris.g@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/layers/PLayers.h"
 #include "mozilla/layers/ShadowLayers.h"
+#include "mozilla/layers/ImageBridgeChild.h" // TODO: temp
 
 #include "ImageLayers.h"
 #include "Layers.h"
@@ -75,7 +43,7 @@ AppendToString(nsACString& s, const void* p,
                const char* pfx="", const char* sfx="")
 {
   s += pfx;
-  s += nsPrintfCString(64, "%p", p);
+  s += nsPrintfCString("%p", p);
   return s += sfx;
 }
 
@@ -113,7 +81,7 @@ AppendToString(nsACString& s, const gfxRGBA& c,
 {
   s += pfx;
   s += nsPrintfCString(
-    128, "rgba(%d, %d, %d, %g)",
+    "rgba(%d, %d, %d, %g)",
     PRUint8(c.r*255.0), PRUint8(c.g*255.0), PRUint8(c.b*255.0), c.a);
   return s += sfx;
 }
@@ -129,11 +97,11 @@ AppendToString(nsACString& s, const gfx3DMatrix& m,
     gfxMatrix matrix;
     if (m.Is2D(&matrix)) {
       s += nsPrintfCString(
-        96, "[ %g %g; %g %g; %g %g; ]",
+        "[ %g %g; %g %g; %g %g; ]",
         matrix.xx, matrix.yx, matrix.xy, matrix.yy, matrix.x0, matrix.y0);
     } else {
       s += nsPrintfCString(
-        256, "[ %g %g %g %g; %g %g %g %g; %g %g %g %g; %g %g %g %g; ]",
+        "[ %g %g %g %g; %g %g %g %g; %g %g %g %g; %g %g %g %g; ]",
         m._11, m._12, m._13, m._14,
         m._21, m._22, m._23, m._24,
         m._31, m._32, m._33, m._34,
@@ -148,7 +116,7 @@ AppendToString(nsACString& s, const nsIntPoint& p,
                const char* pfx="", const char* sfx="")
 {
   s += pfx;
-  s += nsPrintfCString(128, "(x=%d, y=%d)", p.x, p.y);
+  s += nsPrintfCString("(x=%d, y=%d)", p.x, p.y);
   return s += sfx;
 }
 
@@ -158,7 +126,7 @@ AppendToString(nsACString& s, const nsIntRect& r,
 {
   s += pfx;
   s += nsPrintfCString(
-    256, "(x=%d, y=%d, w=%d, h=%d)",
+    "(x=%d, y=%d, w=%d, h=%d)",
     r.x, r.y, r.width, r.height);
   return s += sfx;
 }
@@ -183,7 +151,7 @@ AppendToString(nsACString& s, const nsIntSize& sz,
                const char* pfx="", const char* sfx="")
 {
   s += pfx;
-  s += nsPrintfCString(128, "(w=%d, h=%d)", sz.width, sz.height);
+  s += nsPrintfCString("(w=%d, h=%d)", sz.width, sz.height);
   return s += sfx;
 }
 
@@ -214,6 +182,12 @@ LayerManager::CreateOptimalSurface(const gfxIntSize &aSize,
     CreateOffscreenSurface(aSize, gfxASurface::ContentFromFormat(aFormat));
 }
 
+already_AddRefed<gfxASurface>
+LayerManager::CreateOptimalMaskSurface(const gfxIntSize &aSize)
+{
+  return CreateOptimalSurface(aSize, gfxASurface::ImageFormatA8);
+}
+
 TemporaryRef<DrawTarget>
 LayerManager::CreateDrawTarget(const IntSize &aSize,
                                SurfaceFormat aFormat)
@@ -232,7 +206,14 @@ LayerManager::Mutated(Layer* aLayer)
 already_AddRefed<ImageContainer>
 LayerManager::CreateImageContainer()
 {
-  nsRefPtr<ImageContainer> container = new ImageContainer();
+  nsRefPtr<ImageContainer> container = new ImageContainer(ImageContainer::DISABLE_ASYNC);
+  return container.forget();
+}
+
+already_AddRefed<ImageContainer>
+LayerManager::CreateAsynchronousImageContainer()
+{
+  nsRefPtr<ImageContainer> container = new ImageContainer(ImageContainer::ENABLE_ASYNC);
   return container.forget();
 }
 
@@ -400,6 +381,21 @@ Layer::GetEffectiveOpacity()
 }
 
 void
+Layer::ComputeEffectiveTransformForMaskLayer(const gfx3DMatrix& aTransformToSurface)
+{
+  if (mMaskLayer) {
+    mMaskLayer->mEffectiveTransform = aTransformToSurface;
+
+#ifdef DEBUG
+    gfxMatrix maskTranslation;
+    bool maskIs2D = mMaskLayer->GetTransform().CanDraw2D(&maskTranslation);
+    NS_ASSERTION(maskIs2D, "How did we end up with a 3D transform here?!");
+#endif
+    mMaskLayer->mEffectiveTransform.PreMultiply(mMaskLayer->GetTransform());
+  }
+}
+
+void
 ContainerLayer::FillSpecificAttributes(SpecificLayerAttributes& aAttrs)
 {
   aAttrs = ContainerLayerAttributes(GetFrameMetrics());
@@ -455,31 +451,37 @@ ContainerLayer::DefaultComputeEffectiveTransforms(const gfx3DMatrix& aTransformT
   mEffectiveTransform = SnapTransform(idealTransform, gfxRect(0, 0, 0, 0), &residual);
 
   bool useIntermediateSurface;
-  float opacity = GetEffectiveOpacity();
-  if (opacity != 1.0f && HasMultipleChildren()) {
+  if (GetMaskLayer()) {
     useIntermediateSurface = true;
 #ifdef MOZ_DUMP_PAINTING
   } else if (gfxUtils::sDumpPainting) {
     useIntermediateSurface = true;
 #endif
   } else {
-    useIntermediateSurface = false;
-    gfxMatrix contTransform;
-    if (!mEffectiveTransform.Is2D(&contTransform) ||
+    float opacity = GetEffectiveOpacity();
+    if (opacity != 1.0f && HasMultipleChildren()) {
+      useIntermediateSurface = true;
+    } else {
+      useIntermediateSurface = false;
+      gfxMatrix contTransform;
+      if (!mEffectiveTransform.Is2D(&contTransform) ||
 #ifdef MOZ_GFX_OPTIMIZE_MOBILE
         !contTransform.PreservesAxisAlignedRectangles()) {
 #else
         contTransform.HasNonIntegerTranslation()) {
 #endif
-      for (Layer* child = GetFirstChild(); child; child = child->GetNextSibling()) {
-        const nsIntRect *clipRect = child->GetEffectiveClipRect();
-        /* We can't (easily) forward our transform to children with a non-empty clip
-         * rect since it would need to be adjusted for the transform. See
-         * the calculations performed by CalculateScissorRect above.
-         */
-        if (clipRect && !clipRect->IsEmpty() && !child->GetVisibleRegion().IsEmpty()) {
-          useIntermediateSurface = true;
-          break;
+        for (Layer* child = GetFirstChild(); child; child = child->GetNextSibling()) {
+          const nsIntRect *clipRect = child->GetEffectiveClipRect();
+          /* We can't (easily) forward our transform to children with a non-empty clip
+           * rect since it would need to be adjusted for the transform. See
+           * the calculations performed by CalculateScissorRect above.
+           * Nor for a child with a mask layer.
+           */
+          if ((clipRect && !clipRect->IsEmpty() && !child->GetVisibleRegion().IsEmpty()) ||
+              child->GetMaskLayer()) {
+            useIntermediateSurface = true;
+            break;
+          }
         }
       }
     }
@@ -490,6 +492,12 @@ ContainerLayer::DefaultComputeEffectiveTransforms(const gfx3DMatrix& aTransformT
     ComputeEffectiveTransformsForChildren(gfx3DMatrix::From2D(residual));
   } else {
     ComputeEffectiveTransformsForChildren(idealTransform);
+  }
+
+  if (idealTransform.CanDraw2D()) {
+    ComputeEffectiveTransformForMaskLayer(aTransformToSurface);
+  } else {
+    ComputeEffectiveTransformForMaskLayer(gfx3DMatrix());
   }
 }
 
@@ -603,6 +611,12 @@ Layer::Dump(FILE* aFile, const char* aPrefix)
   DumpSelf(aFile, aPrefix);
   fprintf(aFile, "</a>");
 
+  if (Layer* mask = GetMaskLayer()) {
+    nsCAutoString pfx(aPrefix);
+    pfx += "  Mask layer: ";
+    mask->Dump(aFile, pfx.get());
+  }
+
   if (Layer* kid = GetFirstChild()) {
     nsCAutoString pfx(aPrefix);
     pfx += "  ";
@@ -657,7 +671,7 @@ nsACString&
 Layer::PrintInfo(nsACString& aTo, const char* aPrefix)
 {
   aTo += aPrefix;
-  aTo += nsPrintfCString(64, "%s%s (0x%p)", mManager->Name(), Name(), this);
+  aTo += nsPrintfCString("%s%s (0x%p)", mManager->Name(), Name(), this);
 
   ::PrintInfo(aTo, AsShadowLayer());
 
@@ -763,12 +777,12 @@ LayerManager::Dump(FILE* aFile, const char* aPrefix)
  
   fprintf(file, "<ul><li><a ");
 #ifdef MOZ_DUMP_PAINTING
-  WriteSnapshotLinkToDumpFile(this, aFile);
+  WriteSnapshotLinkToDumpFile(this, file);
 #endif
   fprintf(file, ">");
   DumpSelf(file, aPrefix);
 #ifdef MOZ_DUMP_PAINTING
-  fprintf(aFile, "</a>");
+  fprintf(file, "</a>");
 #endif
 
   nsCAutoString pfx(aPrefix);
@@ -821,7 +835,7 @@ nsACString&
 LayerManager::PrintInfo(nsACString& aTo, const char* aPrefix)
 {
   aTo += aPrefix;
-  return aTo += nsPrintfCString(64, "%sLayerManager (0x%p)", Name(), this);
+  return aTo += nsPrintfCString("%sLayerManager (0x%p)", Name(), this);
 }
 
 /*static*/ void

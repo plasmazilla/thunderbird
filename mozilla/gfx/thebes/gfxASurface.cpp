@@ -1,44 +1,12 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Foundation code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2006
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Stuart Parmenter <stuart@mozilla.com>
- *   Vladimir Vukicevic <vladimir@pobox.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsIMemoryReporter.h"
 #include "nsMemory.h"
-#include "CheckedInt.h"
+#include "mozilla/CheckedInt.h"
+#include "mozilla/Attributes.h"
 
 #include "gfxASurface.h"
 #include "gfxContext.h"
@@ -378,7 +346,7 @@ gfxASurface::CheckSurfaceSize(const gfxIntSize& sz, PRInt32 limit)
     // make sure the surface area doesn't overflow a PRInt32
     CheckedInt<PRInt32> tmp = sz.width;
     tmp *= sz.height;
-    if (!tmp.valid()) {
+    if (!tmp.isValid()) {
         NS_WARNING("Surface size too large (would overflow)!");
         return false;
     }
@@ -386,7 +354,7 @@ gfxASurface::CheckSurfaceSize(const gfxIntSize& sz, PRInt32 limit)
     // assuming 4-byte stride, make sure the allocation size
     // doesn't overflow a PRInt32 either
     tmp *= 4;
-    if (!tmp.valid()) {
+    if (!tmp.isValid()) {
         NS_WARNING("Allocation too large (would overflow)!");
         return false;
     }
@@ -447,24 +415,6 @@ gfxASurface::ContentFromFormat(gfxImageFormat format)
         case ImageFormatUnknown:
         default:
             return CONTENT_COLOR;
-    }
-}
-
-gfxASurface::gfxImageFormat
-gfxASurface::FormatFromContent(gfxASurface::gfxContentType type)
-{
-    switch (type) {
-        case CONTENT_COLOR_ALPHA:
-            return ImageFormatARGB32;
-        case CONTENT_ALPHA:
-            return ImageFormatA8;
-        case CONTENT_COLOR:
-        default:
-#ifdef MOZ_GFX_OPTIMIZE_MOBILE
-            return ImageFormatRGB16_565;
-#else
-            return ImageFormatRGB24;
-#endif
     }
 }
 
@@ -608,7 +558,7 @@ PR_STATIC_ASSERT(PRUint32(CAIRO_SURFACE_TYPE_SKIA) ==
 
 static PRInt64 gSurfaceMemoryUsed[gfxASurface::SurfaceTypeMax] = { 0 };
 
-class SurfaceMemoryReporter :
+class SurfaceMemoryReporter MOZ_FINAL :
     public nsIMemoryMultiReporter
 {
 public:
@@ -692,7 +642,7 @@ gfxASurface::RecordMemoryFreed()
     }
 }
 
-#ifdef MOZ_DUMP_PAINTING
+#ifdef MOZ_DUMP_IMAGES
 void
 gfxASurface::WriteAsPNG(const char* aFile)
 {
@@ -704,10 +654,10 @@ gfxASurface::WriteAsPNG(const char* aFile)
       NS_WARNING("Failed to create file!\n");
     }
 }
-    
-void 
-gfxASurface::DumpAsDataURL(FILE* aOutput) 
-{ 
+
+void
+gfxASurface::DumpAsDataURL(FILE* aOutput)
+{
   WriteAsPNG_internal(aOutput, false);
 }
 
@@ -718,9 +668,9 @@ gfxASurface::PrintAsDataURL()
   fprintf(stdout, "\n");
 }
 
-void 
-gfxASurface::CopyAsDataURL() 
-{ 
+void
+gfxASurface::CopyAsDataURL()
+{
   WriteAsPNG_internal(nsnull, false);
 }
 
@@ -742,7 +692,7 @@ gfxASurface::WriteAsPNG_internal(FILE* aFile, bool aBinary)
       return;
     }
 
-    imgsurf = 
+    imgsurf =
       new gfxImageSurface(gfxIntSize(size.width, size.height),
                           gfxASurface::ImageFormatARGB32);
 
@@ -778,9 +728,9 @@ gfxASurface::WriteAsPNG_internal(FILE* aFile, bool aBinary)
   }
 
   nsresult rv = encoder->InitFromData(imgsurf->Data(),
-                                      size.width * size.height * 4, 
-                                      size.width, 
-                                      size.height, 
+                                      size.width * size.height * 4,
+                                      size.width,
+                                      size.height,
                                       imgsurf->Stride(),
                                       imgIEncoder::INPUT_FORMAT_HOSTARGB,
                                       NS_LITERAL_STRING(""));
@@ -805,9 +755,9 @@ gfxASurface::WriteAsPNG_internal(FILE* aFile, bool aBinary)
   if (!imgData)
     return;
   PRUint32 numReadThisTime = 0;
-  while ((rv = imgStream->Read(&imgData[imgSize], 
+  while ((rv = imgStream->Read(&imgData[imgSize],
                                bufSize - imgSize,
-                               &numReadThisTime)) == NS_OK && numReadThisTime > 0) 
+                               &numReadThisTime)) == NS_OK && numReadThisTime > 0)
   {
     imgSize += numReadThisTime;
     if (imgSize == bufSize) {
@@ -824,13 +774,13 @@ gfxASurface::WriteAsPNG_internal(FILE* aFile, bool aBinary)
 
   if (aBinary) {
     if (aFile) {
-      fwrite(imgData, 1, imgSize, aFile); 
+      fwrite(imgData, 1, imgSize, aFile);
     } else {
       NS_WARNING("Can't write binary image data without a file!");
     }
     return;
   }
-  
+
   // base 64, result will be NULL terminated
   char* encodedImg = PL_Base64Encode(imgData, imgSize, nsnull);
   PR_Free(imgData);
@@ -841,11 +791,25 @@ gfxASurface::WriteAsPNG_internal(FILE* aFile, bool aBinary)
   string.Append(encodedImg);
 
   if (aFile) {
+#ifdef ANDROID
+     if (aFile == stdout || aFile == stderr) {
+       // ADB logcat cuts off long strings so we will break it down
+       const char* cStr = string.BeginReading();
+       size_t len = strlen(cStr);
+       while (true) {
+         printf_stderr("IMG: %.140s\n", cStr);
+         if (len <= 140)
+           break;
+         len -= 140;
+         cStr += 140;
+       }
+     }
+#endif
     fprintf(aFile, "%s", string.BeginReading());
   } else {
     nsCOMPtr<nsIClipboardHelper> clipboard(do_GetService("@mozilla.org/widget/clipboardhelper;1", &rv));
     if (clipboard) {
-      clipboard->CopyString(NS_ConvertASCIItoUTF16(string));
+      clipboard->CopyString(NS_ConvertASCIItoUTF16(string), nsnull);
     }
   }
 

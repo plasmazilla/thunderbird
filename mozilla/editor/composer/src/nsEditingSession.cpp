@@ -1,88 +1,56 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 sw=2 et tw=78: */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Simon Fraser   <sfraser@netscape.com>
- *   Michael Judge  <mjudge@netscape.com>
- *   Charles Manske <cmanske@netscape.com>
- *   Kathleen Brade <brade@netscape.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "nsPIDOMWindow.h"
-#include "nsIDOMWindowUtils.h"
-#include "nsIDOMHTMLDocument.h"
-#include "nsIDocument.h"
-#include "nsIHTMLDocument.h"
-#include "nsIDOMDocument.h"
-#include "nsIURI.h"
-#include "nsISelectionPrivate.h"
-#include "nsITransactionManager.h"
+#include <string.h>                     // for NULL, strcmp
 
-#include "nsIEditorDocShell.h"
-#include "nsIDocShell.h"
-
-#include "nsIChannel.h"
-#include "nsIWebProgress.h"
-#include "nsIWebNavigation.h"
-#include "nsIRefreshURI.h"
-
-#include "nsIControllers.h"
-#include "nsIController.h"
-#include "nsIControllerContext.h"
-#include "nsICommandManager.h"
-#include "nsPICommandUpdater.h"
-
-#include "nsIPresShell.h"
-
-#include "nsComposerCommandsUpdater.h"
+#include "imgIContainer.h"              // for imgIContainer, etc
+#include "mozFlushType.h"               // for mozFlushType::Flush_Frames
+#include "mozilla/mozalloc.h"           // for operator new
+#include "nsAString.h"
+#include "nsComponentManagerUtils.h"    // for do_CreateInstance
+#include "nsComposerCommandsUpdater.h"  // for nsComposerCommandsUpdater
+#include "nsDebug.h"                    // for NS_ENSURE_SUCCESS, etc
 #include "nsEditingSession.h"
+#include "nsError.h"                    // for NS_ERROR_FAILURE, NS_OK, etc
+#include "nsIChannel.h"                 // for nsIChannel
+#include "nsICommandManager.h"          // for nsICommandManager
+#include "nsIContentViewer.h"           // for nsIContentViewer
+#include "nsIController.h"              // for nsIController
+#include "nsIControllerContext.h"       // for nsIControllerContext
+#include "nsIControllers.h"             // for nsIControllers
+#include "nsID.h"                       // for NS_GET_IID, etc
+#include "nsIDOMDocument.h"             // for nsIDOMDocument
+#include "nsIDOMHTMLDocument.h"         // for nsIDOMHTMLDocument
+#include "nsIDOMWindow.h"               // for nsIDOMWindow
+#include "nsIDOMWindowUtils.h"          // for nsIDOMWindowUtils
+#include "nsIDocShell.h"                // for nsIDocShell
+#include "nsIDocument.h"                // for nsIDocument
+#include "nsIDocumentStateListener.h"
+#include "nsIEditor.h"                  // for nsIEditor
+#include "nsIEditorDocShell.h"          // for nsIEditorDocShell
+#include "nsIHTMLDocument.h"            // for nsIHTMLDocument, etc
+#include "nsIInterfaceRequestorUtils.h"  // for do_GetInterface
+#include "nsIPlaintextEditor.h"         // for nsIPlaintextEditor, etc
+#include "nsIRefreshURI.h"              // for nsIRefreshURI
+#include "nsIRequest.h"                 // for nsIRequest
+#include "nsISelection.h"               // for nsISelection
+#include "nsISelectionPrivate.h"        // for nsISelectionPrivate
+#include "nsITimer.h"                   // for nsITimer, etc
+#include "nsITransactionManager.h"      // for nsITransactionManager
+#include "nsIWeakReference.h"           // for nsISupportsWeakReference, etc
+#include "nsIWebNavigation.h"           // for nsIWebNavigation
+#include "nsIWebProgress.h"             // for nsIWebProgress, etc
+#include "nsLiteralString.h"            // for NS_LITERAL_STRING
+#include "nsPICommandUpdater.h"         // for nsPICommandUpdater
+#include "nsPIDOMWindow.h"              // for nsPIDOMWindow
+#include "nsReadableUtils.h"            // for AppendUTF16toUTF8
+#include "nsStringFwd.h"                // for nsAFlatString
 
-#include "nsComponentManagerUtils.h"
-#include "nsIInterfaceRequestorUtils.h"
-
-#include "nsIContentViewer.h"
-#include "nsISelectionController.h"
-#include "nsIPlaintextEditor.h"
-#include "nsIEditor.h"
-
-#include "nsIScriptContext.h"
-#include "imgIContainer.h"
-
-#if DEBUG
-//#define NOISY_DOC_LOADING  1
-#endif
+class nsISupports;
+class nsIURI;
 
 /*---------------------------------------------------------------------------
 

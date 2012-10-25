@@ -21,39 +21,47 @@ function test()
   let tempScope = {};
   Cu.import("resource:///modules/source-editor.jsm", tempScope);
   let SourceEditor = tempScope.SourceEditor;
+
   let scriptShown = false;
   let framesAdded = false;
+  let resumed = false;
+  let testStarted = false;
 
   debug_tab_pane(TAB_URL, function(aTab, aDebuggee, aPane) {
     gTab = aTab;
     gDebuggee = aDebuggee;
     gPane = aPane;
-    gDebugger = gPane.debuggerWindow;
+    gDebugger = gPane.contentWindow;
+    resumed = true;
+
     gDebugger.DebuggerController.activeThread.addOneTimeListener("framesadded", function() {
       framesAdded = true;
-      runTest();
+      executeSoon(startTest);
     });
 
-    gDebuggee.firstCall();
+    executeSoon(function() {
+      gDebuggee.firstCall();
+    });
   });
 
-  window.addEventListener("Debugger:ScriptShown", function _onEvent(aEvent) {
-    let url = aEvent.detail.url;
-    if (url.indexOf("-02.js") != -1) {
-      scriptShown = true;
-      window.removeEventListener(aEvent.type, _onEvent);
-      runTest();
-    }
-  });
-
-  function runTest()
+  function onScriptShown(aEvent)
   {
-    if (scriptShown && framesAdded) {
-      Services.tm.currentThread.dispatch({ run: onScriptShown }, 0);
+    scriptShown = aEvent.detail.url.indexOf("-02.js") != -1;
+    executeSoon(startTest);
+  }
+
+  window.addEventListener("Debugger:ScriptShown", onScriptShown);
+
+  function startTest()
+  {
+    if (scriptShown && framesAdded && resumed && !testStarted) {
+      window.removeEventListener("Debugger:ScriptShown", onScriptShown);
+      testStarted = true;
+      Services.tm.currentThread.dispatch({ run: performTest }, 0);
     }
   }
 
-  function onScriptShown()
+  function performTest()
   {
     gScripts = gDebugger.DebuggerView.Scripts;
 
@@ -267,15 +275,21 @@ function test()
     is(gEditor.getBreakpoints().length, 0, "editor.getBreakpoints().length is correct");
 
     executeSoon(function() {
-      gDebugger.DebuggerController.activeThread.resume(finish);
+      gDebugger.gClient.addOneTimeListener("resumed", function() {
+        finalCheck();
+        closeDebuggerAndFinish();
+      });
+      gDebugger.DebuggerController.activeThread.resume();
     });
   }
 
-  registerCleanupFunction(function() {
+  function finalCheck() {
     is(Object.keys(gBreakpoints).length, 0, "no breakpoint in the debugger");
     ok(!gPane.getBreakpoint(gScripts.scriptLocations[0], 5),
        "getBreakpoint(scriptLocations[0], 5) returns no breakpoint");
+  }
 
+  registerCleanupFunction(function() {
     removeTab(gTab);
     is(breakpointsAdded, 2, "correct number of breakpoints have been added");
     is(breakpointsRemoved, 1, "correct number of breakpoints have been removed");

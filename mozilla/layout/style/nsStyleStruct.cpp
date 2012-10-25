@@ -1,44 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   David Hyatt (hyatt@netscape.com)
- *   Mats Palmgren <matspal@gmail.com>
- *   Michael Ventnor <m.ventnor@gmail.com>
- *   Jonathon Jongsma <jonathon.jongsma@collabora.co.uk>, Collabora Ltd.
- *   L. David Baron <dbaron@dbaron.org>, Mozilla Corporation
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * structs that contain the data provided by nsStyleContext, the
@@ -233,7 +196,7 @@ nsChangeHint nsStyleFont::CalcFontDifference(const nsFont& aFont1, const nsFont&
       (aFont1.weight == aFont2.weight) &&
       (aFont1.stretch == aFont2.stretch) &&
       (aFont1.name == aFont2.name) &&
-      (aFont1.featureSettings == aFont2.featureSettings) &&
+      (aFont1.fontFeatureSettings == aFont2.fontFeatureSettings) &&
       (aFont1.languageOverride == aFont2.languageOverride)) {
     if ((aFont1.decorations == aFont2.decorations)) {
       return NS_STYLE_HINT_NONE;
@@ -399,29 +362,35 @@ nsChangeHint nsStylePadding::MaxDifference()
 #endif
 
 nsStyleBorder::nsStyleBorder(nsPresContext* aPresContext)
-  : mHaveBorderImageWidth(false)
+  : mBorderColors(nsnull),
+    mBoxShadow(nsnull),
 #ifdef DEBUG
-  , mImageTracked(false)
+    mImageTracked(false),
 #endif
-  , mComputedBorder(0, 0, 0, 0)
-  , mBorderImage(nsnull)
+    mBorderImageSource(nsnull),
+    mBorderImageFill(NS_STYLE_BORDER_IMAGE_SLICE_NOFILL),
+    mBorderImageRepeatH(NS_STYLE_BORDER_IMAGE_REPEAT_STRETCH),
+    mBorderImageRepeatV(NS_STYLE_BORDER_IMAGE_REPEAT_STRETCH),
+    mFloatEdge(NS_STYLE_FLOAT_EDGE_CONTENT),
+    mComputedBorder(0, 0, 0, 0)
 {
   MOZ_COUNT_CTOR(nsStyleBorder);
+
+  NS_FOR_CSS_HALF_CORNERS (corner) {
+    mBorderRadius.Set(corner, nsStyleCoord(0, nsStyleCoord::CoordConstructor));
+  }
+
   nscoord medium =
     (aPresContext->GetBorderWidthTable())[NS_STYLE_BORDER_WIDTH_MEDIUM];
   NS_FOR_CSS_SIDES(side) {
+    mBorderImageSlice.Set(side, nsStyleCoord(1.0f, eStyleUnit_Percent));
+    mBorderImageWidth.Set(side, nsStyleCoord(1.0f, eStyleUnit_Factor));
+    mBorderImageOutset.Set(side, nsStyleCoord(0.0f, eStyleUnit_Factor));
+
     mBorder.Side(side) = medium;
     mBorderStyle[side] = NS_STYLE_BORDER_STYLE_NONE | BORDER_COLOR_FOREGROUND;
     mBorderColor[side] = NS_RGB(0, 0, 0);
   }
-  NS_FOR_CSS_HALF_CORNERS(corner) {
-    mBorderRadius.Set(corner, nsStyleCoord(0, nsStyleCoord::CoordConstructor));
-  }
-
-  mBorderColors = nsnull;
-  mBoxShadow = nsnull;
-
-  mFloatEdge = NS_STYLE_FLOAT_EDGE_CONTENT;
 
   mTwipsPerPixel = aPresContext->DevPixelsToAppUnits(1);
 }
@@ -443,18 +412,22 @@ nsBorderColors::Clone(bool aDeep) const
 }
 
 nsStyleBorder::nsStyleBorder(const nsStyleBorder& aSrc)
-  : mBorderRadius(aSrc.mBorderRadius),
-    mBorderImageSplit(aSrc.mBorderImageSplit),
-    mFloatEdge(aSrc.mFloatEdge),
-    mBorderImageHFill(aSrc.mBorderImageHFill),
-    mBorderImageVFill(aSrc.mBorderImageVFill),
-    mBorderColors(nsnull),
+  : mBorderColors(nsnull),
     mBoxShadow(aSrc.mBoxShadow),
-    mHaveBorderImageWidth(aSrc.mHaveBorderImageWidth),
+#ifdef DEBUG
+    mImageTracked(false),
+#endif
+    mBorderImageSource(aSrc.mBorderImageSource),
+    mBorderRadius(aSrc.mBorderRadius),
+    mBorderImageSlice(aSrc.mBorderImageSlice),
     mBorderImageWidth(aSrc.mBorderImageWidth),
+    mBorderImageOutset(aSrc.mBorderImageOutset),
+    mBorderImageFill(aSrc.mBorderImageFill),
+    mBorderImageRepeatH(aSrc.mBorderImageRepeatH),
+    mBorderImageRepeatV(aSrc.mBorderImageRepeatV),
+    mFloatEdge(aSrc.mFloatEdge),
     mComputedBorder(aSrc.mComputedBorder),
     mBorder(aSrc.mBorder),
-    mBorderImage(aSrc.mBorderImage),
     mTwipsPerPixel(aSrc.mTwipsPerPixel)
 {
   MOZ_COUNT_CTOR(nsStyleBorder);
@@ -471,9 +444,6 @@ nsStyleBorder::nsStyleBorder(const nsStyleBorder& aSrc)
     mBorderStyle[side] = aSrc.mBorderStyle[side];
     mBorderColor[side] = aSrc.mBorderColor[side];
   }
-  NS_FOR_CSS_HALF_CORNERS(corner) {
-    mBorderRadius.Set(corner, aSrc.mBorderRadius.Get(corner));
-  }
 }
 
 nsStyleBorder::~nsStyleBorder()
@@ -488,22 +458,48 @@ nsStyleBorder::~nsStyleBorder()
   }
 }
 
-void* 
+void*
 nsStyleBorder::operator new(size_t sz, nsPresContext* aContext) CPP_THROW_NEW {
   void* result = aContext->AllocateFromShell(sz);
   if (result)
     memset(result, 0, sz);
   return result;
 }
-  
-void 
+
+nsMargin
+nsStyleBorder::GetImageOutset() const
+{
+  // We don't check whether there is a border-image (which is OK since
+  // the initial values yields 0 outset) so that we don't have to
+  // reflow to update overflow areas when an image loads.
+  nsMargin outset;
+  NS_FOR_CSS_SIDES(s) {
+    nsStyleCoord coord = mBorderImageOutset.Get(s);
+    nscoord value;
+    switch (coord.GetUnit()) {
+      case eStyleUnit_Coord:
+        value = coord.GetCoordValue();
+        break;
+      case eStyleUnit_Factor:
+        value = coord.GetFactorValue() * mComputedBorder.Side(s);
+        break;
+      default:
+        NS_NOTREACHED("unexpected CSS unit for image outset");
+        value = 0;
+        break;
+    }
+    outset.Side(s) = value;
+  }
+  return outset;
+}
+
+void
 nsStyleBorder::Destroy(nsPresContext* aContext) {
-  if (mBorderImage)
+  if (mBorderImageSource)
     UntrackImage(aContext);
   this->~nsStyleBorder();
   aContext->FreeToShell(sizeof(nsStyleBorder), this);
 }
-
 
 nsChangeHint nsStyleBorder::CalcDifference(const nsStyleBorder& aOther) const
 {
@@ -513,10 +509,11 @@ nsChangeHint nsStyleBorder::CalcDifference(const nsStyleBorder& aOther) const
   // Note that differences in mBorder don't affect rendering (which should only
   // use mComputedBorder), so don't need to be tested for here.
   // XXXbz we should be able to return a more specific change hint for
-  // at least GetActualBorder() differences...
+  // at least GetComputedBorder() differences...
   if (mTwipsPerPixel != aOther.mTwipsPerPixel ||
-      GetActualBorder() != aOther.GetActualBorder() || 
+      GetComputedBorder() != aOther.GetComputedBorder() ||
       mFloatEdge != aOther.mFloatEdge ||
+      mBorderImageOutset != aOther.mBorderImageOutset ||
       (shadowDifference & nsChangeHint_ReflowFrame))
     return NS_STYLE_HINT_REFLOW;
 
@@ -536,13 +533,14 @@ nsChangeHint nsStyleBorder::CalcDifference(const nsStyleBorder& aOther) const
     return NS_STYLE_HINT_VISUAL;
 
   if (IsBorderImageLoaded() || aOther.IsBorderImageLoaded()) {
-    if (mBorderImage != aOther.mBorderImage ||
-        mBorderImageHFill != aOther.mBorderImageHFill ||
-        mBorderImageVFill != aOther.mBorderImageVFill ||
-        mBorderImageSplit != aOther.mBorderImageSplit)
+    if (mBorderImageSource  != aOther.mBorderImageSource  ||
+        mBorderImageRepeatH != aOther.mBorderImageRepeatH ||
+        mBorderImageRepeatV != aOther.mBorderImageRepeatV ||
+        mBorderImageSlice   != aOther.mBorderImageSlice   ||
+        mBorderImageFill    != aOther.mBorderImageFill    ||
+        mBorderImageWidth   != aOther.mBorderImageWidth   ||
+        mBorderImageOutset  != aOther.mBorderImageOutset)
       return NS_STYLE_HINT_VISUAL;
-    // The call to GetActualBorder above already considered
-    // mBorderImageWidth and mHaveBorderImageWidth.
   }
 
   // Note that at this point if mBorderColors is non-null so is
@@ -566,36 +564,17 @@ nsChangeHint nsStyleBorder::MaxDifference()
 }
 #endif
 
-bool
-nsStyleBorder::ImageBorderDiffers() const
-{
-  return mComputedBorder !=
-           (mHaveBorderImageWidth ? mBorderImageWidth : mBorder);
-}
-
-const nsMargin&
-nsStyleBorder::GetActualBorder() const
-{
-  if (IsBorderImageLoaded())
-    if (mHaveBorderImageWidth)
-      return mBorderImageWidth;
-    else
-      return mBorder;
-  else
-    return mComputedBorder;
-}
-
 void
 nsStyleBorder::TrackImage(nsPresContext* aContext)
 {
   // Sanity
   NS_ABORT_IF_FALSE(!mImageTracked, "Already tracking image!");
-  NS_ABORT_IF_FALSE(mBorderImage, "Can't track null image!");
+  NS_ABORT_IF_FALSE(mBorderImageSource, "Can't track null image!");
 
   // Register the image with the document
   nsIDocument* doc = aContext->Document();
   if (doc)
-    doc->AddImage(mBorderImage);
+    doc->AddImage(mBorderImageSource);
 
   // Mark state
 #ifdef DEBUG
@@ -608,12 +587,12 @@ nsStyleBorder::UntrackImage(nsPresContext* aContext)
 {
   // Sanity
   NS_ABORT_IF_FALSE(mImageTracked, "Image not tracked!");
-  NS_ABORT_IF_FALSE(mBorderImage, "Can't track null image!");
+  NS_ABORT_IF_FALSE(mBorderImageSource, "Can't track null image!");
 
   // Unregister the image with the document
   nsIDocument* doc = aContext->Document();
   if (doc)
-    doc->RemoveImage(mBorderImage);
+    doc->RemoveImage(mBorderImageSource);
 
   // Mark state
 #ifdef DEBUG
@@ -1024,6 +1003,7 @@ nsStyleSVGReset::nsStyleSVGReset()
     mStopOpacity             = 1.0f;
     mFloodOpacity            = 1.0f;
     mDominantBaseline        = NS_STYLE_DOMINANT_BASELINE_AUTO;
+    mVectorEffect            = NS_STYLE_VECTOR_EFFECT_NONE;
 }
 
 nsStyleSVGReset::~nsStyleSVGReset() 
@@ -1043,6 +1023,7 @@ nsStyleSVGReset::nsStyleSVGReset(const nsStyleSVGReset& aSource)
   mStopOpacity = aSource.mStopOpacity;
   mFloodOpacity = aSource.mFloodOpacity;
   mDominantBaseline = aSource.mDominantBaseline;
+  mVectorEffect = aSource.mVectorEffect;
 }
 
 nsChangeHint nsStyleSVGReset::CalcDifference(const nsStyleSVGReset& aOther) const
@@ -1060,7 +1041,8 @@ nsChangeHint nsStyleSVGReset::CalcDifference(const nsStyleSVGReset& aOther) cons
              mLightingColor    != aOther.mLightingColor ||
              mStopOpacity      != aOther.mStopOpacity   ||
              mFloodOpacity     != aOther.mFloodOpacity  ||
-             mDominantBaseline != aOther.mDominantBaseline)
+             mDominantBaseline != aOther.mDominantBaseline ||
+             mVectorEffect     != aOther.mVectorEffect)
     NS_UpdateHint(hint, nsChangeHint_RepaintFrame);
 
   return hint;
@@ -1142,7 +1124,19 @@ nsStylePosition::nsStylePosition(void)
   mHeight.SetAutoValue();
   mMinHeight.SetCoordValue(0);
   mMaxHeight.SetNoneValue();
+#ifdef MOZ_FLEXBOX
+  mFlexBasis.SetAutoValue();
+#endif // MOZ_FLEXBOX
   mBoxSizing = NS_STYLE_BOX_SIZING_CONTENT;
+#ifdef MOZ_FLEXBOX
+  mAlignItems = NS_STYLE_ALIGN_ITEMS_INITIAL_VALUE;
+  mAlignSelf = NS_STYLE_ALIGN_SELF_AUTO;
+  mFlexDirection = NS_STYLE_FLEX_DIRECTION_ROW;
+  mJustifyContent = NS_STYLE_JUSTIFY_CONTENT_FLEX_START;
+  mOrder = NS_STYLE_ORDER_INITIAL;
+  mFlexGrow = 0.0f;
+  mFlexShrink = 1.0f;
+#endif // MOZ_FLEXBOX
   mZIndex.SetAutoValue();
 }
 
@@ -1166,6 +1160,36 @@ nsChangeHint nsStylePosition::CalcDifference(const nsStylePosition& aOther) cons
     // Can affect both widths and heights; just a bad scene.
     return NS_CombineHint(hint, nsChangeHint_ReflowFrame);
   }
+
+#ifdef MOZ_FLEXBOX
+  // Properties that apply to flex items:
+  // NOTE: Changes to "order" on a flex item may trigger some repositioning.
+  // If we're in a multi-line flex container, it also may affect our size
+  // (and that of our container & siblings) by shuffling items between lines.
+  if (mAlignSelf != aOther.mAlignSelf ||
+      mFlexBasis != aOther.mFlexBasis ||
+      mFlexGrow != aOther.mFlexGrow ||
+      mFlexShrink != aOther.mFlexShrink ||
+      mOrder != aOther.mOrder) {
+    return NS_CombineHint(hint, nsChangeHint_ReflowFrame);
+  }
+
+  // Properties that apply to flexbox containers:
+
+  // flex-direction can swap a flexbox between vertical & horizontal.
+  // align-items can change the sizing of a flexbox & the positioning
+  // of its children.
+  if (mAlignItems != aOther.mAlignItems ||
+      mFlexDirection != aOther.mFlexDirection) {
+    return NS_CombineHint(hint, nsChangeHint_ReflowFrame);
+  }
+
+  // Changing justify-content on a flexbox might affect the positioning of its
+  // children, but it won't affect any sizing.
+  if (mJustifyContent != aOther.mJustifyContent) {
+    NS_UpdateHint(hint, nsChangeHint_NeedReflow);
+  }
+#endif // MOZ_FLEXBOX
 
   if (mHeight != aOther.mHeight ||
       mMinHeight != aOther.mMinHeight ||
@@ -1370,10 +1394,12 @@ nsStyleGradient::operator==(const nsStyleGradient& aOther) const
   if (mShape != aOther.mShape ||
       mSize != aOther.mSize ||
       mRepeating != aOther.mRepeating ||
-      mToCorner != aOther.mToCorner ||
+      mLegacySyntax != aOther.mLegacySyntax ||
       mBgPosX != aOther.mBgPosX ||
       mBgPosY != aOther.mBgPosY ||
-      mAngle != aOther.mAngle)
+      mAngle != aOther.mAngle ||
+      mRadiusX != aOther.mRadiusX ||
+      mRadiusY != aOther.mRadiusY)
     return false;
 
   if (mStops.Length() != aOther.mStops.Length())
@@ -1392,7 +1418,7 @@ nsStyleGradient::nsStyleGradient(void)
   : mShape(NS_STYLE_GRADIENT_SHAPE_LINEAR)
   , mSize(NS_STYLE_GRADIENT_SIZE_FARTHEST_CORNER)
   , mRepeating(false)
-  , mToCorner(false)
+  , mLegacySyntax(false)
 {
 }
 
@@ -2070,7 +2096,8 @@ void nsTransition::SetInitialValues()
 
 void nsTransition::SetUnknownProperty(const nsAString& aUnknownProperty)
 {
-  NS_ASSERTION(nsCSSProps::LookupProperty(aUnknownProperty) ==
+  NS_ASSERTION(nsCSSProps::LookupProperty(aUnknownProperty,
+                                          nsCSSProps::eEnabled) ==
                  eCSSProperty_UNKNOWN,
                "should be unknown property");
   mProperty = eCSSProperty_UNKNOWN;
@@ -2155,7 +2182,28 @@ nsStyleDisplay::nsStyleDisplay()
 }
 
 nsStyleDisplay::nsStyleDisplay(const nsStyleDisplay& aSource)
-  : mTransitions(aSource.mTransitions)
+  : mBinding(aSource.mBinding)
+  , mClip(aSource.mClip)
+  , mOpacity(aSource.mOpacity)
+  , mDisplay(aSource.mDisplay)
+  , mOriginalDisplay(aSource.mOriginalDisplay)
+  , mAppearance(aSource.mAppearance)
+  , mPosition(aSource.mPosition)
+  , mFloats(aSource.mFloats)
+  , mOriginalFloats(aSource.mOriginalFloats)
+  , mBreakType(aSource.mBreakType)
+  , mBreakBefore(aSource.mBreakBefore)
+  , mBreakAfter(aSource.mBreakAfter)
+  , mOverflowX(aSource.mOverflowX)
+  , mOverflowY(aSource.mOverflowY)
+  , mResize(aSource.mResize)
+  , mClipFlags(aSource.mClipFlags)
+  , mOrient(aSource.mOrient)
+  , mBackfaceVisibility(aSource.mBackfaceVisibility)
+  , mTransformStyle(aSource.mTransformStyle)
+  , mSpecifiedTransform(aSource.mSpecifiedTransform)
+  , mChildPerspective(aSource.mChildPerspective)
+  , mTransitions(aSource.mTransitions)
   , mTransitionTimingFunctionCount(aSource.mTransitionTimingFunctionCount)
   , mTransitionDurationCount(aSource.mTransitionDurationCount)
   , mTransitionDelayCount(aSource.mTransitionDelayCount)
@@ -2171,36 +2219,13 @@ nsStyleDisplay::nsStyleDisplay(const nsStyleDisplay& aSource)
   , mAnimationIterationCountCount(aSource.mAnimationIterationCountCount)
 {
   MOZ_COUNT_CTOR(nsStyleDisplay);
-  mAppearance = aSource.mAppearance;
-  mDisplay = aSource.mDisplay;
-  mOriginalDisplay = aSource.mOriginalDisplay;
-  mOriginalFloats = aSource.mOriginalFloats;
-  mBinding = aSource.mBinding;
-  mPosition = aSource.mPosition;
-  mFloats = aSource.mFloats;
-  mBreakType = aSource.mBreakType;
-  mBreakBefore = aSource.mBreakBefore;
-  mBreakAfter = aSource.mBreakAfter;
-  mOverflowX = aSource.mOverflowX;
-  mOverflowY = aSource.mOverflowY;
-  mResize = aSource.mResize;
-  mClipFlags = aSource.mClipFlags;
-  mClip = aSource.mClip;
-  mOpacity = aSource.mOpacity;
-  mOrient = aSource.mOrient;
 
-  /* Copy over the transformation information. */
-  mSpecifiedTransform = aSource.mSpecifiedTransform;
-  
   /* Copy over transform origin. */
   mTransformOrigin[0] = aSource.mTransformOrigin[0];
   mTransformOrigin[1] = aSource.mTransformOrigin[1];
   mTransformOrigin[2] = aSource.mTransformOrigin[2];
   mPerspectiveOrigin[0] = aSource.mPerspectiveOrigin[0];
   mPerspectiveOrigin[1] = aSource.mPerspectiveOrigin[1];
-  mChildPerspective = aSource.mChildPerspective;
-  mBackfaceVisibility = aSource.mBackfaceVisibility;
-  mTransformStyle = aSource.mTransformStyle;
 }
 
 nsChangeHint nsStyleDisplay::CalcDifference(const nsStyleDisplay& aOther) const
@@ -2806,6 +2831,7 @@ nsStyleText::nsStyleText(void)
   mTextAlignLast = NS_STYLE_TEXT_ALIGN_AUTO;
   mTextTransform = NS_STYLE_TEXT_TRANSFORM_NONE;
   mWhiteSpace = NS_STYLE_WHITESPACE_NORMAL;
+  mWordBreak = NS_STYLE_WORDBREAK_NORMAL;
   mWordWrap = NS_STYLE_WORDWRAP_NORMAL;
   mHyphens = NS_STYLE_HYPHENS_MANUAL;
   mTextSizeAdjust = NS_STYLE_TEXT_SIZE_ADJUST_AUTO;
@@ -2824,14 +2850,15 @@ nsStyleText::nsStyleText(const nsStyleText& aSource)
     mTextAlignLast(aSource.mTextAlignLast),
     mTextTransform(aSource.mTextTransform),
     mWhiteSpace(aSource.mWhiteSpace),
+    mWordBreak(aSource.mWordBreak),
     mWordWrap(aSource.mWordWrap),
     mHyphens(aSource.mHyphens),
     mTextSizeAdjust(aSource.mTextSizeAdjust),
     mTabSize(aSource.mTabSize),
+    mWordSpacing(aSource.mWordSpacing),
     mLetterSpacing(aSource.mLetterSpacing),
     mLineHeight(aSource.mLineHeight),
     mTextIndent(aSource.mTextIndent),
-    mWordSpacing(aSource.mWordSpacing),
     mTextShadow(aSource.mTextShadow)
 {
   MOZ_COUNT_CTOR(nsStyleText);
@@ -2853,6 +2880,7 @@ nsChangeHint nsStyleText::CalcDifference(const nsStyleText& aOther) const
       (mTextAlignLast != aOther.mTextAlignLast) ||
       (mTextTransform != aOther.mTextTransform) ||
       (mWhiteSpace != aOther.mWhiteSpace) ||
+      (mWordBreak != aOther.mWordBreak) ||
       (mWordWrap != aOther.mWordWrap) ||
       (mHyphens != aOther.mHyphens) ||
       (mTextSizeAdjust != aOther.mTextSizeAdjust) ||

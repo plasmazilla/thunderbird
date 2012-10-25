@@ -1,48 +1,28 @@
 /* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 2 -*-
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Corporation code.
- *
- * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2009
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Bas Schouten <bschouten@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/ipc/Shmem.h"
 #include "mozilla/ipc/CrossProcessMutex.h"
 #include "ImageLayers.h"
+#include "SharedTextureImage.h"
 #include "gfxImageSurface.h"
+#include "gfxSharedImageSurface.h"
 #include "yuv_convert.h"
+#include "mozilla/layers/ImageBridgeChild.h"
+#include "mozilla/layers/ImageContainerChild.h"
 
 #ifdef XP_MACOSX
 #include "nsCoreAnimationSupport.h"
+#endif
+
+#ifdef XP_WIN
+#include "gfxD2DSurface.h"
+#include "gfxWindowsPlatform.h"
+#include <d3d10_1.h>
+
+#include "d3d10/ImageLayerD3D10.h"
 #endif
 
 using namespace mozilla::ipc;
@@ -64,6 +44,8 @@ ImageFactory::CreateImage(const Image::Format *aFormats,
     img = new PlanarYCbCrImage(aRecycleBin);
   } else if (FormatInList(aFormats, aNumFormats, Image::CAIRO_SURFACE)) {
     img = new CairoImage();
+  } else if (FormatInList(aFormats, aNumFormats, Image::SHARED_TEXTURE)) {
+    img = new SharedTextureImage();
 #ifdef XP_MACOSX
   } else if (FormatInList(aFormats, aNumFormats, Image::MAC_IO_SURFACE)) {
     img = new MacIOSurfaceImage();
@@ -103,8 +85,28 @@ BufferRecycleBin::GetBuffer(PRUint32 aSize)
   return result;
 }
 
+ImageContainer::ImageContainer(int flag) 
+: mReentrantMonitor("ImageContainer.mReentrantMonitor"),
+  mPaintCount(0),
+  mPreviousImagePainted(false),
+  mImageFactory(new ImageFactory()),
+  mRecycleBin(new BufferRecycleBin()),
+  mRemoteData(nsnull),
+  mRemoteDataMutex(nsnull),
+  mCompositionNotifySink(nsnull),
+  mImageContainerChild(nsnull)
+{
+  if (flag == ENABLE_ASYNC && ImageBridgeChild::IsCreated()) {
+    mImageContainerChild = 
+      ImageBridgeChild::GetSingleton()->CreateImageContainerChild();
+  }
+}
+
 ImageContainer::~ImageContainer()
 {
+  if (mImageContainerChild) {
+    mImageContainerChild->DispatchStop();
+  }
 }
 
 already_AddRefed<Image>
@@ -115,8 +117,8 @@ ImageContainer::CreateImage(const Image::Format *aFormats,
   return mImageFactory->CreateImage(aFormats, aNumFormats, mScaleHint, mRecycleBin);
 }
 
-void
-ImageContainer::SetCurrentImage(Image *aImage)
+void 
+ImageContainer::SetCurrentImageInternal(Image *aImage)
 {
   ReentrantMonitorAutoEnter mon(mReentrantMonitor);
 
@@ -132,6 +134,45 @@ ImageContainer::SetCurrentImage(Image *aImage)
 
   if (mRemoteData) {
     mRemoteDataMutex->Unlock();
+  }
+}
+
+void
+ImageContainer::SetCurrentImage(Image *aImage)
+{
+  ReentrantMonitorAutoEnter mon(mReentrantMonitor);
+
+  if (mImageContainerChild) {
+    if (aImage) {
+      mImageContainerChild->SendImageAsync(this, aImage);
+    } else {
+      mImageContainerChild->DispatchSetIdle();
+    }
+  }
+  
+  SetCurrentImageInternal(aImage);
+}
+
+void
+ImageContainer::SetCurrentImageInTransaction(Image *aImage)
+{
+  NS_ASSERTION(NS_IsMainThread(), "Should be on main thread.");
+  NS_ASSERTION(!mImageContainerChild, "Should use async image transfer with ImageBridge.");
+  
+  SetCurrentImageInternal(aImage);
+}
+
+bool ImageContainer::IsAsync() const {
+  return mImageContainerChild != nsnull;
+}
+
+PRUint64 ImageContainer::GetAsyncContainerID() const
+{
+  NS_ASSERTION(IsAsync(),"Shared image ID is only relevant to async ImageContainers");
+  if (IsAsync()) {
+    return mImageContainerChild->GetID();
+  } else {
+    return 0; // zero is always an invalid SharedImageID
   }
 }
 
@@ -198,6 +239,9 @@ ImageContainer::LockCurrentAsSurface(gfxIntSize *aSize, Image** aCurrentImage)
     
       return newSurf.forget();
     }
+
+    *aSize = mActiveImage->GetSize();
+    return mActiveImage->GetAsSurface();
   }
 
   if (aCurrentImage) {
@@ -231,12 +275,15 @@ ImageContainer::GetCurrentAsSurface(gfxIntSize *aSize)
     CrossProcessMutexAutoLock autoLock(*mRemoteDataMutex);
     EnsureActiveImage();
 
+    if (!mActiveImage)
+      return nsnull;
     *aSize = mRemoteData->mSize;
-    return mActiveImage ? mActiveImage->GetAsSurface() : nsnull;
+  } else {
+    if (!mActiveImage)
+      return nsnull;
+    *aSize = mActiveImage->GetSize();
   }
-
-  *aSize = mActiveImage->GetSize();
-  return mActiveImage ? mActiveImage->GetAsSurface() : nsnull;
+  return mActiveImage->GetAsSurface();
 }
 
 gfxIntSize
@@ -263,8 +310,9 @@ void
 ImageContainer::SetRemoteImageData(RemoteImageData *aData, CrossProcessMutex *aMutex)
 {
   ReentrantMonitorAutoEnter mon(mReentrantMonitor);
-  NS_ASSERTION(!mActiveImage, "No active image expected when SetRemoteImageData is called.");
-  NS_ASSERTION(!mRemoteData, "No remote data expected when SetRemoteImageData is called.");
+
+  NS_ASSERTION(!mActiveImage || !aData, "No active image expected when SetRemoteImageData is called with non-NULL aData.");
+  NS_ASSERTION(!mRemoteData || !aData, "No remote data expected when SetRemoteImageData is called with non-NULL aData.");
 
   mRemoteData = aData;
 
@@ -297,6 +345,18 @@ ImageContainer::EnsureActiveImage()
               
       mActiveImage = newImg;
     }
+#ifdef XP_WIN
+    else if (mRemoteData->mType == RemoteImageData::DXGI_TEXTURE_HANDLE &&
+             mRemoteData->mTextureHandle && !mActiveImage) {
+      nsRefPtr<RemoteDXGITextureImage> newImg = new RemoteDXGITextureImage();
+      newImg->mSize = mRemoteData->mSize;
+      newImg->mHandle = mRemoteData->mTextureHandle;
+      newImg->mFormat = mRemoteData->mFormat;
+      mRemoteData->mWasUpdated = false;
+
+      mActiveImage = newImg;
+    }
+#endif
   }
 }
 
@@ -320,13 +380,43 @@ PlanarYCbCrImage::AllocateBuffer(PRUint32 aSize)
   return mRecycleBin->GetBuffer(aSize); 
 }
 
+static void
+CopyPlane(PRUint8 *aDst, PRUint8 *aSrc,
+          const gfxIntSize &aSize, PRInt32 aStride,
+          PRInt32 aOffset, PRInt32 aSkip)
+{
+  if (!aOffset && !aSkip) {
+    // Fast path: planar input.
+    memcpy(aDst, aSrc, aSize.height * aStride);
+  } else {
+    PRInt32 height = aSize.height;
+    PRInt32 width = aSize.width;
+    for (int y = 0; y < height; ++y) {
+      PRUint8 *src = aSrc + aOffset;
+      PRUint8 *dst = aDst;
+      if (!aSkip) {
+        // Fast path: offset only, no per-pixel skip.
+        memcpy(dst, src, width);
+      } else {
+        // Slow path
+        for (int x = 0; x < width; ++x) {
+          *dst++ = *src++;
+          src += aSkip;
+        }
+      }
+      aSrc += aStride;
+      aDst += aStride;
+    }
+  }
+}
+
 void
-PlanarYCbCrImage::CopyData(const Data& aData)
+PlanarYCbCrImage::CopyData(const Data& aData,
+                           PRInt32 aYOffset, PRInt32 aYSkip,
+                           PRInt32 aCbOffset, PRInt32 aCbSkip,
+                           PRInt32 aCrOffset, PRInt32 aCrSkip)
 {
   mData = aData;
-
-  mData.mYStride = mData.mYSize.width;
-  mData.mCbCrStride = mData.mCbCrSize.width;
 
   // update buffer size
   mBufferSize = mData.mCbCrStride * mData.mCbCrSize.height * 2 +
@@ -341,19 +431,15 @@ PlanarYCbCrImage::CopyData(const Data& aData)
   mData.mCbChannel = mData.mYChannel + mData.mYStride * mData.mYSize.height;
   mData.mCrChannel = mData.mCbChannel + mData.mCbCrStride * mData.mCbCrSize.height;
 
-  for (int i = 0; i < mData.mYSize.height; i++) {
-    memcpy(mData.mYChannel + i * mData.mYStride,
-           aData.mYChannel + i * aData.mYStride,
-           mData.mYStride);
-  }
-  for (int i = 0; i < mData.mCbCrSize.height; i++) {
-    memcpy(mData.mCbChannel + i * mData.mCbCrStride,
-           aData.mCbChannel + i * aData.mCbCrStride,
-           mData.mCbCrStride);
-    memcpy(mData.mCrChannel + i * mData.mCbCrStride,
-           aData.mCrChannel + i * aData.mCbCrStride,
-           mData.mCbCrStride);
-  }
+  CopyPlane(mData.mYChannel, aData.mYChannel,
+            mData.mYSize, mData.mYStride,
+            aYOffset, aYSkip);
+  CopyPlane(mData.mCbChannel, aData.mCbChannel,
+            mData.mCbCrSize, mData.mCbCrStride,
+            aCbOffset, aCbSkip);
+  CopyPlane(mData.mCrChannel, aData.mCrChannel,
+            mData.mCbCrSize, mData.mCbCrStride,
+            aCrOffset, aCrSkip);
 
   mSize = aData.mPicSize;
 }
@@ -422,6 +508,7 @@ MacIOSurfaceImage::Update(ImageContainer* aContainer)
   }
 }
 #endif
+
 already_AddRefed<gfxASurface>
 RemoteBitmapImage::GetAsSurface()
 {

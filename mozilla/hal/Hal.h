@@ -40,13 +40,10 @@ namespace mozilla {
 template <class T>
 class Observer;
 
-namespace dom {
-class ScreenOrientationWrapper;
-}
-
 namespace hal {
 
-typedef Observer<dom::ScreenOrientationWrapper> ScreenOrientationObserver;
+typedef Observer<void_t> AlarmObserver;
+typedef Observer<ScreenConfiguration> ScreenConfigurationObserver;
 
 class WindowIdentifier;
 
@@ -72,9 +69,9 @@ namespace MOZ_HAL_NAMESPACE {
  * nsIDOMWindow* in place of the WindowIdentifier parameter.
  * The method with WindowIdentifier will be called automatically.
  */
-void Vibrate(const nsTArray<uint32>& pattern,
+void Vibrate(const nsTArray<uint32_t>& pattern,
              nsIDOMWindow* aWindow);
-void Vibrate(const nsTArray<uint32>& pattern,
+void Vibrate(const nsTArray<uint32_t>& pattern,
              const hal::WindowIdentifier &id);
 
 /**
@@ -312,27 +309,27 @@ void GetWakeLockInfo(const nsAString &aTopic, hal::WakeLockInformation *aWakeLoc
 void NotifyWakeLockChange(const hal::WakeLockInformation& aWakeLockInfo);
 
 /**
- * Inform the backend there is a new screen orientation observer.
- * @param aScreenOrientationObserver The observer that should be added.
+ * Inform the backend there is a new screen configuration observer.
+ * @param aScreenConfigurationObserver The observer that should be added.
  */
-void RegisterScreenOrientationObserver(hal::ScreenOrientationObserver* aScreenOrientationObserver);
+void RegisterScreenConfigurationObserver(hal::ScreenConfigurationObserver* aScreenConfigurationObserver);
 
 /**
- * Inform the backend a screen orientation observer unregistered.
- * @param aScreenOrientationObserver The observer that should be removed.
+ * Inform the backend a screen configuration observer unregistered.
+ * @param aScreenConfigurationObserver The observer that should be removed.
  */
-void UnregisterScreenOrientationObserver(hal::ScreenOrientationObserver* aScreenOrientationObserver);
+void UnregisterScreenConfigurationObserver(hal::ScreenConfigurationObserver* aScreenConfigurationObserver);
 
 /**
- * Returns the current screen orientation.
+ * Returns the current screen configuration.
  */
-void GetCurrentScreenOrientation(dom::ScreenOrientation* aScreenOrientation);
+void GetCurrentScreenConfiguration(hal::ScreenConfiguration* aScreenConfiguration);
 
 /**
- * Notify of a change in the screen orientation.
- * @param aScreenOrientation The new screen orientation.
+ * Notify of a change in the screen configuration.
+ * @param aScreenConfiguration The new screen orientation.
  */
-void NotifyScreenOrientationChange(const dom::ScreenOrientation& aScreenOrientation);
+void NotifyScreenConfigurationChange(const hal::ScreenConfiguration& aScreenConfiguration);
 
 /**
  * Lock the screen orientation to the specific orientation.
@@ -369,6 +366,41 @@ void NotifySwitchChange(const hal::SwitchEvent& aEvent);
  * Get current switch information.
  */
 hal::SwitchState GetCurrentSwitchState(hal::SwitchDevice aDevice);
+
+/**
+ * Register an observer that is notified when a programmed alarm
+ * expires.
+ *
+ * Currently, there can only be 0 or 1 alarm observers.
+ */
+bool RegisterTheOneAlarmObserver(hal::AlarmObserver* aObserver);
+
+/**
+ * Unregister the alarm observer.  Doing so will implicitly cancel any
+ * programmed alarm.
+ */
+void UnregisterTheOneAlarmObserver();
+
+/**
+ * Notify that the programmed alarm has expired.
+ *
+ * This API is internal to hal; clients shouldn't call it directly.
+ */
+void NotifyAlarmFired();
+
+/**
+ * Program the real-time clock to expire at the time |aSeconds|,
+ * |aNanoseconds|.  These specify a point in real time relative to the
+ * UNIX epoch.  The alarm will fire at this time point even if the
+ * real-time clock is changed; that is, this alarm respects changes to
+ * the real-time clock.  Return true iff the alarm was programmed.
+ *
+ * The alarm can be reprogrammed at any time.
+ *
+ * This API is currently only allowed to be used from non-sandboxed
+ * contexts.
+ */
+bool SetAlarm(long aSeconds, long aNanoseconds);
 
 } // namespace MOZ_HAL_NAMESPACE
 } // namespace mozilla

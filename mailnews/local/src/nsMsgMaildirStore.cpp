@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *  Andrey Terentyev <andreycpp@gmail.com>
- *  David Bienvenu <dbienvenu@mozilla.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /**
    Class for handling Maildir stores.
@@ -132,7 +98,7 @@ nsresult nsMsgMaildirStore::AddSubFolders(nsIMsgFolder *parent, nsIFile *path,
         child->SetPrettyName(leafName);
       if (deep)
       {
-        nsCOMPtr<nsILocalFile> path;
+        nsCOMPtr<nsIFile> path;
         rv = child->GetFilePath(getter_AddRefs(path));
         NS_ENSURE_SUCCESS(rv, rv);
 
@@ -155,7 +121,7 @@ NS_IMETHODIMP nsMsgMaildirStore::DiscoverSubFolders(nsIMsgFolder *aParentFolder,
 {
   NS_ENSURE_ARG_POINTER(aParentFolder);
 
-  nsCOMPtr<nsILocalFile> path;
+  nsCOMPtr<nsIFile> path;
   nsresult rv = aParentFolder->GetFilePath(getter_AddRefs(path));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -178,13 +144,13 @@ NS_IMETHODIMP nsMsgMaildirStore::DiscoverSubFolders(nsIMsgFolder *aParentFolder,
 *  mail client).
  * aFolderName is already "safe" - it has been through NS_MsgHashIfNecessary
  */
-nsresult nsMsgMaildirStore::CreateMaildir(nsILocalFile *path)
+nsresult nsMsgMaildirStore::CreateMaildir(nsIFile *path)
 {
   nsresult rv = path->Create(nsIFile::DIRECTORY_TYPE, 0700);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Create tmp, new, cur leaves
-  nsCOMPtr<nsILocalFile> leaf(do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv));
+  nsCOMPtr<nsIFile> leaf(do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
   leaf->InitWithFile(path);
@@ -204,7 +170,7 @@ NS_IMETHODIMP nsMsgMaildirStore::CreateFolder(nsIMsgFolder *aParent,
                                               const nsAString &aFolderName,
                                               nsIMsgFolder **aResult)
 {
-  nsCOMPtr <nsILocalFile> path;
+  nsCOMPtr <nsIFile> path;
   nsresult rv = aParent->GetFilePath(getter_AddRefs(path));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -293,7 +259,7 @@ NS_IMETHODIMP nsMsgMaildirStore::IsSummaryFileValid(nsIMsgFolder *aFolder,
                                                  aResult);
   if (!*aResult)
   {
-    nsCOMPtr<nsILocalFile> newFile;
+    nsCOMPtr<nsIFile> newFile;
     rv = aFolder->GetFilePath(getter_AddRefs(newFile));
     NS_ENSURE_SUCCESS(rv, rv);
     newFile->Append(NS_LITERAL_STRING("cur"));
@@ -325,17 +291,17 @@ NS_IMETHODIMP nsMsgMaildirStore::SetSummaryFileValid(nsIMsgFolder *aFolder,
 }
 
 NS_IMETHODIMP nsMsgMaildirStore::GetSummaryFile(nsIMsgFolder *aFolder,
-                                                nsILocalFile **aSummaryFile)
+                                                nsIFile **aSummaryFile)
 {
   NS_ENSURE_ARG_POINTER(aFolder);
   NS_ENSURE_ARG_POINTER(aSummaryFile);
 
   nsresult rv;
-  nsCOMPtr <nsILocalFile> newSummaryLocation =
+  nsCOMPtr <nsIFile> newSummaryLocation =
     do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsILocalFile> pathFile;
+  nsCOMPtr<nsIFile> pathFile;
   rv = aFolder->GetFilePath(getter_AddRefs(pathFile));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -358,7 +324,7 @@ NS_IMETHODIMP nsMsgMaildirStore::DeleteFolder(nsIMsgFolder *aFolder)
   NS_ENSURE_ARG_POINTER(aFolder);
 
   // Delete Maildir structure
-  nsCOMPtr<nsILocalFile> pathFile;
+  nsCOMPtr<nsIFile> pathFile;
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(pathFile));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -379,12 +345,12 @@ NS_IMETHODIMP nsMsgMaildirStore::RenameFolder(nsIMsgFolder *aFolder,
   NS_ENSURE_ARG_POINTER(aNewFolder);
 
   // old path
-  nsCOMPtr<nsILocalFile> oldPathFile;
+  nsCOMPtr<nsIFile> oldPathFile;
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(oldPathFile));
   NS_ENSURE_SUCCESS(rv, rv);
 
   // old sbd directory
-  nsCOMPtr<nsILocalFile> sbdPathFile;
+  nsCOMPtr<nsIFile> sbdPathFile;
   PRUint32 numChildren;
   aFolder->GetNumSubFolders(&numChildren);
   if (numChildren > 0)
@@ -397,7 +363,7 @@ NS_IMETHODIMP nsMsgMaildirStore::RenameFolder(nsIMsgFolder *aFolder,
   }
 
   // old summary
-  nsCOMPtr<nsILocalFile> oldSummaryFile;
+  nsCOMPtr<nsIFile> oldSummaryFile;
   rv = GetSummaryFile(aFolder, getter_AddRefs(oldSummaryFile));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -446,14 +412,14 @@ NS_IMETHODIMP nsMsgMaildirStore::CopyFolder(nsIMsgFolder *aSrcFolder,
   nsCOMPtr<nsIMsgLocalMailFolder> localSrcFolder(do_QueryInterface(aSrcFolder));
   aSrcFolder->ForceDBClosed();
 
-  nsCOMPtr<nsILocalFile> oldPath;
+  nsCOMPtr<nsIFile> oldPath;
   nsresult rv = aSrcFolder->GetFilePath(getter_AddRefs(oldPath));
   NS_ENSURE_SUCCESS(rv,rv);
 
-  nsCOMPtr<nsILocalFile> summaryFile;
+  nsCOMPtr<nsIFile> summaryFile;
   GetSummaryFileLocation(oldPath, getter_AddRefs(summaryFile));
 
-  nsCOMPtr<nsILocalFile> newPath;
+  nsCOMPtr<nsIFile> newPath;
   rv = aDstFolder->GetFilePath(getter_AddRefs(newPath));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -560,7 +526,7 @@ NS_IMETHODIMP nsMsgMaildirStore::CopyFolder(nsIMsgFolder *aSrcFolder,
       nsCOMPtr<nsIMsgDatabase> srcDB; // we need to force closed the source db
       aSrcFolder->Delete();
 
-      nsCOMPtr<nsILocalFile> parentPath;
+      nsCOMPtr<nsIFile> parentPath;
       rv = msgParent->GetFilePath(getter_AddRefs(parentPath));
       NS_ENSURE_SUCCESS(rv,rv);
 
@@ -624,10 +590,10 @@ nsMsgMaildirStore::GetNewMsgOutputStream(nsIMsgFolder *aFolder,
     rv = db->CreateNewHdr(nsMsgKey_None, aNewMsgHdr);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    (*aNewMsgHdr)->SetMessageOffset(0);
   }
+  (*aNewMsgHdr)->SetMessageOffset(0);
   // path to the message download folder
-  nsCOMPtr<nsILocalFile> newFile;
+  nsCOMPtr<nsIFile> newFile;
   rv = aFolder->GetFilePath(getter_AddRefs(newFile));
   NS_ENSURE_SUCCESS(rv, rv);
   newFile->Append(NS_LITERAL_STRING("tmp"));
@@ -669,7 +635,7 @@ nsMsgMaildirStore::DiscardNewMessage(nsIOutputStream *aOutputStream,
   if (fileName.IsEmpty())
     return NS_ERROR_FAILURE;
 
-  nsCOMPtr<nsILocalFile> path;
+  nsCOMPtr<nsIFile> path;
   nsCOMPtr<nsIMsgFolder> folder;
   nsresult rv = aNewHdr->GetFolder(getter_AddRefs(folder));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -692,7 +658,7 @@ nsMsgMaildirStore::FinishNewMessage(nsIOutputStream *aOutputStream,
 
   aOutputStream->Close();
 
-  nsCOMPtr<nsILocalFile> folderPath;
+  nsCOMPtr<nsIFile> folderPath;
   nsCOMPtr<nsIMsgFolder> folder;
   nsresult rv = aNewHdr->GetFolder(getter_AddRefs(folder));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -748,7 +714,7 @@ nsMsgMaildirStore::MoveNewlyDownloadedMessage(nsIMsgDBHdr *aNewHdr,
   NS_ENSURE_ARG_POINTER(aDestFolder);
   NS_ENSURE_ARG_POINTER(aResult);
 
-  nsCOMPtr<nsILocalFile> folderPath;
+  nsCOMPtr<nsIFile> folderPath;
   nsCOMPtr<nsIMsgFolder> folder;
   nsresult rv = aNewHdr->GetFolder(getter_AddRefs(folder));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -814,7 +780,7 @@ nsMsgMaildirStore::GetMsgInputStream(nsIMsgFolder *aMsgFolder,
   *aOffset = 0;
 
   // construct path to file
-  nsCOMPtr<nsILocalFile> path;
+  nsCOMPtr<nsIFile> path;
   nsresult rv = aMsgFolder->GetFilePath(getter_AddRefs(path));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -854,7 +820,7 @@ NS_IMETHODIMP nsMsgMaildirStore::DeleteMessages(nsIArray *aHdrArray)
     if (NS_FAILED(rv))
       continue;
     msgHdr->GetFolder(getter_AddRefs(folder));
-    nsCOMPtr<nsILocalFile> path;
+    nsCOMPtr<nsIFile> path;
     rv = folder->GetFilePath(getter_AddRefs(path));
     NS_ENSURE_SUCCESS(rv, rv);
     nsCAutoString fileName;
@@ -895,7 +861,7 @@ nsMsgMaildirStore::CopyMessages(bool aIsMove, nsIArray *aHdrArray,
   nsresult rv = aHdrArray->GetLength(&messageCount);
   NS_ENSURE_SUCCESS(rv, rv);
   nsCOMPtr<nsIMsgFolder> srcFolder;
-  nsCOMPtr<nsILocalFile> destFolderPath;
+  nsCOMPtr<nsIFile> destFolderPath;
   nsCOMPtr<nsIMsgDatabase> destDB;
   nsCOMPtr<nsIMsgDatabase> srcDB;
   aDstFolder->GetMsgDatabase(getter_AddRefs(destDB));
@@ -928,7 +894,7 @@ nsMsgMaildirStore::CopyMessages(bool aIsMove, nsIArray *aHdrArray,
     msgHdr->GetMessageKey(&srcKey);
     msgTxn->AddSrcKey(srcKey);
     msgHdr->GetFolder(getter_AddRefs(srcFolder));
-    nsCOMPtr<nsILocalFile> path;
+    nsCOMPtr<nsIFile> path;
     rv = srcFolder->GetFilePath(getter_AddRefs(path));
     NS_ENSURE_SUCCESS(rv, rv);
     nsCAutoString fileName;
@@ -1060,9 +1026,7 @@ nsresult MaildirStoreParser::ParseNextMessage(nsIFile *aFile)
 
   newMsgHdr->SetMessageOffset(0);
 
-  nsCOMPtr<nsILocalFile> localFile = do_QueryInterface(aFile);
-  if (NS_SUCCEEDED(rv))
-    rv = NS_NewLocalFileInputStream(getter_AddRefs(inputStream), localFile);
+  rv = NS_NewLocalFileInputStream(getter_AddRefs(inputStream), aFile);
   if (NS_SUCCEEDED(rv) && inputStream)
   {
     PRInt32 inputBufferSize = 10240;
@@ -1094,7 +1058,7 @@ nsresult MaildirStoreParser::ParseNextMessage(nsIFile *aFile)
     newMsgHdr->SetMessageSize((PRUint32) fileSize);
     m_db->AddNewHdrToDB(newMsgHdr, true);
     nsCAutoString storeToken;
-    localFile->GetNativeLeafName(storeToken);
+    aFile->GetNativeLeafName(storeToken);
     newMsgHdr->SetStringProperty("storeToken", storeToken.get());
   }
   NS_ENSURE_SUCCESS(rv, rv);
@@ -1123,7 +1087,8 @@ void MaildirStoreParser::TimerCallback(nsITimer *aTimer, void *aClosure)
         nsCOMPtr<nsIMsgMailNewsUrl> url = do_QueryInterface(mailboxurl);
         url->SetUpdatingFolder(true);
         nsCAutoString uriSpec("mailbox://");
-        url->SetSpec(uriSpec);
+        // ### TODO - what if SetSpec fails?
+        (void) url->SetSpec(uriSpec);
         parser->m_listener->OnStopRunningUrl(url, NS_OK);
       }
     }
@@ -1156,7 +1121,7 @@ NS_IMETHODIMP nsMsgMaildirStore::RebuildIndex(nsIMsgFolder *aFolder,
   NS_ENSURE_ARG_POINTER(aFolder);
   // This code needs to iterate over the maildir files, and parse each
   // file and add a msg hdr to the db for the file.
-  nsCOMPtr<nsILocalFile> path;
+  nsCOMPtr<nsIFile> path;
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(path));
   NS_ENSURE_SUCCESS(rv, rv);
   path->Append(NS_LITERAL_STRING("cur"));
@@ -1213,7 +1178,7 @@ nsMsgMaildirStore::GetOutputStream(nsIMsgDBHdr *aHdr,
   nsresult rv = aHdr->GetFolder(getter_AddRefs(folder));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsILocalFile> folderPath;
+  nsCOMPtr<nsIFile> folderPath;
   rv = folder->GetFilePath(getter_AddRefs(folderPath));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -1222,8 +1187,7 @@ nsMsgMaildirStore::GetOutputStream(nsIMsgDBHdr *aHdr,
   maildirFile->Append(NS_LITERAL_STRING("cur"));
   maildirFile->AppendNative(fileName);
 
-  nsCOMPtr<nsILocalFile> localFile = do_QueryInterface(maildirFile);
-  return MsgGetFileStream(localFile, getter_AddRefs(aOutputStream));
+  return MsgGetFileStream(maildirFile, getter_AddRefs(aOutputStream));
 }
 
 NS_IMETHODIMP nsMsgMaildirStore::ChangeKeywords(nsIArray *aHdrArray,
@@ -1281,7 +1245,7 @@ NS_IMETHODIMP nsMsgMaildirStore::ChangeKeywords(nsIArray *aHdrArray,
  * c:\Inbox, it will return c:\Inbox.sbd if it succeeds. Path is strictly
  * an out parameter.
  */
-nsresult nsMsgMaildirStore::GetDirectoryForFolder(nsILocalFile *path)
+nsresult nsMsgMaildirStore::GetDirectoryForFolder(nsIFile *path)
 {
   // add directory separator to the path
   nsAutoString leafName;
@@ -1290,7 +1254,7 @@ nsresult nsMsgMaildirStore::GetDirectoryForFolder(nsILocalFile *path)
   return path->SetLeafName(leafName);
 }
 
-nsresult nsMsgMaildirStore::CreateDirectoryForFolder(nsILocalFile *path,
+nsresult nsMsgMaildirStore::CreateDirectoryForFolder(nsIFile *path,
                                                      bool aIsServer)
 {
   nsresult rv = NS_OK;

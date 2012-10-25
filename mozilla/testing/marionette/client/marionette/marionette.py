@@ -1,45 +1,13 @@
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1 
-# 
-# The contents of this file are subject to the Mozilla Public License Version 
-# 1.1 (the "License"); you may not use this file except in compliance with 
-# the License. You may obtain a copy of the License at 
-# http://www.mozilla.org/MPL/ # 
-# Software distributed under the License is distributed on an "AS IS" basis, 
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License 
-# for the specific language governing rights and limitations under the 
-# License. 
-# 
-# The Original Code is Marionette Client. 
-# 
-# The Initial Developer of the Original Code is 
-#   Mozilla Foundation. 
-# Portions created by the Initial Developer are Copyright (C) 2011
-# the Initial Developer. All Rights Reserved. 
-# 
-# Contributor(s): 
-#  Jonathan Griffin <jgriffin@mozilla.com>
-# 
-# Alternatively, the contents of this file may be used under the terms of 
-# either the GNU General Public License Version 2 or later (the "GPL"), or 
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"), 
-# in which case the provisions of the GPL or the LGPL are applicable instead 
-# of those above. If you wish to allow use of your version of this file only 
-# under the terms of either the GPL or the LGPL, and not to allow others to 
-# use your version of this file under the terms of the MPL, indicate your 
-# decision by deleting the provisions above and replace them with the notice 
-# and other provisions required by the GPL or the LGPL. If you do not delete 
-# the provisions above, a recipient may use your version of this file under 
-# the terms of any one of the MPL, the GPL or the LGPL. 
-# 
-# ***** END LICENSE BLOCK ***** 
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import socket
 
 from client import MarionetteClient
 from errors import *
 from emulator import Emulator
-from b2ginstance import B2GInstance
+from geckoinstance import GeckoInstance
 
 class HTMLElement(object):
 
@@ -70,7 +38,7 @@ class HTMLElement(object):
         return self.marionette.find_elements(method, target, self.id)
 
     def get_attribute(self, attribute):
-        return self.marionette._send_message('getAttributeValue', 'value', element=self.id, name=attribute)
+        return self.marionette._send_message('getElementAttribute', 'value', element=self.id, name=attribute)
 
     def click(self):
         return self.marionette._send_message('clickElement', 'ok', element=self.id)
@@ -93,7 +61,7 @@ class HTMLElement(object):
     def enabled(self):
         return self.marionette._send_message('isElementEnabled', 'value', element=self.id)
 
-    def displayed(self):
+    def is_displayed(self):
         return self.marionette._send_message('isElementDisplayed', 'value', element=self.id)
 
 
@@ -102,31 +70,42 @@ class Marionette(object):
     CONTEXT_CHROME = 'chrome'
     CONTEXT_CONTENT = 'content'
 
-    def __init__(self, host='localhost', port=2828, b2gbin=False,
-                 emulator=False, connectToRunningEmulator=False,
-                 homedir=None, baseurl=None, noWindow=False):
+    def __init__(self, host='localhost', port=2828, bin=None, profile=None,
+                 emulator=None, emulatorBinary=None, emulatorImg=None,
+                 emulator_res='480x800', connectToRunningEmulator=False,
+                 homedir=None, baseurl=None, noWindow=False, logcat_dir=None):
         self.host = host
         self.port = self.local_port = port
-        self.b2gbin = b2gbin
+        self.bin = bin
+        self.profile = profile
         self.session = None
         self.window = None
         self.emulator = None
+        self.extra_emulators = []
         self.homedir = homedir
         self.baseurl = baseurl
         self.noWindow = noWindow
+        self.logcat_dir = logcat_dir
 
-        if b2gbin:
-            self.b2ginstance = B2GInstance(host=self.host, port=self.port, b2gbin=self.b2gbin)
-            self.b2ginstance.start()
-            assert(self.b2ginstance.wait_for_port())
+        if bin:
+            self.instance = GeckoInstance(host=self.host, port=self.port,
+                                          bin=self.bin, profile=self.profile)
+            self.instance.start()
+            assert(self.instance.wait_for_port())
         if emulator:
-            self.emulator = Emulator(homedir=homedir, noWindow=self.noWindow)
+            self.emulator = Emulator(homedir=homedir,
+                                     noWindow=self.noWindow,
+                                     logcat_dir=self.logcat_dir,
+                                     arch=emulator,
+                                     emulatorBinary=emulatorBinary,
+                                     userdata=emulatorImg,
+                                     res=emulator_res)
             self.emulator.start()
             self.port = self.emulator.setup_port_forwarding(self.port)
             assert(self.emulator.wait_for_port())
 
         if connectToRunningEmulator:
-            self.emulator = Emulator(homedir=homedir)
+            self.emulator = Emulator(homedir=homedir, logcat_dir=self.logcat_dir)
             self.emulator.connect()
             self.port = self.emulator.setup_port_forwarding(self.port)
             assert(self.emulator.wait_for_port())
@@ -136,8 +115,10 @@ class Marionette(object):
     def __del__(self):
         if self.emulator:
             self.emulator.close()
-        if self.b2gbin:
-            self.b2ginstance.close()
+        if self.bin:
+            self.instance.close()
+        for qemu in self.extra_emulators:
+            qemu.emulator.close()
 
     def _send_message(self, command, response_key, **kwargs):
         if not self.session and command not in ('newSession', 'getStatus'):
@@ -159,12 +140,28 @@ class Marionette(object):
                 port = self.emulator.restart(self.local_port)
                 if port is not None:
                     self.port = self.client.port = port
-            raise TimeoutException(message='socket.timeout', status=21, stacktrace=None)
+            raise TimeoutException(message='socket.timeout', status=ErrorCodes.TIMEOUT, stacktrace=None)
+
+        # Process any emulator commands that are sent from a script
+        # while it's executing.
+        while response.get("emulator_cmd"):
+            response = self._handle_emulator_cmd(response)
 
         if (response_key == 'ok' and response.get('ok') ==  True) or response_key in response:
             return response[response_key]
         else:
             self._handle_error(response)
+
+    def _handle_emulator_cmd(self, response):
+        cmd = response.get("emulator_cmd")
+        if not cmd or not self.emulator:
+            raise MarionetteException(message="No emulator in this test to run "
+                                      "command against.")
+        cmd = cmd.encode("ascii")
+        result = self.emulator._run_telnet(cmd)
+        return self.client.send({"type": "emulatorCmdResult",
+                                 "id": response.get("id"),
+                                 "result": result})
 
     def _handle_error(self, response):
         if 'error' in response and isinstance(response['error'], dict):
@@ -173,24 +170,42 @@ class Marionette(object):
             stacktrace = response['error'].get('stacktrace')
             # status numbers come from 
             # http://code.google.com/p/selenium/wiki/JsonWireProtocol#Response_Status_Codes
-            if status == 7:
+            if status == ErrorCodes.NO_SUCH_ELEMENT:
                 raise NoSuchElementException(message=message, status=status, stacktrace=stacktrace)
-            elif status == 8:
+            elif status == ErrorCodes.NO_SUCH_FRAME:
                 raise NoSuchFrameException(message=message, status=status, stacktrace=stacktrace)
-            elif status == 10:
+            elif status == ErrorCodes.STALE_ELEMENT_REFERENCE:
                 raise StaleElementException(message=message, status=status, stacktrace=stacktrace)
-            elif status == 11:
+            elif status == ErrorCodes.ELEMENT_NOT_VISIBLE:
                 raise ElementNotVisibleException(message=message, status=status, stacktrace=stacktrace)
-            elif status == 17:
+            elif status == ErrorCodes.INVALID_ELEMENT_STATE:
+                raise InvalidElementStateException(message=message, status=status, stacktrace=stacktrace)
+            elif status == ErrorCodes.UNKNOWN_ERROR:
+                raise MarionetteException(message=message, status=status, stacktrace=stacktrace)
+            elif status == ErrorCodes.ELEMENT_IS_NOT_SELECTABLE:
+                raise ElementNotSelectableException(message=message, status=status, stacktrace=stacktrace)
+            elif status == ErrorCodes.JAVASCRIPT_ERROR:
                 raise JavascriptException(message=message, status=status, stacktrace=stacktrace)
-            elif status == 19:
+            elif status == ErrorCodes.XPATH_LOOKUP_ERROR:
                 raise XPathLookupException(message=message, status=status, stacktrace=stacktrace)
-            elif status == 21:
+            elif status == ErrorCodes.TIMEOUT:
                 raise TimeoutException(message=message, status=status, stacktrace=stacktrace)
-            elif status == 23:
+            elif status == ErrorCodes.NO_SUCH_WINDOW:
                 raise NoSuchWindowException(message=message, status=status, stacktrace=stacktrace)
-            elif status == 28:
+            elif status == ErrorCodes.INVALID_COOKIE_DOMAIN:
+                raise InvalidCookieDomainException(message=message, status=status, stacktrace=stacktrace)
+            elif status == ErrorCodes.UNABLE_TO_SET_COOKIE:
+                raise UnableToSetCookieException(message=message, status=status, stacktrace=stacktrace)
+            elif status == ErrorCodes.NO_ALERT_OPEN:
+                raise NoAlertPresentException(message=message, status=status, stacktrace=stacktrace)
+            elif status == ErrorCodes.SCRIPT_TIMEOUT:
                 raise ScriptTimeoutException(message=message, status=status, stacktrace=stacktrace)
+            elif status == ErrorCodes.INVALID_SELECTOR \
+                 or status == ErrorCodes.INVALID_XPATH_SELECTOR \
+                 or status == ErrorCodes.INVALID_XPATH_SELECTOR_RETURN_TYPER:
+                raise InvalidSelectorException(message=message, status=status, stacktrace=stacktrace)
+            elif status == ErrorCodes.MOVE_TARGET_OUT_OF_BOUNDS:
+                MoveTargetOutOfBoundsException(message=message, status=status, stacktrace=stacktrace)
             else:
                 raise MarionetteException(message=message, status=status, stacktrace=stacktrace)
         raise MarionetteException(message=response, status=500)
@@ -226,17 +241,24 @@ class Marionette(object):
         response = self._send_message('setSearchTimeout', 'ok', value=timeout)
         return response
 
-    def get_window(self):
+    @property
+    def current_window_handle(self):
         self.window = self._send_message('getWindow', 'value')
         return self.window
+    
+    @property
+    def title(self):
+        response = self._send_message('getTitle', 'value') 
+        return response
 
-    def get_windows(self):
+    @property
+    def window_handles(self):
         response = self._send_message('getWindows', 'value')
         return response
 
     def close_window(self, window_id=None):
         if not window_id:
-            window_id = self.get_window()
+            window_id = self.current_window_handle
         response = self._send_message('closeWindow', 'ok', value=window_id)
         return response
 
@@ -288,7 +310,7 @@ class Marionette(object):
         elif type(args) == HTMLElement:
             wrapped = {'ELEMENT': args.id }
         elif (isinstance(args, bool) or isinstance(args, basestring) or
-              isinstance(args, int) or args is None):
+              isinstance(args, int) or isinstance(args, float) or args is None):
             wrapped = args
 
         return wrapped
@@ -310,7 +332,7 @@ class Marionette(object):
 
         return unwrapped
 
-    def execute_js_script(self, script, script_args=None, timeout=True):
+    def execute_js_script(self, script, script_args=None, timeout=True, new_sandbox=True, special_powers=False):
         if script_args is None:
             script_args = []
         args = self.wrapArguments(script_args)
@@ -318,21 +340,33 @@ class Marionette(object):
                                       'value',
                                       value=script,
                                       args=args,
-                                      timeout=timeout)
+                                      timeout=timeout,
+                                      newSandbox=new_sandbox,
+                                      specialPowers=special_powers)
         return self.unwrapValue(response)
 
-    def execute_script(self, script, script_args=None):
+    def execute_script(self, script, script_args=None, new_sandbox=True, special_powers=False):
         if script_args is None:
             script_args = []
         args = self.wrapArguments(script_args)
-        response = self._send_message('executeScript', 'value', value=script, args=args)
+        response = self._send_message('executeScript',
+                                     'value',
+                                      value=script,
+                                      args=args,
+                                      newSandbox=new_sandbox,
+                                      specialPowers=special_powers)
         return self.unwrapValue(response)
 
-    def execute_async_script(self, script, script_args=None):
+    def execute_async_script(self, script, script_args=None, new_sandbox=True, special_powers=False):
         if script_args is None:
             script_args = []
         args = self.wrapArguments(script_args)
-        response = self._send_message('executeAsyncScript', 'value', value=script, args=args)
+        response = self._send_message('executeAsyncScript',
+                                      'value',
+                                      value=script,
+                                      args=args,
+                                      newSandbox=new_sandbox,
+                                      specialPowers=special_powers)
         return self.unwrapValue(response)
 
     def find_element(self, method, target, id=None):
@@ -359,3 +393,14 @@ class Marionette(object):
 
     def get_logs(self):
         return self._send_message('getLogs', 'value')
+
+    def add_perf_data(self, suite, name, value):
+        return self._send_message('addPerfData', 'ok', suite=suite, name=name, value=value)
+
+    def get_perf_data(self):
+        return self._send_message('getPerfData', 'value')
+
+    def import_script(self, file):
+        f = open(file, "r")
+        js = f.read()
+        return self._send_message('importScript', 'ok', script=js)

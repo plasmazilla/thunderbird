@@ -1,42 +1,8 @@
 #!/usr/bin/env python
 #
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is mozilla.org code.
-#
-# The Initial Developer of the Original Code is The Mozilla Foundation
-# Portions created by the Initial Developer are Copyright (C) 2009
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#  Serge Gautherie <sgautherie.bz@free.fr>
-#  Ted Mielczarek <ted.mielczarek@gmail.com>
-#  Joel Maher <joel.maher@gmail.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK ***** */
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import re, sys, os, os.path, logging, shutil, signal, math, time
 import xml.dom.minidom
@@ -69,10 +35,11 @@ class XPCShellTests(object):
   oldcwd = os.getcwd()
 
   def __init__(self, log=sys.stdout):
-    """ Init logging """
+    """ Init logging and node status """
     handler = logging.StreamHandler(log)
     self.log.setLevel(logging.INFO)
     self.log.addHandler(handler)
+    self.nodeProc = None
 
   def buildTestList(self):
     """
@@ -221,10 +188,28 @@ class XPCShellTests(object):
     #   do_load_child_test_harness() in head.js
     if not self.appPath:
         self.appPath = self.xrePath
-    self.xpcsCmd = [self.xpcshell, '-g', self.xrePath, '-a', self.appPath, '-r', self.httpdManifest, '-m', '-n', '-s'] + \
-        ['-e', 'const _HTTPD_JS_PATH = "%s";' % self.httpdJSPath,
-         '-e', 'const _HEAD_JS_PATH = "%s";' % self.headJSPath,
-         '-f', os.path.join(self.testharnessdir, 'head.js')]
+
+    self.xpcsCmd = [
+        self.xpcshell,
+        '-g', self.xrePath,
+        '-a', self.appPath,
+        '-r', self.httpdManifest,
+        '-m',
+        '-n',
+        '-s',
+        '-e', 'const _HTTPD_JS_PATH = "%s";' % self.httpdJSPath,
+        '-e', 'const _HEAD_JS_PATH = "%s";' % self.headJSPath
+    ]
+
+    if self.testingModulesDir:
+        # Escape backslashes in string literal.
+        sanitized = self.testingModulesDir.replace('\\', '\\\\')
+        self.xpcsCmd.extend([
+            '-e',
+            'const _TESTING_MODULES_DIR = "%s";' % sanitized
+        ])
+
+    self.xpcsCmd.extend(['-f', os.path.join(self.testharnessdir, 'head.js')])
 
     if self.debuggerInfo:
       self.xpcsCmd = [self.debuggerInfo["path"]] + self.debuggerInfo["args"] + self.xpcsCmd
@@ -393,6 +378,54 @@ class XPCShellTests(object):
     return ['-e', 'const _TEST_FILE = ["%s"];' %
               replaceBackSlashes(name)]
 
+  def trySetupNode(self):
+    """
+      Run node for SPDY tests, if available, and updates mozinfo as appropriate.
+    """
+    nodeMozInfo = {'hasNode': False} # Assume the worst
+    nodeBin = None
+
+    # We try to find the node executable in the path given to us by the user in
+    # the MOZ_NODE_PATH environment variable
+    localPath = os.getenv('MOZ_NODE_PATH', None)
+    if localPath and os.path.exists(localPath) and os.path.isfile(localPath):
+      nodeBin = localPath
+
+    if nodeBin:
+      self.log.info('Found node at %s' % (nodeBin,))
+      myDir = os.path.split(os.path.abspath(__file__))[0]
+      mozSpdyJs = os.path.join(myDir, 'moz-spdy', 'moz-spdy.js')
+
+      if os.path.exists(mozSpdyJs):
+        # OK, we found our SPDY server, let's try to get it running
+        self.log.info('Found moz-spdy at %s' % (mozSpdyJs,))
+        stdout, stderr = self.getPipes()
+        try:
+          # We pipe stdin to node because the spdy server will exit when its
+          # stdin reaches EOF
+          self.nodeProc = Popen([nodeBin, mozSpdyJs], stdin=PIPE, stdout=PIPE,
+                  stderr=STDOUT, env=self.env, cwd=os.getcwd())
+
+          # Check to make sure the server starts properly by waiting for it to
+          # tell us it's started
+          msg = self.nodeProc.stdout.readline()
+          if msg.startswith('SPDY server listening'):
+              nodeMozInfo['hasNode'] = True
+        except OSError, e:
+          # This occurs if the subprocess couldn't be started
+          self.log.error('Could not run node SPDY server: %s' % (str(e),))
+
+    mozinfo.update(nodeMozInfo)
+
+  def shutdownNode(self):
+    """
+      Shut down our node process, if it exists
+    """
+    if self.nodeProc:
+      self.log.info('Node SPDY server shutting down ...')
+      # moz-spdy exits when its stdin reaches EOF, so force that to happen here
+      self.nodeProc.communicate()
+
   def writeXunitResults(self, results, name=None, filename=None, fh=None):
     """
       Write Xunit XML from results.
@@ -504,7 +537,7 @@ class XPCShellTests(object):
                debuggerArgs=None, debuggerInteractive=False,
                profileName=None, mozInfo=None, shuffle=False,
                testsRootDir=None, xunitFilename=None, xunitName=None,
-               **otherOptions):
+               testingModulesDir=None, **otherOptions):
     """Run xpcshell tests.
 
     |xpcshell|, is the xpcshell executable to use to run the tests.
@@ -535,6 +568,8 @@ class XPCShellTests(object):
       results.
     |xunitName|, if outputting an xUnit XML file, the str value to use for the
       testsuite name.
+    |testingModulesDir|, if provided, specifies where JS modules reside.
+      xpcshell will register a resource handler mapping this path.
     |otherOptions| may be present for the convenience of subclasses
     """
 
@@ -554,6 +589,30 @@ class XPCShellTests(object):
             raise Exception("testsRootDir path does not exists: %s" %
                     testsRootDir)
 
+    # Try to guess modules directory.
+    # This somewhat grotesque hack allows the buildbot machines to find the
+    # modules directory without having to configure the buildbot hosts. This
+    # code path should never be executed in local runs because the build system
+    # should always set this argument.
+    if not testingModulesDir:
+        ourDir = os.path.dirname(__file__)
+        possible = os.path.join(ourDir, os.path.pardir, 'modules')
+
+        if os.path.isdir(possible):
+            testingModulesDir = possible
+
+    if testingModulesDir:
+        # The resource loader expects native paths. Depending on how we were
+        # invoked, a UNIX style path may sneak in on Windows. We try to
+        # normalize that.
+        testingModulesDir = os.path.normpath(testingModulesDir)
+
+        if not os.path.isabs(testingModulesDir):
+            testingModulesDir = os.path.abspath(testingModulesDir)
+
+        if not testingModulesDir.endswith(os.path.sep):
+            testingModulesDir += os.path.sep
+
     self.xpcshell = xpcshell
     self.xrePath = xrePath
     self.appPath = appPath
@@ -570,6 +629,7 @@ class XPCShellTests(object):
     self.debuggerInfo = getDebuggerInfo(self.oldcwd, debugger, debuggerArgs, debuggerInteractive)
     self.profileName = profileName or "xpcshell"
     self.mozInfo = mozInfo
+    self.testingModulesDir = testingModulesDir
 
     # If we have an interactive debugger, disable ctrl-c.
     if self.debuggerInfo and self.debuggerInfo["interactive"]:
@@ -597,6 +657,10 @@ class XPCShellTests(object):
         return False
       self.mozInfo = parse_json(open(mozInfoFile).read())
     mozinfo.update(self.mozInfo)
+
+    # We have to do this before we build the test list so we know whether or
+    # not to run tests that depend on having the node spdy server
+    self.trySetupNode()
     
     pStdout, pStderr = self.getPipes()
 
@@ -622,6 +686,7 @@ class XPCShellTests(object):
       # dir and the test with path characters replaced with '.' (using Java
       # class notation).
       if testsRootDir is not None:
+          testsRootDir = os.path.normpath(testsRootDir)
           if test["here"].find(testsRootDir) != 0:
               raise Exception("testsRootDir is not a parent path of %s" %
                   test["here"])
@@ -652,7 +717,7 @@ class XPCShellTests(object):
       # The test file will have to be loaded after the head files.
       cmdT = self.buildCmdTestFile(name)
 
-      args = self.xpcsRunArgs
+      args = self.xpcsRunArgs[:]
       if 'debug' in test:
           args.insert(0, '-d')
 
@@ -769,6 +834,8 @@ class XPCShellTests(object):
 
       xunitResults.append(xunitResult)
 
+    self.shutdownNode()
+
     if self.testCount == 0:
       self.log.error("TEST-UNEXPECTED-FAIL | runxpcshelltests.py | No tests run. Did you pass an invalid --test-path?")
       self.failCount = 1
@@ -822,6 +889,9 @@ class XPCShellOptions(OptionParser):
     self.add_option("--tests-root-dir",
                     type="string", dest="testsRootDir", default=None,
                     help="absolute path to directory where all tests are located. this is typically $(objdir)/_tests")
+    self.add_option("--testing-modules-dir",
+                    dest="testingModulesDir", default=None,
+                    help="Directory where testing modules are located.")
     self.add_option("--total-chunks",
                     type = "int", dest = "totalChunks", default=1,
                     help = "how many chunks to split the tests up into")

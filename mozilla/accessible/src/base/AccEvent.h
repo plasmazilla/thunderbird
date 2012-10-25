@@ -1,52 +1,17 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Kyle Yuan (kyle.yuan@sun.com)
- *   John Sun (john.sun@sun.com)
- *   Alexander Surkov <surkov.alexander@gmail.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef _AccEvent_H_
 #define _AccEvent_H_
 
 #include "nsIAccessibleEvent.h"
 
-#include "nsAccessible.h"
+#include "Accessible.h"
 
 class nsAccEvent;
-class nsDocAccessible;
+class DocAccessible;
 
 // Constants used to point whether the event is from user input.
 enum EIsFromUserInput
@@ -94,7 +59,7 @@ public:
   };
 
   // Initialize with an nsIAccessible
-  AccEvent(PRUint32 aEventType, nsAccessible* aAccessible,
+  AccEvent(PRUint32 aEventType, Accessible* aAccessible,
            EIsFromUserInput aIsFromUserInput = eAutoDetect,
            EEventRule aEventRule = eRemoveDupes);
   // Initialize with an nsIDOMNode
@@ -108,8 +73,8 @@ public:
   EEventRule GetEventRule() const { return mEventRule; }
   bool IsFromUserInput() const { return mIsFromUserInput; }
 
-  nsAccessible *GetAccessible();
-  nsDocAccessible* GetDocAccessible();
+  Accessible* GetAccessible();
+  DocAccessible* GetDocAccessible();
   nsINode* GetNode();
 
   /**
@@ -149,7 +114,7 @@ protected:
   /**
    * Get an accessible from event target node.
    */
-  nsAccessible *GetAccessibleForNode() const;
+  Accessible* GetAccessibleForNode() const;
 
   /**
    * Determine whether the event is from user input by event state manager if
@@ -160,7 +125,7 @@ protected:
   bool mIsFromUserInput;
   PRUint32 mEventType;
   EEventRule mEventRule;
-  nsRefPtr<nsAccessible> mAccessible;
+  nsRefPtr<Accessible> mAccessible;
   nsCOMPtr<nsINode> mNode;
 
   friend class NotificationController;
@@ -173,7 +138,7 @@ protected:
 class AccStateChangeEvent: public AccEvent
 {
 public:
-  AccStateChangeEvent(nsAccessible* aAccessible, PRUint64 aState,
+  AccStateChangeEvent(Accessible* aAccessible, PRUint64 aState,
                       bool aIsEnabled,
                       EIsFromUserInput aIsFromUserInput = eAutoDetect);
 
@@ -206,7 +171,7 @@ private:
 class AccTextChangeEvent: public AccEvent
 {
 public:
-  AccTextChangeEvent(nsAccessible* aAccessible, PRInt32 aStart,
+  AccTextChangeEvent(Accessible* aAccessible, PRInt32 aStart,
                      const nsAString& aModifiedText, bool aIsInserted,
                      EIsFromUserInput aIsFromUserInput = eAutoDetect);
 
@@ -241,7 +206,7 @@ private:
 class AccMutationEvent: public AccEvent
 {
 public:
-  AccMutationEvent(PRUint32 aEventType, nsAccessible* aTarget,
+  AccMutationEvent(PRUint32 aEventType, Accessible* aTarget,
                    nsINode* aTargetNode);
 
   // Event
@@ -268,7 +233,7 @@ protected:
 class AccHideEvent: public AccMutationEvent
 {
 public:
-  AccHideEvent(nsAccessible* aTarget, nsINode* aTargetNode);
+  AccHideEvent(Accessible* aTarget, nsINode* aTargetNode);
 
   // Event
   virtual already_AddRefed<nsAccEvent> CreateXPCOMObject();
@@ -280,14 +245,14 @@ public:
   }
 
   // AccHideEvent
-  nsAccessible* TargetParent() const { return mParent; }
-  nsAccessible* TargetNextSibling() const { return mNextSibling; }
-  nsAccessible* TargetPrevSibling() const { return mPrevSibling; }
+  Accessible* TargetParent() const { return mParent; }
+  Accessible* TargetNextSibling() const { return mNextSibling; }
+  Accessible* TargetPrevSibling() const { return mPrevSibling; }
 
 protected:
-  nsRefPtr<nsAccessible> mParent;
-  nsRefPtr<nsAccessible> mNextSibling;
-  nsRefPtr<nsAccessible> mPrevSibling;
+  nsRefPtr<Accessible> mParent;
+  nsRefPtr<Accessible> mNextSibling;
+  nsRefPtr<Accessible> mPrevSibling;
 
   friend class NotificationController;
 };
@@ -299,7 +264,7 @@ protected:
 class AccShowEvent: public AccMutationEvent
 {
 public:
-  AccShowEvent(nsAccessible* aTarget, nsINode* aTargetNode);
+  AccShowEvent(Accessible* aTarget, nsINode* aTargetNode);
 
   // Event
   static const EventGroup kEventGroup = eShowEvent;
@@ -316,7 +281,7 @@ public:
 class AccCaretMoveEvent: public AccEvent
 {
 public:
-  AccCaretMoveEvent(nsAccessible* aAccessible, PRInt32 aCaretOffset);
+  AccCaretMoveEvent(Accessible* aAccessible, PRInt32 aCaretOffset);
   AccCaretMoveEvent(nsINode* aNode);
 
   // AccEvent
@@ -347,7 +312,7 @@ public:
     eSelectionRemove
   };
 
-  AccSelChangeEvent(nsAccessible* aWidget, nsAccessible* aItem,
+  AccSelChangeEvent(Accessible* aWidget, Accessible* aItem,
                     SelChangeType aSelChangeType);
 
   virtual ~AccSelChangeEvent() { }
@@ -360,11 +325,11 @@ public:
   }
 
   // AccSelChangeEvent
-  nsAccessible* Widget() const { return mWidget; }
+  Accessible* Widget() const { return mWidget; }
 
 private:
-  nsRefPtr<nsAccessible> mWidget;
-  nsRefPtr<nsAccessible> mItem;
+  nsRefPtr<Accessible> mWidget;
+  nsRefPtr<Accessible> mItem;
   SelChangeType mSelChangeType;
   PRUint32 mPreceedingCount;
   AccSelChangeEvent* mPackedEvent;
@@ -379,7 +344,7 @@ private:
 class AccTableChangeEvent : public AccEvent
 {
 public:
-  AccTableChangeEvent(nsAccessible* aAccessible, PRUint32 aEventType,
+  AccTableChangeEvent(Accessible* aAccessible, PRUint32 aEventType,
                       PRInt32 aRowOrColIndex, PRInt32 aNumRowsOrCols);
 
   // AccEvent
@@ -406,9 +371,10 @@ private:
 class AccVCChangeEvent : public AccEvent
 {
 public:
-  AccVCChangeEvent(nsAccessible* aAccessible,
+  AccVCChangeEvent(Accessible* aAccessible,
                    nsIAccessible* aOldAccessible,
-                   PRInt32 aOldStart, PRInt32 aOldEnd);
+                   PRInt32 aOldStart, PRInt32 aOldEnd,
+                   PRInt16 aReason);
 
   virtual ~AccVCChangeEvent() { }
 
@@ -425,11 +391,13 @@ public:
   nsIAccessible* OldAccessible() const { return mOldAccessible; }
   PRInt32 OldStartOffset() const { return mOldStart; }
   PRInt32 OldEndOffset() const { return mOldEnd; }
+  PRInt32 Reason() const { return mReason; }
 
 private:
   nsRefPtr<nsIAccessible> mOldAccessible;
   PRInt32 mOldStart;
   PRInt32 mOldEnd;
+  PRInt16 mReason;
 };
 
 /**

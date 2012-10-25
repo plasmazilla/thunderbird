@@ -1,66 +1,33 @@
-/* 
-# ***** BEGIN LICENSE BLOCK *****
-# * Version: MPL 1.1/GPL 2.0/LGPL 2.1
-# *
-# * The contents of this file are subject to the Mozilla Public License Version
-# * 1.1 (the "License"); you may not use this file except in compliance with
-# * the License. You may obtain a copy of the License at
-# * http://www.mozilla.org/MPL/
-# *
-# * Software distributed under the License is distributed on an "AS IS" basis,
-# * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# * for the specific language governing rights and limitations under the
-# * License.
-# *
-# * The Original Code is the nsSessionStore component.
-# *
-# * The Initial Developer of the Original Code is
-# * Simon Bünzli <zeniko@gmail.com>
-# * Portions created by the Initial Developer are Copyright (C) 2006
-# * the Initial Developer. All Rights Reserved.
-# *
-# * Contributor(s):
-# *   Dietrich Ayala <autonome@gmail.com>
-# *
-# * Alternatively, the contents of this file may be used under the terms of
-# * either the GNU General Public License Version 2 or later (the "GPL"), or
-# * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# * in which case the provisions of the GPL or the LGPL are applicable instead
-# * of those above. If you wish to allow use of your version of this file only
-# * under the terms of either the GPL or the LGPL, and not to allow others to
-# * use your version of this file under the terms of the MPL, indicate your
-# * decision by deleting the provisions above and replace them with the notice
-# * and other provisions required by the GPL or the LGPL. If you do not delete
-# * the provisions above, a recipient may use your version of this file under
-# * the terms of any one of the MPL, the GPL or the LGPL.
-# *
-# * ***** END LICENSE BLOCK ***** 
+/*
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
 /**
 # * Session Storage and Restoration
-# * 
+# *
 # * Overview
-# * This service reads user's session file at startup, and makes a determination 
-# * as to whether the session should be restored. It will restore the session 
+# * This service reads user's session file at startup, and makes a determination
+# * as to whether the session should be restored. It will restore the session
 # * under the circumstances described below.  If the auto-start Private Browsing
 # * mode is active, however, the session is never restored.
-# * 
+# *
 # * Crash Detection
-# * The session file stores a session.state property, that 
-# * indicates whether the browser is currently running. When the browser shuts 
+# * The session file stores a session.state property, that
+# * indicates whether the browser is currently running. When the browser shuts
 # * down, the field is changed to "stopped". At startup, this field is read, and
 # * if its value is "running", then it's assumed that the browser had previously
 # * crashed, or at the very least that something bad happened, and that we should
 # * restore the session.
-# * 
+# *
 # * Forced Restarts
 # * In the event that a restart is required due to application update or extension
 # * installation, set the browser.sessionstore.resume_session_once pref to true,
 # * and the session will be restored the next time the browser starts.
-# * 
+# *
 # * Always Resume
-# * This service will always resume the session if the integer pref 
+# * This service will always resume the session if the integer pref
 # * browser.startup.page is set to 3.
 */
 
@@ -194,11 +161,11 @@ SessionStartup.prototype = {
    */
   observe: function sss_observe(aSubject, aTopic, aData) {
     switch (aTopic) {
-    case "app-startup": 
+    case "app-startup":
       Services.obs.addObserver(this, "final-ui-startup", true);
       Services.obs.addObserver(this, "quit-application", true);
       break;
-    case "final-ui-startup": 
+    case "final-ui-startup":
       Services.obs.removeObserver(this, "final-ui-startup");
       Services.obs.removeObserver(this, "quit-application");
       this.init();
@@ -239,7 +206,7 @@ SessionStartup.prototype = {
     var wType = aWindow.document.documentElement.getAttribute("windowtype");
     if (wType != "navigator:browser")
       return;
-    
+
     /**
      * Note: this relies on the fact that nsBrowserContentHandler will return
      * a different value the first time its getter is called after an update,

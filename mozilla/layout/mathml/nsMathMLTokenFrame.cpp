@@ -1,42 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- * 
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- * 
- * The Original Code is Mozilla MathML Project.
- * 
- * The Initial Developer of the Original Code is
- * The University of Queensland.
- * Portions created by the Initial Developer are Copyright (C) 1999
- * the Initial Developer. All Rights Reserved.
- * 
- * Contributor(s): 
- *   Roger B. Sidje <rbs@maths.uq.edu.au>
- *   Karl Tomlinson <karlt+@karlt.net>, Mozilla Corporation
- *   Frederic Wang <fred.wang@free.fr>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsCOMPtr.h"
 #include "nsFrame.h"
@@ -46,6 +11,7 @@
 #include "nsContentUtils.h"
 #include "nsCSSFrameConstructor.h"
 #include "nsMathMLTokenFrame.h"
+#include "nsTextFrame.h"
 
 nsIFrame*
 NS_NewMathMLTokenFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
@@ -103,6 +69,7 @@ nsMathMLTokenFrame::GetMathMLFrameType()
   else if(style.EqualsLiteral("invariant")) {
     nsAutoString data;
     nsContentUtils::GetNodeTextContent(mContent, false, data);
+    data.CompressWhitespace();
     eMATHVARIANT variant = nsMathMLOperators::LookupInvariantChar(data);
 
     switch (variant) {
@@ -120,33 +87,17 @@ nsMathMLTokenFrame::GetMathMLFrameType()
   return eMathMLFrameType_UprightIdentifier;
 }
 
-static void
-CompressWhitespace(nsIContent* aContent)
+void
+nsMathMLTokenFrame::ForceTrimChildTextFrames()
 {
-  PRUint32 numKids = aContent->GetChildCount();
-  for (PRUint32 kid = 0; kid < numKids; kid++) {
-    nsIContent* cont = aContent->GetChildAt(kid);
-    if (cont && cont->IsNodeOfType(nsINode::eTEXT)) {
-      nsAutoString text;
-      cont->AppendTextTo(text);
-      text.CompressWhitespace();
-      cont->SetText(text, false); // not meant to be used if notify is needed
+  // Set flags on child text frames to force them to trim their leading and
+  // trailing whitespaces.
+  for (nsIFrame* childFrame = GetFirstPrincipalChild(); childFrame;
+       childFrame = childFrame->GetNextSibling()) {
+    if (childFrame->GetType() == nsGkAtoms::textFrame) {
+      childFrame->AddStateBits(TEXT_FORCE_TRIM_WHITESPACE);
     }
   }
-}
-
-NS_IMETHODIMP
-nsMathMLTokenFrame::Init(nsIContent*      aContent,
-                         nsIFrame*        aParent,
-                         nsIFrame*        aPrevInFlow)
-{
-  // leading and trailing whitespace doesn't count -- bug 15402
-  // brute force removal for people who do <mi> a </mi> instead of <mi>a</mi>
-  // XXX the best fix is to skip these in nsTextFrame
-  CompressWhitespace(aContent);
-
-  // let the base class do its Init()
-  return nsMathMLContainerFrame::Init(aContent, aParent, aPrevInFlow);
 }
 
 NS_IMETHODIMP
@@ -158,8 +109,38 @@ nsMathMLTokenFrame::SetInitialChildList(ChildListID     aListID,
   if (NS_FAILED(rv))
     return rv;
 
+  ForceTrimChildTextFrames();
+
   SetQuotes(false);
   ProcessTextData();
+  return rv;
+}
+
+NS_IMETHODIMP
+nsMathMLTokenFrame::AppendFrames(ChildListID aListID,
+                                 nsFrameList& aChildList)
+{
+  nsresult rv = nsMathMLContainerFrame::AppendFrames(aListID, aChildList);
+  if (NS_FAILED(rv))
+    return rv;
+
+  ForceTrimChildTextFrames();
+
+  return rv;
+}
+
+NS_IMETHODIMP
+nsMathMLTokenFrame::InsertFrames(ChildListID aListID,
+                                 nsIFrame* aPrevFrame,
+                                 nsFrameList& aChildList)
+{
+  nsresult rv = nsMathMLContainerFrame::InsertFrames(aListID, aPrevFrame,
+                                                     aChildList);
+  if (NS_FAILED(rv))
+    return rv;
+
+  ForceTrimChildTextFrames();
+
   return rv;
 }
 
@@ -332,6 +313,7 @@ nsMathMLTokenFrame::SetTextStyle()
   // Get the text content that we enclose and its length
   nsAutoString data;
   nsContentUtils::GetNodeTextContent(mContent, false, data);
+  data.CompressWhitespace();
   PRInt32 length = data.Length();
   if (!length)
     return false;

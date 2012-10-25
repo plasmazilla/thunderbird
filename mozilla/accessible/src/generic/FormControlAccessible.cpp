@@ -1,41 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is mozilla.org code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   John Gaunt (jgaunt@netscape.com)
- *   Aaron Leventhal (aaronl@netscape.com)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 // NOTE: alphabetically ordered
 
@@ -60,18 +26,18 @@ template class mozilla::a11y::ProgressMeterAccessible<100>;
 // nsISupports
 
 template<int Max>
-NS_IMPL_ADDREF_INHERITED(ProgressMeterAccessible<Max>, nsLeafAccessible)
+NS_IMPL_ADDREF_INHERITED(ProgressMeterAccessible<Max>, LeafAccessible)
 
 template<int Max>
-NS_IMPL_RELEASE_INHERITED(ProgressMeterAccessible<Max>, nsLeafAccessible)
+NS_IMPL_RELEASE_INHERITED(ProgressMeterAccessible<Max>, LeafAccessible)
 
 template<int Max>
 NS_IMPL_QUERY_INTERFACE_INHERITED1(ProgressMeterAccessible<Max>,
-                                   nsLeafAccessible,
+                                   LeafAccessible,
                                    nsIAccessibleValue)
 
 ////////////////////////////////////////////////////////////////////////////////
-// nsAccessible
+// Accessible
 
 template<int Max>
 role
@@ -84,7 +50,7 @@ template<int Max>
 PRUint64
 ProgressMeterAccessible<Max>::NativeState()
 {
-  PRUint64 state = nsLeafAccessible::NativeState();
+  PRUint64 state = LeafAccessible::NativeState();
 
   // An undetermined progressbar (i.e. without a value) has a mixed state.
   nsAutoString attrValue;
@@ -113,7 +79,7 @@ template<int Max>
 void
 ProgressMeterAccessible<Max>::Value(nsString& aValue)
 {
-  nsLeafAccessible::Value(aValue);
+  LeafAccessible::Value(aValue);
   if (!aValue.IsEmpty())
     return;
 
@@ -139,7 +105,7 @@ template<int Max>
 NS_IMETHODIMP
 ProgressMeterAccessible<Max>::GetMaximumValue(double* aMaximumValue)
 {
-  nsresult rv = nsLeafAccessible::GetMaximumValue(aMaximumValue);
+  nsresult rv = LeafAccessible::GetMaximumValue(aMaximumValue);
   if (rv != NS_OK_NO_ARIA_VALUE)
     return rv;
 
@@ -158,7 +124,7 @@ template<int Max>
 NS_IMETHODIMP
 ProgressMeterAccessible<Max>::GetMinimumValue(double* aMinimumValue)
 {
-  nsresult rv = nsLeafAccessible::GetMinimumValue(aMinimumValue);
+  nsresult rv = LeafAccessible::GetMinimumValue(aMinimumValue);
   if (rv != NS_OK_NO_ARIA_VALUE)
     return rv;
 
@@ -170,7 +136,7 @@ template<int Max>
 NS_IMETHODIMP
 ProgressMeterAccessible<Max>::GetMinimumIncrement(double* aMinimumIncrement)
 {
-  nsresult rv = nsLeafAccessible::GetMinimumIncrement(aMinimumIncrement);
+  nsresult rv = LeafAccessible::GetMinimumIncrement(aMinimumIncrement);
   if (rv != NS_OK_NO_ARIA_VALUE)
     return rv;
 
@@ -182,7 +148,7 @@ template<int Max>
 NS_IMETHODIMP
 ProgressMeterAccessible<Max>::GetCurrentValue(double* aCurrentValue)
 {
-  nsresult rv = nsLeafAccessible::GetCurrentValue(aCurrentValue);
+  nsresult rv = LeafAccessible::GetCurrentValue(aCurrentValue);
   if (rv != NS_OK_NO_ARIA_VALUE)
     return rv;
 
@@ -214,8 +180,8 @@ ProgressMeterAccessible<Max>::SetCurrentValue(double aValue)
 ////////////////////////////////////////////////////////////////////////////////
 
 RadioButtonAccessible::
-  RadioButtonAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
-  nsLeafAccessible(aContent, aDoc)
+  RadioButtonAccessible(nsIContent* aContent, DocAccessible* aDoc) :
+  LeafAccessible(aContent, aDoc)
 {
 }
 

@@ -3,12 +3,28 @@ package @ANDROID_PACKAGE_NAME@.tests;
 
 import @ANDROID_PACKAGE_NAME@.*;
 
-class PixelTest extends BaseTest {
-    private static final long PAINT_CLEAR_DELAY = 500; // milliseconds
+abstract class PixelTest extends BaseTest {
+    private static final long PAINT_CLEAR_DELAY = 1000; // milliseconds
 
     protected final PaintedSurface loadAndPaint(String url) {
         Actions.RepeatedEventExpecter paintExpecter = mActions.expectPaint();
         loadUrl(url);
+        paintExpecter.blockUntilClear(PAINT_CLEAR_DELAY);
+        PaintedSurface p = mDriver.getPaintedSurface();
+        if (p == null) {
+            mAsserter.ok(p != null, "checking that painted surface loaded", 
+                 "painted surface loaded");
+        }
+        return p;
+    }
+
+    protected final PaintedSurface reloadAndPaint() {
+        Actions.RepeatedEventExpecter paintExpecter = mActions.expectPaint();
+
+        mActions.sendSpecialKey(Actions.SpecialKey.MENU);
+        mSolo.waitForText("Reload");
+        mSolo.clickOnText("Reload");
+
         paintExpecter.blockUntilClear(PAINT_CLEAR_DELAY);
         PaintedSurface p = mDriver.getPaintedSurface();
         if (p == null) {

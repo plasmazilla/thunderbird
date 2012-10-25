@@ -1,39 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is Mozilla Communicator client code.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either of the GNU General Public License Version 2 or later (the "GPL"),
- * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * Base class for all element classes; this provides an implementation
@@ -66,6 +34,7 @@
 #include "nsIDOMTouchEvent.h"
 #include "nsIInlineEventHandlers.h"
 #include "mozilla/CORSMode.h"
+#include "mozilla/Attributes.h"
 
 #include "nsISMILAttr.h"
 
@@ -94,7 +63,7 @@ typedef PRUptrdiff PtrBits;
  * and Item to its existing child list.
  * @see nsIDOMNodeList
  */
-class nsChildContentList : public nsINodeList
+class nsChildContentList MOZ_FINAL : public nsINodeList
 {
 public:
   nsChildContentList(nsINode* aNode)
@@ -158,7 +127,7 @@ private:
  * A class that implements nsIWeakReference
  */
 
-class nsNodeWeakReference : public nsIWeakReference
+class nsNodeWeakReference MOZ_FINAL : public nsIWeakReference
 {
 public:
   nsNodeWeakReference(nsINode* aNode)
@@ -186,7 +155,7 @@ private:
 /**
  * Tearoff to use for nodes to implement nsISupportsWeakReference
  */
-class nsNodeSupportsWeakRefTearoff : public nsISupportsWeakReference
+class nsNodeSupportsWeakRefTearoff MOZ_FINAL : public nsISupportsWeakReference
 {
 public:
   nsNodeSupportsWeakRefTearoff(nsINode* aNode)
@@ -209,7 +178,7 @@ private:
 /**
  * A tearoff class for nsGenericElement to implement NodeSelector
  */
-class nsNodeSelectorTearoff : public nsIDOMNodeSelector
+class nsNodeSelectorTearoff MOZ_FINAL : public nsIDOMNodeSelector
 {
 public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
@@ -350,10 +319,11 @@ public:
   {
     return nsnull;
   }
-  virtual nsIDOMCSSStyleDeclaration* GetSMILOverrideStyle();
+  virtual nsICSSDeclaration* GetSMILOverrideStyle();
   virtual mozilla::css::StyleRule* GetSMILOverrideStyleRule();
   virtual nsresult SetSMILOverrideStyleRule(mozilla::css::StyleRule* aStyleRule,
                                             bool aNotify);
+  virtual bool IsLabelable() const;
 
 #ifdef DEBUG
   virtual void List(FILE* out, PRInt32 aIndent) const
@@ -577,6 +547,8 @@ public:
   PRInt32 GetScrollLeft();
   PRInt32 GetScrollHeight();
   PRInt32 GetScrollWidth();
+  PRInt32 GetScrollLeftMax();
+  PRInt32 GetScrollTopMax();
   PRInt32 GetClientTop()
   {
     return nsPresContext::AppUnitsToIntCSSPixels(GetClientAreaRect().y);
@@ -621,6 +593,16 @@ public:
    */
   void FireNodeRemovedForChildren();
 
+  virtual bool OwnedOnlyByTheDOMTree()
+  {
+    PRUint32 rc = mRefCnt.get();
+    if (GetParent()) {
+      --rc;
+    }
+    rc -= mAttrsAndChildren.ChildCount();
+    return rc == 0;
+  }
+
   virtual bool IsPurple()
   {
     return mRefCnt.IsPurple();
@@ -631,6 +613,7 @@ public:
     mRefCnt.RemovePurple();
   }
 
+  static void ClearContentUnbinder();
   static bool CanSkip(nsINode* aNode, bool aRemovingAllowed);
   static bool CanSkipInCC(nsINode* aNode);
   static bool CanSkipThis(nsINode* aNode);
@@ -791,7 +774,7 @@ protected:
    * Copy attributes and state to another element
    * @param aDest the object to copy to
    */
-  nsresult CopyInnerTo(nsGenericElement* aDest) const;
+  nsresult CopyInnerTo(nsGenericElement* aDest);
 
   /**
    * Internal hook for converting an attribute name-string to an atomized name
@@ -806,6 +789,13 @@ protected:
    * @param aOffsetParent offset parent
    */
   virtual void GetOffsetRect(nsRect& aRect, nsIContent** aOffsetParent);
+
+  /**
+   * Retrieve the size of the padding rect of this element.
+   *
+   * @param aSize the size of the padding rect
+   */
+  nsIntSize GetPaddingRectSize();
 
   nsIFrame* GetStyledFrame();
 
@@ -1010,7 +1000,7 @@ _elementName::Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const        \
   }                                                                         \
                                                                             \
   nsCOMPtr<nsINode> kungFuDeathGrip = it;                                   \
-  nsresult rv = CopyInnerTo(it);                                            \
+  nsresult rv = const_cast<_elementName*>(this)->CopyInnerTo(it);           \
   if (NS_SUCCEEDED(rv)) {                                                   \
     kungFuDeathGrip.swap(*aResult);                                         \
   }                                                                         \
@@ -1031,7 +1021,7 @@ _elementName::Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const        \
                                                                             \
   nsCOMPtr<nsINode> kungFuDeathGrip = it;                                   \
   nsresult rv = it->Init();                                                 \
-  rv |= CopyInnerTo(it);                                                    \
+  rv |= const_cast<_elementName*>(this)->CopyInnerTo(it);                   \
   if (NS_SUCCEEDED(rv)) {                                                   \
     kungFuDeathGrip.swap(*aResult);                                         \
   }                                                                         \
@@ -1069,7 +1059,7 @@ _elementName::Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const        \
 /**
  * Tearoff class to implement nsITouchEventReceiver
  */
-class nsTouchEventReceiverTearoff : public nsITouchEventReceiver
+class nsTouchEventReceiverTearoff MOZ_FINAL : public nsITouchEventReceiver
 {
 public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
@@ -1089,7 +1079,7 @@ private:
 /**
  * Tearoff class to implement nsIInlineEventHandlers
  */
-class nsInlineEventHandlersTearoff : public nsIInlineEventHandlers
+class nsInlineEventHandlersTearoff MOZ_FINAL : public nsIInlineEventHandlers
 {
 public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS

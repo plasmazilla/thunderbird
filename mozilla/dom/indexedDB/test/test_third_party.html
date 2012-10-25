@@ -62,14 +62,6 @@
 
     function runTest() {
       SimpleTest.waitForExplicitFinish();
-
-      netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
-      Components.classes["@mozilla.org/permissionmanager;1"]
-                .getService(Components.interfaces.nsIPermissionManager)
-                .add(SpecialPowers.getDocumentURIObject(window.document),
-                     "indexedDB",
-                     Components.interfaces.nsIPermissionManager.ALLOW_ACTION);
-
       window.addEventListener("message", messageListener, false);
       setiframe();
     }

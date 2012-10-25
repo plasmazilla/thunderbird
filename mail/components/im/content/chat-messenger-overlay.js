@@ -76,6 +76,7 @@ var gChatTab = null;
 var chatTabType = {
   name: "chat",
   panelId: "chatTabPanel",
+  hasBeenOpened: false,
   modes: {
     chat: {
       type: "chat"
@@ -83,16 +84,29 @@ var chatTabType = {
   },
 
   _handleArgs: function(aArgs) {
-    if (!aArgs || !("convType" in aArgs) || aArgs.convType != "log")
+    if (!aArgs || !("convType" in aArgs) ||
+        (aArgs.convType != "log" && aArgs.convType != "focus"))
       return;
+
+    if (aArgs.convType == "focus") {
+      chatHandler.focusConversation(aArgs.conv);
+      return;
+    }
 
     let item = document.getElementById("searchResultConv");
     item.log = aArgs.conv;
+    if (aArgs.searchTerm)
+      item.searchTerm = aArgs.searchTerm;
+    else
+      delete item.searchTerm;
     item.hidden = false;
-    document.getElementById("contactlistbox").selectedItem = item;
+    if (item.getAttribute("selected"))
+      chatHandler.onListItemSelected();
+    else
+      document.getElementById("contactlistbox").selectedItem = item;
   },
   openTab: function(aTab, aArgs) {
-    if (!document.getElementById("conversationsGroup").nextSibling.localName == "imconv") {
+    if (!this.hasBeenOpened) {
       let convs = imServices.conversations.getUIConversations();
       if (convs.length != 0) {
         convs.sort(function(a, b)
@@ -105,8 +119,10 @@ var chatTabType = {
     gChatTab = aTab;
     aTab.tabNode.setAttribute("image", "chrome://chat/skin/chat-16.png");
     this._handleArgs(aArgs);
+    chatHandler._updateSelectedConversation();
     chatHandler.updateTitle();
     chatHandler._updateFocus();
+    this.hasBeenOpened = true;
   },
   shouldSwitchTo: function(aArgs) {
     if (!gChatTab)
@@ -117,13 +133,7 @@ var chatTabType = {
   showTab: function(aTab) {
     gChatTab = aTab;
     let list = document.getElementById("contactlistbox");
-    let convs = document.getElementById("conversationsGroup");
-    if (!list.selectedItem || list.selectedItem == convs) {
-      list.selectedItem =
-        convs.nextSibling.localName == "imconv" ? convs.nextSibling : convs;
-    }
-    else
-      chatHandler.onListItemSelected();
+    chatHandler._updateSelectedConversation();
     chatHandler._updateFocus();
   },
   closeTab: function(aTab) {
@@ -225,28 +235,79 @@ var chatHandler = {
     let elt = convs.addContact(aConv, "imconv");
     if (shouldSelect)
       list.selectedItem = elt;
-    return elt;
+
+    if (aConv.isChat || !aConv.buddy)
+      return;
+
+    let contact = aConv.buddy.buddy.contact;
+    elt.imContact = contact;
+    let groupName = (contact.online ? "on" : "off") + "linecontactsGroup";
+    let item = document.getElementById(groupName).removeContact(contact);
+    if (list.selectedItem == item)
+      list.selectedItem = elt;
+  },
+
+  _hasConversationForContact: function(aContact) {
+    let convs = document.getElementById("conversationsGroup").contacts;
+    return convs.some(function(aConversation)
+      aConversation.hasOwnProperty("imContact") &&
+      aConversation.imContact.id == aContact.id);
+  },
+
+  _chatButtonUpdatePending: false,
+  updateChatButtonState: function() {
+    if (this._chatButtonUpdatePending)
+      return;
+    this._chatButtonUpdatePending = true;
+    Services.tm.mainThread.dispatch(this._updateChatButtonState.bind(this),
+                                    Ci.nsIEventTarget.DISPATCH_NORMAL);
+  },
+  // This is the unread count that was part of the latest
+  // unread-im-count-changed notification.
+  _notifiedUnreadCount: 0,
+  _updateChatButtonState: function() {
+    delete this._chatButtonUpdatePending;
+    let chatButton = document.getElementById("button-chat");
+    if (!chatButton)
+      return;
+
+    let [unreadTargettedCount, unreadTotalCount] = this.countUnreadMessages();
+    chatButton.badgeCount = unreadTargettedCount;
+
+    if (unreadTotalCount)
+      chatButton.setAttribute("unreadMessages", "true");
+    else
+      chatButton.removeAttribute("unreadMessages");
+
+    if (unreadTargettedCount != this._notifiedUnreadCount) {
+      let unreadInt = Components.classes["@mozilla.org/supports-PRInt32;1"]
+                                .createInstance(Ci.nsISupportsPRInt32);
+      unreadInt.data = unreadTargettedCount;
+      Services.obs.notifyObservers(unreadInt, "unread-im-count-changed", unreadTargettedCount);
+      this._notifiedUnreadCount = unreadTargettedCount;
+    }
+  },
+
+  countUnreadMessages: function() {
+    let convs = imServices.conversations.getUIConversations();
+    let unreadTargettedCount = 0;
+    let unreadTotalCount = 0;
+    for each (let conv in convs) {
+      unreadTargettedCount += conv.unreadTargetedMessageCount;
+      unreadTotalCount += conv.unreadIncomingMessageCount;
+    }
+    return [unreadTargettedCount, unreadTotalCount];
   },
 
   updateTitle: function() {
     if (!gChatTab)
       return;
-    let list = document.getElementById("conversationsGroup");
-    let unreadCount = 0;
-    for (let node = list.nextSibling; node.localName == "imconv"; node = node.nextSibling) {
-      let conv = node.conv;
-      if (!conv)
-        continue;
-      if (conv.isChat)
-        unreadCount += conv.unreadTargetedMessageCount;
-      else
-        unreadCount += conv.unreadIncomingMessageCount;
-    }
-    
+
     let title =
       document.getElementById("chatBundle").getString("chatTabTitle");
-    if (unreadCount)
-      title += " (" + unreadCount + ")";
+    let [unreadTargettedCount] = this.countUnreadMessages();
+    if (unreadTargettedCount)
+      title += " (" + unreadTargettedCount + ")";
     let selectedItem = document.getElementById("contactlistbox").selectedItem;
     if (selectedItem && selectedItem.localName == "imconv" &&
         !selectedItem.hidden)
@@ -278,21 +339,30 @@ var chatHandler = {
   },
 
   _pendingLogBrowserLoad: false,
-  _showLog: function(aLog) {
+  _showLogPanel: function() {
     document.getElementById("conversationsDeck").selectedPanel =
       document.getElementById("logDisplay");
     document.getElementById("logDisplayDeck").selectedPanel =
       document.getElementById("logDisplayBrowserBox");
-    let conv = aLog.getConversation();
+  },
+  _showLog: function(aConversation, aPath, aSearchTerm) {
+    if (!aConversation)
+      return;
+    this._showLogPanel();
+    if (this._displayedLog == aPath)
+      return;
+    this._displayedLog = aPath;
     let browser = document.getElementById("conv-log-browser");
+    browser._autoScrollEnabled = false;
     if (this._pendingLogBrowserLoad) {
-      browser._conv = conv;
-      return conv;
+      browser._conv = aConversation;
+      return;
     }
-    browser.init(conv);
+    browser.init(aConversation);
     this._pendingLogBrowserLoad = true;
+    if (aSearchTerm)
+      this._pendingSearchTerm = aSearchTerm;
     Services.obs.addObserver(this, "conversation-loaded", false);
-    return conv;
   },
   _makeFriendlyDate: function(aDate) {
     let dts = Components.classes["@mozilla.org/intl/scriptabledateformat;1"]
@@ -319,41 +389,62 @@ var chatHandler = {
     return bundle.getFormattedString("dateTime", [date, time]);
   },
 
-  _showLogList: function(aLogs) {
-    let listbox = document.getElementById("logList");
-    while (listbox.firstChild)
-      listbox.removeChild(listbox.firstChild);
-    let logs = [];
-    for (let log in fixIterator(aLogs))
-      logs.push(log);
-    logs.sort(function(log1, log2) log2.time - log1.time);
-    for each (let log in logs) {
-      let elt = document.createElement("listitem");
-      elt.setAttribute("label",
-                       this._makeFriendlyDate(new Date(log.time * 1000)));
-      elt.log = log;
-      listbox.appendChild(elt);
-    }
-    return logs;
-  },
-  onLogSelect: function() {
-    let selectedItem = document.getElementById("logList").selectedItem;
-    if (!selectedItem)
-      return;
-    let log = selectedItem.log;
-    if (!log) {
-      let item = document.getElementById("contactlistbox").selectedItem;
-      if (item) {
-        document.getElementById("conversationsDeck").selectedPanel =
-          item.convView;
+  /**
+   * Display a list of logs into a tree, and optionally handle a default selection.
+   *
+   * @param aLogs An nsISimpleEnumerator of imILog.
+   * @param aShouldSelect Either a boolean (true means select the first log
+   * of the list, false or undefined means don't mess with the selection) or a log
+   * item that needs to be selected.
+   * @returns true if there's at least one log in the list, false if empty.
+   */
+  _showLogList: function(aLogs, aShouldSelect) {
+    let logTree = document.getElementById("logTree");
+    let treeView = this._treeView = new chatLogTreeView(logTree, aLogs);
+    if (!treeView._rowMap.length)
+      return false;
+    if (aShouldSelect) {
+      if (aShouldSelect === true) {
+        // Open the first group (index 0)
+        treeView.toggleOpenState(0);
+        // Select the first log of the first group (index 1)
+        logTree.view.selection.select(1);
       }
-      return;
+      else {
+        let logTime = aShouldSelect.time;
+        for (let index = 0; index < treeView._rowMap.length; ++index) {
+          if (!treeView._rowMap[index].children.some(function (i) i.log.time == logTime))
+            continue;
+          treeView.toggleOpenState(index);
+          ++index;
+          while (index < treeView._rowMap.length && treeView._rowMap[index].log.time != logTime)
+            ++index;
+          if (treeView._rowMap[index].log.time == logTime) {
+            logTree.view.selection.select(index);
+            logTree.treeBoxObject.ensureRowIsVisible(index);
+          }
+          return true;
+        }
+      }
     }
+    return true;
+  },
+
+  onLogSelect: function() {
+    let selection = this._treeView.selection;
+    let currentIndex = selection.currentIndex;
+    // The current (focused) row may not be actually selected...
+    if (!selection.isSelected(currentIndex))
+      return;
+
+    let log = this._treeView._rowMap[currentIndex].log;
+    if (!log)
+      return;
 
     let list = document.getElementById("contactlistbox");
     if (list.selectedItem.getAttribute("id") != "searchResultConv")
       document.getElementById("goToConversation").hidden = false;
-    this._showLog(log);
+    this._showLog(log.getConversation(), log.path);
   },
 
   _contactObserver: {
@@ -368,7 +459,7 @@ var chatHandler = {
   get observedContact() this._observedContact,
   set observedContact(aContact) {
     if (aContact == this._observedContact)
-      return;
+      return aContact;
     if (this._observedContact) {
       this._observedContact.removeObserver(this._contactObserver);
       delete this._observedContact;
@@ -382,8 +473,11 @@ var chatHandler = {
     let item = document.getElementById("contactlistbox").selectedItem;
     if (!item)
       return;
-    if (item.localName == "imconv")
+    if (item.localName == "imconv") {
       document.getElementById("conversationsDeck").selectedPanel = item.convView;
+      document.getElementById("logTree").view.selection.clearSelection();
+      item.convView.focus();
+    }
     else if (item.localName == "imcontact")
       item.openConversation();
   },
@@ -409,8 +503,11 @@ var chatHandler = {
     cti.setAttribute("statusMessage", statusString + statusText);
     cti.setAttribute("status", Status.toAttribute(statusType));
     cti.setAttribute("statusTypeTooltiptext", statusString);
+    cti.setAttribute("statusTooltiptext", statusString + statusText);
     cti.removeAttribute("typing");
     cti.removeAttribute("typed");
+    cti.removeAttribute("topicEditable");
+    cti.removeAttribute("noTopic");
 
     let bundle = document.getElementById("chatBundle");
     let button = document.getElementById("goToConversation");
@@ -440,14 +537,17 @@ var chatHandler = {
       this.observedContact = null;
       return;
     }
+
+    this._hideContextPane(false);
+
     if (item.getAttribute("id") == "searchResultConv") {
       let path = "logs/" + item.log.path;
       let file = FileUtils.getFile("ProfD", path.split("/"));
       let log = imServices.logs.getLogFromFile(file);
-      let button = document.getElementById("goToConversation");
-      button.hidden = true;
-      let conv = this._showLog(log);
-
+      document.getElementById("goToConversation").hidden = true;
+      document.getElementById("contextPane").removeAttribute("chat");
+      let conv = log.getConversation();
+      this._showLog(conv, file.path, item.searchTerm || undefined);
       let cti = document.getElementById("conv-top-info");
       cti.setAttribute("displayName", conv.title);
       cti.removeAttribute("userIcon");
@@ -455,18 +555,11 @@ var chatHandler = {
       cti.removeAttribute("statusMessage");
       cti.removeAttribute("status");
       cti.removeAttribute("statusTypeTooltiptext");
+      cti.removeAttribute("statusTooltiptext");
+      cti.removeAttribute("topicEditable");
+      cti.removeAttribute("noTopic");
 
-      let logs = this._showLogList(imServices.logs.getSimilarLogs(log));
-      let time = log.time;
-      let list = document.getElementById("logList");
-      let logItem = list.firstChild;
-      while (logItem) {
-        if (logItem.log.time == time) {
-          list.selectedItem = logItem;
-          break;
-        }
-        logItem = logItem.nextSibling;
-      }
+      this._showLogList(imServices.logs.getSimilarLogs(log), log);
       this.observedContact = null;
     }
     else if (item.localName == "imconv") {
@@ -477,12 +570,14 @@ var chatHandler = {
         conv.conv = item.conv;
         conv.tab = item;
         conv.setAttribute("contentcontextmenu", "chatConversationContextMenu");
+        conv.setAttribute("contenttooltip", "aHTMLTooltip");
         item.convView = conv;
         document.getElementById("contextSplitter").hidden = false;
         document.getElementById("contextPane").hidden = false;
       }
       else
         item.convView.onConvResize();
+
       convDeck.selectedPanel = item.convView;
       item.convView.updateConvStatus();
       item.update();
@@ -515,18 +610,13 @@ var chatHandler = {
 
       document.getElementById("contextPane").removeAttribute("chat");
 
-      let logs = this._showLogList(imServices.logs.getLogsForContact(contact));
-      let listbox = document.getElementById("logList");
-      if (logs.length)
-        listbox.selectedItem = listbox.firstChild;
-      else {
+      if (!this._showLogList(imServices.logs.getLogsForContact(contact), true)) {
         document.getElementById("conversationsDeck").selectedPanel =
           document.getElementById("logDisplay");
         document.getElementById("logDisplayDeck").selectedPanel =
           document.getElementById("noPreviousConvScreen");
       }
     }
-    this._hideContextPane(false);
     this.updateTitle();
   },
 
@@ -629,8 +719,21 @@ var chatHandler = {
       this._placeHolderButtonId =
         hasAccount ? "openIMAccountManagerButton" : "openIMAccountWizardButton";
     }
-    document.getElementById("button-add-buddy").disabled = !connected;
-    document.getElementById("button-join-chat").disabled = !canJoinChat;
+    for each (let id in ["statusTypeIcon", "statusMessage", "button-chat-accounts"]) {
+      let elt = document.getElementById(id);
+      if (elt)
+        elt.disabled = !hasAccount;
+    }
+    for each (let id in ["button-add-buddy", "newIMContactMenuItem"]) {
+      let elt = document.getElementById(id);
+      if (elt)
+        elt.disabled = !connected;
+    }
+    for each (let id in ["button-join-chat", "joinChatMenuItem"]) {
+      let elt = document.getElementById(id);
+      if (elt)
+        elt.disabled = !canJoinChat;
+    }
     let groupIds = ["conversations", "onlinecontacts", "offlinecontacts"];
     let contactlist = document.getElementById("contactlistbox");
     if (!hasAccount || !connected && groupIds.every(function(id)
@@ -639,16 +742,57 @@ var chatHandler = {
     }
     else {
       contactlist.disabled = false;
-      let selectedItem = contactlist.selectedItem;
-      if (!selectedItem || selectedItem.collapsed) {
-        for each (let id in groupIds) {
-          let item = document.getElementById(id + "Group");
-          if (item.collapsed)
-            continue;
-          contactlist.selectedItem = item;
-          break;
-        }
+      this._updateSelectedConversation();
+    }
+  },
+  _updateSelectedConversation: function() {
+    let list = document.getElementById("contactlistbox");
+    // We can't select anything if there's no account.
+    if (list.disabled)
+      return;
+
+    // If the selection is already a conversation with unread messages, keep it.
+    let selectedItem = list.selectedItem;
+    if (selectedItem && selectedItem.localName == "imconv" &&
+        selectedItem.directedUnreadCount) {
+      selectedItem.update();
+      return;
+    }
+
+    let firstConv;
+    let convs = document.getElementById("conversationsGroup");
+    let conv = convs.nextSibling;
+    while (conv.id != "searchResultConv") {
+      if (!firstConv)
+        firstConv = conv;
+      // If there is a conversation with unread messages, select it.
+      if (conv.directedUnreadCount) {
+        list.selectedItem = conv;
+        return;
       }
+      conv = conv.nextSibling;
+    }
+
+    // No unread messages, select the first conversation, but only if
+    // the existing selection is uninteresting (a section header).
+    if (firstConv) {
+      if (!selectedItem || selectedItem.localName == "imgroup")
+        list.selectedItem = firstConv;
+      return;
+    }
+
+    // No conversation, if a visible item is selected, keep it.
+    if (selectedItem && !selectedItem.collapsed)
+      return;
+
+    // Select the first visible group header.
+    let groupIds = ["conversations", "onlinecontacts", "offlinecontacts"];
+    for each (let id in groupIds) {
+      let item = document.getElementById(id + "Group");
+      if (item.collapsed)
+        continue;
+      list.selectedItem = item;
+      return;
     }
   },
   _updateFocus: function() {
@@ -656,10 +800,8 @@ var chatHandler = {
     document.getElementById(focusId).focus();
   },
   observe: function(aSubject, aTopic, aData) {
-    if (aTopic == "browser-request") {
-      imServices.ww.openWindow(null,
-                               "chrome://chat/content/browserRequest.xul",
-                               null, "chrome", aSubject);
+    if (aTopic == "chat-core-initialized") {
+      this.initAfterChatCore();
       return;
     }
 
@@ -674,6 +816,21 @@ var chatHandler = {
         browser.appendMessage(msg);
       }
 
+      if (this._pendingSearchTerm) {
+        let findbar = document.getElementById("log-findbar");
+        let findField = findbar._findField;
+        findField.value = this._pendingSearchTerm;
+        findbar.open();
+        findField.focus();
+        delete this._pendingSearchTerm;
+        let eventListener = function() {
+          findbar.onFindAgainCommand();
+          if (findbar._findField.getAttribute("status") != "notfound" ||
+              !browser._messageDisplayPending)
+            browser.removeEventListener("MessagesDisplayed", eventListener);
+        };
+        browser.addEventListener("MessagesDisplayed", eventListener);
+      }
       delete this._pendingLogBrowserLoad;
       Services.obs.removeObserver(this, "conversation-loaded");
       return;      
@@ -686,13 +843,17 @@ var chatHandler = {
     }
 
     if (aTopic == "contact-signed-on") {
-      document.getElementById("onlinecontactsGroup").addContact(aSubject);
-      document.getElementById("offlinecontactsGroup").removeContact(aSubject);
+      if (!this._hasConversationForContact(aSubject)) {
+        document.getElementById("onlinecontactsGroup").addContact(aSubject);
+        document.getElementById("offlinecontactsGroup").removeContact(aSubject);
+      }
       return;
     }
     if (aTopic == "contact-signed-off") {
-      document.getElementById("offlinecontactsGroup").addContact(aSubject);
-      document.getElementById("onlinecontactsGroup").removeContact(aSubject);
+      if (!this._hasConversationForContact(aSubject)) {
+        document.getElementById("offlinecontactsGroup").addContact(aSubject);
+        document.getElementById("onlinecontactsGroup").removeContact(aSubject);
+      }
       return;
     }
     if (aTopic == "contact-added") {
@@ -716,22 +877,13 @@ var chatHandler = {
       }
       return;
     }
+    if (aTopic == "new-text") {
+      this.updateChatButtonState();
+      return;
+    }
     if (aTopic == "new-ui-conversation") {
-      if (!gChatTab) {
-        let tabmail = document.getElementById("tabmail");
-        tabmail.openTab("chat", {background: true, convType: "new",
-                                 conv: aSubject});
-      }
-      let conv = chatHandler._addConversation(aSubject);
-      if (!aSubject.isChat && aSubject.buddy) {
-        let contact = aSubject.buddy.buddy.contact;
-        conv.imContact = contact;
-        let groupName = (contact.online ? "on" : "off") + "linecontactsGroup";
-        let item = document.getElementById(groupName).removeContact(contact);
-        let list = document.getElementById("contactlistbox");
-        if (list.selectedItem == item)
-          list.selectedItem = conv;
-      }
+      if (chatTabType.hasBeenOpened)
+        chatHandler._addConversation(aSubject);
       return;
     }
     if (aTopic == "ui-conversation-closed") {
@@ -783,30 +935,42 @@ var chatHandler = {
       return;
     }
   },
-  initContactList: function() {
-    let group = document.getElementById("offlinecontactsGroup");
-    imServices.tags.getTags().forEach(function (aTag) {
-      aTag.getContacts().forEach(function(aContact) {
-        group.addContact(aContact);
-      });
-    });
-    group._updateGroupLabel();
-    imServices.obs.addObserver(this, "new-ui-conversation", false);
-    imServices.obs.addObserver(this, "ui-conversation-closed", false);
-    imServices.obs.addObserver(this, "contact-signed-on", false);
-    imServices.obs.addObserver(this, "contact-signed-off", false);
-    imServices.obs.addObserver(this, "contact-added", false);
-    imServices.obs.addObserver(this, "contact-removed", false);
-    imServices.obs.addObserver(this, "contact-no-longer-dummy", false);
-    imServices.obs.addObserver(this, "account-connected", false);
-    imServices.obs.addObserver(this, "account-disconnected", false);
-    imServices.obs.addObserver(this, "account-added", false);
-    imServices.obs.addObserver(this, "account-removed", false);
+  initAfterChatCore: function() {
+    let onGroup = document.getElementById("onlinecontactsGroup");
+    let offGroup = document.getElementById("offlinecontactsGroup");
+
+    for each (let contact in chatHandler.allContacts) {
+      let group = contact.online ? onGroup : offGroup;
+      group.addContact(contact);
+    }
+
+    onGroup._updateGroupLabel();
+    offGroup._updateGroupLabel();
+
+    ["new-text", "new-ui-conversation", "ui-conversation-closed",
+     "contact-signed-on", "contact-signed-off",
+     "contact-added", "contact-removed", "contact-no-longer-dummy",
+     "account-connected", "account-disconnected",
+     "account-added","account-removed"
+    ].forEach(chatHandler._addObserver);
+
+    chatHandler._updateNoConvPlaceHolder();
+    statusSelector.init();
+  },
+  _observedTopics: [],
+  _addObserver: function(aTopic) {
+    imServices.obs.addObserver(chatHandler, aTopic, false);
+    chatHandler._observedTopics.push(aTopic);
+  },
+  _removeObservers: function() {
+    for each (let topic in this._observedTopics)
+      imServices.obs.removeObserver(this, topic);
   },
   init: function() {
     if (!Services.prefs.getBoolPref("mail.chat.enabled")) {
       ["button-chat", "menu_goChat", "goChatSeparator",
-       "imAccountsStatus", "newIMAccountMenuItem"].forEach(function(aId) {
+       "imAccountsStatus", "joinChatMenuItem",
+       "newIMAccountMenuItem", "newIMContactMenuItem"].forEach(function(aId) {
          let elt = document.getElementById(aId);
          if (elt)
            elt.hidden = true;
@@ -815,7 +979,7 @@ var chatHandler = {
       return;
     }
 
-    Components.utils.import("resource:///modules/index_im.js");
+    window.addEventListener("unload", this._removeObservers.bind(this));
 
     // initialize the customizeDone method on the customizeable toolbar
     var toolbox = document.getElementById("chat-view-toolbox");
@@ -825,9 +989,8 @@ var chatHandler = {
 
     let tabmail = document.getElementById("tabmail");
     tabmail.registerTabType(chatTabType);
-    imServices.obs.addObserver(this, "browser-request", false);
-    imServices.obs.addObserver(this, "buddy-authorization-request", false);
-    imServices.obs.addObserver(this, "buddy-authorization-request-canceled", false);
+    this._addObserver("buddy-authorization-request");
+    this._addObserver("buddy-authorization-request-canceled");
     let listbox = document.getElementById("contactlistbox");
     listbox.addEventListener("keypress", function(aEvent) {
       let item = listbox.selectedItem;
@@ -837,54 +1000,151 @@ var chatHandler = {
     });
     listbox.addEventListener("select", this.onListItemSelected.bind(this));
     listbox.addEventListener("click", this.onListItemClick.bind(this));
+    document.getElementById("chatTabPanel").addEventListener("keypress", function(aEvent) {
+      let accelKeyPressed = Application.platformIsMac ? aEvent.metaKey : aEvent.ctrlKey;
+      if (!accelKeyPressed ||
+          (aEvent.keyCode != aEvent.DOM_VK_DOWN && aEvent.keyCode != aEvent.DOM_VK_UP))
+        return;
+      listbox._userSelecting = true;
+      listbox.moveByOffset(aEvent.keyCode == aEvent.DOM_VK_DOWN ? 1 : -1, true, false);
+      listbox._userSelecting = false;
+      let item = listbox.selectedItem;
+      if (item.localName == "imconv" && item.convView)
+        item.convView.focus();
+      else
+        listbox.focus();
+    });
     window.addEventListener("resize", this.onConvResize.bind(this));
     document.getElementById("conversationsGroup").sortComparator =
       function(a, b) a.title.toLowerCase().localeCompare(b.title.toLowerCase());
 
-    // The initialization of the im core may trigger a master password prompt,
-    // so wrap it with the async prompter service.
-    Components.classes["@mozilla.org/messenger/msgAsyncPrompter;1"]
-              .getService(Components.interfaces.nsIMsgAsyncPrompter)
-              .queueAsyncAuthPrompt("im", false, {
-      onPromptStart: function() {
-        imServices.core.init();
+    Components.utils.import("resource:///modules/chatHandler.jsm", this);
+    if (this.ChatCore.initialized)
+      this.initAfterChatCore();
+    else {
+      this.ChatCore.init();
+      this._addObserver("chat-core-initialized");
+    }
+  }
+};
 
-        // Find the accounts that exist in the im account service but
-        // not in nsMsgAccountManager. They have probably been lost if
-        // the user has used an older version of Thunderbird on a
-        // profile with IM accounts. See bug 736035.
-        let accountsById = {};
-        for each (let account in fixIterator(imServices.accounts.getAccounts()))
-          accountsById[account.numericId] = account;
-        let mgr = Components.classes["@mozilla.org/messenger/account-manager;1"]
-                            .getService(Ci.nsIMsgAccountManager);
-        for each (let account in fixIterator(mgr.accounts, Ci.nsIMsgAccount)) {
-          let incomingServer = account.incomingServer;
-          if (!incomingServer || incomingServer.type != "im")
-            continue;
-          delete accountsById[incomingServer.wrappedJSObject.imAccount.numericId];
+function chatLogTreeGroupItem(aTitle, aLogItems) {
+  this._title = aTitle;
+  this._children = aLogItems;
+  for each (let child in this._children)
+    child._parent = this;
+  this._open = false;
+}
+chatLogTreeGroupItem.prototype = {
+  getText: function() this._title,
+  get id() this._title,
+  get open() this._open,
+  get level() 0,
+  get _parent() null,
+  get children() this._children,
+  getProperties: function(aProps) {}
+};
+
+function chatLogTreeLogItem(aLog, aText) {
+  this.log = aLog;
+  this._text = aText;
+}
+chatLogTreeLogItem.prototype = {
+  getText: function() this._text,
+  get id() this.log.title,
+  get open() false,
+  get level() 1,
+  get children() [],
+  getProperties: function(aProps) {}
+};
+
+function chatLogTreeView(aTree, aLogs) {
+  this._tree = aTree;
+  this._logs = aLogs;
+  this._tree.view = this;
+  this._rebuild();
+}
+chatLogTreeView.prototype = {
+  __proto__: new PROTO_TREE_VIEW(),
+
+  _rebuild: function cLTV__rebuild() {
+    // Drop the old rowMap.
+    if (this._tree)
+      this._tree.rowCountChanged(0, -this._rowMap.length);
+    this._rowMap = [];
+
+    // The keys used in the 'groups' object should match string ids in
+    // messenger.properties, except 'other' that has a special handling.
+    let groups = {
+      today: [],
+      yesterday: [],
+      lastWeek: [],
+      twoWeeksAgo: [],
+      other: []
+    };
+
+    // Some date helpers...
+    const kDayInMsecs = 24 * 60 * 60 * 1000;
+    const kWeekInMsecs = 7 * kDayInMsecs;
+    const kTwoWeeksInMsecs = 2 * kWeekInMsecs;
+    let dts = Components.classes["@mozilla.org/intl/scriptabledateformat;1"]
+                        .getService(Ci.nsIScriptableDateFormat);
+    let formatDate = function(aDate) {
+      return dts.FormatDate("", dts.dateFormatShort, aDate.getFullYear(),
+                            aDate.getMonth() + 1, aDate.getDate());
+    };
+    let nowDate = new Date();
+    let todayDate = new Date(nowDate.getFullYear(), nowDate.getMonth(),
+                             nowDate.getDate());
+
+    // Build a chatLogTreeLogItem for each log, and put it in the right group.
+    let chatBundle = document.getElementById("chatBundle");
+    for each (let log in fixIterator(this._logs)) {
+      let logDate = new Date(log.time * 1000);
+      let timeFromToday = todayDate - logDate;
+      let title = dts.FormatTime("", dts.timeFormatNoSeconds,
+                                 logDate.getHours(), logDate.getMinutes(), 0);
+      if (timeFromToday > kDayInMsecs) {
+        title = chatBundle.getFormattedString("dateTime",
+                                              [formatDate(logDate), title]);
+      }
+      let group;
+      if (timeFromToday <= 0)
+        group = groups.today;
+      else if (timeFromToday <= kDayInMsecs)
+        group = groups.yesterday;
+      else if (timeFromToday <= kWeekInMsecs)
+        group = groups.lastWeek;
+      else if (timeFromToday <= kTwoWeeksInMsecs)
+        group = groups.twoWeeksAgo;
+      else
+        group = groups.other;
+      group.push(new chatLogTreeLogItem(log, title));
+    }
+
+    // Create a chatLogTreeGroupItem for each group.
+    let msgBundle = document.getElementById("bundle_messenger");
+    for each (let [groupId, group] in Iterator(groups)) {
+      if (!group.length)
+        continue;
+      group.sort(function(l1, l2) l2.log.time - l1.log.time);
+      let groupName;
+      if (groupId == "other") {
+        groupName = formatDate(new Date(group[0].log.time * 1000));
+        if (group.length > 1) {
+          let fromDate = new Date(group[group.length - 1].log.time * 1000);
+          groupName += " - " + formatDate(fromDate);
         }
-        // Let's recreate each of them...
-        for each (let account in accountsById) {
-          let inServer = mgr.createIncomingServer(account.name,
-                                                  account.protocol.id, // hostname
-                                                  "im");
-          inServer.wrappedJSObject.imAccount = account;
-          let acc = mgr.createAccount();
-          // Avoid new folder notifications.
-          inServer.valid = false;
-          acc.incomingServer = inServer;
-          inServer.valid = true;
-          mgr.notifyServerLoaded(inServer);
-        }
-        chatHandler.initContactList();
-        chatHandler._updateNoConvPlaceHolder();
-        statusSelector.init();
-        return true;
-      },
-      onPromptAuthAvailable : function() { },
-      onPromptCanceled : function() { }
-    });
+      }
+      else {
+        groupName = msgBundle.getString(groupId);
+      }
+      this._rowMap.push(new chatLogTreeGroupItem(groupName, group));
+    }
+
+    // Finally, notify the tree.
+    if (this._tree)
+      this._tree.rowCountChanged(0, this._rowMap.length);
   }
 };
 

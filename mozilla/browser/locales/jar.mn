@@ -1,4 +1,8 @@
 #filter substitution
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 
 @AB_CD@.jar:
 % locale browser @AB_CD@ %locale/browser/
@@ -32,6 +36,7 @@
     locale/browser/devtools/sourceeditor.properties   (%chrome/browser/devtools/sourceeditor.properties)
     locale/browser/devtools/sourceeditor.dtd          (%chrome/browser/devtools/sourceeditor.dtd)
     locale/browser/devtools/layoutview.dtd            (%chrome/browser/devtools/layoutview.dtd)
+    locale/browser/devtools/responsiveUI.properties   (%chrome/browser/devtools/responsiveUI.properties)
     locale/browser/newTab.dtd                      (%chrome/browser/newTab.dtd)
     locale/browser/newTab.properties               (%chrome/browser/newTab.properties)
     locale/browser/openLocation.dtd                (%chrome/browser/openLocation.dtd)
@@ -111,7 +116,11 @@
 % locale testpilot @AB_CD@ %locale/feedback/
     locale/feedback/main.dtd                       (%feedback/main.dtd)
     locale/feedback/main.properties                (%feedback/main.properties)
+% locale pdf.js @AB_CD@ %locale/pdfviewer/
+    locale/pdfviewer/viewer.properties             (%pdfviewer/viewer.properties)
+    locale/pdfviewer/chrome.properties             (%pdfviewer/chrome.properties)
 #ifdef MOZ_WEBAPP_RUNTIME
+../webapprt/chrome/@AB_CD@.jar:
 % locale webapprt @AB_CD@ %locale/webapprt/
     locale/webapprt/webapp.dtd                     (%webapprt/webapp.dtd)
     locale/webapprt/webapp.properties              (%webapprt/webapp.properties)
