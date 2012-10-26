@@ -1,3 +1,16 @@
+icedove-l10n (1:15.0-1) experimental; urgency=low
+
+  [ Carsten Schoenert ]
+  * Imported Upstream version 15.0
+  * rebuild patch queue from patch-queue branch
+    modified patches:
+    - 0001-rebrand-all-language-packs.patch
+    - 0002-sl-change-Edit-Uredi-to-CTRL-E.patch
+    - 0003-disable-extension-update-extension-is-managed-by-apt.patch
+  * adjust icedove depends to >= 15.0 and <= 15.1
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 17 Oct 2012 19:17:03 +0200
+
 icedove-l10n (1:14.0-1) experimental; urgency=low
 
   [ Christoph Goehre ]
