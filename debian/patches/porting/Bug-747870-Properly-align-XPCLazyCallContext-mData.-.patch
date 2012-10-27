@@ -7,10 +7,10 @@ Subject: Bug 747870 - Properly align XPCLazyCallContext::mData. r=bholley
  1 file changed, 7 insertions(+), 6 deletions(-)
 
 diff --git a/mozilla/js/xpconnect/src/xpcprivate.h b/mozilla/js/xpconnect/src/xpcprivate.h
-index bc661a8..8f438de 100644
+index d57f66e..ca23216 100644
 --- a/mozilla/js/xpconnect/src/xpcprivate.h
 +++ b/mozilla/js/xpconnect/src/xpcprivate.h
-@@ -1327,12 +1327,13 @@ public:
+@@ -1328,12 +1328,13 @@ public:
      XPCCallContext &GetXPCCallContext()
      {
          if (!mCcx) {
@@ -29,7 +29,7 @@ index bc661a8..8f438de 100644
              if (!mCcx->IsValid()) {
                  NS_ERROR("This is not supposed to fail!");
              }
-@@ -1360,7 +1361,7 @@ private:
+@@ -1361,7 +1362,7 @@ private:
      JSObject *mFlattenedJSObject;
      XPCWrappedNative *mWrapper;
      XPCWrappedNativeTearOff *mTearOff;
