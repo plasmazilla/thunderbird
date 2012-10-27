@@ -1,3 +1,21 @@
+icedove (3.0.11-1+squeeze14) stable-security; urgency=low
+
+  * [db8ce96] backported patches from xulrunner fixes mfsa2012-{74,77,81,85-87}
+    - MFSA 2012-74 aka CVE-2012-3982: Miscellaneous memory safety hazards
+      (rv:16.0/ rv:10.0.8)
+    - MFSA 2012-77 aka CVE-2012-3986: Some DOMWindowUtils methods bypass
+      security checks
+    - MFSA 2012-81 aka CVE-2012-3991: GetProperty function can bypass security
+      checks
+    - MFSA 2012-85 aka CVE-2012-4179, CVE-2012-4180, CVE-2012-4182:
+      Use-after-free, buffer overflow, and out of bounds read issues found
+      using Address Sanitizer
+    - MFSA 2012-86 aka CVE-2012-4186, CVE-2012-4188: Heap memory corruption
+      issues found using Address Sanitizer
+    - MFSA 2012-87 aka CVE-2012-3990: Use-after-free in the IME State Manager
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 26 Oct 2012 21:53:42 -0400
+
 icedove (3.0.11-1+squeeze13) stable-security; urgency=high
 
   * [9738634] backported patches from xulrunner fixes mfsa2012-{57,58,63,65,70}
