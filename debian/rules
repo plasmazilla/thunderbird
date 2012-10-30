@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-export BUILD_OFFICIAL=1
+export MOZILLA_OFFICIAL=1
 export INSTALL_SDK=1
 export MAIL_PKG_SHARED=1
 
