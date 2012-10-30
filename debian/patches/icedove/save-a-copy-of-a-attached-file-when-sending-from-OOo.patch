@@ -8,15 +8,16 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=378046
 Closes: #505875
 
 
+
 ---
  .../compose/content/MsgComposeCommands.js          |   31 ++++++++++++++++++++
  1 file changed, 31 insertions(+)
 
-Index: icedove/mail/components/compose/content/MsgComposeCommands.js
-===================================================================
---- icedove.orig/mail/components/compose/content/MsgComposeCommands.js	2012-10-15 20:21:44.955202199 +0530
-+++ icedove/mail/components/compose/content/MsgComposeCommands.js	2012-10-15 20:40:40.535254941 +0530
-@@ -3572,6 +3572,37 @@
+diff --git a/mail/components/compose/content/MsgComposeCommands.js b/mail/components/compose/content/MsgComposeCommands.js
+index d59af48..5589c87 100644
+--- a/mail/components/compose/content/MsgComposeCommands.js
++++ b/mail/components/compose/content/MsgComposeCommands.js
+@@ -3572,6 +3572,37 @@ function AddAttachments(aAttachments, aCallback)
      if (attachment.size != -1)
        gAttachmentsSize += attachment.size;
  

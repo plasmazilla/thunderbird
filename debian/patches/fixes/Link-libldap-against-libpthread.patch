@@ -5,15 +5,16 @@ Subject: Link libldap against libpthread
 https://bugzilla.mozilla.org/show_bug.cgi?id=527454
 
 
+
 ---
  ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in
-===================================================================
---- icedove.orig/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in	2012-10-15 20:22:13.811203538 +0530
-+++ icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in	2012-10-15 20:40:37.399254795 +0530
-@@ -203,7 +203,7 @@
+diff --git a/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in b/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in
+index c999b96..f2f1f53 100644
+--- a/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in
++++ b/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in
+@@ -203,7 +203,7 @@ EXTRA_LIBS = -L$(dist_libdir) -l$(LBER_LIBNAME) $(OS_LIBS) -lc
  endif
  
  ifneq (,$(filter Linux GNU GNU_%, $(OS_ARCH)))

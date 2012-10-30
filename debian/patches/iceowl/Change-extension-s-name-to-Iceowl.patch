@@ -5,14 +5,13 @@ Subject: Change extension's name to Iceowl
 ---
  calendar/lightning/install.rdf                               |    2 +-
  calendar/locales/en-US/chrome/calendar/timezones.properties  |    2 +-
- calendar/locales/en-US/chrome/lightning/lightning.dtd        |    2 +-
  calendar/locales/en-US/chrome/lightning/lightning.properties |    8 ++++----
- 4 files changed, 7 insertions(+), 7 deletions(-)
+ 3 files changed, 6 insertions(+), 6 deletions(-)
 
-Index: icedove/calendar/lightning/install.rdf
-===================================================================
---- icedove.orig/calendar/lightning/install.rdf	2012-10-15 20:21:24.000000000 +0530
-+++ icedove/calendar/lightning/install.rdf	2012-10-15 20:39:07.719250630 +0530
+diff --git a/calendar/lightning/install.rdf b/calendar/lightning/install.rdf
+index 350a1f9..7d80c4a 100644
+--- a/calendar/lightning/install.rdf
++++ b/calendar/lightning/install.rdf
 @@ -30,7 +30,7 @@
      </em:targetApplication>
  
@@ -22,10 +21,10 @@ Index: icedove/calendar/lightning/install.rdf
      <em:version>@LIGHTNING_VERSION@</em:version> <!-- BuildID=@GRE_BUILDID@ -->
      <em:description>An integrated calendar for Thunderbird</em:description>
  #ifdef LIGHTNING_PRERELEASE_VERSION
-Index: icedove/calendar/locales/en-US/chrome/calendar/timezones.properties
-===================================================================
---- icedove.orig/calendar/locales/en-US/chrome/calendar/timezones.properties	2012-10-15 20:21:24.000000000 +0530
-+++ icedove/calendar/locales/en-US/chrome/calendar/timezones.properties	2012-10-15 20:39:07.719250630 +0530
+diff --git a/calendar/locales/en-US/chrome/calendar/timezones.properties b/calendar/locales/en-US/chrome/calendar/timezones.properties
+index 17818c7..a3e6ab1 100644
+--- a/calendar/locales/en-US/chrome/calendar/timezones.properties
++++ b/calendar/locales/en-US/chrome/calendar/timezones.properties
 @@ -4,7 +4,7 @@
  
  # extension:
@@ -35,10 +34,10 @@ Index: icedove/calendar/locales/en-US/chrome/calendar/timezones.properties
  extensions.calendar-timezones@mozilla.org.creator=Mozilla Calendar Project
  
  pref.timezone.floating=Local Time
-Index: icedove/calendar/locales/en-US/chrome/lightning/lightning.properties
-===================================================================
---- icedove.orig/calendar/locales/en-US/chrome/lightning/lightning.properties	2012-10-15 20:21:24.000000000 +0530
-+++ icedove/calendar/locales/en-US/chrome/lightning/lightning.properties	2012-10-15 20:39:07.719250630 +0530
+diff --git a/calendar/locales/en-US/chrome/lightning/lightning.properties b/calendar/locales/en-US/chrome/lightning/lightning.properties
+index 2d7e86b..a99f086 100644
+--- a/calendar/locales/en-US/chrome/lightning/lightning.properties
++++ b/calendar/locales/en-US/chrome/lightning/lightning.properties
 @@ -3,12 +3,12 @@
  # file, You can obtain one at http://mozilla.org/MPL/2.0/.
  

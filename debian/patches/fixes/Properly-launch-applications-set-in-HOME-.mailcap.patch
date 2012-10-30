@@ -5,15 +5,16 @@ Subject: Properly launch applications set in $HOME/.mailcap
 https://bugzilla.mozilla.org/show_bug.cgi?id=444440
 
 
+
 ---
  mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp |   12 ++++++++++++
  1 file changed, 12 insertions(+)
 
-Index: icedove/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
-===================================================================
---- icedove.orig/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp	2012-10-15 20:21:34.895201731 +0530
-+++ icedove/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp	2012-10-15 20:22:28.063204200 +0530
-@@ -65,6 +65,12 @@
+diff --git a/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp b/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
+index f39fb1b..cade36b 100644
+--- a/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
++++ b/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
+@@ -65,6 +65,12 @@ nsMIMEInfoUnix::LoadUriInternal(nsIURI * aURI)
  NS_IMETHODIMP
  nsMIMEInfoUnix::GetHasDefaultHandler(bool *_retval)
  {
@@ -26,7 +27,7 @@ Index: icedove/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
    *_retval = false;
    nsRefPtr<nsMIMEInfoBase> mimeInfo = nsGNOMERegistry::GetFromType(mSchemeOrType);
    if (!mimeInfo) {
-@@ -105,6 +111,12 @@
+@@ -105,6 +111,12 @@ nsMIMEInfoUnix::GetHasDefaultHandler(bool *_retval)
  nsresult
  nsMIMEInfoUnix::LaunchDefaultWithFile(nsIFile *aFile)
  {

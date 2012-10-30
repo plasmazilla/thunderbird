@@ -4,16 +4,16 @@ Subject: Allow ipc code to build on GNU/hurd
 
 Thanks: Pino Toscano <pino@debian.org>
 
----
- mozilla/ipc/chromium/src/base/debug_util_posix.cc         |    1 -
- mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h |    2 +-
- mozilla/ipc/chromium/src/build/build_config.h             |    2 +-
- 3 files changed, 2 insertions(+), 3 deletions(-)
 
-Index: icedove/mozilla/ipc/chromium/src/base/debug_util_posix.cc
-===================================================================
---- icedove.orig/mozilla/ipc/chromium/src/base/debug_util_posix.cc	2012-10-15 20:21:24.000000000 +0530
-+++ icedove/mozilla/ipc/chromium/src/base/debug_util_posix.cc	2012-10-15 20:38:52.327249916 +0530
+---
+ mozilla/ipc/chromium/src/base/debug_util_posix.cc |    1 -
+ mozilla/ipc/chromium/src/build/build_config.h     |    2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/mozilla/ipc/chromium/src/base/debug_util_posix.cc b/mozilla/ipc/chromium/src/base/debug_util_posix.cc
+index 72a4ebf..5a45ac9 100644
+--- a/mozilla/ipc/chromium/src/base/debug_util_posix.cc
++++ b/mozilla/ipc/chromium/src/base/debug_util_posix.cc
 @@ -17,7 +17,6 @@
  #include <unistd.h>
  #if MOZ_HAVE_EXECINFO_H
@@ -22,10 +22,10 @@ Index: icedove/mozilla/ipc/chromium/src/base/debug_util_posix.cc
  #endif
  
  #include "base/basictypes.h"
-Index: icedove/mozilla/ipc/chromium/src/build/build_config.h
-===================================================================
---- icedove.orig/mozilla/ipc/chromium/src/build/build_config.h	2012-10-15 20:31:47.000000000 +0530
-+++ icedove/mozilla/ipc/chromium/src/build/build_config.h	2012-10-15 20:38:52.327249916 +0530
+diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
+index f79884e..055d799 100644
+--- a/mozilla/ipc/chromium/src/build/build_config.h
++++ b/mozilla/ipc/chromium/src/build/build_config.h
 @@ -17,7 +17,7 @@
  // A set of macros to use for platform detection.
  #if defined(__APPLE__)

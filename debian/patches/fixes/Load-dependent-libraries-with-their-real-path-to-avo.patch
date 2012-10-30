@@ -7,11 +7,11 @@ Subject: Load dependent libraries with their real path to avoid confusing gdb
  mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp |    3 +++
  1 file changed, 3 insertions(+)
 
-Index: icedove/mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp
-===================================================================
---- icedove.orig/mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp	2012-10-15 20:21:22.423201153 +0530
-+++ icedove/mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp	2012-10-15 20:40:31.199254507 +0530
-@@ -184,6 +184,9 @@
+diff --git a/mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp b/mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp
+index 6a7cc9d..23bdd88 100644
+--- a/mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp
++++ b/mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp
+@@ -184,6 +184,9 @@ preload(const char *file)
  static void
  ReadDependentCB(const char *aDependentLib, bool do_preload)
  {

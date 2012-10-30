@@ -6,11 +6,11 @@ Subject: Set javascript.options.showInConsole
  mozilla/modules/libpref/src/init/all.js |    1 +
  1 file changed, 1 insertion(+)
 
-Index: icedove/mozilla/modules/libpref/src/init/all.js
-===================================================================
---- icedove.orig/mozilla/modules/libpref/src/init/all.js	2012-10-15 20:21:46.023202249 +0530
-+++ icedove/mozilla/modules/libpref/src/init/all.js	2012-10-15 20:40:32.511254569 +0530
-@@ -673,6 +673,7 @@
+diff --git a/mozilla/modules/libpref/src/init/all.js b/mozilla/modules/libpref/src/init/all.js
+index dd3b047..1d6869d 100644
+--- a/mozilla/modules/libpref/src/init/all.js
++++ b/mozilla/modules/libpref/src/init/all.js
+@@ -673,6 +673,7 @@ pref("javascript.options.strict",           false);
  pref("javascript.options.strict.debug",     true);
  #endif
  pref("javascript.options.relimit",          true);

@@ -3,16 +3,15 @@ Date: Thu, 30 Jun 2011 18:29:22 +0200
 Subject: Allow ipc code to build on GNU/kfreebsd
 
 ---
- mozilla/ipc/chromium/src/base/platform_thread_posix.cc    |    4 ++++
- mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h |    2 +-
- mozilla/ipc/chromium/src/build/build_config.h             |    2 +-
- 3 files changed, 6 insertions(+), 2 deletions(-)
+ mozilla/ipc/chromium/src/base/platform_thread_posix.cc |    4 ++++
+ mozilla/ipc/chromium/src/build/build_config.h          |    2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
 
-Index: icedove/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
-===================================================================
---- icedove.orig/mozilla/ipc/chromium/src/base/platform_thread_posix.cc	2012-10-15 20:21:26.000000000 +0530
-+++ icedove/mozilla/ipc/chromium/src/base/platform_thread_posix.cc	2012-10-15 20:29:26.859223651 +0530
-@@ -42,7 +42,11 @@
+diff --git a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
+index 1b2ecf7..3a7f01e 100644
+--- a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
++++ b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
+@@ -42,7 +42,11 @@ PlatformThreadId PlatformThread::CurrentId() {
    // TODO(BSD): find a better thread ID
    return (intptr_t)(pthread_self());
  #elif defined(OS_LINUX)
@@ -24,10 +23,10 @@ Index: icedove/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
  #endif
  }
  
-Index: icedove/mozilla/ipc/chromium/src/build/build_config.h
-===================================================================
---- icedove.orig/mozilla/ipc/chromium/src/build/build_config.h	2012-10-15 20:21:26.000000000 +0530
-+++ icedove/mozilla/ipc/chromium/src/build/build_config.h	2012-10-15 20:29:26.859223651 +0530
+diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
+index 9e87ad2..f79884e 100644
+--- a/mozilla/ipc/chromium/src/build/build_config.h
++++ b/mozilla/ipc/chromium/src/build/build_config.h
 @@ -17,7 +17,7 @@
  // A set of macros to use for platform detection.
  #if defined(__APPLE__)

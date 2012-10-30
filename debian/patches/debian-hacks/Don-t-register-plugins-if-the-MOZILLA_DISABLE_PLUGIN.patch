@@ -7,11 +7,11 @@ Subject: Don't register plugins if the MOZILLA_DISABLE_PLUGINS environment
  mozilla/dom/plugins/base/nsPluginHost.cpp |    4 ++++
  1 file changed, 4 insertions(+)
 
-Index: icedove/mozilla/dom/plugins/base/nsPluginHost.cpp
-===================================================================
---- icedove.orig/mozilla/dom/plugins/base/nsPluginHost.cpp	2012-10-15 20:21:45.347202217 +0530
-+++ icedove/mozilla/dom/plugins/base/nsPluginHost.cpp	2012-10-15 20:31:57.123230630 +0530
-@@ -346,6 +346,10 @@
+diff --git a/mozilla/dom/plugins/base/nsPluginHost.cpp b/mozilla/dom/plugins/base/nsPluginHost.cpp
+index cdcd14d..5a425bf 100644
+--- a/mozilla/dom/plugins/base/nsPluginHost.cpp
++++ b/mozilla/dom/plugins/base/nsPluginHost.cpp
+@@ -346,6 +346,10 @@ nsPluginHost::nsPluginHost()
    Preferences::AddStrongObserver(this, "plugin.disable");
    Preferences::AddStrongObserver(this, "plugins.click_to_play");
  
