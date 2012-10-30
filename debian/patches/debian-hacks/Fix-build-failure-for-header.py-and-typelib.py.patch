@@ -1,8 +1,21 @@
-Index: icedove/config/rules.mk
-===================================================================
---- icedove.orig/config/rules.mk	2012-10-16 01:22:35.664040567 +0530
-+++ icedove/config/rules.mk	2012-10-16 14:58:19.358313759 +0530
-@@ -1446,7 +1446,7 @@
+From: Ritesh Raj Sarraf <rrs@debian.org>
+Date: Tue, 30 Oct 2012 11:27:31 +0100
+Subject: Fix build failure for header.py and typelib.py
+
+Earlier builds were passing the --cachedir option
+Sometime during TB15, Mozilla changed that to variables.
+This change was not passing the --cachedir option, hence the build failure.
+This patch just hacks the build by passing the cachedir option manually
+
+---
+ config/rules.mk |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/config/rules.mk b/config/rules.mk
+index 18378b2..25f72c1 100644
+--- a/config/rules.mk
++++ b/config/rules.mk
+@@ -1446,7 +1446,7 @@ $(XPIDL_GEN_DIR)/%.h: %.idl $(XPIDL_DEPS) $(XPIDL_GEN_DIR)/.done
  	$(REPORT_BUILD)
  	$(PYTHON) -u $(MOZILLA_DIR)/config/pythonpath.py \
  	  -I$(MOZILLA_DIR)/other-licenses/ply \
@@ -11,7 +24,7 @@ Index: icedove/config/rules.mk
  	@if test -n "$(findstring $*.h, $(EXPORTS))"; \
  	  then echo "*** WARNING: file $*.h generated from $*.idl overrides $(srcdir)/$*.h"; else true; fi
  
-@@ -1458,7 +1458,7 @@
+@@ -1458,7 +1458,7 @@ $(XPIDL_GEN_DIR)/%.xpt: %.idl $(XPIDL_DEPS) $(XPIDL_GEN_DIR)/.done
  	$(PYTHON) -u $(MOZILLA_DIR)/config/pythonpath.py \
  	  -I$(MOZILLA_DIR)/other-licenses/ply \
  	  -I$(MOZILLA_DIR)/xpcom/typelib/xpt/tools \
