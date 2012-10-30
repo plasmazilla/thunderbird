@@ -1,3 +1,97 @@
+icedove (16.0.2-1) experimental; urgency=low
+
+  [ Christoph Goehre ]
+  * [e94445f] cleanup source.filer file
+  * [33b9f4c] Imported Upstream version 12.0.1
+
+  [ Guido Günther ]
+  * [88a39e3] watch: only look for two digit versions since 3.1.20 lacks the
+    source/ dir
+  * [eb4f5c3] New upstream version 14.0
+  * [b451442] Update patches for 14.0
+    obsolete patches:
+        Avoid-libxpcom-being-excluded-from-linked-libraries-.patch
+        Bug-515232-Try-getting-general.useragent.locale-as-a.patch
+        Bug-696636-Block-OpenGL-1-drivers-explicitly-to-stee.patch
+        Bug-710972-Define-G_VARIANT_TYPE_STRING_ARRAY-when-b.patch
+        Bug-722127-Bump-required-libvpx-version-to-1.0.0.-r-.patch
+        Bug-728136-Port-bug-528687-to-comm-central.patch
+        Bug-728229-Allow-to-build-with-system-python-ply-lib.patch
+        Bug-729817-Allow-the-Nouveau-driver-with-Mesa-8.0.1-.patch
+        Bug-729817-Block-the-Nouveau-3D-driver-as-it-s-insta.patch
+        Bug-734335-Only-build-SPS-on-supported-platforms.patch
+        Revert-investigation-patch-for-bug-621446.patch
+        Bug-698923-Don-t-require-16-bytes-alignment-for-VMFr.patch
+        Bug-711353-Add-support-for-GNU-kFreeBSD-and-GNU-Hurd.patch
+    modified patches:
+        Add-another-preferences-directory-for-applications-p.patch
+        Do-build-time-detection-of-2-bytes-wchar_t-and-char1.patch
+        Don-t-build-example-component.patch
+        Don-t-error-out-when-run-time-libsqlite-is-older-tha.patch
+        Don-t-register-plugins-if-the-MOZILLA_DISABLE_PLUGIN.patch
+        Gross-workaround-to-avoid-installing-test-idl-and-in.patch
+        Ignore-system-libjpeg-libpng-and-zlib-version-checki.patch
+        stop-configure-if-with-system-bz2-was-passed-but-no-.patch
+        Allow-.js-preference-files-to-set-locked-prefs-with-.patch
+        Bug-691898-Use-YARR-interpreter-instead-of-PCRE-on-p.patch
+        Bug-720682-Don-t-crash-an-app-using-libxul-because-o.patch
+        Include-cstdlib-in-gfx-angle-src-compiler-Types.h-fo.patch
+        Link-libldap-against-libpthread.patch
+        Load-dependent-libraries-with-their-real-path-to-avo.patch
+        Properly-launch-applications-set-in-HOME-.mailcap.patch
+        Remove-the-js-shell-from-the-build-directory-during-.patch
+        fix-branding-in-migration-wizard-and-the-addon-manag.patch
+        fix-installdir.patch
+        save-a-copy-of-a-attached-file-when-sending-from-OOo.patch
+        thunderbird-3-profile.patch
+        Change-extension-s-name-to-Iceowl.patch
+        Add-xptcall-support-for-SH4-processors.patch
+        Allow-ipc-code-to-build-on-GNU-hurd.patch
+        Allow-ipc-code-to-build-on-GNU-kfreebsd.patch
+        Bug-703833-Avoid-invalid-conversion-from-const-size_.patch
+        Disable-optimization-on-alpha-for-the-url-classifier.patch
+        Fix-GNU-non-Linux-failure-to-build-because-of-ipc-ch.patch
+        Support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+        Don-t-auto-disable-extensions-in-system-directories.patch
+        Set-javascript.options.showInConsole.patch
+        Allow-to-build-against-system-libffi.patch
+  * [907be61] Make sure we only match the generated files. Patch taken from
+    iceowl 1.5 package
+  * [772b9a0] Make system cairo work again. Patch taken from iceweasel.
+  * [0b6a8b3] Update
+    Add-another-preferences-directory-for-applications-p.patch to new method
+    name.
+  * [3395f21] Don't use APP_UA_NAME in application.ini since the replacement
+    fails and isn't needed.
+  * [6dea9fb] New upstream version 16.0.1
+  * [664153d] Add README.source describing howto import new upstream versions
+  * [a653bd0] Adjust to upstream changes:
+        * stop-configure-if-with-system-bz2-was-passed-but-no-.patch
+  * [f088193] Add a proper patch header
+        * to Fix-build-failure-for-header.py-and-typelib.py.patch
+          so we don't lose the patch description.
+  * [268cca5] New upstream version 16.0.2
+  * [a453a92] Rediff patches - no content changes
+  * [263bbeb] BUILD_OFFICIAL is now MOZILLA_OFFICIAL
+  * [a798e6b] Install dependentlibs.list to fix dlopen() of XPCOM
+
+  [ Ritesh Raj Sarraf ]
+  * [f871ba9] Refresh patches.
+    Droped patches:
+      * fixes/Remove-the-js-shell-from-the-build-directory-during-.patch
+      * porting/Bug-703833-Avoid-invalid-conversion-from-const-size_.patch
+      * fixes/Bug-691898-Use-YARR-interpreter-instead-of-PCRE-on-p.patch
+      * debian-hacks/Make-sure-we-only-match-the-generated-files.patch
+  * [9b02e4c] Refreshed patches for TB16
+  * [dc83dd7] Fix build failure for header.py and typelib.py.
+    Earlier builds were passing the --cachedir option
+    Sometime during TB15, Mozilla changed that to variables.
+    This change was not passing the --cachedir option, hence the build
+    failure.  This patch just hacks the build by passing the cachedir option
+    manually
+
+ -- Guido Günther <agx@sigxcpu.org>  Tue, 30 Oct 2012 22:05:49 +0100
+
 icedove (11.0-1) experimental; urgency=low
 
   * [ffb767a] Imported Upstream version 11.0 (Closes: #663897)
