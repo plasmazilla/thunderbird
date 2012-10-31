@@ -15,6 +15,13 @@
 <!ENTITY telemetryInfoLink.label       "Meer informatie over Telemetry">
 <!ENTITY enableGlodaSearch.label       "Globaal zoeken en indexer activeren">
 <!ENTITY enableGlodaSearch.accesskey   "G">
+
+<!ENTITY scrolling.label               "Schuiven">
+<!ENTITY useAutoScroll.label           "Automatisch schuiven gebruiken">
+<!ENTITY useAutoScroll.accesskey       "m">
+<!ENTITY useSmoothScrolling.label      "Vloeiend schuiven gebruiken">
+<!ENTITY useSmoothScrolling.accesskey  "e">
+
 <!ENTITY systemIntegration.label       "Systeemintegratie">
 <!ENTITY alwaysCheckDefault.label      "Altijd tijdens het opstarten controleren of &brandShortName; de standaard e-mailclient is">
 <!ENTITY alwaysCheckDefault.accesskey  "A">
@@ -84,10 +91,10 @@
 <!ENTITY showOffline.label             "Offline…">
 <!ENTITY showOffline.accesskey         "O">
 
-<!ENTITY Diskspace "Schijfruimte">
-<!ENTITY offlineCompact.label "Mappen comprimeren als het meer bespaart dan">
-<!ENTITY offlineCompact.accesskey "M">
-<!ENTITY mb.label "MB">
+<!ENTITY Diskspace                       "Schijfruimte">
+<!ENTITY offlineCompactFolders.label     "Mappen comprimeren als het meer bespaart dan">
+<!ENTITY offlineCompactFolders.accesskey "M">
+<!ENTITY offlineCompactFoldersMB.label   "MB in totaal">
 
 <!-- LOCALIZATION NOTE:
   The entities useCacheBefore.label and useCacheAfter.label appear on a single

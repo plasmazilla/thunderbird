@@ -116,3 +116,13 @@
 <!ENTITY validation.accesskey "i">
 <!ENTITY viewSecurityDevices.label "Disp. de segurança">
 <!ENTITY viewSecurityDevices.accesskey "d">
+
+<!ENTITY offlineCompactFolders.accesskey "a">
+<!ENTITY offlineCompactFolders.label     "Compact all folders when it will save over">
+<!ENTITY offlineCompactFoldersMB.label   "MB in total">
+
+<!ENTITY scrolling.label               "Scrolling">
+<!ENTITY useAutoScroll.accesskey       "U">
+<!ENTITY useAutoScroll.label           "Use autoscrolling">
+<!ENTITY useSmoothScrolling.accesskey  "m">
+<!ENTITY useSmoothScrolling.label      "Use smooth scrolling">

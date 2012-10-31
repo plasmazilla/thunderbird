@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY itemGeneral.label       "Generelt">
 <!ENTITY itemDisplay.label       "Lesing og vising">
 <!ENTITY itemUpdate.label        "Oppdatering">
@@ -11,10 +15,17 @@
 <!ENTITY telemetryInfoLink.label       "Informasjon om Telemetry">
 <!ENTITY enableGlodaSearch.label       "Slå på globalt søk og indeksering">
 <!ENTITY enableGlodaSearch.accesskey   "S">
+
+<!ENTITY scrolling.label               "Rulling">
+<!ENTITY useAutoScroll.label           "Bruk autorulling">
+<!ENTITY useAutoScroll.accesskey       "B">
+<!ENTITY useSmoothScrolling.label      "Bruk jamn rulling">
+<!ENTITY useSmoothScrolling.accesskey  "r">
+
 <!ENTITY systemIntegration.label       "Systemintegrasjon">
 <!ENTITY alwaysCheckDefault.label      "Alltid kontroller om &brandShortName; er standard e-postklient ved oppstart">
 <!ENTITY alwaysCheckDefault.accesskey  "l">
-<!ENTITY searchIntegration.label       "Tillat &searchIntegration.engineName; å søkje i meldingar">
+<!ENTITY searchIntegration.label       "Tillat &searchIntegration.engineName; å søke i meldingar">
 <!ENTITY searchIntegration.accesskey   "T">
 <!ENTITY checkNow.label                "Kontroller no">
 <!ENTITY checkNow.accesskey            "n">
@@ -67,6 +78,9 @@
 <!ENTITY showUpdates.label              "Vis oppdateringshistorikk">
 <!ENTITY showUpdates.accesskey          "V">
 
+<!ENTITY useService.label                "Bruk ei bakgrunnsteneste for å installere oppdateringar">
+<!ENTITY useService.accesskey            "B">
+
 <!-- Networking and Disk Space -->
 <!ENTITY showSettings.label            "Innstillingar …">
 <!ENTITY showSettings.accesskey        "I">
@@ -77,10 +91,10 @@
 <!ENTITY showOffline.label             "Fråkopla …">
 <!ENTITY showOffline.accesskey         "F">
 
-<!ENTITY Diskspace "Diskplass">
-<!ENTITY offlineCompact.label "Komprimer mapper når det vil spare meir enn">
-<!ENTITY offlineCompact.accesskey "K">
-<!ENTITY mb.label "MB">
+<!ENTITY Diskspace                       "Diskplass">
+<!ENTITY offlineCompactFolders.label     "Komprimer alle mapper når det vil spare meir enn">
+<!ENTITY offlineCompactFolders.accesskey "K">
+<!ENTITY offlineCompactFoldersMB.label   "MB totalt">
 
 <!-- LOCALIZATION NOTE:
   The entities useCacheBefore.label and useCacheAfter.label appear on a single
@@ -109,7 +123,3 @@
 <!ENTITY validation.accesskey           "V">
 <!ENTITY viewSecurityDevices.label      "Tryggingseiningar">
 <!ENTITY viewSecurityDevices.accesskey  "S">
-
-<!ENTITY useService.accesskey            "b">
-
-<!ENTITY useService.label                "Use a background service to install updates">

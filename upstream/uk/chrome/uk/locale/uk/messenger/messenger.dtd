@@ -900,3 +900,6 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY hideOtherAppsCmdMac.commandkey "х">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Показати всі">
+
+<!ENTITY manageTags.accesskey "M">
+<!ENTITY manageTags.label "Manage Tags…">

@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY titledefault.label			"&brandFullName;">
 <!ENTITY titleSeparator.label			" - ">
 
@@ -581,7 +585,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label		"新しいタグ...">
 <!ENTITY addNewTag.accesskey		"N">
-
+<!ENTITY manageTags.label		"タグを管理...">
+<!ENTITY manageTags.accesskey		"M">
 <!-- Folder Pane -->
 <!ENTITY folderColumn.label		"名前">
 <!ENTITY folderSizeColumn.label		"サイズ">

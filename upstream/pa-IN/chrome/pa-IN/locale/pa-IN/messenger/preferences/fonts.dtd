@@ -75,3 +75,5 @@
 <!ENTITY replyInDefaultCharset2.label     "When possible, use the default character encoding in replies">
 <!ENTITY replyInDefaultCharset2.accesskey "h">
 
+
+<!ENTITY  font.langGroup.unicode1                 "Unicode">

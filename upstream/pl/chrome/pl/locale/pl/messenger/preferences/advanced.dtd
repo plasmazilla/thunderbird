@@ -14,6 +14,11 @@
 <!ENTITY telemetryInfoLink.label      "Więcej informacji o prywatności przesyłanych raportów.">
 <!ENTITY enableGlodaSearch.label      "Indeksowanie wiadomości i wyszukiwanie">
 <!ENTITY enableGlodaSearch.accesskey  "n">
+<!ENTITY scrolling.label "Przewijanie">
+<!ENTITY useAutoScroll.label "Używaj automatycznego przewijania">
+<!ENTITY useAutoScroll.accesskey "U">
+<!ENTITY useSmoothScrolling.label "Używaj płynnego przewijania">
+<!ENTITY useSmoothScrolling.accesskey "a">
 <!ENTITY systemIntegration.label      "Integracja z systemem operacyjnym">
 <!ENTITY alwaysCheckDefault.label     "Przy uruchamianiu sprawdzaj, czy &brandShortName; jest domyślnym programem pocztowym">
 <!ENTITY alwaysCheckDefault.accesskey "P">
@@ -78,10 +83,10 @@
 <!ENTITY showOffline.label       "Tryb offline…">
 <!ENTITY showOffline.accesskey   "T">
 
-<!ENTITY Diskspace                "Miejsce na dysku">
-<!ENTITY offlineCompact.label     "Automatycznie porządkuj foldery, gdy zaoszczędzi to więcej niż">
-<!ENTITY offlineCompact.accesskey "A">
-<!ENTITY mb.label                 "MB">
+<!ENTITY Diskspace "Miejsce na dysku">
+<!ENTITY offlineCompactFolders.label "Automatycznie porządkuj wszystkie foldery, gdy zaoszczędzi to w sumie ponad">
+<!ENTITY offlineCompactFolders.accesskey "A">
+<!ENTITY offlineCompactFoldersMB.label "MB">
 
 <!ENTITY useCacheBefore.label     "Używaj maksymalnie">
 <!ENTITY useCacheBefore.accesskey "m">

@@ -74,3 +74,5 @@
 <!ENTITY viewDefaultCharsetList.accesskey  "a">
 <!ENTITY replyInDefaultCharset2.label     "Usar a codificação pré-definida em respostas">
 <!ENTITY replyInDefaultCharset2.accesskey "U">
+
+<!ENTITY  font.langGroup.unicode1                 "Unicode">

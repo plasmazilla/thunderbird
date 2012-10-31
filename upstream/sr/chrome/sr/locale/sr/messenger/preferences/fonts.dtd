@@ -75,3 +75,5 @@
 <!ENTITY replyInDefaultCharset2.label     "Кадгод је могуће користи изворно кодирање знакова у одговорима">
 <!ENTITY replyInDefaultCharset2.accesskey "и">
 
+
+<!ENTITY  font.langGroup.unicode1                 "Unicode">

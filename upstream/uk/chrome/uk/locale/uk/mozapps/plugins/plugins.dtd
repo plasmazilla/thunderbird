@@ -52,3 +52,7 @@
 <!ENTITY report.disabled                                     "Звітування вимкнене.">
 <!ENTITY report.failed                                       "Відіслати не вдалось.">
 <!ENTITY report.unavailable                                  "Звіт недоступний.">
+
+<!ENTITY checkForUpdates                                     "Check for updates…">
+<!ENTITY clickToPlayPluginVulnerableNoUpdate                 "Click here to activate vulnerable plugin (no update available).">
+<!ENTITY clickToPlayPluginVulnerableUpdateAvailable          "Click here to activate vulnerable plugin.">

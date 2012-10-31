@@ -1,6 +1,0 @@
-<!ENTITY adaptiveJunkLog.title "Roskapostiloki">
-<!ENTITY adaptiveJunkLogInfo.label "Loki roskapostin suodatuksen toiminnasta.">
-<!ENTITY clearLog.label "Tyhjennä loki">
-<!ENTITY clearLog.accesskey "T">
-<!ENTITY closeLog.label "Sulje">
-<!ENTITY closeLog.accesskey "S">

@@ -51,7 +51,10 @@ Entities below were automatically added by compare-locales,
 <!ENTITY installPlugin "உட்செருகலை நிறுவுக…">
 <!ENTITY disabledPlugin "இந்த செருகல் செயலற்றதாக்கப்பட்டுள்ளது.">
 
+<!ENTITY checkForUpdates                                     "Check for updates…">
 <!ENTITY clickToPlayPlugin                                   "Click here to activate plugin.">
+<!ENTITY clickToPlayPluginVulnerableNoUpdate                 "Click here to activate vulnerable plugin (no update available).">
+<!ENTITY clickToPlayPluginVulnerableUpdateAvailable          "Click here to activate vulnerable plugin.">
 <!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
 <!ENTITY tapToPlayPlugin                                     "Tap here to activate plugin.">
 <!-- LOCALIZATION NOTE (unsupportedPlatform.learnMore): Mobile only. This text is used to link to a SUMO page explaining why Flash is not

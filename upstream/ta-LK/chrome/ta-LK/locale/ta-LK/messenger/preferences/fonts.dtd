@@ -78,3 +78,5 @@
 
 <!ENTITY replyInDefaultCharset2.label "கொடாநிலை எழுத்துரு குறிமுறையை பதில்களில் பயன்படுத்துக">
 <!ENTITY replyInDefaultCharset2.accesskey "h">
+
+<!ENTITY  font.langGroup.unicode1                 "Unicode">

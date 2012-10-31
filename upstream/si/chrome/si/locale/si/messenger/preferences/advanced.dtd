@@ -109,6 +109,15 @@ Entities below were automatically added by compare-locales,
 <!ENTITY mb.label "MB">
 <!ENTITY closeMsgOnMoveOrDelete.label "මැකීමේදී හෝ ගෙනයාමේදී නවුළුව/ටැබය වසන්න">
 
+<!ENTITY offlineCompactFolders.accesskey "a">
+<!ENTITY offlineCompactFolders.label     "Compact all folders when it will save over">
+<!ENTITY offlineCompactFoldersMB.label   "MB in total">
+
+<!ENTITY scrolling.label               "Scrolling">
+<!ENTITY useAutoScroll.accesskey       "U">
+<!ENTITY useAutoScroll.label           "Use autoscrolling">
 <!ENTITY useService.accesskey            "b">
 
 <!ENTITY useService.label                "Use a background service to install updates">
+<!ENTITY useSmoothScrolling.accesskey  "m">
+<!ENTITY useSmoothScrolling.label      "Use smooth scrolling">

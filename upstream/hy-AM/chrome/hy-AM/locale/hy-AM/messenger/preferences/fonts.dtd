@@ -90,3 +90,5 @@
 <!ENTITY viewDefaultCharsetList.accesskey  "I">
 <!ENTITY replyInDefaultCharset2.label     "Հնարավորության դեպքում պատասխանելիս օգտ. ծրագրային կոդավորումը.">
 <!ENTITY replyInDefaultCharset2.accesskey "h">
+
+<!ENTITY  font.langGroup.unicode1                 "Unicode">
