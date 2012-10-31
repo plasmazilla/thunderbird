@@ -10,12 +10,12 @@ if [ "$#" -lt 1 ]; then
     exit 1
 fi
 
-TMPDIR=`mktemp -d`
+TMPDIR=`mktemp -d /tmp/icedove-l10n.XXXXXXXXXX`
 CURDIR=`pwd`
 VERSION=$1
 
-if [ -f $CURDIR/../icedove-l10n_$VERSION.orig.tar.gz ]; then
-    echo "icedove-l10n_$VERSION.orig.tar.gz exists, giving up..."
+if [ -f $CURDIR/../icedove-l10n_$VERSION.orig.tar.xz ]; then
+    echo "icedove-l10n_$VERSION.orig.tar.xz exists, giving up..."
     exit 1
 fi
 
@@ -48,6 +48,6 @@ done
 cd $TMPDIR/icedove-l10n-$VERSION
 rm -rf upstream/en-US
 cd ..
-tar -zcf icedove-l10n_$VERSION.orig.tar.gz icedove-l10n-$VERSION
-cp icedove-l10n_$VERSION.orig.tar.gz $CURDIR/..
+tar -Jcf icedove-l10n_$VERSION.orig.tar.xz icedove-l10n-$VERSION
+cp icedove-l10n_$VERSION.orig.tar.xz $CURDIR/..
 rm -rf $TMPDIR/icedove-l10n-$VERSION
