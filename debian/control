@@ -110,7 +110,7 @@ Package: calendar-google-provider
 Architecture: any
 Depends: ${shlibs:Depends},
  ${misc:Depends}
-Description: Google Calendar support for lighting- and iceowl-extension
+Description: Google Calendar support for lightning- and iceowl-extension
  Google Calendar support extension for the Iceowl/Lightning extension. It's a
  recommended component if you want to connect to your google calendar.
 
