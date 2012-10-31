@@ -1,3 +1,20 @@
+icedove-l10n (1:16.0-1) experimental; urgency=low
+
+  [ Carsten Schoenert ]
+  * Imported Upstream version 16.0 (Closes: #675441)
+  * rebuild patch queue from patch-queue branch
+    modified patches:
+    - 0001-rebrand-all-language-packs.patch
+    - 0003-disable-extension-update-extension-is-managed-by-apt.patch
+  * adjust icedove depends to >= 16.0 and <= 16.1
+
+  [ Christoph Goehre ]
+  * add Carsten as Uploader
+  * generate xz compressed upstream tarballs
+  * fix typo in icedove-l10n-sr package (s/Serbia/Serbian/) (Closes: #676625)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 31 Oct 2012 18:16:07 -0400
+
 icedove-l10n (1:15.0-1) experimental; urgency=low
 
   [ Carsten Schoenert ]
