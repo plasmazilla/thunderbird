@@ -84,3 +84,10 @@ Entities below were automatically added by compare-locales,
 
 <!ENTITY authMethod.accesskey "i">
 <!ENTITY authMethod.label "அத்தாட்சிப்படுத்தல் முறைகள்:">
+
+<!ENTITY accountSettingsDesc.label "The following is a special account.  There are no identities associated with it.">
+
+<!ENTITY accountTitle.label "Account Settings">
+<!-- extracted from am-server-top.xul -->
+
+<!ENTITY messageStorage.label "Message Storage">

@@ -1,0 +1,26 @@
+locale messenger-mapi hr chrome/hr/locale/hr/messenger-mapi/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale alerts hr chrome/hr/locale/hr/alerts/
+locale passwordmgr hr chrome/hr/locale/hr/passwordmgr/
+locale messenger-newsblog hr chrome/hr/locale/hr/messenger-newsblog/
+locale autoconfig hr chrome/hr/locale/hr/autoconfig/
+locale testpilot hr chrome/hr/locale/hr/feedback/
+locale cookie hr chrome/hr/locale/hr/cookie/
+locale mozldap hr chrome/hr/locale/hr/mozldap/
+locale communicator hr chrome/hr/locale/hr/communicator/
+locale mozapps hr chrome/hr/locale/hr/mozapps/
+manifest chrome/hr.manifest
+locale global hr chrome/hr/locale/hr/global/
+locale global-region hr chrome/hr/locale/hr/global-region/
+locale messenger-smime hr chrome/hr/locale/hr/messenger-smime/
+locale messenger hr chrome/hr/locale/hr/messenger/
+locale chat hr chrome/hr/locale/hr/chat/
+locale places hr chrome/hr/locale/hr/places/
+locale editor hr chrome/hr/locale/hr/editor/
+locale pipnss hr chrome/hr/locale/hr/pipnss/
+locale global-platform hr chrome/hr/locale/hr/global-platform/
+locale necko hr chrome/hr/locale/hr/necko/
+locale pippki hr chrome/hr/locale/hr/pippki/
+locale messenger-region hr chrome/hr/locale/hr/messenger-region/
+locale branding hr chrome/hr/locale/hr/branding/

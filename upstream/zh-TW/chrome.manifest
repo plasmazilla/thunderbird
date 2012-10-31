@@ -12,6 +12,7 @@ locale global zh-TW chrome/zh-TW/locale/zh-TW/global/
 locale pipnss zh-TW chrome/zh-TW/locale/zh-TW/pipnss/
 locale places zh-TW chrome/zh-TW/locale/zh-TW/places/
 locale editor zh-TW chrome/zh-TW/locale/zh-TW/editor/
+locale chat zh-TW chrome/zh-TW/locale/zh-TW/chat/
 locale messenger-mapi zh-TW chrome/zh-TW/locale/zh-TW/messenger-mapi/
 locale mozapps zh-TW chrome/zh-TW/locale/zh-TW/mozapps/
 manifest chrome/zh-TW.manifest

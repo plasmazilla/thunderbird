@@ -90,11 +90,6 @@
 <!ENTITY insertBreakAllCmd.accesskey "k">
 
 <!-- Used just in context popup. -->
-<!ENTITY spellCheckNoSuggestions.label "(候補なし)">
-<!ENTITY spellCheckIgnoreWord.label "単語を無視">
-<!ENTITY spellCheckIgnoreWord.accesskey "I">
-<!ENTITY spellCheckAddToDictionary.label "辞書に追加">
-<!ENTITY spellCheckAddToDictionary.accesskey "n">
 <!ENTITY createLinkCmd.label "リンクを作成...">
 <!ENTITY createLinkCmd.accesskey "k">
 <!ENTITY editLinkCmd.label "リンクを新しい Composer で編集">
@@ -333,12 +328,6 @@
 <!-- Toolbar-only items -->
 <!ENTITY menuBar.tooltip "メニューバー">
 <!ENTITY formatToolbar.tooltip "書式ツールバー">
-<!ENTITY newToolbarCmd.label "新規作成">
-<!ENTITY newToolbarCmd.tooltip "新しい Composer ページを作成します">
-<!ENTITY openToolbarCmd.label "開く">
-<!ENTITY openToolbarCmd.tooltip "ファイルを開く">
-<!ENTITY saveToolbarCmd.tooltip "ローカル URL にファイルを保存します">
-<!ENTITY publishToolbarCmd.tooltip "リモート URL にファイルをアップロードします">
 <!ENTITY cutToolbarCmd.tooltip "切り取り">
 <!ENTITY copyToolbarCmd.tooltip "コピー">
 <!ENTITY pasteToolbarCmd.tooltip "貼り付け">

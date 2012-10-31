@@ -1,5 +1,5 @@
 <!ENTITY window.title "Калі ласка да &brandShortName;">
-<!ENTITY header.label "Хочаце мець новы адрас э-пошты для &brandShortName;?">
+<!ENTITY header.label "Хочаце займець новы адрас э-пошты?">
 <!ENTITY other.languages "Мы паказваем толькі тых дастаўшчыкоў, якія прапаноўваюць адрасы для вашай вобласці.  Пстрыкніце тут, каб паказаць усіх дастаўшчыкоў.">
 <!ENTITY error.line1 "Прабачце, мы не можам знайсці ніводзін з прапанованых адрасоз э-пошты.">
 <!ENTITY error.line2 "Вы можаце пашукаць мянушкі або іншыя выразы, каб знайсці больш адрасоў э-пошты ">
@@ -28,3 +28,5 @@
 <!ENTITY search_engine.title "Уладкаванне вашай машыны пошуку">
 <!ENTITY search_engine.message "Ваш дастаўшчык э-пошты можа таксама забяспечыць вас пошукам у сеціве.">
 <!ENTITY search_engine.button "Скончыць">
+
+<!ENTITY header2.label "Would you like a new email address?">

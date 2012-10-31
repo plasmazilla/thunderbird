@@ -60,3 +60,6 @@
 <!ENTITY showCookies.label              "Cookies இனை காட்டுக…">
 <!ENTITY showCookies.accesskey          "S">
 
+
+<!ENTITY enableAdaptiveJunkLogging.accesskey "E">
+<!ENTITY enableAdaptiveJunkLogging.label "Enable adaptive junk filter logging">

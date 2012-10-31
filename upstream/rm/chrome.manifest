@@ -10,6 +10,7 @@ locale passwordmgr rm chrome/rm/locale/rm/passwordmgr/
 locale necko rm chrome/rm/locale/rm/necko/
 locale mozapps rm chrome/rm/locale/rm/mozapps/
 locale messenger rm chrome/rm/locale/rm/messenger/
+locale chat rm chrome/rm/locale/rm/chat/
 locale messenger-smime rm chrome/rm/locale/rm/messenger-smime/
 locale messenger-region rm chrome/rm/locale/rm/messenger-region/
 locale places rm chrome/rm/locale/rm/places/
@@ -17,9 +18,9 @@ manifest chrome/rm.manifest
 locale pippki rm chrome/rm/locale/rm/pippki/
 locale global-region rm chrome/rm/locale/rm/global-region/
 locale alerts rm chrome/rm/locale/rm/alerts/
-locale global rm chrome/rm/locale/rm/global/
+locale messenger-newsblog rm chrome/rm/locale/rm/messenger-newsblog/
 locale cookie rm chrome/rm/locale/rm/cookie/
 locale messenger-mapi rm chrome/rm/locale/rm/messenger-mapi/
 locale editor rm chrome/rm/locale/rm/editor/
 locale communicator rm chrome/rm/locale/rm/communicator/
-locale messenger-newsblog rm chrome/rm/locale/rm/messenger-newsblog/
+locale global rm chrome/rm/locale/rm/global/

@@ -82,3 +82,9 @@
 <!ENTITY insecureUnencrypted.description "Вашата поща и удостоверяването се изпращат нешифровани, поради което паролата ви и писмото могат лесно да бъдат прочетени от други хора. &brandShortName; ще ви отвори пощата, но вие трябва да се свържете с вашия доставчик на пощенска услуга, за да конфигурира сървъра за защитена връзка.">
 <!ENTITY insecureSelfSigned.description  "Сървърът използва недоверен сертификат и поради това не можете да бъдете сигурни за връзка между &brandShortName; и вашия сървър. &brandShortName; ще ви позволи да си получите пощата, но вие наистина трябва да поискате от вашия доставчик да конфигурира сървъра с доверен сертификат.">
 <!ENTITY secureServer.description        "Поздравления! Това е защитен сървър.">
+
+<!ENTITY doneAccount.accesskey           "D">
+<!-- LOCALIZATION NOTE (doneAccount.label): If there is a security warning
+     on the incoming or outgoing servers, then the page that pops up will
+     have this text in a button to continue by creating the account. -->
+<!ENTITY doneAccount.label               "Done">

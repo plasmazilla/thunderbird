@@ -9,13 +9,13 @@
 <!ENTITY resetButton.accesskey       "C">
 <!ENTITY openButton.label            "開啟">
 <!ENTITY openButton.accesskey        "n">
-<!ENTITY deleteButton.label          "刪除項目">
+<!ENTITY deleteButton.label          "刪除">
 <!ENTITY deleteButton.accesskey      "D">
 <!ENTITY searchDialogTitle.label     "搜尋郵件或文章">
 <!ENTITY results.label               "結果">
 <!ENTITY fileHereMenu.label          "歸檔此處">
 <!ENTITY fileHereMenu.accesskey      "F">
-<!ENTITY fileButton.label            "歸檔">
+<!ENTITY fileButton.label            "檔案">
 <!ENTITY fileButton.accesskey        "i">
 <!ENTITY closeCmd.key                "W"> 
 <!ENTITY openInFolder.label          "在資料夾開啟">

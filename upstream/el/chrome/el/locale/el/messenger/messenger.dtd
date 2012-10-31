@@ -1,4 +1,3 @@
-<!ENTITY messengerWindow.title "Αλληλογραφία">
 <!ENTITY titledefault.label "&brandFullName;">
 <!ENTITY titleSeparator.label " - ">
 <!ENTITY newFolderCmd.label "Φάκελος...">
@@ -295,6 +294,7 @@
 <!ENTITY thisFolder.label "Αυτόν τον φάκελο">
 <!ENTITY thisFolder.accesskey "φ">
 <!ENTITY goRecentlyClosedTabs.label "Πρόσφατα κλεισμένες καρτέλες">
+<!ENTITY goRecentlyClosedTabs.accesskey "ι">
 <!ENTITY startPageCmd.label "Αρχική σελίδα αλληλογραφίας">
 <!ENTITY startPageCmd.accesskey "χ">
 <!ENTITY msgMenu.label "Μήνυμα">
@@ -531,8 +531,6 @@
 <!ENTITY folderContextMarkMailFolderRead.accesskey "κ">
 <!ENTITY folderContextSubscribe.label "Εγγραφή συνδρομητή...">
 <!ENTITY folderContextSubscribe.accesskey "γ">
-<!ENTITY folderContextSearchMessages.label "Αναζήτηση μηνυμάτων...">
-<!ENTITY folderContextSearchMessages.accesskey "ζ">
 <!ENTITY folderContextProperties.label "Ιδιότητες...">
 <!ENTITY folderContextProperties.accesskey "δ">
 <!ENTITY folderContextFavoriteFolder.label "Αγαπημένος φάκελος">
@@ -710,7 +708,7 @@
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers "accel,alt">
 <!ENTITY showAllAppsCmdMac.label "Προβολή όλων">
-<!ENTITY bodyAllParts.label "Όλα τα ήμερη του κυρίως κειμένου">
+<!ENTITY bodyAllParts.label "Όλα τα μέρη του κυρίως κειμένου">
 <!ENTITY bodyAllParts.accesskey "λ">
 
 <!ENTITY deleteItem.title "Διαγραφή">
@@ -719,3 +717,54 @@
 <!ENTITY junkItem.title "Ανεπιθύμητα">
 <!ENTITY menubarCmd.label "Εργαλειοθήκη μενού">
 <!ENTITY menubarCmd.accesskey "μ">
+
+
+<!ENTITY folderContextSearchForMessages.label "Αναζήτηση μηνυμάτων…">
+<!ENTITY folderContextSearchForMessages.accesskey "ζ">
+
+<!ENTITY chatButton.label "Chat">
+<!ENTITY chatButton.tooltip "Show the Chat tab">
+<!ENTITY contextReplyNewsgroup2.accesskey "u">
+<!ENTITY contextReplyNewsgroup2.label "Followup to Newsgroup">
+<!ENTITY errorConsoleCmd.commandkey "j">
+<!ENTITY goChatCmd.accesskey "c">
+<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.label "Chat">
+<!ENTITY imAccountsStatus.accesskey "C">
+<!ENTITY imAccountsStatus.label "Chat status">
+<!ENTITY imStatus.available          "Available">
+<!ENTITY imStatus.offline            "Offline">
+<!ENTITY imStatus.showAccounts       "Show Accounts…">
+<!ENTITY imStatus.unavailable        "Unavailable">
+<!ENTITY newIMAccountCmd.accesskey "C">
+<!ENTITY newIMAccountCmd.label "Chat Account…">
+<!ENTITY nextButtonToolbarItem.label "Next Unread">
+<!ENTITY nextMsgButton.label "Next">
+<!ENTITY nextMsgButton.tooltip "Move to the next message">
+<!ENTITY previousButtonToolbarItem.label "Previous Unread">
+<!ENTITY previousMsgButton.label "Previous">
+<!ENTITY previousMsgButton.tooltip "Move to the previous message">
+<!ENTITY replyNewsgroupCmd2.accesskey  "u">
+<!ENTITY replyNewsgroupCmd2.label "Followup to Newsgroup">
+<!-- LOCALIZATION NOTE (search.keyLabel.mac):
+     The description of the key-binding to get into the global search box on mac
+     systems.  We use the key defined in the quickSearchCmd.key entity defined
+     above, the letter should match it.
+     -->
+<!ENTITY search.keyLabel.mac "&lt;&#x2318;K&gt;">
+<!-- LOCALIZATION NOTE (search.keyLabel.nonmac):
+     The description of the key-binding to get into the global search box on
+     windows and linux (which use the control key).  We use the key defined in
+     the quickSearchCmd.key entity defined above, the letter should match it.
+     -->
+<!ENTITY search.keyLabel.nonmac "&lt;Ctrl+K&gt;">
+<!-- LOCALIZATION NOTE (search.label.base):
+     This is the base of the empty text for the global search box.  We replace
+     #1 with the contents of the appropriate search.keyLabel.* value for the
+     platform.
+     The goal is to convey to the user that typing in the box will allow them
+     to search for messages globally and that there is a hotkey they can press
+     to get to the box faster.  If the global indexer is disabled, the search
+     box will be collapsed and the user will never see this message.
+     -->
+<!ENTITY search.label.base "Search… #1">

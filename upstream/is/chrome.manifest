@@ -5,7 +5,7 @@ locale messenger-region is chrome/is/locale/is/messenger-region/
 locale necko is chrome/is/locale/is/necko/
 locale pippki is chrome/is/locale/is/pippki/
 locale messenger is chrome/is/locale/is/messenger/
-locale global is chrome/is/locale/is/global/
+locale communicator is chrome/is/locale/is/communicator/
 locale mozapps is chrome/is/locale/is/mozapps/
 locale alerts is chrome/is/locale/is/alerts/
 locale messenger-newsblog is chrome/is/locale/is/messenger-newsblog/
@@ -21,5 +21,6 @@ manifest chrome/is.manifest
 locale global-region is chrome/is/locale/is/global-region/
 locale autoconfig is chrome/is/locale/is/autoconfig/
 locale messenger-mapi is chrome/is/locale/is/messenger-mapi/
-locale communicator is chrome/is/locale/is/communicator/
+locale chat is chrome/is/locale/is/chat/
+locale global is chrome/is/locale/is/global/
 locale messenger-smime is chrome/is/locale/is/messenger-smime/

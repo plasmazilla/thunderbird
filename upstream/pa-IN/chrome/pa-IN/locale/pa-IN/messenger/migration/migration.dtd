@@ -27,3 +27,6 @@
 
 <!ENTITY done.title                     "ਇੰਪੋਰਟ ਮੁਕੰਮਲ">
 <!ENTITY done.label                     "ਹੇਠ ਦਿੱਤੀਆਂ ਆਈਟਮਾਂ ਠੀਕ ਤਰ੍ਹਾਂ ਇੰਪੋਰਟ ਕੀਤੀਆਂ ਗਈਆਂ ਹਨ:">
+
+<!ENTITY importFromSeamonkey3.accesskey "S">
+<!ENTITY importFromSeamonkey3.label     "SeaMonkey 2 or later">

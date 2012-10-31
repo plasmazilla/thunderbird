@@ -31,7 +31,7 @@
 <!ENTITY pageSetupCmd.accesskey "j">
 <!ENTITY printPreviewCmd.label "Previzualizare tipărire">
 <!ENTITY printPreviewCmd.accesskey "v">
-<!ENTITY printCmd.label "Tipărește...">
+<!ENTITY printCmd.label "Tipărește…">
 <!ENTITY printCmd.accesskey "p">
 <!ENTITY printCmd.commandkey "P">
 <!ENTITY closeCmd.label "Închide">
@@ -88,4 +88,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY forwardCmd.accesskey "n">
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goForwardCmd.commandKey "]">
+
+<!ENTITY copyLinkCmd.label "Copiază adresa legăturii">
+<!ENTITY copyLinkCmd.accesskey "l">
+<!ENTITY copyEmailCmd.label "Copiază adresa de email">
+<!ENTITY copyEmailCmd.accesskey "e">
 

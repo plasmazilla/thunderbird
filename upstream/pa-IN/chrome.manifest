@@ -1,6 +1,7 @@
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 locale messenger-smime pa-IN chrome/pa-IN/locale/pa-IN/messenger-smime/
 locale branding pa-IN chrome/pa-IN/locale/pa-IN/branding/
+locale chat pa-IN chrome/pa-IN/locale/pa-IN/chat/
 locale pipnss pa-IN chrome/pa-IN/locale/pa-IN/pipnss/
 locale global-platform pa-IN chrome/pa-IN/locale/pa-IN/global-platform/
 locale communicator pa-IN chrome/pa-IN/locale/pa-IN/communicator/

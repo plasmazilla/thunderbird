@@ -63,6 +63,8 @@
 <!ENTITY hdrReplyAllButton1.tooltip "Svara sendanda og öllum viðtakendum">
 <!ENTITY hdrReplyListButton1.label "Svarlisti">
 <!ENTITY hdrReplyListButton1.tooltip "Svara póstlista">
+<!ENTITY hdrFollowupButton1.label "Eftirfylgni">
+<!ENTITY hdrFollowupButton1.tooltip "Pósta svari á þennan fréttahóp">
 <!ENTITY hdrForwardButton1.label "Áfram">
 <!ENTITY hdrForwardButton1.tooltip "Áframsenda þennan póst">
 <!ENTITY hdrJunkButton1.label "Ruslpóstur">
@@ -120,5 +122,8 @@
 <!ENTITY copyLinkCmd.label "Afrita tengil">
 <!ENTITY copyLinkCmd.accesskey "A">
 <!ENTITY CopyMessageId.label "Afrita Skeytis-Auðkenni">
+<!ENTITY CopyMessageId.accesskey "A">
 <!ENTITY OpenMessageForMsgId.label "Opna póst fyrir ákveðið auðkenni">
+<!ENTITY OpenMessageForMsgId.accesskey "O">
 <!ENTITY OpenBrowserWithMsgId.label "Opna vafra með Skeytis-Auðkenni">
+<!ENTITY OpenBrowserWithMsgId.accesskey "v">

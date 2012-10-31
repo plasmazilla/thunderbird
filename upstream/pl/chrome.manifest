@@ -1,4 +1,5 @@
 locale testpilot pl chrome/pl/locale/pl/feedback/
+locale chat pl chrome/pl/locale/pl/chat/
 locale alerts pl chrome/pl/locale/pl/alerts/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale necko pl chrome/pl/locale/pl/necko/

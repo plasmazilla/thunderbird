@@ -65,8 +65,10 @@
 <!ENTITY hdrReplyAllButton1.tooltip "Respont d'ar c'haser ha d'an holl zegemerien">
 <!ENTITY hdrReplyListButton1.label "Respont d'ar roll">
 <!ENTITY hdrReplyListButton1.tooltip "Respont d'ar roll skignañ">
-<!ENTITY hdrForwardButton1.label "Lakaat da dremen">
-<!ENTITY hdrForwardButton1.tooltip "Lakaat da dremen ar gemennadenn-mañ">
+<!ENTITY hdrFollowupButton1.label "Respont d'ar strollad-keleier">
+<!ENTITY hdrFollowupButton1.tooltip "Kas ur respont d'ar strollad-keleier-mañ">
+<!ENTITY hdrForwardButton1.label "Treuzkas">
+<!ENTITY hdrForwardButton1.tooltip "Treuzkas ar gemennadenn-mañ">
 <!ENTITY hdrJunkButton1.label "Lastez">
 <!ENTITY hdrJunkButton1.tooltip "Merkañ ar gemennadenn-mañ evel lastez">
 <!ENTITY hdrTrashButton1.label "Dilemel">
@@ -129,5 +131,8 @@
 <!ENTITY copyLinkCmd.accesskey    "c">
 
 <!ENTITY CopyMessageId.label "Eilañ an hennad kemennadenn">
+<!ENTITY CopyMessageId.accesskey "E">
 <!ENTITY OpenMessageForMsgId.label "Digeriñ kemennadenn an hennad">
+<!ENTITY OpenMessageForMsgId.accesskey "h">
 <!ENTITY OpenBrowserWithMsgId.label "Digeriñ ar merdeer evit an hennad kemennadenn">
+<!ENTITY OpenBrowserWithMsgId.accesskey "m">

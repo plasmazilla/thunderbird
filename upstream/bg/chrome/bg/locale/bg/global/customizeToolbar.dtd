@@ -10,3 +10,5 @@
 <!ENTITY addNewToolbar.label      "Нова лента">
 <!ENTITY saveChanges.label        "Готово">
 <!ENTITY undoChanges.label        "Отмяна на промените">
+
+<!ENTITY dialog.dimensions        "width: 92ch; height: 36em;">

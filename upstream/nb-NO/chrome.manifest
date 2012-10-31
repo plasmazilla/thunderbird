@@ -14,6 +14,7 @@ locale places nb-NO chrome/nb-NO/locale/nb-NO/places/
 locale pipnss nb-NO chrome/nb-NO/locale/nb-NO/pipnss/
 locale messenger-newsblog nb-NO chrome/nb-NO/locale/nb-NO/messenger-newsblog/
 locale communicator nb-NO chrome/nb-NO/locale/nb-NO/communicator/
+locale chat nb-NO chrome/nb-NO/locale/nb-NO/chat/
 locale messenger-smime nb-NO chrome/nb-NO/locale/nb-NO/messenger-smime/
 locale passwordmgr nb-NO chrome/nb-NO/locale/nb-NO/passwordmgr/
 locale global-platform nb-NO chrome/nb-NO/locale/nb-NO/global-platform/

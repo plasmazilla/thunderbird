@@ -17,6 +17,8 @@
 <!ENTITY attachFileCmd.label "ගොනු(ව)...">
 <!ENTITY attachFileCmd.accesskey "F">
 <!ENTITY attachFileCmd.key "A">
+<!ENTITY attachCloudCmd.label "ගොනුඈඳුම">
+<!ENTITY attachCloudCmd.accesskey "i">
 <!ENTITY attachPageCmd.label "වෙබ් පිටුවක්...">
 <!ENTITY attachPageCmd.accesskey "W">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -76,6 +78,8 @@
 <!ENTITY selectAllCmd.label "සියල්ල තෝරන්න">
 <!ENTITY selectAllCmd.key "A">
 <!ENTITY selectAllCmd.accesskey "A"> 
+<!ENTITY renameAttachmentCmd.label "ඇමුණුම යළි නම්කිරීම…">
+<!ENTITY renameAttachmentCmd.accesskey "e">
 <!ENTITY findCmd.label "සොයා ආදේශ කරන්න...">
 <!ENTITY findCmd.key "F">
 <!ENTITY findCmd.accesskey "F">
@@ -255,7 +259,7 @@
 <!ENTITY openAttachment.accesskey "O">
 <!ENTITY delete.label "මකන්න">
 <!ENTITY delete.accesskey "D">
-<!ENTITY removeAttachment.label "Remove Attachment">
+<!ENTITY removeAttachment.label "ඇමුණුම ඉවත්කරන්න">
 <!ENTITY removeAttachment.accesskey "M">
 <!ENTITY renameAttachment.label "යළි නම්-කරන්න…">
 <!ENTITY renameAttachment.accesskey "R">
@@ -263,6 +267,15 @@
 <!ENTITY selectAll.accesskey "A">
 <!ENTITY attachFile.label "ගොනු(ව) අමුණන්න...">
 <!ENTITY attachFile.accesskey "F">
+<!ENTITY attachFile.accesskey "F">
+<!ENTITY attachCloud.label "ගොනුඈඳුම…">
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY convertCloud.label "මෙයට හරවන්න…">
+<!ENTITY convertCloud.accesskey "C">
+<!ENTITY cancelUpload.label "උඩුගතකිරීම අවලංගු කරන්න">
+<!ENTITY cancelUpload.accesskey "n">
+<!ENTITY convertRegularAttachment.label "නිති ඇමුණුම">
+<!ENTITY convertRegularAttachment.accesskey "A">
 <!ENTITY attachPage.label "වෙබ් පිටුවක් අමුණන්න...">
 <!ENTITY attachPage.accesskey "W">
 
@@ -270,11 +283,6 @@
 <!ENTITY addressesSidebarTitle.label "සබඳතා">
 
 
-
-<!--
-Entities below were automatically added by compare-locales,
- based on en-US entities.
--->
 
 <!ENTITY spellAddDictionaries.label "ශබ්දකෝෂ එක්කරන්න…">
 <!ENTITY headersSpace.style "width: 9em;">

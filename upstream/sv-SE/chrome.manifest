@@ -5,10 +5,11 @@ locale necko sv-SE chrome/sv-SE/locale/sv-SE/necko/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 manifest chrome/sv-SE.manifest
 locale alerts sv-SE chrome/sv-SE/locale/sv-SE/alerts/
+locale chat sv-SE chrome/sv-SE/locale/sv-SE/chat/
 locale messenger-newsblog sv-SE chrome/sv-SE/locale/sv-SE/messenger-newsblog/
-locale messenger-mapi sv-SE chrome/sv-SE/locale/sv-SE/messenger-mapi/
+locale branding sv-SE chrome/sv-SE/locale/sv-SE/branding/
 locale mozldap sv-SE chrome/sv-SE/locale/sv-SE/mozldap/
-locale passwordmgr sv-SE chrome/sv-SE/locale/sv-SE/passwordmgr/
+locale global-platform sv-SE chrome/sv-SE/locale/sv-SE/global-platform/
 locale messenger-region sv-SE chrome/sv-SE/locale/sv-SE/messenger-region/
 locale messenger sv-SE chrome/sv-SE/locale/sv-SE/messenger/
 locale cookie sv-SE chrome/sv-SE/locale/sv-SE/cookie/
@@ -16,10 +17,10 @@ locale testpilot sv-SE chrome/sv-SE/locale/sv-SE/feedback/
 locale editor sv-SE chrome/sv-SE/locale/sv-SE/editor/
 locale mozapps sv-SE chrome/sv-SE/locale/sv-SE/mozapps/
 locale global-region sv-SE chrome/sv-SE/locale/sv-SE/global-region/
+locale messenger-mapi sv-SE chrome/sv-SE/locale/sv-SE/messenger-mapi/
 locale pipnss sv-SE chrome/sv-SE/locale/sv-SE/pipnss/
 locale communicator sv-SE chrome/sv-SE/locale/sv-SE/communicator/
 locale places sv-SE chrome/sv-SE/locale/sv-SE/places/
 locale pippki sv-SE chrome/sv-SE/locale/sv-SE/pippki/
-locale branding sv-SE chrome/sv-SE/locale/sv-SE/branding/
-locale global-platform sv-SE chrome/sv-SE/locale/sv-SE/global-platform/
+locale passwordmgr sv-SE chrome/sv-SE/locale/sv-SE/passwordmgr/
 locale messenger-smime sv-SE chrome/sv-SE/locale/sv-SE/messenger-smime/

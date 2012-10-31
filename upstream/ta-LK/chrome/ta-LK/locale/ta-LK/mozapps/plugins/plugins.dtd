@@ -50,4 +50,7 @@ Entities below were automatically added by compare-locales,
 <!ENTITY missingPlugin "இந்த உள்ளடக்கத்தை காட்சிப்படுத்த ஒரு உட்செருகல் தேவை.">
 <!ENTITY installPlugin "உட்செருகலை நிறுவுக…">
 <!ENTITY disabledPlugin "இந்த செருகல் செயலற்றதாக்கப்பட்டுள்ளது.">
-<!ENTITY clickToPlayPlugin                                   "Tap here to activate plugin.">
+
+<!ENTITY clickToPlayPlugins                                  "Click here to activate plugins.">
+<!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
+<!ENTITY tapToPlayPlugin                                     "Tap here to activate plugin.">

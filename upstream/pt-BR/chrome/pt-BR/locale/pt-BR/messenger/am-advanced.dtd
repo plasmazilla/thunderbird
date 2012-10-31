@@ -1,10 +1,15 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!-- extracted from am-advanced.xul -->
 
 <!-- LOCALIZATION NOTE (smtpServer.label): do not translate "SMTP" in below line -->
 <!ENTITY smtpServer.label "Servidores de envio (SMTP)">
 
 <!-- LOCALIZATION NOTE (smtpDesc.label): do not translate "SMTP" in below line -->
-<!ENTITY smtpDesc.label "Você pode especificar mais de um servidor SMTP (usado para enviar mensagens). Entretanto isso é recomendado somente para usuários avançados. Múltiplos servidores SMTP podem causar erros ao enviar mensagens.">
+<!ENTITY smtpDesc.label "Embora você possa especificar mais de um servidor de envio de mensagens (SMTP), isso só é recomendado para usuários avanácdos. Configurar mais de um servidor SMTP pode causar erros ao enviar mensagens.">
+
 
 <!ENTITY smtpListAdd.label  "Adicionar…">
 <!ENTITY smtpListAdd.accesskey  "A">

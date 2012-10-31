@@ -132,3 +132,9 @@
 <!ENTITY OpenMessageForMsgId.label "Отвори поруку по ИДу">
 <!ENTITY OpenBrowserWithMsgId.label "Отвори читач са поруком ИД">
 
+
+<!ENTITY CopyMessageId.accesskey "C">
+<!ENTITY OpenBrowserWithMsgId.accesskey "B">
+<!ENTITY OpenMessageForMsgId.accesskey "O">
+<!ENTITY hdrFollowupButton1.label "Followup">
+<!ENTITY hdrFollowupButton1.tooltip "Post a followup to this newsgroup">

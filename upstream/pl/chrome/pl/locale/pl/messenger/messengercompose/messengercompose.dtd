@@ -17,6 +17,8 @@
 <!ENTITY attachFileCmd.label     "Plik…">
 <!ENTITY attachFileCmd.accesskey "l">
 <!ENTITY attachFileCmd.key       "A">
+<!ENTITY attachCloudCmd.label "Filelink">
+<!ENTITY attachCloudCmd.accesskey "F">
 <!ENTITY attachPageCmd.label     "Stronę WWW…">
 <!ENTITY attachPageCmd.accesskey "W">
 <!ENTITY attachVCardCmd.label        "Wizytówkę">
@@ -72,6 +74,8 @@
 <!ENTITY editRewrapCmd.key        "R">
 <!ENTITY deleteCmd.label          "Usuń">
 <!ENTITY deleteCmd.accesskey      "U">
+<!ENTITY renameAttachmentCmd.label     "Zmień nazwę załącznika…">
+<!ENTITY renameAttachmentCmd.accesskey "w">
 <!ENTITY selectAllCmd.label       "Zaznacz wszystko">
 <!ENTITY selectAllCmd.accesskey   "a">
 <!ENTITY selectAllCmd.key         "A">
@@ -261,6 +265,14 @@
 <!ENTITY selectAll.accesskey        "w">
 <!ENTITY attachFile.label           "Załącz plik">
 <!ENTITY attachFile.accesskey       "p">
+<!ENTITY attachCloud.label "Filelink…">
+<!ENTITY attachCloud.accesskey "F">
+<!ENTITY convertCloud.label "Przekształć…">
+<!ENTITY convertCloud.accesskey "r">
+<!ENTITY cancelUpload.label "Anuluj wgrywanie">
+<!ENTITY cancelUpload.accesskey "A">
+<!ENTITY convertRegularAttachment.label "Zwykły załącznik">
+<!ENTITY convertRegularAttachment.accesskey "Z">
 <!ENTITY attachPage.label           "Załącz stronę WWW…">
 <!ENTITY attachPage.accesskey       "W">
 

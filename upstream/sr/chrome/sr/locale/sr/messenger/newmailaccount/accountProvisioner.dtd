@@ -38,3 +38,5 @@
 <!ENTITY search_engine.message "Ваш добављач поште вам обично може пружити и претрагу са веб сајта.">
 <!ENTITY search_engine.button "Доврши">
 
+
+<!ENTITY header2.label "Would you like a new email address?">

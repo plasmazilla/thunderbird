@@ -41,3 +41,5 @@
 <!ENTITY addNewToolbar.label      "Nytt verktygsfält ">
 <!ENTITY saveChanges.label        "Klar">
 <!ENTITY undoChanges.label        "Ångra">
+
+<!ENTITY dialog.dimensions        "width: 92ch; height: 36em;">

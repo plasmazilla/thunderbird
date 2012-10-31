@@ -21,7 +21,9 @@
 <!ENTITY pluginWizard.finalPage.restart.label "Pro dokončení instalace zásuvného modulu je potřeba aplikaci &brandShortName; restartovat.">
 
 <!ENTITY missingPlugin "Pro zobrazení obsahu je vyžadován zásuvný modulu.">
-<!ENTITY clickToPlayPlugin "Pro aktivaci zásuvného modulu klepněte zde.">
+<!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
+<!ENTITY tapToPlayPlugin "Pro spuštění zásuvného modulu klepněte zde.">
+<!ENTITY clickToPlayPlugins "Pro spuštění zásuvných modulů klepněte zde.">
 <!ENTITY disabledPlugin "Tento zásuvný modul je zakázán.">
 <!ENTITY blockedPlugin.label "Tento zásuvný modul je z důvodů vaší ochrany zablokován.">
 
@@ -34,8 +36,8 @@
 <!ENTITY reloadPlugin.pre "Pro opakování ">
 <!ENTITY reloadPlugin.middle "obnovte stránku">
 <!ENTITY reloadPlugin.post ".">
-<!-- LOCALIZATION NOTE: report.* strings should be as short as possible, ideally 2-3 words. -->
-<!ENTITY report.checkbox "… a odešlete hlášení o pádu">
+<!-- LOCALIZATION NOTE (report.please): This and the other report.* strings should be as short as possible, ideally 2-3 words. -->
+<!ENTITY report.please "Odeslat hlášení o pádu">
 <!ENTITY report.submitting "Odesílání hlášení…">
 <!ENTITY report.submitted "Hlášení o pádu odesláno.">
 <!ENTITY report.disabled "Hlášení o pádu je zakázáno.">

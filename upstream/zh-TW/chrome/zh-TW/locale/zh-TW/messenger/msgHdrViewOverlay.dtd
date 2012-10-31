@@ -65,6 +65,8 @@
 <!ENTITY hdrReplyAllButton1.tooltip "回信給寄件者及所有收件者">
 <!ENTITY hdrReplyListButton1.label "回覆清單">
 <!ENTITY hdrReplyListButton1.tooltip "回覆到郵件論壇">
+<!ENTITY hdrFollowupButton1.label "加入討論">
+<!ENTITY hdrFollowupButton1.tooltip "加入此郵件群組的討論">
 <!ENTITY hdrForwardButton1.label "轉寄">
 <!ENTITY hdrForwardButton1.tooltip "轉寄此訊息">
 <!ENTITY hdrJunkButton1.label "垃圾郵件">
@@ -129,5 +131,8 @@
 <!ENTITY copyLinkCmd.accesskey    "C">
 
 <!ENTITY CopyMessageId.label "複製 Message-ID">
+<!ENTITY CopyMessageId.accesskey "C">
 <!ENTITY OpenMessageForMsgId.label "開啟此 Message-ID 的郵件">
+<!ENTITY OpenMessageForMsgId.accesskey "O">
 <!ENTITY OpenBrowserWithMsgId.label "在瀏覽器開啟此 Message-ID 的郵件">
+<!ENTITY OpenBrowserWithMsgId.accesskey "B">

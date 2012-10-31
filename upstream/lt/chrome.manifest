@@ -4,20 +4,21 @@ locale editor lt chrome/lt/locale/lt/editor/
 locale global lt chrome/lt/locale/lt/global/
 locale necko lt chrome/lt/locale/lt/necko/
 locale testpilot lt chrome/lt/locale/lt/feedback/
-locale mozldap lt chrome/lt/locale/lt/mozldap/
-locale autoconfig lt chrome/lt/locale/lt/autoconfig/
+locale communicator lt chrome/lt/locale/lt/communicator/
+locale global-platform lt chrome/lt/locale/lt/global-platform/
 locale pipnss lt chrome/lt/locale/lt/pipnss/
-locale messenger-region lt chrome/lt/locale/lt/messenger-region/
+locale chat lt chrome/lt/locale/lt/chat/
+locale alerts lt chrome/lt/locale/lt/alerts/
 locale cookie lt chrome/lt/locale/lt/cookie/
 locale global-region lt chrome/lt/locale/lt/global-region/
-locale communicator lt chrome/lt/locale/lt/communicator/
+locale mozldap lt chrome/lt/locale/lt/mozldap/
 locale messenger-mapi lt chrome/lt/locale/lt/messenger-mapi/
-locale alerts lt chrome/lt/locale/lt/alerts/
+locale messenger-region lt chrome/lt/locale/lt/messenger-region/
 manifest chrome/lt.manifest
 locale pippki lt chrome/lt/locale/lt/pippki/
 locale messenger lt chrome/lt/locale/lt/messenger/
 locale branding lt chrome/lt/locale/lt/branding/
-locale global-platform lt chrome/lt/locale/lt/global-platform/
+locale autoconfig lt chrome/lt/locale/lt/autoconfig/
 locale messenger-newsblog lt chrome/lt/locale/lt/messenger-newsblog/
 locale messenger-smime lt chrome/lt/locale/lt/messenger-smime/
 locale mozapps lt chrome/lt/locale/lt/mozapps/

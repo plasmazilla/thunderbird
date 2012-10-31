@@ -327,12 +327,6 @@
 
 <!ENTITY menuBar.tooltip "Лента на менюто">
 <!ENTITY formatToolbar.tooltip "Лента с инструменти за форматиране">
-<!ENTITY newToolbarCmd.label "Нови">
-<!ENTITY newToolbarCmd.tooltip "Създаване на нова страница в композитора">
-<!ENTITY openToolbarCmd.label "Отваряне">
-<!ENTITY openToolbarCmd.tooltip "Отваряне на файл от твърдия диск">
-<!ENTITY saveToolbarCmd.tooltip "Запис на файла на твърдия диск">
-<!ENTITY publishToolbarCmd.tooltip "Качаване на файл на отдалечен адрес">
 <!ENTITY cutToolbarCmd.tooltip "Изрязване">
 <!ENTITY copyToolbarCmd.tooltip "Копиране">
 <!ENTITY pasteToolbarCmd.tooltip "Поставяне">

@@ -1,0 +1,18 @@
+<!ENTITY biffStart.label "Preuzmi nove članke svakih ">
+<!ENTITY biffStart.accesskey "k">
+<!ENTITY biffEnd.label "minuta">
+
+<!ENTITY loginAtStartup.label "Preuzmi nove članke pri pokretanju"> 
+<!ENTITY loginAtStartup.accesskey "r">
+
+<!ENTITY useQuickMode.label "Prikaži kratak pregled članka umjesto učitavanja web stranice"> 
+<!ENTITY useQuickMode.accesskey "P">
+
+<!ENTITY manageSubscriptions.label "Upravljanje pretplatama…"> 
+<!ENTITY manageSubscriptions.accesskey "m">
+
+<!-- entities from rss.rdf -->
+<!ENTITY feeds.accountName "Blogovi i vijesti">
+<!ENTITY feeds.wizardShortName "Kanali">
+<!ENTITY feeds.wizardLongName "Blogovi i vijesti">
+<!ENTITY feeds.wizardLongName.accesskey "B">

@@ -79,3 +79,8 @@
 <!ENTITY integer.accesskey "I">
 <!ENTITY boolean.label "বুলিয়ান (B)">
 <!ENTITY boolean.accesskey "B">
+
+<!ENTITY focusSearch.key "r">
+<!ENTITY searchPrefs.accesskey "r">
+
+<!ENTITY searchPrefs.label "Search:">

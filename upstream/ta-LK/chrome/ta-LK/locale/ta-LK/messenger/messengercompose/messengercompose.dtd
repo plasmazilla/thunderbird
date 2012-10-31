@@ -278,7 +278,24 @@ Entities below were automatically added by compare-locales,
 <!ENTITY spellAddDictionaries.accesskey "A">
 <!ENTITY removeAttachment.label "உடனிணைப்புகளை நீக்குக">
 <!ENTITY removeAttachment.accesskey "M">
-<!ENTITY headersSpace.style "அகலம்: 9em;">
 <!ENTITY pasteAsQuotationCmd.key "o">
 <!ENTITY spellingButton.tooltip "தெரிவுசெய்யப்பட்ட அல்லது முழுச்செய்தியிலும் எழுத்துக்கோர்வைகளை சரிபார்க்க">
+
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY attachCloud.label "Filelink…">
+<!ENTITY attachCloudCmd.accesskey "i">
+<!ENTITY attachCloudCmd.label "Filelink">
 <!ENTITY attachFileCmd.key "A">
+<!ENTITY cancelUpload.accesskey "n">
+<!ENTITY cancelUpload.label "Cancel Upload">
+<!ENTITY convertCloud.accesskey "C">
+<!ENTITY convertCloud.label "Convert to…">
+<!ENTITY convertRegularAttachment.accesskey "A">
+<!ENTITY convertRegularAttachment.label "Regular Attachment">
+<!ENTITY renameAttachmentCmd.accesskey "e">
+<!ENTITY renameAttachmentCmd.label "Rename Attachment…">
+
+<!-- Headers -->
+<!--LOCALIZATION NOTE headersSpace.style is for aligning  the From:, To: and
+    Subject: rows. It should be larger than the largest Header label  -->
+<!ENTITY headersSpace.style "width: 9em;">

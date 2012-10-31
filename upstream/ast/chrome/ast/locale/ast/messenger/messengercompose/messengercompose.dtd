@@ -45,6 +45,8 @@
 <!ENTITY printCmd.accesskey "P">
 <!ENTITY editMenu.label "Editar">
 <!ENTITY editMenu.accesskey "e">
+<!ENTITY renameAttachmentCmd.label "Renomar axuntu…">
+<!ENTITY renameAttachmentCmd.accesskey "e">
 <!ENTITY undoCmd.label "Desfacer">
 <!ENTITY undoCmd.key "Z">
 <!ENTITY undoCmd.accesskey "f">
@@ -238,3 +240,13 @@
 <!ENTITY spellAddDictionaries.label "Amestar diccionarios…">
 <!ENTITY spellAddDictionaries.accesskey "A">
 <!ENTITY addressesSidebarTitle.label "Contautos">
+<!ENTITY attachCloud.label "FileLink…">
+<!ENTITY attachCloud.accesskey "n">
+<!ENTITY attachCloudCmd.label "FileLink">
+<!ENTITY attachCloudCmd.accesskey "n">
+<!ENTITY cancelUpload.label "Encaboxar xuba">
+<!ENTITY cancelUpload.accesskey "b">
+<!ENTITY convertCloud.label "Convertir a…">
+<!ENTITY convertCloud.accesskey "C">
+<!ENTITY convertRegularAttachment.label "Axuntu normal">
+<!ENTITY convertRegularAttachment.accesskey "A">

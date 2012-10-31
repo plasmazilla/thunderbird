@@ -10,3 +10,5 @@
 <!ENTITY addNewToolbar.label      "Thanh Công Cụ Mới">
 <!ENTITY saveChanges.label        "Xong">
 <!ENTITY undoChanges.label        "Hoàn tác các Thay đổi">
+
+<!ENTITY dialog.dimensions        "width: 92ch; height: 36em;">

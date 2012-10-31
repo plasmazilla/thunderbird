@@ -4,15 +4,17 @@
 # http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
 # https://me.yahoo.com/tsahi_75 <tsahi_75@yahoo.com>
 # Yaron <sh.yaron@gmail.com>
+# https://me.yahoo.com/tsahi_75 <tsahi_75@yahoo.com>
+# hatul <amiadb@gmail.com>
 #
 -->
 <!--
 # Reviewer(s):
 #
 # http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
+# hatul <amiadb@gmail.com>
 #
 -->
-<!ENTITY messengerWindow.title "דואר וקבוצות דיון">
 <!ENTITY titledefault.label    "&brandFullName;">
 <!ENTITY titleSeparator.label " - ">
 
@@ -347,6 +349,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY thisFolder.label "תיקייה זו">
 <!ENTITY thisFolder.accesskey "ז">
 <!ENTITY goRecentlyClosedTabs.label "לשוניות שנסגרו לאחרונה">
+<!ENTITY goRecentlyClosedTabs.accesskey "א">
 <!ENTITY startPageCmd.label "דף הפתיחה">
 <!ENTITY startPageCmd.accesskey "ה">
 
@@ -602,8 +605,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderContextMarkMailFolderRead.accesskey "ס">
 <!ENTITY folderContextSubscribe.label "הירשם כמנוי…">
 <!ENTITY folderContextSubscribe.accesskey "b">
-<!ENTITY folderContextSearchMessages.label "חפש…">
-<!ENTITY folderContextSearchMessages.accesskey "ש">
+<!ENTITY folderContextSearchForMessages.label "חיפוש הודעות…">
+<!ENTITY folderContextSearchForMessages.accesskey "ח">
 <!ENTITY folderContextProperties.label "מאפיינים…">
 <!ENTITY folderContextProperties.accesskey "א">
 <!ENTITY folderContextFavoriteFolder.label "תיקייה מועדפת">
@@ -803,7 +806,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
      to get to the box faster.  If the global indexer is disabled, the search
      box will be collapsed and the user will never see this message.
      -->
-<!ENTITY searchAllMessages.label.base "חיפוש בכל ההודעות… #1">
+<!ENTITY searchAllMessages.label.base "חיפוש… #1">
 <!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.nonmac):
      The description of the key-binding to get into the global search box on
      windows and linux (which use the control key).  We use the key defined in
@@ -887,3 +890,50 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "הצג הכול">
 
+
+<!ENTITY chatButton.label "Chat">
+<!ENTITY chatButton.tooltip "Show the Chat tab">
+<!ENTITY contextReplyNewsgroup2.accesskey "u">
+<!ENTITY contextReplyNewsgroup2.label "Followup to Newsgroup">
+<!ENTITY errorConsoleCmd.commandkey "j">
+<!ENTITY goChatCmd.accesskey "c">
+<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.label "Chat">
+<!ENTITY imAccountsStatus.accesskey "C">
+<!ENTITY imAccountsStatus.label "Chat status">
+<!ENTITY imStatus.available          "Available">
+<!ENTITY imStatus.offline            "Offline">
+<!ENTITY imStatus.showAccounts       "Show Accounts…">
+<!ENTITY imStatus.unavailable        "Unavailable">
+<!ENTITY newIMAccountCmd.accesskey "C">
+<!ENTITY newIMAccountCmd.label "Chat Account…">
+<!ENTITY nextButtonToolbarItem.label "Next Unread">
+<!ENTITY nextMsgButton.label "Next">
+<!ENTITY nextMsgButton.tooltip "Move to the next message">
+<!ENTITY previousButtonToolbarItem.label "Previous Unread">
+<!ENTITY previousMsgButton.label "Previous">
+<!ENTITY previousMsgButton.tooltip "Move to the previous message">
+<!ENTITY replyNewsgroupCmd2.accesskey  "u">
+<!ENTITY replyNewsgroupCmd2.label "Followup to Newsgroup">
+<!-- LOCALIZATION NOTE (search.keyLabel.mac):
+     The description of the key-binding to get into the global search box on mac
+     systems.  We use the key defined in the quickSearchCmd.key entity defined
+     above, the letter should match it.
+     -->
+<!ENTITY search.keyLabel.mac "&lt;&#x2318;K&gt;">
+<!-- LOCALIZATION NOTE (search.keyLabel.nonmac):
+     The description of the key-binding to get into the global search box on
+     windows and linux (which use the control key).  We use the key defined in
+     the quickSearchCmd.key entity defined above, the letter should match it.
+     -->
+<!ENTITY search.keyLabel.nonmac "&lt;Ctrl+K&gt;">
+<!-- LOCALIZATION NOTE (search.label.base):
+     This is the base of the empty text for the global search box.  We replace
+     #1 with the contents of the appropriate search.keyLabel.* value for the
+     platform.
+     The goal is to convey to the user that typing in the box will allow them
+     to search for messages globally and that there is a hotkey they can press
+     to get to the box faster.  If the global indexer is disabled, the search
+     box will be collapsed and the user will never see this message.
+     -->
+<!ENTITY search.label.base "Search… #1">

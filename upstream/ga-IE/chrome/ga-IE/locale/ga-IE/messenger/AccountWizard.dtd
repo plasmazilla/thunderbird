@@ -56,14 +56,21 @@
 <!ENTITY popType.accesskey "P">
 <!ENTITY leaveMsgsOnSrvr.label "Fág teachtaireachtaí ar an bhfreastalaí">
 <!ENTITY leaveMsgsOnSrvr.accesskey "F">
-<!-- LOCALIZATION NOTE (haveSmtp1.prefix and haveSmtp1.suffix2) : Do not translate "SMTP" and "&quot;" in
-     these variables. Also, translate haveSmtp1.prefix and haveSmtp1.suffix2 as a single sentence, inserting
-     text after the "&quot;" entity in haveSmtp1.suffix2, if required grammatically.
+<!ENTITY portNum.label "Port:">
+<!ENTITY portNum.accesskey "o">
+<!ENTITY defaultPortLabel.label "Réamhshocrú:">
+<!ENTITY defaultPortValue.label "">
+<!-- LOCALIZATION NOTE (modifyOutgoing.suffix) : This string will be appended after each of
+     haveSmtp1.suffix3, haveSmtp2.suffix3, haveSmtp3.suffix3 .
 -->
 
-
+<!ENTITY modifyOutgoing.suffix "Is féidir leat an freastalaí amach a athrú i socruithe an chuntais.">
+<!-- LOCALIZATION NOTE (haveSmtp1.prefix and haveSmtp1.suffix3) : Do not translate "SMTP" and "&quot;" in
+     these variables. Also, translate haveSmtp1.prefix and haveSmtp1.suffix3 as a single sentence, inserting
+     text after the "&quot;" entity in haveSmtp1.suffix3, if required grammatically.
+-->
 <!ENTITY haveSmtp1.prefix "Bainfear úsáid as do fhreastalaí ríomhphoist amach (SMTP), &quot;">
-<!ENTITY haveSmtp1.suffix2 "&quot; an ceann a úsáidfear. Is féidir an freastalaí amach a athrú i socruithe an chuntais.">
+<!ENTITY haveSmtp1.suffix3 "&quot; a úsáidfear.">
 <!-- Entities for Login page -->
 
 
@@ -76,18 +83,18 @@
 <!ENTITY usernameSmtpDesc.label "Cuir isteach an t-ainm úsáideora amach a thug do sholáthraí ríomhphoist duit (is iondúil gurb ionann é seo agus d'ainm úsáideora isteach).">
 <!ENTITY usernameSmtpLabel.label "Ainm Úsáideora Amach:">
 <!ENTITY usernameSmtpLabel.accesskey "o">
-<!-- LOCALIZATION NOTE (haveSmtp2.prefix and haveSmtp2.suffix2) : Do not translate "SMTP" and "&quot;" in
-     these variables. Also, translate haveSmtp2.prefix and haveSmtp2.suffix2 as a single sentence, inserting
-     text after the "&quot;" entity in haveSmtp2.suffix2, if required grammatically.
+<!-- LOCALIZATION NOTE (haveSmtp2.prefix and haveSmtp2.suffix3) : Do not translate "SMTP" and "&quot;" in
+     these variables. Also, translate haveSmtp2.prefix and haveSmtp2.suffix3 as a single sentence, inserting
+     text after the "&quot;" entity in haveSmtp2.suffix3, if required grammatically.
 -->
 <!ENTITY haveSmtp2.prefix "Úsáidfear an t-ainm úsáideora amach (SMTP) atá agat faoi láthair, &quot;">
-<!ENTITY haveSmtp2.suffix2 "&quot; an ceann a úsáidfear. Is féidir an freastalaí amach a athrú i socruithe an chuntais.">
-<!-- LOCALIZATION NOTE (haveSmtp3.prefix and haveSmtp3.suffix2) : Do not translate "SMTP" and "&quot;" in
-     these variables. Also, translate haveSmtp3.prefix and haveSmtp3.suffix2 as a single sentence, inserting
-     text after the "&quot;" entity in haveSmtp3.suffix2, if required grammatically.
+<!ENTITY haveSmtp2.suffix3 "&quot; a úsáidfear.">
+<!-- LOCALIZATION NOTE (haveSmtp3.prefix and haveSmtp3.suffix3) : Do not translate "SMTP" and "&quot;" in
+     these variables. Also, translate haveSmtp3.prefix and haveSmtp3.suffix3 as a single sentence, inserting
+     text after the "&quot;" entity in haveSmtp3.suffix3, if required grammatically.
 -->
 <!ENTITY haveSmtp3.prefix "Is ionann do fhreastalaí amach (SMTP), &quot;">
-<!ENTITY haveSmtp3.suffix2 "Is ionann &quot;, agus do fhreastalaí isteach. Úsáidfear d'ainm úsáideora isteach chun é a rochtain. Is féidir leat an freastalaí amach a athrú i socruithe an chuntais.">
+<!ENTITY haveSmtp3.suffix3 "&quot; is ionann é agus do fhreastalaí isteach. Úsáidfear d'ainm úsáideora isteach chun é a rochtain.">
 <!-- Entities for Account name page -->
 
 
@@ -112,3 +119,27 @@
 <!ENTITY deferStorage.accesskey "U">
 <!ENTITY clickFinish.label "Cliceáil Críochnaigh chun na socruithe seo a shábháil agus scor de Threoraí na gCuntas.">
 <!ENTITY clickFinish.labelMac "Cliceáil Déanta chun na socruithe seo a shábháil agus scor de Threoraí na gCuntas.">
+
+<!ENTITY incomingServer.accesskey "S">
+<!-- LOCALIZATION NOTE (incomingServerNameDesc.label) : Do not translate "&quot;pop.example.net&quot;" in below line -->
+<!ENTITY incomingServer.description "Enter the name of your incoming server (for example, &quot;mail.example.net&quot;).">
+<!ENTITY incomingServer.label "Incoming Server:">
+
+<!-- Entities for Incoming Server page -->
+
+<!ENTITY incomingTitle.label "Incoming Server Information">
+<!ENTITY incomingUsername.accesskey "U">
+<!-- LOCALIZATION NOTE (incomingUsername.description) : do not translate "&quot;jsmith&quot;" in below line -->
+<!ENTITY incomingUsername.description "Enter the incoming user name given to you by your email provider (for example, &quot;jsmith&quot;).">
+<!ENTITY incomingUsername.label "User Name:">
+<!ENTITY outgoingServer.accesskey "S">
+<!-- LOCALIZATION NOTE (outgoingServer.description) : Do not translate "SMTP" and "&quot;smtp.example.net&quot;" in below line -->
+<!ENTITY outgoingServer.description "Enter the name of your outgoing server (SMTP) (for example, &quot;smtp.example.net&quot;).">
+<!ENTITY outgoingServer.label "Outgoing Server:">
+
+<!-- Entities for Outgoing Server page -->
+
+<!ENTITY outgoingTitle.label "Outgoing Server Information">
+<!ENTITY outgoingUsername.accesskey "U">
+<!ENTITY outgoingUsername.description "Enter the outgoing user name given to you by your email provider (this is typically the same as your incoming user name).">
+<!ENTITY outgoingUsername.label "Outgoing User Name:">

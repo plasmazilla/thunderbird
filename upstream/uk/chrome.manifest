@@ -2,12 +2,12 @@ locale global-region uk chrome/uk/locale/uk/global-region/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale messenger-mapi uk chrome/uk/locale/uk/messenger-mapi/
-locale passwordmgr uk chrome/uk/locale/uk/passwordmgr/
+locale messenger uk chrome/uk/locale/uk/messenger/
 locale branding uk chrome/uk/locale/uk/branding/
 locale global uk chrome/uk/locale/uk/global/
 locale necko uk chrome/uk/locale/uk/necko/
 locale pippki uk chrome/uk/locale/uk/pippki/
-locale messenger uk chrome/uk/locale/uk/messenger/
+locale chat uk chrome/uk/locale/uk/chat/
 locale testpilot uk chrome/uk/locale/uk/feedback/
 locale messenger-region uk chrome/uk/locale/uk/messenger-region/
 locale mozapps uk chrome/uk/locale/uk/mozapps/
@@ -21,5 +21,6 @@ locale mozldap uk chrome/uk/locale/uk/mozldap/
 locale messenger-smime uk chrome/uk/locale/uk/messenger-smime/
 manifest chrome/uk.manifest
 locale places uk chrome/uk/locale/uk/places/
+locale passwordmgr uk chrome/uk/locale/uk/passwordmgr/
 locale pipnss uk chrome/uk/locale/uk/pipnss/
 locale editor uk chrome/uk/locale/uk/editor/

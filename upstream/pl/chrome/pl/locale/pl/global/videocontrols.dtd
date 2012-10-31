@@ -2,6 +2,8 @@
 <!ENTITY playButton.pauseLabel "Wstrzymaj">
 <!ENTITY muteButton.muteLabel "Wycisz">
 <!ENTITY muteButton.unmuteLabel "Przywróć głośność">
+<!ENTITY fullscreenButton.enterfullscreenlabel "Tryb pełnoekranowy">
+<!ENTITY fullscreenButton.exitfullscreenlabel "Opuść tryb pełnoekranowy">
 
 <!ENTITY stats.media "Media">
 <!ENTITY stats.size "Rozmiar">
@@ -17,6 +19,13 @@
 <!ENTITY stats.framesDecoded "Liczba odkodowanych klatek">
 <!ENTITY stats.framesPresented "Liczba pokazanych klatek">
 <!ENTITY stats.framesPainted "Liczba narysowanych klatek">
+
+<!ENTITY error.aborted "Wczytywanie wideo przerwane.">
+<!ENTITY error.network "Odtwarzanie wideo przerwane z powodu błędu sieci.">
+<!ENTITY error.decode "Nie można odtworzyć wideo, ponieważ plik jest uszkodzony.">
+<!ENTITY error.srcNotSupported "Nieobsługiwany format wideo lub typ MIME.">
+<!ENTITY error.noSource2 "Nie odnaleziono wideo w obsługiwanym formacie i typie MIME.">
+<!ENTITY error.generic "Odtwarzanie wideo przerwane z powodu nieznanego błędu.">
 
 <!-- LOCALIZATION NOTE (scrubberScale.nameFormat): the #1 string is the current
 media position, and the #2 string is the total duration. For example, when at

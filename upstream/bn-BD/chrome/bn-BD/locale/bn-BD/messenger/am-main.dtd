@@ -35,4 +35,5 @@
 <!ENTITY smtpName.label "বহিঃর্গামী সার্ভার (SMTP): (u)">
 <!ENTITY smtpName.accesskey "u">
 <!ENTITY smtpDefaultServer.label "ডিফল্ট সার্ভার ব্যবহার">
+
 <!ENTITY replyTo.placeholder "Recipients will reply to this other address">

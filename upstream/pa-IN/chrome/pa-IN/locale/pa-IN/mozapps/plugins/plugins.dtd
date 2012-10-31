@@ -40,4 +40,7 @@
 <!ENTITY report.disabled                                     "ਕਰੈਸ਼ ਰਿਪੋਰਟ ਭੇਜਣੀ ਆਯੋਗ ਹੈ।">
 <!ENTITY report.failed                                       "ਭੇਜਣ ਲਈ ਫੇਲ੍ਹ ਹੈ।">
 <!ENTITY report.unavailable                                  "ਰਿਪੋਰਟ ਉਪਲੱਬਧ ਨਹੀਂ">
-<!ENTITY clickToPlayPlugin                                   "Tap here to activate plugin.">
+
+<!ENTITY clickToPlayPlugins                                  "Click here to activate plugins.">
+<!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
+<!ENTITY tapToPlayPlugin                                     "Tap here to activate plugin.">

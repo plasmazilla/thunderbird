@@ -1,0 +1,38 @@
+<!--
+# Translator(s):
+#
+# Hrant <hrantohanyan@mail.am>
+# robyerevan <robyerevan@gmail.com>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Hrant <hrantohanyan@mail.am>
+# alexxed <alexxed@gmail.com>
+#
+-->
+<!ENTITY offlineDialog.title "Անցանց կարգավորումներ">
+
+<!ENTITY textStartUp "Ծրագիրը բացելիս՝">
+<!ENTITY radioRememberPrevState.label "Հիշել նախորդ առցանց վիճակը">
+<!ENTITY radioRememberPrevState.accesskey "R">
+<!ENTITY radioAskMe.label "Բացելիս հարցնել առցանց վիճակի մասին">
+<!ENTITY radioAskMe.accesskey "u">
+<!ENTITY radioAlwaysOnline.label "Միշտ սկսել առցանց">
+<!ENTITY radioAlwaysOnline.accesskey "l">
+
+<!ENTITY textGoingOnline "Ուղարկե՞լ չուղարկված նամակները առցանց անցնելիս։">
+<!ENTITY radioAutoSend.label "Այո">
+<!ENTITY radioAutoSend.accesskey "Y">
+<!ENTITY radioNotSend.label "Ոչ">
+<!ENTITY radioNotSend.accesskey "N">
+<!ENTITY radioAskUnsent.label "Հարցնել">
+<!ENTITY radioAskUnsent.accesskey "s">
+<!ENTITY textGoingOffline "Բեռնե՞լ նամակները անցանց անցնելիս։">
+<!ENTITY radioAutoDownload.label "Այո">
+<!ENTITY radioAutoDownload.accesskey "e">
+<!ENTITY radioNotDownload.label "Ոչ">
+<!ENTITY radioNotDownload.accesskey "o">
+<!ENTITY radioAskDownload.label "Հարցնել">
+<!ENTITY radioAskDownload.accesskey "A">

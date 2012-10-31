@@ -17,6 +17,8 @@
 <!ENTITY attachFileCmd.label "文件…">
 <!ENTITY attachFileCmd.accesskey "F">
 <!ENTITY attachFileCmd.key "A">
+<!ENTITY attachCloudCmd.label "文件链接">
+<!ENTITY attachCloudCmd.accesskey "i">
 <!ENTITY attachPageCmd.label "网页…">
 <!ENTITY attachPageCmd.accesskey "W">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -68,11 +70,13 @@
 <!ENTITY pasteCmd.accesskey "p">
 <!ENTITY pasteNoFormattingCmd.key "V">
 <!ENTITY pasteAsQuotationCmd.key "o">
-<!ENTITY editRewrapCmd.label "重新排版">
-<!ENTITY editRewrapCmd.key "R">
 <!ENTITY editRewrapCmd.accesskey "w">
 <!ENTITY deleteCmd.label "删除">
 <!ENTITY deleteCmd.accesskey "d">
+<!ENTITY editRewrapCmd.label "重新排版">
+<!ENTITY editRewrapCmd.key "R">
+<!ENTITY renameAttachmentCmd.label "重命名附件…">
+<!ENTITY renameAttachmentCmd.accesskey "e">
 <!ENTITY selectAllCmd.label "选择全部">
 <!ENTITY selectAllCmd.key "A">
 <!ENTITY selectAllCmd.accesskey "a"> 
@@ -168,7 +172,7 @@
 <!ENTITY addressBookCmd.accesskey "a">
 <!ENTITY addressBookCmd.key "B">
 <!ENTITY accountManagerCmd.label "帐户设置…">
-<!ENTITY accountManagerCmd.accesskey "c">
+<!ENTITY accountManagerCmd.accesskey "S">
 <!ENTITY accountManagerCmdUnix.accesskey "S">
 <!ENTITY preferencesCmd.label "选项…">
 <!ENTITY preferencesCmd.accesskey "O">
@@ -268,6 +272,14 @@
 <!ENTITY selectAll.accesskey "A">
 <!ENTITY attachFile.label "附件…">
 <!ENTITY attachFile.accesskey "F">
+<!ENTITY attachCloud.label "文件链接…">
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY convertCloud.label "转换为…">
+<!ENTITY convertCloud.accesskey "C">
+<!ENTITY cancelUpload.label "取消上传">
+<!ENTITY cancelUpload.accesskey "n">
+<!ENTITY convertRegularAttachment.label "常规附件">
+<!ENTITY convertRegularAttachment.accesskey "A">
 <!ENTITY attachPage.label "附加网页…">
 <!ENTITY attachPage.accesskey "W">
 

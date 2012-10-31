@@ -1,0 +1,25 @@
+<!--
+# Translator(s):
+#
+# Hrant <hrantohanyan@mail.am>
+# robyerevan <robyerevan@gmail.com>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Hrant <hrantohanyan@mail.am>
+# alexxed <alexxed@gmail.com>
+#
+-->
+<!ENTITY notificationsDialog2.title       "Կարգավորել նոր նամակի ստացումը">
+<!ENTITY window.width                     "30em">
+
+<!ENTITY alertCustomization.intro         "Ընտրել ցուցադրվելիք դաշտերը նոր նամակի դեպքում.">
+<!ENTITY previewText.label                "Նախն. դիտման տեքստը">
+<!ENTITY previewText.accesskey            "M">
+<!ENTITY subject.label                    "Վերնագիրը">
+<!ENTITY subject.accesskey                "S">
+<!ENTITY sender.label                     "Ուղարկողը">
+<!ENTITY sender.accesskey                 "e">
+

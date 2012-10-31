@@ -131,3 +131,9 @@
 <!ENTITY CopyMessageId.label "Копиране на Message-ID">
 <!ENTITY OpenMessageForMsgId.label "Отваряне на писмо за ID">
 <!ENTITY OpenBrowserWithMsgId.label "Отваряне на браузър с Message-ID">
+
+<!ENTITY CopyMessageId.accesskey "C">
+<!ENTITY OpenBrowserWithMsgId.accesskey "B">
+<!ENTITY OpenMessageForMsgId.accesskey "O">
+<!ENTITY hdrFollowupButton1.label "Followup">
+<!ENTITY hdrFollowupButton1.tooltip "Post a followup to this newsgroup">

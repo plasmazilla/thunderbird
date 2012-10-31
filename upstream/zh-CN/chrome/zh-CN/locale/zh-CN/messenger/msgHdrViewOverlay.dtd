@@ -65,6 +65,8 @@
 <!ENTITY hdrReplyAllButton1.tooltip "回复发件人和所有收件人">
 <!ENTITY hdrReplyListButton1.label "回复列表">
 <!ENTITY hdrReplyListButton1.tooltip "回复至邮件列表">
+<!ENTITY hdrFollowupButton1.label "关注">
+<!ENTITY hdrFollowupButton1.tooltip "发表对此新闻组的关注">
 <!ENTITY hdrForwardButton1.label "转发">
 <!ENTITY hdrForwardButton1.tooltip "转发此消息">
 <!ENTITY hdrJunkButton1.label "垃圾">
@@ -129,5 +131,8 @@
 <!ENTITY copyLinkCmd.accesskey    "C">
 
 <!ENTITY CopyMessageId.label "复制 消息-ID">
+<!ENTITY CopyMessageId.accesskey "C">
 <!ENTITY OpenMessageForMsgId.label "打开消息 ID 为">
+<!ENTITY OpenMessageForMsgId.accesskey "O">
 <!ENTITY OpenBrowserWithMsgId.label "使用浏览器打开消息 ID 为">
+<!ENTITY OpenBrowserWithMsgId.accesskey "B">

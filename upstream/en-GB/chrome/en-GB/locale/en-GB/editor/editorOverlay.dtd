@@ -83,11 +83,6 @@
 <!ENTITY insertBreakAllCmd.accesskey "k">
 
 <!-- Used just in context popup. -->
-<!ENTITY spellCheckNoSuggestions.label "(No Suggestions Found)">
-<!ENTITY spellCheckIgnoreWord.label "Ignore Word">
-<!ENTITY spellCheckIgnoreWord.accesskey "I">
-<!ENTITY spellCheckAddToDictionary.label "Add to Dictionary">
-<!ENTITY spellCheckAddToDictionary.accesskey "n">
 <!ENTITY createLinkCmd.label "Create Link…">
 <!ENTITY createLinkCmd.accesskey "k">
 <!ENTITY editLinkCmd.label "Edit Link in New Composer">
@@ -326,12 +321,6 @@
 <!-- Toolbar-only items -->
 <!ENTITY menuBar.tooltip "Menu Bar">
 <!ENTITY formatToolbar.tooltip "Formatting Toolbar">
-<!ENTITY newToolbarCmd.label "New">
-<!ENTITY newToolbarCmd.tooltip "Create a new Composer page">
-<!ENTITY openToolbarCmd.label "Open">
-<!ENTITY openToolbarCmd.tooltip "Open a local file">
-<!ENTITY saveToolbarCmd.tooltip "Save file to a local location">
-<!ENTITY publishToolbarCmd.tooltip "Upload file to a remote location">
 <!ENTITY cutToolbarCmd.tooltip "Cut">
 <!ENTITY copyToolbarCmd.tooltip "Copy">
 <!ENTITY pasteToolbarCmd.tooltip "Paste">

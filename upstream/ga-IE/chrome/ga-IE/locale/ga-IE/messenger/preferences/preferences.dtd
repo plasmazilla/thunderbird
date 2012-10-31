@@ -10,3 +10,5 @@
 <!ENTITY paneAttachments.title "Iatáin">
 <!ENTITY paneSecurity.title "Slándáil">
 <!ENTITY paneAdvanced.title "Ardroghanna">
+
+<!ENTITY paneChat.title           "Chat">

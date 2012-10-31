@@ -17,6 +17,7 @@ locale messenger-region zh-CN chrome/zh-CN/locale/zh-CN/messenger-region/
 locale messenger-smime zh-CN chrome/zh-CN/locale/zh-CN/messenger-smime/
 locale pipnss zh-CN chrome/zh-CN/locale/zh-CN/pipnss/
 locale mozldap zh-CN chrome/zh-CN/locale/zh-CN/mozldap/
+locale chat zh-CN chrome/zh-CN/locale/zh-CN/chat/
 locale necko zh-CN chrome/zh-CN/locale/zh-CN/necko/
 locale global zh-CN chrome/zh-CN/locale/zh-CN/global/
 locale places zh-CN chrome/zh-CN/locale/zh-CN/places/

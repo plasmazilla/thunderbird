@@ -9,6 +9,7 @@ locale global-region br chrome/br/locale/br/global-region/
 locale communicator br chrome/br/locale/br/communicator/
 locale mozldap br chrome/br/locale/br/mozldap/
 locale branding br chrome/br/locale/br/branding/
+locale chat br chrome/br/locale/br/chat/
 locale places br chrome/br/locale/br/places/
 locale messenger-region br chrome/br/locale/br/messenger-region/
 locale editor br chrome/br/locale/br/editor/

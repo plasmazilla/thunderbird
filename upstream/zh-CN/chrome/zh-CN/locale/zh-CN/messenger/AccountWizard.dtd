@@ -7,7 +7,7 @@
 
 <!ENTITY accountSetupInfo2.label "为了接收消息，您必须先建立一个帐户。">
 <!ENTITY accountTypeTitle.label "新建帐户设置">
-<!ENTITY accountTypeDesc2.label "这个向导会收集必要的信息用来创建一个帐户.如果您不知道其中必要的信息，请联系系统管理员或者互联网服务提供商.">
+<!ENTITY accountTypeDesc2.label "这个向导会收集必要的信息用来创建一个帐户。如果您不知道其中必要的信息，请联系系统管理员或者互联网服务提供商。">
 <!ENTITY accountTypeDirections.label "选择您要设置的帐户类型：">
 <!ENTITY accountTypeMail.label "电子邮件帐号">
 <!ENTITY accountTypeMail.accesskey "m">
@@ -32,22 +32,10 @@
 <!ENTITY emailLabel.label "电子邮件地址:">
 <!ENTITY emailLabel.accesskey "E">
 
-<!-- Entities for Server page -->
+<!-- Entities for Incoming Server page -->
 
-<!ENTITY serverTitle.label "服务器信息">
+<!ENTITY incomingTitle.label "接收服务器信息">
 <!ENTITY incomingServerTypeDesc.label "选择您使用的接收服务器类型。">
-<!-- LOCALIZATION NOTE (incomingServerNameDesc.label) : Do not translate "&quot;pop.example.net&quot;" in below line -->
-<!ENTITY incomingServerNameDesc.label "输入接收服务器名。（例如，&quot;pop.netscape.net&quot;）">
-<!ENTITY incomingServerLabel.label "接收服务器:">
-<!ENTITY incomingServerLabel.accesskey "S">
-<!-- LOCALIZATION NOTE (newsServerNameDesc.label) : Do not translate "NNTP" or the "&quot;" entities in below line -->
-<!ENTITY newsServerNameDesc.label "输入新闻 (NNTP) 服务器名。（例如，&quot;news.netscape.net&quot;。）">
-<!-- LOCALIZATION NOTE (smtpServerDesc.label) : Do not translate "SMTP" and "&quot;smtp.example.net&quot;" in below line -->
-<!ENTITY smtpServerDesc.label "输入发送服务器 (SMTP) 名。（例如，&quot;smtp.netscape.net&quot;）">
-<!ENTITY smtpServerLabel.label "外发服务器:">
-<!ENTITY smtpServerLabel.accesskey "O">
-<!ENTITY newsServerLabel.label "新闻组服务器:">
-<!ENTITY newsServerLabel.accesskey "w">
 <!-- LOCALIZATION NOTE (imapType.label) : Do not translate "IMAP" in below line -->
 <!ENTITY imapType.label "IMAP">
 <!ENTITY imapType.accesskey "I">
@@ -56,38 +44,56 @@
 <!ENTITY popType.accesskey "P">
 <!ENTITY leaveMsgsOnSrvr.label "把消息留在服务器上">
 <!ENTITY leaveMsgsOnSrvr.accesskey "L">
+<!ENTITY portNum.label "端口：">
+<!ENTITY portNum.accesskey "o">
+<!ENTITY defaultPortLabel.label "默认：">
+<!ENTITY defaultPortValue.label "">
+<!-- LOCALIZATION NOTE (incomingServerNameDesc.label) : Do not translate "&quot;pop.example.net&quot;" in below line -->
+<!ENTITY incomingServer.description "输入接收服务器名。（例如，&quot;pop.netscape.net&quot;）">
+<!ENTITY incomingServer.label "接收服务器:">
+<!ENTITY incomingServer.accesskey "S">
+<!-- LOCALIZATION NOTE (incomingUsername.description) : do not translate "&quot;jsmith&quot;" in below line -->
+<!ENTITY incomingUsername.description "输入邮件服务商给你的收信用户名（例如, &quot;jsmith&quot;）。">
+<!ENTITY incomingUsername.label "用户名：">
+<!ENTITY incomingUsername.accesskey "U">
+<!-- LOCALIZATION NOTE (newsServerNameDesc.label) : Do not translate "NNTP" or the "&quot;" entities in below line -->
+<!ENTITY newsServerNameDesc.label "输入新闻 (NNTP) 服务器名。（例如，&quot;news.netscape.net&quot;。）">
+<!ENTITY newsServerLabel.label "新闻组服务器:">
+<!ENTITY newsServerLabel.accesskey "S">
 
+<!-- Entities for Outgoing Server page -->
 
-<!-- LOCALIZATION NOTE (haveSmtp1.prefix and haveSmtp1.suffix2) : Do not translate "SMTP" and "&quot;" in
-     these variables. Also, translate haveSmtp1.prefix and haveSmtp1.suffix2 as a single sentence, inserting
-     text after the "&quot;" entity in haveSmtp1.suffix2, if required grammatically.
+<!ENTITY outgoingTitle.label "发信服务器信息">
+<!-- LOCALIZATION NOTE (outgoingServer.description) : Do not translate "SMTP" and "&quot;smtp.example.net&quot;" in below line -->
+<!ENTITY outgoingServer.description "输入发送服务器 (SMTP) 名。（例如，&quot;smtp.netscape.net&quot;）">
+<!ENTITY outgoingServer.label "外发服务器:">
+<!ENTITY outgoingServer.accesskey "S">
+<!ENTITY outgoingUsername.description "请输入您的电子邮件服务提供者提供给您的外发用户名 （通常即为您的接收用户名）。">
+<!ENTITY outgoingUsername.label "外发用户名：">
+<!ENTITY outgoingUsername.accesskey "U">
+
+<!-- LOCALIZATION NOTE (modifyOutgoing.suffix) : This string will be appended after each of
+     haveSmtp1.suffix3, haveSmtp2.suffix3, haveSmtp3.suffix3 .
+-->
+<!ENTITY modifyOutgoing.suffix "你可以在帐户设置中更改外发服务器。">
+<!-- LOCALIZATION NOTE (haveSmtp1.prefix and haveSmtp1.suffix3) : Do not translate "SMTP" and "&quot;" in
+     these variables. Also, translate haveSmtp1.prefix and haveSmtp1.suffix3 as a single sentence, inserting
+     text after the "&quot;" entity in haveSmtp1.suffix3, if required grammatically.
 -->
 <!ENTITY haveSmtp1.prefix "将使用您当前的外发服务器(SMTP)， &quot;">
-<!ENTITY haveSmtp1.suffix2 "&quot;, 将被使用。您可以在帐户设置窗口中修改发送服务器。">
-
-<!-- Entities for Login page -->
-
-<!ENTITY loginTitle.label "用户名 ">
-<!ENTITY usernameDesc.label "请输入您的电子邮件服务提供者提供给您的接收用户名。">
-<!-- LOCALIZATION NOTE (usernameExample.label) : do not translate "&quot;jsmith&quot;" in below line -->
-<!ENTITY usernameExample.label "（例如，&quot;jsmith&quot;）">
-<!ENTITY usernameLabel.label "接收用户名:">
-<!ENTITY usernameLabel.accesskey "I">
-<!ENTITY usernameSmtpDesc.label "请输入您的电子邮件服务提供者提供给您的外发用户名 （通常即为您的接收用户名）。">
-<!ENTITY usernameSmtpLabel.label "外发用户名：">
-<!ENTITY usernameSmtpLabel.accesskey "O">
-<!-- LOCALIZATION NOTE (haveSmtp2.prefix and haveSmtp2.suffix2) : Do not translate "SMTP" and "&quot;" in
-     these variables. Also, translate haveSmtp2.prefix and haveSmtp2.suffix2 as a single sentence, inserting
-     text after the "&quot;" entity in haveSmtp2.suffix2, if required grammatically.
+<!ENTITY haveSmtp1.suffix3 "&quot; ，将会被使用。">
+<!-- LOCALIZATION NOTE (haveSmtp2.prefix and haveSmtp2.suffix3) : Do not translate "SMTP" and "&quot;" in
+     these variables. Also, translate haveSmtp2.prefix and haveSmtp2.suffix3 as a single sentence, inserting
+     text after the "&quot;" entity in haveSmtp2.suffix3, if required grammatically.
 -->
 <!ENTITY haveSmtp2.prefix "将使用您当前的外发(SMTP)用户名，&quot;">
-<!ENTITY haveSmtp2.suffix2 "&quot;, 将被使用。您可以在帐户设置窗口中修改发送服务器。">
-<!-- LOCALIZATION NOTE (haveSmtp3.prefix and haveSmtp3.suffix2) : Do not translate "SMTP" and "&quot;" in
-     these variables. Also, translate haveSmtp3.prefix and haveSmtp3.suffix2 as a single sentence, inserting
-     text after the "&quot;" entity in haveSmtp3.suffix2, if required grammatically.
+<!ENTITY haveSmtp2.suffix3 "&quot; ，将会被使用。">
+<!-- LOCALIZATION NOTE (haveSmtp3.prefix and haveSmtp3.suffix3) : Do not translate "SMTP" and "&quot;" in
+     these variables. Also, translate haveSmtp3.prefix and haveSmtp3.suffix3 as a single sentence, inserting
+     text after the "&quot;" entity in haveSmtp3.suffix3, if required grammatically.
 -->
 <!ENTITY haveSmtp3.prefix "您的外发(SMTP)服务器 , &quot;">
-<!ENTITY haveSmtp3.suffix2 "&quot;, 与您的收信服务器一致，将使用您的收信用户名进行连接。您可以在账户设置中修改发信服务器。">
+<!ENTITY haveSmtp3.suffix3 "&quot; ，与你的接收服务器相同，将使用你的接收用户名访问他。">
 
 <!-- Entities for Account name page -->
 

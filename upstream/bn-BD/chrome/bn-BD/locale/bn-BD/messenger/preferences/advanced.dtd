@@ -106,6 +106,7 @@
 <!ENTITY validation.accesskey           "V">
 <!ENTITY viewSecurityDevices.label      "নিরাপত্তা ডিভাইস (S)">
 <!ENTITY viewSecurityDevices.accesskey  "S">
+
 <!ENTITY submitTelemetry.accesskey     "P">
 
 <!-- General Settings -->

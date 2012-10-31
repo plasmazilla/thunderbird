@@ -22,9 +22,13 @@
 <!ENTITY reloadPlugin.pre "">
 <!ENTITY reloadPlugin.middle "Абнавіць старонку">
 <!ENTITY reloadPlugin.post " , каб паспрабаваць зноў.">
-<!ENTITY report.checkbox "…і даслаць справаздачу пра крах">
+<!ENTITY report.please "Даслаць справаздачу пра крах">
 <!ENTITY report.submitting "Дасыланне справаздачы…">
 <!ENTITY report.submitted "Справаздача пра крах дасланая.">
 <!ENTITY report.disabled "Падача справаздачаў пра крах забаронена.">
 <!ENTITY report.failed "Няўдача падачы.">
 <!ENTITY report.unavailable "Няма даступных справаздачаў.">
+
+<!ENTITY clickToPlayPlugins                                  "Click here to activate plugins.">
+<!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
+<!ENTITY tapToPlayPlugin                                     "Tap here to activate plugin.">

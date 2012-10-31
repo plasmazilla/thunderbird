@@ -5,3 +5,6 @@
 <!ENTITY closeLog.label "Kapat">
 <!ENTITY closeLog.accesskey "a">
 
+
+<!ENTITY adaptiveJunkLog.title "Adaptive Junk Mail Log">
+<!ENTITY adaptiveJunkLogInfo.label "Log of adaptive junk mail control activity.">

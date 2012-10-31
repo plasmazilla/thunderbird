@@ -56,3 +56,6 @@
 <!ENTITY  cookieExceptions.accesskey    "U">
 <!ENTITY  showCookies.label             "Visa kakor…">
 <!ENTITY  showCookies.accesskey         "V">
+
+<!ENTITY enableAdaptiveJunkLogging.accesskey "E">
+<!ENTITY enableAdaptiveJunkLogging.label "Enable adaptive junk filter logging">

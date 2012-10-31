@@ -17,6 +17,8 @@
 <!ENTITY attachFileCmd.label "Ficheiro(s)…">
 <!ENTITY attachFileCmd.accesskey "F">
 <!ENTITY attachFileCmd.key "A">
+<!ENTITY attachCloudCmd.label "Filelink">
+<!ENTITY attachCloudCmd.accesskey "i">
 <!ENTITY attachPageCmd.label "Páxina web…">
 <!ENTITY attachPageCmd.accesskey "x">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -68,11 +70,13 @@
 <!ENTITY pasteCmd.accesskey "P">
 <!ENTITY pasteNoFormattingCmd.key "V">
 <!ENTITY pasteAsQuotationCmd.key "o">
-<!ENTITY editRewrapCmd.label "Reaxustar">
-<!ENTITY editRewrapCmd.key "R">
 <!ENTITY editRewrapCmd.accesskey "x">
 <!ENTITY deleteCmd.label "Borrar">
 <!ENTITY deleteCmd.accesskey "o">
+<!ENTITY editRewrapCmd.label "Reaxustar">
+<!ENTITY editRewrapCmd.key "R">
+<!ENTITY renameAttachmentCmd.label "Renomear anexo…">
+<!ENTITY renameAttachmentCmd.accesskey "e">
 <!ENTITY selectAllCmd.label "Seleccionar todo">
 <!ENTITY selectAllCmd.key "A">
 <!ENTITY selectAllCmd.accesskey "S"> 
@@ -218,7 +222,7 @@
 <!ENTITY subject.accesskey "n">
 <!-- LOCALIZATION NOTE attachments.accesskey This access key should correspond
      to the strings in attachmentCount in composeMsgs.properties -->
-<!ENTITY attachments.accesskey "c">
+<!ENTITY attachments.accesskey "x">
 
 <!-- Format Toolbar, imported from editorAppShell.xul -->
 <!ENTITY SmileButton.tooltip "Inserir unha emoticona">
@@ -268,6 +272,15 @@
 <!ENTITY selectAll.accesskey "t">
 <!ENTITY attachFile.label "Anexar ficheiro(s)…">
 <!ENTITY attachFile.accesskey "x">
+<!ENTITY attachCloud.label "Filelink…">
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY convertCloud.label "Converter a…">
+<!ENTITY convertCloud.accesskey "C">
+<!ENTITY cancelUpload.label "Cancelar envío">
+<!ENTITY cancelUpload.accesskey "n">
+<!ENTITY convertRegularAttachment.label "Anexo normal">
+<!ENTITY convertRegularAttachment.accesskey "A">
+
 <!ENTITY attachPage.label "Anexar páxina web…">
 <!ENTITY attachPage.accesskey "w">
 

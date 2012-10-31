@@ -5,12 +5,13 @@ locale testpilot sr chrome/sr/locale/sr/feedback/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale pippki sr chrome/sr/locale/sr/pippki/
 locale messenger-mapi sr chrome/sr/locale/sr/messenger-mapi/
+locale chat sr chrome/sr/locale/sr/chat/
 locale autoconfig sr chrome/sr/locale/sr/autoconfig/
 locale messenger-newsblog sr chrome/sr/locale/sr/messenger-newsblog/
 locale branding sr chrome/sr/locale/sr/branding/
 locale pipnss sr chrome/sr/locale/sr/pipnss/
 locale global-platform sr chrome/sr/locale/sr/global-platform/
-locale global-region sr chrome/sr/locale/sr/global-region/
+locale necko sr chrome/sr/locale/sr/necko/
 locale mozapps sr chrome/sr/locale/sr/mozapps/
 locale mozldap sr chrome/sr/locale/sr/mozldap/
 locale cookie sr chrome/sr/locale/sr/cookie/
@@ -21,5 +22,5 @@ locale alerts sr chrome/sr/locale/sr/alerts/
 locale messenger sr chrome/sr/locale/sr/messenger/
 locale messenger-smime sr chrome/sr/locale/sr/messenger-smime/
 manifest chrome/sr.manifest
-locale necko sr chrome/sr/locale/sr/necko/
+locale global-region sr chrome/sr/locale/sr/global-region/
 locale global sr chrome/sr/locale/sr/global/

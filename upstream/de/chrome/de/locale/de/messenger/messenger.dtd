@@ -1,4 +1,3 @@
-<!ENTITY messengerWindow.title "Nachrichten &amp; Newsgruppen">
 <!ENTITY titledefault.label    "&brandFullName;">
 <!ENTITY titleSeparator.label " - ">
 
@@ -27,6 +26,8 @@
 <!ENTITY newCreateEmailAccountCmd.accesskey "E">
 <!ENTITY newExistingEmailAccountCmd.label "Existierendes E-Mail-Konto…">
 <!ENTITY newExistingEmailAccountCmd.accesskey "x">
+<!ENTITY newIMAccountCmd.label "Chat-Konto…">
+<!ENTITY newIMAccountCmd.accesskey "C">
 <!ENTITY openMessageFileCmd.label "Datei öffnen…">
 <!ENTITY openMessageFileCmd.accesskey "ö">
 <!ENTITY openAttachmentCmd.label "Anhänge">
@@ -314,7 +315,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY nextUnreadThread.accesskey "T">
 <!ENTITY nextUnreadThread.key "t">
 <!ENTITY prevMenu.label "Vorherige">
-<!ENTITY prevMenu.accesskey "h">
+<!ENTITY prevMenu.accesskey "r">
 <!ENTITY prevMsgCmd.label "Nachricht">
 <!ENTITY prevMsgCmd.accesskey "n">
 <!ENTITY prevMsgCmd.key "b">
@@ -327,6 +328,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.label "Zurück">
 <!ENTITY goBackCmd.accesskey "Z">
 <!ENTITY goBackCmd.commandKey "[">
+<!ENTITY goChatCmd.label "Chat">
+<!ENTITY goChatCmd.accesskey "h">
+<!ENTITY goChatCmd.commandKey "C">
 <!ENTITY prevStarredMsgCmd.label "Gekennzeichnete Nachricht">
 <!ENTITY prevStarredMsgCmd.accesskey "G">
 <!ENTITY folderMenu.label "Ordner">
@@ -334,6 +338,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY thisFolder.label "Dieser Ordner">
 <!ENTITY thisFolder.accesskey "D">
 <!ENTITY goRecentlyClosedTabs.label "Kürzlich geschlossene Tabs">
+<!ENTITY goRecentlyClosedTabs.accesskey "K">
 <!ENTITY startPageCmd.label "Startseite">
 <!ENTITY startPageCmd.accesskey "S">
 
@@ -354,8 +359,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyMsgCmd.key	"r">
 <!ENTITY replySenderCmd.label "Antworten nur an Absender">
 <!ENTITY replySenderCmd.accesskey "t">
-<!ENTITY replyNewsgroupCmd.label "Antworten an Newsgruppe">
-<!ENTITY replyNewsgroupCmd.accesskey	"g">
+<!ENTITY replyNewsgroupCmd2.label "Antworten an Newsgruppe">
+<!ENTITY replyNewsgroupCmd2.accesskey  "g">
 <!ENTITY replyToAllMsgCmd.label "Antworten an alle">
 <!ENTITY replyToAllMsgCmd.accesskey	"o">
 <!ENTITY replyToAllMsgCmd.key	"r">
@@ -469,6 +474,12 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY addons.accesskey "A">
 <!ENTITY activitymanager.label "Aktivitäten">
 <!ENTITY activitymanager.accesskey "v">
+<!ENTITY imAccountsStatus.label "Chat-Status">
+<!ENTITY imAccountsStatus.accesskey "C">
+<!ENTITY imStatus.available          "Verfügbar">
+<!ENTITY imStatus.unavailable        "Beschäftigt">
+<!ENTITY imStatus.offline            "Nicht verbunden">
+<!ENTITY imStatus.showAccounts       "Konten anzeigen…">
 <!ENTITY savedFiles.label "Gespeicherte Dateien">
 <!ENTITY savedFiles.accesskey "G">
 <!ENTITY savedFiles.key "j">
@@ -488,6 +499,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY importCmd.accesskey "m">
 <!ENTITY errorConsoleCmd.label "Fehlerkonsole">
 <!ENTITY errorConsoleCmd.accesskey "h">
+<!ENTITY errorConsoleCmd.commandkey "j">
 <!ENTITY accountManagerCmd.label "Konten-Einstellungen…">
 <!ENTITY accountManagerCmd.accesskey "K">
 <!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
@@ -504,7 +516,11 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY fileButton.label "Ablegen">
 <!ENTITY archiveButton.label "Archivieren">
 <!ENTITY nextButton.label "Nächste">
+<!ENTITY nextButtonToolbarItem.label "Nächste ungelesene">
+<!ENTITY nextMsgButton.label "Nächste">
 <!ENTITY previousButton.label "Vorherige">
+<!ENTITY previousButtonToolbarItem.label "Vorherige ungelesene">
+<!ENTITY previousMsgButton.label "Vorherige">
 <!ENTITY backButton1.label "Zurück">
 <!ENTITY goForwardButton1.label "Vor">
 <!ENTITY deleteItem.title "Löschen">
@@ -518,6 +534,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY junkButton.label "Junk">
 <!ENTITY notJunkButton.label "Kein Junk">
 <!ENTITY addressBookButton.label "Adressbuch">
+<!ENTITY chatButton.label "Chat">
 <!ENTITY glodaSearch.title "Globale Suche">
 <!ENTITY searchItem.title "Schnellsuche">
 <!ENTITY mailViewsToolbarItem.title "Ansichten">
@@ -536,7 +553,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY fileButton.tooltip "Gewählte Nachricht(en) ablegen">
 <!ENTITY archiveButton.tooltip "Gewählte Nachricht(en) archivieren">
 <!ENTITY nextButton.tooltip "Gehe zur nächsten ungelesenen Nachricht">
+<!ENTITY nextMsgButton.tooltip "Gehe zur nächsten Nachricht">
 <!ENTITY previousButton.tooltip "Gehe zur vorherigen ungelesenen Nachricht">
+<!ENTITY previousMsgButton.tooltip "Gehe zur vorherigen Nachricht">
 <!ENTITY goForwardButton.tooltip "Eine Nachricht vorwärts in der Chronik der angesehenen Nachrichten">
 <!ENTITY goBackButton.tooltip "Eine Nachricht zurück in der Chronik der angesehenen Nachrichten">
 <!ENTITY deleteButton.tooltip "Gewählte Nachricht(en) oder Ordner löschen">
@@ -547,6 +566,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY junkButton.tooltip "Gewählte Nachricht(en) als Junk einstufen">
 <!ENTITY notJunkButton.tooltip "Gewählte Nachricht(en) als &quot;Kein Junk&quot; einstufen">
 <!ENTITY addressBookButton.tooltip "Adressbuch öffnen">
+<!ENTITY chatButton.tooltip "Chat-Tab öffnen">
 <!ENTITY tagButton.tooltip "Bei gewählten Nachrichten Schlagwörter hinzufügen/entfernen">
 <!ENTITY compactButton.tooltip "Gelöschte Nachrichten endgültig aus dem gewählten Ordner entfernen">
 
@@ -587,8 +607,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderContextMarkMailFolderRead.accesskey "d">
 <!ENTITY folderContextSubscribe.label "Abonnieren…">
 <!ENTITY folderContextSubscribe.accesskey "A">
-<!ENTITY folderContextSearchMessages.label "Suchen…">
-<!ENTITY folderContextSearchMessages.accesskey "S">
+<!ENTITY folderContextSearchForMessages.label "Nachrichten suchen…">
+<!ENTITY folderContextSearchForMessages.accesskey "s">
 <!ENTITY folderContextProperties.label "Eigenschaften…">
 <!ENTITY folderContextProperties.accesskey "E">
 <!ENTITY folderContextFavoriteFolder.label "Favoriten-Ordner">
@@ -672,8 +692,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextArchive.accesskey "h">
 <!ENTITY contextReplySender.label "Antworten nur an Absender">
 <!ENTITY contextReplySender.accesskey "A">
-<!ENTITY contextReplyNewsgroup.label "Antworten an Newsgruppe">
-<!ENTITY contextReplyNewsgroup.accesskey "g">
+<!ENTITY contextReplyNewsgroup2.label "Antworten an Newsgruppe">
+<!ENTITY contextReplyNewsgroup2.accesskey "g">
 <!ENTITY contextReplyAll.label "Antworten an alle">
 <!ENTITY contextReplyAll.accesskey "o">
 <!ENTITY contextReplyList.label "Antworten an Liste">
@@ -779,28 +799,28 @@ you can use these alternative items. Otherwise, their values should be empty.  -
      not changed
      -->
 <!ENTITY quickSearchCmd.key "k">
-<!-- LOCALIZATION NOTE (searchAllMessages.label.base):
+<!-- LOCALIZATION NOTE (search.label.base):
      This is the base of the empty text for the global search box.  We replace
-     #1 with the contents of the appropriate
-     searchAllMessages.keyLabel2.* value for the platform.
+     #1 with the contents of the appropriate search.keyLabel.* value for the
+     platform.
      The goal is to convey to the user that typing in the box will allow them
      to search for messages globally and that there is a hotkey they can press
      to get to the box faster.  If the global indexer is disabled, the search
      box will be collapsed and the user will never see this message.
      -->
-<!ENTITY searchAllMessages.label.base "Global in allen Konten suchen… #1">
-<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.nonmac):
+<!ENTITY search.label.base "Suchen… #1">
+<!-- LOCALIZATION NOTE (search.keyLabel.nonmac):
      The description of the key-binding to get into the global search box on
      windows and linux (which use the control key).  We use the key defined in
      the quickSearchCmd.key entity defined above, the letter should match it.
      -->
-<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Strg+K&gt;">
-<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.mac):
+<!ENTITY search.keyLabel.nonmac "&lt;Strg+K&gt;">
+<!-- LOCALIZATION NOTE (search.keyLabel.mac):
      The description of the key-binding to get into the global search box on mac
      systems.  We use the key defined in the quickSearchCmd.key entity defined
      above, the letter should match it.
      -->
-<!ENTITY searchAllMessages.keyLabel2.mac "&lt;&#x2318;K&gt;">
+<!ENTITY search.keyLabel.mac "&lt;&#x2318;K&gt;">
 
 <!-- Message Header Context Menu -->
 <!ENTITY AddToAddressBook.label "Zu Adressbuch hinzufügen…">

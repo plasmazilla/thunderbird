@@ -43,9 +43,9 @@
 <!ENTITY aboutWarningButton.label "Ще бъда внимателен, обещавам!">
 <!ENTITY aboutWarningCheckbox.label "Показване на това предупреждение и следващия път">
 
-<!ENTITY filterPrefs.label "Филтър:">
-<!ENTITY filterPrefs.accesskey "Ф">
-<!ENTITY focusFilter.key "ф">
+<!ENTITY searchPrefs.label "Търсене:">
+<!ENTITY searchPrefs.accesskey "Т">
+<!ENTITY focusSearch.key "r">
 <!-- Columns -->
 
 <!ENTITY prefColumn.label "Име на настройка">

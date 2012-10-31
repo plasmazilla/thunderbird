@@ -10,3 +10,5 @@
 <!ENTITY paneAttachments.title    "Bilagor">
 <!ENTITY paneSecurity.title       "Säkerhet">
 <!ENTITY paneAdvanced.title       "Avancerat">
+
+<!ENTITY paneChat.title           "Chat">

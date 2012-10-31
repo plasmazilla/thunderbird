@@ -9,7 +9,7 @@ locale necko es-ES chrome/es-ES/locale/es-ES/necko/
 locale communicator es-ES chrome/es-ES/locale/es-ES/communicator/
 locale messenger-smime es-ES chrome/es-ES/locale/es-ES/messenger-smime/
 locale pippki es-ES chrome/es-ES/locale/es-ES/pippki/
-locale global-region es-ES chrome/es-ES/locale/es-ES/global-region/
+locale chat es-ES chrome/es-ES/locale/es-ES/chat/
 locale mozapps es-ES chrome/es-ES/locale/es-ES/mozapps/
 locale messenger-newsblog es-ES chrome/es-ES/locale/es-ES/messenger-newsblog/
 locale branding es-ES chrome/es-ES/locale/es-ES/branding/
@@ -22,4 +22,5 @@ locale alerts es-ES chrome/es-ES/locale/es-ES/alerts/
 manifest chrome/es-ES.manifest
 locale messenger es-ES chrome/es-ES/locale/es-ES/messenger/
 locale messenger-mapi es-ES chrome/es-ES/locale/es-ES/messenger-mapi/
+locale global-region es-ES chrome/es-ES/locale/es-ES/global-region/
 locale global es-ES chrome/es-ES/locale/es-ES/global/

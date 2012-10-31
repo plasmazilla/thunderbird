@@ -83,11 +83,6 @@
 <!ENTITY insertBreakAllCmd.accesskey "r">
 
 <!-- Used just in context popup. -->
-<!ENTITY spellCheckNoSuggestions.label "(Ni najti predlogov)">
-<!ENTITY spellCheckIgnoreWord.label "Prezri besedo">
-<!ENTITY spellCheckIgnoreWord.accesskey "P">
-<!ENTITY spellCheckAddToDictionary.label "Dodaj v slovar">
-<!ENTITY spellCheckAddToDictionary.accesskey "D">
 <!ENTITY createLinkCmd.label "Vstavi povezavo …">
 <!ENTITY createLinkCmd.accesskey "V">
 <!ENTITY editLinkCmd.label "Uredi povezavo v novem Composerju">
@@ -149,7 +144,7 @@
 <!ENTITY styleUnderlineCmd.accesskey "U">
 <!ENTITY styleUnderlineCmd.key "U">
 <!ENTITY styleStrikeThruCmd.label "Prečrtano">
-<!ENTITY styleStrikeThruCmd.accesskey "e">
+<!ENTITY styleStrikeThruCmd.accesskey "H">
 <!ENTITY styleSuperscriptCmd.label "Nadpisano">
 <!ENTITY styleSuperscriptCmd.accesskey "N">
 <!ENTITY styleSubscriptCmd.label "Podpisano">
@@ -326,12 +321,6 @@
 <!-- Toolbar-only items -->
 <!ENTITY menuBar.tooltip "Vrstica z menijem">
 <!ENTITY formatToolbar.tooltip "Orodna vrstica za oblikovanje">
-<!ENTITY newToolbarCmd.label "Novo">
-<!ENTITY newToolbarCmd.tooltip "Ustvari novo stran v Composerju">
-<!ENTITY openToolbarCmd.label "Odpri">
-<!ENTITY openToolbarCmd.tooltip "Odpri krajevno datoteko">
-<!ENTITY saveToolbarCmd.tooltip "Shrani datoteko na krajevno mesto">
-<!ENTITY publishToolbarCmd.tooltip "Prenesi datoteko na oddaljeno mesto">
 <!ENTITY cutToolbarCmd.tooltip "Izreži">
 <!ENTITY copyToolbarCmd.tooltip "Kopiraj">
 <!ENTITY pasteToolbarCmd.tooltip "Prilepi">

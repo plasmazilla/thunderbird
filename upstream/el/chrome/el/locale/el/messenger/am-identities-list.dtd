@@ -5,3 +5,6 @@
 <!ENTITY identitiesListEdit.accesskey "ξ">
 <!ENTITY identitiesListDelete.label "Διαγραφή">
 <!ENTITY identitiesListDelete.accesskey "γ">
+
+<!ENTITY identitiesListClose.accesskey "C">
+<!ENTITY identitiesListClose.label "Close">

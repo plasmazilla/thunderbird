@@ -14,6 +14,8 @@
 <!ENTITY attachFileCmd.label "Archivo(s)…">
 <!ENTITY attachFileCmd.accesskey "v">
 <!ENTITY attachFileCmd.key "A">
+<!ENTITY attachCloudCmd.label "Filelink">
+<!ENTITY attachCloudCmd.accesskey "i">
 <!ENTITY attachPageCmd.label "Adjuntar página web…">
 <!ENTITY attachPageCmd.accesskey "W">
 <!ENTITY attachVCardCmd.label "Tarjeta personal (vCard)">
@@ -62,11 +64,13 @@
 <!ENTITY pasteCmd.accesskey "p">
 <!ENTITY pasteNoFormattingCmd.key "V">
 <!ENTITY pasteAsQuotationCmd.key "o">
-<!ENTITY editRewrapCmd.label "Reajuste de línea">
-<!ENTITY editRewrapCmd.key "R">
 <!ENTITY editRewrapCmd.accesskey "j">
 <!ENTITY deleteCmd.label "Eliminar">
 <!ENTITY deleteCmd.accesskey "r">
+<!ENTITY editRewrapCmd.label "Reajuste de línea">
+<!ENTITY editRewrapCmd.key "R">
+<!ENTITY renameAttachmentCmd.label "Renombrar adjunto…">
+<!ENTITY renameAttachmentCmd.accesskey "e">
 <!ENTITY selectAllCmd.label "Seleccionar todo">
 <!ENTITY selectAllCmd.key "A">
 <!ENTITY selectAllCmd.accesskey "t">
@@ -233,6 +237,14 @@
 <!ENTITY selectAll.accesskey "A">
 <!ENTITY attachFile.label "Adjuntar archivo(s)…">
 <!ENTITY attachFile.accesskey "j">
+<!ENTITY attachCloud.label "Filelink…">
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY convertCloud.label "Convertir a…">
+<!ENTITY convertCloud.accesskey "C">
+<!ENTITY cancelUpload.label "Cancelar subida">
+<!ENTITY cancelUpload.accesskey "n">
+<!ENTITY convertRegularAttachment.label "Adjunto normal">
+<!ENTITY convertRegularAttachment.accesskey "A">
 <!ENTITY attachPage.label "Adjuntar página web…">
 <!ENTITY attachPage.accesskey "W">
 <!ENTITY spellAddDictionaries.label "Añadir diccionarios…">

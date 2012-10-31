@@ -66,6 +66,8 @@
 <!ENTITY hdrReplyAllButton1.tooltip "Svar afsender og alle modtagere">
 <!ENTITY hdrReplyListButton1.label "Svar til liste">
 <!ENTITY hdrReplyListButton1.tooltip "Svar til diskussionsliste">
+<!ENTITY hdrFollowupButton1.label "Opfølgning">
+<!ENTITY hdrFollowupButton1.tooltip "Send opfølgning til denne nyhedsgruppe">
 <!ENTITY hdrForwardButton1.label "Videresend">
 <!ENTITY hdrForwardButton1.tooltip "Videresend denne meddelelse">
 <!ENTITY hdrJunkButton1.label "Spam">
@@ -129,6 +131,9 @@
 <!ENTITY copyLinkCmd.label "Kopier link">
 <!ENTITY copyLinkCmd.accesskey "K">
 
-<!ENTITY CopyMessageId.label "Kopier Meddelelse-ID">
+<!ENTITY CopyMessageId.label "Kopier meddelelse-ID">
+<!ENTITY CopyMessageId.accesskey "K">
 <!ENTITY OpenMessageForMsgId.label "Åbn meddelelse med ID">
-<!ENTITY OpenBrowserWithMsgId.label "Åbn Browser med Meddelelse-ID">
+<!ENTITY OpenMessageForMsgId.accesskey "Å">
+<!ENTITY OpenBrowserWithMsgId.label "Åbn browser med meddelelse-ID">
+<!ENTITY OpenBrowserWithMsgId.accesskey "b">

@@ -40,3 +40,5 @@
 <!ENTITY watchThread.label "Надгледај нит">
 <!ENTITY stopExecution.label "Заустави извршење филтера">
 
+
+<!ENTITY markMessageUnread.label "Mark As Unread">

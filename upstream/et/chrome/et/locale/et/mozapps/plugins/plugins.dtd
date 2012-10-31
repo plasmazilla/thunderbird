@@ -21,7 +21,9 @@
 <!ENTITY pluginWizard.finalPage.restart.label                "&brandShortName; tuleb pluginate töölehakkamiseks taaskäivitada.">
 
 <!ENTITY missingPlugin                                       "Antud sisu kuvamiseks on vaja pluginat.">
-<!ENTITY clickToPlayPlugin                                   "Puuduta, et aktiveerida plugin.">
+<!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
+<!ENTITY tapToPlayPlugin                                     "Puuduta siit, et plugin aktiveerida.">
+<!ENTITY clickToPlayPlugins                                  "Klõpsa, et aktiveerida pluginad.">
 <!ENTITY disabledPlugin                                      "See plugin on keelatud.">
 <!ENTITY blockedPlugin.label                                 "See plugin on sinu kaitseks blokeeritud.">
 
@@ -34,8 +36,8 @@
 <!ENTITY reloadPlugin.pre                                    "Uuesti proovimiseks ">
 <!ENTITY reloadPlugin.middle                                 "laadi leht uuesti">
 <!ENTITY reloadPlugin.post                                   ".">
-<!-- LOCALIZATION NOTE: report.* strings should be as short as possible, ideally 2-3 words. -->
-<!ENTITY report.checkbox                                     "…saadetakse vearaport">
+<!-- LOCALIZATION NOTE (report.please): This and the other report.* strings should be as short as possible, ideally 2-3 words. -->
+<!ENTITY report.please                                       "Saadetakse vearaport">
 <!ENTITY report.submitting                                   "Vearaporti saatmine…">
 <!ENTITY report.submitted                                    "Vearaport on saadetud.">
 <!ENTITY report.disabled                                     "Vearaporti saatmine on keelatud.">

@@ -70,6 +70,8 @@
 <!ENTITY hdrReplyAllButton1.tooltip   "Odpowiedz nadawcy i wszystkim pozostałym korespondentom">
 <!ENTITY hdrReplyListButton1.label    "Odpowiedz liście">
 <!ENTITY hdrReplyListButton1.tooltip  "Wyślij odpowiedź na listę dyskusyjną">
+<!ENTITY hdrFollowupButton1.label "Odpowiedz grupie">
+<!ENTITY hdrFollowupButton1.tooltip "Wyślij odpowiedź na grupę dyskusyjną">
 <!ENTITY hdrForwardButton1.label      "Przekaż">
 <!ENTITY hdrForwardButton1.tooltip    "Przekaż tę wiadomość">
 <!ENTITY hdrJunkButton1.label         "Niechciana">
@@ -134,5 +136,8 @@
 <!ENTITY copyLinkCmd.accesskey "K">
 
 <!ENTITY CopyMessageId.label        "Kopiuj identyfikator wiadomości">
+<!ENTITY CopyMessageId.accesskey "u">
 <!ENTITY OpenMessageForMsgId.label  "Wyświetl wiadomość">
+<!ENTITY OpenMessageForMsgId.accesskey "W">
 <!ENTITY OpenBrowserWithMsgId.label "Otwórz wiadomość w przeglądarce">
+<!ENTITY OpenBrowserWithMsgId.accesskey "t">

@@ -68,11 +68,13 @@
 <!ENTITY pasteCmd.accesskey "p">
 <!ENTITY pasteNoFormattingCmd.key "V">
 <!ENTITY pasteAsQuotationCmd.key "o">
-<!ENTITY editRewrapCmd.label "Yeniden kaydır">
-<!ENTITY editRewrapCmd.key "R">
 <!ENTITY editRewrapCmd.accesskey "e">
 <!ENTITY deleteCmd.label "Sil">
 <!ENTITY deleteCmd.accesskey "S">
+<!ENTITY editRewrapCmd.label "Yeniden kaydır">
+<!ENTITY editRewrapCmd.key "R">
+<!ENTITY renameAttachmentCmd.label "Ekin ismini değiştir…">
+<!ENTITY renameAttachmentCmd.accesskey "s">
 <!ENTITY selectAllCmd.label "Tümünü seç">
 <!ENTITY selectAllCmd.key "A">
 <!ENTITY selectAllCmd.accesskey "e"> 
@@ -279,3 +281,14 @@
 <!ENTITY addressesSidebarTitle.label "Kişiler">
 
 
+
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY attachCloud.label "Filelink…">
+<!ENTITY attachCloudCmd.accesskey "i">
+<!ENTITY attachCloudCmd.label "Filelink">
+<!ENTITY cancelUpload.accesskey "n">
+<!ENTITY cancelUpload.label "Cancel Upload">
+<!ENTITY convertCloud.accesskey "C">
+<!ENTITY convertCloud.label "Convert to…">
+<!ENTITY convertRegularAttachment.accesskey "A">
+<!ENTITY convertRegularAttachment.label "Regular Attachment">

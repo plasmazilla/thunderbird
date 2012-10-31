@@ -58,3 +58,6 @@
 <!ENTITY showCookies.label              "Показване на бисквитките…">
 <!ENTITY showCookies.accesskey          "о">
 
+
+<!ENTITY enableAdaptiveJunkLogging.accesskey "E">
+<!ENTITY enableAdaptiveJunkLogging.label "Enable adaptive junk filter logging">

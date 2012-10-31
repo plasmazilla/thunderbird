@@ -6,6 +6,7 @@ manifest chrome/et.manifest
 locale necko et chrome/et/locale/et/necko/
 locale global et chrome/et/locale/et/global/
 locale mozldap et chrome/et/locale/et/mozldap/
+locale testpilot et chrome/et/locale/et/feedback/
 locale messenger et chrome/et/locale/et/messenger/
 locale passwordmgr et chrome/et/locale/et/passwordmgr/
 locale pipnss et chrome/et/locale/et/pipnss/
@@ -20,6 +21,6 @@ locale messenger-smime et chrome/et/locale/et/messenger-smime/
 locale messenger-region et chrome/et/locale/et/messenger-region/
 locale communicator et chrome/et/locale/et/communicator/
 locale branding et chrome/et/locale/et/branding/
-locale testpilot et chrome/et/locale/et/feedback/
+locale chat et chrome/et/locale/et/chat/
 locale places et chrome/et/locale/et/places/
 locale autoconfig et chrome/et/locale/et/autoconfig/

@@ -40,4 +40,7 @@
 <!ENTITY report.disabled                                     "ক্র্যাশ প্রতিবেদন প্রক্রিয়া নিষ্ক্রিয়।">
 <!ENTITY report.failed                                       "জমা দিতে ব্যর্থ।">
 <!ENTITY report.unavailable                                  "কোনো প্রতিবেদন নেই।">
-<!ENTITY clickToPlayPlugin                                   "Tap here to activate plugin.">
+
+<!ENTITY clickToPlayPlugins                                  "Click here to activate plugins.">
+<!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
+<!ENTITY tapToPlayPlugin                                     "Tap here to activate plugin.">

@@ -10,3 +10,5 @@
 <!ENTITY paneAttachments.title    "সংযুক্তি">
 <!ENTITY paneSecurity.title       "নিরাপত্তা">
 <!ENTITY paneAdvanced.title       "উচ্চ পর্যায়">
+
+<!ENTITY paneChat.title           "Chat">

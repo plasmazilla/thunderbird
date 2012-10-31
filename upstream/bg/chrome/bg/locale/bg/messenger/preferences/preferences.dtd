@@ -10,3 +10,5 @@
 <!ENTITY paneAttachments.title    "Притурки">
 <!ENTITY paneSecurity.title       "Защита">
 <!ENTITY paneAdvanced.title       "Разширени">
+
+<!ENTITY paneChat.title           "Chat">

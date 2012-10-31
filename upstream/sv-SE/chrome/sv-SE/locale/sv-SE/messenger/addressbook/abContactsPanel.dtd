@@ -16,3 +16,9 @@
 <!ENTITY ccButton.accesskey                 "K">
 <!ENTITY bccButton.label                    ">> Dold kopia:">
 <!ENTITY bccButton.accesskey                "o">
+
+<!ENTITY addrBookCardProperties.accesskey   "P">
+<!ENTITY addtoBccFieldMenu.accesskey        "B">
+<!ENTITY addtoCcFieldMenu.accesskey         "C">
+<!ENTITY addtoToFieldMenu.accesskey         "A">
+<!ENTITY deleteAddrBookCard.accesskey       "D">

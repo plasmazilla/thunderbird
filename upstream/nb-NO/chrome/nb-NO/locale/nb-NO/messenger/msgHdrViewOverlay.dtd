@@ -65,6 +65,8 @@
 <!ENTITY hdrReplyAllButton1.tooltip "Svar til avsenderen og alle mottakere">
 <!ENTITY hdrReplyListButton1.label "Svar til liste">
 <!ENTITY hdrReplyListButton1.tooltip "Svar til e-postliste">
+<!ENTITY hdrFollowupButton1.label "Følg opp">
+<!ENTITY hdrFollowupButton1.tooltip "Svar med en oppfølging til denne nyhetsgruppen">
 <!ENTITY hdrForwardButton1.label "Videresend">
 <!ENTITY hdrForwardButton1.tooltip "Videresend denne meldingen">
 <!ENTITY hdrJunkButton1.label "Uønsket">
@@ -129,5 +131,8 @@
 <!ENTITY copyLinkCmd.accesskey    "K">
 
 <!ENTITY CopyMessageId.label "Kopier meldingsid">
+<!ENTITY CopyMessageId.accesskey "K">
 <!ENTITY OpenMessageForMsgId.label "Åpne melding for ID">
+<!ENTITY OpenMessageForMsgId.accesskey "n">
 <!ENTITY OpenBrowserWithMsgId.label "Åpne nettleser med meldingsid">
+<!ENTITY OpenBrowserWithMsgId.accesskey "e">

@@ -17,6 +17,8 @@
 <!ENTITY attachFileCmd.label "檔案…">
 <!ENTITY attachFileCmd.accesskey "F">
 <!ENTITY attachFileCmd.key "A">
+<!ENTITY attachCloudCmd.label "雲端鏈結">
+<!ENTITY attachCloudCmd.accesskey "i">
 <!ENTITY attachPageCmd.label "網頁…">
 <!ENTITY attachPageCmd.accesskey "W">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -36,7 +38,7 @@
 <!ENTITY saveAsDraftCmd.accesskey "D">
 <!ENTITY saveAsTemplateCmd.label "範本">
 <!ENTITY saveAsTemplateCmd.accesskey "T">
-<!ENTITY sendNowCmd.label "寄出">
+<!ENTITY sendNowCmd.label "立刻寄出">
 <!ENTITY sendCmd.keycode "VK_RETURN">
 <!ENTITY sendNowCmd.accesskey "d">
 <!ENTITY sendLaterCmd.label "稍後再寄">
@@ -68,11 +70,13 @@
 <!ENTITY pasteCmd.accesskey "P">
 <!ENTITY pasteNoFormattingCmd.key "V">
 <!ENTITY pasteAsQuotationCmd.key "o">
+<!ENTITY editRewrapCmd.accesskey "w">
+<!ENTITY deleteCmd.label "刪除">
+<!ENTITY deleteCmd.accesskey "D">
 <!ENTITY editRewrapCmd.label "重新斷行">
 <!ENTITY editRewrapCmd.key "R">
-<!ENTITY editRewrapCmd.accesskey "w">
-<!ENTITY deleteCmd.label "刪除項目">
-<!ENTITY deleteCmd.accesskey "D">
+<!ENTITY renameAttachmentCmd.label "重新命名附件…">
+<!ENTITY renameAttachmentCmd.accesskey "e">
 <!ENTITY selectAllCmd.label "全選">
 <!ENTITY selectAllCmd.key "A">
 <!ENTITY selectAllCmd.accesskey "A"> 
@@ -168,11 +172,11 @@
 <!ENTITY addressBookCmd.accesskey "A">
 <!ENTITY addressBookCmd.key "B">
 <!ENTITY accountManagerCmd.label "帳號設定…">
-<!ENTITY accountManagerCmd.accesskey "c">
+<!ENTITY accountManagerCmd.accesskey "S">
 <!ENTITY accountManagerCmdUnix.accesskey "S">
 <!ENTITY preferencesCmd.label "選項…">
 <!ENTITY preferencesCmd.accesskey "O">
-<!ENTITY preferencesCmdUnix.label       "個人偏好設定">
+<!ENTITY preferencesCmdUnix.label       "偏好設定">
 <!ENTITY preferencesCmdUnix.accesskey   "n"> 
 
 <!--  Mac OS X Window Menu -->
@@ -218,7 +222,7 @@
 <!ENTITY subject.accesskey "S">
 <!-- LOCALIZATION NOTE attachments.accesskey This access key should correspond
      to the strings in attachmentCount in composeMsgs.properties -->
-<!ENTITY attachments.accesskey "c">
+<!ENTITY attachments.accesskey "m">
 
 <!-- Format Toolbar, imported from editorAppShell.xul -->
 <!ENTITY SmileButton.tooltip "插入表情符號">
@@ -243,7 +247,7 @@
 <!ENTITY spellCheckNoSuggestions.label "找不到任何建議">
 <!ENTITY spellCheckIgnoreWord.label "忽略單字">
 <!ENTITY spellCheckIgnoreWord.accesskey "I">
-<!ENTITY spellCheckAddToDictionary.label "加入字典">
+<!ENTITY spellCheckAddToDictionary.label "新增到字典">
 <!ENTITY spellCheckAddToDictionary.accesskey "n">
 <!ENTITY undo.label "復原">
 <!ENTITY undo.accesskey "U">
@@ -258,7 +262,7 @@
 
 <!ENTITY openAttachment.label "開啟">
 <!ENTITY openAttachment.accesskey "O">
-<!ENTITY delete.label "刪除項目">
+<!ENTITY delete.label "刪除">
 <!ENTITY delete.accesskey "D">
 <!ENTITY removeAttachment.label "移除附加檔案">
 <!ENTITY removeAttachment.accesskey "m">
@@ -268,6 +272,14 @@
 <!ENTITY selectAll.accesskey "A">
 <!ENTITY attachFile.label "附加檔案…">
 <!ENTITY attachFile.accesskey "F">
+<!ENTITY attachCloud.label "雲端鏈結…">
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY convertCloud.label "轉換成…">
+<!ENTITY convertCloud.accesskey "C">
+<!ENTITY cancelUpload.label "取消上傳">
+<!ENTITY cancelUpload.accesskey "n">
+<!ENTITY convertRegularAttachment.label "普通附件">
+<!ENTITY convertRegularAttachment.accesskey "a">
 <!ENTITY attachPage.label "附加網頁…">
 <!ENTITY attachPage.accesskey "W">
 

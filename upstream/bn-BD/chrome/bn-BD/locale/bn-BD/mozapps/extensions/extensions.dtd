@@ -200,4 +200,8 @@
 <!ENTITY eula.height                          "400px">
 <!ENTITY eula.accept                          "অনুমোদন এবং ইনস্টল…">
 
+<!-- LOCALIZATION NOTE (search.commandKey):
+     The search command key should match findOnCmd.commandkey from browser.dtd -->
+<!ENTITY search.commandkey                    "f">
+
 <!ENTITY settings.path.button.label           "Browse…">

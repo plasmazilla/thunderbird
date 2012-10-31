@@ -8,6 +8,7 @@
 # Reviewer(s):
 #
 # http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
+# hatul <amiadb@gmail.com>
 #
 -->
 <!-- extracted from am-server-top.xul -->
@@ -89,3 +90,10 @@
 <!ENTITY browseNewsrc.label "עיין…">
 <!ENTITY browseNewsrc.accesskey "e">
 
+
+<!ENTITY accountSettingsDesc.label "The following is a special account.  There are no identities associated with it.">
+
+<!ENTITY accountTitle.label "Account Settings">
+<!-- extracted from am-server-top.xul -->
+
+<!ENTITY messageStorage.label "Message Storage">

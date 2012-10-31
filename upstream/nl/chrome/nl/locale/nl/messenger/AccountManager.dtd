@@ -6,6 +6,8 @@
 <!ENTITY accountActionsButton.accesskey "c">
 <!ENTITY addMailAccountButton.label "E-mailaccount toevoegen…">
 <!ENTITY addMailAccountButton.accesskey "E">
+<!ENTITY addIMAccountButton.label "Chataccount toevoegen…">
+<!ENTITY addIMAccountButton.accesskey "C">
 <!ENTITY addOtherAccountButton.label "Andere account toevoegen…">
 <!ENTITY addOtherAccountButton.accesskey "A">
 <!ENTITY setDefaultButton.label "Als standaard instellen">
@@ -22,5 +24,5 @@
      1em = The height of the font.
      XUL/FE DEVELOPERS: DO NOT MODIFY THIS VALUE. It represents the correct size of
      this window for en-US. -->
-<!ENTITY accountManager.size "width: 71em; height: 56em;">
-<!ENTITY accountTree.width "width: 17em;">
+<!ENTITY accountManager.size "width: 107ch; height: 49em;">
+<!ENTITY accountTree.width "width: 31ch;">

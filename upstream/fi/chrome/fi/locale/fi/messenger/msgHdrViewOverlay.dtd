@@ -65,6 +65,8 @@
 <!ENTITY hdrReplyAllButton1.tooltip "Vastaa lähettäjälle ja muille vastaanottajille">
 <!ENTITY hdrReplyListButton1.label "Vastaa listalle">
 <!ENTITY hdrReplyListButton1.tooltip "Vastaa postituslistalle">
+<!ENTITY hdrFollowupButton1.label "Vastaa ryhmään">
+<!ENTITY hdrFollowupButton1.tooltip "Lähetä vastaus tähän keskusteluryhmään">
 <!ENTITY hdrForwardButton1.label "Välitä">
 <!ENTITY hdrForwardButton1.tooltip "Välitä viesti">
 <!ENTITY hdrJunkButton1.label "Roskapostia">
@@ -129,5 +131,8 @@
 <!ENTITY copyLinkCmd.accesskey		 "K">
 
 <!ENTITY CopyMessageId.label "Kopioi viestitunnus">
+<!ENTITY CopyMessageId.accesskey "K">
 <!ENTITY OpenMessageForMsgId.label "Avaa viesti tunnukselle">
-<!ENTITY OpenBrowserWithMsgId.label "Avaa selain viestitunnuksella">
+<!ENTITY OpenMessageForMsgId.accesskey "A">
+<!ENTITY OpenBrowserWithMsgId.label "Avaa selaimeen viestitunnuksella">
+<!ENTITY OpenBrowserWithMsgId.accesskey "s">

@@ -1,0 +1,60 @@
+<!--
+# Translator(s):
+#
+# Hrant <hrantohanyan@mail.am>
+# Xelgen <xelgen.am@gmail.com>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Hrant <hrantohanyan@mail.am>
+# alexxed <alexxed@gmail.com>
+#
+-->
+<!ENTITY itemFormatting.label             "Ձևավորում">
+<!ENTITY itemTags.label                   "Պիտակներ">
+
+<!ENTITY style.label                      "Ոճը.">
+<!ENTITY style.accesskey                  "y">
+<!ENTITY regularStyle.label               "Կանոնավոր">
+<!ENTITY bold.label                       "Հաստ">
+<!ENTITY italic.label                     "Շեղ">
+<!ENTITY boldItalic.label                 "Հաստ շեղ">
+<!ENTITY size.label                       "Չափը.">
+<!ENTITY size.accesskey                   "S">
+<!ENTITY regularSize.label                "Կանոնավոր">
+<!ENTITY bigger.label                     "Մեծ">
+<!ENTITY smaller.label                    "Փոքր">
+<!ENTITY color.label                      "Գույնը.">
+<!ENTITY color.accesskey                  "C">
+<!ENTITY displayWidth.label               "Սովորական տեքստային նամակ">
+<!ENTITY displayText.label                "Մեջբերված սովորական տեքստային նամակները ցուցադրելիս.">
+<!ENTITY colors.label                     "Գույներ">
+<!ENTITY overrideColors.label             "Նամակները ցուցադրելիս օգտագործել հետևյալ գույները.">
+<!ENTITY textColor.label                  "Տեքստի գույնը.">
+<!ENTITY textColor.accesskey              "T">
+<!ENTITY backgroundColor.label            "Խորապատկերի գույնը.">
+<!ENTITY backgroundColor.accesskey        "B">
+
+<!-- LOCALIZATION NOTE : (emoticonsAndStructs.label) 'Emoticons' are also known as 'Smileys', e.g. :-)   -->
+<!ENTITY convertEmoticons.label        "Ցուցարդել զգացմունքները որպես գրաֆիկա">
+<!ENTITY convertEmoticons.accesskey    "D">
+
+<!-- labels -->
+<!ENTITY displayTagsText.label     "Պիտակներով կարող եք կարգավորել և դասակարգել Ձեր նամակները։">
+<!ENTITY addTagButton.label        "Ավելացնել">
+<!ENTITY addTagButton.accesskey    "A">
+<!ENTITY editTagButton.label       "Խմբագրել">
+<!ENTITY editTagButton.accesskey   "E">
+<!ENTITY removeTagButton.label     "Ջնջել">
+<!ENTITY removeTagButton.accesskey "D">
+
+<!-- Fonts -->
+<!ENTITY fontsAndColors.label    "Տառատեսակներ">
+<!ENTITY defaultFont.label       "Հիմ. տառատեսակը.">
+<!ENTITY defaultFont.accesskey   "D">
+<!ENTITY defaultSize.label       "Չափը.">
+<!ENTITY defaultSize.accesskey   "S">
+<!ENTITY fontOptions.accesskey   "A">
+<!ENTITY fontOptions.label       "Ընդլայնված...">

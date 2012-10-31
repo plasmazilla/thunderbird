@@ -5,11 +5,12 @@ locale cookie ar chrome/ar/locale/ar/cookie/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 locale messenger-smime ar chrome/ar/locale/ar/messenger-smime/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale chat ar chrome/ar/locale/ar/chat/
 locale messenger-newsblog ar chrome/ar/locale/ar/messenger-newsblog/
 locale autoconfig ar chrome/ar/locale/ar/autoconfig/
 locale global-region ar chrome/ar/locale/ar/global-region/
 locale passwordmgr ar chrome/ar/locale/ar/passwordmgr/
-locale pipnss ar chrome/ar/locale/ar/pipnss/
+locale pippki ar chrome/ar/locale/ar/pippki/
 locale communicator ar chrome/ar/locale/ar/communicator/
 locale global-platform ar chrome/ar/locale/ar/global-platform/
 locale editor ar chrome/ar/locale/ar/editor/
@@ -19,7 +20,7 @@ locale mozldap ar chrome/ar/locale/ar/mozldap/
 locale necko ar chrome/ar/locale/ar/necko/
 locale testpilot ar chrome/ar/locale/ar/feedback/
 locale alerts ar chrome/ar/locale/ar/alerts/
-locale pippki ar chrome/ar/locale/ar/pippki/
+locale pipnss ar chrome/ar/locale/ar/pipnss/
 locale messenger-region ar chrome/ar/locale/ar/messenger-region/
 locale places ar chrome/ar/locale/ar/places/
 locale messenger ar chrome/ar/locale/ar/messenger/

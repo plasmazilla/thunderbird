@@ -6,6 +6,8 @@
 <!ENTITY accountActionsButton.accesskey "A">
 <!ENTITY addMailAccountButton.label "添加邮件帐户…">
 <!ENTITY addMailAccountButton.accesskey "A">
+<!ENTITY addIMAccountButton.label "添加聊天帐户…">
+<!ENTITY addIMAccountButton.accesskey "C">
 <!ENTITY addOtherAccountButton.label "添加其他账户…">
 <!ENTITY addOtherAccountButton.accesskey "O">
 <!ENTITY setDefaultButton.label "设置为默认帐户">
@@ -22,5 +24,5 @@
      1em = The height of the font.
      XUL/FE DEVELOPERS: DO NOT MODIFY THIS VALUE. It represents the correct size of
      this window for en-US. -->
-<!ENTITY accountManager.size "width: 55em; height: 50em;">
-<!ENTITY accountTree.width "width: 17em;">
+<!ENTITY accountManager.size "width: 105ch; height: 55em;">
+<!ENTITY accountTree.width "width: 31ch;">

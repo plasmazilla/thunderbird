@@ -37,3 +37,5 @@
 <!ENTITY search_engine.title "Персонализиране на търсачката">
 <!ENTITY search_engine.message "Вашият пощенски доставчик може също да ви предложи възможност за уеб търсене.">
 <!ENTITY search_engine.button "Край">
+
+<!ENTITY header2.label "Would you like a new email address?">

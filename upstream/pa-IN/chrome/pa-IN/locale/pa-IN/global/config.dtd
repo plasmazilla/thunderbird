@@ -78,3 +78,8 @@
 <!ENTITY integer.accesskey "I">
 <!ENTITY boolean.label "ਬੂਲੀਅਨ">
 <!ENTITY boolean.accesskey "B">
+
+<!ENTITY focusSearch.key "r">
+<!ENTITY searchPrefs.accesskey "r">
+
+<!ENTITY searchPrefs.label "Search:">

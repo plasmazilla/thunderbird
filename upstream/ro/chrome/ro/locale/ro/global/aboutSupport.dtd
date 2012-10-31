@@ -3,6 +3,7 @@
 #
 # Alexandru Szasz <alexxed@gmail.com>
 # raulmalea <raul.malea@gmail.com>
+# Petru D <dimitriupetru@yahoo.com>
 #
 -->
 <!--
@@ -25,25 +26,38 @@
 <!ENTITY aboutSupport.appBasicsTitle "Chestiuni de bază despre aplicație">
 <!ENTITY aboutSupport.appBasicsName "Nume">
 <!ENTITY aboutSupport.appBasicsVersion "Versiune">
+
 <!ENTITY aboutSupport.appBasicsProfileDir "Directorul de profile">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
+This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
+Windows/Mac use the term "Folder" instead of "Directory" -->
+<!ENTITY aboutSupport.appBasicsProfileDirWinMac "Dosar de profil">
+
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Module activate">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Configurație de construcție">
 <!ENTITY aboutSupport.appBasicsUserAgent "Agent de utilizator">
 <!ENTITY aboutSupport.appBasicsCrashIDs "Rapoarte de defecte">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Utilizare memorie">
 
-<!ENTITY aboutSupport.show.label "Deschide dosarul conținător">
-
+<!ENTITY aboutSupport.showDir.label "Deschide directorul">
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
-variant of aboutSupport.show.label.  This allows us to use the preferred
+variant of aboutSupport.showDir.label.  This allows us to use the preferred
 "Finder" terminology on Mac. -->
 <!ENTITY aboutSupport.showMac.label "Arată în Finder">
+<!-- LOCALIZATION NOTE (aboutSupport.showWin.label): This is the Windows-specific
+variant of aboutSupport.showDir.label. -->
+<!ENTITY aboutSupport.showWin.label "Arată dosarul">
 
-<!ENTITY aboutSupport.modifiedPrefsTitle "Preferințe modificate">
+<!ENTITY aboutSupport.modifiedKeyPrefsTitle "Preferințe importante modificate">
 <!ENTITY aboutSupport.modifiedPrefsName "Nume">
 <!ENTITY aboutSupport.modifiedPrefsValue "Valoare">
 
 <!ENTITY aboutSupport.graphicsTitle "Grafică">
+
+<!ENTITY aboutSupport.jsTitle "JavaScript">
+<!ENTITY aboutSupport.jsIncrementalGC "GC incremental">
+
+<!ENTITY aboutSupport.libraryVersionsTitle "Versiuni de biblioteci">
 
 <!ENTITY aboutSupport.installationHistoryTitle "Istoricul instalării">
 <!ENTITY aboutSupport.updateHistoryTitle "Istoricul actualizărilor">

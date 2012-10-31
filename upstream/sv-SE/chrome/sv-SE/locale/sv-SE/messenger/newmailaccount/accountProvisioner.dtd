@@ -37,3 +37,5 @@
 <!ENTITY search_engine.title "Anpassa sökmotorn">
 <!ENTITY search_engine.message "Din e-postleverantör kan också erbjuda webbsökningsmöjligheter.">
 <!ENTITY search_engine.button "Avsluta">
+
+<!ENTITY header2.label "Would you like a new email address?">

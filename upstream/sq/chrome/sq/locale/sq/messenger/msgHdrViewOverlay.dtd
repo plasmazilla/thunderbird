@@ -65,6 +65,8 @@
 <!ENTITY hdrReplyAllButton1.tooltip "Përgjigjiuni dërguesit dhe tërë marrësve">
 <!ENTITY hdrReplyListButton1.label "Përgjigju te Lista">
 <!ENTITY hdrReplyListButton1.tooltip "Përgjigjuni te lista e postimeve">
+<!ENTITY hdrFollowupButton1.label "Vazhdim">
+<!ENTITY hdrFollowupButton1.tooltip "Postoni një vazhdim te ky grup lajmesh">
 <!ENTITY hdrForwardButton1.label "Përcille">
 <!ENTITY hdrForwardButton1.tooltip "Përcilleni këtë mesazh">
 <!ENTITY hdrJunkButton1.label "I pavlerë">
@@ -91,7 +93,7 @@
 <!ENTITY markAsReadMenuItem1.label "Shënoje si të Lexuar">
 <!ENTITY markAsReadMenuItem1.accesskey "l">
 <!ENTITY markAsUnreadMenuItem1.label "Shënoje si të Palexuar">
-<!ENTITY markAsUnreadMenuItem1.accesskey "p">
+<!ENTITY markAsUnreadMenuItem1.accesskey "P">
 <!ENTITY saveAsMenuItem1.label "Ruajeni si…">
 <!ENTITY saveAsMenuItem1.accesskey "S">
 <!ENTITY viewSourceMenuItem1.label "Shihni Burimin">
@@ -105,7 +107,7 @@
 <!ENTITY saveAsAttachmentCmd.label    "Ruajeni Si…">
 <!ENTITY saveAsAttachmentCmd.accesskey    "S">
 <!ENTITY detachAttachmentCmd.label    "Shqitni…">
-<!ENTITY detachAttachmentCmd.accesskey    "q">
+<!ENTITY detachAttachmentCmd.accesskey    "i">
 <!ENTITY deleteAttachmentCmd.label    "Fshije">
 <!ENTITY deleteAttachmentCmd.accesskey    "F">
 <!ENTITY openAllAttachmentsCmd.label    "Hapini Krejt…">
@@ -117,7 +119,7 @@
 <!ENTITY deleteAllAttachmentsCmd.label    "Fshijini Krejt…">
 <!ENTITY deleteAllAttachmentsCmd.accesskey    "F">
 
-<!ENTITY openAttachment.tooltip "Hape kartelën e bashkangjitur">
+<!ENTITY openAttachment.tooltip "Hapni kartelën e bashkangjitur">
 
 <!-- Attachment toolbar items -->
 <!ENTITY saveAttachmentButton1.label       "Ruaje">
@@ -129,5 +131,8 @@
 <!ENTITY copyLinkCmd.accesskey    "K">
 
 <!ENTITY CopyMessageId.label "Kopjo ID Mesazhi">
+<!ENTITY CopyMessageId.accesskey "K">
 <!ENTITY OpenMessageForMsgId.label "Hap Mesazhin Për ID-në">
-<!ENTITY OpenBrowserWithMsgId.label "Hap Shfletuesin Me ID Mesazhi">
+<!ENTITY OpenMessageForMsgId.accesskey "H">
+<!ENTITY OpenBrowserWithMsgId.label "Hape Shfletuesin Me Mesazhin Me ID">
+<!ENTITY OpenBrowserWithMsgId.accesskey "M">

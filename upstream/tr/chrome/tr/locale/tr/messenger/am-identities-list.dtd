@@ -6,3 +6,6 @@
 <!ENTITY identitiesListDelete.label "Sil">
 <!ENTITY identitiesListDelete.accesskey "S">
 
+
+<!ENTITY identitiesListClose.accesskey "C">
+<!ENTITY identitiesListClose.label "Close">

@@ -23,3 +23,4 @@ locale messenger-smime sk chrome/sk/locale/sk/messenger-smime/
 locale messenger-newsblog sk chrome/sk/locale/sk/messenger-newsblog/
 locale alerts sk chrome/sk/locale/sk/alerts/
 locale messenger-mapi sk chrome/sk/locale/sk/messenger-mapi/
+locale chat sk chrome/sk/locale/sk/chat/

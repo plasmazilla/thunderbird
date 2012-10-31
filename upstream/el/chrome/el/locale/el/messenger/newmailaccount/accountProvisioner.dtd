@@ -38,3 +38,5 @@
 <!ENTITY search_engine.message "Ο πάροχος email μπορεί ακόμα να σας παρέχει κάποιες δυνατότητες αναζήτησης.">
 <!ENTITY search_engine.button "Τέλος">
 
+
+<!ENTITY header2.label "Would you like a new email address?">

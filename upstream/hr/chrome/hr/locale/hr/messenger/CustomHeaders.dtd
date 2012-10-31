@@ -1,0 +1,7 @@
+<!ENTITY window.title "Prilagođena zaglavlja">
+<!ENTITY addButton.label "Dodaj">
+<!ENTITY addButton.accesskey "a">
+<!ENTITY removeButton.label "Ukloni">
+<!ENTITY removeButton.accesskey "U">
+<!ENTITY newMsgHeader.label "Novo zaglavlje poruke:">
+<!ENTITY newMsgHeader.accesskey "N">

@@ -16,3 +16,18 @@
 <!ENTITY button.exportOPML.accesskey "X">
 
 <!ENTITY cmd.close.commandKey "w">
+
+<!ENTITY feedFolder.accesskey        "S">
+
+<!ENTITY feedFolder.label            "Store Articles in:">
+<!ENTITY feedLocation.accesskey      "U">
+
+<!ENTITY feedLocation.label          "Feed URL:">
+<!ENTITY feedLocation.placeholder    "Enter a valid feed url to Add">
+<!ENTITY feedTitle.accesskey         "T">
+
+<!ENTITY locationValidate.label      "Validate">
+<!ENTITY quickMode.accesskey         "h">
+
+<!ENTITY quickMode.label             "Show the article summary instead of loading the web page">
+<!ENTITY validateText.label          "Check validation and retrieve a valid url.">

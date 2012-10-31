@@ -10,3 +10,5 @@
 <!ENTITY addNewToolbar.label      "ਨਵੀਂ ਟੂਲਬਾਰ ਸ਼ਾਮਲ">
 <!ENTITY saveChanges.label        "ਸਮਾਪਤ">
 <!ENTITY undoChanges.label        "ਤਬਦੀਲੀਆਂ ਵਾਪਿਸ ਲਵੋ">
+
+<!ENTITY dialog.dimensions        "width: 92ch; height: 36em;">

@@ -19,3 +19,6 @@
 <!ENTITY spellDictionaries.label "Језици">
 <!ENTITY spellDictionaries.accesskey "Ј">
 
+
+<!ENTITY spellUndoAddToDictionary.accesskey "n">
+<!ENTITY spellUndoAddToDictionary.label "Undo Add To Dictionary">

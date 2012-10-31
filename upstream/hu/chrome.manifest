@@ -14,11 +14,12 @@ locale global-region hu chrome/hu/locale/hu/global-region/
 locale mozldap hu chrome/hu/locale/hu/mozldap/
 locale autoconfig hu chrome/hu/locale/hu/autoconfig/
 locale passwordmgr hu chrome/hu/locale/hu/passwordmgr/
-locale communicator hu chrome/hu/locale/hu/communicator/
+locale chat hu chrome/hu/locale/hu/chat/
 locale messenger hu chrome/hu/locale/hu/messenger/
 locale alerts hu chrome/hu/locale/hu/alerts/
 locale pippki hu chrome/hu/locale/hu/pippki/
 locale global hu chrome/hu/locale/hu/global/
+locale communicator hu chrome/hu/locale/hu/communicator/
 manifest chrome/hu.manifest
 locale global-platform hu chrome/hu/locale/hu/global-platform/
 locale places hu chrome/hu/locale/hu/places/

@@ -63,3 +63,10 @@
 <!ENTITY newsrcPicker.label "Выбраць файл newsrc">
 <!ENTITY browseNewsrc.label "Агляд…">
 <!ENTITY browseNewsrc.accesskey "г">
+
+<!ENTITY accountSettingsDesc.label "The following is a special account.  There are no identities associated with it.">
+
+<!ENTITY accountTitle.label "Account Settings">
+<!-- extracted from am-server-top.xul -->
+
+<!ENTITY messageStorage.label "Message Storage">

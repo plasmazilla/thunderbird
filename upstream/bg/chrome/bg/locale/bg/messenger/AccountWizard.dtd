@@ -56,6 +56,10 @@
 <!ENTITY popType.accesskey "P">
 <!ENTITY leaveMsgsOnSrvr.label "Запазване съобщенията на сървъра">
 <!ENTITY leaveMsgsOnSrvr.accesskey "З">
+<!ENTITY portNum.label "Порт:">
+<!ENTITY portNum.accesskey "о">
+<!ENTITY defaultPortLabel.label "Стандартен:">
+<!ENTITY defaultPortValue.label "">
 <!-- LOCALIZATION NOTE (haveSmtp1.prefix and haveSmtp1.suffix2) : Do not translate "SMTP" and "&quot;" in
      these variables. Also, translate haveSmtp1.prefix and haveSmtp1.suffix2 as a single sentence, inserting
      text after the "&quot;" entity in haveSmtp1.suffix2, if required grammatically.
@@ -112,3 +116,35 @@
 <!ENTITY deferStorage.accesskey "щ">
 <!ENTITY clickFinish.label "Натиснете Край, за да запазите настройките и напуснете този помощник.">
 <!ENTITY clickFinish.labelMac "Натиснете Край, за да запазите настройките и напуснете този помощник.">
+
+<!ENTITY haveSmtp1.suffix3 "&quot;, will be used.">
+<!ENTITY haveSmtp2.suffix3 "&quot;, will be used.">
+<!ENTITY haveSmtp3.suffix3 "&quot;, is identical to your incoming server, your incoming user name will be used to access it.">
+<!ENTITY incomingServer.accesskey "S">
+<!-- LOCALIZATION NOTE (incomingServerNameDesc.label) : Do not translate "&quot;pop.example.net&quot;" in below line -->
+<!ENTITY incomingServer.description "Enter the name of your incoming server (for example, &quot;mail.example.net&quot;).">
+<!ENTITY incomingServer.label "Incoming Server:">
+
+<!-- Entities for Incoming Server page -->
+
+<!ENTITY incomingTitle.label "Incoming Server Information">
+<!ENTITY incomingUsername.accesskey "U">
+<!-- LOCALIZATION NOTE (incomingUsername.description) : do not translate "&quot;jsmith&quot;" in below line -->
+<!ENTITY incomingUsername.description "Enter the incoming user name given to you by your email provider (for example, &quot;jsmith&quot;).">
+<!ENTITY incomingUsername.label "User Name:">
+
+<!-- LOCALIZATION NOTE (modifyOutgoing.suffix) : This string will be appended after each of
+     haveSmtp1.suffix3, haveSmtp2.suffix3, haveSmtp3.suffix3 .
+-->
+<!ENTITY modifyOutgoing.suffix "You can change outgoing servers in the account settings.">
+<!ENTITY outgoingServer.accesskey "S">
+<!-- LOCALIZATION NOTE (outgoingServer.description) : Do not translate "SMTP" and "&quot;smtp.example.net&quot;" in below line -->
+<!ENTITY outgoingServer.description "Enter the name of your outgoing server (SMTP) (for example, &quot;smtp.example.net&quot;).">
+<!ENTITY outgoingServer.label "Outgoing Server:">
+
+<!-- Entities for Outgoing Server page -->
+
+<!ENTITY outgoingTitle.label "Outgoing Server Information">
+<!ENTITY outgoingUsername.accesskey "U">
+<!ENTITY outgoingUsername.description "Enter the outgoing user name given to you by your email provider (this is typically the same as your incoming user name).">
+<!ENTITY outgoingUsername.label "Outgoing User Name:">

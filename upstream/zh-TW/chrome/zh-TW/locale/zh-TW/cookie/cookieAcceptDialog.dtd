@@ -4,11 +4,10 @@
 <!ENTITY     props.path.label               "路徑:">
 <!ENTITY     props.secure.label             "送出:">
 <!ENTITY     props.expires.label            "有效期限:">
-<!ENTITY     props.policy.label             "政策:"> 
 
 <!ENTITY     button.allow.label             "允許">
 <!ENTITY     button.allow.accesskey         "A">
-<!ENTITY     button.session.label           "允許此次連線 (Session)">
+<!ENTITY     button.session.label           "此瀏覽階段中允許">
 <!ENTITY     button.session.accesskey       "S">
 <!ENTITY     button.deny.label              "拒絕">
 <!ENTITY     button.deny.accesskey          "D">

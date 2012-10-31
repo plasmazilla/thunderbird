@@ -80,3 +80,8 @@
 <!ENTITY boolean.label "Булово (boolean)">
 <!ENTITY boolean.accesskey "Б">
 
+
+<!ENTITY focusSearch.key "r">
+<!ENTITY searchPrefs.accesskey "r">
+
+<!ENTITY searchPrefs.label "Search:">

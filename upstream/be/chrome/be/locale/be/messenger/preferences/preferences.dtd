@@ -9,3 +9,5 @@
 <!ENTITY paneAttachments.title "Далучэнні">
 <!ENTITY paneSecurity.title "Бяспека">
 <!ENTITY paneAdvanced.title "Пашыраны">
+
+<!ENTITY paneChat.title           "Chat">

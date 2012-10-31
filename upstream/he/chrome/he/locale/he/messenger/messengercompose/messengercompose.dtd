@@ -81,11 +81,13 @@
 <!ENTITY pasteCmd.accesskey "ה">
 <!ENTITY pasteNoFormattingCmd.key "V">
 <!ENTITY pasteAsQuotationCmd.key "o">
-<!ENTITY editRewrapCmd.label "בצע מחדש גלישת שורות">
-<!ENTITY editRewrapCmd.key "R">
 <!ENTITY editRewrapCmd.accesskey "w">
 <!ENTITY deleteCmd.label "מחק">
 <!ENTITY deleteCmd.accesskey "ח">
+<!ENTITY editRewrapCmd.label "בצע מחדש גלישת שורות">
+<!ENTITY editRewrapCmd.key "R">
+<!ENTITY renameAttachmentCmd.label "שינוי שם קובץ מצורף…">
+<!ENTITY renameAttachmentCmd.accesskey "ש">
 <!ENTITY selectAllCmd.label "בחר הכול">
 <!ENTITY selectAllCmd.key "A">
 <!ENTITY selectAllCmd.accesskey "ב"> 
@@ -292,3 +294,14 @@
 <!ENTITY addressesSidebarTitle.label "אנשי קשר">
 
 
+
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY attachCloud.label "Filelink…">
+<!ENTITY attachCloudCmd.accesskey "i">
+<!ENTITY attachCloudCmd.label "Filelink">
+<!ENTITY cancelUpload.accesskey "n">
+<!ENTITY cancelUpload.label "Cancel Upload">
+<!ENTITY convertCloud.accesskey "C">
+<!ENTITY convertCloud.label "Convert to…">
+<!ENTITY convertRegularAttachment.accesskey "A">
+<!ENTITY convertRegularAttachment.label "Regular Attachment">

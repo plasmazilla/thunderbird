@@ -7,7 +7,7 @@ locale testpilot nl chrome/nl/locale/nl/feedback/
 locale alerts nl chrome/nl/locale/nl/alerts/
 locale places nl chrome/nl/locale/nl/places/
 locale global-region nl chrome/nl/locale/nl/global-region/
-locale branding nl chrome/nl/locale/nl/branding/
+locale chat nl chrome/nl/locale/nl/chat/
 manifest chrome/nl.manifest
 locale mozapps nl chrome/nl/locale/nl/mozapps/
 locale messenger-mapi nl chrome/nl/locale/nl/messenger-mapi/
@@ -23,3 +23,4 @@ locale messenger-smime nl chrome/nl/locale/nl/messenger-smime/
 locale messenger nl chrome/nl/locale/nl/messenger/
 locale global-platform nl chrome/nl/locale/nl/global-platform/
 locale mozldap nl chrome/nl/locale/nl/mozldap/
+locale branding nl chrome/nl/locale/nl/branding/

@@ -1,0 +1,57 @@
+<!--
+# Translator(s):
+#
+# Hrant <hrantohanyan@mail.am>
+# Hegine <heghinedavtyan@mail.ru>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Hrant <hrantohanyan@mail.am>
+# armenzg <armenzg@gmail.com>
+# alexxed <alexxed@gmail.com>
+#
+-->
+<!ENTITY window.title "Ֆիլտրի կանոնները">
+<!ENTITY filterEditorDialog.dimensions "width: 100ch;">
+<!ENTITY filterName.label "Ֆիլտրի անունը.">
+<!ENTITY filterName.accesskey "i">
+
+<!ENTITY junk.label "Թափոն">
+<!ENTITY notJunk.label "Թափոն չէ">
+
+<!ENTITY lowestPriorityCmd.label "Ամենացածր">
+<!ENTITY lowPriorityCmd.label "Ցածր">
+<!ENTITY normalPriorityCmd.label "Նորմալ">
+<!ENTITY highPriorityCmd.label "Բարձր">
+<!ENTITY highestPriorityCmd.label "Ամենաբարձր">
+
+<!ENTITY contextDesc.label "Կիրառել ֆիլտրը, երբ՝">
+<!ENTITY contextDesc.accesskey "w">
+<!ENTITY contextIncoming.label "Փոստի ստուգում">
+<!ENTITY contextManual.label "Ձեռադիր բացում">
+<!ENTITY contextBoth.label "Ստուգել նամակները կամ Բացել ձեռադիր">
+<!ENTITY contextPostPlugin.label "Նամակների ստուգում (դասակարգումից հետո)">
+<!ENTITY contextPostPluginBoth.label "Նամակների ստուգում (դասակարգումից հետո) կամ Ձեռադիր բացում">
+<!ENTITY filterActionDesc.label "Կատարել այս գործողությունը.">
+<!ENTITY filterActionDesc.accesskey "P">
+
+<!-- New Style Filter Rule Actions -->
+<!ENTITY moveMessage.label "Տեղափոխել նամակը՝">
+<!ENTITY copyMessage.label "Պատճենել՝">
+<!ENTITY forwardTo.label "Փոխանցել՝">
+<!ENTITY replyWithTemplate.label "Պատասխանել Նմուշով">
+<!ENTITY markMessageRead.label "Նշել որպես կարդացած">
+<!ENTITY markMessageUnread.label "Նշել որպես կարդացած">
+<!ENTITY markMessageStarred.label "Ավելացնել աստղ">
+<!ENTITY setPriority.label "Առաջնայնությունը՝">
+<!ENTITY addTag.label "Պիտակված նամակ">
+<!ENTITY setJunkScore.label "Տալ խլամի վիճակ՝">
+<!ENTITY deleteMessage.label "Ջնջել նամակը">
+<!ENTITY deleteFromPOP.label "Ջնջել POP սպասարկիչից">
+<!ENTITY fetchFromPOP.label "Ընտրել POP սպասարկիչից">
+<!ENTITY ignoreThread.label "Անտեսել թեմատիկան">
+<!ENTITY ignoreSubthread.label "Անտեսել ենթաթեման">
+<!ENTITY watchThread.label "Նայել թեմատիկան">
+<!ENTITY stopExecution.label "Կանգնեցնել ֆիլտրը">

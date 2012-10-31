@@ -69,6 +69,8 @@
 <!ENTITY hdrReplyAllButton1.tooltip		"このメッセージの差出人と他の受信者全員に返信します">
 <!ENTITY hdrReplyListButton1.label		"リストに返信">
 <!ENTITY hdrReplyListButton1.tooltip		"メーリングリストに返信します">
+<!ENTITY hdrFollowupButton1.label		"フォローアップ">
+<!ENTITY hdrFollowupButton1.tooltip		"このニュースグループにフォローアップの投稿をします">
 <!ENTITY hdrForwardButton1.label		"転送">
 <!ENTITY hdrForwardButton1.tooltip		"このメッセージを転送します">
 <!ENTITY hdrJunkButton1.label			"迷惑マークを付ける">
@@ -133,5 +135,8 @@
 <!ENTITY copyLinkCmd.accesskey			"C">
 
 <!ENTITY CopyMessageId.label			"メッセージ ID をコピー">
+<!ENTITY CopyMessageId.accesskey		"C">
 <!ENTITY OpenMessageForMsgId.label		"次の ID のメッセージを開く">
+<!ENTITY OpenMessageForMsgId.accesskey		"O">
 <!ENTITY OpenBrowserWithMsgId.label		"次のメッセージ ID をブラウザで開く">
+<!ENTITY OpenBrowserWithMsgId.accesskey		"B">

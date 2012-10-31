@@ -1,3 +1,4 @@
+locale chat da chrome/da/locale/da/chat/
 locale mozapps da chrome/da/locale/da/mozapps/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
@@ -5,11 +6,11 @@ locale places da chrome/da/locale/da/places/
 locale messenger-mapi da chrome/da/locale/da/messenger-mapi/
 locale global da chrome/da/locale/da/global/
 locale mozldap da chrome/da/locale/da/mozldap/
-locale necko da chrome/da/locale/da/necko/
+locale alerts da chrome/da/locale/da/alerts/
 locale messenger-region da chrome/da/locale/da/messenger-region/
+locale editor da chrome/da/locale/da/editor/
 locale cookie da chrome/da/locale/da/cookie/
 locale pipnss da chrome/da/locale/da/pipnss/
-locale alerts da chrome/da/locale/da/alerts/
 locale branding da chrome/da/locale/da/branding/
 locale passwordmgr da chrome/da/locale/da/passwordmgr/
 locale global-region da chrome/da/locale/da/global-region/
@@ -17,7 +18,7 @@ locale messenger-smime da chrome/da/locale/da/messenger-smime/
 locale testpilot da chrome/da/locale/da/feedback/
 locale global-platform da chrome/da/locale/da/global-platform/
 locale pippki da chrome/da/locale/da/pippki/
-locale editor da chrome/da/locale/da/editor/
+locale necko da chrome/da/locale/da/necko/
 manifest chrome/da.manifest
 locale autoconfig da chrome/da/locale/da/autoconfig/
 locale communicator da chrome/da/locale/da/communicator/

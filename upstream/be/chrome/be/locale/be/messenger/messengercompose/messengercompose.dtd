@@ -62,11 +62,13 @@
 <!ENTITY pasteCmd.accesskey "у">
 <!ENTITY pasteNoFormattingCmd.key "V">
 <!ENTITY pasteAsQuotationCmd.key "o">
-<!ENTITY editRewrapCmd.label "Перазагінаць">
-<!ENTITY editRewrapCmd.key "R">
 <!ENTITY editRewrapCmd.accesskey "г">
 <!ENTITY deleteCmd.label "Выдаліць">
 <!ENTITY deleteCmd.accesskey "д">
+<!ENTITY editRewrapCmd.label "Перазагінаць">
+<!ENTITY editRewrapCmd.key "R">
+<!ENTITY renameAttachmentCmd.label "Перайменаваць далучэнне…">
+<!ENTITY renameAttachmentCmd.accesskey "й">
 <!ENTITY selectAllCmd.label "Вылучыць усё">
 <!ENTITY selectAllCmd.key "A">
 <!ENTITY selectAllCmd.accesskey "у">
@@ -238,3 +240,14 @@
 <!ENTITY spellAddDictionaries.label "Дадаць слоўнікі…">
 <!ENTITY spellAddDictionaries.accesskey "Д">
 <!ENTITY addressesSidebarTitle.label "Сувязі">
+
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY attachCloud.label "Filelink…">
+<!ENTITY attachCloudCmd.accesskey "i">
+<!ENTITY attachCloudCmd.label "Filelink">
+<!ENTITY cancelUpload.accesskey "n">
+<!ENTITY cancelUpload.label "Cancel Upload">
+<!ENTITY convertCloud.accesskey "C">
+<!ENTITY convertCloud.label "Convert to…">
+<!ENTITY convertRegularAttachment.accesskey "A">
+<!ENTITY convertRegularAttachment.label "Regular Attachment">

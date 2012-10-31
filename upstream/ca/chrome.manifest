@@ -1,4 +1,5 @@
 locale testpilot ca chrome/ca/locale/ca/feedback/
+locale chat ca chrome/ca/locale/ca/chat/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale alerts ca chrome/ca/locale/ca/alerts/

@@ -27,3 +27,6 @@
 
 <!ENTITY done.title "இறக்குமதி முடிந்தது">
 <!ENTITY done.label "கீழ்கண்ட உருப்படிகள் வெற்றிகரமாக இறக்கப்பட்டது:">
+
+<!ENTITY importFromSeamonkey3.accesskey "S">
+<!ENTITY importFromSeamonkey3.label     "SeaMonkey 2 or later">
