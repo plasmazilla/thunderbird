@@ -139,5 +139,6 @@ Entities below were automatically added by compare-locales,
 <!ENTITY OpenMessageForMsgId.accesskey "O">
 <!ENTITY hdrFollowupButton1.label "Followup">
 <!ENTITY hdrFollowupButton1.tooltip "Post a followup to this newsgroup">
+<!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">
 
 <!ENTITY openAttachment.tooltip "Open the attached file">

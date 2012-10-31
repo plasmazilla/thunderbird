@@ -1,28 +1,32 @@
-<!ENTITY windowTitle.label            "Chat Account Wizard">
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY accountProtocolTitle.label   "Chat network">
-<!ENTITY accountProtocolInfo.label    "Please choose the network of your chat account.">
-<!ENTITY accountProtocolField.label   "Network:">
-<!ENTITY accountProtocolGetMore.label "Get more…">
+<!ENTITY windowTitle.label            "Помощник за сметки за разговор">
 
-<!ENTITY accountUsernameTitle.label   "Username">
-<!ENTITY accountUsernameDuplicate.label "This account is already configured!">
+<!ENTITY accountProtocolTitle.label   "Мрежи за разговор">
+<!ENTITY accountProtocolInfo.label    "Моля, изберете мрежата на вашата сметка за разговор">
+<!ENTITY accountProtocolField.label   "Мрежа:">
+<!ENTITY accountProtocolGetMore.label "Изтегляне на повече…">
 
-<!ENTITY accountPasswordTitle.label   "Password">
-<!ENTITY accountPasswordInfo.label    "Please enter your password in the box below.">
-<!ENTITY accountPasswordField.label   "Password:">
-<!ENTITY accountPasswordManager.label "The password entered here will be stored in the Password Manager. Leave this box empty if you want to be prompted for your password each time this account is connected.">
+<!ENTITY accountUsernameTitle.label   "Потребителско име">
+<!ENTITY accountUsernameDuplicate.label "Сметката вече е настроена!">
 
-<!ENTITY accountAdvancedTitle.label   "Advanced Options">
-<!ENTITY accountAdvancedInfo.label    "Feel free to skip this step if you want to.">
-<!ENTITY accountAdvanced.newMailNotification.label   "Notify on new Mail">
-<!ENTITY accountAliasGroupbox.caption "Local Alias">
-<!ENTITY accountAliasField.label      "Alias:">
-<!ENTITY accountAliasInfo.label       "This will only be displayed in your conversations when you talk, remote contacts won't see it.">
-<!ENTITY accountProxySettings.caption "Proxy Settings">
-<!ENTITY accountProxySettings.change.label     "Change…">
-<!ENTITY accountProxySettings.change.accessKey "C">
+<!ENTITY accountPasswordTitle.label   "Парола">
+<!ENTITY accountPasswordInfo.label    "Моля, въведете парола в полето по-долу.">
+<!ENTITY accountPasswordField.label   "Парола:">
+<!ENTITY accountPasswordManager.label "Въведената парола ще се запази в управлението на пароли. Оставете това поле празно, ако искате да бъде питани за вашата парола всеки път, когато се свързвате към тази сметка.">
 
-<!ENTITY accountSummaryTitle.label   "Summary">
-<!ENTITY accountSummaryInfo.label    "A summary of the information you entered is displayed below. Please check it before the account is created.">
-<!ENTITY accountSummary.connectNow.label "Connect this account now.">
+<!ENTITY accountAdvancedTitle.label   "За напреднали">
+<!ENTITY accountAdvancedInfo.label    "Можете да пропуснете тази стъпка, ако искате.">
+<!ENTITY accountAdvanced.newMailNotification.label   "Уведомяване при нова поща">
+<!ENTITY accountAliasGroupbox.caption "Локален псевдоним">
+<!ENTITY accountAliasField.label      "Псевдоним:">
+<!ENTITY accountAliasInfo.label       "Ще бъде показвано само във вашите разговори докато говорите, отдалечените контакти няма да го виждат.">
+<!ENTITY accountProxySettings.caption "Настройки на прокси">
+<!ENTITY accountProxySettings.change.label     "Промяна…">
+<!ENTITY accountProxySettings.change.accessKey "П">
+
+<!ENTITY accountSummaryTitle.label   "Обобщение">
+<!ENTITY accountSummaryInfo.label    "По-долу е обобщението на информацията, която въведохте. Моля, проверете всички преди сметката да бъде създадена.">
+<!ENTITY accountSummary.connectNow.label "Свързване към сметката сега.">

@@ -57,3 +57,8 @@
 <!ENTITY showCookies.label              "Vis infokapslar">
 <!ENTITY showCookies.accesskey          "V">
 
+
+<!ENTITY doNotTrack.accesskey           "d">
+
+<!-- Do Not Track -->
+<!ENTITY doNotTrack.label               "Tell web sites I do not want to be tracked">

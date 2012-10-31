@@ -52,3 +52,7 @@ Entities below were automatically added by compare-locales,
 -->
 
 <!ENTITY filterEditorDialog.dimensions "width: 100ch;">
+
+
+<!ENTITY addAction.tooltip "Add a new action">
+<!ENTITY removeAction.tooltip "Remove this action">

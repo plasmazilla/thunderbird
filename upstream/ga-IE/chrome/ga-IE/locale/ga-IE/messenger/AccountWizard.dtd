@@ -1,4 +1,8 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!-- Entities for AccountWizard -->
+
 
 <!ENTITY windowTitle.label "Treoraí na gCuntas">
 <!ENTITY accountWizard.size "width: 44em; height: 42em;">
@@ -31,23 +35,11 @@
 
 <!ENTITY emailLabel.label "Seoladh Ríomhphoist:">
 <!ENTITY emailLabel.accesskey "e">
-<!-- Entities for Server page -->
+<!-- Entities for Incoming Server page -->
 
 
-<!ENTITY serverTitle.label "Eolas faoin bhfreastalaí">
+<!ENTITY incomingTitle.label "Maidir leis an bhFreastalaí Isteach">
 <!ENTITY incomingServerTypeDesc.label "Roghnaigh cineál do fhreastalaí isteach.">
-<!-- LOCALIZATION NOTE (incomingServerNameDesc.label) : Do not translate "&quot;pop.example.net&quot;" in below line -->
-<!ENTITY incomingServerNameDesc.label "Iontráil ainm do fhreastalaí isteach (mar shampla, &quot;post.sampla.net&quot;).">
-<!ENTITY incomingServerLabel.label "Freastalaí Ríomhphoist Isteach:">
-<!ENTITY incomingServerLabel.accesskey "s">
-<!-- LOCALIZATION NOTE (newsServerNameDesc.label) : Do not translate "NNTP" or the "&quot;" entities in below line -->
-<!ENTITY newsServerNameDesc.label "Iontráil ainm do fhreastalaí nuachta (NNTP) (mar shampla, &quot;nuacht.sampla.net&quot;).">
-<!-- LOCALIZATION NOTE (smtpServerDesc.label) : Do not translate "SMTP" and "&quot;smtp.example.net&quot;" in below line -->
-<!ENTITY smtpServerDesc.label "Iontráil ainm do fhreastalaí amach (SMTP) (mar shampla, &quot;smtp.sampla.net&quot;).">
-<!ENTITY smtpServerLabel.label "Freastalaí Ríomhphoist Amach:">
-<!ENTITY smtpServerLabel.accesskey "o">
-<!ENTITY newsServerLabel.label "Freastalaí Nuachta:">
-<!ENTITY newsServerLabel.accesskey "N">
 <!-- LOCALIZATION NOTE (imapType.label) : Do not translate "IMAP" in below line -->
 <!ENTITY imapType.label "IMAP">
 <!ENTITY imapType.accesskey "I">
@@ -60,6 +52,29 @@
 <!ENTITY portNum.accesskey "o">
 <!ENTITY defaultPortLabel.label "Réamhshocrú:">
 <!ENTITY defaultPortValue.label "">
+<!-- LOCALIZATION NOTE (incomingServerNameDesc.label) : Do not translate "&quot;pop.example.net&quot;" in below line -->
+<!ENTITY incomingServer.description "Iontráil ainm do fhreastalaí isteach (mar shampla, &quot;post.sampla.net&quot;).">
+<!ENTITY incomingServer.label "Freastalaí Ríomhphoist Isteach:">
+<!ENTITY incomingServer.accesskey "s">
+<!-- LOCALIZATION NOTE (incomingUsername.description) : do not translate "&quot;jsmith&quot;" in below line -->
+<!ENTITY incomingUsername.description "Cuir isteach an t-ainm úsáideora isteach a thug do sholáthraí ríomhphoist duit (mar shampla, &quot;tadhgor&quot;).">
+<!ENTITY incomingUsername.label "Ainm Úsáideora:">
+<!ENTITY incomingUsername.accesskey "A">
+<!-- LOCALIZATION NOTE (newsServerNameDesc.label) : Do not translate "NNTP" or the "&quot;" entities in below line -->
+<!ENTITY newsServerNameDesc.label "Iontráil ainm do fhreastalaí nuachta (NNTP) (mar shampla, &quot;nuacht.sampla.net&quot;).">
+<!ENTITY newsServerLabel.label "Freastalaí Nuachta:">
+<!ENTITY newsServerLabel.accesskey "s">
+<!-- Entities for Outgoing Server page -->
+
+
+<!ENTITY outgoingTitle.label "Maidir leis an bhFreastalaí Amach">
+<!-- LOCALIZATION NOTE (outgoingServer.description) : Do not translate "SMTP" and "&quot;smtp.example.net&quot;" in below line -->
+<!ENTITY outgoingServer.description "Iontráil ainm do fhreastalaí amach (SMTP) (mar shampla, &quot;smtp.sampla.net&quot;).">
+<!ENTITY outgoingServer.label "Freastalaí Amach:">
+<!ENTITY outgoingServer.accesskey "s">
+<!ENTITY outgoingUsername.description "Cuir isteach an t-ainm úsáideora amach a thug do sholáthraí ríomhphoist duit (is iondúil gurb ionann é seo agus d'ainm úsáideora isteach).">
+<!ENTITY outgoingUsername.label "Ainm Úsáideora Amach:">
+<!ENTITY outgoingUsername.accesskey "A">
 <!-- LOCALIZATION NOTE (modifyOutgoing.suffix) : This string will be appended after each of
      haveSmtp1.suffix3, haveSmtp2.suffix3, haveSmtp3.suffix3 .
 -->
@@ -71,18 +86,6 @@
 -->
 <!ENTITY haveSmtp1.prefix "Bainfear úsáid as do fhreastalaí ríomhphoist amach (SMTP), &quot;">
 <!ENTITY haveSmtp1.suffix3 "&quot; a úsáidfear.">
-<!-- Entities for Login page -->
-
-
-<!ENTITY loginTitle.label "Ainmneacha Úsáideora">
-<!ENTITY usernameDesc.label "Cuir isteach an t-ainm úsáideora isteach a thug do sholáthraí ríomhphoist duit">
-<!-- LOCALIZATION NOTE (usernameExample.label) : do not translate "&quot;jsmith&quot;" in below line -->
-<!ENTITY usernameExample.label "(mar shampla, &quot;torodai&quot;).">
-<!ENTITY usernameLabel.label "Ainm Úsáideora Isteach:">
-<!ENTITY usernameLabel.accesskey "I">
-<!ENTITY usernameSmtpDesc.label "Cuir isteach an t-ainm úsáideora amach a thug do sholáthraí ríomhphoist duit (is iondúil gurb ionann é seo agus d'ainm úsáideora isteach).">
-<!ENTITY usernameSmtpLabel.label "Ainm Úsáideora Amach:">
-<!ENTITY usernameSmtpLabel.accesskey "o">
 <!-- LOCALIZATION NOTE (haveSmtp2.prefix and haveSmtp2.suffix3) : Do not translate "SMTP" and "&quot;" in
      these variables. Also, translate haveSmtp2.prefix and haveSmtp2.suffix3 as a single sentence, inserting
      text after the "&quot;" entity in haveSmtp2.suffix3, if required grammatically.
@@ -119,27 +122,3 @@
 <!ENTITY deferStorage.accesskey "U">
 <!ENTITY clickFinish.label "Cliceáil Críochnaigh chun na socruithe seo a shábháil agus scor de Threoraí na gCuntas.">
 <!ENTITY clickFinish.labelMac "Cliceáil Déanta chun na socruithe seo a shábháil agus scor de Threoraí na gCuntas.">
-
-<!ENTITY incomingServer.accesskey "S">
-<!-- LOCALIZATION NOTE (incomingServerNameDesc.label) : Do not translate "&quot;pop.example.net&quot;" in below line -->
-<!ENTITY incomingServer.description "Enter the name of your incoming server (for example, &quot;mail.example.net&quot;).">
-<!ENTITY incomingServer.label "Incoming Server:">
-
-<!-- Entities for Incoming Server page -->
-
-<!ENTITY incomingTitle.label "Incoming Server Information">
-<!ENTITY incomingUsername.accesskey "U">
-<!-- LOCALIZATION NOTE (incomingUsername.description) : do not translate "&quot;jsmith&quot;" in below line -->
-<!ENTITY incomingUsername.description "Enter the incoming user name given to you by your email provider (for example, &quot;jsmith&quot;).">
-<!ENTITY incomingUsername.label "User Name:">
-<!ENTITY outgoingServer.accesskey "S">
-<!-- LOCALIZATION NOTE (outgoingServer.description) : Do not translate "SMTP" and "&quot;smtp.example.net&quot;" in below line -->
-<!ENTITY outgoingServer.description "Enter the name of your outgoing server (SMTP) (for example, &quot;smtp.example.net&quot;).">
-<!ENTITY outgoingServer.label "Outgoing Server:">
-
-<!-- Entities for Outgoing Server page -->
-
-<!ENTITY outgoingTitle.label "Outgoing Server Information">
-<!ENTITY outgoingUsername.accesskey "U">
-<!ENTITY outgoingUsername.description "Enter the outgoing user name given to you by your email provider (this is typically the same as your incoming user name).">
-<!ENTITY outgoingUsername.label "Outgoing User Name:">

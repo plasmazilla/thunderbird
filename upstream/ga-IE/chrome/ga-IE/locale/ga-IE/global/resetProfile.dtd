@@ -2,12 +2,14 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this file,
    - You can obtain one at http://mozilla.org/MPL/2.0/.  -->
 
-<!ENTITY resetProfile.dialog.title        "Reset &brandShortName;">
-<!ENTITY resetProfile.dialog.description  "Are you sure you want to reset &brandShortName; to its initial state?">
-<!ENTITY resetProfile.dialog.items.label  "The following will be preserved:">
-<!ENTITY resetProfile.dialog.footer.label "&brandShortName; will restart and everything else will be removed.">
-<!ENTITY resetProfile.dialog.button.label "Reset &brandShortName;">
+<!ENTITY resetProfile.dialog.title "Athshocraigh &brandShortName;">
+<!ENTITY resetProfile.dialog.description "An bhfuil tú cinnte gur mhaith leat &brandShortName; a athshocrú go hiomlán?">
+<!ENTITY resetProfile.dialog.items2.label "Déanfaidh &brandShortName; iarracht na rudaí seo a leanas a chaomhnú:">
+<!ENTITY resetProfile.dialog.footer.label "Atosóidh &brandShortName; agus bainfear gach rud eile.">
+<!ENTITY resetProfile.dialog.button.label "Athshocraigh &brandShortName;">
 
-<!ENTITY resetProfile.title               "Reset &brandShortName; to its default state">
-<!ENTITY resetProfile.description         "If you're having major problems which you can't resolve, start fresh with only your essential information.">
-<!ENTITY resetProfile.button.label        "Reset &brandShortName;">
+<!ENTITY resetProfile.title "Fill ar réamhshocruithe &brandShortName;">
+<!ENTITY resetProfile.description "Má tá fadhbanna móra agat agus ní féidir leat iad a réiteach, tosaigh as úire le d'fhaisnéis riachtanach amháin.">
+<!ENTITY resetProfile.button.label "Athshocraigh &brandShortName;">
+
+<!ENTITY resetProfile.cleaning.description "Please wait while &brandShortName; cleans up your old data…">

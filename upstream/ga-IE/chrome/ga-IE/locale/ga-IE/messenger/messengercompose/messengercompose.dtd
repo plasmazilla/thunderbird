@@ -1,4 +1,8 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!--LOCALIZATION NOTE messengercompose.dtd Main UI for message composition -->
+
 <!ENTITY msgComposeWindow.title "Scríobh: (gan ábhar)">
 <!-- File Menu -->
 
@@ -17,6 +21,8 @@
 <!ENTITY attachFileCmd.label "Comha(i)d…">
 <!ENTITY attachFileCmd.accesskey "C">
 <!ENTITY attachFileCmd.key "A">
+<!ENTITY attachCloudCmd.label "Filelink">
+<!ENTITY attachCloudCmd.accesskey "i">
 <!ENTITY attachPageCmd.label "Leathanach Gréasáin…">
 <!ENTITY attachPageCmd.accesskey "L">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -270,6 +276,14 @@
 <!ENTITY selectAll.accesskey "U">
 <!ENTITY attachFile.label "Cuir comha(i)d faoi iamh…">
 <!ENTITY attachFile.accesskey "f">
+<!ENTITY attachCloud.label "Filelink…">
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY convertCloud.label "Tiontaigh go…">
+<!ENTITY convertCloud.accesskey "T">
+<!ENTITY cancelUpload.label "Cealaigh an tUasluchtú">
+<!ENTITY cancelUpload.accesskey "e">
+<!ENTITY convertRegularAttachment.label "Gnáthiatán">
+<!ENTITY convertRegularAttachment.accesskey "i">
 <!ENTITY attachPage.label "Ceangail Leathanach Gréasáin…">
 <!ENTITY attachPage.accesskey "G">
 <!-- Spell checker context menu items -->
@@ -280,14 +294,3 @@
 
 <!ENTITY addressesSidebarTitle.label "Teagmhálacha">
 
-
-<!ENTITY attachCloud.accesskey "i">
-<!ENTITY attachCloud.label "Filelink…">
-<!ENTITY attachCloudCmd.accesskey "i">
-<!ENTITY attachCloudCmd.label "Filelink">
-<!ENTITY cancelUpload.accesskey "n">
-<!ENTITY cancelUpload.label "Cancel Upload">
-<!ENTITY convertCloud.accesskey "C">
-<!ENTITY convertCloud.label "Convert to…">
-<!ENTITY convertRegularAttachment.accesskey "A">
-<!ENTITY convertRegularAttachment.label "Regular Attachment">

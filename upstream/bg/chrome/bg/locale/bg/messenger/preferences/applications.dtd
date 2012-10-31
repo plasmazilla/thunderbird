@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY  typeColumn.label            "Вид съдържание">
 <!ENTITY  typeColumn.accesskey        "В">
 
@@ -18,18 +22,17 @@
 <!ENTITY chooseFolderMac.label        "Избор…">
 <!ENTITY chooseFolderMac.accesskey    "И">
 
-<!ENTITY addCloudFileAccount.accesskey    "A">
-<!ENTITY addCloudFileAccount.description  "Add a new Filelink storage service">
+<!ENTITY attachments.incoming.label   "Входящи">
+<!ENTITY attachments.outgoing.label   "Изходящи">
 
-<!ENTITY addCloudFileAccount.label        "Add">
+<!ENTITY addCloudFileAccount.label        "Добавяне">
+<!ENTITY addCloudFileAccount.accesskey    "Д">
+<!ENTITY addCloudFileAccount.description  "Добавяне на нова услуга за съхранене към Filelink">
+<!ENTITY removeCloudFileAccount.label     "Премахване">
+<!ENTITY removeCloudFileAccount.accesskey "П">
+<!ENTITY authRequired.description         "Нужно е вашето удостоверяване, за да виждате настройките на тази услуга за съхраняване.">
+<!ENTITY authRequired.button.label        "Удостоверяване">
+<!ENTITY authRequired.button.accesskey    "У">
 
-<!ENTITY attachments.incoming.label   "Incoming">
-<!ENTITY attachments.outgoing.label   "Outgoing">
-<!ENTITY authRequired.button.accesskey    "U">
-<!ENTITY authRequired.button.label        "Authorize">
-<!ENTITY authRequired.description         "Your authorization is required in order to see the settings for this storage service.">
-
-<!ENTITY enableCloudFileAccountOffer.label "Offer to share for files larger than">
+<!ENTITY enableCloudFileAccountOffer.label "Предлагане за споделяне на файлове, когато са по-големи от">
 <!ENTITY enableCloudFileAccountOffer.mb "MB">
-<!ENTITY removeCloudFileAccount.accesskey "R">
-<!ENTITY removeCloudFileAccount.label     "Remove">

@@ -67,3 +67,6 @@
 <!ENTITY sortAscending.accesskey "ξ">
 <!ENTITY sortDescending.label "Σε φθίνουσα σειρά">
 <!ENTITY sortDescending.accesskey "φ">
+
+<!ENTITY ChatName.accesskey                    "C">
+<!ENTITY ChatName.label                        "Chat Name">

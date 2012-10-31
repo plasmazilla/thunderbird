@@ -1,4 +1,8 @@
-<!ENTITY aboutSupport.pageTitle "Sorun çözme bilgisi">
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY aboutSupport.pageTitle "Sorun giderme bilgileri">
 
 <!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
 <!ENTITY aboutSupport.pageSubtitle "Bu sayfa, bir sorunu gidermeye çalışırken işinize yarabilecek teknik bilgiler içerir. &brandShortName; hakkında genel sorularla ilgili yanıt arıyorsanız <a id='supportLink'>destek sitemizi</a> ziyaret edin.
@@ -13,7 +17,13 @@
 <!ENTITY aboutSupport.appBasicsTitle "Uygulama temelleri">
 <!ENTITY aboutSupport.appBasicsName "Adı">
 <!ENTITY aboutSupport.appBasicsVersion "Sürüm">
+
 <!ENTITY aboutSupport.appBasicsProfileDir "Kimlik dizini">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
+This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
+Windows/Mac use the term "Folder" instead of "Directory" -->
+<!ENTITY aboutSupport.appBasicsProfileDirWinMac "Profil klasörü">
+
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Devredeki yan uygulamalar">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Yapılandırma">
 <!ENTITY aboutSupport.appBasicsUserAgent "Kullanıcı aracı">
@@ -21,7 +31,6 @@
 <!ENTITY aboutSupport.appBasicsMemoryUse "Bellek kullanımı">
 
 <!ENTITY aboutSupport.showDir.label "Dizini aç">
-
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
 variant of aboutSupport.showDir.label.  This allows us to use the preferred
 "Finder" terminology on Mac. -->
@@ -36,18 +45,13 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.graphicsTitle "Çizimler">
 
+<!ENTITY aboutSupport.jsTitle "JavaScript">
+<!ENTITY aboutSupport.jsIncrementalGC "Artırımlı GC">
+
+<!ENTITY aboutSupport.libraryVersionsTitle "Kitaplık sürümleri">
+
 <!ENTITY aboutSupport.installationHistoryTitle "Kurulum tarihçesi">
-<!ENTITY aboutSupport.updateHistoryTitle "Güncelleme geçmişi">
+<!ENTITY aboutSupport.updateHistoryTitle "Güncelleme Geçmişi">
 
 <!ENTITY aboutSupport.copyToClipboard.label "Tümünü panoya kopyala">
 
-
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
-This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
-Windows/Mac use the term "Folder" instead of "Directory" -->
-<!ENTITY aboutSupport.appBasicsProfileDirWinMac "Profile Folder">
-<!ENTITY aboutSupport.jsIncrementalGC "Incremental GC">
-
-<!ENTITY aboutSupport.jsTitle "JavaScript">
-
-<!ENTITY aboutSupport.libraryVersionsTitle "Library Versions">

@@ -122,3 +122,7 @@
 <!ENTITY viewSecurityDevices.label      "התקני אבטחה">
 <!ENTITY viewSecurityDevices.accesskey  "ה">
 
+
+<!ENTITY useService.accesskey            "b">
+
+<!ENTITY useService.label                "Use a background service to install updates">

@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY  typeColumn.label            "Tipus de contingut">
 <!ENTITY  typeColumn.accesskey        "T">
 
@@ -23,10 +27,10 @@
 
 <!ENTITY addCloudFileAccount.label        "Afegeix">
 <!ENTITY addCloudFileAccount.accesskey    "A">
-<!ENTITY addCloudFileAccount.description  "Afegeix un servei d'emmagatzemament Filelink nou">
+<!ENTITY addCloudFileAccount.description  "Afegeix un servei d'emmagatzematge Filelink nou">
 <!ENTITY removeCloudFileAccount.label     "Suprimeix">
 <!ENTITY removeCloudFileAccount.accesskey "r">
-<!ENTITY authRequired.description         "Cal la vostra autorització per veure els paràmetres d'aquest dispositiu d'emmagatzemament.">
+<!ENTITY authRequired.description         "Cal la vostra autorització per veure els paràmetres d'aquest dispositiu d'emmagatzematge.">
 <!ENTITY authRequired.button.label        "Autoritza">
 <!ENTITY authRequired.button.accesskey    "u">
 

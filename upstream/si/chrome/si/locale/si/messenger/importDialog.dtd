@@ -78,3 +78,9 @@ LOCALIZATION NOTE : Do not translate any of the occurances of the word
 <!ENTITY title.label              "සිරස්තලය">
 <!ENTITY processing.label         "ආයාත කරමින් සිටියි...">
 
+
+<!ENTITY acctName.accesskey       "N">
+<!ENTITY acctName.label           "Name:">
+<!ENTITY importFeeds.accesskey    "d">
+<!ENTITY importFeeds.label        "Feed Subscriptions">
+<!ENTITY selectDescriptionB.label "Please select an existing account or create a new account:">

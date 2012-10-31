@@ -40,4 +40,7 @@
 <!ENTITY watchThread.label "থ্রেড পর্যবেক্ষণ করা হবে">
 <!ENTITY stopExecution.label "পরিশোধক চালানো থামানো হবে">
 
+
+<!ENTITY addAction.tooltip "Add a new action">
 <!ENTITY markMessageUnread.label "Mark As Unread">
+<!ENTITY removeAction.tooltip "Remove this action">

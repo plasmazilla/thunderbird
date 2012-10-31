@@ -47,5 +47,9 @@
 <!ENTITY showCookies.label "Προβολή Cookies…">
 <!ENTITY showCookies.accesskey "β">
 
+<!ENTITY doNotTrack.accesskey           "d">
+
+<!-- Do Not Track -->
+<!ENTITY doNotTrack.label               "Tell web sites I do not want to be tracked">
 <!ENTITY enableAdaptiveJunkLogging.accesskey "E">
 <!ENTITY enableAdaptiveJunkLogging.label "Enable adaptive junk filter logging">

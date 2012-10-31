@@ -213,3 +213,7 @@ because displayed names don't have the comma in between. -->
 <!ENTITY bringAllToFront.label "Hepsini ön plana al">
 <!ENTITY zoomWindow.label "Yakınlaştırma">
 
+
+<!ENTITY ChatName.accesskey                             "C">
+<!ENTITY ChatName.label                                 "Chat Name">
+<!ENTITY chat.heading                                   "Chat">

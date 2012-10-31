@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY aboutSupport.pageTitle "Fabhtcheartú">
 <!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
 
@@ -12,7 +16,13 @@
 <!ENTITY aboutSupport.appBasicsTitle "Buntús an Fheidhmchláir">
 <!ENTITY aboutSupport.appBasicsName "Ainm">
 <!ENTITY aboutSupport.appBasicsVersion "Leagan">
+
 <!ENTITY aboutSupport.appBasicsProfileDir "Comhadlann Phróifíle">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
+This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
+Windows/Mac use the term "Folder" instead of "Directory" -->
+<!ENTITY aboutSupport.appBasicsProfileDirWinMac "Fillteán Próifíle">
+
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Forlíontáin Chumasaithe">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Cumraíocht Tógála">
 <!ENTITY aboutSupport.appBasicsUserAgent "Gníomhaire Úsáideora">
@@ -23,7 +33,6 @@
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
 variant of aboutSupport.showDir.label.  This allows us to use the preferred
 "Finder" terminology on Mac. -->
-
 <!ENTITY aboutSupport.showMac.label "Taispeáin sa Finder">
 <!-- LOCALIZATION NOTE (aboutSupport.showWin.label): This is the Windows-specific
 variant of aboutSupport.showDir.label. -->
@@ -35,17 +44,12 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.graphicsTitle "Grafaic">
 
+<!ENTITY aboutSupport.jsTitle "JavaScript">
+<!ENTITY aboutSupport.jsIncrementalGC "Bailitheoir Dramhaíola Incriminteach">
+
+<!ENTITY aboutSupport.libraryVersionsTitle "Leaganacha Leabharlann">
+
 <!ENTITY aboutSupport.installationHistoryTitle "Stair Suiteála">
 <!ENTITY aboutSupport.updateHistoryTitle "Stair na Nuashonruithe">
 
 <!ENTITY aboutSupport.copyToClipboard.label "Cóipeáil gach rud go dtí an Ghearrthaisce">
-
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
-This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
-Windows/Mac use the term "Folder" instead of "Directory" -->
-<!ENTITY aboutSupport.appBasicsProfileDirWinMac "Profile Folder">
-<!ENTITY aboutSupport.jsIncrementalGC "Incremental GC">
-
-<!ENTITY aboutSupport.jsTitle "JavaScript">
-
-<!ENTITY aboutSupport.libraryVersionsTitle "Library Versions">

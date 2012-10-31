@@ -136,3 +136,5 @@
 <!ENTITY OpenMessageForMsgId.accesskey "B">
 <!ENTITY OpenBrowserWithMsgId.label "Buka Program Peramban dengan ID-Pesan">
 <!ENTITY OpenBrowserWithMsgId.accesskey "P">
+
+<!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">

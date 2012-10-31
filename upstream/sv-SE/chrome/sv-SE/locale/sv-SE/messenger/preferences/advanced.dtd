@@ -109,3 +109,7 @@
 <!ENTITY validation.accesskey           "V">
 <!ENTITY viewSecurityDevices.label      "Säkerhetsenheter">
 <!ENTITY viewSecurityDevices.accesskey  "k">
+
+<!ENTITY useService.accesskey            "b">
+
+<!ENTITY useService.label                "Use a background service to install updates">

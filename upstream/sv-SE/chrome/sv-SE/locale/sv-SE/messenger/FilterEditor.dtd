@@ -73,3 +73,7 @@
 <!ENTITY ignoreSubthread.label "Ignorera undertråd">
 <!ENTITY watchThread.label "Bevaka tråd">
 <!ENTITY stopExecution.label "Avbryt filterkörning">
+
+
+<!ENTITY addAction.tooltip "Add a new action">
+<!ENTITY removeAction.tooltip "Remove this action">

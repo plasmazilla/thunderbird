@@ -186,3 +186,24 @@ Entities below were automatically added by compare-locales,
 <!ENTITY Age.placeholder "වයස">
 <!ENTITY Year.placeholder "වසර">
 <!ENTITY preferDisplayName.label "සෑමවිටම ලිපි ශිර්ෂයට වඩා නම ප්‍රමුඛ කර සළකන්න">
+
+<!ENTITY AIM.accesskey                  "r">
+<!ENTITY AIM.label                      "AIM:">
+<!ENTITY Chat.accesskey                 "a">
+
+<!ENTITY Chat.tab                       "Chat">
+<!ENTITY Gtalk.accesskey                "G">
+<!ENTITY Gtalk.label                    "Google Talk:">
+<!ENTITY ICQ.accesskey                  "I">
+<!ENTITY ICQ.label                      "ICQ:">
+<!ENTITY MSN.accesskey                  "M">
+<!ENTITY MSN.label                      "MSN:">
+<!ENTITY QQ.accesskey                   "Q">
+<!ENTITY QQ.label                       "QQ:">
+<!ENTITY Skype.accesskey                "S">
+<!ENTITY Skype.label                    "Skype:">
+<!ENTITY XMPP.accesskey                 "J">
+<!ENTITY XMPP.label                     "Jabber ID:">
+<!ENTITY Yahoo.accesskey                "Y">
+<!ENTITY Yahoo.label                    "Yahoo!:">
+<!ENTITY chatName.label                 "Chat Name:">

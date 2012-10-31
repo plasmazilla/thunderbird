@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY windowTitle.label            "Auxiliar de compte de xat">
 
 <!ENTITY accountProtocolTitle.label   "Xarxa de xat">
@@ -24,5 +28,5 @@
 <!ENTITY accountProxySettings.change.accessKey "C">
 
 <!ENTITY accountSummaryTitle.label   "Resum">
-<!ENTITY accountSummaryInfo.label    "Un resum de la informació que heu introduït es mostra a continuació. Comproveu-la abans de crear el compte.">
+<!ENTITY accountSummaryInfo.label    "de la informació que heu introduït es mostra a continuació. Comproveu-la abans de crear el compte.">
 <!ENTITY accountSummary.connectNow.label "Connecteu-vos al compte ara mateix.">

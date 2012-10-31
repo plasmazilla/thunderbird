@@ -138,3 +138,4 @@
 <!ENTITY OpenMessageForMsgId.accesskey "O">
 <!ENTITY hdrFollowupButton1.label "Followup">
 <!ENTITY hdrFollowupButton1.tooltip "Post a followup to this newsgroup">
+<!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">

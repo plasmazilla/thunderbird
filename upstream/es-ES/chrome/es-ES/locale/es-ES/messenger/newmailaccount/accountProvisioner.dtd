@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY window.title "Bienvenido a &brandShortName;">
 <!ENTITY header2.label "¿Le gustaría tener una nueva dirección de correo?">
 <!ENTITY other.languages "Sólo mostramos los proveedores que ofrecen direcciones en su área. Pulse aquí para mostrar todos los proveedores.">
@@ -9,7 +13,7 @@
 <!ENTITY success.title.before "Hola ">
 <!ENTITY success.title.after ", están disponibles para usted las siguientes direcciones de correo:">
 <!ENTITY success.tip "(también puede buscar apodos o cualquier otro término para encontrar más mensajes)">
-<!ENTITY partnership.description "En colaboración con varios proveedores, &brandShortName; puede ofrecerle una nueva cuenta de correo. Para ello, sólo tiene que rellenear su nombre y apellidos, o cualesquiera otras palabras que desee, en los campos anteriores.">
+<!ENTITY partnership.description "En colaboración con varios proveedores, &brandShortName; puede ofrecerle una nueva cuenta de correo. Para ello, sólo tiene que rellenar su nombre y apellidos, o cualesquiera otras palabras que desee, en los campos anteriores.">
 <!ENTITY existing.header "¿Ya tiene una dirección que quiere usar?">
 <!ENTITY tinyheader.title "¿Ya tiene una dirección?">
 <!ENTITY tinyheader.existing "Saltarse esto y usar mi cuenta de correo existente">

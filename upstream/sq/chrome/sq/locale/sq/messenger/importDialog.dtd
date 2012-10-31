@@ -29,3 +29,9 @@
 
 <!ENTITY title.label              "Titull">
 <!ENTITY processing.label         "Po importohet…">
+
+<!ENTITY acctName.accesskey       "N">
+<!ENTITY acctName.label           "Name:">
+<!ENTITY importFeeds.accesskey    "d">
+<!ENTITY importFeeds.label        "Feed Subscriptions">
+<!ENTITY selectDescriptionB.label "Please select an existing account or create a new account:">

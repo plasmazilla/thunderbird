@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY titledefault.label    "&brandFullName;">
 <!ENTITY titleSeparator.label " - ">
 <!-- File Menu -->
@@ -28,6 +32,8 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey "و">
 <!ENTITY newIMAccountCmd.label "حساب دردشة…">
 <!ENTITY newIMAccountCmd.accesskey "ش">
+<!ENTITY newIMContactCmd.label "متراسل دردشة…">
+<!ENTITY newIMContactCmd.accesskey "ت">
 <!ENTITY openMessageFileCmd.label "افتح رسالة محفوظة…">
 <!ENTITY openMessageFileCmd.accesskey "ف">
 <!ENTITY openAttachmentCmd.label "مرفقات">
@@ -322,8 +328,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY prevUnreadMsgCmd.label "الرسائل غير المقروءة">
 <!ENTITY prevUnreadMsgCmd.accesskey "غ">
 <!ENTITY prevUnreadMsgCmd.key "p">
-<!ENTITY goForwardCmd.label "التالي">
-<!ENTITY goForwardCmd.accesskey "ت">
+<!ENTITY goForwardCmd.label "إلى الأمام">
+<!ENTITY goForwardCmd.accesskey "أ">
 <!ENTITY goForwardCmd.commandKey "]">
 <!ENTITY goBackCmd.label "إلى الخلف">
 <!ENTITY goBackCmd.accesskey "خ">
@@ -480,6 +486,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY imStatus.unavailable        "غير متفرّغ">
 <!ENTITY imStatus.offline            "غير متصل">
 <!ENTITY imStatus.showAccounts       "اعرض الحسابات…">
+<!ENTITY joinChatCmd.label "انضم للدردشة…">
+<!ENTITY joinChatCmd.accesskey "ض">
 <!ENTITY savedFiles.label "الملفات المحفوظة">
 <!ENTITY savedFiles.accesskey "ظ">
 <!ENTITY savedFiles.key "j">
@@ -775,7 +783,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextUnmute.accesskey "و">
 <!-- Junk Bar -->
 
-<!ENTITY junkBarMessage1.label "سخام">
+<!ENTITY junkBarMessage2.label "يظن &brandShortName; أن هذه رسالة سخام.">
 <!ENTITY junkBarButton1.label "ليست سُخامًا">
 <!ENTITY junkInfoButton.label "؟">
 <!-- Remote Content Bar -->

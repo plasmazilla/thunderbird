@@ -1,5 +1,9 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!-- extracted from content/viewSource.xul -->
 <!-- LOCALIZATION NOTE (mainWindow.title) : DONT_TRANSLATE --> 
+
 
 <!ENTITY mainWindow.title "&brandFullName;">
 <!-- LOCALIZATION NOTE (mainWindow.titlemodifier) : DONT_TRANSLATE --> 
@@ -51,7 +55,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY menu_wrapLongLines.accesskey "P">
 <!ENTITY menu_highlightSyntax.label "Soillseachadh co-chàraidh">
 <!ENTITY menu_highlightSyntax.accesskey "h">
-<!ENTITY menu_textSize.label "Meud an teacs">
+<!ENTITY menu_textSize.label "Meud an teacsa">
 <!ENTITY menu_textSize.accesskey "M">
 <!ENTITY menu_textEnlarge.label "Clò nas motha">
 <!ENTITY menu_textEnlarge.accesskey "C">

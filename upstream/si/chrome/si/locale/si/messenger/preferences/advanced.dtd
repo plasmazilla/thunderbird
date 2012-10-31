@@ -108,3 +108,7 @@ Entities below were automatically added by compare-locales,
 <!ENTITY closeMsgOnMoveOrDelete.accesskey "C">
 <!ENTITY mb.label "MB">
 <!ENTITY closeMsgOnMoveOrDelete.label "මැකීමේදී හෝ ගෙනයාමේදී නවුළුව/ටැබය වසන්න">
+
+<!ENTITY useService.accesskey            "b">
+
+<!ENTITY useService.label                "Use a background service to install updates">

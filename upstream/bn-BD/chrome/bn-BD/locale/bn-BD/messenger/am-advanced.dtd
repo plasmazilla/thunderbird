@@ -21,3 +21,7 @@
 <!ENTITY userName.label   "ব্যবহারকারীর নাম:">
 <!ENTITY connectionSecurity.label "সংযোগ নিরাপত্তা:">
 <!ENTITY authMethod.label   "প্রমাণীকরণ প্রক্রিয়া: ">
+
+
+<!-- LOCALIZATION NOTE (smtpDescription.label): do not translate "SMTP" in below line -->
+<!ENTITY smtpDescription.label "When managing your identities you can use a server from this list by selecting it as the Outgoing Server (SMTP), or you can use the default server from this list by selecting &quot;Use Default Server&quot;.">

@@ -39,3 +39,5 @@
 <!ENTITY account.connecting           "Միանում է...">
 <!ENTITY account.disconnecting        "Անջատվում է...">
 <!ENTITY account.disconnected         "Միացած չէ">
+
+<!ENTITY accountsWindow2.style               "width: 41em; height: 27em;">

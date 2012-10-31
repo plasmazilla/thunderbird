@@ -41,3 +41,7 @@
 <!ENTITY ignoreSubthread.label "Abaikan Sub Utas">
 <!ENTITY watchThread.label "Monitor Utas">
 <!ENTITY stopExecution.label "Hentikan Proses Pemfilteran">
+
+
+<!ENTITY addAction.tooltip "Add a new action">
+<!ENTITY removeAction.tooltip "Remove this action">

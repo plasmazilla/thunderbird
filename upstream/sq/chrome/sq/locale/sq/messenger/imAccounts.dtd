@@ -24,3 +24,5 @@
 <!ENTITY account.disconnected         "I palidhur">
 <!-- This should match account.commandkey in instantbird.dtd -->
 <!ENTITY accountManager.close.commandkey     "a">
+
+<!ENTITY accountsWindow2.style               "width: 41em; height: 27em;">

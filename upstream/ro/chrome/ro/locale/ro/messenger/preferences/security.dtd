@@ -73,3 +73,8 @@
 <!ENTITY showCookies.accesskey          "A">
 
 
+
+<!ENTITY doNotTrack.accesskey           "d">
+
+<!-- Do Not Track -->
+<!ENTITY doNotTrack.label               "Tell web sites I do not want to be tracked">

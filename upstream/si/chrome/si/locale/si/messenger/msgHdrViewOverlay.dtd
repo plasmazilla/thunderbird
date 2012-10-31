@@ -136,3 +136,5 @@
 <!ENTITY saveAttachmentButton1.label "සුරකින්න">
 <!ENTITY detachAttachmentCmd.accesskey "T">
 <!ENTITY saveAllAttachmentsButton1.tooltip "ඇමුණුම් ගොනු සියල්ල සුරකින්න">
+
+<!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">

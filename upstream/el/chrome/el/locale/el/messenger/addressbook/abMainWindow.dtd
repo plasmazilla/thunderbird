@@ -183,3 +183,7 @@
 <!ENTITY showDirectoryPane.accesskey                    "υ">
 <!ENTITY showContactPane2.label                         "Ταπλό επαφών">
 <!ENTITY showContactPane2.accesskey                     "φ">
+
+<!ENTITY ChatName.accesskey                             "C">
+<!ENTITY ChatName.label                                 "Chat Name">
+<!ENTITY chat.heading                                   "Chat">

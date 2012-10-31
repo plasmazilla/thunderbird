@@ -205,6 +205,9 @@
 <!ENTITY bringAllToFront.label "সব সামনে আনা হবে">
 <!ENTITY zoomWindow.label "জুম">
 
+<!ENTITY ChatName.accesskey                             "C">
+<!ENTITY ChatName.label                                 "Chat Name">
+<!ENTITY chat.heading                                   "Chat">
 <!ENTITY firstLastCmd2.accesskey                        "f"> 
 <!-- LOCALIZATION NOTE (firstLastCmd2.label): We're not including a comma here
 because displayed names don't have the comma in between. -->

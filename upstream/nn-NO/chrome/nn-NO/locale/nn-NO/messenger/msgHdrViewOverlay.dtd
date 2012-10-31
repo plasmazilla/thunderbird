@@ -136,3 +136,5 @@
 <!ENTITY OpenMessageForMsgId.accesskey "n">
 <!ENTITY OpenBrowserWithMsgId.label "Opne nettlesar med meldings-ID">
 <!ENTITY OpenBrowserWithMsgId.accesskey "e">
+
+<!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">

@@ -892,3 +892,11 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Vis alle">
+
+<!ENTITY joinChatCmd.accesskey "o">
+<!ENTITY joinChatCmd.label "Join Chat…">
+
+<!-- Junk Bar -->
+<!ENTITY junkBarMessage2.label "&brandShortName; thinks this message is junk mail.">
+<!ENTITY newIMContactCmd.accesskey "h">
+<!ENTITY newIMContactCmd.label "Chat Contact…">

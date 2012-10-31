@@ -6,7 +6,7 @@
 <!ENTITY feedTitle.accesskey "T">
 
 <!ENTITY feedLocation.label "Feed URL:">
-<!ENTITY feedLocation.accesskey "F">
+<!ENTITY feedLocation.accesskey "U">
 <!ENTITY feedLocation.placeholder  "Angiv en URL til et feed">
 
 <!ENTITY feedFolder.label "Opbevar artikler i:">
@@ -28,5 +28,6 @@
 <!ENTITY button.importOPML.accesskey "I">
 <!ENTITY button.exportOPML.label "Eksporter">
 <!ENTITY button.exportOPML.accesskey "E">
+<!ENTITY button.exportOPML.tooltip   "Eksporter feed med mappestruktur; Brug Ctrl+klik eller Ctrl+Enter til at eksportere feedet som en liste">
 
 <!ENTITY cmd.close.commandKey "w">

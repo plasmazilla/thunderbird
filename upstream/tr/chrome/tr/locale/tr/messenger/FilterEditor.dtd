@@ -41,3 +41,7 @@
 <!ENTITY watchThread.label "Diziyi takip et">
 <!ENTITY stopExecution.label "Süzgeç yürütümünü durdur">
 
+
+
+<!ENTITY addAction.tooltip "Add a new action">
+<!ENTITY removeAction.tooltip "Remove this action">

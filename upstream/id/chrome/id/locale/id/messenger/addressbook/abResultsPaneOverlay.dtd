@@ -66,3 +66,6 @@
 <!ENTITY sortAscending.accesskey               "N">
 <!ENTITY sortDescending.label                  "Turun">
 <!ENTITY sortDescending.accesskey              "T">
+
+<!ENTITY ChatName.accesskey                    "C">
+<!ENTITY ChatName.label                        "Chat Name">

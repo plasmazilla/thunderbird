@@ -14,6 +14,7 @@
 <!ENTITY button.exportOPML.accesskey "ξ">
 <!ENTITY cmd.close.commandKey "w">
 
+<!ENTITY button.exportOPML.tooltip   "Export Feeds with folder structure; ctrl click or ctrl enter to export Feeds as a list">
 <!ENTITY feedFolder.accesskey        "S">
 
 <!ENTITY feedFolder.label            "Store Articles in:">

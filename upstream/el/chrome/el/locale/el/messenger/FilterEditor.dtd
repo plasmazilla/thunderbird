@@ -35,3 +35,7 @@
 <!ENTITY watchThread.label "Παρακολούθηση αλληλουχίας">
 <!ENTITY stopExecution.label "Διακοπή εκτέλεσης φίλτρου">
 <!ENTITY markMessageUnread.label "Σημείωση ως μη αναγνωσμένο">
+
+
+<!ENTITY addAction.tooltip "Add a new action">
+<!ENTITY removeAction.tooltip "Remove this action">

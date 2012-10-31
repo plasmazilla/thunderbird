@@ -92,3 +92,9 @@ LOCALIZATION NOTE : Do not translate any of the occurrences of the word
 <!ENTITY title.label              "Titlu">
 <!ENTITY processing.label         "Import…">
 
+
+<!ENTITY acctName.accesskey       "N">
+<!ENTITY acctName.label           "Name:">
+<!ENTITY importFeeds.accesskey    "d">
+<!ENTITY importFeeds.label        "Feed Subscriptions">
+<!ENTITY selectDescriptionB.label "Please select an existing account or create a new account:">

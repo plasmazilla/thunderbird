@@ -153,3 +153,5 @@
 <!ENTITY OpenBrowserWithMsgId.label "Deschide navigatorul cu Message-ID">
 <!ENTITY OpenBrowserWithMsgId.accesskey "B">
 
+
+<!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">

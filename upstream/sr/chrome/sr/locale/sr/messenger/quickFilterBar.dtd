@@ -240,6 +240,8 @@
          "Притисните поново „Enter“ како бисте наставили претрагу за: #1">
 
 
+
+
 <!-- LOCALIZATION NOTE (quickFilterBar.qfbShowFilterBar.label):
      The label  for the button on the tab bar that toggles the visibility of
      the quick filter bar.

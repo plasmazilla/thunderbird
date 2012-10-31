@@ -24,3 +24,5 @@
 <!ENTITY account.connecting           "Koplar til …">
 <!ENTITY account.disconnecting        "Koplar frå …">
 <!ENTITY account.disconnected         "Ikkje tilkopla">
+
+<!ENTITY accountsWindow2.style               "width: 41em; height: 27em;">

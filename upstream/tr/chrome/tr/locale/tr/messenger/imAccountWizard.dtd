@@ -1,28 +1,30 @@
-<!ENTITY windowTitle.label            "Chat Account Wizard">
+<!ENTITY windowTitle.label            "Sohbet Hesabı Sihirbazı">
 
-<!ENTITY accountProtocolTitle.label   "Chat network">
-<!ENTITY accountProtocolInfo.label    "Please choose the network of your chat account.">
-<!ENTITY accountProtocolField.label   "Network:">
-<!ENTITY accountProtocolGetMore.label "Get more…">
+<!ENTITY accountProtocolTitle.label   "Sohbet ağı">
+<!ENTITY accountProtocolInfo.label    "Sohbet lütfen hesabınızın ağını seçin.">
+<!ENTITY accountProtocolField.label   "Ağ:">
+<!ENTITY accountProtocolGetMore.label "Daha fazlasını edin…">
 
-<!ENTITY accountUsernameTitle.label   "Username">
-<!ENTITY accountUsernameDuplicate.label "This account is already configured!">
+<!ENTITY accountUsernameTitle.label   "Kullanıcı adı">
+<!ENTITY accountUsernameDuplicate.label "Bu hesap zaten yapılandırılmış!">
 
-<!ENTITY accountPasswordTitle.label   "Password">
-<!ENTITY accountPasswordInfo.label    "Please enter your password in the box below.">
-<!ENTITY accountPasswordField.label   "Password:">
-<!ENTITY accountPasswordManager.label "The password entered here will be stored in the Password Manager. Leave this box empty if you want to be prompted for your password each time this account is connected.">
+<!ENTITY accountPasswordTitle.label   "Parola">
+<!ENTITY accountPasswordInfo.label    "Lütfen aşağıdaki kutuya parolanızı girin.">
+<!ENTITY accountPasswordField.label   "Parola:">
+<!ENTITY accountPasswordManager.label "Buraya girdiğiniz parola, Parola Yöneticisi'nde depolanacaktır. Bu hesaba her bağlandığınızda parolanızın sorulmasını istiyorsanız bu kutuyu boş bırakın.">
 
-<!ENTITY accountAdvancedTitle.label   "Advanced Options">
-<!ENTITY accountAdvancedInfo.label    "Feel free to skip this step if you want to.">
-<!ENTITY accountAdvanced.newMailNotification.label   "Notify on new Mail">
-<!ENTITY accountAliasGroupbox.caption "Local Alias">
-<!ENTITY accountAliasField.label      "Alias:">
-<!ENTITY accountAliasInfo.label       "This will only be displayed in your conversations when you talk, remote contacts won't see it.">
-<!ENTITY accountProxySettings.caption "Proxy Settings">
-<!ENTITY accountProxySettings.change.label     "Change…">
-<!ENTITY accountProxySettings.change.accessKey "C">
+<!ENTITY accountAdvancedTitle.label   "Gelişmiş Seçenekler">
+<!ENTITY accountAdvancedInfo.label    "İsterseniz bu adımı geçebilirsiniz.">
+<!ENTITY accountAdvanced.newMailNotification.label   "Yeni posta gelince haber ver">
+<!ENTITY accountAliasGroupbox.caption "Yerel takma ad">
+<!ENTITY accountAliasField.label      "Takma ad:">
+<!ENTITY accountAliasInfo.label       "Bu, yalnızca siz konuşurken görüşmeleriniz sırasında görünecektir. Karşı taraf görmeyecektir.">
+<!ENTITY accountProxySettings.caption "Vekil Sunucu Ayarları">
+<!ENTITY accountProxySettings.change.label     "Değiştir…">
+<!ENTITY accountProxySettings.change.accessKey "D">
 
-<!ENTITY accountSummaryTitle.label   "Summary">
-<!ENTITY accountSummaryInfo.label    "A summary of the information you entered is displayed below. Please check it before the account is created.">
-<!ENTITY accountSummary.connectNow.label "Connect this account now.">
+<!ENTITY accountSummaryTitle.label   "Özet">
+<!ENTITY accountSummaryInfo.label    "Girdiğiniz bilgilerin özeti aşağıda görüntülenmektedir. Lütfen hesabınızı oluşturmadan önce kontrol edin. 
+">
+<!ENTITY accountSummary.connectNow.label "Bu hesabı şimdi bağla.">
+

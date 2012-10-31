@@ -67,3 +67,6 @@
 <!ENTITY sortDescending.label                  "අවරෝහණ පිළිවෙළට">
 <!ENTITY sortDescending.accesskey              "D">
 
+
+<!ENTITY ChatName.accesskey                    "C">
+<!ENTITY ChatName.label                        "Chat Name">

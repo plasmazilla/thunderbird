@@ -25,3 +25,9 @@
 <!ENTITY select.label "ці выберыце тып даных для імпарту:">
 <!ENTITY title.label "Загаловак">
 <!ENTITY processing.label "Імпартаванне…">
+
+<!ENTITY acctName.accesskey       "N">
+<!ENTITY acctName.label           "Name:">
+<!ENTITY importFeeds.accesskey    "d">
+<!ENTITY importFeeds.label        "Feed Subscriptions">
+<!ENTITY selectDescriptionB.label "Please select an existing account or create a new account:">

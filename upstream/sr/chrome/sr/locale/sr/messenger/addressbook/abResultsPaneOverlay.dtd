@@ -67,3 +67,6 @@
 <!ENTITY sortDescending.label                  "Опадајући">
 <!ENTITY sortDescending.accesskey              "О">
 
+
+<!ENTITY ChatName.accesskey                    "C">
+<!ENTITY ChatName.label                        "Chat Name">

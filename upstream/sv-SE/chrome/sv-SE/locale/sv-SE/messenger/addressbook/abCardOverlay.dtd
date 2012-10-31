@@ -178,3 +178,24 @@ sådant externt inbäddat innehåll i HTML-meddelanden från den här kontakten.
 <!ENTITY PhotoURL.placeholder           "Klistra eller skriv in webbadressen till ett foto">
 <!ENTITY UpdatePhoto.label              "Uppdatera">
 <!ENTITY UpdatePhoto.accesskey          "U">
+
+<!ENTITY AIM.accesskey                  "r">
+<!ENTITY AIM.label                      "AIM:">
+<!ENTITY Chat.accesskey                 "a">
+
+<!ENTITY Chat.tab                       "Chat">
+<!ENTITY Gtalk.accesskey                "G">
+<!ENTITY Gtalk.label                    "Google Talk:">
+<!ENTITY ICQ.accesskey                  "I">
+<!ENTITY ICQ.label                      "ICQ:">
+<!ENTITY MSN.accesskey                  "M">
+<!ENTITY MSN.label                      "MSN:">
+<!ENTITY QQ.accesskey                   "Q">
+<!ENTITY QQ.label                       "QQ:">
+<!ENTITY Skype.accesskey                "S">
+<!ENTITY Skype.label                    "Skype:">
+<!ENTITY XMPP.accesskey                 "J">
+<!ENTITY XMPP.label                     "Jabber ID:">
+<!ENTITY Yahoo.accesskey                "Y">
+<!ENTITY Yahoo.label                    "Yahoo!:">
+<!ENTITY chatName.label                 "Chat Name:">

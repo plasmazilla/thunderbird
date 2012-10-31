@@ -111,3 +111,7 @@
 <!ENTITY validation.accesskey           "v">
 <!ENTITY viewSecurityDevices.label      "Pajisje Sigurie">
 <!ENTITY viewSecurityDevices.accesskey  "a">
+
+<!ENTITY useService.accesskey            "b">
+
+<!ENTITY useService.label                "Use a background service to install updates">

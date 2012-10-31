@@ -225,3 +225,7 @@ because displayed names don't have the comma in between. -->
 <!ENTITY printContactCmd.accesskey                      "Y">
 <!ENTITY printContactCmd.key                            "P">
 
+
+<!ENTITY ChatName.accesskey                             "C">
+<!ENTITY ChatName.label                                 "Chat Name">
+<!ENTITY chat.heading                                   "Chat">
