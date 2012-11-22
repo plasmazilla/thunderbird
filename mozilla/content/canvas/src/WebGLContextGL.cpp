@@ -436,6 +436,14 @@ GLenum WebGLContext::CheckedBufferData(GLenum target,
                                        const GLvoid *data,
                                        GLenum usage)
 {
+#ifdef XP_MACOSX
+    // bug 790879
+    if (int64_t(size) > INT32_MAX) // the cast avoids a potential always-true warning on 32bit
+    {
+        LogMessageIfVerbose("Rejecting valid bufferData call with size %lu to avoid a Mac bug", size);
+        return LOCAL_GL_INVALID_VALUE;
+    }
+#endif
     WebGLBuffer *boundBuffer = NULL;
     if (target == LOCAL_GL_ARRAY_BUFFER) {
         boundBuffer = mBoundArrayBuffer;
@@ -959,6 +967,11 @@ WebGLContext::CopyTexImage2D(WebGLenum target,
     WebGLsizei maxTextureSize = MaxTextureSizeForTarget(target);
     if (!(maxTextureSize >> level))
         return ErrorInvalidValue("copyTexImage2D: 2^level exceeds maximum texture size");
+
+    WebGLsizei maxTextureSizeForThisLevel = maxTextureSize >> level;
+
+    if (width > maxTextureSizeForThisLevel || height > maxTextureSizeForThisLevel)
+        return ErrorInvalidValue("copyTexImage2D: width or height exceeds maximum texture size for this level");
 
     if (level >= 1) {
         if (!(is_pot_assuming_nonnegative(width) &&
@@ -4882,8 +4895,10 @@ WebGLContext::TexImage2D_base(WebGLenum target, WebGLint level, WebGLenum intern
     if (width < 0 || height < 0)
         return ErrorInvalidValue("texImage2D: width and height must be >= 0");
 
-    if (width > maxTextureSize || height > maxTextureSize)
-        return ErrorInvalidValue("texImage2D: width or height exceeds maximum texture size");
+    WebGLsizei maxTextureSizeForThisLevel = maxTextureSize >> level;
+
+    if (width > maxTextureSizeForThisLevel || height > maxTextureSizeForThisLevel)
+        return ErrorInvalidValue("texImage2D: width or height exceeds maximum texture size for this level");
 
     if (level >= 1) {
         if (!(is_pot_assuming_nonnegative(width) &&

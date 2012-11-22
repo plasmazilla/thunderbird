@@ -68,6 +68,7 @@
 #include "nsEventListenerManager.h"
 #include "nsContentUtils.h"
 
+using namespace mozilla;
 using namespace mozilla::dom;
 
 static NS_DEFINE_CID(kTextEditorCID, NS_TEXTEDITOR_CID);
@@ -1011,29 +1012,33 @@ public:
   PrepareEditorEvent(nsTextEditorState &aState,
                      nsIContent *aOwnerContent,
                      const nsAString &aCurrentValue)
-    : mState(aState)
+    : mState(aState.asWeakPtr())
     , mOwnerContent(aOwnerContent)
     , mCurrentValue(aCurrentValue)
   {
-    mState.mValueTransferInProgress = true;
+    aState.mValueTransferInProgress = true;
   }
 
   NS_IMETHOD Run() {
+    NS_ENSURE_TRUE(mState, NS_ERROR_NULL_POINTER);
+
     // Transfer the saved value to the editor if we have one
     const nsAString *value = nsnull;
     if (!mCurrentValue.IsEmpty()) {
       value = &mCurrentValue;
     }
 
-    mState.PrepareEditor(value);
+    nsAutoScriptBlocker scriptBlocker;
 
-    mState.mValueTransferInProgress = false;
+    mState->PrepareEditor(value);
+
+    mState->mValueTransferInProgress = false;
 
     return NS_OK;
   }
 
 private:
-  nsTextEditorState &mState;
+  WeakPtr<nsTextEditorState> mState;
   nsCOMPtr<nsIContent> mOwnerContent; // strong reference
   nsAutoString mCurrentValue;
 };
@@ -1179,7 +1184,7 @@ nsTextEditorState::PrepareEditor(const nsAString *aValue)
     NS_ENSURE_SUCCESS(rv, rv);
 
     // Make sure we clear out the non-breaking space before we initialize the editor
-    rv = mBoundFrame->UpdateValueDisplay(false, true);
+    rv = mBoundFrame->UpdateValueDisplay(true, true);
     NS_ENSURE_SUCCESS(rv, rv);
   } else {
     if (aValue || !mEditorInitialized) {
