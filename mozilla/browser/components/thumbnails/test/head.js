@@ -11,8 +11,6 @@ registerCleanupFunction(function () {
     gBrowser.removeTab(gBrowser.tabs[1]);
 });
 
-let cachedXULDocument;
-
 /**
  * Provide the default test function to start our test runner.
  */
@@ -59,10 +57,11 @@ function next() {
 /**
  * Creates a new tab with the given URI.
  * @param aURI The URI that's loaded in the tab.
+ * @param aCallback The function to call when the tab has loaded.
  */
-function addTab(aURI) {
+function addTab(aURI, aCallback) {
   let tab = gBrowser.selectedTab = gBrowser.addTab(aURI);
-  whenLoaded(tab.linkedBrowser);
+  whenLoaded(tab.linkedBrowser, aCallback);
 }
 
 /**

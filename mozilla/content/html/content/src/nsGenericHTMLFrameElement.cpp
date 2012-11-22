@@ -12,6 +12,7 @@
 #include "nsIAppsService.h"
 #include "nsServiceManagerUtils.h"
 #include "nsIDOMApplicationRegistry.h"
+#include "nsIPermissionManager.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -44,7 +45,7 @@ nsresult
 nsGenericHTMLFrameElement::GetContentDocument(nsIDOMDocument** aContentDocument)
 {
   NS_PRECONDITION(aContentDocument, "Null out param");
-  *aContentDocument = nsnull;
+  *aContentDocument = nullptr;
 
   nsCOMPtr<nsIDOMWindow> win;
   GetContentWindow(getter_AddRefs(win));
@@ -60,7 +61,7 @@ nsresult
 nsGenericHTMLFrameElement::GetContentWindow(nsIDOMWindow** aContentWindow)
 {
   NS_PRECONDITION(aContentWindow, "Null out param");
-  *aContentWindow = nsnull;
+  *aContentWindow = nullptr;
 
   nsresult rv = EnsureFrameLoader();
   NS_ENSURE_SUCCESS(rv, rv);
@@ -195,14 +196,14 @@ nsGenericHTMLFrameElement::UnbindFromTree(bool aDeep, bool aNullParent)
     // loader... we don't want to tear down the docshell.  Food for
     // later bug.
     mFrameLoader->Destroy();
-    mFrameLoader = nsnull;
+    mFrameLoader = nullptr;
   }
 
   nsGenericHTMLElement::UnbindFromTree(aDeep, aNullParent);
 }
 
 nsresult
-nsGenericHTMLFrameElement::SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+nsGenericHTMLFrameElement::SetAttr(int32_t aNameSpaceID, nsIAtom* aName,
                                    nsIAtom* aPrefix, const nsAString& aValue,
                                    bool aNotify)
 {
@@ -224,7 +225,7 @@ nsGenericHTMLFrameElement::DestroyContent()
 {
   if (mFrameLoader) {
     mFrameLoader->Destroy();
-    mFrameLoader = nsnull;
+    mFrameLoader = nullptr;
   }
 
   nsGenericHTMLElement::DestroyContent();
@@ -252,7 +253,7 @@ nsGenericHTMLFrameElement::CopyInnerTo(nsGenericElement* aDest)
 bool
 nsGenericHTMLFrameElement::IsHTMLFocusable(bool aWithMouse,
                                            bool *aIsFocusable,
-                                           PRInt32 *aTabIndex)
+                                           int32_t *aTabIndex)
 {
   if (nsGenericHTMLElement::IsHTMLFocusable(aWithMouse, aIsFocusable, aTabIndex)) {
     return true;
@@ -290,18 +291,15 @@ nsGenericHTMLFrameElement::GetReallyIsBrowser(bool *aOut)
   }
 
   // Fail if the node principal isn't trusted.
-  // TODO: check properly for mozApps rights when mozApps will be less hacky.
   nsIPrincipal *principal = NodePrincipal();
-  nsCOMPtr<nsIURI> principalURI;
-  principal->GetURI(getter_AddRefs(principalURI));
-  if (!nsContentUtils::IsSystemPrincipal(principal) &&
-      !nsContentUtils::URIIsChromeOrInPref(principalURI,
-                                           "dom.mozBrowserFramesWhitelist")) {
-    return NS_OK;
-  }
+  nsCOMPtr<nsIPermissionManager> permMgr =
+    do_GetService(NS_PERMISSIONMANAGER_CONTRACTID);
+  NS_ENSURE_STATE(permMgr);
 
-  // Otherwise, succeed.
-  *aOut = true;
+  uint32_t permission = nsIPermissionManager::DENY_ACTION;
+  nsresult rv = permMgr->TestPermissionFromPrincipal(principal, "browser", &permission);
+  NS_ENSURE_SUCCESS(rv, NS_OK);
+  *aOut = permission == nsIPermissionManager::ALLOW_ACTION;
   return NS_OK;
 }
 

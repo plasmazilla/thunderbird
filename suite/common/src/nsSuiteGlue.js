@@ -13,6 +13,9 @@ Components.utils.import("resource:///modules/mailnewsMigrator.js");
 XPCOMUtils.defineLazyModuleGetter(this, "NetUtil",
                                   "resource://gre/modules/NetUtil.jsm");
 
+XPCOMUtils.defineLazyModuleGetter(this, "UserAgentOverrides",
+                                  "resource://gre/modules/UserAgentOverrides.jsm");
+
 XPCOMUtils.defineLazyModuleGetter(this, "PlacesUtils",
                                   "resource://gre/modules/PlacesUtils.jsm");
 
@@ -110,6 +113,7 @@ SuiteGlue.prototype = {
         this._onProfileStartup();
         this._promptForMasterPassword();
         this._checkForNewAddons();
+        Services.search.init();
         break;
       case "sessionstore-windows-restored":
         this._onBrowserStartup(subject);
@@ -277,6 +281,7 @@ SuiteGlue.prototype = {
       Services.obs.removeObserver(this, "places-database-locked");
     if (this._isPlacesShutdownObserver)
       Services.obs.removeObserver(this, "places-shutdown");
+    UserAgentOverrides.uninit();
   },
 
   // profile is available
@@ -288,7 +293,7 @@ SuiteGlue.prototype = {
                              "_blank", "chrome,centerscreen,modal,resizable=no", null);
     }
   },
-  
+
   // profile startup handler (contains profile initialization routines)
   _onProfileStartup: function()
   {
@@ -305,7 +310,27 @@ SuiteGlue.prototype = {
       Services.prefs.savePrefFile(null);
     }
 
-    // once we support a safe mode popup, it should be called here
+    this._setUpUserAgentOverrides();
+  },
+
+  _setUpUserAgentOverrides: function ()
+  {
+    UserAgentOverrides.init();
+
+    function addMoodleOverride(aHttpChannel, aOriginalUA)
+    {
+      var cookies;
+      try {
+        cookies = aHttpChannel.getRequestHeader("Cookie");
+      } catch (e) { /* no cookie sent */ }
+
+      if (cookies && cookies.indexOf("MoodleSession") > -1)
+        return aOriginalUA.replace(/Gecko\/[^ ]*/, "Gecko/20100101");
+      return null;
+    }
+
+    if (Services.prefs.getBoolPref("general.useragent.complexOverride.moodle"))
+      UserAgentOverrides.addComplexOverride(addMoodleOverride);
   },
 
   // Browser startup complete. All initial windows have opened.
@@ -1050,7 +1075,9 @@ ContentPermissionPrompt.prototype = {
       return;
 
     var path, host;
-    var requestingURI = aRequest.uri;
+    var requestingPrincipal = aRequest.principal;
+    var requestingURI = requestingPrincipal.URI;
+
     if (requestingURI instanceof Components.interfaces.nsIFileURL)
       path = requestingURI.file.path;
     else if (requestingURI instanceof Components.interfaces.nsIStandardURL)
@@ -1059,7 +1086,7 @@ ContentPermissionPrompt.prototype = {
     else
       return;
 
-    switch (Services.perms.testExactPermission(requestingURI, "geo")) {
+    switch (Services.perms.testExactPermissionFromPrincipal(requestingPrincipal, "geo")) {
       case Services.perms.ALLOW_ACTION:
         aRequest.allow();
         return;
@@ -1070,13 +1097,13 @@ ContentPermissionPrompt.prototype = {
 
     function allowCallback(remember) {
       if (remember)
-        Services.perms.add(requestingURI, "geo", Services.perms.ALLOW_ACTION);
+        Services.perms.addFromPrincipal(requestingPrincipal, "geo", Services.perms.ALLOW_ACTION);
       aRequest.allow();
     }
 
     function cancelCallback(remember) {
       if (remember)
-        Services.perms.add(requestingURI, "geo", Services.perms.DENY_ACTION);
+        Services.perms.addFromPrincipal(requestingPrincipal, "geo", Services.perms.DENY_ACTION);
       aRequest.cancel();
     }
 

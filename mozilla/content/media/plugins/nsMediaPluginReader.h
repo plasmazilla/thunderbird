@@ -16,8 +16,8 @@ class nsMediaPluginReader : public nsBuiltinDecoderReader
 {
   nsCString mType;
   MPAPI::Decoder *mPlugin;
-  PRBool mHasAudio;
-  PRBool mHasVideo;
+  bool mHasAudio;
+  bool mHasVideo;
   nsIntRect mPicture;
   nsIntSize mInitialFrame;
   int64_t mVideoSeekTimeUs;
@@ -32,7 +32,7 @@ public:
 
   virtual bool DecodeAudioData();
   virtual bool DecodeVideoFrame(bool &aKeyframeSkip,
-                                PRInt64 aTimeThreshold);
+                                int64_t aTimeThreshold);
 
   virtual bool HasAudio()
   {
@@ -44,9 +44,10 @@ public:
     return mHasVideo;
   }
 
-  virtual nsresult ReadMetadata(nsVideoInfo* aInfo);
-  virtual nsresult Seek(PRInt64 aTime, PRInt64 aStartTime, PRInt64 aEndTime, PRInt64 aCurrentTime);
-  virtual nsresult GetBuffered(nsTimeRanges* aBuffered, PRInt64 aStartTime);
+  virtual nsresult ReadMetadata(nsVideoInfo* aInfo,
+                                nsHTMLMediaElement::MetadataTags** aTags);
+  virtual nsresult Seek(int64_t aTime, int64_t aStartTime, int64_t aEndTime, int64_t aCurrentTime);
+  virtual nsresult GetBuffered(nsTimeRanges* aBuffered, int64_t aStartTime);
   virtual bool IsSeekableInBufferedRanges() {
     return true;
   }

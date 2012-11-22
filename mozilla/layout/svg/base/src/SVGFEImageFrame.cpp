@@ -23,7 +23,7 @@ protected:
   SVGFEImageFrame(nsStyleContext* aContext)
     : SVGFEImageFrameBase(aContext)
   {
-    AddStateBits(NS_STATE_SVG_NONDISPLAY_CHILD);
+    AddStateBits(NS_FRAME_SVG_LAYOUT | NS_STATE_SVG_NONDISPLAY_CHILD);
   }
 
 public:
@@ -34,7 +34,7 @@ public:
                   nsIFrame*   aPrevInFlow);
   virtual void DestroyFrom(nsIFrame* aDestructRoot);
 
-  virtual bool IsFrameOfType(PRUint32 aFlags) const
+  virtual bool IsFrameOfType(uint32_t aFlags) const
   {
     return SVGFEImageFrameBase::IsFrameOfType(aFlags & ~(nsIFrame::eSVG));
   }
@@ -55,9 +55,14 @@ public:
    */
   virtual nsIAtom* GetType() const;
 
-  NS_IMETHOD AttributeChanged(PRInt32  aNameSpaceID,
+  NS_IMETHOD AttributeChanged(int32_t  aNameSpaceID,
                               nsIAtom* aAttribute,
-                              PRInt32  aModType);
+                              int32_t  aModType);
+
+  virtual bool UpdateOverflow() {
+    // We don't maintain a visual overflow rect
+    return false;
+  }
 };
 
 nsIFrame*
@@ -118,9 +123,9 @@ SVGFEImageFrame::GetType() const
 }
 
 NS_IMETHODIMP
-SVGFEImageFrame::AttributeChanged(PRInt32  aNameSpaceID,
+SVGFEImageFrame::AttributeChanged(int32_t  aNameSpaceID,
                                   nsIAtom* aAttribute,
-                                  PRInt32  aModType)
+                                  int32_t  aModType)
 {
   nsSVGFEImageElement *element = static_cast<nsSVGFEImageElement*>(mContent);
   if (element->AttributeAffectsRendering(aNameSpaceID, aAttribute)) {

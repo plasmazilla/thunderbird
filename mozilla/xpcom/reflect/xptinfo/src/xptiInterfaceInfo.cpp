@@ -89,7 +89,7 @@ xptiInterfaceEntry::ResolveLocked()
     // Finish out resolution by finding parent and Resolving it so
     // we can set the info we get from it.
 
-    PRUint16 parent_index = mDescriptor->parent_interface;
+    uint16_t parent_index = mDescriptor->parent_interface;
 
     if(parent_index)
     {
@@ -261,7 +261,7 @@ xptiInterfaceEntry::GetConstant(uint16 index, const nsXPTConstant** constant)
 // this is a private helper
 
 nsresult 
-xptiInterfaceEntry::GetEntryForParam(PRUint16 methodIndex, 
+xptiInterfaceEntry::GetEntryForParam(uint16_t methodIndex, 
                                      const nsXPTParamInfo * param,
                                      xptiInterfaceEntry** entry)
 {
@@ -296,7 +296,7 @@ xptiInterfaceEntry::GetEntryForParam(PRUint16 methodIndex,
     if(!theEntry)
     {
         NS_WARNING("Declared InterfaceInfo not found");
-        *entry = nsnull;
+        *entry = nullptr;
         return NS_ERROR_FAILURE;
     }
 
@@ -335,7 +335,7 @@ xptiInterfaceEntry::GetIIDForParam(uint16 methodIndex,
 }
 
 nsresult
-xptiInterfaceEntry::GetIIDForParamNoAlloc(PRUint16 methodIndex, 
+xptiInterfaceEntry::GetIIDForParamNoAlloc(uint16_t methodIndex, 
                                           const nsXPTParamInfo * param, 
                                           nsIID *iid)
 {
@@ -550,7 +550,7 @@ xptiInterfaceEntry::GetInterfaceInfo(xptiInterfaceInfo** info)
         mInfo = new xptiInterfaceInfo(this);
         if(!mInfo)
         {
-            *info = nsnull;    
+            *info = nullptr;    
             return NS_ERROR_OUT_OF_MEMORY;
         }
     }
@@ -565,7 +565,7 @@ xptiInterfaceEntry::LockedInvalidateInterfaceInfo()
     if(mInfo)
     {
         mInfo->Invalidate(); 
-        mInfo = nsnull;
+        mInfo = nullptr;
     }
 }
 
@@ -587,7 +587,7 @@ xptiInterfaceInfo::BuildParent()
 NS_IMPL_QUERY_INTERFACE1(xptiInterfaceInfo, nsIInterfaceInfo)
 
 xptiInterfaceInfo::xptiInterfaceInfo(xptiInterfaceEntry* entry)
-    : mEntry(entry), mParent(nsnull)
+    : mEntry(entry), mParent(nullptr)
 {
     LOG_INFO_CREATE(this);
 }
@@ -637,7 +637,7 @@ xptiInterfaceInfo::Release(void)
         if(mEntry)
         {
             mEntry->LockedInterfaceInfoDeathNotification();
-            mEntry = nsnull;
+            mEntry = nullptr;
         }
 
         delete this;

@@ -23,10 +23,12 @@
 namespace mozilla {
 namespace dom {
 class ContentParent;
+class PBlobParent;
 class TabParent;
 }
 }
 
+class nsIDOMBlob;
 class nsIDOMEvent;
 
 BEGIN_INDEXEDDB_NAMESPACE
@@ -492,7 +494,7 @@ class IndexedDBObjectStoreRequestParent : public IndexedDBRequestParentBase
 
   typedef ipc::ObjectStoreRequestParams ParamsUnionType;
   typedef ParamsUnionType::Type RequestType;
-  RequestType mRequestType;
+  DebugOnly<RequestType> mRequestType;
 
   typedef ipc::AddParams AddParams;
   typedef ipc::PutParams PutParams;
@@ -531,6 +533,11 @@ public:
 
   bool
   OpenCursor(const OpenCursorParams& aParams);
+
+protected:
+  void
+  ConvertBlobActors(const InfallibleTArray<PBlobParent*>& aActors,
+                    nsTArray<nsCOMPtr<nsIDOMBlob> >& aBlobs);
 };
 
 /*******************************************************************************
@@ -543,7 +550,7 @@ class IndexedDBIndexRequestParent : public IndexedDBRequestParentBase
 
   typedef ipc::IndexRequestParams ParamsUnionType;
   typedef ParamsUnionType::Type RequestType;
-  RequestType mRequestType;
+  DebugOnly<RequestType> mRequestType;
 
   typedef ipc::GetKeyParams GetKeyParams;
   typedef ipc::GetAllKeysParams GetAllKeysParams;
@@ -589,7 +596,7 @@ class IndexedDBCursorRequestParent : public IndexedDBRequestParentBase
 
   typedef ipc::CursorRequestParams ParamsUnionType;
   typedef ParamsUnionType::Type RequestType;
-  RequestType mRequestType;
+  DebugOnly<RequestType> mRequestType;
 
   typedef ipc::ContinueParams ContinueParams;
 

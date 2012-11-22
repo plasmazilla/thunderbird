@@ -38,6 +38,7 @@
         toggletoolbar="true"
         persist="screenX screenY width height sizemode"
         lightweightthemes="true"
+        fullscreenbutton="true"
         lightweightthemesfooter="status-bar">
 
 <stringbundleset id="stringbundleset">
@@ -794,7 +795,7 @@
           </hbox>
         </vbox>
         <splitter id="attachmentbucket-sizer" collapsed="true" collapse="after"/>
-        <vbox id="attachments-box" collapsed="true">
+        <vbox id="attachments-box" collapsed="true" persist="width">
           <hbox>
             <label id="attachmentBucketCount" control="attachmentBucket"
                    crop="right" accesskey="&attachments.accesskey;" flex="1"/>

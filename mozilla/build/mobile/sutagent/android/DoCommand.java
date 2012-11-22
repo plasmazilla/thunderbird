@@ -18,6 +18,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.io.RandomAccessFile;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -83,7 +84,6 @@ import android.os.Debug;
 import android.os.Environment;
 import android.os.StatFs;
 import android.os.SystemClock;
-import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Surface;
@@ -106,7 +106,7 @@ public class DoCommand {
     String ffxProvider = "org.mozilla.ffxcp";
     String fenProvider = "org.mozilla.fencp";
 
-    private final String prgVersion = "SUTAgentAndroid Version 1.09";
+    private final String prgVersion = "SUTAgentAndroid Version 1.11";
 
     public enum Command
         {
@@ -120,6 +120,7 @@ public class DoCommand {
         OS ("os"),
         ID ("id"),
         UPTIME ("uptime"),
+        UPTIMEMILLIS ("uptimemillis"),
         SETTIME ("settime"),
         SYSTIME ("systime"),
         SCREEN ("screen"),
@@ -420,6 +421,8 @@ public class DoCommand {
                     strReturn += "\n";
                     strReturn += GetUptime();
                     strReturn += "\n";
+                    strReturn += GetUptimeMillis();
+                    strReturn += "\n";
                     strReturn += GetScreenInfo();
                     strReturn += "\n";
                     strReturn += GetRotationInfo();
@@ -461,6 +464,10 @@ public class DoCommand {
 
                         case UPTIME:
                             strReturn = GetUptime();
+                            break;
+
+                        case UPTIMEMILLIS:
+                            strReturn = GetUptimeMillis();
                             break;
 
                         case MEMORY:
@@ -2571,7 +2578,7 @@ private void CancelNotification()
 
     public String GetMemoryInfo()
         {
-        String sRet = "PA:" + GetMemoryConfig();
+        String sRet = "PA:" + GetMemoryConfig() + ", FREE: " + GetMemoryUsage();
         return (sRet);
         }
 
@@ -2583,6 +2590,33 @@ private void CancelNotification()
         long lMem = outInfo.availMem;
 
         return (lMem);
+        }
+
+    public long GetMemoryUsage()
+        {
+
+        String load = "";
+        try {
+            RandomAccessFile reader = new RandomAccessFile("/proc/meminfo", "r");
+            load = reader.readLine(); // Read in the MemTotal
+            load = reader.readLine(); // Read in the MemFree
+        } catch (IOException ex) {
+            return (0);
+        }
+
+        String[] toks = load.split(" ");
+        int i = 1;
+        for (i=1; i < toks.length; i++) {
+            String val = toks[i].trim();
+            if (!val.equals("")) {
+                break;
+            }
+        }
+        if (i <= toks.length) {
+            long lMem = Long.parseLong(toks[i].trim());
+            return (lMem * 1024);
+        }
+        return (0);
         }
 
     public String UpdateCallBack(String sFileName)
@@ -2896,6 +2930,11 @@ private void CancelNotification()
         return (sRet);
         }
 
+    public String GetUptimeMillis()
+        {
+        return Long.toString(SystemClock.uptimeMillis());
+        }
+ 
     public String NewKillProc(String sProcId, OutputStream out)
         {
         String sRet = "";
@@ -3485,7 +3524,7 @@ private void CancelNotification()
 
         try
             {
-            pProc = Runtime.getRuntime().exec(this.getSuArgs(TextUtils.join(" ", progArray)));
+            pProc = Runtime.getRuntime().exec(progArray);
             RedirOutputThread outThrd = new RedirOutputThread(pProc, out);
             outThrd.start();
             while (lcv < 30) {
@@ -3743,6 +3782,7 @@ private void CancelNotification()
             "        [os]                 - os version for device\n" +
             "        [id]                 - unique identifier for device\n" +
             "        [uptime]             - uptime for device\n" +
+            "        [uptimemillis]       - uptime for device in milliseconds\n" +
             "        [systime]            - current system time\n" +
             "        [screen]             - width, height and bits per pixel for device\n" +
             "        [memory]             - physical, free, available, storage memory\n" +

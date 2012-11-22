@@ -18,6 +18,8 @@ AndroidSystemColors nsLookAndFeel::mSystemColors;
 bool nsLookAndFeel::mInitializedShowPassword = false;
 bool nsLookAndFeel::mShowPassword = true;
 
+static const PRUnichar UNICODE_BULLET = 0x2022;
+
 nsLookAndFeel::nsLookAndFeel()
     : nsXPLookAndFeel()
 {
@@ -55,8 +57,8 @@ nsresult
 nsLookAndFeel::CallRemoteGetSystemColors()
 {
     // An array has to be used to get data from remote process
-    InfallibleTArray<PRUint32> colors;
-    PRUint32 colorsCount = sizeof(AndroidSystemColors) / sizeof(nscolor);
+    InfallibleTArray<uint32_t> colors;
+    uint32_t colorsCount = sizeof(AndroidSystemColors) / sizeof(nscolor);
 
     if (!ContentChild::GetSingleton()->SendGetSystemColors(colorsCount, &colors))
         return NS_ERROR_FAILURE;
@@ -341,7 +343,7 @@ nsLookAndFeel::NativeGetColor(ColorID aID, nscolor &aColor)
 
 
 nsresult
-nsLookAndFeel::GetIntImpl(IntID aID, PRInt32 &aResult)
+nsLookAndFeel::GetIntImpl(IntID aID, int32_t &aResult)
 {
     nsresult rv = nsXPLookAndFeel::GetIntImpl(aID, aResult);
     if (NS_SUCCEEDED(rv))
@@ -464,7 +466,7 @@ nsLookAndFeel::GetEchoPasswordImpl()
             if (AndroidBridge::Bridge())
                 mShowPassword = AndroidBridge::Bridge()->GetShowPasswordSetting();
             else
-                NS_ASSERTION(AndroidBridge::Bridge() != nsnull, "AndroidBridge is not available!");
+                NS_ASSERTION(AndroidBridge::Bridge() != nullptr, "AndroidBridge is not available!");
         } else {
             ContentChild::GetSingleton()->SendGetShowPasswordSetting(&mShowPassword);
         }
@@ -473,9 +475,17 @@ nsLookAndFeel::GetEchoPasswordImpl()
     return mShowPassword;
 }
 
-PRUint32
+uint32_t
 nsLookAndFeel::GetPasswordMaskDelayImpl()
 {
-  // This value is hard-coded in PasswordTransformationMethod.java
+  // This value is hard-coded in Android OS's PasswordTransformationMethod.java
   return 1500;
+}
+
+/* virtual */
+PRUnichar
+nsLookAndFeel::GetPasswordCharacterImpl()
+{
+  // This value is hard-coded in Android OS's PasswordTransformationMethod.java
+  return UNICODE_BULLET;
 }

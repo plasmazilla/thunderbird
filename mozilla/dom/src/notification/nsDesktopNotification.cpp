@@ -24,21 +24,21 @@ NS_IMPL_ISUPPORTS1(AlertServiceObserver, nsIObserver)
 /* nsDesktopNotification                                                    */
 /* ------------------------------------------------------------------------ */
 
-void
+nsresult
 nsDOMDesktopNotification::PostDesktopNotification()
 {
   nsCOMPtr<nsIAlertsService> alerts = do_GetService("@mozilla.org/alerts-service;1");
   if (!alerts)
-    return;
+    return NS_ERROR_NOT_IMPLEMENTED;
 
   if (!mObserver)
     mObserver = new AlertServiceObserver(this);
 
-  alerts->ShowAlertNotification(mIconURL, mTitle, mDescription,
-                                true, 
-                                EmptyString(),
-                                mObserver,
-                                EmptyString());
+  return alerts->ShowAlertNotification(mIconURL, mTitle, mDescription,
+                                       true,
+                                       EmptyString(),
+                                       mObserver,
+                                       EmptyString());
 }
 
 DOMCI_DATA(DesktopNotification, nsDOMDesktopNotification)
@@ -67,11 +67,11 @@ nsDOMDesktopNotification::nsDOMDesktopNotification(const nsAString & title,
                                                    const nsAString & description,
                                                    const nsAString & iconURL,
                                                    nsPIDOMWindow *aWindow,
-                                                   nsIURI* uri)
+                                                   nsIPrincipal* principal)
   : mTitle(title)
   , mDescription(description)
   , mIconURL(iconURL)
-  , mURI(uri)
+  , mPrincipal(principal)
   , mAllow(false)
   , mShowHasBeenCalled(false)
 {
@@ -102,14 +102,14 @@ nsDOMDesktopNotification::nsDOMDesktopNotification(const nsAString & title,
     // because owner implements nsITabChild, we can assume that it is
     // the one and only TabChild for this docshell.
     TabChild* child = GetTabChildFrom(GetOwner()->GetDocShell());
-    
+
     // Retain a reference so the object isn't deleted without IPDL's knowledge.
     // Corresponding release occurs in DeallocPContentPermissionRequest.
     nsRefPtr<nsDesktopNotificationRequest> copy = request;
 
     nsCString type = NS_LITERAL_CSTRING("desktop-notification");
-    child->SendPContentPermissionRequestConstructor(copy.forget().get(), type, IPC::URI(mURI));
-    
+    child->SendPContentPermissionRequestConstructor(copy.forget().get(), type, IPC::Principal(mPrincipal));
+
     request->Sendprompt();
     return;
   }
@@ -134,25 +134,27 @@ nsDOMDesktopNotification::DispatchNotificationEvent(const nsString& aName)
   }
 
   nsCOMPtr<nsIDOMEvent> event;
-  nsresult rv = NS_NewDOMEvent(getter_AddRefs(event), nsnull, nsnull);
+  nsresult rv = NS_NewDOMEvent(getter_AddRefs(event), nullptr, nullptr);
   if (NS_SUCCEEDED(rv)) {
     // it doesn't bubble, and it isn't cancelable
     rv = event->InitEvent(aName, false, false);
     if (NS_SUCCEEDED(rv)) {
       event->SetTrusted(true);
-      DispatchDOMEvent(nsnull, event, nsnull, nsnull);
+      DispatchDOMEvent(nullptr, event, nullptr, nullptr);
     }
   }
 }
 
-void
+nsresult
 nsDOMDesktopNotification::SetAllow(bool aAllow)
 {
   mAllow = aAllow;
 
   // if we have called Show() already, lets go ahead and post a notification
   if (mShowHasBeenCalled && aAllow)
-    PostDesktopNotification();
+    return PostDesktopNotification();
+
+  return NS_OK;
 }
 
 void
@@ -176,8 +178,7 @@ nsDOMDesktopNotification::Show()
   if (!mAllow)
     return NS_OK;
 
-  PostDesktopNotification();
-  return NS_OK;
+  return PostDesktopNotification();
 }
 
 NS_IMETHODIMP
@@ -232,7 +233,7 @@ nsDesktopNotificationCenter::CreateNotification(const nsAString & title,
                                                                                   description,
                                                                                   iconURL,
                                                                                   mOwner,
-                                                                                  mURI);
+                                                                                  mPrincipal);
   notification.forget(aResult);
   return NS_OK;
 }
@@ -247,12 +248,12 @@ NS_IMPL_ISUPPORTS2(nsDesktopNotificationRequest,
                    nsIRunnable)
 
 NS_IMETHODIMP
-nsDesktopNotificationRequest::GetUri(nsIURI * *aRequestingURI)
+nsDesktopNotificationRequest::GetPrincipal(nsIPrincipal * *aRequestingPrincipal)
 {
   if (!mDesktopNotification)
     return NS_ERROR_NOT_INITIALIZED;
 
-  NS_IF_ADDREF(*aRequestingURI = mDesktopNotification->mURI);
+  NS_IF_ADDREF(*aRequestingPrincipal = mDesktopNotification->mPrincipal);
   return NS_OK;
 }
 
@@ -277,17 +278,17 @@ nsDesktopNotificationRequest::GetElement(nsIDOMElement * *aElement)
 NS_IMETHODIMP
 nsDesktopNotificationRequest::Cancel()
 {
-  mDesktopNotification->SetAllow(false);
-  mDesktopNotification = nsnull;
-  return NS_OK;
+  nsresult rv = mDesktopNotification->SetAllow(false);
+  mDesktopNotification = nullptr;
+  return rv;
 }
 
 NS_IMETHODIMP
 nsDesktopNotificationRequest::Allow()
 {
-  mDesktopNotification->SetAllow(true);
-  mDesktopNotification = nsnull;
-  return NS_OK;
+  nsresult rv = mDesktopNotification->SetAllow(true);
+  mDesktopNotification = nullptr;
+  return rv;
 }
 
 NS_IMETHODIMP

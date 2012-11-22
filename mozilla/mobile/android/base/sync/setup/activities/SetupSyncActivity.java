@@ -9,6 +9,7 @@ import java.util.HashMap;
 
 import org.json.simple.JSONObject;
 import org.mozilla.gecko.R;
+import org.mozilla.gecko.sync.GlobalConstants;
 import org.mozilla.gecko.sync.Logger;
 import org.mozilla.gecko.sync.ThreadPool;
 import org.mozilla.gecko.sync.Utils;
@@ -101,7 +102,7 @@ public class SetupSyncActivity extends AccountAuthenticatorActivity {
     ThreadPool.run(new Runnable() {
       @Override
       public void run() {
-        Account[] accts = mAccountManager.getAccountsByType(Constants.ACCOUNTTYPE_SYNC);
+        Account[] accts = mAccountManager.getAccountsByType(GlobalConstants.ACCOUNTTYPE_SYNC);
         finishResume(accts);
       }
     });
@@ -135,7 +136,6 @@ public class SetupSyncActivity extends AccountAuthenticatorActivity {
       }
     }
 
-    final Activity setupActivity = this;
     runOnUiThread(new Runnable() {
       @Override
       public void run() {
@@ -146,7 +146,8 @@ public class SetupSyncActivity extends AccountAuthenticatorActivity {
             R.string.sync_notification_oneaccount, Toast.LENGTH_LONG);
         toast.show();
 
-        SyncAccounts.openSyncSettings(setupActivity);
+        // Setting up Sync when an existing account exists only happens from Settings,
+        // so we can safely finish() the activity to return to Settings.
         finish();
       }
     });
@@ -223,7 +224,9 @@ public class SetupSyncActivity extends AccountAuthenticatorActivity {
     } else {
       uri = Uri.parse(Constants.LINK_FIND_ADD_DEVICE);
     }
-    startActivity(new Intent(Intent.ACTION_VIEW, uri));
+    Intent intent = new Intent(this, WebViewActivity.class);
+    intent.setData(uri);
+    startActivity(intent);
   }
 
   /* Controller methods */
@@ -339,7 +342,7 @@ public class SetupSyncActivity extends AccountAuthenticatorActivity {
    */
   public void onPaired() {
     // Extract Sync account data.
-    Account[] accts = mAccountManager.getAccountsByType(Constants.ACCOUNTTYPE_SYNC);
+    Account[] accts = mAccountManager.getAccountsByType(GlobalConstants.ACCOUNTTYPE_SYNC);
     if (accts.length == 0) {
       // Error, no account present.
       Logger.error(LOG_TAG, "No accounts present.");
@@ -430,8 +433,8 @@ public class SetupSyncActivity extends AccountAuthenticatorActivity {
         if (isSuccess) {
           Bundle resultBundle = new Bundle();
           resultBundle.putString(AccountManager.KEY_ACCOUNT_NAME, syncAccount.username);
-          resultBundle.putString(AccountManager.KEY_ACCOUNT_TYPE, Constants.ACCOUNTTYPE_SYNC);
-          resultBundle.putString(AccountManager.KEY_AUTHTOKEN, Constants.ACCOUNTTYPE_SYNC);
+          resultBundle.putString(AccountManager.KEY_ACCOUNT_TYPE, GlobalConstants.ACCOUNTTYPE_SYNC);
+          resultBundle.putString(AccountManager.KEY_AUTHTOKEN, GlobalConstants.ACCOUNTTYPE_SYNC);
           setAccountAuthenticatorResult(resultBundle);
         }
         displayResultAndFinish(isSuccess);

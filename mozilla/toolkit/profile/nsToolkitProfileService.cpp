@@ -117,7 +117,7 @@ private:
     }
     ~nsToolkitProfileService()
     {
-        gService = nsnull;
+        gService = nullptr;
     }
 
     NS_HIDDEN_(nsresult) Init();
@@ -166,7 +166,7 @@ nsToolkitProfile::nsToolkitProfile(const nsACString& aName,
     mName(aName),
     mRootDir(aRootDir),
     mLocalDir(aLocalDir),
-    mLock(nsnull),
+    mLock(nullptr),
     mForExternalApp(aForExternalApp)
 {
     NS_ASSERTION(aRootDir, "No file!");
@@ -249,11 +249,11 @@ nsToolkitProfile::Remove(bool removeFiles)
     if (mNext)
         mNext->mPrev = mPrev;
 
-    mPrev = nsnull;
-    mNext = nsnull;
+    mPrev = nullptr;
+    mNext = nullptr;
 
     if (nsToolkitProfileService::gService->mChosen == this)
-        nsToolkitProfileService::gService->mChosen = nsnull;
+        nsToolkitProfileService::gService->mChosen = nullptr;
 
     nsToolkitProfileService::gService->mDirty = true;
 
@@ -342,17 +342,17 @@ nsToolkitProfileLock::Unlock()
     mLock.Unlock();
 
     if (mProfile) {
-        mProfile->mLock = nsnull;
-        mProfile = nsnull;
+        mProfile->mLock = nullptr;
+        mProfile = nullptr;
     }
-    mDirectory = nsnull;
-    mLocalDirectory = nsnull;
+    mDirectory = nullptr;
+    mLocalDirectory = nullptr;
 
     return NS_OK;
 }
 
 NS_IMETHODIMP
-nsToolkitProfileLock::GetReplacedLockTime(PRInt64 *aResult)
+nsToolkitProfileLock::GetReplacedLockTime(PRTime *aResult)
 {
     mLock.GetReplacedLockTime(aResult);
     return NS_OK;
@@ -366,7 +366,7 @@ nsToolkitProfileLock::~nsToolkitProfileLock()
 }
 
 nsToolkitProfileService*
-nsToolkitProfileService::gService = nsnull;
+nsToolkitProfileService::gService = nullptr;
 
 NS_IMPL_ISUPPORTS1(nsToolkitProfileService,
                    nsIToolkitProfileService)
@@ -395,7 +395,7 @@ nsToolkitProfileService::Init()
         return NS_OK;
     }
 
-    PRInt64 size;
+    int64_t size;
     rv = mListFile->GetFileSize(&size);
     if (NS_FAILED(rv) || !size) {
         return NS_OK;
@@ -413,7 +413,7 @@ nsToolkitProfileService::Init()
     if (NS_SUCCEEDED(rv) && buffer.EqualsLiteral("0"))
         mStartWithLast = false;
 
-    nsToolkitProfile* currentProfile = nsnull;
+    nsToolkitProfile* currentProfile = nullptr;
 
     unsigned int c = 0;
     for (c = 0; true; ++c) {
@@ -582,7 +582,7 @@ nsToolkitProfileService::LockProfilePath(nsIFile* aDirectory,
                                          nsIFile* aLocalDirectory,
                                          nsIProfileLock* *aResult)
 {
-    return NS_LockProfilePath(aDirectory, aLocalDirectory, nsnull, aResult);
+    return NS_LockProfilePath(aDirectory, aLocalDirectory, nullptr, aResult);
 }
 
 nsresult
@@ -650,7 +650,7 @@ nsToolkitProfileService::CreateDefaultProfileForApp(const nsACString& aProfileNa
     NS_ENSURE_FALSE(exists, NS_ERROR_ALREADY_INITIALIZED);
 
     nsIFile* profileDefaultsDir = aProfileDefaultsDir;
-    rv = CreateProfileInternal(nsnull, nsnull,
+    rv = CreateProfileInternal(nullptr, nullptr,
                                NS_LITERAL_CSTRING("default"),
                                &aProfileName, &aAppName, &aVendorName,
                                &profileDefaultsDir, true, aResult);
@@ -697,7 +697,7 @@ nsToolkitProfileService::CreateProfile(nsIFile* aRootDir,
                                        nsIToolkitProfile** aResult)
 {
     return CreateProfileInternal(aRootDir, aLocalDir, aName,
-                                 nsnull, nsnull, nsnull, nsnull, false, aResult);
+                                 nullptr, nullptr, nullptr, nullptr, false, aResult);
 }
 
 nsresult
@@ -814,7 +814,7 @@ nsToolkitProfileService::CreateProfileInternal(nsIFile* aRootDir,
         NS_ENSURE_SUCCESS(rv, rv);
     }
 
-    nsToolkitProfile* last = aForExternalApp ? nsnull : mFirst;
+    nsToolkitProfile* last = aForExternalApp ? nullptr : mFirst;
     if (last) {
         while (last->mNext)
             last = last->mNext;
@@ -829,7 +829,7 @@ nsToolkitProfileService::CreateProfileInternal(nsIFile* aRootDir,
 }
 
 NS_IMETHODIMP
-nsToolkitProfileService::GetProfileCount(PRUint32 *aResult)
+nsToolkitProfileService::GetProfileCount(uint32_t *aResult)
 {
     if (!mFirst)
         *aResult = 0;
@@ -849,13 +849,13 @@ nsToolkitProfileService::Flush()
     // that buffer to disk.
 
     nsresult rv;
-    PRUint32 pCount = 0;
+    uint32_t pCount = 0;
     nsToolkitProfile *cur;
 
-    for (cur = mFirst; cur != nsnull; cur = cur->mNext)
+    for (cur = mFirst; cur != nullptr; cur = cur->mNext)
         ++pCount;
 
-    PRUint32 length;
+    uint32_t length;
     nsAutoArrayPtr<char> buffer (new char[100+MAXPATHLEN*pCount]);
 
     NS_ENSURE_TRUE(buffer, NS_ERROR_OUT_OF_MEMORY);
@@ -976,7 +976,7 @@ nsresult
 XRE_GetFileFromPath(const char *aPath, nsIFile* *aResult)
 {
 #if defined(XP_MACOSX)
-    PRInt32 pathLen = strlen(aPath);
+    int32_t pathLen = strlen(aPath);
     if (pathLen > MAXPATHLEN)
         return NS_ERROR_INVALID_ARG;
 

@@ -5,77 +5,132 @@
 
 package org.mozilla.gecko.gfx;
 
-import org.mozilla.gecko.GeckoAppShell;
-import org.mozilla.gecko.GeckoInputConnection;
-import org.mozilla.gecko.gfx.FloatSize;
-import org.mozilla.gecko.gfx.InputConnectionHandler;
-import org.mozilla.gecko.gfx.LayerController;
+import org.mozilla.gecko.GeckoApp;
+import org.mozilla.gecko.R;
+import org.mozilla.gecko.ZoomConstraints;
+import org.mozilla.gecko.util.EventDispatcher;
+import org.mozilla.gecko.GeckoAccessibility;
+
 import android.content.Context;
-import android.opengl.GLSurfaceView;
-import android.view.View;
-import android.view.KeyEvent;
-import android.view.MotionEvent;
-import android.view.inputmethod.EditorInfo;
-import android.view.inputmethod.InputConnection;
-import android.widget.RelativeLayout;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.graphics.PixelFormat;
+import android.graphics.PointF;
+import android.graphics.SurfaceTexture;
+import android.os.Build;
 import android.util.AttributeSet;
 import android.util.Log;
-import java.nio.IntBuffer;
-
-import org.mozilla.gecko.GeckoApp;
-import android.content.Context;
-import android.graphics.PixelFormat;
-import android.opengl.GLSurfaceView;
-import android.util.AttributeSet;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import javax.microedition.khronos.opengles.GL10;
+import android.view.TextureView;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputConnection;
+import android.widget.FrameLayout;
 
+import java.nio.IntBuffer;
+
+import java.lang.reflect.Method;
 
 /**
  * A view rendered by the layer compositor.
  *
- * This view delegates to LayerRenderer to actually do the drawing. Its role is largely that of a
- * mediator between the LayerRenderer and the LayerController.
- *
  * Note that LayerView is accessed by Robocop via reflection.
  */
-public class LayerView extends SurfaceView implements SurfaceHolder.Callback {
+public class LayerView extends FrameLayout {
     private static String LOGTAG = "GeckoLayerView";
 
-    private LayerController mController;
+    private GeckoLayerClient mLayerClient;
     private TouchEventHandler mTouchEventHandler;
     private GLController mGLController;
     private InputConnectionHandler mInputConnectionHandler;
     private LayerRenderer mRenderer;
     /* Must be a PAINT_xxx constant */
-    private int mPaintState = PAINT_NONE;
+    private int mPaintState;
+    private int mCheckerboardColor;
+    private boolean mCheckerboardShouldShowChecks;
+
+    private SurfaceView mSurfaceView;
+    private TextureView mTextureView;
 
     private Listener mListener;
 
-    /* Flags used to determine when to show the painted surface. The integer
-     * order must correspond to the order in which these states occur. */
-    public static final int PAINT_NONE = 0;
-    public static final int PAINT_BEFORE_FIRST = 1;
-    public static final int PAINT_AFTER_FIRST = 2;
+    /* Flags used to determine when to show the painted surface. */
+    public static final int PAINT_BEFORE_FIRST = 0;
+    public static final int PAINT_AFTER_FIRST = 1;
+
+    boolean shouldUseTextureView() {
+        // we can only use TextureView on ICS or higher
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+            Log.i(LOGTAG, "Not using TextureView: not on ICS+");
+            return false;
+        }
+
+        try {
+            // and then we can only use it if we have a hardware accelerated window
+            Method m = View.class.getMethod("isHardwareAccelerated", (Class[]) null);
+            return (Boolean) m.invoke(this);
+        } catch (Exception e) {
+            Log.i(LOGTAG, "Not using TextureView: caught exception checking for hw accel: " + e.toString());
+            return false;
+        }
+    }
 
     public LayerView(Context context, AttributeSet attrs) {
         super(context, attrs);
 
-        SurfaceHolder holder = getHolder();
-        holder.addCallback(this);
-        holder.setFormat(PixelFormat.RGB_565);
+        if (shouldUseTextureView()) {
+            mTextureView = new TextureView(context);
+            mTextureView.setSurfaceTextureListener(new SurfaceTextureListener());
+            mTextureView.setBackgroundColor(Color.WHITE);
+            addView(mTextureView, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        } else {
+            mSurfaceView = new SurfaceView(context);
+            mSurfaceView.setBackgroundColor(Color.WHITE);
+            addView(mSurfaceView, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+
+            SurfaceHolder holder = mSurfaceView.getHolder();
+            holder.addCallback(new SurfaceListener());
+            holder.setFormat(PixelFormat.RGB_565);
+        }
+
         mGLController = new GLController(this);
+        mPaintState = PAINT_BEFORE_FIRST;
+        mCheckerboardColor = Color.WHITE;
+        mCheckerboardShouldShowChecks = true;
     }
 
-    void connect(LayerController controller) {
-        mController = controller;
-        mTouchEventHandler = new TouchEventHandler(getContext(), this, mController);
+    public void createLayerClient(EventDispatcher eventDispatcher) {
+        mLayerClient = new GeckoLayerClient(getContext(), this, eventDispatcher);
+
+        mTouchEventHandler = new TouchEventHandler(getContext(), this, mLayerClient);
         mRenderer = new LayerRenderer(this);
         mInputConnectionHandler = null;
 
         setFocusable(true);
         setFocusableInTouchMode(true);
+
+        GeckoAccessibility.setDelegate(this);
+    }
+
+    public void show() {
+        // Fix this if TextureView support is turned back on above
+        mSurfaceView.setVisibility(View.VISIBLE);
+    }
+
+    public void hide() {
+        // Fix this if TextureView support is turned back on above
+        mSurfaceView.setVisibility(View.INVISIBLE);
+    }
+
+    public void destroy() {
+        if (mLayerClient != null) {
+            mLayerClient.destroy();
+        }
     }
 
     @Override
@@ -84,8 +139,8 @@ public class LayerView extends SurfaceView implements SurfaceHolder.Callback {
             requestFocus();
 
         /** We need to manually hide FormAssistPopup because it is not a regular PopupWindow. */
-        if (GeckoApp.mAppContext != null && GeckoApp.mAppContext.mFormAssistPopup != null)
-            GeckoApp.mAppContext.mFormAssistPopup.hide();
+        if (GeckoApp.mAppContext != null)
+            GeckoApp.mAppContext.hideFormAssistPopup();
 
         return mTouchEventHandler == null ? false : mTouchEventHandler.handleEvent(event);
     }
@@ -95,18 +150,51 @@ public class LayerView extends SurfaceView implements SurfaceHolder.Callback {
         return mTouchEventHandler == null ? false : mTouchEventHandler.handleEvent(event);
     }
 
-    public LayerController getController() { return mController; }
+    public GeckoLayerClient getLayerClient() { return mLayerClient; }
     public TouchEventHandler getTouchEventHandler() { return mTouchEventHandler; }
+
+    public ImmutableViewportMetrics getViewportMetrics() {
+        return mLayerClient.getViewportMetrics();
+    }
+
+    public void abortPanning() {
+        mLayerClient.getPanZoomController().abortPanning();
+    }
+
+    public PointF convertViewPointToLayerPoint(PointF viewPoint) {
+        return mLayerClient.convertViewPointToLayerPoint(viewPoint);
+    }
+
+    int getCheckerboardColor() {
+        return mCheckerboardColor;
+    }
+
+    public void setCheckerboardColor(int newColor) {
+        mCheckerboardColor = newColor;
+        requestRender();
+    }
+
+    boolean checkerboardShouldShowChecks() {
+        return mCheckerboardShouldShowChecks;
+    }
+
+    void setCheckerboardShouldShowChecks(boolean value) {
+        mCheckerboardShouldShowChecks = value;
+        requestRender();
+    }
+
+    public void setZoomConstraints(ZoomConstraints constraints) {
+        mLayerClient.setZoomConstraints(constraints);
+    }
 
     /** The LayerRenderer calls this to indicate that the window has changed size. */
     public void setViewportSize(IntSize size) {
-        mController.setViewportSize(new FloatSize(size));
+        mLayerClient.setViewportSize(new FloatSize(size));
     }
 
-    public GeckoInputConnection setInputConnectionHandler() {
-        GeckoInputConnection geckoInputConnection = GeckoInputConnection.create(this);
-        mInputConnectionHandler = geckoInputConnection;
-        return geckoInputConnection;
+    public void setInputConnectionHandler(InputConnectionHandler inputConnectionHandler) {
+        mInputConnectionHandler = inputConnectionHandler;
+        mLayerClient.setForceRedraw();
     }
 
     @Override
@@ -169,7 +257,7 @@ public class LayerView extends SurfaceView implements SurfaceHolder.Callback {
         return mRenderer.getMaxTextureSize();
     }
 
-    /** Used by robocop for testing purposes. Not for production use! This is called via reflection by robocop. */
+    /** Used by robocop for testing purposes. Not for production use! */
     public IntBuffer getPixels() {
         return mRenderer.getPixels();
     }
@@ -182,13 +270,10 @@ public class LayerView extends SurfaceView implements SurfaceHolder.Callback {
         return mRenderer;
     }
 
-    /* paintState must be a PAINT_xxx constant. The state will only be changed
-     * if paintState represents a state that occurs after the current state. */
+    /* paintState must be a PAINT_xxx constant. */
     public void setPaintState(int paintState) {
-        if (paintState > mPaintState) {
-            Log.d(LOGTAG, "LayerView paint state set to " + paintState);
-            mPaintState = paintState;
-        }
+        Log.d(LOGTAG, "LayerView paint state set to " + paintState);
+        mPaintState = paintState;
     }
 
     public int getPaintState() {
@@ -212,9 +297,21 @@ public class LayerView extends SurfaceView implements SurfaceHolder.Callback {
         return mGLController;
     }
 
-    /** Implementation of SurfaceHolder.Callback */
-    public synchronized void surfaceChanged(SurfaceHolder holder, int format, int width,
-                                            int height) {
+    private Bitmap getDrawable(int resId) {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inScaled = false;
+        return BitmapFactory.decodeResource(getContext().getResources(), resId, options);
+    }
+
+    Bitmap getBackgroundPattern() {
+        return getDrawable(R.drawable.tabs_tray_selected_bg);
+    }
+
+    Bitmap getShadowPattern() {
+        return getDrawable(R.drawable.shadow);
+    }
+
+    private void onSizeChanged(int width, int height) {
         mGLController.surfaceChanged(width, height);
 
         if (mListener != null) {
@@ -222,12 +319,7 @@ public class LayerView extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
-    /** Implementation of SurfaceHolder.Callback */
-    public synchronized void surfaceCreated(SurfaceHolder holder) {
-    }
-
-    /** Implementation of SurfaceHolder.Callback */
-    public synchronized void surfaceDestroyed(SurfaceHolder holder) {
+    private void onDestroyed() {
         mGLController.surfaceDestroyed();
 
         if (mListener != null) {
@@ -235,14 +327,21 @@ public class LayerView extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
+    public Object getNativeWindow() {
+        if (mSurfaceView != null)
+            return mSurfaceView.getHolder();
+
+        return mTextureView.getSurfaceTexture();
+    }
+
     /** This function is invoked by Gecko (compositor thread) via JNI; be careful when modifying signature. */
     public static GLController registerCxxCompositor() {
         try {
-            LayerView layerView = GeckoApp.mAppContext.getLayerController().getView();
+            LayerView layerView = GeckoApp.mAppContext.getLayerView();
             layerView.mListener.compositorCreated();
             return layerView.getGLController();
         } catch (Exception e) {
-            Log.e(LOGTAG, "### Exception! " + e);
+            Log.e(LOGTAG, "Error registering compositor!", e);
             return null;
         }
     }
@@ -255,5 +354,38 @@ public class LayerView extends SurfaceView implements SurfaceHolder.Callback {
         void surfaceChanged(int width, int height);
     }
 
+    private class SurfaceListener implements SurfaceHolder.Callback {
+        public void surfaceChanged(SurfaceHolder holder, int format, int width,
+                                                int height) {
+            onSizeChanged(width, height);
+        }
 
+        public void surfaceCreated(SurfaceHolder holder) {
+        }
+
+        public void surfaceDestroyed(SurfaceHolder holder) {
+            onDestroyed();
+        }
+    }
+
+    private class SurfaceTextureListener implements TextureView.SurfaceTextureListener {
+        public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+            // We don't do this for surfaceCreated above because it is always followed by a surfaceChanged,
+            // but that is not the case here.
+            onSizeChanged(width, height);
+        }
+
+        public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+            onDestroyed();
+            return true; // allow Android to call release() on the SurfaceTexture, we are done drawing to it
+        }
+
+        public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+            onSizeChanged(width, height);
+        }
+
+        public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+
+        }
+    }
 }

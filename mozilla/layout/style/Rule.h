@@ -10,9 +10,10 @@
 
 #include "nsIStyleRule.h"
 #include "nsIDOMCSSRule.h"
+#include "nsCSSStyleSheet.h"
 
 class nsIStyleSheet;
-class nsCSSStyleSheet;
+class nsIDocument;
 struct nsRuleData;
 template<class T> struct already_AddRefed;
 
@@ -23,15 +24,16 @@ class GroupRule;
 #define DECL_STYLE_RULE_INHERIT_NO_DOMRULE  \
 virtual void MapRuleInfoInto(nsRuleData* aRuleData);
 
-#define DECL_STYLE_RULE_INHERIT  \
-DECL_STYLE_RULE_INHERIT_NO_DOMRULE \
-virtual nsIDOMCSSRule* GetDOMRule();
+#define DECL_STYLE_RULE_INHERIT                   \
+  DECL_STYLE_RULE_INHERIT_NO_DOMRULE              \
+  virtual nsIDOMCSSRule* GetDOMRule();            \
+  virtual nsIDOMCSSRule* GetExistingDOMRule();
 
 class Rule : public nsIStyleRule {
 protected:
   Rule()
-    : mSheet(nsnull),
-      mParentRule(nsnull)
+    : mSheet(nullptr),
+      mParentRule(nullptr)
   {
   }
 
@@ -43,13 +45,6 @@ protected:
 
   virtual ~Rule() {}
 
-public:
-  // for implementing nsISupports
-  NS_IMETHOD_(nsrefcnt) AddRef();
-  NS_IMETHOD_(nsrefcnt) Release();
-protected:
-  nsAutoRefCnt mRefCnt;
-  NS_DECL_OWNINGTHREAD
 public:
 
   // The constants in this list must maintain the following invariants:
@@ -68,12 +63,20 @@ public:
     PAGE_RULE,
     KEYFRAME_RULE,
     KEYFRAMES_RULE,
-    DOCUMENT_RULE
+    DOCUMENT_RULE,
+    SUPPORTS_RULE
   };
 
-  virtual PRInt32 GetType() const = 0;
+  virtual int32_t GetType() const = 0;
 
   nsCSSStyleSheet* GetStyleSheet() const { return mSheet; }
+
+  // Return the document the rule lives in, if any
+  nsIDocument* GetDocument() const
+  {
+    nsCSSStyleSheet* sheet = GetStyleSheet();
+    return sheet ? sheet->GetDocument() : nullptr;
+  }
 
   virtual void SetStyleSheet(nsCSSStyleSheet* aSheet);
 
@@ -92,6 +95,9 @@ public:
   // Note that this returns null for inline style rules since they aren't
   // supposed to have a DOM rule representation (and our code wouldn't work).
   virtual nsIDOMCSSRule* GetDOMRule() = 0;
+
+  // Like GetDOMRule(), but won't create one if we don't have one yet
+  virtual nsIDOMCSSRule* GetExistingDOMRule() = 0;
 
   // to implement methods on nsIDOMCSSRule
   nsresult GetParentRule(nsIDOMCSSRule** aParentRule);

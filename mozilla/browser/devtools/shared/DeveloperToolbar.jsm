@@ -13,15 +13,16 @@ const WEBCONSOLE_CONTENT_SCRIPT_URL =
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource:///modules/devtools/Commands.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "console",
-                                  "resource:///modules/devtools/Console.jsm");
+                                  "resource://gre/modules/devtools/Console.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "gcli",
                                   "resource:///modules/devtools/gcli.jsm");
 
-XPCOMUtils.defineLazyModuleGetter(this, "GcliCommands",
-                                  "resource:///modules/devtools/GcliCommands.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "CmdCommands",
+                                  "resource:///modules/devtools/CmdCmd.jsm");
 
 /**
  * Due to a number of panel bugs we need a way to check if we are running on
@@ -35,8 +36,6 @@ XPCOMUtils.defineLazyGetter(this, "isLinux", function () {
            .getService(Components.interfaces.nsIXULRuntime).OS;
   return os == "Linux";
 });
-
-/**
 
 /**
  * A component to manage the global developer toolbar, which contains a GCLI
@@ -60,7 +59,7 @@ function DeveloperToolbar(aChromeWindow, aToolbarElement)
                            .getElementById("developer-toolbar-webconsole");
 
   try {
-    GcliCommands.refreshAutoCommands(aChromeWindow);
+    CmdCommands.refreshAutoCommands(aChromeWindow);
   }
   catch (ex) {
     console.error(ex);
@@ -583,15 +582,17 @@ function OutputPanel(aChromeDoc, aInput, aLoadCallback)
          class="gcli-panel">
     <html:iframe xmlns:html="http://www.w3.org/1999/xhtml"
                  id="gcli-output-frame"
-                 src="chrome://browser/content/devtools/gclioutput.xhtml"
-                 flex="1"/>
+                 src="chrome://browser/content/devtools/commandlineoutput.xhtml"
+                 sandbox="allow-same-origin"/>
   </tooltip|panel>
   */
+
+  // TODO: Switch back from tooltip to panel when metacity focus issue is fixed:
+  // https://bugzilla.mozilla.org/show_bug.cgi?id=780102
   this._panel = aChromeDoc.createElement(isLinux ? "tooltip" : "panel");
+
   this._panel.id = "gcli-output";
   this._panel.classList.add("gcli-panel");
-  this._panel.setAttribute("noautofocus", "true");
-  this._panel.setAttribute("noautohide", "true");
 
   if (isLinux) {
     this.canHide = false;
@@ -612,8 +613,9 @@ function OutputPanel(aChromeDoc, aInput, aLoadCallback)
 
   this._frame = aChromeDoc.createElementNS(NS_XHTML, "iframe");
   this._frame.id = "gcli-output-frame";
-  this._frame.setAttribute("src", "chrome://browser/content/devtools/gclioutput.xhtml");
+  this._frame.setAttribute("src", "chrome://browser/content/devtools/commandlineoutput.xhtml");
   this._frame.setAttribute("flex", "1");
+  this._frame.setAttribute("sandbox", "allow-same-origin");
   this._panel.appendChild(this._frame);
 
   this.displayedOutput = undefined;
@@ -758,11 +760,15 @@ OutputPanel.prototype.destroy = function OP_destroy()
 {
   this.remove();
 
+  this._panel.removeEventListener("popuphiding", this._onpopuphiding, true);
+
   this._panel.removeChild(this._frame);
   this._toolbar.parentElement.removeChild(this._panel);
 
   delete this._input;
   delete this._toolbar;
+  delete this._onload;
+  delete this._onpopuphiding;
   delete this._panel;
   delete this._frame;
   delete this._content;
@@ -821,11 +827,16 @@ function TooltipPanel(aChromeDoc, aInput, aLoadCallback)
          class="gcli-panel">
     <html:iframe xmlns:html="http://www.w3.org/1999/xhtml"
                  id="gcli-tooltip-frame"
-                 src="chrome://browser/content/devtools/gclitooltip.xhtml"
-                 flex="1"/>
+                 src="chrome://browser/content/devtools/commandlinetooltip.xhtml"
+                 flex="1"
+                 sandbox="allow-same-origin"/>
   </tooltip|panel>
   */
+
+  // TODO: Switch back from tooltip to panel when metacity focus issue is fixed:
+  // https://bugzilla.mozilla.org/show_bug.cgi?id=780102
   this._panel = aChromeDoc.createElement(isLinux ? "tooltip" : "panel");
+
   this._panel.id = "gcli-tooltip";
   this._panel.classList.add("gcli-panel");
 
@@ -844,17 +855,17 @@ function TooltipPanel(aChromeDoc, aInput, aLoadCallback)
     this._panel.setAttribute("height", "1px");
   }
 
-  this._panel.setAttribute("noautofocus", "true");
-  this._panel.setAttribute("noautohide", "true");
   this._toolbar.parentElement.insertBefore(this._panel, this._toolbar);
 
   this._frame = aChromeDoc.createElementNS(NS_XHTML, "iframe");
   this._frame.id = "gcli-tooltip-frame";
-  this._frame.setAttribute("src", "chrome://browser/content/devtools/gclitooltip.xhtml");
+  this._frame.setAttribute("src", "chrome://browser/content/devtools/commandlinetooltip.xhtml");
   this._frame.setAttribute("flex", "1");
+  this._frame.setAttribute("sandbox", "allow-same-origin");
   this._panel.appendChild(this._frame);
 
   this._frame.addEventListener("load", this._onload, true);
+
   this.loaded = false;
 }
 
@@ -960,7 +971,6 @@ TooltipPanel.prototype.remove = function TP_remove()
   if (isLinux) {
     this.canHide = true;
   }
-
   this._panel.hidePopup();
 };
 
@@ -971,6 +981,8 @@ TooltipPanel.prototype.destroy = function TP_destroy()
 {
   this.remove();
 
+  this._panel.removeEventListener("popuphiding", this._onpopuphiding, true);
+
   this._panel.removeChild(this._frame);
   this._toolbar.parentElement.removeChild(this._panel);
 
@@ -978,6 +990,7 @@ TooltipPanel.prototype.destroy = function TP_destroy()
   delete this._dimensions;
   delete this._input;
   delete this._onload;
+  delete this._onpopuphiding;
   delete this._panel;
   delete this._frame;
   delete this._toolbar;

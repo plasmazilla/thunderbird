@@ -72,8 +72,8 @@ NS_SetThreadName(nsIThread *thread, const char (&name)[LEN])
  */
 extern NS_COM_GLUE NS_METHOD
 NS_NewThread(nsIThread **result,
-             nsIRunnable *initialEvent = nsnull,
-             PRUint32 stackSize = nsIThreadManager::DEFAULT_STACK_SIZE);
+             nsIRunnable *initialEvent = nullptr,
+             uint32_t stackSize = nsIThreadManager::DEFAULT_STACK_SIZE);
 
 /**
  * Creates a named thread, otherwise the same as NS_NewThread
@@ -82,8 +82,8 @@ template <size_t LEN>
 inline NS_METHOD
 NS_NewNamedThread(const char (&name)[LEN],
                   nsIThread **result,
-                  nsIRunnable *initialEvent = nsnull,
-                  PRUint32 stackSize = nsIThreadManager::DEFAULT_STACK_SIZE)
+                  nsIRunnable *initialEvent = nullptr,
+                  uint32_t stackSize = nsIThreadManager::DEFAULT_STACK_SIZE)
 {
     nsresult rv = NS_NewThread(result, initialEvent, stackSize);
     NS_SetThreadName<LEN>(*result, name);
@@ -153,7 +153,7 @@ NS_DispatchToCurrentThread(nsIRunnable *event);
  */
 extern NS_COM_GLUE NS_METHOD
 NS_DispatchToMainThread(nsIRunnable *event,
-                        PRUint32 dispatchFlags = NS_DISPATCH_NORMAL);
+                        uint32_t dispatchFlags = NS_DISPATCH_NORMAL);
 
 #ifndef XPCOM_GLUE_AVOID_NSPR
 /**
@@ -191,7 +191,7 @@ NS_ProcessPendingEvents(nsIThread *thread,
  *   in the current thread's event queue.
  */
 extern NS_COM_GLUE bool
-NS_HasPendingEvents(nsIThread *thread = nsnull);
+NS_HasPendingEvents(nsIThread *thread = nullptr);
 
 /**
  * Shortcut for nsIThread::ProcessNextEvent.
@@ -211,21 +211,21 @@ NS_HasPendingEvents(nsIThread *thread = nsnull);
  *   thread's event queue was processed.
  */
 extern NS_COM_GLUE bool
-NS_ProcessNextEvent(nsIThread *thread = nsnull, bool mayWait = true);
+NS_ProcessNextEvent(nsIThread *thread = nullptr, bool mayWait = true);
 
 //-----------------------------------------------------------------------------
 // Helpers that work with nsCOMPtr:
 
 inline already_AddRefed<nsIThread>
 do_GetCurrentThread() {
-  nsIThread *thread = nsnull;
+  nsIThread *thread = nullptr;
   NS_GetCurrentThread(&thread);
   return already_AddRefed<nsIThread>(thread);
 }
 
 inline already_AddRefed<nsIThread>
 do_GetMainThread() {
-  nsIThread *thread = nsnull;
+  nsIThread *thread = nullptr;
   NS_GetMainThread(&thread);
   return already_AddRefed<nsIThread>(thread);
 }
@@ -308,7 +308,7 @@ template <class ClassType>
 struct nsRunnableMethodReceiver<ClassType, false> {
   ClassType *mObj;
   nsRunnableMethodReceiver(ClassType *obj) : mObj(obj) {}
-  void Revoke() { mObj = nsnull; }
+  void Revoke() { mObj = nullptr; }
 };
 
 template <typename Method, bool Owning> struct nsRunnableMethodTraits;
@@ -392,7 +392,7 @@ NS_NewNonOwningRunnableMethod(PtrType ptr, Method method)
 //   class E : public nsRunnable {
 //   public:
 //     void Revoke() {
-//       mResource = nsnull;
+//       mResource = nullptr;
 //     }
 //   private:
 //     R *mResource;
@@ -430,7 +430,7 @@ template <class T>
 class nsRevocableEventPtr {
 public:
   nsRevocableEventPtr()
-    : mEvent(nsnull) {
+    : mEvent(nullptr) {
   }
 
   ~nsRevocableEventPtr() {
@@ -448,16 +448,16 @@ public:
   void Revoke() {
     if (mEvent) {
       mEvent->Revoke();
-      mEvent = nsnull;
+      mEvent = nullptr;
     }
   }
 
   void Forget() {
-    mEvent = nsnull;
+    mEvent = nullptr;
   }
 
   bool IsPending() {
-    return mEvent != nsnull;
+    return mEvent != nullptr;
   }
   
   T *get() { return mEvent; }
@@ -485,13 +485,34 @@ public:
    * is null) then the name is synchronously set on the current thread.
    */
   void SetThreadPoolName(const nsACString & aPoolName,
-                         nsIThread * aThread = nsnull);
+                         nsIThread * aThread = nullptr);
 
 private:
-  volatile PRUint32 mCounter;
+  volatile uint32_t mCounter;
 
   nsThreadPoolNaming(const nsThreadPoolNaming &) MOZ_DELETE;
   void operator=(const nsThreadPoolNaming &) MOZ_DELETE;
 };
+
+/**
+ * Thread priority in most operating systems affect scheduling, not IO.  This
+ * helper is used to set the current thread to low IO priority for the lifetime
+ * of the created object.  You can only use this low priority IO setting within
+ * the context of the current thread.
+ */
+class NS_STACK_CLASS nsAutoLowPriorityIO
+{
+public:
+  nsAutoLowPriorityIO();
+  ~nsAutoLowPriorityIO();
+
+private:
+  bool lowIOPrioritySet;
+#if defined(XP_MACOSX)
+  int oldPriority;
+#endif
+};
+
+
 
 #endif  // nsThreadUtils_h__

@@ -55,10 +55,10 @@ bool nsOCSPResponder::IncludeCert(CERTCertificate *aCert)
   trust = aCert->trust;
   nickname = aCert->nickname;
 
-  PR_ASSERT(trust != nsnull);
+  PR_ASSERT(trust != nullptr);
 
   // Check that trust is non-null //
-  if (trust == nsnull) {
+  if (trust == nullptr) {
     return false;
   }
 
@@ -80,16 +80,16 @@ bool nsOCSPResponder::IncludeCert(CERTCertificate *aCert)
 //
 // Compare two responders their token name.  Returns -1, 0, 1 as
 // in strcmp.  No token name (null) is treated as >.
-PRInt32 nsOCSPResponder::CmpCAName(nsIOCSPResponder *a, nsIOCSPResponder *b)
+int32_t nsOCSPResponder::CmpCAName(nsIOCSPResponder *a, nsIOCSPResponder *b)
 {
-  PRInt32 cmp1;
+  int32_t cmp1;
   nsXPIDLString aTok, bTok;
   a->GetResponseSigner(getter_Copies(aTok));
   b->GetResponseSigner(getter_Copies(bTok));
-  if (aTok != nsnull && bTok != nsnull) {
+  if (aTok != nullptr && bTok != nullptr) {
     cmp1 = Compare(aTok, bTok);
   } else {
-    cmp1 = (aTok == nsnull) ? 1 : -1;
+    cmp1 = (aTok == nullptr) ? 1 : -1;
   }
   return cmp1;
 }
@@ -98,7 +98,7 @@ PRInt32 nsOCSPResponder::CmpCAName(nsIOCSPResponder *a, nsIOCSPResponder *b)
 //
 // Compare two responders.  Returns -1, 0, 1 as
 // in strcmp.  Entries with urls come before those without urls.
-PRInt32 nsOCSPResponder::CompareEntries(nsIOCSPResponder *a, nsIOCSPResponder *b)
+int32_t nsOCSPResponder::CompareEntries(nsIOCSPResponder *a, nsIOCSPResponder *b)
 {
   nsXPIDLString aURL, bURL;
   nsAutoString aURLAuto, bURLAuto;

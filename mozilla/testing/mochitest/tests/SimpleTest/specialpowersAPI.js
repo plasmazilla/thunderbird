@@ -7,8 +7,10 @@
 
 var Ci = Components.interfaces;
 var Cc = Components.classes;
+var Cu = Components.utils;
 
 Components.utils.import("resource://mochikit/MockFilePicker.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 function SpecialPowersAPI() { 
   this._consoleListeners = [];
@@ -409,6 +411,10 @@ SpecialPowersAPI.prototype = {
     return MockFilePicker
   },
 
+  get Services() {
+    return wrapPrivileged(Services);
+  },
+
   getDOMWindowUtils: function(aWindow) {
     if (aWindow == this.window.get() && this.DOMWindowUtils != null)
       return this.DOMWindowUtils;
@@ -634,6 +640,12 @@ SpecialPowersAPI.prototype = {
     return obj.QueryInterface(Ci[iface]); 
   },
 
+  call_Instanceof: function (obj1, obj2) {
+     obj1=unwrapIfWrapped(obj1);
+     obj2=unwrapIfWrapped(obj2);
+     return obj1 instanceof obj2;
+  },
+
   // Mimic the get*Pref API
   getBoolPref: function(aPrefName) {
     return (this._getPref(aPrefName, 'BOOL'));
@@ -823,6 +835,10 @@ SpecialPowersAPI.prototype = {
     Components.utils.forceGC();
   },
 
+  forceCC: function() {
+    Components.utils.forceCC();
+  },
+
   exactGC: function(win, callback) {
     var self = this;
     let count = 0;
@@ -867,13 +883,16 @@ SpecialPowersAPI.prototype = {
     return this._xpcomabi;
   },
 
-  executeSoon: function(aFunc) {
-    var tm = Cc["@mozilla.org/thread-manager;1"].getService(Ci.nsIThreadManager);
-    tm.mainThread.dispatch({
-      run: function() {
-        aFunc();
-      }
-    }, Ci.nsIThread.DISPATCH_NORMAL);
+  // The optional aWin parameter allows the caller to specify a given window in
+  // whose scope the runnable should be dispatched. If aFun throws, the
+  // exception will be reported to aWin.
+  executeSoon: function(aFun, aWin) {
+    // Create the runnable in the scope of aWin to avoid running into COWs.
+    var runnable = {};
+    if (aWin)
+        runnable = Cu.createObjectIn(aWin);
+    runnable.run = aFun;
+    Cu.dispatch(runnable, aWin);
   },
 
   _os: null,
@@ -1101,8 +1120,7 @@ SpecialPowersAPI.prototype = {
   
   setFullscreenAllowed: function(document) {
     var pm = Cc["@mozilla.org/permissionmanager;1"].getService(Ci.nsIPermissionManager);
-    var uri = this.getDocumentURIObject(document);
-    pm.add(uri, "fullscreen", Ci.nsIPermissionManager.ALLOW_ACTION);
+    pm.addFromPrincipal(document.nodePrincipal, "fullscreen", Ci.nsIPermissionManager.ALLOW_ACTION);
     var obsvc = Cc['@mozilla.org/observer-service;1']
                    .getService(Ci.nsIObserverService);
     obsvc.notifyObservers(document, "fullscreen-approved", null);
@@ -1110,44 +1128,61 @@ SpecialPowersAPI.prototype = {
   
   removeFullscreenAllowed: function(document) {
     var pm = Cc["@mozilla.org/permissionmanager;1"].getService(Ci.nsIPermissionManager);
-    var uri = this.getDocumentURIObject(document);
-    pm.remove(uri.host, "fullscreen");
+    pm.removeFromPrincipal(document.nodePrincipal, "fullscreen");
   },
 
-  _getURI: function(urlOrDocument) {
-    if (typeof(urlOrDocument) == "string") {
-      return Cc["@mozilla.org/network/io-service;1"].
-               getService(Ci.nsIIOService).
-               newURI(url, null, null);
+  _getInfoFromPermissionArg: function(arg) {
+    let url = "";
+    let appId = Ci.nsIScriptSecurityManager.NO_APP_ID;
+    let isInBrowserElement = false;
+
+    if (typeof(arg) == "string") {
+      // It's an URL.
+      url = Cc["@mozilla.org/network/io-service;1"]
+              .getService(Ci.nsIIOService)
+              .newURI(arg, null, null)
+              .spec;
+    } else if (arg.nodePrincipal) {
+      // It's a document.
+      url = arg.nodePrincipal.URI.spec;
+      appId = arg.nodePrincipal.appId;
+      isInBrowserElement = arg.nodePrincipal.isInBrowserElement;
+    } else {
+      url = arg.url;
+      appId = arg.appId;
+      isInBrowserElement = arg.isInBrowserElement;
     }
-    // Assume document.
-    return this.getDocumentURIObject(urlOrDocument);
+
+    return [ url, appId, isInBrowserElement ];
   },
 
-  addPermission: function(type, allow, urlOrDocument) {
-    let uri = this._getURI(urlOrDocument);
+  addPermission: function(type, allow, arg) {
+    let [url, appId, isInBrowserElement] = this._getInfoFromPermissionArg(arg);
 
-    let permission = allow ?
-                     Ci.nsIPermissionManager.ALLOW_ACTION :
-                     Ci.nsIPermissionManager.DENY_ACTION;
+    let permission = allow ? Ci.nsIPermissionManager.ALLOW_ACTION
+                           : Ci.nsIPermissionManager.DENY_ACTION;
 
     var msg = {
       'op': "add",
       'type': type,
-      'url': uri.spec,
-      'permission': permission
+      'permission': permission,
+      'url': url,
+      'appId': appId,
+      'isInBrowserElement': isInBrowserElement
     };
 
     this._sendSyncMessage('SPPermissionManager', msg);
   },
 
-  removePermission: function(type, urlOrDocument) {
-    let uri = this._getURI(urlOrDocument);
+  removePermission: function(type, arg) {
+    let [url, appId, isInBrowserElement] = this._getInfoFromPermissionArg(arg);
 
     var msg = {
       'op': "remove",
       'type': type,
-      'url': uri.spec
+      'url': url,
+      'appId': appId,
+      'isInBrowserElement': isInBrowserElement
     };
 
     this._sendSyncMessage('SPPermissionManager', msg);

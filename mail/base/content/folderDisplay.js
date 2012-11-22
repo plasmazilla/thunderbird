@@ -1269,10 +1269,20 @@ FolderDisplayWidget.prototype = {
    */
   displayMessageChanged: function FolderDisplayWidget_displayMessageChanged(
       aFolder, aSubject, aKeywords) {
+    // Hide previous stale message to prevent brief threadpane selection and
+    // content displayed mismatch, on both folder and tab changes.
+    let browser = getBrowser();
+    if (browser && browser.contentDocument && browser.contentDocument.body)
+      browser.contentDocument.body.hidden = true;
+
     UpdateMailToolbar("FolderDisplayWidget displayed message changed");
     let viewIndex = this.view.dbView.currentlyDisplayedMessage;
     let msgHdr = (viewIndex != nsMsgViewIndex_None) ?
                    this.view.dbView.getMsgHdrAt(viewIndex) : null;
+
+    if (!FeedMessageHandler.shouldShowSummary(msgHdr, false))
+      FeedMessageHandler.setContent(msgHdr, false);
+
     this.messageDisplay.onDisplayingMessage(msgHdr);
 
     // Although deletes should now be so fast that the user has no time to do
@@ -1901,12 +1911,12 @@ FolderDisplayWidget.prototype = {
   },
 
   /**
-   * @return true if there is a selected message and it's an RSS feed message.
+   * @return true if there is a selected message and it's an RSS feed message;
+   *  a feed message does not have to be in an rss account folder if stored in
+   *  Tb15 and later.
    */
   get selectedMessageIsFeed() {
-    let message = this.selectedMessage;
-    return Boolean(message && message.folder &&
-                   message.folder.server.type == 'rss');
+    return FeedMessageHandler.isFeedMessage(this.selectedMessage);
   },
 
   /**

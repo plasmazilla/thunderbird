@@ -19,9 +19,9 @@
 #include "nsIURI.h"
 #include "nsAutoPtr.h"
 #include "nsFrameMessageManager.h"
-#include "Layers.h"
 #include "mozilla/dom/Element.h"
 #include "mozilla/Attributes.h"
+#include "FrameMetrics.h"
 
 class nsIURI;
 class nsSubDocumentFrame;
@@ -177,14 +177,14 @@ public:
    * Called from the layout frame associated with this frame loader;
    * this notifies us to hook up with the widget and view.
    */
-  bool Show(PRInt32 marginWidth, PRInt32 marginHeight,
-              PRInt32 scrollbarPrefX, PRInt32 scrollbarPrefY,
+  bool Show(int32_t marginWidth, int32_t marginHeight,
+              int32_t scrollbarPrefX, int32_t scrollbarPrefY,
               nsSubDocumentFrame* frame);
 
   /**
    * Called when the margin properties of the containing frame are changed.
    */
-  void MarginsChanged(PRUint32 aMarginWidth, PRUint32 aMarginHeight);
+  void MarginsChanged(uint32_t aMarginWidth, uint32_t aMarginHeight);
 
   /**
    * Called from the layout frame associated with this frame loader, when
@@ -211,7 +211,7 @@ public:
    */
   nsIFrame* GetPrimaryFrameOfOwningContent() const
   {
-    return mOwnerContent ? mOwnerContent->GetPrimaryFrame() : nsnull;
+    return mOwnerContent ? mOwnerContent->GetPrimaryFrame() : nullptr;
   }
 
   /** 
@@ -219,7 +219,7 @@ public:
    * an owner.
    */
   nsIDocument* GetOwnerDoc() const
-  { return mOwnerContent ? mOwnerContent->OwnerDoc() : nsnull; }
+  { return mOwnerContent ? mOwnerContent->OwnerDoc() : nullptr; }
 
   PBrowserParent* GetRemoteBrowser();
 
@@ -267,6 +267,25 @@ public:
    * ReallyStartLoading().
    */
   void SetRemoteBrowser(nsITabParent* aTabParent);
+
+  /**
+   * Stashes a detached view on the frame loader. We do this when we're
+   * destroying the nsSubDocumentFrame. If the nsSubdocumentFrame is
+   * being reframed we'll restore the detached view when it's recreated,
+   * otherwise we'll discard the old presentation and set the detached
+   * subdoc view to null. aContainerDoc is the document containing the
+   * the subdoc frame. This enables us to detect when the containing
+   * document has changed during reframe, so we can discard the presentation 
+   * in that case.
+   */
+  void SetDetachedSubdocView(nsIView* aDetachedView,
+                             nsIDocument* aContainerDoc);
+
+  /**
+   * Retrieves the detached view and the document containing the view,
+   * as set by SetDetachedSubdocView().
+   */
+  nsIView* GetDetachedSubdocView(nsIDocument** aContainerDoc) const;
 
 private:
 
@@ -326,6 +345,16 @@ public:
   nsRefPtr<nsFrameMessageManager> mMessageManager;
   nsCOMPtr<nsIInProcessContentFrameMessageManager> mChildMessageManager;
 private:
+  // Stores the root view of the subdocument while the subdocument is being
+  // reframed. Used to restore the presentation after reframing.
+  nsIView* mDetachedSubdocViews;
+  // Stores the containing document of the frame corresponding to this
+  // frame loader. This is reference is kept valid while the subframe's
+  // presentation is detached and stored in mDetachedSubdocViews. This
+  // enables us to detect whether the frame has moved documents during
+  // a reframe, so that we know not to restore the presentation.
+  nsCOMPtr<nsIDocument> mContainerDocWhileDetached;
+
   bool mDepthTooGreat : 1;
   bool mIsTopLevelContent : 1;
   bool mDestroyCalled : 1;
@@ -353,11 +382,11 @@ private:
   // See nsIFrameLoader.idl.  Short story, if !(mRenderMode &
   // RENDER_MODE_ASYNC_SCROLL), all the fields below are ignored in
   // favor of what content tells.
-  PRUint32 mRenderMode;
+  uint32_t mRenderMode;
 
   // See nsIFrameLoader.idl. EVENT_MODE_NORMAL_DISPATCH automatically
   // forwards some input events to out-of-process content.
-  PRUint32 mEventMode;
+  uint32_t mEventMode;
 };
 
 #endif

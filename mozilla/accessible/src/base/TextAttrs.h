@@ -6,12 +6,16 @@
 #ifndef nsTextAttrs_h_
 #define nsTextAttrs_h_
 
-#include "nsIContent.h"
-#include "nsIFrame.h"
-#include "nsIPersistentProperties2.h"
+#include "nsCOMPtr.h"
+#include "nsColor.h"
 #include "nsStyleConsts.h"
 
 class HyperTextAccessible;
+class nsIFrame;
+class nsIPersistentProperties;
+class nsIContent;
+class Accessible;
+class nsDeviceContext;
 
 namespace mozilla {
 namespace a11y {
@@ -30,7 +34,7 @@ public:
    * Constructor. Used to expose default text attributes.
    */
   TextAttrsMgr(HyperTextAccessible* aHyperTextAcc) :
-    mOffsetAcc(nsnull),  mHyperTextAcc(aHyperTextAcc),
+    mOffsetAcc(nullptr),  mHyperTextAcc(aHyperTextAcc),
     mOffsetAccIdx(-1), mIncludeDefAttrs(true) { }
 
   /**
@@ -48,7 +52,7 @@ public:
   TextAttrsMgr(HyperTextAccessible* aHyperTextAcc,
                bool aIncludeDefAttrs,
                Accessible* aOffsetAcc,
-               PRInt32 aOffsetAccIdx) :
+               int32_t aOffsetAccIdx) :
     mOffsetAcc(aOffsetAcc), mHyperTextAcc(aHyperTextAcc),
     mOffsetAccIdx(aOffsetAccIdx), mIncludeDefAttrs(aIncludeDefAttrs) { }
 
@@ -64,8 +68,8 @@ public:
    * @param aEndHTOffset   [out, optional] end hyper text offset
    */
   void GetAttributes(nsIPersistentProperties* aAttributes,
-                     PRInt32* aStartHTOffset = nsnull,
-                     PRInt32* aEndHTOffset = nsnull);
+                     int32_t* aStartHTOffset = nullptr,
+                     int32_t* aEndHTOffset = nullptr);
 
 protected:
   /**
@@ -79,13 +83,13 @@ protected:
    * @param aEndHTOffset    [in, out] the end offset
    */
   class TextAttr;
-  void GetRange(TextAttr* aAttrArray[], PRUint32 aAttrArrayLen,
-                PRInt32* aStartHTOffset, PRInt32* aEndHTOffset);
+  void GetRange(TextAttr* aAttrArray[], uint32_t aAttrArrayLen,
+                int32_t* aStartHTOffset, int32_t* aEndHTOffset);
 
 private:
   Accessible* mOffsetAcc;
   HyperTextAccessible* mHyperTextAcc;
-  PRInt32 mOffsetAccIdx;
+  int32_t mOffsetAccIdx;
   bool mIncludeDefAttrs;
 
 protected:
@@ -193,7 +197,7 @@ protected:
   public:
     LangTextAttr(HyperTextAccessible* aRoot, nsIContent* aRootElm,
                  nsIContent* aElm);
-    virtual ~LangTextAttr() { }
+    virtual ~LangTextAttr();
 
   protected:
 
@@ -311,7 +315,7 @@ protected:
   /**
    * Class is used for the work with "font-weight" text attribute.
    */
-  class FontWeightTextAttr : public TTextAttr<PRInt32>
+  class FontWeightTextAttr : public TTextAttr<int32_t>
   {
   public:
     FontWeightTextAttr(nsIFrame* aRootFrame, nsIFrame* aFrame);
@@ -320,12 +324,12 @@ protected:
   protected:
 
     // TTextAttr
-    virtual bool GetValueFor(Accessible* aAccessible, PRInt32* aValue);
+    virtual bool GetValueFor(Accessible* aAccessible, int32_t* aValue);
     virtual void ExposeValue(nsIPersistentProperties* aAttributes,
-                             const PRInt32& aValue);
+                             const int32_t& aValue);
 
   private:
-    PRInt32 GetFontWeight(nsIFrame* aFrame);
+    int32_t GetFontWeight(nsIFrame* aFrame);
   };
 
   /**
@@ -359,7 +363,7 @@ protected:
     TextDecorValue(nsIFrame* aFrame);
 
     nscolor Color() const { return mColor; }
-    PRUint8 Style() const { return mStyle; }
+    uint8_t Style() const { return mStyle; }
 
     bool IsDefined() const
       { return IsUnderline() || IsLineThrough(); }
@@ -378,8 +382,8 @@ protected:
 
   private:
     nscolor mColor;
-    PRUint8 mLine;
-    PRUint8 mStyle;
+    uint8_t mLine;
+    uint8_t mStyle;
   };
 
   class TextDecorTextAttr : public TTextAttr<TextDecorValue>

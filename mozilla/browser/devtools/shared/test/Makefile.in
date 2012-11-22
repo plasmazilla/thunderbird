@@ -3,13 +3,15 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH     = ../../../..
+DEPTH     = @DEPTH@
 topsrcdir = @top_srcdir@
 srcdir    = @srcdir@
 VPATH     = @srcdir@
-relativesrcdir  = browser/devtools/shared/test
+relativesrcdir  = @relativesrcdir@
 
 include $(DEPTH)/config/autoconf.mk
+
+XPCSHELL_TESTS = unit
 
 MOCHITEST_BROWSER_FILES = \
   browser_browser_basic.js \
@@ -21,6 +23,8 @@ MOCHITEST_BROWSER_FILES = \
   browser_toolbar_webconsole_errors_count.js \
   browser_layoutHelpers.js \
   head.js \
+  helpers.js \
+  leakhunt.js \
   $(NULL)
 
 MOCHITEST_BROWSER_FILES += \

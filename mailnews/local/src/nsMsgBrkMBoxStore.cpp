@@ -160,7 +160,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::GetSummaryFile(nsIMsgFolder *aFolder,
 
 // Get the current attributes of the mbox file, corrected for caching
 void nsMsgBrkMBoxStore::GetMailboxModProperties(nsIMsgFolder *aFolder,
-                                                PRInt64 *aSize, PRUint32 *aDate)
+                                                int64_t *aSize, uint32_t *aDate)
 {
   // We'll simply return 0 on errors.
   *aDate = 0;
@@ -173,16 +173,16 @@ void nsMsgBrkMBoxStore::GetMailboxModProperties(nsIMsgFolder *aFolder,
   if (NS_FAILED(rv))
     return;
 
-  PRInt64 lastModTime;
+  PRTime lastModTime;
   rv = pathFile->GetLastModifiedTime(&lastModTime);
   if (NS_FAILED(rv))
     return;
 
-  *aDate = (PRUint32) (lastModTime / PR_MSEC_PER_SEC);
+  *aDate = (uint32_t) (lastModTime / PR_MSEC_PER_SEC);
 }
 
 NS_IMETHODIMP nsMsgBrkMBoxStore::HasSpaceAvailable(nsIMsgFolder *aFolder,
-                                                   PRInt64 aSpaceRequested,
+                                                   int64_t aSpaceRequested,
                                                    bool *aResult)
 {
   NS_ENSURE_ARG_POINTER(aResult);
@@ -190,7 +190,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::HasSpaceAvailable(nsIMsgFolder *aFolder,
   nsCOMPtr<nsIFile> pathFile;
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(pathFile));
   NS_ENSURE_SUCCESS(rv, rv);
-  PRInt64 fileSize;
+  int64_t fileSize;
   rv = pathFile->GetFileSize(&fileSize);
   NS_ENSURE_SUCCESS(rv, rv);
   // ### I think we're allowing mailboxes > 4GB, so we should be checking
@@ -201,7 +201,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::HasSpaceAvailable(nsIMsgFolder *aFolder,
 }
 
 static bool gGotGlobalPrefs = false;
-static PRInt32 gTimeStampLeeway = 60;
+static int32_t gTimeStampLeeway = 60;
 
 NS_IMETHODIMP nsMsgBrkMBoxStore::IsSummaryFileValid(nsIMsgFolder *aFolder,
                                                     nsIMsgDatabase *aDB,
@@ -224,9 +224,9 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::IsSummaryFileValid(nsIMsgFolder *aFolder,
   nsCOMPtr<nsIDBFolderInfo> folderInfo;
   rv = aDB->GetDBFolderInfo(getter_AddRefs(folderInfo));
   NS_ENSURE_SUCCESS(rv, rv);
-  PRUint64 folderSize;
-  PRUint32 folderDate;
-  PRInt32 numUnreadMessages;
+  uint64_t folderSize;
+  uint32_t folderDate;
+  int32_t numUnreadMessages;
 
   *aResult = false;
 
@@ -234,8 +234,8 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::IsSummaryFileValid(nsIMsgFolder *aFolder,
   folderInfo->GetFolderSize(&folderSize);
   folderInfo->GetFolderDate(&folderDate);
 
-  PRInt64 fileSize = 0;
-  PRUint32 actualFolderTimeStamp = 0;
+  int64_t fileSize = 0;
+  uint32_t actualFolderTimeStamp = 0;
   GetMailboxModProperties(aFolder, &fileSize, &actualFolderTimeStamp);
 
   if (folderSize == fileSize && numUnreadMessages >= 0)
@@ -258,7 +258,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::IsSummaryFileValid(nsIMsgFolder *aFolder,
     if (gTimeStampLeeway == 0)
       *aResult = folderDate == actualFolderTimeStamp;
     else
-      *aResult = NS_ABS((PRInt32) (actualFolderTimeStamp - folderDate)) <= gTimeStampLeeway;
+      *aResult = NS_ABS((int32_t) (actualFolderTimeStamp - folderDate)) <= gTimeStampLeeway;
   }
   return NS_OK;
 }
@@ -287,8 +287,8 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::SetSummaryFileValid(nsIMsgFolder *aFolder,
 
   if (aValid)
   {
-    PRUint32 actualFolderTimeStamp;
-    PRInt64 fileSize;
+    uint32_t actualFolderTimeStamp;
+    int64_t fileSize;
     GetMailboxModProperties(aFolder, &fileSize, &actualFolderTimeStamp);
     folderInfo->SetFolderSize(fileSize);
     folderInfo->SetFolderDate(actualFolderTimeStamp);
@@ -333,7 +333,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::RenameFolder(nsIMsgFolder *aFolder,
   NS_ENSURE_ARG_POINTER(aFolder);
   NS_ENSURE_ARG_POINTER(aNewFolder);
 
-  PRUint32 numChildren;
+  uint32_t numChildren;
   aFolder->GetNumSubFolders(&numChildren);
   nsString existingName;
   aFolder->GetName(existingName);
@@ -386,20 +386,20 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::RenameFolder(nsIMsgFolder *aFolder,
 
   aFolder->ForceDBClosed();
   //save off dir name before appending .msf
-  rv = oldPathFile->MoveTo(nsnull, safeName);
+  rv = oldPathFile->MoveTo(nullptr, safeName);
   if (NS_FAILED(rv))
     return rv;
 
   nsString dbName(safeName);
   dbName += NS_LITERAL_STRING(SUMMARY_SUFFIX);
-  oldSummaryFile->MoveTo(nsnull, dbName);
+  oldSummaryFile->MoveTo(nullptr, dbName);
 
   if (numChildren > 0)
   {
     // rename "*.sbd" directory
     nsAutoString newNameDirStr(safeName);
     newNameDirStr += NS_LITERAL_STRING(".sbd");
-    dirFile->MoveTo(nsnull, newNameDirStr);
+    dirFile->MoveTo(nullptr, newNameDirStr);
   }
 
   return parentFolder->AddSubfolder(safeName, aNewFolder);
@@ -422,7 +422,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::CopyFolder(nsIMsgFolder *aSrcFolder,
   if (localSrcFolder)
     localSrcFolder->GetDatabaseWOReparse(getter_AddRefs(srcDB));
   bool summaryValid = !!srcDB;
-  srcDB = nsnull;
+  srcDB = nullptr;
   aSrcFolder->ForceDBClosed();
 
   nsCOMPtr<nsIFile> oldPath;
@@ -461,7 +461,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::CopyFolder(nsIMsgFolder *aSrcFolder,
   {
     // Test if the filespec has data
     bool exists;
-    PRInt64 fileSize;
+    int64_t fileSize;
     summaryFile->Exists(&exists);
     summaryFile->GetFileSize(&fileSize);
     if (exists && fileSize > 0)
@@ -492,7 +492,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::CopyFolder(nsIMsgFolder *aSrcFolder,
       destDB->SetSummaryValid(true);
   }
   newMsgFolder->SetPrettyName(folderName);
-  PRUint32 flags;
+  uint32_t flags;
   aSrcFolder->GetFlags(&flags);
   newMsgFolder->SetFlags(flags);
   bool changed = false;
@@ -550,7 +550,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::CopyFolder(nsIMsgFolder *aSrcFolder,
 
     nsCOMPtr<nsIMsgFolder> msgParent;
     aSrcFolder->GetParent(getter_AddRefs(msgParent));
-    aSrcFolder->SetParent(nsnull);
+    aSrcFolder->SetParent(nullptr);
     if (msgParent)
     {
       // The files have already been moved, so delete storage false
@@ -584,7 +584,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::CopyFolder(nsIMsgFolder *aSrcFolder,
       nsCOMPtr<nsIMsgFolder> msgParent;
       newMsgFolder->ForceDBClosed();
       newMsgFolder->GetParent(getter_AddRefs(msgParent));
-      newMsgFolder->SetParent(nsnull);
+      newMsgFolder->SetParent(nullptr);
       if (msgParent)
       {
         msgParent->PropagateDelete(newMsgFolder, false, aMsgWindow);
@@ -654,7 +654,7 @@ nsMsgBrkMBoxStore::GetNewMsgOutputStream(nsIMsgFolder *aFolder,
     NS_ENSURE_SUCCESS(rv, rv);
     m_outputStreams.Put(URI, *aResult);
   }
-  PRInt64 filePos;
+  int64_t filePos;
   seekable->Tell(&filePos);
   if (db && !*aNewMsgHdr)
   {
@@ -679,9 +679,9 @@ nsMsgBrkMBoxStore::DiscardNewMessage(nsIOutputStream *aOutputStream,
   NS_ENSURE_ARG_POINTER(aOutputStream);
   NS_ENSURE_ARG_POINTER(aNewHdr);
 #ifdef _DEBUG
-  m_streamOutstandingFolder = nsnull;
+  m_streamOutstandingFolder = nullptr;
 #endif
-  PRUint64 hdrOffset;
+  uint64_t hdrOffset;
   aNewHdr->GetMessageOffset(&hdrOffset);
   aOutputStream->Close();
   nsCOMPtr<nsIFile> mboxFile;
@@ -697,7 +697,7 @@ nsMsgBrkMBoxStore::FinishNewMessage(nsIOutputStream *aOutputStream,
                                      nsIMsgDBHdr *aNewHdr)
 {
 #ifdef _DEBUG
-  m_streamOutstandingFolder = nsnull;
+  m_streamOutstandingFolder = nullptr;
 #endif
   NS_ENSURE_ARG_POINTER(aOutputStream);
 //  NS_ENSURE_ARG_POINTER(aNewHdr);
@@ -719,10 +719,10 @@ nsMsgBrkMBoxStore::MoveNewlyDownloadedMessage(nsIMsgDBHdr *aNewHdr,
 NS_IMETHODIMP
 nsMsgBrkMBoxStore::GetMsgInputStream(nsIMsgFolder *aMsgFolder,
                                      const nsACString &aMsgToken,
-                                     PRInt64 *aOffset,
+                                     int64_t *aOffset,
                                      nsIMsgDBHdr *aMsgHdr,
-                                     bool *aReusable NS_OUTPARAM,
-                                     nsIInputStream **aResult NS_OUTPARAM)
+                                     bool *aReusable,
+                                     nsIInputStream **aResult)
 {
   NS_ENSURE_ARG_POINTER(aMsgFolder);
   NS_ENSURE_ARG_POINTER(aResult);
@@ -731,10 +731,10 @@ nsMsgBrkMBoxStore::GetMsgInputStream(nsIMsgFolder *aMsgFolder,
   // If there is no store token, then we set it to the existing message offset.
   if (aMsgToken.IsEmpty())
   {
-    PRUint64 offset;
+    uint64_t offset;
     NS_ENSURE_ARG_POINTER(aMsgHdr);
     aMsgHdr->GetMessageOffset(&offset);
-    *aOffset = PRInt64(offset);
+    *aOffset = int64_t(offset);
     char storeToken[100];
     PR_snprintf(storeToken, sizeof(storeToken), "%lld", *aOffset);
     aMsgHdr->SetStringProperty("storeToken", storeToken);
@@ -765,7 +765,7 @@ nsMsgBrkMBoxStore::CopyMessages(bool isMove, nsIArray *aHdrArray,
   NS_ENSURE_ARG_POINTER(aHdrArray);
   NS_ENSURE_ARG_POINTER(aDstFolder);
   NS_ENSURE_ARG_POINTER(aCopyDone);
-  *aUndoAction = nsnull;
+  *aUndoAction = nullptr;
   *aCopyDone = false;
   return NS_OK;
 }
@@ -788,7 +788,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::CompactFolder(nsIMsgFolder *aFolder,
     do_CreateInstance(NS_MSGLOCALFOLDERCOMPACTOR_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRUint32 expungedBytes = 0;
+  uint32_t expungedBytes = 0;
   aFolder->GetExpungedBytes(&expungedBytes);
   // check if we need to compact the folder
   return (expungedBytes > 0) ?
@@ -826,14 +826,14 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::RebuildIndex(nsIMsgFolder *aFolder,
   NS_ENSURE_SUCCESS(rv, rv);
 
   return mailboxService->ParseMailbox(aMsgWindow, pathFile, parser, aListener,
-                                      nsnull);
+                                      nullptr);
 }
 
 nsresult
 nsMsgBrkMBoxStore::GetOutputStream(nsIArray *aHdrArray,
                                    nsCOMPtr<nsIOutputStream> &outputStream,
                                    nsCOMPtr<nsISeekableStream> &seekableStream,
-                                   PRInt64 &restorePos)
+                                   int64_t &restorePos)
 {
   nsresult rv;
   nsCOMPtr<nsIMsgDBHdr> msgHdr = do_QueryElementAt(aHdrArray, 0, &rv);
@@ -850,7 +850,7 @@ nsMsgBrkMBoxStore::GetOutputStream(nsIArray *aHdrArray,
     rv = seekableStream->Tell(&restorePos);
     if (NS_FAILED(rv))
     {
-      outputStream = nsnull;
+      outputStream = nullptr;
       m_outputStreams.Remove(URI);
     }
   }
@@ -880,15 +880,15 @@ void nsMsgBrkMBoxStore::SetDBValid(nsIMsgDBHdr *aHdr)
 }
 
 NS_IMETHODIMP nsMsgBrkMBoxStore::ChangeFlags(nsIArray *aHdrArray,
-                                             PRUint32 aFlags,
+                                             uint32_t aFlags,
                                              bool aSet)
 {
   NS_ENSURE_ARG_POINTER(aHdrArray);
   nsCOMPtr<nsIOutputStream> outputStream;
   nsCOMPtr<nsISeekableStream> seekableStream;
-  PRInt64 restoreStreamPos;
+  int64_t restoreStreamPos;
 
-  PRUint32 messageCount;
+  uint32_t messageCount;
   nsresult rv = aHdrArray->GetLength(&messageCount);
   NS_ENSURE_SUCCESS(rv, rv);
   if (!messageCount)
@@ -899,7 +899,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::ChangeFlags(nsIArray *aHdrArray,
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIMsgDBHdr> msgHdr;
-  for (PRUint32 i = 0; i < messageCount; i++)
+  for (uint32_t i = 0; i < messageCount; i++)
   {
     msgHdr = do_QueryElementAt(aHdrArray, i, &rv);
     // Seek to x-mozilla-status offset and rewrite value.
@@ -929,9 +929,9 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::ChangeKeywords(nsIArray *aHdrArray,
   NS_ENSURE_ARG_POINTER(aHdrArray);
   nsCOMPtr<nsIOutputStream> outputStream;
   nsCOMPtr<nsISeekableStream> seekableStream;
-  PRInt64 restoreStreamPos;
+  int64_t restoreStreamPos;
 
-  PRUint32 messageCount;
+  uint32_t messageCount;
   nsresult rv = aHdrArray->GetLength(&messageCount);
   NS_ENSURE_SUCCESS(rv, rv);
   if (!messageCount)
@@ -965,15 +965,15 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::ChangeKeywords(nsIArray *aHdrArray,
   ParseString(aKeywords, ' ', keywordArray);
 
   nsCOMPtr<nsIMsgDBHdr> msgHdr;
-  for (PRUint32 i = 0; i < messageCount; ++i) // for each message
+  for (uint32_t i = 0; i < messageCount; ++i) // for each message
   {
     msgHdr = do_QueryElementAt(aHdrArray, i, &rv);
     NS_ENSURE_SUCCESS(rv, rv);
-    PRUint64 messageOffset;
+    uint64_t messageOffset;
     msgHdr->GetMessageOffset(&messageOffset);
-    PRUint32 statusOffset = 0;
+    uint32_t statusOffset = 0;
     (void)msgHdr->GetStatusOffset(&statusOffset);
-    PRUint64 desiredOffset = messageOffset + statusOffset;
+    uint64_t desiredOffset = messageOffset + statusOffset;
 
     ChangeKeywordsHelper(msgHdr, desiredOffset, lineBuffer, keywordArray,
                          aAdd, outputStream, seekableStream, inputStream);
@@ -1034,8 +1034,8 @@ nsMsgBrkMBoxStore::AddSubFolders(nsIMsgFolder *parent, nsCOMPtr<nsIFile> &path,
   }
 
   // add the folders
-  PRInt32 count = currentDirEntries.Count();
-  for (PRInt32 i = 0; i < count; ++i)
+  int32_t count = currentDirEntries.Count();
+  for (int32_t i = 0; i < count; ++i)
   {
     nsCOMPtr<nsIFile> currentFile(currentDirEntries[i]);
 

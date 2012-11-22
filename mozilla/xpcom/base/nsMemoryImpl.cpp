@@ -26,13 +26,13 @@ static nsMemoryImpl sGlobalMemory;
 NS_IMPL_QUERY_INTERFACE1(nsMemoryImpl, nsIMemory)
 
 NS_IMETHODIMP_(void*)
-nsMemoryImpl::Alloc(PRSize size)
+nsMemoryImpl::Alloc(size_t size)
 {
     return NS_Alloc(size);
 }
 
 NS_IMETHODIMP_(void*)
-nsMemoryImpl::Realloc(void* ptr, PRSize size)
+nsMemoryImpl::Realloc(void* ptr, size_t size)
 {
     return NS_Realloc(ptr, size);
 }
@@ -79,7 +79,7 @@ nsMemoryImpl::FlushMemory(const PRUnichar* aReason, bool aImmediate)
         }
     }
 
-    PRInt32 lastVal = PR_ATOMIC_SET(&sIsFlushing, 1);
+    int32_t lastVal = PR_ATOMIC_SET(&sIsFlushing, 1);
     if (lastVal)
         return NS_OK;
 
@@ -148,7 +148,7 @@ nsMemoryImpl::FlushEvent::Run()
     return NS_OK;
 }
 
-PRInt32
+int32_t
 nsMemoryImpl::sIsFlushing = 0;
 
 PRIntervalTime
@@ -158,13 +158,13 @@ nsMemoryImpl::FlushEvent
 nsMemoryImpl::sFlushEvent;
 
 XPCOM_API(void*)
-NS_Alloc(PRSize size)
+NS_Alloc(size_t size)
 {
     return moz_xmalloc(size);
 }
 
 XPCOM_API(void*)
-NS_Realloc(void* ptr, PRSize size)
+NS_Realloc(void* ptr, size_t size)
 {
     return moz_xrealloc(ptr, size);
 }

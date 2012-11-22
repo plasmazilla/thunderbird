@@ -22,15 +22,15 @@
 #include "nsIScriptSecurityManager.h"
 #include "nsCrossSiteListenerProxy.h"
 #include "nsHTMLMediaElement.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsICachingChannel.h"
 #include "nsURILoader.h"
 #include "nsIAsyncVerifyRedirectCallback.h"
 #include "mozilla/Util.h" // for DebugOnly
 #include "nsContentUtils.h"
 
-static const PRUint32 HTTP_OK_CODE = 200;
-static const PRUint32 HTTP_PARTIAL_RESPONSE_CODE = 206;
+static const uint32_t HTTP_OK_CODE = 200;
+static const uint32_t HTTP_PARTIAL_RESPONSE_CODE = 206;
 
 using namespace mozilla;
 
@@ -41,7 +41,8 @@ ChannelMediaResource::ChannelMediaResource(nsMediaDecoder* aDecoder,
     mReopenOnError(false), mIgnoreClose(false),
     mCacheStream(this),
     mLock("ChannelMediaResource.mLock"),
-    mIgnoreResume(false)
+    mIgnoreResume(false),
+    mSeekingForMetadata(false)
 {
 }
 
@@ -86,8 +87,8 @@ nsresult
 ChannelMediaResource::Listener::OnDataAvailable(nsIRequest* aRequest,
                                                 nsISupports* aContext,
                                                 nsIInputStream* aStream,
-                                                PRUint32 aOffset,
-                                                PRUint32 aCount)
+                                                uint32_t aOffset,
+                                                uint32_t aCount)
 {
   if (!mResource)
     return NS_OK;
@@ -97,7 +98,7 @@ ChannelMediaResource::Listener::OnDataAvailable(nsIRequest* aRequest,
 nsresult
 ChannelMediaResource::Listener::AsyncOnChannelRedirect(nsIChannel* aOldChannel,
                                                        nsIChannel* aNewChannel,
-                                                       PRUint32 aFlags,
+                                                       uint32_t aFlags,
                                                        nsIAsyncVerifyRedirectCallback* cb)
 {
   nsresult rv = NS_OK;
@@ -140,7 +141,7 @@ ChannelMediaResource::OnStartRequest(nsIRequest* aRequest)
   nsCOMPtr<nsIHttpChannel> hc = do_QueryInterface(aRequest);
   bool seekable = false;
   if (hc) {
-    PRUint32 responseStatus = 0;
+    uint32_t responseStatus = 0;
     hc->GetResponseStatus(&responseStatus);
     bool succeeded = false;
     hc->GetRequestSucceeded(&succeeded);
@@ -180,7 +181,7 @@ ChannelMediaResource::OnStartRequest(nsIRequest* aRequest)
       // 4) X-Content-Duration.
       // 5) Perform a seek in the decoder to find the value.
       nsCAutoString durationText;
-      PRInt32 ec = 0;
+      nsresult ec = NS_OK;
       rv = hc->GetResponseHeader(NS_LITERAL_CSTRING("Content-Duration"), durationText);
       if (NS_FAILED(rv)) {
         rv = hc->GetResponseHeader(NS_LITERAL_CSTRING("X-AMZ-Meta-Content-Duration"), durationText);
@@ -213,7 +214,7 @@ ChannelMediaResource::OnStartRequest(nsIRequest* aRequest)
                 responseStatus == HTTP_PARTIAL_RESPONSE_CODE)) {
       // We weren't seeking and got a valid response status,
       // set the length of the content.
-      PRInt64 cl = -1;
+      int64_t cl = -1;
       nsCOMPtr<nsIPropertyBag2> bag = do_QueryInterface(hc);
 
       if (bag) {
@@ -221,7 +222,7 @@ ChannelMediaResource::OnStartRequest(nsIRequest* aRequest)
       }
 
       if (cl < 0) {
-        PRInt32 cl32;
+        int32_t cl32;
         hc->GetContentLength(&cl32);
         cl = cl32;
       }
@@ -261,7 +262,12 @@ ChannelMediaResource::OnStartRequest(nsIRequest* aRequest)
   }
 
   mReopenOnError = false;
-  mIgnoreClose = false;
+  // If we are seeking to get metadata, because we are playing an OGG file,
+  // ignore if the channel gets closed without us suspending it explicitly. We
+  // don't want to tell the element that the download has finished whereas we
+  // just happended to have reached the end of the media while seeking.
+  mIgnoreClose = mSeekingForMetadata;
+
   if (mSuspendCount > 0) {
     // Re-suspend the channel if it needs to be suspended
     // No need to call PossiblySuspend here since the channel is
@@ -328,7 +334,7 @@ ChannelMediaResource::OnStopRequest(nsIRequest* aRequest, nsresult aStatus)
 
 nsresult
 ChannelMediaResource::OnChannelRedirect(nsIChannel* aOld, nsIChannel* aNew,
-                                        PRUint32 aFlags)
+                                        uint32_t aFlags)
 {
   mChannel = aNew;
   SetupChannelHeaders();
@@ -344,9 +350,9 @@ NS_METHOD
 ChannelMediaResource::CopySegmentToCache(nsIInputStream *aInStream,
                                          void *aClosure,
                                          const char *aFromSegment,
-                                         PRUint32 aToOffset,
-                                         PRUint32 aCount,
-                                         PRUint32 *aWriteCount)
+                                         uint32_t aToOffset,
+                                         uint32_t aCount,
+                                         uint32_t *aWriteCount)
 {
   CopySegmentClosure* closure = static_cast<CopySegmentClosure*>(aClosure);
 
@@ -363,7 +369,7 @@ ChannelMediaResource::CopySegmentToCache(nsIInputStream *aInStream,
 nsresult
 ChannelMediaResource::OnDataAvailable(nsIRequest* aRequest,
                                       nsIInputStream* aStream,
-                                      PRUint32 aCount)
+                                      uint32_t aCount)
 {
   NS_ASSERTION(mChannel.get() == aRequest, "Wrong channel!");
 
@@ -379,9 +385,9 @@ ChannelMediaResource::OnDataAvailable(nsIRequest* aRequest,
   }
   closure.mResource = this;
 
-  PRUint32 count = aCount;
+  uint32_t count = aCount;
   while (count > 0) {
-    PRUint32 read;
+    uint32_t read;
     nsresult rv = aStream->ReadSegments(CopySegmentToCache, &closure, count,
                                         &read);
     if (NS_FAILED(rv))
@@ -420,7 +426,7 @@ nsresult ChannelMediaResource::OpenChannel(nsIStreamListener** aStreamListener)
   NS_ASSERTION(!mListener, "Listener should have been removed by now");
 
   if (aStreamListener) {
-    *aStreamListener = nsnull;
+    *aStreamListener = nullptr;
   }
 
   mListener = new Listener(this);
@@ -459,7 +465,7 @@ nsresult ChannelMediaResource::OpenChannel(nsIStreamListener** aStreamListener)
 
     SetupChannelHeaders();
 
-    nsresult rv = mChannel->AsyncOpen(listener, nsnull);
+    nsresult rv = mChannel->AsyncOpen(listener, nullptr);
     NS_ENSURE_SUCCESS(rv, rv);
     // Tell the media element that we are fetching data from a channel.
     element->DownloadResumed(true);
@@ -520,7 +526,7 @@ MediaResource* ChannelMediaResource::CloneData(nsMediaDecoder* aDecoder)
   NS_ASSERTION(NS_IsMainThread(), "Only call on main thread");
   NS_ASSERTION(mCacheStream.IsAvailableForSharing(), "Stream can't be cloned");
 
-  ChannelMediaResource* resource = new ChannelMediaResource(aDecoder, nsnull, mURI);
+  ChannelMediaResource* resource = new ChannelMediaResource(aDecoder, nullptr, mURI);
   if (resource) {
     // Initially the clone is treated as suspended by the cache, because
     // we don't have a channel. If the cache needs to read data from the clone
@@ -547,7 +553,7 @@ void ChannelMediaResource::CloseChannel()
 
   if (mListener) {
     mListener->Revoke();
-    mListener = nsnull;
+    mListener = nullptr;
   }
 
   if (mChannel) {
@@ -563,34 +569,44 @@ void ChannelMediaResource::CloseChannel()
     // NS_ERROR_PARSED_DATA_CACHED is the best thing we have for that
     // at the moment.
     mChannel->Cancel(NS_ERROR_PARSED_DATA_CACHED);
-    mChannel = nsnull;
+    mChannel = nullptr;
   }
 }
 
 nsresult ChannelMediaResource::ReadFromCache(char* aBuffer,
-                                             PRInt64 aOffset,
-                                             PRUint32 aCount)
+                                             int64_t aOffset,
+                                             uint32_t aCount)
 {
   return mCacheStream.ReadFromCache(aBuffer, aOffset, aCount);
 }
 
 nsresult ChannelMediaResource::Read(char* aBuffer,
-                                    PRUint32 aCount,
-                                    PRUint32* aBytes)
+                                    uint32_t aCount,
+                                    uint32_t* aBytes)
 {
   NS_ASSERTION(!NS_IsMainThread(), "Don't call on main thread");
 
   return mCacheStream.Read(aBuffer, aCount, aBytes);
 }
 
-nsresult ChannelMediaResource::Seek(PRInt32 aWhence, PRInt64 aOffset)
+nsresult ChannelMediaResource::Seek(int32_t aWhence, int64_t aOffset)
 {
   NS_ASSERTION(!NS_IsMainThread(), "Don't call on main thread");
 
   return mCacheStream.Seek(aWhence, aOffset);
 }
 
-PRInt64 ChannelMediaResource::Tell()
+void ChannelMediaResource::StartSeekingForMetadata()
+{
+  mSeekingForMetadata = true;
+}
+
+void ChannelMediaResource::EndSeekingForMetadata()
+{
+  mSeekingForMetadata = false;
+}
+
+int64_t ChannelMediaResource::Tell()
 {
   NS_ASSERTION(!NS_IsMainThread(), "Don't call on main thread");
 
@@ -657,7 +673,7 @@ void ChannelMediaResource::Resume()
       PossiblyResume();
       element->DownloadResumed();
     } else {
-      PRInt64 totalLength = mCacheStream.GetLength();
+      int64_t totalLength = mCacheStream.GetLength();
       // If mOffset is at the end of the stream, then we shouldn't try to
       // seek to it. The seek will fail and be wasted anyway. We can leave
       // the channel dead; if the media cache wants to read some other data
@@ -690,9 +706,9 @@ ChannelMediaResource::RecreateChannel()
 
   return NS_NewChannel(getter_AddRefs(mChannel),
                        mURI,
-                       nsnull,
+                       nullptr,
                        loadGroup,
-                       nsnull,
+                       nullptr,
                        loadFlags);
 }
 
@@ -751,7 +767,7 @@ ChannelMediaResource::CacheClientNotifyPrincipalChanged()
 }
 
 nsresult
-ChannelMediaResource::CacheClientSeek(PRInt64 aOffset, bool aResume)
+ChannelMediaResource::CacheClientSeek(int64_t aOffset, bool aResume)
 {
   NS_ASSERTION(NS_IsMainThread(), "Don't call on non-main thread");
 
@@ -763,12 +779,23 @@ ChannelMediaResource::CacheClientSeek(PRInt64 aOffset, bool aResume)
     --mSuspendCount;
   }
 
+  mOffset = aOffset;
+
+  if (mSuspendCount > 0) {
+    // Close the existing channel to force the channel to be recreated at
+    // the correct offset upon resume.
+    if (mChannel) {
+      mIgnoreClose = true;
+      CloseChannel();
+    }
+    return NS_OK;
+  }
+
   nsresult rv = RecreateChannel();
   if (NS_FAILED(rv))
     return rv;
 
-  mOffset = aOffset;
-  return OpenChannel(nsnull);
+  return OpenChannel(nullptr);
 }
 
 nsresult
@@ -789,20 +816,20 @@ ChannelMediaResource::CacheClientResume()
   return NS_OK;
 }
 
-PRInt64
-ChannelMediaResource::GetNextCachedData(PRInt64 aOffset)
+int64_t
+ChannelMediaResource::GetNextCachedData(int64_t aOffset)
 {
   return mCacheStream.GetNextCachedData(aOffset);
 }
 
-PRInt64
-ChannelMediaResource::GetCachedDataEnd(PRInt64 aOffset)
+int64_t
+ChannelMediaResource::GetCachedDataEnd(int64_t aOffset)
 {
   return mCacheStream.GetCachedDataEnd(aOffset);
 }
 
 bool
-ChannelMediaResource::IsDataCachedToEndOfResource(PRInt64 aOffset)
+ChannelMediaResource::IsDataCachedToEndOfResource(int64_t aOffset)
 {
   return mCacheStream.IsDataCachedToEndOfStream(aOffset);
 }
@@ -833,7 +860,7 @@ ChannelMediaResource::SetReadMode(nsMediaCacheStream::ReadMode aMode)
 }
 
 void
-ChannelMediaResource::SetPlaybackRate(PRUint32 aBytesPerSecond)
+ChannelMediaResource::SetPlaybackRate(uint32_t aBytesPerSecond)
 {
   mCacheStream.SetPlaybackRate(aBytesPerSecond);
 }
@@ -857,7 +884,7 @@ ChannelMediaResource::GetDownloadRate(bool* aIsReliable)
   return mChannelStatistics.GetRate(TimeStamp::Now(), aIsReliable);
 }
 
-PRInt64
+int64_t
 ChannelMediaResource::GetLength()
 {
   return mCacheStream.GetLength();
@@ -906,16 +933,18 @@ public:
   virtual already_AddRefed<nsIPrincipal> GetCurrentPrincipal();
   virtual bool     CanClone();
   virtual MediaResource* CloneData(nsMediaDecoder* aDecoder);
-  virtual nsresult ReadFromCache(char* aBuffer, PRInt64 aOffset, PRUint32 aCount);
+  virtual nsresult ReadFromCache(char* aBuffer, int64_t aOffset, uint32_t aCount);
 
   // These methods are called off the main thread.
 
   // Other thread
   virtual void     SetReadMode(nsMediaCacheStream::ReadMode aMode) {}
-  virtual void     SetPlaybackRate(PRUint32 aBytesPerSecond) {}
-  virtual nsresult Read(char* aBuffer, PRUint32 aCount, PRUint32* aBytes);
-  virtual nsresult Seek(PRInt32 aWhence, PRInt64 aOffset);
-  virtual PRInt64  Tell();
+  virtual void     SetPlaybackRate(uint32_t aBytesPerSecond) {}
+  virtual nsresult Read(char* aBuffer, uint32_t aCount, uint32_t* aBytes);
+  virtual nsresult Seek(int32_t aWhence, int64_t aOffset);
+  virtual void     StartSeekingForMetadata() {};
+  virtual void     EndSeekingForMetadata() {};
+  virtual int64_t  Tell();
 
   // Any thread
   virtual void    Pin() {}
@@ -926,17 +955,17 @@ public:
     *aIsReliable = true;
     return 100*1024*1024; // arbitray, use 100MB/s
   }
-  virtual PRInt64 GetLength() { return mSize; }
-  virtual PRInt64 GetNextCachedData(PRInt64 aOffset)
+  virtual int64_t GetLength() { return mSize; }
+  virtual int64_t GetNextCachedData(int64_t aOffset)
   {
     return (aOffset < mSize) ? aOffset : -1;
   }
-  virtual PRInt64 GetCachedDataEnd(PRInt64 aOffset) { return NS_MAX(aOffset, mSize); }
-  virtual bool    IsDataCachedToEndOfResource(PRInt64 aOffset) { return true; }
+  virtual int64_t GetCachedDataEnd(int64_t aOffset) { return NS_MAX(aOffset, mSize); }
+  virtual bool    IsDataCachedToEndOfResource(int64_t aOffset) { return true; }
   virtual bool    IsSuspendedByCache(MediaResource** aActiveResource)
   {
     if (aActiveResource) {
-      *aActiveResource = nsnull;
+      *aActiveResource = nullptr;
     }
     return false;
   }
@@ -946,7 +975,7 @@ public:
 
 private:
   // The file size, or -1 if not known. Immutable after Open().
-  PRInt64 mSize;
+  int64_t mSize;
 
   // This lock handles synchronisation between calls to Close() and
   // the Read, Seek, etc calls. Close must not be called while a
@@ -1000,7 +1029,7 @@ nsresult FileMediaResource::Open(nsIStreamListener** aStreamListener)
   NS_ASSERTION(NS_IsMainThread(), "Only call on main thread");
 
   if (aStreamListener) {
-    *aStreamListener = nsnull;
+    *aStreamListener = nullptr;
   }
 
   nsresult rv = NS_OK;
@@ -1042,13 +1071,13 @@ nsresult FileMediaResource::Open(nsIStreamListener** aStreamListener)
     return NS_ERROR_FAILURE;
   }
 
-  // Get the file size and inform the decoder. Only files up to 4GB are
-  // supported here.
-  PRUint32 size;
+  // Get the file size and inform the decoder.
+  uint64_t size;
   rv = mInput->Available(&size);
-  if (NS_SUCCEEDED(rv)) {
-    mSize = size;
-  }
+  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_TRUE(size <= PR_INT64_MAX, NS_ERROR_FILE_TOO_BIG);
+ 
+  mSize = (int64_t)size;
 
   nsCOMPtr<nsIRunnable> event = new LoadedEvent(mDecoder);
   NS_DispatchToMainThread(event, NS_DISPATCH_NORMAL);
@@ -1062,9 +1091,9 @@ nsresult FileMediaResource::Close()
   MutexAutoLock lock(mLock);
   if (mChannel) {
     mChannel->Cancel(NS_ERROR_PARSED_DATA_CACHED);
-    mChannel = nsnull;
-    mInput = nsnull;
-    mSeekable = nsnull;
+    mChannel = nullptr;
+    mInput = nullptr;
+    mSeekable = nullptr;
   }
 
   return NS_OK;
@@ -1077,7 +1106,7 @@ already_AddRefed<nsIPrincipal> FileMediaResource::GetCurrentPrincipal()
   nsCOMPtr<nsIPrincipal> principal;
   nsIScriptSecurityManager* secMan = nsContentUtils::GetSecurityManager();
   if (!secMan || !mChannel)
-    return nsnull;
+    return nullptr;
   secMan->GetChannelPrincipal(mChannel, getter_AddRefs(principal));
   return principal.forget();
 }
@@ -1094,34 +1123,34 @@ MediaResource* FileMediaResource::CloneData(nsMediaDecoder* aDecoder)
   nsHTMLMediaElement* element = aDecoder->GetMediaElement();
   if (!element) {
     // The decoder is being shut down, so we can't clone
-    return nsnull;
+    return nullptr;
   }
   nsCOMPtr<nsILoadGroup> loadGroup = element->GetDocumentLoadGroup();
-  NS_ENSURE_TRUE(loadGroup, nsnull);
+  NS_ENSURE_TRUE(loadGroup, nullptr);
 
   nsCOMPtr<nsIChannel> channel;
   nsresult rv =
-    NS_NewChannel(getter_AddRefs(channel), mURI, nsnull, loadGroup, nsnull, 0);
+    NS_NewChannel(getter_AddRefs(channel), mURI, nullptr, loadGroup, nullptr, 0);
   if (NS_FAILED(rv))
-    return nsnull;
+    return nullptr;
 
   return new FileMediaResource(aDecoder, channel, mURI);
 }
 
-nsresult FileMediaResource::ReadFromCache(char* aBuffer, PRInt64 aOffset, PRUint32 aCount)
+nsresult FileMediaResource::ReadFromCache(char* aBuffer, int64_t aOffset, uint32_t aCount)
 {
   MutexAutoLock lock(mLock);
   if (!mInput || !mSeekable)
     return NS_ERROR_FAILURE;
-  PRInt64 offset = 0;
+  int64_t offset = 0;
   nsresult res = mSeekable->Tell(&offset);
   NS_ENSURE_SUCCESS(res,res);
   res = mSeekable->Seek(nsISeekableStream::NS_SEEK_SET, aOffset);
   NS_ENSURE_SUCCESS(res,res);
-  PRUint32 bytesRead = 0;
+  uint32_t bytesRead = 0;
   do {
-    PRUint32 x = 0;
-    PRUint32 bytesToRead = aCount - bytesRead;
+    uint32_t x = 0;
+    uint32_t bytesToRead = aCount - bytesRead;
     res = mInput->Read(aBuffer, bytesToRead, &x);
     bytesRead += x;
   } while (bytesRead != aCount && res == NS_OK);
@@ -1137,7 +1166,7 @@ nsresult FileMediaResource::ReadFromCache(char* aBuffer, PRInt64 aOffset, PRUint
   return seekres;
 }
 
-nsresult FileMediaResource::Read(char* aBuffer, PRUint32 aCount, PRUint32* aBytes)
+nsresult FileMediaResource::Read(char* aBuffer, uint32_t aCount, uint32_t* aBytes)
 {
   MutexAutoLock lock(mLock);
   if (!mInput)
@@ -1145,7 +1174,7 @@ nsresult FileMediaResource::Read(char* aBuffer, PRUint32 aCount, PRUint32* aByte
   return mInput->Read(aBuffer, aCount, aBytes);
 }
 
-nsresult FileMediaResource::Seek(PRInt32 aWhence, PRInt64 aOffset)
+nsresult FileMediaResource::Seek(int32_t aWhence, int64_t aOffset)
 {
   NS_ASSERTION(!NS_IsMainThread(), "Don't call on main thread");
 
@@ -1155,7 +1184,7 @@ nsresult FileMediaResource::Seek(PRInt32 aWhence, PRInt64 aOffset)
   return mSeekable->Seek(aWhence, aOffset);
 }
 
-PRInt64 FileMediaResource::Tell()
+int64_t FileMediaResource::Tell()
 {
   NS_ASSERTION(!NS_IsMainThread(), "Don't call on main thread");
 
@@ -1163,7 +1192,7 @@ PRInt64 FileMediaResource::Tell()
   if (!mSeekable)
     return 0;
 
-  PRInt64 offset = 0;
+  int64_t offset = 0;
   mSeekable->Tell(&offset);
   return offset;
 }
@@ -1179,7 +1208,7 @@ MediaResource::Create(nsMediaDecoder* aDecoder, nsIChannel* aChannel)
   // we want the original URI.
   nsCOMPtr<nsIURI> uri;
   nsresult rv = NS_GetFinalChannelURI(aChannel, getter_AddRefs(uri));
-  NS_ENSURE_SUCCESS(rv, nsnull);
+  NS_ENSURE_SUCCESS(rv, nullptr);
 
   nsCOMPtr<nsIFileChannel> fc = do_QueryInterface(aChannel);
   if (fc) {
@@ -1226,7 +1255,7 @@ void MediaResource::ModifyLoadFlags(nsLoadFlags aFlags)
   // Note: if (NS_FAILED(status)), the channel won't be in the load group.
   if (loadGroup &&
       NS_SUCCEEDED(status)) {
-    rv = loadGroup->RemoveRequest(mChannel, nsnull, status);
+    rv = loadGroup->RemoveRequest(mChannel, nullptr, status);
     NS_ASSERTION(NS_SUCCEEDED(rv), "RemoveRequest() failed!");
   }
 
@@ -1235,7 +1264,7 @@ void MediaResource::ModifyLoadFlags(nsLoadFlags aFlags)
 
   if (loadGroup &&
       NS_SUCCEEDED(status)) {
-    rv = loadGroup->AddRequest(mChannel, nsnull);
+    rv = loadGroup->AddRequest(mChannel, nullptr);
     NS_ASSERTION(NS_SUCCEEDED(rv), "AddRequest() failed!");
   }
 }

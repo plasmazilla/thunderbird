@@ -22,7 +22,6 @@
 #if (MOZ_WIDGET_GTK == 3)
 #include <gtk/gtkx.h>
 #endif
-#include "gtk2compat.h"
 #endif
 
 #include "nsIFile.h"
@@ -67,13 +66,13 @@ const PRUnichar * kMozillaWindowClass = L"MozillaWindowClass";
 #endif
 
 namespace {
-PluginModuleChild* gInstance = nsnull;
+PluginModuleChild* gInstance = nullptr;
 }
 
 #ifdef MOZ_WIDGET_QT
 typedef void (*_gtk_init_fn)(int argc, char **argv);
-static _gtk_init_fn s_gtk_init = nsnull;
-static PRLibrary *sGtkLib = nsnull;
+static _gtk_init_fn s_gtk_init = nullptr;
+static PRLibrary *sGtkLib = nullptr;
 #endif
 
 #ifdef XP_WIN
@@ -123,7 +122,7 @@ PluginModuleChild::~PluginModuleChild()
 
     DeinitGraphics();
 
-    gInstance = nsnull;
+    gInstance = nullptr;
 }
 
 // static
@@ -568,8 +567,8 @@ PluginModuleChild::DeinitGraphics()
     nsQAppInstance::Release();
     if (sGtkLib) {
         PR_UnloadLibrary(sGtkLib);
-        sGtkLib = nsnull;
-        s_gtk_init = nsnull;
+        sGtkLib = nullptr;
+        s_gtk_init = nullptr;
     }
 #endif
 
@@ -672,7 +671,7 @@ PluginModuleChild::QuickExit()
 
 PCrashReporterChild*
 PluginModuleChild::AllocPCrashReporter(mozilla::dom::NativeThreadId* id,
-                                       PRUint32* processType)
+                                       uint32_t* processType)
 {
     return new CrashReporterChild();
 }
@@ -688,7 +687,7 @@ bool
 PluginModuleChild::AnswerPCrashReporterConstructor(
         PCrashReporterChild* actor,
         mozilla::dom::NativeThreadId* id,
-        PRUint32* processType)
+        uint32_t* processType)
 {
 #ifdef MOZ_CRASHREPORTER
     *id = CrashReporter::CurrentThreadId();
@@ -1095,7 +1094,19 @@ _getvalue(NPP aNPP,
             *(NPBool*)aValue = value ? true : false;
             return result;
         }
-
+#if defined(MOZ_WIDGET_GTK)
+        case NPNVxDisplay: {
+            if (aNPP) {
+                return InstCast(aNPP)->NPN_GetValue(aVariable, aValue);
+            } 
+            else {
+                *(void **)aValue = xt_client_get_display();
+            }          
+            return NPERR_NO_ERROR;
+        }
+        case NPNVxtAppContext:
+            return NPERR_GENERIC_ERROR;
+#endif
         default: {
             if (aNPP) {
                 return InstCast(aNPP)->NPN_GetValue(aVariable, aValue);
@@ -1307,7 +1318,7 @@ const char* NP_CALLBACK
 _useragent(NPP aNPP)
 {
     PLUGIN_LOG_DEBUG_FUNCTION;
-    ENSURE_PLUGIN_THREAD(nsnull);
+    ENSURE_PLUGIN_THREAD(nullptr);
     return PluginModuleChild::current()->GetUserAgent();
 }
 
@@ -1839,10 +1850,10 @@ PluginModuleChild::AnswerNP_Initialize(const uint32_t& aFlags, NPError* _retval)
 #endif
 
 #ifdef MOZ_X11
-    // Send the parent a dup of our X socket, to act as a proxy
-    // reference for our X resources
+    // Send the parent our X socket to act as a proxy reference for our X
+    // resources.
     int xSocketFd = ConnectionNumber(DefaultXDisplay());
-    SendBackUpXResources(FileDescriptor(xSocketFd, false/*don't close*/));
+    SendBackUpXResources(FileDescriptor(xSocketFd));
 #endif
 
 #if defined(OS_LINUX)
@@ -1939,13 +1950,7 @@ PluginModuleChild::AllocPPluginInstance(const nsCString& aMimeType,
     }
 #endif
 
-    nsAutoPtr<PluginInstanceChild> childInstance(
-        new PluginInstanceChild(&mFunctions));
-    if (!childInstance->Initialize()) {
-        *rv = NPERR_GENERIC_ERROR;
-        return 0;
-    }
-    return childInstance.forget();
+    return new PluginInstanceChild(&mFunctions);
 }
 
 void
@@ -2038,6 +2043,8 @@ PluginModuleChild::AnswerPPluginInstanceConstructor(PPluginInstanceChild* aActor
         return true;
     }
 
+    childInstance->Initialize();
+
 #if defined(XP_MACOSX) && defined(__i386__)
     // If an i386 Mac OS X plugin has selected the Carbon event model then
     // we have to fail. We do not support putting Carbon event model plugins
@@ -2073,7 +2080,7 @@ NPObject* NP_CALLBACK
 PluginModuleChild::NPN_CreateObject(NPP aNPP, NPClass* aClass)
 {
     PLUGIN_LOG_DEBUG_FUNCTION;
-    ENSURE_PLUGIN_THREAD(nsnull);
+    ENSURE_PLUGIN_THREAD(nullptr);
 
     PluginInstanceChild* i = InstCast(aNPP);
     if (i->mDeletingHash) {
@@ -2277,7 +2284,7 @@ PluginModuleChild::NPN_UTF8FromIdentifier(NPIdentifier aIdentifier)
     if (static_cast<PluginIdentifierChild*>(aIdentifier)->IsString()) {
       return static_cast<PluginIdentifierChildString*>(aIdentifier)->ToString();
     }
-    return nsnull;
+    return nullptr;
 }
 
 int32_t NP_CALLBACK
@@ -2302,7 +2309,7 @@ void
 PluginModuleChild::ExitedCall()
 {
     NS_ASSERTION(mIncallPumpingStack.Length(), "mismatched entered/exited");
-    PRUint32 len = mIncallPumpingStack.Length();
+    uint32_t len = mIncallPumpingStack.Length();
     const IncallFrame& f = mIncallPumpingStack[len - 1];
     if (f._spinning)
         MessageLoop::current()->SetNestableTasksAllowed(f._savedNestableTasksAllowed);
@@ -2339,7 +2346,7 @@ LRESULT CALLBACK
 PluginModuleChild::NestedInputEventHook(int nCode, WPARAM wParam, LPARAM lParam)
 {
     PluginModuleChild* self = current();
-    PRUint32 len = self->mIncallPumpingStack.Length();
+    uint32_t len = self->mIncallPumpingStack.Length();
     if (nCode >= 0 && len && !self->mIncallPumpingStack[len - 1]._spinning) {
         MessageLoop* loop = MessageLoop::current();
         self->SendProcessNativeEventsInRPCCall();

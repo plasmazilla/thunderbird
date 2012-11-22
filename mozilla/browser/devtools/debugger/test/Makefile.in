@@ -2,17 +2,16 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH           = ../../../..
+DEPTH           = @DEPTH@
 topsrcdir       = @top_srcdir@
 srcdir          = @srcdir@
 VPATH           = @srcdir@
-relativesrcdir  = browser/devtools/debugger/test
+relativesrcdir  = @relativesrcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
 MOCHITEST_BROWSER_TESTS = \
 	browser_dbg_leaktest.js \
-	browser_dbg_createRemote.js \
 	browser_dbg_createChrome.js \
 	browser_dbg_debugger-tab-switch.js \
 	browser_dbg_debugger-tab-switch-window.js \
@@ -35,6 +34,8 @@ MOCHITEST_BROWSER_TESTS = \
 	browser_dbg_propertyview-09.js \
 	browser_dbg_propertyview-10.js \
 	browser_dbg_propertyview-edit.js \
+	browser_dbg_reload-same-script.js \
+	browser_dbg_pane-collapse.js \
 	browser_dbg_panesize.js \
 	browser_dbg_panesize-inner.js \
 	browser_dbg_stack-01.js \
@@ -43,11 +44,17 @@ MOCHITEST_BROWSER_TESTS = \
 	browser_dbg_stack-04.js \
 	browser_dbg_stack-05.js \
 	browser_dbg_location-changes.js \
+	browser_dbg_location-changes-new.js \
 	browser_dbg_location-changes-blank.js \
 	browser_dbg_script-switching.js \
 	browser_dbg_scripts-sorting.js \
 	browser_dbg_scripts-searching-01.js \
 	browser_dbg_scripts-searching-02.js \
+	browser_dbg_scripts-searching-03.js \
+	browser_dbg_scripts-searching-04.js \
+	browser_dbg_scripts-searching-05.js \
+	browser_dbg_scripts-searching-06.js \
+	browser_dbg_scripts-searching-07.js \
 	browser_dbg_pause-resume.js \
 	browser_dbg_update-editor-mode.js \
 	$(warning browser_dbg_select-line.js temporarily disabled due to oranges, see bug 726609) \
@@ -64,6 +71,15 @@ MOCHITEST_BROWSER_TESTS = \
 	browser_dbg_breakpoint-new-script.js \
 	head.js \
 	$(NULL)
+
+# Disabled on Windows for frequent intermittent failures
+ifneq ($(OS_ARCH), WINNT)
+MOCHITEST_BROWSER_TESTS += \
+	browser_dbg_createRemote.js \
+	$(NULL)
+else
+$(warning browser_dbg_createRemote.js is disabled on Windows for intermittent failures. Bug 753225)
+endif
 
 MOCHITEST_BROWSER_PAGES = \
 	browser_dbg_tab1.html \

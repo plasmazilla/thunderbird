@@ -27,7 +27,7 @@
 #include "nsMsgUtils.h"
 
 // Forward declares...
-PRInt32 MimeHeaders_build_heads_list(MimeHeaders *hdrs);
+int32_t MimeHeaders_build_heads_list(MimeHeaders *hdrs);
 
 void
 MimeHeaders_convert_header_value(MimeDisplayOptions *opt, nsCString &value,
@@ -92,9 +92,9 @@ MimeHeaders_free (MimeHeaders *hdrs)
 # ifdef DEBUG__
   {
   int i, size = sizeof(*hdrs);
-  PRUint32 *array = (PRUint32*) hdrs;
+  uint32_t *array = (uint32_t*) hdrs;
   for (i = 0; i < (size / sizeof(*array)); i++)
-    array[i] = (PRUint32) 0xDEADBEEF;
+    array[i] = (uint32_t) 0xDEADBEEF;
   }
 # endif /* DEBUG */
 
@@ -102,7 +102,7 @@ MimeHeaders_free (MimeHeaders *hdrs)
 }
 
 int
-MimeHeaders_parse_line (const char *buffer, PRInt32 size, MimeHeaders *hdrs)
+MimeHeaders_parse_line (const char *buffer, int32_t size, MimeHeaders *hdrs)
 {
   int status = 0;
   int desired_size;
@@ -427,7 +427,7 @@ MimeHeaders_get (MimeHeaders *hdrs, const char *header_name,
       }
     else
       {
-      PRInt32 L = strlen(result);
+      int32_t L = strlen(result);
       s = (char *) PR_Realloc(result, (L + (end - contents + 10)));
       if (!s)
         {
@@ -485,19 +485,19 @@ MimeHeaders_get_parameter (const char *header_value, const char *parm_name,
                            char **charset, char **language)
 {
   if (!header_value || !parm_name || !*header_value || !*parm_name)
-    return nsnull;
+    return nullptr;
 
   nsresult rv;
   nsCOMPtr <nsIMIMEHeaderParam> mimehdrpar =
     do_GetService(NS_MIMEHEADERPARAM_CONTRACTID, &rv);
 
   if (NS_FAILED(rv))
-    return nsnull;
+    return nullptr;
 
   nsCString result;
   rv = mimehdrpar->GetParameterInternal(header_value, parm_name, charset,
                                         language, getter_Copies(result));
-  return NS_SUCCEEDED(rv) ? PL_strdup(result.get()) : nsnull;
+  return NS_SUCCEEDED(rv) ? PL_strdup(result.get()) : nullptr;
 }
 
 #define MimeHeaders_write(OPT,NAME,DATA,LENGTH) \
@@ -535,7 +535,7 @@ MimeHeaders_write_all_headers (MimeHeaders *hdrs, MimeDisplayOptions *opt, bool 
     if (status < 0) return 0;
   }
 
-  char *charset = nsnull;
+  char *charset = nullptr;
   if (opt->format_out == nsMimeOutput::nsMimeMessageSaveAs)
   {
     if (opt->override_charset)
@@ -544,7 +544,7 @@ MimeHeaders_write_all_headers (MimeHeaders *hdrs, MimeDisplayOptions *opt, bool 
     {
       char *contentType = MimeHeaders_get(hdrs, HEADER_CONTENT_TYPE, false, false);
       if (contentType)
-        charset = MimeHeaders_get_parameter(contentType, HEADER_PARM_CHARSET, nsnull, nsnull);
+        charset = MimeHeaders_get_parameter(contentType, HEADER_PARM_CHARSET, nullptr, nullptr);
       PR_FREEIF(contentType);
     }
   }
@@ -659,7 +659,7 @@ MIME_StripContinuations(char *original)
   return original;
 }
 
-extern PRInt16 INTL_DefaultMailToWinCharSetID(PRInt16 csid);
+extern int16_t INTL_DefaultMailToWinCharSetID(int16_t csid);
 
 /* Given text purporting to be a qtext header value, strip backslashes that
   may be escaping other chars in the string. */
@@ -672,13 +672,13 @@ mime_decode_filename(const char *name, const char *charset,
     do_GetService(NS_MIMEHEADERPARAM_CONTRACTID, &rv);
 
   if (NS_FAILED(rv))
-    return nsnull;
+    return nullptr;
   nsCAutoString result;
   rv = mimehdrpar->DecodeParameter(nsDependentCString(name), charset,
-                                   opt ? opt->default_charset : nsnull,
+                                   opt ? opt->default_charset : nullptr,
                                    opt ? opt->override_charset : false,
                                    result);
-  return NS_SUCCEEDED(rv) ? PL_strdup(result.get()) : nsnull;
+  return NS_SUCCEEDED(rv) ? PL_strdup(result.get()) : nullptr;
 }
 
 /* Pull the name out of some header or another.  Order is:
@@ -691,7 +691,7 @@ char *
 MimeHeaders_get_name(MimeHeaders *hdrs, MimeDisplayOptions *opt)
 {
   char *s = 0, *name = 0, *cvt = 0;
-  char *charset = nsnull; // for RFC2231 support
+  char *charset = nullptr; // for RFC2231 support
 
   s = MimeHeaders_get(hdrs, HEADER_CONTENT_DISPOSITION, false, false);
   if (s)
@@ -831,7 +831,7 @@ MimeHeaders_write_raw_headers (MimeHeaders *hdrs, MimeDisplayOptions *opt,
   }
   else if (hdrs)
   {
-    PRInt32 i;
+    int32_t i;
     for (i = 0; i < hdrs->heads_size; i++)
     {
       char *head = hdrs->heads[i];
@@ -862,19 +862,19 @@ MimeHeaders_write_raw_headers (MimeHeaders *hdrs, MimeDisplayOptions *opt,
 char *
 MimeHeaders_open_crypto_stamp(void)
 {
-  return nsnull;
+  return nullptr;
 }
 
 char *
 MimeHeaders_finish_open_crypto_stamp(void)
 {
-  return nsnull;
+  return nullptr;
 }
 
 char *
 MimeHeaders_close_crypto_stamp(void)
 {
-  return nsnull;
+  return nullptr;
 }
 
 char *
@@ -885,5 +885,5 @@ MimeHeaders_make_crypto_stamp(bool encrypted_p,
                               bool close_parent_stamp_p,
                               const char *stamp_url)
 {
-  return nsnull;
+  return nullptr;
 }

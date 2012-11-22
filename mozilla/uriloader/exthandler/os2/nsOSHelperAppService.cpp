@@ -222,7 +222,7 @@ nsOSHelperAppService::LookUpTypeAndDescription(const nsAString& aFileExtension,
   nsAutoString mimeFileName;
 
   rv = GetFileLocation("helpers.private_mime_types_file",
-                       nsnull, mimeFileName);
+                       nullptr, mimeFileName);
   if (NS_SUCCEEDED(rv) && !mimeFileName.IsEmpty()) {
     rv = GetTypeAndDescriptionFromMimetypesFile(mimeFileName,
                                                 aFileExtension,
@@ -234,7 +234,7 @@ nsOSHelperAppService::LookUpTypeAndDescription(const nsAString& aFileExtension,
   }
   if (NS_FAILED(rv) || aMajorType.IsEmpty()) {
     rv = GetFileLocation("helpers.global_mime_types_file",
-                         nsnull, mimeFileName);
+                         nullptr, mimeFileName);
     if (NS_SUCCEEDED(rv) && !mimeFileName.IsEmpty()) {
       rv = GetTypeAndDescriptionFromMimetypesFile(mimeFileName,
                                                   aFileExtension,
@@ -449,7 +449,7 @@ nsOSHelperAppService::LookUpExtensionsAndDescription(const nsAString& aMajorType
   nsAutoString mimeFileName;
 
   rv = GetFileLocation("helpers.private_mime_types_file",
-                       nsnull, mimeFileName);
+                       nullptr, mimeFileName);
   if (NS_SUCCEEDED(rv) && !mimeFileName.IsEmpty()) {
     rv = GetExtensionsAndDescriptionFromMimetypesFile(mimeFileName,
                                                       aMajorType,
@@ -461,7 +461,7 @@ nsOSHelperAppService::LookUpExtensionsAndDescription(const nsAString& aMajorType
   }
   if (NS_FAILED(rv) || aFileExtensions.IsEmpty()) {
     rv = GetFileLocation("helpers.global_mime_types_file",
-                         nsnull, mimeFileName);
+                         nullptr, mimeFileName);
     if (NS_SUCCEEDED(rv) && !mimeFileName.IsEmpty()) {
       rv = GetExtensionsAndDescriptionFromMimetypesFile(mimeFileName,
                                                         aMajorType,
@@ -1108,7 +1108,7 @@ already_AddRefed<nsMIMEInfoOS2>
 nsOSHelperAppService::GetFromExtension(const nsCString& aFileExt) {
   // if the extension is empty, return immediately
   if (aFileExt.IsEmpty())
-    return nsnull;
+    return nullptr;
   
   LOG(("Here we do an extension lookup for '%s'\n", aFileExt.get()));
 
@@ -1123,7 +1123,7 @@ nsOSHelperAppService::GetFromExtension(const nsCString& aFileExt) {
                                 minorType,
                                 mime_types_description);
   if (NS_FAILED(rv))
-    return nsnull;
+    return nullptr;
 
   NS_LossyConvertUTF16toASCII asciiMajorType(majorType);
   NS_LossyConvertUTF16toASCII asciiMinorType(minorType);
@@ -1135,13 +1135,13 @@ nsOSHelperAppService::GetFromExtension(const nsCString& aFileExt) {
 
   if (majorType.IsEmpty() && minorType.IsEmpty()) {
     // we didn't get a type mapping, so we can't do anything useful
-    return nsnull;
+    return nullptr;
   }
 
   nsCAutoString mimeType(asciiMajorType + NS_LITERAL_CSTRING("/") + asciiMinorType);
   nsMIMEInfoOS2* mimeInfo = new nsMIMEInfoOS2(mimeType);
   if (!mimeInfo)
-    return nsnull;
+    return nullptr;
   NS_ADDREF(mimeInfo);
   
   mimeInfo->AppendExtension(aFileExt);
@@ -1193,7 +1193,7 @@ already_AddRefed<nsMIMEInfoOS2>
 nsOSHelperAppService::GetFromType(const nsCString& aMIMEType) {
   // if the extension is empty, return immediately
   if (aMIMEType.IsEmpty())
-    return nsnull;
+    return nullptr;
   
   LOG(("Here we do a mimetype lookup for '%s'\n", aMIMEType.get()));
   nsresult rv;
@@ -1217,7 +1217,7 @@ nsOSHelperAppService::GetFromType(const nsCString& aMIMEType) {
                      minorTypeStart, minorTypeEnd, end_iter);
 
   if (NS_FAILED(rv)) {
-    return nsnull;
+    return nullptr;
   }
 
   nsDependentSubstring majorType(majorTypeStart, majorTypeEnd);
@@ -1251,7 +1251,7 @@ nsOSHelperAppService::GetFromType(const nsCString& aMIMEType) {
   
   if (handler.IsEmpty()) {
     // we have no useful info....
-    return nsnull;
+    return nullptr;
   }
   
   mailcap_description.Trim(" \t\"");
@@ -1263,7 +1263,7 @@ nsOSHelperAppService::GetFromType(const nsCString& aMIMEType) {
 
   nsMIMEInfoOS2* mimeInfo = new nsMIMEInfoOS2(aMIMEType);
   if (!mimeInfo)
-    return nsnull;
+    return nullptr;
   NS_ADDREF(mimeInfo);
 
   mimeInfo->SetFileExtensions(NS_ConvertUTF16toUTF8(extensions));
@@ -1320,7 +1320,7 @@ GetNLSString(const PRUnichar *aKey, nsAString& result)
 // if RWS isn't being used or there's no association, returns zero;
 // also constructs a description of the handler based on available info
 
-static PRUint32
+static uint32_t
 WpsGetDefaultHandler(const char *aFileExt, nsAString& aDescription)
 {
   aDescription.Truncate();
@@ -1330,7 +1330,7 @@ WpsGetDefaultHandler(const char *aFileExt, nsAString& aDescription)
     if (!rwsSvc)
       sUseRws = false;
     else {
-      PRUint32 handle;
+      uint32_t handle;
       // the handle may be zero if the WPS class provides the default handler
       if (NS_SUCCEEDED(rwsSvc->HandlerFromExtension(aFileExt, &handle, aDescription)))
         return handle;
@@ -1361,7 +1361,7 @@ WpsMimeInfoFromExtension(const char *aFileExt, nsMIMEInfoOS2 *aMI)
 
   // get the default app's description and WPS handle (if any)
   nsAutoString ustr;
-  PRUint32 handle = WpsGetDefaultHandler(aFileExt, ustr);
+  uint32_t handle = WpsGetDefaultHandler(aFileExt, ustr);
   aMI->SetDefaultDescription(ustr);
   aMI->SetDefaultAppHandle(handle);
 
@@ -1483,7 +1483,7 @@ nsOSHelperAppService::GetFromTypeAndExtension(const nsACString& aMIMEType,
   }
 
   // use the WPS default as the system default handler
-  PRUint32 handle = WpsGetDefaultHandler(ext.get(), description);
+  uint32_t handle = WpsGetDefaultHandler(ext.get(), description);
   mi->SetDefaultDescription(description);
   mi->SetDefaultApplication(0);
   mi->SetDefaultAppHandle(handle);

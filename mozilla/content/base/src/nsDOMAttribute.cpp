@@ -12,7 +12,7 @@
 #include "mozilla/dom/Element.h"
 #include "nsContentCreatorFunctions.h"
 #include "nsINameSpaceManager.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsUnicharUtils.h"
 #include "nsDOMString.h"
 #include "nsIDocument.h"
@@ -133,7 +133,7 @@ nsDOMAttribute::GetName(nsAString& aName)
 already_AddRefed<nsIAtom>
 nsDOMAttribute::GetNameAtom(nsIContent* aContent)
 {
-  nsIAtom* result = nsnull;
+  nsIAtom* result = nullptr;
   if (!mNsAware &&
       mNodeInfo->NamespaceID() == kNameSpaceID_None &&
       aContent->IsInHTMLDocument() &&
@@ -205,7 +205,7 @@ nsDOMAttribute::GetOwnerElement(nsIDOMElement** aOwnerElement)
     return CallQueryInterface(content, aOwnerElement);
   }
 
-  *aOwnerElement = nsnull;
+  *aOwnerElement = nullptr;
 
   return NS_OK;
 }
@@ -235,12 +235,12 @@ nsDOMAttribute::SetNodeValue(const nsAString& aNodeValue)
 }
 
 NS_IMETHODIMP
-nsDOMAttribute::GetNodeType(PRUint16* aNodeType)
+nsDOMAttribute::GetNodeType(uint16_t* aNodeType)
 {
   NS_ENSURE_ARG_POINTER(aNodeType);
   OwnerDoc()->WarnOnceAbout(nsIDocument::eNodeType);
 
-  *aNodeType = (PRUint16)nsIDOMNode::ATTRIBUTE_NODE;
+  *aNodeType = (uint16_t)nsIDOMNode::ATTRIBUTE_NODE;
   return NS_OK;
 }
 
@@ -250,14 +250,14 @@ nsDOMAttribute::GetParentNode(nsIDOMNode** aParentNode)
   NS_ENSURE_ARG_POINTER(aParentNode);
   OwnerDoc()->WarnOnceAbout(nsIDocument::eParentNode);
 
-  *aParentNode = nsnull;
+  *aParentNode = nullptr;
   return NS_OK;
 }
 
 NS_IMETHODIMP
 nsDOMAttribute::GetParentElement(nsIDOMElement** aParentElement)
 {
-  *aParentElement = nsnull;
+  *aParentElement = nullptr;
   return NS_OK;
 }
 
@@ -293,7 +293,7 @@ nsDOMAttribute::HasAttributes(bool* aHasAttributes)
 NS_IMETHODIMP
 nsDOMAttribute::GetFirstChild(nsIDOMNode** aFirstChild)
 {
-  *aFirstChild = nsnull;
+  *aFirstChild = nullptr;
 
   OwnerDoc()->WarnOnceAbout(nsIDocument::eFirstChild);
 
@@ -315,7 +315,7 @@ nsDOMAttribute::GetPreviousSibling(nsIDOMNode** aPreviousSibling)
 
   OwnerDoc()->WarnOnceAbout(nsIDocument::ePreviousSibling);
 
-  *aPreviousSibling = nsnull;
+  *aPreviousSibling = nullptr;
   return NS_OK;
 }
 
@@ -326,7 +326,7 @@ nsDOMAttribute::GetNextSibling(nsIDOMNode** aNextSibling)
 
   OwnerDoc()->WarnOnceAbout(nsIDocument::eNextSibling);
 
-  *aNextSibling = nsnull;
+  *aNextSibling = nullptr;
   return NS_OK;
 }
 
@@ -337,7 +337,7 @@ nsDOMAttribute::GetAttributes(nsIDOMNamedNodeMap** aAttributes)
 
   OwnerDoc()->WarnOnceAbout(nsIDocument::eAttributes);
 
-  *aAttributes = nsnull;
+  *aAttributes = nullptr;
   return NS_OK;
 }
 
@@ -370,7 +370,7 @@ nsDOMAttribute::AppendChild(nsIDOMNode* aNewChild, nsIDOMNode** aReturn)
 {
   OwnerDoc()->WarnOnceAbout(nsIDocument::eAppendChild);
 
-  return InsertBefore(aNewChild, nsnull, aReturn);
+  return InsertBefore(aNewChild, nullptr, aReturn);
 }
 
 nsresult
@@ -380,7 +380,7 @@ nsDOMAttribute::Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const
   const_cast<nsDOMAttribute*>(this)->GetValue(value);
 
   nsCOMPtr<nsINodeInfo> ni = aNodeInfo;
-  *aResult = new nsDOMAttribute(nsnull, ni.forget(), value, mNsAware);
+  *aResult = new nsDOMAttribute(nullptr, ni.forget(), value, mNsAware);
   if (!*aResult) {
     return NS_ERROR_OUT_OF_MEMORY;
   }
@@ -391,7 +391,7 @@ nsDOMAttribute::Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const
 }
 
 NS_IMETHODIMP
-nsDOMAttribute::CloneNode(bool aDeep, PRUint8 aOptionalArgc, nsIDOMNode** aResult)
+nsDOMAttribute::CloneNode(bool aDeep, uint8_t aOptionalArgc, nsIDOMNode** aResult)
 {
   OwnerDoc()->WarnOnceAbout(nsIDocument::eCloneNode);
 
@@ -455,7 +455,7 @@ nsDOMAttribute::GetBaseURI() const
 {
   nsINode *parent = GetContentInternal();
 
-  return parent ? parent->GetBaseURI() : nsnull;
+  return parent ? parent->GetBaseURI() : nullptr;
 }
 
 NS_IMETHODIMP
@@ -466,7 +466,7 @@ nsDOMAttribute::GetDOMBaseURI(nsAString &aURI)
 
 NS_IMETHODIMP
 nsDOMAttribute::CompareDocumentPosition(nsIDOMNode *other,
-                                        PRUint16 *aResult)
+                                        uint16_t *aResult)
 {
   return nsINode::CompareDocumentPosition(other, aResult);
 }
@@ -561,38 +561,38 @@ nsDOMAttribute::GetIsId(bool* aReturn)
 }
 
 bool
-nsDOMAttribute::IsNodeOfType(PRUint32 aFlags) const
+nsDOMAttribute::IsNodeOfType(uint32_t aFlags) const
 {
     return !(aFlags & ~eATTRIBUTE);
 }
 
-PRUint32
+uint32_t
 nsDOMAttribute::GetChildCount() const
 {
   return 0;
 }
 
 nsIContent *
-nsDOMAttribute::GetChildAt(PRUint32 aIndex) const
+nsDOMAttribute::GetChildAt(uint32_t aIndex) const
 {
-  return nsnull;
+  return nullptr;
 }
 
 nsIContent * const *
-nsDOMAttribute::GetChildArray(PRUint32* aChildCount) const
+nsDOMAttribute::GetChildArray(uint32_t* aChildCount) const
 {
   *aChildCount = 0;
   return NULL;
 }
 
-PRInt32
+int32_t
 nsDOMAttribute::IndexOf(nsINode* aPossibleChild) const
 {
   return -1;
 }
 
 nsresult
-nsDOMAttribute::InsertChildAt(nsIContent* aKid, PRUint32 aIndex,
+nsDOMAttribute::InsertChildAt(nsIContent* aKid, uint32_t aIndex,
                               bool aNotify)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -605,7 +605,7 @@ nsDOMAttribute::AppendChildTo(nsIContent* aKid, bool aNotify)
 }
 
 void
-nsDOMAttribute::RemoveChildAt(PRUint32 aIndex, bool aNotify)
+nsDOMAttribute::RemoveChildAt(uint32_t aIndex, bool aNotify)
 {
 }
 

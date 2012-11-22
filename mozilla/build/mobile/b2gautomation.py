@@ -18,8 +18,8 @@ from devicemanager import DeviceManager, NetworkTools
 from mozprocess import ProcessHandlerMixin
 
 
-class LogcatProc(ProcessHandlerMixin):
-    """Process handler for logcat which puts all output in a Queue.
+class StdOutProc(ProcessHandlerMixin):
+    """Process handler for b2g which puts all output in a Queue.
     """
 
     def __init__(self, cmd, queue, **kwargs):
@@ -35,16 +35,22 @@ class B2GRemoteAutomation(Automation):
     _devicemanager = None
 
     def __init__(self, deviceManager, appName='', remoteLog=None,
-                 marionette=None):
+                 marionette=None, context_chrome=True):
         self._devicemanager = deviceManager
         self._appName = appName
         self._remoteProfile = None
         self._remoteLog = remoteLog
         self.marionette = marionette
+        self.context_chrome = context_chrome
         self._is_emulator = False
+        self.test_script = None
+        self.test_script_args = None
 
         # Default our product to b2g
         self._product = "b2g"
+        self.lastTestSeen = "b2gautomation.py"
+        # Default log finish to mochitest standard
+        self.logFinish = 'INFO SimpleTest FINISHED' 
         Automation.__init__(self)
 
     def setEmulator(self, is_emulator):
@@ -76,6 +82,20 @@ class B2GRemoteAutomation(Automation):
         env['MOZ_HIDE_RESULTS_TABLE'] = '1'
         return env
 
+    def waitForNet(self): 
+        active = False
+        time_out = 0
+        while not active and time_out < 40:
+            data = self._devicemanager.runCmd(['shell', '/system/bin/netcfg']).stdout.readlines()
+            data.pop(0)
+            for line in data:
+                if (re.search(r'UP\s+(?:[0-9]{1,3}\.){3}[0-9]{1,3}', line)):
+                    active = True
+                    break
+            time_out += 1
+            time.sleep(1)
+        return active
+
     def checkForCrashes(self, directory, symbolsPath):
         # XXX: This will have to be updated after crash reporting on b2g
         # is in place.
@@ -106,25 +126,28 @@ class B2GRemoteAutomation(Automation):
         return nettools.getLanIp()
 
     def waitForFinish(self, proc, utilityPath, timeout, maxTime, startTime,
-                      debuggerInfo, symbolsPath, logger):
-        """ Wait for mochitest to finish (as evidenced by a signature string
+                      debuggerInfo, symbolsPath):
+        """ Wait for tests to finish (as evidenced by a signature string
             in logcat), or for a given amount of time to elapse with no
             output.
         """
         timeout = timeout or 120
-
-        didTimeout = False
-
-        done = time.time() + timeout
+        responseDueBy = time.time() + timeout
         while True:
             currentlog = proc.stdout
             if currentlog:
-                done = time.time() + timeout
+                responseDueBy = time.time() + timeout
                 print currentlog
-                if 'INFO SimpleTest FINISHED' in currentlog:
+                # Match the test filepath from the last TEST-START line found in the new
+                # log content. These lines are in the form:
+                # ... INFO TEST-START | /filepath/we/wish/to/capture.html\n
+                testStartFilenames = re.findall(r"TEST-START \| ([^\s]*)", currentlog)
+                if testStartFilenames:
+                    self.lastTestSeen = testStartFilenames[-1]
+                if hasattr(self, 'logFinish') and self.logFinish in currentlog:
                     return 0
             else:
-                if time.time() > done:
+                if time.time() > responseDueBy:
                     self.log.info("TEST-UNEXPECTED-FAIL | %s | application timed "
                                   "out after %d seconds with no output",
                                   self.lastTestSeen, int(timeout))
@@ -148,6 +171,8 @@ class B2GRemoteAutomation(Automation):
         return (serial, status)
 
     def restartB2G(self):
+        # TODO hangs in subprocess.Popen without this delay
+        time.sleep(5)
         self._devicemanager.checkCmd(['shell', 'stop', 'b2g'])
         # Wait for a bit to make sure B2G has completely shut down.
         time.sleep(10)
@@ -160,7 +185,11 @@ class B2GRemoteAutomation(Automation):
         serial, status = self.getDeviceStatus()
 
         # reboot!
-        self._devicemanager.checkCmd(['reboot'])
+        self._devicemanager.runCmd(['shell', '/system/bin/reboot'])
+
+        # The above command can return while adb still thinks the device is
+        # connected, so wait a little bit for it to disconnect from adb.
+        time.sleep(10)
 
         # wait for device to come back to previous status
         print 'waiting for device to come back online after reboot'
@@ -176,28 +205,33 @@ class B2GRemoteAutomation(Automation):
 
     def Process(self, cmd, stdout=None, stderr=None, env=None, cwd=None):
         # On a desktop or fennec run, the Process method invokes a gecko
-        # process in which to run mochitests.  For B2G, we simply
+        # process in which to the tests.  For B2G, we simply
         # reboot the device (which was configured with a test profile
         # already), wait for B2G to start up, and then navigate to the
         # test url using Marionette.  There doesn't seem to be any way
-        # to pass env variables into the B2G process, but this doesn't 
+        # to pass env variables into the B2G process, but this doesn't
         # seem to matter.
-
-        instance = self.B2GInstance(self._devicemanager)
 
         # reboot device so it starts up with the mochitest profile
         # XXX:  We could potentially use 'stop b2g' + 'start b2g' to achieve
         # a similar effect; will see which is more stable while attempting
         # to bring up the continuous integration.
-        if self._is_emulator:
-            self.restartB2G()
-        else:
+        if not self._is_emulator:
             self.rebootDevice()
+            time.sleep(5)
+            #wait for wlan to come up 
+            if not self.waitForNet():
+                raise Exception("network did not come up, please configure the network" + 
+                                " prior to running before running the automation framework")
 
-        # Infrequently, gecko comes up before networking does, so wait a little
-        # bit to give the network time to become available.
-        # XXX:  need a more robust mechanism for this
-        time.sleep(40)
+        # stop b2g
+        self._devicemanager.runCmd(['shell', 'stop', 'b2g'])
+        time.sleep(5)
+
+        # relaunch b2g inside b2g instance
+        instance = self.B2GInstance(self._devicemanager)
+
+        time.sleep(5)
 
         # Set up port forwarding again for Marionette, since any that
         # existed previously got wiped out by the reboot.
@@ -206,13 +240,37 @@ class B2GRemoteAutomation(Automation):
                                           'tcp:%s' % self.marionette.port,
                                           'tcp:%s' % self.marionette.port])
 
+        if self._is_emulator:
+            self.marionette.emulator.wait_for_port()
+        else:
+            time.sleep(5)
+
         # start a marionette session
         session = self.marionette.start_session()
         if 'b2g' not in session:
             raise Exception("bad session value %s returned by start_session" % session)
 
-        # start the tests by navigating to the mochitest url
-        self.marionette.execute_script("window.location.href='%s';" % self.testURL)
+        if self.context_chrome:
+            self.marionette.set_context(self.marionette.CONTEXT_CHROME)
+
+        # start the tests
+        if hasattr(self, 'testURL'):
+            # Start the tests by navigating to the mochitest url, by setting it
+            # as the 'src' attribute to the homescreen mozbrowser element
+            # provided by B2G's shell.js.
+            self.marionette.execute_script("document.getElementById('homescreen').src='%s';" % self.testURL)
+        # run the script that starts the tests
+        elif self.test_script:
+            if os.path.isfile(self.test_script):
+                script = open(self.test_script, 'r')
+                self.marionette.execute_script(script.read(), script_args=self.test_script_args)
+                script.close()
+            else:
+                # assume test_script is a string
+                self.marionette.execute_script(self.test_script, script_args=self.test_script_args)
+        else:
+            # assumes the tests are started on startup automatically
+            pass
 
         return instance
 
@@ -225,26 +283,29 @@ class B2GRemoteAutomation(Automation):
 
         def __init__(self, dm):
             self.dm = dm
-            self.logcat_proc = None
+            self.stdout_proc = None
             self.queue = Queue.Queue()
 
-            # Launch logcat in a separate thread, and dump all output lines
+            # Launch b2g in a separate thread, and dump all output lines
             # into a queue.  The lines in this queue are
             # retrieved and returned by accessing the stdout property of
             # this class.
             cmd = [self.dm.adbPath]
             if self.dm.deviceSerial:
                 cmd.extend(['-s', self.dm.deviceSerial])
-            cmd.append('logcat')
-            proc = threading.Thread(target=self._save_logcat_proc, args=(cmd, self.queue))
+            cmd.append('shell')
+            cmd.append('/system/bin/b2g.sh')
+            proc = threading.Thread(target=self._save_stdout_proc, args=(cmd, self.queue))
             proc.daemon = True
             proc.start()
 
-        def _save_logcat_proc(self, cmd, queue):
-            self.logcat_proc = LogcatProc(cmd, queue)
-            self.logcat_proc.run()
-            self.logcat_proc.waitForFinish()
-            self.logcat_proc = None
+        def _save_stdout_proc(self, cmd, queue):
+            self.stdout_proc = StdOutProc(cmd, queue)
+            self.stdout_proc.run()
+            if hasattr(self.stdout_proc, 'processOutput'):
+                self.stdout_proc.processOutput()
+            self.stdout_proc.waitForFinish()
+            self.stdout_proc = None
 
         @property
         def pid(self):
@@ -254,7 +315,7 @@ class B2GRemoteAutomation(Automation):
         @property
         def stdout(self):
             # Return any lines in the queue used by the
-            # logcat process handler.
+            # b2g process handler.
             lines = []
             while True:
                 try:
@@ -270,4 +331,3 @@ class B2GRemoteAutomation(Automation):
         def kill(self):
             # this should never happen
             raise Exception("'kill' called on B2GInstance")
-

@@ -43,7 +43,7 @@ public:
                      mozilla::dom::NOT_FROM_PARSER : aFromParser),
                      // Fragment parser-created scripts (if executable)
                      // behave like script-created scripts.
-      mCreatorParser(nsnull)
+      mCreatorParser(nullptr)
   {
   }
 
@@ -112,11 +112,11 @@ public:
     return mParserCreated;
   }
 
-  void SetScriptLineNumber(PRUint32 aLineNumber)
+  void SetScriptLineNumber(uint32_t aLineNumber)
   {
     mLineNumber = aLineNumber;
   }
-  PRUint32 GetScriptLineNumber()
+  uint32_t GetScriptLineNumber()
   {
     return mLineNumber;
   }
@@ -138,8 +138,8 @@ public:
   void LoseParserInsertedness()
   {
     mFrozen = false;
-    mUri = nsnull;
-    mCreatorParser = nsnull;
+    mUri = nullptr;
+    mCreatorParser = nullptr;
     mParserCreated = mozilla::dom::NOT_FROM_PARSER;
     bool async = false;
     nsCOMPtr<nsIDOMHTMLScriptElement> htmlScript = do_QueryInterface(this);
@@ -257,7 +257,7 @@ protected:
   /**
    * The start line number of the script.
    */
-  PRUint32 mLineNumber;
+  uint32_t mLineNumber;
   
   /**
    * The "already started" flag per HTML5.

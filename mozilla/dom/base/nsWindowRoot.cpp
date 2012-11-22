@@ -82,7 +82,7 @@ nsWindowRoot::DispatchEvent(nsIDOMEvent* aEvt, bool *aRetVal)
 {
   nsEventStatus status = nsEventStatus_eIgnore;
   nsresult rv =  nsEventDispatcher::DispatchDOMEvent(
-    static_cast<nsIDOMEventTarget*>(this), nsnull, aEvt, nsnull, &status);
+    static_cast<nsIDOMEventTarget*>(this), nullptr, aEvt, nullptr, &status);
   *aRetVal = (status != nsEventStatus_eConsumeNoDefault);
   return rv;
 }
@@ -102,7 +102,7 @@ NS_IMETHODIMP
 nsWindowRoot::AddEventListener(const nsAString& aType,
                                nsIDOMEventListener *aListener,
                                bool aUseCapture, bool aWantsUntrusted,
-                               PRUint8 aOptionalArgc)
+                               uint8_t aOptionalArgc)
 {
   NS_ASSERTION(!aWantsUntrusted || aOptionalArgc > 1,
                "Won't check if this is chrome, you want to set "
@@ -120,7 +120,7 @@ nsWindowRoot::AddSystemEventListener(const nsAString& aType,
                                      nsIDOMEventListener *aListener,
                                      bool aUseCapture,
                                      bool aWantsUntrusted,
-                                     PRUint8 aOptionalArgc)
+                                     uint8_t aOptionalArgc)
 {
   NS_ASSERTION(!aWantsUntrusted || aOptionalArgc > 1,
                "Won't check if this is chrome, you want to set "
@@ -146,7 +146,7 @@ nsIScriptContext*
 nsWindowRoot::GetContextForEventHandlers(nsresult* aRv)
 {
   *aRv = NS_OK;
-  return nsnull;
+  return nullptr;
 }
 
 nsresult
@@ -175,7 +175,7 @@ nsWindowRoot::GetWindow()
 nsresult
 nsWindowRoot::GetControllers(nsIControllers** aResult)
 {
-  *aResult = nsnull;
+  *aResult = nullptr;
 
   // XXX: we should fix this so there's a generic interface that
   // describes controllers, so this code would have no special
@@ -218,7 +218,7 @@ nsWindowRoot::GetControllerForCommand(const char * aCommand,
                                       nsIController** _retval)
 {
   NS_ENSURE_ARG_POINTER(_retval);
-  *_retval = nsnull;
+  *_retval = nullptr;
 
   {
     nsCOMPtr<nsIControllers> controllers;

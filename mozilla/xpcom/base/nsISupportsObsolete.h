@@ -24,7 +24,7 @@
  * free function.
  *
  * @param size      Number of elements in the array.  If not a constant, this 
- *                  should be a PRInt32.  Note that this means this macro 
+ *                  should be a int32_t.  Note that this means this macro 
  *                  will not work if size >= 2^31.
  * @param array     The array to be freed.
  */
@@ -71,7 +71,7 @@ _method(const char *aString)                   \
 {                                              \
     if (_member) PR_Free(_member);             \
     if (!aString)                              \
-      _member = nsnull;                        \
+      _member = nullptr;                        \
     else if (!(_member = PL_strdup(aString)))  \
       return NS_ERROR_OUT_OF_MEMORY;           \
     return NS_OK;                              \

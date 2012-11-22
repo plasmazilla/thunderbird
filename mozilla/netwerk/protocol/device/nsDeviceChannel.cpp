@@ -31,7 +31,7 @@ void extractAttributeValue(const char* searchString, const char* attributeName, 
   if (!searchString || !attributeName)
     return;
 
-  PRUint32 attributeNameSize = strlen(attributeName);
+  uint32_t attributeNameSize = strlen(attributeName);
   const char *startOfAttribute = PL_strcasestr(searchString, attributeName);
   if (!startOfAttribute ||
       !( *(startOfAttribute-1) == '?' || *(startOfAttribute-1) == '&') )
@@ -80,8 +80,8 @@ nsDeviceChannel::OpenContentStream(bool aAsync,
     return NS_ERROR_NOT_IMPLEMENTED;
 
   nsCOMPtr<nsIURI> uri = nsBaseChannel::URI();
-  *aStream = nsnull;
-  *aChannel = nsnull;
+  *aStream = nullptr;
+  *aChannel = nullptr;
   NS_NAMED_LITERAL_CSTRING(width, "width=");
   NS_NAMED_LITERAL_CSTRING(height, "height=");
 

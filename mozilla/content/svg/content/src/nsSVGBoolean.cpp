@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "nsError.h"
 #include "nsSVGBoolean.h"
 #include "nsSMILValue.h"
 #include "SMILBoolType.h"
@@ -174,7 +175,7 @@ nsSVGBoolean::SMILBool::SetAnimValue(const nsSMILValue& aValue)
   NS_ASSERTION(aValue.mType == &SMILBoolType::sSingleton,
                "Unexpected type to assign animated value");
   if (aValue.mType == &SMILBoolType::sSingleton) {
-    mVal->SetAnimValue(PRUint16(aValue.mU.mBool), mSVGElement);
+    mVal->SetAnimValue(uint16_t(aValue.mU.mBool), mSVGElement);
   }
   return NS_OK;
 }

@@ -275,7 +275,7 @@ nsLookAndFeel::NativeGetColor(ColorID aID, nscolor &aColor)
 }
 
 nsresult
-nsLookAndFeel::GetIntImpl(IntID aID, PRInt32 &aResult)
+nsLookAndFeel::GetIntImpl(IntID aID, int32_t &aResult)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
@@ -376,7 +376,7 @@ nsLookAndFeel::GetIntImpl(IntID aID, PRInt32 &aResult)
                                                             kCFPreferencesAnyHost);
       aResult = 1;    // default to just textboxes
       if (fullKeyboardAccessProperty) {
-        PRInt32 fullKeyboardAccessPrefVal;
+        int32_t fullKeyboardAccessPrefVal;
         if (::CFNumberGetValue((CFNumberRef) fullKeyboardAccessProperty, kCFNumberIntType, &fullKeyboardAccessPrefVal)) {
           // the second bit means  "Full keyboard access" is on
           if (fullKeyboardAccessPrefVal & (1 << 1))
@@ -479,7 +479,7 @@ nsLookAndFeel::GetFontImpl(FontID aID, nsString &aFontName,
     [NSFont boldSystemFontOfSize:     [NSFont smallSystemFontSize]]
 */
 
-    NSFont *font = nsnull;
+    NSFont *font = nullptr;
     switch (aID) {
         // css2
         case eFont_Caption:

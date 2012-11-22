@@ -5,7 +5,7 @@
 
 #include "FileIOObject.h"
 #include "nsDOMFile.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsIDOMEvent.h"
 #include "nsIDOMProgressEvent.h"
 #include "nsComponentManagerUtils.h"
@@ -18,7 +18,7 @@
 namespace mozilla {
 namespace dom {
 
-const PRUint64 kUnknownSize = PRUint64(-1);
+const uint64_t kUnknownSize = uint64_t(-1);
 
 NS_IMPL_ADDREF_INHERITED(FileIOObject, nsDOMEventTargetHelper)
 NS_IMPL_RELEASE_INHERITED(FileIOObject, nsDOMEventTargetHelper)
@@ -106,7 +106,7 @@ nsresult
 FileIOObject::DispatchProgressEvent(const nsAString& aType)
 {
   nsCOMPtr<nsIDOMEvent> event;
-  nsresult rv = nsEventDispatcher::CreateEvent(nsnull, nsnull,
+  nsresult rv = nsEventDispatcher::CreateEvent(nullptr, nullptr,
                                                NS_LITERAL_STRING("ProgressEvent"),
                                                getter_AddRefs(event));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -116,7 +116,7 @@ FileIOObject::DispatchProgressEvent(const nsAString& aType)
   NS_ENSURE_TRUE(progress, NS_ERROR_UNEXPECTED);
 
   bool known;
-  PRUint64 size;
+  uint64_t size;
   if (mTotal != kUnknownSize) {
     known = true;
     size = mTotal;
@@ -128,7 +128,7 @@ FileIOObject::DispatchProgressEvent(const nsAString& aType)
                                    mTransferred, size);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  return DispatchDOMEvent(nsnull, event, nsnull, nsnull);
+  return DispatchDOMEvent(nullptr, event, nullptr, nullptr);
 }
 
 // nsITimerCallback
@@ -165,8 +165,8 @@ NS_IMETHODIMP
 FileIOObject::OnDataAvailable(nsIRequest *aRequest,
                               nsISupports *aContext,
                               nsIInputStream *aInputStream,
-                              PRUint32 aOffset,
-                              PRUint32 aCount)
+                              uint32_t aOffset,
+                              uint32_t aCount)
 {
   nsresult rv;
   rv = DoOnDataAvailable(aRequest, aContext, aInputStream, aOffset, aCount);
@@ -246,7 +246,7 @@ FileIOObject::Abort()
 }
 
 NS_IMETHODIMP
-FileIOObject::GetReadyState(PRUint16 *aReadyState)
+FileIOObject::GetReadyState(uint16_t *aReadyState)
 {
   *aReadyState = mReadyState;
   return NS_OK;

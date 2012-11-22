@@ -101,10 +101,10 @@ calRecurrenceDateSet::GetIsFinite(bool *_retval)
 }
 
 NS_IMETHODIMP
-calRecurrenceDateSet::GetDates(PRUint32 *aCount, calIDateTime ***aDates)
+calRecurrenceDateSet::GetDates(uint32_t *aCount, calIDateTime ***aDates)
 {
     if (mDates.Count() == 0) {
-        *aDates = nsnull;
+        *aDates = nullptr;
         *aCount = 0;
         return NS_OK;
     }
@@ -126,12 +126,12 @@ calRecurrenceDateSet::GetDates(PRUint32 *aCount, calIDateTime ***aDates)
 }
 
 NS_IMETHODIMP
-calRecurrenceDateSet::SetDates(PRUint32 aCount, calIDateTime **aDates)
+calRecurrenceDateSet::SetDates(uint32_t aCount, calIDateTime **aDates)
 {
     NS_ENSURE_ARG_POINTER(aDates);
 
     mDates.Clear();
-    for (PRUint32 i = 0; i < aCount; i++) {
+    for (uint32_t i = 0; i < aCount; i++) {
         mDates.AppendObject(aDates[i]);
     }
 
@@ -157,7 +157,7 @@ calDateTimeComparator (calIDateTime *aElement1,
                        calIDateTime *aElement2,
                        void *aData)
 {
-    PRInt32 result;
+    int32_t result;
     aElement1->Compare(aElement2, &result);
     return result;
 }
@@ -166,7 +166,7 @@ void
 calRecurrenceDateSet::EnsureSorted()
 {
     if (!mSorted) {
-        mDates.Sort(calDateTimeComparator, nsnull);
+        mDates.Sort(calDateTimeComparator, nullptr);
         mSorted = true;
     }
 }
@@ -182,8 +182,8 @@ calRecurrenceDateSet::GetNextOccurrence(calIDateTime *aStartTime,
 
     EnsureSorted();
 
-    PRInt32 i;
-    PRInt32 result;
+    int32_t i;
+    int32_t result;
 
     // we ignore aStartTime
     for (i = 0; i < mDates.Count(); i++) {
@@ -193,7 +193,7 @@ calRecurrenceDateSet::GetNextOccurrence(calIDateTime *aStartTime,
         }
     }
 
-    *_retval = nsnull;
+    *_retval = nullptr;
     return NS_OK;
 }
 
@@ -201,16 +201,16 @@ NS_IMETHODIMP
 calRecurrenceDateSet::GetOccurrences(calIDateTime *aStartTime,
                                      calIDateTime *aRangeStart,
                                      calIDateTime *aRangeEnd,
-                                     PRUint32 aMaxCount,
-                                     PRUint32 *aCount, calIDateTime ***aDates)
+                                     uint32_t aMaxCount,
+                                     uint32_t *aCount, calIDateTime ***aDates)
 {
     NS_ENSURE_ARG_POINTER(aStartTime);
     NS_ENSURE_ARG_POINTER(aRangeStart);
 
     nsCOMArray<calIDateTime> dates;
 
-    PRInt32 i;
-    PRInt32 result;
+    int32_t i;
+    int32_t result;
     nsresult rv;
 
     for (i = 0; i < mDates.Count(); i++) {
@@ -237,7 +237,7 @@ calRecurrenceDateSet::GetOccurrences(calIDateTime *aStartTime,
             break;
     }
 
-    PRInt32 count = dates.Count();
+    int32_t count = dates.Count();
     if (count) {
         calIDateTime **dateArray = (calIDateTime **) nsMemory::Alloc(sizeof(calIDateTime*) * count);
         for (int i = 0; i < count; i++) {
@@ -245,7 +245,7 @@ calRecurrenceDateSet::GetOccurrences(calIDateTime *aStartTime,
         }
         *aDates = dateArray;
     } else {
-        *aDates = nsnull;
+        *aDates = nullptr;
     }
     *aCount = count;
 
@@ -258,7 +258,7 @@ calRecurrenceDateSet::GetOccurrences(calIDateTime *aStartTime,
 NS_IMETHODIMP
 calRecurrenceDateSet::GetIcalProperty(calIIcalProperty **aProp)
 {
-    icalproperty *dateset = nsnull;
+    icalproperty *dateset = nullptr;
 
     for (int i = 0; i < mDates.Count(); i++) {
         if (mIsNegative)

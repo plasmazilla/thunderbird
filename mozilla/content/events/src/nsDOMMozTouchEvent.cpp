@@ -7,7 +7,7 @@
 #include "nsDOMMozTouchEvent.h"
 
 nsDOMMozTouchEvent::nsDOMMozTouchEvent(nsPresContext* aPresContext, nsMozTouchEvent* aEvent)
-  : nsDOMMouseEvent(aPresContext, aEvent ? aEvent : new nsMozTouchEvent(false, 0, nsnull, 0))
+  : nsDOMMouseEvent(aPresContext, aEvent ? aEvent : new nsMozTouchEvent(false, 0, nullptr, 0))
 {
   NS_ASSERTION(mEvent->eventStructType == NS_MOZTOUCH_EVENT, "event type mismatch NS_MOZTOUCH_EVENT");
 
@@ -24,7 +24,7 @@ nsDOMMozTouchEvent::~nsDOMMozTouchEvent()
 {
   if (mEventIsInternal) {
     delete static_cast<nsMozTouchEvent*>(mEvent);
-    mEvent = nsnull;
+    mEvent = nullptr;
   }
 }
 
@@ -40,7 +40,7 @@ NS_INTERFACE_MAP_END_INHERITING(nsDOMMouseEvent)
 
 /* readonly attribute unsigned long steramId; */
 NS_IMETHODIMP
-nsDOMMozTouchEvent::GetStreamId(PRUint32 *aStreamId)
+nsDOMMozTouchEvent::GetStreamId(uint32_t *aStreamId)
 {
   NS_ENSURE_ARG_POINTER(aStreamId);
   *aStreamId = static_cast<nsMozTouchEvent*>(mEvent)->streamId;
@@ -52,18 +52,18 @@ nsDOMMozTouchEvent::InitMozTouchEvent(const nsAString& aTypeArg,
                                       bool aCanBubbleArg,
                                       bool aCancelableArg,
                                       nsIDOMWindow* aViewArg,
-                                      PRInt32 aDetailArg,
-                                      PRInt32 aScreenX,
-                                      PRInt32 aScreenY,
-                                      PRInt32 aClientX,
-                                      PRInt32 aClientY,
+                                      int32_t aDetailArg,
+                                      int32_t aScreenX,
+                                      int32_t aScreenY,
+                                      int32_t aClientX,
+                                      int32_t aClientY,
                                       bool aCtrlKeyArg,
                                       bool aAltKeyArg,
                                       bool aShiftKeyArg,
                                       bool aMetaKeyArg,
-                                      PRUint16 aButton,
+                                      uint16_t aButton,
                                       nsIDOMEventTarget* aRelatedTarget,
-                                      PRUint32 aStreamId)
+                                      uint32_t aStreamId)
 {
   nsresult rv = nsDOMMouseEvent::InitMouseEvent(aTypeArg,
                                                 aCanBubbleArg,

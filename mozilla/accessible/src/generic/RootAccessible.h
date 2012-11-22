@@ -36,9 +36,9 @@ public:
 
   // Accessible
   virtual mozilla::a11y::ENameValueFlag Name(nsString& aName);
-  virtual Relation RelationByType(PRUint32 aType);
+  virtual Relation RelationByType(uint32_t aType);
   virtual mozilla::a11y::role NativeRole();
-  virtual PRUint64 NativeState();
+  virtual uint64_t NativeState();
 
   // RootAccessible
   nsCaretAccessible* GetCaretAccessible();
@@ -77,7 +77,7 @@ protected:
     void HandleTreeInvalidatedEvent(nsIDOMEvent* aEvent,
                                     XULTreeAccessible* aAccessible);
 
-    PRUint32 GetChromeFlags();
+    uint32_t GetChromeFlags();
 #endif
 
     nsRefPtr<nsCaretAccessible> mCaretAccessible;
@@ -90,7 +90,7 @@ inline mozilla::a11y::RootAccessible*
 Accessible::AsRoot()
 {
   return mFlags & eRootAccessible ?
-    static_cast<mozilla::a11y::RootAccessible*>(this) : nsnull;
+    static_cast<mozilla::a11y::RootAccessible*>(this) : nullptr;
 }
 
 #endif

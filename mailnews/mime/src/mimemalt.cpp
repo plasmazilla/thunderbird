@@ -57,7 +57,7 @@
   violate abstrations... Even if we set output_p on a child before adding it to
   the parent, the parse_begin function resets it. The kluge I came up with to
   prevent that was to give the child a separate options object and set
-  output_fn to nsnull in it, because that causes parse_begin to set output_p to
+  output_fn to nullptr in it, because that causes parse_begin to set output_p to
   false. This seemed like the least onerous way to accomplish this, although I
   can't say it's a solution I'm particularly fond of.
 
@@ -94,7 +94,7 @@ static void MimeMultipartAlternative_finalize (MimeObject *);
 static int MimeMultipartAlternative_parse_eof (MimeObject *, bool);
 static int MimeMultipartAlternative_create_child(MimeObject *);
 static int MimeMultipartAlternative_parse_child_line (MimeObject *, const char *,
-                            PRInt32, bool);
+                            int32_t, bool);
 static int MimeMultipartAlternative_close_child(MimeObject *);
 
 static int MimeMultipartAlternative_flush_children(MimeObject *, bool, bool);
@@ -130,8 +130,8 @@ MimeMultipartAlternative_initialize (MimeObject *obj)
   NS_ASSERTION(!malt->buffered_hdrs, "object initialized multiple times");
   malt->pending_parts = 0;
   malt->max_parts = 0;
-  malt->buffered_hdrs = nsnull;
-  malt->part_buffers = nsnull;
+  malt->buffered_hdrs = nullptr;
+  malt->part_buffers = nullptr;
   
   return ((MimeObjectClass*)&MIME_SUPERCLASS)->initialize(obj);
 }
@@ -140,7 +140,7 @@ static void
 MimeMultipartAlternative_cleanup(MimeObject *obj)
 {
   MimeMultipartAlternative *malt = (MimeMultipartAlternative *) obj;
-  PRInt32 i;
+  int32_t i;
 
   for (i = 0; i < malt->pending_parts; i++) {
     MimeHeaders_free(malt->buffered_hdrs[i]);
@@ -229,7 +229,7 @@ MimeMultipartAlternative_flush_children(MimeObject *obj,
   }
   
   if (do_flush) {
-    PRInt32 i;
+    int32_t i;
     for (i = 0; i < malt->pending_parts; i++) {
       MimeMultipartAlternative_display_cached_part(obj,
                                                    malt->buffered_hdrs[i],
@@ -276,7 +276,7 @@ MimeMultipartAlternative_create_child(MimeObject *obj)
   MimeMultipartAlternative_flush_children(obj, false, displayable);
   
   mult->state = MimeMultipartPartFirstLine;
-  PRInt32 i = malt->pending_parts++;
+  int32_t i = malt->pending_parts++;
   if (malt->pending_parts > malt->max_parts) {
     malt->max_parts = malt->pending_parts;
     malt->buffered_hdrs = (MimeHeaders **)
@@ -303,7 +303,7 @@ MimeMultipartAlternative_create_child(MimeObject *obj)
 
 static int
 MimeMultipartAlternative_parse_child_line (MimeObject *obj,
-                       const char *line, PRInt32 length,
+                       const char *line, int32_t length,
                        bool first_line_p)
 {
   MimeMultipartAlternative *malt = (MimeMultipartAlternative *) obj;
@@ -311,7 +311,7 @@ MimeMultipartAlternative_parse_child_line (MimeObject *obj,
   NS_ASSERTION(malt->pending_parts, "should be pending parts, but there aren't");
   if (!malt->pending_parts)
     return -1;
-  PRInt32 i = malt->pending_parts - 1;
+  int32_t i = malt->pending_parts - 1;
 
   /* Push this line into the buffer for later retrieval. */
   return MimePartBufferWrite (malt->part_buffers[i], line, length);
@@ -438,7 +438,7 @@ MimeMultipartAlternative_display_cached_part(MimeObject *obj,
      it that we mean business, we set output_fn to null if we don't
      want output. */
   if (! do_display)
-    body->options->output_fn = nsnull;
+    body->options->output_fn = nullptr;
 
 #ifdef MIME_DRAFTS
   /* if this object is a child of a multipart/related object, the parent is
@@ -481,10 +481,9 @@ MimeMultipartAlternative_display_cached_part(MimeObject *obj,
 #endif /* MIME_DRAFTS */
 
   status = MimePartBufferRead (buffer,
-                  /* The (nsresult (*) ...) cast is to turn the
+                  /* The MimeConverterOutputCallback cast is to turn the
                    `void' argument into `MimeObject'. */
-                  ((nsresult (*) (const char *, PRInt32, void *))
-                  body->clazz->parse_buffer),
+                  ((MimeConverterOutputCallback) body->clazz->parse_buffer),
                   body);
 
   if (status < 0) return status;

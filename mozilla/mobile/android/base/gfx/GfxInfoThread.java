@@ -5,7 +5,9 @@
 
 package org.mozilla.gecko.gfx;
 
+import android.opengl.GLES20;
 import android.util.Log;
+
 import java.util.concurrent.SynchronousQueue;
 
 import javax.microedition.khronos.egl.EGL10;
@@ -13,7 +15,6 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.egl.EGLContext;
 import javax.microedition.khronos.egl.EGLDisplay;
 import javax.microedition.khronos.egl.EGLSurface;
-import android.opengl.GLES20;
 
 public class GfxInfoThread extends Thread {
 
@@ -78,20 +79,25 @@ public class GfxInfoThread extends Thread {
             EGL10.EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
             EGL10.EGL_NONE
         };
+
+        String noES2SupportMsg = "Maybe this device does not support OpenGL ES2?";
+
         if (!egl.eglChooseConfig(eglDisplay,
                                  configAttribs,
                                  null,
                                  0,
                                  returnedNumberOfConfigs))
         {
-            eglError(egl, "eglChooseConfig failed (querying number of configs)");
+            eglError(egl, "eglChooseConfig failed to query OpenGL ES2 configs. " +
+                          noES2SupportMsg);
             return;
         }
 
         // get the first config
         int numConfigs = returnedNumberOfConfigs[0];
         if (numConfigs == 0) {
-            error("eglChooseConfig returned zero configs");
+            error("eglChooseConfig returned zero OpenGL ES2 configs. " +
+                  noES2SupportMsg);
             return;
         }
 
@@ -102,7 +108,8 @@ public class GfxInfoThread extends Thread {
                                  numConfigs,
                                  returnedNumberOfConfigs))
         {
-            eglError(egl, "eglChooseConfig failed (listing configs)");
+            eglError(egl, "eglChooseConfig failed (listing OpenGL ES2 configs). " +
+                          noES2SupportMsg);
             return;
         }
 
@@ -116,7 +123,8 @@ public class GfxInfoThread extends Thread {
                                                      EGL10.EGL_NO_CONTEXT,
                                                      contextAttribs);
         if (eglContext == EGL10.EGL_NO_CONTEXT) {
-            eglError(egl, "eglCreateContext failed");
+            eglError(egl, "eglCreateContext failed to create a OpenGL ES2 context" +
+                          noES2SupportMsg);
             return;
         }
 

@@ -17,6 +17,7 @@
 #include "nsSVGUtils.h"
 
 class gfxContext;
+class nsDisplaySVGPathGeometry;
 class nsIAtom;
 class nsIFrame;
 class nsIPresShell;
@@ -34,6 +35,9 @@ class nsSVGPathGeometryFrame : public nsSVGPathGeometryFrameBase,
 {
   friend nsIFrame*
   NS_NewSVGPathGeometryFrame(nsIPresShell* aPresShell, nsStyleContext* aContext);
+
+  friend class nsDisplaySVGPathGeometry;
+
 protected:
   nsSVGPathGeometryFrame(nsStyleContext* aContext)
     : nsSVGPathGeometryFrameBase(aContext)
@@ -46,9 +50,9 @@ public:
   NS_DECL_FRAMEARENA_HELPERS
 
   // nsIFrame interface:
-  NS_IMETHOD  AttributeChanged(PRInt32         aNameSpaceID,
+  NS_IMETHOD  AttributeChanged(int32_t         aNameSpaceID,
                                nsIAtom*        aAttribute,
-                               PRInt32         aModType);
+                               int32_t         aModType);
 
   virtual void DidSetStyleContext(nsStyleContext* aOldStyleContext);
 
@@ -59,8 +63,8 @@ public:
    */
   virtual nsIAtom* GetType() const;
 
-  virtual bool IsSVGTransformed(gfxMatrix *aOwnTransforms = nsnull,
-                                gfxMatrix *aFromParentTransforms = nsnull) const;
+  virtual bool IsSVGTransformed(gfxMatrix *aOwnTransforms = nullptr,
+                                gfxMatrix *aFromParentTransforms = nullptr) const;
 
 #ifdef DEBUG
   NS_IMETHOD GetFrameName(nsAString& aResult) const
@@ -69,8 +73,12 @@ public:
   }
 #endif
 
+  NS_IMETHOD BuildDisplayList(nsDisplayListBuilder*   aBuilder,
+                              const nsRect&           aDirtyRect,
+                              const nsDisplayListSet& aLists);
+
   // nsSVGGeometryFrame methods
-  gfxMatrix GetCanvasTM(PRUint32 aFor);
+  gfxMatrix GetCanvasTM(uint32_t aFor);
 
 protected:
   // nsISVGChildFrame interface:
@@ -78,10 +86,10 @@ protected:
                       const nsIntRect *aDirtyRect);
   NS_IMETHOD_(nsIFrame*) GetFrameForPoint(const nsPoint &aPoint);
   NS_IMETHOD_(nsRect) GetCoveredRegion();
-  virtual void UpdateBounds();
-  virtual void NotifySVGChanged(PRUint32 aFlags);
+  virtual void ReflowSVG();
+  virtual void NotifySVGChanged(uint32_t aFlags);
   virtual SVGBBox GetBBoxContribution(const gfxMatrix &aToBBoxUserspace,
-                                      PRUint32 aFlags);
+                                      uint32_t aFlags);
   NS_IMETHOD_(bool) IsDisplayContainer() { return false; }
 
 protected:

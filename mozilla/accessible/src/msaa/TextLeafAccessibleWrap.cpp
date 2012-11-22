@@ -43,7 +43,7 @@ TextLeafAccessibleWrap::Release()
 STDMETHODIMP
 TextLeafAccessibleWrap::QueryInterface(REFIID iid, void** ppv)
 {
-  *ppv = nsnull;
+  *ppv = nullptr;
 
   if (IID_IUnknown == iid) {
     *ppv = static_cast<ISimpleDOMText*>(this);
@@ -173,15 +173,15 @@ __try {
 
 nsIFrame*
 TextLeafAccessibleWrap::GetPointFromOffset(nsIFrame* aContainingFrame, 
-                                           PRInt32 aOffset, 
+                                           int32_t aOffset, 
                                            bool aPreferNext, 
                                            nsPoint& aOutPoint)
 {
-  nsIFrame *textFrame = nsnull;
-  PRInt32 outOffset;
+  nsIFrame *textFrame = nullptr;
+  int32_t outOffset;
   aContainingFrame->GetChildFrameContainingOffset(aOffset, aPreferNext, &outOffset, &textFrame);
   if (!textFrame) {
-    return nsnull;
+    return nullptr;
   }
 
   textFrame->GetPointFromOffset(aOffset, &aOutPoint);
@@ -192,12 +192,12 @@ TextLeafAccessibleWrap::GetPointFromOffset(nsIFrame* aContainingFrame,
  * Given an offset, the x, y, width, and height values are filled appropriately.
  */
 nsresult
-TextLeafAccessibleWrap::GetCharacterExtents(PRInt32 aStartOffset,
-                                            PRInt32 aEndOffset,
-                                            PRInt32* aX,
-                                            PRInt32* aY,
-                                            PRInt32* aWidth,
-                                            PRInt32* aHeight)
+TextLeafAccessibleWrap::GetCharacterExtents(int32_t aStartOffset,
+                                            int32_t aEndOffset,
+                                            int32_t* aX,
+                                            int32_t* aY,
+                                            int32_t* aWidth,
+                                            int32_t* aHeight)
 {
   *aX = *aY = *aWidth = *aHeight = 0;
 

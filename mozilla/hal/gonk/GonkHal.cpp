@@ -1,8 +1,19 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set sw=2 ts=8 et ft=cpp : */
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this file,
- * You can obtain one at http://mozilla.org/MPL/2.0/. */
+/* Copyright 2012 Mozilla Foundation and Mozilla contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 #include <errno.h>
 #include <fcntl.h>
@@ -10,6 +21,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <sys/syscall.h>
+#include <sys/resource.h>
 #include <time.h>
 
 #include "android/log.h"
@@ -28,7 +40,9 @@
 #include "mozilla/FileUtils.h"
 #include "mozilla/Monitor.h"
 #include "mozilla/Services.h"
+#include "mozilla/Preferences.h"
 #include "nsAlgorithm.h"
+#include "nsPrintfCString.h"
 #include "nsIObserver.h"
 #include "nsIObserverService.h"
 #include "nsIRunnable.h"
@@ -45,7 +59,8 @@
 #define NsecPerSec   1000000000
 
 
-using mozilla::hal::WindowIdentifier;
+using namespace mozilla;
+using namespace mozilla::hal;
 
 namespace mozilla {
 namespace hal_impl {
@@ -677,7 +692,7 @@ DestroyAlarmData(void* aData)
 // Runs on alarm-watcher thread.
 void ShutDownAlarm(int aSigno)
 {
-  if (aSigno == SIGUSR2) {
+  if (aSigno == SIGUSR1) {
     sAlarmData->mShuttingDown = true;
   }
   return;
@@ -729,8 +744,8 @@ EnableAlarm()
   sigemptyset(&actions.sa_mask);
   actions.sa_flags = 0;
   actions.sa_handler = ShutDownAlarm;
-  if (sigaction(SIGUSR2, &actions, NULL)) {
-    HAL_LOG(("Failed to set SIGUSR2 signal for alarm-watcher thread."));
+  if (sigaction(SIGUSR1, &actions, NULL)) {
+    HAL_LOG(("Failed to set SIGUSR1 signal for alarm-watcher thread."));
     return false;
   }
 
@@ -762,12 +777,12 @@ DisableAlarm()
 
   // The cancel will interrupt the thread and destroy it, freeing the
   // data pointed at by sAlarmData.
-  DebugOnly<int> err = pthread_kill(sAlarmFireWatcherThread, SIGUSR2);
+  DebugOnly<int> err = pthread_kill(sAlarmFireWatcherThread, SIGUSR1);
   MOZ_ASSERT(!err);
 }
 
 bool
-SetAlarm(long aSeconds, long aNanoseconds)
+SetAlarm(int32_t aSeconds, int32_t aNanoseconds)
 {
   if (!sAlarmData) {
     HAL_LOG(("We should have enabled the alarm."));
@@ -787,6 +802,51 @@ SetAlarm(long aSeconds, long aNanoseconds)
   }
 
   return true;
+}
+
+void
+SetProcessPriority(int aPid, ProcessPriority aPriority)
+{
+  HAL_LOG(("SetProcessPriority(pid=%d, priority=%d)", aPid, aPriority));
+
+  const char* priorityStr = NULL;
+  switch (aPriority) {
+  case PROCESS_PRIORITY_BACKGROUND:
+    priorityStr = "background";
+    break;
+  case PROCESS_PRIORITY_FOREGROUND:
+    priorityStr = "foreground";
+    break;
+  case PROCESS_PRIORITY_MASTER:
+    priorityStr = "master";
+    break;
+  default:
+    MOZ_NOT_REACHED();
+  }
+
+  // Notice that you can disable oom_adj and renice by deleting the prefs
+  // hal.processPriorityManager{foreground,background,master}{OomAdjust,Nice}.
+
+  int32_t oomAdj = 0;
+  nsresult rv = Preferences::GetInt(nsPrintfCString(
+    "hal.processPriorityManager.gonk.%sOomAdjust", priorityStr).get(), &oomAdj);
+  if (NS_SUCCEEDED(rv)) {
+    HAL_LOG(("Setting oom_adj for pid %d to %d", aPid, oomAdj));
+    WriteToFile(nsPrintfCString("/proc/%d/oom_adj", aPid).get(),
+                nsPrintfCString("%d", oomAdj).get());
+  }
+
+  int32_t nice = 0;
+  rv = Preferences::GetInt(nsPrintfCString(
+    "hal.processPriorityManager.gonk.%sNice", priorityStr).get(), &nice);
+  if (NS_SUCCEEDED(rv)) {
+    HAL_LOG(("Setting nice for pid %d to %d", aPid, nice));
+
+    int success = setpriority(PRIO_PROCESS, aPid, nice);
+    if (success != 0) {
+      HAL_LOG(("Failed to set nice for pid %d to %d", aPid, nice));
+    }
+  }
 }
 
 } // hal_impl

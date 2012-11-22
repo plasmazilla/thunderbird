@@ -59,6 +59,12 @@ function BeginDragLink(aEvent, aHref, aTitle)
   dt.setData("text/plain", aHref);
 }
 
+function DragLinkOver(aEvent)
+{
+  if (Services.droppedLinkHandler.canDropLink(aEvent, true))
+    aEvent.preventDefault();
+}
+
 var proxyIconDNDObserver = {
   onDragStart: function (aEvent)
   {
@@ -71,55 +77,44 @@ var proxyIconDNDObserver = {
 };
 
 var homeButtonObserver = {
-  onDragStart: function (aEvent, aXferData, aDragAction)
-    {
-      var homepage = nsPreferences.getLocalizedUnicharPref("browser.startup.homepage", "about:blank");
+  onDragStart: function (aEvent)
+  {
+    var homepage = GetLocalizedStringPref("browser.startup.homepage",
+                                          "about:blank");
 
-      if (homepage)
-        {
-          // XXX find a readable title string for homepage, perhaps do a history lookup.
-          var htmlString = "<a href=\"" + homepage + "\">" + homepage + "</a>";
-          aXferData.data = new TransferData();
-          aXferData.data.addDataForFlavour("text/x-moz-url", homepage + "\n" + homepage);
-          aXferData.data.addDataForFlavour("text/html", htmlString);
-          aXferData.data.addDataForFlavour("text/unicode", homepage);
-        }
-    },
-
-  onDrop: function (aEvent, aXferData, aDragSession)
+    if (homepage)
     {
-      var url = transferUtils.retrieveURLFromData(aXferData.data, aXferData.flavour.contentType);
-      setTimeout(openHomeDialog, 0, url);
-    },
-
-  onDragOver: function (aEvent, aFlavour, aDragSession)
-    {
-      const nsIDragService = Components.interfaces.nsIDragService;
-      if (aEvent.target == aDragSession.dataTransfer.mozSourceNode)
-        {
-          aDragSession.dragAction = nsIDragService.DRAGDROP_ACTION_NONE;
-          return;
-        }
-      var statusTextFld = document.getElementById("statusbar-display");
-      statusTextFld.label = gNavigatorBundle.getString("droponhomebutton");
-      aDragSession.dragAction = nsIDragService.DRAGDROP_ACTION_LINK;
-    },
-
-  onDragExit: function (aEvent, aDragSession)
-    {
-      var statusTextFld = document.getElementById("statusbar-display");
-      statusTextFld.label = "";
-    },
-
-  getSupportedFlavours: function ()
-    {
-      var flavourSet = new FlavourSet();
-      flavourSet.appendFlavour("application/x-moz-file", "nsIFile");
-      flavourSet.appendFlavour("text/x-moz-url");
-      flavourSet.appendFlavour("text/unicode");
-      return flavourSet;
+      // XXX find a readable title string for homepage,
+      // perhaps do a history lookup.
+      BeginDragLink(aEvent, homepage, homepage);
     }
-}
+  },
+
+  onDrop: function (aEvent)
+  {
+    aEvent.stopPropagation();
+    // disallow setting home pages that inherit the principal
+    var url = Services.droppedLinkHandler.dropLink(aEvent, {}, true);
+    setTimeout(openHomeDialog, 0, url);
+  },
+
+  onDragOver: function (aEvent)
+  {
+    if (aEvent.target == aEvent.dataTransfer.mozSourceNode)
+      return;
+
+    DragLinkOver(aEvent);
+    aEvent.dropEffect = "link";
+    var statusTextFld = document.getElementById("statusbar-display");
+    statusTextFld.label = gNavigatorBundle.getString("droponhomebutton");
+  },
+
+  onDragExit: function (aEvent)
+  {
+    aEvent.stopPropagation();
+    document.getElementById("statusbar-display").label = "";
+  }
+};
 
 function openHomeDialog(aURL)
 {
@@ -133,73 +128,30 @@ function openHomeDialog(aURL)
                                  Services.prompt.BUTTON_POS_1),
                                 okButton, null, null, null,
                                 {value: false}) == 0)
-    nsPreferences.setUnicharPref("browser.startup.homepage", aURL);
+    SetStringPref("browser.startup.homepage", aURL);
 }
 
 var goButtonObserver = {
-  onDragOver: function(aEvent, aFlavour, aDragSession)
-    {
-      aEvent.target.setAttribute("dragover", "true");
-      return true;
-    },
-  onDragExit: function (aEvent, aDragSession)
-    {
-      aEvent.target.removeAttribute("dragover");
-    },
-  onDrop: function (aEvent, aXferData, aDragSession)
-    {
-      var xferData = aXferData.data.split("\n");
-      var draggedText = xferData[0] || xferData[1];
-      nsDragAndDrop.dragDropSecurityCheck(aEvent, aDragSession, draggedText);
+  onDragOver: DragLinkOver,
 
-      var uri;
-      try {
-        uri = makeURI(draggedText);
-      } catch (ex) { }
-      if (uri) {
-        // we have a valid url, so do a security check for javascript.
-        const nsIScriptSecMan = Components.interfaces.nsIScriptSecurityManager;
-        urlSecurityCheck(uri, content.document.nodePrincipal,
-                         nsIScriptSecMan.DISALLOW_SCRIPT_OR_DATA);
-      }
-
-      var postData = {};
-      var url = getShortcutOrURI(draggedText, postData);
+  onDrop: function (aEvent)
+  {
+    var url = Services.droppedLinkHandler.dropLink(aEvent, {});
+    var postData = {};
+    url = getShortcutOrURI(url, postData);
+    if (url)
       loadURI(url, null, postData.value, true);
-    },
-  getSupportedFlavours: function ()
-    {
-      var flavourSet = new FlavourSet();
-      flavourSet.appendFlavour("application/x-moz-file", "nsIFile");
-      flavourSet.appendFlavour("text/x-moz-url");
-      flavourSet.appendFlavour("text/unicode");
-      return flavourSet;
-    }
-}
+  }
+};
 
 var searchButtonObserver = {
-  onDragOver: function(aEvent, aFlavour, aDragSession)
-    {
-      aEvent.target.setAttribute("dragover", "true");
-      return true;
-    },
-  onDragExit: function (aEvent, aDragSession)
-    {
-      aEvent.target.removeAttribute("dragover");
-    },
-  onDrop: function (aEvent, aXferData, aDragSession)
-    {
-      var xferData = aXferData.data.split("\n");
-      var uri = xferData[1] ? xferData[1] : xferData[0];
-      if (uri)
-        BrowserSearch.loadSearch(uri);
-    },
-  getSupportedFlavours: function ()
-    {
-      var flavourSet = new FlavourSet();
-      flavourSet.appendFlavour("application/x-moz-file", "nsIFile");
-      flavourSet.appendFlavour("text/x-moz-url");
-      flavourSet.appendFlavour("text/unicode");
-      return flavourSet;
-    }
-}
+  onDragOver: DragLinkOver,
+
+  onDrop: function (aEvent)
+  {
+    var name = {};
+    var url = Services.droppedLinkHandler.dropLink(aEvent, name);
+    if (url)
+      BrowserSearch.loadSearch(name.value || url);
+  }
+};

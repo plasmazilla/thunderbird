@@ -61,9 +61,9 @@ public:
                                    paramValue));
   }
 
-  /* PRInt32 constructor */
+  /* int32_t constructor */
   LogScope(PRLogModuleInfo *aLog, void *from, const nsACString &fn,
-           const nsDependentCString &paramName, PRInt32 paramValue) :
+           const nsDependentCString &paramName, int32_t paramValue) :
     mLog(aLog), mFrom(from), mFunc(fn)
   {
     PR_LOG(mLog, PR_LOG_DEBUG, ("%d [this=%p] %s (%s=\"%d\") {ENTER}\n",
@@ -73,9 +73,9 @@ public:
                                    paramValue));
   }
 
-  /* PRUint32 constructor */
+  /* uint32_t constructor */
   LogScope(PRLogModuleInfo *aLog, void *from, const nsACString &fn,
-           const nsDependentCString &paramName, PRUint32 paramValue) :
+           const nsDependentCString &paramName, uint32_t paramValue) :
     mLog(aLog), mFrom(from), mFunc(fn)
   {
     PR_LOG(mLog, PR_LOG_DEBUG, ("%d [this=%p] %s (%s=\"%d\") {ENTER}\n",
@@ -128,7 +128,7 @@ public:
 
 
   LogFunc(PRLogModuleInfo *aLog, void *from, const nsDependentCString &fn,
-          const nsDependentCString &paramName, PRUint32 paramValue)
+          const nsDependentCString &paramName, uint32_t paramValue)
   {
     PR_LOG(aLog, PR_LOG_DEBUG, ("%d [this=%p] %s (%s=\"%d\")\n",
                                 GIVE_ME_MS_NOW(), from,
@@ -179,12 +179,12 @@ public:
 
 #define LOG_STATIC_FUNC(l, s)           \
   LogFunc(l,                            \
-          nsnull,                       \
+          nullptr,                       \
           NS_LITERAL_CSTRING(s))
 
 #define LOG_STATIC_FUNC_WITH_PARAM(l, s, pn, pv) \
   LogFunc(l,                             \
-          nsnull,                        \
+          nullptr,                        \
           NS_LITERAL_CSTRING(s),         \
           NS_LITERAL_CSTRING(pn), pv)
 

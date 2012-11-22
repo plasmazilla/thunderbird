@@ -12,18 +12,15 @@
 #include "nsAutoPtr.h"
 #include "nsTObserverArray.h"
 #include "nsCycleCollectionParticipant.h"
+#include "mozilla/Attributes.h"
 
 class Accessible;
 class nsIAccessibleTraversalRule;
 
-// raised when current pivot's position is needed but it is not in the tree.
-#define NS_ERROR_NOT_IN_TREE \
-NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_GENERAL, 0x26)
-
 /**
  * Class represents an accessible pivot.
  */
-class nsAccessiblePivot: public nsIAccessiblePivot
+class nsAccessiblePivot MOZ_FINAL : public nsIAccessiblePivot
 {
 public:
   nsAccessiblePivot(Accessible* aRoot);
@@ -48,7 +45,7 @@ private:
    * observers have been notified.
    */
   bool NotifyOfPivotChange(Accessible* aOldAccessible,
-                           PRInt32 aOldStart, PRInt32 aOldEnd,
+                           int32_t aOldStart, int32_t aOldEnd,
                            PivotMoveReason aReason);
 
   /*
@@ -91,12 +88,12 @@ private:
   /*
    * The text start offset ofthe pivot.
    */
-  PRInt32 mStartOffset;
+  int32_t mStartOffset;
 
   /*
    * The text end offset ofthe pivot.
    */
-  PRInt32 mEndOffset;
+  int32_t mEndOffset;
 
   /*
    * The list of pivot-changed observers.

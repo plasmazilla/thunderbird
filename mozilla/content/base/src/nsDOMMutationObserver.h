@@ -21,6 +21,7 @@
 #include "mozilla/dom/Element.h"
 #include "nsClassHashtable.h"
 #include "nsNodeUtils.h"
+#include "nsIDOMMutationEvent.h"
 
 class nsDOMMutationObserver;
 
@@ -151,7 +152,7 @@ protected:
 
   nsMutationReceiverBase(nsINode* aRegisterTarget,
                          nsMutationReceiverBase* aParent)
-  : mTarget(nsnull), mObserver(nsnull), mParent(aParent),
+  : mTarget(nullptr), mObserver(nullptr), mParent(aParent),
     mRegisterTarget(aRegisterTarget), mKungFuDeathGrip(aParent->Target())
   {
     NS_ASSERTION(mParent->Subtree(), "Should clone a non-subtree observer!");
@@ -161,7 +162,7 @@ protected:
   }
 
   bool ObservesAttr(mozilla::dom::Element* aElement,
-                    PRInt32 aNameSpaceID,
+                    int32_t aNameSpaceID,
                     nsIAtom* aAttr)
   {
     if (mParent) {
@@ -179,7 +180,7 @@ protected:
     }
 
     nsCOMArray<nsIAtom>& filters = AttributeFilter();
-    for (PRInt32 i = 0; i < filters.Count(); ++i) {         
+    for (int32_t i = 0; i < filters.Count(); ++i) {         
       if (filters[i] == aAttr) {
         return true;
       }
@@ -241,7 +242,7 @@ public:
 
   void RemoveClones()
   {
-    for (PRInt32 i = 0; i < mTransientReceivers.Count(); ++i) {
+    for (int32_t i = 0; i < mTransientReceivers.Count(); ++i) {
       nsMutationReceiver* r =
         static_cast<nsMutationReceiver*>(mTransientReceivers[i]);
       r->DisconnectTransientReceiver();
@@ -253,10 +254,10 @@ public:
   {
     if (mRegisterTarget) {
       mRegisterTarget->RemoveMutationObserver(this);
-      mRegisterTarget = nsnull;
+      mRegisterTarget = nullptr;
     }
 
-    mParent = nsnull;
+    mParent = nullptr;
     NS_ASSERTION(!mTarget, "Should not have mTarget");
     NS_ASSERTION(!mObserver, "Should not have mObserver");
   }
@@ -273,6 +274,16 @@ public:
   NS_DECL_NSIMUTATIONOBSERVER_CONTENTINSERTED
   NS_DECL_NSIMUTATIONOBSERVER_CONTENTREMOVED
   NS_DECL_NSIMUTATIONOBSERVER_NODEWILLBEDESTROYED
+
+  virtual void AttributeSetToCurrentValue(nsIDocument* aDocument,
+                                          mozilla::dom::Element* aElement,
+                                          int32_t aNameSpaceID,
+                                          nsIAtom* aAttribute)
+  {
+    // We can reuse AttributeWillChange implementation.
+    AttributeWillChange(aDocument, aElement, aNameSpaceID, aAttribute,
+                        nsIDOMMutationEvent::MODIFICATION);
+  }
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsMutationReceiver, NS_MUTATION_OBSERVER_IID)
@@ -292,7 +303,7 @@ public:
   NS_DECL_NSIDOMMUTATIONOBSERVER
 
   NS_IMETHOD Initialize(nsISupports* aOwner, JSContext* cx, JSObject* obj,
-                        PRUint32 argc, jsval* argv);
+                        uint32_t argc, jsval* argv);
 
   void HandleMutation();
 
@@ -357,13 +368,13 @@ protected:
 
   bool                                               mWaitingForRun;
 
-  PRUint64                                           mId;
+  uint64_t                                           mId;
 
-  static PRUint64                                    sCount;
+  static uint64_t                                    sCount;
   static nsCOMArray<nsIDOMMutationObserver>*         sScheduledMutationObservers;
   static nsIDOMMutationObserver*                     sCurrentObserver;
 
-  static PRUint32                                    sMutationLevel;
+  static uint32_t                                    sMutationLevel;
   static nsAutoTArray<nsCOMArray<nsIDOMMutationObserver>, 4>*
                                                      sCurrentlyHandlingObservers;
 };
@@ -372,14 +383,14 @@ class nsAutoMutationBatch
 {
 public:
   nsAutoMutationBatch()
-  : mPreviousBatch(nsnull), mBatchTarget(nsnull), mRemovalDone(false),
+  : mPreviousBatch(nullptr), mBatchTarget(nullptr), mRemovalDone(false),
     mFromFirstToLast(false), mAllowNestedBatches(false)    
   {
   }
 
   nsAutoMutationBatch(nsINode* aTarget, bool aFromFirstToLast,
                       bool aAllowNestedBatches)
-  : mPreviousBatch(nsnull), mBatchTarget(nsnull), mRemovalDone(false),
+  : mPreviousBatch(nullptr), mBatchTarget(nullptr), mRemovalDone(false),
     mFromFirstToLast(false), mAllowNestedBatches(false)
   {
     Init(aTarget, aFromFirstToLast, aAllowNestedBatches);
@@ -423,8 +434,8 @@ public:
   static void UpdateObserver(nsDOMMutationObserver* aObserver,
                              bool aWantsChildList)
   {
-    PRUint32 l = sCurrentBatch->mObservers.Length();
-    for (PRUint32 i = 0; i < l; ++i) {
+    uint32_t l = sCurrentBatch->mObservers.Length();
+    for (uint32_t i = 0; i < l; ++i) {
       if (sCurrentBatch->mObservers[i].mObserver == aObserver) {
         if (aWantsChildList) {
           sCurrentBatch->mObservers[i].mWantsChildList = aWantsChildList;
@@ -444,7 +455,7 @@ public:
   static void NodeRemoved(nsIContent* aChild)
   {
     if (IsBatching() && !sCurrentBatch->mRemovalDone) {
-      PRUint32 len = sCurrentBatch->mRemovedNodes.Length();
+      uint32_t len = sCurrentBatch->mRemovedNodes.Length();
       if (!len ||
           sCurrentBatch->mRemovedNodes[len - 1] != aChild) {
         sCurrentBatch->mRemovedNodes.AppendElement(aChild);

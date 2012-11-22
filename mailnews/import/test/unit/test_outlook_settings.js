@@ -3,13 +3,6 @@ Components.utils.import("resource:///modules/mailServices.js");
 
 load("resources/mock_windows_reg_factory.js");
 
-const CONTRACT_ID = "@mozilla.org/windows-registry-key;1";
-const REGISTRAR = Components.manager.QueryInterface(Ci.nsIComponentRegistrar);
-
-let gOriginalCID = Components.manager.contractIDToCID(CONTRACT_ID);
-let factory;
-let uuid;
-
 function POP3Account() {}
 
 POP3Account.prototype = {
@@ -104,72 +97,7 @@ let expectedImapAccount = {
   }
 };
 
-function setup_registry(registry) {
-  uuid = Cc["@mozilla.org/uuid-generator;1"]
-           .getService(Ci.nsIUUIDGenerator)
-           .generateUUID().toString();
-  factory = new MockWindowsRegFactory(registry);
-  REGISTRAR.registerFactory(Components.ID(uuid),
-                            "Mock Windows Registry Implementation",
-                            CONTRACT_ID,
-                            factory);
-}
-
-function check_smtp_server(expected, actual) {
-  do_check_eq(expected.username, actual.username);
-}
-
-function check_identity(expected, actual) {
-  do_check_eq(expected.fullName, actual.fullName);
-  do_check_eq(expected.email, actual.email);
-  do_check_eq(expected.replyTo, actual.replyTo);
-  do_check_eq(expected.organization, actual.organization);
-}
-
-function check_pop3_incoming_server(expected, actual) {
-  do_check_eq(expected.leaveMessagesOnServer, actual.leaveMessagesOnServer);
-}
-
-function check_incoming_server(expected, actual) {
-  do_check_eq(expected.type, actual.type);
-  do_check_eq(expected.username, actual.username);
-
-  if (expected.type == "pop3")
-    check_pop3_incoming_server(expected, actual.QueryInterface(Ci.nsIPop3IncomingServer));
-}
-
-function check_account(expected, actual) {
-  check_incoming_server(expected.incomingServer, actual.incomingServer);
-  do_check_eq(1, actual.identities.Count());
-  let actualIdentity = actual.identities.QueryElementAt(0, Ci.nsIMsgIdentity);
-  check_identity(expected.identity, actualIdentity);
-
-  let actualSmtpServer = MailServices.smtp.getServerByKey(actualIdentity.smtpServerKey);
-  check_smtp_server(expected.smtpServer, actualSmtpServer);
-}
-
-function get_interface() {
-  let importService = Cc["@mozilla.org/import/import-service;1"]
-                        .getService(Ci.nsIImportService);
-  let count = importService.GetModuleCount("settings");
-  let settingsInterface;
-  for (let i = 0; i < count; i++) {
-    if (importService.GetModuleName("settings", i) == "Outlook") {
-      return importService.GetModule("settings", i)
-                          .GetImportInterface("settings")
-                          .QueryInterface(Ci.nsIImportSettings);
-    }
-  }
-}
-
 function teardown() {
-  let accounts = MailServices.accounts.accounts;
-
-  for (let i = 0; i < accounts.Count(); i++) {
-    let account = accounts.QueryElementAt(i, Ci.nsIMsgAccount);
-    MailServices.accounts.removeAccount(account);
-  }
-
   let smtpServers = MailServices.smtp.smtpServers;
 
   while (smtpServers.hasMoreElements()) {
@@ -177,28 +105,13 @@ function teardown() {
     MailServices.smtp.deleteSmtpServer(server);
   }
 
-  REGISTRAR.unregisterFactory(Components.ID(uuid),
-                              factory);
-  REGISTRAR.registerFactory(gOriginalCID,
-                            "",
-                            CONTRACT_ID,
-                            null);
-}
-
-function _import() {
-  let settings = get_interface();
-  do_check_eq(true, settings.AutoLocate({}, {}));
-  do_check_eq(true, settings.Import({}));
+  teardown_mock_registry();
 }
 
 function _test(registry, expectedAccount) {
   try {
-    setup_registry(registry);
-    _import();
-    let accounts = MailServices.accounts.accounts;
-    let lastIndex = accounts.Count() - 1;
-    let actualAccount = accounts.QueryElementAt(lastIndex, Ci.nsIMsgAccount);
-    check_account(expectedAccount, actualAccount);
+    setup_mock_registry(registry);
+    new SettingsImportHelper(null, "Outlook", [expectedAccount]).beginImport();
   } catch(e) {
     teardown();
     do_throw(e);

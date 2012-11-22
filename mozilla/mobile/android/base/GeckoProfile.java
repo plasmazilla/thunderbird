@@ -9,21 +9,20 @@
 
 package org.mozilla.gecko;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.channels.FileChannel;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.Enumeration;
+import org.mozilla.gecko.util.INIParser;
+import org.mozilla.gecko.util.INISection;
+
 import android.content.Context;
-import android.os.Build;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.Log;
+
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Hashtable;
 
 public final class GeckoProfile {
     private static final String LOGTAG = "GeckoProfile";
@@ -149,7 +148,8 @@ public final class GeckoProfile {
         try {
             // Check for old profiles that may need migration.
             ProfileMigrator profileMigrator = new ProfileMigrator(mContext);
-            if (!profileMigrator.isProfileMoved()) {
+            if (!GeckoApp.sIsUsingCustomProfile &&
+                !profileMigrator.isProfileMoved()) {
                 Log.i(LOGTAG, "New installation or update, checking for old profiles.");
                 profileMigrator.launchMoveProfile();
             }

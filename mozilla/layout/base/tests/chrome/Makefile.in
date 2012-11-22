@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH     = ../../../..
+DEPTH     = @DEPTH@
 topsrcdir = @top_srcdir@
 srcdir    = @srcdir@
 VPATH     = @srcdir@
@@ -43,6 +43,8 @@ MOCHITEST_CHROME_FILES = \
 	test_scrolling_repaints.html \
 	test_transformed_scrolling_repaints.html \
 	test_transformed_scrolling_repaints_2.html \
+	test_dialog_with_positioning.html \
+	     dialog_with_positioning_window.xul \
 	$(NULL)
 
 ifdef MOZ_DEBUG

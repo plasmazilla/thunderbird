@@ -123,11 +123,26 @@ let PageThumbs = {
       return;
     }
 
-    let telemetryCaptureTime = new Date();
-    let [sw, sh, scale] = this._determineCropSize(aWindow);
-
     let canvas = this._createCanvas();
-    let ctx = canvas.getContext("2d");
+    this.captureToCanvas(aWindow, canvas);
+
+    // Fetch the canvas data on the next event loop tick so that we allow
+    // some event processing in between drawing to the canvas and encoding
+    // its data. We want to block the UI as short as possible. See bug 744100.
+    Services.tm.currentThread.dispatch(function () {
+      canvas.mozFetchAsStream(aCallback, this.contentType);
+    }.bind(this), Ci.nsIThread.DISPATCH_NORMAL);
+  },
+
+  /**
+   * Captures a thumbnail from a given window and draws it to the given canvas.
+   * @param aWindow The DOM window to capture a thumbnail from.
+   * @param aCanvas The canvas to draw to.
+   */
+  captureToCanvas: function PageThumbs_captureToCanvas(aWindow, aCanvas) {
+    let telemetryCaptureTime = new Date();
+    let [sw, sh, scale] = this._determineCropSize(aWindow, aCanvas);
+    let ctx = aCanvas.getContext("2d");
 
     // Scale the canvas accordingly.
     ctx.scale(scale, scale);
@@ -143,8 +158,6 @@ let PageThumbs = {
     let telemetry = Services.telemetry;
     telemetry.getHistogramById("FX_THUMBNAILS_CAPTURE_TIME_MS")
       .add(new Date() - telemetryCaptureTime);
-
-    canvas.mozFetchAsStream(aCallback, this.contentType);
   },
 
   /**
@@ -203,13 +216,14 @@ let PageThumbs = {
   /**
    * Determines the crop size for a given content window.
    * @param aWindow The content window.
+   * @param aCanvas The target canvas.
    * @return An array containing width, height and scale.
    */
-  _determineCropSize: function PageThumbs_determineCropSize(aWindow) {
+  _determineCropSize: function PageThumbs_determineCropSize(aWindow, aCanvas) {
     let sw = aWindow.innerWidth;
     let sh = aWindow.innerHeight;
 
-    let [thumbnailWidth, thumbnailHeight] = this._getThumbnailSize();
+    let {width: thumbnailWidth, height: thumbnailHeight} = aCanvas;
     let scale = Math.max(thumbnailWidth / sw, thumbnailHeight / sh);
     let scaledWidth = sw * scale;
     let scaledHeight = sh * scale;
@@ -303,7 +317,7 @@ let PageThumbsStorage = {
 
   remove: function Storage_remove(aURL) {
     let file = this.getFileForURL(aURL);
-    PageThumbsWorker.postMessage({type: "removeFiles", paths: [file.path]});
+    PageThumbsWorker.postMessage({type: "removeFile", path: file.path});
   },
 
   wipe: function Storage_wipe() {

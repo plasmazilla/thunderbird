@@ -6,6 +6,23 @@
 #ifndef MOZILLA_GFX_TYPES_H_
 #define MOZILLA_GFX_TYPES_H_
 
+/**
+ * Use C++11 nullptr if available; otherwise use a C++ typesafe template; and
+ * for C, fall back to longs.  See bugs 547964 and 626472.
+ * Copy and paste job from nscore.h, see bug 781943
+ */
+#if defined(MOZ_GFX) && !defined(HAVE_NULLPTR)
+#ifndef __cplusplus
+# define nullptr ((void*)0)
+#elif defined(__GNUC__)
+# define nullptr __null
+#elif defined(_WIN64)
+# define nullptr 0LL
+#else
+# define nullptr 0L
+#endif
+#endif /* defined(MOZ_GFX) && !defined(HAVE_NULLPTR) */
+
 #include "mozilla/StandardInteger.h"
 
 #include <stddef.h>
@@ -38,9 +55,10 @@ enum SurfaceFormat
 
 enum BackendType
 {
-  BACKEND_NONE,
+  BACKEND_NONE = 0,
   BACKEND_DIRECT2D,
   BACKEND_COREGRAPHICS,
+  BACKEND_COREGRAPHICS_ACCELERATED,
   BACKEND_CAIRO,
   BACKEND_SKIA
 };
@@ -59,7 +77,8 @@ enum NativeSurfaceType
 {
   NATIVE_SURFACE_D3D10_TEXTURE,
   NATIVE_SURFACE_CAIRO_SURFACE,
-  NATIVE_SURFACE_CGCONTEXT
+  NATIVE_SURFACE_CGCONTEXT,
+  NATIVE_SURFACE_CGCONTEXT_ACCELERATED
 };
 
 enum NativeFontType

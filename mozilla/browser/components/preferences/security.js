@@ -1,7 +1,7 @@
-# -*- Mode: Java; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+/* -*- Mode: Java; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 var gSecurityPane = {
   _pane: null,
@@ -82,17 +82,27 @@ var gSecurityPane = {
 
   /**
    * Enables/disables the Exceptions button used to configure sites where
-   * passwords are never saved.
+   * passwords are never saved. When browser is set to start in Private
+   * Browsing mode, the "Remember passwords" UI is useless, so we disable it.
    */
   readSavePasswords: function ()
   {
     var pref = document.getElementById("signon.rememberSignons");
     var excepts = document.getElementById("passwordExceptions");
 
-    excepts.disabled = !pref.value;
+    const Cc = Components.classes, Ci = Components.interfaces;
+    var pbs = Cc["@mozilla.org/privatebrowsing;1"].
+              getService(Ci.nsIPrivateBrowsingService);
 
-    // don't override pref value in UI
-    return undefined;
+    if (pbs.autoStarted) {
+      document.getElementById("savePasswords").disabled = true;
+      excepts.disabled = true;
+      return false;
+    } else {
+      excepts.disabled = !pref.value;
+      // don't override pref value in UI
+      return undefined;
+    }
   },
 
   /**

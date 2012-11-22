@@ -55,10 +55,10 @@ NS_DEFINE_CID(kFactoryCID2, FACTORY_CID2);
 #define FACTORY_CONTRACTID                           \
   "TestRacingThreadManager/factory;1"
 
-PRInt32 gComponent1Count = 0;
-PRInt32 gComponent2Count = 0;
+int32_t gComponent1Count = 0;
+int32_t gComponent2Count = 0;
 
-ReentrantMonitor* gReentrantMonitor = nsnull;
+ReentrantMonitor* gReentrantMonitor = nullptr;
 
 bool gCreateInstanceCalled = false;
 bool gMainThreadWaiting = false;
@@ -76,7 +76,7 @@ public:
   ~AutoCreateAndDestroyReentrantMonitor() {
     if (*mReentrantMonitorPtr) {
       delete *mReentrantMonitorPtr;
-      *mReentrantMonitorPtr = nsnull;
+      *mReentrantMonitorPtr = nullptr;
     }
   }
 
@@ -111,7 +111,7 @@ public:
 
   Component1() {
     // This is the real test - make sure that only one instance is ever created.
-    PRInt32 count = PR_AtomicIncrement(&gComponent1Count);
+    int32_t count = PR_AtomicIncrement(&gComponent1Count);
     TEST_ASSERTION(count == 1, "Too many components created!");
   }
 };
@@ -131,7 +131,7 @@ public:
 
   Component2() {
     // This is the real test - make sure that only one instance is ever created.
-    PRInt32 count = PR_AtomicIncrement(&gComponent2Count);
+    int32_t count = PR_AtomicIncrement(&gComponent2Count);
     TEST_ASSERTION(count == 1, "Too many components created!");
   }
 };
@@ -281,7 +281,7 @@ int main(int argc, char** argv)
   // Reset for the contractID test
   gMainThreadWaiting = gCreateInstanceCalled = false;
   gFactory->mFirstComponentCreated = runnable->mFirstRunnableDone = true;
-  component = nsnull;
+  component = nullptr;
 
   rv = newThread->Dispatch(runnable, NS_DISPATCH_NORMAL);
   NS_ENSURE_SUCCESS(rv, 1);

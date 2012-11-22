@@ -14,6 +14,7 @@
 #include "msgCore.h"
 #include "nsMimeStringResources.h"
 #include "mimemoz2.h"
+#include "nsIMimeConverter.h" // for MimeConverterOutputCallback
 
 
 #define MIME_SUPERCLASS mimeMultipartClass
@@ -23,8 +24,8 @@ MimeDefClass(MimeMultipartSigned, MimeMultipartSignedClass,
 static int MimeMultipartSigned_initialize (MimeObject *);
 static int MimeMultipartSigned_create_child (MimeObject *);
 static int MimeMultipartSigned_close_child(MimeObject *);
-static int MimeMultipartSigned_parse_line (const char *, PRInt32, MimeObject *);
-static int MimeMultipartSigned_parse_child_line (MimeObject *, const char *, PRInt32,
+static int MimeMultipartSigned_parse_line (const char *, int32_t, MimeObject *);
+static int MimeMultipartSigned_parse_child_line (MimeObject *, const char *, int32_t,
                          bool);
 static int MimeMultipartSigned_parse_eof (MimeObject *, bool);
 static void MimeMultipartSigned_finalize (MimeObject *);
@@ -144,7 +145,7 @@ MimeMultipartSigned_finalize (MimeObject *obj)
 
 
 static int
-MimeMultipartSigned_parse_line (const char *line, PRInt32 length, MimeObject *obj)
+MimeMultipartSigned_parse_line (const char *line, int32_t length, MimeObject *obj)
 {
   MimeMultipart *mult = (MimeMultipart *) obj;
   MimeMultipartSigned *sig = (MimeMultipartSigned *) obj;
@@ -354,7 +355,7 @@ MimeMultipartSigned_parse_line (const char *line, PRInt32 length, MimeObject *ob
      (Similar logic is in MimeLeafClass->parse_begin.)
      */
     {
-    MimeDecoderData *(*fn) (nsresult (*) (const char*, PRInt32,void*), void*) = 0;
+    MimeDecoderData *(*fn) (MimeConverterOutputCallback, void*) = 0;
     nsCString encoding;
     encoding.Adopt(MimeHeaders_get (sig->sig_hdrs,
                    HEADER_CONTENT_TRANSFER_ENCODING,
@@ -366,7 +367,7 @@ MimeMultipartSigned_parse_line (const char *line, PRInt32 length, MimeObject *ob
     else if (!PL_strcasecmp(encoding.get(), ENCODING_QUOTED_PRINTABLE))
     {
       sig->sig_decoder_data =
-  MimeQPDecoderInit (((nsresult (*) (const char *, PRInt32, void *))
+  MimeQPDecoderInit (((MimeConverterOutputCallback)
      (((MimeMultipartSignedClass *) obj->clazz)
           ->crypto_signature_hash)),
     sig->crypto_closure);
@@ -383,7 +384,7 @@ MimeMultipartSigned_parse_line (const char *line, PRInt32 length, MimeObject *ob
     if (fn)
       {
       sig->sig_decoder_data =
-        fn (((nsresult (*) (const char *, PRInt32, void *))
+        fn (((MimeConverterOutputCallback)
            (((MimeMultipartSignedClass *) obj->clazz)
           ->crypto_signature_hash)),
           sig->crypto_closure);
@@ -409,7 +410,7 @@ MimeMultipartSigned_parse_line (const char *line, PRInt32 length, MimeObject *ob
       /* Feed this line into the signature verification routines. */
 
       if (sig->sig_decoder_data)
-      status = MimeDecoderWrite (sig->sig_decoder_data, line, length, nsnull);
+      status = MimeDecoderWrite (sig->sig_decoder_data, line, length, nullptr);
       else
       status = (((MimeMultipartSignedClass *) obj->clazz)
             ->crypto_signature_hash (line, length,
@@ -475,7 +476,7 @@ MimeMultipartSigned_close_child (MimeObject *obj)
 
 static int
 MimeMultipartSigned_parse_child_line (MimeObject *obj,
-                    const char *line, PRInt32 length,
+                    const char *line, int32_t length,
                     bool first_line_p)
 {
   MimeMultipartSigned *sig = (MimeMultipartSigned *) obj;
@@ -612,7 +613,7 @@ MimeMultipartSigned_emit_child (MimeObject *obj)
       obj->options->generate_post_header_html_fn &&
       !obj->options->state->post_header_html_run_p)
     {
-      MimeHeaders *outer_headers=nsnull;
+      MimeHeaders *outer_headers=nullptr;
       MimeObject *p;
       for (p = obj; p->parent; p = p->parent)
       outer_headers = p->headers;
@@ -735,19 +736,18 @@ MimeMultipartSigned_emit_child (MimeObject *obj)
       !mime_typep(body, (MimeObjectClass*)&mimeMultipartClass)  &&
       body->options->decompose_file_output_fn)
       status = MimePartBufferRead (sig->part_buffer,
-                 /* The (nsresult (*) ...) cast is to turn the
+                 /* The (MimeConverterOutputCallback) cast is to turn the
                   `void' argument into `MimeObject'. */
-                 ((nsresult (*) (const char *, PRInt32, void *))
+                 ((MimeConverterOutputCallback)
                  body->options->decompose_file_output_fn),
                  body->options->stream_closure);
     else
 #endif /* MIME_DRAFTS */
 
     status = MimePartBufferRead (sig->part_buffer,
-                 /* The (nsresult (*) ...) cast is to turn the
+                 /* The (MimeConverterOutputCallback) cast is to turn the
                   `void' argument into `MimeObject'. */
-                 ((nsresult (*) (const char *, PRInt32, void *))
-                body->clazz->parse_buffer),
+                 ((MimeConverterOutputCallback) body->clazz->parse_buffer),
                 body);
     if (status < 0) return status;
   }

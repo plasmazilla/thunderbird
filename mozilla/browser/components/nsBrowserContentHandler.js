@@ -139,7 +139,30 @@ function needHomepageOverride(prefb) {
  * @return The override page.
  */
 function getPostUpdateOverridePage(defaultOverridePage) {
-  return ""; // disabled by bug 792181
+  var um = Components.classes["@mozilla.org/updates/update-manager;1"]
+                     .getService(Components.interfaces.nsIUpdateManager);
+  try {
+    // If the updates.xml file is deleted then getUpdateAt will throw.
+    var update = um.getUpdateAt(0)
+                   .QueryInterface(Components.interfaces.nsIPropertyBag);
+  } catch (e) {
+    // This should never happen.
+    Components.utils.reportError("Unable to find update: " + e);
+    return defaultOverridePage;
+  }
+
+  let actions = update.getProperty("actions");
+  // When the update doesn't specify actions fallback to the original behavior
+  // of displaying the default override page.
+  if (!actions)
+    return defaultOverridePage;
+
+  // The existence of silent or the non-existence of showURL in the actions both
+  // mean that an override page should not be displayed.
+  if (actions.indexOf("silent") != -1 || actions.indexOf("showURL") == -1)
+    return "";
+
+  return update.getProperty("openURL") || defaultOverridePage;
 }
 
 // Copies a pref override file into the user's profile pref-override folder,
@@ -818,7 +841,7 @@ let AboutHomeUtils = {
     let aboutHomeURI = Services.io.newURI("moz-safe-about:home", null, null);
     let principal = Components.classes["@mozilla.org/scriptsecuritymanager;1"].
                     getService(Components.interfaces.nsIScriptSecurityManager).
-                    getCodebasePrincipal(aboutHomeURI);
+                    getNoAppCodebasePrincipal(aboutHomeURI);
     let dsm = Components.classes["@mozilla.org/dom/storagemanager;1"].
               getService(Components.interfaces.nsIDOMStorageManager);
     return dsm.getLocalStorageForPrincipal(principal, "");

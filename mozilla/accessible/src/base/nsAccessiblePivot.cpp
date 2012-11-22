@@ -26,26 +26,26 @@ class RuleCache
 {
 public:
   RuleCache(nsIAccessibleTraversalRule* aRule) : mRule(aRule),
-                                                 mAcceptRoles(nsnull) { }
+                                                 mAcceptRoles(nullptr) { }
   ~RuleCache () {
     if (mAcceptRoles)
       nsMemory::Free(mAcceptRoles);
   }
 
-  nsresult ApplyFilter(Accessible* aAccessible, PRUint16* aResult);
+  nsresult ApplyFilter(Accessible* aAccessible, uint16_t* aResult);
 
 private:
   nsCOMPtr<nsIAccessibleTraversalRule> mRule;
-  PRUint32* mAcceptRoles;
-  PRUint32 mAcceptRolesLength;
-  PRUint32 mPreFilter;
+  uint32_t* mAcceptRoles;
+  uint32_t mAcceptRolesLength;
+  uint32_t mPreFilter;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 // nsAccessiblePivot
 
 nsAccessiblePivot::nsAccessiblePivot(Accessible* aRoot) :
-  mRoot(aRoot), mPosition(nsnull),
+  mRoot(aRoot), mPosition(nullptr),
   mStartOffset(-1), mEndOffset(-1)
 {
   NS_ASSERTION(aRoot, "A root accessible is required");
@@ -59,7 +59,7 @@ NS_IMPL_CYCLE_COLLECTION_CLASS(nsAccessiblePivot)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsAccessiblePivot)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR_AMBIGUOUS(mRoot, nsIAccessible)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR_AMBIGUOUS(mPosition, nsIAccessible)
-  PRUint32 i, length = tmp->mObservers.Length();                               \
+  uint32_t i, length = tmp->mObservers.Length();                               \
   for (i = 0; i < length; ++i) {
     cb.NoteXPCOMChild(tmp->mObservers.ElementAt(i).get());
   }
@@ -116,7 +116,7 @@ nsAccessiblePivot::SetPosition(nsIAccessible* aPosition)
 
   // Swap old position with new position, saves us an AddRef/Release.
   mPosition.swap(secondPosition);
-  PRInt32 oldStart = mStartOffset, oldEnd = mEndOffset;
+  int32_t oldStart = mStartOffset, oldEnd = mEndOffset;
   mStartOffset = mEndOffset = -1;
   NotifyOfPivotChange(secondPosition, oldStart, oldEnd,
                       nsIAccessiblePivot::REASON_NONE);
@@ -125,7 +125,7 @@ nsAccessiblePivot::SetPosition(nsIAccessible* aPosition)
 }
 
 NS_IMETHODIMP
-nsAccessiblePivot::GetStartOffset(PRInt32* aStartOffset)
+nsAccessiblePivot::GetStartOffset(int32_t* aStartOffset)
 {
   NS_ENSURE_ARG_POINTER(aStartOffset);
 
@@ -135,7 +135,7 @@ nsAccessiblePivot::GetStartOffset(PRInt32* aStartOffset)
 }
 
 NS_IMETHODIMP
-nsAccessiblePivot::GetEndOffset(PRInt32* aEndOffset)
+nsAccessiblePivot::GetEndOffset(int32_t* aEndOffset)
 {
   NS_ENSURE_ARG_POINTER(aEndOffset);
 
@@ -146,7 +146,7 @@ nsAccessiblePivot::GetEndOffset(PRInt32* aEndOffset)
 
 NS_IMETHODIMP
 nsAccessiblePivot::SetTextRange(nsIAccessibleText* aTextAccessible,
-                                PRInt32 aStartOffset, PRInt32 aEndOffset)
+                                int32_t aStartOffset, int32_t aEndOffset)
 {
   NS_ENSURE_ARG(aTextAccessible);
 
@@ -165,12 +165,12 @@ nsAccessiblePivot::SetTextRange(nsIAccessibleText* aTextAccessible,
     return NS_ERROR_INVALID_ARG;
 
   // Make sure the given offsets don't exceed the character count.
-  PRInt32 charCount = newPosition->CharacterCount();
+  int32_t charCount = newPosition->CharacterCount();
 
   if (aEndOffset > charCount)
     return NS_ERROR_FAILURE;
 
-  PRInt32 oldStart = mStartOffset, oldEnd = mEndOffset;
+  int32_t oldStart = mStartOffset, oldEnd = mEndOffset;
   mStartOffset = aStartOffset;
   mEndOffset = aEndOffset;
 
@@ -188,7 +188,7 @@ nsAccessiblePivot::SetTextRange(nsIAccessibleText* aTextAccessible,
 NS_IMETHODIMP
 nsAccessiblePivot::MoveNext(nsIAccessibleTraversalRule* aRule,
                             nsIAccessible* aAnchor, bool aIncludeStart,
-                            PRUint8 aArgc, bool* aResult)
+                            uint8_t aArgc, bool* aResult)
 {
   NS_ENSURE_ARG(aResult);
   NS_ENSURE_ARG(aRule);
@@ -215,7 +215,7 @@ NS_IMETHODIMP
 nsAccessiblePivot::MovePrevious(nsIAccessibleTraversalRule* aRule,
                                 nsIAccessible* aAnchor,
                                 bool aIncludeStart,
-                                PRUint8 aArgc, bool* aResult)
+                                uint8_t aArgc, bool* aResult)
 {
   NS_ENSURE_ARG(aResult);
   NS_ENSURE_ARG(aRule);
@@ -269,7 +269,7 @@ nsAccessiblePivot::MoveLast(nsIAccessibleTraversalRule* aRule, bool* aResult)
   *aResult = false;
   nsresult rv = NS_OK;
   Accessible* lastAccessible = mRoot;
-  Accessible* accessible = nsnull;
+  Accessible* accessible = nullptr;
 
   // First got to the last accessible in pre-order
   while (lastAccessible->HasChildren())
@@ -309,7 +309,7 @@ nsAccessiblePivot::MovePreviousByText(TextBoundaryType aBoundary, bool* aResult)
 
 NS_IMETHODIMP
 nsAccessiblePivot::MoveToPoint(nsIAccessibleTraversalRule* aRule,
-                               PRInt32 aX, PRInt32 aY, bool aIgnoreNoMatch,
+                               int32_t aX, int32_t aY, bool aIgnoreNoMatch,
                                bool* aResult)
 {
   NS_ENSURE_ARG_POINTER(aResult);
@@ -321,20 +321,20 @@ nsAccessiblePivot::MoveToPoint(nsIAccessibleTraversalRule* aRule,
     return NS_ERROR_NOT_IN_TREE;
 
   RuleCache cache(aRule);
-  Accessible* match = nsnull;
+  Accessible* match = nullptr;
   Accessible* child = mRoot->ChildAtPoint(aX, aY, Accessible::eDeepestChild);
   while (child && mRoot != child) {
-    PRUint16 filtered = nsIAccessibleTraversalRule::FILTER_IGNORE;
+    uint16_t filtered = nsIAccessibleTraversalRule::FILTER_IGNORE;
     nsresult rv = cache.ApplyFilter(child, &filtered);
     NS_ENSURE_SUCCESS(rv, rv);
 
     // Ignore any matching nodes that were below this one
     if (filtered & nsIAccessibleTraversalRule::FILTER_IGNORE_SUBTREE)
-      match = nsnull;
+      match = nullptr;
 
     // Match if no node below this is a match
     if ((filtered & nsIAccessibleTraversalRule::FILTER_MATCH) && !match) {
-      PRInt32 childX, childY, childWidth, childHeight;
+      int32_t childX, childY, childWidth, childHeight;
       child->GetBounds(&childX, &childY, &childWidth, &childHeight);
       // Double-check child's bounds since the deepest child may have been out
       // of bounds. This assures we don't return a false positive.
@@ -396,7 +396,7 @@ nsAccessiblePivot::MovePivotInternal(Accessible* aPosition,
 {
   nsRefPtr<Accessible> oldPosition = mPosition.forget();
   mPosition = aPosition;
-  PRInt32 oldStart = mStartOffset, oldEnd = mEndOffset;
+  int32_t oldStart = mStartOffset, oldEnd = mEndOffset;
   mStartOffset = mEndOffset = -1;
 
   return NotifyOfPivotChange(oldPosition, oldStart, oldEnd, aReason);
@@ -412,38 +412,38 @@ nsAccessiblePivot::SearchBackward(Accessible* aAccessible,
 
   // Initial position could be unset, in that case return null.
   if (!aAccessible)
-    return nsnull;
+    return nullptr;
 
   RuleCache cache(aRule);
   Accessible* accessible = aAccessible;
 
-  PRUint16 filtered = nsIAccessibleTraversalRule::FILTER_IGNORE;
+  uint16_t filtered = nsIAccessibleTraversalRule::FILTER_IGNORE;
 
   if (aSearchCurrent) {
     *aResult = cache.ApplyFilter(accessible, &filtered);
-    NS_ENSURE_SUCCESS(*aResult, nsnull);
+    NS_ENSURE_SUCCESS(*aResult, nullptr);
     if (filtered & nsIAccessibleTraversalRule::FILTER_MATCH)
       return accessible;
   }
 
   while (accessible != mRoot) {
     Accessible* parent = accessible->Parent();
-    PRInt32 idxInParent = accessible->IndexInParent();
+    int32_t idxInParent = accessible->IndexInParent();
     while (idxInParent > 0) {
       if (!(accessible = parent->GetChildAt(--idxInParent)))
         continue;
 
       *aResult = cache.ApplyFilter(accessible, &filtered);
-      NS_ENSURE_SUCCESS(*aResult, nsnull);
+      NS_ENSURE_SUCCESS(*aResult, nullptr);
 
-      Accessible* lastChild = nsnull;
+      Accessible* lastChild = nullptr;
       while (!(filtered & nsIAccessibleTraversalRule::FILTER_IGNORE_SUBTREE) &&
              (lastChild = accessible->LastChild())) {
         parent = accessible;
         accessible = lastChild;
         idxInParent = accessible->IndexInParent();
         *aResult = cache.ApplyFilter(accessible, &filtered);
-        NS_ENSURE_SUCCESS(*aResult, nsnull);
+        NS_ENSURE_SUCCESS(*aResult, nullptr);
       }
 
       if (filtered & nsIAccessibleTraversalRule::FILTER_MATCH)
@@ -454,13 +454,13 @@ nsAccessiblePivot::SearchBackward(Accessible* aAccessible,
       break;
 
     *aResult = cache.ApplyFilter(accessible, &filtered);
-    NS_ENSURE_SUCCESS(*aResult, nsnull);
+    NS_ENSURE_SUCCESS(*aResult, nullptr);
 
     if (filtered & nsIAccessibleTraversalRule::FILTER_MATCH)
       return accessible;
   }
 
-  return nsnull;
+  return nullptr;
 }
 
 Accessible*
@@ -476,25 +476,25 @@ nsAccessiblePivot::SearchForward(Accessible* aAccessible,
 
   RuleCache cache(aRule);
 
-  PRUint16 filtered = nsIAccessibleTraversalRule::FILTER_IGNORE;
+  uint16_t filtered = nsIAccessibleTraversalRule::FILTER_IGNORE;
   *aResult = cache.ApplyFilter(accessible, &filtered);
-  NS_ENSURE_SUCCESS(*aResult, nsnull);
+  NS_ENSURE_SUCCESS(*aResult, nullptr);
   if (aSearchCurrent && (filtered & nsIAccessibleTraversalRule::FILTER_MATCH))
     return accessible;
 
   while (true) {
-    Accessible* firstChild = nsnull;
+    Accessible* firstChild = nullptr;
     while (!(filtered & nsIAccessibleTraversalRule::FILTER_IGNORE_SUBTREE) &&
            (firstChild = accessible->FirstChild())) {
       accessible = firstChild;
       *aResult = cache.ApplyFilter(accessible, &filtered);
-      NS_ENSURE_SUCCESS(*aResult, nsnull);
+      NS_ENSURE_SUCCESS(*aResult, nullptr);
 
       if (filtered & nsIAccessibleTraversalRule::FILTER_MATCH)
         return accessible;
     }
 
-    Accessible* sibling = nsnull;
+    Accessible* sibling = nullptr;
     Accessible* temp = accessible;
     do {
       if (temp == mRoot)
@@ -511,19 +511,19 @@ nsAccessiblePivot::SearchForward(Accessible* aAccessible,
 
     accessible = sibling;
     *aResult = cache.ApplyFilter(accessible, &filtered);
-    NS_ENSURE_SUCCESS(*aResult, nsnull);
+    NS_ENSURE_SUCCESS(*aResult, nullptr);
 
     if (filtered & nsIAccessibleTraversalRule::FILTER_MATCH)
       return accessible;
   }
 
-  return nsnull;
+  return nullptr;
 }
 
 bool
 nsAccessiblePivot::NotifyOfPivotChange(Accessible* aOldPosition,
-                                       PRInt32 aOldStart, PRInt32 aOldEnd,
-                                       PRInt16 aReason)
+                                       int32_t aOldStart, int32_t aOldEnd,
+                                       int16_t aReason)
 {
   if (aOldPosition == mPosition &&
       aOldStart == mStartOffset && aOldEnd == mEndOffset)
@@ -539,7 +539,7 @@ nsAccessiblePivot::NotifyOfPivotChange(Accessible* aOldPosition,
 }
 
 nsresult
-RuleCache::ApplyFilter(Accessible* aAccessible, PRUint16* aResult)
+RuleCache::ApplyFilter(Accessible* aAccessible, uint16_t* aResult)
 {
   *aResult = nsIAccessibleTraversalRule::FILTER_IGNORE;
 
@@ -551,7 +551,7 @@ RuleCache::ApplyFilter(Accessible* aAccessible, PRUint16* aResult)
   }
 
   if (mPreFilter) {
-    PRUint64 state = aAccessible->State();
+    uint64_t state = aAccessible->State();
 
     if ((nsIAccessibleTraversalRule::PREFILTER_INVISIBLE & mPreFilter) &&
         (state & states::INVISIBLE))
@@ -567,9 +567,9 @@ RuleCache::ApplyFilter(Accessible* aAccessible, PRUint16* aResult)
   }
 
   if (mAcceptRolesLength > 0) {
-    PRUint32 accessibleRole = aAccessible->Role();
+    uint32_t accessibleRole = aAccessible->Role();
     bool matchesRole = false;
-    for (PRUint32 idx = 0; idx < mAcceptRolesLength; idx++) {
+    for (uint32_t idx = 0; idx < mAcceptRolesLength; idx++) {
       matchesRole = mAcceptRoles[idx] == accessibleRole;
       if (matchesRole)
         break;

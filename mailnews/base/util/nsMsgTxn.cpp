@@ -42,7 +42,7 @@ nsresult nsMsgTxn::Init()
 
 NS_IMETHODIMP nsMsgTxn::HasKey(const nsAString& name, bool *aResult)
 {
-  *aResult = mPropertyHash.Get(name, nsnull);
+  *aResult = mPropertyHash.Get(name, nullptr);
   return NS_OK;
 }
 
@@ -66,11 +66,11 @@ NS_IMETHODIMP nsMsgTxn::SetProperty(const nsAString& name, nsIVariant *value)
 
 NS_IMETHODIMP nsMsgTxn::DeleteProperty(const nsAString& name)
 {
-  if (!mPropertyHash.Get(name, nsnull))
+  if (!mPropertyHash.Get(name, nullptr))
     return NS_ERROR_FAILURE;
 
   mPropertyHash.Remove(name);
-  return mPropertyHash.Get(name, nsnull) ? NS_ERROR_FAILURE : NS_OK;
+  return mPropertyHash.Get(name, nullptr) ? NS_ERROR_FAILURE : NS_OK;
 }
 
 //
@@ -148,10 +148,10 @@ nsMsgTxn::SetPropertyAs ## Name (const nsAString & prop, Type value) \
     return SetProperty(prop, var); \
 }
 
-IMPL_GETSETPROPERTY_AS(Int32, PRInt32)
-IMPL_GETSETPROPERTY_AS(Uint32, PRUint32)
-IMPL_GETSETPROPERTY_AS(Int64, PRInt64)
-IMPL_GETSETPROPERTY_AS(Uint64, PRUint64)
+IMPL_GETSETPROPERTY_AS(Int32, int32_t)
+IMPL_GETSETPROPERTY_AS(Uint32, uint32_t)
+IMPL_GETSETPROPERTY_AS(Int64, int64_t)
+IMPL_GETSETPROPERTY_AS(Uint64, uint64_t)
 IMPL_GETSETPROPERTY_AS(Double, double)
 IMPL_GETSETPROPERTY_AS(Bool, bool)
 
@@ -195,7 +195,7 @@ NS_IMETHODIMP nsMsgTxn::GetPropertyAsInterface(const nsAString & prop,
     return rv;
   if (!val) {
     // We have a value, but it's null
-    *_retval = nsnull;
+    *_retval = nullptr;
     return NS_OK;
   }
   return val->QueryInterface(aIID, _retval);
@@ -249,7 +249,7 @@ NS_IMETHODIMP nsMsgTxn::DoTransaction(void)
 
 NS_IMETHODIMP nsMsgTxn::GetIsTransient(bool *aIsTransient)
 {
-  if (nsnull!=aIsTransient)
+  if (nullptr!=aIsTransient)
     *aIsTransient = false;
   else
     return NS_ERROR_NULL_POINTER;
@@ -279,7 +279,7 @@ nsresult nsMsgTxn::SetMsgWindow(nsIMsgWindow *msgWindow)
 
 
 nsresult
-nsMsgTxn::SetTransactionType(PRUint32 txnType)
+nsMsgTxn::SetTransactionType(uint32_t txnType)
 {
   return SetPropertyAsUint32(NS_LITERAL_STRING("type"), txnType);
 }
@@ -300,7 +300,7 @@ nsMsgTxn::CheckForToggleDelete(nsIMsgFolder *aFolder, const nsMsgKey &aMsgKey, b
     if (NS_FAILED(rv) || !containsKey)   // the message has been deleted from db, so we cannot do toggle here
       return NS_OK;
     rv = db->GetMsgHdrForKey(aMsgKey, getter_AddRefs(message));
-    PRUint32 flags;
+    uint32_t flags;
     if (NS_SUCCEEDED(rv) && message)
     {
       message->GetFlags(&flags);

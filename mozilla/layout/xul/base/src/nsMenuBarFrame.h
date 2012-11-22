@@ -56,8 +56,6 @@ public:
 
   virtual void DestroyFrom(nsIFrame* aDestructRoot);
 
-  virtual nsIAtom* GetType() const { return nsGkAtoms::menuBarFrame; }
-
   virtual void LockMenuUntilClosed(bool aLock) {}
   virtual bool IsMenuLocked() { return false; }
 
@@ -84,7 +82,7 @@ public:
   // Used to handle ALT+key combos
   nsMenuFrame* FindMenuWithShortcut(nsIDOMKeyEvent* aKeyEvent);
 
-  virtual bool IsFrameOfType(PRUint32 aFlags) const
+  virtual bool IsFrameOfType(uint32_t aFlags) const
   {
     // Override bogus IsFrameOfType in nsBoxFrame.
     if (aFlags & (nsIFrame::eReplacedContainsBlock | nsIFrame::eReplaced))

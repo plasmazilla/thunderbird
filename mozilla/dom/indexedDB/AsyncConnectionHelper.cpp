@@ -26,9 +26,9 @@ USING_INDEXEDDB_NAMESPACE
 
 namespace {
 
-IDBTransaction* gCurrentTransaction = nsnull;
+IDBTransaction* gCurrentTransaction = nullptr;
 
-const PRUint32 kProgressHandlerGranularity = 1000;
+const uint32_t kProgressHandlerGranularity = 1000;
 
 class TransactionPoolEventTarget : public StackBasedEventTarget
 {
@@ -52,7 +52,7 @@ ConvertCloneReadInfosToArrayInternal(
                                 nsTArray<StructuredCloneReadInfo>& aReadInfos,
                                 jsval* aResult)
 {
-  JSObject* array = JS_NewArrayObject(aCx, 0, nsnull);
+  JSObject* array = JS_NewArrayObject(aCx, 0, nullptr);
   if (!array) {
     NS_WARNING("Failed to make array!");
     return NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR;
@@ -130,7 +130,7 @@ HelperBase::ReleaseMainThreadObjects()
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
-  mRequest = nsnull;
+  mRequest = nullptr;
 }
 
 AsyncConnectionHelper::AsyncConnectionHelper(IDBDatabase* aDatabase,
@@ -288,8 +288,6 @@ AsyncConnectionHelper::Run()
     mResultCode = DoDatabaseWork(connection);
 
     if (mDatabase) {
-      IndexedDatabaseManager::SetCurrentWindow(nsnull);
-
       // Release or roll back the savepoint depending on the error code.
       if (hasSavepoint) {
         NS_ASSERTION(mTransaction, "Huh?!");
@@ -300,6 +298,10 @@ AsyncConnectionHelper::Run()
           mTransaction->RollbackSavepoint();
         }
       }
+
+      // Don't unset this until we're sure that all SQLite activity has
+      // completed!
+      IndexedDatabaseManager::SetCurrentWindow(nullptr);
     }
   }
   else {
@@ -505,8 +507,8 @@ AsyncConnectionHelper::ReleaseMainThreadObjects()
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
-  mDatabase = nsnull;
-  mTransaction = nsnull;
+  mDatabase = nullptr;
+  mTransaction = nullptr;
 
   HelperBase::ReleaseMainThreadObjects();
 }
@@ -543,7 +545,7 @@ AsyncConnectionHelper::ConvertCloneReadInfosToArray(
 
   nsresult rv = ConvertCloneReadInfosToArrayInternal(aCx, aReadInfos, aResult);
 
-  for (PRUint32 index = 0; index < aReadInfos.Length(); index++) {
+  for (uint32_t index = 0; index < aReadInfos.Length(); index++) {
     aReadInfos[index].mCloneBuffer.clear();
   }
   aReadInfos.Clear();
@@ -575,7 +577,7 @@ StackBasedEventTarget::QueryInterface(REFNSIID aIID,
 
 NS_IMETHODIMP
 MainThreadEventTarget::Dispatch(nsIRunnable* aRunnable,
-                                PRUint32 aFlags)
+                                uint32_t aFlags)
 {
   NS_ASSERTION(aRunnable, "Null pointer!");
 
@@ -592,7 +594,7 @@ MainThreadEventTarget::IsOnCurrentThread(bool* aIsOnCurrentThread)
 
 NS_IMETHODIMP
 TransactionPoolEventTarget::Dispatch(nsIRunnable* aRunnable,
-                                     PRUint32 aFlags)
+                                     uint32_t aFlags)
 {
   NS_ASSERTION(aRunnable, "Null pointer!");
   NS_ASSERTION(aFlags == NS_DISPATCH_NORMAL, "Unsupported!");
@@ -600,7 +602,7 @@ TransactionPoolEventTarget::Dispatch(nsIRunnable* aRunnable,
   TransactionThreadPool* pool = TransactionThreadPool::GetOrCreate();
   NS_ENSURE_TRUE(pool, NS_ERROR_UNEXPECTED);
 
-  nsresult rv = pool->Dispatch(mTransaction, aRunnable, false, nsnull);
+  nsresult rv = pool->Dispatch(mTransaction, aRunnable, false, nullptr);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
@@ -615,7 +617,7 @@ TransactionPoolEventTarget::IsOnCurrentThread(bool* aIsOnCurrentThread)
 
 NS_IMETHODIMP
 NoDispatchEventTarget::Dispatch(nsIRunnable* aRunnable,
-                                PRUint32 aFlags)
+                                uint32_t aFlags)
 {
   nsCOMPtr<nsIRunnable> runnable = aRunnable;
   return NS_OK;

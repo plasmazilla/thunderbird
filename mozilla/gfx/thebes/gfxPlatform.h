@@ -38,9 +38,6 @@ class gfxTextRun;
 class nsIURI;
 class nsIAtom;
 
-extern mozilla::gfx::UserDataKey kThebesSurfaceKey;
-void DestroyThebesSurface(void *data);
-
 extern cairo_user_data_key_t kDrawTarget;
 
 // pref lang id's for font prefs
@@ -109,7 +106,7 @@ enum eGfxLog {
 };
 
 // when searching through pref langs, max number of pref langs
-const PRUint32 kMaxLenPrefLangList = 32;
+const uint32_t kMaxLenPrefLangList = 32;
 
 #define UNINITIALIZED_VALUE  (-1)
 
@@ -121,6 +118,8 @@ GetBackendName(mozilla::gfx::BackendType aBackend)
   switch (aBackend) {
       case mozilla::gfx::BACKEND_DIRECT2D:
         return "direct2d";
+      case mozilla::gfx::BACKEND_COREGRAPHICS_ACCELERATED:
+        return "quartz accelerated";
       case mozilla::gfx::BACKEND_COREGRAPHICS:
         return "quartz";
       case mozilla::gfx::BACKEND_CAIRO:
@@ -130,7 +129,7 @@ GetBackendName(mozilla::gfx::BackendType aBackend)
       case mozilla::gfx::BACKEND_NONE:
         return "none";
   }
-  MOZ_NOT_REACHED("Incomplet switch");
+  MOZ_NOT_REACHED("Incomplete switch");
 }
 
 class THEBES_API gfxPlatform {
@@ -172,18 +171,21 @@ public:
                                                         gfxASurface::gfxImageFormat format);
 
     virtual mozilla::RefPtr<mozilla::gfx::DrawTarget>
-      CreateDrawTargetForSurface(gfxASurface *aSurface);
+      CreateDrawTargetForSurface(gfxASurface *aSurface, const mozilla::gfx::IntSize& aSize);
 
     /*
-     * Creates a SourceSurface for a gfxASurface. This surface should -not- be
-     * held around by the user after the underlying gfxASurface has been
-     * destroyed as a copy of the data is not guaranteed.
+     * Creates a SourceSurface for a gfxASurface. This function does no caching,
+     * so the caller should cache the gfxASurface if it will be used frequently.
+     * The returned surface keeps a reference to aTarget, so it is OK to keep the
+     * surface, even if aTarget changes.
+     * aTarget should not keep a reference to the returned surface because that
+     * will cause a cycle.
      */
     virtual mozilla::RefPtr<mozilla::gfx::SourceSurface>
       GetSourceSurfaceForSurface(mozilla::gfx::DrawTarget *aTarget, gfxASurface *aSurface);
 
     virtual mozilla::RefPtr<mozilla::gfx::ScaledFont>
-      GetScaledFontForFont(gfxFont *aFont);
+      GetScaledFontForFont(mozilla::gfx::DrawTarget* aTarget, gfxFont *aFont);
 
     virtual already_AddRefed<gfxASurface>
       GetThebesSurfaceForDrawTarget(mozilla::gfx::DrawTarget *aTarget);
@@ -195,13 +197,16 @@ public:
       CreateDrawTargetForData(unsigned char* aData, const mozilla::gfx::IntSize& aSize, 
                               int32_t aStride, mozilla::gfx::SurfaceFormat aFormat);
 
-    virtual bool SupportsAzure(mozilla::gfx::BackendType& aBackend) { return false; }
+    bool SupportsAzureCanvas();
 
     void GetAzureBackendInfo(mozilla::widget::InfoObject &aObj) {
-      mozilla::gfx::BackendType backend;
-      if (SupportsAzure(backend)) {
-        aObj.DefineProperty("AzureBackend", GetBackendName(backend)); 
-      }
+      aObj.DefineProperty("AzureCanvasBackend", GetBackendName(mPreferredCanvasBackend));
+      aObj.DefineProperty("AzureFallbackCanvasBackend", GetBackendName(mFallbackCanvasBackend));
+      aObj.DefineProperty("AzureContentBackend", GetBackendName(GetContentBackend()));
+    }
+
+    mozilla::gfx::BackendType GetPreferredCanvasBackend() {
+      return mPreferredCanvasBackend;
     }
 
     /*
@@ -231,7 +236,7 @@ public:
      */
     virtual gfxPlatformFontList *CreatePlatformFontList() {
         NS_NOTREACHED("oops, this platform doesn't have a gfxPlatformFontList implementation");
-        return nsnull;
+        return nullptr;
     }
 
     /**
@@ -269,7 +274,7 @@ public:
      */
     virtual gfxFontEntry* LookupLocalFont(const gfxProxyFontEntry *aProxyEntry,
                                           const nsAString& aFontName)
-    { return nsnull; }
+    { return nullptr; }
 
     /**
      * Activate a platform font.  (Needed to support @font-face src url().)
@@ -280,8 +285,8 @@ public:
      * who must either AddRef() or delete.
      */
     virtual gfxFontEntry* MakePlatformFont(const gfxProxyFontEntry *aProxyEntry,
-                                           const PRUint8 *aFontData,
-                                           PRUint32 aLength);
+                                           const uint8_t *aFontData,
+                                           uint32_t aLength);
 
     /**
      * Whether to allow downloadable fonts via @font-face rules
@@ -320,15 +325,15 @@ public:
      *
      * This allows harfbuzz to be enabled selectively via the preferences.
      */
-    bool UseHarfBuzzForScript(PRInt32 aScriptCode);
+    bool UseHarfBuzzForScript(int32_t aScriptCode);
 
     // check whether format is supported on a platform or not (if unclear, returns true)
-    virtual bool IsFontFormatSupported(nsIURI *aFontURI, PRUint32 aFormatFlags) { return false; }
+    virtual bool IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags) { return false; }
 
     void GetPrefFonts(nsIAtom *aLanguage, nsString& array, bool aAppendUnicode = true);
 
     // in some situations, need to make decisions about ambiguous characters, may need to look at multiple pref langs
-    void GetLangPrefs(eFontPrefLang aPrefLangs[], PRUint32 &aLen, eFontPrefLang aCharLang, eFontPrefLang aPageLang);
+    void GetLangPrefs(eFontPrefLang aPrefLangs[], uint32_t &aLen, eFontPrefLang aCharLang, eFontPrefLang aPageLang);
     
     /**
      * Iterate over pref fonts given a list of lang groups.  For a single lang
@@ -337,7 +342,7 @@ public:
      */
     typedef bool (*PrefFontCallback) (eFontPrefLang aLang, const nsAString& aName,
                                         void *aClosure);
-    static bool ForEachPrefFont(eFontPrefLang aLangArray[], PRUint32 aLangArrayLen,
+    static bool ForEachPrefFont(eFontPrefLang aLangArray[], uint32_t aLangArrayLen,
                                   PrefFontCallback aCallback,
                                   void *aClosure);
 
@@ -351,18 +356,18 @@ public:
     static const char* GetPrefLangName(eFontPrefLang aLang);
    
     // map a Unicode range (based on char code) to a font language for Preferences
-    static eFontPrefLang GetFontPrefLangFor(PRUint8 aUnicodeRange);
+    static eFontPrefLang GetFontPrefLangFor(uint8_t aUnicodeRange);
 
     // returns true if a pref lang is CJK
     static bool IsLangCJK(eFontPrefLang aLang);
     
     // helper method to add a pref lang to an array, if not already in array
-    static void AppendPrefLang(eFontPrefLang aPrefLangs[], PRUint32& aLen, eFontPrefLang aAddLang);
+    static void AppendPrefLang(eFontPrefLang aPrefLangs[], uint32_t& aLen, eFontPrefLang aAddLang);
 
     // returns a list of commonly used fonts for a given character
     // these are *possible* matches, no cmap-checking is done at this level
-    virtual void GetCommonFallbackFonts(const PRUint32 /*aCh*/,
-                                        PRInt32 /*aRunScript*/,
+    virtual void GetCommonFallbackFonts(const uint32_t /*aCh*/,
+                                        int32_t /*aRunScript*/,
                                         nsTArray<const char*>& /*aFontList*/)
     {
         // platform-specific override, by default do nothing
@@ -373,7 +378,9 @@ public:
 
     // helper method to indicate if we want to use Azure content drawing
     static bool UseAzureContentDrawing();
-    
+
+    static bool OffMainThreadCompositingEnabled();
+
     /**
      * Are we going to try color management?
      */
@@ -425,7 +432,7 @@ public:
 
     virtual void FontsPrefsChanged(const char *aPref);
 
-    PRInt32 GetBidiNumeralOption();
+    int32_t GetBidiNumeralOption();
 
     /**
      * Returns a 1x1 surface that can be used to create graphics contexts
@@ -453,26 +460,51 @@ protected:
     gfxPlatform();
     virtual ~gfxPlatform();
 
-    void AppendCJKPrefLangs(eFontPrefLang aPrefLangs[], PRUint32 &aLen, 
+    void AppendCJKPrefLangs(eFontPrefLang aPrefLangs[], uint32_t &aLen, 
                             eFontPrefLang aCharLang, eFontPrefLang aPageLang);
-                                               
-    PRInt8  mAllowDownloadableFonts;
-    PRInt8  mDownloadableFontsSanitize;
+
+    /**
+     * Helper method, creates a draw target for a specific Azure backend.
+     * Used by CreateOffscreenDrawTarget.
+     */
+    mozilla::RefPtr<mozilla::gfx::DrawTarget>
+      CreateDrawTargetForBackend(mozilla::gfx::BackendType aBackend,
+                                 const mozilla::gfx::IntSize& aSize,
+                                 mozilla::gfx::SurfaceFormat aFormat);
+
+    /**
+     * Initialise the preferred and fallback canvas backends
+     * aBackendBitmask specifies the backends which are acceptable to the caller.
+     * The backend used is determined by aBackendBitmask and the order specified
+     * by the gfx.canvas.azure.backends pref.
+     */
+    void InitCanvasBackend(uint32_t aBackendBitmask);
+    /**
+     * returns the first backend named in the pref gfx.canvas.azure.backends
+     * which is a component of aBackendBitmask, a bitmask of backend types
+     */
+    static mozilla::gfx::BackendType GetCanvasBackendPref(uint32_t aBackendBitmask);
+    static mozilla::gfx::BackendType BackendTypeForName(const nsCString& aName);
+
+    virtual mozilla::gfx::BackendType GetContentBackend()
+    {
+      return mozilla::gfx::BACKEND_NONE;
+    }
+
+    int8_t  mAllowDownloadableFonts;
+    int8_t  mDownloadableFontsSanitize;
 #ifdef MOZ_GRAPHITE
-    PRInt8  mGraphiteShapingEnabled;
+    int8_t  mGraphiteShapingEnabled;
 #endif
 
-    PRInt8  mBidiNumeralOption;
+    int8_t  mBidiNumeralOption;
 
     // whether to always search font cmaps globally 
     // when doing system font fallback
-    PRInt8  mFallbackUsesCmaps;
+    int8_t  mFallbackUsesCmaps;
 
     // which scripts should be shaped with harfbuzz
-    PRInt32 mUseHarfBuzzScripts;
-
-    // The preferred draw target backend to use
-    mozilla::gfx::BackendType mPreferredDrawTargetBackend;
+    int32_t mUseHarfBuzzScripts;
 
 private:
     /**
@@ -483,10 +515,16 @@ private:
     virtual qcms_profile* GetPlatformCMSOutputProfile();
 
     nsRefPtr<gfxASurface> mScreenReferenceSurface;
-    nsTArray<PRUint32> mCJKPrefLangs;
+    nsTArray<uint32_t> mCJKPrefLangs;
     nsCOMPtr<nsIObserver> mSRGBOverrideObserver;
     nsCOMPtr<nsIObserver> mFontPrefsObserver;
-    mozilla::widget::GfxInfoCollector<gfxPlatform> mAzureBackendCollector;
+
+    // The preferred draw target backend to use for canvas
+    mozilla::gfx::BackendType mPreferredCanvasBackend;
+    // The fallback draw target backend to use for canvas, if the preferred backend fails
+    mozilla::gfx::BackendType mFallbackCanvasBackend;
+
+    mozilla::widget::GfxInfoCollector<gfxPlatform> mAzureCanvasBackendCollector;
     bool mWorkAroundDriverBugs;
 };
 

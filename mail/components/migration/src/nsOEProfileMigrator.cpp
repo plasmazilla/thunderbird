@@ -31,7 +31,7 @@ nsOEProfileMigrator::~nsOEProfileMigrator()
 
 nsresult nsOEProfileMigrator::ContinueImport()
 {
-  return Notify(nsnull);
+  return Notify(nullptr);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -40,7 +40,7 @@ nsresult nsOEProfileMigrator::ContinueImport()
 NS_IMETHODIMP
 nsOEProfileMigrator::Notify(nsITimer *timer)
 {
-  PRInt32 progress;
+  int32_t progress;
   mGenericImporter->GetProgress(&progress);
 
   nsAutoString index;
@@ -68,7 +68,7 @@ nsOEProfileMigrator::Notify(nsITimer *timer)
 // nsIMailProfileMigrator
 
 NS_IMETHODIMP
-nsOEProfileMigrator::Migrate(PRUint16 aItems, nsIProfileStartup* aStartup, const PRUnichar* aProfile)
+nsOEProfileMigrator::Migrate(uint16_t aItems, nsIProfileStartup* aStartup, const PRUnichar* aProfile)
 {
   nsresult rv = NS_OK;
 
@@ -78,7 +78,7 @@ nsOEProfileMigrator::Migrate(PRUint16 aItems, nsIProfileStartup* aStartup, const
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
-  NOTIFY_OBSERVERS(MIGRATION_STARTED, nsnull);
+  NOTIFY_OBSERVERS(MIGRATION_STARTED, nullptr);
   rv = ImportSettings(mImportModule);
 
   // now import address books
@@ -93,7 +93,7 @@ nsOEProfileMigrator::Migrate(PRUint16 aItems, nsIProfileStartup* aStartup, const
 NS_IMETHODIMP
 nsOEProfileMigrator::GetMigrateData(const PRUnichar* aProfile,
                                            bool aReplace,
-                                           PRUint16* aResult)
+                                           uint16_t* aResult)
 {
   // There's no harm in assuming everything is available.
   *aResult = nsIMailProfileMigrator::ACCOUNT_SETTINGS | nsIMailProfileMigrator::ADDRESSBOOK_DATA |
@@ -129,7 +129,7 @@ nsOEProfileMigrator::GetSourceHasMultipleProfiles(bool* aResult)
 NS_IMETHODIMP
 nsOEProfileMigrator::GetSourceProfiles(nsIArray** aResult)
 {
-  *aResult = nsnull;
+  *aResult = nullptr;
   return NS_OK;
 }
 

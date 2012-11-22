@@ -10,7 +10,7 @@
 nsDOMXULCommandEvent::nsDOMXULCommandEvent(nsPresContext* aPresContext,
                                            nsInputEvent* aEvent)
   : nsDOMUIEvent(aPresContext,
-                 aEvent ? aEvent : new nsInputEvent(false, 0, nsnull))
+                 aEvent ? aEvent : new nsInputEvent(false, 0, nullptr))
 {
   if (aEvent) {
     mEventIsInternal = false;
@@ -87,7 +87,7 @@ NS_IMETHODIMP
 nsDOMXULCommandEvent::InitCommandEvent(const nsAString& aType,
                                        bool aCanBubble, bool aCancelable,
                                        nsIDOMWindow* aView,
-                                       PRInt32 aDetail,
+                                       int32_t aDetail,
                                        bool aCtrlKey, bool aAltKey,
                                        bool aShiftKey, bool aMetaKey,
                                        nsIDOMEvent* aSourceEvent)

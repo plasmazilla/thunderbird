@@ -5,7 +5,9 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 include protocol PAudio;
+include protocol PBlob;
 include protocol PBrowser;
+include protocol PCompositor;
 include protocol PCrashReporter;
 include protocol PExternalHelperApp;
 include protocol PDeviceStorageRequest;
@@ -16,13 +18,14 @@ include protocol PNecko;
 include protocol PSms;
 include protocol PStorage;
 include protocol PTestShell;
+include DOMTypes;
+include URIParams;
 
 include "mozilla/chrome/RegistryMessageUtils.h";
 include "mozilla/net/NeckoMessageUtils.h";
 include "mozilla/dom/TabMessageUtils.h";
 
 include "nsGeoPositionIPCSerialiser.h";
-include "PPrefTuple.h";
 
 using GeoPosition;
 using PrefTuple;
@@ -30,9 +33,9 @@ using PrefTuple;
 using ChromePackage;
 using ResourceMapping;
 using OverrideMapping;
-using IPC::URI;
 using IPC::Permission;
 using mozilla::null_t;
+using mozilla::void_t;
 using mozilla::dom::NativeThreadId;
 using gfxIntSize;
 
@@ -60,20 +63,27 @@ struct FontListEntry {
     nsString  familyName;
     nsString  faceName;
     nsCString filepath;
-    PRUint16  weight;
-    PRInt16   stretch;
-    PRUint8   italic;
-    PRUint8   index;
+    uint16_t  weight;
+    int16_t   stretch;
+    uint8_t   italic;
+    uint8_t   index;
+};
+
+struct DeviceStorageStatParams
+{
+  nsString fullpath;
 };
 
 struct DeviceStorageAddParams
 {
+  PBlob blob;
+  nsString name;
   nsString fullpath;
-  PRUint8[] bits;
 };
 
 struct DeviceStorageGetParams
 {
+  nsString name;
   nsString fullpath;
 };
 
@@ -85,7 +95,7 @@ struct DeviceStorageDeleteParams
 struct DeviceStorageEnumerationParams
 {
   nsString fullpath;
-  PRUint32 since;
+  uint64_t since;
 };
 
 union DeviceStorageParams
@@ -94,10 +104,58 @@ union DeviceStorageParams
   DeviceStorageGetParams;
   DeviceStorageDeleteParams;
   DeviceStorageEnumerationParams;
+  DeviceStorageStatParams;
 };
+
+struct SlicedBlobConstructorParams
+{
+  PBlob source;
+  uint64_t begin;
+  uint64_t end;
+  nsString contentType;
+};
+
+struct MysteryBlobConstructorParams
+{
+  // Nothing is known about this type of blob.
+};
+
+union BlobConstructorParams
+{
+  NormalBlobConstructorParams;
+  FileBlobConstructorParams;
+  SlicedBlobConstructorParams;
+  MysteryBlobConstructorParams;
+};
+
+union AppId {
+  uint32_t;
+  nullable PBrowser;
+};
+
+union PrefValue {
+  nsCString;
+  int32_t;
+  bool;
+};
+
+union MaybePrefValue {
+  PrefValue;
+  null_t;
+};
+
+struct PrefSetting {
+  nsCString name;
+  MaybePrefValue defaultValue;
+  MaybePrefValue userValue;
+};
+
 rpc protocol PContent
 {
+    parent opens PCompositor;
+
     manages PAudio;
+    manages PBlob;
     manages PBrowser;
     manages PCrashReporter;
     manages PDeviceStorageRequest;
@@ -115,24 +173,43 @@ both:
     // created from either the child or parent process!
     //
     // The child creates the PBrowser as part of
-    // TabChild::BrowserFrameProvideWindow, and the parent creates the PBrowser
-    // as part of ContentParent::CreateTab.
-    async PBrowser(PRUint32 chromeFlags, bool isBrowserFrame);
+    // TabChild::BrowserFrameProvideWindow, and the parent creates the
+    // PBrowser as part of ContentParent::CreateTab.
+    //
+    // When the parent constructs a PBrowser, the app ID handed to the
+    // child side is trusted.  In that case, |appId| is uint32_t.
+    // However, when the child side constructs a PBrowser, for
+    // window.open(), the parent must validate the app ID used on the
+    // parent side.  To do so, the child process must pass a valid
+    // PBrowser as its |AppId|.
+    async PBrowser(uint32_t chromeFlags, bool isBrowserElement, AppId appId);
+
+    async PBlob(BlobConstructorParams params);
 
 child:
     PMemoryReportRequest();
 
     PTestShell();
 
+    /**
+     * Tell the content process some attributes of itself.  This is
+     * the first message received by content processes after startup.
+     *
+     * |id| is a unique ID among all subprocesses.  When |isForApp &&
+     * isForBrowser|, we're loading <browser> for an app.  When
+     * |isForBrowser|, we're loading <browser>.  When |!isForApp &&
+     * !isForBrowser|, we're probably loading <xul:browser remote>.
+     */
+    SetProcessAttributes(uint64_t id, bool isForApp, bool isForBrowser);
+
     RegisterChrome(ChromePackage[] packages, ResourceMapping[] resources,
                    OverrideMapping[] overrides, nsCString locale);
 
     async SetOffline(bool offline);
 
-    async NotifyVisited(URI uri);
+    async NotifyVisited(URIParams uri);
 
-    PreferenceUpdate(PrefTuple pref);
-    ClearUserPreference(nsCString prefName);
+    PreferenceUpdate(PrefSetting pref);
 
     NotifyAlertsObserver(nsCString topic, nsString data);
 
@@ -155,17 +232,19 @@ child:
 
     AppInfo(nsCString version, nsCString buildID);
 
-    SetID(PRUint64 id);
-
     // Notify child that last-pb-context-exited notification was observed
     LastPrivateDocShellDestroyed();
 
+    FilePathUpdate(nsString filepath, nsCString reasons);
+
+    FileSystemUpdate(nsString fsName, nsString mountPoint, int32_t fsState);
+
 parent:
-    PAudio(PRInt32 aNumChannels, PRInt32 aRate, PRInt32 aFormat);
+    PAudio(int32_t aNumChannels, int32_t aRate, int32_t aFormat);
 
     PDeviceStorageRequest(DeviceStorageParams params);
 
-    sync PCrashReporter(NativeThreadId tid, PRUint32 processType);
+    sync PCrashReporter(NativeThreadId tid, uint32_t processType);
 
     PHal();
 
@@ -179,24 +258,24 @@ parent:
 
     // Services remoting
 
-    async StartVisitedQuery(URI uri);
-    async VisitURI(URI uri, URI referrer, PRUint32 flags);
-    async SetURITitle(URI uri, nsString title);
+    async StartVisitedQuery(URIParams uri);
+    async VisitURI(URIParams uri, OptionalURIParams referrer, uint32_t flags);
+    async SetURITitle(URIParams uri, nsString title);
     
     // filepicker remoting
-    sync ShowFilePicker(PRInt16 mode, PRInt16 selectedType, bool addToRecentDocs,
+    sync ShowFilePicker(int16_t mode, int16_t selectedType, bool addToRecentDocs,
                         nsString title, nsString defaultFile, nsString defaultExtension,
                         nsString[] filters, nsString[] filterNames)
-        returns (nsString[] files, PRInt16 retValue, nsresult result);
+        returns (nsString[] files, int16_t retValue, nsresult result);
 
-    async LoadURIExternal(URI uri);
+    async LoadURIExternal(URIParams uri);
 
     // PrefService message
-    sync ReadPrefsArray() returns (PrefTuple[] retValue);
+    sync ReadPrefsArray() returns (PrefSetting[] prefs);
 
     sync ReadFontList() returns (FontListEntry[] retValue);
 
-    sync SyncMessage(nsString aMessage, nsString aJSON)
+    sync SyncMessage(nsString aMessage, ClonedMessageData aData)
       returns (nsString[] retval);
 
     ShowAlertNotification(nsString imageUrl, 
@@ -206,16 +285,16 @@ parent:
                           nsString cookie,
                           nsString name);
 
-    PExternalHelperApp(URI uri, nsCString aMimeContentType,
+    PExternalHelperApp(OptionalURIParams uri, nsCString aMimeContentType,
                        nsCString aContentDisposition, bool aForceSave,
-                       PRInt64 aContentLength, URI aReferrer);
-    
+                       int64_t aContentLength, OptionalURIParams aReferrer);
+
     AddGeolocationListener();
     RemoveGeolocationListener();
 
     ConsoleMessage(nsString message);
     ScriptError(nsString message, nsString sourceName, nsString sourceLine,
-                PRUint32 lineNumber, PRUint32 colNumber, PRUint32 flags,
+                uint32_t lineNumber, uint32_t colNumber, uint32_t flags,
                 nsCString category); 
 
     // nsIPermissionManager messages
@@ -223,18 +302,18 @@ parent:
 
     // These clipboard methods are only really used on Android since
     // the clipboard is not available in the content process.
-    SetClipboardText(nsString text, PRInt32 whichClipboard);
-    sync GetClipboardText(PRInt32 whichClipboard)
+    SetClipboardText(nsString text, bool isPrivateData, int32_t whichClipboard);
+    sync GetClipboardText(int32_t whichClipboard)
         returns (nsString text);
     EmptyClipboard();
     sync ClipboardHasText()
         returns (bool hasText);
 
-    sync GetSystemColors(PRUint32 colorsCount)
-        returns (PRUint32[] colors);
+    sync GetSystemColors(uint32_t colorsCount)
+        returns (uint32_t[] colors);
 
-    sync GetIconForExtension(nsCString aFileExt, PRUint32 aIconSize)
-        returns (PRUint8[] bits);
+    sync GetIconForExtension(nsCString aFileExt, uint32_t aIconSize)
+        returns (uint8_t[] bits);
 
     sync GetShowPasswordSetting()
         returns (bool showPassword);
@@ -243,8 +322,7 @@ parent:
     PrivateDocShellsExist(bool aExist);
 
 both:
-     AsyncMessage(nsString aMessage, nsString aJSON);
-
+     AsyncMessage(nsString aMessage, ClonedMessageData aData);
 };
 
 }

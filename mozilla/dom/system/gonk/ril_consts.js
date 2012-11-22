@@ -1,6 +1,17 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+/* Copyright 2012 Mozilla Foundation and Mozilla contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 // Set to true to debug all RIL layers
 const DEBUG_ALL = false;
@@ -220,6 +231,7 @@ const GECKO_ERROR_RADIO_NOT_AVAILABLE = "RadioNotAvailable";
 const GECKO_ERROR_GENERIC_FAILURE = "GenericFailure";
 const GECKO_ERROR_REQUEST_NOT_SUPPORTED = "RequestNotSupported";
 const GECKO_ERROR_ILLEGAL_SIM_OR_ME = "IllegalSIMorME";
+const GECKO_ERROR_PASSWORD_INCORRECT = "IncorrectPassword";
 
 const RIL_ERROR_TO_GECKO_ERROR = {};
 RIL_ERROR_TO_GECKO_ERROR[ERROR_SUCCESS] = GECKO_ERROR_SUCCESS;
@@ -227,6 +239,7 @@ RIL_ERROR_TO_GECKO_ERROR[ERROR_RADIO_NOT_AVAILABLE] = GECKO_ERROR_RADIO_NOT_AVAI
 RIL_ERROR_TO_GECKO_ERROR[ERROR_GENERIC_FAILURE] = GECKO_ERROR_GENERIC_FAILURE;
 RIL_ERROR_TO_GECKO_ERROR[ERROR_REQUEST_NOT_SUPPORTED] = GECKO_ERROR_REQUEST_NOT_SUPPORTED;
 RIL_ERROR_TO_GECKO_ERROR[ERROR_ILLEGAL_SIM_OR_ME] = GECKO_ERROR_ILLEGAL_SIM_OR_ME;
+RIL_ERROR_TO_GECKO_ERROR[ERROR_PASSWORD_INCORRECT] = GECKO_ERROR_PASSWORD_INCORRECT;
 
 // 3GPP 23.040 clause 9.2.3.6 TP-Message-Reference(TP-MR):
 // The number of times the MS automatically repeats the SMS-SUBMIT shall be in
@@ -448,9 +461,11 @@ const READ_RECORD_ABSOLUTE_MODE = 4;
 const GET_RESPONSE_EF_SIZE_BYTES = 15;
 
 // EF path
-const EF_PATH_MF_SIM = "3f00";
-const EF_PATH_DF_TELECOM = "7f10";
-const EF_PATH_DF_GSM = "7f20";
+const EF_PATH_MF_SIM       = "3f00";
+const EF_PATH_DF_PHONEBOOK = "5f3a";
+const EF_PATH_DF_TELECOM   = "7f10";
+const EF_PATH_DF_GSM       = "7f20";
+const EF_PATH_ADF_USIM     = "7fff";
 
 // Status code of sw1 for ICC I/O,
 // see GSM11.11 and TS 51.011 clause 9.4, and ISO 7816-4
@@ -515,7 +530,7 @@ const PDU_TOA_NATIONAL      = 0xA0; // National number. Prefix or escape digits
 const PDU_TOA_NETWORK_SPEC  = 0xB0; // Network specific number This is used to
                                     // indicate administration/service number
                                     // specific to the serving network
-const PDU_TOA_SUSCRIBER     = 0xC0; // Suscriber number. This is used when a
+const PDU_TOA_SUBSCRIBER    = 0xC0; // Subscriber number. This is used when a
                                     // specific short number representation is
                                     // stored in one or more SCs as part of a
                                     // higher layer application
@@ -657,12 +672,23 @@ const PDU_PID_ME_DEPERSONALIZATION         = 0x7E;
 const PDU_PID_USIM_DATA_DOWNLOAD           = 0x7F;
 
 // DCS - Data Coding Scheme
-const PDU_DCS_MSG_CODING_7BITS_ALPHABET = 0x00;
-const PDU_DCS_MSG_CODING_8BITS_ALPHABET = 0x04;
-const PDU_DCS_MSG_CODING_16BITS_ALPHABET= 0x08;
-const PDU_DCS_MSG_CLASS_ME_SPECIFIC     = 0xF1;
-const PDU_DCS_MSG_CLASS_SIM_SPECIFIC    = 0xF2;
-const PDU_DCS_MSG_CLASS_TE_SPECIFIC     = 0xF3;
+const PDU_DCS_MSG_CODING_7BITS_ALPHABET  = 0x00;
+const PDU_DCS_MSG_CODING_8BITS_ALPHABET  = 0x04;
+const PDU_DCS_MSG_CODING_16BITS_ALPHABET = 0x08;
+const PDU_DCS_MSG_CLASS_ME_SPECIFIC      = 0xF1;
+const PDU_DCS_MSG_CLASS_SIM_SPECIFIC     = 0xF2;
+const PDU_DCS_MSG_CLASS_TE_SPECIFIC      = 0xF3;
+const PDU_DCS_CODING_GROUP_BITS          = 0xF0;
+const PDU_DCS_CODING_GROUP_7BITS_DISCARD = 0xC0;
+const PDU_DCS_CODING_GROUP_7BITS_STORE   = 0xD0;
+const PDU_DCS_CODING_GROUP_16BITS_STORE  = 0xE0;
+const PDU_DCS_MWI_ACTIVE_BITS            = 0x08;
+const PDU_DCS_MWI_ACTIVE_VALUE           = 0x08;
+const PDU_DCS_MWI_TYPE_BITS              = 0x03;
+const PDU_DCS_MWI_TYPE_VOICEMAIL         = 0x00;
+const PDU_DCS_MWI_TYPE_FAX               = 0x01;
+const PDU_DCS_MWI_TYPE_EMAIL             = 0x02;
+const PDU_DCS_MWI_TYPE_OTHER             = 0x03;
 
 // Because service center timestamp omit the century. Yay.
 const PDU_TIMESTAMP_YEAR_OFFSET = 2000;
@@ -670,8 +696,8 @@ const PDU_TIMESTAMP_YEAR_OFFSET = 2000;
 // See 9.2.3.24 TP‑User Data (TP‑UD)
 const PDU_IEI_CONCATENATED_SHORT_MESSAGES_8BIT         = 0x00;
 const PDU_IEI_SPECIAL_SMS_MESSAGE_INDICATION           = 0x01;
-const PDU_IEI_APPLICATION_PORT_ADDREESING_SCHEME_8BIT  = 0x04;
-const PDU_IEI_APPLICATION_PORT_ADDREESING_SCHEME_16BIT = 0x05;
+const PDU_IEI_APPLICATION_PORT_ADDRESSING_SCHEME_8BIT  = 0x04;
+const PDU_IEI_APPLICATION_PORT_ADDRESSING_SCHEME_16BIT = 0x05;
 const PDU_IEI_SMSC_CONTROL_PARAMS                      = 0x06;
 const PDU_IEI_UDH_SOURCE_INDICATOR                     = 0x07;
 const PDU_IEI_CONCATENATED_SHORT_MESSAGES_16BIT        = 0x08;
@@ -1334,6 +1360,11 @@ const PDU_NL_SINGLE_SHIFT_TABLES = [
   + "                "
 ];
 
+// Special SMS Message Indication constants
+const PDU_MWI_STORE_TYPE_BIT     = 0x80;
+const PDU_MWI_STORE_TYPE_DISCARD = 0x00;
+const PDU_MWI_STORE_TYPE_STORE   = 0x80;
+
 const RADIOTECH_FAMILY_3GPP = 1;  // GSM, WCDMA, LTE
 const RADIOTECH_FAMILY_3GPP2 = 2; // CDMA, EVDO
 
@@ -1420,6 +1451,25 @@ const GECKO_NETWORK_SELECTION_UNKNOWN   = null;
 const GECKO_NETWORK_SELECTION_AUTOMATIC = "automatic";
 const GECKO_NETWORK_SELECTION_MANUAL    = "manual";
 
+const GECKO_MOBILE_CONNECTION_STATE_UNKNOWN = null;
+const GECKO_MOBILE_CONNECTION_STATE_NOTSEARCHING = "notSearching";
+const GECKO_MOBILE_CONNECTION_STATE_SEARCHING = "searching";
+const GECKO_MOBILE_CONNECTION_STATE_REGISTERED = "registered";
+const GECKO_MOBILE_CONNECTION_STATE_DENIED = "denied";
+
+const NETWORK_CREG_TO_GECKO_MOBILE_CONNECTION_STATE = {};
+NETWORK_CREG_TO_GECKO_MOBILE_CONNECTION_STATE[NETWORK_CREG_STATE_NOT_SEARCHING] = GECKO_MOBILE_CONNECTION_STATE_NOTSEARCHING;
+NETWORK_CREG_TO_GECKO_MOBILE_CONNECTION_STATE[NETWORK_CREG_STATE_REGISTERED_HOME] = GECKO_MOBILE_CONNECTION_STATE_REGISTERED;
+NETWORK_CREG_TO_GECKO_MOBILE_CONNECTION_STATE[NETWORK_CREG_STATE_SEARCHING] = GECKO_MOBILE_CONNECTION_STATE_REGISTERED;
+NETWORK_CREG_TO_GECKO_MOBILE_CONNECTION_STATE[NETWORK_CREG_STATE_DENIED] = GECKO_MOBILE_CONNECTION_STATE_DENIED;
+NETWORK_CREG_TO_GECKO_MOBILE_CONNECTION_STATE[NETWORK_CREG_STATE_UNKNOWN] = GECKO_MOBILE_CONNECTION_STATE_UNKNOWN;
+NETWORK_CREG_TO_GECKO_MOBILE_CONNECTION_STATE[NETWORK_CREG_STATE_REGISTERED_ROAMING] = GECKO_MOBILE_CONNECTION_STATE_REGISTERED;
+NETWORK_CREG_TO_GECKO_MOBILE_CONNECTION_STATE[NETWORK_CREG_STATE_NOT_SEARCHING_EMERGENCY_CALLS] = GECKO_MOBILE_CONNECTION_STATE_NOTSEARCHING;
+NETWORK_CREG_TO_GECKO_MOBILE_CONNECTION_STATE[NETWORK_CREG_STATE_SEARCHING_EMERGENCY_CALLS] = GECKO_MOBILE_CONNECTION_STATE_SEARCHING;
+NETWORK_CREG_TO_GECKO_MOBILE_CONNECTION_STATE[NETWORK_CREG_STATE_DENIED_EMERGENCY_CALLS] = GECKO_MOBILE_CONNECTION_STATE_DENIED;
+NETWORK_CREG_TO_GECKO_MOBILE_CONNECTION_STATE[NETWORK_CREG_STATE_UNKNOWN_EMERGENCY_CALLS] = GECKO_MOBILE_CONNECTION_STATE_UNKNOWN;
+
+
 const GECKO_CALL_ERROR_BAD_NUMBER             = "BadNumberError";
 const GECKO_CALL_ERROR_NORMAL_CALL_CLEARING   = "NormalCallClearingError";
 const GECKO_CALL_ERROR_BUSY                   = "BusyError";
@@ -1461,6 +1511,8 @@ const GECKO_RADIO_TECH = [
   "lte",
   "hspa+",
 ];
+
+const GECKO_VOICEMAIL_MESSAGE_COUNT_UNKNOWN = -1;
 
 // Allow this file to be imported via Components.utils.import().
 const EXPORTED_SYMBOLS = Object.keys(this);

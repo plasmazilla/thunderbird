@@ -19,6 +19,8 @@
 #include "nsCOMArray.h"
 #include "nsITimer.h"
 
+class nsIThread;
+
 // The SDK shipping with VC11 has renamed IAsyncOperation to
 // IDataObjectAsyncCapability.  We try to detect this, and rename this in our
 // code too to make sure that we pick the correct name when building.
@@ -85,8 +87,12 @@ class nsITransferable;
 class nsDataObj : public IDataObject,
                   public IAsyncOperation
 {
+
+protected:
+  nsCOMPtr<nsIThread> mIOThread;
+
   public: // construction, destruction
-    nsDataObj(nsIURI *uri = nsnull);
+    nsDataObj(nsIURI *uri = nullptr);
     virtual ~nsDataObj();
 
 	public: // IUnknown methods - see iunknown.h for documentation
@@ -231,10 +237,10 @@ class nsDataObj : public IDataObject,
     class CStream : public IStream, public nsIStreamListener
     {
       nsCOMPtr<nsIChannel> mChannel;
-      nsTArray<PRUint8> mChannelData;
+      nsTArray<uint8_t> mChannelData;
       bool mChannelRead;
       nsresult mChannelResult;
-      PRUint32 mStreamRead;
+      uint32_t mStreamRead;
 
     protected:
       virtual ~CStream();

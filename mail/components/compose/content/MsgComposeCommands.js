@@ -210,7 +210,6 @@ var gComposeRecyclingListener = {
     document.getElementById("headers-box").removeAttribute("height");
     document.getElementById("appcontent").removeAttribute("height");
     document.getElementById("addresses-box").removeAttribute("width");
-    document.getElementById("attachments-box").removeAttribute("width");
 
     //Reset menu options
     document.getElementById("format_auto").setAttribute("checked", "true");
@@ -1902,7 +1901,8 @@ attachmentWorker.onmessage = function(event)
 
     msg.onclick = function(event)
     {
-      openOptionsDialog("paneCompose");
+      openOptionsDialog("paneCompose", "generalTab",
+                        {subdialog: "attachment_reminder_button"});
     };
 
     let msgText = document.createElement("label");

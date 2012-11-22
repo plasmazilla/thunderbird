@@ -32,7 +32,7 @@ nsAboutBlank::NewChannel(nsIURI *aURI, nsIChannel **result)
 }
 
 NS_IMETHODIMP
-nsAboutBlank::GetURIFlags(nsIURI *aURI, PRUint32 *result)
+nsAboutBlank::GetURIFlags(nsIURI *aURI, uint32_t *result)
 {
     *result = nsIAboutModule::URI_SAFE_FOR_UNTRUSTED_CONTENT |
               nsIAboutModule::HIDE_FROM_ABOUTABOUT;
@@ -43,7 +43,7 @@ nsresult
 nsAboutBlank::Create(nsISupports *aOuter, REFNSIID aIID, void **aResult)
 {
     nsAboutBlank* about = new nsAboutBlank();
-    if (about == nsnull)
+    if (about == nullptr)
         return NS_ERROR_OUT_OF_MEMORY;
     NS_ADDREF(about);
     nsresult rv = about->QueryInterface(aIID, aResult);

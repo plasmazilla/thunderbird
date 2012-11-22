@@ -24,8 +24,8 @@ MaemoLocationProvider::MaemoLocationProvider() :
   mControlStopped(0),
   mHasSeenLocation(false),
   mHasGPS(true),
-  mGPSControl(nsnull),
-  mGPSDevice(nsnull),
+  mGPSControl(nullptr),
+  mGPSDevice(nullptr),
   mIgnoreMinorChanges(false),
   mPrevLat(0.0),
   mPrevLong(0.0),
@@ -185,7 +185,7 @@ NS_IMETHODIMP MaemoLocationProvider::Startup()
     return NS_OK;
 
   // 0 second no timer created
-  PRInt32 update = Preferences::GetInt("geo.default.update", 0);
+  int32_t update = Preferences::GetInt("geo.default.update", 0);
 
   if (!update)
     return NS_OK;
@@ -222,16 +222,16 @@ NS_IMETHODIMP MaemoLocationProvider::Shutdown()
   g_signal_handler_disconnect(mGPSDevice, mControlStopped);
 
   mHasSeenLocation = false;
-  mCallback = nsnull;
+  mCallback = nullptr;
 
   if (mGPSControl) {
     location_gpsd_control_stop(mGPSControl);
     g_object_unref(mGPSControl);
-    mGPSControl = nsnull;
+    mGPSControl = nullptr;
   }
   if (mGPSDevice) {
     g_object_unref(mGPSDevice);
-    mGPSDevice = nsnull;
+    mGPSDevice = nullptr;
   }
 
   return NS_OK;

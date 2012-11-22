@@ -66,10 +66,10 @@ private:
 
   struct IteratorState
   {
-    IteratorState(Accessible* aParent, IteratorState* mParentState = nsnull);
+    IteratorState(Accessible* aParent, IteratorState* mParentState = nullptr);
 
     Accessible* mParent;
-    PRInt32 mIndex;
+    int32_t mIndex;
     IteratorState *mParentState;
   };
 
@@ -115,7 +115,7 @@ private:
   nsIAtom* mRelAttr;
   DocAccessible::AttrRelProviderArray* mProviders;
   nsIContent* mBindingParent;
-  PRUint32 mIndex;
+  uint32_t mIndex;
 };
 
 

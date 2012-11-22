@@ -26,7 +26,7 @@
 #include "mozilla/Attributes.h"
 
 // Time between corrupt database backups.
-#define RECENT_BACKUP_TIME_MICROSEC (PRInt64)86400 * PR_USEC_PER_SEC // 24H
+#define RECENT_BACKUP_TIME_MICROSEC (int64_t)86400 * PR_USEC_PER_SEC // 24H
 
 // Filename of the database.
 #define DATABASE_FILENAME NS_LITERAL_STRING("places.sqlite")
@@ -90,7 +90,7 @@ hasRecentCorruptDB()
     if (NS_SUCCEEDED(currFile->GetLeafName(leafName)) &&
         leafName.Length() >= DATABASE_CORRUPT_FILENAME.Length() &&
         leafName.Find(".corrupt", DATABASE_FILENAME.Length()) != -1) {
-      PRInt64 lastMod = 0;
+      PRTime lastMod = 0;
       currFile->GetLastModifiedTime(&lastMod);
       NS_ENSURE_TRUE(lastMod > 0, false);
       return (PR_Now() - lastMod) > RECENT_BACKUP_TIME_MICROSEC;
@@ -140,7 +140,7 @@ updateSQLiteStatistics(mozIStorageConnection* aDBConn)
   };
 
   nsCOMPtr<mozIStoragePendingStatement> ps;
-  (void)aDBConn->ExecuteAsync(stmts, ArrayLength(stmts), nsnull,
+  (void)aDBConn->ExecuteAsync(stmts, ArrayLength(stmts), nullptr,
                               getter_AddRefs(ps));
   return NS_OK;
 }
@@ -227,9 +227,9 @@ BlockingConnectionCloseCallback::Complete()
   MOZ_ASSERT(os);
   if (!os)
     return NS_OK;
-  DebugOnly<nsresult> rv = os->NotifyObservers(nsnull,
+  DebugOnly<nsresult> rv = os->NotifyObservers(nullptr,
                                                TOPIC_PLACES_CONNECTION_CLOSED,
-                                               nsnull);
+                                               nullptr);
   MOZ_ASSERT(NS_SUCCEEDED(rv));
   return NS_OK;
 }
@@ -260,7 +260,7 @@ CreateRoot(nsCOMPtr<mozIStorageConnection>& aDBConn,
   MOZ_ASSERT(NS_IsMainThread());
 
   // The position of the new item in its folder.
-  static PRInt32 itemPosition = 0;
+  static int32_t itemPosition = 0;
 
   // A single creation timestamp for all roots so that the root folder's
   // last modification time isn't earlier than its childrens' creation time.
@@ -357,7 +357,7 @@ Database::~Database()
 
   // Remove the static reference to the service.
   if (gDatabase == this) {
-    gDatabase = nsnull;
+    gDatabase = nullptr;
   }
 }
 
@@ -565,8 +565,8 @@ Database::InitSchema(bool* aDatabaseMigrated)
     // synchronous = NORMAL mode a crash could cause loss of all the
     // transactions in the journal.  For added safety we will also force
     // checkpointing at strategic moments.
-    PRInt32 checkpointPages =
-      static_cast<PRInt32>(DATABASE_MAX_WAL_SIZE_IN_KIBIBYTES * 1024 / mDBPageSize);
+    int32_t checkpointPages =
+      static_cast<int32_t>(DATABASE_MAX_WAL_SIZE_IN_KIBIBYTES * 1024 / mDBPageSize);
     nsCAutoString checkpointPragma("PRAGMA wal_autocheckpoint = ");
     checkpointPragma.AppendInt(checkpointPages);
     rv = mMainConn->ExecuteSimpleSQL(checkpointPragma);
@@ -603,7 +603,7 @@ Database::InitSchema(bool* aDatabaseMigrated)
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Get the database schema version.
-  PRInt32 currentSchemaVersion;
+  int32_t currentSchemaVersion;
   rv = mMainConn->GetSchemaVersion(&currentSchemaVersion);
   NS_ENSURE_SUCCESS(rv, rv);
   bool databaseInitialized = currentSchemaVersion > 0;
@@ -892,13 +892,13 @@ Database::CreateBookmarkRoots()
   rv = stmt->ExecuteStep(&hasResult);
   if (NS_FAILED(rv)) return rv;
   MOZ_ASSERT(hasResult);
-  PRInt32 bookmarkCount = 0;
+  int32_t bookmarkCount = 0;
   rv = stmt->GetInt32(0, &bookmarkCount);
   if (NS_FAILED(rv)) return rv;
-  PRInt32 rootCount = 0;
+  int32_t rootCount = 0;
   rv = stmt->GetInt32(1, &rootCount);
   if (NS_FAILED(rv)) return rv;
-  PRInt32 positionSum = 0;
+  int32_t positionSum = 0;
   rv = stmt->GetInt32(2, &positionSum);
   if (NS_FAILED(rv)) return rv;
   MOZ_ASSERT(bookmarkCount == 5 && rootCount == 5 && positionSum == 6);
@@ -979,7 +979,7 @@ Database::UpdateBookmarkRootTitles()
     "TagsFolderTitle", "UnsortedBookmarksFolderTitle"
   };
 
-  for (PRUint32 i = 0; i < ArrayLength(rootNames); ++i) {
+  for (uint32_t i = 0; i < ArrayLength(rootNames); ++i) {
     nsXPIDLString title;
     rv = bundle->GetStringFromName(NS_ConvertASCIItoUTF16(titleStringIDs[i]).get(),
                                    getter_Copies(title));
@@ -1001,7 +1001,7 @@ Database::UpdateBookmarkRootTitles()
   rv = stmt->BindParameters(paramsArray);
   if (NS_FAILED(rv)) return rv;
   nsCOMPtr<mozIStoragePendingStatement> pendingStmt;
-  rv = stmt->ExecuteAsync(nsnull, getter_AddRefs(pendingStmt));
+  rv = stmt->ExecuteAsync(nullptr, getter_AddRefs(pendingStmt));
   if (NS_FAILED(rv)) return rv;
 
   return NS_OK;
@@ -1035,7 +1035,7 @@ Database::CheckAndUpdateGUIDs()
 
   bool hasResult;
   while (NS_SUCCEEDED(stmt->ExecuteStep(&hasResult)) && hasResult) {
-    PRInt64 itemId;
+    int64_t itemId;
     rv = stmt->GetInt64(0, &itemId);
     NS_ENSURE_SUCCESS(rv, rv);
     nsCAutoString guid;
@@ -1109,7 +1109,7 @@ Database::CheckAndUpdateGUIDs()
   NS_ENSURE_SUCCESS(rv, rv);
 
   while (NS_SUCCEEDED(stmt->ExecuteStep(&hasResult)) && hasResult) {
-    PRInt64 placeId;
+    int64_t placeId;
     rv = stmt->GetInt64(0, &placeId);
     NS_ENSURE_SUCCESS(rv, rv);
     nsCAutoString guid;
@@ -1246,7 +1246,7 @@ Database::MigrateV7Up()
     );
     NS_ENSURE_STATE(stmt);
     nsCOMPtr<mozIStoragePendingStatement> ps;
-    (void)stmt->ExecuteAsync(nsnull, getter_AddRefs(ps));
+    (void)stmt->ExecuteAsync(nullptr, getter_AddRefs(ps));
   }
 
   // Temporary migration code for bug 396300
@@ -1549,7 +1549,7 @@ Database::MigrateV13Up()
   );
   NS_ENSURE_SUCCESS(rv, rv);
   nsCOMPtr<mozIStoragePendingStatement> ps;
-  rv = deleteDynContainersStmt->ExecuteAsync(nsnull, getter_AddRefs(ps));
+  rv = deleteDynContainersStmt->ExecuteAsync(nullptr, getter_AddRefs(ps));
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
@@ -1676,7 +1676,7 @@ Database::MigrateV17Up()
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<mozIStoragePendingStatement> ps;
-  rv = fillHostsStmt->ExecuteAsync(nsnull, getter_AddRefs(ps));
+  rv = fillHostsStmt->ExecuteAsync(nullptr, getter_AddRefs(ps));
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
@@ -1720,7 +1720,7 @@ Database::MigrateV18Up()
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<mozIStoragePendingStatement> ps;
-  rv = updateTypedStmt->ExecuteAsync(nsnull, getter_AddRefs(ps));
+  rv = updateTypedStmt->ExecuteAsync(nullptr, getter_AddRefs(ps));
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
@@ -1872,7 +1872,7 @@ Database::MigrateV21Up()
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<mozIStoragePendingStatement> ps;
-  rv = updatePrefixesStmt->ExecuteAsync(nsnull, getter_AddRefs(ps));
+  rv = updatePrefixesStmt->ExecuteAsync(nullptr, getter_AddRefs(ps));
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
@@ -1934,13 +1934,13 @@ Database::Observe(nsISupports *aSubject,
       while (NS_SUCCEEDED(e->HasMoreElements(&hasMore)) && hasMore) {
         nsCOMPtr<nsIObserver> observer;
         if (NS_SUCCEEDED(e->GetNext(getter_AddRefs(observer)))) {
-          (void)observer->Observe(observer, TOPIC_PLACES_INIT_COMPLETE, nsnull);
+          (void)observer->Observe(observer, TOPIC_PLACES_INIT_COMPLETE, nullptr);
         }
       }
     }
 
     // Notify all Places users that we are about to shutdown.
-    (void)os->NotifyObservers(nsnull, TOPIC_PLACES_SHUTDOWN, nsnull);
+    (void)os->NotifyObservers(nullptr, TOPIC_PLACES_SHUTDOWN, nullptr);
   }
 
   else if (strcmp(aTopic, TOPIC_PROFILE_BEFORE_CHANGE) == 0) {
@@ -1952,7 +1952,7 @@ Database::Observe(nsISupports *aSubject,
     // Fire internal shutdown notifications.
     nsCOMPtr<nsIObserverService> os = services::GetObserverService();
     if (os) {
-      (void)os->NotifyObservers(nsnull, TOPIC_PLACES_WILL_CLOSE_CONNECTION, nsnull);
+      (void)os->NotifyObservers(nullptr, TOPIC_PLACES_WILL_CLOSE_CONNECTION, nullptr);
     }
 
 #ifdef DEBUG

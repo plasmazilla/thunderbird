@@ -62,7 +62,7 @@ nsComposerCommandsUpdater::NotifyDocumentWillBeDestroyed()
   if (mUpdateTimer)
   {
     mUpdateTimer->Cancel();
-    mUpdateTimer = nsnull;
+    mUpdateTimer = nullptr;
   }
   
   // We can't call this right now; it is too late in some cases and the window
@@ -84,7 +84,7 @@ nsComposerCommandsUpdater::NotifyDocumentStateChanged(bool aNowDirty)
 
 NS_IMETHODIMP
 nsComposerCommandsUpdater::NotifySelectionChanged(nsIDOMDocument *,
-                                                  nsISelection *, PRInt16)
+                                                  nsISelection *, int16_t)
 {
   return PrimeUpdateTimer();
 }
@@ -106,7 +106,7 @@ nsComposerCommandsUpdater::DidDo(nsITransactionManager *aManager,
   nsITransaction *aTransaction, nsresult aDoResult)
 {
   // only need to update if the status of the Undo menu item changes.
-  PRInt32 undoCount;
+  int32_t undoCount;
   aManager->GetNumberOfUndoItems(&undoCount);
   if (undoCount == 1)
   {
@@ -132,7 +132,7 @@ nsComposerCommandsUpdater::DidUndo(nsITransactionManager *aManager,
                                    nsITransaction *aTransaction,
                                    nsresult aUndoResult)
 {
-  PRInt32 undoCount;
+  int32_t undoCount;
   aManager->GetNumberOfUndoItems(&undoCount);
   if (undoCount == 0)
     mFirstDoOfFirstUndo = true;    // reset the state for the next do
@@ -236,7 +236,7 @@ nsComposerCommandsUpdater::PrimeUpdateTimer()
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
-  const PRUint32 kUpdateTimerDelay = 150;
+  const uint32_t kUpdateTimerDelay = 150;
   return mUpdateTimer->InitWithCallback(static_cast<nsITimerCallback*>(this),
                                         kUpdateTimerDelay,
                                         nsITimer::TYPE_ONE_SHOT);
@@ -359,10 +359,10 @@ already_AddRefed<nsPICommandUpdater>
 nsComposerCommandsUpdater::GetCommandUpdater()
 {
   nsCOMPtr<nsIDocShell> docShell = do_QueryReferent(mDocShell);
-  NS_ENSURE_TRUE(docShell, nsnull);
+  NS_ENSURE_TRUE(docShell, nullptr);
   nsCOMPtr<nsICommandManager> manager = do_GetInterface(docShell);
   nsCOMPtr<nsPICommandUpdater> updater = do_QueryInterface(manager);
-  nsPICommandUpdater* retVal = nsnull;
+  nsPICommandUpdater* retVal = nullptr;
   updater.swap(retVal);
   return retVal;
 }

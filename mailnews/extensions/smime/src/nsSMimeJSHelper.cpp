@@ -27,9 +27,9 @@ nsSMimeJSHelper::~nsSMimeJSHelper()
 
 NS_IMETHODIMP nsSMimeJSHelper::GetRecipientCertsInfo(
     nsIMsgCompFields *compFields,
-    PRUint32 *count,
+    uint32_t *count,
     PRUnichar ***emailAddresses,
-    PRInt32 **certVerification,
+    int32_t **certVerification,
     PRUnichar ***certIssuedInfos,
     PRUnichar ***certExpiresInfos,
     nsIX509Cert ***certs,
@@ -47,7 +47,7 @@ NS_IMETHODIMP nsSMimeJSHelper::GetRecipientCertsInfo(
 
   NS_ENSURE_ARG_POINTER(compFields);
 
-  PRUint32 mailbox_count;
+  uint32_t mailbox_count;
   char *mailbox_list;
 
   nsresult rv = getMailboxList(compFields, &mailbox_count, &mailbox_list);
@@ -66,7 +66,7 @@ NS_IMETHODIMP nsSMimeJSHelper::GetRecipientCertsInfo(
   if (mailbox_count)
   {
     PRUnichar **outEA = static_cast<PRUnichar **>(nsMemory::Alloc(mailbox_count * sizeof(PRUnichar *)));
-    PRInt32 *outCV = static_cast<PRInt32 *>(nsMemory::Alloc(mailbox_count * sizeof(PRInt32)));
+    int32_t *outCV = static_cast<int32_t *>(nsMemory::Alloc(mailbox_count * sizeof(int32_t)));
     PRUnichar **outCII = static_cast<PRUnichar **>(nsMemory::Alloc(mailbox_count * sizeof(PRUnichar *)));
     PRUnichar **outCEI = static_cast<PRUnichar **>(nsMemory::Alloc(mailbox_count * sizeof(PRUnichar *)));
     nsIX509Cert **outCerts = static_cast<nsIX509Cert **>(nsMemory::Alloc(mailbox_count * sizeof(nsIX509Cert *)));
@@ -83,7 +83,7 @@ NS_IMETHODIMP nsSMimeJSHelper::GetRecipientCertsInfo(
     else
     {
       PRUnichar **iEA = outEA;
-      PRInt32 *iCV = outCV;
+      int32_t *iCV = outCV;
       PRUnichar **iCII = outCII;
       PRUnichar **iCEI = outCEI;
       nsIX509Cert **iCert = outCerts;
@@ -95,17 +95,17 @@ NS_IMETHODIMP nsSMimeJSHelper::GetRecipientCertsInfo(
 
       // To understand this loop, especially the "+= strlen +1", look at the documentation
       // of ParseHeaderAddresses. Basically, it returns a list of zero terminated strings.
-      for (PRUint32 i = 0;
+      for (uint32_t i = 0;
           i < mailbox_count;
           ++i, ++iEA, ++iCV, ++iCII, ++iCEI, ++iCert, walk += strlen(walk) + 1)
       {
-        *iCert = nsnull;
+        *iCert = nullptr;
         *iCV = 0;
-        *iCII = nsnull;
-        *iCEI = nsnull;
+        *iCII = nullptr;
+        *iCEI = nullptr;
 
         if (memory_failure) {
-          *iEA = nsnull;
+          *iEA = nullptr;
           continue;
         }
 
@@ -120,13 +120,13 @@ NS_IMETHODIMP nsSMimeJSHelper::GetRecipientCertsInfo(
         ToLowerCase(email, email_lowercase);
 
         nsCOMPtr<nsIX509Cert> cert;
-        if (NS_SUCCEEDED(certdb->FindCertByEmailAddress(nsnull, email_lowercase.get(), getter_AddRefs(cert)))
+        if (NS_SUCCEEDED(certdb->FindCertByEmailAddress(nullptr, email_lowercase.get(), getter_AddRefs(cert)))
             && cert)
         {
           *iCert = cert;
           NS_ADDREF(*iCert);
 
-          PRUint32 verification_result;
+          uint32_t verification_result;
 
           if (NS_FAILED(
               cert->VerifyForUsage(nsIX509Cert::CERT_USAGE_EmailRecipient, &verification_result)))
@@ -206,7 +206,7 @@ NS_IMETHODIMP nsSMimeJSHelper::GetRecipientCertsInfo(
 
 NS_IMETHODIMP nsSMimeJSHelper::GetNoCertAddresses(
     nsIMsgCompFields *compFields,
-    PRUint32 *count,
+    uint32_t *count,
     PRUnichar ***emailAddresses)
 {
   NS_ENSURE_ARG_POINTER(count);
@@ -216,7 +216,7 @@ NS_IMETHODIMP nsSMimeJSHelper::GetNoCertAddresses(
 
   NS_ENSURE_ARG_POINTER(compFields);
 
-  PRUint32 mailbox_count;
+  uint32_t mailbox_count;
   char *mailbox_list;
 
   nsresult rv = getMailboxList(compFields, &mailbox_count, &mailbox_list);
@@ -229,7 +229,7 @@ NS_IMETHODIMP nsSMimeJSHelper::GetNoCertAddresses(
   if (!mailbox_count)
   {
     *count = 0;
-    *emailAddresses = nsnull;
+    *emailAddresses = nullptr;
     if (mailbox_list) {
       nsMemory::Free(mailbox_list);
     }
@@ -238,7 +238,7 @@ NS_IMETHODIMP nsSMimeJSHelper::GetNoCertAddresses(
 
   nsCOMPtr<nsIX509CertDB> certdb = do_GetService(NS_X509CERTDB_CONTRACTID);
 
-  PRUint32 missing_count = 0;
+  uint32_t missing_count = 0;
   bool *haveCert = new bool[mailbox_count];
   if (!haveCert)
   {
@@ -256,7 +256,7 @@ NS_IMETHODIMP nsSMimeJSHelper::GetNoCertAddresses(
 
     // To understand this loop, especially the "+= strlen +1", look at the documentation
     // of ParseHeaderAddresses. Basically, it returns a list of zero terminated strings.
-    for (PRUint32 i = 0;
+    for (uint32_t i = 0;
         i < mailbox_count;
         ++i, walk += strlen(walk) + 1)
     {
@@ -267,10 +267,10 @@ NS_IMETHODIMP nsSMimeJSHelper::GetNoCertAddresses(
       ToLowerCase(email, email_lowercase);
 
       nsCOMPtr<nsIX509Cert> cert;
-      if (NS_SUCCEEDED(certdb->FindCertByEmailAddress(nsnull, email_lowercase.get(), getter_AddRefs(cert)))
+      if (NS_SUCCEEDED(certdb->FindCertByEmailAddress(nullptr, email_lowercase.get(), getter_AddRefs(cert)))
           && cert)
       {
-        PRUint32 verification_result;
+        uint32_t verification_result;
 
         if (NS_SUCCEEDED(
               cert->VerifyForUsage(nsIX509Cert::CERT_USAGE_EmailRecipient, &verification_result))
@@ -304,14 +304,14 @@ NS_IMETHODIMP nsSMimeJSHelper::GetNoCertAddresses(
 
       // To understand this loop, especially the "+= strlen +1", look at the documentation
       // of ParseHeaderAddresses. Basically, it returns a list of zero terminated strings.
-      for (PRUint32 i = 0;
+      for (uint32_t i = 0;
           i < mailbox_count;
           ++i, walk += strlen(walk) + 1)
       {
         if (!haveCert[i])
         {
           if (memory_failure) {
-            *iEA = nsnull;
+            *iEA = nullptr;
           }
           else {
             *iEA = ToNewUnicode(NS_ConvertUTF8toUTF16(walk));
@@ -334,7 +334,7 @@ NS_IMETHODIMP nsSMimeJSHelper::GetNoCertAddresses(
   }
   else
   {
-    *emailAddresses = nsnull;
+    *emailAddresses = nullptr;
   }
 
   delete [] haveCert;
@@ -344,7 +344,7 @@ NS_IMETHODIMP nsSMimeJSHelper::GetNoCertAddresses(
   return rv;
 }
 
-nsresult nsSMimeJSHelper::getMailboxList(nsIMsgCompFields *compFields, PRUint32 *mailbox_count, char **mailbox_list)
+nsresult nsSMimeJSHelper::getMailboxList(nsIMsgCompFields *compFields, uint32_t *mailbox_count, char **mailbox_list)
 {
   NS_ENSURE_ARG(mailbox_count);
   NS_ENSURE_ARG(mailbox_list);
@@ -375,7 +375,7 @@ nsresult nsSMimeJSHelper::getMailboxList(nsIMsgCompFields *compFields, PRUint32 
   if (NS_FAILED(res))
     return res;
 
-  *mailbox_list = nsnull;
+  *mailbox_list = nullptr;
   *mailbox_count = 0;
 
   {

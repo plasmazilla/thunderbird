@@ -5,7 +5,7 @@
 
 #include "SmsCursor.h"
 #include "nsIDOMClassInfo.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsIDOMSmsMessage.h"
 #include "nsIDOMSmsRequest.h"
 #include "SmsRequest.h"
@@ -34,7 +34,7 @@ SmsCursor::SmsCursor()
 {
 }
 
-SmsCursor::SmsCursor(PRInt32 aListId, nsIDOMMozSmsRequest* aRequest)
+SmsCursor::SmsCursor(int32_t aListId, nsIDOMMozSmsRequest* aRequest)
   : mListId(aListId)
   , mRequest(aRequest)
 {
@@ -61,7 +61,7 @@ SmsCursor::Disconnect()
 {
   NS_ASSERTION(!mMessage, "mMessage shouldn't be set!");
 
-  mRequest = nsnull;
+  mRequest = nullptr;
   mListId = -1;
 }
 
@@ -80,12 +80,12 @@ SmsCursor::Continue()
     return NS_ERROR_DOM_INVALID_STATE_ERR;
   }
 
-  mMessage = nsnull;
+  mMessage = nullptr;
   static_cast<SmsRequest*>(mRequest.get())->Reset();
 
   nsCOMPtr<nsISmsRequestManager> requestManager = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
 
-  PRInt32 requestId;
+  int32_t requestId;
   nsresult rv = requestManager->AddRequest(mRequest, &requestId);
   NS_ENSURE_SUCCESS(rv, rv);
 

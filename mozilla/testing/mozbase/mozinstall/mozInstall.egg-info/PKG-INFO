@@ -1,6 +1,6 @@
 Metadata-Version: 1.0
 Name: mozInstall
-Version: 1.1
+Version: 1.2
 Summary: This is a utility package for installing and uninstalling Mozilla applications on various platforms.
 Home-page: https://github.com/mozilla/mozbase
 Author: Mozilla Automation and Tools team

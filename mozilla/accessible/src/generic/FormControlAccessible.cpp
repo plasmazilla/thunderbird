@@ -47,10 +47,10 @@ ProgressMeterAccessible<Max>::NativeRole()
 }
 
 template<int Max>
-PRUint64
+uint64_t
 ProgressMeterAccessible<Max>::NativeState()
 {
-  PRUint64 state = LeafAccessible::NativeState();
+  uint64_t state = LeafAccessible::NativeState();
 
   // An undetermined progressbar (i.e. without a value) has a mixed state.
   nsAutoString attrValue;
@@ -111,7 +111,7 @@ ProgressMeterAccessible<Max>::GetMaximumValue(double* aMaximumValue)
 
   nsAutoString value;
   if (mContent->GetAttr(kNameSpaceID_None, nsGkAtoms::max, value)) {
-    PRInt32 result = NS_OK;
+    nsresult result = NS_OK;
     *aMaximumValue = value.ToDouble(&result);
     return result;
   }
@@ -159,7 +159,7 @@ ProgressMeterAccessible<Max>::GetCurrentValue(double* aCurrentValue)
   if (attrValue.IsEmpty())
     return NS_OK;
 
-  PRInt32 error = NS_OK;
+  nsresult error = NS_OK;
   double value = attrValue.ToDouble(&error);
   if (NS_FAILED(error))
     return NS_OK; // Zero value because of wrong markup.
@@ -185,14 +185,14 @@ RadioButtonAccessible::
 {
 }
 
-PRUint8
+uint8_t
 RadioButtonAccessible::ActionCount()
 {
   return 1;
 }
 
 NS_IMETHODIMP
-RadioButtonAccessible::GetActionName(PRUint8 aIndex, nsAString& aName)
+RadioButtonAccessible::GetActionName(uint8_t aIndex, nsAString& aName)
 {
   if (aIndex == eAction_Click) {
     aName.AssignLiteral("select"); 
@@ -202,7 +202,7 @@ RadioButtonAccessible::GetActionName(PRUint8 aIndex, nsAString& aName)
 }
 
 NS_IMETHODIMP
-RadioButtonAccessible::DoAction(PRUint8 aIndex)
+RadioButtonAccessible::DoAction(uint8_t aIndex)
 {
   if (aIndex != eAction_Click)
     return NS_ERROR_INVALID_ARG;

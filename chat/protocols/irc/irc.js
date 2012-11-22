@@ -42,33 +42,43 @@ function ircMessage(aData) {
   //     <parameter>: /[^ ]+/
   //     <last parameter>: /.+/
   // See http://joshualuckers.nl/2010/01/10/regular-expression-to-match-raw-irc-messages/
-  if ((temp = aData.match(/^(?::([^ ]+) )?([^ ]+)(?: ((?:[^: ][^ ]* ?)*))?(?: ?:(.*))?$/))) {
-    // Assume message is from the server if not specified
-    prefix = temp[1];
-    message.command = temp[2];
-    // Space separated parameters
-    message.params = temp[3] ? temp[3].trim().split(/ +/) : [];
-    // Last parameter can contain spaces or be an empty string.
-    if (temp[4] != undefined)
-      message.params.push(temp[4]);
-
-    // The source string can be split into multiple parts as:
-    //   :(server|nickname[[!user]@host]
-    // If the source contains a . or a :, assume it's a server name. See RFC
-    // 2812 Section 2.3 definition of servername vs. nickname.
-    if (prefix &&
-        (temp = prefix.match(/^([^ !@\.:]+)(?:!([^ @]+))?(?:@([^ ]+))?$/))) {
-      message.nickname = temp[1];
-      message.user = temp[2] || null; // Optional
-      message.host = temp[3] || null; // Optional
-      if (message.user)
-        message.source = message.user + "@" + message.host;
-      else
-        message.source = message.host; // Note: this can be null!
-    }
-    else if (prefix)
-      message.servername = prefix;
+  // Note that this expression is slightly more aggressive in matching than RFC
+  // 2812 would allow. It allows for empty parameters (besides the last
+  // parameter, which can always be empty), by allowing two spaces in a row.
+  // (This is for compatibility with Unreal's 432 response, which returns an
+  // empty first parameter.) It also allows a trailing space after the
+  // <parameter>s when no <last parameter> is present (also occurs with Unreal).
+  if (!(temp = aData.match(/^(?::([^ ]+) )?([^ ]+)((?: +[^: ][^ ]*)*)? ?(?::([\s\S]*))?$/))) {
+    ERROR("Couldn't parse message: \"" + aData + "\"");
+    return message;
   }
+
+  // Assume message is from the server if not specified
+  prefix = temp[1];
+  message.command = temp[2];
+  // Space separated parameters. Since we expect a space as the first thing
+  // here, we want to ignore the first value (which is empty).
+  message.params = temp[3] ? temp[3].split(" ").slice(1) : [];
+  // Last parameter can contain spaces or be an empty string.
+  if (temp[4] != undefined)
+    message.params.push(temp[4]);
+
+  // The source string can be split into multiple parts as:
+  //   :(server|nickname[[!user]@host]
+  // If the source contains a . or a :, assume it's a server name. See RFC
+  // 2812 Section 2.3 definition of servername vs. nickname.
+  if (prefix &&
+      (temp = prefix.match(/^([^ !@\.:]+)(?:!([^ @]+))?(?:@([^ ]+))?$/))) {
+    message.nickname = temp[1];
+    message.user = temp[2] || null; // Optional
+    message.host = temp[3] || null; // Optional
+    if (message.user)
+      message.source = message.user + "@" + message.host;
+    else
+      message.source = message.host; // Note: this can be null!
+  }
+  else if (prefix)
+    message.servername = prefix;
 
   return message;
 }
@@ -167,6 +177,15 @@ function ircChannel(aAccount, aName, aNick) {
   this._init(aAccount, aName, aNick);
   this._modes = [];
   this._observedNicks = [];
+
+  // Ensure chatRoomFields information is available for reconnection.
+  let nName = aAccount.normalize(this.name);
+  if (hasOwnProperty(aAccount._chatRoomFieldsList, nName))
+    this._chatRoomFields = aAccount._chatRoomFieldsList[nName];
+  else {
+    WARN("Opening a MUC without storing its prplIChatRoomFieldValues first.");
+    this._chatRoomFields = aAccount.getChatRoomDefaultFieldValues(this.name);
+  }
 }
 ircChannel.prototype = {
   __proto__: GenericConvChatPrototype,
@@ -181,6 +200,11 @@ ircChannel.prototype = {
                                                aProperties);
   },
 
+  // Stores the prplIChatRoomFieldValues required to join this channel
+  // to enable later reconnections. If absent, the MUC will not be reconnected
+  // automatically after disconnections.
+  _chatRoomFields: null,
+
   // Section 3.2.2 of RFC 2812.
   part: function(aMessage) {
     let params = [this.name];
@@ -192,6 +216,9 @@ ircChannel.prototype = {
       params.push(msg);
 
     this._account.sendMessage("PART", params);
+
+    // Remove reconnection information.
+    delete this._chatRoomFields;
   },
 
   close: function() {
@@ -478,10 +505,10 @@ ircSocket.prototype = {
     this._account.gotDisconnected(Ci.prplIAccount.ERROR_NETWORK_ERROR,
                                   _("connection.error.timeOut"));
   },
-  onCertificationError: function(aSocketInfo, aStatus, aTargetSite) {
-    ERROR("Certification error.");
+  onBadCertificate: function(aNSSErrorMessage) {
+    ERROR("bad certificate: " + aNSSErrorMessage);
     this._account.gotDisconnected(Ci.prplIAccount.ERROR_CERT_OTHER_ERROR,
-                                  _("connection.error.certError"));
+                                  aNSSErrorMessage);
   },
   log: LOG
 };
@@ -522,6 +549,7 @@ function ircAccount(aProtocol, aImAccount) {
   this._isOnQueue = [];
   this.pendingIsOnQueue = [];
   this.whoisInformation = {};
+  this._chatRoomFieldsList = {};
 }
 ircAccount.prototype = {
   __proto__: GenericAccountPrototype,
@@ -630,10 +658,35 @@ ircAccount.prototype = {
       return EmptyEnumerator;
 
     let whoisInformation = this.whoisInformation[nick];
+    if (whoisInformation.serverName && whoisInformation.serverInfo) {
+      whoisInformation.server =
+        _("tooltip.serverValue", whoisInformation.serverName,
+          whoisInformation.serverInfo);
+    }
+
+    // List of the names of the info to actually show in the tooltip and
+    // optionally a transform function to apply to the value. Each field here
+    // maps to tooltip.<fieldname> in irc.properties.
+    // See the various RPL_WHOIS* results for the options.
+    let normalizeBool = function(aBool) _(aBool ? "yes" : "no");
+    const kFields = {
+      realname: null,
+      server: null,
+      connectedFrom: null,
+      registered: normalizeBool,
+      secure: normalizeBool,
+      away: null,
+      ircOp: normalizeBool,
+      idleTime: null,
+      channels: null
+    };
+
     let tooltipInfo = [];
-    for (let field in whoisInformation) {
-      if (field != "nick" && field != "offline") {
+    for (let field in kFields) {
+      if (whoisInformation.hasOwnProperty(field) && whoisInformation[field]) {
         let value = whoisInformation[field];
+        if (kFields[field])
+          value = kFields[field](value);
         tooltipInfo.push(new TooltipInfo(_("tooltip." + field), value));
       }
     }
@@ -652,6 +705,21 @@ ircAccount.prototype = {
     let nick = this.normalize(aNick);
     if (!hasOwnProperty(this.whoisInformation, nick))
       this.whoisInformation[nick] = {"nick": aNick};
+  },
+  setWhois: function(aNick, aFields) {
+    let nick = this.normalize(aNick, this.userPrefixes);
+    // If the nickname isn't in the list yet, add it.
+    if (!hasOwnProperty(this.whoisInformation, nick))
+      this.whoisInformation[nick] = {};
+
+    // Set non-normalized nickname field.
+    this.whoisInformation[nick]["nick"] = aNick;
+
+    // Set the WHOIS fields.
+    for (let field in aFields)
+      this.whoisInformation[nick][field] = aFields[field];
+
+    return true;
   },
   // Write WHOIS information to a conversation.
   writeWhois: function(aConv, aNick, aTooltipInfo) {
@@ -890,13 +958,22 @@ ircAccount.prototype = {
 
   createConversation: function(aName) this.getConversation(aName),
 
+  // Temporarily stores the prplIChatRoomFieldValues passed to joinChat for
+  // each channel to enable later reconnections.
+  _chatRoomFieldsList: {},
+
   // aComponents implements prplIChatRoomFieldValues.
   joinChat: function(aComponents) {
     let channel = aComponents.getValue("channel");
+    if (!channel) {
+      ERROR("joinChat called without a channel name.");
+      return;
+    }
     let params = [channel];
     let password = aComponents.getValue("password");
     if (password)
       params.push(password);
+    this._chatRoomFieldsList[this.normalize(channel)] = aComponents;
     // Send the join command, but don't log the channel key.
     this.sendMessage("JOIN", params,
                      "JOIN " + channel + (password ? " <key not logged>" : ""));
@@ -908,7 +985,7 @@ ircAccount.prototype = {
   },
 
   parseDefaultChatName: function(aDefaultName) {
-    let params = aDefaultName.split(" ");
+    let params = aDefaultName.trim().split(/\s+/);
     let chatFields = {channel: params[0]};
     if (params.length > 1)
       chatFields.password = params[1];
@@ -1037,9 +1114,13 @@ ircAccount.prototype = {
     this.sendMessage("NICK", this._requestedNickname);
 
     // Send the user message (section 3.1.3).
-    // Use brandShortName as the username.
-    let username =
-      l10nHelper("chrome://branding/locale/brand.properties")("brandShortName");
+    let username;
+    // Use a custom username in a hidden preference.
+    if (this.prefs.prefHasUserValue("username"))
+      username = this.getString("username");
+    // But fallback to brandShortName if no username is provided (or is empty).
+    if (!username)
+      username = l10nHelper("chrome://branding/locale/brand.properties")("brandShortName");
     this.sendMessage("USER", [username, this._mode.toString(), "*",
                               this._realname || this._requestedNickname]);
   },
@@ -1063,7 +1144,7 @@ ircAccount.prototype = {
 
     // Clean up each conversation: mark as left and remove participant.
     for each (let conversation in this._conversations) {
-      if (conversation.isChat) {
+      if (conversation.isChat && !conversation.left) {
         // Remove the user's nick and mark the conversation as left as that's
         // the final known state of the room.
         conversation.removeParticipant(this._nickname, true);
@@ -1118,6 +1199,7 @@ function ircProtocol() {
   Cu.import("resource:///modules/ircServices.jsm", tempScope);
 
   // Extra features.
+  Cu.import("resource:///modules/ircNonStandard.jsm", tempScope);
   Cu.import("resource:///modules/ircWatchMonitor.jsm", tempScope);
 
   // Register default IRC handlers (IRC base, CTCP).
@@ -1134,6 +1216,7 @@ function ircProtocol() {
   ircHandlers.registerServicesHandler(tempScope.servicesBase);
 
   // Register extra features.
+  ircHandlers.registerHandler(tempScope.ircNonStandard);
   ircHandlers.registerHandler(tempScope.ircWATCH);
   ircHandlers.registerISUPPORTHandler(tempScope.isupportWATCH);
   ircHandlers.registerHandler(tempScope.ircMONITOR);

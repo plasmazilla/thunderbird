@@ -68,7 +68,8 @@ public:
   // nsSVGSVGElement methods:
   virtual bool HasValidDimensions() const;
 
-  virtual mozilla::SVGAnimatedTransformList* GetAnimatedTransformList();
+  virtual mozilla::SVGAnimatedTransformList*
+    GetAnimatedTransformList(uint32_t aFlags = 0);
   virtual nsIAtom* GetTransformListAttrName() const {
     return nsGkAtoms::patternTransform;
   }

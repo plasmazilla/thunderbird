@@ -49,7 +49,7 @@ nsSVGClipPathFrame::ClipPaint(nsRenderingContext* aContext,
 
   gfxContext *gfx = aContext->ThebesContext();
 
-  nsISVGChildFrame *singleClipPathChild = nsnull;
+  nsISVGChildFrame *singleClipPathChild = nullptr;
 
   if (IsTrivial(&singleClipPathChild)) {
     // Notify our child that it's painting as part of a clipPath, and that
@@ -61,9 +61,8 @@ nsSVGClipPathFrame::ClipPaint(nsRenderingContext* aContext,
       gfx->Rectangle(gfxRect());
     } else {
       singleClipPathChild->NotifySVGChanged(
-                             nsISVGChildFrame::DO_NOT_NOTIFY_RENDERING_OBSERVERS | 
                              nsISVGChildFrame::TRANSFORM_CHANGED);
-      singleClipPathChild->PaintSVG(aContext, nsnull);
+      singleClipPathChild->PaintSVG(aContext, nullptr);
     }
     gfx->Clip();
     gfx->NewPath();
@@ -77,7 +76,7 @@ nsSVGClipPathFrame::ClipPaint(nsRenderingContext* aContext,
 
   // Check if this clipPath is itself clipped by another clipPath:
   nsSVGClipPathFrame *clipPathFrame =
-    nsSVGEffects::GetEffectProperties(this).GetClipPathFrame(nsnull);
+    nsSVGEffects::GetEffectProperties(this).GetClipPathFrame(nullptr);
   bool referencedClipIsTrivial;
   if (clipPathFrame) {
     referencedClipIsTrivial = clipPathFrame->IsTrivial();
@@ -94,9 +93,7 @@ nsSVGClipPathFrame::ClipPaint(nsRenderingContext* aContext,
     nsISVGChildFrame* SVGFrame = do_QueryFrame(kid);
     if (SVGFrame) {
       // The CTM of each frame referencing us can be different.
-      SVGFrame->NotifySVGChanged(
-                          nsISVGChildFrame::DO_NOT_NOTIFY_RENDERING_OBSERVERS | 
-                          nsISVGChildFrame::TRANSFORM_CHANGED);
+      SVGFrame->NotifySVGChanged(nsISVGChildFrame::TRANSFORM_CHANGED);
 
       bool isOK = true;
       nsSVGClipPathFrame *clipPathFrame =
@@ -117,7 +114,7 @@ nsSVGClipPathFrame::ClipPaint(nsRenderingContext* aContext,
         }
       }
 
-      SVGFrame->PaintSVG(aContext, nsnull);
+      SVGFrame->PaintSVG(aContext, nullptr);
 
       if (clipPathFrame) {
         if (!isTrivial) {
@@ -180,7 +177,7 @@ nsSVGClipPathFrame::ClipHitTest(nsIFrame* aParent,
   }
 
   nsSVGClipPathFrame *clipPathFrame =
-    nsSVGEffects::GetEffectProperties(this).GetClipPathFrame(nsnull);
+    nsSVGEffects::GetEffectProperties(this).GetClipPathFrame(nullptr);
   if (clipPathFrame && !clipPathFrame->ClipHitTest(aParent, aMatrix, aPoint))
     return false;
 
@@ -204,14 +201,14 @@ bool
 nsSVGClipPathFrame::IsTrivial(nsISVGChildFrame **aSingleChild)
 {
   // If the clip path is clipped then it's non-trivial
-  if (nsSVGEffects::GetEffectProperties(this).GetClipPathFrame(nsnull))
+  if (nsSVGEffects::GetEffectProperties(this).GetClipPathFrame(nullptr))
     return false;
 
   if (aSingleChild) {
-    *aSingleChild = nsnull;
+    *aSingleChild = nullptr;
   }
 
-  nsISVGChildFrame *foundChild = nsnull;
+  nsISVGChildFrame *foundChild = nullptr;
 
   for (nsIFrame* kid = mFrames.FirstChild(); kid;
        kid = kid->GetNextSibling()) {
@@ -223,7 +220,7 @@ nsSVGClipPathFrame::IsTrivial(nsISVGChildFrame **aSingleChild)
         return false;
 
       // or where the child is itself clipped
-      if (nsSVGEffects::GetEffectProperties(kid).GetClipPathFrame(nsnull))
+      if (nsSVGEffects::GetEffectProperties(kid).GetClipPathFrame(nullptr))
         return false;
 
       foundChild = svgChild;
@@ -277,9 +274,9 @@ nsSVGClipPathFrame::IsValid()
 }
 
 NS_IMETHODIMP
-nsSVGClipPathFrame::AttributeChanged(PRInt32         aNameSpaceID,
+nsSVGClipPathFrame::AttributeChanged(int32_t         aNameSpaceID,
                                      nsIAtom*        aAttribute,
-                                     PRInt32         aModType)
+                                     int32_t         aModType)
 {
   if (aNameSpaceID == kNameSpaceID_None) {
     if (aAttribute == nsGkAtoms::transform) {
@@ -317,7 +314,7 @@ nsSVGClipPathFrame::GetType() const
 }
 
 gfxMatrix
-nsSVGClipPathFrame::GetCanvasTM(PRUint32 aFor)
+nsSVGClipPathFrame::GetCanvasTM(uint32_t aFor)
 {
   nsSVGClipPathElement *content = static_cast<nsSVGClipPathElement*>(mContent);
 

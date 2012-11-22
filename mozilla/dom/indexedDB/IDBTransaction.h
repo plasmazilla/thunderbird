@@ -227,7 +227,7 @@ private:
   nsTArray<nsString> mObjectStoreNames;
   ReadyState mReadyState;
   Mode mMode;
-  PRUint32 mPendingRequests;
+  uint32_t mPendingRequests;
 
   // Only touched on the main thread.
   NS_DECL_EVENT_HANDLER(error)
@@ -243,7 +243,7 @@ private:
   nsCOMPtr<mozIStorageConnection> mConnection;
 
   // Only touched on the database thread.
-  PRUint32 mSavepointCount;
+  uint32_t mSavepointCount;
 
   nsTArray<nsRefPtr<IDBObjectStore> > mCreatedObjectStores;
   nsTArray<nsRefPtr<IDBObjectStore> > mDeletedObjectStores;
@@ -283,7 +283,7 @@ public:
         NS_ERROR("Out of memory!");
         return false;
       }
-      aCOMPtr = nsnull;
+      aCOMPtr = nullptr;
     }
     return true;
   }
@@ -328,19 +328,9 @@ public:
     mFileInfoEntries.Clear();
   }
 
-  nsresult UpdateDatabase(mozIStorageConnection* aConnection)
-  {
-    DatabaseUpdateFunction function(aConnection);
-
-    mFileInfoEntries.EnumerateRead(DatabaseUpdateCallback, &function);
-
-    return function.ErrorCode();
-  }
-
-  void UpdateFileInfos()
-  {
-    mFileInfoEntries.EnumerateRead(FileInfoUpdateCallback, nsnull);
-  }
+  nsresult WillCommit(mozIStorageConnection* aConnection);
+  void DidCommit();
+  void DidAbort();
 
 private:
   class FileInfoEntry
@@ -354,7 +344,7 @@ private:
     { }
 
     nsRefPtr<FileInfo> mFileInfo;
-    PRInt32 mDelta;
+    int32_t mDelta;
   };
 
   enum UpdateType {
@@ -365,42 +355,54 @@ private:
   class DatabaseUpdateFunction
   {
   public:
-    DatabaseUpdateFunction(mozIStorageConnection* aConnection)
-    : mConnection(aConnection), mErrorCode(NS_OK)
+    DatabaseUpdateFunction(mozIStorageConnection* aConnection,
+                           UpdateRefcountFunction* aFunction)
+    : mConnection(aConnection), mFunction(aFunction), mErrorCode(NS_OK)
     { }
 
-    bool Update(PRInt64 aId, PRInt32 aDelta);
+    bool Update(int64_t aId, int32_t aDelta);
     nsresult ErrorCode()
     {
       return mErrorCode;
     }
 
   private:
-    nsresult UpdateInternal(PRInt64 aId, PRInt32 aDelta);
+    nsresult UpdateInternal(int64_t aId, int32_t aDelta);
 
     nsCOMPtr<mozIStorageConnection> mConnection;
     nsCOMPtr<mozIStorageStatement> mUpdateStatement;
+    nsCOMPtr<mozIStorageStatement> mSelectStatement;
     nsCOMPtr<mozIStorageStatement> mInsertStatement;
+
+    UpdateRefcountFunction* mFunction;
 
     nsresult mErrorCode;
   };
 
   nsresult ProcessValue(mozIStorageValueArray* aValues,
-                        PRInt32 aIndex,
+                        int32_t aIndex,
                         UpdateType aUpdateType);
 
+  nsresult CreateJournals();
+
+  nsresult RemoveJournals(const nsTArray<int64_t>& aJournals);
+
   static PLDHashOperator
-  DatabaseUpdateCallback(const PRUint64& aKey,
+  DatabaseUpdateCallback(const uint64_t& aKey,
                          FileInfoEntry* aValue,
                          void* aUserArg);
 
   static PLDHashOperator
-  FileInfoUpdateCallback(const PRUint64& aKey,
+  FileInfoUpdateCallback(const uint64_t& aKey,
                          FileInfoEntry* aValue,
                          void* aUserArg);
 
   FileManager* mFileManager;
   nsClassHashtable<nsUint64HashKey, FileInfoEntry> mFileInfoEntries;
+
+  nsTArray<int64_t> mJournalsToCreateBeforeCommit;
+  nsTArray<int64_t> mJournalsToRemoveAfterCommit;
+  nsTArray<int64_t> mJournalsToRemoveAfterAbort;
 };
 
 END_INDEXEDDB_NAMESPACE

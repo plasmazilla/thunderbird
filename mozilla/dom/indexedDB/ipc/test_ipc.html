@@ -18,13 +18,14 @@
     // killed.
     SimpleTest.requestLongerTimeout(100);
 
+    // Disable crash observers as it breaks later tests.
     function iframeScriptFirst() {
-      // Disable this functionality, it breaks later tests.
       SpecialPowers.prototype.registerProcessCrashObservers = function() { };
       SpecialPowers.prototype.unregisterProcessCrashObservers = function() { };
 
       content.wrappedJSObject.RunSet.reloadAndRunAll({
-        preventDefault: function() { }
+        preventDefault: function() { },
+        __exposedProps__: { preventDefault: 'r' }
       });
     }
 
@@ -58,7 +59,7 @@
     let regex = new RegExp(regexString);
 
     function onTestMessage(data) {
-      let message = data.json.msg;
+      let message = SpecialPowers.wrap(data).json.msg;
       let match = regex.exec(message);
       if (match) {
         let state = match[1];
@@ -113,7 +114,7 @@
 
         let spObserver =
           comp.classes["@mozilla.org/special-powers-observer;1"]
-              .getService(comp.interfaces.nsIFrameMessageListener);
+              .getService(comp.interfaces.nsIMessageListener);
 
         mm.addMessageListener("SPPrefService", spObserver);
         mm.addMessageListener("SPProcessCrashService", spObserver);

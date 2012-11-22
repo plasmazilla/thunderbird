@@ -22,7 +22,7 @@
 
 #include "nsPropertyTable.h"
 #include "pldhash.h"
-#include "nsContentErrors.h"
+#include "nsError.h"
 #include "nsIAtom.h"
 
 struct PropertyListMapEntry : public PLDHashEntryHdr {
@@ -140,7 +140,7 @@ struct PropertyEnumeratorData
 
 static PLDHashOperator
 PropertyEnumerator(PLDHashTable* aTable, PLDHashEntryHdr* aHdr,
-                   PRUint32 aNumber, void* aArg)
+                   uint32_t aNumber, void* aArg)
 {
   PropertyListMapEntry* entry = static_cast<PropertyListMapEntry*>(aHdr);
   PropertyEnumeratorData* data = static_cast<PropertyEnumeratorData*>(aArg);
@@ -166,7 +166,7 @@ nsPropertyTable::GetPropertyInternal(nsPropertyOwner aObject,
 {
   NS_PRECONDITION(aPropertyName && aObject, "unexpected null param");
   nsresult rv = NS_PROPTABLE_PROP_NOT_THERE;
-  void *propValue = nsnull;
+  void *propValue = nullptr;
 
   PropertyList* propertyList = GetPropertyListFor(aPropertyName);
   if (propertyList) {
@@ -241,7 +241,7 @@ nsPropertyTable::SetPropertyInternal(nsPropertyOwner     aObject,
     result = NS_PROPTABLE_PROP_OVERWRITTEN;
   }
   else if (aOldValue) {
-    *aOldValue = nsnull;
+    *aOldValue = nullptr;
   }
   entry->key = aObject;
   entry->value = aPropertyValue;
@@ -288,7 +288,7 @@ nsPropertyTable::PropertyList::PropertyList(nsIAtom            *aName,
     mDtorFunc(aDtorFunc),
     mDtorData(aDtorData),
     mTransfer(aTransfer),
-    mNext(nsnull)
+    mNext(nullptr)
 {
   PL_DHashTableInit(&mObjectValueMap, PL_DHashGetStubOps(), this,
                     sizeof(PropertyListMapEntry), 16);
@@ -302,7 +302,7 @@ nsPropertyTable::PropertyList::~PropertyList()
 
 static PLDHashOperator
 DestroyPropertyEnumerator(PLDHashTable *table, PLDHashEntryHdr *hdr,
-                          PRUint32 number, void *arg)
+                          uint32_t number, void *arg)
 {
   nsPropertyTable::PropertyList *propList =
       static_cast<nsPropertyTable::PropertyList*>(table->data);
@@ -319,7 +319,7 @@ nsPropertyTable::PropertyList::Destroy()
   // Enumerate any remaining object/value pairs and destroy the value object
   if (mDtorFunc)
     PL_DHashTableEnumerate(&mObjectValueMap, DestroyPropertyEnumerator,
-                           nsnull);
+                           nullptr);
 }
 
 bool

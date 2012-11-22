@@ -26,19 +26,19 @@ nsresult nsImportStringBundle::GetStringBundle(const char *aPropertyURL,
   return rv;
 }
 
-void nsImportStringBundle::GetStringByID(PRInt32 aStringID,
+void nsImportStringBundle::GetStringByID(int32_t aStringID,
                                          nsIStringBundle *aBundle,
                                          nsString &aResult)
 {
   aResult.Adopt(GetStringByID(aStringID, aBundle));
 }
 
-PRUnichar *nsImportStringBundle::GetStringByID(PRInt32 aStringID,
+PRUnichar *nsImportStringBundle::GetStringByID(int32_t aStringID,
                                                nsIStringBundle *aBundle)
 {
   if (aBundle)
   {
-    PRUnichar *ptrv = nsnull;
+    PRUnichar *ptrv = nullptr;
     nsresult rv = aBundle->GetStringFromID(aStringID, &ptrv);
 
     if (NS_SUCCEEDED(rv) && ptrv)
@@ -64,7 +64,7 @@ PRUnichar *nsImportStringBundle::GetStringByName(const char *aName,
 {
   if (aBundle)
   {
-    PRUnichar *ptrv = nsnull;
+    PRUnichar *ptrv = nullptr;
     nsresult rv = aBundle->GetStringFromName(
         NS_ConvertUTF8toUTF16(aName).get(), &ptrv);
 

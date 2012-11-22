@@ -17,21 +17,21 @@ getLinkCB(AtkHypertext *aText, gint aLinkIndex)
 {
   AccessibleWrap* accWrap = GetAccessibleWrap(ATK_OBJECT(aText));
   if (!accWrap)
-    return nsnull;
+    return nullptr;
 
   HyperTextAccessible* hyperText = accWrap->AsHyperText();
-  NS_ENSURE_TRUE(hyperText, nsnull);
+  NS_ENSURE_TRUE(hyperText, nullptr);
 
   Accessible* hyperLink = hyperText->GetLinkAt(aLinkIndex);
   if (!hyperLink)
-    return nsnull;
+    return nullptr;
 
   AtkObject* hyperLinkAtkObj = AccessibleWrap::GetAtkObject(hyperLink);
   AccessibleWrap* accChild = GetAccessibleWrap(hyperLinkAtkObj);
-  NS_ENSURE_TRUE(accChild, nsnull);
+  NS_ENSURE_TRUE(accChild, nullptr);
 
   MaiHyperlink *maiHyperlink = accChild->GetMaiHyperlink();
-  NS_ENSURE_TRUE(maiHyperlink, nsnull);
+  NS_ENSURE_TRUE(maiHyperlink, nullptr);
   return maiHyperlink->GetAtkHyperlink();
 }
 
@@ -58,7 +58,7 @@ getLinkIndexCB(AtkHypertext *aText, gint aCharIndex)
   HyperTextAccessible* hyperText = accWrap->AsHyperText();
   NS_ENSURE_TRUE(hyperText, -1);
 
-  PRInt32 index = -1;
+  int32_t index = -1;
   nsresult rv = hyperText->GetLinkIndexAtOffset(aCharIndex, &index);
   NS_ENSURE_SUCCESS(rv, -1);
 

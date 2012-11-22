@@ -46,7 +46,7 @@ public:
     NS_DECL_NSIOBSERVER
 
     bool IsCached(nsIURI* aURI) {
-        return GetPrototype(aURI) != nsnull;
+        return GetPrototype(aURI) != nullptr;
     }
     void AbortCaching();
 
@@ -79,7 +79,7 @@ public:
 
     /**
      * Get a style sheet by URI. If the style sheet is not in the cache,
-     * returns nsnull.
+     * returns nullptr.
      */
     nsCSSStyleSheet* GetStyleSheet(nsIURI* aURI) {
         return mStyleSheetTable.GetWeak(aURI);
@@ -121,7 +121,7 @@ public:
         NS_IF_RELEASE(sInstance);
     }
 
-    void MarkInCCGeneration(PRUint32 aGeneration);
+    void MarkInCCGeneration(uint32_t aGeneration);
 protected:
     friend nsresult
     NS_NewXULPrototypeCache(nsISupports* aOuter, REFNSIID aIID, void** aResult);
@@ -142,7 +142,7 @@ protected:
     ///////////////////////////////////////////////////////////////////////////
     // StartupCache
     // this is really a hash set, with a dummy data parameter
-    nsDataHashtable<nsURIHashKey,PRUint32> mCacheURITable;
+    nsDataHashtable<nsURIHashKey,uint32_t> mCacheURITable;
 
     static StartupCache* gStartupCache;
     nsInterfaceHashtable<nsURIHashKey, nsIStorageStream> mOutputStreamTable;

@@ -25,7 +25,7 @@ NS_IMPL_ISUPPORTS2(nsRssService,
 NS_IMETHODIMP nsRssService::GetDefaultLocalPath(nsIFile * *aDefaultLocalPath)
 {
     NS_ENSURE_ARG_POINTER(aDefaultLocalPath);
-    *aDefaultLocalPath = nsnull;
+    *aDefaultLocalPath = nullptr;
     
     nsCOMPtr<nsIFile> localFile;
     nsCOMPtr<nsIProperties> dirService(do_GetService("@mozilla.org/file/directory_service;1"));
@@ -85,7 +85,7 @@ NS_IMETHODIMP nsRssService::GetCanDuplicate(bool *aCanDuplicate)
     return NS_OK;
 }
 
-NS_IMETHODIMP nsRssService::GetDefaultServerPort(bool isSecure, PRInt32 *_retval)
+NS_IMETHODIMP nsRssService::GetDefaultServerPort(bool isSecure, int32_t *_retval)
 {
     *_retval = -1;
     return NS_OK;

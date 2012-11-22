@@ -50,9 +50,9 @@ public:
   virtual nsIFrame* GetContentInsertionFrame() {
     nsIFrame* frame = GetFirstPrincipalChild();
 
-    // if no children return nsnull
+    // if no children return nullptr
     if (!frame)
-      return nsnull;
+      return nullptr;
 
     return frame->GetContentInsertionFrame();
   }
@@ -84,13 +84,13 @@ protected:
   nscoord        mLastBalanceHeight;
   nsReflowStatus mLastFrameStatus;
 
-  virtual PRIntn GetSkipSides() const;
+  virtual int GetSkipSides() const;
 
   /**
    * These are the parameters that control the layout of columns.
    */
   struct ReflowConfig {
-    PRInt32 mBalanceColCount;
+    int32_t mBalanceColCount;
     nscoord mColWidth;
     nscoord mExpectedWidthLeftOver;
     nscoord mColGap;
@@ -153,12 +153,11 @@ protected:
  * XXX should we support CSS columns applied to table elements?
  */
 nsIFrame*
-NS_NewColumnSetFrame(nsIPresShell* aPresShell, nsStyleContext* aContext, PRUint32 aStateFlags)
+NS_NewColumnSetFrame(nsIPresShell* aPresShell, nsStyleContext* aContext, uint32_t aStateFlags)
 {
   nsColumnSetFrame* it = new (aPresShell) nsColumnSetFrame(aContext);
   if (it) {
-    // set the state flags (if any are provided)
-    it->AddStateBits(aStateFlags);
+    it->AddStateBits(aStateFlags | NS_BLOCK_MARGIN_ROOT);
   }
 
   return it;
@@ -208,7 +207,7 @@ nsColumnSetFrame::PaintColumnRule(nsRenderingContext* aCtx,
   bool isRTL = GetStyleVisibility()->mDirection == NS_STYLE_DIRECTION_RTL;
   const nsStyleColumn* colStyle = GetStyleColumn();
 
-  PRUint8 ruleStyle;
+  uint8_t ruleStyle;
   // Per spec, inset => ridge and outset => groove
   if (colStyle->mColumnRuleStyle == NS_STYLE_BORDER_STYLE_INSET)
     ruleStyle = NS_STYLE_BORDER_STYLE_RIDGE;
@@ -329,10 +328,10 @@ nsColumnSetFrame::ChooseColumnStrategy(const nsHTMLReflowState& aReflowState)
   }
 
   nscoord colGap = GetColumnGap(this, colStyle);
-  PRInt32 numColumns = colStyle->mColumnCount;
+  int32_t numColumns = colStyle->mColumnCount;
 
-  const PRUint32 MAX_NESTED_COLUMN_BALANCING = 2;
-  PRUint32 cnt = 1;
+  const uint32_t MAX_NESTED_COLUMN_BALANCING = 2;
+  uint32_t cnt = 1;
   for (const nsHTMLReflowState* rs = aReflowState.parentReflowState; rs && cnt
     < MAX_NESTED_COLUMN_BALANCING; rs = rs->parentReflowState) {
     if (rs->mFlags.mIsColumnBalancing) {
@@ -355,7 +354,7 @@ nsColumnSetFrame::ChooseColumnStrategy(const nsHTMLReflowState& aReflowState)
         && numColumns > 0) {
       // This expression uses truncated rounding, which is what we
       // want
-      PRInt32 maxColumns = (availContentWidth + colGap)/(colGap + colWidth);
+      int32_t maxColumns = (availContentWidth + colGap)/(colGap + colWidth);
       numColumns = NS_MAX(1, NS_MIN(numColumns, maxColumns));
     }
   } else if (numColumns > 0 && availContentWidth != NS_INTRINSICSIZE) {
@@ -494,7 +493,7 @@ nsColumnSetFrame::GetPrefWidth(nsRenderingContext *aRenderingContext) {
     colWidth = 0;
   }
 
-  PRInt32 numColumns = colStyle->mColumnCount;
+  int32_t numColumns = colStyle->mColumnCount;
   if (numColumns <= 0) {
     // if column-count is auto, assume one column
     numColumns = 1;
@@ -553,7 +552,6 @@ nsColumnSetFrame::ReflowChildren(nsHTMLReflowMetrics&     aDesiredSize,
   // columns might not fill the frame exactly, we need to account for the
   // slop. Otherwise we'll waste time moving the columns by some tiny
   // amount unnecessarily.
-  nscoord targetX = borderPadding.left;
   if (RTL) {
     nscoord availWidth = aReflowState.availableWidth;
     if (aReflowState.ComputedWidth() != NS_INTRINSICSIZE) {
@@ -561,7 +559,6 @@ nsColumnSetFrame::ReflowChildren(nsHTMLReflowMetrics&     aDesiredSize,
     }
     if (availWidth != NS_INTRINSICSIZE) {
       childOrigin.x += availWidth - aConfig.mColWidth;
-      targetX += aConfig.mExpectedWidthLeftOver;
 #ifdef DEBUG_roc
       printf("*** childOrigin.x = %d\n", childOrigin.x);
 #endif
@@ -665,8 +662,9 @@ nsColumnSetFrame::ReflowChildren(nsHTMLReflowMetrics&     aDesiredSize,
       reflowNext = (aStatus & NS_FRAME_REFLOW_NEXTINFLOW) != 0;
     
 #ifdef DEBUG_roc
-      printf("*** Reflowed child #%d %p: status = %d, desiredSize=%d,%d\n",
-             columnCount, (void*)child, aStatus, kidDesiredSize.width, kidDesiredSize.height);
+      printf("*** Reflowed child #%d %p: status = %d, desiredSize=%d,%d CarriedOutBottomMargin=%d\n",
+             columnCount, (void*)child, aStatus, kidDesiredSize.width, kidDesiredSize.height,
+             kidDesiredSize.mCarriedOutBottomMargin.get());
 #endif
 
       NS_FRAME_TRACE_REFLOW_OUT("Column::Reflow", aStatus);
@@ -698,7 +696,7 @@ nsColumnSetFrame::ReflowChildren(nsHTMLReflowMetrics&     aDesiredSize,
 
     if (NS_FRAME_IS_FULLY_COMPLETE(aStatus) && !NS_FRAME_IS_TRUNCATED(aStatus)) {
       NS_ASSERTION(!kidNextInFlow, "next in flow should have been deleted");
-      child = nsnull;
+      child = nullptr;
       break;
     } else {
       ++columnCount;
@@ -715,7 +713,7 @@ nsColumnSetFrame::ReflowChildren(nsHTMLReflowMetrics&     aDesiredSize,
         
         if (NS_FAILED(rv)) {
           NS_NOTREACHED("Couldn't create continuation");
-          child = nsnull;
+          child = nullptr;
           break;
         }
       }
@@ -746,7 +744,7 @@ nsColumnSetFrame::ReflowChildren(nsHTMLReflowMetrics&     aDesiredSize,
         if (continuationColumns.NotEmpty()) {
           SetOverflowFrames(PresContext(), continuationColumns);
         }
-        child = nsnull;
+        child = nullptr;
         break;
       }
     }
@@ -792,20 +790,6 @@ nsColumnSetFrame::ReflowChildren(nsHTMLReflowMetrics&     aDesiredSize,
     }
   }
   
-  // If we're doing RTL, we need to make sure our last column is at the left-hand side of the frame.
-  if (RTL && childOrigin.x != targetX) {
-    overflowRects.Clear();
-    contentRect = nsRect(0, 0, 0, 0);
-    PRInt32 deltaX = targetX - childOrigin.x;
-#ifdef DEBUG_roc
-    printf("*** CHILDORIGIN.x = %d, targetX = %d, DELTAX = %d\n", childOrigin.x, targetX, deltaX);
-#endif
-    for (child = mFrames.FirstChild(); child; child = child->GetNextSibling()) {
-      MoveChildTo(this, child, child->GetPosition() + nsPoint(deltaX, 0));
-      ConsiderChildOverflow(overflowRects, child);
-      contentRect.UnionRect(contentRect, child->GetRect());
-    }
-  }
   aColData.mMaxHeight = contentBottom;
   contentRect.height = NS_MAX(contentRect.height, contentBottom);
   mLastFrameStatus = aStatus;
@@ -863,7 +847,7 @@ nsColumnSetFrame::DrainOverflowColumns()
       nsContainerFrame::ReparentFrameViewList(PresContext(), *overflows,
                                               prev, this);
 
-      mFrames.InsertFrames(this, nsnull, *overflows);
+      mFrames.InsertFrames(this, nullptr, *overflows);
     }
   }
   
@@ -873,7 +857,7 @@ nsColumnSetFrame::DrainOverflowColumns()
   if (overflows) {
     // We're already the parent for these frames, so no need to set
     // their parent again.
-    mFrames.AppendFrames(nsnull, *overflows);
+    mFrames.AppendFrames(nullptr, *overflows);
   }
 }
 
@@ -1086,17 +1070,16 @@ nsColumnSetFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
       nsDisplayGeneric(aBuilder, this, ::PaintColumnRule, "ColumnRule",
                        nsDisplayItem::TYPE_COLUMN_RULE));
   
-  nsIFrame* kid = mFrames.FirstChild();
   // Our children won't have backgrounds so it doesn't matter where we put them.
-  while (kid) {
-    nsresult rv = BuildDisplayListForChild(aBuilder, kid, aDirtyRect, aLists);
+  for (nsFrameList::Enumerator e(mFrames); !e.AtEnd(); e.Next()) {
+    nsresult rv = BuildDisplayListForChild(aBuilder, e.get(),
+                                           aDirtyRect, aLists);
     NS_ENSURE_SUCCESS(rv, rv);
-    kid = kid->GetNextSibling();
   }
   return NS_OK;
 }
 
-PRIntn
+int
 nsColumnSetFrame::GetSkipSides() const
 {
   return 0;

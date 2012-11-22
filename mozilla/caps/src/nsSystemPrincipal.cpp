@@ -16,6 +16,7 @@
 #include "nsCRT.h"
 #include "nsString.h"
 #include "nsIClassInfoImpl.h"
+#include "nsIScriptSecurityManager.h"
 
 NS_IMPL_CLASSINFO(nsSystemPrincipal, NULL,
                   nsIClassInfo::SINGLETON | nsIClassInfo::MAIN_THREAD_ONLY,
@@ -30,7 +31,7 @@ NS_IMPL_CI_INTERFACE_GETTER2(nsSystemPrincipal,
 NS_IMETHODIMP_(nsrefcnt) 
 nsSystemPrincipal::AddRef()
 {
-  NS_PRECONDITION(PRInt32(refcount) >= 0, "illegal refcnt");
+  NS_PRECONDITION(int32_t(refcount) >= 0, "illegal refcnt");
   nsrefcnt count = PR_ATOMIC_INCREMENT(&refcount);
   NS_LOG_ADDREF(this, count, "nsSystemPrincipal", sizeof(*this));
   return count;
@@ -76,11 +77,11 @@ nsSystemPrincipal::GetPreferences(char** aPrefName, char** aID,
                                   bool* aIsTrusted)
 {
     // The system principal should never be streamed out
-    *aPrefName = nsnull;
-    *aID = nsnull;
-    *aSubjectName = nsnull;
-    *aGrantedList = nsnull;
-    *aDeniedList = nsnull;
+    *aPrefName = nullptr;
+    *aID = nullptr;
+    *aSubjectName = nullptr;
+    *aGrantedList = nullptr;
+    *aDeniedList = nullptr;
     *aIsTrusted = false;
 
     return NS_ERROR_FAILURE; 
@@ -114,13 +115,13 @@ nsSystemPrincipal::SubsumesIgnoringDomain(nsIPrincipal *other, bool *result)
 }
 
 NS_IMETHODIMP
-nsSystemPrincipal::CheckMayLoad(nsIURI* uri, bool aReport)
+nsSystemPrincipal::CheckMayLoad(nsIURI* uri, bool aReport, bool aAllowIfInheritsPrincipal)
 {
     return NS_OK;
 }
 
 NS_IMETHODIMP
-nsSystemPrincipal::GetHashValue(PRUint32 *result)
+nsSystemPrincipal::GetHashValue(uint32_t *result)
 {
     *result = NS_PTR_TO_INT32(this);
     return NS_OK;
@@ -128,7 +129,7 @@ nsSystemPrincipal::GetHashValue(PRUint32 *result)
 
 NS_IMETHODIMP 
 nsSystemPrincipal::CanEnableCapability(const char *capability, 
-                                       PRInt16 *result)
+                                       int16_t *result)
 {
     // System principal can enable all capabilities.
     *result = nsIPrincipal::ENABLE_GRANTED;
@@ -147,14 +148,14 @@ nsSystemPrincipal::IsCapabilityEnabled(const char *capability,
 NS_IMETHODIMP 
 nsSystemPrincipal::EnableCapability(const char *capability, void **annotation)
 {
-    *annotation = nsnull;
+    *annotation = nullptr;
     return NS_OK;
 }
 
 NS_IMETHODIMP 
 nsSystemPrincipal::GetURI(nsIURI** aURI)
 {
-    *aURI = nsnull;
+    *aURI = nullptr;
     return NS_OK;
 }
 
@@ -186,7 +187,7 @@ nsSystemPrincipal::GetSubjectName(nsACString& aName)
 NS_IMETHODIMP
 nsSystemPrincipal::GetCertificate(nsISupports** aCertificate)
 {
-    *aCertificate = nsnull;
+    *aCertificate = nullptr;
     return NS_OK;
 }
 
@@ -200,7 +201,7 @@ nsSystemPrincipal::GetHasCertificate(bool* aResult)
 NS_IMETHODIMP
 nsSystemPrincipal::GetCsp(nsIContentSecurityPolicy** aCsp)
 {
-  *aCsp = nsnull;
+  *aCsp = nullptr;
   return NS_OK;
 }
 
@@ -214,7 +215,7 @@ nsSystemPrincipal::SetCsp(nsIContentSecurityPolicy* aCsp)
 NS_IMETHODIMP
 nsSystemPrincipal::GetDomain(nsIURI** aDomain)
 {
-    *aDomain = nsnull;
+    *aDomain = nullptr;
     return NS_OK;
 }
 
@@ -227,7 +228,7 @@ nsSystemPrincipal::SetDomain(nsIURI* aDomain)
 NS_IMETHODIMP
 nsSystemPrincipal::GetSecurityPolicy(void** aSecurityPolicy)
 {
-    *aSecurityPolicy = nsnull;
+    *aSecurityPolicy = nullptr;
     return NS_OK;
 }
 
@@ -237,6 +238,32 @@ nsSystemPrincipal::SetSecurityPolicy(void* aSecurityPolicy)
     return NS_OK;
 }
 
+NS_IMETHODIMP
+nsSystemPrincipal::GetExtendedOrigin(nsACString& aExtendedOrigin)
+{
+  return GetOrigin(getter_Copies(aExtendedOrigin));
+}
+
+NS_IMETHODIMP
+nsSystemPrincipal::GetAppStatus(uint16_t* aAppStatus)
+{
+  *aAppStatus = nsIPrincipal::APP_STATUS_NOT_INSTALLED;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsSystemPrincipal::GetAppId(uint32_t* aAppId)
+{
+  *aAppId = nsIScriptSecurityManager::NO_APP_ID;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsSystemPrincipal::GetIsInBrowserElement(bool* aIsInBrowserElement)
+{
+  *aIsInBrowserElement = false;
+  return NS_OK;
+}
 
 //////////////////////////////////////////
 // Methods implementing nsISerializable //

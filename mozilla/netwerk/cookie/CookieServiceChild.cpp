@@ -4,18 +4,22 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/net/CookieServiceChild.h"
+
+#include "mozilla/ipc/URIUtils.h"
 #include "mozilla/net/NeckoChild.h"
 #include "nsIURI.h"
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
 
+using namespace mozilla::ipc;
+
 namespace mozilla {
 namespace net {
 
 // Behavior pref constants
-static const PRInt32 BEHAVIOR_ACCEPT = 0;
-static const PRInt32 BEHAVIOR_REJECTFOREIGN = 1;
-static const PRInt32 BEHAVIOR_REJECT = 2;
+static const int32_t BEHAVIOR_ACCEPT = 0;
+static const int32_t BEHAVIOR_REJECTFOREIGN = 1;
+static const int32_t BEHAVIOR_REJECT = 2;
 
 // Pref string constants
 static const char kPrefCookieBehavior[] = "network.cookie.cookieBehavior";
@@ -65,13 +69,13 @@ CookieServiceChild::CookieServiceChild()
 
 CookieServiceChild::~CookieServiceChild()
 {
-  gCookieService = nsnull;
+  gCookieService = nullptr;
 }
 
 void
 CookieServiceChild::PrefChanged(nsIPrefBranch *aPrefBranch)
 {
-  PRInt32 val;
+  int32_t val;
   if (NS_SUCCEEDED(aPrefBranch->GetIntPref(kPrefCookieBehavior, &val)))
     mCookieBehavior =
       val >= BEHAVIOR_ACCEPT && val <= BEHAVIOR_REJECT ? val : BEHAVIOR_ACCEPT;
@@ -108,9 +112,12 @@ CookieServiceChild::GetCookieStringInternal(nsIURI *aHostURI,
   if (RequireThirdPartyCheck())
     mThirdPartyUtil->IsThirdPartyChannel(aChannel, aHostURI, &isForeign);
 
+  URIParams uriParams;
+  SerializeURI(aHostURI, uriParams);
+
   // Synchronously call the parent.
   nsCAutoString result;
-  SendGetCookieString(IPC::URI(aHostURI), !!isForeign, aFromHttp, &result);
+  SendGetCookieString(uriParams, !!isForeign, aFromHttp, &result);
   if (!result.IsEmpty())
     *aCookieString = ToNewCString(result);
 
@@ -137,9 +144,12 @@ CookieServiceChild::SetCookieStringInternal(nsIURI *aHostURI,
   if (aServerTime)
     serverTime.Rebind(aServerTime);
 
+  URIParams uriParams;
+  SerializeURI(aHostURI, uriParams);
+
   // Synchronously call the parent.
-  SendSetCookieString(IPC::URI(aHostURI), !!isForeign,
-                      cookieString, serverTime, aFromHttp);
+  SendSetCookieString(uriParams, !!isForeign, cookieString, serverTime,
+                      aFromHttp);
   return NS_OK;
 }
 
@@ -181,7 +191,7 @@ CookieServiceChild::SetCookieString(nsIURI *aHostURI,
                                     nsIChannel *aChannel)
 {
   return SetCookieStringInternal(aHostURI, aChannel, aCookieString,
-                                 nsnull, false);
+                                 nullptr, false);
 }
 
 NS_IMETHODIMP

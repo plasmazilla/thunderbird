@@ -32,20 +32,20 @@ public:
 
   // Cheap accessors for use within Necko
   const nsCString &Host()  { return mHost; }
-  PRInt32          Port()  { return mPort; }
+  int32_t          Port()  { return mPort; }
   const char      *Type()  { return mType; }
-  PRUint32         Flags() { return mFlags; }
+  uint32_t         Flags() { return mFlags; }
 
 private:
   friend class nsProtocolProxyService;
 
-  nsProxyInfo(const char *type = nsnull)
+  nsProxyInfo(const char *type = nullptr)
     : mType(type)
     , mPort(-1)
     , mFlags(0)
     , mResolveFlags(0)
     , mTimeout(PR_UINT32_MAX)
-    , mNext(nsnull)
+    , mNext(nullptr)
   {}
 
   ~nsProxyInfo()
@@ -55,10 +55,10 @@ private:
 
   const char  *mType;  // pointer to statically allocated value
   nsCString    mHost;
-  PRInt32      mPort;
-  PRUint32     mFlags;
-  PRUint32     mResolveFlags;
-  PRUint32     mTimeout;
+  int32_t      mPort;
+  uint32_t     mFlags;
+  uint32_t     mResolveFlags;
+  uint32_t     mTimeout;
   nsProxyInfo *mNext;
 };
 

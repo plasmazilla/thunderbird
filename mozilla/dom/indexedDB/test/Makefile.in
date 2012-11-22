@@ -2,11 +2,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH = ../../..
+DEPTH = @DEPTH@
 topsrcdir = @top_srcdir@
 srcdir = @srcdir@
 VPATH = @srcdir@
-relativesrcdir = dom/indexedDB/test
+relativesrcdir = @relativesrcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
@@ -29,6 +29,7 @@ MOCHITEST_FILES = \
   test_autoIncrement_indexes.html \
   test_autoIncrement.html \
   test_bfcache.html \
+  test_blob_simple.html \
   test_clear.html \
   test_complex_keyPaths.html \
   test_count.html \

@@ -77,7 +77,8 @@ nsGIFDecoder2::nsGIFDecoder2(RasterImage &aImage, imgIDecoderObserver* aObserver
   : Decoder(aImage, aObserver)
   , mCurrentRow(-1)
   , mLastFlushedRow(-1)
-  , mImageData(nsnull)
+  , mImageData(nullptr)
+  , mColormap(nullptr)
   , mOldColor(0)
   , mCurrentFrame(-1)
   , mCurrentPass(0)
@@ -123,7 +124,7 @@ nsGIFDecoder2::FinishInternal()
 // mCurrentRow/mLastFlushedRow.  Note: caller is responsible for
 // updating mlastFlushed{Row,Pass}.
 void
-nsGIFDecoder2::FlushImageData(PRUint32 fromRow, PRUint32 rows)
+nsGIFDecoder2::FlushImageData(uint32_t fromRow, uint32_t rows)
 {
   nsIntRect r(mGIFStruct.x_offset, mGIFStruct.y_offset + fromRow, mGIFStruct.width, rows);
   PostInvalidation(r);
@@ -168,9 +169,9 @@ void nsGIFDecoder2::BeginGIF()
 }
 
 //******************************************************************************
-nsresult nsGIFDecoder2::BeginImageFrame(PRUint16 aDepth)
+nsresult nsGIFDecoder2::BeginImageFrame(uint16_t aDepth)
 {
-  PRUint32 imageDataLength;
+  uint32_t imageDataLength;
   nsresult rv;
   gfxASurface::gfxImageFormat format;
   if (mGIFStruct.is_transparent)
@@ -187,6 +188,14 @@ nsresult nsGIFDecoder2::BeginImageFrame(PRUint16 aDepth)
                             mGIFStruct.width, mGIFStruct.height,
                             format, aDepth, &mImageData, &imageDataLength,
                             &mColormap, &mColormapSize);
+
+    // While EnsureFrame can reuse frames, we unconditionally increment
+    // mGIFStruct.images_decoded when we're done with a frame, so we both can
+    // and need to zero out the colormap and image data after every call to
+    // EnsureFrame.
+    if (NS_SUCCEEDED(rv) && mColormap) {
+      memset(mColormap, 0, mColormapSize);
+    }
   } else {
     // Regardless of depth of input, image is decoded into 24bit RGB
     rv = mImage.EnsureFrame(mGIFStruct.images_decoded,
@@ -197,6 +206,8 @@ nsresult nsGIFDecoder2::BeginImageFrame(PRUint16 aDepth)
 
   if (NS_FAILED(rv))
     return rv;
+
+  memset(mImageData, 0, imageDataLength);
 
   mImage.SetFrameDisposalMethod(mGIFStruct.images_decoded,
                                 mGIFStruct.disposal_method);
@@ -209,7 +220,7 @@ nsresult nsGIFDecoder2::BeginImageFrame(PRUint16 aDepth)
     // Otherwise, the area may never be refreshed and the placeholder will remain
     // on the screen. (Bug 37589)
     if (mGIFStruct.y_offset > 0) {
-      PRInt32 imgWidth;
+      int32_t imgWidth;
       mImage.GetWidth(&imgWidth);
       nsIntRect r(0, 0, imgWidth, mGIFStruct.y_offset);
       PostInvalidation(r);
@@ -232,7 +243,7 @@ void nsGIFDecoder2::EndImageFrame()
     // If the first frame is smaller in height than the entire image, send an
     // invalidation for the area it does not have data for.
     // This will clear the remaining bits of the placeholder. (Bug 37589)
-    const PRUint32 realFrameHeight = mGIFStruct.height + mGIFStruct.y_offset;
+    const uint32_t realFrameHeight = mGIFStruct.height + mGIFStruct.y_offset;
     if (realFrameHeight < mGIFStruct.screen_height) {
       nsIntRect r(0, realFrameHeight,
                   mGIFStruct.screen_width,
@@ -251,7 +262,7 @@ void nsGIFDecoder2::EndImageFrame()
   if (mGIFStruct.rows_remaining != mGIFStruct.height) {
     if (mGIFStruct.rows_remaining && mGIFStruct.images_decoded) {
       // Clear the remaining rows (only needed for the animation frames)
-      PRUint8 *rowp = mImageData + ((mGIFStruct.height - mGIFStruct.rows_remaining) * mGIFStruct.width);
+      uint8_t *rowp = mImageData + ((mGIFStruct.height - mGIFStruct.rows_remaining) * mGIFStruct.width);
       memset(rowp, 0, mGIFStruct.rows_remaining * mGIFStruct.width);
     }
 
@@ -283,13 +294,13 @@ void nsGIFDecoder2::EndImageFrame()
 
 //******************************************************************************
 // Send the data to the display front-end.
-PRUint32 nsGIFDecoder2::OutputRow()
+uint32_t nsGIFDecoder2::OutputRow()
 {
   int drow_start, drow_end;
   drow_start = drow_end = mGIFStruct.irow;
 
   /* Protect against too much image data */
-  if ((PRUintn)drow_start >= mGIFStruct.height) {
+  if ((unsigned)drow_start >= mGIFStruct.height) {
     NS_WARNING("GIF2.cpp::OutputRow - too much image data");
     return 0;
   }
@@ -303,8 +314,8 @@ PRUint32 nsGIFDecoder2::OutputRow()
      */
     if (mGIFStruct.progressive_display && mGIFStruct.interlaced && (mGIFStruct.ipass < 4)) {
       /* ipass = 1,2,3 results in resp. row_dup = 7,3,1 and row_shift = 3,1,0 */
-      const PRUint32 row_dup = 15 >> mGIFStruct.ipass;
-      const PRUint32 row_shift = row_dup >> 1;
+      const uint32_t row_dup = 15 >> mGIFStruct.ipass;
+      const uint32_t row_shift = row_dup >> 1;
   
       drow_start -= row_shift;
       drow_end = drow_start + row_dup;
@@ -316,34 +327,34 @@ PRUint32 nsGIFDecoder2::OutputRow()
       /* Clamp first and last rows to upper and lower edge of image. */
       if (drow_start < 0)
         drow_start = 0;
-      if ((PRUintn)drow_end >= mGIFStruct.height)
+      if ((unsigned)drow_end >= mGIFStruct.height)
         drow_end = mGIFStruct.height - 1;
     }
 
     // Row to process
-    const PRUint32 bpr = sizeof(PRUint32) * mGIFStruct.width; 
-    PRUint8 *rowp = mImageData + (mGIFStruct.irow * bpr);
+    const uint32_t bpr = sizeof(uint32_t) * mGIFStruct.width; 
+    uint8_t *rowp = mImageData + (mGIFStruct.irow * bpr);
 
     // Convert color indices to Cairo pixels
-    PRUint8 *from = rowp + mGIFStruct.width;
-    PRUint32 *to = ((PRUint32*)rowp) + mGIFStruct.width;
-    PRUint32 *cmap = mColormap;
+    uint8_t *from = rowp + mGIFStruct.width;
+    uint32_t *to = ((uint32_t*)rowp) + mGIFStruct.width;
+    uint32_t *cmap = mColormap;
     if (mColorMask == 0xFF) {
-      for (PRUint32 c = mGIFStruct.width; c > 0; c--) {
+      for (uint32_t c = mGIFStruct.width; c > 0; c--) {
         *--to = cmap[*--from];
       }
     } else {
       // Make sure that pixels within range of colormap.
-      PRUint8 mask = mColorMask;
-      for (PRUint32 c = mGIFStruct.width; c > 0; c--) {
+      uint8_t mask = mColorMask;
+      for (uint32_t c = mGIFStruct.width; c > 0; c--) {
         *--to = cmap[(*--from) & mask];
       }
     }
   
     // check for alpha (only for first frame)
     if (mGIFStruct.is_transparent && !mSawTransparency) {
-      const PRUint32 *rgb = (PRUint32*)rowp;
-      for (PRUint32 i = mGIFStruct.width; i > 0; i--) {
+      const uint32_t *rgb = (uint32_t*)rowp;
+      for (uint32_t i = mGIFStruct.width; i > 0; i--) {
         if (*rgb++ == 0) {
           mSawTransparency = true;
           break;
@@ -370,7 +381,7 @@ PRUint32 nsGIFDecoder2::OutputRow()
   if (!mGIFStruct.interlaced) {
     mGIFStruct.irow++;
   } else {
-    static const PRUint8 kjump[5] = { 1, 8, 8, 4, 2 };
+    static const uint8_t kjump[5] = { 1, 8, 8, 4, 2 };
     do {
       // Row increments resp. per 8,8,4,2 rows
       mGIFStruct.irow += kjump[mGIFStruct.ipass];
@@ -388,7 +399,7 @@ PRUint32 nsGIFDecoder2::OutputRow()
 //******************************************************************************
 /* Perform Lempel-Ziv-Welch decoding */
 bool
-nsGIFDecoder2::DoLzw(const PRUint8 *q)
+nsGIFDecoder2::DoLzw(const uint8_t *q)
 {
   if (!mGIFStruct.rows_remaining)
     return true;
@@ -404,18 +415,18 @@ nsGIFDecoder2::DoLzw(const PRUint8 *q)
   int count       = mGIFStruct.count;
   int oldcode     = mGIFStruct.oldcode;
   const int clear_code = ClearCode();
-  PRUint8 firstchar = mGIFStruct.firstchar;
-  PRInt32 datum     = mGIFStruct.datum;
-  PRUint16 *prefix  = mGIFStruct.prefix;
-  PRUint8 *stackp   = mGIFStruct.stackp;
-  PRUint8 *suffix   = mGIFStruct.suffix;
-  PRUint8 *stack    = mGIFStruct.stack;
-  PRUint8 *rowp     = mGIFStruct.rowp;
+  uint8_t firstchar = mGIFStruct.firstchar;
+  int32_t datum     = mGIFStruct.datum;
+  uint16_t *prefix  = mGIFStruct.prefix;
+  uint8_t *stackp   = mGIFStruct.stackp;
+  uint8_t *suffix   = mGIFStruct.suffix;
+  uint8_t *stack    = mGIFStruct.stack;
+  uint8_t *rowp     = mGIFStruct.rowp;
 
-  PRUint32 bpr = mGIFStruct.width;
+  uint32_t bpr = mGIFStruct.width;
   if (!mGIFStruct.images_decoded) 
-    bpr *= sizeof(PRUint32);
-  PRUint8 *rowend   = mImageData + (bpr * mGIFStruct.irow) + mGIFStruct.width;
+    bpr *= sizeof(uint32_t);
+  uint8_t *rowend   = mImageData + (bpr * mGIFStruct.irow) + mGIFStruct.width;
 
 #define OUTPUT_ROW()                                        \
   PR_BEGIN_MACRO                                            \
@@ -425,7 +436,7 @@ nsGIFDecoder2::DoLzw(const PRUint8 *q)
     rowend = rowp + mGIFStruct.width;                       \
   PR_END_MACRO
 
-  for (const PRUint8* ch = q; count-- > 0; ch++)
+  for (const uint8_t* ch = q; count-- > 0; ch++)
   {
     /* Feed the next byte into the decoder's 32-bit input buffer. */
     datum += ((int32) *ch) << bits;
@@ -535,7 +546,7 @@ nsGIFDecoder2::DoLzw(const PRUint8 *q)
  * Expand the colormap from RGB to Packed ARGB as needed by Cairo.
  * And apply any LCMS transformation.
  */
-static void ConvertColormap(PRUint32 *aColormap, PRUint32 aColors)
+static void ConvertColormap(uint32_t *aColormap, uint32_t aColors)
 {
   // Apply CMS transformation if enabled and available
   if (gfxPlatform::GetCMSMode() == eCMSMode_All) {
@@ -545,14 +556,14 @@ static void ConvertColormap(PRUint32 *aColormap, PRUint32 aColors)
   }
   // Convert from the GIF's RGB format to the Cairo format.
   // Work from end to begin, because of the in-place expansion
-  PRUint8 *from = ((PRUint8 *)aColormap) + 3 * aColors;
-  PRUint32 *to = aColormap + aColors;
+  uint8_t *from = ((uint8_t *)aColormap) + 3 * aColors;
+  uint32_t *to = aColormap + aColors;
 
   // Convert color entries to Cairo format
 
   // set up for loops below
   if (!aColors) return;
-  PRUint32 c = aColors;
+  uint32_t c = aColors;
 
   // copy as bytes until source pointer is 32-bit-aligned
   // NB: can't use 32-bit reads, they might read off the end of the buffer
@@ -578,25 +589,25 @@ static void ConvertColormap(PRUint32 *aColormap, PRUint32 aColors)
 }
 
 void
-nsGIFDecoder2::WriteInternal(const char *aBuffer, PRUint32 aCount)
+nsGIFDecoder2::WriteInternal(const char *aBuffer, uint32_t aCount)
 {
   NS_ABORT_IF_FALSE(!HasError(), "Shouldn't call WriteInternal after error!");
 
   // These variables changed names, and renaming would make a much bigger patch :(
-  const PRUint8 *buf = (const PRUint8 *)aBuffer;
-  PRUint32 len = aCount;
+  const uint8_t *buf = (const uint8_t *)aBuffer;
+  uint32_t len = aCount;
 
-  const PRUint8 *q = buf;
+  const uint8_t *q = buf;
 
   // Add what we have sofar to the block
   // If previous call to me left something in the hold first complete current block
   // Or if we are filling the colormaps, first complete the colormap
-  PRUint8* p = (mGIFStruct.state == gif_global_colormap) ? (PRUint8*)mGIFStruct.global_colormap :
-               (mGIFStruct.state == gif_image_colormap) ? (PRUint8*)mColormap :
-               (mGIFStruct.bytes_in_hold) ? mGIFStruct.hold : nsnull;
+  uint8_t* p = (mGIFStruct.state == gif_global_colormap) ? (uint8_t*)mGIFStruct.global_colormap :
+               (mGIFStruct.state == gif_image_colormap) ? (uint8_t*)mColormap :
+               (mGIFStruct.bytes_in_hold) ? mGIFStruct.hold : nullptr;
   if (p) {
     // Add what we have sofar to the block
-    PRUint32 l = NS_MIN(len, mGIFStruct.bytes_to_consume);
+    uint32_t l = NS_MIN(len, mGIFStruct.bytes_to_consume);
     memcpy(p+mGIFStruct.bytes_in_hold, buf, l);
 
     if (l < mGIFStruct.bytes_to_consume) {
@@ -703,7 +714,7 @@ nsGIFDecoder2::WriteInternal(const char *aBuffer, PRUint32 aCount)
 
       if (q[4] & 0x80) { /* global map */
         // Get the global colormap
-        const PRUint32 size = (3 << mGIFStruct.global_colormap_depth);
+        const uint32_t size = (3 << mGIFStruct.global_colormap_depth);
         if (len < size) {
           // Use 'hold' pattern to get the global colormap
           GETN(size, gif_global_colormap);
@@ -762,21 +773,45 @@ nsGIFDecoder2::WriteInternal(const char *aBuffer, PRUint32 aCount)
       break;
 
     case gif_extension:
+      // Comment taken directly from WebKit's GIFImageReader.cpp.
+      //
+      // The GIF spec mandates lengths for three of the extensions below.
+      // However, it's possible for GIFs in the wild to deviate. For example,
+      // some GIFs that embed ICC color profiles using gif_application_extension
+      // violate the spec and treat this extension block like a sort of
+      // "extension + data" block, giving a size greater than 11 and filling the
+      // remaining bytes with data (then following with more data blocks as
+      // needed), instead of placing a true data block just after the 11 byte
+      // extension block.
+      //
+      // Accordingly, if the specified length is larger than the required value,
+      // we use it. If it's smaller, then we enforce the spec value, because the
+      // parsers for these extensions expect to have the specified number of
+      // bytes available, and if we don't ensure that, they could read off the
+      // end of the heap buffer. (In this case, it's likely the GIF is corrupt
+      // and we'll soon fail to decode anyway.)
       mGIFStruct.bytes_to_consume = q[1];
       if (mGIFStruct.bytes_to_consume) {
         switch (*q) {
         case GIF_GRAPHIC_CONTROL_LABEL:
           mGIFStruct.state = gif_control_extension;
+          mGIFStruct.bytes_to_consume = NS_MAX(mGIFStruct.bytes_to_consume, 4u);
           break;
-  
+
         case GIF_APPLICATION_EXTENSION_LABEL:
           mGIFStruct.state = gif_application_extension;
+          mGIFStruct.bytes_to_consume = NS_MAX(mGIFStruct.bytes_to_consume, 11u);
           break;
-  
+
+        case GIF_PLAIN_TEXT_LABEL:
+          mGIFStruct.state = gif_skip_block;
+          mGIFStruct.bytes_to_consume = NS_MAX(mGIFStruct.bytes_to_consume, 12u);
+          break;
+
         case GIF_COMMENT_LABEL:
           mGIFStruct.state = gif_consume_comment;
           break;
-  
+
         default:
           mGIFStruct.state = gif_skip_block;
         }
@@ -910,10 +945,10 @@ nsGIFDecoder2::WriteInternal(const char *aBuffer, PRUint32 aCount)
       /* Depth of colors is determined by colormap */
       /* (q[8] & 0x80) indicates local colormap */
       /* bits per pixel is (q[8]&0x07 + 1) when local colormap is set */
-      PRUint32 depth = mGIFStruct.global_colormap_depth;
+      uint32_t depth = mGIFStruct.global_colormap_depth;
       if (q[8] & 0x80)
         depth = (q[8]&0x07) + 1;
-      PRUint32 realDepth = depth;
+      uint32_t realDepth = depth;
       while (mGIFStruct.tpixel >= (1 << realDepth) && (realDepth < 8)) {
         realDepth++;
       } 
@@ -949,16 +984,16 @@ nsGIFDecoder2::WriteInternal(const char *aBuffer, PRUint32 aCount)
         if (!mGIFStruct.images_decoded) {
           // First frame has local colormap, allocate space for it
           // as the image frame doesn't have its own palette
-          mColormapSize = sizeof(PRUint32) << realDepth;
+          mColormapSize = sizeof(uint32_t) << realDepth;
           if (!mGIFStruct.local_colormap) {
-            mGIFStruct.local_colormap = (PRUint32*)moz_xmalloc(mColormapSize);
+            mGIFStruct.local_colormap = (uint32_t*)moz_xmalloc(mColormapSize);
           }
           mColormap = mGIFStruct.local_colormap;
         }
-        const PRUint32 size = 3 << depth;
+        const uint32_t size = 3 << depth;
         if (mColormapSize > size) {
           // Clear the notfilled part of the colormap
-          memset(((PRUint8*)mColormap) + size, 0, mColormapSize - size);
+          memset(((uint8_t*)mColormap) + size, 0, mColormapSize - size);
         }
         if (len < size) {
           // Use 'hold' pattern to get the image colormap
@@ -1044,8 +1079,8 @@ nsGIFDecoder2::WriteInternal(const char *aBuffer, PRUint32 aCount)
   mGIFStruct.bytes_in_hold = len;
   if (len) {
     // Add what we have sofar to the block
-    PRUint8* p = (mGIFStruct.state == gif_global_colormap) ? (PRUint8*)mGIFStruct.global_colormap :
-                 (mGIFStruct.state == gif_image_colormap) ? (PRUint8*)mColormap :
+    uint8_t* p = (mGIFStruct.state == gif_global_colormap) ? (uint8_t*)mGIFStruct.global_colormap :
+                 (mGIFStruct.state == gif_image_colormap) ? (uint8_t*)mColormap :
                  mGIFStruct.hold;
     memcpy(p, buf, len);
     mGIFStruct.bytes_to_consume -= len;

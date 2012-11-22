@@ -15,7 +15,7 @@
 #include "nsContentUtils.h"
 #include "nsJSEnvironment.h"
 #include "nsServiceManagerUtils.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsGlobalWindow.h"
 #include "nsIContentSecurityPolicy.h"
 #include "nsAlgorithm.h"
@@ -39,7 +39,7 @@ public:
   virtual JSObject *GetScriptObject() {
     return mFunObj;
   }
-  virtual void GetLocation(const char **aFileName, PRUint32 *aLineNo) {
+  virtual void GetLocation(const char **aFileName, uint32_t *aLineNo) {
     *aFileName = mFileName.get();
     *aLineNo = mLineNo;
   }
@@ -49,7 +49,7 @@ public:
   }
 
   nsresult Init(nsGlobalWindow *aWindow, bool *aIsInterval,
-                PRInt32 *aInterval);
+                int32_t *aInterval);
 
   void ReleaseJSObjects();
 
@@ -60,8 +60,7 @@ private:
   // filename, line number and JS language version string of the
   // caller of setTimeout()
   nsCString mFileName;
-  PRUint32 mLineNo;
-  PRUint32 mVersion;
+  uint32_t mLineNo;
   nsCOMPtr<nsIJSArgArray> mArgv;
 
   // The JS expression to evaluate or function to call, if !mExpr
@@ -129,9 +128,8 @@ NS_IMPL_CYCLE_COLLECTING_RELEASE(nsJSScriptTimeoutHandler)
 
 nsJSScriptTimeoutHandler::nsJSScriptTimeoutHandler() :
   mLineNo(0),
-  mVersion(nsnull),
-  mExpr(nsnull),
-  mFunObj(nsnull)
+  mExpr(nullptr),
+  mFunObj(nullptr)
 {
 }
 
@@ -146,10 +144,10 @@ nsJSScriptTimeoutHandler::ReleaseJSObjects()
   if (mExpr || mFunObj) {
     if (mExpr) {
       NS_DROP_JS_OBJECTS(this, nsJSScriptTimeoutHandler);
-      mExpr = nsnull;
+      mExpr = nullptr;
     } else if (mFunObj) {
       NS_DROP_JS_OBJECTS(this, nsJSScriptTimeoutHandler);
-      mFunObj = nsnull;
+      mFunObj = nullptr;
     } else {
       NS_WARNING("No func and no expr - roots may not have been removed");
     }
@@ -158,7 +156,7 @@ nsJSScriptTimeoutHandler::ReleaseJSObjects()
 
 nsresult
 nsJSScriptTimeoutHandler::Init(nsGlobalWindow *aWindow, bool *aIsInterval,
-                               PRInt32 *aInterval)
+                               int32_t *aInterval)
 {
   mContext = aWindow->GetContextInternal();
   if (!mContext) {
@@ -168,7 +166,7 @@ nsJSScriptTimeoutHandler::Init(nsGlobalWindow *aWindow, bool *aIsInterval,
     return NS_ERROR_NOT_INITIALIZED;
   }
 
-  nsAXPCNativeCallContext *ncc = nsnull;
+  nsAXPCNativeCallContext *ncc = nullptr;
   nsresult rv = nsContentUtils::XPConnect()->
     GetCurrentNativeCallContext(&ncc);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -176,19 +174,19 @@ nsJSScriptTimeoutHandler::Init(nsGlobalWindow *aWindow, bool *aIsInterval,
   if (!ncc)
     return NS_ERROR_NOT_AVAILABLE;
 
-  JSContext *cx = nsnull;
+  JSContext *cx = nullptr;
 
   rv = ncc->GetJSContext(&cx);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRUint32 argc;
-  jsval *argv = nsnull;
+  uint32_t argc;
+  jsval *argv = nullptr;
 
   ncc->GetArgc(&argc);
   ncc->GetArgvPtr(&argv);
 
-  JSFlatString *expr = nsnull;
-  JSObject *funobj = nsnull;
+  JSFlatString *expr = nullptr;
+  JSObject *funobj = nullptr;
 
   JSAutoRequest ar(cx);
 
@@ -289,19 +287,19 @@ nsJSScriptTimeoutHandler::Init(nsGlobalWindow *aWindow, bool *aIsInterval,
     // array.
     nsCOMPtr<nsIJSArgArray> array;
     // NS_MAX(argc - 2, 0) wouldn't work right because argc is unsigned.
-    rv = NS_CreateJSArgv(cx, NS_MAX(argc, 2u) - 2, nsnull,
+    rv = NS_CreateJSArgv(cx, NS_MAX(argc, 2u) - 2, nullptr,
                          getter_AddRefs(array));
     if (NS_FAILED(rv)) {
       return NS_ERROR_OUT_OF_MEMORY;
     }
 
-    PRUint32 dummy;
-    jsval *jsargv = nsnull;
+    uint32_t dummy;
+    jsval *jsargv = nullptr;
     array->GetArgs(&dummy, reinterpret_cast<void **>(&jsargv));
 
     // jsargv might be null if we have argc <= 2
     if (jsargv) {
-      for (PRInt32 i = 2; (PRUint32)i < argc; ++i) {
+      for (int32_t i = 2; (uint32_t)i < argc; ++i) {
         jsargv[i - 2] = argv[i];
       }
     } else {
@@ -324,10 +322,10 @@ nsJSScriptTimeoutHandler::GetHandlerText()
 
 nsresult NS_CreateJSTimeoutHandler(nsGlobalWindow *aWindow,
                                    bool *aIsInterval,
-                                   PRInt32 *aInterval,
+                                   int32_t *aInterval,
                                    nsIScriptTimeoutHandler **aRet)
 {
-  *aRet = nsnull;
+  *aRet = nullptr;
   nsJSScriptTimeoutHandler *handler = new nsJSScriptTimeoutHandler();
   if (!handler)
     return NS_ERROR_OUT_OF_MEMORY;

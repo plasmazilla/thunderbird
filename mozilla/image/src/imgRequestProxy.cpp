@@ -5,6 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "imgRequestProxy.h"
+#include "imgIOnloadBlocker.h"
 
 #include "nsIInputStream.h"
 #include "nsIComponentManager.h"
@@ -17,7 +18,7 @@
 #include "nsCRT.h"
 
 #include "Image.h"
-#include "ImageErrors.h"
+#include "nsError.h"
 #include "ImageLogging.h"
 
 #include "nspr.h"
@@ -33,15 +34,15 @@ NS_INTERFACE_MAP_BEGIN(imgRequestProxy)
   NS_INTERFACE_MAP_ENTRY(nsIRequest)
   NS_INTERFACE_MAP_ENTRY(nsISupportsPriority)
   NS_INTERFACE_MAP_ENTRY(nsISecurityInfoProvider)
-  NS_INTERFACE_MAP_ENTRY_CONDITIONAL(nsITimedChannel, TimedChannel() != nsnull)
+  NS_INTERFACE_MAP_ENTRY_CONDITIONAL(nsITimedChannel, TimedChannel() != nullptr)
 NS_INTERFACE_MAP_END
 
 imgRequestProxy::imgRequestProxy() :
-  mOwner(nsnull),
-  mURI(nsnull),
-  mImage(nsnull),
-  mPrincipal(nsnull),
-  mListener(nsnull),
+  mOwner(nullptr),
+  mURI(nullptr),
+  mImage(nullptr),
+  mPrincipal(nullptr),
+  mListener(nullptr),
   mLoadFlags(nsIRequest::LOAD_NORMAL),
   mLockCount(0),
   mAnimationConsumers(0),
@@ -126,12 +127,12 @@ nsresult imgRequestProxy::ChangeOwner(imgRequest *aNewOwner)
 
   // If we're holding locks, unlock the old image.
   // Note that UnlockImage decrements mLockCount each time it's called.
-  PRUint32 oldLockCount = mLockCount;
+  uint32_t oldLockCount = mLockCount;
   while (mLockCount)
     UnlockImage();
 
   // If we're holding animation requests, undo them.
-  PRUint32 oldAnimationConsumers = mAnimationConsumers;
+  uint32_t oldAnimationConsumers = mAnimationConsumers;
   ClearAnimationConsumers();
 
   // Even if we are cancelled, we MUST change our image, because the image
@@ -139,13 +140,13 @@ nsresult imgRequestProxy::ChangeOwner(imgRequest *aNewOwner)
   mImage = aNewOwner->mImage;
 
   // If we were locked, apply the locks here
-  for (PRUint32 i = 0; i < oldLockCount; i++)
+  for (uint32_t i = 0; i < oldLockCount; i++)
     LockImage();
 
   if (mCanceled) {
     // If we had animation requests, restore them before exiting
     // (otherwise we restore them later below)
-    for (PRUint32 i = 0; i < oldAnimationConsumers; i++)
+    for (uint32_t i = 0; i < oldAnimationConsumers; i++)
       IncrementAnimationConsumers();
 
     return NS_OK;
@@ -166,7 +167,7 @@ nsresult imgRequestProxy::ChangeOwner(imgRequest *aNewOwner)
   // If we had animation requests, restore them here. Note that we
   // do this *after* RemoveProxy, which clears out animation consumers
   // (see bug 601723).
-  for (PRUint32 i = 0; i < oldAnimationConsumers; i++)
+  for (uint32_t i = 0; i < oldAnimationConsumers; i++)
     IncrementAnimationConsumers();
 
   mOwner = aNewOwner;
@@ -186,7 +187,7 @@ void imgRequestProxy::AddToLoadGroup()
   NS_ASSERTION(!mIsInLoadGroup, "Whaa, we're already in the loadgroup!");
 
   if (!mIsInLoadGroup && mLoadGroup) {
-    mLoadGroup->AddRequest(this, nsnull);
+    mLoadGroup->AddRequest(this, nullptr);
     mIsInLoadGroup = true;
   }
 }
@@ -203,12 +204,12 @@ void imgRequestProxy::RemoveFromLoadGroup(bool releaseLoadGroup)
   */
   nsCOMPtr<imgIRequest> kungFuDeathGrip(this);
 
-  mLoadGroup->RemoveRequest(this, nsnull, NS_OK);
+  mLoadGroup->RemoveRequest(this, nullptr, NS_OK);
   mIsInLoadGroup = false;
 
   if (releaseLoadGroup) {
     // We're done with the loadgroup, release it.
-    mLoadGroup = nsnull;
+    mLoadGroup = nullptr;
   }
 }
 
@@ -436,7 +437,7 @@ NS_IMETHODIMP imgRequestProxy::GetImage(imgIContainer * *aImage)
 }
 
 /* readonly attribute unsigned long imageStatus; */
-NS_IMETHODIMP imgRequestProxy::GetImageStatus(PRUint32 *aStatus)
+NS_IMETHODIMP imgRequestProxy::GetImageStatus(uint32_t *aStatus)
 {
   *aStatus = GetStatusTracker().GetImageStatus();
 
@@ -484,7 +485,7 @@ NS_IMETHODIMP imgRequestProxy::Clone(imgIDecoderObserver* aObserver,
 
   LOG_SCOPE(gImgLog, "imgRequestProxy::Clone");
 
-  *aClone = nsnull;
+  *aClone = nullptr;
   nsRefPtr<imgRequestProxy> clone = new imgRequestProxy();
 
   // It is important to call |SetLoadFlags()| before calling |Init()| because
@@ -536,8 +537,8 @@ NS_IMETHODIMP imgRequestProxy::GetMultipart(bool *aMultipart)
   return NS_OK;
 }
 
-/* readonly attribute PRInt32 CORSMode; */
-NS_IMETHODIMP imgRequestProxy::GetCORSMode(PRInt32* aCorsMode)
+/* readonly attribute int32_t CORSMode; */
+NS_IMETHODIMP imgRequestProxy::GetCORSMode(int32_t* aCorsMode)
 {
   if (!mOwner)
     return NS_ERROR_FAILURE;
@@ -549,21 +550,21 @@ NS_IMETHODIMP imgRequestProxy::GetCORSMode(PRInt32* aCorsMode)
 
 /** nsISupportsPriority methods **/
 
-NS_IMETHODIMP imgRequestProxy::GetPriority(PRInt32 *priority)
+NS_IMETHODIMP imgRequestProxy::GetPriority(int32_t *priority)
 {
   NS_ENSURE_STATE(mOwner);
   *priority = mOwner->Priority();
   return NS_OK;
 }
 
-NS_IMETHODIMP imgRequestProxy::SetPriority(PRInt32 priority)
+NS_IMETHODIMP imgRequestProxy::SetPriority(int32_t priority)
 {
   NS_ENSURE_STATE(mOwner && !mCanceled);
   mOwner->AdjustPriority(this, priority - mOwner->Priority());
   return NS_OK;
 }
 
-NS_IMETHODIMP imgRequestProxy::AdjustPriority(PRInt32 priority)
+NS_IMETHODIMP imgRequestProxy::AdjustPriority(int32_t priority)
 {
   NS_ENSURE_STATE(mOwner && !mCanceled);
   mOwner->AdjustPriority(this, priority);
@@ -577,7 +578,7 @@ NS_IMETHODIMP imgRequestProxy::GetSecurityInfo(nsISupports** _retval)
   if (mOwner)
     return mOwner->GetSecurityInfo(_retval);
 
-  *_retval = nsnull;
+  *_retval = nullptr;
   return NS_OK;
 }
 
@@ -631,7 +632,7 @@ void imgRequestProxy::OnStartContainer(imgIContainer *image)
   }
 }
 
-void imgRequestProxy::OnStartFrame(PRUint32 frame)
+void imgRequestProxy::OnStartFrame(uint32_t frame)
 {
   LOG_FUNC(gImgLog, "imgRequestProxy::OnStartFrame");
 
@@ -653,7 +654,7 @@ void imgRequestProxy::OnDataAvailable(bool aCurrentFrame, const nsIntRect * rect
   }
 }
 
-void imgRequestProxy::OnStopFrame(PRUint32 frame)
+void imgRequestProxy::OnStopFrame(uint32_t frame)
 {
   LOG_FUNC(gImgLog, "imgRequestProxy::OnStopFrame");
 
@@ -771,6 +772,34 @@ void imgRequestProxy::OnStopRequest(bool lastPart)
   }
 }
 
+void imgRequestProxy::BlockOnload()
+{
+#ifdef PR_LOGGING
+  nsCAutoString name;
+  GetName(name);
+  LOG_FUNC_WITH_PARAM(gImgLog, "imgRequestProxy::BlockOnload", "name", name.get());
+#endif
+
+  nsCOMPtr<imgIOnloadBlocker> blocker = do_QueryInterface(mListener);
+  if (blocker) {
+    blocker->BlockOnload(this);
+  }
+}
+
+void imgRequestProxy::UnblockOnload()
+{
+#ifdef PR_LOGGING
+  nsCAutoString name;
+  GetName(name);
+  LOG_FUNC_WITH_PARAM(gImgLog, "imgRequestProxy::UnblockOnload", "name", name.get());
+#endif
+
+  nsCOMPtr<imgIOnloadBlocker> blocker = do_QueryInterface(mListener);
+  if (blocker) {
+    blocker->UnblockOnload(this);
+  }
+}
+
 void imgRequestProxy::NullOutListener()
 {
   // If we have animation consumers, then they don't matter anymore
@@ -783,14 +812,14 @@ void imgRequestProxy::NullOutListener()
     obs.swap(mListener);
     mListenerIsStrongRef = false;
   } else {
-    mListener = nsnull;
+    mListener = nullptr;
   }
 }
 
 NS_IMETHODIMP
 imgRequestProxy::GetStaticRequest(imgIRequest** aReturn)
 {
-  *aReturn = nsnull;
+  *aReturn = nullptr;
 
   bool animated;
   if (!mImage || (NS_SUCCEEDED(mImage->GetAnimated(&animated)) && !animated)) {
@@ -800,8 +829,8 @@ imgRequestProxy::GetStaticRequest(imgIRequest** aReturn)
   }
 
   // We are animated. We need to extract the current frame from this image.
-  PRInt32 w = 0;
-  PRInt32 h = 0;
+  int32_t w = 0;
+  int32_t h = 0;
   mImage->GetWidth(&w);
   mImage->GetHeight(&h);
   nsIntRect rect(0, 0, w, h);
@@ -816,7 +845,7 @@ imgRequestProxy::GetStaticRequest(imgIRequest** aReturn)
 
   // Create a static imgRequestProxy with our new extracted frame.
   nsRefPtr<imgRequestProxy> req = new imgRequestProxy();
-  req->Init(nsnull, nsnull, frame, mURI, nsnull);
+  req->Init(nullptr, nullptr, frame, mURI, nullptr);
   req->SetPrincipal(mPrincipal);
 
   NS_ADDREF(*aReturn = req);
@@ -868,11 +897,11 @@ imgRequestProxy::SetImage(Image* aImage)
   mImage = aImage;
 
   // Apply any locks we have
-  for (PRUint32 i = 0; i < mLockCount; ++i)
+  for (uint32_t i = 0; i < mLockCount; ++i)
     mImage->LockImage();
 
   // Apply any animation consumers we have
-  for (PRUint32 i = 0; i < mAnimationConsumers; i++)
+  for (uint32_t i = 0; i < mAnimationConsumers; i++)
     mImage->IncrementAnimationConsumers();
 }
 

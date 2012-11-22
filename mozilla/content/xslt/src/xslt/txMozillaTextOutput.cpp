@@ -42,14 +42,14 @@ txMozillaTextOutput::~txMozillaTextOutput()
 nsresult
 txMozillaTextOutput::attribute(nsIAtom* aPrefix, nsIAtom* aLocalName,
                                nsIAtom* aLowercaseLocalName,
-                               PRInt32 aNsID, const nsString& aValue)
+                               int32_t aNsID, const nsString& aValue)
 {
     return NS_OK;
 }
 
 nsresult
 txMozillaTextOutput::attribute(nsIAtom* aPrefix, const nsSubstring& aName,
-                               const PRInt32 aNsID,
+                               const int32_t aNsID,
                                const nsString& aValue)
 {
     return NS_OK;
@@ -171,7 +171,7 @@ txMozillaTextOutput::createResultDocument(nsIDOMDocument* aSourceDocument)
     // When transforming into a non-displayed document (i.e. when there is no
     // observer) we only create a transformiix:result root element.
     if (!observer) {
-        PRInt32 namespaceID;
+        int32_t namespaceID;
         rv = nsContentUtils::NameSpaceManager()->
             RegisterNameSpace(NS_LITERAL_STRING(kTXNameSpaceURI), namespaceID);
         NS_ENSURE_SUCCESS(rv, rv);
@@ -222,14 +222,14 @@ txMozillaTextOutput::createResultDocument(nsIDOMDocument* aSourceDocument)
 
 nsresult
 txMozillaTextOutput::startElement(nsIAtom* aPrefix, nsIAtom* aLocalName,
-                                  nsIAtom* aLowercaseLocalName, PRInt32 aNsID)
+                                  nsIAtom* aLowercaseLocalName, int32_t aNsID)
 {
     return NS_OK;
 }
 
 nsresult
 txMozillaTextOutput::startElement(nsIAtom* aPrefix, const nsSubstring& aName,
-                                  const PRInt32 aNsID)
+                                  const int32_t aNsID)
 {
     return NS_OK;
 }
@@ -243,11 +243,11 @@ nsresult
 txMozillaTextOutput::createXHTMLElement(nsIAtom* aName,
                                         nsIContent** aResult)
 {
-    *aResult = nsnull;
+    *aResult = nullptr;
 
     nsCOMPtr<nsINodeInfo> ni;
     ni = mDocument->NodeInfoManager()->
-        GetNodeInfo(aName, nsnull, kNameSpaceID_XHTML,
+        GetNodeInfo(aName, nullptr, kNameSpaceID_XHTML,
                     nsIDOMNode::ELEMENT_NODE);
     NS_ENSURE_TRUE(ni, NS_ERROR_OUT_OF_MEMORY);
 

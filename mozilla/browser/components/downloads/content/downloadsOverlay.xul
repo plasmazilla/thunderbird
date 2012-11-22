@@ -98,6 +98,7 @@
       </menupopup>
 
       <richlistbox id="downloadsListBox"
+                   style="width: &downloads.width;"
                    class="plain"
                    flex="1"
                    context="downloadsContextMenu"
@@ -107,8 +108,6 @@
 
       <button id="downloadsHistory"
               class="plain"
-              label="&downloadshistory.label;"
-              accesskey="&downloadshistory.accesskey;"
               oncommand="DownloadsPanel.showDownloadsHistory();"/>
     </panel>
   </popupset>

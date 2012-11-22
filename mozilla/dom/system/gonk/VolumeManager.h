@@ -13,6 +13,7 @@
 #include "mozilla/Observer.h"
 #include "mozilla/RefPtr.h"
 #include "nsString.h"
+#include "nsTArray.h"
 
 #include "Volume.h"
 #include "VolumeCommand.h"
@@ -77,7 +78,7 @@ class VolumeManager : public MessageLoopForIO::Watcher,
 {
 public:
 
-  typedef std::vector<RefPtr<Volume> > VolumeArray;
+  typedef nsTArray<RefPtr<Volume> > VolumeArray;
 
   VolumeManager();
   virtual ~VolumeManager();
@@ -102,7 +103,8 @@ public:
   };
 
   static STATE State();
-  static const char *StateStr();
+  static const char *StateStr(STATE aState);
+  static const char *StateStr() { return StateStr(State()); }
 
   class StateChangedEvent
   {
@@ -120,6 +122,8 @@ public:
 
   static void Start();
 
+  static VolumeArray::size_type NumVolumes();
+  static TemporaryRef<Volume> GetVolume(VolumeArray::index_type aIndex);
   static TemporaryRef<Volume> FindVolumeByName(const nsCSubstring &aName);
   static TemporaryRef<Volume> FindAddVolumeByName(const nsCSubstring &aName);
 
@@ -143,15 +147,16 @@ private:
 
   typedef std::queue<RefPtr<VolumeCommand> > CommandQueue;
 
+  static STATE              mState;
+  static StateObserverList  mStateObserverList;
+
   static const int    kRcvBufSize = 1024;
-  STATE               mState;
   ScopedClose         mSocket;
   VolumeArray         mVolumeArray;
   CommandQueue        mCommands;
   bool                mCommandPending;
   char                mRcvBuf[kRcvBufSize];
   size_t              mRcvIdx;
-  StateObserverList   mStateObserverList;
   MessageLoopForIO                       *mIOLoop;
   MessageLoopForIO::FileDescriptorWatcher mReadWatcher;
   MessageLoopForIO::FileDescriptorWatcher mWriteWatcher;

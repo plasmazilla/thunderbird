@@ -133,7 +133,7 @@ nsMacShellService::GetCanSetDesktopBackground(bool* aResult)
 
 NS_IMETHODIMP
 nsMacShellService::SetDesktopBackground(nsIDOMElement* aElement, 
-                                        PRInt32 aPosition)
+                                        int32_t aPosition)
 {
   // Note: We don't support aPosition on OS X.
 
@@ -185,24 +185,24 @@ nsMacShellService::SetDesktopBackground(nsIDOMElement* aElement,
     (do_CreateInstance("@mozilla.org/embedding/browser/nsWebBrowserPersist;1", &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRUint32 flags = nsIWebBrowserPersist::PERSIST_FLAGS_NO_CONVERSION | 
+  uint32_t flags = nsIWebBrowserPersist::PERSIST_FLAGS_NO_CONVERSION | 
                    nsIWebBrowserPersist::PERSIST_FLAGS_REPLACE_EXISTING_FILES |
                    nsIWebBrowserPersist::PERSIST_FLAGS_FROM_CACHE;
 
   wbp->SetPersistFlags(flags);
   wbp->SetProgressListener(this);
 
-  return wbp->SaveURI(imageURI, nsnull, docURI, nsnull, nsnull,
+  return wbp->SaveURI(imageURI, nullptr, docURI, nullptr, nullptr,
                       mBackgroundFile);
 }
 
 NS_IMETHODIMP
 nsMacShellService::OnProgressChange(nsIWebProgress* aWebProgress,
                                     nsIRequest* aRequest,
-                                    PRInt32 aCurSelfProgress,
-                                    PRInt32 aMaxSelfProgress,
-                                    PRInt32 aCurTotalProgress,
-                                    PRInt32 aMaxTotalProgress)
+                                    int32_t aCurSelfProgress,
+                                    int32_t aMaxSelfProgress,
+                                    int32_t aCurTotalProgress,
+                                    int32_t aMaxTotalProgress)
 {
   return NS_OK;
 }
@@ -211,7 +211,7 @@ NS_IMETHODIMP
 nsMacShellService::OnLocationChange(nsIWebProgress* aWebProgress,
                                     nsIRequest* aRequest,
                                     nsIURI* aLocation,
-                                    PRUint32 aFlags)
+                                    uint32_t aFlags)
 {
   return NS_OK;
 }
@@ -228,7 +228,7 @@ nsMacShellService::OnStatusChange(nsIWebProgress* aWebProgress,
 NS_IMETHODIMP
 nsMacShellService::OnSecurityChange(nsIWebProgress* aWebProgress,
                                     nsIRequest* aRequest,
-                                    PRUint32 aState)
+                                    uint32_t aState)
 {
   return NS_OK;
 }
@@ -236,13 +236,13 @@ nsMacShellService::OnSecurityChange(nsIWebProgress* aWebProgress,
 NS_IMETHODIMP
 nsMacShellService::OnStateChange(nsIWebProgress* aWebProgress,
                                  nsIRequest* aRequest,
-                                 PRUint32 aStateFlags,
+                                 uint32_t aStateFlags,
                                  nsresult aStatus)
 {
   if (aStateFlags & STATE_STOP) {
     nsCOMPtr<nsIObserverService> os(do_GetService("@mozilla.org/observer-service;1"));
     if (os)
-      os->NotifyObservers(nsnull, "shell:desktop-background-changed", nsnull);
+      os->NotifyObservers(nullptr, "shell:desktop-background-changed", nullptr);
 
     bool exists = false;
     mBackgroundFile->Exists(&exists);
@@ -302,7 +302,7 @@ nsMacShellService::OnStateChange(nsIWebProgress* aWebProgress,
 }
 
 NS_IMETHODIMP
-nsMacShellService::OpenApplication(PRInt32 aApplication)
+nsMacShellService::OpenApplication(int32_t aApplication)
 {
   nsresult rv = NS_OK;
   CFURLRef appURL = nil;
@@ -366,7 +366,7 @@ nsMacShellService::OpenApplication(PRInt32 aApplication)
 }
 
 NS_IMETHODIMP
-nsMacShellService::GetDesktopBackgroundColor(PRUint32 *aColor)
+nsMacShellService::GetDesktopBackgroundColor(uint32_t *aColor)
 {
   // This method and |SetDesktopBackgroundColor| has no meaning on Mac OS X.
   // The mac desktop preferences UI uses pictures for the few solid colors it
@@ -375,7 +375,7 @@ nsMacShellService::GetDesktopBackgroundColor(PRUint32 *aColor)
 }
 
 NS_IMETHODIMP
-nsMacShellService::SetDesktopBackgroundColor(PRUint32 aColor)
+nsMacShellService::SetDesktopBackgroundColor(uint32_t aColor)
 {
   // This method and |GetDesktopBackgroundColor| has no meaning on Mac OS X.
   // The mac desktop preferences UI uses pictures for the few solid colors it
@@ -424,7 +424,7 @@ NS_IMETHODIMP
 nsMacShellService::GetDefaultFeedReader(nsIFile** _retval)
 {
   nsresult rv = NS_ERROR_FAILURE;
-  *_retval = nsnull;
+  *_retval = nullptr;
 
   CFStringRef defaultHandlerID = ::LSCopyDefaultHandlerForURLScheme(CFSTR("feed"));
   if (!defaultHandlerID) {

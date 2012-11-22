@@ -103,19 +103,19 @@ private:
     nsresult StoreURI(
         const char *aURI,
         bool aNeedsPersisting = true,
-        URIData **aData = nsnull);
+        URIData **aData = nullptr);
     nsresult StoreURI(
         nsIURI *aURI,
         bool aNeedsPersisting = true,
-        URIData **aData = nsnull);
+        URIData **aData = nullptr);
     nsresult StoreURIAttributeNS(
         nsIDOMNode *aNode, const char *aNamespaceURI, const char *aAttribute,
         bool aNeedsPersisting = true,
-        URIData **aData = nsnull);
+        URIData **aData = nullptr);
     nsresult StoreURIAttribute(
         nsIDOMNode *aNode, const char *aAttribute,
         bool aNeedsPersisting = true,
-        URIData **aData = nsnull)
+        URIData **aData = nullptr)
     {
         return StoreURIAttributeNS(aNode, "", aAttribute, aNeedsPersisting, aData);
     }
@@ -136,7 +136,7 @@ private:
     nsresult SaveDocumentWithFixup(
         nsIDOMDocument *pDocument, nsIDocumentEncoderNodeFixup *pFixup,
         nsIURI *aFile, bool aReplaceExisting, const nsACString &aFormatType,
-        const nsCString &aSaveCharset, PRUint32  aFlags);
+        const nsCString &aSaveCharset, uint32_t  aFlags);
     nsresult SaveSubframeContent(
         nsIDOMDocument *aFrameContent, URIData *aData);
     nsresult SetDocumentBase(nsIDOMDocument *aDocument, nsIURI *aBaseURI);
@@ -177,7 +177,7 @@ private:
     nsCOMPtr<nsIURI>          mCurrentBaseURI;
     nsCString                 mCurrentCharset;
     nsCOMPtr<nsIURI>          mTargetBaseURI;
-    PRUint32                  mCurrentThingsToPersist;
+    uint32_t                  mCurrentThingsToPersist;
 
     nsCOMPtr<nsIMIMEService>  mMIMEService;
     nsCOMPtr<nsIURI>          mURI;
@@ -202,12 +202,12 @@ private:
     bool                      mStartSaving;
     bool                      mReplaceExisting;
     bool                      mSerializingOutput;
-    PRUint32                  mPersistFlags;
-    PRUint32                  mPersistResult;
-    PRInt64                   mTotalCurrentProgress;
-    PRInt64                   mTotalMaxProgress;
-    PRInt16                   mWrapColumn;
-    PRUint32                  mEncodingFlags;
+    uint32_t                  mPersistFlags;
+    nsresult                  mPersistResult;
+    int64_t                   mTotalCurrentProgress;
+    int64_t                   mTotalMaxProgress;
+    int16_t                   mWrapColumn;
+    uint32_t                  mEncodingFlags;
     nsString                  mContentType;
 };
 

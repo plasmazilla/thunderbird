@@ -6,56 +6,104 @@
 package org.mozilla.gecko;
 
 import org.mozilla.gecko.gfx.BitmapUtils;
-import org.mozilla.gecko.gfx.IntSize;
 import org.mozilla.gecko.gfx.GeckoLayerClient;
 import org.mozilla.gecko.gfx.GfxInfoThread;
 import org.mozilla.gecko.gfx.ImmutableViewportMetrics;
-import org.mozilla.gecko.gfx.LayerController;
+import org.mozilla.gecko.gfx.IntSize;
 import org.mozilla.gecko.gfx.LayerView;
-import org.mozilla.gecko.gfx.ScreenshotLayer;
-import org.mozilla.gecko.FloatUtils;
-import org.mozilla.gecko.gfx.ImmutableViewportMetrics;
-import org.mozilla.gecko.gfx.ViewportMetrics;
 import org.mozilla.gecko.gfx.RectUtils;
+import org.mozilla.gecko.gfx.ScreenshotLayer;
+import org.mozilla.gecko.gfx.TouchEventHandler;
+import org.mozilla.gecko.mozglue.DirectBufferAllocator;
+import org.mozilla.gecko.util.EventDispatcher;
+import org.mozilla.gecko.util.FloatUtils;
+import org.mozilla.gecko.util.GeckoBackgroundThread;
+import org.mozilla.gecko.util.GeckoEventListener;
 
-import java.io.*;
-import java.lang.reflect.*;
-import java.nio.*;
-import java.net.URL;
-import java.net.MalformedURLException;
-import java.text.*;
-import java.util.*;
-import java.util.zip.*;
-import java.util.concurrent.*;
-
-import android.os.*;
-import android.app.*;
-import android.text.*;
-import android.view.*;
-import android.view.inputmethod.*;
-import android.content.*;
-import android.content.res.*;
-import android.content.pm.*;
-import android.graphics.*;
-import android.widget.*;
-import android.hardware.*;
-import android.location.*;
-import android.webkit.MimeTypeMap;
+import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.content.res.TypedArray;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.ImageFormat;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.RectF;
+import android.graphics.SurfaceTexture;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.hardware.Sensor;
+import android.hardware.SensorManager;
+import android.location.Criteria;
+import android.location.Location;
+import android.location.LocationManager;
 import android.media.MediaScannerConnection;
 import android.media.MediaScannerConnection.MediaScannerConnectionClient;
-import android.provider.Settings;
-import android.opengl.GLES20;
-
-import android.util.*;
-import android.net.Uri;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.Uri;
+import android.opengl.GLES20;
+import android.os.Build;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
+import android.os.MessageQueue;
+import android.os.StatFs;
+import android.os.Vibrator;
+import android.provider.Settings;
+import android.util.Base64;
+import android.util.DisplayMetrics;
+import android.util.FloatMath;
+import android.util.Log;
+import android.view.ContextThemeWrapper;
+import android.view.HapticFeedbackConstants;
+import android.view.Surface;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
+import android.webkit.MimeTypeMap;
+import android.widget.Toast;
+import android.text.TextUtils;
 
-import android.graphics.Bitmap;
-import android.graphics.drawable.*;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
+import java.io.BufferedReader;
+import java.io.Closeable;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.lang.reflect.Field;
+import java.net.URL;
+import java.nio.ByteBuffer;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.text.NumberFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Locale;
+import java.util.NoSuchElementException;
+import java.util.Queue;
+import java.util.StringTokenizer;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.SynchronousQueue;
 
 public class GeckoAppShell
 {
@@ -85,6 +133,8 @@ public class GeckoAppShell
     public static final String SHORTCUT_TYPE_WEBAPP = "webapp";
     public static final String SHORTCUT_TYPE_BOOKMARK = "bookmark";
 
+    static private final boolean LOGGING = false;
+
     static public final int RESTORE_NONE = 0;
     static public final int RESTORE_OOM = 1;
     static public final int RESTORE_CRASH = 2;
@@ -97,8 +147,7 @@ public class GeckoAppShell
     private static Boolean sNSSLibsLoaded = false;
     private static Boolean sLibsSetup = false;
     private static File sGREDir = null;
-    private static Map<String, CopyOnWriteArrayList<GeckoEventListener>> mEventListeners
-            = new HashMap<String, CopyOnWriteArrayList<GeckoEventListener>>();
+    private static final EventDispatcher sEventDispatcher = new EventDispatcher();
 
     /* Is the value in sVibrationEndTime valid? */
     private static boolean sVibrationMaybePlaying = false;
@@ -205,8 +254,6 @@ public class GeckoAppShell
     public static native void notifyGotNextMessage(int aMessageId, String aReceiver, String aSender, String aBody, long aTimestamp, int aRequestId, long aProcessId);
     public static native void notifyReadingMessageListFailed(int aError, int aRequestId, long aProcessId);
 
-    public static native ByteBuffer allocateDirectBuffer(long size);
-    public static native void freeDirectBuffer(ByteBuffer buf);
     public static native void scheduleComposite();
     public static native void schedulePauseComposition();
     public static native void scheduleResumeComposition(int width, int height);
@@ -352,14 +399,18 @@ public class GeckoAppShell
             if (Build.VERSION.SDK_INT >= 8) {
                 downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
                 updatesDir  = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
-            } else {
-                updatesDir = downloadDir = new File(Environment.getExternalStorageDirectory().getPath(), "download");
+            }
+            if (downloadDir == null) {
+                downloadDir = new File(Environment.getExternalStorageDirectory().getPath(), "download");
+            }
+            if (updatesDir == null) {
+                updatesDir = downloadDir;
             }
             GeckoAppShell.putenv("DOWNLOADS_DIRECTORY=" + downloadDir.getPath());
             GeckoAppShell.putenv("UPDATES_DIRECTORY="   + updatesDir.getPath());
         }
         catch (Exception e) {
-            Log.i(LOGTAG, "No download directory has been found: " + e);
+            Log.i(LOGTAG, "No download directory has been found: ", e);
         }
     }
 
@@ -401,6 +452,32 @@ public class GeckoAppShell
         // setup the app-specific cache path
         f = context.getCacheDir();
         GeckoAppShell.putenv("CACHE_DIRECTORY=" + f.getPath());
+
+        /* We really want to use this code, but it requires bumping up the SDK to 17 so for now
+           we will use reflection. See https://bugzilla.mozilla.org/show_bug.cgi?id=811763#c11
+        
+        if (Build.VERSION.SDK_INT >= 17) {
+            android.os.UserManager um = (android.os.UserManager)context.getSystemService(Context.USER_SERVICE);
+            if (um != null) {
+                GeckoAppShell.putenv("MOZ_ANDROID_USER_SERIAL_NUMBER=" + um.getSerialNumberForUser(android.os.Process.myUserHandle()));
+            } else {
+                Log.d(LOGTAG, "Unable to obtain user manager service on a device with SDK version " + Build.VERSION.SDK_INT);
+            }
+        }
+        */
+        try {
+            Object userManager = context.getSystemService("user");
+            if (userManager != null) {
+                // if userManager is non-null that means we're running on 4.2+ and so the rest of this
+                // should just work
+                Object userHandle = android.os.Process.class.getMethod("myUserHandle", (Class[])null).invoke(null);
+                Object userSerial = userManager.getClass().getMethod("getSerialNumberForUser", userHandle.getClass()).invoke(userManager, userHandle);
+                GeckoAppShell.putenv("MOZ_ANDROID_USER_SERIAL_NUMBER=" + userSerial.toString());
+            }
+        } catch (Exception e) {
+            // Guard against any unexpected failures
+            Log.d(LOGTAG, "Unable to set the user serial number", e);
+        }
 
         putLocaleEnv();
     }
@@ -467,7 +544,7 @@ public class GeckoAppShell
         Log.i(LOGTAG, "post native init");
 
         // Tell Gecko where the target byte buffer is for rendering
-        GeckoAppShell.setLayerClient(GeckoApp.mAppContext.getLayerClient());
+        GeckoAppShell.setLayerClient(GeckoApp.mAppContext.getLayerView().getLayerClient());
 
         Log.i(LOGTAG, "setLayerClient called");
 
@@ -482,7 +559,7 @@ public class GeckoAppShell
         if (restoreMode != RESTORE_NONE)
             combinedArgs += " -restoremode " + restoreMode;
 
-        DisplayMetrics metrics = GeckoApp.mAppContext.getDisplayMetrics();
+        DisplayMetrics metrics = GeckoApp.mAppContext.getResources().getDisplayMetrics();
         combinedArgs += " -width " + metrics.widthPixels + " -height " + metrics.heightPixels;
 
         GeckoApp.mAppContext.runOnUiThread(new Runnable() {
@@ -497,10 +574,9 @@ public class GeckoAppShell
 
     // Called on the UI thread after Gecko loads.
     private static void geckoLoaded() {
-        final LayerController layerController = GeckoApp.mAppContext.getLayerController();
-        LayerView v = layerController.getView();
-        mInputConnection = v.setInputConnectionHandler();
-        layerController.notifyLayerClientOfGeometryChange();
+        LayerView v = GeckoApp.mAppContext.getLayerView();
+        mInputConnection = GeckoInputConnection.create(v);
+        v.setInputConnectionHandler(mInputConnection);
     }
 
     static void sendPendingEventsToGecko() {
@@ -537,12 +613,12 @@ public class GeckoAppShell
             mInputConnection.notifyIME(type, state);
     }
 
-    public static void notifyIMEEnabled(int state, String typeHint,
+    public static void notifyIMEEnabled(int state, String typeHint, String modeHint,
                                         String actionHint, boolean landscapeFS) {
         // notifyIMEEnabled() still needs the landscapeFS parameter because it is called from JNI
         // code that assumes it has the same signature as XUL Fennec's (which does use landscapeFS).
         if (mInputConnection != null)
-            mInputConnection.notifyIMEEnabled(state, typeHint, actionHint);
+            mInputConnection.notifyIMEEnabled(state, typeHint, modeHint, actionHint);
     }
 
     public static void notifyIMEChange(String text, int start, int end, int newEnd) {
@@ -754,27 +830,31 @@ public class GeckoAppShell
     }
 
     public static File installWebApp(String aTitle, String aURI, String aUniqueURI, String aIconURL) {
-        int index = WebAppAllocator.getInstance(GeckoApp.mAppContext).findAndAllocateIndex(aUniqueURI);
+        int index = WebAppAllocator.getInstance(GeckoApp.mAppContext).findAndAllocateIndex(aUniqueURI, aTitle, aIconURL);
         GeckoProfile profile = GeckoProfile.get(GeckoApp.mAppContext, "webapp" + index);
         createShortcut(aTitle, aURI, aUniqueURI, aIconURL, "webapp");
         return profile.getDir();
     }
 
-    public static Intent getWebAppIntent(String aURI, String aUniqueURI, boolean forInstall) {
+    public static Intent getWebAppIntent(String aURI, String aUniqueURI, String aTitle, Bitmap aIcon) {
         int index;
 
-        if (forInstall)
-            index = WebAppAllocator.getInstance(GeckoApp.mAppContext).findAndAllocateIndex(aUniqueURI);
+        if (aIcon != null && !TextUtils.isEmpty(aTitle))
+            index = WebAppAllocator.getInstance(GeckoApp.mAppContext).findAndAllocateIndex(aUniqueURI, aTitle, aIcon);
         else
             index = WebAppAllocator.getInstance(GeckoApp.mAppContext).getIndexForApp(aUniqueURI);
 
         if (index == -1)
             return null;
 
+        return getWebAppIntent(index, aURI);
+    }
+
+    public static Intent getWebAppIntent(int aIndex, String aURI) {
         Intent intent = new Intent();
-        intent.setAction(GeckoApp.ACTION_WEBAPP_PREFIX + index);
+        intent.setAction(GeckoApp.ACTION_WEBAPP_PREFIX + aIndex);
         intent.setData(Uri.parse(aURI));
-        intent.setClassName(GeckoApp.mAppContext, GeckoApp.mAppContext.getPackageName() + ".WebApps$WebApp" + index);
+        intent.setClassName(GeckoApp.mAppContext, GeckoApp.mAppContext.getPackageName() + ".WebApps$WebApp" + aIndex);
         return intent;
     }
 
@@ -785,9 +865,7 @@ public class GeckoAppShell
             Log.e(LOGTAG, "createShortcut with no unique URI should not be used for aType = webapp!");
         }
 
-        byte[] raw = Base64.decode(aIconData.substring(22), Base64.DEFAULT);
-        Bitmap bitmap = BitmapFactory.decodeByteArray(raw, 0, raw.length);
-        createShortcut(aTitle, aURI, aURI, bitmap, aType);
+        createShortcut(aTitle, aURI, aURI, aIconData, aType);
     }
 
     // internal, for non-webapps
@@ -810,7 +888,7 @@ public class GeckoAppShell
                 // the intent to be launched by the shortcut
                 Intent shortcutIntent;
                 if (aType.equalsIgnoreCase(SHORTCUT_TYPE_WEBAPP)) {
-                    shortcutIntent = getWebAppIntent(aURI, aUniqueURI, true);
+                    shortcutIntent = getWebAppIntent(aURI, aUniqueURI, aTitle, aIcon);
                 } else {
                     shortcutIntent = new Intent();
                     shortcutIntent.setAction(GeckoApp.ACTION_BOOKMARK);
@@ -846,8 +924,8 @@ public class GeckoAppShell
                 // the intent to be launched by the shortcut
                 Intent shortcutIntent;
                 if (aType.equalsIgnoreCase(SHORTCUT_TYPE_WEBAPP)) {
-                    int index = WebAppAllocator.getInstance(GeckoApp.mAppContext).findAndAllocateIndex(aUniqueURI);
-                    shortcutIntent = getWebAppIntent(aURI, aUniqueURI, false);
+                    int index = WebAppAllocator.getInstance(GeckoApp.mAppContext).getIndexForApp(aUniqueURI);
+                    shortcutIntent = getWebAppIntent(aURI, aUniqueURI, "", null);
                     if (shortcutIntent == null)
                         return;
                 } else {
@@ -904,31 +982,34 @@ public class GeckoAppShell
         });
     }
 
+    static public int getPreferredIconSize() {
+        if (android.os.Build.VERSION.SDK_INT >= 11) {
+            ActivityManager am = (ActivityManager)GeckoApp.mAppContext.getSystemService(Context.ACTIVITY_SERVICE);
+            return am.getLauncherLargeIconSize();
+        } else {
+            switch (getDpi()) {
+                case DisplayMetrics.DENSITY_MEDIUM:
+                    return 48;
+                case DisplayMetrics.DENSITY_XHIGH:
+                    return 96;
+                case DisplayMetrics.DENSITY_HIGH:
+                default:
+                    return 72;
+            }
+        }
+    }
+
     static private Bitmap getLauncherIcon(Bitmap aSource, String aType) {
         final int kOffset = 6;
         final int kRadius = 5;
-        int kIconSize;
-        int kOverlaySize;
-        switch (getDpi()) {
-            case DisplayMetrics.DENSITY_MEDIUM:
-                kIconSize = 48;
-                kOverlaySize = 32;
-                break;
-            case DisplayMetrics.DENSITY_XHIGH:
-                kIconSize = 96;
-                kOverlaySize = 48;
-                break;
-            case DisplayMetrics.DENSITY_HIGH:
-            default:
-                kIconSize = 72;
-                kOverlaySize = 32;
-        }
+        int size = getPreferredIconSize();
+        int insetSize = aSource != null ? size*2/3 : size;
 
-        Bitmap bitmap = Bitmap.createBitmap(kIconSize, kIconSize, Bitmap.Config.ARGB_8888);
+        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
 
         if (aType.equalsIgnoreCase(SHORTCUT_TYPE_WEBAPP)) {
-            Rect iconBounds = new Rect(0, 0, bitmap.getWidth(), bitmap.getHeight());
+            Rect iconBounds = new Rect(0, 0, size, size);
             canvas.drawBitmap(aSource, null, iconBounds, null);
             return bitmap;
         }
@@ -936,45 +1017,49 @@ public class GeckoAppShell
         // draw a base color
         Paint paint = new Paint();
         if (aSource == null) {
+            // if we aren't drawing a favicon, just use an orange color
             float[] hsv = new float[3];
             hsv[0] = 32.0f;
             hsv[1] = 1.0f;
             hsv[2] = 1.0f;
             paint.setColor(Color.HSVToColor(hsv));
-            canvas.drawRoundRect(new RectF(kOffset, kOffset, kIconSize - kOffset, kIconSize - kOffset), kRadius, kRadius, paint);
+            canvas.drawRoundRect(new RectF(kOffset, kOffset, size - kOffset, size - kOffset), kRadius, kRadius, paint);
         } else {
+            // otherwise use the dominant color from the icon + a layer of transparent white to lighten it somewhat
             int color = BitmapUtils.getDominantColor(aSource);
             paint.setColor(color);
-            canvas.drawRoundRect(new RectF(kOffset, kOffset, kIconSize - kOffset, kIconSize - kOffset), kRadius, kRadius, paint);
+            canvas.drawRoundRect(new RectF(kOffset, kOffset, size - kOffset, size - kOffset), kRadius, kRadius, paint);
             paint.setColor(Color.argb(100, 255, 255, 255));
-            canvas.drawRoundRect(new RectF(kOffset, kOffset, kIconSize - kOffset, kIconSize - kOffset), kRadius, kRadius, paint);
+            canvas.drawRoundRect(new RectF(kOffset, kOffset, size - kOffset, size - kOffset), kRadius, kRadius, paint);
         }
 
         // draw the overlay
         Bitmap overlay = BitmapFactory.decodeResource(GeckoApp.mAppContext.getResources(), R.drawable.home_bg);
-        canvas.drawBitmap(overlay, null, new Rect(0, 0, kIconSize, kIconSize), null);
+        canvas.drawBitmap(overlay, null, new Rect(0, 0, size, size), null);
 
-        // draw the bitmap
+        // draw the favicon
         if (aSource == null)
             aSource = BitmapFactory.decodeResource(GeckoApp.mAppContext.getResources(), R.drawable.home_star);
 
-        if (aSource.getWidth() < kOverlaySize || aSource.getHeight() < kOverlaySize) {
-            canvas.drawBitmap(aSource,
-                              null,
-                              new Rect(kIconSize/2 - kOverlaySize/2,
-                                       kIconSize/2 - kOverlaySize/2,
-                                       kIconSize/2 + kOverlaySize/2,
-                                       kIconSize/2 + kOverlaySize/2),
-                              null);
-        } else {
-            canvas.drawBitmap(aSource,
-                              null,
-                              new Rect(kIconSize/2 - aSource.getWidth()/2,
-                                       kIconSize/2 - aSource.getHeight()/2,
-                                       kIconSize/2 + aSource.getWidth()/2,
-                                       kIconSize/2 + aSource.getHeight()/2),
-                              null);
+        // by default, we scale the icon to this size
+        int sWidth = insetSize/2;
+        int sHeight = sWidth;
+
+        if (aSource.getWidth() > insetSize || aSource.getHeight() > insetSize) {
+            // however, if the icon is larger than our minimum, we allow it to be drawn slightly larger
+            // (but not necessarily at its full resolution)
+            sWidth = Math.min(size/3, aSource.getWidth()/2);
+            sHeight = Math.min(size/3, aSource.getHeight()/2);
         }
+
+        int halfSize = size/2;
+        canvas.drawBitmap(aSource,
+                          null,
+                          new Rect(halfSize - sWidth,
+                                   halfSize - sHeight,
+                                   halfSize + sWidth,
+                                   halfSize + sHeight),
+                          null);
 
         return bitmap;
     }
@@ -1291,8 +1376,15 @@ public class GeckoAppShell
         notificationIntent.setClassName(GeckoApp.mAppContext,
             GeckoApp.mAppContext.getPackageName() + ".NotificationHandler");
 
-        // Put the strings into the intent as an URI "alert:<name>#<cookie>"
-        Uri dataUri = Uri.fromParts("alert", aAlertName, aAlertCookie);
+        // Put the strings into the intent as an URI "alert:?name=<alertName>&app=<appName>&cookie=<cookie>"
+        Uri.Builder b = new Uri.Builder();
+        String app = GeckoApp.mAppContext.getClass().getName();
+        Uri dataUri = b.scheme("alert")
+                                 .path(Integer.toString(notificationID))
+                                 .appendQueryParameter("name", aAlertName)
+                                 .appendQueryParameter("app", app)
+                                 .appendQueryParameter("cookie", aAlertCookie)
+                                 .build();
         notificationIntent.setData(dataUri);
 
         PendingIntent contentIntent = PendingIntent.getBroadcast(GeckoApp.mAppContext, 0, notificationIntent, 0);
@@ -1339,10 +1431,11 @@ public class GeckoAppShell
     }
 
     public static void handleNotification(String aAction, String aAlertName, String aAlertCookie) {
+        if (LOGGING) Log.i(LOGTAG, "handleNotification " + aAction + " " + aAlertName + " " + aAlertCookie);
         int notificationID = aAlertName.hashCode();
 
-        if (GeckoApp.ACTION_ALERT_CLICK.equals(aAction)) {
-            Log.i(LOGTAG, "GeckoAppShell.handleNotification: callObserver(alertclickcallback)");
+        if (GeckoApp.ACTION_ALERT_CALLBACK.equals(aAction)) {
+            if (LOGGING) Log.i(LOGTAG, "GeckoAppShell.handleNotification: callObserver(alertclickcallback)");
             callObserver(aAlertName, "alertclickcallback", aAlertCookie);
 
             AlertNotification notification = mAlertNotifications.get(notificationID);
@@ -1353,7 +1446,11 @@ public class GeckoAppShell
         }
 
         callObserver(aAlertName, "alertfinished", aAlertCookie);
-
+        // Also send a notification to the observer service
+        // New listeners should register for these notifications since they will be called even if
+        // Gecko has been killed and restared between when your notification was shown and when the
+        // user clicked on it.
+        sendEventToGecko(GeckoEvent.createBroadcastEvent("Notification:Clicked", aAlertCookie));
         removeObserver(aAlertName);
 
         removeNotification(notificationID);
@@ -1369,7 +1466,7 @@ public class GeckoAppShell
 
     public static int getDpi() {
         if (sDensityDpi == 0) {
-            sDensityDpi = GeckoApp.mAppContext.getDisplayMetrics().densityDpi;
+            sDensityDpi = GeckoApp.mAppContext.getResources().getDisplayMetrics().densityDpi;
         }
 
         return sDensityDpi;
@@ -1391,8 +1488,7 @@ public class GeckoAppShell
         // Don't perform haptic feedback if a vibration is currently playing,
         // because the haptic feedback will nuke the vibration.
         if (!sVibrationMaybePlaying || System.nanoTime() >= sVibrationEndTime) {
-            LayerController layerController = GeckoApp.mAppContext.getLayerController();
-            LayerView layerView = layerController.getView();
+            LayerView layerView = GeckoApp.mAppContext.getLayerView();
             layerView.performHapticFeedback(aIsLongPress ?
                                             HapticFeedbackConstants.LONG_PRESS :
                                             HapticFeedbackConstants.VIRTUAL_KEY);
@@ -1400,9 +1496,7 @@ public class GeckoAppShell
     }
 
     private static Vibrator vibrator() {
-        LayerController layerController = GeckoApp.mAppContext.getLayerController();
-        LayerView layerView = layerController.getView();
-
+        LayerView layerView = GeckoApp.mAppContext.getLayerView();
         return (Vibrator) layerView.getContext().getSystemService(Context.VIBRATOR_SERVICE);
     }
 
@@ -1449,8 +1543,11 @@ public class GeckoAppShell
     public static void notifyDefaultPrevented(final boolean defaultPrevented) {
         getMainHandler().post(new Runnable() {
             public void run() {
-                LayerView view = GeckoApp.mAppContext.getLayerController().getView();
-                view.getTouchEventHandler().handleEventListenerAction(!defaultPrevented);
+                LayerView view = GeckoApp.mAppContext.getLayerView();
+                TouchEventHandler handler = (view == null ? null : view.getTouchEventHandler());
+                if (handler != null) {
+                    handler.handleEventListenerAction(!defaultPrevented);
+                }
             }
         });
     }
@@ -1885,18 +1982,12 @@ public class GeckoAppShell
      *
      * This method is referenced by Robocop via reflection.
      */
-    public static void registerGeckoEventListener(String event, GeckoEventListener listener) {
-        synchronized (mEventListeners) {
-            CopyOnWriteArrayList<GeckoEventListener> listeners = mEventListeners.get(event);
-            if (listeners == null) {
-                // create a CopyOnWriteArrayList so that we can modify it
-                // concurrently with iterating through it in handleGeckoMessage.
-                // Otherwise we could end up throwing a ConcurrentModificationException.
-                listeners = new CopyOnWriteArrayList<GeckoEventListener>();
-            }
-            listeners.add(listener);
-            mEventListeners.put(event, listeners);
-        }
+    public static void registerEventListener(String event, GeckoEventListener listener) {
+        sEventDispatcher.registerEventListener(event, listener);
+    }
+
+    static EventDispatcher getEventDispatcher() {
+        return sEventDispatcher;
     }
 
     static SynchronousQueue<Date> sTracerQueue = new SynchronousQueue<Date>();
@@ -1926,17 +2017,8 @@ public class GeckoAppShell
      *
      * This method is referenced by Robocop via reflection.
      */
-    public static void unregisterGeckoEventListener(String event, GeckoEventListener listener) {
-        synchronized (mEventListeners) {
-            CopyOnWriteArrayList<GeckoEventListener> listeners = mEventListeners.get(event);
-            if (listeners == null) {
-                return;
-            }
-            listeners.remove(listener);
-            if (listeners.size() == 0) {
-                mEventListeners.remove(event);
-            }
-        }
+    public static void unregisterEventListener(String event, GeckoEventListener listener) {
+        sEventDispatcher.unregisterEventListener(event, listener);
     }
 
     /*
@@ -1947,45 +2029,7 @@ public class GeckoAppShell
     }
 
     public static String handleGeckoMessage(String message) {
-        //        
-        //        {"gecko": {
-        //                "type": "value",
-        //                "event_specific": "value",
-        //                ....
-        try {
-            JSONObject json = new JSONObject(message);
-            final JSONObject geckoObject = json.getJSONObject("gecko");
-            String type = geckoObject.getString("type");
-            
-            CopyOnWriteArrayList<GeckoEventListener> listeners;
-            synchronized (mEventListeners) {
-                listeners = mEventListeners.get(type);
-            }
-
-            if (listeners == null)
-                return "";
-
-            String response = null;
-
-            for (GeckoEventListener listener : listeners) {
-                listener.handleMessage(type, geckoObject);
-                if (listener instanceof GeckoEventResponder) {
-                    String newResponse = ((GeckoEventResponder)listener).getResponse();
-                    if (response != null && newResponse != null) {
-                        Log.e(LOGTAG, "Received two responses for message of type " + type);
-                    }
-                    response = newResponse;
-                }
-            }
-
-            if (response != null)
-                return response;
-
-        } catch (Exception e) {
-            Log.e(LOGTAG, "handleGeckoMessage throws " + e, e);
-        }
-
-        return "";
+        return sEventDispatcher.dispatchEvent(message);
     }
 
     public static void disableBatteryNotifications() {
@@ -2294,6 +2338,25 @@ public class GeckoAppShell
     public static void unregisterSurfaceTextureFrameListener(Object surfaceTexture) {
         ((SurfaceTexture)surfaceTexture).setOnFrameAvailableListener(null);
     }
+
+    public static void notifyCheckUpdateResult(boolean result) {
+        if (GeckoApp.mAppContext != null)
+            GeckoApp.mAppContext.notifyCheckUpdateResult(result);
+    }
+    
+    public static boolean unlockProfile() {
+        // Try to kill any zombie Fennec's that might be running
+        GeckoAppShell.killAnyZombies();
+
+        // Then force unlock this profile
+        GeckoProfile profile = GeckoApp.mAppContext.getProfile();
+        File lock = profile.getFile(".parentlock");
+        if (lock.exists()) {
+            lock.delete();
+            return true;
+        }
+        return false;
+    }
 }
 
 class ScreenshotHandler implements Runnable {
@@ -2344,7 +2407,7 @@ class ScreenshotHandler implements Runnable {
         mMaxPixels = Math.min(ScreenshotLayer.getMaxNumPixels(), mMaxTextureSize * mMaxTextureSize);
         mMinTextureSize = (int)Math.ceil(mMaxPixels / mMaxTextureSize);
         mPendingScreenshots = new LinkedList<PendingScreenshot>();
-        mBuffer = GeckoAppShell.allocateDirectBuffer(mMaxPixels * BYTES_FOR_16BPP);
+        mBuffer = DirectBufferAllocator.allocate(mMaxPixels * BYTES_FOR_16BPP);
         mDirtyRect = new RectF();
         clearDirtyRect();
     }
@@ -2367,11 +2430,11 @@ class ScreenshotHandler implements Runnable {
     }
 
     private void screenshotWholePage(int tabId) {
-        LayerController layerController = GeckoApp.mAppContext.getLayerController();
-        if (layerController == null) {
+        LayerView layerView = GeckoApp.mAppContext.getLayerView();
+        if (layerView == null) {
             return;
         }
-        ImmutableViewportMetrics viewport = layerController.getViewportMetrics();
+        ImmutableViewportMetrics viewport = layerView.getViewportMetrics();
         RectF pageRect = viewport.getCssPageRect();
 
         if (FloatUtils.fuzzyEquals(pageRect.width(), 0) || FloatUtils.fuzzyEquals(pageRect.height(), 0)) {
@@ -2471,14 +2534,14 @@ class ScreenshotHandler implements Runnable {
             return;
         }
 
-        LayerController layerController = GeckoApp.mAppContext.getLayerController();
-        if (layerController == null) {
+        LayerView layerView = GeckoApp.mAppContext.getLayerView();
+        if (layerView == null) {
             // we could be in the midst of an activity tear-down and re-start, so guard
-            // against a null layer controller.
+            // against a null layer view
             return;
         }
 
-        ImmutableViewportMetrics viewport = layerController.getViewportMetrics();
+        ImmutableViewportMetrics viewport = layerView.getViewportMetrics();
         if (RectUtils.fuzzyEquals(mPageRect, viewport.getCssPageRect())) {
             // the page size hasn't changed, so our dirty rect is still valid and we can just
             // repaint that area
@@ -2558,9 +2621,9 @@ class ScreenshotHandler implements Runnable {
                                 // this screenshot has all its slices done, so push it out
                                 // to the layer renderer and remove it from the list
                             }
-                            LayerController layerController = GeckoApp.mAppContext.getLayerController();
-                            if (layerController != null) {
-                                layerController.getView().getRenderer().setCheckerboardBitmap(
+                            LayerView layerView = GeckoApp.mAppContext.getLayerView();
+                            if (layerView != null) {
+                                layerView.getRenderer().setCheckerboardBitmap(
                                     data, bufferWidth, bufferHeight, handler.mPageRect,
                                     current.getPaintedRegion());
                             }

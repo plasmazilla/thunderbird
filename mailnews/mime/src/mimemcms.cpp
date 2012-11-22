@@ -31,8 +31,8 @@ MimeDefClass(MimeMultipartSignedCMS, MimeMultipartSignedCMSClass,
 static int MimeMultipartSignedCMS_initialize (MimeObject *);
 
 static void *MimeMultCMS_init (MimeObject *);
-static int MimeMultCMS_data_hash (const char *, PRInt32, void *);
-static int MimeMultCMS_sig_hash  (const char *, PRInt32, void *);
+static int MimeMultCMS_data_hash (const char *, int32_t, void *);
+static int MimeMultCMS_sig_hash  (const char *, int32_t, void *);
 static int MimeMultCMS_data_eof (void *, bool);
 static int MimeMultCMS_sig_eof  (void *, bool);
 static int MimeMultCMS_sig_init (void *, MimeObject *, MimeHeaders *);
@@ -71,14 +71,14 @@ MimeMultipartSignedCMS_initialize (MimeObject *object)
 
 typedef struct MimeMultCMSdata
 {
-  PRInt16 hash_type;
+  int16_t hash_type;
   nsCOMPtr<nsICryptoHash> data_hash_context;
   nsCOMPtr<nsICMSDecoder> sig_decoder_context;
   nsCOMPtr<nsICMSMessage> content_info;
   char *sender_addr;
   bool decoding_failed;
   unsigned char* item_data;
-  PRUint32 item_len;
+  uint32_t item_len;
   MimeObject *self;
   bool parent_is_encrypted_p;
   bool parent_holds_stamp_p;
@@ -86,10 +86,10 @@ typedef struct MimeMultCMSdata
 
   MimeMultCMSdata()
   :hash_type(0),
-  sender_addr(nsnull),
+  sender_addr(nullptr),
   decoding_failed(false),
-  item_data(nsnull),
-  self(nsnull),
+  item_data(nullptr),
+  self(nullptr),
   parent_is_encrypted_p(false),
   parent_holds_stamp_p(false)
   {
@@ -124,8 +124,8 @@ extern bool MimeCMSHeadersAndCertsMatch(MimeObject *obj,
 extern void MimeCMSRequestAsyncSignatureVerification(nsICMSMessage *aCMSMsg,
                                                      const char *aFromAddr, const char *aFromName,
                                                      const char *aSenderAddr, const char *aSenderName,
-                                                     nsIMsgSMIMEHeaderSink *aHeaderSink, PRInt32 aMimeNestingLevel,
-                                                     unsigned char* item_data, PRUint32 item_len);
+                                                     nsIMsgSMIMEHeaderSink *aHeaderSink, int32_t aMimeNestingLevel,
+                                                     unsigned char* item_data, uint32_t item_len);
 extern char *MimeCMS_MakeSAURL(MimeObject *obj);
 extern char *IMAP_CreateReloadAllPartsUrl(const char *url);
 extern int MIMEGetRelativeCryptoNestLevel(MimeObject *obj);
@@ -136,7 +136,7 @@ MimeMultCMS_init (MimeObject *obj)
   MimeHeaders *hdrs = obj->headers;
   MimeMultCMSdata *data = 0;
   char *ct, *micalg;
-  PRInt16 hash_type;
+  int16_t hash_type;
   nsresult rv;
 
   ct = MimeHeaders_get (hdrs, HEADER_CONTENT_TYPE, false, false);
@@ -268,7 +268,7 @@ MimeMultCMS_init (MimeObject *obj)
 }
 
 static int
-MimeMultCMS_data_hash (const char *buf, PRInt32 size, void *crypto_closure)
+MimeMultCMS_data_hash (const char *buf, int32_t size, void *crypto_closure)
 {
   MimeMultCMSdata *data = (MimeMultCMSdata *) crypto_closure;
   if (!data || !data->data_hash_context) {
@@ -339,7 +339,7 @@ MimeMultCMS_sig_init (void *crypto_closure,
   data->sig_decoder_context = do_CreateInstance(NS_CMSDECODER_CONTRACTID, &rv);
   if (NS_FAILED(rv)) return 0;
 
-  rv = data->sig_decoder_context->Start(nsnull, nsnull);
+  rv = data->sig_decoder_context->Start(nullptr, nullptr);
   if (NS_FAILED(rv)) {
     status = PR_GetError();
     if (status >= 0) status = -1;
@@ -349,7 +349,7 @@ MimeMultCMS_sig_init (void *crypto_closure,
 
 
 static int
-MimeMultCMS_sig_hash (const char *buf, PRInt32 size, void *crypto_closure)
+MimeMultCMS_sig_hash (const char *buf, int32_t size, void *crypto_closure)
 {
   MimeMultCMSdata *data = (MimeMultCMSdata *) crypto_closure;
   nsresult rv;
@@ -410,15 +410,15 @@ MimeMultCMS_generate (void *crypto_closure)
   int aRelativeNestLevel = MIMEGetRelativeCryptoNestLevel(data->self);
 
   if (aRelativeNestLevel < 0)
-    return nsnull;
+    return nullptr;
 
-  PRInt32 maxNestLevel = 0;
+  int32_t maxNestLevel = 0;
   if (data->smimeHeaderSink && aRelativeNestLevel >= 0)
   {
     data->smimeHeaderSink->MaxWantedNesting(&maxNestLevel);
 
     if (aRelativeNestLevel > maxNestLevel)
-      return nsnull;
+      return nullptr;
   }
 
   if (data->self->options->missing_parts)
@@ -429,8 +429,8 @@ MimeMultCMS_generate (void *crypto_closure)
     if (data->smimeHeaderSink)
       data->smimeHeaderSink->SignedStatus(aRelativeNestLevel,
                                           nsICMSMessageErrors::VERIFY_NOT_YET_ATTEMPTED,
-                                          nsnull);
-    return nsnull;
+                                          nullptr);
+    return nullptr;
   }
 
   if (!data->content_info)
@@ -440,7 +440,7 @@ MimeMultCMS_generate (void *crypto_closure)
      before the signature part, or we ran out of memory, or something
      awful has happened.
      */
-     return nsnull;
+     return nullptr;
   }
 
   nsCString from_addr;
@@ -468,5 +468,5 @@ MimeMultCMS_generate (void *crypto_closure)
 #endif
   }
 
-  return nsnull;
+  return nullptr;
 }

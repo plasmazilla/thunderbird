@@ -13,7 +13,7 @@ interface nsIDOMWindow;
  * can be queried for various information about where the load is
  * happening.
  */
-[scriptable, uuid(386806c3-c4cb-4b3d-b05d-c08ea10f5585)]
+[scriptable, uuid(48b5bf16-e0c7-11e1-b28e-91726188709b)]
 interface nsILoadContext : nsISupports
 {
   /**
@@ -66,4 +66,16 @@ interface nsILoadContext : nsISupports
     return usingPB;
   }
 %}
+
+  /**
+   * Returns true iif the load is occurring inside a browser element.
+   */
+  readonly attribute boolean isInBrowserElement;
+
+  /**
+   * Returns the app id of the app the load is occurring is in. Returns
+   * nsIScriptSecurityManager::NO_APP_ID if the load is not part of an app.
+   */
+  readonly attribute unsigned long appId;
+
 };

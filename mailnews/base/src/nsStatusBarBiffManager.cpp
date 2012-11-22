@@ -27,7 +27,7 @@
 //
 NS_IMPL_ISUPPORTS3(nsStatusBarBiffManager, nsIStatusBarBiffManager, nsIFolderListener, nsIObserver)
 
-nsIAtom * nsStatusBarBiffManager::kBiffStateAtom = nsnull;
+nsIAtom * nsStatusBarBiffManager::kBiffStateAtom = nullptr;
 
 nsStatusBarBiffManager::nsStatusBarBiffManager()
 : mInitialized(false), mCurrentBiffState(nsIMsgFolder::nsMsgBiffState_Unknown)
@@ -85,18 +85,12 @@ nsresult nsStatusBarBiffManager::PlayBiffSound()
   nsCOMPtr<nsIPrefBranch> pref(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv,rv);
   
-  bool playSoundOnBiff = false;
-  rv = pref->GetBoolPref(PREF_PLAY_SOUND_ON_NEW_MAIL, &playSoundOnBiff);
-  NS_ENSURE_SUCCESS(rv,rv);
-  
-  if (!playSoundOnBiff)
-    return NS_OK;
 
   // lazily create the sound instance
   if (!mSound)
     mSound = do_CreateInstance("@mozilla.org/sound;1");
       
-  PRInt32 newMailSoundType = SYSTEM_SOUND_TYPE;
+  int32_t newMailSoundType = SYSTEM_SOUND_TYPE;
   rv = pref->GetIntPref(PREF_NEW_MAIL_SOUND_TYPE, &newMailSoundType);
   NS_ENSURE_SUCCESS(rv,rv);
 
@@ -169,15 +163,23 @@ nsStatusBarBiffManager::OnItemPropertyChanged(nsIMsgFolder *item, nsIAtom *prope
 }
 
 NS_IMETHODIMP
-nsStatusBarBiffManager::OnItemIntPropertyChanged(nsIMsgFolder *item, nsIAtom *property, PRInt32 oldValue, PRInt32 newValue)
+nsStatusBarBiffManager::OnItemIntPropertyChanged(nsIMsgFolder *item, nsIAtom *property, int32_t oldValue, int32_t newValue)
 {
   if (kBiffStateAtom == property && mCurrentBiffState != newValue) {
     // if we got new mail, attempt to play a sound.
     // if we fail along the way, don't return.
     // we still need to update the UI.    
     if (newValue == nsIMsgFolder::nsMsgBiffState_NewMail) {
-      // if we fail to play the biff sound, keep going.
-      (void)PlayBiffSound();
+      nsresult rv;
+      nsCOMPtr<nsIPrefBranch> pref(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
+      NS_ENSURE_SUCCESS(rv, rv);
+      bool playSoundOnBiff = false;
+      rv = pref->GetBoolPref(PREF_PLAY_SOUND_ON_NEW_MAIL, &playSoundOnBiff);
+      NS_ENSURE_SUCCESS(rv, rv);
+      if (playSoundOnBiff) {
+        // if we fail to play the biff sound, keep going.
+        (void)PlayBiffSound();
+      }
     }
     mCurrentBiffState = newValue;
 
@@ -186,7 +188,7 @@ nsStatusBarBiffManager::OnItemIntPropertyChanged(nsIMsgFolder *item, nsIAtom *pr
       mozilla::services::GetObserverService();
       
     if (observerService)
-      observerService->NotifyObservers(static_cast<nsIStatusBarBiffManager*>(this), "mail:biff-state-changed", nsnull);
+      observerService->NotifyObservers(static_cast<nsIStatusBarBiffManager*>(this), "mail:biff-state-changed", nullptr);
   }
   return NS_OK;
 }
@@ -204,7 +206,7 @@ nsStatusBarBiffManager::OnItemUnicharPropertyChanged(nsIMsgFolder *item, nsIAtom
 }
 
 NS_IMETHODIMP 
-nsStatusBarBiffManager::OnItemPropertyFlagChanged(nsIMsgDBHdr *item, nsIAtom *property, PRUint32 oldFlag, PRUint32 newFlag)
+nsStatusBarBiffManager::OnItemPropertyFlagChanged(nsIMsgDBHdr *item, nsIAtom *property, uint32_t oldFlag, uint32_t newFlag)
 {
   return NS_OK;
 }
@@ -237,7 +239,7 @@ nsStatusBarBiffManager::Observe(nsISupports *aSubject,
 
 // nsIStatusBarBiffManager method....
 NS_IMETHODIMP
-nsStatusBarBiffManager::GetBiffState(PRInt32 *aBiffState)
+nsStatusBarBiffManager::GetBiffState(int32_t *aBiffState)
 {
   NS_ENSURE_ARG_POINTER(aBiffState);
   *aBiffState = mCurrentBiffState;

@@ -132,7 +132,7 @@ pluginWidgetInit(InstanceData* instanceData, void* oldWindow)
 }
 
 static void 
-GetColorsFromRGBA(PRUint32 rgba, float* r, float* g, float* b, float* a)
+GetColorsFromRGBA(uint32_t rgba, float* r, float* g, float* b, float* a)
 {
   *b = (rgba & 0xFF) / 255.0;
   *g = ((rgba & 0xFF00) >> 8) / 255.0;
@@ -276,6 +276,9 @@ pluginHandleEvent(InstanceData* instanceData, void* event)
           ::GetWindowBounds(nativeWindow, kWindowStructureRgn, &globalBounds);
         instanceData->lastMouseX = carbonEvent->where.h - w->x - globalBounds.left;
         instanceData->lastMouseY = carbonEvent->where.v - w->y - globalBounds.top;
+        if (carbonEvent->what == mouseUp) {
+          instanceData->mouseUpEventCount++;
+        }
         break;
       }
       default:
@@ -299,6 +302,9 @@ pluginHandleEvent(InstanceData* instanceData, void* event)
     case NPCocoaEventMouseMoved:
       instanceData->lastMouseX = (int32_t)cocoaEvent->data.mouse.pluginX;
       instanceData->lastMouseY = (int32_t)cocoaEvent->data.mouse.pluginY;
+      if (cocoaEvent->type == NPCocoaEventMouseUp) {
+        instanceData->mouseUpEventCount++;
+      }
       break;
     case NPCocoaEventWindowFocusChanged:
       instanceData->topLevelWindowActivationState = cocoaEvent->data.focus.hasFocus ?

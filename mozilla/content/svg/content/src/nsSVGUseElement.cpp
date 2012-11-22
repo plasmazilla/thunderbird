@@ -99,7 +99,7 @@ nsSVGUseElement::~nsSVGUseElement()
 nsresult
 nsSVGUseElement::Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const
 {
-  *aResult = nsnull;
+  *aResult = nullptr;
   nsCOMPtr<nsINodeInfo> ni = aNodeInfo;
   nsSVGUseElement *it = new nsSVGUseElement(ni.forget());
   if (!it) {
@@ -107,17 +107,17 @@ nsSVGUseElement::Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const
   }
 
   nsCOMPtr<nsINode> kungFuDeathGrip(it);
-  nsresult rv = it->Init();
-  rv |= const_cast<nsSVGUseElement*>(this)->CopyInnerTo(it);
+  nsresult rv1 = it->Init();
+  nsresult rv2 = const_cast<nsSVGUseElement*>(this)->CopyInnerTo(it);
 
   // nsSVGUseElement specific portion - record who we cloned from
   it->mOriginal = const_cast<nsSVGUseElement*>(this);
 
-  if (NS_SUCCEEDED(rv)) {
+  if (NS_SUCCEEDED(rv1) && NS_SUCCEEDED(rv2)) {
     kungFuDeathGrip.swap(*aResult);
   }
 
-  return rv;
+  return NS_FAILED(rv1) ? rv1 : rv2;
 }
 
 //----------------------------------------------------------------------
@@ -172,9 +172,9 @@ nsSVGUseElement::CharacterDataChanged(nsIDocument *aDocument,
 void
 nsSVGUseElement::AttributeChanged(nsIDocument* aDocument,
                                   Element* aElement,
-                                  PRInt32 aNameSpaceID,
+                                  int32_t aNameSpaceID,
                                   nsIAtom* aAttribute,
-                                  PRInt32 aModType)
+                                  int32_t aModType)
 {
   if (nsContentUtils::IsInSameAnonymousTree(this, aElement)) {
     TriggerReclone();
@@ -185,7 +185,7 @@ void
 nsSVGUseElement::ContentAppended(nsIDocument *aDocument,
                                  nsIContent *aContainer,
                                  nsIContent *aFirstNewContent,
-                                 PRInt32 aNewIndexInContainer)
+                                 int32_t aNewIndexInContainer)
 {
   if (nsContentUtils::IsInSameAnonymousTree(this, aContainer)) {
     TriggerReclone();
@@ -196,7 +196,7 @@ void
 nsSVGUseElement::ContentInserted(nsIDocument *aDocument,
                                  nsIContent *aContainer,
                                  nsIContent *aChild,
-                                 PRInt32 aIndexInContainer)
+                                 int32_t aIndexInContainer)
 {
   if (nsContentUtils::IsInSameAnonymousTree(this, aChild)) {
     TriggerReclone();
@@ -207,7 +207,7 @@ void
 nsSVGUseElement::ContentRemoved(nsIDocument *aDocument,
                                 nsIContent *aContainer,
                                 nsIContent *aChild,
-                                PRInt32 aIndexInContainer,
+                                int32_t aIndexInContainer,
                                 nsIContent *aPreviousSibling)
 {
   if (nsContentUtils::IsInSameAnonymousTree(this, aChild)) {
@@ -227,7 +227,7 @@ nsSVGUseElement::NodeWillBeDestroyed(const nsINode *aNode)
 nsIContent*
 nsSVGUseElement::CreateAnonymousContent()
 {
-  mClone = nsnull;
+  mClone = nullptr;
 
   if (mSource.get()) {
     mSource.get()->RemoveMutationObserver(this);
@@ -236,7 +236,7 @@ nsSVGUseElement::CreateAnonymousContent()
   LookupHref();
   nsIContent* targetContent = mSource.get();
   if (!targetContent || !targetContent->IsSVG())
-    return nsnull;
+    return nullptr;
 
   // make sure target is valid type for <use>
   // QIable nsSVGGraphicsElement would eliminate enumerating all elements
@@ -254,13 +254,13 @@ nsSVGUseElement::CreateAnonymousContent()
       tag != nsGkAtoms::polygon &&
       tag != nsGkAtoms::image &&
       tag != nsGkAtoms::use)
-    return nsnull;
+    return nullptr;
 
   // circular loop detection
 
   // check 1 - check if we're a document descendent of the target
   if (nsContentUtils::ContentIsDescendantOf(this, targetContent))
-    return nsnull;
+    return nullptr;
 
   // check 2 - check if we're a clone, and if we already exist in the hierarchy
   if (GetParent() && mOriginal) {
@@ -275,7 +275,7 @@ nsSVGUseElement::CreateAnonymousContent()
                                    getter_AddRefs(useImpl));
 
         if (useImpl && useImpl->mOriginal == mOriginal)
-          return nsnull;
+          return nullptr;
       }
     }
   }
@@ -284,14 +284,14 @@ nsSVGUseElement::CreateAnonymousContent()
   nsCOMArray<nsINode> unused;
   nsNodeInfoManager* nodeInfoManager =
     targetContent->OwnerDoc() == OwnerDoc() ?
-      nsnull : OwnerDoc()->NodeInfoManager();
+      nullptr : OwnerDoc()->NodeInfoManager();
   nsNodeUtils::Clone(targetContent, true, nodeInfoManager, unused,
                      getter_AddRefs(newnode));
 
   nsCOMPtr<nsIContent> newcontent = do_QueryInterface(newnode);
 
   if (!newcontent)
-    return nsnull;
+    return nullptr;
 
   nsCOMPtr<nsIDOMSVGSymbolElement> symbol     = do_QueryInterface(newcontent);
   nsCOMPtr<nsIDOMSVGSVGElement>    svg        = do_QueryInterface(newcontent);
@@ -299,32 +299,32 @@ nsSVGUseElement::CreateAnonymousContent()
   if (symbol) {
     nsIDocument *document = GetCurrentDoc();
     if (!document)
-      return nsnull;
+      return nullptr;
 
     nsNodeInfoManager *nodeInfoManager = document->NodeInfoManager();
     if (!nodeInfoManager)
-      return nsnull;
+      return nullptr;
 
     nsCOMPtr<nsINodeInfo> nodeInfo;
-    nodeInfo = nodeInfoManager->GetNodeInfo(nsGkAtoms::svg, nsnull,
+    nodeInfo = nodeInfoManager->GetNodeInfo(nsGkAtoms::svg, nullptr,
                                             kNameSpaceID_SVG,
                                             nsIDOMNode::ELEMENT_NODE);
     if (!nodeInfo)
-      return nsnull;
+      return nullptr;
 
     nsCOMPtr<nsIContent> svgNode;
     NS_NewSVGSVGElement(getter_AddRefs(svgNode), nodeInfo.forget(),
                         NOT_FROM_PARSER);
 
     if (!svgNode)
-      return nsnull;
+      return nullptr;
     
     // copy attributes
     const nsAttrName* name;
-    PRUint32 i;
+    uint32_t i;
     for (i = 0; (name = newcontent->GetAttrNameAt(i)); i++) {
       nsAutoString value;
-      PRInt32 nsID = name->NamespaceID();
+      int32_t nsID = name->NamespaceID();
       nsIAtom* lname = name->LocalName();
 
       newcontent->GetAttr(nsID, lname, value);
@@ -332,7 +332,7 @@ nsSVGUseElement::CreateAnonymousContent()
     }
 
     // move the children over
-    PRUint32 num = newcontent->GetChildCount();
+    uint32_t num = newcontent->GetChildCount();
     for (i = 0; i < num; i++) {
       nsCOMPtr<nsIContent> child = newcontent->GetFirstChild();
       newcontent->RemoveChildAt(0, false);
@@ -354,7 +354,7 @@ nsSVGUseElement::CreateAnonymousContent()
   // Set up its base URI correctly
   nsCOMPtr<nsIURI> baseURI = targetContent->GetBaseURI();
   if (!baseURI)
-    return nsnull;
+    return nullptr;
   newcontent->SetExplicitBaseURI(baseURI);
 
   targetContent->AddMutationObserver(this);
@@ -398,7 +398,7 @@ nsSVGUseElement::SyncWidthOrHeight(nsIAtom* aName)
 
   if (symbol || svg) {
     nsSVGElement *target = static_cast<nsSVGElement*>(mClone.get());
-    PRUint32 index = *sLengthInfo[WIDTH].mName == aName ? WIDTH : HEIGHT;
+    uint32_t index = *sLengthInfo[WIDTH].mName == aName ? WIDTH : HEIGHT;
 
     if (mLengthAttributes[index].IsExplicitlySet()) {
       target->SetLength(aName, mLengthAttributes[index]);
@@ -476,7 +476,7 @@ nsSVGUseElement::PrependLocalTransformsTo(const gfxMatrix &aMatrix,
   }
   // our 'x' and 'y' attributes:
   float x, y;
-  const_cast<nsSVGUseElement*>(this)->GetAnimatedLengthValues(&x, &y, nsnull);
+  const_cast<nsSVGUseElement*>(this)->GetAnimatedLengthValues(&x, &y, nullptr);
   gfxMatrix toUserSpace = gfxMatrix().Translate(gfxPoint(x, y));
   if (aWhich == eChildToUserSpace) {
     return toUserSpace;

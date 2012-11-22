@@ -18,9 +18,7 @@ Browser context menu tests.
 
 /** Test for Login Manager: multiple login autocomplete. **/
 
-netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
-Components.utils.import("resource://gre/modules/InlineSpellChecker.jsm");
-Components.utils.import("resource://gre/modules/Services.jsm");
+SpecialPowers.wrap(Components).utils.import("resource://gre/modules/InlineSpellChecker.jsm", window);
 
 const Cc = Components.classes;
 const Ci = Components.interfaces;
@@ -54,13 +52,13 @@ function executeCopyCommand(command, expectedValue)
 {
   // Just execute the command directly rather than simulating a context menu
   // press to avoid having to deal with its asynchronous nature
-  subwindow.controllers.getControllerForCommand(command).doCommand(command);
+  SpecialPowers.wrap(subwindow).controllers.getControllerForCommand(command).doCommand(command);
 
   // The easiest way to check the clipboard is to paste the contents into a
   // textbox
   input.focus();
   input.value = "";
-  input.controllers.getControllerForCommand("cmd_paste").doCommand("cmd_paste");
+  SpecialPowers.wrap(input).controllers.getControllerForCommand("cmd_paste").doCommand("cmd_paste");
   is(input.value, expectedValue, "paste for command " + command);
 }
 
@@ -252,7 +250,6 @@ function checkMenu(menu, expectedItems, data) {
  */
 function runTest(testNum) {
   // Seems we need to enable this again, or sendKeyEvent() complaints.
-  netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
   ok(true, "Starting test #" + testNum);
 
   var inspectItems = [];
@@ -729,7 +726,7 @@ function runTest(testNum) {
 
     case 24:
         // Context menu for selected text
-        if (Services.appinfo.OS == "Darwin") {
+        if (SpecialPowers.Services.appinfo.OS == "Darwin") {
           // This test is only enabled on Mac due to bug 736399.
           checkContextMenu(["context-copy",                        true,
                             "context-selectall",                   true,
@@ -745,7 +742,7 @@ function runTest(testNum) {
 
     case 25:
         // Context menu for selected text which matches valid URL pattern
-        if (Services.appinfo.OS == "Darwin") {
+        if (SpecialPowers.Services.appinfo.OS == "Darwin") {
           // This test is only enabled on Mac due to bug 736399.
           checkContextMenu(["context-openlinkincurrent",           true,
                             "context-openlinkintab",               true,
@@ -790,8 +787,7 @@ var text, link, mailto, input, img, canvas, video_ok, video_bad, video_bad2,
     inputspell, pagemenu, dom_full_screen, plainTextItems, audio_in_video;
 
 function startTest() {
-    netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
-    chromeWin = subwindow
+    chromeWin = SpecialPowers.wrap(subwindow)
                     .QueryInterface(Ci.nsIInterfaceRequestor)
                     .getInterface(Ci.nsIWebNavigation)
                     .QueryInterface(Ci.nsIDocShellTreeItem)

@@ -89,7 +89,7 @@ nsLDAPAutoCompleteSession::OnStartLookup(const PRUnichar *searchString,
           mCjkMinStringLength && NS_strlen(searchString) < 
           mCjkMinStringLength ) ) {
 
-        FinishAutoCompleteLookup(nsIAutoCompleteStatus::ignored, 0, mState);
+        FinishAutoCompleteLookup(nsIAutoCompleteStatus::ignored, NS_OK, mState);
         return NS_OK;
     } else {
         mSearchString = searchString;        // save it for later use
@@ -275,7 +275,7 @@ nsLDAPAutoCompleteSession::OnAutoComplete(const PRUnichar *searchString,
 NS_IMETHODIMP 
 nsLDAPAutoCompleteSession::OnLDAPMessage(nsILDAPMessage *aMessage)
 {
-    PRInt32 messageType;
+    int32_t messageType;
 
     // Just in case.
     // XXXdmose the semantics of NULL are currently undefined, but are likely
@@ -392,7 +392,7 @@ nsLDAPAutoCompleteSession::OnLDAPMessage(nsILDAPMessage *aMessage)
 void
 nsLDAPAutoCompleteSession::InitFailed(bool aCancelled)
 {
-  FinishAutoCompleteLookup(nsIAutoCompleteStatus::failureItems, 0,
+  FinishAutoCompleteLookup(nsIAutoCompleteStatus::failureItems, NS_OK,
                            UNBOUND);
 }
 
@@ -441,7 +441,7 @@ nsLDAPAutoCompleteSession::OnLDAPSearchEntry(nsILDAPMessage *aMessage)
   nsString itemValue;
   item->GetValue(itemValue);
 
-  PRUint32 nbrOfItems;
+  uint32_t nbrOfItems;
   rv = mResultsArray->Count(&nbrOfItems);
   if (NS_FAILED(rv)) {
     NS_ERROR("nsLDAPAutoCompleteSession::OnLDAPSearchEntry(): "
@@ -449,7 +449,7 @@ nsLDAPAutoCompleteSession::OnLDAPSearchEntry(nsILDAPMessage *aMessage)
     return NS_ERROR_FAILURE;
   }
 
-  PRInt32 insertPosition = 0;
+  int32_t insertPosition = 0;
 
   nsCOMPtr<nsIAutoCompleteItem> currentItem;
   for (; insertPosition < nbrOfItems; insertPosition++) {
@@ -464,17 +464,12 @@ nsLDAPAutoCompleteSession::OnLDAPSearchEntry(nsILDAPMessage *aMessage)
       break;
   }
 
-  rv = mResultsArray->InsertElementAt(item, insertPosition);
-    if (NS_FAILED(rv)) {
-        NS_ERROR("nsLDAPAutoCompleteSession::OnLDAPSearchEntry(): "
-                 "mResultsArray->InsertElementAt() failed");
-        return NS_ERROR_FAILURE;
-    }
+  mResultsArray->InsertElementAt(item, insertPosition);
 
-    // Remember that something has been returned.
-    mEntriesReturned++;
+  // Remember that something has been returned.
+  mEntriesReturned++;
 
-    return NS_OK;
+  return NS_OK;
 }
 
 nsresult
@@ -488,7 +483,7 @@ nsLDAPAutoCompleteSession::OnLDAPSearchResult(nsILDAPMessage *aMessage)
     // Figure out if we succeeded or failed, and set the status
     // and default index appropriately.
     AutoCompleteStatus status;
-    PRInt32 lderrno;
+    int32_t lderrno;
 
     if (mEntriesReturned) {
 
@@ -561,7 +556,7 @@ nsLDAPAutoCompleteSession::DoTask()
     }
 
     // Initialize the LDAP operation object.
-    rv = mOperation->Init(mConnection, this, nsnull);
+    rv = mOperation->Init(mConnection, this, nullptr);
     if (NS_FAILED(rv)) {
         NS_ERROR("nsLDAPAutoCompleteSession::DoTask(): couldn't "
                  "initialize LDAP operation");
@@ -693,7 +688,7 @@ nsLDAPAutoCompleteSession::DoTask()
     }
 
     // And the scope
-    PRInt32 scope;
+    int32_t scope;
     rv = mDirectoryUrl->GetScope(&scope);
     if ( NS_FAILED(rv) ){
         mState = BOUND;
@@ -811,7 +806,7 @@ nsLDAPAutoCompleteSession::InitConnection()
     // Initialize the connection. This will cause an asynchronous DNS
     // lookup to occur, and we'll finish the binding of the connection
     // in the OnLDAPInit() listener function.
-    rv = mConnection->Init(mDirectoryUrl, mLogin, this, nsnull, mVersion);
+    rv = mConnection->Init(mDirectoryUrl, mLogin, this, nullptr, mVersion);
     if (NS_FAILED(rv)) {
         switch (rv) {
 
@@ -999,7 +994,7 @@ nsLDAPAutoCompleteSession::SetFilterTemplate(const nsACString & aFilterTemplate)
 
 // attribute long maxHits;
 NS_IMETHODIMP 
-nsLDAPAutoCompleteSession::GetMaxHits(PRInt32 *aMaxHits)
+nsLDAPAutoCompleteSession::GetMaxHits(int32_t *aMaxHits)
 {
     if (!aMaxHits) {
         return NS_ERROR_NULL_POINTER;
@@ -1009,7 +1004,7 @@ nsLDAPAutoCompleteSession::GetMaxHits(PRInt32 *aMaxHits)
     return NS_OK;
 }
 NS_IMETHODIMP 
-nsLDAPAutoCompleteSession::SetMaxHits(PRInt32 aMaxHits)
+nsLDAPAutoCompleteSession::SetMaxHits(int32_t aMaxHits)
 {
     if ( aMaxHits < -1 || aMaxHits > 65535) {
         return NS_ERROR_ILLEGAL_VALUE;
@@ -1053,7 +1048,7 @@ nsLDAPAutoCompleteSession::SetServerURL(nsILDAPURL * aServerURL)
 
 // attribute unsigned long minStringLength
 NS_IMETHODIMP
-nsLDAPAutoCompleteSession::GetMinStringLength(PRUint32 *aMinStringLength)
+nsLDAPAutoCompleteSession::GetMinStringLength(uint32_t *aMinStringLength)
 {
     if (!aMinStringLength) {
         return NS_ERROR_NULL_POINTER;
@@ -1063,7 +1058,7 @@ nsLDAPAutoCompleteSession::GetMinStringLength(PRUint32 *aMinStringLength)
     return NS_OK;
 }
 NS_IMETHODIMP
-nsLDAPAutoCompleteSession::SetMinStringLength(PRUint32 aMinStringLength)
+nsLDAPAutoCompleteSession::SetMinStringLength(uint32_t aMinStringLength)
 {
     mMinStringLength = aMinStringLength;
 
@@ -1072,7 +1067,7 @@ nsLDAPAutoCompleteSession::SetMinStringLength(PRUint32 aMinStringLength)
 
 // attribute unsigned long cjkMinStringLength
 NS_IMETHODIMP
-nsLDAPAutoCompleteSession::GetCjkMinStringLength(PRUint32 *aCjkMinStringLength)
+nsLDAPAutoCompleteSession::GetCjkMinStringLength(uint32_t *aCjkMinStringLength)
 {
     if (!aCjkMinStringLength) {
         return NS_ERROR_NULL_POINTER;
@@ -1082,7 +1077,7 @@ nsLDAPAutoCompleteSession::GetCjkMinStringLength(PRUint32 *aCjkMinStringLength)
     return NS_OK;
 }
 NS_IMETHODIMP
-nsLDAPAutoCompleteSession::SetCjkMinStringLength(PRUint32 aCjkMinStringLength)
+nsLDAPAutoCompleteSession::SetCjkMinStringLength(uint32_t aCjkMinStringLength)
 {
     mCjkMinStringLength = aCjkMinStringLength;
 
@@ -1102,7 +1097,7 @@ nsLDAPAutoCompleteSession::IsMessageCurrent(nsILDAPMessage *aMessage,
     }
 
     // Get the message id from the current operation.
-    PRInt32 currentId;
+    int32_t currentId;
     nsresult rv = mOperation->GetMessageID(&currentId);
     if (NS_FAILED(rv)) {
         PR_LOG(sLDAPAutoCompleteLogModule, PR_LOG_DEBUG, 
@@ -1122,7 +1117,7 @@ nsLDAPAutoCompleteSession::IsMessageCurrent(nsILDAPMessage *aMessage,
     }
 
     // Get the message operation id from the message operation.
-    PRInt32 msgOpId;
+    int32_t msgOpId;
     rv = msgOp->GetMessageID(&msgOpId);
     if (NS_FAILED(rv)) {
         PR_LOG(sLDAPAutoCompleteLogModule, PR_LOG_DEBUG, 
@@ -1202,7 +1197,7 @@ nsLDAPAutoCompleteSession::GetSaslMechanism(nsACString & aSaslMechanism)
 
 // attribute unsigned long version;
 NS_IMETHODIMP 
-nsLDAPAutoCompleteSession::GetVersion(PRUint32 *aVersion)
+nsLDAPAutoCompleteSession::GetVersion(uint32_t *aVersion)
 {
     if (!aVersion) {
         return NS_ERROR_NULL_POINTER;
@@ -1212,7 +1207,7 @@ nsLDAPAutoCompleteSession::GetVersion(PRUint32 *aVersion)
     return NS_OK;
 }
 NS_IMETHODIMP 
-nsLDAPAutoCompleteSession::SetVersion(PRUint32 aVersion)
+nsLDAPAutoCompleteSession::SetVersion(uint32_t aVersion)
 {
     if ( mVersion != nsILDAPConnection::VERSION2 && 
          mVersion != nsILDAPConnection::VERSION3) {

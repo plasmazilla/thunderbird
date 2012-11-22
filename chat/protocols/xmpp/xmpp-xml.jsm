@@ -20,6 +20,7 @@ const NS = {
   bind                      : "urn:ietf:params:xml:ns:xmpp-bind",
   session                   : "urn:ietf:params:xml:ns:xmpp-session",
   auth                      : "jabber:iq:auth",
+  auth_feature              : "http://jabber.org/features/iq-auth",
   http_bind                 : "http://jabber.org/protocol/httpbind",
   http_auth                 : "http://jabber.org/protocol/http-auth",
   xbosh                     : "urn:xmpp:xbosh",
@@ -318,6 +319,9 @@ XMPPParser.prototype = {
     suspend: function() { }
   },
 
+  _logReceivedData: function(aData) {
+    this._listener.log("received:\n" + aData);
+  },
   _inOnDataAvailable: false,
   onDataAvailable: function(aInputStream, aOffset, aCount) {
     this._inOnDataAvailable = true;
@@ -334,9 +338,21 @@ XMPPParser.prototype = {
 
   startElement: function(aUri, aLocalName, aQName, aAttributes) {
     if (aQName == "stream:stream") {
-      if ("_node" in this)
+      let node = new XMLNode(null, aUri, aLocalName, aQName, aAttributes);
+      // The node we created doesn't have children, but
+      // <stream:stream> isn't closed, so avoid displaying /> at the end.
+      this._logReceivedData(node.convertToString().slice(0, -3) + ">\n");
+
+      if ("_node" in this) {
         this._listener.onXMLError("unexpected-stream-start",
                                   "stream:stream inside an already started stream");
+        return;
+      }
+
+      this._listener._streamId = node.attributes["id"];
+      if (!("version" in node.attributes))
+        this._listener.startLegacyAuth();
+
       this._node = null;
       return;
     }
@@ -363,6 +379,7 @@ XMPPParser.prototype = {
 
   endElement: function(aUri, aLocalName, aQName) {
     if (aQName == "stream:stream") {
+      this._logReceivedData("</stream:stream>");
       delete this._node;
       return;
     }
@@ -374,7 +391,7 @@ XMPPParser.prototype = {
     }
 
     if (this._node.isXmppStanza()) {
-      this._listener.log("received:\n" + this._node.convertToString());
+      this._logReceivedData(this._node.convertToString());
       try {
         this._listener.onXmppStanza(this._node);
       } catch (e) {

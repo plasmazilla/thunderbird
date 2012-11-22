@@ -40,11 +40,7 @@
  * itself), to ensure that the function has the
  * right calling conventions on OS/2.
  */
-#ifdef XP_OS2
-#define NP_CALLBACK _System
-#else
-#define NP_CALLBACK
-#endif
+#define NP_CALLBACK NP_LOADDS
 
 #if defined(XP_WIN)
 #define NS_NPAPIPLUGIN_CALLBACK(_type, _name) _type (__stdcall * _name)
@@ -78,15 +74,13 @@ class PluginModuleChild : public PPluginModuleChild
 {
     typedef mozilla::dom::PCrashReporterChild PCrashReporterChild;
 protected:
-    NS_OVERRIDE
     virtual mozilla::ipc::RPCChannel::RacyRPCPolicy
-    MediateRPCRace(const Message& parent, const Message& child)
+    MediateRPCRace(const Message& parent, const Message& child) MOZ_OVERRIDE
     {
         return MediateRace(parent, child);
     }
 
-    NS_OVERRIDE
-    virtual bool ShouldContinueFromReplyTimeout();
+    virtual bool ShouldContinueFromReplyTimeout() MOZ_OVERRIDE;
 
     // Implement the PPluginModuleChild interface
     virtual bool AnswerNP_GetEntryPoints(NPError* rv);
@@ -150,21 +144,21 @@ protected:
 
     virtual PCrashReporterChild*
     AllocPCrashReporter(mozilla::dom::NativeThreadId* id,
-                        PRUint32* processType);
+                        uint32_t* processType);
     virtual bool
     DeallocPCrashReporter(PCrashReporterChild* actor);
     virtual bool
     AnswerPCrashReporterConstructor(PCrashReporterChild* actor,
                                     mozilla::dom::NativeThreadId* id,
-                                    PRUint32* processType);
+                                    uint32_t* processType);
 
     virtual void
     ActorDestroy(ActorDestroyReason why);
 
     MOZ_NORETURN void QuickExit();
 
-    NS_OVERRIDE virtual bool
-    RecvProcessNativeEventsInRPCCall();
+    virtual bool
+    RecvProcessNativeEventsInRPCCall() MOZ_OVERRIDE;
 
 public:
     PluginModuleChild();
@@ -310,16 +304,12 @@ private:
     static gboolean DetectNestedEventLoop(gpointer data);
     static gboolean ProcessBrowserEvents(gpointer data);
 
-    NS_OVERRIDE
-    virtual void EnteredCxxStack();
-    NS_OVERRIDE
-    virtual void ExitedCxxStack();
+    virtual void EnteredCxxStack() MOZ_OVERRIDE;
+    virtual void ExitedCxxStack() MOZ_OVERRIDE;
 #elif defined(MOZ_WIDGET_QT)
 
-    NS_OVERRIDE
-    virtual void EnteredCxxStack();
-    NS_OVERRIDE
-    virtual void ExitedCxxStack();
+    virtual void EnteredCxxStack() MOZ_OVERRIDE;
+    virtual void ExitedCxxStack() MOZ_OVERRIDE;
 #endif
 
     PRLibrary* mLibrary;
@@ -429,10 +419,8 @@ private:
     static PLDHashOperator CollectForInstance(NPObjectData* d, void* userArg);
 
 #if defined(OS_WIN)
-    NS_OVERRIDE
-    virtual void EnteredCall();
-    NS_OVERRIDE
-    virtual void ExitedCall();
+    virtual void EnteredCall() MOZ_OVERRIDE;
+    virtual void ExitedCall() MOZ_OVERRIDE;
 
     // Entered/ExitedCall notifications keep track of whether the plugin has
     // entered a nested event loop within this RPC call.

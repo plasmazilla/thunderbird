@@ -57,15 +57,15 @@ public:
 
   TNotification(Class* aInstance, Callback aCallback, Arg* aArg) :
     mInstance(aInstance), mCallback(aCallback), mArg(aArg) { }
-  virtual ~TNotification() { mInstance = nsnull; }
+  virtual ~TNotification() { mInstance = nullptr; }
 
   virtual void Process()
   {
     (mInstance->*mCallback)(mArg);
 
-    mInstance = nsnull;
-    mCallback = nsnull;
-    mArg = nsnull;
+    mInstance = nullptr;
+    mCallback = nullptr;
+    mArg = nullptr;
   }
 
 private:
@@ -173,7 +173,7 @@ public:
 #endif
 
 protected:
-  nsAutoRefCnt mRefCnt;
+  nsCycleCollectingAutoRefCnt mRefCnt;
   NS_DECL_OWNINGTHREAD
 
   /**
@@ -210,8 +210,8 @@ private:
    * @param aEventRule       the event rule to be applied
    *                         (should be eDoNotEmit or eAllowDupes)
    */
-  void ApplyToSiblings(PRUint32 aStart, PRUint32 aEnd,
-                       PRUint32 aEventType, nsINode* aNode,
+  void ApplyToSiblings(uint32_t aStart, uint32_t aEnd,
+                       uint32_t aEventType, nsINode* aNode,
                        AccEvent::EEventRule aEventRule);
 
   /**
@@ -219,7 +219,7 @@ private:
    */
   void CoalesceSelChangeEvents(AccSelChangeEvent* aTailEvent,
                                AccSelChangeEvent* aThisEvent,
-                               PRInt32 aThisIndex);
+                               int32_t aThisIndex);
 
   /**
    * Coalesce text change events caused by sibling hide events.
@@ -270,9 +270,9 @@ private:
   {
   public:
     ContentInsertion(DocAccessible* aDocument, Accessible* aContainer);
-    virtual ~ContentInsertion() { mDocument = nsnull; }
+    virtual ~ContentInsertion() { mDocument = nullptr; }
 
-    NS_INLINE_DECL_REFCOUNTING(ContentInsertion)
+    NS_INLINE_DECL_CYCLE_COLLECTING_NATIVE_REFCOUNTING(ContentInsertion)
     NS_DECL_CYCLE_COLLECTION_NATIVE_CLASS(ContentInsertion)
 
     bool InitChildList(nsIContent* aStartChildNode, nsIContent* aEndChildNode);

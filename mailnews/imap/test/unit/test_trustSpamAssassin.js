@@ -43,7 +43,7 @@ function createJunkFolder()
   yield false;
   gJunkFolder = gIMAPIncomingServer.rootFolder.getChildNamed("Junk");
   do_check_true(gJunkFolder instanceof Ci.nsIMsgImapMailFolder);
-  gJunkFolder.updateFolderWithListener(null, urlListener);
+  gJunkFolder.updateFolderWithListener(null, asyncUrlListener);
   dl('wait for OnStopRunningURL');
   yield false;
 }
@@ -63,7 +63,7 @@ function loadImapMessage()
   gIMAPInbox.updateFolder(null);
   dl('wait for msgsMoveCopyCompleted');
   yield false;
-  gJunkFolder.updateFolderWithListener(null, urlListener);
+  gJunkFolder.updateFolderWithListener(null, asyncUrlListener);
   dl('wait for OnStopRunningURL');
   yield false;
 }
@@ -117,10 +117,10 @@ function markMessageAsGood()
 
 function updateFoldersAndCheck()
 {
-  gIMAPInbox.updateFolderWithListener(null, urlListener);
+  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
   dl('wait for OnStopRunningURL');
   yield false;
-  gJunkFolder.updateFolderWithListener(null, urlListener);
+  gJunkFolder.updateFolderWithListener(null, asyncUrlListener);
   dl('wait for OnStopRunningURL');
   yield false;
   // bug 540385 causes this test to fail
@@ -162,17 +162,6 @@ function run_test()
   async_run_tests(tests);
 }
 
-var urlListener = {
-  OnStartRunningUrl: function _OnStartRunningUrl(aUrl) {
-    // funny but this never seems to get called.
-    dl('OnStartRunningUrl');
-  },
-  OnStopRunningUrl: function _OnStopRunningUrl(aUrl, aExitCode) {
-    dl('OnStopRunningUrl');
-    async_driver();
-  }
-};
-
 mfnListener =
 {
   msgsMoveCopyCompleted: function (aMove, aSrcMsgs, aDestFolder, aDestMsgs)
@@ -213,13 +202,4 @@ function specForFileName(aFileName)
 // quick shorthand for output of a line of text.
 function dl(text) {
   dump(text + '\n');
-}
-
-// get the first message header found in a folder
-function firstMsgHdr(folder) {
-  let enumerator = folder.messages;
-  if (enumerator.hasMoreElements())
-    return enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
-  dl('firstMsgHdr returned null!');
-  return null;
 }

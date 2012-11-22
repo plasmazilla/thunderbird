@@ -54,7 +54,7 @@ nsProfileMigrator::Migrate(nsIProfileStartup* aStartup, const nsACString& aKey)
   params->AppendElement(aStartup, false);
 
   nsCOMPtr<nsIDOMWindow> migrateWizard;
-  return ww->OpenWindow(nsnull,
+  return ww->OpenWindow(nullptr,
                         MIGRATION_WIZARD_FE_URL,
                         "_blank",
                         MIGRATION_WIZARD_FE_FEATURES,
@@ -116,7 +116,7 @@ nsProfileMigrator::GetDefaultMailMigratorKey(nsACString& aKey, nsCOMPtr<nsIMailP
     "eudora",
     ""
   };
-  for (PRUint32 i = 0; sources[i][0]; ++i)
+  for (uint32_t i = 0; sources[i][0]; ++i)
   {
     migratorID = migratorPrefix;
     migratorID.Append(sources[i]);
@@ -128,7 +128,7 @@ nsProfileMigrator::GetDefaultMailMigratorKey(nsACString& aKey, nsCOMPtr<nsIMailP
     mailMigrator->GetSourceExists(&exists);
     if (exists)
     {
-      mailMigrator = nsnull;
+      mailMigrator = nullptr;
       return NS_OK;
     }
   }

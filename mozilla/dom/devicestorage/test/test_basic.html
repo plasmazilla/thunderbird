@@ -13,7 +13,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=717103
 
 <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css" />
 </head>
-<body>
+<body onunload="unload()">
 <a target="_blank" href="https://bugzilla.mozilla.org/show_bug.cgi?id=717103">Mozilla Bug 717103</a>
 <p id="display"></p>
 <div id="content" style="display: none">
@@ -22,11 +22,21 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=717103
 <pre id="test">
 <script class="testbody" type="text/javascript">
 
+function unload() {
+  delete gDataBlob;
+  gDataBlob = null;
+
+  delete gFileReader;
+  gFileReader = null;
+}
+
+
 devicestorage_setup();
 
 var gFileName = "devicestorage/hi";
 var gData = "My name is Doug Turner.  My IRC nick is DougT.  I like Maple cookies."
 var gDataBlob = new Blob([gData], {type: 'text/plain'});
+var gFileReader = new FileReader();
 
 function getAfterDeleteSuccess(e) {
   ok(false, "file was deleted not successfully");
@@ -44,7 +54,7 @@ function deleteSuccess(e) {
   dump(e.target.result + "\n")
 
   var storage = navigator.getDeviceStorage("testing");
-  request = storage[0].get(e.target.result);
+  request = storage.get(e.target.result);
   request.onsuccess = getAfterDeleteSuccess;
   request.onerror = getAfterDeleteError;
 
@@ -63,12 +73,11 @@ function getSuccess(e) {
 
   var name = e.target.result.name;
 
-  var reader = new FileReader();
-  reader.readAsArrayBuffer(gDataBlob);
-  reader.onload = function(e) {
+  gFileReader.readAsArrayBuffer(gDataBlob);
+  gFileReader.onload = function(e) {
     readerCallback(e);
 
-    request = storage[0].delete(name)
+    request = storage.delete(name)
     request.onsuccess = deleteSuccess;
     request.onerror = deleteError;
   }
@@ -93,7 +102,7 @@ function addSuccess(e) {
   ok(e.target.result == gFileName, "File name should match");
 
   var storage = navigator.getDeviceStorage("testing");
-  request = storage[0].get(gFileName);
+  request = storage.get(gFileName);
   request.onsuccess = getSuccess;
   request.onerror = getError;
 
@@ -110,7 +119,7 @@ ok(navigator.getDeviceStorage, "Should have getDeviceStorage");
 var storage = navigator.getDeviceStorage("testing");
 ok(storage, "Should have gotten a storage");
 
-request = storage[0].addNamed(gDataBlob, "devicestorage/hi");
+request = storage.addNamed(gDataBlob, "devicestorage/hi");
 ok(request, "Should have a non-null request");
 
 request.onsuccess = addSuccess;

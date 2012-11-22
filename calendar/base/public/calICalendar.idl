@@ -122,6 +122,10 @@ interface calICalendar : nsISupports
    *                                   e.g. this generally applies to network calendars;
    *                                   default is true (if not present).
    *   [boolean]  cache.enabled      If true, the calendar is cached; default is false.
+   *   [boolean]  cache.always       If true, the cache will always be enabled
+   *                                   and the user cannot turn it off. For
+   *                                   backward compatibility, return true for
+   *                                   cache.enabled too.
    *
    *   [nsresult] currentStatus      The current error status of the calendar (transient).
    *
@@ -501,7 +505,7 @@ interface calICompositeCalendar : calICalendar
   calICalendar getCalendarById(in AUTF8String aId);
 
   /* return a list of all calendars currently registered */
-  void getCalendars(out PRUint32 count,
+  void getCalendars(out uint32_t count,
                     [array, size_is(count), retval] out calICalendar aCalendars);
 
   /**
@@ -533,6 +537,9 @@ interface calICompositeCalendar : calICalendar
 /**
  * Make a more general nsIObserverService2 and friends to support
  * nsISupports data and use that instead?
+ *
+ * NOTE: When adding methods here, please also add them in calUtils.jsm's
+ * createAdapter() method.
  */
 [scriptable, uuid(2953c9b2-2c73-11d9-80b6-00045ace3b8d)]
 interface calIObserver : nsISupports
@@ -572,6 +579,9 @@ interface calICompositeObserver : calIObserver
  * Async operations are called back via this interface.  If you know that your
  * object is not going to get called back for either of these methods, having
  * them return NS_ERROR_NOT_IMPLEMENTED is reasonable.
+ *
+ * NOTE: When adding methods here, please also add them in calUtils.jsm's
+ * createAdapter() method.
  */
 [scriptable, uuid(ed3d87d8-2c77-11d9-8f5f-00045ace3b8d)]
 interface calIOperationListener : nsISupports
@@ -615,6 +625,6 @@ interface calIOperationListener : nsISupports
                     in nsresult aStatus,
                     in nsIIDRef aItemType, 
                     in nsIVariant aDetail,
-                    in PRUint32 aCount, 
+                    in uint32_t aCount, 
                     [array, size_is(aCount), iid_is(aItemType)]  in nsQIResult aItems );
 };

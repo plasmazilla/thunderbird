@@ -25,14 +25,14 @@ nsDOMProgressEvent::GetLengthComputable(bool* aLengthComputable)
 }
 
 NS_IMETHODIMP
-nsDOMProgressEvent::GetLoaded(PRUint64* aLoaded)
+nsDOMProgressEvent::GetLoaded(uint64_t* aLoaded)
 {
   *aLoaded = mLoaded;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsDOMProgressEvent::GetTotal(PRUint64* aTotal)
+nsDOMProgressEvent::GetTotal(uint64_t* aTotal)
 {
   *aTotal = mTotal;
   return NS_OK;
@@ -43,8 +43,8 @@ nsDOMProgressEvent::InitProgressEvent(const nsAString& aType,
                                       bool aCanBubble,
                                       bool aCancelable,
                                       bool aLengthComputable,
-                                      PRUint64 aLoaded,
-                                      PRUint64 aTotal)
+                                      uint64_t aLoaded,
+                                      uint64_t aTotal)
 {
   nsresult rv = nsDOMEvent::InitEvent(aType, aCanBubble, aCancelable);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -62,7 +62,7 @@ NS_NewDOMProgressEvent(nsIDOMEvent** aInstancePtrResult,
                        nsEvent* aEvent) 
 {
   nsDOMProgressEvent* it = new nsDOMProgressEvent(aPresContext, aEvent);
-  if (nsnull == it)
+  if (nullptr == it)
     return NS_ERROR_OUT_OF_MEMORY;
 
   return CallQueryInterface(it, aInstancePtrResult);

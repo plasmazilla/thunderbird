@@ -33,6 +33,7 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
 var EXPORTED_SYMBOLS = ["CssRuleView",
                         "_ElementStyle",
+                        "editableItem",
                         "_editableField",
                         "_getInplaceEditorForSpan"];
 
@@ -81,7 +82,9 @@ function ElementStyle(aElement, aStore)
   if (this.store.disabled) {
     this.store.disabled = aStore.disabled;
   } else {
-    this.store.disabled = WeakMap();
+    // FIXME: This should be a WeakMap once bug 753517 is fixed.
+    // See Bug 777373 for details.
+    this.store.disabled = new Map();
   }
 
   let doc = aElement.ownerDocument;
@@ -373,17 +376,24 @@ Rule.prototype = {
       this._title += ":" + this.ruleLine;
     }
 
+    return this._title + (this.mediaText ? " @media " + this.mediaText : "");
+  },
+
+  get inheritedSource()
+  {
+    if (this._inheritedSource) {
+      return this._inheritedSource;
+    }
+    this._inheritedSource = "";
     if (this.inherited) {
       let eltText = this.inherited.tagName.toLowerCase();
       if (this.inherited.id) {
         eltText += "#" + this.inherited.id;
       }
-      let args = [eltText, this._title];
-      this._title = CssLogic._strings.formatStringFromName("rule.inheritedSource",
-                                                           args, args.length);
+      this._inheritedSource =
+        CssLogic._strings.formatStringFromName("rule.inheritedFrom", [eltText], 1);
     }
-
-    return this._title + (this.mediaText ? " @media " + this.mediaText : "");
+    return this._inheritedSource;
   },
 
   /**
@@ -480,7 +490,11 @@ Rule.prototype = {
 
     // Store disabled properties in the disabled store.
     let disabled = this.elementStyle.store.disabled;
-    disabled.set(this.style, disabledProps);
+    if (disabledProps.length > 0) {
+      disabled.set(this.style, disabledProps);
+    } else {
+      disabled.delete(this.style);
+    }
 
     this.elementStyle.markOverridden();
   },
@@ -958,6 +972,8 @@ CssRuleView.prototype = {
       return;
     }
 
+    this._clearRules();
+
     // Repopulate the element style.
     this._elementStyle.populate();
 
@@ -1023,23 +1039,23 @@ CssRuleView.prototype = {
   {
     // Run through the current list of rules, attaching
     // their editors in order.  Create editors if needed.
-    let last = null;
+    let lastInheritedSource = "";
     for each (let rule in this._elementStyle.rules) {
+
+      let inheritedSource = rule.inheritedSource;
+      if (inheritedSource != lastInheritedSource) {
+        let h2 = this.doc.createElementNS(HTML_NS, "div");
+        h2.className = "ruleview-rule-inheritance";
+        h2.textContent = inheritedSource;
+        lastInheritedSource = inheritedSource;
+        this.element.appendChild(h2);
+      }
+
       if (!rule.editor) {
         new RuleEditor(this, rule);
       }
 
-      let target = last ? last.nextSibling : this.element.firstChild;
-      this.element.insertBefore(rule.editor.element, target);
-      last = rule.editor.element;
-    }
-
-    // ... and now editors for rules that don't exist anymore
-    // have been pushed to the end of the list, go ahead and
-    // delete their nodes.  The rules they edit have already been
-    // forgotten.
-    while (last && last.nextSibling) {
-      this.element.removeChild(last.nextSibling);
+      this.element.appendChild(rule.editor.element);
     }
   },
 
@@ -1154,16 +1170,6 @@ CssRuleView.prototype = {
     let rx = new RegExp("^" + inline + "\\r?\\n?", "g");
     text = text.replace(rx, "");
 
-    // Remove file:line
-    text = text.replace(/[\w\.]+:\d+(\r?\n)/g, "$1");
-
-    // Remove inherited from: line
-    let inheritedFrom = _strings.
-      GetStringFromName("rule.inheritedSource");
-    inheritedFrom = inheritedFrom.replace(/\s%S\s\(%S\)/g, "");
-    rx = new RegExp("(\r?\n)" + inheritedFrom + ".*", "g");
-    text = text.replace(rx, "$1");
-
     clipboardHelper.copyString(text, this.doc);
 
     if (aEvent) {
@@ -1184,9 +1190,9 @@ CssRuleView.prototype = {
       return;
     }
 
-    if (node.className != "rule-view-row") {
+    if (node.className != "ruleview-rule") {
       while (node = node.parentElement) {
-        if (node.className == "rule-view-row") {
+        if (node.className == "ruleview-rule") {
           break;
         }
       }
@@ -1332,7 +1338,7 @@ RuleEditor.prototype = {
   _create: function RuleEditor_create()
   {
     this.element = this.doc.createElementNS(HTML_NS, "div");
-    this.element.className = "rule-view-row";
+    this.element.className = "ruleview-rule";
     this.element._ruleEditor = this;
 
     // Give a relative position for the inplace editor's measurement
@@ -1388,7 +1394,7 @@ RuleEditor.prototype = {
     });
 
     // Create a property editor when the close brace is clicked.
-    editableItem(this.closeBrace, function(aElement) {
+    editableItem({ element: this.closeBrace }, function(aElement) {
       this.newProperty();
     }.bind(this));
   },
@@ -1705,6 +1711,7 @@ TextPropertyEditor.prototype = {
         textContent: computed.name
       });
       appendText(li, ": ");
+
       createChild(li, "span", {
         class: "ruleview-propertyvalue",
         textContent: computed.value
@@ -1832,6 +1839,9 @@ TextPropertyEditor.prototype = {
  *    Options for the editable field, including:
  *    {Element} element:
  *      (required) The span to be edited on focus.
+ *    {function} canEdit:
+ *       Will be called before creating the inplace editor.  Editor
+ *       won't be created if canEdit returns false.
  *    {function} start:
  *       Will be called when the inplace editor is initialized.
  *    {function} change:
@@ -1847,11 +1857,16 @@ TextPropertyEditor.prototype = {
  *    {string} advanceChars:
  *       If any characters in advanceChars are typed, focus will advance
  *       to the next element.
+ *    {boolean} stopOnReturn:
+ *       If true, the return key will not advance the editor to the next
+ *       focusable element.
+ *    {string} trigger: The DOM event that should trigger editing,
+ *      defaults to "click"
  */
 function editableField(aOptions)
 {
-  editableItem(aOptions.element, function(aElement) {
-    new InplaceEditor(aOptions);
+  return editableItem(aOptions, function(aElement, aEvent) {
+    new InplaceEditor(aOptions, aEvent);
   });
 }
 
@@ -1860,29 +1875,33 @@ function editableField(aOptions)
  * clicks and sit in the editing tab order, and call
  * a callback when it is activated.
  *
- * @param DOMElement aElement
- *        The DOM element.
+ * @param object aOptions
+ *    The options for this editor, including:
+ *    {Element} element: The DOM element.
+ *    {string} trigger: The DOM event that should trigger editing,
+ *      defaults to "click"
  * @param function aCallback
  *        Called when the editor is activated.
  */
-
-function editableItem(aElement, aCallback)
+function editableItem(aOptions, aCallback)
 {
-  aElement.addEventListener("click", function(evt) {
+  let trigger = aOptions.trigger || "click"
+  let element = aOptions.element;
+  element.addEventListener(trigger, function(evt) {
     let win = this.ownerDocument.defaultView;
     let selection = win.getSelection();
-    if (selection.isCollapsed) {
-      aCallback(aElement);
+    if (trigger != "click" || selection.isCollapsed) {
+      aCallback(element, evt);
     }
     evt.stopPropagation();
   }, false);
 
   // If focused by means other than a click, start editing by
   // pressing enter or space.
-  aElement.addEventListener("keypress", function(evt) {
+  element.addEventListener("keypress", function(evt) {
     if (evt.keyCode === Ci.nsIDOMKeyEvent.DOM_VK_RETURN ||
         evt.charCode === Ci.nsIDOMKeyEvent.DOM_VK_SPACE) {
-      aCallback(aElement);
+      aCallback(element);
     }
   }, true);
 
@@ -1890,25 +1909,25 @@ function editableItem(aElement, aCallback)
   // the editor is activated on click/mouseup.  This leads
   // to an ugly flash of the focus ring before showing the editor.
   // So hide the focus ring while the mouse is down.
-  aElement.addEventListener("mousedown", function(evt) {
+  element.addEventListener("mousedown", function(evt) {
     let cleanup = function() {
-      aElement.style.removeProperty("outline-style");
-      aElement.removeEventListener("mouseup", cleanup, false);
-      aElement.removeEventListener("mouseout", cleanup, false);
+      element.style.removeProperty("outline-style");
+      element.removeEventListener("mouseup", cleanup, false);
+      element.removeEventListener("mouseout", cleanup, false);
     };
-    aElement.style.setProperty("outline-style", "none");
-    aElement.addEventListener("mouseup", cleanup, false);
-    aElement.addEventListener("mouseout", cleanup, false);
+    element.style.setProperty("outline-style", "none");
+    element.addEventListener("mouseup", cleanup, false);
+    element.addEventListener("mouseout", cleanup, false);
   }, false);
 
   // Mark the element editable field for tab
   // navigation while editing.
-  aElement._editable = true;
+  element._editable = true;
 }
 
 var _editableField = editableField;
 
-function InplaceEditor(aOptions)
+function InplaceEditor(aOptions, aEvent)
 {
   this.elt = aOptions.element;
   let doc = this.elt.ownerDocument;
@@ -1919,6 +1938,8 @@ function InplaceEditor(aOptions)
   this.done = aOptions.done;
   this.destroy = aOptions.destroy;
   this.initial = aOptions.initial ? aOptions.initial : this.elt.textContent;
+  this.multiline = aOptions.multiline || false;
+  this.stopOnReturn = !!aOptions.stopOnReturn;
 
   this._onBlur = this._onBlur.bind(this);
   this._onKeyPress = this._onKeyPress.bind(this);
@@ -1940,22 +1961,25 @@ function InplaceEditor(aOptions)
   this.elt.style.display = "none";
   this.elt.parentNode.insertBefore(this.input, this.elt);
 
-  this.input.select();
+  if (typeof(aOptions.selectAll) == "undefined" || aOptions.selectAll) {
+    this.input.select();
+  }
   this.input.focus();
 
   this.input.addEventListener("blur", this._onBlur, false);
   this.input.addEventListener("keypress", this._onKeyPress, false);
   this.input.addEventListener("input", this._onInput, false);
+  this.input.addEventListener("mousedown", function(aEvt) { aEvt.stopPropagation(); }, false);
 
   if (aOptions.start) {
-    aOptions.start();
+    aOptions.start(this, aEvent);
   }
 }
 
 InplaceEditor.prototype = {
   _createInput: function InplaceEditor_createEditor()
   {
-    this.input = this.doc.createElementNS(HTML_NS, "input");
+    this.input = this.doc.createElementNS(HTML_NS, this.multiline ? "textarea" : "input");
     this.input.inplaceEditor = this;
     this.input.classList.add("styleinspector-propertyeditor");
     this.input.value = this.initial;
@@ -2005,7 +2029,7 @@ InplaceEditor.prototype = {
     // change the underlying element's text ourselves (we leave that
     // up to the client), and b) without tweaking the style of the
     // original element, it might wrap differently or something.
-    this._measurement = this.doc.createElementNS(HTML_NS, "span");
+    this._measurement = this.doc.createElementNS(HTML_NS, this.multiline ? "pre" : "span");
     this._measurement.className = "autosizer";
     this.elt.parentNode.appendChild(this._measurement);
     let style = this._measurement.style;
@@ -2044,6 +2068,15 @@ InplaceEditor.prototype = {
     // we get a chance to resize.  Yuck.
     let width = this._measurement.offsetWidth + 10;
 
+    if (this.multiline) {
+      // Make sure there's some content in the current line.  This is a hack to account
+      // for the fact that after adding a newline the <pre> doesn't grow unless there's
+      // text content on the line.
+      width += 15;
+      this._measurement.textContent += "M";
+      this.input.style.height = this._measurement.offsetHeight + "px";
+    }
+
     this.input.style.width = width + "px";
   },
 
@@ -2077,7 +2110,11 @@ InplaceEditor.prototype = {
   _onKeyPress: function InplaceEditor_onKeyPress(aEvent)
   {
     let prevent = false;
-    if (aEvent.charCode in this._advanceCharCodes
+    if (this.multiline &&
+        aEvent.keyCode === Ci.nsIDOMKeyEvent.DOM_VK_RETURN &&
+        aEvent.shiftKey) {
+      prevent = false;
+    } else if (aEvent.charCode in this._advanceCharCodes
        || aEvent.keyCode === Ci.nsIDOMKeyEvent.DOM_VK_RETURN
        || aEvent.keyCode === Ci.nsIDOMKeyEvent.DOM_VK_TAB) {
       prevent = true;
@@ -2088,13 +2125,16 @@ InplaceEditor.prototype = {
         this.cancelled = true;
         direction = FOCUS_BACKWARD;
       }
+      if (this.stopOnReturn && aEvent.keyCode === Ci.nsIDOMKeyEvent.DOM_VK_RETURN) {
+        direction = null;
+      }
 
       let input = this.input;
 
       this._apply();
 
       let fm = Cc["@mozilla.org/focus-manager;1"].getService(Ci.nsIFocusManager);
-      if (fm.focusedElement === input) {
+      if (direction !== null && fm.focusedElement === input) {
         // If the focused element wasn't changed by the done callback,
         // move the focus as requested.
         let next = moveFocus(this.doc.defaultView, direction);
@@ -2157,7 +2197,9 @@ function _getInplaceEditorForSpan(aSpan) { return aSpan.inplaceEditor; };
  */
 function UserProperties()
 {
-  this.weakMap = new WeakMap();
+  // FIXME: This should be a WeakMap once bug 753517 is fixed.
+  // See Bug 777373 for details.
+  this.map = new Map();
 }
 
 UserProperties.prototype = {
@@ -2177,7 +2219,7 @@ UserProperties.prototype = {
    *          otherwise.
    */
   getProperty: function UP_getProperty(aStyle, aName, aComputedValue) {
-    let entry = this.weakMap.get(aStyle, null);
+    let entry = this.map.get(aStyle, null);
 
     if (entry && aName in entry) {
       let item = entry[aName];
@@ -2206,13 +2248,13 @@ UserProperties.prototype = {
    *        The value of the property to set.
    */
   setProperty: function UP_setProperty(aStyle, aName, aComputedValue, aUserValue) {
-    let entry = this.weakMap.get(aStyle, null);
+    let entry = this.map.get(aStyle, null);
     if (entry) {
       entry[aName] = { computed: aComputedValue, user: aUserValue };
     } else {
       let props = {};
       props[aName] = { computed: aComputedValue, user: aUserValue };
-      this.weakMap.set(aStyle, props);
+      this.map.set(aStyle, props);
     }
   },
 
@@ -2225,7 +2267,7 @@ UserProperties.prototype = {
    *        The name of the property to check.
    */
   contains: function UP_contains(aStyle, aName) {
-    let entry = this.weakMap.get(aStyle, null);
+    let entry = this.map.get(aStyle, null);
     return !!entry && aName in entry;
   },
 };

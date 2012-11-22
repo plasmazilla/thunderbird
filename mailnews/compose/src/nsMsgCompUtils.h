@@ -62,10 +62,11 @@ nsresult    mime_sanity_check_fields (
 
 char        *mime_generate_headers (nsMsgCompFields *fields,
                                     const char *charset,
-                                    nsMsgDeliverMode deliver_mode, nsIPrompt * aPrompt, PRInt32 *status);
+                                    nsMsgDeliverMode deliver_mode,
+                                    nsIPrompt * aPrompt, nsresult *status);
 
 char        *mime_make_separator(const char *prefix);
-char        *mime_gen_content_id(PRUint32 aPartNum, const char *aEmailAddress);
+char        *mime_gen_content_id(uint32_t aPartNum, const char *aEmailAddress);
 
 char        *mime_generate_attachment_headers (
                            const char *type,
@@ -86,7 +87,7 @@ char        *mime_generate_attachment_headers (
 
 char        *msg_generate_message_id (nsIMsgIdentity*);
 
-bool        mime_7bit_data_p (const char *string, PRUint32 size);
+bool        mime_7bit_data_p (const char *string, uint32_t size);
 
 char        *mime_fix_header_1 (const char *string, bool addr_p, bool news_p);
 char        *mime_fix_header (const char *string);

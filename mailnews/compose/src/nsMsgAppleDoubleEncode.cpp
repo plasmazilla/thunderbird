@@ -50,7 +50,7 @@ MacGetFileType(nsIFile   *fs,
   FSCatalogInfo catalogInfo;
   OSErr err = errFileOpen;
   if (NS_SUCCEEDED(macFile->GetFSRef(&fsRef)))
-    err = ::FSGetCatalogInfo(&fsRef, kFSCatInfoFinderInfo, &catalogInfo, nsnull, nsnull, nsnull);
+    err = ::FSGetCatalogInfo(&fsRef, kFSCatInfoFinderInfo, &catalogInfo, nullptr, nullptr, nullptr);
 
   if ( (err != noErr) || (((FileInfo*)(&catalogInfo.finderInfo))->fileType == 'TEXT') )
     *fileType = strdup(APPLICATION_OCTET_STREAM);
@@ -127,8 +127,8 @@ int ap_encode_init( appledouble_encode_object *p_ap_encode_obj,
 int ap_encode_next(
 	appledouble_encode_object* p_ap_encode_obj, 
 	char 	*to_buff, 
-	PRInt32 	buff_size, 
-	PRInt32* 	real_size)
+	int32_t 	buff_size, 
+	int32_t* 	real_size)
 {
 	int status;
 	

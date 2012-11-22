@@ -220,7 +220,7 @@ private:
   }
 
   static JSBool
-  GetProperty(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, jsval* aVp)
+  GetProperty(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, JSMutableHandleValue aVp)
   {
     JS_ASSERT(JSID_IS_INT(aIdval));
 
@@ -231,18 +231,18 @@ private:
       return false;
     }
 
-    *aVp = JS_GetReservedSlot(aObj, slot);
+    aVp.set(JS_GetReservedSlot(aObj, slot));
     return true;
   }
 
   static JSBool
-  GetConstant(JSContext* aCx, JSHandleObject aObj, JSHandleId idval, jsval* aVp)
+  GetConstant(JSContext* aCx, JSHandleObject aObj, JSHandleId idval, JSMutableHandleValue aVp)
   {
     JS_ASSERT(JSID_IS_INT(idval));
     JS_ASSERT(JSID_TO_INT(idval) >= CAPTURING_PHASE &&
               JSID_TO_INT(idval) <= BUBBLING_PHASE);
 
-    *aVp = INT_TO_JSVAL(JSID_TO_INT(idval));
+    aVp.set(INT_TO_JSVAL(JSID_TO_INT(idval)));
     return true;
   }
 
@@ -341,24 +341,25 @@ DECL_EVENT_CLASS(Event::sMainRuntimeClass, "WorkerEvent")
 #undef DECL_EVENT_CLASS
 
 JSPropertySpec Event::sProperties[] = {
-  { "type", SLOT_type, PROPERTY_FLAGS, GetProperty, js_GetterOnlyPropertyStub },
-  { "target", SLOT_target, PROPERTY_FLAGS, GetProperty,
-    js_GetterOnlyPropertyStub },
-  { "currentTarget", SLOT_currentTarget, PROPERTY_FLAGS, GetProperty,
-    js_GetterOnlyPropertyStub },
-  { "eventPhase", SLOT_eventPhase, PROPERTY_FLAGS, GetProperty,
-    js_GetterOnlyPropertyStub },
-  { "bubbles", SLOT_bubbles, PROPERTY_FLAGS, GetProperty,
-    js_GetterOnlyPropertyStub },
-  { "cancelable", SLOT_cancelable, PROPERTY_FLAGS, GetProperty,
-    js_GetterOnlyPropertyStub },
-  { "timeStamp", SLOT_timeStamp, PROPERTY_FLAGS, GetProperty,
-    js_GetterOnlyPropertyStub },
-  { "defaultPrevented", SLOT_defaultPrevented, PROPERTY_FLAGS, GetProperty,
-    js_GetterOnlyPropertyStub },
-  { "isTrusted", SLOT_isTrusted, PROPERTY_FLAGS, GetProperty,
-    js_GetterOnlyPropertyStub },
-  { 0, 0, 0, NULL, NULL }
+  { "type", SLOT_type, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "target", SLOT_target, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "currentTarget", SLOT_currentTarget, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "eventPhase", SLOT_eventPhase, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "bubbles", SLOT_bubbles, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "cancelable", SLOT_cancelable, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "timeStamp", SLOT_timeStamp, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "defaultPrevented", SLOT_defaultPrevented, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "isTrusted", SLOT_isTrusted, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { 0, 0, 0, JSOP_NULLWRAPPER, JSOP_NULLWRAPPER }
 };
 
 JSFunctionSpec Event::sFunctions[] = {
@@ -370,10 +371,12 @@ JSFunctionSpec Event::sFunctions[] = {
 };
 
 JSPropertySpec Event::sStaticProperties[] = {
-  { "CAPTURING_PHASE", CAPTURING_PHASE, CONSTANT_FLAGS, GetConstant, NULL },
-  { "AT_TARGET", AT_TARGET, CONSTANT_FLAGS, GetConstant, NULL },
-  { "BUBBLING_PHASE", BUBBLING_PHASE, CONSTANT_FLAGS, GetConstant, NULL },
-  { 0, 0, 0, NULL, NULL }
+  { "CAPTURING_PHASE", CAPTURING_PHASE, CONSTANT_FLAGS,
+    JSOP_WRAPPER(GetConstant), JSOP_NULLWRAPPER },
+  { "AT_TARGET", AT_TARGET, CONSTANT_FLAGS, JSOP_WRAPPER(GetConstant), JSOP_NULLWRAPPER },
+  { "BUBBLING_PHASE", BUBBLING_PHASE, CONSTANT_FLAGS,
+    JSOP_WRAPPER(GetConstant), JSOP_NULLWRAPPER },
+  { 0, 0, 0, JSOP_NULLWRAPPER, JSOP_NULLWRAPPER }
 };
 
 class MessageEvent : public Event
@@ -510,7 +513,7 @@ private:
   }
 
   static JSBool
-  GetProperty(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, jsval* aVp)
+  GetProperty(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, JSMutableHandleValue aVp)
   {
     JS_ASSERT(JSID_IS_INT(aIdval));
 
@@ -544,11 +547,11 @@ private:
       }
       JS_SetReservedSlot(aObj, slot, data);
 
-      *aVp = data;
+      aVp.set(data);
       return true;
     }
 
-    *aVp = JS_GetReservedSlot(aObj, slot);
+    aVp.set(JS_GetReservedSlot(aObj, slot));
     return true;
   }
 
@@ -593,12 +596,13 @@ DECL_MESSAGEEVENT_CLASS(MessageEvent::sMainRuntimeClass, "WorkerMessageEvent")
 #undef DECL_MESSAGEEVENT_CLASS
 
 JSPropertySpec MessageEvent::sProperties[] = {
-  { "data", SLOT_data, PROPERTY_FLAGS, GetProperty, js_GetterOnlyPropertyStub },
-  { "origin", SLOT_origin, PROPERTY_FLAGS, GetProperty,
-    js_GetterOnlyPropertyStub },
-  { "source", SLOT_source, PROPERTY_FLAGS, GetProperty,
-    js_GetterOnlyPropertyStub },
-  { 0, 0, 0, NULL, NULL }
+  { "data", SLOT_data, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "origin", SLOT_origin, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "source", SLOT_source, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { 0, 0, 0, JSOP_NULLWRAPPER, JSOP_NULLWRAPPER }
 };
 
 JSFunctionSpec MessageEvent::sFunctions[] = {
@@ -718,7 +722,7 @@ private:
   }
 
   static JSBool
-  GetProperty(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, jsval* aVp)
+  GetProperty(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, JSMutableHandleValue aVp)
   {
     JS_ASSERT(JSID_IS_INT(aIdval));
 
@@ -732,7 +736,7 @@ private:
       return false;
     }
 
-    *aVp = JS_GetReservedSlot(aObj, slot);
+    aVp.set(JS_GetReservedSlot(aObj, slot));
     return true;
   }
 
@@ -778,13 +782,13 @@ DECL_ERROREVENT_CLASS(ErrorEvent::sMainRuntimeClass, "WorkerErrorEvent")
 #undef DECL_ERROREVENT_CLASS
 
 JSPropertySpec ErrorEvent::sProperties[] = {
-  { "message", SLOT_message, PROPERTY_FLAGS, GetProperty,
-    js_GetterOnlyPropertyStub },
-  { "filename", SLOT_filename, PROPERTY_FLAGS, GetProperty,
-    js_GetterOnlyPropertyStub },
-  { "lineno", SLOT_lineno, PROPERTY_FLAGS, GetProperty,
-    js_GetterOnlyPropertyStub },
-  { 0, 0, 0, NULL, NULL }
+  { "message", SLOT_message, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "filename", SLOT_filename, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "lineno", SLOT_lineno, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { 0, 0, 0, JSOP_NULLWRAPPER, JSOP_NULLWRAPPER }
 };
 
 JSFunctionSpec ErrorEvent::sFunctions[] = {
@@ -898,7 +902,7 @@ private:
   }
 
   static JSBool
-  GetProperty(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, jsval* aVp)
+  GetProperty(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, JSMutableHandleValue aVp)
   {
     JS_ASSERT(JSID_IS_INT(aIdval));
 
@@ -912,7 +916,7 @@ private:
       return false;
     }
 
-    *aVp = JS_GetReservedSlot(aObj, slot);
+    aVp.set(JS_GetReservedSlot(aObj, slot));
     return true;
   }
 
@@ -952,13 +956,13 @@ JSClass ProgressEvent::sClass = {
 };
 
 JSPropertySpec ProgressEvent::sProperties[] = {
-  { "lengthComputable", SLOT_lengthComputable, PROPERTY_FLAGS, GetProperty,
-    js_GetterOnlyPropertyStub },
-  { "loaded", SLOT_loaded, PROPERTY_FLAGS, GetProperty, 
-    js_GetterOnlyPropertyStub },
-  { "total", SLOT_total, PROPERTY_FLAGS, GetProperty, 
-    js_GetterOnlyPropertyStub },
-  { 0, 0, 0, NULL, NULL }
+  { "lengthComputable", SLOT_lengthComputable, PROPERTY_FLAGS,
+    JSOP_WRAPPER(GetProperty), JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "loaded", SLOT_loaded, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "total", SLOT_total, PROPERTY_FLAGS, JSOP_WRAPPER(GetProperty),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { 0, 0, 0, JSOP_NULLWRAPPER, JSOP_NULLWRAPPER }
 };
 
 JSFunctionSpec ProgressEvent::sFunctions[] = {

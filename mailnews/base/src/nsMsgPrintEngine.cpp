@@ -74,7 +74,7 @@ NS_IMPL_ISUPPORTS4(nsMsgPrintEngine,
 NS_IMETHODIMP
 nsMsgPrintEngine::OnStateChange(nsIWebProgress* aWebProgress, 
                    nsIRequest *aRequest, 
-                   PRUint32 progressStateFlags, 
+                   uint32_t progressStateFlags, 
                    nsresult aStatus)
 {
   nsresult rv = NS_OK;
@@ -106,10 +106,10 @@ nsMsgPrintEngine::OnStateChange(nsIWebProgress* aWebProgress,
       }
       nsCOMPtr<nsIWebProgressListener> wpl(do_QueryInterface(mPrintPromptService));
       if (wpl) {
-        wpl->OnStateChange(nsnull, nsnull, nsIWebProgressListener::STATE_STOP|nsIWebProgressListener::STATE_IS_DOCUMENT, nsnull);
-        mPrintProgressListener = nsnull;
-        mPrintProgress         = nsnull;
-        mPrintProgressParams   = nsnull;
+        wpl->OnStateChange(nullptr, nullptr, nsIWebProgressListener::STATE_STOP|nsIWebProgressListener::STATE_IS_DOCUMENT, NS_OK);
+        mPrintProgressListener = nullptr;
+        mPrintProgress         = nullptr;
+        mPrintProgressParams   = nullptr;
       }
 
       bool isPrintingCancelled = false;
@@ -139,7 +139,7 @@ nsMsgPrintEngine::OnStateChange(nsIWebProgress* aWebProgress,
           if (!aChannel) return NS_ERROR_FAILURE;
 
           // Make sure this isn't just "about:blank" finishing....
-          nsCOMPtr<nsIURI> originalURI = nsnull;
+          nsCOMPtr<nsIURI> originalURI = nullptr;
           if (NS_SUCCEEDED(aChannel->GetOriginalURI(getter_AddRefs(originalURI))) && originalURI)
           {
             nsCAutoString spec;
@@ -178,10 +178,10 @@ nsMsgPrintEngine::OnStateChange(nsIWebProgress* aWebProgress,
 NS_IMETHODIMP
 nsMsgPrintEngine::OnProgressChange(nsIWebProgress *aWebProgress,
                                      nsIRequest *aRequest,
-                                     PRInt32 aCurSelfProgress,
-                                     PRInt32 aMaxSelfProgress,
-                                     PRInt32 aCurTotalProgress,
-                                     PRInt32 aMaxTotalProgress)
+                                     int32_t aCurSelfProgress,
+                                     int32_t aMaxSelfProgress,
+                                     int32_t aCurTotalProgress,
+                                     int32_t aMaxTotalProgress)
 {
     return NS_OK;
 }
@@ -190,7 +190,7 @@ NS_IMETHODIMP
 nsMsgPrintEngine::OnLocationChange(nsIWebProgress* aWebProgress,
                       nsIRequest* aRequest,
                       nsIURI *location,
-                      PRUint32 aFlags)
+                      uint32_t aFlags)
 {
     NS_NOTREACHED("notification excluded in AddProgressListener(...)");
     return NS_OK;
@@ -210,7 +210,7 @@ nsMsgPrintEngine::OnStatusChange(nsIWebProgress* aWebProgress,
 NS_IMETHODIMP
 nsMsgPrintEngine::OnSecurityChange(nsIWebProgress *aWebProgress, 
                       nsIRequest *aRequest, 
-                      PRUint32 state)
+                      uint32_t state)
 {
     NS_NOTREACHED("notification excluded in AddProgressListener(...)");
     return NS_OK;
@@ -245,7 +245,7 @@ nsMsgPrintEngine::SetWindow(nsIDOMWindow *aWin)
 
   nsCOMPtr<nsIDocShellTreeItem> childItem;
   rootAsNode->FindChildWithName(NS_LITERAL_STRING("content").get(), true,
-				false, nsnull, nsnull,
+				false, nullptr, nullptr,
 				getter_AddRefs(childItem));
 
   mDocShell = do_QueryInterface(childItem);
@@ -308,7 +308,7 @@ nsMsgPrintEngine::AddPrintURI(const PRUnichar *aMsgURI)
 }
 
 NS_IMETHODIMP
-nsMsgPrintEngine::SetPrintURICount(PRInt32 aCount)
+nsMsgPrintEngine::SetPrintURICount(int32_t aCount)
 {
   mURICount = aCount;
   return NS_OK;
@@ -378,7 +378,7 @@ nsMsgPrintEngine::ShowProgressDialog(bool aIsForPrinting, bool& aDoNotify)
                                             &aDoNotify);
       if (NS_SUCCEEDED(rv)) {
 
-        showProgressDialog = mPrintProgressListener != nsnull && mPrintProgressParams != nsnull;
+        showProgressDialog = mPrintProgressListener != nullptr && mPrintProgressParams != nullptr;
 
         if (showProgressDialog) 
         {
@@ -413,7 +413,7 @@ nsMsgPrintEngine::StartNextPrintOperation()
   mCurrentlyPrintingURI++;
 
   // First, check if we are at the end of this stuff!
-  if (mCurrentlyPrintingURI >= (PRInt32)mURIArray.Length())
+  if (mCurrentlyPrintingURI >= (int32_t)mURIArray.Length())
   {
     // This is the end...dum, dum, dum....my only friend...the end
     mWindow->Close();
@@ -458,7 +458,7 @@ nsMsgPrintEngine::FireThatLoadOperationStartup(const nsString& uri)
   nsresult rv     = NS_ERROR_FAILURE;
   // Don't show dialog if we are out of URLs
   //if ( mCurrentlyPrintingURI < mURIArray.Length() && !mIsDoingPrintPreview)
-  if ( mCurrentlyPrintingURI < (PRInt32)mURIArray.Length())
+  if ( mCurrentlyPrintingURI < (int32_t)mURIArray.Length())
     rv = ShowProgressDialog(!mIsDoingPrintPreview, notify);
   if (NS_FAILED(rv) || !notify) 
     return FireThatLoadOperation(uri);
@@ -496,7 +496,7 @@ nsMsgPrintEngine::FireThatLoadOperation(const nsString& uri)
   }
 
   if (NS_SUCCEEDED(rv) && messageService)
-    rv = messageService->DisplayMessageForPrinting(uriCStr.get(), mDocShell, nsnull, nsnull, nsnull);
+    rv = messageService->DisplayMessageForPrinting(uriCStr.get(), mDocShell, nullptr, nullptr, nullptr);
   //If it's not something we know about, then just load try loading it directly.
   else
   {
@@ -504,9 +504,9 @@ nsMsgPrintEngine::FireThatLoadOperation(const nsString& uri)
     if (webNav)
       rv = webNav->LoadURI(uri.get(),                        // URI string
                            nsIWebNavigation::LOAD_FLAGS_NONE, // Load flags
-                           nsnull,                            // Referring URI
-                           nsnull,                            // Post data
-                           nsnull);                           // Extra headers
+                           nullptr,                            // Referring URI
+                           nullptr,                            // Post data
+                           nullptr);                           // Extra headers
   }
   return rv;
 }
@@ -608,14 +608,14 @@ nsMsgPrintEngine::PrintMsgWindow()
       // don't show the actual url when printing mail messages or addressbook cards.
       // for mail, it can review the salt.  for addrbook, it's a data:// url, which
       // means nothing to the end user.
-      // needs to be " " and not "" or nsnull, otherwise, we'll still print the url
+      // needs to be " " and not "" or nullptr, otherwise, we'll still print the url
       mPrintSettings->SetDocURL(NS_LITERAL_STRING(" ").get());
 
       nsresult rv = NS_ERROR_FAILURE;
       if (mIsDoingPrintPreview) 
       {
         if (mStartupPPObs) {
-          rv = mStartupPPObs->Observe(nsnull, nsnull, nsnull);
+          rv = mStartupPPObs->Observe(nullptr, nullptr, nullptr);
         }
       } 
       else 
@@ -634,8 +634,8 @@ nsMsgPrintEngine::PrintMsgWindow()
 
       if (NS_FAILED(rv))
       {
-        mWebBrowserPrint = nsnull;
-        mContentViewer = nsnull;
+        mWebBrowserPrint = nullptr;
+        mContentViewer = nullptr;
         bool isPrintingCancelled = false;
         if (mPrintSettings)
         {
@@ -740,7 +740,7 @@ NS_IMETHODIMP nsMsgPrintEngine::SetDoPrintPreview(bool aDoPrintPreview)
 }
 
 /* void setMsgType (in long aMsgType); */
-NS_IMETHODIMP nsMsgPrintEngine::SetMsgType(PRInt32 aMsgType)
+NS_IMETHODIMP nsMsgPrintEngine::SetMsgType(int32_t aMsgType)
 {
   if (mMsgInx >= nsIMsgPrintEngine::MNAB_START && mMsgInx < nsIMsgPrintEngine::MNAB_END) 
   {

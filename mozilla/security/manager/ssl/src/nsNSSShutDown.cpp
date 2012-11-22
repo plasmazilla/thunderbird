@@ -43,17 +43,17 @@ static PLDHashTableOps gSetOps = {
   ObjectSetInitEntry
 };
 
-nsNSSShutDownList *nsNSSShutDownList::singleton = nsnull;
+nsNSSShutDownList *nsNSSShutDownList::singleton = nullptr;
 
 nsNSSShutDownList::nsNSSShutDownList()
 :mListLock("nsNSSShutDownList.mListLock")
 {
   mActiveSSLSockets = 0;
-  mPK11LogoutCancelObjects.ops = nsnull;
-  mObjects.ops = nsnull;
-  PL_DHashTableInit(&mObjects, &gSetOps, nsnull,
+  mPK11LogoutCancelObjects.ops = nullptr;
+  mObjects.ops = nullptr;
+  PL_DHashTableInit(&mObjects, &gSetOps, nullptr,
                     sizeof(ObjectHashEntry), 16);
-  PL_DHashTableInit(&mPK11LogoutCancelObjects, &gSetOps, nsnull,
+  PL_DHashTableInit(&mPK11LogoutCancelObjects, &gSetOps, nullptr,
                     sizeof(ObjectHashEntry), 16);
 }
 
@@ -61,14 +61,14 @@ nsNSSShutDownList::~nsNSSShutDownList()
 {
   if (mObjects.ops) {
     PL_DHashTableFinish(&mObjects);
-    mObjects.ops = nsnull;
+    mObjects.ops = nullptr;
   }
   if (mPK11LogoutCancelObjects.ops) {
     PL_DHashTableFinish(&mPK11LogoutCancelObjects);
-    mPK11LogoutCancelObjects.ops = nsnull;
+    mPK11LogoutCancelObjects.ops = nullptr;
   }
   PR_ASSERT(this == singleton);
-  singleton = nsnull;
+  singleton = nullptr;
 }
 
 void nsNSSShutDownList::remember(nsNSSShutDownObject *o)
@@ -159,7 +159,7 @@ nsresult nsNSSShutDownList::doPK11Logout()
 
 PLDHashOperator PR_CALLBACK
 nsNSSShutDownList::doPK11LogoutHelper(PLDHashTable *table, 
-  PLDHashEntryHdr *hdr, PRUint32 number, void *arg)
+  PLDHashEntryHdr *hdr, uint32_t number, void *arg)
 {
   ObjectHashEntry *entry = static_cast<ObjectHashEntry*>(hdr);
 
@@ -211,7 +211,7 @@ nsresult nsNSSShutDownList::evaporateAllNSSResources()
 
 PLDHashOperator PR_CALLBACK
 nsNSSShutDownList::evaporateAllNSSResourcesHelper(PLDHashTable *table, 
-  PLDHashEntryHdr *hdr, PRUint32 number, void *arg)
+  PLDHashEntryHdr *hdr, uint32_t number, void *arg)
 {
   ObjectHashEntry *entry = static_cast<ObjectHashEntry*>(hdr);
   {
@@ -228,7 +228,7 @@ nsNSSShutDownList *nsNSSShutDownList::construct()
 {
   if (singleton) {
     // we should never ever be called twice
-    return nsnull;
+    return nullptr;
   }
 
   singleton = new nsNSSShutDownList();
@@ -242,7 +242,7 @@ nsNSSActivityState::nsNSSActivityState()
  mNSSActivityCounter(0),
  mBlockingUICounter(0),
  mIsUIForbidden(false),
- mNSSRestrictedThread(nsnull)
+ mNSSRestrictedThread(nullptr)
 {
 }
 
@@ -355,7 +355,7 @@ void nsNSSActivityState::releaseCurrentThreadActivityRestriction()
 {
   MutexAutoLock lock(mNSSActivityStateLock);
 
-  mNSSRestrictedThread = nsnull;
+  mNSSRestrictedThread = nullptr;
   mIsUIForbidden = false;
 
   mNSSActivityChanged.NotifyAll();

@@ -15,15 +15,15 @@ class nsDOMTouch MOZ_FINAL : public nsIDOMTouch
 {
 public:
   nsDOMTouch(nsIDOMEventTarget* aTarget,
-             PRInt32 aIdentifier,
-             PRInt32 aPageX,
-             PRInt32 aPageY,
-             PRInt32 aScreenX,
-             PRInt32 aScreenY,
-             PRInt32 aClientX,
-             PRInt32 aClientY,
-             PRInt32 aRadiusX,
-             PRInt32 aRadiusY,
+             int32_t aIdentifier,
+             int32_t aPageX,
+             int32_t aPageY,
+             int32_t aScreenX,
+             int32_t aScreenY,
+             int32_t aClientX,
+             int32_t aClientY,
+             int32_t aRadiusX,
+             int32_t aRadiusY,
              float aRotationAngle,
              float aForce)
     {
@@ -42,7 +42,7 @@ public:
       mChanged = false;
       mMessage = 0;
     }
-  nsDOMTouch(PRInt32 aIdentifier,
+  nsDOMTouch(int32_t aIdentifier,
              nsIntPoint aPoint,
              nsIntPoint aRadius,
              float aRotationAngle,
@@ -85,18 +85,19 @@ public:
     mTarget = aTarget;
   }
   bool Equals(nsIDOMTouch* aTouch);
-protected:
-  bool mPointsInitialized;
-  PRInt32 mIdentifier;
+
+  int32_t mIdentifier;
   nsIntPoint mPagePoint;
   nsIntPoint mClientPoint;
   nsIntPoint mScreenPoint;
   nsIntPoint mRadius;
   float mRotationAngle;
   float mForce;
+protected:
+  bool mPointsInitialized;
 };
 
-class nsDOMTouchList : public nsIDOMTouchList
+class nsDOMTouchList MOZ_FINAL : public nsIDOMTouchList
 {
 public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
@@ -111,9 +112,9 @@ public:
     mPoints.AppendElement(aPoint);
   }
 
-  nsIDOMTouch* GetItemAt(PRUint32 aIndex)
+  nsIDOMTouch* GetItemAt(uint32_t aIndex)
   {
-    return mPoints.SafeElementAt(aIndex, nsnull);
+    return mPoints.SafeElementAt(aIndex, nullptr);
   }
 
 protected:

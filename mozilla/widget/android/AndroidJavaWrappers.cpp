@@ -92,17 +92,68 @@ jmethodID AndroidGeckoSurfaceView::jGetSoftwareDrawBufferMethod = 0;
 jmethodID AndroidGeckoSurfaceView::jGetSurfaceMethod = 0;
 jmethodID AndroidGeckoSurfaceView::jGetHolderMethod = 0;
 
+static jclass GetClassGlobalRef(JNIEnv* env, const char* className)
+{
+    jobject classLocalRef = env->FindClass(className);
+    if (!classLocalRef) {
+        ALOG(">>> FATAL JNI ERROR! FindClass(className=\"%s\") failed. Did "
+             "ProGuard optimize away a non-public class?", className);
+        env->ExceptionDescribe();
+        MOZ_CRASH();
+    }
+
+    jobject classGlobalRef = env->NewGlobalRef(classLocalRef);
+    if (!classGlobalRef) {
+        env->ExceptionDescribe();
+        MOZ_CRASH();
+    }
+
+    // Local ref no longer necessary because we have a global ref.
+    env->DeleteLocalRef(classLocalRef);
+    classLocalRef = NULL;
+
+    return static_cast<jclass>(classGlobalRef);
+}
+
+static jfieldID GetFieldID(JNIEnv* env, jclass jClass,
+                           const char* fieldName, const char* fieldType)
+{
+    jfieldID fieldID = env->GetFieldID(jClass, fieldName, fieldType);
+    if (!fieldID) {
+        ALOG(">>> FATAL JNI ERROR! GetFieldID(fieldName=\"%s\", "
+             "fieldType=\"%s\") failed. Did ProGuard optimize away a non-"
+             "public field?", fieldName, fieldType);
+        env->ExceptionDescribe();
+        MOZ_CRASH();
+    }
+    return fieldID;
+}
+
+static jmethodID GetMethodID(JNIEnv* env, jclass jClass,
+                             const char* methodName, const char* methodType)
+{
+    jmethodID methodID = env->GetMethodID(jClass, methodName, methodType);
+    if (!methodID) {
+        ALOG(">>> FATAL JNI ERROR! GetMethodID(methodName=\"%s\", "
+             "methodType=\"%s\") failed. Did ProGuard optimize away a non-"
+             "public method?", methodName, methodType);
+        env->ExceptionDescribe();
+        MOZ_CRASH();
+    }
+    return methodID;
+}
+
 #define initInit() jclass jClass
 
 // note that this also sets jClass
 #define getClassGlobalRef(cname) \
-    (jClass = jclass(jEnv->NewGlobalRef(jEnv->FindClass(cname))))
+    (jClass = GetClassGlobalRef(jEnv, cname))
 
 #define getField(fname, ftype) \
-    ((jfieldID) jEnv->GetFieldID(jClass, fname, ftype))
+    GetFieldID(jEnv, jClass, fname, ftype)
 
 #define getMethod(fname, ftype) \
-    ((jmethodID) jEnv->GetMethodID(jClass, fname, ftype))
+    GetMethodID(jEnv, jClass, fname, ftype)
 
 RefCountedJavaObject::~RefCountedJavaObject() {
     if (mObject)
@@ -304,10 +355,10 @@ void
 AndroidGeckoEvent::ReadPointArray(nsTArray<nsIntPoint> &points,
                                   JNIEnv *jenv,
                                   jfieldID field,
-                                  PRInt32 count)
+                                  int32_t count)
 {
     jobjectArray jObjArray = (jobjectArray)jenv->GetObjectField(wrapped_obj, field);
-    for (PRInt32 i = 0; i < count; i++) {
+    for (int32_t i = 0; i < count; i++) {
         jobject jObj = jenv->GetObjectArrayElement(jObjArray, i);
         AndroidPoint jpoint(jenv, jObj);
 
@@ -320,11 +371,11 @@ void
 AndroidGeckoEvent::ReadIntArray(nsTArray<int> &aVals,
                                 JNIEnv *jenv,
                                 jfieldID field,
-                                PRInt32 count)
+                                int32_t count)
 {
     jintArray jIntArray = (jintArray)jenv->GetObjectField(wrapped_obj, field);
     jint *vals = jenv->GetIntArrayElements(jIntArray, false);
-    for (PRInt32 i = 0; i < count; i++) {
+    for (int32_t i = 0; i < count; i++) {
         aVals.AppendElement(vals[i]);
     }
     jenv->ReleaseIntArrayElements(jIntArray, vals, JNI_ABORT);
@@ -334,11 +385,11 @@ void
 AndroidGeckoEvent::ReadFloatArray(nsTArray<float> &aVals,
                                   JNIEnv *jenv,
                                   jfieldID field,
-                                  PRInt32 count)
+                                  int32_t count)
 {
     jfloatArray jFloatArray = (jfloatArray)jenv->GetObjectField(wrapped_obj, field);
     jfloat *vals = jenv->GetFloatArrayElements(jFloatArray, false);
-    for (PRInt32 i = 0; i < count; i++) {
+    for (int32_t i = 0; i < count; i++) {
         aVals.AppendElement(vals[i]);
     }
     jenv->ReleaseFloatArrayElements(jFloatArray, vals, JNI_ABORT);
@@ -568,7 +619,7 @@ AndroidPoint::Init(JNIEnv *jenv, jobject jobj)
 void
 AndroidGeckoLayerClient::Init(jobject jobj)
 {
-    NS_ASSERTION(wrapped_obj == nsnull, "Init called on non-null wrapped_obj!");
+    NS_ASSERTION(wrapped_obj == nullptr, "Init called on non-null wrapped_obj!");
     wrapped_obj = jobj;
 }
 
@@ -596,14 +647,14 @@ AndroidLayerRendererFrame::Dispose(JNIEnv *env)
 void
 AndroidViewTransform::Init(jobject jobj)
 {
-    NS_ABORT_IF_FALSE(wrapped_obj == nsnull, "Init called on non-null wrapped_obj!");
+    NS_ABORT_IF_FALSE(wrapped_obj == nullptr, "Init called on non-null wrapped_obj!");
     wrapped_obj = jobj;
 }
 
 void
 AndroidGeckoSurfaceView::Init(jobject jobj)
 {
-    NS_ASSERTION(wrapped_obj == nsnull, "Init called on non-null wrapped_obj!");
+    NS_ASSERTION(wrapped_obj == nullptr, "Init called on non-null wrapped_obj!");
 
     wrapped_obj = jobj;
 }
@@ -717,11 +768,11 @@ jobject
 AndroidGeckoSurfaceView::GetSoftwareDrawBitmap(AutoLocalJNIFrame *jniFrame)
 {
     if (!jniFrame || !jniFrame->GetEnv())
-        return nsnull;
+        return nullptr;
 
     jobject ret = jniFrame->GetEnv()->CallObjectMethod(wrapped_obj, jGetSoftwareDrawBitmapMethod);
     if (jniFrame->CheckForException())
-        return nsnull;
+        return nullptr;
 
     return ret;
 }
@@ -730,11 +781,11 @@ jobject
 AndroidGeckoSurfaceView::GetSoftwareDrawBuffer(AutoLocalJNIFrame *jniFrame)
 {
     if (!jniFrame || !jniFrame->GetEnv())
-        return nsnull;
+        return nullptr;
 
     jobject ret = jniFrame->GetEnv()->CallObjectMethod(wrapped_obj, jGetSoftwareDrawBufferMethod);
     if (jniFrame->CheckForException())
-        return nsnull;
+        return nullptr;
 
     return ret;
 }
@@ -743,11 +794,11 @@ jobject
 AndroidGeckoSurfaceView::GetSurface(AutoLocalJNIFrame *jniFrame)
 {
     if (!jniFrame || !jniFrame->GetEnv())
-        return nsnull;
+        return nullptr;
 
     jobject ret = jniFrame->GetEnv()->CallObjectMethod(wrapped_obj, jGetSurfaceMethod);
     if (jniFrame->CheckForException())
-        return nsnull;
+        return nullptr;
 
     return ret;
 }
@@ -756,11 +807,11 @@ jobject
 AndroidGeckoSurfaceView::GetSurfaceHolder(AutoLocalJNIFrame *jniFrame)
 {
     if (!jniFrame || !jniFrame->GetEnv())
-        return nsnull;
+        return nullptr;
 
     jobject ret = jniFrame->GetEnv()->CallObjectMethod(wrapped_obj, jGetHolderMethod);
     if (jniFrame->CheckForException())
-        return nsnull;
+        return nullptr;
 
     return ret;
 }
@@ -885,7 +936,7 @@ AndroidViewTransform::GetScale(JNIEnv *env)
 void
 AndroidRect::Init(JNIEnv *jenv, jobject jobj)
 {
-    NS_ASSERTION(wrapped_obj == nsnull, "Init called on non-null wrapped_obj!");
+    NS_ASSERTION(wrapped_obj == nullptr, "Init called on non-null wrapped_obj!");
 
     wrapped_obj = jobj;
 

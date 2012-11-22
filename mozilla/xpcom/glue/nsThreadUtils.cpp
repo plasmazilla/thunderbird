@@ -17,6 +17,9 @@
 
 #ifdef XP_WIN
 #include <windows.h>
+#include "nsWindowsHelpers.h"
+#elif defined(XP_MACOSX)
+#include <sys/resource.h>
 #endif
 
 #include <pratom.h>
@@ -38,7 +41,7 @@ nsRunnable::Run()
 //-----------------------------------------------------------------------------
 
 NS_METHOD
-NS_NewThread(nsIThread **result, nsIRunnable *event, PRUint32 stackSize)
+NS_NewThread(nsIThread **result, nsIRunnable *event, uint32_t stackSize)
 {
   nsCOMPtr<nsIThread> thread;
 #ifdef MOZILLA_INTERNAL_API
@@ -59,7 +62,7 @@ NS_NewThread(nsIThread **result, nsIRunnable *event, PRUint32 stackSize)
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
-  *result = nsnull;
+  *result = nullptr;
   thread.swap(*result);
   return NS_OK;
 }
@@ -133,7 +136,7 @@ NS_DispatchToCurrentThread(nsIRunnable *event)
 }
 
 NS_METHOD
-NS_DispatchToMainThread(nsIRunnable *event, PRUint32 dispatchFlags)
+NS_DispatchToMainThread(nsIRunnable *event, uint32_t dispatchFlags)
 {
   nsCOMPtr<nsIThread> thread;
   nsresult rv = NS_GetMainThread(getter_AddRefs(thread));
@@ -289,3 +292,36 @@ nsThreadPoolNaming::SetThreadPoolName(const nsACString & aPoolName,
     PR_SetCurrentThreadName(name.BeginReading());
   }
 }
+
+// nsAutoLowPriorityIO
+nsAutoLowPriorityIO::nsAutoLowPriorityIO()
+{
+#if defined(XP_WIN)
+  lowIOPrioritySet = IsVistaOrLater() &&
+                     SetThreadPriority(GetCurrentThread(),
+                                       THREAD_MODE_BACKGROUND_BEGIN);
+#elif defined(XP_MACOSX)
+  oldPriority = getiopolicy_np(IOPOL_TYPE_DISK, IOPOL_SCOPE_THREAD);
+  lowIOPrioritySet = oldPriority != -1 &&
+                     setiopolicy_np(IOPOL_TYPE_DISK,
+                                    IOPOL_SCOPE_THREAD,
+                                    IOPOL_THROTTLE) != -1;
+#else
+  lowIOPrioritySet = false;
+#endif
+}
+
+nsAutoLowPriorityIO::~nsAutoLowPriorityIO()
+{
+#if defined(XP_WIN)
+  if (NS_LIKELY(lowIOPrioritySet)) {
+    // On Windows the old thread priority is automatically restored
+    SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_END);
+  }
+#elif defined(XP_MACOSX)
+  if (NS_LIKELY(lowIOPrioritySet)) {
+    setiopolicy_np(IOPOL_TYPE_DISK, IOPOL_SCOPE_THREAD, oldPriority);
+  }
+#endif
+}
+

@@ -5,34 +5,38 @@
 
 package org.mozilla.gecko;
 
-import java.lang.CharSequence;
-import java.util.ArrayList;
-
-import android.app.Dialog;
-import android.text.Editable;
-import android.app.AlertDialog;
-import android.os.Build;
-import android.os.Bundle;
-import android.content.res.Configuration;
-import android.content.res.Resources;
-import android.content.Context;
-import android.preference.*;
-import android.preference.Preference.*;
-import android.text.InputType;
-import android.util.Log;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.Toast;
-import android.text.TextWatcher;
-import android.text.TextUtils;
-import android.content.DialogInterface;
+import org.mozilla.gecko.util.GeckoEventListener;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.res.Configuration;
+import android.os.Bundle;
+import android.preference.CheckBoxPreference;
+import android.preference.EditTextPreference;
+import android.preference.ListPreference;
+import android.preference.Preference;
+import android.preference.Preference.OnPreferenceChangeListener;
+import android.preference.PreferenceActivity;
+import android.preference.PreferenceGroup;
+import android.preference.PreferenceScreen;
+import android.text.Editable;
+import android.text.InputType;
+import android.text.TextUtils;
+import android.text.TextWatcher;
+import android.util.Log;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.Toast;
+
+import java.util.ArrayList;
 
 public class GeckoPreferences
     extends PreferenceActivity
@@ -49,8 +53,8 @@ public class GeckoPreferences
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         addPreferencesFromResource(R.xml.preferences);
-        GeckoAppShell.registerGeckoEventListener("Preferences:Data", this);
-        GeckoAppShell.registerGeckoEventListener("Sanitize:Finished", this);
+        registerEventListener("Preferences:Data");
+        registerEventListener("Sanitize:Finished");
    }
 
    @Override
@@ -65,15 +69,10 @@ public class GeckoPreferences
     }
 
     @Override
-    public void onConfigurationChanged(Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-    }
-
-    @Override
     protected void onDestroy() {
         super.onDestroy();
-        GeckoAppShell.unregisterGeckoEventListener("Preferences:Data", this);
-        GeckoAppShell.unregisterGeckoEventListener("Sanitize:Finished", this);
+        unregisterEventListener("Preferences:Data");
+        unregisterEventListener("Sanitize:Finished");
     }
 
     public void handleMessage(String event, JSONObject message) {
@@ -120,8 +119,9 @@ public class GeckoPreferences
                 // "android.not_a_preference.privacy.clear" key - which doesn't
                 // exist in Gecko - to satisfy this requirement.
                 String key = pref.getKey();
-                if (key != null && !key.startsWith(NON_PREF_PREFIX))
+                if (key != null && !key.startsWith(NON_PREF_PREFIX)) {
                     mPreferencesList.add(pref.getKey());
+                }
             }
         }
     }
@@ -164,9 +164,12 @@ public class GeckoPreferences
             int newIndex = ((ListPreference)preference).findIndexOfValue((String) newValue);
             CharSequence newEntry = ((ListPreference)preference).getEntries()[newIndex];
             ((ListPreference)preference).setSummary(newEntry);
-        }
-        if (preference instanceof LinkPreference)
+        } else if (preference instanceof LinkPreference) {
             finish();
+        } else if (preference instanceof FontSizePreference) {
+            final FontSizePreference fontSizePref = (FontSizePreference) preference;
+            fontSizePref.setSummary(fontSizePref.getSavedFontSizeName());
+        }
         return true;
     }
 
@@ -340,7 +343,18 @@ public class GeckoPreferences
                             ((ListPreference)pref).setSummary(selectedEntry);
                         }
                     });
+                } else if (pref instanceof FontSizePreference) {
+                    final FontSizePreference fontSizePref = (FontSizePreference) pref;
+                    final String twipValue = jPref.getString("value");
+                    fontSizePref.setSavedFontSize(twipValue);
+                    final String fontSizeName = fontSizePref.getSavedFontSizeName();
+                    GeckoAppShell.getMainHandler().post(new Runnable() {
+                        public void run() {
+                            fontSizePref.setSummary(fontSizeName); // Ex: "Small".
+                        }
+                    });
                 }
+
             }
         } catch (JSONException e) {
             Log.e(LOGTAG, "Problem parsing preferences response: ", e);
@@ -373,5 +387,13 @@ public class GeckoPreferences
         } catch (JSONException e) {
             Log.e(LOGTAG, "JSON exception: ", e);
         }
+    }
+
+    private void registerEventListener(String event) {
+        GeckoAppShell.getEventDispatcher().registerEventListener(event, this);
+    }
+
+    private void unregisterEventListener(String event) {
+        GeckoAppShell.getEventDispatcher().unregisterEventListener(event, this);
     }
 }

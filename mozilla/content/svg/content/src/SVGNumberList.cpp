@@ -8,7 +8,7 @@
 #include "SVGNumberList.h"
 #include "SVGAnimatedNumberList.h"
 #include "nsSVGElement.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsString.h"
 #include "nsSVGUtils.h"
 #include "string.h"
@@ -35,8 +35,8 @@ SVGNumberList::GetValueAsString(nsAString& aValue) const
 {
   aValue.Truncate();
   PRUnichar buf[24];
-  PRUint32 last = mNumbers.Length() - 1;
-  for (PRUint32 i = 0; i < mNumbers.Length(); ++i) {
+  uint32_t last = mNumbers.Length() - 1;
+  for (uint32_t i = 0; i < mNumbers.Length(); ++i) {
     // Would like to use aValue.AppendPrintf("%f", mNumbers[i]), but it's not
     // possible to always avoid trailing zeros.
     nsTextFormatter::snprintf(buf, ArrayLength(buf),
@@ -63,7 +63,7 @@ SVGNumberList::SetValueFromString(const nsAString& aValue)
   while (tokenizer.hasMoreTokens()) {
     CopyUTF16toUTF8(tokenizer.nextToken(), str); // NS_ConvertUTF16toUTF8
     const char *token = str.get();
-    if (token == '\0') {
+    if (*token == '\0') {
       return NS_ERROR_DOM_SYNTAX_ERR; // nothing between commas
     }
     char *end;

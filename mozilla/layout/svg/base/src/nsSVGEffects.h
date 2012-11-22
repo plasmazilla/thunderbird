@@ -26,6 +26,7 @@ class nsIAtom;
 class nsIPresShell;
 class nsIURI;
 class nsSVGClipPathFrame;
+class nsSVGPaintServerFrame;
 class nsSVGFilterFrame;
 class nsSVGMaskFrame;
 
@@ -230,7 +231,7 @@ public:
   { mObservers.RemoveEntry(aObserver); }
 #ifdef DEBUG
   bool Contains(nsSVGRenderingObserver* aObserver)
-  { return (mObservers.GetEntry(aObserver) != nsnull); }
+  { return (mObservers.GetEntry(aObserver) != nullptr); }
 #endif
   bool IsEmpty()
   { return mObservers.Count() == 0; }
@@ -279,6 +280,13 @@ public:
   NS_DECLARE_FRAME_PROPERTY(HrefProperty, DestroySupports)
   NS_DECLARE_FRAME_PROPERTY(BackgroundImageProperty, DestroyHashtable)
 
+  /**
+   * Get the paint server for a aTargetFrame.
+   */
+  static nsSVGPaintServerFrame *GetPaintServer(nsIFrame *aTargetFrame,
+                                               const nsStyleSVGPaint *aPaint,
+                                               const FramePropertyDescriptor *aProperty);
+
   struct EffectProperties {
     nsSVGFilterProperty*   mFilter;
     nsSVGPaintingProperty* mMask;
@@ -306,7 +314,7 @@ public:
      */
     nsSVGFilterFrame *GetFilterFrame(bool *aOK) {
       if (!mFilter)
-        return nsnull;
+        return nullptr;
       nsSVGFilterFrame *filter = mFilter->GetFilterFrame();
       if (!filter) {
         *aOK = false;
@@ -330,7 +338,7 @@ public:
   static nsSVGFilterProperty *GetFilterProperty(nsIFrame *aFrame);
   static nsSVGFilterFrame *GetFilterFrame(nsIFrame *aFrame) {
     nsSVGFilterProperty *prop = GetFilterProperty(aFrame);
-    return prop ? prop->GetFilterFrame() : nsnull;
+    return prop ? prop->GetFilterFrame() : nullptr;
   }
 
   /**

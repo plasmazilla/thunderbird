@@ -66,7 +66,7 @@ nsresult nsAbLDAPProcessChangeLogData::OnLDAPBind(nsILDAPMessage *aMessage)
 	if(!mInitialized) 
         return NS_ERROR_NOT_INITIALIZED;
 
-    PRInt32 errCode;
+    int32_t errCode;
 
     nsresult rv = aMessage->GetErrorCode(&errCode);
     if(NS_FAILED(rv)) {
@@ -142,7 +142,7 @@ nsresult nsAbLDAPProcessChangeLogData::OnLDAPSearchResult(nsILDAPMessage *aMessa
     if (!mInitialized)
         return NS_ERROR_NOT_INITIALIZED;
 
-    PRInt32 errorCode;
+    int32_t errorCode;
     
     nsresult rv = aMessage->GetErrorCode(&errorCode);
 
@@ -179,7 +179,7 @@ nsresult nsAbLDAPProcessChangeLogData::OnLDAPSearchResult(nsILDAPMessage *aMessa
                 if (NS_FAILED(rv)) 
                     break;
 
-                PRInt64 fileSize;
+                int64_t fileSize;
                 rv = dbPath->GetFileSize(&fileSize);
                 if(NS_FAILED(rv)) 
                     break;
@@ -318,7 +318,7 @@ nsresult nsAbLDAPProcessChangeLogData::ParseRootDSEEntry(nsILDAPMessage *aMessag
     if(NS_FAILED(rv)) 
         return rv;
 
-    for(PRInt32 i=attrs.GetSize()-1; i >= 0; i--) {
+    for(int32_t i=attrs.GetSize()-1; i >= 0; i--) {
         PRUnicharPtrArrayGuard vals;
         rv = aMessage->GetValues(attrs.GetArray()[i], vals.GetSizeAddr(), vals.GetArrayAddr());
         if(NS_FAILED(rv))
@@ -335,7 +335,7 @@ nsresult nsAbLDAPProcessChangeLogData::ParseRootDSEEntry(nsILDAPMessage *aMessag
         }
     }
 
-    PRInt32 lastChangeNumber;
+    int32_t lastChangeNumber;
     mDirectory->GetLastChangeNumber(&lastChangeNumber);
 
     if ((mRootDSEEntry.lastChangeNumber > 0) &&
@@ -365,7 +365,7 @@ nsresult nsAbLDAPProcessChangeLogData::OnSearchRootDSEDone()
            return rv;
         mState = kFindingChanges;
         if(mListener)
-            mListener->OnStateChange(nsnull, nsnull, nsIWebProgressListener::STATE_START, false);
+            mListener->OnStateChange(nullptr, nullptr, nsIWebProgressListener::STATE_START, false);
     }
     else {
         rv = mQuery->QueryAllEntries();
@@ -373,7 +373,7 @@ nsresult nsAbLDAPProcessChangeLogData::OnSearchRootDSEDone()
            return rv;
         mState = kReplicatingAll;
         if(mListener)
-            mListener->OnStateChange(nsnull, nsnull, nsIWebProgressListener::STATE_START, true);
+            mListener->OnStateChange(nullptr, nullptr, nsIWebProgressListener::STATE_START, true);
     }
 
     rv = mDirectory->SetLastChangeNumber(mRootDSEEntry.lastChangeNumber);
@@ -399,7 +399,7 @@ nsresult nsAbLDAPProcessChangeLogData::ParseChangeLogEntries(nsILDAPMessage *aMe
 
     nsAutoString targetDN;
     UpdateOp operation = NO_OP;
-    for(PRInt32 i = attrs.GetSize()-1; i >= 0; i--) {
+    for(int32_t i = attrs.GetSize()-1; i >= 0; i--) {
         PRUnicharPtrArrayGuard vals;
         rv = aMessage->GetValues(attrs.GetArray()[i], vals.GetSizeAddr(), vals.GetArrayAddr());
         if(NS_FAILED(rv))
@@ -420,7 +420,7 @@ nsresult nsAbLDAPProcessChangeLogData::ParseChangeLogEntries(nsILDAPMessage *aMe
 
     mChangeLogEntriesCount++;
     if(!(mChangeLogEntriesCount % 10)) { // Inform the listener every 10 entries
-        mListener->OnProgressChange(nsnull,nsnull,mChangeLogEntriesCount, -1, mChangeLogEntriesCount, -1);
+        mListener->OnProgressChange(nullptr,nullptr,mChangeLogEntriesCount, -1, mChangeLogEntriesCount, -1);
         // In case if the LDAP Connection thread is starved and causes problem
         // uncomment this one and try.
         // PR_Sleep(PR_INTERVAL_NO_WAIT); // give others a chance
@@ -502,7 +502,7 @@ nsresult nsAbLDAPProcessChangeLogData::OnFindingChangesDone()
         return rv;
 
     if(mListener && NS_SUCCEEDED(rv))
-        mListener->OnStateChange(nsnull, nsnull, nsIWebProgressListener::STATE_START, true);
+        mListener->OnStateChange(nullptr, nullptr, nsIWebProgressListener::STATE_START, true);
 
     mState = kReplicatingChanges;
     return rv;

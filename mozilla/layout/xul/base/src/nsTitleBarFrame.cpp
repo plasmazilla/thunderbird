@@ -76,7 +76,7 @@ nsTitleBarFrame::HandleEvent(nsPresContext* aPresContext,
          nsCOMPtr<nsISupports> cont = aPresContext->GetContainer();
          nsCOMPtr<nsIDocShellTreeItem> dsti = do_QueryInterface(cont);
          if (dsti) {
-           PRInt32 type = -1;
+           int32_t type = -1;
            if (NS_SUCCEEDED(dsti->GetItemType(&type)) &&
                type == nsIDocShellTreeItem::typeChrome) {
              // we're tracking.
@@ -106,7 +106,7 @@ nsTitleBarFrame::HandleEvent(nsPresContext* aPresContext,
          mTrackingMouseMove = false;
 
          // end capture
-         nsIPresShell::SetCapturingContent(nsnull, 0);
+         nsIPresShell::SetCapturingContent(nullptr, 0);
 
          *aEventStatus = nsEventStatus_eConsumeNoDefault;
          doDefault = false;
@@ -120,8 +120,12 @@ nsTitleBarFrame::HandleEvent(nsPresContext* aPresContext,
          nsIntPoint nsMoveBy = aEvent->refPoint - mLastPoint;
 
          nsIFrame* parent = GetParent();
-         while (parent && parent->GetType() != nsGkAtoms::menuPopupFrame)
+         while (parent) {
+           nsMenuPopupFrame* popupFrame = do_QueryFrame(parent);
+           if (popupFrame)
+             break;
            parent = parent->GetParent();
+         }
 
          // if the titlebar is in a popup, move the popup frame, otherwise
          // move the widget associated with the window

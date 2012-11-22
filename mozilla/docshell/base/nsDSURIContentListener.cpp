@@ -14,7 +14,7 @@
 #include "nsAutoPtr.h"
 #include "nsIHttpChannel.h"
 #include "nsIScriptSecurityManager.h"
-#include "nsNetError.h"
+#include "nsError.h"
 #include "nsCharSeparatedTokenizer.h"
 #include "mozilla/Preferences.h"
 
@@ -26,7 +26,7 @@ using namespace mozilla;
 
 nsDSURIContentListener::nsDSURIContentListener(nsDocShell* aDocShell)
     : mDocShell(aDocShell), 
-      mParentContentListener(nsnull)
+      mParentContentListener(nullptr)
 {
 }
 
@@ -182,11 +182,11 @@ nsDSURIContentListener::CanHandleContent(const char* aContentType,
     NS_ENSURE_ARG_POINTER(aDesiredContentType);
 
     *aCanHandleContent = false;
-    *aDesiredContentType = nsnull;
+    *aDesiredContentType = nullptr;
 
     nsresult rv = NS_OK;
     if (aContentType) {
-        PRUint32 canHandle = nsIWebNavigationInfo::UNSUPPORTED;
+        uint32_t canHandle = nsIWebNavigationInfo::UNSUPPORTED;
         rv = mNavInfo->IsTypeSupported(nsDependentCString(aContentType),
                                        mDocShell,
                                        &canHandle);
@@ -241,7 +241,7 @@ nsDSURIContentListener::SetParentContentListener(nsIURIContentListener*
     {
         // Store the parent listener as a weak ref. Parents not supporting
         // nsISupportsWeakReference assert but may still be used.
-        mParentContentListener = nsnull;
+        mParentContentListener = nullptr;
         mWeakParentContentListener = do_GetWeakReference(aParentListener);
         if (!mWeakParentContentListener)
         {
@@ -250,8 +250,8 @@ nsDSURIContentListener::SetParentContentListener(nsIURIContentListener*
     }
     else
     {
-        mWeakParentContentListener = nsnull;
-        mParentContentListener = nsnull;
+        mWeakParentContentListener = nullptr;
+        mParentContentListener = nullptr;
     }
     return NS_OK;
 }
@@ -311,9 +311,7 @@ bool nsDSURIContentListener::CheckOneFrameOptionsPolicy(nsIRequest *request,
                parentDocShellItem) {
 
             nsCOMPtr<nsIDocShell> curDocShell = do_QueryInterface(curDocShellItem);
-            bool browserFrame = false;
-            curDocShell->GetIsBrowserFrame(&browserFrame);
-            if (browserFrame) {
+            if (curDocShell && curDocShell->GetIsContentBoundary()) {
               break;
             }
 
@@ -392,7 +390,7 @@ bool nsDSURIContentListener::CheckFrameOptions(nsIRequest *request)
                 nsCOMPtr<nsIWebNavigation> webNav(do_QueryObject(mDocShell));
                 if (webNav) {
                     webNav->LoadURI(NS_LITERAL_STRING("about:blank").get(),
-                                    0, nsnull, nsnull, nsnull);
+                                    0, nullptr, nullptr, nullptr);
                 }
             }
             return false;

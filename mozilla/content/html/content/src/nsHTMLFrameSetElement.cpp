@@ -42,7 +42,7 @@ NS_IMPL_STRING_ATTR(nsHTMLFrameSetElement, Cols, cols)
 NS_IMPL_STRING_ATTR(nsHTMLFrameSetElement, Rows, rows)
 
 nsresult
-nsHTMLFrameSetElement::SetAttr(PRInt32 aNameSpaceID,
+nsHTMLFrameSetElement::SetAttr(int32_t aNameSpaceID,
                                nsIAtom* aAttribute,
                                nsIAtom* aPrefix,
                                const nsAString& aValue,
@@ -58,7 +58,7 @@ nsHTMLFrameSetElement::SetAttr(PRInt32 aNameSpaceID,
    *  normal hint, which is NS_STYLE_HINT_REFLOW.
    */
   if (aAttribute == nsGkAtoms::rows && aNameSpaceID == kNameSpaceID_None) {
-    PRInt32 oldRows = mNumRows;
+    int32_t oldRows = mNumRows;
     ParseRowCol(aValue, mNumRows, getter_Transfers(mRowSpecs));
     
     if (mNumRows != oldRows) {
@@ -66,7 +66,7 @@ nsHTMLFrameSetElement::SetAttr(PRInt32 aNameSpaceID,
     }
   } else if (aAttribute == nsGkAtoms::cols &&
              aNameSpaceID == kNameSpaceID_None) {
-    PRInt32 oldCols = mNumCols;
+    int32_t oldCols = mNumCols;
     ParseRowCol(aValue, mNumCols, getter_Transfers(mColSpecs));
 
     if (mNumCols != oldCols) {
@@ -82,13 +82,13 @@ nsHTMLFrameSetElement::SetAttr(PRInt32 aNameSpaceID,
 }
 
 nsresult
-nsHTMLFrameSetElement::GetRowSpec(PRInt32 *aNumValues,
+nsHTMLFrameSetElement::GetRowSpec(int32_t *aNumValues,
                                   const nsFramesetSpec** aSpecs)
 {
   NS_PRECONDITION(aNumValues, "Must have a pointer to an integer here!");
   NS_PRECONDITION(aSpecs, "Must have a pointer to an array of nsFramesetSpecs");
   *aNumValues = 0;
-  *aSpecs = nsnull;
+  *aSpecs = nullptr;
   
   if (!mRowSpecs) {
     const nsAttrValue* value = GetParsedAttr(nsGkAtoms::rows);
@@ -116,13 +116,13 @@ nsHTMLFrameSetElement::GetRowSpec(PRInt32 *aNumValues,
 }
 
 nsresult
-nsHTMLFrameSetElement::GetColSpec(PRInt32 *aNumValues,
+nsHTMLFrameSetElement::GetColSpec(int32_t *aNumValues,
                                   const nsFramesetSpec** aSpecs)
 {
   NS_PRECONDITION(aNumValues, "Must have a pointer to an integer here!");
   NS_PRECONDITION(aSpecs, "Must have a pointer to an array of nsFramesetSpecs");
   *aNumValues = 0;
-  *aSpecs = nsnull;
+  *aSpecs = nullptr;
 
   if (!mColSpecs) {
     const nsAttrValue* value = GetParsedAttr(nsGkAtoms::cols);
@@ -151,7 +151,7 @@ nsHTMLFrameSetElement::GetColSpec(PRInt32 *aNumValues,
 
 
 bool
-nsHTMLFrameSetElement::ParseAttribute(PRInt32 aNamespaceID,
+nsHTMLFrameSetElement::ParseAttribute(int32_t aNamespaceID,
                                       nsIAtom* aAttribute,
                                       const nsAString& aValue,
                                       nsAttrValue& aResult)
@@ -174,7 +174,7 @@ nsHTMLFrameSetElement::ParseAttribute(PRInt32 aNamespaceID,
 
 nsChangeHint
 nsHTMLFrameSetElement::GetAttributeChangeHint(const nsIAtom* aAttribute,
-                                              PRInt32 aModType) const
+                                              int32_t aModType) const
 {
   nsChangeHint retval =
     nsGenericHTMLElement::GetAttributeChangeHint(aAttribute, aModType);
@@ -190,12 +190,12 @@ nsHTMLFrameSetElement::GetAttributeChangeHint(const nsIAtom* aAttribute,
  */
 nsresult
 nsHTMLFrameSetElement::ParseRowCol(const nsAString & aValue,
-                                   PRInt32& aNumSpecs,
+                                   int32_t& aNumSpecs,
                                    nsFramesetSpec** aSpecs) 
 {
   if (aValue.IsEmpty()) {
     aNumSpecs = 0;
-    *aSpecs = nsnull;
+    *aSpecs = nullptr;
     return NS_OK;
   }
 
@@ -211,8 +211,8 @@ nsHTMLFrameSetElement::ParseRowCol(const nsAString & aValue,
   
   // Count the commas. Don't count more than X commas (bug 576447).
   PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT * sizeof(nsFramesetSpec) < (1 << 30));
-  PRInt32 commaX = spec.FindChar(sComma);
-  PRInt32 count = 1;
+  int32_t commaX = spec.FindChar(sComma);
+  int32_t count = 1;
   while (commaX != kNotFound && count < NS_MAX_FRAMESET_SPEC_COUNT) {
     count++;
     commaX = spec.FindChar(sComma, commaX + 1);
@@ -220,7 +220,7 @@ nsHTMLFrameSetElement::ParseRowCol(const nsAString & aValue,
 
   nsFramesetSpec* specs = new nsFramesetSpec[count];
   if (!specs) {
-    *aSpecs = nsnull;
+    *aSpecs = nullptr;
     aNumSpecs = 0;
     return NS_ERROR_OUT_OF_MEMORY;
   }
@@ -230,15 +230,15 @@ nsHTMLFrameSetElement::ParseRowCol(const nsAString & aValue,
       
   // Parse each comma separated token
 
-  PRInt32 start = 0;
-  PRInt32 specLen = spec.Length();
+  int32_t start = 0;
+  int32_t specLen = spec.Length();
 
-  for (PRInt32 i = 0; i < count; i++) {
+  for (int32_t i = 0; i < count; i++) {
     // Find our comma
     commaX = spec.FindChar(sComma, start);
     NS_ASSERTION(i == count - 1 || commaX != kNotFound,
                  "Failed to find comma, somehow");
-    PRInt32 end = (commaX == kNotFound) ? specLen : commaX;
+    int32_t end = (commaX == kNotFound) ? specLen : commaX;
 
     // Note: If end == start then it means that the token has no
     // data in it other than a terminating comma (or the end of the spec).
@@ -246,7 +246,7 @@ nsHTMLFrameSetElement::ParseRowCol(const nsAString & aValue,
     specs[i].mUnit = eFramesetUnit_Fixed;
     specs[i].mValue = 0;
     if (end > start) {
-      PRInt32 numberEnd = end;
+      int32_t numberEnd = end;
       PRUnichar ch = spec.CharAt(numberEnd - 1);
       if (sAster == ch) {
         specs[i].mUnit = eFramesetUnit_Relative;
@@ -275,7 +275,7 @@ nsHTMLFrameSetElement::ParseRowCol(const nsAString & aValue,
       }
       else {
         // Otherwise just convert to integer.
-        PRInt32 err;
+        nsresult err;
         specs[i].mValue = token.ToInteger(&err);
         if (err) {
           specs[i].mValue = 0;

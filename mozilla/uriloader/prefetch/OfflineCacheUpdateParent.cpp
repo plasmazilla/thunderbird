@@ -4,8 +4,12 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "OfflineCacheUpdateParent.h"
+
+#include "mozilla/ipc/URIUtils.h"
 #include "nsOfflineCacheUpdate.h"
 #include "nsIApplicationCache.h"
+
+using namespace mozilla::ipc;
 
 #if defined(PR_LOGGING)
 //
@@ -60,16 +64,21 @@ OfflineCacheUpdateParent::ActorDestroy(ActorDestroyReason why)
 }
 
 nsresult
-OfflineCacheUpdateParent::Schedule(const URI& aManifestURI,
-                                   const URI& aDocumentURI,
+OfflineCacheUpdateParent::Schedule(const URIParams& aManifestURI,
+                                   const URIParams& aDocumentURI,
                                    const nsCString& aClientID,
                                    const bool& stickDocument)
 {
     LOG(("OfflineCacheUpdateParent::RecvSchedule [%p]", this));
 
     nsRefPtr<nsOfflineCacheUpdate> update;
-    nsCOMPtr<nsIURI> manifestURI(aManifestURI);
-    nsCOMPtr<nsIURI> documentURI(aDocumentURI);
+    nsCOMPtr<nsIURI> manifestURI = DeserializeURI(aManifestURI);
+    if (!manifestURI)
+        return NS_ERROR_FAILURE;
+
+    nsCOMPtr<nsIURI> documentURI = DeserializeURI(aDocumentURI);
+    if (!documentURI)
+        return NS_ERROR_FAILURE;
 
     nsOfflineCacheUpdateService* service =
         nsOfflineCacheUpdateService::EnsureService();
@@ -83,7 +92,7 @@ OfflineCacheUpdateParent::Schedule(const URI& aManifestURI,
         nsresult rv;
         // Leave aDocument argument null. Only glues and children keep 
         // document instances.
-        rv = update->Init(manifestURI, documentURI, nsnull, nsnull);
+        rv = update->Init(manifestURI, documentURI, nullptr, nullptr);
         NS_ENSURE_SUCCESS(rv, rv);
 
         rv = update->Schedule();
@@ -102,14 +111,14 @@ OfflineCacheUpdateParent::Schedule(const URI& aManifestURI,
 }
 
 NS_IMETHODIMP
-OfflineCacheUpdateParent::UpdateStateChanged(nsIOfflineCacheUpdate *aUpdate, PRUint32 state)
+OfflineCacheUpdateParent::UpdateStateChanged(nsIOfflineCacheUpdate *aUpdate, uint32_t state)
 {
     if (mIPCClosed)
         return NS_ERROR_UNEXPECTED;
 
     LOG(("OfflineCacheUpdateParent::StateEvent [%p]", this));
 
-    PRUint64 byteProgress;
+    uint64_t byteProgress;
     aUpdate->GetByteProgress(&byteProgress);
     SendNotifyStateEvent(state, byteProgress);
 

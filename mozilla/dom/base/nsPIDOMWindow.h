@@ -48,8 +48,8 @@ class nsIArray;
 class nsPIWindowRoot;
 
 #define NS_PIDOMWINDOW_IID \
-{ 0x0c4d0b84, 0xb524, 0x4572, \
-  { 0x8e, 0xd1, 0x7f, 0x78, 0x14, 0x7c, 0x4d, 0xf1 } }
+{ 0x0c5763c6, 0x5e87, 0x4f6f, \
+  { 0xa2, 0xef, 0xcf, 0x4d, 0xeb, 0xd1, 0xbc, 0xc3 } }
 
 class nsPIDOMWindow : public nsIDOMWindowInternal
 {
@@ -109,7 +109,7 @@ public:
     return mParentTarget;
   }
 
-  bool HasMutationListeners(PRUint32 aMutationEventType) const
+  bool HasMutationListeners(uint32_t aMutationEventType) const
   {
     const nsPIDOMWindow *win;
 
@@ -134,7 +134,7 @@ public:
     return (win->mMutationBits & aMutationEventType) != 0;
   }
 
-  void SetMutationListeners(PRUint32 aType)
+  void SetMutationListeners(uint32_t aType)
   {
     nsPIDOMWindow *win;
 
@@ -172,6 +172,20 @@ public:
     return mDoc;
   }
 
+  nsIDocument* GetDoc()
+  {
+    if (!mDoc) {
+      MaybeCreateDoc();
+    }
+    return mDoc;
+  }
+
+protected:
+  // Lazily instantiate an about:blank document if necessary, and if
+  // we have what it takes to do so.
+  void MaybeCreateDoc();
+
+public:
   // Internal getter/setter for the frame element, this version of the
   // getter crosses chrome boundaries whereas the public scriptable
   // one doesn't for security reasons.
@@ -266,10 +280,9 @@ public:
     return win->mIsHandlingResizeEvent;
   }
 
-  // These functions are no-ops and return NULL/void. We're leaving it in for
-  // mozilla16 to avoid the IID rev.
-  virtual nsIPrincipal* GetOpenerScriptPrincipal() = 0;
-  virtual void SetOpenerScriptPrincipal(nsIPrincipal* aPrincipal) = 0;
+  // Set the window up with an about:blank document with the current subject
+  // principal.
+  virtual void SetInitialPrincipalToSubject() = 0;
 
   virtual PopupControlState PushPopupControlState(PopupControlState aState,
                                                   bool aForce) const = 0;
@@ -284,13 +297,13 @@ public:
   virtual nsresult RestoreWindowState(nsISupports *aState) = 0;
 
   // Suspend timeouts in this window and in child windows.
-  virtual void SuspendTimeouts(PRUint32 aIncrease = 1,
+  virtual void SuspendTimeouts(uint32_t aIncrease = 1,
                                bool aFreezeChildren = true) = 0;
 
   // Resume suspended timeouts in this window and in child windows.
   virtual nsresult ResumeTimeouts(bool aThawChildren = true) = 0;
 
-  virtual PRUint32 TimeoutSuspendCount() = 0;
+  virtual uint32_t TimeoutSuspendCount() = 0;
 
   // Fire any DOM notification events related to things that happened while
   // the window was frozen.
@@ -300,11 +313,11 @@ public:
 
   // Add a timeout to this window.
   virtual nsresult SetTimeoutOrInterval(nsIScriptTimeoutHandler *aHandler,
-                                        PRInt32 interval,
-                                        bool aIsInterval, PRInt32 *aReturn) = 0;
+                                        int32_t interval,
+                                        bool aIsInterval, int32_t *aReturn) = 0;
 
   // Clear a timeout from this window.
-  virtual nsresult ClearTimeoutOrInterval(PRInt32 aTimerID) = 0;
+  virtual nsresult ClearTimeoutOrInterval(int32_t aTimerID) = 0;
 
   nsPIDOMWindow *GetOuterWindow()
   {
@@ -482,18 +495,18 @@ public:
   nsIContent* GetFocusedNode()
   {
     if (IsOuterWindow()) {
-      return mInnerWindow ? mInnerWindow->mFocusedNode.get() : nsnull;
+      return mInnerWindow ? mInnerWindow->mFocusedNode.get() : nullptr;
     }
     return mFocusedNode;
   }
   virtual void SetFocusedNode(nsIContent* aNode,
-                              PRUint32 aFocusMethod = 0,
+                              uint32_t aFocusMethod = 0,
                               bool aNeedsFocus = false) = 0;
 
   /**
    * Retrieves the method that was used to focus the current node.
    */
-  virtual PRUint32 GetFocusMethod() = 0;
+  virtual uint32_t GetFocusMethod() = 0;
 
   /*
    * Tells the window that it now has focus or has lost focus, based on the
@@ -505,7 +518,7 @@ public:
    * aFocusMethod may be set to one of the focus method constants in
    * nsIFocusManager to indicate how focus was set.
    */
-  virtual bool TakeFocus(bool aFocus, PRUint32 aFocusMethod) = 0;
+  virtual bool TakeFocus(bool aFocus, uint32_t aFocusMethod) = 0;
 
   /**
    * Indicates that the window may now accept a document focus event. This
@@ -551,12 +564,12 @@ public:
   /**
    * Tell this window that it should listen for sensor changes of the given type.
    */
-  virtual void EnableDeviceSensor(PRUint32 aType) = 0;
+  virtual void EnableDeviceSensor(uint32_t aType) = 0;
 
   /**
    * Tell this window that it should remove itself from sensor change notifications.
    */
-  virtual void DisableDeviceSensor(PRUint32 aType) = 0;
+  virtual void DisableDeviceSensor(uint32_t aType) = 0;
 
   /**
    * Set a arguments for this window. This will be set on the window
@@ -572,12 +585,12 @@ public:
    * implementation must not do any AddRef/Release or other actions that will
    * mutate internal state.
    */
-  virtual PRUint32 GetSerial() = 0;
+  virtual uint32_t GetSerial() = 0;
 
   /**
    * Return the window id of this window
    */
-  PRUint64 WindowID() const { return mWindowID; }
+  uint64_t WindowID() const { return mWindowID; }
 
   /**
    * Dispatch a custom event with name aEventName targeted at this window.
@@ -592,11 +605,11 @@ public:
   virtual void RefreshCompartmentPrincipal() = 0;
 
   /**
-   * Returns if the window is part of an application.
-   * It will check for the window app state and its parents until a window has
-   * an app state different from |TriState_Unknown|.
+   * Like nsIDOMWindow::Open, except that we don't navigate to the given URL.
    */
-  virtual bool IsPartOfApp() = 0;
+  virtual nsresult
+  OpenNoNavigate(const nsAString& aUrl, const nsAString& aName,
+                 const nsAString& aOptions, nsIDOMWindow **_retval) = 0;
 
 protected:
   // The nsPIDOMWindow constructor. The aOuterWindow argument should
@@ -610,7 +623,7 @@ protected:
   void SetChromeEventHandlerInternal(nsIDOMEventTarget* aChromeEventHandler) {
     mChromeEventHandler = aChromeEventHandler;
     // mParentTarget will be set when the next event is dispatched.
-    mParentTarget = nsnull;
+    mParentTarget = nullptr;
   }
 
   virtual void UpdateParentTarget() = 0;
@@ -628,12 +641,12 @@ protected:
   nsCOMPtr<nsIDOMElement> mFrameElement;
   nsIDocShell           *mDocShell;  // Weak Reference
 
-  PRUint32               mModalStateDepth;
+  uint32_t               mModalStateDepth;
 
   // These variables are only used on inner windows.
   nsTimeout             *mRunningTimeout;
 
-  PRUint32               mMutationBits;
+  uint32_t               mMutationBits;
 
   bool                   mIsDocumentLoaded;
   bool                   mIsHandlingResizeEvent;
@@ -665,7 +678,7 @@ protected:
 
   // A unique (as long as our 64-bit counter doesn't roll over) id for
   // this window.
-  PRUint64 mWindowID;
+  uint64_t mWindowID;
 
   // This is only used by the inner window. Set to true once we've sent
   // the (chrome|content)-document-global-created notification.
@@ -731,25 +744,10 @@ protected:
 
 private:
   // Hide so that this class can only be stack-allocated
-  static void* operator new(size_t /*size*/) CPP_THROW_NEW { return nsnull; }
+  static void* operator new(size_t /*size*/) CPP_THROW_NEW { return nullptr; }
   static void operator delete(void* /*memory*/) {}
 };
 
 #define nsAutoPopupStatePusher NS_AUTO_POPUP_STATE_PUSHER
-
-#define NS_PIDOMWINDOW2_IID \
-{ 0x9884e714, 0xc5b7, 0x49ec, \
-  { 0x96, 0xd9, 0xdd, 0xf1, 0x35, 0x30, 0xe1, 0xb0 } }
-
-class nsPIDOMWindow2 : public nsISupports
-{
-public:
-  NS_DECLARE_STATIC_IID_ACCESSOR(NS_PIDOMWINDOW2_IID)
-  // Set the window up with an about:blank document with the current subject
-  // principal.
-  virtual void SetInitialPrincipalToSubject() = 0;
-};
-
-NS_DEFINE_STATIC_IID_ACCESSOR(nsPIDOMWindow2, NS_PIDOMWINDOW2_IID)
 
 #endif // nsPIDOMWindow_h__

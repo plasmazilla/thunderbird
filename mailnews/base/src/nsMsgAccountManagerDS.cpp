@@ -54,45 +54,45 @@ typedef struct {
 } findServerByKeyEntry;
 
 // the root resource (msgaccounts:/)
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_AccountRoot=nsnull;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_AccountRoot=nullptr;
 
 // attributes of accounts
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_Name=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_FolderTreeName=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_FolderTreeSimpleName=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_NameSort=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_FolderTreeNameSort=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTag=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_IsDefaultServer=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_SupportsFilters=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_CanGetMessages=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_CanGetIncomingMessages=nsnull;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_Name=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_FolderTreeName=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_FolderTreeSimpleName=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_NameSort=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_FolderTreeNameSort=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTag=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_IsDefaultServer=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_SupportsFilters=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_CanGetMessages=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_CanGetIncomingMessages=nullptr;
 
 // containment
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_Child=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_Settings=nsnull;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_Child=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_Settings=nullptr;
 
 
 // properties corresponding to interfaces
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_Account=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_Server=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_Identity=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_Junk=nsnull;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_Account=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_Server=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_Identity=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_Junk=nullptr;
 
 // individual pages
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleMain=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleServer=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleCopies=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleSynchronization=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleDiskSpace=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleAddressing=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleSMTP=nsnull;
-nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleJunk=nsnull;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleMain=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleServer=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleCopies=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleSynchronization=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleDiskSpace=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleAddressing=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleSMTP=nullptr;
+nsIRDFResource* nsMsgAccountManagerDataSource::kNC_PageTitleJunk=nullptr;
 
 // common literals
-nsIRDFLiteral* nsMsgAccountManagerDataSource::kTrueLiteral = nsnull;
+nsIRDFLiteral* nsMsgAccountManagerDataSource::kTrueLiteral = nullptr;
 
-nsIAtom* nsMsgAccountManagerDataSource::kDefaultServerAtom = nsnull;
+nsIAtom* nsMsgAccountManagerDataSource::kDefaultServerAtom = nullptr;
 
 nsrefcnt nsMsgAccountManagerDataSource::gAccountManagerResourceRefCnt = 0;
 
@@ -214,8 +214,8 @@ nsMsgAccountManagerDataSource::~nsMsgAccountManagerDataSource()
 
 
     NS_IF_RELEASE(kDefaultServerAtom);
-    mAccountArcsOut = nsnull;
-    mAccountRootArcsOut = nsnull;
+    mAccountArcsOut = nullptr;
+    mAccountRootArcsOut = nullptr;
   }
 
 }
@@ -336,7 +336,7 @@ nsMsgAccountManagerDataSource::GetTarget(nsIRDFResource *source,
         NS_ENSURE_TRUE(sourceValue && (strlen(sourceValue) > strlen(NC_RDF_PAGETITLE_PREFIX)), NS_ERROR_UNEXPECTED);
 
         nsCOMPtr<nsIMsgAccountManager> am = do_QueryReferent(mAccountManager, &rv);
-        NS_ENSURE_SUCCESS(rv, false);
+        NS_ENSURE_SUCCESS(rv, NS_OK);
 
         // turn NC#PageTitlefoobar into foobar, so we can get the am-foobar.properties bundle
         nsCString chromePackageName;
@@ -424,7 +424,7 @@ nsMsgAccountManagerDataSource::GetTarget(nsIRDFResource *source,
     rv = getServerForFolderNode(source, getter_AddRefs(server));
 
     if (NS_SUCCEEDED(rv) && server) {
-      PRInt32 accountNum;
+      int32_t accountNum;
       nsCOMPtr<nsIMsgAccountManager> am = do_QueryReferent(mAccountManager);
 
       if (isDefaultServer(server))
@@ -590,7 +590,7 @@ nsMsgAccountManagerDataSource::createRootResources(nsIRDFResource *property,
     serverCreationParams params = { aNodeArray, getRDFService() };
     servers->EnumerateForwards(createServerResources, (void*)&params);
 #ifdef DEBUG_amds
-    PRUint32 nodecount;
+    uint32_t nodecount;
     aNodeArray->GetLength(&nodecount);
     printf("GetTargets(): added %d servers on %s\n", nodecount,
            (const char*)property_arc);
@@ -713,7 +713,7 @@ nsMsgAccountManagerDataSource::createSettingsResources(nsIRDFResource *aSource,
 
     // Check the offline capability before adding
     // offline item
-    PRInt32 offlineSupportLevel = 0;
+    int32_t offlineSupportLevel = 0;
     rv = server->GetOfflineSupportLevel(&offlineSupportLevel);
     NS_ENSURE_SUCCESS(rv,rv);
 
@@ -754,7 +754,7 @@ nsMsgAccountManagerDataSource::serverHasIdentities(nsIMsgIncomingServer* aServer
   // no identities just means no arcs
   if (NS_FAILED(rv)) return NS_OK;
 
-  PRUint32 count;
+  uint32_t count;
   rv = identities->Count(&count);
   if (NS_FAILED(rv)) return NS_OK;
 
@@ -849,7 +849,7 @@ nsMsgAccountManagerDataSource::HasArcOut(nsIRDFResource *source, nsIRDFResource 
     rv = getServerForFolderNode(source, getter_AddRefs(server));
     if (server) {
       // Check the offline capability before adding arc
-      PRInt32 offlineSupportLevel = 0;
+      int32_t offlineSupportLevel = 0;
       (void) server->GetOfflineSupportLevel(&offlineSupportLevel);
       if (offlineSupportLevel >= OFFLINE_SUPPORT_LEVEL_REGULAR) {
         *result = true;
@@ -1142,8 +1142,8 @@ nsMsgAccountManagerDataSource::OnServerLoaded(nsIMsgIncomingServer* aServer)
   nsCOMPtr<nsIRDFResource> serverResource = do_QueryInterface(serverFolder,&rv);
   if (NS_FAILED(rv)) return rv;
 
-  NotifyObservers(kNC_AccountRoot, kNC_Child, serverResource, nsnull, true, false);
-  NotifyObservers(kNC_AccountRoot, kNC_Settings, serverResource, nsnull, true, false);
+  NotifyObservers(kNC_AccountRoot, kNC_Child, serverResource, nullptr, true, false);
+  NotifyObservers(kNC_AccountRoot, kNC_Settings, serverResource, nullptr, true, false);
 
   return NS_OK;
 }
@@ -1159,8 +1159,8 @@ nsMsgAccountManagerDataSource::OnServerUnloaded(nsIMsgIncomingServer* aServer)
   if (NS_FAILED(rv)) return rv;
 
 
-  NotifyObservers(kNC_AccountRoot, kNC_Child, serverResource, nsnull, false, false);
-  NotifyObservers(kNC_AccountRoot, kNC_Settings, serverResource, nsnull, false, false);
+  NotifyObservers(kNC_AccountRoot, kNC_Child, serverResource, nullptr, false, false);
+  NotifyObservers(kNC_AccountRoot, kNC_Settings, serverResource, nullptr, false, false);
 
   return NS_OK;
 }
@@ -1190,7 +1190,7 @@ nsMsgAccountManagerDataSource::OnItemRemoved(nsIMsgFolder *, nsISupports *)
 }
 
 nsresult
-nsMsgAccountManagerDataSource::OnItemPropertyFlagChanged(nsIMsgDBHdr *, nsIAtom *, PRUint32, PRUint32)
+nsMsgAccountManagerDataSource::OnItemPropertyFlagChanged(nsIMsgDBHdr *, nsIAtom *, uint32_t, uint32_t)
 {
   return NS_OK;
 }
@@ -1210,7 +1210,7 @@ nsMsgAccountManagerDataSource::OnItemBoolPropertyChanged(nsIMsgFolder *aItem,
 {
   if (aProperty == kDefaultServerAtom) {
     nsCOMPtr<nsIRDFResource> resource(do_QueryInterface(aItem));
-    NotifyObservers(resource, kNC_IsDefaultServer, kTrueLiteral, nsnull, aNewValue, false);
+    NotifyObservers(resource, kNC_IsDefaultServer, kTrueLiteral, nullptr, aNewValue, false);
   }
   return NS_OK;
 }
@@ -1222,7 +1222,7 @@ nsMsgAccountManagerDataSource::OnItemEvent(nsIMsgFolder *, nsIAtom *)
 }
 
 nsresult
-nsMsgAccountManagerDataSource::OnItemIntPropertyChanged(nsIMsgFolder *, nsIAtom *, PRInt32, PRInt32)
+nsMsgAccountManagerDataSource::OnItemIntPropertyChanged(nsIMsgFolder *, nsIAtom *, int32_t, int32_t)
 {
   return NS_OK;
 }

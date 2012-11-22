@@ -4,10 +4,19 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource://gre/modules/PluralForm.jsm");
 
 var gFilterListMsgWindow = null;
 var gCurrentFilterList;
 var gCurrentFolder;
+
+const msgMoveMotion = {
+  Up     : 0,
+  Down   : 1,
+  Top    : 2,
+  Bottom : 3
+}
+
 
 var gStatusFeedback = {
   progressMeterVisible : false,
@@ -80,10 +89,10 @@ function onLoad()
 
     // Get the folder where filters should be defined, if that server
     // can accept filters.
-    var firstItem = getFilterFolderForSelection();
+    let firstItem = getFilterFolderForSelection();
 
-    // if the selected server cannot have filters, get the default server
-    // if the default server cannot have filters, check all accounts
+    // If the selected server cannot have filters, get the default server
+    // If the default server cannot have filters, check all accounts
     // and get a server that can have filters.
     if (!firstItem)
         firstItem = getServerThatCanHaveFilters().rootFolder;
@@ -97,8 +106,10 @@ function onLoad()
 }
 
 /**
- * Called when a user selects a folder in the list, so we can update the filters
- * that are displayed
+ * Called when a user selects a folder in the list, so we can update the 
+ * filters that are displayed
+ * note the function name 'onFilterFolderClick' is misleading, it would be
+ * better named 'onServerSelect' => file follow up bug later.
  *
  * @param aFolder  the nsIMsgFolder that was selected
  */
@@ -129,8 +140,8 @@ function setFolder(msgFolder)
    gCurrentFolder = msgFolder;
 
    //Calling getFilterList will detect any errors in rules.dat, backup the file, and alert the user
-   var filterList = msgFolder.getEditableFilterList(gFilterListMsgWindow);
-   rebuildFilterList(filterList);
+   gCurrentFilterList = msgFolder.getEditableFilterList(gFilterListMsgWindow);
+   rebuildFilterList();
 
    // Select the first item in the list, if there is one.
    var list = document.getElementById("filterList");
@@ -212,8 +223,11 @@ function onEditFilter()
 
   window.openDialog("chrome://messenger/content/FilterEditor.xul", "FilterEditor", "chrome,modal,titlebar,resizable,centerscreen", args);
 
-  if ("refresh" in args && args.refresh)
-    rebuildFilterList(gCurrentFilterList);
+  if ("refresh" in args && args.refresh) {
+    // reset search if edit was okay (name change might lead to hidden entry!)
+    document.getElementById("searchBox").value = "";
+    rebuildFilterList();
+  }
 }
 
 function onNewFilter(emailAddress)
@@ -221,34 +235,38 @@ function onNewFilter(emailAddress)
   let list = document.getElementById("filterList");
   let filterNodes = list.childNodes;
   let selectedFilter = currentFilter();
-  // if no filter is selected use the first position, starting at 1
-  let position = 1;
+  // If no filter is selected use the first position.
+  let position = 0;
   if (selectedFilter) {
-    // The filterNodes[0] item is the list header, skip it.
-    for (let i = 1; i < filterNodes.length; i++) {
-      if (filterNodes[i]._filter == selectedFilter) {
+    // Get the position in the unfiltered list.
+    // - this is where the new filter should be inserted!
+    let filterCount = gCurrentFilterList.filterCount;
+    for (let i = 0; i < filterCount; i++) {
+      if (gCurrentFilterList.getFilterAt(i) == selectedFilter) {
         position = i;
         break;
       }
     }
   }
 
-  // The returned position is offset by 1 (due to the list header)
-  // compared to filter indexes in gCurrentFilterList.
-  let args = {filterList: gCurrentFilterList, filterPosition: position - 1};
+  let args = {filterList: gCurrentFilterList, filterPosition: position};
 
   window.openDialog("chrome://messenger/content/FilterEditor.xul", "FilterEditor", "chrome,modal,titlebar,resizable,centerscreen", args);
 
   if ("refresh" in args && args.refresh) {
-    rebuildFilterList(gCurrentFilterList);
+    // On success: reset the search box!
+    document.getElementById("searchBox").value = "";
+    rebuildFilterList();
 
-    // select the new filter, it is at the position of previous selection
-    list.clearSelection();
-    list.addItemToSelection(list.childNodes[position]);
-    updateViewPosition(position);
+    // Select the new filter, it is at the position of previous selection.
+    list.selectItem(list.getItemAtIndex(position));
   }
 }
 
+/**
+ * Delete selected filters.
+ *  'Selected' is not to be confused with active (checkbox checked)
+ */
 function onDeleteFilter()
 {
   let list = document.getElementById("filterList");
@@ -275,19 +293,20 @@ function onDeleteFilter()
   if (checkValue.value)
      prefBranch.setBoolPref("mailnews.filters.confirm_delete", false);
 
-  // save filter position before the first selected one
+  // Save filter position before the first selected one.
   let newSelection = items[0].previousElementSibling;
   if (newSelection == list.childNodes[0])
     newSelection = null;
 
-  // must reverse the loop, as the items list shrinks when we delete
+  // Must reverse the loop, as the items list shrinks when we delete.
   for (let index = items.length - 1; index >= 0; --index) {
     let item = items[index];
     gCurrentFilterList.removeFilter(item._filter);
     document.getElementById("filterList").removeChild(item);
   }
+  updateCountBox();
 
-  // select filter above previously selected if one existed, otherwise the first one
+  // Select filter above previously selected if one existed, otherwise the first one.
   if (!newSelection && list.itemCount)
     newSelection = list.childNodes[1];
   if (newSelection) {
@@ -296,14 +315,113 @@ function onDeleteFilter()
   }
 }
 
-function onUp(event)
-{
-    moveCurrentFilter(Components.interfaces.nsMsgFilterMotion.up);
+/**
+ * Move filter one step up in visible list.
+ */
+function onUp(event) {
+  moveFilter(msgMoveMotion.Up);
 }
 
-function onDown(event)
-{
-    moveCurrentFilter(Components.interfaces.nsMsgFilterMotion.down);
+/**
+ * Move filter one step down in visible list.
+ */
+function onDown(event) {
+  moveFilter(msgMoveMotion.Down);
+}
+
+/**
+ * Move filter to bottom for long filter lists.
+ */
+ function onTop(evt) {
+  moveFilter(msgMoveMotion.Top);
+}
+
+/**
+ * Move filter to top for long filter lists.
+ */
+function onBottom(evt) {
+  moveFilter(msgMoveMotion.Bottom);
+}
+
+/**
+ * Moves a singular selected filter up or down either 1 increment or to the 
+ * top/bottom. This acts on the visible filter list only which means that:
+ *
+ * - when moving up or down "1" the filter may skip one or more other
+ *   filters (which are currently not visible) - this will also lead
+ *   to the "related" filters (e.g search filters containing 'moz')
+ *   being grouped more closely together
+ * - moveTop / moveBottom
+ *   this is currently moving to the top/bottom of the absolute list
+ *   but it would be better if it moved "just as far as necessary"
+ *   which would further "compact" related filters
+ *
+ * @param motion
+ *   msgMoveMotion.Up, msgMoveMotion.Down, msgMoveMotion.Top, msgMoveMotion.Bottom
+ */
+function moveFilter(motion) {
+  // At the moment, do not allow moving groups of filters.
+  var list = document.getElementById("filterList");
+  if (list.selectedItems.length != 1)
+    return;
+  var activeFilter = list.selectedItems[0]._filter;
+  var relativeStep = 0;
+  var moveFilterNative = null;
+
+  switch(motion) {
+    case msgMoveMotion.Top:
+      if (activeFilter) {
+        gCurrentFilterList.removeFilter(activeFilter);
+        gCurrentFilterList.insertFilterAt(0, activeFilter);
+        rebuildFilterList();
+        document.getElementById("reorderTopButton").disabled = true;
+      }
+      return;
+    case msgMoveMotion.Bottom:
+      if (activeFilter) {
+        gCurrentFilterList.removeFilter(activeFilter);
+        gCurrentFilterList.insertFilterAt(gCurrentFilterList.filterCount, activeFilter);
+        rebuildFilterList();
+        document.getElementById("reorderBottomButton").disabled = true;
+      }
+      return;
+    case msgMoveMotion.Up:
+      relativeStep = -1;
+      moveFilterNative = Components.interfaces.nsMsgFilterMotion.up;
+      break;
+    case msgMoveMotion.Down:
+      relativeStep = +1;
+      moveFilterNative = Components.interfaces.nsMsgFilterMotion.down;
+      break;
+  }
+
+  if (!document.getElementById("searchBox").value) {
+    // use legacy move filter code: up, down; only if searchBox is empty
+    moveCurrentFilter(moveFilterNative);
+    return;
+  }
+
+  let nextIndex = list.selectedIndex + relativeStep;
+  let nextFilter = list.getItemAtIndex(nextIndex)._filter;
+
+  gCurrentFilterList.removeFilter(activeFilter);
+
+  // Find the index of the filter we want to insert at.
+  let newIndex = -1;
+  let filterCount = gCurrentFilterList.filterCount;
+  for (let i = 0; i < filterCount; i++) {
+    if (gCurrentFilterList.getFilterAt(i) == nextFilter) {
+      newIndex = i;
+      break;
+    }
+  }
+
+  if (motion == msgMoveMotion.Down)
+    newIndex += relativeStep;
+
+  gCurrentFilterList.insertFilterAt(newIndex, activeFilter);
+
+  rebuildFilterList();
 }
 
 function viewLog()
@@ -378,31 +496,49 @@ function runSelectedFilters()
 
 function moveCurrentFilter(motion)
 {
-    var filter = currentFilter();
-    if (!filter)
-      return;
+  let filter = currentFilter();
+  if (!filter)
+    return;
 
-    gCurrentFilterList.moveFilter(filter, motion);
-    rebuildFilterList(gCurrentFilterList);
+  gCurrentFilterList.moveFilter(filter, motion);
+  rebuildFilterList();
 }
 
-function rebuildFilterList(aFilterList)
+function rebuildFilterList()
 {
-  gCurrentFilterList = aFilterList;
-  var list = document.getElementById("filterList");
+  // This function should perform very fast even in case of high number of filters.
+  // Therefore there are some optimisations (e.g. listelement.children[] instead of
+  // list.getItemAtIndex()), that favour speed vs. semantical perfection.
+  let aTempFilterList = onFindFilter();
 
+  let searchBox = document.getElementById("searchBox");
+  let searchBoxFocus = false;
+  let activeElement = document.activeElement;
+
+  // Find if the currently focused element is a child inside the searchBox
+  // (probably html:input). Traverse up the parents until the first element
+  // with an ID is found. If it is not searchBox, return false.
+  while (activeElement != null) {
+    if (activeElement == searchBox) {
+      searchBoxFocus = true;
+      break;
+    }
+    else if (activeElement.id) {
+      searchBoxFocus = false;
+      break;
+    }
+    activeElement = activeElement.parentNode;
+  }
+
+  let list = document.getElementById("filterList");
   // Make a note of which filters were previously selected
-  var selectedNames = [];
-  for (var i = 0; i < list.selectedItems.length; i++)
+  let selectedNames = [];
+  for (let i = 0; i < list.selectedItems.length; i++)
     selectedNames.push(list.selectedItems[i]._filter.filterName);
 
   // Save scroll position so we can try to restore it later.
+  // Doesn't work when the list is rebuilt after search box condition changed.
   let firstVisibleRowIndex = list.getIndexOfFirstVisibleRow();
-
-  // Remove any existing child nodes, but not our headers
-  for (var i = list.childNodes.length - 1; i > 0; i--) {
-    list.removeChild(list.childNodes[i]);
-  }
 
   // listbox.xml seems to cache the value of the first selected item in a
   // range at _selectionStart. The old value though is now obsolete,
@@ -411,30 +547,66 @@ function rebuildFilterList(aFilterList)
   // ugly from an accessibility perspective, since it fires an onSelect event.
   list.clearSelection();
 
-  for (i = 0; i < aFilterList.filterCount; i++) {
-    var filter = aFilterList.getFilterAt(i);
-    var listitem = document.createElement("listitem");
-    var nameCell = document.createElement("listcell");
+  let listitem, nameCell, enabledCell, filter;
+  let filterCount = gCurrentFilterList.filterCount;
+  let listitemCount = list.getRowCount();
+  let listitemIndex = 0;
+  let tempFilterListLength = aTempFilterList ? aTempFilterList.length - 1 : 0;
+  for (let i = 0; i < filterCount; i++) {
+    if (aTempFilterList && listitemIndex > tempFilterListLength)
+      break;
+
+    filter = gCurrentFilterList.getFilterAt(i);
+    if (aTempFilterList && aTempFilterList[listitemIndex] != i)
+      continue;
+
+    if (listitemCount > listitemIndex) {
+      // If there is a free existing listitem, reuse it.
+      // Use .children[] instead of .getItemAtIndex() as it is much faster.
+      listitem = list.children[listitemIndex + 1];
+      nameCell = listitem.childNodes[0];
+      enabledCell = listitem.childNodes[1];
+    }
+    else
+    {
+      // If there are not enough listitems in the list, create a new one.
+      listitem = document.createElement("listitem");
+      nameCell = document.createElement("listcell");
+      enabledCell = document.createElement("listcell");
+      enabledCell.setAttribute("class", "listcell-iconic");
+      listitem.appendChild(nameCell);
+      listitem.appendChild(enabledCell);
+      list.appendChild(listitem);
+      // We have to attach this listener to the listitem, even though we only care
+      // about clicks on the enabledCell. However, attaching to that item doesn't
+      // result in any events actually getting received.
+      listitem.addEventListener("click", onFilterClick, true);
+      listitem.addEventListener("dblclick", onFilterDoubleClick, true);
+    }
+    // Set the listitem values to represent the current filter.
     nameCell.setAttribute("label", filter.filterName);
-    var enabledCell = document.createElement("listcell");
     enabledCell.setAttribute("enabled", filter.enabled);
-    enabledCell.setAttribute("class", "listcell-iconic");
-    listitem.appendChild(nameCell);
-    listitem.appendChild(enabledCell);
-
-    // We have to attach this listener to the listitem, even though we only care
-    // about clicks on the enabledCell.  However, attaching to that item doesn't
-    // result in any events actually getting received
-    listitem.addEventListener("click", onFilterClick, true);
-
-    listitem.addEventListener("dblclick", onFilterDoubleClick, true);
     listitem._filter = filter;
-    list.appendChild(listitem);
 
     if (selectedNames.indexOf(filter.filterName) != -1)
       list.addItemToSelection(listitem);
+
+    listitemIndex++;
   }
+  // Remove any superfluous listitems, if the number of filters shrunk.
+  for (let i = listitemCount - 1; i >= listitemIndex; i--) {
+    list.removeChild(list.lastChild);
+  }
+
   updateViewPosition(firstVisibleRowIndex);
+  updateCountBox();
+
+  // If before rebuilding the list the searchbox was focused, focus it again.
+  // In any other case, focus the list.
+  if (searchBoxFocus)
+    searchBox.focus();
+  else
+    list.focus();
 }
 
 function updateViewPosition(firstVisibleRowIndex)
@@ -442,6 +614,7 @@ function updateViewPosition(firstVisibleRowIndex)
   let list = document.getElementById("filterList");
   if (firstVisibleRowIndex == -1)
     firstVisibleRowIndex = list.getIndexOfFirstVisibleRow();
+
   // Restore to the extent possible the scroll position.
   if (firstVisibleRowIndex && list.itemCount)
     list.scrollToIndex(Math.min(firstVisibleRowIndex, list.itemCount - 1));
@@ -456,9 +629,15 @@ function updateViewPosition(firstVisibleRowIndex)
   }
 
   updateButtons();
-  list.focus();
 }
 
+/**
+ * Try to only enable buttons that make sense
+ *  - moving filters is currently only enabled for single selection
+ *    also movement is restricted by searchBox and current selection position
+ *  - edit only for single filters
+ *  - delete / run only for one or more selected filters
+ */
 function updateButtons()
 {
     var list = document.getElementById("filterList");
@@ -469,7 +648,7 @@ function updateButtons()
     // "edit" only enabled when one filter selected or if we couldn't parse the filter
     var disabled = !oneFilterSelected || filter.unparseable
     document.getElementById("editButton").disabled = disabled;
-    
+
     // "delete" only disabled when no filters are selected
     document.getElementById("deleteButton").disabled = !numFiltersSelected;
 
@@ -482,21 +661,28 @@ function updateButtons()
     // "up" enabled only if one filter selected, and it's not the first
     // don't use list.currentIndex here, it's buggy when we've just changed the
     // children in the list (via rebuildFilterList)
-    var upDisabled = !(oneFilterSelected && 
+    var upDisabled = !(oneFilterSelected &&
                        list.selectedItems[0] != list.childNodes[1]);
     document.getElementById("reorderUpButton").disabled = upDisabled
     // "down" enabled only if one filter selected, and it's not the last
     var downDisabled = !(oneFilterSelected && list.currentIndex < list.getRowCount()-1);
     document.getElementById("reorderDownButton").disabled = downDisabled;
+
+    // special buttons
+    var buttonTop = document.getElementById("reorderTopButton");
+    var buttonBottom = document.getElementById("reorderBottomButton");
+
+    buttonTop.disabled = upDisabled;
+    buttonBottom.disabled = downDisabled;
 }
 
 /**
-  * Given a selected folder, returns the folder where filters should
-  *  be defined (the root folder except for news) if the server can
-  *  accept filters.
-  *
-  * @returns an nsIMsgFolder where the filter is defined
-  */
+ * Given a selected folder, returns the folder where filters should
+ *  be defined (the root folder except for news) if the server can
+ *  accept filters.
+ *
+ * @returns an nsIMsgFolder where the filter is defined
+ */
 function getFilterFolderForSelection()
 {
     var args = window.arguments;
@@ -523,12 +709,13 @@ function getFilterFolderForSelection()
     return null;
 }
 
-/** if the selected server cannot have filters, get the default server
-  * if the default server cannot have filters, check all accounts
-  * and get a server that can have filters.
-  *
-  * @returns an nsIMsgIncomingServer
-  */
+/**
+ * If the selected server cannot have filters, get the default server.
+ * If the default server cannot have filters, check all accounts
+ * and get a server that can have filters.
+ *
+ * @returns an nsIMsgIncomingServer
+ */
 function getServerThatCanHaveFilters()
 {
     var firstItem = null;
@@ -622,9 +809,9 @@ function onTargetSelect(event) {
 }
 
 /**
-  * For a given server folder, get the first folder. For imap and pop it's INBOX
-  * and it's the very first group for news accounts.
-  */
+ * For a given server folder, get the first folder. For imap and pop it's INBOX
+ * and it's the very first group for news accounts.
+ */
 function getFirstFolder(msgFolder)
 {
   // Sanity check.
@@ -651,4 +838,54 @@ function getFirstFolder(msgFolder)
     dump(ex + "\n");
   }
   return msgFolder;
+}
+
+
+
+/**
+ * Called when the search button is clicked, this will narrow down the amount
+ * of filters displayed in the list, using the search term to filter the names.
+ */
+function onFindFilter()
+{
+  let searchBox = document.getElementById("searchBox");
+  let keyWord = searchBox.value.toLocaleLowerCase();
+
+  // If searchbox is empty, just return and let rebuildFilterList
+  // create an unfiltered list.
+  if (!keyWord)
+    return null;
+
+  // Rematch everything in the list, remove what doesn't match the search box.
+  let rows = gCurrentFilterList.filterCount;
+  let matchingFilterList = [];
+  let item;
+  // Use the full gCurrentFilterList, not the filterList listbox,
+  // which may already be filtered.
+  for (let i = 0; i < rows; i++) {
+    item = gCurrentFilterList.getFilterAt(i).filterName;
+    if (item.toLocaleLowerCase().indexOf(keyWord) != -1)
+      matchingFilterList.push(i);
+  }
+
+  return matchingFilterList;
+}
+
+/**
+ * Display "1 item",  "11 items" or "4 of 10" if list is filtered via search box.
+ */
+function updateCountBox()
+{
+  let countBox = document.getElementById("countBox");
+  let sum = gCurrentFilterList.filterCount;
+  let filterList = document.getElementById("filterList");
+  let len = filterList.getRowCount();
+
+  let bundle = document.getElementById("bundle_filter");
+
+  if (len == sum) // "N items"
+    countBox.value = PluralForm.get(len, bundle.getString("filterCountItems"))
+                               .replace("#1",[len]);
+  else // "N of M"
+    countBox.value = bundle.getFormattedString("filterCountVisibleOfTotal", [len, sum]);
 }

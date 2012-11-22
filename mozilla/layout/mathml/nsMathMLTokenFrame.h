@@ -61,12 +61,12 @@ public:
   virtual void MarkIntrinsicWidthsDirty();
 
   NS_IMETHOD
-  AttributeChanged(PRInt32         aNameSpaceID,
+  AttributeChanged(int32_t         aNameSpaceID,
                    nsIAtom*        aAttribute,
-                   PRInt32         aModType);
+                   int32_t         aModType);
 
   virtual nsresult
-  ChildListChanged(PRInt32 aModType)
+  ChildListChanged(int32_t aModType)
   {
     ProcessTextData();
     return nsMathMLContainerFrame::ChildListChanged(aModType);
@@ -76,7 +76,7 @@ protected:
   nsMathMLTokenFrame(nsStyleContext* aContext) : nsMathMLContainerFrame(aContext) {}
   virtual ~nsMathMLTokenFrame();
 
-  virtual PRIntn GetSkipSides() const { return 0; }
+  virtual int GetSkipSides() const { return 0; }
 
   // hook to perform MathML-specific actions depending on the tag
   virtual void ProcessTextData();

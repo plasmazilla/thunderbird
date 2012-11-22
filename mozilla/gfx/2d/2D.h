@@ -6,6 +6,7 @@
 #ifndef _MOZILLA_GFX_2D_H
 #define _MOZILLA_GFX_2D_H
 
+#include "Types.h"
 #include "Point.h"
 #include "Rect.h"
 #include "Matrix.h"
@@ -302,6 +303,13 @@ public:
   virtual SurfaceType GetType() const = 0;
   virtual IntSize GetSize() const = 0;
   virtual SurfaceFormat GetFormat() const = 0;
+
+  /* This returns false if some event has made this source surface invalid for
+   * usage with current DrawTargets. For example in the case of Direct2D this
+   * could return false if we have switched devices since this surface was
+   * created.
+   */
+  virtual bool IsValid() const { return true; }
 
   /*
    * This function will get a DataSourceSurface for this surface, a
@@ -802,7 +810,7 @@ class GFX2D_API Factory
 public:
   static bool HasSSE2();
 
-  static TemporaryRef<DrawTarget> CreateDrawTargetForCairoSurface(cairo_surface_t* aSurface);
+  static TemporaryRef<DrawTarget> CreateDrawTargetForCairoSurface(cairo_surface_t* aSurface, const IntSize& aSize);
 
   static TemporaryRef<DrawTarget>
     CreateDrawTarget(BackendType aBackend, const IntSize &aSize, SurfaceFormat aFormat);

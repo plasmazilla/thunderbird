@@ -21,7 +21,7 @@ interface nsIContentSecurityPolicy;
 [ptr] native JSPrincipals(JSPrincipals);
 [ptr] native PrincipalArray(nsTArray<nsCOMPtr<nsIPrincipal> >);
 
-[scriptable, uuid(42ba6a38-d619-49ab-8248-3d247e959d5e)]
+[scriptable, uuid(825ffce8-962d-11e1-aef3-8f2b6188709b)]
 interface nsIPrincipal : nsISerializable
 {
     /**
@@ -173,7 +173,13 @@ interface nsIPrincipal : nsISerializable
      * located at the given URI under the same-origin policy. This means that
      * codebase principals are only allowed to load resources from the same
      * domain, the system principal is allowed to load anything, and null
-     * principals are not allowed to load anything.
+     * principals are not allowed to load anything. This is changed slightly
+     * by the optional flag allowIfInheritsPrincipal (which defaults to false)
+     * which allows the load of a data: URI (which inherits the principal of
+     * its loader) or a URI with the same principal as its loader (eg. a 
+     * Blob URI).
+     * In these cases, with allowIfInheritsPrincipal set to true, the URI can
+     * be loaded by a null principal.
      *
      * If the load is allowed this function does nothing. If the load is not
      * allowed the function throws NS_ERROR_DOM_BAD_URI.
@@ -187,9 +193,13 @@ interface nsIPrincipal : nsISerializable
      * @param uri    The URI about to be loaded.
      * @param report If true, will report a warning to the console service
      *               if the load is not allowed.
+     * @param allowIfInheritsPrincipal   If true, the load is allowed if the
+     *                                   loadee inherits the principal of the
+     *                                   loader.
      * @throws NS_ERROR_DOM_BAD_URI if the load is not allowed.
      */
-    void checkMayLoad(in nsIURI uri, in boolean report);
+    void checkMayLoad(in nsIURI uri, in boolean report,
+                      in boolean allowIfInheritsPrincipal);
 
     /**
      * The subject name for the certificate.  This actually identifies the
@@ -212,6 +222,57 @@ interface nsIPrincipal : nsISerializable
      * A Content Security Policy associated with this principal.
      */
     [noscript] attribute nsIContentSecurityPolicy csp;
+
+    /**
+     * Returns the extended origin of the principal.
+     * The extended origin is a string that has more information than the origin
+     * and can be used to isolate data or permissions between different
+     * principals while taking into account parameters like the app id or the
+     * fact that the principal is embedded in a mozbrowser.
+     * Some principals will return the origin for extendedOrigin.
+     * Some principals will assert if you try to access the extendedOrigin.
+     *
+     * The extendedOrigin is intended to be an opaque identifier. It is
+     * currently "human-readable" but no callers should assume it will stay
+     * as is and it might be crypto-hashed at some point.
+     */
+    readonly attribute AUTF8String extendedOrigin;
+
+    const short APP_STATUS_NOT_INSTALLED = 0;
+    const short APP_STATUS_INSTALLED     = 1;
+    const short APP_STATUS_PRIVILEGED    = 2;
+    const short APP_STATUS_CERTIFIED     = 3;
+
+    /**
+     * Shows the status of the app.
+     * Can be: APP_STATUS_NOT_INSTALLED, APP_STATUS_INSTALLED,
+     *         APP_STATUS_PRIVILEGED or APP_STATUS_CERTIFIED.
+     */
+    readonly attribute unsigned short appStatus;
+
+    %{C++
+    uint16_t GetAppStatus()
+    {
+      uint16_t appStatus;
+      nsresult rv = GetAppStatus(&appStatus);
+      if (NS_FAILED(rv)) {
+        return APP_STATUS_NOT_INSTALLED;
+      }
+      return appStatus;
+    }
+    %}
+
+    /**
+     * Returns the app id the principal is in, or returns
+     * nsIScriptSecurityManager::NO_APP_ID if this principal isn't part of an
+     * app.
+     */
+    readonly attribute unsigned long appId;
+
+    /**
+     * Returns true iif the principal is inside a browser element.
+     */
+    readonly attribute boolean isInBrowserElement;
 };
 
 /**

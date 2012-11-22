@@ -19,13 +19,19 @@ protected:
   SVGFEUnstyledLeafFrame(nsStyleContext* aContext)
     : SVGFEUnstyledLeafFrameBase(aContext)
   {
-    AddStateBits(NS_STATE_SVG_NONDISPLAY_CHILD);
+    AddStateBits(NS_FRAME_SVG_LAYOUT | NS_STATE_SVG_NONDISPLAY_CHILD);
   }
 
 public:
   NS_DECL_FRAMEARENA_HELPERS
 
-  virtual bool IsFrameOfType(PRUint32 aFlags) const
+  NS_IMETHOD BuildDisplayList(nsDisplayListBuilder*   aBuilder,
+                              const nsRect&           aDirtyRect,
+                              const nsDisplayListSet& aLists) {
+    return NS_OK;
+  }
+
+  virtual bool IsFrameOfType(uint32_t aFlags) const
   {
     return SVGFEUnstyledLeafFrameBase::IsFrameOfType(aFlags & ~(nsIFrame::eSVG));
   }
@@ -44,9 +50,14 @@ public:
    */
   virtual nsIAtom* GetType() const;
 
-  NS_IMETHOD AttributeChanged(PRInt32  aNameSpaceID,
+  NS_IMETHOD AttributeChanged(int32_t  aNameSpaceID,
                               nsIAtom* aAttribute,
-                              PRInt32  aModType);
+                              int32_t  aModType);
+
+  virtual bool UpdateOverflow() {
+    // We don't maintain a visual overflow rect
+    return false;
+  }
 };
 
 nsIFrame*
@@ -64,9 +75,9 @@ SVGFEUnstyledLeafFrame::GetType() const
 }
 
 NS_IMETHODIMP
-SVGFEUnstyledLeafFrame::AttributeChanged(PRInt32  aNameSpaceID,
+SVGFEUnstyledLeafFrame::AttributeChanged(int32_t  aNameSpaceID,
                                          nsIAtom* aAttribute,
-                                         PRInt32  aModType)
+                                         int32_t  aModType)
 {
   SVGFEUnstyledElement *element = static_cast<SVGFEUnstyledElement*>(mContent);
   if (element->AttributeAffectsRendering(aNameSpaceID, aAttribute)) {

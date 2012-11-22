@@ -4,6 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "nsError.h"
 #include "nsDOMStringMap.h"
 
 #include "nsDOMClassInfoID.h"
@@ -21,7 +22,7 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsDOMStringMap)
   if (tmp->mElement) {
     // Call back to element to null out weak reference to this object.
     tmp->mElement->ClearDataset();
-    tmp->mElement = nsnull;
+    tmp->mElement = nullptr;
   }
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 
@@ -89,7 +90,7 @@ NS_IMETHODIMP_(bool) nsDOMStringMap::HasDataAttr(const nsAString& aProp)
 
 /* [noscript] DOMString getDataAttr (in DOMString prop); */
 NS_IMETHODIMP nsDOMStringMap::GetDataAttr(const nsAString& aProp,
-                                          nsAString& aResult NS_OUTPARAM)
+                                          nsAString& aResult)
 {
   nsAutoString attr;
 
@@ -170,10 +171,7 @@ nsresult nsDOMStringMap::RemovePropInternal(nsIAtom* aAttr)
                                            this, &val);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  JSAutoEnterCompartment ac;
-  if (!ac.enter(cx, JSVAL_TO_OBJECT(val))) {
-    return NS_ERROR_FAILURE;
-  }
+  JSAutoCompartment ac(cx, JSVAL_TO_OBJECT(val));
 
   // Guard against infinite recursion. Prevents the stack from looking like
   // ...
@@ -197,11 +195,11 @@ nsresult nsDOMStringMap::RemovePropInternal(nsIAtom* aAttr)
  */
 nsresult nsDOMStringMap::GetDataPropList(nsTArray<nsString>& aResult)
 {
-  PRUint32 attrCount = mElement->GetAttrCount();
+  uint32_t attrCount = mElement->GetAttrCount();
 
   // Iterate through all the attributes and add property
   // names corresponding to data attributes to return array.
-  for (PRUint32 i = 0; i < attrCount; ++i) {
+  for (uint32_t i = 0; i < attrCount; ++i) {
     nsAutoString attrString;
     const nsAttrName* attrName = mElement->GetAttrNameAt(i);
     attrName->LocalName()->ToString(attrString);

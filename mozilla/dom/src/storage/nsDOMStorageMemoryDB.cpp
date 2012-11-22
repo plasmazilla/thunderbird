@@ -4,7 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsCOMPtr.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsDOMStorage.h"
 #include "nsDOMStorageMemoryDB.h"
 #include "nsNetUtil.h"
@@ -45,7 +45,7 @@ nsDOMStorageMemoryDB::GetItemsTable(DOMStorageImpl* aStorage,
   if (mData.Get(aStorage->GetScopeDBKey(), aMemoryStorage))
     return NS_OK;
 
-  *aMemoryStorage = nsnull;
+  *aMemoryStorage = nullptr;
 
   nsInMemoryStorage* storageData = new nsInMemoryStorage();
   if (!storageData)
@@ -149,9 +149,9 @@ nsDOMStorageMemoryDB::SetKey(DOMStorageImpl* aStorage,
                              const nsAString& aKey,
                              const nsAString& aValue,
                              bool aSecure,
-                             PRInt32 aQuota,
+                             int32_t aQuota,
                              bool aExcludeOfflineFromUsage,
-                             PRInt32 *aNewUsage)
+                             int32_t *aNewUsage)
 {
   nsresult rv;
 
@@ -159,7 +159,7 @@ nsDOMStorageMemoryDB::SetKey(DOMStorageImpl* aStorage,
   rv = GetItemsTable(aStorage, &storage);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRInt32 usage = 0;
+  int32_t usage = 0;
   if (!aStorage->GetQuotaDomainDBKey(!aExcludeOfflineFromUsage).IsEmpty()) {
     rv = GetUsage(aStorage, aExcludeOfflineFromUsage, &usage);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -228,7 +228,7 @@ nsresult
 nsDOMStorageMemoryDB::RemoveKey(DOMStorageImpl* aStorage,
                                 const nsAString& aKey,
                                 bool aExcludeOfflineFromUsage,
-                                PRInt32 aKeyUsage)
+                                int32_t aKeyUsage)
 {
   nsresult rv;
 
@@ -337,10 +337,9 @@ nsDOMStorageMemoryDB::RemoveOwners(const nsTArray<nsString> &aOwners,
     return RemoveAll();
   }
 
-  for (PRUint32 i = 0; i < aOwners.Length(); i++) {
+  for (uint32_t i = 0; i < aOwners.Length(); i++) {
     nsCAutoString quotaKey;
-    nsresult rv;
-    rv = nsDOMStorageDBWrapper::CreateDomainScopeDBKey(
+    nsDOMStorageDBWrapper::CreateDomainScopeDBKey(
       NS_ConvertUTF16toUTF8(aOwners[i]), quotaKey);
 
     if (!aIncludeSubDomains)
@@ -369,7 +368,7 @@ nsDOMStorageMemoryDB::RemoveAll()
 
 nsresult
 nsDOMStorageMemoryDB::GetUsage(DOMStorageImpl* aStorage,
-                               bool aExcludeOfflineFromUsage, PRInt32 *aUsage)
+                               bool aExcludeOfflineFromUsage, int32_t *aUsage)
 {
   return GetUsageInternal(aStorage->GetQuotaDomainDBKey(!aExcludeOfflineFromUsage),
                           aExcludeOfflineFromUsage, aUsage);
@@ -378,7 +377,7 @@ nsDOMStorageMemoryDB::GetUsage(DOMStorageImpl* aStorage,
 nsresult
 nsDOMStorageMemoryDB::GetUsage(const nsACString& aDomain,
                                bool aIncludeSubDomains,
-                               PRInt32 *aUsage)
+                               int32_t *aUsage)
 {
   nsresult rv;
 
@@ -394,8 +393,8 @@ nsDOMStorageMemoryDB::GetUsage(const nsACString& aDomain,
 
 struct GetUsageEnumStruc
 {
-  PRInt32 mUsage;
-  PRInt32 mExcludeOfflineFromUsage;
+  int32_t mUsage;
+  int32_t mExcludeOfflineFromUsage;
   nsCString mSubdomain;
 };
 
@@ -423,7 +422,7 @@ GetUsageEnum(const nsACString& key,
 nsresult
 nsDOMStorageMemoryDB::GetUsageInternal(const nsACString& aQuotaDomainDBKey,
                                        bool aExcludeOfflineFromUsage,
-                                       PRInt32 *aUsage)
+                                       int32_t *aUsage)
 {
   GetUsageEnumStruc struc;
   struc.mUsage = 0;

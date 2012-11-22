@@ -35,10 +35,10 @@
 
 struct PrefBranchStruct {
   char*         prefName;
-  PRInt32       type;
+  int32_t       type;
   union {
     char*       stringValue;
-    PRInt32     intValue;
+    int32_t     intValue;
     bool        boolValue;
     PRUnichar*  wstringValue;
   };
@@ -59,7 +59,7 @@ nsSeamonkeyProfileMigrator::~nsSeamonkeyProfileMigrator()
 // nsIMailProfileMigrator
 
 NS_IMETHODIMP
-nsSeamonkeyProfileMigrator::Migrate(PRUint16 aItems, nsIProfileStartup* aStartup, const PRUnichar* aProfile)
+nsSeamonkeyProfileMigrator::Migrate(uint16_t aItems, nsIProfileStartup* aStartup, const PRUnichar* aProfile)
 {
   nsresult rv = NS_OK;
   bool aReplace = aStartup ? true : false;
@@ -74,7 +74,7 @@ nsSeamonkeyProfileMigrator::Migrate(PRUint16 aItems, nsIProfileStartup* aStartup
       return NS_ERROR_FAILURE;
   }
 
-  NOTIFY_OBSERVERS(MIGRATION_STARTED, nsnull);
+  NOTIFY_OBSERVERS(MIGRATION_STARTED, nullptr);
 
   COPY_DATA(CopyPreferences,  aReplace, nsIMailProfileMigrator::SETTINGS);
 
@@ -95,13 +95,13 @@ nsSeamonkeyProfileMigrator::Migrate(PRUint16 aItems, nsIProfileStartup* aStartup
   NOTIFY_OBSERVERS(MIGRATION_ITEMBEFOREMIGRATE, index.get());
 
   // Generate the max progress value now that we know all of the files we need to copy
-  PRUint32 count = mFileCopyTransactions.Length();
-  for (PRUint32 i = 0; i < count; ++i)
+  uint32_t count = mFileCopyTransactions.Length();
+  for (uint32_t i = 0; i < count; ++i)
   {
     fileTransactionEntry fileTransaction = mFileCopyTransactions.ElementAt(i);
-    PRInt64 fileSize;
+    int64_t fileSize;
     fileTransaction.srcFile->GetFileSize(&fileSize);
-    LL_ADD(mMaxProgress, mMaxProgress, fileSize);
+    mMaxProgress += fileSize;
   }
 
   CopyNextFolder();
@@ -112,7 +112,7 @@ nsSeamonkeyProfileMigrator::Migrate(PRUint16 aItems, nsIProfileStartup* aStartup
 NS_IMETHODIMP
 nsSeamonkeyProfileMigrator::GetMigrateData(const PRUnichar* aProfile,
                                            bool aReplace,
-                                           PRUint16* aResult)
+                                           uint16_t* aResult)
 {
   *aResult = 0;
 
@@ -187,9 +187,9 @@ nsSeamonkeyProfileMigrator::GetSourceProfiles(nsIArray** aResult)
 nsresult
 nsSeamonkeyProfileMigrator::GetSourceProfile(const PRUnichar* aProfile)
 {
-  PRUint32 count;
+  uint32_t count;
   mProfileNames->GetLength(&count);
-  for (PRUint32 i = 0; i < count; ++i) {
+  for (uint32_t i = 0; i < count; ++i) {
     nsCOMPtr<nsISupportsString> str(do_QueryElementAt(mProfileNames, i));
     nsString profileName;
     str->GetData(profileName);
@@ -346,7 +346,7 @@ nsSeamonkeyProfileMigrator::TransformPreferences(const nsAString& aSourcePrefFil
 
   // read in the various pref branch trees for accounts, identities, servers, etc.
   PBStructArray branches[NS_ARRAY_LENGTH(branchNames)];
-  PRUint32 i;
+  uint32_t i;
   for (i = 0; i < NS_ARRAY_LENGTH(branchNames); ++i)
     ReadBranch(branchNames[i], psvc, branches[i]);
 
@@ -392,8 +392,8 @@ nsSeamonkeyProfileMigrator::CopyAddressBookDirectories(PBStructArray &aLdapServe
   index.AppendInt(nsIMailProfileMigrator::ADDRESSBOOK_DATA);
   NOTIFY_OBSERVERS(MIGRATION_ITEMBEFOREMIGRATE, index.get());
 
-  PRUint32 count = aLdapServers.Length();
-  for (PRUint32 i = 0; i < count; ++i)
+  uint32_t count = aLdapServers.Length();
+  for (uint32_t i = 0; i < count; ++i)
   {
     PrefBranchStruct* pref = aLdapServers.ElementAt(i);
     nsDependentCString prefName(pref->prefName);
@@ -418,8 +418,8 @@ nsSeamonkeyProfileMigrator::CopySignatureFiles(PBStructArray &aIdentities,
 {
   nsresult rv = NS_OK;
 
-  PRUint32 count = aIdentities.Length();
-  for (PRUint32 i = 0; i < count; ++i)
+  uint32_t count = aIdentities.Length();
+  for (uint32_t i = 0; i < count; ++i)
   {
     PrefBranchStruct* pref = aIdentities.ElementAt(i);
     nsDependentCString prefName(pref->prefName);
@@ -473,8 +473,8 @@ nsSeamonkeyProfileMigrator::CopyMailFolders(PBStructArray &aMailServers,
 
   nsresult rv = NS_OK;
 
-  PRUint32 count = aMailServers.Length();
-  for (PRUint32 i = 0; i < count; ++i)
+  uint32_t count = aMailServers.Length();
+  for (uint32_t i = 0; i < count; ++i)
   {
     PrefBranchStruct* pref = aMailServers.ElementAt(i);
     nsDependentCString prefName(pref->prefName);
@@ -594,18 +594,42 @@ nsSeamonkeyProfileMigrator::CopyPreferences(bool aReplace)
   if (!aReplace)
     return rv;
 
-  rv |= TransformPreferences(FILE_NAME_PREFS, FILE_NAME_PREFS);
-  rv |= CopyFile(FILE_NAME_USER_PREFS, FILE_NAME_USER_PREFS);
+  nsresult tmp = TransformPreferences(FILE_NAME_PREFS, FILE_NAME_PREFS);
+  if (NS_FAILED(tmp)) {
+    rv = tmp;
+  }
+  tmp = CopyFile(FILE_NAME_USER_PREFS, FILE_NAME_USER_PREFS);
+  if (NS_FAILED(tmp)) {
+    rv = tmp;
+  }
 
   // Security Stuff
-  rv |= CopyFile(FILE_NAME_CERT8DB, FILE_NAME_CERT8DB);
-  rv |= CopyFile(FILE_NAME_KEY3DB, FILE_NAME_KEY3DB);
-  rv |= CopyFile(FILE_NAME_SECMODDB, FILE_NAME_SECMODDB);
+  tmp = CopyFile(FILE_NAME_CERT8DB, FILE_NAME_CERT8DB);
+  if (NS_FAILED(tmp)) {
+    rv = tmp;
+  }
+  tmp = CopyFile(FILE_NAME_KEY3DB, FILE_NAME_KEY3DB);
+  if (NS_FAILED(tmp)) {
+    rv = tmp;
+  }
+  tmp = CopyFile(FILE_NAME_SECMODDB, FILE_NAME_SECMODDB);
+  if (NS_FAILED(tmp)) {
+    rv = tmp;
+  }
 
   // User MIME Type overrides
-  rv |= CopyFile(FILE_NAME_MIMETYPES, FILE_NAME_MIMETYPES);
-  rv |= CopyFile(FILE_NAME_PERSONALDICTIONARY, FILE_NAME_PERSONALDICTIONARY);
-  rv |= CopyFile(FILE_NAME_MAILVIEWS, FILE_NAME_MAILVIEWS);
+  tmp = CopyFile(FILE_NAME_MIMETYPES, FILE_NAME_MIMETYPES);
+  if (NS_FAILED(tmp)) {
+    rv = tmp;
+  }
+  tmp = CopyFile(FILE_NAME_PERSONALDICTIONARY, FILE_NAME_PERSONALDICTIONARY);
+  if (NS_FAILED(tmp)) {
+    rv = tmp;
+  }
+  tmp = CopyFile(FILE_NAME_MAILVIEWS, FILE_NAME_MAILVIEWS);
+  if (NS_FAILED(tmp)) {
+    rv = tmp;
+  }
   return rv;
 }
 
@@ -618,16 +642,16 @@ nsSeamonkeyProfileMigrator::ReadBranch(const char *branchName,
   nsCOMPtr<nsIPrefBranch> branch;
   aPrefService->GetBranch(branchName, getter_AddRefs(branch));
 
-  PRUint32 count;
-  char** prefs = nsnull;
+  uint32_t count;
+  char** prefs = nullptr;
   nsresult rv = branch->GetChildList("", &count, &prefs);
   if (NS_FAILED(rv))
     return;
 
-  for (PRUint32 i = 0; i < count; ++i) {
+  for (uint32_t i = 0; i < count; ++i) {
     // Save each pref's value into an array
     char* currPref = prefs[i];
-    PRInt32 type;
+    int32_t type;
     branch->GetPrefType(currPref, &type);
     PrefBranchStruct* pref = new PrefBranchStruct;
     pref->prefName = currPref;
@@ -664,14 +688,14 @@ nsSeamonkeyProfileMigrator::WriteBranch(const char *branchName,
   nsCOMPtr<nsIPrefBranch> branch;
   aPrefService->GetBranch(branchName, getter_AddRefs(branch));
 
-  PRUint32 count = aPrefs.Length();
-  for (PRUint32 i = 0; i < count; ++i) {
+  uint32_t count = aPrefs.Length();
+  for (uint32_t i = 0; i < count; ++i) {
     PrefBranchStruct* pref = aPrefs.ElementAt(i);
     switch (pref->type) {
     case nsIPrefBranch::PREF_STRING:
       rv = branch->SetCharPref(pref->prefName, pref->stringValue);
       NS_Free(pref->stringValue);
-      pref->stringValue = nsnull;
+      pref->stringValue = nullptr;
       break;
     case nsIPrefBranch::PREF_BOOL:
       rv = branch->SetBoolPref(pref->prefName, pref->boolValue);
@@ -685,9 +709,9 @@ nsSeamonkeyProfileMigrator::WriteBranch(const char *branchName,
       break;
     }
     NS_Free(pref->prefName);
-    pref->prefName = nsnull;
+    pref->prefName = nullptr;
     delete pref;
-    pref = nsnull;
+    pref = nullptr;
   }
   aPrefs.Clear();
 }

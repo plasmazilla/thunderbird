@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH		= ../../..
+DEPTH		= @DEPTH@
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
@@ -13,11 +13,15 @@ include $(DEPTH)/config/autoconf.mk
 MODULE		= content
 LIBRARY_NAME	= gkconevents_s
 LIBXUL_LIBRARY  = 1
+FAIL_ON_WARNINGS = 1
 
 EXPORTS		= \
 		nsEventStateManager.h \
 		nsEventListenerManager.h \
 		nsDOMEventTargetHelper.h \
+		nsDOMEvent.h \
+		nsDOMTouchEvent.h \
+		nsDOMUIEvent.h \
 		$(NULL)
 
 CPPSRCS		= \
@@ -32,14 +36,8 @@ CPPSRCS		= \
 		nsDOMMouseScrollEvent.cpp \
 		nsDOMDragEvent.cpp \
 		nsDOMMutationEvent.cpp \
-		nsDOMPopupBlockedEvent.cpp \
-		nsDOMDeviceProximityEvent.cpp \
-		nsDOMUserProximityEvent.cpp \
-		nsDOMDeviceLightEvent.cpp \
-		nsDOMDeviceOrientationEvent.cpp \
 		nsDOMDeviceMotionEvent.cpp \
 		nsDOMBeforeUnloadEvent.cpp \
-		nsDOMPageTransitionEvent.cpp \
 		nsDOMXULCommandEvent.cpp \
 		nsDOMCommandEvent.cpp \
 		nsDOMMessageEvent.cpp \
@@ -62,15 +60,9 @@ CPPSRCS		= \
 		nsDOMScrollAreaEvent.cpp \
 		nsDOMTransitionEvent.cpp \
 		nsDOMAnimationEvent.cpp \
-		nsDOMPopStateEvent.cpp \
-		nsDOMHashChangeEvent.cpp \
-		nsDOMCloseEvent.cpp \
-		nsDOMSettingsEvent.cpp \
-		nsDOMContactChangeEvent.cpp \
 		nsDOMTouchEvent.cpp \
-		nsDOMCustomEvent.cpp \
 		nsDOMCompositionEvent.cpp \
-		nsDOMApplicationEvent.cpp \
+		DOMWheelEvent.cpp \
 		$(NULL)
 
 ifdef MOZ_B2G_RIL
@@ -93,7 +85,6 @@ LOCAL_INCLUDES	+= \
              -I$(srcdir)/../../xml/content/src \
              -I$(srcdir)/../../../dom/base \
              -I$(srcdir)/../../../dom/settings \
-             -I$(srcdir)/../../../dom/contacts \
              -I$(srcdir)/../../../dom/src/storage \
              -I$(srcdir)/../../../layout/generic \
              -I$(srcdir)/../../../layout/xul/base/src \

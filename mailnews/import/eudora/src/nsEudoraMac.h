@@ -57,7 +57,7 @@ public:
 private:
   static bool    FindEudoraLocation(nsIFile **pFolder,
                                     bool findIni = false,
-                                    nsIFile *pLookIn = nsnull);
+                                    nsIFile *pLookIn = nullptr);
   static bool    FindEudoraLocation(nsIFile **pFolder,
                                     bool findIni,
                                     const char *specialDirName);
@@ -112,7 +112,7 @@ private:
 
 
 private:
-  PRUint32 m_depth;
+  uint32_t m_depth;
   nsCOMPtr <nsIFile> m_mailImportLocation;
   bool HasResourceFork(FSRef *fsRef);
 };

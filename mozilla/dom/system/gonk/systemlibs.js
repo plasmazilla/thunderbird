@@ -1,6 +1,17 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this file,
- * You can obtain one at http://mozilla.org/MPL/2.0/. */
+/* Copyright 2012 Mozilla Foundation and Mozilla contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 const SYSTEM_PROPERTY_KEY_MAX = 32;
 const SYSTEM_PROPERTY_VALUE_MAX = 92;
@@ -199,14 +210,16 @@ let libnetutils = (function () {
       let obj = {
         ret: ret | 0,
         ipaddr_str: ipaddrbuf.readString(),
-        mask: netHelpers.makeMask(prefixLen),
+        mask: netHelpers.makeMask(prefixLen.value),
         gateway_str: gatewaybuf.readString(),
         dns1_str: dns1buf.readString(),
         dns2_str: dns2buf.readString(),
         server_str: serverbuf.readString(),
-        lease: lease | 0
+        lease: lease.value | 0
       };
       obj.ipaddr = netHelpers.stringToIP(obj.ipaddr_str);
+      obj.mask_str = netHelpers.ipToString(obj.mask);
+      obj.broadcast_str = netHelpers.ipToString((obj.ipaddr & obj.mask) + ~obj.mask);
       obj.gateway = netHelpers.stringToIP(obj.gateway_str);
       obj.dns1 = netHelpers.stringToIP(obj.dns1_str);
       obj.dns2 = netHelpers.stringToIP(obj.dns2_str);
@@ -277,6 +290,32 @@ let libnetutils = (function () {
 let netHelpers = {
 
   /**
+   * Swap byte orders for 32-bit value
+   */
+  swap32: function swap32(n) {
+    return (((n >> 24) & 0xFF) <<  0) |
+           (((n >> 16) & 0xFF) <<  8) |
+           (((n >>  8) & 0xFF) << 16) |
+           (((n >>  0) & 0xFF) << 24);
+  },
+
+  /**
+   * Convert network byte order to host byte order
+   * Note: Assume that the system is little endian
+   */
+  ntohl: function ntohl(n) {
+    return this.swap32(n);
+  },
+
+  /**
+   * Convert host byte order to network byte order
+   * Note: Assume that the system is little endian
+   */
+  htonl: function htonl(n) {
+    return this.swap32(n);
+  },
+
+  /**
    * Convert integer representation of an IP address to the string
    * representation.
    *
@@ -321,8 +360,8 @@ let netHelpers = {
   makeMask: function makeMask(len) {
     let mask = 0;
     for (let i = 0; i < len; ++i) {
-      mask |= (1 << i);
+      mask |= (0x80000000 >> i);
     }
-    return mask;
+    return this.ntohl(mask);
   }
 };

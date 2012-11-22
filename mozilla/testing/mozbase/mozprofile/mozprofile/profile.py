@@ -5,7 +5,9 @@
 __all__ = ['Profile', 'FirefoxProfile', 'ThunderbirdProfile']
 
 import os
+import time
 import tempfile
+import uuid
 from addons import AddonManager
 from permissions import Permissions
 from shutil import rmtree
@@ -25,7 +27,7 @@ class Profile(object):
                  addon_manifests=None,  # Manifest for addons, see http://ahal.ca/blog/2011/bulk-installing-fx-addons/
                  preferences=None, # Dictionary or class of preferences
                  locations=None, # locations to proxy
-                 proxy=False, # setup a proxy
+                 proxy=None, # setup a proxy - dict of server-loc,server-port,ssl-port
                  restore=True # If true remove all installed addons preferences when cleaning up
                  ):
 
@@ -36,7 +38,8 @@ class Profile(object):
         self.written_prefs = set()
 
         # our magic markers
-        self.delimeters = ('#MozRunner Prefs Start', '#MozRunner Prefs End')
+        nonce = '%s %s' % (str(time.time()), uuid.uuid4())
+        self.delimeters = ('#MozRunner Prefs Start %s' % nonce,'#MozRunner Prefs End %s' % nonce)
 
         # Handle profile creation
         self.create_new = not profile

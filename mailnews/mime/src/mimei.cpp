@@ -188,7 +188,7 @@ mime_locate_external_content_handler(const char *content_type,
                                      contentTypeHandlerInitStruct  *ctHandlerInfo)
 {
   if (!content_type || !*(content_type)) // null or empty content type
-    return nsnull;
+    return nullptr;
 
   MimeObjectClass               *newObj = NULL;
   nsresult rv;
@@ -203,22 +203,22 @@ mime_locate_external_content_handler(const char *content_type,
     nsCOMPtr<nsICategoryManager> catman =
       do_GetService(NS_CATEGORYMANAGER_CONTRACTID, &rv);
     if (NS_FAILED(rv))
-      return nsnull;
+      return nullptr;
 
     nsCString value;
     rv = catman->GetCategoryEntry(NS_SIMPLEMIMECONVERTERS_CATEGORY,
                                   content_type, getter_Copies(value));
     if (NS_FAILED(rv) || value.IsEmpty())
-      return nsnull;
+      return nullptr;
     rv = MIME_NewSimpleMimeConverterStub(content_type,
                                          getter_AddRefs(ctHandler));
     if (NS_FAILED(rv) || !ctHandler)
-      return nsnull;
+      return nullptr;
   }
 
   rv = ctHandler->CreateContentTypeHandlerClass(content_type, ctHandlerInfo, &newObj);
   if (NS_FAILED(rv))
-    return nsnull;
+    return nullptr;
 
   add_content_type_attribs(content_type, ctHandlerInfo);
   return newObj;
@@ -226,7 +226,7 @@ mime_locate_external_content_handler(const char *content_type,
 
 /* This is necessary to expose the MimeObject method outside of this DLL */
 int
-MIME_MimeObject_write(MimeObject *obj, const char *output, PRInt32 length, bool user_visible_p)
+MIME_MimeObject_write(MimeObject *obj, const char *output, int32_t length, bool user_visible_p)
 {
   return MimeObject_write(obj, output, length, user_visible_p);
 }
@@ -284,14 +284,14 @@ mime_free (MimeObject *object)
 {
 # ifdef DEBUG__
   int i, size = object->clazz->instance_size;
-  PRUint32 *array = (PRUint32*) object;
+  uint32_t *array = (uint32_t*) object;
 # endif /* DEBUG */
 
   object->clazz->finalize(object);
 
 # ifdef DEBUG__
   for (i = 0; i < (size / sizeof(*array)); i++)
-  array[i] = (PRUint32) 0xDEADBEEF;
+  array[i] = (uint32_t) 0xDEADBEEF;
 # endif /* DEBUG */
 
   PR_Free(object);
@@ -299,7 +299,7 @@ mime_free (MimeObject *object)
 
 
 bool mime_is_allowed_class(const MimeObjectClass *clazz,
-                             PRInt32 types_of_classes_to_disallow)
+                             int32_t types_of_classes_to_disallow)
 {
   if (types_of_classes_to_disallow == 0)
     return true;
@@ -367,7 +367,7 @@ bool mime_is_allowed_class(const MimeObjectClass *clazz,
 
 void getMsgHdrForCurrentURL(MimeDisplayOptions *opts, nsIMsgDBHdr ** aMsgHdr)
 {
-  *aMsgHdr = nsnull;
+  *aMsgHdr = nullptr;
 
   if (!opts)
     return;
@@ -415,8 +415,8 @@ mime_find_class (const char *content_type, MimeHeaders *hdrs,
 
   // Read some prefs
   nsIPrefBranch *prefBranch = GetPrefBranch(opts);
-  PRInt32 html_as = 0;  // def. see below
-  PRInt32 types_of_classes_to_disallow = 0;  /* Let only a few libmime classes
+  int32_t html_as = 0;  // def. see below
+  int32_t types_of_classes_to_disallow = 0;  /* Let only a few libmime classes
        process incoming data. This protects from bugs (e.g. buffer overflows)
        and from security loopholes (e.g. allowing unchecked HTML in some
        obscure classes, although the user has html_as > 0).
@@ -735,9 +735,9 @@ mime_find_class (const char *content_type, MimeHeaders *hdrs,
              || !PL_strcasecmp(content_type, APPLICATION_PKCS7_MIME)) {
         char *ct = (hdrs ? MimeHeaders_get(hdrs, HEADER_CONTENT_TYPE,
                                            false, false)
-                           : nsnull);
+                           : nullptr);
         char *st = (ct ? MimeHeaders_get_parameter(ct, "smime-type", NULL, NULL)
-                         : nsnull);
+                         : nullptr);
 
         /* by default, assume that it is an encrypted message */
         clazz = (MimeObjectClass *)&mimeEncryptedCMSClass;
@@ -752,7 +752,7 @@ mime_find_class (const char *content_type, MimeHeaders *hdrs,
         else {
           /* look at the file extension... less reliable, but still covered
              by the S/MIME specification (RFC 3851, section 3.2.1)  */
-          char *name = (hdrs ? MimeHeaders_get_name(hdrs, opts) : nsnull);
+          char *name = (hdrs ? MimeHeaders_get_name(hdrs, opts) : nullptr);
           if (name) {
             char *suf = PL_strrchr(name, '.');
             if (suf &&
@@ -837,6 +837,16 @@ mime_create (const char *content_type, MimeHeaders *hdrs,
   MimeObject *obj = 0;
   char *override_content_type = 0;
 
+  /* We've had issues where the incoming content_type is invalid, of a format:
+     content_type="=?windows-1252?q?application/pdf" (bug 659355)
+     We decided to fix that by simply trimming the stuff before the ?
+  */
+  if (content_type)
+  {
+    const char *lastQuestion = strrchr(content_type, '?');
+    if (lastQuestion)
+      content_type = lastQuestion + 1;  // the substring after the last '?'
+  }
 
   /* There are some clients send out all attachments with a content-type
    of application/octet-stream.  So, if we have an octet-stream attachment,
@@ -860,7 +870,7 @@ mime_create (const char *content_type, MimeHeaders *hdrs,
       // appledouble isn't a valid override content type, and makes
       // attachments invisible.
       if (!PL_strcasecmp(override_content_type, MULTIPART_APPLEDOUBLE))
-        override_content_type = nsnull;
+        override_content_type = nullptr;
       PR_FREEIF(name);
 
       // Workaroung for saving '.eml" file encoded with base64.
@@ -873,7 +883,7 @@ mime_create (const char *content_type, MimeHeaders *hdrs,
                                        HEADER_CONTENT_TRANSFER_ENCODING,
                                        true, false));
         if (encoding.EqualsLiteral(ENCODING_BASE64))
-          override_content_type = nsnull;
+          override_content_type = nullptr;
       }
 
       // If we get here and it is not the unknown content type from the
@@ -959,7 +969,7 @@ mime_create (const char *content_type, MimeHeaders *hdrs,
       else
       {
         /* If there's a name, then write this as an attachment. */
-        char *name = (hdrs ? MimeHeaders_get_name(hdrs, opts) : nsnull);
+        char *name = (hdrs ? MimeHeaders_get_name(hdrs, opts) : nullptr);
         if (name)
         {
           clazz = (MimeObjectClass *)&mimeExternalObjectClass;
@@ -1095,7 +1105,7 @@ mime_part_address(MimeObject *obj)
   else
   {
     /* Find this object in its parent. */
-    PRInt32 i, j = -1;
+    int32_t i, j = -1;
     char buf [20];
     char *higher = 0;
     MimeContainer *cont = (MimeContainer *) obj->parent;
@@ -1124,7 +1134,7 @@ mime_part_address(MimeObject *obj)
     return strdup(buf);
     else
     {
-      PRUint32 slen = strlen(higher) + strlen(buf) + 3;
+      uint32_t slen = strlen(higher) + strlen(buf) + 3;
       char *s = (char *)PR_MALLOC(slen);
       if (!s)
       {
@@ -1238,7 +1248,7 @@ mime_set_url_part(const char *url, const char *part, bool append_p)
   if (!url || !part) return 0;
 
   nsCAutoString urlString(url);
-  PRInt32 typeIndex = urlString.Find("?type=application/x-message-display");
+  int32_t typeIndex = urlString.Find("?type=application/x-message-display");
   if (typeIndex != -1)
   {
     urlString.Cut(typeIndex, sizeof("?type=application/x-message-display") - 1);
@@ -1267,7 +1277,7 @@ mime_set_url_part(const char *url, const char *part, bool append_p)
           }
   }
 
-  PRUint32 resultlen = strlen(url) + strlen(part) + 10;
+  uint32_t resultlen = strlen(url) + strlen(part) + 10;
   result = (char *) PR_MALLOC(resultlen);
   if (!result) return 0;
 
@@ -1326,7 +1336,7 @@ mime_set_url_imap_part(const char *url, const char *imappart, const char *libmim
     *whereCurrent = 0;
   }
 
-  PRUint32 resultLen = strlen(url) + strlen(imappart) + strlen(libmimepart) + 17;
+  uint32_t resultLen = strlen(url) + strlen(imappart) + strlen(libmimepart) + 17;
   result = (char *) PR_MALLOC(resultLen);
   if (!result) return 0;
 
@@ -1379,7 +1389,7 @@ mime_address_to_part(const char *part, MimeObject *obj)
   }
   else
   {
-    PRInt32 i;
+    int32_t i;
     MimeContainer *cont = (MimeContainer *) obj;
     for (i = 0; i < cont->nchildren; i++)
     {
@@ -1465,7 +1475,7 @@ mime_find_suggested_name_of_part(const char *part, MimeObject *obj)
    */
   if (result && obj->encoding && *obj->encoding)
   {
-    PRInt32 L = strlen(result);
+    int32_t L = strlen(result);
     const char **exts = 0;
 
     /*
@@ -1487,7 +1497,7 @@ mime_find_suggested_name_of_part(const char *part, MimeObject *obj)
     while (exts && *exts)
     {
       const char *ext = *exts;
-      PRInt32 L2 = strlen(ext);
+      int32_t L2 = strlen(ext);
       if (L > L2 + 1 &&              /* long enough */
         result[L - L2 - 1] == '.' &&      /* '.' in right place*/
         !PL_strcasecmp(ext, result + (L - L2)))  /* ext matches */
@@ -1667,7 +1677,7 @@ mime_parse_url_options(const char *url, MimeDisplayOptions *options)
    else if (strcmp(options->part_to_load, "1"))  /* not 1 */
    {
      const char *prefix = "1.";
-     PRUint32 slen = strlen(options->part_to_load) + strlen(prefix) + 1;
+     uint32_t slen = strlen(options->part_to_load) + strlen(prefix) + 1;
      char *s = (char *) PR_MALLOC(slen);
      if (!s) return MIME_OUT_OF_MEMORY;
      PL_strncpyz(s, prefix, slen);
@@ -1686,7 +1696,7 @@ mime_parse_url_options(const char *url, MimeDisplayOptions *options)
 
 int
 MimeOptions_write(MimeDisplayOptions *opt, nsCString &name, const char *data,
-                  PRInt32 length, bool user_visible_p)
+                  int32_t length, bool user_visible_p)
 {
   int status = 0;
   void* closure = 0;
@@ -1744,7 +1754,7 @@ MimeOptions_write(MimeDisplayOptions *opt, nsCString &name, const char *data,
 }
 
 int
-MimeObject_write(MimeObject *obj, const char *output, PRInt32 length,
+MimeObject_write(MimeObject *obj, const char *output, int32_t length,
          bool user_visible_p)
 {
   if (!obj->output_p) return 0;
@@ -1826,7 +1836,7 @@ MimeObject_output_init(MimeObject *obj, const char *content_type)
         }
 
         if (!(obj->options->override_charset)) {
-          char *charset = MimeHeaders_get_parameter(ct, "charset", nsnull, nsnull);
+          char *charset = MimeHeaders_get_parameter(ct, "charset", nullptr, nullptr);
           if (charset)
           {
             PR_FREEIF(obj->options->default_charset);
@@ -1873,7 +1883,7 @@ char *
 mime_get_base_url(const char *url)
 {
   if (!url)
-    return nsnull;
+    return nullptr;
 
   const char *s = strrchr(url, '?');
   if (s && !strncmp(s, "?type=application/x-message-display", sizeof("?type=application/x-message-display") - 1))
@@ -1891,7 +1901,7 @@ mime_get_base_url(const char *url)
   char *result = (char *) PR_MALLOC(strlen(url) + 1);
   NS_ASSERTION(result, "out of memory");
   if (!result)
-    return nsnull;
+    return nullptr;
 
   memcpy(result, url, s - url);
   result[s - url] = 0;

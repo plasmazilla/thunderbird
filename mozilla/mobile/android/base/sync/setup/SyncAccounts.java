@@ -5,16 +5,19 @@
 package org.mozilla.gecko.sync.setup;
 
 import java.io.File;
+import java.io.UnsupportedEncodingException;
+import java.security.NoSuchAlgorithmException;
 
 import org.mozilla.gecko.db.BrowserContract;
+import org.mozilla.gecko.sync.CredentialException;
 import org.mozilla.gecko.sync.ExtendedJSONObject;
+import org.mozilla.gecko.sync.GlobalConstants;
 import org.mozilla.gecko.sync.Logger;
 import org.mozilla.gecko.sync.SyncConfiguration;
+import org.mozilla.gecko.sync.ThreadPool;
 import org.mozilla.gecko.sync.Utils;
 import org.mozilla.gecko.sync.config.AccountPickler;
 import org.mozilla.gecko.sync.repositories.android.RepoUtils;
-import org.mozilla.gecko.sync.syncadapter.SyncAdapter;
-import org.mozilla.gecko.sync.ThreadPool;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
@@ -44,6 +47,16 @@ public class SyncAccounts {
   public final static String DEFAULT_SERVER = "https://auth.services.mozilla.com/";
 
   /**
+   * Return Sync accounts.
+   *
+   * @param c Android context.
+   * @return Sync accounts.
+   */
+  public static Account[] syncAccounts(final Context c) {
+    return AccountManager.get(c).getAccountsByType(GlobalConstants.ACCOUNTTYPE_SYNC);
+  }
+
+  /**
    * Returns true if a Sync account is set up, or we have a pickled Sync account
    * on disk that should be un-pickled (Bug 769745). If we have a pickled Sync
    * account, try to un-pickle it and create the corresponding Sync account.
@@ -51,7 +64,7 @@ public class SyncAccounts {
    * Do not call this method from the main thread.
    */
   public static boolean syncAccountsExist(Context c) {
-    final boolean accountsExist = AccountManager.get(c).getAccountsByType(Constants.ACCOUNTTYPE_SYNC).length > 0;
+    final boolean accountsExist = AccountManager.get(c).getAccountsByType(GlobalConstants.ACCOUNTTYPE_SYNC).length > 0;
     if (accountsExist) {
       return true;
     }
@@ -287,13 +300,13 @@ public class SyncAccounts {
       Logger.info(LOG_TAG, "Setting explicit server URL: " + serverURL);
     }
 
-    final Account account = new Account(username, Constants.ACCOUNTTYPE_SYNC);
+    final Account account = new Account(username, GlobalConstants.ACCOUNTTYPE_SYNC);
     final Bundle userbundle = new Bundle();
 
     // Add sync key and server URL.
     userbundle.putString(Constants.OPTION_SYNCKEY, syncKey);
     userbundle.putString(Constants.OPTION_SERVER, serverURL);
-    Logger.debug(LOG_TAG, "Adding account for " + Constants.ACCOUNTTYPE_SYNC);
+    Logger.debug(LOG_TAG, "Adding account for " + GlobalConstants.ACCOUNTTYPE_SYNC);
     boolean result = false;
     try {
       result = accountManager.addAccountExplicitly(account, password, userbundle);
@@ -321,28 +334,30 @@ public class SyncAccounts {
     setIsSyncable(account, syncAutomatically);
     Logger.debug(LOG_TAG, "Set account to sync automatically? " + syncAutomatically + ".");
 
-    setClientRecord(context, accountManager, account, syncAccount.clientName, syncAccount.clientGuid);
-
-    // TODO: add other ContentProviders as needed (e.g. passwords)
-    // TODO: for each, also add to res/xml to make visible in account settings
-    Logger.debug(LOG_TAG, "Finished setting syncables.");
-
-    // Purging global prefs assumes we have only a single Sync account at one time.
-    // TODO: Bug 761682: don't do anything with global prefs here.
-    if (clearPreferences) {
-      Logger.info(LOG_TAG, "Clearing global prefs.");
-      SyncAdapter.purgeGlobalPrefs(context);
-    }
-
     try {
-      SharedPreferences.Editor editor = Utils.getSharedPreferences(context, username, serverURL).edit();
+      final String product = GlobalConstants.BROWSER_INTENT_PACKAGE;
+      final String profile = Constants.DEFAULT_PROFILE;
+      final long version = SyncConfiguration.CURRENT_PREFS_VERSION;
+
+      final SharedPreferences.Editor editor = Utils.getSharedPreferences(context, product, username, serverURL, profile, version).edit();
       if (clearPreferences) {
-        Logger.info(LOG_TAG, "Clearing preferences path " + Utils.getPrefsPath(username, serverURL) + " for this account.");
+        final String prefsPath = Utils.getPrefsPath(product, username, serverURL, profile, version);
+        Logger.info(LOG_TAG, "Clearing preferences path " + prefsPath + " for this account.");
         editor.clear();
       }
+
       if (syncAccount.clusterURL != null) {
         editor.putString(SyncConfiguration.PREF_CLUSTER_URL, syncAccount.clusterURL);
       }
+
+      if (syncAccount.clientName != null && syncAccount.clientGuid != null) {
+        Logger.debug(LOG_TAG, "Setting client name to " + syncAccount.clientName + " and client GUID to " + syncAccount.clientGuid + ".");
+        editor.putString(SyncConfiguration.PREF_CLIENT_NAME, syncAccount.clientName);
+        editor.putString(SyncConfiguration.PREF_ACCOUNT_GUID, syncAccount.clientGuid);
+      } else {
+        Logger.debug(LOG_TAG, "Client name and guid not both non-null, so not setting client data.");
+      }
+
       editor.commit();
     } catch (Exception e) {
       Logger.error(LOG_TAG, "Could not clear prefs path!", e);
@@ -374,7 +389,6 @@ public class SyncAccounts {
       }
     });
   }
-
   /**
    * Bug 721760: try to start a vendor-specific Accounts & Sync activity on Moto
    * Blur devices.
@@ -442,14 +456,128 @@ public class SyncAccounts {
     return intent;
   }
 
-  protected static void setClientRecord(Context context, AccountManager accountManager, Account account,
-      String clientName, String clientGuid) {
-    if (clientName != null && clientGuid != null) {
-      Logger.debug(LOG_TAG, "Setting client name to " + clientName + " and client GUID to " + clientGuid + ".");
-      SyncAdapter.setAccountGUID(accountManager, account, clientGuid);
-      SyncAdapter.setClientName(accountManager, account, clientName);
-      return;
+  /**
+   * Synchronously extract Sync account parameters from Android account version
+   * 0, using plain auth token type.
+   * <p>
+   * Safe to call from main thread.
+   *
+   * @param context
+   *          Android context.
+   * @param accountManager
+   *          Android account manager.
+   * @param account
+   *          Android account.
+   * @return Sync account parameters, always non-null; fields username,
+   *         password, serverURL, and syncKey always non-null.
+   */
+  public static SyncAccountParameters blockingFromAndroidAccountV0(final Context context, final AccountManager accountManager, final Account account)
+      throws CredentialException {
+    String username;
+    try {
+      username = Utils.usernameFromAccount(account.name);
+    } catch (NoSuchAlgorithmException e) {
+      throw new CredentialException.MissingCredentialException("username");
+    } catch (UnsupportedEncodingException e) {
+      throw new CredentialException.MissingCredentialException("username");
     }
-    Logger.debug(LOG_TAG, "Client name and guid not both non-null, so not setting client data.");
+
+    /*
+     * If we are accessing an Account that we don't own, Android will throw an
+     * unchecked <code>SecurityException</code> saying
+     * "W FxSync(XXXX) java.lang.SecurityException: caller uid XXXXX is different than the authenticator's uid".
+     * We catch that error and throw accordingly.
+     */
+    String password;
+    String syncKey;
+    String serverURL;
+    try {
+      password = accountManager.getPassword(account);
+      syncKey = accountManager.getUserData(account, Constants.OPTION_SYNCKEY);
+      serverURL = accountManager.getUserData(account, Constants.OPTION_SERVER);
+    } catch (SecurityException e) {
+      Logger.warn(LOG_TAG, "Got security exception fetching Sync account parameters; throwing.");
+      throw new CredentialException.MissingAllCredentialsException(e);
+    }
+
+    if (password  == null &&
+        username  == null &&
+        syncKey   == null &&
+        serverURL == null) {
+      throw new CredentialException.MissingAllCredentialsException();
+    }
+
+    if (password == null) {
+      throw new CredentialException.MissingCredentialException("password");
+    }
+
+    if (syncKey == null) {
+      throw new CredentialException.MissingCredentialException("syncKey");
+    }
+
+    if (serverURL == null) {
+      throw new CredentialException.MissingCredentialException("serverURL");
+    }
+
+    try {
+      // SyncAccountParameters constructor throws on null inputs. This shouldn't
+      // happen, but let's be safe.
+      return new SyncAccountParameters(context, accountManager, username, syncKey, password, serverURL);
+    } catch (Exception e) {
+      Logger.warn(LOG_TAG, "Got exception fetching Sync account parameters; throwing.");
+      throw new CredentialException.MissingAllCredentialsException(e);
+    }
+  }
+
+  /**
+   * Bug 790931: create an intent announcing that a Sync account will be
+   * deleted.
+   * <p>
+   * This intent <b>must</b> be broadcast with secure permissions, because it
+   * contains sensitive user information including the Sync account password and
+   * Sync key.
+   * <p>
+   * Version 1 of the created intent includes extras with keys
+   * <code>Constants.JSON_KEY_VERSION</code>,
+   * <code>Constants.JSON_KEY_TIMESTAMP</code>, and
+   * <code>Constants.JSON_KEY_ACCOUNT</code> (which is the Android Account name,
+   * not the encoded Sync Account name).
+   * <p>
+   * If possible, it contains the key <code>Constants.JSON_KEY_PAYLOAD</code>
+   * with value the Sync account parameters as JSON, <b>except the Sync key has
+   * been replaced with the empty string</b>. (We replace, rather than remove,
+   * the Sync key because SyncAccountParameters expects a non-null Sync key.)
+   *
+   * @see SyncAccountParameters#asJSON
+   *
+   * @param context
+   *          Android context.
+   * @param accountManager
+   *          Android account manager.
+   * @param account
+   *          Android account being removed.
+   * @return <code>Intent</code> to broadcast.
+   */
+  public static Intent makeSyncAccountDeletedIntent(final Context context, final AccountManager accountManager, final Account account) {
+    final Intent intent = new Intent(GlobalConstants.SYNC_ACCOUNT_DELETED_ACTION);
+
+    intent.putExtra(Constants.JSON_KEY_VERSION, Long.valueOf(GlobalConstants.SYNC_ACCOUNT_DELETED_INTENT_VERSION));
+    intent.putExtra(Constants.JSON_KEY_TIMESTAMP, Long.valueOf(System.currentTimeMillis()));
+    intent.putExtra(Constants.JSON_KEY_ACCOUNT, account.name);
+
+    SyncAccountParameters accountParameters = null;
+    try {
+      accountParameters = SyncAccounts.blockingFromAndroidAccountV0(context, accountManager, account);
+    } catch (Exception e) {
+      Logger.warn(LOG_TAG, "Caught exception fetching account parameters.", e);
+    }
+
+    if (accountParameters != null) {
+      ExtendedJSONObject json = accountParameters.asJSON();
+      json.put(Constants.JSON_KEY_SYNCKEY, ""); // Reduce attack surface area by removing Sync key.
+      intent.putExtra(Constants.JSON_KEY_PAYLOAD, json.toJSONString());
+    }
+
+    return intent;
   }
 }

@@ -3,7 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 function makeWorkerUrl(runner) {
-  return "data:application/javascript," + encodeURI("let run=" + runner.toSource()) + ";run();"
+  return "data:application/javascript;charset=utf-8," + encodeURI("let run=" + runner.toSource()) + ";run();"
 }
 
 var getFrameWorkerHandle;
@@ -405,5 +405,156 @@ let tests = {
         cbnext();
       }
     }
-  }
+  },
+
+  testNavigator: function(cbnext) {
+    let run = function() {
+      let port;
+      ononline = function() {
+        port.postMessage({topic: "ononline", data: navigator.onLine});
+      }
+      onoffline = function() {
+        port.postMessage({topic: "onoffline", data: navigator.onLine});
+      }
+      onconnect = function(e) {
+        port = e.ports[0];
+        port.postMessage({topic: "ready",
+                          data: {
+                            appName: navigator.appName,
+                            appVersion: navigator.appVersion,
+                            platform: navigator.platform,
+                            userAgent: navigator.userAgent,
+                          }
+                         });
+      }
+    }
+    let ioService = Cc["@mozilla.org/network/io-service;1"].getService(Ci.nsIIOService2);
+    let oldManage = ioService.manageOfflineStatus;
+    let oldOffline = ioService.offline;
+    
+    ioService.manageOfflineStatus = false;
+    let worker = getFrameWorkerHandle(makeWorkerUrl(run), undefined, "testNavigator");
+    let expected_topic = "onoffline";
+    let expected_data = false;
+    worker.port.onmessage = function(e) {
+      is(e.data.topic, "ready");
+      for each (let attr in ['appName', 'appVersion', 'platform', 'userAgent']) {
+        // each attribute must be a string with length > 0.
+        is(typeof e.data.data[attr], "string");
+        ok(e.data.data[attr].length > 0);
+      }
+
+      worker.port.onmessage = function(e) {
+        // a handler specifically for the offline notification.
+        is(e.data.topic, "onoffline");
+        is(e.data.data, false);
+
+        // add another handler specifically for the 'online' case.
+        worker.port.onmessage = function(e) {
+          is(e.data.topic, "ononline");
+          is(e.data.data, true);
+          // all good!
+          ioService.manageOfflineStatus = oldManage;
+          ioService.offline = oldOffline;
+          worker.terminate();
+          cbnext();
+        }
+        ioService.offline = false;
+      }
+      ioService.offline = true;
+    }
+  },
+  
+  testMissingWorker: function(cbnext) {
+    let worker = getFrameWorkerHandle(url, undefined, "testMissingWorker");
+    Services.obs.addObserver(function handleError() {
+      Services.obs.removeObserver(handleError, "social:frameworker-error");
+        ok(true, "social:frameworker-error was handled");
+        worker.terminate();
+        cbnext();
+    }, 'social:frameworker-error', false);
+    // don't ever create this file!  We want a 404.
+    let url = "https://example.com/browser/toolkit/components/social/test/browser/worker_is_missing.js";
+    worker.port.onmessage = function(e) {
+      ok(false, "social:frameworker-error was handled");
+      cbnext();
+    }
+  },
+
+  testNoConnectWorker: function(cbnext) {
+    let worker = getFrameWorkerHandle(makeWorkerUrl(function () {}),
+                                      undefined, "testNoConnectWorker");
+    Services.obs.addObserver(function handleError() {
+      Services.obs.removeObserver(handleError, "social:frameworker-error");
+        ok(true, "social:frameworker-error was handled");
+        worker.terminate();
+        cbnext();
+    }, 'social:frameworker-error', false);
+    worker.port.onmessage = function(e) {
+      ok(false, "social:frameworker-error was handled");
+      cbnext();
+    }
+  },
+
+  testEmptyWorker: function(cbnext) {
+    let worker = getFrameWorkerHandle("data:application/javascript;charset=utf-8,",
+                                      undefined, "testEmptyWorker");
+    Services.obs.addObserver(function handleError() {
+      Services.obs.removeObserver(handleError, "social:frameworker-error");
+        ok(true, "social:frameworker-error was handled");
+        worker.terminate();
+        cbnext();
+    }, 'social:frameworker-error', false);
+    worker.port.onmessage = function(e) {
+      ok(false, "social:frameworker-error was handled");
+      cbnext();
+    }
+  },
+
+  testWorkerConnectError: function(cbnext) {
+    let run = function () {
+      onconnect = function(e) {
+        throw new Error("worker failure");
+      }
+    }
+    let worker = getFrameWorkerHandle(makeWorkerUrl(run),
+                                      undefined, "testWorkerConnectError");
+    Services.obs.addObserver(function handleError() {
+      Services.obs.removeObserver(handleError, "social:frameworker-error");
+        ok(true, "social:frameworker-error was handled");
+        worker.terminate();
+        cbnext();
+    }, 'social:frameworker-error', false);
+    worker.port.onmessage = function(e) {
+      ok(false, "social:frameworker-error was handled");
+      cbnext();
+    }
+  },
+
+  testReloadAndNewPort: function(cbnext) {
+    let run = function () {
+      onconnect = function(e) {
+        e.ports[0].postMessage({topic: "ready"});
+      }
+    }
+    let doneReload = false;
+    let worker = getFrameWorkerHandle(makeWorkerUrl(run),
+                                      undefined, "testReloadAndNewPort");
+    worker.port.onmessage = function(e) {
+      if (e.data.topic == "ready" && !doneReload) {
+        // do the "reload"
+        doneReload = true;
+        worker._worker.reload();
+        let worker2 = getFrameWorkerHandle(makeWorkerUrl(run),
+                                           undefined, "testReloadAndNewPort");
+        worker2.port.onmessage = function(e) {
+          if (e.data.topic == "ready") {
+            // "worker" and "worker2" are handles to the same worker
+            worker2.terminate();
+            cbnext();
+          }
+        }
+      }
+    }
+  },
 }

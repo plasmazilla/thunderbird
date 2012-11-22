@@ -17,7 +17,7 @@ namespace power {
 
 NS_IMPL_ISUPPORTS1(PowerManagerService, nsIPowerManagerService)
 
-/* static */ nsRefPtr<PowerManagerService> PowerManagerService::sSingleton;
+/* static */ StaticRefPtr<PowerManagerService> PowerManagerService::sSingleton;
 
 /* static */ already_AddRefed<nsIPowerManagerService>
 PowerManagerService::GetInstance()
@@ -75,7 +75,7 @@ PowerManagerService::Notify(const hal::WakeLockInformation& aWakeLockInfo)
    */
   nsAutoTArray<nsCOMPtr<nsIDOMMozWakeLockListener>, 2> listeners(mWakeLockListeners);
 
-  for (PRUint32 i = 0; i < listeners.Length(); ++i) {
+  for (uint32_t i = 0; i < listeners.Length(); ++i) {
     listeners[i]->Callback(aWakeLockInfo.topic(), state);
   }
 }

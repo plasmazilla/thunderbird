@@ -111,9 +111,7 @@ function run_test()
   /**/
 
   // quarantine messages
-  let prefs = Cc["@mozilla.org/preferences-service;1"]
-                .getService(Ci.nsIPrefBranch);
-  prefs.setBoolPref("mailnews.downloadToTempFile", true);
+  Services.prefs.setBoolPref("mailnews.downloadToTempFile", true);
   if (!gLocalInboxFolder)
     loadLocalMailAccount();
 
@@ -224,12 +222,4 @@ function getContentFromMessage(aMsgHdr) {
               .createInstance(Ci.nsIScriptableInputStream);
   sis.init(streamListener.inputStream);
   return sis.read(MAX_MESSAGE_LENGTH);
-}
-
-// get the first message header found in a folder
-function firstMsgHdr(folder) {
-  let enumerator = folder.msgDatabase.EnumerateMessages();
-  if (enumerator.hasMoreElements())
-    return enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
-  return null;
 }

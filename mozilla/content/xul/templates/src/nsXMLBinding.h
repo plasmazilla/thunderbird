@@ -28,7 +28,7 @@ struct nsXMLBinding {
   nsAutoPtr<nsXMLBinding> mNext;
 
   nsXMLBinding(nsIAtom* aVar, nsIDOMXPathExpression* aExpr)
-    : mVar(aVar), mExpr(aExpr), mNext(nsnull)
+    : mVar(aVar), mExpr(aExpr), mNext(nullptr)
   {
     MOZ_COUNT_CTOR(nsXMLBinding);
   }
@@ -49,15 +49,15 @@ public:
 
   // results hold a reference to a binding set in their
   // nsXMLBindingValues fields
-  nsAutoRefCnt mRefCnt;
+  nsCycleCollectingAutoRefCnt mRefCnt;
 
   // pointer to the first binding in a linked list
   nsAutoPtr<nsXMLBinding> mFirst;
 
 public:
 
-  NS_IMETHOD_(nsrefcnt) AddRef();
-  NS_IMETHOD_(nsrefcnt) Release();
+  NS_METHOD_(nsrefcnt) AddRef();
+  NS_METHOD_(nsrefcnt) Release();
   NS_DECL_OWNINGTHREAD
   NS_DECL_CYCLE_COLLECTION_NATIVE_CLASS(nsXMLBindingSet)
 
@@ -73,7 +73,7 @@ public:
    * LookupTargetIndex determines the index into the array for a given
    * target symbol.
    */
-  PRInt32
+  int32_t
   LookupTargetIndex(nsIAtom* aTargetVariable, nsXMLBinding** aBinding);
 };
 
@@ -103,7 +103,7 @@ public:
 
   void SetBindingSet(nsXMLBindingSet* aBindings) { mBindings = aBindings; }
 
-  PRInt32
+  int32_t
   LookupTargetIndex(nsIAtom* aTargetVariable, nsXMLBinding** aBinding)
   {
     return mBindings ?
@@ -122,20 +122,20 @@ public:
   void
   GetAssignmentFor(nsXULTemplateResultXML* aResult,
                    nsXMLBinding* aBinding,
-                   PRInt32 idx,
-                   PRUint16 type,
+                   int32_t idx,
+                   uint16_t type,
                    nsIDOMXPathResult** aValue);
 
   void
   GetNodeAssignmentFor(nsXULTemplateResultXML* aResult,
                        nsXMLBinding* aBinding,
-                       PRInt32 idx,
+                       int32_t idx,
                        nsIDOMNode** aValue);
 
   void
   GetStringAssignmentFor(nsXULTemplateResultXML* aResult,
                          nsXMLBinding* aBinding,
-                         PRInt32 idx,
+                         int32_t idx,
                          nsAString& aValue);
 };
 

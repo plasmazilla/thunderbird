@@ -33,12 +33,15 @@ WorkerResolveProperty(JSContext* cx, JSObject* wrapper, jsid id, bool set,
   return true;
 }
 bool
-WorkerEnumerateProperties(JS::AutoIdVector& props)
+WorkerEnumerateProperties(JSContext* cx, JSObject* wrapper,
+                          JS::AutoIdVector& props)
 {
   return true;
 }
 NativePropertyHooks mozilla::dom::workers::sNativePropertyHooks =
-  { WorkerResolveProperty, WorkerEnumerateProperties, NULL };
+  { WorkerResolveProperty, WorkerResolveProperty,
+    WorkerEnumerateProperties, WorkerEnumerateProperties,
+    NULL };
 
 
 namespace {
@@ -136,7 +139,7 @@ protected:
       parent->AssertIsOnWorkerThread();
     }
 
-    JSObject* obj = JS_NewObject(aCx, aClass, nsnull, nsnull);
+    JSObject* obj = JS_NewObject(aCx, aClass, nullptr, nullptr);
     if (!obj) {
       return false;
     }
@@ -170,7 +173,7 @@ private:
   ~Worker();
 
   static JSBool
-  GetEventListener(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, jsval* aVp)
+  GetEventListener(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, JSMutableHandleValue aVp)
   {
     JS_ASSERT(JSID_IS_INT(aIdval));
     JS_ASSERT(JSID_TO_INT(aIdval) >= 0 && JSID_TO_INT(aIdval) < STRING_COUNT);
@@ -189,13 +192,13 @@ private:
       JS_ReportError(aCx, "Failed to get listener!");
     }
 
-    *aVp = listener ? OBJECT_TO_JSVAL(listener) : JSVAL_NULL;
+    aVp.set(listener ? OBJECT_TO_JSVAL(listener) : JSVAL_NULL);
     return true;
   }
 
   static JSBool
   SetEventListener(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, JSBool aStrict,
-                   jsval* aVp)
+                   JSMutableHandleValue aVp)
   {
     JS_ASSERT(JSID_IS_INT(aIdval));
     JS_ASSERT(JSID_TO_INT(aIdval) >= 0 && JSID_TO_INT(aIdval) < STRING_COUNT);
@@ -207,7 +210,7 @@ private:
     }
 
     JSObject* listener;
-    if (!JS_ValueToObject(aCx, *aVp, &listener)) {
+    if (!JS_ValueToObject(aCx, aVp, &listener)) {
       return false;
     }
 
@@ -233,7 +236,8 @@ private:
   Finalize(JSFreeOp* aFop, JSObject* aObj)
   {
     JS_ASSERT(JS_GetClass(aObj) == Class());
-    WorkerPrivate* worker = UnwrapDOMObject<WorkerPrivate>(aObj);
+    WorkerPrivate* worker =
+      UnwrapDOMObject<WorkerPrivate>(aObj, eRegularDOMObject);
     if (worker) {
       worker->_finalize(aFop);
     }
@@ -243,7 +247,8 @@ private:
   Trace(JSTracer* aTrc, JSObject* aObj)
   {
     JS_ASSERT(JS_GetClass(aObj) == Class());
-    WorkerPrivate* worker = UnwrapDOMObject<WorkerPrivate>(aObj);
+    WorkerPrivate* worker =
+      UnwrapDOMObject<WorkerPrivate>(aObj, eRegularDOMObject);
     if (worker) {
       worker->_trace(aTrc);
     }
@@ -292,6 +297,8 @@ private:
 MOZ_STATIC_ASSERT(prototypes::MaxProtoChainLength == 3,
                   "The MaxProtoChainLength must match our manual DOMJSClasses");
 
+// When this DOMJSClass is removed and it's the last consumer of
+// sNativePropertyHooks then sNativePropertyHooks should be removed too.
 DOMJSClass Worker::sClass = {
   {
     "Worker",
@@ -301,17 +308,21 @@ DOMJSClass Worker::sClass = {
     JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, Finalize,
     NULL, NULL, NULL, NULL, Trace
   },
-  { prototypes::id::EventTarget_workers, prototypes::id::_ID_Count,
-    prototypes::id::_ID_Count },
-  -1, false, &sNativePropertyHooks
+  {
+    { prototypes::id::EventTarget_workers, prototypes::id::_ID_Count,
+      prototypes::id::_ID_Count },
+    false,
+    &sNativePropertyHooks
+  },
+  -1
 };
 
 JSPropertySpec Worker::sProperties[] = {
   { sEventStrings[STRING_onerror], STRING_onerror, PROPERTY_FLAGS,
-    GetEventListener, SetEventListener },
+    JSOP_WRAPPER(GetEventListener), JSOP_WRAPPER(SetEventListener) },
   { sEventStrings[STRING_onmessage], STRING_onmessage, PROPERTY_FLAGS,
-    GetEventListener, SetEventListener },
-  { 0, 0, 0, NULL, NULL }
+    JSOP_WRAPPER(GetEventListener), JSOP_WRAPPER(SetEventListener) },
+  { 0, 0, 0, JSOP_NULLWRAPPER, JSOP_NULLWRAPPER }
 };
 
 JSFunctionSpec Worker::sFunctions[] = {
@@ -374,7 +385,7 @@ private:
     if (aObj) {
       JSClass* classPtr = JS_GetClass(aObj);
       if (classPtr == Class()) {
-        return UnwrapDOMObject<WorkerPrivate>(aObj);
+        return UnwrapDOMObject<WorkerPrivate>(aObj, eRegularDOMObject);
       }
     }
 
@@ -391,7 +402,8 @@ private:
   Finalize(JSFreeOp* aFop, JSObject* aObj)
   {
     JS_ASSERT(JS_GetClass(aObj) == Class());
-    WorkerPrivate* worker = UnwrapDOMObject<WorkerPrivate>(aObj);
+    WorkerPrivate* worker =
+      UnwrapDOMObject<WorkerPrivate>(aObj, eRegularDOMObject);
     if (worker) {
       worker->_finalize(aFop);
     }
@@ -401,7 +413,8 @@ private:
   Trace(JSTracer* aTrc, JSObject* aObj)
   {
     JS_ASSERT(JS_GetClass(aObj) == Class());
-    WorkerPrivate* worker = UnwrapDOMObject<WorkerPrivate>(aObj);
+    WorkerPrivate* worker =
+      UnwrapDOMObject<WorkerPrivate>(aObj, eRegularDOMObject);
     if (worker) {
       worker->_trace(aTrc);
     }
@@ -411,6 +424,8 @@ private:
 MOZ_STATIC_ASSERT(prototypes::MaxProtoChainLength == 3,
                   "The MaxProtoChainLength must match our manual DOMJSClasses");
 
+// When this DOMJSClass is removed and it's the last consumer of
+// sNativePropertyHooks then sNativePropertyHooks should be removed too.
 DOMJSClass ChromeWorker::sClass = {
   { "ChromeWorker",
     JSCLASS_IS_DOMJSCLASS | JSCLASS_HAS_RESERVED_SLOTS(1) |
@@ -419,9 +434,13 @@ DOMJSClass ChromeWorker::sClass = {
     JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, Finalize,
     NULL, NULL, NULL, NULL, Trace,
   },
-  { prototypes::id::EventTarget_workers, prototypes::id::_ID_Count,
-    prototypes::id::_ID_Count },
-  -1, false, &sNativePropertyHooks
+  {
+    { prototypes::id::EventTarget_workers, prototypes::id::_ID_Count,
+      prototypes::id::_ID_Count },
+    false,
+    &sNativePropertyHooks
+  },
+  -1
 };
 
 WorkerPrivate*
@@ -430,7 +449,7 @@ Worker::GetInstancePrivate(JSContext* aCx, JSObject* aObj,
 {
   JSClass* classPtr = JS_GetClass(aObj);
   if (classPtr == Class() || classPtr == ChromeWorker::Class()) {
-    return UnwrapDOMObject<WorkerPrivate>(aObj);
+    return UnwrapDOMObject<WorkerPrivate>(aObj, eRegularDOMObject);
   }
 
   JS_ReportErrorNumber(aCx, js_GetErrorMessage, NULL, JSMSG_INCOMPATIBLE_PROTO,

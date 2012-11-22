@@ -27,9 +27,7 @@ BasicThebesLayer::CreateBuffer(Buffer::ContentType aType, const nsIntSize& aSize
       referenceSurface = defaultTarget->CurrentSurface();
     } else {
       nsIWidget* widget = BasicManager()->GetRetainerWidget();
-      if (widget) {
-        referenceSurface = widget->GetThebesSurface();
-      } else {
+      if (!widget || !(referenceSurface = widget->GetThebesSurface())) {
         referenceSurface = BasicManager()->GetTarget()->CurrentSurface();
       }
     }
@@ -60,7 +58,7 @@ SetAntialiasingFlags(Layer* aLayer, gfxContext* aTarget)
     }
 
     const nsIntRect& bounds = aLayer->GetVisibleRegion().GetBounds();
-    Rect transformedBounds = dt->GetTransform().TransformBounds(Rect(Float(bounds.x), Float(bounds.y),
+    gfx::Rect transformedBounds = dt->GetTransform().TransformBounds(gfx::Rect(Float(bounds.x), Float(bounds.y),
                                                                      Float(bounds.width), Float(bounds.height)));
     transformedBounds.RoundOut();
     IntRect intTransformedBounds;
@@ -106,10 +104,7 @@ BasicThebesLayer::PaintThebes(gfxContext* aContext,
                           gfxASurface::CONTENT_COLOR_ALPHA;
   float opacity = GetEffectiveOpacity();
   
-  if (!BasicManager()->IsRetained() ||
-      (!canUseOpaqueSurface &&
-       (mContentFlags & CONTENT_COMPONENT_ALPHA) &&
-       !MustRetainContent())) {
+  if (!BasicManager()->IsRetained()) {
     NS_ASSERTION(readbackUpdates.IsEmpty(), "Can't do readback for non-retained layer");
 
     mValidRegion.SetEmpty();
@@ -160,7 +155,7 @@ BasicThebesLayer::PaintThebes(gfxContext* aContext,
   }
 
   {
-    PRUint32 flags = 0;
+    uint32_t flags = 0;
 #ifndef MOZ_GFX_OPTIMIZE_MOBILE
     gfxMatrix transform;
     if (!GetEffectiveTransform().CanDraw2D(&transform) ||
@@ -213,7 +208,7 @@ BasicThebesLayer::PaintThebes(gfxContext* aContext,
     mBuffer.DrawTo(this, aContext, opacity, aMaskLayer);
   }
 
-  for (PRUint32 i = 0; i < readbackUpdates.Length(); ++i) {
+  for (uint32_t i = 0; i < readbackUpdates.Length(); ++i) {
     ReadbackProcessor::Update& update = readbackUpdates[i];
     nsIntPoint offset = update.mLayer->GetBackgroundLayerOffset();
     nsRefPtr<gfxContext> ctx =
@@ -258,7 +253,7 @@ struct NS_STACK_CLASS AutoBufferTracker {
   }
 
   ~AutoBufferTracker() {
-    mLayer->mBufferTracker = nsnull;
+    mLayer->mBufferTracker = nullptr;
     mLayer->mBuffer.UnmapBuffer();
     // mInitialBuffer and mNewBuffer will clean up after themselves if
     // they were constructed.
@@ -294,10 +289,10 @@ BasicShadowableThebesLayer::PaintThebes(gfxContext* aContext,
 
   AutoBufferTracker tracker(this);
 
-  BasicThebesLayer::PaintThebes(aContext, nsnull, aCallback, aCallbackData, aReadback);
+  BasicThebesLayer::PaintThebes(aContext, nullptr, aCallback, aCallbackData, aReadback);
   if (aMaskLayer) {
     static_cast<BasicImplData*>(aMaskLayer->ImplData())
-      ->Paint(aContext, nsnull);
+      ->Paint(aContext, nullptr);
   }
 }
 

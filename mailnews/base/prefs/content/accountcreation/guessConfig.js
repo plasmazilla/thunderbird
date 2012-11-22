@@ -94,7 +94,7 @@ function guessConfig(domain, progressCallback, successCallback, errorCallback,
       auth: Ci.nsMsgAuthMethod.passwordCleartext
     });
     successCallback(resultConfig);
-    return;
+    return null;
   }
   var progress = function(thisTry)
   {
@@ -491,23 +491,24 @@ HostDetector.prototype =
       Cc["@mozilla.org/security/certoverride;1"]
         .getService(Ci.nsICertOverrideService)
         .clearValidityOverride(thisTry.hostname, thisTry.port);
-    }
-    if (thisTry._gotCertError == Ci.nsICertOverrideService.ERROR_MISMATCH)
-    {
-      thisTry._gotCertError = false;
-      thisTry.status = kFailed;
-      return;
-    }
 
-    if (thisTry._gotCertError == Ci.nsICertOverrideService.ERROR_UNTRUSTED ||
-        thisTry._gotCertError == Ci.nsICertOverrideService.ERROR_TIME)
-    {
-      this._log.info("TRYING AGAIN, hopefully with exception recorded");
-      thisTry._gotCertError = false;
-      thisTry.selfSignedCert = true; // _next_ run gets this exception
-      thisTry.status = kNotTried; // try again (with exception)
-      this._tryAll();
-      return;
+      if (thisTry._gotCertError == Ci.nsICertOverrideService.ERROR_MISMATCH)
+      {
+        thisTry._gotCertError = false;
+        thisTry.status = kFailed;
+        return;
+      }
+
+      if (thisTry._gotCertError == Ci.nsICertOverrideService.ERROR_UNTRUSTED ||
+          thisTry._gotCertError == Ci.nsICertOverrideService.ERROR_TIME)
+      {
+        this._log.info("TRYING AGAIN, hopefully with exception recorded");
+        thisTry._gotCertError = false;
+        thisTry.selfSignedCert = true; // _next_ run gets this exception
+        thisTry.status = kNotTried; // try again (with exception)
+        this._tryAll();
+        return;
+      }
     }
 
     if (wiredata == null || wiredata === undefined)
@@ -866,16 +867,13 @@ function sslConvertToSocketType(ssl)
 // AccountConfig -> here
 function ConvertSocketTypeToSSL(socketType)
 {
-  switch (socketType) {
-    case 1:
-      return NONE;
-    case 2:
-      return SSL;
-    case 3:
-      return TLS;
-    default:
-      return UNKNOWN;
-  }
+  if (socketType == 1)
+    return NONE;
+  if (socketType == 2)
+    return SSL;
+  if (socketType == 3)
+    return TLS;
+  return UNKNOWN;
 }
 
 // here -> AccountConfig
@@ -1120,6 +1118,7 @@ function SocketUtil(hostname, port, ssl, commands, timeout,
     pump.asyncRead(dataListener, null);
     return new SocketAbortable(transport);
   } catch (e) { _error(e); }
+  return null;
 }
 
 function SocketAbortable(transport)

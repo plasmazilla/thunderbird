@@ -79,7 +79,7 @@ protected:
 
 nsIPrincipal* nsXULPrototypeDocument::gSystemPrincipal;
 nsXULPDGlobalObject* nsXULPrototypeDocument::gSystemGlobal;
-PRUint32 nsXULPrototypeDocument::gRefCnt;
+uint32_t nsXULPrototypeDocument::gRefCnt;
 
 
 void
@@ -126,7 +126,7 @@ JSClass nsXULPDGlobalObject::gSharedGlobalClass = {
 //
 
 nsXULPrototypeDocument::nsXULPrototypeDocument()
-    : mRoot(nsnull),
+    : mRoot(nullptr),
       mLoaded(false),
       mCCGeneration(0)
 {
@@ -140,7 +140,7 @@ nsXULPrototypeDocument::Init()
     mNodeInfoManager = new nsNodeInfoManager();
     NS_ENSURE_TRUE(mNodeInfoManager, NS_ERROR_OUT_OF_MEMORY);
 
-    return mNodeInfoManager->Init(nsnull);
+    return mNodeInfoManager->Init(nullptr);
 }
 
 nsXULPrototypeDocument::~nsXULPrototypeDocument()
@@ -167,11 +167,13 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsXULPrototypeDocument)
     if (nsCCUncollectableMarker::InGeneration(cb, tmp->mCCGeneration)) {
         return NS_SUCCESS_INTERRUPTED_TRAVERSE;
     }
-    NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mRoot)
+    NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NATIVE_MEMBER(mRoot,
+                                                    nsXULPrototypeElement)
     NS_CYCLE_COLLECTION_NOTE_EDGE_NAME(cb, "mGlobalObject");
     cb.NoteXPCOMChild(static_cast<nsIScriptGlobalObject*>(tmp->mGlobalObject));
-    NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mNodeInfoManager)
-    for (PRUint32 i = 0; i < tmp->mPrototypeWaiters.Length(); ++i) {
+    NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NATIVE_MEMBER(mNodeInfoManager,
+                                                    nsNodeInfoManager)
+    for (uint32_t i = 0; i < tmp->mPrototypeWaiters.Length(); ++i) {
         NS_CYCLE_COLLECTION_NOTE_EDGE_NAME(cb, "mPrototypeWaiters[i]");
         cb.NoteXPCOMChild(static_cast<nsINode*>(tmp->mPrototypeWaiters[i].get()));
     }
@@ -197,7 +199,7 @@ NS_NewXULPrototypeDocument(nsXULPrototypeDocument** aResult)
     rv = (*aResult)->Init();
     if (NS_FAILED(rv)) {
         delete *aResult;
-        *aResult = nsnull;
+        *aResult = nullptr;
         return rv;
     }
 
@@ -221,16 +223,16 @@ nsXULPrototypeDocument::NewXULPDGlobalObject()
     nsXULPDGlobalObject *global;
     if (DocumentPrincipal() == gSystemPrincipal) {
         if (!gSystemGlobal) {
-            gSystemGlobal = new nsXULPDGlobalObject(nsnull);
+            gSystemGlobal = new nsXULPDGlobalObject(nullptr);
             if (! gSystemGlobal)
-                return nsnull;
+                return nullptr;
             NS_ADDREF(gSystemGlobal);
         }
         global = gSystemGlobal;
     } else {
         global = new nsXULPDGlobalObject(this); // does not refcount
         if (! global)
-            return nsnull;
+            return nullptr;
     }
     return global;
 }
@@ -248,21 +250,32 @@ nsXULPrototypeDocument::Read(nsIObjectInputStream* aStream)
 
     rv = aStream->ReadObject(true, getter_AddRefs(mURI));
 
-    PRUint32 count, i;
+    uint32_t count, i;
     nsCOMPtr<nsIURI> styleOverlayURI;
 
-    rv |= aStream->Read32(&count);
-    if (NS_FAILED(rv)) return rv;
+    nsresult tmp = aStream->Read32(&count);
+    if (NS_FAILED(tmp)) {
+      return tmp;
+    }
+    if (NS_FAILED(rv)) {
+      return rv;
+    }
 
     for (i = 0; i < count; ++i) {
-        rv |= aStream->ReadObject(true, getter_AddRefs(styleOverlayURI));
+        tmp = aStream->ReadObject(true, getter_AddRefs(styleOverlayURI));
+        if (NS_FAILED(tmp)) {
+          rv = tmp;
+        }
         mStyleSheetReferences.AppendObject(styleOverlayURI);
     }
 
 
     // nsIPrincipal mNodeInfoManager->mPrincipal
     nsCOMPtr<nsIPrincipal> principal;
-    rv |= aStream->ReadObject(true, getter_AddRefs(principal));
+    tmp = aStream->ReadObject(true, getter_AddRefs(principal));
+    if (NS_FAILED(tmp)) {
+      rv = tmp;
+    }
     // Better safe than sorry....
     mNodeInfoManager->SetDocumentPrincipal(principal);
 
@@ -279,56 +292,89 @@ nsXULPrototypeDocument::Read(nsIObjectInputStream* aStream)
     // nsINodeInfo table
     nsCOMArray<nsINodeInfo> nodeInfos;
 
-    rv |= aStream->Read32(&count);
+    tmp = aStream->Read32(&count);
+    if (NS_FAILED(tmp)) {
+      rv = tmp;
+    }
     nsAutoString namespaceURI, prefixStr, localName;
     bool prefixIsNull;
     nsCOMPtr<nsIAtom> prefix;
     for (i = 0; i < count; ++i) {
-        rv |= aStream->ReadString(namespaceURI);
-        rv |= aStream->ReadBoolean(&prefixIsNull);
+        tmp = aStream->ReadString(namespaceURI);
+        if (NS_FAILED(tmp)) {
+          rv = tmp;
+        }
+        tmp = aStream->ReadBoolean(&prefixIsNull);
+        if (NS_FAILED(tmp)) {
+          rv = tmp;
+        }
         if (prefixIsNull) {
-            prefix = nsnull;
+            prefix = nullptr;
         } else {
-            rv |= aStream->ReadString(prefixStr);
+            tmp = aStream->ReadString(prefixStr);
+            if (NS_FAILED(tmp)) {
+              rv = tmp;
+            }
             prefix = do_GetAtom(prefixStr);
         }
-        rv |= aStream->ReadString(localName);
+        tmp = aStream->ReadString(localName);
+        if (NS_FAILED(tmp)) {
+          rv = tmp;
+        }
 
         nsCOMPtr<nsINodeInfo> nodeInfo;
         // Using PR_UINT16_MAX here as we don't know which nodeinfos will be
         // used for attributes and which for elements. And that doesn't really
         // matter.
-        rv |= mNodeInfoManager->GetNodeInfo(localName, prefix, namespaceURI,
+        tmp = mNodeInfoManager->GetNodeInfo(localName, prefix, namespaceURI,
                                             PR_UINT16_MAX,
                                             getter_AddRefs(nodeInfo));
+        if (NS_FAILED(tmp)) {
+          rv = tmp;
+        }
         if (!nodeInfos.AppendObject(nodeInfo))
-            rv |= NS_ERROR_OUT_OF_MEMORY;
+          rv = NS_ERROR_OUT_OF_MEMORY;
     }
 
     // Document contents
-    PRUint32 type;
+    uint32_t type;
     while (NS_SUCCEEDED(rv)) {
-        rv |= aStream->Read32(&type);
+        tmp = aStream->Read32(&type);
+        if (NS_FAILED(tmp)) {
+          rv = tmp;
+        }
 
         if ((nsXULPrototypeNode::Type)type == nsXULPrototypeNode::eType_PI) {
             nsRefPtr<nsXULPrototypePI> pi = new nsXULPrototypePI();
             if (! pi) {
-               rv |= NS_ERROR_OUT_OF_MEMORY;
+               rv = NS_ERROR_OUT_OF_MEMORY;
                break;
             }
 
-            rv |= pi->Deserialize(aStream, mGlobalObject, mURI, &nodeInfos);
-            rv |= AddProcessingInstruction(pi);
+            tmp = pi->Deserialize(aStream, mGlobalObject, mURI, &nodeInfos);
+            if (NS_FAILED(tmp)) {
+              rv = tmp;
+            }
+            tmp = AddProcessingInstruction(pi);
+            if (NS_FAILED(tmp)) {
+              rv = tmp;
+            }
         } else if ((nsXULPrototypeNode::Type)type == nsXULPrototypeNode::eType_Element) {
-            rv |= mRoot->Deserialize(aStream, mGlobalObject, mURI, &nodeInfos);
+            tmp = mRoot->Deserialize(aStream, mGlobalObject, mURI, &nodeInfos);
+            if (NS_FAILED(tmp)) {
+              rv = tmp;
+            }
             break;
         } else {
             NS_NOTREACHED("Unexpected prototype node type");
-            rv |= NS_ERROR_FAILURE;
+            rv = NS_ERROR_FAILURE;
             break;
         }
     }
-    rv |= NotifyLoadDone();
+    tmp = NotifyLoadDone();
+    if (NS_FAILED(tmp)) {
+      rv = tmp;
+    }
 
     return rv;
 }
@@ -345,13 +391,13 @@ GetNodeInfos(nsXULPrototypeElement* aPrototype,
     }
 
     // Search attributes
-    PRUint32 i;
+    uint32_t i;
     for (i = 0; i < aPrototype->mNumAttributes; ++i) {
         nsCOMPtr<nsINodeInfo> ni;
         nsAttrName* name = &aPrototype->mAttributes[i].mName;
         if (name->IsAtom()) {
             ni = aPrototype->mNodeInfo->NodeInfoManager()->
-                GetNodeInfo(name->Atom(), nsnull, kNameSpaceID_None,
+                GetNodeInfo(name->Atom(), nullptr, kNameSpaceID_None,
                             nsIDOMNode::ATTRIBUTE_NODE);
             NS_ENSURE_TRUE(ni, NS_ERROR_OUT_OF_MEMORY);
         }
@@ -386,20 +432,29 @@ nsXULPrototypeDocument::Write(nsIObjectOutputStream* aStream)
 
     rv = aStream->WriteCompoundObject(mURI, NS_GET_IID(nsIURI), true);
     
-    PRUint32 count;
+    uint32_t count;
 
     count = mStyleSheetReferences.Count();
-    rv |= aStream->Write32(count);
+    nsresult tmp = aStream->Write32(count);
+    if (NS_FAILED(tmp)) {
+      rv = tmp;
+    }
 
-    PRUint32 i;
+    uint32_t i;
     for (i = 0; i < count; ++i) {
-        rv |= aStream->WriteCompoundObject(mStyleSheetReferences[i],
+        tmp = aStream->WriteCompoundObject(mStyleSheetReferences[i],
                                            NS_GET_IID(nsIURI), true);
+        if (NS_FAILED(tmp)) {
+          rv = tmp;
+        }
     }
 
     // nsIPrincipal mNodeInfoManager->mPrincipal
-    rv |= aStream->WriteObject(mNodeInfoManager->DocumentPrincipal(),
+    tmp = aStream->WriteObject(mNodeInfoManager->DocumentPrincipal(),
                                true);
+    if (NS_FAILED(tmp)) {
+      rv = tmp;
+    }
     
 #ifdef DEBUG
     // XXX Worrisome if we're caching things without system principal.
@@ -410,30 +465,52 @@ nsXULPrototypeDocument::Write(nsIObjectOutputStream* aStream)
 
     // nsINodeInfo table
     nsCOMArray<nsINodeInfo> nodeInfos;
-    if (mRoot)
-        rv |= GetNodeInfos(mRoot, nodeInfos);
+    if (mRoot) {
+      tmp = GetNodeInfos(mRoot, nodeInfos);
+      if (NS_FAILED(tmp)) {
+        rv = tmp;
+      }
+    }
 
-    PRUint32 nodeInfoCount = nodeInfos.Count();
-    rv |= aStream->Write32(nodeInfoCount);
+    uint32_t nodeInfoCount = nodeInfos.Count();
+    tmp = aStream->Write32(nodeInfoCount);
+    if (NS_FAILED(tmp)) {
+      rv = tmp;
+    }
     for (i = 0; i < nodeInfoCount; ++i) {
         nsINodeInfo *nodeInfo = nodeInfos[i];
         NS_ENSURE_TRUE(nodeInfo, NS_ERROR_FAILURE);
 
         nsAutoString namespaceURI;
-        rv |= nodeInfo->GetNamespaceURI(namespaceURI);
-        rv |= aStream->WriteWStringZ(namespaceURI.get());
+        tmp = nodeInfo->GetNamespaceURI(namespaceURI);
+        if (NS_FAILED(tmp)) {
+          rv = tmp;
+        }
+        tmp = aStream->WriteWStringZ(namespaceURI.get());
+        if (NS_FAILED(tmp)) {
+          rv = tmp;
+        }
 
         nsAutoString prefix;
         nodeInfo->GetPrefix(prefix);
         bool nullPrefix = DOMStringIsNull(prefix);
-        rv |= aStream->WriteBoolean(nullPrefix);
+        tmp = aStream->WriteBoolean(nullPrefix);
+        if (NS_FAILED(tmp)) {
+          rv = tmp;
+        }
         if (!nullPrefix) {
-            rv |= aStream->WriteWStringZ(prefix.get());
+            tmp = aStream->WriteWStringZ(prefix.get());
+            if (NS_FAILED(tmp)) {
+              rv = tmp;
+            }
         }
 
         nsAutoString localName;
         nodeInfo->GetName(localName);
-        rv |= aStream->WriteWStringZ(localName.get());
+        tmp = aStream->WriteWStringZ(localName.get());
+        if (NS_FAILED(tmp)) {
+          rv = tmp;
+        }
     }
 
     // Now serialize the document contents
@@ -443,11 +520,18 @@ nsXULPrototypeDocument::Write(nsIObjectOutputStream* aStream)
     count = mProcessingInstructions.Length();
     for (i = 0; i < count; ++i) {
         nsXULPrototypePI* pi = mProcessingInstructions[i];
-        rv |= pi->Serialize(aStream, globalObject, &nodeInfos);
+        tmp = pi->Serialize(aStream, globalObject, &nodeInfos);
+        if (NS_FAILED(tmp)) {
+          rv = tmp;
+        }
     }
 
-    if (mRoot)
-        rv |= mRoot->Serialize(aStream, globalObject, &nodeInfos);
+    if (mRoot) {
+      tmp = mRoot->Serialize(aStream, globalObject, &nodeInfos);
+      if (NS_FAILED(tmp)) {
+        rv = tmp;
+      }
+    }
  
     return rv;
 }
@@ -586,7 +670,7 @@ nsXULPrototypeDocument::NotifyLoadDone()
 
     mLoaded = true;
 
-    for (PRUint32 i = mPrototypeWaiters.Length(); i > 0; ) {
+    for (uint32_t i = mPrototypeWaiters.Length(); i > 0; ) {
         --i;
         // true means that OnPrototypeLoadDone will also
         // call ResumeWalk().
@@ -674,7 +758,7 @@ nsXULPDGlobalObject::EnsureScriptEnvironment()
     JSObject *newGlob;
     JSCompartment *compartment;
 
-    rv = xpc_CreateGlobalObject(cx, &gSharedGlobalClass, principal, nsnull,
+    rv = xpc_CreateGlobalObject(cx, &gSharedGlobalClass, principal, nullptr,
                                 false, &newGlob, &compartment);
     NS_ENSURE_SUCCESS(rv, NS_OK);
 

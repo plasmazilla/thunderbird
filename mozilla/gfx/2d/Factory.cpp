@@ -173,10 +173,11 @@ Factory::CreateDrawTarget(BackendType aBackend, const IntSize &aSize, SurfaceFor
     }
 #elif defined XP_MACOSX
   case BACKEND_COREGRAPHICS:
+  case BACKEND_COREGRAPHICS_ACCELERATED:
     {
       RefPtr<DrawTargetCG> newTarget;
       newTarget = new DrawTargetCG();
-      if (newTarget->Init(aSize, aFormat)) {
+      if (newTarget->Init(aBackend, aSize, aFormat)) {
         return newTarget;
       }
       break;
@@ -195,12 +196,12 @@ Factory::CreateDrawTarget(BackendType aBackend, const IntSize &aSize, SurfaceFor
 #endif
   default:
     gfxDebug() << "Invalid draw target type specified.";
-    return NULL;
+    return nullptr;
   }
 
   gfxDebug() << "Failed to create DrawTarget, Type: " << aBackend << " Size: " << aSize;
   // Failed
-  return NULL;
+  return nullptr;
 }
 
 TemporaryRef<DrawTarget>
@@ -220,14 +221,23 @@ Factory::CreateDrawTargetForData(BackendType aBackend,
       return newTarget;
     }
 #endif
+#ifdef XP_MACOSX
+  case BACKEND_COREGRAPHICS:
+    {
+      RefPtr<DrawTargetCG> newTarget = new DrawTargetCG();
+      if (newTarget->Init(aBackend, aData, aSize, aStride, aFormat))
+        return newTarget;
+      break;
+    }
+#endif
   default:
     gfxDebug() << "Invalid draw target type specified.";
-    return NULL;
+    return nullptr;
   }
 
   gfxDebug() << "Failed to create DrawTarget, Type: " << aBackend << " Size: " << aSize;
   // Failed
-  return NULL;
+  return nullptr;
 }
 
 TemporaryRef<ScaledFont>
@@ -239,6 +249,10 @@ Factory::CreateScaledFontForNativeFont(const NativeFont &aNativeFont, Float aSiz
     {
       return new ScaledFontDWrite(static_cast<IDWriteFontFace*>(aNativeFont.mFont), aSize);
     }
+  case NATIVE_FONT_GDI_FONT_FACE:
+    {
+      return new ScaledFontWin(static_cast<LOGFONT*>(aNativeFont.mFont), aSize);
+    }
 #endif
 #ifdef XP_MACOSX
   case NATIVE_FONT_MAC_FONT_FACE:
@@ -247,12 +261,6 @@ Factory::CreateScaledFontForNativeFont(const NativeFont &aNativeFont, Float aSiz
     }
 #endif
 #ifdef USE_SKIA
-#ifdef WIN32
-  case NATIVE_FONT_GDI_FONT_FACE:
-    {
-      return new ScaledFontWin(static_cast<LOGFONT*>(aNativeFont.mFont), aSize);
-    }
-#endif
 #ifdef MOZ_ENABLE_FREETYPE
   case NATIVE_FONT_SKIA_FONT_FACE:
     {
@@ -263,12 +271,14 @@ Factory::CreateScaledFontForNativeFont(const NativeFont &aNativeFont, Float aSiz
 #ifdef USE_CAIRO
   case NATIVE_FONT_CAIRO_FONT_FACE:
     {
-      return new ScaledFontBase(aSize);
+      ScaledFontBase* fontBase = new ScaledFontBase(aSize);
+      fontBase->SetCairoScaledFont(static_cast<cairo_scaled_font_t*>(aNativeFont.mFont));
+      return fontBase;
     }
 #endif
   default:
     gfxWarning() << "Invalid native font type specified.";
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -284,7 +294,7 @@ Factory::CreateScaledFontWithCairo(const NativeFont& aNativeFont, Float aSize, c
   static_cast<ScaledFontBase*>(font.get())->SetCairoScaledFont(aScaledFont);
   return font;
 #else
-  return NULL;
+  return nullptr;
 #endif
 }
 
@@ -302,7 +312,7 @@ Factory::CreateDrawTargetForD3D10Texture(ID3D10Texture2D *aTexture, SurfaceForma
   gfxWarning() << "Failed to create draw target for D3D10 texture.";
 
   // Failed
-  return NULL;
+  return nullptr;
 }
 
 TemporaryRef<DrawTarget>
@@ -316,13 +326,13 @@ Factory::CreateDualDrawTargetForD3D10Textures(ID3D10Texture2D *aTextureA,
   newTargetA = new DrawTargetD2D();
   if (!newTargetA->Init(aTextureA, aFormat)) {
     gfxWarning() << "Failed to create draw target for D3D10 texture.";
-    return NULL;
+    return nullptr;
   }
 
   newTargetB = new DrawTargetD2D();
   if (!newTargetB->Init(aTextureB, aFormat)) {
     gfxWarning() << "Failed to create draw target for D3D10 texture.";
-    return NULL;
+    return nullptr;
   }
 
   RefPtr<DrawTarget> newTarget =
@@ -367,16 +377,16 @@ Factory::GetD2DVRAMUsageSourceSurface()
 #endif // XP_WIN
 
 TemporaryRef<DrawTarget>
-Factory::CreateDrawTargetForCairoSurface(cairo_surface_t* aSurface)
+Factory::CreateDrawTargetForCairoSurface(cairo_surface_t* aSurface, const IntSize& aSize)
 {
 #ifdef USE_CAIRO
   RefPtr<DrawTargetCairo> newTarget = new DrawTargetCairo();
-  if (newTarget->Init(aSurface)) {
+  if (newTarget->Init(aSurface, aSize)) {
     return newTarget;
   }
 
 #endif
-  return NULL;
+  return nullptr;
 }
 
 TemporaryRef<DataSourceSurface>
@@ -390,7 +400,7 @@ Factory::CreateWrappingDataSourceSurface(uint8_t *aData, int32_t aStride,
     return newSurf;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 }

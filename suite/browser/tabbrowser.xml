@@ -107,7 +107,8 @@
       </field>
       <field name="mFaviconService" readonly="true">
         Components.classes["@mozilla.org/browser/favicon-service;1"]
-                  .getService(Components.interfaces.nsIFaviconService);
+                  .getService(Components.interfaces.nsIFaviconService)
+                  .QueryInterface(Components.interfaces.mozIAsyncFavicons);
       </field>
       <field name="mIOService" readonly="true">
         Components.classes["@mozilla.org/network/io-service;1"]
@@ -533,9 +534,12 @@
             mLocationChangeCount : 0,
 
             onLocationChange: function(aWebProgress, aRequest, aLocation, aFlags) {
-              if (aRequest && aWebProgress.DOMWindow == this.mBrowser.contentWindow) {
-                this.mBrowser.mIconURL = "";
-                this.mFeeds = [];
+              const nsIWebProgressListener = Components.interfaces.nsIWebProgressListener;
+              if (aWebProgress.DOMWindow == this.mBrowser.contentWindow) {
+                if (!(aFlags & nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT)) {
+                  this.mBrowser.mIconURL = "";
+                  this.mFeeds = [];
+                }
 
                 if (this.mLocationChangeCount > 0 ||
                     aLocation.spec != "about:blank")
@@ -548,7 +552,7 @@
 
                 // Clear the value if this was a user document or an error page.
                 if (this.mBrowser.userTypedClear > 0 ||
-                    !Components.isSuccessCode(aRequest.status))
+                    aFlags & nsIWebProgressListener.LOCATION_CHANGE_ERROR_PAGE)
                   this.mBrowser.userTypedValue = null;
               }
 
@@ -557,7 +561,8 @@
 
               if (this.mTabBrowser.mCurrentTab == this.mTab)
                 this.mTabBrowser.updateUrlBar(aWebProgress, aRequest, aLocation,
-                                              null, this.mBrowser, this.mFeeds);
+                                              aFlags, null, this.mBrowser,
+                                              this.mFeeds);
 
               this.mTabBrowser._callProgressListeners(this.mBrowser, "onLocationChange",
                                                       [aWebProgress, aRequest, aLocation, aFlags],
@@ -771,14 +776,10 @@
             if (this.mFaviconService) {
               let uri = this.mIOService.newURI(iconURL, null, null);
               this.mFaviconService.setAndFetchFaviconForPage(aURI, uri, false);
+              if (this.mFaviconService.isFailedFavicon(uri))
+                return;
             }
-            var entry = this.openCacheEntry(iconURL, Components.interfaces.nsICache.ACCESS_READ);
-            if (!entry)
-              aElt.setAttribute(aAttr, iconURL);
-            else {
-              entry.close();
-              entry = null;
-            }
+            aElt.setAttribute(aAttr, iconURL);
           ]]>
         </body>
       </method>
@@ -787,35 +788,9 @@
         <parameter name="aURI"/>
         <body>
           <![CDATA[
-            var entry = this.openCacheEntry(aURI, Components.interfaces.nsICache.ACCESS_READ_WRITE);
-            if (!entry)
-              return;
-
-            if (entry.accessGranted == Components.interfaces.nsICache.ACCESS_WRITE)
-              // It's a new entry.  Just write a bit of metadata in to the entry.
-              entry.setMetaDataElement("Icon", "Missed");
-            entry.markValid();
-            entry.close();
-          ]]>
-        </body>
-      </method>
-
-      <method name="openCacheEntry">
-        <parameter name="key"/>
-        <parameter name="access"/>
-        <body>
-          <![CDATA[
-            try {
-              if (!this.mMissedIconCache) {
-                var cacheService = Components.classes['@mozilla.org/network/cache-service;1'].getService(Components.interfaces.nsICacheService);
-                this.mMissedIconCache = cacheService.createSession("MissedIconCache", Components.interfaces.nsICache.STORE_ANYWHERE, true);
-                if (!this.mMissedIconCache)
-                  return null;
-              }
-              return this.mMissedIconCache.openCacheEntry(key, access, true);
-            }
-            catch (e) {
-              return null;
+            if (this.mFaviconService) {
+              let uri = this.mIOService.newURI(iconURL, null, null);
+              this.mFaviconService.addFailedFavicon(uri);
             }
           ]]>
         </body>
@@ -853,6 +828,7 @@
         <parameter name="aWebProgress"/>
         <parameter name="aRequest"/>
         <parameter name="aLocation"/>
+        <parameter name="aFlags"/>
         <parameter name="aSecurityUI"/>
         <parameter name="aBrowser"/>
         <parameter name="aFeeds"/>
@@ -862,7 +838,7 @@
               function notifyUrlBar(element) {
                 try {
                   if ("onLocationChange" in element)
-                    element.onLocationChange(aWebProgress, aRequest, aLocation, 0);
+                    element.onLocationChange(aWebProgress, aRequest, aLocation, aFlags);
                   // If switching tabs, the security may have changed.
                   if (aSecurityUI && "onSecurityChange" in element)
                     element.onSecurityChange(aWebProgress, null, aSecurityUI.state);
@@ -990,9 +966,11 @@
             var tabListener = this.mTabListeners[this.tabContainer.selectedIndex];
 
             // Update the URL bar.
+            const nsIWebProgressListener = Components.interfaces.nsIWebProgressListener;
             this.updateUrlBar(newBrowser.webProgress,
                               null,
                               newBrowser.currentURI,
+                              nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT,
                               newBrowser.securityUI,
                               newBrowser,
                               tabListener.mFeeds);
@@ -1004,7 +982,6 @@
             this.fastFind.setDocShell(this.mCurrentBrowser.docShell);
 
             // Send the state, status and progress to all progress listeners.
-            const nsIWebProgressListener = Components.interfaces.nsIWebProgressListener;
             var flags = tabListener.mStateFlags &
                 (nsIWebProgressListener.STATE_START |
                  nsIWebProgressListener.STATE_STOP);

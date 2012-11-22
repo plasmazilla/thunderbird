@@ -3,10 +3,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH		= ../..
+DEPTH		= @DEPTH@
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
+FAIL_ON_WARNINGS := 1
 
 include $(DEPTH)/config/autoconf.mk
 
@@ -17,6 +18,11 @@ FORCE_STATIC_LIB = 1
 
 DIRS = \
   test \
+  $(NULL)
+
+EXTRA_COMPONENTS = \
+  SiteSpecificUserAgent.js \
+  SiteSpecificUserAgent.manifest \
   $(NULL)
 
 EXTRA_PP_COMPONENTS = \
@@ -30,6 +36,7 @@ EXTRA_JS_MODULES = ConsoleAPIStorage.jsm \
 EXTRA_JS_MODULES += \
   DOMRequestHelper.jsm \
   IndexedDBHelper.jsm \
+  ObjectWrapper.jsm \
   $(NULL)
 
 XPIDLSRCS = \
@@ -37,13 +44,13 @@ XPIDLSRCS = \
   nsIDOMDOMRequest.idl \
   nsIEntropyCollector.idl \
   nsIScriptChannel.idl \
+  nsISiteSpecificUserAgent.idl \
   $(NULL)
 
 EXPORTS = \
   nsDOMCID.h \
   nsDOMClassInfoClasses.h \
   nsDOMClassInfoID.h \
-  nsDOMError.h \
   nsDOMJSUtils.h \
   nsDOMScriptObjectHolder.h \
   nsDOMString.h \
@@ -56,7 +63,6 @@ EXPORTS = \
   nsIScriptGlobalObject.h \
   nsIScriptGlobalObjectOwner.h \
   nsIScriptNameSpaceManager.h \
-  nsIScriptEventHandlerOwner.h \
   nsIScriptObjectPrincipal.h \
   nsIScriptRuntime.h \
   nsIScriptTimeoutHandler.h \
@@ -64,6 +70,7 @@ EXPORTS = \
   nsPIWindowRoot.h \
   nsFocusManager.h \
   nsWrapperCache.h \
+  nsWrapperCacheInlines.h \
   nsContentPermissionHelper.h \
   nsStructuredCloneContainer.h \
   nsWindowMemoryReporter.h \
@@ -133,3 +140,7 @@ ifdef MOZ_X11
 CXXFLAGS += $(TK_CFLAGS)
 LDFLAGS += $(TK_LIBS)
 endif
+
+XPIDL_FLAGS += \
+  -I$(topsrcdir)/dom/interfaces/events \
+  $(NULL)

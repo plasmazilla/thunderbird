@@ -20,7 +20,7 @@ var gGenericImportHelper;
 function GenericImportHelper(aModuleType, aModuleSearchString, aFile)
 {
   gGenericImportHelper = null;
-  if (aModuleType != "addressbook" && aModuleType != "mail")
+  if (["addressbook", "mail", "settings"].indexOf(aModuleType) == -1)
     do_throw("Unexpected type passed to the GenericImportHelper constructor");
   this.mModuleType = aModuleType;
   this.mModuleSearchString = aModuleSearchString;
@@ -32,13 +32,14 @@ function GenericImportHelper(aModuleType, aModuleSearchString, aFile)
 
 GenericImportHelper.prototype =
 {
+  interfaceType: Ci.nsIImportGeneric,
   /**
    * GenericImportHelper.beginImport
    * Imports the given address book export or mail data and invoke 
    * checkProgress of child class to check the data,
    */
   beginImport: function() {
-    do_check_true(this.mFile instanceof Ci.nsIFile && this.mFile.exists())
+    do_check_true(this.mFile instanceof Ci.nsIFile && this.mFile.exists());
 
     if (this.mModuleType == "addressbook")
       this.mInterface.SetData("addressLocation", this.mFile);
@@ -71,7 +72,7 @@ GenericImportHelper.prototype =
       if (importService.GetModuleName(this.mModuleType, i).indexOf(this.mModuleSearchString) != -1) {
         return importService.GetModule(this.mModuleType, i)
                             .GetImportInterface(this.mModuleType)
-                            .QueryInterface(Ci.nsIImportGeneric);
+                            .QueryInterface(this.interfaceType);
       }
     }
     return null; // it wasn't found
@@ -104,7 +105,7 @@ GenericImportHelper.prototype =
    */
   checkResults: function() {
   }
-}
+};
 
 function endsWith(string, suffix) {
   return string.indexOf(suffix, string.length - suffix.length) != -1;
@@ -150,13 +151,18 @@ function AbImportHelper(aFile, aModuleSearchString, aAbName, aJsonName)
      "WorkState", "WorkZipCode", "WorkCountry", "JobTitle", "Department",
      "Company", "BirthYear", "BirthMonth", "BirthDay", "WebPage1", "WebPage2",
      "Custom1", "Custom2", "Custom3", "Custom4", "Notes", "_AimScreenName"];
+
   // get the extra attributes supported for the given type of import
   if (endsWith(this.mFile.leafName.toLowerCase(), ".ldif")) {
     // LDIF: add PreferMailFormat
     this.mSupportedAttributes = supportedAttributes.concat(["PreferMailFormat"]);
   } else if (endsWith(this.mFile.leafName.toLowerCase(), ".csv")) {
     this.mSupportedAttributes = supportedAttributes;
-  }
+    this.setFieldMap(this.getDefaultFieldMap(true));
+  } else if (endsWith(this.mFile.leafName.toLowerCase(), ".vcf")) {
+    this.mSupportedAttributes = supportedAttributes;
+  };
+
   // get the "cards" from the JSON file, if necessary
   if (aJsonName)
     this.mJsonCards = this.getJsonCards(aJsonName);
@@ -320,7 +326,7 @@ AbImportHelper.prototype =
     do_check_true(arr && arr.length > 0);
     return arr;
   }
-}
+};
 AbImportHelper.prototype.__proto__ = GenericImportHelper.prototype;
 
 /**
@@ -345,6 +351,7 @@ function MailImportHelper(aFile, aModuleSearchString, aExpected)
 
 MailImportHelper.prototype =
 {
+  interfaceType: Ci.nsIImportGeneric,
   _checkEqualFolder: function(expectedFolder, actualFolder) {
     do_check_eq(expectedFolder.leafName, actualFolder.name);
     let expectedSubFolderCount = 0;
@@ -379,5 +386,136 @@ MailImportHelper.prototype =
 }
 
 MailImportHelper.prototype.__proto__ = GenericImportHelper.prototype;
+
+/**
+ * SettingsImportHelper
+ * A helper for settings imports.
+ *
+ * @param aFile      An instance of nsIFile to import, can be null.
+ * @param aModuleSearchString
+ *                   The string to search the module names for, such as
+ *                   "Outlook Express" or "Eudora mail" etc. etc.
+ * @param aExpected  An array of object which has incomingServer, identity
+ *                   and smtpSever to compare with imported nsIMsgAccount.
+ *
+ * @constructor
+ * @class
+ */
+function SettingsImportHelper(aFile, aModuleSearchString, aExpected)
+{
+  GenericImportHelper.call(this, "settings", aModuleSearchString, aFile);
+  this.mExpected = aExpected;
+  this.mInterface = this._findInterface();
+  do_check_neq(this.mInterface, null);
+
+  this.mFile = aFile;
+}
+
+SettingsImportHelper.prototype =
+{
+  interfaceType: Ci.nsIImportSettings,
+  /**
+   * SettingsImportHelper.beginImport
+   * Imports settings from a specific file or auto-located if the file is null,
+   * and compare the import results with the expected array.
+   */
+  beginImport: function() {
+    this._ensureNoAccounts();
+    if (this.mFile)
+      this.mInterface.SetLocation(this.mFile)
+    else
+      do_check_eq(true, this.mInterface.AutoLocate({}, {}));
+    do_check_eq(true, this.mInterface.Import({}));
+    this.checkResults();
+  },
+
+  _ensureNoAccounts: function() {
+    let accounts = MailServices.accounts.accounts;
+
+    for (let i = 0; i < accounts.Count(); i++) {
+      let account = accounts.QueryElementAt(i, Ci.nsIMsgAccount);
+      MailServices.accounts.removeAccount(account);
+    }
+  },
+
+  _checkSmtpServer: function(expected, actual) {
+    do_check_eq(expected.port, actual.port);
+    do_check_eq(expected.username, actual.username);
+    do_check_eq(expected.authMethod, actual.authMethod);
+    do_check_eq(expected.socketType, actual.socketType);
+  },
+
+  _checkIdentity: function(expected, actual) {
+    do_check_eq(expected.fullName, actual.fullName);
+    do_check_eq(expected.email, actual.email);
+    do_check_eq(expected.replyTo, actual.replyTo);
+    do_check_eq(expected.organization, actual.organization);
+  },
+
+  _checkPop3IncomingServer: function(expected, actual) {
+    do_check_eq(expected.leaveMessagesOnServer, actual.leaveMessagesOnServer);
+    do_check_eq(expected.deleteMailLeftOnServer, actual.deleteMailLeftOnServer);
+    do_check_eq(expected.deleteByAgeFromServer, actual.deleteByAgeFromServer);
+    do_check_eq(expected.numDaysToLeaveOnServer, actual.numDaysToLeaveOnServer);
+  },
+
+  _checkIncomingServer: function(expected, actual) {
+    do_check_eq(expected.type, actual.type);
+    do_check_eq(expected.port, actual.port);
+    do_check_eq(expected.username, actual.username);
+    do_check_eq(expected.isSecure, actual.isSecure);
+    do_check_eq(expected.hostName, actual.hostName);
+    do_check_eq(expected.prettyName, actual.prettyName);
+    do_check_eq(expected.authMethod, actual.authMethod);
+    do_check_eq(expected.socketType, actual.socketType);
+    do_check_eq(expected.doBiff, actual.doBiff);
+    do_check_eq(expected.biffMinutes, actual.biffMinutes);
+
+    if (expected.type == "pop3")
+      this._checkPop3IncomingServer(expected, actual.QueryInterface(Ci.nsIPop3IncomingServer));
+  },
+
+  _checkAccount: function(expected, actual) {
+    this._checkIncomingServer(expected.incomingServer, actual.incomingServer);
+
+    do_check_eq(1, actual.identities.Count());
+    let actualIdentity = actual.identities.QueryElementAt(0, Ci.nsIMsgIdentity);
+    this._checkIdentity(expected.identity, actualIdentity);
+
+    if (expected.incomingServer.type != "nntp") {
+      let actualSmtpServer = MailServices.smtp.getServerByKey(actualIdentity.smtpServerKey);
+      this._checkSmtpServer(expected.smtpServer, actualSmtpServer);
+    }
+  },
+
+  _isLocalMailAccount: function(account) {
+    return (account.incomingServer.type == "none" &&
+            account.incomingServer.username == "nobody" &&
+            account.incomingServer.hostName == "Local Folders");
+  },
+
+  _findExpectedAccount: function(account) {
+    return this.mExpected.filter(function(expectedAccount) {
+      return (expectedAccount.incomingServer.type == account.incomingServer.type &&
+              expectedAccount.incomingServer.username == account.incomingServer.username &&
+              expectedAccount.incomingServer.hostName == account.incomingServer.hostName);
+    });
+  },
+
+  checkResults: function() {
+    accounts = MailServices.accounts.accounts;
+    for (let i = 0; i < accounts.Count() - 1; i++) {
+      let actualAccount = accounts.QueryElementAt(i, Ci.nsIMsgAccount);
+      if (this._isLocalMailAccount(actualAccount))
+        continue;
+      let expectedAccounts = this._findExpectedAccount(actualAccount);
+      do_check_neq(null, expectedAccounts);
+      do_check_eq(1, expectedAccounts.length);
+      this._checkAccount(expectedAccounts[0], actualAccount);
+    }
+  }
+}
+
+SettingsImportHelper.prototype.__proto__ = GenericImportHelper.prototype;
 
 do_load_manifest("resources/TestMailImporter.manifest");

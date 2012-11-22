@@ -230,7 +230,7 @@ FetchIconInfo(nsRefPtr<Database>& aDB,
   rv = stmt->GetIsNull(1, &isNull);
   NS_ENSURE_SUCCESS(rv, rv);
   if (!isNull) {
-    rv = stmt->GetInt64(1, &_icon.expiration);
+    rv = stmt->GetInt64(1, reinterpret_cast<int64_t*>(&_icon.expiration));
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
@@ -238,8 +238,8 @@ FetchIconInfo(nsRefPtr<Database>& aDB,
   rv = stmt->GetIsNull(2, &isNull);
   NS_ENSURE_SUCCESS(rv, rv);
   if (!isNull) {
-    PRUint8* data;
-    PRUint32 dataLen = 0;
+    uint8_t* data;
+    uint32_t dataLen = 0;
     rv = stmt->GetBlob(2, &dataLen, &data);
     NS_ENSURE_SUCCESS(rv, rv);
     _icon.data.Adopt(TO_CHARBUFFER(data), dataLen);
@@ -355,7 +355,7 @@ GetExpirationTimeFromChannel(nsIChannel* aChannel)
     nsresult rv = cachingChannel->GetCacheToken(getter_AddRefs(cacheToken));
     if (NS_SUCCEEDED(rv)) {
       nsCOMPtr<nsICacheEntryInfo> cacheEntry = do_QueryInterface(cacheToken);
-      PRUint32 seconds;
+      uint32_t seconds;
       rv = cacheEntry->GetExpirationTime(&seconds);
       if (NS_SUCCEEDED(rv)) {
         // Set the expiration, but make sure we honor our cap.
@@ -596,7 +596,7 @@ AsyncFetchAndSetIconFromNetwork::Run()
   NS_ENSURE_STATE(listenerRequestor);
   rv = mChannel->SetNotificationCallbacks(listenerRequestor);
   NS_ENSURE_SUCCESS(rv, rv);
-  rv = mChannel->AsyncOpen(this, nsnull);
+  rv = mChannel->AsyncOpen(this, nullptr);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
@@ -613,8 +613,8 @@ NS_IMETHODIMP
 AsyncFetchAndSetIconFromNetwork::OnDataAvailable(nsIRequest* aRequest,
                                                  nsISupports* aContext,
                                                  nsIInputStream* aInputStream,
-                                                 PRUint32 aOffset,
-                                                 PRUint32 aCount)
+                                                 uint32_t aOffset,
+                                                 uint32_t aCount)
 {
   nsCAutoString buffer;
   nsresult rv = NS_ConsumeStream(aInputStream, aCount, buffer);
@@ -639,7 +639,7 @@ NS_IMETHODIMP
 AsyncFetchAndSetIconFromNetwork::AsyncOnChannelRedirect(
   nsIChannel* oldChannel
 , nsIChannel* newChannel
-, PRUint32 flags
+, uint32_t flags
 , nsIAsyncVerifyRedirectCallback *cb
 )
 {

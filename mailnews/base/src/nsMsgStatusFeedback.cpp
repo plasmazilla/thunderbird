@@ -26,9 +26,9 @@
 #define MSGFEEDBACK_TIMER_INTERVAL 500
 
 nsMsgStatusFeedback::nsMsgStatusFeedback() :
-  m_lastPercent(0)
+  m_lastPercent(0),
+  m_lastProgressTime(0)
 {
-  LL_I2L(m_lastProgressTime, 0);
 
   nsresult rv;
   nsCOMPtr<nsIStringBundleService> bundleService =
@@ -43,7 +43,7 @@ nsMsgStatusFeedback::nsMsgStatusFeedback() :
 
 nsMsgStatusFeedback::~nsMsgStatusFeedback()
 {
-  mBundle = nsnull;
+  mBundle = nullptr;
 }
 
 NS_IMPL_THREADSAFE_ADDREF(nsMsgStatusFeedback)
@@ -64,12 +64,12 @@ NS_INTERFACE_MAP_END
 NS_IMETHODIMP
 nsMsgStatusFeedback::OnProgressChange(nsIWebProgress* aWebProgress,
                                       nsIRequest* aRequest,
-                                      PRInt32 aCurSelfProgress,
-                                      PRInt32 aMaxSelfProgress, 
-                                      PRInt32 aCurTotalProgress,
-                                      PRInt32 aMaxTotalProgress)
+                                      int32_t aCurSelfProgress,
+                                      int32_t aMaxSelfProgress, 
+                                      int32_t aCurTotalProgress,
+                                      int32_t aMaxTotalProgress)
 {
-  PRInt32 percentage = 0;
+  int32_t percentage = 0;
   if (aMaxTotalProgress > 0)
   {
     percentage =  (aCurTotalProgress * 100) / aMaxTotalProgress;
@@ -83,7 +83,7 @@ nsMsgStatusFeedback::OnProgressChange(nsIWebProgress* aWebProgress,
 NS_IMETHODIMP
 nsMsgStatusFeedback::OnStateChange(nsIWebProgress* aWebProgress,
                                    nsIRequest* aRequest,
-                                   PRUint32 aProgressStateFlags,
+                                   uint32_t aProgressStateFlags,
                                    nsresult aStatus)
 {
   nsresult rv;
@@ -162,7 +162,7 @@ nsMsgStatusFeedback::OnStateChange(nsIWebProgress* aWebProgress,
 NS_IMETHODIMP nsMsgStatusFeedback::OnLocationChange(nsIWebProgress* aWebProgress,
                                                     nsIRequest* aRequest,
                                                     nsIURI* aLocation,
-                                                    PRUint32 aFlags)
+                                                    uint32_t aFlags)
 {
    return NS_OK;
 }
@@ -180,7 +180,7 @@ nsMsgStatusFeedback::OnStatusChange(nsIWebProgress* aWebProgress,
 NS_IMETHODIMP 
 nsMsgStatusFeedback::OnSecurityChange(nsIWebProgress *aWebProgress, 
                                     nsIRequest *aRequest, 
-                                    PRUint32 state)
+                                    uint32_t state)
 {
     return NS_OK;
 }
@@ -206,7 +206,7 @@ nsMsgStatusFeedback::SetStatusString(const nsAString& aStatus)
 }
 
 NS_IMETHODIMP
-nsMsgStatusFeedback::ShowProgress(PRInt32 aPercentage)
+nsMsgStatusFeedback::ShowProgress(int32_t aPercentage)
 {
   // if the percentage hasn't changed...OR if we are going from 0 to 100% in one step
   // then don't bother....just fall out....
@@ -215,18 +215,11 @@ nsMsgStatusFeedback::ShowProgress(PRInt32 aPercentage)
   
   m_lastPercent = aPercentage;
 
-  PRInt64 nowMS;
-  LL_I2L(nowMS, 0);
+  int64_t nowMS = 0;
   if (aPercentage < 100)	// always need to do 100%
   {
-    int64 minIntervalBetweenProgress;
-
-    LL_I2L(minIntervalBetweenProgress, 250);
-    int64 diffSinceLastProgress;
-    LL_I2L(nowMS, PR_IntervalToMilliseconds(PR_IntervalNow()));
-    LL_SUB(diffSinceLastProgress, nowMS, m_lastProgressTime); // r = a - b
-    LL_SUB(diffSinceLastProgress, diffSinceLastProgress, minIntervalBetweenProgress); // r = a - b
-    if (!LL_GE_ZERO(diffSinceLastProgress))
+    nowMS = PR_IntervalToMilliseconds(PR_IntervalNow());
+    if (nowMS < m_lastProgressTime + 250)
       return NS_OK;
   }
 
@@ -263,12 +256,12 @@ NS_IMETHODIMP nsMsgStatusFeedback::SetWrappedStatusFeedback(nsIMsgStatusFeedback
 }
 
 NS_IMETHODIMP nsMsgStatusFeedback::OnProgress(nsIRequest *request, nsISupports* ctxt, 
-                                          PRUint64 aProgress, PRUint64 aProgressMax)
+                                          uint64_t aProgress, uint64_t aProgressMax)
 {
   // XXX: What should the nsIWebProgress be?
   // XXX: this truncates 64-bit to 32-bit
-  return OnProgressChange(nsnull, request, PRInt32(aProgress), PRInt32(aProgressMax), 
-                          PRInt32(aProgress) /* current total progress */, PRInt32(aProgressMax) /* max total progress */);
+  return OnProgressChange(nullptr, request, int32_t(aProgress), int32_t(aProgressMax), 
+                          int32_t(aProgress) /* current total progress */, int32_t(aProgressMax) /* max total progress */);
 }
 
 NS_IMETHODIMP nsMsgStatusFeedback::OnStatus(nsIRequest *request, nsISupports* ctxt, 

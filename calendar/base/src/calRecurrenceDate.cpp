@@ -60,7 +60,7 @@ calRecurrenceDate::Clone(calIRecurrenceItem **_retval)
     if (mDate)
         mDate->Clone(getter_AddRefs(crd->mDate));
     else
-        crd->mDate = nsnull;
+        crd->mDate = nullptr;
 
     NS_ADDREF(*_retval = crd);
     return NS_OK;
@@ -123,14 +123,14 @@ calRecurrenceDate::GetNextOccurrence(calIDateTime *aStartTime,
     NS_ENSURE_ARG_POINTER(_retval);
 
     if (mDate) {
-        PRInt32 result;
+        int32_t result;
         if (NS_SUCCEEDED(mDate->Compare(aStartTime, &result)) && result > 0) {
             NS_ADDREF (*_retval = mDate);
             return NS_OK;
         }
     }
 
-    *_retval = nsnull;
+    *_retval = nullptr;
     return NS_OK;
 }
 
@@ -138,13 +138,13 @@ NS_IMETHODIMP
 calRecurrenceDate::GetOccurrences(calIDateTime *aStartTime,
                                   calIDateTime *aRangeStart,
                                   calIDateTime *aRangeEnd,
-                                  PRUint32 aMaxCount,
-                                  PRUint32 *aCount, calIDateTime ***aDates)
+                                  uint32_t aMaxCount,
+                                  uint32_t *aCount, calIDateTime ***aDates)
 {
     NS_ENSURE_ARG_POINTER(aStartTime);
     NS_ENSURE_ARG_POINTER(aRangeStart);
 
-    PRInt32 r1, r2;
+    int32_t r1, r2;
 
     if (mDate) {
         if (NS_SUCCEEDED(mDate->Compare(aRangeStart, &r1)) && r1 >= 0 &&
@@ -158,7 +158,7 @@ calRecurrenceDate::GetOccurrences(calIDateTime *aStartTime,
         }
     }
 
-    *aDates = nsnull;
+    *aDates = nullptr;
     *aCount = 0;
     return NS_OK;
 }
@@ -197,7 +197,7 @@ calRecurrenceDate::SetIcalProperty(calIIcalProperty *aProp)
             icalperiodtype const period = icalvalue_get_period(value);
             // take only period's start date and skip end date, but continue parsing;
             // open bug 489747:
-            mDate = new calDateTime(&period.start, nsnull /* detect timezone */);
+            mDate = new calDateTime(&period.start, nullptr /* detect timezone */);
             return NS_OK;
         }
     } else if (name.EqualsLiteral("EXDATE"))

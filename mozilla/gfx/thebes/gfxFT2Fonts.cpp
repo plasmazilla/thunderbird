@@ -85,7 +85,7 @@ gfxFT2FontGroup::gfxFT2FontGroup(const nsAString& families,
 
     if (familyArray.Length() == 0) {
         nsAutoString prefFamilies;
-        gfxToolkitPlatform::GetPlatform()->GetPrefFonts(aStyle->language, prefFamilies, nsnull);
+        gfxToolkitPlatform::GetPlatform()->GetPrefFonts(aStyle->language, prefFamilies, nullptr);
         if (!prefFamilies.IsEmpty()) {
             ForEachFont(prefFamilies, aStyle->language, FontCallback, &familyArray);
         }
@@ -99,9 +99,9 @@ gfxFT2FontGroup::gfxFT2FontGroup(const nsAString& families,
         familyArray.AppendElement(nsDependentString(static_cast<const PRUnichar *>(fi.family().utf16())));
 #elif defined(MOZ_WIDGET_GTK)
         FcResult result;
-        FcChar8 *family = nsnull;
+        FcChar8 *family = nullptr;
         FcPattern* pat = FcPatternCreate();
-        FcPattern *match = FcFontMatch(nsnull, pat, &result);
+        FcPattern *match = FcFontMatch(nullptr, pat, &result);
         if (match)
             FcPatternGetString(match, FC_FAMILY, 0, &family);
         if (family)
@@ -119,7 +119,7 @@ gfxFT2FontGroup::gfxFT2FontGroup(const nsAString& families,
 #endif
     }
 
-    for (PRUint32 i = 0; i < familyArray.Length(); i++) {
+    for (uint32_t i = 0; i < familyArray.Length(); i++) {
         nsRefPtr<gfxFT2Font> font = gfxFT2Font::GetOrMakeFont(familyArray[i], &mStyle);
         if (font) {
             mFonts.AppendElement(font);
@@ -135,13 +135,13 @@ gfxFT2FontGroup::~gfxFT2FontGroup()
 gfxFontGroup *
 gfxFT2FontGroup::Copy(const gfxFontStyle *aStyle)
 {
-    return new gfxFT2FontGroup(mFamilies, aStyle, nsnull);
+    return new gfxFT2FontGroup(mFamilies, aStyle, nullptr);
 }
 
 // Helper function to return the leading UTF-8 character in a char pointer
 // as 32bit number. Also sets the length of the current character (i.e. the
 // offset to the next one) in the second argument
-PRUint32 getUTF8CharAndNext(const PRUint8 *aString, PRUint8 *aLength)
+uint32_t getUTF8CharAndNext(const uint8_t *aString, uint8_t *aLength)
 {
     *aLength = 1;
     if (aString[0] < 0x80) { // normal 7bit ASCII char
@@ -189,8 +189,8 @@ gfxFT2FontGroup::FamilyListToArrayList(const nsString& aFamilies,
     nsAutoTArray<nsString, 15> fonts;
     ForEachFont(aFamilies, aLangGroup, AddFontNameToArray, &fonts);
 
-    PRUint32 len = fonts.Length();
-    for (PRUint32 i = 0; i < len; ++i) {
+    uint32_t len = fonts.Length();
+    for (uint32_t i = 0; i < len; ++i) {
         const nsString& str = fonts[i];
         nsRefPtr<gfxFontEntry> fe = (gfxToolkitPlatform::GetPlatform()->FindFontEntry(str, mStyle));
         aFontEntryList->AppendElement(fe);
@@ -221,8 +221,8 @@ void gfxFT2FontGroup::GetPrefFonts(nsIAtom *aLangGroup, nsTArray<nsRefPtr<gfxFon
     aFontEntryList.AppendElements(fonts);
 }
 
-static PRInt32 GetCJKLangGroupIndex(const char *aLangGroup) {
-    PRInt32 i;
+static int32_t GetCJKLangGroupIndex(const char *aLangGroup) {
+    int32_t i;
     for (i = 0; i < COUNT_OF_CJK_LANG_GROUP; i++) {
         if (!PL_strcasecmp(aLangGroup, sCJKLangGroup[i]))
             return i;
@@ -260,7 +260,7 @@ void gfxFT2FontGroup::GetCJKPrefFonts(nsTArray<nsRefPtr<gfxFontEntry> >& aFontEn
                     /* nothing */ ;
                 nsCAutoString lang(Substring(start, p));
                 lang.CompressWhitespace(false, true);
-                PRInt32 index = GetCJKLangGroupIndex(lang.get());
+                int32_t index = GetCJKLangGroupIndex(lang.get());
                 if (index >= 0) {
                     nsCOMPtr<nsIAtom> atom = do_GetAtom(sCJKLangGroup[index]);
                     GetPrefFonts(atom, aFontEntryList);
@@ -307,9 +307,9 @@ void gfxFT2FontGroup::GetCJKPrefFonts(nsTArray<nsRefPtr<gfxFontEntry> >& aFontEn
 }
 
 already_AddRefed<gfxFT2Font>
-gfxFT2FontGroup::WhichFontSupportsChar(const nsTArray<nsRefPtr<gfxFontEntry> >& aFontEntryList, PRUint32 aCh)
+gfxFT2FontGroup::WhichFontSupportsChar(const nsTArray<nsRefPtr<gfxFontEntry> >& aFontEntryList, uint32_t aCh)
 {
-    for (PRUint32 i = 0; i < aFontEntryList.Length(); i++) {
+    for (uint32_t i = 0; i < aFontEntryList.Length(); i++) {
         gfxFontEntry *fe = aFontEntryList[i].get();
         if (fe->HasCharacter(aCh)) {
             nsRefPtr<gfxFT2Font> font =
@@ -317,14 +317,14 @@ gfxFT2FontGroup::WhichFontSupportsChar(const nsTArray<nsRefPtr<gfxFontEntry> >& 
             return font.forget();
         }
     }
-    return nsnull;
+    return nullptr;
 }
 
 already_AddRefed<gfxFont>
-gfxFT2FontGroup::WhichPrefFontSupportsChar(PRUint32 aCh)
+gfxFT2FontGroup::WhichPrefFontSupportsChar(uint32_t aCh)
 {
     if (aCh > 0xFFFF)
-        return nsnull;
+        return nullptr;
 
     nsRefPtr<gfxFT2Font> selectedFont;
 
@@ -335,7 +335,7 @@ gfxFT2FontGroup::WhichPrefFontSupportsChar(PRUint32 aCh)
 
     // otherwise search prefs
     if (!selectedFont) {
-        PRUint32 unicodeRange = FindCharUnicodeRange(aCh);
+        uint32_t unicodeRange = FindCharUnicodeRange(aCh);
 
         /* special case CJK */
         if (unicodeRange == kRangeSetCJK) {
@@ -363,11 +363,11 @@ gfxFT2FontGroup::WhichPrefFontSupportsChar(PRUint32 aCh)
         return f.forget();
     }
 
-    return nsnull;
+    return nullptr;
 }
 
 already_AddRefed<gfxFont>
-gfxFT2FontGroup::WhichSystemFontSupportsChar(PRUint32 aCh, PRInt32 aRunScript)
+gfxFT2FontGroup::WhichSystemFontSupportsChar(uint32_t aCh, int32_t aRunScript)
 {
 #if defined(XP_WIN) || defined(ANDROID)
     FontEntry *fe = static_cast<FontEntry*>
@@ -386,7 +386,7 @@ gfxFT2FontGroup::WhichSystemFontSupportsChar(PRUint32 aCh, PRInt32 aRunScript)
     if (selectedFont)
         return selectedFont.forget();
 #endif
-    return nsnull;
+    return nullptr;
 }
 
 #endif // !ANDROID
@@ -440,19 +440,19 @@ gfxFT2Font::ShapeWord(gfxContext *aContext,
 void
 gfxFT2Font::AddRange(gfxShapedWord *aShapedWord, const PRUnichar *str)
 {
-    const PRUint32 appUnitsPerDevUnit = aShapedWord->AppUnitsPerDevUnit();
+    const uint32_t appUnitsPerDevUnit = aShapedWord->AppUnitsPerDevUnit();
     // we'll pass this in/figure it out dynamically, but at this point there can be only one face.
     gfxFT2LockedFace faceLock(this);
     FT_Face face = faceLock.get();
 
     gfxShapedWord::CompressedGlyph g;
 
-    const gfxFT2Font::CachedGlyphData *cgd = nsnull, *cgdNext = nsnull;
+    const gfxFT2Font::CachedGlyphData *cgd = nullptr, *cgdNext = nullptr;
 
     FT_UInt spaceGlyph = GetSpaceGlyph();
 
-    PRUint32 len = aShapedWord->Length();
-    for (PRUint32 i = 0; i < len; i++) {
+    uint32_t len = aShapedWord->Length();
+    for (uint32_t i = 0; i < len; i++) {
         PRUnichar ch = str[i];
 
         if (ch == 0) {
@@ -465,13 +465,13 @@ gfxFT2Font::AddRange(gfxShapedWord *aShapedWord, const PRUnichar *str)
 
         if (cgdNext) {
             cgd = cgdNext;
-            cgdNext = nsnull;
+            cgdNext = nullptr;
         } else {
             cgd = GetGlyphDataForChar(ch);
         }
 
         FT_UInt gid = cgd->glyphIndex;
-        PRInt32 advance = 0;
+        int32_t advance = 0;
 
         if (gid == 0) {
             advance = -1; // trigger the missing glyphs case below
@@ -572,7 +572,7 @@ gfxFT2Font::GetOrMakeFont(const nsAString& aName, const gfxFontStyle *aStyle,
 #endif
     if (!fe) {
         NS_WARNING("Failed to find font entry for font!");
-        return nsnull;
+        return nullptr;
     }
 
     nsRefPtr<gfxFT2Font> font = GetOrMakeFont(fe, aStyle, aNeedsBold);
@@ -589,16 +589,16 @@ gfxFT2Font::GetOrMakeFont(FT2FontEntry *aFontEntry, const gfxFontStyle *aStyle,
         font = new gfxFT2Font(scaledFont, aFontEntry, aStyle, aNeedsBold);
         cairo_scaled_font_destroy(scaledFont);
         if (!font)
-            return nsnull;
+            return nullptr;
         gfxFontCache::GetCache()->AddNew(font);
     }
-    gfxFont *f = nsnull;
+    gfxFont *f = nullptr;
     font.swap(f);
     return static_cast<gfxFT2Font *>(f);
 }
 
 void
-gfxFT2Font::FillGlyphDataForChar(PRUint32 ch, CachedGlyphData *gd)
+gfxFT2Font::FillGlyphDataForChar(uint32_t ch, CachedGlyphData *gd)
 {
     gfxFT2LockedFace faceLock(this);
     FT_Face face = faceLock.get();
@@ -640,7 +640,7 @@ gfxFT2Font::SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf,
 {
     gfxFont::SizeOfExcludingThis(aMallocSizeOf, aSizes);
     aSizes->mFontInstances +=
-        mCharGlyphCache.SizeOfExcludingThis(nsnull, aMallocSizeOf);
+        mCharGlyphCache.SizeOfExcludingThis(nullptr, aMallocSizeOf);
 }
 
 void

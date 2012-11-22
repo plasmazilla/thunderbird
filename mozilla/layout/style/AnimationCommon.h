@@ -19,8 +19,11 @@
 
 class nsPresContext;
 
+
 namespace mozilla {
 namespace css {
+
+bool IsGeometricProperty(nsCSSProperty aProperty);
 
 struct CommonElementAnimationData;
 
@@ -76,7 +79,7 @@ public:
   // nsIStyleRule implementation
   virtual void MapRuleInfoInto(nsRuleData* aRuleData);
 #ifdef DEBUG
-  virtual void List(FILE* out = stdout, PRInt32 aIndent = 0) const;
+  virtual void List(FILE* out = stdout, int32_t aIndent = 0) const;
 #endif
 
   void AddValue(nsCSSProperty aProperty, nsStyleAnimation::Value &aStartValue)
@@ -107,10 +110,16 @@ public:
   typedef nsTimingFunction::Type Type;
   void Init(const nsTimingFunction &aFunction);
   double GetValue(double aPortion) const;
+  const nsSMILKeySpline* GetFunction() const {
+    NS_ASSERTION(mType == nsTimingFunction::Function, "Type mismatch");
+    return &mTimingFunction;
+  }
+  Type GetType() const { return mType; }
+  uint32_t GetSteps() const { return mSteps; }
 private:
   Type mType;
   nsSMILKeySpline mTimingFunction;
-  PRUint32 mSteps;
+  uint32_t mSteps;
 };
 
 struct CommonElementAnimationData : public PRCList
@@ -142,6 +151,14 @@ struct CommonElementAnimationData : public PRCList
     mElement->DeleteProperty(mElementProperty);
   }
 
+  static bool
+  CanAnimatePropertyOnCompositor(const dom::Element *aElement,
+                                 nsCSSProperty aProperty,
+                                 bool aHasGeometricProperties);
+
+  static void LogAsyncAnimationFailure(nsCString& aMessage,
+                                       const nsIContent* aContent = nullptr);
+
   dom::Element *mElement;
 
   // the atom we use in mElement's prop table (must be a static atom,
@@ -149,6 +166,17 @@ struct CommonElementAnimationData : public PRCList
   nsIAtom *mElementProperty;
 
   CommonAnimationManager *mManager;
+
+  // This style rule contains the style data for currently animating
+  // values.  It only matches when styling with animation.  When we
+  // style without animation, we need to not use it so that we can
+  // detect any new changes; if necessary we restyle immediately
+  // afterwards with animation.
+  // NOTE: If we don't need to apply any styles, mStyleRule will be
+  // null, but mStyleRuleRefreshTime will still be valid.
+  nsRefPtr<mozilla::css::AnimValuesStyleRule> mStyleRule;
+  // The refresh time associated with mStyleRule.
+  TimeStamp mStyleRuleRefreshTime;
 
 #ifdef DEBUG
   bool mCalledPropertyDtor;

@@ -317,6 +317,10 @@ EVENT(waiting,
       NS_WAITING,
       EventNameType_HTML,
       NS_EVENT_NULL)
+EVENT(wheel,
+      NS_WHEEL_WHEEL,
+      EventNameType_All,
+      NS_WHEEL_EVENT)
 // Gecko-specific extensions that apply to elements
 EVENT(copy,
       NS_COPY,

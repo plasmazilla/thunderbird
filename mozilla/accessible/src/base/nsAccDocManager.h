@@ -24,7 +24,7 @@ class nsAccDocManager : public nsIWebProgressListener,
                         public nsSupportsWeakReference
 {
 public:
-  virtual ~nsAccDocManager() { };
+  virtual ~nsAccDocManager() { }
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSIWEBPROGRESSLISTENER
@@ -40,7 +40,7 @@ public:
    */
   DocAccessible* GetDocAccessible(const nsIPresShell* aPresShell)
   {
-    return aPresShell ? GetDocAccessible(aPresShell->GetDocument()) : nsnull;
+    return aPresShell ? GetDocAccessible(aPresShell->GetDocument()) : nullptr;
   }
 
   /**
@@ -70,7 +70,7 @@ public:
 #endif
 
 protected:
-  nsAccDocManager() { };
+  nsAccDocManager() { }
 
   /**
    * Initialize the manager.
@@ -96,7 +96,7 @@ private:
    *                           if 0 then no event is fired
    */
   void HandleDOMDocumentLoad(nsIDocument* aDocument,
-                             PRUint32 aLoadEventType);
+                             uint32_t aLoadEventType);
 
   /**
    * Add 'pagehide' and 'DOMContentLoaded' event listeners.

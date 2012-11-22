@@ -95,7 +95,7 @@ public:
   /**
    * Returns true if we are currently loading the PAC file.
    */
-  bool IsLoading() { return mLoader != nsnull; }
+  bool IsLoading() { return mLoader != nullptr; }
 
   /**
    * Returns true if the given URI matches the URI of our PAC file.
@@ -147,7 +147,7 @@ private:
   bool                         mLoadPending;
   bool                         mShutdown;
   PRTime                       mScheduledReload;
-  PRUint32                     mLoadFailureCount;
+  uint32_t                     mLoadFailureCount;
 };
 
 #endif  // nsPACMan_h__

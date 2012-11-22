@@ -7,38 +7,32 @@ package org.mozilla.gecko;
 
 import org.mozilla.gecko.db.BrowserContract;
 import org.mozilla.gecko.db.BrowserContract.Bookmarks;
-import org.mozilla.gecko.db.BrowserContract.History;
-import org.mozilla.gecko.db.BrowserContract.ImageColumns;
-import org.mozilla.gecko.db.BrowserContract.Images;
 import org.mozilla.gecko.db.BrowserContract.Passwords;
-import org.mozilla.gecko.db.BrowserContract.URLColumns;
-import org.mozilla.gecko.db.BrowserContract.SyncColumns;
 import org.mozilla.gecko.db.LocalBrowserDB;
 import org.mozilla.gecko.sqlite.SQLiteBridge;
 import org.mozilla.gecko.sqlite.SQLiteBridgeException;
 import org.mozilla.gecko.sync.setup.SyncAccounts;
 import org.mozilla.gecko.sync.setup.SyncAccounts.SyncAccountParameters;
+import org.mozilla.gecko.util.GeckoEventListener;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import android.accounts.Account;
-import android.content.ContentResolver;
-import android.content.ContentUris;
-import android.content.ContentValues;
-import android.content.ContentProviderResult;
 import android.content.ContentProviderOperation;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.OperationApplicationException;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.SQLException;
-import android.database.sqlite.SQLiteConstraintException;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.RemoteException;
-import android.provider.Browser;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -47,23 +41,17 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.channels.FileChannel;
-import java.util.Arrays;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
-import org.json.JSONException;
 
 public class ProfileMigrator {
     private static final String LOGTAG = "ProfileMigrator";
@@ -575,8 +563,7 @@ public class ProfileMigrator {
                     if (!parsePrefs(jsonPrefs))
                         return;
 
-                    GeckoAppShell.unregisterGeckoEventListener("Preferences:Data",
-                                                               (GeckoEventListener)this);
+                    unregisterEventListener("Preferences:Data", this);
 
                     // Now call the password provider to fill in the rest.
                     for (String location: SYNC_REALM_LIST) {
@@ -705,8 +692,7 @@ public class ProfileMigrator {
         protected void registerAndRequest() {
             GeckoAppShell.getHandler().post(new Runnable() {
                 public void run() {
-                    GeckoAppShell.registerGeckoEventListener("Preferences:Data",
-                                                             SyncTask.this);
+                    registerEventListener("Preferences:Data", SyncTask.this);
                     requestValues();
                 }
             });
@@ -731,6 +717,14 @@ public class ProfileMigrator {
                     }
                 }
             }.execute(mContext);
+        }
+
+        private void registerEventListener(String event, GeckoEventListener listener) {
+            GeckoAppShell.getEventDispatcher().registerEventListener(event, listener);
+        }
+
+        private void unregisterEventListener(String event, GeckoEventListener listener) {
+            GeckoAppShell.getEventDispatcher().unregisterEventListener(event, listener);
         }
     }
 
@@ -1113,19 +1107,19 @@ public class ProfileMigrator {
                     type = PLACES_TYPE_QUERY;
                     if (!TextUtils.isEmpty(pair.content)) {
                         if (urlBuffer.length() > 0) urlBuffer.append("&");
-                        urlBuffer.append("queryId=" + pair.content);
+                        urlBuffer.append("queryId=" + Uri.encode(pair.content));
                     }
                 } else if (PLACES_ATTRIB_LIVEMARK_FEED.equals(pair.name)) {
                     type = PLACES_TYPE_LIVEMARK;
                     if (!TextUtils.isEmpty(pair.content)) {
                         if (urlBuffer.length() > 0) urlBuffer.append("&");
-                        urlBuffer.append("feedUri=" + pair.content);
+                        urlBuffer.append("feedUri=" + Uri.encode(pair.content));
                    }
                 } else if (PLACES_ATTRIB_LIVEMARK_SITE.equals(pair.name)) {
                     type = PLACES_TYPE_LIVEMARK;
                     if (!TextUtils.isEmpty(pair.content)) {
                         if (urlBuffer.length() > 0) urlBuffer.append("&");
-                        urlBuffer.append("siteUri=" + pair.content);
+                        urlBuffer.append("siteUri=" + Uri.encode(pair.content));
                    }
                 }
             }

@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH       = ../..
+DEPTH       = @DEPTH@
 topsrcdir   = @top_srcdir@
 srcdir      = @srcdir@
 VPATH       = \
@@ -31,15 +31,23 @@ EXPORTS = \
         BasicLayers.h \
         BasicTiledThebesLayer.h \
         BasicImplData.h \
+        GonkIOSurfaceImage.h \
+        FrameMetrics.h \
+        CompositorChild.h \
+        CompositorParent.h \
+        ImageContainer.h \
         ImageLayers.h \
+        ImageTypes.h \
         Layers.h \
+        LayersTypes.h \
         LayerManagerOGLShaders.h \
         LayerManagerOGL.h \
         LayerManagerOGLProgram.h \
-        ReadbackLayer.h \
         LayerSorter.h \
-        TexturePoolOGL.h \
+        ReadbackLayer.h \
+        ShadowLayersManager.h \
         SharedTextureImage.h \
+        TexturePoolOGL.h \
         $(NULL)
 
 CPPSRCS = \
@@ -53,6 +61,7 @@ CPPSRCS = \
         BasicThebesLayer.cpp \
         BasicBuffers.cpp \
         BasicTiledThebesLayer.cpp \
+        ImageContainer.cpp \
         Layers.cpp \
         RenderTrace.cpp \
         ReadbackProcessor.cpp \
@@ -112,9 +121,13 @@ endif
 EXPORTS_NAMESPACES = gfxipc mozilla/layers
 EXPORTS_gfxipc = ShadowLayerUtils.h
 EXPORTS_mozilla/layers =\
+        AsyncPanZoomController.h \
+        Axis.h \
         CompositorCocoaWidgetHelper.h \
         CompositorChild.h \
         CompositorParent.h \
+        GeckoContentController.h \
+        GestureEventListener.h \
         ImageBridgeChild.h \
         ImageBridgeParent.h \
         ImageContainerChild.h \
@@ -128,9 +141,12 @@ EXPORTS_mozilla/layers =\
         $(NULL)
 
 CPPSRCS += \
+        AsyncPanZoomController.cpp \
+        Axis.cpp \
         CompositorCocoaWidgetHelper.cpp \
         CompositorChild.cpp \
         CompositorParent.cpp \
+        GestureEventListener.cpp \
         ImageBridgeChild.cpp \
         ImageBridgeParent.cpp \
         ImageContainerChild.cpp \
@@ -157,11 +173,18 @@ endif
 # has full system permissions there.
 ifeq ($(MOZ_WIDGET_TOOLKIT),gonk)
 EXPORTS_mozilla/layers += ShadowLayerUtilsGralloc.h
-CPPSRCS += ShadowLayerUtilsGralloc.cpp
+CPPSRCS += \
+        ShadowLayerUtilsGralloc.cpp \
+        GrallocImages.cpp \
+        $(NULL)
 endif
 
 include $(topsrcdir)/config/rules.mk
 
 include $(topsrcdir)/ipc/chromium/chromium-config.mk
+
+LOCAL_INCLUDES += \
+        -I$(topsrcdir)/content/events/src \
+        $(NULL)
 
 CXXFLAGS += $(MOZ_CAIRO_CFLAGS) $(MOZ_PIXMAN_CFLAGS) $(TK_CFLAGS)

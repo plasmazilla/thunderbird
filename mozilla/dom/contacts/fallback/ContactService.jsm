@@ -4,11 +4,8 @@
 
 "use strict";
 
-let DEBUG = 0;
-if (DEBUG)
-  debug = function (s) { dump("-*- Fallback ContactService component: " + s + "\n"); }
-else
-  debug = function (s) {}
+const DEBUG = false;
+function debug(s) { dump("-*- Fallback ContactService component: " + s + "\n"); }
 
 const Cu = Components.utils; 
 const Cc = Components.classes;
@@ -20,15 +17,15 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/ContactDB.jsm");
 
-XPCOMUtils.defineLazyGetter(this, "ppmm", function() {
-  return Cc["@mozilla.org/parentprocessmessagemanager;1"].getService(Ci.nsIFrameMessageManager);
-});
+XPCOMUtils.defineLazyServiceGetter(this, "ppmm",
+                                   "@mozilla.org/parentprocessmessagemanager;1",
+                                   "nsIMessageListenerManager");
 
 let myGlobal = this;
 
 let DOMContactManager = {
   init: function() {
-    debug("Init");
+    if (DEBUG) debug("Init");
     this._messages = ["Contacts:Find", "Contacts:Clear", "Contact:Save", "Contact:Remove"];
     this._messages.forEach((function(msgName) {
       ppmm.addMessageListener(msgName, this);
@@ -40,16 +37,6 @@ let DOMContactManager = {
     this._db.init(myGlobal);
 
     Services.obs.addObserver(this, "profile-before-change", false);
-
-    try {
-      let hosts = Services.prefs.getCharPref("dom.mozContacts.whitelist")
-      hosts.split(",").forEach(function(aHost) {
-        debug("Add host: " + JSON.stringify(aHost));
-        if (aHost.length > 0)
-          Services.perms.add(Services.io.newURI(aHost, null, null), "webcontacts-manage",
-                             Ci.nsIPermissionManager.ALLOW_ACTION);
-      });
-    } catch(e) { debug(e); }
   },
 
   observe: function(aSubject, aTopic, aData) {
@@ -66,8 +53,9 @@ let DOMContactManager = {
   },
 
   receiveMessage: function(aMessage) {
-    debug("Fallback DOMContactManager::receiveMessage " + aMessage.name);
-    let msg = aMessage.json;
+    if (DEBUG) debug("Fallback DOMContactManager::receiveMessage " + aMessage.name);
+    let mm = aMessage.target;
+    let msg = aMessage.data;
 
     /*
      * Sorting the contacts by sortBy field. sortBy can either be familyName or givenName.
@@ -78,8 +66,10 @@ let DOMContactManager = {
       let x, y;
       let sortByNameSet = true;
       let result = 0;
-      let sortBy = msg.findOptions.sortBy;
-      let sortOrder = msg.findOptions.sortOrder;
+      let findOptions = msg.options.findOptions;
+      let sortBy = findOptions.sortBy;
+      let sortOrder = findOptions.sortOrder;
+      
       if (!a.properties[sortBy] || !(x = a.properties[sortBy][0].toLowerCase())) {
         sortByNameSet = false;
       }
@@ -116,38 +106,43 @@ let DOMContactManager = {
           function(contacts) {
             for (let i in contacts)
               result.push(contacts[i]);
-            if (msg.findOptions.sortOrder !== 'undefined' && msg.findOptions.sortBy !== 'undefined') {
-              debug('sortBy: ' + msg.findOptions.sortBy + ', sortOrder: ' + msg.findOptions.sortOrder );
-              result.sort(sortfunction);
-              if (msg.findOptions.filterLimit)
-                result = result.slice(0, msg.findOptions.filterLimit);
+            if (msg.options && msg.options.findOptions) {
+              let findOptions = msg.options.findOptions;
+              if (findOptions.sortOrder !== 'undefined' && findOptions.sortBy !== 'undefined') {
+                if (DEBUG) debug('sortBy: ' + findOptions.sortBy + ', sortOrder: ' + findOptions.sortOrder );
+                result.sort(sortfunction);
+                if (findOptions.filterLimit)
+                  result = result.slice(0, findOptions.filterLimit);
+              }
             }
 
-            debug("result:" + JSON.stringify(result));
-            ppmm.sendAsyncMessage("Contacts:Find:Return:OK", {requestID: msg.requestID, contacts: result});
+            if (DEBUG) debug("result:" + JSON.stringify(result));
+            mm.sendAsyncMessage("Contacts:Find:Return:OK", {requestID: msg.requestID, contacts: result});
           }.bind(this),
-          function(aErrorMsg) { ppmm.sendAsyncMessage("Contacts:Find:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }) }.bind(this),
-          msg.findOptions);
+          function(aErrorMsg) { mm.sendAsyncMessage("Contacts:Find:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }) }.bind(this),
+          msg.options.findOptions);
         break;
       case "Contact:Save":
         this._db.saveContact(
-          msg.contact, 
-          function() { ppmm.sendAsyncMessage("Contact:Save:Return:OK", { requestID: msg.requestID, contactID: msg.contact.id }); }.bind(this),
-          function(aErrorMsg) { ppmm.sendAsyncMessage("Contact:Save:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }); }.bind(this)
+          msg.options.contact,
+          function() { mm.sendAsyncMessage("Contact:Save:Return:OK", { requestID: msg.requestID, contactID: msg.options.contact.id }); }.bind(this),
+          function(aErrorMsg) { mm.sendAsyncMessage("Contact:Save:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }); }.bind(this)
         );
         break;
       case "Contact:Remove":
         this._db.removeContact(
-          msg.id, 
-          function() { ppmm.sendAsyncMessage("Contact:Remove:Return:OK", { requestID: msg.requestID, contactID: msg.id }); }.bind(this),
-          function(aErrorMsg) { ppmm.sendAsyncMessage("Contact:Remove:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }); }.bind(this)
+          msg.options.id,
+          function() { mm.sendAsyncMessage("Contact:Remove:Return:OK", { requestID: msg.requestID, contactID: msg.options.id }); }.bind(this),
+          function(aErrorMsg) { mm.sendAsyncMessage("Contact:Remove:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }); }.bind(this)
         );
         break;
       case "Contacts:Clear":
         this._db.clear(
-          function() { ppmm.sendAsyncMessage("Contacts:Clear:Return:OK", { requestID: msg.requestID }); }.bind(this),
-          function(aErrorMsg) { ppmm.sendAsyncMessage("Contacts:Clear:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }); }.bind(this)
+          function() { mm.sendAsyncMessage("Contacts:Clear:Return:OK", { requestID: msg.requestID }); }.bind(this),
+          function(aErrorMsg) { mm.sendAsyncMessage("Contacts:Clear:Return:KO", { requestID: msg.requestID, errorMsg: aErrorMsg }); }.bind(this)
         );
+      default:
+        if (DEBUG) debug("WRONG MESSAGE NAME: " + aMessage.name);
     }
   }
 }

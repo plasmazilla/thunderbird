@@ -44,10 +44,10 @@ XULMenuitemAccessible::
 {
 }
 
-PRUint64
+uint64_t
 XULMenuitemAccessible::NativeState()
 {
-  PRUint64 state = Accessible::NativeState();
+  uint64_t state = Accessible::NativeState();
 
   // Has Popup?
   if (mContent->NodeInfo()->Equals(nsGkAtoms::menu, kNameSpaceID_XUL)) {
@@ -60,7 +60,7 @@ XULMenuitemAccessible::NativeState()
 
   // Checkable/checked?
   static nsIContent::AttrValuesArray strings[] =
-    { &nsGkAtoms::radio, &nsGkAtoms::checkbox, nsnull };
+    { &nsGkAtoms::radio, &nsGkAtoms::checkbox, nullptr };
 
   if (mContent->FindAttrValueIn(kNameSpaceID_None, nsGkAtoms::type, strings,
                                 eCaseMatters) >= 0) {
@@ -101,7 +101,7 @@ XULMenuitemAccessible::NativeState()
           return state;
         NS_ASSERTION(grandParent->Role() == roles::COMBOBOX,
                      "grandparent of combobox listitem is not combobox");
-        PRUint64 grandParentState = grandParent->State();
+        uint64_t grandParentState = grandParent->State();
         state &= ~(states::OFFSCREEN | states::INVISIBLE);
         state |= (grandParentState & states::OFFSCREEN) |
                  (grandParentState & states::INVISIBLE) |
@@ -113,7 +113,7 @@ XULMenuitemAccessible::NativeState()
   return state;
 }
 
-PRUint64
+uint64_t
 XULMenuitemAccessible::NativeInteractiveState() const
 {
   if (NativelyUnavailable()) {
@@ -152,7 +152,7 @@ KeyBinding
 XULMenuitemAccessible::AccessKey() const
 {
   // Return menu accesskey: N or Alt+F.
-  static PRInt32 gMenuAccesskeyModifier = -1;  // magic value of -1 indicates unitialized state
+  static int32_t gMenuAccesskeyModifier = -1;  // magic value of -1 indicates unitialized state
 
   // We do not use nsCoreUtils::GetAccesskeyFor() because accesskeys for
   // menu are't registered by nsEventStateManager.
@@ -162,7 +162,7 @@ XULMenuitemAccessible::AccessKey() const
   if (accesskey.IsEmpty())
     return KeyBinding();
 
-  PRUint32 modifierKey = 0;
+  uint32_t modifierKey = 0;
 
   Accessible* parentAcc = Parent();
   if (parentAcc) {
@@ -184,6 +184,9 @@ XULMenuitemAccessible::AccessKey() const
         case nsIDOMKeyEvent::DOM_VK_META:
           modifierKey = KeyBinding::kMeta;
           break;
+        case nsIDOMKeyEvent::DOM_VK_WIN:
+          modifierKey = KeyBinding::kOS;
+          break;
       }
     }
   }
@@ -203,14 +206,14 @@ XULMenuitemAccessible::KeyboardShortcut() const
   if (!keyElm)
     return KeyBinding();
 
-  PRUint32 key = 0;
+  uint32_t key = 0;
 
   nsAutoString keyStr;
   keyElm->GetAttr(kNameSpaceID_None, nsGkAtoms::key, keyStr);
   if (keyStr.IsEmpty()) {
     nsAutoString keyCodeStr;
     keyElm->GetAttr(kNameSpaceID_None, nsGkAtoms::keycode, keyCodeStr);
-    PRUint32 errorCode;
+    nsresult errorCode;
     key = keyStr.ToInteger(&errorCode, kAutoDetect);
   } else {
     key = keyStr[0];
@@ -219,13 +222,15 @@ XULMenuitemAccessible::KeyboardShortcut() const
   nsAutoString modifiersStr;
   keyElm->GetAttr(kNameSpaceID_None, nsGkAtoms::modifiers, modifiersStr);
 
-  PRUint32 modifierMask = 0;
+  uint32_t modifierMask = 0;
   if (modifiersStr.Find("shift") != -1)
     modifierMask |= KeyBinding::kShift;
   if (modifiersStr.Find("alt") != -1)
     modifierMask |= KeyBinding::kAlt;
   if (modifiersStr.Find("meta") != -1)
     modifierMask |= KeyBinding::kMeta;
+  if (modifiersStr.Find("os") != -1)
+    modifierMask |= KeyBinding::kOS;
   if (modifiersStr.Find("control") != -1)
     modifierMask |= KeyBinding::kControl;
   if (modifiersStr.Find("accel") != -1) {
@@ -233,6 +238,10 @@ XULMenuitemAccessible::KeyboardShortcut() const
     switch (Preferences::GetInt("ui.key.accelKey", 0)) {
       case nsIDOMKeyEvent::DOM_VK_META:
         modifierMask |= KeyBinding::kMeta;
+        break;
+
+      case nsIDOMKeyEvent::DOM_VK_WIN:
+        modifierMask |= KeyBinding::kOS;
         break;
 
       case nsIDOMKeyEvent::DOM_VK_ALT:
@@ -277,7 +286,7 @@ XULMenuitemAccessible::NativeRole()
   return roles::MENUITEM;
 }
 
-PRInt32
+int32_t
 XULMenuitemAccessible::GetLevelInternal()
 {
   return nsAccUtils::GetLevelForXULContainerItem(mContent);
@@ -291,7 +300,7 @@ XULMenuitemAccessible::CanHaveAnonChildren()
 }
 
 NS_IMETHODIMP
-XULMenuitemAccessible::DoAction(PRUint8 index)
+XULMenuitemAccessible::DoAction(uint8_t index)
 {
   if (index == eAction_Click) {   // default action
     DoCommand();
@@ -303,7 +312,7 @@ XULMenuitemAccessible::DoAction(PRUint8 index)
 
 /** select us! close combo box if necessary*/
 NS_IMETHODIMP
-XULMenuitemAccessible::GetActionName(PRUint8 aIndex, nsAString& aName)
+XULMenuitemAccessible::GetActionName(uint8_t aIndex, nsAString& aName)
 {
   if (aIndex == eAction_Click) {
     aName.AssignLiteral("click"); 
@@ -312,7 +321,7 @@ XULMenuitemAccessible::GetActionName(PRUint8 aIndex, nsAString& aName)
   return NS_ERROR_INVALID_ARG;
 }
 
-PRUint8
+uint8_t
 XULMenuitemAccessible::ActionCount()
 {
   return 1;
@@ -365,7 +374,7 @@ XULMenuitemAccessible::ContainerWidget() const
       // shouldn't be a real case.
     }
   }
-  return nsnull;
+  return nullptr;
 }
 
 
@@ -379,7 +388,7 @@ XULMenuSeparatorAccessible::
 {
 }
 
-PRUint64
+uint64_t
 XULMenuSeparatorAccessible::NativeState()
 {
   // Isn't focusable, but can be offscreen/invisible -- only copy those states
@@ -400,18 +409,18 @@ XULMenuSeparatorAccessible::NativeRole()
 }
 
 NS_IMETHODIMP
-XULMenuSeparatorAccessible::DoAction(PRUint8 index)
+XULMenuSeparatorAccessible::DoAction(uint8_t index)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP
-XULMenuSeparatorAccessible::GetActionName(PRUint8 aIndex, nsAString& aName)
+XULMenuSeparatorAccessible::GetActionName(uint8_t aIndex, nsAString& aName)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-PRUint8
+uint8_t
 XULMenuSeparatorAccessible::ActionCount()
 {
   return 0;
@@ -433,10 +442,10 @@ XULMenupopupAccessible::
   mSelectControl = do_QueryInterface(mContent->GetParent());
 }
 
-PRUint64
+uint64_t
 XULMenupopupAccessible::NativeState()
 {
-  PRUint64 state = Accessible::NativeState();
+  uint64_t state = Accessible::NativeState();
 
 #ifdef DEBUG
   // We are onscreen if our parent is active
@@ -527,11 +536,11 @@ XULMenupopupAccessible::ContainerWidget() const
     Accessible* menuPopup =
       document->GetAccessible(menuPopupFrame->GetContent());
     if (!menuPopup) // shouldn't be a real case
-      return nsnull;
+      return nullptr;
 
-    nsMenuFrame* menuFrame = menuPopupFrame->GetParentMenu();
+    nsMenuFrame* menuFrame = do_QueryFrame(menuPopupFrame->GetParent());
     if (!menuFrame) // context menu or popups
-      return nsnull;
+      return nullptr;
 
     nsMenuParent* menuParent = menuFrame->GetMenuParent();
     if (!menuParent) // menulist or menubutton
@@ -544,13 +553,13 @@ XULMenupopupAccessible::ContainerWidget() const
 
     // different kind of popups like panel or tooltip
     if (!menuParent->IsMenu())
-      return nsnull;
+      return nullptr;
 
     menuPopupFrame = static_cast<nsMenuPopupFrame*>(menuParent);
   }
 
   NS_NOTREACHED("Shouldn't be a real case.");
-  return nsnull;
+  return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -603,7 +612,7 @@ XULMenubarAccessible::CurrentItem()
       return mDoc->GetAccessible(menuItemNode);
     }
   }
-  return nsnull;
+  return nullptr;
 }
 
 void

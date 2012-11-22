@@ -167,7 +167,7 @@ nsresult GetTransferableFile(nsCOMPtr<nsITransferable>& pTransferable)
   nsCOMPtr<nsISupports> genericWrapper = do_QueryInterface(xferFile);
 
   pTransferable = do_CreateInstance("@mozilla.org/widget/transferable;1");
-  pTransferable->Init(nsnull);
+  pTransferable->Init(nullptr);
   rv = pTransferable->SetTransferData("application/x-moz-file", genericWrapper,
                                       0);
   return rv;
@@ -185,7 +185,7 @@ nsresult GetTransferableText(nsCOMPtr<nsITransferable>& pTransferable)
   nsCOMPtr<nsISupports> genericWrapper = do_QueryInterface(xferString);
 
   pTransferable = do_CreateInstance("@mozilla.org/widget/transferable;1");
-  pTransferable->Init(nsnull);
+  pTransferable->Init(nullptr);
   rv = pTransferable->SetTransferData("text/unicode", genericWrapper,
                                       mozString.Length() * sizeof(PRUnichar));
   return rv;
@@ -203,7 +203,7 @@ nsresult GetTransferableTextTwo(nsCOMPtr<nsITransferable>& pTransferable)
   nsCOMPtr<nsISupports> genericWrapper = do_QueryInterface(xferString);
 
   pTransferable = do_CreateInstance("@mozilla.org/widget/transferable;1");
-  pTransferable->Init(nsnull);
+  pTransferable->Init(nullptr);
   rv = pTransferable->SetTransferData("text/unicode", genericWrapper,
                                       mozString.Length() * sizeof(PRUnichar));
   return rv;
@@ -221,7 +221,7 @@ nsresult GetTransferableURI(nsCOMPtr<nsITransferable>& pTransferable)
   nsCOMPtr<nsISupports> genericWrapper = do_QueryInterface(xferURI);
 
   pTransferable = do_CreateInstance("@mozilla.org/widget/transferable;1");
-  pTransferable->Init(nsnull);
+  pTransferable->Init(nullptr);
   rv = pTransferable->SetTransferData("text/x-moz-url", genericWrapper, 0);
   return rv;
 }
@@ -230,7 +230,7 @@ nsresult MakeDataObject(nsISupportsArray* transferableArray,
                         nsRefPtr<IDataObject>& itemToDrag)
 {
   nsresult rv;
-  PRUint32 itemCount = 0;
+  uint32_t itemCount = 0;
 
   nsCOMPtr<nsIURI> uri;
   rv = NS_NewURI(getter_AddRefs(uri), "http://www.mozilla.org");
@@ -246,7 +246,7 @@ nsresult MakeDataObject(nsISupportsArray* transferableArray,
     if (!dataObjCollection)
       return NS_ERROR_OUT_OF_MEMORY;
     itemToDrag = dataObjCollection;
-    for (PRUint32 i=0; i<itemCount; ++i) {
+    for (uint32_t i=0; i<itemCount; ++i) {
       nsCOMPtr<nsISupports> supports;
       transferableArray->GetElementAt(i, getter_AddRefs(supports));
       nsCOMPtr<nsITransferable> trans(do_QueryInterface(supports));

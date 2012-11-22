@@ -33,7 +33,6 @@
 #include "nsContentCreatorFunctions.h"
 #include "nsContentUtils.h"
 #include "nsDisplayList.h"
-#include "nsIDOMNSEvent.h"
 #include "nsEventListenerManager.h"
 #ifdef ACCESSIBILITY
 #include "nsAccessibilityService.h"
@@ -131,7 +130,7 @@ nsFileControlFrame::CreateAnonymousContent(nsTArray<ContentInfo>& aElements)
   nsCOMPtr<nsIDocument> doc = mContent->GetDocument();
 
   nsCOMPtr<nsINodeInfo> nodeInfo;
-  nodeInfo = doc->NodeInfoManager()->GetNodeInfo(nsGkAtoms::input, nsnull,
+  nodeInfo = doc->NodeInfoManager()->GetNodeInfo(nsGkAtoms::input, nullptr,
                                                  kNameSpaceID_XHTML,
                                                  nsIDOMNode::ELEMENT_NODE);
 
@@ -178,7 +177,7 @@ nsFileControlFrame::CreateAnonymousContent(nsTArray<ContentInfo>& aElements)
                                        mMouseListener, false);
 
   // Create the browse button
-  nodeInfo = doc->NodeInfoManager()->GetNodeInfo(nsGkAtoms::input, nsnull,
+  nodeInfo = doc->NodeInfoManager()->GetNodeInfo(nsGkAtoms::input, nullptr,
                                                  kNameSpaceID_XHTML,
                                                  nsIDOMNode::ELEMENT_NODE);
   NS_NewHTMLElement(getter_AddRefs(mBrowse), nodeInfo.forget(),
@@ -202,7 +201,7 @@ nsFileControlFrame::CreateAnonymousContent(nsTArray<ContentInfo>& aElements)
 
     if (data.mode != 0) {
       mCaptureMouseListener->mMode = data.mode;
-      nodeInfo = doc->NodeInfoManager()->GetNodeInfo(nsGkAtoms::input, nsnull,
+      nodeInfo = doc->NodeInfoManager()->GetNodeInfo(nsGkAtoms::input, nullptr,
                                                      kNameSpaceID_XHTML,
                                                      nsIDOMNode::ELEMENT_NODE);
       NS_NewHTMLElement(getter_AddRefs(mCapture), nodeInfo.forget(),
@@ -226,7 +225,7 @@ nsFileControlFrame::CreateAnonymousContent(nsTArray<ContentInfo>& aElements)
   nsCOMPtr<nsIDOMHTMLInputElement> fileContent = do_QueryInterface(mContent);
   nsCOMPtr<nsIDOMHTMLInputElement> browseControl = do_QueryInterface(mBrowse);
   if (fileContent && browseControl) {
-    PRInt32 tabIndex;
+    int32_t tabIndex;
     nsAutoString accessKey;
 
     fileContent->GetAccessKey(accessKey);
@@ -254,7 +253,7 @@ nsFileControlFrame::CreateAnonymousContent(nsTArray<ContentInfo>& aElements)
 
 void
 nsFileControlFrame::AppendAnonymousContentTo(nsBaseContentList& aElements,
-                                             PRUint32 aFilter)
+                                             uint32_t aFilter)
 {
   aElements.MaybeAppendElement(mTextContent);
   aElements.MaybeAppendElement(mBrowse);
@@ -275,20 +274,19 @@ bool ShouldProcessMouseClick(nsIDOMEvent* aMouseEvent)
 {
   // only allow the left button
   nsCOMPtr<nsIDOMMouseEvent> mouseEvent = do_QueryInterface(aMouseEvent);
-  nsCOMPtr<nsIDOMNSEvent> domNSEvent = do_QueryInterface(aMouseEvent);
-  NS_ENSURE_TRUE(mouseEvent && domNSEvent, false);
+  NS_ENSURE_TRUE(mouseEvent, false);
   bool defaultPrevented = false;
-  domNSEvent->GetPreventDefault(&defaultPrevented);
+  aMouseEvent->GetPreventDefault(&defaultPrevented);
   if (defaultPrevented) {
     return false;
   }
 
-  PRUint16 whichButton;
+  uint16_t whichButton;
   if (NS_FAILED(mouseEvent->GetButton(&whichButton)) || whichButton != 0) {
     return false;
   }
 
-  PRInt32 clickCount;
+  int32_t clickCount;
   if (NS_FAILED(mouseEvent->GetDetail(&clickCount)) || clickCount > 1) {
     return false;
   }
@@ -340,7 +338,7 @@ nsFileControlFrame::CaptureMouseListener::HandleEvent(nsIDOMEvent* aMouseEvent)
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Show dialog
-  PRUint32 result;
+  uint32_t result;
   rv = capturePicker->Show(&result);
   NS_ENSURE_SUCCESS(rv, rv);
   if (result == nsICapturePicker::RETURN_CANCEL)
@@ -402,10 +400,8 @@ nsFileControlFrame::BrowseMouseListener::HandleEvent(nsIDOMEvent* aEvent)
     return input ? input->FireAsyncClickHandler() : NS_OK;
   }
 
-  nsCOMPtr<nsIDOMNSEvent> domNSEvent = do_QueryInterface(aEvent);
-  NS_ENSURE_STATE(domNSEvent);
   bool defaultPrevented = false;
-  domNSEvent->GetPreventDefault(&defaultPrevented);
+  aEvent->GetPreventDefault(&defaultPrevented);
   if (defaultPrevented) {
     return NS_OK;
   }
@@ -481,15 +477,15 @@ nsFileControlFrame::GetTextControlFrame()
   return static_cast<nsTextControlFrame*>(tc);
 }
 
-PRIntn
+int
 nsFileControlFrame::GetSkipSides() const
 {
   return 0;
 }
 
 void
-nsFileControlFrame::SyncAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
-                             PRInt32 aWhichControls)
+nsFileControlFrame::SyncAttr(int32_t aNameSpaceID, nsIAtom* aAttribute,
+                             int32_t aWhichControls)
 {
   nsAutoString value;
   if (mContent->GetAttr(aNameSpaceID, aAttribute, value)) {
@@ -525,9 +521,9 @@ nsFileControlFrame::SyncDisabledState()
 }
 
 NS_IMETHODIMP
-nsFileControlFrame::AttributeChanged(PRInt32         aNameSpaceID,
+nsFileControlFrame::AttributeChanged(int32_t         aNameSpaceID,
                                      nsIAtom*        aAttribute,
-                                     PRInt32         aModType)
+                                     int32_t         aModType)
 {
   if (aNameSpaceID == kNameSpaceID_None) {
     if (aAttribute == nsGkAtoms::size) {
@@ -643,17 +639,17 @@ nsFileControlFrame::CreateAccessible()
   // Accessible object exists just to hold onto its children, for later shutdown
   nsAccessibilityService* accService = nsIPresShell::AccService();
   if (!accService)
-    return nsnull;
+    return nullptr;
 
   return accService->CreateHTMLFileInputAccessible(mContent,
                                                    PresContext()->PresShell());
 }
 #endif
 
-PRUint32
+uint32_t
 nsFileControlFrame::GetCaptureMode(const CaptureCallbackData& aData)
 {
-  PRInt32 filters = nsHTMLInputElement::FromContent(mContent)->GetFilterFromAccept();
+  int32_t filters = nsHTMLInputElement::FromContent(mContent)->GetFilterFromAccept();
   nsresult rv;
   bool captureEnabled;
 

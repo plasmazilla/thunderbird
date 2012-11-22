@@ -25,7 +25,7 @@ struct nsPluginInfo;
 #define NS_PLUGIN_FLAG_ENABLED      0x0001    // is this plugin enabled?
 // no longer used                   0x0002    // reuse only if regenerating pluginreg.dat
 #define NS_PLUGIN_FLAG_FROMCACHE    0x0004    // this plugintag info was loaded from cache
-#define NS_PLUGIN_FLAG_UNWANTED     0x0008    // this is an unwanted plugin
+// no longer used                   0x0008    // reuse only if regenerating pluginreg.dat
 #define NS_PLUGIN_FLAG_BLOCKLISTED  0x0010    // this is a blocklisted plugin
 #define NS_PLUGIN_FLAG_CLICKTOPLAY  0x0020    // this is a click-to-play plugin
 
@@ -47,18 +47,18 @@ public:
               const char* const* aMimeTypes,
               const char* const* aMimeDescriptions,
               const char* const* aExtensions,
-              PRInt32 aVariants,
-              PRInt64 aLastModifiedTime = 0,
+              int32_t aVariants,
+              int64_t aLastModifiedTime = 0,
               bool aArgsAreUTF8 = false);
   virtual ~nsPluginTag();
   
   void SetHost(nsPluginHost * aHost);
   void TryUnloadPlugin(bool inShutdown);
-  void Mark(PRUint32 mask);
-  void UnMark(PRUint32 mask);
-  bool HasFlag(PRUint32 flag);
-  PRUint32 Flags();
-  bool Equals(nsPluginTag* aPluginTag);
+  void Mark(uint32_t mask);
+  void UnMark(uint32_t mask);
+  bool HasFlag(uint32_t flag);
+  uint32_t Flags();
+  bool HasSameNameAndMimes(const nsPluginTag *aPluginTag) const;
   bool IsEnabled();
   
   nsRefPtr<nsPluginTag> mNext;
@@ -75,15 +75,15 @@ public:
   nsCString     mFileName; // UTF-8
   nsCString     mFullPath; // UTF-8
   nsCString     mVersion;  // UTF-8
-  PRInt64       mLastModifiedTime;
+  int64_t       mLastModifiedTime;
   nsCOMPtr<nsITimer> mUnloadTimer;
 private:
-  PRUint32      mFlags;
+  uint32_t      mFlags;
 
   void InitMime(const char* const* aMimeTypes,
                 const char* const* aMimeDescriptions,
                 const char* const* aExtensions,
-                PRUint32 aVariantCount);
+                uint32_t aVariantCount);
   nsresult EnsureMembersAreUTF8();
 };
 

@@ -10,7 +10,7 @@
 #include "nsXPCOM.h"
 
 static const char* const kJunkNames[] = {
-  nsnull,
+  nullptr,
   "",
   "123",
   "backgroundz",
@@ -38,7 +38,7 @@ TestProps()
   while (et < end) {
     char tagName[100];
     PL_strcpy(tagName, *et);
-    index = nsCSSProperty(PRInt32(index) + 1);
+    index = nsCSSProperty(int32_t(index) + 1);
 
     id = nsCSSProps::LookupProperty(nsCString(tagName), nsCSSProps::eAny);
     if (id == eCSSProperty_UNKNOWN) {
@@ -109,7 +109,7 @@ TestKeywords()
       }
       underscore++;
     }
-    index = nsCSSKeyword(PRInt32(index) + 1);
+    index = nsCSSKeyword(int32_t(index) + 1);
 
     id = nsCSSKeywords::LookupKeyword(nsCString(tagName));
     if (id <= eCSSKeyword_UNKNOWN) {
@@ -154,14 +154,14 @@ TestKeywords()
 int
 main(void)
 {
-  nsresult rv = NS_InitXPCOM2(nsnull, nsnull, nsnull);
+  nsresult rv = NS_InitXPCOM2(nullptr, nullptr, nullptr);
   NS_ENSURE_SUCCESS(rv, 2);
 
   bool testOK = true;
   testOK &= TestProps();
   testOK &= TestKeywords();
 
-  rv = NS_ShutdownXPCOM(nsnull);
+  rv = NS_ShutdownXPCOM(nullptr);
   NS_ENSURE_SUCCESS(rv, 2);
 
   return testOK ? 0 : 1;

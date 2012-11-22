@@ -1,6 +1,6 @@
 Metadata-Version: 1.0
 Name: mozprocess
-Version: 0.3
+Version: 0.4
 Summary: Mozilla-authored process handling
 Home-page: https://github.com/mozilla/mozbase/tree/master/mozprocess
 Author: Mozilla Automation and Tools team

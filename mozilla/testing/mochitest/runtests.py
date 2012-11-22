@@ -160,7 +160,14 @@ class MochitestOptions(optparse.OptionParser):
                     help = "sets the given variable in the application's "
                            "environment")
     defaults["environment"] = []
-    
+
+    self.add_option("--exclude-extension",
+                    action = "append", type = "string",
+                    dest = "extensionsToExclude",
+                    help = "excludes the given extension from being installed "
+                           "in the test profile")
+    defaults["extensionsToExclude"] = []
+
     self.add_option("--browser-arg",
                     action = "append", type = "string",
                     dest = "browserArgs", metavar = "ARG",
@@ -200,6 +207,12 @@ class MochitestOptions(optparse.OptionParser):
                     help = "Directory where the profile will be stored."
                            "This directory will be deleted after the tests are finished")
     defaults["profilePath"] = tempfile.mkdtemp()
+
+    self.add_option("--testing-modules-dir", action = "store",
+                    type = "string", dest = "testingModulesDir",
+                    help = "Directory where testing-only JS modules are "
+                           "located.")
+    defaults["testingModulesDir"] = None
 
     self.add_option("--use-vmware-recording",
                     action = "store_true", dest = "vmwareRecording",
@@ -316,6 +329,34 @@ See <http://mochikit.com/doc/html/MochiKit/Logging.html> for details on the logg
 
     if options.webapprtContent and options.webapprtChrome:
       self.error("Only one of --webapprt-content and --webapprt-chrome may be given.")
+
+    # Try to guess the testing modules directory.
+    # This somewhat grotesque hack allows the buildbot machines to find the
+    # modules directory without having to configure the buildbot hosts. This
+    # code should never be executed in local runs because the build system
+    # should always set the flag that populates this variable. If buildbot ever
+    # passes this argument, this code can be deleted.
+    if options.testingModulesDir is None:
+      possible = os.path.join(os.getcwd(), os.path.pardir, 'modules')
+
+      if os.path.isdir(possible):
+        options.testingModulesDir = possible
+
+    # Even if buildbot is updated, we still want this, as the path we pass in
+    # to the app must be absolute and have proper slashes.
+    if options.testingModulesDir is not None:
+      options.testingModulesDir = os.path.normpath(options.testingModulesDir)
+
+      if not os.path.isabs(options.testingModulesDir):
+        options.testingModulesDir = os.path.abspath(testingModulesDir)
+
+      if not os.path.isdir(options.testingModulesDir):
+        self.error('--testing-modules-dir not a directory: %s' %
+          options.testingModulesDir)
+
+      options.testingModulesDir = options.testingModulesDir.replace('\\', '/')
+      if options.testingModulesDir[-1] != '/':
+        options.testingModulesDir += '/'
 
     return options
 
@@ -590,12 +631,12 @@ class Mochitest(object):
         self.urlOpts.append("testname=%s" % ("/").join([self.TEST_PATH, options.testPath]))
       if options.testManifest:
         self.urlOpts.append("testManifest=%s" % options.testManifest)
-        if options.runOnly:
+        if hasattr(options, 'runOnly') and options.runOnly:
           self.urlOpts.append("runOnly=true")
         else:
           self.urlOpts.append("runOnly=false")
       if options.failureFile:
-        self.urlOpts.append("failureFile=%s" % options.failureFile)
+        self.urlOpts.append("failureFile=%s" % self.getFullPath(options.failureFile))
 
   def cleanup(self, manifest, options):
     """ remove temporary files and profile """
@@ -799,6 +840,10 @@ toolbar#nav-bar {
           chrometestDir = "file:///" + chrometestDir.replace("\\", "/")
         manifestFile.write("content mochitests %s contentaccessible=yes\n" % chrometestDir)
 
+      if options.testingModulesDir is not None:
+        manifestFile.write("resource testing-common file:///%s\n" %
+          options.testingModulesDir)
+
     # Call installChromeJar().
     jarDir = "mochijar"
     if not os.path.isdir(os.path.join(self.SCRIPT_DIRECTORY, jarDir)):
@@ -872,9 +917,10 @@ overlay chrome://webapprt/content/webapp.xul chrome://mochikit/content/browser-t
     for extensionDir in extensionDirs:
       if os.path.isdir(extensionDir):
         for dirEntry in os.listdir(extensionDir):
-          path = os.path.join(extensionDir, dirEntry)
-          if os.path.isdir(path) or (os.path.isfile(path) and path.endswith(".xpi")):
-            self.installExtensionFromPath(options, path)
+          if dirEntry not in options.extensionsToExclude:
+            path = os.path.join(extensionDir, dirEntry)
+            if os.path.isdir(path) or (os.path.isfile(path) and path.endswith(".xpi")):
+              self.installExtensionFromPath(options, path)
 
     # Install custom extensions passed on the command line.
     for path in options.extensionsToInstall:

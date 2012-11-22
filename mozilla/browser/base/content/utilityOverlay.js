@@ -473,7 +473,7 @@ function openAboutDialog() {
 
 function openPreferences(paneID, extraArgs)
 {
-  if (Services.prefs.getBoolPref("browser.preferences.inContent")) {  
+  if (Services.prefs.getBoolPref("browser.preferences.inContent")) {
     openUILinkIn("about:preferences", "tab");
   } else {
     var instantApply = getBoolPref("browser.preferences.instantApply", false);
@@ -492,17 +492,17 @@ function openPreferences(paneID, extraArgs)
         advancedPaneTabs.selectedTab = win.document.getElementById(extraArgs["advancedTab"]);
       }
 
-     return win;
+     return;
     }
 
-    return openDialog("chrome://browser/content/preferences/preferences.xul",
-                      "Preferences", features, paneID, extraArgs);
+    openDialog("chrome://browser/content/preferences/preferences.xul",
+               "Preferences", features, paneID, extraArgs);
   }
 }
 
 function openAdvancedPreferences(tabID)
 {
-  return openPreferences("paneAdvanced", { "advancedTab" : tabID });
+  openPreferences("paneAdvanced", { "advancedTab" : tabID });
 }
 
 /**
@@ -524,10 +524,9 @@ function openFeedbackPage()
 
 function buildHelpMenu()
 {
-  // Enable/disable the "Report Web Forgery" menu item.  safebrowsing object
-  // may not exist in OSX
-  if (typeof safebrowsing != "undefined")
-    safebrowsing.setReportPhishingMenu();
+  // Enable/disable the "Report Web Forgery" menu item.
+  if (typeof gSafeBrowsing != "undefined")
+    gSafeBrowsing.setReportPhishingMenu();
 }
 
 function isElementVisible(aElement)

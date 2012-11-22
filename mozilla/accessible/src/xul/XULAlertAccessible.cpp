@@ -28,7 +28,7 @@ XULAlertAccessible::NativeRole()
   return roles::ALERT;
 }
 
-PRUint64
+uint64_t
 XULAlertAccessible::NativeState()
 {
   return Accessible::NativeState() | states::ALERT;
@@ -58,5 +58,5 @@ XULAlertAccessible::ContainerWidget() const
   // If a part of colorpicker widget.
   if (mParent && mParent->IsMenuButton())
     return mParent;
-  return nsnull;
+  return nullptr;
 }

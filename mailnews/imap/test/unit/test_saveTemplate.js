@@ -41,7 +41,7 @@ function loadImapMessage()
   let imapInbox =  gIMAPDaemon.getMailbox("INBOX")
   let message = new imapMessage(msgURI.spec, imapInbox.uidnext++, []);
   gIMAPMailbox.addMessage(message);
-  gIMAPInbox.updateFolderWithListener(null, UrlListener);
+  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
   yield false;
   MailServices.mfn.addListener(mfnListener, MailServices.mfn.msgAdded);
   yield true;
@@ -86,14 +86,6 @@ function saveAsTemplate() {
   yield false;
 }
 
-var UrlListener = {
-  OnStartRunningUrl: function _OnStartRunningUrl(aUrl) {
-  },
-  OnStopRunningUrl: function _OnStopRunningUrl(aUrl, aExitCode) {
-    async_driver();
-  }
-};
-
 // listener for saveAsTemplate adding a message to the templates folder.
 mfnListener =
 {
@@ -110,12 +102,4 @@ function run_test()
 {
   Services.prefs.setBoolPref("mail.server.default.autosync_offline_stores", false);
   async_run_tests(tests);
-}
-
-// get the first message header found in a folder
-function firstMsgHdr(folder) {
-  let enumerator = folder.msgDatabase.EnumerateMessages();
-  if (enumerator.hasMoreElements())
-    return enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
-  return null;
 }

@@ -108,14 +108,6 @@ function ctcpCommand(aConv, aTarget, aCommand, aMsg) {
   return true;
 }
 
-function whoisCommand(aMsg, aConv) {
-  aMsg = aMsg.trim();
-  if (!aMsg || aMsg.indexOf(" ") != -1)
-    return false;
-  getConv(aConv).requestBuddyInfo(aMsg);
-  return true;
-}
-
 var commands = [
   {
     name: "action",
@@ -152,17 +144,32 @@ var commands = [
   {
     name: "invite",
     get helpString() _("command.invite", "invite"),
-    run: function(aMsg, aConv) simpleCommand(aConv, "INVITE", aMsg)
-  },
-  {
-    name: "j",
-    get helpString() _("command.join", "j"),
-    run: function(aMsg, aConv) simpleCommand(aConv, "JOIN", aMsg)
+    run: function(aMsg, aConv) {
+      let params = splitInput(aMsg);
+      // If no parameters are given.
+      if (!params[0].length)
+        return false;
+      // If only a nick is given, append the current channel name.
+      if (params.length == 1)
+        params.push(aConv.name);
+
+      return simpleCommand(aConv, "INVITE", params);
+    }
   },
   {
     name: "join",
     get helpString() _("command.join", "join"),
-    run: function(aMsg, aConv) simpleCommand(aConv, "JOIN", splitInput(aMsg))
+    run: function(aMsg, aConv) {
+      let params = aMsg.trim().split(/,\s*/);
+      if (!params[0])
+        return false;
+      let account = getAccount(aConv);
+      params.forEach(function(joinParam) {
+        if (joinParam)
+          account.joinChat(account.getChatRoomDefaultFieldValues(joinParam));
+      });
+      return true;
+    }
   },
   {
     name: "kick",
@@ -353,13 +360,13 @@ var commands = [
   {
     name: "whois",
     get helpString() _("command.whois", "whois"),
-    run: whoisCommand
-  },
-  {
-    name: "whowas",
-    get helpString() _("command.whowas", "whowas"),
-    // We can run whoisCommand here as that will automatically execute whowas
-    // if the nick is offline (and show the nick is actually online if not).
-    run: whoisCommand
+    run: function(aMsg, aConv) {
+      // Note that this will automatically run whowas is the nick is offline.
+      aMsg = aMsg.trim();
+      if (!aMsg || aMsg.indexOf(" ") != -1)
+        return false;
+      getConv(aConv).requestBuddyInfo(aMsg);
+      return true;
+    }
   }
 ];

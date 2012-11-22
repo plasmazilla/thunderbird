@@ -63,14 +63,14 @@ nsSMILAnimationController::Disconnect()
 
   StopSampling(GetRefreshDriver());
 
-  mDocument = nsnull; // (raw pointer)
+  mDocument = nullptr; // (raw pointer)
 }
 
 //----------------------------------------------------------------------
 // nsSMILTimeContainer methods:
 
 void
-nsSMILAnimationController::Pause(PRUint32 aType)
+nsSMILAnimationController::Pause(uint32_t aType)
 {
   nsSMILTimeContainer::Pause(aType);
 
@@ -81,7 +81,7 @@ nsSMILAnimationController::Pause(PRUint32 aType)
 }
 
 void
-nsSMILAnimationController::Resume(PRUint32 aType)
+nsSMILAnimationController::Resume(uint32_t aType)
 {
   bool wasPaused = (mPauseState != 0);
   // Update mCurrentSampleTime so that calls to GetParentTime--used for
@@ -227,7 +227,7 @@ nsSMILAnimationController::CompositorTableEntryTraverse(
 void
 nsSMILAnimationController::Unlink()
 {
-  mLastCompositorTable = nsnull;
+  mLastCompositorTable = nullptr;
 }
 
 //----------------------------------------------------------------------
@@ -438,7 +438,7 @@ nsSMILAnimationController::DoSample(bool aSkipUnchangedContainers)
 
     // * For each entry that remains in prev sample's hash table (i.e. for
     // every target that's no longer animated), clear animation effects.
-    mLastCompositorTable->EnumerateEntries(DoClearAnimationEffects, nsnull);
+    mLastCompositorTable->EnumerateEntries(DoClearAnimationEffects, nullptr);
   }
 
   // STEP 5: Compose currently-animated attributes.
@@ -446,7 +446,7 @@ nsSMILAnimationController::DoSample(bool aSkipUnchangedContainers)
   // random order. For animation from/to 'inherit' values to work correctly
   // when the inherited value is *also* being animated, we really should be
   // traversing our animated nodes in an ancestors-first order (bug 501183)
-  currentCompositorTable->EnumerateEntries(DoComposeAttribute, nsnull);
+  currentCompositorTable->EnumerateEntries(DoComposeAttribute, nullptr);
   mRunningSample = false;
 
   // Update last compositor table
@@ -463,8 +463,8 @@ nsSMILAnimationController::RewindElements()
   if (!rewindNeeded)
     return;
 
-  mAnimationElementTable.EnumerateEntries(RewindAnimation, nsnull);
-  mChildContainerTable.EnumerateEntries(ClearRewindNeeded, nsnull);
+  mAnimationElementTable.EnumerateEntries(RewindAnimation, nullptr);
+  mChildContainerTable.EnumerateEntries(ClearRewindNeeded, nullptr);
 }
 
 /*static*/ PR_CALLBACK PLDHashOperator
@@ -543,7 +543,7 @@ nsSMILAnimationController::DoMilestoneSamples()
     GetMilestoneElementsParams params;
     params.mMilestone = nextMilestone;
     mChildContainerTable.EnumerateEntries(GetMilestoneElements, &params);
-    PRUint32 length = params.mElements.Length();
+    uint32_t length = params.mElements.Length();
 
     // During the course of a sampling we don't want to actually go backwards.
     // Due to negative offsets, early ends and the like, a timed element might
@@ -556,12 +556,12 @@ nsSMILAnimationController::DoMilestoneSamples()
     // dependencies will be appropriately resolved.
     sampleTime = NS_MAX(nextMilestone.mTime, sampleTime);
 
-    for (PRUint32 i = 0; i < length; ++i) {
+    for (uint32_t i = 0; i < length; ++i) {
       nsISMILAnimationElement* elem = params.mElements[i].get();
       NS_ABORT_IF_FALSE(elem, "NULL animation element in list");
       nsSMILTimeContainer* container = elem->GetTimeContainer();
       if (!container)
-        // The container may be nsnull if the element has been detached from its
+        // The container may be nullptr if the element has been detached from its
         // parent since registering a milestone.
         continue;
 
@@ -752,7 +752,7 @@ nsSMILAnimationController::GetTargetIdentifierForAnimation(
   // SMILANIM section 3.1, attributeName may
   // have an XMLNS prefix to indicate the XML namespace.
   nsCOMPtr<nsIAtom> attributeName;
-  PRInt32 attributeNamespaceID;
+  int32_t attributeNamespaceID;
   if (!aAnimElem->GetTargetAttributeName(&attributeNamespaceID,
                                          getter_AddRefs(attributeName)))
     // Animation has no target attr -- skip it.
@@ -825,16 +825,16 @@ nsSMILAnimationController::GetRefreshDriver()
 {
   if (!mDocument) {
     NS_ERROR("Requesting refresh driver after document has disconnected!");
-    return nsnull;
+    return nullptr;
   }
 
   nsIPresShell* shell = mDocument->GetShell();
   if (!shell) {
-    return nsnull;
+    return nullptr;
   }
 
   nsPresContext* context = shell->GetPresContext();
-  return context ? context->RefreshDriver() : nsnull;
+  return context ? context->RefreshDriver() : nullptr;
 }
 
 void

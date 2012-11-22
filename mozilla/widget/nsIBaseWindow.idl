@@ -33,13 +33,13 @@ interface nsIBaseWindow : nsISupports
 	@param parentNativeWindow - This allows a system to pass in the parenting
 		window as a native reference rather than relying on the calling
 		application to have created the parent window as an nsIWidget.  This 
-		value will be ignored (should be nsnull) if an nsIWidget is passed in to
+		value will be ignored (should be nullptr) if an nsIWidget is passed in to
 		the parentWidget parameter.
 
 	@param parentWidget - This allows a system to pass in the parenting widget.
 		This allows some objects to optimize themselves and rely on the view
 		system for event flow rather than creating numerous native windows.  If
-		one of these is not available, nsnull should be passed.
+		one of these is not available, nullptr should be passed.
 
 	@param x - This is the x co-ordinate relative to the parent to place the
 		window.
@@ -151,6 +151,17 @@ interface nsIBaseWindow : nsISupports
 	will return a NS_ERROR_NOT_IMPLEMENTED error.
 	*/
 	attribute nativeWindow parentNativeWindow;
+
+	/*
+	This is the handle (HWND, GdkWindow*, ...) to the native window of the
+	control, exposed as a DOMString.
+
+	@return DOMString in hex format with "0x" prepended, or empty string if
+	mainWidget undefined
+
+	@throws NS_ERROR_NOT_IMPLEMENTED for non-XULWindows
+	*/
+	readonly attribute DOMString nativeHandle;
 
 	/*
 	Attribute controls the visibility of the object behind this interface.

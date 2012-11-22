@@ -13,12 +13,12 @@
 #include "nsISupports.h"
 #include "nsCoord.h"
 #include "nsPresContext.h"
-#include "nsIFrame.h" // to get nsIBox, which is a typedef
 
 #define NS_DEFAULT_VERTICAL_SCROLL_DISTANCE 3
 
 class nsBoxLayoutState;
 class nsIScrollPositionListener;
+class nsIFrame;
 
 /**
  * Interface for frames that are scrollable. This interface exposes
@@ -50,7 +50,13 @@ public:
    * of the scrolled contents, in which case it will reflect the current
    * assumptions about scrollbar visibility.
    */
-  virtual PRUint32 GetScrollbarVisibility() const = 0;
+  virtual uint32_t GetScrollbarVisibility() const = 0;
+  /**
+   * Returns the directions in which scrolling is perceived to be allowed.
+   * A direction is perceived to be allowed if there is a visible scrollbar
+   * for that direction or if the scroll range is at least one device pixel.
+   */
+  uint32_t GetPerceivedScrollingDirections() const;
   /**
    * Return the actual sizes of all possible scrollbars. Returns 0 for scrollbar
    * positions that don't have a scrollbar or where the scrollbar is not visible.
@@ -128,7 +134,7 @@ public:
    * The choosen point will be as close as possible to aScrollPosition.
    */
   virtual void ScrollTo(nsPoint aScrollPosition, ScrollMode aMode,
-                        const nsRect* aRange = nsnull) = 0;
+                        const nsRect* aRange = nullptr) = 0;
   /**
    * Scrolls to a particular position in integer CSS pixels.
    * Keeps the exact current horizontal or vertical position if the current
@@ -138,6 +144,11 @@ public:
    * The scroll mode is INSTANT.
    */
   virtual void ScrollToCSSPixels(nsIntPoint aScrollPosition) = 0;
+  /**
+   * Returns the scroll position in integer CSS pixels, rounded to the nearest
+   * pixel.
+   */
+  virtual nsIntPoint GetScrollPositionCSSPixels() = 0;
   /**
    * When scrolling by a relative amount, we can choose various units.
    */
@@ -152,7 +163,7 @@ public:
    * values are in device pixels.
    */
   virtual void ScrollBy(nsIntPoint aDelta, ScrollUnit aUnit, ScrollMode aMode,
-                        nsIntPoint* aOverflow = nsnull, nsIAtom *aOrigin = nsnull) = 0;
+                        nsIntPoint* aOverflow = nullptr, nsIAtom *aOrigin = nullptr) = 0;
   /**
    * This tells the scroll frame to try scrolling to the scroll
    * position that was restored from the history. This must be called
@@ -179,7 +190,7 @@ public:
    * setting up a scrollbar mediator if you want to redirect scrollbar
    * input.
    */
-  virtual nsIBox* GetScrollbarBox(bool aVertical) = 0;
+  virtual nsIFrame* GetScrollbarBox(bool aVertical) = 0;
 
   /**
    * Internal method used by scrollbars to notify their scrolling

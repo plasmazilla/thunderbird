@@ -103,7 +103,7 @@ nsMathMLmoFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
       selectedRect = firstChild->GetRect();
       isSelected = true;
     }
-    rv = mMathMLChar.Display(aBuilder, this, aLists, 0, isSelected ? &selectedRect : nsnull);
+    rv = mMathMLChar.Display(aBuilder, this, aLists, 0, isSelected ? &selectedRect : nullptr);
     NS_ENSURE_SUCCESS(rv, rv);
   
 #if defined(DEBUG) && defined(SHOW_BOUNDING_BOX)
@@ -123,7 +123,7 @@ nsMathMLmoFrame::ProcessTextData()
   nsAutoString data;
   nsContentUtils::GetNodeTextContent(mContent, false, data);
   data.CompressWhitespace();
-  PRInt32 length = data.Length();
+  int32_t length = data.Length();
   PRUnichar ch = (length == 0) ? kNullCh : data[0];
 
   if ((length == 1) && 
@@ -229,7 +229,7 @@ nsMathMLmoFrame::ProcessOperatorData()
     // reset everything so that we don't keep outdated values around
     // in case of dynamic changes
     mEmbellishData.flags = 0;
-    mEmbellishData.coreFrame = nsnull;
+    mEmbellishData.coreFrame = nullptr;
     mEmbellishData.leadingSpace = 0;
     mEmbellishData.trailingSpace = 0;
     if (mMathMLChar.Length() != 1)
@@ -561,11 +561,11 @@ nsMathMLmoFrame::ProcessOperatorData()
   }
 }
 
-static PRUint32
+static uint32_t
 GetStretchHint(nsOperatorFlags aFlags, nsPresentationData aPresentationData,
                bool aIsVertical)
 {
-  PRUint32 stretchHint = NS_STRETCH_NONE;
+  uint32_t stretchHint = NS_STRETCH_NONE;
   // See if it is okay to stretch,
   // starting from what the Operator Dictionary said
   if (NS_MATHML_OPERATOR_IS_MUTABLE(aFlags)) {
@@ -644,7 +644,7 @@ nsMathMLmoFrame::Stretch(nsRenderingContext& aRenderingContext,
     isVertical = true;
   }
 
-  PRUint32 stretchHint =
+  uint32_t stretchHint =
     GetStretchHint(mFlags, mPresentationData, isVertical);
 
   if (useMathMLChar) {
@@ -928,7 +928,7 @@ nsMathMLmoFrame::TransmitAutomaticData()
   // this will cause us to re-sync our flags from scratch
   // but our returned 'form' is still not final (bug 133429), it will
   // be recomputed to its final value during the next call in Reflow()
-  mEmbellishData.coreFrame = nsnull;
+  mEmbellishData.coreFrame = nullptr;
   ProcessOperatorData();
   return NS_OK;
 }
@@ -994,7 +994,7 @@ nsMathMLmoFrame::GetIntrinsicWidth(nsRenderingContext *aRenderingContext)
   ProcessOperatorData();
   nscoord width;
   if (UseMathMLChar()) {
-    PRUint32 stretchHint = GetStretchHint(mFlags, mPresentationData, true);
+    uint32_t stretchHint = GetStretchHint(mFlags, mPresentationData, true);
     width = mMathMLChar.
       GetMaxWidth(PresContext(), *aRenderingContext,
                   stretchHint, mMaxSize,
@@ -1013,9 +1013,9 @@ nsMathMLmoFrame::GetIntrinsicWidth(nsRenderingContext *aRenderingContext)
 }
 
 NS_IMETHODIMP
-nsMathMLmoFrame::AttributeChanged(PRInt32         aNameSpaceID,
+nsMathMLmoFrame::AttributeChanged(int32_t         aNameSpaceID,
                                   nsIAtom*        aAttribute,
-                                  PRInt32         aModType)
+                                  int32_t         aModType)
 {
   // check if this is an attribute that can affect the embellished hierarchy
   // in a significant way and re-layout the entire hierarchy.
@@ -1043,18 +1043,18 @@ nsMathMLmoFrame::AttributeChanged(PRInt32         aNameSpaceID,
 // No need to track the style context given to our MathML char. 
 // the Style System will use these to pass the proper style context to our MathMLChar
 nsStyleContext*
-nsMathMLmoFrame::GetAdditionalStyleContext(PRInt32 aIndex) const
+nsMathMLmoFrame::GetAdditionalStyleContext(int32_t aIndex) const
 {
   switch (aIndex) {
   case NS_MATHML_CHAR_STYLE_CONTEXT_INDEX:
     return mMathMLChar.GetStyleContext();
   default:
-    return nsnull;
+    return nullptr;
   }
 }
 
 void
-nsMathMLmoFrame::SetAdditionalStyleContext(PRInt32          aIndex,
+nsMathMLmoFrame::SetAdditionalStyleContext(int32_t          aIndex,
                                            nsStyleContext*  aStyleContext)
 {
   switch (aIndex) {

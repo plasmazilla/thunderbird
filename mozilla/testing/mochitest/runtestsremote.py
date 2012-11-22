@@ -7,6 +7,7 @@ import os
 import time
 import tempfile
 import re
+import traceback
 
 sys.path.insert(0, os.path.abspath(os.path.realpath(os.path.dirname(sys.argv[0]))))
 
@@ -407,6 +408,8 @@ def main():
     auto.setRemoteLog(options.remoteLogFile)
     auto.setServerInfo(options.webServer, options.httpPort, options.sslPort)
 
+    print dm.getInfo()
+
     procName = options.app.split('/')[-1]
     if (dm.processExist(procName)):
         dm.killProcess(procName)
@@ -456,7 +459,8 @@ def main():
                 logcat = dm.getLogcat()
                 mochitest.addLogData()
             except:
-                print "TEST-UNEXPECTED-FAIL | %s | Exception caught while running robocop tests." % sys.exc_info()[1]
+                print "Automation Error: Exception caught while running tests"
+                traceback.print_exc()
                 mochitest.stopWebServer(options)
                 mochitest.stopWebSocketServer(options)
                 try:
@@ -475,7 +479,8 @@ def main():
         retVal = mochitest.runTests(options)
         logcat = dm.getLogcat()
       except:
-        print "TEST-UNEXPECTED-FAIL | %s | Exception caught while running tests." % sys.exc_info()[1]
+        print "Automation Error: Exception caught while running tests"
+        traceback.print_exc()
         mochitest.stopWebServer(options)
         mochitest.stopWebSocketServer(options)
         try:
@@ -485,6 +490,7 @@ def main():
         sys.exit(1)
 
     print ''.join(logcat[-500:-1])
+    print dm.getInfo()
     sys.exit(retVal)
         
 if __name__ == "__main__":

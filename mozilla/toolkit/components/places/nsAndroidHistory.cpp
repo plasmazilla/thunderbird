@@ -19,7 +19,7 @@ nsAndroidHistory::GetSingleton()
 {
   if (!sHistory) {
     sHistory = new nsAndroidHistory();
-    NS_ENSURE_TRUE(sHistory, nsnull);
+    NS_ENSURE_TRUE(sHistory, nullptr);
   }
 
   NS_ADDREF(sHistory);
@@ -81,7 +81,7 @@ nsAndroidHistory::UnregisterVisitedCallback(nsIURI *aURI, Link *aContent)
 }
 
 NS_IMETHODIMP
-nsAndroidHistory::VisitURI(nsIURI *aURI, nsIURI *aLastVisitedURI, PRUint32 aFlags)
+nsAndroidHistory::VisitURI(nsIURI *aURI, nsIURI *aLastVisitedURI, uint32_t aFlags)
 {
   if (!aURI)
     return NS_OK;

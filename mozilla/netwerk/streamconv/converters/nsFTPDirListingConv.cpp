@@ -35,7 +35,7 @@
 // this enables PR_LOG_DEBUG level information and places all output in
 // the file nspr.log
 //
-PRLogModuleInfo* gFTPDirListConvLog = nsnull;
+PRLogModuleInfo* gFTPDirListConvLog = nullptr;
 
 #endif /* PR_LOGGING */
 
@@ -77,7 +77,7 @@ nsFTPDirListingConv::AsyncConvertData(const char *aFromType, const char *aToType
 // nsIStreamListener implementation
 NS_IMETHODIMP
 nsFTPDirListingConv::OnDataAvailable(nsIRequest* request, nsISupports *ctxt,
-                                  nsIInputStream *inStr, PRUint32 sourceOffset, PRUint32 count) {
+                                  nsIInputStream *inStr, uint32_t sourceOffset, uint32_t count) {
     NS_ASSERTION(request, "FTP dir listing stream converter needs a request");
     
     nsresult rv;
@@ -85,10 +85,12 @@ nsFTPDirListingConv::OnDataAvailable(nsIRequest* request, nsISupports *ctxt,
     nsCOMPtr<nsIChannel> channel = do_QueryInterface(request, &rv);
     NS_ENSURE_SUCCESS(rv, rv);
     
-    PRUint32 read, streamLen;
+    uint32_t read, streamLen;
 
-    rv = inStr->Available(&streamLen);
+    uint64_t streamLen64;
+    rv = inStr->Available(&streamLen64);
     NS_ENSURE_SUCCESS(rv, rv);
+    streamLen = (uint32_t)NS_MIN(streamLen64, uint64_t(PR_UINT32_MAX - 1));
 
     nsAutoArrayPtr<char> buffer(new char[streamLen + 1]);
     NS_ENSURE_TRUE(buffer, NS_ERROR_OUT_OF_MEMORY);
@@ -185,7 +187,7 @@ nsFTPDirListingConv::OnStopRequest(nsIRequest* request, nsISupports *ctxt,
 
 // nsFTPDirListingConv methods
 nsFTPDirListingConv::nsFTPDirListingConv() {
-    mFinalListener      = nsnull;
+    mFinalListener      = nullptr;
     mSentHeading        = false;
 }
 
@@ -200,7 +202,7 @@ nsFTPDirListingConv::Init() {
     // Initialize the global PRLogModule for FTP Protocol logging 
     // if necessary...
     //
-    if (nsnull == gFTPDirListConvLog) {
+    if (nullptr == gFTPDirListConvLog) {
         gFTPDirListConvLog = PR_NewLogModule("nsFTPDirListingConv");
     }
 #endif /* PR_LOGGING */
@@ -356,7 +358,7 @@ nsFTPDirListingConv::DigestBufferLines(char *aBuffer, nsCString &aString) {
 nsresult
 NS_NewFTPDirListingConv(nsFTPDirListingConv** aFTPDirListingConv)
 {
-    NS_PRECONDITION(aFTPDirListingConv != nsnull, "null ptr");
+    NS_PRECONDITION(aFTPDirListingConv != nullptr, "null ptr");
     if (! aFTPDirListingConv)
         return NS_ERROR_NULL_POINTER;
 

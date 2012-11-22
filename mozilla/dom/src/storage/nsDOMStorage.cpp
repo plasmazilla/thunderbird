@@ -12,7 +12,7 @@ using mozilla::dom::ContentChild;
 
 #include "prnetdb.h"
 #include "nsCOMPtr.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsDOMClassInfoID.h"
 #include "nsDOMJSUtils.h"
 #include "nsUnicharUtils.h"
@@ -38,6 +38,7 @@ using mozilla::dom::ContentChild;
 #include "nsThreadUtils.h"
 #include "mozilla/Telemetry.h"
 #include "DictionaryHelpers.h"
+#include "GeneratedEvents.h"
 
 // calls FlushAndDeleteTemporaryTables(false)
 #define NS_DOMSTORAGE_FLUSH_TIMER_TOPIC "domstorage-flush-timer"
@@ -47,15 +48,15 @@ using mozilla::dom::ContentChild;
 
 using namespace mozilla;
 
-static const PRUint32 ASK_BEFORE_ACCEPT = 1;
-static const PRUint32 ACCEPT_SESSION = 2;
-static const PRUint32 BEHAVIOR_REJECT = 2;
+static const uint32_t ASK_BEFORE_ACCEPT = 1;
+static const uint32_t ACCEPT_SESSION = 2;
+static const uint32_t BEHAVIOR_REJECT = 2;
 
-static const PRUint32 DEFAULT_QUOTA = 5 * 1024;
+static const uint32_t DEFAULT_QUOTA = 5 * 1024;
 // Be generous with offline apps by default...
-static const PRUint32 DEFAULT_OFFLINE_APP_QUOTA = 200 * 1024;
+static const uint32_t DEFAULT_OFFLINE_APP_QUOTA = 200 * 1024;
 // ... but warn if it goes over this amount
-static const PRUint32 DEFAULT_OFFLINE_WARN_QUOTA = 50 * 1024;
+static const uint32_t DEFAULT_OFFLINE_WARN_QUOTA = 50 * 1024;
 
 // Intervals to flush the temporary table after in seconds
 #define NS_DOMSTORAGE_MAXIMUM_TEMPTABLE_INACTIVITY_TIME (5)
@@ -139,14 +140,14 @@ IsCallerSecure()
   return NS_SUCCEEDED(rv) && isHttps;
 }
 
-PRUint32
+uint32_t
 GetOfflinePermission(const nsACString &aDomain)
 {
   // Fake a URI for the permission manager
   nsCOMPtr<nsIURI> uri;
   NS_NewURI(getter_AddRefs(uri), NS_LITERAL_CSTRING("http://") + aDomain);
 
-  PRUint32 perm;
+  uint32_t perm;
   if (uri) {
     nsCOMPtr<nsIPermissionManager> permissionManager =
       do_GetService(NS_PERMISSIONMANAGER_CONTRACTID);
@@ -162,7 +163,7 @@ GetOfflinePermission(const nsACString &aDomain)
 bool
 IsOfflineAllowed(const nsACString &aDomain)
 {
-  PRInt32 perm = GetOfflinePermission(aDomain);
+  int32_t perm = GetOfflinePermission(aDomain);
   return IS_PERMISSION_ALLOWED(perm);
 }
 
@@ -171,11 +172,11 @@ IsOfflineAllowed(const nsACString &aDomain)
 // service.  The warn limit may be -1, in which case there will be no warning.
 // If aOverrideQuota is set, the larger offline apps quota is used and no
 // warning is sent.
-static PRUint32
-GetQuota(const nsACString &aDomain, PRInt32 *aQuota, PRInt32 *aWarnQuota,
+static uint32_t
+GetQuota(const nsACString &aDomain, int32_t *aQuota, int32_t *aWarnQuota,
          bool aOverrideQuota)
 {
-  PRUint32 perm = GetOfflinePermission(aDomain);
+  uint32_t perm = GetOfflinePermission(aDomain);
   if (IS_PERMISSION_ALLOWED(perm) || aOverrideQuota) {
     // This is an offline app, give more space by default.
     *aQuota = Preferences::GetInt(kOfflineAppQuota,
@@ -199,12 +200,12 @@ GetQuota(const nsACString &aDomain, PRInt32 *aQuota, PRInt32 *aWarnQuota,
 }
 
 nsSessionStorageEntry::nsSessionStorageEntry(KeyTypePointer aStr)
-  : nsStringHashKey(aStr), mItem(nsnull)
+  : nsStringHashKey(aStr), mItem(nullptr)
 {
 }
 
 nsSessionStorageEntry::nsSessionStorageEntry(const nsSessionStorageEntry& aToCopy)
-  : nsStringHashKey(aToCopy), mItem(nsnull)
+  : nsStringHashKey(aToCopy), mItem(nullptr)
 {
   NS_ERROR("We're horked.");
 }
@@ -284,7 +285,7 @@ void
 nsDOMStorageManager::Shutdown()
 {
   NS_IF_RELEASE(gStorageManager);
-  gStorageManager = nsnull;
+  gStorageManager = nullptr;
 
   ShutdownDB();
 }
@@ -294,7 +295,7 @@ void
 nsDOMStorageManager::ShutdownDB()
 {
   delete DOMStorageImpl::gStorageDB;
-  DOMStorageImpl::gStorageDB = nsnull;
+  DOMStorageImpl::gStorageDB = nullptr;
 }
 
 static PLDHashOperator
@@ -333,7 +334,7 @@ GetOfflineDomains(nsTArray<nsString>& aDomains)
       nsCOMPtr<nsIPermission> perm(do_QueryInterface(supp, &rv));
       NS_ENSURE_SUCCESS(rv, rv);
 
-      PRUint32 capability;
+      uint32_t capability;
       rv = perm->GetCapability(&capability);
       NS_ENSURE_SUCCESS(rv, rv);
       if (capability != nsIPermissionManager::DENY_ACTION) {
@@ -369,7 +370,7 @@ nsDOMStorageManager::Observe(nsISupports *aSubject,
                                                    true);
   } else if (!strcmp(aTopic, "cookie-changed") &&
              !nsCRT::strcmp(aData, NS_LITERAL_STRING("cleared").get())) {
-    mStorages.EnumerateEntries(ClearStorage, nsnull);
+    mStorages.EnumerateEntries(ClearStorage, nullptr);
 
     nsresult rv = DOMStorageImpl::InitDB();
     NS_ENSURE_SUCCESS(rv, rv);
@@ -388,7 +389,7 @@ nsDOMStorageManager::Observe(nsISupports *aSubject,
       if (type != NS_LITERAL_CSTRING("cookie"))
         return NS_OK;
 
-      PRUint32 cap = 0;
+      uint32_t cap = 0;
       perm->GetCapability(&cap);
       if (!(cap & nsICookiePermission::ACCESS_SESSION) ||
           nsDependentString(aData) != NS_LITERAL_STRING("deleted"))
@@ -407,7 +408,7 @@ nsDOMStorageManager::Observe(nsISupports *aSubject,
   } else if (!strcmp(aTopic, "timer-callback")) {
     nsCOMPtr<nsIObserverService> obsserv = mozilla::services::GetObserverService();
     if (obsserv)
-      obsserv->NotifyObservers(nsnull, NS_DOMSTORAGE_FLUSH_TIMER_TOPIC, nsnull);
+      obsserv->NotifyObservers(nullptr, NS_DOMSTORAGE_FLUSH_TIMER_TOPIC, nullptr);
   } else if (!strcmp(aTopic, "browser:purge-domain-data")) {
     // Convert the domain name to the ACE format
     nsCAutoString aceDomain;
@@ -468,7 +469,7 @@ nsDOMStorageManager::Observe(nsISupports *aSubject,
 
 NS_IMETHODIMP
 nsDOMStorageManager::GetUsage(const nsAString& aDomain,
-                              PRInt32 *aUsage)
+                              int32_t *aUsage)
 {
   nsresult rv = DOMStorageImpl::InitDB();
   NS_ENSURE_SUCCESS(rv, rv);
@@ -496,7 +497,7 @@ nsDOMStorageManager::GetLocalStorageForPrincipal(nsIPrincipal *aPrincipal,
                                                  nsIDOMStorage **aResult)
 {
   NS_ENSURE_ARG_POINTER(aPrincipal);
-  *aResult = nsnull;
+  *aResult = nullptr;
 
   nsresult rv;
 
@@ -534,15 +535,15 @@ nsDOMStorageManager::RemoveFromStoragesHash(DOMStorageImpl* aStorage)
 // nsDOMStorage
 //
 
-nsDOMStorageDBWrapper* DOMStorageImpl::gStorageDB = nsnull;
+nsDOMStorageDBWrapper* DOMStorageImpl::gStorageDB = nullptr;
 
 nsDOMStorageEntry::nsDOMStorageEntry(KeyTypePointer aStr)
-  : nsPtrHashKey<const void>(aStr), mStorage(nsnull)
+  : nsPtrHashKey<const void>(aStr), mStorage(nullptr)
 {
 }
 
 nsDOMStorageEntry::nsDOMStorageEntry(const nsDOMStorageEntry& aToCopy)
-  : nsPtrHashKey<const void>(aToCopy), mStorage(nsnull)
+  : nsPtrHashKey<const void>(aToCopy), mStorage(nullptr)
 {
   NS_ERROR("DOMStorage horked.");
 }
@@ -720,7 +721,7 @@ DOMStorageImpl::InitDB()
       // un-initialized DB later on.
 
       delete gStorageDB;
-      gStorageDB = nsnull;
+      gStorageDB = nullptr;
 
       return rv;
     }
@@ -736,7 +737,7 @@ DOMStorageImpl::InitFromChild(bool aUseDB, bool aCanUseChromePersist,
                               const nsACString& aScopeDBKey,
                               const nsACString& aQuotaDomainDBKey,
                               const nsACString& aQuotaETLDplus1DomainDBKey,
-                              PRUint32 aStorageType)
+                              uint32_t aStorageType)
 {
   mUseDB = aUseDB;
   mCanUseChromePersist = aCanUseChromePersist;
@@ -842,15 +843,15 @@ DOMStorageImpl::SetDBValue(const nsAString& aKey,
   nsresult rv = InitDB();
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRInt32 offlineAppPermission;
-  PRInt32 quota;
-  PRInt32 warnQuota;
+  int32_t offlineAppPermission;
+  int32_t quota;
+  int32_t warnQuota;
   offlineAppPermission = GetQuota(mDomain, &quota, &warnQuota,
                                   CanUseChromePersist());
 
   CacheKeysFromDB();
 
-  PRInt32 usage;
+  int32_t usage;
   rv = gStorageDB->SetKey(this, aKey, aValue, aSecure, quota,
                          !IS_PERMISSION_ALLOWED(offlineAppPermission),
                          &usage);
@@ -908,7 +909,7 @@ ClearStorageItem(nsSessionStorageEntry* aEntry, void* userArg)
 void
 DOMStorageImpl::ClearAll()
 {
-  mItems.EnumerateEntries(ClearStorageItem, nsnull);
+  mItems.EnumerateEntries(ClearStorageItem, nullptr);
   mItemsCachedVersion = 0;
 }
 
@@ -1015,7 +1016,7 @@ class ItemCounterState
   }
 
   bool mIsCallerSecure;
-  PRUint32 mCount;
+  uint32_t mCount;
  private:
   ItemCounterState(); // Not to be implemented
 };
@@ -1033,7 +1034,7 @@ ItemCounter(nsSessionStorageEntry* aEntry, void* userArg)
 }
 
 nsresult
-DOMStorageImpl::GetLength(bool aCallerSecure, PRUint32* aLength)
+DOMStorageImpl::GetLength(bool aCallerSecure, uint32_t* aLength)
 {
   // Force reload of items from database.  This ensures sync localStorages for
   // same origins among different windows.
@@ -1051,15 +1052,15 @@ DOMStorageImpl::GetLength(bool aCallerSecure, PRUint32* aLength)
 class IndexFinderData
 {
  public:
-  IndexFinderData(bool aIsCallerSecure, PRUint32 aWantedIndex)
+  IndexFinderData(bool aIsCallerSecure, uint32_t aWantedIndex)
   : mIsCallerSecure(aIsCallerSecure), mIndex(0), mWantedIndex(aWantedIndex),
-    mItem(nsnull)
+    mItem(nullptr)
   {
   }
 
   bool mIsCallerSecure;
-  PRUint32 mIndex;
-  PRUint32 mWantedIndex;
+  uint32_t mIndex;
+  uint32_t mWantedIndex;
   nsSessionStorageEntry *mItem;
 
  private:
@@ -1084,7 +1085,7 @@ IndexFinder(nsSessionStorageEntry* aEntry, void* userArg)
 }
 
 nsresult
-DOMStorageImpl::GetKey(bool aCallerSecure, PRUint32 aIndex, nsAString& aKey)
+DOMStorageImpl::GetKey(bool aCallerSecure, uint32_t aIndex, nsAString& aKey)
 {
   // XXX: This does a linear search for the key at index, which would
   // suck if there's a large numer of indexes. Do we care? If so,
@@ -1115,7 +1116,7 @@ DOMStorageImpl::GetValue(bool aCallerSecure, const nsAString& aKey,
                          nsresult* aResult)
 {
   nsSessionStorageEntry *entry = mItems.GetEntry(aKey);
-  nsIDOMStorageItem* item = nsnull;
+  nsIDOMStorageItem* item = nullptr;
   if (entry) {
     if (aCallerSecure || !entry->mItem->IsSecure()) {
       item = entry->mItem;
@@ -1128,10 +1129,10 @@ DOMStorageImpl::GetValue(bool aCallerSecure, const nsAString& aKey,
     // return null if access isn't allowed or the key wasn't found
     if (rv == NS_ERROR_DOM_SECURITY_ERR || rv == NS_ERROR_DOM_NOT_FOUND_ERR ||
         (!aCallerSecure && secure))
-      return nsnull;
+      return nullptr;
 
     *aResult = rv;
-    NS_ENSURE_SUCCESS(rv, nsnull);
+    NS_ENSURE_SUCCESS(rv, nullptr);
 
     nsRefPtr<nsDOMStorageItem> newitem =
         new nsDOMStorageItem(this, aKey, value, secure);
@@ -1239,12 +1240,12 @@ CheckSecure(nsSessionStorageEntry* aEntry, void* userArg)
 }
 
 nsresult
-DOMStorageImpl::Clear(bool aCallerSecure, PRInt32* aOldCount)
+DOMStorageImpl::Clear(bool aCallerSecure, int32_t* aOldCount)
 {
   if (UseDB())
     CacheKeysFromDB();
 
-  PRInt32 oldCount = mItems.Count();
+  int32_t oldCount = mItems.Count();
 
   bool foundSecureItem = false;
   mItems.EnumerateEntries(CheckSecure, &foundSecureItem);
@@ -1278,7 +1279,7 @@ DOMStorageImpl::PrivateModeChanged(bool enabled)
 
 nsDOMStorage::nsDOMStorage()
   : mStorageType(nsPIDOMStorage::Unknown)
-  , mEventBroadcaster(nsnull)
+  , mEventBroadcaster(nullptr)
 {
   if (XRE_GetProcessType() != GeckoProcessType_Default)
     mStorageImpl = new StorageChild(this);
@@ -1289,7 +1290,7 @@ nsDOMStorage::nsDOMStorage()
 nsDOMStorage::nsDOMStorage(nsDOMStorage& aThat)
   : mStorageType(aThat.mStorageType)
   , mPrincipal(aThat.mPrincipal)
-  , mEventBroadcaster(nsnull)
+  , mEventBroadcaster(nullptr)
 {
   if (XRE_GetProcessType() != GeckoProcessType_Default) {
     StorageChild* other = static_cast<StorageChild*>(aThat.mStorageImpl.get());
@@ -1418,7 +1419,7 @@ nsDOMStorage::CanUseStorage(DOMStorageBase* aStorage /* = NULL */)
   if (!permissionManager)
     return false;
 
-  PRUint32 perm;
+  uint32_t perm;
   permissionManager->TestPermission(subjectURI, kPermissionType, &perm);
 
   if (perm == nsIPermissionManager::DENY_ACTION)
@@ -1433,8 +1434,8 @@ nsDOMStorage::CanUseStorage(DOMStorageBase* aStorage /* = NULL */)
       aStorage->mSessionOnly = true;
   }
   else if (perm != nsIPermissionManager::ALLOW_ACTION) {
-    PRUint32 cookieBehavior = Preferences::GetUint(kCookiesBehavior);
-    PRUint32 lifetimePolicy = Preferences::GetUint(kCookiesLifetimePolicy);
+    uint32_t cookieBehavior = Preferences::GetUint(kCookiesBehavior);
+    uint32_t lifetimePolicy = Preferences::GetUint(kCookiesLifetimePolicy);
 
     // Treat "ask every time" as "reject always".
     // Chrome persistent pages can bypass this check.
@@ -1479,7 +1480,7 @@ nsDOMStorage::URICanUseChromePersist(nsIURI* aURI) {
 }
 
 NS_IMETHODIMP
-nsDOMStorage::GetLength(PRUint32 *aLength)
+nsDOMStorage::GetLength(uint32_t *aLength)
 {
   if (!CacheStoragePermissions())
     return NS_ERROR_DOM_SECURITY_ERR;
@@ -1488,7 +1489,7 @@ nsDOMStorage::GetLength(PRUint32 *aLength)
 }
 
 NS_IMETHODIMP
-nsDOMStorage::Key(PRUint32 aIndex, nsAString& aKey)
+nsDOMStorage::Key(uint32_t aIndex, nsAString& aKey)
 {
   if (!CacheStoragePermissions())
     return NS_ERROR_DOM_SECURITY_ERR;
@@ -1501,7 +1502,7 @@ nsDOMStorage::GetNamedItem(const nsAString& aKey, nsresult* aResult)
 {
   if (!CacheStoragePermissions()) {
     *aResult = NS_ERROR_DOM_SECURITY_ERR;
-    return nsnull;
+    return nullptr;
   }
 
   *aResult = NS_OK;
@@ -1622,7 +1623,7 @@ nsDOMStorage::Clear()
   if (!CacheStoragePermissions())
     return NS_ERROR_DOM_SECURITY_ERR;
 
-  PRInt32 oldCount;
+  int32_t oldCount;
   nsresult rv = mStorageImpl->Clear(IsCallerSecure(), &oldCount);
   if (NS_FAILED(rv))
     return rv;
@@ -1640,14 +1641,14 @@ already_AddRefed<nsIDOMStorage>
 nsDOMStorage::Clone()
 {
   NS_ASSERTION(false, "Old DOMStorage doesn't implement cloning");
-  return nsnull;
+  return nullptr;
 }
 
 already_AddRefed<nsIDOMStorage>
 nsDOMStorage::Fork(const nsSubstring &aDocumentURI)
 {
   NS_ASSERTION(false, "Old DOMStorage doesn't implement forking");
-  return nsnull;
+  return nullptr;
 }
 
 bool nsDOMStorage::IsForkOf(nsIDOMStorage* aThat)
@@ -1671,7 +1672,7 @@ nsDOMStorage::GetKeys()
 nsIPrincipal*
 nsDOMStorage::Principal()
 {
-  return nsnull;
+  return nullptr;
 }
 
 bool
@@ -1799,7 +1800,7 @@ nsDOMStorage2::Clone()
 {
   nsDOMStorage2* storage = new nsDOMStorage2(*this);
   if (!storage)
-    return nsnull;
+    return nullptr;
 
   storage->mStorage->CloneFrom(mStorage);
   NS_ADDREF(storage);
@@ -1880,7 +1881,7 @@ StorageNotifierRunnable::Run()
   nsCOMPtr<nsIObserverService> observerService =
     mozilla::services::GetObserverService();
   if (observerService) {
-    observerService->NotifyObservers(mSubject, "dom-storage2-changed", nsnull);
+    observerService->NotifyObservers(mSubject, "dom-storage2-changed", nullptr);
   }
   return NS_OK;
 }
@@ -1893,7 +1894,9 @@ nsDOMStorage2::BroadcastChangeNotification(const nsSubstring &aKey,
                                            const nsSubstring &aNewValue)
 {
   nsresult rv;
-  nsCOMPtr<nsIDOMStorageEvent> event = new nsDOMStorageEvent();
+  nsCOMPtr<nsIDOMEvent> domEvent;
+  NS_NewDOMStorageEvent(getter_AddRefs(domEvent), nullptr, nullptr);
+  nsCOMPtr<nsIDOMStorageEvent> event = do_QueryInterface(domEvent);
   rv = event->InitStorageEvent(NS_LITERAL_STRING("storage"),
                                false,
                                false,
@@ -1911,13 +1914,13 @@ nsDOMStorage2::BroadcastChangeNotification(const nsSubstring &aKey,
 }
 
 NS_IMETHODIMP
-nsDOMStorage2::GetLength(PRUint32 *aLength)
+nsDOMStorage2::GetLength(uint32_t *aLength)
 {
   return mStorage->GetLength(aLength);
 }
 
 NS_IMETHODIMP
-nsDOMStorage2::Key(PRUint32 aIndex, nsAString& aKey)
+nsDOMStorage2::Key(uint32_t aIndex, nsAString& aKey)
 {
   return mStorage->Key(aIndex, aKey);
 }
@@ -1956,7 +1959,7 @@ nsDOMStorage2::Clear()
 NS_IMPL_CYCLE_COLLECTION_CLASS(nsDOMStorageItem)
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsDOMStorageItem)
   {
-    tmp->mStorage = nsnull;
+    tmp->mStorage = nullptr;
   }
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsDOMStorageItem)
@@ -2079,97 +2082,3 @@ nsDOMStorageItem::ToString(nsAString& aStr)
   return GetValue(aStr);
 }
 
-// Cycle collection implementation for nsDOMStorageEvent
-NS_IMPL_CYCLE_COLLECTION_CLASS(nsDOMStorageEvent)
-
-NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(nsDOMStorageEvent, nsDOMEvent)
-  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mStorageArea)
-NS_IMPL_CYCLE_COLLECTION_UNLINK_END
-
-NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(nsDOMStorageEvent, nsDOMEvent)
-  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mStorageArea)
-NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
-
-NS_IMPL_ADDREF_INHERITED(nsDOMStorageEvent, nsDOMEvent)
-NS_IMPL_RELEASE_INHERITED(nsDOMStorageEvent, nsDOMEvent)
-
-DOMCI_DATA(StorageEvent, nsDOMStorageEvent)
-
-// QueryInterface implementation for nsDOMStorageEvent
-NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(nsDOMStorageEvent)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMStorageEvent)
-  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(StorageEvent)
-NS_INTERFACE_MAP_END_INHERITING(nsDOMEvent)
-
-
-/* readonly attribute DOMString key; */
-NS_IMETHODIMP nsDOMStorageEvent::GetKey(nsAString & aKey)
-{
-  aKey = mKey;
-  return NS_OK;
-}
-
-/* readonly attribute DOMString oldValue; */
-NS_IMETHODIMP nsDOMStorageEvent::GetOldValue(nsAString & aOldValue)
-{
-  aOldValue = mOldValue;
-  return NS_OK;
-}
-
-/* readonly attribute DOMString newValue; */
-NS_IMETHODIMP nsDOMStorageEvent::GetNewValue(nsAString & aNewValue)
-{
-  aNewValue = mNewValue;
-  return NS_OK;
-}
-
-/* readonly attribute DOMString url; */
-NS_IMETHODIMP nsDOMStorageEvent::GetUrl(nsAString & aUrl)
-{
-  aUrl = mUrl;
-  return NS_OK;
-}
-
-/* readonly attribute nsIDOMStorage storageArea; */
-NS_IMETHODIMP nsDOMStorageEvent::GetStorageArea(nsIDOMStorage * *aStorageArea)
-{
-  NS_ENSURE_ARG_POINTER(aStorageArea);
-
-  NS_IF_ADDREF(*aStorageArea = mStorageArea);
-  return NS_OK;
-}
-
-/* void initStorageEvent (in DOMString typeArg, in boolean canBubbleArg, in boolean cancelableArg, in DOMString keyArg, in DOMString oldValueArg, in DOMString newValueArg, in DOMString urlArg, in nsIDOMStorage storageAreaArg); */
-NS_IMETHODIMP nsDOMStorageEvent::InitStorageEvent(const nsAString & typeArg,
-                                                  bool canBubbleArg,
-                                                  bool cancelableArg,
-                                                  const nsAString & keyArg,
-                                                  const nsAString & oldValueArg,
-                                                  const nsAString & newValueArg,
-                                                  const nsAString & urlArg,
-                                                  nsIDOMStorage *storageAreaArg)
-{
-  nsresult rv;
-
-  rv = InitEvent(typeArg, canBubbleArg, cancelableArg);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  mKey = keyArg;
-  mOldValue = oldValueArg;
-  mNewValue = newValueArg;
-  mUrl = urlArg;
-  mStorageArea = storageAreaArg;
-
-  return NS_OK;
-}
-
-nsresult
-nsDOMStorageEvent::InitFromCtor(const nsAString& aType,
-                                JSContext* aCx, jsval* aVal)
-{
-  mozilla::dom::StorageEventInit d;
-  nsresult rv = d.Init(aCx, aVal);
-  NS_ENSURE_SUCCESS(rv, rv);
-  return InitStorageEvent(aType, d.bubbles, d.cancelable, d.key, d.oldValue,
-                          d.newValue, d.url, d.storageArea);
-}

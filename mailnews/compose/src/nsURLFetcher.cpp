@@ -46,10 +46,10 @@ nsURLFetcher::nsURLFetcher()
 {
   // Init member variables...
   mTotalWritten = 0;
-  mBuffer = nsnull;
+  mBuffer = nullptr;
   mBufferSize = 0;
   mStillRunning = true;
-  mCallback = nsnull;
+  mCallback = nullptr;
   mOnStopRequestProcessed = false;
   mIsFile=false;
   nsURLFetcherStreamConsumer *consumer = new nsURLFetcherStreamConsumer(this);
@@ -141,7 +141,7 @@ nsURLFetcher::DoContent(const char * aContentType,
 NS_IMETHODIMP 
 nsURLFetcher::GetParentContentListener(nsIURIContentListener** aParent)
 {
-  *aParent = nsnull;
+  *aParent = nullptr;
   return NS_OK;
 }
 
@@ -196,7 +196,7 @@ nsURLFetcher::StillRunning(bool *running)
 // Methods for nsIStreamListener...
 nsresult
 nsURLFetcher::OnDataAvailable(nsIRequest *request, nsISupports * ctxt, nsIInputStream *aIStream, 
-                              PRUint32 sourceOffset, PRUint32 aLength)
+                              uint32_t sourceOffset, uint32_t aLength)
 {
   /* let our converter or consumer process the data */
   if (!mConverter)
@@ -258,7 +258,7 @@ nsURLFetcher::OnStopRequest(nsIRequest *request, nsISupports * ctxt, nsresult aS
 
   nsMsgAttachmentHandler *attachmentHdl = (nsMsgAttachmentHandler *)mTagData;
   if (attachmentHdl)
-    attachmentHdl->mRequest = nsnull;
+    attachmentHdl->mRequest = nullptr;
 
   //
   // Now complete the stream!
@@ -269,20 +269,18 @@ nsURLFetcher::OnStopRequest(nsIRequest *request, nsISupports * ctxt, nsresult aS
   if (mOutStream)
   {
     mOutStream->Close();
-    mOutStream = nsnull;
+    mOutStream = nullptr;
   
     /* In case of multipart/x-mixed-replace, we need to truncate the file to the current part size */
     if (MsgLowerCaseEqualsLiteral(mConverterContentType, MULTIPART_MIXED_REPLACE))
     {
-      PRInt64 fileSize;
-      LL_I2L(fileSize, mTotalWritten);
-      mLocalFile->SetFileSize(fileSize);
+      mLocalFile->SetFileSize(mTotalWritten);
     }
   }
 
   // Now if there is a callback, we need to call it...
   if (mCallback)
-    mCallback (aStatus, mContentType, mCharset, mTotalWritten, nsnull, mTagData);
+    mCallback (aStatus, mContentType, mCharset, mTotalWritten, nullptr, mTagData);
 
   // Time to return...
   return NS_OK;
@@ -324,7 +322,7 @@ nsURLFetcher::FireURLRequest(nsIURI *aURL, nsIFile *localFile, nsIOutputStream *
   NS_ENSURE_TRUE(pURILoader, NS_ERROR_FAILURE);
 
   nsCOMPtr<nsIChannel> channel;
-  NS_ENSURE_SUCCESS(NS_NewChannel(getter_AddRefs(channel), aURL, nsnull, nsnull, this), NS_ERROR_FAILURE);
+  NS_ENSURE_SUCCESS(NS_NewChannel(getter_AddRefs(channel), aURL, nullptr, nullptr, this), NS_ERROR_FAILURE);
  
   return pURILoader->OpenURI(channel, false, this);
 }
@@ -343,7 +341,7 @@ nsURLFetcher::InsertConverter(const char * aContentType)
     rv = convServ->AsyncConvertData(aContentType,
                                     "*/*",
                                     toListener,
-                                    nsnull,
+                                    nullptr,
                                     getter_AddRefs(fromListener));
     if (NS_SUCCEEDED(rv))
       mConverter = fromListener;
@@ -356,21 +354,21 @@ nsURLFetcher::InsertConverter(const char * aContentType)
 
 NS_IMETHODIMP
 nsURLFetcher::OnProgressChange(nsIWebProgress *aProgress, nsIRequest *aRequest,
-                             PRInt32 aCurSelfProgress, PRInt32 aMaxSelfProgress,
-                             PRInt32 aCurTotalProgress, PRInt32 aMaxTotalProgress)
+                             int32_t aCurSelfProgress, int32_t aMaxSelfProgress,
+                             int32_t aCurTotalProgress, int32_t aMaxTotalProgress)
 {
   return NS_OK;
 }
 
 NS_IMETHODIMP
 nsURLFetcher::OnStateChange(nsIWebProgress *aProgress, nsIRequest *aRequest,
-                          PRUint32 aStateFlags, nsresult aStatus)
+                          uint32_t aStateFlags, nsresult aStatus)
 {
   // all we care about is the case where an error occurred (as in we were unable to locate the
   // the url....
 
   if (NS_FAILED(aStatus))
-    OnStopRequest(aRequest, nsnull, aStatus);
+    OnStopRequest(aRequest, nullptr, aStatus);
 
   return NS_OK;
 }
@@ -379,7 +377,7 @@ NS_IMETHODIMP
 nsURLFetcher::OnLocationChange(nsIWebProgress* aWebProgress,
                                nsIRequest* aRequest,
                                nsIURI *aURI,
-                               PRUint32 aFlags)
+                               uint32_t aFlags)
 {
   NS_NOTREACHED("notification excluded in AddProgressListener(...)");
   return NS_OK;
@@ -398,7 +396,7 @@ nsURLFetcher::OnStatusChange(nsIWebProgress* aWebProgress,
 NS_IMETHODIMP 
 nsURLFetcher::OnSecurityChange(nsIWebProgress *aWebProgress, 
                                nsIRequest *aRequest, 
-                               PRUint32 state)
+                               uint32_t state)
 {
   NS_NOTREACHED("notification excluded in AddProgressListener(...)");
   return NS_OK;
@@ -477,10 +475,10 @@ NS_IMETHODIMP nsURLFetcherStreamConsumer::OnStopRequest(nsIRequest *aRequest, ns
 /** nsIStreamListener methods **/
 
 /* void onDataAvailable (in nsIRequest request, in nsISupports ctxt, in nsIInputStream inStr, in unsigned long sourceOffset, in unsigned long count); */
-NS_IMETHODIMP nsURLFetcherStreamConsumer::OnDataAvailable(nsIRequest *aRequest, nsISupports *ctxt, nsIInputStream *inStr, PRUint32 sourceOffset, PRUint32 count)
+NS_IMETHODIMP nsURLFetcherStreamConsumer::OnDataAvailable(nsIRequest *aRequest, nsISupports *ctxt, nsIInputStream *inStr, uint32_t sourceOffset, uint32_t count)
 {
-  PRUint32        readLen = count;
-  PRUint32        wroteIt;
+  uint32_t        readLen = count;
+  uint32_t        wroteIt;
 
   if (!mURLFetcher)
     return NS_ERROR_FAILURE;

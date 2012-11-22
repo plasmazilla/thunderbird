@@ -52,7 +52,6 @@ public:
   }
 #endif
 
-  // nsIBox
   virtual nsSize GetPrefSize(nsBoxLayoutState& aBoxLayoutState);
   virtual nsSize GetMinSize(nsBoxLayoutState& aBoxLayoutState);
   virtual nsSize GetMaxSize(nsBoxLayoutState& aBoxLayoutState);
@@ -79,9 +78,9 @@ public:
                               const nsRect&           aDirtyRect,
                               const nsDisplayListSet& aLists);
  
-  NS_IMETHOD AttributeChanged(PRInt32 aNameSpaceID,
+  NS_IMETHOD AttributeChanged(int32_t aNameSpaceID,
                               nsIAtom* aAttribute,
-                              PRInt32 aModType);
+                              int32_t aModType);
 
   NS_IMETHOD  Init(nsIContent*      aContent,
                    nsIFrame*        aParent,
@@ -99,12 +98,12 @@ public:
 
   nsresult StartDrag(nsIDOMEvent* aEvent);
 
-  static PRInt32 GetCurrentPosition(nsIContent* content);
-  static PRInt32 GetMinPosition(nsIContent* content);
-  static PRInt32 GetMaxPosition(nsIContent* content);
-  static PRInt32 GetIncrement(nsIContent* content);
-  static PRInt32 GetPageIncrement(nsIContent* content);
-  static PRInt32 GetIntegerAttribute(nsIContent* content, nsIAtom* atom, PRInt32 defaultValue);
+  static int32_t GetCurrentPosition(nsIContent* content);
+  static int32_t GetMinPosition(nsIContent* content);
+  static int32_t GetMaxPosition(nsIContent* content);
+  static int32_t GetIncrement(nsIContent* content);
+  static int32_t GetPageIncrement(nsIContent* content);
+  static int32_t GetIntegerAttribute(nsIContent* content, nsIAtom* atom, int32_t defaultValue);
   void EnsureOrient();
 
   NS_IMETHOD HandlePress(nsPresContext* aPresContext,
@@ -127,26 +126,17 @@ public:
 private:
 
   bool GetScrollToClick();
-  nsIBox* GetScrollbar();
+  nsIFrame* GetScrollbar();
 
   void PageUpDown(nscoord change);
   void SetCurrentThumbPosition(nsIContent* aScrollbar, nscoord aNewPos, bool aIsSmooth,
                                bool aImmediateRedraw, bool aMaySnap);
-  void SetCurrentPosition(nsIContent* aScrollbar, PRInt32 aNewPos, bool aIsSmooth,
+  void SetCurrentPosition(nsIContent* aScrollbar, int32_t aNewPos, bool aIsSmooth,
                           bool aImmediateRedraw);
-  void SetCurrentPositionInternal(nsIContent* aScrollbar, PRInt32 pos,
+  void SetCurrentPositionInternal(nsIContent* aScrollbar, int32_t pos,
                                   bool aIsSmooth, bool aImmediateRedraw);
   nsresult CurrentPositionChanged(nsPresContext* aPresContext,
                                   bool aImmediateRedraw);
-
-  // Get the point associated with this event. Returns true if a valid point
-  // was found. Otherwise false.
-  bool GetEventPoint(nsGUIEvent *aEvent, nsPoint &aPoint);
-
-  // Get the point associated with this touch event. Returns true if a valid point
-  // was found. False if there is more than one touch present on the page, or
-  // if a point could not be found for the given touch.
-  bool GetTouchPoint(nsTouchEvent *aEvent, nsIntPoint &aPoint);
 
   void DragThumb(bool aGrabMouseEvents);
   void AddListener();
@@ -172,7 +162,7 @@ private:
   nscoord mDragStart;
   nscoord mThumbStart;
 
-  PRInt32 mCurPos;
+  int32_t mCurPos;
 
   nscoord mChange;
 
@@ -182,7 +172,7 @@ private:
   bool mUserChanged;
 
   static bool gMiddlePref;
-  static PRInt32 gSnapMultiplier;
+  static int32_t gSnapMultiplier;
 }; // class nsSliderFrame
 
 #endif

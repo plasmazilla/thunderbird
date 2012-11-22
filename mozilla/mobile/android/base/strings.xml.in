@@ -91,18 +91,22 @@
   <string name="pref_font_size_medium">&pref_font_size_medium;</string>
   <string name="pref_font_size_large">&pref_font_size_large;</string>
   <string name="pref_font_size_xlarge">&pref_font_size_xlarge;</string>
+  <string name="pref_font_size_set">&pref_font_size_set;</string>
+  <string name="pref_font_size_adjust_char">&pref_font_size_adjust_char;</string>
+  <string name="pref_font_size_preview_text">&pref_font_size_preview_text;</string>
   <string name="pref_sync">&pref_sync;</string>
   <string name="pref_search_suggestions">&pref_search_suggestions;</string>
   <string name="pref_private_data_history">&pref_private_data_history;</string>
   <string name="pref_private_data_formdata">&pref_private_data_formdata;</string>
-  <string name="pref_private_data_cookies">&pref_private_data_cookies;</string>
+  <string name="pref_private_data_cookies2">&pref_private_data_cookies2;</string>
   <string name="pref_private_data_passwords">&pref_private_data_passwords;</string>
   <string name="pref_private_data_cache">&pref_private_data_cache;</string>
-  <string name="pref_private_data_sessions">&pref_private_data_sessions;</string>
   <string name="pref_private_data_offlineApps">&pref_private_data_offlineApps;</string>
   <string name="pref_private_data_siteSettings">&pref_private_data_siteSettings;</string>
   <string name="pref_import_android">&pref_import_android;</string>
 
+  <string name="go">&go;</string>
+  <string name="search">&search;</string>
   <string name="reload">&reload;</string>
   <string name="forward">&forward;</string>
   <string name="menu">&menu;</string>
@@ -122,7 +126,7 @@
        is why it is not localizable. -->
   <string name="toggle_profiling">Toggle Profiling</string>
 
-  <string name="site_settings_title">&site_settings_title;</string>
+  <string name="site_settings_title">&site_settings_title2;</string>
   <string name="site_settings_cancel">&site_settings_cancel;</string>
   <string name="site_settings_clear">&site_settings_clear;</string>
   <string name="site_settings_no_settings">&site_settings_no_settings;</string>
@@ -166,9 +170,10 @@
   <string name="abouthome_last_tabs_open">&abouthome_last_tabs_open;</string>
   <string name="abouthome_top_sites_title">&abouthome_top_sites_title;</string>
   <string name="abouthome_top_sites_browse">&abouthome_top_sites_browse;</string>
-  <string name="abouthome_no_top_sites">&abouthome_no_top_sites;</string>
-  <string name="abouthome_about_sync">&abouthome_about_sync;</string>
+  <string name="abouthome_about_sync">&abouthome_about_sync3;</string>
+  <string name="abouthome_about_apps">&abouthome_about_apps2;</string>
   <string name="abouthome_sync_bold_name">&abouthome_sync_bold_name;</string>
+  <string name="abouthome_apps_bold_name">&abouthome_apps_bold_name;</string>
 
   <string name="filepicker_title">&filepicker_title;</string>
   <string name="filepicker_audio_title">&filepicker_audio_title;</string>
@@ -205,4 +210,17 @@
   <string name="bookmarkhistory_import_wait">&bookmarkhistory_import_wait;</string>
 
   <string name="webapp_generic_name">&webapp_generic_name;</string>
+
+  <!-- Updater notifications -->
+  <string name="updater_start_title">&updater_start_title2;</string>
+  <string name="updater_start_select">&updater_start_select2;</string>
+ 
+  <string name="updater_downloading_title">&updater_downloading_title2;</string>
+  <string name="updater_downloading_title_failed">&updater_downloading_title_failed2;</string>
+  <string name="updater_downloading_select">&updater_downloading_select2;</string>
+  <string name="updater_downloading_retry">&updater_downloading_retry2;</string>
+   
+  <string name="updater_apply_title">&updater_apply_title2;</string>
+  <string name="updater_apply_select">&updater_apply_select2;</string>
+
 </resources>

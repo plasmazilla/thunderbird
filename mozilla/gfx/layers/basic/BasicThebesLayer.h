@@ -115,7 +115,7 @@ class BasicShadowableThebesLayer : public BasicThebesLayer,
 public:
   BasicShadowableThebesLayer(BasicShadowLayerManager* aManager)
     : BasicThebesLayer(aManager)
-    , mBufferTracker(nsnull)
+    , mBufferTracker(nullptr)
     , mIsNewBuffer(false)
     , mFrontAndBackBufferDiffer(false)
   {
@@ -140,7 +140,6 @@ public:
 
   virtual Layer* AsLayer() { return this; }
   virtual ShadowableLayer* AsShadowableLayer() { return this; }
-  virtual bool MustRetainContent() { return HasShadow(); }
 
   void SetBackBufferAndAttrs(const OptionalThebesBuffer& aBuffer,
                              const nsIntRegion& aValidRegion,
@@ -199,7 +198,7 @@ private:
   OptionalThebesBuffer mROFrontBuffer;
   nsIntRegion mFrontUpdatedRegion;
   nsIntRegion mFrontValidRegion;
-  PRPackedBool mFrontAndBackBufferDiffer;
+  bool mFrontAndBackBufferDiffer;
 };
 
 }

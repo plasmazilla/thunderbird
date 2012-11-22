@@ -10,18 +10,22 @@
 #include "nsGenericHTMLElement.h"
 #include "nsGkAtoms.h"
 #include "nsSize.h"
-#include "nsIFrame.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsNodeInfoManager.h"
 
 #include "nsICanvasElementExternal.h"
 #include "nsLayoutUtils.h"
 
-#include "Layers.h"
-
 class nsICanvasRenderingContextInternal;
 class nsIDOMFile;
 class nsIPropertyBag;
+
+namespace mozilla {
+namespace layers {
+class CanvasLayer;
+class LayerManager;
+}
+}
 
 class nsHTMLCanvasElement : public nsGenericHTMLElement,
                             public nsICanvasElementExternal,
@@ -37,7 +41,7 @@ public:
   static nsHTMLCanvasElement* FromContent(nsIContent* aPossibleCanvas)
   {
     if (!aPossibleCanvas || !aPossibleCanvas->IsHTML(nsGkAtoms::canvas)) {
-      return nsnull;
+      return nullptr;
     }
     return static_cast<nsHTMLCanvasElement*>(aPossibleCanvas);
   }
@@ -90,8 +94,8 @@ public:
    * Get the number of contexts in this canvas, and request a context at
    * an index.
    */
-  PRInt32 CountContexts ();
-  nsICanvasRenderingContextInternal *GetContextAtIndex (PRInt32 index);
+  int32_t CountContexts ();
+  nsICanvasRenderingContextInternal *GetContextAtIndex (int32_t index);
 
   /*
    * Returns true if the canvas context content is guaranteed to be opaque
@@ -105,22 +109,22 @@ public:
   NS_IMETHOD_(nsIntSize) GetSizeExternal();
   NS_IMETHOD RenderContextsExternal(gfxContext *aContext,
                                     gfxPattern::GraphicsFilter aFilter,
-                                    PRUint32 aFlags = RenderFlagPremultAlpha);
+                                    uint32_t aFlags = RenderFlagPremultAlpha);
 
-  virtual bool ParseAttribute(PRInt32 aNamespaceID,
+  virtual bool ParseAttribute(int32_t aNamespaceID,
                                 nsIAtom* aAttribute,
                                 const nsAString& aValue,
                                 nsAttrValue& aResult);
-  nsChangeHint GetAttributeChangeHint(const nsIAtom* aAttribute, PRInt32 aModType) const;
+  nsChangeHint GetAttributeChangeHint(const nsIAtom* aAttribute, int32_t aModType) const;
 
   // SetAttr override.  C++ is stupid, so have to override both
   // overloaded methods.
-  nsresult SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+  nsresult SetAttr(int32_t aNameSpaceID, nsIAtom* aName,
                    const nsAString& aValue, bool aNotify)
   {
-    return SetAttr(aNameSpaceID, aName, nsnull, aValue, aNotify);
+    return SetAttr(aNameSpaceID, aName, nullptr, aValue, aNotify);
   }
-  virtual nsresult SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+  virtual nsresult SetAttr(int32_t aNameSpaceID, nsIAtom* aName,
                            nsIAtom* aPrefix, const nsAString& aValue,
                            bool aNotify);
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
@@ -150,7 +154,7 @@ public:
 protected:
   nsIntSize GetWidthHeight();
 
-  nsresult UpdateContext(nsIPropertyBag *aNewContextOptions = nsnull);
+  nsresult UpdateContext(nsIPropertyBag *aNewContextOptions = nullptr);
   nsresult ExtractData(const nsAString& aType,
                        const nsAString& aOptions,
                        nsIInputStream** aStream,

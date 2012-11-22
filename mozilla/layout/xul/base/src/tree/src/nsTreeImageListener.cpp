@@ -13,7 +13,7 @@ NS_IMPL_ISUPPORTS2(nsTreeImageListener, imgIDecoderObserver, imgIContainerObserv
 nsTreeImageListener::nsTreeImageListener(nsTreeBodyFrame* aTreeFrame)
   : mTreeFrame(aTreeFrame),
     mInvalidationSuppressed(true),
-    mInvalidationArea(nsnull)
+    mInvalidationArea(nullptr)
 {
 }
 
@@ -60,7 +60,7 @@ NS_IMETHODIMP nsTreeImageListener::FrameChanged(imgIRequest *aRequest,
 
 
 void
-nsTreeImageListener::AddCell(PRInt32 aIndex, nsITreeColumn* aCol)
+nsTreeImageListener::AddCell(int32_t aIndex, nsITreeColumn* aCol)
 {
   if (!mInvalidationArea) {
     mInvalidationArea = new InvalidationArea(aCol);
@@ -91,7 +91,7 @@ nsTreeImageListener::Invalidate()
     for (InvalidationArea* currArea = mInvalidationArea; currArea;
          currArea = currArea->GetNext()) {
       // Loop from min to max, invalidating each cell that was listening for this image.
-      for (PRInt32 i = currArea->GetMin(); i <= currArea->GetMax(); ++i) {
+      for (int32_t i = currArea->GetMin(); i <= currArea->GetMax(); ++i) {
         if (mTreeFrame) {
           nsITreeBoxObject* tree = mTreeFrame->GetTreeBoxObject();
           if (tree) {
@@ -107,12 +107,12 @@ nsTreeImageListener::InvalidationArea::InvalidationArea(nsITreeColumn* aCol)
   : mCol(aCol),
     mMin(-1), // min should start out "undefined"
     mMax(0),
-    mNext(nsnull)
+    mNext(nullptr)
 {
 }
 
 void
-nsTreeImageListener::InvalidationArea::AddRow(PRInt32 aIndex)
+nsTreeImageListener::InvalidationArea::AddRow(int32_t aIndex)
 {
   if (mMin == -1)
     mMin = mMax = aIndex;
@@ -125,6 +125,6 @@ nsTreeImageListener::InvalidationArea::AddRow(PRInt32 aIndex)
 NS_IMETHODIMP
 nsTreeImageListener::ClearFrame()
 {
-  mTreeFrame = nsnull;
+  mTreeFrame = nullptr;
   return NS_OK;
 }

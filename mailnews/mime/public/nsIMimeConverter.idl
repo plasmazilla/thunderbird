@@ -11,8 +11,8 @@
 typedef struct MimeDecoderData MimeDecoderData;
 typedef struct MimeEncoderData MimeEncoderData;
 
-typedef nsresult (*PR_CALLBACK MimeConverterOutputCallback)
-    (const char *buf, PRInt32 size, void *closure);
+typedef int (*PR_CALLBACK MimeConverterOutputCallback)
+    (const char *buf, int32_t size, void *closure);
 
 %}
 
@@ -78,7 +78,7 @@ interface nsIMimeConverter : nsISupports {
    *     charset labeling other than UTF-8.
    * @param eatContinuations If true, unfold headers.
    *
-   * @return UTF-8 encoded value if conversion was required, nsnull if no
+   * @return UTF-8 encoded value if conversion was required, nullptr if no
    *     conversion was required.
    */
   [noscript]

@@ -56,7 +56,7 @@
           return val;
         ]]></setter>
       </property>
-
+    
       <property name="sortOrder">
         <getter>return this.getAttribute("sortOrder");</getter>
         <setter>this.setAttribute("sortOrder", val); return val;</setter>
@@ -292,7 +292,7 @@
           this.selectedItem = null;
         ]]></body>
       </method>
-
+      
       <!-- UTILITY FUNCTIONS -->
       
       <method name="repeatChar">
@@ -308,7 +308,7 @@
           return aChar + aChar.slice(0, aCol - aChar.length);
         ]]></body>
       </method>
-
+          
       <constructor> this.init(); </constructor>
       <destructor> this.destroy(); </destructor>
 

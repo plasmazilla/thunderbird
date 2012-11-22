@@ -15,6 +15,7 @@
 #include "prenv.h"
 
 #include "IPCMessageStart.h"
+#include "mozilla/ipc/FileDescriptor.h"
 #include "mozilla/ipc/Shmem.h"
 #include "mozilla/ipc/Transport.h"
 
@@ -111,6 +112,13 @@ LoggingEnabled()
 #endif
 }
 
+inline void
+ProtocolErrorBreakpoint(const char* aMsg)
+{
+#if defined(DEBUG)
+    printf("Protocol error: %s\n", aMsg);
+#endif
+}
 
 typedef IPCMessageStart ProtocolId;
 

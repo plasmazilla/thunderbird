@@ -117,22 +117,6 @@ function conversationErrorMessage(aAccount, aMessage, aError) {
   return true;
 }
 
-function setWhoIs(aAccount, aMessage, aFields) {
-  let buddyName = aAccount.normalize(aMessage.params[1], aAccount.userPrefixes);
-  // If the buddy isn't in the list yet, add it.
-  if (!hasOwnProperty(aAccount.whoisInformation, buddyName))
-    aAccount.whoisInformation[buddyName] = {};
-
-  // Set non-normalized nickname field.
-  aAccount.whoisInformation[buddyName]["nick"] = aMessage.params[1];
-
-  // Set the WHOIS fields.
-  for (let field in aFields)
-    aAccount.whoisInformation[buddyName][field] = aFields[field];
-
-  return true;
-}
-
 // Try a new nick if the previous tried nick is already in use.
 function tryNewNick(aAccount, aMessage) {
   let nickParts = /^(.+?)(\d*)$/.exec(aMessage.params[1]);
@@ -194,9 +178,14 @@ var ircBase = {
       return true;
     },
     "INVITE": function(aMessage) {
-      // INVITE  <nickname> <channel>
-      // TODO prompt user to join channel.
-      return false;
+      // INVITE <nickname> <channel>
+      // Auto-accept the invite.
+      this.joinChat(this.getChatRoomDefaultFieldValues(aMessage.params[1]));
+      this.getConversation(aMessage.params[1])
+          .writeMessage(aMessage.nickname,
+                        _("message.inviteReceived", aMessage.nickname,
+                          aMessage.params[1]), {system: true});
+      return true;
     },
     "JOIN": function(aMessage) {
       // JOIN ( <channel> *( "," <channel> ) [ <key> *( "," <key> ) ] ) / "0"
@@ -210,6 +199,7 @@ var ircBase = {
           conversation.removeAllParticipants();
           conversation.left = false;
           conversation.notifyObservers(conversation, "update-conv-chatleft");
+          delete this._chatRoomFieldsList[this.normalize(conversation.name)];
         }
         else {
           // Don't worry about adding ourself, RPL_NAMES takes care of that
@@ -328,12 +318,6 @@ var ircBase = {
       let source = aMessage.nickname || aMessage.servername;
       let conversation = this.getConversation(aMessage.params[0]);
       let topic = aMessage.params[1];
-      let message;
-      if (topic)
-        message = _("message.topicChanged", source, topic);
-      else
-        message = _("message.topicCleared", source);
-      conversation.writeMessage(source, message, {system: true});
       // Set the topic in the conversation and update the UI.
       conversation.setTopic(topic ? ctcpFormatToText(topic) : "", source);
       return true;
@@ -349,6 +333,11 @@ var ircBase = {
         this.observe(null, "status-changed");
       // Check if any of our buddies are online!
       this.sendIsOn();
+      // Reconnect channels if they were not parted by the user.
+      for each (let conversation in this._conversations) {
+        if (conversation.isChat && conversation._chatRoomFields)
+          this.joinChat(conversation._chatRoomFields);
+      }
       return serverMessage(this, aMessage);
     },
     "002": function(aMessage) { // RPL_YOURHOST
@@ -629,7 +618,7 @@ var ircBase = {
       // If the conversation is waiting for a response, it's received one.
       if (this.hasConversation(aMessage.params[1]))
         delete this.getConversation(aMessage.params[1])._pendingMessage;
-      return setWhoIs(this, aMessage, {away: aMessage.params[2]});
+      return this.setWhois(aMessage.params[1], {away: aMessage.params[2]});
     },
     "302": function(aMessage) { // RPL_USERHOST
       // :*1<reply> *( " " <reply )"
@@ -679,25 +668,25 @@ var ircBase = {
       // <nick> <user> <host> * :<real name>
       // <username>@<hostname>
       let source = aMessage.params[2] + "@" + aMessage.params[3];
-      return setWhoIs(this, aMessage, {realname: aMessage.params[5],
-                                       connectedFrom: source});
+      return this.setWhois(aMessage.params[1], {realname: aMessage.params[5],
+                                                connectedFrom: source});
     },
     "312": function(aMessage) { // RPL_WHOISSERVER
       // <nick> <server> :<server info>
-      return setWhoIs(this, aMessage,
-                      {server: _("tooltip.serverValue", aMessage.params[2],
-                                 aMessage.params[3])});
+      return this.setWhois(aMessage.params[1],
+                           {serverName: aMessage.params[2],
+                            serverInfo: aMessage.params[3]});
     },
     "313": function(aMessage) { // RPL_WHOISOPERATOR
       // <nick> :is an IRC operator
-      return setWhoIs(this, aMessage, {ircOp: true});
+      return this.setWhois(aMessage.params[1], {ircOp: true});
     },
     "314": function(aMessage) { // RPL_WHOWASUSER
       // <nick> <user> <host> * :<real name>
-      setWhoIs(this, aMessage, {offline: true});
       let source = aMessage.params[2] + "@" + aMessage.params[3];
-      return setWhoIs(this, aMessage, {realname: aMessage.params[5],
-                                       connectedFrom: source});
+      return this.setWhois(aMessage.params[1], {offline: true,
+                                                realname: aMessage.params[5],
+                                                connectedFrom: source});
     },
     "315": function(aMessage) { // RPL_ENDOFWHO
       // <name> :End of WHO list
@@ -713,7 +702,8 @@ var ircBase = {
         DownloadUtils.convertTimeUnits(parseInt(aMessage.params[2]));
       if (!valuesAndUnits[2])
         valuesAndUnits.splice(2, 2);
-      return setWhoIs(this, aMessage, {idleTime: valuesAndUnits.join(" ")});
+      return this.setWhois(aMessage.params[1],
+                           {idleTime: valuesAndUnits.join(" ")});
     },
     "318": function(aMessage) { // RPL_ENDOFWHOIS
       // <nick> :End of WHOIS list
@@ -734,7 +724,7 @@ var ircBase = {
     },
     "319": function(aMessage) { // RPL_WHOISCHANNELS
       // <nick> :*( ( "@" / "+" ) <channel> " " )
-      return setWhoIs(this, aMessage, {channels: aMessage.params[2]});
+      return this.setWhois(aMessage.params[1], {channels: aMessage.params[2]});
     },
 
     /*
@@ -772,9 +762,8 @@ var ircBase = {
     "331": function(aMessage) { // RPL_NOTOPIC
       // <channel> :No topic is set
       let conversation = this.getConversation(aMessage.params[1]);
-      conversation.setTopic(""); // Clear the topic.
-      let msg = _("message.topicNotSet", conversation.name);
-      conversation.writeMessage(null, msg, {system: true});
+       // Clear the topic.
+      conversation.setTopic("");
       return true;
     },
     "332": function(aMessage) { // RPL_TOPIC
@@ -783,13 +772,6 @@ var ircBase = {
       let conversation = this.getConversation(aMessage.params[1]);
       let topic = aMessage.params[2];
       conversation.setTopic(topic ? ctcpFormatToText(topic) : "");
-      // Send the topic as a message.
-      let message;
-      if (topic)
-        message = _("message.topic", conversation.name, topic);
-      else
-        message = _("message.topicNotSet", conversation.name);
-      conversation.writeMessage(null, message, {system: true});
       return true;
     },
     "333": function(aMessage) { // nonstandard
@@ -802,9 +784,13 @@ var ircBase = {
      */
     "341": function(aMessage) { // RPL_INVITING
       // <channel> <nick>
-      return serverMessage(this, aMessage,
-                           _("message.invited", aMessage.params[1],
-                             aMessage.params[0]));
+      // Note that servers reply with parameters in the reverse order from the
+      // above (which is as specified by RFC 2812).
+      this.getConversation(aMessage.params[2])
+          .writeMessage(aMessage.servername,
+                        _("message.invited", aMessage.params[1],
+                          aMessage.params[2]), {system: true});
+      return true;
     },
     "342": function(aMessage) { // RPL_SUMMONING
       // <user> :Summoning user to IRC
@@ -1045,6 +1031,7 @@ var ircBase = {
     },
     "403": function(aMessage) { // ERR_NOSUCHCHANNEL
       // <channel name> :No such channel
+      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
       return conversationErrorMessage(this, aMessage, "error.noChannel");
     },
     "404": function(aMessage) { // ERR_CANNOTSENDTOCHAN
@@ -1055,8 +1042,9 @@ var ircBase = {
     },
     "405": function(aMessage) { // ERR_TOOMANYCHANNELS
       // <channel name> :You have joined too many channels
+      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
       return serverErrorMessage(this, aMessage,
-                                _("error.tooManyChannels", aMessage.params[0]));
+                                _("error.tooManyChannels", aMessage.params[1]));
     },
     "406": function(aMessage) { // ERR_WASNOSUCHNICK
       // <nickname> :There was no such nickname
@@ -1066,6 +1054,7 @@ var ircBase = {
     },
     "407": function(aMessage) { // ERR_TOOMANYTARGETS
       // <target> :<error code> recipients. <abort message>
+      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
       return conversationErrorMessage(this, aMessage, "error.nonUniqueTarget");
     },
     "408": function(aMessage) { // ERR_NOSUCHSERVICE
@@ -1136,8 +1125,20 @@ var ircBase = {
     },
     "432": function(aMessage) { // ERR_ERRONEUSNICKNAME
       // <nick> :Erroneous nickname
-      // TODO Prompt user for new nick? Autoclean characters?
-      return false;
+      let msg = _("error.erroneousNickname", aMessage.params[1]);
+      serverErrorMessage(this, aMessage, msg);
+      if (this._requestedNickname == this._accountNickname) {
+        // The account has been set up with an illegal nickname.
+        ERROR("Erroneous nickname " + aMessage.params[1] + ": " +
+              aMessage.params[2]);
+        this.gotDisconnected(Ci.prplIAccount.ERROR_INVALID_USERNAME, msg);
+      }
+      else {
+        // Reset original nickname to the account nickname in case of
+        // later reconnections.
+        this._requestedNickname = this._accountNickname;
+      }
+      return true;
     },
     "433": function(aMessage) { // ERR_NICKNAMEINUSE
       // <nick> :Nickname is already in use
@@ -1150,6 +1151,7 @@ var ircBase = {
     "437": function(aMessage) { // ERR_UNAVAILRESOURCE
       // <nick/channel> :Nick/channel is temporarily unavailable
       // TODO
+      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
       return false;
     },
     "441": function(aMessage) { // ERR_USERNOTINCHANNEL
@@ -1225,6 +1227,7 @@ var ircBase = {
     "471": function(aMessage) { // ERR_CHANNELISFULL
       // <channel> :Cannot join channel (+l)
       // TODO
+      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
       return false;
     },
     "472": function(aMessage) { // ERR_UNKNOWNMODE
@@ -1235,21 +1238,25 @@ var ircBase = {
     "473": function(aMessage) { // ERR_INVITEONLYCHAN
       // <channel> :Cannot join channel (+i)
       // TODO
+      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
       return false;
     },
     "474": function(aMessage) { // ERR_BANNEDFROMCHAN
       // <channel> :Cannot join channel (+b)
       // TODO
+      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
       return false;
     },
     "475": function(aMessage) { // ERR_BADCHANNELKEY
       // <channel> :Cannot join channel (+k)
       // TODO need to inform the user.
+      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
       return false;
     },
     "476": function(aMessage) { // ERR_BADCHANMASK
       // <channel> :Bad Channel Mask
       // TODO
+      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
       return false;
     },
     "477": function(aMessage) { // ERR_NOCHANMODES

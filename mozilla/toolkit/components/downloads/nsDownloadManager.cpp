@@ -65,7 +65,7 @@ using namespace mozilla;
 #define PREF_BDM_RESUMEONWAKEDELAY "browser.download.manager.resumeOnWakeDelay"
 #define PREF_BH_DELETETEMPFILEONEXIT "browser.helperApps.deleteTempFileOnExit"
 
-static const PRInt64 gUpdateInterval = 400 * PR_USEC_PER_MSEC;
+static const int64_t gUpdateInterval = 400 * PR_USEC_PER_MSEC;
 
 #define DM_SCHEMA_VERSION      8
 #define DM_DB_NAME             NS_LITERAL_STRING("downloads.sqlite")
@@ -84,7 +84,7 @@ NS_IMPL_ISUPPORTS4(
 , nsISupportsWeakReference
 )
 
-nsDownloadManager *nsDownloadManager::gDownloadManagerService = nsnull;
+nsDownloadManager *nsDownloadManager::gDownloadManagerService = nullptr;
 
 nsDownloadManager *
 nsDownloadManager::GetSingleton()
@@ -112,10 +112,10 @@ nsDownloadManager::~nsDownloadManager()
 #ifdef DOWNLOAD_SCANNER
   if (mScanner) {
     delete mScanner;
-    mScanner = nsnull;
+    mScanner = nullptr;
   }
 #endif
-  gDownloadManagerService = nsnull;
+  gDownloadManagerService = nullptr;
 }
 
 nsresult
@@ -144,7 +144,7 @@ nsresult
 nsDownloadManager::PauseAllDownloads(bool aSetResume)
 {
   nsresult retVal = NS_OK;
-  for (PRInt32 i = mCurrentDownloads.Count() - 1; i >= 0; --i) {
+  for (int32_t i = mCurrentDownloads.Count() - 1; i >= 0; --i) {
     nsRefPtr<nsDownload> dl = mCurrentDownloads[i];
 
     // Only pause things that need to be paused
@@ -167,7 +167,7 @@ nsresult
 nsDownloadManager::ResumeAllDownloads(bool aResumeAll)
 {
   nsresult retVal = NS_OK;
-  for (PRInt32 i = mCurrentDownloads.Count() - 1; i >= 0; --i) {
+  for (int32_t i = mCurrentDownloads.Count() - 1; i >= 0; --i) {
     nsRefPtr<nsDownload> dl = mCurrentDownloads[i];
 
     // If aResumeAll is true, then resume everything; otherwise, check if the
@@ -193,12 +193,12 @@ nsresult
 nsDownloadManager::RemoveAllDownloads()
 {
   nsresult rv = NS_OK;
-  for (PRInt32 i = mCurrentDownloads.Count() - 1; i >= 0; --i) {
+  for (int32_t i = mCurrentDownloads.Count() - 1; i >= 0; --i) {
     nsRefPtr<nsDownload> dl = mCurrentDownloads[0];
 
-    nsresult result;
+    nsresult result = NS_OK;
     if (dl->IsPaused() && GetQuitBehavior() != QUIT_AND_CANCEL)
-      result = mCurrentDownloads.RemoveObject(dl);
+      mCurrentDownloads.RemoveObject(dl);
     else
       result = CancelDownload(dl->mID);
 
@@ -224,11 +224,11 @@ nsDownloadManager::RemoveDownloadsForURI(nsIURI *aURI)
   NS_ENSURE_SUCCESS(rv, rv);
 
   bool hasMore = false;
-  nsAutoTArray<PRInt64, 4> downloads;
+  nsAutoTArray<int64_t, 4> downloads;
   // Get all the downloads that match the provided URI
   while (NS_SUCCEEDED(mGetIdsForURIStatement->ExecuteStep(&hasMore)) &&
          hasMore) {
-    PRInt64 downloadId;
+    int64_t downloadId;
     rv = mGetIdsForURIStatement->GetInt64(0, &downloadId);
     NS_ENSURE_SUCCESS(rv, rv);
 
@@ -236,7 +236,7 @@ nsDownloadManager::RemoveDownloadsForURI(nsIURI *aURI)
   }
 
   // Remove each download ignoring any failure so we reach other downloads
-  for (PRInt32 i = downloads.Length(); --i >= 0; )
+  for (int32_t i = downloads.Length(); --i >= 0; )
     (void)RemoveDownload(downloads[i]);
 
   return NS_OK;
@@ -257,7 +257,7 @@ nsDownloadManager::GetFileDBConnection(nsIFile *dbFile) const
 
   nsCOMPtr<mozIStorageService> storage =
     do_GetService(MOZ_STORAGE_SERVICE_CONTRACTID);
-  NS_ENSURE_TRUE(storage, nsnull);
+  NS_ENSURE_TRUE(storage, nullptr);
 
   nsCOMPtr<mozIStorageConnection> conn;
   nsresult rv = storage->OpenDatabase(dbFile, getter_AddRefs(conn));
@@ -265,10 +265,10 @@ nsDownloadManager::GetFileDBConnection(nsIFile *dbFile) const
     // delete and try again, since we don't care so much about losing a user's
     // download history
     rv = dbFile->Remove(false);
-    NS_ENSURE_SUCCESS(rv, nsnull);
+    NS_ENSURE_SUCCESS(rv, nullptr);
     rv = storage->OpenDatabase(dbFile, getter_AddRefs(conn));
   }
-  NS_ENSURE_SUCCESS(rv, nsnull);
+  NS_ENSURE_SUCCESS(rv, nullptr);
 
   return conn.forget();
 }
@@ -278,11 +278,11 @@ nsDownloadManager::GetMemoryDBConnection() const
 {
   nsCOMPtr<mozIStorageService> storage =
     do_GetService(MOZ_STORAGE_SERVICE_CONTRACTID);
-  NS_ENSURE_TRUE(storage, nsnull);
+  NS_ENSURE_TRUE(storage, nullptr);
 
   nsCOMPtr<mozIStorageConnection> conn;
   nsresult rv = storage->OpenSpecialDatabase("memory", getter_AddRefs(conn));
-  NS_ENSURE_SUCCESS(rv, nsnull);
+  NS_ENSURE_SUCCESS(rv, nullptr);
 
   return conn.forget();
 }
@@ -294,7 +294,7 @@ nsDownloadManager::CloseDB()
   MOZ_ASSERT(NS_SUCCEEDED(rv));
   rv = mUpdateDownloadStatement->Finalize();
   MOZ_ASSERT(NS_SUCCEEDED(rv));
-  rv = mDBConn->AsyncClose(nsnull);
+  rv = mDBConn->AsyncClose(nullptr);
   MOZ_ASSERT(NS_SUCCEEDED(rv));
 }
 
@@ -346,7 +346,7 @@ nsDownloadManager::InitFileDB()
   mDBType = DATABASE_DISK;
 
   // Checking the database schema now
-  PRInt32 schemaVersion;
+  int32_t schemaVersion;
   rv = mDBConn->GetSchemaVersion(&schemaVersion);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -562,7 +562,7 @@ nsDownloadManager::InitFileDB()
         do_GetService(MOZ_STORAGE_SERVICE_CONTRACTID);
       NS_ENSURE_TRUE(storage, NS_ERROR_NOT_AVAILABLE);
       nsCOMPtr<nsIFile> backup;
-      rv = storage->BackupDatabaseFile(dbFile, DM_DB_CORRUPT_FILENAME, nsnull,
+      rv = storage->BackupDatabaseFile(dbFile, DM_DB_CORRUPT_FILENAME, nullptr,
                                        getter_AddRefs(backup));
       NS_ENSURE_SUCCESS(rv, rv);
 
@@ -706,13 +706,13 @@ nsDownloadManager::RestoreActiveDownloads()
   return retVal;
 }
 
-PRInt64
+int64_t
 nsDownloadManager::AddDownloadToDB(const nsAString &aName,
                                    const nsACString &aSource,
                                    const nsACString &aTarget,
                                    const nsAString &aTempPath,
-                                   PRInt64 aStartTime,
-                                   PRInt64 aEndTime,
+                                   int64_t aStartTime,
+                                   int64_t aEndTime,
                                    const nsACString &aMimeType,
                                    const nsACString &aPreferredApp,
                                    nsHandlerInfoAction aPreferredAction)
@@ -761,7 +761,7 @@ nsDownloadManager::AddDownloadToDB(const nsAString &aName,
   rv = stmt->ExecuteStep(&hasMore); // we want to keep our lock
   NS_ENSURE_SUCCESS(rv, 0);
 
-  PRInt64 id = 0;
+  int64_t id = 0;
   rv = mDBConn->GetLastInsertRowID(&id);
   NS_ENSURE_SUCCESS(rv, 0);
 
@@ -844,7 +844,7 @@ nsDownloadManager::Init()
   rv = mScanner->Init();
   if (NS_FAILED(rv)) {
     delete mScanner;
-    mScanner = nsnull;
+    mScanner = nullptr;
   }
 #endif
 
@@ -870,7 +870,7 @@ nsDownloadManager::Init()
   (void)mObserverService->NotifyObservers(
                                 static_cast<nsIDownloadManager *>(this),
                                 "download-manager-initialized",
-                                nsnull);
+                                nullptr);
 
   // The following AddObserver calls must be the last lines in this function,
   // because otherwise, this function may fail (and thus, this object would be not
@@ -894,7 +894,7 @@ nsDownloadManager::Init()
   return NS_OK;
 }
 
-PRInt32
+int32_t
 nsDownloadManager::GetRetentionBehavior()
 {
   // We use 0 as the default, which is "remove when done"
@@ -902,7 +902,7 @@ nsDownloadManager::GetRetentionBehavior()
   nsCOMPtr<nsIPrefBranch> pref = do_GetService(NS_PREFSERVICE_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, 0);
 
-  PRInt32 val;
+  int32_t val;
   rv = pref->GetIntPref(PREF_BDM_RETENTION, &val);
   NS_ENSURE_SUCCESS(rv, 0);
 
@@ -916,7 +916,7 @@ nsDownloadManager::GetRetentionBehavior()
   retentionBehavior->SetData(val);
   (void)mObserverService->NotifyObservers(retentionBehavior,
                                           "download-manager-change-retention",
-                                          nsnull);
+                                          nullptr);
   retentionBehavior->GetData(&val);
 
   return val;
@@ -930,7 +930,7 @@ nsDownloadManager::GetQuitBehavior()
   nsCOMPtr<nsIPrefBranch> pref = do_GetService(NS_PREFSERVICE_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, QUIT_AND_RESUME);
 
-  PRInt32 val;
+  int32_t val;
   rv = pref->GetIntPref(PREF_BDM_QUITBEHAVIOR, &val);
   NS_ENSURE_SUCCESS(rv, QUIT_AND_RESUME);
 
@@ -945,7 +945,7 @@ nsDownloadManager::GetQuitBehavior()
 }
 
 nsresult
-nsDownloadManager::GetDownloadFromDB(PRUint32 aID, nsDownload **retVal)
+nsDownloadManager::GetDownloadFromDB(uint32_t aID, nsDownload **retVal)
 {
   NS_ASSERTION(!FindDownload(aID),
                "If it is a current download, you should not call this method!");
@@ -973,9 +973,9 @@ nsDownloadManager::GetDownloadFromDB(PRUint32 aID, nsDownload **retVal)
   if (!dl)
     return NS_ERROR_OUT_OF_MEMORY;
 
-  PRInt32 i = 0;
+  int32_t i = 0;
   // Setting all properties of the download now
-  dl->mCancelable = nsnull;
+  dl->mCancelable = nullptr;
   dl->mID = stmt->AsInt64(i++);
   dl->mDownloadState = stmt->AsInt32(i++);
   dl->mStartTime = stmt->AsInt64(i++);
@@ -1009,8 +1009,8 @@ nsDownloadManager::GetDownloadFromDB(PRUint32 aID, nsDownload **retVal)
   rv = stmt->GetUTF8String(i++, dl->mEntityID);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRInt64 currBytes = stmt->AsInt64(i++);
-  PRInt64 maxBytes = stmt->AsInt64(i++);
+  int64_t currBytes = stmt->AsInt64(i++);
+  int64_t maxBytes = stmt->AsInt64(i++);
   dl->SetProgressBytes(currBytes, maxBytes);
 
   // Build mMIMEInfo only if the mimeType in DB is not empty
@@ -1080,14 +1080,14 @@ nsDownloadManager::AddToCurrentDownloads(nsDownload *aDl)
 void
 nsDownloadManager::SendEvent(nsDownload *aDownload, const char *aTopic)
 {
-  (void)mObserverService->NotifyObservers(aDownload, aTopic, nsnull);
+  (void)mObserverService->NotifyObservers(aDownload, aTopic, nullptr);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //// nsIDownloadManager
 
 NS_IMETHODIMP
-nsDownloadManager::GetActiveDownloadCount(PRInt32 *aResult)
+nsDownloadManager::GetActiveDownloadCount(int32_t *aResult)
 {
   *aResult = mCurrentDownloads.Count();
 
@@ -1145,7 +1145,7 @@ nsDownloadManager::GetDefaultDownloadsDirectory(nsIFile **aResult)
      do_GetService(NS_SYSTEMINFO_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRInt32 version;
+  int32_t version;
   NS_NAMED_LITERAL_STRING(osVersion, "version");
   rv = infoService->GetPropertyAsInt32(osVersion, &version);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -1240,7 +1240,7 @@ nsDownloadManager::GetUserDownloadsDirectory(nsIFile **aResult)
                               getter_AddRefs(prefBranch));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRInt32 val;
+  int32_t val;
   rv = prefBranch->GetIntPref(NS_PREF_FOLDERLIST,
                               &val);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -1382,7 +1382,7 @@ nsDownloadManager::AddDownload(DownloadType aDownloadType,
 
   DownloadState startState = nsIDownloadManager::DOWNLOAD_QUEUED;
 
-  PRInt64 id = AddDownloadToDB(dl->mDisplayName, source, target, tempPath,
+  int64_t id = AddDownloadToDB(dl->mDisplayName, source, target, tempPath,
                                dl->mStartTime, dl->mLastUpdate,
                                mimeType, persistentDescriptor, action);
   NS_ENSURE_TRUE(id, NS_ERROR_FAILURE);
@@ -1437,7 +1437,7 @@ nsDownloadManager::AddDownload(DownloadType aDownloadType,
       (void)pc->Log(nsIParentalControlsService::ePCLog_FileDownload,
                     enabled,
                     aSource,
-                    nsnull);
+                    nullptr);
     }
   }
 
@@ -1447,7 +1447,7 @@ nsDownloadManager::AddDownload(DownloadType aDownloadType,
 }
 
 NS_IMETHODIMP
-nsDownloadManager::GetDownload(PRUint32 aID, nsIDownload **aDownloadItem)
+nsDownloadManager::GetDownload(uint32_t aID, nsIDownload **aDownloadItem)
 {
   nsDownload *itm = FindDownload(aID);
 
@@ -1465,21 +1465,21 @@ nsDownloadManager::GetDownload(PRUint32 aID, nsIDownload **aDownloadItem)
 }
 
 nsDownload *
-nsDownloadManager::FindDownload(PRUint32 aID)
+nsDownloadManager::FindDownload(uint32_t aID)
 {
   // we shouldn't ever have many downloads, so we can loop over them
-  for (PRInt32 i = mCurrentDownloads.Count() - 1; i >= 0; --i) {
+  for (int32_t i = mCurrentDownloads.Count() - 1; i >= 0; --i) {
     nsDownload *dl = mCurrentDownloads[i];
 
     if (dl->mID == aID)
       return dl;
   }
 
-  return nsnull;
+  return nullptr;
 }
 
 NS_IMETHODIMP
-nsDownloadManager::CancelDownload(PRUint32 aID)
+nsDownloadManager::CancelDownload(uint32_t aID)
 {
   // We AddRef here so we don't lose access to member variables when we remove
   nsRefPtr<nsDownload> dl = FindDownload(aID);
@@ -1526,7 +1526,7 @@ nsDownloadManager::CancelDownload(PRUint32 aID)
 }
 
 NS_IMETHODIMP
-nsDownloadManager::RetryDownload(PRUint32 aID)
+nsDownloadManager::RetryDownload(uint32_t aID)
 {
   nsRefPtr<nsDownload> dl;
   nsresult rv = GetDownloadFromDB(aID, getter_AddRefs(dl));
@@ -1569,10 +1569,10 @@ nsDownloadManager::RetryDownload(PRUint32 aID)
   dl->mCancelable = wbp;
   (void)wbp->SetProgressListener(dl);
 
-  rv = wbp->SaveURI(dl->mSource, nsnull, nsnull, nsnull, nsnull, dl->mTarget);
+  rv = wbp->SaveURI(dl->mSource, nullptr, nullptr, nullptr, nullptr, dl->mTarget);
   if (NS_FAILED(rv)) {
-    dl->mCancelable = nsnull;
-    (void)wbp->SetProgressListener(nsnull);
+    dl->mCancelable = nullptr;
+    (void)wbp->SetProgressListener(nullptr);
     return rv;
   }
 
@@ -1580,7 +1580,7 @@ nsDownloadManager::RetryDownload(PRUint32 aID)
 }
 
 NS_IMETHODIMP
-nsDownloadManager::RemoveDownload(PRUint32 aID)
+nsDownloadManager::RemoveDownload(uint32_t aID)
 {
   nsDownload *dl = FindDownload(aID);
   NS_ASSERTION(!dl, "Can't call RemoveDownload on a download in progress!");
@@ -1608,12 +1608,12 @@ nsDownloadManager::RemoveDownload(PRUint32 aID)
   // Notify the UI with the topic and download id
   return mObserverService->NotifyObservers(id,
                                            "download-manager-remove-download",
-                                           nsnull);
+                                           nullptr);
 }
 
 NS_IMETHODIMP
-nsDownloadManager::RemoveDownloadsByTimeframe(PRInt64 aStartTime,
-                                              PRInt64 aEndTime)
+nsDownloadManager::RemoveDownloadsByTimeframe(int64_t aStartTime,
+                                              int64_t aEndTime)
 {
   nsCOMPtr<mozIStorageStatement> stmt;
   nsresult rv = mDBConn->CreateStatement(NS_LITERAL_CSTRING(
@@ -1642,9 +1642,9 @@ nsDownloadManager::RemoveDownloadsByTimeframe(PRInt64 aStartTime,
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Notify the UI with the topic and null subject to indicate "remove multiple"
-  return mObserverService->NotifyObservers(nsnull,
+  return mObserverService->NotifyObservers(nullptr,
                                            "download-manager-remove-download",
-                                           nsnull);
+                                           nullptr);
 }
 
 NS_IMETHODIMP
@@ -1667,7 +1667,7 @@ nsDownloadManager::CleanUp()
       "OR state = ? "
       "OR state = ?"), getter_AddRefs(stmt));
   NS_ENSURE_SUCCESS(rv, rv);
-  for (PRUint32 i = 0; i < ArrayLength(states); ++i) {
+  for (uint32_t i = 0; i < ArrayLength(states); ++i) {
     rv = stmt->BindInt32ByIndex(i, states[i]);
     NS_ENSURE_SUCCESS(rv, rv);
   }
@@ -1676,9 +1676,9 @@ nsDownloadManager::CleanUp()
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Notify the UI with the topic and null subject to indicate "remove multiple"
-  return mObserverService->NotifyObservers(nsnull,
+  return mObserverService->NotifyObservers(nullptr,
                                            "download-manager-remove-download",
-                                           nsnull);
+                                           nullptr);
 }
 
 NS_IMETHODIMP
@@ -1707,7 +1707,7 @@ nsDownloadManager::GetCanCleanUp(bool *aResult)
       "OR state = ? "
       "OR state = ?"), getter_AddRefs(stmt));
   NS_ENSURE_SUCCESS(rv, NS_OK);
-  for (PRUint32 i = 0; i < ArrayLength(states); ++i) {
+  for (uint32_t i = 0; i < ArrayLength(states); ++i) {
     rv = stmt->BindInt32ByIndex(i, states[i]);
     NS_ENSURE_SUCCESS(rv, NS_OK);
   }
@@ -1716,7 +1716,7 @@ nsDownloadManager::GetCanCleanUp(bool *aResult)
   rv = stmt->ExecuteStep(&moreResults);
   NS_ENSURE_SUCCESS(rv, NS_OK);
 
-  PRInt32 count;
+  int32_t count;
   rv = stmt->GetInt32(0, &count);
   NS_ENSURE_SUCCESS(rv, NS_OK);
 
@@ -1727,7 +1727,7 @@ nsDownloadManager::GetCanCleanUp(bool *aResult)
 }
 
 NS_IMETHODIMP
-nsDownloadManager::PauseDownload(PRUint32 aID)
+nsDownloadManager::PauseDownload(uint32_t aID)
 {
   nsDownload *dl = FindDownload(aID);
   if (!dl)
@@ -1737,7 +1737,7 @@ nsDownloadManager::PauseDownload(PRUint32 aID)
 }
 
 NS_IMETHODIMP
-nsDownloadManager::ResumeDownload(PRUint32 aID)
+nsDownloadManager::ResumeDownload(uint32_t aID)
 {
   nsDownload *dl = FindDownload(aID);
   if (!dl)
@@ -1771,23 +1771,23 @@ nsDownloadManager::RemoveListener(nsIDownloadProgressListener *aListener)
 }
 
 void
-nsDownloadManager::NotifyListenersOnDownloadStateChange(PRInt16 aOldState,
+nsDownloadManager::NotifyListenersOnDownloadStateChange(int16_t aOldState,
                                                         nsIDownload *aDownload)
 {
-  for (PRInt32 i = mListeners.Count() - 1; i >= 0; --i)
+  for (int32_t i = mListeners.Count() - 1; i >= 0; --i)
     mListeners[i]->OnDownloadStateChange(aOldState, aDownload);
 }
 
 void
 nsDownloadManager::NotifyListenersOnProgressChange(nsIWebProgress *aProgress,
                                                    nsIRequest *aRequest,
-                                                   PRInt64 aCurSelfProgress,
-                                                   PRInt64 aMaxSelfProgress,
-                                                   PRInt64 aCurTotalProgress,
-                                                   PRInt64 aMaxTotalProgress,
+                                                   int64_t aCurSelfProgress,
+                                                   int64_t aMaxSelfProgress,
+                                                   int64_t aCurTotalProgress,
+                                                   int64_t aMaxTotalProgress,
                                                    nsIDownload *aDownload)
 {
-  for (PRInt32 i = mListeners.Count() - 1; i >= 0; --i)
+  for (int32_t i = mListeners.Count() - 1; i >= 0; --i)
     mListeners[i]->OnProgressChange(aProgress, aRequest, aCurSelfProgress,
                                     aMaxSelfProgress, aCurTotalProgress,
                                     aMaxTotalProgress, aDownload);
@@ -1796,11 +1796,11 @@ nsDownloadManager::NotifyListenersOnProgressChange(nsIWebProgress *aProgress,
 void
 nsDownloadManager::NotifyListenersOnStateChange(nsIWebProgress *aProgress,
                                                 nsIRequest *aRequest,
-                                                PRUint32 aStateFlags,
+                                                uint32_t aStateFlags,
                                                 nsresult aStatus,
                                                 nsIDownload *aDownload)
 {
-  for (PRInt32 i = mListeners.Count() - 1; i >= 0; --i)
+  for (int32_t i = mListeners.Count() - 1; i >= 0; --i)
     mListeners[i]->OnStateChange(aProgress, aRequest, aStateFlags, aStatus,
                                  aDownload);
 }
@@ -1828,7 +1828,7 @@ nsDownloadManager::SwitchDatabaseTypeTo(enum nsDownloadManager::DatabaseType aTy
   (void)mObserverService->NotifyObservers(
                                 static_cast<nsIDownloadManager *>(this),
                                 "download-manager-database-type-changed",
-                                nsnull);
+                                nullptr);
 
   rv = RestoreActiveDownloads();
   NS_WARN_IF_FALSE(NS_SUCCEEDED(rv), "Failed to restore all active downloads");
@@ -1856,16 +1856,16 @@ NS_IMETHODIMP
 nsDownloadManager::OnEndUpdateBatch()
 {
   // Get rid of the transaction and cause it to commit
-  mHistoryTransaction = nsnull;
+  mHistoryTransaction = nullptr;
 
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsDownloadManager::OnVisit(nsIURI *aURI, PRInt64 aVisitID, PRTime aTime,
-                           PRInt64 aSessionID, PRInt64 aReferringID,
-                           PRUint32 aTransitionType, const nsACString& aGUID,
-                           PRUint32 *aAdded)
+nsDownloadManager::OnVisit(nsIURI *aURI, int64_t aVisitID, PRTime aTime,
+                           int64_t aSessionID, int64_t aReferringID,
+                           uint32_t aTransitionType, const nsACString& aGUID,
+                           uint32_t *aAdded)
 {
   return NS_OK;
 }
@@ -1881,7 +1881,7 @@ nsDownloadManager::OnTitleChanged(nsIURI *aURI,
 NS_IMETHODIMP
 nsDownloadManager::OnBeforeDeleteURI(nsIURI *aURI,
                                      const nsACString& aGUID,
-                                     PRUint16 aReason)
+                                     uint16_t aReason)
 {
   return NS_OK;
 }
@@ -1889,7 +1889,7 @@ nsDownloadManager::OnBeforeDeleteURI(nsIURI *aURI,
 NS_IMETHODIMP
 nsDownloadManager::OnDeleteURI(nsIURI *aURI,
                                const nsACString& aGUID,
-                               PRUint16 aReason)
+                               uint16_t aReason)
 {
   return RemoveDownloadsForURI(aURI);
 }
@@ -1902,7 +1902,7 @@ nsDownloadManager::OnClearHistory()
 
 NS_IMETHODIMP
 nsDownloadManager::OnPageChanged(nsIURI *aURI,
-                                 PRUint32 aChangedAttribute,
+                                 uint32_t aChangedAttribute,
                                  const nsAString& aNewValue,
                                  const nsACString &aGUID)
 {
@@ -1912,7 +1912,7 @@ nsDownloadManager::OnPageChanged(nsIURI *aURI,
 NS_IMETHODIMP
 nsDownloadManager::OnDeleteVisits(nsIURI *aURI, PRTime aVisitTime,
                                   const nsACString& aGUID,
-                                  PRUint16 aReason)
+                                  uint16_t aReason)
 {
   // Don't bother removing downloads until the page is removed.
   return NS_OK;
@@ -1926,12 +1926,12 @@ nsDownloadManager::Observe(nsISupports *aSubject,
                            const char *aTopic,
                            const PRUnichar *aData)
 {
-  PRInt32 currDownloadCount = mCurrentDownloads.Count();
+  int32_t currDownloadCount = mCurrentDownloads.Count();
 
   // If we don't need to cancel all the downloads on quit, only count the ones
   // that aren't resumable.
   if (GetQuitBehavior() != QUIT_AND_CANCEL)
-    for (PRInt32 i = currDownloadCount - 1; i >= 0; --i)
+    for (int32_t i = currDownloadCount - 1; i >= 0; --i)
       if (mCurrentDownloads[i]->IsResumable())
         currDownloadCount--;
 
@@ -1940,7 +1940,7 @@ nsDownloadManager::Observe(nsISupports *aSubject,
     nsCOMPtr<nsIDownload> dl = do_QueryInterface(aSubject, &rv);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    PRUint32 id;
+    uint32_t id;
     dl->GetId(&id);
     nsDownload *dl2 = FindDownload(id);
     if (dl2)
@@ -2008,12 +2008,12 @@ nsDownloadManager::Observe(nsISupports *aSubject,
     nsCOMPtr<nsIDownloadManagerUI> dmui =
       do_GetService("@mozilla.org/download-manager-ui;1", &rv);
     NS_ENSURE_SUCCESS(rv, rv);
-    return dmui->Show(nsnull, 0, nsIDownloadManagerUI::REASON_USER_INTERACTED);
+    return dmui->Show(nullptr, 0, nsIDownloadManagerUI::REASON_USER_INTERACTED);
   } else if (strcmp(aTopic, "sleep_notification") == 0) {
     // Pause downloads if we're sleeping, and mark the downloads as auto-resume
     (void)PauseAllDownloads(true);
   } else if (strcmp(aTopic, "wake_notification") == 0) {
-    PRInt32 resumeOnWakeDelay = 10000;
+    int32_t resumeOnWakeDelay = 10000;
     nsCOMPtr<nsIPrefBranch> pref = do_GetService(NS_PREFSERVICE_CONTRACTID);
     if (pref)
       (void)pref->GetIntPref(PREF_BDM_RESUMEONWAKEDELAY, &resumeOnWakeDelay);
@@ -2085,7 +2085,7 @@ nsDownloadManager::OnLeavePrivateBrowsingMode()
 }
 
 void
-nsDownloadManager::ConfirmCancelDownloads(PRInt32 aCount,
+nsDownloadManager::ConfirmCancelDownloads(int32_t aCount,
                                           nsISupportsPRBool *aCancelDownloads,
                                           const PRUnichar *aTitle,
                                           const PRUnichar *aCancelMessageMultiple,
@@ -2129,10 +2129,10 @@ nsDownloadManager::ConfirmCancelDownloads(PRInt32 aCount,
   // Show alert.
   nsCOMPtr<nsIPromptService> prompter(do_GetService(NS_PROMPTSERVICE_CONTRACTID));
   if (prompter) {
-    PRInt32 flags = (nsIPromptService::BUTTON_TITLE_IS_STRING * nsIPromptService::BUTTON_POS_0) + (nsIPromptService::BUTTON_TITLE_IS_STRING * nsIPromptService::BUTTON_POS_1);
+    int32_t flags = (nsIPromptService::BUTTON_TITLE_IS_STRING * nsIPromptService::BUTTON_POS_0) + (nsIPromptService::BUTTON_TITLE_IS_STRING * nsIPromptService::BUTTON_POS_1);
     bool nothing = false;
-    PRInt32 button;
-    prompter->ConfirmEx(dmWindow, title, message, flags, quitButton.get(), dontQuitButton.get(), nsnull, nsnull, &nothing, &button);
+    int32_t button;
+    prompter->ConfirmEx(dmWindow, title, message, flags, quitButton.get(), dontQuitButton.get(), nullptr, nullptr, &nothing, &button);
 
     aCancelDownloads->SetData(button == 1);
   }
@@ -2156,7 +2156,7 @@ nsDownload::nsDownload() : mDownloadState(nsIDownloadManager::DOWNLOAD_NOTSTARTE
                            mCurrBytes(0),
                            mMaxBytes(-1),
                            mStartTime(0),
-                           mLastUpdate(PR_Now() - (PRUint32)gUpdateInterval),
+                           mLastUpdate(PR_Now() - (uint32_t)gUpdateInterval),
                            mResumedAt(-1),
                            mSpeed(0),
                            mHasMultipleFiles(false),
@@ -2174,7 +2174,7 @@ nsDownload::SetState(DownloadState aState)
   NS_ASSERTION(mDownloadState != aState,
                "Trying to set the download state to what it already is set to!");
 
-  PRInt16 oldState = mDownloadState;
+  int16_t oldState = mDownloadState;
   mDownloadState = aState;
 
   // We don't want to lose access to our member variables
@@ -2221,7 +2221,7 @@ nsDownload::SetState(DownloadState aState)
       if (NS_FAILED(rv)) {
         // We've failed to execute the desired action.  As a result, we should
         // fail the download so the user can try again.
-        (void)FailDownload(rv, nsnull);
+        (void)FailDownload(rv, nullptr);
         return rv;
       }
 
@@ -2236,15 +2236,15 @@ nsDownload::SetState(DownloadState aState)
         pref->GetBoolPref(PREF_BDM_SHOWALERTONCOMPLETE, &showTaskbarAlert);
 
       if (showTaskbarAlert) {
-        PRInt32 alertInterval = 2000;
+        int32_t alertInterval = 2000;
         if (pref)
           pref->GetIntPref(PREF_BDM_SHOWALERTINTERVAL, &alertInterval);
 
-        PRInt64 alertIntervalUSec = alertInterval * PR_USEC_PER_MSEC;
-        PRInt64 goat = PR_Now() - mStartTime;
+        int64_t alertIntervalUSec = alertInterval * PR_USEC_PER_MSEC;
+        int64_t goat = PR_Now() - mStartTime;
         showTaskbarAlert = goat > alertIntervalUSec;
 
-        PRInt32 size = mDownloadManager->mCurrentDownloads.Count();
+        int32_t size = mDownloadManager->mCurrentDownloads.Count();
         if (showTaskbarAlert && size == 0) {
           nsCOMPtr<nsIAlertsService> alerts =
             do_GetService("@mozilla.org/alerts-service;1");
@@ -2402,10 +2402,10 @@ nsDownload::SetState(DownloadState aState)
 NS_IMETHODIMP
 nsDownload::OnProgressChange64(nsIWebProgress *aWebProgress,
                                nsIRequest *aRequest,
-                               PRInt64 aCurSelfProgress,
-                               PRInt64 aMaxSelfProgress,
-                               PRInt64 aCurTotalProgress,
-                               PRInt64 aMaxTotalProgress)
+                               int64_t aCurSelfProgress,
+                               int64_t aMaxSelfProgress,
+                               int64_t aCurTotalProgress,
+                               int64_t aMaxTotalProgress)
 {
   if (!mRequest)
     mRequest = aRequest; // used for pause/resume
@@ -2470,7 +2470,7 @@ nsDownload::OnProgressChange64(nsIWebProgress *aWebProgress,
   SetProgressBytes(aCurTotalProgress, aMaxTotalProgress);
 
   // Report to the listener our real sizes
-  PRInt64 currBytes, maxBytes;
+  int64_t currBytes, maxBytes;
   (void)GetAmountTransferred(&currBytes);
   (void)GetSize(&maxBytes);
   mDownloadManager->NotifyListenersOnProgressChange(
@@ -2486,7 +2486,7 @@ nsDownload::OnProgressChange64(nsIWebProgress *aWebProgress,
 NS_IMETHODIMP
 nsDownload::OnRefreshAttempted(nsIWebProgress *aWebProgress,
                                nsIURI *aUri,
-                               PRInt32 aDelay,
+                               int32_t aDelay,
                                bool aSameUri,
                                bool *allowRefresh)
 {
@@ -2500,10 +2500,10 @@ nsDownload::OnRefreshAttempted(nsIWebProgress *aWebProgress,
 NS_IMETHODIMP
 nsDownload::OnProgressChange(nsIWebProgress *aWebProgress,
                              nsIRequest *aRequest,
-                             PRInt32 aCurSelfProgress,
-                             PRInt32 aMaxSelfProgress,
-                             PRInt32 aCurTotalProgress,
-                             PRInt32 aMaxTotalProgress)
+                             int32_t aCurSelfProgress,
+                             int32_t aMaxSelfProgress,
+                             int32_t aCurTotalProgress,
+                             int32_t aMaxTotalProgress)
 {
   return OnProgressChange64(aWebProgress, aRequest,
                             aCurSelfProgress, aMaxSelfProgress,
@@ -2513,7 +2513,7 @@ nsDownload::OnProgressChange(nsIWebProgress *aWebProgress,
 NS_IMETHODIMP
 nsDownload::OnLocationChange(nsIWebProgress *aWebProgress,
                              nsIRequest *aRequest, nsIURI *aLocation,
-                             PRUint32 aFlags)
+                             uint32_t aFlags)
 {
   return NS_OK;
 }
@@ -2530,7 +2530,7 @@ nsDownload::OnStatusChange(nsIWebProgress *aWebProgress,
 
 NS_IMETHODIMP
 nsDownload::OnStateChange(nsIWebProgress *aWebProgress,
-                          nsIRequest *aRequest, PRUint32 aStateFlags,
+                          nsIRequest *aRequest, uint32_t aStateFlags,
                           nsresult aStatus)
 {
   // We don't want to lose access to our member variables
@@ -2542,7 +2542,7 @@ nsDownload::OnStateChange(nsIWebProgress *aWebProgress,
     nsresult rv;
     nsCOMPtr<nsIHttpChannel> channel = do_QueryInterface(aRequest, &rv);
     if (NS_SUCCEEDED(rv)) {
-      PRUint32 status;
+      uint32_t status;
       rv = channel->GetResponseStatus(&status);
       // HTTP 450 - Blocked by parental control proxies
       if (NS_SUCCEEDED(rv) && status == 450) {
@@ -2562,7 +2562,7 @@ nsDownload::OnStateChange(nsIWebProgress *aWebProgress,
       // missing on some/all of the progress updates (especially from cache).
       // Our best bet is the file itself, but if for some reason it's gone or
       // if we have multiple files, the next best is what we've calculated.
-      PRInt64 fileSize;
+      int64_t fileSize;
       nsCOMPtr<nsIFile> file;
       //  We need a nsIFile clone to deal with file size caching issues. :(
       nsCOMPtr<nsIFile> clone;
@@ -2599,7 +2599,7 @@ nsDownload::OnStateChange(nsIWebProgress *aWebProgress,
 #endif
     } else {
       // We failed for some unknown reason -- fail with a generic message
-      (void)FailDownload(aStatus, nsnull);
+      (void)FailDownload(aStatus, nullptr);
     }
   }
 
@@ -2610,7 +2610,7 @@ nsDownload::OnStateChange(nsIWebProgress *aWebProgress,
 
 NS_IMETHODIMP
 nsDownload::OnSecurityChange(nsIWebProgress *aWebProgress,
-                             nsIRequest *aRequest, PRUint32 aState)
+                             nsIRequest *aRequest, uint32_t aState)
 {
   return NS_OK;
 }
@@ -2632,7 +2632,7 @@ nsDownload::Init(nsIURI *aSource,
 }
 
 NS_IMETHODIMP
-nsDownload::GetState(PRInt16 *aState)
+nsDownload::GetState(int16_t *aState)
 {
   *aState = mDownloadState;
   return NS_OK;
@@ -2670,28 +2670,28 @@ nsDownload::GetSource(nsIURI **aSource)
 }
 
 NS_IMETHODIMP
-nsDownload::GetStartTime(PRInt64 *aStartTime)
+nsDownload::GetStartTime(int64_t *aStartTime)
 {
   *aStartTime = mStartTime;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsDownload::GetPercentComplete(PRInt32 *aPercentComplete)
+nsDownload::GetPercentComplete(int32_t *aPercentComplete)
 {
   *aPercentComplete = mPercentComplete;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsDownload::GetAmountTransferred(PRInt64 *aAmountTransferred)
+nsDownload::GetAmountTransferred(int64_t *aAmountTransferred)
 {
   *aAmountTransferred = mCurrBytes + (WasResumed() ? mResumedAt : 0);
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsDownload::GetSize(PRInt64 *aSize)
+nsDownload::GetSize(int64_t *aSize)
 {
   *aSize = mMaxBytes + (WasResumed() && mMaxBytes != -1 ? mResumedAt : 0);
   return NS_OK;
@@ -2728,7 +2728,7 @@ nsDownload::GetSpeed(double *aSpeed)
 }
 
 NS_IMETHODIMP
-nsDownload::GetId(PRUint32 *aId)
+nsDownload::GetId(uint32_t *aId)
 {
   *aId = mID;
   return NS_OK;
@@ -2755,11 +2755,11 @@ void
 nsDownload::Finalize()
 {
   // We're stopping, so break the cycle we created at download start
-  mCancelable = nsnull;
+  mCancelable = nullptr;
 
   // Reset values that aren't needed anymore, so the DB can be updated as well
   mEntityID.Truncate();
-  mTempFile = nsnull;
+  mTempFile = nullptr;
 
   // Remove ourself from the active downloads
   (void)mDownloadManager->mCurrentDownloads.RemoveObject(this);
@@ -2892,20 +2892,20 @@ nsDownload::OpenWithApplication()
 }
 
 void
-nsDownload::SetStartTime(PRInt64 aStartTime)
+nsDownload::SetStartTime(int64_t aStartTime)
 {
   mStartTime = aStartTime;
   mLastUpdate = aStartTime;
 }
 
 void
-nsDownload::SetProgressBytes(PRInt64 aCurrBytes, PRInt64 aMaxBytes)
+nsDownload::SetProgressBytes(int64_t aCurrBytes, int64_t aMaxBytes)
 {
   mCurrBytes = aCurrBytes;
   mMaxBytes = aMaxBytes;
 
   // Get the real bytes that include resume position
-  PRInt64 currBytes, maxBytes;
+  int64_t currBytes, maxBytes;
   (void)GetAmountTransferred(&currBytes);
   (void)GetSize(&maxBytes);
 
@@ -2914,7 +2914,7 @@ nsDownload::SetProgressBytes(PRInt64 aCurrBytes, PRInt64 aMaxBytes)
   else if (maxBytes <= 0)
     mPercentComplete = -1;
   else
-    mPercentComplete = (PRInt32)((PRFloat64)currBytes / maxBytes * 100 + .5);
+    mPercentComplete = (int32_t)((double)currBytes / maxBytes * 100 + .5);
 }
 
 nsresult
@@ -2936,7 +2936,7 @@ nsDownload::Cancel()
   if (mCancelable) {
     rv = mCancelable->Cancel(NS_BINDING_ABORTED);
     // we're done with this, so break the cycle
-    mCancelable = nsnull;
+    mCancelable = nullptr;
   }
 
   return rv;
@@ -2960,7 +2960,7 @@ nsDownload::Resume()
   // Create a new channel for the source URI
   nsCOMPtr<nsIChannel> channel;
   nsCOMPtr<nsIInterfaceRequestor> ir(do_QueryInterface(wbp));
-  rv = NS_NewChannel(getter_AddRefs(channel), mSource, nsnull, nsnull, ir);
+  rv = NS_NewChannel(getter_AddRefs(channel), mSource, nullptr, nullptr, ir);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Make sure we can get a file, either the temporary or the real target, for
@@ -2973,7 +2973,7 @@ nsDownload::Resume()
 
   // Get the file size to be used as an offset, but if anything goes wrong
   // along the way, we'll silently restart at 0.
-  PRInt64 fileSize;
+  int64_t fileSize;
   //  We need a nsIFile clone to deal with file size caching issues. :(
   nsCOMPtr<nsIFile> clone;
   if (NS_FAILED(targetLocalFile->Clone(getter_AddRefs(clone))) ||
@@ -2988,7 +2988,7 @@ nsDownload::Resume()
   NS_ENSURE_SUCCESS(rv, rv);
 
   // If we know the max size, we know what it should be when resuming
-  PRInt64 maxBytes;
+  int64_t maxBytes;
   GetSize(&maxBytes);
   SetProgressBytes(0, maxBytes != -1 ? maxBytes - fileSize : -1);
   // Track where we resumed because progress notifications restart at 0
@@ -3010,8 +3010,8 @@ nsDownload::Resume()
   // Save the channel using nsIWBP
   rv = wbp->SaveChannel(channel, targetLocalFile);
   if (NS_FAILED(rv)) {
-    mCancelable = nsnull;
-    (void)wbp->SetProgressListener(nsnull);
+    mCancelable = nullptr;
+    (void)wbp->SetProgressListener(nullptr);
     return rv;
   }
 
@@ -3091,12 +3091,12 @@ nsDownload::UpdateDB()
   rv = stmt->BindUTF8StringByName(NS_LITERAL_CSTRING("entityID"), mEntityID);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRInt64 currBytes;
+  int64_t currBytes;
   (void)GetAmountTransferred(&currBytes);
   rv = stmt->BindInt64ByName(NS_LITERAL_CSTRING("currBytes"), currBytes);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRInt64 maxBytes;
+  int64_t maxBytes;
   (void)GetSize(&maxBytes);
   rv = stmt->BindInt64ByName(NS_LITERAL_CSTRING("maxBytes"), maxBytes);
   NS_ENSURE_SUCCESS(rv, rv);

@@ -36,18 +36,44 @@ bool ImageBridgeParent::RecvStop()
   return true;
 }
 
-static  PRUint64 GenImageContainerID() {
-  static PRUint64 sNextImageID = 1;
+static  uint64_t GenImageContainerID() {
+  static uint64_t sNextImageID = 1;
   
   ++sNextImageID;
   return sNextImageID;
 }
   
-PImageContainerParent* ImageBridgeParent::AllocPImageContainer(PRUint64* aID)
+PGrallocBufferParent*
+ImageBridgeParent::AllocPGrallocBuffer(const gfxIntSize& aSize,
+                                       const uint32_t& aFormat,
+                                       const uint32_t& aUsage,
+                                       MaybeMagicGrallocBufferHandle* aOutHandle)
 {
-  PRUint64 id = GenImageContainerID();
+#ifdef MOZ_HAVE_SURFACEDESCRIPTORGRALLOC
+  return GrallocBufferActor::Create(aSize, aFormat, aUsage, aOutHandle);
+#else
+  NS_RUNTIMEABORT("No gralloc buffers for you");
+  return nullptr;
+#endif
+}
+
+bool
+ImageBridgeParent::DeallocPGrallocBuffer(PGrallocBufferParent* actor)
+{
+#ifdef MOZ_HAVE_SURFACEDESCRIPTORGRALLOC
+  delete actor;
+  return true;
+#else
+  NS_RUNTIMEABORT("Um, how did we get here?");
+  return false;
+#endif
+}
+
+PImageContainerParent* ImageBridgeParent::AllocPImageContainer(uint64_t* aID)
+{
+  uint64_t id = GenImageContainerID();
   *aID = id;
-  return new ImageContainerParent(this, id);
+  return new ImageContainerParent(id);
 }
 
 bool ImageBridgeParent::DeallocPImageContainer(PImageContainerParent* toDealloc)

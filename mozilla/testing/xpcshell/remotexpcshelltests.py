@@ -30,16 +30,17 @@ class XPCShellRemote(xpcshell.XPCShellTests, object):
         self.remoteScriptsDir = self.remoteTestRoot
         self.remoteComponentsDir = self.remoteJoin(self.remoteTestRoot, "c")
         self.profileDir = self.remoteJoin(self.remoteTestRoot, "p")
+        self.remoteDebugger = options.debugger
+        self.remoteDebuggerArgs = options.debuggerArgs
         if options.setup:
           self.setupUtilities()
           self.setupTestDir()
-        self.remoteAPK = self.remoteJoin(self.remoteBinDir, os.path.basename(options.localAPK))
-        self.remoteDebugger = options.debugger
-        self.remoteDebuggerArgs = options.debuggerArgs  
-        self.setAppRoot()
+        if options.localAPK:
+          self.remoteAPK = self.remoteJoin(self.remoteBinDir, os.path.basename(options.localAPK))
+          self.setAppRoot()
 
     def setAppRoot(self):
-        # Determine the application root directory associated with the package 
+        # Determine the application root directory associated with the package
         # name used by the Fennec APK.
         self.appRoot = None
         packageName = None
@@ -100,15 +101,26 @@ class XPCShellRemote(xpcshell.XPCShellTests, object):
 
         self.device.pushFile(self.options.localAPK, self.remoteBinDir)
 
-        localLib = os.path.join(self.options.objdir, "dist/fennec")
-        if not os.path.exists(localLib):
-          localLib = os.path.join(self.options.objdir, "fennec/lib")
+        self.pushLibs()
+
+        self.device.chmodDir(self.remoteBinDir)
+
+    def pushLibs(self):
+        if self.options.localAPK:
+          localLib = os.path.join(self.options.objdir, "dist/fennec")
           if not os.path.exists(localLib):
-            print >>sys.stderr, "Error: could not find libs in objdir"
-            sys.exit(1)
+            localLib = os.path.join(self.options.objdir, "fennec/lib")
+            if not os.path.exists(localLib):
+              print >>sys.stderr, "Error: could not find libs in objdir"
+              sys.exit(1)
+        else:
+          localLib = os.path.join(self.options.objdir, 'dist/bin')
 
         for file in os.listdir(localLib):
           if (file.endswith(".so")):
+            print >> sys.stderr, "Pushing %s.." % file
+            if 'libxul' in file:
+              print >> sys.stderr, "This is a big file, it could take a while."
             self.device.pushFile(os.path.join(localLib, file), self.remoteBinDir)
 
         # Additional libraries may be found in a sub-directory such as "lib/armeabi-v7a"
@@ -119,7 +131,6 @@ class XPCShellRemote(xpcshell.XPCShellTests, object):
               if (file.endswith(".so")):
                 self.device.pushFile(os.path.join(root, file), self.remoteBinDir)
 
-        self.device.chmodDir(self.remoteBinDir)
 
     def setupTestDir(self):
         xpcDir = os.path.join(self.options.objdir, "_tests/xpcshell")
@@ -140,17 +151,18 @@ class XPCShellRemote(xpcshell.XPCShellTests, object):
         self.xpcsCmd = [
            self.remoteJoin(self.remoteBinDir, "xpcshell"),
            '-r', self.remoteJoin(self.remoteComponentsDir, 'httpd.manifest'),
-           '--greomni', self.remoteAPK,
            '-s',
            '-e', 'const _HTTPD_JS_PATH = "%s";' % self.remoteJoin(self.remoteComponentsDir, 'httpd.js'),
            '-e', 'const _HEAD_JS_PATH = "%s";' % self.remoteJoin(self.remoteScriptsDir, 'head.js'),
            '-f', self.remoteScriptsDir+'/head.js']
+        if self.options.localAPK:
+          self.xpcsCmd.extend(['--greomni', self.remoteAPK])
 
         if self.remoteDebugger:
           # for example, "/data/local/gdbserver" "localhost:12345"
           self.xpcsCmd = [
-            self.remoteDebugger, 
-            self.remoteDebuggerArgs, 
+            self.remoteDebugger,
+            self.remoteDebuggerArgs,
             self.xpcsCmd]
 
     def getHeadAndTailFiles(self, test):
@@ -189,12 +201,15 @@ class XPCShellRemote(xpcshell.XPCShellTests, object):
           self.log.info("TEST-INFO | profile dir is %s" % self.profileDir)
         return self.profileDir
 
+    def setLD_LIBRARY_PATH(self, env):
+        env["LD_LIBRARY_PATH"]=self.remoteBinDir
+
     def launchProcess(self, cmd, stdout, stderr, env, cwd):
         cmd[0] = self.remoteJoin(self.remoteBinDir, "xpcshell")
-        env = dict()
-        env["LD_LIBRARY_PATH"]=self.remoteBinDir
+        env = {}
+        self.setLD_LIBRARY_PATH(env)
         env["MOZ_LINKER_CACHE"]=self.remoteBinDir
-        if (self.appRoot):
+        if self.options.localAPK and self.appRoot:
           env["GRE_HOME"]=self.appRoot
         env["XPCSHELL_TEST_PROFILE_DIR"]=self.profileDir
         env["TMPDIR"]=self.remoteTmpDir
@@ -203,12 +218,12 @@ class XPCShellRemote(xpcshell.XPCShellTests, object):
         f = open(outputFile, "w+")
         self.shellReturnCode = self.device.shell(cmd, f, cwd=self.remoteHere, env=env)
         f.close()
-        # The device manager may have timed out waiting for xpcshell. 
+        # The device manager may have timed out waiting for xpcshell.
         # Guard against an accumulation of hung processes by killing
         # them here. Note also that IPC tests may spawn new instances
         # of xpcshell.
-        self.device.killProcess(cmd[0]);
-        self.device.killProcess("xpcshell");
+        self.device.killProcess(cmd[0])
+        self.device.killProcess("xpcshell")
         return outputFile
 
     def communicate(self, proc):
@@ -217,6 +232,15 @@ class XPCShellRemote(xpcshell.XPCShellTests, object):
         f.close()
         os.remove(proc)
         return contents, ""
+
+    def poll(self, proc):
+        if self.device.processExist("xpcshell") is None:
+          return self.getReturnCode(proc)
+        # Process is still running
+        return None
+
+    def kill(self, proc):
+        return self.device.killProcess("xpcshell", True)
 
     def getReturnCode(self, proc):
         if self.shellReturnCode is not None:
@@ -255,7 +279,7 @@ class RemoteXPCShellOptions(xpcshell.XPCShellOptions):
                         type = "string", dest = "deviceIP",
                         help = "ip address of remote device to test")
         defaults["deviceIP"] = None
- 
+
         self.add_option("--devicePort", action="store",
                         type = "string", dest = "devicePort",
                         help = "port of remote device to test")
@@ -265,12 +289,12 @@ class RemoteXPCShellOptions(xpcshell.XPCShellOptions):
                         type = "string", dest = "dm_trans",
                         help = "the transport to use to communicate with device: [adb|sut]; default=sut")
         defaults["dm_trans"] = "sut"
- 
+
         self.add_option("--objdir", action="store",
                         type = "string", dest = "objdir",
                         help = "local objdir, containing xpcshell binaries")
         defaults["objdir"] = None
- 
+
         self.add_option("--apk", action="store",
                         type = "string", dest = "localAPK",
                         help = "local path to Fennec APK")
@@ -325,15 +349,15 @@ def main():
           options.localAPK = os.path.join(options.localAPK, file)
           print >>sys.stderr, "using APK: " + options.localAPK
           break
-      
+
     if not options.localAPK:
       print >>sys.stderr, "Error: please specify an APK"
       sys.exit(1)
 
     xpcsh = XPCShellRemote(dm, options, args)
 
-    if not xpcsh.runTests(xpcshell='xpcshell', 
-                          testdirs=args[0:], 
+    if not xpcsh.runTests(xpcshell='xpcshell',
+                          testdirs=args[0:],
                           **options.__dict__):
       sys.exit(1)
 

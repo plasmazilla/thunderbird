@@ -31,7 +31,7 @@ nsLDAPURL::~nsLDAPURL()
 }
 
 nsresult
-nsLDAPURL::Init(PRUint32 aUrlType, PRInt32 aDefaultPort,
+nsLDAPURL::Init(uint32_t aUrlType, int32_t aDefaultPort,
                 const nsACString &aSpec, const char* aOriginCharset,
                 nsIURI *aBaseURI)
 {
@@ -95,27 +95,27 @@ nsLDAPURL::GetPathInternal(nsCString &aPath)
 nsresult
 nsLDAPURL::SetPathInternal(const nsCString &aPath)
 {
-  PRUint32 rv;
   LDAPURLDesc *desc;
 
   // This is from the LDAP C-SDK, which currently doesn't
   // support everything from RFC 2255... :(
   //
-  rv = ldap_url_parse(aPath.get(), &desc);
-  switch (rv) {
-  case LDAP_SUCCESS:
+  int err = ldap_url_parse(aPath.get(), &desc);
+  switch (err) {
+  case LDAP_SUCCESS: {
     // The base URL can pick up the host & port details and deal with them
     // better than we can
     mDN = desc->lud_dn;
     mScope = desc->lud_scope;
     mFilter = desc->lud_filter;
     mOptions = desc->lud_options;
-    rv = SetAttributeArray(desc->lud_attrs);
+    nsresult rv = SetAttributeArray(desc->lud_attrs);
     if (NS_FAILED(rv))
       return rv;
 
     ldap_free_urldesc(desc);
     return NS_OK;
+  }
 
   case LDAP_URL_ERR_NOTLDAP:
   case LDAP_URL_ERR_NODN:
@@ -278,7 +278,7 @@ nsLDAPURL::SetHost(const nsACString &aHost)
 }
 
 NS_IMETHODIMP 
-nsLDAPURL::GetPort(PRInt32 *_retval)
+nsLDAPURL::GetPort(int32_t *_retval)
 {
   if (!mBaseURL)
     return NS_ERROR_NOT_INITIALIZED;
@@ -287,7 +287,7 @@ nsLDAPURL::GetPort(PRInt32 *_retval)
 }
 
 NS_IMETHODIMP 
-nsLDAPURL::SetPort(PRInt32 aPort)
+nsLDAPURL::SetPort(int32_t aPort)
 {
   if (!mBaseURL)
     return NS_ERROR_NOT_INITIALIZED;
@@ -351,7 +351,7 @@ NS_IMETHODIMP nsLDAPURL::Equals(nsIURI *other, bool *_retval)
     if (NS_SUCCEEDED(rv))
     {
       nsCAutoString thisSpec, otherSpec;
-      PRUint32 otherOptions;
+      uint32_t otherOptions;
 
       rv = GetSpec(thisSpec);
       NS_ENSURE_SUCCESS(rv, rv);
@@ -521,7 +521,7 @@ NS_IMETHODIMP nsLDAPURL::AddAttribute(const nsACString &aAttribute)
     // Check to see if the attribute is already stored. If it is, then also
     // check to see if it is the last attribute in the string, or if the next
     // character is a comma, this means we won't match substrings.
-    PRInt32 pos = mAttributes.Find(findAttribute, CaseInsensitiveCompare);
+    int32_t pos = mAttributes.Find(findAttribute, CaseInsensitiveCompare);
     if (pos != -1)
       return NS_OK;
 
@@ -552,7 +552,7 @@ NS_IMETHODIMP nsLDAPURL::RemoveAttribute(const nsACString &aAttribute)
     mAttributes.Truncate();
   else
   {
-    PRInt32 pos = mAttributes.Find(findAttribute, CaseInsensitiveCompare);
+    int32_t pos = mAttributes.Find(findAttribute, CaseInsensitiveCompare);
     if (pos == -1)
       return NS_OK;
 
@@ -580,14 +580,14 @@ NS_IMETHODIMP nsLDAPURL::HasAttribute(const nsACString &aAttribute,
   return NS_OK;
 }
 
-NS_IMETHODIMP nsLDAPURL::GetScope(PRInt32 *_retval)
+NS_IMETHODIMP nsLDAPURL::GetScope(int32_t *_retval)
 {
   NS_ENSURE_ARG_POINTER(_retval);
   *_retval = mScope;
   return NS_OK;
 }
 
-NS_IMETHODIMP nsLDAPURL::SetScope(PRInt32 aScope)
+NS_IMETHODIMP nsLDAPURL::SetScope(int32_t aScope)
 {
   if (!mBaseURL)
     return NS_ERROR_NOT_INITIALIZED;
@@ -630,14 +630,14 @@ NS_IMETHODIMP nsLDAPURL::SetFilter(const nsACString& aFilter)
   return mBaseURL->SetPath(newPath);
 }
 
-NS_IMETHODIMP nsLDAPURL::GetOptions(PRUint32 *_retval)
+NS_IMETHODIMP nsLDAPURL::GetOptions(uint32_t *_retval)
 {
   NS_ENSURE_ARG_POINTER(_retval);
   *_retval = mOptions;
   return NS_OK;
 }
 
-NS_IMETHODIMP nsLDAPURL::SetOptions(PRUint32 aOptions)
+NS_IMETHODIMP nsLDAPURL::SetOptions(uint32_t aOptions)
 {
   // Secure is the only option supported at the moment
   if (mOptions & OPT_SECURE == aOptions & OPT_SECURE)

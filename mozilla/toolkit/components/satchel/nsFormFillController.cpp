@@ -25,7 +25,6 @@
 #include "nsIDocument.h"
 #include "nsIContent.h"
 #include "nsIPresShell.h"
-#include "nsIFrame.h"
 #include "nsRect.h"
 #include "nsIDOMHTMLFormElement.h"
 #include "nsILoginManager.h"
@@ -34,7 +33,6 @@
 #include "nsToolkitCompsCID.h"
 #include "nsEmbedCID.h"
 #include "nsIDOMNSEditableElement.h"
-#include "nsIDOMNSEvent.h"
 #include "mozilla/dom/Element.h"
 #include "nsContentUtils.h"
 
@@ -46,9 +44,9 @@ NS_IMPL_ISUPPORTS5(nsFormFillController,
                    nsIMutationObserver)
 
 nsFormFillController::nsFormFillController() :
-  mFocusedInput(nsnull),
-  mFocusedInputNode(nsnull),
-  mListNode(nsnull),
+  mFocusedInput(nullptr),
+  mFocusedInputNode(nullptr),
+  mListNode(nullptr),
   mTimeout(50),
   mMinResultsForPopup(1),
   mMaxRows(0),
@@ -77,20 +75,20 @@ nsFormFillController::~nsFormFillController()
 {
   if (mListNode) {
     mListNode->RemoveMutationObserver(this);
-    mListNode = nsnull;
+    mListNode = nullptr;
   }
   if (mFocusedInputNode) {
     MaybeRemoveMutationObserver(mFocusedInputNode);
-    mFocusedInputNode = nsnull;
-    mFocusedInput = nsnull;
+    mFocusedInputNode = nullptr;
+    mFocusedInput = nullptr;
   }
-  PwmgrInputsEnumData ed(this, nsnull);
+  PwmgrInputsEnumData ed(this, nullptr);
   mPwmgrInputs.Enumerate(RemoveForDocumentEnumerator, &ed);
 
   // Remove ourselves as a focus listener from all cached docShells
-  PRUint32 count;
+  uint32_t count;
   mDocShells->Count(&count);
-  for (PRUint32 i = 0; i < count; ++i) {
+  for (uint32_t i = 0; i < count; ++i) {
     nsCOMPtr<nsIDocShell> docShell;
     mDocShells->GetElementAt(i, getter_AddRefs(docShell));
     nsCOMPtr<nsIDOMWindow> domWindow = GetWindowForDocShell(docShell);
@@ -105,8 +103,8 @@ nsFormFillController::~nsFormFillController()
 void
 nsFormFillController::AttributeChanged(nsIDocument* aDocument,
                                        mozilla::dom::Element* aElement,
-                                       PRInt32 aNameSpaceID,
-                                       nsIAtom* aAttribute, PRInt32 aModType)
+                                       int32_t aNameSpaceID,
+                                       nsIAtom* aAttribute, int32_t aModType)
 {
   if (mListNode && mListNode->Contains(aElement)) {
     RevalidateDataList();
@@ -117,7 +115,7 @@ void
 nsFormFillController::ContentAppended(nsIDocument* aDocument,
                                       nsIContent* aContainer,
                                       nsIContent* aChild,
-                                      PRInt32 aIndexInContainer)
+                                      int32_t aIndexInContainer)
 {
   if (mListNode && mListNode->Contains(aContainer)) {
     RevalidateDataList();
@@ -128,7 +126,7 @@ void
 nsFormFillController::ContentInserted(nsIDocument* aDocument,
                                       nsIContent* aContainer,
                                       nsIContent* aChild,
-                                      PRInt32 aIndexInContainer)
+                                      int32_t aIndexInContainer)
 {
   if (mListNode && mListNode->Contains(aContainer)) {
     RevalidateDataList();
@@ -139,7 +137,7 @@ void
 nsFormFillController::ContentRemoved(nsIDocument* aDocument,
                                      nsIContent* aContainer,
                                      nsIContent* aChild,
-                                     PRInt32 aIndexInContainer,
+                                     int32_t aIndexInContainer,
                                      nsIContent* aPreviousSibling)
 {
   if (mListNode && mListNode->Contains(aContainer)) {
@@ -164,8 +162,8 @@ nsFormFillController::CharacterDataChanged(nsIDocument* aDocument,
 void
 nsFormFillController::AttributeWillChange(nsIDocument* aDocument,
                                           mozilla::dom::Element* aElement,
-                                          PRInt32 aNameSpaceID,
-                                          nsIAtom* aAttribute, PRInt32 aModType)
+                                          int32_t aNameSpaceID,
+                                          nsIAtom* aAttribute, int32_t aModType)
 {
 }
 
@@ -179,11 +177,11 @@ nsFormFillController::NodeWillBeDestroyed(const nsINode* aNode)
 {
   mPwmgrInputs.Remove(aNode);
   if (aNode == mListNode) {
-    mListNode = nsnull;
+    mListNode = nullptr;
     RevalidateDataList();
   } else if (aNode == mFocusedInputNode) {
-    mFocusedInputNode = nsnull;
-    mFocusedInput = nsnull;
+    mFocusedInputNode = nullptr;
+    mFocusedInput = nullptr;
   }
 }
 
@@ -219,7 +217,7 @@ nsFormFillController::AttachToBrowser(nsIDocShell *aDocShell, nsIAutoCompletePop
 NS_IMETHODIMP
 nsFormFillController::DetachFromBrowser(nsIDocShell *aDocShell)
 {
-  PRInt32 index = GetIndexOfDocShell(aDocShell);
+  int32_t index = GetIndexOfDocShell(aDocShell);
   NS_ENSURE_TRUE(index >= 0, NS_ERROR_FAILURE);
 
   // Stop listening for focus events on the domWindow of the docShell
@@ -373,27 +371,27 @@ NS_IMETHODIMP nsFormFillController::SetForceComplete(bool aForceComplete)
 }
 
 NS_IMETHODIMP
-nsFormFillController::GetMinResultsForPopup(PRUint32 *aMinResultsForPopup)
+nsFormFillController::GetMinResultsForPopup(uint32_t *aMinResultsForPopup)
 {
   *aMinResultsForPopup = mMinResultsForPopup;
   return NS_OK;
 }
 
-NS_IMETHODIMP nsFormFillController::SetMinResultsForPopup(PRUint32 aMinResultsForPopup)
+NS_IMETHODIMP nsFormFillController::SetMinResultsForPopup(uint32_t aMinResultsForPopup)
 {
   mMinResultsForPopup = aMinResultsForPopup;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsFormFillController::GetMaxRows(PRUint32 *aMaxRows)
+nsFormFillController::GetMaxRows(uint32_t *aMaxRows)
 {
   *aMaxRows = mMaxRows;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsFormFillController::SetMaxRows(PRUint32 aMaxRows)
+nsFormFillController::SetMaxRows(uint32_t aMaxRows)
 {
   mMaxRows = aMaxRows;
   return NS_OK;
@@ -425,13 +423,13 @@ NS_IMETHODIMP nsFormFillController::SetShowCommentColumn(bool aShowCommentColumn
 }
 
 NS_IMETHODIMP
-nsFormFillController::GetTimeout(PRUint32 *aTimeout)
+nsFormFillController::GetTimeout(uint32_t *aTimeout)
 {
   *aTimeout = mTimeout;
   return NS_OK;
 }
 
-NS_IMETHODIMP nsFormFillController::SetTimeout(PRUint32 aTimeout)
+NS_IMETHODIMP nsFormFillController::SetTimeout(uint32_t aTimeout)
 {
   mTimeout = aTimeout;
   return NS_OK;
@@ -459,14 +457,14 @@ nsFormFillController::GetSearchParam(nsAString &aSearchParam)
 }
 
 NS_IMETHODIMP
-nsFormFillController::GetSearchCount(PRUint32 *aSearchCount)
+nsFormFillController::GetSearchCount(uint32_t *aSearchCount)
 {
   *aSearchCount = 1;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsFormFillController::GetSearchAt(PRUint32 index, nsACString & _retval)
+nsFormFillController::GetSearchAt(uint32_t index, nsACString & _retval)
 {
   _retval.Assign("form-history");
   return NS_OK;
@@ -496,7 +494,7 @@ nsFormFillController::SetTextValue(const nsAString & aTextValue)
 }
 
 NS_IMETHODIMP
-nsFormFillController::GetSelectionStart(PRInt32 *aSelectionStart)
+nsFormFillController::GetSelectionStart(int32_t *aSelectionStart)
 {
   if (mFocusedInput)
     mFocusedInput->GetSelectionStart(aSelectionStart);
@@ -504,7 +502,7 @@ nsFormFillController::GetSelectionStart(PRInt32 *aSelectionStart)
 }
 
 NS_IMETHODIMP
-nsFormFillController::GetSelectionEnd(PRInt32 *aSelectionEnd)
+nsFormFillController::GetSelectionEnd(int32_t *aSelectionEnd)
 {
   if (mFocusedInput)
     mFocusedInput->GetSelectionEnd(aSelectionEnd);
@@ -512,7 +510,7 @@ nsFormFillController::GetSelectionEnd(PRInt32 *aSelectionEnd)
 }
 
 NS_IMETHODIMP
-nsFormFillController::SelectTextRange(PRInt32 aStartIndex, PRInt32 aEndIndex)
+nsFormFillController::SelectTextRange(int32_t aStartIndex, int32_t aEndIndex)
 {
  if (mFocusedInput)
     mFocusedInput->SetSelectionRange(aStartIndex, aEndIndex, EmptyString());
@@ -634,7 +632,7 @@ nsFormFillController::StartSearch(const nsAString &aSearchString, const nsAStrin
       if (mListNode != node) {
         if (mListNode) {
           mListNode->RemoveMutationObserver(this);
-          mListNode = nsnull;
+          mListNode = nullptr;
         }
         if (node) {
           node->AddMutationObserverUnlessExists(this);
@@ -803,7 +801,7 @@ nsFormFillController::Focus(nsIDOMEvent* aEvent)
 
   nsCOMPtr<nsIDOMHTMLElement> datalist;
   input->GetList(getter_AddRefs(datalist));
-  bool hasList = datalist != nsnull;
+  bool hasList = datalist != nullptr;
 
   bool dummy;
   bool isPwmgrInput = false;
@@ -833,7 +831,7 @@ nsFormFillController::KeyPress(nsIDOMEvent* aEvent)
 
   bool cancel = false;
 
-  PRUint32 k;
+  uint32_t k;
   keyEvent->GetKeyCode(&k);
   switch (k) {
   case nsIDOMKeyEvent::DOM_VK_DELETE:
@@ -906,7 +904,7 @@ nsFormFillController::MouseDown(nsIDOMEvent* aEvent)
   if (!targetInput)
     return NS_OK;
 
-  PRUint16 button;
+  uint16_t button;
   mouseEvent->GetButton(&button);
   if (button != 0)
     return NS_OK;
@@ -947,7 +945,7 @@ nsFormFillController::AddWindowListeners(nsIDOMWindow *aWindow)
     return;
 
   nsCOMPtr<nsPIDOMWindow> privateDOMWindow(do_QueryInterface(aWindow));
-  nsIDOMEventTarget* target = nsnull;
+  nsIDOMEventTarget* target = nullptr;
   if (privateDOMWindow)
     target = privateDOMWindow->GetChromeEventHandler();
 
@@ -990,7 +988,7 @@ nsFormFillController::RemoveWindowListeners(nsIDOMWindow *aWindow)
   mPwmgrInputs.Enumerate(RemoveForDocumentEnumerator, &ed);
 
   nsCOMPtr<nsPIDOMWindow> privateDOMWindow(do_QueryInterface(aWindow));
-  nsIDOMEventTarget* target = nsnull;
+  nsIDOMEventTarget* target = nullptr;
   if (privateDOMWindow)
     target = privateDOMWindow->GetChromeEventHandler();
 
@@ -1039,7 +1037,7 @@ nsFormFillController::StartControllingInput(nsIDOMHTMLInputElement *aInput)
 
   // Find the currently focused docShell
   nsCOMPtr<nsIDocShell> docShell = GetDocShellForInput(aInput);
-  PRInt32 index = GetIndexOfDocShell(docShell);
+  int32_t index = GetIndexOfDocShell(docShell);
   if (index < 0)
     return;
 
@@ -1076,7 +1074,7 @@ nsFormFillController::StopControllingInput()
 
   if (mListNode) {
     mListNode->RemoveMutationObserver(this);
-    mListNode = nsnull;
+    mListNode = nullptr;
   }
 
   // Reset the controller's input, but not if it has been switched
@@ -1085,14 +1083,14 @@ nsFormFillController::StopControllingInput()
   nsCOMPtr<nsIAutoCompleteInput> input;
   mController->GetInput(getter_AddRefs(input));
   if (input == this)
-    mController->SetInput(nsnull);
+    mController->SetInput(nullptr);
 
   if (mFocusedInputNode) {
     MaybeRemoveMutationObserver(mFocusedInputNode);
-    mFocusedInputNode = nsnull;
-    mFocusedInput = nsnull;
+    mFocusedInputNode = nullptr;
+    mFocusedInput = nullptr;
   }
-  mFocusedPopup = nsnull;
+  mFocusedPopup = nullptr;
 }
 
 nsIDocShell *
@@ -1101,7 +1099,7 @@ nsFormFillController::GetDocShellForInput(nsIDOMHTMLInputElement *aInput)
   nsCOMPtr<nsIDOMDocument> domDoc;
   aInput->GetOwnerDocument(getter_AddRefs(domDoc));
   nsCOMPtr<nsIDocument> doc = do_QueryInterface(domDoc);
-  NS_ENSURE_TRUE(doc, nsnull);
+  NS_ENSURE_TRUE(doc, nullptr);
   nsCOMPtr<nsIWebNavigation> webNav = do_GetInterface(doc->GetWindow());
   nsCOMPtr<nsIDocShell> docShell = do_QueryInterface(webNav);
   return docShell;
@@ -1112,26 +1110,26 @@ nsFormFillController::GetWindowForDocShell(nsIDocShell *aDocShell)
 {
   nsCOMPtr<nsIContentViewer> contentViewer;
   aDocShell->GetContentViewer(getter_AddRefs(contentViewer));
-  NS_ENSURE_TRUE(contentViewer, nsnull);
+  NS_ENSURE_TRUE(contentViewer, nullptr);
 
   nsCOMPtr<nsIDOMDocument> domDoc;
   contentViewer->GetDOMDocument(getter_AddRefs(domDoc));
   nsCOMPtr<nsIDocument> doc = do_QueryInterface(domDoc);
-  NS_ENSURE_TRUE(doc, nsnull);
+  NS_ENSURE_TRUE(doc, nullptr);
 
   return doc->GetWindow();
 }
 
-PRInt32
+int32_t
 nsFormFillController::GetIndexOfDocShell(nsIDocShell *aDocShell)
 {
   if (!aDocShell)
     return -1;
 
   // Loop through our cached docShells looking for the given docShell
-  PRUint32 count;
+  uint32_t count;
   mDocShells->Count(&count);
-  for (PRUint32 i = 0; i < count; ++i) {
+  for (uint32_t i = 0; i < count; ++i) {
     nsCOMPtr<nsIDocShell> docShell;
     mDocShells->GetElementAt(i, getter_AddRefs(docShell));
     if (docShell == aDocShell)

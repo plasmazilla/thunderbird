@@ -82,7 +82,6 @@ public:
   NS_DECL_QUERYFRAME
   NS_DECL_FRAMEARENA_HELPERS
 
-  // nsIBox
   NS_IMETHOD DoLayout(nsBoxLayoutState& aBoxLayoutState);
   virtual nsSize GetMinSize(nsBoxLayoutState& aBoxLayoutState);
   virtual nsSize GetPrefSize(nsBoxLayoutState& aBoxLayoutState);
@@ -211,7 +210,7 @@ protected:
 
   /**
    * Get the popup frame list from the frame property.
-   * @return the property value if it exists, nsnull otherwise.
+   * @return the property value if it exists, nullptr otherwise.
    */
   nsFrameList* GetPopupList() const;
 
@@ -239,9 +238,9 @@ protected:
   void Execute(nsGUIEvent *aEvent);
 
   // This method can destroy the frame
-  NS_IMETHOD AttributeChanged(PRInt32 aNameSpaceID,
+  NS_IMETHOD AttributeChanged(int32_t aNameSpaceID,
                               nsIAtom* aAttribute,
-                              PRInt32 aModType);
+                              int32_t aModType);
   virtual ~nsMenuFrame() { };
 
   bool SizeToPopup(nsBoxLayoutState& aState, nsSize& aSize);
@@ -271,7 +270,7 @@ protected:
   nsCOMPtr<nsITimer> mOpenTimer;
   nsCOMPtr<nsITimer> mBlinkTimer;
 
-  PRUint8 mBlinkState; // 0: not blinking, 1: off, 2: on
+  uint8_t mBlinkState; // 0: not blinking, 1: off, 2: on
   nsRefPtr<nsXULMenuCommandEvent> mDelayedMenuCommandEvent;
 
   nsString mGroupName;

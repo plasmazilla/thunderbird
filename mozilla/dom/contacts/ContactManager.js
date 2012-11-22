@@ -4,12 +4,8 @@
 
 "use strict";
 
-/* static functions */
-let DEBUG = 0;
-if (DEBUG)
-  debug = function (s) { dump("-*- ContactManager: " + s + "\n"); }
-else
-  debug = function (s) {}
+const DEBUG = false;
+function debug(s) { dump("-*- ContactManager: " + s + "\n"); }
 
 const Cc = Components.classes;
 const Ci = Components.interfaces;
@@ -23,9 +19,9 @@ XPCOMUtils.defineLazyGetter(Services, "DOMRequest", function() {
   return Cc["@mozilla.org/dom/dom-request-service;1"].getService(Ci.nsIDOMRequestService);
 });
 
-XPCOMUtils.defineLazyGetter(this, "cpmm", function() {
-  return Cc["@mozilla.org/childprocessmessagemanager;1"].getService(Ci.nsIFrameMessageManager);
-});
+XPCOMUtils.defineLazyServiceGetter(this, "cpmm",
+                                   "@mozilla.org/childprocessmessagemanager;1",
+                                   "nsIMessageSender");
 
 XPCOMUtils.defineLazyGetter(this, "mRIL", function () {
   return Cc["@mozilla.org/telephony/system-worker-manager;1"].getService(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIRadioInterfaceLayer);
@@ -37,7 +33,7 @@ const nsIDOMContactProperties = Ci.nsIDOMContactProperties;
 
 // ContactProperties is not directly instantiated. It is used as interface.
 
-function ContactProperties(aProp) { debug("ContactProperties Constructor"); }
+function ContactProperties(aProp) { if (DEBUG) debug("ContactProperties Constructor"); }
 
 ContactProperties.prototype = {
 
@@ -67,6 +63,14 @@ function ContactAddress(aType, aStreetAddress, aLocality, aRegion, aPostalCode, 
 };
 
 ContactAddress.prototype = {
+  __exposedProps__: {
+                      type: 'rw',
+                      streetAddress: 'rw',
+                      locality: 'rw',
+                      region: 'rw',
+                      postalCode: 'rw',
+                      countryName: 'rw'
+                     },
 
   classID : CONTACTADDRESS_CID,
   classInfo : XPCOMUtils.generateCI({classID: CONTACTADDRESS_CID,
@@ -78,50 +82,60 @@ ContactAddress.prototype = {
   QueryInterface : XPCOMUtils.generateQI([nsIDOMContactAddress])
 }
 
-//ContactEmail
+//ContactField
 
-const CONTACTEMAIL_CONTRACTID = "@mozilla.org/contactEmail;1";
-const CONTACTEMAIL_CID        = Components.ID("{94811520-c11f-11e1-afa7-0800200c9a66}");
-const nsIDOMContactEmail      = Components.interfaces.nsIDOMContactEmail;
+const CONTACTFIELD_CONTRACTID = "@mozilla.org/contactField;1";
+const CONTACTFIELD_CID        = Components.ID("{e2cb19c0-e4aa-11e1-9b23-0800200c9a66}");
+const nsIDOMContactField      = Components.interfaces.nsIDOMContactField;
 
-function ContactEmail(aType, aAddress) {
+function ContactField(aType, aValue) {
   this.type = aType || null;
-  this.address = aAddress || null;
+  this.value = aValue || null;
 };
 
-ContactEmail.prototype = {
+ContactField.prototype = {
+  __exposedProps__: {
+                      type: 'rw',
+                      value: 'rw'
+                     },
 
-  classID : CONTACTEMAIL_CID,
-  classInfo : XPCOMUtils.generateCI({classID: CONTACTEMAIL_CID,
-                                     contractID: CONTACTEMAIL_CONTRACTID,
-                                     classDescription: "ContactEmail",
-                                     interfaces: [nsIDOMContactEmail],
+  classID : CONTACTFIELD_CID,
+  classInfo : XPCOMUtils.generateCI({classID: CONTACTFIELD_CID,
+                                     contractID: CONTACTFIELD_CONTRACTID,
+                                     classDescription: "ContactField",
+                                     interfaces: [nsIDOMContactField],
                                      flags: nsIClassInfo.DOM_OBJECT}),
 
-  QueryInterface : XPCOMUtils.generateQI([nsIDOMContactEmail])
+  QueryInterface : XPCOMUtils.generateQI([nsIDOMContactField])
 }
 
-//ContactTelephone
+//ContactTelField
 
-const CONTACTTELEPHONE_CONTRACTID = "@mozilla.org/contactTelephone;1";
-const CONTACTTELEPHONE_CID        = Components.ID("{82601b20-89e8-11e1-b0c4-0800200c9a66}");
-const nsIDOMContactTelephone      = Components.interfaces.nsIDOMContactTelephone;
+const CONTACTTELFIELD_CONTRACTID = "@mozilla.org/contactTelField;1";
+const CONTACTTELFIELD_CID        = Components.ID("{ed0ab260-e4aa-11e1-9b23-0800200c9a66}");
+const nsIDOMContactTelField      = Components.interfaces.nsIDOMContactTelField;
 
-function ContactTelephone(aType, aNumber) {
+function ContactTelField(aType, aValue, aCarrier) {
   this.type = aType || null;
-  this.number = aNumber || null;
+  this.value = aValue || null;
+  this.carrier = aCarrier || null;
 };
 
-ContactTelephone.prototype = {
+ContactTelField.prototype = {
+  __exposedProps__: {
+                      type: 'rw',
+                      value: 'rw',
+                      carrier: 'rw'
+                     },
 
-  classID : CONTACTTELEPHONE_CID,
-  classInfo : XPCOMUtils.generateCI({classID: CONTACTTELEPHONE_CID,
-                                     contractID: CONTACTTELEPHONE_CONTRACTID,
-                                     classDescription: "ContactTelephone",
-                                     interfaces: [nsIDOMContactTelephone],
+  classID : CONTACTTELFIELD_CID,
+  classInfo : XPCOMUtils.generateCI({classID: CONTACTTELFIELD_CID,
+                                     contractID: CONTACTTELFIELD_CONTRACTID,
+                                     classDescription: "ContactTelField",
+                                     interfaces: [nsIDOMContactTelField],
                                      flags: nsIClassInfo.DOM_OBJECT}),
 
-  QueryInterface : XPCOMUtils.generateQI([nsIDOMContactTelephone])
+  QueryInterface : XPCOMUtils.generateQI([nsIDOMContactTelField])
 }
 
 //ContactFindOptions
@@ -150,10 +164,38 @@ const CONTACT_CONTRACTID = "@mozilla.org/contact;1";
 const CONTACT_CID        = Components.ID("{da0f7040-388b-11e1-b86c-0800200c9a66}");
 const nsIDOMContact      = Components.interfaces.nsIDOMContact;
 
-function Contact() { debug("Contact constr: "); };
+function Contact() {
+  if (DEBUG) debug("Contact constr: ");
+};
 
 Contact.prototype = {
-  
+  __exposedProps__: {
+                      id: 'rw',
+                      updated: 'rw',
+                      published:  'rw',
+                      name: 'rw',
+                      honorificPrefix: 'rw',
+                      givenName: 'rw',
+                      additionalName: 'rw',
+                      familyName: 'rw',
+                      honorificSuffix: 'rw',
+                      nickname: 'rw',
+                      email: 'rw',
+                      photo: 'rw',
+                      url: 'rw',
+                      category: 'rw',
+                      adr: 'rw',
+                      tel: 'rw',
+                      org: 'rw',
+                      jobTitle: 'rw',
+                      bday: 'rw',
+                      note: 'rw',
+                      impp: 'rw',
+                      anniversary: 'rw',
+                      sex: 'rw',
+                      genderIdentity: 'rw'
+                     },
+
   init: function init(aProp) {
     // Accept non-array strings for DOMString[] properties and convert them.
     function _create(aField) {   
@@ -168,6 +210,21 @@ Contact.prototype = {
       }
     };
 
+    function _checkBlobArray(aBlob) {
+      if (Array.isArray(aBlob)) {
+        for (let i = 0; i < aBlob.length; i++) {
+          if (typeof aBlob != 'object') {
+            return null;
+          }
+          if (!(aBlob[i] instanceof Components.interfaces.nsIDOMBlob)) {
+            return null;
+          }
+        }
+        return aBlob;
+      }
+      return null;
+    };
+
     this.name =            _create(aProp.name) || null;
     this.honorificPrefix = _create(aProp.honorificPrefix) || null;
     this.givenName =       _create(aProp.givenName) || null;
@@ -180,13 +237,12 @@ Contact.prototype = {
       aProp.email = Array.isArray(aProp.email) ? aProp.email : [aProp.email];
       this.email = new Array();
       for (let i = 0; i < aProp.email.length; i++)
-        this.email.push(new ContactEmail(aProp.email[i].type, aProp.email[i].address));
+        this.email.push(new ContactField(aProp.email[i].type, aProp.email[i].value));
     } else {
       this.email = null;
     }
 
-    this.photo =           _create(aProp.photo) || null;
-    this.url =             _create(aProp.url) || null;
+    this.photo =           _checkBlobArray(aProp.photo) || null;
     this.category =        _create(aProp.category) || null;
 
     if (aProp.adr) {
@@ -205,7 +261,7 @@ Contact.prototype = {
       aProp.tel = Array.isArray(aProp.tel) ? aProp.tel : [aProp.tel];
       this.tel = new Array();
       for (let i = 0; i < aProp.tel.length; i++)
-        this.tel.push(new ContactTelephone(aProp.tel[i].type, aProp.tel[i].number));
+        this.tel.push(new ContactTelField(aProp.tel[i].type, aProp.tel[i].value, aProp.tel[i].carrier));
     } else {
       this.tel = null;
     }
@@ -214,7 +270,25 @@ Contact.prototype = {
     this.jobTitle =        _create(aProp.jobTitle) || null;
     this.bday =            (aProp.bday == "undefined" || aProp.bday == null) ? null : new Date(aProp.bday);
     this.note =            _create(aProp.note) || null;
-    this.impp =            _create(aProp.impp) || null;
+
+    if (aProp.impp) {
+      aProp.impp = Array.isArray(aProp.impp) ? aProp.impp : [aProp.impp];
+      this.impp = new Array();
+      for (let i = 0; i < aProp.impp.length; i++)
+        this.impp.push(new ContactField(aProp.impp[i].type, aProp.impp[i].value));
+    } else {
+      this.impp = null;
+    }
+
+    if (aProp.url) {
+      aProp.url = Array.isArray(aProp.url) ? aProp.url : [aProp.url];
+      this.url = new Array();
+      for (let i = 0; i < aProp.url.length; i++)
+        this.url.push(new ContactField(aProp.url[i].type, aProp.url[i].value));
+    } else {
+      this.url = null;
+    }
+
     this.anniversary =     (aProp.anniversary == "undefined" || aProp.anniversary == null) ? null : new Date(aProp.anniversary);
     this.sex =             (aProp.sex != "undefined") ? aProp.sex : null;
     this.genderIdentity =  (aProp.genderIdentity != "undefined") ? aProp.genderIdentity : null;
@@ -254,7 +328,7 @@ const nsIDOMContactManager      = Components.interfaces.nsIDOMContactManager;
 
 function ContactManager()
 {
-  debug("Constructor");
+  if (DEBUG) debug("Constructor");
 }
 
 ContactManager.prototype = {
@@ -262,78 +336,18 @@ ContactManager.prototype = {
   _oncontactchange: null,
 
   set oncontactchange(aCallback) {
-    if (this.hasPrivileges)
+    if (DEBUG) debug("set oncontactchange");
+    let allowCallback = function() {
       this._oncontactchange = aCallback;
-    else
+    }.bind(this);
+    let cancelCallback = function() {
       throw Components.results.NS_ERROR_FAILURE;
+    }
+    this.askPermission("listen", null, allowCallback, cancelCallback);
   },
 
   get oncontactchange() {
     return this._oncontactchange;
-  },
-
-  save: function save(aContact) {
-    let request;
-    if (this.hasPrivileges) {
-      debug("save: " + JSON.stringify(aContact) + " :" + aContact.id);
-      let newContact = {};
-      newContact.properties = {
-        name:            [],
-        honorificPrefix: [],
-        givenName:       [],
-        additionalName:  [],
-        familyName:      [],
-        honorificSuffix: [],
-        nickname:        [],
-        email:           [],
-        photo:           [],
-        url:             [],
-        category:        [],
-        adr:             [],
-        tel:             [],
-        org:             [],
-        jobTitle:        [],
-        bday:            null,
-        note:            [],
-        impp:            [],
-        anniversary:     null,
-        sex:             null,
-        genderIdentity:  null
-      };
-      for (let field in newContact.properties)
-        newContact.properties[field] = aContact[field];
-
-      let reason;
-      if (aContact.id == "undefined") {
-        // for example {25c00f01-90e5-c545-b4d4-21E2ddbab9e0} becomes
-        // 25c00f0190e5c545b4d421E2ddbab9e0
-        aContact.id = this._getRandomId().replace('-', '', 'g').replace('{', '').replace('}', '');
-        reason = "create";
-      } else {
-        reason = "update";
-      }
-
-      this._setMetaData(newContact, aContact);
-      debug("send: " + JSON.stringify(newContact));
-      request = this.createRequest();
-      cpmm.sendAsyncMessage("Contact:Save", {contact: newContact,
-                                             requestID: this.getRequestId({request: request, reason: reason })});
-      return request;
-    } else {
-      throw Components.results.NS_ERROR_NOT_IMPLEMENTED;
-    }
-  },
-
-  remove: function removeContact(aRecord) {
-    let request;
-    if (this.hasPrivileges) {
-      request = this.createRequest();
-      cpmm.sendAsyncMessage("Contact:Remove", {id: aRecord.id,
-                                               requestID: this.getRequestId({request: request, reason: "remove"})});
-      return request;
-    } else {
-      throw Components.results.NS_ERROR_NOT_IMPLEMENTED;
-    }
   },
 
   _setMetaData: function(aNewContact, aRecord) {
@@ -354,7 +368,7 @@ ContactManager.prototype = {
   },
 
   receiveMessage: function(aMessage) {
-    debug("Contactmanager::receiveMessage: " + aMessage.name);
+    if (DEBUG) debug("Contactmanager::receiveMessage: " + aMessage.name);
     let msg = aMessage.json;
     let contacts = msg.contacts;
 
@@ -363,10 +377,9 @@ ContactManager.prototype = {
         let req = this.getRequest(msg.requestID);
         if (req) {
           let result = this._convertContactsArray(contacts);
-          debug("result: " + JSON.stringify(result));
           Services.DOMRequest.fireSuccess(req.request, result);
         } else {
-          debug("no request stored!" + msg.requestID);
+          if (DEBUG) debug("no request stored!" + msg.requestID);
         }
         break;
       case "Contact:Save:Return:OK":
@@ -393,54 +406,164 @@ ContactManager.prototype = {
         if (req)
           Services.DOMRequest.fireError(req.request, msg.errorMsg);
         break;
+      case "PermissionPromptHelper:AskPermission:OK":
+        if (DEBUG) debug("id: " + msg.requestID);
+        req = this.getRequest(msg.requestID);
+        if (!req) {
+          break;
+        }
+
+        if (msg.result == Ci.nsIPermissionManager.ALLOW_ACTION) {
+          req.allow();
+        } else {
+          req.cancel();
+        }
+        break;
       default: 
-        debug("Wrong message: " + aMessage.name);
+        if (DEBUG) debug("Wrong message: " + aMessage.name);
     }
     this.removeRequest(msg.requestID);
   },
 
-  find: function(aOptions) {
+  askPermission: function (aAccess, aReqeust, aAllowCallback, aCancelCallback) {
+    if (DEBUG) debug("askPermission for contacts");
+    let requestID = this.getRequestId({
+      request: aReqeust,
+      allow: function() {
+        aAllowCallback();
+      }.bind(this),
+      cancel : function() {
+        if (aCancelCallback) {
+          aCancelCallback()
+        } else if (request) {
+          Services.DOMRequest.fireError(request, "Not Allowed");
+        }
+      }.bind(this)
+    });
+
+    let principal = this._window.document.nodePrincipal;
+    cpmm.sendAsyncMessage("PermissionPromptHelper:AskPermission", {
+      type: "contacts",
+      access: aAccess,
+      requestID: requestID,
+      origin: principal.origin,
+      appID: principal.appId,
+      browserFlag: principal.isInBrowserElement
+    });
+  },
+
+  save: function save(aContact) {
     let request;
-    if (this.hasPrivileges) {
-      request = this.createRequest();
-      cpmm.sendAsyncMessage("Contacts:Find", {findOptions: aOptions, 
-                                              requestID: this.getRequestId({request: request, reason: "find"})});
-      return request;
-    } else {
-      debug("find not allowed");
-      throw Components.results.NS_ERROR_NOT_IMPLEMENTED;
+    if (DEBUG) debug("save: " + JSON.stringify(aContact) + " :" + aContact.id);
+    let newContact = {};
+    newContact.properties = {
+      name:            [],
+      honorificPrefix: [],
+      givenName:       [],
+      additionalName:  [],
+      familyName:      [],
+      honorificSuffix: [],
+      nickname:        [],
+      email:           [],
+      photo:           [],
+      url:             [],
+      category:        [],
+      adr:             [],
+      tel:             [],
+      org:             [],
+      jobTitle:        [],
+      bday:            null,
+      note:            [],
+      impp:            [],
+      anniversary:     null,
+      sex:             null,
+      genderIdentity:  null
+    };
+    for (let field in newContact.properties) {
+      newContact.properties[field] = aContact[field];
     }
+
+    let reason;
+    if (aContact.id == "undefined") {
+      // for example {25c00f01-90e5-c545-b4d4-21E2ddbab9e0} becomes
+      // 25c00f0190e5c545b4d421E2ddbab9e0
+      aContact.id = this._getRandomId().replace('-', '', 'g').replace('{', '').replace('}', '');
+      reason = "create";
+    } else {
+      reason = "update";
+    }
+
+    this._setMetaData(newContact, aContact);
+    if (DEBUG) debug("send: " + JSON.stringify(newContact));
+    request = this.createRequest();
+    let options = { contact: newContact };
+    let allowCallback = function() {
+      cpmm.sendAsyncMessage("Contact:Save", {requestID: this.getRequestId({request: request, reason: reason}), options: options});
+    }.bind(this)
+    this.askPermission(reason, request, allowCallback);
+    return request;
+  },
+
+  find: function(aOptions) {
+    if (DEBUG) debug("find! " + JSON.stringify(aOptions));
+    let request;
+    request = this.createRequest();
+    let options = { findOptions: aOptions };
+    let allowCallback = function() {
+      cpmm.sendAsyncMessage("Contacts:Find", {requestID: this.getRequestId({request: request, reason: "find"}), options: options});
+    }.bind(this)
+    this.askPermission("find", request, allowCallback);
+    return request;
+  },
+
+  remove: function removeContact(aRecord) {
+    let request;
+    request = this.createRequest();
+    let options = { id: aRecord.id };
+    let allowCallback = function() {
+      cpmm.sendAsyncMessage("Contact:Remove", {requestID: this.getRequestId({request: request, reason: "remove"}), options: options});
+    }.bind(this)
+    this.askPermission("remove", request, allowCallback);
+    return request;
   },
 
   clear: function() {
+    if (DEBUG) debug("clear");
     let request;
-    if (this.hasPrivileges) {
-      request = this.createRequest();
-      cpmm.sendAsyncMessage("Contacts:Clear", {requestID: this.getRequestId({request: request, reason: "remove"})});
-      return request;
-    } else {
-      debug("clear not allowed");
-      throw Components.results.NS_ERROR_NOT_IMPLEMENTED;
-    }
+    request = this.createRequest();
+    let options = {};
+    let allowCallback = function() {
+      cpmm.sendAsyncMessage("Contacts:Clear", {requestID: this.getRequestId({request: request, reason: "remove"}), options: options});
+    }.bind(this)
+    this.askPermission("remove", request, allowCallback);
+    return request;
   },
 
   getSimContacts: function(aType) {
     let request;
-    if (this.hasPrivileges) {
+    request = this.createRequest();
+
+    let allowCallback = function() {
       let callback = function(aType, aContacts) {
-        debug("got SIM contacts: " + aType + " " + JSON.stringify(aContacts));
-        let result = aContacts.map(function(c) { return { name: [c.alphaId], tel: [c.number] } });
-        debug("result: " + JSON.stringify(result));
+        if (DEBUG) debug("got SIM contacts: " + aType + " " + JSON.stringify(aContacts));
+        let result = aContacts.map(function(c) {
+          var contact = new Contact();
+          contact.init( { name: [c.alphaId], tel: [ { value: c.number } ] } );
+          return contact;
+        });
+        if (DEBUG) debug("result: " + JSON.stringify(result));
         Services.DOMRequest.fireSuccess(request, result);
       };
-      debug("getSimContacts " + aType);
-      request = this.createRequest();
+      if (DEBUG) debug("getSimContacts " + aType);
+
       mRIL.getICCContacts(aType, callback);
-      return request;
-    } else {
-      debug("getSimContacts not allowed");
+    }.bind(this);
+
+    let cancelCallback = function() {
       throw Components.results.NS_ERROR_NOT_IMPLEMENTED;
     }
+    this.askPermission("getSimContacts", request, allowCallback, cancelCallback);
+    return request;
   },
 
   init: function(aWindow) {
@@ -451,23 +574,13 @@ ContactManager.prototype = {
     this.initHelper(aWindow, ["Contacts:Find:Return:OK", "Contacts:Find:Return:KO",
                               "Contacts:Clear:Return:OK", "Contacts:Clear:Return:KO",
                               "Contact:Save:Return:OK", "Contact:Save:Return:KO",
-                              "Contact:Remove:Return:OK", "Contact:Remove:Return:KO"]);
-
-    let principal = aWindow.document.nodePrincipal;
-    let secMan = Cc["@mozilla.org/scriptsecuritymanager;1"].getService(Ci.nsIScriptSecurityManager);
-
-    let perm = principal == secMan.getSystemPrincipal() ? 
-                 Ci.nsIPermissionManager.ALLOW_ACTION : 
-                 Services.perms.testExactPermission(principal.URI, "webcontacts-manage");
- 
-    //only pages with perm set can use the contacts
-    this.hasPrivileges = perm == Ci.nsIPermissionManager.ALLOW_ACTION;
-    debug("has privileges :" + this.hasPrivileges);
+                              "Contact:Remove:Return:OK", "Contact:Remove:Return:KO",
+                              "PermissionPromptHelper:AskPermission:OK"]);
   },
 
   // Called from DOMRequestIpcHelper
   uninit: function uninit() {
-    debug("uninit call");
+    if (DEBUG) debug("uninit call");
     if (this._oncontactchange)
       this._oncontactchange = null;
   },
@@ -483,4 +596,4 @@ ContactManager.prototype = {
 }
 
 const NSGetFactory = XPCOMUtils.generateNSGetFactory(
-                       [Contact, ContactManager, ContactProperties, ContactAddress, ContactTelephone, ContactFindOptions, ContactEmail])
+                       [Contact, ContactManager, ContactProperties, ContactAddress, ContactField, ContactTelField, ContactFindOptions])

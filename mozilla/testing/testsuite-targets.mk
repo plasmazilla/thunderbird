@@ -28,25 +28,27 @@ TEST_PACKAGE_NAME := $(ANDROID_PACKAGE_NAME)
 endif
 
 RUN_MOCHITEST = \
-	rm -f ./$@.log && \
-	$(PYTHON) _tests/testing/mochitest/runtests.py --autorun --close-when-done \
-	  --console-level=INFO --log-file=./$@.log --file-level=INFO \
-	  --failure-file=$(call core_abspath,_tests/testing/mochitest/makefailures.json)  \
-	  $(SYMBOLS_PATH) $(TEST_PATH_ARG) $(EXTRA_TEST_ARGS)
+  rm -f ./$@.log && \
+  $(PYTHON) _tests/testing/mochitest/runtests.py --autorun --close-when-done \
+    --console-level=INFO --log-file=./$@.log --file-level=INFO \
+    --failure-file=$(call core_abspath,_tests/testing/mochitest/makefailures.json) \
+    --testing-modules-dir=$(call core_abspath,_tests/modules) \
+    $(SYMBOLS_PATH) $(TEST_PATH_ARG) $(EXTRA_TEST_ARGS)
 
 RERUN_MOCHITEST = \
-	rm -f ./$@.log && \
-	$(PYTHON) _tests/testing/mochitest/runtests.py --autorun --close-when-done \
-	  --console-level=INFO --log-file=./$@.log --file-level=INFO \
-	  --run-only-tests=makefailures.json  \
-	  $(SYMBOLS_PATH) $(TEST_PATH_ARG) $(EXTRA_TEST_ARGS)
+  rm -f ./$@.log && \
+  $(PYTHON) _tests/testing/mochitest/runtests.py --autorun --close-when-done \
+    --console-level=INFO --log-file=./$@.log --file-level=INFO \
+    --run-only-tests=makefailures.json \
+    --testing-modules-dir=$(call core_abspath,_tests/modules) \
+    $(SYMBOLS_PATH) $(TEST_PATH_ARG) $(EXTRA_TEST_ARGS)
 
 RUN_MOCHITEST_REMOTE = \
-	rm -f ./$@.log && \
-	$(PYTHON) _tests/testing/mochitest/runtestsremote.py --autorun --close-when-done \
-	  --console-level=INFO --log-file=./$@.log --file-level=INFO $(DM_FLAGS) --dm_trans=$(DM_TRANS) \
-	  --app=$(TEST_PACKAGE_NAME) --deviceIP=${TEST_DEVICE} --xre-path=${MOZ_HOST_BIN} \
-	  $(SYMBOLS_PATH) $(TEST_PATH_ARG) $(EXTRA_TEST_ARGS)
+  rm -f ./$@.log && \
+  $(PYTHON) _tests/testing/mochitest/runtestsremote.py --autorun --close-when-done \
+    --console-level=INFO --log-file=./$@.log --file-level=INFO $(DM_FLAGS) --dm_trans=$(DM_TRANS) \
+    --app=$(TEST_PACKAGE_NAME) --deviceIP=${TEST_DEVICE} --xre-path=${MOZ_HOST_BIN} \
+    $(SYMBOLS_PATH) $(TEST_PATH_ARG) $(EXTRA_TEST_ARGS)
 
 RUN_MOCHITEST_ROBOTIUM = \
   rm -f ./$@.log && \
@@ -157,6 +159,11 @@ REMOTE_REFTEST = rm -f ./$@.log && $(PYTHON) _tests/reftest/remotereftest.py \
   --app=$(TEST_PACKAGE_NAME) --deviceIP=${TEST_DEVICE} --xre-path=${MOZ_HOST_BIN} \
   $(SYMBOLS_PATH) $(EXTRA_TEST_ARGS) $(1) | tee ./$@.log
 
+RUN_REFTEST_B2G = rm -f ./$@.log && $(PYTHON) _tests/reftest/runreftestb2g.py \
+  --remote-webserver=10.0.2.2 --b2gpath=${B2G_PATH} --adbpath=${ADB_PATH} \
+  --xre-path=${MOZ_HOST_BIN} $(SYMBOLS_PATH) --ignore-window-size \
+  $(EXTRA_TEST_ARGS) $(1) | tee ./$@.log
+
 ifeq ($(OS_ARCH),WINNT) #{
 # GPU-rendered shadow layers are unsupported here
 OOP_CONTENT = --setpref=browser.tabs.remote=true --setpref=layers.acceleration.disabled=true
@@ -183,6 +190,22 @@ reftest-remote:
         $(call REMOTE_REFTEST,tests/$(TEST_PATH)); \
         $(CHECK_TEST_ERROR); \
     fi
+
+reftest-b2g: TEST_PATH?=layout/reftests/reftest.list
+reftest-b2g:
+	@if [ ! -f ${MOZ_HOST_BIN}/xpcshell ]; then \
+        echo "please set the MOZ_HOST_BIN environment variable"; \
+	elif [ "${B2G_PATH}" = "" -o "${ADB_PATH}" = "" ]; then \
+		echo "please set the B2G_PATH and ADB_PATH environment variables"; \
+	else \
+        ln -s $(abspath $(topsrcdir)) _tests/reftest/tests; \
+		if [ "${REFTEST_PATH}" != "" ]; then \
+			$(call RUN_REFTEST_B2G,tests/${REFTEST_PATH}); \
+		else \
+			$(call RUN_REFTEST_B2G,tests/$(TEST_PATH)); \
+		fi; \
+        $(CHECK_TEST_ERROR); \
+	fi
 
 reftest-ipc: TEST_PATH?=layout/reftests/reftest.list
 reftest-ipc:
@@ -290,6 +313,7 @@ package-tests: \
   stage-mozbase \
   stage-tps \
   stage-modules \
+  stage-marionette \
   $(NULL)
 else
 # This staging area has been built for us by universal/flight.mk
@@ -305,7 +329,8 @@ else
 	$(MAKE) -C $(DEPTH)/testing/mochitest stage-chromejar PKG_STAGE=$(DIST)/universal
 endif
 	cd $(PKG_STAGE) && \
-	  zip -rq9D "$(call core_abspath,$(DIST)/$(PKG_PATH)$(TEST_PACKAGE))" *
+	  zip -rq9D "$(call core_abspath,$(DIST)/$(PKG_PATH)$(TEST_PACKAGE))" \
+	  * -x \*/.mkdir.done
 
 ifeq (Android, $(OS_TARGET))
 package-tests: stage-android
@@ -369,6 +394,16 @@ stage-modules: make-stage-dir
 	$(NSINSTALL) -D $(PKG_STAGE)/modules
 	cp -RL $(DEPTH)/_tests/modules $(PKG_STAGE)
 
+MARIONETTE_DIR=$(PKG_STAGE)/marionette
+stage-marionette: make-stage-dir
+	$(NSINSTALL) -D $(MARIONETTE_DIR)/tests
+	@(cd $(topsrcdir)/testing/marionette/client && tar --exclude marionette/tests $(TAR_CREATE_FLAGS) - *) | (cd $(MARIONETTE_DIR) && tar -xf -)
+	$(PYTHON) $(topsrcdir)/testing/marionette/client/marionette/tests/print-manifest-dirs.py \
+          $(topsrcdir) \
+          $(topsrcdir)/testing/marionette/client/marionette/tests/unit-tests.ini \
+          | (cd $(topsrcdir) && xargs tar $(TAR_CREATE_FLAGS_QUIET) -) \
+          | (cd $(MARIONETTE_DIR)/tests && tar -xf -)
+
 stage-mozbase: make-stage-dir
 	$(MAKE) -C $(DEPTH)/testing/mozbase stage-package
 .PHONY: \
@@ -395,5 +430,6 @@ stage-mozbase: make-stage-dir
   stage-mozbase \
   stage-tps \
   stage-modules \
+  stage-marionette \
   $(NULL)
 

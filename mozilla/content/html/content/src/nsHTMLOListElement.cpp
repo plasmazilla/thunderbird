@@ -47,7 +47,7 @@ public:
   // nsIDOMHTMLUListElement
   // fully declared by NS_DECL_NSIDOMHTMLOLISTELEMENT
 
-  virtual bool ParseAttribute(PRInt32 aNamespaceID,
+  virtual bool ParseAttribute(int32_t aNamespaceID,
                                 nsIAtom* aAttribute,
                                 const nsAString& aValue,
                                 nsAttrValue& aResult);
@@ -100,7 +100,7 @@ nsHTMLSharedListElement::GetClassInfoInternal()
   if (mNodeInfo->Equals(nsGkAtoms::ul)) {
     return NS_GetDOMClassInfoInstance(eDOMClassInfo_HTMLUListElement_id);
   }
-  return nsnull;
+  return nullptr;
 }
 
 // QueryInterface implementation for nsHTMLSharedListElement
@@ -151,7 +151,7 @@ static const nsAttrValue::EnumTable kOldListTypeTable[] = {
 };
 
 bool
-nsHTMLSharedListElement::ParseAttribute(PRInt32 aNamespaceID,
+nsHTMLSharedListElement::ParseAttribute(int32_t aNamespaceID,
                                         nsIAtom* aAttribute,
                                         const nsAString& aValue,
                                         nsAttrValue& aResult)
@@ -200,7 +200,7 @@ nsHTMLSharedListElement::IsAttributeMapped(const nsIAtom* aAttribute) const
       mNodeInfo->Equals(nsGkAtoms::ul)) {
     static const MappedAttributeEntry attributes[] = {
       { &nsGkAtoms::type },
-      { nsnull }
+      { nullptr }
     };
 
     static const MappedAttributeEntry* const map[] = {

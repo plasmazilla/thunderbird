@@ -14,7 +14,7 @@ Cc["@mozilla.org/moz/jssubscript-loader;1"]
 let {NewTabUtils, Sanitizer} = tmp;
 
 let uri = Services.io.newURI("about:newtab", null, null);
-let principal = Services.scriptSecurityManager.getCodebasePrincipal(uri);
+let principal = Services.scriptSecurityManager.getNoAppCodebasePrincipal(uri);
 
 let sm = Services.domStorageManager;
 let storage = sm.getLocalStorageForPrincipal(principal, "");
@@ -203,10 +203,7 @@ function addNewTabPageTab() {
   let tab = gBrowser.selectedTab = gBrowser.addTab("about:newtab");
   let browser = tab.linkedBrowser;
 
-  // Wait for the new tab page to be loaded.
-  browser.addEventListener("load", function onLoad() {
-    browser.removeEventListener("load", onLoad, true);
-
+  function whenNewTabLoaded() {
     if (NewTabUtils.allPages.enabled) {
       // Continue when the link cache has been populated.
       NewTabUtils.links.populateCache(function () {
@@ -215,6 +212,18 @@ function addNewTabPageTab() {
     } else {
       TestRunner.next();
     }
+  }
+
+  // The new tab page might have been preloaded in the background.
+  if (browser.contentDocument.readyState == "complete") {
+    whenNewTabLoaded();
+    return;
+  }
+
+  // Wait for the new tab page to be loaded.
+  browser.addEventListener("load", function onLoad() {
+    browser.removeEventListener("load", onLoad, true);
+    whenNewTabLoaded();
   }, true);
 }
 

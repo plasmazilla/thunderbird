@@ -8,7 +8,7 @@
 
 #include "nsIDOMFile.h"
 #include "nsDOMBlobBuilder.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 
 #include "jsapi.h"
 #include "jsatom.h"
@@ -115,28 +115,26 @@ private:
   }
 
   static JSBool
-  GetSize(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, jsval* aVp)
+  GetSize(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, JSMutableHandleValue aVp)
   {
     nsIDOMBlob* blob = GetInstancePrivate(aCx, aObj, "size");
     if (!blob) {
       return false;
     }
 
-    PRUint64 size;
+    uint64_t size;
     if (NS_FAILED(blob->GetSize(&size))) {
       ThrowDOMExceptionForNSResult(aCx, NS_ERROR_DOM_FILE_NOT_READABLE_ERR);
       return false;
     }
 
-    if (!JS_NewNumberValue(aCx, double(size), aVp)) {
-      return false;
-    }
+    aVp.set(JS_NumberValue(double(size)));
 
     return true;
   }
 
   static JSBool
-  GetType(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, jsval* aVp)
+  GetType(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, JSMutableHandleValue aVp)
   {
     nsIDOMBlob* blob = GetInstancePrivate(aCx, aObj, "type");
     if (!blob) {
@@ -154,7 +152,7 @@ private:
       return false;
     }
 
-    *aVp = STRING_TO_JSVAL(jsType);
+    aVp.set(STRING_TO_JSVAL(jsType));
 
     return true;
   }
@@ -184,10 +182,10 @@ private:
       return false;
     }
 
-    PRUint8 optionalArgc = aArgc;
+    uint8_t optionalArgc = aArgc;
     nsCOMPtr<nsIDOMBlob> rtnBlob;
-    if (NS_FAILED(blob->Slice(static_cast<PRUint64>(start),
-                              static_cast<PRUint64>(end),
+    if (NS_FAILED(blob->Slice(static_cast<uint64_t>(start),
+                              static_cast<uint64_t>(end),
                               contentType, optionalArgc,
                               getter_AddRefs(rtnBlob)))) {
       ThrowDOMExceptionForNSResult(aCx, NS_ERROR_DOM_FILE_NOT_READABLE_ERR);
@@ -212,9 +210,9 @@ JSClass Blob::sClass = {
 };
 
 JSPropertySpec Blob::sProperties[] = {
-  { "size", 0, PROPERTY_FLAGS, GetSize, js_GetterOnlyPropertyStub },
-  { "type", 0, PROPERTY_FLAGS, GetType, js_GetterOnlyPropertyStub },
-  { 0, 0, 0, NULL, NULL }
+  { "size", 0, PROPERTY_FLAGS, JSOP_WRAPPER(GetSize), JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "type", 0, PROPERTY_FLAGS, JSOP_WRAPPER(GetType), JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { 0, 0, 0, JSOP_NULLWRAPPER, JSOP_NULLWRAPPER }
 };
 
 JSFunctionSpec Blob::sFunctions[] = {
@@ -306,7 +304,7 @@ private:
   }
 
   static JSBool
-  GetMozFullPath(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, jsval* aVp)
+  GetMozFullPath(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, JSMutableHandleValue aVp)
   {
     nsIDOMFile* file = GetInstancePrivate(aCx, aObj, "mozFullPath");
     if (!file) {
@@ -327,12 +325,12 @@ private:
       return false;
     }
 
-    *aVp = STRING_TO_JSVAL(jsFullPath);
+    aVp.set(STRING_TO_JSVAL(jsFullPath));
     return true;
   }
 
   static JSBool
-  GetName(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, jsval* aVp)
+  GetName(JSContext* aCx, JSHandleObject aObj, JSHandleId aIdval, JSMutableHandleValue aVp)
   {
     nsIDOMFile* file = GetInstancePrivate(aCx, aObj, "name");
     if (!file) {
@@ -349,7 +347,7 @@ private:
       return false;
     }
 
-    *aVp = STRING_TO_JSVAL(jsName);
+    aVp.set(STRING_TO_JSVAL(jsName));
     return true;
   }
 };
@@ -362,10 +360,11 @@ JSClass File::sClass = {
 };
 
 JSPropertySpec File::sProperties[] = {
-  { "name", 0, PROPERTY_FLAGS, GetName, js_GetterOnlyPropertyStub },
-  { "mozFullPath", 0, PROPERTY_FLAGS, GetMozFullPath,
-    js_GetterOnlyPropertyStub },
-  { 0, 0, 0, NULL, NULL }
+  { "name", 0, PROPERTY_FLAGS, JSOP_WRAPPER(GetName),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { "mozFullPath", 0, PROPERTY_FLAGS, JSOP_WRAPPER(GetMozFullPath),
+    JSOP_WRAPPER(js_GetterOnlyPropertyStub) },
+  { 0, 0, 0, JSOP_NULLWRAPPER, JSOP_NULLWRAPPER }
 };
 
 nsIDOMBlob*

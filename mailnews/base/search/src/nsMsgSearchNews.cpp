@@ -97,10 +97,10 @@ char *nsMsgSearchNews::EncodeTerm (nsIMsgSearchTerm *term)
 
   NS_ASSERTION(term, "null term");
   if (!term)
-    return nsnull;
+    return nullptr;
 
   // Find a string to represent the attribute
-  const char *attribEncoding = nsnull;
+  const char *attribEncoding = nullptr;
   nsMsgSearchAttribValue attrib;
 
   term->GetAttrib(&attrib);
@@ -119,7 +119,7 @@ char *nsMsgSearchNews::EncodeTerm (nsIMsgSearchTerm *term)
     if (header.IsEmpty())
     {
       NS_ASSERTION(false,"malformed search"); // malformed search term?
-      return nsnull;
+      return nullptr;
     }
     attribEncoding = header.get();
   }
@@ -150,7 +150,7 @@ char *nsMsgSearchNews::EncodeTerm (nsIMsgSearchTerm *term)
     break;
   default:
     NS_ASSERTION(false,"malformed search"); // malformed search term?
-    return nsnull;
+    return nullptr;
   }
 
     // ### i18N problem Get the csid from FE, which is the correct csid for term
@@ -162,17 +162,17 @@ char *nsMsgSearchNews::EncodeTerm (nsIMsgSearchTerm *term)
 
   nsresult rv = term->GetValue(getter_AddRefs(searchValue));
   if (NS_FAILED(rv) || !searchValue)
-    return nsnull;
+    return nullptr;
 
 
   nsString intlNonRFC1522Value;
   rv = searchValue->GetStr(intlNonRFC1522Value);
   if (NS_FAILED(rv) || intlNonRFC1522Value.IsEmpty())
-    return nsnull;
+    return nullptr;
 
   PRUnichar *caseInsensitiveValue = EncodeToWildmat (intlNonRFC1522Value.get());
   if (!caseInsensitiveValue)
-    return nsnull;
+    return nullptr;
 
   // TO DO: Do INTL_FormatNNTPXPATInRFC1522Format trick for non-ASCII string
   // Unfortunately, we currently do not handle xxx or xxx search in XPAT
@@ -182,7 +182,7 @@ char *nsMsgSearchNews::EncodeTerm (nsIMsgSearchTerm *term)
   PRUnichar *escapedValue = EscapeSearchUrl (caseInsensitiveValue);
   nsMemory::Free(caseInsensitiveValue);
   if (!escapedValue)
-    return nsnull;
+    return nullptr;
 
 #if 0
   // We also need to apply NET_Escape to it since we have to pass 8-bits data
@@ -192,11 +192,11 @@ char *nsMsgSearchNews::EncodeTerm (nsIMsgSearchTerm *term)
   NS_Free(escapedValue);
 
   if (! urlEncoded)
-    return nsnull;
+    return nullptr;
 
   char *pattern = new char [NS_strlen(urlEncoded) + overhead];
   if (!pattern)
-    return nsnull;
+    return nullptr;
   else
     pattern[0] = '\0';
 #else
@@ -236,7 +236,7 @@ nsresult nsMsgSearchNews::Encode (nsCString *outEncoding)
 
   nsresult err = NS_OK;
 
-  PRUint32 numTerms;
+  uint32_t numTerms;
 
   m_searchTerms->Count(&numTerms);
   char **intermediateEncodings = new char * [numTerms];
@@ -244,7 +244,7 @@ nsresult nsMsgSearchNews::Encode (nsCString *outEncoding)
   {
     // Build an XPAT command for each term
     int encodingLength = 0;
-    PRUint32 i;
+    uint32_t i;
     for (i = 0; i < numTerms; i++)
     {
       nsCOMPtr<nsIMsgSearchTerm> pTerm;
@@ -297,7 +297,7 @@ NS_IMETHODIMP nsMsgSearchNews::AddHit(nsMsgKey key)
 }
 
 /* void CurrentUrlDone (in long exitCode); */
-NS_IMETHODIMP nsMsgSearchNews::CurrentUrlDone(PRInt32 exitCode)
+NS_IMETHODIMP nsMsgSearchNews::CurrentUrlDone(int32_t exitCode)
 {
   CollateHits();
   ReportHits();
@@ -333,7 +333,7 @@ void nsMsgSearchNews::CollateHits()
   // entire query is the intersection of results for each XPAT command if an AND search,
   // otherwise we want the union of all the search hits (minus the duplicates of course).
 
-  PRUint32 size = m_candidateHits.Length();
+  uint32_t size = m_candidateHits.Length();
   if (!size)
     return;
 
@@ -342,7 +342,7 @@ void nsMsgSearchNews::CollateHits()
   m_candidateHits.Sort();
 
   // For an OR search we only need to count the first occurrence of a candidate.
-  PRUint32 termCount = 1;
+  uint32_t termCount = 1;
   if (!m_ORSearch)
   {
     // We have a traditional AND search which must be collated. In order to
@@ -352,11 +352,11 @@ void nsMsgSearchNews::CollateHits()
     // fewer than 3 times, it matched some search terms, but not all.
     m_searchTerms->Count(&termCount);
   }
-  PRUint32 candidateCount = 0;
-  PRUint32 candidate = m_candidateHits[0];
-  for (PRUint32 index = 0; index < size; ++index)   
+  uint32_t candidateCount = 0;
+  uint32_t candidate = m_candidateHits[0];
+  for (uint32_t index = 0; index < size; ++index)   
   {
-    PRUint32 possibleCandidate = m_candidateHits[index];
+    uint32_t possibleCandidate = m_candidateHits[index];
     if (candidate == possibleCandidate)
     {
       ++candidateCount;
@@ -385,8 +385,8 @@ void nsMsgSearchNews::ReportHits ()
 
   if (db)
   {
-    PRUint32 size = m_hits.Length();
-    for (PRUint32 i = 0; i < size; ++i)
+    uint32_t size = m_hits.Length();
+    for (uint32_t i = 0; i < size; ++i)
     {
       nsCOMPtr <nsIMsgDBHdr> header;
 
@@ -414,7 +414,7 @@ void nsMsgSearchNews::ReportHit (nsIMsgDBHdr *pHeaders, nsIMsgFolder *folder)
 
 nsresult nsMsgSearchValidityManager::InitNewsTable()
 {
-  NS_ASSERTION (nsnull == m_newsTable,"don't call this twice!");
+  NS_ASSERTION (nullptr == m_newsTable,"don't call this twice!");
   nsresult rv = NewTable (getter_AddRefs(m_newsTable));
 
   if (NS_SUCCEEDED(rv))
@@ -460,7 +460,7 @@ nsresult nsMsgSearchValidityManager::InitNewsTable()
 
 nsresult nsMsgSearchValidityManager::InitNewsFilterTable()
 {
-  NS_ASSERTION (nsnull == m_newsFilterTable, "news filter table already initted");
+  NS_ASSERTION (nullptr == m_newsFilterTable, "news filter table already initted");
   nsresult rv = NewTable (getter_AddRefs(m_newsFilterTable));
 
   if (NS_SUCCEEDED(rv))

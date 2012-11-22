@@ -6,7 +6,6 @@
 #ifndef GFX_LAYERMANAGEROGL_H
 #define GFX_LAYERMANAGEROGL_H
 
-#include "Layers.h"
 #include "LayerManagerOGLProgram.h"
 
 #include "mozilla/layers/ShadowLayers.h"
@@ -103,7 +102,8 @@ public:
 
   void EndConstruction();
 
-  virtual bool EndEmptyTransaction();
+  virtual bool EndEmptyTransaction(EndTransactionFlags aFlags = END_DEFAULT);
+  virtual void NotifyShadowTreeTransaction();
   virtual void EndTransaction(DrawThebesLayerCallback aCallback,
                               void* aCallbackData,
                               EndTransactionFlags aFlags = END_DEFAULT);
@@ -114,11 +114,11 @@ public:
   {
       if (!mGLContext)
           return false;
-      PRInt32 maxSize = mGLContext->GetMaxTextureSize();
+      int32_t maxSize = mGLContext->GetMaxTextureSize();
       return aSize <= gfxIntSize(maxSize, maxSize);
   }
 
-  virtual PRInt32 GetMaxTextureSize() const
+  virtual int32_t GetMaxTextureSize() const
   {
     return mGLContext->GetMaxTextureSize();
   }
@@ -138,6 +138,7 @@ public:
   virtual already_AddRefed<ShadowImageLayer> CreateShadowImageLayer();
   virtual already_AddRefed<ShadowColorLayer> CreateShadowColorLayer();
   virtual already_AddRefed<ShadowCanvasLayer> CreateShadowCanvasLayer();
+  virtual already_AddRefed<ShadowRefLayer> CreateShadowRefLayer();
 
   virtual LayersBackend GetBackendType() { return LAYERS_OPENGL; }
   virtual void GetBackendName(nsAString& name) { name.AssignLiteral("OpenGL"); }
@@ -350,6 +351,9 @@ public:
    */
   void SetSurfaceSize(int width, int height);
 
+  bool CompositingDisabled() { return mCompositingDisabled; }
+  void SetCompositingDisabled(bool aCompositingDisabled) { mCompositingDisabled = aCompositingDisabled; }
+
 private:
   /** Widget associated with this layer manager */
   nsIWidget *mWidget;
@@ -391,6 +395,7 @@ private:
 
   /** Misc */
   bool mHasBGRA;
+  bool mCompositingDisabled;
 
   /**
    * When rendering to an EGL surface (e.g. on Android), we rely on being told
@@ -442,15 +447,22 @@ private:
       int fcount;
       TimeStamp last;
 
+      int contentFps;
+      int contentFCount;
+      TimeStamp contentLast;
+
       FPSState()
         : texture(0)
         , fps(0)
         , initialized(false)
         , fcount(0)
+        , contentFps(0)
+        , contentFCount(0)
       {
-        last = TimeStamp::Now();
+        contentLast = last = TimeStamp::Now();
       }
       void DrawFPS(GLContext*, ShaderProgramOGL*);
+      void NotifyShadowTreeTransaction();
   } mFPS;
 
   static bool sDrawFPS;
@@ -469,7 +481,7 @@ public:
   virtual ~LayerOGL() { }
 
   virtual LayerOGL *GetFirstChildOGL() {
-    return nsnull;
+    return nullptr;
   }
 
   /* Do NOT call this from the generic LayerOGL destructor.  Only from the

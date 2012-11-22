@@ -45,7 +45,7 @@ public:
    *    which are queued to fire their constructors.
    */
 
-  NS_INLINE_DECL_REFCOUNTING(nsXBLBinding)
+  NS_INLINE_DECL_CYCLE_COLLECTING_NATIVE_REFCOUNTING(nsXBLBinding)
 
   NS_DECL_CYCLE_COLLECTION_NATIVE_CLASS(nsXBLBinding)
 
@@ -79,7 +79,7 @@ public:
   void ExecuteDetachedHandler();
   void UnhookEventHandlers();
 
-  nsIAtom* GetBaseTag(PRInt32* aNameSpaceID);
+  nsIAtom* GetBaseTag(int32_t* aNameSpaceID);
   nsXBLBinding* RootBinding();
   nsXBLBinding* GetFirstStyleBinding();
 
@@ -96,12 +96,12 @@ public:
 
   // XXXbz this aIndex has nothing to do with an index into the child
   // list of the insertion parent or anything.
-  nsIContent* GetInsertionPoint(const nsIContent* aChild, PRUint32* aIndex);
+  nsIContent* GetInsertionPoint(const nsIContent* aChild, uint32_t* aIndex);
 
-  nsIContent* GetSingleInsertionPoint(PRUint32* aIndex,
+  nsIContent* GetSingleInsertionPoint(uint32_t* aIndex,
                                       bool* aMultipleInsertionPoints);
 
-  void AttributeChanged(nsIAtom* aAttribute, PRInt32 aNameSpaceID,
+  void AttributeChanged(nsIAtom* aAttribute, int32_t aNameSpaceID,
                         bool aRemoveFlag, bool aNotify);
 
   void ChangeDocument(nsIDocument* aOldDocument, nsIDocument* aNewDocument);

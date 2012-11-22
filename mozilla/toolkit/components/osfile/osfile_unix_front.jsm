@@ -16,8 +16,9 @@
 
     throw new Error("osfile_unix_front.jsm cannot be used from the main thread yet");
   }
-  importScripts("resource://gre/modules/osfile/osfile_shared.jsm");
   importScripts("resource://gre/modules/osfile/osfile_unix_back.jsm");
+  importScripts("resource://gre/modules/osfile/ospath_unix_back.jsm");
+  importScripts("resource://gre/modules/osfile/osfile_shared_front.jsm");
   (function(exports) {
      "use strict";
 
@@ -40,181 +41,124 @@
       * @constructor
       */
      let File = function File(fd) {
-       this._fd = fd;
+       exports.OS.Shared.AbstractFile.call(this, fd);
+       this._closeResult = null;
      };
-     File.prototype = {
-       /**
-        * If the file is open, this returns the file descriptor.
-        * Otherwise, throw a |File.Error|.
-        */
-       get fd() {
-         return this._fd;
-       },
+     File.prototype = Object.create(exports.OS.Shared.AbstractFile.prototype);
 
-       // Placeholder getter, used to replace |get fd| once
-       // the file is closed.
-       _nofd: function nofd(operation) {
-         operation = operation || "unknown operation";
-         throw new File.Error(operation, Const.EBADF);
-       },
-
-       /**
-        * Close the file.
-        *
-        * This method has no effect if the file is already closed. However,
-        * if the first call to |close| has thrown an error, further calls
-        * will throw the same error.
-        *
-        * @throws File.Error If closing the file revealed an error that could
-        * not be reported earlier.
-        */
-       close: function close() {
-         if (this._fd) {
-           let fd = this._fd;
-           this._fd = null;
-           delete this.fd;
-           Object.defineProperty(this, "fd", {get: File.prototype._nofd});
-           // Call |close(fd)|, detach finalizer
-           if (UnixFile.close(fd) == -1) {
-             this._closeResult = new File.Error("close", ctypes.errno);
-           }
+     /**
+      * Close the file.
+      *
+      * This method has no effect if the file is already closed. However,
+      * if the first call to |close| has thrown an error, further calls
+      * will throw the same error.
+      *
+      * @throws File.Error If closing the file revealed an error that could
+      * not be reported earlier.
+      */
+     File.prototype.close = function close() {
+       if (this._fd) {
+         let fd = this._fd;
+         this._fd = null;
+        // Call |close(fd)|, detach finalizer if any
+         // (|fd| may not be a CDataFinalizer if it has been
+         // instantiated from a controller thread).
+         let result = UnixFile._close(fd);
+         if (typeof fd == "object" && "forget" in fd) {
+           fd.forget();
          }
-         if (this._closeResult) {
-           throw this._closeResult;
+         if (result == -1) {
+           this._closeResult = new File.Error("close");
          }
-         return;
-       },
-       _closeResult: null,
+       }
+       if (this._closeResult) {
+         throw this._closeResult;
+       }
+       return;
+     };
 
-       /**
-        * Read some bytes from a file.
-        *
-        * @param {ArrayBuffer} buffer A buffer for holding the data
-        * once it is read.
-        * @param {number} nbytes The number of bytes to read. It must not
-        * exceed the size of |buffer| in bytes but it may exceed the number
-        * of bytes unread in the file.
-        * @param {*=} options Additional options for reading. Ignored in
-        * this implementation.
-        *
-        * @return {number} The number of bytes effectively read. If zero,
-        * the end of the file has been reached.
-        * @throws {OS.File.Error} In case of I/O error.
-        */
-       read: function read(buffer, nbytes, options) {
-         return throw_on_negative("read",
-           UnixFile.read(this.fd, buffer, nbytes)
-         );
-       },
+     /**
+      * Read some bytes from a file.
+      *
+      * @param {ArrayBuffer} buffer A buffer for holding the data
+      * once it is read.
+      * @param {number} nbytes The number of bytes to read. It must not
+      * exceed the size of |buffer| in bytes but it may exceed the number
+      * of bytes unread in the file.
+      * @param {*=} options Additional options for reading. Ignored in
+      * this implementation.
+      *
+      * @return {number} The number of bytes effectively read. If zero,
+      * the end of the file has been reached.
+      * @throws {OS.File.Error} In case of I/O error.
+      */
+     File.prototype.read = function read(buffer, nbytes, options) {
+       return throw_on_negative("read",
+         UnixFile.read(this.fd, buffer, nbytes)
+       );
+     };
 
-       /**
-        * Write some bytes to a file.
-        *
-        * @param {ArrayBuffer} buffer A buffer holding the data that must be
-        * written.
-        * @param {number} nbytes The number of bytes to write. It must not
-        * exceed the size of |buffer| in bytes.
-        * @param {*=} options Additional options for writing. Ignored in
-        * this implementation.
-        *
-        * @return {number} The number of bytes effectively written.
-        * @throws {OS.File.Error} In case of I/O error.
-        */
-       write: function write(buffer, nbytes, options) {
-         return throw_on_negative("write",
-           UnixFile.write(this.fd, buffer, nbytes)
-         );
-       },
+     /**
+      * Write some bytes to a file.
+      *
+      * @param {ArrayBuffer} buffer A buffer holding the data that must be
+      * written.
+      * @param {number} nbytes The number of bytes to write. It must not
+      * exceed the size of |buffer| in bytes.
+      * @param {*=} options Additional options for writing. Ignored in
+      * this implementation.
+      *
+      * @return {number} The number of bytes effectively written.
+      * @throws {OS.File.Error} In case of I/O error.
+      */
+     File.prototype.write = function write(buffer, nbytes, options) {
+       return throw_on_negative("write",
+         UnixFile.write(this.fd, buffer, nbytes)
+       );
+     };
 
-       /**
-        * Return the current position in the file.
-        */
-       getPosition: function getPosition(pos) {
+     /**
+      * Return the current position in the file.
+      */
+     File.prototype.getPosition = function getPosition(pos) {
          return this.setPosition(0, File.POS_CURRENT);
-       },
-
-       /**
-        * Change the current position in the file.
-        *
-        * @param {number} pos The new position. Whether this position
-        * is considered from the current position, from the start of
-        * the file or from the end of the file is determined by
-        * argument |whence|.  Note that |pos| may exceed the length of
-        * the file.
-        * @param {number=} whence The reference position. If omitted or
-        * |OS.File.POS_START|, |pos| is taken from the start of the file.
-        * If |OS.File.POS_CURRENT|, |pos| is taken from the current position
-        * in the file. If |OS.File.POS_END|, |pos| is taken from the end of
-        * the file.
-        *
-        * @return The new position in the file.
-        */
-       setPosition: function setPosition(pos, whence) {
-         // We are cheating to avoid one unnecessary conversion:
-         // In this implementation,
-         // OS.File.POS_START == OS.Constants.libc.SEEK_SET
-         // OS.File.POS_CURRENT == OS.Constants.libc.SEEK_CUR
-         // OS.File.POS_END == OS.Constants.libc.SEEK_END
-         whence = (whence == undefined)?OS.Constants.libc.SEEK_SET:whence;
-         return throw_on_negative("setPosition",
-           UnixFile.lseek(this.fd, pos, whence)
-         );
-       }
      };
 
      /**
-      * A File-related error.
+      * Change the current position in the file.
       *
-      * To obtain a human-readable error message, use method |toString|.
-      * To determine the cause of the error, use the various |becauseX|
-      * getters. To determine the operation that failed, use field
-      * |operation|.
+      * @param {number} pos The new position. Whether this position
+      * is considered from the current position, from the start of
+      * the file or from the end of the file is determined by
+      * argument |whence|.  Note that |pos| may exceed the length of
+      * the file.
+      * @param {number=} whence The reference position. If omitted
+      * or |OS.File.POS_START|, |pos| is relative to the start of the
+      * file.  If |OS.File.POS_CURRENT|, |pos| is relative to the
+      * current position in the file. If |OS.File.POS_END|, |pos| is
+      * relative to the end of the file.
       *
-      * Additionally, this implementation offers a field
-      * |unixErrno|, which holds the OS-specific error
-      * constant. If you need this level of detail, you may match the value
-      * of this field against the error constants of |OS.Constants.libc|.
-      *
-      * @param {string=} operation The operation that failed. If unspecified,
-      * the name of the calling function is taken to be the operation that
-      * failed.
-      * @param {number=} lastError The OS-specific constant detailing the
-      * reason of the error. If unspecified, this is fetched from the system
-      * status.
-      *
-      * @constructor
-      * @extends {OS.Shared.Error}
+      * @return The new position in the file.
       */
-     File.Error = function(operation, errno) {
-       operation = operation || "unknown operation";
-       OS.Shared.Error.call(this, operation);
-       this.unixErrno = errno || ctypes.errno;
-     };
-     File.Error.prototype = new OS.Shared.Error();
-     File.Error.prototype.toString = function toString() {
-       return "Unix error " + this.unixErrno +
-         " during operation " + this.operation +
-         " (" + UnixFile.strerror(this.unixErrno).readString() + ")";
+     File.prototype.setPosition = function setPosition(pos, whence) {
+       if (whence === undefined) {
+         whence = Const.SEEK_START;
+       }
+       return throw_on_negative("setPosition",
+         UnixFile.lseek(this.fd, pos, whence)
+       );
      };
 
      /**
-      * |true| if the error was raised because a file or directory
-      * already exists, |false| otherwise.
+      * Fetch the information on the file.
+      *
+      * @return File.Info The information on |this| file.
       */
-     Object.defineProperty(File.Error.prototype, "becauseExists", {
-       get: function becauseExists() {
-         return this.unixErrno == OS.Constants.libc.EEXISTS;
-       }
-     });
-     /**
-      * |true| if the error was raised because a file or directory
-      * does not exist, |false| otherwise.
-      */
-     Object.defineProperty(File.Error.prototype, "becauseNoSuchFile", {
-       get: function becauseNoSuchFile() {
-         return this.unixErrno == OS.Constants.libc.ENOENT;
-       }
-     });
+     File.prototype.stat = function stat() {
+       throw_on_negative("stat", UnixFile.fstat(this.fd, gStatDataPtr));
+         return new File.Info(gStatData);
+     };
+
 
      // Constant used to normalize options.
      const noOptions = {};
@@ -272,7 +216,7 @@
        if (options.unixFlags) {
          flags = options.unixFlags;
        } else {
-         mode = OS.Shared._aux.normalizeOpenMode(mode);
+         mode = OS.Shared.AbstractFile.normalizeOpenMode(mode);
          // Handle read/write
          if (!mode.write) {
            flags = Const.O_RDONLY;
@@ -312,6 +256,49 @@
        throw_on_negative("remove",
          UnixFile.unlink(path)
        );
+     };
+
+     /**
+      * Remove an empty directory.
+      *
+      * @param {string} path The name of the directory to remove.
+      * @param {*=} options Additional options.
+      *   - {bool} ignoreAbsent If |true|, do not fail if the
+      *     directory does not exist yet.
+      */
+     File.removeEmptyDir = function removeEmptyDir(path, options) {
+       options = options || noOptions;
+       let result = UnixFile.rmdir(path);
+       if (result == -1) {
+         if (options.ignoreAbsent && ctypes.errno == Const.ENOENT) {
+           return;
+         }
+         throw new File.Error("removeEmptyDir");
+       }
+     };
+
+     /**
+      * Default mode for opening directories.
+      */
+     const DEFAULT_UNIX_MODE_DIR = Const.S_IRWXU;
+
+     /**
+      * Create a directory.
+      *
+      * @param {string} path The name of the directory.
+      * @param {*=} options Additional options. This
+      * implementation interprets the following fields:
+      *
+      * - {number} unixMode If specified, a file creation mode,
+      * as per libc function |mkdir|. If unspecified, dirs are
+      * created with a default mode of 0700 (dir is private to
+      * the user, the user can read, write and execute).
+      */
+     File.makeDir = function makeDir(path, options) {
+       options = options || noOptions;
+       let omode = options.unixMode || DEFAULT_UNIX_MODE_DIR;
+       throw_on_negative("makeDir",
+         UnixFile.mkdir(path, omode));
      };
 
      /**
@@ -375,22 +362,6 @@
            flags |= Const.COPYFILE_EXCL;
          }
          throw_on_negative("copy",
-           UnixFile.copyfile(sourcePath, destPath, null, flags)
-         );
-       };
-
-       // This implementation uses |copyfile(3)|, from the BSD library.
-       // Adding moving of hierarchies and/or attributes is just a flag
-       // away.
-       File.move = function movefile(sourcePath, destPath, options) {
-         // This implementation uses |copyfile(3)|, from the BSD library.
-         // It can move directory hierarchies.
-         options = options || noOptions;
-         let flags = Const.COPYFILE_DATA | Const.COPYFILE_MOVE;
-         if (options.noOverwrite) {
-           flags |= Const.COPYFILE_EXCL;
-         }
-         throw_on_negative("move",
            UnixFile.copyfile(sourcePath, destPath, null, flags)
          );
        };
@@ -517,36 +488,37 @@
              pipe_write.dispose();
            }
          };
-     } else {
-       // Fallback implementation of pump for other Unix platforms.
-       pump = pump_userland;
-     }
-
-     // Implement |copy| using |pump|.
-     // This implementation would require some work before being able to
-     // copy directories
-     File.copy = function copy(sourcePath, destPath, options) {
-       options = options || noOptions;
-       let source, dest;
-       let result;
-       try {
-         source = File.open(sourcePath);
-         if (options.noOverwrite) {
-           dest = File.open(destPath, {create:true});
-         } else {
-           dest = File.open(destPath, {write:true});
-         }
-         result = pump(source, dest, options);
-       } catch (x) {
-         if (dest) {
-           dest.close();
-         }
-         if (source) {
-           source.close();
-         }
-         throw x;
+       } else {
+         // Fallback implementation of pump for other Unix platforms.
+         pump = pump_userland;
        }
-     };
+
+       // Implement |copy| using |pump|.
+       // This implementation would require some work before being able to
+       // copy directories
+       File.copy = function copy(sourcePath, destPath, options) {
+         options = options || noOptions;
+         let source, dest;
+         let result;
+         try {
+           source = File.open(sourcePath);
+           if (options.noOverwrite) {
+             dest = File.open(destPath, {create:true});
+           } else {
+             dest = File.open(destPath, {write:true});
+           }
+           result = pump(source, dest, options);
+         } catch (x) {
+           if (dest) {
+             dest.close();
+           }
+           if (source) {
+             source.close();
+           }
+           throw x;
+         }
+       };
+     } // End of definition of copy
 
      // Implement |move| using |rename| (wherever possible) or |copy|
      // (if files are on distinct devices).
@@ -582,13 +554,11 @@
          throw new File.Error();
        }
 
-         // Otherwise, copy and remove.
-         File.copy(sourcePath, destPath, options);
-         // FIXME: Clean-up in case of copy error?
-         File.remove(sourcePath);
-       };
-
-     } // End of definition of copy/move
+       // Otherwise, copy and remove.
+       File.copy(sourcePath, destPath, options);
+       // FIXME: Clean-up in case of copy error?
+       File.remove(sourcePath);
+     };
 
      /**
       * Iterate on one directory.
@@ -673,7 +643,7 @@
        /**
         * |true| if the entry is a symbolic link, |false| otherwise
         */
-       get isLink() {
+       get isSymLink() {
          return this._d_type == OS.Constants.libc.DT_LNK;
        },
 
@@ -696,6 +666,153 @@
        }
      };
 
+     /**
+      * Return a version of an instance of
+      * File.DirectoryIterator.Entry that can be sent from a worker
+      * thread to the main thread. Note that deserialization is
+      * asymmetric and returns an object with a different
+      * implementation.
+      */
+     File.DirectoryIterator.Entry.toMsg = function toMsg(value) {
+       if (!value instanceof File.DirectoryIterator.Entry) {
+         throw new TypeError("parameter of " +
+           "File.DirectoryIterator.Entry.toMsg must be a " +
+           "File.DirectoryIterator.Entry");
+       }
+       let serialized = {};
+       for (let key in File.DirectoryIterator.Entry.prototype) {
+         serialized[key] = value[key];
+       }
+       return serialized;
+     };
+
+     let gStatData = new OS.Shared.Type.stat.implementation();
+     let gStatDataPtr = gStatData.address();
+     let MODE_MASK = 4095 /*= 07777*/;
+     File.Info = function Info(stat) {
+       this._st_mode = stat.st_mode;
+       this._st_uid = stat.st_uid;
+       this._st_gid = stat.st_gid;
+       this._st_atime = stat.st_atime;
+       this._st_mtime = stat.st_mtime;
+       this._st_ctime = stat.st_ctime;
+       this._st_size = stat.st_size;
+     };
+     File.Info.prototype = {
+       /**
+        * |true| if this file is a directory, |false| otherwise
+        */
+       get isDir() {
+         return (this._st_mode & OS.Constants.libc.S_IFMT) == OS.Constants.libc.S_IFDIR;
+       },
+       /**
+        * |true| if this file is a symbolink link, |false| otherwise
+        */
+       get isSymLink() {
+         return (this._st_mode & OS.Constants.libc.S_IFMT) == OS.Constants.libc.S_IFLNK;
+       },
+       /**
+        * The size of the file, in bytes.
+        *
+        * Note that the result may be |NaN| if the size of the file cannot be
+        * represented in JavaScript.
+        *
+        * @type {number}
+        */
+       get size() {
+         return exports.OS.Shared.Type.size_t.importFromC(this._st_size);
+       },
+       /**
+        * The date of creation of this file
+        *
+        * @type {Date}
+        */
+       get creationDate() {
+         delete this.creationDate;
+         let date = new Date(this._st_ctime * 1000);
+         Object.defineProperty(this, "creationDate", { value: date });
+         return date;
+       },
+       /**
+        * The date of last access to this file.
+        *
+        * Note that the definition of last access may depend on the
+        * underlying operating system and file system.
+        *
+        * @type {Date}
+        */
+       get lastAccessDate() {
+         delete this.lastAccessDate;
+         let date = new Date(this._st_atime * 1000);
+         Object.defineProperty(this, "lastAccessDate", {value: date});
+         return date;
+       },
+       /**
+        * Return the date of last modification of this file.
+        */
+       get lastModificationDate() {
+         delete this.lastModificationDate;
+         let date = new Date(this._st_mtime * 1000);
+         Object.defineProperty(this, "lastModificationDate", {value: date});
+         return date;
+       },
+       /**
+        * Return the Unix owner of this file.
+        */
+       get unixOwner() {
+         return exports.OS.Shared.Type.uid_t.importFromC(this._st_uid);
+       },
+       /**
+        * Return the Unix group of this file.
+        */
+       get unixGroup() {
+         return exports.OS.Shared.Type.gid_t.importFromC(this._st_gid);
+       },
+       /**
+        * Return the Unix mode of this file.
+        */
+       get unixMode() {
+         return exports.OS.Shared.Type.mode_t.importFromC(this._st_mode & MODE_MASK);
+       }
+     };
+
+     /**
+      * Return a version of an instance of File.Info that can be sent
+      * from a worker thread to the main thread. Note that deserialization
+      * is asymmetric and returns an object with a different implementation.
+      */
+     File.Info.toMsg = function toMsg(stat) {
+       if (!stat instanceof File.Info) {
+         throw new TypeError("parameter of File.Info.toMsg must be a File.Info");
+       }
+       let serialized = {};
+       for (let key in File.Info.prototype) {
+         serialized[key] = stat[key];
+       }
+       return serialized;
+     };
+
+     /**
+      * Fetch the information on a file.
+      *
+      * @param {string} path The full name of the file to open.
+      * @param {*=} options Additional options. In this implementation:
+      *
+      * - {bool} unixNoFollowingLinks If set and |true|, if |path|
+      * represents a symbolic link, the call will return the information
+      * of the link itself, rather than that of the target file.
+      *
+      * @return {File.Information}
+      */
+     File.stat = function stat(path, options) {
+       options = options || noOptions;
+       if (options.unixNoFollowingLinks) {
+         throw_on_negative("stat", UnixFile.lstat(path, gStatDataPtr));
+       } else {
+         throw_on_negative("stat", UnixFile.stat(path, gStatDataPtr));
+       }
+       return new File.Info(gStatData);
+     };
 
      /**
       * Get/set the current directory.
@@ -750,11 +867,12 @@
        return result;
      }
 
-     File.POS_START = exports.OS.Constants.libc.SEEK_SET;
-     File.POS_CURRENT = exports.OS.Constants.libc.SEEK_CUR;
-     File.POS_END = exports.OS.Constants.libc.SEEK_END;
-
      File.Unix = exports.OS.Unix.File;
+     File.Error = exports.OS.Shared.Unix.Error;
      exports.OS.File = File;
+
+     Object.defineProperty(File, "POS_START", { value: OS.Shared.POS_START });
+     Object.defineProperty(File, "POS_CURRENT", { value: OS.Shared.POS_CURRENT });
+     Object.defineProperty(File, "POS_END", { value: OS.Shared.POS_END });
    })(this);
 }

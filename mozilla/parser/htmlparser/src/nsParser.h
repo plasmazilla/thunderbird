@@ -134,9 +134,9 @@ class nsParser : public nsIParser,
      *  @param   aCharsetSource- the source of the charset
      *  @return	 nada
      */
-    NS_IMETHOD_(void) SetDocumentCharset(const nsACString& aCharset, PRInt32 aSource);
+    NS_IMETHOD_(void) SetDocumentCharset(const nsACString& aCharset, int32_t aSource);
 
-    NS_IMETHOD_(void) GetDocumentCharset(nsACString& aCharset, PRInt32& aSource)
+    NS_IMETHOD_(void) GetDocumentCharset(nsACString& aCharset, int32_t& aSource)
     {
          aCharset = mCharset;
          aSource = mCharsetSource;
@@ -150,7 +150,7 @@ class nsParser : public nsIParser,
      * @return  TRUE if all went well -- FALSE otherwise
      */
     NS_IMETHOD Parse(nsIURI* aURL,
-                     nsIRequestObserver* aListener = nsnull,
+                     nsIRequestObserver* aListener = nullptr,
                      void* aKey = 0,
                      nsDTDMode aMode = eDTDMode_autodetect);
 
@@ -251,9 +251,9 @@ class nsParser : public nsIParser,
      * the given buffer.
      */
     bool DetectMetaTag(const char* aBytes, 
-                         PRInt32 aLen, 
+                         int32_t aLen, 
                          nsCString& oCharset, 
-                         PRInt32& oCharsetSource);
+                         int32_t& oCharsetSource);
 
     void SetSinkCharset(nsACString& aCharset);
 
@@ -412,10 +412,10 @@ protected:
     
     eParserCommands     mCommand;
     nsresult            mInternalState;
-    PRInt32             mStreamStatus;
-    PRInt32             mCharsetSource;
+    nsresult            mStreamStatus;
+    int32_t             mCharsetSource;
     
-    PRUint16            mFlags;
+    uint16_t            mFlags;
 
     nsString            mUnusedInput;
     nsCString           mCharset;

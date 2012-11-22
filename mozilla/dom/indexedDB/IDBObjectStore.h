@@ -17,12 +17,22 @@
 #include "mozilla/dom/indexedDB/IDBTransaction.h"
 #include "mozilla/dom/indexedDB/KeyPath.h"
 
+class nsIDOMBlob;
 class nsIScriptContext;
 class nsPIDOMWindow;
+
+namespace mozilla {
+namespace dom {
+class ContentParent;
+class PBlobChild;
+class PBlobParent;
+}
+}
 
 BEGIN_INDEXEDDB_NAMESPACE
 
 class AsyncConnectionHelper;
+class FileManager;
 class IDBCursor;
 class IDBKeyRange;
 class IDBRequest;
@@ -33,8 +43,6 @@ class Key;
 struct IndexInfo;
 struct IndexUpdateInfo;
 struct ObjectStoreInfo;
-struct StructuredCloneReadInfo;
-struct StructuredCloneWriteInfo;
 
 class IDBObjectStore MOZ_FINAL : public nsIIDBObjectStore
 {
@@ -51,7 +59,7 @@ public:
          bool aCreating);
 
   static nsresult
-  AppendIndexUpdateInfo(PRInt64 aIndexID,
+  AppendIndexUpdateInfo(int64_t aIndexID,
                         const KeyPath& aKeyPath,
                         bool aUnique,
                         bool aMultiEntry,
@@ -61,21 +69,24 @@ public:
 
   static nsresult
   UpdateIndexes(IDBTransaction* aTransaction,
-                PRInt64 aObjectStoreId,
+                int64_t aObjectStoreId,
                 const Key& aObjectStoreKey,
                 bool aOverwrite,
-                PRInt64 aObjectDataId,
+                int64_t aObjectDataId,
                 const nsTArray<IndexUpdateInfo>& aUpdateInfoArray);
 
   static nsresult
   GetStructuredCloneReadInfoFromStatement(mozIStorageStatement* aStatement,
-                                          PRUint32 aDataIndex,
-                                          PRUint32 aFileIdsIndex,
+                                          uint32_t aDataIndex,
+                                          uint32_t aFileIdsIndex,
                                           IDBDatabase* aDatabase,
                                           StructuredCloneReadInfo& aInfo);
 
   static void
-  ClearStructuredCloneBuffer(JSAutoStructuredCloneBuffer& aBuffer);
+  ClearCloneReadInfo(StructuredCloneReadInfo& aReadInfo);
+
+  static void
+  ClearCloneWriteInfo(StructuredCloneWriteInfo& aWriteInfo);
 
   static bool
   DeserializeValue(JSContext* aCx,
@@ -101,7 +112,19 @@ public:
 
   static nsresult
   ConvertFileIdsToArray(const nsAString& aFileIds,
-                        nsTArray<PRInt64>& aResult);
+                        nsTArray<int64_t>& aResult);
+
+  // Called only in the main process.
+  static nsresult
+  ConvertBlobsToActors(ContentParent* aContentParent,
+                       FileManager* aFileManager,
+                       const nsTArray<StructuredCloneFile>& aFiles,
+                       InfallibleTArray<PBlobParent*>& aActors);
+
+  // Called only in the child process.
+  static void
+  ConvertActorsToBlobs(const InfallibleTArray<PBlobChild*>& aActors,
+                       nsTArray<StructuredCloneFile>& aFiles);
 
   const nsString& Name() const
   {
@@ -118,7 +141,7 @@ public:
     return mTransaction->IsWriteAllowed();
   }
 
-  PRInt64 Id() const
+  int64_t Id() const
   {
     NS_ASSERTION(mId != LL_MININT, "Don't ask for this yet!");
     return mId;
@@ -183,6 +206,7 @@ public:
                       const SerializedStructuredCloneWriteInfo& aCloneWriteInfo,
                       const Key& aKey,
                       const InfallibleTArray<IndexUpdateInfo>& aUpdateInfoArray,
+                      const nsTArray<nsCOMPtr<nsIDOMBlob> >& aBlobs,
                       bool aOverwrite,
                       IDBRequest** _retval);
 
@@ -191,7 +215,7 @@ public:
                        IDBRequest** _retval);
 
   nsresult GetAllInternal(IDBKeyRange* aKeyRange,
-                          PRUint32 aLimit,
+                          uint32_t aLimit,
                           JSContext* aCx,
                           IDBRequest** _retval);
 
@@ -216,6 +240,7 @@ public:
                             size_t aDirection,
                             const Key& aKey,
                             const SerializedStructuredCloneReadInfo& aCloneInfo,
+                            nsTArray<StructuredCloneFile>& aBlobs,
                             IDBCursor** _retval);
 
   void
@@ -237,14 +262,17 @@ protected:
   nsresult AddOrPut(const jsval& aValue,
                     const jsval& aKey,
                     JSContext* aCx,
-                    PRUint8 aOptionalArgCount,
+                    uint8_t aOptionalArgCount,
                     bool aOverwrite,
                     IDBRequest** _retval);
+
+  static void
+  ClearStructuredCloneBuffer(JSAutoStructuredCloneBuffer& aBuffer);
 
 private:
   nsRefPtr<IDBTransaction> mTransaction;
 
-  PRInt64 mId;
+  int64_t mId;
   nsString mName;
   KeyPath mKeyPath;
   JS::Value mCachedKeyPath;

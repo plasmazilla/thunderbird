@@ -8,20 +8,19 @@
 
 #include "nsIFileStorage.h"
 
-#include "nsNetError.h"
+#include "nsError.h"
 #include "nsProxyRelease.h"
 
 #include "FileHandle.h"
 #include "FileRequest.h"
 #include "FileService.h"
 #include "nsIRequest.h"
-#include "nsDOMError.h"
 
 USING_FILE_NAMESPACE
 
 namespace {
 
-LockedFile* gCurrentLockedFile = nsnull;
+LockedFile* gCurrentLockedFile = nullptr;
 
 } // anonymous namespace
 
@@ -119,7 +118,7 @@ FileHelper::OnStopRequest(nsIRequest* aRequest, nsISupports* aCtxt,
 }
 
 void
-FileHelper::OnStreamProgress(PRUint64 aProgress, PRUint64 aProgressMax)
+FileHelper::OnStreamProgress(uint64_t aProgress, uint64_t aProgressMax)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
@@ -163,11 +162,11 @@ FileHelper::ReleaseObjects()
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
-  mFileStorage = nsnull;
-  mLockedFile = nsnull;
-  mFileRequest = nsnull;
-  mListener = nsnull;
-  mRequest = nsnull;
+  mFileStorage = nullptr;
+  mLockedFile = nullptr;
+  mFileRequest = nullptr;
+  mListener = nullptr;
+  mRequest = nullptr;
 }
 
 void

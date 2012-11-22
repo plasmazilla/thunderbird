@@ -128,18 +128,25 @@ BrowserRootActor.prototype = {
    * tab closures.
    */
   watchWindow: function BRA_watchWindow(aWindow) {
-    aWindow.getBrowser().tabContainer.addEventListener("TabClose",
-                                                       this.onTabClosed,
-                                                       false);
+    this.getTabContainer(aWindow).addEventListener("TabClose",
+                                                   this.onTabClosed,
+                                                   false);
   },
 
   /**
    * Stop watching a window for tab closes.
    */
   unwatchWindow: function BRA_unwatchWindow(aWindow) {
-    aWindow.getBrowser().tabContainer.removeEventListener("TabClose",
-                                                          this.onTabClosed);
+    this.getTabContainer(aWindow).removeEventListener("TabClose",
+                                                      this.onTabClosed);
     this.exitTabActor(aWindow);
+  },
+
+  /**
+   * Return the tab container for the specified window.
+   */
+  getTabContainer: function BRA_getTabContainer(aWindow) {
+    return aWindow.getBrowser().tabContainer;
   },
 
   /**
@@ -301,7 +308,9 @@ BrowserTabActor.prototype = {
     // Watch for globals being created in this tab.
     this.browser.addEventListener("DOMWindowCreated", this._onWindowCreated, true);
     this.browser.addEventListener("pageshow", this._onWindowCreated, true);
-    this._progressListener = new DebuggerProgressListener(this);
+    if (this._tabbrowser) {
+      this._progressListener = new DebuggerProgressListener(this);
+    }
 
     this._attached = true;
   },

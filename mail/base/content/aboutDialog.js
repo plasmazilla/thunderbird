@@ -156,7 +156,7 @@ function appUpdater()
 
   if (this.isApplied) {
     this.setupUpdateButton("update.restart." +
-                           (this.isMajor ? "upgradeButton" : "updateButton"));
+                           (this.isMajor ? "upgradeButton" : "restartButton"));
     return;
   }
 
@@ -553,9 +553,7 @@ appUpdater.prototype =
     case Components.results.NS_OK:
       this.removeDownloadListener();
       if (this.backgroundUpdateEnabled) {
-        // For TB 16, just keep displaying the downloading box until we've applied the
-        // update.
-        //this.selectPanel("applying");
+        this.selectPanel("applying");
         let update = this.um.activeUpdate;
         let self = this;
         Services.obs.addObserver(function (aSubject, aTopic, aData) {
@@ -568,7 +566,7 @@ appUpdater.prototype =
             // button.
             self.selectPanel("updateButtonBox");
             self.setupUpdateButton("update.restart." +
-                                   (self.isMajor ? "upgradeButton" : "updateButton"));
+                                   (self.isMajor ? "upgradeButton" : "restartButton"));
           } else if (status == "failed") {
             // Background update has failed, let's show the UI responsible for
             // prompting the user to update manually.

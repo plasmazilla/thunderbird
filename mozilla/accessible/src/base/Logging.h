@@ -48,13 +48,13 @@ enum EModules {
 /**
  * Return true if any of the given modules is logged.
  */
-bool IsEnabled(PRUint32 aModules);
+bool IsEnabled(uint32_t aModules);
 
 /**
  * Log the document loading progress.
  */
 void DocLoad(const char* aMsg, nsIWebProgress* aWebProgress,
-             nsIRequest* aRequest, PRUint32 aStateFlags);
+             nsIRequest* aRequest, uint32_t aStateFlags);
 void DocLoad(const char* aMsg, nsIDocument* aDocumentNode);
 
 /**
@@ -71,13 +71,13 @@ void DocLoadEventHandled(AccEvent* aEvent);
  * Log the document was created.
  */
 void DocCreate(const char* aMsg, nsIDocument* aDocumentNode,
-               DocAccessible* aDocument = nsnull);
+               DocAccessible* aDocument = nullptr);
 
 /**
  * Log the document was destroyed.
  */
 void DocDestroy(const char* aMsg, nsIDocument* aDocumentNode,
-                DocAccessible* aDocument = nsnull);
+                DocAccessible* aDocument = nullptr);
 
 /**
  * Log the outer document was destroyed.

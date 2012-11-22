@@ -44,7 +44,7 @@ using namespace mozilla::services;
 namespace {
 
 inline
-PRUint32
+uint32_t
 GetIndexedDBPermissions(nsIDOMWindow* aWindow)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
@@ -77,7 +77,7 @@ GetIndexedDBPermissions(nsIDOMWindow* aWindow)
     do_GetService(NS_PERMISSIONMANAGER_CONTRACTID);
   NS_ENSURE_TRUE(permissionManager, PERMISSION_DENIED);
 
-  PRUint32 permission;
+  uint32_t permission;
   nsresult rv =
     permissionManager->TestPermissionFromPrincipal(sop->GetPrincipal(),
                                                    PERMISSION_INDEXEDDB,
@@ -98,7 +98,7 @@ CheckPermissionsHelper::Run()
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
-  PRUint32 permission = mHasPrompted ?
+  uint32_t permission = mHasPrompted ?
                         mPromptResult :
                         GetIndexedDBPermissions(mWindow);
 
@@ -127,7 +127,7 @@ CheckPermissionsHelper::Run()
   else if (permission == PERMISSION_PROMPT && mPromptAllowed) {
     nsCOMPtr<nsIObserverService> obs = GetObserverService();
     rv = obs->NotifyObservers(static_cast<nsIRunnable*>(this),
-                              TOPIC_PERMISSIONS_PROMPT, nsnull);
+                              TOPIC_PERMISSIONS_PROMPT, nullptr);
     NS_ENSURE_SUCCESS(rv, rv);
 
     return NS_OK;
@@ -168,7 +168,7 @@ CheckPermissionsHelper::GetInterface(const nsIID& aIID,
     return mWindow->QueryInterface(aIID, aResult);
   }
 
-  *aResult = nsnull;
+  *aResult = nullptr;
   return NS_ERROR_NOT_AVAILABLE;
 }
 
@@ -184,7 +184,7 @@ CheckPermissionsHelper::Observe(nsISupports* aSubject,
   mHasPrompted = true;
 
   nsresult rv;
-  PRUint32 promptResult = nsDependentString(aData).ToInteger(&rv);
+  uint32_t promptResult = nsDependentString(aData).ToInteger(&rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Have to convert the permission we got from the user to our weird reversed

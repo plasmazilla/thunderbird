@@ -23,7 +23,6 @@
 #include "nsIMutableArray.h"
 #include "nsIMIMEInfo.h"
 #include "nsColor.h"
-#include "BasicLayers.h"
 #include "gfxRect.h"
 
 #include "nsIAndroidBridge.h"
@@ -37,6 +36,13 @@ class nsIDOMMozSmsMessage;
 
 /* See the comment in AndroidBridge about this function before using it */
 extern "C" JNIEnv * GetJNIForThread();
+extern "C" jclass jsjni_FindClass(const char *className);
+extern "C" jmethodID jsjni_GetStaticMethodID(jclass methodClass,
+                                       const char *methodName,
+                                       const char *signature);
+extern "C" bool jsjni_ExceptionCheck();
+extern "C" void jsjni_CallStaticVoidMethodA(jclass cls, jmethodID method, jvalue *values);
+extern "C" int jsjni_CallStaticIntMethodA(jclass cls, jmethodID method, jvalue *values);
 
 extern bool mozilla_AndroidBridge_SetMainThread(void *);
 extern jclass GetGeckoAppShellClass();
@@ -102,8 +108,7 @@ public:
         LAYER_CLIENT_TYPE_GL = 2            // AndroidGeckoGLLayerClient
     };
 
-    static AndroidBridge *ConstructBridge(JNIEnv *jEnv,
-                                          jclass jGeckoAppShellClass);
+    static void ConstructBridge(JNIEnv *jEnv, jclass jGeckoAppShellClass);
 
     static AndroidBridge *Bridge() {
         return sBridge;
@@ -112,7 +117,7 @@ public:
     static JavaVM *GetVM() {
         if (NS_LIKELY(sBridge))
             return sBridge->mJavaVM;
-        return nsnull;
+        return nullptr;
     }
 
     static JNIEnv *GetJNIEnv() {
@@ -121,12 +126,12 @@ public:
                 __android_log_print(ANDROID_LOG_INFO, "AndroidBridge",
                                     "###!!!!!!! Something's grabbing the JNIEnv from the wrong thread! (thr %p should be %p)",
                                     (void*)pthread_self(), (void*)sBridge->mThread);
-                return nsnull;
+                return nullptr;
             }
             return sBridge->mJNIEnv;
 
         }
-        return nsnull;
+        return nullptr;
     }
     
     static jclass GetGeckoAppShellClass() {
@@ -144,18 +149,11 @@ public:
     static void NotifyIME(int aType, int aState);
 
     static void NotifyIMEEnabled(int aState, const nsAString& aTypeHint,
-                                 const nsAString& aActionHint);
+                                 const nsAString& aModeHint, const nsAString& aActionHint);
 
-    static void NotifyIMEChange(const PRUnichar *aText, PRUint32 aTextLen, int aStart, int aEnd, int aNewEnd);
+    static void NotifyIMEChange(const PRUnichar *aText, uint32_t aTextLen, int aStart, int aEnd, int aNewEnd);
 
-    /* These are defined in mobile/android/base/GeckoAppShell.java */
-    enum {
-        SCREENSHOT_THUMBNAIL = 0,
-        SCREENSHOT_WHOLE_PAGE = 1,
-        SCREENSHOT_UPDATE = 2
-    };
-
-    nsresult TakeScreenshot(nsIDOMWindow *window, PRInt32 srcX, PRInt32 srcY, PRInt32 srcW, PRInt32 srcH, PRInt32 dstY, PRInt32 dstX, PRInt32 dstW, PRInt32 dstH, PRInt32 bufW, PRInt32 bufH, PRInt32 tabId, PRInt32 token, jobject buffer);
+    nsresult TakeScreenshot(nsIDOMWindow *window, int32_t srcX, int32_t srcY, int32_t srcW, int32_t srcH, int32_t dstY, int32_t dstX, int32_t dstW, int32_t dstH, int32_t bufW, int32_t bufH, int32_t tabId, int32_t token, jobject buffer);
 
     static void NotifyPaintedRect(float top, float left, float bottom, float right);
 
@@ -168,7 +166,7 @@ public:
 
     void DisableSensor(int aSensorType);
 
-    void ReturnIMEQueryResult(const PRUnichar *aResult, PRUint32 aLen, int aSelStart, int aSelLen);
+    void ReturnIMEQueryResult(const PRUnichar *aResult, uint32_t aLen, int aSelStart, int aSelLen);
 
     void NotifyXreExit();
 
@@ -181,13 +179,13 @@ public:
     AndroidGeckoSurfaceView& SurfaceView() { return mSurfaceView; }
 
     bool GetHandlersForURL(const char *aURL, 
-                             nsIMutableArray* handlersArray = nsnull,
-                             nsIHandlerApp **aDefaultApp = nsnull,
+                             nsIMutableArray* handlersArray = nullptr,
+                             nsIHandlerApp **aDefaultApp = nullptr,
                              const nsAString& aAction = EmptyString());
 
     bool GetHandlersForMimeType(const char *aMimeType,
-                                  nsIMutableArray* handlersArray = nsnull,
-                                  nsIHandlerApp **aDefaultApp = nsnull,
+                                  nsIMutableArray* handlersArray = nullptr,
+                                  nsIHandlerApp **aDefaultApp = nullptr,
                                   const nsAString& aAction = EmptyString());
 
     bool OpenUriExternal(const nsACString& aUriSpec, const nsACString& aMimeType,
@@ -217,8 +215,8 @@ public:
                                const nsAString& aAlertName);
 
     void AlertsProgressListener_OnProgress(const nsAString& aAlertName,
-                                           PRInt64 aProgress,
-                                           PRInt64 aProgressMax,
+                                           int64_t aProgress,
+                                           int64_t aProgressMax,
                                            const nsAString& aAlertText);
 
     void AlertsProgressListener_OnCancel(const nsAString& aAlertName);
@@ -231,7 +229,7 @@ public:
 
     void PerformHapticFeedback(bool aIsLongPress);
 
-    void Vibrate(const nsTArray<PRUint32>& aPattern);
+    void Vibrate(const nsTArray<uint32_t>& aPattern);
     void CancelVibrate();
 
     void SetFullScreen(bool aFullScreen);
@@ -250,7 +248,7 @@ public:
 
     void GetSystemColors(AndroidSystemColors *aColors);
 
-    void GetIconForExtension(const nsACString& aFileExt, PRUint32 aIconSize, PRUint8 * const aBuf);
+    void GetIconForExtension(const nsACString& aFileExt, uint32_t aIconSize, uint8_t * const aBuf);
 
     bool GetShowPasswordSetting();
 
@@ -263,9 +261,9 @@ public:
     void RegisterCompositor(JNIEnv* env = NULL, bool resetting = false);
     EGLSurface ProvideEGLSurface();
 
-    bool GetStaticStringField(const char *classID, const char *field, nsAString &result, JNIEnv* env = nsnull);
+    bool GetStaticStringField(const char *classID, const char *field, nsAString &result, JNIEnv* env = nullptr);
 
-    bool GetStaticIntField(const char *className, const char *fieldName, PRInt32* aInt, JNIEnv* env = nsnull);
+    bool GetStaticIntField(const char *className, const char *fieldName, int32_t* aInt, JNIEnv* env = nullptr);
 
     void SetKeepScreenOn(bool on);
 
@@ -285,6 +283,10 @@ public:
     void PostToJavaThread(JNIEnv *aEnv, nsIRunnable* aRunnable, bool aMainThread = false);
 
     void ExecuteNextRunnable(JNIEnv *aEnv);
+
+    bool UnlockProfile();
+
+    void KillAnyZombies();
 
     /* Copied from Android's native_window.h in newer (platform 9) NDK */
     enum {
@@ -311,7 +313,7 @@ public:
     void CheckURIVisited(const nsAString& uri);
     void MarkURIVisited(const nsAString& uri);
 
-    bool InitCamera(const nsCString& contentType, PRUint32 camera, PRUint32 *width, PRUint32 *height, PRUint32 *fps);
+    bool InitCamera(const nsCString& contentType, uint32_t camera, uint32_t *width, uint32_t *height, uint32_t *fps);
 
     void CloseCamera();
 
@@ -319,14 +321,14 @@ public:
     void DisableBatteryNotifications();
     void GetCurrentBatteryInformation(hal::BatteryInformation* aBatteryInfo);
 
-    PRUint16 GetNumberOfMessagesForText(const nsAString& aText);
-    void SendMessage(const nsAString& aNumber, const nsAString& aText, PRInt32 aRequestId, PRUint64 aProcessId);
-    PRInt32 SaveSentMessage(const nsAString& aRecipient, const nsAString& aBody, PRUint64 aDate);
-    void GetMessage(PRInt32 aMessageId, PRInt32 aRequestId, PRUint64 aProcessId);
-    void DeleteMessage(PRInt32 aMessageId, PRInt32 aRequestId, PRUint64 aProcessId);
-    void CreateMessageList(const dom::sms::SmsFilterData& aFilter, bool aReverse, PRInt32 aRequestId, PRUint64 aProcessId);
-    void GetNextMessageInList(PRInt32 aListId, PRInt32 aRequestId, PRUint64 aProcessId);
-    void ClearMessageList(PRInt32 aListId);
+    uint16_t GetNumberOfMessagesForText(const nsAString& aText);
+    void SendMessage(const nsAString& aNumber, const nsAString& aText, int32_t aRequestId, uint64_t aProcessId);
+    int32_t SaveSentMessage(const nsAString& aRecipient, const nsAString& aBody, uint64_t aDate);
+    void GetMessage(int32_t aMessageId, int32_t aRequestId, uint64_t aProcessId);
+    void DeleteMessage(int32_t aMessageId, int32_t aRequestId, uint64_t aProcessId);
+    void CreateMessageList(const dom::sms::SmsFilterData& aFilter, bool aReverse, int32_t aRequestId, uint64_t aProcessId);
+    void GetNextMessageInList(int32_t aListId, int32_t aRequestId, uint64_t aProcessId);
+    void ClearMessageList(int32_t aListId);
 
     bool IsTablet();
 
@@ -427,6 +429,8 @@ protected:
     jmethodID jShowFilePickerForExtensions;
     jmethodID jShowFilePickerForMimeType;
     jmethodID jShowFilePickerAsync;
+    jmethodID jUnlockProfile;
+    jmethodID jKillAnyZombies;
     jmethodID jAlertsProgressListener_OnProgress;
     jmethodID jAlertsProgressListener_OnCancel;
     jmethodID jGetDpi;

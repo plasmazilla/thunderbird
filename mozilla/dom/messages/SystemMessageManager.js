@@ -11,12 +11,11 @@ const Cu = Components.utils;
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/DOMRequestHelper.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/ObjectWrapper.jsm");
 
-XPCOMUtils.defineLazyGetter(this, "cpmm", function() {
-  return Cc["@mozilla.org/childprocessmessagemanager;1"]
-         .getService(Ci.nsIFrameMessageManager)
-         .QueryInterface(Ci.nsISyncMessageSender);
-});
+XPCOMUtils.defineLazyServiceGetter(this, "cpmm",
+                                   "@mozilla.org/childprocessmessagemanager;1",
+                                   "nsISyncMessageSender");
 
 // Limit the number of pending messages for a given type.
 let kMaxPendingMessages;
@@ -27,8 +26,8 @@ try {
   kMaxPendingMessages = 5;
 }
 
-function debug(aMsg) { 
-  //dump("-- SystemMessageManager " + Date.now() + " : " + aMsg + "\n"); 
+function debug(aMsg) {
+  //dump("-- SystemMessageManager " + Date.now() + " : " + aMsg + "\n");
 }
 
 // Implementation of the DOM API for system messages
@@ -44,6 +43,29 @@ function SystemMessageManager() {
 
 SystemMessageManager.prototype = {
   __proto__: DOMRequestIpcHelper.prototype,
+
+  _dispatchMessage: function sysMessMgr_dispatchMessage(aType, aHandler, aMessage) {
+    // We get a json blob, but in some cases we want another kind of object
+    // to be dispatched.
+    // To do so, we check if we have a with a contract ID of
+    // "@mozilla.org/dom/system-messages/wrapper/TYPE;1" component implementing
+    // nsISystemMessageWrapper.
+    debug("Dispatching " + JSON.stringify(aMessage) + "\n");
+    let contractID = "@mozilla.org/dom/system-messages/wrapper/" + aType + ";1";
+    let wrapped = false;
+
+    if (contractID in Cc) {
+      debug(contractID + " is registered, creating an instance");
+      let wrapper = Cc[contractID].createInstance(Ci.nsISystemMessagesWrapper);
+      if (wrapper) {
+        aMessage = wrapper.wrapMessage(aMessage, this._window);
+        wrapped = true;
+        debug("wrapped = " + aMessage);
+      }
+    }
+
+    aHandler.handleMessage(wrapped ? aMessage : ObjectWrapper.wrap(aMessage, this._window));
+  },
 
   mozSetMessageHandler: function sysMessMgr_setMessageHandler(aType, aHandler) {
     debug("setMessage handler for [" + aType + "] " + aHandler);
@@ -68,10 +90,11 @@ SystemMessageManager.prototype = {
       let thread = Services.tm.mainThread;
       let pending = this._pendings[aType];
       this._pendings[aType] = [];
+      let self = this;
       pending.forEach(function dispatch_pending(aPending) {
         thread.dispatch({
           run: function run() {
-            aHandler.handleMessage(aPending);
+            self._dispatchMessage(aType, aHandler, aPending);
           }
         }, Ci.nsIEventTarget.DISPATCH_NORMAL);
       });
@@ -89,9 +112,9 @@ SystemMessageManager.prototype = {
       return false;
     }
 
-    // Send a sync message to the parent to check if we have a pending message 
+    // Send a sync message to the parent to check if we have a pending message
     // for this type.
-    let messages = cpmm.sendSyncMessage("SystemMessageManager:GetPending", 
+    let messages = cpmm.sendSyncMessage("SystemMessageManager:GetPending",
                                         { type: aType,
                                           uri: this._uri,
                                           manifest: this._manifest })[0];
@@ -125,7 +148,7 @@ SystemMessageManager.prototype = {
   },
 
   receiveMessage: function sysMessMgr_receiveMessage(aMessage) {
-    debug("receiveMessage " + aMessage.name + " - " + 
+    debug("receiveMessage " + aMessage.name + " - " +
           aMessage.json.type + " for " + aMessage.json.manifest +
           " (" + this._manifest + ")");
 
@@ -139,22 +162,21 @@ SystemMessageManager.prototype = {
       return;
     }
 
-    this._handlers[msg.type].handleMessage(msg.msg);
+    this._dispatchMessage(msg.type, this._handlers[msg.type], msg.msg);
   },
 
   // nsIDOMGlobalPropertyInitializer implementation.
   init: function sysMessMgr_init(aWindow) {
     debug("init");
     this.initHelper(aWindow, ["SystemMessageManager:Message"]);
-    this._uri = aWindow.document.nodePrincipal.URI.spec;
-    let utils = aWindow.QueryInterface(Ci.nsIInterfaceRequestor)
-                       .getInterface(Components.interfaces.nsIDOMWindowUtils);
 
-    // Get the manifest url is this is an installed app.
-    this._manifest = null;
-    let app = utils.getApp();
-    if (app)
-      this._manifest = app.manifestURL;
+    let principal = aWindow.document.nodePrincipal;
+    this._uri = principal.URI.spec;
+
+    let appsService = Cc["@mozilla.org/AppsService;1"]
+                        .getService(Ci.nsIAppsService);
+    this._manifest = appsService.getManifestURLByLocalId(principal.appId);
+    this._window = aWindow;
   },
 
   classID: Components.ID("{bc076ea0-609b-4d8f-83d7-5af7cbdc3bb2}"),

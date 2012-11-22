@@ -61,8 +61,8 @@ public:
   static PLDHashNumber HashKey(KeyTypePointer aKey)
   {
     // PL_DHashStringKey doesn't use the table parameter, so we can safely
-    // pass nsnull
-    return PL_DHashStringKey(nsnull, aKey);
+    // pass nullptr
+    return PL_DHashStringKey(nullptr, aKey);
   }
 
   enum { ALLOW_MEMMOVE = true };
@@ -87,7 +87,7 @@ public:
   nsresult Init();
 
 private:
-  nsresult GetBaseDomainInternal(nsCString &aHostname, PRUint32 aAdditionalParts, nsACString &aBaseDomain);
+  nsresult GetBaseDomainInternal(nsCString &aHostname, uint32_t aAdditionalParts, nsACString &aBaseDomain);
   nsresult NormalizeHostname(nsCString &aHostname);
   ~nsEffectiveTLDService() { }
 

@@ -19,7 +19,7 @@ static NS_DEFINE_CID(kPersistentPropertiesCID, NS_IPERSISTENTPROPERTIES_CID);
 class URLPropertyElement : public nsIPropertyElement
 {
 public:
-    URLPropertyElement(nsIPropertyElement *aRealElement, PRUint32 aURLLength) :
+    URLPropertyElement(nsIPropertyElement *aRealElement, uint32_t aURLLength) :
         mRealElement(aRealElement),
         mURLLength(aURLLength)
     { }
@@ -30,7 +30,7 @@ public:
     
 private:
     nsCOMPtr<nsIPropertyElement> mRealElement;
-    PRUint32 mURLLength;
+    uint32_t mURLLength;
 };
 
 NS_IMPL_ISUPPORTS1(URLPropertyElement, nsIPropertyElement)
@@ -240,7 +240,7 @@ nsPropertyEnumeratorByURL::GetNext(nsISupports **aResult)
     NS_ADDREF(*aResult);
 
     // release it so we don't return it twice
-    mCurrent = nsnull;
+    mCurrent = nullptr;
     
     return NS_OK;
 }
@@ -269,7 +269,7 @@ nsPropertyEnumeratorByURL::HasMoreElements(bool * aResult)
     }
 
     if (!hasMore)
-        mCurrent = nsnull;
+        mCurrent = nullptr;
     
     *aResult = mCurrent ? true : false;
     

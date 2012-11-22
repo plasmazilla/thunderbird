@@ -31,7 +31,7 @@ nsMappedAttributes::nsMappedAttributes(const nsMappedAttributes& aCopy)
 {
   NS_ASSERTION(mBufferSize >= aCopy.mAttrCount, "can't fit attributes");
 
-  PRUint32 i;
+  uint32_t i;
   for (i = 0; i < mAttrCount; ++i) {
     new (&Attrs()[i]) InternalAttr(aCopy.Attrs()[i]);
   }
@@ -43,7 +43,7 @@ nsMappedAttributes::~nsMappedAttributes()
     mSheet->DropMappedAttributes(this);
   }
 
-  PRUint32 i;
+  uint32_t i;
   for (i = 0; i < mAttrCount; ++i) {
     Attrs()[i].~InternalAttr();
   }
@@ -53,13 +53,13 @@ nsMappedAttributes::~nsMappedAttributes()
 nsMappedAttributes*
 nsMappedAttributes::Clone(bool aWillAddAttr)
 {
-  PRUint32 extra = aWillAddAttr ? 1 : 0;
+  uint32_t extra = aWillAddAttr ? 1 : 0;
 
   // This will call the overridden operator new
   return new (mAttrCount + extra) nsMappedAttributes(*this);
 }
 
-void* nsMappedAttributes::operator new(size_t aSize, PRUint32 aAttrCount) CPP_THROW_NEW
+void* nsMappedAttributes::operator new(size_t aSize, uint32_t aAttrCount) CPP_THROW_NEW
 {
   NS_ASSERTION(aAttrCount > 0, "zero-attribute nsMappedAttributes requested");
 
@@ -68,9 +68,7 @@ void* nsMappedAttributes::operator new(size_t aSize, PRUint32 aAttrCount) CPP_TH
                                   aAttrCount * sizeof(InternalAttr));
 
 #ifdef DEBUG
-  if (newAttrs) {
-    static_cast<nsMappedAttributes*>(newAttrs)->mBufferSize = aAttrCount;
-  }
+  static_cast<nsMappedAttributes*>(newAttrs)->mBufferSize = aAttrCount;
 #endif
 
   return newAttrs;
@@ -84,7 +82,7 @@ nsMappedAttributes::SetAndTakeAttr(nsIAtom* aAttrName, nsAttrValue& aValue)
 {
   NS_PRECONDITION(aAttrName, "null name");
 
-  PRUint32 i;
+  uint32_t i;
   for (i = 0; i < mAttrCount && !Attrs()[i].mName.IsSmaller(aAttrName); ++i) {
     if (Attrs()[i].mName.Equals(aAttrName)) {
       Attrs()[i].mValue.Reset();
@@ -113,25 +111,25 @@ nsMappedAttributes::GetAttr(nsIAtom* aAttrName) const
 {
   NS_PRECONDITION(aAttrName, "null name");
 
-  for (PRUint32 i = 0; i < mAttrCount; ++i) {
+  for (uint32_t i = 0; i < mAttrCount; ++i) {
     if (Attrs()[i].mName.Equals(aAttrName)) {
       return &Attrs()[i].mValue;
     }
   }
 
-  return nsnull;
+  return nullptr;
 }
 
 const nsAttrValue*
 nsMappedAttributes::GetAttr(const nsAString& aAttrName) const
 {
-  for (PRUint32 i = 0; i < mAttrCount; ++i) {
+  for (uint32_t i = 0; i < mAttrCount; ++i) {
     if (Attrs()[i].mName.Atom()->Equals(aAttrName)) {
       return &Attrs()[i].mValue;
     }
   }
 
-  return nsnull;
+  return nullptr;
 }
 
 bool
@@ -145,7 +143,7 @@ nsMappedAttributes::Equals(const nsMappedAttributes* aOther) const
     return false;
   }
 
-  PRUint32 i;
+  uint32_t i;
   for (i = 0; i < mAttrCount; ++i) {
     if (!Attrs()[i].mName.Equals(aOther->Attrs()[i].mName) ||
         !Attrs()[i].mValue.Equals(aOther->Attrs()[i].mValue)) {
@@ -156,12 +154,12 @@ nsMappedAttributes::Equals(const nsMappedAttributes* aOther) const
   return true;
 }
 
-PRUint32
+uint32_t
 nsMappedAttributes::HashValue() const
 {
-  PRUint32 hash = HashGeneric(mRuleMapper);
+  uint32_t hash = HashGeneric(mRuleMapper);
 
-  PRUint32 i;
+  uint32_t i;
   for (i = 0; i < mAttrCount; ++i) {
     hash = AddToHash(hash,
                      Attrs()[i].mName.HashValue(),
@@ -190,13 +188,13 @@ nsMappedAttributes::MapRuleInfoInto(nsRuleData* aRuleData)
 
 #ifdef DEBUG
 /* virtual */ void
-nsMappedAttributes::List(FILE* out, PRInt32 aIndent) const
+nsMappedAttributes::List(FILE* out, int32_t aIndent) const
 {
   nsAutoString buffer;
-  PRUint32 i;
+  uint32_t i;
 
   for (i = 0; i < mAttrCount; ++i) {
-    PRInt32 indent;
+    int32_t indent;
     for (indent = aIndent; indent > 0; --indent)
       fputs("  ", out);
 
@@ -211,7 +209,7 @@ nsMappedAttributes::List(FILE* out, PRInt32 aIndent) const
 #endif
 
 void
-nsMappedAttributes::RemoveAttrAt(PRUint32 aPos, nsAttrValue& aValue)
+nsMappedAttributes::RemoveAttrAt(uint32_t aPos, nsAttrValue& aValue)
 {
   Attrs()[aPos].mValue.SwapValueWith(aValue);
   Attrs()[aPos].~InternalAttr();
@@ -223,7 +221,7 @@ nsMappedAttributes::RemoveAttrAt(PRUint32 aPos, nsAttrValue& aValue)
 const nsAttrName*
 nsMappedAttributes::GetExistingAttrNameFromQName(const nsAString& aName) const
 {
-  PRUint32 i;
+  uint32_t i;
   for (i = 0; i < mAttrCount; ++i) {
     if (Attrs()[i].mName.IsAtom()) {
       if (Attrs()[i].mName.Atom()->Equals(aName)) {
@@ -237,13 +235,13 @@ nsMappedAttributes::GetExistingAttrNameFromQName(const nsAString& aName) const
     }
   }
 
-  return nsnull;
+  return nullptr;
 }
 
-PRInt32
+int32_t
 nsMappedAttributes::IndexOfAttr(nsIAtom* aLocalName) const
 {
-  PRUint32 i;
+  uint32_t i;
   for (i = 0; i < mAttrCount; ++i) {
     if (Attrs()[i].mName.Equals(aLocalName)) {
       return i;
@@ -260,7 +258,7 @@ nsMappedAttributes::SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf) const
                "mBufferSize and mAttrCount are expected to be the same.");
 
   size_t n = aMallocSizeOf(this);
-  for (PRUint16 i = 0; i < mAttrCount; ++i) {
+  for (uint16_t i = 0; i < mAttrCount; ++i) {
     n += Attrs()[i].mValue.SizeOfExcludingThis(aMallocSizeOf);
   }
   return n;

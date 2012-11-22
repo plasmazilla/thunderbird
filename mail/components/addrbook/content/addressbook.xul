@@ -32,6 +32,7 @@
     onload="OnLoadAddressBook()"
     onunload="OnUnloadAddressBook()"
     lightweightthemes="true"
+    fullscreenbutton="true"
     lightweightthemesfooter="status-bar">
 
   <stringbundleset id="stringbundleset">
@@ -94,6 +95,8 @@
              valueItems="&deleteItemsCmd.label;"
              disabled="true"/>
     <command id="cmd_selectAll" oncommand="goDoCommand('cmd_selectAll')" disabled="true"/>
+    <command id="cmd_preferences"
+             oncommand="openOptionsDialog('paneCompose', 'addressingTab');"/>
 #ifdef XP_MACOSX
     <!-- Mac Window menu -->
     <command id="minimizeWindow" label="&minimizeWindow.label;" oncommand="window.minimize();"/>
@@ -380,7 +383,7 @@
 #ifndef XP_MACOSX
         <menuseparator id="prefSep"/>
         <menuitem id="menu_preferences" label="&preferencesCmdUnix.label;" accesskey="&preferencesCmdUnix.accesskey;"
-                  oncommand="openOptionsDialog()"/>
+                  command="cmd_preferences"/>
 #endif
 #endif
           </menupopup>
@@ -528,11 +531,11 @@
 #ifndef XP_UNIX
         <menuseparator id="prefSep"/>
             <menuitem id="menu_preferences" label="&preferencesCmd.label;" accesskey="&preferencesCmd.accesskey;"
-                      oncommand="openOptionsDialog()"/>
+                      command="cmd_preferences"/>
 #else
 #ifdef XP_MACOSX
         <menuitem id="menu_preferences" label="&preferencesCmd.label;" accesskey="&preferencesCmd.accesskey;"
-                  oncommand="openOptionsDialog()"/>
+                  command="cmd_preferences"/>
 #endif
 #endif
           </menupopup>
@@ -703,11 +706,8 @@
           <vbox id="CardViewInnerBox" collapsed="true" flex="1">
             <description id="CardTitle"/>
             <hbox flex="1">
-              <vbox id="cvbPhoto" class="cardViewGroup">
-                <description style="min-width: 10ch; max-width: 10ch; text-align: center;">
-                  <html:img id="cvPhoto"
-                            style="max-width: 10ch; max-height: 10ch;"/>
-                </description>
+              <vbox id="cvbPhoto" class="cardViewGroup" align="center">
+                <image id="cvPhoto" style="max-width: 10ch; max-height: 10ch;"/>
               </vbox>
               <vbox flex="1">
                 <vbox id="cvbContact" class="cardViewGroup">

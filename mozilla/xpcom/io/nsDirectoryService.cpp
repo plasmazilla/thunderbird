@@ -62,7 +62,7 @@ nsDirectoryService::GetCurrentProcessDirectory(nsIFile** aFile)
 //----------------------------------------------------------------------------------------
 {
     NS_ENSURE_ARG_POINTER(aFile);
-    *aFile = nsnull;
+    *aFile = nullptr;
     
    //  Set the component registry location:
     if (!gService)
@@ -71,7 +71,7 @@ nsDirectoryService::GetCurrentProcessDirectory(nsIFile** aFile)
     nsresult rv; 
  
     nsCOMPtr<nsIProperties> dirService;
-    rv = nsDirectoryService::Create(nsnull, 
+    rv = nsDirectoryService::Create(nullptr, 
                                     NS_GET_IID(nsIProperties), 
                                     getter_AddRefs(dirService));  // needs to be around for life of product
 
@@ -89,7 +89,7 @@ nsDirectoryService::GetCurrentProcessDirectory(nsIFile** aFile)
 
     nsLocalFile* localFile = new nsLocalFile;
 
-    if (localFile == nsnull)
+    if (localFile == nullptr)
         return NS_ERROR_OUT_OF_MEMORY;
     NS_ADDREF(localFile);
 
@@ -113,10 +113,10 @@ nsDirectoryService::GetCurrentProcessDirectory(nsIFile** aFile)
 #elif defined(MOZ_WIDGET_COCOA)
     // Works even if we're not bundled.
     CFBundleRef appBundle = CFBundleGetMainBundle();
-    if (appBundle != nsnull)
+    if (appBundle != nullptr)
     {
         CFURLRef bundleURL = CFBundleCopyExecutableURL(appBundle);
-        if (bundleURL != nsnull)
+        if (bundleURL != nullptr)
         {
             CFURLRef parentURL = CFURLCreateCopyDeletingLastPathComponent(kCFAllocatorDefault, bundleURL);
             if (parentURL)
@@ -215,7 +215,7 @@ nsDirectoryService::GetCurrentProcessDirectory(nsIFile** aFile)
     return NS_ERROR_FAILURE;
 } // GetCurrentProcessDirectory()
 
-nsDirectoryService* nsDirectoryService::gService = nsnull;
+nsDirectoryService* nsDirectoryService::gService = nullptr;
 
 nsDirectoryService::nsDirectoryService() :
     mHashtable(256, true)
@@ -236,7 +236,7 @@ nsDirectoryService::Create(nsISupports *outer, REFNSIID aIID, void **aResult)
     return gService->QueryInterface(aIID, aResult);
 }
 
-#define DIR_ATOM(name_, value_) nsIAtom* nsDirectoryService::name_ = nsnull;
+#define DIR_ATOM(name_, value_) nsIAtom* nsDirectoryService::name_ = nullptr;
 #include "nsDirectoryServiceAtomList.h"
 #undef DIR_ATOM
 
@@ -280,7 +280,9 @@ nsDirectoryService::RealInit()
     if (!defaultProvider)
         return NS_ERROR_OUT_OF_MEMORY;
     // AppendElement returns true for success.
-    rv = ((nsDirectoryService*) self)->mProviders->AppendElement(defaultProvider) ? NS_OK : NS_ERROR_FAILURE;
+    rv = static_cast<bool>(((nsDirectoryService*) self)
+                           ->mProviders->AppendElement(defaultProvider))
+        ? NS_OK : NS_ERROR_FAILURE;
     if (NS_FAILED(rv))
         return rv;
 
@@ -317,7 +319,7 @@ nsDirectoryService::Undefine(const char* prop)
  }
 
 NS_IMETHODIMP
-nsDirectoryService::GetKeys(PRUint32 *count, char ***keys)
+nsDirectoryService::GetKeys(uint32_t *count, char ***keys)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -327,7 +329,7 @@ struct FileData
   FileData(const char* aProperty,
            const nsIID& aUUID) :
     property(aProperty),
-    data(nsnull),
+    data(nullptr),
     persistent(true),
     uuid(aUUID) {}
     
@@ -439,7 +441,7 @@ nsDirectoryService::Set(const char* prop, nsISupports* value)
     NS_ENSURE_ARG(prop);
 
     nsCStringKey key(prop);
-    if (mHashtable.Exists(&key) || value == nsnull)
+    if (mHashtable.Exists(&key) || value == nullptr)
         return NS_ERROR_FAILURE;
 
     nsCOMPtr<nsIFile> ourFile;
@@ -488,7 +490,8 @@ nsDirectoryService::RegisterProvider(nsIDirectoryServiceProvider *prov)
     if (NS_FAILED(rv)) return rv;
 
     // AppendElement returns true for success.
-    return mProviders->AppendElement(supports) ? NS_OK : NS_ERROR_FAILURE;
+    return static_cast<bool>(mProviders->AppendElement(supports))
+        ? NS_OK : NS_ERROR_FAILURE;
 }
 
 void
@@ -536,7 +539,8 @@ nsDirectoryService::UnregisterProvider(nsIDirectoryServiceProvider *prov)
     if (NS_FAILED(rv)) return rv;
 
     // RemoveElement returns true for success.
-    return mProviders->RemoveElement(supports) ? NS_OK : NS_ERROR_FAILURE;
+    return static_cast<bool>(mProviders->RemoveElement(supports))
+        ? NS_OK : NS_ERROR_FAILURE;
 }
 
 // DO NOT ADD ANY LOCATIONS TO THIS FUNCTION UNTIL YOU TALK TO: dougt@netscape.com.
@@ -550,7 +554,7 @@ nsDirectoryService::GetFile(const char *prop, bool *persistent, nsIFile **_retva
     nsCOMPtr<nsIFile> localFile;
     nsresult rv = NS_ERROR_FAILURE;
 
-    *_retval = nsnull;
+    *_retval = nullptr;
     *persistent = true;
 
     nsCOMPtr<nsIAtom> inAtom = do_GetAtom(prop);
@@ -935,7 +939,7 @@ NS_IMETHODIMP
 nsDirectoryService::GetFiles(const char *prop, nsISimpleEnumerator **_retval)
 {
     NS_ENSURE_ARG_POINTER(_retval);
-    *_retval = nsnull;
+    *_retval = nullptr;
         
     return NS_ERROR_FAILURE;
 }

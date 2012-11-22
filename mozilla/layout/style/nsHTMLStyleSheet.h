@@ -28,8 +28,7 @@ class nsHTMLStyleSheet MOZ_FINAL : public nsIStyleSheet,
                                    public nsIStyleRuleProcessor
 {
 public:
-  nsHTMLStyleSheet(void);
-  nsresult Init();
+  nsHTMLStyleSheet(nsIURI* aURL, nsIDocument* aDocument);
 
   NS_DECL_ISUPPORTS
 
@@ -47,7 +46,7 @@ public:
   virtual nsIDocument* GetOwningDocument() const;
   virtual void SetOwningDocument(nsIDocument* aDocumemt);
 #ifdef DEBUG
-  virtual void List(FILE* out = stdout, PRInt32 aIndent = 0) const;
+  virtual void List(FILE* out = stdout, int32_t aIndent = 0) const;
 #endif
 
   // nsIStyleRuleProcessor API
@@ -68,7 +67,6 @@ public:
     SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf) const MOZ_OVERRIDE;
   size_t DOMSizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf) const;
 
-  nsresult Init(nsIURI* aURL, nsIDocument* aDocument);
   void Reset(nsIURI* aURL);
   nsresult SetLinkColor(nscolor aColor);
   nsresult SetActiveLinkColor(nscolor aColor);
@@ -96,7 +94,7 @@ private:
     // nsIStyleRule interface
     virtual void MapRuleInfoInto(nsRuleData* aRuleData);
   #ifdef DEBUG
-    virtual void List(FILE* out = stdout, PRInt32 aIndent = 0) const;
+    virtual void List(FILE* out = stdout, int32_t aIndent = 0) const;
   #endif
 
     nscolor             mColor;
@@ -117,7 +115,7 @@ private:
     // nsIStyleRule interface
     virtual void MapRuleInfoInto(nsRuleData* aRuleData) = 0;
   #ifdef DEBUG
-    virtual void List(FILE* out = stdout, PRInt32 aIndent = 0) const;
+    virtual void List(FILE* out = stdout, int32_t aIndent = 0) const;
   #endif
   };
 
@@ -149,13 +147,5 @@ private:
 
   PLDHashTable            mMappedAttrTable;
 };
-
-// XXX convenience method. Calls Initialize() automatically.
-nsresult
-NS_NewHTMLStyleSheet(nsHTMLStyleSheet** aInstancePtrResult, nsIURI* aURL, 
-                     nsIDocument* aDocument);
-
-nsresult
-NS_NewHTMLStyleSheet(nsHTMLStyleSheet** aInstancePtrResult);
 
 #endif /* !defined(nsHTMLStyleSheet_h_) */

@@ -15,7 +15,7 @@
 
 nsNewsDatabase::nsNewsDatabase()
 {
-  m_readSet = nsnull;
+  m_readSet = nullptr;
 }
 
 nsNewsDatabase::~nsNewsDatabase()
@@ -28,7 +28,7 @@ NS_IMPL_RELEASE_INHERITED(nsNewsDatabase, nsMsgDatabase)
 NS_IMETHODIMP nsNewsDatabase::QueryInterface(REFNSIID aIID, void** aInstancePtr)
 {
   if (!aInstancePtr) return NS_ERROR_NULL_POINTER;
-  *aInstancePtr = nsnull;
+  *aInstancePtr = nullptr;
 
   if (aIID.Equals(NS_GET_IID(nsINewsDatabase)))
   {
@@ -68,7 +68,7 @@ nsresult nsNewsDatabase::Commit(nsMsgDBCommit commitType)
 }
 
 
-PRUint32 nsNewsDatabase::GetCurVersion()
+uint32_t nsNewsDatabase::GetCurVersion()
 {
   return kMsgDBVersion;
 }
@@ -198,10 +198,9 @@ bool nsNewsDatabase::SetHdrReadFlag(nsIMsgDBHdr *msgHdr, bool bRead)
         printf("remove %d from the set\n",messageKey);
 #endif
 
-        rv = m_readSet->Remove(messageKey);
-        if (NS_FAILED(rv)) return false;
+        m_readSet->Remove(messageKey);
 
-        rv = NotifyReadChanged(nsnull);
+        rv = NotifyReadChanged(nullptr);
         if (NS_FAILED(rv)) return false;
       }
       else {
@@ -209,17 +208,16 @@ bool nsNewsDatabase::SetHdrReadFlag(nsIMsgDBHdr *msgHdr, bool bRead)
         printf("add %d to the set\n",messageKey);
 #endif
 
-        rv = m_readSet->Add(messageKey);
-        if (NS_FAILED(rv)) return false;
+        if (m_readSet->Add(messageKey) < 0) return false;
 
-        rv = NotifyReadChanged(nsnull);
+        rv = NotifyReadChanged(nullptr);
         if (NS_FAILED(rv)) return false;
       }
     }
     return true;
 }
 
-NS_IMETHODIMP nsNewsDatabase::MarkAllRead(PRUint32 *aNumMarked,
+NS_IMETHODIMP nsNewsDatabase::MarkAllRead(uint32_t *aNumMarked,
                                           nsMsgKey **aThoseMarked)
 {
   nsMsgKey lowWater = nsMsgKey_None, highWater;
@@ -258,7 +256,7 @@ nsresult nsNewsDatabase::SyncWithReadSet()
 
   bool hasMore = false, readInNewsrc, isReadInDB, changed = false;
   nsCOMPtr <nsIMsgDBHdr> header;
-  PRInt32 numMessages = 0, numUnreadMessages = 0;
+  int32_t numMessages = 0, numUnreadMessages = 0;
   nsMsgKey messageKey;
   nsCOMPtr <nsIMsgThread> threadHdr;
 
@@ -281,13 +279,13 @@ nsresult nsNewsDatabase::SyncWithReadSet()
       // If DB and readSet disagree on Read/Unread, fix DB
       if (readInNewsrc!=isReadInDB)
       {
-        MarkHdrRead(header, readInNewsrc, nsnull);
+        MarkHdrRead(header, readInNewsrc, nullptr);
         changed = true;
       }
   }
 
   // Update FolderInfo Counters
-  PRInt32 oldMessages, oldUnreadMessages;
+  int32_t oldMessages, oldUnreadMessages;
   rv = m_dbFolderInfo->GetNumMessages(&oldMessages);
   if (NS_SUCCEEDED(rv) && oldMessages!=numMessages)
   {
@@ -309,11 +307,11 @@ nsresult nsNewsDatabase::SyncWithReadSet()
 
 nsresult nsNewsDatabase::AdjustExpungedBytesOnDelete(nsIMsgDBHdr *msgHdr)
 {
-  PRUint32 msgFlags;
+  uint32_t msgFlags;
   msgHdr->GetFlags(&msgFlags);
   if (msgFlags & nsMsgMessageFlags::Offline && m_dbFolderInfo)
   {
-    PRUint32 size = 0;
+    uint32_t size = 0;
     (void)msgHdr->GetOfflineMessageSize(&size);
     return m_dbFolderInfo->ChangeExpungedBytes (size);
   }

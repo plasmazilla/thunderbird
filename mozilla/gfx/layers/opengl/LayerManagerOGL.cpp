@@ -76,7 +76,7 @@ LayerManagerOGL::Destroy()
     if (mRoot) {
       RootLayer()->Destroy();
     }
-    mRoot = nsnull;
+    mRoot = nullptr;
 
     CleanupResources();
 
@@ -101,8 +101,8 @@ LayerManagerOGL::CleanupResources()
 
   ctx->MakeCurrent();
 
-  for (PRUint32 i = 0; i < mPrograms.Length(); ++i) {
-    for (PRUint32 type = MaskNone; type < NumMaskTypes; ++type) {
+  for (uint32_t i = 0; i < mPrograms.Length(); ++i) {
+    for (uint32_t type = MaskNone; type < NumMaskTypes; ++type) {
       delete mPrograms[i].mVariations[type];
     }
   }
@@ -125,7 +125,7 @@ LayerManagerOGL::CleanupResources()
     mQuadVBO = 0;
   }
 
-  mGLContext = nsnull;
+  mGLContext = nullptr;
 }
 
 already_AddRefed<mozilla::gl::GLContext>
@@ -152,12 +152,12 @@ LayerManagerOGL::CreateContext()
 void
 LayerManagerOGL::AddPrograms(ShaderProgramType aType)
 {
-  for (PRUint32 maskType = MaskNone; maskType < NumMaskTypes; ++maskType) {
+  for (uint32_t maskType = MaskNone; maskType < NumMaskTypes; ++maskType) {
     if (ProgramProfileOGL::ProgramExists(aType, static_cast<MaskType>(maskType))) {
       mPrograms[aType].mVariations[maskType] = new ShaderProgramOGL(this->gl(),
         ProgramProfileOGL::GetProfileFor(aType, static_cast<MaskType>(maskType)));
     } else {
-      mPrograms[aType].mVariations[maskType] = nsnull;
+      mPrograms[aType].mVariations[maskType] = nullptr;
     }
   }
 }
@@ -168,7 +168,7 @@ LayerManagerOGL::Initialize(nsRefPtr<GLContext> aContext, bool force)
   ScopedGfxFeatureReporter reporter("GL Layers", force);
 
   // Do not allow double initialization
-  NS_ABORT_IF_FALSE(mGLContext == nsnull, "Don't reinitialize layer managers");
+  NS_ABORT_IF_FALSE(mGLContext == nullptr, "Don't reinitialize layer managers");
 
 #ifdef MOZ_WIDGET_ANDROID
   if (!aContext)
@@ -222,7 +222,7 @@ LayerManagerOGL::Initialize(nsRefPtr<GLContext> aContext, bool force)
 
     mFBOTextureTarget = LOCAL_GL_NONE;
 
-    for (PRUint32 i = 0; i < ArrayLength(textureTargets); i++) {
+    for (uint32_t i = 0; i < ArrayLength(textureTargets); i++) {
       GLenum target = textureTargets[i];
       if (!target)
           continue;
@@ -361,11 +361,14 @@ LayerManagerOGL::SetClippingRegion(const nsIntRegion& aClippingRegion)
 void
 LayerManagerOGL::BeginTransaction()
 {
+  mInTransaction = true;
 }
 
 void
 LayerManagerOGL::BeginTransactionWithTarget(gfxContext *aTarget)
 {
+  mInTransaction = true;
+
 #ifdef MOZ_LAYERS_HAVE_LOG
   MOZ_LAYERS_LOG(("[----- BeginTransaction"));
   Log();
@@ -380,12 +383,14 @@ LayerManagerOGL::BeginTransactionWithTarget(gfxContext *aTarget)
 }
 
 bool
-LayerManagerOGL::EndEmptyTransaction()
+LayerManagerOGL::EndEmptyTransaction(EndTransactionFlags aFlags)
 {
+  mInTransaction = false;
+
   if (!mRoot)
     return false;
 
-  EndTransaction(nsnull, nsnull);
+  EndTransaction(nullptr, nullptr, aFlags);
   return true;
 }
 
@@ -394,6 +399,8 @@ LayerManagerOGL::EndTransaction(DrawThebesLayerCallback aCallback,
                                 void* aCallbackData,
                                 EndTransactionFlags aFlags)
 {
+  mInTransaction = false;
+
 #ifdef MOZ_LAYERS_HAVE_LOG
   MOZ_LAYERS_LOG(("  ----- (beginning paint)"));
   Log();
@@ -411,11 +418,12 @@ LayerManagerOGL::EndTransaction(DrawThebesLayerCallback aCallback,
 
     mThebesLayerCallback = aCallback;
     mThebesLayerCallbackData = aCallbackData;
+    SetCompositingDisabled(aFlags & END_NO_COMPOSITE);
 
     Render();
 
-    mThebesLayerCallback = nsnull;
-    mThebesLayerCallbackData = nsnull;
+    mThebesLayerCallback = nullptr;
+    mThebesLayerCallbackData = nullptr;
   }
 
   mTarget = NULL;
@@ -438,7 +446,7 @@ LayerManagerOGL::CreateThebesLayer()
 {
   if (mDestroyed) {
     NS_WARNING("Call on destroyed layer manager");
-    return nsnull;
+    return nullptr;
   }
 
   nsRefPtr<ThebesLayer> layer = new ThebesLayerOGL(this);
@@ -450,7 +458,7 @@ LayerManagerOGL::CreateContainerLayer()
 {
   if (mDestroyed) {
     NS_WARNING("Call on destroyed layer manager");
-    return nsnull;
+    return nullptr;
   }
 
   nsRefPtr<ContainerLayer> layer = new ContainerLayerOGL(this);
@@ -462,7 +470,7 @@ LayerManagerOGL::CreateImageLayer()
 {
   if (mDestroyed) {
     NS_WARNING("Call on destroyed layer manager");
-    return nsnull;
+    return nullptr;
   }
 
   nsRefPtr<ImageLayer> layer = new ImageLayerOGL(this);
@@ -474,7 +482,7 @@ LayerManagerOGL::CreateColorLayer()
 {
   if (mDestroyed) {
     NS_WARNING("Call on destroyed layer manager");
-    return nsnull;
+    return nullptr;
   }
 
   nsRefPtr<ColorLayer> layer = new ColorLayerOGL(this);
@@ -486,7 +494,7 @@ LayerManagerOGL::CreateCanvasLayer()
 {
   if (mDestroyed) {
     NS_WARNING("Call on destroyed layer manager");
-    return nsnull;
+    return nullptr;
   }
 
   nsRefPtr<CanvasLayer> layer = new CanvasLayerOGL(this);
@@ -498,13 +506,19 @@ LayerManagerOGL::RootLayer() const
 {
   if (mDestroyed) {
     NS_WARNING("Call on destroyed layer manager");
-    return nsnull;
+    return nullptr;
   }
 
   return static_cast<LayerOGL*>(mRoot->ImplData());
 }
 
 bool LayerManagerOGL::sDrawFPS = false;
+
+void
+LayerManagerOGL::FPSState::NotifyShadowTreeTransaction()
+{
+  contentFCount++;
+}
 
 /* This function tries to stick to portable C89 as much as possible
  * so that it can be easily copied into other applications */
@@ -520,6 +534,13 @@ LayerManagerOGL::FPSState::DrawFPS(GLContext* context, ShaderProgramOGL* copypro
     last = now;
     fps = rate / duration.ToSeconds() + .5;
     fcount = 0;
+  }
+  if (contentFCount >= rate) {
+    TimeStamp now = TimeStamp::Now();
+    TimeDuration duration = now - contentLast;
+    contentLast = now;
+    contentFps = contentFCount / duration.ToSeconds() + .5;
+    contentFCount = 0;
   }
 
   GLint viewport[4];
@@ -575,12 +596,33 @@ LayerManagerOGL::FPSState::DrawFPS(GLContext* context, ShaderProgramOGL* copypro
     { -1.0f + 44.f / viewport[2], 1.0f - 42.f / viewport[3] },
     { -1.0f + 44.f / viewport[2], 1.0f },
     { -1.0f + 66.f / viewport[2], 1.0f - 42.f / viewport[3] },
-    { -1.0f + 66.f / viewport[2], 1.0f }
+    { -1.0f + 66.f / viewport[2], 1.0f },
+  };
+    
+  const Vertex2D vertices2[] = {
+    { -1.0f + 80.f / viewport[2], 1.0f - 42.f / viewport[3] },
+    { -1.0f + 80.f / viewport[2], 1.0f },
+    { -1.0f + 102.f / viewport[2], 1.0f - 42.f / viewport[3] },
+    { -1.0f + 102.f / viewport[2], 1.0f },
+    
+    { -1.0f + 102.f / viewport[2], 1.0f - 42.f / viewport[3] },
+    { -1.0f + 102.f / viewport[2], 1.0f },
+    { -1.0f + 124.f / viewport[2], 1.0f - 42.f / viewport[3] },
+    { -1.0f + 124.f / viewport[2], 1.0f },
+    
+    { -1.0f + 124.f / viewport[2], 1.0f - 42.f / viewport[3] },
+    { -1.0f + 124.f / viewport[2], 1.0f },
+    { -1.0f + 146.f / viewport[2], 1.0f - 42.f / viewport[3] },
+    { -1.0f + 146.f / viewport[2], 1.0f },
   };
 
   int v1   = fps % 10;
   int v10  = (fps % 100) / 10;
   int v100 = (fps % 1000) / 100;
+
+  int content1 = contentFps % 10;
+  int content10  = (contentFps % 100) / 10;
+  int content100 = (contentFps % 1000) / 100;
 
   // Feel free to comment these texture coordinates out and use one
   // of the ones below instead, or play around with your own values.
@@ -599,6 +641,23 @@ LayerManagerOGL::FPSState::DrawFPS(GLContext* context, ShaderProgramOGL* copypro
     (v1 * 4.f) / 64, 0.0f,
     (v1 * 4.f + 4) / 64, 7.f / 8,
     (v1 * 4.f + 4) / 64, 0.0f,
+  };
+    
+  const GLfloat texCoords2[] = {
+    (content100 * 4.f) / 64, 7.f / 8,
+    (content100 * 4.f) / 64, 0.0f,
+    (content100 * 4.f + 4) / 64, 7.f / 8,
+    (content100 * 4.f + 4) / 64, 0.0f,
+
+    (content10 * 4.f) / 64, 7.f / 8,
+    (content10 * 4.f) / 64, 0.0f,
+    (content10 * 4.f + 4) / 64, 7.f / 8,
+    (content10 * 4.f + 4) / 64, 0.0f,
+
+    (content1 * 4.f) / 64, 7.f / 8,
+    (content1 * 4.f) / 64, 0.0f,
+    (content1 * 4.f + 4) / 64, 7.f / 8,
+    (content1 * 4.f + 4) / 64, 0.0f,
   };
 
   // Turn necessary features on
@@ -635,6 +694,18 @@ LayerManagerOGL::FPSState::DrawFPS(GLContext* context, ShaderProgramOGL* copypro
                                 2, LOCAL_GL_FLOAT,
                                 LOCAL_GL_FALSE,
                                 0, texCoords);
+
+  context->fDrawArrays(LOCAL_GL_TRIANGLE_STRIP, 0, 12);
+  
+  context->fVertexAttribPointer(vcattr,
+                                2, LOCAL_GL_FLOAT,
+                                LOCAL_GL_FALSE,
+                                0, vertices2);
+
+  context->fVertexAttribPointer(tcattr,
+                                2, LOCAL_GL_FLOAT,
+                                LOCAL_GL_FALSE,
+                                0, texCoords2);
 
   context->fDrawArrays(LOCAL_GL_TRIANGLE_STRIP, 0, 12);
 }
@@ -715,6 +786,12 @@ LayerManagerOGL::BindAndDrawQuadWithTextureRect(ShaderProgramOGL *aProg,
 }
 
 void
+LayerManagerOGL::NotifyShadowTreeTransaction()
+{
+  mFPS.NotifyShadowTreeTransaction();
+}
+
+void
 LayerManagerOGL::Render()
 {
   SAMPLE_LABEL("LayerManagerOGL", "Render");
@@ -772,6 +849,13 @@ LayerManagerOGL::Render()
     mGLContext->fScissor(r.x, r.y, r.width, r.height);
   } else {
     mGLContext->fScissor(0, 0, width, height);
+  }
+
+  if (CompositingDisabled()) {
+    RootLayer()->RenderLayer(mGLContext->IsDoubleBuffered() ? 0 : mBackBufferFBO,
+                             nsIntPoint(0, 0));
+    mGLContext->fBindBuffer(LOCAL_GL_ARRAY_BUFFER, 0);
+    return;
   }
 
   mGLContext->fEnable(LOCAL_GL_SCISSOR_TEST);
@@ -864,7 +948,7 @@ LayerManagerOGL::Render()
   const nsIntRect *r;
   nsIntRegionRectIterator iter(mClippingRegion);
 
-  while ((r = iter.Next()) != nsnull) {
+  while ((r = iter.Next()) != nullptr) {
     nsIntRect cRect = *r; r = &cRect;
     WorldTransformRect(cRect);
     float left = (GLfloat)r->x / width;
@@ -1032,7 +1116,7 @@ LayerManagerOGL::CopyToTarget(gfxContext *aTarget)
   GLint width = rect.width;
   GLint height = rect.height;
 
-  if ((PRInt64(width) * PRInt64(height) * PRInt64(4)) > PR_INT32_MAX) {
+  if ((int64_t(width) * int64_t(height) * int64_t(4)) > PR_INT32_MAX) {
     NS_ERROR("Widget size too big - integer overflow!");
     return;
   }
@@ -1058,7 +1142,7 @@ LayerManagerOGL::CopyToTarget(gfxContext *aTarget)
   NS_ASSERTION(imageSurface->Stride() == width * 4,
                "Image Surfaces being created with weird stride!");
 
-  mGLContext->ReadPixelsIntoImageSurface(0, 0, width, height, imageSurface);
+  mGLContext->ReadPixelsIntoImageSurface(imageSurface);
 
   aTarget->SetOperator(gfxContext::OPERATOR_SOURCE);
   aTarget->Scale(1.0, -1.0);
@@ -1071,7 +1155,7 @@ void
 LayerManagerOGL::SetLayerProgramProjectionMatrix(const gfx3DMatrix& aMatrix)
 {
   for (unsigned int i = 0; i < mPrograms.Length(); ++i) {
-    for (PRUint32 mask = MaskNone; mask < NumMaskTypes; ++mask) {
+    for (uint32_t mask = MaskNone; mask < NumMaskTypes; ++mask) {
       if (mPrograms[i].mVariations[mask]) {
         mPrograms[i].mVariations[mask]->CheckAndSetProjectionMatrix(aMatrix);
       }
@@ -1202,7 +1286,7 @@ LayerManagerOGL::CreateShadowThebesLayer()
 {
   if (LayerManagerOGL::mDestroyed) {
     NS_WARNING("Call on destroyed layer manager");
-    return nsnull;
+    return nullptr;
   }
 #ifdef FORCE_BASICTILEDTHEBESLAYER
   return nsRefPtr<ShadowThebesLayer>(new TiledThebesLayerOGL(this)).forget();
@@ -1216,7 +1300,7 @@ LayerManagerOGL::CreateShadowContainerLayer()
 {
   if (LayerManagerOGL::mDestroyed) {
     NS_WARNING("Call on destroyed layer manager");
-    return nsnull;
+    return nullptr;
   }
   return nsRefPtr<ShadowContainerLayerOGL>(new ShadowContainerLayerOGL(this)).forget();
 }
@@ -1226,7 +1310,7 @@ LayerManagerOGL::CreateShadowImageLayer()
 {
   if (LayerManagerOGL::mDestroyed) {
     NS_WARNING("Call on destroyed layer manager");
-    return nsnull;
+    return nullptr;
   }
   return nsRefPtr<ShadowImageLayerOGL>(new ShadowImageLayerOGL(this)).forget();
 }
@@ -1236,7 +1320,7 @@ LayerManagerOGL::CreateShadowColorLayer()
 {
   if (LayerManagerOGL::mDestroyed) {
     NS_WARNING("Call on destroyed layer manager");
-    return nsnull;
+    return nullptr;
   }
   return nsRefPtr<ShadowColorLayerOGL>(new ShadowColorLayerOGL(this)).forget();
 }
@@ -1246,9 +1330,19 @@ LayerManagerOGL::CreateShadowCanvasLayer()
 {
   if (LayerManagerOGL::mDestroyed) {
     NS_WARNING("Call on destroyed layer manager");
-    return nsnull;
+    return nullptr;
   }
   return nsRefPtr<ShadowCanvasLayerOGL>(new ShadowCanvasLayerOGL(this)).forget();
+}
+
+already_AddRefed<ShadowRefLayer>
+LayerManagerOGL::CreateShadowRefLayer()
+{
+  if (LayerManagerOGL::mDestroyed) {
+    NS_WARNING("Call on destroyed layer manager");
+    return nullptr;
+  }
+  return nsRefPtr<ShadowRefLayerOGL>(new ShadowRefLayerOGL(this)).forget();
 }
 
 } /* layers */

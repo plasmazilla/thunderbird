@@ -85,9 +85,9 @@ public:
                                PRUnichar **successLog,
                                bool *fatalError);
 
-  NS_IMETHOD GetImportProgress(PRUint32 *_retval);
+  NS_IMETHOD GetImportProgress(uint32_t *_retval);
 
-  NS_IMETHOD GetSampleData(PRInt32 index, bool *pFound, PRUnichar **pStr);
+  NS_IMETHOD GetSampleData(int32_t index, bool *pFound, PRUnichar **pStr);
 
   NS_IMETHOD SetSampleLocation(nsIFile *);
 
@@ -99,7 +99,7 @@ private:
                             nsIStringBundle* pBundle);
   static void SetLogs(nsString& success, nsString& error, PRUnichar **pError,
                       PRUnichar **pSuccess);
-  static void ReportError(PRInt32 errorNum, nsString& name, nsString *pStream,
+  static void ReportError(int32_t errorNum, nsString& name, nsString *pStream,
                           nsIStringBundle* pBundle);
   static void SanitizeSampleData(nsString& val);
 
@@ -109,7 +109,7 @@ private:
   nsCOMPtr<nsIFile> m_fileLoc;
   nsCOMPtr<nsIStringBundle> m_notProxyBundle;
   PRUnichar m_delim;
-  PRUint32 m_bytesImported;
+  uint32_t m_bytesImported;
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -158,7 +158,7 @@ NS_IMETHODIMP nsTextImport::GetSupports(char **supports)
 
 NS_IMETHODIMP nsTextImport::GetSupportsUpgrade(bool *pUpgrade)
 {
-  NS_PRECONDITION(pUpgrade != nsnull, "null ptr");
+  NS_PRECONDITION(pUpgrade != nullptr, "null ptr");
   if (! pUpgrade)
     return NS_ERROR_NULL_POINTER;
 
@@ -171,13 +171,13 @@ NS_IMETHODIMP nsTextImport::GetImportInterface(const char *pImportType, nsISuppo
   NS_ENSURE_ARG_POINTER(pImportType);
   NS_ENSURE_ARG_POINTER(ppInterface);
 
-  *ppInterface = nsnull;
+  *ppInterface = nullptr;
   nsresult rv;
 
   if (!strcmp(pImportType, "addressbook")) {
     // create the nsIImportMail interface and return it!
-    nsIImportAddressBooks * pAddress = nsnull;
-    nsIImportGeneric * pGeneric = nsnull;
+    nsIImportAddressBooks * pAddress = nullptr;
+    nsIImportGeneric * pGeneric = nullptr;
     rv = ImportAddressImpl::Create(&pAddress, m_stringBundle);
     if (NS_SUCCEEDED(rv)) {
       nsCOMPtr<nsIImportService> impSvc(do_GetService(NS_IMPORTSERVICE_CONTRACTID, &rv));
@@ -223,8 +223,8 @@ NS_IMPL_THREADSAFE_ISUPPORTS1(ImportAddressImpl, nsIImportAddressBooks)
 
 NS_IMETHODIMP ImportAddressImpl::GetAutoFind(PRUnichar **addrDescription, bool *_retval)
 {
-  NS_PRECONDITION(addrDescription != nsnull, "null ptr");
-  NS_PRECONDITION(_retval != nsnull, "null ptr");
+  NS_PRECONDITION(addrDescription != nullptr, "null ptr");
+  NS_PRECONDITION(_retval != nullptr, "null ptr");
   if (! addrDescription || !_retval)
     return NS_ERROR_NULL_POINTER;
 
@@ -242,13 +242,13 @@ NS_IMETHODIMP ImportAddressImpl::GetAutoFind(PRUnichar **addrDescription, bool *
 
 NS_IMETHODIMP ImportAddressImpl::GetDefaultLocation(nsIFile **ppLoc, bool *found, bool *userVerify)
 {
-  NS_PRECONDITION(found != nsnull, "null ptr");
-  NS_PRECONDITION(ppLoc != nsnull, "null ptr");
-  NS_PRECONDITION(userVerify != nsnull, "null ptr");
+  NS_PRECONDITION(found != nullptr, "null ptr");
+  NS_PRECONDITION(ppLoc != nullptr, "null ptr");
+  NS_PRECONDITION(userVerify != nullptr, "null ptr");
   if (! found || !userVerify || !ppLoc)
     return NS_ERROR_NULL_POINTER;
 
-  *ppLoc = nsnull;
+  *ppLoc = nullptr;
   *found = false;
   *userVerify = true;
   return NS_OK;
@@ -258,14 +258,14 @@ NS_IMETHODIMP ImportAddressImpl::GetDefaultLocation(nsIFile **ppLoc, bool *found
 
 NS_IMETHODIMP ImportAddressImpl::FindAddressBooks(nsIFile *pLoc, nsISupportsArray **ppArray)
 {
-  NS_PRECONDITION(pLoc != nsnull, "null ptr");
-  NS_PRECONDITION(ppArray != nsnull, "null ptr");
+  NS_PRECONDITION(pLoc != nullptr, "null ptr");
+  NS_PRECONDITION(ppArray != nullptr, "null ptr");
   if (!pLoc || !ppArray)
     return NS_ERROR_NULL_POINTER;
 
   ClearSampleFile();
 
-  *ppArray = nsnull;
+  *ppArray = nullptr;
   bool exists = false;
   nsresult rv = pLoc->Exists(&exists);
   if (NS_FAILED(rv) || !exists)
@@ -302,7 +302,7 @@ NS_IMETHODIMP ImportAddressImpl::FindAddressBooks(nsIFile *pLoc, nsISupportsArra
     return rv;
   }
 
-  PRInt32 idx = name.RFindChar('.');
+  int32_t idx = name.RFindChar('.');
   if ((idx != -1) && (idx > 0) && ((name.Length() - idx - 1) < 5)) {
     name.SetLength(idx);
   }
@@ -318,10 +318,10 @@ NS_IMETHODIMP ImportAddressImpl::FindAddressBooks(nsIFile *pLoc, nsISupportsArra
 
   rv = impSvc->CreateNewABDescriptor(getter_AddRefs(desc));
   if (NS_SUCCEEDED(rv)) {
-    PRInt64 sz = 0;
+    int64_t sz = 0;
     pLoc->GetFileSize(&sz);
     desc->SetPreferredName(name);
-    desc->SetSize((PRUint32) sz);
+    desc->SetSize((uint32_t) sz);
     desc->SetAbFile(m_fileLoc);
     rv = desc->QueryInterface(kISupportsIID, (void **) &pInterface);
     array->AppendElement(pInterface);
@@ -354,7 +354,7 @@ void ImportAddressImpl::ReportSuccess(nsString& name, nsString *pStream,
   pStream->Append(PRUnichar('\n'));
 }
 
-void ImportAddressImpl::ReportError(PRInt32 errorNum, nsString& name,
+void ImportAddressImpl::ReportError(int32_t errorNum, nsString& name,
                                     nsString *pStream, nsIStringBundle* pBundle)
 {
   if (!pStream)
@@ -387,9 +387,9 @@ ImportAddressImpl::ImportAddressBook(nsIImportABDescriptor *pSource,
                                      PRUnichar ** pSuccessLog,
                                      bool * fatalError)
 {
-  NS_PRECONDITION(pSource != nsnull, "null ptr");
-  NS_PRECONDITION(pDestination != nsnull, "null ptr");
-  NS_PRECONDITION(fatalError != nsnull, "null ptr");
+  NS_PRECONDITION(pSource != nullptr, "null ptr");
+  NS_PRECONDITION(pDestination != nullptr, "null ptr");
+  NS_PRECONDITION(fatalError != nullptr, "null ptr");
 
   m_bytesImported = 0;
 
@@ -414,7 +414,7 @@ ImportAddressImpl::ImportAddressBook(nsIImportABDescriptor *pSource,
   nsString name;
   pSource->GetPreferredName(name);
 
-  PRUint32 addressSize = 0;
+  uint32_t addressSize = 0;
   pSource->GetSize(&addressSize);
   if (addressSize == 0) {
     IMPORT_LOG0("Address book size is 0, skipping import.\n");
@@ -477,7 +477,7 @@ ImportAddressImpl::ImportAddressBook(nsIImportABDescriptor *pSource,
 }
 
 
-NS_IMETHODIMP ImportAddressImpl::GetImportProgress(PRUint32 *_retval)
+NS_IMETHODIMP ImportAddressImpl::GetImportProgress(uint32_t *_retval)
 {
   NS_ENSURE_ARG_POINTER(_retval);
   *_retval = m_bytesImported;
@@ -520,7 +520,7 @@ NS_IMETHODIMP ImportAddressImpl::GetNeedsFieldMap(nsIFile *aLocation, bool *_ret
 void ImportAddressImpl::SanitizeSampleData(nsString& val)
 {
   // remove any line-feeds...
-  PRInt32 offset = val.Find(NS_LITERAL_STRING("\x0D\x0A"));
+  int32_t offset = val.Find(NS_LITERAL_STRING("\x0D\x0A"));
   while (offset != -1) {
     val.Replace(offset, 2, NS_LITERAL_STRING(", "));
     offset = val.Find(NS_LITERAL_STRING("\x0D\x0A"), offset + 2);
@@ -537,10 +537,10 @@ void ImportAddressImpl::SanitizeSampleData(nsString& val)
   }
 }
 
-NS_IMETHODIMP ImportAddressImpl::GetSampleData(PRInt32 index, bool *pFound, PRUnichar **pStr)
+NS_IMETHODIMP ImportAddressImpl::GetSampleData(int32_t index, bool *pFound, PRUnichar **pStr)
 {
-  NS_PRECONDITION(pFound != nsnull, "null ptr");
-  NS_PRECONDITION(pStr != nsnull, "null ptr");
+  NS_PRECONDITION(pFound != nullptr, "null ptr");
+  NS_PRECONDITION(pStr != nullptr, "null ptr");
   if (!pFound || !pStr)
     return NS_ERROR_NULL_POINTER;
 
@@ -550,7 +550,7 @@ NS_IMETHODIMP ImportAddressImpl::GetSampleData(PRInt32 index, bool *pFound, PRUn
   }
 
   nsresult rv;
-  *pStr = nsnull;
+  *pStr = nullptr;
   PRUnichar term = 0;
 
   if (!m_haveDelim) {
@@ -575,7 +575,7 @@ NS_IMETHODIMP ImportAddressImpl::GetSampleData(PRInt32 index, bool *pFound, PRUn
   if (NS_SUCCEEDED(rv)) {
     nsString str;
     nsString field;
-    PRInt32 fNum = 0;
+    int32_t fNum = 0;
     while (nsTextAddress::GetField(line, fNum, field, m_delim)) {
       if (fNum)
         str.Append(PRUnichar('\n'));
@@ -609,7 +609,7 @@ NS_IMETHODIMP ImportAddressImpl::SetSampleLocation(nsIFile *pLocation)
 
 void ImportAddressImpl::ClearSampleFile(void)
 {
-  m_fileLoc = nsnull;
+  m_fileLoc = nullptr;
   m_haveDelim = false;
 }
 

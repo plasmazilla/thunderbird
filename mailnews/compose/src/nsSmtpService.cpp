@@ -86,7 +86,7 @@ NS_IMETHODIMP nsSmtpService::SendMailMessage(nsIFile * aFilePath,
                                         nsIURI ** aURL,
                                         nsIRequest ** aRequest)
 {
-  nsIURI * urlToRun = nsnull;
+  nsIURI * urlToRun = nullptr;
   nsresult rv = NS_OK;
 
   nsCOMPtr<nsISmtpServer> smtpServer;
@@ -102,7 +102,7 @@ NS_IMETHODIMP nsSmtpService::SendMailMessage(nsIFile * aFilePath,
                             aUrlListener, aStatusFeedback, 
                             aNotificationCallbacks, &urlToRun, aRequestDSN);
     if (NS_SUCCEEDED(rv) && urlToRun)	
-      rv = NS_MsgLoadSmtpUrl(urlToRun, nsnull, aRequest);
+      rv = NS_MsgLoadSmtpUrl(urlToRun, nullptr, aRequest);
 
     if (aURL) // does the caller want a handle on the url?
       *aURL = urlToRun; // transfer our ref count to the caller....
@@ -134,8 +134,8 @@ nsresult NS_MsgBuildSmtpUrl(nsIFile * aFilePath,
 
     nsCString smtpHostName;
     nsCString smtpUserName;
-    PRInt32 smtpPort;
-    PRInt32 socketType;
+    int32_t smtpPort;
+    int32_t socketType;
 
     aSmtpServer->GetHostname(smtpHostName);
     aSmtpServer->GetUsername(smtpUserName);
@@ -235,15 +235,15 @@ NS_IMETHODIMP nsSmtpService::VerifyLogon(nsISmtpServer *aServer,
   nsCString popUser;
   nsCOMPtr <nsIURI> urlToRun;
 
-  nsresult rv = NS_MsgBuildSmtpUrl(nsnull, aServer,
-                          nsnull, nsnull, aUrlListener, nsnull,
-                          nsnull , getter_AddRefs(urlToRun), false);
+  nsresult rv = NS_MsgBuildSmtpUrl(nullptr, aServer,
+                          nullptr, nullptr, aUrlListener, nullptr,
+                          nullptr , getter_AddRefs(urlToRun), false);
   if (NS_SUCCEEDED(rv) && urlToRun)
   {
     nsCOMPtr<nsIMsgMailNewsUrl> url(do_QueryInterface(urlToRun, &rv));
     NS_ENSURE_SUCCESS(rv, rv);
     url->SetMsgWindow(aMsgWindow);
-    rv = NS_MsgLoadSmtpUrl(urlToRun, nsnull, nsnull /* aRequest */);
+    rv = NS_MsgLoadSmtpUrl(urlToRun, nullptr, nullptr /* aRequest */);
     if (aURL)
       urlToRun.forget(aURL);
   }
@@ -256,7 +256,7 @@ NS_IMETHODIMP nsSmtpService::GetScheme(nsACString &aScheme)
     return NS_OK; 
 }
 
-NS_IMETHODIMP nsSmtpService::GetDefaultPort(PRInt32 *aDefaultPort)
+NS_IMETHODIMP nsSmtpService::GetDefaultPort(int32_t *aDefaultPort)
 {
     nsresult rv = NS_OK;
     if (aDefaultPort)
@@ -267,14 +267,14 @@ NS_IMETHODIMP nsSmtpService::GetDefaultPort(PRInt32 *aDefaultPort)
 }
 
 NS_IMETHODIMP 
-nsSmtpService::AllowPort(PRInt32 port, const char *scheme, bool *_retval)
+nsSmtpService::AllowPort(int32_t port, const char *scheme, bool *_retval)
 {
     // allow smtp to run on any port
     *_retval = true;
     return NS_OK;
 }
 
-NS_IMETHODIMP nsSmtpService::GetProtocolFlags(PRUint32 *result)
+NS_IMETHODIMP nsSmtpService::GetProtocolFlags(uint32_t *result)
 {
     *result = URI_NORELATIVE | ALLOWS_PROXY | URI_LOADABLE_BY_ANYONE |
       URI_NON_PERSISTABLE | URI_DOES_NOT_RETURN_DATA |
@@ -322,7 +322,7 @@ NS_IMETHODIMP nsSmtpService::NewChannel(nsIURI *aURI, nsIChannel **_retval)
   nsCOMPtr<nsIAsyncInputStream> pipeIn;
   nsCOMPtr<nsIAsyncOutputStream> pipeOut;
   nsCOMPtr<nsIPipe> pipe = do_CreateInstance("@mozilla.org/pipe;1");
-  nsresult rv = pipe->Init(false, false, 0, 0, nsnull);
+  nsresult rv = pipe->Init(false, false, 0, 0, nullptr);
   if (NS_FAILED(rv)) 
     return rv;
   
@@ -342,7 +342,7 @@ nsSmtpService::GetSmtpServers(nsISimpleEnumerator **aResult)
   NS_ENSURE_ARG_POINTER(aResult);
 
   // now read in the servers from prefs if necessary
-  PRUint32 serverCount = mSmtpServers.Count();
+  uint32_t serverCount = mSmtpServers.Count();
 
   if (serverCount <= 0)
     loadSmtpServers();
@@ -361,7 +361,7 @@ nsSmtpService::loadSmtpServers()
   if (NS_FAILED(rv))
     return rv;
   nsCOMPtr<nsIPrefBranch> prefRootBranch;
-  prefService->GetBranch(nsnull, getter_AddRefs(prefRootBranch));
+  prefService->GetBranch(nullptr, getter_AddRefs(prefRootBranch));
   if (NS_FAILED(rv))
     return rv;
 
@@ -395,8 +395,8 @@ nsSmtpService::loadSmtpServers()
   rv = prefService->GetBranch(MAIL_ROOT_PREF, getter_AddRefs(prefBranch));
   NS_ENSURE_SUCCESS(rv,rv);
 
-  PRInt32 appendSmtpServersCurrentVersion = 0;
-  PRInt32 appendSmtpServersDefaultVersion = 0;
+  int32_t appendSmtpServersCurrentVersion = 0;
+  int32_t appendSmtpServersDefaultVersion = 0;
   rv = prefBranch->GetIntPref(APPEND_SERVERS_VERSION_PREF_NAME, &appendSmtpServersCurrentVersion);
   NS_ENSURE_SUCCESS(rv,rv);
 
@@ -418,7 +418,7 @@ nsSmtpService::loadSmtpServers()
   // use GetServerByKey to check if the key (pref) is already in
   // in the list. If not it calls createKeyedServer directly.
 
-  for (PRUint32 i = 0; i < servers.Length(); i++) {
+  for (uint32_t i = 0; i < servers.Length(); i++) {
     nsCOMPtr<nsISmtpServer> server;
     GetServerByKey(servers[i].get(), getter_AddRefs(server));
   }
@@ -491,8 +491,8 @@ nsSmtpService::GetDefaultServer(nsISmtpServer **aServer)
 
   loadSmtpServers();
   
-  *aServer = nsnull;
-  // always returns NS_OK, just leaving *aServer at nsnull
+  *aServer = nullptr;
+  // always returns NS_OK, just leaving *aServer at nullptr
   if (!mDefaultSmtpServer) {
       nsresult rv;
       nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
@@ -517,7 +517,7 @@ nsSmtpService::GetDefaultServer(nsISmtpServer **aServer)
         // (which will add it to the array & prefs anyway)
         if (mSmtpServers.Count() == 0)
           // if there are no smtp servers then don't create one for the default.
-          return nsnull;
+          return NS_OK;
 
         mDefaultSmtpServer = mSmtpServers[0];
         NS_ENSURE_TRUE(mDefaultSmtpServer, NS_ERROR_NULL_POINTER);
@@ -582,7 +582,7 @@ nsSmtpService::CreateSmtpServer(nsISmtpServer **aResult)
 
     loadSmtpServers();
     nsresult rv;
-    PRInt32 i = 0;
+    int32_t i = 0;
     bool unique = false;
 
     findServerByKeyEntry entry;
@@ -592,7 +592,7 @@ nsSmtpService::CreateSmtpServer(nsISmtpServer **aResult)
         key = "smtp";
         key.AppendInt(++i);
         entry.key = key.get();
-        entry.server = nsnull;
+        entry.server = nullptr;
 
         mSmtpServers.EnumerateForwards(findServerByKey, (void *)&entry);
         if (!entry.server) unique=true;
@@ -617,7 +617,7 @@ nsSmtpService::GetServerByKey(const char* aKey, nsISmtpServer **aResult)
     }
     findServerByKeyEntry entry;
     entry.key = aKey;
-    entry.server = nsnull;
+    entry.server = nullptr;
     mSmtpServers.EnumerateForwards(findServerByKey, (void *)&entry);
 
     if (entry.server) {
@@ -634,19 +634,19 @@ nsSmtpService::DeleteSmtpServer(nsISmtpServer *aServer)
 {
     if (!aServer) return NS_OK;
 
-    PRInt32 idx = mSmtpServers.IndexOf(aServer);
+    int32_t idx = mSmtpServers.IndexOf(aServer);
     if (idx == -1)
       return NS_OK;
 
     nsCString serverKey;
     aServer->GetKey(getter_Copies(serverKey));
     
-    nsresult rv = mSmtpServers.RemoveObjectAt(idx);
+    mSmtpServers.RemoveObjectAt(idx);
 
     if (mDefaultSmtpServer.get() == aServer)
-        mDefaultSmtpServer = nsnull;
+        mDefaultSmtpServer = nullptr;
     if (mSessionDefaultServer.get() == aServer)
-        mSessionDefaultServer = nsnull;
+        mSessionDefaultServer = nullptr;
     
     nsCAutoString newServerList;
     nsCString tmpStr = mServerKeyList;
@@ -670,7 +670,7 @@ nsSmtpService::DeleteSmtpServer(nsISmtpServer *aServer)
 
     mServerKeyList = newServerList;
     saveKeyList();
-    return rv;
+    return NS_OK;
 }
 
 bool
@@ -709,7 +709,7 @@ nsSmtpService::FindServer(const char *aUsername,
     NS_ENSURE_ARG_POINTER(aResult);
 
     findServerByHostnameEntry entry;
-    entry.server = nsnull;
+    entry.server = nullptr;
     entry.hostname = aHostname;
     entry.username = aUsername;
 

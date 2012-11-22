@@ -42,7 +42,7 @@ namespace {
 nsIDOMCanvasRenderingContext2D* gCtx = NULL;
 // Used in tracking the number of previews. Used in freeing
 // the static 2d rendering context on shutdown.
-PRUint32 gInstCount = 0;
+uint32_t gInstCount = 0;
 
 /* Helper method to lazily create a canvas rendering context and associate a given
  * surface with it.
@@ -55,13 +55,13 @@ PRUint32 gInstCount = 0;
  */
 nsresult
 GetRenderingContext(nsIDocShell *shell, gfxASurface *surface,
-                    PRUint32 width, PRUint32 height) {
+                    uint32_t width, uint32_t height) {
   nsresult rv;
   nsCOMPtr<nsIDOMCanvasRenderingContext2D> ctx = gCtx;
 
   if (!ctx) {
     // create the canvas rendering context
-    ctx = do_CreateInstance("@mozilla.org/content/2dthebes-canvas-rendering-context;1", &rv);
+    ctx = do_CreateInstance("@mozilla.org/content/canvas-rendering-context;1?id=2d", &rv);
     if (NS_FAILED(rv)) {
       NS_WARNING("Could not create nsICanvasRenderingContext2D for tab previews!");
       return rv;
@@ -91,7 +91,7 @@ ResetRenderingContext() {
     return;
   if (NS_FAILED(ctxI->Reset())) {
     NS_RELEASE(gCtx);
-    gCtx = nsnull;
+    gCtx = nullptr;
   }
 }
 
@@ -116,7 +116,7 @@ TaskbarPreview::TaskbarPreview(ITaskbarList4 *aTaskbar, nsITaskbarPreviewControl
 TaskbarPreview::~TaskbarPreview() {
   // Avoid dangling pointer
   if (sActivePreview == this)
-    sActivePreview = nsnull;
+    sActivePreview = nullptr;
 
   // Our subclass should have invoked DetachFromNSWindow already.
   NS_ASSERTION(!mWnd, "TaskbarPreview::DetachFromNSWindow was not called before destruction");
@@ -221,7 +221,7 @@ TaskbarPreview::UpdateTaskbarProperties() {
       if (NS_FAILED(rvActive))
         rv = rvActive;
     } else {
-      sActivePreview = nsnull;
+      sActivePreview = nullptr;
     }
   }
   return rv;
@@ -270,8 +270,8 @@ TaskbarPreview::WndProc(UINT nMsg, WPARAM wParam, LPARAM lParam) {
   switch (nMsg) {
     case WM_DWMSENDICONICTHUMBNAIL:
       {
-        PRUint32 width = HIWORD(lParam);
-        PRUint32 height = LOWORD(lParam);
+        uint32_t width = HIWORD(lParam);
+        uint32_t height = LOWORD(lParam);
         float aspectRatio = width/float(height);
 
         nsresult rv;
@@ -280,13 +280,13 @@ TaskbarPreview::WndProc(UINT nMsg, WPARAM wParam, LPARAM lParam) {
         if (NS_FAILED(rv))
           break;
 
-        PRUint32 thumbnailWidth = width;
-        PRUint32 thumbnailHeight = height;
+        uint32_t thumbnailWidth = width;
+        uint32_t thumbnailHeight = height;
 
         if (aspectRatio > preferredAspectRatio) {
-          thumbnailWidth = PRUint32(thumbnailHeight * preferredAspectRatio);
+          thumbnailWidth = uint32_t(thumbnailHeight * preferredAspectRatio);
         } else {
-          thumbnailHeight = PRUint32(thumbnailWidth / preferredAspectRatio);
+          thumbnailHeight = uint32_t(thumbnailWidth / preferredAspectRatio);
         }
 
         DrawBitmap(thumbnailWidth, thumbnailHeight, false);
@@ -294,7 +294,7 @@ TaskbarPreview::WndProc(UINT nMsg, WPARAM wParam, LPARAM lParam) {
       break;
     case WM_DWMSENDICONICLIVEPREVIEWBITMAP:
       {
-        PRUint32 width, height;
+        uint32_t width, height;
         nsresult rv;
         rv = mController->GetWidth(&width);
         if (NS_FAILED(rv))
@@ -363,7 +363,7 @@ TaskbarPreview::UpdateTooltip() {
 }
 
 void
-TaskbarPreview::DrawBitmap(PRUint32 width, PRUint32 height, bool isPreview) {
+TaskbarPreview::DrawBitmap(uint32_t width, uint32_t height, bool isPreview) {
   nsresult rv;
   nsRefPtr<gfxWindowsSurface> surface = new gfxWindowsSurface(gfxIntSize(width, height), gfxASurface::ImageFormatARGB32);
 
@@ -426,7 +426,7 @@ TaskbarPreview::MainWindowHook(void *aContext,
 }
 
 TaskbarPreview *
-TaskbarPreview::sActivePreview = nsnull;
+TaskbarPreview::sActivePreview = nullptr;
 
 } // namespace widget
 } // namespace mozilla

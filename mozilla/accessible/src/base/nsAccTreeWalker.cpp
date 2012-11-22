@@ -18,11 +18,11 @@
 struct WalkState
 {
   WalkState(nsIContent *aContent) :
-    content(aContent), childIdx(0), prevState(nsnull) {}
+    content(aContent), childIdx(0), prevState(nullptr) {}
 
   nsCOMPtr<nsIContent> content;
   nsCOMPtr<nsINodeList> childList;
-  PRUint32 childIdx;
+  uint32_t childIdx;
   WalkState *prevState;
 };
 
@@ -33,7 +33,7 @@ struct WalkState
 nsAccTreeWalker::
   nsAccTreeWalker(DocAccessible* aDoc, nsIContent* aContent,
                   bool aWalkAnonContent, bool aWalkCache) :
-  mDoc(aDoc), mWalkCache(aWalkCache), mState(nsnull)
+  mDoc(aDoc), mWalkCache(aWalkCache), mState(nullptr)
 {
   NS_ASSERTION(aContent, "No node for the accessible tree walker!");
 
@@ -64,12 +64,12 @@ Accessible*
 nsAccTreeWalker::NextChildInternal(bool aNoWalkUp)
 {
   if (!mState || !mState->content)
-    return nsnull;
+    return nullptr;
 
   if (!mState->childList)
     mState->childList = mState->content->GetChildren(mChildFilter);
 
-  PRUint32 length = 0;
+  uint32_t length = 0;
   if (mState->childList)
     mState->childList->GetLength(&length);
 
@@ -98,7 +98,7 @@ nsAccTreeWalker::NextChildInternal(bool aNoWalkUp)
   // No more children, get back to the parent.
   PopState();
 
-  return aNoWalkUp ? nsnull : NextChildInternal(false);
+  return aNoWalkUp ? nullptr : NextChildInternal(false);
 }
 
 void

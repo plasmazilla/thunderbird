@@ -56,25 +56,25 @@ public:
 
   TISInputSourceWrapper()
   {
-    mInputSourceList = nsnull;
+    mInputSourceList = nullptr;
     Clear();
   }
 
   TISInputSourceWrapper(const char* aID)
   {
-    mInputSourceList = nsnull;
+    mInputSourceList = nullptr;
     InitByInputSourceID(aID);
   }
 
   TISInputSourceWrapper(SInt32 aLayoutID)
   {
-    mInputSourceList = nsnull;
+    mInputSourceList = nullptr;
     InitByLayoutID(aLayoutID);
   }
 
   TISInputSourceWrapper(TISInputSourceRef aInputSource)
   {
-    mInputSourceList = nsnull;
+    mInputSourceList = nullptr;
     InitByTISInputSourceRef(aInputSource);
   }
 
@@ -194,14 +194,15 @@ public:
    *                              dispatch a Gecko key event.
    * @param aKeyEvent             The result -- a Gecko key event initialized
    *                              from the native key event.
-   *                              NOTE: When aKeyEvent is a keypress event and 
-   *                                    the caller expects that the event will
-   *                                    cause a character to be input (say in an
-   *                                     editor), the caller should set
-   *                                     aKeyEvent.charCode before calling this.
-   *                                     Then charCode won't be modified.
+   * @param aInsertString         If caller expects that the event will cause
+   *                              a character to be input (say in an editor),
+   *                              the caller should set this.  Otherwise,
+   *                              if caller sets null to this, this method will
+   *                              compute the character to be input from
+   *                              characters of aNativeKeyEvent.
    */
-  void InitKeyEvent(NSEvent *aNativeKeyEvent, nsKeyEvent& aKeyEvent);
+  void InitKeyEvent(NSEvent *aNativeKeyEvent, nsKeyEvent& aKeyEvent,
+                    const nsAString *aInsertString = nullptr);
 
   /**
    * ComputeGeckoKeyCode() returns Gecko keycode for aNativeKeyCode on current
@@ -213,7 +214,7 @@ public:
    * @param aCmdIsPressed         TRUE if Cmd key is pressed.  Otherwise, FALSE.
    * @return                      The computed Gecko keycode.
    */
-  PRUint32 ComputeGeckoKeyCode(UInt32 aNativeKeyCode, UInt32 aKbType,
+  uint32_t ComputeGeckoKeyCode(UInt32 aNativeKeyCode, UInt32 aKbType,
                                bool aCmdIsPressed);
 
 protected:
@@ -246,7 +247,7 @@ protected:
    *                              returns the charCode of it.  Otherwise,
    *                              returns 0.
    */
-  PRUint32 TranslateToChar(UInt32 aKeyCode, UInt32 aModifiers, UInt32 aKbType);
+  uint32_t TranslateToChar(UInt32 aKeyCode, UInt32 aModifiers, UInt32 aKbType);
 
   /**
    * InitKeyPressEvent() initializes aKeyEvent for aNativeKeyEvent.
@@ -254,18 +255,17 @@ protected:
    *
    * @param aNativeKeyEvent       A native key event for which you want to
    *                              dispatch a Gecko key event.
+   * @param aInsertChar           A character to be input in an editor by the
+   *                              event.
    * @param aKeyEvent             The result -- a Gecko key event initialized
    *                              from the native key event.  This must be
    *                              NS_KEY_PRESS event.
-   *                              NOTE: If the caller expects this event to
-   *                                    cause character input (say in an editor),
-   *                                    the caller should set aKeyEvent.charCode
-   *                                    before calling this.  Then charCode
-   *                                    won't be modified.
    * @param aKbType               A native Keyboard Type value.  Typically,
    *                              this is a result of ::LMGetKbdType().
    */
-  void InitKeyPressEvent(NSEvent *aNativeKeyEvent, nsKeyEvent& aKeyEvent,
+  void InitKeyPressEvent(NSEvent *aNativeKeyEvent,
+                         PRUnichar aInsertChar,
+                         nsKeyEvent& aKeyEvent,
                          UInt32 aKbType);
 
   bool GetBoolProperty(const CFStringRef aKey);
@@ -275,7 +275,7 @@ protected:
   TISInputSourceRef mInputSource;
   CFArrayRef mInputSourceList;
   const UCKeyboardLayout* mUCKeyboardLayout;
-  PRInt8 mIsRTL;
+  int8_t mIsRTL;
 
   bool mOverrideKeyboard;
 };
@@ -291,7 +291,7 @@ class TextInputHandlerBase
 public:
   nsrefcnt AddRef()
   {
-    NS_PRECONDITION(PRInt32(mRefCnt) >= 0, "mRefCnt is negative");
+    NS_PRECONDITION(int32_t(mRefCnt) >= 0, "mRefCnt is negative");
     ++mRefCnt;
     NS_LOG_ADDREF(this, mRefCnt, "TextInputHandlerBase", sizeof(*this));
     return mRefCnt;
@@ -325,17 +325,24 @@ public:
    *                              dispatch a Gecko key event.
    * @param aKeyEvent             The result -- a Gecko key event initialized
    *                              from the native key event.
+   * @param aInsertString         If caller expects that the event will cause
+   *                              a character to be input (say in an editor),
+   *                              the caller should set this.  Otherwise,
+   *                              if caller sets null to this, this method will
+   *                              compute the character to be input from
+   *                              characters of aNativeKeyEvent.
    */
-  void InitKeyEvent(NSEvent *aNativeKeyEvent, nsKeyEvent& aKeyEvent);
+  void InitKeyEvent(NSEvent *aNativeKeyEvent, nsKeyEvent& aKeyEvent,
+                    const nsAString *aInsertString = nullptr);
 
   /**
    * SynthesizeNativeKeyEvent() is an implementation of
    * nsIWidget::SynthesizeNativeKeyEvent().  See the document in nsIWidget.h
    * for the detail.
    */
-  nsresult SynthesizeNativeKeyEvent(PRInt32 aNativeKeyboardLayout,
-                                    PRInt32 aNativeKeyCode,
-                                    PRUint32 aModifierFlags,
+  nsresult SynthesizeNativeKeyEvent(int32_t aNativeKeyboardLayout,
+                                    int32_t aNativeKeyCode,
+                                    uint32_t aModifierFlags,
                                     const nsAString& aCharacters,
                                     const nsAString& aUnmodifiedCharacters);
 
@@ -398,18 +405,18 @@ protected:
     // Whether the key event causes other key events via IME or something.
     bool mCausedOtherKeyEvents;
 
-    KeyEventState() : mKeyEvent(nsnull)
+    KeyEventState() : mKeyEvent(nullptr)
     {
       Clear();
     }    
 
-    KeyEventState(NSEvent* aNativeKeyEvent) : mKeyEvent(nsnull)
+    KeyEventState(NSEvent* aNativeKeyEvent) : mKeyEvent(nullptr)
     {
       Clear();
       Set(aNativeKeyEvent);
     }
 
-    KeyEventState(const KeyEventState &aOther) : mKeyEvent(nsnull)
+    KeyEventState(const KeyEventState &aOther) : mKeyEvent(nullptr)
     {
       Clear();
       if (aOther.mKeyEvent) {
@@ -437,7 +444,7 @@ protected:
     {
       if (mKeyEvent) {
         [mKeyEvent release];
-        mKeyEvent = nsnull;
+        mKeyEvent = nullptr;
       }
       mKeyDownHandled = false;
       mKeyPressDispatched = false;
@@ -488,14 +495,14 @@ protected:
    */
   KeyEventState* PushKeyEvent(NSEvent* aNativeKeyEvent)
   {
-    PRUint32 nestCount = mCurrentKeyEvents.Length();
-    for (PRUint32 i = 0; i < nestCount; i++) {
+    uint32_t nestCount = mCurrentKeyEvents.Length();
+    for (uint32_t i = 0; i < nestCount; i++) {
       // When the key event is caused by another key event, all key events
       // which are being handled should be marked as "consumed".
       mCurrentKeyEvents[i]->mCausedOtherKeyEvents = true;
     }
 
-    KeyEventState* keyEvent = nsnull;
+    KeyEventState* keyEvent = nullptr;
     if (nestCount == 0) {
       mFirstKeyEvent.Set(aNativeKeyEvent);
       keyEvent = &mFirstKeyEvent;
@@ -528,7 +535,7 @@ protected:
   KeyEventState* GetCurrentKeyEvent()
   {
     if (mCurrentKeyEvents.Length() == 0) {
-      return nsnull;
+      return nullptr;
     }
     return mCurrentKeyEvents[mCurrentKeyEvents.Length() - 1];
   }
@@ -566,7 +573,7 @@ protected:
 
 private:
   struct KeyboardLayoutOverride {
-    PRInt32 mKeyboardLayout;
+    int32_t mKeyboardLayout;
     bool mOverrideEnabled;
 
     KeyboardLayoutOverride() :
@@ -909,7 +916,7 @@ protected:
     kDiscardIMEComposition   = 2,
     kSyncASCIICapableOnly    = 4
   };
-  PRUint32 mPendingMethods;
+  uint32_t mPendingMethods;
 
   IMEInputHandler(nsChildView* aWidget, NSView<mozView> *aNativeView);
   virtual ~IMEInputHandler();
@@ -975,7 +982,7 @@ private:
    * @param aSelectedRange        Current selected range (or caret position).
    * @return                      NS_TEXTRANGE_*.
    */
-  PRUint32 ConvertToTextRangeType(PRUint32 aUnderlineStyle,
+  uint32_t ConvertToTextRangeType(uint32_t aUnderlineStyle,
                                   NSRange& aSelectedRange);
 
   /**
@@ -987,7 +994,7 @@ private:
    * @return                      The count of NSUnderlineStyleAttributeName
    *                              ranges in aAttrString.
    */
-  PRUint32 GetRangeCount(NSAttributedString *aString);
+  uint32_t GetRangeCount(NSAttributedString *aString);
 
   /**
    * SetTextRangeList() appends text ranges to aTextRangeList.

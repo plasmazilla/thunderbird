@@ -16,6 +16,7 @@
 #include "nsCycleCollectionParticipant.h"
 #include "nsILoadGroup.h"
 #include "nsIObserver.h"
+#include "nsDataHashtable.h"
 #include "nsAudioStream.h"
 #include "VideoFrameContainer.h"
 #include "mozilla/CORSMode.h"
@@ -26,8 +27,8 @@
 // Define to output information on decoding and painting framerate
 /* #define DEBUG_FRAME_RATE 1 */
 
-typedef PRUint16 nsMediaNetworkState;
-typedef PRUint16 nsMediaReadyState;
+typedef uint16_t nsMediaNetworkState;
+typedef uint16_t nsMediaReadyState;
 
 namespace mozilla {
 class MediaResource;
@@ -42,6 +43,8 @@ public:
   typedef mozilla::VideoFrameContainer VideoFrameContainer;
   typedef mozilla::MediaStream MediaStream;
   typedef mozilla::MediaResource MediaResource;
+
+  typedef nsDataHashtable<nsCStringHashKey, nsCString> MetadataTags;
 
   enum CanPlayStatus {
     CANPLAY_NO,
@@ -76,21 +79,21 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(nsHTMLMediaElement,
                                            nsGenericHTMLElement)
 
-  virtual bool ParseAttribute(PRInt32 aNamespaceID,
+  virtual bool ParseAttribute(int32_t aNamespaceID,
                                 nsIAtom* aAttribute,
                                 const nsAString& aValue,
                                 nsAttrValue& aResult);
   // SetAttr override.  C++ is stupid, so have to override both
   // overloaded methods.
-  nsresult SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+  nsresult SetAttr(int32_t aNameSpaceID, nsIAtom* aName,
                    const nsAString& aValue, bool aNotify)
   {
-    return SetAttr(aNameSpaceID, aName, nsnull, aValue, aNotify);
+    return SetAttr(aNameSpaceID, aName, nullptr, aValue, aNotify);
   }
-  virtual nsresult SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+  virtual nsresult SetAttr(int32_t aNameSpaceID, nsIAtom* aName,
                            nsIAtom* aPrefix, const nsAString& aValue,
                            bool aNotify);
-  virtual nsresult UnsetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttr,
+  virtual nsresult UnsetAttr(int32_t aNameSpaceID, nsIAtom* aAttr,
                              bool aNotify);
 
   virtual nsresult BindToTree(nsIDocument* aDocument, nsIContent* aParent,
@@ -109,7 +112,10 @@ public:
   // Called by the video decoder object, on the main thread,
   // when it has read the metadata containing video dimensions,
   // etc.
-  void MetadataLoaded(PRUint32 aChannels, PRUint32 aRate, bool aHasAudio);
+  void MetadataLoaded(uint32_t aChannels,
+                      uint32_t aRate,
+                      bool aHasAudio,
+                      const MetadataTags* aTags);
 
   // Called by the video decoder object, on the main thread,
   // when it has read the first frame of the video
@@ -180,7 +186,7 @@ public:
   ImageContainer* GetImageContainer()
   {
     VideoFrameContainer* container = GetVideoFrameContainer();
-    return container ? container->GetImageContainer() : nsnull;
+    return container ? container->GetImageContainer() : nullptr;
   }
 
   // Called by the video frame to get the print surface, if this is
@@ -192,7 +198,7 @@ public:
   nsresult DispatchEvent(const nsAString& aName);
   nsresult DispatchAsyncEvent(const nsAString& aName);
   nsresult DispatchAudioAvailableEvent(float* aFrameBuffer,
-                                       PRUint32 aFrameBufferLength,
+                                       uint32_t aFrameBufferLength,
                                        float aTime);
 
   // Dispatch events that were raised while in the bfcache
@@ -283,21 +289,21 @@ public:
 #ifdef MOZ_WAVE
   static bool IsWaveEnabled();
   static bool IsWaveType(const nsACString& aType);
-  static const char gWaveTypes[4][16];
+  static const char gWaveTypes[4][15];
   static char const *const gWaveCodecs[2];
 #endif
 
 #ifdef MOZ_WEBM
   static bool IsWebMEnabled();
   static bool IsWebMType(const nsACString& aType);
-  static const char gWebMTypes[2][17];
+  static const char gWebMTypes[2][11];
   static char const *const gWebMCodecs[4];
 #endif
 
 #ifdef MOZ_GSTREAMER
   static bool IsH264Enabled();
   static bool IsH264Type(const nsACString& aType);
-  static const char gH264Types[3][17];
+  static const char gH264Types[3][16];
   static char const *const gH264Codecs[7];
 #endif
 
@@ -321,17 +327,17 @@ public:
   /**
    * Called when data has been written to the underlying audio stream.
    */
-  void NotifyAudioAvailable(float* aFrameBuffer, PRUint32 aFrameBufferLength,
+  void NotifyAudioAvailable(float* aFrameBuffer, uint32_t aFrameBufferLength,
                             float aTime);
 
-  virtual bool IsNodeOfType(PRUint32 aFlags) const;
+  virtual bool IsNodeOfType(uint32_t aFlags) const;
 
   /**
    * Returns the current load ID. Asynchronous events store the ID that was
    * current when they were enqueued, and if it has changed when they come to
    * fire, they consider themselves cancelled, and don't fire.
    */
-  PRUint32 GetCurrentLoadID() { return mCurrentLoadID; }
+  uint32_t GetCurrentLoadID() { return mCurrentLoadID; }
 
   /**
    * Returns the load group for this media element's owner document.
@@ -367,10 +373,10 @@ public:
    */
   void FireTimeUpdate(bool aPeriodic);
 
-  MediaStream* GetMediaStream()
+  MediaStream* GetSrcMediaStream()
   {
-    NS_ASSERTION(mStream, "Don't call this when not playing a stream");
-    return mStream->GetStream();
+    NS_ASSERTION(mSrcStream, "Don't call this when not playing a stream");
+    return mSrcStream->GetStream();
   }
 
 protected:
@@ -384,8 +390,8 @@ protected:
    * of parameters in aParams.
    */
   void ReportLoadError(const char* aMsg,
-                       const PRUnichar** aParams = nsnull,
-                       PRUint32 aParamCount = 0);
+                       const PRUnichar** aParams = nullptr,
+                       uint32_t aParamCount = 0);
 
   /**
    * Changes mHasPlayedOrSeeked to aValue. If mHasPlayedOrSeeked changes
@@ -397,11 +403,11 @@ protected:
   /**
    * Initialize the media element for playback of mSrcAttrStream
    */
-  void SetupMediaStreamPlayback();
+  void SetupSrcMediaStreamPlayback();
   /**
-   * Stop playback on mStream.
+   * Stop playback on mSrcStream.
    */
-  void EndMediaStreamPlayback();
+  void EndSrcMediaStreamPlayback();
 
   /**
    * Returns an nsDOMMediaStream containing the played contents of this
@@ -538,7 +544,7 @@ protected:
    */
   nsresult OnChannelRedirect(nsIChannel *aChannel,
                              nsIChannel *aNewChannel,
-                             PRUint32 aFlags);
+                             uint32_t aFlags);
 
   /**
    * Call this to reevaluate whether we should be holding a self-reference.
@@ -604,7 +610,7 @@ protected:
    * Resets the media element for an error condition as per aErrorCode.
    * aErrorCode must be one of nsIDOMHTMLMediaError codes.
    */
-  void Error(PRUint16 aErrorCode);
+  void Error(uint16_t aErrorCode);
 
   /**
    * Returns the URL spec of the currentSrc.
@@ -617,7 +623,7 @@ protected:
   void ProcessMediaFragmentURI();
 
   // The current decoder. Load() has been called on this decoder.
-  // At most one of mDecoder and mStream can be non-null.
+  // At most one of mDecoder and mSrcStream can be non-null.
   nsRefPtr<nsMediaDecoder> mDecoder;
 
   // A reference to the VideoFrameContainer which contains the current frame
@@ -630,8 +636,8 @@ protected:
 
   // Holds a reference to the DOM wrapper for the MediaStream that we're
   // actually playing.
-  // At most one of mDecoder and mStream can be non-null.
-  nsRefPtr<nsDOMMediaStream> mStream;
+  // At most one of mDecoder and mSrcStream can be non-null.
+  nsRefPtr<nsDOMMediaStream> mSrcStream;
 
   // Holds references to the DOM wrappers for the MediaStreams that we're
   // writing to.
@@ -641,8 +647,8 @@ protected:
   };
   nsTArray<OutputMediaStream> mOutputStreams;
 
-  // Holds a reference to the MediaStreamListener attached to mStream. STRONG!
-  StreamListener* mStreamListener;
+  // Holds a reference to the MediaStreamListener attached to mSrcStream.
+  nsRefPtr<StreamListener> mSrcStreamListener;
 
   // Holds a reference to the first channel we open to the media resource.
   // Once the decoder is created, control over the channel passes to the
@@ -656,7 +662,7 @@ protected:
   // The current media load ID. This is incremented every time we start a
   // new load. Async events note the ID when they're first sent, and only fire
   // if the ID is unchanged when they come to fire.
-  PRUint32 mCurrentLoadID;
+  uint32_t mCurrentLoadID;
 
   // Points to the child source elements, used to iterate through the children
   // when selecting a resource to load.
@@ -695,10 +701,17 @@ protected:
   double mVolume;
 
   // Current number of audio channels.
-  PRUint32 mChannels;
+  uint32_t mChannels;
 
   // Current audio sample rate.
-  PRUint32 mRate;
+  uint32_t mRate;
+
+  // Helper function to iterate over a hash table
+  // and convert it to a JSObject.
+  static PLDHashOperator BuildObjectFromTags(nsCStringHashKey::KeyType aKey,
+                                             nsCString aValue,
+                                             void* aUserArg);
+  nsAutoPtr<const MetadataTags> mTags;
 
   // URI of the resource we're attempting to load. This stores the value we
   // return in the currentSrc attribute. Use GetCurrentSrc() to access the

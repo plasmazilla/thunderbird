@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH     = ../..
+DEPTH     = @DEPTH@
 topsrcdir = @top_srcdir@
 srcdir    = @srcdir@
 VPATH     = @srcdir@
@@ -42,6 +42,7 @@ CPPSRCS += dlldeps-xul.cpp
 endif
 
 SHARED_LIBRARY_LIBS += \
+  $(DEPTH)/toolkit/components/osfile/$(LIB_PREFIX)osfile_s.$(LIB_SUFFIX) \
   $(DEPTH)/toolkit/xre/$(LIB_PREFIX)xulapp_s.$(LIB_SUFFIX) \
   $(NULL)
 
@@ -376,6 +377,12 @@ EXTRA_DSO_LDOPTS += $(MOZ_ALSA_LIBS)
 endif
 endif
 
+ifdef MOZ_PULSEAUDIO
+ifdef MOZ_CUBEB
+EXTRA_DSO_LDOPTS += $(MOZ_PULSEAUDIO_LIBS)
+endif
+endif
+
 ifdef HAVE_CLOCK_MONOTONIC
 EXTRA_DSO_LDOPTS += $(REALTIME_LIBS)
 endif
@@ -412,7 +419,6 @@ CPPSRCS += \
 
 GARBAGE += \
   $(INTL_UNICHARUTIL_UTIL_LCPPSRCS) \
-  $(wildcard *.$(OBJ_SUFFIX)) \
   $(RDF_UTIL_SRC_LCPPSRCS) \
   $(NULL)
 

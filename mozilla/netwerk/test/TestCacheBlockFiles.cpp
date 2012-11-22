@@ -33,21 +33,21 @@
  */
 
 typedef struct Allocation {
-    PRInt32     start;
-    PRInt32     count;
+    int32_t     start;
+    int32_t     count;
 } Allocation;
 
 nsresult
-StressTest(nsIFile *  localFile, PRInt32  testNumber, bool readWrite)
+StressTest(nsIFile *  localFile, int32_t  testNumber, bool readWrite)
 {
     nsresult  rv = NS_OK;
 
 #define ITERATIONS      1024
 #define MAX_ALLOCATIONS 256
     Allocation  block[MAX_ALLOCATIONS];
-    PRInt32     currentAllocations = 0;
-    PRInt32     i;
-    PRUint32    a;
+    int32_t     currentAllocations = 0;
+    int32_t     i;
+    uint32_t    a;
 
     char * writeBuf[4];
     char   readBuf[256 * 4];
@@ -195,11 +195,11 @@ main(void)
     {
         // Start up XPCOM
         nsCOMPtr<nsIServiceManager> servMan;
-        NS_InitXPCOM2(getter_AddRefs(servMan), nsnull, nsnull);
+        NS_InitXPCOM2(getter_AddRefs(servMan), nullptr, nullptr);
         nsCOMPtr<nsIComponentRegistrar> registrar = do_QueryInterface(servMan);
         NS_ASSERTION(registrar, "Null nsIComponentRegistrar");
         if (registrar)
-            registrar->AutoRegister(nsnull);
+            registrar->AutoRegister(nullptr);
 
         // Get default directory
         rv = NS_GetSpecialDirectory(NS_XPCOM_CURRENT_PROCESS_DIR,
@@ -242,9 +242,9 @@ main(void)
         //----------------------------------------------------------------
         //  local variables used in tests
         //----------------------------------------------------------------
-        PRUint32 bytesWritten = 0;
-        PRInt32  startBlock;
-        PRInt32  i = 0;
+        uint32_t bytesWritten = 0;
+        int32_t  startBlock;
+        int32_t  i = 0;
 
 
         //----------------------------------------------------------------
@@ -438,7 +438,7 @@ main(void)
         //----------------------------------------------------------------
         //  Test 8: LastBlock
         //----------------------------------------------------------------
-        PRInt32  lastBlock = blockFile->LastBlock();
+        int32_t  lastBlock = blockFile->LastBlock();
         if (lastBlock != 11) {
             printf("Test 8: failed (LastBlock() returned: %d)\n", lastBlock);
             goto exit;
@@ -864,7 +864,7 @@ exit:
     if (NS_FAILED(rv))
         printf("Test failed: 0x%.8x\n", rv);
 
-    rv = NS_ShutdownXPCOM(nsnull);
+    rv = NS_ShutdownXPCOM(nullptr);
     NS_ASSERTION(NS_SUCCEEDED(rv), "NS_ShutdownXPCOM failed");
 
     printf("XPCOM shut down.\n\n");

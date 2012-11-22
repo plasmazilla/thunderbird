@@ -12,16 +12,19 @@
 #include "nsDOMMediaStream.h"
 #include "nsComponentManagerUtils.h"
 
-#include "Layers.h"
 #include "VideoUtils.h"
 #include "MediaEngine.h"
-#include "ImageLayers.h"
 #include "VideoSegment.h"
 #include "AudioSegment.h"
 #include "StreamBuffer.h"
 #include "MediaStreamGraph.h"
 
 namespace mozilla {
+
+namespace layers {
+class ImageContainer;
+class PlanarYCbCrImage;
+}
 
 /**
  * The default implementation of the MediaEngine interface.
@@ -38,8 +41,8 @@ class MediaEngineDefaultVideoSource : public nsITimerCallback,
                                       public MediaEngineVideoSource
 {
 public:
-  MediaEngineDefaultVideoSource() : mTimer(nsnull), mState(kReleased) {}
-  ~MediaEngineDefaultVideoSource(){};
+  MediaEngineDefaultVideoSource();
+  ~MediaEngineDefaultVideoSource();
 
   virtual void GetName(nsAString&);
   virtual void GetUUID(nsAString&);
@@ -50,7 +53,7 @@ public:
   virtual nsresult Deallocate();
   virtual nsresult Start(SourceMediaStream*, TrackID);
   virtual nsresult Stop();
-  virtual nsresult Snapshot(PRUint32 aDuration, nsIDOMFile** aFile);
+  virtual nsresult Snapshot(uint32_t aDuration, nsIDOMFile** aFile);
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSITIMERCALLBACK
@@ -69,7 +72,7 @@ class MediaEngineDefaultAudioSource : public nsITimerCallback,
                                       public MediaEngineAudioSource
 {
 public:
-  MediaEngineDefaultAudioSource() : mTimer(nsnull), mState(kReleased) {}
+  MediaEngineDefaultAudioSource() : mTimer(nullptr), mState(kReleased) {}
   ~MediaEngineDefaultAudioSource(){};
 
   virtual void GetName(nsAString&);
@@ -80,7 +83,7 @@ public:
   virtual nsresult Deallocate();
   virtual nsresult Start(SourceMediaStream*, TrackID);
   virtual nsresult Stop();
-  virtual nsresult Snapshot(PRUint32 aDuration, nsIDOMFile** aFile);
+  virtual nsresult Snapshot(uint32_t aDuration, nsIDOMFile** aFile);
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSITIMERCALLBACK

@@ -17,7 +17,7 @@ using namespace mozilla::dom;
 
 // Helper function
 static bool
-GetCSSComputedValue(nsIContent* aElem,
+GetCSSComputedValue(Element* aElem,
                     nsCSSProperty aPropID,
                     nsAString& aResult)
 {
@@ -40,16 +40,11 @@ GetCSSComputedValue(nsIContent* aElem,
     return false;
   }
 
-  nsRefPtr<nsComputedDOMStyle> computedStyle;
-  nsCOMPtr<nsIDOMElement> domElement(do_QueryInterface(aElem));
-  nsresult rv = NS_NewComputedDOMStyle(domElement, EmptyString(), shell,
-                                       getter_AddRefs(computedStyle));
+  nsRefPtr<nsComputedDOMStyle> computedStyle =
+    NS_NewComputedDOMStyle(aElem, EmptyString(), shell);
 
-  if (NS_SUCCEEDED(rv)) {
-    computedStyle->GetPropertyValue(aPropID, aResult);
-    return true;
-  }
-  return false;
+  computedStyle->GetPropertyValue(aPropID, aResult);
+  return true;
 }
 
 // Class Methods
@@ -120,7 +115,7 @@ nsSMILCSSProperty::GetBaseValue() const
     // the cached (computed) value and detect changes for us.
     nsSMILCSSValueType::ValueFromString(mPropID, mElement,
                                         computedStyleVal, baseValue,
-                                        nsnull);
+                                        nullptr);
   }
   return baseValue;
 }

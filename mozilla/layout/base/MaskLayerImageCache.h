@@ -8,9 +8,12 @@
 
 #include "FrameLayerBuilder.h"
 #include "nsPresContext.h"
-#include "ImageLayers.h"
 
 namespace mozilla {
+
+namespace layers {
+class ImageContainer;
+}
 
 /**
  * Keeps a record of image containers for mask layers, containers are mapped
@@ -29,10 +32,8 @@ class MaskLayerImageCache
 {
   typedef mozilla::layers::ImageContainer ImageContainer;
 public:
-  MaskLayerImageCache()
-  {
-    mMaskImageContainers.Init();
-  }
+  MaskLayerImageCache();
+  ~MaskLayerImageCache();
 
   /**
    * Representation of a rounded rectangle in device pixel coordinates, in
@@ -90,7 +91,7 @@ public:
     PLDHashNumber Hash() const
     {
       PLDHashNumber hash = HashBytes(&mRect.x, 4*sizeof(gfxFloat));
-      AddToHash(hash, HashBytes(mRadii, 8*sizeof(gfxFloat)));
+      hash = AddToHash(hash, HashBytes(mRadii, 8*sizeof(gfxFloat)));
 
       return hash;
     }
@@ -113,8 +114,9 @@ public:
   class MaskLayerImageKey
   {
   public:
-    MaskLayerImageKey(const nsTArray<PixelRoundedRect>& aRoundedClipRects)
-      : mLayerCount(0)
+    MaskLayerImageKey(const nsTArray<PixelRoundedRect>& aRoundedClipRects, layers::LayersBackend aBackend)
+      : mBackend(aBackend)
+      , mLayerCount(0)
       , mRoundedClipRects(aRoundedClipRects)
     {}
 
@@ -129,9 +131,10 @@ public:
     {
       PLDHashNumber hash = 0;
 
-      for (PRUint32 i = 0; i < mRoundedClipRects.Length(); ++i) {
-        AddToHash(hash, mRoundedClipRects[i].Hash());
+      for (uint32_t i = 0; i < mRoundedClipRects.Length(); ++i) {
+        hash = AddToHash(hash, mRoundedClipRects[i].Hash());
       }
+      hash = AddToHash(hash, mBackend);
 
       return hash;
     }
@@ -141,12 +144,13 @@ public:
       return mRoundedClipRects == aOther.mRoundedClipRects;
     }
 
-    mutable PRUint32 mLayerCount;
+    layers::LayersBackend mBackend;
+    mutable uint32_t mLayerCount;
     nsTArray<PixelRoundedRect> mRoundedClipRects;
   };
 
   
-  // Find an image container for aKey, returns nsnull if there is no suitable
+  // Find an image container for aKey, returns nullptr if there is no suitable
   // cached image. If there is an image, then aKey is set to point at the stored
   // key for the image.
   ImageContainer* FindImageFor(const MaskLayerImageKey** aKey);

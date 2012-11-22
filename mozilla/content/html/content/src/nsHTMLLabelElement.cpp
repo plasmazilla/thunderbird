@@ -248,7 +248,7 @@ nsHTMLLabelElement::SubmitNamesValues(nsFormSubmission* aFormSubmission)
 }
 
 nsresult
-nsHTMLLabelElement::SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName, nsIAtom* aPrefix,
+nsHTMLLabelElement::SetAttr(int32_t aNameSpaceID, nsIAtom* aName, nsIAtom* aPrefix,
                             const nsAString& aValue, bool aNotify)
 {
   return nsGenericHTMLFormElement::SetAttr(aNameSpaceID, aName, aPrefix, aValue,
@@ -256,7 +256,7 @@ nsHTMLLabelElement::SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName, nsIAtom* aPref
 }
 
 nsresult
-nsHTMLLabelElement::UnsetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
+nsHTMLLabelElement::UnsetAttr(int32_t aNameSpaceID, nsIAtom* aAttribute,
                               bool aNotify)
 {
   return nsGenericHTMLFormElement::UnsetAttr(aNameSpaceID, aAttribute, aNotify);
@@ -277,7 +277,7 @@ nsHTMLLabelElement::PerformAccesskey(bool aKeyCausesActivation,
 
     // Click on it if the users prefs indicate to do so.
     nsMouseEvent event(aIsTrustedEvent, NS_MOUSE_CLICK,
-                       nsnull, nsMouseEvent::eReal);
+                       nullptr, nsMouseEvent::eReal);
     event.inputSource = nsIDOMMouseEvent::MOZ_SOURCE_KEYBOARD;
 
     nsAutoPopupStatePusher popupStatePusher(aIsTrustedEvent ?
@@ -303,7 +303,7 @@ nsHTMLLabelElement::GetLabeledElement()
   // and this element should be a labelable form control.
   nsIDocument* doc = GetCurrentDoc();
   if (!doc) {
-    return nsnull;
+    return nullptr;
   }
 
   Element* element = doc->GetElementById(elementId);
@@ -311,7 +311,7 @@ nsHTMLLabelElement::GetLabeledElement()
     return element;
   }
 
-  return nsnull;
+  return nullptr;
 }
 
 Element*
@@ -319,12 +319,12 @@ nsHTMLLabelElement::GetFirstLabelableDescendant()
 {
   for (nsIContent* cur = nsINode::GetFirstChild(); cur;
        cur = cur->GetNextNode(this)) {
-    Element* element = cur->IsElement() ? cur->AsElement() : nsnull;
+    Element* element = cur->IsElement() ? cur->AsElement() : nullptr;
     if (element && element->IsLabelable()) {
       return element;
     }
   }
 
-  return nsnull;
+  return nullptr;
 }
 

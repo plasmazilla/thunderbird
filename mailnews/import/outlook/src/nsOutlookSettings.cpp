@@ -80,7 +80,7 @@ public:
 ////////////////////////////////////////////////////////////////////////
 nsresult nsOutlookSettings::Create(nsIImportSettings** aImport)
 {
-    NS_PRECONDITION(aImport != nsnull, "null ptr");
+    NS_PRECONDITION(aImport != nullptr, "null ptr");
     if (! aImport)
         return NS_ERROR_NULL_POINTER;
 
@@ -104,8 +104,8 @@ NS_IMPL_ISUPPORTS1(nsOutlookSettings, nsIImportSettings)
 
 NS_IMETHODIMP nsOutlookSettings::AutoLocate(PRUnichar **description, nsIFile **location, bool *_retval)
 {
-    NS_PRECONDITION(description != nsnull, "null ptr");
-    NS_PRECONDITION(_retval != nsnull, "null ptr");
+    NS_PRECONDITION(description != nullptr, "null ptr");
+    NS_PRECONDITION(_retval != nullptr, "null ptr");
   if (!description || !_retval)
     return NS_ERROR_NULL_POINTER;
 
@@ -113,7 +113,7 @@ NS_IMETHODIMP nsOutlookSettings::AutoLocate(PRUnichar **description, nsIFile **l
   *_retval = false;
 
   if (location)
-    *location = nsnull;
+    *location = nullptr;
 
   // look for the registry key for the accounts
   nsCOMPtr<nsIWindowsRegKey> key;
@@ -129,7 +129,7 @@ NS_IMETHODIMP nsOutlookSettings::SetLocation(nsIFile *location)
 
 NS_IMETHODIMP nsOutlookSettings::Import(nsIMsgAccount **localMailAccount, bool *_retval)
 {
-  NS_PRECONDITION(_retval != nsnull, "null ptr");
+  NS_PRECONDITION(_retval != nullptr, "null ptr");
 
   if (OutlookSettings::DoImport(localMailAccount)) {
     *_retval = true;
@@ -226,12 +226,12 @@ bool OutlookSettings::DoImport(nsIMsgAccount **aAccount)
   nsAutoString defMailName;
   rv = GetDefaultMailAccountName(defMailName);
 
-  PRUint32 childCount;
+  uint32_t childCount;
   key->GetChildCount(&childCount);
 
-  PRUint32 accounts = 0;
-  PRUint32 popCount = 0;
-  for (PRUint32 i = 0; i < childCount; i++) {
+  uint32_t accounts = 0;
+  uint32_t popCount = 0;
+  for (uint32_t i = 0; i < childCount; i++) {
     nsAutoString keyName;
     key->GetChildName(i, keyName);
     nsCOMPtr<nsIWindowsRegKey> subKey;
@@ -315,7 +315,7 @@ bool OutlookSettings::DoIMAPServer(nsIMsgAccountManager *aMgr,
                         nativeServerName,
                         NS_LITERAL_CSTRING("imap"),
                         getter_AddRefs(in));
-  if (NS_FAILED(rv) || (in == nsnull)) {
+  if (NS_FAILED(rv) || (in == nullptr)) {
     // Create the incoming server and an account for it?
     rv = aMgr->CreateIncomingServer(nativeUserName,
                                     nativeServerName,
@@ -435,7 +435,7 @@ bool OutlookSettings::DoPOP3Server(nsIMsgAccountManager *aMgr,
 
   IMPORT_LOG0("Created a new account and set the incoming server to the POP3 server.\n");
 
-  PRUint32 leaveOnServer;
+  uint32_t leaveOnServer;
   rv = aKey->ReadIntValue(NS_LITERAL_STRING("Leave Mail On Server"), &leaveOnServer);
   if (NS_SUCCEEDED(rv))
     pop3Server->SetLeaveMessagesOnServer(leaveOnServer == 1 ? true : false);

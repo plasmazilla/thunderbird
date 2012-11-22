@@ -6,28 +6,27 @@
 #define nsDeviceStorage_h
 
 class nsPIDOMWindow;
-
-#include "mozilla/dom/ContentChild.h"
-#include "mozilla/dom/PBrowserChild.h"
-#include "mozilla/dom/devicestorage/PDeviceStorageRequestChild.h"
-
+#include "PCOMContentPermissionRequestChild.h"
 
 #include "DOMRequest.h"
-#include "PCOMContentPermissionRequestChild.h"
-#include "mozilla/Attributes.h"
-#include "mozilla/dom/PContentPermissionRequestChild.h"
 #include "nsAutoPtr.h"
 #include "nsCycleCollectionParticipant.h"
 #include "nsDOMClassInfoID.h"
 #include "nsIClassInfo.h"
 #include "nsIContentPermissionPrompt.h"
-#include "nsIDOMDeviceStorage.h"
 #include "nsIDOMDeviceStorageCursor.h"
+#include "nsIDOMDeviceStorageStat.h"
 #include "nsIDOMWindow.h"
 #include "nsIURI.h"
 #include "nsInterfaceHashtable.h"
+#include "nsIPrincipal.h"
 #include "nsString.h"
 #include "nsWeakPtr.h"
+#include "nsIDOMEventListener.h"
+#include "nsIDOMEventTarget.h"
+#include "nsIObserver.h"
+#include "mozilla/Mutex.h"
+#include "DeviceStorage.h"
 
 
 #define POST_ERROR_EVENT_FILE_DOES_NOT_EXIST         "File location doesn't exists"
@@ -36,10 +35,12 @@ class nsPIDOMWindow;
 #define POST_ERROR_EVENT_ILLEGAL_FILE_NAME           "Illegal file name"
 #define POST_ERROR_EVENT_UNKNOWN                     "Unknown"
 #define POST_ERROR_EVENT_NON_STRING_TYPE_UNSUPPORTED "Non-string type unsupported"
+#define POST_ERROR_EVENT_NOT_IMPLEMENTED             "Not implemented"
 
 using namespace mozilla::dom;
 
-class DeviceStorageFile MOZ_FINAL : public nsISupports {
+class DeviceStorageFile MOZ_FINAL
+  : public nsISupports {
 public:
   nsCOMPtr<nsIFile> mFile;
   nsString mPath;
@@ -55,50 +56,18 @@ public:
   // we want to make sure that the names of file can't reach
   // outside of the type of storage the user asked for.
   bool IsSafePath();
-  
-  nsresult Write(nsIDOMBlob* blob);
-  nsresult Write(InfallibleTArray<PRUint8>& bits);
-  void CollectFiles(nsTArray<nsRefPtr<DeviceStorageFile> > &aFiles, PRUint64 aSince = 0);
-  void collectFilesInternal(nsTArray<nsRefPtr<DeviceStorageFile> > &aFiles, PRUint64 aSince, nsAString& aRootPath);
+
+  nsresult Remove();
+  nsresult Write(nsIInputStream* aInputStream);
+  nsresult Write(InfallibleTArray<uint8_t>& bits);
+  void CollectFiles(nsTArray<nsRefPtr<DeviceStorageFile> > &aFiles, uint64_t aSince = 0);
+  void collectFilesInternal(nsTArray<nsRefPtr<DeviceStorageFile> > &aFiles, uint64_t aSince, nsAString& aRootPath);
+
+  static uint64_t DirectoryDiskUsage(nsIFile* aFile, uint64_t aSoFar = 0);
 
 private:
   void NormalizeFilePath();
   void AppendRelativePath();
-};
-
-class nsDOMDeviceStorage MOZ_FINAL : public nsIDOMDeviceStorage
-{
-public:
-  NS_DECL_ISUPPORTS
-  NS_DECL_NSIDOMDEVICESTORAGE
-
-  nsDOMDeviceStorage();
-
-  nsresult Init(nsPIDOMWindow* aWindow, const nsAString &aType, const PRInt32 aIndex);
-
-  PRInt32 SetRootFileForType(const nsAString& aType, const PRInt32 aIndex);
-
-  static void CreateDeviceStoragesFor(nsPIDOMWindow* aWin, const nsAString &aType, nsIVariant** _retval);
-
-private:
-  ~nsDOMDeviceStorage();
-
-  nsresult GetInternal(const JS::Value & aName, JSContext* aCx, nsIDOMDOMRequest * *_retval NS_OUTPARAM, bool aEditable);
-
-  nsresult EnumerateInternal(const JS::Value & aName, const JS::Value & aOptions, JSContext* aCx, PRUint8 aArgc, bool aEditable, nsIDOMDeviceStorageCursor** aRetval);
-
-  PRInt32 mStorageType;
-  nsCOMPtr<nsIFile> mFile;
-
-  nsWeakPtr mOwner;
-  nsCOMPtr<nsIURI> mURI;
-
-  // nsIDOMDeviceStorage.type
-  enum {
-      DEVICE_STORAGE_TYPE_DEFAULT = 0,
-      DEVICE_STORAGE_TYPE_SHARED,
-      DEVICE_STORAGE_TYPE_EXTERNAL,
-  };
 };
 
 class ContinueCursorEvent MOZ_FINAL: public nsRunnable
@@ -124,14 +93,14 @@ public:
   NS_DECL_NSIDOMDEVICESTORAGECURSOR
 
   nsDOMDeviceStorageCursor(nsIDOMWindow* aWindow,
-                           nsIURI* aURI,
+                           nsIPrincipal* aPrincipal,
                            DeviceStorageFile* aFile,
-                           PRUint64 aSince);
+                           uint64_t aSince);
 
 
   nsTArray<nsRefPtr<DeviceStorageFile> > mFiles;
   bool mOkToCallContinue;
-  PRUint64 mSince;
+  uint64_t mSince;
 
   virtual bool Recv__delete__(const bool& allow);
   virtual void IPDLRelease();
@@ -140,13 +109,31 @@ private:
   ~nsDOMDeviceStorageCursor();
 
   nsRefPtr<DeviceStorageFile> mFile;
-  nsCOMPtr<nsIURI> mURI;
+  nsCOMPtr<nsIPrincipal> mPrincipal;
+};
+
+class nsDOMDeviceStorageStat MOZ_FINAL
+  : public nsIDOMDeviceStorageStat
+{
+public:
+  NS_DECL_ISUPPORTS
+  NS_DECL_NSIDOMDEVICESTORAGESTAT
+
+  nsDOMDeviceStorageStat(uint64_t aFreeBytes, uint64_t aTotalBytes, nsAString& aState);
+
+private:
+  ~nsDOMDeviceStorageStat();
+  uint64_t mFreeBytes, mTotalBytes;
+  nsString mState;
 };
 
 //helpers
 jsval StringToJsval(nsPIDOMWindow* aWindow, nsAString& aString);
-jsval nsIFileToJsval(nsPIDOMWindow* aWindow, DeviceStorageFile* aFile, bool aEditable);
-jsval BlobToJsval(nsPIDOMWindow* aWindow, nsIDOMBlob* aBlob);
+jsval nsIFileToJsval(nsPIDOMWindow* aWindow, DeviceStorageFile* aFile);
+jsval InterfaceToJsval(nsPIDOMWindow* aWindow, nsISupports* aObject, const nsIID* aIID);
 
+#ifdef MOZ_WIDGET_GONK
+nsresult GetSDCardStatus(nsAString& aState);
+#endif
 
 #endif

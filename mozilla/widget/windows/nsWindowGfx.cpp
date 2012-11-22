@@ -34,6 +34,7 @@ using mozilla::plugins::PluginInstanceParent;
 #include "nsRenderingContext.h"
 #include "prmem.h"
 #include "WinUtils.h"
+#include "nsIWidgetListener.h"
 #include "mozilla/unused.h"
 
 #include "LayerManagerOGL.h"
@@ -70,16 +71,16 @@ using namespace mozilla::widget;
 /**************************************************************
  *
  * SECTION: nsWindow statics
- * 
+ *
  **************************************************************/
 
-static nsAutoPtr<PRUint8>  sSharedSurfaceData;
+static nsAutoPtr<uint8_t>  sSharedSurfaceData;
 static gfxIntSize          sSharedSurfaceSize;
 
 struct IconMetrics {
-  PRInt32 xMetric;
-  PRInt32 yMetric;
-  PRInt32 defaultSize;
+  int32_t xMetric;
+  int32_t yMetric;
+  int32_t defaultSize;
 };
 
 // Corresponds 1:1 to the IconSizeType enum
@@ -112,7 +113,7 @@ nsWindowGfx::ConvertHRGNToRegion(HRGN aRgn)
   nsIntRegion rgn;
 
   DWORD size = ::GetRegionData(aRgn, 0, NULL);
-  nsAutoTArray<PRUint8,100> buffer;
+  nsAutoTArray<uint8_t,100> buffer;
   if (!buffer.SetLength(size))
     return rgn;
 
@@ -126,7 +127,7 @@ nsWindowGfx::ConvertHRGNToRegion(HRGN aRgn)
   }
 
   RECT* rects = reinterpret_cast<RECT*>(data->Buffer);
-  for (PRUint32 i = 0; i < data->rdh.nCount; ++i) {
+  for (uint32_t i = 0; i < data->rdh.nCount; ++i) {
     RECT* r = rects + i;
     rgn.Or(rgn, ToIntRect(*r));
   }
@@ -185,14 +186,14 @@ EnsureSharedSurfaceSize(gfxIntSize size)
 
   if (!sSharedSurfaceData || (WORDSSIZE(size) > WORDSSIZE(sSharedSurfaceSize))) {
     sSharedSurfaceSize = size;
-    sSharedSurfaceData = nsnull;
-    sSharedSurfaceData = (PRUint8 *)malloc(WORDSSIZE(sSharedSurfaceSize) * 4);
+    sSharedSurfaceData = nullptr;
+    sSharedSurfaceData = (uint8_t *)malloc(WORDSSIZE(sSharedSurfaceSize) * 4);
   }
 
-  return (sSharedSurfaceData != nsnull);
+  return (sSharedSurfaceData != nullptr);
 }
 
-bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
+bool nsWindow::OnPaint(HDC aDC, uint32_t aNestingLevel)
 {
   // We never have reentrant paint events, except when we're running our RPC
   // windows event spin loop. If we don't trap for this, we'll try to paint,
@@ -234,13 +235,13 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
     return true;
   }
 
-  nsPaintEvent willPaintEvent(true, NS_WILL_PAINT, this);
-  willPaintEvent.willSendDidPaint = true;
-  DispatchWindowEvent(&willPaintEvent);
+  nsIWidgetListener* listener = mAttachedWidgetListener ? mAttachedWidgetListener : mWidgetListener;
+  if (listener) {
+    listener->WillPaintWindow(this, true);
+  }
 
   bool result = true;
   PAINTSTRUCT ps;
-  nsEventStatus eventStatus = nsEventStatus_eIgnore;
 
 #ifdef MOZ_XUL
   if (!aDC && (eTransparencyTransparent == mTransparencyMode))
@@ -277,20 +278,13 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
     mPaintDC = hDC;
   }
 
-  // generate the event and call the event callback
-  nsPaintEvent event(true, NS_PAINT, this);
-  InitEvent(event);
-
 #ifdef MOZ_XUL
   bool forceRepaint = aDC || (eTransparencyTransparent == mTransparencyMode);
 #else
   bool forceRepaint = NULL != aDC;
 #endif
-  event.region = GetRegionToPaint(forceRepaint, ps, hDC);
-  event.willSendDidPaint = true;
-  event.didSendWillPaint = true;
-
-  if (!event.region.IsEmpty() && mEventCallback)
+  nsIntRegion region = GetRegionToPaint(forceRepaint, ps, hDC);
+  if (!region.IsEmpty() && listener)
   {
     // Should probably pass in a real region here, using GetRandomRgn
     // http://msdn.microsoft.com/library/default.asp?url=/library/en-us/gdi/clipping_4q0e.asp
@@ -298,13 +292,13 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
 #ifdef WIDGET_DEBUG_OUTPUT
     debug_DumpPaintEvent(stdout,
                          this,
-                         &event,
+                         region,
                          nsCAutoString("noname"),
-                         (PRInt32) mWnd);
+                         (int32_t) mWnd);
 #endif // WIDGET_DEBUG_OUTPUT
 
     switch (GetLayerManager()->GetBackendType()) {
-      case LayerManager::LAYERS_BASIC:
+      case LAYERS_BASIC:
         {
           nsRefPtr<gfxASurface> targetSurface;
 
@@ -313,7 +307,7 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
           if ((IsRenderMode(gfxWindowsPlatform::RENDER_GDI) ||
                IsRenderMode(gfxWindowsPlatform::RENDER_DIRECT2D)) &&
               eTransparencyTransparent == mTransparencyMode) {
-            if (mTransparentSurface == nsnull)
+            if (mTransparentSurface == nullptr)
               SetupTranslucentWindowMemoryBitmap(mTransparencyMode);
             targetSurface = mTransparentSurface;
           }
@@ -335,7 +329,7 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
             if (!mD2DWindowSurface->CairoStatus()) {
               targetSurface = mD2DWindowSurface;
             } else {
-              mD2DWindowSurface = nsnull;
+              mD2DWindowSurface = nullptr;
             }
           }
 #endif
@@ -345,7 +339,7 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
               (IsRenderMode(gfxWindowsPlatform::RENDER_GDI) ||
                IsRenderMode(gfxWindowsPlatform::RENDER_DIRECT2D)))
           {
-            PRUint32 flags = (mTransparencyMode == eTransparencyOpaque) ? 0 :
+            uint32_t flags = (mTransparencyMode == eTransparencyOpaque) ? 0 :
                 gfxWindowsSurface::FLAG_IS_TRANSPARENT;
             targetSurfaceWin = new gfxWindowsSurface(hDC, flags);
             targetSurface = targetSurfaceWin;
@@ -385,8 +379,8 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
           nsRefPtr<gfxContext> thebesContext = new gfxContext(targetSurface);
           if (IsRenderMode(gfxWindowsPlatform::RENDER_DIRECT2D)) {
             const nsIntRect* r;
-            for (nsIntRegionRectIterator iter(event.region);
-                 (r = iter.Next()) != nsnull;) {
+            for (nsIntRegionRectIterator iter(region);
+                 (r = iter.Next()) != nullptr;) {
               thebesContext->Rectangle(gfxRect(r->x, r->y, r->width, r->height), true);
             }
             thebesContext->Clip();
@@ -396,8 +390,7 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
           }
 
           // don't need to double buffer with anything but GDI
-          BasicLayerManager::BufferMode doubleBuffering =
-            BasicLayerManager::BUFFER_NONE;
+          BufferMode doubleBuffering = mozilla::layers::BUFFER_NONE;
           if (IsRenderMode(gfxWindowsPlatform::RENDER_GDI)) {
 #ifdef MOZ_XUL
             switch (mTransparencyMode) {
@@ -405,7 +398,7 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
               case eTransparencyBorderlessGlass:
               default:
                 // If we're not doing translucency, then double buffer
-                doubleBuffering = BasicLayerManager::BUFFER_BUFFERED;
+                doubleBuffering = mozilla::layers::BUFFER_BUFFERED;
                 break;
               case eTransparencyTransparent:
                 // If we're rendering with translucency, we're going to be
@@ -416,14 +409,14 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
                 break;
             }
 #else
-            doubleBuffering = BasicLayerManager::BUFFER_BUFFERED;
+            doubleBuffering = mozilla::layers::BUFFER_BUFFERED;
 #endif
           }
 
           {
             AutoLayerManagerSetup
                 setupLayerManager(this, thebesContext, doubleBuffering);
-            result = DispatchWindowEvent(&event, eventStatus);
+            result = listener->PaintWindow(this, region, true, true);
           }
 
 #ifdef MOZ_XUL
@@ -535,21 +528,21 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
           }
         }
         break;
-      case LayerManager::LAYERS_OPENGL:
+      case LAYERS_OPENGL:
         static_cast<mozilla::layers::LayerManagerOGL*>(GetLayerManager())->
-          SetClippingRegion(event.region);
-        result = DispatchWindowEvent(&event, eventStatus);
+          SetClippingRegion(region);
+        result = listener->PaintWindow(this, region, true, true);
         break;
 #ifdef MOZ_ENABLE_D3D9_LAYER
-      case LayerManager::LAYERS_D3D9:
+      case LAYERS_D3D9:
         {
           LayerManagerD3D9 *layerManagerD3D9 =
             static_cast<mozilla::layers::LayerManagerD3D9*>(GetLayerManager());
-          layerManagerD3D9->SetClippingRegion(event.region);
-          result = DispatchWindowEvent(&event, eventStatus);
+          layerManagerD3D9->SetClippingRegion(region);
+          result = listener->PaintWindow(this, region, true, true);
           if (layerManagerD3D9->DeviceWasRemoved()) {
             mLayerManager->Destroy();
-            mLayerManager = nsnull;
+            mLayerManager = nullptr;
             // When our device was removed, we should have gfxWindowsPlatform
             // check if its render mode is up to date!
             gfxWindowsPlatform::GetPlatform()->UpdateRenderMode();
@@ -559,14 +552,14 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
         break;
 #endif
 #ifdef MOZ_ENABLE_D3D10_LAYER
-      case LayerManager::LAYERS_D3D10:
+      case LAYERS_D3D10:
         {
           gfxWindowsPlatform::GetPlatform()->UpdateRenderMode();
           LayerManagerD3D10 *layerManagerD3D10 = static_cast<mozilla::layers::LayerManagerD3D10*>(GetLayerManager());
           if (layerManagerD3D10->device() != gfxWindowsPlatform::GetPlatform()->GetD3D10Device()) {
             Invalidate();
           } else {
-            result = DispatchWindowEvent(&event, eventStatus);
+            result = listener->PaintWindow(this, region, true, true);
           }
         }
         break;
@@ -581,7 +574,7 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
     ::EndPaint(mWnd, &ps);
   }
 
-  mPaintDC = nsnull;
+  mPaintDC = nullptr;
   mLastPaintEndTime = TimeStamp::Now();
 
 #if defined(WIDGET_DEBUG_OUTPUT)
@@ -590,7 +583,7 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
     // Only flash paint events which have not ignored the paint message.
     // Those that ignore the paint message aren't painting anything so there
     // is only the overhead of the dispatching the paint event.
-    if (nsEventStatus_eIgnore != eventStatus) {
+    if (result) {
       ::InvertRgn(debugPaintFlashDC, debugPaintFlashRegion);
       PR_Sleep(PR_MillisecondsToInterval(30));
       ::InvertRgn(debugPaintFlashDC, debugPaintFlashRegion);
@@ -603,8 +596,8 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
 
   mPainting = false;
 
-  nsPaintEvent didPaintEvent(true, NS_DID_PAINT, this);
-  DispatchWindowEvent(&didPaintEvent);
+  if (listener)
+    listener->DidPaintWindow();
 
   if (aNestingLevel == 0 && ::GetUpdateRect(mWnd, NULL, false)) {
     OnPaint(aDC, 1);
@@ -614,8 +607,8 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
 }
 
 gfxIntSize nsWindowGfx::GetIconMetrics(IconSizeType aSizeType) {
-  PRInt32 width = ::GetSystemMetrics(sIconMetrics[aSizeType].xMetric);
-  PRInt32 height = ::GetSystemMetrics(sIconMetrics[aSizeType].yMetric);
+  int32_t width = ::GetSystemMetrics(sIconMetrics[aSizeType].xMetric);
+  int32_t height = ::GetSystemMetrics(sIconMetrics[aSizeType].yMetric);
 
   if (width == 0 || height == 0) {
     width = height = sIconMetrics[aSizeType].defaultSize;
@@ -626,8 +619,8 @@ gfxIntSize nsWindowGfx::GetIconMetrics(IconSizeType aSizeType) {
 
 nsresult nsWindowGfx::CreateIcon(imgIContainer *aContainer,
                                   bool aIsCursor,
-                                  PRUint32 aHotspotX,
-                                  PRUint32 aHotspotY,
+                                  uint32_t aHotspotX,
+                                  uint32_t aHotspotY,
                                   gfxIntSize aScaledSize,
                                   HICON *aIcon) {
 
@@ -639,12 +632,12 @@ nsresult nsWindowGfx::CreateIcon(imgIContainer *aContainer,
   if (!frame)
     return NS_ERROR_NOT_AVAILABLE;
 
-  PRInt32 width = frame->Width();
-  PRInt32 height = frame->Height();
+  int32_t width = frame->Width();
+  int32_t height = frame->Height();
   if (!width || !height)
     return NS_ERROR_FAILURE;
 
-  PRUint8 *data;
+  uint8_t *data;
   if ((aScaledSize.width == 0 && aScaledSize.height == 0) ||
       (aScaledSize.width == width && aScaledSize.height == height)) {
     // We're not scaling the image. The data is simply what's in the frame.
@@ -677,7 +670,7 @@ nsresult nsWindowGfx::CreateIcon(imgIContainer *aContainer,
   }
 
   HBITMAP bmp = DataToBitmap(data, width, -height, 32);
-  PRUint8* a1data = Data32BitTo1Bit(data, width, height);
+  uint8_t* a1data = Data32BitTo1Bit(data, width, height);
   if (!a1data) {
     return NS_ERROR_FAILURE;
   }
@@ -702,23 +695,23 @@ nsresult nsWindowGfx::CreateIcon(imgIContainer *aContainer,
 }
 
 // Adjust cursor image data
-PRUint8* nsWindowGfx::Data32BitTo1Bit(PRUint8* aImageData,
-                                      PRUint32 aWidth, PRUint32 aHeight)
+uint8_t* nsWindowGfx::Data32BitTo1Bit(uint8_t* aImageData,
+                                      uint32_t aWidth, uint32_t aHeight)
 {
   // We need (aWidth + 7) / 8 bytes plus zero-padding up to a multiple of
   // 4 bytes for each row (HBITMAP requirement). Bug 353553.
-  PRUint32 outBpr = ((aWidth + 31) / 8) & ~3;
+  uint32_t outBpr = ((aWidth + 31) / 8) & ~3;
 
   // Allocate and clear mask buffer
-  PRUint8* outData = (PRUint8*)PR_Calloc(outBpr, aHeight);
+  uint8_t* outData = (uint8_t*)PR_Calloc(outBpr, aHeight);
   if (!outData)
     return NULL;
 
-  PRInt32 *imageRow = (PRInt32*)aImageData;
-  for (PRUint32 curRow = 0; curRow < aHeight; curRow++) {
-    PRUint8 *outRow = outData + curRow * outBpr;
-    PRUint8 mask = 0x80;
-    for (PRUint32 curCol = 0; curCol < aWidth; curCol++) {
+  int32_t *imageRow = (int32_t*)aImageData;
+  for (uint32_t curRow = 0; curRow < aHeight; curRow++) {
+    uint8_t *outRow = outData + curRow * outBpr;
+    uint8_t mask = 0x80;
+    for (uint32_t curCol = 0; curCol < aWidth; curCol++) {
       // Use sign bit to test for transparency, as alpha byte is highest byte
       if (*imageRow++ < 0)
         *outRow |= mask;
@@ -748,10 +741,10 @@ PRUint8* nsWindowGfx::Data32BitTo1Bit(PRUint8* aImageData,
  *         DeleteObject when done with the bitmap.
  *         On failure, NULL will be returned.
  */
-HBITMAP nsWindowGfx::DataToBitmap(PRUint8* aImageData,
-                                  PRUint32 aWidth,
-                                  PRUint32 aHeight,
-                                  PRUint32 aDepth)
+HBITMAP nsWindowGfx::DataToBitmap(uint8_t* aImageData,
+                                  uint32_t aWidth,
+                                  uint32_t aHeight,
+                                  uint32_t aDepth)
 {
   HDC dc = ::GetDC(NULL);
 

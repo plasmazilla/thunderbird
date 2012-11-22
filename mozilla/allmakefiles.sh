@@ -25,12 +25,12 @@ fi
 
 # Common makefiles used by everyone
 add_makefiles "
+mozilla-config.h
 Makefile
 build/Makefile
 build/pgo/Makefile
 build/pgo/blueprint/Makefile
 build/pgo/js-input/Makefile
-build/virtualenv/Makefile
 config/Makefile
 config/autoconf.mk
 config/nspr/Makefile
@@ -122,10 +122,10 @@ fi
 
 if [ "$ENABLE_TESTS" ]; then
   add_makefiles "
-    build/autoconf/test/Makefile
     config/makefiles/test/Makefile
     config/tests/makefiles/autodeps/Makefile
     config/tests/src-simple/Makefile
+    mfbt/tests/Makefile
   "
   if [ ! "$LIBXUL_SDK" ]; then 
     add_makefiles "

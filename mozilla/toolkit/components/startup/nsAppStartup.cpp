@@ -91,6 +91,10 @@ static NS_DEFINE_CID(kAppShellCID, NS_APPSHELL_CID);
 #define NS_SESSION_STORE_WINDOW_RESTORED_EVENT_CID \
   { 0x917B96B1, 0xECAD, 0x4DAB, \
   { 0xA7, 0x60, 0x8D, 0x49, 0x02, 0x77, 0x48, 0xAE} }
+// {26D1E091-0AE7-4F49-A554-4214445C505C}
+#define NS_XPCOM_SHUTDOWN_EVENT_CID \
+  { 0x26D1E091, 0x0AE7, 0x4F49, \
+  { 0xA5, 0x54, 0x42, 0x14, 0x44, 0x5C, 0x50, 0x5C} }
 
 static NS_DEFINE_CID(kApplicationTracingCID,
   NS_APPLICATION_TRACING_CID);
@@ -98,6 +102,8 @@ static NS_DEFINE_CID(kPlacesInitCompleteCID,
   NS_PLACES_INIT_COMPLETE_EVENT_CID);
 static NS_DEFINE_CID(kSessionStoreWindowRestoredCID,
   NS_SESSION_STORE_WINDOW_RESTORED_EVENT_CID);
+static NS_DEFINE_CID(kXPCOMShutdownCID,
+  NS_XPCOM_SHUTDOWN_EVENT_CID);  
 #endif //defined(XP_WIN)
 
 using namespace mozilla;
@@ -134,7 +140,9 @@ nsAppStartup::nsAppStartup() :
   mRestart(false),
   mInterrupted(false),
   mIsSafeModeNecessary(false),
-  mStartupCrashTrackingEnded(false)
+  mStartupCrashTrackingEnded(false),
+  mCachedShutdownTime(false),
+  mLastShutdownTime(0)
 { }
 
 
@@ -164,6 +172,7 @@ nsAppStartup::Init()
   os->AddObserver(this, "xul-window-destroyed", true);
 
 #if defined(XP_WIN)
+  os->AddObserver(this, "xpcom-shutdown", true);
   os->AddObserver(this, "places-init-complete", true);
   // This last event is only interesting to us for xperf-based measures
 
@@ -189,6 +198,13 @@ nsAppStartup::Init()
                NS_LITERAL_CSTRING("sessionstore-windows-restored"));
     NS_WARN_IF_FALSE(mSessionWindowRestoredProbe,
                      "Cannot initialize probe 'sessionstore-windows-restored'");
+                     
+    mXPCOMShutdownProbe =
+      mProbesManager->
+      GetProbe(kXPCOMShutdownCID,
+               NS_LITERAL_CSTRING("xpcom-shutdown"));
+    NS_WARN_IF_FALSE(mXPCOMShutdownProbe,
+                     "Cannot initialize probe 'xpcom-shutdown'");
 
     rv = mProbesManager->StartSession();
     NS_WARN_IF_FALSE(NS_SUCCEEDED(rv),
@@ -263,7 +279,33 @@ nsAppStartup::Run(void)
 }
 
 static TimeStamp gRecordedShutdownStartTime;
+static bool gAlreadyFreedShutdownTimeFileName = false;
 static char *gRecordedShutdownTimeFileName = NULL;
+
+static char *
+GetShutdownTimeFileName()
+{
+  if (gAlreadyFreedShutdownTimeFileName) {
+    return NULL;
+  }
+
+  if (!gRecordedShutdownTimeFileName) {
+    nsCOMPtr<nsIFile> mozFile;
+    NS_GetSpecialDirectory(NS_APP_USER_PROFILE_50_DIR, getter_AddRefs(mozFile));
+    if (!mozFile)
+      return NULL;
+
+    mozFile->AppendNative(NS_LITERAL_CSTRING("Telemetry.ShutdownTime.txt"));
+    nsCAutoString nativePath;
+    nsresult rv = mozFile->GetNativePath(nativePath);
+    if (!NS_SUCCEEDED(rv))
+      return NULL;
+
+    gRecordedShutdownTimeFileName = PL_strdup(nativePath.get());
+  }
+
+  return gRecordedShutdownTimeFileName;
+}
 
 static void
 RecordShutdownStartTimeStamp() {
@@ -272,29 +314,19 @@ RecordShutdownStartTimeStamp() {
 
   gRecordedShutdownStartTime = TimeStamp::Now();
 
-  nsCOMPtr<nsIFile> mozFile;
-  NS_GetSpecialDirectory(NS_APP_PREFS_50_DIR, getter_AddRefs(mozFile));
-  if (!mozFile)
-    return;
-
-  mozFile->AppendNative(NS_LITERAL_CSTRING("Telemetry.ShutdownTime.txt"));
-  nsCAutoString nativePath;
-  nsresult rv = mozFile->GetNativePath(nativePath);
-  if (!NS_SUCCEEDED(rv))
-    return;
-
-  gRecordedShutdownTimeFileName = PL_strdup(nativePath.get());
+  GetShutdownTimeFileName();
 }
 
 namespace mozilla {
 void
 RecordShutdownEndTimeStamp() {
-  if (!gRecordedShutdownTimeFileName)
+  if (!gRecordedShutdownTimeFileName || gAlreadyFreedShutdownTimeFileName)
     return;
 
   nsCString name(gRecordedShutdownTimeFileName);
   PL_strfree(gRecordedShutdownTimeFileName);
   gRecordedShutdownTimeFileName = NULL;
+  gAlreadyFreedShutdownTimeFileName = true;
 
   nsCString tmpName = name;
   tmpName += ".tmp";
@@ -313,12 +345,13 @@ RecordShutdownEndTimeStamp() {
   TimeDuration diff = now - gRecordedShutdownStartTime;
   uint32_t diff2 = diff.ToMilliseconds();
   int written = fprintf(f, "%d\n", diff2);
+  MozillaUnRegisterDebugFILE(f);
   int rv = fclose(f);
-  MozillaUnRegisterDebugFD(fd);
   if (written < 0 || rv != 0) {
     PR_Delete(tmpName.get());
     return;
   }
+  PR_Delete(name.get());
   PR_Rename(tmpName.get(), name.get());
 }
 }
@@ -374,7 +407,7 @@ nsAppStartup::Quit(uint32_t aMode)
     nsCOMPtr<nsISimpleEnumerator> windowEnumerator;
     nsCOMPtr<nsIWindowMediator> mediator (do_GetService(NS_WINDOWMEDIATOR_CONTRACTID));
     if (mediator) {
-      mediator->GetEnumerator(nsnull, getter_AddRefs(windowEnumerator));
+      mediator->GetEnumerator(nullptr, getter_AddRefs(windowEnumerator));
       if (windowEnumerator) {
         bool more;
         while (windowEnumerator->HasMoreElements(&more), more) {
@@ -409,7 +442,7 @@ nsAppStartup::Quit(uint32_t aMode)
       ExitLastWindowClosingSurvivalArea();
 #endif
       if (obsService)
-        obsService->NotifyObservers(nsnull, "quit-application-granted", nsnull);
+        obsService->NotifyObservers(nullptr, "quit-application-granted", nullptr);
     }
 
     /* Enumerate through each open window and close it. It's important to do
@@ -428,7 +461,7 @@ nsAppStartup::Quit(uint32_t aMode)
            method hasn't had a chance to wrap itself up yet. So give up.
            We'll return (with eConsiderQuit) as the remaining windows are
            closed. */
-        mediator->GetEnumerator(nsnull, getter_AddRefs(windowEnumerator));
+        mediator->GetEnumerator(nullptr, getter_AddRefs(windowEnumerator));
         if (windowEnumerator) {
           bool more;
           while (windowEnumerator->HasMoreElements(&more), more) {
@@ -460,7 +493,7 @@ nsAppStartup::Quit(uint32_t aMode)
     if (obsService) {
       NS_NAMED_LITERAL_STRING(shutdownStr, "shutdown");
       NS_NAMED_LITERAL_STRING(restartStr, "restart");
-      obsService->NotifyObservers(nsnull, "quit-application",
+      obsService->NotifyObservers(nullptr, "quit-application",
         mRestart ? restartStr.get() : shutdownStr.get());
     }
 
@@ -498,7 +531,7 @@ nsAppStartup::CloseAllWindows()
 
   nsCOMPtr<nsISimpleEnumerator> windowEnumerator;
 
-  mediator->GetEnumerator(nsnull, getter_AddRefs(windowEnumerator));
+  mediator->GetEnumerator(nullptr, getter_AddRefs(windowEnumerator));
 
   if (!windowEnumerator)
     return;
@@ -533,6 +566,47 @@ nsAppStartup::ExitLastWindowClosingSurvivalArea(void)
   if (mRunning)
     Quit(eConsiderQuit);
 
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsAppStartup::GetLastShutdownDuration(uint32_t *aResult)
+{
+  // We make this check so that GetShutdownTimeFileName() doesn't get
+  // called; calling that function without telemetry enabled violates
+  // assumptions that the write-the-shutdown-timestamp machinery makes.
+  if (!Telemetry::CanRecord()) {
+    *aResult = 0;
+    return NS_OK;
+  }
+
+  if (!mCachedShutdownTime) {
+    const char *filename = GetShutdownTimeFileName();
+
+    if (!filename) {
+      *aResult = 0;
+      return NS_OK;
+    }
+
+    FILE *f = fopen(filename, "r");
+    if (!f) {
+      *aResult = 0;
+      return NS_OK;
+    }
+
+    int shutdownTime;
+    int r = fscanf(f, "%d\n", &shutdownTime);
+    fclose(f);
+    if (r != 1) {
+      *aResult = 0;
+      return NS_OK;
+    }
+
+    mLastShutdownTime = shutdownTime;
+    mCachedShutdownTime = true;
+  }
+
+  *aResult = mLastShutdownTime;
   return NS_OK;
 }
 
@@ -666,6 +740,10 @@ nsAppStartup::Observe(nsISupports *aSubject,
   } else if (!strcmp(aTopic, "places-init-complete")) {
     if (mPlacesInitCompleteProbe) {
       mPlacesInitCompleteProbe->Trigger();
+    }
+  } else if (!strcmp(aTopic, "xpcom-shutdown")) {
+    if (mXPCOMShutdownProbe) {
+      mXPCOMShutdownProbe->Trigger();
     }
 #endif //defined(XP_WIN)
   } else {
@@ -879,7 +957,7 @@ nsAppStartup::TrackStartupCrashBegin(bool *aIsSafeModeNecessary)
 
   xr->GetInSafeMode(&inSafeMode);
 
-  PRInt64 replacedLockTime;
+  PRTime replacedLockTime;
   rv = xr->GetReplacedLockTime(&replacedLockTime);
 
   if (NS_FAILED(rv) || !replacedLockTime) {
@@ -950,7 +1028,7 @@ nsAppStartup::TrackStartupCrashBegin(bool *aIsSafeModeNecessary)
   mIsSafeModeNecessary = (recentCrashes > maxResumedCrashes && maxResumedCrashes != -1);
 
   nsCOMPtr<nsIPrefService> prefs = Preferences::GetService();
-  rv = prefs->SavePrefFile(nsnull); // flush prefs to disk since we are tracking crashes
+  rv = prefs->SavePrefFile(nullptr); // flush prefs to disk since we are tracking crashes
   NS_ENSURE_SUCCESS(rv, rv);
 
   GetAutomaticSafeModeNecessary(aIsSafeModeNecessary);
@@ -1003,7 +1081,7 @@ nsAppStartup::TrackStartupCrashEnd()
     if (NS_FAILED(rv)) NS_WARNING("Could not clear startup crash count.");
   }
   nsCOMPtr<nsIPrefService> prefs = Preferences::GetService();
-  rv = prefs->SavePrefFile(nsnull); // flush prefs to disk since we are tracking crashes
+  rv = prefs->SavePrefFile(nullptr); // flush prefs to disk since we are tracking crashes
 
   return rv;
 }

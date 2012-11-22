@@ -10,7 +10,7 @@
 #include "nsGenericHTMLElement.h"
 #include "nsObjectLoadingContent.h"
 #include "nsGkAtoms.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsIDocument.h"
 #include "nsIDOMDocument.h"
 #include "nsIDOMSVGDocument.h"
@@ -49,21 +49,21 @@ public:
 
   // nsIDOMHTMLElement
   NS_FORWARD_NSIDOMHTMLELEMENT_BASIC(nsGenericHTMLFormElement::)
-  NS_SCRIPTABLE NS_IMETHOD Click() {
+  NS_IMETHOD Click() {
     return nsGenericHTMLFormElement::Click();
   }
-  NS_SCRIPTABLE NS_IMETHOD GetTabIndex(PRInt32* aTabIndex);
-  NS_SCRIPTABLE NS_IMETHOD SetTabIndex(PRInt32 aTabIndex);
-  NS_SCRIPTABLE NS_IMETHOD Focus() {
+  NS_IMETHOD GetTabIndex(int32_t* aTabIndex);
+  NS_IMETHOD SetTabIndex(int32_t aTabIndex);
+  NS_IMETHOD Focus() {
     return nsGenericHTMLFormElement::Focus();
   }
-  NS_SCRIPTABLE NS_IMETHOD GetDraggable(bool* aDraggable) {
+  NS_IMETHOD GetDraggable(bool* aDraggable) {
     return nsGenericHTMLFormElement::GetDraggable(aDraggable);
   }
-  NS_SCRIPTABLE NS_IMETHOD GetInnerHTML(nsAString& aInnerHTML) {
+  NS_IMETHOD GetInnerHTML(nsAString& aInnerHTML) {
     return nsGenericHTMLFormElement::GetInnerHTML(aInnerHTML);
   }
-  NS_SCRIPTABLE NS_IMETHOD SetInnerHTML(const nsAString& aInnerHTML) {
+  NS_IMETHOD SetInnerHTML(const nsAString& aInnerHTML) {
     return nsGenericHTMLFormElement::SetInnerHTML(aInnerHTML);
   }
 
@@ -78,17 +78,17 @@ public:
                               bool aCompileEventHandlers);
   virtual void UnbindFromTree(bool aDeep = true,
                               bool aNullParent = true);
-  virtual nsresult SetAttr(PRInt32 aNameSpaceID, nsIAtom *aName,
+  virtual nsresult SetAttr(int32_t aNameSpaceID, nsIAtom *aName,
                            nsIAtom *aPrefix, const nsAString &aValue,
                            bool aNotify);
-  virtual nsresult UnsetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
+  virtual nsresult UnsetAttr(int32_t aNameSpaceID, nsIAtom* aAttribute,
                              bool aNotify);
 
-  virtual bool IsHTMLFocusable(bool aWithMouse, bool *aIsFocusable, PRInt32 *aTabIndex);
+  virtual bool IsHTMLFocusable(bool aWithMouse, bool *aIsFocusable, int32_t *aTabIndex);
   virtual IMEState GetDesiredIMEState();
 
   // Overriden nsIFormControl methods
-  NS_IMETHOD_(PRUint32) GetType() const
+  NS_IMETHOD_(uint32_t) GetType() const
   {
     return NS_FORM_OBJECT;
   }
@@ -101,7 +101,7 @@ public:
   virtual void DoneAddingChildren(bool aHaveNotified);
   virtual bool IsDoneAddingChildren();
 
-  virtual bool ParseAttribute(PRInt32 aNamespaceID,
+  virtual bool ParseAttribute(int32_t aNamespaceID,
                                 nsIAtom *aAttribute,
                                 const nsAString &aValue,
                                 nsAttrValue &aResult);
@@ -111,7 +111,7 @@ public:
   virtual void DestroyContent();
 
   // nsObjectLoadingContent
-  virtual PRUint32 GetCapabilities() const;
+  virtual uint32_t GetCapabilities() const;
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
@@ -206,6 +206,7 @@ NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(nsHTMLObjectElement)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIFrameLoaderOwner)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIObjectLoadingContent)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIImageLoadingContent)
+    NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, imgIOnloadBlocker)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, imgIContainerObserver)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIInterfaceRequestor)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIChannelEventSink)
@@ -268,7 +269,6 @@ void
 nsHTMLObjectElement::UnbindFromTree(bool aDeep,
                                     bool aNullParent)
 {
-  RemovedFromDocument();
   nsObjectLoadingContent::UnbindFromTree(aDeep, aNullParent);
   nsGenericHTMLFormElement::UnbindFromTree(aDeep, aNullParent);
 }
@@ -276,14 +276,16 @@ nsHTMLObjectElement::UnbindFromTree(bool aDeep,
 
 
 nsresult
-nsHTMLObjectElement::SetAttr(PRInt32 aNameSpaceID, nsIAtom *aName,
+nsHTMLObjectElement::SetAttr(int32_t aNameSpaceID, nsIAtom *aName,
                              nsIAtom *aPrefix, const nsAString &aValue,
                              bool aNotify)
 {
-  // If we plan to call LoadObject, we want to do it first so that the
-  // object load kicks off _before_ the reflow triggered by the SetAttr.  But if
-  // aNotify is false, we are coming from the parser or some such place; we'll
-  // get bound after all the attributes have been set, so we'll do the
+  nsresult rv = nsGenericHTMLFormElement::SetAttr(aNameSpaceID, aName, aPrefix,
+                                                  aValue, aNotify);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // if aNotify is false, we are coming from the parser or some such place;
+  // we'll get bound after all the attributes have been set, so we'll do the
   // object load from BindToTree/DoneAddingChildren.
   // Skip the LoadObject call in that case.
   // We also don't want to start loading the object when we're not yet in
@@ -291,24 +293,27 @@ nsHTMLObjectElement::SetAttr(PRInt32 aNameSpaceID, nsIAtom *aName,
   // attributes before inserting the node into the document.
   if (aNotify && IsInDoc() && mIsDoneAddingChildren &&
       aNameSpaceID == kNameSpaceID_None && aName == nsGkAtoms::data) {
-    nsAutoString type;
-    GetAttr(kNameSpaceID_None, nsGkAtoms::type, type);
-    LoadObject(aValue, aNotify, NS_ConvertUTF16toUTF8(type), true);
+    return LoadObject(aNotify, true);
   }
 
-  return nsGenericHTMLFormElement::SetAttr(aNameSpaceID, aName, aPrefix,
-                                           aValue, aNotify);
+  return NS_OK;
 }
 
 nsresult
-nsHTMLObjectElement::UnsetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
+nsHTMLObjectElement::UnsetAttr(int32_t aNameSpaceID, nsIAtom* aAttribute,
                                bool aNotify)
 {
-  if (aNameSpaceID == kNameSpaceID_None && aAttribute == nsGkAtoms::data) {
-    Fallback(aNotify);
+  nsresult rv = nsGenericHTMLFormElement::UnsetAttr(aNameSpaceID,
+                                                    aAttribute, aNotify);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // See comment in SetAttr
+  if (aNotify && IsInDoc() && mIsDoneAddingChildren &&
+      aNameSpaceID == kNameSpaceID_None && aAttribute == nsGkAtoms::data) {
+    return LoadObject(aNotify, true);
   }
 
-  return nsGenericHTMLFormElement::UnsetAttr(aNameSpaceID, aAttribute, aNotify);
+  return NS_OK;
 }
 
 bool
@@ -325,7 +330,7 @@ nsHTMLObjectElement::IsFocusableForTabIndex()
 
 bool
 nsHTMLObjectElement::IsHTMLFocusable(bool aWithMouse,
-                                     bool *aIsFocusable, PRInt32 *aTabIndex)
+                                     bool *aIsFocusable, int32_t *aTabIndex)
 {
   // TODO: this should probably be managed directly by IsHTMLFocusable.
   // See bug 597242.
@@ -439,7 +444,7 @@ nsHTMLObjectElement::GetContentDocument(nsIDOMDocument **aContentDocument)
 {
   NS_ENSURE_ARG_POINTER(aContentDocument);
 
-  *aContentDocument = nsnull;
+  *aContentDocument = nullptr;
 
   if (!IsInDoc()) {
     return NS_OK;
@@ -461,7 +466,7 @@ nsHTMLObjectElement::GetSVGDocument(nsIDOMDocument **aResult)
 }
 
 bool
-nsHTMLObjectElement::ParseAttribute(PRInt32 aNamespaceID,
+nsHTMLObjectElement::ParseAttribute(int32_t aNamespaceID,
                                     nsIAtom *aAttribute,
                                     const nsAString &aValue,
                                     nsAttrValue &aResult)
@@ -513,20 +518,13 @@ nsHTMLObjectElement::GetAttributeMappingFunction() const
 void
 nsHTMLObjectElement::StartObjectLoad(bool aNotify)
 {
-  nsAutoString type;
-  GetAttr(kNameSpaceID_None, nsGkAtoms::type, type);
-  NS_ConvertUTF16toUTF8 ctype(type);
+  // BindToTree can call us asynchronously, and we may be removed from the tree
+  // in the interim
+  if (!IsInDoc() || !OwnerDoc()->IsActive()) {
+    return;
+  }
 
-  nsAutoString uri;
-  if (GetAttr(kNameSpaceID_None, nsGkAtoms::data, uri)) {
-    LoadObject(uri, aNotify, ctype);
-  }
-  else {
-    // Be sure to call the nsIURI version if we have no attribute
-    // That handles the case where no URI is specified. An empty string would
-    // get interpreted as the page itself, instead of absence of URI.
-    LoadObject(nsnull, aNotify, ctype);
-  }
+  LoadObject(aNotify);
   SetIsNetworkCreated(false);
 }
 
@@ -536,7 +534,7 @@ nsHTMLObjectElement::IntrinsicState() const
   return nsGenericHTMLFormElement::IntrinsicState() | ObjectState();
 }
 
-PRUint32
+uint32_t
 nsHTMLObjectElement::GetCapabilities() const
 {
   return nsObjectLoadingContent::GetCapabilities() | eSupportClassID;
@@ -545,7 +543,7 @@ nsHTMLObjectElement::GetCapabilities() const
 void
 nsHTMLObjectElement::DestroyContent()
 {
-  RemovedFromDocument();
+  nsObjectLoadingContent::DestroyContent();
   nsGenericHTMLFormElement::DestroyContent();
 }
 

@@ -10,6 +10,7 @@
 #if defined(XP_UNIX)
 #include "unistd.h"
 #include "dirent.h"
+#include "sys/stat.h"
 #endif // defined(XP_UNIX)
 
 #if defined(XP_MACOSX)
@@ -32,6 +33,9 @@
 #include "nsXPCOMCIDInternal.h"
 #include "nsServiceManagerUtils.h"
 #include "nsString.h"
+#include "nsAutoPtr.h"
+#include "nsDirectoryServiceDefs.h"
+#include "nsAppDirectoryServiceDefs.h"
 
 #include "OSFileConstants.h"
 #include "nsIOSFileConstantsService.h"
@@ -52,10 +56,42 @@ namespace {
  */
 bool gInitialized = false;
 
+typedef struct {
+  /**
+   * The name of the directory holding all the libraries (libxpcom, libnss, etc.)
+   */
+  nsString libDir;
+  nsString tmpDir;
+  nsString profileDir;
+} Paths;
+
 /**
- * The name of the directory holding all the libraries (libxpcom, libnss, etc.)
+ * System directories.
  */
-nsString* gLibDirectory;
+Paths* gPaths = NULL;
+
+}
+
+/**
+ * Return the path to one of the special directories.
+ *
+ * @param aKey The key to the special directory (e.g. "TmpD", "ProfD", ...)
+ * @param aOutPath The path to the special directory. In case of error,
+ * the string is set to void.
+ */
+nsresult GetPathToSpecialDir(const char *aKey, nsString& aOutPath)
+{
+  nsCOMPtr<nsIFile> file;
+  nsresult rv = NS_GetSpecialDirectory(aKey, getter_AddRefs(file));
+  if (NS_FAILED(rv) || !file) {
+    return rv;
+  }
+
+  rv = file->GetPath(aOutPath);
+  if (NS_FAILED(rv)) {
+    aOutPath.SetIsVoid(true);
+  }
+  return rv;
 }
 
 /**
@@ -71,23 +107,39 @@ nsresult InitOSFileConstants()
 
   gInitialized = true;
 
-  // Initialize gLibDirectory
-  nsCOMPtr<nsIFile> xpcomLib;
-  nsresult rv = NS_GetSpecialDirectory("XpcomLib", getter_AddRefs(xpcomLib));
-  if (NS_FAILED(rv) || !xpcomLib) {
-    return rv;
-  }
+  nsAutoPtr<Paths> paths(new Paths);
 
-  nsCOMPtr<nsIFile> libDir;
-  rv = xpcomLib->GetParent(getter_AddRefs(libDir));
+  // Initialize paths->libDir
+  nsCOMPtr<nsIFile> file;
+  nsresult rv = NS_GetSpecialDirectory("XpcomLib", getter_AddRefs(file));
   if (NS_FAILED(rv)) {
     return rv;
   }
 
-  gLibDirectory = new nsString();
-  return libDir->GetPath(*gLibDirectory);
+  nsCOMPtr<nsIFile> libDir;
+  rv = file->GetParent(getter_AddRefs(libDir));
+  if (NS_FAILED(rv)) {
+    return rv;
+  }
+
+  rv = libDir->GetPath(paths->libDir);
+  if (NS_FAILED(rv)) {
+    return rv;
+  }
+
+  // For other directories, ignore errors (they may be undefined on
+  // some platforms or in non-Firefox embeddings of Gecko).
+
+  GetPathToSpecialDir(NS_OS_TEMP_DIR, paths->tmpDir);
+  GetPathToSpecialDir(NS_APP_USER_PROFILE_50_DIR, paths->profileDir);
+
+  gPaths = paths.forget();
+  return NS_OK;
 }
 
+/**
+ * Perform the cleaning up that can only be executed on the main thread.
+ */
 void CleanupOSFileConstants()
 {
   MOZ_ASSERT(NS_IsMainThread());
@@ -96,7 +148,7 @@ void CleanupOSFileConstants()
   }
 
   gInitialized = false;
-  delete gLibDirectory;
+  delete gPaths;
 }
 
 
@@ -226,6 +278,7 @@ static dom::ConstantSpec gLibcProperties[] =
   INT_CONSTANT(COPYFILE_XATTR),
   INT_CONSTANT(COPYFILE_STAT),
   INT_CONSTANT(COPYFILE_ACL),
+  INT_CONSTANT(COPYFILE_MOVE),
 #endif // defined(COPYFILE_DATA)
 
   // error values
@@ -277,6 +330,18 @@ static dom::ConstantSpec gLibcProperties[] =
   INT_CONSTANT(DT_SOCK),
 #endif // defined(DT_UNKNOWN)
 
+#if defined(S_IFIFO)
+  // Constants for |stat|
+  INT_CONSTANT(S_IFMT),
+  INT_CONSTANT(S_IFIFO),
+  INT_CONSTANT(S_IFCHR),
+  INT_CONSTANT(S_IFDIR),
+  INT_CONSTANT(S_IFBLK),
+  INT_CONSTANT(S_IFREG),
+  INT_CONSTANT(S_IFLNK),
+  INT_CONSTANT(S_IFSOCK),
+#endif // defined(S_IFIFO)
+
   // Constants used to define data structures
   //
   // Many data structures have different fields/sizes/etc. on
@@ -288,6 +353,15 @@ static dom::ConstantSpec gLibcProperties[] =
 #if defined(XP_UNIX)
   // The size of |mode_t|.
   { "OSFILE_SIZEOF_MODE_T", INT_TO_JSVAL(sizeof (mode_t)) },
+
+  // The size of |gid_t|.
+  { "OSFILE_SIZEOF_GID_T", INT_TO_JSVAL(sizeof (gid_t)) },
+
+  // The size of |uid_t|.
+  { "OSFILE_SIZEOF_UID_T", INT_TO_JSVAL(sizeof (uid_t)) },
+
+  // The size of |time_t|.
+  { "OSFILE_SIZEOF_TIME_T", INT_TO_JSVAL(sizeof (time_t)) },
 
   // Defining |dirent|.
   // Size
@@ -306,7 +380,28 @@ static dom::ConstantSpec gLibcProperties[] =
   { "OSFILE_OFFSETOF_DIRENT_D_TYPE", INT_TO_JSVAL(offsetof (struct dirent, d_type)) },
 #endif // defined(DT_UNKNOWN)
 
+
+  // Defining |stat|
+
+  { "OSFILE_SIZEOF_STAT", INT_TO_JSVAL(sizeof (struct stat)) },
+
+  { "OSFILE_OFFSETOF_STAT_ST_MODE", INT_TO_JSVAL(offsetof (struct stat, st_mode)) },
+  { "OSFILE_OFFSETOF_STAT_ST_UID", INT_TO_JSVAL(offsetof (struct stat, st_uid)) },
+  { "OSFILE_OFFSETOF_STAT_ST_GID", INT_TO_JSVAL(offsetof (struct stat, st_gid)) },
+  { "OSFILE_OFFSETOF_STAT_ST_SIZE", INT_TO_JSVAL(offsetof (struct stat, st_size)) },
+
+#if defined(HAVE_ST_ATIMESPEC)
+  { "OSFILE_OFFSETOF_STAT_ST_ATIME", INT_TO_JSVAL(offsetof (struct stat, st_atimespec)) },
+  { "OSFILE_OFFSETOF_STAT_ST_MTIME", INT_TO_JSVAL(offsetof (struct stat, st_mtimespec)) },
+  { "OSFILE_OFFSETOF_STAT_ST_CTIME", INT_TO_JSVAL(offsetof (struct stat, st_ctimespec)) },
+#else
+  { "OSFILE_OFFSETOF_STAT_ST_ATIME", INT_TO_JSVAL(offsetof (struct stat, st_atime)) },
+  { "OSFILE_OFFSETOF_STAT_ST_MTIME", INT_TO_JSVAL(offsetof (struct stat, st_mtime)) },
+  { "OSFILE_OFFSETOF_STAT_ST_CTIME", INT_TO_JSVAL(offsetof (struct stat, st_ctime)) },
+#endif // defined(HAVE_ST_ATIME)
+
 #endif // defined(XP_UNIX)
+
 
 
   // System configuration
@@ -318,8 +413,13 @@ static dom::ConstantSpec gLibcProperties[] =
   // whenever macro _DARWIN_FEATURE_64_BIT_INODE is set. We export
   // this value to be able to do so from JavaScript.
 #if defined(_DARWIN_FEATURE_64_BIT_INODE)
-  { "_DARWIN_FEATURE_64_BIT_INODE", INT_TO_JSVAL(1) },
-#endif // defind(_DARWIN_FEATURE_64_BIT_INODE)
+   { "_DARWIN_FEATURE_64_BIT_INODE", INT_TO_JSVAL(1) },
+#endif // defined(_DARWIN_FEATURE_64_BIT_INODE)
+
+  // Similar feature for Linux
+#if defined(_STAT_VER)
+  INT_CONSTANT(_STAT_VER),
+#endif // defined(_STAT_VER)
 
   PROP_END
 };
@@ -368,6 +468,7 @@ static dom::ConstantSpec gWinProperties[] =
   INT_CONSTANT(FILE_ATTRIBUTE_READONLY),
   INT_CONSTANT(FILE_ATTRIBUTE_REPARSE_POINT),
   INT_CONSTANT(FILE_ATTRIBUTE_TEMPORARY),
+  INT_CONSTANT(FILE_FLAG_BACKUP_SEMANTICS),
 
   // CreateFile error constant
   { "INVALID_HANDLE_VALUE", INT_TO_JSVAL(INT_PTR(INVALID_HANDLE_VALUE)) },
@@ -394,7 +495,9 @@ static dom::ConstantSpec gWinProperties[] =
 
   // Errors
   INT_CONSTANT(ERROR_ACCESS_DENIED),
+  INT_CONSTANT(ERROR_DIR_NOT_EMPTY),
   INT_CONSTANT(ERROR_FILE_EXISTS),
+  INT_CONSTANT(ERROR_ALREADY_EXISTS),
   INT_CONSTANT(ERROR_FILE_NOT_FOUND),
   INT_CONSTANT(ERROR_NO_MORE_FILES),
 
@@ -429,6 +532,22 @@ JSObject *GetOrCreateObjectProperty(JSContext *cx, JSObject *aObject,
 }
 
 /**
+ * Set a property of an object from a nsString.
+ *
+ * If the nsString is void (i.e. IsVoid is true), do nothing.
+ */
+bool SetStringProperty(JSContext *cx, JSObject *aObject, const char *aProperty,
+                       const nsString aValue)
+{
+  if (aValue.IsVoid()) {
+    return true;
+  }
+  JSString* strValue = JS_NewUCStringCopyZ(cx, aValue.get());
+  jsval valValue = STRING_TO_JSVAL(strValue);
+  return JS_SetProperty(cx, aObject, aProperty, &valValue);
+}
+
+/**
  * Define OS-specific constants.
  *
  * This function creates or uses JS object |OS.Constants| to store
@@ -437,6 +556,16 @@ JSObject *GetOrCreateObjectProperty(JSContext *cx, JSObject *aObject,
 bool DefineOSFileConstants(JSContext *cx, JSObject *global)
 {
   MOZ_ASSERT(gInitialized);
+
+  if (gPaths == NULL) {
+    // If an initialization error was ignored, we may end up with
+    // |gInitialized == true| but |gPaths == NULL|. We cannot
+    // |MOZ_ASSERT| this, as this would kill precompile_cache.js,
+    // so we simply return an error.
+    JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL,
+      JSMSG_CANT_OPEN, "OSFileConstants", "initialization has failed");
+    return false;
+  }
 
   JSObject *objOS;
   if (!(objOS = GetOrCreateObjectProperty(cx, global, "OS"))) {
@@ -500,10 +629,9 @@ bool DefineOSFileConstants(JSContext *cx, JSObject *global)
     return false;
   }
 
-
   // Locate libxul
   {
-    nsAutoString xulPath(*gLibDirectory);
+    nsAutoString xulPath(gPaths->libDir);
 
     xulPath.Append(PR_GetDirectorySeparator());
 
@@ -518,11 +646,21 @@ bool DefineOSFileConstants(JSContext *cx, JSObject *global)
     xulPath.Append(NS_LITERAL_STRING(DLL_SUFFIX));
 #endif // defined(XP_MACOSX)
 
-    JSString* strPathToLibXUL = JS_NewUCStringCopyZ(cx, xulPath.get());
-    jsval valXul = STRING_TO_JSVAL(strPathToLibXUL);
-    if (!JS_SetProperty(cx, objPath, "libxul", &valXul)) {
+    if (!SetStringProperty(cx, objPath, "libxul", xulPath)) {
       return false;
     }
+  }
+
+  if (!SetStringProperty(cx, objPath, "libDir", gPaths->libDir)) {
+    return false;
+  }
+
+  if (!SetStringProperty(cx, objPath, "tmpDir", gPaths->tmpDir)) {
+    return false;
+  }
+
+  if (!SetStringProperty(cx, objPath, "profileDir", gPaths->profileDir)) {
+    return false;
   }
 
   return true;

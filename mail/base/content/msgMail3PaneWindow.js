@@ -330,12 +330,12 @@ function AutoConfigWizard(okCallback)
 function OnLoadMessenger()
 {
   migrateMailnews();
-
+  // Rig up our TabsInTitlebar early so that we can catch any resize events.
+  TabsInTitlebar.init();
   // update the pane config before we exit onload otherwise the user may see a flicker if we poke the document
   // in delayedOnLoadMessenger...
   UpdateMailPaneConfig(false);
   document.loadBindingDocument('chrome://global/content/bindings/textbox.xml');
-
   // Set a sane starting width/height for all resolutions on new profiles.
   // Do this before the window loads.
   if (!document.documentElement.hasAttribute("width"))
@@ -600,6 +600,8 @@ function OnUnloadMessenger()
   gPrefBranch.removeObserver("mail.showCondensedAddresses", MailPrefObserver);
 
   sessionStoreManager.unloadingWindow(window);
+
+  TabsInTitlebar.uninit();
 
   let tabmail = document.getElementById("tabmail");
   tabmail._teardown();
@@ -1588,4 +1590,108 @@ function InitPageMenu(menuPopup, event) {
 
   if (menuPopup.children.length == 0)
     event.preventDefault();
+}
+
+let TabsInTitlebar = {
+  init: function () {
+#ifdef CAN_DRAW_IN_TITLEBAR
+    // Don't trust the initial value of the sizemode attribute; wait for the resize event.
+    this._readPref();
+    Services.prefs.addObserver(this._prefName, this, false);
+
+    this.allowedBy("sizemode", false);
+    window.addEventListener("resize", function (event) {
+      if (event.target != window)
+        return;
+      TabsInTitlebar.allowedBy("sizemode", true);
+    }, false);
+
+    this._initialized = true;
+#endif
+  },
+
+  allowedBy: function (condition, allow) {
+#ifdef CAN_DRAW_IN_TITLEBAR
+    if (allow) {
+      if (condition in this._disallowed) {
+        delete this._disallowed[condition];
+        this._update();
+      }
+    } else {
+      if (!(condition in this._disallowed)) {
+        this._disallowed[condition] = null;
+        this._update();
+      }
+    }
+#endif
+  },
+
+  _initialized: false,
+  _disallowed: {},
+  _prefName: 'mail.tabs.drawInTitlebar',
+
+  get enabled() {
+    return document.documentElement.getAttribute('tabsintitlebar') == 'true';
+  },
+
+  _readPref: function() {
+    this.allowedBy('pref', Services.prefs.getBoolPref(this._prefName));
+  },
+
+  observe: function(aSubject, aTopic, aData) {
+    if (aTopic == 'nsPref:changed')
+      this._readPref();
+  },
+
+  _update: function() {
+#ifdef CAN_DRAW_IN_TITLEBAR
+    if (!this._initialized || window.fullScreen)
+      return;
+
+    let allowed = Object.keys(this._disallowed).length == 0;
+    if (allowed == this.enabled)
+      return;
+
+    function $(id) document.getElementById(id);
+    let titlebar = $("titlebar");
+
+    if (allowed) {
+      document.documentElement.setAttribute('tabsintitlebar', 'true');
+      document.documentElement.setAttribute('chromemargin', '0,2,2,2');
+      function rect(ele) ele.getBoundingClientRect();
+
+      let captionButtonsBox = $("titlebar-buttonbox");
+      this._sizePlaceholder("caption-buttons", rect(captionButtonsBox).width);
+
+      let titlebarRect = rect(titlebar);
+      titlebar.style.marginBottom = - (titlebarRect.height - 16) + "px";
+    } else {
+      document.documentElement.removeAttribute('tabsintitlebar');
+      document.documentElement.removeAttribute('chromemargin');
+      titlebar.style.marginBottom = "";
+    }
+#endif
+  },
+
+  _sizePlaceholder: function (type, width) {
+#ifdef CAN_DRAW_IN_TITLEBAR
+    Array.forEach(document.querySelectorAll(".titlebar-placeholder[type='"+ type +"']"),
+                  function (node) { node.width = width; });
+#endif
+  },
+
+  uninit: function () {
+#ifdef CAN_DRAW_IN_TITLEBAR
+    this._initialized = false;
+    Services.prefs.removeObserver(this._prefName, this);
+#endif
+  }
+};
+
+/* Draw */
+function onTitlebarMaxClick() {
+  if (window.windowState == window.STATE_MAXIMIZED)
+    window.restore();
+  else
+    window.maximize();
 }

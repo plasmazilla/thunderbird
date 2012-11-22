@@ -98,7 +98,7 @@ nsGNOMEShellService::Init()
 
   // Check G_BROKEN_FILENAMES.  If it's set, then filenames in glib use
   // the locale encoding.  If it's not set, they use UTF-8.
-  mUseLocaleFilenames = PR_GetEnv("G_BROKEN_FILENAMES") != nsnull;
+  mUseLocaleFilenames = PR_GetEnv("G_BROKEN_FILENAMES") != nullptr;
 
   if (GetAppPathFromLauncher())
     return NS_OK;
@@ -391,7 +391,7 @@ WriteImage(const nsCString& aPath, imgIContainer* aImage)
                  
 NS_IMETHODIMP
 nsGNOMEShellService::SetDesktopBackground(nsIDOMElement* aElement, 
-                                          PRInt32 aPosition)
+                                          int32_t aPosition)
 {
   nsresult rv;
   nsCOMPtr<nsIImageLoadingContent> imageContent = do_QueryInterface(aElement, &rv);
@@ -495,7 +495,7 @@ nsGNOMEShellService::SetDesktopBackground(nsIDOMElement* aElement,
 #define COLOR_8_TO_16_BIT(_c) ((_c) << 8 | (_c))
 
 NS_IMETHODIMP
-nsGNOMEShellService::GetDesktopBackgroundColor(PRUint32 *aColor)
+nsGNOMEShellService::GetDesktopBackgroundColor(uint32_t *aColor)
 {
   nsCOMPtr<nsIGSettingsService> gsettings = 
     do_GetService(NS_GSETTINGSSERVICE_CONTRACTID);
@@ -534,22 +534,22 @@ nsGNOMEShellService::GetDesktopBackgroundColor(PRUint32 *aColor)
 }
 
 static void
-ColorToCString(PRUint32 aColor, nsCString& aResult)
+ColorToCString(uint32_t aColor, nsCString& aResult)
 {
   // The #rrrrggggbbbb format is used to match gdk_color_to_string()
   char *buf = aResult.BeginWriting(13);
   if (!buf)
     return;
 
-  PRUint16 red = COLOR_8_TO_16_BIT((aColor >> 16) & 0xff);
-  PRUint16 green = COLOR_8_TO_16_BIT((aColor >> 8) & 0xff);
-  PRUint16 blue = COLOR_8_TO_16_BIT(aColor & 0xff);
+  uint16_t red = COLOR_8_TO_16_BIT((aColor >> 16) & 0xff);
+  uint16_t green = COLOR_8_TO_16_BIT((aColor >> 8) & 0xff);
+  uint16_t blue = COLOR_8_TO_16_BIT(aColor & 0xff);
 
   PR_snprintf(buf, 14, "#%04x%04x%04x", red, green, blue);
 }
 
 NS_IMETHODIMP
-nsGNOMEShellService::SetDesktopBackgroundColor(PRUint32 aColor)
+nsGNOMEShellService::SetDesktopBackgroundColor(uint32_t aColor)
 {
   NS_ASSERTION(aColor <= 0xffffff, "aColor has extra bits");
   nsCAutoString colorString;
@@ -578,7 +578,7 @@ nsGNOMEShellService::SetDesktopBackgroundColor(PRUint32 aColor)
 }
 
 NS_IMETHODIMP
-nsGNOMEShellService::OpenApplication(PRInt32 aApplication)
+nsGNOMEShellService::OpenApplication(int32_t aApplication)
 {
   nsCAutoString scheme;
   if (aApplication == APPLICATION_MAIL)
@@ -630,7 +630,7 @@ nsGNOMEShellService::OpenApplication(PRInt32 aApplication)
       newArgv[newArgc++] = argv[i];
   }
 
-  newArgv[newArgc] = nsnull;
+  newArgv[newArgc] = nullptr;
 
   gboolean err = g_spawn_async(NULL, newArgv, NULL, G_SPAWN_SEARCH_PATH,
                                NULL, NULL, NULL, NULL);

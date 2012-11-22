@@ -124,7 +124,7 @@ PlacesTreeView.prototype = {
   _getRowForNode:
   function PTV__getRowForNode(aNode, aForceBuild, aParentRow, aNodeIndex) {
     if (aNode == this._rootNode)
-      throw "The root node is never visible";
+      throw new Error("The root node is never visible");
 
     // A node is removed form the view either if it has no parent or if its
     // root-ancestor is not the root node (in which case that's the node

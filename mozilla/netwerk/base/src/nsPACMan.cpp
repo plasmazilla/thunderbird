@@ -58,7 +58,7 @@ public:
     PR_INIT_CLIST(this);
   }
 
-  nsresult Start(PRUint32 flags);
+  nsresult Start(uint32_t flags);
   void     Complete(nsresult status, const nsCString &pacString);
 
 private:
@@ -72,7 +72,7 @@ private:
 NS_IMPL_THREADSAFE_ISUPPORTS1(PendingPACQuery, nsIDNSListener)
 
 nsresult
-PendingPACQuery::Start(PRUint32 flags)
+PendingPACQuery::Start(uint32_t flags)
 {
   if (mDNSRequest)
     return NS_OK;  // already started
@@ -105,11 +105,11 @@ PendingPACQuery::Complete(nsresult status, const nsCString &pacString)
     return;
 
   mCallback->OnQueryComplete(status, pacString);
-  mCallback = nsnull;
+  mCallback = nullptr;
 
   if (mDNSRequest) {
     mDNSRequest->Cancel(NS_ERROR_ABORT);
-    mDNSRequest = nsnull;
+    mDNSRequest = nullptr;
   }
 }
 
@@ -121,7 +121,7 @@ PendingPACQuery::OnLookupComplete(nsICancelable *request,
   // NOTE: we don't care about the results of this DNS query.  We issued
   //       this DNS query just to pre-populate our DNS cache.
  
-  mDNSRequest = nsnull;  // break reference cycle
+  mDNSRequest = nullptr;  // break reference cycle
 
   // If we've already completed this query then do nothing.
   if (!mCallback)
@@ -151,8 +151,8 @@ nsPACMan::nsPACMan()
 
 nsPACMan::~nsPACMan()
 {
-  NS_ASSERTION(mLoader == nsnull, "pac man not shutdown properly");
-  NS_ASSERTION(mPAC == nsnull, "pac man not shutdown properly");
+  NS_ASSERTION(mLoader == nullptr, "pac man not shutdown properly");
+  NS_ASSERTION(mPAC == nullptr, "pac man not shutdown properly");
   NS_ASSERTION(PR_CLIST_IS_EMPTY(&mPendingQ), "pac man not shutdown properly");
 }
 
@@ -162,7 +162,7 @@ nsPACMan::Shutdown()
   CancelExistingLoad();
   ProcessPendingQ(NS_ERROR_ABORT);
 
-  mPAC = nsnull;
+  mPAC = nullptr;
   mShutdown = true;
 }
 
@@ -259,7 +259,7 @@ nsPACMan::LoadPACFromURI(nsIURI *pacURI)
     mLoadFailureCount = 0;  // reset
   }
   mScheduledReload = LL_MAXINT;
-  mPAC = nsnull;
+  mPAC = nullptr;
   return NS_OK;
 }
 
@@ -286,7 +286,7 @@ nsPACMan::StartLoading()
       if (channel) {
         channel->SetLoadFlags(nsIRequest::LOAD_BYPASS_CACHE);
         channel->SetNotificationCallbacks(this);
-        if (NS_SUCCEEDED(channel->AsyncOpen(mLoader, nsnull)))
+        if (NS_SUCCEEDED(channel->AsyncOpen(mLoader, nullptr)))
           return;
       }
     }
@@ -303,14 +303,14 @@ nsPACMan::MaybeReloadPAC()
     return;
 
   if (PR_Now() > mScheduledReload)
-    LoadPACFromURI(nsnull);
+    LoadPACFromURI(nullptr);
 }
 
 void
 nsPACMan::OnLoadFailure()
 {
-  PRInt32 minInterval = 5;    // 5 seconds
-  PRInt32 maxInterval = 300;  // 5 minutes
+  int32_t minInterval = 5;    // 5 seconds
+  int32_t maxInterval = 300;  // 5 minutes
 
   nsCOMPtr<nsIPrefBranch> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
   if (prefs) {
@@ -320,7 +320,7 @@ nsPACMan::OnLoadFailure()
                       &maxInterval);
   }
 
-  PRInt32 interval = minInterval << mLoadFailureCount++;  // seconds
+  int32_t interval = minInterval << mLoadFailureCount++;  // seconds
   if (!interval || interval > maxInterval)
     interval = maxInterval;
 
@@ -328,7 +328,7 @@ nsPACMan::OnLoadFailure()
   printf("PAC load failure: will retry in %d seconds\n", interval);
 #endif
 
-  mScheduledReload = PR_Now() + PRInt64(interval) * PR_USEC_PER_SEC;
+  mScheduledReload = PR_Now() + int64_t(interval) * PR_USEC_PER_SEC;
 }
 
 void
@@ -339,7 +339,7 @@ nsPACMan::CancelExistingLoad()
     mLoader->GetRequest(getter_AddRefs(request));
     if (request)
       request->Cancel(NS_ERROR_ABORT);
-    mLoader = nsnull;
+    mLoader = nullptr;
   }
 }
 
@@ -375,8 +375,8 @@ NS_IMETHODIMP
 nsPACMan::OnStreamComplete(nsIStreamLoader *loader,
                            nsISupports *context,
                            nsresult status,
-                           PRUint32 dataLen,
-                           const PRUint8 *data)
+                           uint32_t dataLen,
+                           const uint8_t *data)
 {
   if (mLoader != loader) {
     // If this happens, then it means that LoadPACFromURI was called more
@@ -387,7 +387,7 @@ nsPACMan::OnStreamComplete(nsIStreamLoader *loader,
       return NS_OK;
   }
 
-  mLoader = nsnull;
+  mLoader = nullptr;
 
   if (NS_SUCCEEDED(status) && HttpRequestSucceeded(loader)) {
     // Get the URI spec used to load this PAC script.
@@ -428,7 +428,7 @@ nsPACMan::OnStreamComplete(nsIStreamLoader *loader,
 
   // Reset mPAC if necessary
   if (mPAC && NS_FAILED(status))
-    mPAC = nsnull;
+    mPAC = nullptr;
 
   ProcessPendingQ(status);
   return NS_OK;
@@ -441,7 +441,7 @@ nsPACMan::GetInterface(const nsIID &iid, void **result)
   if (iid.Equals(NS_GET_IID(nsIAuthPrompt))) {
     nsCOMPtr<nsIPromptFactory> promptFac = do_GetService("@mozilla.org/prompter;1");
     NS_ENSURE_TRUE(promptFac, NS_ERROR_FAILURE);
-    return promptFac->GetPrompt(nsnull, iid, reinterpret_cast<void**>(result));
+    return promptFac->GetPrompt(nullptr, iid, reinterpret_cast<void**>(result));
   }
 
   // In case loading the PAC file results in a redirect.
@@ -456,7 +456,7 @@ nsPACMan::GetInterface(const nsIID &iid, void **result)
 
 NS_IMETHODIMP
 nsPACMan::AsyncOnChannelRedirect(nsIChannel *oldChannel, nsIChannel *newChannel,
-                                 PRUint32 flags,
+                                 uint32_t flags,
                                  nsIAsyncVerifyRedirectCallback *callback)
 {
   nsresult rv = NS_OK;

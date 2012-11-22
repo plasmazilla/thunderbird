@@ -100,9 +100,9 @@
         <parameter name="aFlags" />
         <body>
           <![CDATA[
-            var errorPage = aRequest && !Components.isSuccessCode(aRequest.status);
+            const nsIWebProgressListener = Components.interfaces.nsIWebProgressListener;
             if (aWebProgress.DOMWindow == this.activeBrowser.contentWindow &&
-                (aWebProgress.isLoadingDocument || errorPage)) {
+                !(aFlags & nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT)) {
               this.missingPlugins = {};
               this.crashNotified = false;
               this.clickToPlayPromptShown = false;
@@ -555,30 +555,38 @@
         <body>
           <![CDATA[
             // XXX just doing (callback)(arg) was giving a same-origin error. bug?
+
+            /* We use event bubbling for the event listeners so that inside a
+               click-to-play plugin we don't activate the plugin when the user
+               clicks on a link in the click-to-play UI (e.g. to check for
+               plugin updates)
+             */
             let callbackArgs = Array.slice(arguments, 2);
             linkNode.addEventListener("click",
                                       function(aEvent) {
                                         if (!aEvent.isTrusted)
                                           return;
                                         aEvent.preventDefault();
+                                        aEvent.stopPropagation();
                                         if (callbackArgs.length == 0)
                                           callbackArgs = [ aEvent ];
                                         callback.apply(this, callbackArgs);
                                       }.bind(this),
-                                      true);
+                                      false);
 
             linkNode.addEventListener("keydown",
                                       function(aEvent) {
                                         if (!aEvent.isTrusted)
                                           return;
-                                        if (aEvent.keyCode == aEvent.DOM_VK_RETURN)
+                                        if (aEvent.keyCode != aEvent.DOM_VK_RETURN)
                                           return;
                                         aEvent.preventDefault();
+                                        aEvent.stopPropagation();
                                         if (callbackArgs.length == 0)
                                           callbackArgs = [ aEvent ];
                                         callback.apply(this, callbackArgs);
                                       }.bind(this),
-                                      true);
+                                      false);
           ]]>
         </body>
       </method>
@@ -1018,10 +1026,16 @@
               label: this._stringBundle.GetStringFromName("activatepluginsMessage.activate.label"),
               accessKey: this._stringBundle.GetStringFromName("activatepluginsMessage.activate.accesskey"),
               callback: (function () {
+                // bug 796039/797043: setting the plugin permission to "ALLOW"
+                // causes the "activated" property on an nsIObjectLoadingContent
+                // to return true for plugins that have not actually been
+                // activated. Thus, activate all applicable plugins before
+                // setting the permission.
+                this.activatePlugins();
+
                 if (checkbox.checked)
                   pm.add(this.activeBrowser.currentURI, "plugins",
                          nsIPermissionManager.ALLOW_ACTION);
-                this.activatePlugins();
               }).bind(this)
             }, {
               label: this._stringBundle.GetStringFromName("activatepluginsMessage.dismiss.label"),
@@ -1040,6 +1054,42 @@
             // Force a style flush, so that we ensure the binding is attached.
             box.clientTop;
             box.appendChild(checkbox);
+          ]]>
+        </body>
+      </method>
+
+      <method name="setupPluginClickToPlay">
+        <parameter name="pluginElement"/>
+        <body>
+          <![CDATA[
+            if (this.clickToPlayPluginsActivated) {
+              let objLoadingContent = pluginElement.QueryInterface(Components.interfaces.nsIObjectLoadingContent);
+              objLoadingContent.playPlugin();
+              return;
+            }
+
+            // Force a style flush, so that we ensure our binding is attached.
+            pluginElement.clientTop;
+            var doc = pluginElement.ownerDocument;
+            var overlay = doc.getAnonymousElementByAttribute(pluginElement, "class", "mainBox");
+
+            const nsIPermissionManager = Components.interfaces.nsIPermissionManager;
+            var pm = Components.classes["@mozilla.org/permissionmanager;1"]
+                               .getService(nsIPermissionManager);
+            var pluginPermission = pm.testPermission(this.activeBrowser.currentURI, "plugins");
+            if (pluginPermission == nsIPermissionManager.DENY_ACTION) {
+              overlay.style.visibility = "hidden";
+              return;
+            }
+
+            this.addLinkClickCallback(overlay, this.activateSinglePlugin, pluginElement);
+
+            if (!this.clickToPlayPromptShown)
+              this.showPluginClickToPlayPrompt();
+
+            let overlay = doc.getAnonymousElementByAttribute(pluginElement, "class", "mainBox");
+            if (this.isTooSmall(pluginElement, overlay))
+              overlay.style.visibility = "hidden";
           ]]>
         </body>
       </method>
@@ -1518,6 +1568,18 @@
     </implementation>
 
     <handlers>
+      <handler event="DOMContentLoaded" phase="capturing">
+        <![CDATA[
+          if (/^about:neterror\?e=netOffline/.test(event.target.documentURI))
+            event.target.addEventListener("click", function tryAgain(event) {
+              if (event.target.id == "errorTryAgain")
+                Components.classes["@mozilla.org/network/io-service;1"]
+                          .getService(Components.interfaces.nsIIOService)
+                          .offline = false;
+            }, true);
+        ]]>
+      </handler>
+
       <handler event="DOMUpdatePageReport" phase="capturing">
         <![CDATA[
           var browser = this.activeBrowser;
@@ -1818,6 +1880,24 @@
         ]]>
       </handler>
 
+      <handler event="PluginVulnerableNoUpdate" phase="capturing">
+        <![CDATA[
+          this.setupPluginClickToPlay(event.target);
+        ]]>
+      </handler>
+
+      <handler event="PluginVulnerableUpdatable" phase="capturing">
+        <![CDATA[
+          var plugin = event.target;
+          var doc = plugin.ownerDocument;
+
+          var updateLink = doc.getAnonymousElementByAttribute(plugin, "class", "checkForUpdatesLink");
+          this.addLinkClickCallback(updateLink, this.openURLPref, "plugins.update.url");
+
+          this.setupPluginClickToPlay(plugin);
+        ]]>
+      </handler>
+
       <handler event="PluginDisabled" phase="capturing">
         <![CDATA[
           var plugin = event.target;
@@ -1836,32 +1916,7 @@
 
       <handler event="PluginClickToPlay" phase="capturing">
         <![CDATA[
-          var plugin = event.target;
-
-          if (this.clickToPlayPluginsActivated) {
-            let objLoadingContent = plugin.QueryInterface(Components.interfaces.nsIObjectLoadingContent);
-            objLoadingContent.playPlugin();
-            return;
-          }
-
-          // Force a style flush, so that we ensure our binding is attached.
-          plugin.clientTop;
-          var doc = plugin.ownerDocument;
-          var overlay = doc.getAnonymousElementByAttribute(plugin, "class", "mainBox");
-
-          const nsIPermissionManager = Components.interfaces.nsIPermissionManager;
-          var pm = Components.classes["@mozilla.org/permissionmanager;1"]
-                             .getService(nsIPermissionManager);
-          var pluginPermission = pm.testPermission(this.activeBrowser.currentURI, "plugins");
-          if (pluginPermission == nsIPermissionManager.DENY_ACTION) {
-            overlay.style.visibility = "hidden";
-            return;
-          }
-
-          this.addLinkClickCallback(overlay, this.activateSinglePlugin, plugin);
-
-          if (!this.clickToPlayPromptShown)
-            this.showPluginClickToPlayPrompt();
+          this.setupPluginClickToPlay(event.target);
         ]]>
       </handler>
 
@@ -2033,9 +2088,14 @@
               label: this._stringBundle.GetStringFromName("activatepluginsMessage.always.label"),
               accessKey: this._stringBundle.GetStringFromName("activatepluginsMessage.always.accesskey"),
               callback: (function () {
+                // bug 796039/797043: setting the plugin permission to "ALLOW"
+                // causes the "activated" property on an nsIObjectLoadingContent
+                // to return true for plugins that have not actually been
+                // activated. Thus, activate all applicable plugins before
+                // setting the permission.
+                this.activatePlugins();
                 pm.add(this.activeBrowser.currentURI, "plugins",
                        nsIPermissionManager.ALLOW_ACTION);
-                this.activatePlugins();
               }).bind(this)
             }, {
               label: this._stringBundle.GetStringFromName("activatepluginsMessage.never.label"),

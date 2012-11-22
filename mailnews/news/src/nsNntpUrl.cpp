@@ -29,11 +29,11 @@
 
 nsNntpUrl::nsNntpUrl()
 {
-  m_newsgroupPost = nsnull;
+  m_newsgroupPost = nullptr;
   m_newsAction = nsINntpUrl::ActionUnknown;
   m_addDummyEnvelope = false;
   m_canonicalLineEnding = false;
-  m_filePath = nsnull;
+  m_filePath = nullptr;
   m_getOldMessages = false;
   m_key = nsMsgKey_None;
 }
@@ -78,10 +78,10 @@ NS_IMETHODIMP nsNntpUrl::SetSpec(const nsACString &aSpec)
   // For [s]news: URIs, we need to munge the spec if it is no authority, because
   // the URI parser guesses the wrong thing otherwise
   nsCString parseSpec(aSpec);
-  PRInt32 colon = parseSpec.Find(":");
+  int32_t colon = parseSpec.Find(":");
 
   // Our smallest scheme is 4 characters long, so colon must be at least 4
-  if (colon < 4 || colon + 1 == (PRInt32) parseSpec.Length())
+  if (colon < 4 || colon + 1 == (int32_t) parseSpec.Length())
     return NS_ERROR_MALFORMED_URI;
 
   if (Substring(parseSpec, colon - 4, 4).EqualsLiteral("news") &&
@@ -140,8 +140,8 @@ nsresult nsNntpUrl::ParseNewsURL()
     // Set group, key for ?group=foo&key=123 uris
     nsCAutoString spec;
     GetSpec(spec);
-    PRInt32 groupPos = spec.Find(kNewsURIGroupQuery); // find ?group=
-    PRInt32 keyPos   = spec.Find(kNewsURIKeyQuery);   // find &key=
+    int32_t groupPos = spec.Find(kNewsURIGroupQuery); // find ?group=
+    int32_t keyPos   = spec.Find(kNewsURIKeyQuery);   // find &key=
     if (groupPos != kNotFound && keyPos != kNotFound)
     {
       // get group name and message key
@@ -170,7 +170,7 @@ nsresult nsNntpUrl::ParseNntpURL()
   if (path.IsEmpty())
     return NS_ERROR_MALFORMED_URI;
 
-  PRInt32 slash = path.FindChar('/');
+  int32_t slash = path.FindChar('/');
   if (slash == -1)
   {
     m_group = path;
@@ -294,7 +294,7 @@ NS_IMETHODIMP nsNntpUrl::GetMessageID(nsACString &messageID)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsNntpUrl::GetKey(PRUint32 *key)
+NS_IMETHODIMP nsNntpUrl::GetKey(uint32_t *key)
 {
   NS_ENSURE_ARG_POINTER(key);
   *key = m_key;
@@ -387,7 +387,7 @@ NS_IMETHODIMP nsNntpUrl::GetMessageHeader(nsIMsgDBHdr ** aMsgHdr)
   return msgService->MessageURIToMsgHdr(spec.get(), aMsgHdr);
 }
 
-NS_IMETHODIMP nsNntpUrl::IsUrlType(PRUint32 type, bool *isType)
+NS_IMETHODIMP nsNntpUrl::IsUrlType(uint32_t type, bool *isType)
 {
   NS_ENSURE_ARG(isType);
 
@@ -435,7 +435,7 @@ nsNntpUrl::GetServer(nsIMsgIncomingServer **aServer)
   // No authority -> no server
   if (host.IsEmpty())
   {
-    *aServer = nsnull;
+    *aServer = nullptr;
     return NS_OK;
   }
 
@@ -456,7 +456,7 @@ nsNntpUrl::GetServer(nsIMsgIncomingServer **aServer)
   // Ignoring return results: it is perfectly acceptable for the server to not
   // exist, but FindServer (and not FindRealServer) throws NS_ERROR_UNEXPECTED
   // in this case.
-  *aServer = nsnull;
+  *aServer = nullptr;
   if (tryReal)
     accountManager->FindRealServer(user, host, NS_LITERAL_CSTRING("nntp"), 0,
       aServer);
@@ -488,7 +488,7 @@ NS_IMETHODIMP nsNntpUrl::GetFolder(nsIMsgFolder **msgFolder)
   // Need a server and a group to get the folder
   if (!server || m_group.IsEmpty())
   {
-    *msgFolder = nsnull;
+    *msgFolder = nullptr;
     return NS_OK;
   }
 
@@ -502,7 +502,7 @@ NS_IMETHODIMP nsNntpUrl::GetFolder(nsIMsgFolder **msgFolder)
 
   if (!hasGroup)
   {
-    *msgFolder = nsnull;
+    *msgFolder = nullptr;
     return NS_OK;
   }
 
@@ -544,7 +544,7 @@ NS_IMETHODIMP nsNntpUrl::GetCharsetOverRide(char ** aCharacterSet)
   if (!mCharsetOverride.IsEmpty())
     *aCharacterSet = ToNewCString(mCharsetOverride);
   else
-    *aCharacterSet = nsnull;
+    *aCharacterSet = nullptr;
   return NS_OK;
 }
 

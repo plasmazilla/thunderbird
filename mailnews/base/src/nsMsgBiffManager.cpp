@@ -26,7 +26,7 @@
 
 static NS_DEFINE_CID(kStatusBarBiffManagerCID, NS_STATUSBARBIFFMANAGER_CID);
 
-static PRLogModuleInfo *MsgBiffLogModule = nsnull;
+static PRLogModuleInfo *MsgBiffLogModule = nullptr;
 
 NS_IMPL_ISUPPORTS4(nsMsgBiffManager, nsIMsgBiffManager,
                    nsIIncomingServerListener, nsIObserver,
@@ -103,7 +103,7 @@ NS_IMETHODIMP nsMsgBiffManager::Shutdown()
   if (mBiffTimer) 
   {
     mBiffTimer->Cancel();
-    mBiffTimer = nsnull;
+    mBiffTimer = nullptr;
   }
 
   nsresult rv;
@@ -122,7 +122,7 @@ NS_IMETHODIMP nsMsgBiffManager::Observe(nsISupports *aSubject, const char *aTopi
   if (!strcmp(aTopic, "sleep_notification") && mBiffTimer)
   {
     mBiffTimer->Cancel();
-    mBiffTimer = nsnull;
+    mBiffTimer = nullptr;
   }
   else if (!strcmp(aTopic, "wake_notification"))
   {
@@ -138,7 +138,7 @@ NS_IMETHODIMP nsMsgBiffManager::AddServerBiff(nsIMsgIncomingServer *server)
 {
   NS_ENSURE_ARG_POINTER(server);
 
-  PRInt32 biffMinutes;
+  int32_t biffMinutes;
 
   nsresult rv = server->GetBiffMinutes(&biffMinutes);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -146,7 +146,7 @@ NS_IMETHODIMP nsMsgBiffManager::AddServerBiff(nsIMsgIncomingServer *server)
   // Don't add if biffMinutes isn't > 0
   if (biffMinutes > 0)
   {
-    PRInt32 serverIndex = FindServer(server);
+    int32_t serverIndex = FindServer(server);
     // Only add it if it hasn't been added already.
     if (serverIndex == -1)
     {
@@ -164,7 +164,7 @@ NS_IMETHODIMP nsMsgBiffManager::AddServerBiff(nsIMsgIncomingServer *server)
 
 NS_IMETHODIMP nsMsgBiffManager::RemoveServerBiff(nsIMsgIncomingServer *server)
 {
-  PRInt32 pos = FindServer(server);
+  int32_t pos = FindServer(server);
   if (pos != -1)
     mBiffArray.RemoveElementAt(pos);
 
@@ -209,10 +209,10 @@ NS_IMETHODIMP nsMsgBiffManager::OnServerChanged(nsIMsgIncomingServer *server)
   return NS_OK;
 }
 
-PRInt32 nsMsgBiffManager::FindServer(nsIMsgIncomingServer *server)
+int32_t nsMsgBiffManager::FindServer(nsIMsgIncomingServer *server)
 {
-  PRUint32 count = mBiffArray.Length();
-  for (PRUint32 i = 0; i < count; i++)
+  uint32_t count = mBiffArray.Length();
+  for (uint32_t i = 0; i < count; i++)
   {
     if (server == mBiffArray[i].server.get())
       return i;
@@ -222,8 +222,8 @@ PRInt32 nsMsgBiffManager::FindServer(nsIMsgIncomingServer *server)
 
 nsresult nsMsgBiffManager::AddBiffEntry(nsBiffEntry &biffEntry)
 {
-  PRUint32 i;
-  PRUint32 count = mBiffArray.Length();
+  uint32_t i;
+  uint32_t count = mBiffArray.Length();
   for (i = 0; i < count; i++)
   {
     if (biffEntry.nextBiffTime < mBiffArray[i].nextBiffTime)
@@ -239,7 +239,7 @@ nsresult nsMsgBiffManager::SetNextBiffTime(nsBiffEntry &biffEntry, PRTime curren
   nsIMsgIncomingServer *server = biffEntry.server;
   NS_ENSURE_TRUE(server, NS_ERROR_FAILURE);
 
-  PRInt32 biffInterval;
+  int32_t biffInterval;
   nsresult rv = server->GetBiffMinutes(&biffInterval);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -259,8 +259,8 @@ nsresult nsMsgBiffManager::SetNextBiffTime(nsBiffEntry &biffEntry, PRTime curren
       // Calculate a jitter of +/-5% on chosenTimeInterval
       // - minimum 1 second (to avoid a modulo with 0)
       // - maximum 30 seconds (to avoid problems when biffInterval is very large)
-      PRInt64 jitter = (PRInt64)(0.05 * (PRInt64)chosenTimeInterval);
-      jitter = NS_MAX<PRInt64>(1000000LL, NS_MIN<PRInt64>(jitter, 30000000LL));
+      int64_t jitter = (int64_t)(0.05 * (int64_t)chosenTimeInterval);
+      jitter = NS_MAX<int64_t>(1000000LL, NS_MIN<int64_t>(jitter, 30000000LL));
       jitter = ((rand() % 2) ? 1 : -1) * (rand() % jitter);
 
       biffEntry.nextBiffTime += jitter;
@@ -277,22 +277,20 @@ nsresult nsMsgBiffManager::SetupNextBiff()
     // Get the next biff entry
     const nsBiffEntry &biffEntry = mBiffArray[0];
     PRTime currentTime = PR_Now();
-    PRInt64 biffDelay;
-    PRInt64 ms(1000);
+    int64_t biffDelay;
+    int64_t ms(1000);
 
     if (currentTime > biffEntry.nextBiffTime)
     {
-      PRInt64 microSecondsPerSecond;
-
-      LL_I2L(microSecondsPerSecond, PR_USEC_PER_SEC);
-      LL_MUL(biffDelay, 30, microSecondsPerSecond); //let's wait 30 seconds before firing biff again
+      // Let's wait 30 seconds before firing biff again
+      biffDelay = 30 * PR_USEC_PER_SEC;
     }
     else
       biffDelay = biffEntry.nextBiffTime - currentTime;
 
     // Convert biffDelay into milliseconds
-    PRInt64 timeInMS = biffDelay / ms;
-    PRUint32 timeInMSUint32 = (PRUint32)timeInMS;
+    int64_t timeInMS = biffDelay / ms;
+    uint32_t timeInMSUint32 = (uint32_t)timeInMS;
 
     // Can't currently reset a timer when it's in the process of
     // calling Notify. So, just release the timer here and create a new one.
@@ -315,8 +313,8 @@ nsresult nsMsgBiffManager::PerformBiff()
   nsCOMArray<nsIMsgFolder> targetFolders;
   PR_LOG(MsgBiffLogModule, PR_LOG_ALWAYS, ("performing biffs\n"));
 
-  PRUint32 count = mBiffArray.Length();
-  for (PRUint32 i = 0; i < count; i++)
+  uint32_t count = mBiffArray.Length();
+  for (uint32_t i = 0; i < count; i++)
   {
     // Take a copy of the entry rather than the a reference so that we can
     // remove and add if necessary, but keep the references and memory alive.
@@ -333,7 +331,7 @@ nsresult nsMsgBiffManager::PerformBiff()
       // find the dest folder we're actually downloading to...
       nsCOMPtr<nsIMsgFolder> rootMsgFolder;
       current.server->GetRootMsgFolder(getter_AddRefs(rootMsgFolder));
-      PRInt32 targetFolderIndex = targetFolders.IndexOfObject(rootMsgFolder);
+      int32_t targetFolderIndex = targetFolders.IndexOfObject(rootMsgFolder);
       if (targetFolderIndex == kNotFound)
         targetFolders.AppendObject(rootMsgFolder);
 
@@ -347,7 +345,7 @@ nsresult nsMsgBiffManager::PerformBiff()
       {
         nsCString serverKey;
         current.server->GetKey(serverKey);
-        nsresult rv = current.server->PerformBiff(nsnull);
+        nsresult rv = current.server->PerformBiff(nullptr);
         PR_LOG(MsgBiffLogModule, PR_LOG_ALWAYS, ("biffing server %s rv = %x\n", serverKey.get(), rv));
       }
       else

@@ -172,7 +172,7 @@ nsContentDLF::CreateInstance(const char* aCommand,
     // text/plain.
     viewSourceChannel->GetOriginalContentType(type);
     bool knownType = false;
-    PRInt32 typeIndex;
+    int32_t typeIndex;
     for (typeIndex = 0; gHTMLTypes[typeIndex] && !knownType; ++typeIndex) {
       if (type.Equals(gHTMLTypes[typeIndex]) &&
           !type.EqualsLiteral(VIEWSOURCE_CONTENT_TYPE)) {
@@ -316,7 +316,7 @@ nsContentDLF::CreateBlankDocument(nsILoadGroup *aLoadGroup,
 {
   NS_TIME_FUNCTION;
 
-  *aDocument = nsnull;
+  *aDocument = nullptr;
 
   nsresult rv = NS_ERROR_FAILURE;
 
@@ -405,7 +405,7 @@ nsContentDLF::CreateDocument(const char* aCommand,
   if (NS_FAILED(rv)) return rv;
 
 #ifdef NOISY_CREATE_DOC
-  if (nsnull != aURL) {
+  if (nullptr != aURL) {
     nsAutoString tmp;
     aURL->ToString(tmp);
     fputs(NS_LossyConvertUTF16toASCII(tmp).get(), stdout);

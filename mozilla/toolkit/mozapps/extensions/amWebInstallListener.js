@@ -1,8 +1,6 @@
-/*
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-*/
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /**
  * This is a default implementation of amIWebInstallListener that should work
@@ -173,6 +171,10 @@ Installer.prototype = {
     args.wrappedJSObject = args;
 
     try {
+      Cc["@mozilla.org/base/telemetry;1"].
+            getService(Ci.nsITelemetry).
+            getHistogramById("SECURITY_UI").
+            add(Ci.nsISecurityUITelemetry.WARNING_CONFIRM_ADDON_INSTALL);
       Services.ww.openWindow(this.window, URI_XPINSTALL_DIALOG,
                              null, "chrome,modal,centerscreen", args);
     } catch (e) {

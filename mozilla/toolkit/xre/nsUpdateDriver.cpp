@@ -176,12 +176,12 @@ GetStatusFileContents(nsIFile *statusFile, char (&buf)[Size])
   // The buffer needs to be large enough to hold the known status codes
   PR_STATIC_ASSERT(Size > 16);
 
-  PRFileDesc *fd = nsnull;
+  PRFileDesc *fd = nullptr;
   nsresult rv = statusFile->OpenNSPRFileDesc(PR_RDONLY, 0660, &fd);
   if (NS_FAILED(rv))
     return false;
 
-  const PRInt32 n = PR_Read(fd, buf, Size);
+  const int32_t n = PR_Read(fd, buf, Size);
   PR_Close(fd);
 
   return (n >= 0);
@@ -241,13 +241,13 @@ GetVersionFile(nsIFile *dir, nsCOMPtr<nsIFile> &result)
 static bool
 IsOlderVersion(nsIFile *versionFile, const char *appVersion)
 {
-  PRFileDesc *fd = nsnull;
+  PRFileDesc *fd = nullptr;
   nsresult rv = versionFile->OpenNSPRFileDesc(PR_RDONLY, 0660, &fd);
   if (NS_FAILED(rv))
     return true;
 
   char buf[32];
-  const PRInt32 n = PR_Read(fd, buf, sizeof(buf));
+  const int32_t n = PR_Read(fd, buf, sizeof(buf));
   PR_Close(fd);
 
   if (n < 0)
@@ -484,7 +484,7 @@ SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsIFile *statusFile,
   nsCAutoString pid("0");
 #else
   nsCAutoString pid;
-  pid.AppendInt((PRInt32) getpid());
+  pid.AppendInt((int32_t) getpid());
 #endif
 
   // Append a special token to the PID in order to let the updater know that it
@@ -695,7 +695,7 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsIFile *statusFile,
 #if defined(USE_EXECV)
     pid.AssignASCII("0");
 #else
-    pid.AppendInt((PRInt32) getpid());
+    pid.AppendInt((int32_t) getpid());
 #endif
   }
 
@@ -771,7 +771,7 @@ WaitForProcess(ProcessType pt)
 #elif defined(XP_MACOSX)
   waitpid(pt, 0, 0);
 #else
-  PRInt32 exitCode;
+  int32_t exitCode;
   PR_WaitProcess(pt, &exitCode);
 #endif
 }
@@ -998,8 +998,8 @@ nsUpdateProcessor::ShutdownWatcherThread()
 {
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
   mProcessWatcher->Shutdown();
-  mProcessWatcher = nsnull;
-  mUpdate = nsnull;
+  mProcessWatcher = nullptr;
+  mUpdate = nullptr;
 }
 
 void

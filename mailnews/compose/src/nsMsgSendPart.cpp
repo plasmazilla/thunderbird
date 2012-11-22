@@ -24,24 +24,24 @@
 
 static char *mime_mailto_stream_read_buffer = 0;
 
-PRInt32 nsMsgSendPart::M_counter = 0;
+int32_t nsMsgSendPart::M_counter = 0;
 
 nsMsgSendPart::nsMsgSendPart(nsIMsgSend* state, const char *part_charset)
 {
   PL_strncpy(m_charset_name, (part_charset ? part_charset : "us-ascii"), sizeof(m_charset_name)-1);
   m_charset_name[sizeof(m_charset_name)-1] = '\0';
-  m_children = nsnull;
+  m_children = nullptr;
   m_numchildren = 0;
   // if we're not added as a child, the default part number will be "1".
   m_partNum = "1";
   SetMimeDeliveryState(state);
 
-  m_parent = nsnull;
-  m_buffer = nsnull;
-  m_type = nsnull;
-  m_other = nsnull;
+  m_parent = nullptr;
+  m_buffer = nullptr;
+  m_type = nullptr;
+  m_other = nullptr;
   m_strip_sensitive_headers = false;
-  m_encoder_data = nsnull;
+  m_encoder_data = nullptr;
   
   m_firstBlock = false;
   m_needIntlConversion = false;
@@ -55,7 +55,7 @@ nsMsgSendPart::~nsMsgSendPart()
 {
   if (m_encoder_data) {
     MIME_EncoderDestroy(m_encoder_data, false);
-    m_encoder_data = nsnull;
+    m_encoder_data = nullptr;
   }
   for (int i=0 ; i < m_numchildren; i++)
     delete m_children[i];
@@ -66,7 +66,7 @@ nsMsgSendPart::~nsMsgSendPart()
   PR_FREEIF(m_type);
 }
 
-int nsMsgSendPart::CopyString(char** dest, const char* src)
+nsresult nsMsgSendPart::CopyString(char** dest, const char* src)
 {
   NS_ASSERTION(src, "src null");
   
@@ -76,7 +76,7 @@ int nsMsgSendPart::CopyString(char** dest, const char* src)
   else
     *dest = PL_strdup(src);
   
-  return *dest? 0 : NS_ERROR_OUT_OF_MEMORY;
+  return *dest? NS_OK : NS_ERROR_OUT_OF_MEMORY;
 }
 
 
@@ -87,27 +87,27 @@ nsresult nsMsgSendPart::SetFile(nsIFile *file)
 }
 
 
-int nsMsgSendPart::SetBuffer(const char* buffer)
+nsresult nsMsgSendPart::SetBuffer(const char* buffer)
 {
   PR_FREEIF(m_buffer);
   return CopyString(&m_buffer, buffer);
 }
 
 
-int nsMsgSendPart::SetType(const char* type)
+nsresult nsMsgSendPart::SetType(const char* type)
 {
   PR_FREEIF(m_type);
   m_type = PL_strdup(type);
-  return m_type ? 0 : NS_ERROR_OUT_OF_MEMORY;
+  return m_type ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
 }
 
 
-int nsMsgSendPart::SetOtherHeaders(const char* other)
+nsresult nsMsgSendPart::SetOtherHeaders(const char* other)
 {
   return CopyString(&m_other, other);
 }
 
-int nsMsgSendPart::SetMimeDeliveryState(nsIMsgSend *state)
+nsresult nsMsgSendPart::SetMimeDeliveryState(nsIMsgSend *state)
 {
   m_state = state;
   if (GetNumChildren() > 0)
@@ -119,16 +119,16 @@ int nsMsgSendPart::SetMimeDeliveryState(nsIMsgSend *state)
         part->SetMimeDeliveryState(state);
     }
   }
-  return 0;
+  return NS_OK;
 }
 
-int nsMsgSendPart::AppendOtherHeaders(const char* more)
+nsresult nsMsgSendPart::AppendOtherHeaders(const char* more)
 {
   if (!m_other)
     return SetOtherHeaders(more);
 
   if (!more || !*more)
-    return 0;
+    return NS_OK;
 
   char* tmp = (char *) PR_Malloc(sizeof(char) * (PL_strlen(m_other) + PL_strlen(more) + 2));
   if (!tmp)
@@ -139,27 +139,27 @@ int nsMsgSendPart::AppendOtherHeaders(const char* more)
   PR_FREEIF(m_other);
   m_other = tmp;
 
-  return 0;
+  return NS_OK;
 }
 
 
-int nsMsgSendPart::SetEncoderData(MimeEncoderData* data)
+nsresult nsMsgSendPart::SetEncoderData(MimeEncoderData* data)
 {
   m_encoder_data = data;
-  return 0;
+  return NS_OK;
 }
 
-int nsMsgSendPart::SetMainPart(bool value)
+nsresult nsMsgSendPart::SetMainPart(bool value)
 {
   m_mainpart = value;
-  return 0;
+  return NS_OK;
 }
 
-int nsMsgSendPart::AddChild(nsMsgSendPart* child)
+nsresult nsMsgSendPart::AddChild(nsMsgSendPart* child)
 {
   m_numchildren++;
   nsMsgSendPart** tmp = new nsMsgSendPart* [m_numchildren];
-  if (tmp == nsnull) return NS_ERROR_OUT_OF_MEMORY;
+  if (tmp == nullptr) return NS_ERROR_OUT_OF_MEMORY;
   for (int i=0 ; i<m_numchildren-1 ; i++) {
     tmp[i] = m_children[i];
   }
@@ -171,12 +171,12 @@ int nsMsgSendPart::AddChild(nsMsgSendPart* child)
   partNum.Append(".");
   partNum.AppendInt(m_numchildren);
   child->m_partNum = partNum;
-  return 0;
+  return NS_OK;
 }
 
-nsMsgSendPart * nsMsgSendPart::DetachChild(PRInt32 whichOne)
+nsMsgSendPart * nsMsgSendPart::DetachChild(int32_t whichOne)
 {
-  nsMsgSendPart *returnValue = nsnull;
+  nsMsgSendPart *returnValue = nullptr;
   
   NS_ASSERTION(whichOne >= 0 && whichOne < m_numchildren, "parameter out of range");
   if (whichOne >= 0 && whichOne < m_numchildren) 
@@ -186,7 +186,7 @@ nsMsgSendPart * nsMsgSendPart::DetachChild(PRInt32 whichOne)
     if (m_numchildren > 1)
     {
       nsMsgSendPart** tmp = new nsMsgSendPart* [m_numchildren-1];
-      if (tmp != nsnull) 
+      if (tmp != nullptr) 
       {
         // move all the other kids over
         for (int i=0 ; i<m_numchildren-1 ; i++) 
@@ -204,38 +204,39 @@ nsMsgSendPart * nsMsgSendPart::DetachChild(PRInt32 whichOne)
     else 
     {
       delete [] m_children;
-      m_children = nsnull;
+      m_children = nullptr;
       m_numchildren = 0;
     }
   }
   
   if (returnValue)
-    returnValue->m_parent = nsnull;
+    returnValue->m_parent = nullptr;
   
   return returnValue;
 }
 
-nsMsgSendPart* nsMsgSendPart::GetChild(PRInt32 which)
+nsMsgSendPart* nsMsgSendPart::GetChild(int32_t which)
 {
   NS_ASSERTION(which >= 0 && which < m_numchildren, "parameter out of range");
   if (which >= 0 && which < m_numchildren) {
     return m_children[which];
   }
-  return nsnull;
+  return nullptr;
 }
 
 
 
-int nsMsgSendPart::PushBody(const char* buffer, PRInt32 length)
+nsresult nsMsgSendPart::PushBody(const char* buffer, int32_t length)
 {
-  int status = 0;
+  nsresult status = NS_OK;
   const char* encoded_data = buffer;
 
   if (m_encoder_data)
   {
     nsresult rv = MIME_EncoderWrite(m_encoder_data, encoded_data, length);
     if (NS_FAILED(rv))
-      status = -1;
+      // XXX -1 is not a valid nsresult
+      status = static_cast<nsresult>(-1);
   }
   else
   {
@@ -246,7 +247,8 @@ int nsMsgSendPart::PushBody(const char* buffer, PRInt32 length)
 
 
     buffer = mime_get_stream_write_buffer();
-    NS_ENSURE_TRUE(buffer, -1);
+    // XXX -1 is not a valid nsresult
+    NS_ENSURE_TRUE(buffer, static_cast<nsresult>(-1));
 
     NS_ASSERTION(encoded_data != buffer, "encoded_data == buffer");
     out = buffer;
@@ -268,7 +270,7 @@ int nsMsgSendPart::PushBody(const char* buffer, PRInt32 length)
         
         status = mime_write_message_body(m_state, buffer,
           out - buffer);
-        if (status < 0) return status;
+        if (NS_FAILED(status)) return status;
         out = buffer;
         
         if (*in == '\r') {
@@ -285,7 +287,7 @@ int nsMsgSendPart::PushBody(const char* buffer, PRInt32 length)
         if (out - buffer >= MIME_BUFFER_SIZE)
         {
           status = mime_write_message_body(m_state, buffer, out - buffer);
-          if (status < 0) return status;
+          if (NS_FAILED(status)) return status;
           
           out = buffer;
         }
@@ -297,7 +299,7 @@ int nsMsgSendPart::PushBody(const char* buffer, PRInt32 length)
     /* Flush the last line. */
     if (out > buffer) {
       status = mime_write_message_body(m_state, buffer, out - buffer);
-      if (status < 0) return status;
+      if (NS_FAILED(status)) return status;
       out = buffer;
     }
   }
@@ -317,7 +319,7 @@ itself.  (This relies on the fact that all body-related headers begin with
 
   (How many header parsers are in this program now?)
   */
-static int 
+static nsresult
 divide_content_headers(const char *headers,
                         char **message_headers,
                         char **content_headers,
@@ -330,7 +332,7 @@ divide_content_headers(const char *headers,
       L = PL_strlen(headers);
     
     if (L == 0)
-      return 0;
+      return NS_OK;
     
     *message_headers = (char *)PR_Malloc(L+1);
     if (!*message_headers)
@@ -432,22 +434,22 @@ divide_content_headers(const char *headers,
     }
 #endif // DEBUG
     
-    return 0;
+    return NS_OK;
 }
 
 #define     SKIP_EMPTY_PART   1966
 
-int 
+nsresult
 nsMsgSendPart::Write()
 {
-  int     status = 0;
-  char    *separator = nsnull;
+  nsresult status = NS_OK;
+  char    *separator = nullptr;
   bool    needToWriteCRLFAfterEncodedBody  = false;
 
 #define PUSHLEN(str, length)                  \
   do {                            \
     status = mime_write_message_body(m_state, str, length); \
-    if (status < 0) goto FAIL;                \
+    if (NS_FAILED(status)) goto FAIL;                \
   } while (0)                         \
 
 #define PUSH(str) PUSHLEN(str, PL_strlen(str))
@@ -458,7 +460,8 @@ nsMsgSendPart::Write()
        ( (!m_buffer) || (!*m_buffer) ) &&
        (!m_file) &&
        (!m_mainpart) )
-    return SKIP_EMPTY_PART;
+    // XXX SKIP_EMPTY_PART (= 1966) is not a valid nsresult
+    return static_cast<nsresult>(SKIP_EMPTY_PART);
 
   if (m_mainpart && m_type && PL_strcmp(m_type, TEXT_HTML) == 0) 
   {     
@@ -466,9 +469,9 @@ nsMsgSendPart::Write()
     {
       // The "insert HTML links" code requires a memory buffer,
       // so read the file into memory.
-      NS_ASSERTION(m_buffer == nsnull, "not-null buffer");
-      PRInt32           length = 0;
-      PRInt64 fileSize;
+      NS_ASSERTION(m_buffer == nullptr, "not-null buffer");
+      int32_t           length = 0;
+      int64_t fileSize;
       if (NS_SUCCEEDED(m_file->GetFileSize(&fileSize)))
           length = fileSize;
       
@@ -479,7 +482,7 @@ nsMsgSendPart::Write()
         nsresult rv = NS_NewLocalFileInputStream(getter_AddRefs(inputFile), m_file);
         if (NS_SUCCEEDED(rv)) 
         {
-          PRUint32 bytesRead;
+          uint32_t bytesRead;
           rv = inputFile->Read(m_buffer, length, &bytesRead);
           inputFile->Close();
           m_buffer[length] = '\0';
@@ -509,7 +512,7 @@ nsMsgSendPart::Write()
                                     &message_headers,
                                     &content_headers,
                                     &content_type_header);
-    if (status < 0)
+    if (NS_FAILED(status))
       goto FAIL;
     
       /* First, write out all of the headers that refer to the message
@@ -526,7 +529,7 @@ nsMsgSendPart::Write()
        (it may want to wrap the body in an envelope.)           */
     if (!m_parent) {
       status = m_state->BeginCryptoEncapsulation();
-      if (status < 0) goto FAIL;
+      if (NS_FAILED(status)) goto FAIL;
     }
           
     /* Now make sure there's a Content-Type header.
@@ -617,7 +620,7 @@ nsMsgSendPart::Write()
   if (m_buffer) 
   {
     status = PushBody(m_buffer, PL_strlen(m_buffer));
-    if (status < 0)
+    if (NS_FAILED(status))
       goto FAIL;
   }
   else if (m_file) 
@@ -708,9 +711,9 @@ nsMsgSendPart::Write()
       PR_Free(lineBuffer);
     }
 
-    while (status >= 0) 
+    while (NS_SUCCEEDED(status))
     {
-      PRUint32 bytesRead;
+      uint32_t bytesRead;
       nsresult rv = inputStream->Read(buffer, MIME_BUFFER_SIZE, &bytesRead);
       if (NS_FAILED(rv))
       {  
@@ -726,7 +729,7 @@ nsMsgSendPart::Write()
         }
       }
       status = PushBody(buffer, bytesRead);
-      if (status < 0)
+      if (NS_FAILED(status))
         goto FAIL;
       if (bytesRead < MIME_BUFFER_SIZE)
         break;
@@ -736,11 +739,12 @@ nsMsgSendPart::Write()
   if (m_encoder_data)
   {
     nsresult rv  = MIME_EncoderDestroy(m_encoder_data, false);
-    m_encoder_data = nsnull;
+    m_encoder_data = nullptr;
     needToWriteCRLFAfterEncodedBody = !m_parent;
     if (NS_FAILED(rv))
     {
-      status = -1;
+      // XXX -1 is not a valid nsresult
+      status = static_cast<nsresult>(-1);
       goto FAIL;
     }
   }
@@ -765,10 +769,11 @@ nsMsgSendPart::Write()
       }
 
       status = m_children[i]->Write();
-      if (status < 0)
+      if (NS_FAILED(status))
         goto FAIL;
 
-      if (status == SKIP_EMPTY_PART)
+      // XXX SKIP_EMPTY_PART (= 1966) is not a valid nsresult
+      if (status == static_cast<nsresult>(SKIP_EMPTY_PART))
         writeSeparator = false;
       else
         writeSeparator = true;

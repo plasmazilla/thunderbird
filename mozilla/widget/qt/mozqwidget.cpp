@@ -10,7 +10,8 @@
 #include <QInputContext>
 #endif
 #include <QtCore/QTimer>
-
+// Solve conflict of qgl.h and GLDefs.h
+#define GLdouble_defined 1
 #include "mozqwidget.h"
 #include "nsWindow.h"
 
@@ -624,7 +625,7 @@ MozQWidget::NotifyVKB(const QRect& rect)
     if (observerService) {
         QString rect = QString("{\"left\": %1, \"top\": %2, \"right\": %3, \"bottom\": %4}")
                                .arg(bounds.x()).arg(bounds.y()).arg(bounds.width()).arg(bounds.height());
-        observerService->NotifyObservers(nsnull, "softkb-change", rect.utf16());
+        observerService->NotifyObservers(nullptr, "softkb-change", rect.utf16());
     }
 }
 
@@ -633,7 +634,7 @@ void MozQWidget::SwitchToForeground()
     nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
     if (!os)
         return;
-    os->NotifyObservers(nsnull, "application-foreground", nsnull);
+    os->NotifyObservers(nullptr, "application-foreground", nullptr);
 }
 
 void MozQWidget::SwitchToBackground()
@@ -641,6 +642,6 @@ void MozQWidget::SwitchToBackground()
     nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
     if (!os)
         return;
-    os->NotifyObservers(nsnull, "application-background", nsnull);
+    os->NotifyObservers(nullptr, "application-background", nullptr);
 }
 

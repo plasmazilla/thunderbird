@@ -41,29 +41,29 @@ class DeadKeyTable
 {
   friend class KeyboardLayout;
 
-  PRUint16 mEntries;
+  uint16_t mEntries;
   // KeyboardLayout::AddDeadKeyTable() will allocate as many entries as
   // required.  It is the only way to create new DeadKeyTable instances.
   DeadKeyEntry mTable[1];
 
-  void Init(const DeadKeyEntry* aDeadKeyArray, PRUint32 aEntries)
+  void Init(const DeadKeyEntry* aDeadKeyArray, uint32_t aEntries)
   {
     mEntries = aEntries;
     memcpy(mTable, aDeadKeyArray, aEntries * sizeof(DeadKeyEntry));
   }
 
-  static PRUint32 SizeInBytes(PRUint32 aEntries)
+  static uint32_t SizeInBytes(uint32_t aEntries)
   {
     return offsetof(DeadKeyTable, mTable) + aEntries * sizeof(DeadKeyEntry);
   }
 
 public:
-  PRUint32 Entries() const
+  uint32_t Entries() const
   {
     return mEntries;
   }
 
-  bool IsEqual(const DeadKeyEntry* aDeadKeyArray, PRUint32 aEntries) const
+  bool IsEqual(const DeadKeyEntry* aDeadKeyArray, uint32_t aEntries) const
   {
     return (mEntries == aEntries &&
             !memcmp(mTable, aDeadKeyArray,
@@ -115,6 +115,7 @@ ModifierKeyState::InitInputEvent(nsInputEvent& aInputEvent) const
   switch(aInputEvent.eventStructType) {
     case NS_MOUSE_EVENT:
     case NS_MOUSE_SCROLL_EVENT:
+    case NS_WHEEL_EVENT:
     case NS_DRAG_EVENT:
     case NS_SIMPLE_GESTURE_EVENT:
     case NS_MOZTOUCH_EVENT:
@@ -127,7 +128,7 @@ void
 ModifierKeyState::InitMouseEvent(nsInputEvent& aMouseEvent) const
 {
   NS_ASSERTION(aMouseEvent.eventStructType == NS_MOUSE_EVENT ||
-               aMouseEvent.eventStructType == NS_MOUSE_SCROLL_EVENT ||
+               aMouseEvent.eventStructType == NS_WHEEL_EVENT ||
                aMouseEvent.eventStructType == NS_DRAG_EVENT ||
                aMouseEvent.eventStructType == NS_SIMPLE_GESTURE_EVENT ||
                aMouseEvent.eventStructType == NS_MOZTOUCH_EVENT,
@@ -168,7 +169,7 @@ UniCharsAndModifiers::Append(PRUnichar aUniChar, Modifiers aModifiers)
 void
 UniCharsAndModifiers::FillModifiers(Modifiers aModifiers)
 {
-  for (PRUint32 i = 0; i < mLength; i++) {
+  for (uint32_t i = 0; i < mLength; i++) {
     mModifiers[i] = aModifiers;
   }
 }
@@ -197,7 +198,7 @@ UniCharsAndModifiers::UniCharsCaseInsensitiveEqual(
 UniCharsAndModifiers&
 UniCharsAndModifiers::operator+=(const UniCharsAndModifiers& aOther)
 {
-  PRUint32 copyCount = NS_MIN(aOther.mLength, 5 - mLength);
+  uint32_t copyCount = NS_MIN(aOther.mLength, 5 - mLength);
   NS_ENSURE_TRUE(copyCount > 0, *this);
   memcpy(&mChars[mLength], aOther.mChars, copyCount * sizeof(PRUnichar));
   memcpy(&mModifiers[mLength], aOther.mModifiers,
@@ -226,10 +227,10 @@ VirtualKey::GetCompositeChar(ShiftState aShiftState, PRUnichar aBaseChar) const
 
 const DeadKeyTable*
 VirtualKey::MatchingDeadKeyTable(const DeadKeyEntry* aDeadKeyArray,
-                                 PRUint32 aEntries) const
+                                 uint32_t aEntries) const
 {
   if (!mIsDeadKey) {
-    return nsnull;
+    return nullptr;
   }
 
   for (ShiftState shiftState = 0; shiftState < 16; shiftState++) {
@@ -242,26 +243,26 @@ VirtualKey::MatchingDeadKeyTable(const DeadKeyEntry* aDeadKeyArray,
     }
   }
 
-  return nsnull;
+  return nullptr;
 }
 
 void
 VirtualKey::SetNormalChars(ShiftState aShiftState,
                            const PRUnichar* aChars,
-                           PRUint32 aNumOfChars)
+                           uint32_t aNumOfChars)
 {
   NS_ASSERTION(aShiftState < ArrayLength(mShiftStates), "invalid index");
 
   SetDeadKey(aShiftState, false);
 
-  for (PRUint32 index = 0; index < aNumOfChars; index++) {
+  for (uint32_t index = 0; index < aNumOfChars; index++) {
     // Ignore legacy non-printable control characters
     mShiftStates[aShiftState].Normal.Chars[index] =
       (aChars[index] >= 0x20) ? aChars[index] : 0;
   }
 
-  PRUint32 len = ArrayLength(mShiftStates[aShiftState].Normal.Chars);
-  for (PRUint32 index = aNumOfChars; index < len; index++) {
+  uint32_t len = ArrayLength(mShiftStates[aShiftState].Normal.Chars);
+  for (uint32_t index = aNumOfChars; index < len; index++) {
     mShiftStates[aShiftState].Normal.Chars[index] = 0;
   }
 }
@@ -274,7 +275,7 @@ VirtualKey::SetDeadChar(ShiftState aShiftState, PRUnichar aDeadChar)
   SetDeadKey(aShiftState, true);
 
   mShiftStates[aShiftState].DeadKey.DeadChar = aDeadChar;
-  mShiftStates[aShiftState].DeadKey.Table = nsnull;
+  mShiftStates[aShiftState].DeadKey.Table = nullptr;
 }
 
 UniCharsAndModifiers
@@ -328,8 +329,8 @@ VirtualKey::GetNativeUniChars(ShiftState aShiftState) const
     return result;
   }
 
-  PRUint32 index;
-  PRUint32 len = ArrayLength(mShiftStates[aShiftState].Normal.Chars);
+  uint32_t index;
+  uint32_t len = ArrayLength(mShiftStates[aShiftState].Normal.Chars);
   for (index = 0;
        index < len && mShiftStates[aShiftState].Normal.Chars[index]; index++) {
     result.Append(mShiftStates[aShiftState].Normal.Chars[index], modifiers);
@@ -386,40 +387,144 @@ NativeKey::NativeKey(const KeyboardLayout& aKeyboardLayout,
 {
   mScanCode = WinUtils::GetScanCode(aKeyOrCharMessage.lParam);
   mIsExtended = WinUtils::IsExtendedScanCode(aKeyOrCharMessage.lParam);
+  // On WinXP and WinServer2003, we cannot compute the virtual keycode for
+  // extended keys due to the API limitation.
+  bool canComputeVirtualKeyCodeFromScanCode =
+    (!mIsExtended || WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION);
   switch (aKeyOrCharMessage.message) {
     case WM_KEYDOWN:
     case WM_KEYUP:
     case WM_SYSKEYDOWN:
-    case WM_SYSKEYUP:
-      mOriginalVirtualKeyCode = static_cast<PRUint8>(aKeyOrCharMessage.wParam);
-      switch (aKeyOrCharMessage.wParam) {
+    case WM_SYSKEYUP: {
+      // First, resolve the IME converted virtual keycode to its original
+      // keycode.
+      if (aKeyOrCharMessage.wParam == VK_PROCESSKEY) {
+        mOriginalVirtualKeyCode = static_cast<uint8_t>(
+          ::ImmGetVirtualKey(aWindow->GetWindowHandle()));
+      } else {
+        mOriginalVirtualKeyCode =
+          static_cast<uint8_t>(aKeyOrCharMessage.wParam);
+      }
+
+      // Most keys are not distinguished as left or right keys.
+      bool isLeftRightDistinguishedKey = false;
+
+      // mOriginalVirtualKeyCode must not distinguish left or right of
+      // Shift, Control or Alt.
+      switch (mOriginalVirtualKeyCode) {
+        case VK_SHIFT:
         case VK_CONTROL:
         case VK_MENU:
-        case VK_SHIFT:
-          mVirtualKeyCode = static_cast<PRUint8>(
-            ::MapVirtualKeyEx(GetScanCodeWithExtendedFlag(),
-                              MAPVK_VSC_TO_VK_EX, aKeyboardLayout.GetLayout()));
+          isLeftRightDistinguishedKey = true;
           break;
-        case VK_PROCESSKEY:
-          mVirtualKeyCode = mOriginalVirtualKeyCode =
-            static_cast<PRUint8>(
-              ::ImmGetVirtualKey(aWindow->GetWindowHandle()));
+        case VK_LSHIFT:
+        case VK_RSHIFT:
+          mVirtualKeyCode = mOriginalVirtualKeyCode;
+          mOriginalVirtualKeyCode = VK_SHIFT;
+          isLeftRightDistinguishedKey = true;
+          break;
+        case VK_LCONTROL:
+        case VK_RCONTROL:
+          mVirtualKeyCode = mOriginalVirtualKeyCode;
+          mOriginalVirtualKeyCode = VK_CONTROL;
+          isLeftRightDistinguishedKey = true;
+          break;
+        case VK_LMENU:
+        case VK_RMENU:
+          mVirtualKeyCode = mOriginalVirtualKeyCode;
+          mOriginalVirtualKeyCode = VK_MENU;
+          isLeftRightDistinguishedKey = true;
+          break;
+      }
+
+      // If virtual keycode (left-right distinguished keycode) is already
+      // computed, we don't need to do anymore.
+      if (mVirtualKeyCode) {
+        break;
+      }
+
+      // If the keycode doesn't have LR distinguished keycode, we just set
+      // mOriginalVirtualKeyCode to mVirtualKeyCode.  Note that don't compute
+      // it from MapVirtualKeyEx() because the scan code might be wrong if
+      // the message is sent/posted by other application.  Then, we will compute
+      // unexpected keycode from the scan code.
+      if (!isLeftRightDistinguishedKey) {
+        break;
+      }
+
+      if (!canComputeVirtualKeyCodeFromScanCode) {
+        // The right control key and the right alt key are extended keys.
+        // Therefore, we never get VK_RCONTRL and VK_RMENU for the result of
+        // MapVirtualKeyEx() on WinXP or WinServer2003.
+        //
+        // If VK_CONTROL or VK_MENU key message is caused by an extended key,
+        // we should assume that the right key of them is pressed.
+        switch (mOriginalVirtualKeyCode) {
+          case VK_CONTROL:
+            mVirtualKeyCode = VK_RCONTROL;
+            break;
+          case VK_MENU:
+            mVirtualKeyCode = VK_RMENU;
+            break;
+          case VK_SHIFT:
+            // Neither left shift nor right shift is not an extended key,
+            // let's use VK_LSHIFT for invalid scan code.
+            mVirtualKeyCode = VK_LSHIFT;
+            break;
+          default:
+            MOZ_NOT_REACHED("Unsupported mOriginalVirtualKeyCode");
+            break;
+        }
+        break;
+      }
+
+      NS_ASSERTION(!mVirtualKeyCode,
+                   "mVirtualKeyCode has been computed already");
+
+      // Otherwise, compute the virtual keycode with MapVirtualKeyEx().
+      mVirtualKeyCode = static_cast<uint8_t>(
+        ::MapVirtualKeyEx(GetScanCodeWithExtendedFlag(),
+                          MAPVK_VSC_TO_VK_EX, aKeyboardLayout.GetLayout()));
+
+      // The result might be unexpected value due to the scan code is
+      // wrong.  For example, any key messages can be generated by
+      // SendMessage() or PostMessage() from applications.  So, it's possible
+      // failure.  Then, let's respect the extended flag even if it might be
+      // set intentionally.
+      switch (mOriginalVirtualKeyCode) {
+        case VK_CONTROL:
+          if (mVirtualKeyCode != VK_LCONTROL &&
+              mVirtualKeyCode != VK_RCONTROL) {
+            mVirtualKeyCode = mIsExtended ? VK_RCONTROL : VK_LCONTROL;
+          }
+          break;
+        case VK_MENU:
+          if (mVirtualKeyCode != VK_LMENU && mVirtualKeyCode != VK_RMENU) {
+            mVirtualKeyCode = mIsExtended ? VK_RMENU : VK_LMENU;
+          }
+          break;
+        case VK_SHIFT:
+          if (mVirtualKeyCode != VK_LSHIFT && mVirtualKeyCode != VK_RSHIFT) {
+            // Neither left shift nor right shift is not an extended key,
+            // let's use VK_LSHIFT for invalid scan code.
+            mVirtualKeyCode = VK_LSHIFT;
+          }
           break;
         default:
-          mVirtualKeyCode = mOriginalVirtualKeyCode;
+          MOZ_NOT_REACHED("Unsupported mOriginalVirtualKeyCode");
           break;
       }
       break;
+    }
     case WM_CHAR:
     case WM_UNICHAR:
     case WM_SYSCHAR:
       // We cannot compute the virtual key code from WM_CHAR message on WinXP
-      // and 
-      if (mIsExtended &&
-          WinUtils::GetWindowsVersion() < WinUtils::VISTA_VERSION) {
+      // if it's caused by an extended key.
+      if (!canComputeVirtualKeyCodeFromScanCode) {
         break;
       }
-      mVirtualKeyCode = mOriginalVirtualKeyCode = static_cast<PRUint8>(
+      mVirtualKeyCode = mOriginalVirtualKeyCode = static_cast<uint8_t>(
         ::MapVirtualKeyEx(GetScanCodeWithExtendedFlag(),
                           MAPVK_VSC_TO_VK_EX, aKeyboardLayout.GetLayout()));
       break;
@@ -446,12 +551,13 @@ NativeKey::GetScanCodeWithExtendedFlag() const
   // no way to get virtual keycodes from scancode of extended keys.
   if (!mIsExtended ||
       WinUtils::GetWindowsVersion() < WinUtils::VISTA_VERSION) {
+    NS_WARNING("GetScanCodeWithExtendedFlat() returns without extended flag");
     return mScanCode;
   }
   return (0xE000 | mScanCode);
 }
 
-PRUint32
+uint32_t
 NativeKey::GetKeyLocation() const
 {
   switch (mVirtualKeyCode) {
@@ -468,6 +574,7 @@ NativeKey::GetKeyLocation() const
       return nsIDOMKeyEvent::DOM_KEY_LOCATION_RIGHT;
 
     case VK_RETURN:
+      // XXX This code assumes that all keyboard drivers use same mapping.
       return !mIsExtended ? nsIDOMKeyEvent::DOM_KEY_LOCATION_STANDARD :
                             nsIDOMKeyEvent::DOM_KEY_LOCATION_NUMPAD;
 
@@ -482,6 +589,7 @@ NativeKey::GetKeyLocation() const
     case VK_HOME:
     case VK_UP:
     case VK_PRIOR:
+      // XXX This code assumes that all keyboard drivers use same mapping.
       return mIsExtended ? nsIDOMKeyEvent::DOM_KEY_LOCATION_STANDARD :
                            nsIDOMKeyEvent::DOM_KEY_LOCATION_NUMPAD;
 
@@ -503,6 +611,11 @@ NativeKey::GetKeyLocation() const
     case VK_ADD:
       return nsIDOMKeyEvent::DOM_KEY_LOCATION_NUMPAD;
 
+    case VK_SHIFT:
+    case VK_CONTROL:
+    case VK_MENU:
+      NS_WARNING("Failed to decide the key location?");
+
     default:
       return nsIDOMKeyEvent::DOM_KEY_LOCATION_STANDARD;
   }
@@ -515,7 +628,7 @@ NativeKey::GetKeyLocation() const
 KeyboardLayout::KeyboardLayout() :
   mKeyboardLayout(0), mPendingKeyboardLayout(0)
 {
-  mDeadKeyTableListHead = nsnull;
+  mDeadKeyTableListHead = nullptr;
 
   // Note: Don't call LoadLayout from here. Because an instance of this class
   // can be static. In that case, we cannot use any services in LoadLayout,
@@ -528,16 +641,16 @@ KeyboardLayout::~KeyboardLayout()
 }
 
 bool
-KeyboardLayout::IsPrintableCharKey(PRUint8 aVirtualKey)
+KeyboardLayout::IsPrintableCharKey(uint8_t aVirtualKey)
 {
   return GetKeyIndex(aVirtualKey) >= 0;
 }
 
 bool
-KeyboardLayout::IsDeadKey(PRUint8 aVirtualKey,
+KeyboardLayout::IsDeadKey(uint8_t aVirtualKey,
                           const ModifierKeyState& aModKeyState) const
 {
-  PRInt32 virtualKeyIndex = GetKeyIndex(aVirtualKey);
+  int32_t virtualKeyIndex = GetKeyIndex(aVirtualKey);
   if (virtualKeyIndex < 0) {
     return false;
   }
@@ -547,14 +660,14 @@ KeyboardLayout::IsDeadKey(PRUint8 aVirtualKey,
 }
 
 UniCharsAndModifiers
-KeyboardLayout::OnKeyDown(PRUint8 aVirtualKey,
+KeyboardLayout::OnKeyDown(uint8_t aVirtualKey,
                           const ModifierKeyState& aModKeyState)
 {
   if (mPendingKeyboardLayout) {
     LoadLayout(mPendingKeyboardLayout);
   }
 
-  PRInt32 virtualKeyIndex = GetKeyIndex(aVirtualKey);
+  int32_t virtualKeyIndex = GetKeyIndex(aVirtualKey);
 
   if (virtualKeyIndex < 0) {
     // Does not produce any printable characters, but still preserves the
@@ -562,7 +675,7 @@ KeyboardLayout::OnKeyDown(PRUint8 aVirtualKey,
     return UniCharsAndModifiers();
   }
 
-  PRUint8 shiftState =
+  uint8_t shiftState =
     VirtualKey::ModifiersToShiftState(aModKeyState.GetModifiers());
 
   if (mVirtualKeys[virtualKeyIndex].IsDeadKey(shiftState)) {
@@ -575,7 +688,7 @@ KeyboardLayout::OnKeyDown(PRUint8 aVirtualKey,
 
     // Dead-key followed by another dead-key. Reset dead-key state and
     // return both dead-key characters.
-    PRInt32 activeDeadKeyIndex = GetKeyIndex(mActiveDeadKey);
+    int32_t activeDeadKeyIndex = GetKeyIndex(mActiveDeadKey);
     UniCharsAndModifiers result =
       mVirtualKeys[activeDeadKeyIndex].GetUniChars(mDeadKeyShiftState);
     result += mVirtualKeys[virtualKeyIndex].GetUniChars(shiftState);
@@ -592,7 +705,7 @@ KeyboardLayout::OnKeyDown(PRUint8 aVirtualKey,
 
   // Dead-key was active. See if pressed base character does produce
   // valid composite character.
-  PRInt32 activeDeadKeyIndex = GetKeyIndex(mActiveDeadKey);
+  int32_t activeDeadKeyIndex = GetKeyIndex(mActiveDeadKey);
   PRUnichar compositeChar = (baseChars.mLength == 1 && baseChars.mChars[0]) ?
     mVirtualKeys[activeDeadKeyIndex].GetCompositeChar(mDeadKeyShiftState,
                                                       baseChars.mChars[0]) : 0;
@@ -617,11 +730,11 @@ KeyboardLayout::OnKeyDown(PRUint8 aVirtualKey,
 
 UniCharsAndModifiers
 KeyboardLayout::GetUniCharsAndModifiers(
-                  PRUint8 aVirtualKey,
+                  uint8_t aVirtualKey,
                   const ModifierKeyState& aModKeyState) const
 {
   UniCharsAndModifiers result;
-  PRInt32 key = GetKeyIndex(aVirtualKey);
+  int32_t key = GetKeyIndex(aVirtualKey);
   if (key < 0) {
     return result;
   }
@@ -650,10 +763,10 @@ KeyboardLayout::LoadLayout(HKL aLayout, bool aLoadLater)
 
   BYTE originalKbdState[256];
   // Bitfield with all shift states that have at least one dead-key.
-  PRUint16 shiftStatesWithDeadKeys = 0;
+  uint16_t shiftStatesWithDeadKeys = 0;
   // Bitfield with all shift states that produce any possible dead-key base
   // characters.
-  PRUint16 shiftStatesWithBaseChars = 0;
+  uint16_t shiftStatesWithBaseChars = 0;
 
   mActiveDeadKey = -1;
 
@@ -666,14 +779,14 @@ KeyboardLayout::LoadLayout(HKL aLayout, bool aLoadLater)
 
   for (VirtualKey::ShiftState shiftState = 0; shiftState < 16; shiftState++) {
     VirtualKey::FillKbdState(kbdState, shiftState);
-    for (PRUint32 virtualKey = 0; virtualKey < 256; virtualKey++) {
-      PRInt32 vki = GetKeyIndex(virtualKey);
+    for (uint32_t virtualKey = 0; virtualKey < 256; virtualKey++) {
+      int32_t vki = GetKeyIndex(virtualKey);
       if (vki < 0) {
         continue;
       }
-      NS_ASSERTION(PRUint32(vki) < ArrayLength(mVirtualKeys), "invalid index");
+      NS_ASSERTION(uint32_t(vki) < ArrayLength(mVirtualKeys), "invalid index");
       PRUnichar uniChars[5];
-      PRInt32 ret =
+      int32_t ret =
         ::ToUnicodeEx(virtualKey, 0, kbdState, (LPWSTR)uniChars,
                       ArrayLength(uniChars), 0, mKeyboardLayout);
       // dead-key
@@ -705,11 +818,11 @@ KeyboardLayout::LoadLayout(HKL aLayout, bool aLoadLater)
 
     VirtualKey::FillKbdState(kbdState, shiftState);
 
-    for (PRUint32 virtualKey = 0; virtualKey < 256; virtualKey++) {
-      PRInt32 vki = GetKeyIndex(virtualKey);
+    for (uint32_t virtualKey = 0; virtualKey < 256; virtualKey++) {
+      int32_t vki = GetKeyIndex(virtualKey);
       if (vki >= 0 && mVirtualKeys[vki].IsDeadKey(shiftState)) {
         DeadKeyEntry deadKeyArray[256];
-        PRInt32 n = GetDeadKeyCombinations(virtualKey, kbdState,
+        int32_t n = GetDeadKeyCombinations(virtualKey, kbdState,
                                            shiftStatesWithBaseChars,
                                            deadKeyArray,
                                            ArrayLength(deadKeyArray));
@@ -726,8 +839,8 @@ KeyboardLayout::LoadLayout(HKL aLayout, bool aLoadLater)
   ::SetKeyboardState(originalKbdState);
 }
 
-inline PRInt32
-KeyboardLayout::GetKeyIndex(PRUint8 aVirtualKey)
+inline int32_t
+KeyboardLayout::GetKeyIndex(uint8_t aVirtualKey)
 {
 // Currently these 68 (NS_NUM_OF_KEYS) virtual keys are assumed
 // to produce visible representation:
@@ -758,7 +871,7 @@ KeyboardLayout::GetKeyIndex(PRUint8 aVirtualKey)
 // 0xE3 - no name
 // 0xE4 - no name
 
-  static const PRInt8 xlat[256] =
+  static const int8_t xlat[256] =
   {
   // 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
   //-----------------------------------------------------------------------
@@ -796,13 +909,13 @@ KeyboardLayout::CompareDeadKeyEntries(const void* aArg1,
 
 const DeadKeyTable*
 KeyboardLayout::AddDeadKeyTable(const DeadKeyEntry* aDeadKeyArray,
-                                PRUint32 aEntries)
+                                uint32_t aEntries)
 {
   DeadKeyTableListEntry* next = mDeadKeyTableListHead;
 
   const size_t bytes = offsetof(DeadKeyTableListEntry, data) +
     DeadKeyTable::SizeInBytes(aEntries);
-  PRUint8* p = new PRUint8[bytes];
+  uint8_t* p = new uint8_t[bytes];
 
   mDeadKeyTableListHead = reinterpret_cast<DeadKeyTableListEntry*>(p);
   mDeadKeyTableListHead->next = next;
@@ -819,7 +932,7 @@ void
 KeyboardLayout::ReleaseDeadKeyTables()
 {
   while (mDeadKeyTableListHead) {
-    PRUint8* p = reinterpret_cast<PRUint8*>(mDeadKeyTableListHead);
+    uint8_t* p = reinterpret_cast<uint8_t*>(mDeadKeyTableListHead);
     mDeadKeyTableListHead = mDeadKeyTableListHead->next;
 
     delete [] p;
@@ -828,10 +941,10 @@ KeyboardLayout::ReleaseDeadKeyTables()
 
 bool
 KeyboardLayout::EnsureDeadKeyActive(bool aIsActive,
-                                    PRUint8 aDeadKey,
+                                    uint8_t aDeadKey,
                                     const PBYTE aDeadKeyKbdState)
 {
-  PRInt32 ret;
+  int32_t ret;
   do {
     PRUnichar dummyChars[5];
     ret = ::ToUnicodeEx(aDeadKey, 0, (PBYTE)aDeadKeyKbdState,
@@ -869,9 +982,9 @@ bool
 KeyboardLayout::AddDeadKeyEntry(PRUnichar aBaseChar,
                                 PRUnichar aCompositeChar,
                                 DeadKeyEntry* aDeadKeyArray,
-                                PRUint32 aEntries)
+                                uint32_t aEntries)
 {
-  for (PRUint32 index = 0; index < aEntries; index++) {
+  for (uint32_t index = 0; index < aEntries; index++) {
     if (aDeadKeyArray[index].BaseChar == aBaseChar) {
       return false;
     }
@@ -883,27 +996,27 @@ KeyboardLayout::AddDeadKeyEntry(PRUnichar aBaseChar,
   return true;
 }
 
-PRUint32
-KeyboardLayout::GetDeadKeyCombinations(PRUint8 aDeadKey,
+uint32_t
+KeyboardLayout::GetDeadKeyCombinations(uint8_t aDeadKey,
                                        const PBYTE aDeadKeyKbdState,
-                                       PRUint16 aShiftStatesWithBaseChars,
+                                       uint16_t aShiftStatesWithBaseChars,
                                        DeadKeyEntry* aDeadKeyArray,
-                                       PRUint32 aMaxEntries)
+                                       uint32_t aMaxEntries)
 {
   bool deadKeyActive = false;
-  PRUint32 entries = 0;
+  uint32_t entries = 0;
   BYTE kbdState[256];
   memset(kbdState, 0, sizeof(kbdState));
 
-  for (PRUint32 shiftState = 0; shiftState < 16; shiftState++) {
+  for (uint32_t shiftState = 0; shiftState < 16; shiftState++) {
     if (!(aShiftStatesWithBaseChars & (1 << shiftState))) {
       continue;
     }
 
     VirtualKey::FillKbdState(kbdState, shiftState);
 
-    for (PRUint32 virtualKey = 0; virtualKey < 256; virtualKey++) {
-      PRInt32 vki = GetKeyIndex(virtualKey);
+    for (uint32_t virtualKey = 0; virtualKey < 256; virtualKey++) {
+      int32_t vki = GetKeyIndex(virtualKey);
       // Dead-key can pair only with such key that produces exactly one base
       // character.
       if (vki >= 0 &&
@@ -919,7 +1032,7 @@ KeyboardLayout::GetDeadKeyCombinations(PRUint8 aDeadKey,
         // driver can produce one composite character, or a dead-key character
         // followed by a second character.
         PRUnichar compositeChars[5];
-        PRInt32 ret =
+        int32_t ret =
           ::ToUnicodeEx(virtualKey, 0, kbdState, (LPWSTR)compositeChars,
                         ArrayLength(compositeChars), 0, mKeyboardLayout);
         switch (ret) {
@@ -959,18 +1072,18 @@ KeyboardLayout::GetDeadKeyCombinations(PRUint8 aDeadKey,
   }
 
   NS_QuickSort(aDeadKeyArray, entries, sizeof(DeadKeyEntry),
-               CompareDeadKeyEntries, nsnull);
+               CompareDeadKeyEntries, nullptr);
   return entries;
 }
 
-PRUint32
+uint32_t
 KeyboardLayout::ConvertNativeKeyCodeToDOMKeyCode(UINT aNativeKeyCode) const
 {
   // Alphabet or Numeric or Numpad or Function keys
   if ((aNativeKeyCode >= 0x30 && aNativeKeyCode <= 0x39) ||
       (aNativeKeyCode >= 0x41 && aNativeKeyCode <= 0x5A) ||
       (aNativeKeyCode >= 0x60 && aNativeKeyCode <= 0x87)) {
-    return static_cast<PRUint32>(aNativeKeyCode);
+    return static_cast<uint32_t>(aNativeKeyCode);
   }
   switch (aNativeKeyCode) {
     // Following keycodes are same as our DOM keycodes
@@ -1012,7 +1125,7 @@ KeyboardLayout::ConvertNativeKeyCodeToDOMKeyCode(UINT aNativeKeyCode) const
     case VK_SLEEP:
     case VK_NUMLOCK:
     case VK_SCROLL: // SCROLL LOCK
-      return PRUint32(aNativeKeyCode);
+      return uint32_t(aNativeKeyCode);
 
     case VK_HELP:
       return NS_VK_HELP;
@@ -1129,7 +1242,7 @@ DeadKeyTable::GetCompositeChar(PRUnichar aBaseChar) const
   // Dead-key table is sorted by BaseChar in ascending order.
   // Usually they are too small to use binary search.
 
-  for (PRUint32 index = 0; index < mEntries; index++) {
+  for (uint32_t index = 0; index < mEntries; index++) {
     if (mTable[index].BaseChar == aBaseChar) {
       return mTable[index].CompositeChar;
     }

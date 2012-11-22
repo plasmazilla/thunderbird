@@ -36,7 +36,7 @@ NS_IMPL_ISUPPORTS1(nsUserInfo,nsIUserInfo)
 NS_IMETHODIMP
 nsUserInfo::GetFullname(PRUnichar **aFullname)
 {
-    struct passwd *pw = nsnull;
+    struct passwd *pw = nullptr;
 
     pw = getpwuid (geteuid());
 
@@ -54,7 +54,7 @@ nsUserInfo::GetFullname(PRUnichar **aFullname)
     // the appropriate substitution
     
     // truncate at first comma (field delimiter)
-    PRInt32 index;
+    int32_t index;
     if ((index = fullname.Find(",")) != kNotFound)
         fullname.Truncate(index);
 
@@ -81,7 +81,7 @@ nsUserInfo::GetFullname(PRUnichar **aFullname)
 NS_IMETHODIMP 
 nsUserInfo::GetUsername(char * *aUsername)
 {
-    struct passwd *pw = nsnull;
+    struct passwd *pw = nullptr;
 
     // is this portable?  those are POSIX compliant calls, but I need to check
     pw = getpwuid(geteuid());
@@ -103,7 +103,7 @@ nsUserInfo::GetDomain(char * *aDomain)
     nsresult rv = NS_ERROR_FAILURE;
 
     struct utsname buf;
-    char *domainname = nsnull;
+    char *domainname = nullptr;
 
     // is this portable?  that is a POSIX compliant call, but I need to check
     if (uname(&buf)) { 

@@ -76,7 +76,7 @@
 
 using namespace mozilla;
 
-PRLogModuleInfo* nsComponentManagerLog = nsnull;
+PRLogModuleInfo* nsComponentManagerLog = nullptr;
 
 #if 0 || defined (DEBUG_timeless)
  #define SHOW_DENIED_ON_SHUTDOWN
@@ -192,7 +192,7 @@ nsGetServiceFromCategory::operator()(const nsIID& aIID, void** aInstancePtr) con
 // Arena helper functions
 ////////////////////////////////////////////////////////////////////////////////
 char *
-ArenaStrndup(const char *s, PRUint32 len, PLArenaPool *arena)
+ArenaStrndup(const char *s, uint32_t len, PLArenaPool *arena)
 {
     void *mem;
     // Include trailing null in the len
@@ -213,7 +213,7 @@ static already_AddRefed<nsIFile>
 GetLocationFromDirectoryService(const char* prop)
 {
     nsCOMPtr<nsIProperties> directoryService;
-    nsDirectoryService::Create(nsnull,
+    nsDirectoryService::Create(nullptr,
                                NS_GET_IID(nsIProperties),
                                getter_AddRefs(directoryService));
 
@@ -298,7 +298,7 @@ nsresult nsComponentManagerImpl::Init()
 
     PR_ASSERT(NOT_INITIALIZED == mStatus);
 
-    if (nsComponentManagerLog == nsnull)
+    if (nsComponentManagerLog == nullptr)
     {
         nsComponentManagerLog = PR_NewLogModule("nsComponentManager");
     }
@@ -346,7 +346,7 @@ nsresult nsComponentManagerImpl::Init()
 
     RegisterModule(&kXPCOMModule, NULL);
 
-    for (PRUint32 i = 0; i < sStaticModules->Length(); ++i)
+    for (uint32_t i = 0; i < sStaticModules->Length(); ++i)
         RegisterModule((*sStaticModules)[i], NULL);
 
     nsRefPtr<nsZipArchive> appOmnijar = mozilla::Omnijar::GetReader(mozilla::Omnijar::APP);
@@ -469,7 +469,7 @@ nsComponentManagerImpl::RegisterContractID(const mozilla::Module::ContractIDEntr
 static void
 CutExtension(nsCString& path)
 {
-    PRInt32 dotPos = path.RFindChar('.');
+    int32_t dotPos = path.RFindChar('.');
     if (kNotFound == dotPos)
         path.Truncate();
     else
@@ -481,7 +481,7 @@ nsComponentManagerImpl::RegisterManifest(NSLocationType aType,
                                          FileLocation &aFile,
                                          bool aChromeOnly)
 {
-    PRUint32 len;
+    uint32_t len;
     FileLocation::Data data;
     nsAutoArrayPtr<char> buf;
     nsresult rv = aFile.GetData(data);
@@ -543,7 +543,7 @@ void
 nsComponentManagerImpl::ManifestXPT(ManifestProcessingContext& cx, int lineno, char *const * argv)
 {
     FileLocation f(cx.mFile, argv[0]);
-    PRUint32 len;
+    uint32_t len;
     FileLocation::Data data;
     nsAutoArrayPtr<char> buf;
     nsresult rv = f.GetData(data);
@@ -660,7 +660,7 @@ nsComponentManagerImpl::ManifestCategory(ManifestProcessingContext& cx, int line
 void
 nsComponentManagerImpl::RereadChromeManifests(bool aChromeOnly)
 {
-    for (PRUint32 i = 0; i < sModuleLocations->Length(); ++i) {
+    for (uint32_t i = 0; i < sModuleLocations->Length(); ++i) {
         ComponentLocation& l = sModuleLocations->ElementAt(i);
         RegisterManifest(l.type, l.location, aChromeOnly);
     }
@@ -783,7 +783,7 @@ nsComponentManagerImpl::GetInterface(const nsIID & uuid, void **result)
 
 nsFactoryEntry *
 nsComponentManagerImpl::GetFactoryEntry(const char *aContractID,
-                                        PRUint32 aContractIDLen)
+                                        uint32_t aContractIDLen)
 {
     ReentrantMonitorAutoEnter mon(mMon);
     return mContractIDs.Get(nsDependentCString(aContractID, aContractIDLen));
@@ -809,7 +809,7 @@ nsComponentManagerImpl::FindFactory(const nsCID& aClass)
 
 already_AddRefed<nsIFactory>
 nsComponentManagerImpl::FindFactory(const char *contractID,
-                                    PRUint32 aContractIDLen)
+                                    uint32_t aContractIDLen)
 {
     nsFactoryEntry *entry = GetFactoryEntry(contractID, aContractIDLen);
     if (!entry)
@@ -840,7 +840,7 @@ nsComponentManagerImpl::GetClassObject(const nsCID &aClass, const nsIID &aIID,
     }
 #endif
 
-    PR_ASSERT(aResult != nsnull);
+    PR_ASSERT(aResult != nullptr);
 
     nsCOMPtr<nsIFactory> factory = FindFactory(aClass);
     if (!factory)
@@ -915,11 +915,11 @@ nsComponentManagerImpl::CreateInstance(const nsCID &aClass,
         return NS_ERROR_UNEXPECTED;
     }
 
-    if (aResult == nsnull)
+    if (aResult == nullptr)
     {
         return NS_ERROR_NULL_POINTER;
     }
-    *aResult = nsnull;
+    *aResult = nullptr;
 
     nsFactoryEntry *entry = GetFactoryEntry(aClass);
 
@@ -1000,11 +1000,11 @@ nsComponentManagerImpl::CreateInstanceByContractID(const char *aContractID,
         return NS_ERROR_UNEXPECTED;
     }
 
-    if (aResult == nsnull)
+    if (aResult == nullptr)
     {
         return NS_ERROR_NULL_POINTER;
     }
-    *aResult = nsnull;
+    *aResult = nullptr;
 
     nsFactoryEntry *entry = GetFactoryEntry(aContractID, strlen(aContractID));
 
@@ -1085,8 +1085,8 @@ nsComponentManagerImpl::AddPendingService(const nsCID& aServiceCID,
 void
 nsComponentManagerImpl::RemovePendingService(const nsCID& aServiceCID)
 {
-  PRUint32 pendingCount = mPendingServices.Length();
-  for (PRUint32 index = 0; index < pendingCount; ++index) {
+  uint32_t pendingCount = mPendingServices.Length();
+  for (uint32_t index = 0; index < pendingCount; ++index) {
     const PendingServiceInfo& info = mPendingServices.ElementAt(index);
     if (info.cid->Equals(aServiceCID)) {
       mPendingServices.RemoveElementAt(index);
@@ -1099,14 +1099,14 @@ nsComponentManagerImpl::RemovePendingService(const nsCID& aServiceCID)
 PRThread*
 nsComponentManagerImpl::GetPendingServiceThread(const nsCID& aServiceCID) const
 {
-  PRUint32 pendingCount = mPendingServices.Length();
-  for (PRUint32 index = 0; index < pendingCount; ++index) {
+  uint32_t pendingCount = mPendingServices.Length();
+  for (uint32_t index = 0; index < pendingCount; ++index) {
     const PendingServiceInfo& info = mPendingServices.ElementAt(index);
     if (info.cid->Equals(aServiceCID)) {
       return info.thread;
     }
   }
-  return nsnull;
+  return nullptr;
 }
 
 // GetService() wants to manually Exit()/Enter() a monitor which is
@@ -1147,7 +1147,7 @@ struct NS_STACK_CLASS AutoReentrantMonitor
     }
 
     ReentrantMonitor* mReentrantMonitor;
-    PRInt32 mEnterCount;
+    int32_t mEnterCount;
 };
 
 NS_IMETHODIMP
@@ -1189,7 +1189,7 @@ nsComponentManagerImpl::GetService(const nsCID& aClass,
     NS_ASSERTION(currentPRThread, "This should never be null!");
 
     // Needed to optimize the event loop below.
-    nsIThread* currentThread = nsnull;
+    nsIThread* currentThread = nullptr;
 
     PRThread* pendingPRThread;
     while ((pendingPRThread = GetPendingServiceThread(aClass))) {
@@ -1234,7 +1234,7 @@ nsComponentManagerImpl::GetService(const nsCID& aClass,
     // the service manager:
     mon.Exit();
 
-    nsresult rv = CreateInstance(aClass, nsnull, aIID, getter_AddRefs(service));
+    nsresult rv = CreateInstance(aClass, nullptr, aIID, getter_AddRefs(service));
 
     mon.Enter();
 
@@ -1296,7 +1296,7 @@ nsComponentManagerImpl::IsServiceInstantiated(const nsCID & aClass,
     if (entry && entry->mServiceObject) {
         nsCOMPtr<nsISupports> service;
         rv = entry->mServiceObject->QueryInterface(aIID, getter_AddRefs(service));
-        *result = (service!=nsnull);
+        *result = (service!=nullptr);
     }
 
     return rv;
@@ -1335,7 +1335,7 @@ NS_IMETHODIMP nsComponentManagerImpl::IsServiceInstantiatedByContractID(const ch
     if (entry && entry->mServiceObject) {
         nsCOMPtr<nsISupports> service;
         rv = entry->mServiceObject->QueryInterface(aIID, getter_AddRefs(service));
-        *result = (service!=nsnull);
+        *result = (service!=nullptr);
     }
     return rv;
 }
@@ -1384,7 +1384,7 @@ nsComponentManagerImpl::GetServiceByContractID(const char* aContractID,
     NS_ASSERTION(currentPRThread, "This should never be null!");
 
     // Needed to optimize the event loop below.
-    nsIThread* currentThread = nsnull;
+    nsIThread* currentThread = nullptr;
 
     PRThread* pendingPRThread;
     while ((pendingPRThread = GetPendingServiceThread(*entry->mCIDEntry->cid))) {
@@ -1429,7 +1429,7 @@ nsComponentManagerImpl::GetServiceByContractID(const char* aContractID,
     // the service manager:
     mon.Exit();
 
-    nsresult rv = CreateInstanceByContractID(aContractID, nsnull, aIID,
+    nsresult rv = CreateInstanceByContractID(aContractID, nullptr, aIID,
                                              getter_AddRefs(service));
 
     mon.Enter();
@@ -1569,7 +1569,7 @@ NS_IMETHODIMP
 nsComponentManagerImpl::IsCIDRegistered(const nsCID & aClass,
                                         bool *_retval)
 {
-    *_retval = (nsnull != GetFactoryEntry(aClass));
+    *_retval = (nullptr != GetFactoryEntry(aClass));
     return NS_OK;
 }
 

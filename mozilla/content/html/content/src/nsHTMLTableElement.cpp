@@ -10,7 +10,7 @@
 #include "nsIDOMHTMLTableSectionElem.h"
 #include "nsCOMPtr.h"
 #include "nsIDOMEventTarget.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsContentList.h"
 #include "nsGenericHTMLElement.h"
 #include "nsGkAtoms.h"
@@ -56,7 +56,7 @@ public:
   virtual JSObject* WrapObject(JSContext *cx, JSObject *scope,
                                bool *triedToWrap)
   {
-    return mozilla::dom::binding::HTMLCollection::create(cx, scope, this,
+    return mozilla::dom::oldproxybindings::HTMLCollection::create(cx, scope, this,
                                                          triedToWrap);
   }
 
@@ -132,7 +132,7 @@ NS_INTERFACE_MAP_END
       /* TBodies */                                                  \
       nsContentList *_tbodies = mParent->TBodies();                  \
       nsINode * _node;                                               \
-      PRUint32 _tbodyIndex = 0;                                      \
+      uint32_t _tbodyIndex = 0;                                      \
       _node = _tbodies->GetNodeAt(_tbodyIndex);                      \
       while (_node) {                                                \
         rowGroup = do_QueryInterface(_node);                         \
@@ -151,7 +151,7 @@ NS_INTERFACE_MAP_END
       } while (0);                                                   \
       /* TFoot */                                                    \
       rowGroup = mParent->GetTFoot();                                \
-      rows = nsnull;                                                 \
+      rows = nullptr;                                                 \
       if (rowGroup) {                                                \
         rowGroup->GetRows(getter_AddRefs(rows));                     \
         do { /* gives scoping */                                     \
@@ -161,10 +161,10 @@ NS_INTERFACE_MAP_END
     }                                                                \
   } while (0)
 
-static PRUint32
+static uint32_t
 CountRowsInRowGroup(nsIDOMHTMLCollection* rows)
 {
-  PRUint32 length = 0;
+  uint32_t length = 0;
   
   if (rows) {
     rows->GetLength(&length);
@@ -177,7 +177,7 @@ CountRowsInRowGroup(nsIDOMHTMLCollection* rows)
 // ourselves up as an observer of contentAppended, contentInserted,
 // and contentDeleted
 NS_IMETHODIMP 
-TableRowsCollection::GetLength(PRUint32* aLength)
+TableRowsCollection::GetLength(uint32_t* aLength)
 {
   *aLength=0;
 
@@ -193,7 +193,7 @@ TableRowsCollection::GetLength(PRUint32* aLength)
 // Otherwise, the value of aCount is undefined.
 static nsIContent*
 GetItemOrCountInRowGroup(nsIDOMHTMLCollection* rows,
-                         PRUint32 aIndex, PRUint32* aCount)
+                         uint32_t aIndex, uint32_t* aCount)
 {
   *aCount = 0;
 
@@ -205,14 +205,14 @@ GetItemOrCountInRowGroup(nsIDOMHTMLCollection* rows,
     }
   }
   
-  return nsnull;
+  return nullptr;
 }
 
 nsIContent*
-TableRowsCollection::GetNodeAt(PRUint32 aIndex)
+TableRowsCollection::GetNodeAt(uint32_t aIndex)
 {
   DO_FOR_EACH_ROWGROUP(
-    PRUint32 count;
+    uint32_t count;
     nsIContent* node = GetItemOrCountInRowGroup(rows, aIndex, &count);
     if (node) {
       return node; 
@@ -222,15 +222,15 @@ TableRowsCollection::GetNodeAt(PRUint32 aIndex)
     aIndex -= count;
   );
 
-  return nsnull;
+  return nullptr;
 }
 
 NS_IMETHODIMP 
-TableRowsCollection::Item(PRUint32 aIndex, nsIDOMNode** aReturn)
+TableRowsCollection::Item(uint32_t aIndex, nsIDOMNode** aReturn)
 {
   nsISupports* node = GetNodeAt(aIndex);
   if (!node) {
-    *aReturn = nsnull;
+    *aReturn = nullptr;
 
     return NS_OK;
   }
@@ -247,7 +247,7 @@ GetNamedItemInRowGroup(nsIDOMHTMLCollection* aRows, const nsAString& aName,
     return rows->GetNamedItem(aName, aCache);
   }
 
-  return nsnull;
+  return nullptr;
 }
 
 nsISupports* 
@@ -260,8 +260,8 @@ TableRowsCollection::GetNamedItem(const nsAString& aName,
       return item;
     }
   );
-  *aCache = nsnull;
-  return nsnull;
+  *aCache = nullptr;
+  return nullptr;
 }
 
 NS_IMETHODIMP 
@@ -271,7 +271,7 @@ TableRowsCollection::NamedItem(const nsAString& aName,
   nsWrapperCache *cache;
   nsISupports* item = GetNamedItem(aName, &cache);
   if (!item) {
-    *aReturn = nsnull;
+    *aReturn = nullptr;
 
     return NS_OK;
   }
@@ -283,7 +283,7 @@ NS_IMETHODIMP
 TableRowsCollection::ParentDestroyed()
 {
   // see comment in destructor, do NOT release mParent!
-  mParent = nsnull;
+  mParent = nullptr;
 
   return NS_OK;
 }
@@ -366,7 +366,7 @@ nsHTMLTableElement::GetCaption()
       return caption.forget();
     }
   }
-  return nsnull;
+  return nullptr;
 }
 
 NS_IMETHODIMP
@@ -403,7 +403,7 @@ nsHTMLTableElement::GetSection(nsIAtom *aTag)
       return section.forget();
     }
   }
-  return nsnull;
+  return nullptr;
 }
 
 NS_IMETHODIMP
@@ -510,7 +510,7 @@ nsHTMLTableElement::TBodies()
 NS_IMETHODIMP
 nsHTMLTableElement::CreateTHead(nsIDOMHTMLElement** aValue)
 {
-  *aValue = nsnull;
+  *aValue = nullptr;
 
   nsRefPtr<nsIDOMHTMLTableSectionElement> head = GetTHead();
   if (head) {
@@ -560,7 +560,7 @@ nsHTMLTableElement::DeleteTHead()
 NS_IMETHODIMP
 nsHTMLTableElement::CreateTFoot(nsIDOMHTMLElement** aValue)
 {
-  *aValue = nsnull;
+  *aValue = nullptr;
 
   nsRefPtr<nsIDOMHTMLTableSectionElement> foot = GetTFoot();
   if (foot) {
@@ -602,7 +602,7 @@ nsHTMLTableElement::DeleteTFoot()
 NS_IMETHODIMP
 nsHTMLTableElement::CreateCaption(nsIDOMHTMLElement** aValue)
 {
-  *aValue = nsnull;
+  *aValue = nullptr;
 
   if (nsRefPtr<nsIDOMHTMLTableCaptionElement> caption = GetCaption()) {
     // return the existing caption
@@ -643,7 +643,7 @@ nsHTMLTableElement::DeleteCaption()
 }
 
 NS_IMETHODIMP
-nsHTMLTableElement::InsertRow(PRInt32 aIndex, nsIDOMHTMLElement** aValue)
+nsHTMLTableElement::InsertRow(int32_t aIndex, nsIDOMHTMLElement** aValue)
 {
   /* get the ref row at aIndex
      if there is one, 
@@ -653,7 +653,7 @@ nsHTMLTableElement::InsertRow(PRInt32 aIndex, nsIDOMHTMLElement** aValue)
        get the first row group
        insert the new row as its first child
   */
-  *aValue = nsnull;
+  *aValue = nullptr;
 
   if (aIndex < -1) {
     return NS_ERROR_DOM_INDEX_SIZE_ERR;
@@ -662,15 +662,15 @@ nsHTMLTableElement::InsertRow(PRInt32 aIndex, nsIDOMHTMLElement** aValue)
   nsCOMPtr<nsIDOMHTMLCollection> rows;
   GetRows(getter_AddRefs(rows));
 
-  PRUint32 rowCount;
+  uint32_t rowCount;
   rows->GetLength(&rowCount);
 
-  if ((PRUint32)aIndex > rowCount && aIndex != -1) {
+  if ((uint32_t)aIndex > rowCount && aIndex != -1) {
     return NS_ERROR_DOM_INDEX_SIZE_ERR;
   }
 
   // use local variable refIndex so we can remember original aIndex
-  PRUint32 refIndex = (PRUint32)aIndex;
+  uint32_t refIndex = (uint32_t)aIndex;
 
   nsresult rv;
   if (rowCount > 0) {
@@ -700,7 +700,7 @@ nsHTMLTableElement::InsertRow(PRInt32 aIndex, nsIDOMHTMLElement** aValue)
 
       // If index is -1 or equal to the number of rows, the new row
       // is appended.
-      if (aIndex == -1 || PRUint32(aIndex) == rowCount) {
+      if (aIndex == -1 || uint32_t(aIndex) == rowCount) {
         rv = parent->AppendChild(newRowNode, getter_AddRefs(retChild));
         NS_ENSURE_SUCCESS(rv, rv);
       }
@@ -787,7 +787,7 @@ nsHTMLTableElement::InsertRow(PRInt32 aIndex, nsIDOMHTMLElement** aValue)
 }
 
 NS_IMETHODIMP
-nsHTMLTableElement::DeleteRow(PRInt32 aValue)
+nsHTMLTableElement::DeleteRow(int32_t aValue)
 {
   if (aValue < -1) {
     return NS_ERROR_DOM_INDEX_SIZE_ERR;
@@ -797,7 +797,7 @@ nsHTMLTableElement::DeleteRow(PRInt32 aValue)
   GetRows(getter_AddRefs(rows));
 
   nsresult rv;
-  PRUint32 refIndex;
+  uint32_t refIndex;
   if (aValue == -1) {
     rv = rows->GetLength(&refIndex);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -809,7 +809,7 @@ nsHTMLTableElement::DeleteRow(PRInt32 aValue)
     --refIndex;
   }
   else {
-    refIndex = (PRUint32)aValue;
+    refIndex = (uint32_t)aValue;
   }
 
   nsCOMPtr<nsIDOMNode> row;
@@ -858,7 +858,7 @@ static const nsAttrValue::EnumTable kLayoutTable[] = {
 
 
 bool
-nsHTMLTableElement::ParseAttribute(PRInt32 aNamespaceID,
+nsHTMLTableElement::ParseAttribute(int32_t aNamespaceID,
                                    nsIAtom* aAttribute,
                                    const nsAString& aValue,
                                    nsAttrValue& aResult)
@@ -910,7 +910,10 @@ nsHTMLTableElement::ParseAttribute(PRInt32 aNamespaceID,
     }
   }
 
-  return nsGenericHTMLElement::ParseAttribute(aNamespaceID, aAttribute, aValue,
+  return nsGenericHTMLElement::ParseBackgroundAttribute(aNamespaceID,
+                                                        aAttribute, aValue,
+                                                        aResult) ||
+         nsGenericHTMLElement::ParseAttribute(aNamespaceID, aAttribute, aValue,
                                               aResult);
 }
 
@@ -1051,7 +1054,7 @@ MapAttributesIntoRule(const nsMappedAttributes* aAttributes,
     const nsAttrValue* borderValue = aAttributes->GetAttr(nsGkAtoms::border);
     if (borderValue) {
       // border = 1 pixel default
-      PRInt32 borderThickness = 1;
+      int32_t borderThickness = 1;
 
       if (borderValue->Type() == nsAttrValue::eInteger)
         borderThickness = borderValue->GetIntegerValue();
@@ -1092,7 +1095,7 @@ nsHTMLTableElement::IsAttributeMapped(const nsIAtom* aAttribute) const
     { &nsGkAtoms::bordercolor },
     
     { &nsGkAtoms::align },
-    { nsnull }
+    { nullptr }
   };
 
   static const MappedAttributeEntry* const map[] = {
@@ -1153,7 +1156,7 @@ nsHTMLTableElement::GetAttributesMappedForCell()
     if (mTableInheritedAttributes != TABLE_ATTRS_DIRTY)
       return mTableInheritedAttributes;
   }
-  return nsnull;
+  return nullptr;
 }
 
 void
@@ -1163,7 +1166,7 @@ nsHTMLTableElement::BuildInheritedAttributes()
                "potential leak, plus waste of work");
   nsIDocument *document = GetCurrentDoc();
   nsHTMLStyleSheet* sheet = document ?
-                              document->GetAttributeStyleSheet() : nsnull;
+                              document->GetAttributeStyleSheet() : nullptr;
   nsRefPtr<nsMappedAttributes> newAttrs;
   if (sheet) {
     const nsAttrValue* value = mAttrsAndChildren.GetAttr(nsGkAtoms::cellpadding);
@@ -1211,7 +1214,7 @@ nsHTMLTableElement::UnbindFromTree(bool aDeep, bool aNullParent)
 }
 
 nsresult
-nsHTMLTableElement::BeforeSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+nsHTMLTableElement::BeforeSetAttr(int32_t aNameSpaceID, nsIAtom* aName,
                                   const nsAttrValueOrString* aValue,
                                   bool aNotify)
 {
@@ -1223,7 +1226,7 @@ nsHTMLTableElement::BeforeSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
 }
 
 nsresult
-nsHTMLTableElement::AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+nsHTMLTableElement::AfterSetAttr(int32_t aNameSpaceID, nsIAtom* aName,
                                  const nsAttrValue* aValue,
                                  bool aNotify)
 {

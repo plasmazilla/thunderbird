@@ -13,6 +13,7 @@
 #include "nsDataHashtable.h"
 
 class mozIStorageConnection;
+class mozIStorageServiceQuotaManagement;
 
 BEGIN_INDEXEDDB_NAMESPACE
 
@@ -26,7 +27,7 @@ public:
   FileManager(const nsACString& aOrigin,
               const nsAString& aDatabaseName)
   : mOrigin(aOrigin), mDatabaseName(aDatabaseName), mLastFileId(0),
-    mLoaded(false), mInvalidated(false)
+    mInvalidated(false)
   { }
 
   ~FileManager()
@@ -44,16 +45,6 @@ public:
     return mDatabaseName;
   }
 
-  bool Inited() const
-  {
-    return !mDirectoryPath.IsEmpty();
-  }
-
-  bool Loaded() const
-  {
-    return mLoaded;
-  }
-
   bool Invalidated() const
   {
     return mInvalidated;
@@ -62,31 +53,37 @@ public:
   nsresult Init(nsIFile* aDirectory,
                 mozIStorageConnection* aConnection);
 
-  nsresult Load(mozIStorageConnection* aConnection);
-
   nsresult Invalidate();
 
   already_AddRefed<nsIFile> GetDirectory();
 
-  already_AddRefed<FileInfo> GetFileInfo(PRInt64 aId);
+  already_AddRefed<nsIFile> GetJournalDirectory();
+
+  already_AddRefed<nsIFile> EnsureJournalDirectory();
+
+  already_AddRefed<FileInfo> GetFileInfo(int64_t aId);
 
   already_AddRefed<FileInfo> GetNewFileInfo();
 
   static already_AddRefed<nsIFile> GetFileForId(nsIFile* aDirectory,
-                                                PRInt64 aId);
+                                                int64_t aId);
+
+  static nsresult InitDirectory(mozIStorageServiceQuotaManagement* aService,
+                                nsIFile* aDirectory, nsIFile* aDatabaseFile,
+                                FactoryPrivilege aPrivilege);
 
 private:
   nsCString mOrigin;
   nsString mDatabaseName;
 
   nsString mDirectoryPath;
+  nsString mJournalDirectoryPath;
 
-  PRInt64 mLastFileId;
+  int64_t mLastFileId;
 
   // Protected by IndexedDatabaseManager::FileMutex()
   nsDataHashtable<nsUint64HashKey, FileInfo*> mFileInfos;
 
-  bool mLoaded;
   bool mInvalidated;
 };
 

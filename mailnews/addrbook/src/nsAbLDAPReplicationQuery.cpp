@@ -88,18 +88,18 @@ nsresult nsAbLDAPReplicationQuery::ConnectToLDAPServer()
       return NS_ERROR_UNEXPECTED;
 
     // this could be a rebind call
-    PRInt32 replicationState = nsIAbLDAPProcessReplicationData::kIdle;
+    int32_t replicationState = nsIAbLDAPProcessReplicationData::kIdle;
     rv = mDataProcessor->GetReplicationState(&replicationState);
     if (NS_FAILED(rv) ||
         replicationState != nsIAbLDAPProcessReplicationData::kIdle)
         return rv;
 
-    PRUint32 protocolVersion;
+    uint32_t protocolVersion;
     rv = mDirectory->GetProtocolVersion(&protocolVersion);
     NS_ENSURE_SUCCESS(rv, rv);
 
     // initialize the LDAP connection
-    return mConnection->Init(mURL, mLogin, mDp, nsnull, protocolVersion);
+    return mConnection->Init(mURL, mLogin, mDp, nullptr, protocolVersion);
 }
 
 NS_IMETHODIMP nsAbLDAPReplicationQuery::Init(nsIAbLDAPDirectory *aDirectory,

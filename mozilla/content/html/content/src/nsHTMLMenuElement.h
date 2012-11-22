@@ -20,7 +20,7 @@ public:
   {
     if (aContent && aContent->IsHTML(nsGkAtoms::menu))
       return static_cast<nsHTMLMenuElement*>(aContent);
-    return nsnull;
+    return nullptr;
   }
 
   // nsISupports
@@ -41,7 +41,7 @@ public:
   // nsIHTMLMenu
   NS_DECL_NSIHTMLMENU
 
-  virtual bool ParseAttribute(PRInt32 aNamespaceID,
+  virtual bool ParseAttribute(int32_t aNamespaceID,
                                 nsIAtom* aAttribute,
                                 const nsAString& aValue,
                                 nsAttrValue& aResult);
@@ -52,7 +52,7 @@ public:
 
   virtual nsIDOMNode* AsDOMNode() { return this; }
 
-  PRUint8 GetType() const { return mType; }
+  uint8_t GetType() const { return mType; }
 
 protected:
   static bool CanLoadIcon(nsIContent* aContent, const nsAString& aIcon);
@@ -63,9 +63,9 @@ protected:
 
   void TraverseContent(nsIContent* aContent,
                        nsIMenuBuilder* aBuilder,
-                       PRInt8& aSeparator);
+                       int8_t& aSeparator);
 
-  void AddSeparator(nsIMenuBuilder* aBuilder, PRInt8& aSeparator);
+  void AddSeparator(nsIMenuBuilder* aBuilder, int8_t& aSeparator);
 
-  PRUint8 mType;
+  uint8_t mType;
 };

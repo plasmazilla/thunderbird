@@ -14,7 +14,7 @@
 
 #define OUTLOOK_MSGS_URL       "chrome://messenger/locale/outlookImportMsgs.properties"
 
-nsIStringBundle *  nsOutlookStringBundle::m_pBundle = nsnull;
+nsIStringBundle *  nsOutlookStringBundle::m_pBundle = nullptr;
 
 nsIStringBundle *nsOutlookStringBundle::GetStringBundle(void)
 {
@@ -22,7 +22,7 @@ nsIStringBundle *nsOutlookStringBundle::GetStringBundle(void)
     return m_pBundle;
 
   char*        propertyURL = OUTLOOK_MSGS_URL;
-  nsIStringBundle*  sBundle = nsnull;
+  nsIStringBundle*  sBundle = nullptr;
 
   nsCOMPtr<nsIStringBundleService> sBundleService =
     mozilla::services::GetStringBundleService();
@@ -35,20 +35,20 @@ nsIStringBundle *nsOutlookStringBundle::GetStringBundle(void)
   return sBundle;
 }
 
-void nsOutlookStringBundle::GetStringByID(PRInt32 stringID, nsString& result)
+void nsOutlookStringBundle::GetStringByID(int32_t stringID, nsString& result)
 {
   PRUnichar *ptrv = GetStringByID(stringID);
   result = ptrv;
   FreeString(ptrv);
 }
 
-PRUnichar *nsOutlookStringBundle::GetStringByID(PRInt32 stringID)
+PRUnichar *nsOutlookStringBundle::GetStringByID(int32_t stringID)
 {
   if (m_pBundle)
     m_pBundle = GetStringBundle();
 
   if (m_pBundle) {
-    PRUnichar *ptrv = nsnull;
+    PRUnichar *ptrv = nullptr;
     nsresult rv = m_pBundle->GetStringFromID(stringID, &ptrv);
 
     if (NS_SUCCEEDED(rv) && ptrv)
@@ -67,5 +67,5 @@ void nsOutlookStringBundle::Cleanup(void)
 {
   if (m_pBundle)
     m_pBundle->Release();
-  m_pBundle = nsnull;
+  m_pBundle = nullptr;
 }

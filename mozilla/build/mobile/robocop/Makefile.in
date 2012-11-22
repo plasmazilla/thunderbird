@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH       = ../../..
+DEPTH       = @DEPTH@
 topsrcdir   = @top_srcdir@
 srcdir      = @srcdir@
 VPATH       = @srcdir@
@@ -12,7 +12,7 @@ include $(DEPTH)/config/autoconf.mk
 
 MODULE = robocop
 
-ROBOTIUM_PATH = $(srcdir)/robotium-solo-3.2.1.jar
+ROBOTIUM_PATH = $(srcdir)/robotium-solo-3.3.jar
 
 JAVAFILES = \
   R.java \
