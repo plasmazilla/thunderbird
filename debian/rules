@@ -9,6 +9,7 @@ DEB_MOZ_APPLICATION=$(DEB_MOZ_NAME)
 MOZ_APPLICATION=mail
 XUL_VERSION=1.9.1
 MAIN_LDFLAGS := -Wl,--as-needed
+DEB_BUILD_OPTIONS ?= $(shell getconf _NPROCESSORS_ONLN)
 
 ifeq ($(DEB_MOZ_NAME),icedove)
   DEBIAN_DIST := org.debian
@@ -119,6 +120,11 @@ endif
 
 ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
 	DEB_CONFIGURE_USER_FLAGS += --enable-debug
+endif
+
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+	NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+	MAKEFLAGS += -j$(NUMJOBS)
 endif
 
 ifneq (,$(filter kfreebsd-% hurd-%,$(DEB_BUILD_ARCH)))
