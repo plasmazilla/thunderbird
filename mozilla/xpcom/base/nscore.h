@@ -308,7 +308,7 @@ typedef size_t(*nsMallocSizeOfFun)(const void *p);
 /**
  * Generic XPCOM result data type
  */
-typedef PRUint32 nsresult;
+typedef uint32_t nsresult;
 
 /**
  * Reference count values
@@ -321,19 +321,24 @@ typedef PRUint32 nsresult;
 #if defined(XP_WIN) && PR_BYTES_PER_LONG == 4
 typedef unsigned long nsrefcnt;
 #else
-typedef PRUint32 nsrefcnt;
+typedef uint32_t nsrefcnt;
 #endif
 
 /**
- * The preferred symbol for null.  Make sure this is the same size as
- * void* on the target.  See bug 547964.
+ * Use C++11 nullptr if available; otherwise use a C++ typesafe template; and
+ * for C, fall back to longs.  See bugs 547964 and 626472.
  */
-#if defined(_WIN64)
-# define nsnull 0LL
+#ifndef HAVE_NULLPTR
+#ifndef __cplusplus
+# define nullptr ((void*)0)
+#elif defined(__GNUC__)
+# define nullptr __null
+#elif defined(_WIN64)
+# define nullptr 0LL
 #else
-# define nsnull 0L
+# define nullptr 0L
 #endif
-
+#endif /* defined(HAVE_NULLPTR) */
 
 #include "nsError.h"
 
@@ -354,7 +359,7 @@ typedef PRUint32 nsrefcnt;
   #if defined(HAVE_CPP_2BYTE_WCHAR_T) && defined(XP_WIN)
     typedef wchar_t PRUnichar;
   #else
-    typedef PRUint16 PRUnichar;
+    typedef uint16_t PRUnichar;
   #endif
 #endif
 
@@ -362,8 +367,8 @@ typedef PRUint32 nsrefcnt;
  * Use these macros to do 64bit safe pointer conversions.
  */
 
-#define NS_PTR_TO_INT32(x)  ((PRInt32)  (intptr_t) (x))
-#define NS_PTR_TO_UINT32(x) ((PRUint32) (intptr_t) (x))
+#define NS_PTR_TO_INT32(x)  ((int32_t)  (intptr_t) (x))
+#define NS_PTR_TO_UINT32(x) ((uint32_t) (intptr_t) (x))
 #define NS_INT32_TO_PTR(x)  ((void *)   (intptr_t) (x))
 
 /*
@@ -436,23 +441,6 @@ typedef PRUint32 nsrefcnt;
 #define NS_OKONHEAP
 #define NS_SUPPRESS_STACK_CHECK
 #define NS_MUST_OVERRIDE
-#endif
-
-/**
- * Attributes defined to help Dehydra GCC analysis.
- */
-#ifdef NS_STATIC_CHECKING
-# define NS_SCRIPTABLE __attribute__((user("NS_script")))
-# define NS_INPARAM __attribute__((user("NS_inparam")))
-# define NS_OUTPARAM  __attribute__((user("NS_outparam")))
-# define NS_INOUTPARAM __attribute__((user("NS_inoutparam")))
-# define NS_OVERRIDE __attribute__((user("NS_override")))
-#else
-# define NS_SCRIPTABLE
-# define NS_INPARAM
-# define NS_OUTPARAM
-# define NS_INOUTPARAM
-# define NS_OVERRIDE
 #endif
 
 /*

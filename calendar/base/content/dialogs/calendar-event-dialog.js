@@ -4,6 +4,7 @@
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource://calendar/modules/calRecurrenceUtils.jsm");
 
 try {
     Components.utils.import("resource:///modules/cloudFileAccounts.js");
@@ -29,6 +30,7 @@ var gConfirmCancel = true;
 var gLastRepeatSelection = 0;
 var gIgnoreUpdate = false;
 var gShowTimeAs = null;
+var gWarning = false;
 
 var eventDialogQuitObserver = {
   observe: function(aSubject, aTopic, aData) {
@@ -242,7 +244,7 @@ function onEventDialogUnload() {
 function onAccept() {
     dispose();
     onCommandSave(true);
-    return true;
+    return !gWarning;
 }
 
 /**
@@ -254,7 +256,8 @@ function onAccept() {
  * @return    Returns true if the window should be closed.
  */
 function onCommandCancel() {
-    if (!isItemChanged()) {
+    // Allow closing if the item has not changed and no warning dialog has to be showed.
+    if (!isItemChanged() && !gWarning) {
         return true;
     }
 
@@ -291,6 +294,8 @@ function onCommandCancel() {
             onCommandSave(true);
             return true;
         case 2: // Don't save
+            // Don't show any warning dialog when closing without saving.
+            gWarning = false;
             return true;
         default: // Cancel
             return false;
@@ -309,7 +314,10 @@ function onCancel() {
 
     if (!gConfirmCancel || (gConfirmCancel && onCommandCancel())) {
         dispose();
-        return true;
+        // Don't allow closing the dialog when the user inputs a wrong
+        // date then closes the dialog and answers with "Save" in
+        // the "Save Event" dialog.
+        return !gWarning;
     }
     return false;
 }
@@ -568,8 +576,8 @@ function dateTimeControls2State(aStartDatepicker) {
         // jsDate is always in OS timezone, thus we create a calIDateTime
         // object from the jsDate representation then we convert the timezone
         // in order to keep gStartTime in default timezone.
-        gStartTime = jsDateToDateTime(getElementValue(startWidgetId),
-                                      (timezonesEnabled || allDay) ? gStartTimezone : kDefaultTimezone);
+        gStartTime = cal.jsDateToDateTime(getElementValue(startWidgetId),
+                                          (timezonesEnabled || allDay) ? gStartTimezone : kDefaultTimezone);
         if (timezonesEnabled || allDay) {
             gStartTime = gStartTime.getInTimezone(kDefaultTimezone);
         }
@@ -589,8 +597,8 @@ function dateTimeControls2State(aStartDatepicker) {
                     timezone = gStartTimezone;
                 }
             }
-            gEndTime = jsDateToDateTime(getElementValue(endWidgetId),
-                                        (timezonesEnabled || allDay) ? timezone : kDefaultTimezone);
+            gEndTime = cal.jsDateToDateTime(getElementValue(endWidgetId),
+                                            (timezonesEnabled || allDay) ? timezone : kDefaultTimezone);
             if (timezonesEnabled || allDay) {
                 gEndTime = gEndTime.getInTimezone(kDefaultTimezone);
             }
@@ -630,6 +638,7 @@ function dateTimeControls2State(aStartDatepicker) {
     updateTimezone();
 
     if (warning) {
+        gWarning = true;
         var callback = function func() {
             var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
                                 .getService(Components.interfaces.nsIPromptService);
@@ -637,6 +646,7 @@ function dateTimeControls2State(aStartDatepicker) {
                 null,
                 document.title,
                 calGetString("calendar", "warningEndBeforeStart"));
+                gWarning = false;
         }
         setTimeout(callback, 1);
     }
@@ -699,23 +709,23 @@ function updateDateCheckboxes(aDatePickerId, aCheckboxId, aDateTime) {
     setElementValue(aDatePickerId, getElementValue(aDatePickerId));
 
     // first of all disable the datetime picker if we don't have a date
-    var hasDate = getElementValue(aCheckboxId, "checked");
+    let hasDate = getElementValue(aCheckboxId, "checked");
     setElementValue(aDatePickerId, !hasDate, "disabled");
 
     // create a new datetime object if date is now checked for the first time
     if (hasDate && !aDateTime.isValid()) {
-        var date = jsDateToDateTime(getElementValue(aDatePickerId), calendarDefaultTimezone());
-        aDateTime.setDateTime(date);
+        let dt = cal.jsDateToDateTime(getElementValue(aDatePickerId), cal.calendarDefaultTimezone());
+        aDateTime.setDateTime(dt);
     } else if (!hasDate && aDateTime.isValid()) {
         aDateTime.setDateTime(null);
     }
 
     // calculate the duration if possible
-    var hasEntryDate = getElementValue("todo-has-entrydate", "checked");
-    var hasDueDate = getElementValue("todo-has-duedate", "checked");
+    let hasEntryDate = getElementValue("todo-has-entrydate", "checked");
+    let hasDueDate = getElementValue("todo-has-duedate", "checked");
     if (hasEntryDate && hasDueDate) {
-        var start = jsDateToDateTime(getElementValue("todo-entrydate"));
-        var end = jsDateToDateTime(getElementValue("todo-duedate"));
+        let start = cal.jsDateToDateTime(getElementValue("todo-entrydate"));
+        let end = cal.jsDateToDateTime(getElementValue("todo-duedate"));
         gItemDuration = end.subtractDate(start);
     } else {
         gItemDuration = null;
@@ -935,7 +945,7 @@ function saveDialog(item) {
 
     if (item.status == "COMPLETED" && isToDo(item)) {
         var elementValue = getElementValue("completed-date-picker");
-        item.completedDate = jsDateToDateTime(elementValue);
+        item.completedDate = cal.jsDateToDateTime(elementValue);
     }
 
     saveReminder(item);
@@ -1062,8 +1072,8 @@ function updateAccept() {
     var startDate;
     var endDate;
     if (isEvent(window.calendarItem)) {
-        startDate = jsDateToDateTime(getElementValue("event-starttime"));
-        endDate = jsDateToDateTime(getElementValue("event-endtime"));
+        startDate = cal.jsDateToDateTime(getElementValue("event-starttime"));
+        endDate = cal.jsDateToDateTime(getElementValue("event-endtime"));
 
         var menuItem = document.getElementById('options-timezone-menuitem');
         if (menuItem.getAttribute('checked') == 'true') {
@@ -1103,9 +1113,9 @@ function updateAccept() {
         }
     } else {
         startDate = getElementValue("todo-has-entrydate", "checked") ?
-            jsDateToDateTime(getElementValue("todo-entrydate")) : null;
+            cal.jsDateToDateTime(getElementValue("todo-entrydate")) : null;
         endDate = getElementValue("todo-has-duedate", "checked") ?
-            jsDateToDateTime(getElementValue("todo-duedate")) : null;
+            cal.jsDateToDateTime(getElementValue("todo-duedate")) : null;
     }
 
     if (endDate && startDate && endDate.compare(startDate) == -1) {
@@ -2462,6 +2472,11 @@ function onCommandSave(aIsClosing) {
     // confirmed (i.e. not followed by a click, a tab or enter keys pressure).
     document.documentElement.focus();
 
+    // Don't save if a warning dialog about a wrong input date must be showed.
+    if (gWarning) {
+        return;
+    }
+
     let originalItem = window.calendarItem;
     let item = saveItem();
     let calendar = getCurrentCalendar();
@@ -3138,31 +3153,33 @@ function updateRepeatDetails() {
 
         let startDate = getElementValue(event ? "event-starttime" : "todo-entrydate");
         let endDate = getElementValue(event ? "event-endtime" : "todo-duedate");
-        startDate = jsDateToDateTime(startDate, kDefaultTimezone);
-        endDate = jsDateToDateTime(endDate, kDefaultTimezone);
+        startDate = cal.jsDateToDateTime(startDate, kDefaultTimezone);
+        endDate = cal.jsDateToDateTime(endDate, kDefaultTimezone);
 
         let allDay = getElementValue("event-all-day", "checked");
-        let detailsString = recurrenceRule2String(
-            recurrenceInfo, startDate, endDate, allDay);
+        let detailsString = recurrenceRule2String(recurrenceInfo, startDate,
+                                                  endDate, allDay);
+
+        if (!detailsString) {
+            detailsString = cal.calGetString("calendar-event-dialog", "ruleTooComplex");
+        }
 
         // Now display the string...
-        if (detailsString) {
-            let lines = detailsString.split("\n");
-            repeatDetails.removeAttribute("collapsed");
-            while (repeatDetails.childNodes.length > lines.length) {
-                repeatDetails.removeChild(repeatDetails.lastChild);
+        let lines = detailsString.split("\n");
+        repeatDetails.removeAttribute("collapsed");
+        while (repeatDetails.childNodes.length > lines.length) {
+            repeatDetails.removeChild(repeatDetails.lastChild);
+        }
+        let numChilds = repeatDetails.childNodes.length;
+        for (let i = 0; i < lines.length; i++) {
+            if (i >= numChilds) {
+                var newNode = repeatDetails.childNodes[0]
+                                           .cloneNode(true);
+                repeatDetails.appendChild(newNode);
             }
-            let numChilds = repeatDetails.childNodes.length;
-            for (let i = 0; i < lines.length; i++) {
-                if (i >= numChilds) {
-                    var newNode = repeatDetails.childNodes[0]
-                                               .cloneNode(true);
-                    repeatDetails.appendChild(newNode);
-                }
-                repeatDetails.childNodes[i].value = lines[i];
-                repeatDetails.childNodes[i].setAttribute("tooltiptext",
-                                                         detailsString);
-            }
+            repeatDetails.childNodes[i].value = lines[i];
+            repeatDetails.childNodes[i].setAttribute("tooltiptext",
+                                                     detailsString);
         }
     } else {
         let repeatDetails = document.getElementById("repeat-details");

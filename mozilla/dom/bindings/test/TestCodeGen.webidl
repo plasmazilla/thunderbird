@@ -9,6 +9,11 @@ interface TestExternalInterface;
 interface TestNonCastableInterface {
 };
 
+callback interface TestCallbackInterface {
+  readonly attribute long foo;
+  void doSomething();
+};
+
 enum TestEnum {
   "a",
   "b"
@@ -18,11 +23,17 @@ callback TestCallback = void();
 
 TestInterface implements ImplementedInterface;
 
+// This interface is only for use in the constructor below
+interface OnlyForUseInConstructor {
+};
+
 [Constructor,
  Constructor(DOMString str),
  Constructor(unsigned long num, boolean? bool),
  Constructor(TestInterface? iface),
- Constructor(TestNonCastableInterface iface)]
+ Constructor(TestNonCastableInterface iface)
+ // , Constructor(long arg1, long arg2, (TestInterface or OnlyForUseInConstructor) arg3)
+ ]
 interface TestInterface {
   // Integer types
   // XXXbz add tests for infallible versions of all the integer stuff
@@ -40,49 +51,49 @@ interface TestInterface {
   void passShort(short arg);
   short receiveShort();
   void passOptionalShort(optional short arg);
-  void passOptionalShortWithDefault(optional short arg = 0);
+  void passOptionalShortWithDefault(optional short arg = 5);
 
   readonly attribute long readonlyLong;
   attribute long writableLong;
   void passLong(long arg);
   long receiveLong();
   void passOptionalLong(optional long arg);
-  void passOptionalLongWithDefault(optional long arg = 0);
+  void passOptionalLongWithDefault(optional long arg = 7);
 
   readonly attribute long long readonlyLongLong;
   attribute long long writableLongLong;
   void passLongLong(long long arg);
   long long receiveLongLong();
   void passOptionalLongLong(optional long long arg);
-  void passOptionalLongLongWithDefault(optional long long arg = 0);
+  void passOptionalLongLongWithDefault(optional long long arg = -12);
 
   readonly attribute octet readonlyOctet;
   attribute octet writableOctet;
   void passOctet(octet arg);
   octet receiveOctet();
   void passOptionalOctet(optional octet arg);
-  void passOptionalOctetWithDefault(optional octet arg = 0);
+  void passOptionalOctetWithDefault(optional octet arg = 19);
 
   readonly attribute unsigned short readonlyUnsignedShort;
   attribute unsigned short writableUnsignedShort;
   void passUnsignedShort(unsigned short arg);
   unsigned short receiveUnsignedShort();
   void passOptionalUnsignedShort(optional unsigned short arg);
-  void passOptionalUnsignedShortWithDefault(optional unsigned short arg = 0);
+  void passOptionalUnsignedShortWithDefault(optional unsigned short arg = 2);
 
   readonly attribute unsigned long readonlyUnsignedLong;
   attribute unsigned long writableUnsignedLong;
   void passUnsignedLong(unsigned long arg);
   unsigned long receiveUnsignedLong();
   void passOptionalUnsignedLong(optional unsigned long arg);
-  void passOptionalUnsignedLongWithDefault(optional unsigned long arg = 0);
+  void passOptionalUnsignedLongWithDefault(optional unsigned long arg = 6);
 
   readonly attribute unsigned long long readonlyUnsignedLongLong;
   attribute unsigned long long  writableUnsignedLongLong;
   void passUnsignedLongLong(unsigned long long arg);
   unsigned long long receiveUnsignedLongLong();
   void passOptionalUnsignedLongLong(optional unsigned long long arg);
-  void passOptionalUnsignedLongLongWithDefault(optional unsigned long long arg = 0);
+  void passOptionalUnsignedLongLongWithDefault(optional unsigned long long arg = 17);
 
   // Castable interface types
   // XXXbz add tests for infallible versions of all the castable interface stuff
@@ -150,6 +161,27 @@ interface TestInterface {
   void passOptionalNonNullExternal(optional TestExternalInterface arg);
   void passOptionalExternalWithDefault(optional TestExternalInterface? arg = null);
 
+  // Callback interface types
+  TestCallbackInterface receiveCallbackInterface();
+  TestCallbackInterface? receiveNullableCallbackInterface();
+  TestCallbackInterface receiveWeakCallbackInterface();
+  TestCallbackInterface? receiveWeakNullableCallbackInterface();
+  // A verstion to test for casting to TestCallbackInterface&
+  void passCallbackInterface(TestCallbackInterface arg);
+  // A version we can use to test for the exact type passed in
+  void passCallbackInterface2(TestCallbackInterface arg);
+  void passNullableCallbackInterface(TestCallbackInterface? arg);
+  attribute TestCallbackInterface nonNullCallbackInterface;
+  attribute TestCallbackInterface? nullableCallbackInterface;
+  // Optional arguments
+  void passOptionalCallbackInterface(optional TestCallbackInterface? arg);
+  void passOptionalNonNullCallbackInterface(optional TestCallbackInterface arg);
+  void passOptionalCallbackInterfaceWithDefault(optional TestCallbackInterface? arg = null);
+
+  // Miscellaneous interface tests
+  IndirectlyImplementedInterface receiveConsequentialInterface();
+  void passConsequentialInterface(IndirectlyImplementedInterface arg);
+
   // Sequence types
   sequence<long> receiveSequence();
   sequence<long>? receiveNullableSequence();
@@ -201,6 +233,7 @@ interface TestInterface {
   void passString(DOMString arg);
   void passNullableString(DOMString? arg);
   void passOptionalString(optional DOMString arg);
+  void passOptionalStringWithDefaultValue(optional DOMString arg = "abc");
   void passOptionalNullableString(optional DOMString? arg);
   void passOptionalNullableStringWithDefaultValue(optional DOMString? arg = null);
 
@@ -209,6 +242,7 @@ interface TestInterface {
   // No support for nullable enums yet
   // void passNullableEnum(TestEnum? arg);
   void passOptionalEnum(optional TestEnum arg);
+  void passEnumWithDefault(optional TestEnum arg = "a");
   // void passOptionalNullableEnum(optional TestEnum? arg);
   // void passOptionalNullableEnumWithDefaultValue(optional TestEnum? arg = null);
   TestEnum receiveEnum();
@@ -227,6 +261,7 @@ interface TestInterface {
   // Any types
   void passAny(any arg);
   void passOptionalAny(optional any arg);
+  void passAnyDefaultNull(optional any arg = null);
   any receiveAny();
 
   // object types
@@ -261,12 +296,13 @@ interface TestInterface {
   readonly attribute byte attributeGetterRenamedFrom;
   attribute byte attributeRenamedFrom;
 
-  void passDictionary(Dict x);
-  void passOptionalDictionary(optional Dict x);
-  void passNullableDictionary(Dict? x);
-  void passOptionalNullableDictionary(optional Dict? x);
-  void passOtherDictionary(GrandparentDict x);
+  void passDictionary(optional Dict x);
+  void passOtherDictionary(optional GrandparentDict x);
   void passSequenceOfDictionaries(sequence<Dict> x);
+  void passDictionaryOrLong(optional Dict x);
+  void passDictionaryOrLong(long x);
+
+  void passDictContainingDict(optional DictContainingDict arg);
 };
 
 interface TestNonWrapperCacheInterface {
@@ -281,6 +317,7 @@ interface ImplementedInterfaceParent {
 
 ImplementedInterfaceParent implements IndirectlyImplementedInterface;
 
+[NoInterfaceObject]
 interface IndirectlyImplementedInterface {
   void indirectlyImplementedMethod();
   attribute boolean indirectlyImplementedProperty;
@@ -320,10 +357,55 @@ dictionary Dict : ParentDict {
   long b = 8;
   long z = 9;
   DOMString str;
+  DOMString empty = "";
+  TestEnum otherEnum = "b";
+  DOMString otherStr = "def";
+  DOMString? yetAnotherStr = null;
 };
 
 dictionary ParentDict : GrandparentDict {
   long c = 5;
   TestInterface someInterface;
   TestExternalInterface someExternalInterface;
+};
+
+dictionary DictContainingDict {
+  Dict memberDict;
+};
+
+interface TestIndexedGetterInterface {
+  getter long item(unsigned long index);
+  readonly attribute unsigned long length;
+};
+
+interface TestNamedGetterInterface {
+  getter DOMString (DOMString name);
+};
+
+interface TestIndexedAndNamedGetterInterface {
+  getter long (unsigned long index);
+  getter DOMString namedItem(DOMString name);
+  readonly attribute unsigned long length;
+};
+
+interface TestIndexedSetterInterface {
+  setter creator void setItem(unsigned long index, DOMString item);
+};
+
+interface TestNamedSetterInterface {
+  setter creator void (DOMString name, TestIndexedSetterInterface item);
+};
+
+interface TestIndexedAndNamedSetterInterface {
+  setter creator void (unsigned long index, TestIndexedSetterInterface item);
+  setter creator void setNamedItem(DOMString name, TestIndexedSetterInterface item);
+};
+
+interface TestIndexedAndNamedGetterAndSetterInterface : TestIndexedSetterInterface {
+  getter long item(unsigned long index);
+  getter DOMString namedItem(DOMString name);
+  setter creator void (unsigned long index, long item);
+  setter creator void (DOMString name, DOMString item);
+  stringifier DOMString ();
+  readonly attribute unsigned long length;
 };

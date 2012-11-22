@@ -568,6 +568,7 @@ const XMPPAccountPrototype = {
 
   _jid: null, // parsed Jabber ID: node, domain, resource
   _connection: null, // XMPP Connection
+  authMechanisms: null, // hook to let prpls tweak the list of auth mechanisms
 
   _init: function(aProtoInstance, aImAccount) {
     GenericAccountPrototype._init.call(this, aProtoInstance, aImAccount);
@@ -935,27 +936,27 @@ const XMPPAccountPrototype = {
     buddy._vCardReceived = true;
   },
 
-  _normalizeJID: function(aJID) {
-    let slashIndex = aJID.indexOf("/");
-    if (slashIndex != -1)
-      aJID = aJID.substr(0, slashIndex);
-    return aJID.toLowerCase();
-  },
+  _normalizeJID: function(aJID)
+    aJID.trim()
+        .split("/", 1)[0] // up to first slash
+        .toLowerCase(),
 
   _parseJID: function(aJid) {
     let match =
-      /^(?:([^@/<>'\"]+)@)?([^@/<>'\"]+)(?:\/([^<>'\"]*))?$/.exec(aJid);
+      /^(?:([^"&'/:<>@]+)@)?([^@/<>'\"]+)(?:\/(.*))?$/.exec(aJid);
     if (!match)
       return null;
 
     let result = {
-      node: match[1].toLowerCase(),
+      node: match[1],
       domain: match[2].toLowerCase(),
       resource: match[3]
     };
     let jid = result.domain;
-    if (result.node)
+    if (result.node) {
+      result.node = result.node.toLowerCase();
       jid = result.node + "@" + jid;
+    }
     if (result.resource)
       jid += "/" + result.resource;
     result.jid = jid;

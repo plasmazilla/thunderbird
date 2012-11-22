@@ -38,7 +38,7 @@ js_template = textwrap.dedent("""\
 
     function runTest() {{
       browserElementTestHelpers.setEnabledPref(true);
-      browserElementTestHelpers.addToWhitelist();
+      browserElementTestHelpers.addPermission();
 
       var iframe = document.createElement('iframe');
       iframe.mozbrowser = true;
@@ -59,7 +59,7 @@ def add_to_makefile(filenames):
     the file.
 
     """
-    lines_to_write = ['', '# MOVE THESE:'] + [n + ' \\' for n in filenames]
+    lines_to_write = [''] + ['\t\t%s \\' % n for n in filenames]
     with open('Makefile.in', 'a') as f:
         f.write('\n'.join(lines_to_write))
 

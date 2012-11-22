@@ -24,10 +24,10 @@
 class IdleListener {
 public:
   nsCOMPtr<nsIObserver> observer;
-  PRUint32 reqIdleTime;
+  uint32_t reqIdleTime;
   bool isIdle;
 
-  IdleListener(nsIObserver* obs, PRUint32 reqIT, bool aIsIdle = false) :
+  IdleListener(nsIObserver* obs, uint32_t reqIT, bool aIsIdle = false) :
     observer(obs), reqIdleTime(reqIT), isIdle(aIsIdle) {}
   ~IdleListener() {}
 };
@@ -63,11 +63,6 @@ private:
    * being instantiated in the constructor of the service itself.
    */
   nsIIdleService* mIdleService;
-
-  /**
-   * Set to true when the instantiated object has a idle observer.
-   */
-  bool mObservesIdle;
 
   /**
    * Place to hold the timer used by this class to determine when a day has
@@ -126,7 +121,7 @@ protected:
    *       returned by GetIdleTime, as that is corrected by any calls to
    *       ResetIdleTimeOut(), unless you overwrite that function too...
    */
-  virtual bool PollIdleTime(PRUint32* aIdleTime);
+  virtual bool PollIdleTime(uint32_t* aIdleTime);
 
   /**
    * Function that determines if we are in poll mode or not.
@@ -180,7 +175,7 @@ private:
    *
    * If this value is 0 it means there are no active observers
    */
-  PRUint32 mDeltaToNextIdleSwitchInS;
+  uint32_t mDeltaToNextIdleSwitchInS;
 
   /**
    * Absolute value for when the last user interaction took place.

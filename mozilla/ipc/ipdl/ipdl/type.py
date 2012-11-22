@@ -89,6 +89,9 @@ class TypeVisitor:
     def visitShmemChmodType(self, c, *args):
         c.shmem.accept(self)
 
+    def visitFDType(self, s, *args):
+        pass
+
 
 class Type:
     def __cmp__(self, o):
@@ -196,6 +199,7 @@ class IPDLType(Type):
     def isCompound(self): return False
     def isShmem(self): return False
     def isChmod(self): return False
+    def isFD(self): return False
 
     def isAsync(self): return self.sendSemantics is ASYNC
     def isSync(self): return self.sendSemantics is SYNC
@@ -224,7 +228,7 @@ class StateType(IPDLType):
 
 class MessageType(IPDLType):
     def __init__(self, sendSemantics, direction,
-                 ctor=False, dtor=False, cdtype=None):
+                 ctor=False, dtor=False, cdtype=None, compress=False):
         assert not (ctor and dtor)
         assert not (ctor or dtor) or type is not None
 
@@ -235,6 +239,7 @@ class MessageType(IPDLType):
         self.ctor = ctor
         self.dtor = dtor
         self.cdtype = cdtype
+        self.compress = compress
     def isMessage(self): return True
 
     def isCtor(self): return self.ctor
@@ -417,6 +422,16 @@ class ShmemType(IPDLType):
     def fullname(self):
         return str(self.qname)
 
+class FDType(IPDLType):
+    def __init__(self, qname):
+        self.qname = qname
+    def isFD(self): return True
+
+    def name(self):
+        return self.qname.baseid
+    def fullname(self):
+        return str(self.qname)
+
 def iteractortypes(t, visited=None):
     """Iterate over any actor(s) buried in |type|."""
     if visited is None:
@@ -448,6 +463,17 @@ def hasshmem(type):
         def visitShmemType(self, s):  raise found()
     try:
         type.accept(findShmem())
+    except found:
+        return True
+    return False
+
+def hasfd(type):
+    """Return true iff |type| is fd or has it buried within."""
+    class found: pass
+    class findFD(TypeVisitor):
+        def visitFDType(self, s):  raise found()
+    try:
+        type.accept(findFD())
     except found:
         return True
     return False
@@ -775,8 +801,14 @@ class GatherDecls(TcheckVisitor):
             fullname = None
         if fullname == 'mozilla::ipc::Shmem':
             ipdltype = ShmemType(using.type.spec)
+        elif fullname == 'mozilla::ipc::FileDescriptor':
+            ipdltype = FDType(using.type.spec)
         else:
             ipdltype = ImportedCxxType(using.type.spec)
+            existingType = self.symtab.lookup(ipdltype.fullname())
+            if existingType and existingType.fullname == ipdltype.fullname():
+                using.decl = existingType
+                return
         using.decl = self.declare(
             loc=using.loc,
             type=ipdltype,
@@ -1037,7 +1069,8 @@ class GatherDecls(TcheckVisitor):
         self.symtab.enterScope(md)
 
         msgtype = MessageType(md.sendSemantics, md.direction,
-                              ctor=isctor, dtor=isdtor, cdtype=cdtype)
+                              ctor=isctor, dtor=isdtor, cdtype=cdtype,
+                              compress=(md.compress == 'compress'))
 
         # replace inparam Param nodes with proper Decls
         def paramToDecl(param):
@@ -1426,6 +1459,13 @@ class CheckTypes(TcheckVisitor):
             self.error(loc,
                        "asynchronous message `%s' declares return values",
                        mname)
+
+        if (mtype.compress and
+            (not mtype.isAsync() or mtype.isCtor() or mtype.isDtor())):
+            self.error(
+                loc,
+                "message `%s' in protocol `%s' requests compression but is not async or is special (ctor or dtor)",
+                mname[:-len('constructor')], pname)
 
         if mtype.isCtor() and not ptype.isManagerOf(mtype.constructedType()):
             self.error(

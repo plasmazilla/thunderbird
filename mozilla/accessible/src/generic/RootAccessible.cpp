@@ -15,6 +15,7 @@
 #include "nsAccessibilityService.h"
 #include "nsAccUtils.h"
 #include "nsCoreUtils.h"
+#include "nsEventShell.h"
 #include "Relation.h"
 #include "Role.h"
 #include "States.h"
@@ -25,24 +26,13 @@
 #include "mozilla/dom/Element.h"
 
 #include "nsIAccessibleRelation.h"
-#include "nsIDocShell.h"
 #include "nsIDocShellTreeItem.h"
-#include "nsIDocShellTreeNode.h"
 #include "nsIDocShellTreeOwner.h"
-#include "nsIDOMElement.h"
-#include "nsIDOMEventListener.h"
 #include "nsIDOMEventTarget.h"
-#include "nsIDOMHTMLAnchorElement.h"
-#include "nsIDOMHTMLImageElement.h"
-#include "nsIDOMHTMLInputElement.h"
-#include "nsIDOMHTMLSelectElement.h"
 #include "nsIDOMDataContainerEvent.h"
-#include "nsIDOMNSEvent.h"
 #include "nsIDOMXULMultSelectCntrlEl.h"
-#include "nsIDOMXULPopupElement.h"
 #include "nsIDocument.h"
 #include "nsEventListenerManager.h"
-#include "nsIFrame.h"
 #include "nsIInterfaceRequestorUtils.h"
 #include "nsIServiceManager.h"
 #include "nsPIDOMWindow.h"
@@ -112,7 +102,7 @@ RootAccessible::NativeRole()
 
 // RootAccessible protected member
 #ifdef MOZ_XUL
-PRUint32
+uint32_t
 RootAccessible::GetChromeFlags()
 {
   // Return the flag set for the top level window as defined 
@@ -128,21 +118,21 @@ RootAccessible::GetChromeFlags()
   if (!xulWin) {
     return 0;
   }
-  PRUint32 chromeFlags;
+  uint32_t chromeFlags;
   xulWin->GetChromeFlags(&chromeFlags);
   return chromeFlags;
 }
 #endif
 
-PRUint64
+uint64_t
 RootAccessible::NativeState()
 {
-  PRUint64 state = DocAccessibleWrap::NativeState();
+  uint64_t state = DocAccessibleWrap::NativeState();
   if (state & states::DEFUNCT)
     return state;
 
 #ifdef MOZ_XUL
-  PRUint32 chromeFlags = GetChromeFlags();
+  uint32_t chromeFlags = GetChromeFlags();
   if (chromeFlags & nsIWebBrowserChrome::CHROME_WINDOW_RESIZE)
     state |= states::SIZEABLE;
     // If it has a titlebar it's movable
@@ -235,7 +225,7 @@ RootAccessible::RemoveEventListeners()
 
   if (mCaretAccessible) {
     mCaretAccessible->Shutdown();
-    mCaretAccessible = nsnull;
+    mCaretAccessible = nullptr;
   }
 
   return NS_OK;
@@ -261,9 +251,9 @@ RootAccessible::DocumentActivated(DocAccessible* aDocument)
 NS_IMETHODIMP
 RootAccessible::HandleEvent(nsIDOMEvent* aDOMEvent)
 {
-  nsCOMPtr<nsIDOMNSEvent> DOMNSEvent(do_QueryInterface(aDOMEvent));
+  MOZ_ASSERT(aDOMEvent);
   nsCOMPtr<nsIDOMEventTarget> DOMEventTarget;
-  DOMNSEvent->GetOriginalTarget(getter_AddRefs(DOMEventTarget));
+  aDOMEvent->GetOriginalTarget(getter_AddRefs(DOMEventTarget));
   nsCOMPtr<nsINode> origTargetNode(do_QueryInterface(DOMEventTarget));
   if (!origTargetNode)
     return NS_OK;
@@ -298,9 +288,9 @@ RootAccessible::HandleEvent(nsIDOMEvent* aDOMEvent)
 void
 RootAccessible::ProcessDOMEvent(nsIDOMEvent* aDOMEvent)
 {
-  nsCOMPtr<nsIDOMNSEvent> DOMNSEvent(do_QueryInterface(aDOMEvent));
+  MOZ_ASSERT(aDOMEvent);
   nsCOMPtr<nsIDOMEventTarget> DOMEventTarget;
-  DOMNSEvent->GetOriginalTarget(getter_AddRefs(DOMEventTarget));
+  aDOMEvent->GetOriginalTarget(getter_AddRefs(DOMEventTarget));
   nsCOMPtr<nsINode> origTargetNode(do_QueryInterface(DOMEventTarget));
 
   nsAutoString eventType;
@@ -338,7 +328,7 @@ RootAccessible::ProcessDOMEvent(nsIDOMEvent* aDOMEvent)
 #endif
 
   if (eventType.EqualsLiteral("RadioStateChange")) {
-    PRUint64 state = accessible->State();
+    uint64_t state = accessible->State();
 
     // radiogroup in prefWindow is exposed as a list,
     // and panebutton is exposed as XULListitem in A11y.
@@ -359,7 +349,7 @@ RootAccessible::ProcessDOMEvent(nsIDOMEvent* aDOMEvent)
   }
 
   if (eventType.EqualsLiteral("CheckboxStateChange")) {
-    PRUint64 state = accessible->State();
+    uint64_t state = accessible->State();
 
     bool isEnabled = !!(state & states::CHECKED);
 
@@ -370,7 +360,7 @@ RootAccessible::ProcessDOMEvent(nsIDOMEvent* aDOMEvent)
     return;
   }
 
-  Accessible* treeItemAcc = nsnull;
+  Accessible* treeItemAcc = nullptr;
 #ifdef MOZ_XUL
   // If it's a tree element, need the currently selected item.
   if (treeAcc) {
@@ -380,7 +370,7 @@ RootAccessible::ProcessDOMEvent(nsIDOMEvent* aDOMEvent)
   }
 
   if (treeItemAcc && eventType.EqualsLiteral("OpenStateChange")) {
-    PRUint64 state = accessible->State();
+    uint64_t state = accessible->State();
     bool isEnabled = (state & states::EXPANDED) != 0;
 
     nsRefPtr<AccEvent> accEvent =
@@ -441,7 +431,7 @@ RootAccessible::ProcessDOMEvent(nsIDOMEvent* aDOMEvent)
     Accessible* widget =
       accessible->IsWidget() ? accessible : accessible->ContainerWidget();
     if (widget && widget->IsAutoCompletePopup()) {
-      FocusMgr()->ActiveItemChanged(nsnull);
+      FocusMgr()->ActiveItemChanged(nullptr);
       A11YDEBUG_FOCUS_ACTIVEITEMCHANGE_CAUSE("DOMMenuItemInactive", accessible)
     }
   }
@@ -465,7 +455,7 @@ RootAccessible::ProcessDOMEvent(nsIDOMEvent* aDOMEvent)
     nsEventShell::FireEvent(nsIAccessibleEvent::EVENT_MENU_END,
                             accessible, eFromUserInput);
 
-    FocusMgr()->ActiveItemChanged(nsnull);
+    FocusMgr()->ActiveItemChanged(nullptr);
     A11YDEBUG_FOCUS_ACTIVEITEMCHANGE_CAUSE("DOMMenuBarInactive", accessible)
   }
   else if (eventType.EqualsLiteral("ValueChange")) {
@@ -497,7 +487,7 @@ RootAccessible::Shutdown()
 
 // nsIAccessible method
 Relation
-RootAccessible::RelationByType(PRUint32 aType)
+RootAccessible::RelationByType(uint32_t aType)
 {
   if (!mDocument || aType != nsIAccessibleRelation::RELATION_EMBEDS)
     return DocAccessibleWrap::RelationByType(aType);
@@ -580,8 +570,8 @@ RootAccessible::HandlePopupHidingEvent(nsINode* aPopupNode)
     if (!popupContainer)
       return;
 
-    PRUint32 childCount = popupContainer->ChildCount();
-    for (PRUint32 idx = 0; idx < childCount; idx++) {
+    uint32_t childCount = popupContainer->ChildCount();
+    for (uint32_t idx = 0; idx < childCount; idx++) {
       Accessible* child = popupContainer->GetChildAt(idx);
       if (child->IsAutoCompletePopup()) {
         popup = child;
@@ -601,14 +591,14 @@ RootAccessible::HandlePopupHidingEvent(nsINode* aPopupNode)
   // When popup closes (except nested popups and menus) then fire focus event to
   // where it was. The focus event is expected even if popup didn't take a focus.
 
-  static const PRUint32 kNotifyOfFocus = 1;
-  static const PRUint32 kNotifyOfState = 2;
-  PRUint32 notifyOf = 0;
+  static const uint32_t kNotifyOfFocus = 1;
+  static const uint32_t kNotifyOfState = 2;
+  uint32_t notifyOf = 0;
 
   // HTML select is target of popuphidding event. Otherwise get container
   // widget. No container widget means this is either tooltip or menupopup.
   // No events in the former case.
-  Accessible* widget = nsnull;
+  Accessible* widget = nullptr;
   if (popup->IsCombobox()) {
     widget = popup;
   } else {
@@ -656,7 +646,7 @@ RootAccessible::HandlePopupHidingEvent(nsINode* aPopupNode)
 
   // Restore focus to where it was.
   if (notifyOf & kNotifyOfFocus) {
-    FocusMgr()->ActiveItemChanged(nsnull);
+    FocusMgr()->ActiveItemChanged(nullptr);
     A11YDEBUG_FOCUS_ACTIVEITEMCHANGE_CAUSE("popuphiding", popup)
   }
 
@@ -689,7 +679,7 @@ RootAccessible::HandleTreeRowCountChangedEvent(nsIDOMEvent* aEvent,
   if (!countVariant)
     return;
 
-  PRInt32 index, count;
+  int32_t index, count;
   indexVariant->GetAsInt32(&index);
   countVariant->GetAsInt32(&count);
 
@@ -704,7 +694,7 @@ RootAccessible::HandleTreeInvalidatedEvent(nsIDOMEvent* aEvent,
   if (!dataEvent)
     return;
 
-  PRInt32 startRow = 0, endRow = -1, startCol = 0, endCol = -1;
+  int32_t startRow = 0, endRow = -1, startCol = 0, endCol = -1;
 
   nsCOMPtr<nsIVariant> startRowVariant;
   dataEvent->GetData(NS_LITERAL_STRING("startrow"),

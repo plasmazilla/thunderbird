@@ -400,7 +400,16 @@ void NotifyAlarmFired();
  * This API is currently only allowed to be used from non-sandboxed
  * contexts.
  */
-bool SetAlarm(long aSeconds, long aNanoseconds);
+bool SetAlarm(int32_t aSeconds, int32_t aNanoseconds);
+
+/**
+ * Set the priority of the given process.
+ *
+ * Exactly what this does will vary between platforms.  On *nix we might give
+ * background processes higher nice values.  On other platforms, we might
+ * ignore this call entirely.
+ */
+void SetProcessPriority(int aPid, hal::ProcessPriority aPriority);
 
 } // namespace MOZ_HAL_NAMESPACE
 } // namespace mozilla

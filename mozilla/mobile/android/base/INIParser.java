@@ -2,10 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-package org.mozilla.gecko;
-
-import android.text.TextUtils;
-import android.util.Log;
+package org.mozilla.gecko.util;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -17,7 +14,7 @@ import java.io.IOException;
 import java.util.Enumeration;
 import java.util.Hashtable;
 
-public class INIParser extends INISection {
+public final class INIParser extends INISection {
     // default file to read and write to
     private File mFile = null;
 

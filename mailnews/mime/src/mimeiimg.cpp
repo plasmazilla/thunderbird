@@ -20,9 +20,9 @@ MimeDefClass(MimeInlineImage, MimeInlineImageClass,
 static int MimeInlineImage_initialize (MimeObject *);
 static void MimeInlineImage_finalize (MimeObject *);
 static int MimeInlineImage_parse_begin (MimeObject *);
-static int MimeInlineImage_parse_line (const char *, PRInt32, MimeObject *);
+static int MimeInlineImage_parse_line (const char *, int32_t, MimeObject *);
 static int MimeInlineImage_parse_eof (MimeObject *, bool);
-static int MimeInlineImage_parse_decoded_buffer (const char *, PRInt32, MimeObject *);
+static int MimeInlineImage_parse_decoded_buffer (const char *, int32_t, MimeObject *);
 
 static int
 MimeInlineImageClassInitialize(MimeInlineImageClass *clazz)
@@ -86,7 +86,7 @@ MimeInlineImage_parse_begin (MimeObject *obj)
     part = mime_part_address(obj);
     if (!part) return MIME_OUT_OF_MEMORY;
 
-      char *no_part_url = nsnull;
+      char *no_part_url = nullptr;
       if (obj->options->part_to_load && obj->options->format_out == nsMimeOutput::nsMimeMessageBodyDisplay)
         no_part_url = mime_get_base_url(obj->options->url);
 
@@ -180,7 +180,7 @@ MimeInlineImage_parse_eof (MimeObject *obj, bool abort_p)
 
 
 static int
-MimeInlineImage_parse_decoded_buffer (const char *buf, PRInt32 size, MimeObject *obj)
+MimeInlineImage_parse_decoded_buffer (const char *buf, int32_t size, MimeObject *obj)
 {
   /* This is called (by MimeLeafClass->parse_buffer) with blocks of data
    that have already been base64-decoded.  Pass this raw image data
@@ -245,7 +245,7 @@ MimeInlineImage_parse_decoded_buffer (const char *buf, PRInt32 size, MimeObject 
 
 
 static int
-MimeInlineImage_parse_line (const char *line, PRInt32 length, MimeObject *obj)
+MimeInlineImage_parse_line (const char *line, int32_t length, MimeObject *obj)
 {
   NS_ERROR("This method should never be called (inline images do no line buffering).");
   return -1;

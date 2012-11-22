@@ -8,7 +8,7 @@
 #include "prmem.h"
 
 nsMimeHeaders::nsMimeHeaders() :
-  mHeaders(nsnull)
+  mHeaders(nullptr)
 {
 }
 
@@ -20,7 +20,7 @@ nsMimeHeaders::~nsMimeHeaders()
 
 NS_IMPL_ISUPPORTS1(nsMimeHeaders, nsIMimeHeaders)
 
-nsresult nsMimeHeaders::Initialize(const char *aAllHeaders, PRInt32 allHeadersSize)
+nsresult nsMimeHeaders::Initialize(const char *aAllHeaders, int32_t allHeadersSize)
 {
   /* just in case we want to reuse the object, cleanup...*/
   if (mHeaders)
@@ -28,7 +28,8 @@ nsresult nsMimeHeaders::Initialize(const char *aAllHeaders, PRInt32 allHeadersSi
 
   mHeaders = MimeHeaders_new();
   if (mHeaders)
-    return MimeHeaders_parse_line(aAllHeaders, allHeadersSize, mHeaders);
+    // XXX This function returns -1 in some paths, not nsresult
+    return static_cast<nsresult>(MimeHeaders_parse_line(aAllHeaders, allHeadersSize, mHeaders));
 
   return NS_ERROR_OUT_OF_MEMORY;
 }

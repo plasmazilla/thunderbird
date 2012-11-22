@@ -17,9 +17,9 @@ Cu.import("resource://gre/modules/SettingsDB.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
-XPCOMUtils.defineLazyGetter(this, "cpmm", function() {
-  return Cc["@mozilla.org/childprocessmessagemanager;1"].getService(Ci.nsIFrameMessageManager);
-});
+XPCOMUtils.defineLazyServiceGetter(this, "cpmm",
+                                   "@mozilla.org/childprocessmessagemanager;1",
+                                   "nsIMessageSender");
 
 const nsIClassInfo            = Ci.nsIClassInfo;
 const SETTINGSLOCK_CONTRACTID = "@mozilla.org/settingsLock;1";
@@ -60,7 +60,7 @@ SettingsLock.prototype = {
             let checkKeyRequest = store.get(key);
             checkKeyRequest.onsuccess = function (event) {
               if (!event.target.result) {
-                dump("MOZSETTINGS-SET-WARNING: " + key + " is not in the database. Please add it to build/settings.js\n");
+                debug("MOZSETTINGS-SET-WARNING: " + key + " is not in the database. Please add it to build/settings.js\n");
               }
             }
 
@@ -94,7 +94,7 @@ SettingsLock.prototype = {
             debug("result: " + JSON.stringify(event.target.result));
 
             if (event.target.result.length == 0) {
-              dump("MOZSETTINGS-GET-WARNING: " + info.name + " is not in the database. Please add it to build/settings.js\n");
+              debug("MOZSETTINGS-GET-WARNING: " + info.name + " is not in the database. Please add it to build/settings.js\n");
             }
 
             let results = {
@@ -104,8 +104,16 @@ SettingsLock.prototype = {
 
             for (var i in event.target.result) {
               let result = event.target.result[i];
-              results[result.settingName] = result.settingValue;
-              results.__exposedProps__[result.settingName] = "r";
+              var name = result.settingName;
+              var value = result.settingValue;
+              results[name] = value;
+              results.__exposedProps__[name] = "r";
+              // If the value itself is an object, expose the properties.
+              if (typeof value == "object") {
+                var exposed = {};
+                Object.keys(value).forEach(function(key) { exposed[key] = 'r'; });
+                results[name].__exposedProps__ = exposed;
+              }
             }
 
             this._open = true;
@@ -144,7 +152,7 @@ SettingsLock.prototype = {
       throw Components.results.NS_ERROR_ABORT;
     }
 
-    if (this._settingsManager.hasReadPrivileges || this._settingsManager.hasReadWritePrivileges) {
+    if (this._settingsManager.hasPrivileges) {
       let req = Services.DOMRequest.createRequest(this._settingsManager._window);
       this._requests.enqueue({ request: req, intent:"get", name: aName });
       this.createTransactionAndProcess();
@@ -161,7 +169,7 @@ SettingsLock.prototype = {
       throw Components.results.NS_ERROR_ABORT;
     }
 
-    if (this._settingsManager.hasReadWritePrivileges) {
+    if (this._settingsManager.hasPrivileges) {
       let req = Services.DOMRequest.createRequest(this._settingsManager._window);
       debug("send: " + JSON.stringify(aSettings));
       this._requests.enqueue({request: req, intent: "set", settings: aSettings});
@@ -179,7 +187,7 @@ SettingsLock.prototype = {
       throw Components.results.NS_ERROR_ABORT;
     }
 
-    if (this._settingsManager.hasReadWritePrivileges) {
+    if (this._settingsManager.hasPrivileges) {
       let req = Services.DOMRequest.createRequest(this._settingsManager._window);
       this._requests.enqueue({ request: req, intent: "clear"});
       this.createTransactionAndProcess();
@@ -227,7 +235,7 @@ SettingsManager.prototype = {
   },
 
   set onsettingchange(aCallback) {
-    if (this.hasReadPrivileges || this.hasReadWritePrivileges)
+    if (this.hasPrivileges)
       this._onsettingchange = aCallback;
     else
       throw Components.results.NS_ERROR_NOT_IMPLEMENTED;
@@ -268,11 +276,10 @@ SettingsManager.prototype = {
           }
           if (this._callbacks && this._callbacks[msg.key]) {
             debug("observe callback called! " + msg.key + " " + this._callbacks[msg.key].length);
-            for (let cb in this._callbacks[msg.key]) {
-              this._callbacks[msg.key].forEach(function(cb) {
-                cb({settingName: msg.key, settingValue: msg.value});
-              });
-            }
+            this._callbacks[msg.key].forEach(function(cb) {
+              cb({settingName: msg.key, settingValue: msg.value,
+                  __exposedProps__: {settingName: 'r', settingValue: 'r'}});
+            });
           }
         } else {
           debug("no observers stored!");
@@ -319,13 +326,9 @@ SettingsManager.prototype = {
     let util = aWindow.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils);
     this.innerWindowID = util.currentInnerWindowID;
 
-    let principal = aWindow.document.nodePrincipal;
-    let secMan = Cc["@mozilla.org/scriptsecuritymanager;1"].getService(Ci.nsIScriptSecurityManager);
-    let readPerm = principal == secMan.getSystemPrincipal() ? Ci.nsIPermissionManager.ALLOW_ACTION : Services.perms.testExactPermission(principal.URI, "websettings-read");
-    let readwritePerm = principal == secMan.getSystemPrincipal() ? Ci.nsIPermissionManager.ALLOW_ACTION : Services.perms.testExactPermission(principal.URI, "websettings-readwrite");
-    this.hasReadPrivileges = readPerm == Ci.nsIPermissionManager.ALLOW_ACTION;
-    this.hasReadWritePrivileges = readwritePerm == Ci.nsIPermissionManager.ALLOW_ACTION;
-    debug("has read privileges :" + this.hasReadPrivileges + ", has read-write privileges: " + this.hasReadWritePrivileges);
+    let perm = Services.perms.testExactPermissionFromPrincipal(aWindow.document.nodePrincipal, "settings");
+    this.hasPrivileges = perm == Ci.nsIPermissionManager.ALLOW_ACTION;
+    debug("has privileges :" + this.hasPrivileges);
   },
 
   observe: function(aSubject, aTopic, aData) {

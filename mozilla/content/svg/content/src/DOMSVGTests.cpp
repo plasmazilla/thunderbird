@@ -69,7 +69,7 @@ DOMSVGTests::HasExtension(const nsAString & extension, bool *_retval)
 bool
 DOMSVGTests::IsConditionalProcessingAttribute(const nsIAtom* aAttribute) const
 {
-  for (PRUint32 i = 0; i < ArrayLength(sStringListNames); i++) {
+  for (uint32_t i = 0; i < ArrayLength(sStringListNames); i++) {
     if (aAttribute == *sStringListNames[i]) {
       return true;
     }
@@ -77,16 +77,16 @@ DOMSVGTests::IsConditionalProcessingAttribute(const nsIAtom* aAttribute) const
   return false;
 }
 
-PRInt32
+int32_t
 DOMSVGTests::GetBestLanguagePreferenceRank(const nsSubstring& aAcceptLangs) const
 {
   const nsDefaultStringComparator defaultComparator;
 
-  PRInt32 lowestRank = -1;
+  int32_t lowestRank = -1;
 
-  for (PRUint32 i = 0; i < mStringListAttributes[LANGUAGE].Length(); i++) {
+  for (uint32_t i = 0; i < mStringListAttributes[LANGUAGE].Length(); i++) {
     nsCharSeparatedTokenizer languageTokenizer(aAcceptLangs, ',');
-    PRInt32 index = 0;
+    int32_t index = 0;
     while (languageTokenizer.hasMoreTokens()) {
       const nsSubstring &languageToken = languageTokenizer.nextToken();
       bool exactMatch = (languageToken == mStringListAttributes[LANGUAGE][i]);
@@ -122,7 +122,7 @@ DOMSVGTests::PassesConditionalProcessingTests(const nsString *aAcceptLangs) cons
     nsCOMPtr<nsIContent> content(
       do_QueryInterface(const_cast<DOMSVGTests*>(this)));
 
-    for (PRUint32 i = 0; i < mStringListAttributes[FEATURES].Length(); i++) {
+    for (uint32_t i = 0; i < mStringListAttributes[FEATURES].Length(); i++) {
       if (!nsSVGFeatures::HasFeature(content, mStringListAttributes[FEATURES][i])) {
         return false;
       }
@@ -140,7 +140,7 @@ DOMSVGTests::PassesConditionalProcessingTests(const nsString *aAcceptLangs) cons
     if (mStringListAttributes[EXTENSIONS].IsEmpty()) {
       return false;
     }
-    for (PRUint32 i = 0; i < mStringListAttributes[EXTENSIONS].Length(); i++) {
+    for (uint32_t i = 0; i < mStringListAttributes[EXTENSIONS].Length(); i++) {
       if (!nsSVGFeatures::HasExtension(mStringListAttributes[EXTENSIONS][i])) {
         return false;
       }
@@ -174,7 +174,7 @@ DOMSVGTests::PassesConditionalProcessingTests(const nsString *aAcceptLangs) cons
 
     const nsDefaultStringComparator defaultComparator;
 
-    for (PRUint32 i = 0; i < mStringListAttributes[LANGUAGE].Length(); i++) {
+    for (uint32_t i = 0; i < mStringListAttributes[LANGUAGE].Length(); i++) {
       nsCharSeparatedTokenizer languageTokenizer(acceptLangs, ',');
       while (languageTokenizer.hasMoreTokens()) {
         if (nsStyleUtil::DashMatchCompare(mStringListAttributes[LANGUAGE][i],
@@ -195,7 +195,7 @@ DOMSVGTests::ParseConditionalProcessingAttribute(nsIAtom* aAttribute,
                                                  const nsAString& aValue,
                                                  nsAttrValue& aResult)
 {
-  for (PRUint32 i = 0; i < ArrayLength(sStringListNames); i++) {
+  for (uint32_t i = 0; i < ArrayLength(sStringListNames); i++) {
     if (aAttribute == *sStringListNames[i]) {
       nsresult rv = mStringListAttributes[i].SetValue(aValue);
       if (NS_FAILED(rv)) {
@@ -211,7 +211,7 @@ DOMSVGTests::ParseConditionalProcessingAttribute(nsIAtom* aAttribute,
 void
 DOMSVGTests::UnsetAttr(const nsIAtom* aAttribute)
 {
-  for (PRUint32 i = 0; i < ArrayLength(sStringListNames); i++) {
+  for (uint32_t i = 0; i < ArrayLength(sStringListNames); i++) {
     if (aAttribute == *sStringListNames[i]) {
       mStringListAttributes[i].Clear();
       MaybeInvalidate();
@@ -221,17 +221,17 @@ DOMSVGTests::UnsetAttr(const nsIAtom* aAttribute)
 }
 
 nsIAtom*
-DOMSVGTests::GetAttrName(PRUint8 aAttrEnum) const
+DOMSVGTests::GetAttrName(uint8_t aAttrEnum) const
 {
   return *sStringListNames[aAttrEnum];
 }
 
 void
-DOMSVGTests::GetAttrValue(PRUint8 aAttrEnum, nsAttrValue& aValue) const
+DOMSVGTests::GetAttrValue(uint8_t aAttrEnum, nsAttrValue& aValue) const
 {
   MOZ_ASSERT(aAttrEnum < ArrayLength(sStringListNames),
              "aAttrEnum out of range");
-  aValue.SetTo(mStringListAttributes[aAttrEnum], nsnull);
+  aValue.SetTo(mStringListAttributes[aAttrEnum], nullptr);
 }
 
 void

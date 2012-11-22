@@ -48,7 +48,7 @@ nsDOMWindowList::SetDocShell(nsIDocShell* aDocShell)
 }
 
 NS_IMETHODIMP 
-nsDOMWindowList::GetLength(PRUint32* aLength)
+nsDOMWindowList::GetLength(uint32_t* aLength)
 {
   nsresult rv = NS_OK;
 
@@ -71,7 +71,7 @@ nsDOMWindowList::GetLength(PRUint32* aLength)
   // need to check that it's still non-null here.
 
   if (mDocShellNode) {
-    PRInt32 length;
+    int32_t length;
     rv = mDocShellNode->GetChildCount(&length);
 
     *aLength = length;
@@ -81,11 +81,11 @@ nsDOMWindowList::GetLength(PRUint32* aLength)
 }
 
 NS_IMETHODIMP 
-nsDOMWindowList::Item(PRUint32 aIndex, nsIDOMWindow** aReturn)
+nsDOMWindowList::Item(uint32_t aIndex, nsIDOMWindow** aReturn)
 {
   nsCOMPtr<nsIDocShellTreeItem> item;
 
-  *aReturn = nsnull;
+  *aReturn = nullptr;
 
   nsCOMPtr<nsIWebNavigation> shellAsNav = do_QueryInterface(mDocShellNode);
 
@@ -122,7 +122,7 @@ nsDOMWindowList::NamedItem(const nsAString& aName, nsIDOMWindow** aReturn)
 {
   nsCOMPtr<nsIDocShellTreeItem> item;
 
-  *aReturn = nsnull;
+  *aReturn = nullptr;
 
   nsCOMPtr<nsIWebNavigation> shellAsNav(do_QueryInterface(mDocShellNode));
 
@@ -142,8 +142,8 @@ nsDOMWindowList::NamedItem(const nsAString& aName, nsIDOMWindow** aReturn)
 
   if (mDocShellNode) {
     mDocShellNode->FindChildWithName(PromiseFlatString(aName).get(),
-                                     false, false, nsnull,
-                                     nsnull, getter_AddRefs(item));
+                                     false, false, nullptr,
+                                     nullptr, getter_AddRefs(item));
 
     nsCOMPtr<nsIScriptGlobalObject> globalObject(do_GetInterface(item));
     if (globalObject) {

@@ -107,7 +107,7 @@ public:
     return reinterpret_cast<PtrBits>(aAtom) == mBits;
   }
 
-  bool Equals(nsIAtom* aLocalName, PRInt32 aNamespaceID) const
+  bool Equals(nsIAtom* aLocalName, int32_t aNamespaceID) const
   {
     if (aNamespaceID == kNameSpaceID_None) {
       return Equals(aLocalName);
@@ -120,12 +120,12 @@ public:
     return Equals(aNodeInfo->NameAtom(), aNodeInfo->NamespaceID());
   }
 
-  PRInt32 NamespaceID() const
+  int32_t NamespaceID() const
   {
     return IsAtom() ? kNameSpaceID_None : NodeInfo()->NamespaceID();
   }
 
-  PRInt32 NamespaceEquals(PRInt32 aNamespaceID) const
+  int32_t NamespaceEquals(int32_t aNamespaceID) const
   {
     return aNamespaceID == kNameSpaceID_None ?
            IsAtom() :
@@ -139,7 +139,7 @@ public:
 
   nsIAtom* GetPrefix() const
   {
-    return IsAtom() ? nsnull : NodeInfo()->GetPrefixAtom();
+    return IsAtom() ? nullptr : NodeInfo()->GetPrefixAtom();
   }
 
   bool QualifiedNameEquals(const nsAString& aName) const
@@ -158,6 +158,7 @@ public:
     }
   }
 
+#ifdef MOZILLA_INTERNAL_API
   void GetPrefix(nsAString& aStr) const
   {
     if (IsAtom()) {
@@ -167,10 +168,11 @@ public:
       NodeInfo()->GetPrefix(aStr);
     }
   }
+#endif
 
-  PRUint32 HashValue() const
+  uint32_t HashValue() const
   {
-    // mBits and PRUint32 might have different size. This should silence
+    // mBits and uint32_t might have different size. This should silence
     // any warnings or compile-errors. This is what the implementation of
     // NS_PTR_TO_INT32 does to take care of the same problem.
     return mBits - 0;

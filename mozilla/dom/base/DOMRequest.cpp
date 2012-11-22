@@ -21,6 +21,21 @@ DOMRequest::DOMRequest(nsIDOMWindow* aWindow)
   , mDone(false)
   , mRooted(false)
 {
+  Init(aWindow);
+}
+
+// We need this constructor for dom::Activity that inherits from DOMRequest
+// but has no window available from the constructor.
+DOMRequest::DOMRequest()
+  : mResult(JSVAL_VOID)
+  , mDone(false)
+  , mRooted(false)
+{
+}
+
+void
+DOMRequest::Init(nsIDOMWindow* aWindow)
+{
   nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(aWindow);
   BindToOwner(window->IsInnerWindow() ? window.get() :
                                         window->GetCurrentInnerWindow());
@@ -145,7 +160,7 @@ DOMRequest::FireEvent(const nsAString& aType, bool aBubble, bool aCancelable)
     return;
   }
 
-  nsRefPtr<nsDOMEvent> event = new nsDOMEvent(nsnull, nsnull);
+  nsRefPtr<nsDOMEvent> event = new nsDOMEvent(nullptr, nullptr);
   nsresult rv = event->InitEvent(aType, aBubble, aCancelable);
   if (NS_FAILED(rv)) {
     return;

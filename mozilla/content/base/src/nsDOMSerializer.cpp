@@ -13,7 +13,7 @@
 #include "nsString.h"
 #include "nsContentCID.h"
 #include "nsContentUtils.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 
 nsDOMSerializer::nsDOMSerializer()
 {
@@ -41,7 +41,7 @@ static nsresult
 SetUpEncoder(nsIDOMNode *aRoot, const nsACString& aCharset,
              nsIDocumentEncoder **aEncoder)
 {
-  *aEncoder = nsnull;
+  *aEncoder = nullptr;
    
   nsresult rv;
   nsCOMPtr<nsIDocumentEncoder> encoder =

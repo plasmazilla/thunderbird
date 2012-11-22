@@ -1418,7 +1418,7 @@
         <setter>
           <![CDATA[
             if (this.internalValue == val)
-              return;
+              return val;
             this.internalValue = val;
             var menulist = document.getAnonymousNodes(this)[0];
             menulist.selectedItem = this.validMenuitem;
@@ -1795,6 +1795,8 @@
                         class="search-value-menuitem"/>
         </xul:menupopup>
       </xul:menulist>
+      <xul:textbox flex="1" class="search-value-textbox" xbl:inherits="disabled"
+                   type="number"/>
       <xul:hbox flex="1" class="search-value-custom" xbl:inherits="disabled"/>
     </content>
     <implementation>
@@ -1809,7 +1811,8 @@
         <setter>
           <![CDATA[
             // noop if we're not changing it
-            if (this.internalOperator == val) return val;
+            if (this.internalOperator == val)
+              return val;
 
             // Keywords has the null field IsEmpty
             if (this.searchAttribute == Components.interfaces.nsMsgSearchAttrib.Keywords) {
@@ -1890,8 +1893,8 @@
             // to hide/show widgets
             if (isNaN(val)) // Is this a custom attribute?
             {
-              this.setAttribute("selectedIndex", "9");
-              let customHbox = document.getAnonymousNodes(this)[9];
+              this.setAttribute("selectedIndex", "10");
+              let customHbox = document.getAnonymousNodes(this)[10];
               if (this.internalValue)
                 customHbox.setAttribute("value", this.internalValue.str);
               // the searchAttribute attribute is intended as a selector in
@@ -1923,6 +1926,24 @@
             else if (val == Components.interfaces.nsMsgSearchAttrib.JunkScoreOrigin) {
               this.setAttribute("selectedIndex", "8");
             }
+            else if (val == Components.interfaces.nsMsgSearchAttrib.AgeInDays) {
+              let valueBox = document.getAnonymousNodes(this)[9];
+              valueBox.min = -40000; // ~-100 years
+              valueBox.max = 40000; // ~100 years
+              this.setAttribute("selectedIndex", "9");
+            }
+            else if (val == Components.interfaces.nsMsgSearchAttrib.Size) {
+              let valueBox = document.getAnonymousNodes(this)[9];
+              valueBox.min = 0;
+              valueBox.max = 1000000000;
+              this.setAttribute("selectedIndex", "9");
+            }
+            else if (val == Components.interfaces.nsMsgSearchAttrib.JunkPercent) {
+              let valueBox = document.getAnonymousNodes(this)[9];
+              valueBox.min = 0;
+              valueBox.max = 100;
+              this.setAttribute("selectedIndex", "9");
+            }
             else {
               // a normal text field
               this.setAttribute("selectedIndex", "0");
@@ -1942,7 +1963,7 @@
           this.searchAttribute = attrib;
           if (isNaN(attrib)) // a custom term
           {
-            let customHbox = document.getAnonymousNodes(this)[9];
+            let customHbox = document.getAnonymousNodes(this)[10];
             customHbox.setAttribute("value", val.str);
             return val;
           }
@@ -1959,10 +1980,10 @@
               children[2].selectedItem = matchingStatus[0];
           }
           else if (attrib == nsMsgSearchAttrib.AgeInDays)
-            children[0].value = val.age;
+            children[9].value = val.age;
           else if (attrib == nsMsgSearchAttrib.Date)
             children[3].value = convertPRTimeToString(val.date);
-          else if (attrib == nsMsgSearchAttrib.Sender || 
+          else if (attrib == nsMsgSearchAttrib.Sender ||
                    attrib == nsMsgSearchAttrib.To ||
                    attrib == nsMsgSearchAttrib.CC ||
                    attrib == nsMsgSearchAttrib.AllAddresses ||
@@ -2005,10 +2026,10 @@
               children[8].selectedItem = junkScoreOrigin[0];
           }
           else if (attrib == nsMsgSearchAttrib.JunkPercent) {
-            children[0].value = val.junkPercent;
+            children[9].value = val.junkPercent;
           }
           else if (attrib == nsMsgSearchAttrib.Size) {
-            children[0].value = val.size;
+            children[9].value = val.size;
           }
           else
             children[0].value = val.str;
@@ -2031,7 +2052,7 @@
             else if (searchAttribute == nsMsgSearchAttrib.MsgStatus)
                searchValue.status = children[2].value;
             else if (searchAttribute == nsMsgSearchAttrib.AgeInDays)
-               searchValue.age = children[0].value;
+               searchValue.age = children[9].value;
             else if (searchAttribute == nsMsgSearchAttrib.Date)
                searchValue.date = convertStringToPRTime(children[3].value);
             else if (searchAttribute == nsMsgSearchAttrib.Sender ||
@@ -2053,9 +2074,9 @@
             else if (searchAttribute == nsMsgSearchAttrib.JunkStatus)
                searchValue.junkStatus = children[6].value;
             else if (searchAttribute == nsMsgSearchAttrib.JunkPercent)
-               searchValue.junkPercent = children[0].value;
+               searchValue.junkPercent = children[9].value;
             else if (searchAttribute == nsMsgSearchAttrib.Size)
-               searchValue.size = children[0].value;
+               searchValue.size = children[9].value;
             else if (searchAttribute == nsMsgSearchAttrib.HasAttachmentStatus)
                searchValue.status = 0x10000000;  // 0x10000000 is MSG_FLAG_ATTACHMENT;
             else if (searchAttribute == nsMsgSearchAttrib.JunkScoreOrigin)
@@ -2063,7 +2084,7 @@
             else if (isNaN(searchAttribute)) //  a custom term
             {
               searchValue.attrib = nsMsgSearchAttrib.Custom;
-              searchValue.str = children[9].getAttribute("value");
+              searchValue.str = children[10].getAttribute("value");
             }
             else
               searchValue.str = children[0].value;
@@ -2695,6 +2716,144 @@
             gAlertListener.observe(null, "alertclickcallback", "");
         ]]>
       </handler>
+    </handlers>
+  </binding>
+  <binding id="splitmenu">
+    <content>
+      <xul:hbox anonid="menuitem" flex="1"
+                class="splitmenu-menuitem"
+                xbl:inherits="iconic,label,disabled,onclick=oncommand,_moz-menuactive=active"/>
+      <xul:menu anonid="menu" class="splitmenu-menu"
+                xbl:inherits="disabled,_moz-menuactive=active"
+                oncommand="event.stopPropagation();">
+        <children includes="menupopup"/>
+      </xul:menu>
+    </content>
+
+    <implementation implements="nsIDOMEventListener">
+      <constructor><![CDATA[
+        this._parentMenupopup.addEventListener("DOMMenuItemActive", this, false);
+        this._parentMenupopup.addEventListener("popuphidden", this, false);
+      ]]></constructor>
+
+      <destructor><![CDATA[
+        this._parentMenupopup.removeEventListener("DOMMenuItemActive", this, false);
+        this._parentMenupopup.removeEventListener("popuphidden", this, false);
+      ]]></destructor>
+
+      <field name="menuitem" readonly="true">
+        document.getAnonymousElementByAttribute(this, "anonid", "menuitem");
+      </field>
+      <field name="menu" readonly="true">
+        document.getAnonymousElementByAttribute(this, "anonid", "menu");
+      </field>
+
+      <field name="_menuDelay">600</field>
+
+      <field name="_parentMenupopup"><![CDATA[
+        this._getParentMenupopup(this);
+      ]]></field>
+
+      <method name="_getParentMenupopup">
+        <parameter name="aNode"/>
+        <body><![CDATA[
+          let node = aNode.parentNode;
+          while (node) {
+            if (node.localName == "menupopup")
+              break;
+            node = node.parentNode;
+          }
+          return node;
+        ]]></body>
+      </method>
+
+      <method name="handleEvent">
+        <parameter name="event"/>
+        <body><![CDATA[
+          switch (event.type) {
+            case "DOMMenuItemActive":
+              if (this.getAttribute("active") == "true" &&
+                  event.target != this &&
+                  this._getParentMenupopup(event.target) == this._parentMenupopup)
+                this.removeAttribute("active");
+              break;
+            case "popuphidden":
+              if (event.target == this._parentMenupopup)
+                this.removeAttribute("active");
+              break;
+          }
+        ]]></body>
+      </method>
+    </implementation>
+
+    <handlers>
+      <handler event="mouseover"><![CDATA[
+        if (this.getAttribute("active") != "true") {
+          this.setAttribute("active", "true");
+
+          let event = document.createEvent("Events");
+          event.initEvent("DOMMenuItemActive", true, false);
+          this.dispatchEvent(event);
+
+          if (this.getAttribute("disabled") != "true") {
+            let self = this;
+            setTimeout(function () {
+              if (self.getAttribute("active") == "true")
+                self.menu.open = true;
+            }, this._menuDelay);
+          }
+        }
+      ]]></handler>
+
+      <handler event="popupshowing"><![CDATA[
+        if (event.target == this.firstChild &&
+            this._parentMenupopup._currentPopup)
+          this._parentMenupopup._currentPopup.hidePopup();
+      ]]></handler>
+
+      <handler event="click" phase="capturing"><![CDATA[
+        if (this.getAttribute("disabled") == "true") {
+          // Prevent the command from being carried out
+          event.stopPropagation();
+          return;
+        }
+
+        let node = event.originalTarget;
+        while (true) {
+          if (node == this.menuitem)
+            break;
+          if (node == this)
+            return;
+          node = node.parentNode;
+        }
+
+        this._parentMenupopup.hidePopup();
+      ]]></handler>
+    </handlers>
+  </binding>
+
+  <binding id="appmenu-vertical" extends="chrome://global/content/bindings/toolbarbutton.xml#menu-vertical">
+    <implementation>
+      <method name="_setupAppmenu">
+        <parameter name="event"/>
+        <body><![CDATA[
+          if (event.target == this) {
+              let appmenuPopup = document.getElementById("appmenu-popup");
+              if (this.lastChild != appmenuPopup) {
+                this.appendChild(appmenuPopup);
+              }
+              this.open = true;
+          }
+        ]]></body>
+      </method>
+    </implementation>
+    <handlers>
+      <!-- While it would seem we could do this by handling oncommand, we can't
+           because any external oncommand handlers might get called before ours,
+           and then they would see the incorrect value of checked. Additionally
+           a command attribute would redirect the command events anyway.-->
+      <handler event="click" button="0" action="this._setupAppmenu(event);"/>
+      <handler event="keypress" key=" " action="this._setupAppmenu(event);"/>
     </handlers>
   </binding>
 </bindings>

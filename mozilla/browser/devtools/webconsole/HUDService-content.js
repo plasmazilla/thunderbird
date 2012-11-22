@@ -523,11 +523,11 @@ function JSTermHelper(aJSTerm)
    * @param string aId
    *        The ID of the element you want.
    * @return nsIDOMNode or null
-   *         The result of calling document.getElementById(aId).
+   *         The result of calling document.querySelector(aSelector).
    */
-  aJSTerm.sandbox.$ = function JSTH_$(aId)
+  aJSTerm.sandbox.$ = function JSTH_$(aSelector)
   {
-    return aJSTerm.window.document.getElementById(aId);
+    return aJSTerm.window.document.querySelector(aSelector);
   };
 
   /**
@@ -1161,17 +1161,17 @@ let ConsoleAPIObserver = {
           WebConsoleUtils.cloneObject(aOriginalMessage.arguments, true);
         break;
 
-      case "log":
-      case "info":
-      case "warn":
-      case "error":
-      case "debug":
       case "groupEnd":
         aRemoteMessage.argumentsToString =
           Array.map(aOriginalMessage.arguments || [],
                     this._formatObject.bind(this));
         break;
 
+      case "log":
+      case "info":
+      case "warn":
+      case "error":
+      case "debug":
       case "dir": {
         aRemoteMessage.objectsCacheId = Manager.sequenceId;
         aRemoteMessage.argumentsToString = [];

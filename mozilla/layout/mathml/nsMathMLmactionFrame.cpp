@@ -49,7 +49,7 @@ enum nsMactionActionTypes {
 
 
 // helper function to parse actiontype attribute
-static PRInt32
+static int32_t
 GetActionType(nsIContent* aContent)
 {
   nsAutoString value;
@@ -100,7 +100,7 @@ nsMathMLmactionFrame::Init(nsIContent*      aContent,
 
   mChildCount = -1; // these will be updated in GetSelectedFrame()
   mSelection = 0;
-  mSelectedFrame = nsnull;
+  mSelectedFrame = nullptr;
   mActionType = GetActionType(aContent);
 
   // Let the base class do the rest
@@ -129,12 +129,12 @@ nsMathMLmactionFrame::TransmitAutomaticData() {
 }
 
 nsresult
-nsMathMLmactionFrame::ChildListChanged(PRInt32 aModType)
+nsMathMLmactionFrame::ChildListChanged(int32_t aModType)
 {
   // update cached values
   mChildCount = -1;
   mSelection = 0;
-  mSelectedFrame = nsnull;
+  mSelectedFrame = nullptr;
   GetSelectedFrame();
 
   return nsMathMLContainerFrame::ChildListChanged(aModType);
@@ -145,13 +145,13 @@ nsIFrame*
 nsMathMLmactionFrame::GetSelectedFrame()
 {
   nsAutoString value;
-  PRInt32 selection; 
+  int32_t selection; 
 
   if ((mActionType & NS_MATHML_ACTION_TYPE_CLASS_BITMASK) == 
        NS_MATHML_ACTION_TYPE_CLASS_ERROR) {
     // Mark mSelection as an error.
     mSelection = -1;
-    mSelectedFrame = nsnull;
+    mSelectedFrame = nullptr;
     return mSelectedFrame;
   }
 
@@ -170,7 +170,7 @@ nsMathMLmactionFrame::GetSelectedFrame()
   GetAttribute(mContent, mPresentationData.mstyle, nsGkAtoms::selection_,
                value);
   if (!value.IsEmpty()) {
-    PRInt32 errorCode;
+    nsresult errorCode;
     selection = value.ToInteger(&errorCode);
     if (NS_FAILED(errorCode)) 
       selection = 1;
@@ -187,7 +187,7 @@ nsMathMLmactionFrame::GetSelectedFrame()
   }
 
   // get the selected child and cache new values...
-  PRInt32 count = 0;
+  int32_t count = 0;
   nsIFrame* childFrame = mFrames.FirstChild();
   while (childFrame) {
     if (!mSelectedFrame) 
@@ -234,15 +234,15 @@ nsMathMLmactionFrame::SetInitialChildList(ChildListID     aListID,
 }
 
 NS_IMETHODIMP
-nsMathMLmactionFrame::AttributeChanged(PRInt32  aNameSpaceID,
+nsMathMLmactionFrame::AttributeChanged(int32_t  aNameSpaceID,
                                        nsIAtom* aAttribute,
-                                       PRInt32  aModType)
+                                       int32_t  aModType)
 {
   bool needsReflow = false;
 
   if (aAttribute == nsGkAtoms::actiontype_) {
     // updating mActionType ...
-    PRInt32 oldActionType = mActionType;
+    int32_t oldActionType = mActionType;
     mActionType = GetActionType(mContent);
 
     // Initiate a reflow when actiontype classes are different.
@@ -348,7 +348,7 @@ nsMathMLmactionFrame::Place(nsRenderingContext& aRenderingContext,
   if (childFrame) {
     GetReflowAndBoundingMetricsFor(childFrame, aDesiredSize, mBoundingMetrics);
     if (aPlaceOrigin) {
-      FinishReflowChild(childFrame, PresContext(), nsnull, aDesiredSize, 0, 0, 0);
+      FinishReflowChild(childFrame, PresContext(), nullptr, aDesiredSize, 0, 0, 0);
     }
     mReference.x = 0;
     mReference.y = aDesiredSize.ascent;
@@ -454,7 +454,7 @@ nsMathMLmactionFrame::MouseClick()
 {
   if (NS_MATHML_ACTION_TYPE_TOGGLE == mActionType) {
     if (mChildCount > 1) {
-      PRInt32 selection = (mSelection == mChildCount)? 1 : mSelection + 1;
+      int32_t selection = (mSelection == mChildCount)? 1 : mSelection + 1;
       nsAutoString value;
       char cbuf[10];
       PR_snprintf(cbuf, sizeof(cbuf), "%d", selection);

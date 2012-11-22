@@ -74,14 +74,14 @@ NS_IMETHODIMP nsAbLDAPReplicationService::StartReplication(nsIAbLDAPDirectory *a
   }
 
   if (progressListener && NS_FAILED(rv))
-    progressListener->OnStateChange(nsnull, nsnull,
+    progressListener->OnStateChange(nullptr, nullptr,
 				    nsIWebProgressListener::STATE_STOP,
-				    false);
+				    NS_OK);
 
   if (NS_FAILED(rv))
   {
-    mDirectory = nsnull;
-    mQuery = nsnull;
+    mDirectory = nullptr;
+    mQuery = nullptr;
   }
 
   return rv;
@@ -112,8 +112,8 @@ NS_IMETHODIMP nsAbLDAPReplicationService::Done(bool aSuccess)
   mReplicating = false;
   if (mQuery)
   {
-    mQuery = nsnull;  // Release query obj
-    mDirectory = nsnull; // Release directory
+    mQuery = nullptr;  // Release query obj
+    mDirectory = nullptr; // Release directory
   }
 
   return NS_OK;
@@ -122,7 +122,7 @@ NS_IMETHODIMP nsAbLDAPReplicationService::Done(bool aSuccess)
 
 // XXX: This method should query the RootDSE for the changeLog attribute,
 // if it exists ChangeLog protocol is supported.
-PRInt32 nsAbLDAPReplicationService::DecideProtocol()
+int32_t nsAbLDAPReplicationService::DecideProtocol()
 {
   // Do the changeLog, it will decide if there is a need to replicate all
   // entries or only update existing DB and will do the appropriate thing.

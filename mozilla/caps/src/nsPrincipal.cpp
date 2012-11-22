@@ -20,7 +20,7 @@
 #include "nsIObjectInputStream.h"
 #include "nsIObjectOutputStream.h"
 #include "nsIClassInfoImpl.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsIContentSecurityPolicy.h"
 #include "nsContentUtils.h"
 #include "jswrapper.h"
@@ -46,13 +46,13 @@ static bool URIIsImmutable(nsIURI* aURI)
 }
 
 // Static member variables
-PRInt32 nsBasePrincipal::sCapabilitiesOrdinal = 0;
+int32_t nsBasePrincipal::sCapabilitiesOrdinal = 0;
 const char nsBasePrincipal::sInvalid[] = "Invalid";
 
 NS_IMETHODIMP_(nsrefcnt)
 nsBasePrincipal::AddRef()
 {
-  NS_PRECONDITION(PRInt32(refcount) >= 0, "illegal refcnt");
+  NS_PRECONDITION(int32_t(refcount) >= 0, "illegal refcnt");
   // XXXcaa does this need to be threadsafe?  See bug 143559.
   nsrefcnt count = PR_ATOMIC_INCREMENT(&refcount);
   NS_LOG_ADDREF(this, count, "nsBasePrincipal", sizeof(*this));
@@ -73,8 +73,8 @@ nsBasePrincipal::Release()
 }
 
 nsBasePrincipal::nsBasePrincipal()
-  : mCapabilities(nsnull),
-    mSecurityPolicy(nsnull),
+  : mCapabilities(nullptr),
+    mSecurityPolicy(nullptr),
     mTrusted(false)
 {
   if (!gIsObservingCodeBasePrincipalSupport) {
@@ -90,7 +90,7 @@ nsBasePrincipal::nsBasePrincipal()
 
 nsBasePrincipal::~nsBasePrincipal(void)
 {
-  SetSecurityPolicy(nsnull); 
+  SetSecurityPolicy(nullptr); 
   delete mCapabilities;
 }
 
@@ -98,7 +98,7 @@ NS_IMETHODIMP
 nsBasePrincipal::GetSecurityPolicy(void** aSecurityPolicy)
 {
   if (mSecurityPolicy && mSecurityPolicy->IsInvalid()) 
-    SetSecurityPolicy(nsnull);
+    SetSecurityPolicy(nullptr);
   
   *aSecurityPolicy = (void *) mSecurityPolicy;
   return NS_OK;
@@ -123,7 +123,7 @@ nsBasePrincipal::CertificateEquals(nsIPrincipal *aOther)
 {
   bool otherHasCert;
   aOther->GetHasCertificate(&otherHasCert);
-  if (otherHasCert != (mCert != nsnull)) {
+  if (otherHasCert != (mCert != nullptr)) {
     // One has a cert while the other doesn't.  Not equal.
     return false;
   }
@@ -149,7 +149,7 @@ nsBasePrincipal::CertificateEquals(nsIPrincipal *aOther)
 }
 
 NS_IMETHODIMP
-nsBasePrincipal::CanEnableCapability(const char *capability, PRInt16 *result)
+nsBasePrincipal::CanEnableCapability(const char *capability, int16_t *result)
 {
   // If this principal is marked invalid, can't enable any capabilities
   if (mCapabilities) {
@@ -186,11 +186,11 @@ nsBasePrincipal::CanEnableCapability(const char *capability, PRInt16 *result)
   *result = nsIPrincipal::ENABLE_GRANTED;
   for(;;) {
     const char *space = PL_strchr(start, ' ');
-    PRInt32 len = space ? space - start : strlen(start);
+    int32_t len = space ? space - start : strlen(start);
     nsCAutoString capString(start, len);
     nsCStringKey key(capString);
-    PRInt16 value =
-      mCapabilities ? (PRInt16)NS_PTR_TO_INT32(mCapabilities->Get(&key)) : 0;
+    int16_t value =
+      mCapabilities ? (int16_t)NS_PTR_TO_INT32(mCapabilities->Get(&key)) : 0;
     if (value == 0 || value == nsIPrincipal::ENABLE_UNKNOWN) {
       // We don't know whether we can enable this capability,
       // so we should ask the user.
@@ -213,7 +213,7 @@ nsBasePrincipal::CanEnableCapability(const char *capability, PRInt16 *result)
 
 nsresult
 nsBasePrincipal::SetCanEnableCapability(const char *capability,
-                                        PRInt16 canEnable)
+                                        int16_t canEnable)
 {
   // If this principal is marked invalid, can't enable any capabilities
   if (!mCapabilities) {
@@ -288,7 +288,7 @@ nsresult
 nsBasePrincipal::SetCapability(const char *capability, void **annotation,
                                AnnotationValue value)
 {
-  if (*annotation == nsnull) {
+  if (*annotation == nullptr) {
     nsHashtable* ht = new nsHashtable(5);
 
     if (!ht) {
@@ -326,7 +326,7 @@ nsBasePrincipal::SetCapability(const char *capability, void **annotation,
 NS_IMETHODIMP
 nsBasePrincipal::GetHasCertificate(bool* aResult)
 {
-  *aResult = (mCert != nsnull);
+  *aResult = (mCert != nullptr);
 
   return NS_OK;
 }
@@ -388,7 +388,7 @@ nsBasePrincipal::GetCertificate(nsISupports** aCertificate)
     NS_IF_ADDREF(*aCertificate = mCert->cert);
   }
   else {
-    *aCertificate = nsnull;
+    *aCertificate = nullptr;
   }
   return NS_OK;
 }
@@ -440,7 +440,7 @@ static bool
 AppendCapability(nsHashKey *aKey, void *aData, void *capListPtr)
 {
   CapabilityList* capList = (CapabilityList*)capListPtr;
-  PRInt16 value = (PRInt16)NS_PTR_TO_INT32(aData);
+  int16_t value = (int16_t)NS_PTR_TO_INT32(aData);
   nsCStringKey* key = (nsCStringKey *)aKey;
   if (value == nsIPrincipal::ENABLE_GRANTED) {
     capList->granted->Append(key->GetString(), key->GetStringLength());
@@ -472,18 +472,18 @@ nsBasePrincipal::GetPreferences(char** aPrefName, char** aID,
     mPrefName.Append(".id");
   }
 
-  *aPrefName = nsnull;
-  *aID = nsnull;
-  *aSubjectName = nsnull;
-  *aGrantedList = nsnull;
-  *aDeniedList = nsnull;
+  *aPrefName = nullptr;
+  *aID = nullptr;
+  *aSubjectName = nullptr;
+  *aGrantedList = nullptr;
+  *aDeniedList = nullptr;
   *aIsTrusted = mTrusted;
 
-  char *prefName = nsnull;
-  char *id = nsnull;
-  char *subjectName = nsnull;
-  char *granted = nsnull;
-  char *denied = nsnull;
+  char *prefName = nullptr;
+  char *id = nullptr;
+  char *subjectName = nullptr;
+  char *granted = nullptr;
+  char *denied = nullptr;
 
   //-- Preference name
   prefName = ToNewCString(mPrefName);
@@ -577,7 +577,7 @@ ReadAnnotationEntry(nsIObjectInputStream* aStream, nsHashKey** aKey,
     return rv;
   }
 
-  PRUint32 value;
+  uint32_t value;
   rv = aStream->Read32(&value);
   if (NS_FAILED(rv)) {
     delete key;
@@ -601,7 +601,7 @@ void nsPrincipal::dumpImpl()
 {
   nsCAutoString str;
   GetScriptLocation(str);
-  fprintf(stderr, "nsPrincipal (%p) = %s\n", this, str.get());
+  fprintf(stderr, "nsPrincipal (%p) = %s\n", static_cast<void*>(this), str.get());
 }
 #endif 
 
@@ -617,7 +617,9 @@ NS_IMPL_ADDREF_INHERITED(nsPrincipal, nsBasePrincipal)
 NS_IMPL_RELEASE_INHERITED(nsPrincipal, nsBasePrincipal)
 
 nsPrincipal::nsPrincipal()
-  : mCodebaseImmutable(false)
+  : mAppId(nsIScriptSecurityManager::UNKNOWN_APP_ID)
+  , mInMozBrowser(false)
+  , mCodebaseImmutable(false)
   , mDomainImmutable(false)
   , mInitialized(false)
 { }
@@ -630,7 +632,9 @@ nsPrincipal::Init(const nsACString& aCertFingerprint,
                   const nsACString& aSubjectName,
                   const nsACString& aPrettyName,
                   nsISupports* aCert,
-                  nsIURI *aCodebase)
+                  nsIURI *aCodebase,
+                  uint32_t aAppId,
+                  bool aInMozBrowser)
 {
   NS_ENSURE_STATE(!mInitialized);
   NS_ENSURE_ARG(!aCertFingerprint.IsEmpty() || aCodebase); // better have one of these.
@@ -639,6 +643,9 @@ nsPrincipal::Init(const nsACString& aCertFingerprint,
 
   mCodebase = NS_TryToMakeImmutable(aCodebase);
   mCodebaseImmutable = URIIsImmutable(mCodebase);
+
+  mAppId = aAppId;
+  mInMozBrowser = aInMozBrowser;
 
   if (aCertFingerprint.IsEmpty())
     return NS_OK;
@@ -656,18 +663,17 @@ nsPrincipal::GetScriptLocation(nsACString &aStr)
   }
 }
 
-NS_IMETHODIMP
-nsPrincipal::GetOrigin(char **aOrigin)
+/* static */ nsresult
+nsPrincipal::GetOriginForURI(nsIURI* aURI, char **aOrigin)
 {
-  *aOrigin = nsnull;
-
-  nsCOMPtr<nsIURI> origin;
-  if (mCodebase) {
-    origin = NS_GetInnermostURI(mCodebase);
+  if (!aURI) {
+    return NS_ERROR_FAILURE;
   }
-  
+
+  *aOrigin = nullptr;
+
+  nsCOMPtr<nsIURI> origin = NS_GetInnermostURI(aURI);
   if (!origin) {
-    NS_ASSERTION(mCert, "No Domain or Codebase for a non-cert principal");
     return NS_ERROR_FAILURE;
   }
 
@@ -683,11 +689,12 @@ nsPrincipal::GetOrigin(char **aOrigin)
     rv = origin->GetAsciiHost(hostPort);
     // Some implementations return an empty string, treat it as no support
     // for asciiHost by that implementation.
-    if (hostPort.IsEmpty())
+    if (hostPort.IsEmpty()) {
       rv = NS_ERROR_FAILURE;
+    }
   }
 
-  PRInt32 port;
+  int32_t port;
   if (NS_SUCCEEDED(rv) && !isChrome) {
     rv = origin->GetPort(&port);
   }
@@ -701,6 +708,7 @@ nsPrincipal::GetOrigin(char **aOrigin)
     nsCAutoString scheme;
     rv = origin->GetScheme(scheme);
     NS_ENSURE_SUCCESS(rv, rv);
+
     *aOrigin = ToNewCString(scheme + NS_LITERAL_CSTRING("://") + hostPort);
   }
   else {
@@ -711,10 +719,17 @@ nsPrincipal::GetOrigin(char **aOrigin)
     // both fall back to GetSpec.  That needs to be fixed.
     rv = origin->GetAsciiSpec(spec);
     NS_ENSURE_SUCCESS(rv, rv);
+
     *aOrigin = ToNewCString(spec);
   }
 
   return *aOrigin ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
+}
+
+NS_IMETHODIMP
+nsPrincipal::GetOrigin(char **aOrigin)
+{
+  return GetOriginForURI(mCodebase, aOrigin);
 }
 
 NS_IMETHODIMP
@@ -811,7 +826,7 @@ nsPrincipal::GetURI(nsIURI** aURI)
   }
 
   if (!mCodebase) {
-    *aURI = nsnull;
+    *aURI = nullptr;
     return NS_OK;
   }
 
@@ -831,8 +846,16 @@ URIIsLocalFile(nsIURI *aURI)
 }
 
 NS_IMETHODIMP
-nsPrincipal::CheckMayLoad(nsIURI* aURI, bool aReport)
+nsPrincipal::CheckMayLoad(nsIURI* aURI, bool aReport, bool aAllowIfInheritsPrincipal)
 {
+   if (aAllowIfInheritsPrincipal) {
+    // If the caller specified to allow loads of URIs that inherit
+    // our principal, allow the load if this URI inherits its principal
+    if (nsPrincipal::IsPrincipalInherited(aURI)) {
+      return NS_OK;
+    }
+  }
+
   if (!nsScriptSecurityManager::SecurityCompareURIs(mCodebase, aURI)) {
     if (nsScriptSecurityManager::GetStrictFileOriginPolicy() &&
         URIIsLocalFile(aURI)) {
@@ -847,7 +870,7 @@ nsPrincipal::CheckMayLoad(nsIURI* aURI, bool aReport)
 
         if (aReport) {
           nsScriptSecurityManager::ReportError(
-            nsnull, NS_LITERAL_STRING("CheckSameOriginError"), mCodebase, aURI);
+            nullptr, NS_LITERAL_STRING("CheckSameOriginError"), mCodebase, aURI);
         }
 
         return NS_ERROR_DOM_BAD_URI;
@@ -874,7 +897,7 @@ nsPrincipal::CheckMayLoad(nsIURI* aURI, bool aReport)
           targetIsDir) {
         if (aReport) {
           nsScriptSecurityManager::ReportError(
-            nsnull, NS_LITERAL_STRING("CheckSameOriginError"), mCodebase, aURI);
+            nullptr, NS_LITERAL_STRING("CheckSameOriginError"), mCodebase, aURI);
         }
 
         return NS_ERROR_DOM_BAD_URI;
@@ -906,7 +929,7 @@ nsPrincipal::CheckMayLoad(nsIURI* aURI, bool aReport)
 
     if (aReport) {
       nsScriptSecurityManager::ReportError(
-        nsnull, NS_LITERAL_STRING("CheckSameOriginError"), mCodebase, aURI);
+        nullptr, NS_LITERAL_STRING("CheckSameOriginError"), mCodebase, aURI);
     }
     
     return NS_ERROR_DOM_BAD_URI;
@@ -922,10 +945,8 @@ nsPrincipal::SetURI(nsIURI* aURI)
   mCodebaseImmutable = URIIsImmutable(mCodebase);
 }
 
-
-
 NS_IMETHODIMP
-nsPrincipal::GetHashValue(PRUint32* aValue)
+nsPrincipal::GetHashValue(uint32_t* aValue)
 {
   NS_PRECONDITION(mCert || mCodebase, "Need a cert or codebase");
 
@@ -944,7 +965,7 @@ NS_IMETHODIMP
 nsPrincipal::GetDomain(nsIURI** aDomain)
 {
   if (!mDomain) {
-    *aDomain = nsnull;
+    *aDomain = nullptr;
     return NS_OK;
   }
 
@@ -963,7 +984,7 @@ nsPrincipal::SetDomain(nsIURI* aDomain)
   mDomainImmutable = URIIsImmutable(mDomain);
   
   // Domain has changed, forget cached security policy
-  SetSecurityPolicy(nsnull);
+  SetSecurityPolicy(nullptr);
 
   // Recompute all wrappers between compartments using this principal and other
   // non-chrome compartments.
@@ -989,7 +1010,9 @@ nsPrincipal::InitFromPersistent(const char* aPrefName,
                                 const char* aDeniedList,
                                 nsISupports* aCert,
                                 bool aIsCert,
-                                bool aTrusted)
+                                bool aTrusted,
+                                uint32_t aAppId,
+                                bool aInMozBrowser)
 {
   NS_PRECONDITION(!mCapabilities || mCapabilities->Count() == 0,
                   "mCapabilities was already initialized?");
@@ -998,6 +1021,9 @@ nsPrincipal::InitFromPersistent(const char* aPrefName,
   NS_PRECONDITION(!mInitialized, "We were already initialized?");
 
   mInitialized = true;
+
+  mAppId = aAppId;
+  mInMozBrowser = aInMozBrowser;
 
   nsresult rv;
   if (aIsCert) {
@@ -1008,7 +1034,7 @@ nsPrincipal::InitFromPersistent(const char* aPrefName,
     }
   }
   else {
-    rv = NS_NewURI(getter_AddRefs(mCodebase), aToken, nsnull);
+    rv = NS_NewURI(getter_AddRefs(mCodebase), aToken, nullptr);
     if (NS_FAILED(rv)) {
       NS_ERROR("Malformed URI in capability.principal preference.");
       return rv;
@@ -1025,7 +1051,7 @@ nsPrincipal::InitFromPersistent(const char* aPrefName,
 
   const char* ordinalBegin = PL_strpbrk(aPrefName, "1234567890");
   if (ordinalBegin) {
-    PRIntn n = atoi(ordinalBegin);
+    int n = atoi(ordinalBegin);
     if (sCapabilitiesOrdinal <= n) {
       sCapabilitiesOrdinal = n + 1;
     }
@@ -1042,6 +1068,44 @@ nsPrincipal::InitFromPersistent(const char* aPrefName,
   }
 
   return rv;
+}
+
+NS_IMETHODIMP
+nsPrincipal::GetExtendedOrigin(nsACString& aExtendedOrigin)
+{
+  MOZ_ASSERT(mAppId != nsIScriptSecurityManager::UNKNOWN_APP_ID);
+
+  mozilla::GetExtendedOrigin(mCodebase, mAppId, mInMozBrowser, aExtendedOrigin);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsPrincipal::GetAppStatus(uint16_t* aAppStatus)
+{
+  MOZ_ASSERT(mAppId != nsIScriptSecurityManager::UNKNOWN_APP_ID);
+
+  *aAppStatus = GetAppStatus();
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsPrincipal::GetAppId(uint32_t* aAppId)
+{
+  if (mAppId == nsIScriptSecurityManager::UNKNOWN_APP_ID) {
+    MOZ_ASSERT(false);
+    *aAppId = nsIScriptSecurityManager::NO_APP_ID;
+    return NS_OK;
+  }
+
+  *aAppId = mAppId;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsPrincipal::GetIsInBrowserElement(bool* aIsInBrowserElement)
+{
+  *aIsInBrowserElement = mInMozBrowser;
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -1066,7 +1130,7 @@ nsPrincipal::Read(nsIObjectInputStream* aStream)
 
   const char* ordinalBegin = PL_strpbrk(mPrefName.get(), "1234567890");
   if (ordinalBegin) {
-    PRIntn n = atoi(ordinalBegin);
+    int n = atoi(ordinalBegin);
     if (sCapabilitiesOrdinal <= n) {
       sCapabilitiesOrdinal = n + 1;
     }
@@ -1110,14 +1174,22 @@ nsPrincipal::Read(nsIObjectInputStream* aStream)
     return rv;
   }
 
-  rv = Init(fingerprint, subjectName, prettyName, cert, codebase);
-  NS_ENSURE_SUCCESS(rv, rv);
-
   nsCOMPtr<nsIURI> domain;
   rv = NS_ReadOptionalObject(aStream, true, getter_AddRefs(domain));
   if (NS_FAILED(rv)) {
     return rv;
   }
+
+  uint32_t appId;
+  rv = aStream->Read32(&appId);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  bool inMozBrowser;
+  rv = aStream->ReadBoolean(&inMozBrowser);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = Init(fingerprint, subjectName, prettyName, cert, codebase, appId, inMozBrowser);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   SetDomain(domain);
 
@@ -1132,7 +1204,7 @@ nsPrincipal::Read(nsIObjectInputStream* aStream)
 static nsresult
 WriteScalarValue(nsIObjectOutputStream* aStream, void* aData)
 {
-  PRUint32 value = NS_PTR_TO_INT32(aData);
+  uint32_t value = NS_PTR_TO_INT32(aData);
 
   return aStream->Write32(value);
 }
@@ -1160,7 +1232,7 @@ nsPrincipal::Write(nsIObjectOutputStream* aStream)
     return rv;
   }
 
-  rv = aStream->WriteBoolean(mCert != nsnull);
+  rv = aStream->WriteBoolean(mCert != nullptr);
   if (NS_FAILED(rv)) {
     return rv;
   }
@@ -1206,6 +1278,9 @@ nsPrincipal::Write(nsIObjectOutputStream* aStream)
     return rv;
   }
 
+  aStream->Write32(mAppId);
+  aStream->WriteBoolean(mInMozBrowser);
+
   rv = aStream->Write8(mTrusted);
   if (NS_FAILED(rv)) {
     return rv;
@@ -1217,6 +1292,18 @@ nsPrincipal::Write(nsIObjectOutputStream* aStream)
   return NS_OK;
 }
 
+uint16_t
+nsPrincipal::GetAppStatus()
+{
+  MOZ_ASSERT(mAppId != nsIScriptSecurityManager::UNKNOWN_APP_ID);
+
+  // Installed apps have a valid app id (not NO_APP_ID or UNKNOWN_APP_ID)
+  // and they are not inside a mozbrowser.
+  return mAppId != nsIScriptSecurityManager::NO_APP_ID &&
+         mAppId != nsIScriptSecurityManager::UNKNOWN_APP_ID && !mInMozBrowser
+          ? nsIPrincipal::APP_STATUS_INSTALLED
+          : nsIPrincipal::APP_STATUS_NOT_INSTALLED;
+}
 
 /************************************************************************************************************************/
 
@@ -1244,7 +1331,7 @@ nsExpandedPrincipal::~nsExpandedPrincipal()
 NS_IMETHODIMP 
 nsExpandedPrincipal::GetDomain(nsIURI** aDomain)
 {
-  *aDomain = nsnull;
+  *aDomain = nullptr;
   return NS_OK;
 }
 
@@ -1353,11 +1440,11 @@ nsExpandedPrincipal::SubsumesIgnoringDomain(nsIPrincipal* aOther, bool* aResult)
 }
 
 NS_IMETHODIMP
-nsExpandedPrincipal::CheckMayLoad(nsIURI* uri, bool aReport)
+nsExpandedPrincipal::CheckMayLoad(nsIURI* uri, bool aReport, bool aAllowIfInheritsPrincipal)
 {
   nsresult rv;
   for (uint32_t i = 0; i < mPrincipals.Length(); ++i){
-    rv = mPrincipals[i]->CheckMayLoad(uri, aReport);
+    rv = mPrincipals[i]->CheckMayLoad(uri, aReport, aAllowIfInheritsPrincipal);
     if (NS_SUCCEEDED(rv))
       return rv;
   }
@@ -1366,7 +1453,7 @@ nsExpandedPrincipal::CheckMayLoad(nsIURI* uri, bool aReport)
 }
 
 NS_IMETHODIMP
-nsExpandedPrincipal::GetHashValue(PRUint32* result)
+nsExpandedPrincipal::GetHashValue(uint32_t* result)
 {
   MOZ_NOT_REACHED("extended principal should never be used as key in a hash map");
   return NS_ERROR_FAILURE;
@@ -1375,7 +1462,7 @@ nsExpandedPrincipal::GetHashValue(PRUint32* result)
 NS_IMETHODIMP
 nsExpandedPrincipal::GetURI(nsIURI** aURI)
 {
-  *aURI = nsnull;
+  *aURI = nullptr;
   return NS_OK;
 }
 
@@ -1384,6 +1471,30 @@ nsExpandedPrincipal::GetWhiteList(nsTArray<nsCOMPtr<nsIPrincipal> >** aWhiteList
 {
   *aWhiteList = &mPrincipals;
   return NS_OK;
+}
+
+NS_IMETHODIMP
+nsExpandedPrincipal::GetExtendedOrigin(nsACString& aExtendedOrigin)
+{
+  return NS_ERROR_NOT_AVAILABLE;
+}
+
+NS_IMETHODIMP
+nsExpandedPrincipal::GetAppStatus(uint16_t* aAppStatus)
+{
+  return NS_ERROR_NOT_AVAILABLE;
+}
+
+NS_IMETHODIMP
+nsExpandedPrincipal::GetAppId(uint32_t* aAppId)
+{
+  return NS_ERROR_NOT_AVAILABLE;
+}
+
+NS_IMETHODIMP
+nsExpandedPrincipal::GetIsInBrowserElement(bool* aIsInBrowserElement)
+{
+  return NS_ERROR_NOT_AVAILABLE;
 }
 
 void
@@ -1400,7 +1511,7 @@ nsExpandedPrincipal::GetScriptLocation(nsACString& aStr)
 #ifdef DEBUG
 void nsExpandedPrincipal::dumpImpl()
 {
-  fprintf(stderr, "nsExpandedPrincipal (%p)\n", this);
+  fprintf(stderr, "nsExpandedPrincipal (%p)\n", static_cast<void*>(this));
 }
 #endif 
 

@@ -41,7 +41,7 @@ public:
    * if only the prefix matches, or -1 if no indices match.
    * XXX This algorithm is O(M*N).
    */
-  PRInt32 GetBestLanguagePreferenceRank(const nsSubstring& aAcceptLangs) const;
+  int32_t GetBestLanguagePreferenceRank(const nsSubstring& aAcceptLangs) const;
 
   /**
    * Special value to pass to PassesConditionalProcessingTests to ignore systemLanguage
@@ -61,7 +61,7 @@ public:
    *   check if the caller is giving that special treatment.
    */
   bool PassesConditionalProcessingTests(
-         const nsString *aAcceptLangs = nsnull) const;
+         const nsString *aAcceptLangs = nullptr) const;
 
   /**
    * Returns true if the attribute is one of the conditional processing
@@ -79,8 +79,8 @@ public:
    */
   void UnsetAttr(const nsIAtom* aAttribute);
 
-  nsIAtom* GetAttrName(PRUint8 aAttrEnum) const;
-  void GetAttrValue(PRUint8 aAttrEnum, nsAttrValue &aValue) const;
+  nsIAtom* GetAttrName(uint8_t aAttrEnum) const;
+  void GetAttrValue(uint8_t aAttrEnum, nsAttrValue &aValue) const;
 
   void MaybeInvalidate();
 

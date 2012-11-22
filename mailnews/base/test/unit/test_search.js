@@ -220,9 +220,8 @@ function run_test()
   };
 
   // set value of headers we want parsed into the db
-  let prefs = Cc["@mozilla.org/preferences-service;1"]
-                .getService(Ci.nsIPrefBranch);
-  prefs.setCharPref("mailnews.customDBHeaders", "oneLiner twoLiner threeLiner noSpace withSpace");
+  Services.prefs.setCharPref("mailnews.customDBHeaders",
+                             "oneLiner twoLiner threeLiner noSpace withSpace");
   // Get a message into the local filestore. function testSearch() continues
   // the testing after the copy.
   var bugmail12 = do_get_file("../../../data/bugmail12");
@@ -261,12 +260,4 @@ function testSearch()
     testObject = null;
     do_test_finished();
   }
-}
-
-// get the first message header found in a folder
-function firstMsgHdr(folder) {
-  let enumerator = folder.msgDatabase.EnumerateMessages();
-  if (enumerator.hasMoreElements())
-    return enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
-  return null;
 }

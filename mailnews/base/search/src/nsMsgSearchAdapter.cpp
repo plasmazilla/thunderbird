@@ -95,7 +95,7 @@ NS_IMETHODIMP nsMsgSearchAdapter::ClearScope()
   if (m_scope)
   {
     m_scope->CloseInputStream();
-    m_scope = nsnull;
+    m_scope = nullptr;
   }
   return NS_OK;
 }
@@ -122,7 +122,7 @@ NS_IMETHODIMP nsMsgSearchAdapter::SendUrl ()
 }
 
 /* void CurrentUrlDone (in long exitCode); */
-NS_IMETHODIMP nsMsgSearchAdapter::CurrentUrlDone(PRInt32 exitCode)
+NS_IMETHODIMP nsMsgSearchAdapter::CurrentUrlDone(int32_t exitCode)
 {
   // base implementation doesn't need to do anything.
   return NS_OK;
@@ -150,7 +150,7 @@ NS_IMETHODIMP nsMsgSearchAdapter::AddHit(nsMsgKey key)
 char *
 nsMsgSearchAdapter::GetImapCharsetParam(const PRUnichar *destCharset)
 {
-  char *result = nsnull;
+  char *result = nullptr;
 
   // Specify a character set unless we happen to be US-ASCII.
   if (NS_strcmp(destCharset, NS_LITERAL_STRING("us-ascii").get()))
@@ -167,7 +167,7 @@ nsMsgSearchAdapter::GetImapCharsetParam(const PRUnichar *destCharset)
 */
 PRUnichar *nsMsgSearchAdapter::EscapeSearchUrl (const PRUnichar *nntpCommand)
 {
-  return nntpCommand ? NS_strdup(nntpCommand) : nsnull;
+  return nntpCommand ? NS_strdup(nntpCommand) : nullptr;
 }
 
 /*
@@ -179,7 +179,7 @@ PRUnichar *nsMsgSearchAdapter::EscapeSearchUrl (const PRUnichar *nntpCommand)
 PRUnichar *
 nsMsgSearchAdapter::EscapeImapSearchProtocol(const PRUnichar *imapCommand)
 {
-  return imapCommand ? NS_strdup(imapCommand) : nsnull;
+  return imapCommand ? NS_strdup(imapCommand) : nullptr;
 }
 
 /*
@@ -191,7 +191,7 @@ nsMsgSearchAdapter::EscapeImapSearchProtocol(const PRUnichar *imapCommand)
 PRUnichar *
 nsMsgSearchAdapter::EscapeQuoteImapSearchProtocol(const PRUnichar *imapCommand)
 {
-  return imapCommand ? NS_strdup(imapCommand) : nsnull;
+  return imapCommand ? NS_strdup(imapCommand) : nullptr;
 }
 
 char *nsMsgSearchAdapter::UnEscapeSearchUrl (const char *commandSpecificData)
@@ -300,10 +300,10 @@ nsresult nsMsgSearchAdapter::EncodeImapTerm (nsIMsgSearchTerm *term, bool really
   bool useQuotes = false;
   bool ignoreValue = false;
   nsCAutoString arbitraryHeader;
-  const char *whichMnemonic = nsnull;
-  const char *orHeaderMnemonic = nsnull;
+  const char *whichMnemonic = nullptr;
+  const char *orHeaderMnemonic = nullptr;
 
-  *ppOutTerm = nsnull;
+  *ppOutTerm = nullptr;
 
   nsCOMPtr <nsIMsgSearchValue> searchValue;
   nsresult rv = term->GetValue(getter_AddRefs(searchValue));
@@ -346,7 +346,7 @@ nsresult nsMsgSearchAdapter::EncodeImapTerm (nsIMsgSearchTerm *term, bool really
       // If we have a future date, the > and < are reversed.
       // e.g. ageInDays > 2 means more than 2 days old ("date before X") whereas
       //      ageInDays > -2 should be more than 2 days in the future ("date after X")
-      PRInt32 ageInDays;
+      int32_t ageInDays;
       searchValue->GetAge(&ageInDays);
       bool dateInFuture = (ageInDays < 0);
       switch (op)
@@ -407,7 +407,7 @@ nsresult nsMsgSearchAdapter::EncodeImapTerm (nsIMsgSearchTerm *term, bool really
     case nsMsgSearchAttrib::MsgStatus:
       useNot = false; // bizarrely, NOT SEEN is wrong, but UNSEEN is right.
       ignoreValue = true; // the mnemonic is all we need
-      PRUint32 status;
+      uint32_t status;
       searchValue->GetStatus(&status);
 
       switch (status)
@@ -451,7 +451,7 @@ nsresult nsMsgSearchAdapter::EncodeImapTerm (nsIMsgSearchTerm *term, bool really
       }
     }
 
-    char *value = nsnull;
+    char *value = nullptr;
     char dateBuf[100];
     dateBuf[0] = '\0';
 
@@ -472,13 +472,7 @@ nsresult nsMsgSearchAdapter::EncodeImapTerm (nsIMsgSearchTerm *term, bool really
         // we need to adjust the date so we get greater than and not greater than or equal to which
         // is what the IMAP server wants to search on
         // won't work on Mac.
-        // ack, is this right? is PRTime seconds or microseconds?
-        PRInt64 microSecondsPerSecond, secondsInDay, microSecondsInDay;
-
-        LL_I2L(microSecondsPerSecond, PR_USEC_PER_SEC);
-        LL_UI2L(secondsInDay, 60 * 60 * 24);
-        LL_MUL(microSecondsInDay, secondsInDay, microSecondsPerSecond);
-        LL_ADD(adjustedDate, adjustedDate, microSecondsInDay); // bump up to the day after this one...
+        adjustedDate += PR_USEC_PER_DAY;
       }
 
       PRExplodedTime exploded;
@@ -493,20 +487,13 @@ nsresult nsMsgSearchAdapter::EncodeImapTerm (nsIMsgSearchTerm *term, bool really
       {
         // okay, take the current date, subtract off the age in days, then do an appropriate Date search on
         // the resulting day.
-        PRInt32 ageInDays;
+        int32_t ageInDays;
 
         searchValue->GetAge(&ageInDays);
 
         PRTime now = PR_Now();
-        PRTime matchDay;
+        PRTime matchDay = now - ageInDays * PR_USEC_PER_DAY;
 
-        PRInt64 microSecondsPerSecond, secondsInDays, microSecondsInDay;
-
-        LL_I2L(microSecondsPerSecond, PR_USEC_PER_SEC);
-        LL_I2L(secondsInDays, 60 * 60 * 24 * ageInDays);
-        LL_MUL(microSecondsInDay, secondsInDays, microSecondsPerSecond);
-
-        LL_SUB(matchDay, now, microSecondsInDay); // = now - term->m_value.u.age * 60 * 60 * 24;
         PRExplodedTime exploded;
         PR_ExplodeTime(matchDay, PR_LocalTimeParameters, &exploded);
         PR_FormatTimeUSEnglish(dateBuf, sizeof(dateBuf), "%d-%b-%Y", &exploded);
@@ -515,7 +502,7 @@ nsresult nsMsgSearchAdapter::EncodeImapTerm (nsIMsgSearchTerm *term, bool really
       }
       else if (attrib == nsMsgSearchAttrib::Size)
       {
-        PRUint32 sizeValue;
+        uint32_t sizeValue;
         nsCAutoString searchTermValue;
         searchValue->GetSize(&sizeValue);
 
@@ -653,7 +640,7 @@ nsresult nsMsgSearchAdapter::EncodeImapValue(char *encoding, const char *value, 
   {
     nsCAutoString lengthStr;
     PL_strcat(encoding, "{");
-    lengthStr.AppendInt((PRInt32) strlen(value));
+    lengthStr.AppendInt((int32_t) strlen(value));
     PL_strcat(encoding, lengthStr.get());
     PL_strcat(encoding, "}" CRLF);
     PL_strcat(encoding, value);
@@ -675,11 +662,11 @@ nsresult nsMsgSearchAdapter::EncodeImap (char **ppOutEncoding, nsISupportsArray 
   // the new code generates the same encoding string as the old code.....
 
   nsresult err = NS_OK;
-  *ppOutEncoding = nsnull;
+  *ppOutEncoding = nullptr;
 
-  PRUint32 termCount;
+  uint32_t termCount;
   searchTerms->Count(&termCount);
-  PRUint32 i = 0;
+  uint32_t i = 0;
 
   // create our expression
   nsMsgSearchBoolExpression * expression = new nsMsgSearchBoolExpression();
@@ -697,7 +684,7 @@ nsresult nsMsgSearchAdapter::EncodeImap (char **ppOutEncoding, nsISupportsArray 
     if (matchAll)
       continue;
     err = EncodeImapTerm (pTerm, reallyDredd, srcCharset, destCharset, &termEncoding);
-    if (NS_SUCCEEDED(err) && nsnull != termEncoding)
+    if (NS_SUCCEEDED(err) && nullptr != termEncoding)
     {
       expression = nsMsgSearchBoolExpression::AddSearchTerm(expression, pTerm, termEncoding);
       delete [] termEncoding;
@@ -728,10 +715,10 @@ char *nsMsgSearchAdapter::TransformSpacesToStars (const char *spaceString, msg_T
 
   if (transformType == kOverwrite)
   {
-    if ((starString = strdup(spaceString)) != nsnull)
+    if ((starString = strdup(spaceString)) != nullptr)
     {
       char *star = starString;
-      while ((star = PL_strchr(star, ' ')) != nsnull)
+      while ((star = PL_strchr(star, ' ')) != nullptr)
         *star = '*';
     }
   }
@@ -753,7 +740,7 @@ char *nsMsgSearchAdapter::TransformSpacesToStars (const char *spaceString, msg_T
 
     if (count > 0)
     {
-      if ((starString = (char *)PR_Malloc(i + count + 1)) != nsnull)
+      if ((starString = (char *)PR_Malloc(i + count + 1)) != nullptr)
       {
         int j;
 
@@ -807,7 +794,7 @@ NS_IMPL_ISUPPORTS1(nsMsgSearchValidityTable, nsIMsgSearchValidityTable)
 
 
 nsresult
-nsMsgSearchValidityTable::GetNumAvailAttribs(PRInt32 *aResult)
+nsMsgSearchValidityTable::GetNumAvailAttribs(int32_t *aResult)
 {
   m_numAvailAttribs = 0;
   for (int i = 0; i < nsMsgSearchAttrib::kNumMsgSearchAttributes; i++)
@@ -828,12 +815,12 @@ nsresult
 nsMsgSearchValidityTable::ValidateTerms (nsISupportsArray *searchTerms)
 {
   nsresult err = NS_OK;
-  PRUint32 count;
+  uint32_t count;
 
   NS_ENSURE_ARG(searchTerms);
 
   searchTerms->Count(&count);
-  for (PRUint32 i = 0; i < count; i++)
+  for (uint32_t i = 0; i < count; i++)
   {
     nsCOMPtr<nsIMsgSearchTerm> pTerm;
     searchTerms->QueryElementAt(i, NS_GET_IID(nsIMsgSearchTerm),
@@ -860,15 +847,15 @@ nsMsgSearchValidityTable::ValidateTerms (nsISupportsArray *searchTerms)
 }
 
 nsresult
-nsMsgSearchValidityTable::GetAvailableAttributes(PRUint32 *length,
+nsMsgSearchValidityTable::GetAvailableAttributes(uint32_t *length,
                                                  nsMsgSearchAttribValue **aResult)
 {
     NS_ENSURE_ARG_POINTER(length);
     NS_ENSURE_ARG_POINTER(aResult);
 
     // count first
-    PRUint32 totalAttributes=0;
-    PRInt32 i, j;
+    uint32_t totalAttributes=0;
+    int32_t i, j;
     for (i = 0; i< nsMsgSearchAttrib::kNumMsgSearchAttributes; i++) {
         for (j=0; j< nsMsgSearchOp::kNumMsgSearchOperators; j++) {
             if (m_table[i][j].bitAvailable) {
@@ -882,7 +869,7 @@ nsMsgSearchValidityTable::GetAvailableAttributes(PRUint32 *length,
         nsMemory::Alloc(sizeof(nsMsgSearchAttribValue) * totalAttributes);
     NS_ENSURE_TRUE(array, NS_ERROR_OUT_OF_MEMORY);
 
-    PRUint32 numStored=0;
+    uint32_t numStored=0;
     for (i = 0; i< nsMsgSearchAttrib::kNumMsgSearchAttributes; i++) {
         for (j=0; j< nsMsgSearchOp::kNumMsgSearchOperators; j++) {
             if (m_table[i][j].bitAvailable) {
@@ -901,7 +888,7 @@ nsMsgSearchValidityTable::GetAvailableAttributes(PRUint32 *length,
 
 nsresult
 nsMsgSearchValidityTable::GetAvailableOperators(nsMsgSearchAttribValue aAttribute,
-                                                PRUint32 *aLength,
+                                                uint32_t *aLength,
                                                 nsMsgSearchOpValue **aResult)
 {
     NS_ENSURE_ARG_POINTER(aLength);
@@ -914,8 +901,8 @@ nsMsgSearchValidityTable::GetAvailableOperators(nsMsgSearchAttribValue aAttribut
       attr = NS_MIN(aAttribute,
                     (nsMsgSearchAttribValue)nsMsgSearchAttrib::OtherHeader);
 
-    PRUint32 totalOperators=0;
-    PRInt32 i;
+    uint32_t totalOperators=0;
+    int32_t i;
     for (i=0; i<nsMsgSearchOp::kNumMsgSearchOperators; i++) {
         if (m_table[attr][i].bitAvailable)
             totalOperators++;
@@ -925,7 +912,7 @@ nsMsgSearchValidityTable::GetAvailableOperators(nsMsgSearchAttribValue aAttribut
         nsMemory::Alloc(sizeof(nsMsgSearchOpValue) * totalOperators);
     NS_ENSURE_TRUE(array, NS_ERROR_OUT_OF_MEMORY);
 
-    PRUint32 numStored = 0;
+    uint32_t numStored = 0;
     for (i=0; i<nsMsgSearchOp::kNumMsgSearchOperators;i++) {
         if (m_table[attr][i].bitAvailable)
             array[numStored++] = i;
@@ -968,7 +955,7 @@ NS_IMETHODIMP nsMsgSearchValidityManager::GetTable (int whichTable, nsIMsgSearch
   NS_ENSURE_ARG_POINTER(ppOutTable);
 
   nsresult rv;
-  *ppOutTable = nsnull;
+  *ppOutTable = nullptr;
 
   nsCOMPtr<nsIPrefBranch> pref(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
   nsCString customHeaders;
@@ -1137,7 +1124,7 @@ NS_IMETHODIMP
 nsMsgSearchValidityManager::GetAttributeProperty(nsMsgSearchAttribValue aSearchAttribute,
                                                  nsAString& aProperty)
 {
-  for (PRInt32 i = 0; nsMsgSearchAttribMap[i].id >= 0; ++i)
+  for (int32_t i = 0; nsMsgSearchAttribMap[i].id >= 0; ++i)
   {
     if (nsMsgSearchAttribMap[i].id == aSearchAttribute)
     {
@@ -1162,8 +1149,8 @@ nsMsgSearchValidityManager::NewTable(nsIMsgSearchValidityTable **aTable)
 nsresult
 nsMsgSearchValidityManager::SetOtherHeadersInTable (nsIMsgSearchValidityTable *aTable, const char *customHeaders)
 {
-  PRUint32 customHeadersLength = strlen(customHeaders);
-  PRUint32 numHeaders=0;
+  uint32_t customHeadersLength = strlen(customHeaders);
+  uint32_t numHeaders=0;
   if (customHeadersLength)
   {
     nsCAutoString hdrStr(customHeaders);
@@ -1179,9 +1166,9 @@ nsMsgSearchValidityManager::SetOtherHeadersInTable (nsIMsgSearchValidityTable *a
 
   NS_ASSERTION(nsMsgSearchAttrib::OtherHeader + numHeaders < nsMsgSearchAttrib::kNumMsgSearchAttributes, "more headers than the table can hold");
 
-  PRUint32 maxHdrs = NS_MIN(nsMsgSearchAttrib::OtherHeader + numHeaders + 1,
-                            (PRUint32)nsMsgSearchAttrib::kNumMsgSearchAttributes);
-  for (PRUint32 i=nsMsgSearchAttrib::OtherHeader+1;i< maxHdrs;i++)
+  uint32_t maxHdrs = NS_MIN(nsMsgSearchAttrib::OtherHeader + numHeaders + 1,
+                            (uint32_t)nsMsgSearchAttrib::kNumMsgSearchAttributes);
+  for (uint32_t i=nsMsgSearchAttrib::OtherHeader+1;i< maxHdrs;i++)
   {
     aTable->SetAvailable (i, nsMsgSearchOp::Contains, 1);   // added for arbitrary headers
     aTable->SetEnabled   (i, nsMsgSearchOp::Contains, 1);
@@ -1193,9 +1180,9 @@ nsMsgSearchValidityManager::SetOtherHeadersInTable (nsIMsgSearchValidityTable *a
     aTable->SetEnabled   (i, nsMsgSearchOp::Isnt, 1);
   }
    //because custom headers can change; so reset the table for those which are no longer used.
-  for (PRUint32 j=maxHdrs; j < nsMsgSearchAttrib::kNumMsgSearchAttributes; j++)
+  for (uint32_t j=maxHdrs; j < nsMsgSearchAttrib::kNumMsgSearchAttributes; j++)
   {
-    for (PRUint32 k=0; k < nsMsgSearchOp::kNumMsgSearchOperators; k++)
+    for (uint32_t k=0; k < nsMsgSearchOp::kNumMsgSearchOperators; k++)
     {
       aTable->SetAvailable(j,k,0);
       aTable->SetEnabled(j,k,0);

@@ -46,12 +46,12 @@ PRLogModuleInfo * kLayoutPrintingLogMod = PR_NewLogModule("printing-layout");
 // This object a shared by all the nsPageFrames 
 // parented to a SimplePageSequenceFrame
 nsSharedPageData::nsSharedPageData() :
-  mDateTimeStr(nsnull),
-  mHeadFootFont(nsnull),
-  mPageNumFormat(nsnull),
-  mPageNumAndTotalsFormat(nsnull),
-  mDocTitle(nsnull),
-  mDocURL(nsnull),
+  mDateTimeStr(nullptr),
+  mHeadFootFont(nullptr),
+  mPageNumFormat(nullptr),
+  mPageNumAndTotalsFormat(nullptr),
+  mDocTitle(nullptr),
+  mDocURL(nullptr),
   mReflowSize(0,0),
   mReflowMargin(0,0,0,0),
   mExtraMargin(0,0,0,0),
@@ -172,7 +172,7 @@ nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
     mPageData->mPrintSettings->GetMarginInTwips(marginTwips);
     mMargin = aPresContext->CSSTwipsToAppUnits(marginTwips + unwriteableTwips);
 
-    PRInt16 printType;
+    int16_t printType;
     mPageData->mPrintSettings->GetPrintRange(&printType);
     mPrintRangeType = printType;
 
@@ -180,7 +180,7 @@ nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
     mPageData->mPrintSettings->GetEdgeInTwips(edgeTwips);
 
     // sanity check the values. three inches are sometimes needed
-    PRInt32 inchInTwips = NS_INCHES_TO_INT_TWIPS(3.0);
+    int32_t inchInTwips = NS_INCHES_TO_INT_TWIPS(3.0);
     edgeTwips.top    = clamped(edgeTwips.top,    0, inchInTwips);
     edgeTwips.bottom = clamped(edgeTwips.bottom, 0, inchInTwips);
     edgeTwips.left   = clamped(edgeTwips.left,   0, inchInTwips);
@@ -209,7 +209,7 @@ nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
   // Compute the size of each page and the x coordinate that each page will
   // be placed at
   nscoord extraThreshold = NS_MAX(pageSize.width, pageSize.height)/10;
-  PRInt32 gapInTwips = Preferences::GetInt("print.print_extra_margin");
+  int32_t gapInTwips = Preferences::GetInt("print.print_extra_margin");
   gapInTwips = NS_MAX(0, gapInTwips);
 
   nscoord extraGap = aPresContext->CSSTwipsToAppUnits(gapInTwips);
@@ -233,7 +233,7 @@ nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
 
   // Tile the pages vertically
   nsHTMLReflowMetrics kidSize;
-  for (nsIFrame* kidFrame = mFrames.FirstChild(); nsnull != kidFrame; ) {
+  for (nsIFrame* kidFrame = mFrames.FirstChild(); nullptr != kidFrame; ) {
     // Set the shared data into the page frame before reflow
     nsPageFrame * pf = static_cast<nsPageFrame*>(kidFrame);
     pf->SetSharedPageData(mPageData);
@@ -255,7 +255,7 @@ nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
     // max width then center it horizontally
     ReflowChild(kidFrame, aPresContext, kidSize, kidReflowState, x, y, 0, status);
 
-    FinishReflowChild(kidFrame, aPresContext, nsnull, kidSize, x, y, 0);
+    FinishReflowChild(kidFrame, aPresContext, nullptr, kidSize, x, y, 0);
     y += kidSize.height;
     y += pageCSSMargin.bottom;
 
@@ -277,7 +277,7 @@ nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
       }
 
       // Add it to our child list
-      mFrames.InsertFrame(nsnull, kidFrame, continuingPage);
+      mFrames.InsertFrame(nullptr, kidFrame, continuingPage);
     }
 
     // Get the next page
@@ -286,16 +286,16 @@ nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
 
   // Get Total Page Count
   nsIFrame* page;
-  PRInt32 pageTot = 0;
+  int32_t pageTot = 0;
   for (page = mFrames.FirstChild(); page; page = page->GetNextSibling()) {
     pageTot++;
   }
 
   // Set Page Number Info
-  PRInt32 pageNum = 1;
+  int32_t pageNum = 1;
   for (page = mFrames.FirstChild(); page; page = page->GetNextSibling()) {
     nsPageFrame * pf = static_cast<nsPageFrame*>(page);
-    if (pf != nsnull) {
+    if (pf != nullptr) {
       pf->SetPageNumInfo(pageNum, pageTot);
     }
     pageNum++;
@@ -310,7 +310,7 @@ nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
   nsAutoString formattedDateString;
   time_t ltime;
   time( &ltime );
-  if (NS_SUCCEEDED(mDateFormatter->FormatTime(nsnull /* nsILocale* locale */,
+  if (NS_SUCCEEDED(mDateFormatter->FormatTime(nullptr /* nsILocale* locale */,
                                               kDateFormatShort,
                                               kTimeFormatNoSeconds,
                                               ltime,
@@ -351,7 +351,7 @@ nsSimplePageSequenceFrame::GetFrameName(nsAString& aResult) const
 //== Asynch Printing
 //====================================================================
 NS_IMETHODIMP
-nsSimplePageSequenceFrame::GetCurrentPageNum(PRInt32* aPageNum)
+nsSimplePageSequenceFrame::GetCurrentPageNum(int32_t* aPageNum)
 {
   NS_ENSURE_ARG_POINTER(aPageNum);
 
@@ -360,7 +360,7 @@ nsSimplePageSequenceFrame::GetCurrentPageNum(PRInt32* aPageNum)
 }
 
 NS_IMETHODIMP
-nsSimplePageSequenceFrame::GetNumPages(PRInt32* aNumPages)
+nsSimplePageSequenceFrame::GetNumPages(int32_t* aNumPages)
 {
   NS_ENSURE_ARG_POINTER(aNumPages);
 
@@ -378,7 +378,7 @@ nsSimplePageSequenceFrame::IsDoingPrintRange(bool* aDoing)
 }
 
 NS_IMETHODIMP
-nsSimplePageSequenceFrame::GetPrintRange(PRInt32* aFromPage, PRInt32* aToPage)
+nsSimplePageSequenceFrame::GetPrintRange(int32_t* aFromPage, int32_t* aToPage)
 {
   NS_ENSURE_ARG_POINTER(aFromPage);
   NS_ENSURE_ARG_POINTER(aToPage);
@@ -404,7 +404,7 @@ nsSimplePageSequenceFrame::SetPageNumberFormat(const char* aPropName, const char
 
   // Sets the format into a static data member which will own the memory and free it
   PRUnichar* uStr = ToNewUnicode(pageNumberFormat);
-  if (uStr != nsnull) {
+  if (uStr != nullptr) {
     SetPageNumberFormat(uStr, aPageNumOnly); // nsPageFrame will own the memory
   }
 
@@ -436,7 +436,7 @@ nsSimplePageSequenceFrame::StartPrint(nsPresContext*   aPresContext,
 
   // If printing a range of pages make sure at least the starting page
   // number is valid
-  PRInt32 totalPages = mFrames.GetLength();
+  int32_t totalPages = mFrames.GetLength();
 
   if (mDoingPageRange) {
     if (mFromPageNum > totalPages) {
@@ -456,7 +456,7 @@ nsSimplePageSequenceFrame::StartPrint(nsPresContext*   aPresContext,
     // we must make sure that the page is sized correctly before printing.
     nscoord height = aPresContext->GetPageSize().height;
 
-    PRInt32 pageNum = 1;
+    int32_t pageNum = 1;
     nscoord y = 0;//mMargin.top;
 
     for (nsIFrame* page = mFrames.FirstChild(); page;
@@ -501,7 +501,7 @@ nsSimplePageSequenceFrame::PrintNextPage()
   // print are 1 and then two (which is different than printing a page range, where
   // the page numbers would have been 2 and then 3)
 
-  if (mCurrentPageFrame == nsnull) {
+  if (mCurrentPageFrame == nullptr) {
     return NS_ERROR_FAILURE;
   }
 
@@ -524,16 +524,16 @@ nsSimplePageSequenceFrame::PrintNextPage()
       mPrintThisPage = false;
     } else if (mPageNum > mToPageNum) {
       mPageNum++;
-      mCurrentPageFrame = nsnull;
+      mCurrentPageFrame = nullptr;
       return NS_OK;
     } else {
-      PRInt32 length = mPageRanges.Length();
+      int32_t length = mPageRanges.Length();
     
       // Page ranges are pairs (start, end)
       if (length && (length % 2 == 0)) {
         mPrintThisPage = false;
       
-        PRInt32 i;
+        int32_t i;
         for (i = 0; i < length; i += 2) {          
           if (mPageRanges[i] <= mPageNum && mPageNum <= mPageRanges[i+1]) {
             mPrintThisPage = true;
@@ -584,7 +584,7 @@ nsSimplePageSequenceFrame::PrintNextPage()
     pf->SetPageNumInfo(mPageNum, mTotalPages);
     pf->SetSharedPageData(mPageData);
 
-    PRInt32 printedPageNum = 1;
+    int32_t printedPageNum = 1;
     while (continuePrinting) {
       if (PresContext()->IsRootPaginatedDocument()) {
         PR_PL(("\n"));
@@ -707,16 +707,16 @@ nsSimplePageSequenceFrame::GetType() const
 void
 nsSimplePageSequenceFrame::SetPageNumberFormat(PRUnichar * aFormatStr, bool aForPageNumOnly)
 { 
-  NS_ASSERTION(aFormatStr != nsnull, "Format string cannot be null!");
-  NS_ASSERTION(mPageData != nsnull, "mPageData string cannot be null!");
+  NS_ASSERTION(aFormatStr != nullptr, "Format string cannot be null!");
+  NS_ASSERTION(mPageData != nullptr, "mPageData string cannot be null!");
 
   if (aForPageNumOnly) {
-    if (mPageData->mPageNumFormat != nsnull) {
+    if (mPageData->mPageNumFormat != nullptr) {
       nsMemory::Free(mPageData->mPageNumFormat);
     }
     mPageData->mPageNumFormat = aFormatStr;
   } else {
-    if (mPageData->mPageNumAndTotalsFormat != nsnull) {
+    if (mPageData->mPageNumAndTotalsFormat != nullptr) {
       nsMemory::Free(mPageData->mPageNumAndTotalsFormat);
     }
     mPageData->mPageNumAndTotalsFormat = aFormatStr;
@@ -727,10 +727,10 @@ nsSimplePageSequenceFrame::SetPageNumberFormat(PRUnichar * aFormatStr, bool aFor
 void
 nsSimplePageSequenceFrame::SetDateTimeStr(PRUnichar * aDateTimeStr)
 { 
-  NS_ASSERTION(aDateTimeStr != nsnull, "DateTime string cannot be null!");
-  NS_ASSERTION(mPageData != nsnull, "mPageData string cannot be null!");
+  NS_ASSERTION(aDateTimeStr != nullptr, "DateTime string cannot be null!");
+  NS_ASSERTION(mPageData != nullptr, "mPageData string cannot be null!");
 
-  if (mPageData->mDateTimeStr != nsnull) {
+  if (mPageData->mDateTimeStr != nullptr) {
     nsMemory::Free(mPageData->mDateTimeStr);
   }
   mPageData->mDateTimeStr = aDateTimeStr;

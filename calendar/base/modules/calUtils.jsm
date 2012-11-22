@@ -6,6 +6,8 @@
 
 var gCalThreadingEnabled;
 
+Components.utils.import("resource:///modules/XPCOMUtils.jsm");
+
 EXPORTED_SYMBOLS = ["cal"];
 let cal = {
     // new code should land here,
@@ -64,6 +66,56 @@ let cal = {
         } else {
             func();
         }
+    },
+
+    /**
+     * Create an adapter for the given interface. If passed, methods will be
+     * added to the template object, otherwise a new object will be returned.
+     *
+     * @param iface     The interface to adapt (Components.interfaces...)
+     * @param template  (optional) A template object to extend
+     * @return          If passed the adapted template object, otherwise a
+     *                    clean adapter.
+     *
+     * Currently supported interfaces are:
+     *  - calIObserver
+     *  - calICalendarManagerObserver
+     *  - calIOperationListener
+     *  - calICompositeObserver
+     */
+    createAdapter: function createAdapter(iface, template) {
+        let methods;
+        let adapter = template || {};
+        switch (iface) {
+            case Components.interfaces.calIObserver:
+                methods = ["onStartBatch", "onEndBatch", "onLoad", "onAddItem",
+                           "onModifyItem", "onDeleteItem", "onError",
+                           "onPropertyChanged", "onPropertyDeleting"];
+                break;
+            case Components.interfaces.calICalendarManagerObserver:
+                methods = ["onCalendarRegistered", "onCalendarUnregistering",
+                           "onCalendarDeleting"];
+                break;
+            case Components.interfaces.calIOperationListener:
+                methods = ["onGetResult", "onOperationComplete"];
+                break;
+            case Components.interfaces.calICompositeObserver:
+                methods = ["onCalendarAdded", "onCalendarRemoved",
+                           "onDefaultCalendarChanged"];
+                break;
+            default:
+                methods = [];
+                break;
+        }
+
+        for each (let method in methods) {
+            if (!(method in template)) {
+                adapter[method] = function() {};
+            }
+        }
+        adapter.QueryInterface = XPCOMUtils.generateQI([iface]);
+
+        return adapter;
     },
 
     get threadingEnabled() {
@@ -349,18 +401,32 @@ let cal = {
         return calDateTime.nativeTime;
     },
 
-    userWeekStart: function userWeekStart(dt) {
-        let wkst = cal.getPrefSafe("calendar.week.start", 0);
-        let wkstDate = dt.clone();
-        wkstDate.day -= (wkstDate.weekday - wkst + 7) % 7;
-        return wkstDate;
-    },
-
-    userWeekEnd: function userWeekEnd(dt) {
-        let wkst = cal.getPrefSafe("calendar.week.start", 0);
-        let wkendDate = dt.clone();
-        wkendDate.day += (7 - wkendDate.weekday) + wkst;
-        return wkendDate;
+    /**
+     * Returns a calIDateTime corresponding to a javascript Date.
+     *
+     * @param aDate     a javascript date
+     * @param aTimezone (optional) a timezone that should be enforced
+     * @returns         a calIDateTime
+     *
+     * @warning  Use of this function is strongly discouraged.  calIDateTime should
+     *           be used directly whenever possible.
+     *           If you pass a timezone, then the passed jsDate's timezone will be ignored,
+     *           but only its local time portions are be taken.
+     */
+    jsDateToDateTime: function jsDateToDateTime(aDate, aTimezone) {
+        let newDate = cal.createDateTime();
+        if (aTimezone) {
+            newDate.resetTo(aDate.getFullYear(),
+                            aDate.getMonth(),
+                            aDate.getDate(),
+                            aDate.getHours(),
+                            aDate.getMinutes(),
+                            aDate.getSeconds(),
+                            aTimezone);
+        } else {
+            newDate.jsDate = aDate;
+        }
+        return newDate;
     },
 
     sortEntry: function cal_sortEntry(aItem) {

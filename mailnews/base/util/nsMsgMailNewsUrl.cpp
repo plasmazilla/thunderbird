@@ -29,7 +29,7 @@
 nsMsgMailNewsUrl::nsMsgMailNewsUrl()
 {
   // nsIURI specific state
-  m_errorMessage = nsnull;
+  m_errorMessage = nullptr;
   m_runningUrl = false;
   m_updatingFolder = false;
   m_addContentToCache = false;
@@ -119,7 +119,7 @@ nsresult nsMsgMailNewsUrl::UnRegisterListener(nsIUrlListener *aUrlListener)
 {
   NS_ENSURE_ARG_POINTER(aUrlListener);
 
-  PRInt32 index = mUrlListeners.IndexOf(aUrlListener);
+  int32_t index = mUrlListeners.IndexOf(aUrlListener);
   // Due to the way mailnews is structured, some listeners attempt to remove
   // themselves twice. This may in fact be an error in the coding, however
   // if they didn't do it as they do currently, then they could fail to remove
@@ -181,7 +181,7 @@ NS_IMETHODIMP nsMsgMailNewsUrl::GetServer(nsIMsgIncomingServer ** aIncomingServe
 NS_IMETHODIMP nsMsgMailNewsUrl::GetMsgWindow(nsIMsgWindow **aMsgWindow)
 {
   NS_ENSURE_ARG_POINTER(aMsgWindow);
-  *aMsgWindow = nsnull;
+  *aMsgWindow = nullptr;
   
   nsCOMPtr<nsIMsgWindow> msgWindow(do_QueryReferent(m_msgWindowWeak));
   msgWindow.swap(*aMsgWindow);
@@ -201,7 +201,7 @@ NS_IMETHODIMP nsMsgMailNewsUrl::GetStatusFeedback(nsIMsgStatusFeedback **aMsgFee
 {
   // note: it is okay to return a null status feedback and not return an error
   // it's possible the url really doesn't have status feedback
-  *aMsgFeedback = nsnull;
+  *aMsgFeedback = nullptr;
   if (!m_statusFeedbackWeak)
   {
     nsCOMPtr<nsIMsgWindow> msgWindow(do_QueryReferent(m_msgWindowWeak));
@@ -223,13 +223,13 @@ NS_IMETHODIMP nsMsgMailNewsUrl::SetStatusFeedback(nsIMsgStatusFeedback *aMsgFeed
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgMailNewsUrl::GetMaxProgress(PRInt64 *aMaxProgress)
+NS_IMETHODIMP nsMsgMailNewsUrl::GetMaxProgress(int64_t *aMaxProgress)
 {
   *aMaxProgress = mMaxProgress;
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgMailNewsUrl::SetMaxProgress(PRInt64 aMaxProgress)
+NS_IMETHODIMP nsMsgMailNewsUrl::SetMaxProgress(int64_t aMaxProgress)
 {
   mMaxProgress = aMaxProgress;
   return NS_OK;
@@ -237,7 +237,7 @@ NS_IMETHODIMP nsMsgMailNewsUrl::SetMaxProgress(PRInt64 aMaxProgress)
 
 NS_IMETHODIMP nsMsgMailNewsUrl::GetLoadGroup(nsILoadGroup **aLoadGroup)
 {
-  *aLoadGroup = nsnull;
+  *aLoadGroup = nullptr;
   // note: it is okay to return a null load group and not return an error
   // it's possible the url really doesn't have load group
   nsCOMPtr<nsILoadGroup> loadGroup (do_QueryReferent(m_loadGroupWeak));
@@ -310,7 +310,7 @@ NS_IMETHODIMP nsMsgMailNewsUrl::SetSuppressErrorMsgs(bool aSuppressErrorMsgs)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgMailNewsUrl::IsUrlType(PRUint32 type, bool *isType)
+NS_IMETHODIMP nsMsgMailNewsUrl::IsUrlType(uint32_t type, bool *isType)
 {
   //base class doesn't know about any specific types
   NS_ENSURE_ARG(isType);
@@ -441,12 +441,12 @@ NS_IMETHODIMP nsMsgMailNewsUrl::SetHost(const nsACString &aHost)
   return m_baseURL->SetHost(aHost);
 }
 
-NS_IMETHODIMP nsMsgMailNewsUrl::GetPort(PRInt32 *aPort)
+NS_IMETHODIMP nsMsgMailNewsUrl::GetPort(int32_t *aPort)
 {
   return m_baseURL->GetPort(aPort);
 }
 
-NS_IMETHODIMP nsMsgMailNewsUrl::SetPort(PRInt32 aPort)
+NS_IMETHODIMP nsMsgMailNewsUrl::SetPort(int32_t aPort)
 {
   return m_baseURL->SetPort(aPort);
 }
@@ -544,7 +544,7 @@ NS_IMETHODIMP nsMsgMailNewsUrl::Clone(nsIURI **_retval)
   NS_ENSURE_TRUE(ioService, NS_ERROR_UNEXPECTED);
   rv = GetSpec(urlSpec);
   NS_ENSURE_SUCCESS(rv, rv);
-  rv = ioService->NewURI(urlSpec, nsnull, nsnull, _retval);
+  rv = ioService->NewURI(urlSpec, nullptr, nullptr, _retval);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // add the msg window to the cloned url
@@ -627,7 +627,7 @@ NS_IMETHODIMP nsMsgMailNewsUrl::GetFileExtension(nsACString &aFileExtension)
 {
   if (!mAttachmentFileName.IsEmpty())
   {
-    PRInt32 pos = mAttachmentFileName.RFindChar(PRUnichar('.'));
+    int32_t pos = mAttachmentFileName.RFindChar(PRUnichar('.'));
     if (pos > 0)
       aFileExtension = Substring(mAttachmentFileName, pos + 1 /* skip the '.' */);
     return NS_OK;
@@ -704,7 +704,7 @@ NS_IMETHODIMP nsMsgMailNewsUrl:: GetMemCacheEntry(nsICacheEntryDescriptor **memC
   }
   else
   {
-    *memCacheEntry = nsnull;
+    *memCacheEntry = nullptr;
     return NS_ERROR_NULL_POINTER;
   }
 
@@ -780,7 +780,7 @@ protected:
   nsCOMPtr<nsIFile> m_outputFile;
   bool m_addDummyEnvelope;
   bool m_writtenData;
-  PRUint32 m_leftOver;
+  uint32_t m_leftOver;
   char m_dataBuffer[SAVE_BUF_SIZE+1]; // temporary buffer for this save operation
 
 };
@@ -820,11 +820,11 @@ nsMsgSaveAsListener::OnStopRequest(nsIRequest *request, nsISupports * aCtxt, nsr
 NS_IMETHODIMP nsMsgSaveAsListener::OnDataAvailable(nsIRequest* request, 
                                   nsISupports* aSupport,
                                   nsIInputStream* inStream, 
-                                  PRUint32 srcOffset,
-                                  PRUint32 count)
+                                  uint32_t srcOffset,
+                                  uint32_t count)
 {
   nsresult rv;
-  PRUint32 available;
+  uint64_t available;
   rv = inStream->Available(&available);
   if (!m_writtenData)
   {
@@ -839,12 +839,12 @@ NS_IMETHODIMP nsMsgSaveAsListener::OnDataAvailable(nsIRequest* request,
     msgUrl->GetCanonicalLineEnding(&useCanonicalEnding);
   
   const char *lineEnding = (useCanonicalEnding) ? CRLF : MSG_LINEBREAK;
-  PRUint32 lineEndingLength = (useCanonicalEnding) ? 2 : MSG_LINEBREAK_LEN;
+  uint32_t lineEndingLength = (useCanonicalEnding) ? 2 : MSG_LINEBREAK_LEN;
   
-  PRUint32 readCount, maxReadCount = SAVE_BUF_SIZE - m_leftOver;
-  PRUint32 writeCount;
+  uint32_t readCount, maxReadCount = SAVE_BUF_SIZE - m_leftOver;
+  uint32_t writeCount;
   char *start, *end, lastCharInPrevBuf = '\0';
-  PRUint32 linebreak_len = 0;
+  uint32_t linebreak_len = 0;
 
   while (count > 0)
   {
@@ -888,7 +888,10 @@ NS_IMETHODIMP nsMsgSaveAsListener::OnDataAvailable(nsIRequest* request,
               PL_strncmp(start, "From - ", 7))
           {
               rv = m_outputStream->Write(start, end-start, &writeCount);
-              rv |= m_outputStream->Write(lineEnding, lineEndingLength, &writeCount);
+              nsresult tmp = m_outputStream->Write(lineEnding, lineEndingLength, &writeCount);
+              if (NS_FAILED(tmp)) {
+                rv = tmp;
+              }
           }
           start = end+linebreak_len;
           if (start >= m_dataBuffer + m_leftOver)
@@ -937,7 +940,7 @@ nsresult nsMsgSaveAsListener::SetupMsgWriteStream(nsIFile *aFile, bool addDummyE
   if (m_outputStream && addDummyEnvelope)
   {
     nsCAutoString result;
-    PRUint32 writeCount;
+    uint32_t writeCount;
 
     time_t now = time((time_t*) 0);
     char *ct = ctime(&now);

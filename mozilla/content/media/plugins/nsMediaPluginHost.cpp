@@ -3,6 +3,7 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
+#include "mozilla/Preferences.h"
 #include "mozilla/TimeStamp.h"
 #include "nsTimeRanges.h"
 #include "MediaResource.h"
@@ -12,6 +13,7 @@
 #include "nsISeekableStream.h"
 #include "pratom.h"
 #include "nsMediaPluginReader.h"
+#include "nsIGfxInfo.h"
 
 #include "MPAPI.h"
 
@@ -54,15 +56,61 @@ static void SetPlaybackReadMode(Decoder *aDecoder)
   GetResource(aDecoder)->SetReadMode(nsMediaCacheStream::MODE_PLAYBACK);
 }
 
+class GetIntPrefEvent : public nsRunnable {
+public:
+  GetIntPrefEvent(const char* aPref, int32_t* aResult)
+    : mPref(aPref), mResult(aResult) {}
+  NS_IMETHOD Run() {
+    return Preferences::GetInt(mPref, mResult);
+  }
+private:
+  const char* mPref;
+  int32_t*    mResult;
+};
+
+static bool GetIntPref(const char* aPref, int32_t* aResult)
+{
+  // GetIntPref() is called on the decoder thread, but the Preferences API
+  // can only be called on the main thread. Post a runnable and wait.
+  NS_ENSURE_ARG_POINTER(aPref);
+  NS_ENSURE_ARG_POINTER(aResult);
+  nsCOMPtr<GetIntPrefEvent> event = new GetIntPrefEvent(aPref, aResult);
+  return NS_SUCCEEDED(NS_DispatchToMainThread(event, NS_DISPATCH_SYNC));
+}
+
 static PluginHost sPluginHost = {
   Read,
   GetLength,
   SetMetaDataReadMode,
-  SetPlaybackReadMode
+  SetPlaybackReadMode,
+  GetIntPref
 };
 
 void nsMediaPluginHost::TryLoad(const char *name)
 {
+  bool forceEnabled =
+      Preferences::GetBool("stagefright.force-enabled", false);
+  bool disabled =
+      Preferences::GetBool("stagefright.disabled", false);
+
+  if (disabled) {
+    NS_WARNING("XXX stagefright disabled\n");
+    return;
+  }
+
+  if (!forceEnabled) {
+    nsCOMPtr<nsIGfxInfo> gfxInfo = do_GetService("@mozilla.org/gfx/info;1");
+    if (gfxInfo) {
+      int32_t status;
+      if (NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_STAGEFRIGHT, &status))) {
+        if (status != nsIGfxInfo::FEATURE_NO_INFO) {
+          NS_WARNING("XXX stagefright blacklisted\n");
+          return;
+        }
+      }
+    }
+  }
+
   PRLibrary *lib = PR_LoadLibrary(name);
   if (lib) {
     Manifest *manifest = static_cast<Manifest *>(PR_FindSymbol(lib, "MPAPI_MANIFEST"));
@@ -73,7 +121,9 @@ void nsMediaPluginHost::TryLoad(const char *name)
 
 nsMediaPluginHost::nsMediaPluginHost() {
   MOZ_COUNT_CTOR(nsMediaPluginHost);
-#ifdef ANDROID
+#if defined(ANDROID) && !defined(MOZ_WIDGET_GONK)
+  TryLoad("lib/libomxplugin.so");
+#elif defined(ANDROID) && defined(MOZ_WIDGET_GONK)
   TryLoad("libomxplugin.so");
 #endif
 }
@@ -85,7 +135,7 @@ nsMediaPluginHost::~nsMediaPluginHost() {
 bool nsMediaPluginHost::FindDecoder(const nsACString& aMimeType, const char* const** aCodecs)
 {
   const char *chars;
-  size_t len = NS_CStringGetData(aMimeType, &chars, nsnull);
+  size_t len = NS_CStringGetData(aMimeType, &chars, nullptr);
   for (size_t n = 0; n < mPlugins.Length(); ++n) {
     Manifest *plugin = mPlugins[n];
     const char* const *codecs;
@@ -106,11 +156,11 @@ Decoder::Decoder() :
 MPAPI::Decoder *nsMediaPluginHost::CreateDecoder(MediaResource *aResource, const nsACString& aMimeType)
 {
   const char *chars;
-  size_t len = NS_CStringGetData(aMimeType, &chars, nsnull);
+  size_t len = NS_CStringGetData(aMimeType, &chars, nullptr);
 
   Decoder *decoder = new Decoder();
   if (!decoder) {
-    return nsnull;
+    return nullptr;
   }
   decoder->mResource = aResource;
 
@@ -125,7 +175,7 @@ MPAPI::Decoder *nsMediaPluginHost::CreateDecoder(MediaResource *aResource, const
     }
   }
 
-  return nsnull;
+  return nullptr;
 }
 
 void nsMediaPluginHost::DestroyDecoder(Decoder *aDecoder)
@@ -134,7 +184,7 @@ void nsMediaPluginHost::DestroyDecoder(Decoder *aDecoder)
   delete aDecoder;
 }
 
-nsMediaPluginHost *sMediaPluginHost = nsnull;
+nsMediaPluginHost *sMediaPluginHost = nullptr;
 nsMediaPluginHost *GetMediaPluginHost()
 {
   if (!sMediaPluginHost) {
@@ -147,7 +197,7 @@ void nsMediaPluginHost::Shutdown()
 {
   if (sMediaPluginHost) {
     delete sMediaPluginHost;
-    sMediaPluginHost = nsnull;
+    sMediaPluginHost = nullptr;
   }
 }
 

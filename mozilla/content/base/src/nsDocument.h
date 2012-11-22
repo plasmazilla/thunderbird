@@ -113,11 +113,11 @@ public:
   typedef mozilla::dom::Element Element;
   
   nsIdentifierMapEntry(const nsAString& aKey) :
-    nsStringHashKey(&aKey), mNameContentList(nsnull)
+    nsStringHashKey(&aKey), mNameContentList(nullptr)
   {
   }
   nsIdentifierMapEntry(const nsAString *aKey) :
-    nsStringHashKey(aKey), mNameContentList(nsnull)
+    nsStringHashKey(aKey), mNameContentList(nullptr)
   {
   }
   nsIdentifierMapEntry(const nsIdentifierMapEntry& aOther) :
@@ -172,7 +172,7 @@ public:
    */
   void SetImageElement(Element* aElement);
 
-  bool HasContentChangeCallback() { return mChangeCallbacks != nsnull; }
+  bool HasContentChangeCallback() { return mChangeCallbacks != nullptr; }
   void AddContentChangeCallback(nsIDocument::IDTargetObserver aCallback,
                                 void* aData, bool aForImage);
   void RemoveContentChangeCallback(nsIDocument::IDTargetObserver aCallback,
@@ -236,7 +236,7 @@ class nsDocHeaderData
 {
 public:
   nsDocHeaderData(nsIAtom* aField, const nsAString& aData)
-    : mField(aField), mData(aData), mNext(nsnull)
+    : mField(aField), mData(aData), mNext(nullptr)
   {
   }
 
@@ -268,7 +268,7 @@ public:
   // nsIMutationObserver
   NS_DECL_NSIMUTATIONOBSERVER_NODEWILLBEDESTROYED
 
-  nsIStyleSheet* GetItemAt(PRUint32 aIndex);
+  nsIStyleSheet* GetItemAt(uint32_t aIndex);
 
   static nsDOMStyleSheetList* FromSupports(nsISupports* aSupports)
   {
@@ -287,7 +287,7 @@ public:
   }
 
 protected:
-  PRInt32       mLength;
+  int32_t       mLength;
   nsIDocument*  mDocument;
 };
 
@@ -496,7 +496,7 @@ public:
                                      nsISupports* aContainer,
                                      nsIStreamListener **aDocListener,
                                      bool aReset = true,
-                                     nsIContentSink* aContentSink = nsnull) = 0;
+                                     nsIContentSink* aContentSink = nullptr) = 0;
 
   virtual void StopDocumentLoad();
 
@@ -567,6 +567,8 @@ public:
                                nsIPresShell** aInstancePtrResult);
   virtual void DeleteShell();
 
+  virtual nsresult GetAllowPlugins(bool* aAllowPlugins);
+
   virtual nsresult SetSubDocumentFor(Element* aContent,
                                      nsIDocument* aSubDoc);
   virtual nsIDocument* GetSubDocumentFor(nsIContent* aContent) const;
@@ -577,9 +579,9 @@ public:
    * Get the style sheets owned by this document.
    * These are ordered, highest priority last
    */
-  virtual PRInt32 GetNumberOfStyleSheets() const;
-  virtual nsIStyleSheet* GetStyleSheetAt(PRInt32 aIndex) const;
-  virtual PRInt32 GetIndexOfStyleSheet(nsIStyleSheet* aSheet) const;
+  virtual int32_t GetNumberOfStyleSheets() const;
+  virtual nsIStyleSheet* GetStyleSheetAt(int32_t aIndex) const;
+  virtual int32_t GetIndexOfStyleSheet(nsIStyleSheet* aSheet) const;
   virtual void AddStyleSheet(nsIStyleSheet* aSheet);
   virtual void RemoveStyleSheet(nsIStyleSheet* aSheet);
 
@@ -588,12 +590,12 @@ public:
   virtual void AddStyleSheetToStyleSets(nsIStyleSheet* aSheet);
   virtual void RemoveStyleSheetFromStyleSets(nsIStyleSheet* aSheet);
 
-  virtual void InsertStyleSheetAt(nsIStyleSheet* aSheet, PRInt32 aIndex);
+  virtual void InsertStyleSheetAt(nsIStyleSheet* aSheet, int32_t aIndex);
   virtual void SetStyleSheetApplicableState(nsIStyleSheet* aSheet,
                                             bool aApplicable);
 
-  virtual PRInt32 GetNumberOfCatalogStyleSheets() const;
-  virtual nsIStyleSheet* GetCatalogStyleSheetAt(PRInt32 aIndex) const;
+  virtual int32_t GetNumberOfCatalogStyleSheets() const;
+  virtual nsIStyleSheet* GetCatalogStyleSheetAt(int32_t aIndex) const;
   virtual void AddCatalogStyleSheet(nsIStyleSheet* aSheet);
   virtual void EnsureCatalogStyleSheet(const char *aStyleSheetURI);
 
@@ -673,7 +675,7 @@ public:
   virtual void FlushExternalResources(mozFlushType aType);
   virtual void SetXMLDeclaration(const PRUnichar *aVersion,
                                  const PRUnichar *aEncoding,
-                                 const PRInt32 aStandalone);
+                                 const int32_t aStandalone);
   virtual void GetXMLDeclaration(nsAString& aVersion,
                                  nsAString& aEncoding,
                                  nsAString& Standalone);
@@ -686,15 +688,15 @@ public:
   virtual void MutationEventDispatched(nsINode* aTarget);
 
   // nsINode
-  virtual bool IsNodeOfType(PRUint32 aFlags) const;
-  virtual nsIContent *GetChildAt(PRUint32 aIndex) const;
-  virtual nsIContent * const * GetChildArray(PRUint32* aChildCount) const;
-  virtual PRInt32 IndexOf(nsINode* aPossibleChild) const;
-  virtual PRUint32 GetChildCount() const;
-  virtual nsresult InsertChildAt(nsIContent* aKid, PRUint32 aIndex,
+  virtual bool IsNodeOfType(uint32_t aFlags) const;
+  virtual nsIContent *GetChildAt(uint32_t aIndex) const;
+  virtual nsIContent * const * GetChildArray(uint32_t* aChildCount) const;
+  virtual int32_t IndexOf(nsINode* aPossibleChild) const;
+  virtual uint32_t GetChildCount() const;
+  virtual nsresult InsertChildAt(nsIContent* aKid, uint32_t aIndex,
                                  bool aNotify);
   virtual nsresult AppendChildTo(nsIContent* aKid, bool aNotify);
-  virtual void RemoveChildAt(PRUint32 aIndex, bool aNotify);
+  virtual void RemoveChildAt(uint32_t aIndex, bool aNotify);
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const
   {
     return NS_ERROR_NOT_IMPLEMENTED;
@@ -704,27 +706,31 @@ public:
   NS_IMETHOD WalkRadioGroup(const nsAString& aName,
                             nsIRadioVisitor* aVisitor,
                             bool aFlushContent);
-  NS_IMETHOD SetCurrentRadioButton(const nsAString& aName,
-                                   nsIDOMHTMLInputElement* aRadio);
-  NS_IMETHOD GetCurrentRadioButton(const nsAString& aName,
-                                   nsIDOMHTMLInputElement** aRadio);
+  virtual void SetCurrentRadioButton(const nsAString& aName,
+                                     nsIDOMHTMLInputElement* aRadio);
+  virtual nsIDOMHTMLInputElement* GetCurrentRadioButton(const nsAString& aName);
   NS_IMETHOD GetNextRadioButton(const nsAString& aName,
                                 const bool aPrevious,
                                 nsIDOMHTMLInputElement*  aFocusedRadio,
                                 nsIDOMHTMLInputElement** aRadioOut);
-  NS_IMETHOD AddToRadioGroup(const nsAString& aName,
-                             nsIFormControl* aRadio);
-  NS_IMETHOD RemoveFromRadioGroup(const nsAString& aName,
-                                  nsIFormControl* aRadio);
-  virtual PRUint32 GetRequiredRadioCount(const nsAString& aName) const;
+  virtual void AddToRadioGroup(const nsAString& aName,
+                               nsIFormControl* aRadio);
+  virtual void RemoveFromRadioGroup(const nsAString& aName,
+                                    nsIFormControl* aRadio);
+  virtual uint32_t GetRequiredRadioCount(const nsAString& aName) const;
   virtual void RadioRequiredChanged(const nsAString& aName,
                                     nsIFormControl* aRadio);
   virtual bool GetValueMissingState(const nsAString& aName) const;
   virtual void SetValueMissingState(const nsAString& aName, bool aValue);
 
   // for radio group
-  nsRadioGroupStruct* GetRadioGroup(const nsAString& aName);
+  nsRadioGroupStruct* GetRadioGroup(const nsAString& aName) const;
+  nsRadioGroupStruct* GetOrCreateRadioGroup(const nsAString& aName);
 
+private:
+  nsRadioGroupStruct* GetRadioGroupInternal(const nsAString& aName) const;
+
+public:
   // nsIDOMNode
   NS_DECL_NSIDOMNODE
 
@@ -765,7 +771,7 @@ public:
   virtual void AddXMLEventsContent(nsIContent * aXMLEventsElement);
 
   virtual nsresult CreateElem(const nsAString& aName, nsIAtom *aPrefix,
-                              PRInt32 aNamespaceID,
+                              int32_t aNamespaceID,
                               nsIContent **aResult);
 
   nsresult CreateElement(const nsAString& aTagName,
@@ -837,7 +843,7 @@ public:
 
   void SetImagesNeedAnimating(bool aAnimating);
 
-  virtual void SuppressEventHandling(PRUint32 aIncrease);
+  virtual void SuppressEventHandling(uint32_t aIncrease);
 
   virtual void UnsuppressEventHandlingAndFireEvents(bool aFireEvents);
   
@@ -905,7 +911,7 @@ public:
   virtual Element *LookupImageElement(const nsAString& aElementId);
 
   virtual NS_HIDDEN_(nsresult) AddImage(imgIRequest* aImage);
-  virtual NS_HIDDEN_(nsresult) RemoveImage(imgIRequest* aImage);
+  virtual NS_HIDDEN_(nsresult) RemoveImage(imgIRequest* aImage, uint32_t aFlags);
   virtual NS_HIDDEN_(nsresult) SetImageLockingState(bool aLocked);
 
   // AddPlugin adds a plugin-related element to mPlugins when the element is
@@ -937,14 +943,26 @@ public:
   virtual void RestorePreviousFullScreenState();
   virtual bool IsFullScreenDoc();
   virtual void SetApprovedForFullscreen(bool aIsApproved);
+  virtual nsresult RemoteFrameFullscreenChanged(nsIDOMElement* aFrameElement,
+                                                const nsAString& aNewOrigin);
+
+  virtual nsresult RemoteFrameFullscreenReverted();
 
   static void ExitFullScreen();
 
   // This is called asynchronously by nsIDocument::AsyncRequestFullScreen()
-  // to move document into full-screen mode if allowed. aWasCallerChrome
+  // to move this document into full-screen mode if allowed. aWasCallerChrome
   // should be true when nsIDocument::AsyncRequestFullScreen() was called
-  // by chrome code.
-  void RequestFullScreen(Element* aElement, bool aWasCallerChrome);
+  // by chrome code. aNotifyOnOriginChange denotes whether we should send a
+  // fullscreen-origin-change notification if requesting fullscreen in this
+  // document causes the origin which is fullscreen to change. We may want to
+  // *not* send this notification if we're calling RequestFullscreen() as part
+  // of a continuation of a request in a subdocument, whereupon the caller will
+  // need to send the notification with the origin of the document which
+  // originally requested fullscreen, not *this* document's origin.
+  void RequestFullScreen(Element* aElement,
+                         bool aWasCallerChrome,
+                         bool aNotifyOnOriginChange);
 
   // Removes all elements from the full-screen stack, removing full-scren
   // styles from the top element in the stack.
@@ -1018,7 +1036,7 @@ protected:
   void RetrieveRelevantHeaders(nsIChannel *aChannel);
 
   bool TryChannelCharset(nsIChannel *aChannel,
-                         PRInt32& aCharsetSource,
+                         int32_t& aCharsetSource,
                          nsACString& aCharset,
                          nsHtml5TreeOpExecutor* aExecutor);
 
@@ -1032,13 +1050,19 @@ protected:
   nsIContent* GetFirstBaseNodeWithHref();
   nsresult SetFirstBaseNodeWithHref(nsIContent *node);
 
+  inline void
+  SetDocumentDirectionality(mozilla::directionality::Directionality aDir)
+  {
+    mDirectionality = aDir;
+  }
+
   // Get the first <title> element with the given IsNodeOfType type, or
   // return null if there isn't one
-  nsIContent* GetTitleContent(PRUint32 aNodeType);
+  nsIContent* GetTitleContent(uint32_t aNodeType);
   // Find the first "title" element in the given IsNodeOfType type and
   // append the concatenation of its text node children to aTitle. Do
   // nothing if there is no such element.
-  void GetTitleFromElement(PRUint32 aNodeType, nsAString& aTitle);
+  void GetTitleFromElement(uint32_t aNodeType, nsAString& aTitle);
 
   nsresult doCreateShell(nsPresContext* aContext,
                          nsIViewManager* aViewManager, nsStyleSet* aStyleSet,
@@ -1173,11 +1197,6 @@ protected:
 
   bool mInXBLUpdate:1;
 
-  // This flag is only set in nsXMLDocument, for e.g. documents used in XBL. We
-  // don't want animations to play in such documents, so we need to store the
-  // flag here so that we can check it in nsDocument::GetAnimationController.
-  bool mLoadedAsInteractiveData:1;
-
   // Whether we're currently holding a lock on all of our images.
   bool mLockingImages:1;
 
@@ -1211,7 +1230,7 @@ protected:
   // permissions in the permission manager) have been approved for fullscreen.
   bool mIsApprovedForFullscreen:1;
 
-  PRUint8 mXMLDeclarationBits;
+  uint8_t mXMLDeclarationBits;
 
   nsInterfaceHashtable<nsPtrHashKey<nsIContent>, nsPIBoxObject> *mBoxObjectTable;
 
@@ -1221,7 +1240,7 @@ protected:
   nsRefPtr<nsXMLEventsManager> mXMLEventsManager;
 
   // Our update nesting level
-  PRUint32 mUpdateNestLevel;
+  uint32_t mUpdateNestLevel;
 
   // The application cache that this document is associated with, if
   // any.  This can change during the lifetime of the document.
@@ -1295,9 +1314,9 @@ private:
   nsCOMPtr<nsILayoutHistoryState> mLayoutHistoryState;
 
   // Currently active onload blockers
-  PRUint32 mOnloadBlockCount;
+  uint32_t mOnloadBlockCount;
   // Onload blockers which haven't been activated yet
-  PRUint32 mAsyncOnloadBlockCount;
+  uint32_t mAsyncOnloadBlockCount;
   nsCOMPtr<nsIRequest> mOnloadBlocker;
   ReadyState mReadyState;
 
@@ -1330,11 +1349,11 @@ private:
   nsRefPtr<nsContentList> mImageMaps;
 
   nsCString mScrollToRef;
-  PRUint8 mScrolledToRefAlready : 1;
-  PRUint8 mChangeScrollPosWhenScrollingToRef : 1;
+  uint8_t mScrolledToRefAlready : 1;
+  uint8_t mChangeScrollPosWhenScrollingToRef : 1;
 
   // Tracking for images in the document.
-  nsDataHashtable< nsPtrHashKey<imgIRequest>, PRUint32> mImageTracker;
+  nsDataHashtable< nsPtrHashKey<imgIRequest>, uint32_t> mImageTracker;
 
   // Tracking for plugins in the document.
   nsTHashtable< nsPtrHashKey<nsIObjectLoadingContent> > mPlugins;

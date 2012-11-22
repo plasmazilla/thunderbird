@@ -12,9 +12,9 @@ const Cr = Components.results;
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
-XPCOMUtils.defineLazyGetter(this, "ppmm", function() {
-  return Cc["@mozilla.org/parentprocessmessagemanager;1"].getService(Ci.nsIFrameMessageManager);
-});
+XPCOMUtils.defineLazyServiceGetter(this, "ppmm",
+                                   "@mozilla.org/parentprocessmessagemanager;1",
+                                   "nsIMessageBroadcaster");
 
 // Limit the number of pending messages for a given page.
 let kMaxPendingMessages;
@@ -26,7 +26,7 @@ try {
 }
 
 function debug(aMsg) { 
-  //dump("-- SystemMessageInternal " + Date.now() + " : " + aMsg + "\n"); 
+  //dump("-- SystemMessageInternal " + Date.now() + " : " + aMsg + "\n");
 }
 
 // Implementation of the component used by internal users.
@@ -40,15 +40,17 @@ function SystemMessageInternal() {
 }
 
 SystemMessageInternal.prototype = {
-  sendMessage: function sendMessage(aType, aMessage, aManifestURI) {
+  sendMessage: function sendMessage(aType, aMessage, aPageURI, aManifestURI) {
     debug("Broadcasting " + aType + " " + JSON.stringify(aMessage));
-    ppmm.sendAsyncMessage("SystemMessageManager:Message" , { type: aType,
-                                                             msg: aMessage,
-                                                             manifest: aManifestURI.spec });
+    ppmm.broadcastAsyncMessage("SystemMessageManager:Message" , { type: aType,
+                                                                  msg: aMessage,
+                                                                  manifest: aManifestURI.spec });
 
     // Queue the message for pages that registered an handler for this type.
     this._pages.forEach(function sendMess_openPage(aPage) {
-      if (aPage.type != aType || aPage.manifest != aManifestURI.spec) {
+      if (aPage.type != aType ||
+          aPage.manifest != aManifestURI.spec ||
+          aPage.uri != aPageURI.spec) {
         return;
       }
 
@@ -58,7 +60,10 @@ SystemMessageInternal.prototype = {
       }
 
       // We don't need to send the full object to observers.
-      let page = { uri: aPage.uri, manifest: aPage.manifest };
+      let page = { uri: aPage.uri,
+                   manifest: aPage.manifest,
+                   type: aPage.type,
+                   target: aMessage.target };
       debug("Asking to open  " + JSON.stringify(page));
       Services.obs.notifyObservers(this, "system-messages-open-app", JSON.stringify(page));
     }.bind(this))

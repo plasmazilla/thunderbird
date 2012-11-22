@@ -47,6 +47,27 @@ html|applet:not([height]), html|applet[height=""] {
   direction: rtl;
 }
 
+:-moz-handler-playpreview .mainBox {
+  display: none;
+}
+
+.previewPluginContent {
+  display: none;
+}
+
+.previewPluginContent > iframe {
+  width: inherit;
+  height: inherit;
+  border: none;
+}
+
+:-moz-handler-playpreview .previewPluginContent {
+  display: block;
+  width: inherit;
+  height: inherit;
+  overflow: hidden;
+}
+
 .msg {
   display: none;
 }
@@ -54,9 +75,11 @@ html|applet:not([height]), html|applet[height=""] {
 :-moz-type-unsupported .msgUnsupported,
 :-moz-type-unsupported-platform .msgUnsupportedPlatform,
 :-moz-handler-clicktoplay .msgClickToPlay,
-:-moz-handler-vulnerable-updatable .msgVulnerableUpdatable,
+:-moz-handler-vulnerable-updatable .msgVulnerabilityStatus,
 :-moz-handler-vulnerable-updatable .msgCheckForUpdates,
-:-moz-handler-vulnerable-no-update .msgVulnerableNoUpdate,
+:-moz-handler-vulnerable-updatable .msgClickToPlay,
+:-moz-handler-vulnerable-no-update .msgVulnerabilityStatus,
+:-moz-handler-vulnerable-no-update .msgClickToPlay,
 :-moz-handler-clicktoplay .msgTapToPlay,
 :-moz-handler-disabled .msgDisabled,
 :-moz-handler-disabled .msgManagePlugins,

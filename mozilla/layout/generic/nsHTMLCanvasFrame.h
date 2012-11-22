@@ -12,8 +12,13 @@
 #include "nsString.h"
 #include "nsAString.h"
 #include "nsIIOService.h"
-#include "Layers.h"
-#include "ImageLayers.h"
+
+namespace mozilla {
+namespace layers {
+class Layer;
+class LayerManager;
+}
+}
 
 class nsPresContext;
 class nsDisplayItem;
@@ -52,13 +57,13 @@ public:
   virtual nsSize ComputeSize(nsRenderingContext *aRenderingContext,
                              nsSize aCBSize, nscoord aAvailableWidth,
                              nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                             PRUint32 aFlags) MOZ_OVERRIDE;
+                             uint32_t aFlags) MOZ_OVERRIDE;
 
   NS_IMETHOD Reflow(nsPresContext*          aPresContext,
                     nsHTMLReflowMetrics&     aDesiredSize,
                     const nsHTMLReflowState& aReflowState,
                     nsReflowStatus&          aStatus);
-  
+
   nsRect GetInnerArea() const;
 
 #ifdef ACCESSIBILITY
@@ -67,7 +72,7 @@ public:
 
   virtual nsIAtom* GetType() const;
 
-  virtual bool IsFrameOfType(PRUint32 aFlags) const
+  virtual bool IsFrameOfType(uint32_t aFlags) const
   {
     return nsSplittableFrame::IsFrameOfType(aFlags & ~(nsIFrame::eReplaced));
   }

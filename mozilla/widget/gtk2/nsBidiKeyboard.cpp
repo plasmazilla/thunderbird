@@ -11,10 +11,10 @@
 #include <gtk/gtk.h>
 
 
-static PRLibrary *gtklib = nsnull;
+static PRLibrary *gtklib = nullptr;
 
 typedef gboolean (*GdkKeymapHaveBidiLayoutsType)(GdkKeymap *keymap);
-static GdkKeymapHaveBidiLayoutsType GdkKeymapHaveBidiLayouts = nsnull;
+static GdkKeymapHaveBidiLayoutsType GdkKeymapHaveBidiLayouts = nullptr;
 
 
 NS_IMPL_ISUPPORTS1(nsBidiKeyboard, nsIBidiKeyboard)
@@ -38,9 +38,9 @@ nsBidiKeyboard::~nsBidiKeyboard()
 {
     if (gtklib) {
         PR_UnloadLibrary(gtklib);
-        gtklib = nsnull;
+        gtklib = nullptr;
 
-        GdkKeymapHaveBidiLayouts = nsnull;
+        GdkKeymapHaveBidiLayouts = nullptr;
     }
 }
 
@@ -69,7 +69,7 @@ nsBidiKeyboard::SetHaveBidiKeyboards()
 }
 
 NS_IMETHODIMP
-nsBidiKeyboard::SetLangFromBidiLevel(PRUint8 aLevel)
+nsBidiKeyboard::SetLangFromBidiLevel(uint8_t aLevel)
 {
     // XXX Insert platform specific code to set keyboard language
     return NS_ERROR_NOT_IMPLEMENTED;

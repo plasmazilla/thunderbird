@@ -76,7 +76,7 @@ DOMCI_CASTABLE_INTERFACES(unused)
 #ifdef _IMPL_NS_LAYOUT
 
 #define DOMCI_CLASS(_dom_class)                                               \
-  extern const PRUint32 kDOMClassInfo_##_dom_class##_interfaces;
+  extern const uint32_t kDOMClassInfo_##_dom_class##_interfaces;
 
 #include "nsDOMClassInfoClasses.h"
 
@@ -125,7 +125,7 @@ template <typename Interface> struct DOMCI_CastableTo {
   (DOMCI_CASTABLE_TO(_interface, _class) ? 1 << _bit : 0) +
 
 #define DOMCI_DATA(_dom_class, _class)                                        \
-const PRUint32 kDOMClassInfo_##_dom_class##_interfaces =                      \
+const uint32_t kDOMClassInfo_##_dom_class##_interfaces =                      \
   DOMCI_CASTABLE_INTERFACES(_class)                                           \
   0;
 
@@ -140,7 +140,7 @@ NS_GetDOMClassInfoInstance(nsDOMClassInfoID aID);
       aIID.Equals(NS_GET_IID(nsXPCClassInfo))) {                              \
     foundInterface = NS_GetDOMClassInfoInstance(eDOMClassInfo_##_class##_id); \
     if (!foundInterface) {                                                    \
-      *aInstancePtr = nsnull;                                                 \
+      *aInstancePtr = nullptr;                                                 \
       return NS_ERROR_OUT_OF_MEMORY;                                          \
     }                                                                         \
   } else
@@ -151,7 +151,7 @@ NS_GetDOMClassInfoInstance(nsDOMClassInfoID aID);
        aIID.Equals(NS_GET_IID(nsXPCClassInfo)))) {                            \
     foundInterface = NS_GetDOMClassInfoInstance(eDOMClassInfo_##_class##_id); \
     if (!foundInterface) {                                                    \
-      *aInstancePtr = nsnull;                                                 \
+      *aInstancePtr = nullptr;                                                 \
       return NS_ERROR_OUT_OF_MEMORY;                                          \
     }                                                                         \
   } else

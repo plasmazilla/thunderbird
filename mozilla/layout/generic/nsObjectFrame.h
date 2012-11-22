@@ -14,8 +14,6 @@
 #include "nsRegion.h"
 #include "nsDisplayList.h"
 #include "nsIReflowCallback.h"
-#include "Layers.h"
-#include "ImageLayers.h"
 
 #ifdef ACCESSIBILITY
 class nsIAccessible;
@@ -23,9 +21,18 @@ class nsIAccessible;
 
 class nsPluginHost;
 class nsPresContext;
+class nsRootPresContext;
 class nsDisplayPlugin;
 class nsIOSurface;
 class PluginBackgroundSink;
+
+namespace mozilla {
+namespace layers {
+class ImageContainer;
+class Layer;
+class LayerManager;
+}
+}
 
 #define nsObjectFrameSuper nsFrame
 
@@ -72,7 +79,7 @@ public:
 
   virtual nsIAtom* GetType() const;
 
-  virtual bool IsFrameOfType(PRUint32 aFlags) const
+  virtual bool IsFrameOfType(uint32_t aFlags) const
   {
     return nsObjectFrameSuper::IsFrameOfType(aFlags & ~(nsIFrame::eReplaced));
   }
@@ -162,7 +169,7 @@ public:
 
   bool PaintedByGecko();
 
-  nsIWidget* GetWidget() { return mInnerView ? mWidget : nsnull; }
+  nsIWidget* GetWidget() { return mInnerView ? mWidget : nullptr; }
 
   /**
    * Adjust the plugin's idea of its size, using aSize as its new size.
@@ -187,7 +194,7 @@ protected:
                       const nsHTMLReflowState& aReflowState,
                       nsHTMLReflowMetrics& aDesiredSize);
 
-  bool IsFocusable(PRInt32 *aTabIndex = nsnull, bool aWithMouse = false);
+  bool IsFocusable(int32_t *aTabIndex = nullptr, bool aWithMouse = false);
 
   // check attributes and optionally CSS to see if we should display anything
   bool IsHidden(bool aCheckVisibilityStyle = true) const;
@@ -226,7 +233,16 @@ protected:
   friend class PluginBackgroundSink;
 
 private:
-  
+  // Registers the plugin for a geometry update, and requests a geometry
+  // update. This caches the root pres context in
+  // mRootPresContextRegisteredWith, so that we can be sure we unregister
+  // from the right root prest context in UnregisterPluginForGeometryUpdates.
+  void RegisterPluginForGeometryUpdates();
+
+  // Unregisters the plugin for geometry updated with the root pres context
+  // stored in mRootPresContextRegisteredWith.
+  void UnregisterPluginForGeometryUpdates();
+
   class PluginEventNotifier : public nsRunnable {
   public:
     PluginEventNotifier(const nsString &aEventType) : 
@@ -252,6 +268,12 @@ private:
   // A reference to the ImageContainer which contains the current frame
   // of plugin to display.
   nsRefPtr<ImageContainer> mImageContainer;
+
+  // We keep this reference to ensure we can always unregister the
+  // plugins we register on the root PresContext.
+  // This is only non-null while we have a plugin registered for geometry
+  // updates.
+  nsRefPtr<nsRootPresContext> mRootPresContextRegisteredWith;
 };
 
 class nsDisplayPlugin : public nsDisplayItem {

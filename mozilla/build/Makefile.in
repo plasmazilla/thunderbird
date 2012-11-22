@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH		= ..
+DEPTH		= @DEPTH@
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
@@ -26,7 +26,6 @@ endif
 
 DIRS += pgo
 
-TEST_DIRS += autoconf/test
 ifeq (android,$(MOZ_WIDGET_TOOLKIT))
 TEST_DIRS += mobile/sutagent/android \
           mobile/sutagent/android/watcher \
@@ -37,7 +36,7 @@ TEST_DIRS += mobile/sutagent/android \
 endif
 
 ifdef MOZ_APP_BASENAME
-DIST_FILES = application.ini
+DIST_FILES = $(srcdir)/application.ini
 
 ifneq (android,$(MOZ_WIDGET_TOOLKIT))
 ifdef MOZ_UPDATER
@@ -133,12 +132,10 @@ leaktest.py: leaktest.py.in
 GARBAGE += leaktest.py
 
 ifdef MOZ_APP_BASENAME
-application.ini: application.ini.in $(APP_INI_DEPS)
-	$(PYTHON) $(topsrcdir)/config/Preprocessor.py $(DEFINES) $< > $@
-GARBAGE += application.ini
+$(FINAL_TARGET)/application.ini: $(APP_INI_DEPS)
 
 ifdef MOZ_APP_STATIC_INI
-application.ini.h: appini_header.py application.ini 
+application.ini.h: appini_header.py $(FINAL_TARGET)/application.ini
 	$(PYTHON) $^ > $@
 export:: application.ini.h
 GARBAGE += application.ini.h
@@ -263,4 +260,8 @@ libs:: $(topsrcdir)/tools/rb/fix-linux-stack.pl
 endif
 
 GARBAGE += $(srcdir)/automationutils.pyc
+
+# Test for ConfigStatus.py
+check::
+	$(PYTHON) $(srcdir)/tests/unit-ConfigStatus.py
 endif # ENABLE_TESTS

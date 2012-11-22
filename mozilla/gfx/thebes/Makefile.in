@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH		= ../..
+DEPTH		= @DEPTH@
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
@@ -47,8 +47,6 @@ EXPORTS	= \
 	gfxTypes.h \
 	gfxUtils.h \
 	gfxUserFontSet.h \
-	nsCoreAnimationSupport.h \
-	nsIOSurface.h \
 	nsSurfaceTexture.h \
 	gfxSharedImageSurface.h \
 	gfxReusableSurfaceWrapper.h \
@@ -331,7 +329,6 @@ CPPSRCS +=      gfxQuartzNativeDrawing.cpp
 
 CMMSRCS = \
 	gfxMacPlatformFontList.mm \
-	nsCoreAnimationSupport.mm \
 	$(NULL)
 
 endif

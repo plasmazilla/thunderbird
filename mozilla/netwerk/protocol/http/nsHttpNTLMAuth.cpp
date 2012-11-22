@@ -36,7 +36,7 @@ static const char kForceGeneric[] = "network.auth.force-generic-ntlm";
 static bool
 MatchesBaseURI(const nsCSubstring &matchScheme,
                const nsCSubstring &matchHost,
-               PRInt32             matchPort,
+               int32_t             matchPort,
                const char         *baseStart,
                const char         *baseEnd)
 {
@@ -58,7 +58,7 @@ MatchesBaseURI(const nsCSubstring &matchScheme,
     if (hostEnd && hostEnd < baseEnd) {
         // the given port must match the parsed port exactly
         int port = atoi(hostEnd + 1);
-        if (matchPort != (PRInt32) port)
+        if (matchPort != (int32_t) port)
             return false;
     }
     else
@@ -69,7 +69,7 @@ MatchesBaseURI(const nsCSubstring &matchScheme,
     if (hostStart == hostEnd)
         return true;
 
-    PRUint32 hostLen = hostEnd - hostStart;
+    uint32_t hostLen = hostEnd - hostStart;
 
     // matchHost must either equal host or be a subdomain of host
     if (matchHost.Length() < hostLen)
@@ -111,7 +111,7 @@ TestPref(nsIURI *uri, const char *pref)
         return false;
 
     nsCAutoString scheme, host;
-    PRInt32 port;
+    int32_t port;
 
     if (NS_FAILED(uri->GetScheme(scheme)))
         return false;
@@ -325,13 +325,13 @@ nsHttpNTLMAuth::GenerateCredentials(nsIHttpAuthenticableChannel *authChannel,
                                     const PRUnichar *pass,
                                     nsISupports    **sessionState,
                                     nsISupports    **continuationState,
-                                    PRUint32       *aFlags,
+                                    uint32_t       *aFlags,
                                     char           **creds)
 
 {
     LOG(("nsHttpNTLMAuth::GenerateCredentials\n"));
 
-    *creds = nsnull;
+    *creds = nullptr;
     *aFlags = 0;
 
     // if user or password is empty, ChallengeReceived returned
@@ -346,7 +346,7 @@ nsHttpNTLMAuth::GenerateCredentials(nsIHttpAuthenticableChannel *authChannel,
     NS_ENSURE_SUCCESS(rv, rv);
 
     void *inBuf, *outBuf;
-    PRUint32 inBufLen, outBufLen;
+    uint32_t inBufLen, outBufLen;
 
     // initial challenge
     if (PL_strcasecmp(challenge, "NTLM") == 0) {
@@ -404,8 +404,8 @@ nsHttpNTLMAuth::GenerateCredentials(nsIHttpAuthenticableChannel *authChannel,
             if (NS_FAILED(rv))
                 return rv;
 
-            PRUint32 length;
-            PRUint8* certArray;
+            uint32_t length;
+            uint8_t* certArray;
             cert->GetRawDER(&length, &certArray);						  
 			
             // If there is a server certificate, we pass it along the
@@ -415,11 +415,11 @@ nsHttpNTLMAuth::GenerateCredentials(nsIHttpAuthenticableChannel *authChannel,
         } else { 
             // If there is no server certificate, we don't pass anything.
             inBufLen = 0;
-            inBuf = nsnull;
+            inBuf = nullptr;
         }
 #else // Extended protection update is just for Linux and Windows machines.
         inBufLen = 0;
-        inBuf = nsnull;
+        inBuf = nullptr;
 #endif
     }
     else {
@@ -441,7 +441,7 @@ nsHttpNTLMAuth::GenerateCredentials(nsIHttpAuthenticableChannel *authChannel,
         if (!inBuf)
             return NS_ERROR_OUT_OF_MEMORY;
 
-        if (PL_Base64Decode(challenge, len, (char *) inBuf) == nsnull) {
+        if (PL_Base64Decode(challenge, len, (char *) inBuf) == nullptr) {
             nsMemory::Free(inBuf);
             return NS_ERROR_UNEXPECTED; // improper base64 encoding
         }
@@ -470,7 +470,7 @@ nsHttpNTLMAuth::GenerateCredentials(nsIHttpAuthenticableChannel *authChannel,
 }
 
 NS_IMETHODIMP
-nsHttpNTLMAuth::GetAuthFlags(PRUint32 *flags)
+nsHttpNTLMAuth::GetAuthFlags(uint32_t *flags)
 {
     *flags = CONNECTION_BASED | IDENTITY_INCLUDES_DOMAIN | IDENTITY_ENCRYPTED;
     return NS_OK;

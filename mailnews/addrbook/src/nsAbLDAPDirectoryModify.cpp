@@ -23,7 +23,7 @@ class nsAbModifyLDAPMessageListener : public nsAbLDAPListenerBase
 public:
   NS_DECL_ISUPPORTS
 
-  nsAbModifyLDAPMessageListener(const PRInt32 type,
+  nsAbModifyLDAPMessageListener(const int32_t type,
                                 const nsACString &cardDN,
                                 nsIArray* modArray,
                                 const nsACString &newRDN,
@@ -33,7 +33,7 @@ public:
                                 nsIMutableArray* serverSearchControls,
                                 nsIMutableArray* clientSearchControls,
                                 const nsACString &login,
-                                const PRInt32 timeOut = 0);
+                                const int32_t timeOut = 0);
   virtual ~nsAbModifyLDAPMessageListener();
 
   // nsILDAPMessageListener
@@ -47,7 +47,7 @@ protected:
   nsresult OnLDAPMessageModifyResult(nsILDAPMessage *aMessage);
   nsresult OnLDAPMessageRenameResult(nsILDAPMessage *aMessage);
 
-  PRInt32 mType;
+  int32_t mType;
   nsCString mCardDN;
   nsCOMPtr<nsIArray> mModification;
   nsCString mNewRDN;
@@ -66,7 +66,7 @@ protected:
 NS_IMPL_THREADSAFE_ISUPPORTS1(nsAbModifyLDAPMessageListener, nsILDAPMessageListener)
 
 nsAbModifyLDAPMessageListener::nsAbModifyLDAPMessageListener(
-    const PRInt32 type,
+    const int32_t type,
     const nsACString &cardDN,
     nsIArray* modArray,
     const nsACString &newRDN,
@@ -76,7 +76,7 @@ nsAbModifyLDAPMessageListener::nsAbModifyLDAPMessageListener(
     nsIMutableArray* serverSearchControls,
     nsIMutableArray* clientSearchControls,
     const nsACString &login,
-    const PRInt32 timeOut) :
+    const int32_t timeOut) :
     nsAbLDAPListenerBase(directoryUrl, connection, login, timeOut),
     mType(type),
     mCardDN(cardDN),
@@ -118,7 +118,7 @@ NS_IMETHODIMP nsAbModifyLDAPMessageListener::OnLDAPMessage(nsILDAPMessage *aMess
   nsresult rv = Initiate();
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRInt32 messageType;
+  int32_t messageType;
   rv = aMessage->GetType(&messageType);
   NS_ENSURE_SUCCESS(rv, rv);
   
@@ -202,7 +202,7 @@ nsresult nsAbModifyLDAPMessageListener::DoTask()
   mModifyOperation = do_CreateInstance(NS_LDAPOPERATION_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = mModifyOperation->Init (mConnection, this, nsnull);
+  rv = mModifyOperation->Init (mConnection, this, nullptr);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // XXX do we need the search controls?
@@ -234,7 +234,7 @@ nsresult nsAbModifyLDAPMessageListener::OnLDAPMessageModifyResult(nsILDAPMessage
   nsresult rv;
   NS_ENSURE_ARG_POINTER(aMessage);
   
-  PRInt32 errCode;
+  int32_t errCode;
   rv = aMessage->GetErrorCode(&errCode);
   NS_ENSURE_SUCCESS(rv, rv);
  
@@ -258,7 +258,7 @@ nsresult nsAbModifyLDAPMessageListener::OnLDAPMessageRenameResult(nsILDAPMessage
   nsresult rv;
   NS_ENSURE_ARG_POINTER(aMessage);
   
-  PRInt32 errCode;
+  int32_t errCode;
   rv = aMessage->GetErrorCode(&errCode);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -292,7 +292,7 @@ nsAbLDAPDirectoryModify::~nsAbLDAPDirectoryModify()
 }
 
 nsresult nsAbLDAPDirectoryModify::DoModify(nsIAbLDAPDirectory *directory,
-                                           const PRInt32 &updateType,
+                                           const int32_t &updateType,
                                            const nsACString &cardDN,
                                            nsIArray* modArray,
                                            const nsACString &newRDN,
@@ -347,7 +347,7 @@ nsresult nsAbLDAPDirectoryModify::DoModify(nsIAbLDAPDirectory *directory,
   rv = directory->GetAuthDn(login);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRUint32 protocolVersion;
+  uint32_t protocolVersion;
   rv = directory->GetProtocolVersion(&protocolVersion);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -367,6 +367,6 @@ nsresult nsAbLDAPDirectoryModify::DoModify(nsIAbLDAPDirectory *directory,
   // Now lets initialize the LDAP connection properly. We'll kick
   // off the bind operation in the callback function, |OnLDAPInit()|.
   return ldapConnection->Init(currentUrl, login,
-                              _messageListener, nsnull, protocolVersion);
+                              _messageListener, nullptr, protocolVersion);
 }
 

@@ -3,7 +3,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "nsBoxFrame.h"
 #include "nsGridRowLeafFrame.h"
 
 nsIFrame* NS_NewListItemFrame(nsIPresShell* aPresShell,
@@ -23,14 +22,13 @@ public:
                                          const nsRect&           aDirtyRect,
                                          const nsDisplayListSet& aLists);
 
-  // nsIBox
   virtual nsSize GetPrefSize(nsBoxLayoutState& aState);
-  
+
 protected:
   nsListItemFrame(nsIPresShell* aPresShell,
                   nsStyleContext *aContext,
-                  bool aIsRoot = nsnull,
-                  nsBoxLayout* aLayoutManager = nsnull);
+                  bool aIsRoot = nullptr,
+                  nsBoxLayout* aLayoutManager = nullptr);
   virtual ~nsListItemFrame();
 
 }; // class nsListItemFrame

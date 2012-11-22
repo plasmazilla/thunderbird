@@ -16,7 +16,7 @@
 #include "nsIChannelEventSink.h"
 #include "nsIPropertyBag2.h"
 #include "nsIWritablePropertyBag2.h"
-#include "nsNetError.h"
+#include "nsError.h"
 #include "nsChannelProperties.h"
 #include "nsIAsyncVerifyRedirectCallback.h"
 #include "nsAsyncRedirectVerifyHelper.h"
@@ -51,14 +51,14 @@ NS_IMPL_ISUPPORTS2(CSPService, nsIContentPolicy, nsIChannelEventSink)
 
 /* nsIContentPolicy implementation */
 NS_IMETHODIMP
-CSPService::ShouldLoad(PRUint32 aContentType,
+CSPService::ShouldLoad(uint32_t aContentType,
                        nsIURI *aContentLocation,
                        nsIURI *aRequestOrigin,
                        nsISupports *aRequestContext,
                        const nsACString &aMimeTypeGuess,
                        nsISupports *aExtra,
                        nsIPrincipal *aRequestPrincipal,
-                       PRInt16 *aDecision)
+                       int16_t *aDecision)
 {
     if (!aContentLocation)
         return NS_ERROR_FAILURE;
@@ -102,7 +102,7 @@ CSPService::ShouldLoad(PRUint32 aContentType,
                             aRequestOrigin,
                             aRequestContext,
                             aMimeTypeGuess,
-                            nsnull,
+                            nullptr,
                             aDecision);
         }
     }
@@ -119,14 +119,14 @@ CSPService::ShouldLoad(PRUint32 aContentType,
 }
 
 NS_IMETHODIMP
-CSPService::ShouldProcess(PRUint32         aContentType,
+CSPService::ShouldProcess(uint32_t         aContentType,
                           nsIURI           *aContentLocation,
                           nsIURI           *aRequestOrigin,
                           nsISupports      *aRequestContext,
                           const nsACString &aMimeTypeGuess,
                           nsISupports      *aExtra,
                           nsIPrincipal     *aRequestPrincipal,
-                          PRInt16          *aDecision)
+                          int16_t          *aDecision)
 {
     if (!aContentLocation)
         return NS_ERROR_FAILURE;
@@ -180,7 +180,7 @@ CSPService::ShouldProcess(PRUint32         aContentType,
 NS_IMETHODIMP
 CSPService::AsyncOnChannelRedirect(nsIChannel *oldChannel,
                                    nsIChannel *newChannel,
-                                   PRUint32 flags,
+                                   uint32_t flags,
                                    nsIAsyncVerifyRedirectCallback *callback)
 {
   nsAsyncRedirectAutoCallback autoCallback(callback);
@@ -202,7 +202,7 @@ CSPService::AsyncOnChannelRedirect(nsIChannel *oldChannel,
 
   nsCOMPtr<nsIContentSecurityPolicy> csp;
   channelPolicy->GetContentSecurityPolicy(getter_AddRefs(csp));
-  PRUint32 loadType;
+  uint32_t loadType;
   channelPolicy->GetLoadType(&loadType);
 
   // if no CSP in the channelPolicy, nothing for us to add to the channel
@@ -223,11 +223,11 @@ CSPService::AsyncOnChannelRedirect(nsIChannel *oldChannel,
   newChannel->GetURI(getter_AddRefs(newUri));
   nsCOMPtr<nsIURI> originalUri;
   oldChannel->GetOriginalURI(getter_AddRefs(originalUri));
-  PRInt16 aDecision = nsIContentPolicy::ACCEPT;
-  csp->ShouldLoad(loadType,        // load type per nsIContentPolicy (PRUint32)
+  int16_t aDecision = nsIContentPolicy::ACCEPT;
+  csp->ShouldLoad(loadType,        // load type per nsIContentPolicy (uint32_t)
                   newUri,          // nsIURI
-                  nsnull,          // nsIURI
-                  nsnull,          // nsISupports
+                  nullptr,          // nsIURI
+                  nullptr,          // nsISupports
                   EmptyCString(),  // ACString - MIME guess
                   originalUri,     // nsISupports - extra
                   &aDecision);
@@ -273,7 +273,7 @@ CSPService::AsyncOnChannelRedirect(nsIChannel *oldChannel,
   const PRUnichar *formatParams[] = { NS_ConvertUTF8toUTF16(newUriSpec).get() };
   if (NS_SUCCEEDED(rv)) {
     nsContentUtils::ReportToConsole(nsIScriptError::warningFlag,
-                                    "Redirect Error", nsnull,
+                                    "Redirect Error", nullptr,
                                     nsContentUtils::eDOM_PROPERTIES,
                                     "InvalidRedirectChannelWarning",
                                     formatParams, 1);

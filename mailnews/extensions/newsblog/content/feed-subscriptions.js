@@ -1597,7 +1597,7 @@ var FeedSubscriptions = {
       if (tabmail)
       {
         let feedLocation = document.getElementById("locationValue").value;
-        let url = validationQuery + feedLocation;
+        let url = validationQuery + encodeURIComponent(feedLocation);
 
         win.focus();
         win.openContentTab(url, "tab", "^" + validationSite);
@@ -1649,7 +1649,7 @@ var FeedSubscriptions = {
 
       if (aFolder.isServer)
       {
-        if (indexInView)
+        if (indexInView != null)
           // Existing account root folder in the view.
           open = feedWindow.mView.getItemAtIndex(indexInView).open;
         else

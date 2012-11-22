@@ -5,15 +5,13 @@
 
 package org.mozilla.gecko.gfx;
 
+import org.mozilla.gecko.util.FloatUtils;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import android.graphics.Point;
 import android.graphics.PointF;
-import android.util.FloatMath;
-
-import org.json.JSONObject;
-import org.json.JSONException;
-import org.mozilla.gecko.FloatUtils;
-
-import java.lang.Math;
 
 public final class PointUtils {
     public static PointF add(PointF one, PointF two) {

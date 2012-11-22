@@ -34,7 +34,7 @@
 
 // 1 second from mail into the unsent messages folder to initially trying to
 // send it.
-const PRUint32 kInitialMessageSendTime = 1000;
+const uint32_t kInitialMessageSendTime = 1000;
 
 NS_IMPL_ISUPPORTS7(nsMsgSendLater,
                    nsIMsgSendLater,
@@ -51,14 +51,14 @@ nsMsgSendLater::nsMsgSendLater()
   mTimerSet = false;
   mTotalSentSuccessfully = 0;
   mTotalSendCount = 0;
-  mLeftoverBuffer = nsnull;
+  mLeftoverBuffer = nullptr;
 
-  m_to = nsnull;
-  m_bcc = nsnull;
-  m_fcc = nsnull;
-  m_newsgroups = nsnull;
-  m_newshost = nsnull;
-  m_headers = nsnull;
+  m_to = nullptr;
+  m_bcc = nullptr;
+  m_fcc = nullptr;
+  m_newsgroups = nullptr;
+  m_newshost = nullptr;
+  m_headers = nullptr;
   m_flags = 0;
   m_headersFP = 0;
   m_inhead = true;
@@ -69,8 +69,8 @@ nsMsgSendLater::nsMsgSendLater()
   m_flagsPosition = 0;
   m_headersSize = 0;
 
-  mIdentityKey = nsnull;
-  mAccountKey = nsnull;
+  mIdentityKey = nullptr;
+  mAccountKey = nullptr;
 }
 
 nsMsgSendLater::~nsMsgSendLater()
@@ -116,7 +116,7 @@ nsMsgSendLater::Init()
   // Subscribe to the unsent messages folder
   // XXX This code should be set up for multiple unsent folders, however we
   // don't support that at the moment, so for now just assume one folder.
-  rv = GetUnsentMessagesFolder(nsnull, getter_AddRefs(mMessageFolder));
+  rv = GetUnsentMessagesFolder(nullptr, getter_AddRefs(mMessageFolder));
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = mMessageFolder->AddFolderListener(this);
@@ -142,7 +142,7 @@ nsMsgSendLater::Observe(nsISupports *aSubject, const char* aTopic,
     // If we've already started a send since the timer fired, don't start
     // another
     if (!mSendingMessages)
-      InternalSendMessages(false, nsnull);
+      InternalSendMessages(false, nullptr);
   }
   else if (!strcmp(aTopic, "quit-application"))
   {
@@ -230,7 +230,7 @@ nsMsgSendLater::OnStopRequest(nsIRequest *request, nsISupports *ctxt, nsresult s
     {
       rv = StartNextMailFileSend(rv);
       if (NS_FAILED(rv))
-        EndSendMessages(rv, nsnull, mTotalSendCount, mTotalSentSuccessfully);
+        EndSendMessages(rv, nullptr, mTotalSendCount, mTotalSentSuccessfully);
     }
   }
   else
@@ -253,7 +253,7 @@ nsMsgSendLater::OnStopRequest(nsIRequest *request, nsISupports *ctxt, nsresult s
     // Getting the data failed, but we will still keep trying to send the rest...
     rv = StartNextMailFileSend(status);
     if (NS_FAILED(rv))
-      EndSendMessages(rv, nsnull, mTotalSendCount, mTotalSentSuccessfully);
+      EndSendMessages(rv, nullptr, mTotalSendCount, mTotalSentSuccessfully);
   }
 
   return rv;
@@ -263,7 +263,7 @@ char *
 FindEOL(char *inBuf, char *buf_end)
 {
   char *buf = inBuf;
-  char *findLoc = nsnull;
+  char *findLoc = nullptr;
 
   while (buf <= buf_end)
     if (*buf == 0) 
@@ -277,7 +277,7 @@ FindEOL(char *inBuf, char *buf_end)
       ++buf;
 
   if (!findLoc)
-    return nsnull;
+    return nullptr;
   else if ((findLoc + 1) > buf_end)
     return buf;
 
@@ -288,7 +288,7 @@ FindEOL(char *inBuf, char *buf_end)
 }
 
 nsresult
-nsMsgSendLater::RebufferLeftovers(char *startBuf, PRUint32 aLen)
+nsMsgSendLater::RebufferLeftovers(char *startBuf, uint32_t aLen)
 {
   PR_FREEIF(mLeftoverBuffer);
   mLeftoverBuffer = (char *)PR_Malloc(aLen + 1);
@@ -301,13 +301,13 @@ nsMsgSendLater::RebufferLeftovers(char *startBuf, PRUint32 aLen)
 }
 
 nsresult
-nsMsgSendLater::BuildNewBuffer(const char* aBuf, PRUint32 aCount, PRUint32 *totalBufSize)
+nsMsgSendLater::BuildNewBuffer(const char* aBuf, uint32_t aCount, uint32_t *totalBufSize)
 {
   // Only build a buffer when there are leftovers...
   if (!mLeftoverBuffer)
     return NS_ERROR_FAILURE;
 
-  PRInt32 leftoverSize = PL_strlen(mLeftoverBuffer);
+  int32_t leftoverSize = PL_strlen(mLeftoverBuffer);
   mLeftoverBuffer = (char *)PR_Realloc(mLeftoverBuffer, aCount + leftoverSize);
   if (!mLeftoverBuffer)
     return NS_ERROR_FAILURE;
@@ -319,7 +319,7 @@ nsMsgSendLater::BuildNewBuffer(const char* aBuf, PRUint32 aCount, PRUint32 *tota
 
 // Got data?
 NS_IMETHODIMP
-nsMsgSendLater::OnDataAvailable(nsIRequest *request, nsISupports *ctxt, nsIInputStream *inStr, PRUint32 sourceOffset, PRUint32 count)
+nsMsgSendLater::OnDataAvailable(nsIRequest *request, nsISupports *ctxt, nsIInputStream *inStr, uint32_t sourceOffset, uint32_t count)
 {
   NS_ENSURE_ARG_POINTER(inStr);
 
@@ -331,10 +331,10 @@ nsMsgSendLater::OnDataAvailable(nsIRequest *request, nsISupports *ctxt, nsIInput
   char        *startBuf;
   char        *endBuf;
   char        *lineEnd;
-  char        *newbuf = nsnull;
-  PRUint32    size;
+  char        *newbuf = nullptr;
+  uint32_t    size;
 
-  PRUint32    aCount = count;
+  uint32_t    aCount = count;
   char        *aBuf = (char *)PR_Malloc(aCount + 1);
 
   inStr->Read(aBuf, count, &aCount);
@@ -350,7 +350,7 @@ nsMsgSendLater::OnDataAvailable(nsIRequest *request, nsISupports *ctxt, nsIInput
     newbuf = mLeftoverBuffer;
     startBuf = newbuf;
     endBuf = startBuf + size - 1;
-    mLeftoverBuffer = nsnull; // null out this
+    mLeftoverBuffer = nullptr; // null out this
   }
 
   while (startBuf <= endBuf)
@@ -417,7 +417,7 @@ SendOperationListener::OnGetDraftFolderURI(const char *aFolderURI)
 }
   
 NS_IMETHODIMP
-SendOperationListener::OnStartSending(const char *aMsgID, PRUint32 aMsgSize)
+SendOperationListener::OnStartSending(const char *aMsgID, uint32_t aMsgSize)
 {
 #ifdef NS_DEBUG
   printf("SendOperationListener::OnStartSending()\n");
@@ -426,7 +426,7 @@ SendOperationListener::OnStartSending(const char *aMsgID, PRUint32 aMsgSize)
 }
   
 NS_IMETHODIMP
-SendOperationListener::OnProgress(const char *aMsgID, PRUint32 aProgress, PRUint32 aProgressMax)
+SendOperationListener::OnProgress(const char *aMsgID, uint32_t aProgress, uint32_t aProgressMax)
 {
 #ifdef NS_DEBUG
   printf("SendOperationListener::OnProgress()\n");
@@ -469,13 +469,13 @@ SendOperationListener::OnStartCopy(void)
 }
 
 NS_IMETHODIMP
-SendOperationListener::OnProgress(PRUint32 aProgress, PRUint32 aProgressMax)
+SendOperationListener::OnProgress(uint32_t aProgress, uint32_t aProgressMax)
 {
   return NS_OK;
 }
 
 NS_IMETHODIMP
-SendOperationListener::SetMessageKey(PRUint32 aKey)
+SendOperationListener::SetMessageKey(uint32_t aKey)
 {
   NS_NOTREACHED("SendOperationListener::SetMessageKey()");
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -543,7 +543,7 @@ nsMsgSendLater::CompleteMailFileSend()
 
   nsCString decodedString;
   // decoded string is null if the input is not MIME encoded
-  mimeConverter->DecodeMimeHeaderToCharPtr(author.get(), nsnull, false,
+  mimeConverter->DecodeMimeHeaderToCharPtr(author.get(), nullptr, false,
                                            true,
                                            getter_Copies(decodedString));
 
@@ -551,21 +551,21 @@ nsMsgSendLater::CompleteMailFileSend()
 
   if (m_to)
   {
-    mimeConverter->DecodeMimeHeaderToCharPtr(m_to, nsnull, false, true,
+    mimeConverter->DecodeMimeHeaderToCharPtr(m_to, nullptr, false, true,
                                              getter_Copies(decodedString));
     fields->SetTo(decodedString.IsEmpty() ? m_to : decodedString.get());
   }
 
   if (m_bcc)
   {
-    mimeConverter->DecodeMimeHeaderToCharPtr(m_bcc, nsnull, false, true,
+    mimeConverter->DecodeMimeHeaderToCharPtr(m_bcc, nullptr, false, true,
                                              getter_Copies(decodedString));
     fields->SetBcc(decodedString.IsEmpty() ? m_bcc : decodedString.get());
   }
 
   if (m_fcc)
   {
-    mimeConverter->DecodeMimeHeaderToCharPtr(m_fcc, nsnull, false, true,
+    mimeConverter->DecodeMimeHeaderToCharPtr(m_fcc, nullptr, false, true,
                                              getter_Copies(decodedString));
     fields->SetFcc(decodedString.IsEmpty() ? m_fcc : decodedString.get());
   }
@@ -594,10 +594,10 @@ nsMsgSendLater::CompleteMailFileSend()
                                  true, // bool deleteSendFileOnCompletion,
                                  false, // bool digest_p,
                                  nsIMsgSend::nsMsgSendUnsent, // nsMsgDeliverMode mode,
-                                 nsnull, // nsIMsgDBHdr *msgToReplace, 
+                                 nullptr, // nsIMsgDBHdr *msgToReplace, 
                                  sendListener,
                                  mFeedback,
-                                 nsnull); 
+                                 nullptr); 
   NS_RELEASE(sendListener);
   return rv;
 }
@@ -614,7 +614,7 @@ nsMsgSendLater::StartNextMailFileSend(nsresult prevStatus)
     NotifyListenersOnProgress(mTotalSendCount, mMessagesToSend.Count(), 100, 100);
 
     // EndSendMessages resets everything for us
-    EndSendMessages(prevStatus, nsnull, mTotalSendCount, mTotalSentSuccessfully);
+    EndSendMessages(prevStatus, nullptr, mTotalSendCount, mTotalSentSuccessfully);
 
     // XXX Should we be releasing references so that we don't hold onto items
     // unnecessarily.
@@ -679,7 +679,7 @@ nsMsgSendLater::StartNextMailFileSend(nsresult prevStatus)
 
   rv = messageService->DisplayMessage(messageURI.get(),
                                       static_cast<nsIStreamListener*>(this),
-                                      nsnull, nsnull, nsnull, nsnull);
+                                      nullptr, nullptr, nullptr, nullptr);
 
   Release();
 
@@ -709,7 +709,7 @@ nsMsgSendLater::HasUnsentMessages(nsIMsgIdentity *aIdentity, bool *aResult)
   accountManager->GetAccounts(getter_AddRefs(accounts));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRUint32 cnt = 0;
+  uint32_t cnt = 0;
   rv = accounts->Count(&cnt);
   if (cnt == 0) {
     *aResult = false;
@@ -720,14 +720,14 @@ nsMsgSendLater::HasUnsentMessages(nsIMsgIdentity *aIdentity, bool *aResult)
   // don't support that at the moment, so for now just assume one folder.
   if (!mMessageFolder)
   {
-    rv = GetUnsentMessagesFolder(nsnull,
+    rv = GetUnsentMessagesFolder(nullptr,
                                  getter_AddRefs(mMessageFolder));
     NS_ENSURE_SUCCESS(rv, rv);
   }
-  rv = ReparseDBIfNeeded(nsnull);
+  rv = ReparseDBIfNeeded(nullptr);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRInt32 totalMessages;
+  int32_t totalMessages;
   rv = mMessageFolder->GetTotalMessages(false, &totalMessages);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -773,7 +773,7 @@ nsresult nsMsgSendLater::ReparseDBIfNeeded(nsIUrlListener *aListener)
   nsresult rv;
   nsCOMPtr<nsIMsgLocalMailFolder> locFolder(do_QueryInterface(mMessageFolder, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
-  return locFolder->GetDatabaseWithReparse(aListener, nsnull,
+  return locFolder->GetDatabaseWithReparse(aListener, nullptr,
                                            getter_AddRefs(unsentDB));
 }
 
@@ -797,7 +797,7 @@ nsMsgSendLater::InternalSendMessages(bool aUserInitiated,
   // don't support that at the moment, so for now just assume one folder.
   if (!mMessageFolder)
   {
-    rv = GetUnsentMessagesFolder(nsnull,
+    rv = GetUnsentMessagesFolder(nullptr,
                                  getter_AddRefs(mMessageFolder));
     NS_ENSURE_SUCCESS(rv, rv);
   }
@@ -807,7 +807,7 @@ nsMsgSendLater::InternalSendMessages(bool aUserInitiated,
   mIdentity = aIdentity;
   rv = ReparseDBIfNeeded(this);
   NS_ENSURE_SUCCESS(rv, rv);
-  mIdentity = nsnull; // don't hold onto the identity since we're a service.
+  mIdentity = nullptr; // don't hold onto the identity since we're a service.
 
   nsCOMPtr<nsISimpleEnumerator> enumerator;
   rv = mMessageFolder->GetMessages(getter_AddRefs(enumerator));
@@ -832,7 +832,7 @@ nsMsgSendLater::InternalSendMessages(bool aUserInitiated,
         else
         {
           // Else just send those that are NOT marked as Queued.
-          PRUint32 flags;
+          uint32_t flags;
           rv = messageHeader->GetFlags(&flags);
           if (NS_SUCCEEDED(rv) && !(flags & nsMsgMessageFlags::Queued))
             mMessagesToSend.AppendObject(messageHeader);
@@ -873,7 +873,7 @@ nsresult nsMsgSendLater::SetOrigMsgDisposition()
   {
     nsTArray<nsCString> uriArray;
     ParseString(originalMsgURIs, ',', uriArray);
-    for (PRUint32 i = 0; i < uriArray.Length(); i++)
+    for (uint32_t i = 0; i < uriArray.Length(); i++)
     {
       nsCOMPtr <nsIMsgDBHdr> msgHdr;
       nsresult rv = GetMsgDBHdrFromURI(uriArray[i].get(), getter_AddRefs(msgHdr));
@@ -916,12 +916,12 @@ nsMsgSendLater::DeleteCurrentMessage()
 
   msgArray->InsertElementAt(mMessage, 0, false);
 
-  nsresult res = mMessageFolder->DeleteMessages(msgArray, nsnull, true, false, nsnull, false /*allowUndo*/);
+  nsresult res = mMessageFolder->DeleteMessages(msgArray, nullptr, true, false, nullptr, false /*allowUndo*/);
   if (NS_FAILED(res))
     return NS_ERROR_FAILURE;
 
   // Null out the message so we don't try and delete it again.
-  mMessage = nsnull;
+  mMessage = nullptr;
 
   return NS_OK;
 }
@@ -1012,7 +1012,7 @@ nsMsgSendLater::BuildHeaders()
       break;
     case 'X': case 'x':
       {
-        PRInt32 headLen = PL_strlen(HEADER_X_MOZILLA_STATUS2);
+        int32_t headLen = PL_strlen(HEADER_X_MOZILLA_STATUS2);
         if (headLen == end - buf &&
           !PL_strncasecmp(HEADER_X_MOZILLA_STATUS2, buf, end - buf))
           prune_p = true;
@@ -1133,14 +1133,14 @@ SEARCH_NEWLINE:
   return NS_OK;
 }
 
-int
-DoGrowBuffer(PRInt32 desired_size, PRInt32 element_size, PRInt32 quantum,
-            char **buffer, PRInt32 *size)
+nsresult
+DoGrowBuffer(int32_t desired_size, int32_t element_size, int32_t quantum,
+            char **buffer, int32_t *size)
 {
   if (*size <= desired_size)
   {
     char *new_buf;
-    PRInt32 increment = desired_size - *size;
+    int32_t increment = desired_size - *size;
     if (increment < quantum) // always grow by a minimum of N bytes 
       increment = quantum;
     
@@ -1154,19 +1154,19 @@ DoGrowBuffer(PRInt32 desired_size, PRInt32 element_size, PRInt32 quantum,
     *buffer = new_buf;
     *size += increment;
   }
-  return 0;
+  return NS_OK;
 }
 
 #define do_grow_headers(desired_size) \
   (((desired_size) >= m_headersSize) ? \
    DoGrowBuffer ((desired_size), sizeof(char), 1024, \
            &m_headers, &m_headersSize) \
-   : 0)
+   : NS_OK)
 
 nsresult
-nsMsgSendLater::DeliverQueuedLine(char *line, PRInt32 length)
+nsMsgSendLater::DeliverQueuedLine(char *line, int32_t length)
 {
-  PRInt32 flength = length;
+  int32_t flength = length;
   
   m_bytesRead += length;
   
@@ -1227,9 +1227,9 @@ nsMsgSendLater::DeliverQueuedLine(char *line, PRInt32 length)
       if (NS_FAILED(status))
         return status;
 
-      PRUint32 n;
+      uint32_t n;
       rv = mOutFile->Write(m_headers, m_headersFP, &n);
-      if (NS_FAILED(rv) || n != (PRUint32)m_headersFP)
+      if (NS_FAILED(rv) || n != (uint32_t)m_headersFP)
         return NS_MSG_ERROR_WRITING_FILE;
     }
     else
@@ -1257,9 +1257,9 @@ nsMsgSendLater::DeliverQueuedLine(char *line, PRInt32 length)
     PR_ASSERT(mOutFile);
     if (mOutFile)
     {
-      PRUint32 wrote;
+      uint32_t wrote;
       nsresult rv = mOutFile->Write(line, length, &wrote);
-      if (NS_FAILED(rv) || wrote < (PRUint32) length) 
+      if (NS_FAILED(rv) || wrote < (uint32_t) length) 
         return NS_MSG_ERROR_WRITING_FILE;
     }
   }
@@ -1302,14 +1302,14 @@ nsMsgSendLater::GetSendingMessages(bool *aResult)
   PR_END_MACRO
 
 void
-nsMsgSendLater::NotifyListenersOnStartSending(PRUint32 aTotalMessageCount)
+nsMsgSendLater::NotifyListenersOnStartSending(uint32_t aTotalMessageCount)
 {
   NOTIFY_LISTENERS(OnStartSending, (aTotalMessageCount));
 }
 
 void
-nsMsgSendLater::NotifyListenersOnMessageStartSending(PRUint32 aCurrentMessage,
-                                                     PRUint32 aTotalMessage,
+nsMsgSendLater::NotifyListenersOnMessageStartSending(uint32_t aCurrentMessage,
+                                                     uint32_t aTotalMessage,
                                                      nsIMsgIdentity *aIdentity)
 {
   NOTIFY_LISTENERS(OnMessageStartSending, (aCurrentMessage, aTotalMessage,
@@ -1317,17 +1317,17 @@ nsMsgSendLater::NotifyListenersOnMessageStartSending(PRUint32 aCurrentMessage,
 }
 
 void
-nsMsgSendLater::NotifyListenersOnProgress(PRUint32 aCurrentMessage,
-                                          PRUint32 aTotalMessage,
-                                          PRUint32 aSendPercent,
-                                          PRUint32 aCopyPercent)
+nsMsgSendLater::NotifyListenersOnProgress(uint32_t aCurrentMessage,
+                                          uint32_t aTotalMessage,
+                                          uint32_t aSendPercent,
+                                          uint32_t aCopyPercent)
 {
   NOTIFY_LISTENERS(OnMessageSendProgress, (aCurrentMessage, aTotalMessage,
                                            aSendPercent, aCopyPercent));
 }
 
 void
-nsMsgSendLater::NotifyListenersOnMessageSendError(PRUint32 aCurrentMessage,
+nsMsgSendLater::NotifyListenersOnMessageSendError(uint32_t aCurrentMessage,
                                                   nsresult aStatus,
                                                   const PRUnichar *aMsg)
 {
@@ -1341,7 +1341,7 @@ nsMsgSendLater::NotifyListenersOnMessageSendError(PRUint32 aCurrentMessage,
  */
 void
 nsMsgSendLater::EndSendMessages(nsresult aStatus, const PRUnichar *aMsg,
-                                PRUint32 aTotalTried, PRUint32 aSuccessful)
+                                uint32_t aTotalTried, uint32_t aSuccessful)
 {
   // Catch-all, we may have had an issue sending, so we may not be calling
   // StartNextMailFileSend to fully finish the sending. Therefore set
@@ -1353,20 +1353,20 @@ nsMsgSendLater::EndSendMessages(nsresult aStatus, const PRUnichar *aMsg,
   mMessagesToSend.Clear();
 
   // We don't need to keep hold of the database now we've finished sending.
-  (void)mMessageFolder->SetMsgDatabase(nsnull);
+  (void)mMessageFolder->SetMsgDatabase(nullptr);
 
   // or the enumerator, temp file or output stream
-  mEnumerator = nsnull;
-  mTempFile = nsnull;
-  mOutFile = nsnull;  
+  mEnumerator = nullptr;
+  mTempFile = nullptr;
+  mOutFile = nullptr;  
 
   NOTIFY_LISTENERS(OnStopSending, (aStatus, aMsg, aTotalTried, aSuccessful));
 
   // If we've got a shutdown listener, notify it that we've finished.
   if (mShutdownListener)
   {
-    mShutdownListener->OnStopRunningUrl(nsnull, NS_OK);
-    mShutdownListener = nsnull;
+    mShutdownListener->OnStopRunningUrl(nullptr, NS_OK);
+    mShutdownListener = nullptr;
   }
 }
 
@@ -1394,12 +1394,12 @@ nsMsgSendLater::OnSendStepFinished(nsresult aStatus)
   else
   {
     // XXX we don't currently get a message string from the send service.
-    NotifyListenersOnMessageSendError(mTotalSendCount, aStatus, nsnull);
+    NotifyListenersOnMessageSendError(mTotalSendCount, aStatus, nullptr);
     nsresult rv = StartNextMailFileSend(aStatus);
     // if this is the last message we're sending, we should report
     // the status failure.
     if (NS_FAILED(rv))
-      EndSendMessages(rv, nsnull, mTotalSendCount, mTotalSentSuccessfully);
+      EndSendMessages(rv, nullptr, mTotalSendCount, mTotalSentSuccessfully);
   }
   return false;
 }
@@ -1417,7 +1417,7 @@ nsMsgSendLater::OnCopyStepFinished(nsresult aStatus)
   // to send the rest...
   nsresult rv = StartNextMailFileSend(aStatus);
   if (NS_FAILED(rv))
-    EndSendMessages(rv, nsnull, mTotalSendCount, mTotalSentSuccessfully);
+    EndSendMessages(rv, nullptr, mTotalSendCount, mTotalSentSuccessfully);
 }
 
 // XXX todo
@@ -1438,10 +1438,10 @@ nsMsgSendLater::GetIdentityFromKey(const char *aKey, nsIMsgIdentity  **aIdentity
     if (NS_SUCCEEDED(accountManager->GetAllIdentities(getter_AddRefs(identities))))
     {
       nsCOMPtr<nsIMsgIdentity> lookupIdentity;
-      PRUint32          count = 0;
+      uint32_t          count = 0;
 
       identities->Count(&count);
-      for (PRUint32 i = 0; i < count; i++)
+      for (uint32_t i = 0; i < count; i++)
       {
         rv = identities->QueryElementAt(i, NS_GET_IID(nsIMsgIdentity),
                                   getter_AddRefs(lookupIdentity));
@@ -1513,7 +1513,7 @@ nsMsgSendLater::OnItemPropertyChanged(nsIMsgFolder *aItem, nsIAtom *aProperty,
 
 NS_IMETHODIMP
 nsMsgSendLater::OnItemIntPropertyChanged(nsIMsgFolder *aItem, nsIAtom *aProperty,
-                                         PRInt32 aOldValue, PRInt32 aNewValue)
+                                         int32_t aOldValue, int32_t aNewValue)
 {
   return NS_OK;
 }
@@ -1536,7 +1536,7 @@ nsMsgSendLater::OnItemUnicharPropertyChanged(nsIMsgFolder *aItem,
 
 NS_IMETHODIMP
 nsMsgSendLater::OnItemPropertyFlagChanged(nsIMsgDBHdr *aItem, nsIAtom *aProperty,
-                                          PRUint32 aOldValue, PRUint32 aNewValue)
+                                          uint32_t aOldValue, uint32_t aNewValue)
 {
   return NS_OK;
 }

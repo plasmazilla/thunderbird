@@ -22,6 +22,7 @@ const caldavNS = "urn:ietf:params:xml:ns:caldav";
 const calservNS = "http://calendarserver.org/ns/";
 
 const cICL = Components.interfaces.calIChangeLog;
+const cIOL = Components.interfaces.calIOperationListener;
 
 function caldavNSResolver(prefix) {
     const ns = {
@@ -195,7 +196,20 @@ calDavCalendar.prototype = {
                 "mCtag", "mWebdavSyncToken", "mSupportedItemTypes",
                 "mPrincipalUrl", "mCalHomeSet",
                 "mShouldPollInbox", "hasAutoScheduling", "mHaveScheduling",
-                "mCalendarUserAddress", "mShouldPollInbox", "mOutboxUrl" ];
+                "mCalendarUserAddress", "mShouldPollInbox", "mOutboxUrl",
+                "hasFreeBusy"];
+    },
+
+    get checkedServerInfo() {
+        if (Services.io.offline) {
+            return true;
+        } else {
+            return this.mCheckedServerInfo;
+        }
+    },
+
+    set checkedServerInfo(val) {
+        return (this.mCheckedServerInfo = val);
     },
 
     saveCalendarProperties: function caldav_saveCalendarProperties() {
@@ -218,7 +232,7 @@ calDavCalendar.prototype = {
 
     // in calIGenericOperationListener aListener
     replayChangesOn: function caldav_replayChangesOn(aChangeLogListener) {
-        if (!this.mCheckedServerInfo) {
+        if (!this.checkedServerInfo) {
             // If we haven't refreshed yet, then we should check the resource
             // type first. This will call refresh() again afterwards.
             this.checkDavResourceType(aChangeLogListener);
@@ -239,6 +253,7 @@ calDavCalendar.prototype = {
         }
     },
     fetchCachedMetaData: function caldav_fetchCachedMetaData() {
+        cal.LOG("CalDAV: Retrieving server info from cache for " + this.name);
         var cacheIds = {};
         var cacheValues = {};
         this.mOfflineStorage.getAllMetaData({}, cacheIds, cacheValues);
@@ -257,11 +272,10 @@ calDavCalendar.prototype = {
                 this.mOfflineStorage.deleteMetaData("sync-token");
             } else if (itemId == "calendar-properties") {
                 this.restoreCalendarProperties(itemData);
-                this.mCheckedServerInfo = true;
                 this.setProperty("currentStatus", Components.results.NS_OK);
                 this.readOnly = false;
                 this.disabled = false;
-                if (this.mHaveScheduling || this.hasAutoScheduling) {
+                if (this.mHaveScheduling || this.hasAutoScheduling || this.hasFreeBusy) {
                     cal.getFreeBusyService().addProvider(this);
                 }
             } else {
@@ -369,6 +383,7 @@ calDavCalendar.prototype = {
         return (this.mHaveScheduling = (getPrefSafe("calendar.caldav.sched.enabled", false) && value));
     },
     hasAutoScheduling: false, // Whether server automatically takes care of scheduling
+    hasFreebusy: false,
 
     mAuthScheme: null,
 
@@ -466,9 +481,9 @@ calDavCalendar.prototype = {
         let overwrite = cal.promptOverwrite(aMethod, aItem, aListener, aOldItem);
         if (overwrite) {
             if (aMethod == CALDAV_MODIFY_ITEM) {
-                this.doModifyItemOrUseCache(aItem, aOldItem, true, aListener, true);
+                this.doModifyItem(aItem, aOldItem, aListener, true);
             } else {
-                this.doDeleteItemOrUseCache(aItem, true, aListener, true, false, null);
+                this.doDeleteItem(aItem, aListener, true, false, null);
             }
         } else {
             this.getUpdatedItem(aItem, aListener);
@@ -481,32 +496,24 @@ calDavCalendar.prototype = {
 
     /**
      * addItem()
-     * we actually use doAdoptItemOrUseCache()
+     * we actually use doAdoptItem()
      *
      * @param aItem       item to add
      * @param aListener   listener for method completion
      */
     addItem: function caldav_addItem(aItem, aListener) {
-        return this.addItemOrUseCache(aItem, true, aListener);
+        return this.doAdoptItem(aItem.clone(), aListener);
     },
 
-    addItemOrUseCache: function caldav_addItemOrUseCache(aItem, useCache, aListener){
-        let newItem = aItem.clone();
-        this.adoptItemOrUseCache(newItem, useCache, aListener);
-    },
     /**
      * adoptItem()
-     * we actually use doAdoptItemOrUseCache()
+     * we actually use doAdoptItem()
      *
      * @param aItem       item to check
      * @param aListener   listener for method completion
      */
     adoptItem: function caldav_adoptItem(aItem, aListener) {
-        return this.adoptItemOrUseCache(aItem, true, aListener);
-    },
-
-    adoptItemOrUseCache: function caldav_adoptItemOrUseCache(aItem, useCache, aListener){
-        return this.doAdoptItemOrUseCache(aItem, useCache, aListener, false);
+        return this.doAdoptItem(aItem, aListener);
     },
 
     /**
@@ -514,10 +521,9 @@ calDavCalendar.prototype = {
      *
      * @param aItem       item to add
      * @param aListener   listener for method completion
-     * @param useCache    flag to use the cache when a server failure occurs
      * @param aIgnoreEtag flag to indicate ignoring of Etag
      */
-    doAdoptItemOrUseCache: function caldav_doAdoptItemOrUseCache(aItem, useCache, aListener, aIgnoreEtag){
+    doAdoptItem: function caldav_doAdoptItem(aItem, aListener, aIgnoreEtag) {
         if (aItem.id == null && aItem.isMutable) {
             aItem.id = cal.getUUID();
         }
@@ -525,7 +531,7 @@ calDavCalendar.prototype = {
         if (aItem.id == null) {
             this.notifyOperationComplete(aListener,
                                          Components.results.NS_ERROR_FAILURE,
-                                         Components.interfaces.calIOperationListener.ADD,
+                                         cIOL.ADD,
                                          aItem.id,
                                          "Can't set ID on non-mutable item to addItem");
             return;
@@ -534,70 +540,81 @@ calDavCalendar.prototype = {
         if (!isItemSupported(aItem, this)) {
             this.notifyOperationComplete(aListener,
                                          Components.results.NS_ERROR_FAILURE,
-                                         Components.interfaces.calIOperationListener.ADD,
+                                         cIOL.ADD,
                                          aItem.id,
                                          "Server does not support item type");
             return;
         }
 
         let parentItem = aItem.parentItem;
-        var locationPath = this.getItemLocationPath(parentItem);
-        var itemUri = this.makeUri(locationPath);
+        parentItem.calendar = this.superCalendar;
+
+        let locationPath = this.getItemLocationPath(parentItem);
+        let itemUri = this.makeUri(locationPath);
         cal.LOG("CalDAV: itemUri.spec = " + itemUri.spec);
 
-        var addListener = {};
-        var thisCalendar = this;
+        let thisCalendar = this;
         let serializedItem = this.getSerializedItem(aItem);
-        addListener.onStreamComplete =
-            function onPutComplete(aLoader, aContext, aStatus, aResultLength,
-                                   aResult) {
-            let request = aLoader.request.QueryInterface(Components.interfaces.nsIHttpChannel);
-            let status;
-            try {
-                status = request.responseStatus;
-            } catch (ex) {
-                status = Components.interfaces.calIErrors.DAV_PUT_ERROR;
-            }
-            if (thisCalendar.verboseLogging()) {
-                let str = cal.convertByteArray(aResult, aResultLength);
-                cal.LOG("CalDAV: recv: " + (str || ""));
-            }
-            // 201 = HTTP "Created"
-            // 204 = HTTP "No Content"
-            //
-            if (status == 201 || status == 204) {
-                cal.LOG("CalDAV: Item added to " + thisCalendar.name + " successfully");
-
-                // Some CalDAV servers will modify items on PUT (add X-props,
-                // for instance) so we'd best re-fetch in order to know
-                // the current state of the item
-                // Observers will be notified in getUpdatedItem()
-                thisCalendar.getUpdatedItem(parentItem, aListener);
-            } else if (status >= 500 && status <= 510 &&
-                       useCache && thisCalendar.mOfflineStorage) {
-                cal.LOG("[calDavCalendar] Server unavailability code received. Items are being put into cache for a later try");
-                thisCalendar.adoptOfflineItem(aItem, aListener);
-            } else {
-                if (status > 999) {
-                    status = "0x" + status.toString(16);
-                }
-                let responseBody="";
+        let addListener = {
+            onStreamComplete: function onPutComplete(aLoader, aContext, aStatus, aResultLength, aResult) {
+                let request = aLoader.request.QueryInterface(Components.interfaces.nsIHttpChannel);
+                let listenerStatus = Components.results.NS_OK;
+                let listenerDetail = parentItem;
                 try {
-                    responseBody = cal.convertByteArray(aResult, aResultLength);
-                } catch (e) {}
+                    var responseStatus = request.responseStatus;
 
-                cal.ERROR("CalDAV: Unexpected status adding item to " +
-                          thisCalendar.name + ": " + status + "\n" +
-                          responseBody + "\n" +
-                          serializedItem);
+                    if (thisCalendar.verboseLogging()) {
+                        let str = cal.convertByteArray(aResult, aResultLength);
+                        cal.LOG("CalDAV: recv: " + (str || ""));
+                    }
+                } catch (ex) {
+                    listenerStatus = ex.result
+                    listenerDetail = "Request Failed: " + ex.message;
+                    cal.LOG("CalDAV: Request error during add: " + ex);
+                }
 
-                thisCalendar.reportDavError(Components.interfaces.calIErrors.DAV_PUT_ERROR,
-                                            status,
-                                            responseBody);
+
+                // Translate the HTTP status code to a status and message for the listener
+                if (responseStatus == 201 || responseStatus == 204) {
+                    // 201 = HTTP "Created"
+                    // 204 = HTTP "No Content"
+                    cal.LOG("CalDAV: Item added to " + thisCalendar.name + " successfully");
+
+                    // TODO: onOpComplete adds the item to the cache, probably after getUpdatedItem!
+
+                    // Some CalDAV servers will modify items on PUT (add X-props,
+                    // for instance) so we'd best re-fetch in order to know
+                    // the current state of the item
+                    // Observers will be notified in getUpdatedItem()
+                    thisCalendar.getUpdatedItem(parentItem, aListener);
+                    return;
+                } else if (responseStatus >= 500 && responseStatus <= 510) {
+                    listenerStatus = Components.results.NS_ERROR_NOT_AVAILABLE;
+                    listenerDetail = "Server Replied with " + responseStatus;
+                } else if (responseStatus) {
+                    // There is a response status, but we haven't handled it yet. Any
+                    // error occurring here should consider being handled!
+                    cal.ERROR("CalDAV: Unexpected status adding item to " +
+                              thisCalendar.name + ": " + responseStatus + "\n" +
+                              serializedItem);
+
+                    listenerStatus = Components.results.NS_ERROR_FAILURE;
+                    listenerDetail = "Server Replied with " + responseStatus;
+                }
+
+                // Still need to visually notify for uncached calendars.
+                if (!thisCalendar.isCached && !Components.isSuccessCode(listenerStatus)) {
+                    thisCalendar.reportDavError(calIErrors.DAV_PUT_ERROR, listenerStatus, listenerDetail);
+                }
+
+                // Finally, notify listener.
+                thisCalendar.notifyPureOperationComplete(aListener,
+                                                         listenerStatus,
+                                                         cIOL.ADD,
+                                                         parentItem.id,
+                                                         listenerDetail);
             }
         };
-
-        parentItem.calendar = this.superCalendar;
 
         let httpchannel = cal.prepHttpChannel(itemUri,
                                               serializedItem,
@@ -611,52 +628,15 @@ calDavCalendar.prototype = {
         cal.sendHttpRequest(cal.createStreamLoader(), httpchannel, addListener);
     },
 
-    adoptOfflineItem: function(item, listener) {
-        let thisCalendar = this;
-        let opListener = {
-            onGetResult: function(calendar, status, itemType, detail, count, items) {
-                cal.ASSERT(false, "unexpected!");
-            },
-            onOperationComplete: function(calendar, status, opType, id, detail) {
-                if (Components.isSuccessCode(status)) {
-                    let storage = thisCalendar.mOfflineStorage.QueryInterface(Components.interfaces.calIOfflineStorage);
-                    storage.addOfflineItem(detail, listener);
-                } else if (listener) {
-                    listener.onOperationComplete(thisCalendar, status, opType, id, detail);
-                }
-            }
-        };
-        thisCalendar.mOfflineStorage.adoptItem(item, opListener);
-    },
-
     /**
      * modifyItem(); required by calICalendar.idl
-     * we actually use modifyItemOrUseCache()
+     * we actually use doModifyItem()
      *
      * @param aItem       item to check
      * @param aListener   listener for method completion
     */
     modifyItem: function caldav_modifyItem(aNewItem, aOldItem, aListener) {
-        return this.modifyItemOrUseCache(aNewItem, aOldItem, true, aListener);
-    },
-
-    modifyItemOrUseCache: function caldav_modifyItemOrUseCache(aNewItem, aOldItem, useCache, aListener){
-        let thisCalendar = this;
-        let opListener = {
-            onGetResult: function(calendar, status, itemType, detail, count, items) {
-            },
-            onOperationComplete: function(calendar, status, opType, id, detail) {
-                let offline_flag = detail;
-                if ((offline_flag == cICL.OFFLINE_FLAG_CREATED_RECORD ||
-                     offline_flag == cICL.OFFLINE_FLAG_MODIFIED_RECORD) && useCache) {
-                    thisCalendar.modifyOfflineItem(aNewItem, aOldItem, aListener);
-                } else {
-                    thisCalendar.doModifyItemOrUseCache(aNewItem, aOldItem, useCache, aListener, false);
-                }
-            }
-        };
-        let storage = thisCalendar.mOfflineStorage.QueryInterface(Components.interfaces.calIOfflineStorage);
-        storage.getItemOfflineFlag(aOldItem, opListener);
+        return this.doModifyItem(aNewItem, aOldItem, aListener, false);
     },
 
     /**
@@ -664,15 +644,14 @@ calDavCalendar.prototype = {
      *
      * @param aItem       item to check
      * @param aOldItem    previous version of item to be modified
-     * @param useCache    Flag to use the cached entry in case of failure
      * @param aListener   listener from original request
      * @param aIgnoreEtag ignore item etag
      */
-    doModifyItemOrUseCache: function caldav_doModifyItemOrUseCache(aNewItem, aOldItem, useCache, aListener, aIgnoreEtag){
+    doModifyItem: function caldav_doModifyItem(aNewItem, aOldItem, aListener, aIgnoreEtag){
         if (aNewItem.id == null) {
             this.notifyOperationComplete(aListener,
                                          Components.results.NS_ERROR_FAILURE,
-                                         Components.interfaces.calIOperationListener.MODIFY,
+                                         cIOL.MODIFY,
                                          aItem.id,
                                          "ID for modifyItem doesn't exist or is null");
             return;
@@ -693,60 +672,73 @@ calDavCalendar.prototype = {
 
         var modifiedItemICS = this.getSerializedItem(aNewItem);
 
-        var modListener = {};
-        modListener.onStreamComplete =
-            function caldav_mod_onStreamComplete(aLoader, aContext, aStatus,
-                                                 aResultLength, aResult) {
-            // 200 = HTTP "OK"
-            // 204 = HTTP "No Content"
-            //
-            let request = aLoader.request.QueryInterface(Components.interfaces.nsIHttpChannel);
-            let status;
-            try {
-                status = request.responseStatus;
-            } catch (ex) {
-                status = Components.interfaces.calIErrors.DAV_PUT_ERROR;
-            }
-
-            // We should not accept a 201 status here indefinitely: it indicates a server error
-            // of some kind that we want to know about. It's convenient to accept it for now
-            // since a number of server impls don't get this right yet.
-            if (status == 204 || status == 201 || status == 200) {
-                cal.LOG("CalDAV: Item modified successfully on " + thisCalendar.name);
-                // Some CalDAV servers will modify items on PUT (add X-props,
-                // for instance) so we'd best re-fetch in order to know
-                // the current state of the item
-                // Observers will be notified in getUpdatedItem()
-                thisCalendar.getUpdatedItem(aNewItem, aListener);
-                // SOGo has calendarUri == inboxUri so we need to be careful
-                // about deletions
-                if (wasInboxItem && thisCalendar.mShouldPollInbox) {
-                    thisCalendar.doDeleteItemOrUseCache(aNewItem, true, null, true, true, null);
-                }
-            } else if (status == 412 || status == 409) {
-                thisCalendar.promptOverwrite(CALDAV_MODIFY_ITEM, aNewItem,
-                                             aListener, aOldItem);
-            } else if ((status >= 500 && status <= 510) && (useCache && thisCalendar.mOfflineStorage)) {
-                cal.LOG("[calDavCalendar] doModifyItemOrUseCache received status code of server unavailibity. Putting entry in cache for later try.");
-                thisCalendar.modifyOfflineItem(aNewItem, aOldItem, aListener);
-            } else {
-                if (status > 999) {
-                    status = "0x " + status.toString(16);
-                }
-
-                let responseBody="";
+        let modListener = {
+            onStreamComplete: function caldav_mod_onStreamComplete(aLoader, aContext, aStatus,
+                                                                   aResultLength, aResult) {
+                let request = aLoader.request.QueryInterface(Components.interfaces.nsIHttpChannel);
+                let listenerStatus = Components.results.NS_OK;
+                let listenerDetail = aNewItem;
                 try {
-                    responseBody = cal.convertByteArray(aResult, aResultLength);
-                } catch (e) {}
+                    var responseStatus = request.responseStatus;
 
-                cal.ERROR("CalDAV: Unexpected status modifying item to " +
-                        thisCalendar.name + ": " + status + "\n" +
-                        responseBody + "\n" +
-                        modifiedItemICS);
+                    if (thisCalendar.verboseLogging()) {
+                       let str = cal.convertByteArray(aResult, aResultLength);
+                       cal.LOG("CalDAV: recv: " + (str || ""));
+                    }
+                } catch (ex) {
+                    listenerStatus = ex.result
+                    listenerDetail = "Request Failed: " + ex.message;
+                    cal.LOG("CalDAV: Request error during add: " + ex);
+                }
 
-                thisCalendar.reportDavError(Components.interfaces.calIErrors.DAV_PUT_ERROR,
-                                            status,
-                                            responseBody);
+                if (responseStatus == 204 || responseStatus == 201 || responseStatus == 200) {
+                    // We should not accept a 201 status here indefinitely: it indicates a server error
+                    // of some kind that we want to know about. It's convenient to accept it for now
+                    // since a number of server impls don't get this right yet.
+                    cal.LOG("CalDAV: Item modified successfully on " + thisCalendar.name);
+
+                    // Some CalDAV servers will modify items on PUT (add X-props,
+                    // for instance) so we'd best re-fetch in order to know
+                    // the current state of the item
+                    // Observers will be notified in getUpdatedItem()
+                    thisCalendar.getUpdatedItem(aNewItem, aListener);
+
+                    // SOGo has calendarUri == inboxUri so we need to be careful
+                    // about deletions
+                    if (wasInboxItem && thisCalendar.mShouldPollInbox) {
+                        thisCalendar.doDeleteItem(aNewItem, null, true, true, null);
+                    }
+                    return;
+                } else if (responseStatus == 412 || responseStatus == 409) {
+                    // promptOverwrite will ask the user and then re-request
+                    thisCalendar.promptOverwrite(CALDAV_MODIFY_ITEM, aNewItem,
+                                                 aListener, aOldItem);
+                    return;
+                } else if (responseStatus >= 500 && responseStatus <= 510) {
+                    listenerStatus = Components.results.NS_ERROR_NOT_AVAILABLE;
+                    listenerDetail = "Server Replied with " + responseStatus;
+                } else if (responseStatus) {
+                    // There is a response status, but we haven't handled it yet. Any
+                    // error occurring here should consider being handled!
+                    cal.ERROR("CalDAV: Unexpected status modifying item to " +
+                              thisCalendar.name + ": " + responseStatus + "\n" +
+                              modifiedItemICS);
+
+                    listenerStatus = Components.results.NS_ERROR_FAILURE;
+                    listenerDetail = "Server Replied with " + responseStatus;
+                }
+
+                // Still need to visually notify for uncached calendars.
+                if (!thisCalendar.isCached && !Components.isSuccessCode(listenerStatus)) {
+                    thisCalendar.reportDavError(calIErrors.DAV_PUT_ERROR, listenerStatus, listenerDetail);
+                }
+
+                // Finally, notify listener.
+                thisCalendar.notifyPureOperationComplete(aListener,
+                                                         listenerStatus,
+                                                         cIOL.MODIFY,
+                                                         aNewItem.id,
+                                                         listenerDetail);
             }
         };
 
@@ -764,85 +756,31 @@ calDavCalendar.prototype = {
         cal.sendHttpRequest(cal.createStreamLoader(), httpchannel, modListener);
     },
 
-    modifyOfflineItem: function(aNewItem, aOldItem, aListener) {
-        let thisCalendar = this;
-        let opListener = {
-            onGetResult: function(calendar, status, itemType, detail, count, items) {
-                cal.ASSERT(false, "unexpected!");
-            },
-            onOperationComplete: function(calendar, status, opType, id, detail) {
-                if (Components.isSuccessCode(status)) {
-                    // Modify the offline item in the storage, passing the
-                    // listener will make sure its notified
-                    let storage = thisCalendar.mOfflineStorage.QueryInterface(Components.interfaces.calIOfflineStorage);
-                    storage.modifyOfflineItem(detail, aListener);
-                } else if (aListener) {
-                    // If there was not a success, then we need to notify the
-                    // listener ourselves
-                    aListener.onOperationComplete(thisCalendar.superCalendar, status, opType, id, detail);
-                }
-            }
-        };
-        thisCalendar.mOfflineStorage.modifyItem(aNewItem, aOldItem, opListener);
-    },
-
     /**
      * deleteItem(); required by calICalendar.idl
-     * the actual deletion is done in deleteItemOrUseCache()
+     * the actual deletion is done in doDeleteItem()
      *
      * @param aItem       item to delete
      * @param aListener   listener for method completion
      */
     deleteItem: function caldav_deleteItem(aItem, aListener) {
-        return this.deleteItemOrUseCache(aItem, true, aListener);
+        return this.doDeleteItem(aItem, aListener, false, null, null);
     },
 
-    deleteItemOrUseCache: function caldav_deleteItemOrUseCache(aItem, useCache, aListener){
-        let thisCalendar = this;
-
-        let deleteListener = { //We need a listener because the original doDeleteItemOrUseCache would return null upon successful item deletion
-            onGetResult: function(calendar, status, itemType, detail, count, items) {
-                cal.ASSERT(false, "unexpected!");
-            },
-            onOperationComplete: function(calendar, status, opType, id, detail) {
-                aListener.onOperationComplete(calendar, status, opType, aItem.id, aItem);
-            }
-        };
-
-        // If the item has an offline_flag associated with itself then it is better to
-        // do offline deletion since the items will not be present in the
-        // mItemInfoCache. The items will be reconciled whenever the server becomes available
-        let opListener = {
-            onGetResult: function(calendar, status, itemType, detail, count, items) {
-            },
-            onOperationComplete: function(calendar, status, opType, id, detail) {
-                let offline_flag = detail;
-                if ((offline_flag == cICL.OFFLINE_FLAG_CREATED_RECORD ||
-                     offline_flag == cICL.OFFLINE_FLAG_MODIFIED_RECORD) && useCache) {
-                    thisCalendar.deleteOfflineItem(aItem, deleteListener);
-                } else {
-                    thisCalendar.doDeleteItemOrUseCache(aItem, useCache, deleteListener, false);
-                }
-            }
-        };
-        let storage = thisCalendar.mOfflineStorage.QueryInterface(Components.interfaces.calIOfflineStorage);
-        storage.getItemOfflineFlag(aItem, opListener);
-    },
     /**
      * Deletes item from CalDAV store.
      *
      * @param aItem       item to delete
      * @param aListener   listener for method completion
-     * @param useCache    flag to use the cache in case of failure
      * @param aIgnoreEtag ignore item etag
      * @param aFromInbox  delete from inbox rather than calendar
      * @param aUri        uri of item to delete
      * */
-    doDeleteItemOrUseCache: function caldav_doDeleteItemOrUseCache(aItem, useCache, aListener, aIgnoreEtag, aFromInbox, aUri){
+    doDeleteItem: function caldav_doDeleteItem(aItem, aListener, aIgnoreEtag, aFromInbox, aUri){
         if (aItem.id == null) {
             this.notifyOperationComplete(aListener,
                                          Components.results.NS_ERROR_FAILURE,
-                                         Components.interfaces.calIOperationListener.DELETE,
+                                         cIOL.DELETE,
                                          aItem.id,
                                          "ID doesn't exist for deleteItem");
             return;
@@ -857,101 +795,120 @@ calDavCalendar.prototype = {
             eventUri = this.makeUri(this.mItemInfoCache[aItem.id].locationPath);
         }
 
-        var delListener = {};
         var thisCalendar = this;
-        var realListener = aListener; // need to access from callback
 
-        delListener.onStreamComplete =
-        function caldav_dDI_del_onStreamComplete(aLoader, aContext, aStatus, aResultLength, aResult) {
-            let request = aLoader.request.QueryInterface(Components.interfaces.nsIHttpChannel);
-            let status;
-            try {
-                status = request.responseStatus;
-            } catch (ex) {
-                status = Components.interfaces.calIErrors.DAV_REMOVE_ERROR;
-            }
-
-            // 204 = HTTP "No content"
-            //
-            if (status == 204 || status == 200) {
-                if (!aFromInbox) {
-                    if (thisCalendar.isCached) {
-                        // the item is deleted in the storage calendar from calCachedCalendar
-                        realListener.onOperationComplete(thisCalendar, status,
-                                                         Components.interfaces.calIOperationListener.DELETE,
-                                                         null, null);
-                        thisCalendar.mOfflineStorage.deleteMetaData(aItem.id);
-                    } else {
-                        thisCalendar.mOfflineStorage.deleteItem(aItem, aListener);
-                    }
-                    let decodedPath = thisCalendar.ensureDecodedPath(eventUri.path);
-                    delete thisCalendar.mHrefIndex[decodedPath];
-                    delete thisCalendar.mItemInfoCache[aItem.id];
-                    cal.LOG("CalDAV: Item deleted successfully from calendar" +
-                            thisCalendar.name);
-                }
-            } else if (status == 412 || status == 409) {
-                // item has either been modified or deleted by someone else
-                // check to see which
-
-                let httpchannel2 = cal.prepHttpChannel(eventUri,
-                                                       null,
-                                                       null,
-                                                       thisCalendar);
-                httpchannel2.requestMethod = "HEAD";
-                cal.sendHttpRequest(cal.createStreamLoader(), httpchannel2, delListener2);
-            } else if ((status >= 500 && status <= 510) && (useCache && thisCalendar.mOfflineStorage)) {
-                cal.LOG("[calDavCalendar] Remote Calendar " + thisCalendar.name + " is currently unavailabile. Putting entry in cache for a later try.");
-                let opListener = {
-                    // We should not return a success code since the listeners can delete the physical item in case of success
-                    onGetResult: function(calendar, status, itemType, detail, count, items) {},
-                    onOperationComplete: function(calendar, status, opType, id, detail) {
-                         aListener.onOperationComplete(calendar, Components.results.NS_ERROR_CONNECTION_REFUSED,
-                                          Components.interfaces.calIOperationListener.GET, aItem.id, aItem);
-                    }
-                };
-                thisCalendar.deleteOfflineItem(aItem, opListener);
-            } else {
-                let responseBody="";
+        let delListener = {
+            onStreamComplete: function caldav_dDI_del_onStreamComplete(aLoader, aContext, aStatus, aResultLength, aResult) {
+                let request = aLoader.request.QueryInterface(Components.interfaces.nsIHttpChannel);
+                let listenerStatus = Components.results.NS_OK;
+                let listenerDetail = aItem;
                 try {
-                    responseBody = cal.convertByteArray(aResult, aResultLength);
-                } catch (e) {}
+                    var responseStatus = request.responseStatus;
 
-                cal.ERROR("CalDAV: Unexpected status deleting item from " +
-                          thisCalendar.name + ": " + status + "\n" +
-                          responseBody + "\n" +
-                          "uri: " + eventUri.spec);
+                    if (thisCalendar.verboseLogging()) {
+                        let str = cal.convertByteArray(aResult, aResultLength);
+                        cal.LOG("CalDAV: recv: " + (str || ""));
+                    }
+                } catch (ex) {
+                    listenerStatus = ex.result
+                    listenerDetail = "Request Failed: " + ex.message;
+                    cal.LOG("CalDAV: Request error during delete: " + ex);
+                }
 
-                thisCalendar.reportDavError(Components.interfaces.calIErrors.DAV_REMOVE_ERROR,
-                                            status,
-                                            responseBody);
+                // 204 = HTTP "No content"
+                // 404 = Not Found - This is kind of a success, since the item is already deleted.
+                //
+                if (responseStatus == 204 || responseStatus == 200 || responseStatus == 404) {
+                    if (!aFromInbox) {
+                        let decodedPath = thisCalendar.ensureDecodedPath(eventUri.path);
+                        delete thisCalendar.mHrefIndex[decodedPath];
+                        delete thisCalendar.mItemInfoCache[aItem.id];
+                        cal.LOG("CalDAV: Item deleted successfully from calendar " + thisCalendar.name);
+
+                        if (!thisCalendar.isCached) {
+                            // If the calendar is not cached, we need to remove
+                            // the item from our memory calendar now. The
+                            // listeners will be notified there.
+                            thisCalendar.mOfflineStorage.deleteItem(aItem, aListener);
+                            return;
+                        }
+                    }
+                } else if (responseStatus == 412 || responseStatus == 409) {
+                    // item has either been modified or deleted by someone else check to see which
+                    cal.LOG("CalDAV: Item has been modified on server, checking if it has been deleted");
+                    let httpchannel2 = cal.prepHttpChannel(eventUri,
+                                                           null,
+                                                           null,
+                                                           thisCalendar);
+                    httpchannel2.requestMethod = "HEAD";
+                    cal.sendHttpRequest(cal.createStreamLoader(), httpchannel2, delListener2);
+                    return;
+                } else if (responseStatus >= 500 && responseStatus <= 510) {
+                    listenerStatus = Components.results.NS_ERROR_NOT_AVAILABLE;
+                    listenerDetail = "Server Replied with " + responseStatus;
+                } else if (responseStatus) {
+                    cal.ERROR("CalDAV: Unexpected status deleting item from " +
+                              thisCalendar.name + ": " + responseStatus + "\n" +
+                              "uri: " + eventUri.spec);
+
+                    listenerStatus = Components.results.NS_ERROR_FAILURE;
+                    listenerDetail = "Server Replied with " + responseStatus;
+                }
+
+                // Still need to visually notify for uncached calendars.
+                if (!thisCalendar.isCached && !Components.isSuccessCode(listenerStatus)) {
+                    thisCalendar.reportDavError(calIErrors.DAV_REMOVE_ERROR, listenerStatus, listenerDetail);
+                }
+
+                // Finally, notify listener.
+                thisCalendar.notifyPureOperationComplete(aListener,
+                                                         listenerStatus,
+                                                         cIOL.DELETE,
+                                                         aItem.id,
+                                                         listenerDetail);
             }
         };
-        var delListener2 = {};
-        delListener2.onStreamComplete =
-            function caldav_dDI_del2_onStreamComplete(aLoader, aContext, aStatus, aResultLength, aResult) {
+
+        let delListener2 = {
+            onStreamComplete: function caldav_dDI_del2_onStreamComplete(aLoader, aContext, aStatus, aResultLength, aResult) {
                 let request = aLoader.request.QueryInterface(Components.interfaces.nsIHttpChannel);
-                let status = request.responseStatus;
-                if (status == 404) {
-                    // someone else already deleted it
-                    return;
-                } else if ((status >= 500 && status <= 510) && (useCache && thisCalendar.mOfflineStorage)) {
-                    cal.LOG("[calDavCalendar] doDeleteItemOrUseCache recd status response of remote calendar unavailability. Putting entry in cache for a later try.");
-                    let opListener = {
-                         //We should not return a success code since the listeners can delete the physical item in case of success
-                         onGetResult: function(calendar, status, itemType, detail, count, items) {
-                        },
-                         onOperationComplete: function(calendar, status, opType, id, detail) {
-                              aListener.onOperationComplete(calendar, Components.results.NS_ERROR_CONNECTION_REFUSED,
-                                               Components.interfaces.calIOperationListener.GET, aItem.id, aItem);
-                        }
-                    };
-                    thisCalendar.deleteOfflineItem(aItem, opListener);
-                } else {
-                    thisCalendar.promptOverwrite(CALDAV_DELETE_ITEM, aItem,
-                                                 realListener, null);
+                let listenerStatus = Components.results.NS_OK;
+                let listenerDetail = aItem;
+                try {
+                    var responseStatus = request.responseStatus;
+
+                    if (thisCalendar.verboseLogging()) {
+                        let str = cal.convertByteArray(aResult, aResultLength);
+                        cal.LOG("CalDAV: recv: " + (str || ""));
+                    }
+                } catch (ex) {
+                    listenerStatus = ex.result
+                    listenerDetail = "Request Failed: " + ex.message;
+                    cal.LOG("CalDAV: Request error during add: " + ex);
                 }
-            };
+
+                if (responseStatus == 404) {
+                    // Nothing to do (except notify the listener below)
+                    // Someone else has already deleted it
+                } else if (responseStatus >= 500 && responseStatus <= 510) {
+                    listenerStatus = Components.results.NS_ERROR_NOT_AVAILABLE;
+                    listenerDetail = "Server Replied with " + responseStatus;
+                } else if (responseStatus) {
+                    // The item still exists. We need to ask the user if he
+                    // really wants to delete the item. Remember, we only
+                    // made this request since the actual delete gave 409/412
+                    thisCalendar.promptOverwrite(CALDAV_DELETE_ITEM, aItem, aListener, null);
+                    return;
+                }
+
+                // Finally, notify listener.
+                thisCalendar.notifyPureOperationComplete(aListener,
+                                                         listenerStatus,
+                                                         cIOL.DELETE,
+                                                         aItem.id,
+                                                         listenerDetail);
+            }
+        };
 
         if (this.verboseLogging()) {
             cal.LOG("CalDAV: Deleting " + eventUri.spec);
@@ -959,19 +916,13 @@ calDavCalendar.prototype = {
 
         let httpchannel = cal.prepHttpChannel(eventUri, null, null, this);
         if (!aIgnoreEtag) {
-            httpchannel.setRequestHeader("If-Match",
-                                         this.mItemInfoCache[aItem.id].etag,
-                                         false);
+            let etag = this.mItemInfoCache[aItem.id].etag;
+            cal.LOG("CalDAV: Will only delete if matches etag " + etag);
+            httpchannel.setRequestHeader("If-Match", etag, false);
         }
         httpchannel.requestMethod = "DELETE";
 
         cal.sendHttpRequest(cal.createStreamLoader(), httpchannel, delListener);
-    },
-
-    deleteOfflineItem: function(item, listener) {
-        /* We do not delete the item from the cache, as we will need it when reconciling the cache content and the server content. */
-        let storage = this.mOfflineStorage.QueryInterface(Components.interfaces.calIOfflineStorage);
-        storage.deleteOfflineItem(item, listener);
     },
 
     /**
@@ -1049,14 +1000,46 @@ calDavCalendar.prototype = {
 
         this.mHrefIndex[path] = item.id;
         this.mItemInfoCache[item.id].etag = etag;
-        if (this.mItemInfoCache[item.id].isNew) {
-            this.mOfflineStorage.adoptItem(item, aListener);
-        } else {
-            this.mOfflineStorage.modifyItem(item, null, aListener);
-        }
 
+        let needsAddModify = false;
         if (this.isCached) {
             this.setMetaData(item.id, path, etag, isInboxItem);
+
+            // If we have a listener, then the caller will take care of adding the item
+            // Otherwise, we have to do it ourself
+            // XXX This is quite fragile, but saves us a double modify/add
+
+            if (aListener) {
+                // In the cached case, notifying operation complete will add the item to the cache
+                if (this.mItemInfoCache[item.id].isNew) {
+                    this.notifyOperationComplete(aListener,
+                                                 Components.results.NS_OK,
+                                                 cIOL.ADD,
+                                                 item.id,
+                                                 item);
+                } else {
+                    this.notifyOperationComplete(aListener,
+                                                 Components.results.NS_OK,
+                                                 cIOL.MODIFY,
+                                                 item.id,
+                                                 item);
+                }
+            } else {
+                // No listener, we'll have to add it ourselves
+                needsAddModify = true;
+            }
+        } else {
+            // In the uncached case, we need to do so ourselves
+            needsAddModify = true;
+        }
+
+        // Now take care of the add/modify if needed.
+        if (needsAddModify) {
+            if (this.mItemInfoCache[item.id].isNew) {
+                this.mOfflineStorage.adoptItem(item, aListener);
+            } else {
+                this.mOfflineStorage.modifyItem(item, null, aListener);
+            }
         }
     },
 
@@ -1157,7 +1140,7 @@ calDavCalendar.prototype = {
          // Notify operation listener
          this.notifyOperationComplete(aListener,
                                       Components.results.NS_ERROR_FAILURE,
-                                      Components.interfaces.calIOperationListener.GET,
+                                      cIOL.GET,
                                       null,
                                       errorMsg);
          // If an error occurrs here, we also need to unqueue the
@@ -1167,7 +1150,7 @@ calDavCalendar.prototype = {
              try {
                  listener.onOperationComplete(this.superCalendar,
                                               Components.results.NS_ERROR_FAILURE,
-                                              Components.interfaces.calIOperationListener.GET,
+                                              cIOL.GET,
                                               null,
                                               errorMsg);
              } catch (e) {
@@ -1188,7 +1171,7 @@ calDavCalendar.prototype = {
         if (aItem == null) {
             this.notifyOperationComplete(aListener,
                                          Components.results.NS_ERROR_FAILURE,
-                                         Components.interfaces.calIOperationListener.GET,
+                                         cIOL.GET,
                                          null,
                                          "passed in null item");
             return;
@@ -1222,12 +1205,12 @@ calDavCalendar.prototype = {
             } else {
                 this.notifyOperationComplete(aListener,
                                              Components.results.NS_OK,
-                                             Components.interfaces.calIOperationListener.GET,
+                                             cIOL.GET,
                                              null,
                                              null);
             }
         } else {
-            if (!this.mCheckedServerInfo) {
+            if (!this.checkedServerInfo) {
                 this.mQueuedQueries.push(arguments);
             } else {
                 this.mOfflineStorage.getItems.apply(this.mOfflineStorage, arguments);
@@ -1773,7 +1756,12 @@ calDavCalendar.prototype = {
                 // if another calendar with the same principal-URL has already
                 // done so. We also shouldn't register with the fb service if we
                 // don't have an outbox.
-                getFreeBusyService().addProvider(thisCalendar);
+                if (!thisCalendar.hasFreeBusy) {
+                    // This may have already been set by fetchCachedMetaData,
+                    // we only want to add the freebusy provider once.
+                    thisCalendar.hasFreeBusy = true;
+                    getFreeBusyService().addProvider(thisCalendar);
+                }
                 thisCalendar.findPrincipalNS(aChangeLogListener);
             } else {
                 cal.LOG("CalDAV: Server does not support CalDAV scheduling.");
@@ -2070,7 +2058,7 @@ calDavCalendar.prototype = {
         if (Components.isSuccessCode(aError)) {
             // "undefined" is a successcode, so all is good
             this.saveCalendarProperties();
-            this.mCheckedServerInfo = true;
+            this.checkedServerInfo  = true;
             this.setProperty("currentStatus", Components.results.NS_OK);
 
             if (this.isCached) {
@@ -2107,18 +2095,17 @@ calDavCalendar.prototype = {
         mapModification[Components.interfaces.calIErrors.DAV_REPORT_ERROR] = false;
 
         var message = mapError[aErrNo];
+        var localizedMessage;
         var modificationError = mapModification[aErrNo];
 
         if (!message) {
-            // If we don't have a message for this, then its not important
-            // enough to notify.
+            // Only notify if there is a message for this error
             return;
         }
-
+        localizedMessage = cal.calGetString("calendar", message , [this.mUri.spec]);
         this.mReadOnly = true;
         this.mDisabled = true;
-        this.notifyError(aErrNo,
-                         calGetString("calendar", message , [this.mUri.spec]));
+        this.notifyError(aErrNo, localizedMessage);
         this.notifyError(modificationError
                          ? Components.interfaces.calIErrors.MODIFICATION_FAILED
                          : Components.interfaces.calIErrors.READ_FAILED,
@@ -2442,8 +2429,8 @@ calDavCalendar.prototype = {
                     newItem.addAttendee(att);
                 }
             }
-            thisCalendar.doModifyItemOrUseCache(newItem, itemToUpdate.parentItem /* related to bug 396182 */,
-                                      true, modListener, true);
+            thisCalendar.doModifyItem(newItem, itemToUpdate.parentItem /* related to bug 396182 */,
+                                      modListener, true);
         };
 
         var modListener = {};
@@ -2459,7 +2446,7 @@ calDavCalendar.prototype = {
             if (aStatus == 0) { // aStatus undocumented; 0 seems to indicate no error
                 var delUri = thisCalendar.calendarUri.clone();
                 delUri.path = thisCalendar.ensureEncodedPath(aPath);
-                thisCalendar.doDeleteItemOrUseCache(aItem, true, null, true, true, delUri);
+                thisCalendar.doDeleteItem(aItem, null, true, true, delUri);
             }
         };
 

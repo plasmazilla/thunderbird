@@ -8,6 +8,7 @@
 #include "nsAString.h"
 #include "nsAutoPtr.h"
 #include "nsCOMPtr.h"
+#include "nsComputedDOMStyle.h"
 #include "nsContentUtils.h"
 #include "nsDebug.h"
 #include "nsEditProperty.h"
@@ -51,10 +52,10 @@ class nsISelection;
 using namespace mozilla;
 
 // retrieve an integer stored into a CSS computed float value
-static PRInt32 GetCSSFloatValue(nsIDOMCSSStyleDeclaration * aDecl,
+static int32_t GetCSSFloatValue(nsIDOMCSSStyleDeclaration * aDecl,
                                 const nsAString & aProperty)
 {
-  NS_ENSURE_ARG_POINTER(aDecl);
+  MOZ_ASSERT(aDecl);
 
   nsCOMPtr<nsIDOMCSSValue> value;
   // get the computed CSSValue of the property
@@ -64,7 +65,7 @@ static PRInt32 GetCSSFloatValue(nsIDOMCSSStyleDeclaration * aDecl,
   // check the type of the returned CSSValue; we handle here only
   // pixel and enum types
   nsCOMPtr<nsIDOMCSSPrimitiveValue> val = do_QueryInterface(value);
-  PRUint16 type;
+  uint16_t type;
   val->GetPrimitiveType(&type);
 
   float f = 0;
@@ -89,7 +90,7 @@ static PRInt32 GetCSSFloatValue(nsIDOMCSSStyleDeclaration * aDecl,
     }
   }
 
-  return (PRInt32) f;
+  return (int32_t) f;
 }
 
 class nsElementDeletionObserver MOZ_FINAL : public nsIMutationObserver
@@ -133,7 +134,7 @@ nsHTMLEditor::CreateAnonymousElement(const nsAString & aTag, nsIDOMNode *  aPare
 {
   NS_ENSURE_ARG_POINTER(aParentNode);
   NS_ENSURE_ARG_POINTER(aReturn);
-  *aReturn = nsnull;
+  *aReturn = nullptr;
 
   nsCOMPtr<nsIContent> parentContent( do_QueryInterface(aParentNode) );
   NS_ENSURE_TRUE(parentContent, NS_OK);
@@ -223,7 +224,7 @@ nsHTMLEditor::DeleteRefToAnonymousNode(nsIDOMElement* aElement,
     if (content) {
       nsAutoScriptBlocker scriptBlocker;
       // Need to check whether aShell has been destroyed (but not yet deleted).
-      // In that case presContext->GetPresShell() returns nsnull.
+      // In that case presContext->GetPresShell() returns nullptr.
       // See bug 338129.
       if (aShell && aShell->GetPresContext() &&
           aShell->GetPresContext()->GetPresShell() == aShell) {
@@ -302,7 +303,7 @@ nsHTMLEditor::CheckSelectionStateForAnonymousButtons(nsISelection * aSelection)
     // Resizing or Inline Table Editing is enabled, we need to check if the
     // selection is contained in a table cell
     res = GetElementOrParentByTagName(NS_LITERAL_STRING("td"),
-                                      nsnull,
+                                      nullptr,
                                       getter_AddRefs(cellElement));
     NS_ENSURE_SUCCESS(res, res);
   }
@@ -395,12 +396,12 @@ nsHTMLEditor::CheckSelectionStateForAnonymousButtons(nsISelection * aSelection)
 // containing box of the element: position, size, margins, borders
 nsresult
 nsHTMLEditor::GetPositionAndDimensions(nsIDOMElement * aElement,
-                                       PRInt32 & aX, PRInt32 & aY,
-                                       PRInt32 & aW, PRInt32 & aH,
-                                       PRInt32 & aBorderLeft,
-                                       PRInt32 & aBorderTop,
-                                       PRInt32 & aMarginLeft,
-                                       PRInt32 & aMarginTop)
+                                       int32_t & aX, int32_t & aY,
+                                       int32_t & aW, int32_t & aH,
+                                       int32_t & aBorderLeft,
+                                       int32_t & aBorderTop,
+                                       int32_t & aMarginLeft,
+                                       int32_t & aMarginTop)
 {
   NS_ENSURE_ARG_POINTER(aElement);
 
@@ -420,14 +421,10 @@ nsHTMLEditor::GetPositionAndDimensions(nsIDOMElement * aElement,
     // Yes, it is absolutely positioned
     mResizedObjectIsAbsolutelyPositioned = true;
 
-    nsCOMPtr<nsIDOMWindow> window;
-    res = mHTMLCSSUtils->GetDefaultViewCSS(aElement, getter_AddRefs(window));
-    NS_ENSURE_TRUE(window, NS_ERROR_FAILURE);
-
-    nsCOMPtr<nsIDOMCSSStyleDeclaration> cssDecl;
     // Get the all the computed css styles attached to the element node
-    res = window->GetComputedStyle(aElement, EmptyString(), getter_AddRefs(cssDecl));
-    NS_ENSURE_SUCCESS(res, res);
+    nsRefPtr<nsComputedDOMStyle> cssDecl =
+      mHTMLCSSUtils->GetComputedStyle(aElement);
+    NS_ENSURE_STATE(cssDecl);
 
     aBorderLeft = GetCSSFloatValue(cssDecl, NS_LITERAL_STRING("border-left-width"));
     aBorderTop  = GetCSSFloatValue(cssDecl, NS_LITERAL_STRING("border-top-width"));
@@ -463,7 +460,7 @@ nsHTMLEditor::GetPositionAndDimensions(nsIDOMElement * aElement,
 
 // self-explanatory
 void
-nsHTMLEditor::SetAnonymousElementPosition(PRInt32 aX, PRInt32 aY, nsIDOMElement *aElement)
+nsHTMLEditor::SetAnonymousElementPosition(int32_t aX, int32_t aY, nsIDOMElement *aElement)
 {
   mHTMLCSSUtils->SetCSSPropertyPixels(aElement, NS_LITERAL_STRING("left"), aX);
   mHTMLCSSUtils->SetCSSPropertyPixels(aElement, NS_LITERAL_STRING("top"), aY);

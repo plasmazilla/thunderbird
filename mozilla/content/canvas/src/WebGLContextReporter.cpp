@@ -26,7 +26,7 @@ WebGLMemoryMultiReporter::GetName(nsACString &aName)
 }
 
 NS_IMETHODIMP
-WebGLMemoryMultiReporter::GetExplicitNonHeap(PRInt64 *aAmount)
+WebGLMemoryMultiReporter::GetExplicitNonHeap(int64_t *aAmount)
 {
     // WebGLMemoryMultiReporterWrapper has no KIND_NONHEAP measurements.
     *aAmount = 0;
@@ -118,7 +118,7 @@ WebGLMemoryMultiReporter::CollectReports(nsIMemoryMultiReporterCallback* aCb,
     return NS_OK;
 }
 
-WebGLMemoryMultiReporterWrapper* WebGLMemoryMultiReporterWrapper::sUniqueInstance = nsnull;
+WebGLMemoryMultiReporterWrapper* WebGLMemoryMultiReporterWrapper::sUniqueInstance = nullptr;
 
 WebGLMemoryMultiReporterWrapper* WebGLMemoryMultiReporterWrapper::UniqueInstance()
 {

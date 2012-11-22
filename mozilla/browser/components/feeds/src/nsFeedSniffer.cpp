@@ -45,8 +45,8 @@ NS_IMPL_ISUPPORTS3(nsFeedSniffer,
 
 nsresult
 nsFeedSniffer::ConvertEncodedData(nsIRequest* request,
-                                  const PRUint8* data,
-                                  PRUint32 length)
+                                  const uint8_t* data,
+                                  uint32_t length)
 {
   nsresult rv = NS_OK;
 
@@ -65,11 +65,11 @@ nsFeedSniffer::ConvertEncodedData(nsIRequest* request,
 
       nsCOMPtr<nsIStreamListener> converter;
       rv = converterService->AsyncConvertData(contentEncoding.get(), 
-                                              "uncompressed", this, nsnull, 
+                                              "uncompressed", this, nullptr, 
                                               getter_AddRefs(converter));
       NS_ENSURE_SUCCESS(rv, rv);
 
-      converter->OnStartRequest(request, nsnull);
+      converter->OnStartRequest(request, nullptr);
 
       nsCOMPtr<nsIStringInputStream> rawStream =
         do_CreateInstance(NS_STRINGINPUTSTREAM_CONTRACTID);
@@ -79,10 +79,10 @@ nsFeedSniffer::ConvertEncodedData(nsIRequest* request,
       rv = rawStream->SetData((const char*)data, length);
       NS_ENSURE_SUCCESS(rv, rv);
 
-      rv = converter->OnDataAvailable(request, nsnull, rawStream, 0, length);
+      rv = converter->OnDataAvailable(request, nullptr, rawStream, 0, length);
       NS_ENSURE_SUCCESS(rv, rv);
 
-      converter->OnStopRequest(request, nsnull, NS_OK);
+      converter->OnStopRequest(request, nullptr, NS_OK);
     }
   }
   return rv;
@@ -102,7 +102,7 @@ HasAttachmentDisposition(nsIHttpChannel* httpChannel)
   if (!httpChannel)
     return false;
 
-  PRUint32 disp;
+  uint32_t disp;
   nsresult rv = httpChannel->GetContentDisposition(&disp);
 
   if (NS_SUCCEEDED(rv) && disp == nsIChannel::DISPOSITION_ATTACHMENT)
@@ -113,7 +113,7 @@ HasAttachmentDisposition(nsIHttpChannel* httpChannel)
 
 /**
  * @return the first occurrence of a character within a string buffer,
- *         or nsnull if not found
+ *         or nullptr if not found
  */
 static const char*
 FindChar(char c, const char *begin, const char *end)
@@ -122,7 +122,7 @@ FindChar(char c, const char *begin, const char *end)
     if (*begin == c)
       return begin;
   }
-  return nsnull;
+  return nullptr;
 }
 
 /**
@@ -184,7 +184,7 @@ IsDocumentElement(const char *start, const char* end)
 static bool
 ContainsTopLevelSubstring(nsACString& dataString, const char *substring) 
 {
-  PRInt32 offset = dataString.Find(substring);
+  int32_t offset = dataString.Find(substring);
   if (offset == -1)
     return false;
 
@@ -196,8 +196,8 @@ ContainsTopLevelSubstring(nsACString& dataString, const char *substring)
 
 NS_IMETHODIMP
 nsFeedSniffer::GetMIMETypeFromContent(nsIRequest* request, 
-                                      const PRUint8* data, 
-                                      PRUint32 length, 
+                                      const uint8_t* data, 
+                                      uint32_t length, 
                                       nsACString& sniffedType)
 {
   nsCOMPtr<nsIHttpChannel> channel(do_QueryInterface(request));
@@ -334,9 +334,9 @@ NS_METHOD
 nsFeedSniffer::AppendSegmentToString(nsIInputStream* inputStream,
                                      void* closure,
                                      const char* rawSegment,
-                                     PRUint32 toOffset,
-                                     PRUint32 count,
-                                     PRUint32* writeCount)
+                                     uint32_t toOffset,
+                                     uint32_t count,
+                                     uint32_t* writeCount)
 {
   nsCString* decodedData = static_cast<nsCString*>(closure);
   decodedData->Append(rawSegment, count);
@@ -346,10 +346,10 @@ nsFeedSniffer::AppendSegmentToString(nsIInputStream* inputStream,
 
 NS_IMETHODIMP
 nsFeedSniffer::OnDataAvailable(nsIRequest* request, nsISupports* context,
-                               nsIInputStream* stream, PRUint32 offset, 
-                               PRUint32 count)
+                               nsIInputStream* stream, uint32_t offset, 
+                               uint32_t count)
 {
-  PRUint32 read;
+  uint32_t read;
   return stream->ReadSegments(AppendSegmentToString, &mDecodedData, count, 
                               &read);
 }

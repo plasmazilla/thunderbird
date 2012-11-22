@@ -94,7 +94,7 @@ public:
     nsHttpChannel();
     virtual ~nsHttpChannel();
 
-    virtual nsresult Init(nsIURI *aURI, PRUint8 aCaps, nsProxyInfo *aProxyInfo);
+    virtual nsresult Init(nsIURI *aURI, uint8_t aCaps, nsProxyInfo *aProxyInfo);
 
     // Methods HttpBaseChannel didn't implement for us or that we override.
     //
@@ -108,9 +108,9 @@ public:
     // nsIHttpChannelInternal
     NS_IMETHOD SetupFallbackChannel(const char *aFallbackKey);
     // nsISupportsPriority
-    NS_IMETHOD SetPriority(PRInt32 value);
+    NS_IMETHOD SetPriority(int32_t value);
     // nsIResumableChannel
-    NS_IMETHOD ResumeAt(PRUint64 startPos, const nsACString& entityID);
+    NS_IMETHOD ResumeAt(uint64_t startPos, const nsACString& entityID);
 
 public: /* internal necko use only */ 
 
@@ -159,11 +159,10 @@ private:
     nsresult ProcessNormal();
     nsresult ContinueProcessNormal(nsresult);
     nsresult ProcessNotModified();
-    nsresult AsyncProcessRedirection(PRUint32 httpStatus);
+    nsresult AsyncProcessRedirection(uint32_t httpStatus);
     nsresult ContinueProcessRedirection(nsresult);
     nsresult ContinueProcessRedirectionAfterFallback(nsresult);
-    bool     ShouldSSLProxyResponseContinue(PRUint32 httpStatus);
-    nsresult ProcessFailedSSLConnect(PRUint32 httpStatus);
+    nsresult ProcessFailedProxyConnect(uint32_t httpStatus);
     nsresult ProcessFallback(bool *waitingForRedirectCallback);
     nsresult ContinueProcessFallback(nsresult);
     void     HandleAsyncAbort();
@@ -207,7 +206,7 @@ private:
     nsresult OnCacheEntryAvailableInternal(nsICacheEntryDescriptor *entry,
                                            nsCacheAccessMode access,
                                            nsresult status);
-    nsresult GenerateCacheKey(PRUint32 postID, nsACString &key);
+    nsresult GenerateCacheKey(uint32_t postID, nsACString &key);
     nsresult UpdateExpirationTime();
     nsresult CheckCache();
     bool ShouldUpdateOfflineCacheEntry();
@@ -220,7 +219,7 @@ private:
     nsresult AddCacheEntryHeaders(nsICacheEntryDescriptor *entry);
     nsresult StoreAuthorizationMetaData(nsICacheEntryDescriptor *entry);
     nsresult FinalizeCacheEntry();
-    nsresult InstallCacheListener(PRUint32 offset = 0);
+    nsresult InstallCacheListener(uint32_t offset = 0);
     nsresult InstallOfflineCacheListener();
     void     MaybeInvalidateCacheEntryForSubsequentGet();
     nsCacheStoragePolicy DetermineStoragePolicy();
@@ -249,7 +248,7 @@ private:
     nsresult ProcessSTSHeader();
 
     void InvalidateCacheEntryForLocation(const char *location);
-    void AssembleCacheKey(const char *spec, PRUint32 postID, nsACString &key);
+    void AssembleCacheKey(const char *spec, uint32_t postID, nsACString &key);
     nsresult CreateNewURI(const char *loc, nsIURI **newURI);
     void DoInvalidateCacheEntry(const nsCString &key);
 
@@ -276,7 +275,7 @@ private:
     nsRefPtr<nsInputStreamPump>       mTransactionPump;
     nsRefPtr<nsHttpTransaction>       mTransaction;
 
-    PRUint64                          mLogicalOffset;
+    uint64_t                          mLogicalOffset;
 
     // cache specific data
     nsRefPtr<HttpCacheQuery>          mCacheQuery;
@@ -288,8 +287,8 @@ private:
     nsCOMPtr<nsISupports>             mCachedSecurityInfo;
     nsCacheAccessMode                 mCacheAccess;
     mozilla::Telemetry::ID            mCacheEntryDeviceTelemetryID;
-    PRUint32                          mPostID;
-    PRUint32                          mRequestTime;
+    uint32_t                          mPostID;
+    uint32_t                          mRequestTime;
 
     typedef nsresult (nsHttpChannel:: *nsOnCacheEntryAvailableCallback)(
         nsICacheEntryDescriptor *, nsCacheAccessMode, nsresult);
@@ -297,7 +296,7 @@ private:
 
     nsCOMPtr<nsICacheEntryDescriptor> mOfflineCacheEntry;
     nsCacheAccessMode                 mOfflineCacheAccess;
-    PRUint32                          mOfflineCacheLastModifiedTime;
+    uint32_t                          mOfflineCacheLastModifiedTime;
     nsCOMPtr<nsIApplicationCache>     mApplicationCacheForWrite;
 
     // auth specific data
@@ -317,27 +316,27 @@ private:
 
     nsCOMPtr<nsIURI>                  mRedirectURI;
     nsCOMPtr<nsIChannel>              mRedirectChannel;
-    PRUint32                          mRedirectType;
+    uint32_t                          mRedirectType;
 
     // state flags
-    PRUint32                          mCachedContentIsValid     : 1;
-    PRUint32                          mCachedContentIsPartial   : 1;
-    PRUint32                          mTransactionReplaced      : 1;
-    PRUint32                          mAuthRetryPending         : 1;
-    PRUint32                          mResuming                 : 1;
-    PRUint32                          mInitedCacheEntry         : 1;
+    uint32_t                          mCachedContentIsValid     : 1;
+    uint32_t                          mCachedContentIsPartial   : 1;
+    uint32_t                          mTransactionReplaced      : 1;
+    uint32_t                          mAuthRetryPending         : 1;
+    uint32_t                          mResuming                 : 1;
+    uint32_t                          mInitedCacheEntry         : 1;
     // True if we are loading a fallback cache entry from the
     // application cache.
-    PRUint32                          mFallbackChannel          : 1;
+    uint32_t                          mFallbackChannel          : 1;
     // True if consumer added its own If-None-Match or If-Modified-Since
     // headers. In such a case we must not override them in the cache code
     // and also we want to pass possible 304 code response through.
-    PRUint32                          mCustomConditionalRequest : 1;
-    PRUint32                          mFallingBack              : 1;
-    PRUint32                          mWaitingForRedirectCallback : 1;
+    uint32_t                          mCustomConditionalRequest : 1;
+    uint32_t                          mFallingBack              : 1;
+    uint32_t                          mWaitingForRedirectCallback : 1;
     // True if mRequestTime has been set. In such a case it is safe to update
     // the cache entry's expiration time. Otherwise, it is not(see bug 567360).
-    PRUint32                          mRequestTimeInitialized : 1;
+    uint32_t                          mRequestTimeInitialized : 1;
 
     nsTArray<nsContinueRedirectionFunc> mRedirectFuncStack;
 

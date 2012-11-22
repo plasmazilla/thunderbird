@@ -30,7 +30,7 @@
 #include "nsPIDOMWindow.h"
 #include "nsIDOMElement.h"
 #include "nsIDOMHTMLElement.h"
-#include "nsContentErrors.h"
+#include "nsError.h"
 #include "nsURILoader.h"
 #include "nsIDocShell.h"
 #include "nsIContentViewer.h"
@@ -81,7 +81,7 @@ public:
                                      nsISupports*        aContainer,
                                      nsIStreamListener** aDocListener,
                                      bool                aReset = true,
-                                     nsIContentSink*     aSink = nsnull);
+                                     nsIContentSink*     aSink = nullptr);
 
   virtual void SetScriptGlobalObject(nsIScriptGlobalObject* aScriptGlobalObject);
   virtual void Destroy();
@@ -113,7 +113,7 @@ protected:
 
   void UpdateTitleAndCharset();
 
-  nsresult ScrollImageTo(PRInt32 aX, PRInt32 aY, bool restoreImage);
+  nsresult ScrollImageTo(int32_t aX, int32_t aY, bool restoreImage);
 
   float GetRatio() {
     return NS_MIN((float)mVisibleWidth / mImageWidth,
@@ -125,10 +125,10 @@ protected:
 
   nsCOMPtr<nsIContent>          mImageContent;
 
-  PRInt32                       mVisibleWidth;
-  PRInt32                       mVisibleHeight;
-  PRInt32                       mImageWidth;
-  PRInt32                       mImageHeight;
+  int32_t                       mVisibleWidth;
+  int32_t                       mVisibleHeight;
+  int32_t                       mImageWidth;
+  int32_t                       mImageHeight;
 
   bool                          mResizeImageByDefault;
   bool                          mClickResizingEnabled;
@@ -183,13 +183,13 @@ ImageListener::OnStartRequest(nsIRequest* request, nsISupports *ctxt)
     secMan->GetChannelPrincipal(channel, getter_AddRefs(channelPrincipal));
   }
   
-  PRInt16 decision = nsIContentPolicy::ACCEPT;
+  int16_t decision = nsIContentPolicy::ACCEPT;
   nsresult rv = NS_CheckContentProcessPolicy(nsIContentPolicy::TYPE_IMAGE,
                                              channelURI,
                                              channelPrincipal,
                                              domWindow->GetFrameElementInternal(),
                                              mimeType,
-                                             nsnull,
+                                             nullptr,
                                              &decision,
                                              nsContentUtils::GetContentPolicy(),
                                              secMan);
@@ -308,7 +308,7 @@ ImageDocument::Destroy()
       }
     }
 
-    mImageContent = nsnull;
+    mImageContent = nullptr;
   }
 
   MediaDocument::Destroy();
@@ -349,10 +349,12 @@ ImageDocument::SetScriptGlobalObject(nsIScriptGlobalObject* aScriptGlobalObject)
     target->AddEventListener(NS_LITERAL_STRING("resize"), this, false);
     target->AddEventListener(NS_LITERAL_STRING("keypress"), this, false);
 
-    if (!nsContentUtils::IsChildOfSameType(this)) {
+    if (!nsContentUtils::IsChildOfSameType(this) &&
+        GetReadyStateEnum() != nsIDocument::READYSTATE_COMPLETE) {
       LinkStylesheet(NS_LITERAL_STRING("resource://gre/res/TopLevelImageDocument.css"));
       LinkStylesheet(NS_LITERAL_STRING("chrome://global/skin/TopLevelImageDocument.css"));
     }
+    BecomeInteractive();
   }
 }
 
@@ -397,7 +399,7 @@ ImageDocument::GetImageRequest(imgIRequest** aImageRequest)
                                    aImageRequest);
   }
 
-  *aImageRequest = nsnull;
+  *aImageRequest = nullptr;
   return NS_OK;
 }
 
@@ -433,13 +435,13 @@ ImageDocument::ShrinkToFit()
 }
 
 NS_IMETHODIMP
-ImageDocument::RestoreImageTo(PRInt32 aX, PRInt32 aY)
+ImageDocument::RestoreImageTo(int32_t aX, int32_t aY)
 {
   return ScrollImageTo(aX, aY, true);
 }
 
 nsresult
-ImageDocument::ScrollImageTo(PRInt32 aX, PRInt32 aY, bool restoreImage)
+ImageDocument::ScrollImageTo(int32_t aX, int32_t aY, bool restoreImage)
 {
   float ratio = GetRatio();
 
@@ -581,12 +583,12 @@ ImageDocument::HandleEvent(nsIDOMEvent* aEvent)
     ResetZoomLevel();
     mShouldResize = true;
     if (mImageIsResized) {
-      PRInt32 x = 0, y = 0;
+      int32_t x = 0, y = 0;
       nsCOMPtr<nsIDOMMouseEvent> event(do_QueryInterface(aEvent));
       if (event) {
         event->GetClientX(&x);
         event->GetClientY(&y);
-        PRInt32 left = 0, top = 0;
+        int32_t left = 0, top = 0;
         nsCOMPtr<nsIDOMHTMLElement> htmlElement =
           do_QueryInterface(mImageContent);
         htmlElement->GetOffsetLeft(&left);
@@ -623,7 +625,7 @@ ImageDocument::CreateSyntheticDocument()
 
   nsCOMPtr<nsINodeInfo> nodeInfo;
   if (nsContentUtils::IsChildOfSameType(this)) {
-    nodeInfo = mNodeInfoManager->GetNodeInfo(nsGkAtoms::style, nsnull,
+    nodeInfo = mNodeInfoManager->GetNodeInfo(nsGkAtoms::style, nullptr,
                                              kNameSpaceID_XHTML,
                                              nsIDOMNode::ELEMENT_NODE);
     NS_ENSURE_TRUE(nodeInfo, NS_ERROR_OUT_OF_MEMORY);
@@ -641,7 +643,7 @@ ImageDocument::CreateSyntheticDocument()
     return NS_ERROR_FAILURE;
   }
 
-  nodeInfo = mNodeInfoManager->GetNodeInfo(nsGkAtoms::img, nsnull,
+  nodeInfo = mNodeInfoManager->GetNodeInfo(nsGkAtoms::img, nullptr,
                                            kNameSpaceID_XHTML,
                                            nsIDOMNode::ELEMENT_NODE);
   NS_ENSURE_TRUE(nodeInfo, NS_ERROR_OUT_OF_MEMORY);

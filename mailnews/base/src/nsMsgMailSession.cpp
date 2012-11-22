@@ -63,12 +63,12 @@ nsresult nsMsgMailSession::Shutdown()
 }
 
 NS_IMETHODIMP nsMsgMailSession::AddFolderListener(nsIFolderListener *aListener,
-                                                  PRUint32 aNotifyFlags)
+                                                  uint32_t aNotifyFlags)
 {
   NS_ENSURE_ARG_POINTER(aListener);
 
   // we don't care about the notification flags for equivalence purposes
-  PRInt32 index = mListeners.IndexOf(aListener);
+  int32_t index = mListeners.IndexOf(aListener);
   NS_ASSERTION(index == -1, "tried to add duplicate listener");
   if (index == -1)
   {
@@ -83,7 +83,7 @@ NS_IMETHODIMP nsMsgMailSession::RemoveFolderListener(nsIFolderListener *aListene
 {
   NS_ENSURE_ARG_POINTER(aListener);
 
-  PRInt32 index = mListeners.IndexOf(aListener);
+  int32_t index = mListeners.IndexOf(aListener);
   NS_ASSERTION(index != -1, "removing non-existent listener");
   if (index != -1)
     mListeners.RemoveElementAt(index);
@@ -126,8 +126,8 @@ nsMsgMailSession::OnItemUnicharPropertyChanged(nsIMsgFolder *aItem,
 NS_IMETHODIMP
 nsMsgMailSession::OnItemIntPropertyChanged(nsIMsgFolder *aItem,
                                            nsIAtom *aProperty,
-                                           PRInt32 aOldValue,
-                                           PRInt32 aNewValue)
+                                           int32_t aOldValue,
+                                           int32_t aNewValue)
 {
   NOTIFY_FOLDER_LISTENERS(intPropertyChanged, OnItemIntPropertyChanged,
                           (aItem, aProperty, aOldValue, aNewValue));
@@ -148,8 +148,8 @@ nsMsgMailSession::OnItemBoolPropertyChanged(nsIMsgFolder *aItem,
 NS_IMETHODIMP
 nsMsgMailSession::OnItemPropertyFlagChanged(nsIMsgDBHdr *aItem,
                                             nsIAtom *aProperty,
-                                            PRUint32 aOldValue,
-                                            PRUint32 aNewValue)
+                                            uint32_t aOldValue,
+                                            uint32_t aNewValue)
 {
   NOTIFY_FOLDER_LISTENERS(propertyFlagChanged, OnItemPropertyFlagChanged,
                           (aItem, aProperty, aOldValue, aNewValue));
@@ -182,7 +182,7 @@ nsMsgMailSession::AddUserFeedbackListener(nsIMsgUserFeedbackListener *aListener)
 {
   NS_ENSURE_ARG_POINTER(aListener);
 
-  PRInt32 index = mFeedbackListeners.IndexOf(aListener);
+  int32_t index = mFeedbackListeners.IndexOf(aListener);
   NS_ASSERTION(index == -1, "tried to add duplicate listener");
   if (index == -1)
     mFeedbackListeners.AppendElement(aListener);
@@ -195,7 +195,7 @@ nsMsgMailSession::RemoveUserFeedbackListener(nsIMsgUserFeedbackListener *aListen
 {
   NS_ENSURE_ARG_POINTER(aListener);
 
-  PRInt32 index = mFeedbackListeners.IndexOf(aListener);
+  int32_t index = mFeedbackListeners.IndexOf(aListener);
   NS_ASSERTION(index != -1, "removing non-existent listener");
   if (index != -1)
     mFeedbackListeners.RemoveElementAt(index);
@@ -246,7 +246,7 @@ nsMsgMailSession::AlertUser(const nsAString &aMessage, nsIMsgMailNewsUrl *aUrl)
   }
 
   if (dialog)
-    return dialog->Alert(nsnull, PromiseFlatString(aMessage).get());
+    return dialog->Alert(nullptr, PromiseFlatString(aMessage).get());
 
   return NS_OK;
 }
@@ -255,9 +255,9 @@ nsresult nsMsgMailSession::GetTopmostMsgWindow(nsIMsgWindow **aMsgWindow)
 {
   NS_ENSURE_ARG_POINTER(aMsgWindow);
 
-  *aMsgWindow = nsnull;
+  *aMsgWindow = nullptr;
 
-  PRUint32 count = mWindows.Count();
+  uint32_t count = mWindows.Count();
 
   if (count == 1)
   {
@@ -280,9 +280,9 @@ nsresult nsMsgMailSession::GetTopmostMsgWindow(nsIMsgWindow **aMsgWindow)
 #if defined (XP_UNIX)
     // The window managers under Unix/X11 do not support ZOrder information,
     // so we have to use the normal enumeration call here.
-    rv = windowMediator->GetEnumerator(nsnull, getter_AddRefs(windowEnum));
+    rv = windowMediator->GetEnumerator(nullptr, getter_AddRefs(windowEnum));
 #else
-    rv = windowMediator->GetZOrderDOMWindowEnumerator(nsnull, true,
+    rv = windowMediator->GetZOrderDOMWindowEnumerator(nullptr, true,
                                                       getter_AddRefs(windowEnum));
 #endif
 
@@ -388,9 +388,9 @@ NS_IMETHODIMP nsMsgMailSession::IsFolderOpenInWindow(nsIMsgFolder *folder, bool 
 
   *aResult = false;
 
-  PRUint32 count = mWindows.Count();
+  uint32_t count = mWindows.Count();
 
-  for(PRUint32 i = 0; i < count; i++)
+  for(uint32_t i = 0; i < count; i++)
   {
     nsCOMPtr<nsIMsgFolder> openFolder;
     mWindows[i]->GetOpenFolder(getter_AddRefs(openFolder));
@@ -540,7 +540,7 @@ nsresult nsMsgShutdownService::ProcessNextTask()
 {
   bool shutdownTasksDone = true;
 
-  PRInt32 count = mShutdownTasks.Count();
+  int32_t count = mShutdownTasks.Count();
   if (mTaskIndex < count)
   {
     shutdownTasksDone = false;
@@ -562,7 +562,7 @@ nsresult nsMsgShutdownService::ProcessNextTask()
     {
       // We have failed, let's go on to the next task.
       mTaskIndex++;
-      mMsgProgress->OnProgressChange(nsnull, nsnull, 0, 0, mTaskIndex, count);
+      mMsgProgress->OnProgressChange(nullptr, nullptr, 0, 0, mTaskIndex, count);
       ProcessNextTask();
     }
   }
@@ -570,7 +570,7 @@ nsresult nsMsgShutdownService::ProcessNextTask()
   if (shutdownTasksDone)
   {
     if (mMsgProgress)
-      mMsgProgress->OnStateChange(nsnull, nsnull, nsIWebProgressListener::STATE_STOP, NS_OK);
+      mMsgProgress->OnStateChange(nullptr, nullptr, nsIWebProgressListener::STATE_STOP, NS_OK);
     AttemptShutdown();
   }
 
@@ -679,7 +679,7 @@ NS_IMETHODIMP nsMsgShutdownService::Observe(nsISupports *aSubject,
     {
       // First see if there is a window open. 
       nsCOMPtr<nsIWindowMediator> winMed = do_GetService(NS_WINDOWMEDIATOR_CONTRACTID);
-      winMed->GetMostRecentWindow(nsnull, getter_AddRefs(internalDomWin));
+      winMed->GetMostRecentWindow(nullptr, getter_AddRefs(internalDomWin));
       
       //If not use the hidden window.
       if (!internalDomWin)
@@ -704,7 +704,7 @@ NS_IMETHODIMP nsMsgShutdownService::Observe(nsISupports *aSubject,
 
     mMsgProgress->OpenProgressDialog(internalDomWin, topMsgWindow, 
                                      "chrome://messenger/content/shutdownWindow.xul", 
-                                     false, nsnull);
+                                     false, nullptr);
 
     if (mQuitForced)
     {
@@ -737,15 +737,15 @@ NS_IMETHODIMP nsMsgShutdownService::OnStopRunningUrl(nsIURI *url, nsresult aExit
 
   if (mMsgProgress)
   {
-    PRInt32 numTasks = mShutdownTasks.Count();
-    mMsgProgress->OnProgressChange(nsnull, nsnull, 0, 0, mTaskIndex, numTasks);
+    int32_t numTasks = mShutdownTasks.Count();
+    mMsgProgress->OnProgressChange(nullptr, nullptr, 0, 0, mTaskIndex, numTasks);
   }
 
   ProcessNextTask();
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgShutdownService::GetNumTasks(PRInt32 *inNumTasks)
+NS_IMETHODIMP nsMsgShutdownService::GetNumTasks(int32_t *inNumTasks)
 {
   *inNumTasks = mShutdownTasks.Count();
   return NS_OK;
@@ -767,6 +767,6 @@ NS_IMETHODIMP nsMsgShutdownService::SetStatusText(const nsAString & inStatusStri
 {
   nsString statusString(inStatusString);
   if (mMsgProgress)
-    mMsgProgress->OnStatusChange(nsnull, nsnull, NS_OK, nsString(statusString).get());
+    mMsgProgress->OnStatusChange(nullptr, nullptr, NS_OK, nsString(statusString).get());
   return NS_OK;
 }

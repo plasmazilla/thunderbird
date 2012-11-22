@@ -167,7 +167,7 @@ NS_IMETHODIMP nsPop3IncomingServer::GetDeferredToAccount(nsACString& aRetVal)
                   rv = subFolderDB->ListAllKeys(keys);
                   nsCOMPtr<nsIMutableArray> hdrsToCopy(do_CreateInstance(NS_ARRAY_CONTRACTID));
                   MsgGetHeadersFromKeys(subFolderDB, keys->m_keys, hdrsToCopy);
-                  PRUint32 numHdrs = 0;
+                  uint32_t numHdrs = 0;
                   if (hdrsToCopy)
                     hdrsToCopy->GetLength(&numHdrs);
                   if (numHdrs)
@@ -180,7 +180,7 @@ NS_IMETHODIMP nsPop3IncomingServer::GetDeferredToAccount(nsACString& aRetVal)
                                                     getter_AddRefs(dest));
                     if (dest)
                       dest->CopyMessages(subFolder, hdrsToCopy, false,
-                                         nsnull, nsnull, false,false);
+                                         nullptr, nullptr, false,false);
                     // Should we copy the folder if the dest doesn't exist?
                   }
                 }
@@ -206,7 +206,7 @@ NS_IMETHODIMP nsPop3IncomingServer::SetDeferredToAccount(const nsACString& aAcco
 {
   nsCString deferredToAccount;
   GetDeferredToAccount(deferredToAccount);
-  m_rootMsgFolder = nsnull; // clear this so we'll recalculate it on demand.
+  m_rootMsgFolder = nullptr; // clear this so we'll recalculate it on demand.
   //Notify listeners who listen to every folder
 
   nsresult rv =  SetCharValue("deferred_to_account", aAccountKey);
@@ -260,7 +260,7 @@ NS_IMETHODIMP nsPop3IncomingServer::SetDeferredToAccount(const nsACString& aAcco
                   rv = server->GetRootFolder(getter_AddRefs(rootFolder));
                   NS_ENSURE_SUCCESS(rv, rv);
                   // this will fail if it already exists, which is fine.
-                  rootFolder->CreateSubfolder(NS_LITERAL_STRING("Inbox"), nsnull);
+                  rootFolder->CreateSubfolder(NS_LITERAL_STRING("Inbox"), nullptr);
                 }
               }
             }
@@ -288,14 +288,14 @@ NS_IMETHODIMP nsPop3IncomingServer::SetAuthenticated(bool aAuthenticated)
 }
 
 nsresult
-nsPop3IncomingServer::GetPop3CapabilityFlags(PRUint32 *flags)
+nsPop3IncomingServer::GetPop3CapabilityFlags(uint32_t *flags)
 {
   *flags = m_capabilityFlags;
   return NS_OK;
 }
 
 nsresult
-nsPop3IncomingServer::SetPop3CapabilityFlags(PRUint32 flags)
+nsPop3IncomingServer::SetPop3CapabilityFlags(uint32_t flags)
 {
   m_capabilityFlags = flags;
   return NS_OK;
@@ -357,10 +357,10 @@ nsresult nsPop3IncomingServer::GetInbox(nsIMsgWindow *msgWindow, nsIMsgFolder **
     rv = (*inbox)->GetMsgDatabase(getter_AddRefs(db));
     if (NS_FAILED(rv))
     {
-      (*inbox)->SetMsgDatabase(nsnull);
+      (*inbox)->SetMsgDatabase(nullptr);
       (void) localInbox->SetCheckForNewMessagesAfterParsing(true);
       // this will cause a reparse of the mail folder.
-      localInbox->GetDatabaseWithReparse(nsnull, msgWindow, getter_AddRefs(db));
+      localInbox->GetDatabaseWithReparse(nullptr, msgWindow, getter_AddRefs(db));
       rv = NS_MSG_ERROR_FOLDER_SUMMARY_OUT_OF_DATE;
     }
   }
@@ -404,7 +404,7 @@ NS_IMETHODIMP nsPop3IncomingServer::PerformBiff(nsIMsgWindow *aMsgWindow)
       if (NS_SUCCEEDED(rv) && db)
         rv = db->GetSummaryValid(&valid);
       if (NS_SUCCEEDED(rv) && valid)
-        rv = pop3Service->GetNewMail(aMsgWindow, urlListener, inbox, this, nsnull);
+        rv = pop3Service->GetNewMail(aMsgWindow, urlListener, inbox, this, nullptr);
       else
       {
         bool isLocked;
@@ -417,7 +417,7 @@ NS_IMETHODIMP nsPop3IncomingServer::PerformBiff(nsIMsgWindow *aMsgWindow)
     }
   }
   else
-    rv = pop3Service->CheckForNewMail(aMsgWindow, urlListener, inbox, this, nsnull);
+    rv = pop3Service->CheckForNewMail(aMsgWindow, urlListener, inbox, this, nullptr);
   return NS_OK;
 }
 
@@ -534,7 +534,7 @@ nsPop3IncomingServer::GetNewMessages(nsIMsgFolder *aFolder, nsIMsgWindow *aMsgWi
     aFolder->GetServer(getter_AddRefs(server));
     GetDeferredServers(server, getter_AddRefs(deferredServers));
   }
-  PRUint32 numDeferredServers;
+  uint32_t numDeferredServers;
   if (deferredToAccount.IsEmpty() && deferredServers && NS_SUCCEEDED(deferredServers->Count(&numDeferredServers))
     && numDeferredServers > 0)
   {
@@ -587,7 +587,7 @@ nsPop3IncomingServer::CloseCachedConnections()
 }
 
 NS_IMETHODIMP
-nsPop3IncomingServer::GetOfflineSupportLevel(PRInt32 *aSupportLevel)
+nsPop3IncomingServer::GetOfflineSupportLevel(int32_t *aSupportLevel)
 {
   NS_ENSURE_ARG_POINTER(aSupportLevel);
 
@@ -615,7 +615,7 @@ NS_IMETHODIMP nsPop3IncomingServer::GetRunningProtocol(nsIPop3Protocol **aProtoc
   return NS_OK;
 }
 
-NS_IMETHODIMP nsPop3IncomingServer::AddUidlToMark(const char *aUidl, PRInt32 aMark)
+NS_IMETHODIMP nsPop3IncomingServer::AddUidlToMark(const char *aUidl, int32_t aMark)
 {
   NS_ENSURE_ARG_POINTER(aUidl);
 
@@ -652,8 +652,8 @@ NS_IMETHODIMP nsPop3IncomingServer::MarkMessages()
     // do it all in one fell swoop
     rv = nsPop3Protocol::MarkMsgForHost(hostName.get(), userName.get(), localPath, m_uidlsToMark);
   }
-  PRUint32 count = m_uidlsToMark.Count();
-  for (PRUint32 i = 0; i < count; i++)
+  uint32_t count = m_uidlsToMark.Count();
+  for (uint32_t i = 0; i < count; i++)
   {
     Pop3UidlEntry *ue = static_cast<Pop3UidlEntry*>(m_uidlsToMark[i]);
     PR_Free(ue->uidl);
@@ -711,7 +711,7 @@ nsPop3GetMailChainer::OnStopRunningUrl(nsIURI *aUrl, nsresult aExitCode)
 nsresult nsPop3GetMailChainer::RunNextGetNewMail()
 {
   nsresult rv;
-  PRUint32 numServersLeft;
+  uint32_t numServersLeft;
   m_serversToGetNewMailFor->Count(&numServersLeft);
 
   for (; numServersLeft > 0;)
@@ -742,7 +742,7 @@ nsresult nsPop3GetMailChainer::RunNextGetNewMail()
       }
     }
   }
-  rv = m_listener ? m_listener->OnStopRunningUrl(nsnull, NS_OK) : NS_OK;
+  rv = m_listener ? m_listener->OnStopRunningUrl(nullptr, NS_OK) : NS_OK;
   Release(); // release ref to ourself.
   return rv;
 }

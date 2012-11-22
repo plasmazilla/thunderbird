@@ -24,6 +24,7 @@
 #include "nsTextFormatter.h"
 #include "nsXPCOMCID.h"
 #include "plstr.h"
+#include "mozilla/Attributes.h"
 
 #ifdef MOZ_WIDGET_COCOA
 #include <CoreFoundation/CoreFoundation.h>
@@ -44,7 +45,7 @@
 #define NS_COMMANDLINE_CID \
   { 0x23bcc750, 0xdc20, 0x460b, { 0xb2, 0xd4, 0x74, 0xd8, 0xf5, 0x8d, 0x36, 0x15 } }
 
-class nsCommandLine : public nsICommandLineRunner
+class nsCommandLine MOZ_FINAL : public nsICommandLineRunner
 {
 public:
   NS_DECL_ISUPPORTS
@@ -69,7 +70,7 @@ protected:
   nsresult EnumerateValidators(EnumerateValidatorsCallback aCallback, void *aClosure);
 
   nsTArray<nsString>      mArgs;
-  PRUint32                mState;
+  uint32_t                mState;
   nsCOMPtr<nsIFile>       mWorkingDir;
   nsCOMPtr<nsIDOMWindow>  mWindowContext;
   bool                    mPreventDefault;
@@ -89,24 +90,24 @@ NS_IMPL_ISUPPORTS2_CI(nsCommandLine,
                       nsICommandLineRunner)
 
 NS_IMETHODIMP
-nsCommandLine::GetLength(PRInt32 *aResult)
+nsCommandLine::GetLength(int32_t *aResult)
 {
-  *aResult = PRInt32(mArgs.Length());
+  *aResult = int32_t(mArgs.Length());
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsCommandLine::GetArgument(PRInt32 aIndex, nsAString& aResult)
+nsCommandLine::GetArgument(int32_t aIndex, nsAString& aResult)
 {
   NS_ENSURE_ARG_MIN(aIndex, 0);
-  NS_ENSURE_ARG_MAX(aIndex, PRInt32(mArgs.Length() - 1));
+  NS_ENSURE_ARG_MAX(aIndex, int32_t(mArgs.Length() - 1));
 
   aResult = mArgs[aIndex];
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsCommandLine::FindFlag(const nsAString& aFlag, bool aCaseSensitive, PRInt32 *aResult)
+nsCommandLine::FindFlag(const nsAString& aFlag, bool aCaseSensitive, int32_t *aResult)
 {
   NS_ENSURE_ARG(!aFlag.IsEmpty());
 
@@ -116,7 +117,7 @@ nsCommandLine::FindFlag(const nsAString& aFlag, bool aCaseSensitive, PRInt32 *aR
     static_cast<nsStringComparator&>(caseCmp) :
     static_cast<nsStringComparator&>(caseICmp);
 
-  for (PRUint32 f = 0; f < mArgs.Length(); f++) {
+  for (uint32_t f = 0; f < mArgs.Length(); f++) {
     const nsString &arg = mArgs[f];
 
     if (arg.Length() >= 2 && arg.First() == PRUnichar('-')) {
@@ -132,12 +133,12 @@ nsCommandLine::FindFlag(const nsAString& aFlag, bool aCaseSensitive, PRInt32 *aR
 }
 
 NS_IMETHODIMP
-nsCommandLine::RemoveArguments(PRInt32 aStart, PRInt32 aEnd)
+nsCommandLine::RemoveArguments(int32_t aStart, int32_t aEnd)
 {
   NS_ENSURE_ARG_MIN(aStart, 0);
-  NS_ENSURE_ARG_MAX(PRUint32(aEnd) + 1, mArgs.Length());
+  NS_ENSURE_ARG_MAX(uint32_t(aEnd) + 1, mArgs.Length());
 
-  for (PRInt32 i = aEnd; i >= aStart; --i) {
+  for (int32_t i = aEnd; i >= aStart; --i) {
     mArgs.RemoveElementAt(i);
   }
 
@@ -150,7 +151,7 @@ nsCommandLine::HandleFlag(const nsAString& aFlag, bool aCaseSensitive,
 {
   nsresult rv;
 
-  PRInt32 found;
+  int32_t found;
   rv = FindFlag(aFlag, aCaseSensitive, &found);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -171,7 +172,7 @@ nsCommandLine::HandleFlagWithParam(const nsAString& aFlag, bool aCaseSensitive,
 {
   nsresult rv;
 
-  PRInt32 found;
+  int32_t found;
   rv = FindFlag(aFlag, aCaseSensitive, &found);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -180,7 +181,7 @@ nsCommandLine::HandleFlagWithParam(const nsAString& aFlag, bool aCaseSensitive,
     return NS_OK;
   }
 
-  if (found == PRInt32(mArgs.Length()) - 1) {
+  if (found == int32_t(mArgs.Length()) - 1) {
     return NS_ERROR_INVALID_ARG;
   }
 
@@ -197,7 +198,7 @@ nsCommandLine::HandleFlagWithParam(const nsAString& aFlag, bool aCaseSensitive,
 }
 
 NS_IMETHODIMP
-nsCommandLine::GetState(PRUint32 *aResult)
+nsCommandLine::GetState(uint32_t *aResult)
 {
   *aResult = mState;
   return NS_OK;
@@ -393,7 +394,7 @@ nsCommandLine::ResolveURI(const nsAString& aArgument, nsIURI* *aResult)
     resolveShortcutURL(lf, url);
     if (!url.IsEmpty()) {
       return io->NewURI(url,
-                        nsnull,
+                        nullptr,
                         workingDirURI,
                         aResult);
     }
@@ -402,7 +403,7 @@ nsCommandLine::ResolveURI(const nsAString& aArgument, nsIURI* *aResult)
   }
 
   return io->NewURI(NS_ConvertUTF16toUTF8(aArgument),
-                    nsnull,
+                    nullptr,
                     workingDirURI,
                     aResult);
 }
@@ -441,13 +442,13 @@ nsCommandLine::resolveShortcutURL(nsIFile* aFile, nsACString& outURL)
 }
 
 NS_IMETHODIMP
-nsCommandLine::Init(PRInt32 argc, char** argv, nsIFile* aWorkingDir,
-                    PRUint32 aState)
+nsCommandLine::Init(int32_t argc, char** argv, nsIFile* aWorkingDir,
+                    uint32_t aState)
 {
   NS_ENSURE_ARG_MIN(aState, 0);
   NS_ENSURE_ARG_MAX(aState, 2);
 
-  PRInt32 i;
+  int32_t i;
 
   mWorkingDir = aWorkingDir;
 
@@ -626,11 +627,11 @@ nsCommandLine::Run()
 {
   nsresult rv;
 
-  rv = EnumerateValidators(EnumValidate, nsnull);
+  rv = EnumerateValidators(EnumValidate, nullptr);
   if (rv == NS_ERROR_ABORT)
     return rv;
 
-  rv = EnumerateHandlers(EnumRun, nsnull);
+  rv = EnumerateHandlers(EnumRun, nullptr);
   if (rv == NS_ERROR_ABORT)
     return rv;
 

@@ -178,6 +178,7 @@
 @BINPATH@/components/dom_base.xpt
 @BINPATH@/components/dom_battery.xpt
 @BINPATH@/components/dom_browserelement.xpt
+@BINPATH@/components/dom_camera.xpt
 @BINPATH@/components/dom_canvas.xpt
 @BINPATH@/components/dom_contacts.xpt
 @BINPATH@/components/dom_core.xpt
@@ -349,6 +350,7 @@
 @BINPATH@/components/AppsService.manifest
 @BINPATH@/components/BrowserElementParent.js
 @BINPATH@/components/BrowserElementParent.manifest
+@BINPATH@/components/ColorAnalyzer.js
 @BINPATH@/components/ConsoleAPI.js
 @BINPATH@/components/ConsoleAPI.manifest
 @BINPATH@/components/ContactManager.js
@@ -448,6 +450,8 @@
 @BINPATH@/components/pluginGlue.manifest
 @BINPATH@/components/SettingsManager.js
 @BINPATH@/components/SettingsManager.manifest
+@BINPATH@/components/SiteSpecificUserAgent.js
+@BINPATH@/components/SiteSpecificUserAgent.manifest
 @BINPATH@/components/smileApplication.js
 @BINPATH@/components/smileApplication.manifest
 @BINPATH@/components/storage-Legacy.js
@@ -455,6 +459,8 @@
 #ifdef MOZ_SERVICES_SYNC
 @BINPATH@/components/SyncComponents.manifest
 #endif
+@BINPATH@/components/TCPSocket.js
+@BINPATH@/components/TCPSocket.manifest
 @BINPATH@/components/TelemetryPing.js
 @BINPATH@/components/TelemetryPing.manifest
 @BINPATH@/components/txEXSLTRegExFunctions.js

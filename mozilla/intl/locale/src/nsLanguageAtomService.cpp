@@ -55,7 +55,7 @@ nsLanguageAtomService::LookupCharSet(const char *aCharSet, nsresult *aError)
       if (aError)
         *aError = NS_ERROR_FAILURE;
 
-      return nsnull;
+      return nullptr;
     }
   }
 
@@ -65,11 +65,11 @@ nsLanguageAtomService::LookupCharSet(const char *aCharSet, nsresult *aError)
     if (aError)
       *aError = NS_ERROR_FAILURE;
 
-    return nsnull;
+    return nullptr;
   }
 
   // transfer reference to raw pointer
-  nsIAtom *raw = nsnull;
+  nsIAtom *raw = nullptr;
   langGroup.swap(raw);
 
   if (aError)
@@ -128,7 +128,7 @@ nsLanguageAtomService::GetLanguageGroup(nsIAtom *aLanguage,
         if (aError) {
           *aError = NS_ERROR_FAILURE;
         }
-        return nsnull;
+        return nullptr;
       }
     }
 
@@ -139,7 +139,7 @@ nsLanguageAtomService::GetLanguageGroup(nsIAtom *aLanguage,
     res = mLangGroups->GetStringFromName(langStr.get(),
                                          getter_Copies(langGroupStr));
     if (NS_FAILED(res)) {
-      PRInt32 hyphen = langStr.FindChar('-');
+      int32_t hyphen = langStr.FindChar('-');
       if (hyphen >= 0) {
         nsAutoString truncated(langStr);
         truncated.Truncate(hyphen);

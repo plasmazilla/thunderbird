@@ -1,6 +1,17 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+/* Copyright 2012 Mozilla Foundation and Mozilla contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 #include <android/log.h> 
 
@@ -121,14 +132,14 @@ AudioManager::SetMasterMuted(bool aMasterMuted)
 }
 
 NS_IMETHODIMP
-AudioManager::GetPhoneState(PRInt32* aState)
+AudioManager::GetPhoneState(int32_t* aState)
 {
   *aState = mPhoneState;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-AudioManager::SetPhoneState(PRInt32 aState)
+AudioManager::SetPhoneState(int32_t aState)
 {
   if (AudioSystem::setPhoneState(aState)) {
     return NS_ERROR_FAILURE;
@@ -147,7 +158,7 @@ AudioManager::SetPhoneState(PRInt32 aState)
 // whichever symbol resolves at dynamic link time (if any).
 //
 NS_IMETHODIMP
-AudioManager::SetForceForUse(PRInt32 aUsage, PRInt32 aForce)
+AudioManager::SetForceForUse(int32_t aUsage, int32_t aForce)
 {
   status_t status = 0;
   if (static_cast<
@@ -168,7 +179,7 @@ AudioManager::SetForceForUse(PRInt32 aUsage, PRInt32 aForce)
 }
 
 NS_IMETHODIMP
-AudioManager::GetForceForUse(PRInt32 aUsage, PRInt32* aForce) {
+AudioManager::GetForceForUse(int32_t aUsage, int32_t* aForce) {
   if (static_cast<
       AudioSystem::forced_config (*)(AudioSystem::force_use)
       >(AudioSystem::getForceUse)) {
@@ -185,18 +196,20 @@ AudioManager::GetForceForUse(PRInt32 aUsage, PRInt32* aForce) {
 
 void
 AudioManager::SetAudioRoute(int aRoutes) {
-  audio_io_handle_t handle = 0;
   if (static_cast<
       audio_io_handle_t (*)(AudioSystem::stream_type, uint32_t, uint32_t, uint32_t, AudioSystem::output_flags)
       >(AudioSystem::getOutput)) {
+    audio_io_handle_t handle = 0;
     handle = AudioSystem::getOutput((AudioSystem::stream_type)AudioSystem::SYSTEM);
+    String8 cmd;
+    cmd.appendFormat("routing=%d", GetRoutingMode(aRoutes));
+    AudioSystem::setParameters(handle, cmd);
   } else if (static_cast<
-             audio_io_handle_t (*)(audio_stream_type_t, uint32_t, uint32_t, uint32_t, audio_policy_output_flags_t)
-             >(AudioSystem::getOutput)) {
-    handle = AudioSystem::getOutput((audio_stream_type_t)AudioSystem::SYSTEM);
+             status_t (*)(audio_devices_t, audio_policy_dev_state_t, const char*)
+             >(AudioSystem::setDeviceConnectionState)) {
+    AudioSystem::setDeviceConnectionState(AUDIO_DEVICE_OUT_WIRED_HEADSET, 
+        GetRoutingMode(aRoutes) == AudioSystem::DEVICE_OUT_WIRED_HEADSET ? 
+        AUDIO_POLICY_DEVICE_STATE_AVAILABLE : AUDIO_POLICY_DEVICE_STATE_UNAVAILABLE,
+        "");
   }
-  
-  String8 cmd;
-  cmd.appendFormat("routing=%d", GetRoutingMode(aRoutes));
-  AudioSystem::setParameters(handle, cmd);
 }

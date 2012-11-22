@@ -45,7 +45,7 @@ public:
   NS_DECL_NSISERIALIZABLE
   NS_DECL_NSICLASSINFO
 
-  nsresult SetSecurityState(PRUint32 aState);
+  nsresult SetSecurityState(uint32_t aState);
   nsresult SetShortSecurityDescription(const PRUnichar *aText);
 
   const char * GetHostName() const {
@@ -54,18 +54,23 @@ public:
   nsresult GetHostName(char **aHostName);
   nsresult SetHostName(const char *aHostName);
 
-  PRInt32 GetPort() const { return mPort; }
-  nsresult GetPort(PRInt32 *aPort);
-  nsresult SetPort(PRInt32 aPort);
+  int32_t GetPort() const { return mPort; }
+  nsresult GetPort(int32_t *aPort);
+  nsresult SetPort(int32_t aPort);
 
   PRErrorCode GetErrorCode() const;
+  
+  void GetErrorLogMessage(PRErrorCode errorCode,
+                          ::mozilla::psm::SSLErrorMessageType errorMessageType,
+                          nsString &result);
+  
   void SetCanceled(PRErrorCode errorCode,
                    ::mozilla::psm::SSLErrorMessageType errorMessageType);
   
   /* Set SSL Status values */
   nsresult SetSSLStatus(nsSSLStatus *aSSLStatus);
   nsSSLStatus* SSLStatus() { return mSSLStatus; }
-  void SetStatusErrorBits(nsIX509Cert & cert, PRUint32 collected_errors);
+  void SetStatusErrorBits(nsIX509Cert & cert, uint32_t collected_errors);
 
   bool IsCertIssuerBlacklisted() const {
     return mIsCertIssuerBlacklisted;
@@ -81,19 +86,23 @@ protected:
   nsCOMPtr<nsIInterfaceRequestor> mCallbacks;
 
 private:
-  PRUint32 mSecurityState;
-  PRInt32 mSubRequestsHighSecurity;
-  PRInt32 mSubRequestsLowSecurity;
-  PRInt32 mSubRequestsBrokenSecurity;
-  PRInt32 mSubRequestsNoSecurity;
+  uint32_t mSecurityState;
+  int32_t mSubRequestsHighSecurity;
+  int32_t mSubRequestsLowSecurity;
+  int32_t mSubRequestsBrokenSecurity;
+  int32_t mSubRequestsNoSecurity;
   nsString mShortDesc;
 
   PRErrorCode mErrorCode;
   ::mozilla::psm::SSLErrorMessageType mErrorMessageType;
   nsString mErrorMessageCached;
-  nsresult formatErrorMessage(::mozilla::MutexAutoLock const & proofOfLock);
+  nsresult formatErrorMessage(::mozilla::MutexAutoLock const & proofOfLock, 
+                              PRErrorCode errorCode,
+                              ::mozilla::psm::SSLErrorMessageType errorMessageType,
+                              bool wantsHtml, bool suppressPort443, 
+                              nsString &result);
 
-  PRInt32 mPort;
+  int32_t mPort;
   nsXPIDLCString mHostName;
   PRErrorCode mIsCertIssuerBlacklisted;
 
@@ -142,7 +151,7 @@ public:
   static void Cleanup()
   {
     delete sInstance;
-    sInstance = nsnull;
+    sInstance = nullptr;
   }
 private:
   Mutex mMutex;

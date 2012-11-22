@@ -3,7 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-
+#include "mozilla/Selection.h"
 #include "nsCOMArray.h"
 #include "nsComponentManagerUtils.h"
 #include "nsEditorUtils.h"
@@ -18,24 +18,23 @@
 #include "nsIDocument.h"
 #include "nsIInterfaceRequestorUtils.h"
 #include "nsINode.h"
-#include "nsISelection.h"
 #include "nsISimpleEnumerator.h"
 
 class nsIDOMRange;
 class nsISupports;
 
+using namespace mozilla;
 
 /******************************************************************************
  * nsAutoSelectionReset
  *****************************************************************************/
 
-nsAutoSelectionReset::nsAutoSelectionReset(nsISelection *aSel, nsEditor *aEd) : 
-mSel(nsnull)
-,mEd(nsnull)
+nsAutoSelectionReset::nsAutoSelectionReset(Selection* aSel, nsEditor* aEd)
+  : mSel(nullptr), mEd(nullptr)
 { 
   if (!aSel || !aEd) return;    // not much we can do, bail.
   if (aEd->ArePreservingSelection()) return;   // we already have initted mSavedSel, so this must be nested call.
-  mSel = do_QueryInterface(aSel);
+  mSel = aSel;
   mEd = aEd;
   if (mSel)
   {
@@ -66,7 +65,7 @@ nsAutoSelectionReset::Abort()
  *****************************************************************************/
 
 nsDOMIterator::nsDOMIterator() :
-mIter(nsnull)
+mIter(nullptr)
 {
 }
     
@@ -139,7 +138,7 @@ nsDOMSubtreeIterator::Init(nsIDOMRange* aRange)
  *****************************************************************************/
 
 bool 
-nsEditorUtils::IsDescendantOf(nsIDOMNode *aNode, nsIDOMNode *aParent, PRInt32 *aOffset) 
+nsEditorUtils::IsDescendantOf(nsIDOMNode *aNode, nsIDOMNode *aParent, int32_t *aOffset) 
 {
   NS_ENSURE_TRUE(aNode || aParent, false);
   if (aNode == aParent) return false;

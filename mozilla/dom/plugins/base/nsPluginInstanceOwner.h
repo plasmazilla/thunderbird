@@ -26,7 +26,7 @@
 #endif
 
 #ifdef XP_MACOSX
-#include "nsCoreAnimationSupport.h"
+#include "mozilla/gfx/QuartzSupport.h"
 #include <ApplicationServices/ApplicationServices.h>
 #endif
 
@@ -73,7 +73,7 @@ public:
   
   NS_IMETHOD GetURL(const char *aURL, const char *aTarget,
                     nsIInputStream *aPostStream, 
-                    void *aHeadersData, PRUint32 aHeadersDataLen);
+                    void *aHeadersData, uint32_t aHeadersDataLen);
   
   NS_IMETHOD ShowStatus(const PRUnichar *aStatusMsg);
   
@@ -144,7 +144,7 @@ public:
   void AddToCARefreshTimer();
   void RemoveFromCARefreshTimer();
   // This calls into the plugin (NPP_SetWindow) and can run script.
-  void* FixUpPluginWindow(PRInt32 inPaintState);
+  void* FixUpPluginWindow(int32_t inPaintState);
   void HidePluginWindow();
   // Set a flag that (if true) indicates the plugin port info has changed and
   // SetWindow() needs to be called.
@@ -173,14 +173,14 @@ public:
   void SetFrame(nsObjectFrame *aFrame);
   nsObjectFrame* GetFrame();
 
-  PRUint32 GetLastEventloopNestingLevel() const {
+  uint32_t GetLastEventloopNestingLevel() const {
     return mLastEventloopNestingLevel; 
   }
   
-  static PRUint32 GetEventloopNestingLevel();
+  static uint32_t GetEventloopNestingLevel();
   
   void ConsiderNewEventloopNestingLevel() {
-    PRUint32 currentLevel = GetEventloopNestingLevel();
+    uint32_t currentLevel = GetEventloopNestingLevel();
     
     if (currentLevel < mLastEventloopNestingLevel) {
       mLastEventloopNestingLevel = currentLevel;
@@ -286,6 +286,11 @@ private:
   bool mFullScreen;
   void* mJavaView;
 #endif 
+
+#if defined(XP_MACOSX) && !defined(NP_NO_CARBON)
+  void AddScrollPositionListener();
+  void RemoveScrollPositionListener();
+#endif
  
   nsPluginNativeWindow       *mPluginWindow;
   nsRefPtr<nsNPAPIPluginInstance> mInstance;
@@ -302,9 +307,9 @@ private:
 #ifndef NP_NO_QUICKDRAW
   NP_Port                                   mQDPluginPortCopy;
 #endif
-  PRInt32                                   mInCGPaintLevel;
-  nsRefPtr<nsIOSurface>                     mIOSurface;
-  nsCARenderer                              mCARenderer;
+  int32_t                                   mInCGPaintLevel;
+  mozilla::RefPtr<MacIOSurface>             mIOSurface;
+  mozilla::RefPtr<nsCARenderer>             mCARenderer;
   CGColorSpaceRef                           mColorProfile;
   static nsCOMPtr<nsITimer>                *sCATimer;
   static nsTArray<nsPluginInstanceOwner*>  *sCARefreshListeners;
@@ -314,7 +319,7 @@ private:
   // Initially, the event loop nesting level we were created on, it's updated
   // if we detect the appshell is on a lower level as long as we're not stopped.
   // We delay DoStopPlugin() until the appshell reaches this level or lower.
-  PRUint32                    mLastEventloopNestingLevel;
+  uint32_t                    mLastEventloopNestingLevel;
   bool                        mContentFocused;
   bool                        mWidgetVisible;    // used on Mac to store our widget's visible state
 #ifdef XP_MACOSX
@@ -326,9 +331,12 @@ private:
 #endif
   bool                        mPluginWindowVisible;
   bool                        mPluginDocumentActiveState;
+#if defined(XP_MACOSX) && !defined(NP_NO_CARBON)
+  bool                        mRegisteredScrollPositionListener;
+#endif
 
-  PRUint16          mNumCachedAttrs;
-  PRUint16          mNumCachedParams;
+  uint16_t          mNumCachedAttrs;
+  uint16_t          mNumCachedParams;
   char              **mCachedAttrParamNames;
   char              **mCachedAttrParamValues;
   
@@ -365,7 +373,7 @@ private:
     mPluginSize(aPluginSize), mDirtyRect(aDirtyRect)
     {}
     virtual nsresult DrawWithXlib(gfxXlibSurface* surface, nsIntPoint offset, 
-                                  nsIntRect* clipRects, PRUint32 numClipRects);
+                                  nsIntRect* clipRects, uint32_t numClipRects);
   private:
     NPWindow* mWindow;
     nsPluginInstanceOwner* mInstanceOwner;

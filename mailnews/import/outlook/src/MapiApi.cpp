@@ -723,7 +723,7 @@ void CMapiApi::ListProperties(LPMAPIPROP lpProp, BOOL getValues)
     GetPropTagName(pArray->aulPropTag[i], desc);
     if (getValues) {
       tagArray.aulPropTag[0] = pArray->aulPropTag[i];
-      hr = lpProp->GetNamesFromIDs(&lpTagArray, nsnull, 0, &count, &lppPropNames);
+      hr = lpProp->GetNamesFromIDs(&lpTagArray, nullptr, 0, &count, &lppPropNames);
       if (hr == S_OK)
         MAPIFreeBuffer(lppPropNames);
 
@@ -752,7 +752,7 @@ static GUID emailGUID = {
   mapiNameID.Kind.lID = nameID;
 
   LPMAPINAMEID lpMapiNames = &mapiNameID;
-  LPSPropTagArray lpMailTagArray = nsnull;
+  LPSPropTagArray lpMailTagArray = nullptr;
 
   HRESULT result = lpProp->GetIDsFromNames(1L, &lpMapiNames, 0, &lpMailTagArray);
   if (result == S_OK)
@@ -1399,8 +1399,8 @@ void CMapiApi::ReportLongProp(const char *pTag, LPSPropValue pVal)
     nsCString  num;
     nsCString  num2;
 
-    num.AppendInt((PRInt32) pVal->Value.l);
-    num2.AppendInt((PRInt32) pVal->Value.l, 16);
+    num.AppendInt((int32_t) pVal->Value.l);
+    num2.AppendInt((int32_t) pVal->Value.l, 16);
     MAPI_TRACE3("%s %s, 0x%s\n", pTag, num, num2);
   }
   else if (pVal && (PROP_TYPE(pVal->ulPropTag) == PT_NULL)) {
@@ -1500,9 +1500,9 @@ void CMapiApi::ListPropertyValue(LPSPropValue pVal, nsCString& s)
       s += strVal;
     break;
     case PT_LONG:
-      s.AppendInt((PRInt32) pVal->Value.l);
+      s.AppendInt((int32_t) pVal->Value.l);
       s += ", 0x";
-      s.AppendInt((PRInt32) pVal->Value.l, 16);
+      s.AppendInt((int32_t) pVal->Value.l, 16);
       s += nBuff;
     break;
     case PT_BOOLEAN:

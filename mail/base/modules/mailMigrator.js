@@ -17,6 +17,7 @@ const Cu = Components.utils;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource:///modules/mailServices.js");
 
 var MailMigrator = {
   /**
@@ -99,7 +100,7 @@ var MailMigrator = {
   _migrateUI: function MailMigrator__migrateUI() {
     // The code for this was ported from
     // mozilla/browser/components/nsBrowserGlue.js
-    const UI_VERSION = 4;
+    const UI_VERSION = 5;
     const MESSENGER_DOCURL = "chrome://messenger/content/messenger.xul#";
     const UI_VERSION_PREF = "mail.ui-rdf.version";
     let currentUIVersion = 0;
@@ -223,6 +224,51 @@ var MailMigrator = {
               currentSet = currentSet + ",button-chat";
             }
             this._setPersist(barResource, currentSetResource, currentSet);
+          }
+        }
+      }
+
+      // In UI version 5, we add the AppMenu button to the mail toolbar and
+      // collapse the main menu by default if the user has no accounts
+      // set up (and the override pref "mail.main_menu.collapse_by_default"
+      // is set to true). Checking for 0 accounts is a hack, because we can't
+      // think of any better way of determining whether this profile is new
+      // or not.
+      if (currentUIVersion < 5) {
+        /**
+         * Helper function that attempts to add the AppMenu button to the
+         * end of a toolbar with ID aToolbarID. Fails silently if this is
+         * not possible, as is typical within our UI migration code.
+         *
+         * @param aToolbarID the ID of the toolbar to add the AppMenu to.
+         */
+        let addButtonToEnd = function(aToolbarID, aButtonID) {
+          let barResource = this._rdf.GetResource(MESSENGER_DOCURL +
+                                                  aToolbarID);
+          if (barResource) {
+            let currentSetResource = this._rdf.GetResource("currentset");
+            let currentSet = this._getPersist(barResource, currentSetResource);
+
+            if (currentSet && currentSet.indexOf(aButtonID) == -1) {
+              // Put the AppMenu button at the end.
+              dirty = true;
+              currentSet = currentSet + "," + aButtonID;
+              this._setPersist(barResource, currentSetResource, currentSet);
+            }
+          }
+        }.bind(this);
+
+        addButtonToEnd("mail-bar3", "button-appmenu");
+        addButtonToEnd("chat-toobar", "button-chat-appmenu");
+
+        if (Services.prefs.getBoolPref("mail.main_menu.collapse_by_default")
+            && MailServices.accounts.accounts.Count() == 0) {
+          let menuResource = this._rdf.GetResource(MESSENGER_DOCURL +
+                                                   "mail-toolbar-menubar2");
+          if (menuResource !== null) {
+            let autohideResource = this._rdf.GetResource("autohide");
+            dirty = true;
+            this._setPersist(menuResource, autohideResource, "true");
           }
         }
       }

@@ -45,6 +45,11 @@ AlarmsManager.prototype = {
   add: function add(aDate, aRespectTimezone, aData) {
     debug("add()");
 
+    if (!this._manifestURL) {
+      debug("Cannot add alarms for non-installed apps.");
+      throw Components.results.NS_ERROR_FAILURE;
+    }
+
     let isIgnoreTimezone = true;
     switch (aRespectTimezone) {
       case "honorTimezone":
@@ -63,7 +68,12 @@ AlarmsManager.prototype = {
     let request = this.createRequest();
     this._cpmm.sendAsyncMessage(
       "AlarmsManager:Add", 
-      { requestId: this.getRequestId(request), date: aDate, ignoreTimezone: isIgnoreTimezone, data: aData, manifestURL: this._manifestURL }
+      { requestId: this.getRequestId(request),
+        date: aDate,
+        ignoreTimezone: isIgnoreTimezone,
+        data: aData,
+        pageURL: this._pageURL,
+        manifestURL: this._manifestURL }
     );
     return request;
   },
@@ -73,7 +83,7 @@ AlarmsManager.prototype = {
 
     return this._cpmm.sendSyncMessage(
       "AlarmsManager:Remove", 
-      { id: aId }
+      { id: aId, manifestURL: this._manifestURL }
     );
   },
 
@@ -83,7 +93,7 @@ AlarmsManager.prototype = {
     let request = this.createRequest();
     this._cpmm.sendAsyncMessage(
       "AlarmsManager:GetAll", 
-      { requestId: this.getRequestId(request) }
+      { requestId: this.getRequestId(request), manifestURL: this._manifestURL }
     );
     return request;
   },
@@ -134,8 +144,7 @@ AlarmsManager.prototype = {
     let principal = aWindow.document.nodePrincipal;
     let secMan = Cc["@mozilla.org/scriptsecuritymanager;1"].getService(Ci.nsIScriptSecurityManager);
 
-    let perm = principal == secMan.getSystemPrincipal() ? 
-      Ci.nsIPermissionManager.ALLOW_ACTION : Services.perms.testExactPermission(principal.URI, "alarms");
+    let perm = Services.perms.testExactPermissionFromPrincipal(principal, "alarms");
 
     // Only pages with perm set can use the alarms.
     this.hasPrivileges = perm == Ci.nsIPermissionManager.ALLOW_ACTION;
@@ -150,12 +159,10 @@ AlarmsManager.prototype = {
                               "AlarmsManager:GetAll:Return:OK", "AlarmsManager:GetAll:Return:KO"]);
 
     // Get the manifest URL if this is an installed app
-    this._manifestURL = null;
-    let utils = aWindow.QueryInterface(Ci.nsIInterfaceRequestor)
-                       .getInterface(Components.interfaces.nsIDOMWindowUtils);
-    let app = utils.getApp();
-    if (app)
-      this._manifestURL = app.manifestURL;
+    let appsService = Cc["@mozilla.org/AppsService;1"]
+                        .getService(Ci.nsIAppsService);
+    this._pageURL = principal.URI.spec;
+    this._manifestURL = appsService.getManifestURLByLocalId(principal.appId);
   },
 
   // Called from DOMRequestIpcHelper.

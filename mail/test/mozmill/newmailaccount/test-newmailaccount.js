@@ -23,13 +23,12 @@ var MODULE_REQUIRES = ['folder-display-helpers',
 var controller = {};
 var mozmill = {};
 var elib = {};
-let httpd = {};
 Cu.import('resource://mozmill/modules/controller.js', controller);
 Cu.import('resource://mozmill/modules/mozmill.js', mozmill);
 Cu.import('resource://mozmill/modules/elementslib.js', elib);
 Cu.import('resource://gre/modules/Services.jsm');
 Cu.import("resource:///modules/mailServices.js");
-Cu.import('resource://mozmill/stdlib/httpd.js', httpd);
+Cu.import('resource://mozmill/stdlib/httpd.js');
 
 // RELATIVE_ROOT messes with the collector, so we have to bring the path back
 // so we get the right path for the resources.
@@ -1065,7 +1064,7 @@ function subtest_disabled_fields_when_searching(aController) {
   }
 
   // Set up a mock HTTP server to serve up a super slow search...
-  let server = httpd.getServer(kDefaultServerPort, '');
+  let server = new HttpServer();;
   server.registerPathHandler(kSuggestPath, slow_results);
   server.start(kDefaultServerPort);
 
@@ -1202,7 +1201,7 @@ function test_search_button_disabled_if_no_query_on_init() {
     .getService(Ci.nsIDOMStorageManager);
 
   let uri = Services.io.newURI(url, "", null);
-  let principal = ssm.getCodebasePrincipal(uri);
+  let principal = ssm.getNoAppCodebasePrincipal(uri);
   let storage = dsm.getLocalStorageForPrincipal(principal, url);
 
   // Ok, got it. Now let's blank out the name.

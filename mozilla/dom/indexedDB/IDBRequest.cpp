@@ -29,7 +29,7 @@ USING_INDEXEDDB_NAMESPACE
 
 IDBRequest::IDBRequest()
 : mResultVal(JSVAL_VOID),
-  mActorParent(nsnull),
+  mActorParent(nullptr),
   mErrorCode(NS_OK),
   mHaveResultOrErrorCode(false),
   mLineNo(0)
@@ -56,7 +56,7 @@ IDBRequest::Create(nsISupports* aSource,
   request->mTransaction = aTransaction;
   request->BindToOwner(aOwnerCache);
   if (!request->SetScriptOwner(aOwnerCache->GetScriptOwner())) {
-    return nsnull;
+    return nullptr;
   }
 
   request->CaptureCaller(aCallingCx);
@@ -70,7 +70,7 @@ IDBRequest::Reset()
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   mResultVal = JSVAL_VOID;
   mHaveResultOrErrorCode = false;
-  mError = nsnull;
+  mError = nullptr;
 }
 
 nsresult
@@ -109,22 +109,16 @@ IDBRequest::NotifyHelperCompleted(HelperBase* aHelper)
   NS_ASSERTION(global, "This should never be null!");
 
   JSAutoRequest ar(cx);
-  JSAutoEnterCompartment ac;
-  if (ac.enter(cx, global)) {
-    AssertIsRooted();
+  JSAutoCompartment ac(cx, global);
+  AssertIsRooted();
 
-    rv = aHelper->GetSuccessResult(cx, &mResultVal);
-    if (NS_FAILED(rv)) {
-      NS_WARNING("GetSuccessResult failed!");
-    }
-  }
-  else {
-    NS_WARNING("Failed to enter correct compartment!");
-    rv = NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR;
+  rv = aHelper->GetSuccessResult(cx, &mResultVal);
+  if (NS_FAILED(rv)) {
+    NS_WARNING("GetSuccessResult failed!");
   }
 
   if (NS_SUCCEEDED(rv)) {
-    mError = nsnull;
+    mError = nullptr;
   }
   else {
     SetError(rv);
@@ -189,15 +183,15 @@ IDBRequest::GetJSContext()
     NS_ASSERTION(cxStack, "Failed to get thread context stack!");
 
     cx = cxStack->GetSafeJSContext();
-    NS_ENSURE_TRUE(cx, nsnull);
+    NS_ENSURE_TRUE(cx, nullptr);
 
     return cx;
   }
 
   nsresult rv;
   nsIScriptContext* sc = GetContextForEventHandlers(&rv);
-  NS_ENSURE_SUCCESS(rv, nsnull);
-  NS_ENSURE_TRUE(sc, nsnull);
+  NS_ENSURE_SUCCESS(rv, nullptr);
+  NS_ENSURE_TRUE(sc, nullptr);
 
   cx = sc->GetNativeContext();
   NS_ASSERTION(cx, "Failed to get a context!");
@@ -214,8 +208,8 @@ IDBRequest::CaptureCaller(JSContext* aCx)
     return;
   }
 
-  const char* filename = nsnull;
-  PRUint32 lineNo = 0;
+  const char* filename = nullptr;
+  uint32_t lineNo = 0;
   if (!nsJSUtils::GetCallingLocation(aCx, &filename, &lineNo)) {
     NS_WARNING("Failed to get caller.");
     return;
@@ -359,7 +353,7 @@ IDBOpenDBRequest::Create(nsPIDOMWindow* aOwner,
 
   request->BindToOwner(aOwner);
   if (!request->SetScriptOwner(aScriptOwner)) {
-    return nsnull;
+    return nullptr;
   }
 
   request->CaptureCaller(aCallingCx);

@@ -16,6 +16,12 @@ class nsDisplayListBuilder;
 class nsIFrame;
 class nsRenderingContext;
 
+namespace mozilla {
+namespace layers {
+class LayerManager;
+}
+}
+
 struct nsPoint;
 struct nsSize;
 
@@ -27,7 +33,7 @@ class nsSVGIntegrationUtils MOZ_FINAL
 {
 public:
   /**
-   * Returns true if a non-SVG frame has SVG effects.
+   * Returns true if SVG effects are currently applied to this frame.
    */
   static bool
   UsingEffectsForFrame(const nsIFrame* aFrame);
@@ -134,7 +140,7 @@ public:
   PaintFramesWithEffects(nsRenderingContext* aCtx,
                          nsIFrame* aFrame, const nsRect& aDirtyRect,
                          nsDisplayListBuilder* aBuilder,
-                         nsDisplayList* aInnerList);
+                         mozilla::layers::LayerManager* aManager);
 
   /**
    * SVG frames expect to paint in SVG user units, which are equal to CSS px

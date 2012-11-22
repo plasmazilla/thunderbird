@@ -10,6 +10,7 @@
 // Linux headers
 #include <fcntl.h>
 #include <unistd.h>
+#include <dlfcn.h>
 
 // Mozilla headers
 #include "nsIFile.h"
@@ -21,6 +22,7 @@
 
 const char kAPP_INI[] = "application.ini";
 const char kWEBAPP_INI[] = "webapp.ini";
+const char kWEBAPP_JSON[] = "webapp.json";
 const char kWEBAPPRT_INI[] = "webapprt.ini";
 const char kWEBAPPRT_PATH[] = "webapprt";
 const char kAPP_ENV_VAR[] = "XUL_APP_FILE";
@@ -41,7 +43,7 @@ const nsDynamicFunctionLoad kXULFuncs[] = {
   { "XRE_CreateAppData", (NSFuncPtr*) &XRE_CreateAppData },
   { "XRE_FreeAppData", (NSFuncPtr*) &XRE_FreeAppData },
   { "XRE_main", (NSFuncPtr*) &XRE_main },
-  { nsnull, nsnull }
+  { nullptr, nullptr }
 };
 
 class ScopedLogging
@@ -59,7 +61,7 @@ void SetAllocatedString(const char *&str, const char *newvalue)
     str = NS_strdup(newvalue);
   }
   else {
-    str = nsnull;
+    str = nullptr;
   }
 }
 
@@ -223,6 +225,82 @@ void CopyAndRelaunch(const char* firefoxDir, const char* curExePath)
   ErrorDialog("Couldn't execute the new webapprt-stub executable");
 }
 
+void RemoveApplication(nsINIParser& parser, const char* curExeDir, const char* profile)  {
+  if (!isProfileOverridden) {
+    // Remove the desktop entry file.
+    char desktopEntryFilePath[MAXPATHLEN];
+
+    char* dataDir = getenv("XDG_DATA_HOME");
+
+    if (dataDir && *dataDir) {
+      snprintf(desktopEntryFilePath, MAXPATHLEN, "%s/applications/owa-%s.desktop", dataDir, profile);
+    } else {
+      char* home = getenv("HOME");
+      snprintf(desktopEntryFilePath, MAXPATHLEN, "%s/.local/share/applications/owa-%s.desktop", home, profile);
+    }
+
+    unlink(desktopEntryFilePath);
+  }
+
+  // Remove the files from the installation directory.
+  char webAppIniPath[MAXPATHLEN];
+  snprintf(webAppIniPath, MAXPATHLEN, "%s/%s", curExeDir, kWEBAPP_INI);
+  unlink(webAppIniPath);
+
+  char curExePath[MAXPATHLEN];
+  snprintf(curExePath, MAXPATHLEN, "%s/%s", curExeDir, kAPP_RT);
+  unlink(curExePath);
+
+  char webAppJsonPath[MAXPATHLEN];
+  snprintf(webAppJsonPath, MAXPATHLEN, "%s/%s", curExeDir, kWEBAPP_JSON);
+  unlink(webAppJsonPath);
+
+  char iconPath[MAXPATHLEN];
+  snprintf(iconPath, MAXPATHLEN, "%s/icon.png", curExeDir);
+  unlink(iconPath);
+
+  char appName[MAXPATHLEN];
+  if (NS_FAILED(parser.GetString("Webapp", "Name", appName, MAXPATHLEN))) {
+    strcpy(appName, profile);
+  }
+
+  char uninstallMsg[MAXPATHLEN];
+  if (NS_SUCCEEDED(parser.GetString("Webapp", "UninstallMsg", uninstallMsg, MAXPATHLEN))) {
+    /**
+     * The only difference between libnotify.so.4 and libnotify.so.1 for these symbols
+     * is that notify_notification_new takes three arguments in libnotify.so.4 and
+     * four in libnotify.so.1.
+     * Passing the fourth argument as NULL is binary compatible.
+     */
+    typedef void  (*notify_init_t)(char*);
+    typedef void* (*notify_notification_new_t)(char*, char*, char*, char*);
+    typedef void  (*notify_notification_show_t)(void*, char*);
+
+    void *handle = dlopen("libnotify.so.4", RTLD_LAZY);
+    if (!handle) {
+      handle = dlopen("libnotify.so.1", RTLD_LAZY);
+      if (!handle)
+        return;
+    }
+
+    notify_init_t nn_init = (notify_init_t)dlsym(handle, "notify_init");
+    notify_notification_new_t nn_new = (notify_notification_new_t)dlsym(handle, "notify_notification_new");
+    notify_notification_show_t nn_show = (notify_notification_show_t)dlsym(handle, "notify_notification_show");
+    if (!nn_init || !nn_new || !nn_show) {
+      dlclose(handle);
+      return;
+    }
+
+    nn_init(appName);
+
+    void* n = nn_new(uninstallMsg, NULL, "dialog-information", NULL);
+
+    nn_show(n, NULL);
+
+    dlclose(handle);
+  }
+}
+
 int main(int argc, char *argv[])
 {
   pargc = &argc;
@@ -237,10 +315,13 @@ int main(int argc, char *argv[])
   char curExeDir[MAXPATHLEN];
   GetDirFromPath(curExeDir, curExePath);
 
+  bool removeApp = false;
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "-profile")) {
       isProfileOverridden = true;
-      break;
+    }
+    else if (!strcmp(argv[i], "-remove")) {
+      removeApp = true;
     }
   }
 
@@ -277,6 +358,11 @@ int main(int argc, char *argv[])
   if (NS_FAILED(parser.GetString("Webapp", "Profile", profile, MAXPATHLEN))) {
     ErrorDialog("Couldn't retrieve profile from web app INI file");
     return 255;
+  }
+
+  if (removeApp) {
+    RemoveApplication(parser, curExeDir, profile);
+    return 0;
   }
 
   // Get the location of Firefox from our webapp.ini

@@ -27,7 +27,7 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
     return side;
 }
 
-#define NS_FOR_CSS_FULL_CORNERS(var_) for (PRInt32 var_ = 0; var_ < 4; ++var_)
+#define NS_FOR_CSS_FULL_CORNERS(var_) for (int32_t var_ = 0; var_ < 4; ++var_)
 
 // Indices into "half corner" arrays (nsStyleCorners e.g.)
 #define NS_CORNER_TOP_LEFT_X      0
@@ -39,7 +39,7 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 #define NS_CORNER_BOTTOM_LEFT_X   6
 #define NS_CORNER_BOTTOM_LEFT_Y   7
 
-#define NS_FOR_CSS_HALF_CORNERS(var_) for (PRInt32 var_ = 0; var_ < 8; ++var_)
+#define NS_FOR_CSS_HALF_CORNERS(var_) for (int32_t var_ = 0; var_ < 8; ++var_)
 
 // The results of these conversion macros are exhaustively checked in
 // nsStyleCoord.cpp.
@@ -742,6 +742,7 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 #define NS_STYLE_UNICODE_BIDI_EMBED             0x1
 #define NS_STYLE_UNICODE_BIDI_ISOLATE           0x2
 #define NS_STYLE_UNICODE_BIDI_OVERRIDE          0x4
+#define NS_STYLE_UNICODE_BIDI_ISOLATE_OVERRIDE  0x6
 #define NS_STYLE_UNICODE_BIDI_PLAINTEXT         0x8
 
 // See nsStyleTable (here for HTML 4.0 for now, should probably change to side flags)
@@ -763,7 +764,7 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 #define NS_STYLE_TABLE_RULES_ALL                4
 
 #define NS_STYLE_TABLE_COLS_NONE                (-1)
-#define NS_STYLE_TABLE_COLS_ALL                 PRInt32(1 << 30)
+#define NS_STYLE_TABLE_COLS_ALL                 int32_t(1 << 30)
 
 #define NS_STYLE_TABLE_LAYOUT_AUTO              0
 #define NS_STYLE_TABLE_LAYOUT_FIXED             1

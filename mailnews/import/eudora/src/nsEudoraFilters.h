@@ -52,9 +52,9 @@ private:
   nsresult EnableFilter(bool enable);
   nsresult AddTerm(const char* pHeader, const char* pVerb, const char* pValue, bool addAnd, bool negateVerb);
 
-  nsresult AddAction(nsMsgRuleActionType actionType, PRInt32 junkScore = 0, nsMsgLabelValue label = 0,
-                     nsMsgPriorityValue priority = 0, const char* strValue = nsnull, const char* targetFolderUri = nsnull);
-  nsresult AddJunkAction(PRInt32 junkScore)
+  nsresult AddAction(nsMsgRuleActionType actionType, int32_t junkScore = 0, nsMsgLabelValue label = 0,
+                     nsMsgPriorityValue priority = 0, const char* strValue = nullptr, const char* targetFolderUri = nullptr);
+  nsresult AddJunkAction(int32_t junkScore)
            { return AddAction(nsMsgFilterAction::JunkScore, junkScore); }
   nsresult AddLabelAction(nsMsgLabelValue label)
            { return AddAction(nsMsgFilterAction::Label, 0, label); }

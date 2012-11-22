@@ -16,8 +16,13 @@
 #include "nsITimer.h"
 #include "nsTArray.h"
 #include "nsIAnonymousContentCreator.h"
-#include "Layers.h"
-#include "ImageLayers.h"
+
+namespace mozilla {
+namespace layers {
+class Layer;
+class LayerManager;
+}
+}
 
 class nsPresContext;
 class nsDisplayItem;
@@ -39,9 +44,9 @@ public:
                               const nsRect&           aDirtyRect,
                               const nsDisplayListSet& aLists);
 
-  NS_IMETHOD AttributeChanged(PRInt32 aNameSpaceID,
+  NS_IMETHOD AttributeChanged(int32_t aNameSpaceID,
                               nsIAtom* aAttribute,
-                              PRInt32 aModType);
+                              int32_t aModType);
 
   /* get the size of the video's display */
   nsSize GetVideoIntrinsicSize(nsRenderingContext *aRenderingContext);
@@ -49,7 +54,7 @@ public:
   virtual nsSize ComputeSize(nsRenderingContext *aRenderingContext,
                              nsSize aCBSize, nscoord aAvailableWidth,
                              nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                             PRUint32 aFlags) MOZ_OVERRIDE;
+                             uint32_t aFlags) MOZ_OVERRIDE;
   virtual nscoord GetMinWidth(nsRenderingContext *aRenderingContext);
   virtual nscoord GetPrefWidth(nsRenderingContext *aRenderingContext);
   virtual void DestroyFrom(nsIFrame* aDestructRoot);
@@ -66,14 +71,14 @@ public:
 
   virtual nsIAtom* GetType() const;
 
-  virtual bool IsFrameOfType(PRUint32 aFlags) const
+  virtual bool IsFrameOfType(uint32_t aFlags) const
   {
     return nsSplittableFrame::IsFrameOfType(aFlags & ~(nsIFrame::eReplaced));
   }
   
   virtual nsresult CreateAnonymousContent(nsTArray<ContentInfo>& aElements);
   virtual void AppendAnonymousContentTo(nsBaseContentList& aElements,
-                                        PRUint32 aFilters);
+                                        uint32_t aFilters);
 
   nsIContent* GetPosterImage() { return mPosterImage; }
 
@@ -108,10 +113,10 @@ protected:
   virtual ~nsVideoFrame();
 
   nsMargin mBorderPadding;
-  
+
   // Anonymous child which is bound via XBL to the video controls.
   nsCOMPtr<nsIContent> mVideoControls;
-  
+
   // Anonymous child which is the image element of the poster frame.
   nsCOMPtr<nsIContent> mPosterImage;
 };

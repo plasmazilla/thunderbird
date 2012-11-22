@@ -16,8 +16,9 @@
     throw new Error("osfile_win_front.jsm cannot be used from the main thread yet");
   }
 
-  importScripts("resource://gre/modules/osfile/osfile_shared.jsm");
   importScripts("resource://gre/modules/osfile/osfile_win_back.jsm");
+  importScripts("resource://gre/modules/osfile/ospath_win_back.jsm");
+  importScripts("resource://gre/modules/osfile/osfile_shared_front.jsm");
 
   (function(exports) {
      "use strict";
@@ -45,6 +46,10 @@
      let gBytesWritten = new ctypes.int32_t(-1);
      let gBytesWrittenPtr = gBytesWritten.address();
 
+     // Same story for GetFileInformationByHandle
+     let gFileInfo = new OS.Shared.Type.FILE_INFORMATION.implementation();
+     let gFileInfoPtr = gFileInfo.address();
+
      /**
       * Representation of a file.
       *
@@ -55,201 +60,127 @@
       * @constructor
       */
      let File = function File(fd) {
-       this._fd = fd;
+       exports.OS.Shared.AbstractFile.call(this, fd);
+       this._closeResult = null;
      };
-     File.prototype = {
-       /**
-        * If the file is open, this returns the file descriptor.
-        * Otherwise, throw a |File.Error|.
-        */
-       get fd() {
-         return this._fd;
-       },
+     File.prototype = Object.create(exports.OS.Shared.AbstractFile.prototype);
 
-       // Placeholder getter, used to replace |get fd| once
-       // the file is closed.
-       _nofd: function nofd(operation) {
-         operation = operation ||
-             this._nofd.caller.name ||
-             "unknown operation";
-         throw new File.Error(operation, Const.INVALID_HANDLE_VALUE);
-       },
-
-       /**
-        * Close the file.
-        *
-        * This method has no effect if the file is already closed. However,
-        * if the first call to |close| has thrown an error, further calls
-        * will throw the same error.
-        *
-        * @throws File.Error If closing the file revealed an error that could
-        * not be reported earlier.
-        */
-       close: function close() {
-         if (this._fd) {
-           let fd = this._fd;
-           this._fd = null;
-           delete this.fd;
-           Object.defineProperty(this, "fd", {get: File.prototype._nofd});
-           // Call CloseHandle(fd), detach finalizer
-           if (fd.dispose() == 0) {
-             this._closeResult = new File.Error("close", ctypes.errno);
-           }
+     /**
+      * Close the file.
+      *
+      * This method has no effect if the file is already closed. However,
+      * if the first call to |close| has thrown an error, further calls
+      * will throw the same error.
+      *
+      * @throws File.Error If closing the file revealed an error that could
+      * not be reported earlier.
+      */
+     File.prototype.close = function close() {
+       if (this._fd) {
+         let fd = this._fd;
+         this._fd = null;
+         // Call |close(fd)|, detach finalizer if any
+         // (|fd| may not be a CDataFinalizer if it has been
+         // instantiated from a controller thread).
+         let result = WinFile._CloseHandle(fd);
+         if (typeof fd == "object" && "forget" in fd) {
+           fd.forget();
          }
-         if (this._closeResult) {
-           throw this._closeResult;
+         if (result == -1) {
+           this._closeResult = new File.Error("close");
          }
-         return;
-       },
-       _closeResult: null,
-
-       /**
-        * Read some bytes from a file.
-        *
-        * @param {ArrayBuffer} buffer A buffer for holding the data
-        * once it is read.
-        * @param {number} nbytes The number of bytes to read. It must not
-        * exceed the size of |buffer| in bytes but it may exceed the number
-        * of bytes unread in the file.
-        * @param {*=} options Additional options for reading. Ignored in
-        * this implementation.
-        *
-        * @return {number} The number of bytes effectively read. If zero,
-        * the end of the file has been reached.
-        * @throws {OS.File.Error} In case of I/O error.
-        */
-       read: function read(buffer, nbytes, options) {
-         // |gBytesReadPtr| is a pointer to |gBytesRead|.
-         throw_on_zero("read",
-           WinFile.ReadFile(this.fd, buffer, nbytes, gBytesReadPtr, null)
-         );
-         return gBytesRead.value;
-       },
-
-       /**
-        * Write some bytes to a file.
-        *
-        * @param {ArrayBuffer} buffer A buffer holding the data that must be
-        * written.
-        * @param {number} nbytes The number of bytes to write. It must not
-        * exceed the size of |buffer| in bytes.
-        * @param {*=} options Additional options for writing. Ignored in
-        * this implementation.
-        *
-        * @return {number} The number of bytes effectively written.
-        * @throws {OS.File.Error} In case of I/O error.
-        */
-       write: function write(buffer, nbytes, options) {
-         // |gBytesWrittenPtr| is a pointer to |gBytesWritten|.
-         throw_on_zero("write",
-           WinFile.WriteFile(this.fd, buffer, nbytes, gBytesWrittenPtr, null)
-         );
-         return gBytesWritten.value;
-       },
-
-       /**
-        * Return the current position in the file.
-        */
-       getPosition: function getPosition(pos) {
-         return this.setPosition(0, File.POS_CURRENT);
-       },
-
-       /**
-        * Change the current position in the file.
-        *
-        * @param {number} pos The new position. Whether this position
-        * is considered from the current position, from the start of
-        * the file or from the end of the file is determined by
-        * argument |whence|.  Note that |pos| may exceed the length of
-        * the file.
-        * @param {number=} whence The reference position. If omitted or
-        * |OS.File.POS_START|, |pos| is taken from the start of the file.
-        * If |OS.File.POS_CURRENT|, |pos| is taken from the current position
-        * in the file. If |OS.File.POS_END|, |pos| is taken from the end of
-        * the file.
-        *
-        * @return The new position in the file.
-        */
-       setPosition: function setPosition(pos, whence) {
-         // We are cheating to avoid one unnecessary conversion:
-         // In this implementation,
-         // OS.File.POS_START == OS.Constants.Win.FILE_BEGIN
-         // OS.File.POS_CURRENT == OS.Constants.Win.FILE_CURRENT
-         // OS.File.POS_END == OS.Constants.Win.FILE_END
-         whence = (whence == undefined)?Const.FILE_BEGIN:whence;
-         return throw_on_negative("setPosition",
-	   WinFile.SetFilePointer(this.fd, pos, null, whence));
        }
+       if (this._closeResult) {
+         throw this._closeResult;
+       }
+       return;
      };
 
      /**
-      * A File-related error.
+      * Read some bytes from a file.
       *
-      * To obtain a human-readable error message, use method |toString|.
-      * To determine the cause of the error, use the various |becauseX|
-      * getters. To determine the operation that failed, use field
-      * |operation|.
+      * @param {ArrayBuffer} buffer A buffer for holding the data
+      * once it is read.
+      * @param {number} nbytes The number of bytes to read. It must not
+      * exceed the size of |buffer| in bytes but it may exceed the number
+      * of bytes unread in the file.
+      * @param {*=} options Additional options for reading. Ignored in
+      * this implementation.
       *
-      * Additionally, this implementation offers a field
-      * |winLastError|, which holds the OS-specific error
-      * constant. If you need this level of detail, you may match the value
-      * of this field against the error constants of |OS.Constants.Win|.
-      *
-      * @param {string=} operation The operation that failed. If unspecified,
-      * the name of the calling function is taken to be the operation that
-      * failed.
-      * @param {number=} lastError The OS-specific constant detailing the
-      * reason of the error. If unspecified, this is fetched from the system
-      * status.
-      *
-      * @constructor
-      * @extends {OS.Shared.Error}
+      * @return {number} The number of bytes effectively read. If zero,
+      * the end of the file has been reached.
+      * @throws {OS.File.Error} In case of I/O error.
       */
-     File.Error = function FileError(operation, lastError) {
-       operation = operation || File.Error.caller.name || "unknown operation";
-       OS.Shared.Error.call(this, operation);
-       this.winLastError = lastError || ctypes.winLastError;
-     };
-     File.Error.prototype = new OS.Shared.Error();
-     File.Error.prototype.toString = function toString() {
-         let buf = new (ctypes.ArrayType(ctypes.jschar, 1024))();
-         let result = WinFile.FormatMessage(
-           OS.Constants.Win.FORMAT_MESSAGE_FROM_SYSTEM |
-           OS.Constants.Win.FORMAT_MESSAGE_IGNORE_INSERTS,
-           null,
-           /* The error number */ this.winLastError,
-           /* Default language */ 0,
-           /* Output buffer*/     buf,
-           /* Minimum size of buffer */ 1024,
-           /* Format args*/       null
-         );
-         if (!result) {
-           buf = "additional error " +
-             ctypes.winLastError +
-             " while fetching system error message";
-         }
-         return "Win error " + this.winLastError + " during operation "
-           + this.operation + " (" + buf.readString() + " )";
+     File.prototype.read = function read(buffer, nbytes, options) {
+       // |gBytesReadPtr| is a pointer to |gBytesRead|.
+       throw_on_zero("read",
+         WinFile.ReadFile(this.fd, buffer, nbytes, gBytesReadPtr, null)
+       );
+       return gBytesRead.value;
      };
 
      /**
-      * |true| if the error was raised because a file or directory
-      * already exists, |false| otherwise.
+      * Write some bytes to a file.
+      *
+      * @param {ArrayBuffer} buffer A buffer holding the data that must be
+      * written.
+      * @param {number} nbytes The number of bytes to write. It must not
+      * exceed the size of |buffer| in bytes.
+      * @param {*=} options Additional options for writing. Ignored in
+      * this implementation.
+      *
+      * @return {number} The number of bytes effectively written.
+      * @throws {OS.File.Error} In case of I/O error.
       */
-     Object.defineProperty(File.Error.prototype, "becauseExists", {
-       get: function becauseExists() {
-         return this.winLastError == OS.Constants.Win.ERROR_FILE_EXISTS;
-       }
-     });
+     File.prototype.write = function write(buffer, nbytes, options) {
+       // |gBytesWrittenPtr| is a pointer to |gBytesWritten|.
+       throw_on_zero("write",
+         WinFile.WriteFile(this.fd, buffer, nbytes, gBytesWrittenPtr, null)
+       );
+       return gBytesWritten.value;
+     };
+
      /**
-      * |true| if the error was raised because a file or directory
-      * does not exist, |false| otherwise.
+      * Return the current position in the file.
       */
-     Object.defineProperty(File.Error.prototype, "becauseNoSuchFile", {
-       get: function becauseNoSuchFile() {
-         return this.winLastError == OS.Constants.Win.ERROR_FILE_NOT_FOUND;
+     File.prototype.getPosition = function getPosition(pos) {
+       return this.setPosition(0, File.POS_CURRENT);
+     };
+
+     /**
+      * Change the current position in the file.
+      *
+      * @param {number} pos The new position. Whether this position
+      * is considered from the current position, from the start of
+      * the file or from the end of the file is determined by
+      * argument |whence|.  Note that |pos| may exceed the length of
+      * the file.
+      * @param {number=} whence The reference position. If omitted
+      * or |OS.File.POS_START|, |pos| is relative to the start of the
+      * file.  If |OS.File.POS_CURRENT|, |pos| is relative to the
+      * current position in the file. If |OS.File.POS_END|, |pos| is
+      * relative to the end of the file.
+      *
+      * @return The new position in the file.
+      */
+     File.prototype.setPosition = function setPosition(pos, whence) {
+       if (whence === undefined) {
+         whence = Const.FILE_BEGIN;
        }
-     });
+       return throw_on_negative("setPosition",
+         WinFile.SetFilePointer(this.fd, pos, null, whence));
+     };
+
+     /**
+      * Fetch the information on the file.
+      *
+      * @return File.Info The information on |this| file.
+      */
+     File.prototype.stat = function stat() {
+       throw_on_zero("stat",
+         WinFile.GetFileInformationByHandle(this.fd, gFileInfoPtr));
+       return new File.Info(gFileInfo);
+     };
 
      // Constant used to normalize options.
      const noOptions = {};
@@ -320,7 +251,7 @@
       */
      File.open = function Win_open(path, mode, options) {
        options = options || noOptions;
-
+       mode = mode || noOptions;
        let share = options.winShare || DEFAULT_SHARE;
        let security = options.winSecurity || null;
        let flags = options.winFlags || DEFAULT_FLAGS;
@@ -335,7 +266,7 @@
          throw new TypeError("OS.File.open requires either both options " +
            "winAccess and winDisposition or neither");
        } else {
-         mode = OS.Shared._aux.normalizeOpenMode(mode);
+         mode = OS.Shared.AbstractFile.normalizeOpenMode(mode);
          if (mode.read) {
            access |= Const.GENERIC_READ;
          }
@@ -385,6 +316,45 @@
      File.remove = function remove(path) {
        throw_on_zero("remove",
          WinFile.DeleteFile(path));
+     };
+
+     /**
+      * Remove an empty directory.
+      *
+      * @param {string} path The name of the directory to remove.
+      * @param {*=} options Additional options.
+      *   - {bool} ignoreAbsent If |true|, do not fail if the
+      *     directory does not exist yet.
+      */
+     File.removeEmptyDir = function removeEmptyDir(path, options) {
+       options = options || noOptions;
+       let result = WinFile.RemoveDirectory(path);
+       if (!result) {
+         if (options.ignoreAbsent &&
+             ctypes.winLastError == Const.ERROR_FILE_NOT_FOUND) {
+           return;
+         }
+         throw new File.Error("removeEmptyDir");
+       }
+     };
+
+     /**
+      * Create a directory.
+      *
+      * @param {string} path The name of the directory.
+      * @param {*=} options Additional options. This
+      * implementation interprets the following fields:
+      *
+      * - {C pointer} winSecurity If specified, security attributes
+      * as per winapi function |CreateDirectory|. If unspecified,
+      * use the default security descriptor, inherited from the
+      * parent directory.
+      */
+     File.makeDir = function makeDir(path, options) {
+       options = options || noOptions;
+       let security = options.winSecurity || null;
+       throw_on_zero("makeDir",
+         WinFile.CreateDirectory(path, security));
      };
 
      /**
@@ -470,17 +440,21 @@
       * Utility function: convert a FILETIME to a JavaScript Date.
       */
      let FILETIME_to_Date = function FILETIME_to_Date(fileTime) {
-       LOG("fileTimeToDate:", fileTime);
        if (fileTime == null) {
          throw new TypeError("Expecting a non-null filetime");
        }
-       LOG("fileTimeToDate normalized:", fileTime);
-       throw_on_zero("FILETIME_to_Date", WinFile.FileTimeToSystemTime(fileTime.address(),
+       throw_on_zero("FILETIME_to_Date",
+                     WinFile.FileTimeToSystemTime(fileTime.address(),
                                                   gSystemTimePtr));
-       return new Date(gSystemTime.wYear, gSystemTime.wMonth,
-                       gSystemTime.wDay, gSystemTime.wHour,
-                       gSystemTime.wMinute, gSystemTime.wSecond,
-                       gSystemTime.wMilliSeconds);
+       // Windows counts hours, minutes, seconds from UTC,
+       // JS counts from local time, so we need to go through UTC.
+       let utc = Date.UTC(gSystemTime.wYear,
+                          gSystemTime.wMonth - 1
+                          /*Windows counts months from 1, JS from 0*/,
+                          gSystemTime.wDay, gSystemTime.wHour,
+                          gSystemTime.wMinute, gSystemTime.wSecond,
+                          gSystemTime.wMilliSeconds);
+       return new Date(utc);
      };
 
      /**
@@ -614,13 +588,13 @@
         * |true| if the entry is a directory, |false| otherwise
         */
        get isDir() {
-         return this._dwFileAttributes & Const.FILE_ATTRIBUTE_DIRECTORY;
+         return !!(this._dwFileAttributes & Const.FILE_ATTRIBUTE_DIRECTORY);
        },
        /**
         * |true| if the entry is a symbolic link, |false| otherwise
         */
-       get isLink() {
-         return this._dwFileAttributes & Const.FILE_ATTRIBUTE_REPARSE_POINT;
+       get isSymLink() {
+         return !!(this._dwFileAttributes & Const.FILE_ATTRIBUTE_REPARSE_POINT);
        },
        /**
         * The name of the entry.
@@ -633,30 +607,30 @@
         * The creation time of this file.
         * @type {Date}
         */
-       get winCreationTime() {
+       get winCreationDate() {
          let date = FILETIME_to_Date(this._ftCreationTime);
-         delete this.winCreationTime;
-         Object.defineProperty(this, "winCreationTime", {value: date});
+         delete this.winCreationDate;
+         Object.defineProperty(this, "winCreationDate", {value: date});
          return date;
        },
        /**
         * The last modification time of this file.
         * @type {Date}
         */
-       get winLastWriteTime() {
+       get winLastWriteDate() {
          let date = FILETIME_to_Date(this._ftLastWriteTime);
-         delete this.winLastWriteTime;
-         Object.defineProperty(this, "winLastWriteTime", {value: date});
+         delete this.winLastWriteDate;
+         Object.defineProperty(this, "winLastWriteDate", {value: date});
          return date;
        },
        /**
         * The last access time of this file.
         * @type {Date}
         */
-       get winLastAccessTime() {
+       get winLastAccessDate() {
          let date = FILETIME_to_Date(this._ftLastAccessTime);
-         delete this.winLastAccessTime;
-         Object.defineProperty(this, "winLastAccessTime", {value: date});
+         delete this.winLastAccessDate;
+         Object.defineProperty(this, "winLastAccessDate", {value: date});
          return date;
        },
        /**
@@ -669,6 +643,161 @@
          Object.defineProperty(this, "path", {value: path});
          return path;
        }
+     };
+
+     /**
+      * Return a version of an instance of
+      * File.DirectoryIterator.Entry that can be sent from a worker
+      * thread to the main thread. Note that deserialization is
+      * asymmetric and returns an object with a different
+      * implementation.
+      */
+     File.DirectoryIterator.Entry.toMsg = function toMsg(value) {
+       if (!value instanceof File.DirectoryIterator.Entry) {
+         throw new TypeError("parameter of " +
+           "File.DirectoryIterator.Entry.toMsg must be a " +
+           "File.DirectoryIterator.Entry");
+       }
+       let serialized = {};
+       for (let key in File.DirectoryIterator.Entry.prototype) {
+         serialized[key] = value[key];
+       }
+       return serialized;
+     };
+
+
+     /**
+      * Information on a file.
+      *
+      * To obtain the latest information on a file, use |File.stat|
+      * (for an unopened file) or |File.prototype.stat| (for an
+      * already opened file).
+      *
+      * @constructor
+      */
+     File.Info = function Info(stat) {
+       this._dwFileAttributes = stat.dwFileAttributes;
+       this._ftCreationTime = stat.ftCreationTime;
+       this._ftLastAccessTime = stat.ftLastAccessTime;
+       this._ftLastWriteTime = stat.ftLastAccessTime;
+       this._nFileSizeHigh = stat.nFileSizeHigh;
+       this._nFileSizeLow = stat.nFileSizeLow;
+     };
+     File.Info.prototype = {
+       /**
+        * |true| if this file is a directory, |false| otherwise
+        */
+       get isDir() {
+         return !!(this._dwFileAttributes & Const.FILE_ATTRIBUTE_DIRECTORY);
+       },
+       /**
+        * |true| if this file is a symbolink link, |false| otherwise
+        */
+       get isSymLink() {
+         return !!(this._dwFileAttributes & Const.FILE_ATTRIBUTE_REPARSE_POINT);
+       },
+       /**
+        * The size of the file, in bytes.
+        *
+        * Note that the result may be |NaN| if the size of the file cannot be
+        * represented in JavaScript.
+        *
+        * @type {number}
+        */
+       get size() {
+         let value = ctypes.UInt64.join(this._nFileSizeHigh, this._nFileSizeLow);
+         return exports.OS.Shared.Type.uint64_t.importFromC(value);
+       },
+       /**
+        * The date of creation of this file
+        *
+        * @type {Date}
+        */
+       get creationDate() {
+         delete this.creationDate;
+         let date = FILETIME_to_Date(this._ftCreationTime);
+         Object.defineProperty(this, "creationDate", { value: date });
+         return date;
+       },
+       /**
+        * The date of last access to this file.
+        *
+        * Note that the definition of last access may depend on the
+        * underlying operating system and file system.
+        *
+        * @type {Date}
+        */
+       get lastAccessDate() {
+         delete this.lastAccess;
+         let date = FILETIME_to_Date(this._ftLastAccessTime);
+         Object.defineProperty(this, "lastAccessDate", { value: date });
+         return date;
+       },
+       /**
+        * Return the date of last modification of this file.
+        *
+        * Note that the definition of last access may depend on the
+        * underlying operating system and file system.
+        *
+        * @type {Date}
+        */
+       get lastModificationDate() {
+         delete this.lastModification;
+         let date = FILETIME_to_Date(this._ftLastWriteTime);
+         Object.defineProperty(this, "lastModificationDate", { value: date });
+         return date;
+       }
+     };
+
+     /**
+      * Return a version of an instance of File.Info that can be sent
+      * from a worker thread to the main thread. Note that deserialization
+      * is asymmetric and returns an object with a different implementation.
+      */
+     File.Info.toMsg = function toMsg(stat) {
+       if (!stat instanceof File.Info) {
+         throw new TypeError("parameter of File.Info.toMsg must be a File.Info");
+       }
+       let serialized = {};
+       for (let key in File.Info.prototype) {
+         serialized[key] = stat[key];
+       }
+       return serialized;
+     };
+
+
+     /**
+      * Fetch the information on a file.
+      *
+      * Performance note: if you have opened the file already,
+      * method |File.prototype.stat| is generally much faster
+      * than method |File.stat|.
+      *
+      * Platform-specific note: under Windows, if the file is
+      * already opened without sharing of the read capability,
+      * this function will fail.
+      *
+      * @return {File.Information}
+      */
+     File.stat = function stat(path) {
+       let file = File.open(path, FILE_STAT_MODE, FILE_STAT_OPTIONS);
+       try {
+         return file.stat();
+       } finally {
+         file.close();
+       }
+     };
+     // All of the following is required to ensure that File.stat
+     // also works on directories.
+     const FILE_STAT_MODE = {
+       read:true
+     };
+     const FILE_STAT_OPTIONS = {
+       // Directories can be opened neither for reading(!) nor for writing
+       winAccess: 0,
+       // Directories can only be opened with backup semantics(!)
+       winFlags: OS.Constants.Win.FILE_FLAG_BACKUP_SEMANTICS,
+       winDisposition: OS.Constants.Win.OPEN_EXISTING
      };
 
      /**
@@ -740,17 +869,14 @@
        return result;
      }
 
-
-
-
-     // Constants
-
-     // Constants for File.prototype.setPosition
-     File.POS_START = Const.FILE_BEGIN;
-     File.POS_CURRENT = Const.FILE_CURRENT;
-     File.POS_END = Const.FILE_END;
-
      File.Win = exports.OS.Win.File;
+     File.Error = exports.OS.Shared.Win.Error;
      exports.OS.File = File;
+
+     exports.OS.Path = exports.OS.Win.Path;
+
+     Object.defineProperty(File, "POS_START", { value: OS.Shared.POS_START });
+     Object.defineProperty(File, "POS_CURRENT", { value: OS.Shared.POS_CURRENT });
+     Object.defineProperty(File, "POS_END", { value: OS.Shared.POS_END });
    })(this);
 }

@@ -66,7 +66,7 @@ public:
   {
     NS_ASSERTION(!mCalls.Contains(aCall), "Already know about this one!");
     mCalls.AppendElement(aCall);
-    mCallsArray = nsnull;
+    mCallsArray = nullptr;
     NotifyCallsChanged(aCall);
   }
 
@@ -75,7 +75,7 @@ public:
   {
     NS_ASSERTION(mCalls.Contains(aCall), "Didn't know about this one!");
     mCalls.RemoveElement(aCall);
-    mCallsArray = nsnull;
+    mCallsArray = nullptr;
     NotifyCallsChanged(aCall);
   }
 
@@ -97,6 +97,11 @@ private:
 
   nsresult
   NotifyCallsChanged(TelephonyCall* aCall);
+
+  nsresult
+  DialInternal(bool isEmergency,
+               const nsAString& aNumber,
+               nsIDOMTelephonyCall** aResult);
 
   class RILTelephonyCallback : public nsIRILTelephonyCallback
   {

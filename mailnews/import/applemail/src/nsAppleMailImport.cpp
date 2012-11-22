@@ -26,7 +26,7 @@
 #include "nsEmlxHelperUtils.h"
 #include "nsAppleMailImport.h"
 
-PRLogModuleInfo *APPLEMAILLOGMODULE = nsnull;
+PRLogModuleInfo *APPLEMAILLOGMODULE = nullptr;
 
 // some hard-coded strings
 #define DEFAULT_MAIL_FOLDER "~/Library/Mail/"
@@ -100,7 +100,7 @@ NS_IMETHODIMP nsAppleMailImportModule::GetImportInterface(const char *aImportTyp
 {
   NS_ENSURE_ARG_POINTER(aImportType);
   NS_ENSURE_ARG_POINTER(aInterface);
-  *aInterface = nsnull;
+  *aInterface = nullptr;
   nsresult rv = NS_ERROR_NOT_AVAILABLE;
 
   if (!strcmp(aImportType, "mail")) {
@@ -160,7 +160,7 @@ NS_IMETHODIMP nsAppleMailImportMail::GetDefaultLocation(nsIFile **aLocation, boo
   NS_ENSURE_ARG_POINTER(aLocation);
   NS_ENSURE_ARG_POINTER(aUserVerify);
 
-  *aLocation = nsnull;
+  *aLocation = nullptr;
   *aFound = false;
   *aUserVerify = true;
 
@@ -324,7 +324,7 @@ nsresult nsAppleMailImportMail::AddMboxDir(nsIFile *aFolder, nsISupportsArray *a
   nsresult rv = aImportService->CreateNewMailboxDescriptor(getter_AddRefs(desc));
   if (NS_SUCCEEDED(rv)) {
     // find out number of messages in this .mbox
-    PRUint32 numMessages = 0;
+    uint32_t numMessages = 0;
     {
       // move to the .mbox's Messages folder
       nsCOMPtr<nsIFile> messagesFolder;
@@ -493,7 +493,7 @@ nsAppleMailImportMail::ImportMailbox(nsIImportMailboxDescriptor *aMailbox,
 
   // if we're an account mailbox, nothing do. if we're a real mbox
   // then we've got some messages to import!
-  PRUint32 mailboxIdentifier;
+  uint32_t mailboxIdentifier;
   aMailbox->GetIdentifier(&mailboxIdentifier);
 
   if (mailboxIdentifier != kAccountMailboxID) {
@@ -507,7 +507,7 @@ nsAppleMailImportMail::ImportMailbox(nsIImportMailboxDescriptor *aMailbox,
       //
       // just indicate that we're done, using the same number that we used to estimate
       // number of messages earlier.
-      PRUint32 finalSize;
+      uint32_t finalSize;
       aMailbox->GetSize(&finalSize);
       mProgress = finalSize;
 
@@ -587,7 +587,7 @@ nsAppleMailImportMail::ImportMailbox(nsIImportMailboxDescriptor *aMailbox,
   }
   // just indicate that we're done, using the same number that we used to estimate
   // number of messages earlier.
-  PRUint32 finalSize;
+  uint32_t finalSize;
   aMailbox->GetSize(&finalSize);
   mProgress = finalSize;
 
@@ -598,7 +598,7 @@ nsAppleMailImportMail::ImportMailbox(nsIImportMailboxDescriptor *aMailbox,
   return NS_OK;
 }
 
-void nsAppleMailImportMail::ReportStatus(PRInt32 aErrorNum, nsString &aName, nsAString &aStream)
+void nsAppleMailImportMail::ReportStatus(int32_t aErrorNum, nsString &aName, nsAString &aStream)
 {
   // get (and format, if needed) the error string from the bundle  
   nsAutoString outString;
@@ -619,7 +619,7 @@ void nsAppleMailImportMail::SetLogs(const nsAString &aSuccess, const nsAString &
     *aOutSuccess = ToNewUnicode(aSuccess);
 }
 
-NS_IMETHODIMP nsAppleMailImportMail::GetImportProgress(PRUint32 *aDoneSoFar)
+NS_IMETHODIMP nsAppleMailImportMail::GetImportProgress(uint32_t *aDoneSoFar)
 {
   NS_ENSURE_ARG_POINTER(aDoneSoFar);
   *aDoneSoFar = mProgress;

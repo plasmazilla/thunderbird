@@ -19,8 +19,19 @@ XPCOMUtils.defineLazyModuleGetter(this, "PlacesUtils",
 XPCOMUtils.defineLazyModuleGetter(this, "PageThumbs",
   "resource:///modules/PageThumbs.jsm");
 
+XPCOMUtils.defineLazyGetter(this, "gPrincipal", function () {
+  let uri = Services.io.newURI("about:newtab", null, null);
+  return Services.scriptSecurityManager.getNoAppCodebasePrincipal(uri);
+});
+
 // The preference that tells whether this feature is enabled.
 const PREF_NEWTAB_ENABLED = "browser.newtabpage.enabled";
+
+// The preference that tells the number of rows of the newtab grid.
+const PREF_NEWTAB_ROWS = "browser.newtabpage.rows";
+
+// The preference that tells the number of columns of the newtab grid.
+const PREF_NEWTAB_COLUMNS = "browser.newtabpage.columns";
 
 // The maximum number of results we want to retrieve from history.
 const HISTORY_RESULTS_LIMIT = 100;
@@ -36,11 +47,8 @@ let Storage = {
    * The dom storage instance used to persist data belonging to the New Tab Page.
    */
   get domStorage() {
-    let uri = Services.io.newURI("about:newtab", null, null);
-    let principal = Services.scriptSecurityManager.getCodebasePrincipal(uri);
-
     let sm = Services.domStorageManager;
-    let storage = sm.getLocalStorageForPrincipal(principal, "");
+    let storage = sm.getLocalStorageForPrincipal(gPrincipal, "");
 
     // Cache this value, overwrite the getter.
     let descriptor = {value: storage, enumerable: true};
@@ -183,6 +191,60 @@ let AllPages = {
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIObserver,
                                          Ci.nsISupportsWeakReference])
 };
+
+/**
+ * Singleton that keeps Grid preferences
+ */
+let GridPrefs = {
+  /**
+   * Cached value that tells the number of rows of newtab grid.
+   */
+  _gridRows: null,
+  get gridRows() {
+    if (!this._gridRows) {
+      this._gridRows = Math.max(1, Services.prefs.getIntPref(PREF_NEWTAB_ROWS));
+    }
+
+    return this._gridRows;
+  },
+
+  /**
+   * Cached value that tells the number of columns of newtab grid.
+   */
+  _gridColumns: null,
+  get gridColumns() {
+    if (!this._gridColumns) {
+      this._gridColumns = Math.max(1, Services.prefs.getIntPref(PREF_NEWTAB_COLUMNS));
+    }
+
+    return this._gridColumns;
+  },
+
+
+  /**
+   * Initializes object. Adds a preference observer
+   */
+  init: function GridPrefs_init() {
+    Services.prefs.addObserver(PREF_NEWTAB_ROWS, this, false);
+    Services.prefs.addObserver(PREF_NEWTAB_COLUMNS, this, false);
+  },
+
+  /**
+   * Implements the nsIObserver interface to get notified when the preference
+   * value changes.
+   */
+  observe: function GridPrefs_observe(aSubject, aTopic, aData) {
+    if (aData == PREF_NEWTAB_ROWS) {
+      this._gridRows = null;
+    } else {
+      this._gridColumns = null;
+    }
+
+    AllPages.update();
+  }
+};
+
+GridPrefs.init();
 
 /**
  * Singleton that keeps track of all pinned links and their positions in the
@@ -366,8 +428,10 @@ let PlacesProvider = {
 
         while (row = aResultSet.getNextRow()) {
           let url = row.getResultByIndex(1);
-          let title = row.getResultByIndex(2);
-          links.push({url: url, title: title});
+          if (LinkChecker.checkLoadURI(url)) {
+            let title = row.getResultByIndex(2);
+            links.push({url: url, title: title});
+          }
         }
       },
 
@@ -550,6 +614,37 @@ let Telemetry = {
   }
 };
 
+/**
+ * Singleton that checks if a given link should be displayed on about:newtab
+ * or if we should rather not do it for security reasons. URIs that inherit
+ * their caller's principal will be filtered.
+ */
+let LinkChecker = {
+  _cache: {},
+
+  get flags() {
+    return Ci.nsIScriptSecurityManager.DISALLOW_INHERIT_PRINCIPAL;
+  },
+
+  checkLoadURI: function LinkChecker_checkLoadURI(aURI) {
+    if (!(aURI in this._cache))
+      this._cache[aURI] = this._doCheckLoadURI(aURI);
+
+    return this._cache[aURI];
+  },
+
+  _doCheckLoadURI: function Links_doCheckLoadURI(aURI) {
+    try {
+      Services.scriptSecurityManager.
+        checkLoadURIStrWithPrincipal(gPrincipal, aURI, this.flags);
+      return true;
+    } catch (e) {
+      // We got a weird URI or one that would inherit the caller's principal.
+      return false;
+    }
+  }
+};
+
 let ExpirationFilter = {
   init: function ExpirationFilter_init() {
     PageThumbs.addExpirationFilter(this);
@@ -604,8 +699,10 @@ let NewTabUtils = {
     }, true);
   },
 
-  allPages: AllPages,
   links: Links,
+  allPages: AllPages,
+  linkChecker: LinkChecker,
   pinnedLinks: PinnedLinks,
-  blockedLinks: BlockedLinks
+  blockedLinks: BlockedLinks,
+  gridPrefs: GridPrefs
 };

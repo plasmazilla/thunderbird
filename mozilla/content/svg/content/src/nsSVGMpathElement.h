@@ -52,17 +52,17 @@ public:
                               bool aCompileEventHandlers);
   virtual void UnbindFromTree(bool aDeep, bool aNullParent);
 
-  virtual nsresult UnsetAttr(PRInt32 aNamespaceID, nsIAtom* aAttribute,
+  virtual nsresult UnsetAttr(int32_t aNamespaceID, nsIAtom* aAttribute,
                              bool aNotify);
   // nsGenericElement specializations
-  virtual bool ParseAttribute(PRInt32 aNamespaceID,
+  virtual bool ParseAttribute(int32_t aNamespaceID,
                                 nsIAtom* aAttribute,
                                 const nsAString& aValue,
                                 nsAttrValue& aResult);
 
   // Public helper method: If our xlink:href attribute links to a <path>
   // element, this method returns a pointer to that element. Otherwise,
-  // this returns nsnull.
+  // this returns nullptr.
   nsSVGPathElement* GetReferencedPath();
 
   virtual nsXPCClassInfo* GetClassInfo();

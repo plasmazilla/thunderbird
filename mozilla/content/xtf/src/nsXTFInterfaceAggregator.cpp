@@ -36,7 +36,7 @@ public:
   // nsISupports interface
   NS_DECL_ISUPPORTS
   
-  NS_IMETHOD CallMethod(PRUint16 methodIndex,
+  NS_IMETHOD CallMethod(uint16_t methodIndex,
                         const XPTMethodDescriptor* info,
                         nsXPTCMiniVariant* params);
 
@@ -78,7 +78,7 @@ NS_NewXTFInterfaceAggregator(const nsIID& iid,
                              nsISupports* inner,
                              nsISupports* outer,
                              void** aResult){
-  NS_PRECONDITION(aResult != nsnull, "null ptr");
+  NS_PRECONDITION(aResult != nullptr, "null ptr");
   if (!aResult)
     return NS_ERROR_NULL_POINTER;
 
@@ -119,7 +119,7 @@ nsXTFInterfaceAggregator::QueryInterface(REFNSIID aIID, void** aInstancePtr)
 // nsXPTCStubBase implementation
 
 NS_IMETHODIMP
-nsXTFInterfaceAggregator::CallMethod(PRUint16 methodIndex,
+nsXTFInterfaceAggregator::CallMethod(uint16_t methodIndex,
                                      const XPTMethodDescriptor *info,
                                      nsXPTCMiniVariant* params)
 {
@@ -130,7 +130,7 @@ nsXTFInterfaceAggregator::CallMethod(PRUint16 methodIndex,
   int paramCount = info->num_args;
   nsXPTCVariant* fullPars;
   if (!paramCount) {
-    fullPars = nsnull;
+    fullPars = nullptr;
   }
   else {
     fullPars = new nsXPTCVariant[paramCount];
@@ -140,7 +140,7 @@ nsXTFInterfaceAggregator::CallMethod(PRUint16 methodIndex,
 
   for (int i=0; i<paramCount; ++i) {
     const nsXPTParamInfo& paramInfo = info->params[i];
-    PRUint8 flags = paramInfo.IsOut() ? nsXPTCVariant::PTR_IS_DATA : 0;
+    uint8_t flags = paramInfo.IsOut() ? nsXPTCVariant::PTR_IS_DATA : 0;
     fullPars[i].Init(params[i], paramInfo.GetType(), flags);
   }
   

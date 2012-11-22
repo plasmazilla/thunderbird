@@ -36,17 +36,17 @@ public:
     nsrefcnt Release(void);
 
     // These functions exist so that browsercomps can refcount a gfxASurface
-    virtual nsresult AddRefExternal(void)
+    virtual nsrefcnt AddRefExternal(void)
     {
       return AddRef();
     }
-    virtual nsresult ReleaseExternal(void)
+    virtual nsrefcnt ReleaseExternal(void)
     {
       return Release();
     }
 #else
-    virtual nsresult AddRef(void);
-    virtual nsresult Release(void);
+    virtual nsrefcnt AddRef(void);
+    virtual nsrefcnt Release(void);
 #endif
 
 public:
@@ -106,7 +106,7 @@ public:
 
     /*** this DOES NOT addref the surface */
     cairo_surface_t *CairoSurface() {
-        NS_ASSERTION(mSurface != nsnull, "gfxASurface::CairoSurface called with mSurface == nsnull!");
+        NS_ASSERTION(mSurface != nullptr, "gfxASurface::CairoSurface called with mSurface == nullptr!");
         return mSurface;
     }
 
@@ -146,13 +146,13 @@ public:
                                                                const gfxIntSize& aSize);
 
     /**
-     * Returns an image surface for this surface, or nsnull if not supported.
+     * Returns an image surface for this surface, or nullptr if not supported.
      * This will not copy image data, just wraps an image surface around
      * pixel data already available in memory.
      */
     virtual already_AddRefed<gfxImageSurface> GetAsImageSurface()
     {
-      return nsnull;
+      return nullptr;
     }
 
     int CairoStatus();
@@ -161,18 +161,18 @@ public:
      * using 4 bytes per pixel; optionally, make sure that either dimension
      * doesn't exceed the given limit.
      */
-    static bool CheckSurfaceSize(const gfxIntSize& sz, PRInt32 limit = 0);
+    static bool CheckSurfaceSize(const gfxIntSize& sz, int32_t limit = 0);
 
     /* Provide a stride value that will respect all alignment requirements of
      * the accelerated image-rendering code.
      */
-    static PRInt32 FormatStrideForWidth(gfxImageFormat format, PRInt32 width);
+    static int32_t FormatStrideForWidth(gfxImageFormat format, int32_t width);
 
     /* Return the default set of context flags for this surface; these are
      * hints to the context about any special rendering considerations.  See
      * gfxContext::SetFlag for documentation.
      */
-    virtual PRInt32 GetDefaultContextFlags() const { return 0; }
+    virtual int32_t GetDefaultContextFlags() const { return 0; }
 
     static gfxContentType ContentFromFormat(gfxImageFormat format);
 
@@ -184,7 +184,7 @@ public:
      * for allocations and negative bytes for deallocations.
      */
     static void RecordMemoryUsedForSurfaceType(gfxASurface::gfxSurfaceType aType,
-                                               PRInt32 aBytes);
+                                               int32_t aBytes);
 
     /**
      * Same as above, but use current surface type as returned by GetType().
@@ -192,10 +192,10 @@ public:
      * in which case the value that was recorded for this surface will
      * be freed.
      */
-    void RecordMemoryUsed(PRInt32 aBytes);
+    void RecordMemoryUsed(int32_t aBytes);
     void RecordMemoryFreed();
 
-    virtual PRInt32 KnownMemoryUsed() { return mBytesRecorded; }
+    virtual int32_t KnownMemoryUsed() { return mBytesRecorded; }
 
     /**
      * The memory used by this surface (as reported by KnownMemoryUsed()) can
@@ -214,7 +214,7 @@ public:
      */
     virtual MemoryLocation GetMemoryLocation() const;
 
-    static PRInt32 BytePerPixelFromFormat(gfxImageFormat format);
+    static int32_t BytePerPixelFromFormat(gfxImageFormat format);
 
     virtual const gfxIntSize GetSize() const { return gfxIntSize(-1, -1); }
 
@@ -248,7 +248,7 @@ public:
 
     void SetOpaqueRect(const gfxRect& aRect) {
         if (aRect.IsEmpty()) {
-            mOpaqueRect = nsnull;
+            mOpaqueRect = nullptr;
         } else if (mOpaqueRect) {
             *mOpaqueRect = aRect;
         } else {
@@ -282,7 +282,7 @@ public:
     bool GetAllowUseAsSource() { return mAllowUseAsSource; }
 
 protected:
-    gfxASurface() : mSurface(nsnull), mFloatingRefs(0), mBytesRecorded(0),
+    gfxASurface() : mSurface(nullptr), mFloatingRefs(0), mBytesRecorded(0),
                     mSurfaceValid(false), mAllowUseAsSource(true)
     {
         MOZ_COUNT_CTOR(gfxASurface);
@@ -317,8 +317,8 @@ protected:
 private:
     static void SurfaceDestroyFunc(void *data);
 
-    PRInt32 mFloatingRefs;
-    PRInt32 mBytesRecorded;
+    int32_t mFloatingRefs;
+    int32_t mBytesRecorded;
 
 protected:
     bool mSurfaceValid;
@@ -370,7 +370,7 @@ public:
     RawRef mRef;
   };
 
-  static RawRef Void() { return nsnull; }
+  static RawRef Void() { return nullptr; }
   static void Release(RawRef aRawRef)
   {
     if (NS_IsMainThread()) {

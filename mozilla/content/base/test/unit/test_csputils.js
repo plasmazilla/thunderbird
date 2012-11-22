@@ -2,14 +2,19 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+const Cc = Components.classes;
+const Ci = Components.interfaces;
+const Cu = Components.utils;
+const Cr = Components.results;
+
 //load('CSPUtils.jsm');
-Components.utils.import('resource://gre/modules/CSPUtils.jsm');
-Components.utils.import('resource://gre/modules/NetUtil.jsm');
+Cu.import('resource://gre/modules/CSPUtils.jsm');
+Cu.import('resource://gre/modules/NetUtil.jsm');
 
 // load the HTTP server
-do_load_httpd_js();
+Cu.import("resource://testing-common/httpd.js");
 
-var httpServer = new nsHttpServer();
+var httpServer = new HttpServer();
 
 const POLICY_FROM_URI = "allow 'self'; img-src *";
 const POLICY_PORT = 9000;
@@ -18,8 +23,8 @@ const POLICY_URI_RELATIVE = "/policy";
 
 //converts string to nsIURI
 function URI(uriString) {
-  var ioService = Components.classes["@mozilla.org/network/io-service;1"]
-                .getService(Components.interfaces.nsIIOService);
+  var ioService = Cc["@mozilla.org/network/io-service;1"]
+                    .getService(Ci.nsIIOService);
   return ioService.newURI(uriString, null, null);
 }
 
@@ -46,7 +51,7 @@ function do_check_in_array(arr, val, stack) {
 
 // helper to assert that an object or array must have a given key
 function do_check_has_key(foo, key, stack) {
-  if (!stack) 
+  if (!stack)
     stack = Components.stack.caller;
 
   var keys = [];
@@ -67,7 +72,7 @@ function do_check_has_key(foo, key, stack) {
 
 // helper to use .equals on stuff
 function do_check_equivalent(foo, bar, stack) {
-  if (!stack) 
+  if (!stack)
     stack = Components.stack.caller;
 
   var text = foo + ".equals(" + bar + ")";
@@ -154,29 +159,35 @@ test(
     function test_CSPSource_fromString() {
     // can't do these tests because "self" is not defined.
       //"basic source should not be null.");
-      do_check_neq(null, CSPSource.fromString("a.com"));
+      do_check_neq(null, CSPSource.fromString("a.com", "http://abc.com"));
 
       //"ldh characters should all work for host.");
-      do_check_neq(null, CSPSource.fromString("a2-c.com"));
+      do_check_neq(null, CSPSource.fromString("a2-c.com", "https://a.com"));
 
       //"wildcard should work in first token for host.");
-      do_check_neq(null, CSPSource.fromString("*.a.com"));
+      do_check_neq(null, CSPSource.fromString("*.a.com", "http://abc.com"));
 
       //print(" --- Ignore the following two errors if they print ---");
       //"wildcard should not work in non-first token for host.");
-      do_check_eq(null, CSPSource.fromString("x.*.a.com"));
+      do_check_eq(null, CSPSource.fromString("x.*.a.com", "http://a.com"));
 
       //"funny characters (#) should not work for host.");
-      do_check_eq(null, CSPSource.fromString("a#2-c.com"));
+      do_check_eq(null, CSPSource.fromString("a#2-c.com", "http://a.com"));
 
       //print(" --- Stop ignoring errors that print ---\n");
 
       //"failed to parse host with port.");
-      do_check_neq(null, CSPSource.create("a.com:23"));
+      do_check_neq(null, CSPSource.create("a.com:23", "http://a.com"));
       //"failed to parse host with scheme.");
-      do_check_neq(null, CSPSource.create("https://a.com"));
+      do_check_neq(null, CSPSource.create("https://a.com", "http://a.com"));
       //"failed to parse host with scheme and port.");
-      do_check_neq(null, CSPSource.create("https://a.com:200"));
+      do_check_neq(null, CSPSource.create("https://a.com:200", "http://a.com"));
+
+      //Check to make sure we don't match multiple instances with regex
+      do_check_eq(null, CSPSource.create("http://foo.com:bar.com:23"));
+      //Port parsing should work for all schemes
+      do_check_neq(null, CSPSource.create("data:"));
+      do_check_neq(null, CSPSource.create("javascript:"));
     });
 
 test(
@@ -189,7 +200,7 @@ test(
       do_check_false(src.permits("http://a.com"));
       //"src should inherit scheme 'https'"
       do_check_true(src.permits("https://a.com"));
-      
+
       src = CSPSource.create("http://a.com", "https://foobar.com:443");
       //"src should inherit and require http scheme"
       do_check_false(src.permits("https://a.com"));
@@ -198,7 +209,7 @@ test(
       //"src should inherit port and scheme from parent"
       //"src should inherit default port for 'http'"
       do_check_true(src.permits("http://a.com:80"));
-      
+
       src = CSPSource.create("'self'", "https://foobar.com:443");
       //"src should inherit port *
       do_check_true(src.permits("https://foobar.com:443"));
@@ -265,6 +276,7 @@ test(
       var doubleSourceList = CSPSourceList.fromString("https://foo.com http://bar.com:88",
                                                       URI("http://self.com:88"));
       var allSourceList = CSPSourceList.fromString("*");
+      var allAndMoreSourceList = CSPSourceList.fromString("* https://bar.com 'none'");
 
       //'none' should permit none."
       do_check_false( nullSourceList.permits("http://a.com"));
@@ -288,6 +300,8 @@ test(
       //"* does not permit a long host with no port"
       do_check_true( allSourceList.permits("http://a.b.c.d.e.f.g.h.i.j.k.l.x.com"));
 
+      //* short circuts parsing
+      do_check_true(allAndMoreSourceList.permits("http://a.com"));
     });
 
 test(
@@ -296,7 +310,7 @@ test(
       // policy a /\ policy b intersects policies, not context (where 'self'
       // values come into play)
       var nullSourceList = CSPSourceList.fromString("'none'");
-      var simpleSourceList = CSPSourceList.fromString("a.com");
+      var simpleSourceList = CSPSourceList.fromString("http://a.com");
       var doubleSourceList = CSPSourceList.fromString("https://foo.com http://bar.com:88");
       var singleFooSourceList = CSPSourceList.fromString("https://foo.com");
       var allSourceList = CSPSourceList.fromString("*");
@@ -394,7 +408,7 @@ test(
       var DEFAULTS = [SD.STYLE_SRC, SD.MEDIA_SRC, SD.IMG_SRC, SD.FRAME_SRC];
 
       // check one-directive policies
-      cspr = CSPRep.fromString("allow bar.com; script-src https://foo.com", 
+      cspr = CSPRep.fromString("allow bar.com; script-src https://foo.com",
                                URI("http://self.com"));
 
       for(var x in DEFAULTS) {
@@ -494,6 +508,28 @@ test(function test_FrameAncestor_defaults() {
       do_check_false(cspr.permits("http://subd.self.com:34", SD.FRAME_ANCESTORS));
      });
 
+test(function test_FrameAncestor_TLD_defaultPorts() {
+      var cspr;
+      var SD = CSPRep.SRC_DIRECTIVES;
+      var self = "http://self"; //TLD only, no .com or anything.
+
+      cspr = CSPRep.fromString("allow 'self'; frame-ancestors 'self' http://foo:80 bar:80 http://three", URI(self));
+
+      //"frame-ancestors should default to * not 'allow' value"
+      do_check_true(cspr.permits("http://self", SD.FRAME_ANCESTORS));
+      do_check_true(cspr.permits("http://self:80", SD.FRAME_ANCESTORS));
+      do_check_true(cspr.permits("http://foo", SD.FRAME_ANCESTORS));
+      do_check_true(cspr.permits("http://foo:80", SD.FRAME_ANCESTORS));
+      do_check_true(cspr.permits("http://bar", SD.FRAME_ANCESTORS));
+      do_check_true(cspr.permits("http://three:80", SD.FRAME_ANCESTORS));
+
+      do_check_false(cspr.permits("https://foo:400", SD.FRAME_ANCESTORS));
+      do_check_false(cspr.permits("https://self:34", SD.FRAME_ANCESTORS));
+      do_check_false(cspr.permits("https://bar", SD.FRAME_ANCESTORS));
+      do_check_false(cspr.permits("http://three:81", SD.FRAME_ANCESTORS));
+      do_check_false(cspr.permits("https://three:81", SD.FRAME_ANCESTORS));
+     });
+
 test(function test_CSP_ReportURI_parsing() {
       var cspr;
       var SD = CSPRep.SRC_DIRECTIVES;
@@ -576,9 +612,9 @@ test(
       do_check_false(src.permits("http://a.com"));
       //"src should inherit scheme 'https'"
       do_check_true(src.permits("https://a.com"));
-      //"src should get default port 
+      //"src should get default port
       do_check_true(src.permits("https://a.com:443"));
-      
+
       src = CSPSource.create("http://a.com", "https://foobar.com:4443");
       //"src should require http scheme"
       do_check_false(src.permits("https://a.com"));
@@ -586,7 +622,7 @@ test(
       do_check_true(src.permits("http://a.com"));
       //"src should inherit default port for 'http'"
       do_check_true(src.permits("http://a.com:80"));
-      
+
       src = CSPSource.create("'self'", "https://foobar.com:4443");
       //"src should inherit nonstandard port from self
       do_check_true(src.permits("https://foobar.com:4443"));
@@ -619,6 +655,57 @@ test(
       do_check_true(p_all.permits("http://bar.com"));
       do_check_true(p_one.permits("http://bar.com"));
       do_check_false(p_none.permits("http://bar.com"));
+    });
+
+test(
+    function test_bug783497_refinePolicyIssues() {
+
+      const firstPolicy = "allow 'self'; img-src 'self'; script-src 'self'; options 'bogus-option'";
+      const secondPolicy = "default-src 'none'; script-src 'self'";
+      var cspObj = Cc["@mozilla.org/contentsecuritypolicy;1"]
+                     .createInstance(Ci.nsIContentSecurityPolicy);
+      var selfURI = URI("http://self.com/");
+
+      function testPermits(aUri, aContext) {
+        return cspObj.shouldLoad(aContext, aUri, null, null, null, null)
+               == Ci.nsIContentPolicy.ACCEPT;
+      };
+
+      // everything is allowed by the default policy
+      do_check_true(testPermits(URI("http://self.com/foo.js"),
+                    Ci.nsIContentPolicy.TYPE_SCRIPT));
+      do_check_true(testPermits(URI("http://other.com/foo.js"),
+                    Ci.nsIContentPolicy.TYPE_SCRIPT));
+      do_check_true(testPermits(URI("http://self.com/foo.png"),
+                    Ci.nsIContentPolicy.TYPE_IMAGE));
+      do_check_true(testPermits(URI("http://other.com/foo.png"),
+                    Ci.nsIContentPolicy.TYPE_IMAGE));
+
+      // fold in the first policy
+      cspObj.refinePolicy(firstPolicy, selfURI);
+
+      // script-src and img-src are limited to self after the first policy
+      do_check_true(testPermits(URI("http://self.com/foo.js"),
+                    Ci.nsIContentPolicy.TYPE_SCRIPT));
+      do_check_false(testPermits(URI("http://other.com/foo.js"),
+                     Ci.nsIContentPolicy.TYPE_SCRIPT));
+      do_check_true(testPermits(URI("http://self.com/foo.png"),
+                    Ci.nsIContentPolicy.TYPE_IMAGE));
+      do_check_false(testPermits(URI("http://other.com/foo.png"),
+                     Ci.nsIContentPolicy.TYPE_IMAGE));
+
+      // fold in the second policy
+      cspObj.refinePolicy(secondPolicy, selfURI);
+
+      // script-src is self and img-src is none after the merge
+      do_check_true(testPermits(URI("http://self.com/foo.js"),
+                    Ci.nsIContentPolicy.TYPE_SCRIPT));
+      do_check_false(testPermits(URI("http://other.com/foo.js"),
+                     Ci.nsIContentPolicy.TYPE_SCRIPT));
+      do_check_false(testPermits(URI("http://self.com/foo.png"),
+                     Ci.nsIContentPolicy.TYPE_IMAGE));
+      do_check_false(testPermits(URI("http://other.com/foo.png"),
+                     Ci.nsIContentPolicy.TYPE_IMAGE));
     });
 
 

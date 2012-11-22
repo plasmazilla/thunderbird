@@ -45,20 +45,20 @@ nsAbAddressCollector::GetCardFromProperty(const char *aName,
 {
   nsresult rv;
   nsCOMPtr<nsIAbManager> abManager(do_GetService(NS_ABMANAGER_CONTRACTID, &rv));
-  NS_ENSURE_SUCCESS(rv, nsnull);
+  NS_ENSURE_SUCCESS(rv, nullptr);
 
   nsCOMPtr<nsISimpleEnumerator> enumerator;
   rv = abManager->GetDirectories(getter_AddRefs(enumerator));
-  NS_ENSURE_SUCCESS(rv, nsnull);
+  NS_ENSURE_SUCCESS(rv, nullptr);
 
   bool hasMore;
   nsCOMPtr<nsISupports> supports;
   nsCOMPtr<nsIAbDirectory> directory;
-  nsIAbCard *result = nsnull;
+  nsIAbCard *result = nullptr;
   while (NS_SUCCEEDED(enumerator->HasMoreElements(&hasMore)) && hasMore)
   {
     rv = enumerator->GetNext(getter_AddRefs(supports));
-    NS_ENSURE_SUCCESS(rv, nsnull);
+    NS_ENSURE_SUCCESS(rv, nullptr);
 
     directory = do_QueryInterface(supports, &rv);
     if (NS_FAILED(rv))
@@ -77,13 +77,13 @@ nsAbAddressCollector::GetCardFromProperty(const char *aName,
       return result;
     }
   }
-  return nsnull;
+  return nullptr;
 }
 
 NS_IMETHODIMP
 nsAbAddressCollector::CollectAddress(const nsACString &aAddresses,
                                      bool aCreateCard,
-                                     PRUint32 aSendFormat)
+                                     uint32_t aSendFormat)
 {
   // If we've not got a valid directory, no point in going any further
   if (!mDirectory)
@@ -91,7 +91,7 @@ nsAbAddressCollector::CollectAddress(const nsACString &aAddresses,
 
   // note that we're now setting the whole recipient list,
   // not just the pretty name of the first recipient.
-  PRUint32 numAddresses;
+  uint32_t numAddresses;
   char *names;
   char *addresses;
 
@@ -108,7 +108,7 @@ nsAbAddressCollector::CollectAddress(const nsACString &aAddresses,
   char *curNamePtr = names;
   char *curAddressPtr = addresses;
 
-  for (PRUint32 i = 0; i < numAddresses; i++)
+  for (uint32_t i = 0; i < numAddresses; i++)
   {
     nsDependentCString curAddress(curAddressPtr);
     curAddressPtr += curAddress.Length() + 1;
@@ -140,7 +140,7 @@ NS_IMETHODIMP
 nsAbAddressCollector::CollectSingleAddress(const nsACString &aEmail,
                                            const nsACString &aDisplayName,
                                            bool aCreateCard,
-                                           PRUint32 aSendFormat,
+                                           uint32_t aSendFormat,
                                            bool aSkipCheckExisting)
 {
   if (!mDirectory)
@@ -208,7 +208,7 @@ nsAbAddressCollector::CollectSingleAddress(const nsACString &aEmail,
 
     if (aSendFormat != nsIAbPreferMailFormat::unknown)
     {
-      PRUint32 currentFormat;
+      uint32_t currentFormat;
       rv = card->GetPropertyAsUint32(kPreferMailFormatProperty,
                                      &currentFormat);
       NS_ASSERTION(NS_SUCCEEDED(rv), "failed to get preferred mail format");
@@ -235,7 +235,7 @@ nsAbAddressCollector::AutoCollectScreenName(nsIAbCard *aCard,
   if (!aCard)
     return;
 
-  PRInt32 atPos = aEmail.FindChar('@');
+  int32_t atPos = aEmail.FindChar('@');
   if (atPos == -1)
     return;
 
@@ -343,7 +343,7 @@ nsAbAddressCollector::SetUpAbFromPrefs(nsIPrefBranch *aPrefBranch)
   if (abURI == mABURI)
     return;
 
-  mDirectory = nsnull;
+  mDirectory = nullptr;
   mABURI = abURI;
 
   nsresult rv;
@@ -363,6 +363,6 @@ nsAbAddressCollector::SetUpAbFromPrefs(nsIPrefBranch *aPrefBranch)
   {
     NS_ERROR("Address Collection book preferences is set to a read-only book. "
              "Address collection will not take place.");
-    mDirectory = nsnull;
+    mDirectory = nullptr;
   }
 }

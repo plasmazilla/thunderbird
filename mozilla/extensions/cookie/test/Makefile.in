@@ -3,11 +3,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH		= ../../..
+DEPTH		= @DEPTH@
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
-relativesrcdir  = extensions/cookie/test
+relativesrcdir  = @relativesrcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
@@ -50,6 +50,10 @@ MOCHITEST_FILES = \
   test_same_base_domain_5.html \
   test_same_base_domain_6.html \
   file_loopback_inner.html \
+  $(NULL)
+
+MOCHITEST_CHROME_FILES = \
+  test_permissionmanager_app_isolation.html \
   $(NULL)
 
 MOCHITEST_BROWSER_FILES = \

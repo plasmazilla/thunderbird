@@ -41,9 +41,16 @@ protected:
 public:
   NS_DECL_FRAMEARENA_HELPERS
 
-  NS_IMETHOD AttributeChanged(PRInt32         aNameSpaceID,
+  // nsIFrame methods:
+  NS_IMETHOD BuildDisplayList(nsDisplayListBuilder*   aBuilder,
+                              const nsRect&           aDirtyRect,
+                              const nsDisplayListSet& aLists) {
+    return NS_OK;
+  }
+
+  NS_IMETHOD AttributeChanged(int32_t         aNameSpaceID,
                               nsIAtom*        aAttribute,
-                              PRInt32         aModType);
+                              int32_t         aModType);
 
   /**
    * Paint the given filtered frame.
@@ -83,8 +90,8 @@ public:
    *   aFilteredFrame, if non-null.
    */
   nsRect GetPostFilterBounds(nsIFrame *aFilteredFrame,
-                             const gfxRect *aOverrideBBox = nsnull,
-                             const nsRect *aPreFilterBounds = nsnull);
+                             const gfxRect *aOverrideBBox = nullptr,
+                             const nsRect *aPreFilterBounds = nullptr);
 
 #ifdef DEBUG
   NS_IMETHOD Init(nsIContent*      aContent,
@@ -109,18 +116,18 @@ private:
   nsSVGFilterFrame* GetReferencedFilterIfNotInUse();
 
   // Accessors to lookup filter attributes
-  PRUint16 GetEnumValue(PRUint32 aIndex, nsIContent *aDefault);
-  PRUint16 GetEnumValue(PRUint32 aIndex)
+  uint16_t GetEnumValue(uint32_t aIndex, nsIContent *aDefault);
+  uint16_t GetEnumValue(uint32_t aIndex)
   {
     return GetEnumValue(aIndex, mContent);
   }
-  const nsSVGIntegerPair *GetIntegerPairValue(PRUint32 aIndex, nsIContent *aDefault);
-  const nsSVGIntegerPair *GetIntegerPairValue(PRUint32 aIndex)
+  const nsSVGIntegerPair *GetIntegerPairValue(uint32_t aIndex, nsIContent *aDefault);
+  const nsSVGIntegerPair *GetIntegerPairValue(uint32_t aIndex)
   {
     return GetIntegerPairValue(aIndex, mContent);
   }
-  const nsSVGLength2 *GetLengthValue(PRUint32 aIndex, nsIContent *aDefault);
-  const nsSVGLength2 *GetLengthValue(PRUint32 aIndex)
+  const nsSVGLength2 *GetLengthValue(uint32_t aIndex, nsIContent *aDefault);
+  const nsSVGLength2 *GetLengthValue(uint32_t aIndex)
   {
     return GetLengthValue(aIndex, mContent);
   }

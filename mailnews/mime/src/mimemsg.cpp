@@ -32,7 +32,7 @@ static int MimeMessage_initialize (MimeObject *);
 static void MimeMessage_finalize (MimeObject *);
 static int MimeMessage_add_child (MimeObject *, MimeObject *);
 static int MimeMessage_parse_begin (MimeObject *);
-static int MimeMessage_parse_line (const char *, PRInt32, MimeObject *);
+static int MimeMessage_parse_line (const char *, int32_t, MimeObject *);
 static int MimeMessage_parse_eof (MimeObject *, bool);
 static int MimeMessage_close_headers (MimeObject *obj);
 static int MimeMessage_write_headers_html (MimeObject *);
@@ -45,7 +45,7 @@ extern void MimeHeaders_do_unix_display_hook_hack(MimeHeaders *);
 #endif /* XP_UNIX */
 
 #if defined(DEBUG) && defined(XP_UNIX)
-static int MimeMessage_debug_print (MimeObject *, PRFileDesc *, PRInt32 depth);
+static int MimeMessage_debug_print (MimeObject *, PRFileDesc *, int32_t depth);
 #endif
 
 extern MimeObjectClass mimeMultipartClass;
@@ -112,10 +112,10 @@ MimeMessage_parse_begin (MimeObject *obj)
 
 
 static int
-MimeMessage_parse_line (const char *aLine, PRInt32 aLength, MimeObject *obj)
+MimeMessage_parse_line (const char *aLine, int32_t aLength, MimeObject *obj)
 {
   const char * line = aLine;
-  PRInt32 length = aLength;
+  int32_t length = aLength;
 
   MimeMessage *msg = (MimeMessage *) obj;
   int status = 0;
@@ -272,7 +272,7 @@ MimeMessage_close_headers (MimeObject *obj)
     nsCString contentType;
     contentType.Adopt(MimeHeaders_get(msg->hdrs, HEADER_CONTENT_TYPE, false, false));
     if (!contentType.IsEmpty())
-      charset.Adopt(MimeHeaders_get_parameter(contentType.get(), "charset", nsnull, nsnull));
+      charset.Adopt(MimeHeaders_get_parameter(contentType.get(), "charset", nullptr, nullptr));
 
     // If we've got a charset, use nsMsgI18NConvertToUnicode to magically decode
     // the munged subject.
@@ -285,10 +285,10 @@ MimeMessage_close_headers (MimeObject *obj)
       if (NS_SUCCEEDED(rv))
         obj->headers->munged_subject = ToNewUTF8String(dest);
       else
-        obj->headers->munged_subject = nsnull;
+        obj->headers->munged_subject = nullptr;
     } else {
       PR_Free(obj->headers->munged_subject);
-      obj->headers->munged_subject = nsnull;
+      obj->headers->munged_subject = nullptr;
     }
   }
 
@@ -515,7 +515,7 @@ MimeMessage_close_headers (MimeObject *obj)
                  false);
   if (xmoz)
   {
-    PRUint32 flags = 0;
+    uint32_t flags = 0;
     char dummy = 0;
     if (sscanf(xmoz, " %x %c", &flags, &dummy) == 1 &&
       flags & nsMsgMessageFlags::Partial)
@@ -645,7 +645,7 @@ MimeMessage_add_child (MimeObject *parent, MimeObject *child)
 char *
 DetermineMailCharset(MimeMessage *msg)
 {
-  char          *retCharset = nsnull;
+  char          *retCharset = nullptr;
 
   if ( (msg) && (msg->hdrs) )
   {
@@ -826,7 +826,7 @@ MimeMessage_partial_message_html(const char *data, void *closure,
                   false);
   char *msgIdPtr = PL_strchr(msgId, '<');
 
-  PRInt32 pos = orig_url.Find("mailbox-message");
+  int32_t pos = orig_url.Find("mailbox-message");
   if (pos != -1)
     orig_url.Cut(pos + 7, 8);
 
@@ -898,7 +898,7 @@ MimeMessage_partial_message_html(const char *data, void *closure,
 
 #if defined(DEBUG) && defined(XP_UNIX)
 static int
-MimeMessage_debug_print (MimeObject *obj, PRFileDesc *stream, PRInt32 depth)
+MimeMessage_debug_print (MimeObject *obj, PRFileDesc *stream, int32_t depth)
 {
   MimeMessage *msg = (MimeMessage *) obj;
   char *addr = mime_part_address(obj);
@@ -910,7 +910,7 @@ MimeMessage_debug_print (MimeObject *obj, PRFileDesc *stream, PRInt32 depth)
       obj->clazz->class_name,
       addr ? addr : "???",
       (msg->container.nchildren == 0 ? " (no body)" : ""),
-      (PRUint32) msg);
+      (uint32_t) msg);
 */
   PR_FREEIF(addr);
 

@@ -162,31 +162,6 @@ var WebConsoleUtils = {
   },
 
   /**
-   * Gets the window that has the given inner ID.
-   *
-   * @param integer aInnerId
-   * @param nsIDOMWindow [aHintWindow]
-   *        Optional, the window object used to QueryInterface to
-   *        nsIDOMWindowUtils. If this is not given,
-   *        Services.wm.getMostRecentWindow() is used.
-   * @return nsIDOMWindow|null
-   *         The window object with the given inner ID.
-   */
-  getWindowByInnerId: function WCU_getWindowByInnerId(aInnerId, aHintWindow)
-  {
-    let someWindow = aHintWindow || Services.wm.getMostRecentWindow(null);
-    let content = null;
-
-    if (someWindow) {
-      let windowUtils = someWindow.QueryInterface(Ci.nsIInterfaceRequestor).
-                                   getInterface(Ci.nsIDOMWindowUtils);
-      content = windowUtils.getInnerWindowWithId(aInnerId);
-    }
-
-    return content;
-  },
-
-  /**
    * Abbreviates the given source URL so that it can be displayed flush-right
    * without being too distracting.
    *
@@ -538,7 +513,7 @@ var WebConsoleUtils = {
           value = aObject[propName];
           presentable = this.presentableValueFor(value);
         }
-	      catch (ex) {
+        catch (ex) {
           continue;
         }
       }
@@ -642,6 +617,28 @@ var WebConsoleUtils = {
 
     return false;
   },
+
+  /**
+   * Determine if the given request mixes HTTP with HTTPS content.
+   *
+   * @param string aRequest
+   *        Location of the requested content.
+   * @param string aLocation
+   *        Location of the current page.
+   * @return boolean
+   *         True if the content is mixed, false if not.
+   */
+  isMixedHTTPSRequest: function WCU_isMixedHTTPSRequest(aRequest, aLocation)
+  {
+    try {
+      let requestURI = Services.io.newURI(aRequest, null, null);
+      let contentURI = Services.io.newURI(aLocation, null, null);
+      return (contentURI.scheme == "https" && requestURI.scheme != "https");
+    }
+    catch (ex) {
+      return false;
+    }
+  },
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -734,6 +731,8 @@ const OPEN_CLOSE_BODY = {
   "[": "]",
   "(": ")",
 };
+
+const MAX_COMPLETIONS = 256;
 
 /**
  * Analyses a given string to find the last statement that is interesting for
@@ -885,62 +884,131 @@ function JSPropertyProvider(aScope, aInputValue)
     return null;
   }
 
-  let properties = completionPart.split(".");
-  let matchProp;
-  if (properties.length > 1) {
-    matchProp = properties.pop().trimLeft();
-    for (let i = 0; i < properties.length; i++) {
-      let prop = properties[i].trim();
-      if (!prop) {
-        return null;
-      }
+  let matches = null;
+  let matchProp = "";
 
-      // If obj is undefined or null, then there is no chance to run completion
-      // on it. Exit here.
-      if (typeof obj === "undefined" || obj === null) {
-        return null;
-      }
+  let lastDot = completionPart.lastIndexOf(".");
+  if (lastDot > 0 &&
+      (completionPart[0] == "'" || completionPart[0] == '"') &&
+      completionPart[lastDot - 1] == completionPart[0]) {
+    // We are completing a string literal.
+    obj = obj.String.prototype;
+    matchProp = completionPart.slice(lastDot + 1);
 
-      // Check if prop is a getter function on obj. Functions can change other
-      // stuff so we can't execute them to get the next object. Stop here.
-      if (WCU.isNonNativeGetter(obj, prop)) {
-        return null;
-      }
-      try {
-        obj = obj[prop];
-      }
-      catch (ex) {
-        return null;
-      }
-    }
   }
   else {
-    matchProp = properties[0].trimLeft();
-  }
+    // We are completing a variable / a property lookup.
 
-  // If obj is undefined or null, then there is no chance to run
-  // completion on it. Exit here.
-  if (typeof obj === "undefined" || obj === null) {
-    return null;
-  }
+    let properties = completionPart.split(".");
+    if (properties.length > 1) {
+      matchProp = properties.pop().trimLeft();
+      for (let i = 0; i < properties.length; i++) {
+        let prop = properties[i].trim();
+        if (!prop) {
+          return null;
+        }
 
-  // Skip Iterators and Generators.
-  if (WCU.isIteratorOrGenerator(obj)) {
-    return null;
-  }
+        // If obj is undefined or null (which is what "== null" does),
+        // then there is no chance to run completion on it. Exit here.
+        if (obj == null) {
+          return null;
+        }
 
-  let matches = [];
-  for (let prop in obj) {
-    if (prop.indexOf(matchProp) == 0) {
-      matches.push(prop);
+        // Check if prop is a getter function on obj. Functions can change other
+        // stuff so we can't execute them to get the next object. Stop here.
+        if (WCU.isNonNativeGetter(obj, prop)) {
+          return null;
+        }
+        try {
+          obj = obj[prop];
+        }
+        catch (ex) {
+          return null;
+        }
+      }
+    }
+    else {
+      matchProp = properties[0].trimLeft();
+    }
+
+    // If obj is undefined or null (which is what "== null" does),
+    // then there is no chance to run completion on it. Exit here.
+    if (obj == null) {
+      return null;
+    }
+
+    // Skip Iterators and Generators.
+    if (WCU.isIteratorOrGenerator(obj)) {
+      return null;
     }
   }
+
+  let matches = Object.keys(getMatchedProps(obj, {matchProp:matchProp}));
 
   return {
     matchProp: matchProp,
     matches: matches.sort(),
   };
 }
+
+/**
+ * Get all accessible properties on this JS value.
+ * Filter those properties by name.
+ * Take only a certain number of those.
+ *
+ * @param mixed aObj
+ *        JS value whose properties we want to collect.
+ *
+ * @param object aOptions
+ *        Options that the algorithm takes.
+ *        - matchProp (string): Filter for properties that match this one.
+ *          Defaults to the empty string (which always matches).
+ *
+ * @return object
+ *         Object whose keys are all accessible properties on the object.
+ */
+function getMatchedProps(aObj, aOptions = {matchProp: ""})
+{
+  // Argument defaults.
+  aOptions.matchProp = aOptions.matchProp || "";
+
+  if (aObj == null) { return {}; }
+  try {
+    Object.getPrototypeOf(aObj);
+  } catch(e) {
+    aObj = aObj.constructor.prototype;
+  }
+  let c = MAX_COMPLETIONS;
+  let names = {};   // Using an Object to avoid duplicates.
+
+  // We need to go up the prototype chain.
+  let ownNames = null;
+  while (aObj !== null) {
+    ownNames = Object.getOwnPropertyNames(aObj);
+    for (let i = 0; i < ownNames.length; i++) {
+      // Filtering happens here.
+      // If we already have it in, no need to append it.
+      if (ownNames[i].indexOf(aOptions.matchProp) != 0 ||
+          names[ownNames[i]] == true) {
+        continue;
+      }
+      c--;
+      if (c < 0) {
+        return names;
+      }
+      // If it is an array index, we can't take it.
+      // This uses a trick: converting a string to a number yields NaN if
+      // the operation failed, and NaN is not equal to itself.
+      if (+ownNames[i] != +ownNames[i]) {
+        names[ownNames[i]] = true;
+      }
+    }
+    aObj = Object.getPrototypeOf(aObj);
+  }
+
+  return names;
+}
+
 
 return JSPropertyProvider;
 })(WebConsoleUtils);

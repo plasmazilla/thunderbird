@@ -240,15 +240,13 @@ SimpleTest.ok = function (condition, name, diag) {
 **/
 SimpleTest.is = function (a, b, name) {
     var pass = (a == b);
-    var diag = pass ? repr(a) + " should equal " + repr(b)
-                    : "got " + repr(a) + ", expected " + repr(b)
+    var diag = pass ? "" : "got " + repr(a) + ", expected " + repr(b)
     SimpleTest.ok(pass, name, diag);
 };
 
 SimpleTest.isnot = function (a, b, name) {
     var pass = (a != b);
-    var diag = pass ? repr(a) + " should not equal " + repr(b)
-                    : "didn't expect " + repr(a) + ", but got it";
+    var diag = pass ? "" : "didn't expect " + repr(a) + ", but got it";
     SimpleTest.ok(pass, name, diag);
 };
 
@@ -257,8 +255,7 @@ SimpleTest.isnot = function (a, b, name) {
 **/
 SimpleTest.ise = function (a, b, name) {
     var pass = (a === b);
-    var diag = pass ? repr(a) + " should strictly equal " + repr(b)
-                    : "got " + repr(a) + ", strictly expected " + repr(b)
+    var diag = pass ? "" : "got " + repr(a) + ", strictly expected " + repr(b)
     SimpleTest.ok(pass, name, diag);
 };
 
@@ -652,25 +649,8 @@ SimpleTest.waitForClipboard = function(aExpectedStringOrValidatorFn, aSetupFn,
  * working (or finish).
  */
 SimpleTest.executeSoon = function(aFunc) {
-    // Once SpecialPowers is available in chrome mochitests, we can replace the
-    // body of this function with a call to SpecialPowers.executeSoon().
-    if ("Components" in window && "classes" in window.Components) {
-        try {
-            netscape.security.PrivilegeManager
-              .enablePrivilege("UniversalXPConnect");
-            var tm = Components.classes["@mozilla.org/thread-manager;1"]
-                       .getService(Components.interfaces.nsIThreadManager);
-
-            tm.mainThread.dispatch({
-                run: function() {
-                    aFunc();
-                }
-            }, Components.interfaces.nsIThread.DISPATCH_NORMAL);
-            return;
-        } catch (ex) {
-            // If the above fails (most likely because of enablePrivilege
-            // failing), fall through to the setTimeout path.
-        }
+    if ("SpecialPowers" in window) {
+        return SpecialPowers.executeSoon(aFunc, window);
     }
     setTimeout(aFunc, 0);
 }

@@ -27,7 +27,6 @@
 #include "nsIDOMEventTarget.h"          // for nsIDOMEventTarget
 #include "nsIDOMKeyEvent.h"             // for nsIDOMKeyEvent
 #include "nsIDOMMouseEvent.h"           // for nsIDOMMouseEvent
-#include "nsIDOMNSEvent.h"              // for nsIDOMNSEvent
 #include "nsIDOMNode.h"                 // for nsIDOMNode
 #include "nsIDOMRange.h"                // for nsIDOMRange
 #include "nsIDocument.h"                // for nsIDocument
@@ -49,7 +48,7 @@
 #include "nsLiteralString.h"            // for NS_LITERAL_STRING
 #include "nsServiceManagerUtils.h"      // for do_GetService
 #include "nsString.h"                   // for nsAutoString
-#include "prtypes.h"                    // for PRInt32, PRUint16, PRUint32
+#include "prtypes.h"                    // for int32_t, uint16_t, uint32_t
 #ifdef HANDLE_NATIVE_TEXT_DIRECTION_SWITCH
 #include "nsContentUtils.h"             // for nsContentUtils, etc
 #include "nsIBidiKeyboard.h"            // for nsIBidiKeyboard
@@ -60,7 +59,7 @@ class nsPresContext;
 using namespace mozilla;
 
 nsEditorEventListener::nsEditorEventListener() :
-  mEditor(nsnull), mCommitText(false),
+  mEditor(nullptr), mCommitText(false),
   mInTransaction(false)
 #ifdef HANDLE_NATIVE_TEXT_DIRECTION_SWITCH
   , mHaveBidiKeyboards(false)
@@ -188,7 +187,7 @@ nsEditorEventListener::Disconnect()
     return;
   }
   UninstallFromEditor();
-  mEditor = nsnull;
+  mEditor = nullptr;
 }
 
 void
@@ -286,6 +285,7 @@ NS_IMETHODIMP
 nsEditorEventListener::HandleEvent(nsIDOMEvent* aEvent)
 {
   NS_ENSURE_TRUE(mEditor, NS_ERROR_NOT_AVAILABLE);
+  nsCOMPtr<nsIEditor> kungFuDeathGrip = mEditor;
 
   nsAutoString eventType;
   aEvent->GetType(eventType);
@@ -399,7 +399,7 @@ nsEditorEventListener::KeyUp(nsIDOMEvent* aKeyEvent)
       return NS_OK;
     }
 
-    PRUint32 keyCode = 0;
+    uint32_t keyCode = 0;
     keyEvent->GetKeyCode(&keyCode);
     if (keyCode == nsIDOMKeyEvent::DOM_VK_SHIFT ||
         keyCode == nsIDOMKeyEvent::DOM_VK_CONTROL) {
@@ -425,7 +425,7 @@ nsEditorEventListener::KeyDown(nsIDOMEvent* aKeyEvent)
       return NS_OK;
     }
 
-    PRUint32 keyCode = 0;
+    uint32_t keyCode = 0;
     keyEvent->GetKeyCode(&keyCode);
     if (keyCode == nsIDOMKeyEvent::DOM_VK_SHIFT) {
       bool switchToRTL;
@@ -453,8 +453,7 @@ nsEditorEventListener::KeyPress(nsIDOMEvent* aKeyEvent)
   }
 
   // Transfer the event's trusted-ness to our editor
-  nsCOMPtr<nsIDOMNSEvent> NSEvent = do_QueryInterface(aKeyEvent);
-  nsEditor::HandlingTrustedAction operation(mEditor, NSEvent);
+  nsEditor::HandlingTrustedAction operation(mEditor, aKeyEvent);
 
   // DOM event handling happens in two passes, the client pass and the system
   // pass.  We do all of our processing in the system pass, to allow client
@@ -498,10 +497,10 @@ nsEditorEventListener::MouseClick(nsIDOMEvent* aMouseEvent)
     nsIDocument* currentDoc = focusedContent->GetCurrentDoc();
     nsCOMPtr<nsIPresShell> presShell = GetPresShell();
     nsPresContext* presContext =
-      presShell ? presShell->GetPresContext() : nsnull;
+      presShell ? presShell->GetPresContext() : nullptr;
     if (presContext && currentDoc) {
       nsIMEStateManager::OnClickInEditor(presContext,
-        currentDoc->HasFlag(NODE_IS_EDITABLE) ? nsnull : focusedContent,
+        currentDoc->HasFlag(NODE_IS_EDITABLE) ? nullptr : focusedContent,
         mouseEvent);
     }
   }
@@ -517,7 +516,7 @@ nsEditorEventListener::MouseClick(nsIDOMEvent* aMouseEvent)
   // IME to commit before we change the cursor position
   mEditor->ForceCompositionEnd();
 
-  PRUint16 button = (PRUint16)-1;
+  uint16_t button = (uint16_t)-1;
   mouseEvent->GetButton(&button);
   // middle-mouse click (paste);
   if (button == 1)
@@ -528,7 +527,7 @@ nsEditorEventListener::MouseClick(nsIDOMEvent* aMouseEvent)
       nsCOMPtr<nsIDOMNode> parent;
       if (NS_FAILED(mouseEvent->GetRangeParent(getter_AddRefs(parent))))
         return NS_ERROR_NULL_POINTER;
-      PRInt32 offset = 0;
+      int32_t offset = 0;
       if (NS_FAILED(mouseEvent->GetRangeOffset(&offset)))
         return NS_ERROR_NULL_POINTER;
 
@@ -545,7 +544,7 @@ nsEditorEventListener::MouseClick(nsIDOMEvent* aMouseEvent)
       if (ctrlKey)
         mailEditor = do_QueryObject(mEditor);
 
-      PRInt32 clipboard = nsIClipboard::kGlobalClipboard;
+      int32_t clipboard = nsIClipboard::kGlobalClipboard;
       nsCOMPtr<nsIClipboard> clipboardService =
         do_GetService("@mozilla.org/widget/clipboard;1", &rv);
       if (NS_SUCCEEDED(rv)) {
@@ -608,8 +607,7 @@ nsEditorEventListener::HandleText(nsIDOMEvent* aTextEvent)
   }
 
   // Transfer the event's trusted-ness to our editor
-  nsCOMPtr<nsIDOMNSEvent> NSEvent = do_QueryInterface(aTextEvent);
-  nsEditor::HandlingTrustedAction operation(mEditor, NSEvent);
+  nsEditor::HandlingTrustedAction operation(mEditor, aTextEvent);
 
   return mEditor->UpdateIMEComposition(composedText, textRangeList);
 }
@@ -653,7 +651,7 @@ nsEditorEventListener::DragOver(nsIDOMDragEvent* aDragEvent)
     aDragEvent->PreventDefault(); // consumed
 
     if (mCaret) {
-      PRInt32 offset = 0;
+      int32_t offset = 0;
       nsresult rv = aDragEvent->GetRangeOffset(&offset);
       NS_ENSURE_SUCCESS(rv, rv);
 
@@ -697,7 +695,7 @@ nsEditorEventListener::CleanupDragDropCaret()
     }
 
     mCaret->Terminate();
-    mCaret = nsnull;
+    mCaret = nullptr;
   }
 }
 
@@ -805,15 +803,15 @@ nsEditorEventListener::CanDrop(nsIDOMDragEvent* aEvent)
       rv = aEvent->GetRangeParent(getter_AddRefs(parent));
       if (NS_FAILED(rv) || !parent) return false;
 
-      PRInt32 offset = 0;
+      int32_t offset = 0;
       rv = aEvent->GetRangeOffset(&offset);
       NS_ENSURE_SUCCESS(rv, false);
 
-      PRInt32 rangeCount;
+      int32_t rangeCount;
       rv = selection->GetRangeCount(&rangeCount);
       NS_ENSURE_SUCCESS(rv, false);
 
-      for (PRInt32 i = 0; i < rangeCount; i++)
+      for (int32_t i = 0; i < rangeCount; i++)
       {
         nsCOMPtr<nsIDOMRange> range;
         rv = selection->GetRangeAt(i, getter_AddRefs(range));
@@ -850,8 +848,7 @@ nsEditorEventListener::HandleEndComposition(nsIDOMEvent* aCompositionEvent)
   }
 
   // Transfer the event's trusted-ness to our editor
-  nsCOMPtr<nsIDOMNSEvent> NSEvent = do_QueryInterface(aCompositionEvent);
-  nsEditor::HandlingTrustedAction operation(mEditor, NSEvent);
+  nsEditor::HandlingTrustedAction operation(mEditor, aCompositionEvent);
 
   mEditor->EndIMEComposition();
 }
@@ -936,7 +933,7 @@ nsEditorEventListener::Blur(nsIDOMEvent* aEvent)
     nsCOMPtr<nsISelectionPrivate> selectionPrivate =
       do_QueryInterface(selection);
     if (selectionPrivate) {
-      selectionPrivate->SetAncestorLimiter(nsnull);
+      selectionPrivate->SetAncestorLimiter(nullptr);
     }
 
     nsCOMPtr<nsIPresShell> presShell = GetPresShell();
@@ -970,7 +967,7 @@ void
 nsEditorEventListener::SpellCheckIfNeeded() {
   // If the spell check skip flag is still enabled from creation time,
   // disable it because focused editors are allowed to spell check.
-  PRUint32 currentFlags = 0;
+  uint32_t currentFlags = 0;
   mEditor->GetFlags(&currentFlags);
   if(currentFlags & nsIPlaintextEditor::eEditorSkipSpellCheck)
   {

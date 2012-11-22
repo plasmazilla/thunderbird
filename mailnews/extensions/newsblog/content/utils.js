@@ -72,6 +72,8 @@ var FeedUtils = {
   // The delay is currently one day.
   INVALID_ITEM_PURGE_DELAY: 24 * 60 * 60 * 1000,
 
+  EPOCHDATE: "Thu, 01 Jan 1970 00:00:00 GMT",
+
   // The delimiter used to delimit feed urls in the folder's "feedUrl" property.
   kFeedUrlDelimiter: "|",
   kBiffMinutesDefault: 100,
@@ -130,6 +132,10 @@ var FeedUtils = {
     server.valid = true;
     let account = MailServices.accounts.createAccount();
     account.incomingServer = server;
+
+    // Ensure the Trash folder db (.msf) is created otherwise folder/message
+    // deletes will throw until restart creates it.
+    server.msgStore.discoverSubFolders(server.rootMsgFolder, false);
 
     // Create "Local Folders" if none exist yet as it's guaranteed that
     // those exist when any account exists.

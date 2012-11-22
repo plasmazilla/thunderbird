@@ -101,6 +101,7 @@ pref("app.update.auto", true);
 // See chart in nsUpdateService.js.in for more details
 //
 pref("app.update.mode", 1);
+
 // If set to true, the Update Service will present no UI for any event.
 pref("app.update.silent", false);
 
@@ -261,6 +262,7 @@ pref("mail.ui-rdf.version", 0);
 /////////////////////////////////////////////////////////////////
 pref("mail.showCondensedAddresses", true); // show the friendly display name for people I know
 
+pref("mailnews.attachments.display.start_expanded", false);
 // hidden pref for changing how we present attachments in the message pane
 pref("mailnews.attachments.display.view", 0);
 pref("mail.pane_config.dynamic",            0);
@@ -461,6 +463,9 @@ pref("mail.tabs.closeWindowWithLastTab", true);
 // 2 - no close buttons
 // 3 - at the end of the tabstrip
 pref("mail.tabs.closeButtons", 1);
+
+// Allow the tabs to be in the titlebar on supported systems
+pref("mail.tabs.drawInTitlebar", true);
 
 // The breakpad report server to link to in about:crashes
 pref("breakpad.reportURL", "http://crash-stats.mozilla.com/report/index/");
@@ -811,5 +816,21 @@ pref("mail.cloud_files.enabled", true);
 pref("mail.cloud_files.inserted_urls.footer.link", "http://www.getthunderbird.com");
 pref("mail.cloud_files.learn_more_url", "https://support.mozillamessaging.com/kb/filelink-large-attachments");
 
+// Sanitize dialog window
+pref("privacy.cpd.cookies", true);
+pref("privacy.cpd.cache", true);
+
+// What default should we use for the time span in the sanitizer:
+// 0 - Clear everything
+// 1 - Last Hour
+// 2 - Last 2 Hours
+// 3 - Last 4 Hours
+// 4 - Today
+pref("privacy.sanitize.timeSpan", 1);
+
 // PgpMime Proxy
 pref("mail.pgpmime.addon_url", "https://addons.mozilla.org/thunderbird/addon/enigmail/");
+
+// If set to true, Thunderbird will collapse the main menu for new profiles
+// (or, more precisely, profiles that start with no accounts created).
+pref("mail.main_menu.collapse_by_default", true);

@@ -2824,6 +2824,86 @@ let SessionStoreInternal = {
   },
 
   /**
+   * Sets the tabs restoring order with the following priority:
+   * Selected tab, pinned tabs, optimized visible tabs, other visible tabs and
+   * hidden tabs.
+   * @param aTabBrowser
+   *        Tab browser object
+   * @param aTabs
+   *        Array of tab references
+   * @param aTabData
+   *        Array of tab data
+   * @param aSelectedTab
+   *        Index of selected tab (1 is first tab, 0 no selected tab)
+   */
+  _setTabsRestoringOrder : function ssi__setTabsRestoringOrder(
+    aTabBrowser, aTabs, aTabData, aSelectedTab) {
+
+    // Store the selected tab. Need to substract one to get the index in aTabs.
+    let selectedTab;
+    if (aSelectedTab > 0 && aTabs[aSelectedTab - 1]) {
+      selectedTab = aTabs[aSelectedTab - 1];
+    }
+
+    // Store the pinned tabs and hidden tabs.
+    let pinnedTabs = [];
+    let pinnedTabsData = [];
+    let hiddenTabs = [];
+    let hiddenTabsData = [];
+    if (aTabs.length > 1) {
+      for (let t = aTabs.length - 1; t >= 0; t--) {
+        if (aTabData[t].pinned) {
+          pinnedTabs.unshift(aTabs.splice(t, 1)[0]);
+          pinnedTabsData.unshift(aTabData.splice(t, 1)[0]);
+        } else if (aTabData[t].hidden) {
+          hiddenTabs.unshift(aTabs.splice(t, 1)[0]);
+          hiddenTabsData.unshift(aTabData.splice(t, 1)[0]);
+        }
+      }
+    }
+
+    // Optimize the visible tabs only if there is a selected tab.
+    if (selectedTab) {
+      let selectedTabIndex = aTabs.indexOf(selectedTab);
+      if (selectedTabIndex > 0) {
+        let scrollSize = aTabBrowser.tabContainer.mTabstrip.scrollClientSize;
+        let tabWidth = aTabs[0].getBoundingClientRect().width;
+        let maxVisibleTabs = Math.ceil(scrollSize / tabWidth);
+        if (maxVisibleTabs < aTabs.length) {
+          let firstVisibleTab = 0;
+          let nonVisibleTabsCount = aTabs.length - maxVisibleTabs;
+          if (nonVisibleTabsCount >= selectedTabIndex) {
+            // Selected tab is leftmost since we scroll to it when possible.
+            firstVisibleTab = selectedTabIndex;
+          } else {
+            // Selected tab is rightmost or no more room to scroll right.
+            firstVisibleTab = nonVisibleTabsCount;
+          }
+          aTabs = aTabs.splice(firstVisibleTab, maxVisibleTabs).concat(aTabs);
+          aTabData =
+            aTabData.splice(firstVisibleTab, maxVisibleTabs).concat(aTabData);
+        }
+      }
+    }
+
+    // Merge the stored tabs in order.
+    aTabs = pinnedTabs.concat(aTabs, hiddenTabs);
+    aTabData = pinnedTabsData.concat(aTabData, hiddenTabsData);
+
+    // Load the selected tab to the first position and select it.
+    if (selectedTab) {
+      let selectedTabIndex = aTabs.indexOf(selectedTab);
+      if (selectedTabIndex > 0) {
+        aTabs = aTabs.splice(selectedTabIndex, 1).concat(aTabs);
+        aTabData = aTabData.splice(selectedTabIndex, 1).concat(aTabData);
+      }
+      aTabBrowser.selectedTab = selectedTab;
+    }
+
+    return [aTabs, aTabData];
+  },
+  
+  /**
    * Manage history restoration for a window
    * @param aWindow
    *        Window to restore the tabs into
@@ -2875,48 +2955,9 @@ let SessionStoreInternal = {
       return;
     }
 
-    let unhiddenTabs = aTabData.filter(function (aData) !aData.hidden).length;
-
-    if (unhiddenTabs && aTabs.length > 1) {
-      // Load hidden tabs last, by pushing them to the end of the list
-      for (let t = 0, tabsToReorder = aTabs.length - unhiddenTabs; tabsToReorder > 0; ) {
-        if (aTabData[t].hidden) {
-          aTabs = aTabs.concat(aTabs.splice(t, 1));
-          aTabData = aTabData.concat(aTabData.splice(t, 1));
-          if (aSelectTab > t)
-            --aSelectTab;
-          --tabsToReorder;
-          continue;
-        }
-        ++t;
-      }
-
-      // Determine if we can optimize & load visible tabs first
-      let maxVisibleTabs = Math.ceil(tabbrowser.tabContainer.mTabstrip.scrollClientSize /
-                                     aTabs[unhiddenTabs - 1].getBoundingClientRect().width);
-
-      // make sure we restore visible tabs first, if there are enough
-      if (maxVisibleTabs < unhiddenTabs && aSelectTab > 1) {
-        let firstVisibleTab = 0;
-        if (unhiddenTabs - maxVisibleTabs > aSelectTab) {
-          // aSelectTab is leftmost since we scroll to it when possible
-          firstVisibleTab = aSelectTab - 1;
-        } else {
-          // aSelectTab is rightmost or no more room to scroll right
-          firstVisibleTab = unhiddenTabs - maxVisibleTabs;
-        }
-        aTabs = aTabs.splice(firstVisibleTab, maxVisibleTabs).concat(aTabs);
-        aTabData = aTabData.splice(firstVisibleTab, maxVisibleTabs).concat(aTabData);
-        aSelectTab -= firstVisibleTab;
-      }
-    }
-
-    // make sure to restore the selected tab first (if any)
-    if (aSelectTab-- && aTabs[aSelectTab]) {
-      aTabs.unshift(aTabs.splice(aSelectTab, 1)[0]);
-      aTabData.unshift(aTabData.splice(aSelectTab, 1)[0]);
-      tabbrowser.selectedTab = aTabs[0];
-    }
+    // Sets the tabs restoring order. 
+    [aTabs, aTabData] =
+      this._setTabsRestoringOrder(tabbrowser, aTabs, aTabData, aSelectTab);
 
     // Prepare the tabs so that they can be properly restored. We'll pin/unpin
     // and show/hide tabs as necessary. We'll also set the labels, user typed

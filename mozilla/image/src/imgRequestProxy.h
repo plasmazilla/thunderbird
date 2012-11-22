@@ -68,7 +68,7 @@ public:
   void RemoveFromLoadGroup(bool releaseLoadGroup);
 
   inline bool HasObserver() const {
-    return mListener != nsnull;
+    return mListener != nullptr;
   }
 
   void SetPrincipal(nsIPrincipal *aPrincipal);
@@ -137,9 +137,9 @@ protected:
   /* non-virtual imgIDecoderObserver methods */
   void OnStartDecode     ();
   void OnStartContainer  (imgIContainer *aContainer);
-  void OnStartFrame      (PRUint32 aFrame);
+  void OnStartFrame      (uint32_t aFrame);
   void OnDataAvailable   (bool aCurrentFrame, const nsIntRect * aRect);
-  void OnStopFrame       (PRUint32 aFrame);
+  void OnStopFrame       (uint32_t aFrame);
   void OnStopContainer   (imgIContainer *aContainer);
   void OnStopDecode      (nsresult status, const PRUnichar *statusArg);
   void OnDiscard         ();
@@ -152,6 +152,10 @@ protected:
   /* non-virtual sort-of-nsIRequestObserver methods */
   void OnStartRequest();
   void OnStopRequest(bool aLastPart);
+
+  /* non-virtual imgIOnloadBlocker methods */
+  void BlockOnload();
+  void UnblockOnload();
 
   /* Finish up canceling ourselves */
   void DoCancel(nsresult status);
@@ -172,7 +176,7 @@ protected:
   nsITimedChannel* TimedChannel()
   {
     if (!mOwner)
-      return nsnull;
+      return nullptr;
     return mOwner->mTimedChannel;
   }
 
@@ -208,8 +212,8 @@ private:
   nsCOMPtr<nsILoadGroup> mLoadGroup;
 
   nsLoadFlags mLoadFlags;
-  PRUint32    mLockCount;
-  PRUint32    mAnimationConsumers;
+  uint32_t    mLockCount;
+  uint32_t    mAnimationConsumers;
   bool mCanceled;
   bool mIsInLoadGroup;
   bool mListenerIsStrongRef;

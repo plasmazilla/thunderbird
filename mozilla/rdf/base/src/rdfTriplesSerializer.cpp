@@ -38,7 +38,7 @@ nsresult
 TriplesVisitor::writeResource(nsIRDFResource *aResource)
 {
     nsCString res;
-    PRUint32 writeCount, wroteCount;
+    uint32_t writeCount, wroteCount;
     mOut->Write("<", 1, &wroteCount);
     NS_ENSURE_TRUE(wroteCount == 1, NS_ERROR_FAILURE);
     nsresult rv = aResource->GetValueUTF8(res);
@@ -70,26 +70,26 @@ TriplesVisitor::Visit(nsIRDFNode *aSubject, nsIRDFResource *aPredicate,
     nsCOMPtr<nsIRDFResource> res = do_QueryInterface(aObject);
     nsCOMPtr<nsIRDFLiteral> lit;
     nsCOMPtr<nsIRDFInt> intLit;
-    PRUint32 wroteCount;
+    uint32_t wroteCount;
     if (res) {
         rv = writeResource(res);
-    } else if ((lit = do_QueryInterface(aObject)) != nsnull) {
+    } else if ((lit = do_QueryInterface(aObject)) != nullptr) {
         const PRUnichar *value;
         lit->GetValueConst(&value);
         nsCAutoString object;
         object.AppendLiteral("\"");
         AppendUTF16toUTF8(value, object);
         object.AppendLiteral("\" ");
-        PRUint32 writeCount = object.Length();
+        uint32_t writeCount = object.Length();
         rv = mOut->Write(object.get(), writeCount, &wroteCount);
         NS_ENSURE_TRUE(writeCount == wroteCount, NS_ERROR_FAILURE);
-    } else if ((intLit = do_QueryInterface(aObject)) != nsnull) {
-        PRInt32 value;
+    } else if ((intLit = do_QueryInterface(aObject)) != nullptr) {
+        int32_t value;
         intLit->GetValue(&value);
         nsPrintfCString
             object("\"%i\"^^<http://www.w3.org/2001/XMLSchema#integer> ",
                    value);
-        PRUint32 writeCount = object.Length();
+        uint32_t writeCount = object.Length();
         rv = mOut->Write(object.get(), writeCount, &wroteCount);
         NS_ENSURE_TRUE(writeCount == wroteCount, NS_ERROR_FAILURE);
     }
@@ -113,7 +113,7 @@ private:
 nsresult
 NS_NewTriplesSerializer(rdfISerializer** aResult)
 {
-    NS_PRECONDITION(aResult != nsnull, "null ptr");
+    NS_PRECONDITION(aResult != nullptr, "null ptr");
     if (! aResult)
         return NS_ERROR_NULL_POINTER;
 

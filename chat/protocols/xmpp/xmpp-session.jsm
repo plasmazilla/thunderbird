@@ -4,7 +4,7 @@
 
 const EXPORTED_SYMBOLS = ["XMPPSession", "XMPPDefaultResource"];
 
-const {interfaces: Ci, utils: Cu} = Components;
+const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
 Cu.import("resource:///modules/imXPCOMUtils.jsm");
 Cu.import("resource:///modules/socket.jsm");
@@ -74,11 +74,6 @@ XMPPSession.prototype = {
     if (this._parser) {
       this._parser.destroy();
       delete this._parser;
-      if (this._oldParsers) {
-        for each (let parser in this._oldParsers)
-          parser.destroy();
-        delete this._oldParsers;
-      }
     }
   },
 
@@ -123,21 +118,33 @@ XMPPSession.prototype = {
 
   /* Start the XMPP stream */
   startStream: function() {
-    if (this._parser) {
-      // nsSAXXMLReader (inside XMPPParser) leaks if we don't clean up.
-      // Unfortunately, calling onStopRequest on nsSAXXMLReader damages
-      // something that causes a crash the next time we call onDataAvailable
-      // on another parser instance for the same input stream buffer.
-      // Workaround: keep references to all previous parsers used
-      // for this socket, and call destroy on each of them when we are
-      // done reading from that socket.
-      if (!this._oldParsers)
-        this._oldParsers = [];
-      this._oldParsers.push(this._parser);
-    }
+    if (this._parser)
+      this._parser.destroy();
     this._parser = new XMPPParser(this);
     this.send('<?xml version="1.0"?><stream:stream to="' + this._domain +
               '" xmlns="jabber:client" xmlns:stream="http://etherx.jabber.org/streams" version="1.0">');
+  },
+
+  startSession: function() {
+    this.sendStanza(Stanza.iq("set", null, null,
+                              Stanza.node("session", Stanza.NS.session)));
+    this.onXmppStanza = this.stanzaListeners.sessionStarted;
+  },
+
+  /* XEP-0078: Non-SASL Authentication */
+  startLegacyAuth: function() {
+    if (!this._encrypted && this._connectionSecurity == "require_tls") {
+      this.onError(Ci.prplIAccount.ERROR_ENCRYPTION_ERROR,
+                   _("connection.error.startTLSNotSupported"));
+      return;
+    }
+
+    this.onXmppStanza = this.stanzaListeners.legacyAuth;
+    let s = Stanza.iq("get", null, this._domain,
+                      Stanza.node("query", Stanza.NS.auth, null,
+                                  Stanza.node("username", null, null,
+                                              this._jid.node)));
+    this.sendStanza(s);
   },
 
   /* Log a message (called by the socket code) */
@@ -156,19 +163,27 @@ XMPPSession.prototype = {
     this.startStream();
   },
 
-  /* When incoming data is available to be read */
-  onDataAvailable: function(aRequest, aContext, aInputStream, aOffset, aCount) {
+  /* When incoming data is available to be parsed */
+  onDataReceived: function(aData) {
+    let istream = Cc["@mozilla.org/io/string-input-stream;1"]
+                    .createInstance(Ci.nsIStringInputStream);
+    istream.setData(aData, aData.length);
+    this._lastReceivedData = aData;
     try {
-      this._parser.onDataAvailable(aInputStream, aOffset, aCount);
+      this._parser.onDataAvailable(istream, 0, aData.length);
     } catch(e) {
       Cu.reportError(e);
       this.onXMLError("parser-exception", e);
     }
+    delete this._lastReceivedData;
   },
 
   /* The connection got disconnected without us closing it. */
   onConnectionClosed: function() {
     this._networkError(_("connection.error.serverClosedConnection"));
+  },
+  onBadCertificate: function(aNSSErrorMessage) {
+    this.onError(Ci.prplIAccount.ERROR_CERT_OTHER_ERROR, aNSSErrorMessage);
   },
   onConnectionReset: function() {
     this._networkError(_("connection.error.resetByPeer"));
@@ -184,9 +199,9 @@ XMPPSession.prototype = {
   /* Methods called by the XMPPParser instance */
   onXMLError: function(aError, aException) {
     if (aError == "parsing-characters")
-      WARN(aError + ": " + aException);
+      WARN(aError + ": " + aException + "\n" + this._lastReceivedData);
     else
-      ERROR(aError + ": " + aException);
+      ERROR(aError + ": " + aException + "\n" + this._lastReceivedData);
     if (aError != "parse-warning" && aError != "parsing-characters")
       this._networkError(_("connection.error.receivedUnexpectedData"));
   },
@@ -244,7 +259,11 @@ XMPPSession.prototype = {
 
       let mechs = aStanza.getElement(["mechanisms"]);
       if (!mechs) {
-        this._networkError(_("connection.error.noAuthMec"));
+        let auth = aStanza.getElement(["auth"]);
+        if (auth && auth.uri == Stanza.NS.auth_feature)
+          this.startLegacyAuth();
+        else
+          this._networkError(_("connection.error.noAuthMec"));
         return;
       }
 
@@ -252,20 +271,26 @@ XMPPSession.prototype = {
       // a bit differently as we want to avoid it over an unencrypted
       // connection, except if the user has explicly allowed that
       // behavior.
+      let authMechanisms = this._account.authMechanisms || XMPPAuthMechanisms;
       let selectedMech = "";
       let canUsePlain = false;
       mechs = mechs.getChildren("mechanism");
       for each (let m in mechs) {
         let mech = m.innerText;
-        if (mech == "PLAIN" && !this._encrypted)
+        if (mech == "PLAIN" && !this._encrypted) {
+          // If PLAIN is proposed over an unencrypted connection,
+          // remember that it's a possibility but don't bother
+          // checking if the user allowed it until we have verified
+          // that nothing more secure is available.
           canUsePlain = true;
-        else if (XMPPAuthMechanisms.hasOwnProperty(mech)) {
+        }
+        else if (authMechanisms.hasOwnProperty(mech)) {
           selectedMech = mech;
           break;
         }
       }
       if (!selectedMech && canUsePlain) {
-        if (this._security == "allow_unencrypted_plain_auth")
+        if (this._connectionSecurity == "allow_unencrypted_plain_auth")
           selectedMech = "PLAIN";
         else {
           this.onError(Ci.prplIAccount.ERROR_AUTHENTICATION_IMPOSSIBLE,
@@ -278,9 +303,9 @@ XMPPSession.prototype = {
                      _("connection.error.noCompatibleAuthMec"));
         return;
       }
-      this._auth = new XMPPAuthMechanisms[selectedMech](this._jid.node,
-                                                        this._password,
-                                                        this._domain);
+      this._auth = new authMechanisms[selectedMech](this._jid.node,
+                                                    this._password,
+                                                    this._domain);
 
       this._account.reportConnecting(_("connection.authenticating"));
       this.onXmppStanza = this.stanzaListeners.authDialog;
@@ -351,9 +376,103 @@ XMPPSession.prototype = {
       jid = jid.innerText;
       DEBUG("jid = " + jid);
       this._jid = this._account._parseJID(jid);
-      this.sendStanza(Stanza.iq("set", null, null,
-                                Stanza.node("session", Stanza.NS.session)));
-      this.onXmppStanza = this.stanzaListeners.sessionStarted;
+      this.startSession();
+    },
+    legacyAuth: function(aStanza) {
+      if (aStanza.attributes["type"] == "error") {
+        let error = aStanza.getElement(["error"]);
+        if (!error) {
+          this._networkError(_("connection.error.incorrectResponse"));
+          return;
+        }
+
+        let code = parseInt(error.attributes["code"], 10);
+        if (code == 401) {
+          // Failed Authentication (Incorrect Credentials)
+          this.onError(Ci.prplIAccount.ERROR_AUTHENTICATION_FAILED,
+                       _("connection.error.notAuthorized"));
+          return;
+        }
+        else if (code == 406) {
+          // Failed Authentication (Required Information Not Provided)
+          this.onError(Ci.prplIAccount.ERROR_AUTHENTICATION_FAILED,
+                       _("connection.error.authenticationFailure"));
+          return;
+        }
+        // else if (code == 409) {
+          // Failed Authentication (Resource Conflict)
+          // XXX Flo The spec in XEP-0078 defines this error code, but
+          // I've yet to find a server sending it. The server I tested
+          // with just closed the first connection when a second
+          // connection was attempted with the same resource.
+          // libpurple's jabber prpl doesn't support this code either.
+        // }
+      }
+
+      if (aStanza.attributes["type"] != "result") {
+        this._networkError(_("connection.error.incorrectResponse"));
+        return;
+      }
+
+      if (aStanza.children.length == 0) {
+        // Success!
+        this.startSession();
+        return;
+      }
+
+      let query = aStanza.getElement(["query"]);
+      let values = {};
+      for each (let c in query.children)
+        values[c.qName] = c.innerText;
+
+      if (!("username" in values) || !("resource" in values)) {
+        this._networkError(_("connection.error.incorrectResponse"));
+        return;
+      }
+
+      let children = [
+        Stanza.node("username", null, null, this._jid.node),
+        Stanza.node("resource", null, null, this._resource)
+      ];
+
+      if (("digest" in values) && this._streamId) {
+        let hashBase = this._streamId + this._password;
+
+        let ch =
+          Cc["@mozilla.org/security/hash;1"].createInstance(Ci.nsICryptoHash);
+        ch.init(ch.SHA1);
+        // Non-US-ASCII characters MUST be encoded as UTF-8 since the
+        // SHA-1 hashing algorithm operates on byte arrays.
+        let converter = Cc["@mozilla.org/intl/scriptableunicodeconverter"]
+                          .createInstance(Ci.nsIScriptableUnicodeConverter);
+        converter.charset = "UTF-8";
+        let data = converter.convertToByteArray(hashBase);
+        ch.update(data, data.length);
+        let hash = ch.finish(false);
+        let toHexString =
+          function(charCode) ("0" + charCode.toString(16)).slice(-2);
+        let digest = [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
+
+        children.push(Stanza.node("digest", null, null, digest));
+      }
+      else if ("password" in values) {
+        if (!this._encrypted &&
+            this._connectionSecurity != "allow_unencrypted_plain_auth") {
+          this.onError(Ci.prplIAccount.ERROR_AUTHENTICATION_IMPOSSIBLE,
+                       _("connection.error.notSendingPasswordInClear"));
+          return;
+        }
+        children.push(Stanza.node("password", null, null, this._password));
+      }
+      else {
+        this.onError(Ci.prplIAccount.ERROR_AUTHENTICATION_IMPOSSIBLE,
+                     _("connection.error.noCompatibleAuthMec"));
+        return;
+      }
+
+      let s = Stanza.iq("set", null, this._domain,
+                        Stanza.node("query", Stanza.NS.auth, null, children));
+      this.sendStanza(s);
     },
     sessionStarted: function(aStanza) {
       this._account.onConnection();

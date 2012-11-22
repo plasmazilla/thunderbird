@@ -63,7 +63,7 @@ AutoConfigSecMan::CanGetService(JSContext *aJSContext, const nsCID & aCID)
 }
 
 NS_IMETHODIMP 
-AutoConfigSecMan::CanAccess(PRUint32 aAction, 
+AutoConfigSecMan::CanAccess(uint32_t aAction, 
                             nsAXPCNativeCallContext *aCallContext, 
                             JSContext *aJSContext, JSObject *aJSObject, 
                             nsISupports *aObj, nsIClassInfo *aClassInfo, 
@@ -74,13 +74,13 @@ AutoConfigSecMan::CanAccess(PRUint32 aAction,
 
 //*****************************************************************************
 
-static  JSContext *autoconfig_cx = nsnull;
+static  JSContext *autoconfig_cx = nullptr;
 static  JSObject *autoconfig_glob;
 
 static JSClass global_class = {
     "autoconfig_global", JSCLASS_GLOBAL_FLAGS,
     JS_PropertyStub,  JS_PropertyStub,  JS_PropertyStub,  JS_StrictPropertyStub,
-    JS_EnumerateStub, JS_ResolveStub,   JS_ConvertStub,   nsnull
+    JS_EnumerateStub, JS_ResolveStub,   JS_ConvertStub,   nullptr
 };
 
 static void
@@ -133,9 +133,7 @@ nsresult CentralizedAdminPrefManagerInit()
 
     autoconfig_glob = JS_NewGlobalObject(autoconfig_cx, &global_class, NULL);
     if (autoconfig_glob) {
-        JSAutoEnterCompartment ac;
-        if(!ac.enter(autoconfig_cx, autoconfig_glob))
-            return NS_ERROR_FAILURE;
+        JSAutoCompartment ac(autoconfig_cx, autoconfig_glob);
         if (JS_InitStandardClasses(autoconfig_cx, autoconfig_glob)) {
             // XPCONNECT enable this JS context
             rv = xpc->InitClasses(autoconfig_cx, autoconfig_glob);
@@ -146,7 +144,7 @@ nsresult CentralizedAdminPrefManagerInit()
 
     // failue exit... clean up the JS context
     JS_DestroyContext(autoconfig_cx);
-    autoconfig_cx = nsnull;
+    autoconfig_cx = nullptr;
     return NS_ERROR_FAILURE;
 }
 
@@ -197,9 +195,11 @@ nsresult EvaluateAdminConfigScript(const char *js_buffer, size_t length,
     JS_BeginRequest(autoconfig_cx);
     nsCOMPtr<nsIPrincipal> principal;
     nsContentUtils::GetSecurityManager()->GetSystemPrincipal(getter_AddRefs(principal));
-    ok = JS_EvaluateScriptForPrincipals(autoconfig_cx, autoconfig_glob, 
-                                        nsJSPrincipals::get(principal),
-                                        js_buffer, length, filename, 0, nsnull);
+    JS::CompileOptions options(autoconfig_cx);
+    options.setPrincipals(nsJSPrincipals::get(principal))
+           .setFileAndLine(filename, 1);
+    JS::RootedObject glob(autoconfig_cx, autoconfig_glob);
+    ok = JS::Evaluate(autoconfig_cx, glob, options, js_buffer, length, nullptr);
     JS_EndRequest(autoconfig_cx);
 
     JS_MaybeGC(autoconfig_cx);

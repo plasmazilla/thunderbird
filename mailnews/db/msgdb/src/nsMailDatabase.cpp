@@ -25,7 +25,7 @@ struct mdbOid gAllOfflineOpsTableOID;
 
 nsMailDatabase::nsMailDatabase() : m_reparse(false)
 {
-  m_mdbAllOfflineOpsTable = nsnull;
+  m_mdbAllOfflineOpsTable = nullptr;
 }
 
 nsMailDatabase::~nsMailDatabase()
@@ -50,7 +50,7 @@ nsresult nsMailDatabase::Open(nsIFile *aSummaryFile, bool aCreate,
 
 NS_IMETHODIMP nsMailDatabase::ForceClosed()
 {
-  m_mdbAllOfflineOpsTable = nsnull;
+  m_mdbAllOfflineOpsTable = nullptr;
   return nsMsgDatabase::ForceClosed();
 }
 
@@ -76,7 +76,7 @@ NS_IMETHODIMP nsMailDatabase::EndBatch()
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMailDatabase::DeleteMessages(PRUint32 aNumKeys, nsMsgKey* nsMsgKeys, nsIDBChangeListener *instigator)
+NS_IMETHODIMP nsMailDatabase::DeleteMessages(uint32_t aNumKeys, nsMsgKey* nsMsgKeys, nsIDBChangeListener *instigator)
 {
   nsresult rv;
   if (m_folder)
@@ -97,7 +97,7 @@ NS_IMETHODIMP nsMailDatabase::DeleteMessages(PRUint32 aNumKeys, nsMsgKey* nsMsgK
 
 NS_IMETHODIMP nsMailDatabase::GetSummaryValid(bool *aResult)
 {
-  PRUint32 version;
+  uint32_t version;
   m_dbFolderInfo->GetVersion(&version);
   if (GetCurVersion() != version)
   {
@@ -188,11 +188,11 @@ NS_IMETHODIMP nsMailDatabase::GetOfflineOpForKey(nsMsgKey msgKey, bool create, n
       GetMsgHdrForKey(msgKey, getter_AddRefs(msgHdr));
       if (msgHdr)
       {
-        PRUint32 flags;
+        uint32_t flags;
         msgHdr->GetFlags(&flags);
         (*offlineOp)->SetNewFlags(flags);
       }
-      PRInt32 newFlags;
+      int32_t newFlags;
       m_dbFolderInfo->OrFlags(nsMsgFolderFlags::OfflineEvents, &newFlags);
     }
   }
@@ -273,7 +273,7 @@ NS_IMETHODIMP nsMailDatabase::ListAllOfflineDeletes(nsTArray<nsMsgKey> *offlineD
       
       err = rowCursor->NextRow(GetEnv(), &offlineOpRow, &outPos);
       // is this right? Mork is returning a 0 id, but that should valid.
-      if (outPos < 0 || offlineOpRow == nsnull)	
+      if (outPos < 0 || offlineOpRow == nullptr)	
         break;
       if (err == NS_OK)
       {
@@ -330,7 +330,7 @@ protected:
 };
 
 nsMsgOfflineOpEnumerator::nsMsgOfflineOpEnumerator(nsMailDatabase* db)
-    : mDB(db), mRowCursor(nsnull), mDone(false)
+    : mDB(db), mRowCursor(nullptr), mDone(false)
 {
   NS_ADDREF(mDB);
   mNextPrefetched = false;
@@ -346,7 +346,7 @@ NS_IMPL_ISUPPORTS1(nsMsgOfflineOpEnumerator, nsISimpleEnumerator)
 
 nsresult nsMsgOfflineOpEnumerator::GetRowCursor()
 {
-  nsresult rv = 0;
+  nsresult rv = NS_OK;
   mDone = false;
 
   if (!mDB || !mDB->m_mdbAllOfflineOpsTable)

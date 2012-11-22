@@ -7,6 +7,9 @@
 #include "nsCOMPtr.h"
 #include "nsDOMFile.h"
 #include "nsILocalFile.h"
+#include "Layers.h"
+#include "ImageContainer.h"
+#include "ImageTypes.h"
 
 #ifdef MOZ_WIDGET_ANDROID
 #include "AndroidBridge.h"
@@ -25,6 +28,14 @@ NS_IMPL_THREADSAFE_ISUPPORTS1(MediaEngineDefaultVideoSource, nsITimerCallback)
 /**
  * Default video source.
  */
+
+MediaEngineDefaultVideoSource::MediaEngineDefaultVideoSource()
+  : mTimer(nullptr), mState(kReleased)
+{}
+
+MediaEngineDefaultVideoSource::~MediaEngineDefaultVideoSource()
+{}
+
 void
 MediaEngineDefaultVideoSource::GetName(nsAString& aName)
 {
@@ -86,18 +97,18 @@ MediaEngineDefaultVideoSource::Start(SourceMediaStream* aStream, TrackID aID)
   mSource = aStream;
 
   // Allocate a single blank Image
-  layers::Image::Format format = layers::Image::PLANAR_YCBCR;
+  ImageFormat format = PLANAR_YCBCR;
   mImageContainer = layers::LayerManager::CreateImageContainer();
 
   nsRefPtr<layers::Image> image = mImageContainer->CreateImage(&format, 1);
 
   int len = ((WIDTH * HEIGHT) * 3 / 2);
   mImage = static_cast<layers::PlanarYCbCrImage*>(image.get());
-  PRUint8* frame = (PRUint8*) PR_Malloc(len);
+  uint8_t* frame = (uint8_t*) PR_Malloc(len);
   memset(frame, 0x80, len); // Gray
 
-  const PRUint8 lumaBpp = 8;
-  const PRUint8 chromaBpp = 4;
+  const uint8_t lumaBpp = 8;
+  const uint8_t chromaBpp = 4;
 
   layers::PlanarYCbCrImage::Data data;
   data.mYChannel = frame;
@@ -110,7 +121,7 @@ MediaEngineDefaultVideoSource::Start(SourceMediaStream* aStream, TrackID aID)
   data.mPicX = 0;
   data.mPicY = 0;
   data.mPicSize = gfxIntSize(WIDTH, HEIGHT);
-  data.mStereoMode = layers::STEREO_MODE_MONO;
+  data.mStereoMode = STEREO_MODE_MONO;
 
   // SetData copies data, so we can free the frame
   mImage->SetData(data);
@@ -155,9 +166,9 @@ MediaEngineDefaultVideoSource::Stop()
 }
 
 nsresult
-MediaEngineDefaultVideoSource::Snapshot(PRUint32 aDuration, nsIDOMFile** aFile)
+MediaEngineDefaultVideoSource::Snapshot(uint32_t aDuration, nsIDOMFile** aFile)
 {
-  *aFile = nsnull;
+  *aFile = nullptr;
 
 #ifndef MOZ_WIDGET_ANDROID
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -282,7 +293,7 @@ MediaEngineDefaultAudioSource::Stop()
 }
 
 nsresult
-MediaEngineDefaultAudioSource::Snapshot(PRUint32 aDuration, nsIDOMFile** aFile)
+MediaEngineDefaultAudioSource::Snapshot(uint32_t aDuration, nsIDOMFile** aFile)
 {
    return NS_ERROR_NOT_IMPLEMENTED;
 }

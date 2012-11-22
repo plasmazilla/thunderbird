@@ -43,7 +43,7 @@ extern nsIRollupListener * gRollupListener;
 extern nsIWidget         * gRollupWidget;
 
 // defined in nsCocoaWindow.mm
-extern PRInt32             gXULModalLevel;
+extern int32_t             gXULModalLevel;
 
 static bool gAppShellMethodsSwizzled = false;
 // List of current Cocoa app-modal windows (nested if more than one).
@@ -141,7 +141,7 @@ bool nsCocoaAppModalWindowList::GeckoModalAboveCocoaModal()
 
   nsCocoaAppModalWindowListItem &topItem = mList.ElementAt(mList.Length() - 1);
 
-  return (topItem.mWidget != nsnull);
+  return (topItem.mWidget != nullptr);
 }
 
 @implementation GeckoNSApplication
@@ -204,8 +204,8 @@ nsAppShell::ResumeNative(void)
 }
 
 nsAppShell::nsAppShell()
-: mAutoreleasePools(nsnull)
-, mDelegate(nsnull)
+: mAutoreleasePools(nullptr)
+, mDelegate(nullptr)
 , mCFRunLoop(NULL)
 , mCFRunLoopSource(NULL)
 , mRunningEventLoop(false)
@@ -265,7 +265,7 @@ nsAppShell::Init()
   // by |this|.  CFArray is used instead of NSArray because NSArray wants to
   // retain each object you add to it, and you can't retain an
   // NSAutoreleasePool.
-  mAutoreleasePools = ::CFArrayCreateMutable(nsnull, 0, nsnull);
+  mAutoreleasePools = ::CFArrayCreateMutable(nullptr, 0, nullptr);
   NS_ENSURE_STATE(mAutoreleasePools);
 
   // Get the path of the nib file, which lives in the GRE location
@@ -437,7 +437,7 @@ nsAppShell::ProcessGeckoEvents(void* aInfo)
   // make sure not to finish the balancing until all the recursion has been
   // unwound.
   if (self->mTerminated) {
-    PRInt32 releaseCount = 0;
+    int32_t releaseCount = 0;
     if (self->mNativeEventScheduledDepth > self->mNativeEventCallbackDepth) {
       releaseCount = PR_ATOMIC_SET(&self->mNativeEventScheduledDepth,
                                    self->mNativeEventCallbackDepth);
@@ -796,8 +796,8 @@ nsAppShell::Exit(void)
   NS_ASSERTION(!cocoaModal,
                "Don't call nsAppShell::Exit() from a modal event loop!");
   if (cocoaModal)
-    [NSApp stop:nsnull];
-  [NSApp stop:nsnull];
+    [NSApp stop:nullptr];
+  [NSApp stop:nullptr];
 
   // A call to Exit() just after a call to ScheduleNativeEventCallback()
   // prevents the (normally) matching call to ProcessGeckoEvents() from
@@ -806,7 +806,7 @@ nsAppShell::Exit(void)
   // to ScheduleNativeEventCallback() and ProcessGeckoEvents() isn't on the
   // stack, we need to take care of the problem here.
   if (!mNativeEventCallbackDepth && mNativeEventScheduledDepth) {
-    PRInt32 releaseCount = PR_ATOMIC_SET(&mNativeEventScheduledDepth, 0);
+    int32_t releaseCount = PR_ATOMIC_SET(&mNativeEventScheduledDepth, 0);
     while (releaseCount-- > 0)
       NS_RELEASE_THIS();
   }
@@ -828,7 +828,7 @@ nsAppShell::Exit(void)
 // public
 NS_IMETHODIMP
 nsAppShell::OnProcessNextEvent(nsIThreadInternal *aThread, bool aMayWait,
-                               PRUint32 aRecursionDepth)
+                               uint32_t aRecursionDepth)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
@@ -854,7 +854,7 @@ nsAppShell::OnProcessNextEvent(nsIThreadInternal *aThread, bool aMayWait,
 // public
 NS_IMETHODIMP
 nsAppShell::AfterProcessNextEvent(nsIThreadInternal *aThread,
-                                  PRUint32 aRecursionDepth)
+                                  uint32_t aRecursionDepth)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 

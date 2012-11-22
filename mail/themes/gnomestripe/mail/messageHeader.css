@@ -72,6 +72,14 @@
   padding: 0;
 }
 
+.inline-toolbar toolbarseparator {
+  height: 28px;
+}
+
+.inline-toolbar toolbarspacer {
+  height: 23px;
+}
+
 #expandedsubjectBox > .headerValue {
   font-weight: bold;
 }
@@ -549,11 +557,13 @@ mail-emailaddress[selected="true"] .emailDisplayButton{
 }
 
 .emailPresence[chatStatus="available"] {
-  list-style-image: url("chrome://chat/skin/available.png");
+  list-style-image: url("chrome://messenger/skin/icons/status-small.png");
+  -moz-image-region: rect(0px 10px 10px 0px);
 }
 
 .emailPresence[chatStatus="away"] {
-  list-style-image: url("chrome://chat/skin/away.png");
+  list-style-image: url("chrome://messenger/skin/icons/status-small.png");
+  -moz-image-region: rect(0px 40px 10px 30px);
 }
 
 .emailPopup {

@@ -168,6 +168,7 @@
 @BINPATH@/components/msgnews.xpt
 @BINPATH@/components/msgsearch.xpt
 @BINPATH@/components/import.xpt
+@BINPATH@/components/mailcompsbase.xpt
 @BINPATH@/components/mailview.xpt
 @BINPATH@/components/mailprofilemigration.xpt
 @BINPATH@/components/messageWakeupService.js
@@ -480,6 +481,8 @@
 @BINPATH@/components/nsSearchSuggestions.js
 @BINPATH@/components/nsTaggingService.js
 @BINPATH@/components/PlacesCategoriesStarter.js
+@BINPATH@/components/TCPSocket.js
+@BINPATH@/components/TCPSocket.manifest
 @BINPATH@/components/TelemetryPing.js
 @BINPATH@/components/TelemetryPing.manifest
 @BINPATH@/components/toolkitplaces.manifest
@@ -730,7 +733,9 @@
 @BINPATH@/maintenanceservice_installer.exe
 #endif
 
-; [crash reporter]
+; [Crash Reporter]
+;
+#ifdef MOZ_CRASHREPORTER
 #ifdef XP_MACOSX
 @BINPATH@/crashreporter.app/
 #else
@@ -739,6 +744,7 @@
 @BINPATH@/crashreporter.ini
 #ifdef XP_UNIX
 @BINPATH@/Throbber-small.gif
+#endif
 #endif
 #endif
 #endif

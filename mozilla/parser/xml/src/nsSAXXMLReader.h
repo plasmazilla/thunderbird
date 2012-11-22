@@ -71,7 +71,7 @@ public:
   
   virtual nsISupports *GetTarget()
   {
-    return nsnull;
+    return nullptr;
   }
 
 private:
@@ -84,7 +84,7 @@ private:
   nsCOMPtr<nsIRequestObserver> mParserObserver;
   bool mIsAsyncParse;
   static bool TryChannelCharset(nsIChannel *aChannel,
-                                  PRInt32& aCharsetSource,
+                                  int32_t& aCharsetSource,
                                   nsACString& aCharset);
   nsresult EnsureBaseURI();
   nsresult InitParser(nsIRequestObserver *aListener, nsIChannel *aChannel);

@@ -162,7 +162,7 @@ DrawTargetSkia::Snapshot()
 {
   RefPtr<SourceSurfaceSkia> source = new SourceSurfaceSkia();
   if (!source->InitWithBitmap(mBitmap, mFormat, this)) {
-    return NULL;
+    return nullptr;
   }
   AppendSnapshot(source);
   return source;
@@ -206,10 +206,14 @@ void SetPaintPattern(SkPaint& aPaint, const Pattern& aPattern, Float aAlpha = 1.
                                                           &stops->mPositions.front(), 
                                                           stops->mCount, 
                                                           mode);
-        SkMatrix mat;
-        GfxMatrixToSkiaMatrix(pat.mMatrix, mat);
-        shader->setLocalMatrix(mat);
-        SkSafeUnref(aPaint.setShader(shader));
+
+        if (shader) {
+            SkMatrix mat;
+            GfxMatrixToSkiaMatrix(pat.mMatrix, mat);
+            shader->setLocalMatrix(mat);
+            SkSafeUnref(aPaint.setShader(shader));
+        }
+
       } else {
         aPaint.setColor(SkColorSetARGB(0, 0, 0, 0));
       }
@@ -233,10 +237,13 @@ void SetPaintPattern(SkPaint& aPaint, const Pattern& aPattern, Float aAlpha = 1.
                                                                   &stops->mPositions.front(), 
                                                                   stops->mCount, 
                                                                   mode);
-        SkMatrix mat;
-        GfxMatrixToSkiaMatrix(pat.mMatrix, mat);
-        shader->setLocalMatrix(mat);
-        SkSafeUnref(aPaint.setShader(shader));
+        if (shader) {
+            SkMatrix mat;
+            GfxMatrixToSkiaMatrix(pat.mMatrix, mat);
+            shader->setLocalMatrix(mat);
+            SkSafeUnref(aPaint.setShader(shader));
+        }
+
       } else {
         aPaint.setColor(SkColorSetARGB(0, 0, 0, 0));
       }
@@ -304,7 +311,7 @@ struct AutoPaintSetup {
       temp.setXfermodeMode(GfxOpToSkiaOp(aOptions.mCompositionOp));
       temp.setAlpha(aOptions.mAlpha*255);
       //TODO: Get a rect here
-      mCanvas->saveLayer(NULL, &temp);
+      mCanvas->saveLayer(nullptr, &temp);
       mNeedsRestore = true;
     } else {
       mPaint.setAlpha(aOptions.mAlpha*255.0);
@@ -584,7 +591,7 @@ DrawTargetSkia::CreateSourceSurfaceFromData(unsigned char *aData,
 
   if (!newSurf->InitFromData(aData, aSize, aStride, aFormat)) {
     gfxDebug() << *this << ": Failure to create source surface from data. Size: " << aSize;
-    return NULL;
+    return nullptr;
   }
     
   return newSurf;
@@ -595,7 +602,7 @@ DrawTargetSkia::CreateSimilarDrawTarget(const IntSize &aSize, SurfaceFormat aFor
 {
   RefPtr<DrawTargetSkia> target = new DrawTargetSkia();
   if (!target->Init(aSize, aFormat)) {
-    return NULL;
+    return nullptr;
   }
   return target;
 }
@@ -603,13 +610,13 @@ DrawTargetSkia::CreateSimilarDrawTarget(const IntSize &aSize, SurfaceFormat aFor
 TemporaryRef<SourceSurface>
 DrawTargetSkia::OptimizeSourceSurface(SourceSurface *aSurface) const
 {
-  return NULL;
+  return nullptr;
 }
 
 TemporaryRef<SourceSurface>
 DrawTargetSkia::CreateSourceSurfaceFromNativeSurface(const NativeSurface &aSurface) const
 {
-  return NULL;
+  return nullptr;
 }
 
 void

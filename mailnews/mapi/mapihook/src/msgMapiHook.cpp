@@ -60,11 +60,11 @@ public:
     // nsISupports interface
     NS_DECL_ISUPPORTS
 
-    /* void OnStartSending (in string aMsgID, in PRUint32 aMsgSize); */
-    NS_IMETHOD OnStartSending(const char *aMsgID, PRUint32 aMsgSize) { return NS_OK; }
+    /* void OnStartSending (in string aMsgID, in uint32_t aMsgSize); */
+    NS_IMETHOD OnStartSending(const char *aMsgID, uint32_t aMsgSize) { return NS_OK; }
 
-    /* void OnProgress (in string aMsgID, in PRUint32 aProgress, in PRUint32 aProgressMax); */
-    NS_IMETHOD OnProgress(const char *aMsgID, PRUint32 aProgress, PRUint32 aProgressMax) { return NS_OK;}
+    /* void OnProgress (in string aMsgID, in uint32_t aProgress, in uint32_t aProgressMax); */
+    NS_IMETHOD OnProgress(const char *aMsgID, uint32_t aProgress, uint32_t aProgressMax) { return NS_OK;}
 
     /* void OnStatus (in string aMsgID, in wstring aMsg); */
     NS_IMETHOD OnStatus(const char *aMsgID, const PRUnichar *aMsg) { return NS_OK;}
@@ -82,7 +82,7 @@ public:
 	/* void OnSendNotPerformed */
 	NS_IMETHOD OnSendNotPerformed(const char *aMsgID, nsresult aStatus)
 	{
-		return OnStopSending(aMsgID, aStatus, nsnull, nsnull) ;
+		return OnStopSending(aMsgID, aStatus, nullptr, nullptr) ;
 	}
 
     /* void OnGetDraftFolderURI (); */
@@ -168,9 +168,9 @@ bool nsMapiHook::DisplayLoginDialog(bool aLogin, PRUnichar **aUsername,
       if (NS_FAILED(rv) || loginText.IsEmpty()) return false;
 
       bool dummyValue = false;
-      rv = dlgService->PromptUsernameAndPassword(nsnull, loginTitle.get(),
+      rv = dlgService->PromptUsernameAndPassword(nullptr, loginTitle.get(),
                                                  loginText.get(), aUsername, aPassword,
-                                                 nsnull, &dummyValue, &btnResult);
+                                                 nullptr, &dummyValue, &btnResult);
     }
     else
     {
@@ -185,8 +185,8 @@ bool nsMapiHook::DisplayLoginDialog(bool aLogin, PRUnichar **aUsername,
       if (NS_FAILED(rv)) return false;
 
       bool dummyValue = false;
-      rv = dlgService->PromptPassword(nsnull, loginTitle.get(), loginText.get(),
-                                      aPassword, nsnull, &dummyValue, &btnResult);
+      rv = dlgService->PromptPassword(nullptr, loginTitle.get(), loginText.get(),
+                                      aPassword, nullptr, &dummyValue, &btnResult);
     }
   }
 
@@ -205,10 +205,10 @@ bool nsMapiHook::VerifyUserName(const nsString& aUsername, nsCString& aIdKey)
   nsCOMPtr<nsISupportsArray> identities;
   rv = accountManager->GetAllIdentities(getter_AddRefs(identities));
   if (NS_FAILED(rv)) return false;
-  PRUint32 numIndentities;
+  uint32_t numIndentities;
   identities->Count(&numIndentities);
 
-  for (PRUint32 i = 0; i < numIndentities; i++)
+  for (uint32_t i = 0; i < numIndentities; i++)
   {
     // convert supports->Identity
     nsCOMPtr<nsISupports> thisSupports;
@@ -222,7 +222,7 @@ bool nsMapiHook::VerifyUserName(const nsString& aUsername, nsCString& aIdKey)
       if (NS_FAILED(rv)) continue;
 
       // get the username from the email and compare with the username
-      PRInt32 index = email.FindChar('@');
+      int32_t index = email.FindChar('@');
       if (index != -1)
         email.SetLength(index);
 
@@ -274,7 +274,7 @@ nsMapiHook::IsBlindSendAllowed()
 
   bool continueToWarn = true;
   bool okayToContinue = false;
-  dlgService->ConfirmCheck(nsnull, nsnull, warningMsg.get(), dontShowAgainMessage.get(), &continueToWarn, &okayToContinue);
+  dlgService->ConfirmCheck(nullptr, nullptr, warningMsg.get(), dontShowAgainMessage.get(), &continueToWarn, &okayToContinue);
 
   if (!continueToWarn && okayToContinue && prefBranch)
     prefBranch->SetBoolPref(PREF_MAPI_WARN_PRIOR_TO_BLIND_SEND, false);
@@ -344,12 +344,12 @@ nsresult nsMapiHook::BlindSendMail (unsigned long aSession, nsIMsgCompFields * a
 
   /** initialize nsIMsgCompose, Send the message, wait for send completion response **/
 
-  rv = pMsgCompose->Initialize(pMsgComposeParams, hiddenWindow, nsnull);
+  rv = pMsgCompose->Initialize(pMsgComposeParams, hiddenWindow, nullptr);
   if (NS_FAILED(rv)) return rv ;
 
   // If we're in offline mode, we'll need to queue it for later. No point in trying to send it.
   return pMsgCompose->SendMsg(WeAreOffline() ? nsIMsgSend::nsMsgQueueForLater : nsIMsgSend::nsMsgDeliverNow,
-			      pMsgId, nsnull, nsnull, nsnull);
+			      pMsgId, nullptr, nullptr, nullptr);
   if (NS_FAILED(rv)) return rv ;
 
   // assign to interface pointer from nsCOMPtr to facilitate typecast below
@@ -448,7 +448,7 @@ nsresult nsMapiHook::PopulateCompFields(lpnsMapiMessage aMessage,
   return rv ;
 }
 
-nsresult nsMapiHook::HandleAttachments (nsIMsgCompFields * aCompFields, PRInt32 aFileCount,
+nsresult nsMapiHook::HandleAttachments (nsIMsgCompFields * aCompFields, int32_t aFileCount,
                                         lpnsMapiFileDesc aFiles, BOOL aIsUnicode)
 {
     nsresult rv = NS_OK ;
@@ -504,7 +504,7 @@ nsresult nsMapiHook::HandleAttachments (nsIMsgCompFields * aCompFields, PRInt32 
                 else
                     ConvertToUnicode(nsMsgI18NFileSystemCharset(), (char *) aFiles[i].lpszFileName, wholeFileName);
                 // need to find the last '\' and find the leafname from that.
-                PRInt32 lastSlash = wholeFileName.RFindChar(PRUnichar('\\'));
+                int32_t lastSlash = wholeFileName.RFindChar(PRUnichar('\\'));
                 if (lastSlash != kNotFound)
                   leafName.Assign(Substring(wholeFileName, lastSlash + 1));
                 else
@@ -546,7 +546,7 @@ nsresult nsMapiHook::HandleAttachments (nsIMsgCompFields * aCompFields, PRInt32 
             attachment->SetUrl(pURL);
 
             // set the file size
-            PRInt64 fileSize;
+            int64_t fileSize;
             pFile->GetFileSize(&fileSize);
             attachment->SetSize(fileSize);
 
@@ -699,8 +699,8 @@ nsresult nsMapiHook::PopulateCompFieldsForSendDocs(nsIMsgCompFields * aCompField
   if (strDelimChars.IsEmpty())
       strDelimChars.AssignLiteral(";");
 
-  PRInt32 offset = 0 ;
-  PRInt32 FilePathsLen = strFilePaths.Length() ;
+  int32_t offset = 0 ;
+  int32_t FilePathsLen = strFilePaths.Length() ;
   if (FilePathsLen)
   {
     nsAutoString Subject ;
@@ -785,7 +785,7 @@ nsresult nsMapiHook::PopulateCompFieldsForSendDocs(nsIMsgCompFields * aCompField
       attachment->SetUrl(pURL);
 
       // set the file size
-      PRInt64 fileSize;
+      int64_t fileSize;
       pFile->GetFileSize(&fileSize);
       attachment->SetSize(fileSize);
 
@@ -827,7 +827,7 @@ nsresult nsMapiHook::ShowComposerWindow (unsigned long aSession, nsIMsgCompField
     nsCOMPtr <nsIMsgComposeService> compService = do_GetService (NS_MSGCOMPOSESERVICE_CONTRACTID) ;
     if (NS_FAILED(rv)|| (!compService) ) return rv ;
 
-    rv = compService->OpenComposeWindowWithParams(nsnull, pMsgComposeParams) ;
+    rv = compService->OpenComposeWindowWithParams(nullptr, pMsgComposeParams) ;
     if (NS_FAILED(rv)) return rv ;
 
     return rv ;

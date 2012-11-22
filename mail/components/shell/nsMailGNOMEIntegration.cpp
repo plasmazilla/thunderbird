@@ -40,7 +40,7 @@ static const char* const sFeedProtocols[] = {
 };
 
 struct AppTypeAssociation {
-  PRUint16 type;
+  uint16_t type;
   const char * const *protocols;
   const char *mimeType;
   const char *extensions;
@@ -72,7 +72,7 @@ nsMailGNOMEIntegration::Init()
 
   // Check G_BROKEN_FILENAMES.  If it's set, then filenames in glib use
   // the locale encoding.  If it's not set, they use UTF-8.
-  mUseLocaleFilenames = PR_GetEnv("G_BROKEN_FILENAMES") != nsnull;
+  mUseLocaleFilenames = PR_GetEnv("G_BROKEN_FILENAMES") != nullptr;
 
   if (GetAppPathFromLauncher())
       return NS_OK;
@@ -121,7 +121,7 @@ nsMailGNOMEIntegration::GetAppPathFromLauncher()
 }
 
 NS_IMETHODIMP
-nsMailGNOMEIntegration::IsDefaultClient(bool aStartupCheck, PRUint16 aApps, bool * aIsDefaultClient)
+nsMailGNOMEIntegration::IsDefaultClient(bool aStartupCheck, uint16_t aApps, bool * aIsDefaultClient)
 {
   *aIsDefaultClient = true;
 
@@ -140,15 +140,19 @@ nsMailGNOMEIntegration::IsDefaultClient(bool aStartupCheck, PRUint16 aApps, bool
 }
 
 NS_IMETHODIMP
-nsMailGNOMEIntegration::SetDefaultClient(bool aForAllUsers, PRUint16 aApps)
+nsMailGNOMEIntegration::SetDefaultClient(bool aForAllUsers, uint16_t aApps)
 {
   nsresult rv = NS_OK;
   for (unsigned int i = 0; i < NS_ARRAY_LENGTH(sAppTypes); i++) {
-    if (aApps & sAppTypes[i].type)
-      rv |= MakeDefault(sAppTypes[i].protocols,
-                        NS_ARRAY_LENGTH(sAppTypes[i].protocols),
-                        sAppTypes[i].mimeType,
-                        sAppTypes[i].extensions);
+    if (aApps & sAppTypes[i].type) {
+      nsresult tmp = MakeDefault(sAppTypes[i].protocols,
+                                 NS_ARRAY_LENGTH(sAppTypes[i].protocols),
+                                 sAppTypes[i].mimeType,
+                                 sAppTypes[i].extensions);
+      if (NS_FAILED(tmp)) {
+        rv = tmp;
+      }
+    }
   }
 
   return rv;	

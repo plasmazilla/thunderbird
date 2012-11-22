@@ -35,8 +35,8 @@ namespace hal_impl {
 
 namespace {
 struct LockCount {
-  PRUint32 numLocks;
-  PRUint32 numHidden;
+  uint32_t numLocks;
+  uint32_t numHidden;
 };
 }
 
@@ -60,7 +60,7 @@ ClearHashtableOnShutdown::Observe(nsISupports* aSubject, const char* aTopic, con
   MOZ_ASSERT(!strcmp(aTopic, "xpcom-shutdown"));
 
   sIsShuttingDown = true;
-  sLockTable = nsnull;
+  sLockTable = nullptr;
 
   return NS_OK;
 }

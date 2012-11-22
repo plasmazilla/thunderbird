@@ -5,20 +5,20 @@
 
 package org.mozilla.gecko.gfx;
 
-import java.util.LinkedList;
-import java.util.Queue;
+import org.mozilla.gecko.OnInterceptTouchListener;
+import org.mozilla.gecko.Tab;
+import org.mozilla.gecko.Tabs;
+import org.mozilla.gecko.ui.PanZoomController;
+import org.mozilla.gecko.ui.SimpleScaleGestureDetector;
+
 import android.content.Context;
-import android.graphics.PointF;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 
-import org.mozilla.gecko.ui.PanZoomController;
-import org.mozilla.gecko.ui.SimpleScaleGestureDetector;
-import org.mozilla.gecko.OnInterceptTouchListener;
-import org.mozilla.gecko.Tab;
-import org.mozilla.gecko.Tabs;
+import java.util.LinkedList;
+import java.util.Queue;
 
 /**
  * This class handles incoming touch events from the user and sends them to
@@ -125,17 +125,17 @@ public final class TouchEventHandler implements Tabs.OnTabsChangedListener {
     //   processed. (n is the absolute value of the balance.)
     private int mProcessingBalance;
 
-    TouchEventHandler(Context context, LayerView view, LayerController controller) {
+    TouchEventHandler(Context context, LayerView view, GeckoLayerClient layerClient) {
         mView = view;
 
         mEventQueue = new LinkedList<MotionEvent>();
-        mGestureDetector = new GestureDetector(context, controller.getGestureListener());
-        mScaleGestureDetector = new SimpleScaleGestureDetector(controller.getScaleGestureListener());
-        mPanZoomController = controller.getPanZoomController();
+        mPanZoomController = layerClient.getPanZoomController();
+        mGestureDetector = new GestureDetector(context, mPanZoomController);
+        mScaleGestureDetector = new SimpleScaleGestureDetector(mPanZoomController);
         mListenerTimeoutProcessor = new ListenerTimeoutProcessor();
         mDispatchEvents = true;
 
-        mGestureDetector.setOnDoubleTapListener(controller.getDoubleTapListener());
+        mGestureDetector.setOnDoubleTapListener(mPanZoomController);
 
         Tabs.registerOnTabsChangedListener(this);
     }

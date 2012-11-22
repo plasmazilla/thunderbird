@@ -1,9 +1,8 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/*
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-*/
+
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 "use strict";
 
@@ -972,6 +971,10 @@ Blocklist.prototype = {
         if (state == Ci.nsIBlocklistService.STATE_VULNERABLE_UPDATE_AVAILABLE ||
             state == Ci.nsIBlocklistService.STATE_VULNERABLE_NO_UPDATE)
           plugin.clicktoplay = true;
+        // turn off clicktoplay if it was previously set by the blocklist
+        else if (oldState == Ci.nsIBlocklistService.STATE_VULNERABLE_UPDATE_AVAILABLE ||
+                 oldState == Ci.nsIBlocklistService.STATE_VULNERABLE_NO_UPDATE)
+          plugin.clicktoplay = false;
       }
 
       if (addonList.length == 0) {
@@ -1052,7 +1055,11 @@ function BlocklistItemData(versionRangeElement) {
     this.severity = versionRangeElement.getAttribute("severity");
   else
     this.severity = DEFAULT_SEVERITY;
-  this.vulnerabilityStatus = VULNERABILITYSTATUS_NONE;
+  if (versionRangeElement && versionRangeElement.hasAttribute("vulnerabilitystatus")) {
+    this.vulnerabilityStatus = versionRangeElement.getAttribute("vulnerabilitystatus");
+  } else {
+    this.vulnerabilityStatus = VULNERABILITYSTATUS_NONE;
+  }
   this.targetApps = { };
   var found = false;
 

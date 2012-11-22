@@ -7,7 +7,6 @@
 #define nsDOMEvent_h__
 
 #include "nsIDOMEvent.h"
-#include "nsIDOMNSEvent.h"
 #include "nsISupports.h"
 #include "nsCOMPtr.h"
 #include "nsIDOMEventTarget.h"
@@ -24,7 +23,6 @@ struct JSContext;
 struct JSObject;
  
 class nsDOMEvent : public nsIDOMEvent,
-                   public nsIDOMNSEvent,
                    public nsIJSNativeInitializer
 {
 public:
@@ -104,6 +102,7 @@ public:
     eDOMEvents_pagehide,
     eDOMEvents_DOMMouseScroll,
     eDOMEvents_MozMousePixelScroll,
+    eDOMEvents_wheel,
     eDOMEvents_offline,
     eDOMEvents_online,
     eDOMEvents_copy,
@@ -191,12 +190,9 @@ public:
   // nsIDOMEvent Interface
   NS_DECL_NSIDOMEVENT
 
-  // nsIDOMNSEvent Interface
-  NS_DECL_NSIDOMNSEVENT
-
   // nsIJSNativeInitializer
   NS_IMETHOD Initialize(nsISupports* aOwner, JSContext* aCx, JSObject* aObj,
-                        PRUint32 aArgc, jsval* aArgv);
+                        uint32_t aArgc, jsval* aArgv);
 
   virtual nsresult InitFromCtor(const nsAString& aType,
                                 JSContext* aCx, jsval* aVal);
@@ -209,7 +205,7 @@ public:
 
   static void Shutdown();
 
-  static const char* GetEventName(PRUint32 aEventType);
+  static const char* GetEventName(uint32_t aEventType);
   static nsIntPoint GetClientCoords(nsPresContext* aPresContext,
                                     nsEvent* aEvent,
                                     nsIntPoint aPoint,
@@ -224,7 +220,7 @@ public:
 protected:
 
   // Internal helper functions
-  nsresult SetEventType(const nsAString& aEventTypeArg);
+  void SetEventType(const nsAString& aEventTypeArg);
   already_AddRefed<nsIContent> GetTargetFromFrame();
 
   nsEvent*                    mEvent;
@@ -242,7 +238,7 @@ protected:
   NS_IMETHOD GetType(nsAString& aType){ return _to GetType(aType); } \
   NS_IMETHOD GetTarget(nsIDOMEventTarget * *aTarget) { return _to GetTarget(aTarget); } \
   NS_IMETHOD GetCurrentTarget(nsIDOMEventTarget * *aCurrentTarget) { return _to GetCurrentTarget(aCurrentTarget); } \
-  NS_IMETHOD GetEventPhase(PRUint16 *aEventPhase) { return _to GetEventPhase(aEventPhase); } \
+  NS_IMETHOD GetEventPhase(uint16_t *aEventPhase) { return _to GetEventPhase(aEventPhase); } \
   NS_IMETHOD GetBubbles(bool *aBubbles) { return _to GetBubbles(aBubbles); } \
   NS_IMETHOD GetCancelable(bool *aCancelable) { return _to GetCancelable(aCancelable); } \
   NS_IMETHOD GetTimeStamp(DOMTimeStamp *aTimeStamp) { return _to GetTimeStamp(aTimeStamp); } \
@@ -251,6 +247,12 @@ protected:
   NS_IMETHOD InitEvent(const nsAString & eventTypeArg, bool canBubbleArg, bool cancelableArg) { return _to InitEvent(eventTypeArg, canBubbleArg, cancelableArg); } \
   NS_IMETHOD GetDefaultPrevented(bool *aDefaultPrevented) { return _to GetDefaultPrevented(aDefaultPrevented); } \
   NS_IMETHOD StopImmediatePropagation(void) { return _to StopImmediatePropagation(); } \
+  NS_IMETHOD GetOriginalTarget(nsIDOMEventTarget** aOriginalTarget) { return _to GetOriginalTarget(aOriginalTarget); } \
+  NS_IMETHOD GetExplicitOriginalTarget(nsIDOMEventTarget** aExplicitOriginalTarget) { return _to GetExplicitOriginalTarget(aExplicitOriginalTarget); } \
+  NS_IMETHOD PreventBubble() { return _to PreventBubble(); } \
+  NS_IMETHOD PreventCapture() { return _to PreventCapture(); } \
+  NS_IMETHOD GetPreventDefault(bool* aRetval) { return _to GetPreventDefault(aRetval); } \
+  NS_IMETHOD GetIsTrusted(bool* aIsTrusted) { return _to GetIsTrusted(aIsTrusted); } \
   NS_IMETHOD SetTarget(nsIDOMEventTarget *aTarget) { return _to SetTarget(aTarget); } \
   NS_IMETHOD_(bool) IsDispatchStopped(void) { return _to IsDispatchStopped(); } \
   NS_IMETHOD_(nsEvent *) GetInternalNSEvent(void) { return _to GetInternalNSEvent(); } \

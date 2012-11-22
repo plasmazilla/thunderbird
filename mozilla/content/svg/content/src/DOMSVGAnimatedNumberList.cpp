@@ -55,16 +55,15 @@ DOMSVGAnimatedNumberList::GetAnimVal(nsIDOMSVGNumberList **_retval)
 /* static */ already_AddRefed<DOMSVGAnimatedNumberList>
 DOMSVGAnimatedNumberList::GetDOMWrapper(SVGAnimatedNumberList *aList,
                                         nsSVGElement *aElement,
-                                        PRUint8 aAttrEnum)
+                                        uint8_t aAttrEnum)
 {
-  DOMSVGAnimatedNumberList *wrapper =
+  nsRefPtr<DOMSVGAnimatedNumberList> wrapper =
     sSVGAnimatedNumberListTearoffTable.GetTearoff(aList);
   if (!wrapper) {
     wrapper = new DOMSVGAnimatedNumberList(aElement, aAttrEnum);
     sSVGAnimatedNumberListTearoffTable.AddTearoff(aList, wrapper);
   }
-  NS_ADDREF(wrapper);
-  return wrapper;
+  return wrapper.forget();
 }
 
 /* static */ DOMSVGAnimatedNumberList*

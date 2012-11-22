@@ -127,13 +127,13 @@ public:
   static already_AddRefed<DOMSVGAnimatedLengthList>
     GetDOMWrapper(SVGAnimatedLengthList *aList,
                   nsSVGElement *aElement,
-                  PRUint8 aAttrEnum,
-                  PRUint8 aAxis);
+                  uint8_t aAttrEnum,
+                  uint8_t aAxis);
 
   /**
    * This method returns the DOMSVGAnimatedLengthList wrapper for an internal
    * SVGAnimatedLengthList object if it currently has a wrapper. If it does
-   * not, then nsnull is returned.
+   * not, then nullptr is returned.
    */
   static DOMSVGAnimatedLengthList*
     GetDOMWrapperIfExists(SVGAnimatedLengthList *aList);
@@ -165,9 +165,9 @@ private:
    * Only our static GetDOMWrapper() factory method may create objects of our
    * type.
    */
-  DOMSVGAnimatedLengthList(nsSVGElement *aElement, PRUint8 aAttrEnum, PRUint8 aAxis)
-    : mBaseVal(nsnull)
-    , mAnimVal(nsnull)
+  DOMSVGAnimatedLengthList(nsSVGElement *aElement, uint8_t aAttrEnum, uint8_t aAxis)
+    : mBaseVal(nullptr)
+    , mAnimVal(nullptr)
     , mElement(aElement)
     , mAttrEnum(aAttrEnum)
     , mAxis(aAxis)
@@ -189,8 +189,8 @@ private:
   // ourself, but also for our base/animVal and all of their items.
   nsRefPtr<nsSVGElement> mElement;
 
-  PRUint8 mAttrEnum;
-  PRUint8 mAxis;
+  uint8_t mAttrEnum;
+  uint8_t mAxis;
 };
 
 } // namespace mozilla

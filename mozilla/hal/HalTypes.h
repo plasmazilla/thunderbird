@@ -29,12 +29,14 @@ enum LightType {
 };
 enum LightMode {
     eHalLightMode_User = 0,       // brightness is managed by user setting
-    eHalLightMode_Sensor = 1      // brightness is managed by a light sensor
+    eHalLightMode_Sensor = 1,     // brightness is managed by a light sensor
+    eHalLightMode_Count
 };
 enum FlashMode {
     eHalLightFlash_None = 0,
     eHalLightFlash_Timed = 1,     // timed flashing.  Use flashOnMS and flashOffMS for timing
-    eHalLightFlash_Hardware = 2   // hardware assisted flashing
+    eHalLightFlash_Hardware = 2,  // hardware assisted flashing
+    eHalLightFlash_Count
 };
 
 class SwitchEvent;
@@ -54,11 +56,13 @@ enum SwitchState {
 };
 
 typedef Observer<SwitchEvent> SwitchObserver;
-} // namespace hal
-} // namespace mozilla
 
-namespace mozilla {
-namespace hal {
+enum ProcessPriority {
+  PROCESS_PRIORITY_BACKGROUND,
+  PROCESS_PRIORITY_FOREGROUND,
+  PROCESS_PRIORITY_MASTER,
+  NUM_PROCESS_PRIORITY
+};
 
 /**
  * Used by ModifyWakeLock
@@ -67,10 +71,11 @@ enum WakeLockControl {
   WAKE_LOCK_REMOVE_ONE = -1,
   WAKE_LOCK_NO_CHANGE  = 0,
   WAKE_LOCK_ADD_ONE    = 1,
+  NUM_WAKE_LOCK
 };
 
-}
-}
+} // namespace hal
+} // namespace mozilla
 
 namespace IPC {
 
@@ -91,7 +96,7 @@ template <>
 struct ParamTraits<mozilla::hal::LightMode>
   : public EnumSerializer<mozilla::hal::LightMode,
                           mozilla::hal::eHalLightMode_User,
-                          mozilla::hal::eHalLightMode_Sensor>
+                          mozilla::hal::eHalLightMode_Count>
 {};
 
 /**
@@ -101,7 +106,7 @@ template <>
 struct ParamTraits<mozilla::hal::FlashMode>
   : public EnumSerializer<mozilla::hal::FlashMode,
                           mozilla::hal::eHalLightFlash_None,
-                          mozilla::hal::eHalLightFlash_Hardware>
+                          mozilla::hal::eHalLightFlash_Count>
 {};
 
 /**
@@ -111,7 +116,7 @@ template <>
 struct ParamTraits<mozilla::hal::WakeLockControl>
   : public EnumSerializer<mozilla::hal::WakeLockControl,
                           mozilla::hal::WAKE_LOCK_REMOVE_ONE,
-                          mozilla::hal::WAKE_LOCK_ADD_ONE>
+                          mozilla::hal::NUM_WAKE_LOCK>
 {};
 
 /**
@@ -132,6 +137,13 @@ struct ParamTraits<mozilla::hal::SwitchDevice>:
   public EnumSerializer<mozilla::hal::SwitchDevice,
                         mozilla::hal::SWITCH_DEVICE_UNKNOWN,
                         mozilla::hal::NUM_SWITCH_DEVICE> {
+};
+
+template <>
+struct ParamTraits<mozilla::hal::ProcessPriority>:
+  public EnumSerializer<mozilla::hal::ProcessPriority,
+                        mozilla::hal::PROCESS_PRIORITY_BACKGROUND,
+                        mozilla::hal::NUM_PROCESS_PRIORITY> {
 };
 
 

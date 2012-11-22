@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH		= ..
+DEPTH		= @DEPTH@
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
@@ -12,13 +12,13 @@ include $(DEPTH)/config/autoconf.mk
 
 MODULE		= dom
 
-DIRS = \
+PARALLEL_DIRS = \
   interfaces/base \
   interfaces/canvas \
   interfaces/core \
-  interfaces/devicestorage \
   interfaces/html \
   interfaces/events \
+  interfaces/devicestorage \
   interfaces/contacts \
   interfaces/settings \
   interfaces/stylesheets \
@@ -37,15 +37,13 @@ DIRS = \
   interfaces/notification \
   interfaces/svg \
   interfaces/smil \
-  $(NULL)
-
-DIRS += \
   interfaces/apps \
   $(NULL)
 
-DIRS += \
+PARALLEL_DIRS += \
   apps \
   base \
+  activities \
   bindings \
   battery \
   browser-element \
@@ -62,6 +60,7 @@ DIRS += \
   src \
   locales \
   network \
+  permission \
   plugins/base \
   plugins/ipc \
   indexedDB \
@@ -69,17 +68,18 @@ DIRS += \
   ipc \
   identity \
   workers \
+  camera \
   $(NULL)
 
 ifdef MOZ_B2G_RIL
-DIRS += \
+PARALLEL_DIRS += \
   telephony \
   wifi \
   $(NULL)
 endif
 
 ifdef MOZ_B2G_BT
-DIRS += \
+PARALLEL_DIRS += \
   bluetooth \
   $(NULL)
 endif

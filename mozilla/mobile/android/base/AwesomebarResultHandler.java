@@ -4,7 +4,8 @@
 
 package org.mozilla.gecko;
 
-import java.util.concurrent.SynchronousQueue;
+import org.mozilla.gecko.util.ActivityResultHandler;
+
 import android.content.Intent;
 
 class AwesomebarResultHandler implements ActivityResultHandler {

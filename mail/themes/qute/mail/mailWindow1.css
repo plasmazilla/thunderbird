@@ -403,3 +403,168 @@ treechildren::-moz-tree-cell-text(subjectCol) {
 #tabpanelcontainer {
   -moz-appearance: none;
 }
+
+/* ..... Draw in titlebar ..... */
+
+@media (-moz-windows-default-theme) {
+  #messengerWindow[tabsintitlebar] {
+    background-color: ActiveCaption;
+  }
+
+  #messengerWindow[tabsintitlebar]:-moz-window-inactive {
+    background-color: InactiveCaption;
+  }
+}
+
+/* Luna silver needs special colors. Default doesn't look good */
+@media (-moz-windows-theme: luna-silver) {
+  #messengerWindow[tabsintitlebar] {
+    background-color: #D6D8E1;
+  }
+
+  #messengerWindow[tabsintitlebar]:-moz-window-inactive {
+    background-color: #E8E9F1;
+  }
+}
+
+/* Royale needs special colors. Default is grey */
+@media (-moz-windows-theme: royale) {
+  #messengerWindow[tabsintitlebar] {
+    background-color: #3472C5;
+  }
+
+  #messengerWindow[tabsintitlebar]:-moz-window-inactive {
+    background-color: #83B7E2;
+  }
+}
+
+/* Zune needs special colors. Default is grey */
+@media (-moz-windows-theme: zune) {
+  #messengerWindow[tabsintitlebar] {
+    background-color: #343434;
+  }
+
+  #messengerWindow[tabsintitlebar]:-moz-window-inactive {
+    background-color: #4B4B4B;
+  }
+}
+
+#messengerWindow[tabsintitlebar]:-moz-lwtheme {
+  background-color: transparent;
+}
+
+#titlebar {
+  -moz-binding: url("chrome://global/content/bindings/general.xml#windowdragbox");
+}
+
+#messengerWindow:not([tabsintitlebar]) #titlebar {
+  visibility: collapse;
+}
+
+#titlebar:-moz-lwtheme {
+  visibility: hidden;
+}
+
+#titlebar-content:-moz-lwtheme {
+  -moz-binding: url("chrome://global/content/bindings/general.xml#windowdragbox");
+  visibility: visible;
+}
+
+#titlebar-spacer {
+  pointer-events: none;
+}
+
+#tabs-toolbar {
+  -moz-binding: url("chrome://global/content/bindings/toolbar.xml#toolbar-drag");
+}
+
+#titlebar-buttonbox {
+  -moz-appearance: -moz-window-button-box;
+  position: relative;
+}
+
+#titlebar-min {
+  -moz-appearance: -moz-window-button-minimize;
+}
+
+@media not all and (-moz-windows-classic) {
+  #titlebar-min {
+    -moz-margin-end: 2px;
+  }
+}
+
+#titlebar-max {
+  -moz-appearance: -moz-window-button-maximize;
+}
+
+#messengerWindow[sizemode="maximized"] #titlebar-max {
+  -moz-appearance: -moz-window-button-restore;
+}
+
+#titlebar-close {
+  -moz-appearance: -moz-window-button-close;
+}
+
+#messengerWindow[tabsintitlebar] .titlebar-placeholder[type="caption-buttons"] {
+  margin-left: 10px; /* additional space for Aero Snap */
+}
+
+#messengerWindow:not([tabsintitlebar]) .titlebar-placeholder {
+  visibility: collapse; 
+}
+
+/* Window titlebar drawn by TB. So needs border like system windows */
+#messengerWindow[sizemode="normal"] > #titlebar > #titlebar-content {
+  border-top: 3px solid;
+  -moz-border-top-colors: ThreeDLightShadow ThreeDHighlight ActiveBorder;
+}
+
+#messengerWindow[sizemode="normal"] #titlebar-buttonbox {
+  margin-top: -3px;
+}
+
+#messengerWindow[sizemode="normal"] > #titlebar >
+#titlebar-content:-moz-window-inactive {
+  -moz-border-top-colors: ThreeDLightShadow ThreeDHighlight InactiveBorder;
+}
+
+@media (-moz-windows-default-theme) {
+  #messengerWindow[sizemode="normal"] > #titlebar > #titlebar-content {
+    -moz-border-top-colors: rgba(0, 0, 0, .1) rgba(255, 255, 255, .3)
+                            rgba(255, 255, 255, .2);
+  }
+
+  #messengerWindow[sizemode="normal"] > #titlebar >
+  #titlebar-content:-moz-window-inactive {
+    -moz-border-top-colors: rgba(255, 255, 255, .4) rgba(255, 255, 255, .3)
+                            rgba(255, 255, 255, .2);
+  }
+}
+
+@media (-moz-windows-theme: luna-silver) {
+  #messengerWindow[sizemode="normal"] > #titlebar > #titlebar-content {
+    -moz-border-top-colors: rgba(0, 0, 0, .4) rgba(255, 255, 255, .3)
+                            rgba(255, 255, 255, .2);
+  }
+}
+
+@media (-moz-windows-theme: zune),
+       (-moz-windows-theme: royale) {
+  #messengerWindow[sizemode="normal"] > #titlebar > #titlebar-content {
+    -moz-border-top-colors: rgba(0, 0, 0, .4) rgba(255, 255, 255, .3)
+                            rgba(255, 255, 255, .2) !important;
+  }
+}
+
+/* Black on dark background doesn't look good */
+@media (-moz-windows-theme: luna-blue),
+       (-moz-windows-theme: royale),
+       (-moz-windows-theme: zune) {
+  #messengerWindow[tabsintitlebar] menubar:not(:-moz-lwtheme) > menu {
+    color: white;
+  }
+}
+
+#messengerWindow[tabsintitlebar][sizemode="maximized"] > #navigation-toolbox{
+  margin-top: -12px;
+}

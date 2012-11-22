@@ -53,7 +53,7 @@ public:
                                   nsIPrincipal *principal,
                                   nsIPrincipal *originPrincipal,
                                   const char *aURL,
-                                  PRUint32 aLineNo,
+                                  uint32_t aLineNo,
                                   JSVersion aVersion,
                                   nsAString *aRetValue,
                                   bool* aIsUndefined);
@@ -61,29 +61,30 @@ public:
                                            JSObject* aScopeObject,
                                            nsIPrincipal* aPrincipal,
                                            const char* aURL,
-                                           PRUint32 aLineNo,
-                                           PRUint32 aVersion,
+                                           uint32_t aLineNo,
+                                           uint32_t aVersion,
                                            JS::Value* aRetValue,
                                            bool* aIsUndefined);
 
   virtual nsresult CompileScript(const PRUnichar* aText,
-                                 PRInt32 aTextLength,
+                                 int32_t aTextLength,
                                  nsIPrincipal *principal,
                                  const char *aURL,
-                                 PRUint32 aLineNo,
-                                 PRUint32 aVersion,
-                                 nsScriptObjectHolder<JSScript>& aScriptObject);
+                                 uint32_t aLineNo,
+                                 uint32_t aVersion,
+                                 nsScriptObjectHolder<JSScript>& aScriptObject,
+                                 bool aSaveSource = false);
   virtual nsresult ExecuteScript(JSScript* aScriptObject,
                                  JSObject* aScopeObject,
                                  nsAString* aRetValue,
                                  bool* aIsUndefined);
 
   virtual nsresult CompileEventHandler(nsIAtom *aName,
-                                       PRUint32 aArgCount,
+                                       uint32_t aArgCount,
                                        const char** aArgNames,
                                        const nsAString& aBody,
-                                       const char *aURL, PRUint32 aLineNo,
-                                       PRUint32 aVersion,
+                                       const char *aURL, uint32_t aLineNo,
+                                       uint32_t aVersion,
                                        nsScriptObjectHolder<JSObject>& aHandler);
   virtual nsresult CallEventHandler(nsISupports* aTarget, JSObject* aScope,
                                     JSObject* aHandler,
@@ -94,12 +95,12 @@ public:
                                             nsScriptObjectHolder<JSObject>& aBoundHandler);
   virtual nsresult CompileFunction(JSObject* aTarget,
                                    const nsACString& aName,
-                                   PRUint32 aArgCount,
+                                   uint32_t aArgCount,
                                    const char** aArgArray,
                                    const nsAString& aBody,
                                    const char* aURL,
-                                   PRUint32 aLineNo,
-                                   PRUint32 aVersion,
+                                   uint32_t aLineNo,
+                                   uint32_t aVersion,
                                    bool aShared,
                                    JSObject** aFunctionObject);
 
@@ -164,12 +165,13 @@ public:
   static void GarbageCollectNow(js::gcreason::Reason reason,
                                 IsIncremental aIncremental = NonIncrementalGC,
                                 IsCompartment aCompartment = NonCompartmentGC,
-                                IsShrinking aShrinking = NonShrinkingGC);
+                                IsShrinking aShrinking = NonShrinkingGC,
+                                int64_t aSliceMillis = 0);
   static void ShrinkGCBuffersNow();
   // If aExtraForgetSkippableCalls is -1, forgetSkippable won't be
   // called even if the previous collection was GC.
-  static void CycleCollectNow(nsICycleCollectorListener *aListener = nsnull,
-                              PRInt32 aExtraForgetSkippableCalls = 0,
+  static void CycleCollectNow(nsICycleCollectorListener *aListener = nullptr,
+                              int32_t aExtraForgetSkippableCalls = 0,
                               bool aForced = true);
 
   static void PokeGC(js::gcreason::Reason aReason, int aDelay = 0);
@@ -185,14 +187,14 @@ public:
 
   virtual void GC(js::gcreason::Reason aReason);
 
-  static PRUint32 CleanupsSinceLastGC();
+  static uint32_t CleanupsSinceLastGC();
 
   nsIScriptGlobalObject* GetCachedGlobalObject()
   {
     // Verify that we have a global so that this
     // does always return a null when GetGlobalObject() is null.
     JSObject* global = JS_GetGlobalObject(mContext);
-    return global ? mGlobalObjectRef.get() : nsnull;
+    return global ? mGlobalObjectRef.get() : nullptr;
   }
 protected:
   nsresult InitializeExternalClasses();
@@ -200,7 +202,7 @@ protected:
   // Helper to convert xpcom datatypes to jsvals.
   nsresult ConvertSupportsTojsvals(nsISupports *aArgs,
                                    JSObject *aScope,
-                                   PRUint32 *aArgc,
+                                   uint32_t *aArgc,
                                    jsval **aArgv,
                                    mozilla::Maybe<nsRootedJSValueArray> &aPoolRelease);
 
@@ -253,7 +255,7 @@ protected:
       : mContext(aContext),
         mTerminations(aContext->mTerminations)
     {
-      aContext->mTerminations = nsnull;
+      aContext->mTerminations = nullptr;
     }
     ~TerminationFuncHolder()
     {
@@ -283,12 +285,12 @@ private:
   bool mGCOnDestruction;
   bool mProcessingScriptTag;
 
-  PRUint32 mExecuteDepth;
-  PRUint32 mDefaultJSOptions;
+  uint32_t mExecuteDepth;
+  uint32_t mDefaultJSOptions;
   PRTime mOperationCallbackTime;
 
   PRTime mModalStateTime;
-  PRUint32 mModalStateDepth;
+  uint32_t mModalStateDepth;
 
   nsJSContext *mNext;
   nsJSContext **mPrev;
@@ -316,8 +318,6 @@ public:
 
   virtual already_AddRefed<nsIScriptContext> CreateContext();
 
-  virtual nsresult ParseVersion(const nsString &aVersionStr, PRUint32 *flags);
-
   virtual nsresult DropScriptObject(void *object);
   virtual nsresult HoldScriptObject(void *object);
   
@@ -344,7 +344,7 @@ public:
   // Bug 312003 describes why this must be "void **", but after calling argv
   // may be cast to jsval* and the args found at:
   //    ((jsval*)argv)[0], ..., ((jsval*)argv)[argc - 1]
-  virtual nsresult GetArgs(PRUint32 *argc, void **argv) = 0;
+  virtual nsresult GetArgs(uint32_t *argc, void **argv) = 0;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIJSArgArray, NS_IJSARGARRAY_IID)

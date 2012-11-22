@@ -66,7 +66,7 @@ CopyListener::OnStartCopy()
 }
 
 nsresult
-CopyListener::OnProgress(PRUint32 aProgress, PRUint32 aProgressMax)
+CopyListener::OnProgress(uint32_t aProgress, uint32_t aProgressMax)
 {
 #ifdef NS_DEBUG
   printf("CopyListener::OnProgress() %d of %d\n", aProgress, aProgressMax);
@@ -79,7 +79,7 @@ CopyListener::OnProgress(PRUint32 aProgress, PRUint32 aProgressMax)
 }
 
 nsresult
-CopyListener::SetMessageKey(PRUint32 aMessageKey)
+CopyListener::SetMessageKey(uint32_t aMessageKey)
 {
   if (mComposeAndSend)
       mComposeAndSend->SetMessageKey(aMessageKey);
@@ -142,9 +142,9 @@ NS_IMPL_ISUPPORTS1(nsMsgCopy, nsIUrlListener)
 
 nsMsgCopy::nsMsgCopy()
 {
-  mFile = nsnull;
+  mFile = nullptr;
   mMode = nsIMsgSend::nsMsgDeliverNow;
-  mSavePref = nsnull;
+  mSavePref = nullptr;
 }
 
 nsMsgCopy::~nsMsgCopy()
@@ -308,7 +308,7 @@ nsMsgCopy::OnStopRunningUrl(nsIURI * aUrl, nsresult aExitCode)
   nsresult rv = aExitCode;
   if (NS_SUCCEEDED(aExitCode))
   {
-    rv = DoCopy(mFile, mDstFolder, mMsgToReplace, mIsDraft, nsnull, mMsgSendObj);
+    rv = DoCopy(mFile, mDstFolder, mMsgToReplace, mIsDraft, nullptr, mMsgSendObj);
   }
   return rv;
 }
@@ -404,7 +404,7 @@ LocateMessageFolder(nsIMsgIdentity   *userIdentity,
   nsresult                  rv = NS_OK;
 
   if (!msgFolder) return NS_ERROR_NULL_POINTER;
-  *msgFolder = nsnull;
+  *msgFolder = nullptr;
 
   if (!aFolderURI || !*aFolderURI)
     return NS_ERROR_INVALID_ARG;
@@ -439,8 +439,8 @@ LocateMessageFolder(nsIMsgIdentity   *userIdentity,
   }
   else
   {
-    PRUint32                  cnt = 0;
-    PRUint32                  i;
+    uint32_t                  cnt = 0;
+    uint32_t                  i;
 
     if (!userIdentity)
       return NS_ERROR_INVALID_ARG;

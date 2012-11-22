@@ -153,7 +153,7 @@ nsPageFrame::ProcessSpecialCodes(const nsString& aStr, nsString& aNewStr)
   // then subst in the current date/time
   NS_NAMED_LITERAL_STRING(kDate, "&D");
   if (aStr.Find(kDate) != kNotFound) {
-    if (mPD->mDateTimeStr != nsnull) {
+    if (mPD->mDateTimeStr != nullptr) {
       aNewStr.ReplaceSubstring(kDate.get(), mPD->mDateTimeStr);
     } else {
       aNewStr.ReplaceSubstring(kDate.get(), EmptyString().get());
@@ -183,7 +183,7 @@ nsPageFrame::ProcessSpecialCodes(const nsString& aStr, nsString& aNewStr)
 
   NS_NAMED_LITERAL_STRING(kTitle, "&T");
   if (aStr.Find(kTitle) != kNotFound) {
-    if (mPD->mDocTitle != nsnull) {
+    if (mPD->mDocTitle != nullptr) {
       aNewStr.ReplaceSubstring(kTitle.get(), mPD->mDocTitle);
     } else {
       aNewStr.ReplaceSubstring(kTitle.get(), EmptyString().get());
@@ -192,7 +192,7 @@ nsPageFrame::ProcessSpecialCodes(const nsString& aStr, nsString& aNewStr)
 
   NS_NAMED_LITERAL_STRING(kDocURL, "&U");
   if (aStr.Find(kDocURL) != kNotFound) {
-    if (mPD->mDocURL != nsnull) {
+    if (mPD->mDocURL != nullptr) {
       aNewStr.ReplaceSubstring(kDocURL.get(), mPD->mDocURL);
     } else {
       aNewStr.ReplaceSubstring(kDocURL.get(), EmptyString().get());
@@ -211,7 +211,7 @@ nsPageFrame::ProcessSpecialCodes(const nsString& aStr, nsString& aNewStr)
 //------------------------------------------------------------------------------
 nscoord nsPageFrame::GetXPosition(nsRenderingContext& aRenderingContext, 
                                   const nsRect&        aRect, 
-                                  PRInt32              aJust,
+                                  int32_t              aJust,
                                   const nsString&      aStr)
 {
   nscoord width = nsLayoutUtils::GetStringWidth(this, &aRenderingContext,
@@ -254,7 +254,7 @@ nsPageFrame::DrawHeaderFooter(nsRenderingContext& aRenderingContext,
                               nscoord              aAscent,
                               nscoord              aHeight)
 {
-  PRInt32 numStrs = 0;
+  int32_t numStrs = 0;
   if (!aStrLeft.IsEmpty()) numStrs++;
   if (!aStrCenter.IsEmpty()) numStrs++;
   if (!aStrRight.IsEmpty()) numStrs++;
@@ -291,7 +291,7 @@ nsPageFrame::DrawHeaderFooter(nsRenderingContext& aRenderingContext,
 void
 nsPageFrame::DrawHeaderFooter(nsRenderingContext& aRenderingContext,
                               nsHeaderFooterEnum   aHeaderFooter,
-                              PRInt32              aJust,
+                              int32_t              aJust,
                               const nsString&      aStr,
                               const nsRect&        aRect,
                               nscoord              aAscent,
@@ -306,17 +306,17 @@ nsPageFrame::DrawHeaderFooter(nsRenderingContext& aRenderingContext,
     nsAutoString str;
     ProcessSpecialCodes(aStr, str);
 
-    PRInt32 indx;
-    PRInt32 textWidth = 0;
+    int32_t indx;
+    int32_t textWidth = 0;
     const PRUnichar* text = str.get();
 
-    PRInt32 len = (PRInt32)str.Length();
+    int32_t len = (int32_t)str.Length();
     if (len == 0) {
       return; // bail is empty string
     }
     // find how much text fits, the "position" is the size of the available area
     if (nsLayoutUtils::BinarySearchForPosition(&aRenderingContext, text, 0, 0, 0, len,
-                                PRInt32(contentWidth), indx, textWidth)) {
+                                int32_t(contentWidth), indx, textWidth)) {
       if (indx < len-1 ) {
         // we can't fit in all the text
         if (indx > 3) {
@@ -405,7 +405,7 @@ nsPageFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
 
 //------------------------------------------------------------------------------
 void
-nsPageFrame::SetPageNumInfo(PRInt32 aPageNumber, PRInt32 aTotalPages) 
+nsPageFrame::SetPageNumInfo(int32_t aPageNumber, int32_t aTotalPages) 
 { 
   mPageNum     = aPageNumber; 
   mTotNumPages = aTotalPages;
@@ -430,7 +430,7 @@ nsPageFrame::PaintHeaderFooter(nsRenderingContext& aRenderingContext,
 
   // Get the FontMetrics to determine width.height of strings
   nsRefPtr<nsFontMetrics> fontMet;
-  pc->DeviceContext()->GetMetricsFor(*mPD->mHeadFootFont, nsnull,
+  pc->DeviceContext()->GetMetricsFor(*mPD->mHeadFootFont, nullptr,
                                      pc->GetUserFontSet(),
                                      *getter_AddRefs(fontMet));
 

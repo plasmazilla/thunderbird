@@ -3,11 +3,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH		= ../../..
+DEPTH		= @DEPTH@
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
-relativesrcdir  = content/base/test
+relativesrcdir  = @relativesrcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
@@ -381,6 +381,8 @@ MOCHITEST_FILES_B = \
 		test_bug562652.html \
 		test_bug562137.html \
 		file_bug562137.txt \
+		test_bug562169-1.html \
+		test_bug562169-2.html \
 		test_bug548193.html \
 		file_bug548193.sjs \
 		test_html_colors_quirks.html \
@@ -552,6 +554,7 @@ MOCHITEST_FILES_B = \
 		file_XHR_anon.sjs \
 		test_XHR_system.html \
 		test_XHR_parameters.html \
+		test_ipc_messagemanager_blob.html \
 		$(NULL)
 
 MOCHITEST_CHROME_FILES =	\

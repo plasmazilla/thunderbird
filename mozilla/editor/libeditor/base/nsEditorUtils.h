@@ -45,7 +45,7 @@ class NS_STACK_CLASS nsAutoPlaceHolderBatch
 class nsAutoEditBatch : public nsAutoPlaceHolderBatch
 {
   public:
-    nsAutoEditBatch( nsIEditor *aEd) : nsAutoPlaceHolderBatch(aEd,nsnull)  {}
+    nsAutoEditBatch( nsIEditor *aEd) : nsAutoPlaceHolderBatch(aEd,nullptr)  {}
     ~nsAutoEditBatch() {}
 };
 
@@ -57,12 +57,12 @@ class NS_STACK_CLASS nsAutoSelectionReset
 {
   private:
     /** ref-counted reference to the selection that we are supposed to restore */
-    nsCOMPtr<nsISelection> mSel;
+    nsRefPtr<mozilla::Selection> mSel;
     nsEditor *mEd;  // non-owning ref to nsEditor
 
   public:
     /** constructor responsible for remembering all state needed to restore aSel */
-    nsAutoSelectionReset(nsISelection *aSel, nsEditor *aEd);
+    nsAutoSelectionReset(mozilla::Selection* aSel, nsEditor* aEd);
     
     /** destructor restores mSel to its former state */
     ~nsAutoSelectionReset();
@@ -78,7 +78,7 @@ class NS_STACK_CLASS nsAutoRules
 {
   public:
   
-  nsAutoRules(nsEditor *ed, nsEditor::OperationID action,
+  nsAutoRules(nsEditor *ed, EditAction action,
               nsIEditor::EDirection aDirection) :
          mEd(ed), mDoNothing(false)
   { 
@@ -206,16 +206,16 @@ class nsTrivialFunctor : public nsBoolDomIterFunctor
 struct NS_STACK_CLASS DOMPoint
 {
   nsCOMPtr<nsIDOMNode> node;
-  PRInt32 offset;
+  int32_t offset;
   
   DOMPoint() : node(0),offset(0) {}
-  DOMPoint(nsIDOMNode *aNode, PRInt32 aOffset) : 
+  DOMPoint(nsIDOMNode *aNode, int32_t aOffset) : 
                  node(aNode),offset(aOffset) {}
-  void SetPoint(nsIDOMNode *aNode, PRInt32 aOffset)
+  void SetPoint(nsIDOMNode *aNode, int32_t aOffset)
   {
     node = aNode; offset = aOffset;
   }
-  void GetPoint(nsCOMPtr<nsIDOMNode> &aNode, PRInt32 &aOffset)
+  void GetPoint(nsCOMPtr<nsIDOMNode> &aNode, int32_t &aOffset)
   {
     aNode = node; aOffset = offset;
   }
@@ -225,7 +225,7 @@ struct NS_STACK_CLASS DOMPoint
 class nsEditorUtils
 {
   public:
-    static bool IsDescendantOf(nsIDOMNode *aNode, nsIDOMNode *aParent, PRInt32 *aOffset = 0);
+    static bool IsDescendantOf(nsIDOMNode *aNode, nsIDOMNode *aParent, int32_t *aOffset = 0);
     static bool IsLeafNode(nsIDOMNode *aNode);
 };
 

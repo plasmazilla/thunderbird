@@ -80,7 +80,7 @@ NS_IMPL_ISUPPORTS2(nsMsgMdnGenerator, nsIMsgMdnGenerator, nsIUrlListener)
 nsMsgMdnGenerator::nsMsgMdnGenerator()
 {
     m_disposeType = eDisplayed;
-    m_outputStream = nsnull;
+    m_outputStream = nullptr;
     m_reallySendMdn = false;
     m_autoSend = false;
     m_autoAction = false;
@@ -143,12 +143,12 @@ nsresult nsMsgMdnGenerator::StoreMDNSentFlag(nsIMsgFolder *folder,
     nsCOMPtr<nsIMsgDatabase> msgDB;
     nsresult rv = folder->GetMsgDatabase(getter_AddRefs(msgDB));
     NS_ENSURE_SUCCESS(rv, rv);
-    rv = msgDB->MarkMDNSent(key, true, nsnull);
+    rv = msgDB->MarkMDNSent(key, true, nullptr);
 
     nsCOMPtr<nsIMsgImapMailFolder> imapFolder = do_QueryInterface(folder);
     // Store the $MDNSent flag if the folder is an Imap Mail Folder
     if (imapFolder)
-      return imapFolder->StoreImapFlags(kImapMsgMDNSentFlag, true, &key, 1, nsnull);
+      return imapFolder->StoreImapFlags(kImapMsgMDNSentFlag, true, &key, 1, nullptr);
     return rv;
 }
 
@@ -160,13 +160,13 @@ nsresult nsMsgMdnGenerator::ClearMDNNeededFlag(nsIMsgFolder *folder,
   nsCOMPtr<nsIMsgDatabase> msgDB;
   nsresult rv = folder->GetMsgDatabase(getter_AddRefs(msgDB));
   NS_ENSURE_SUCCESS(rv, rv);
-  return msgDB->MarkMDNNeeded(key, false, nsnull);
+  return msgDB->MarkMDNNeeded(key, false, nullptr);
 }
 
 bool nsMsgMdnGenerator::ProcessSendMode()
 {
     DEBUG_MDN("nsMsgMdnGenerator::ProcessSendMode");
-    PRInt32 miscState = 0;
+    int32_t miscState = 0;
 
     if (m_identity)
     {
@@ -284,9 +284,9 @@ bool nsMsgMdnGenerator::MailAddrMatch(const char *addr1, const char *addr2)
     // insensitive
     DEBUG_MDN("nsMsgMdnGenerator::MailAddrMatch");
     bool isMatched = true;
-    const char *atSign1 = nsnull, *atSign2 = nsnull;
-    const char *lt = nsnull, *local1 = nsnull, *local2 = nsnull;
-    const char *end1 = nsnull, *end2 = nsnull;
+    const char *atSign1 = nullptr, *atSign2 = nullptr;
+    const char *lt = nullptr, *local1 = nullptr, *local2 = nullptr;
+    const char *end1 = nullptr, *end2 = nullptr;
 
     if (!addr1 || !addr2)
         return false;
@@ -405,8 +405,8 @@ nsresult nsMsgMdnGenerator::CreateMdnMsg()
 nsresult nsMsgMdnGenerator::CreateFirstPart()
 {
     DEBUG_MDN("nsMsgMdnGenerator::CreateFirstPart");
-    char *convbuf = nsnull, *tmpBuffer = nsnull;
-    char *parm = nsnull;
+    char *convbuf = nullptr, *tmpBuffer = nullptr;
+    char *parm = nullptr;
     nsString firstPart1;
     nsString firstPart2;
     nsresult rv = NS_OK;
@@ -648,8 +648,8 @@ report-type=disposition-notification;\r\n\tboundary=\"%s\"" CRLF CRLF,
 nsresult nsMsgMdnGenerator::CreateSecondPart()
 {
     DEBUG_MDN("nsMsgMdnGenerator::CreateSecondPart");
-    char *tmpBuffer = nsnull;
-    char *convbuf = nsnull;
+    char *tmpBuffer = nullptr;
+    char *convbuf = nullptr;
     nsresult rv = NS_OK;
     nsCOMPtr <nsIMsgCompUtils> compUtils;
     bool conformToStandard = false;
@@ -735,7 +735,7 @@ nsresult nsMsgMdnGenerator::CreateSecondPart()
 nsresult nsMsgMdnGenerator::CreateThirdPart()
 {
     DEBUG_MDN("nsMsgMdnGenerator::CreateThirdPart");
-    char *tmpBuffer = nsnull;
+    char *tmpBuffer = nullptr;
     nsresult rv = NS_OK;
 
     tmpBuffer = PR_smprintf("--%s" CRLF, m_mimeSeparator.get());
@@ -770,7 +770,7 @@ nsresult nsMsgMdnGenerator::OutputAllHeaders()
 {
     DEBUG_MDN("nsMsgMdnGenerator::OutputAllHeaders");
     nsCString all_headers;
-    PRInt32 all_headers_size = 0;
+    int32_t all_headers_size = 0;
     nsresult rv = NS_OK;
 
     rv = m_headers->GetAllHeaders(getter_Copies(all_headers));
@@ -780,7 +780,6 @@ nsresult nsMsgMdnGenerator::OutputAllHeaders()
     char *buf = (char *) all_headers.get(),
         *buf_end = (char *) all_headers.get()+all_headers_size;
     char *start = buf, *end = buf;
-    PRInt32 count = 0;
 
     while (buf < buf_end)
     {
@@ -846,7 +845,7 @@ nsresult nsMsgMdnGenerator::OutputAllHeaders()
             buf = start;
         }
     }
-    return count;
+    return NS_OK;
 }
 
 nsresult nsMsgMdnGenerator::SendMdnMsg()
@@ -858,7 +857,7 @@ nsresult nsMsgMdnGenerator::SendMdnMsg()
 
     nsCOMPtr<nsIRequest> aRequest;
     smtpService->SendMailMessage(m_file, m_dntRrt.get(), m_identity,
-                                     nsnull, this, nsnull, nsnull, false, nsnull,
+                                     nullptr, this, nullptr, nullptr, false, nullptr,
                                      getter_AddRefs(aRequest));
 
     return NS_OK;
@@ -867,8 +866,8 @@ nsresult nsMsgMdnGenerator::SendMdnMsg()
 nsresult nsMsgMdnGenerator::WriteString( const char *str )
 {
   NS_ENSURE_ARG (str);
-  PRUint32 len = strlen(str);
-  PRUint32 wLen = 0;
+  uint32_t len = strlen(str);
+  uint32_t wLen = 0;
 
   return m_outputStream->Write(str, len, &wLen);
 }
@@ -907,10 +906,10 @@ nsresult nsMsgMdnGenerator::InitAndProcess(bool *needToAskUser)
             {
               nsCOMPtr<nsIMsgIdentity> ident;
               nsCString identEmail;
-              PRUint32 count = 0;
+              uint32_t count = 0;
               servIdentities->Count(&count);
               // First check in the "To:" header
-              for (PRUint32 i = 0; i < count; i++)
+              for (uint32_t i = 0; i < count; i++)
               {
                 rv = servIdentities->QueryElementAt(i, NS_GET_IID(nsIMsgIdentity),getter_AddRefs(ident));
                 if (NS_FAILED(rv))
@@ -926,7 +925,7 @@ nsresult nsMsgMdnGenerator::InitAndProcess(bool *needToAskUser)
               // If no match, check the "Cc:" header
               if (!m_identity)
               {
-                for (PRUint32 i = 0; i < count; i++)
+                for (uint32_t i = 0; i < count; i++)
                 {
                   rv = servIdentities->QueryElementAt(i, NS_GET_IID(nsIMsgIdentity),getter_AddRefs(ident));
                   if (NS_FAILED(rv))

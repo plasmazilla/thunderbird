@@ -50,7 +50,7 @@ public class WatcherService extends Service
     String sPingTarget = "";
     long lDelay = 60000;
     long lPeriod = 300000;
-    int nMaxStrikes = 3; // maximum number of tries before we consider network unreachable
+    int nMaxStrikes = 0; // maximum number of tries before we consider network unreachable (0 means don't check)
     boolean bStartSUTAgent = true;
 
     Process    pProc;
@@ -105,13 +105,17 @@ public class WatcherService extends Service
         String sIniFile = iniFile.getAbsolutePath();
         String sHold = "";
 
+        Log.i("Watcher", String.format("Loading settings from %s", sIniFile));
         this.sPingTarget = GetIniData("watcher", "PingTarget", sIniFile, "www.mozilla.org");
         sHold = GetIniData("watcher", "delay", sIniFile, "60000");
         this.lDelay = Long.parseLong(sHold.trim());
         sHold = GetIniData("watcher", "period", sIniFile,"300000");
         this.lPeriod = Long.parseLong(sHold.trim());
-        sHold = GetIniData("watcher", "strikes", sIniFile,"3");
+        sHold = GetIniData("watcher", "strikes", sIniFile,"0");
         this.nMaxStrikes = Integer.parseInt(sHold.trim());
+        Log.i("Watcher", String.format("Pinging %s after a delay of %s sec, period of %s sec, max number of failed attempts is %s (if max # of failed attempts is 0, then no checking)",
+                                       this.sPingTarget, this.lDelay / 1000.0, this.lPeriod / 1000.0, nMaxStrikes));
+
         sHold = GetIniData("watcher", "StartSUTAgent", sIniFile, "true");
         this.bStartSUTAgent = Boolean.parseBoolean(sHold.trim());
 
@@ -493,6 +497,7 @@ public class WatcherService extends Service
         theArgs[0] = "su";
         theArgs[1] = "-c";
         theArgs[2] = "reboot";
+        Log.i("Watcher", "Running reboot!");
 
         try
             {
@@ -755,11 +760,11 @@ public class WatcherService extends Service
         theArgs[1] = "-c";
         theArgs[2] = "3";
         theArgs[3] = sIPAddr;
+        Log.i("Watcher", "Pinging " + sIPAddr);
 
         try
             {
             pProc = Runtime.getRuntime().exec(theArgs);
-
             InputStream sutOut = pProc.getInputStream();
             InputStream sutErr = pProc.getErrorStream();
 
@@ -832,6 +837,7 @@ public class WatcherService extends Service
             e.printStackTrace();
             }
 
+        Log.i("Watcher", String.format("Ping result was: '%s'", sRet.trim()));
         return (sRet);
         }
 
@@ -899,9 +905,15 @@ public class WatcherService extends Service
             if (nMaxStrikes > 0)
                 {
                     String sRet = SendPing(sPingTarget);
-                    if (!sRet.contains("3 received") && ++nStrikes >= nMaxStrikes)
+                    if (!sRet.contains("3 received"))
                         {
-                            RunReboot(null);
+                            Log.i("Watcher", String.format("Failed ping attempt (remaining: %s)!",
+                                                           nMaxStrikes - nStrikes));
+                            if (++nStrikes >= nMaxStrikes)
+                                {
+                                    Log.e("Watcher", String.format("Number of failed ping attempts to %s (%s) exceeded maximum (%s), running reboot!", sPingTarget, nStrikes, nMaxStrikes));
+                                    RunReboot(null);
+                                }
                         }
                     else
                         {

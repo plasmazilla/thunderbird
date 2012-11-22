@@ -463,26 +463,26 @@ public:
   nsresult Redraw();
 
   // nsICanvasRenderingContextInternal
-  NS_IMETHOD SetDimensions(PRInt32 width, PRInt32 height);
-  NS_IMETHOD InitializeWithSurface(nsIDocShell *shell, gfxASurface *surface, PRInt32 width, PRInt32 height)
-  { return NS_ERROR_NOT_IMPLEMENTED; }
+  NS_IMETHOD SetDimensions(int32_t width, int32_t height);
+  NS_IMETHOD InitializeWithSurface(nsIDocShell *shell, gfxASurface *surface, int32_t width, int32_t height);
 
   NS_IMETHOD Render(gfxContext *ctx,
                     gfxPattern::GraphicsFilter aFilter,
-                    PRUint32 aFlags = RenderFlagPremultAlpha);
+                    uint32_t aFlags = RenderFlagPremultAlpha);
   NS_IMETHOD GetInputStream(const char* aMimeType,
                             const PRUnichar* aEncoderOptions,
                             nsIInputStream **aStream);
   NS_IMETHOD GetThebesSurface(gfxASurface **surface);
 
   mozilla::TemporaryRef<mozilla::gfx::SourceSurface> GetSurfaceSnapshot()
-  { return mTarget ? mTarget->Snapshot() : nsnull; }
+  { return mTarget ? mTarget->Snapshot() : nullptr; }
 
   NS_IMETHOD SetIsOpaque(bool isOpaque);
   NS_IMETHOD Reset();
   already_AddRefed<CanvasLayer> GetCanvasLayer(nsDisplayListBuilder* aBuilder,
                                                 CanvasLayer *aOldLayer,
                                                 LayerManager *aManager);
+  virtual bool ShouldForceInactiveLayer(LayerManager *aManager);
   void MarkContextClean();
   NS_IMETHOD SetIsIPC(bool isIPC);
   // this rect is in canvas device space
@@ -542,24 +542,29 @@ protected:
                              uint32_t aWidth, uint32_t aHeight,
                              JSObject** aRetval);
 
+  /**
+   * Internal method to complete initialisation, expects mTarget to have been set
+   */
+  nsresult Initialize(int32_t width, int32_t height);
+
   nsresult InitializeWithTarget(mozilla::gfx::DrawTarget *surface,
-                                PRInt32 width, PRInt32 height);
+                                int32_t width, int32_t height);
 
   /**
     * The number of living nsCanvasRenderingContexts.  When this goes down to
     * 0, we free the premultiply and unpremultiply tables, if they exist.
     */
-  static PRUint32 sNumLivingContexts;
+  static uint32_t sNumLivingContexts;
 
   /**
     * Lookup table used to speed up GetImageData().
     */
-  static PRUint8 (*sUnpremultiplyTable)[256];
+  static uint8_t (*sUnpremultiplyTable)[256];
 
   /**
     * Lookup table used to speed up PutImageData().
     */
-  static PRUint8 (*sPremultiplyTable)[256];
+  static uint8_t (*sPremultiplyTable)[256];
 
   // Some helpers.  Doesn't modify a color on failure.
   void SetStyleFromJSValue(JSContext* cx, JS::Value& value, Style whichStyle);
@@ -596,11 +601,14 @@ protected:
   /* This function ensures there is a writable pathbuilder available, this
    * pathbuilder may be working in user space or in device space or
    * device space.
+   * After calling this function mPathTransformWillUpdate will be false
    */
   void EnsureWritablePath();
 
   // Ensures a path in UserSpace is available.
-  void EnsureUserSpacePath();
+  // If aCommitTransform is true, then any transform on the context will be
+  // used for the path.
+  void EnsureUserSpacePath(bool aCommitTransform = true);
 
   void TransformWillUpdate();
 
@@ -616,7 +624,7 @@ protected:
   void DrawImage(const HTMLImageOrCanvasOrVideoElement &imgElt,
                  double sx, double sy, double sw, double sh,
                  double dx, double dy, double dw, double dh, 
-                 PRUint8 optional_argc, mozilla::ErrorResult& error);
+                 uint8_t optional_argc, mozilla::ErrorResult& error);
 
   nsString& GetFont()
   {
@@ -653,7 +661,7 @@ protected:
   }
 
   // Member vars
-  PRInt32 mWidth, mHeight;
+  int32_t mWidth, mHeight;
 
   // This is true when the canvas is valid, false otherwise, this occurs when
   // for some reason initialization of the drawtarget fails. If the canvas
@@ -728,8 +736,8 @@ protected:
   /**
     * Number of times we've invalidated before calling redraw
     */
-  PRUint32 mInvalidateCount;
-  static const PRUint32 kCanvasMaxInvalidateCount = 100;
+  uint32_t mInvalidateCount;
+  static const uint32_t kCanvasMaxInvalidateCount = 100;
 
   /**
     * Returns true if a shadow should be drawn along with a
@@ -767,7 +775,7 @@ protected:
       mDocShell->GetPresShell(getter_AddRefs(shell));
       return shell.get();
     }
-    return nsnull;
+    return nullptr;
   }
 
   // text
@@ -853,18 +861,18 @@ protected:
 
       void SetColorStyle(Style whichStyle, nscolor color) {
           colorStyles[whichStyle] = color;
-          gradientStyles[whichStyle] = nsnull;
-          patternStyles[whichStyle] = nsnull;
+          gradientStyles[whichStyle] = nullptr;
+          patternStyles[whichStyle] = nullptr;
       }
 
       void SetPatternStyle(Style whichStyle, nsCanvasPatternAzure* pat) {
-          gradientStyles[whichStyle] = nsnull;
+          gradientStyles[whichStyle] = nullptr;
           patternStyles[whichStyle] = pat;
       }
 
       void SetGradientStyle(Style whichStyle, nsCanvasGradientAzure* grad) {
           gradientStyles[whichStyle] = grad;
-          patternStyles[whichStyle] = nsnull;
+          patternStyles[whichStyle] = nullptr;
       }
 
       /**
@@ -916,10 +924,10 @@ protected:
   friend class AdjustedTarget;
 
   // other helpers
-  void GetAppUnitsValues(PRUint32 *perDevPixel, PRUint32 *perCSSPixel) {
+  void GetAppUnitsValues(uint32_t *perDevPixel, uint32_t *perCSSPixel) {
     // If we don't have a canvas element, we just return something generic.
-    PRUint32 devPixel = 60;
-    PRUint32 cssPixel = 60;
+    uint32_t devPixel = 60;
+    uint32_t cssPixel = 60;
 
     nsIPresShell *ps = GetPresShell();
     nsPresContext *pc;

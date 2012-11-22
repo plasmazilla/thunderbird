@@ -45,7 +45,7 @@ nsContextMenu.prototype = {
     this.isTextSelected = this.isTextSelection();
     this.isContentSelected = this.isContentSelection();
 
-    this.initPopupURL();
+    this.initPopupPrincipal();
 
     // Initialize (disable/remove) menu items.
     this.initItems();
@@ -158,7 +158,7 @@ nsContextMenu.prototype = {
     this.showItem("context-sep-properties",
                   !(this.inDirList || this.isContentSelected || this.onTextInput ||
                     this.onCanvas || this.onVideo || this.onAudio));
-    // Set As Wallpaper depends on whether an image was clicked on,
+    // Set Desktop Background depends on whether an image was clicked on,
     // and requires the shell service.
     var canSetDesktopBackground = false;
     if ("@mozilla.org/suite/shell-service;1" in Components.classes) try {
@@ -168,15 +168,15 @@ nsContextMenu.prototype = {
                     .canSetDesktopBackground;
     } catch (e) {
     }
-    this.showItem("context-setWallpaper",
+    this.showItem("context-setDesktopBackground",
                   canSetDesktopBackground && (this.onLoadedImage || this.onStandaloneImage));
 
     this.showItem("context-sep-image",
                   this.onLoadedImage || this.onStandaloneImage);
 
     if (canSetDesktopBackground && this.onLoadedImage)
-      // Disable the Set As Wallpaper menu item if we're still trying to load the image
-      this.setItemAttr("context-setWallpaper", "disabled",
+      // Disable the Set Desktop Background menu item if we're still trying to load the image
+      this.setItemAttr("context-setDesktopBackground", "disabled",
                        (("complete" in this.target) && !this.target.complete) ? "true" : null);
 
     this.showItem("context-fitimage", this.onStandaloneImage &&
@@ -253,18 +253,18 @@ nsContextMenu.prototype = {
                      this.autoDownload ? "valueSave" : "valueSaveAs");
 
     var blocking = true;
-      if (this.popupURL)
+      if (this.popupPrincipal)
         try {
           const PM = Components.classes["@mozilla.org/PopupWindowManager;1"]
                      .getService(Components.interfaces.nsIPopupWindowManager);
-          blocking = PM.testPermission(this.popupURL) ==
-                     Components.interfaces.nsIPopupWindowManager.DENY_POPUP;
+          blocking = PM.testPermission(this.popupPrincipal) == PM.DENY_POPUP;
         } catch (e) {
+          Components.utils.reportError(e);
         }
 
-    this.showItem("popupwindow-reject", this.popupURL && !blocking);
-    this.showItem("popupwindow-allow", this.popupURL && blocking);
-    this.showItem("context-sep-popup", this.popupURL);
+    this.showItem("popupwindow-reject", this.popupPrincipal && !blocking);
+    this.showItem("popupwindow-allow", this.popupPrincipal && blocking);
+    this.showItem("context-sep-popup", this.popupPrincipal);
 
     // BiDi UI
     this.showItem("context-sep-bidi", gShowBiDi);
@@ -436,7 +436,7 @@ nsContextMenu.prototype = {
     this.inSyntheticDoc        = false;
     this.hasBGImage            = false;
     this.bgImageURL            = "";
-    this.popupURL              = null;
+    this.popupPrincipal        = null;
     this.autoDownload          = false;
     this.isTextSelected        = false;
     this.isContentSelected     = false;
@@ -658,7 +658,7 @@ nsContextMenu.prototype = {
     }
   },
 
-  initPopupURL: function() {
+  initPopupPrincipal: function() {
     // quick check: if no opener, it can't be a popup
     if (!window.content.opener)
       return;
@@ -676,13 +676,11 @@ nsContextMenu.prototype = {
       if (xulwin.contextFlags &
           CI.nsIWindowCreator2.PARENT_IS_LOADING_OR_RUNNING_TIMEOUT) {
         // do the pref settings allow site-by-site popup management?
-        const PB = Components.classes["@mozilla.org/preferences-service;1"]
-                   .getService(CI.nsIPrefBranch);
-        show = !PB.getBoolPref("dom.disable_open_during_load");
+        show = !Services.prefs.getBoolPref("dom.disable_open_during_load");
       }
       if (show) {
-        // initialize popupURL
-        this.popupURL = Services.io.newURI(window.content.opener.location.href, null, null);
+        // initialize popupPrincipal
+        this.popupPrincipal = window.content.opener.document.nodePrincipal;
       }
     } catch(e) {
     }
@@ -717,18 +715,17 @@ nsContextMenu.prototype = {
 
   // Block popup windows
   rejectPopupWindows: function(aAndClose) {
-    const PM = Components.classes["@mozilla.org/PopupWindowManager;1"]
-               .getService(Components.interfaces.nsIPopupWindowManager);
-    PM.add(this.popupURL, false);
+    Services.perms.addFromPrincipal(this.popupPrincipal, "popup",
+                                    Services.perms.DENY_ACTION);
     if (aAndClose)
-      Services.obs.notifyObservers(window, "popup-perm-close", this.popupURL.spec);
+      Services.obs.notifyObservers(window, "popup-perm-close",
+                                   this.popupPrincipal.URI.spec);
   },
 
   // Unblock popup windows
   allowPopupWindows: function() {
-    const PM = Components.classes["@mozilla.org/PopupWindowManager;1"]
-               .getService(Components.interfaces.nsIPopupWindowManager);
-    PM.add(this.popupURL, true);
+    Services.perms.addFromPrincipal(this.popupPrincipal, "popup",
+                                    Services.perms.ALLOW_ACTION);
   },
 
   // Block/Unblock image from loading in the future.
@@ -888,28 +885,9 @@ nsContextMenu.prototype = {
       openUILinkIn(this.bgImageURL, where, null, null, doc.documentURIObject);
   },
 
-  setWallpaper: function() {
-    // Confirm since it's annoying if you hit this accidentally.
-    var navigatorBundle = document.getElementById("bundle_navigator");
-    var promptTitle = navigatorBundle.getString("wallpaperConfirmTitle");
-    var promptMsg = navigatorBundle.getString("wallpaperConfirmMsg");
-    var promptConfirmButton = navigatorBundle.getString("wallpaperConfirmButton");
-
-    if (Services.prompt.confirmEx(window, promptTitle, promptMsg,
-                                  (Services.prompt.BUTTON_TITLE_IS_STRING *
-                                   Services.prompt.BUTTON_POS_0) +
-                                  (Services.prompt.BUTTON_TITLE_CANCEL *
-                                   Services.prompt.BUTTON_POS_1),
-                                  promptConfirmButton, null, null, null,
-                                  {value: false}) != 0)
-      return;
-
-    const nsIShellService = Components.interfaces.nsIShellService;
-
-    Components.classes["@mozilla.org/suite/shell-service;1"]
-              .getService(nsIShellService)
-              .setDesktopBackground(this.target,
-                                    nsIShellService.BACKGROUND_STRETCH);
+  setDesktopBackground: function() {
+    openDialog("chrome://communicator/content/setDesktopBackground.xul",
+               "_blank", "chrome,modal,titlebar,centerscreen", this.target);
   },
 
   // Save URL of clicked-on frame.

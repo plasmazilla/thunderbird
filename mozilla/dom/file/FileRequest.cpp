@@ -10,8 +10,9 @@
 
 #include "nsContentUtils.h"
 #include "nsEventDispatcher.h"
+#include "nsError.h"
 #include "nsDOMProgressEvent.h"
-
+#include "nsDOMClassInfoID.h"
 #include "FileHelper.h"
 #include "LockedFile.h"
 
@@ -79,16 +80,11 @@ FileRequest::NotifyHelperCompleted(FileHelper* aFileHelper)
   NS_ASSERTION(global, "Failed to get global object!");
 
   JSAutoRequest ar(cx);
-  JSAutoEnterCompartment ac;
-  if (ac.enter(cx, global)) {
-    rv = aFileHelper->GetSuccessResult(cx, &result);
-    if (NS_FAILED(rv)) {
-      NS_WARNING("GetSuccessResult failed!");
-    }
-  }
-  else {
-    NS_WARNING("Failed to enter correct compartment!");
-    rv = NS_ERROR_DOM_FILEHANDLE_UNKNOWN_ERR;
+  JSAutoCompartment ac(cx, global);
+
+  rv = aFileHelper->GetSuccessResult(cx, &result);
+  if (NS_FAILED(rv)) {
+    NS_WARNING("GetSuccessResult failed!");
   }
 
   if (NS_SUCCEEDED(rv)) {
@@ -140,23 +136,29 @@ DOMCI_DATA(FileRequest, FileRequest)
 NS_IMPL_EVENT_HANDLER(FileRequest, progress)
 
 void
-FileRequest::FireProgressEvent(PRUint64 aLoaded, PRUint64 aTotal)
+FileRequest::FireProgressEvent(uint64_t aLoaded, uint64_t aTotal)
 {
   if (NS_FAILED(CheckInnerWindowCorrectness())) {
     return;
   }
 
-  nsRefPtr<nsDOMProgressEvent> event = new nsDOMProgressEvent(nsnull, nsnull);
+  nsRefPtr<nsDOMProgressEvent> event = new nsDOMProgressEvent(nullptr, nullptr);
   nsresult rv = event->InitProgressEvent(NS_LITERAL_STRING("progress"),
                                          false, false, false, aLoaded, aTotal);
-  NS_ENSURE_SUCCESS(rv,);
+  if (NS_FAILED(rv)) {
+    return;
+  }
 
   rv = event->SetTrusted(true);
-  NS_ENSURE_SUCCESS(rv,);
+  if (NS_FAILED(rv)) {
+    return;
+  }
 
   bool dummy;
   rv = DispatchEvent(static_cast<nsIDOMProgressEvent*>(event), &dummy);
-  NS_ENSURE_SUCCESS(rv,);
+  if (NS_FAILED(rv)) {
+    return;
+  }
 }
 
 void

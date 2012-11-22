@@ -36,7 +36,7 @@ static NS_DEFINE_CID(kZipReaderCID, NS_ZIPREADER_CID);
 //
 // set NSPR_LOG_MODULES=nsJarProtocol:5
 //
-static PRLogModuleInfo *gJarProtocolLog = nsnull;
+static PRLogModuleInfo *gJarProtocolLog = nullptr;
 #endif
 
 #define LOG(args)     PR_LOG(gJarProtocolLog, PR_LOG_DEBUG, args)
@@ -83,7 +83,7 @@ public:
         NS_IF_ADDREF(*result = mJarReader);
     }
 
-    PRInt32 GetContentLength()
+    int32_t GetContentLength()
     {
         return mContentLength;
     }
@@ -97,7 +97,7 @@ private:
     nsCString                   mJarDirSpec;
     nsCOMPtr<nsIInputStream>    mJarStream;
     nsCString                   mJarEntry;
-    PRInt32                     mContentLength;
+    int32_t                     mContentLength;
 };
 
 NS_IMPL_THREADSAFE_ISUPPORTS1(nsJARInputThunk, nsIInputStream)
@@ -132,8 +132,11 @@ nsJARInputThunk::EnsureJarStream()
     }
 
     // ask the JarStream for the content length
-    rv = mJarStream->Available((PRUint32 *) &mContentLength);
+    uint64_t avail;
+    rv = mJarStream->Available((uint64_t *) &avail);
     if (NS_FAILED(rv)) return rv;
+
+    mContentLength = avail < PR_INT32_MAX ? (int32_t) avail : -1;
 
     return NS_OK;
 }
@@ -148,7 +151,7 @@ nsJARInputThunk::Close()
 }
 
 NS_IMETHODIMP
-nsJARInputThunk::Available(PRUint32 *avail)
+nsJARInputThunk::Available(uint64_t *avail)
 {
     nsresult rv = EnsureJarStream();
     if (NS_FAILED(rv)) return rv;
@@ -157,7 +160,7 @@ nsJARInputThunk::Available(PRUint32 *avail)
 }
 
 NS_IMETHODIMP
-nsJARInputThunk::Read(char *buf, PRUint32 count, PRUint32 *countRead)
+nsJARInputThunk::Read(char *buf, uint32_t count, uint32_t *countRead)
 {
     nsresult rv = EnsureJarStream();
     if (NS_FAILED(rv)) return rv;
@@ -167,7 +170,7 @@ nsJARInputThunk::Read(char *buf, PRUint32 count, PRUint32 *countRead)
 
 NS_IMETHODIMP
 nsJARInputThunk::ReadSegments(nsWriteSegmentFun writer, void *closure,
-                              PRUint32 count, PRUint32 *countRead)
+                              uint32_t count, uint32_t *countRead)
 {
     // stream transport does only calls Read()
     return NS_ERROR_NOT_IMPLEMENTED;
@@ -186,13 +189,13 @@ nsJARInputThunk::IsNonBlocking(bool *nonBlocking)
 
 
 nsJARChannel::nsJARChannel()
-    : mAppURI(nsnull)
+    : mAppURI(nullptr)
     , mContentLength(-1)
     , mLoadFlags(LOAD_NORMAL)
     , mStatus(NS_OK)
     , mIsPending(false)
     , mIsUnsafe(true)
-    , mJarInput(nsnull)
+    , mJarInput(nullptr)
 {
 #if defined(PR_LOGGING)
     if (!gJarProtocolLog)
@@ -360,7 +363,7 @@ nsJARChannel::EnsureJarInput(bool blocking)
         // kick off an async download of the base URI...
         rv = NS_NewDownloader(getter_AddRefs(mDownloader), this);
         if (NS_SUCCEEDED(rv))
-            rv = NS_OpenURI(mDownloader, nsnull, mJarBaseURI, nsnull,
+            rv = NS_OpenURI(mDownloader, nullptr, mJarBaseURI, nullptr,
                             mLoadGroup, mCallbacks,
                             mLoadFlags & ~(LOAD_DOCUMENT_URI | LOAD_CALL_CONTENT_SNIFFERS));
     }
@@ -531,8 +534,8 @@ nsJARChannel::GetContentType(nsACString &result)
         //
         // generate content type and set it
         //
-        const char *ext = nsnull, *fileName = mJarEntry.get();
-        PRInt32 len = mJarEntry.Length();
+        const char *ext = nullptr, *fileName = mJarEntry.get();
+        int32_t len = mJarEntry.Length();
 
         // check if we're displaying a directory
         // mJarEntry will be empty if we're trying to display
@@ -542,7 +545,7 @@ nsJARChannel::GetContentType(nsACString &result)
         }
         else {
             // not a directory, take a guess by its extension
-            for (PRInt32 i = len-1; i >= 0; i--) {
+            for (int32_t i = len-1; i >= 0; i--) {
                 if (fileName[i] == '.') {
                     ext = &fileName[i + 1];
                     break;
@@ -589,7 +592,7 @@ nsJARChannel::SetContentCharset(const nsACString &aContentCharset)
 }
 
 NS_IMETHODIMP
-nsJARChannel::GetContentDisposition(PRUint32 *aContentDisposition)
+nsJARChannel::GetContentDisposition(uint32_t *aContentDisposition)
 {
     if (mContentDispositionHeader.IsEmpty())
         return NS_ERROR_NOT_AVAILABLE;
@@ -615,7 +618,7 @@ nsJARChannel::GetContentDispositionHeader(nsACString &aContentDispositionHeader)
 }
 
 NS_IMETHODIMP
-nsJARChannel::GetContentLength(PRInt32 *result)
+nsJARChannel::GetContentLength(int32_t *result)
 {
     // if content length is unknown, query mJarInput...
     if (mContentLength < 0 && mJarInput)
@@ -626,7 +629,7 @@ nsJARChannel::GetContentLength(PRInt32 *result)
 }
 
 NS_IMETHODIMP
-nsJARChannel::SetContentLength(PRInt32 aContentLength)
+nsJARChannel::SetContentLength(int32_t aContentLength)
 {
     // XXX does this really make any sense at all?
     mContentLength = aContentLength;
@@ -641,7 +644,7 @@ nsJARChannel::Open(nsIInputStream **stream)
     NS_ENSURE_TRUE(!mJarInput, NS_ERROR_IN_PROGRESS);
     NS_ENSURE_TRUE(!mIsPending, NS_ERROR_IN_PROGRESS);
 
-    mJarFile = nsnull;
+    mJarFile = nullptr;
     mIsUnsafe = true;
 
     nsresult rv = EnsureJarInput(true);
@@ -667,7 +670,7 @@ nsJARChannel::AsyncOpen(nsIStreamListener *listener, nsISupports *ctx)
     NS_ENSURE_ARG_POINTER(listener);
     NS_ENSURE_TRUE(!mIsPending, NS_ERROR_IN_PROGRESS);
 
-    mJarFile = nsnull;
+    mJarFile = nullptr;
     mIsUnsafe = true;
 
     // Initialize mProgressSink
@@ -685,20 +688,20 @@ nsJARChannel::AsyncOpen(nsIStreamListener *listener, nsISupports *ctx)
         // create input stream pump and call AsyncRead as a block
         rv = NS_NewInputStreamPump(getter_AddRefs(mPump), mJarInput);
         if (NS_SUCCEEDED(rv))
-            rv = mPump->AsyncRead(this, nsnull);
+            rv = mPump->AsyncRead(this, nullptr);
 
         // If we failed to create the pump or initiate the AsyncRead,
         // then we need to clear these variables.
         if (NS_FAILED(rv)) {
             mIsPending = false;
-            mListenerContext = nsnull;
-            mListener = nsnull;
+            mListenerContext = nullptr;
+            mListener = nullptr;
             return rv;
         }
     }
 
     if (mLoadGroup)
-        mLoadGroup->AddRequest(this, nsnull);
+        mLoadGroup->AddRequest(this, nullptr);
 
     return NS_OK;
 }
@@ -742,7 +745,7 @@ nsJARChannel::OnDownloadComplete(nsIDownloader *downloader,
 
     nsCOMPtr<nsIChannel> channel(do_QueryInterface(request));
     if (channel) {
-        PRUint32 loadFlags;
+        uint32_t loadFlags;
         channel->GetLoadFlags(&loadFlags);
         if (loadFlags & LOAD_REPLACE) {
             mLoadFlags |= LOAD_REPLACE;
@@ -816,20 +819,20 @@ nsJARChannel::OnDownloadComplete(nsIDownloader *downloader,
     if (NS_SUCCEEDED(status)) {
         mJarFile = file;
     
-        rv = CreateJarInput(nsnull);
+        rv = CreateJarInput(nullptr);
         if (NS_SUCCEEDED(rv)) {
             // create input stream pump
             rv = NS_NewInputStreamPump(getter_AddRefs(mPump), mJarInput);
             if (NS_SUCCEEDED(rv))
-                rv = mPump->AsyncRead(this, nsnull);
+                rv = mPump->AsyncRead(this, nullptr);
         }
         status = rv;
     }
 
     if (NS_FAILED(status)) {
         mStatus = status;
-        OnStartRequest(nsnull, nsnull);
-        OnStopRequest(nsnull, nsnull, status);
+        OnStartRequest(nullptr, nullptr);
+        OnStopRequest(nullptr, nullptr, status);
     }
 
     return NS_OK;
@@ -863,7 +866,7 @@ nsJARChannel::OnStopRequest(nsIRequest *req, nsISupports *ctx, nsresult status)
     }
 
     if (mLoadGroup)
-        mLoadGroup->RemoveRequest(this, nsnull, status);
+        mLoadGroup->RemoveRequest(this, nullptr, status);
 
     mPump = 0;
     NS_IF_RELEASE(mJarInput);
@@ -880,7 +883,7 @@ nsJARChannel::OnStopRequest(nsIRequest *req, nsISupports *ctx, nsresult status)
 NS_IMETHODIMP
 nsJARChannel::OnDataAvailable(nsIRequest *req, nsISupports *ctx,
                                nsIInputStream *stream,
-                               PRUint32 offset, PRUint32 count)
+                               uint32_t offset, uint32_t count)
 {
 #if defined(PR_LOGGING)
     LOG(("nsJARChannel::OnDataAvailable [this=%x %s]\n", this, mSpec.get()));
@@ -894,8 +897,8 @@ nsJARChannel::OnDataAvailable(nsIRequest *req, nsISupports *ctx,
     // nsITransportEventSink implementation.
     // XXX do the 64-bit stuff for real
     if (mProgressSink && NS_SUCCEEDED(rv) && !(mLoadFlags & LOAD_BACKGROUND))
-        mProgressSink->OnProgress(this, nsnull, PRUint64(offset + count),
-                                  PRUint64(mContentLength));
+        mProgressSink->OnProgress(this, nullptr, uint64_t(offset + count),
+                                  uint64_t(mContentLength));
 
     return rv; // let the pump cancel on failure
 }

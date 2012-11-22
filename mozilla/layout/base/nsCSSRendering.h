@@ -34,7 +34,7 @@ public:
   enum {
     FLAG_SYNC_DECODE_IMAGES = 0x01
   };
-  nsImageRenderer(nsIFrame* aForFrame, const nsStyleImage* aImage, PRUint32 aFlags);
+  nsImageRenderer(nsIFrame* aForFrame, const nsStyleImage* aImage, uint32_t aFlags);
   ~nsImageRenderer();
   /**
    * Populates member variables to get ready for rendering.
@@ -96,7 +96,7 @@ private:
   nsLayoutUtils::SurfaceFromElementResult mImageElementSurface;
   bool                      mIsReady;
   nsSize                    mSize; // unscaled size of the image, in app units
-  PRUint32                  mFlags;
+  uint32_t                  mFlags;
 };
 
 /**
@@ -108,7 +108,7 @@ struct nsBackgroundLayerState {
   /**
    * @param aFlags some combination of nsCSSRendering::PAINTBG_* flags
    */
-  nsBackgroundLayerState(nsIFrame* aForFrame, const nsStyleImage* aImage, PRUint32 aFlags)
+  nsBackgroundLayerState(nsIFrame* aForFrame, const nsStyleImage* aImage, uint32_t aFlags)
     : mImageRenderer(aForFrame, aImage, aFlags) {}
 
   /**
@@ -173,7 +173,7 @@ struct nsCSSRendering {
                           const nsRect& aDirtyRect,
                           const nsRect& aBorderArea,
                           nsStyleContext* aStyleContext,
-                          PRIntn aSkipSides = 0);
+                          int aSkipSides = 0);
 
   /**
    * Like PaintBorder, but taking an nsStyleBorder argument instead of
@@ -186,7 +186,7 @@ struct nsCSSRendering {
                                          const nsRect& aBorderArea,
                                          const nsStyleBorder& aBorderStyle,
                                          nsStyleContext* aStyleContext,
-                                         PRIntn aSkipSides = 0);
+                                         int aSkipSides = 0);
 
 
   /**
@@ -303,7 +303,7 @@ struct nsCSSRendering {
   static nsBackgroundLayerState
   PrepareBackgroundLayer(nsPresContext* aPresContext,
                          nsIFrame* aForFrame,
-                         PRUint32 aFlags,
+                         uint32_t aFlags,
                          const nsRect& aBorderArea,
                          const nsRect& aBGClipRect,
                          const nsStyleBackground& aBackground,
@@ -334,8 +334,8 @@ struct nsCSSRendering {
                               nsIFrame* aForFrame,
                               const nsRect& aDirtyRect,
                               const nsRect& aBorderArea,
-                              PRUint32 aFlags,
-                              nsRect* aBGClipRect = nsnull);
+                              uint32_t aFlags,
+                              nsRect* aBGClipRect = nullptr);
 
   /**
    * Same as |PaintBackground|, except using the provided style structs.
@@ -349,8 +349,8 @@ struct nsCSSRendering {
                                     const nsRect& aBorderArea,
                                     nsStyleContext *aStyleContext,
                                     const nsStyleBorder& aBorder,
-                                    PRUint32 aFlags,
-                                    nsRect* aBGClipRect = nsnull);
+                                    uint32_t aFlags,
+                                    nsRect* aBGClipRect = nullptr);
 
   /**
    * Returns the rectangle covered by the given background layer image, taking
@@ -372,14 +372,14 @@ struct nsCSSRendering {
   // Draw a border segment in the table collapsing border model without
   // beveling corners
   static void DrawTableBorderSegment(nsRenderingContext& aContext,
-                                     PRUint8              aBorderStyle,  
+                                     uint8_t              aBorderStyle,  
                                      nscolor              aBorderColor,
                                      const nsStyleBackground* aBGColor,
                                      const nsRect&        aBorderRect,
-                                     PRInt32              aAppUnitsPerCSSPixel,
-                                     PRUint8              aStartBevelSide = 0,
+                                     int32_t              aAppUnitsPerCSSPixel,
+                                     uint8_t              aStartBevelSide = 0,
                                      nscoord              aStartBevelOffset = 0,
-                                     PRUint8              aEndBevelSide = 0,
+                                     uint8_t              aEndBevelSide = 0,
                                      nscoord              aEndBevelOffset = 0);
 
   /**
@@ -430,9 +430,29 @@ struct nsCSSRendering {
                                   const gfxSize& aLineSize,
                                   const gfxFloat aAscent,
                                   const gfxFloat aOffset,
-                                  const PRUint8 aDecoration,
-                                  const PRUint8 aStyle,
+                                  const uint8_t aDecoration,
+                                  const uint8_t aStyle,
                                   const gfxFloat aDescentLimit = -1.0);
+
+  /**
+   * Adds a path corresponding to the outline of the decoration line to
+   * the specified context.  Arguments have the same meaning as for
+   * PaintDecorationLine.  Currently this only works for solid
+   * decorations; for other decoration styles, an empty path is added
+   * to the context.
+   */
+  static void DecorationLineToPath(nsIFrame* aFrame,
+                                   gfxContext* aGfxContext,
+                                   const gfxRect& aDirtyRect,
+                                   const nscolor aColor,
+                                   const gfxPoint& aPt,
+                                   const gfxFloat aXInFrame,
+                                   const gfxSize& aLineSize,
+                                   const gfxFloat aAscent,
+                                   const gfxFloat aOffset,
+                                   const uint8_t aDecoration,
+                                   const uint8_t aStyle,
+                                   const gfxFloat aDescentLimit = -1.0);
 
   /**
    * Function for getting the decoration line rect for the text.
@@ -471,8 +491,8 @@ struct nsCSSRendering {
                                       const gfxSize& aLineSize,
                                       const gfxFloat aAscent,
                                       const gfxFloat aOffset,
-                                      const PRUint8 aDecoration,
-                                      const PRUint8 aStyle,
+                                      const uint8_t aDecoration,
+                                      const uint8_t aStyle,
                                       const gfxFloat aDescentLimit = -1.0);
 
 protected:
@@ -480,8 +500,8 @@ protected:
                                                const gfxSize& aLineSize,
                                                const gfxFloat aAscent,
                                                const gfxFloat aOffset,
-                                               const PRUint8 aDecoration,
-                                               const PRUint8 aStyle,
+                                               const uint8_t aDecoration,
+                                               const uint8_t aStyle,
                                                const gfxFloat aDscentLimit);
 
   /**
@@ -505,7 +525,7 @@ protected:
    */
   static gfxRect ExpandPaintingRectForDecorationLine(
                    nsIFrame* aFrame,
-                   const PRUint8 aStyle,
+                   const uint8_t aStyle,
                    const gfxRect &aClippedRect,
                    const gfxFloat aXInFrame,
                    const gfxFloat aCycleLength);
@@ -579,9 +599,9 @@ public:
    */
   gfxContext* Init(const nsRect& aRect, nscoord aSpreadRadius,
                    nscoord aBlurRadius,
-                   PRInt32 aAppUnitsPerDevPixel, gfxContext* aDestinationCtx,
+                   int32_t aAppUnitsPerDevPixel, gfxContext* aDestinationCtx,
                    const nsRect& aDirtyRect, const gfxRect* aSkipRect,
-                   PRUint32 aFlags = 0);
+                   uint32_t aFlags = 0);
 
   /**
    * Does the actual blurring/spreading. Users of this object *must*
@@ -611,7 +631,7 @@ public:
    * margin for a spread radius is itself, on all sides.)
    */
   static nsMargin GetBlurRadiusMargin(nscoord aBlurRadius,
-                                      PRInt32 aAppUnitsPerDevPixel);
+                                      int32_t aAppUnitsPerDevPixel);
 
 protected:
   gfxAlphaBoxBlur blur;

@@ -98,7 +98,7 @@ public:
    *
    * @return one of the nsINavHistoryService::DATABASE_STATUS_* constants.
    */
-  PRUint16 GetDatabaseStatus() const
+  uint16_t GetDatabaseStatus() const
   {
     return mDatabaseStatus;
   }
@@ -164,7 +164,7 @@ public:
   GetStatement(const nsACString& aQuery) const
   {
     if (mShuttingDown) {
-      return nsnull;
+      return nullptr;
     }
     if (NS_IsMainThread()) {
       return mMainThreadStatements.GetCachedStatement(aQuery);
@@ -202,7 +202,7 @@ public:
   GetAsyncStatement(const nsACString& aQuery) const
   {
     if (mShuttingDown) {
-      return nsnull;
+      return nullptr;
     }
     MOZ_ASSERT(NS_IsMainThread());
     return mMainThreadAsyncStatements.GetCachedStatement(aQuery);
@@ -294,9 +294,9 @@ private:
   mutable AsyncStatementCache mMainThreadAsyncStatements;
   mutable StatementCache mAsyncThreadStatements;
 
-  PRInt32 mDBPageSize;
+  int32_t mDBPageSize;
   enum JournalMode mCurrentJournalMode;
-  PRUint16 mDatabaseStatus;
+  uint16_t mDatabaseStatus;
   bool mShuttingDown;
 };
 

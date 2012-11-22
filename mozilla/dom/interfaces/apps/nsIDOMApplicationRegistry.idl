@@ -3,7 +3,6 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "domstubs.idl"
-#include "nsIDOMEvent.idl"
 #include "nsIDOMEventTarget.idl"
 
 interface nsIDOMDOMRequest;
@@ -43,23 +42,7 @@ interface mozIDOMApplication  : nsISupports
   nsIDOMDOMRequest uninstall();
 };
 
-[scriptable, builtinclass, uuid(8f2bfba8-f10e-4f63-a5e0-7a7056e1dbe6)]
-interface nsIDOMMozApplicationEvent : nsIDOMEvent
-{
-  readonly attribute mozIDOMApplication application;
-
-  [noscript] void initMozApplicationEvent(in DOMString aType,
-                                          in boolean aCanBubble,
-                                          in boolean aCancelable,
-                                          in mozIDOMApplication aApplication);
-};
-
-dictionary MozApplicationEventInit : EventInit
-{
-  mozIDOMApplication application;
-};
-
-[scriptable, uuid(bd304874-d532-4e13-8034-544211445583)]
+[scriptable, uuid(4c36ca48-841e-4d5a-8c46-dda14ac633ca)]
 interface mozIDOMApplicationMgmt : nsISupports
 {
   /**
@@ -67,6 +50,12 @@ interface mozIDOMApplicationMgmt : nsISupports
    * to privileged callers.
    */
   nsIDOMDOMRequest getAll();
+
+  /**
+   * the request will return the applications acquired from all origins but
+   * which are not launchable (e.g. by not being natively installed), or null.
+   */
+  nsIDOMDOMRequest getNotInstalled();
 
   /**
    * event listener to get notified of application installs. Only settable by
@@ -91,7 +80,10 @@ interface mozIDOMApplicationRegistry : nsISupports
    *
    * @param manifestUrl : the URL of the webapps manifest.
    * @param parameters  : A structure with optional information.
-   *                      { receipts: ... } will be used to specify the payment receipts for this installation.
+   *                      {
+   *                       receipts: ...    Will be used to specify the payment receipts for this installation.
+   *                       categories: ...  Will be used to specify the categories of the webapp.
+   *                      }
    * @returns           : A DOMRequest object, returning the app object in |result| if install succeeds.
    */
   nsIDOMDOMRequest install(in DOMString manifestUrl, [optional] in jsval parameters);
@@ -105,12 +97,6 @@ interface mozIDOMApplicationRegistry : nsISupports
    * the request will return the applications installed from this origin, or null.
    */
   nsIDOMDOMRequest getInstalled();
-
-  /**
-   * the request will return the applications acquired from this origin but which
-   * are not launchable (e.g. by not being natively installed), or null.
-   */
-  nsIDOMDOMRequest getNotInstalled();
 
   readonly attribute mozIDOMApplicationMgmt mgmt;
 };

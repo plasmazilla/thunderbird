@@ -19,7 +19,7 @@ DisableAlarm()
 }
 
 bool
-SetAlarm(long aSeconds, long aNanoseconds)
+SetAlarm(int32_t aSeconds, int32_t aNanoseconds)
 {
   return false;
 }

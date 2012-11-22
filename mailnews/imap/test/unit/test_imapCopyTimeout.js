@@ -6,9 +6,7 @@
 // an imap message. The move is done as an offline operation and then
 // played back, to copy what the apps do.
 
-let prefs = Components.classes["@mozilla.org/preferences-service;1"].
-                getService(Components.interfaces.nsIPrefService).getBranch("");
-prefs.setIntPref("mailnews.tcptimeout", 2);
+Services.prefs.setIntPref("mailnews.tcptimeout", 2);
 
 load("../../../resources/logHelper.js");
 load("../../../resources/mailTestUtils.js");
@@ -60,7 +58,7 @@ function createTargetFolder()
   yield false; 
   gTargetFolder = gIMAPIncomingServer.rootFolder.getChildNamed("targetFolder");
   do_check_true(gTargetFolder instanceof Ci.nsIMsgImapMailFolder);
-  gTargetFolder.updateFolderWithListener(null, UrlListener);
+  gTargetFolder.updateFolderWithListener(null, asyncUrlListener);
   yield false;
 }  
 
@@ -118,17 +116,9 @@ function waitForOfflinePlayback()
 
 function updateTargetFolder()
 {
-  gTargetFolder.updateFolderWithListener(null, UrlListener);
+  gTargetFolder.updateFolderWithListener(null, asyncUrlListener);
   yield false;
 }
-
-var UrlListener = {
-  OnStartRunningUrl: function _OnStartRunningUrl(aUrl) {
-  },
-  OnStopRunningUrl: function _OnStopRunningUrl(aUrl, aExitCode) {
-    async_driver();
-  }
-};
 
 // Cleanup
 function endTest()

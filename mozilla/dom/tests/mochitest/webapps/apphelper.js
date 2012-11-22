@@ -13,9 +13,9 @@ Components.utils.import("resource://gre/modules/Webapps.jsm");
 
 Components.classes["@mozilla.org/permissionmanager;1"]
           .getService(Components.interfaces.nsIPermissionManager)
-          .add(SpecialPowers.getDocumentURIObject(window.document),
-               "webapps-manage",
-               Components.interfaces.nsIPermissionManager.ALLOW_ACTION);
+          .addFromPrincipal(window.document.nodePrincipal,
+                            "webapps-manage",
+                             Components.interfaces.nsIPermissionManager.ALLOW_ACTION);
 
 SpecialPowers.setCharPref("dom.mozApps.whitelist", "http://mochi.test:8888");
 SpecialPowers.setBoolPref('dom.mozBrowserFramesEnabled', true);
@@ -105,7 +105,6 @@ function getOrigin(url) {
 
 function tearDown() {
   debug("in " + arguments.callee.name);
-  uninstallAll();
   popupNotifications.panel.removeEventListener("popupshown", mainCommand, false);
   SpecialPowers.clearUserPref('browser.mozApps.installer.dry_run');
   DOMApplicationRegistry.allAppsLaunchable = originalAAL;

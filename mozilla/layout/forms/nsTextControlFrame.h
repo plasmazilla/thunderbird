@@ -6,7 +6,7 @@
 #ifndef nsTextControlFrame_h___
 #define nsTextControlFrame_h___
 
-#include "nsStackFrame.h"
+#include "nsContainerFrame.h"
 #include "nsBlockFrame.h"
 #include "nsIFormControlFrame.h"
 #include "nsIAnonymousContentCreator.h"
@@ -32,7 +32,7 @@ class Element;
 }
 }
 
-class nsTextControlFrame : public nsStackFrame,
+class nsTextControlFrame : public nsContainerFrame,
                            public nsIAnonymousContentCreator,
                            public nsITextControlFrame,
                            public nsIStatefulFrame
@@ -49,11 +49,13 @@ public:
 
   virtual nsIScrollableFrame* GetScrollTargetFrame() {
     if (!IsScrollable())
-      return nsnull;
+      return nullptr;
     return do_QueryFrame(GetFirstPrincipalChild());
   }
 
   virtual nscoord GetMinWidth(nsRenderingContext* aRenderingContext);
+  virtual nscoord GetPrefWidth(nsRenderingContext* aRenderingContext);
+
   virtual nsSize ComputeAutoSize(nsRenderingContext *aRenderingContext,
                                  nsSize aCBSize, nscoord aAvailableWidth,
                                  nsSize aMargin, nsSize aBorder,
@@ -64,13 +66,10 @@ public:
                     const nsHTMLReflowState& aReflowState,
                     nsReflowStatus&          aStatus);
 
-  virtual nsSize GetPrefSize(nsBoxLayoutState& aBoxLayoutState);
   virtual nsSize GetMinSize(nsBoxLayoutState& aBoxLayoutState);
-  virtual nsSize GetMaxSize(nsBoxLayoutState& aBoxLayoutState);
-  virtual nscoord GetBoxAscent(nsBoxLayoutState& aBoxLayoutState);
   virtual bool IsCollapsed();
 
-  DECL_DO_GLOBAL_REFLOW_COUNT_DSP(nsTextControlFrame, nsStackFrame)
+  DECL_DO_GLOBAL_REFLOW_COUNT_DSP(nsTextControlFrame, nsContainerFrame)
 
   virtual bool IsLeaf() const;
   
@@ -86,18 +85,18 @@ public:
   }
 #endif
 
-  virtual bool IsFrameOfType(PRUint32 aFlags) const
+  virtual bool IsFrameOfType(uint32_t aFlags) const
   {
     // nsStackFrame is already both of these, but that's somewhat bogus,
     // and we really mean it.
-    return nsStackFrame::IsFrameOfType(aFlags &
+    return nsContainerFrame::IsFrameOfType(aFlags &
       ~(nsIFrame::eReplaced | nsIFrame::eReplacedContainsBlock));
   }
 
   // nsIAnonymousContentCreator
   virtual nsresult CreateAnonymousContent(nsTArray<ContentInfo>& aElements);
   virtual void AppendAnonymousContentTo(nsBaseContentList& aElements,
-                                        PRUint32 aFilter);
+                                        uint32_t aFilter);
 
   // Utility methods to set current widget state
 
@@ -115,15 +114,15 @@ public:
 //==== NSITEXTCONTROLFRAME
 
   NS_IMETHOD    GetEditor(nsIEditor **aEditor);
-  NS_IMETHOD    GetTextLength(PRInt32* aTextLength);
-  NS_IMETHOD    SetSelectionStart(PRInt32 aSelectionStart);
-  NS_IMETHOD    SetSelectionEnd(PRInt32 aSelectionEnd);
-  NS_IMETHOD    SetSelectionRange(PRInt32 aSelectionStart,
-                                  PRInt32 aSelectionEnd,
+  NS_IMETHOD    GetTextLength(int32_t* aTextLength);
+  NS_IMETHOD    SetSelectionStart(int32_t aSelectionStart);
+  NS_IMETHOD    SetSelectionEnd(int32_t aSelectionEnd);
+  NS_IMETHOD    SetSelectionRange(int32_t aSelectionStart,
+                                  int32_t aSelectionEnd,
                                   SelectionDirection aDirection = eNone);
-  NS_IMETHOD    GetSelectionRange(PRInt32* aSelectionStart,
-                                  PRInt32* aSelectionEnd,
-                                  SelectionDirection* aDirection = nsnull);
+  NS_IMETHOD    GetSelectionRange(int32_t* aSelectionStart,
+                                  int32_t* aSelectionEnd,
+                                  SelectionDirection* aDirection = nullptr);
   NS_IMETHOD    GetOwnedSelectionController(nsISelectionController** aSelCon);
   virtual nsFrameSelection* GetOwnedFrameSelection();
 
@@ -149,9 +148,9 @@ public:
   virtual nsIAtom* GetType() const;
 
   /** handler for attribute changes to mContent */
-  NS_IMETHOD AttributeChanged(PRInt32         aNameSpaceID,
+  NS_IMETHOD AttributeChanged(int32_t         aNameSpaceID,
                               nsIAtom*        aAttribute,
-                              PRInt32         aModType);
+                              int32_t         aModType);
 
   nsresult GetText(nsString& aText);
 
@@ -161,8 +160,17 @@ public:
 
   // Temp reference to scriptrunner
   // We could make these auto-Revoking via the "delete" entry for safety
-  NS_DECLARE_FRAME_PROPERTY(TextControlInitializer, nsnull)
+  NS_DECLARE_FRAME_PROPERTY(TextControlInitializer, nullptr)
 
+protected:
+  /**
+   * Launch the reflow on the child frames - see nsTextControlFrame::Reflow()
+   */
+  void ReflowTextControlChild(nsIFrame*                aFrame,
+                              nsPresContext*           aPresContext,
+                              const nsHTMLReflowState& aReflowState,
+                              nsReflowStatus&          aStatus,
+                              nsHTMLReflowMetrics& aParentDesiredSize);
 
 public: //for methods who access nsTextControlFrame directly
   void SetValueChanged(bool aValueChanged);
@@ -222,9 +230,9 @@ public: //for methods who access nsTextControlFrame directly
   DEFINE_TEXTCTRL_CONST_FORWARDER(bool, IsTextArea)
   DEFINE_TEXTCTRL_CONST_FORWARDER(bool, IsPlainTextControl)
   DEFINE_TEXTCTRL_CONST_FORWARDER(bool, IsPasswordTextControl)
-  DEFINE_TEXTCTRL_FORWARDER(PRInt32, GetCols)
-  DEFINE_TEXTCTRL_FORWARDER(PRInt32, GetWrapCols)
-  DEFINE_TEXTCTRL_FORWARDER(PRInt32, GetRows)
+  DEFINE_TEXTCTRL_FORWARDER(int32_t, GetCols)
+  DEFINE_TEXTCTRL_FORWARDER(int32_t, GetWrapCols)
+  DEFINE_TEXTCTRL_FORWARDER(int32_t, GetRows)
 
 #undef DEFINE_TEXTCTRL_CONST_FORWARDER
 #undef DEFINE_TEXTCTRL_FORWARDER
@@ -264,7 +272,7 @@ protected:
 
     // avoids use of nsWeakFrame
     void Revoke() {
-      mFrame = nsnull;
+      mFrame = nullptr;
     }
 
   private:
@@ -282,14 +290,14 @@ protected:
     NS_DECL_NSIRUNNABLE
 
     void Revoke() {
-      mFrame = nsnull;
+      mFrame = nullptr;
     }
 
   private:
     nsTextControlFrame* mFrame;
   };
 
-  nsresult OffsetToDOMPoint(PRInt32 aOffset, nsIDOMNode** aResult, PRInt32* aPosition);
+  nsresult OffsetToDOMPoint(int32_t aOffset, nsIDOMNode** aResult, int32_t* aPosition);
 
   /**
    * Find out whether this control is scrollable (i.e. if it is not a single
@@ -305,14 +313,14 @@ protected:
    */
   nsresult UpdateValueDisplay(bool aNotify,
                               bool aBeforeEditorInit = false,
-                              const nsAString *aValue = nsnull);
+                              const nsAString *aValue = nullptr);
 
   /**
    * Get the maxlength attribute
    * @param aMaxLength the value of the max length attr
    * @returns false if attr not defined
    */
-  bool GetMaxLength(PRInt32* aMaxLength);
+  bool GetMaxLength(int32_t* aMaxLength);
 
   /**
    * Find out whether an attribute exists on the content or not.
@@ -339,11 +347,11 @@ protected:
 
 private:
   //helper methods
-  nsresult SetSelectionInternal(nsIDOMNode *aStartNode, PRInt32 aStartOffset,
-                                nsIDOMNode *aEndNode, PRInt32 aEndOffset,
+  nsresult SetSelectionInternal(nsIDOMNode *aStartNode, int32_t aStartOffset,
+                                nsIDOMNode *aEndNode, int32_t aEndOffset,
                                 SelectionDirection aDirection = eNone);
   nsresult SelectAllOrCollapseToEndOfText(bool aSelect);
-  nsresult SetSelectionEndPoints(PRInt32 aSelStart, PRInt32 aSelEnd,
+  nsresult SetSelectionEndPoints(int32_t aSelStart, int32_t aSelEnd,
                                  SelectionDirection aDirection = eNone);
 
   /**

@@ -30,7 +30,7 @@ public:
 
   virtual nsIAtom* GetType() const;
 
-  virtual bool IsFrameOfType(PRUint32 aFlags) const
+  virtual bool IsFrameOfType(uint32_t aFlags) const
   {
     // nsLeafFrame is already eReplacedContainsBlock, but that's somewhat bogus
     return nsLeafFrame::IsFrameOfType(aFlags &
@@ -57,7 +57,7 @@ public:
   virtual nsSize ComputeSize(nsRenderingContext *aRenderingContext,
                              nsSize aCBSize, nscoord aAvailableWidth,
                              nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                             PRUint32 aFlags) MOZ_OVERRIDE;
+                             uint32_t aFlags) MOZ_OVERRIDE;
 
   NS_IMETHOD Reflow(nsPresContext*          aPresContext,
                     nsHTMLReflowMetrics&     aDesiredSize,
@@ -68,9 +68,9 @@ public:
                               const nsRect&           aDirtyRect,
                               const nsDisplayListSet& aLists);
 
-  NS_IMETHOD AttributeChanged(PRInt32 aNameSpaceID,
+  NS_IMETHOD AttributeChanged(int32_t aNameSpaceID,
                               nsIAtom* aAttribute,
-                              PRInt32 aModType);
+                              int32_t aModType);
 
   // if the content is "visibility:hidden", then just hide the view
   // and all our contents. We don't extend "visibility:hidden" to
@@ -117,10 +117,11 @@ protected:
   virtual nscoord GetIntrinsicWidth();
   virtual nscoord GetIntrinsicHeight();
 
-  virtual PRIntn GetSkipSides() const;
+  virtual int GetSkipSides() const;
 
-  // Hide or show our document viewer
-  void HideViewer();
+  // Show our document viewer. The document viewer is hidden via a script
+  // runner, so that we can save and restore the presentation if we're
+  // being reframed.
   void ShowViewer();
 
   /* Obtains the frame we should use for intrinsic size information if we are

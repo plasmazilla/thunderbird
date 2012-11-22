@@ -23,7 +23,7 @@
 
 static NS_DEFINE_CID(kResURLCID, NS_RESURL_CID);
 
-static nsResProtocolHandler *gResHandler = nsnull;
+static nsResProtocolHandler *gResHandler = nullptr;
 
 #if defined(PR_LOGGING)
 //
@@ -60,7 +60,7 @@ nsResURL::EnsureFile()
         return rv;
 
     nsCAutoString scheme;
-    rv = net_ExtractURLScheme(spec, nsnull, nsnull, &scheme);
+    rv = net_ExtractURLScheme(spec, nullptr, nullptr, &scheme);
     if (NS_FAILED(rv))
         return rv;
 
@@ -115,7 +115,7 @@ nsResProtocolHandler::nsResProtocolHandler()
 
 nsResProtocolHandler::~nsResProtocolHandler()
 {
-    gResHandler = nsnull;
+    gResHandler = nullptr;
 }
 
 nsresult
@@ -217,14 +217,14 @@ nsResProtocolHandler::GetScheme(nsACString &result)
 }
 
 NS_IMETHODIMP
-nsResProtocolHandler::GetDefaultPort(PRInt32 *result)
+nsResProtocolHandler::GetDefaultPort(int32_t *result)
 {
     *result = -1;        // no port for res: URLs
     return NS_OK;
 }
 
 NS_IMETHODIMP
-nsResProtocolHandler::GetProtocolFlags(PRUint32 *result)
+nsResProtocolHandler::GetProtocolFlags(uint32_t *result)
 {
     // XXXbz Is this really true for all resource: URIs?  Could we
     // somehow give different flags to some of them?
@@ -291,7 +291,7 @@ nsResProtocolHandler::NewChannel(nsIURI* uri, nsIChannel* *result)
     rv = ResolveURI(uri, spec);
     if (NS_FAILED(rv)) return rv;
 
-    rv = mIOService->NewChannel(spec, nsnull, nsnull, result);
+    rv = mIOService->NewChannel(spec, nullptr, nullptr, result);
     if (NS_FAILED(rv)) return rv;
 
     nsLoadFlags loadFlags = 0;
@@ -301,7 +301,7 @@ nsResProtocolHandler::NewChannel(nsIURI* uri, nsIChannel* *result)
 }
 
 NS_IMETHODIMP 
-nsResProtocolHandler::AllowPort(PRInt32 port, const char *scheme, bool *_retval)
+nsResProtocolHandler::AllowPort(int32_t port, const char *scheme, bool *_retval)
 {
     // don't override anything.  
     *_retval = false;
@@ -335,7 +335,7 @@ nsResProtocolHandler::SetSubstitution(const nsACString& root, nsIURI *baseURI)
     NS_ENSURE_SUCCESS(rv, rv);
 
     nsCOMPtr<nsIURI> newBaseURI;
-    rv = mIOService->NewURI(newBase, nsnull, nsnull,
+    rv = mIOService->NewURI(newBase, nullptr, nullptr,
                             getter_AddRefs(newBaseURI));
     NS_ENSURE_SUCCESS(rv, rv);
 
@@ -374,7 +374,7 @@ nsResProtocolHandler::HasSubstitution(const nsACString& root, bool *result)
 {
     NS_ENSURE_ARG_POINTER(result);
 
-    *result = mSubstitutions.Get(root, nsnull);
+    *result = mSubstitutions.Get(root, nullptr);
     return NS_OK;
 }
 

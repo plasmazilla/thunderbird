@@ -64,6 +64,16 @@ tabbrowser {
   display: block; /* position:fixed already does this (bug 579776), but let's be explicit */
 }
 
+.tabbrowser-tabs[movingtab] > .tabbrowser-tab[selected] {
+  position: relative;
+  z-index: 2;
+  pointer-events: none; /* avoid blocking dragover events on scroll buttons */
+}
+
+.tabbrowser-tabs[movingtab] > .tabbrowser-tab[fadein]:not([selected]) {
+  transition: transform 200ms ease-out;
+}
+
 #alltabs-popup {
   -moz-binding: url("chrome://browser/content/tabbrowser.xml#tabbrowser-alltabs-popup");
 }
@@ -459,6 +469,11 @@ window[chromehidden~="toolbar"] toolbar:not(.toolbar-primary):not(.chromeclass-m
   display: none;
 }
 
+#notification-popup .text-link.custom-link {
+  -moz-binding: url("chrome://global/content/bindings/text.xml#text-label");
+  text-decoration: none;
+}
+
 #invalid-form-popup > description {
   max-width: 280px;
 }
@@ -469,6 +484,18 @@ window[chromehidden~="toolbar"] toolbar:not(.toolbar-primary):not(.chromeclass-m
 
 #addon-progress-notification {
   -moz-binding: url("chrome://browser/content/urlbarBindings.xml#addon-progress-notification");
+}
+
+#identity-request-notification {
+  -moz-binding: url("chrome://browser/content/urlbarBindings.xml#identity-request-notification");
+}
+
+#click-to-play-plugins-notification {
+  -moz-binding: url("chrome://browser/content/urlbarBindings.xml#click-to-play-plugins-notification");
+}
+
+popupnotification-centeritem {
+  -moz-binding: url("chrome://browser/content/urlbarBindings.xml#center-item");
 }
 
 /* override hidden="true" for the status bar compatibility shim
@@ -493,7 +520,7 @@ statuspanel {
   position: fixed;
   margin-top: -3em;
   left: 0;
-  max-width: -moz-calc(100% - 5px);
+  max-width: calc(100% - 5px);
   pointer-events: none;
 }
 
@@ -578,6 +605,12 @@ html|*#gcli-output-frame,
   -moz-box-pack: center;
 }
 
+/* We don't show the Style Editor button in the developer toolbar for now.
+   See bug 771203 */
+#developer-toolbar-styleeditor {
+  display: none;
+}
+
 /* Responsive Mode */
 
 vbox[anonid=browserContainer][responsivemode] {
@@ -599,4 +632,13 @@ stack[anonid=browserStack][responsivemode] {
 
 stack[anonid=browserStack][responsivemode][notransition] {
   transition: none;
+}
+
+chatbox {
+  -moz-binding: url("chrome://browser/content/socialchat.xml#chatbox");
+}
+
+chatbar {
+  -moz-binding: url("chrome://browser/content/socialchat.xml#chatbar");
+  height: 0;
 }

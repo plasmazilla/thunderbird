@@ -8,6 +8,7 @@
 #define mozilla_dom_BindingUtils_h__
 
 #include "mozilla/dom/DOMJSClass.h"
+#include "mozilla/dom/DOMJSProxyHandler.h"
 #include "mozilla/dom/workers/Workers.h"
 #include "mozilla/ErrorResult.h"
 
@@ -28,6 +29,17 @@ class nsGlobalWindow;
 
 namespace mozilla {
 namespace dom {
+
+enum ErrNum {
+#define MSG_DEF(_name, _argc, _str) \
+  _name,
+#include "mozilla/dom/Errors.msg"
+#undef MSG_DEF
+  Err_Limit
+};
+
+bool
+ThrowErrorMessage(JSContext* aCx, const ErrNum aErrorNumber, ...);
 
 template<bool mainThread>
 inline bool
@@ -67,13 +79,35 @@ IsDOMClass(const js::Class* clasp)
   return IsDOMClass(Jsvalify(clasp));
 }
 
+// It's ok for eRegularDOMObject and eProxyDOMObject to be the same, but
+// eNonDOMObject should always be different from the other two. This enum
+// shouldn't be used to differentiate between non-proxy and proxy bindings.
+enum DOMObjectSlot {
+  eNonDOMObject = -1,
+  eRegularDOMObject = DOM_OBJECT_SLOT,
+  eProxyDOMObject = DOM_PROXY_OBJECT_SLOT
+};
+
 template <class T>
 inline T*
-UnwrapDOMObject(JSObject* obj)
+UnwrapDOMObject(JSObject* obj, DOMObjectSlot slot)
 {
-  MOZ_ASSERT(IsDOMClass(JS_GetClass(obj)));
+  MOZ_ASSERT(slot != eNonDOMObject,
+             "Don't pass non-DOM objects to this function");
 
-  JS::Value val = js::GetReservedSlot(obj, DOM_OBJECT_SLOT);
+#ifdef DEBUG
+  if (IsDOMClass(js::GetObjectClass(obj))) {
+    MOZ_ASSERT(slot == eRegularDOMObject);
+  } else {
+    MOZ_ASSERT(js::IsObjectProxyClass(js::GetObjectClass(obj)) ||
+               js::IsFunctionProxyClass(js::GetObjectClass(obj)));
+    MOZ_ASSERT(js::GetProxyHandler(obj)->family() == ProxyFamily());
+    MOZ_ASSERT(IsNewProxyBinding(js::GetProxyHandler(obj)));
+    MOZ_ASSERT(slot == eProxyDOMObject);
+  }
+#endif
+
+  JS::Value val = js::GetReservedSlot(obj, slot);
   // XXXbz/khuey worker code tries to unwrap interface objects (which have
   // nothing here).  That needs to stop.
   // XXX We don't null-check UnwrapObject's result; aren't we going to crash
@@ -85,6 +119,64 @@ UnwrapDOMObject(JSObject* obj)
   return static_cast<T*>(val.toPrivate());
 }
 
+// Only use this with a new DOM binding object (either proxy or regular).
+inline const DOMClass*
+GetDOMClass(JSObject* obj)
+{
+  js::Class* clasp = js::GetObjectClass(obj);
+  if (IsDOMClass(clasp)) {
+    return &DOMJSClass::FromJSClass(clasp)->mClass;
+  }
+
+  js::BaseProxyHandler* handler = js::GetProxyHandler(obj);
+  MOZ_ASSERT(handler->family() == ProxyFamily());
+  MOZ_ASSERT(IsNewProxyBinding(handler));
+  return &static_cast<DOMProxyHandler*>(handler)->mClass;
+}
+
+inline DOMObjectSlot
+GetDOMClass(JSObject* obj, const DOMClass*& result)
+{
+  js::Class* clasp = js::GetObjectClass(obj);
+  if (IsDOMClass(clasp)) {
+    result = &DOMJSClass::FromJSClass(clasp)->mClass;
+    return eRegularDOMObject;
+  }
+
+  if (js::IsObjectProxyClass(clasp) || js::IsFunctionProxyClass(clasp)) {
+    js::BaseProxyHandler* handler = js::GetProxyHandler(obj);
+    if (handler->family() == ProxyFamily() && IsNewProxyBinding(handler)) {
+      result = &static_cast<DOMProxyHandler*>(handler)->mClass;
+      return eProxyDOMObject;
+    }
+  }
+
+  return eNonDOMObject;
+}
+
+inline bool
+UnwrapDOMObjectToISupports(JSObject* obj, nsISupports*& result)
+{
+  const DOMClass* clasp;
+  DOMObjectSlot slot = GetDOMClass(obj, clasp);
+  if (slot == eNonDOMObject || !clasp->mDOMObjectIsISupports) {
+    return false;
+  }
+ 
+  result = UnwrapDOMObject<nsISupports>(obj, slot);
+  return true;
+}
+
+inline bool
+IsDOMObject(JSObject* obj)
+{
+  js::Class* clasp = js::GetObjectClass(obj);
+  return IsDOMClass(clasp) ||
+         ((js::IsObjectProxyClass(clasp) || js::IsFunctionProxyClass(clasp)) &&
+          (js::GetProxyHandler(obj)->family() == ProxyFamily() &&
+           IsNewProxyBinding(js::GetProxyHandler(obj))));
+}
+
 // Some callers don't want to set an exception when unwrappin fails
 // (for example, overload resolution uses unwrapping to tell what sort
 // of thing it's looking at).
@@ -94,8 +186,9 @@ inline nsresult
 UnwrapObject(JSContext* cx, JSObject* obj, U& value)
 {
   /* First check to see whether we have a DOM object */
-  JSClass* clasp = js::GetObjectJSClass(obj);
-  if (!IsDOMClass(clasp)) {
+  const DOMClass* domClass;
+  DOMObjectSlot slot = GetDOMClass(obj, domClass);
+  if (slot == eNonDOMObject) {
     /* Maybe we have a security wrapper or outer window? */
     if (!js::IsWrapper(obj)) {
       /* Not a DOM object, not a wrapper, just bail */
@@ -107,22 +200,19 @@ UnwrapObject(JSContext* cx, JSObject* obj, U& value)
       return NS_ERROR_XPC_SECURITY_MANAGER_VETO;
     }
     MOZ_ASSERT(!js::IsWrapper(obj));
-    clasp = js::GetObjectJSClass(obj);
-    if (!IsDOMClass(clasp)) {
+    slot = GetDOMClass(obj, domClass);
+    if (slot == eNonDOMObject) {
       /* We don't have a DOM object */
       return NS_ERROR_XPC_BAD_CONVERT_JS;
     }
   }
 
-  MOZ_ASSERT(IsDOMClass(clasp));
-
   /* This object is a DOM object.  Double-check that it is safely
      castable to T by checking whether it claims to inherit from the
      class identified by protoID. */
-  DOMJSClass* domClass = DOMJSClass::FromJSClass(clasp);
   if (domClass->mInterfaceChain[PrototypeTraits<PrototypeID>::Depth] ==
       PrototypeID) {
-    value = UnwrapDOMObject<T>(obj);
+    value = UnwrapDOMObject<T>(obj, slot);
     return NS_OK;
   }
 
@@ -137,7 +227,7 @@ IsArrayLike(JSContext* cx, JSObject* obj)
   // For simplicity, check for security wrappers up front.  In case we
   // have a security wrapper, don't forget to enter the compartment of
   // the underlying object after unwrapping.
-  JSAutoEnterCompartment ac;
+  Maybe<JSAutoCompartment> ac;
   if (js::IsWrapper(obj)) {
     obj = xpc::Unwrap(cx, obj, false);
     if (!obj) {
@@ -145,9 +235,7 @@ IsArrayLike(JSContext* cx, JSObject* obj)
       return false;
     }
 
-    if (!ac.enter(cx, obj)) {
-      return false;
-    }
+    ac.construct(cx, obj);
   }
 
   // XXXbz need to detect platform objects (including listbinding
@@ -255,6 +343,22 @@ struct Prefable {
   T* specs;
 };
 
+struct NativeProperties
+{
+  Prefable<JSFunctionSpec>* staticMethods;
+  jsid* staticMethodIds;
+  JSFunctionSpec* staticMethodsSpecs;
+  Prefable<JSFunctionSpec>* methods;
+  jsid* methodIds;
+  JSFunctionSpec* methodsSpecs;
+  Prefable<JSPropertySpec>* attributes;
+  jsid* attributeIds;
+  JSPropertySpec* attributeSpecs;
+  Prefable<ConstantSpec>* constants;
+  jsid* constantIds;
+  ConstantSpec* constantSpecs;
+};
+
 /*
  * Create a DOM interface object (if constructorClass is non-null) and/or a
  * DOM interface prototype object (if protoClass is non-null).
@@ -276,13 +380,14 @@ struct Prefable {
  *             object of constructorClass, unless that's also null, in which
  *             case we should not create an interface object at all.
  * ctorNargs is the length of the constructor function; 0 if no constructor
- * methods and properties are to be defined on the interface prototype object;
- *                        these arguments are allowed to be null if there are no
- *                        methods or properties respectively.
- * constants are to be defined on the interface object and on the interface
- *           prototype object; allowed to be null if there are no constants.
- * staticMethods are to be defined on the interface object; allowed to be null
- *               if there are no static methods.
+ * domClass is the DOMClass of instance objects for this class.  This can be
+ *          null if this is not a concrete proto.
+ * properties contains the methods, attributes and constants to be defined on
+ *            objects in any compartment.
+ * chromeProperties contains the methods, attributes and constants to be defined
+ *                  on objects in chrome compartments. This must be null if the
+ *                  interface doesn't have any ChromeOnly properties or if the
+ *                  object is being created in non-chrome compartment.
  *
  * At least one of protoClass and constructorClass should be non-null.
  * If constructorClass is non-null, the resulting interface object will be
@@ -296,10 +401,10 @@ JSObject*
 CreateInterfaceObjects(JSContext* cx, JSObject* global, JSObject* receiver,
                        JSObject* protoProto, JSClass* protoClass,
                        JSClass* constructorClass, JSNative constructor,
-                       unsigned ctorNargs, Prefable<JSFunctionSpec>* methods,
-                       Prefable<JSPropertySpec>* properties,
-                       Prefable<ConstantSpec>* constants,
-                       Prefable<JSFunctionSpec>* staticMethods, const char* name);
+                       unsigned ctorNargs, const DOMClass* domClass,
+                       const NativeProperties* properties,
+                       const NativeProperties* chromeProperties,
+                       const char* name);
 
 template <class T>
 inline bool
@@ -350,14 +455,14 @@ WrapNewBindingNonWrapperCachedObject(JSContext* cx, JSObject* scope, T* value,
   // We try to wrap in the compartment of the underlying object of "scope"
   JSObject* obj;
   {
-    // scope for the JSAutoEnterCompartment so that we restore the
-    // compartment before we call JS_WrapValue.
-    JSAutoEnterCompartment ac;
+    // scope for the JSAutoCompartment so that we restore the compartment
+    // before we call JS_WrapValue.
+    Maybe<JSAutoCompartment> ac;
     if (js::IsWrapper(scope)) {
       scope = xpc::Unwrap(cx, scope, false);
-      if (!scope || !ac.enter(cx, scope)) {
+      if (!scope)
         return false;
-      }
+      ac.construct(cx, scope);
     }
 
     obj = value->WrapObject(cx, scope);
@@ -414,8 +519,38 @@ struct EnumEntry {
   size_t length;
 };
 
+template<bool Fatal>
+inline bool
+EnumValueNotFound(JSContext* cx, const jschar* chars, size_t length,
+                  const char* type)
+{
+  return false;
+}
+
+template<>
+inline bool
+EnumValueNotFound<false>(JSContext* cx, const jschar* chars, size_t length,
+                         const char* type)
+{
+  // TODO: Log a warning to the console.
+  return true;
+}
+
+template<>
+inline bool
+EnumValueNotFound<true>(JSContext* cx, const jschar* chars, size_t length,
+                        const char* type)
+{
+  NS_LossyConvertUTF16toASCII deflated(static_cast<const PRUnichar*>(chars),
+                                       length);
+  return ThrowErrorMessage(cx, MSG_INVALID_ENUM_VALUE, deflated.get(), type);
+}
+
+
+template<bool InvalidValueFatal>
 inline int
-FindEnumStringIndex(JSContext* cx, JS::Value v, const EnumEntry* values, bool* ok)
+FindEnumStringIndex(JSContext* cx, JS::Value v, const EnumEntry* values,
+                    const char* type, bool* ok)
 {
   // JS_StringEqualsAscii is slow as molasses, so don't use it here.
   JSString* str = JS_ValueToString(cx, v);
@@ -451,7 +586,7 @@ FindEnumStringIndex(JSContext* cx, JS::Value v, const EnumEntry* values, bool* o
     }
   }
 
-  *ok = true;
+  *ok = EnumValueNotFound<InvalidValueFatal>(cx, chars, length, type);
   return -1;
 }
 
@@ -510,6 +645,28 @@ GetParentPointer(const ParentObject& aObject)
 {
   return ToSupports(aObject.mObject);
 }
+
+template<class T>
+inline void
+ClearWrapper(T* p, nsWrapperCache* cache)
+{
+  cache->ClearWrapper();
+}
+
+template<class T>
+inline void
+ClearWrapper(T* p, void*)
+{
+  nsWrapperCache* cache;
+  CallQueryInterface(p, &cache);
+  ClearWrapper(p, cache);
+}
+
+// Can only be called with the immediate prototype of the instance object. Can
+// only be called on the prototype of an object known to be a DOM instance.
+JSBool
+InstanceClassHasProtoAtDepth(JSHandleObject protoObject, uint32_t protoID,
+                             uint32_t depth);
 
 // Only set allowNativeWrapper to false if you really know you need it, if in
 // doubt use true. Setting it to false disables security wrappers.
@@ -649,8 +806,14 @@ JSBool
 QueryInterface(JSContext* cx, unsigned argc, JS::Value* vp);
 JSBool
 ThrowingConstructor(JSContext* cx, unsigned argc, JS::Value* vp);
-JSBool
-ThrowingConstructorWorkers(JSContext* cx, unsigned argc, JS::Value* vp);
+
+bool
+GetPropertyOnPrototype(JSContext* cx, JSObject* proxy, jsid id, bool* found,
+                       JS::Value* vp);
+
+bool
+HasPropertyOnPrototype(JSContext* cx, JSObject* proxy, DOMProxyHandler* handler,
+                       jsid id);
 
 template<class T>
 class NonNull
@@ -676,6 +839,15 @@ public:
 
   void operator=(T* t) {
     ptr = t;
+    MOZ_ASSERT(ptr);
+#ifdef DEBUG
+    inited = true;
+#endif
+  }
+
+  template<typename U>
+  void operator=(U* t) {
+    ptr = t->ToAStringPtr();
     MOZ_ASSERT(ptr);
 #ifdef DEBUG
     inited = true;
@@ -736,17 +908,83 @@ protected:
 #endif
 };
 
+// A struct that has the same layout as an nsDependentString but much
+// faster constructor and destructor behavior
+struct FakeDependentString {
+  FakeDependentString() :
+    mFlags(nsDependentString::F_TERMINATED)
+  {
+  }
+
+  void SetData(const nsDependentString::char_type* aData,
+               nsDependentString::size_type aLength) {
+    MOZ_ASSERT(mFlags == nsDependentString::F_TERMINATED);
+    mData = aData;
+    mLength = aLength;
+  }
+
+  void Truncate() {
+    mData = nsDependentString::char_traits::sEmptyBuffer;
+    mLength = 0;
+  }
+
+  void SetNull() {
+    Truncate();
+    mFlags |= nsDependentString::F_VOIDED;
+  }
+
+  const nsAString* ToAStringPtr() const {
+    return reinterpret_cast<const nsDependentString*>(this);
+  }
+
+  nsAString* ToAStringPtr() {
+    return reinterpret_cast<nsDependentString*>(this);
+  }
+
+  operator const nsAString& () const {
+    return *reinterpret_cast<const nsDependentString*>(this);
+  }
+
+private:
+  const nsDependentString::char_type* mData;
+  nsDependentString::size_type mLength;
+  uint32_t mFlags;
+
+  // A class to use for our static asserts to ensure our object layout
+  // matches that of nsDependentString.
+  class DependentStringAsserter;
+  friend class DependentStringAsserter;
+
+  class DepedentStringAsserter : public nsDependentString {
+  public:
+    static void StaticAsserts() {
+      MOZ_STATIC_ASSERT(sizeof(FakeDependentString) == sizeof(nsDependentString),
+                        "Must have right object size");
+      MOZ_STATIC_ASSERT(offsetof(FakeDependentString, mData) ==
+                          offsetof(DepedentStringAsserter, mData),
+                        "Offset of mData should match");
+      MOZ_STATIC_ASSERT(offsetof(FakeDependentString, mLength) ==
+                          offsetof(DepedentStringAsserter, mLength),
+                        "Offset of mLength should match");
+      MOZ_STATIC_ASSERT(offsetof(FakeDependentString, mFlags) ==
+                          offsetof(DepedentStringAsserter, mFlags),
+                        "Offset of mFlags should match");
+    }
+  };
+};
+
 enum StringificationBehavior {
   eStringify,
   eEmpty,
   eNull
 };
 
+// pval must not be null and must point to a rooted JS::Value
 static inline bool
 ConvertJSValueToString(JSContext* cx, const JS::Value& v, JS::Value* pval,
                        StringificationBehavior nullBehavior,
                        StringificationBehavior undefinedBehavior,
-                       nsDependentString& result)
+                       FakeDependentString& result)
 {
   JSString *s;
   if (v.isString()) {
@@ -761,13 +999,12 @@ ConvertJSValueToString(JSContext* cx, const JS::Value& v, JS::Value* pval,
       behavior = eStringify;
     }
 
-    // If pval is null, that means the argument was optional and
-    // not passed; turn those into void strings if they're
-    // supposed to be stringified.
-    if (behavior != eStringify || !pval) {
-      // Here behavior == eStringify implies !pval, so both eNull and
-      // eStringify should end up with void strings.
-      result.SetIsVoid(behavior != eEmpty);
+    if (behavior != eStringify) {
+      if (behavior == eEmpty) {
+        result.Truncate();
+      } else {
+        result.SetNull();
+      }
       return true;
     }
 
@@ -784,7 +1021,7 @@ ConvertJSValueToString(JSContext* cx, const JS::Value& v, JS::Value* pval,
     return false;
   }
 
-  result.Rebind(chars, len);
+  result.SetData(chars, len);
   return true;
 }
 
@@ -839,6 +1076,12 @@ public:
     mPassed = true;
   }
 
+  void operator=(const FakeDependentString* str) {
+    MOZ_ASSERT(str);
+    mStr = str->ToAStringPtr();
+    mPassed = true;
+  }
+
   const nsAString& Value() const {
     MOZ_ASSERT(WasPassed());
     return *mStr;
@@ -887,34 +1130,14 @@ public:
 bool
 XrayResolveProperty(JSContext* cx, JSObject* wrapper, jsid id,
                     JSPropertyDescriptor* desc,
-                    // And the things we need to determine the descriptor
-                    Prefable<JSFunctionSpec>* methods,
-                    jsid* methodIds,
-                    JSFunctionSpec* methodSpecs,
-                    size_t methodCount,
-                    Prefable<JSPropertySpec>* attributes,
-                    jsid* attributeIds,
-                    JSPropertySpec* attributeSpecs,
-                    size_t attributeCount,
-                    Prefable<ConstantSpec>* constants,
-                    jsid* constantIds,
-                    ConstantSpec* constantSpecs,
-                    size_t constantCount);
+                    const NativeProperties* nativeProperties,
+                    const NativeProperties* chromeOnlyNativeProperties);
 
 bool
-XrayEnumerateProperties(JS::AutoIdVector& props,
-                        Prefable<JSFunctionSpec>* methods,
-                        jsid* methodIds,
-                        JSFunctionSpec* methodSpecs,
-                        size_t methodCount,
-                        Prefable<JSPropertySpec>* attributes,
-                        jsid* attributeIds,
-                        JSPropertySpec* attributeSpecs,
-                        size_t attributeCount,
-                        Prefable<ConstantSpec>* constants,
-                        jsid* constantIds,
-                        ConstantSpec* constantSpecs,
-                        size_t constantCount);
+XrayEnumerateProperties(JSObject* wrapper,
+                        JS::AutoIdVector& props,
+                        const NativeProperties* nativeProperties,
+                        const NativeProperties* chromeOnlyNativeProperties);
 
 } // namespace dom
 } // namespace mozilla

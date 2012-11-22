@@ -13,16 +13,17 @@ namespace mozilla {
 namespace layers {
 
 class ImageBridgeCopyAndSendTask;
+class ImageContainer;
 
 /**
  * ImageContainerChild is the content-side part of the ImageBridge IPDL protocol
- * acting at the ImageContainer level. 
+ * acting at the ImageContainer level.
  *
  * There is one ImageContainerChild/Parent
  * pair for each ImageContainer that uses the protocol.
  * ImageContainers that use the ImageBridge protocol forward frames through
  * ImageContainerChild to the compositor without using the main thread whereas
- * ImageContainers that don't use it will forward frames in the main thread 
+ * ImageContainers that don't use it will forward frames in the main thread
  * within a transaction.
  *
  * See ImageBridgeChild.h for more details about the ImageBridge protocol
@@ -51,7 +52,7 @@ public:
    * compositor side to fetch the images without having to keep direct references
    * between the ShadowImageLayer and the InmageBridgeParent.
    */
-  const PRUint64& GetID() const
+  const uint64_t& GetID() const
   {
     return mImageContainerID;
   }
@@ -120,7 +121,7 @@ protected:
   AllocPGrallocBuffer(const gfxIntSize&, const gfxContentType&,
                       MaybeMagicGrallocBufferHandle*) MOZ_OVERRIDE
 
-  { return nsnull; }
+  { return nullptr; }
 
   virtual bool
   DeallocPGrallocBuffer(PGrallocBufferChild* actor) MOZ_OVERRIDE
@@ -136,7 +137,7 @@ protected:
    */
   void DestroyNow();
 
-  inline void SetID(PRUint64 id)
+  inline void SetID(uint64_t id)
   {
     mImageContainerID = id;
   }
@@ -158,9 +159,9 @@ protected:
 
   /**
    * Removes a shared image from the pool and returns it.
-   * Returns nsnull if the pool is empty.
+   * Returns nullptr if the pool is empty.
    */
-  SharedImage* PopSharedImageFromPool();
+  SharedImage* GetSharedImageFor(Image* aImage);
   /**
    * Seallocates all the shared images from the pool and clears the pool.
    */
@@ -189,10 +190,18 @@ protected:
   SharedImage * CreateSharedImageFromData(Image* aImage);
 
 private:
-
-  PRUint64 mImageContainerID;
-  nsIntSize mSize;
+  uint64_t mImageContainerID;
   nsTArray<SharedImage*> mSharedImagePool;
+
+  /**
+   * Save a reference to the outgoing images and remove the reference
+   * once the image is returned from the compositor.
+   * GonkIOSurfaceImage needs to know when to return the buffer to the
+   * producing thread. The buffer is returned when GonkIOSurfaceImage
+   * destructs.
+   */
+  nsTArray<nsRefPtr<Image> > mImageQueue;
+
   int mActiveImageCount;
   bool mStop;
   bool mDispatchedDestroy;

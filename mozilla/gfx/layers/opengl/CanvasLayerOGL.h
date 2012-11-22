@@ -14,6 +14,8 @@
 #include "mozilla/X11Util.h"
 #endif
 
+#include "mozilla/Preferences.h"
+
 namespace mozilla {
 namespace layers {
 
@@ -26,12 +28,14 @@ public:
     : CanvasLayer(aManager, NULL),
       LayerOGL(aManager),
       mTexture(0),
+      mTextureTarget(LOCAL_GL_TEXTURE_2D),
       mDelayedUpdates(false)
 #if defined(MOZ_WIDGET_GTK2) && !defined(MOZ_PLATFORM_MAEMO)
       ,mPixmap(0)
 #endif
   { 
       mImplData = static_cast<LayerOGL*>(this);
+      mForceReadback = Preferences::GetBool("webgl.force-layers-readback", false);
   }
   ~CanvasLayerOGL() { Destroy(); }
 
@@ -54,19 +58,22 @@ protected:
   RefPtr<gfx::DrawTarget> mDrawTarget;
 
   GLuint mTexture;
+  GLenum mTextureTarget;
 
   bool mDelayedUpdates;
   bool mGLBufferIsPremultiplied;
   bool mNeedsYFlip;
+  bool mForceReadback;
 #if defined(MOZ_WIDGET_GTK2) && !defined(MOZ_PLATFORM_MAEMO)
   GLXPixmap mPixmap;
 #endif
 
   nsRefPtr<gfxImageSurface> mCachedTempSurface;
   gfxIntSize mCachedSize;
-  gfxImageFormat mCachedFormat;
+  gfxASurface::gfxImageFormat mCachedFormat;
 
-  gfxImageSurface* GetTempSurface(const gfxIntSize& aSize, const gfxImageFormat aFormat)
+  gfxImageSurface* GetTempSurface(const gfxIntSize& aSize,
+                                  const gfxASurface::gfxImageFormat aFormat)
   {
     if (!mCachedTempSurface ||
         aSize.width != mCachedSize.width ||
@@ -83,7 +90,7 @@ protected:
 
   void DiscardTempSurface()
   {
-    mCachedTempSurface = nsnull;
+    mCachedTempSurface = nullptr;
   }
 };
 

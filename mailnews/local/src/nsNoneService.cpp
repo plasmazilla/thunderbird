@@ -42,7 +42,7 @@ NS_IMETHODIMP
 nsNoneService::GetDefaultLocalPath(nsIFile ** aResult)
 {
     NS_ENSURE_ARG_POINTER(aResult);
-    *aResult = nsnull;
+    *aResult = nullptr;
     
     bool havePref;
     nsCOMPtr<nsIFile> localFile;    
@@ -144,7 +144,7 @@ nsNoneService::GetDefaultDoBiff(bool *aDoBiff)
 }
 
 NS_IMETHODIMP
-nsNoneService::GetDefaultServerPort(bool isSecure, PRInt32 *aDefaultPort)
+nsNoneService::GetDefaultServerPort(bool isSecure, int32_t *aDefaultPort)
 {
     NS_ENSURE_ARG_POINTER(aDefaultPort);
     *aDefaultPort = -1;

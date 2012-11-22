@@ -442,7 +442,7 @@ nsPasteTransferableCommand::IsCommandEnabled(const char *aCommandName,
     nsresult rv = editor->GetIsSelectionEditable(&isEditable);
     NS_ENSURE_SUCCESS(rv, rv);
     if (isEditable)
-      return editor->CanPasteTransferable(nsnull, outCmdEnabled);
+      return editor->CanPasteTransferable(nullptr, outCmdEnabled);
   }
 
   *outCmdEnabled = false;
@@ -871,7 +871,7 @@ nsPasteQuotationCommand::IsCommandEnabled(const char * aCommandName,
   nsCOMPtr<nsIEditor> editor = do_QueryInterface(refCon);
   nsCOMPtr<nsIEditorMailSupport>  mailEditor = do_QueryInterface(refCon);
   if (editor && mailEditor) {
-    PRUint32 flags;
+    uint32_t flags;
     editor->GetFlags(&flags);
     if (!(flags & nsIPlaintextEditor::eEditorSingleLineMask))
       return editor->CanPaste(nsIClipboard::kGlobalClipboard, outCmdEnabled);

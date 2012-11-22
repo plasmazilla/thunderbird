@@ -1533,8 +1533,6 @@ wrtmessage(const char *p1, const char *p2, const char *p3, const char *p4)
 	_write(STDERR_FILENO, p4, (unsigned int) strlen(p4));
 }
 
-#define _malloc_message malloc_message
-
 void	(*_malloc_message)(const char *p1, const char *p2, const char *p3,
 	    const char *p4) = wrtmessage;
 
@@ -6220,6 +6218,7 @@ malloc_shutdown()
 /*
  * Mangle standard interfaces, in order to avoid linking problems.
  */
+#ifndef MOZ_MEMORY_GONK
 #if defined(MOZ_MEMORY_DARWIN) || defined(MOZ_MEMORY_WINDOWS) || \
     defined(MOZ_MEMORY_ANDROID)
 
@@ -6242,6 +6241,7 @@ malloc_shutdown()
 #define realloc(a, b)           wrap(realloc)(a, b)
 #define free(a)                 wrap(free)(a)
 #define malloc_usable_size(a)   wrap(malloc_usable_size)(a)
+#endif
 #endif
 
 /*

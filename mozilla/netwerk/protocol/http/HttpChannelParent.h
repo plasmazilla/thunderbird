@@ -17,8 +17,6 @@
 #include "nsITabParent.h"
 #include "nsHttpChannel.h"
 
-using namespace mozilla::dom;
-
 class nsICacheEntryDescriptor;
 class nsIAssociatedContentSecurity;
 
@@ -41,42 +39,43 @@ public:
   NS_DECL_NSIPROGRESSEVENTSINK
   NS_DECL_NSIINTERFACEREQUESTOR
 
-  HttpChannelParent(PBrowserParent* iframeEmbedding);
+  HttpChannelParent(mozilla::dom::PBrowserParent* iframeEmbedding);
   virtual ~HttpChannelParent();
 
 protected:
-  virtual bool RecvAsyncOpen(const IPC::URI&            uri,
-                             const IPC::URI&            originalUri,
-                             const IPC::URI&            docUri,
-                             const IPC::URI&            referrerUri,
-                             const PRUint32&            loadFlags,
+  virtual bool RecvAsyncOpen(const URIParams&           uri,
+                             const OptionalURIParams&   originalUri,
+                             const OptionalURIParams&   docUri,
+                             const OptionalURIParams&   referrerUri,
+                             const uint32_t&            loadFlags,
                              const RequestHeaderTuples& requestHeaders,
                              const nsHttpAtom&          requestMethod,
-                             const IPC::InputStream&    uploadStream,
+                             const OptionalInputStreamParams& uploadStream,
                              const bool&              uploadStreamHasHeaders,
-                             const PRUint16&            priority,
-                             const PRUint8&             redirectionLimit,
+                             const uint16_t&            priority,
+                             const uint8_t&             redirectionLimit,
                              const bool&              allowPipelining,
                              const bool&              forceAllowThirdPartyCookie,
                              const bool&                doResumeAt,
-                             const PRUint64&            startPos,
+                             const uint64_t&            startPos,
                              const nsCString&           entityID,
                              const bool&                chooseApplicationCache,
                              const nsCString&           appCacheClientID,
-                             const bool&                allowSpdy);
+                             const bool&                allowSpdy,
+                             const IPC::SerializedLoadContext& loadContext) MOZ_OVERRIDE;
 
-  virtual bool RecvConnectChannel(const PRUint32& channelId);
-  virtual bool RecvSetPriority(const PRUint16& priority);
+  virtual bool RecvConnectChannel(const uint32_t& channelId);
+  virtual bool RecvSetPriority(const uint16_t& priority);
   virtual bool RecvSetCacheTokenCachedCharset(const nsCString& charset);
   virtual bool RecvSuspend();
   virtual bool RecvResume();
   virtual bool RecvCancel(const nsresult& status);
   virtual bool RecvRedirect2Verify(const nsresult& result,
                                    const RequestHeaderTuples& changedHeaders);
-  virtual bool RecvUpdateAssociatedContentSecurity(const PRInt32& high,
-                                                   const PRInt32& low,
-                                                   const PRInt32& broken,
-                                                   const PRInt32& no);
+  virtual bool RecvUpdateAssociatedContentSecurity(const int32_t& high,
+                                                   const int32_t& low,
+                                                   const int32_t& broken,
+                                                   const int32_t& no);
   virtual bool RecvDocumentChannelCleanup();
   virtual bool RecvMarkOfflineCacheEntryAsForeign();
 
@@ -100,12 +99,14 @@ private:
   // state for combining OnStatus/OnProgress with OnDataAvailable
   // into one IPDL call to child.
   nsresult mStoredStatus;
-  PRUint64 mStoredProgress;
-  PRUint64 mStoredProgressMax;
+  uint64_t mStoredProgress;
+  uint64_t mStoredProgressMax;
 
-  bool mSentRedirect1Begin : 1;
-  bool mSentRedirect1BeginFailed : 1;
-  bool mReceivedRedirect2Verify : 1;
+  bool mSentRedirect1Begin          : 1;
+  bool mSentRedirect1BeginFailed    : 1;
+  bool mReceivedRedirect2Verify     : 1;
+
+  nsCOMPtr<nsILoadContext> mLoadContext;
 };
 
 } // namespace net

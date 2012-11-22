@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH		= ../..
+DEPTH		= @DEPTH@
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
@@ -231,7 +231,7 @@ CPPSRCS = \
 	SkMaskFilter.cpp \
 	SkMath.cpp \
 	SkMatrix.cpp \
-	SkMemory_malloc.cpp \
+	SkMemory_mozalloc.cpp \
 	SkMetaData.cpp \
 	SkMorphologyImageFilter.cpp \
 	SkOrderedReadBuffer.cpp \
@@ -401,4 +401,9 @@ SkBlitRow_opts_SSE2.$(OBJ_SUFFIX): CXXFLAGS+=-msse2
 SkBlitRect_opts_SSE2.$(OBJ_SUFFIX): CXXFLAGS+=-msse2
 SkUtils_opts_SSE2.$(OBJ_SUFFIX): CXXFLAGS+=-msse2
 endif
+endif
+
+ifdef GNU_CC
+CXXFLAGS := $(filter-out -pedantic,$(CXXFLAGS))
+CFLAGS := $(filter-out -pedantic,$(CFLAGS))
 endif

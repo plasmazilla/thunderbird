@@ -66,5 +66,37 @@
       "DisplayName"      : "名無しの権兵衛",
       "PrimaryEmail"     : "名無しの権兵衛@host.invalid"
     }
+  ],
+  "quote_csv" :
+  [
+    {
+      "DisplayName"      : "Acer America",
+      "Work Phone"       : "(800) 000-0000",
+      "Organization"     : "Acer America"
+    } 
+  ],
+  "vcard_import" :
+  [
+    {
+      "DisplayName"      : "John Doe",
+      "FirstName"        : "John",
+      "LastName"         : "Doe",
+      "PrimaryEmail"     : "john.doe@genericemail.com"
+    },
+    {
+      "DisplayName"      : "Jane Doe",
+      "FirstName"        : "Jane",
+      "LastName"         : "Doe",
+      "PrimaryEmail"     : "jane.doe@genericemail.com"
+    }
+  ],
+  "csv_import" :
+  [
+    {
+      "DisplayName"      : "John Doe",
+      "FirstName"        : "John",
+      "LastName"         : "Doe",
+      "PrimaryEmail"     : "johndoe@host.invalid"
+    }
   ]
 }

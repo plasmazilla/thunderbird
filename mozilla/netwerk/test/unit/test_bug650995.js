@@ -2,13 +2,20 @@
 // Test that "max_entry_size" prefs for disk- and memory-cache prevents
 // caching resources with size out of bounds
 //
-do_load_httpd_js();
+
+const Cc = Components.classes;
+const Ci = Components.interfaces;
+const Cu = Components.utils;
+const Cr = Components.results;
+
+Cu.import("resource://testing-common/httpd.js");
+
 do_get_profile();
 
 const prefService = Cc["@mozilla.org/preferences-service;1"]
                        .getService(Ci.nsIPrefBranch);
 
-const httpserver = new nsHttpServer();
+const httpserver = new HttpServer();
 
 // Repeats the given data until the total size is larger than 1K
 function repeatToLargerThan1K(data) {
@@ -16,31 +23,6 @@ function repeatToLargerThan1K(data) {
         data += data;
     return data;
 }
-
-function SyncWithCacheThread(aFunc) {
-  do_check_eq(sync_with_cache_IO_thread_cb.listener, null);
-  sync_with_cache_IO_thread_cb.listener = aFunc;
-
-  var cache = get_cache_service();
-  var session = cache.createSession(
-                  "HTTP",
-                  Ci.nsICache.STORE_ANYWHERE,
-                  Ci.nsICache.STREAM_BASED);
-
-  session.asyncOpenCacheEntry("nonexistententry",
-                              Ci.nsICache.ACCESS_READ,
-                              sync_with_cache_IO_thread_cb);
-}
-var sync_with_cache_IO_thread_cb = {
-  listener: null,
-
-  onCacheEntryAvailable: function oCEA(descriptor, accessGranted, status) {
-    do_check_neq(status, Cr.NS_OK);
-    cb = this.listener;
-    this.listener = null;
-    do_execute_soon(cb);
-  }
-};
 
 function setupChannel(suffix, value) {
     var ios = Components.classes["@mozilla.org/network/io-service;1"]
@@ -79,9 +61,9 @@ var tests = [
 function nextTest() {
     // We really want each test to be self-contained. Make sure cache is
     // cleared and also let all operations finish before starting a new test
-    SyncWithCacheThread(function() {
+    syncWithCacheIOThread(function() {
         evict_cache_entries();
-        SyncWithCacheThread(runNextTest);
+        syncWithCacheIOThread(runNextTest);
     });
 }
 

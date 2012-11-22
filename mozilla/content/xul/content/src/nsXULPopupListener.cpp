@@ -25,7 +25,6 @@
 #include "nsIDOMXULDocument.h"
 #include "nsIDocument.h"
 #include "nsIDOMEventTarget.h"
-#include "nsIDOMNSEvent.h"
 #include "nsServiceManagerUtils.h"
 #include "nsIPrincipal.h"
 #include "nsIScriptSecurityManager.h"
@@ -42,7 +41,8 @@
 #include "nsFocusManager.h"
 #include "nsPIDOMWindow.h"
 #include "nsIViewManager.h"
-#include "nsDOMError.h"
+#include "nsError.h"
+#include "nsMenuFrame.h"
 
 using namespace mozilla;
 
@@ -53,7 +53,7 @@ using namespace mozilla;
 #endif
 
 nsXULPopupListener::nsXULPopupListener(nsIDOMElement *aElement, bool aIsContext)
-  : mElement(aElement), mPopupContent(nsnull), mIsContext(aIsContext)
+  : mElement(aElement), mPopupContent(nullptr), mIsContext(aIsContext)
 {
 }
 
@@ -84,17 +84,11 @@ nsXULPopupListener::HandleEvent(nsIDOMEvent* aEvent)
        (eventType.EqualsLiteral("contextmenu") && mIsContext)))
     return NS_OK;
 
-  PRUint16 button;
+  uint16_t button;
 
   nsCOMPtr<nsIDOMMouseEvent> mouseEvent = do_QueryInterface(aEvent);
   if (!mouseEvent) {
     //non-ui event passed in.  bad things.
-    return NS_OK;
-  }
-
-  // check if someone has attempted to prevent this action.
-  nsCOMPtr<nsIDOMNSEvent> domNSEvent = do_QueryInterface(mouseEvent);
-  if (!domNSEvent) {
     return NS_OK;
   }
 
@@ -122,7 +116,7 @@ nsXULPopupListener::HandleEvent(nsIDOMEvent* aEvent)
   }
 
   bool preventDefault;
-  domNSEvent->GetPreventDefault(&preventDefault);
+  mouseEvent->GetPreventDefault(&preventDefault);
   if (preventDefault && targetNode && mIsContext) {
     // Someone called preventDefault on a context menu.
     // Let's make sure they are allowed to do so.
@@ -132,7 +126,7 @@ nsXULPopupListener::HandleEvent(nsIDOMEvent* aEvent)
       // If the target node is for plug-in, we should not open XUL context
       // menu on windowless plug-ins.
       nsCOMPtr<nsIObjectLoadingContent> olc = do_QueryInterface(targetNode);
-      PRUint32 type;
+      uint32_t type;
       if (olc && NS_SUCCEEDED(olc->GetDisplayedType(&type)) &&
           type == nsIObjectLoadingContent::TYPE_PLUGIN) {
         return NS_OK;
@@ -167,12 +161,10 @@ nsXULPopupListener::HandleEvent(nsIDOMEvent* aEvent)
   // submenu of an already-showing popup.  We don't need to do anything at all.
   nsCOMPtr<nsIContent> targetContent = do_QueryInterface(target);
   if (!mIsContext) {
-    nsIAtom *tag = targetContent ? targetContent->Tag() : nsnull;
+    nsIAtom *tag = targetContent ? targetContent->Tag() : nullptr;
     if (tag == nsGkAtoms::menu || tag == nsGkAtoms::menuitem)
       return NS_OK;
   }
-
-  nsCOMPtr<nsIDOMNSEvent> nsevent = do_QueryInterface(aEvent);
 
   if (mIsContext) {
 #ifndef NS_CONTEXT_MENU_IS_MOUSEUP
@@ -229,7 +221,7 @@ nsXULPopupListener::FireFocusOnTargetContent(nsIDOMNode* aTargetNode)
     nsIFrame* currFrame = targetFrame;
     // Look for the nearest enclosing focusable frame.
     while (currFrame) {
-        PRInt32 tabIndexUnused;
+        int32_t tabIndexUnused;
         if (currFrame->IsFocusable(&tabIndexUnused, true)) {
           newFocus = currFrame->GetContent();
           nsCOMPtr<nsIDOMElement> domElement(do_QueryInterface(newFocus));
@@ -276,7 +268,7 @@ nsXULPopupListener::ClosePopup()
     nsXULPopupManager* pm = nsXULPopupManager::GetInstance();
     if (pm)
       pm->HidePopup(mPopupContent, false, true, true);
-    mPopupContent = nsnull;  // release the popup
+    mPopupContent = nullptr;  // release the popup
   }
 } // ClosePopup
 
@@ -292,7 +284,7 @@ GetImmediateChild(nsIContent* aContent, nsIAtom *aTag)
     }
   }
 
-  return nsnull;
+  return nullptr;
 }
 
 //
@@ -354,7 +346,7 @@ nsXULPopupListener::LaunchPopup(nsIDOMEvent* aEvent, nsIContent* aTargetContent)
       nsCOMPtr<nsIDOMNodeList> list;
       nsDoc->GetAnonymousNodes(mElement, getter_AddRefs(list));
       if (list) {
-        PRUint32 ctr,listLength;
+        uint32_t ctr,listLength;
         nsCOMPtr<nsIDOMNode> node;
         list->GetLength(&listLength);
         for (ctr = 0; ctr < listLength; ctr++) {
@@ -387,8 +379,8 @@ nsXULPopupListener::LaunchPopup(nsIDOMEvent* aEvent, nsIContent* aTargetContent)
   nsCOMPtr<nsIContent> popup = do_QueryInterface(popupElement);
   nsIContent* parent = popup->GetParent();
   if (parent) {
-    nsIFrame* frame = parent->GetPrimaryFrame();
-    if (frame && frame->GetType() == nsGkAtoms::menuFrame)
+    nsMenuFrame* menu = do_QueryFrame(parent->GetPrimaryFrame());
+    if (menu)
       return NS_OK;
   }
 
@@ -409,7 +401,7 @@ nsXULPopupListener::LaunchPopup(nsIDOMEvent* aEvent, nsIContent* aTargetContent)
                   false, true, false, aEvent);
   }
   else {
-    PRInt32 xPos = 0, yPos = 0;
+    int32_t xPos = 0, yPos = 0;
     nsCOMPtr<nsIDOMMouseEvent> mouseEvent = do_QueryInterface(aEvent);
     mouseEvent->GetScreenX(&xPos);
     mouseEvent->GetScreenY(&yPos);

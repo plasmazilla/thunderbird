@@ -48,7 +48,7 @@
 #include "OEDebugLog.h"
 
 static NS_DEFINE_IID(kISupportsIID, NS_ISUPPORTS_IID);
-PRLogModuleInfo *OELOGMODULE = nsnull;
+PRLogModuleInfo *OELOGMODULE = nullptr;
 
 class ImportOEMailImpl : public nsIImportMail
 {
@@ -75,18 +75,18 @@ public:
                            bool *fatalError);
 
   /* unsigned long GetImportProgress (); */
-  NS_IMETHOD GetImportProgress(PRUint32 *_retval);
+  NS_IMETHOD GetImportProgress(uint32_t *_retval);
 
     NS_IMETHOD TranslateFolderName(const nsAString & aFolderName, nsAString & _retval);
 
 public:
-  static void ReportSuccess(nsString& name, PRInt32 count, nsString *pStream);
-  static void ReportError(PRInt32 errorNum, nsString& name, nsString *pStream);
+  static void ReportSuccess(nsString& name, int32_t count, nsString *pStream);
+  static void ReportError(int32_t errorNum, nsString& name, nsString *pStream);
   static void AddLinebreak(nsString *pStream);
   static void SetLogs(nsString& success, nsString& error, PRUnichar **pError, PRUnichar **pSuccess);
 
 private:
-  PRUint32 m_bytesDone;
+  uint32_t m_bytesDone;
 };
 
 
@@ -124,9 +124,9 @@ public:
                                PRUnichar **successLog,
                                bool *fatalError);
 
-  NS_IMETHOD GetImportProgress(PRUint32 *_retval);
+  NS_IMETHOD GetImportProgress(uint32_t *_retval);
 
-  NS_IMETHOD GetSampleData(PRInt32 index, bool *pFound, PRUnichar **pStr)
+  NS_IMETHOD GetSampleData(int32_t index, bool *pFound, PRUnichar **pStr)
     { return NS_ERROR_FAILURE;}
 
   NS_IMETHOD SetSampleLocation(nsIFile *) { return NS_OK; }
@@ -180,7 +180,7 @@ NS_IMETHODIMP nsOEImport::GetDescription(PRUnichar **name)
 
 NS_IMETHODIMP nsOEImport::GetSupports(char **supports)
 {
-  NS_PRECONDITION(supports != nsnull, "null ptr");
+  NS_PRECONDITION(supports != nullptr, "null ptr");
   if (! supports)
       return NS_ERROR_NULL_POINTER;
 
@@ -191,7 +191,7 @@ NS_IMETHODIMP nsOEImport::GetSupports(char **supports)
 
 NS_IMETHODIMP nsOEImport::GetSupportsUpgrade(bool *pUpgrade)
 {
-  NS_PRECONDITION(pUpgrade != nsnull, "null ptr");
+  NS_PRECONDITION(pUpgrade != nullptr, "null ptr");
   if (! pUpgrade)
     return NS_ERROR_NULL_POINTER;
 
@@ -204,12 +204,12 @@ NS_IMETHODIMP nsOEImport::GetImportInterface(const char *pImportType, nsISupport
   NS_ENSURE_ARG_POINTER(pImportType);
   NS_ENSURE_ARG_POINTER(ppInterface);
 
-  *ppInterface = nsnull;
+  *ppInterface = nullptr;
   nsresult rv;
   if (!strcmp(pImportType, "mail")) {
     // create the nsIImportMail interface and return it!
-    nsIImportMail *  pMail = nsnull;
-    nsIImportGeneric *pGeneric = nsnull;
+    nsIImportMail *  pMail = nullptr;
+    nsIImportGeneric *pGeneric = nullptr;
     rv = ImportOEMailImpl::Create(&pMail);
     if (NS_SUCCEEDED(rv)) {
       nsCOMPtr<nsIImportService> impSvc(do_GetService(NS_IMPORTSERVICE_CONTRACTID, &rv));
@@ -235,8 +235,8 @@ NS_IMETHODIMP nsOEImport::GetImportInterface(const char *pImportType, nsISupport
 
   if (!strcmp(pImportType, "addressbook")) {
     // create the nsIImportMail interface and return it!
-    nsIImportAddressBooks * pAddress = nsnull;
-    nsIImportGeneric * pGeneric = nsnull;
+    nsIImportAddressBooks * pAddress = nullptr;
+    nsIImportGeneric * pGeneric = nullptr;
     rv = ImportOEAddressImpl::Create(&pAddress);
     if (NS_SUCCEEDED(rv)) {
       nsCOMPtr<nsIImportService> impSvc(do_GetService(NS_IMPORTSERVICE_CONTRACTID, &rv));
@@ -254,7 +254,7 @@ NS_IMETHODIMP nsOEImport::GetImportInterface(const char *pImportType, nsISupport
   }
 
   if (!strcmp(pImportType, "settings")) {
-    nsIImportSettings *pSettings = nsnull;
+    nsIImportSettings *pSettings = nullptr;
     rv = nsOESettings::Create(&pSettings);
     if (NS_SUCCEEDED(rv))
       pSettings->QueryInterface(kISupportsIID, (void **)ppInterface);
@@ -302,9 +302,9 @@ NS_IMETHODIMP ImportOEMailImpl::TranslateFolderName(const nsAString & aFolderNam
 
 NS_IMETHODIMP ImportOEMailImpl::GetDefaultLocation(nsIFile **ppLoc, bool *found, bool *userVerify)
 {
-  NS_PRECONDITION(ppLoc != nsnull, "null ptr");
-  NS_PRECONDITION(found != nsnull, "null ptr");
-  NS_PRECONDITION(userVerify != nsnull, "null ptr");
+  NS_PRECONDITION(ppLoc != nullptr, "null ptr");
+  NS_PRECONDITION(found != nullptr, "null ptr");
+  NS_PRECONDITION(userVerify != nullptr, "null ptr");
   if (!ppLoc || !found || !userVerify)
     return NS_ERROR_NULL_POINTER;
 
@@ -320,7 +320,7 @@ NS_IMETHODIMP ImportOEMailImpl::GetDefaultLocation(nsIFile **ppLoc, bool *found,
   }
   else {
     *found = false;
-    *ppLoc = nsnull;
+    *ppLoc = nullptr;
   }
   *userVerify = true;
   return NS_OK;
@@ -329,8 +329,8 @@ NS_IMETHODIMP ImportOEMailImpl::GetDefaultLocation(nsIFile **ppLoc, bool *found,
 
 NS_IMETHODIMP ImportOEMailImpl::FindMailboxes(nsIFile *pLoc, nsISupportsArray **ppArray)
 {
-    NS_PRECONDITION(pLoc != nsnull, "null ptr");
-    NS_PRECONDITION(ppArray != nsnull, "null ptr");
+    NS_PRECONDITION(pLoc != nullptr, "null ptr");
+    NS_PRECONDITION(ppArray != nullptr, "null ptr");
     if (!pLoc || !ppArray)
         return NS_ERROR_NULL_POINTER;
 
@@ -342,7 +342,7 @@ NS_IMETHODIMP ImportOEMailImpl::FindMailboxes(nsIFile *pLoc, nsISupportsArray **
   nsOEScanBoxes  scan;
 
   if (!scan.GetMailboxes(pLoc, ppArray))
-    *ppArray = nsnull;
+    *ppArray = nullptr;
 
   return NS_OK;
 }
@@ -353,7 +353,7 @@ void ImportOEMailImpl::AddLinebreak(nsString *pStream)
     pStream->Append(PRUnichar('\n'));
 }
 
-void ImportOEMailImpl::ReportSuccess(nsString& name, PRInt32 count, nsString *pStream)
+void ImportOEMailImpl::ReportSuccess(nsString& name, int32_t count, nsString *pStream)
 {
   if (!pStream)
     return;
@@ -366,7 +366,7 @@ void ImportOEMailImpl::ReportSuccess(nsString& name, PRInt32 count, nsString *pS
   AddLinebreak(pStream);
 }
 
-void ImportOEMailImpl::ReportError(PRInt32 errorNum, nsString& name, nsString *pStream)
+void ImportOEMailImpl::ReportError(int32_t errorNum, nsString& name, nsString *pStream)
 {
   if (!pStream)
     return;
@@ -406,7 +406,7 @@ NS_IMETHODIMP ImportOEMailImpl::ImportMailbox(nsIImportMailboxDescriptor *pSourc
   if (NS_SUCCEEDED(pSource->GetDisplayName(getter_Copies(pName))))
     name = pName;
 
-  PRUint32 mailSize = 0;
+  uint32_t mailSize = 0;
   pSource->GetSize(&mailSize);
   if (mailSize == 0) {
     ReportSuccess(name, 0, &success);
@@ -426,7 +426,7 @@ NS_IMETHODIMP ImportOEMailImpl::ImportMailbox(nsIImportMailboxDescriptor *pSourc
   IMPORT_LOG1("Importing Outlook Express mailbox: %s\n", pPath.get());
 
   m_bytesDone = 0;
-  PRUint32 msgCount = 0;
+  uint32_t msgCount = 0;
   nsresult rv;
   if (nsOE5File::IsLocalMailFile(inFile)) {
     IMPORT_LOG1("Importing OE5 mailbox: %s!\n", NS_LossyConvertUTF16toASCII(name.get()));
@@ -449,7 +449,7 @@ NS_IMETHODIMP ImportOEMailImpl::ImportMailbox(nsIImportMailboxDescriptor *pSourc
   return rv;
 }
 
-NS_IMETHODIMP ImportOEMailImpl::GetImportProgress(PRUint32 *pDoneSoFar)
+NS_IMETHODIMP ImportOEMailImpl::GetImportProgress(uint32_t *pDoneSoFar)
 {
   NS_ENSURE_ARG_POINTER(pDoneSoFar);
   *pDoneSoFar = m_bytesDone;
@@ -468,7 +468,7 @@ nsresult ImportOEAddressImpl::Create(nsIImportAddressBooks** aImport)
 
 ImportOEAddressImpl::ImportOEAddressImpl()
 {
-  m_pWab = nsnull;
+  m_pWab = nullptr;
 }
 
 
@@ -488,10 +488,10 @@ NS_IMETHODIMP ImportOEAddressImpl::GetDefaultLocation(nsIFile **aLocation,
   NS_ENSURE_ARG_POINTER(aFound);
   NS_ENSURE_ARG_POINTER(aUserVerify);
 
-  *aLocation = nsnull;
+  *aLocation = nullptr;
   *aUserVerify = true;
 
-  CWAB *wab = new CWAB(nsnull);
+  CWAB *wab = new CWAB(nullptr);
   *aFound = wab->IsAvailable();
   delete wab;
 
@@ -507,8 +507,8 @@ NS_IMETHODIMP ImportOEAddressImpl::GetDefaultLocation(nsIFile **aLocation,
 
 NS_IMETHODIMP ImportOEAddressImpl::GetAutoFind(PRUnichar **description, bool *_retval)
 {
-  NS_PRECONDITION(description != nsnull, "null ptr");
-  NS_PRECONDITION(_retval != nsnull, "null ptr");
+  NS_PRECONDITION(description != nullptr, "null ptr");
+  NS_PRECONDITION(_retval != nullptr, "null ptr");
   if (! description || !_retval)
     return NS_ERROR_NULL_POINTER;
 
@@ -523,7 +523,7 @@ NS_IMETHODIMP ImportOEAddressImpl::GetAutoFind(PRUnichar **description, bool *_r
 
 NS_IMETHODIMP ImportOEAddressImpl::FindAddressBooks(nsIFile *location, nsISupportsArray **_retval)
 {
-  NS_PRECONDITION(_retval != nsnull, "null ptr");
+  NS_PRECONDITION(_retval != nullptr, "null ptr");
   if (!_retval)
     return NS_ERROR_NULL_POINTER;
 
@@ -548,7 +548,7 @@ NS_IMETHODIMP ImportOEAddressImpl::FindAddressBooks(nsIFile *location, nsISuppor
     NS_ENSURE_SUCCESS(rv, rv);
     m_pWab = new CWAB(localFile);
   } else {
-    m_pWab = new CWAB(nsnull);
+    m_pWab = new CWAB(nullptr);
   }
 
   nsIImportABDescriptor * pID;
@@ -576,7 +576,7 @@ NS_IMETHODIMP ImportOEAddressImpl::FindAddressBooks(nsIFile *location, nsISuppor
 
   if (NS_FAILED(rv)) {
     delete m_pWab;
-    m_pWab = nsnull;
+    m_pWab = nullptr;
   }
   return NS_OK;
 }
@@ -591,10 +591,10 @@ NS_IMETHODIMP ImportOEAddressImpl::ImportAddressBook(nsIImportABDescriptor *sour
                                                      PRUnichar **successLog,
                                                      bool *fatalError)
 {
-    NS_PRECONDITION(source != nsnull, "null ptr");
-    // NS_PRECONDITION(destination != nsnull, "null ptr");
-    // NS_PRECONDITION(fieldMap != nsnull, "null ptr");
-    NS_PRECONDITION(fatalError != nsnull, "null ptr");
+    NS_PRECONDITION(source != nullptr, "null ptr");
+    // NS_PRECONDITION(destination != nullptr, "null ptr");
+    // NS_PRECONDITION(fieldMap != nullptr, "null ptr");
+    NS_PRECONDITION(fatalError != nullptr, "null ptr");
     if (!source || !fatalError)
         return NS_ERROR_NULL_POINTER;
 
@@ -635,13 +635,13 @@ NS_IMETHODIMP ImportOEAddressImpl::ImportAddressBook(nsIImportABDescriptor *sour
 }
 
 
-NS_IMETHODIMP ImportOEAddressImpl::GetImportProgress(PRUint32 *_retval)
+NS_IMETHODIMP ImportOEAddressImpl::GetImportProgress(uint32_t *_retval)
 {
-  NS_PRECONDITION(_retval != nsnull, "null ptr");
+  NS_PRECONDITION(_retval != nullptr, "null ptr");
   if (! _retval)
     return NS_ERROR_NULL_POINTER;
 
-  *_retval = (PRUint32) m_doneSoFar;
+  *_retval = (uint32_t) m_doneSoFar;
   return NS_OK;
 }
 

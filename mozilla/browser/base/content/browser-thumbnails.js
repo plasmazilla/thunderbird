@@ -26,11 +26,6 @@ let gBrowserThumbnails = {
   _timeouts: null,
 
   /**
-   * Cache for the PageThumbs module.
-   */
-  _pageThumbs: null,
-
-  /**
    * List of tab events we want to listen for.
    */
   _tabEvents: ["TabClose", "TabSelect"],
@@ -41,11 +36,7 @@ let gBrowserThumbnails = {
         return;
     } catch (e) {}
 
-    let tmp = {};
-    Cu.import("resource:///modules/PageThumbs.jsm", tmp);
-    this._pageThumbs = tmp.PageThumbs;
-    this._pageThumbs.addExpirationFilter(this);
-
+    PageThumbs.addExpirationFilter(this);
     gBrowser.addTabsProgressListener(this);
     Services.prefs.addObserver(this.PREF_DISK_CACHE_SSL, this, false);
 
@@ -60,9 +51,7 @@ let gBrowserThumbnails = {
   },
 
   uninit: function Thumbnails_uninit() {
-    this._pageThumbs.removeExpirationFilter(this);
-    this._pageThumbs = null;
-
+    PageThumbs.removeExpirationFilter(this);
     gBrowser.removeTabsProgressListener(this);
     Services.prefs.removeObserver(this.PREF_DISK_CACHE_SSL, this);
 
@@ -110,7 +99,7 @@ let gBrowserThumbnails = {
 
   _capture: function Thumbnails_capture(aBrowser) {
     if (this._shouldCapture(aBrowser))
-      this._pageThumbs.captureAndStore(aBrowser);
+      PageThumbs.captureAndStore(aBrowser);
   },
 
   _delayedCapture: function Thumbnails_delayedCapture(aBrowser) {

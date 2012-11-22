@@ -32,7 +32,26 @@ pref("general.autoScroll", true);
 
 pref("general.useragent.compatMode.firefox", true);
 
-// 0 = blank, 1 = home (browser.startup.homepage), 2 = last
+// site-specific User Agent settings. Example:
+//   To send aol.com the legacy build date instead of the version number in
+//   the UA's Gecko token because mail.aol.com defaults to basic web UI when
+//   accessed with a user agent without Gecko/20100101.
+//   pref("general.useragent.override.aol.com", "Gecko/[^ ]*#Gecko/20100101");
+pref("general.useragent.complexOverride.moodle", true); // bug 797703
+pref("general.useragent.override.bank.barclays.co.uk",   "Gecko/[^ ]*#Gecko/20100101"); // bug 804169
+pref("general.useragent.override.bankmillennium.pl",     "Gecko/[^ ]*#Gecko/20100101"); // bug 804103
+pref("general.useragent.override.becu.org",              "Gecko/[^ ]*#Gecko/20100101"); // bug 804170
+pref("general.useragent.override.becuonlinebanking.org", "Gecko/[^ ]*#Gecko/20100101"); // bug 804170
+pref("general.useragent.override.bfsfcu.org",            "Gecko/[^ ]*#Gecko/20100101"); // bug 804171
+pref("general.useragent.override.cenfedcu.org",          "Gecko/[^ ]*#Gecko/20100101"); // bug 804172
+pref("general.useragent.override.coastal24.com",         "Gecko/[^ ]*#Gecko/20100101"); // bug 804175
+pref("general.useragent.override.mtb.com",               "Gecko/[^ ]*#Gecko/20100101"); // bug 795350
+pref("general.useragent.override.mandtbank.com",         "Gecko/[^ ]*#Gecko/20100101"); // bug 795350
+pref("general.useragent.override.natweststockbrokers.co.uk", "Gecko/[^ ]*#Gecko/20100101"); // bug 804179
+pref("general.useragent.override.natweststockbrokers.com", "Gecko/[^ ]*#Gecko/20100101"); // bug 804179
+pref("general.useragent.override.raiffeisen.hu",         "Gecko/[^ ]*#Gecko/20100101"); // bug 795348
+
+// 0 = blank, 1 = home (browser.startup.homepage), 2 = last visited page, 3 = resume previous browser session
 pref("browser.startup.page",                1);
 pref("browser.startup.homepage",	   "chrome://navigator-region/locale/region.properties");
 pref("browser.startup.homepage.count", 1);
@@ -647,16 +666,6 @@ pref("privacy.item.offlineApps", false);
 
 pref("privacy.sanitize.sanitizeOnShutdown", false);
 pref("privacy.sanitize.promptOnSanitize", true);
-
-/* mousewheel.withcontrolkey.action:
- * 0 = lines
- * 1 = pages
- * 2 = history
- * 3 = text or full zoom depending on "browser.zoom.full".
- */
-pref("mousewheel.withcontrolkey.action",3);
-pref("mousewheel.withcontrolkey.sysnumlines",false);
-pref("mousewheel.withcontrolkey.numlines",1);
 
 // Show XUL error pages instead of alerts for errors
 pref("browser.xul.error_pages.enabled", true);

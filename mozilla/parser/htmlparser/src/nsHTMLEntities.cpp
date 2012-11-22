@@ -18,7 +18,7 @@ using namespace mozilla;
 
 struct EntityNode {
   const char* mStr; // never owns buffer
-  PRInt32       mUnicode;
+  int32_t       mUnicode;
 };
 
 struct EntityNodeEntry : public PLDHashEntryHdr
@@ -40,7 +40,7 @@ static bool
                    const void* key)
 {
   const EntityNodeEntry* entry = static_cast<const EntityNodeEntry*>(aHdr);
-  const PRInt32 ucode = NS_PTR_TO_INT32(key);
+  const int32_t ucode = NS_PTR_TO_INT32(key);
   return (entry->node->mUnicode == ucode);
 }
 
@@ -60,7 +60,7 @@ static const PLDHashTableOps EntityToUnicodeOps = {
   PL_DHashMoveEntryStub,
   PL_DHashClearEntryStub,
   PL_DHashFinalizeStub,
-  nsnull,
+  nullptr,
 }; 
 
 static const PLDHashTableOps UnicodeToEntityOps = {
@@ -71,7 +71,7 @@ static const PLDHashTableOps UnicodeToEntityOps = {
   PL_DHashMoveEntryStub,
   PL_DHashClearEntryStub,
   PL_DHashFinalizeStub,
-  nsnull,
+  nullptr,
 };
 
 static PLDHashTable gEntityToUnicode = { 0 };
@@ -84,23 +84,23 @@ static const EntityNode gEntityArray[] = {
 };
 #undef HTML_ENTITY
 
-#define NS_HTML_ENTITY_COUNT ((PRInt32)ArrayLength(gEntityArray))
+#define NS_HTML_ENTITY_COUNT ((int32_t)ArrayLength(gEntityArray))
 
 nsresult
 nsHTMLEntities::AddRefTable(void) 
 {
   if (!gTableRefCnt) {
     if (!PL_DHashTableInit(&gEntityToUnicode, &EntityToUnicodeOps,
-                           nsnull, sizeof(EntityNodeEntry),
-                           PRUint32(NS_HTML_ENTITY_COUNT / 0.75))) {
-      gEntityToUnicode.ops = nsnull;
+                           nullptr, sizeof(EntityNodeEntry),
+                           uint32_t(NS_HTML_ENTITY_COUNT / 0.75))) {
+      gEntityToUnicode.ops = nullptr;
       return NS_ERROR_OUT_OF_MEMORY;
     }
     if (!PL_DHashTableInit(&gUnicodeToEntity, &UnicodeToEntityOps,
-                           nsnull, sizeof(EntityNodeEntry),
-                           PRUint32(NS_HTML_ENTITY_COUNT / 0.75))) {
+                           nullptr, sizeof(EntityNodeEntry),
+                           uint32_t(NS_HTML_ENTITY_COUNT / 0.75))) {
       PL_DHashTableFinish(&gEntityToUnicode);
-      gEntityToUnicode.ops = gUnicodeToEntity.ops = nsnull;
+      gEntityToUnicode.ops = gUnicodeToEntity.ops = nullptr;
       return NS_ERROR_OUT_OF_MEMORY;
     }
     for (const EntityNode *node = gEntityArray,
@@ -145,16 +145,16 @@ nsHTMLEntities::ReleaseTable(void)
 
   if (gEntityToUnicode.ops) {
     PL_DHashTableFinish(&gEntityToUnicode);
-    gEntityToUnicode.ops = nsnull;
+    gEntityToUnicode.ops = nullptr;
   }
   if (gUnicodeToEntity.ops) {
     PL_DHashTableFinish(&gUnicodeToEntity);
-    gUnicodeToEntity.ops = nsnull;
+    gUnicodeToEntity.ops = nullptr;
   }
 
 }
 
-PRInt32 
+int32_t 
 nsHTMLEntities::EntityToUnicode(const nsCString& aEntity)
 {
   NS_ASSERTION(gEntityToUnicode.ops, "no lookup table, needs addref");
@@ -181,7 +181,7 @@ nsHTMLEntities::EntityToUnicode(const nsCString& aEntity)
 }
 
 
-PRInt32 
+int32_t 
 nsHTMLEntities::EntityToUnicode(const nsAString& aEntity) {
   nsCAutoString theEntity; theEntity.AssignWithConversion(aEntity);
   if(';'==theEntity.Last()) {
@@ -193,7 +193,7 @@ nsHTMLEntities::EntityToUnicode(const nsAString& aEntity) {
 
 
 const char*
-nsHTMLEntities::UnicodeToEntity(PRInt32 aUnicode)
+nsHTMLEntities::UnicodeToEntity(int32_t aUnicode)
 {
   NS_ASSERTION(gUnicodeToEntity.ops, "no lookup table, needs addref");
   EntityNodeEntry* entry =
@@ -201,7 +201,7 @@ nsHTMLEntities::UnicodeToEntity(PRInt32 aUnicode)
                (PL_DHashTableOperate(&gUnicodeToEntity, NS_INT32_TO_PTR(aUnicode), PL_DHASH_LOOKUP));
                    
   if (!entry || PL_DHASH_ENTRY_IS_FREE(entry))
-  return nsnull;
+  return nullptr;
     
   return entry->node->mStr;
 }
@@ -212,7 +212,7 @@ nsHTMLEntities::UnicodeToEntity(PRInt32 aUnicode)
 class nsTestEntityTable {
 public:
    nsTestEntityTable() {
-     PRInt32 value;
+     int32_t value;
      nsHTMLEntities::AddRefTable();
 
      // Make sure we can find everything we are supposed to

@@ -36,7 +36,7 @@ static PRLogModuleInfo* gAbOutlookDirectoryLog
 nsAbOutlookDirectory::nsAbOutlookDirectory(void)
   : nsAbDirProperty(),
   mCurrentQueryId(0), mSearchContext(-1),
-  mAbWinType(nsAbWinType_Unknown), mMapiData(nsnull)
+  mAbWinType(nsAbWinType_Unknown), mMapiData(nullptr)
 {
     mMapiData = new nsMapiEntry ;
     mProtector = PR_NewLock() ;
@@ -106,7 +106,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::Init(const char *aUri)
 
 // nsIAbDirectory methods
 
-NS_IMETHODIMP nsAbOutlookDirectory::GetDirType(PRInt32 *aDirType)
+NS_IMETHODIMP nsAbOutlookDirectory::GetDirType(int32_t *aDirType)
 {
   NS_ENSURE_ARG_POINTER(aDirType);
   *aDirType = MAPIDirectory;
@@ -126,7 +126,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::GetChildNodes(nsISimpleEnumerator **aNodes)
 {
   NS_ENSURE_ARG_POINTER(aNodes);
 
-  *aNodes = nsnull;
+  *aNodes = nullptr;
     
   if (mIsQueryURI) {
     return NS_NewEmptyEnumerator(aNodes);
@@ -145,7 +145,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::GetChildNodes(nsISimpleEnumerator **aNodes)
 NS_IMETHODIMP nsAbOutlookDirectory::GetChildCards(nsISimpleEnumerator **aCards)
 {
   NS_ENSURE_ARG_POINTER(aCards);
-  *aCards = nsnull;
+  *aCards = nullptr;
 
   nsresult rv;
   nsCOMPtr<nsIMutableArray> cardList(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
@@ -153,7 +153,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::GetChildCards(nsISimpleEnumerator **aCards)
 
   mCardList.Clear();
 
-  rv = mIsQueryURI ? StartSearch() : GetChildCards(cardList, nsnull);
+  rv = mIsQueryURI ? StartSearch() : GetChildCards(cardList, nullptr);
 
   NS_ENSURE_SUCCESS(rv, rv);
   if (!m_AddressList)
@@ -164,7 +164,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::GetChildCards(nsISimpleEnumerator **aCards)
 
   // Fill the results array and update the card list
   // Also update the address list and notify any changes.
-  PRUint32 nbCards = 0;
+  uint32_t nbCards = 0;
 
   NS_NewArrayEnumerator(aCards, cardList);
   cardList->GetLength(&nbCards);
@@ -175,13 +175,13 @@ NS_IMETHODIMP nsAbOutlookDirectory::GetChildCards(nsISimpleEnumerator **aCards)
   NS_ENSURE_SUCCESS(rv, rv);
 
 
-  for (PRUint32 i = 0; i < nbCards; ++i)
+  for (uint32_t i = 0; i < nbCards; ++i)
   {
     card = do_QueryElementAt(cardList, i, &rv);
     if (NS_FAILED(rv))
       continue;
 
-    if (!mCardList.Get(card, nsnull))
+    if (!mCardList.Get(card, nullptr))
     {
       // We are dealing with a new element (probably directly
       // added from Outlook), we may need to sync m_AddressList
@@ -227,7 +227,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::HasCard(nsIAbCard *aCard, bool *aHasCard)
   if (!aCard || !aHasCard)
     return NS_ERROR_NULL_POINTER;
 
-  *aHasCard = mCardList.Get(aCard, nsnull);
+  *aHasCard = mCardList.Get(aCard, nullptr);
   return NS_OK;
 }
 
@@ -238,7 +238,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::HasDirectory(nsIAbDirectory *aDirectory, boo
 
   *aHasDirectory = false;
 
-  PRUint32 pos;
+  uint32_t pos;
   if (m_AddressList && NS_SUCCEEDED(m_AddressList->IndexOf(0, aDirectory, &pos)))
       *aHasDirectory = true;
 
@@ -278,7 +278,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::DeleteCards(nsIArray *aCardList)
 {
     if (mIsQueryURI) { return NS_ERROR_NOT_IMPLEMENTED ; }
     if (!aCardList) { return NS_ERROR_NULL_POINTER ; }
-    PRUint32 nbCards = 0 ;
+    uint32_t nbCards = 0 ;
     nsresult retCode = NS_OK ;
     nsAbWinHelperGuard mapiAddBook (mAbWinType) ;
 
@@ -286,7 +286,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::DeleteCards(nsIArray *aCardList)
     
     retCode = aCardList->GetLength(&nbCards);
     NS_ENSURE_SUCCESS(retCode, retCode) ;
-    PRUint32 i = 0 ;
+    uint32_t i = 0 ;
     nsCAutoString entryString ;
     nsMapiEntry cardEntry ;
 
@@ -306,7 +306,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::DeleteCards(nsIArray *aCardList)
                 mCardList.Remove(card);
                 if (m_IsMailList && m_AddressList) 
                 {
-                    PRUint32 pos;
+                    uint32_t pos;
                     if (NS_SUCCEEDED(m_AddressList->IndexOf(0, card, &pos)))
                         m_AddressList->RemoveElementAt(pos);
                 }
@@ -339,7 +339,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::DeleteDirectory(nsIAbDirectory *aDirectory)
             PRINTF(("Cannot delete directory %s.\n", entryString.get())) ;
         }
         else {
-            PRUint32 pos;
+            uint32_t pos;
             if (m_AddressList && NS_SUCCEEDED(m_AddressList->IndexOf(0, aDirectory, &pos)))
                 m_AddressList->RemoveElementAt(pos);
 
@@ -442,7 +442,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::AddMailList(nsIAbDirectory *aMailList, nsIAb
   {
     rv = newList->CopyMailList(aMailList);
     NS_ENSURE_SUCCESS(rv, rv);
-    rv = newList->EditMailListToDatabase(nsnull);
+    rv = newList->EditMailListToDatabase(nullptr);
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
@@ -526,11 +526,11 @@ static const OutlookTableAttr OutlookTableStringToProp [] =
     {kNotesProperty, PR_COMMENT_A}
 } ;
 
-static const PRUint32 OutlookTableNbProps = sizeof(OutlookTableStringToProp) /
+static const uint32_t OutlookTableNbProps = sizeof(OutlookTableStringToProp) /
                                             sizeof(OutlookTableStringToProp [0]) ;
 
 static ULONG findPropertyTag(const char *aName) {
-    PRUint32 i = 0 ;
+    uint32_t i = 0 ;
     
     for (i = 0 ; i < OutlookTableNbProps ; ++ i) {
         if (strcmp(aName, OutlookTableStringToProp [i].mOuterName) == 0) {
@@ -682,7 +682,7 @@ static nsresult BuildRestriction(nsIAbBooleanExpression *aLevel,
     aRestriction.rt = RES_COMMENT ;
     nsresult retCode = NS_OK ;
     nsAbBooleanOperationType operationType = 0 ;
-    PRUint32 nbExpressions = 0 ;
+    uint32_t nbExpressions = 0 ;
     nsCOMPtr<nsIArray> expressions;
 
     retCode = aLevel->GetOperation(&operationType);
@@ -700,9 +700,9 @@ static nsresult BuildRestriction(nsIAbBooleanExpression *aLevel,
         return NS_OK ;
     }
     LPSRestriction restrictionArray = new SRestriction [nbExpressions] ;
-    PRUint32 realNbExpressions = 0 ;
+    uint32_t realNbExpressions = 0 ;
     bool skipItem = false ;
-    PRUint32 i = 0 ;
+    uint32_t i = 0 ;
 
     nsCOMPtr<nsIAbBooleanConditionString> condition;
     nsCOMPtr<nsIAbBooleanExpression> subExpression;
@@ -840,9 +840,9 @@ struct QueryThreadArgs
     nsAbOutlookDirectory *mThis ;
     SRestriction mRestriction ;
     nsCOMPtr<nsIAbDirSearchListener> mListener ;
-    PRInt32 mResultLimit ;
-    PRInt32 mTimeout ;
-    PRInt32 mThreadId ;
+    int32_t mResultLimit ;
+    int32_t mTimeout ;
+    int32_t mThreadId ;
 } ;
 
 static void QueryThreadFunc(void *aArguments)
@@ -860,8 +860,8 @@ static void QueryThreadFunc(void *aArguments)
 NS_IMETHODIMP nsAbOutlookDirectory::DoQuery(nsIAbDirectory *aDirectory,
                                             nsIAbDirectoryQueryArguments *aArguments,
                                             nsIAbDirSearchListener *aListener,
-                                            PRInt32 aResultLimit, PRInt32 aTimeout,
-                                            PRInt32 *aReturnValue)
+                                            int32_t aResultLimit, int32_t aTimeout,
+                                            int32_t *aReturnValue)
 {
   if (!aArguments || !aListener || !aReturnValue)  { 
     return NS_ERROR_NULL_POINTER;
@@ -869,7 +869,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::DoQuery(nsIAbDirectory *aDirectory,
   *aReturnValue = -1;
     
   QueryThreadArgs *threadArgs = new QueryThreadArgs;
-  PRThread *newThread = nsnull;
+  PRThread *newThread = nullptr;
 
   if (!threadArgs)
     return NS_ERROR_OUT_OF_MEMORY;
@@ -905,7 +905,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::DoQuery(nsIAbDirectory *aDirectory,
   return NS_OK;
 }
 
-NS_IMETHODIMP nsAbOutlookDirectory::StopQuery(PRInt32 aContext)
+NS_IMETHODIMP nsAbOutlookDirectory::StopQuery(int32_t aContext)
 {
     PRThread *queryThread;
     if (mQueryThreads.Get(aContext, &queryThread)) {
@@ -948,7 +948,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::StopSearch(void)
 }
 
 // nsIAbDirSearchListener
-NS_IMETHODIMP nsAbOutlookDirectory::OnSearchFinished(PRInt32 aResult,
+NS_IMETHODIMP nsAbOutlookDirectory::OnSearchFinished(int32_t aResult,
                                                      const nsAString &aErrorMsg)
 {
   return NS_OK;
@@ -967,8 +967,8 @@ NS_IMETHODIMP nsAbOutlookDirectory::OnSearchFoundCard(nsIAbCard *aCard)
 
 nsresult nsAbOutlookDirectory::ExecuteQuery(SRestriction &aRestriction,
                                             nsIAbDirSearchListener *aListener,
-                                            PRInt32 aResultLimit, PRInt32 aTimeout,
-                                            PRInt32 aThreadId) 
+                                            int32_t aResultLimit, int32_t aTimeout,
+                                            int32_t aThreadId) 
 
 {
   if (!aListener)
@@ -981,18 +981,18 @@ nsresult nsAbOutlookDirectory::ExecuteQuery(SRestriction &aRestriction,
   NS_ENSURE_SUCCESS(retCode, retCode);
 
   retCode = GetChildCards(resultsArray,
-                          aRestriction.rt == RES_COMMENT ? nsnull : &aRestriction);
+                          aRestriction.rt == RES_COMMENT ? nullptr : &aRestriction);
   NS_ENSURE_SUCCESS(retCode, retCode);
 
-  PRUint32 nbResults = 0;
+  uint32_t nbResults = 0;
   retCode = resultsArray->GetLength(&nbResults);
   NS_ENSURE_SUCCESS(retCode, retCode);
 
-  if (aResultLimit > 0 && nbResults > static_cast<PRUint32>(aResultLimit)) { 
-    nbResults = static_cast<PRUint32>(aResultLimit) ; 
+  if (aResultLimit > 0 && nbResults > static_cast<uint32_t>(aResultLimit)) { 
+    nbResults = static_cast<uint32_t>(aResultLimit) ; 
   }
 
-  PRUint32 i = 0;
+  uint32_t i = 0;
   nsCOMPtr<nsIAbCard> card;
     
   for (i = 0 ; i < nbResults ; ++ i) {
@@ -1120,23 +1120,23 @@ nsresult nsAbOutlookDirectory::CommitAddressList(void)
   }
 
   nsresult rv;
-  PRUint32 i = 0;
+  uint32_t i = 0;
   nsCOMPtr<nsIMutableArray> oldList(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = GetChildCards(oldList, nsnull);
+  rv = GetChildCards(oldList, nullptr);
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (!m_AddressList)
     return NS_ERROR_NULL_POINTER;
 
-  PRUint32 nbCards = 0;
+  uint32_t nbCards = 0;
   rv = m_AddressList->GetLength(&nbCards);
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsISupports> element;
   nsCOMPtr<nsIAbCard> newCard;
-  PRUint32 pos;
+  uint32_t pos;
 
   for (i = 0; i < nbCards; ++i) {
     element = do_QueryElementAt(m_AddressList, i, &rv);
@@ -1167,14 +1167,14 @@ nsresult nsAbOutlookDirectory::UpdateAddressList(void)
         NS_ENSURE_SUCCESS(rv, rv);
     }
 
-    return m_IsMailList ? GetChildCards(m_AddressList, nsnull) :
+    return m_IsMailList ? GetChildCards(m_AddressList, nullptr) :
                           GetChildNodes(m_AddressList);
 }
 
 nsresult nsAbOutlookDirectory::CreateCard(nsIAbCard *aData, nsIAbCard **aNewCard) 
 {
     if (!aData || !aNewCard) { return NS_ERROR_NULL_POINTER ; }
-    *aNewCard = nsnull ;
+    *aNewCard = nullptr ;
     nsresult retCode = NS_OK ;
     nsAbWinHelperGuard mapiAddBook (mAbWinType) ;
     nsMapiEntry newEntry ;
@@ -1259,7 +1259,7 @@ nsresult nsAbOutlookDirectory::CreateCard(nsIAbCard *aData, nsIAbCard **aNewCard
 static void UnicodeToWord(const PRUnichar *aUnicode, WORD& aWord)
 {
     aWord = 0 ;
-    if (aUnicode == nsnull || *aUnicode == 0) { return ; }
+    if (aUnicode == nullptr || *aUnicode == 0) { return ; }
     nsresult errorCode = NS_OK;
     nsAutoString unichar (aUnicode) ;
 
@@ -1276,7 +1276,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::ModifyCard(nsIAbCard *aModifiedCard)
 {
   NS_ENSURE_ARG_POINTER(aModifiedCard);
 
-  nsString *properties = nsnull;
+  nsString *properties = nullptr;
   nsAutoString utility;
   nsAbWinHelperGuard mapiAddBook(mAbWinType);
 
@@ -1312,11 +1312,11 @@ NS_IMETHODIMP nsAbOutlookDirectory::ModifyCard(nsIAbCard *aModifiedCard)
       do_GetService(NS_PREFSERVICE_CONTRACTID, &rv);
     NS_ENSURE_SUCCESS(rv,rv);
 
-    PRInt32 format;
+    int32_t format;
     rv = prefBranch->GetIntPref(PREF_MAIL_ADDR_BOOK_LASTNAMEFIRST, &format);
     NS_ENSURE_SUCCESS(rv,rv);
 
-    rv = aModifiedCard->GenerateName(format, nsnull,
+    rv = aModifiedCard->GenerateName(format, nullptr,
                                      properties[index_DisplayName]);
     NS_ENSURE_SUCCESS(rv,rv);
 
@@ -1405,8 +1405,8 @@ NS_IMETHODIMP nsAbOutlookDirectory::OnQueryFoundCard(nsIAbCard *aCard)
   return OnSearchFoundCard(aCard);
 }
 
-NS_IMETHODIMP nsAbOutlookDirectory::OnQueryResult(PRInt32 aResult,
-                                                  PRInt32 aErrorCode)
+NS_IMETHODIMP nsAbOutlookDirectory::OnQueryResult(int32_t aResult,
+                                                  int32_t aErrorCode)
 {
   return OnSearchFinished(aResult, EmptyString());
 }
@@ -1421,7 +1421,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::UseForAutocomplete(const nsACString &aIdenti
 static void splitString(nsString& aSource, nsString& aTarget)
 {
   aTarget.Truncate();
-  PRInt32 offset = aSource.FindChar('\n');
+  int32_t offset = aSource.FindChar('\n');
 
   if (offset >= 0)
   {
@@ -1444,7 +1444,7 @@ nsresult OutlookCardForURI(const nsACString &aUri, nsIAbCard **newCard)
 
   nsCAutoString entry;
   nsCAutoString stub;
-  PRUint32 abWinType = getAbWinType(kOutlookCardScheme,
+  uint32_t abWinType = getAbWinType(kOutlookCardScheme,
     PromiseFlatCString(aUri).get(), stub, entry);
   if (abWinType == nsAbWinType_Unknown)
   {

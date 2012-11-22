@@ -27,8 +27,8 @@
 #include "OEDebugLog.h"
 
 typedef struct {
-  PRInt32    mozField;
-  PRInt32    multiLine;
+  int32_t    mozField;
+  int32_t    multiLine;
   ULONG    mapiTag;
 } MAPIFields;
 
@@ -209,7 +209,7 @@ nsresult nsOEAddressIterator::EnumList(const PRUnichar * pName, LPENTRYID pEid, 
 
             m_database->AddListCardColumnsToRow(userCard, listRow, ++numListElems,
                                                 getter_AddRefs(newCard),
-                                                true, nsnull, nsnull);
+                                                true, nullptr, nullptr);
           }
           m_pWab->FreeProperty(pProp);
           m_pWab->ReleaseUser(pUser);
@@ -232,8 +232,8 @@ void nsOEAddressIterator::SanitizeValue(nsString& val)
 void nsOEAddressIterator::SplitString(nsString& val1, nsString& val2)
 {
   // Find the last line if there is more than one!
-  PRInt32 idx = val1.RFind("\x0D\x0A");
-  PRInt32  cnt = 2;
+  int32_t idx = val1.RFind("\x0D\x0A");
+  int32_t  cnt = 2;
   if (idx == -1) {
     cnt = 1;
     idx = val1.RFindChar(13);
@@ -360,7 +360,7 @@ bool nsOEAddressIterator::BuildCard(const PRUnichar * pName, nsIMdbRow *newRow, 
   
   nsCOMPtr<nsIImportService> impSvc(do_GetService(NS_IMPORTSERVICE_CONTRACTID, &rv));
   if (NS_SUCCEEDED(rv)) {
-    nsIImportFieldMap *    pFieldMap = nsnull;
+    nsIImportFieldMap *    pFieldMap = nullptr;
     rv = impSvc->CreateNewFieldMap(&pFieldMap);
     if (NS_SUCCEEDED(rv) && pFieldMap) {
       int max = sizeof(gMapiFields) / sizeof(MAPIFields);

@@ -95,7 +95,7 @@ public:
 
     static PLDHashNumber HashKey(KeyTypePointer aKey)
     {
-        PRUint32 hash;
+        uint32_t hash;
         const_cast<nsIPrincipal*>(aKey)->GetHashValue(&hash);
         return PLDHashNumber(hash);
     }
@@ -184,7 +184,7 @@ ClearClassPolicyEntry(PLDHashTable *table, PLDHashEntryHdr *entry)
     if (cp->key)
     {
         PL_strfree(cp->key);
-        cp->key = nsnull;
+        cp->key = nullptr;
     }
     PL_DHashTableDestroy(cp->mPolicy);
 }
@@ -214,15 +214,15 @@ InitClassPolicyEntry(PLDHashTable *table,
     };
 
     ClassPolicy* cp = (ClassPolicy*)entry;
-    cp->mDomainWeAreWildcardFor = nsnull;
+    cp->mDomainWeAreWildcardFor = nullptr;
     cp->key = PL_strdup((const char*)key);
     if (!cp->key)
         return false;
-    cp->mPolicy = PL_NewDHashTable(&classPolicyOps, nsnull,
+    cp->mPolicy = PL_NewDHashTable(&classPolicyOps, nullptr,
                                    sizeof(PropertyPolicy), 16);
     if (!cp->mPolicy) {
         PL_strfree(cp->key);
-        cp->key = nsnull;
+        cp->key = nullptr;
         return false;
     }
     return true;
@@ -232,7 +232,7 @@ InitClassPolicyEntry(PLDHashTable *table,
 class DomainPolicy : public PLDHashTable
 {
 public:
-    DomainPolicy() : mWildcardPolicy(nsnull),
+    DomainPolicy() : mWildcardPolicy(nullptr),
                      mRefCount(0)
     {
         mGeneration = sGeneration;
@@ -258,7 +258,7 @@ public:
             InitClassPolicyEntry
         };
 
-        return PL_DHashTableInit(this, &domainPolicyOps, nsnull,
+        return PL_DHashTableInit(this, &domainPolicyOps, nullptr,
                                  sizeof(ClassPolicy), 16);
     }
 
@@ -298,12 +298,12 @@ public:
     ClassPolicy* mWildcardPolicy;
 
 private:
-    PRUint32 mRefCount;
-    PRUint32 mGeneration;
-    static PRUint32 sGeneration;
+    uint32_t mRefCount;
+    uint32_t mGeneration;
+    static uint32_t sGeneration;
     
 #ifdef DEBUG_CAPS_DomainPolicyLifeCycle
-    static PRUint32 sObjects;
+    static uint32_t sObjects;
     static void _printPopulationInfo();
 #endif
 
@@ -365,7 +365,7 @@ public:
      * false otherwise.
      */
     static bool SecurityCompareURIs(nsIURI* aSourceURI, nsIURI* aTargetURI);
-    static PRUint32 SecurityHashURI(nsIURI* aURI);
+    static uint32_t SecurityHashURI(nsIURI* aURI);
 
     static nsresult 
     ReportError(JSContext* cx, const nsAString& messageTag,
@@ -374,7 +374,7 @@ public:
     static nsresult
     CheckSameOriginPrincipal(nsIPrincipal* aSubject,
                              nsIPrincipal* aObject);
-    static PRUint32
+    static uint32_t
     HashPrincipalByOrigin(nsIPrincipal* aPrincipal);
 
     static bool
@@ -393,9 +393,6 @@ private:
     CheckObjectAccess(JSContext *cx, JSHandleObject obj,
                       JSHandleId id, JSAccessMode mode,
                       jsval *vp);
-
-    static JSPrincipals *
-    ObjectPrincipalFinder(JSObject *obj);
     
     // Decides, based on CSP, whether or not eval() and stuff can be executed.
     static JSBool
@@ -415,10 +412,10 @@ private:
     doGetSubjectPrincipal(nsresult* rv);
     
     nsresult
-    CheckPropertyAccessImpl(PRUint32 aAction,
+    CheckPropertyAccessImpl(uint32_t aAction,
                             nsAXPCNativeCallContext* aCallContext,
                             JSContext* cx, JSObject* aJSObject,
-                            nsISupports* aObj, nsIURI* aTargetURI,
+                            nsISupports* aObj,
                             nsIClassInfo* aClassInfo,
                             const char* aClassName, jsid aProperty,
                             void** aCachedClassPolicy);
@@ -426,17 +423,23 @@ private:
     nsresult
     CheckSameOriginDOMProp(nsIPrincipal* aSubject, 
                            nsIPrincipal* aObject,
-                           PRUint32 aAction);
+                           uint32_t aAction);
 
     nsresult
     LookupPolicy(nsIPrincipal* principal,
                  ClassInfoData& aClassData, jsid aProperty,
-                 PRUint32 aAction,
+                 uint32_t aAction,
                  ClassPolicy** aCachedClassPolicy,
                  SecurityLevel* result);
 
     nsresult
-    CreateCodebasePrincipal(nsIURI* aURI, nsIPrincipal** result);
+    GetCodebasePrincipalInternal(nsIURI* aURI, uint32_t aAppId,
+                                 bool aInMozBrowser,
+                                 nsIPrincipal** result);
+
+    nsresult
+    CreateCodebasePrincipal(nsIURI* aURI, uint32_t aAppId, bool aInMozBrowser,
+                            nsIPrincipal** result);
 
     // This is just like the API method, but it doesn't check that the subject
     // name is non-empty or aCertificate is non-null, and it doesn't change the
@@ -546,7 +549,7 @@ private:
                      DomainPolicy* aDomainPolicy);
 
     nsresult
-    InitPrincipals(PRUint32 prefCount, const char** prefNames);
+    InitPrincipals(uint32_t prefCount, const char** prefNames);
 
 #ifdef DEBUG_CAPS_HACKER
     void
@@ -595,5 +598,14 @@ public:
 
     NS_IMETHOD InitializeNameSet(nsIScriptContext* aScriptContext);
 };
+
+namespace mozilla {
+
+void
+GetExtendedOrigin(nsIURI* aURI, uint32_t aAppid,
+                  bool aInMozBrowser,
+                  nsACString& aExtendedOrigin);
+
+} // namespace mozilla
 
 #endif // nsScriptSecurityManager_h__

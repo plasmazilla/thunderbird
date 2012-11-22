@@ -82,7 +82,7 @@ public:
                       const nsIntRect& aTargetBounds,
                       const nsIntRect& aPostFilterDirtyRect,
                       const nsIntRect& aPreFilterDirtyRect,
-                      PRUint16 aPrimitiveUnits) :
+                      uint16_t aPrimitiveUnits) :
     mTargetFrame(aTargetFrame),
     mPaintCallback(aPaintCallback),
     mFilterElement(aFilterElement),
@@ -115,8 +115,8 @@ public:
    * nsIntRect.)
    */
   const nsIntSize& GetFilterSpaceSize() { return mFilterSpaceSize; }
-  PRUint32 GetFilterResX() const { return mFilterSpaceSize.width; }
-  PRUint32 GetFilterResY() const { return mFilterSpaceSize.height; }
+  uint32_t GetFilterResX() const { return mFilterSpaceSize.width; }
+  uint32_t GetFilterResY() const { return mFilterSpaceSize.height; }
 
   /**
    * Returns the dimensions of the offscreen surface that is required for the
@@ -125,8 +125,8 @@ public:
    * region.
    */
   const nsIntRect& GetSurfaceRect() const { return mSurfaceRect; }
-  PRInt32 GetSurfaceWidth() const { return mSurfaceRect.width; }
-  PRInt32 GetSurfaceHeight() const { return mSurfaceRect.height; }
+  int32_t GetSurfaceWidth() const { return mSurfaceRect.width; }
+  int32_t GetSurfaceHeight() const { return mSurfaceRect.height; }
 
   /**
    * Allocates a gfxASurface, renders the filtered element into the surface,
@@ -162,11 +162,11 @@ public:
    */
   nsresult ComputeOutputBBox(nsIntRect* aBBox);
 
-  float GetPrimitiveNumber(PRUint8 aCtxType, const nsSVGNumber2 *aNumber) const
+  float GetPrimitiveNumber(uint8_t aCtxType, const nsSVGNumber2 *aNumber) const
   {
     return GetPrimitiveNumber(aCtxType, aNumber->GetAnimValue());
   }
-  float GetPrimitiveNumber(PRUint8 aCtxType, const nsSVGNumberPair *aNumberPair,
+  float GetPrimitiveNumber(uint8_t aCtxType, const nsSVGNumberPair *aNumberPair,
                            nsSVGNumberPair::PairIndex aIndex) const
   {
     return GetPrimitiveNumber(aCtxType, aNumberPair->GetAnimValue(aIndex));
@@ -205,7 +205,7 @@ public:
     return mFilterSpaceToFrameSpaceInCSSPxTransform;
   }
 
-  PRInt32 AppUnitsPerCSSPixel() const {
+  int32_t AppUnitsPerCSSPixel() const {
     return mTargetFrame->PresContext()->AppUnitsPerCSSPixel();
   }
 
@@ -258,14 +258,14 @@ private:
      * primitives that are not used, or whose ouput in not used during the
      * current operation.
      */
-    PRInt32   mImageUsers;
+    int32_t   mImageUsers;
   
     // Can't use nsAutoTArray here, because these Info objects
     // live in nsTArrays themselves and nsTArray moves the elements
     // around in memory, which breaks nsAutoTArray.
     nsTArray<PrimitiveInfo*> mInputs;
 
-    PrimitiveInfo() : mFE(nsnull), mImageUsers(0) {}
+    PrimitiveInfo() : mFE(nullptr), mImageUsers(0) {}
   };
 
   class ImageAnalysisEntry : public nsStringHashKey {
@@ -278,11 +278,24 @@ private:
   };
 
   /**
-   * Initializes the SourceGraphic and SourceAlpha graph nodes (i.e. sets
+   * Initializes the keyword nodes e.g. SourceGraphic (i.e. sets
    * .mImage.mFilterPrimitiveSubregion and .mResultBoundingBox on
    * mSourceColorAlpha and mSourceAlpha).
    */
   nsresult BuildSources();
+
+  /**
+   * Creates a gfxImageSurface for either the FillPaint or StrokePaint graph
+   * nodes
+   */
+  nsresult BuildSourcePaint(PrimitiveInfo *aPrimitive);
+
+  /**
+   * Creates a gfxImageSurface for either the FillPaint and StrokePaint graph
+   * nodes, fills its contents and assigns it to mFillPaint.mImage.mImage and
+   * mStrokePaint.mImage.mImage respectively.
+   */
+  nsresult BuildSourcePaints();
 
   /**
    * Creates the gfxImageSurfaces for the SourceGraphic and SourceAlpha graph
@@ -354,7 +367,7 @@ private:
    * Scales a numeric filter primitive length in the X, Y or "XY" directions
    * into a length in filter space (no offset is applied).
    */
-  float GetPrimitiveNumber(PRUint8 aCtxType, float aValue) const;
+  float GetPrimitiveNumber(uint8_t aCtxType, float aValue) const;
 
   gfxRect UserSpaceToFilterSpace(const gfxRect& aUserSpace) const;
 
@@ -410,10 +423,12 @@ private:
   /**
    * The 'primitiveUnits' attribute value (objectBoundingBox or userSpaceOnUse).
    */
-  PRUint16                mPrimitiveUnits;
+  uint16_t                mPrimitiveUnits;
 
   PrimitiveInfo           mSourceColorAlpha;
   PrimitiveInfo           mSourceAlpha;
+  PrimitiveInfo           mFillPaint;
+  PrimitiveInfo           mStrokePaint;
   nsTArray<PrimitiveInfo> mPrimitives;
 };
 

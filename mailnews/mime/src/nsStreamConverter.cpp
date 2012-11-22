@@ -57,7 +57,7 @@ bridge_create_stream(nsIMimeEmitter      *newEmitter,
                      nsStreamConverter   *newPluginObj2,
                      nsIURI              *uri,
                      nsMimeOutputType    format_out,
-                     PRUint32            whattodo,
+                     uint32_t            whattodo,
                      nsIChannel          *aChannel)
 {
   if  ( (format_out == nsMimeOutput::nsMimeMessageDraftOrTemplate) ||
@@ -93,18 +93,18 @@ bridge_set_output_type(void *bridgeStream, nsMimeOutputType aType)
 }
 
 nsresult
-bridge_new_new_uri(void *bridgeStream, nsIURI *aURI, PRInt32 aOutputType)
+bridge_new_new_uri(void *bridgeStream, nsIURI *aURI, int32_t aOutputType)
 {
   nsMIMESession *session = (nsMIMESession *)bridgeStream;
-  const char    **fixup_pointer = nsnull;
+  const char    **fixup_pointer = nullptr;
 
   if (session)
   {
     if (session->data_object)
     {
-      bool     *override_charset = nsnull;
-      char    **default_charset = nsnull;
-      char    **url_name = nsnull;
+      bool     *override_charset = nullptr;
+      char    **default_charset = nullptr;
+      char    **url_name = nullptr;
 
       if  ( (aOutputType == nsMimeOutput::nsMimeMessageDraftOrTemplate) ||
             (aOutputType == nsMimeOutput::nsMimeMessageEditorTemplate) )
@@ -257,7 +257,7 @@ bridge_set_mime_stream_converter_listener(void *bridgeStream, nsIMimeStreamConve
         else
         {
           mdd->options->caller_need_root_headers = false;
-          mdd->options->decompose_headers_info_fn = nsnull;
+          mdd->options->decompose_headers_info_fn = nullptr;
         }
       }
     }
@@ -275,7 +275,7 @@ bridge_set_mime_stream_converter_listener(void *bridgeStream, nsIMimeStreamConve
         else
         {
           msd->options->caller_need_root_headers = false;
-          msd->options->decompose_headers_info_fn = nsnull;
+          msd->options->decompose_headers_info_fn = nullptr;
         }
       }
     }
@@ -302,18 +302,18 @@ FindQueryElementData(const char * aUrl, const char * aQuery)
       aUrl = PL_strcasestr(aUrl + queryLen, aQuery);
     }
   }
-  return nsnull;
+  return nullptr;
 }
 
 // case-sensitive test for string prefixing. If |string| is prefixed
 // by |prefix| then a pointer to the next character in |string| following
-// the prefix is returned. If it is not a prefix then |nsnull| is returned.
+// the prefix is returned. If it is not a prefix then |nullptr| is returned.
 static const char *
 SkipPrefix(const char *aString, const char *aPrefix)
 {
   while (*aPrefix)
     if (*aPrefix++ != *aString++)
-       return nsnull;
+       return nullptr;
   return aString;
 }
 
@@ -446,7 +446,7 @@ nsStreamConverter::DetermineOutputFormat(const char *aUrl, nsMimeOutputType *aNe
     // find the requested header in table, ensure that we don't match on a prefix
     // by checking that the following character is either null or the next query element
     const char * remainder;
-    for (PRUint32 n = 0; n < NS_ARRAY_LENGTH(rgTypes); ++n)
+    for (uint32_t n = 0; n < NS_ARRAY_LENGTH(rgTypes); ++n)
     {
       remainder = SkipPrefix(header, rgTypes[n].headerType);
       if (remainder && (*remainder == '\0' || *remainder == '&'))
@@ -471,7 +471,7 @@ nsStreamConverter::InternalCleanup(void)
   if (mBridgeStream)
   {
     bridge_destroy_stream(mBridgeStream);
-    mBridgeStream = nsnull;
+    mBridgeStream = nullptr;
   }
 
   return NS_OK;
@@ -484,15 +484,15 @@ nsStreamConverter::nsStreamConverter()
 {
   // Init member variables...
   mWrapperOutput = false;
-  mBridgeStream = nsnull;
+  mBridgeStream = nullptr;
   mOutputFormat = "text/html";
   mAlreadyKnowOutputType = false;
   mForwardInline = false;
   mForwardInlineFilter = false;
   mOverrideComposeFormat = false;
 
-  mPendingRequest = nsnull;
-  mPendingContext = nsnull;
+  mPendingRequest = nullptr;
+  mPendingContext = nullptr;
 }
 
 nsStreamConverter::~nsStreamConverter()
@@ -590,7 +590,7 @@ NS_IMETHODIMP nsStreamConverter::Init(nsIURI *aURI, nsIStreamListener * aOutList
 
   aChannel->SetContentType(contentTypeToUse);
 
-  //rv = NS_NewInputStreamChannel(getter_AddRefs(mOutgoingChannel), aURI, nsnull, contentTypeToUse, -1);
+  //rv = NS_NewInputStreamChannel(getter_AddRefs(mOutgoingChannel), aURI, nullptr, contentTypeToUse, -1);
   //if (NS_FAILED(rv))
   //    return rv;
 
@@ -629,7 +629,7 @@ NS_IMETHODIMP nsStreamConverter::Init(nsIURI *aURI, nsIStreamListener * aOutList
 
   // now we want to create a pipe which we'll use for converting the data...
   nsCOMPtr<nsIPipe> pipe = do_CreateInstance("@mozilla.org/pipe;1");
-  rv = pipe->Init(true, true, 4096, 8, nsnull);
+  rv = pipe->Init(true, true, 4096, 8, nullptr);
   
   // initialize our emitter
   if (NS_SUCCEEDED(rv) && mEmitter)
@@ -642,7 +642,7 @@ NS_IMETHODIMP nsStreamConverter::Init(nsIURI *aURI, nsIStreamListener * aOutList
     mEmitter->SetOutputListener(aOutListener);
   }
 
-  PRUint32 whattodo = mozITXTToHTMLConv::kURLs;
+  uint32_t whattodo = mozITXTToHTMLConv::kURLs;
   bool enable_emoticons = true;
   bool enable_structs = true;
 
@@ -867,12 +867,12 @@ nsresult
 nsStreamConverter::OnDataAvailable(nsIRequest     *request,
                                    nsISupports    *ctxt,
                                    nsIInputStream *aIStream,
-                                   PRUint32       sourceOffset,
-                                   PRUint32       aLength)
+                                   uint32_t       sourceOffset,
+                                   uint32_t       aLength)
 {
   nsresult        rc=NS_OK;     // should this be an error instead?
-  PRUint32        readLen = aLength;
-  PRUint32        written;
+  uint32_t        readLen = aLength;
+  uint32_t        written;
 
   // If this is the first time through and we are supposed to be
   // outputting the wrapper two pane URL, then do it now.
@@ -942,7 +942,9 @@ const char output[] = "\
   else if (mBridgeStream)
   {
     nsMIMESession   *tSession = (nsMIMESession *) mBridgeStream;
-    rc = tSession->put_block((nsMIMESession *)mBridgeStream, buf, readLen);
+    // XXX Casting int to nsresult
+    rc = static_cast<nsresult>(
+      tSession->put_block((nsMIMESession *)mBridgeStream, buf, readLen));
   }
 
   PR_FREEIF(buf);
@@ -1019,7 +1021,7 @@ nsStreamConverter::OnStopRequest(nsIRequest *request, nsISupports *ctxt, nsresul
     if (mMimeStreamConverterListener)
     {
 
-      MimeHeaders    **workHeaders = nsnull;
+      MimeHeaders    **workHeaders = nullptr;
 
       if  ( (mOutputType == nsMimeOutput::nsMimeMessageDraftOrTemplate) ||
             (mOutputType == nsMimeOutput::nsMimeMessageEditorTemplate) )
@@ -1047,10 +1049,10 @@ nsStreamConverter::OnStopRequest(nsIRequest *request, nsISupports *ctxt, nsresul
           mMimeStreamConverterListener->OnHeadersReady(mimeHeaders);
         }
         else
-          mMimeStreamConverterListener->OnHeadersReady(nsnull);
+          mMimeStreamConverterListener->OnHeadersReady(nullptr);
       }
 
-      mMimeStreamConverterListener = nsnull; // release our reference
+      mMimeStreamConverterListener = nullptr; // release our reference
     }
 
     tSession->complete((nsMIMESession *)mBridgeStream);
@@ -1094,9 +1096,9 @@ nsStreamConverter::OnStopRequest(nsIRequest *request, nsISupports *ctxt, nsresul
 
 nsresult nsStreamConverter::Close()
 {
-  mOutgoingChannel = nsnull;
-  mEmitter = nsnull;
-  mOutListener = nsnull;
+  mOutgoingChannel = nullptr;
+  mEmitter = nullptr;
+  mOutListener = nullptr;
   return NS_OK;
 }
 
@@ -1151,8 +1153,8 @@ NS_IMETHODIMP nsStreamConverter::FirePendingStartRequest()
   if (mPendingRequest && mOutListener)
   {
     mOutListener->OnStartRequest(mPendingRequest, mPendingContext);
-    mPendingRequest = nsnull;
-    mPendingContext = nsnull;
+    mPendingRequest = nullptr;
+    mPendingContext = nullptr;
   }
   return NS_OK;
 }

@@ -159,11 +159,7 @@ SmsRequest::SetSuccessInternal(nsISupports* aObject)
   NS_ASSERTION(global, "Failed to get global object!");
 
   JSAutoRequest ar(cx);
-  JSAutoEnterCompartment ac;
-  if (!ac.enter(cx, global)) {
-    SetError(nsISmsRequestManager::INTERNAL_ERROR);
-    return false;
-  }
+  JSAutoCompartment ac(cx, global);
 
   RootResult();
 
@@ -179,7 +175,7 @@ SmsRequest::SetSuccessInternal(nsISupports* aObject)
 }
 
 void
-SmsRequest::SetError(PRInt32 aError)
+SmsRequest::SetError(int32_t aError)
 {
   NS_PRECONDITION(!mDone, "mDone shouldn't have been set to true already!");
   NS_PRECONDITION(!mError, "mError shouldn't have been set!");
@@ -188,7 +184,7 @@ SmsRequest::SetError(PRInt32 aError)
                   "Can't call SetError() with SUCCESS_NO_ERROR!");
 
   mDone = true;
-  mCursor = nsnull;
+  mCursor = nullptr;
 
   switch (aError) {
     case nsISmsRequestManager::NO_SIGNAL_ERROR:

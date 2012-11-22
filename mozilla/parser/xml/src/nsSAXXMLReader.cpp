@@ -85,9 +85,9 @@ nsSAXXMLReader::SetParser(nsParserBase *aParser)
 NS_IMETHODIMP
 nsSAXXMLReader::HandleStartElement(const PRUnichar *aName,
                                    const PRUnichar **aAtts,
-                                   PRUint32 aAttsCount,
-                                   PRInt32 aIndex,
-                                   PRUint32 aLineNumber)
+                                   uint32_t aAttsCount,
+                                   int32_t aIndex,
+                                   uint32_t aLineNumber)
 {
   if (!mContentHandler)
     return NS_OK;
@@ -136,7 +136,7 @@ nsSAXXMLReader::HandleComment(const PRUnichar *aName)
 
 NS_IMETHODIMP
 nsSAXXMLReader::HandleCDataSection(const PRUnichar *aData,
-                                   PRUint32 aLength)
+                                   uint32_t aLength)
 {
   nsresult rv;
   if (mLexicalHandler) {
@@ -196,7 +196,7 @@ nsSAXXMLReader::HandleDoctypeDecl(const nsAString & aSubset,
 
 NS_IMETHODIMP
 nsSAXXMLReader::HandleCharacterData(const PRUnichar *aData,
-                                    PRUint32 aLength)
+                                    uint32_t aLength)
 {
   if (mContentHandler)
     return mContentHandler->Characters(Substring(aData, aData+aLength));
@@ -293,7 +293,7 @@ nsSAXXMLReader::HandleUnparsedEntityDecl(const PRUnichar *aEntityName,
 NS_IMETHODIMP
 nsSAXXMLReader::HandleXMLDeclaration(const PRUnichar *aVersion,
                                      const PRUnichar *aEncoding,
-                                     PRInt32 aStandalone)
+                                     int32_t aStandalone)
 {
   // XXX need to decide what to do with this. It's a separate
   // optional interface in SAX.
@@ -311,11 +311,11 @@ nsSAXXMLReader::ReportError(const PRUnichar* aErrorText,
   *_retval = true;
 
   if (mErrorHandler) {
-    PRUint32 lineNumber;
+    uint32_t lineNumber;
     nsresult rv = aError->GetLineNumber(&lineNumber);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    PRUint32 columnNumber;
+    uint32_t columnNumber;
     rv = aError->GetColumnNumber(&columnNumber);
     NS_ENSURE_SUCCESS(rv, rv);
 
@@ -483,10 +483,10 @@ nsSAXXMLReader::ParseFromStream(nsIInputStream *aStream,
   if (aCharset)
     parserChannel->SetContentCharset(nsDependentCString(aCharset));
 
-  rv = InitParser(nsnull, parserChannel);
+  rv = InitParser(nullptr, parserChannel);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = mListener->OnStartRequest(parserChannel, nsnull);
+  rv = mListener->OnStartRequest(parserChannel, nullptr);
   if (NS_FAILED(rv))
     parserChannel->Cancel(rv);
 
@@ -501,9 +501,9 @@ nsSAXXMLReader::ParseFromStream(nsIInputStream *aStream,
   nsresult status;
   parserChannel->GetStatus(&status);
   
-  PRUint32 offset = 0;
+  uint64_t offset = 0;
   while (NS_SUCCEEDED(rv) && NS_SUCCEEDED(status)) {
-    PRUint32 available;
+    uint64_t available;
     rv = aStream->Available(&available);
     if (rv == NS_BASE_STREAM_CLOSED) {
       rv = NS_OK;
@@ -516,16 +516,21 @@ nsSAXXMLReader::ParseFromStream(nsIInputStream *aStream,
     if (! available)
       break; // blocking input stream has none available when done
 
-    rv = mListener->OnDataAvailable(parserChannel, nsnull,
-                                    aStream, offset, available);
+    if (available > PR_UINT32_MAX)
+      available = PR_UINT32_MAX;
+
+    rv = mListener->OnDataAvailable(parserChannel, nullptr,
+                                    aStream,
+                                    (uint32_t)NS_MIN(offset, (uint64_t)PR_UINT32_MAX),
+                                    (uint32_t)available);
     if (NS_SUCCEEDED(rv))
       offset += available;
     else
       parserChannel->Cancel(rv);
     parserChannel->GetStatus(&status);
   }
-  rv = mListener->OnStopRequest(parserChannel, nsnull, status);
-  mListener = nsnull;
+  rv = mListener->OnStopRequest(parserChannel, nullptr, status);
+  mListener = nullptr;
 
   return rv;
 }
@@ -551,7 +556,7 @@ nsSAXXMLReader::OnStartRequest(nsIRequest *aRequest, nsISupports *aContext)
   rv = InitParser(mParserObserver, channel);
   NS_ENSURE_SUCCESS(rv, rv);
   // we don't need or want this anymore
-  mParserObserver = nsnull;
+  mParserObserver = nullptr;
   return mListener->OnStartRequest(aRequest, aContext);
 }
 
@@ -562,7 +567,7 @@ nsSAXXMLReader::OnStopRequest(nsIRequest *aRequest, nsISupports *aContext,
   NS_ENSURE_TRUE(mIsAsyncParse, NS_ERROR_FAILURE);
   NS_ENSURE_STATE(mListener);
   nsresult rv = mListener->OnStopRequest(aRequest, aContext, status);
-  mListener = nsnull;
+  mListener = nullptr;
   mIsAsyncParse = false;
   return rv;
 }
@@ -571,8 +576,8 @@ nsSAXXMLReader::OnStopRequest(nsIRequest *aRequest, nsISupports *aContext,
 
 NS_IMETHODIMP
 nsSAXXMLReader::OnDataAvailable(nsIRequest *aRequest, nsISupports *aContext,
-                                nsIInputStream *aInputStream, PRUint32 offset,
-                                PRUint32 count)
+                                nsIInputStream *aInputStream, uint32_t offset,
+                                uint32_t count)
 {
   NS_ENSURE_TRUE(mIsAsyncParse, NS_ERROR_FAILURE);
   NS_ENSURE_STATE(mListener);
@@ -591,7 +596,7 @@ nsSAXXMLReader::InitParser(nsIRequestObserver *aObserver, nsIChannel *aChannel)
 
   parser->SetContentSink(this);
 
-  PRInt32 charsetSource = kCharsetFromDocTypeDefault;
+  int32_t charsetSource = kCharsetFromDocTypeDefault;
   nsCAutoString charset(NS_LITERAL_CSTRING("UTF-8"));
   TryChannelCharset(aChannel, charsetSource, charset);
   parser->SetDocumentCharset(charset, charsetSource);
@@ -607,7 +612,7 @@ nsSAXXMLReader::InitParser(nsIRequestObserver *aObserver, nsIChannel *aChannel)
 // from nsDocument.cpp
 bool
 nsSAXXMLReader::TryChannelCharset(nsIChannel *aChannel,
-                                  PRInt32& aCharsetSource,
+                                  int32_t& aCharsetSource,
                                   nsACString& aCharset)
 {
   if (aCharsetSource >= kCharsetFromChannel)
@@ -659,7 +664,7 @@ nsSAXXMLReader::SplitExpatName(const PRUnichar *aExpatName,
 
   NS_ASSERTION(aExpatName, "null passed to handler");
   nsDependentString expatStr(aExpatName);
-  PRInt32 break1, break2 = kNotFound;
+  int32_t break1, break2 = kNotFound;
   break1 = expatStr.FindChar(PRUnichar(0xFFFF));
 
   if (break1 == kNotFound) {

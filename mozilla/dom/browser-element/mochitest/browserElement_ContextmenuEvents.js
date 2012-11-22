@@ -8,15 +8,15 @@ var iframeScript = function() {
     var ev = content.document.createEvent('HTMLEvents');
     ev.initEvent('contextmenu', true, false);
     element.dispatchEvent(ev);
-  }
+  };
 
   XPCNativeWrapper.unwrap(content).ctxCallbackFired = function(data) {
     sendAsyncMessage('test:callbackfired', {data: data});
-  }
+  };
 
   XPCNativeWrapper.unwrap(content).onerror = function(e) {
     sendAsyncMessage('test:errorTriggered', {data: e});
-  }
+  };
 
   content.fireContextMenu(content.document.body);
   content.fireContextMenu(content.document.getElementById('menu1-trigger'));
@@ -31,7 +31,7 @@ var trigger1 = function() {
 function runTest() {
 
   browserElementTestHelpers.setEnabledPref(true);
-  browserElementTestHelpers.addToWhitelist();
+  browserElementTestHelpers.addPermission();
 
   var iframe1 = document.createElement('iframe');
   iframe1.mozbrowser = true;
@@ -103,6 +103,7 @@ function runTest() {
   }
 
   function ctxCallbackRecieved(msg) {
+    msg = SpecialPowers.wrap(msg);
     ctxCallbackEvents++;
     if (ctxCallbackEvents === 1) {
       ok(msg.json.data === 'inner2', 'Callback function got fired correctly');

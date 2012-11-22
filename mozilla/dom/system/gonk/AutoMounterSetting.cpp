@@ -67,7 +67,10 @@ AutoMounterSetting::AutoMounterSetting()
     return;
   }
 
-  // Get the initial value of the setting.
+  // Force ums.mode to be 0 initially. We do this because settings are persisted.
+  // We don't want UMS to be enabled until such time as the phone is unlocked,
+  // and gaia/apps/system/js/storage.js takes care of detecting when the phone
+  // becomes unlocked and changes ums.mode appropriately.
   nsCOMPtr<nsISettingsService> settingsService =
     do_GetService("@mozilla.org/settingsService;1");
   if (!settingsService) {
@@ -77,7 +80,7 @@ AutoMounterSetting::AutoMounterSetting()
   nsCOMPtr<nsISettingsServiceLock> lock;
   settingsService->GetLock(getter_AddRefs(lock));
   nsCOMPtr<nsISettingsServiceCallback> callback = new SettingsServiceCallback();
-  lock->Get(UMS_MODE, callback);
+  lock->Set(UMS_MODE, INT_TO_JSVAL(AUTOMOUNTER_DISABLE), callback);
 }
 
 AutoMounterSetting::~AutoMounterSetting()
@@ -99,8 +102,6 @@ AutoMounterSetting::Observe(nsISupports *aSubject,
   if (strcmp(aTopic, MOZSETTINGS_CHANGED) != 0) {
     return NS_OK;
   }
-  LOG("%s: detected %s data = '%s'", __FUNCTION__, aTopic,
-      NS_LossyConvertUTF16toASCII(aData).get());
 
   // Note that this function gets called for any and all settings changes,
   // so we need to carefully check if we have the one we're interested in.

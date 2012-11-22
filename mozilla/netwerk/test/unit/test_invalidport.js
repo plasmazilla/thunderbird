@@ -7,6 +7,7 @@ const Ci = Components.interfaces;
 const CC = Components.Constructor;
 
 var counter = 0;
+const iterations = 10;
 
 var listener = {
   onStartRequest: function test_onStartR(request, ctx) {
@@ -17,7 +18,7 @@ var listener = {
   },
 
   onStopRequest: function test_onStopR(request, ctx, status) {
-    if (counter++ == 10)
+    if (counter++ == iterations)
       do_test_finished();
     else
       execute_test();
@@ -25,8 +26,8 @@ var listener = {
 };
 
 function run_test() {
-  do_test_pending();
   execute_test();
+  do_test_pending();
 }
 
 function execute_test() {

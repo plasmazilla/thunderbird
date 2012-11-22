@@ -10,6 +10,8 @@
 #include "nsISVGSVGFrame.h"
 #include "nsSVGContainerFrame.h"
 
+class nsSVGForeignObjectFrame;
+
 ////////////////////////////////////////////////////////////////////////
 // nsSVGOuterSVGFrame class
 
@@ -27,6 +29,13 @@ public:
   NS_DECL_QUERYFRAME
   NS_DECL_FRAMEARENA_HELPERS
 
+#ifdef DEBUG
+  ~nsSVGOuterSVGFrame() {
+    NS_ASSERTION(mForeignObjectHash.Count() == 0,
+                 "foreignObject(s) still registered!");
+  }
+#endif
+
   // nsIFrame:
   virtual nscoord GetMinWidth(nsRenderingContext *aRenderingContext);
   virtual nscoord GetPrefWidth(nsRenderingContext *aRenderingContext);
@@ -37,7 +46,7 @@ public:
   virtual nsSize ComputeSize(nsRenderingContext *aRenderingContext,
                              nsSize aCBSize, nscoord aAvailableWidth,
                              nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                             PRUint32 aFlags) MOZ_OVERRIDE;
+                             uint32_t aFlags) MOZ_OVERRIDE;
 
   NS_IMETHOD Reflow(nsPresContext*          aPresContext,
                     nsHTMLReflowMetrics&     aDesiredSize,
@@ -72,9 +81,9 @@ public:
   }
 #endif
 
-  NS_IMETHOD  AttributeChanged(PRInt32         aNameSpaceID,
+  NS_IMETHOD  AttributeChanged(int32_t         aNameSpaceID,
                                nsIAtom*        aAttribute,
-                               PRInt32         aModType);
+                               int32_t         aModType);
 
   virtual nsIFrame* GetContentInsertionFrame() {
     // Any children must be added to our single anonymous inner frame kid.
@@ -93,17 +102,29 @@ public:
   }
 
   // nsISVGSVGFrame interface:
-  virtual void NotifyViewportOrTransformChanged(PRUint32 aFlags);
+  virtual void NotifyViewportOrTransformChanged(uint32_t aFlags);
 
   // nsISVGChildFrame methods:
   NS_IMETHOD PaintSVG(nsRenderingContext* aContext,
                       const nsIntRect *aDirtyRect);
 
   virtual SVGBBox GetBBoxContribution(const gfxMatrix &aToBBoxUserspace,
-                                      PRUint32 aFlags);
+                                      uint32_t aFlags);
 
   // nsSVGContainerFrame methods:
-  virtual gfxMatrix GetCanvasTM(PRUint32 aFor);
+  virtual gfxMatrix GetCanvasTM(uint32_t aFor);
+
+  /* Methods to allow descendant nsSVGForeignObjectFrame frames to register and
+   * unregister themselves with their nearest nsSVGOuterSVGFrame ancestor. This
+   * is temporary until display list based invalidation is impleented for SVG.
+   * Maintaining a list of our foreignObject descendants allows us to search
+   * them for areas that need to be invalidated, without having to also search
+   * the SVG frame tree for foreignObjects. This is important so that bug 539356
+   * does not slow down SVG in general (only foreignObjects, until bug 614732 is
+   * fixed).
+   */
+  void RegisterForeignObject(nsSVGForeignObjectFrame* aFrame);
+  void UnregisterForeignObject(nsSVGForeignObjectFrame* aFrame);
 
   virtual bool HasChildrenOnlyTransform(gfxMatrix *aTransform) const {
     // Our anonymous wrapper child must claim our children-only transforms as
@@ -119,24 +140,31 @@ public:
    */
   bool VerticalScrollbarNotNeeded() const;
 
-  bool IsCallingUpdateBounds() const {
-    return mCallingUpdateBounds;
+  bool IsCallingReflowSVG() const {
+    return mCallingReflowSVG;
   }
 
 protected:
 
-  bool mCallingUpdateBounds;
+  bool mCallingReflowSVG;
 
   /* Returns true if our content is the document element and our document is
    * embedded in an HTML 'object', 'embed' or 'applet' element. Set
    * aEmbeddingFrame to obtain the nsIFrame for the embedding HTML element.
    */
-  bool IsRootOfReplacedElementSubDoc(nsIFrame **aEmbeddingFrame = nsnull);
+  bool IsRootOfReplacedElementSubDoc(nsIFrame **aEmbeddingFrame = nullptr);
 
   /* Returns true if our content is the document element and our document is
    * being used as an image.
    */
   bool IsRootOfImage();
+
+  // This is temporary until display list based invalidation is implemented for
+  // SVG.
+  // A hash-set containing our nsSVGForeignObjectFrame descendants. Note we use
+  // a hash-set to avoid the O(N^2) behavior we'd get tearing down an SVG frame
+  // subtree if we were to use a list (see bug 381285 comment 20).
+  nsTHashtable<nsVoidPtrHashKey> mForeignObjectHash;
 
   nsAutoPtr<gfxMatrix> mCanvasTM;
 
@@ -213,7 +241,7 @@ public:
   }
 
   // nsSVGContainerFrame methods:
-  virtual gfxMatrix GetCanvasTM(PRUint32 aFor) {
+  virtual gfxMatrix GetCanvasTM(uint32_t aFor) {
     // GetCanvasTM returns the transform from an SVG frame to the frame's
     // nsSVGOuterSVGFrame's content box, so we do not include any x/y offset
     // set on us for any CSS border or padding on our nsSVGOuterSVGFrame.

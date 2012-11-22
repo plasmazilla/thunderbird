@@ -11,9 +11,10 @@ const kFormsFrameScript = "chrome://browser/content/forms.js";
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/ObjectWrapper.jsm");
 
 const messageManager = Cc["@mozilla.org/globalmessagemanager;1"]
-                         .getService(Ci.nsIChromeFrameMessageManager);
+                         .getService(Ci.nsIMessageBroadcaster);
 
 
 // -----------------------------------------------------------------------
@@ -69,19 +70,19 @@ MozKeyboard.prototype = {
   },
 
   setSelectedOption: function mozKeyboardSetSelectedOption(index) {
-    messageManager.sendAsyncMessage("Forms:Select:Choice", {
+    messageManager.broadcastAsyncMessage("Forms:Select:Choice", {
       "index": index
     });
   },
 
   setValue: function mozKeyboardSetValue(value) {
-    messageManager.sendAsyncMessage("Forms:Input:Value", {
+    messageManager.broadcastAsyncMessage("Forms:Input:Value", {
       "value": value
     });
   },
 
   setSelectedOptions: function mozKeyboardSetSelectedOptions(indexes) {
-    messageManager.sendAsyncMessage("Forms:Select:Choice", {
+    messageManager.broadcastAsyncMessage("Forms:Select:Choice", {
       "indexes": indexes || []
     });
   },
@@ -103,7 +104,8 @@ MozKeyboard.prototype = {
       "detail": msg.json
     };
 
-    let evt = new this._window.CustomEvent("focuschanged", detail);
+    let evt = new this._window.CustomEvent("focuschanged",
+                                           ObjectWrapper.wrap(detail, this._window));
     handler.handleEvent(evt);
   },
 

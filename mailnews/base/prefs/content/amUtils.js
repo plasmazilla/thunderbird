@@ -89,3 +89,77 @@ function prettyFolderName(aTargetFolder)
                                      [aTargetFolder.prettyName,
                                       aTargetFolder.server.prettyName]);
 }
+
+/**
+ * Checks validity of junk target server name and folder.
+ *
+ * @param aTargetURI  the URI specification to check
+ * @param aIsServer   true if the URI specifies only a server (without folder)
+ *
+ * @return  the value of aTargetURI if it is valid (usable), otherwise null
+ */
+function checkJunkTargetFolder(aTargetURI, aIsServer)
+{
+  try {
+    // Does the target account exist?
+    let targetServer = GetMsgFolderFromUri(aTargetURI + (aIsServer ? "/Junk" : ""),
+                                           !aIsServer).server;
+
+    // If the target server has deferred storage, Junk can't be stored into it.
+    if (targetServer.rootFolder != targetServer.rootMsgFolder)
+      return null;
+  } catch (e) {
+    return null;
+  }
+
+  return aTargetURI;
+}
+
+/**
+ * Finds a usable target for storing Junk mail.
+ * If the passed in server URI is not usable, choose Local Folders.
+ *
+ * @param aTargetURI  the URI of a server or folder to try first
+ * @param aIsServer   true if the URI specifies only a server (without folder)
+ *
+ * @return  the server/folder URI of a usable target for storing Junk
+ */
+function chooseJunkTargetFolder(aTargetURI, aIsServer)
+{
+  let server = null;
+
+  if (aTargetURI) {
+    server = GetMsgFolderFromUri(aTargetURI, false).server;
+    if (!server.canCreateFoldersOnServer || !server.canSearchMessages ||
+        (server.rootFolder != server.rootMsgFolder))
+      server = null;
+  }
+  if (!server)
+    server = MailServices.accounts.localFoldersServer;
+
+  return server.serverURI + (!aIsServer ? "/Junk" : "");
+}
+
+/**
+ * Opens Preferences (Options) dialog on the Advanced pane, General tab
+ * so that the user sees where the global receipts settings can be found.
+ *
+ * @param aTBPaneId     Thunderbird pref paneID to open.
+ * @param aTBTabId      Thunderbird tabID to open.
+ * @param aTBOtherArgs  Other arguments to send to the pref tab.
+ * @param aSMPaneId     Seamonkey pref pane to open.
+ */
+function openPrefsFromAccountManager(aTBPaneId, aTBTabId, aTBOtherArgs, aSMPaneId) {
+  let win = Services.wm.getMostRecentWindow("mail:3pane") ||
+            Services.wm.getMostRecentWindow("mail:messageWindow") ||
+            Services.wm.getMostRecentWindow("msgcompose");
+  if (!win)
+    return;
+
+  // If openOptionsDialog() exists, we are in Thunderbird.
+  if (typeof win.openOptionsDialog == "function")
+    win.openOptionsDialog(aTBPaneId, aTBTabId, aTBOtherArgs);
+  // If goPreferences() exists, we are in Seamonkey.
+  if (typeof win.goPreferences == "function")
+    win.goPreferences(aSMPaneId);
+}

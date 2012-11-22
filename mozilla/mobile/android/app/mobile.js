@@ -78,7 +78,6 @@ pref("network.http.proxy.pipelining", true);
 pref("network.http.pipelining.maxrequests" , 6);
 pref("network.http.keep-alive.timeout", 600);
 pref("network.http.max-connections", 20);
-pref("network.http.max-connections-per-server", 15);
 pref("network.http.max-persistent-connections-per-server", 6);
 pref("network.http.max-persistent-connections-per-proxy", 8);
 
@@ -491,55 +490,15 @@ pref("app.update.timerMinimumDelay", 30); // seconds
 
 #ifdef MOZ_UPDATER
 /* prefs used specifically for updating the app */
-pref("app.update.enabled", true);
-pref("app.update.auto", false);
+pref("app.update.enabled", false);
 pref("app.update.channel", "@MOZ_UPDATE_CHANNEL@");
-pref("app.update.mode", 1);
-pref("app.update.silent", false);
-#ifdef MOZ_PKG_SPECIAL
-pref("app.update.url", "https://aus2.mozilla.org/update/4/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%-@MOZ_PKG_SPECIAL@/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PLATFORM_VERSION%/update.xml");
-#else
-pref("app.update.url", "https://aus2.mozilla.org/update/4/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PLATFORM_VERSION%/update.xml");
-#endif
-pref("app.update.promptWaitTime", 43200);
-pref("app.update.idletime", 60);
-pref("app.update.showInstalledUI", false);
-pref("app.update.incompatible.mode", 0);
-pref("app.update.download.backgroundInterval", 0);
 
-#ifdef MOZ_OFFICIAL_BRANDING
-pref("app.update.interval", 86400);
-pref("app.update.url.manual", "http://www.mozilla.com/%LOCALE%/m/");
-pref("app.update.url.details", "http://www.mozilla.com/%LOCALE%/mobile/releases/");
-#else
-pref("app.update.interval", 3600);
-pref("app.update.url.manual", "http://www.mozilla.com/%LOCALE%/mobile/");
-pref("app.update.url.details", "http://www.mozilla.com/%LOCALE%/mobile/");
-#endif
+// If you are looking for app.update.url, we no longer use it.
+// See mobile/android/base/UpdateServiceHelper.java.in
 #endif
 
 // replace newlines with spaces on paste into single-line text boxes
 pref("editor.singleLine.pasteNewlines", 2);
-
-#ifdef MOZ_SERVICES_SYNC
-// sync service
-pref("services.sync.client.type", "mobile");
-pref("services.sync.registerEngines", "Tab,Bookmarks,Form,History,Password,Prefs");
-pref("services.sync.autoconnectDelay", 5);
-
-// prefs to sync by default
-pref("services.sync.prefs.sync.browser.startup.homepage.title", true);
-pref("services.sync.prefs.sync.browser.startup.homepage", true);
-pref("services.sync.prefs.sync.browser.tabs.warnOnClose", true);
-pref("services.sync.prefs.sync.devtools.errorconsole.enabled", true);
-pref("services.sync.prefs.sync.javascript.enabled", true);
-pref("services.sync.prefs.sync.lightweightThemes.isThemeSelected", true);
-pref("services.sync.prefs.sync.lightweightThemes.usedThemes", true);
-pref("services.sync.prefs.sync.network.cookie.cookieBehavior", true);
-pref("services.sync.prefs.sync.permissions.default.image", true);
-pref("services.sync.prefs.sync.privacy.donottrackheader.enabled", true);
-pref("services.sync.prefs.sync.signon.rememberSignons", true);
-#endif
 
 // threshold where a tap becomes a drag, in 1/240" reference pixels
 // The names of the preferences are to be in sync with nsEventStateManager.cpp
@@ -548,6 +507,7 @@ pref("ui.dragThresholdY", 25);
 
 pref("layers.acceleration.disabled", false);
 pref("layers.offmainthreadcomposition.enabled", true);
+pref("layers.async-video.enabled", true);
 
 pref("notification.feature.enabled", true);
 
@@ -617,9 +577,6 @@ pref("urlclassifier.gethashtables", "goog-phish-shavar,goog-malware-shavar");
 // a gethash request will be forced to check that the result is still in
 // the database.
 pref("urlclassifier.confirm-age", 2700);
-
-// Maximum size of the sqlite3 cache during an update, in bytes
-pref("urlclassifier.updatecachemax", 4194304);
 
 // URL for checking the reason for a malware warning.
 pref("browser.safebrowsing.malware.reportURL", "http://safebrowsing.clients.google.com/safebrowsing/diagnostic?client=%NAME%&hl=%LOCALE%&site=");
@@ -694,9 +651,21 @@ pref("reader.margin_size", 5);
 
 // The default color scheme in reader (light, dark, sepia)
 pref("reader.color_scheme", "light");
- 
- // Used to show a first-launch tip in reader
+
+// Used to show a first-launch tip in reader
 pref("reader.has_used_toolbar", false);
+
+// Media plugins for libstagefright playback on android
+pref("media.plugins.enabled", true);
+
+// Stagefright's OMXCodec::CreationFlags. The interesting flag values are:
+//  0 = Let Stagefright choose hardware or software decoding (default)
+//  8 = Force software decoding
+// 16 = Force hardware decoding
+pref("media.stagefright.omxcodec.flags", 0);
+
+// Coalesce touch events to prevent them from flooding the event queue
+pref("dom.event.touch.coalescing.enabled", true);
 
 // default orientation for the app, default to undefined
 // the java GeckoScreenOrientationListener needs this to be defined

@@ -1,4 +1,4 @@
-/* -*- Mode: javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2; js-indent-level: 2; -*- */
 /* vim: set ft=javascript ts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -25,7 +25,14 @@ function ThreadActor(aHooks)
   this._frameActors = [];
   this._environmentActors = [];
   this._hooks = aHooks ? aHooks : {};
+  this._scripts = {};
 }
+
+/**
+ * The breakpoint store must be shared across instances of ThreadActor so that
+ * page reloads don't blow away all of our breakpoints.
+ */
+ThreadActor._breakpointStore = {};
 
 ThreadActor.prototype = {
   actorPrefix: "context",
@@ -34,6 +41,8 @@ ThreadActor.prototype = {
 
   get dbg() { return this._dbg; },
 
+  get _breakpointStore() { return ThreadActor._breakpointStore; },
+
   get threadLifetimePool() {
     if (!this._threadLifetimePool) {
       this._threadLifetimePool = new ActorPool(this.conn);
@@ -41,10 +50,6 @@ ThreadActor.prototype = {
     }
     return this._threadLifetimePool;
   },
-
-  _breakpointStore: {},
-
-  _scripts: {},
 
   clearDebuggees: function TA_clearDebuggees() {
     if (this._dbg) {

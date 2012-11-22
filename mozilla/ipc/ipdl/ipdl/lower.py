@@ -233,7 +233,6 @@ def _shmemRevokeRights(shmemexpr):
 def _lookupShmem(idexpr):
     return ExprCall(ExprVar('LookupSharedMemory'), args=[ idexpr ])
 
-
 def _makeForwardDeclForQClass(clsname, quals):
     fd = ForwardDecl(clsname, cls=1)
     if 0 == len(quals):
@@ -369,6 +368,12 @@ def _printErrorMessage(msg):
     return StmtExpr(
         ExprCall(ExprVar('NS_ERROR'), args=[ msg ]))
 
+def _protocolErrorBreakpoint(msg):
+    if isinstance(msg, str):
+        msg = ExprLiteral.String(msg)
+    return StmtExpr(ExprCall(ExprVar('mozilla::ipc::ProtocolErrorBreakpoint'),
+                             args=[ msg ]))
+
 def _printWarningMessage(msg):
     if isinstance(msg, str):
         msg = ExprLiteral.String(msg)
@@ -436,7 +441,7 @@ def errfnRecv(msg, errcode=_Result.ValuError):
 
 # used in Read() methods
 def errfnRead(msg):
-    return [ StmtReturn.FALSE ]
+    return [ _protocolErrorBreakpoint(msg), StmtReturn.FALSE ]
 
 def _destroyMethod():
     return ExprVar('ActorDestroy')
@@ -484,6 +489,9 @@ class _ConvertToCxxType(TypeVisitor):
         return _cxxArrayType(basecxxtype)
 
     def visitShmemType(self, s):
+        return Type(self.typename(s))
+
+    def visitFDType(self, s):
         return Type(self.typename(s))
 
     def visitProtocolType(self, p): assert 0
@@ -662,6 +670,8 @@ class _StructField(_CompoundTypeComponent):
         refexpr = self.refExpr(thisexpr)
         if 'Shmem' == self.ipdltype.name():
             refexpr = ExprCast(refexpr, Type('Shmem', ref=1), const=1)
+        if 'FileDescriptor' == self.ipdltype.name():
+            refexpr = ExprCast(refexpr, Type('FileDescriptor', ref=1), const=1)
         return refexpr
 
     def argVar(self):
@@ -820,6 +830,8 @@ IPDL union type."""
         # sigh
         if 'Shmem' == self.ipdltype.name():
             v = ExprCast(v, Type('Shmem', ref=1), const=1)
+        if 'FileDescriptor' == self.ipdltype.name():
+            v = ExprCast(v, Type('FileDescriptor', ref=1), const=1)
         return v
 
 ##--------------------------------------------------
@@ -983,7 +995,6 @@ def _subtreeUsesShmem(p):
             if _subtreeUsesShmem(mgd._ast):
                 return True
     return False
-
 
 class Protocol(ipdl.ast.Protocol):
     def cxxTypedefs(self):
@@ -1283,10 +1294,11 @@ with some new IPDL/C++ nodes that are tuned for C++ codegen."""
         self.protocolName = None
 
     def visitTranslationUnit(self, tu):
-        if not isinstance(tu, TranslationUnit) and tu not in self.visitedTus:
+        if tu not in self.visitedTus:
             self.visitedTus.add(tu)
             ipdl.ast.Visitor.visitTranslationUnit(self, tu)
-            TranslationUnit.upgrade(tu)
+            if not isinstance(tu, TranslationUnit):
+                TranslationUnit.upgrade(tu)
             self.typedefs[:] = sorted(list(self.typedefSet))
 
     def visitInclude(self, inc):
@@ -1306,20 +1318,23 @@ with some new IPDL/C++ nodes that are tuned for C++ codegen."""
                                         using.decl.shortname))
 
     def visitStructDecl(self, sd):
-        sd.decl.special = 0
-        newfields = [ ]
-        for f in sd.fields:
-            ftype = f.decl.type
-            if _hasVisibleActor(ftype):
-                sd.decl.special = 1
-                # if ftype has a visible actor, we need both
-                # |ActorParent| and |ActorChild| fields
-                newfields.append(_StructField(ftype, f.name, sd, side='parent'))
-                newfields.append(_StructField(ftype, f.name, sd, side='child'))
-            else:
-                newfields.append(_StructField(ftype, f.name, sd))
-        sd.fields = newfields
-        StructDecl.upgrade(sd)
+        if not isinstance(sd, StructDecl):
+            sd.decl.special = 0
+            newfields = [ ]
+            for f in sd.fields:
+                ftype = f.decl.type
+                if _hasVisibleActor(ftype):
+                    sd.decl.special = 1
+                    # if ftype has a visible actor, we need both
+                    # |ActorParent| and |ActorChild| fields
+                    newfields.append(_StructField(ftype, f.name, sd,
+                                                  side='parent'))
+                    newfields.append(_StructField(ftype, f.name, sd,
+                                                  side='child'))
+                else:
+                    newfields.append(_StructField(ftype, f.name, sd))
+            sd.fields = newfields
+            StructDecl.upgrade(sd)
 
         if sd.decl.fullname is not None:
             self.typedefSet.add(Typedef(Type(sd.fqClassName()), sd.name))
@@ -1535,13 +1550,15 @@ class _GenerateProtocolCode(ipdl.ast.Visitor):
         for md in p.messageDecls:
             ns.addstmts([
                 _generateMessageClass(md.msgClass(), md.msgId(),
-                                      typedefs, md.prettyMsgName(p.name+'::')),
+                                      typedefs, md.prettyMsgName(p.name+'::'),
+                                      md.decl.type.compress),
                 Whitespace.NL ])
             if md.hasReply():
                 ns.addstmts([
                     _generateMessageClass(
                         md.replyClass(), md.replyId(),
-                        typedefs, md.prettyReplyName(p.name+'::')),
+                        typedefs, md.prettyReplyName(p.name+'::'),
+                        md.decl.type.compress),
                     Whitespace.NL ])
 
         ns.addstmts([ Whitespace.NL, Whitespace.NL ])
@@ -1729,7 +1746,7 @@ class _GenerateProtocolCode(ipdl.ast.Visitor):
 
 ##--------------------------------------------------
 
-def _generateMessageClass(clsname, msgid, typedefs, prettyName):
+def _generateMessageClass(clsname, msgid, typedefs, prettyName, compress):
     cls = Class(name=clsname, inherits=[ Inherit(Type('IPC::Message')) ])
     cls.addstmt(Label.PRIVATE)
     cls.addstmts(typedefs)
@@ -1742,12 +1759,17 @@ def _generateMessageClass(clsname, msgid, typedefs, prettyName):
     cls.addstmt(StmtDecl(Decl(idenum, '')))
 
     # make the message constructor
+    if compress:
+        compression = ExprVar('COMPRESSION_ENABLED')
+    else:
+        compression = ExprVar('COMPRESSION_NONE')
     ctor = ConstructorDefn(
         ConstructorDecl(clsname),
         memberinits=[ ExprMemberInit(ExprVar('IPC::Message'),
                                      [ ExprVar('MSG_ROUTING_NONE'),
                                        ExprVar('ID'),
                                        ExprVar('PRIORITY_NORMAL'),
+                                       compression,
                                        ExprLiteral.String(prettyName) ]) ])
     cls.addstmts([ ctor, Whitespace.NL ])
 
@@ -1860,6 +1882,11 @@ stmt.  Some types generate both kinds.'''
         if s in self.visited: return
         self.visited.add(s)
         self.maybeTypedef('mozilla::ipc::Shmem', 'Shmem')
+
+    def visitFDType(self, s):
+        if s in self.visited: return
+        self.visited.add(s)
+        self.maybeTypedef('mozilla::ipc::FileDescriptor', 'FileDescriptor')
 
     def visitVoidType(self, v): assert 0
     def visitMessageType(self, v): assert 0
@@ -3183,6 +3210,7 @@ class _GenerateProtocolActorCode(ipdl.ast.Visitor):
             Whitespace('// See bug 589371\n\n', indent=1),
             _printErrorMessage('IPDL error:'),
             _printErrorMessage(msgvar),
+            _protocolErrorBreakpoint(msgvar),
             Whitespace.NL
         ])
         actorname = _actorName(p.name, self.side)
@@ -3372,11 +3400,11 @@ class _GenerateProtocolActorCode(ipdl.ast.Visitor):
         p = self.protocol
         routedvar = ExprVar('aRouted')
         idvar = ExprVar('aId')
-        shmemvar = ExprVar('aShmem')
+        shmemvar = ExprVar('shmem')
         rawvar = ExprVar('segment')
         sizevar = ExprVar('aSize')
-        typevar = ExprVar('type')
-        unsafevar = ExprVar('unsafe')
+        typevar = ExprVar('aType')
+        unsafevar = ExprVar('aUnsafe')
         listenertype = Type('ChannelListener', ptr=1)
 
         register = MethodDefn(MethodDecl(
@@ -3971,8 +3999,9 @@ class _GenerateProtocolActorCode(ipdl.ast.Visitor):
         # pickling for IPDL types
         specialtypes = set()
         class findSpecialTypes(TypeVisitor):
-            def visitActorType(self, a):  specialtypes.add(a)
-            def visitShmemType(self, s):  specialtypes.add(s)
+            def visitActorType(self, a): specialtypes.add(a)
+            def visitShmemType(self, s): specialtypes.add(s)
+            def visitFDType(self, s): specialtypes.add(s)
             def visitStructType(self, s):
                 specialtypes.add(s)
                 return TypeVisitor.visitStructType(self, s)
@@ -3999,6 +4028,7 @@ class _GenerateProtocolActorCode(ipdl.ast.Visitor):
             if t.isActor():    self.implementActorPickling(t)
             elif t.isArray():  self.implementSpecialArrayPickling(t)
             elif t.isShmem():  self.implementShmemPickling(t)
+            elif t.isFD():     self.implementFDPickling(t)
             elif t.isStruct(): self.implementStructPickling(t)
             elif t.isUnion():  self.implementUnionPickling(t)
             else:
@@ -4090,7 +4120,10 @@ class _GenerateProtocolActorCode(ipdl.ast.Visitor):
             ExprBinary(ExprBinary(_NULL_ACTOR_ID, '==', idvar),
                        '&&',
                        ExprNot(nullablevar))))
-        ifbadid.addifstmt(StmtReturn.FALSE)
+        ifbadid.addifstmts([
+                _protocolErrorBreakpoint('bad ID for '+ self.protocol.name),
+                StmtReturn.FALSE
+        ])
         read.addstmts([ ifbadid, Whitespace.NL ])
         
         # if (NULL_ID == id)
@@ -4108,7 +4141,10 @@ class _GenerateProtocolActorCode(ipdl.ast.Visitor):
             ExprCast(_lookupListener(idvar), cxxtype, static=1))))
 
         ifnotfound = StmtIf(ExprNot(outactor))
-        ifnotfound.addifstmt(StmtReturn.FALSE)
+        ifnotfound.addifstmts([
+                _protocolErrorBreakpoint('could not look up '+ self.protocol.name),
+                StmtReturn.FALSE
+        ])
         ifnull.addelsestmt(ifnotfound)
 
         read.addstmts([
@@ -4212,6 +4248,57 @@ class _GenerateProtocolActorCode(ipdl.ast.Visitor):
 
         self.cls.addstmts([ write, Whitespace.NL, read, Whitespace.NL ])
 
+    def implementFDPickling(self, fdtype):
+        msgvar = self.msgvar
+        itervar = self.itervar
+        var = self.var
+        tmpvar = ExprVar('fd')
+        picklevar = ExprVar('pfd')
+        intype = _cxxConstRefType(fdtype, self.side)
+        outtype = _cxxPtrToType(fdtype, self.side)
+
+        def _fdType():
+            return Type('FileDescriptor')
+
+        def _fdPickleType():
+            return Type('FileDescriptor::PickleType')
+
+        def _fdBackstagePass():
+            return ExprCall(ExprVar('FileDescriptor::IPDLPrivate'))
+
+        write = MethodDefn(self.writeMethodDecl(intype, var))
+        write.addstmts([
+            StmtDecl(Decl(_fdPickleType(), picklevar.name),
+                     init=ExprCall(ExprSelect(var, '.', 'ShareTo'),
+                                   args=[ _fdBackstagePass(),
+                                          self.protocol.callOtherProcess() ])),
+            StmtExpr(ExprCall(ExprVar('IPC::WriteParam'),
+                              args=[ msgvar, picklevar ])),
+        ])
+
+        read = MethodDefn(self.readMethodDecl(outtype, var))
+        ifread = StmtIf(ExprNot(ExprCall(ExprVar('IPC::ReadParam'),
+                                         args=[ msgvar, itervar,
+                                                ExprAddrOf(picklevar) ])))
+        ifread.addifstmt(StmtReturn.FALSE)
+
+        ifnvalid = StmtIf(ExprNot(ExprCall(ExprSelect(tmpvar, '.', 'IsValid'))))
+        ifnvalid.addifstmt(StmtReturn.FALSE)
+
+        read.addstmts([
+            StmtDecl(Decl(_fdPickleType(), picklevar.name)),
+            ifread,
+            Whitespace.NL,
+            StmtDecl(Decl(_fdType(), tmpvar.name),
+                     init=ExprCall(ExprVar('FileDescriptor'),
+                                   args=[ _fdBackstagePass(), picklevar ])),
+            ifnvalid,
+            Whitespace.NL,
+            StmtExpr(ExprAssn(ExprDeref(var), tmpvar)),
+            StmtReturn.TRUE
+        ])
+
+        self.cls.addstmts([ write, Whitespace.NL, read, Whitespace.NL ])
 
     def implementStructPickling(self, structtype):
         msgvar = self.msgvar
@@ -4916,7 +5003,10 @@ class _GenerateProtocolActorCode(ipdl.ast.Visitor):
                      args=md.makeCxxArgs(params=1,
                                          retsems='in', retcallsems='out',
                                          implicit=implicit))))
-        failif.addifstmt(StmtReturn(_Result.ProcessingError))
+        failif.addifstmts([
+            _protocolErrorBreakpoint('Handler for '+ md.name +' returned error code'),
+            StmtReturn(_Result.ProcessingError) 
+        ])
         return [ failif ]
 
     def makeDtorMethodDecl(self, md):

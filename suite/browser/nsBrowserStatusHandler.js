@@ -267,6 +267,7 @@ nsBrowserStatusHandler.prototype =
 
   onLocationChange : function(aWebProgress, aRequest, aLocation, aFlags)
   {
+    const nsIWebProgressListener = Components.interfaces.nsIWebProgressListener;
     if (gContextMenu) {
       // Optimise for the common case
       if (aWebProgress.DOMWindow == content)
@@ -302,7 +303,7 @@ nsBrowserStatusHandler.prototype =
    }
 
     // Hide the form invalid popup.
-    if (gFormSubmitObserver.panelIsOpen()) {
+    if (gFormSubmitObserver.panel) {
       gFormSubmitObserver.panel.hidePopup();
     }
 
@@ -336,9 +337,8 @@ nsBrowserStatusHandler.prototype =
 
       // Only dismiss notifications if this onLocationChange represents an
       // actual load (or an error page).
-      if (aRequest && this.popupNotifications &&
-          (aWebProgress.isLoadingDocument ||
-           !Components.isSuccessCode(aRequest.status)))
+      if (this.popupNotifications &&
+          !(aFlags & nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT))
         this.popupNotifications.locationChange();
 
       PlacesStarButton.updateState();

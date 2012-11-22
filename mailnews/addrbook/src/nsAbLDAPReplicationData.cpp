@@ -56,19 +56,19 @@ NS_IMETHODIMP nsAbLDAPProcessReplicationData::Init(
 
   nsresult rv = mDirectory->GetAttributeMap(getter_AddRefs(mAttrMap));
   if (NS_FAILED(rv)) {
-    mQuery = nsnull;
+    mQuery = nullptr;
     return rv;
   }
 
   rv = mDirectory->GetAuthDn(mLogin);
   if (NS_FAILED(rv)) {
-    mQuery = nsnull;
+    mQuery = nullptr;
     return rv;
   }
   
   rv = mDirectory->GetSaslMechanism(mSaslMechanism);
   if (NS_FAILED(rv)) {
-    mQuery = nsnull;
+    mQuery = nullptr;
     return rv;
   }
 
@@ -77,14 +77,14 @@ NS_IMETHODIMP nsAbLDAPProcessReplicationData::Init(
   return rv;
 }
 
-NS_IMETHODIMP nsAbLDAPProcessReplicationData::GetReplicationState(PRInt32 *aReplicationState) 
+NS_IMETHODIMP nsAbLDAPProcessReplicationData::GetReplicationState(int32_t *aReplicationState) 
 {
     NS_ENSURE_ARG_POINTER(aReplicationState);
     *aReplicationState = mState; 
     return NS_OK; 
 }
 
-NS_IMETHODIMP nsAbLDAPProcessReplicationData::GetProtocolUsed(PRInt32 *aProtocolUsed) 
+NS_IMETHODIMP nsAbLDAPProcessReplicationData::GetProtocolUsed(int32_t *aProtocolUsed) 
 {
     NS_ENSURE_ARG_POINTER(aProtocolUsed);
     *aProtocolUsed = mProtocol; 
@@ -98,7 +98,7 @@ NS_IMETHODIMP nsAbLDAPProcessReplicationData::OnLDAPMessage(nsILDAPMessage *aMes
   if (!mInitialized)
     return NS_ERROR_NOT_INITIALIZED;
 
-  PRInt32 messageType;
+  int32_t messageType;
   nsresult rv = aMessage->GetType(&messageType);
   if (NS_FAILED(rv)) {
     Done(false);
@@ -153,7 +153,7 @@ NS_IMETHODIMP nsAbLDAPProcessReplicationData::Abort()
         rv = mDirectory->GetReplicationFileName(fileName);
         // now put back the backed up replicated file if aborted
         if (NS_SUCCEEDED(rv) && mBackupReplicationFile)
-          rv = mBackupReplicationFile->MoveToNative(nsnull, fileName);
+          rv = mBackupReplicationFile->MoveToNative(nullptr, fileName);
       }
     }
   }
@@ -176,7 +176,7 @@ nsresult nsAbLDAPProcessReplicationData::DoTask()
   mOperation = do_CreateInstance(NS_LDAPOPERATION_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = mOperation->Init(mConnection, this, nsnull);
+  rv = mOperation->Init(mConnection, this, nullptr);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // get the relevant attributes associated with the directory server url
@@ -193,7 +193,7 @@ nsresult nsAbLDAPProcessReplicationData::DoTask()
   if (dn.IsEmpty())
     return NS_ERROR_UNEXPECTED;
 
-  PRInt32 scope;
+  int32_t scope;
   rv = mDirectoryUrl->GetScope(&scope);
   if (NS_FAILED(rv))
     return rv;
@@ -206,8 +206,10 @@ nsresult nsAbLDAPProcessReplicationData::DoTask()
   mState = kReplicatingAll;
 
   if (mListener && NS_SUCCEEDED(rv))
-    mListener->OnStateChange(nsnull, nsnull,
-                             nsIWebProgressListener::STATE_START, true);
+    // XXX Cast from bool to nsresult
+    mListener->OnStateChange(nullptr, nullptr,
+                             nsIWebProgressListener::STATE_START,
+                             static_cast<nsresult>(true));
 
   return mOperation->SearchExt(dn, scope, urlFilter, attributes, 0, 0);
 }
@@ -249,7 +251,7 @@ nsresult nsAbLDAPProcessReplicationData::OnLDAPSearchEntry(nsILDAPMessage *aMess
         return NS_OK;
     }
 
-    rv = mReplicationDB->CreateNewCardAndAddToDB(newCard, false, nsnull);
+    rv = mReplicationDB->CreateNewCardAndAddToDB(newCard, false, nullptr);
     if(NS_FAILED(rv)) {
         Abort();
         return rv;
@@ -263,7 +265,7 @@ nsresult nsAbLDAPProcessReplicationData::OnLDAPSearchEntry(nsILDAPMessage *aMess
         newCard->SetPropertyAsAUTF8String("_DN", authDN);
     }
 
-    rv = mReplicationDB->EditCard(newCard, false, nsnull);
+    rv = mReplicationDB->EditCard(newCard, false, nullptr);
     if(NS_FAILED(rv)) {
         Abort();
         return rv;
@@ -274,7 +276,7 @@ nsresult nsAbLDAPProcessReplicationData::OnLDAPSearchEntry(nsILDAPMessage *aMess
 
     if (mListener && !(mCount % 10)) // inform the listener every 10 entries
     {
-        mListener->OnProgressChange(nsnull,nsnull,mCount, -1, mCount, -1);
+        mListener->OnProgressChange(nullptr,nullptr,mCount, -1, mCount, -1);
         // in case if the LDAP Connection thread is starved and causes problem
         // uncomment this one and try.
         // PR_Sleep(PR_INTERVAL_NO_WAIT); // give others a chance
@@ -294,7 +296,7 @@ nsresult nsAbLDAPProcessReplicationData::OnLDAPSearchResult(nsILDAPMessage *aMes
     if(!mInitialized) 
         return NS_ERROR_NOT_INITIALIZED;
 
-    PRInt32 errorCode;
+    int32_t errorCode;
     nsresult rv = aMessage->GetErrorCode(&errorCode);
 
     if(NS_SUCCEEDED(rv)) {
@@ -335,7 +337,7 @@ nsresult nsAbLDAPProcessReplicationData::OnLDAPSearchResult(nsILDAPMessage *aMes
                   rv = mDirectory->GetReplicationFileName(fileName);
                   if (NS_SUCCEEDED(rv) && !fileName.IsEmpty())
                   {
-                    rv = mBackupReplicationFile->MoveToNative(nsnull, fileName);
+                    rv = mBackupReplicationFile->MoveToNative(nullptr, fileName);
                     NS_ASSERTION(NS_SUCCEEDED(rv), "Replication Backup File Move back on Failure failed");
                   }
                 }
@@ -410,7 +412,7 @@ nsresult nsAbLDAPProcessReplicationData::OpenABForReplicatedDir(bool aCreate)
             // set backup file to existing replication file for move
             mBackupReplicationFile->SetNativeLeafName(fileName);
 
-            rv = mBackupReplicationFile->MoveTo(nsnull, backupFileLeafName);
+            rv = mBackupReplicationFile->MoveTo(nullptr, backupFileLeafName);
             // set the backup file leaf name now
             if (NS_SUCCEEDED(rv))
                 mBackupReplicationFile->SetLeafName(backupFileLeafName);
@@ -420,7 +422,7 @@ nsresult nsAbLDAPProcessReplicationData::OpenABForReplicatedDir(bool aCreate)
             mBackupReplicationFile->SetNativeLeafName(fileName);
 
             // specify the parent here specifically, 
-            // passing nsnull to copy to the same dir actually renames existing file
+            // passing nullptr to copy to the same dir actually renames existing file
             // instead of making another copy of the existing file.
             nsCOMPtr<nsIFile> parent;
             rv = mBackupReplicationFile->GetParent(getter_AddRefs(parent));
@@ -468,17 +470,20 @@ void nsAbLDAPProcessReplicationData::Done(bool aSuccess)
      mQuery->Done(aSuccess);
 
    if (mListener)
-       mListener->OnStateChange(nsnull, nsnull, nsIWebProgressListener::STATE_STOP, aSuccess);
+       // XXX Cast from bool to nsresult
+       mListener->OnStateChange(nullptr, nullptr,
+           nsIWebProgressListener::STATE_STOP,
+           static_cast<nsresult>(aSuccess));
 
    // since this is called when all is done here, either on success,
    // failure or abort release the query now.
-   mQuery = nsnull;
+   mQuery = nullptr;
 }
 
 nsresult nsAbLDAPProcessReplicationData::DeleteCard(nsString & aDn)
 {
     nsCOMPtr<nsIAbCard> cardToDelete;
-    mReplicationDB->GetCardFromAttribute(nsnull, "_DN", NS_ConvertUTF16toUTF8(aDn),
+    mReplicationDB->GetCardFromAttribute(nullptr, "_DN", NS_ConvertUTF16toUTF8(aDn),
                                          false, getter_AddRefs(cardToDelete));
-    return mReplicationDB->DeleteCard(cardToDelete, false, nsnull);
+    return mReplicationDB->DeleteCard(cardToDelete, false, nullptr);
 }

@@ -22,6 +22,7 @@
 #include "nsMathUtils.h"
 #include "nsPoint.h"
 #include "nsRect.h"
+#include "mozilla/Constants.h"
 
 class gfxASurface;
 class gfxContext;
@@ -44,6 +45,7 @@ class nsSVGLength2;
 class nsSVGOuterSVGFrame;
 class nsSVGPathGeometryFrame;
 class nsSVGSVGElement;
+class nsTextFrame;
 
 struct nsStyleSVG;
 struct nsStyleSVGPaint;
@@ -55,10 +57,6 @@ namespace dom {
 class Element;
 } // namespace dom
 } // namespace mozilla
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 // SVG Frame state bits
 #define NS_STATE_IS_OUTER_SVG                    NS_FRAME_STATE_BIT(20)
@@ -93,6 +91,10 @@ class Element;
 #define SVG_WSP_DELIM       "\x20\x9\xD\xA"
 #define SVG_COMMA_WSP_DELIM "," SVG_WSP_DELIM
 
+#define SVG_HIT_TEST_FILL        0x01
+#define SVG_HIT_TEST_STROKE      0x02
+#define SVG_HIT_TEST_CHECK_MRECT 0x04
+
 inline bool
 IsSVGWhitespace(char aChar)
 {
@@ -115,6 +117,7 @@ bool NS_SMILEnabled();
 
 bool NS_SVGDisplayListHitTestingEnabled();
 bool NS_SVGDisplayListPaintingEnabled();
+bool NS_SVGTextCSSFramesEnabled();
 
 /**
  * Sometimes we need to distinguish between an empty box and a box
@@ -262,26 +265,26 @@ public:
   /*
    * Converts image data from premultipled to unpremultiplied alpha
    */
-  static void UnPremultiplyImageDataAlpha(PRUint8 *data, 
-                                          PRInt32 stride, 
+  static void UnPremultiplyImageDataAlpha(uint8_t *data, 
+                                          int32_t stride, 
                                           const nsIntRect &rect);
   /*
    * Converts image data from unpremultipled to premultiplied alpha
    */
-  static void PremultiplyImageDataAlpha(PRUint8 *data, 
-                                        PRInt32 stride, 
+  static void PremultiplyImageDataAlpha(uint8_t *data, 
+                                        int32_t stride, 
                                         const nsIntRect &rect);
   /*
    * Converts image data from premultiplied sRGB to Linear RGB
    */
-  static void ConvertImageDataToLinearRGB(PRUint8 *data, 
-                                          PRInt32 stride, 
+  static void ConvertImageDataToLinearRGB(uint8_t *data, 
+                                          int32_t stride, 
                                           const nsIntRect &rect);
   /*
    * Converts image data from LinearRGB to premultiplied sRGB
    */
-  static void ConvertImageDataFromLinearRGB(PRUint8 *data, 
-                                            PRInt32 stride, 
+  static void ConvertImageDataFromLinearRGB(uint8_t *data, 
+                                            int32_t stride, 
                                             const nsIntRect &rect);
 
   /*
@@ -290,7 +293,7 @@ public:
   static nsresult ReportToConsole(nsIDocument* doc,
                                   const char* aWarning,
                                   const PRUnichar **aParams,
-                                  PRUint32 aParamsLength);
+                                  uint32_t aParamsLength);
 
   /*
    * Converts a nsStyleCoord into a userspace value.  Handles units
@@ -315,7 +318,7 @@ public:
   /**
    * Gets the nearest nsSVGInnerSVGFrame or nsSVGOuterSVGFrame frame. aFrame
    * must be an SVG frame. If aFrame is of type nsGkAtoms::svgOuterSVGFrame,
-   * returns nsnull.
+   * returns nullptr.
    */
   static nsSVGDisplayContainerFrame* GetNearestSVGViewport(nsIFrame *aFrame);
 
@@ -339,16 +342,16 @@ public:
    *   entire visual overflow rect.
    */
   static void InvalidateBounds(nsIFrame *aFrame, bool aDuringUpdate = false,
-                               const nsRect *aBoundsSubArea = nsnull,
-                               PRUint32 aFlags = 0);
+                               const nsRect *aBoundsSubArea = nullptr,
+                               uint32_t aFlags = 0);
 
   /**
    * Schedules an update of the frame's bounds (which will in turn invalidate
    * the new area that the frame should paint to).
    *
    * This does nothing when passed an NS_STATE_SVG_NONDISPLAY_CHILD frame.
-   * In future we may want to allow UpdateBounds to be called on such frames,
-   * but that would be better implemented as a ForceUpdateBounds function to
+   * In future we may want to allow ReflowSVG to be called on such frames,
+   * but that would be better implemented as a ForceReflowSVG function to
    * be called synchronously while painting them without marking or paying
    * attention to dirty bits like this function.
    *
@@ -370,20 +373,20 @@ public:
    * handle nsSVGForeignObjectFrame specially. It would also do unnecessary work
    * descending into NS_STATE_SVG_NONDISPLAY_CHILD frames.
    */
-  static void ScheduleBoundsUpdate(nsIFrame *aFrame);
+  static void ScheduleReflowSVG(nsIFrame *aFrame);
 
   /**
    * Invalidates the area that the frame last painted to, then schedules an
    * update of the frame's bounds (which will in turn invalidate the new area
    * that the frame should paint to).
    */
-  static void InvalidateAndScheduleBoundsUpdate(nsIFrame *aFrame);
+  static void InvalidateAndScheduleReflowSVG(nsIFrame *aFrame);
 
   /**
-   * Returns true if the frame or any of its children need UpdateBounds
+   * Returns true if the frame or any of its children need ReflowSVG
    * to be called on them.
    */
-  static bool NeedsUpdatedBounds(nsIFrame *aFrame);
+  static bool NeedsReflowSVG(nsIFrame *aFrame);
 
   /*
    * Update the filter invalidation region for ancestor frames, if relevant.
@@ -470,7 +473,7 @@ public:
    * child SVG frame, container SVG frame, or a regular frame.
    * For regular frames, we just return an identity matrix.
    */
-  static gfxMatrix GetCanvasTM(nsIFrame* aFrame, PRUint32 aFor);
+  static gfxMatrix GetCanvasTM(nsIFrame* aFrame, uint32_t aFor);
 
   /**
    * Returns the transform from aFrame's user space to canvas space. Only call
@@ -481,7 +484,7 @@ public:
    * space. Specifically, it does not include any other transforms introduced
    * by the frame such as x/y offsets and viewBox attributes.
    */
-  static gfxMatrix GetUserToCanvasTM(nsIFrame* aFrame, PRUint32 aFor);
+  static gfxMatrix GetUserToCanvasTM(nsIFrame* aFrame, uint32_t aFor);
 
   /**
    * Notify the descendants of aFrame of a change to one of their ancestors
@@ -494,7 +497,7 @@ public:
    * that walks up the parent chain marking dirty bits can stop earlier.
    */
   static void
-  NotifyChildrenOfSVGChange(nsIFrame *aFrame, PRUint32 aFlags);
+  NotifyChildrenOfSVGChange(nsIFrame *aFrame, uint32_t aFlags);
 
   /*
    * Get frame's covered region by walking the children and doing union.
@@ -602,7 +605,7 @@ public:
    * aFrame's userspace.
    */
   static gfxRect GetBBox(nsIFrame *aFrame,
-                         PRUint32 aFlags = eBBoxIncludeFillGeometry);
+                         uint32_t aFlags = eBBoxIncludeFillGeometry);
 
   /**
    * Convert a userSpaceOnUse/objectBoundingBoxUnits rectangle that's specified
@@ -616,7 +619,7 @@ public:
    * may be null if aUnits is SVG_UNIT_TYPE_OBJECTBOUNDINGBOX
    */
   static gfxRect
-  GetRelativeRect(PRUint16 aUnits, const nsSVGLength2 *aXYWH,
+  GetRelativeRect(uint16_t aUnits, const nsSVGLength2 *aXYWH,
                   const gfxRect &aBBox, nsIFrame *aFrame);
 
   /**
@@ -630,7 +633,7 @@ public:
   WritePPM(const char *fname, gfxImageSurface *aSurface);
 #endif
 
-  static bool OuterSVGIsCallingUpdateBounds(nsIFrame *aFrame);
+  static bool OuterSVGIsCallingReflowSVG(nsIFrame *aFrame);
 
   /*
    * Get any additional transforms that apply only to stroking
@@ -655,6 +658,9 @@ public:
                                                nsSVGGeometryFrame* aFrame,
                                                const gfxMatrix& aMatrix);
   static gfxRect PathExtentsToMaxStrokeExtents(const gfxRect& aPathExtents,
+                                               nsTextFrame* aFrame,
+                                               const gfxMatrix& aMatrix);
+  static gfxRect PathExtentsToMaxStrokeExtents(const gfxRect& aPathExtents,
                                                nsSVGPathGeometryFrame* aFrame,
                                                const gfxMatrix& aMatrix);
 
@@ -662,16 +668,58 @@ public:
    * Convert a floating-point value to a 32-bit integer value, clamping to
    * the range of valid integers.
    */
-  static PRInt32 ClampToInt(double aVal)
+  static int32_t ClampToInt(double aVal)
   {
     return NS_lround(NS_MAX(double(PR_INT32_MIN),
                             NS_MIN(double(PR_INT32_MAX), aVal)));
   }
 
-  static void GetFallbackOrPaintColor(gfxContext *aContext,
-                                      nsStyleContext *aStyleContext,
-                                      nsStyleSVGPaint nsStyleSVG::*aFillOrStroke,
-                                      float *aOpacity, nscolor *color);
+  static nscolor GetFallbackOrPaintColor(gfxContext *aContext,
+                                         nsStyleContext *aStyleContext,
+                                         nsStyleSVGPaint nsStyleSVG::*aFillOrStroke);
+
+  /**
+   * Sets the current paint on the specified gfxContent to be the SVG 'fill'
+   * for the given frame.
+   */
+  static bool SetupCairoFillPaint(nsIFrame* aFrame, gfxContext* aContext);
+
+  /**
+   * Sets the current paint on the specified gfxContent to be the SVG 'stroke'
+   * for the given frame.
+   */
+  static bool SetupCairoStrokePaint(nsIFrame* aFrame, gfxContext* aContext);
+
+  /*
+   * @return false if there is no stroke
+   */
+  static bool HasStroke(nsIFrame* aFrame);
+
+  static float GetStrokeWidth(nsIFrame* aFrame);
+
+  /*
+   * Set up a cairo context for measuring a stroked path
+   */
+  static void SetupCairoStrokeGeometry(nsIFrame* aFrame, gfxContext *aContext);
+
+  /*
+   * Set up a cairo context for hit testing a stroked path
+   */
+  static void SetupCairoStrokeHitGeometry(nsIFrame* aFrame, gfxContext *aContext);
+
+  /*
+   * Set up a cairo context for stroking, including setting up any stroke-related
+   * properties such as dashing and setting the current paint on the gfxContext.
+   */
+  static bool SetupCairoStroke(nsIFrame* aFrame, gfxContext *aContext);
+
+  /**
+   * This function returns a set of bit flags indicating which parts of the
+   * element (fill, stroke, bounds) should intercept pointer events. It takes
+   * into account the type of element and the value of the 'pointer-events'
+   * property on the element.
+   */
+  static uint16_t GetGeometryHitTestFlags(nsIFrame* aFrame);
 };
 
 #endif

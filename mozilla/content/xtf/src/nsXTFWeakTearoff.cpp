@@ -30,7 +30,7 @@ public:
   // nsISupports interface
   NS_DECL_ISUPPORTS
   
-  NS_IMETHOD CallMethod(PRUint16 methodIndex,
+  NS_IMETHOD CallMethod(uint16_t methodIndex,
                         const XPTMethodDescriptor* info,
                         nsXPTCMiniVariant* params);
 
@@ -61,7 +61,7 @@ nsresult
 NS_NewXTFWeakTearoff(const nsIID& iid,
                      nsISupports* obj,
                      nsISupports** aResult){
-  NS_PRECONDITION(aResult != nsnull, "null ptr");
+  NS_PRECONDITION(aResult != nullptr, "null ptr");
   if (!aResult)
     return NS_ERROR_NULL_POINTER;
 
@@ -97,12 +97,12 @@ nsXTFWeakTearoff::QueryInterface(REFNSIID aIID, void** aInstancePtr)
   // we can't map QI onto the obj, because the xpcom wrapper otherwise
   // QI-accumulates all interfaces defined on mObj
   //  else return mObj->QueryInterface(aIID, aInstancePtr); 
-  *aInstancePtr = nsnull;
+  *aInstancePtr = nullptr;
   return NS_ERROR_NO_INTERFACE;
 }
 
 NS_IMETHODIMP
-nsXTFWeakTearoff::CallMethod(PRUint16 methodIndex,
+nsXTFWeakTearoff::CallMethod(uint16_t methodIndex,
                              const XPTMethodDescriptor* info,
                              nsXPTCMiniVariant* params)
 {
@@ -113,7 +113,7 @@ nsXTFWeakTearoff::CallMethod(PRUint16 methodIndex,
   int paramCount = info->num_args;
   nsXPTCVariant* fullPars;
   if (!paramCount) {
-    fullPars = nsnull;
+    fullPars = nullptr;
   }
   else {
     fullPars = new nsXPTCVariant[paramCount];

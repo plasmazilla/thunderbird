@@ -59,11 +59,11 @@ public:
     /**
      * Get the modification time of a replaced profile lock, otherwise 0.
      */
-    nsresult                GetReplacedLockTime(PRInt64* aResult);
+    nsresult                GetReplacedLockTime(PRTime* aResult);
 
 private:
     bool                    mHaveLock;
-    PRInt64                 mReplacedLockTime;
+    PRTime                  mReplacedLockTime;
 
 #if defined (XP_WIN)
     HANDLE                  mLockFileHandle;

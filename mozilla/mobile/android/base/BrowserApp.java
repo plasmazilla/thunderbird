@@ -7,59 +7,42 @@ package org.mozilla.gecko;
 
 import org.mozilla.gecko.db.BrowserContract.Combined;
 import org.mozilla.gecko.db.BrowserDB;
-import org.mozilla.gecko.gfx.CairoImage;
-import org.mozilla.gecko.gfx.BufferedCairoImage;
-import org.mozilla.gecko.gfx.FloatSize;
-import org.mozilla.gecko.gfx.GeckoLayerClient;
-import org.mozilla.gecko.gfx.IntSize;
-import org.mozilla.gecko.gfx.Layer;
-import org.mozilla.gecko.gfx.LayerController;
-import org.mozilla.gecko.gfx.LayerView;
-import org.mozilla.gecko.gfx.PluginLayer;
-import org.mozilla.gecko.gfx.RectUtils;
-import org.mozilla.gecko.gfx.ViewportMetrics;
-import org.mozilla.gecko.gfx.ImmutableViewportMetrics;
+import org.mozilla.gecko.util.GeckoAsyncTask;
+import org.mozilla.gecko.util.GeckoBackgroundThread;
 
-import java.io.*;
-import java.util.*;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-import java.util.zip.*;
-import java.net.URL;
-import java.nio.*;
-import java.nio.channels.FileChannel;
-import java.util.concurrent.*;
-import java.lang.reflect.*;
-import java.net.*;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
-import org.json.*;
-
-import android.os.*;
-import android.app.*;
-import android.text.*;
-import android.text.format.Time;
-import android.view.*;
-import android.view.inputmethod.*;
-import android.view.ViewGroup.LayoutParams;
-import android.content.*;
-import android.content.res.*;
-import android.graphics.*;
-import android.graphics.drawable.Drawable;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.SharedPreferences;
+import android.content.Intent;
+import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
-import android.widget.*;
-import android.hardware.*;
-import android.location.*;
-import android.view.accessibility.AccessibilityManager;
-import android.view.accessibility.AccessibilityEvent;
+import android.graphics.drawable.Drawable;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import android.widget.Toast;
 
-import android.util.*;
-import android.net.*;
-import android.database.*;
-import android.database.sqlite.*;
-import android.provider.*;
-import android.content.pm.*;
-import android.content.pm.PackageManager.*;
-import dalvik.system.*;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.EnumSet;
+import java.util.Vector;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 abstract public class BrowserApp extends GeckoApp
                                  implements TabsPanel.TabsLayoutChangeListener,
@@ -72,10 +55,11 @@ abstract public class BrowserApp extends GeckoApp
     static Vector<MenuItem> sAddonMenuItems = new Vector<MenuItem>();
 
     private PropertyAnimator mMainLayoutAnimator;
+
     private FindInPageBar mFindInPageBar;
 
     // We'll ask for feedback after the user launches the app this many times.
-    private static final int FEEDBACK_LAUNCH_COUNT = 10;
+    private static final int FEEDBACK_LAUNCH_COUNT = 15;
 
     @Override
     public void onTabChanged(Tab tab, Tabs.TabEvents msg, Object data) {
@@ -202,9 +186,10 @@ abstract public class BrowserApp extends GeckoApp
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        LinearLayout actionBar = (LinearLayout) findViewById(R.id.browser_toolbar);
+        LinearLayout actionBar = (LinearLayout) getActionBarLayout();
+        mMainLayout.addView(actionBar, 0);
 
-        mBrowserToolbar = new BrowserToolbar(mAppContext);
+        mBrowserToolbar = new BrowserToolbar(this);
         mBrowserToolbar.from(actionBar);
 
         if (mTabsPanel != null)
@@ -216,9 +201,11 @@ abstract public class BrowserApp extends GeckoApp
             mBrowserToolbar.setTitle(savedInstanceState.getString(SAVED_STATE_TITLE));
         }
 
-        GeckoAppShell.registerGeckoEventListener("Feedback:LastUrl", this);
-        GeckoAppShell.registerGeckoEventListener("Feedback:OpenPlayStore", this);
-        GeckoAppShell.registerGeckoEventListener("Feedback:MaybeLater", this);
+        registerEventListener("CharEncoding:Data");
+        registerEventListener("CharEncoding:State");
+        registerEventListener("Feedback:LastUrl");
+        registerEventListener("Feedback:OpenPlayStore");
+        registerEventListener("Feedback:MaybeLater");
     }
 
     @Override
@@ -227,16 +214,18 @@ abstract public class BrowserApp extends GeckoApp
         if (mAboutHomeContent != null)
             mAboutHomeContent.onDestroy();
 
-        GeckoAppShell.unregisterGeckoEventListener("Feedback:LastUrl", this);
-        GeckoAppShell.unregisterGeckoEventListener("Feedback:OpenPlayStore", this);
-        GeckoAppShell.unregisterGeckoEventListener("Feedback:MaybeLater", this);
+        unregisterEventListener("CharEncoding:Data");
+        unregisterEventListener("CharEncoding:State");
+        unregisterEventListener("Feedback:LastUrl");
+        unregisterEventListener("Feedback:OpenPlayStore");
+        unregisterEventListener("Feedback:MaybeLater");
     }
 
     @Override
     public void onContentChanged() {
         super.onContentChanged();
         if (mAboutHomeContent != null)
-            mAboutHomeContent.onActivityContentChanged(this);
+            mAboutHomeContent.onActivityContentChanged();
     }
 
     @Override
@@ -247,9 +236,9 @@ abstract public class BrowserApp extends GeckoApp
         super.finishProfileMigration();
     }
 
+    // We don't want to call super.initializeChrome in here because we don't
+    // want to create two DoorHangerPopup instances.
     @Override void initializeChrome(String uri, Boolean isExternalURL) {
-        super.initializeChrome(uri, isExternalURL);
-
         mBrowserToolbar.updateBackButton(false);
         mBrowserToolbar.updateForwardButton(false);
 
@@ -279,6 +268,8 @@ abstract public class BrowserApp extends GeckoApp
         }
 
         mBrowserToolbar.setProgressVisibility(isExternalURL || (mRestoreMode != GeckoAppShell.RESTORE_NONE));
+
+        mDoorHangerPopup = new DoorHangerPopup(this, mBrowserToolbar.mFavicon);
     }
 
     void toggleChrome(final boolean aShow) {
@@ -312,10 +303,14 @@ abstract public class BrowserApp extends GeckoApp
             int index = mMainLayout.indexOfChild(mBrowserToolbar.getLayout());
             mMainLayout.removeViewAt(index);
 
-            LinearLayout actionBar = (LinearLayout) getBrowserToolbar();
+            LinearLayout actionBar = (LinearLayout) getActionBarLayout();
             mMainLayout.addView(actionBar, index);
             mBrowserToolbar.from(actionBar);
             mBrowserToolbar.refresh();
+
+            // The favicon view is different now, so we need to update the DoorHangerPopup anchor view.
+            if (mDoorHangerPopup != null)
+                mDoorHangerPopup.setAnchor(mBrowserToolbar.mFavicon);
         }
 
         invalidateOptionsMenu();
@@ -325,23 +320,17 @@ abstract public class BrowserApp extends GeckoApp
             mAboutHomeContent.refresh();
     }
 
-    @Override
-    public boolean isBrowserToolbarSupported() {
-        return true;
-    }
-
-    @Override
-    public View getBrowserToolbar() {
+    public View getActionBarLayout() {
         int actionBarRes;
 
-        if (!GeckoApp.mAppContext.hasPermanentMenuKey() || GeckoApp.mAppContext.isTablet())
+        if (!hasPermanentMenuKey() || isTablet())
            actionBarRes = R.layout.browser_toolbar_menu;
         else
            actionBarRes = R.layout.browser_toolbar;
 
-        LinearLayout actionBar = (LinearLayout) LayoutInflater.from(GeckoApp.mAppContext).inflate(actionBarRes, null);
+        LinearLayout actionBar = (LinearLayout) LayoutInflater.from(this).inflate(actionBarRes, null);
         actionBar.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.FILL_PARENT,
-                                                                (int) mAppContext.getResources().getDimension(R.dimen.browser_toolbar_height)));
+                                                                (int) getResources().getDimension(R.dimen.browser_toolbar_height)));
         return actionBar;
     }
 
@@ -373,6 +362,49 @@ abstract public class BrowserApp extends GeckoApp
                         removeAddonMenuItem(id);
                     }
                 });
+            } else if (event.equals("CharEncoding:Data")) {
+                final JSONArray charsets = message.getJSONArray("charsets");
+                int selected = message.getInt("selected");
+
+                final int len = charsets.length();
+                final String[] titleArray = new String[len];
+                for (int i = 0; i < len; i++) {
+                    JSONObject charset = charsets.getJSONObject(i);
+                    titleArray[i] = charset.getString("title");
+                }
+
+                final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+                dialogBuilder.setSingleChoiceItems(titleArray, selected, new AlertDialog.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        try {
+                            JSONObject charset = charsets.getJSONObject(which);
+                            GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("CharEncoding:Set", charset.getString("code")));
+                            dialog.dismiss();
+                        } catch (JSONException e) {
+                            Log.e(LOGTAG, "error parsing json", e);
+                        }
+                    }
+                });
+                dialogBuilder.setNegativeButton(R.string.button_cancel, new AlertDialog.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                });
+                mMainHandler.post(new Runnable() {
+                    public void run() {
+                        dialogBuilder.show();
+                    }
+                });
+            } else if (event.equals("CharEncoding:State")) {
+                final boolean visible = message.getString("visible").equals("true");
+                GeckoPreferences.setCharEncodingState(visible);
+                final Menu menu = mMenu;
+                mMainHandler.post(new Runnable() {
+                    public void run() {
+                        if (menu != null)
+                            menu.findItem(R.id.char_encoding).setVisible(visible);
+                    }
+                });
             } else if (event.equals("Feedback:OpenPlayStore")) {
                 Intent intent = new Intent(Intent.ACTION_VIEW);
                 intent.setData(Uri.parse("market://details?id=" + getPackageName()));
@@ -381,6 +413,17 @@ abstract public class BrowserApp extends GeckoApp
                 resetFeedbackLaunchCount();
             } else if (event.equals("Feedback:LastUrl")) {
                 getLastUrl();
+            } else if (event.equals("Gecko:Ready")) {
+                // Handle this message in GeckoApp, but also enable the Settings
+                // menuitem, which is specific to BrowserApp.
+                super.handleMessage(event, message);
+                final Menu menu = mMenu;
+                mMainHandler.post(new Runnable() {
+                    public void run() {
+                        if (menu != null)
+                            menu.findItem(R.id.settings).setEnabled(true);
+                    }
+                });
             } else {
                 super.handleMessage(event, message);
             }
@@ -488,17 +531,6 @@ abstract public class BrowserApp extends GeckoApp
         });
     }
 
-    /* Doorhanger notification methods */
-    @Override
-    void updatePopups(final Tab tab) {
-        mDoorHangerPopup.updatePopup(mBrowserToolbar.mFavicon);
-    }
-
-    @Override
-    void addDoorHanger(String message, String value, JSONArray buttons, Tab tab, JSONObject options) {
-        mDoorHangerPopup.addDoorHanger(message, value, buttons, tab, options, mBrowserToolbar.mFavicon);
-    }
-
     /* Favicon methods */
     private void loadFavicon(final Tab tab) {
         maybeCancelFaviconLoad(tab);
@@ -553,12 +585,7 @@ abstract public class BrowserApp extends GeckoApp
         if (mAboutHomeContent == null)
             return;
 
-        GeckoApp.mAppContext.mMainHandler.post(new Runnable() {
-            public void run() {
-                mAboutHomeContent.update(GeckoApp.mAppContext,
-                        EnumSet.of(AboutHomeContent.UpdateFlags.TOP_SITES));
-            }
-        });
+        mAboutHomeContent.update(EnumSet.of(AboutHomeContent.UpdateFlags.TOP_SITES));
     }
 
     public void showAboutHome() {
@@ -583,7 +610,7 @@ abstract public class BrowserApp extends GeckoApp
                 if (mAboutHomeContent == null) {
                     mAboutHomeContent = (AboutHomeContent) findViewById(R.id.abouthome_content);
                     mAboutHomeContent.init();
-                    mAboutHomeContent.update(GeckoApp.mAppContext, AboutHomeContent.UpdateFlags.ALL);
+                    mAboutHomeContent.update(AboutHomeContent.UpdateFlags.ALL);
                     mAboutHomeContent.setUriLoadCallback(new AboutHomeContent.UriLoadCallback() {
                         public void callback(String url) {
                             mBrowserToolbar.setProgressVisibility(true);
@@ -592,8 +619,7 @@ abstract public class BrowserApp extends GeckoApp
                     });
                     mAboutHomeContent.setOnInterceptTouchListener(new ContentTouchListener());
                 } else {
-                    mAboutHomeContent.update(GeckoApp.mAppContext,
-                                             EnumSet.of(AboutHomeContent.UpdateFlags.TOP_SITES,
+                    mAboutHomeContent.update(EnumSet.of(AboutHomeContent.UpdateFlags.TOP_SITES,
                                                         AboutHomeContent.UpdateFlags.REMOTE_TABS));
                 }
             
@@ -760,8 +786,12 @@ abstract public class BrowserApp extends GeckoApp
         forward.setEnabled(tab.canDoForward());
         desktopMode.setChecked(tab.getDesktopMode());
 
+        String url = tab.getURL();
+        if (ReaderModeUtils.isAboutReader(url))
+            url = ReaderModeUtils.getUrlFromAboutReader(url);
+
         // Disable share menuitem for about:, chrome:, file:, and resource: URIs
-        String scheme = Uri.parse(tab.getURL()).getScheme();
+        String scheme = Uri.parse(url).getScheme();
         share.setEnabled(!(scheme.equals("about") || scheme.equals("chrome") ||
                            scheme.equals("file") || scheme.equals("resource")));
 
@@ -829,9 +859,6 @@ abstract public class BrowserApp extends GeckoApp
                 intent = new Intent(this, GeckoPreferences.class);
                 startActivity(intent);
                 return true;
-            case R.id.site_settings:
-                GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("Permissions:Get", null));
-                return true;
             case R.id.addons:
                 loadUrlInTab("about:addons");
                 return true;
@@ -862,19 +889,6 @@ abstract public class BrowserApp extends GeckoApp
         }
     }
 
-    // A white list of locales that support about:feedback.
-    private final String kFeedbackWhiteListArray[] = new String[] { 
-        "en_US"
-    };
-
-    private final CopyOnWriteArrayList<String> kFeedbackWhiteList =
-        new CopyOnWriteArrayList<String>(kFeedbackWhiteListArray);
-
-    private boolean isFeedbackSupported() {
-        String locale = Locale.getDefault().toString();
-        return kFeedbackWhiteList.contains(locale);
-    }
-
     /*
      * If the app has been launched a certain number of times, and we haven't asked for feedback before,
      * open a new tab with about:feedback when launching the app from the icon shortcut.
@@ -883,11 +897,10 @@ abstract public class BrowserApp extends GeckoApp
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
 
-        // Only prompt for feedback if about:feedback is supported in the current locale.
-        if (!Intent.ACTION_MAIN.equals(intent.getAction()) || !isFeedbackSupported())
+        if (!Intent.ACTION_MAIN.equals(intent.getAction()))
             return;
 
-        (new GeckoAsyncTask<Void, Void, Boolean>() {
+        (new GeckoAsyncTask<Void, Void, Boolean>(mAppContext, GeckoAppShell.getHandler()) {
             @Override
             public synchronized Boolean doInBackground(Void... params) {
                 // Check to see how many times the app has been launched.
@@ -924,7 +937,7 @@ abstract public class BrowserApp extends GeckoApp
     }
 
     private void getLastUrl() {
-        (new GeckoAsyncTask<Void, Void, String>() {
+        (new GeckoAsyncTask<Void, Void, String>(mAppContext, GeckoAppShell.getHandler()) {
             @Override
             public synchronized String doInBackground(Void... params) {
                 // Get the most recent URL stored in browser history.

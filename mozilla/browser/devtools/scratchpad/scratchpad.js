@@ -36,6 +36,47 @@ const BUTTON_POSITION_SAVE = 0;
 const BUTTON_POSITION_CANCEL = 1;
 const BUTTON_POSITION_DONT_SAVE = 2;
 
+let keysbundle = Services.strings.createBundle("chrome://global-platform/locale/platformKeys.properties");
+
+
+function SP_Pretty_Key(aElemKey) {
+
+  let elemString = "";
+  let elemMod = aElemKey.getAttribute("modifiers");
+
+  if (elemMod.match("accel")) {
+    if (navigator.platform.indexOf("Mac") !== -1) {
+      // XXX bug 779642 Use "Cmd-" literal vs cloverleaf meta-key until
+      // Orion adds variable height lines
+      // elemString += keysbundle.GetStringFromName("VK_META_CMD") +
+      //               keysbundle.GetStringFromName("MODIFIER_SEPARATOR");
+      elemString += "Cmd-";
+    } else {
+      elemString += keysbundle.GetStringFromName("VK_CONTROL") +
+                    keysbundle.GetStringFromName("MODIFIER_SEPARATOR");
+    }
+  }
+
+  if (elemMod.match("shift")) {
+    elemString += keysbundle.GetStringFromName("VK_SHIFT") +
+                  keysbundle.GetStringFromName("MODIFIER_SEPARATOR");
+  }
+  if (elemMod.match("alt")) {
+    elemString += keysbundle.GetStringFromName("VK_ALT") +
+                  keysbundle.GetStringFromName("MODIFIER_SEPARATOR");
+  }
+  if (elemMod.match("ctrl")) {
+    elemString += keysbundle.GetStringFromName("VK_CONTROL") +
+                  keysbundle.GetStringFromName("MODIFIER_SEPARATOR");
+  }
+  if (elemMod.match("meta")) {
+    elemString += keysbundle.GetStringFromName("VK_META") +
+                  keysbundle.GetStringFromName("MODIFIER_SEPARATOR");
+  }
+
+  return elemString + aElemKey.getAttribute("key").toUpperCase();
+}
+
 /**
  * The scratchpad object handles the Scratchpad window functionality.
  */
@@ -453,9 +494,24 @@ var Scratchpad = {
    */
   writeAsErrorComment: function SP_writeAsErrorComment(aError)
   {
-    let stack = aError.stack || aError.fileName + ":" + aError.lineNumber;
-    let newComment = "Exception: " + aError.message + "\n" + stack.replace(/\n$/, "");
+    let stack = "";
+    if (aError.stack) {
+      stack = aError.stack;
+    }
+    else if (aError.fileName) {
+      if (aError.lineNumber) {
+        stack = "@" + aError.fileName + ":" + aError.lineNumber;
+      }
+      else {
+        stack = "@" + aError.fileName;
+      }
+    }
+    else if (aError.lineNumber) {
+      stack = "@" + aError.lineNumber;
+    }
     
+    let newComment = "Exception: " + ( aError.message || aError) + ( stack == "" ? stack : "\n" + stack.replace(/\n$/, "") );
+
     this.writeAsComment(newComment);
   },
 
@@ -971,7 +1027,14 @@ var Scratchpad = {
     }
 
     let state = null;
-    let initialText = this.strings.GetStringFromName("scratchpadIntro");
+
+    let initialText = this.strings.formatStringFromName(
+      "scratchpadIntro1",
+      [SP_Pretty_Key(document.getElementById("sp-key-run")),
+       SP_Pretty_Key(document.getElementById("sp-key-inspect")),
+       SP_Pretty_Key(document.getElementById("sp-key-display"))],
+      3);
+
     if ("arguments" in window &&
          window.arguments[0] instanceof Ci.nsIDialogParamBlock) {
       state = JSON.parse(window.arguments[0].GetString(0));

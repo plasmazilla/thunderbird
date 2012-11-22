@@ -32,7 +32,7 @@ public:
     NOT_MAIN_THREAD
   };
 
-  nsThread(MainThreadFlag aMainThread, PRUint32 aStackSize);
+  nsThread(MainThreadFlag aMainThread, uint32_t aStackSize);
 
   // Initialize this as a wrapper for a new PRThread.
   nsresult Init();
@@ -55,7 +55,7 @@ private:
 
   ~nsThread();
 
-  bool ShuttingDown() { return mShutdownContext != nsnull; }
+  bool ShuttingDown() { return mShutdownContext != nullptr; }
 
   static void ThreadFunc(void *arg);
 
@@ -86,10 +86,10 @@ private:
 
   nsEventQueue  mEvents;
 
-  PRInt32   mPriority;
+  int32_t   mPriority;
   PRThread *mThread;
-  PRUint32  mRunningEvent;  // counter
-  PRUint32  mStackSize;
+  uint32_t  mRunningEvent;  // counter
+  uint32_t  mStackSize;
 
   struct nsThreadShutdownContext *mShutdownContext;
 
@@ -108,7 +108,7 @@ public:
   }
 
   bool IsPending() {
-    return mSyncTask != nsnull;
+    return mSyncTask != nullptr;
   }
 
   nsresult Result() {

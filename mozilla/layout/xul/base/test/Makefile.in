@@ -3,11 +3,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH		= ../../../..
+DEPTH		= @DEPTH@
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
-relativesrcdir  = layout/xul/base/test
+relativesrcdir  = @relativesrcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
@@ -22,11 +22,12 @@ MOCHITEST_CHROME_FILES =	test_bug381167.xhtml \
 		$(NULL)
 
 ifneq (mobile,$(MOZ_BUILD_APP))
-MOCHITEST_FILES = 	test_resizer_incontent.xul
+MOCHITEST_FILES = 	test_resizer_incontent.xul \
 
 MOCHITEST_CHROME_FILES +=	test_resizer.xul \
 		window_resizer.xul \
 		window_resizer_element.xul \
+		test_windowminmaxsize.xul \
 		$(NULL)
 endif
 

@@ -201,7 +201,7 @@ ViewportFrame::Reflow(nsPresContext*           aPresContext,
                        0, 0, 0, aStatus);
       kidHeight = kidDesiredSize.height;
 
-      FinishReflowChild(kidFrame, aPresContext, nsnull, kidDesiredSize, 0, 0, 0);
+      FinishReflowChild(kidFrame, aPresContext, nullptr, kidDesiredSize, 0, 0, 0);
     } else {
       kidHeight = mFrames.FirstChild()->GetSize().height;
     }
@@ -223,12 +223,23 @@ ViewportFrame::Reflow(nsPresContext*           aPresContext,
     ConsiderChildOverflow(aDesiredSize.mOverflowAreas, mFrames.FirstChild());
   }
 
-  // Make a copy of the reflow state and change the computed width and height
-  // to reflect the available space for the fixed items
-  nsHTMLReflowState reflowState(aReflowState);
-  nsPoint offset = AdjustReflowStateForScrollbars(&reflowState);
-
   if (IsAbsoluteContainer()) {
+    // Make a copy of the reflow state and change the computed width and height
+    // to reflect the available space for the fixed items
+    nsHTMLReflowState reflowState(aReflowState);
+
+    if (reflowState.availableHeight == NS_UNCONSTRAINEDSIZE) {
+      // We have an intrinsic-height document with abs-pos/fixed-pos children.
+      // Set the available height and mComputedHeight to our chosen height.
+      reflowState.availableHeight = aDesiredSize.height;
+      // Not having border/padding simplifies things
+      NS_ASSERTION(reflowState.mComputedBorderPadding == nsMargin(0,0,0,0),
+                   "Viewports can't have border/padding");
+      reflowState.SetComputedHeight(aDesiredSize.height);
+    }
+
+    nsPoint offset = AdjustReflowStateForScrollbars(&reflowState);
+
     NS_ASSERTION(GetAbsoluteContainingBlock()->GetChildList().IsEmpty() ||
                  (offset.x == 0 && offset.y == 0),
                  "We don't handle correct positioning of fixed frames with "
@@ -286,7 +297,7 @@ ViewportFrame::GetType() const
 void
 ViewportFrame::InvalidateInternal(const nsRect& aDamageRect,
                                   nscoord aX, nscoord aY, nsIFrame* aForChild,
-                                  PRUint32 aFlags)
+                                  uint32_t aFlags)
 {
   nsRect r = aDamageRect + nsPoint(aX, aY);
   nsPresContext* presContext = PresContext();
@@ -307,8 +318,8 @@ ViewportFrame::InvalidateInternal(const nsRect& aDamageRect,
     if (!presContext->PresShell()->IsActive())
       return;
     nsPoint pt = -parent->GetOffsetToCrossDoc(this);
-    PRInt32 ourAPD = presContext->AppUnitsPerDevPixel();
-    PRInt32 parentAPD = parent->PresContext()->AppUnitsPerDevPixel();
+    int32_t ourAPD = presContext->AppUnitsPerDevPixel();
+    int32_t parentAPD = parent->PresContext()->AppUnitsPerDevPixel();
     r = r.ConvertAppUnitsRoundOut(ourAPD, parentAPD);
     parent->InvalidateInternal(r, pt.x, pt.y, this,
                                aFlags | INVALIDATE_CROSS_DOC);

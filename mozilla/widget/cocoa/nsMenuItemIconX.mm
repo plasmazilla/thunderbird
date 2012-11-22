@@ -30,14 +30,14 @@
 #include "imgIContainer.h"
 #include "nsCocoaUtils.h"
 
-static const PRUint32 kIconWidth = 16;
-static const PRUint32 kIconHeight = 16;
-static const PRUint32 kIconBitsPerComponent = 8;
-static const PRUint32 kIconComponents = 4;
-static const PRUint32 kIconBitsPerPixel = kIconBitsPerComponent *
+static const uint32_t kIconWidth = 16;
+static const uint32_t kIconHeight = 16;
+static const uint32_t kIconBitsPerComponent = 8;
+static const uint32_t kIconComponents = 4;
+static const uint32_t kIconBitsPerPixel = kIconBitsPerComponent *
                                           kIconComponents;
-static const PRUint32 kIconBytesPerRow = kIconWidth * kIconBitsPerPixel / 8;
-static const PRUint32 kIconBytes = kIconBytesPerRow * kIconHeight;
+static const uint32_t kIconBytesPerRow = kIconWidth * kIconBitsPerPixel / 8;
+static const uint32_t kIconBytes = kIconBytesPerRow * kIconHeight;
 
 typedef NS_STDCALL_FUNCPROTO(nsresult, GetRectSideMethod, nsIDOMRect,
                              GetBottom, (nsIDOMCSSPrimitiveValue**));
@@ -69,9 +69,9 @@ void nsMenuItemIconX::Destroy()
 {
   if (mIconRequest) {
     mIconRequest->CancelAndForgetObserver(NS_BINDING_ABORTED);
-    mIconRequest = nsnull;
+    mIconRequest = nullptr;
   }
-  mMenuObject = nsnull;
+  mMenuObject = nullptr;
   mNativeMenuItem = nil;
 }
 
@@ -108,7 +108,7 @@ nsMenuItemIconX::SetupIcon()
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
 
-static PRInt32
+static int32_t
 GetDOMRectSide(nsIDOMRect* aRect, GetRectSideMethod aMethod)
 {
   nsCOMPtr<nsIDOMCSSPrimitiveValue> dimensionValue;
@@ -116,7 +116,7 @@ GetDOMRectSide(nsIDOMRect* aRect, GetRectSideMethod aMethod)
   if (!dimensionValue)
     return -1;
 
-  PRUint16 primitiveType;
+  uint16_t primitiveType;
   nsresult rv = dimensionValue->GetPrimitiveType(&primitiveType);
   if (NS_FAILED(rv) || primitiveType != nsIDOMCSSPrimitiveValue::CSS_PX)
     return -1;
@@ -161,7 +161,7 @@ nsMenuItemIconX::GetIconURI(nsIURI** aIconURI)
   nsCOMPtr<nsIDOMCSSValue> cssValue;
   nsCOMPtr<nsIDOMCSSStyleDeclaration> cssStyleDecl;
   nsCOMPtr<nsIDOMCSSPrimitiveValue> primitiveValue;
-  PRUint16 primitiveType;
+  uint16_t primitiveType;
   if (!hasImageAttr) {
     // If the content node has no "image" attribute, get the
     // "list-style-image" property from CSS.
@@ -243,10 +243,10 @@ nsMenuItemIconX::GetIconURI(nsIURI** aIconURI)
     if (imageRegionRect) {
       // Return NS_ERROR_FAILURE if the image region is invalid so the image
       // is not drawn, and behavior is similar to XUL menus.
-      PRInt32 bottom = GetDOMRectSide(imageRegionRect, &nsIDOMRect::GetBottom);
-      PRInt32 right = GetDOMRectSide(imageRegionRect, &nsIDOMRect::GetRight);
-      PRInt32 top = GetDOMRectSide(imageRegionRect, &nsIDOMRect::GetTop);
-      PRInt32 left = GetDOMRectSide(imageRegionRect, &nsIDOMRect::GetLeft);
+      int32_t bottom = GetDOMRectSide(imageRegionRect, &nsIDOMRect::GetBottom);
+      int32_t right = GetDOMRectSide(imageRegionRect, &nsIDOMRect::GetRight);
+      int32_t top = GetDOMRectSide(imageRegionRect, &nsIDOMRect::GetTop);
+      int32_t left = GetDOMRectSide(imageRegionRect, &nsIDOMRect::GetLeft);
 
       if (top < 0 || left < 0 || bottom <= top || right <= left)
         return NS_ERROR_FAILURE;
@@ -266,7 +266,7 @@ nsMenuItemIconX::LoadIcon(nsIURI* aIconURI)
   if (mIconRequest) {
     // Another icon request is already in flight.  Kill it.
     mIconRequest->Cancel(NS_BINDING_ABORTED);
-    mIconRequest = nsnull;
+    mIconRequest = nullptr;
   }
 
   mLoadedIcon = false;
@@ -306,9 +306,9 @@ nsMenuItemIconX::LoadIcon(nsIURI* aIconURI)
 
   // Passing in null for channelPolicy here since nsMenuItemIconX::LoadIcon is
   // not exposed to web content
-  rv = loader->LoadImage(aIconURI, nsnull, nsnull, nsnull, loadGroup, this,
-                         nsnull, nsIRequest::LOAD_NORMAL, nsnull, nsnull,
-                         nsnull, getter_AddRefs(mIconRequest));
+  rv = loader->LoadImage(aIconURI, nullptr, nullptr, nullptr, loadGroup, this,
+                         nullptr, nsIRequest::LOAD_NORMAL, nullptr, nullptr,
+                         nullptr, getter_AddRefs(mIconRequest));
   if (NS_FAILED(rv)) return rv;
 
   // We need to request the icon be decoded (bug 573583, bug 705516).
@@ -355,7 +355,7 @@ nsMenuItemIconX::OnStartContainer(imgIRequest*   aRequest,
 }
 
 NS_IMETHODIMP
-nsMenuItemIconX::OnStartFrame(imgIRequest* aRequest, PRUint32 aFrame)
+nsMenuItemIconX::OnStartFrame(imgIRequest* aRequest, uint32_t aFrame)
 {
   return NS_OK;
 }
@@ -370,7 +370,7 @@ nsMenuItemIconX::OnDataAvailable(imgIRequest*     aRequest,
 
 NS_IMETHODIMP
 nsMenuItemIconX::OnStopFrame(imgIRequest*    aRequest,
-                             PRUint32        aFrame)
+                             uint32_t        aFrame)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
@@ -391,7 +391,7 @@ nsMenuItemIconX::OnStopFrame(imgIRequest*    aRequest,
     return NS_ERROR_FAILURE;
   }
 
-  PRInt32 origWidth = 0, origHeight = 0;
+  int32_t origWidth = 0, origHeight = 0;
   imageContainer->GetWidth(&origWidth);
   imageContainer->GetHeight(&origHeight);
   
@@ -445,7 +445,7 @@ nsMenuItemIconX::OnStopFrame(imgIRequest*    aRequest,
   }
   // The image may not be the right size for a menu icon (16x16).
   // Create a new CGImage for the menu item.
-  PRUint8* bitmap = (PRUint8*)malloc(kIconBytes);
+  uint8_t* bitmap = (uint8_t*)malloc(kIconBytes);
 
   CGColorSpaceRef colorSpace = ::CGColorSpaceCreateDeviceRGB();
 
@@ -515,7 +515,7 @@ nsMenuItemIconX::OnStopRequest(imgIRequest* aRequest,
 {
   if (mIconRequest && mIconRequest == aRequest) {
     mIconRequest->Cancel(NS_BINDING_ABORTED);
-    mIconRequest = nsnull;
+    mIconRequest = nullptr;
   }
   return NS_OK;
 }

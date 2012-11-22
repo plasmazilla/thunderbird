@@ -25,7 +25,7 @@ nsDOMScrollAreaEvent::~nsDOMScrollAreaEvent()
   if (mEventIsInternal && mEvent) {
     if (mEvent->eventStructType == NS_SCROLLAREA_EVENT) {
       delete static_cast<nsScrollAreaEvent *>(mEvent);
-      mEvent = nsnull;
+      mEvent = nullptr;
     }
   }
 }
@@ -70,7 +70,7 @@ nsDOMScrollAreaEvent::InitScrollAreaEvent(const nsAString &aEventType,
                                           bool aCanBubble,
                                           bool aCancelable,
                                           nsIDOMWindow *aView,
-                                          PRInt32 aDetail,
+                                          int32_t aDetail,
                                           float aX, float aY,
                                           float aWidth, float aHeight)
 {

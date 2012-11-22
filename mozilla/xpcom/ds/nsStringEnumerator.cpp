@@ -64,11 +64,11 @@ private:
         const nsTArray<nsCString>* mCArray;
     };
 
-    inline PRUint32 Count() {
+    inline uint32_t Count() {
         return mIsUnicode ? mArray->Length() : mCArray->Length();
     }
     
-    PRUint32 mIndex;
+    uint32_t mIndex;
 
     // the owner allows us to hold a strong reference to the object
     // that owns the array. Having a non-null value in mOwner implies
@@ -147,7 +147,7 @@ nsStringEnumerator::GetNext(nsACString& aResult)
 
 template<class T>
 static inline nsresult
-StringEnumeratorTail(T** aResult NS_INPARAM)
+StringEnumeratorTail(T** aResult)
 {
     if (!*aResult)
         return NS_ERROR_OUT_OF_MEMORY;

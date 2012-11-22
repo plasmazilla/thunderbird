@@ -10,6 +10,7 @@
 #define _MIMECOM_H_
 
 #include "prtypes.h"
+#include "mozilla/StandardInteger.h"
 
 /*
  * These functions are exposed by libmime to be used by content type
@@ -19,7 +20,7 @@
  * This is the write call for outputting processed stream data.
  */ 
 extern "C" int  XPCOM_MimeObject_write(void *mimeObject, const char *data, 
-                                  PRInt32 length, 
+                                  int32_t length, 
                                   bool user_visible_p);
 /*
  * The following group of calls expose the pointers for the object

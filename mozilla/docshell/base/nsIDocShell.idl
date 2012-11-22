@@ -39,7 +39,7 @@ interface nsIWebBrowserPrint;
 interface nsIVariant;
 interface nsIPrivacyTransitionObserver;
 
-[scriptable, builtinclass, uuid(89ea9f32-18ec-413b-9e2c-ce9a4c851b1c)]
+[scriptable, builtinclass, uuid(9b283337-097d-4fa8-a2da-916318eaf828)]
 interface nsIDocShell : nsISupports
 {
   /**
@@ -127,7 +127,7 @@ interface nsIDocShell : nsISupports
   [noscript]void internalLoad(in nsIURI aURI,
                               in nsIURI aReferrer,
                               in nsISupports aOwner,
-                              in PRUint32 aFlags,
+                              in uint32_t aFlags,
                               in wstring aWindowTarget,
                               in string aTypeHint,
                               in nsIInputStream aPostDataStream,
@@ -403,17 +403,6 @@ interface nsIDocShell : nsISupports
   void historyPurged(in long numEntries);
 
   /*
-   * Retrieves the WebApps session storage object for the supplied domain.
-   * If it doesn't already exist, a new one will be created.
-   *
-   * @param uri the uri of the storage object to retrieve
-   * @param documentURI new storage will be created with reference to this
-   *                    document.documentURI that will appear in storage event
-   */
-  nsIDOMStorage getSessionStorageForURI(in nsIURI uri,
-                                        in DOMString documentURI);
-
-  /*
    * Retrieves the WebApps session storage object for the supplied principal.
    *
    * @param principal returns a storage for this principal
@@ -581,7 +570,7 @@ interface nsIDocShell : nsISupports
    * In a child docshell, this is the source of parentCharset
    * @see nsIParser
    */
-  attribute PRInt32 parentCharsetSource;
+  attribute int32_t parentCharsetSource;
 
   /**
    * Add an observer to the list of parties to be notified when this docshell's
@@ -589,21 +578,111 @@ interface nsIDocShell : nsISupports
    */
   void addWeakPrivacyTransitionObserver(in nsIPrivacyTransitionObserver obs);
 
-  /*
-   * Is this docshell a browser frame (i.e., does it correspond to an <iframe
-   * mozbrowser>)?  The frameloader is responsible for setting this property
-   * when it initializes the docshell.
+  /**
+   * Mark the docshell as a browser frame.
+   * This should be used for <iframe mozbrowser> but not for <iframe mozapp>.
    *
-   * If so, this docshell should act like a chrome/content boundary for the
-   * purposes of window.top and window.parent.
-   *
-   * See also nsIMozBrowserFrame.
+   * This method should not be called more than once.
    */
-  attribute bool isBrowserFrame;
+  void setIsBrowserElement();
 
-  /*
-   * Is this docshell contained in an <iframe mozbrowser>, either directly or
-   * indirectly?
+  /**
+   * Returns true iff the docshell is marked as a browser frame.
    */
-  readonly attribute bool containedInBrowserFrame;
+  [infallible] readonly attribute boolean isBrowserElement;
+
+  /**
+   * Returns true iif the docshell is marked as an app frame.
+   */
+  [infallible] readonly attribute boolean isApp;
+
+  /**
+   * Returns true iif the docshell is marked as a type that behaves like a
+   * content boundary.
+   */
+  [infallible] readonly attribute boolean isContentBoundary;
+
+  /**
+   * Returns true iif the docshell is inside a browser element.
+   */
+  [infallible] readonly attribute boolean isInBrowserElement;
+
+  /**
+   * Returns true iif the docshell is inside an application.  However, it will
+   * return false if the docshell is inside a browser element that is inside
+   * an application.
+   *
+   * Note: Do not use this method for permissions checks!  An app may contain
+   * an <iframe> pointing at arbitrary web code.  This iframe's docshell will
+   * have isInApp() == true, but the iframe's content is not "app code", and
+   * so should not be granted more trust than vanilla web content.
+   *
+   * (For example, suppose when web content calls API method X, we show a
+   * permission prompt, but when "app code" calls method X, we don't.  In this
+   * case, it would be /incorrect/ to show the permission prompt if
+   * !isInApp().)
+   *
+   * If you're doing a security check, use the content's principal instead of
+   * this method.
+   */
+  [infallible] readonly attribute boolean isInApp;
+
+  /**
+   * Returns if the docshell has a docshell that behaves as a content boundary
+   * in his parent hierarchy.
+   */
+  [infallible] readonly attribute boolean isBelowContentBoundary;
+
+  /**
+   * Set the app id this docshell is associated with. The id has to be a valid
+   * app id. If the docshell isn't associated with any app, the value should be
+   * nsIScriptSecurityManager::NO_APP_ID. However, this is the default value if
+   * nothing is et.
+   *
+   * This method is [noscript] to reduce the scope. It should be used at very
+   * specific moments.
+   *
+   * Calling setAppId() will mark the frame as an app frame.
+   */
+  [noscript] void setAppId(in unsigned long appId);
+
+  /**
+   * Returns the app id of the app the docshell is in. Returns
+   * nsIScriptSecurityManager::NO_APP_ID if the docshell is not in an app.
+   */
+  [infallible] readonly attribute unsigned long appId;
+
+  /** 
+   * True iff asynchronous panning and zooming is enabled for this
+   * docshell.
+   */
+  readonly attribute bool asyncPanZoomEnabled;
+
+  /**
+   * Like GetSameTypeParent, except this ignores <iframe mozbrowser>
+   * boundaries.
+   */
+  nsIDocShell getParentIgnoreBrowserFrame();
+
+  /**
+   * The sandbox flags on the docshell. These reflect the value of the sandbox
+   * attribute of the associated IFRAME or CSP-protectable content, if
+   * existent. See the HTML5 spec for more details.
+   * These flags on the docshell reflect the current state of the sandbox
+   * attribute, which is modifiable. They are only used when loading new
+   * content, sandbox flags are also immutably set on the document when it is
+   * loaded.
+   * The sandbox flags of a document depend on the sandbox flags on its
+   * docshell and of its parent document, if any.
+   * See nsSandboxFlags.h for the possible flags.
+   */
+  attribute unsigned long sandboxFlags;
+
+  /**
+   * Are plugins allowed in the current document loaded in this docshell ?
+   * (if there is one). This depends on whether plugins are allowed by this
+   * docshell itself or if the document is sandboxed and hence plugins should
+   * not be allowed.
+   */
+  [noscript, notxpcom] bool pluginsAllowedInCurrentDoc();
 };

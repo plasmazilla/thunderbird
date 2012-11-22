@@ -111,7 +111,7 @@ calendar.jar:
 % style chrome://global/content/customizeToolbar.xul chrome://calendar/skin/calendar-event-dialog.css
 % style chrome://calendar/content/calendar-event-dialog.xul chrome://calendar/skin/common/dialogs/calendar-event-dialog.css
 % style chrome://calendar/content/calendar-event-dialog-attendees.xul chrome://calendar/skin/common/dialogs/calendar-event-dialog.css
-    skin/calendar/abcard.png                               (themes/common/images/abcard.png)
+    skin/calendar/attendee-icons.png                       (themes/common/images/attendee-icons.png)
     skin/calendar/alarm-flashing.png                       (themes/common/images/alarm-flashing.png)
     skin/calendar/alarm-icons.png                          (themes/common/images/alarm-icons.png)
     skin/calendar/calendar-alarms.css                      (themes/common/calendar-alarms.css)
@@ -152,6 +152,7 @@ calendar.jar:
     skin/calendar/common/dialogs/calendar-event-dialog.css (themes/common/dialogs/calendar-event-dialog.css)
     skin/calendar/common/widgets/calendar-widgets.css      (themes/common/widgets/calendar-widgets.css)
     skin/calendar/cal-icon32.png                           (themes/@THEME@/images/cal-icon32.png)
+    skin/calendar/cal-icon24.png                           (themes/@THEME@/images/cal-icon24.png)
     skin/calendar/calendar-alarm-dialog.css                (themes/@THEME@/dialogs/calendar-alarm-dialog.css)
     skin/calendar/calendar-daypicker.css                   (themes/@THEME@/calendar-daypicker.css)
     skin/calendar/calendar-event-dialog.css                (themes/@THEME@/dialogs/calendar-event-dialog.css)

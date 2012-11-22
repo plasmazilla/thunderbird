@@ -18,6 +18,7 @@ import sys
 import threading
 import tempfile
 import sqlite3
+from string import Template
 
 SCRIPT_DIR = os.path.abspath(os.path.realpath(os.path.dirname(sys.argv[0])))
 sys.path.insert(0, SCRIPT_DIR)
@@ -263,6 +264,9 @@ class Automation(object):
     # Open database and create table
     permDB = sqlite3.connect(os.path.join(profileDir, "permissions.sqlite"))
     cursor = permDB.cursor();
+
+    cursor.execute("PRAGMA user_version=3");
+
     # SQL copied from nsPermissionManager.cpp
     cursor.execute("""CREATE TABLE moz_hosts (
        id INTEGER PRIMARY KEY,
@@ -270,19 +274,78 @@ class Automation(object):
        type TEXT,
        permission INTEGER,
        expireType INTEGER,
-       expireTime INTEGER)""")
+       expireTime INTEGER,
+       appId INTEGER,
+       isInBrowserElement INTEGER)""")
 
     # Insert desired permissions
     c = 0
     for perm in permissions.keys():
       for host,allow in permissions[perm]:
         c += 1
-        cursor.execute("INSERT INTO moz_hosts values(?, ?, ?, ?, 0, 0)",
+        cursor.execute("INSERT INTO moz_hosts values(?, ?, ?, ?, 0, 0, 0, 0)",
                        (c, host, perm, 1 if allow else 2))
 
     # Commit and close
     permDB.commit()
     cursor.close()
+
+  def setupTestApps(self, profileDir, apps):
+    webappJSONTemplate = Template(""""$name": {
+"origin": "$origin",
+"installOrigin": "$origin",
+"receipt": null,
+"installTime": 132333986000,
+"manifestURL": "$manifestURL",
+"localId": $localId
+}""")
+
+    manifestTemplate = Template("""{
+  "name": "$name",
+  "description": "$description",
+  "launch_path": "/",
+  "developer": {
+    "name": "Mozilla",
+    "url": "https://mozilla.org/"
+  },
+  "permissions": [
+  ],
+  "locales": {
+    "en-US": {
+      "name": "$name",
+      "description": "$description"
+    }
+  },
+  "default_locale": "en-US",
+  "icons": {
+  }
+}
+""")
+
+    # Create webapps/webapps.json
+    webappsDir = os.path.join(profileDir, "webapps")
+    os.mkdir(webappsDir);
+
+    webappsJSON = []
+    for localId, app in enumerate(apps):
+      app['localId'] = localId + 1 # Has to be 1..n
+      webappsJSON.append(webappJSONTemplate.substitute(app))
+    webappsJSON = '{\n' + ',\n'.join(webappsJSON) + '\n}\n'
+
+    webappsJSONFile = open(os.path.join(webappsDir, "webapps.json"), "a")
+    webappsJSONFile.write(webappsJSON)
+    webappsJSONFile.close()
+
+    # Create manifest file for each app.
+    for app in apps:
+      manifest = manifestTemplate.substitute(app)
+
+      manifestDir = os.path.join(webappsDir, app['name'])
+      os.mkdir(manifestDir)
+
+      manifestFile = open(os.path.join(manifestDir, "manifest.webapp"), "a")
+      manifestFile.write(manifest)
+      manifestFile.close()
 
   def initializeProfile(self, profileDir, extraPrefs = [], useServerLocations = False):
     " Sets up the standard testing profile."
@@ -298,6 +361,7 @@ class Automation(object):
       {'allowXULXBL':[(l.host, 'noxul' not in l.options) for l in locations]});
 
     part = """\
+user_pref("social.skipLoadingProviders", true);
 user_pref("browser.console.showInPanel", true);
 user_pref("browser.dom.window.dump.enabled", true);
 user_pref("browser.firstrun.show.localepicker", false);
@@ -359,9 +423,9 @@ user_pref("camino.warn_when_closing", false); // Camino-only, harmless to others
 // Make url-classifier updates so rare that they won't affect tests
 user_pref("urlclassifier.updateinterval", 172800);
 // Point the url-classifier to the local testing server for fast failures
-user_pref("browser.safebrowsing.provider.0.gethashURL", "http://%(server)s/safebrowsing-dummy/gethash");
-user_pref("browser.safebrowsing.provider.0.keyURL", "http://%(server)s/safebrowsing-dummy/newkey");
-user_pref("browser.safebrowsing.provider.0.updateURL", "http://%(server)s/safebrowsing-dummy/update");
+user_pref("browser.safebrowsing.gethashURL", "http://%(server)s/safebrowsing-dummy/gethash");
+user_pref("browser.safebrowsing.keyURL", "http://%(server)s/safebrowsing-dummy/newkey");
+user_pref("browser.safebrowsing.updateURL", "http://%(server)s/safebrowsing-dummy/update");
 // Point update checks to the local testing server for fast failures
 user_pref("extensions.update.url", "http://%(server)s/extensions-dummy/updateURL");
 user_pref("extensions.update.background.url", "http://%(server)s/extensions-dummy/updateBackgroundURL");
@@ -375,28 +439,13 @@ user_pref("extensions.getAddons.get.url", "http://%(server)s/extensions-dummy/re
 user_pref("extensions.getAddons.getWithPerformance.url", "http://%(server)s/extensions-dummy/repositoryGetWithPerformanceURL");
 user_pref("extensions.getAddons.search.browseURL", "http://%(server)s/extensions-dummy/repositoryBrowseURL");
 user_pref("extensions.getAddons.search.url", "http://%(server)s/extensions-dummy/repositorySearchURL");
+
+// Make enablePrivilege continue to work for test code. :-(
+user_pref("security.enablePrivilege.enable_for_tests", true);
 """ % { "server" : self.webServer + ":" + str(self.httpPort) }
     prefs.append(part)
 
-    if useServerLocations == False:
-      part = """
-user_pref("capability.principal.codebase.p1.granted", "UniversalXPConnect");
-user_pref("capability.principal.codebase.p1.id", "%(origin)s");
-user_pref("capability.principal.codebase.p1.subjectName", "");
-"""  % { "origin": "http://" + self.webServer + ":" + str(self.httpPort) }
-      prefs.append(part)
-    else:
-      # Grant God-power to all the privileged servers on which tests run.
-      privileged = filter(lambda loc: "privileged" in loc.options, locations)
-      for (i, l) in itertools.izip(itertools.count(1), privileged):
-        part = """
-user_pref("capability.principal.codebase.p%(i)d.granted", "UniversalXPConnect");
-user_pref("capability.principal.codebase.p%(i)d.id", "%(origin)s");
-user_pref("capability.principal.codebase.p%(i)d.subjectName", "");
-"""  % { "i": i,
-         "origin": (l.scheme + "://" + l.host + ":" + str(l.port)) }
-        prefs.append(part)
-
+    if useServerLocations:
       # We need to proxy every server but the primary one.
       origins = ["'%s://%s:%s'" % (l.scheme, l.host, l.port)
                 for l in filter(lambda l: "primary" not in l.options, locations)]
@@ -449,6 +498,9 @@ user_pref("network.proxy.autoconfig_url", "%(pacURL)s");
 user_pref("camino.use_system_proxy_settings", false); // Camino-only, harmless to others
 """ % {"pacURL": pacURL}
       prefs.append(part)
+    else:
+      part = 'user_pref("network.proxy.type", 0);\n'
+      prefs.append(part)
 
     for v in extraPrefs:
       thispref = v.split("=", 1)
@@ -462,6 +514,40 @@ user_pref("camino.use_system_proxy_settings", false); // Camino-only, harmless t
     prefsFile = open(profileDir + "/" + "user.js", "a")
     prefsFile.write("".join(prefs))
     prefsFile.close()
+
+    apps = [
+      {
+        'name': 'http_example_org',
+        'origin': 'http://example.org',
+        'manifestURL': 'http://example.org/manifest.webapp',
+        'description': 'http://example.org App'
+      },
+      {
+        'name': 'https_example_com',
+        'origin': 'https://example.com',
+        'manifestURL': 'https://example.com/manifest.webapp',
+        'description': 'https://example.com App'
+      },
+      {
+        'name': 'http_test1_example_org',
+        'origin': 'http://test1.example.org',
+        'manifestURL': 'http://test1.example.org/manifest.webapp',
+        'description': 'http://test1.example.org App'
+      },
+      {
+        'name': 'http_test1_example_org_8000',
+        'origin': 'http://test1.example.org:8000',
+        'manifestURL': 'http://test1.example.org:8000/manifest.webapp',
+        'description': 'http://test1.example.org:8000 App'
+      },
+      {
+        'name': 'http_sub1_test1_example_org',
+        'origin': 'http://sub1.test1.example.org',
+        'manifestURL': 'http://sub1.test1.example.org/manifest.webapp',
+        'description': 'http://sub1.test1.example.org App'
+      },
+    ];
+    self.setupTestApps(profileDir, apps)
 
   def addCommonOptions(self, parser):
     "Adds command-line options which are common to mochitest and reftest."

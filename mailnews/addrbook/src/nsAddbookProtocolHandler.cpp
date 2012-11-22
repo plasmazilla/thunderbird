@@ -41,12 +41,12 @@ NS_IMETHODIMP nsAddbookProtocolHandler::GetScheme(nsACString &aScheme)
 	return NS_OK; 
 }
 
-NS_IMETHODIMP nsAddbookProtocolHandler::GetDefaultPort(PRInt32 *aDefaultPort)
+NS_IMETHODIMP nsAddbookProtocolHandler::GetDefaultPort(int32_t *aDefaultPort)
 {
   return NS_OK;
 }
 
-NS_IMETHODIMP nsAddbookProtocolHandler::GetProtocolFlags(PRUint32 *aUritype)
+NS_IMETHODIMP nsAddbookProtocolHandler::GetProtocolFlags(uint32_t *aUritype)
 {
   *aUritype = URI_STD | URI_LOADABLE_BY_ANYONE | URI_FORBIDS_COOKIE_ACCESS;
   return NS_OK;
@@ -72,7 +72,7 @@ NS_IMETHODIMP nsAddbookProtocolHandler::NewURI(const nsACString &aSpec,
 }
 
 NS_IMETHODIMP 
-nsAddbookProtocolHandler::AllowPort(PRInt32 port, const char *scheme, bool *_retval)
+nsAddbookProtocolHandler::AllowPort(int32_t port, const char *scheme, bool *_retval)
 {
     // don't override anything.  
     *_retval = false;
@@ -131,7 +131,7 @@ nsAddbookProtocolHandler::NewChannel(nsIURI *aURI, nsIChannel **_retval)
       nsCOMPtr<nsIAsyncOutputStream> pipeOut;
       nsCOMPtr<nsIPipe> pipe = do_CreateInstance("@mozilla.org/pipe;1");
       
-      rv = pipe->Init(false, false, 0, 0, nsnull);
+      rv = pipe->Init(false, false, 0, 0, nullptr);
       NS_ENSURE_SUCCESS(rv, rv);
 
       pipe->GetInputStream(getter_AddRefs(pipeIn));
@@ -186,7 +186,7 @@ nsAddbookProtocolHandler::GeneratePrintOutput(nsIAddbookUrl *addbookUrl,
    turn "moz-abmdbdirectory/abook.mab?action=print"
    into "moz-abmdbdirectory/abook.mab"
    */
-  PRInt32 pos = uri.Find("?action=print");
+  int32_t pos = uri.Find("?action=print");
 	if (pos == -1)
     return NS_ERROR_UNEXPECTED;
 
@@ -252,15 +252,15 @@ nsAddbookProtocolHandler::BuildDirectoryXML(nsIAbDirectory *aDirectory,
   nsString sortColumn;
   nsCOMPtr <nsIAbView> view = do_CreateInstance("@mozilla.org/addressbook/abview;1", &rv);
   
-  view->SetView(aDirectory, nsnull, NS_LITERAL_STRING("GeneratedName"),
+  view->SetView(aDirectory, nullptr, NS_LITERAL_STRING("GeneratedName"),
                 NS_LITERAL_STRING("ascending"), sortColumn);
 
-  PRInt32 numRows;
+  int32_t numRows;
   nsCOMPtr <nsITreeView> treeView = do_QueryInterface(view, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
   treeView->GetRowCount(&numRows);
   
-  for (PRInt32 row = 0; row < numRows; row++)
+  for (int32_t row = 0; row < numRows; row++)
   {
     
     nsCOMPtr <nsIAbCard> card;

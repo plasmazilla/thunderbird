@@ -9,11 +9,8 @@
 #include <string.h>
 
 #include "mozilla/CheckedInt.h"
+#include "mozilla/Constants.h"
 #include "mozilla/Util.h"
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 using namespace std;
 
@@ -333,7 +330,7 @@ AlphaBoxBlur::AlphaBoxBlur(const Rect& aRect,
                            const Rect* aSkipRect)
  : mSpreadRadius(aSpreadRadius),
    mBlurRadius(aBlurRadius),
-   mData(NULL)
+   mData(nullptr)
 {
   Rect rect(aRect);
   rect.Inflate(Size(aBlurRadius + aSpreadRadius));
@@ -351,7 +348,8 @@ AlphaBoxBlur::AlphaBoxBlur(const Rect& aRect,
     mHasDirtyRect = false;
   }
 
-  if (rect.IsEmpty()) {
+  mRect = IntRect(rect.x, rect.y, rect.width, rect.height);
+  if (mRect.IsEmpty()) {
     return;
   }
 
@@ -364,18 +362,14 @@ AlphaBoxBlur::AlphaBoxBlur(const Rect& aRect,
     skipRect.Deflate(Size(aBlurRadius + aSpreadRadius));
     mSkipRect = IntRect(skipRect.x, skipRect.y, skipRect.width, skipRect.height);
 
-    IntRect shadowIntRect(rect.x, rect.y, rect.width, rect.height);
-    mSkipRect.IntersectRect(mSkipRect, shadowIntRect);
-
-    if (mSkipRect.IsEqualInterior(shadowIntRect))
+    mSkipRect = mSkipRect.Intersect(mRect);
+    if (mSkipRect.IsEqualInterior(mRect))
       return;
 
-    mSkipRect -= shadowIntRect.TopLeft();
+    mSkipRect -= mRect.TopLeft();
   } else {
     mSkipRect = IntRect(0, 0, 0, 0);
   }
-
-  mRect = IntRect(rect.x, rect.y, rect.width, rect.height);
 
   CheckedInt<int32_t> stride = RoundUpToMultipleOf4(mRect.width);
   if (stride.isValid()) {
@@ -427,7 +421,7 @@ AlphaBoxBlur::GetDirtyRect()
     return &mDirtyRect;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 void

@@ -8,6 +8,7 @@
 #include <windows.h>
 #include <objbase.h>
 #include "nspr.h"
+#include "mozilla/StandardInteger.h"
 
 
 class CMapiFactory : public IClassFactory
@@ -30,7 +31,7 @@ public :
 
 private :
 
-    PRInt32 m_cRef;
+    int32_t m_cRef;
 };
 
 #endif  // MSG_MAPI_FACTORY_H

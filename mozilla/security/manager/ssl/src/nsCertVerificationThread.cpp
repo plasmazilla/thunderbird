@@ -42,8 +42,8 @@ void nsCertVerificationJob::Run()
   if (!mListener || !mCert)
     return;
 
-  PRUint32 verified;
-  PRUint32 count;
+  uint32_t verified;
+  uint32_t count;
   PRUnichar **usages;
 
   nsCOMPtr<nsICertVerificationResult> ires;
@@ -87,7 +87,7 @@ void nsSMimeVerificationJob::Run()
 }
 
 nsCertVerificationThread::nsCertVerificationThread()
-: mJobQ(nsnull)
+: mJobQ(nullptr)
 {
   NS_ASSERTION(!verification_thread_singleton, 
                "nsCertVerificationThread is a singleton, caller attempts"
@@ -98,7 +98,7 @@ nsCertVerificationThread::nsCertVerificationThread()
 
 nsCertVerificationThread::~nsCertVerificationThread()
 {
-  verification_thread_singleton = nsnull;
+  verification_thread_singleton = nullptr;
 }
 
 nsresult nsCertVerificationThread::addJob(nsBaseVerificationJob *aJob)
@@ -121,7 +121,7 @@ void nsCertVerificationThread::Run(void)
 {
   while (true) {
 
-    nsBaseVerificationJob *job = nsnull;
+    nsBaseVerificationJob *job = nullptr;
 
     {
       MutexAutoLock threadLock(verification_thread_singleton->mMutex);
@@ -159,7 +159,7 @@ void nsCertVerificationThread::Run(void)
 }
 
 nsCertVerificationResult::nsCertVerificationResult()
-: mRV(0),
+: mRV(NS_OK),
   mVerified(0),
   mCount(0),
   mUsages(0)
@@ -175,8 +175,8 @@ nsCertVerificationResult::~nsCertVerificationResult()
 }
 
 NS_IMETHODIMP
-nsCertVerificationResult::GetUsagesArrayResult(PRUint32 *aVerified,
-                                               PRUint32 *aCount,
+nsCertVerificationResult::GetUsagesArrayResult(uint32_t *aVerified,
+                                               uint32_t *aCount,
                                                PRUnichar ***aUsages)
 {
   if (NS_FAILED(mRV))

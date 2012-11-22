@@ -13,7 +13,6 @@
 #include "nsIURL.h"
 #include "nsCSSPseudoElements.h"
 #include "nsIStyleRule.h"
-#include "nsIFrame.h"
 #include "mozilla/css/StyleRule.h"
 #include "nsIStyleRuleProcessor.h"
 #include "nsPresContext.h"
@@ -28,7 +27,7 @@ using namespace mozilla::dom;
 namespace css = mozilla::css;
 
 nsHTMLCSSStyleSheet::nsHTMLCSSStyleSheet()
-  : mDocument(nsnull)
+  : mDocument(nullptr)
 {
 }
 
@@ -205,7 +204,7 @@ nsHTMLCSSStyleSheet::SetComplete()
 /* virtual */ nsIStyleSheet*
 nsHTMLCSSStyleSheet::GetParentSheet() const
 {
-  return nsnull;
+  return nullptr;
 }
 
 /* virtual */ nsIDocument*
@@ -222,10 +221,10 @@ nsHTMLCSSStyleSheet::SetOwningDocument(nsIDocument* aDocument)
 
 #ifdef DEBUG
 /* virtual */ void
-nsHTMLCSSStyleSheet::List(FILE* out, PRInt32 aIndent) const
+nsHTMLCSSStyleSheet::List(FILE* out, int32_t aIndent) const
 {
   // Indent
-  for (PRInt32 index = aIndent; --index >= 0; ) fputs("  ", out);
+  for (int32_t index = aIndent; --index >= 0; ) fputs("  ", out);
 
   fputs("HTML CSS Style Sheet: ", out);
   nsCAutoString urlSpec;

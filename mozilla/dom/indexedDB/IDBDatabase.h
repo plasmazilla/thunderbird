@@ -19,6 +19,12 @@
 class nsIScriptContext;
 class nsPIDOMWindow;
 
+namespace mozilla {
+namespace dom {
+class ContentParent;
+}
+}
+
 BEGIN_INDEXEDDB_NAMESPACE
 
 class AsyncConnectionHelper;
@@ -50,7 +56,8 @@ public:
   Create(IDBWrapperCache* aOwnerCache,
          already_AddRefed<DatabaseInfo> aDatabaseInfo,
          const nsACString& aASCIIOrigin,
-         FileManager* aFileManager);
+         FileManager* aFileManager,
+         mozilla::dom::ContentParent* aContentParent);
 
   // nsIDOMEventTarget
   virtual nsresult PostHandleEvent(nsEventChainPostVisitor& aVisitor);
@@ -78,7 +85,7 @@ public:
   already_AddRefed<nsIDocument> GetOwnerDocument()
   {
     if (!GetOwner()) {
-      return nsnull;
+      return nullptr;
     }
 
     nsCOMPtr<nsIDocument> doc =
@@ -135,6 +142,12 @@ public:
     return mActorChild;
   }
 
+  mozilla::dom::ContentParent*
+  GetContentParent() const
+  {
+    return mContentParent;
+  }
+
   nsresult
   CreateObjectStoreInternal(IDBTransaction* aTransaction,
                             const ObjectStoreInfoGuts& aInfo,
@@ -165,7 +178,9 @@ private:
   IndexedDBDatabaseChild* mActorChild;
   IndexedDBDatabaseParent* mActorParent;
 
-  PRInt32 mInvalidated;
+  mozilla::dom::ContentParent* mContentParent;
+
+  int32_t mInvalidated;
   bool mRegistered;
   bool mClosed;
   bool mRunningVersionChange;

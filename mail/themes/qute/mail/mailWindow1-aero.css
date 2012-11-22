@@ -4,6 +4,74 @@
 
 %include mailWindow1.css
 
+@media (-moz-windows-default-theme) {
+  #messengerWindow[tabsintitlebar][sizemode="maximized"] > #navigation-toolbox{
+    margin-top: -6px;
+  }
+}
+
+@media (-moz-windows-compositor) {
+  #messengerWindow[sizemode="normal"] > #titlebar {
+    -moz-appearance: -moz-window-titlebar;
+  }
+
+  #messengerWindow[sizemode="maximized"] > #titlebar {
+    -moz-appearance: -moz-window-titlebar-maximized;
+  }
+
+  #messengerWindow[sizemode="normal"] > #titlebar > #titlebar-content {
+    border-top-width: 0;
+  }
+
+  #messengerWindow[sizemode="normal"] #titlebar-buttonbox {
+    margin-top: 0;
+  }
+
+  #messengerWindow[sizemode="normal"] > #titlebar > #titlebar-content:-moz-lwtheme {
+    margin-bottom: -2px;
+    border-top: 2px solid;
+    -moz-border-top-colors: rgb(37, 44, 51) rgba(255, 255, 255, .6);
+  }
+
+  .titlebar-button {
+    display: none;
+  }
+
+  #titlebar-buttonbox {
+    -moz-appearance: -moz-window-button-box;
+  }
+
+  #messengerWindow[sizemode="maximized"] #titlebar-buttonbox {
+    -moz-appearance: -moz-window-button-box-maximized;
+    -moz-margin-end: 3px;
+  }
+
+  #messengerWindow:not(:-moz-lwtheme) {
+    -moz-appearance: -moz-win-borderless-glass;
+    background-color: transparent !important;
+  }
+}
+
+@media not all and (-moz-windows-compositor) {
+  @media (-moz-windows-default-theme) {
+    #messengerWindow:not(:-moz-lwtheme) {
+      background-color: rgb(185, 209, 234);
+    }
+    #messengerWindow:not(:-moz-lwtheme):-moz-window-inactive {
+      background-color: rgb(215, 228, 242);
+    }
+
+    #messengerWindow[sizemode="normal"] > #titlebar > #titlebar-content {
+      border-top-width: 2px;
+      -moz-border-top-colors: #4D4D4D #E9ECF3;
+    }
+
+    #messengerWindow[sizemode="normal"] #titlebar-buttonbox {
+      margin-top: -2px;
+    }
+  }
+}
+
 /* give the toolbox a min-height of 41px for Australis theme */
 .mail-toolbox:not([mode="full"]) > toolbar:only-of-type,
 .mail-toolbox[mode="full"][labelalign="end"] > toolbar:only-of-type {

@@ -221,7 +221,7 @@ LoginManagerPrompter.prototype = {
                 label:     rememberButtonText,
                 accessKey: rememberButtonAccessKey,
                 popup:     null,
-                callback: function(aNotificationBar, aButton) {
+                callback: function() {
                     pwmgr.addLogin(aLogin);
                 }
             },
@@ -231,7 +231,7 @@ LoginManagerPrompter.prototype = {
                 label:     neverButtonText,
                 accessKey: neverButtonAccessKey,
                 popup:     null,
-                callback: function(aNotificationBar, aButton) {
+                callback: function() {
                     pwmgr.setLoginSavingEnabled(aLogin.hostname, false);
                 }
             },
@@ -334,13 +334,15 @@ LoginManagerPrompter.prototype = {
      */
     _showChangeLoginNotification : function (aNativeWindow, aOldLogin, aNewPassword) {
         var notificationText;
-        if (aOldLogin.username)
+        if (aOldLogin.username) {
+            let displayUser = this._sanitizeUsername(aOldLogin.username);
             notificationText  = this._getLocalizedString(
                                           "passwordChangeText",
-                                          [aOldLogin.username]);
-        else
+                                          [displayUser]);
+        } else {
             notificationText  = this._getLocalizedString(
                                           "passwordChangeTextNoUser");
+        }
 
         var changeButtonText =
               this._getLocalizedString("notifyBarChangeButtonText");
@@ -362,7 +364,7 @@ LoginManagerPrompter.prototype = {
                 label:     changeButtonText,
                 accessKey: changeButtonAccessKey,
                 popup:     null,
-                callback:  function(aNotificationBar, aButton) {
+                callback:  function() {
                     self._updateLogin(aOldLogin, aNewPassword);
                 }
             },
@@ -372,7 +374,7 @@ LoginManagerPrompter.prototype = {
                 label:     dontChangeButtonText,
                 accessKey: dontChangeButtonAccessKey,
                 popup:     null,
-                callback:  function(aNotificationBar, aButton) {
+                callback:  function() {
                     // do nothing
                 }
             }
@@ -392,13 +394,15 @@ LoginManagerPrompter.prototype = {
         const buttonFlags = Ci.nsIPrompt.STD_YES_NO_BUTTONS;
 
         var dialogText;
-        if (aOldLogin.username)
+        if (aOldLogin.username) {
+            let displayUser = this._sanitizeUsername(aOldLogin.username);
             dialogText  = this._getLocalizedString(
                                     "passwordChangeText",
-                                    [aOldLogin.username]);
-        else
+                                    [displayUser]);
+        } else {
             dialogText  = this._getLocalizedString(
                                     "passwordChangeTextNoUser");
+        }
 
         var dialogTitle = this._getLocalizedString(
                                     "passwordChangeTitle");

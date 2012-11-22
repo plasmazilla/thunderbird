@@ -315,6 +315,7 @@ function isCalendarWritable(aCalendar) {
             !aCalendar.readOnly &&
             (!getIOService().offline ||
              aCalendar.getProperty("cache.enabled") ||
+             aCalendar.getProperty("cache.always") ||
              aCalendar.getProperty("requiresNetwork") === false));
 }
 
@@ -448,34 +449,6 @@ function now() {
     var d = createDateTime();
     d.jsDate = new Date();
     return d.getInTimezone(calendarDefaultTimezone());
-}
-
-/**
- * Returns a calIDateTime corresponding to a javascript Date.
- *
- * @param aDate     a javascript date
- * @param aTimezone (optional) a timezone that should be enforced
- * @returns         a calIDateTime
- *
- * @warning  Use of this function is strongly discouraged.  calIDateTime should
- *           be used directly whenever possible.
- *           If you pass a timezone, then the passed jsDate's timezone will be ignored,
- *           but only its local time portions are be taken.
- */
-function jsDateToDateTime(aDate, aTimezone) {
-    var newDate = createDateTime();
-    if (aTimezone) {
-        newDate.resetTo(aDate.getFullYear(),
-                        aDate.getMonth(),
-                        aDate.getDate(),
-                        aDate.getHours(),
-                        aDate.getMinutes(),
-                        aDate.getSeconds(),
-                        aTimezone);
-    } else {
-        newDate.jsDate = aDate;
-    }
-    return newDate;
 }
 
 /**
@@ -1298,12 +1271,14 @@ function getProgressAtom(aTask) {
 /**
  * Returns true if we are Sunbird (according to our UUID), false otherwise.
  */
-function isSunbird()
-{
+function isSunbird() {
     if (isSunbird.mIsSunbird === undefined) {
-        var appInfo = Components.classes["@mozilla.org/xre/app-info;1"]
-                                .getService(Components.interfaces.nsIXULAppInfo);
-        isSunbird.mIsSunbird = (appInfo.ID == "{718e30fb-e89b-41dd-9da7-e25a45638b28}");
+        try {
+            isSunbird.mIsSunbird = (Services.appinfo.ID == "{718e30fb-e89b-41dd-9da7-e25a45638b28}");
+        } catch (e) {
+            dump("### Warning: Could not access appinfo, using unreliable check for Lightning\n");
+            isSunbird.mIsSunbird = !("@mozilla.org/lightning/mime-converter;1" in Components.classes);
+        }
     }
     return isSunbird.mIsSunbird;
 }

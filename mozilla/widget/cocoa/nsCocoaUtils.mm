@@ -154,27 +154,27 @@ nsIWidget* nsCocoaUtils::GetHiddenWindowWidget()
   nsCOMPtr<nsIAppShellService> appShell(do_GetService(NS_APPSHELLSERVICE_CONTRACTID));
   if (!appShell) {
     NS_WARNING("Couldn't get AppShellService in order to get hidden window ref");
-    return nsnull;
+    return nullptr;
   }
   
   nsCOMPtr<nsIXULWindow> hiddenWindow;
   appShell->GetHiddenWindow(getter_AddRefs(hiddenWindow));
   if (!hiddenWindow) {
     // Don't warn, this happens during shutdown, bug 358607.
-    return nsnull;
+    return nullptr;
   }
   
   nsCOMPtr<nsIBaseWindow> baseHiddenWindow;
   baseHiddenWindow = do_GetInterface(hiddenWindow);
   if (!baseHiddenWindow) {
     NS_WARNING("Couldn't get nsIBaseWindow from hidden window (nsIXULWindow)");
-    return nsnull;
+    return nullptr;
   }
   
   nsCOMPtr<nsIWidget> hiddenWindowWidget;
   if (NS_FAILED(baseHiddenWindow->GetMainWidget(getter_AddRefs(hiddenWindowWidget)))) {
     NS_WARNING("Couldn't get nsIWidget from hidden window (nsIBaseWindow)");
-    return nsnull;
+    return nullptr;
   }
   
   return hiddenWindowWidget;
@@ -238,9 +238,9 @@ void nsCocoaUtils::CleanUpAfterNativeAppModalDialog()
 nsresult nsCocoaUtils::CreateCGImageFromSurface(gfxImageSurface *aFrame, CGImageRef *aResult)
 {
 
-  PRInt32 width = aFrame->Width();
-  PRInt32 stride = aFrame->Stride();
-  PRInt32 height = aFrame->Height();
+  int32_t width = aFrame->Width();
+  int32_t stride = aFrame->Stride();
+  int32_t height = aFrame->Height();
   if ((stride % 4 != 0) || (height < 1) || (width < 1)) {
     return NS_ERROR_FAILURE;
   }
@@ -273,8 +273,8 @@ nsresult nsCocoaUtils::CreateNSImageFromCGImage(CGImageRef aInputImage, NSImage 
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
-  PRInt32 width = ::CGImageGetWidth(aInputImage);
-  PRInt32 height = ::CGImageGetHeight(aInputImage);
+  int32_t width = ::CGImageGetWidth(aInputImage);
+  int32_t height = ::CGImageGetHeight(aInputImage);
   NSRect imageRect = ::NSMakeRect(0.0, 0.0, width, height);
 
   // Create a new image to receive the Quartz image data.
@@ -292,7 +292,7 @@ nsresult nsCocoaUtils::CreateNSImageFromCGImage(CGImageRef aInputImage, NSImage 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
 
-nsresult nsCocoaUtils::CreateNSImageFromImageContainer(imgIContainer *aImage, PRUint32 aWhichFrame, NSImage **aResult)
+nsresult nsCocoaUtils::CreateNSImageFromImageContainer(imgIContainer *aImage, uint32_t aWhichFrame, NSImage **aResult)
 {
   nsRefPtr<gfxImageSurface> frame;
   nsresult rv = aImage->CopyFrame(aWhichFrame,

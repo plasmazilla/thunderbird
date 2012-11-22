@@ -3,6 +3,9 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "MediaEngineWebRTC.h"
+#include "Layers.h"
+#include "ImageTypes.h"
+#include "ImageContainer.h"
 
 namespace mozilla {
 
@@ -47,14 +50,14 @@ MediaEngineWebRTCVideoSource::DeliverFrame(
   }
 
   // Create a video frame and append it to the track.
-  layers::Image::Format format = layers::Image::PLANAR_YCBCR;
+  ImageFormat format = PLANAR_YCBCR;
   nsRefPtr<layers::Image> image = mImageContainer->CreateImage(&format, 1);
 
   layers::PlanarYCbCrImage* videoImage = static_cast<layers::PlanarYCbCrImage*>(image.get());
 
-  PRUint8* frame = static_cast<PRUint8*> (buffer);
-  const PRUint8 lumaBpp = 8;
-  const PRUint8 chromaBpp = 4;
+  uint8_t* frame = static_cast<uint8_t*> (buffer);
+  const uint8_t lumaBpp = 8;
+  const uint8_t chromaBpp = 4;
 
   layers::PlanarYCbCrImage::Data data;
   data.mYChannel = frame;
@@ -67,7 +70,7 @@ MediaEngineWebRTCVideoSource::DeliverFrame(
   data.mPicX = 0;
   data.mPicY = 0;
   data.mPicSize = gfxIntSize(mWidth, mHeight);
-  data.mStereoMode = layers::STEREO_MODE_MONO;
+  data.mStereoMode = STEREO_MODE_MONO;
 
   videoImage->SetData(data);
 
@@ -219,7 +222,7 @@ MediaEngineWebRTCVideoSource::Stop()
 }
 
 nsresult
-MediaEngineWebRTCVideoSource::Snapshot(PRUint32 aDuration, nsIDOMFile** aFile)
+MediaEngineWebRTCVideoSource::Snapshot(uint32_t aDuration, nsIDOMFile** aFile)
 {
   /**
    * To get a Snapshot we do the following:
@@ -237,7 +240,7 @@ MediaEngineWebRTCVideoSource::Snapshot(PRUint32 aDuration, nsIDOMFile** aFile)
    * return from this function after cleaning up the temporary stream object
    * and caling Stop() on the media source.
    */
-  *aFile = nsnull;
+  *aFile = nullptr;
   if (!mInitDone || mState != kAllocated) {
     return NS_ERROR_FAILURE;
   }
@@ -287,8 +290,8 @@ MediaEngineWebRTCVideoSource::Snapshot(PRUint32 aDuration, nsIDOMFile** aFile)
     return NS_ERROR_FAILURE;
   }
 
-  const char* path = NS_ConvertUTF16toUTF8(*mSnapshotPath).get();
-  if (vieFile->GetCaptureDeviceSnapshot(mCapIndex, path) < 0) {
+  NS_ConvertUTF16toUTF8 path(*mSnapshotPath);
+  if (vieFile->GetCaptureDeviceSnapshot(mCapIndex, path.get()) < 0) {
     delete mSnapshotPath;
     mSnapshotPath = NULL;
     return NS_ERROR_FAILURE;

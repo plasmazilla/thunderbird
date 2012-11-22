@@ -287,7 +287,7 @@ const PRUnichar* const nsHTMLTags::sTagUnicodeTable[] = {
 // static array of tag atoms
 nsIAtom* nsHTMLTags::sTagAtomTable[eHTMLTag_userdefined - 1];
 
-PRInt32 nsHTMLTags::gTableRefCount;
+int32_t nsHTMLTags::gTableRefCount;
 PLHashTable* nsHTMLTags::gTagTable;
 PLHashTable* nsHTMLTags::gTagAtomTable;
 
@@ -299,7 +299,7 @@ HTMLTagsHashCodeUCPtr(const void *key)
   return HashString(static_cast<const PRUnichar*>(key));
 }
 
-static PRIntn
+static int
 HTMLTagsKeyCompareUCPtr(const void *key1, const void *key2)
 {
   const PRUnichar *str1 = (const PRUnichar *)key1;
@@ -350,19 +350,19 @@ nsHTMLTags::AddRefTable(void)
 
     gTagTable = PL_NewHashTable(64, HTMLTagsHashCodeUCPtr,
                                 HTMLTagsKeyCompareUCPtr, PL_CompareValues,
-                                nsnull, nsnull);
+                                nullptr, nullptr);
     NS_ENSURE_TRUE(gTagTable, NS_ERROR_OUT_OF_MEMORY);
 
     gTagAtomTable = PL_NewHashTable(64, HTMLTagsHashCodeAtom,
                                     PL_CompareValues, PL_CompareValues,
-                                    nsnull, nsnull);
+                                    nullptr, nullptr);
     NS_ENSURE_TRUE(gTagAtomTable, NS_ERROR_OUT_OF_MEMORY);
 
     // Fill in gTagTable with the above static PRUnichar strings as
     // keys and the value of the corresponding enum as the value in
     // the table.
 
-    PRInt32 i;
+    int32_t i;
     for (i = 0; i < NS_HTML_TAG_MAX; ++i) {
       PL_HashTableAdd(gTagTable, sTagUnicodeTable[i],
                       NS_INT32_TO_PTR(i + 1));
@@ -392,9 +392,9 @@ nsHTMLTags::AddRefTable(void)
       }
 
       // let's verify that NS_HTMLTAG_NAME_MAX_LENGTH is correct
-      PRUint32 maxTagNameLength = 0;
+      uint32_t maxTagNameLength = 0;
       for (i = 0; i < NS_HTML_TAG_MAX; ++i) {
-        PRUint32 len = NS_strlen(sTagUnicodeTable[i]);
+        uint32_t len = NS_strlen(sTagUnicodeTable[i]);
         maxTagNameLength = NS_MAX(len, maxTagNameLength);        
       }
       NS_ASSERTION(maxTagNameLength == NS_HTMLTAG_NAME_MAX_LENGTH,
@@ -416,8 +416,8 @@ nsHTMLTags::ReleaseTable(void)
 
       PL_HashTableDestroy(gTagTable);
       PL_HashTableDestroy(gTagAtomTable);
-      gTagTable = nsnull;
-      gTagAtomTable = nsnull;
+      gTagTable = nullptr;
+      gTagAtomTable = nullptr;
     }
   }
 }
@@ -426,7 +426,7 @@ nsHTMLTags::ReleaseTable(void)
 nsHTMLTag
 nsHTMLTags::LookupTag(const nsAString& aTagName)
 {
-  PRUint32 length = aTagName.Length();
+  uint32_t length = aTagName.Length();
 
   if (length > NS_HTMLTAG_NAME_MAX_LENGTH) {
     return eHTMLTag_userdefined;
@@ -435,7 +435,7 @@ nsHTMLTags::LookupTag(const nsAString& aTagName)
   PRUnichar buf[NS_HTMLTAG_NAME_MAX_LENGTH + 1];
 
   nsAString::const_iterator iter;
-  PRUint32 i = 0;
+  uint32_t i = 0;
   PRUnichar c;
 
   aTagName.BeginReading(iter);

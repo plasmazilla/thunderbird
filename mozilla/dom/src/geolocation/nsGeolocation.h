@@ -73,7 +73,7 @@ class nsGeolocationRequest
 
  private:
 
-  void NotifyError(PRInt16 errorCode);
+  void NotifyError(int16_t errorCode);
   bool mAllowed;
   bool mCleared;
   bool mIsWatchPositionRequest;
@@ -106,6 +106,8 @@ public:
   }
 
   nsresult Init();
+
+  void HandleMozsettingChanged(const PRUnichar* aData);
 
   // Management of the nsGeolocation objects
   void AddLocator(nsGeolocation* locator);
@@ -165,7 +167,7 @@ public:
 
   nsGeolocation();
 
-  nsresult Init(nsIDOMWindow* contentDom=nsnull);
+  nsresult Init(nsIDOMWindow* contentDom=nullptr);
 
   // Called by the geolocation device to notify that a location has changed.
   void Update(nsIDOMGeoPosition* aPosition);
@@ -179,8 +181,8 @@ public:
   // Shutting down.
   void Shutdown();
 
-  // Getter for the URI that this nsGeolocation was loaded from
-  nsIURI* GetURI() { return mURI; }
+  // Getter for the principal that this nsGeolocation was loaded from
+  nsIPrincipal* GetPrincipal() { return mPrincipal; }
 
   // Getter for the window that this nsGeolocation is owned by
   nsIWeakReference* GetOwner() { return mOwner; }
@@ -206,7 +208,7 @@ private:
   nsWeakPtr mOwner;
 
   // where the content was loaded from
-  nsCOMPtr<nsIURI> mURI;
+  nsCOMPtr<nsIPrincipal> mPrincipal;
 
   // owning back pointer.
   nsRefPtr<nsGeolocationService> mService;

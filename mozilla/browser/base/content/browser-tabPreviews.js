@@ -55,10 +55,12 @@ var tabPreviews = {
     ctx.drawWindow(win, win.scrollX, win.scrollY,
                    snippetWidth, snippetWidth * this.aspectRatio, "rgb(255,255,255)");
 
-    if (aStore) {
+    if (aStore &&
+        aTab.linkedBrowser /* bug 795608: the tab may got removed while drawing the thumbnail */) {
       aTab.__thumbnail = thumbnail;
       aTab.__thumbnail_lastURI = aTab.linkedBrowser.currentURI.spec;
     }
+
     return thumbnail;
   },
   handleEvent: function tabPreviews_handleEvent(event) {
@@ -189,9 +191,14 @@ var ctrlTab = {
     list = list.filter(function (tab) !tab.closing);
 
     if (this.recentlyUsedLimit != 0) {
-      let recentlyUsedTabs = this._recentlyUsedTabs;
-      if (this.recentlyUsedLimit > 0)
-        recentlyUsedTabs = this._recentlyUsedTabs.slice(0, this.recentlyUsedLimit);
+      let recentlyUsedTabs = [];
+      for (let tab of this._recentlyUsedTabs) {
+        if (!tab.hidden && !tab.closing) {
+          recentlyUsedTabs.push(tab);
+          if (this.recentlyUsedLimit > 0 && recentlyUsedTabs.length >= this.recentlyUsedLimit)
+            break;
+        }
+      }
       for (let i = recentlyUsedTabs.length - 1; i >= 0; i--) {
         list.splice(list.indexOf(recentlyUsedTabs[i]), 1);
         list.unshift(recentlyUsedTabs[i]);

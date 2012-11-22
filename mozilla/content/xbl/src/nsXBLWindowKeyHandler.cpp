@@ -10,7 +10,6 @@
 #include "nsIAtom.h"
 #include "nsIDOMKeyEvent.h"
 #include "nsIDOMEventTarget.h"
-#include "nsIDOMNSEvent.h"
 #include "nsXBLService.h"
 #include "nsIServiceManager.h"
 #include "nsGkAtoms.h"
@@ -35,7 +34,7 @@
 
 using namespace mozilla;
 
-static nsINativeKeyBindings *sNativeEditorBindings = nsnull;
+static nsINativeKeyBindings *sNativeEditorBindings = nullptr;
 
 class nsXBLSpecialDocInfo
 {
@@ -79,9 +78,9 @@ void nsXBLSpecialDocInfo::LoadDocInfo()
   if (!bindingURI) {
     return;
   }
-  xblService->LoadBindingDocumentInfo(nsnull, nsnull,
+  xblService->LoadBindingDocumentInfo(nullptr, nullptr,
                                       bindingURI,
-                                      nsnull,
+                                      nullptr,
                                       true, 
                                       getter_AddRefs(mHTMLBindings));
 
@@ -93,9 +92,9 @@ void nsXBLSpecialDocInfo::LoadDocInfo()
       return;
     }
 
-    xblService->LoadBindingDocumentInfo(nsnull, nsnull,
+    xblService->LoadBindingDocumentInfo(nullptr, nullptr,
                                         bindingURI,
-                                        nsnull,
+                                        nullptr,
                                         true, 
                                         getter_AddRefs(mUserHTMLBindings));
   }
@@ -135,14 +134,14 @@ nsXBLSpecialDocInfo::GetAllHandlers(const char* aType,
 }
 
 // Init statics
-nsXBLSpecialDocInfo* nsXBLWindowKeyHandler::sXBLSpecialDocInfo = nsnull;
-PRUint32 nsXBLWindowKeyHandler::sRefCnt = 0;
+nsXBLSpecialDocInfo* nsXBLWindowKeyHandler::sXBLSpecialDocInfo = nullptr;
+uint32_t nsXBLWindowKeyHandler::sRefCnt = 0;
 
 nsXBLWindowKeyHandler::nsXBLWindowKeyHandler(nsIDOMElement* aElement,
                                              nsIDOMEventTarget* aTarget)
   : mTarget(aTarget),
-    mHandler(nsnull),
-    mUserHandler(nsnull)
+    mHandler(nullptr),
+    mUserHandler(nullptr)
 {
   mWeakPtrForElement = do_GetWeakReference(aElement);
   ++sRefCnt;
@@ -157,7 +156,7 @@ nsXBLWindowKeyHandler::~nsXBLWindowKeyHandler()
   --sRefCnt;
   if (!sRefCnt) {
     delete sXBLSpecialDocInfo;
-    sXBLSpecialDocInfo = nsnull;
+    sXBLSpecialDocInfo = nullptr;
   }
 }
 
@@ -167,7 +166,7 @@ NS_IMPL_ISUPPORTS1(nsXBLWindowKeyHandler,
 static void
 BuildHandlerChain(nsIContent* aContent, nsXBLPrototypeHandler** aResult)
 {
-  *aResult = nsnull;
+  *aResult = nullptr;
 
   // Since we chain each handler onto the next handler,
   // we'll enumerate them here in reverse so that when we
@@ -280,17 +279,14 @@ DoCommandCallback(const char *aCommand, void *aData)
 nsresult
 nsXBLWindowKeyHandler::WalkHandlers(nsIDOMKeyEvent* aKeyEvent, nsIAtom* aEventType)
 {
-  nsCOMPtr<nsIDOMNSEvent> domNSEvent = do_QueryInterface(aKeyEvent);
   bool prevent;
-  domNSEvent->GetPreventDefault(&prevent);
+  aKeyEvent->GetPreventDefault(&prevent);
   if (prevent)
     return NS_OK;
 
   bool trustedEvent = false;
-  if (domNSEvent) {
-    //Don't process the event if it was not dispatched from a trusted source
-    domNSEvent->GetIsTrusted(&trustedEvent);
-  }
+  // Don't process the event if it was not dispatched from a trusted source
+  aKeyEvent->GetIsTrusted(&trustedEvent);
 
   if (!trustedEvent)
     return NS_OK;
@@ -303,7 +299,7 @@ nsXBLWindowKeyHandler::WalkHandlers(nsIDOMKeyEvent* aKeyEvent, nsIAtom* aEventTy
   if (!el) {
     if (mUserHandler) {
       WalkHandlersInternal(aKeyEvent, aEventType, mUserHandler);
-      domNSEvent->GetPreventDefault(&prevent);
+      aKeyEvent->GetPreventDefault(&prevent);
       if (prevent)
         return NS_OK; // Handled by the user bindings. Our work here is done.
     }
@@ -374,7 +370,7 @@ bool
 nsXBLWindowKeyHandler::EventMatched(nsXBLPrototypeHandler* inHandler,
                                     nsIAtom* inEventType,
                                     nsIDOMKeyEvent* inEvent,
-                                    PRUint32 aCharCode, bool aIgnoreShiftKey)
+                                    uint32_t aCharCode, bool aIgnoreShiftKey)
 {
   return inHandler->KeyEventMatched(inEventType, inEvent, aCharCode,
                                     aIgnoreShiftKey);
@@ -439,7 +435,7 @@ nsXBLWindowKeyHandler::WalkHandlersInternal(nsIDOMKeyEvent* aKeyEvent,
     return NS_OK;
   }
 
-  for (PRUint32 i = 0; i < accessKeys.Length(); ++i) {
+  for (uint32_t i = 0; i < accessKeys.Length(); ++i) {
     nsShortcutCandidate &key = accessKeys[i];
     if (WalkHandlersAndExecute(aKeyEvent, aEventType, aHandler,
                                key.mCharCode, key.mIgnoreShift))
@@ -452,7 +448,7 @@ bool
 nsXBLWindowKeyHandler::WalkHandlersAndExecute(nsIDOMKeyEvent* aKeyEvent,
                                               nsIAtom* aEventType,
                                               nsXBLPrototypeHandler* aHandler,
-                                              PRUint32 aCharCode,
+                                              uint32_t aCharCode,
                                               bool aIgnoreShiftKey)
 {
   nsresult rv;
@@ -463,7 +459,7 @@ nsXBLWindowKeyHandler::WalkHandlersAndExecute(nsIDOMKeyEvent* aKeyEvent,
     bool stopped = aKeyEvent->IsDispatchStopped();
     if (stopped) {
       // The event is finished, don't execute any more handlers
-      return NS_OK;
+      return false;
     }
 
     if (!EventMatched(currHandler, aEventType, aKeyEvent,
@@ -536,7 +532,7 @@ already_AddRefed<nsIDOMElement>
 nsXBLWindowKeyHandler::GetElement()
 {
   nsCOMPtr<nsIDOMElement> element = do_QueryReferent(mWeakPtrForElement);
-  nsIDOMElement* el = nsnull;
+  nsIDOMElement* el = nullptr;
   element.swap(el);
   return el;
 }

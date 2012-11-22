@@ -72,7 +72,7 @@ public:
 
   static XMLHttpRequest*
   Constructor(JSContext* aCx, JSObject* aGlobal,
-              const Nullable<MozXMLHttpRequestParametersWorkers>& aParams,
+              const MozXMLHttpRequestParametersWorkers& aParams,
               ErrorResult& aRv);
 
   static XMLHttpRequest*
@@ -80,8 +80,11 @@ public:
               const nsAString& ignored, ErrorResult& aRv)
   {
     // Pretend like someone passed null, so we can pick up the default values
-    Nullable<MozXMLHttpRequestParametersWorkers> params;
-    params.SetNull();
+    MozXMLHttpRequestParametersWorkers params;
+    if (!params.Init(aCx, JS::NullValue())) {
+      aRv.Throw(NS_ERROR_UNEXPECTED);
+      return nullptr;
+    }
 
     return Constructor(aCx, aGlobal, params, aRv);
   }
@@ -108,18 +111,6 @@ public:
   IMPL_GETTER_AND_SETTER(readystatechange)
 
 #undef IMPL_GETTER_AND_SETTER
-
-  JSObject*
-  GetOnuploadprogress(JSContext* /* unused */, ErrorResult& aRv)
-  {
-    aRv = NS_ERROR_NOT_IMPLEMENTED;
-    return NULL;
-  }
-  void
-  SetOnuploadprogress(JSContext* /* unused */, JSObject* aListener, ErrorResult& aRv)
-  {
-    aRv = NS_ERROR_NOT_IMPLEMENTED;
-  }
 
   uint16_t
   GetReadyState() const
@@ -186,7 +177,7 @@ public:
 
   void
   Send(ArrayBuffer& aBody, ErrorResult& aRv) {
-    return Send(aBody.mObj, aRv);
+    return Send(aBody.Obj(), aRv);
   }
 
   void

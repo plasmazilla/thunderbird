@@ -169,12 +169,6 @@ public:
   void NotifyOfAnchorJumpTo(nsIContent *aTarget);
 
   /**
-   * Notify the accessibility service that the given presshell is
-   * being destroyed.
-   */
-  void PresShellDestroyed(nsIPresShell* aPresShell);
-
-  /**
    * Notify that presshell is activated.
    */
   virtual void PresShellActivated(nsIPresShell* aPresShell);
@@ -184,7 +178,7 @@ public:
    */
   void RecreateAccessible(nsIPresShell* aPresShell, nsIContent* aContent);
 
-  virtual void FireAccessibleEvent(PRUint32 aEvent, Accessible* aTarget);
+  virtual void FireAccessibleEvent(uint32_t aEvent, Accessible* aTarget);
 
   // nsAccessibiltiyService
 
@@ -203,7 +197,7 @@ public:
    *                             frame and its subtree is hidden
    */
   Accessible* GetOrCreateAccessible(nsINode* aNode, DocAccessible* aDoc,
-                                    bool* aIsSubtreeHidden = nsnull);
+                                    bool* aIsSubtreeHidden = nullptr);
 
 private:
   // nsAccessibilityService creation is controlled by friend

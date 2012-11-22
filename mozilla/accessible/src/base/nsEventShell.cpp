@@ -28,11 +28,11 @@ nsEventShell::FireEvent(AccEvent* aEvent)
 
   accessible->HandleAccEvent(aEvent);
 
-  sEventTargetNode = nsnull;
+  sEventTargetNode = nullptr;
 }
 
 void
-nsEventShell::FireEvent(PRUint32 aEventType, Accessible* aAccessible,
+nsEventShell::FireEvent(uint32_t aEventType, Accessible* aAccessible,
                         EIsFromUserInput aIsFromUserInput)
 {
   NS_ENSURE_TRUE(aAccessible,);

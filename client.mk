@@ -74,7 +74,7 @@ PYTHON ?= python
 
 CONFIG_GUESS_SCRIPT := $(wildcard $(TOPSRCDIR)/build/autoconf/config.guess)
 ifdef CONFIG_GUESS_SCRIPT
-  CONFIG_GUESS = $(shell $(CONFIG_GUESS_SCRIPT))
+  CONFIG_GUESS := $(shell $(CONFIG_GUESS_SCRIPT))
 endif
 
 
@@ -96,8 +96,6 @@ endif
 # See build pages, http://www.mozilla.org/build/ for how to set up mozconfig.
 
 MOZCONFIG_LOADER := build/autoconf/mozconfig2client-mk
-MOZCONFIG_FINDER := build/autoconf/mozconfig-find
-MOZCONFIG_MODULES := build/unix/uniq.pl
 
 define CR
 
@@ -312,8 +310,7 @@ endif
 
 ifneq (,$(CONFIG_STATUS))
 $(OBJDIR)/config/autoconf.mk: $(TOPSRCDIR)/config/autoconf.mk.in
-	cd $(OBJDIR); \
-	  CONFIG_FILES=config/autoconf.mk ./config.status
+	$(PYTHON) $(OBJDIR)/config.status -n --file=$(OBJDIR)/config/autoconf.mk
 endif
 
 

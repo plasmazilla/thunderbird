@@ -16,6 +16,7 @@ Cu.import('resource://gre/modules/Services.jsm');
 Cu.import('resource://gre/modules/accessibility/Utils.jsm');
 Cu.import('resource://gre/modules/accessibility/Presenters.jsm');
 Cu.import('resource://gre/modules/accessibility/VirtualCursorController.jsm');
+Cu.import('resource://gre/modules/accessibility/TouchAdapter.jsm');
 
 const ACCESSFU_DISABLE = 0;
 const ACCESSFU_ENABLE = 1;
@@ -44,8 +45,27 @@ var AccessFu = {
     this.prefsBranch.addObserver('activate', this, false);
     this.prefsBranch.addObserver('explorebytouch', this, false);
 
-    if (Utils.OS == 'Android')
-      Services.obs.addObserver(this, 'Accessibility:Settings', false);
+    this.touchAdapter = TouchAdapter;
+
+    switch(Utils.MozBuildApp) {
+      case 'mobile/android':
+        Services.obs.addObserver(this, 'Accessibility:Settings', false);
+        Services.obs.addObserver(this, 'Accessibility:NextObject', false);
+        Services.obs.addObserver(this, 'Accessibility:PreviousObject', false);
+        Services.obs.addObserver(this, 'Accessibility:CurrentObject', false);
+        this.touchAdapter = AndroidTouchAdapter;
+        break;
+      case 'b2g':
+        aWindow.addEventListener(
+          'ContentStart',
+          (function(event) {
+             let content = aWindow.shell.contentBrowser.contentWindow;
+             content.addEventListener('mozContentEvent', this, false, true);
+           }).bind(this), false);
+        break;
+      default:
+        break;
+    }
 
     this._processPreferences();
   },
@@ -60,11 +80,22 @@ var AccessFu = {
     this._enabled = true;
 
     Logger.info('enable');
+
+    // Add stylesheet
+    let stylesheetURL = 'chrome://global/content/accessibility/AccessFu.css';
+    this.stylesheet = this.chromeWin.document.createProcessingInstruction(
+      'xml-stylesheet', 'href="' + stylesheetURL + '" type="text/css"');
+    this.chromeWin.document.insertBefore(this.stylesheet, this.chromeWin.document.firstChild);
+
     this.addPresenter(new VisualPresenter());
 
     // Implicitly add the Android presenter on Android.
-    if (Utils.OS == 'Android')
-      this.addPresenter(new AndroidPresenter());
+    if (Utils.MozBuildApp == 'mobile/android') {
+      this._androidPresenter = new AndroidPresenter();
+      this.addPresenter(this._androidPresenter);
+    } else if (Utils.MozBuildApp == 'b2g') {
+      this.addPresenter(new SpeechPresenter());
+    }
 
     VirtualCursorController.attach(this.chromeWin);
 
@@ -85,6 +116,8 @@ var AccessFu = {
     this._enabled = false;
 
     Logger.info('disable');
+
+    this.chromeWin.document.removeChild(this.stylesheet);
 
     this.presenters.forEach(function(p) { p.detach(); });
     this.presenters = [];
@@ -114,7 +147,7 @@ var AccessFu = {
     } catch (x) {
     }
 
-    if (Utils.OS == 'Android') {
+    if (Utils.MozBuildApp == 'mobile/android') {
       if (accessPref == ACCESSFU_AUTO) {
         Cc['@mozilla.org/android/bridge;1'].
           getService(Ci.nsIAndroidBridge).handleGeckoMessage(
@@ -128,8 +161,10 @@ var AccessFu = {
     else
       this._disable();
 
-    VirtualCursorController.exploreByTouch = ebtPref == ACCESSFU_ENABLE;
-    Logger.info('Explore by touch:', VirtualCursorController.exploreByTouch);
+    if (ebtPref == ACCESSFU_ENABLE)
+      this.touchAdapter.attach(this.chromeWin);
+    else
+      this.touchAdapter.detach(this.chromeWin);
   },
 
   addPresenter: function addPresenter(presenter) {
@@ -190,16 +225,33 @@ var AccessFu = {
         this.presenters.forEach(function(p) { p.viewportChanged(); });
         break;
       }
+      case 'mozContentEvent':
+      {
+        if (aEvent.detail.type == 'accessibility-screenreader') {
+          let pref = aEvent.detail.enabled + 0;
+          this._processPreferences(pref, pref);
+        }
+        break;
+      }
     }
   },
 
   observe: function observe(aSubject, aTopic, aData) {
     switch (aTopic) {
       case 'Accessibility:Settings':
-        this._processPreferences(
-          JSON.parse(aData).enabled + 0,
-          (Utils.AndroidSdkVersion < 16) ?
-            JSON.parse(aData).exploreByTouch + 0 : false);
+        this._processPreferences(JSON.parse(aData).enabled + 0,
+                                 JSON.parse(aData).exploreByTouch + 0);
+        break;
+      case 'Accessibility:NextObject':
+        VirtualCursorController.
+          moveForward(Utils.getCurrentContentDoc(this.chromeWin));
+        break;
+      case 'Accessibility:PreviousObject':
+        VirtualCursorController.
+          moveBackward(Utils.getCurrentContentDoc(this.chromeWin));
+        break;
+      case 'Accessibility:CurrentObject':
+        this._androidPresenter.accessibilityFocus();
         break;
       case 'nsPref:changed':
         this._processPreferences(this.prefsBranch.getIntPref('activate'),
@@ -357,7 +409,8 @@ var AccessFu = {
       }
       case Ci.nsIAccessibleEvent.EVENT_SCROLLING_START:
       {
-        VirtualCursorController.moveCursorToObject(aEvent.accessible);
+        VirtualCursorController.moveCursorToObject(
+          Utils.getVirtualCursor(aEvent.accessibleDocument), aEvent.accessible);
         break;
       }
       case Ci.nsIAccessibleEvent.EVENT_FOCUS:
@@ -366,7 +419,8 @@ var AccessFu = {
         let doc = aEvent.accessibleDocument;
         if (acc.role != Ci.nsIAccessibleRole.ROLE_DOCUMENT &&
             doc.role != Ci.nsIAccessibleRole.ROLE_CHROME_WINDOW)
-          VirtualCursorController.moveCursorToObject(acc);
+          VirtualCursorController.moveCursorToObject(
+            Utils.getVirtualCursor(doc), acc);
 
         let [,extState] = Utils.getStates(acc);
         let editableState = extState &

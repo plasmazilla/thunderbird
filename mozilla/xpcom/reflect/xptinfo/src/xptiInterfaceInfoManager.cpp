@@ -21,7 +21,7 @@ NS_IMPL_THREADSAFE_ISUPPORTS2(xptiInterfaceInfoManager,
                               nsIInterfaceInfoManager,
                               nsIInterfaceInfoSuperManager)
 
-static xptiInterfaceInfoManager* gInterfaceInfoManager = nsnull;
+static xptiInterfaceInfoManager* gInterfaceInfoManager = nullptr;
 #ifdef DEBUG
 static int gCallCount = 0;
 #endif
@@ -42,7 +42,7 @@ xptiInterfaceInfoManager::SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf)
 }
 
 // static
-PRInt64
+int64_t
 xptiInterfaceInfoManager::GetXPTIWorkingSetSize()
 {
     size_t n = XPT_SizeOfArena(gXPTIStructArena, XPTMallocSizeOf);
@@ -94,14 +94,14 @@ xptiInterfaceInfoManager::~xptiInterfaceInfoManager()
     // We only do this on shutdown of the service.
     mWorkingSet.InvalidateInterfaceInfos();
 
-    gInterfaceInfoManager = nsnull;
+    gInterfaceInfoManager = nullptr;
 #ifdef DEBUG
     gCallCount = 0;
 #endif
 }
 
 void
-xptiInterfaceInfoManager::RegisterBuffer(char *buf, PRUint32 length)
+xptiInterfaceInfoManager::RegisterBuffer(char *buf, uint32_t length)
 {
     XPTState *state = XPT_NewXDRState(XPT_DECODE, buf, length);
     if (!state)
@@ -113,7 +113,7 @@ xptiInterfaceInfoManager::RegisterBuffer(char *buf, PRUint32 length)
         return;
     }
 
-    XPTHeader *header = nsnull;
+    XPTHeader *header = nullptr;
     if (XPT_DoHeader(gXPTIStructArena, &cursor, &header)) {
         RegisterXPTHeader(header);
     }
@@ -132,13 +132,13 @@ xptiInterfaceInfoManager::RegisterXPTHeader(XPTHeader* aHeader)
     xptiTypelibGuts* typelib = xptiTypelibGuts::Create(aHeader);
 
     ReentrantMonitorAutoEnter monitor(mWorkingSet.mTableReentrantMonitor);
-    for(PRUint16 k = 0; k < aHeader->num_interfaces; k++)
+    for(uint16_t k = 0; k < aHeader->num_interfaces; k++)
         VerifyAndAddEntryIfNew(aHeader->interface_directory + k, k, typelib);
 }
 
 void
 xptiInterfaceInfoManager::VerifyAndAddEntryIfNew(XPTInterfaceDirectoryEntry* iface,
-                                                 PRUint16 idx,
+                                                 uint16_t idx,
                                                  xptiTypelibGuts* typelib)
 {
     if (!iface->interface_descriptor)
@@ -191,7 +191,7 @@ EntryToInfo(xptiInterfaceEntry* entry, nsIInterfaceInfo **_retval)
     nsresult rv;
 
     if (!entry) {
-        *_retval = nsnull;
+        *_retval = nullptr;
         return NS_ERROR_FAILURE;    
     }
 
@@ -242,7 +242,7 @@ NS_IMETHODIMP xptiInterfaceInfoManager::GetIIDForName(const char *name, nsIID * 
     ReentrantMonitorAutoEnter monitor(mWorkingSet.mTableReentrantMonitor);
     xptiInterfaceEntry* entry = mWorkingSet.mNameTable.Get(name);
     if (!entry) {
-        *_retval = nsnull;
+        *_retval = nullptr;
         return NS_ERROR_FAILURE;    
     }
 
@@ -258,7 +258,7 @@ NS_IMETHODIMP xptiInterfaceInfoManager::GetNameForIID(const nsIID * iid, char **
     ReentrantMonitorAutoEnter monitor(mWorkingSet.mTableReentrantMonitor);
     xptiInterfaceEntry* entry = mWorkingSet.mIIDTable.Get(*iid);
     if (!entry) {
-        *_retval = nsnull;
+        *_retval = nullptr;
         return NS_ERROR_FAILURE;    
     }
 
@@ -299,7 +299,7 @@ struct ArrayAndPrefix
 {
     nsISupportsArray* array;
     const char*       prefix;
-    PRUint32          length;
+    uint32_t          length;
 };
 
 static PLDHashOperator
@@ -388,7 +388,7 @@ NS_IMETHODIMP xptiInterfaceInfoManager::EnumerateAdditionalManagers(nsISimpleEnu
 
     nsCOMArray<nsISupports> managerArray(mAdditionalManagers);
     /* Resolve all the weak references in the array. */
-    for(PRInt32 i = managerArray.Count(); i--; ) {
+    for(int32_t i = managerArray.Count(); i--; ) {
         nsISupports *raw = managerArray.ObjectAt(i);
         if (!raw)
             return NS_ERROR_FAILURE;

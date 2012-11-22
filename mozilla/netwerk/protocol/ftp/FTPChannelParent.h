@@ -12,6 +12,7 @@
 #include "mozilla/net/NeckoCommon.h"
 #include "nsIParentChannel.h"
 #include "nsIInterfaceRequestor.h"
+#include "nsILoadContext.h"
 
 class nsFtpChannel;
 
@@ -33,20 +34,23 @@ public:
   virtual ~FTPChannelParent();
 
 protected:
-  NS_OVERRIDE virtual bool RecvAsyncOpen(const IPC::URI& uri,
-                                         const PRUint64& startPos,
-                                         const nsCString& entityID,
-                                         const IPC::InputStream& uploadStream);
-  NS_OVERRIDE virtual bool RecvConnectChannel(const PRUint32& channelId);
-  NS_OVERRIDE virtual bool RecvCancel(const nsresult& status);
-  NS_OVERRIDE virtual bool RecvSuspend();
-  NS_OVERRIDE virtual bool RecvResume();
+  virtual bool RecvAsyncOpen(const URIParams& uri,
+                             const uint64_t& startPos,
+                             const nsCString& entityID,
+                             const OptionalInputStreamParams& uploadStream,
+                             const IPC::SerializedLoadContext& loadContext) MOZ_OVERRIDE;
+  virtual bool RecvConnectChannel(const uint32_t& channelId) MOZ_OVERRIDE;
+  virtual bool RecvCancel(const nsresult& status) MOZ_OVERRIDE;
+  virtual bool RecvSuspend() MOZ_OVERRIDE;
+  virtual bool RecvResume() MOZ_OVERRIDE;
 
-  NS_OVERRIDE virtual void ActorDestroy(ActorDestroyReason why);
+  virtual void ActorDestroy(ActorDestroyReason why) MOZ_OVERRIDE;
 
   nsRefPtr<nsFtpChannel> mChannel;
 
   bool mIPCClosed;
+
+  nsCOMPtr<nsILoadContext> mLoadContext;
 };
 
 } // namespace net

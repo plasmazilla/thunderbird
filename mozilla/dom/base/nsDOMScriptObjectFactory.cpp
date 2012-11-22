@@ -37,7 +37,7 @@
 
 static NS_DEFINE_CID(kDOMScriptObjectFactoryCID, NS_DOM_SCRIPT_OBJECT_FACTORY_CID);
 
-nsIExceptionProvider* gExceptionProvider = nsnull;
+nsIExceptionProvider* gExceptionProvider = nullptr;
 
 nsDOMScriptObjectFactory::nsDOMScriptObjectFactory()
 {
@@ -86,20 +86,20 @@ NS_IMETHODIMP_(nsISupports *)
 nsDOMScriptObjectFactory::GetExternalClassInfoInstance(const nsAString& aName)
 {
   nsScriptNameSpaceManager *nameSpaceManager = nsJSRuntime::GetNameSpaceManager();
-  NS_ENSURE_TRUE(nameSpaceManager, nsnull);
+  NS_ENSURE_TRUE(nameSpaceManager, nullptr);
 
   const nsGlobalNameStruct *globalStruct = nameSpaceManager->LookupName(aName);
   if (globalStruct) {
     if (globalStruct->mType == nsGlobalNameStruct::eTypeExternalClassInfoCreator) {
       nsresult rv;
       nsCOMPtr<nsIDOMCIExtension> creator(do_CreateInstance(globalStruct->mCID, &rv));
-      NS_ENSURE_SUCCESS(rv, nsnull);
+      NS_ENSURE_SUCCESS(rv, nullptr);
 
       rv = creator->RegisterDOMCI(NS_ConvertUTF16toUTF8(aName).get(), this);
-      NS_ENSURE_SUCCESS(rv, nsnull);
+      NS_ENSURE_SUCCESS(rv, nullptr);
 
       globalStruct = nameSpaceManager->LookupName(aName);
-      NS_ENSURE_TRUE(globalStruct, nsnull);
+      NS_ENSURE_TRUE(globalStruct, nullptr);
 
       NS_ASSERTION(globalStruct->mType == nsGlobalNameStruct::eTypeExternalClassInfo,
                    "The classinfo data for this class didn't get registered.");
@@ -108,7 +108,7 @@ nsDOMScriptObjectFactory::GetExternalClassInfoInstance(const nsAString& aName)
       return nsDOMClassInfo::GetClassInfoInstance(globalStruct->mData);
     }
   }
-  return nsnull;
+  return nullptr;
 }
 
 NS_IMETHODIMP
@@ -158,7 +158,7 @@ nsDOMScriptObjectFactory::RegisterDOMClassInfo(const char *aName,
 					       nsDOMClassInfoExternalConstructorFnc aConstructorFptr,
 					       const nsIID *aProtoChainInterface,
 					       const nsIID **aInterfaces,
-					       PRUint32 aScriptableFlags,
+					       uint32_t aScriptableFlags,
 					       bool aHasClassInterface,
 					       const nsCID *aConstructorCID)
 {
@@ -198,7 +198,7 @@ nsresult NS_GetScriptRuntime(const nsAString &aLanguageName,
   return NS_GetJSRuntime(aLanguage);
 }
 
-nsresult NS_GetScriptRuntimeByID(PRUint32 aScriptTypeID,
+nsresult NS_GetScriptRuntimeByID(uint32_t aScriptTypeID,
                                  nsIScriptRuntime **aLanguage)
 {
   *aLanguage = NULL;

@@ -23,6 +23,7 @@
 #include "nsXPIDLString.h"
 #include "nsReadableUtils.h"
 #include "nsDOMClassInfoID.h"
+#include "nsError.h"
 #include "nsContentUtils.h"
 #include "nsISHistoryInternal.h"
 #include "mozilla/Preferences.h"
@@ -62,7 +63,7 @@ NS_IMPL_RELEASE(nsHistory)
 
 
 NS_IMETHODIMP
-nsHistory::GetLength(PRInt32* aLength)
+nsHistory::GetLength(int32_t* aLength)
 {
   nsCOMPtr<nsISHistory>   sHistory;
 
@@ -78,7 +79,7 @@ nsHistory::GetCurrent(nsAString& aCurrent)
   if (!nsContentUtils::IsCallerTrustedForRead())
     return NS_ERROR_DOM_SECURITY_ERR;
 
-  PRInt32 curIndex=0;
+  int32_t curIndex=0;
   nsCAutoString curURL;
   nsCOMPtr<nsISHistory> sHistory;
 
@@ -110,7 +111,7 @@ nsHistory::GetPrevious(nsAString& aPrevious)
   if (!nsContentUtils::IsCallerTrustedForRead())
     return NS_ERROR_DOM_SECURITY_ERR;
 
-  PRInt32 curIndex;
+  int32_t curIndex;
   nsCAutoString prevURL;
   nsCOMPtr<nsISHistory>  sHistory;
 
@@ -142,7 +143,7 @@ nsHistory::GetNext(nsAString& aNext)
   if (!nsContentUtils::IsCallerTrustedForRead())
     return NS_ERROR_DOM_SECURITY_ERR;
 
-  PRInt32 curIndex;
+  int32_t curIndex;
   nsCAutoString nextURL;
   nsCOMPtr<nsISHistory>  sHistory;
 
@@ -201,7 +202,7 @@ nsHistory::Forward()
 }
 
 NS_IMETHODIMP
-nsHistory::Go(PRInt32 aDelta)
+nsHistory::Go(int32_t aDelta)
 {
   if (aDelta == 0) {
     nsCOMPtr<nsPIDOMWindow> window(do_GetInterface(GetDocShell()));
@@ -237,12 +238,12 @@ nsHistory::Go(PRInt32 aDelta)
   nsCOMPtr<nsIWebNavigation> webnav(do_QueryInterface(session_history));
   NS_ENSURE_TRUE(webnav, NS_ERROR_FAILURE);
 
-  PRInt32 curIndex=-1;
-  PRInt32 len = 0;
-  nsresult rv = session_history->GetIndex(&curIndex);
-  rv = session_history->GetCount(&len);
+  int32_t curIndex=-1;
+  int32_t len = 0;
+  session_history->GetIndex(&curIndex);
+  session_history->GetCount(&len);
 
-  PRInt32 index = curIndex + aDelta;
+  int32_t index = curIndex + aDelta;
   if (index > -1  &&  index < len)
     webnav->GotoIndex(index);
 
@@ -313,7 +314,7 @@ nsHistory::ReplaceState(nsIVariant *aData, const nsAString& aTitle,
 NS_IMETHODIMP
 nsHistory::GetState(nsIVariant **aState)
 {
-  *aState = nsnull;
+  *aState = nullptr;
 
   nsCOMPtr<nsPIDOMWindow> win(do_QueryReferent(mInnerWindow));
   if (!win)
@@ -331,7 +332,7 @@ nsHistory::GetState(nsIVariant **aState)
 }
 
 NS_IMETHODIMP
-nsHistory::Item(PRUint32 aIndex, nsAString& aReturn)
+nsHistory::Item(uint32_t aIndex, nsAString& aReturn)
 {
   aReturn.Truncate();
   if (!nsContentUtils::IsCallerTrustedForRead()) {

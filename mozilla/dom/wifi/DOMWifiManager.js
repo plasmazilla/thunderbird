@@ -61,9 +61,9 @@ DOMWifiManager.prototype = {
     let principal = aWindow.document.nodePrincipal;
     let secMan = Cc["@mozilla.org/scriptsecuritymanager;1"].getService(Ci.nsIScriptSecurityManager);
 
-    let perm = (principal == secMan.getSystemPrincipal()) ?
-                 Ci.nsIPermissionManager.ALLOW_ACTION :
-                 Services.perms.testExactPermission(principal.URI, "wifi-manage");
+    let perm = principal == secMan.getSystemPrincipal()
+                 ? Ci.nsIPermissionManager.ALLOW_ACTION
+                 : Services.perms.testExactPermissionFromPrincipal(principal, "wifi-manage");
 
     // Only pages with perm set can use the wifi manager.
     this._hasPrivileges = perm == Ci.nsIPermissionManager.ALLOW_ACTION;
@@ -78,10 +78,12 @@ DOMWifiManager.prototype = {
                       "WifiManager:getNetworks:Return:OK", "WifiManager:getNetworks:Return:NO",
                       "WifiManager:associate:Return:OK", "WifiManager:associate:Return:NO",
                       "WifiManager:forget:Return:OK", "WifiManager:forget:Return:NO",
+                      "WifiManager:wps:Return:OK", "WifiManager:wps:Return:NO",
                       "WifiManager:wifiDown", "WifiManager:wifiUp",
                       "WifiManager:onconnecting", "WifiManager:onassociate",
                       "WifiManager:onconnect", "WifiManager:ondisconnect",
-                      "WifiManager:connectionInfoUpdate"];
+                      "WifiManager:onwpstimeout", "WifiManager:onwpsfail",
+                      "WifiManager:onwpsoverlap", "WifiManager:connectionInfoUpdate"];
     this.initHelper(aWindow, messages);
     this._mm = Cc["@mozilla.org/childprocessmessagemanager;1"].getService(Ci.nsISyncMessageSender);
 
@@ -106,6 +108,8 @@ DOMWifiManager.prototype = {
     this._onConnectionInfoUpdate = null;
     this._onEnabled = null;
     this._onDisabled = null;
+
+    this._mm.sendAsyncMessage("WifiManager:managerFinished");
   },
 
   _sendMessageForRequest: function(name, data, request) {
@@ -163,6 +167,16 @@ DOMWifiManager.prototype = {
         Services.DOMRequest.fireError(request, msg.data);
         break;
 
+      case "WifiManager:wps:Return:OK":
+        request = this.takeRequest(msg.rid);
+        Services.DOMRequest.fireSuccess(request, exposeReadOnly(msg.data));
+        break;
+
+      case "WifiManager:wps:Return:NO":
+        request = this.takeRequest(msg.rid);
+        Services.DOMRequest.fireError(request, msg.data);
+        break;
+
       case "WifiManager:wifiDown":
         this._enabled = false;
         this._currentNetwork = null;
@@ -198,6 +212,27 @@ DOMWifiManager.prototype = {
       case "WifiManager:ondisconnect":
         this._currentNetwork = null;
         this._connectionStatus = "disconnected";
+        this._lastConnectionInfo = null;
+        this._fireStatusChangeEvent();
+        break;
+
+      case "WifiManager:onwpstimeout":
+        this._currentNetwork = null;
+        this._connectionStatus = "wps-timedout";
+        this._lastConnectionInfo = null;
+        this._fireStatusChangeEvent();
+        break;
+
+      case "WifiManager:onwpsfail":
+        this._currentNetwork = null;
+        this._connectionStatus = "wps-failed";
+        this._lastConnectionInfo = null;
+        this._fireStatusChangeEvent();
+        break;
+
+      case "WifiManager:onwpsoverlap":
+        this._currentNetwork = null;
+        this._connectionStatus = "wps-overlapped";
         this._lastConnectionInfo = null;
         this._fireStatusChangeEvent();
         break;
@@ -274,6 +309,14 @@ DOMWifiManager.prototype = {
     return request;
   },
 
+  wps: function nsIDOMWifiManager_wps(detail) {
+    if (!this._hasPrivileges)
+      throw new Components.Exception("Denied", Cr.NS_ERROR_FAILURE);
+    var request = this.createRequest();
+    this._sendMessageForRequest("WifiManager:wps", detail, request);
+    return request;
+  },
+
   get enabled() {
     if (!this._hasPrivileges)
       throw new Components.Exception("Denied", Cr.NS_ERROR_FAILURE);
@@ -287,10 +330,12 @@ DOMWifiManager.prototype = {
                             network: this._currentNetwork });
   },
 
-  get connectionInfo() {
+  get connectionInformation() {
     if (!this._hasPrivileges)
       throw new Components.Exception("Denied", Cr.NS_ERROR_FAILURE);
-    return this._lastConnectionInfo;
+    return this._lastConnectionInfo
+           ? exposeReadOnly(this._lastConnectionInfo)
+           : null;
   },
 
   set onstatuschange(callback) {

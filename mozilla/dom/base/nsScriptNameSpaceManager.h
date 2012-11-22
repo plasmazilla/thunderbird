@@ -59,7 +59,7 @@ struct nsGlobalNameStruct
   bool mDisabled;
 
   union {
-    PRInt32 mDOMClassInfoID; // eTypeClassConstructor
+    int32_t mDOMClassInfoID; // eTypeClassConstructor
     nsIID mIID; // eTypeInterface, eTypeClassProto
     nsExternalDOMClassInfoData* mData; // eTypeExternalClassInfo
     ConstructorAlias* mAlias; // eTypeExternalConstructorAlias
@@ -67,7 +67,7 @@ struct nsGlobalNameStruct
   };
 
   // For new style DOM bindings.
-  mozilla::dom::binding::DefineInterface mDefineDOMInterface;
+  mozilla::dom::DefineInterface mDefineDOMInterface;
 
 private:
 
@@ -99,7 +99,7 @@ public:
   // It also returns a pointer to the string buffer of the classname
   // in the nsGlobalNameStruct.
   const nsGlobalNameStruct* LookupName(const nsAString& aName,
-                                       const PRUnichar **aClassName = nsnull)
+                                       const PRUnichar **aClassName = nullptr)
   {
     return LookupNameInternal(aName, aClassName);
   }
@@ -112,7 +112,7 @@ public:
                                const nsGlobalNameStruct **aNameStruct);
 
   nsresult RegisterClassName(const char *aClassName,
-                             PRInt32 aDOMClassInfoID,
+                             int32_t aDOMClassInfoID,
                              bool aPrivileged,
                              bool aDisabled,
                              const PRUnichar **aResult);
@@ -132,14 +132,14 @@ public:
                              nsDOMClassInfoExternalConstructorFnc aConstructorFptr,
                              const nsIID *aProtoChainInterface,
                              const nsIID **aInterfaces,
-                             PRUint32 aScriptableFlags,
+                             uint32_t aScriptableFlags,
                              bool aHasClassInterface,
                              const nsCID *aConstructorCID);
 
   nsGlobalNameStruct* GetConstructorProto(const nsGlobalNameStruct* aStruct);
 
   void RegisterDefineDOMInterface(const nsAFlatString& aName,
-    mozilla::dom::binding::DefineInterface aDefineDOMInterface);
+    mozilla::dom::DefineInterface aDefineDOMInterface);
 
 private:
   // Adds a new entry to the hash and returns the nsGlobalNameStruct
@@ -147,9 +147,9 @@ private:
   // nsGlobalNameStruct is != eTypeNotInitialized, an entry for aKey
   // already existed.
   nsGlobalNameStruct *AddToHash(PLDHashTable *aTable, const nsAString *aKey,
-                                const PRUnichar **aClassName = nsnull);
+                                const PRUnichar **aClassName = nullptr);
   nsGlobalNameStruct *AddToHash(PLDHashTable *aTable, const char *aKey,
-                                const PRUnichar **aClassName = nsnull)
+                                const PRUnichar **aClassName = nullptr)
   {
     NS_ConvertASCIItoUTF16 key(aKey);
     return AddToHash(aTable, &key, aClassName);
@@ -176,7 +176,7 @@ private:
                                   nsISupports* aEntry);
 
   nsGlobalNameStruct* LookupNameInternal(const nsAString& aName,
-                                         const PRUnichar **aClassName = nsnull);
+                                         const PRUnichar **aClassName = nullptr);
 
   PLDHashTable mGlobalNames;
   PLDHashTable mNavigatorNames;

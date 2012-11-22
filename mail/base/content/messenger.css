@@ -138,6 +138,10 @@ mail-tagfield[collapsed="true"] {
   display: none;
 }
 
+#searchTermList > listitem {
+  -moz-binding: url("chrome://messenger/content/searchWidgets.xml#listitem");
+}
+
 searchattribute {
   -moz-binding: url("chrome://messenger/content/mailWidgets.xml#searchattribute");
 }
@@ -308,4 +312,31 @@ menupopup[type="folder"] {
 #status-bar[lwthemefooter="true"] {
   background-repeat: no-repeat;
   background-position: bottom left;
+}
+
+/* AppButton support */
+
+splitmenu {
+  -moz-binding: url("chrome://messenger/content/mailWidgets.xml#splitmenu");
+}
+
+.splitmenu-menuitem {
+  -moz-binding: url("chrome://global/content/bindings/menu.xml#menuitem");
+  list-style-image: inherit;
+  -moz-image-region: inherit;
+}
+
+.splitmenu-menuitem[iconic="true"] {
+  -moz-binding: url("chrome://global/content/bindings/menu.xml#menuitem-iconic");
+}
+
+.splitmenu-menu > .menu-text,
+:-moz-any(.splitmenu-menu, .splitmenu-menuitem) > .menu-accel-container,
+#appmenu-editmenu > .menu-text,
+#appmenu-editmenu > .menu-accel-container {
+  display: none;
+}
+
+.button-appmenu {
+  -moz-binding: url("chrome://messenger/content/mailWidgets.xml#appmenu-vertical") !important;
 }

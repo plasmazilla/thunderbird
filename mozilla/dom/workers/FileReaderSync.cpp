@@ -7,7 +7,7 @@
 #include "FileReaderSync.h"
 
 #include "nsIDOMFile.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 
 #include "jsapi.h"
 #include "jsatom.h"
@@ -154,7 +154,7 @@ private:
       return false;
     }
 
-    PRUint64 blobSize;
+    uint64_t blobSize;
     nsresult rv = blob->GetSize(&blobSize);
     if (!EnsureSucceededOrThrow(aCx, rv)) {
       return false;

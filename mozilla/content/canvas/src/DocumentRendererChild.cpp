@@ -36,7 +36,7 @@ DocumentRendererChild::RenderDocument(nsIDOMWindow *window,
                                       const nsRect& documentRect,
                                       const gfxMatrix& transform,
                                       const nsString& aBGColor,
-                                      PRUint32 renderFlags,
+                                      uint32_t renderFlags,
                                       bool flushLayout, 
                                       const nsIntSize& renderSize,
                                       nsCString& data)
@@ -57,12 +57,12 @@ DocumentRendererChild::RenderDocument(nsIDOMWindow *window,
 
     nsCSSParser parser;
     nsCSSValue bgColorValue;
-    if (!parser.ParseColorString(aBGColor, nsnull, 0, bgColorValue)) {
+    if (!parser.ParseColorString(aBGColor, nullptr, 0, bgColorValue)) {
         return false;
     }
 
     nscolor bgColor;
-    if (!nsRuleNode::ComputeColor(bgColorValue, presContext, nsnull, bgColor)) {
+    if (!nsRuleNode::ComputeColor(bgColorValue, presContext, nullptr, bgColor)) {
         return false;
     }
 
@@ -77,8 +77,8 @@ DocumentRendererChild::RenderDocument(nsIDOMWindow *window,
     nsRefPtr<gfxContext> ctx = new gfxContext(surf);
     ctx->SetMatrix(transform);
 
-    presContext->PresShell()->
-      RenderDocument(documentRect, renderFlags, bgColor, ctx);
+    nsCOMPtr<nsIPresShell> shell = presContext->PresShell();
+    shell->RenderDocument(documentRect, renderFlags, bgColor, ctx);
 
     return true;
 }

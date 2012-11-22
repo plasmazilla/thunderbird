@@ -2,11 +2,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH		= ../../../..
+DEPTH		= @DEPTH@
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
-relativesrcdir  = browser/base/content/test
+relativesrcdir  = @relativesrcdir@
 
 DIRS += \
 		newtab \
@@ -15,6 +15,7 @@ DIRS += \
 include $(DEPTH)/config/autoconf.mk
 
 MOCHITEST_FILES = \
+		head.js \
 		test_feed_discovery.html \
 		feed_discovery.html \
 		test_bug395533.html \
@@ -39,6 +40,7 @@ MOCHITEST_FILES = \
 		gZipOfflineChild.html^headers^ \
 		gZipOfflineChild.cacheManifest \
 		gZipOfflineChild.cacheManifest^headers^ \
+		test_bug787619.html \
 		$(NULL)
 
 # test_contextmenu.html is disabled on Linux due to bug 513558
@@ -89,6 +91,7 @@ _BROWSER_FILES = \
                  browser_bug427559.js \
                  browser_bug432599.js \
                  browser_bug435035.js \
+                 browser_bug435325.js \
                  browser_bug441778.js \
                  browser_popupNotification.js \
                  browser_bug455852.js \
@@ -156,7 +159,7 @@ _BROWSER_FILES = \
                  browser_bug749738.js \
                  browser_bug763468.js \
                  browser_bug767836.js \
-                 browser_shareButton.js \
+                 browser_bug783614.js \
                  browser_canonizeURL.js \
                  browser_customize.js \
                  browser_findbarClose.js \
@@ -178,6 +181,7 @@ _BROWSER_FILES = \
                  browser_pinnedTabs.js \
                  browser_plainTextLinks.js \
                  browser_pluginnotification.js \
+                 browser_pluginplaypreview.js \
                  browser_relatedTabs.js \
                  browser_sanitize-passwordDisabledHosts.js \
                  browser_sanitize-sitepermissions.js \
@@ -199,6 +203,7 @@ _BROWSER_FILES = \
                  browser_tabfocus.js \
                  browser_tabs_isActive.js \
                  browser_tabs_owner.js \
+                 browser_unloaddialogs.js \
                  browser_urlbarAutoFillTrimURLs.js \
                  browser_urlbarCopying.js \
                  browser_urlbarEnter.js \
@@ -232,6 +237,8 @@ _BROWSER_FILES = \
                  plugin_clickToPlayAllow.html \
                  plugin_clickToPlayDeny.html \
                  plugin_bug749455.html \
+                 plugin_hidden_to_visible.html \
+                 plugin_two_types.html \
                  alltabslistener.html \
                  zoom_test.html \
                  dummy_page.html \
@@ -256,7 +263,21 @@ _BROWSER_FILES = \
                  browser_tabDrop.js \
                  browser_lastAccessedTab.js \
                  browser_bug734076.js \
+                 browser_social.js \
                  browser_social_toolbar.js \
+                 browser_social_shareButton.js \
+                 browser_social_sidebar.js \
+                 browser_social_flyout.js \
+                 browser_social_mozSocial_API.js \
+                 browser_social_isVisible.js \
+                 browser_social_chatwindow.js \
+                 social_panel.html \
+                 social_share_image.png \
+                 social_sidebar.html \
+                 social_chat.html \
+                 social_flyout.html \
+                 social_window.html \
+                 social_worker.js \
                  $(NULL)
 
 ifneq (cocoa,$(MOZ_WIDGET_TOOLKIT))

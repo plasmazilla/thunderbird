@@ -28,7 +28,6 @@ var gViewAllHeaders = false;
 var gMinNumberOfHeaders = 0;
 var gDummyHeaderIdIndex = 0;
 var gBuildAttachmentsForCurrentMsg = false;
-var gBuildAttachmentPopupForCurrentMsg = true;
 var gBuiltExpandedView = false;
 var gHeadersShowReferences = false;
 
@@ -117,6 +116,7 @@ var currentHeaderData = {};
  */
 var currentAttachments = new Array();
 
+const nsIAbDirectory = Components.interfaces.nsIAbDirectory;
 const nsIAbListener = Components.interfaces.nsIAbListener;
 const nsIAbCard = Components.interfaces.nsIAbCard;
 
@@ -273,6 +273,8 @@ function OnLoadMsgHeaderPane()
                     "CustomizeAttachmentToolbar", function () {
                       updateSaveAllAttachmentsButton();
                     });
+
+  top.controllers.appendController(AttachmentMenuController);
 }
 
 /**
@@ -372,8 +374,8 @@ var AddressBookListener =
   },
   onItemRemoved: function(aParentDir, aItem) {
     OnAddressBookDataChanged(aItem instanceof nsIAbCard ?
-                             nsIAbListener.directoryItemRemoved :
-                             nsIAbListener.directoryRemoved,
+                               nsIAbListener.directoryItemRemoved :
+                               nsIAbListener.directoryRemoved,
                              aParentDir, aItem);
   },
   onItemPropertyChanged: function(aItem, aProperty, aOldValue, aNewValue) {
@@ -430,7 +432,6 @@ var messageHeaderSink = {
       ClearCurrentHeaders();
       gBuiltExpandedView = false;
       gBuildAttachmentsForCurrentMsg = false;
-      gBuildAttachmentPopupForCurrentMsg = true;
       ClearAttachmentList();
       ClearEditMessageBox();
       gMessageNotificationBar.clearMsgNotifications();
@@ -616,6 +617,13 @@ var messageHeaderSink = {
 
         // convert the uri into a hdr
         this.mSaveHdr.markHasAttachments(true);
+        // we also do the same on appmenu
+        let appmenunode = document.getElementById("appmenu_fileAttachmentMenu");
+        if (appmenunode)
+          appmenunode.removeAttribute("disabled");
+
+        // convert the uri into a hdr
+        this.mSaveHdr.markHasAttachments(true);
       }
     },
 
@@ -661,6 +669,12 @@ var messageHeaderSink = {
     onEndMsgDownload: function(url)
     {
       gMessageDisplay.onLoadCompleted();
+
+      let expanded = Services.prefs.getBoolPref(
+        "mailnews.attachments.display.start_expanded");
+
+      if (expanded)
+        toggleAttachmentList(true);
 
       // if we don't have any attachments, turn off the attachments flag
       if (!this.mSaveHdr) {
@@ -1103,6 +1117,13 @@ function HideMessageHeaderPane()
 
   // disable the File/Attachments menuitem
   document.getElementById("fileAttachmentMenu").setAttribute("disabled", "true");
+
+  // If the App Menu is being used, disable the attachment menu in there as
+  // well.
+  let appMenuNode = document.getElementById("appmenu_fileAttachmentMenu");
+  if (appMenuNode)
+    appMenuNode.setAttribute("disabled", "true");
+
   // disable the attachment box
   document.getElementById("attachmentView").collapsed = true;
   document.getElementById("attachment-splitter").collapsed = true;
@@ -1192,7 +1213,6 @@ function updateEmailAddressNode(emailAddressNode, address)
   emailAddressNode.setAttribute("emailAddress", address.emailAddress);
   emailAddressNode.setAttribute("fullAddress", address.fullAddress);
   emailAddressNode.setAttribute("displayName", address.displayName);
-  emailAddressNode.removeAttribute("tooltiptext");
 
   UpdateEmailNodeDetails(address.emailAddress, emailAddressNode);
 }
@@ -1249,8 +1269,7 @@ function FormatDisplayName(aEmailAddress, aHeaderDisplayName, aContext, aCard)
 
 function UpdateEmailNodeDetails(aEmailAddress, aDocumentNode, aCardDetails) {
   // If we haven't been given specific details, search for a card.
-  var cardDetails = aCardDetails ? aCardDetails :
-                                   getCardForEmail(aEmailAddress);
+  var cardDetails = aCardDetails || getCardForEmail(aEmailAddress);
   aDocumentNode.cardDetails = cardDetails;
 
   if (!cardDetails.card) {
@@ -1320,13 +1339,13 @@ function UpdateEmailNodeDetails(aEmailAddress, aDocumentNode, aCardDetails) {
                                       aDocumentNode.cardDetails.card);
 
   if (gShowCondensedEmailAddresses && displayName) {
-    aDocumentNode.setAttribute("label", displayName);
     aDocumentNode.setAttribute("tooltiptext", aEmailAddress);
   } else {
-    aDocumentNode.setAttribute("label",
-      aDocumentNode.getAttribute("fullAddress") ||
-      aDocumentNode.getAttribute("displayName"));
+    aDocumentNode.removeAttribute("tooltiptext");
+    displayName = aDocumentNode.getAttribute("fullAddress") ||
+                  aDocumentNode.getAttribute("displayName");
   }
+  aDocumentNode.setAttribute("label", displayName);
 }
 
 function UpdateEmailPresenceDetails(aDocumentNode, aChatContact) {
@@ -1377,7 +1396,7 @@ function UpdateExtraAddressProcessing(aAddressData, aDocumentNode, aAction,
     break;
   case nsIAbListener.itemAdded:
     // Is it a new address book?
-    if (aItem instanceof Components.interfaces.nsIAbDirectory) {
+    if (aItem instanceof nsIAbDirectory) {
       // If we don't have a match, search again for updates (e.g. a interface
       // to an existing book may just have been added).
       if (!aDocumentNode.cardDetails.card)
@@ -1387,8 +1406,8 @@ function UpdateExtraAddressProcessing(aAddressData, aDocumentNode, aAction,
       // If we don't have a card, does this new one match?
       if (!aDocumentNode.cardDetails.card &&
           aItem.hasEmailAddress(aAddressData.emailAddress)) {
-        // Just in case we have a bogus parent directory
-        if (aParentDir instanceof Components.interfaces.nsIAbDirectory) {
+        // Just in case we have a bogus parent directory.
+        if (aParentDir instanceof nsIAbDirectory) {
           var cardDetails = { book: aParentDir, card: aItem };
           UpdateEmailNodeDetails(aAddressData.emailAddress, aDocumentNode,
                                  cardDetails);
@@ -1479,8 +1498,7 @@ function getCardForEmail(emailAddress)
   var result = { book: null, card: null };
 
   while (!result.card && books.hasMoreElements()) {
-    var ab = books.getNext()
-                  .QueryInterface(Components.interfaces.nsIAbDirectory);
+    var ab = books.getNext().QueryInterface(nsIAbDirectory);
     try {
       var card = ab.cardForEmailAddress(emailAddress);
       if (card) {
@@ -1896,6 +1914,14 @@ function ContentTypeIsSMIME(contentType)
   return /application\/(x-)?pkcs7-(mime|signature)/.test(contentType);
 }
 
+function onShowAttachmentToolbarContextMenu()
+{
+  let expandBar = document.getElementById("context-expandAttachmentBar");
+  let expanded = Services.prefs.getBoolPref(
+    "mailnews.attachments.display.start_expanded");
+  expandBar.setAttribute("checked", expanded);
+}
+
 /**
  * Set up the attachment item context menu, showing or hiding the appropriate
  * menu items.
@@ -1953,31 +1979,6 @@ function onHideAttachmentItemContextMenu()
   // get rid of the "selected" attribute.
   if (contextMenu.triggerNode == attachmentName)
     attachmentName.removeAttribute("selected");
-}
-
-/**
- * Set up the attachment list context menu, showing or hiding the appropriate
- * menu items.
- */
-function onShowAttachmentListContextMenu()
-{
-  var openAllMenu   = document.getElementById("context-openAllAttachments");
-  var saveAllMenu   = document.getElementById("context-saveAllAttachments");
-  var detachAllMenu = document.getElementById("context-detachAllAttachments");
-  var deleteAllMenu = document.getElementById("context-deleteAllAttachments");
-
-  var allDetached = currentAttachments.every(function(attachment) {
-    return attachment.isExternalAttachment;
-  });
-  var allDeleted = currentAttachments.every(function(attachment) {
-    return !attachment.hasFile;
-  });
-  var canDetachAll = CanDetachAttachments() && !allDetached && !allDeleted;
-
-  saveAllMenu.disabled = allDeleted;
-  openAllMenu.disabled = allDeleted;
-  detachAllMenu.disabled = !canDetachAll;
-  deleteAllMenu.disabled = !canDetachAll;
 }
 
 /**
@@ -2100,6 +2101,95 @@ var AttachmentListController =
   onEvent: function(event)
   {}
 };
+
+let AttachmentMenuController = {
+  commands: {
+    cmd_openAllAttachments: {
+      isEnabled: function() {
+        return AttachmentMenuController._someFilesAvailable();
+      },
+
+      doCommand: function() {
+        HandleAllAttachments("open");
+      },
+    },
+
+    cmd_saveAllAttachments: {
+      isEnabled: function() {
+        return AttachmentMenuController._someFilesAvailable();
+      },
+
+      doCommand: function() {
+        HandleAllAttachments("save");
+      },
+    },
+
+    cmd_detachAllAttachments: {
+      isEnabled: function() {
+        return AttachmentMenuController._canDetachFiles();
+      },
+
+      doCommand: function() {
+        HandleAllAttachments("detach");
+      },
+    },
+
+    cmd_deleteAllAttachments: {
+      isEnabled: function() {
+        return AttachmentMenuController._canDetachFiles();
+      },
+
+      doCommand: function() {
+        HandleAllAttachments("delete");
+      },
+    },
+  },
+
+  _canDetachFiles: function() {
+    let someNotDetached = currentAttachments.some(function(aAttachment) {
+      return !aAttachment.isExternalAttachment;
+    });
+
+    return CanDetachAttachments() &&
+           someNotDetached &&
+           this._someFilesAvailable();
+  },
+
+  _someFilesAvailable: function() {
+    return currentAttachments.some(function(aAttachment) {
+      return aAttachment.hasFile;
+    });
+  },
+
+  supportsCommand: function(aCommand) {
+    return (aCommand in this.commands);
+  },
+
+  isCommandEnabled: function(aCommand) {
+    if (!this.supportsCommand(aCommand))
+      return false;
+
+    return this.commands[aCommand].isEnabled();
+  },
+
+  doCommand: function(aCommand) {
+    if (!this.supportsCommand(aCommand))
+      return;
+    let cmd = this.commands[aCommand];
+    if (!cmd.isEnabled())
+      return;
+    cmd.doCommand();
+  },
+
+  onEvent: function(aEvent) {}
+};
+
+function goUpdateAttachmentCommands() {
+  goUpdateCommand('cmd_openAllAttachments');
+  goUpdateCommand('cmd_saveAllAttachments');
+  goUpdateCommand('cmd_detachAllAttachments');
+  goUpdateCommand('cmd_deleteAllAttachments');
+}
 
 function displayAttachmentsForExpandedView()
 {
@@ -2285,39 +2375,15 @@ function getIconForAttachment(attachment)
 /**
  * Public method called when we create the attachments file menu
  */
-function FillAttachmentListPopup(popup)
+function FillAttachmentListPopup(aEvent, aPopup)
 {
-  // The FE sometimes call this routine TWICE...I haven't been able to figure
-  // out why yet... Protect against it...
-  if (!gBuildAttachmentPopupForCurrentMsg)
-    return;
-
-  // otherwise we need to build the attachment view...
   // First clear out the old view...
-  ClearAttachmentMenu(popup);
+  ClearAttachmentMenu(aPopup);
 
   for each (let [attachmentIndex, attachment] in Iterator(currentAttachments))
-    addAttachmentToPopup(popup, attachment, attachmentIndex);
+    addAttachmentToPopup(aPopup, attachment, attachmentIndex);
 
-  gBuildAttachmentPopupForCurrentMsg = false;
-
-  var allDetached = currentAttachments.every(function(attachment) {
-    return attachment.isExternalAttachment;
-  });
-  var allDeleted = currentAttachments.every(function(attachment) {
-    return !attachment.hasFile;
-  });
-  var canDetachAll = CanDetachAttachments() && !allDetached && !allDeleted;
-
-  var openAllMenu = document.getElementById("file-openAllAttachments");
-  var saveAllMenu = document.getElementById("file-saveAllAttachments");
-  var detachAllMenu = document.getElementById("file-detachAllAttachments");
-  var deleteAllMenu = document.getElementById("file-deleteAllAttachments");
-
-  saveAllMenu.disabled = allDeleted;
-  openAllMenu.disabled = allDeleted;
-  detachAllMenu.disabled = !canDetachAll;
-  deleteAllMenu.disabled = !canDetachAll;
+  goUpdateAttachmentCommands();
 }
 
 // Public method used to clear the file attachment menu
@@ -2372,6 +2438,9 @@ function addAttachmentToPopup(popup, attachment, attachmentIndex)
   // saving, deleting, detaching, etc.
   var openpopup = document.createElement("menupopup");
   openpopup = item.appendChild(openpopup);
+  openpopup.addEventListener("popupshowing", function(aEvent) {
+    aEvent.stopPropagation();
+  });
 
   // Due to Bug #314228, we must append our menupopup to the new attachment
   // menu item before we inserting the attachment menu into the popup. If we
@@ -2427,6 +2496,23 @@ function addAttachmentToPopup(popup, attachment, attachmentIndex)
   menuitementry.setAttribute("accesskey", getString("deleteLabelAccesskey"));
   menuitementry.setAttribute("disabled", !canDetach);
   menuitementry = openpopup.appendChild(menuitementry);
+}
+
+/**
+ * Open an attachment from the attachment bar.
+ *
+ * @param event the event that triggered this action
+ */
+function OpenAttachmentFromBar(event)
+{
+  if (event.button == 0) {
+    // Only open on the first click; ignore double-clicks so that the user
+    // doesn't end up with the attachment opened multiple times.
+    if (event.detail == 1)
+      TryHandleAllAttachments('open');
+    RestoreFocusAfterHdrButton();
+    event.stopPropagation();
+  }
 }
 
 /**
@@ -2566,6 +2652,10 @@ function ClearAttachmentList()
   var node = document.getElementById("fileAttachmentMenu");
   if (node)
     node.setAttribute("disabled", "true");
+  // we also do the same on appmenu
+  let appmenunode = document.getElementById("appmenu_fileAttachmentMenu");
+  if (appmenunode)
+    appmenunode.setAttribute("disabled", "true");
 
   // clear selection
   var list = document.getElementById("attachmentList");

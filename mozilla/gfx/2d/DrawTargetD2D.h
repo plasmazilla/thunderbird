@@ -91,7 +91,7 @@ public:
                           const GlyphBuffer &aBuffer,
                           const Pattern &aPattern,
                           const DrawOptions &aOptions = DrawOptions(),
-                          const GlyphRenderingOptions *aRenderingOptions = NULL);
+                          const GlyphRenderingOptions *aRenderingOptions = nullptr);
   virtual void Mask(const Pattern &aSource,
                     const Pattern &aMask,
                     const DrawOptions &aOptions = DrawOptions());
@@ -182,6 +182,7 @@ private:
                         const DrawOptions &aOptions = DrawOptions());
 
   TemporaryRef<ID2D1RenderTarget> CreateRTForTexture(ID3D10Texture2D *aTexture, SurfaceFormat aFormat);
+  TemporaryRef<ID2D1Geometry> ConvertRectToGeometry(const D2D1_RECT_F& aRect);
   TemporaryRef<ID2D1Geometry> GetClippedGeometry();
 
   TemporaryRef<ID2D1Brush> CreateBrushForPattern(const Pattern &aPattern, Float aAlpha = 1.0f);
@@ -198,6 +199,8 @@ private:
   void SetupEffectForRadialGradient(const RadialGradientPattern *aPattern);
   void SetupStateForRendering();
 
+  void PushD2DLayer(ID2D1RenderTarget *aRT, ID2D1Geometry *aGeometry, ID2D1Layer *aLayer, const D2D1_MATRIX_3X2_F &aTransform);
+
   static const uint32_t test = 4;
 
   IntSize mSize;
@@ -205,7 +208,7 @@ private:
   RefPtr<ID3D10Device1> mDevice;
   RefPtr<ID3D10Texture2D> mTexture;
   RefPtr<ID3D10Texture2D> mCurrentClipMaskTexture;
-  RefPtr<ID2D1PathGeometry> mCurrentClippedGeometry;
+  RefPtr<ID2D1Geometry> mCurrentClippedGeometry;
   mutable RefPtr<ID2D1RenderTarget> mRT;
 
   // We store this to prevent excessive SetTextRenderingParams calls.

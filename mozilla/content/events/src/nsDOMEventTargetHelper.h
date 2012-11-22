@@ -31,7 +31,7 @@ public:
   NS_DECL_NSIDOMEVENTLISTENER
 
   nsIDOMEventListener* GetInner() { return mListener; }
-  void Disconnect() { mListener = nsnull; }
+  void Disconnect() { mListener = nullptr; }
 protected:
   nsCOMPtr<nsIDOMEventListener> mListener;
 };
@@ -40,7 +40,7 @@ class nsDOMEventTargetHelper : public nsIDOMEventTarget,
                                public nsWrapperCache
 {
 public:
-  nsDOMEventTargetHelper() : mOwner(nsnull), mHasOrHasHadOwner(false) {}
+  nsDOMEventTargetHelper() : mOwner(nullptr), mHasOrHasHadOwner(false) {}
   virtual ~nsDOMEventTargetHelper();
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
   NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS(nsDOMEventTargetHelper)
@@ -74,7 +74,7 @@ public:
       CallQueryInterface(mOwner, aParentObject);
     }
     else {
-      *aParentObject = nsnull;
+      *aParentObject = nullptr;
     }
   }
 
@@ -97,7 +97,7 @@ public:
     return static_cast<nsDOMEventTargetHelper*>(target);
   }
 
-  void Init(JSContext* aCx = nsnull);
+  void Init(JSContext* aCx = nullptr);
 
   bool HasListenersFor(const nsAString& aType)
   {
@@ -200,19 +200,19 @@ private:
  * want to override it.
  */
 #define NS_FORWARD_NSIDOMEVENTTARGET_NOPREHANDLEEVENT(_to) \
-  NS_SCRIPTABLE NS_IMETHOD AddEventListener(const nsAString & type, nsIDOMEventListener *listener, bool useCapture, bool wantsUntrusted, PRUint8 _argc) { \
+  NS_IMETHOD AddEventListener(const nsAString & type, nsIDOMEventListener *listener, bool useCapture, bool wantsUntrusted, uint8_t _argc) { \
     return _to AddEventListener(type, listener, useCapture, wantsUntrusted, _argc); \
   } \
-  NS_IMETHOD AddSystemEventListener(const nsAString & type, nsIDOMEventListener *listener, bool aUseCapture, bool aWantsUntrusted, PRUint8 _argc) { \
+  NS_IMETHOD AddSystemEventListener(const nsAString & type, nsIDOMEventListener *listener, bool aUseCapture, bool aWantsUntrusted, uint8_t _argc) { \
     return _to AddSystemEventListener(type, listener, aUseCapture, aWantsUntrusted, _argc); \
   } \
-  NS_SCRIPTABLE NS_IMETHOD RemoveEventListener(const nsAString & type, nsIDOMEventListener *listener, bool useCapture) { \
+  NS_IMETHOD RemoveEventListener(const nsAString & type, nsIDOMEventListener *listener, bool useCapture) { \
     return _to RemoveEventListener(type, listener, useCapture); \
   } \
   NS_IMETHOD RemoveSystemEventListener(const nsAString & type, nsIDOMEventListener *listener, bool aUseCapture) { \
     return _to RemoveSystemEventListener(type, listener, aUseCapture); \
   } \
-  NS_SCRIPTABLE NS_IMETHOD DispatchEvent(nsIDOMEvent *evt, bool *_retval NS_OUTPARAM) { \
+  NS_IMETHOD DispatchEvent(nsIDOMEvent *evt, bool *_retval) { \
     return _to DispatchEvent(evt, _retval); \
   } \
   virtual nsIDOMEventTarget * GetTargetForDOMEvent(void) { \
@@ -233,7 +233,7 @@ private:
   virtual nsEventListenerManager * GetListenerManager(bool aMayCreate) { \
     return _to GetListenerManager(aMayCreate); \
   } \
-  virtual nsIScriptContext * GetContextForEventHandlers(nsresult *aRv NS_OUTPARAM) { \
+  virtual nsIScriptContext * GetContextForEventHandlers(nsresult *aRv) { \
     return _to GetContextForEventHandlers(aRv); \
   } \
   virtual JSContext * GetJSContextForEventHandlers(void) { \

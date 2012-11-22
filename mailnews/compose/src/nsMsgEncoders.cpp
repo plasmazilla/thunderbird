@@ -12,25 +12,25 @@
 #include "nsServiceManagerUtils.h"
 
 extern "C" MimeEncoderData *
-MIME_B64EncoderInit(nsresult (*output_fn) (const char *buf, PRInt32 size, void *closure), void *closure)
+MIME_B64EncoderInit(MimeConverterOutputCallback output_fn, void *closure)
 {
-  MimeEncoderData *returnEncoderData = nsnull;
+  MimeEncoderData *returnEncoderData = nullptr;
   nsCOMPtr<nsIMimeConverter> converter = do_GetService(NS_MIME_CONVERTER_CONTRACTID);
-  NS_ENSURE_TRUE(converter, nsnull);
+  NS_ENSURE_TRUE(converter, nullptr);
 
   nsresult res = converter->B64EncoderInit(output_fn, closure, &returnEncoderData);
-  return NS_SUCCEEDED(res) ? returnEncoderData : nsnull;
+  return NS_SUCCEEDED(res) ? returnEncoderData : nullptr;
 }
 
 extern "C" MimeEncoderData *
-MIME_QPEncoderInit(nsresult (*output_fn) (const char *buf, PRInt32 size, void *closure), void *closure)
+MIME_QPEncoderInit(MimeConverterOutputCallback output_fn, void *closure)
 {
-  MimeEncoderData *returnEncoderData = nsnull;
+  MimeEncoderData *returnEncoderData = nullptr;
   nsCOMPtr<nsIMimeConverter> converter = do_GetService(NS_MIME_CONVERTER_CONTRACTID);
-  NS_ENSURE_TRUE(converter, nsnull);
+  NS_ENSURE_TRUE(converter, nullptr);
 
   nsresult res = converter->QPEncoderInit(output_fn, closure, &returnEncoderData);
-  return NS_SUCCEEDED(res) ? returnEncoderData : nsnull;
+  return NS_SUCCEEDED(res) ? returnEncoderData : nullptr;
 }
 
 extern "C" nsresult
@@ -44,12 +44,12 @@ MIME_EncoderDestroy(MimeEncoderData *data, bool abort_p)
 }
 
 extern "C" nsresult
-MIME_EncoderWrite(MimeEncoderData *data, const char *buffer, PRInt32 size)
+MIME_EncoderWrite(MimeEncoderData *data, const char *buffer, int32_t size)
 {
   nsresult rv;
   nsCOMPtr<nsIMimeConverter> converter = do_GetService(NS_MIME_CONVERTER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRInt32 written = 0;
+  int32_t written = 0;
   return converter->EncoderWrite(data, buffer, size, &written);
 }

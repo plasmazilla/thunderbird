@@ -16,19 +16,15 @@ void SetProxyPref(const nsACString& aHostPort, const char* aPref,
                   const char* aPortPref, nsIPrefBranch* aPrefs)
 {
   nsCAutoString hostPort(aHostPort);
-  PRInt32 portDelimOffset = hostPort.RFindChar(':');
+  int32_t portDelimOffset = hostPort.RFindChar(':');
   if (portDelimOffset > 0) {
     nsCAutoString host(Substring(hostPort, 0, portDelimOffset));
     nsCAutoString port(Substring(hostPort, portDelimOffset + 1,
                                  hostPort.Length() - (portDelimOffset + 1)));
 
     aPrefs->SetCharPref(aPref, host.get());
-#ifdef MOZILLA_INTERNAL_API
-    PRInt32 stringErr;
-#else
-    PRUint32 stringErr;
-#endif
-    PRInt32 portValue = port.ToInteger(&stringErr);
+    nsresult stringErr;
+    int32_t portValue = port.ToInteger(&stringErr);
     aPrefs->SetIntPref(aPortPref, portValue);
   }
   else
@@ -42,7 +38,7 @@ void ParseOverrideServers(const char* aServers, nsIPrefBranch* aBranch)
   // or "<local>". Mozilla's format is server,server,server, and <local>
   // must be translated to "localhost,127.0.0.1"
   nsCAutoString override(aServers);
-  PRInt32 left = 0, right = 0;
+  int32_t left = 0, right = 0;
   for (;;) {
     right = override.FindChar(';', right);
     const nsACString& host = Substring(override, left,
@@ -57,9 +53,9 @@ void ParseOverrideServers(const char* aServers, nsIPrefBranch* aBranch)
   aBranch->SetCharPref("network.proxy.no_proxies_on", override.get());
 }
 
-void GetMigrateDataFromArray(MigrationData* aDataArray, PRInt32 aDataArrayLength,
+void GetMigrateDataFromArray(MigrationData* aDataArray, int32_t aDataArrayLength,
                              bool aReplace, nsIFile* aSourceProfile,
-                             PRUint16* aResult)
+                             uint16_t* aResult)
 {
   nsCOMPtr<nsIFile> sourceFile;
   bool exists;
@@ -77,7 +73,7 @@ void GetMigrateDataFromArray(MigrationData* aDataArray, PRInt32 aDataArrayLength
         *aResult |= cursor->sourceFlag;
     }
     NS_Free(cursor->fileName);
-    cursor->fileName = nsnull;
+    cursor->fileName = nullptr;
   }
 }
 

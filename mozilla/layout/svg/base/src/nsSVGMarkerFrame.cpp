@@ -26,9 +26,9 @@ NS_IMPL_FRAMEARENA_HELPERS(nsSVGMarkerFrame)
 // nsIFrame methods:
 
 NS_IMETHODIMP
-nsSVGMarkerFrame::AttributeChanged(PRInt32  aNameSpaceID,
+nsSVGMarkerFrame::AttributeChanged(int32_t  aNameSpaceID,
                                    nsIAtom* aAttribute,
-                                   PRInt32  aModType)
+                                   int32_t  aModType)
 {
   if (aNameSpaceID == kNameSpaceID_None &&
       (aAttribute == nsGkAtoms::markerUnits ||
@@ -69,7 +69,7 @@ nsSVGMarkerFrame::GetType() const
 // nsSVGContainerFrame methods:
 
 gfxMatrix
-nsSVGMarkerFrame::GetCanvasTM(PRUint32 aFor)
+nsSVGMarkerFrame::GetCanvasTM(uint32_t aFor)
 {
   NS_ASSERTION(mMarkedFrame, "null nsSVGPathGeometry frame");
 
@@ -134,10 +134,8 @@ nsSVGMarkerFrame::PaintMark(nsRenderingContext *aContext,
     nsISVGChildFrame* SVGFrame = do_QueryFrame(kid);
     if (SVGFrame) {
       // The CTM of each frame referencing us may be different.
-      SVGFrame->NotifySVGChanged(
-                          nsISVGChildFrame::DO_NOT_NOTIFY_RENDERING_OBSERVERS |
-                          nsISVGChildFrame::TRANSFORM_CHANGED);
-      nsSVGUtils::PaintFrameWithEffects(aContext, nsnull, kid);
+      SVGFrame->NotifySVGChanged(nsISVGChildFrame::TRANSFORM_CHANGED);
+      nsSVGUtils::PaintFrameWithEffects(aContext, nullptr, kid);
     }
   }
 
@@ -149,7 +147,7 @@ nsSVGMarkerFrame::PaintMark(nsRenderingContext *aContext,
 
 SVGBBox
 nsSVGMarkerFrame::GetMarkBBoxContribution(const gfxMatrix &aToBBoxUserspace,
-                                          PRUint32 aFlags,
+                                          uint32_t aFlags,
                                           nsSVGPathGeometryFrame *aMarkedFrame,
                                           const nsSVGMark *aMark,
                                           float aStrokeWidth)
@@ -226,8 +224,8 @@ nsSVGMarkerFrame::AutoMarkerReferencer::AutoMarkerReferencer(
 
 nsSVGMarkerFrame::AutoMarkerReferencer::~AutoMarkerReferencer()
 {
-  mFrame->SetParentCoordCtxProvider(nsnull);
+  mFrame->SetParentCoordCtxProvider(nullptr);
 
-  mFrame->mMarkedFrame = nsnull;
+  mFrame->mMarkedFrame = nullptr;
   mFrame->mInUse = false;
 }

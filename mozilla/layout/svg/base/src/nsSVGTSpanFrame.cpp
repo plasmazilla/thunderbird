@@ -70,9 +70,9 @@ nsSVGTSpanFrame::Init(nsIContent* aContent,
 #endif /* DEBUG */
 
 NS_IMETHODIMP
-nsSVGTSpanFrame::AttributeChanged(PRInt32         aNameSpaceID,
+nsSVGTSpanFrame::AttributeChanged(int32_t         aNameSpaceID,
                                   nsIAtom*        aAttribute,
-                                  PRInt32         aModType)
+                                  int32_t         aModType)
 {
   if (aNameSpaceID == kNameSpaceID_None &&
       (aAttribute == nsGkAtoms::x ||
@@ -80,7 +80,7 @@ nsSVGTSpanFrame::AttributeChanged(PRInt32         aNameSpaceID,
        aAttribute == nsGkAtoms::dx ||
        aAttribute == nsGkAtoms::dy ||
        aAttribute == nsGkAtoms::rotate)) {
-    nsSVGUtils::InvalidateAndScheduleBoundsUpdate(this);
+    nsSVGUtils::InvalidateAndScheduleReflowSVG(this);
     NotifyGlyphMetricsChange();
   }
 
@@ -91,7 +91,7 @@ nsSVGTSpanFrame::AttributeChanged(PRInt32         aNameSpaceID,
 // nsSVGContainerFrame methods:
 
 gfxMatrix
-nsSVGTSpanFrame::GetCanvasTM(PRUint32 aFor)
+nsSVGTSpanFrame::GetCanvasTM(uint32_t aFor)
 {
   if (!(GetStateBits() & NS_STATE_SVG_NONDISPLAY_CHILD)) {
     if ((aFor == FOR_PAINTING && NS_SVGDisplayListPaintingEnabled()) ||
@@ -106,7 +106,7 @@ nsSVGTSpanFrame::GetCanvasTM(PRUint32 aFor)
 //----------------------------------------------------------------------
 // nsISVGGlyphFragmentNode methods:
 
-PRUint32
+uint32_t
 nsSVGTSpanFrame::GetNumberOfChars()
 {
   return nsSVGTSpanFrameBase::GetNumberOfChars();
@@ -119,12 +119,12 @@ nsSVGTSpanFrame::GetComputedTextLength()
 }
 
 float
-nsSVGTSpanFrame::GetSubStringLength(PRUint32 charnum, PRUint32 nchars)
+nsSVGTSpanFrame::GetSubStringLength(uint32_t charnum, uint32_t nchars)
 {
   return nsSVGTSpanFrameBase::GetSubStringLength(charnum, nchars);
 }
 
-PRInt32
+int32_t
 nsSVGTSpanFrame::GetCharNumAtPosition(nsIDOMSVGPoint *point)
 {
   return nsSVGTSpanFrameBase::GetCharNumAtPosition(point);
@@ -162,7 +162,7 @@ nsSVGTSpanFrame::GetNextGlyphFrame()
   
   NS_ASSERTION(GetParent(), "null parent");
   nsISVGGlyphFragmentNode *node = do_QueryFrame(GetParent());
-  return node ? node->GetNextGlyphFrame() : nsnull;
+  return node ? node->GetNextGlyphFrame() : nullptr;
 }
 
 NS_IMETHODIMP_(void)

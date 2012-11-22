@@ -58,6 +58,11 @@ nsXBLProtoImplMethod::AddParameter(const nsAString& aText)
   NS_PRECONDITION(!IsCompiled(),
                   "Must not be compiled when accessing uncompiled method");
 
+  if (aText.IsEmpty()) {
+    NS_WARNING("Empty name attribute in xbl:parameter!");
+    return;
+  }
+
   nsXBLUncompiledMethod* uncompiledMethod = GetUncompiledMethod();
   if (!uncompiledMethod) {
     uncompiledMethod = new nsXBLUncompiledMethod();
@@ -70,7 +75,7 @@ nsXBLProtoImplMethod::AddParameter(const nsAString& aText)
 }
 
 void
-nsXBLProtoImplMethod::SetLineNumber(PRUint32 aLineNumber)
+nsXBLProtoImplMethod::SetLineNumber(uint32_t aLineNumber)
 {
   NS_PRECONDITION(!IsCompiled(),
                   "Must not be compiled when accessing uncompiled method");
@@ -113,11 +118,7 @@ nsXBLProtoImplMethod::InstallMember(nsIScriptContext* aContext,
   if (mJSMethodObject && aTargetClassObject) {
     nsDependentString name(mName);
     JSAutoRequest ar(cx);
-    JSAutoEnterCompartment ac;
-
-    if (!ac.enter(cx, globalObject)) {
-      return NS_ERROR_UNEXPECTED;
-    }
+    JSAutoCompartment ac(cx, globalObject);
 
     JSObject * method = ::JS_CloneFunctionObject(cx, mJSMethodObject, globalObject);
     if (!method) {
@@ -149,7 +150,7 @@ nsXBLProtoImplMethod::CompileMember(nsIScriptContext* aContext, const nsCString&
   // No parameters or body was supplied, so don't install method.
   if (!uncompiledMethod) {
     // Early return after which we consider ourselves compiled.
-    mJSMethodObject = nsnull;
+    mJSMethodObject = nullptr;
 
     return NS_OK;
   }
@@ -159,22 +160,22 @@ nsXBLProtoImplMethod::CompileMember(nsIScriptContext* aContext, const nsCString&
     delete uncompiledMethod;
 
     // Early return after which we consider ourselves compiled.
-    mJSMethodObject = nsnull;
+    mJSMethodObject = nullptr;
 
     return NS_OK;
   }
 
   // We have a method.
   // Allocate an array for our arguments.
-  PRInt32 paramCount = uncompiledMethod->GetParameterCount();
-  char** args = nsnull;
+  int32_t paramCount = uncompiledMethod->GetParameterCount();
+  char** args = nullptr;
   if (paramCount > 0) {
     args = new char*[paramCount];
     if (!args)
       return NS_ERROR_OUT_OF_MEMORY;
 
     // Add our parameters to our args array.
-    PRInt32 argPos = 0; 
+    int32_t argPos = 0; 
     for (nsXBLParameter* curr = uncompiledMethod->mParameters; 
          curr; 
          curr = curr->mNext) {
@@ -193,12 +194,12 @@ nsXBLProtoImplMethod::CompileMember(nsIScriptContext* aContext, const nsCString&
   // and then define it.
   NS_ConvertUTF16toUTF8 cname(mName);
   nsCAutoString functionUri(aClassStr);
-  PRInt32 hash = functionUri.RFindChar('#');
+  int32_t hash = functionUri.RFindChar('#');
   if (hash != kNotFound) {
     functionUri.Truncate(hash);
   }
 
-  JSObject* methodObject = nsnull;
+  JSObject* methodObject = nullptr;
   nsresult rv = aContext->CompileFunction(aClassObject,
                                           cname,
                                           paramCount,
@@ -214,7 +215,7 @@ nsXBLProtoImplMethod::CompileMember(nsIScriptContext* aContext, const nsCString&
   delete uncompiledMethod;
   delete [] args;
   if (NS_FAILED(rv)) {
-    SetUncompiledMethod(nsnull);
+    SetUncompiledMethod(nullptr);
     return rv;
   }
 
@@ -237,7 +238,7 @@ nsXBLProtoImplMethod::Read(nsIScriptContext* aContext,
 {
   nsresult rv = XBL_DeserializeFunction(aContext, aStream, &mJSMethodObject);
   if (NS_FAILED(rv)) {
-    SetUncompiledMethod(nsnull);
+    SetUncompiledMethod(nullptr);
     return rv;
   }
 
@@ -305,10 +306,7 @@ nsXBLProtoImplAnonymousMethod::Execute(nsIContent* aBoundElement)
   JSObject* thisObject = JSVAL_TO_OBJECT(v);
 
   JSAutoRequest ar(cx);
-  JSAutoEnterCompartment ac;
-
-  if (!ac.enter(cx, thisObject))
-    return NS_ERROR_UNEXPECTED;
+  JSAutoCompartment ac(cx, thisObject);
 
   // Clone the function object, using thisObject as the parent so "this" is in
   // the scope chain of the resulting function (for backwards compat to the
@@ -331,7 +329,7 @@ nsXBLProtoImplAnonymousMethod::Execute(nsIContent* aBoundElement)
   if (NS_SUCCEEDED(rv)) {
     jsval retval;
     ok = ::JS_CallFunctionValue(cx, thisObject, OBJECT_TO_JSVAL(method),
-                                0 /* argc */, nsnull /* argv */, &retval);
+                                0 /* argc */, nullptr /* argv */, &retval);
   }
 
   if (!ok) {

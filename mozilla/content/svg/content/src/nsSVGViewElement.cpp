@@ -16,7 +16,7 @@ nsSVGElement::StringListInfo nsSVGViewElement::sStringListInfo[1] =
 nsSVGEnumMapping nsSVGViewElement::sZoomAndPanMap[] = {
   {&nsGkAtoms::disable, nsIDOMSVGZoomAndPan::SVG_ZOOMANDPAN_DISABLE},
   {&nsGkAtoms::magnify, nsIDOMSVGZoomAndPan::SVG_ZOOMANDPAN_MAGNIFY},
-  {nsnull, 0}
+  {nullptr, 0}
 };
 
 nsSVGElement::EnumInfo nsSVGViewElement::sEnumInfo[1] =
@@ -63,14 +63,14 @@ NS_IMPL_ELEMENT_CLONE_WITH_INIT(nsSVGViewElement)
 
 /* attribute unsigned short zoomAndPan; */
 NS_IMETHODIMP
-nsSVGViewElement::GetZoomAndPan(PRUint16 *aZoomAndPan)
+nsSVGViewElement::GetZoomAndPan(uint16_t *aZoomAndPan)
 {
   *aZoomAndPan = mEnumAttributes[ZOOMANDPAN].GetAnimValue();
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsSVGViewElement::SetZoomAndPan(PRUint16 aZoomAndPan)
+nsSVGViewElement::SetZoomAndPan(uint16_t aZoomAndPan)
 {
   if (aZoomAndPan == nsIDOMSVGZoomAndPan::SVG_ZOOMANDPAN_DISABLE ||
       aZoomAndPan == nsIDOMSVGZoomAndPan::SVG_ZOOMANDPAN_MAGNIFY) {

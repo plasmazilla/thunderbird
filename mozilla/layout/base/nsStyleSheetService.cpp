@@ -20,7 +20,7 @@
 #include "nsIObserverService.h"
 #include "nsLayoutStatics.h"
 
-nsStyleSheetService *nsStyleSheetService::gInstance = nsnull;
+nsStyleSheetService *nsStyleSheetService::gInstance = nullptr;
 
 nsStyleSheetService::nsStyleSheetService()
 {
@@ -32,7 +32,7 @@ nsStyleSheetService::nsStyleSheetService()
 
 nsStyleSheetService::~nsStyleSheetService()
 {
-  gInstance = nsnull;
+  gInstance = nullptr;
   nsLayoutStatics::Release();
 }
 
@@ -42,7 +42,7 @@ void
 nsStyleSheetService::RegisterFromEnumerator(nsICategoryManager  *aManager,
                                             const char          *aCategory,
                                             nsISimpleEnumerator *aEnumerator,
-                                            PRUint32             aSheetType)
+                                            uint32_t             aSheetType)
 {
   if (!aEnumerator)
     return;
@@ -70,11 +70,11 @@ nsStyleSheetService::RegisterFromEnumerator(nsICategoryManager  *aManager,
   }
 }
 
-PRInt32
+int32_t
 nsStyleSheetService::FindSheetByURI(const nsCOMArray<nsIStyleSheet> &sheets,
                                     nsIURI *sheetURI)
 {
-  for (PRInt32 i = sheets.Count() - 1; i >= 0; i-- ) {
+  for (int32_t i = sheets.Count() - 1; i >= 0; i-- ) {
     bool bEqual;
     nsIURI* uri = sheets[i]->GetSheetURI();
     if (uri
@@ -110,7 +110,7 @@ nsStyleSheetService::Init()
 
 NS_IMETHODIMP
 nsStyleSheetService::LoadAndRegisterSheet(nsIURI *aSheetURI,
-                                          PRUint32 aSheetType)
+                                          uint32_t aSheetType)
 {
   nsresult rv = LoadAndRegisterSheetInternal(aSheetURI, aSheetType);
   if (NS_SUCCEEDED(rv)) {
@@ -122,7 +122,7 @@ nsStyleSheetService::LoadAndRegisterSheet(nsIURI *aSheetURI,
       // We're guaranteed that the new sheet is the last sheet in
       // mSheets[aSheetType]
       const nsCOMArray<nsIStyleSheet> & sheets = mSheets[aSheetType];
-      serv->NotifyObservers(sheets[sheets.Count() - 1], message, nsnull);
+      serv->NotifyObservers(sheets[sheets.Count() - 1], message, nullptr);
     }
   }
   return rv;
@@ -130,7 +130,7 @@ nsStyleSheetService::LoadAndRegisterSheet(nsIURI *aSheetURI,
 
 nsresult
 nsStyleSheetService::LoadAndRegisterSheetInternal(nsIURI *aSheetURI,
-                                                  PRUint32 aSheetType)
+                                                  uint32_t aSheetType)
 {
   NS_ENSURE_ARG(aSheetType == AGENT_SHEET || aSheetType == USER_SHEET);
   NS_ENSURE_ARG_POINTER(aSheetURI);
@@ -152,7 +152,7 @@ nsStyleSheetService::LoadAndRegisterSheetInternal(nsIURI *aSheetURI,
 
 NS_IMETHODIMP
 nsStyleSheetService::SheetRegistered(nsIURI *sheetURI,
-                                     PRUint32 aSheetType, bool *_retval)
+                                     uint32_t aSheetType, bool *_retval)
 {
   NS_ENSURE_ARG(aSheetType == AGENT_SHEET || aSheetType == USER_SHEET);
   NS_ENSURE_ARG_POINTER(sheetURI);
@@ -164,12 +164,12 @@ nsStyleSheetService::SheetRegistered(nsIURI *sheetURI,
 }
 
 NS_IMETHODIMP
-nsStyleSheetService::UnregisterSheet(nsIURI *sheetURI, PRUint32 aSheetType)
+nsStyleSheetService::UnregisterSheet(nsIURI *sheetURI, uint32_t aSheetType)
 {
   NS_ENSURE_ARG(aSheetType == AGENT_SHEET || aSheetType == USER_SHEET);
   NS_ENSURE_ARG_POINTER(sheetURI);
 
-  PRInt32 foundIndex = FindSheetByURI(mSheets[aSheetType], sheetURI);
+  int32_t foundIndex = FindSheetByURI(mSheets[aSheetType], sheetURI);
   NS_ENSURE_TRUE(foundIndex >= 0, NS_ERROR_INVALID_ARG);
   nsCOMPtr<nsIStyleSheet> sheet = mSheets[aSheetType][foundIndex];
   mSheets[aSheetType].RemoveObjectAt(foundIndex);
@@ -179,7 +179,7 @@ nsStyleSheetService::UnregisterSheet(nsIURI *sheetURI, PRUint32 aSheetType)
   nsCOMPtr<nsIObserverService> serv =
     mozilla::services::GetObserverService();
   if (serv)
-    serv->NotifyObservers(sheet, message, nsnull);
+    serv->NotifyObservers(sheet, message, nullptr);
 
   return NS_OK;
 }

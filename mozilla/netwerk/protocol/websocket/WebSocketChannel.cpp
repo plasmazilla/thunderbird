@@ -28,7 +28,7 @@
 #include "nsXPIDLString.h"
 #include "nsCRT.h"
 #include "nsThreadUtils.h"
-#include "nsNetError.h"
+#include "nsError.h"
 #include "nsStringStream.h"
 #include "nsAlgorithm.h"
 #include "nsProxyRelease.h"
@@ -94,20 +94,20 @@ NS_IMPL_THREADSAFE_ISUPPORTS11(WebSocketChannel,
 
 // Initial reconnect delay is randomly chosen between 200-400 ms.
 // This is a gentler backoff than the 0-5 seconds the spec offhandedly suggests.
-const PRUint32 kWSReconnectInitialBaseDelay     = 200;
-const PRUint32 kWSReconnectInitialRandomDelay   = 200;
+const uint32_t kWSReconnectInitialBaseDelay     = 200;
+const uint32_t kWSReconnectInitialRandomDelay   = 200;
 
 // Base lifetime (in ms) of a FailDelay: kept longer if more failures occur
-const PRUint32 kWSReconnectBaseLifeTime         = 60 * 1000;
+const uint32_t kWSReconnectBaseLifeTime         = 60 * 1000;
 // Maximum reconnect delay (in ms)
-const PRUint32 kWSReconnectMaxDelay             = 60 * 1000;
+const uint32_t kWSReconnectMaxDelay             = 60 * 1000;
 
 // hold record of failed connections, and calculates needed delay for reconnects
 // to same host/port.
 class FailDelay
 {
 public:
-  FailDelay(nsCString address, PRInt32 port)
+  FailDelay(nsCString address, int32_t port)
     : mAddress(address), mPort(port)
   {
     mLastFailure = TimeStamp::Now();
@@ -127,10 +127,10 @@ public:
   }
 
   // returns 0 if there is no need to delay (i.e. delay interval is over)
-  PRUint32 RemainingDelay(TimeStamp rightNow)
+  uint32_t RemainingDelay(TimeStamp rightNow)
   {
     TimeDuration dur = rightNow - mLastFailure;
-    PRUint32 sinceFail = (PRUint32) dur.ToMilliseconds();
+    uint32_t sinceFail = (uint32_t) dur.ToMilliseconds();
     if (sinceFail > mNextDelay)
       return 0;
 
@@ -145,12 +145,12 @@ public:
   }
 
   nsCString  mAddress;     // IP address (or hostname if using proxy)
-  PRInt32    mPort;
+  int32_t    mPort;
 
 private:
   TimeStamp  mLastFailure; // Time of last failed attempt
   // mLastFailure + mNextDelay is the soonest we'll allow a reconnect
-  PRUint32   mNextDelay;   // milliseconds
+  uint32_t   mNextDelay;   // milliseconds
 };
 
 class FailDelayManager
@@ -176,12 +176,12 @@ public:
   ~FailDelayManager()
   {
     MOZ_COUNT_DTOR(FailDelayManager);
-    for (PRUint32 i = 0; i < mEntries.Length(); i++) {
+    for (uint32_t i = 0; i < mEntries.Length(); i++) {
       delete mEntries[i];
     }
   }
 
-  void Add(nsCString &address, PRInt32 port)
+  void Add(nsCString &address, int32_t port)
   {
     NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
 
@@ -194,20 +194,20 @@ public:
 
   // Element returned may not be valid after next main thread event: don't keep
   // pointer to it around
-  FailDelay* Lookup(nsCString &address, PRInt32 port,
-                    PRUint32 *outIndex = nsnull)
+  FailDelay* Lookup(nsCString &address, int32_t port,
+                    uint32_t *outIndex = nullptr)
   {
     NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
 
     if (mDelaysDisabled)
-      return nsnull;
+      return nullptr;
 
-    FailDelay *result = nsnull;
+    FailDelay *result = nullptr;
     TimeStamp rightNow = TimeStamp::Now();
 
     // We also remove expired entries during search: iterate from end to make
     // indexing simpler
-    for (PRInt32 i = mEntries.Length() - 1; i >= 0; --i) {
+    for (int32_t i = mEntries.Length() - 1; i >= 0; --i) {
       FailDelay *fail = mEntries[i];
       if (fail->mAddress.Equals(address) && fail->mPort == port) {
         if (outIndex)
@@ -229,13 +229,13 @@ public:
   void DelayOrBegin(WebSocketChannel *ws)
   {
     if (!mDelaysDisabled) {
-      PRUint32 failIndex = 0;
+      uint32_t failIndex = 0;
       FailDelay *fail = Lookup(ws->mAddress, ws->mPort, &failIndex);
 
       if (fail) {
         TimeStamp rightNow = TimeStamp::Now();
 
-        PRUint32 remainingDelay = fail->RemainingDelay(rightNow);
+        uint32_t remainingDelay = fail->RemainingDelay(rightNow);
         if (remainingDelay) {
           // reconnecting within delay interval: delay by remaining time
           nsresult rv;
@@ -266,14 +266,14 @@ public:
 
   // Remove() also deletes all expired entries as it iterates: better for
   // battery life than using a periodic timer.
-  void Remove(nsCString &address, PRInt32 port)
+  void Remove(nsCString &address, int32_t port)
   {
     NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
 
     TimeStamp rightNow = TimeStamp::Now();
 
     // iterate from end, to make deletion indexing easier
-    for (PRInt32 i = mEntries.Length() - 1; i >= 0; --i) {
+    for (int32_t i = mEntries.Length() - 1; i >= 0; --i) {
       FailDelay *entry = mEntries[i];
       if ((entry->mAddress.Equals(address) && entry->mPort == port) ||
           entry->IsExpired(rightNow)) {
@@ -318,7 +318,7 @@ public:
   ~nsWSAdmissionManager()
   {
     MOZ_COUNT_DTOR(nsWSAdmissionManager);
-    for (PRUint32 i = 0; i < mQueue.Length(); i++)
+    for (uint32_t i = 0; i < mQueue.Length(); i++)
       delete mQueue[i];
   }
 
@@ -404,7 +404,7 @@ public:
 
   void ConnectNext(nsCString &hostName)
   {
-    PRInt32 index = IndexOf(hostName);
+    int32_t index = IndexOf(hostName);
     if (index >= 0) {
       WebSocketChannel *chan = mQueue[index]->mChannel;
 
@@ -426,7 +426,7 @@ public:
     PR_ATOMIC_DECREMENT(&mSessionCount);
   }
 
-  PRInt32 SessionCount()
+  int32_t SessionCount()
   {
     return mSessionCount;
   }
@@ -435,7 +435,7 @@ private:
 
   void RemoveFromQueue(WebSocketChannel *aChannel)
   {
-    PRInt32 index = IndexOf(aChannel);
+    int32_t index = IndexOf(aChannel);
     NS_ABORT_IF_FALSE(index >= 0, "connection to remove not in queue");
     if (index >= 0) {
       nsOpenConn *olddata = mQueue[index];
@@ -444,17 +444,17 @@ private:
     }
   }
 
-  PRInt32 IndexOf(nsCString &aStr)
+  int32_t IndexOf(nsCString &aStr)
   {
-    for (PRUint32 i = 0; i < mQueue.Length(); i++)
+    for (uint32_t i = 0; i < mQueue.Length(); i++)
       if (aStr == (mQueue[i])->mAddress)
         return i;
     return -1;
   }
 
-  PRInt32 IndexOf(WebSocketChannel *aChannel)
+  int32_t IndexOf(WebSocketChannel *aChannel)
   {
-    for (PRUint32 i = 0; i < mQueue.Length(); i++)
+    for (uint32_t i = 0; i < mQueue.Length(); i++)
       if (aChannel == (mQueue[i])->mChannel)
         return i;
     return -1;
@@ -462,7 +462,7 @@ private:
 
   // SessionCount might be decremented from the main or the socket
   // thread, so manage it with atomic counters
-  PRInt32               mSessionCount;
+  int32_t               mSessionCount;
 
   // Queue for websockets that have not completed connecting yet.
   // The first nsOpenConn with a given address will be either be
@@ -476,7 +476,7 @@ private:
   FailDelayManager       mFailures;
 };
 
-static nsWSAdmissionManager *sWebSocketAdmissions = nsnull;
+static nsWSAdmissionManager *sWebSocketAdmissions = nullptr;
 
 //-----------------------------------------------------------------------------
 // CallOnMessageAvailable
@@ -489,7 +489,7 @@ public:
 
   CallOnMessageAvailable(WebSocketChannel *aChannel,
                          nsCString        &aData,
-                         PRInt32           aLen)
+                         int32_t           aLen)
     : mChannel(aChannel),
       mData(aData),
       mLen(aLen) {}
@@ -508,7 +508,7 @@ private:
 
   nsRefPtr<WebSocketChannel>        mChannel;
   nsCString                         mData;
-  PRInt32                           mLen;
+  int32_t                           mLen;
 };
 NS_IMPL_THREADSAFE_ISUPPORTS1(CallOnMessageAvailable, nsIRunnable)
 
@@ -534,8 +534,8 @@ public:
 
     if (mChannel->mListener) {
       mChannel->mListener->OnStop(mChannel->mContext, mReason);
-      mChannel->mListener = nsnull;
-      mChannel->mContext = nsnull;
+      mChannel->mListener = nullptr;
+      mChannel->mContext = nullptr;
     }
     return NS_OK;
   }
@@ -558,7 +558,7 @@ public:
   NS_DECL_ISUPPORTS
 
   CallOnServerClose(WebSocketChannel *aChannel,
-                    PRUint16          aCode,
+                    uint16_t          aCode,
                     nsCString        &aReason)
     : mChannel(aChannel),
       mCode(aCode),
@@ -574,7 +574,7 @@ private:
   ~CallOnServerClose() {}
 
   nsRefPtr<WebSocketChannel>        mChannel;
-  PRUint16                          mCode;
+  uint16_t                          mCode;
   nsCString                         mReason;
 };
 NS_IMPL_THREADSAFE_ISUPPORTS1(CallOnServerClose, nsIRunnable)
@@ -589,7 +589,7 @@ public:
   NS_DECL_ISUPPORTS
 
   CallAcknowledge(WebSocketChannel *aChannel,
-                  PRUint32          aSize)
+                  uint32_t          aSize)
     : mChannel(aChannel),
       mSize(aSize) {}
 
@@ -604,7 +604,7 @@ private:
   ~CallAcknowledge() {}
 
   nsRefPtr<WebSocketChannel>        mChannel;
-  PRUint32                          mSize;
+  uint32_t                          mSize;
 };
 NS_IMPL_THREADSAFE_ISUPPORTS1(CallAcknowledge, nsIRunnable)
 
@@ -675,7 +675,7 @@ public:
     mLength = str ? str->Length() : 0;
   }
 
-  OutboundMessage(nsIInputStream *stream, PRUint32 length)
+  OutboundMessage(nsIInputStream *stream, uint32_t length)
     : mMsgType(kMsgTypeStream), mLength(length)
   {
     MOZ_COUNT_CTOR(OutboundMessage);
@@ -705,18 +705,18 @@ public:
   }
 
   WsMsgType GetMsgType() const { return mMsgType; }
-  PRInt32 Length() const { return mLength; }
+  int32_t Length() const { return mLength; }
 
-  PRUint8* BeginWriting() {
+  uint8_t* BeginWriting() {
     NS_ABORT_IF_FALSE(mMsgType != kMsgTypeStream,
                       "Stream should have been converted to string by now");
-    return (PRUint8 *)(mMsg.pString ? mMsg.pString->BeginWriting() : nsnull);
+    return (uint8_t *)(mMsg.pString ? mMsg.pString->BeginWriting() : nullptr);
   }
 
-  PRUint8* BeginReading() {
+  uint8_t* BeginReading() {
     NS_ABORT_IF_FALSE(mMsgType != kMsgTypeStream,
                       "Stream should have been converted to string by now");
-    return (PRUint8 *)(mMsg.pString ? mMsg.pString->BeginReading() : nsnull);
+    return (uint8_t *)(mMsg.pString ? mMsg.pString->BeginReading() : nullptr);
   }
 
   nsresult ConvertStreamToString()
@@ -725,7 +725,7 @@ public:
 
 #ifdef DEBUG
     // Make sure we got correct length from Blob
-    PRUint32 bytes;
+    uint64_t bytes;
     mMsg.pStream->Available(&bytes);
     NS_ASSERTION(bytes == mLength, "Stream length != blob length!");
 #endif
@@ -749,7 +749,7 @@ private:
     nsIInputStream *pStream;
   }                           mMsg;
   WsMsgType                   mMsgType;
-  PRUint32                    mLength;
+  uint32_t                    mLength;
 };
 
 //-----------------------------------------------------------------------------
@@ -830,8 +830,8 @@ public:
     return mActive;
   }
 
-  nsresult Deflate(PRUint8 *buf1, PRUint32 buf1Len,
-                   PRUint8 *buf2, PRUint32 buf2Len)
+  nsresult Deflate(uint8_t *buf1, uint32_t buf1Len,
+                   uint8_t *buf2, uint32_t buf2Len)
   {
     NS_ABORT_IF_FALSE(PR_GetCurrentThread() == gSocketThread,
                           "not socket thread");
@@ -883,11 +883,11 @@ private:
 
   nsresult PushData()
   {
-    PRUint32 bytesToWrite = kBufferLen - mZlib.avail_out;
+    uint32_t bytesToWrite = kBufferLen - mZlib.avail_out;
     if (bytesToWrite > 0) {
       mStream->ShareData(reinterpret_cast<char *>(mBuffer), bytesToWrite);
       nsresult rv =
-        mListener->OnDataAvailable(nsnull, mContext, mStream, 0, bytesToWrite);
+        mListener->OnDataAvailable(nullptr, mContext, mStream, 0, bytesToWrite);
       if (NS_FAILED(rv))
         return rv;
     }
@@ -901,8 +901,8 @@ private:
   nsISupports                    *mContext;     /* weak ref */
   nsIStreamListener              *mListener;    /* weak ref */
 
-  const static PRInt32            kBufferLen = 4096;
-  PRUint8                         mBuffer[kBufferLen];
+  const static int32_t            kBufferLen = 4096;
+  uint8_t                         mBuffer[kBufferLen];
 };
 
 //-----------------------------------------------------------------------------
@@ -942,11 +942,11 @@ WebSocketChannel::WebSocketChannel() :
   mFragmentAccumulator(0),
   mBuffered(0),
   mBufferSize(kIncomingBufferInitialSize),
-  mCurrentOut(nsnull),
+  mCurrentOut(nullptr),
   mCurrentOutSent(0),
-  mCompressor(nsnull),
+  mCompressor(nullptr),
   mDynamicOutputSize(0),
-  mDynamicOutput(nsnull)
+  mDynamicOutput(nullptr)
 {
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
 
@@ -955,7 +955,7 @@ WebSocketChannel::WebSocketChannel() :
   if (!sWebSocketAdmissions)
     sWebSocketAdmissions = new nsWSAdmissionManager();
 
-  mFramePtr = mBuffer = static_cast<PRUint8 *>(moz_xmalloc(mBufferSize));
+  mFramePtr = mBuffer = static_cast<uint8_t *>(moz_xmalloc(mBufferSize));
 }
 
 WebSocketChannel::~WebSocketChannel()
@@ -1018,7 +1018,7 @@ void
 WebSocketChannel::Shutdown()
 {
   delete sWebSocketAdmissions;
-  sWebSocketAdmissions = nsnull;
+  sWebSocketAdmissions = nullptr;
 }
 
 void
@@ -1037,7 +1037,7 @@ WebSocketChannel::BeginOpen()
   if (mRedirectCallback) {
     LOG(("WebSocketChannel::BeginOpen: Resuming Redirect\n"));
     rv = mRedirectCallback->OnRedirectVerifyCallback(NS_OK);
-    mRedirectCallback = nsnull;
+    mRedirectCallback = nullptr;
     return;
   }
 
@@ -1086,9 +1086,9 @@ WebSocketChannel::IsPersistentFramePtr()
 // read buffer we want to explicitly include them in the buffer instead
 // of as already existing data.
 bool
-WebSocketChannel::UpdateReadBuffer(PRUint8 *buffer, PRUint32 count,
-                                   PRUint32 accumulatedFragments,
-                                   PRUint32 *available)
+WebSocketChannel::UpdateReadBuffer(uint8_t *buffer, uint32_t count,
+                                   uint32_t accumulatedFragments,
+                                   uint32_t *available)
 {
   LOG(("WebSocketChannel::UpdateReadBuffer() %p [%p %u]\n",
          this, buffer, count));
@@ -1114,8 +1114,8 @@ WebSocketChannel::UpdateReadBuffer(PRUint8 *buffer, PRUint32 count,
     // existing buffer is not sufficient, extend it
     mBufferSize += count + 8192 + mBufferSize/3;
     LOG(("WebSocketChannel: update read buffer extended to %u\n", mBufferSize));
-    PRUint8 *old = mBuffer;
-    mBuffer = (PRUint8 *)moz_realloc(mBuffer, mBufferSize);
+    uint8_t *old = mBuffer;
+    mBuffer = (uint8_t *)moz_realloc(mBuffer, mBufferSize);
     if (!mBuffer) {
       mBuffer = old;
       return false;
@@ -1133,7 +1133,7 @@ WebSocketChannel::UpdateReadBuffer(PRUint8 *buffer, PRUint32 count,
 }
 
 nsresult
-WebSocketChannel::ProcessInput(PRUint8 *buffer, PRUint32 count)
+WebSocketChannel::ProcessInput(uint8_t *buffer, uint32_t count)
 {
   LOG(("WebSocketChannel::ProcessInput %p [%d %d]\n", this, count, mBuffered));
   NS_ABORT_IF_FALSE(PR_GetCurrentThread() == gSocketThread, "not socket thread");
@@ -1148,7 +1148,7 @@ WebSocketChannel::ProcessInput(PRUint8 *buffer, PRUint32 count)
     mPingTimer->SetDelay(mPingTimeout);
   }
 
-  PRUint32 avail;
+  uint32_t avail;
 
   if (!mBuffered) {
     // Most of the time we can process right off the stack buffer without
@@ -1161,17 +1161,17 @@ WebSocketChannel::ProcessInput(PRUint8 *buffer, PRUint32 count)
     }
   }
 
-  PRUint8 *payload;
-  PRUint32 totalAvail = avail;
+  uint8_t *payload;
+  uint32_t totalAvail = avail;
 
   while (avail >= 2) {
-    PRInt64 payloadLength = mFramePtr[1] & 0x7F;
-    PRUint8 finBit        = mFramePtr[0] & kFinalFragBit;
-    PRUint8 rsvBits       = mFramePtr[0] & 0x70;
-    PRUint8 maskBit       = mFramePtr[1] & kMaskBit;
-    PRUint8 opcode        = mFramePtr[0] & 0x0F;
+    int64_t payloadLength = mFramePtr[1] & 0x7F;
+    uint8_t finBit        = mFramePtr[0] & kFinalFragBit;
+    uint8_t rsvBits       = mFramePtr[0] & 0x70;
+    uint8_t maskBit       = mFramePtr[1] & kMaskBit;
+    uint8_t opcode        = mFramePtr[0] & 0x0F;
 
-    PRUint32 framingLength = 2;
+    uint32_t framingLength = 2;
     if (maskBit)
       framingLength += 4;
 
@@ -1199,7 +1199,7 @@ WebSocketChannel::ProcessInput(PRUint8 *buffer, PRUint32 count)
       }
 
       // copy this in case it is unaligned
-      PRUint64 tempLen;
+      uint64_t tempLen;
       memcpy(&tempLen, mFramePtr + 2, 8);
       payloadLength = PR_ntohll(tempLen);
     }
@@ -1225,7 +1225,7 @@ WebSocketChannel::ProcessInput(PRUint8 *buffer, PRUint32 count)
       // frames to the client, but it is allowed
       LOG(("WebSocketChannel:: Client RECEIVING masked frame."));
 
-      PRUint32 mask;
+      uint32_t mask;
       memcpy(&mask, payload - 4, 4);
       mask = PR_ntohl(mask);
       ApplyMask(mask, payload, payloadLength);
@@ -1335,7 +1335,7 @@ WebSocketChannel::ProcessInput(PRUint8 *buffer, PRUint32 count)
           memcpy(&mServerCloseCode, payload, 2);
           mServerCloseCode = PR_ntohs(mServerCloseCode);
           LOG(("WebSocketChannel:: close recvd code %u\n", mServerCloseCode));
-          PRUint16 msglen = payloadLength - 2;
+          uint16_t msglen = payloadLength - 2;
           if (msglen > 0) {
             mServerCloseReason.SetLength(msglen);
             memcpy(mServerCloseReason.BeginWriting(),
@@ -1357,7 +1357,7 @@ WebSocketChannel::ProcessInput(PRUint8 *buffer, PRUint32 count)
 
         if (mCloseTimer) {
           mCloseTimer->Cancel();
-          mCloseTimer = nsnull;
+          mCloseTimer = nullptr;
         }
         if (mListener) {
           NS_DispatchToMainThread(new CallOnServerClose(this, mServerCloseCode,
@@ -1421,7 +1421,7 @@ WebSocketChannel::ProcessInput(PRUint8 *buffer, PRUint32 count)
       LOG(("WebSocketChannel:: Setup Buffer due to fragment"));
 
       if (!UpdateReadBuffer(mFramePtr - mFragmentAccumulator,
-                            totalAvail + mFragmentAccumulator, 0, nsnull)) {
+                            totalAvail + mFragmentAccumulator, 0, nullptr)) {
         return NS_ERROR_FILE_TOO_BIG;
       }
 
@@ -1430,7 +1430,7 @@ WebSocketChannel::ProcessInput(PRUint8 *buffer, PRUint32 count)
       mFramePtr += mFragmentAccumulator;
     } else if (totalAvail) {
       LOG(("WebSocketChannel:: Setup Buffer due to partial frame"));
-      if (!UpdateReadBuffer(mFramePtr, totalAvail, 0, nsnull)) {
+      if (!UpdateReadBuffer(mFramePtr, totalAvail, 0, nullptr)) {
         return NS_ERROR_FILE_TOO_BIG;
       }
     }
@@ -1444,14 +1444,14 @@ WebSocketChannel::ProcessInput(PRUint8 *buffer, PRUint32 count)
     if (mBufferSize > kIncomingBufferStableSize) {
       mBufferSize = kIncomingBufferStableSize;
       moz_free(mBuffer);
-      mBuffer = (PRUint8 *)moz_xmalloc(mBufferSize);
+      mBuffer = (uint8_t *)moz_xmalloc(mBufferSize);
     }
   }
   return NS_OK;
 }
 
 void
-WebSocketChannel::ApplyMask(PRUint32 mask, PRUint8 *data, PRUint64 len)
+WebSocketChannel::ApplyMask(uint32_t mask, uint8_t *data, uint64_t len)
 {
   if (!data || len == 0)
     return;
@@ -1469,13 +1469,13 @@ WebSocketChannel::ApplyMask(PRUint32 mask, PRUint8 *data, PRUint64 len)
 
   // perform mask on full words of data
 
-  PRUint32 *iData = (PRUint32 *) data;
-  PRUint32 *end = iData + (len / 4);
+  uint32_t *iData = (uint32_t *) data;
+  uint32_t *end = iData + (len / 4);
   mask = PR_htonl(mask);
   for (; iData < end; iData++)
     *iData ^= mask;
   mask = PR_ntohl(mask);
-  data = (PRUint8 *)iData;
+  data = (uint8_t *)iData;
   len  = len % 4;
 
   // There maybe up to 3 trailing bytes that need to be dealt with
@@ -1499,7 +1499,7 @@ WebSocketChannel::GeneratePing()
 }
 
 void
-WebSocketChannel::GeneratePong(PRUint8 *payload, PRUint32 len)
+WebSocketChannel::GeneratePong(uint8_t *payload, uint32_t len)
 {
   nsCString *buf = new nsCString();
   buf->SetLength(len);
@@ -1529,7 +1529,7 @@ WebSocketChannel::EnqueueOutgoingMessage(nsDeque &aQueue,
 }
 
 
-PRUint16
+uint16_t
 WebSocketChannel::ResultToCloseCode(nsresult resultCode)
 {
   if (NS_SUCCEEDED(resultCode))
@@ -1582,7 +1582,7 @@ WebSocketChannel::PrimeNewOutgoingMessage()
   mCurrentOutSent = 0;
   mHdrOut = mOutHeader;
 
-  PRUint8 *payload = nsnull;
+  uint8_t *payload = nullptr;
 
   if (msgType == kMsgTypeFin) {
     // This is a demand to create a close message
@@ -1604,7 +1604,7 @@ WebSocketChannel::PrimeNewOutgoingMessage()
     // and there isn't an internal error, use that.
     if (NS_SUCCEEDED(mStopOnClose)) {
       if (mScriptCloseCode) {
-        *((PRUint16 *)payload) = PR_htons(mScriptCloseCode);
+        *((uint16_t *)payload) = PR_htons(mScriptCloseCode);
         mOutHeader[1] += 2;
         mHdrOutToSend = 8;
         if (!mScriptCloseReason.IsEmpty()) {
@@ -1623,7 +1623,7 @@ WebSocketChannel::PrimeNewOutgoingMessage()
         mHdrOutToSend = 6;
       }
     } else {
-      *((PRUint16 *)payload) = PR_htons(ResultToCloseCode(mStopOnClose));
+      *((uint16_t *)payload) = PR_htons(ResultToCloseCode(mStopOnClose));
       mOutHeader[1] += 2;
       mHdrOutToSend = 8;
     }
@@ -1682,12 +1682,12 @@ WebSocketChannel::PrimeNewOutgoingMessage()
       mHdrOutToSend = 6;
     } else if (mCurrentOut->Length() <= 0xffff) {
       mOutHeader[1] = 126 | kMaskBit;
-      ((PRUint16 *)mOutHeader)[1] =
+      ((uint16_t *)mOutHeader)[1] =
         PR_htons(mCurrentOut->Length());
       mHdrOutToSend = 8;
     } else {
       mOutHeader[1] = 127 | kMaskBit;
-      PRUint64 tempLen = mCurrentOut->Length();
+      uint64_t tempLen = mCurrentOut->Length();
       tempLen = PR_htonll(tempLen);
       memcpy(mOutHeader + 2, &tempLen, 8);
       mHdrOutToSend = 14;
@@ -1698,9 +1698,9 @@ WebSocketChannel::PrimeNewOutgoingMessage()
   NS_ABORT_IF_FALSE(payload, "payload offset not found");
 
   // Perform the sending mask. Never use a zero mask
-  PRUint32 mask;
+  uint32_t mask;
   do {
-    PRUint8 *buffer;
+    uint8_t *buffer;
     nsresult rv = mRandomGenerator->GenerateRandomBytes(4, &buffer);
     if (NS_FAILED(rv)) {
       LOG(("WebSocketChannel::PrimeNewOutgoingMessage(): "
@@ -1708,10 +1708,10 @@ WebSocketChannel::PrimeNewOutgoingMessage()
       StopSession(rv);
       return;
     }
-    mask = * reinterpret_cast<PRUint32 *>(buffer);
+    mask = * reinterpret_cast<uint32_t *>(buffer);
     NS_Free(buffer);
   } while (!mask);
-  *(((PRUint32 *)payload) - 1) = PR_htonl(mask);
+  *(((uint32_t *)payload) - 1) = PR_htonl(mask);
 
   LOG(("WebSocketChannel::PrimeNewOutgoingMessage() using mask %08x\n", mask));
 
@@ -1731,7 +1731,7 @@ WebSocketChannel::PrimeNewOutgoingMessage()
 
   ApplyMask(mask, mCurrentOut->BeginWriting(), mCurrentOut->Length());
 
-  PRInt32 len = mCurrentOut->Length();
+  int32_t len = mCurrentOut->Length();
 
   // for small frames, copy it all together for a contiguous write
   if (len && len <= kCopyBreak) {
@@ -1743,7 +1743,7 @@ WebSocketChannel::PrimeNewOutgoingMessage()
   if (len && mCompressor) {
     // assume a 1/3 reduction in size for sizing the buffer
     // the buffer is used multiple times if necessary
-    PRUint32 currentHeaderSize = mHdrOutToSend;
+    uint32_t currentHeaderSize = mHdrOutToSend;
     mHdrOutToSend = 0;
 
     EnsureHdrOut(32 + (currentHeaderSize + len - mCurrentOutSent) / 2 * 3);
@@ -1766,19 +1766,19 @@ void
 WebSocketChannel::DeleteCurrentOutGoingMessage()
 {
   delete mCurrentOut;
-  mCurrentOut = nsnull;
+  mCurrentOut = nullptr;
   mCurrentOutSent = 0;
 }
 
 void
-WebSocketChannel::EnsureHdrOut(PRUint32 size)
+WebSocketChannel::EnsureHdrOut(uint32_t size)
 {
   LOG(("WebSocketChannel::EnsureHdrOut() %p [%d]\n", this, size));
 
   if (mDynamicOutputSize < size) {
     mDynamicOutputSize = size;
     mDynamicOutput =
-      (PRUint8 *) moz_xrealloc(mDynamicOutput, mDynamicOutputSize);
+      (uint8_t *) moz_xrealloc(mDynamicOutput, mDynamicOutputSize);
   }
 
   mHdrOut = mDynamicOutput;
@@ -1791,24 +1791,24 @@ WebSocketChannel::CleanupConnection()
 
   if (mLingeringCloseTimer) {
     mLingeringCloseTimer->Cancel();
-    mLingeringCloseTimer = nsnull;
+    mLingeringCloseTimer = nullptr;
   }
 
   if (mSocketIn) {
-    mSocketIn->AsyncWait(nsnull, 0, 0, nsnull);
-    mSocketIn = nsnull;
+    mSocketIn->AsyncWait(nullptr, 0, 0, nullptr);
+    mSocketIn = nullptr;
   }
 
   if (mSocketOut) {
-    mSocketOut->AsyncWait(nsnull, 0, 0, nsnull);
-    mSocketOut = nsnull;
+    mSocketOut->AsyncWait(nullptr, 0, 0, nullptr);
+    mSocketOut = nullptr;
   }
 
   if (mTransport) {
-    mTransport->SetSecurityCallbacks(nsnull);
-    mTransport->SetEventSink(nsnull, nsnull);
+    mTransport->SetSecurityCallbacks(nullptr);
+    mTransport->SetEventSink(nullptr, nullptr);
     mTransport->Close(NS_BASE_STREAM_CLOSED);
-    mTransport = nsnull;
+    mTransport = nullptr;
   }
 
   DecrementSessionCount();
@@ -1826,30 +1826,30 @@ WebSocketChannel::StopSession(nsresult reason)
 
   if (!mOpenedHttpChannel) {
     // The HTTP channel information will never be used in this case
-    mChannel = nsnull;
-    mHttpChannel = nsnull;
-    mLoadGroup = nsnull;
-    mCallbacks = nsnull;
+    mChannel = nullptr;
+    mHttpChannel = nullptr;
+    mLoadGroup = nullptr;
+    mCallbacks = nullptr;
   }
 
   if (mCloseTimer) {
     mCloseTimer->Cancel();
-    mCloseTimer = nsnull;
+    mCloseTimer = nullptr;
   }
 
   if (mOpenTimer) {
     mOpenTimer->Cancel();
-    mOpenTimer = nsnull;
+    mOpenTimer = nullptr;
   }
 
   if (mReconnectDelayTimer) {
     mReconnectDelayTimer->Cancel();
-    mReconnectDelayTimer = nsnull;
+    mReconnectDelayTimer = nullptr;
   }
 
   if (mPingTimer) {
     mPingTimer->Cancel();
-    mPingTimer = nsnull;
+    mPingTimer = nullptr;
   }
 
   if (mSocketIn && !mTCPClosed) {
@@ -1861,8 +1861,8 @@ WebSocketChannel::StopSession(nsresult reason)
     // is supposed to guarantee a quiet connection except for that fin.
 
     char     buffer[512];
-    PRUint32 count = 0;
-    PRUint32 total = 0;
+    uint32_t count = 0;
+    uint32_t total = 0;
     nsresult rv;
     do {
       total += count;
@@ -1902,14 +1902,14 @@ WebSocketChannel::StopSession(nsresult reason)
 
   if (mDNSRequest) {
     mDNSRequest->Cancel(NS_ERROR_UNEXPECTED);
-    mDNSRequest = nsnull;
+    mDNSRequest = nullptr;
   }
 
-  mInflateReader = nsnull;
-  mInflateStream = nsnull;
+  mInflateReader = nullptr;
+  mInflateStream = nullptr;
 
   delete mCompressor;
-  mCompressor = nsnull;
+  mCompressor = nullptr;
 
   if (!mCalledOnStop) {
     mCalledOnStop = 1;
@@ -1948,7 +1948,7 @@ WebSocketChannel::AbortSession(nsresult reason)
     mRequestedClose = 1;
     mStopOnClose = reason;
     mSocketThread->Dispatch(
-      new OutboundEnqueuer(this, new OutboundMessage(kMsgTypeFin, nsnull)),
+      new OutboundEnqueuer(this, new OutboundMessage(kMsgTypeFin, nullptr)),
                            nsIEventTarget::DISPATCH_NORMAL);
   } else {
     StopSession(reason);
@@ -2027,7 +2027,7 @@ WebSocketChannel::HandleExtensions()
         return NS_ERROR_UNEXPECTED;
       }
 
-      rv = serv->AsyncConvertData("deflate", "uncompressed", this, nsnull,
+      rv = serv->AsyncConvertData("deflate", "uncompressed", this, nullptr,
                                   getter_AddRefs(mInflateReader));
 
       if (NS_FAILED(rv)) {
@@ -2048,7 +2048,7 @@ WebSocketChannel::HandleExtensions()
       if (!mCompressor->Active()) {
         LOG(("WebSocketChannel:: Cannot init deflate object\n"));
         delete mCompressor;
-        mCompressor = nsnull;
+        mCompressor = nullptr;
         AbortSession(NS_ERROR_UNEXPECTED);
         return NS_ERROR_UNEXPECTED;
       }
@@ -2098,12 +2098,12 @@ WebSocketChannel::SetupRequest()
                                    NS_LITERAL_CSTRING("deflate-stream"),
                                    false);
 
-  PRUint8      *secKey;
+  uint8_t      *secKey;
   nsCAutoString secKeyString;
 
   rv = mRandomGenerator->GenerateRandomBytes(16, &secKey);
   NS_ENSURE_SUCCESS(rv, rv);
-  char* b64 = PL_Base64Encode((const char *)secKey, 16, nsnull);
+  char* b64 = PL_Base64Encode((const char *)secKey, 16, nullptr);
   NS_Free(secKey);
   if (!b64)
     return NS_ERROR_OUT_OF_MEMORY;
@@ -2121,7 +2121,7 @@ WebSocketChannel::SetupRequest()
   NS_ENSURE_SUCCESS(rv, rv);
   rv = hasher->Init(nsICryptoHash::SHA1);
   NS_ENSURE_SUCCESS(rv, rv);
-  rv = hasher->Update((const PRUint8 *) secKeyString.BeginWriting(),
+  rv = hasher->Update((const uint8_t *) secKeyString.BeginWriting(),
                       secKeyString.Length());
   NS_ENSURE_SUCCESS(rv, rv);
   rv = hasher->Finish(true, mHashedSecret);
@@ -2206,7 +2206,7 @@ WebSocketChannel::OnLookupComplete(nsICancelable *aRequest,
     return NS_OK;
   }
 
-  mDNSRequest = nsnull;
+  mDNSRequest = nullptr;
 
   // These failures are not fatal - we just use the hostname as the key
   if (NS_FAILED(aStatus)) {
@@ -2226,7 +2226,7 @@ WebSocketChannel::OnLookupComplete(nsICancelable *aRequest,
 // nsIInterfaceRequestor
 
 NS_IMETHODIMP
-WebSocketChannel::GetInterface(const nsIID & iid, void **result NS_OUTPARAM)
+WebSocketChannel::GetInterface(const nsIID & iid, void **result)
 {
   LOG(("WebSocketChannel::GetInterface() %p\n", this));
 
@@ -2245,7 +2245,7 @@ NS_IMETHODIMP
 WebSocketChannel::AsyncOnChannelRedirect(
                     nsIChannel *oldChannel,
                     nsIChannel *newChannel,
-                    PRUint32 flags,
+                    uint32_t flags,
                     nsIAsyncVerifyRedirectCallback *callback)
 {
   LOG(("WebSocketChannel::AsyncOnChannelRedirect() %p\n", this));
@@ -2354,7 +2354,7 @@ WebSocketChannel::AsyncOnChannelRedirect(
   rv = ApplyForAdmission();
   if (NS_FAILED(rv)) {
     LOG(("WebSocketChannel: Redirect failed due to DNS failure\n"));
-    mRedirectCallback = nsnull;
+    mRedirectCallback = nullptr;
     return rv;
   }
 
@@ -2373,7 +2373,7 @@ WebSocketChannel::Notify(nsITimer *timer)
     NS_ABORT_IF_FALSE(PR_GetCurrentThread() == gSocketThread,
                       "not socket thread");
 
-    mCloseTimer = nsnull;
+    mCloseTimer = nullptr;
     if (mStopped || mServerClosed)                /* no longer relevant */
       return NS_OK;
 
@@ -2384,7 +2384,7 @@ WebSocketChannel::Notify(nsITimer *timer)
                       "Open Timer after open complete");
     NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
 
-    mOpenTimer = nsnull;
+    mOpenTimer = nullptr;
     LOG(("WebSocketChannel:: Connection Timed Out\n"));
     if (mStopped || mServerClosed)                /* no longer relevant */
       return NS_OK;
@@ -2394,7 +2394,7 @@ WebSocketChannel::Notify(nsITimer *timer)
     NS_ABORT_IF_FALSE(mConnecting == CONNECTING_DELAYED,
                       "woke up from delay w/o being delayed?");
 
-    mReconnectDelayTimer = nsnull;
+    mReconnectDelayTimer = nullptr;
     LOG(("WebSocketChannel: connecting [this=%p] after reconnect delay", this));
     BeginOpen();
   } else if (timer == mPingTimer) {
@@ -2403,7 +2403,7 @@ WebSocketChannel::Notify(nsITimer *timer)
 
     if (mClientClosed || mServerClosed || mRequestedClose) {
       // no point in worrying about ping now
-      mPingTimer = nsnull;
+      mPingTimer = nullptr;
       return NS_OK;
     }
 
@@ -2415,7 +2415,7 @@ WebSocketChannel::Notify(nsITimer *timer)
                                    nsITimer::TYPE_ONE_SHOT);
     } else {
       LOG(("nsWebSocketChannel:: Timed out Ping\n"));
-      mPingTimer = nsnull;
+      mPingTimer = nullptr;
       AbortSession(NS_ERROR_NET_TIMEOUT);
     }
   } else if (timer == mLingeringCloseTimer) {
@@ -2437,7 +2437,7 @@ WebSocketChannel::GetSecurityInfo(nsISupports **aSecurityInfo)
 
   if (mTransport) {
     if (NS_FAILED(mTransport->GetSecurityInfo(aSecurityInfo)))
-      *aSecurityInfo = nsnull;
+      *aSecurityInfo = nullptr;
   }
   return NS_OK;
 }
@@ -2480,7 +2480,7 @@ WebSocketChannel::AsyncOpen(nsIURI *aURI,
   prefService = do_GetService(NS_PREFSERVICE_CONTRACTID);
 
   if (prefService) {
-    PRInt32 intpref;
+    int32_t intpref;
     bool boolpref;
     rv = prefService->GetIntPref("network.websocket.max-message-size", 
                                  &intpref);
@@ -2614,7 +2614,7 @@ WebSocketChannel::AsyncOpen(nsIURI *aURI,
 }
 
 NS_IMETHODIMP
-WebSocketChannel::Close(PRUint16 code, const nsACString & reason)
+WebSocketChannel::Close(uint16_t code, const nsACString & reason)
 {
   LOG(("WebSocketChannel::Close() %p\n", this));
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
@@ -2646,7 +2646,7 @@ WebSocketChannel::Close(PRUint16 code, const nsACString & reason)
   }
 
   return mSocketThread->Dispatch(
-      new OutboundEnqueuer(this, new OutboundMessage(kMsgTypeFin, nsnull)),
+      new OutboundEnqueuer(this, new OutboundMessage(kMsgTypeFin, nullptr)),
                            nsIEventTarget::DISPATCH_NORMAL);
 }
 
@@ -2666,16 +2666,16 @@ WebSocketChannel::SendBinaryMsg(const nsACString &aMsg)
 }
 
 NS_IMETHODIMP
-WebSocketChannel::SendBinaryStream(nsIInputStream *aStream, PRUint32 aLength)
+WebSocketChannel::SendBinaryStream(nsIInputStream *aStream, uint32_t aLength)
 {
   LOG(("WebSocketChannel::SendBinaryStream() %p\n", this));
 
-  return SendMsgCommon(nsnull, true, aLength, aStream);
+  return SendMsgCommon(nullptr, true, aLength, aStream);
 }
 
 nsresult
 WebSocketChannel::SendMsgCommon(const nsACString *aMsg, bool aIsBinary,
-                                PRUint32 aLength, nsIInputStream *aStream)
+                                uint32_t aLength, nsIInputStream *aStream)
 {
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
 
@@ -2690,7 +2690,7 @@ WebSocketChannel::SendMsgCommon(const nsACString *aMsg, bool aIsBinary,
   }
 
   NS_ABORT_IF_FALSE(mMaxMessageSize >= 0, "max message size negative");
-  if (aLength > static_cast<PRUint32>(mMaxMessageSize)) {
+  if (aLength > static_cast<uint32_t>(mMaxMessageSize)) {
     LOG(("WebSocketChannel:: Error: message too big\n"));
     return NS_ERROR_FILE_TOO_BIG;
   }
@@ -2728,7 +2728,7 @@ WebSocketChannel::OnTransportAvailable(nsISocketTransport *aTransport,
   mSocketOut = aSocketOut;
 
   nsresult rv;
-  rv = mTransport->SetEventSink(nsnull, nsnull);
+  rv = mTransport->SetEventSink(nullptr, nullptr);
   if (NS_FAILED(rv)) return rv;
   rv = mTransport->SetSecurityCallbacks(this);
   if (NS_FAILED(rv)) return rv;
@@ -2752,7 +2752,7 @@ WebSocketChannel::OnStartRequest(nsIRequest *aRequest,
 
   if (mOpenTimer) {
     mOpenTimer->Cancel();
-    mOpenTimer = nsnull;
+    mOpenTimer = nullptr;
   }
 
   if (mStopped) {
@@ -2762,7 +2762,7 @@ WebSocketChannel::OnStartRequest(nsIRequest *aRequest,
   }
 
   nsresult rv;
-  PRUint32 status;
+  uint32_t status;
   char *val, *token;
 
   rv = mHttpChannel->GetResponseStatus(&status);
@@ -2900,10 +2900,10 @@ WebSocketChannel::OnStopRequest(nsIRequest *aRequest,
   // This is the end of the HTTP upgrade transaction, the
   // upgraded streams live on
 
-  mChannel = nsnull;
-  mHttpChannel = nsnull;
-  mLoadGroup = nsnull;
-  mCallbacks = nsnull;
+  mChannel = nullptr;
+  mHttpChannel = nullptr;
+  mLoadGroup = nullptr;
+  mCallbacks = nullptr;
 
   return NS_OK;
 }
@@ -2924,7 +2924,7 @@ WebSocketChannel::OnInputStreamReady(nsIAsyncInputStream *aStream)
 
   // this is after the  http upgrade - so we are speaking websockets
   char  buffer[2048];
-  PRUint32 count;
+  uint32_t count;
   nsresult rv;
 
   do {
@@ -2956,10 +2956,10 @@ WebSocketChannel::OnInputStreamReady(nsIAsyncInputStream *aStream)
 
     if (mInflateReader) {
       mInflateStream->ShareData(buffer, count);
-      rv = mInflateReader->OnDataAvailable(nsnull, mSocketIn, mInflateStream, 
+      rv = mInflateReader->OnDataAvailable(nullptr, mSocketIn, mInflateStream, 
                                            0, count);
     } else {
-      rv = ProcessInput((PRUint8 *)buffer, count);
+      rv = ProcessInput((uint8_t *)buffer, count);
     }
 
     if (NS_FAILED(rv)) {
@@ -2986,8 +2986,8 @@ WebSocketChannel::OnOutputStreamReady(nsIAsyncOutputStream *aStream)
 
   while (mCurrentOut && mSocketOut) {
     const char *sndBuf;
-    PRUint32 toSend;
-    PRUint32 amtSent;
+    uint32_t toSend;
+    uint32_t amtSent;
 
     if (mHdrOut) {
       sndBuf = (const char *)mHdrOut;
@@ -3011,7 +3011,7 @@ WebSocketChannel::OnOutputStreamReady(nsIAsyncOutputStream *aStream)
            amtSent, rv));
 
       if (rv == NS_BASE_STREAM_WOULD_BLOCK) {
-        mSocketOut->AsyncWait(this, 0, 0, nsnull);
+        mSocketOut->AsyncWait(this, 0, 0, nullptr);
         return NS_OK;
       }
 
@@ -3023,7 +3023,7 @@ WebSocketChannel::OnOutputStreamReady(nsIAsyncOutputStream *aStream)
 
     if (mHdrOut) {
       if (amtSent == toSend) {
-        mHdrOut = nsnull;
+        mHdrOut = nullptr;
         mHdrOutToSend = 0;
       } else {
         mHdrOut += amtSent;
@@ -3054,8 +3054,8 @@ NS_IMETHODIMP
 WebSocketChannel::OnDataAvailable(nsIRequest *aRequest,
                                     nsISupports *aContext,
                                     nsIInputStream *aInputStream,
-                                    PRUint32 aOffset,
-                                    PRUint32 aCount)
+                                    uint32_t aOffset,
+                                    uint32_t aCount)
 {
   LOG(("WebSocketChannel::OnDataAvailable() %p [%p %p %p %u %u]\n",
          this, aRequest, aContext, aInputStream, aOffset, aCount));
@@ -3066,9 +3066,9 @@ WebSocketChannel::OnDataAvailable(nsIRequest *aRequest,
     LOG(("WebSocketChannel::OnDataAvailable: Deflate Data %u\n",
              aCount));
 
-    PRUint8  buffer[2048];
-    PRUint32 maxRead;
-    PRUint32 count;
+    uint8_t  buffer[2048];
+    uint32_t maxRead;
+    uint32_t count;
     nsresult rv = NS_OK;  // aCount always > 0, so this just avoids warning
 
     while (aCount > 0) {
@@ -3097,8 +3097,8 @@ WebSocketChannel::OnDataAvailable(nsIRequest *aRequest,
   if (aContext == mSocketOut) {
     // This is the deflate encoder
 
-    PRUint32 maxRead;
-    PRUint32 count;
+    uint32_t maxRead;
+    uint32_t count;
     nsresult rv;
 
     while (aCount > 0) {

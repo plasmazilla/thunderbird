@@ -55,14 +55,14 @@ class TestClear(MarionetteTestCase):
         self.marionette.navigate(test_html)
         element = self.marionette.find_element("id","content-editable")
         element.clear()
-        self.assertEqual("", element.text())
+        self.assertEqual("", element.text)
         
     def testTextInputShouldNotClearWhenDisabled(self):
         test_html = self.marionette.absolute_url("test_clearing.html")
         self.marionette.navigate(test_html)
         try:
             element = self.marionette.find_element("id","textInputnotenabled")
-            self.assertFalse(element.enabled())
+            self.assertFalse(element.is_enabled())
             element.clear()
             self.fail("Should not have been able to clear")
         except InvalidElementStateException:

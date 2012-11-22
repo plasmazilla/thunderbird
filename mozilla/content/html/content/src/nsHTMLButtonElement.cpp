@@ -19,14 +19,13 @@
 #include "nsIFrame.h"
 #include "nsIFormControlFrame.h"
 #include "nsIDOMEvent.h"
-#include "nsIDOMNSEvent.h"
 #include "nsIDocument.h"
 #include "nsGUIEvent.h"
 #include "nsUnicharUtils.h"
 #include "nsLayoutUtils.h"
 #include "nsEventDispatcher.h"
 #include "nsPresState.h"
-#include "nsLayoutErrors.h"
+#include "nsError.h"
 #include "nsFocusManager.h"
 #include "nsHTMLFormElement.h"
 #include "nsIConstraintValidation.h"
@@ -69,21 +68,21 @@ public:
 
   // nsIDOMHTMLElement
   NS_FORWARD_NSIDOMHTMLELEMENT_BASIC(nsGenericHTMLFormElement::)
-  NS_SCRIPTABLE NS_IMETHOD Click() {
+  NS_IMETHOD Click() {
     return nsGenericHTMLFormElement::Click();
   }
-  NS_SCRIPTABLE NS_IMETHOD GetTabIndex(PRInt32* aTabIndex);
-  NS_SCRIPTABLE NS_IMETHOD SetTabIndex(PRInt32 aTabIndex);
-  NS_SCRIPTABLE NS_IMETHOD Focus() {
+  NS_IMETHOD GetTabIndex(int32_t* aTabIndex);
+  NS_IMETHOD SetTabIndex(int32_t aTabIndex);
+  NS_IMETHOD Focus() {
     return nsGenericHTMLFormElement::Focus();
   }
-  NS_SCRIPTABLE NS_IMETHOD GetDraggable(bool* aDraggable) {
+  NS_IMETHOD GetDraggable(bool* aDraggable) {
     return nsGenericHTMLFormElement::GetDraggable(aDraggable);
   }
-  NS_SCRIPTABLE NS_IMETHOD GetInnerHTML(nsAString& aInnerHTML) {
+  NS_IMETHOD GetInnerHTML(nsAString& aInnerHTML) {
     return nsGenericHTMLFormElement::GetInnerHTML(aInnerHTML);
   }
-  NS_SCRIPTABLE NS_IMETHOD SetInnerHTML(const nsAString& aInnerHTML) {
+  NS_IMETHOD SetInnerHTML(const nsAString& aInnerHTML) {
     return nsGenericHTMLFormElement::SetInnerHTML(aInnerHTML);
   }
 
@@ -91,7 +90,7 @@ public:
   NS_DECL_NSIDOMHTMLBUTTONELEMENT
 
   // overriden nsIFormControl methods
-  NS_IMETHOD_(PRUint32) GetType() const { return mType; }
+  NS_IMETHOD_(uint32_t) GetType() const { return mType; }
   NS_IMETHOD Reset();
   NS_IMETHOD SubmitNamesValues(nsFormSubmission* aFormSubmission);
   NS_IMETHOD SaveState();
@@ -102,18 +101,18 @@ public:
   /**
    * Called when an attribute is about to be changed
    */
-  virtual nsresult BeforeSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+  virtual nsresult BeforeSetAttr(int32_t aNameSpaceID, nsIAtom* aName,
                                  const nsAttrValueOrString* aValue,
                                  bool aNotify);
   /**
    * Called when an attribute has just been changed
    */
-  nsresult AfterSetAttr(PRInt32 aNamespaceID, nsIAtom* aName,
+  nsresult AfterSetAttr(int32_t aNamespaceID, nsIAtom* aName,
                         const nsAttrValue* aValue, bool aNotify);
 
   // nsIContent overrides...
-  virtual bool IsHTMLFocusable(bool aWithMouse, bool *aIsFocusable, PRInt32 *aTabIndex);
-  virtual bool ParseAttribute(PRInt32 aNamespaceID,
+  virtual bool IsHTMLFocusable(bool aWithMouse, bool *aIsFocusable, int32_t *aTabIndex);
+  virtual bool ParseAttribute(int32_t aNamespaceID,
                                 nsIAtom* aAttribute,
                                 const nsAString& aValue,
                                 nsAttrValue& aResult);
@@ -131,7 +130,7 @@ public:
   virtual nsXPCClassInfo* GetClassInfo();
   virtual nsIDOMNode* AsDOMNode() { return this; }
 protected:
-  PRUint8 mType;
+  uint8_t mType;
   bool mDisabledChanged;
   bool mInInternalActivate;
   bool mInhibitStateRestoration;
@@ -213,7 +212,7 @@ NS_IMPL_ENUM_ATTR_DEFAULT_VALUE(nsHTMLButtonElement, Type, type,
                                 kButtonDefaultType->tag)
 
 bool
-nsHTMLButtonElement::IsHTMLFocusable(bool aWithMouse, bool *aIsFocusable, PRInt32 *aTabIndex)
+nsHTMLButtonElement::IsHTMLFocusable(bool aWithMouse, bool *aIsFocusable, int32_t *aTabIndex)
 {
   if (nsGenericHTMLFormElement::IsHTMLFocusable(aWithMouse, aIsFocusable, aTabIndex)) {
     return true;
@@ -229,7 +228,7 @@ nsHTMLButtonElement::IsHTMLFocusable(bool aWithMouse, bool *aIsFocusable, PRInt3
 }
 
 bool
-nsHTMLButtonElement::ParseAttribute(PRInt32 aNamespaceID,
+nsHTMLButtonElement::ParseAttribute(int32_t aNamespaceID,
                                     nsIAtom* aAttribute,
                                     const nsAString& aValue,
                                     nsAttrValue& aResult)
@@ -347,11 +346,11 @@ nsHTMLButtonElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
             nsEventStatus status = nsEventStatus_eIgnore;
 
             nsMouseEvent event(NS_IS_TRUSTED_EVENT(aVisitor.mEvent),
-                               NS_MOUSE_CLICK, nsnull,
+                               NS_MOUSE_CLICK, nullptr,
                                nsMouseEvent::eReal);
             event.inputSource = nsIDOMMouseEvent::MOZ_SOURCE_KEYBOARD;
             nsEventDispatcher::Dispatch(static_cast<nsIContent*>(this),
-                                        aVisitor.mPresContext, &event, nsnull,
+                                        aVisitor.mPresContext, &event, nullptr,
                                         &status);
             aVisitor.mEventStatus = nsEventStatus_eConsumeNoDefault;
           }
@@ -416,7 +415,7 @@ nsHTMLButtonElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
       case NS_MOUSE_EXIT_SYNTH:
         {
           aVisitor.mPresContext->EventStateManager()->
-            SetContentState(nsnull, NS_EVENT_STATE_HOVER);
+            SetContentState(nullptr, NS_EVENT_STATE_HOVER);
           aVisitor.mEventStatus = nsEventStatus_eConsumeNoDefault;
         }
         break;
@@ -548,7 +547,7 @@ nsHTMLButtonElement::DoneCreatingElement()
 }
 
 nsresult
-nsHTMLButtonElement::BeforeSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+nsHTMLButtonElement::BeforeSetAttr(int32_t aNameSpaceID, nsIAtom* aName,
                                    const nsAttrValueOrString* aValue,
                                    bool aNotify)
 {
@@ -562,7 +561,7 @@ nsHTMLButtonElement::BeforeSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
 }
 
 nsresult
-nsHTMLButtonElement::AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+nsHTMLButtonElement::AfterSetAttr(int32_t aNameSpaceID, nsIAtom* aName,
                                   const nsAttrValue* aValue, bool aNotify)
 {
   if (aNameSpaceID == kNameSpaceID_None) {
@@ -586,7 +585,7 @@ nsHTMLButtonElement::SaveState()
     return NS_OK;
   }
   
-  nsPresState *state = nsnull;
+  nsPresState *state = nullptr;
   nsresult rv = GetPrimaryPresState(this, &state);
   if (state) {
     // We do not want to save the real disabled state but the disabled

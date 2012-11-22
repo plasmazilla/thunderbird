@@ -6,7 +6,7 @@
 #include "nsCrossSiteListenerProxy.h"
 #include "nsIChannel.h"
 #include "nsIHttpChannel.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsContentUtils.h"
 #include "nsIScriptSecurityManager.h"
 #include "nsNetUtil.h"
@@ -104,7 +104,7 @@ private:
 };
 
 // Will be initialized in EnsurePreflightCache.
-static nsPreflightCache* sPreflightCache = nsnull;
+static nsPreflightCache* sPreflightCache = nullptr;
 
 static bool EnsurePreflightCache()
 {
@@ -124,7 +124,7 @@ static bool EnsurePreflightCache()
 void
 nsPreflightCache::CacheEntry::PurgeExpired(PRTime now)
 {
-  PRUint32 i;
+  uint32_t i;
   for (i = 0; i < mMethods.Length(); ++i) {
     if (now >= mMethods[i].expirationTime) {
       mMethods.RemoveElementAt(i--);
@@ -144,7 +144,7 @@ nsPreflightCache::CacheEntry::CheckRequest(const nsCString& aMethod,
   PurgeExpired(PR_Now());
 
   if (!aMethod.EqualsLiteral("GET") && !aMethod.EqualsLiteral("POST")) {
-    PRUint32 i;
+    uint32_t i;
     for (i = 0; i < mMethods.Length(); ++i) {
       if (aMethod.Equals(mMethods[i].token))
         break;
@@ -154,8 +154,8 @@ nsPreflightCache::CacheEntry::CheckRequest(const nsCString& aMethod,
     }
   }
 
-  for (PRUint32 i = 0; i < aHeaders.Length(); ++i) {
-    PRUint32 j;
+  for (uint32_t i = 0; i < aHeaders.Length(); ++i) {
+    uint32_t j;
     for (j = 0; j < mHeaders.Length(); ++j) {
       if (aHeaders[i].Equals(mHeaders[j].token,
                              nsCaseInsensitiveCStringComparator())) {
@@ -179,7 +179,7 @@ nsPreflightCache::GetEntry(nsIURI* aURI,
   nsCString key;
   if (!GetCacheKey(aURI, aPrincipal, aWithCredentials, key)) {
     NS_WARNING("Invalid cache key!");
-    return nsnull;
+    return nullptr;
   }
 
   CacheEntry* entry;
@@ -195,7 +195,7 @@ nsPreflightCache::GetEntry(nsIURI* aURI,
   }
 
   if (!aCreate) {
-    return nsnull;
+    return nullptr;
   }
 
   // This is a new entry, allocate and insert into the table now so that any
@@ -203,7 +203,7 @@ nsPreflightCache::GetEntry(nsIURI* aURI,
   entry = new CacheEntry(key);
   if (!entry) {
     NS_WARNING("Failed to allocate new cache entry!");
-    return nsnull;
+    return nullptr;
   }
 
   NS_ASSERTION(mTable.Count() <= PREFLIGHT_CACHE_SIZE,
@@ -341,7 +341,7 @@ void
 nsCORSListenerProxy::Shutdown()
 {
   delete sPreflightCache;
-  sPreflightCache = nsnull;
+  sPreflightCache = nullptr;
 }
 
 nsCORSListenerProxy::nsCORSListenerProxy(nsIStreamListener* aOuter,
@@ -361,9 +361,9 @@ nsCORSListenerProxy::nsCORSListenerProxy(nsIStreamListener* aOuter,
 
   *aResult = UpdateChannel(aChannel);
   if (NS_FAILED(*aResult)) {
-    mOuterListener = nsnull;
-    mRequestingPrincipal = nsnull;
-    mOuterNotificationCallbacks = nsnull;
+    mOuterListener = nullptr;
+    mRequestingPrincipal = nullptr;
+    mOuterNotificationCallbacks = nullptr;
   }
 }
 
@@ -385,9 +385,9 @@ nsCORSListenerProxy::nsCORSListenerProxy(nsIStreamListener* aOuter,
 
   *aResult = UpdateChannel(aChannel, aAllowDataURI);
   if (NS_FAILED(*aResult)) {
-    mOuterListener = nsnull;
-    mRequestingPrincipal = nsnull;
-    mOuterNotificationCallbacks = nsnull;
+    mOuterListener = nullptr;
+    mRequestingPrincipal = nullptr;
+    mOuterNotificationCallbacks = nullptr;
   }
 }
 
@@ -407,7 +407,7 @@ nsCORSListenerProxy::nsCORSListenerProxy(nsIStreamListener* aOuter,
     mPreflightMethod(aPreflightMethod),
     mPreflightHeaders(aPreflightHeaders)
 {
-  for (PRUint32 i = 0; i < mPreflightHeaders.Length(); ++i) {
+  for (uint32_t i = 0; i < mPreflightHeaders.Length(); ++i) {
     ToLowerCase(mPreflightHeaders[i]);
   }
   mPreflightHeaders.Sort();
@@ -417,9 +417,9 @@ nsCORSListenerProxy::nsCORSListenerProxy(nsIStreamListener* aOuter,
 
   *aResult = UpdateChannel(aChannel);
   if (NS_FAILED(*aResult)) {
-    mOuterListener = nsnull;
-    mRequestingPrincipal = nsnull;
-    mOuterNotificationCallbacks = nsnull;
+    mOuterListener = nullptr;
+    mRequestingPrincipal = nullptr;
+    mOuterNotificationCallbacks = nullptr;
   }
 }
 
@@ -585,7 +585,7 @@ nsCORSListenerProxy::CheckRequestApproved(nsIRequest* aRequest)
       }
       headers.AppendElement(header);
     }
-    for (PRUint32 i = 0; i < mPreflightHeaders.Length(); ++i) {
+    for (uint32_t i = 0; i < mPreflightHeaders.Length(); ++i) {
       if (!headers.Contains(mPreflightHeaders[i],
                             nsCaseInsensitiveCStringArrayComparator())) {
         return NS_ERROR_DOM_BAD_URI;
@@ -602,11 +602,11 @@ nsCORSListenerProxy::OnStopRequest(nsIRequest* aRequest,
                                    nsresult aStatusCode)
 {
   nsresult rv = mOuterListener->OnStopRequest(aRequest, aContext, aStatusCode);
-  mOuterListener = nsnull;
-  mOuterNotificationCallbacks = nsnull;
-  mRedirectCallback = nsnull;
-  mOldRedirectChannel = nsnull;
-  mNewRedirectChannel = nsnull;
+  mOuterListener = nullptr;
+  mOuterNotificationCallbacks = nullptr;
+  mRedirectCallback = nullptr;
+  mOldRedirectChannel = nullptr;
+  mNewRedirectChannel = nullptr;
   return rv;
 }
 
@@ -614,8 +614,8 @@ NS_IMETHODIMP
 nsCORSListenerProxy::OnDataAvailable(nsIRequest* aRequest,
                                      nsISupports* aContext, 
                                      nsIInputStream* aInputStream,
-                                     PRUint32 aOffset,
-                                     PRUint32 aCount)
+                                     uint32_t aOffset,
+                                     uint32_t aCount)
 {
   if (!mRequestApproved) {
     return NS_ERROR_DOM_BAD_URI;
@@ -642,7 +642,7 @@ nsCORSListenerProxy::GetInterface(const nsIID & aIID, void **aResult)
 NS_IMETHODIMP
 nsCORSListenerProxy::AsyncOnChannelRedirect(nsIChannel *aOldChannel,
                                             nsIChannel *aNewChannel,
-                                            PRUint32 aFlags,
+                                            uint32_t aFlags,
                                             nsIAsyncVerifyRedirectCallback *cb)
 {
   nsresult rv;
@@ -672,9 +672,9 @@ nsCORSListenerProxy::AsyncOnChannelRedirect(nsIChannel *aOldChannel,
     rv = outer->AsyncOnChannelRedirect(aOldChannel, aNewChannel, aFlags, this);
     if (NS_FAILED(rv)) {
         aOldChannel->Cancel(rv); // is this necessary...?
-        mRedirectCallback = nsnull;
-        mOldRedirectChannel = nsnull;
-        mNewRedirectChannel = nsnull;
+        mRedirectCallback = nullptr;
+        mOldRedirectChannel = nullptr;
+        mNewRedirectChannel = nullptr;
     }
     return rv;  
   }
@@ -703,10 +703,10 @@ nsCORSListenerProxy::OnRedirectVerifyCallback(nsresult result)
     mOldRedirectChannel->Cancel(result);
   }
 
-  mOldRedirectChannel = nsnull;
-  mNewRedirectChannel = nsnull;
+  mOldRedirectChannel = nullptr;
+  mNewRedirectChannel = nullptr;
   mRedirectCallback->OnRedirectVerifyCallback(result);
-  mRedirectCallback   = nsnull;
+  mRedirectCallback   = nullptr;
   return NS_OK;
 }
 
@@ -743,10 +743,10 @@ nsCORSListenerProxy::UpdateChannel(nsIChannel* aChannel, bool aAllowDataURI)
   }
 
   if (!mHasBeenCrossSite &&
-      NS_SUCCEEDED(mRequestingPrincipal->CheckMayLoad(uri, false)) &&
+      NS_SUCCEEDED(mRequestingPrincipal->CheckMayLoad(uri, false, false)) &&
       (originalURI == uri ||
        NS_SUCCEEDED(mRequestingPrincipal->CheckMayLoad(originalURI,
-                                                       false)))) {
+                                                       false, false)))) {
     return NS_OK;
   }
 
@@ -777,7 +777,7 @@ nsCORSListenerProxy::UpdateChannel(nsIChannel* aChannel, bool aAllowDataURI)
 
     if (!mPreflightHeaders.IsEmpty()) {
       nsCAutoString headers;
-      for (PRUint32 i = 0; i < mPreflightHeaders.Length(); ++i) {
+      for (uint32_t i = 0; i < mPreflightHeaders.Length(); ++i) {
         if (i != 0) {
           headers += ',';
         }
@@ -863,7 +863,7 @@ nsCORSPreflightListener::AddResultToCache(nsIRequest *aRequest)
   // Sanitize the string. We only allow 'delta-seconds' as specified by
   // http://dev.w3.org/2006/waf/access-control (digits 0-9 with no leading or
   // trailing non-whitespace characters).
-  PRUint32 age = 0;
+  uint32_t age = 0;
   nsCSubstring::const_char_iterator iter, end;
   headerVal.BeginReading(iter);
   headerVal.EndReading(end);
@@ -890,7 +890,7 @@ nsCORSPreflightListener::AddResultToCache(nsIRequest *aRequest)
   NS_GetFinalChannelURI(http, getter_AddRefs(uri));
 
   // PR_Now gives microseconds
-  PRTime expirationTime = PR_Now() + (PRUint64)age * PR_USEC_PER_SEC;
+  PRTime expirationTime = PR_Now() + (uint64_t)age * PR_USEC_PER_SEC;
 
   nsPreflightCache::CacheEntry* entry =
     sPreflightCache->GetEntry(uri, mReferrerPrincipal, mWithCredentials,
@@ -910,7 +910,7 @@ nsCORSPreflightListener::AddResultToCache(nsIRequest *aRequest)
     if (method.IsEmpty()) {
       continue;
     }
-    PRUint32 i;
+    uint32_t i;
     for (i = 0; i < entry->mMethods.Length(); ++i) {
       if (entry->mMethods[i].token.Equals(method)) {
         entry->mMethods[i].expirationTime = expirationTime;
@@ -940,7 +940,7 @@ nsCORSPreflightListener::AddResultToCache(nsIRequest *aRequest)
     if (header.IsEmpty()) {
       continue;
     }
-    PRUint32 i;
+    uint32_t i;
     for (i = 0; i < entry->mHeaders.Length(); ++i) {
       if (entry->mHeaders[i].token.Equals(header)) {
         entry->mHeaders[i].expirationTime = expirationTime;
@@ -994,9 +994,9 @@ nsCORSPreflightListener::OnStopRequest(nsIRequest *aRequest,
                                        nsISupports *aContext,
                                        nsresult aStatus)
 {
-  mOuterChannel = nsnull;
-  mOuterListener = nsnull;
-  mOuterContext = nsnull;
+  mOuterChannel = nullptr;
+  mOuterListener = nullptr;
+  mOuterContext = nullptr;
   return NS_OK;
 }
 
@@ -1006,17 +1006,17 @@ NS_IMETHODIMP
 nsCORSPreflightListener::OnDataAvailable(nsIRequest *aRequest,
                                          nsISupports *ctxt,
                                          nsIInputStream *inStr,
-                                         PRUint32 sourceOffset,
-                                         PRUint32 count)
+                                         uint32_t sourceOffset,
+                                         uint32_t count)
 {
-  PRUint32 totalRead;
-  return inStr->ReadSegments(NS_DiscardSegment, nsnull, count, &totalRead);
+  uint32_t totalRead;
+  return inStr->ReadSegments(NS_DiscardSegment, nullptr, count, &totalRead);
 }
 
 NS_IMETHODIMP
 nsCORSPreflightListener::AsyncOnChannelRedirect(nsIChannel *aOldChannel,
                                                 nsIChannel *aNewChannel,
-                                                PRUint32 aFlags,
+                                                uint32_t aFlags,
                                                 nsIAsyncVerifyRedirectCallback *callback)
 {
   // Only internal redirects allowed for now.
@@ -1042,7 +1042,7 @@ NS_StartCORSPreflight(nsIChannel* aRequestChannel,
                       nsTArray<nsCString>& aUnsafeHeaders,
                       nsIChannel** aPreflightChannel)
 {
-  *aPreflightChannel = nsnull;
+  *aPreflightChannel = nullptr;
 
   nsCAutoString method;
   nsCOMPtr<nsIHttpChannel> httpChannel(do_QueryInterface(aRequestChannel));
@@ -1056,11 +1056,11 @@ NS_StartCORSPreflight(nsIChannel* aRequestChannel,
   nsPreflightCache::CacheEntry* entry =
     sPreflightCache ?
     sPreflightCache->GetEntry(uri, aPrincipal, aWithCredentials, false) :
-    nsnull;
+    nullptr;
 
   if (entry && entry->CheckRequest(method, aUnsafeHeaders)) {
     // We have a cached preflight result, just start the original channel
-    return aRequestChannel->AsyncOpen(aListener, nsnull);
+    return aRequestChannel->AsyncOpen(aListener, nullptr);
   }
 
   // Either it wasn't cached or the cached result has expired. Build a
@@ -1075,8 +1075,8 @@ NS_StartCORSPreflight(nsIChannel* aRequestChannel,
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIChannel> preflightChannel;
-  rv = NS_NewChannel(getter_AddRefs(preflightChannel), uri, nsnull,
-                     loadGroup, nsnull, loadFlags);
+  rv = NS_NewChannel(getter_AddRefs(preflightChannel), uri, nullptr,
+                     loadGroup, nullptr, loadFlags);
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIHttpChannel> preHttp = do_QueryInterface(preflightChannel);
@@ -1087,7 +1087,7 @@ NS_StartCORSPreflight(nsIChannel* aRequestChannel,
   
   // Set up listener which will start the original channel
   nsCOMPtr<nsIStreamListener> preflightListener =
-    new nsCORSPreflightListener(aRequestChannel, aListener, nsnull, aPrincipal,
+    new nsCORSPreflightListener(aRequestChannel, aListener, nullptr, aPrincipal,
                                 method, aWithCredentials);
   NS_ENSURE_TRUE(preflightListener, NS_ERROR_OUT_OF_MEMORY);
 
@@ -1099,7 +1099,7 @@ NS_StartCORSPreflight(nsIChannel* aRequestChannel,
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Start preflight
-  rv = preflightChannel->AsyncOpen(preflightListener, nsnull);
+  rv = preflightChannel->AsyncOpen(preflightListener, nullptr);
   NS_ENSURE_SUCCESS(rv, rv);
   
   // Return newly created preflight channel

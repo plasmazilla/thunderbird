@@ -7,7 +7,7 @@
 #include "nsCRTGlue.h"
 #include "nsContentUtils.h"
 #include "nsDOMClassInfoID.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsDOMException.h"
 #include "nsIDOMDOMException.h"
 #include "nsIDocument.h"
@@ -65,12 +65,12 @@ enum DOM4ErrorTypeCodeMap {
 static struct ResultStruct
 {
   nsresult mNSResult;
-  PRUint16 mCode;
+  uint16_t mCode;
   const char* mName;
   const char* mMessage;
 } gDOMErrorMsgMap[] = {
 #include "domerr.msg"
-  {0, 0, nsnull, nsnull}   // sentinel to mark end of array
+  {NS_OK, 0, nullptr, nullptr}   // sentinel to mark end of array
 };
 
 #undef DOM4_MSG_DEF
@@ -80,10 +80,10 @@ static void
 NSResultToNameAndMessage(nsresult aNSResult,
                          const char** aName,
                          const char** aMessage,
-                         PRUint16* aCode)
+                         uint16_t* aCode)
 {
-  *aName = nsnull;
-  *aMessage = nsnull;
+  *aName = nullptr;
+  *aMessage = nullptr;
   *aCode = 0;
   ResultStruct* result_struct = gDOMErrorMsgMap;
 
@@ -105,11 +105,11 @@ NSResultToNameAndMessage(nsresult aNSResult,
 
 nsresult
 NS_GetNameAndMessageForDOMNSResult(nsresult aNSResult, const char** aName,
-                                   const char** aMessage, PRUint16* aCode)
+                                   const char** aMessage, uint16_t* aCode)
 {
-  const char* name = nsnull;
-  const char* message = nsnull;
-  PRUint16 code = 0;
+  const char* name = nullptr;
+  const char* message = nullptr;
+  uint16_t code = 0;
   NSResultToNameAndMessage(aNSResult, &name, &message, &code);
 
   if (name && message) {
@@ -135,7 +135,7 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIEXCEPTION
   NS_IMETHOD Init(nsresult aNSResult, const char* aName,
-                  const char* aMessage, PRUint16 aCode,
+                  const char* aMessage, uint16_t aCode,
                   nsIException* aDefaultException);
   NS_DECL_NSIDOMDOMEXCEPTION
 
@@ -144,7 +144,7 @@ protected:
   const char* mMessage;
   nsCOMPtr<nsIException> mInner;
   nsresult mResult;
-  PRUint16 mCode;
+  uint16_t mCode;
 };
 
 DOMCI_DATA(DOMException, nsDOMException) 
@@ -164,7 +164,7 @@ NS_NewDOMException(nsresult aNSResult, nsIException* aDefaultException,
 {
   const char* name;
   const char* message;
-  PRUint16 code;
+  uint16_t code;
   NSResultToNameAndMessage(aNSResult, &name, &message, &code);
   nsDOMException* inst = new nsDOMException();
   inst->Init(aNSResult, name, message, code, aDefaultException);
@@ -174,7 +174,7 @@ NS_NewDOMException(nsresult aNSResult, nsIException* aDefaultException,
 }
 
 NS_IMETHODIMP
-nsDOMException::GetCode(PRUint16* aCode)
+nsDOMException::GetCode(uint16_t* aCode)
 {
   NS_ENSURE_ARG_POINTER(aCode);
   *aCode = mCode;
@@ -198,14 +198,14 @@ nsDOMException::GetMessageMoz(char **aMessage)
   if (mMessage) {
     *aMessage = NS_strdup(mMessage);
   } else {
-    *aMessage = nsnull;
+    *aMessage = nullptr;
   }
 
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsDOMException::GetResult(PRUint32* aResult)
+nsDOMException::GetResult(nsresult* aResult)
 {
   NS_ENSURE_ARG_POINTER(aResult);
 
@@ -222,7 +222,7 @@ nsDOMException::GetName(char **aName)
   if (mName) {
     *aName = NS_strdup(mName);
   } else {
-    *aName = nsnull;
+    *aName = nullptr;
   }
 
   return NS_OK;
@@ -237,13 +237,13 @@ nsDOMException::GetFilename(char **aFilename)
 
   NS_ENSURE_ARG_POINTER(aFilename);
 
-  *aFilename = nsnull;
+  *aFilename = nullptr;
 
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsDOMException::GetLineNumber(PRUint32 *aLineNumber)
+nsDOMException::GetLineNumber(uint32_t *aLineNumber)
 {
   if (mInner) {
     return mInner->GetLineNumber(aLineNumber);
@@ -257,7 +257,7 @@ nsDOMException::GetLineNumber(PRUint32 *aLineNumber)
 }
 
 NS_IMETHODIMP
-nsDOMException::GetColumnNumber(PRUint32 *aColumnNumber)
+nsDOMException::GetColumnNumber(uint32_t *aColumnNumber)
 {
   if (mInner) {
     return mInner->GetColumnNumber(aColumnNumber);
@@ -279,7 +279,7 @@ nsDOMException::GetLocation(nsIStackFrame **aLocation)
 
   NS_ENSURE_ARG_POINTER(aLocation);
 
-  *aLocation = nsnull;
+  *aLocation = nullptr;
 
   return NS_OK;
 }
@@ -289,7 +289,7 @@ nsDOMException::GetInner(nsIException **aInner)
 {
   NS_ENSURE_ARG_POINTER(aInner);
 
-  *aInner = nsnull;
+  *aInner = nullptr;
 
   return NS_OK;
 }
@@ -303,7 +303,7 @@ nsDOMException::GetData(nsISupports **aData)
 
   NS_ENSURE_ARG_POINTER(aData);
 
-  *aData = nsnull;
+  *aData = nullptr;
 
   return NS_OK;
 }
@@ -311,7 +311,7 @@ nsDOMException::GetData(nsISupports **aData)
 NS_IMETHODIMP
 nsDOMException::ToString(char **aReturn)
 {
-  *aReturn = nsnull;
+  *aReturn = nullptr;
 
   static const char defaultMsg[] = "<no message>";
   static const char defaultLocation[] = "<unknown>";
@@ -327,7 +327,7 @@ nsDOMException::ToString(char **aReturn)
     mInner->GetFilename(getter_Copies(filename));
 
     if (!filename.IsEmpty()) {
-      PRUint32 line_nr = 0;
+      uint32_t line_nr = 0;
 
       mInner->GetLineNumber(&line_nr);
 
@@ -354,7 +354,7 @@ nsDOMException::ToString(char **aReturn)
 
 NS_IMETHODIMP
 nsDOMException::Init(nsresult aNSResult, const char* aName,
-                     const char* aMessage, PRUint16 aCode,
+                     const char* aMessage, uint16_t aCode,
                      nsIException* aDefaultException)
 {
   mResult = aNSResult;

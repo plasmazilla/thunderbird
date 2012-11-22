@@ -28,6 +28,7 @@
 #include "nsIResumableChannel.h"
 #include "nsHashPropertyBag.h"
 #include "nsFtpProtocolHandler.h"
+#include "nsNetUtil.h"
 
 class nsFtpChannel : public nsBaseChannel,
                      public nsIFTPChannel,
@@ -58,7 +59,7 @@ public:
     bool ResumeRequested() { return mResumeRequested; }
 
     // Download from this byte offset
-    PRUint64 StartPos() { return mStartPos; }
+    uint64_t StartPos() { return mStartPos; }
 
     // ID of the entity to resume downloading
     const nsCString &EntityID() {
@@ -97,7 +98,7 @@ private:
     nsCOMPtr<nsIProxyInfo>    mProxyInfo; 
     nsCOMPtr<nsIFTPEventSink> mFTPEventSink;
     nsCOMPtr<nsIInputStream>  mUploadStream;
-    PRUint64                  mStartPos;
+    uint64_t                  mStartPos;
     nsCString                 mEntityID;
     bool                      mResumeRequested;
     PRTime                    mLastModifiedTime;

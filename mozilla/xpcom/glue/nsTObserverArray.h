@@ -20,9 +20,9 @@
 
 class NS_COM_GLUE nsTObserverArray_base {
   public:
-    typedef PRUint32 index_type;
-    typedef PRUint32 size_type;
-    typedef PRInt32  diff_type;
+    typedef uint32_t index_type;
+    typedef uint32_t size_type;
+    typedef int32_t  diff_type;
 
   protected:
     class Iterator_base {
@@ -43,11 +43,11 @@ class NS_COM_GLUE nsTObserverArray_base {
     };
 
     nsTObserverArray_base()
-      : mIterators(nsnull) {
+      : mIterators(nullptr) {
     }
 
     ~nsTObserverArray_base() {
-      NS_ASSERTION(mIterators == nsnull, "iterators outlasting array");
+      NS_ASSERTION(mIterators == nullptr, "iterators outlasting array");
     }
 
     /**
@@ -67,7 +67,7 @@ class NS_COM_GLUE nsTObserverArray_base {
     mutable Iterator_base* mIterators;
 };
 
-template<class T, PRUint32 N>
+template<class T, uint32_t N>
 class nsAutoTObserverArray : protected nsTObserverArray_base {
   public:
     typedef T           elem_type;
@@ -175,7 +175,7 @@ class nsAutoTObserverArray : protected nsTObserverArray_base {
         return true;
       }
       
-      bool inserted = mArray.InsertElementAt(0, item) != nsnull;
+      bool inserted = mArray.InsertElementAt(0, item) != nullptr;
       AdjustIterators(0, 1);
       return inserted;
     }
@@ -200,7 +200,7 @@ class nsAutoTObserverArray : protected nsTObserverArray_base {
     // @return       true if the element was found, or inserted successfully.
     template<class Item>
     bool AppendElementUnlessExists(const Item& item) {
-      return Contains(item) || AppendElement(item) != nsnull;
+      return Contains(item) || AppendElement(item) != nullptr;
     }
 
     // Remove an element from the array.

@@ -32,7 +32,7 @@ main(int argc, char **argv)
     if (test_common_init(&argc, &argv) != 0)
         return -1;
 
-    nsresult rv = NS_InitXPCOM2(nsnull, nsnull, nsnull);
+    nsresult rv = NS_InitXPCOM2(nullptr, nullptr, nullptr);
     if (NS_FAILED(rv)) return rv;
 
     char buf[256];
@@ -57,7 +57,7 @@ main(int argc, char **argv)
       return 1;
     }
 
-    PRUint32 read;
+    uint32_t read;
     while (NS_SUCCEEDED(stream->Read(buf, sizeof(buf), &read)) && read) {
       fwrite(buf, 1, read, outfile);
     }
@@ -65,6 +65,6 @@ main(int argc, char **argv)
 
     fclose(outfile);
 
-    NS_ShutdownXPCOM(nsnull);
+    NS_ShutdownXPCOM(nullptr);
     return 0;
 }

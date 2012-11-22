@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH = ../../..
+DEPTH = @DEPTH@
 topsrcdir = @top_srcdir@
 srcdir = @srcdir@
 VPATH = @srcdir@
@@ -28,6 +28,7 @@ XPIDLSRCS += \
   mozIAsyncFavicons.idl \
   mozIAsyncLivemarks.idl \
   mozIPlacesAutoComplete.idl \
+  mozIColorAnalyzer.idl \
   nsIAnnotationService.idl \
   nsIBrowserHistory.idl \
   nsIFaviconService.idl \
@@ -83,6 +84,7 @@ EXTRA_COMPONENTS = \
   nsTaggingService.js \
   nsPlacesExpiration.js \
   PlacesCategoriesStarter.js \
+  ColorAnalyzer.js \
   $(NULL)
 
 ifdef MOZ_XUL
@@ -92,6 +94,9 @@ endif
 EXTRA_JS_MODULES = \
   PlacesDBUtils.jsm \
   BookmarkHTMLUtils.jsm \
+  ColorAnalyzer_worker.js \
+  ColorConversion.js \
+  ClusterLib.js \
   $(NULL)
 
 EXTRA_PP_JS_MODULES = \

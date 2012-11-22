@@ -12,12 +12,12 @@
 #include "StreamNotifyParent.h"
 #include "npfunctions.h"
 #include "nsAutoPtr.h"
-#include "mozilla/unused.h"
 #include "gfxASurface.h"
 #include "gfxContext.h"
 #include "gfxPlatform.h"
 #include "gfxSharedImageSurface.h"
 #include "nsNPAPIPluginInstance.h"
+#include "mozilla/StandardInteger.h" // for intptr_t
 #ifdef MOZ_X11
 #include "gfxXlibSurface.h"
 #endif
@@ -25,6 +25,7 @@
 #include "gfxColor.h"
 #include "gfxUtils.h"
 #include "nsNPAPIPluginInstance.h"
+#include "Layers.h"
 
 #if defined(OS_WIN)
 #include <windowsx.h>
@@ -69,7 +70,7 @@ PluginInstanceParent::PluginInstanceParent(PluginModuleParent* parent,
 #if defined(XP_MACOSX)
     , mShWidth(0)
     , mShHeight(0)
-    , mShColorSpace(nsnull)
+    , mShColorSpace(nullptr)
 #endif
 {
 #ifdef OS_WIN
@@ -98,8 +99,8 @@ PluginInstanceParent::~PluginInstanceParent()
             GetImageContainer();
 
         if (container) {
-            container->SetRemoteImageData(nsnull, nsnull);
-            container->SetCompositionNotifySink(nsnull);
+            container->SetRemoteImageData(nullptr, nullptr);
+            container->SetCompositionNotifySink(nullptr);
             DeallocShmem(mRemoteImageDataShmem);
         }
     }
@@ -133,7 +134,7 @@ PluginInstanceParent::ActorDestroy(ActorDestroyReason why)
         const NPRect rect = {0, 0, 0, 0};
         RecvNPN_InvalidateRect(rect);
 #ifdef MOZ_X11
-        XSync(DefaultXDisplay(), False);
+        FinishX(DefaultXDisplay());
 #endif
     }
 }
@@ -222,10 +223,10 @@ PluginInstanceParent::AnswerNPN_GetValue_NPNVnetscapeWindow(NativeWindowHandle* 
 #elif defined(XP_MACOSX)
     intptr_t id;
 #elif defined(ANDROID)
-#warning Need Android impl
+    // TODO: Need Android impl
     int id;
 #elif defined(MOZ_WIDGET_QT)
-#  warning Need Qt non X impl
+    // TODO: Need Qt non X impl
     int id;
 #else
 #warning Implement me
@@ -259,7 +260,7 @@ PluginInstanceParent::InternalGetValueForNPObject(
         result = NPERR_GENERIC_ERROR;
     }
 
-    *aValue = nsnull;
+    *aValue = nullptr;
     *aResult = result;
     return true;
 }
@@ -319,7 +320,7 @@ bool
 PluginInstanceParent::AnswerNPN_GetValue_NPNVdocumentOrigin(nsCString* value,
                                                             NPError* result)
 {
-    void *v = nsnull;
+    void *v = nullptr;
     *result = mNPNIface->getvalue(mNPP, NPNVdocumentOrigin, &v);
     if (*result == NPERR_NO_ERROR && v) {
         value->Adopt(static_cast<char*>(v));
@@ -331,9 +332,11 @@ bool
 PluginInstanceParent::AnswerNPN_SetValue_NPPVpluginWindow(
     const bool& windowed, NPError* result)
 {
-    NPBool isWindowed = windowed;
+    // Yes, we are passing a boolean as a void*.  We have to cast to intptr_t
+    // first to avoid gcc warnings about casting to a pointer from a
+    // non-pointer-sized integer.
     *result = mNPNIface->setvalue(mNPP, NPPVpluginWindowBool,
-                                  (void*)isWindowed);
+                                  (void*)(intptr_t)windowed);
     return true;
 }
 
@@ -341,9 +344,8 @@ bool
 PluginInstanceParent::AnswerNPN_SetValue_NPPVpluginTransparent(
     const bool& transparent, NPError* result)
 {
-    NPBool isTransparent = transparent;
     *result = mNPNIface->setvalue(mNPP, NPPVpluginTransparentBool,
-                                  (void*)isTransparent);
+                                  (void*)(intptr_t)transparent);
     return true;
 }
 
@@ -352,7 +354,7 @@ PluginInstanceParent::AnswerNPN_SetValue_NPPVpluginUsesDOMForCursor(
     const bool& useDOMForCursor, NPError* result)
 {
     *result = mNPNIface->setvalue(mNPP, NPPVpluginUsesDOMForCursorBool,
-                                  (void*)(NPBool)useDOMForCursor);
+                                  (void*)(intptr_t)useDOMForCursor);
     return true;
 }
 
@@ -405,7 +407,7 @@ PluginInstanceParent::AnswerNPN_SetValue_NPPVpluginDrawingModel(
 
         mDrawingModel = drawingModel;
         *result = mNPNIface->setvalue(mNPP, NPPVpluginDrawingModel,
-                                        (void*)drawingModel);
+                                      reinterpret_cast<void*>(static_cast<uintptr_t>(drawingModel)));
 
 
         if (*result != NPERR_NO_ERROR) {
@@ -449,11 +451,11 @@ PluginInstanceParent::AnswerNPN_SetValue_NPPVpluginDrawingModel(
 
         mDrawingModel = drawingModel;
         *result = mNPNIface->setvalue(mNPP, NPPVpluginDrawingModel,
-                                      (void*)drawingModel);
+                                      (void*)(intptr_t)drawingModel);
 
         if (mRemoteImageDataShmem.IsWritable()) {
-            container->SetRemoteImageData(nsnull, nsnull);
-            container->SetCompositionNotifySink(nsnull);
+            container->SetRemoteImageData(nullptr, nullptr);
+            container->SetCompositionNotifySink(nullptr);
             DeallocShmem(mRemoteImageDataShmem);
             mRemoteImageDataMutex = NULL;
         }
@@ -591,7 +593,7 @@ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
     else if (newSurface.type() == SurfaceDescriptor::TIOSurfaceDescriptor) {
         IOSurfaceDescriptor iodesc = newSurface.get_IOSurfaceDescriptor();
     
-        nsRefPtr<nsIOSurface> newIOSurface = nsIOSurface::LookupSurface(iodesc.surfaceId());
+        RefPtr<MacIOSurface> newIOSurface = MacIOSurface::LookupSurface(iodesc.surfaceId());
 
         if (!newIOSurface) {
             NS_WARNING("Got bad IOSurfaceDescriptor in RecvShow");
@@ -634,7 +636,7 @@ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
         // referencing it, so we XSync here to let them finish before
         // the plugin starts scribbling on it again, or worse,
         // destroys it.
-        XSync(DefaultXDisplay(), False);
+        FinishX(DefaultXDisplay());
 #endif
 
     if (mFrontSurface && gfxSharedImageSurface::IsSharedImage(mFrontSurface))
@@ -653,6 +655,12 @@ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
     }
 
     mFrontSurface = surface;
+    if (!surface) {
+      ImageContainer* container = GetImageContainer();
+      if (container) {
+        container->SetCurrentImage(nullptr);
+      }
+    }
     RecvNPN_InvalidateRect(updatedRect);
 
     PLUGIN_LOG_DEBUG(("   (RecvShow invalidated for surface %p)",
@@ -709,7 +717,7 @@ nsresult
 PluginInstanceParent::GetImageContainer(ImageContainer** aContainer)
 {
 #ifdef XP_MACOSX
-    nsIOSurface* ioSurface = NULL;
+    MacIOSurface* ioSurface = NULL;
   
     if (mFrontIOSurface) {
       ioSurface = mFrontIOSurface;
@@ -723,10 +731,10 @@ PluginInstanceParent::GetImageContainer(ImageContainer** aContainer)
 #endif
         return NS_ERROR_NOT_AVAILABLE;
 
-    Image::Format format = Image::CAIRO_SURFACE;
+    ImageFormat format = CAIRO_SURFACE;
 #ifdef XP_MACOSX
     if (ioSurface) {
-        format = Image::MAC_IO_SURFACE;
+        format = MAC_IO_SURFACE;
     }
 #endif
 
@@ -750,12 +758,12 @@ PluginInstanceParent::GetImageContainer(ImageContainer** aContainer)
 
 #ifdef XP_MACOSX
     if (ioSurface) {
-        NS_ASSERTION(image->GetFormat() == Image::MAC_IO_SURFACE, "Wrong format?");
+        NS_ASSERTION(image->GetFormat() == MAC_IO_SURFACE, "Wrong format?");
         MacIOSurfaceImage* ioImage = static_cast<MacIOSurfaceImage*>(image.get());
         MacIOSurfaceImage::Data ioData;
         ioData.mIOSurface = ioSurface;
         ioImage->SetData(ioData);
-        container->SetCurrentImage(ioImage);
+        container->SetCurrentImageInTransaction(ioImage);
 
         NS_IF_ADDREF(container);
         *aContainer = container;
@@ -763,14 +771,14 @@ PluginInstanceParent::GetImageContainer(ImageContainer** aContainer)
     }
 #endif
 
-    NS_ASSERTION(image->GetFormat() == Image::CAIRO_SURFACE, "Wrong format?");
+    NS_ASSERTION(image->GetFormat() == CAIRO_SURFACE, "Wrong format?");
     CairoImage* pluginImage = static_cast<CairoImage*>(image.get());
     CairoImage::Data cairoData;
     cairoData.mSurface = mFrontSurface;
     cairoData.mSize = mFrontSurface->GetSize();
     pluginImage->SetData(cairoData);
 
-    container->SetCurrentImage(pluginImage);
+    container->SetCurrentImageInTransaction(pluginImage);
 
     NS_IF_ADDREF(container);
     *aContainer = container;
@@ -838,7 +846,7 @@ PluginInstanceParent::BeginUpdateBackground(const nsIntRect& aRect,
         NS_ABORT_IF_FALSE(aRect.TopLeft() == nsIntPoint(0, 0),
                           "Expecting rect for whole frame");
         if (!CreateBackground(aRect.Size())) {
-            *aCtx = nsnull;
+            *aCtx = nullptr;
             return NS_OK;
         }
     }
@@ -905,7 +913,7 @@ PluginInstanceParent::CreateBackground(const nsIntSize& aSize)
             gfxASurface::ImageFormatRGB24);
     return !!mBackground;
 #else
-    return nsnull;
+    return nullptr;
 #endif
 }
 
@@ -919,7 +927,7 @@ PluginInstanceParent::DestroyBackground()
     // Relinquish ownership of |mBackground| to its destroyer
     PPluginBackgroundDestroyerParent* pbd =
         new PluginBackgroundDestroyerParent(mBackground);
-    mBackground = nsnull;
+    mBackground = nullptr;
 
     // If this fails, there's no problem: |bd| will be destroyed along
     // with the old background surface.
@@ -966,7 +974,7 @@ PPluginBackgroundDestroyerParent*
 PluginInstanceParent::AllocPPluginBackgroundDestroyer()
 {
     NS_RUNTIMEABORT("'Power-user' ctor is used exclusively");
-    return nsnull;
+    return nullptr;
 }
 
 bool
@@ -1019,8 +1027,8 @@ PluginInstanceParent::NPP_SetWindow(const NPWindow* aWindow)
     if (mShWidth != window.width || mShHeight != window.height) {
         if (mDrawingModel == NPDrawingModelCoreAnimation || 
             mDrawingModel == NPDrawingModelInvalidatingCoreAnimation) {
-            mIOSurface = nsIOSurface::CreateIOSurface(window.width, window.height);
-        } else if (mShWidth * mShHeight != window.width * window.height) {
+            mIOSurface = MacIOSurface::CreateIOSurface(window.width, window.height);
+        } else if (uint32_t(mShWidth * mShHeight) != window.width * window.height) {
             if (mShWidth != 0 && mShHeight != 0) {
                 DeallocShmem(mShSurface);
                 mShWidth = 0;
@@ -1260,7 +1268,7 @@ PluginInstanceParent::NPP_HandleEvent(void* event)
         // process does not need to wait; the child is the process that needs
         // to wait.  A possibly-slightly-better alternative would be to send
         // an X event to the child that the child would wait for.
-        XSync(DefaultXDisplay(), False);
+        FinishX(DefaultXDisplay());
 
         return CallPaint(npremoteevent, &handled) ? handled : 0;
 
@@ -1492,7 +1500,7 @@ PluginInstanceParent::DeallocPPluginScriptableObject(
 
     NPObject* object = actor->GetObject(false);
     if (object) {
-        NS_ASSERTION(mScriptableObjects.Get(object, nsnull),
+        NS_ASSERTION(mScriptableObjects.Get(object, nullptr),
                      "NPObject not in the hash!");
         mScriptableObjects.Remove(object);
     }
@@ -1544,7 +1552,7 @@ PluginInstanceParent::RegisterNPObjectForActor(
 {
     NS_ASSERTION(aObject && aActor, "Null pointers!");
     NS_ASSERTION(mScriptableObjects.IsInitialized(), "Hash not initialized!");
-    NS_ASSERTION(!mScriptableObjects.Get(aObject, nsnull), "Duplicate entry!");
+    NS_ASSERTION(!mScriptableObjects.Get(aObject, nullptr), "Duplicate entry!");
     mScriptableObjects.Put(aObject, aActor);
     return true;
 }
@@ -1554,7 +1562,7 @@ PluginInstanceParent::UnregisterNPObject(NPObject* aObject)
 {
     NS_ASSERTION(aObject, "Null pointer!");
     NS_ASSERTION(mScriptableObjects.IsInitialized(), "Hash not initialized!");
-    NS_ASSERTION(mScriptableObjects.Get(aObject, nsnull), "Unknown entry!");
+    NS_ASSERTION(mScriptableObjects.Get(aObject, nullptr), "Unknown entry!");
     mScriptableObjects.Remove(aObject);
 }
 
@@ -1578,12 +1586,12 @@ PluginInstanceParent::GetActorForNPObject(NPObject* aObject)
     actor = new PluginScriptableObjectParent(LocalObject);
     if (!actor) {
         NS_ERROR("Out of memory!");
-        return nsnull;
+        return nullptr;
     }
 
     if (!SendPPluginScriptableObjectConstructor(actor)) {
         NS_WARNING("Failed to send constructor message!");
-        return nsnull;
+        return nullptr;
     }
 
     actor->InitializeLocal(aObject);
@@ -1695,8 +1703,8 @@ PluginInstanceParent::AnswerNPN_ConvertPoint(const double& sourceX,
                                              bool *result)
 {
     *result = mNPNIface->convertpoint(mNPP, sourceX, sourceY, sourceSpace,
-                                      ignoreDestX ? nsnull : destX,
-                                      ignoreDestY ? nsnull : destY,
+                                      ignoreDestX ? nullptr : destX,
+                                      ignoreDestY ? nullptr : destY,
                                       destSpace);
 
     return true;
@@ -1922,7 +1930,7 @@ bool
 PluginInstanceParent::SharedSurfaceSetWindow(const NPWindow* aWindow,
                                              NPRemoteWindow& aRemoteWindow)
 {
-    aRemoteWindow.window = nsnull;
+    aRemoteWindow.window = 0;
     aRemoteWindow.x      = aWindow->x;
     aRemoteWindow.y      = aWindow->y;
     aRemoteWindow.width  = aWindow->width;

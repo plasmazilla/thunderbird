@@ -269,7 +269,7 @@ nsWindowsShellService::ShortcutMaintenance()
     return NS_ERROR_UNEXPECTED;
 
   nsCOMPtr<nsIPrefBranch> prefBranch;
-  prefs->GetBranch(nsnull, getter_AddRefs(prefBranch));
+  prefs->GetBranch(nullptr, getter_AddRefs(prefBranch));
   if (!prefBranch)
     return NS_ERROR_UNEXPECTED;
 
@@ -319,6 +319,41 @@ IsWin8OrLater()
          osInfo.dwMajorVersion >= 6 && osInfo.dwMinorVersion >= 2;
 }
 
+static bool
+IsAARDefaultHTTP(IApplicationAssociationRegistration* pAAR,
+                 bool* aIsDefaultBrowser)
+{
+  // Make sure the Prog ID matches what we have
+  LPWSTR registeredApp;
+  HRESULT hr = pAAR->QueryCurrentDefault(L"http", AT_URLPROTOCOL, AL_EFFECTIVE,
+                                         &registeredApp);
+  if (SUCCEEDED(hr)) {
+    LPCWSTR firefoxHTTPProgID = L"FirefoxURL";
+    *aIsDefaultBrowser = !wcsicmp(registeredApp, firefoxHTTPProgID);
+    CoTaskMemFree(registeredApp);
+  } else {
+    *aIsDefaultBrowser = false;
+  }
+  return SUCCEEDED(hr);
+}
+
+static bool
+IsAARDefaultHTML(IApplicationAssociationRegistration* pAAR,
+                 bool* aIsDefaultBrowser)
+{
+  LPWSTR registeredApp;
+  HRESULT hr = pAAR->QueryCurrentDefault(L".html", AT_FILEEXTENSION, AL_EFFECTIVE,
+                                         &registeredApp);
+  if (SUCCEEDED(hr)) {
+    LPCWSTR firefoxHTMLProgID = L"FirefoxHTML";
+    *aIsDefaultBrowser = !wcsicmp(registeredApp, firefoxHTMLProgID);
+    CoTaskMemFree(registeredApp);
+  } else {
+    *aIsDefaultBrowser = false;
+  }
+  return SUCCEEDED(hr);
+}
+
 bool
 nsWindowsShellService::IsDefaultBrowserVista(bool aCheckAllTypes,
                                              bool* aIsDefaultBrowser)
@@ -331,40 +366,23 @@ nsWindowsShellService::IsDefaultBrowserVista(bool aCheckAllTypes,
                                 (void**)&pAAR);
 
   if (SUCCEEDED(hr)) {
-    BOOL res;
-    hr = pAAR->QueryAppIsDefaultAll(AL_EFFECTIVE,
-                                    APP_REG_NAME,
-                                    &res);
-    *aIsDefaultBrowser = res;
+    if (aCheckAllTypes) {
+      BOOL res;
+      hr = pAAR->QueryAppIsDefaultAll(AL_EFFECTIVE,
+                                      APP_REG_NAME,
+                                      &res);
+      *aIsDefaultBrowser = res;
 
-    if (*aIsDefaultBrowser && IsWin8OrLater()) {
-      // Make sure the Prog ID matches what we have
-      LPWSTR registeredApp;
-      hr = pAAR->QueryCurrentDefault(L"http", AT_URLPROTOCOL, AL_EFFECTIVE,
-                                     &registeredApp);
-      if (SUCCEEDED(hr)) {
-        LPCWSTR firefoxHTTPProgID = L"FirefoxURL";
-        *aIsDefaultBrowser = !wcsicmp(registeredApp, firefoxHTTPProgID);
-        CoTaskMemFree(registeredApp);
-      } else {
-        *aIsDefaultBrowser = false;
-      }
-      // If this is a startup check, then we don't check file type
-      // associations. This is because the win8 UI for file type
-      // association has to be done through the control panel.  If this
-      // is not a startup check, then we're checking through the control
-      // panel and we should also check for file type association.
-      if (aCheckAllTypes && *aIsDefaultBrowser) {
-        hr = pAAR->QueryCurrentDefault(L".html", AT_FILEEXTENSION, AL_EFFECTIVE,
-                                       &registeredApp);
-        if (SUCCEEDED(hr)) {
-          LPCWSTR firefoxHTMLProgID = L"FirefoxHTML";
-          *aIsDefaultBrowser = !wcsicmp(registeredApp, firefoxHTMLProgID);
-          CoTaskMemFree(registeredApp);
-        } else {
-          *aIsDefaultBrowser = false;
+      // If we have all defaults, let's make sure that our ProgID
+      // is explicitly returned as well. Needed only for Windows 8.
+      if (*aIsDefaultBrowser && IsWin8OrLater()) {
+        IsAARDefaultHTTP(pAAR, aIsDefaultBrowser);
+        if (*aIsDefaultBrowser) {
+          IsAARDefaultHTML(pAAR, aIsDefaultBrowser);
         }
       }
+    } else {
+      IsAARDefaultHTTP(pAAR, aIsDefaultBrowser);
     }
 
     pAAR->Release();
@@ -383,6 +401,13 @@ nsWindowsShellService::IsDefaultBrowser(bool aStartupCheck,
   // default browser dialog).
   if (aStartupCheck)
     mCheckedThisSession = true;
+
+  // Check if we only care about a lightweight check, and make sure this
+  // only has an effect on Win8 and later.
+  if (!aForAllTypes && IsWin8OrLater()) {
+    return IsDefaultBrowserVista(false,
+                                 aIsDefaultBrowser) ? NS_OK : NS_ERROR_FAILURE;
+  }
 
   // Assume we're the default unless one of the several checks below tell us
   // otherwise.
@@ -410,7 +435,7 @@ nsWindowsShellService::IsDefaultBrowser(bool aStartupCheck,
   for (settings = gSettings; settings < end; ++settings) {
     NS_ConvertUTF8toUTF16 keyName(settings->keyName);
     NS_ConvertUTF8toUTF16 valueData(settings->valueData);
-    PRInt32 offset = valueData.Find("%APPPATH%");
+    int32_t offset = valueData.Find("%APPPATH%");
     valueData.Replace(offset, 9, appLongPath);
 
     rv = OpenKeyForReading(HKEY_CLASSES_ROOT, keyName, &theKey);
@@ -463,7 +488,7 @@ nsWindowsShellService::IsDefaultBrowser(bool aStartupCheck,
   // Only check if Firefox is the default browser on Vista and above if the
   // previous checks show that Firefox is the default browser.
   if (*aIsDefaultBrowser) {
-    IsDefaultBrowserVista(aForAllTypes, aIsDefaultBrowser);
+    IsDefaultBrowserVista(true, aIsDefaultBrowser);
   }
 
   // To handle the case where DDE isn't disabled due for a user because there
@@ -533,7 +558,7 @@ nsWindowsShellService::IsDefaultBrowser(bool aStartupCheck,
     }
 
     NS_ConvertUTF8toUTF16 oldValueOpen(OLD_VAL_OPEN);
-    PRInt32 offset = oldValueOpen.Find("%APPPATH%");
+    int32_t offset = oldValueOpen.Find("%APPPATH%");
     oldValueOpen.Replace(offset, 9, appLongPath);
 
     ::ZeroMemory(currValue, sizeof(currValue));
@@ -728,13 +753,13 @@ WriteBitmap(nsIFile* aFile, imgIContainer* aImage)
                                   getter_AddRefs(image));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRInt32 width = image->Width();
-  PRInt32 height = image->Height();
+  int32_t width = image->Width();
+  int32_t height = image->Height();
 
-  PRUint8* bits = image->Data();
-  PRUint32 length = image->GetDataSize();
-  PRUint32 bpr = PRUint32(image->Stride());
-  PRInt32 bitCount = bpr/width;
+  uint8_t* bits = image->Data();
+  uint32_t length = image->GetDataSize();
+  uint32_t bpr = uint32_t(image->Stride());
+  int32_t bitCount = bpr/width;
 
   // initialize these bitmap structs which we will later
   // serialize directly to the head of the bitmap file
@@ -766,14 +791,14 @@ WriteBitmap(nsIFile* aFile, imgIContainer* aImage)
   // write the bitmap headers and rgb pixel data to the file
   rv = NS_ERROR_FAILURE;
   if (stream) {
-    PRUint32 written;
+    uint32_t written;
     stream->Write((const char*)&bf, sizeof(BITMAPFILEHEADER), &written);
     if (written == sizeof(BITMAPFILEHEADER)) {
       stream->Write((const char*)&bmi, sizeof(BITMAPINFOHEADER), &written);
       if (written == sizeof(BITMAPINFOHEADER)) {
         // write out the image data backwards because the desktop won't
         // show bitmaps with negative heights for top-to-bottom
-        PRUint32 i = length;
+        uint32_t i = length;
         do {
           i -= bpr;
           stream->Write(((const char*)bits) + i, bpr, &written);
@@ -795,7 +820,7 @@ WriteBitmap(nsIFile* aFile, imgIContainer* aImage)
 
 NS_IMETHODIMP
 nsWindowsShellService::SetDesktopBackground(nsIDOMElement* aElement, 
-                                            PRInt32 aPosition)
+                                            int32_t aPosition)
 {
   nsresult rv;
 
@@ -906,7 +931,7 @@ nsWindowsShellService::SetDesktopBackground(nsIDOMElement* aElement,
 }
 
 NS_IMETHODIMP
-nsWindowsShellService::OpenApplication(PRInt32 aApplication)
+nsWindowsShellService::OpenApplication(int32_t aApplication)
 {
   nsAutoString application;
   switch (aApplication) {
@@ -967,8 +992,8 @@ nsWindowsShellService::OpenApplication(PRInt32 aApplication)
   // Look for any embedded environment variables and substitute their 
   // values, as |::CreateProcessW| is unable to do this.
   nsAutoString path(buf);
-  PRInt32 end = path.Length();
-  PRInt32 cursor = 0, temp = 0;
+  int32_t end = path.Length();
+  int32_t cursor = 0, temp = 0;
   ::ZeroMemory(buf, sizeof(buf));
   do {
     cursor = path.FindChar('%', cursor);
@@ -1007,15 +1032,15 @@ nsWindowsShellService::OpenApplication(PRInt32 aApplication)
 }
 
 NS_IMETHODIMP
-nsWindowsShellService::GetDesktopBackgroundColor(PRUint32* aColor)
+nsWindowsShellService::GetDesktopBackgroundColor(uint32_t* aColor)
 {
-  PRUint32 color = ::GetSysColor(COLOR_DESKTOP);
+  uint32_t color = ::GetSysColor(COLOR_DESKTOP);
   *aColor = (GetRValue(color) << 16) | (GetGValue(color) << 8) | GetBValue(color);
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsWindowsShellService::SetDesktopBackgroundColor(PRUint32 aColor)
+nsWindowsShellService::SetDesktopBackgroundColor(uint32_t aColor)
 {
   int aParameters[2] = { COLOR_BACKGROUND, COLOR_DESKTOP };
   BYTE r = (aColor >> 16);
@@ -1076,7 +1101,7 @@ nsWindowsShellService::OpenApplicationWithURI(nsIFile* aApplication,
 NS_IMETHODIMP
 nsWindowsShellService::GetDefaultFeedReader(nsIFile** _retval)
 {
-  *_retval = nsnull;
+  *_retval = nullptr;
 
   nsresult rv;
   nsCOMPtr<nsIWindowsRegKey> regKey =

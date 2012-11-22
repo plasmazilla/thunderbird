@@ -203,6 +203,10 @@
                               observes="viewHistorySidebar"
                               label="&historyButton.label;"
                               accesskey="&historySidebarCmd.accesskey;"/>
+                    <menuitem id="menu_socialSidebar"
+                              type="checkbox"
+                              autocheck="false"
+                              command="Social:ToggleSidebar"/>
                   </menupopup>
                 </menu>
                 <menuseparator/>
@@ -496,6 +500,29 @@
                         accesskey="&addons.accesskey;"
                         key="key_openAddons"
                         command="Tools:Addons"/>
+              <menuitem id="menu_socialToggle"
+                        type="checkbox"
+                        autocheck="false"
+                        command="Social:Toggle"/>
+              <menu id="menu_socialAmbientMenu"
+                    class="show-only-for-keyboard">
+                <menupopup id="menu_socialAmbientMenuPopup">
+                  <menuseparator id="socialAmbientMenuSeparator"
+                                 hidden="true"/>
+                  <menuitem id="social-toggle-sidebar-keyboardmenuitem"
+                            type="checkbox"
+                            autocheck="false"
+                            command="Social:ToggleSidebar"
+                            label="&social.toggleSidebar.label;"
+                            accesskey="&social.toggleSidebar.accesskey;"/>
+                  <menuitem id="social-toggle-notifications-keyboardmenuitem"
+                            type="checkbox"
+                            autocheck="false"
+                            command="Social:ToggleNotifications"
+                            label="&social.toggleNotifications.label;"
+                            accesskey="&social.toggleNotifications.accesskey;"/>
+                </menupopup>
+              </menu>
 #ifdef MOZ_SERVICES_SYNC
               <!-- only one of sync-setup or sync-menu will be showing at once -->
               <menuitem id="sync-setup"
@@ -514,77 +541,19 @@
                     label="&webDeveloperMenu.label;"
                     accesskey="&webDeveloperMenu.accesskey;">
                 <menupopup id="menuWebDeveloperPopup">
-                  <menuitem id="menu_devToolbar"
-                            type="checkbox"
-                            autocheck="false"
-                            hidden="true"
-                            label="&devToolbarMenu.label;"
-                            accesskey="&devToolbarMenu.accesskey;"
-                            key="key_devToolbar"
-                            command="Tools:DevToolbar"/>
-                  <menuitem id="webConsole"
-                            type="checkbox"
-                            label="&webConsoleCmd.label;"
-                            accesskey="&webConsoleCmd.accesskey;"
-                            key="key_webConsole"
-                            command="Tools:WebConsole"/>
-                  <menuitem id="menu_pageinspect"
-                            type="checkbox"
-                            hidden="true"
-                            label="&inspectMenu.label;"
-                            accesskey="&inspectMenu.accesskey;"
-                            key="key_inspect"
-                            command="Tools:Inspect"/>
-                  <menuitem id="menu_responsiveUI"
-                            type="checkbox"
-                            hidden="true"
-                            label="&responsiveDesignTool.label;"
-                            accesskey="&responsiveDesignTool.accesskey;"
-                            key="key_responsiveUI"
-                            command="Tools:ResponsiveUI"/>
-                  <menuitem id="menu_debugger"
-                            hidden="true"
-                            type="checkbox"
-                            label="&debuggerMenu.label2;"
-                            key="key_debugger"
-                            command="Tools:Debugger"/>
-                  <menuitem id="menu_remoteDebugger"
-                            hidden="true"
-                            label="&remoteDebuggerMenu.label;"
-                            command="Tools:RemoteDebugger"/>
-                  <menuitem id="menu_chromeDebugger"
-                            hidden="true"
-                            label="&chromeDebuggerMenu.label;"
-                            command="Tools:ChromeDebugger"/>
-                  <menuitem id="menu_scratchpad"
-                            hidden="true"
-                            label="&scratchpad.label;"
-                            accesskey="&scratchpad.accesskey;"
-                            key="key_scratchpad"
-                            command="Tools:Scratchpad"/>
-                  <menuitem id="menu_styleeditor"
-                            type="checkbox"
-                            hidden="true"
-                            label="&styleeditor.label;"
-                            accesskey="&styleeditor.accesskey;"
-                            key="key_styleeditor"
-                            command="Tools:StyleEditor"/>
-                  <menuitem id="menu_pageSource"
-                            accesskey="&pageSourceCmd.accesskey;"
-                            label="&pageSourceCmd.label;"
-                            key="key_viewSource"
-                            command="View:PageSource"/>
-                  <menuitem id="javascriptConsole"
-                            hidden="true"
-                            label="&errorConsoleCmd.label;"
-                            accesskey="&errorConsoleCmd.accesskey;"
-                            key="key_errorConsole"
-                            oncommand="toJavaScriptConsole();"/>
+                  <menuitem id="menu_devToolbar" observes="devtoolsMenuBroadcaster_DevToolbar" accesskey="&devToolbarMenu.accesskey;"/>
+                  <menuitem id="webConsole" observes="devtoolsMenuBroadcaster_WebConsole" accesskey="&webConsoleCmd.accesskey;"/>
+                  <menuitem id="menu_pageinspect" observes="devtoolsMenuBroadcaster_Inspect" accesskey="&inspectMenu.accesskey;"/>
+                  <menuitem id="menu_responsiveUI" observes="devtoolsMenuBroadcaster_ResponsiveUI" accesskey="&responsiveDesignTool.accesskey;"/>
+                  <menuitem id="menu_debugger" observes="devtoolsMenuBroadcaster_Debugger"/>
+                  <menuitem id="menu_remoteDebugger" observes="devtoolsMenuBroadcaster_RemoteDebugger"/>
+                  <menuitem id="menu_chromeDebugger" observes="devtoolsMenuBroadcaster_ChromeDebugger"/>
+                  <menuitem id="menu_scratchpad" observes="devtoolsMenuBroadcaster_Scratchpad" accesskey="&scratchpad.accesskey;"/>
+                  <menuitem id="menu_styleeditor" observes="devtoolsMenuBroadcaster_StyleEditor" accesskey="&styleeditor.accesskey;"/>
+                  <menuitem id="menu_pageSource" observes="devtoolsMenuBroadcaster_PageSource" accesskey="&pageSourceCmd.accesskey;"/>
+                  <menuitem id="javascriptConsole" observes="devtoolsMenuBroadcaster_ErrorConsole" accesskey="&errorConsoleCmd.accesskey;"/>
                   <menuseparator id="devToolsEndSeparator"/>
-                  <menuitem id="getMoreDevtools"
-                            label="&getMoreDevtoolsCmd.label;"
-                            accesskey="&getMoreDevtoolsCmd.accesskey;"
-                            oncommand="openUILinkIn('https://addons.mozilla.org/firefox/collections/mozilla/webdeveloper/', 'tab');"/>
+                  <menuitem id="getMoreDevtools" observes="devtoolsMenuBroadcaster_GetMoreTools" accesskey="&getMoreDevtoolsCmd.accesskey;"/>
                 </menupopup>
               </menu>
               <menuitem id="menu_pageInfo"

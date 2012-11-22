@@ -22,7 +22,7 @@ bool nsXMLEventsListener::InitXMLEventsListener(nsIDocument * aDocument,
                                                   nsIContent * aContent)
 {
   nsresult rv;
-  PRInt32 nameSpaceID;
+  int32_t nameSpaceID;
   if (aContent->GetDocument() != aDocument)
     return false;
   if (aContent->NodeInfo()->Equals(nsGkAtoms::listener,
@@ -36,7 +36,7 @@ bool nsXMLEventsListener::InitXMLEventsListener(nsIDocument * aDocument,
     return false;
   nsAutoString handlerURIStr;
   bool hasHandlerURI = false;
-  nsIContent *handler = nsnull;
+  nsIContent *handler = nullptr;
   nsAutoString observerID;
   nsAutoString targetIdref;
   
@@ -47,7 +47,7 @@ bool nsXMLEventsListener::InitXMLEventsListener(nsIDocument * aDocument,
     bool equals = false;
     nsIURI *docURI = aDocument->GetDocumentURI();
     nsIURI *baseURI = aDocument->GetDocBaseURI();
-    rv = NS_NewURI( getter_AddRefs(handlerURI), handlerURIStr, nsnull, baseURI);
+    rv = NS_NewURI( getter_AddRefs(handlerURI), handlerURIStr, nullptr, baseURI);
     if (NS_SUCCEEDED(rv)) {
       handlerURI->GetRef(handlerRef);
       // We support only XML Events Basic.
@@ -79,7 +79,7 @@ bool nsXMLEventsListener::InitXMLEventsListener(nsIDocument * aDocument,
     aContent->AttrValueIs(nameSpaceID, nsGkAtoms::defaultAction,
                           nsGkAtoms::cancel, eCaseMatters);
 
-  nsIContent *observer = nsnull;
+  nsIContent *observer = nullptr;
   if (!hasObserver) {
     if (!hasHandlerURI) //Parent should be the observer
       observer = aContent->GetParent();
@@ -147,15 +147,15 @@ void nsXMLEventsListener::Unregister()
   if (target) {
     target->RemoveEventListener(mEvent, this, mPhase);
   }
-  mObserver = nsnull;
-  mHandler = nsnull;
+  mObserver = nullptr;
+  mHandler = nullptr;
 }
 
 void nsXMLEventsListener::SetIncomplete()
 {
   Unregister();
   mManager->AddXMLEventsContent(mElement);
-  mElement = nsnull;
+  mElement = nullptr;
 }
 
 bool nsXMLEventsListener::ObserverEquals(nsIContent * aTarget)
@@ -298,9 +298,9 @@ nsXMLEventsManager::EndLoad(nsIDocument* aDocument)
 void
 nsXMLEventsManager::AttributeChanged(nsIDocument* aDocument,
                                      Element* aElement,
-                                     PRInt32 aNameSpaceID,
+                                     int32_t aNameSpaceID,
                                      nsIAtom* aAttribute,
-                                     PRInt32 aModType)
+                                     int32_t aModType)
 {
   nsCOMPtr<nsIMutationObserver> kungFuDeathGrip(this);
 
@@ -344,7 +344,7 @@ void
 nsXMLEventsManager::ContentAppended(nsIDocument* aDocument,
                                     nsIContent* aContainer,
                                     nsIContent* aFirstNewContent,
-                                    PRInt32 aNewIndexInContainer)
+                                    int32_t aNewIndexInContainer)
 {
   AddListeners(aDocument);
 }
@@ -353,7 +353,7 @@ void
 nsXMLEventsManager::ContentInserted(nsIDocument* aDocument,
                                     nsIContent* aContainer,
                                     nsIContent* aChild,
-                                    PRInt32 aIndexInContainer)
+                                    int32_t aIndexInContainer)
 {
   AddListeners(aDocument);
 }
@@ -362,7 +362,7 @@ void
 nsXMLEventsManager::ContentRemoved(nsIDocument* aDocument,
                                    nsIContent* aContainer,
                                    nsIContent* aChild,
-                                   PRInt32 aIndexInContainer,
+                                   int32_t aIndexInContainer,
                                    nsIContent* aPreviousSibling)
 {
   if (!aChild || !aChild->IsElement())
@@ -382,8 +382,8 @@ nsXMLEventsManager::ContentRemoved(nsIDocument* aDocument,
     AddXMLEventsContent(aChild);
   }
 
-  PRUint32 count = aChild->GetChildCount();
-  for (PRUint32 i = 0; i < count; ++i) {
+  uint32_t count = aChild->GetChildCount();
+  for (uint32_t i = 0; i < count; ++i) {
     ContentRemoved(aDocument, aChild, aChild->GetChildAt(i), i, aChild->GetPreviousSibling());
   }
 }

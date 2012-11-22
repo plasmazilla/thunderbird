@@ -9,7 +9,7 @@
 #include "SVGAnimatedNumberList.h"
 #include "nsSVGElement.h"
 #include "nsIDOMSVGNumber.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsContentUtils.h"
 
 // See the architecture comment in DOMSVGAnimatedNumberList.h.
@@ -24,7 +24,7 @@ NS_IMPL_CYCLE_COLLECTION_CLASS(DOMSVGNumber)
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(DOMSVGNumber)
   // We may not belong to a list, so we must null check tmp->mList.
   if (tmp->mList) {
-    tmp->mList->mItems[tmp->mListIndex] = nsnull;
+    tmp->mList->mItems[tmp->mListIndex] = nullptr;
   }
 NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mList)
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
@@ -45,9 +45,9 @@ NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(DOMSVGNumber)
 NS_INTERFACE_MAP_END
 
 DOMSVGNumber::DOMSVGNumber(DOMSVGNumberList *aList,
-                           PRUint8 aAttrEnum,
-                           PRUint32 aListIndex,
-                           PRUint8 aIsAnimValItem)
+                           uint8_t aAttrEnum,
+                           uint32_t aListIndex,
+                           uint8_t aIsAnimValItem)
   : mList(aList)
   , mListIndex(aListIndex)
   , mAttrEnum(aAttrEnum)
@@ -64,7 +64,7 @@ DOMSVGNumber::DOMSVGNumber(DOMSVGNumberList *aList,
 }
 
 DOMSVGNumber::DOMSVGNumber()
-  : mList(nsnull)
+  : mList(nullptr)
   , mListIndex(0)
   , mAttrEnum(0)
   , mIsAnimValItem(false)
@@ -109,9 +109,9 @@ DOMSVGNumber::SetValue(float aValue)
 
 void
 DOMSVGNumber::InsertingIntoList(DOMSVGNumberList *aList,
-                                PRUint8 aAttrEnum,
-                                PRUint32 aListIndex,
-                                PRUint8 aIsAnimValItem)
+                                uint8_t aAttrEnum,
+                                uint32_t aListIndex,
+                                uint8_t aIsAnimValItem)
 {
   NS_ASSERTION(!HasOwner(), "Inserting item that is already in a list");
 
@@ -127,7 +127,7 @@ void
 DOMSVGNumber::RemovingFromList()
 {
   mValue = InternalItem();
-  mList = nsnull;
+  mList = nullptr;
   mIsAnimValItem = false;
 }
 

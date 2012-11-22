@@ -26,7 +26,6 @@
 
 #include "nsFrameManager.h"
 #include "nsDisplayList.h"
-#include "ImageLayers.h"
 #include "BasicLayers.h"
 #include "imgIEncoder.h"
 
@@ -107,7 +106,7 @@ NS_IMPL_UINT_ATTR_DEFAULT_VALUE(nsHTMLCanvasElement, Height, height, DEFAULT_CAN
 NS_IMPL_BOOL_ATTR(nsHTMLCanvasElement, MozOpaque, moz_opaque)
 
 nsresult
-nsHTMLCanvasElement::SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+nsHTMLCanvasElement::SetAttr(int32_t aNameSpaceID, nsIAtom* aName,
                              nsIAtom* aPrefix, const nsAString& aValue,
                              bool aNotify)
 {
@@ -143,7 +142,7 @@ nsHTMLCanvasElement::CopyInnerTo(nsGenericElement* aDest)
 
 nsChangeHint
 nsHTMLCanvasElement::GetAttributeChangeHint(const nsIAtom* aAttribute,
-                                            PRInt32 aModType) const
+                                            int32_t aModType) const
 {
   nsChangeHint retval =
     nsGenericHTMLElement::GetAttributeChangeHint(aAttribute, aModType);
@@ -159,7 +158,7 @@ nsHTMLCanvasElement::GetAttributeChangeHint(const nsIAtom* aAttribute,
 }
 
 bool
-nsHTMLCanvasElement::ParseAttribute(PRInt32 aNamespaceID,
+nsHTMLCanvasElement::ParseAttribute(int32_t aNamespaceID,
                                     nsIAtom* aAttribute,
                                     const nsAString& aValue,
                                     nsAttrValue& aResult)
@@ -178,7 +177,7 @@ nsHTMLCanvasElement::ParseAttribute(PRInt32 aNamespaceID,
 
 NS_IMETHODIMP
 nsHTMLCanvasElement::ToDataURL(const nsAString& aType, nsIVariant* aParams,
-                               PRUint8 optional_argc, nsAString& aDataURL)
+                               uint8_t optional_argc, nsAString& aDataURL)
 {
   // do a trust check if this is a write-only canvas
   if (mWriteOnly && !nsContentUtils::IsCallerTrustedForRead()) {
@@ -306,7 +305,7 @@ nsHTMLCanvasElement::ToDataURLImpl(const nsAString& aMimeType,
 
   // Quality parameter is only valid for the image/jpeg MIME type
   if (type.EqualsLiteral("image/jpeg")) {
-    PRUint16 vartype;
+    uint16_t vartype;
 
     if (aEncoderOptions &&
         NS_SUCCEEDED(aEncoderOptions->GetDataType(&vartype)) &&
@@ -359,17 +358,18 @@ nsHTMLCanvasElement::ToDataURLImpl(const nsAString& aMimeType,
     aDataURL = NS_LITERAL_STRING("data:") + type +
       NS_LITERAL_STRING(";base64,");
 
-  PRUint32 count;
+  uint64_t count;
   rv = stream->Available(&count);
   NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_TRUE(count <= PR_UINT32_MAX, NS_ERROR_FILE_TOO_BIG);
 
-  return Base64EncodeInputStream(stream, aDataURL, count, aDataURL.Length());
+  return Base64EncodeInputStream(stream, aDataURL, (uint32_t)count, aDataURL.Length());
 }
 
 NS_IMETHODIMP
 nsHTMLCanvasElement::MozGetAsFile(const nsAString& aName,
                                   const nsAString& aType,
-                                  PRUint8 optional_argc,
+                                  uint8_t optional_argc,
                                   nsIDOMFile** aResult)
 {
   // do a trust check if this is a write-only canvas
@@ -398,17 +398,18 @@ nsHTMLCanvasElement::MozGetAsFileImpl(const nsAString& aName,
     type.AssignLiteral("image/png");
   }
 
-  PRUint32 imgSize;
+  uint64_t imgSize;
   rv = stream->Available(&imgSize);
   NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_TRUE(imgSize <= PR_UINT32_MAX, NS_ERROR_FILE_TOO_BIG);
 
-  void* imgData = nsnull;
-  rv = NS_ReadInputStreamToBuffer(stream, &imgData, imgSize);
+  void* imgData = nullptr;
+  rv = NS_ReadInputStreamToBuffer(stream, &imgData, (uint32_t)imgSize);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // The DOMFile takes ownership of the buffer
   nsRefPtr<nsDOMMemoryFile> file =
-    new nsDOMMemoryFile(imgData, imgSize, aName, type);
+    new nsDOMMemoryFile(imgData, (uint32_t)imgSize, aName, type);
 
   file.forget(aResult);
   return NS_OK;
@@ -424,7 +425,7 @@ nsHTMLCanvasElement::GetContextHelper(const nsAString& aContextId,
   NS_ConvertUTF16toUTF8 ctxId(aContextId);
 
   // check that ctxId is clamped to A-Za-z0-9_-
-  for (PRUint32 i = 0; i < ctxId.Length(); i++) {
+  for (uint32_t i = 0; i < ctxId.Length(); i++) {
     if ((ctxId[i] < 'A' || ctxId[i] > 'Z') &&
         (ctxId[i] < 'a' || ctxId[i] > 'z') &&
         (ctxId[i] < '0' || ctxId[i] > '9') &&
@@ -447,11 +448,11 @@ nsHTMLCanvasElement::GetContextHelper(const nsAString& aContextId,
   nsCOMPtr<nsICanvasRenderingContextInternal> ctx =
     do_CreateInstance(ctxString.get(), &rv);
   if (rv == NS_ERROR_OUT_OF_MEMORY) {
-    *aContext = nsnull;
+    *aContext = nullptr;
     return NS_ERROR_OUT_OF_MEMORY;
   }
   if (NS_FAILED(rv)) {
-    *aContext = nsnull;
+    *aContext = nullptr;
     // XXX ERRMSG we need to report an error to developers here! (bug 329026)
     return NS_OK;
   }
@@ -479,10 +480,10 @@ nsHTMLCanvasElement::GetContext(const nsAString& aContextId,
 
     // Ensure that the context participates in CC.  Note that returning a
     // CC participant from QI doesn't addref.
-    nsXPCOMCycleCollectionParticipant *cp = nsnull;
+    nsXPCOMCycleCollectionParticipant *cp = nullptr;
     CallQueryInterface(mCurrentContext, &cp);
     if (!cp) {
-      mCurrentContext = nsnull;
+      mCurrentContext = nullptr;
       return NS_ERROR_FAILURE;
     }
 
@@ -509,7 +510,7 @@ nsHTMLCanvasElement::GetContext(const nsAString& aContextId,
         JSString *propnameString = JS_ValueToString(cx, propname);
         nsDependentJSString pstr;
         if (!propnameString || !pstr.init(cx, propnameString)) {
-          mCurrentContext = nsnull;
+          mCurrentContext = nullptr;
           return NS_ERROR_FAILURE;
         }
 
@@ -523,7 +524,7 @@ nsHTMLCanvasElement::GetContext(const nsAString& aContextId,
           JSString *propvalString = JS_ValueToString(cx, propval);
           nsDependentJSString vstr;
           if (!propvalString || !vstr.init(cx, propvalString)) {
-            mCurrentContext = nsnull;
+            mCurrentContext = nullptr;
             return NS_ERROR_FAILURE;
           }
 
@@ -600,21 +601,21 @@ nsHTMLCanvasElement::UpdateContext(nsIPropertyBag *aNewContextOptions)
 
   nsresult rv = mCurrentContext->SetIsOpaque(GetIsOpaque());
   if (NS_FAILED(rv)) {
-    mCurrentContext = nsnull;
+    mCurrentContext = nullptr;
     mCurrentContextId.Truncate();
     return rv;
   }
 
   rv = mCurrentContext->SetContextOptions(aNewContextOptions);
   if (NS_FAILED(rv)) {
-    mCurrentContext = nsnull;
+    mCurrentContext = nullptr;
     mCurrentContextId.Truncate();
     return rv;
   }
 
   rv = mCurrentContext->SetDimensions(sz.width, sz.height);
   if (NS_FAILED(rv)) {
-    mCurrentContext = nsnull;
+    mCurrentContext = nullptr;
     mCurrentContextId.Truncate();
     return rv;
   }
@@ -707,7 +708,7 @@ nsHTMLCanvasElement::InvalidateCanvas()
   frame->Invalidate(frame->GetContentRect() - frame->GetPosition());
 }
 
-PRInt32
+int32_t
 nsHTMLCanvasElement::CountContexts()
 {
   if (mCurrentContext)
@@ -717,7 +718,7 @@ nsHTMLCanvasElement::CountContexts()
 }
 
 nsICanvasRenderingContextInternal *
-nsHTMLCanvasElement::GetContextAtIndex(PRInt32 index)
+nsHTMLCanvasElement::GetContextAtIndex(int32_t index)
 {
   if (mCurrentContext && index == 0)
     return mCurrentContext;
@@ -737,7 +738,7 @@ nsHTMLCanvasElement::GetCanvasLayer(nsDisplayListBuilder* aBuilder,
                                     LayerManager *aManager)
 {
   if (!mCurrentContext)
-    return nsnull;
+    return nullptr;
 
   return mCurrentContext->GetCanvasLayer(aBuilder, aOldLayer, aManager);
 }
@@ -764,7 +765,7 @@ nsHTMLCanvasElement::GetSizeExternal()
 }
 
 NS_IMETHODIMP
-nsHTMLCanvasElement::RenderContextsExternal(gfxContext *aContext, gfxPattern::GraphicsFilter aFilter, PRUint32 aFlags)
+nsHTMLCanvasElement::RenderContextsExternal(gfxContext *aContext, gfxPattern::GraphicsFilter aFilter, uint32_t aFlags)
 {
   if (!mCurrentContext)
     return NS_OK;

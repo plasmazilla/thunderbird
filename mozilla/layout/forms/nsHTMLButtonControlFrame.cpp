@@ -86,7 +86,7 @@ nsHTMLButtonControlFrame::CreateAccessible()
                                                   PresContext()->PresShell()); 
   }
 
-  return nsnull;
+  return nullptr;
 }
 #endif
 
@@ -226,22 +226,23 @@ nsHTMLButtonControlFrame::Reflow(nsPresContext* aPresContext,
   aDesiredSize.width = aReflowState.ComputedWidth();
 
   // If computed use the computed value.
-  if (aReflowState.ComputedHeight() != NS_INTRINSICSIZE) 
+  if (aReflowState.ComputedHeight() != NS_INTRINSICSIZE) {
     aDesiredSize.height = aReflowState.ComputedHeight();
-  else
+  } else {
     aDesiredSize.height += focusPadding.TopBottom();
-  
+
+    // Make sure we obey min/max-height in the case when we're doing intrinsic
+    // sizing (we get it for free when we have a non-intrinsic
+    // aReflowState.ComputedHeight()).  Note that we do this before adjusting
+    // for borderpadding, since mComputedMaxHeight and mComputedMinHeight are
+    // content heights.
+    aDesiredSize.height = NS_CSS_MINMAX(aDesiredSize.height,
+                                        aReflowState.mComputedMinHeight,
+                                        aReflowState.mComputedMaxHeight);
+  }
+
   aDesiredSize.width += aReflowState.mComputedBorderPadding.LeftRight();
   aDesiredSize.height += aReflowState.mComputedBorderPadding.TopBottom();
-
-  // Make sure we obey min/max-height.  Note that we do this after adjusting
-  // for borderpadding, since buttons have border-box sizing...
-
-  // XXXbz unless someone overrides that, of course!  We should really consider
-  // exposing nsHTMLReflowState::AdjustComputed* or something.
-  aDesiredSize.height = NS_CSS_MINMAX(aDesiredSize.height,
-                                      aReflowState.mComputedMinHeight,
-                                      aReflowState.mComputedMaxHeight);
 
   aDesiredSize.ascent +=
     aReflowState.mComputedBorderPadding.top + focusPadding.top;
@@ -328,7 +329,7 @@ nsHTMLButtonControlFrame::ReflowButtonContents(nsPresContext* aPresContext,
   aDesiredSize.ascent += yoff;
 }
 
-PRIntn
+int
 nsHTMLButtonControlFrame::GetSkipSides() const
 {
   return 0;
@@ -352,13 +353,13 @@ nsresult nsHTMLButtonControlFrame::GetFormProperty(nsIAtom* aName, nsAString& aV
 }
 
 nsStyleContext*
-nsHTMLButtonControlFrame::GetAdditionalStyleContext(PRInt32 aIndex) const
+nsHTMLButtonControlFrame::GetAdditionalStyleContext(int32_t aIndex) const
 {
   return mRenderer.GetStyleContext(aIndex);
 }
 
 void
-nsHTMLButtonControlFrame::SetAdditionalStyleContext(PRInt32 aIndex, 
+nsHTMLButtonControlFrame::SetAdditionalStyleContext(int32_t aIndex, 
                                                     nsStyleContext* aStyleContext)
 {
   mRenderer.SetStyleContext(aIndex, aStyleContext);

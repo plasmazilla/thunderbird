@@ -83,13 +83,13 @@ struct Module;
  *
  * @param binDirectory     The directory containing the component
  *                         registry and runtime libraries;
- *                         or use <CODE>nsnull</CODE> to use the working
+ *                         or use <CODE>nullptr</CODE> to use the working
  *                         directory.
  *
  * @param appFileLocationProvider The object to be used by Gecko that specifies
  *                         to Gecko where to find profiles, the component
  *                         registry preferences and so on; or use
- *                         <CODE>nsnull</CODE> for the default behaviour.
+ *                         <CODE>nullptr</CODE> for the default behaviour.
  *
  * @see NS_NewLocalFile
  * @see nsIFile
@@ -214,7 +214,7 @@ NS_NewNativeLocalFile(const nsACString &path,
  * @note         This function is thread-safe.
  */
 XPCOM_API(void*)
-NS_Alloc(PRSize size);
+NS_Alloc(size_t size);
 
 /**
  * Reallocates a block of memory to a new size.
@@ -232,7 +232,7 @@ NS_Alloc(PRSize size);
  * allocation fails, the process aborts.
  */
 XPCOM_API(void*)
-NS_Realloc(void* ptr, PRSize size);
+NS_Realloc(void* ptr, size_t size);
 
 /**
  * Frees a block of memory. Null is a permissible value, in which case no
@@ -272,9 +272,9 @@ enum {
  * @param aLine  The source file line number (-1 indicates no line number)
  */
 XPCOM_API(void)
-NS_DebugBreak(PRUint32 aSeverity,
+NS_DebugBreak(uint32_t aSeverity,
               const char *aStr, const char *aExpr,
-              const char *aFile, PRInt32 aLine);
+              const char *aFile, int32_t aLine);
 
 /**
  * Perform a stack-walk to a debugging log under various
@@ -309,10 +309,10 @@ NS_LogTerm();
  */
 
 XPCOM_API(void)
-NS_LogCtor(void *aPtr, const char *aTypeName, PRUint32 aInstanceSize);
+NS_LogCtor(void *aPtr, const char *aTypeName, uint32_t aInstanceSize);
 
 XPCOM_API(void)
-NS_LogDtor(void *aPtr, const char *aTypeName, PRUint32 aInstanceSize);
+NS_LogDtor(void *aPtr, const char *aTypeName, uint32_t aInstanceSize);
 
 /**
  * Log a stacktrace when an XPCOM object's refcount is incremented or
@@ -326,7 +326,7 @@ NS_LogDtor(void *aPtr, const char *aTypeName, PRUint32 aInstanceSize);
  */
 XPCOM_API(void)
 NS_LogAddRef(void *aPtr, nsrefcnt aNewRefCnt,
-             const char *aTypeName, PRUint32 aInstanceSize);
+             const char *aTypeName, uint32_t aInstanceSize);
 
 XPCOM_API(void)
 NS_LogRelease(void *aPtr, nsrefcnt aNewRefCnt, const char *aTypeName);
@@ -358,6 +358,8 @@ NS_LogCOMPtrRelease(void *aCOMPtr, nsISupports *aObject);
 
 #ifdef __cplusplus
 
+class nsCycleCollectionParticipant;
+
 XPCOM_API(bool)
 NS_CycleCollectorSuspect(nsISupports *n);
 
@@ -365,7 +367,7 @@ XPCOM_API(bool)
 NS_CycleCollectorForget(nsISupports *n);
 
 XPCOM_API(nsPurpleBufferEntry*)
-NS_CycleCollectorSuspect2(nsISupports *n);
+NS_CycleCollectorSuspect2(void *n, nsCycleCollectionParticipant *p);
 
 XPCOM_API(bool)
 NS_CycleCollectorForget2(nsPurpleBufferEntry *e);

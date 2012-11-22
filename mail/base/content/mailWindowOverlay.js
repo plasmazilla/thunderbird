@@ -128,6 +128,27 @@ function InitEditMessagesMenu()
   }
 }
 
+function InitAppEditMessagesMenu()
+{
+  goSetMenuValue('cmd_delete', 'valueDefault');
+  goSetAccessKey('cmd_delete', 'valueDefaultAccessKey');
+  document.commandDispatcher.updateCommands('create-menu-edit');
+
+  // initialize the favorite Folder checkbox in the appmenu menu
+  let favoriteAppFolderMenu = document.getElementById('appmenu_favoriteFolder');
+  if (!favoriteAppFolderMenu.disabled) {
+    let folders = gFolderTreeView.getSelectedFolders();
+    if (folders.length == 1 && !folders[0].isServer) {
+      const kFavoriteFlag = Components.interfaces.nsMsgFolderFlags.Favorite;
+      // Adjust the checked state on the menu item.
+      favoriteAppFolderMenu.setAttribute("checked", folders[0].getFlag(kFavoriteFlag));
+      favoriteAppFolderMenu.hidden = false;
+    } else {
+      favoriteAppFolderMenu.hidden = true;
+    }
+  }
+}
+
 function InitGoMessagesMenu()
 {
   document.commandDispatcher.updateCommands('create-menu-go');
@@ -139,7 +160,10 @@ function InitGoMessagesMenu()
  */
 function view_init()
 {
-  var isFeed = gFolderDisplay.selectedMessageIsFeed;
+  let isFeed = gFolderDisplay &&
+               ((gFolderDisplay.displayedFolder &&
+                 gFolderDisplay.displayedFolder.server.type == "rss") ||
+                gFolderDisplay.selectedMessageIsFeed);
 
   let accountCentralDisplayed = gFolderDisplay.isAccountCentralDisplayed;
   let messagePaneMenuItem = document.getElementById("menu_showMessage");
@@ -156,8 +180,22 @@ function view_init()
 
   // Disable some menus if account manager is showing
   document.getElementById("viewSortMenu").disabled = accountCentralDisplayed;
+
+  let appmenuViewSort = document.getElementById("appmenu_viewSortMenu");
+  if (appmenuViewSort)
+    appmenuViewSort.disabled = accountCentralDisplayed;
+
   document.getElementById("viewMessageViewMenu").disabled = accountCentralDisplayed;
+
+  let appmenuViewMessageView = document.getElementById("appmenu_viewMessageViewMenu");
+  if (appmenuViewMessageView)
+    appmenuViewMessageView.disabled = accountCentralDisplayed;
+
   document.getElementById("viewMessagesMenu").disabled = accountCentralDisplayed;
+
+  let appmenuViewMessagesMenu = document.getElementById("appmenu_viewMessagesMenu");
+  if (appmenuViewMessagesMenu)
+    appmenuViewMessagesMenu.disabled = accountCentralDisplayed;
 
   // Hide the views menu item if the user doesn't have the views toolbar button
   // visible.
@@ -167,27 +205,23 @@ function view_init()
   // Initialize the Message Body menuitem
   document.getElementById('viewBodyMenu').hidden = isFeed;
 
-  // Initialize the Show Feed Summary menu
-  var viewFeedSummary = document.getElementById('viewFeedSummary');
-  var winType = document.documentElement.getAttribute('windowtype');
-  if (winType != "mail:3pane")
-    viewFeedSummary.hidden = !gShowFeedSummary;
-  else
-    viewFeedSummary.hidden = !isFeed;
+  let appmenuViewBodyMenu = document.getElementById('appmenu_viewBodyMenu');
+  if (appmenuViewBodyMenu)
+    appmenuViewBodyMenu.hidden = isFeed;
 
-  var viewRssMenuItemIds = ["bodyFeedGlobalWebPage",
+  // Initialize the Show Feed Summary menu
+  let viewFeedSummary = document.getElementById('viewFeedSummary');
+  viewFeedSummary.hidden = !isFeed;
+  let appmenuViewFeedSummary = document.getElementById('appmenu_viewFeedSummary');
+  if (appmenuViewFeedSummary)
+    appmenuViewFeedSummary.hidden = !isFeed;
+
+  let viewRssMenuItemIds = ["bodyFeedGlobalWebPage",
                             "bodyFeedGlobalSummary",
                             "bodyFeedPerFolderPref"];
-  var checked = gPrefBranch.getIntPref("rss.show.summary");
+  let checked = FeedMessageHandler.onSelectPref;
   document.getElementById(viewRssMenuItemIds[checked])
           .setAttribute("checked", true);
-
-  if (winType != "mail:3pane") {
-    document.getElementById("viewFeedSummarySeparator").hidden = true;
-    document.getElementById("bodyFeedGlobalWebPage").hidden = true;
-    document.getElementById("bodyFeedGlobalSummary").hidden = true;
-    document.getElementById("bodyFeedPerFolderPref").hidden = true;
-  }
 
   // Initialize the View Attachment Inline menu
   var viewAttachmentInline = pref.getBoolPref("mail.inline_attachments");
@@ -274,6 +308,55 @@ function InitViewSortByMenu()
   groupBySortOrderMenuItem.setAttribute("checked", grouped);
 }
 
+function InitAppViewSortByMenu()
+{
+  let sortType = gFolderDisplay.view.primarySortType;
+
+  setSortByMenuItemCheckState("appmenu_sortByDateMenuitem", (sortType == nsMsgViewSortType.byDate));
+  setSortByMenuItemCheckState("appmenu_sortByReceivedMenuitem", (sortType == nsMsgViewSortType.byReceived));
+  setSortByMenuItemCheckState("appmenu_sortByFlagMenuitem", (sortType == nsMsgViewSortType.byFlagged));
+  setSortByMenuItemCheckState("appmenu_sortByOrderReceivedMenuitem", (sortType == nsMsgViewSortType.byId));
+  setSortByMenuItemCheckState("appmenu_sortByPriorityMenuitem", (sortType == nsMsgViewSortType.byPriority));
+  setSortByMenuItemCheckState("appmenu_sortBySizeMenuitem", (sortType == nsMsgViewSortType.bySize));
+  setSortByMenuItemCheckState("appmenu_sortByStatusMenuitem", (sortType == nsMsgViewSortType.byStatus));
+  setSortByMenuItemCheckState("appmenu_sortBySubjectMenuitem", (sortType == nsMsgViewSortType.bySubject));
+  setSortByMenuItemCheckState("appmenu_sortByUnreadMenuitem", (sortType == nsMsgViewSortType.byUnread));
+  setSortByMenuItemCheckState("appmenu_sortByTagsMenuitem", (sortType == nsMsgViewSortType.byTags));
+  setSortByMenuItemCheckState("appmenu_sortByJunkStatusMenuitem", (sortType == nsMsgViewSortType.byJunkStatus));
+  setSortByMenuItemCheckState("appmenu_sortByFromMenuitem", (sortType == nsMsgViewSortType.byAuthor));
+  setSortByMenuItemCheckState("appmenu_sortByRecipientMenuitem", (sortType == nsMsgViewSortType.byRecipient));
+  setSortByMenuItemCheckState("appmenu_sortByAttachmentsMenuitem", (sortType == nsMsgViewSortType.byAttachments));
+
+  let sortOrder = gFolderDisplay.view.primarySortOrder;
+  let sortTypeSupportsGrouping = (sortType == nsMsgViewSortType.byAuthor ||
+                                  sortType == nsMsgViewSortType.byDate ||
+                                  sortType == nsMsgViewSortType.byReceived ||
+                                  sortType == nsMsgViewSortType.byPriority ||
+                                  sortType == nsMsgViewSortType.bySubject ||
+                                  sortType == nsMsgViewSortType.byTags ||
+                                  sortType == nsMsgViewSortType.byRecipient ||
+                                  sortType == nsMsgViewSortType.byAccount ||
+                                  sortType == nsMsgViewSortType.byStatus ||
+                                  sortType == nsMsgViewSortType.byFlagged ||
+                                  sortType == nsMsgViewSortType.byAttachments);
+
+  setSortByMenuItemCheckState("appmenu_sortAscending", (sortOrder == nsMsgViewSortOrder.ascending));
+  setSortByMenuItemCheckState("appmenu_sortDescending", (sortOrder == nsMsgViewSortOrder.descending));
+
+  let grouped = gFolderDisplay.view.showGroupedBySort;
+  let threaded = gFolderDisplay.view.showThreaded;
+  let sortThreadedMenuItem = document.getElementById("appmenu_sortThreaded");
+  let sortUnthreadedMenuItem = document.getElementById("appmenu_sortUnthreaded");
+
+  sortThreadedMenuItem.setAttribute("checked", threaded);
+  sortUnthreadedMenuItem.setAttribute("checked", !threaded && !grouped);
+
+  let groupBySortOrderMenuItem = document.getElementById("appmenu_groupBySort");
+
+  groupBySortOrderMenuItem.setAttribute("disabled", !sortTypeSupportsGrouping);
+  groupBySortOrderMenuItem.setAttribute("checked", grouped);
+}
+
 function InitViewMessagesMenu()
 {
   document.getElementById("viewAllMessagesMenuItem").setAttribute("checked",
@@ -290,6 +373,25 @@ function InitViewMessagesMenu()
     gFolderDisplay.view.specialViewWatchedThreadsWithUnread);
 
   document.getElementById("viewIgnoredThreadsMenuItem").setAttribute("checked",
+    gFolderDisplay.view.showIgnored);
+}
+
+function InitAppmenuViewMessagesMenu()
+{
+  document.getElementById("appmenu_viewAllMessagesMenuItem").setAttribute("checked",
+    !gFolderDisplay.view.showUnreadOnly &&
+    !gFolderDisplay.view.specialView);
+
+  document.getElementById("appmenu_viewUnreadMessagesMenuItem").setAttribute("checked",
+    gFolderDisplay.view.showUnreadOnly);
+
+  document.getElementById("appmenu_viewThreadsWithUnreadMenuItem").setAttribute("checked",
+    gFolderDisplay.view.specialViewThreadsWithUnread);
+
+  document.getElementById("appmenu_viewWatchedThreadsWithUnreadMenuItem").setAttribute("checked",
+    gFolderDisplay.view.specialViewWatchedThreadsWithUnread);
+
+  document.getElementById("appmenu_viewIgnoredThreadsMenuItem").setAttribute("checked",
     gFolderDisplay.view.showIgnored);
 }
 
@@ -342,10 +444,11 @@ function InitMessageMenu()
     document.getElementById('openMessageWindowMenuitem').hidden = isFeed;
 
   // Initialize the Open Feed Message handler menu
-  var index = GetFeedOpenHandler();
+  let index = FeedMessageHandler.onOpenPref;
   document.getElementById("menu_openFeedMessage")
           .childNodes[index].setAttribute("checked", true);
-  var openRssMenu = document.getElementById("openFeedMessage");
+
+  let openRssMenu = document.getElementById("openFeedMessage");
   openRssMenu.hidden = !isFeed;
   if (winType != "mail:3pane")
     openRssMenu.hidden = true;
@@ -353,6 +456,69 @@ function InitMessageMenu()
   // Disable mark menu when we're not in a folder.
   document.getElementById("markMenu").disabled = gMessageDisplay.isDummy;
 
+  document.commandDispatcher.updateCommands('create-menu-message');
+}
+
+function InitAppMessageMenu()
+{
+  let selectedMsg = gFolderDisplay.selectedMessage;
+  let isNews = gFolderDisplay.selectedMessageIsNews;
+  let isFeed = gFolderDisplay.selectedMessageIsFeed;
+
+  // We show reply to Newsgroups only for news messages.
+  document.getElementById("appmenu_replyNewsgroupMainMenu").hidden = !isNews;
+
+  // For mail messages we say reply. For news we say ReplyToSender.
+  document.getElementById("appmenu_replyMainMenu").hidden = isNews;
+  document.getElementById("appmenu_replySenderMainMenu").hidden = !isNews;
+
+  // We only kill and watch threads for news.
+  document.getElementById("appmenu_threadItemsSeparator").hidden = !isNews;
+  document.getElementById("appmenu_killThread").hidden = !isNews;
+  document.getElementById("appmenu_killSubthread").hidden = !isNews;
+  document.getElementById("appmenu_watchThread").hidden = !isNews;
+  document.getElementById("appmenu_cancel").hidden = !isNews;
+
+  // Disable the move and copy menus if there are no messages selected or if
+  // the message is a dummy - e.g. opening a message in the standalone window.
+  let messageStoredInternally = selectedMsg && !gMessageDisplay.isDummy;
+  // Disable the move menu if we can't delete msgs from the folder.
+  let canMove = messageStoredInternally &&
+                gFolderDisplay.canDeleteSelectedMessages;
+  document.getElementById("appmenu_moveMenu").disabled = !canMove;
+
+  // Also disable copy when no folder is loaded (like for .eml files).
+  let canCopy = selectedMsg && (!gMessageDisplay.isDummy ||
+                                window.arguments[0].scheme == "file");
+  document.getElementById("appmenu_copyMenu").disabled = !canCopy;
+
+  initMoveToFolderAgainMenu(document.getElementById("appmenu_moveToFolderAgain"));
+
+  // Disable the Forward As menu item if no message is selected.
+  document.getElementById("appmenu_forwardAsMenu").disabled = !selectedMsg;
+
+  // Disable the Tag menu item if no message is selected or when we're
+  // not in a folder.
+  document.getElementById("appmenu_tagMenu").disabled = !messageStoredInternally;
+
+  // Initialize the Open Message menuitem
+  let winType = document.documentElement.getAttribute('windowtype');
+  if (winType == "mail:3pane")
+    document.getElementById('appmenu_openMessageWindowMenuitem').hidden = isFeed;
+
+  // Initialize the Open Feed Message handler menu
+  let index = FeedMessageHandler.onOpenPref;
+  document.getElementById("appmenu_openFeedMessage")
+          .childNodes[index]
+          .setAttribute("checked", true);
+
+  let openRssMenu = document.getElementById("appmenu_openFeedMessage");
+  openRssMenu.hidden = !isFeed;
+  if (winType != "mail:3pane")
+    openRssMenu.hidden = true;
+
+  // Disable mark menu when we're not in a folder.
+  document.getElementById("appmenu_markMenu").disabled = gMessageDisplay.isDummy;
   document.commandDispatcher.updateCommands('create-menu-message');
 }
 
@@ -417,17 +583,15 @@ function InitViewBodyMenu()
   var menuIDs = isFeed ? rssIDs : defaultIDs;
   try
   {
-    // Get prefs
-    if (isFeed) {
-      prefer_plaintext = pref.getBoolPref("rss.display.prefer_plaintext");
-      html_as = pref.getIntPref("rss.display.html_as");
-      disallow_classes = pref.getIntPref("rss.display.disallow_mime_handlers");
-    }
-    else {
-      prefer_plaintext = pref.getBoolPref("mailnews.display.prefer_plaintext");
-      html_as = pref.getIntPref("mailnews.display.html_as");
-      disallow_classes = pref.getIntPref("mailnews.display.disallow_mime_handlers");
-    }
+    prefer_plaintext = pref.getBoolPref("mailnews.display.prefer_plaintext");
+    html_as = pref.getIntPref("mailnews.display.html_as");
+    disallow_classes = pref.getIntPref("mailnews.display.disallow_mime_handlers");
+
+    // Separate render prefs not implemented for feeds, bug 458606.  Show the
+    // checked item for feeds as for the regular pref.
+    //  prefer_plaintext = pref.getBoolPref("rss.display.prefer_plaintext");
+    //  html_as = pref.getIntPref("rss.display.html_as");
+    //  disallow_classes = pref.getIntPref("rss.display.disallow_mime_handlers");
 
     if (disallow_classes > 0)
       gDisallow_classes_no_html = disallow_classes;
@@ -446,7 +610,7 @@ function InitViewBodyMenu()
 
   document.getElementById("bodyAllParts").hidden = 
     ! pref.getBoolPref("mailnews.display.show_all_body_parts_menu");
-      
+
   if (!prefer_plaintext && !html_as && !disallow_classes &&
       AllowHTML_menuitem)
     AllowHTML_menuitem.setAttribute("checked", true);
@@ -462,10 +626,70 @@ function InitViewBodyMenu()
   // else (the user edited prefs/user.js) check none of the radio menu items
 
   if (isFeed) {
+    AllowHTML_menuitem.hidden = !FeedMessageHandler.gShowSummary;
+    Sanitized_menuitem.hidden = !FeedMessageHandler.gShowSummary;
+    AsPlaintext_menuitem.hidden = !FeedMessageHandler.gShowSummary;
+    document.getElementById("viewFeedSummarySeparator").hidden = !FeedMessageHandler.gShowSummary;
+  }
+}
+
+function InitAppmenuViewBodyMenu()
+{
+  let html_as = 0;
+  let prefer_plaintext = false;
+  let disallow_classes = 0;
+  let isFeed = gFolderDisplay.selectedMessageIsFeed;
+  const kDefaultIDs = ["appmenu_bodyAllowHTML",
+                       "appmenu_bodySanitized",
+                       "appmenu_bodyAsPlaintext",
+                       "appmenu_bodyAllParts"];
+  const kRssIDs = ["appmenu_bodyFeedSummaryAllowHTML",
+                   "appmenu_bodyFeedSummarySanitized",
+                   "appmenu_bodyFeedSummaryAsPlaintext"];
+  let menuIDs = isFeed ? kRssIDs : kDefaultIDs;
+  // Get prefs
+  if (isFeed) {
+    prefer_plaintext = pref.getBoolPref("rss.display.prefer_plaintext");
+    html_as = pref.getIntPref("rss.display.html_as");
+    disallow_classes = pref.getIntPref("rss.display.disallow_mime_handlers");
+  } else {
+    prefer_plaintext = pref.getBoolPref("mailnews.display.prefer_plaintext");
+    html_as = pref.getIntPref("mailnews.display.html_as");
+    disallow_classes = pref.getIntPref("mailnews.display.disallow_mime_handlers");
+  }
+
+  if (disallow_classes > 0)
+    gDisallow_classes_no_html = disallow_classes;
+  // else gDisallow_classes_no_html keeps its inital value (see top)
+
+  let AllowHTML_menuitem = document.getElementById(menuIDs[0]);
+  let Sanitized_menuitem = document.getElementById(menuIDs[1]);
+  let AsPlaintext_menuitem = document.getElementById(menuIDs[2]);
+  let AllBodyParts_menuitem = menuIDs[3] ? document.getElementById(menuIDs[3])
+                                         : null;
+
+  document.getElementById("appmenu_bodyAllParts").hidden =
+    !pref.getBoolPref("mailnews.display.show_all_body_parts_menu");
+
+  if (!prefer_plaintext && !html_as && !disallow_classes &&
+      AllowHTML_menuitem)
+    AllowHTML_menuitem.setAttribute("checked", true);
+  else if (!prefer_plaintext && html_as == 3 && disallow_classes > 0 &&
+           Sanitized_menuitem)
+    Sanitized_menuitem.setAttribute("checked", true);
+  else if (prefer_plaintext && html_as == 1 && disallow_classes > 0 &&
+           AsPlaintext_menuitem)
+    AsPlaintext_menuitem.setAttribute("checked", true);
+  else if (!prefer_plaintext && html_as == 4 && !disallow_classes &&
+           AllBodyParts_menuitem)
+    AllBodyParts_menuitem.setAttribute("checked", true);
+  // else (the user edited prefs/user.js) check none of the radio menu items
+
+  if (isFeed) {
     AllowHTML_menuitem.hidden = !gShowFeedSummary;
     Sanitized_menuitem.hidden = !gShowFeedSummary;
     AsPlaintext_menuitem.hidden = !gShowFeedSummary;
-    document.getElementById("viewFeedSummarySeparator").hidden = !gShowFeedSummary;
+    document.getElementById("appmenu_viewFeedSummarySeparator").hidden = !gShowFeedSummary;
   }
 }
 
@@ -1841,11 +2065,20 @@ function MsgOpenNewTabForFolder(aBackground)
 
 function MsgOpenSelectedMessages()
 {
-  // Toggle message body (rss summary) and content-base url in message
-  // pane per pref, otherwise open summary or web page in new window.
-  if (gFolderDisplay.selectedMessageIsFeed && GetFeedOpenHandler() == 2) {
-    FeedSetContentViewToggle();
-    return;
+  // Toggle message body (feed summary) and content-base url in message pane or
+  // load in browser, per pref, otherwise open summary or web page in new window
+  // or tab, per that pref.
+  if (gFolderDisplay.selectedMessageIsFeed) {
+    let msgHdr = gFolderDisplay.selectedMessage;
+    if (FeedMessageHandler.onOpenPref == FeedMessageHandler.kOpenToggleInMessagePane) {
+      let showSummary = FeedMessageHandler.shouldShowSummary(msgHdr, true);
+      FeedMessageHandler.setContent(msgHdr, showSummary);
+      return;
+    }
+    if (FeedMessageHandler.onOpenPref == FeedMessageHandler.kOpenLoadInBrowser) {
+      setTimeout(FeedMessageHandler.loadWebPage, 20, msgHdr, {browser:true});
+      return;
+    }
   }
 
   // This is somewhat evil. If we're in a 3pane window, we'd have a tabmail
@@ -2192,27 +2425,6 @@ function MsgFeedBodyRenderPrefs(plaintext, html, mime)
   gPrefBranch.setIntPref("rss.display.html_as", html);
   gPrefBranch.setIntPref("rss.display.disallow_mime_handlers", mime);
   // Reload only if showing rss summary; menuitem hidden if web page..
-  ReloadMessage();
-}
-
-//How to load message with content-base url on enter in threadpane
-function GetFeedOpenHandler()
-{
-  return gPrefBranch.getIntPref("rss.show.content-base");
-}
-
-function ChangeFeedOpenHandler(val)
-{
-  gPrefBranch.setIntPref("rss.show.content-base", val);
-}
-
-//Current state: load web page if 0, show summary if 1
-var gShowFeedSummary;
-var gShowFeedSummaryToggle = false;
-
-function ChangeFeedShowSummaryPref(val)
-{
-  pref.setIntPref("rss.show.summary", val);
   ReloadMessage();
 }
 
@@ -2882,10 +3094,6 @@ function ClearPendingReadTimer()
 // mail message. OnMsgLoaded is called when libmime is done parsing the message
 function OnMsgParsed(aUrl)
 {
-  // If rss feed (has 'content-base' header), show summary or load web
-  // page per pref; earliest we have content DOM is here (onMsgParsed).
-  FeedSetContentView();
-
   // browser doesn't do this, but I thought it could be a useful thing to test out...
   // If the find bar is visible and we just loaded a new message, re-run
   // the find command. This means the new message will get highlighted and
@@ -3148,135 +3356,249 @@ function OpenOrFocusWindow(args, windowType, chromeURL)
     window.openDialog(chromeURL, "", "chrome,resizable,status,centerscreen,dialog=no", args);
 }
 
-// Switch between message body (feed summary) and content-base url in
-// the Message Pane, called in MsgOpenSelectedMessages
-function FeedSetContentViewToggle()
-{
-  gShowFeedSummaryToggle = true;
-  FeedSetContentView(gShowFeedSummary ? 0 : 1);
-}
+// This global is for SeaMonkey compatibility in newsblogOverlay.js.
+let gShowFeedSummary = true;
 
-// Check message format
-function FeedCheckContentFormat()
-{
-  // Not an rss message. This also rules out no 3pane to get the browser of.
-  if (!gFolderDisplay.selectedMessageIsFeed)
-    return false;
+let FeedMessageHandler = {
+  gShowSummary: true,
+  gToggle: false,
+  kSelectOverrideWebPage:   0,
+  kSelectOverrideSummary:   1,
+  kSelectFeedDefault:       2,
+  kOpenWebPage:             0,
+  kOpenSummary:             1,
+  kOpenToggleInMessagePane: 2,
+  kOpenLoadInBrowser:       3,
 
-  var contentWindowDoc = getBrowser().contentDocument;
+  /**
+   * How to load message on threadpane select.
+   */
+  get onSelectPref() {
+    return Services.prefs.getIntPref("rss.show.summary");
+  },
 
-  // Thunderbird 2 rss messages with 'Show article summary' not selected,
-  // ie message body constructed to show web page in an iframe, can't show
-  // a summary - notify user.
-  var rssIframe = contentWindowDoc.getElementById('_mailrssiframe');
-  if (rssIframe) {
-    if (gShowFeedSummaryToggle || pref.getIntPref("rss.show.summary") == 1)
-      gShowFeedSummaryToggle = false;
-    return false;
-  }
+  set onSelectPref(val) {
+    Services.prefs.setIntPref("rss.show.summary", val);
+    ReloadMessage();
+  },
 
-  return true;
-}
+  /**
+   * Load web page on threadpane select.
+   */
+  get loadWebPageOnSelectPref() {
+    return Services.prefs.getIntPref("rss.message.loadWebPageOnSelect") ? true : false;
+  },
 
-// View summary or load web page for feeds
-function FeedSetContentView(val)
-{
-  // Check it..
-  if (!FeedCheckContentFormat())
-    return;
+  /**
+   * How to load message on open (enter/dbl click in threadpane, contextmenu).
+   */
+  get onOpenPref() {
+    return Services.prefs.getIntPref("rss.show.content-base");
+  },
 
-  var showSummary;
-  var wintype = document.documentElement.getAttribute('windowtype');
-  var contentBase = currentHeaderData["content-base"];
-  var contentWindowDoc = getBrowser().contentDocument;
-  var divHTML = new XPCNativeWrapper(contentWindowDoc,
-                      "getElementsByClassName()")
-                      .getElementsByClassName("moz-text-html")[0];
-  var divPLAIN = new XPCNativeWrapper(contentWindowDoc,
-                      "getElementsByClassName()")
-                      .getElementsByClassName("moz-text-plain")[0];
+  set onOpenPref(val) {
+    Services.prefs.setIntPref("rss.show.content-base", val);
+  },
 
-  if (val == null)
-    // Not passed a value, so generic select unless in toggle mode
-    if (!gShowFeedSummaryToggle)
-      // Not in toggle mode, get prefs
-      val = pref.getIntPref("rss.show.summary");
-    else {
-      // Coming in again from toggle, summary already 'reloadMessage'ed,
-      // just need to set display for summary on.
-      gShowFeedSummaryToggle = false;
-      if (divHTML)
-        divHTML.parentNode.setAttribute("selected", gShowFeedSummary);
-      if (divPLAIN)
-        divPLAIN.parentNode.setAttribute("selected", gShowFeedSummary);
-      return;
+  /**
+   * Determine if a message is a feed message.  Prior to Tb15, a message had to
+   * be in an rss acount type folder.  In Tb15 and later, a flag is set on the
+   * message itself upon initial store; the message can be moved to any folder.
+   *
+   * @param nsIMsgDBHdr aMsgHdr - the message.
+   *
+   * @return true if message is a feed, false if not.
+   */
+  isFeedMessage: function (aMsgHdr) {
+    return Boolean(aMsgHdr &&
+                   (aMsgHdr.flags & Components.interfaces.nsMsgMessageFlags.FeedMsg ||
+                    (aMsgHdr.folder && aMsgHdr.folder.server.type == "rss")));
+  },
+
+  /**
+   * Determine whether to show a feed message summary or load a web page in the
+   * message pane.
+   *
+   * @param nsIMsgDBHdr aMsgHdr - the message.
+   * @param bool aToggle        - true if in toggle mode, false otherwise.
+   *
+   * @return true if summary is to be displayed, false if web page.
+   */
+  shouldShowSummary: function (aMsgHdr, aToggle) {
+    // Not a feed message, always show summary (the message).
+    if (!this.isFeedMessage(aMsgHdr))
+      return true;
+
+    // Notified of a summary reload when toggling, reset toggle and return.
+    if (!aToggle && this.gToggle)
+      return !(this.gToggle = false);
+
+    let showSummary = true;
+    this.gToggle = aToggle;
+
+    // Thunderbird 2 rss messages with 'Show article summary' not selected,
+    // ie message body constructed to show web page in an iframe, can't show
+    // a summary - notify user.
+    let contentDoc = getBrowser().contentDocument;
+    let rssIframe = contentDoc.getElementById("_mailrssiframe");
+    if (rssIframe) {
+      if (this.gToggle || this.onSelectPref == this.kSelectOverrideSummary)
+        this.gToggle = false;
+      return false;
     }
 
-  switch (val) {
-    case 0:
-      showSummary = false;
-      break;
-    case 1:
-      showSummary = true
-      break;
-    case 2:
-      if (wintype == "mail:3pane") {
-        // Get quickmode per feed pref from feeds.rdf
-        var quickMode, targetRes;
-        if (!("FeedUtils" in window))
-          Services.scriptloader.loadSubScript("chrome://messenger-newsblog/content/utils.js");
-        try
-        {
-          var targetRes = FeedUtils.getParentTargetForChildResource(
-                            gFolderDisplay.displayedFolder.URI,
-                            FeedUtils.FZ_QUICKMODE,
-                            gFolderDisplay.displayedFolder.server);
-        }
-        catch (ex) {};
+    if (aToggle)
+      // Toggle mode, flip value.
+      return gShowFeedSummary = this.gShowSummary = !this.gShowSummary;
 
-        if (targetRes)
-        {
-          quickMode = targetRes.QueryInterface(Components.interfaces
-                               .nsIRDFLiteral);
-          quickMode = quickMode.Value;
-          quickMode = eval(quickMode);
+    let wintype = document.documentElement.getAttribute("windowtype");
+    let tabMail = document.getElementById("tabmail");
+    let messageTab = tabMail && tabMail.currentTabInfo.mode.type == "message";
+    let messageWindow = wintype == "mail:messageWindow";
+
+    switch (this.onSelectPref) {
+      case this.kSelectOverrideWebPage:
+        showSummary = false;
+        break;
+      case this.kSelectOverrideSummary:
+        showSummary = true
+        break;
+      case this.kSelectFeedDefault:
+        // Get quickmode per feed folder pref from feeds.rdf.  If the feed
+        // message is not in a feed account folder (hence the folder is not in
+        // the feeds database), or FZ_QUICKMODE property is not found (possible
+        // in pre renovation urls), err on the side of showing the summary.
+        // For the former, toggle or global override is necessary; for the
+        // latter, a show summary checkbox toggle in Subscribe dialog will set
+        // one on the path to bliss.
+        let folder = aMsgHdr.folder, targetRes;
+        try {
+          targetRes = FeedUtils.getParentTargetForChildResource(
+                        folder.URI, FeedUtils.FZ_QUICKMODE, folder.server);
         }
-        else
-          // Do not have this item's feed anymore in feeds.rdf though its
-          // message folder remains and its items exist in feeditems.rdf
-          // (Bug 309449), or the item has been moved to another folder,
-          // or some error on the file. Default to show summary.
-          quickMode = true;
+        catch (ex) {
+          // Not in a feed account folder or other error.
+          FeedUtils.log.info("FeedMessageHandler.shouldShowSummary: could not " +
+                             "get summary pref for this folder");
+        }
+
+        showSummary = targetRes && targetRes.QueryInterface(Ci.nsIRDFLiteral).
+                                             Value == "false" ? false : true;
+        break;
+    }
+
+    gShowFeedSummary = this.gShowSummary = showSummary;
+
+    if (messageWindow || messageTab) {
+      // Message opened in either standalone window or tab, due to either
+      // message open pref (we are here only if the pref is 0 or 1) or
+      // contextmenu open.
+      switch (this.onOpenPref) {
+        case this.kOpenToggleInMessagePane:
+          // Opened by contextmenu, use the value derived above.
+          // XXX: allow a toggle via crtl?
+          break;
+        case this.kOpenWebPage:
+          showSummary = false;
+          break;
+        case this.kOpenSummary:
+          showSummary = true;
+          break;
       }
-      showSummary = quickMode;
-      break;
-  }
+    }
 
-  gShowFeedSummary = showSummary;
+    // Auto load web page in browser on select, per pref; shouldShowSummary() is
+    // always called first to 1)test if feed, 2)get summary pref, so do it here.
+    if (this.loadWebPageOnSelectPref)
+      setTimeout(FeedMessageHandler.loadWebPage, 20, aMsgHdr, {browser:true});
 
-  // Message window - here only if GetFeedOpenHandler() = 0 or 1
-  if (wintype == "mail:messageWindow") {
-    // Set global var for message window
-    gShowFeedSummary = GetFeedOpenHandler();
-    // Get pref since may be reusable message window and changed in 3pane
-    showSummary = gShowFeedSummary == 0 ? false : true;
-  }
+    return showSummary;
+  },
 
-  if (divHTML)
-    divHTML.parentNode.setAttribute("selected", showSummary);
-  if (divPLAIN)
-    divPLAIN.parentNode.setAttribute("selected", showSummary);
+  /**
+   * Load a web page for feed messages.  Use MsgHdrToMimeMessage() to get
+   * the content-base url from the message headers.  We cannot rely on
+   * currentHeaderData; it has not yet been streamed at our entry point in
+   * displayMessageChanged(), and in the case of a collapsed message pane it
+   * is not streamed.
+   *
+   * @param nsIMsgDBHdr aMessageHdr - the message.
+   * @param {obj} aWhere            - name value=true pair, where name is in:
+   *                                  'messagepane', 'browser', 'tab', 'window'.
+   */
+  loadWebPage: function (aMessageHdr, aWhere) {
+    MsgHdrToMimeMessage(aMessageHdr, null, function(aMsgHdr, aMimeMsg) {
+      if (aMimeMsg && aMimeMsg.headers["content-base"] &&
+          aMimeMsg.headers["content-base"][0]) {
+        let url = aMimeMsg.headers["content-base"], uri;
+        try {
+          uri = Services.io.newURI(url, null, null);
+          url = uri.spec;
+        }
+        catch (ex) {
+          FeedUtils.log.info("FeedMessageHandler.loadWebPage: " +
+                             "invalid Content-Base header url - " + url);
+          return;
+        }
+        if (aWhere.browser)
+          Components.classes["@mozilla.org/uriloader/external-protocol-service;1"]
+                    .getService(Components.interfaces.nsIExternalProtocolService)
+                    .loadURI(uri);
+        else if (aWhere.messagepane) {
+          let loadFlag = getBrowser().webNavigation.LOAD_FLAGS_NONE;
+          getBrowser().webNavigation.loadURI(url, loadFlag, null, null, null);
+        }
+        else if (aWhere.tab)
+          openContentTab(url, "tab", "^");
+        else if (aWhere.window)
+          openContentTab(url, "window", "^");
+      }
+      else
+        FeedUtils.log.info("FeedMessageHandler.loadWebPage: could not get " +
+                           "Content-Base header url for this message");
+    });
+  },
 
-  if (showSummary) {
-    if (gShowFeedSummaryToggle) {
-      if (gDBView && GetNumSelectedMessages() == 1) {
+  /**
+   * Display summary or load web page for feed messages.  Caller should already
+   * know if the message is a feed message.
+   *
+   * @param nsIMsgDBHdr aMsgHdr - the message.
+   * @param bool aShowSummary   - true if summary is to be displayed, false if
+   *                              web page.
+   */
+  setContent: function (aMsgHdr, aShowSummary) {
+    if (aShowSummary) {
+      // Only here if toggling to summary.
+      if (this.gToggle && gDBView && GetNumSelectedMessages() == 1)
         ReloadMessage();
-      }
+    }
+    else {
+      // If in a non rss folder, hide possible remote content bar on a web
+      // page load, as it doesn't apply.
+      getBrowser().contentDocument.body.hidden = true;
+      gMessageNotificationBar.clearMsgNotifications();
+
+      this.loadWebPage(aMsgHdr, {messagepane:true});
+      this.gToggle = false;
     }
   }
-  else if (contentBase && contentBase.headerValue) {
-    document.getElementById("messagepane")
-            .loadURI(contentBase.headerValue, null, null);
-    gShowFeedSummaryToggle = false;
-  }
+}
+
+function initAppMenuPopup(aMenuPopup, aEvent)
+{
+  file_init();
+  view_init();
+  InitGoMessagesMenu();
+  menu_new_init();
+  CommandUpdate_UndoRedo();
+  InitAppEditMessagesMenu();
+  document.commandDispatcher.updateCommands('create-menu-tasks');
+
+  // If the onpopupshowing event's target is on one of the splitmenu
+  // menuitem popups, stash that popup in aMenuPopup (the menupopup one
+  // level up) so that splitmenu knows which popup to close when it opens
+  // up it's popupmenu.
+  if (aEvent.target.parentNode.parentNode.parentNode.parentNode == aMenuPopup)
+    aMenuPopup._currentPopup = aEvent.target;
 }

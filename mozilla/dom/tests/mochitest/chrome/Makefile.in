@@ -3,11 +3,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH		= ../../../..
+DEPTH		= @DEPTH@
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
-relativesrcdir  = dom/tests/mochitest/chrome
+relativesrcdir  = @relativesrcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
@@ -46,6 +46,10 @@ MOCHITEST_CHROME_FILES = \
 		window_callback_wrapping.xul \
 		test_sandbox_postMessage.html \
 		test_sandbox_bindings.xul \
+		test_bug799299.xul \
+		file_bug799299.xul \
+		test_bug800817.xul \
+		file_bug800817.xul \
 		$(NULL)
 
 ifeq (WINNT,$(OS_ARCH))

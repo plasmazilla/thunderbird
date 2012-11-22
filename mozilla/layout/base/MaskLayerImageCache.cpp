@@ -4,10 +4,19 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "MaskLayerImageCache.h"
+#include "ImageContainer.h"
 
 using namespace mozilla::layers;
 
 namespace mozilla {
+
+MaskLayerImageCache::MaskLayerImageCache()
+{
+  mMaskImageContainers.Init();
+}
+MaskLayerImageCache::~MaskLayerImageCache()
+{}
+
 
 /* static */ PLDHashOperator
 MaskLayerImageCache::SweepFunc(MaskLayerImageEntry* aEntry,
@@ -25,7 +34,7 @@ MaskLayerImageCache::SweepFunc(MaskLayerImageEntry* aEntry,
 void
 MaskLayerImageCache::Sweep() 
 {
-  mMaskImageContainers.EnumerateEntries(SweepFunc, nsnull);
+  mMaskImageContainers.EnumerateEntries(SweepFunc, nullptr);
 }
 
 ImageContainer*
@@ -36,7 +45,7 @@ MaskLayerImageCache::FindImageFor(const MaskLayerImageKey** aKey)
     return entry->mContainer;
   }
 
-  return nsnull;
+  return nullptr;
 }
 
 void

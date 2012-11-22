@@ -61,7 +61,7 @@ nsNetscapeProfileMigratorBase::GetSourceExists(bool* aResult)
   GetSourceProfiles(getter_AddRefs(profiles));
 
   if (profiles) {
-    PRUint32 count;
+    uint32_t count;
     profiles->GetLength(&count);
     *aResult = count > 0;
   }
@@ -78,7 +78,7 @@ nsNetscapeProfileMigratorBase::GetSourceHasMultipleProfiles(bool* aResult)
   GetSourceProfiles(getter_AddRefs(profiles));
 
   if (profiles) {
-    PRUint32 count;
+    uint32_t count;
     profiles->GetLength(&count);
     *aResult = count > 1;
   }
@@ -155,7 +155,7 @@ nsNetscapeProfileMigratorBase::CopyHomePageData(bool aReplace)
   mTargetProfile->Clone(getter_AddRefs(targetPrefsFile));
   targetPrefsFile->AppendNative(nsDependentCString(FILE_NAME_PREFS));
 
-  // Don't use nsnull here as we're too early in the cycle for the prefs
+  // Don't use nullptr here as we're too early in the cycle for the prefs
   // service to get its default file (because the NS_GetDirectoryService items
   // aren't fully set up yet).
   psvc->ReadUserPrefs(targetPrefsFile);
@@ -297,9 +297,9 @@ nsNetscapeProfileMigratorBase::SetCookie(PrefTransform* aTransform,
 nsresult
 nsNetscapeProfileMigratorBase::GetSourceProfile(const PRUnichar* aProfile)
 {
-  PRUint32 count;
+  uint32_t count;
   mProfileNames->GetLength(&count);
-  for (PRUint32 i = 0; i < count; ++i) {
+  for (uint32_t i = 0; i < count; ++i) {
     nsCOMPtr<nsISupportsString> str(do_QueryElementAt(mProfileNames, i));
     nsString profileName;
     str->GetData(profileName);
@@ -504,17 +504,17 @@ nsNetscapeProfileMigratorBase::ReadBranch(const char * branchName,
   nsCOMPtr<nsIPrefBranch> branch;
   aPrefService->GetBranch(branchName, getter_AddRefs(branch));
 
-  PRUint32 count;
-  char** prefs = nsnull;
+  uint32_t count;
+  char** prefs = nullptr;
 
   nsresult rv = branch->GetChildList("", &count, &prefs);
   if (NS_FAILED(rv))
     return;
 
-  for (PRUint32 i = 0; i < count; ++i) {
+  for (uint32_t i = 0; i < count; ++i) {
     // Save each pref's value into an array
     char* currPref = prefs[i];
-    PRInt32 type;
+    int32_t type;
     branch->GetPrefType(currPref, &type);
 
     PrefBranchStruct* pref = new PrefBranchStruct;
@@ -555,15 +555,15 @@ nsNetscapeProfileMigratorBase::WriteBranch(const char * branchName,
   nsCOMPtr<nsIPrefBranch> branch;
   aPrefService->GetBranch(branchName, getter_AddRefs(branch));
 
-  PRUint32 count = aPrefs.Length();
-  for (PRUint32 i = 0; i < count; ++i) {
+  uint32_t count = aPrefs.Length();
+  for (uint32_t i = 0; i < count; ++i) {
     PrefBranchStruct* pref = aPrefs.ElementAt(i);
 
     switch (pref->type) {
     case nsIPrefBranch::PREF_STRING:
       branch->SetCharPref(pref->prefName, pref->stringValue);
       NS_Free(pref->stringValue);
-      pref->stringValue = nsnull;
+      pref->stringValue = nullptr;
       break;
     case nsIPrefBranch::PREF_BOOL:
       branch->SetBoolPref(pref->prefName, pref->boolValue);
@@ -577,9 +577,9 @@ nsNetscapeProfileMigratorBase::WriteBranch(const char * branchName,
       break;
     }
     NS_Free(pref->prefName);
-    pref->prefName = nsnull;
+    pref->prefName = nullptr;
     delete pref;
-    pref = nsnull;
+    pref = nullptr;
   }
   aPrefs.Clear();
 }
@@ -660,7 +660,7 @@ nsNetscapeProfileMigratorBase::CopyPasswords(bool aReplace)
 
   nsCOMPtr<nsILoginManagerStorage>
       lms(do_GetService("@mozilla.org/login-manager/storage/mozStorage;1"));
-  return lms->InitWithFile(seamonkeyPasswordsFile, nsnull);
+  return lms->InitWithFile(seamonkeyPasswordsFile, nullptr);
 }
 
 nsresult
@@ -807,8 +807,8 @@ nsNetscapeProfileMigratorBase::CopyAddressBookDirectories(PBStructArray &aLdapSe
   index.AppendInt(nsISuiteProfileMigrator::ADDRESSBOOK_DATA);
   NOTIFY_OBSERVERS(MIGRATION_ITEMBEFOREMIGRATE, index.get());
 
-  PRUint32 count = aLdapServers.Length();
-  for (PRUint32 i = 0; i < count; ++i) {
+  uint32_t count = aLdapServers.Length();
+  for (uint32_t i = 0; i < count; ++i) {
     PrefBranchStruct* pref = aLdapServers.ElementAt(i);
     nsDependentCString prefName(pref->prefName);
 
@@ -830,8 +830,8 @@ nsNetscapeProfileMigratorBase::CopySignatureFiles(PBStructArray &aIdentities,
 {
   nsresult rv = NS_OK;
 
-  PRUint32 count = aIdentities.Length();
-  for (PRUint32 i = 0; i < count; ++i)
+  uint32_t count = aIdentities.Length();
+  for (uint32_t i = 0; i < count; ++i)
   {
     PrefBranchStruct* pref = aIdentities.ElementAt(i);
     nsDependentCString prefName(pref->prefName);
@@ -892,8 +892,8 @@ nsNetscapeProfileMigratorBase::CopyMailFolderPrefs(PBStructArray &aMailServers,
   //     destination directory pref
   CopyFile(FILE_NAME_VIRTUALFOLDERS, FILE_NAME_VIRTUALFOLDERS);
 
-  PRInt32 count = aMailServers.Length();
-  for (PRInt32 i = 0; i < count; ++i) {
+  int32_t count = aMailServers.Length();
+  for (int32_t i = 0; i < count; ++i) {
     PrefBranchStruct* pref = aMailServers.ElementAt(i);
     nsDependentCString prefName(pref->prefName);
 
@@ -992,7 +992,7 @@ nsNetscapeProfileMigratorBase::CopyMailFolderPrefs(PBStructArray &aMailServers,
 
   // Remove all .directory-rel prefs as those might have changed; MailNews
   // will create those prefs again on first use
-  for (PRInt32 i = count; i-- > 0; ) {
+  for (int32_t i = count; i-- > 0; ) {
     PrefBranchStruct* pref = aMailServers.ElementAt(i);
     nsDependentCString prefName(pref->prefName);
 
@@ -1016,13 +1016,13 @@ nsNetscapeProfileMigratorBase::CopyMailFolders()
 
   // Generate the max progress value now that we know all of the files we
   // need to copy
-  PRUint32 count = mFileCopyTransactions.Length();
+  uint32_t count = mFileCopyTransactions.Length();
   mMaxProgress = 0;
   mCurrentProgress = 0;
 
-  for (PRUint32 i = 0; i < count; ++i) {
+  for (uint32_t i = 0; i < count; ++i) {
     fileTransactionEntry fileTransaction = mFileCopyTransactions[i];
-    PRInt64 fileSize;
+    int64_t fileSize;
     fileTransaction.srcFile->GetFileSize(&fileSize);
     LL_ADD(mMaxProgress, mMaxProgress, fileSize);
   }
@@ -1034,7 +1034,7 @@ void
 nsNetscapeProfileMigratorBase::CopyNextFolder()
 {
   if (mFileCopyTransactionIndex < mFileCopyTransactions.Length()) {
-    PRUint32 percentage = 0;
+    uint32_t percentage = 0;
     fileTransactionEntry fileTransaction =
       mFileCopyTransactions.ElementAt(mFileCopyTransactionIndex++);
 
@@ -1043,11 +1043,11 @@ nsNetscapeProfileMigratorBase::CopyNextFolder()
                                     EmptyString());
 
     // add to our current progress
-    PRInt64 fileSize;
+    int64_t fileSize;
     fileTransaction.srcFile->GetFileSize(&fileSize);
     LL_ADD(mCurrentProgress, mCurrentProgress, fileSize);
 
-    PRInt64 percentDone;
+    int64_t percentDone;
     LL_MUL(percentDone, mCurrentProgress, 100);
 
     LL_DIV(percentDone, percentDone, mMaxProgress);
@@ -1089,5 +1089,5 @@ nsNetscapeProfileMigratorBase::EndCopyFolders()
   index.AppendInt(nsISuiteProfileMigrator::MAILDATA);
   NOTIFY_OBSERVERS(MIGRATION_ITEMAFTERMIGRATE, index.get());
 
-  NOTIFY_OBSERVERS(MIGRATION_ENDED, nsnull);
+  NOTIFY_OBSERVERS(MIGRATION_ENDED, nullptr);
 }

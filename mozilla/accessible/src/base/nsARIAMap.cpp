@@ -7,11 +7,12 @@
 
 #include "nsARIAMap.h"
 
+#include "nsAccUtils.h"
 #include "nsCoreUtils.h"
 #include "Role.h"
 #include "States.h"
 
-#include "nsIContent.h"
+#include "nsAttrName.h"
 #include "nsWhitespaceTokenizer.h"
 
 using namespace mozilla;
@@ -635,7 +636,7 @@ nsAttributeCharacteristics nsARIAMap::gWAIUnivAttrMap[] = {
   {&nsGkAtoms::aria_valuetext,         ATTR_BYPASSOBJ                 }
 };
 
-PRUint32
+uint32_t
 nsARIAMap::gWAIUnivAttrMapLength = NS_ARRAY_LENGTH(nsARIAMap::gWAIUnivAttrMap);
 
 nsRoleMapEntry*
@@ -647,18 +648,18 @@ aria::GetRoleMap(nsINode* aNode)
       !content->GetAttr(kNameSpaceID_None, nsGkAtoms::role, roles) ||
       roles.IsEmpty()) {
     // We treat role="" as if the role attribute is absent (per aria spec:8.1.1)
-    return nsnull;
+    return nullptr;
   }
 
   nsWhitespaceTokenizer tokenizer(roles);
   while (tokenizer.hasMoreTokens()) {
     // Do a binary search through table for the next role in role list
     const nsDependentSubstring role = tokenizer.nextToken();
-    PRUint32 low = 0;
-    PRUint32 high = ArrayLength(sWAIRoleMaps);
+    uint32_t low = 0;
+    uint32_t high = ArrayLength(sWAIRoleMaps);
     while (low < high) {
-      PRUint32 idx = (low + high) / 2;
-      PRInt32 compare = Compare(role, sWAIRoleMaps[idx].ARIARoleString());
+      uint32_t idx = (low + high) / 2;
+      int32_t compare = Compare(role, sWAIRoleMaps[idx].ARIARoleString());
       if (compare == 0)
         return sWAIRoleMaps + idx;
 
@@ -674,13 +675,49 @@ aria::GetRoleMap(nsINode* aNode)
   return &sLandmarkRoleMap;
 }
 
-PRUint64
+uint64_t
 aria::UniversalStatesFor(mozilla::dom::Element* aElement)
 {
-  PRUint64 state = 0;
-  PRUint32 index = 0;
+  uint64_t state = 0;
+  uint32_t index = 0;
   while (MapToState(sWAIUnivStateMap[index], aElement, &state))
     index++;
 
   return state;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// AttrIterator class
+
+bool
+AttrIterator::Next(nsAString& aAttrName, nsAString& aAttrValue)
+{
+  while (mAttrIdx < mAttrCount) {
+    const nsAttrName* attr = mContent->GetAttrNameAt(mAttrIdx);
+    mAttrIdx++;
+    if (attr->NamespaceEquals(kNameSpaceID_None)) {
+      nsIAtom* attrAtom = attr->Atom();
+      nsDependentAtomString attrStr(attrAtom);
+      if (!StringBeginsWith(attrStr, NS_LITERAL_STRING("aria-")))
+        continue; // Not ARIA
+
+      uint8_t attrFlags = nsAccUtils::GetAttributeCharacteristics(attrAtom);
+      if (attrFlags & ATTR_BYPASSOBJ)
+        continue; // No need to handle exposing as obj attribute here
+
+      if ((attrFlags & ATTR_VALTOKEN) &&
+           !nsAccUtils::HasDefinedARIAToken(mContent, attrAtom))
+        continue; // only expose token based attributes if they are defined
+
+      nsAutoString value;
+      if (mContent->GetAttr(kNameSpaceID_None, attrAtom, value)) {
+        aAttrName.Assign(Substring(attrStr, 5));
+        aAttrValue.Assign(value);
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+

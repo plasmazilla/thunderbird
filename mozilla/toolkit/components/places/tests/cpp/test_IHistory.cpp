@@ -36,7 +36,7 @@ already_AddRefed<nsIURI>
 new_test_uri()
 {
   // Create a unique spec.
-  static PRInt32 specNumber = 0;
+  static int32_t specNumber = 0;
   nsCAutoString spec = NS_LITERAL_CSTRING("http://mozilla.org/");
   spec.AppendInt(specNumber++);
 
@@ -114,7 +114,7 @@ test_set_places_enabled()
 }
 
 // These variables are shared between part 1 and part 2 of the test.  Part 2
-// sets the nsCOMPtr's to nsnull, freeing the reference.
+// sets the nsCOMPtr's to nullptr, freeing the reference.
 namespace test_unvisited_does_not_notify {
   nsCOMPtr<nsIURI> testURI;
   nsRefPtr<Link> testLink;
@@ -176,8 +176,8 @@ test_unvisited_does_not_notify_part2()
   do_check_success(rv);
 
   // Clear the stored variables now.
-  testURI = nsnull;
-  testLink = nsnull;
+  testURI = nullptr;
+  testLink = nullptr;
 
   // Run the next test.
   run_next_test();

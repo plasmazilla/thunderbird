@@ -1489,7 +1489,7 @@ random-if(!haveTestPlugin) == 546071-1.html 546071-1-ref.html
 # 553571 depends on MS Indic shaping behavior and Win7 font support;
 # not expected to be reliable on XP or non-Windows platforms
 random-if(!winWidget) random-if(/^Windows\x20NT\x205/.test(http.oscpu)) != 553571-1.html 553571-1-notref.html # expect dotted circle in test, not in ref
-fuzzy-if(azureSkia,6,90) random-if(d2d) == 555388-1.html 555388-1-ref.html
+fuzzy-if(!contentSameGfxBackendAsCanvas,2,91) random-if(d2d) == 555388-1.html 555388-1-ref.html
 == 556661-1.html 556661-1-ref.html
 fails-if(Android) == 557087-1.html 557087-ref.html
 fails-if(Android) == 557087-2.html 557087-ref.html
@@ -1586,7 +1586,7 @@ skip-if(!browserIsRemote) == 593243-2.html 593243-2-ref.html # bug 593168
 == 594624-1.html 594624-1-ref.html
 == 594737-1.html 594737-1-ref.html
 == 597721-1.html 597721-1-ref.html
-needs-focus == 598726-1.html 598726-1-ref.html
+random-if(winWidget) needs-focus == 598726-1.html 598726-1-ref.html # Fails on Windows, bug 782196
 == 599113-1.html 599113-1-ref.html
 fails-if(!haveTestPlugin) == 599476.html 599476-ref.html
 == 600045-1.html 600045-1-ref.html
@@ -1602,6 +1602,7 @@ fails-if(!haveTestPlugin) == 599476.html 599476-ref.html
 == 604737.html 604737-ref.html
 == 605138-1.html 605138-1-ref.html
 == 605157-1.xhtml 605157-1-ref.xhtml
+== 607267-1.html 607267-1-ref.html
 == 608756-1a.html 608756-1-ref.html
 == 608756-1b.html 608756-1-ref.html
 == 608756-2.html 608756-2-ref.html
@@ -1627,7 +1628,7 @@ skip-if(Android) == 621253-1-internalFilter.html 621253-1-ref.html
 HTTP(..) == 621253-2-externalFilter.html 621253-2-ref.html
 == 621253-2-internalFilter.html 621253-2-ref.html
 fails-if(Android) HTTP(..) == 619511-1.html 619511-1-ref.html
-random-if(winWidget) fuzzy-if(OSX==10.8,46,21) == 621918-1.svg 621918-1-ref.svg # 1-pixel diacritic positioning discrepancy in rotated text (may depend on platform fonts)
+random-if(winWidget) fuzzy-if(OSX==10.8,19,17) == 621918-1.svg 621918-1-ref.svg # 1-pixel diacritic positioning discrepancy in rotated text (may depend on platform fonts)
 random-if(winWidget) HTTP(..) == 621918-2.svg 621918-2-ref.svg # same 1px issue as above, and HTTP(..) for filters.svg, used to mask antialiasing issues where glyphs touch
 == 622585-1.html 622585-1-ref.html
 fails-if(Android) == 625409-1.html 625409-1-ref.html
@@ -1710,3 +1711,12 @@ needs-focus == 731726-1.html 731726-1-ref.html
 == 758561-1.html 758561-1-ref.html
 fuzzy-if(true,1,19) == 759036-1.html 759036-1-ref.html
 fuzzy-if(true,17,5859) == 759036-2.html 759036-2-ref.html
+== 776265-1a.html 776265-1-ref.html
+== 776265-1b.html 776265-1-ref.html
+== 776265-1c.html 776265-1-ref.html
+== 776265-1d.html 776265-1-ref.html
+== 776265-2a.html 776265-2-ref.html
+== 776265-2b.html 776265-2-ref.html
+== 776265-2c.html 776265-2-ref.html
+== 776265-2d.html 776265-2-ref.html
+== 787947-1.html 787947-1-ref.html

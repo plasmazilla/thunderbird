@@ -27,7 +27,7 @@ IsChromeType(nsIDocShell *aDocShell)
     return false;
   }
 
-  PRInt32 itemType;
+  int32_t itemType;
   ds->GetItemType(&itemType);
   return itemType == nsIDocShellTreeItem::typeChrome;
 }
@@ -40,12 +40,12 @@ nsScreen::Create(nsPIDOMWindow* aWindow)
   MOZ_ASSERT(aWindow);
 
   if (!aWindow->GetDocShell()) {
-    return nsnull;
+    return nullptr;
   }
 
   nsCOMPtr<nsIScriptGlobalObject> sgo =
     do_QueryInterface(static_cast<nsPIDOMWindow*>(aWindow));
-  NS_ENSURE_TRUE(sgo, nsnull);
+  NS_ENSURE_TRUE(sgo, nullptr);
 
   nsRefPtr<nsScreen> screen = new nsScreen();
   screen->BindToOwner(aWindow);
@@ -59,7 +59,7 @@ nsScreen::Create(nsPIDOMWindow* aWindow)
 }
 
 nsScreen::nsScreen()
-  : mEventListener(nsnull)
+  : mEventListener(nullptr)
 {
 }
 
@@ -75,7 +75,7 @@ nsScreen::Reset()
                                         mEventListener, true);
     }
 
-    mEventListener = nsnull;
+    mEventListener = nullptr;
   }
 }
 
@@ -113,7 +113,7 @@ NS_IMPL_RELEASE_INHERITED(nsScreen, nsDOMEventTargetHelper)
 NS_IMPL_EVENT_HANDLER(nsScreen, mozorientationchange)
 
 NS_IMETHODIMP
-nsScreen::GetTop(PRInt32* aTop)
+nsScreen::GetTop(int32_t* aTop)
 {
   nsRect rect;
   nsresult rv = GetRect(rect);
@@ -125,7 +125,7 @@ nsScreen::GetTop(PRInt32* aTop)
 
 
 NS_IMETHODIMP
-nsScreen::GetLeft(PRInt32* aLeft)
+nsScreen::GetLeft(int32_t* aLeft)
 {
   nsRect rect;
   nsresult rv = GetRect(rect);
@@ -137,7 +137,7 @@ nsScreen::GetLeft(PRInt32* aLeft)
 
 
 NS_IMETHODIMP
-nsScreen::GetWidth(PRInt32* aWidth)
+nsScreen::GetWidth(int32_t* aWidth)
 {
   nsRect rect;
   nsresult rv = GetRect(rect);
@@ -148,7 +148,7 @@ nsScreen::GetWidth(PRInt32* aWidth)
 }
 
 NS_IMETHODIMP
-nsScreen::GetHeight(PRInt32* aHeight)
+nsScreen::GetHeight(int32_t* aHeight)
 {
   nsRect rect;
   nsresult rv = GetRect(rect);
@@ -159,7 +159,7 @@ nsScreen::GetHeight(PRInt32* aHeight)
 }
 
 NS_IMETHODIMP
-nsScreen::GetPixelDepth(PRInt32* aPixelDepth)
+nsScreen::GetPixelDepth(int32_t* aPixelDepth)
 {
   nsDeviceContext* context = GetDeviceContext();
 
@@ -169,7 +169,7 @@ nsScreen::GetPixelDepth(PRInt32* aPixelDepth)
     return NS_ERROR_FAILURE;
   }
 
-  PRUint32 depth;
+  uint32_t depth;
   context->GetDepth(depth);
 
   *aPixelDepth = depth;
@@ -178,13 +178,13 @@ nsScreen::GetPixelDepth(PRInt32* aPixelDepth)
 }
 
 NS_IMETHODIMP
-nsScreen::GetColorDepth(PRInt32* aColorDepth)
+nsScreen::GetColorDepth(int32_t* aColorDepth)
 {
   return GetPixelDepth(aColorDepth);
 }
 
 NS_IMETHODIMP
-nsScreen::GetAvailWidth(PRInt32* aAvailWidth)
+nsScreen::GetAvailWidth(int32_t* aAvailWidth)
 {
   nsRect rect;
   nsresult rv = GetAvailRect(rect);
@@ -195,7 +195,7 @@ nsScreen::GetAvailWidth(PRInt32* aAvailWidth)
 }
 
 NS_IMETHODIMP
-nsScreen::GetAvailHeight(PRInt32* aAvailHeight)
+nsScreen::GetAvailHeight(int32_t* aAvailHeight)
 {
   nsRect rect;
   nsresult rv = GetAvailRect(rect);
@@ -206,7 +206,7 @@ nsScreen::GetAvailHeight(PRInt32* aAvailHeight)
 }
 
 NS_IMETHODIMP
-nsScreen::GetAvailLeft(PRInt32* aAvailLeft)
+nsScreen::GetAvailLeft(int32_t* aAvailLeft)
 {
   nsRect rect;
   nsresult rv = GetAvailRect(rect);
@@ -217,7 +217,7 @@ nsScreen::GetAvailLeft(PRInt32* aAvailLeft)
 }
 
 NS_IMETHODIMP
-nsScreen::GetAvailTop(PRInt32* aAvailTop)
+nsScreen::GetAvailTop(int32_t* aAvailTop)
 {
   nsRect rect;
   nsresult rv = GetAvailRect(rect);
@@ -285,7 +285,7 @@ nsScreen::Notify(const hal::ScreenConfiguration& aConfiguration)
 
   if (mOrientation != previousOrientation) {
     // TODO: use an helper method, see bug 720768.
-    nsRefPtr<nsDOMEvent> event = new nsDOMEvent(nsnull, nsnull);
+    nsRefPtr<nsDOMEvent> event = new nsDOMEvent(nullptr, nullptr);
     nsresult rv = event->InitEvent(NS_LITERAL_STRING("mozorientationchange"), false, false);
     if (NS_FAILED(rv)) {
       return;
@@ -353,29 +353,46 @@ nsScreen::MozLockOrientation(const nsAString& aOrientation, bool* aReturn)
     return NS_OK;
   }
 
-  if (!GetOwner()) {
-    return NS_OK;
-  }
+  // Determine whether we can lock the screen orientation.
+  bool canLockOrientation = false;
+  do {
+    nsCOMPtr<nsPIDOMWindow> owner = GetOwner();
+    if (!owner) {
+      break;
+    }
 
-  // Chrome code and apps can always lock the screen orientation.
-  if (!IsChromeType(GetOwner()->GetDocShell()) &&
-      !static_cast<nsGlobalWindow*>(GetOwner())->IsPartOfApp()) {
-    nsCOMPtr<nsIDOMDocument> doc;
-    GetOwner()->GetDocument(getter_AddRefs(doc));
+    // Chrome can always lock the screen orientation.
+    if (IsChromeType(owner->GetDocShell())) {
+      canLockOrientation = true;
+      break;
+    }
+
+    nsCOMPtr<nsIDOMDocument> domDoc;
+    owner->GetDocument(getter_AddRefs(domDoc));
+    nsCOMPtr<nsIDocument> doc = do_QueryInterface(domDoc);
     if (!doc) {
-      return NS_OK;
+      break;
     }
 
-    // Non-apps content can lock orientation only if fullscreen.
+    // Apps can always lock the screen orientation.
+    if (doc->NodePrincipal()->GetAppStatus() >=
+          nsIPrincipal::APP_STATUS_INSTALLED) {
+      canLockOrientation = true;
+      break;
+    }
+
+    // Other content must be full-screen in order to lock orientation.
     bool fullscreen;
-    doc->GetMozFullScreen(&fullscreen);
+    domDoc->GetMozFullScreen(&fullscreen);
     if (!fullscreen) {
-      return NS_OK;
+      break;
     }
 
-    nsCOMPtr<nsIDOMEventTarget> target = do_QueryInterface(GetOwner());
+    // If we're full-screen, register a listener so we learn when we leave
+    // full-screen.
+    nsCOMPtr<nsIDOMEventTarget> target = do_QueryInterface(owner);
     if (!target) {
-      return NS_OK;
+      break;
     }
 
     if (!mEventListener) {
@@ -383,10 +400,14 @@ nsScreen::MozLockOrientation(const nsAString& aOrientation, bool* aReturn)
     }
 
     target->AddSystemEventListener(NS_LITERAL_STRING("mozfullscreenchange"),
-                                   mEventListener, true);
+                                   mEventListener, /* useCapture = */ true);
+    canLockOrientation = true;
+  } while(0);
+
+  if (canLockOrientation) {
+    *aReturn = hal::LockScreenOrientation(orientation);
   }
 
-  *aReturn = hal::LockScreenOrientation(orientation);
   return NS_OK;
 }
 

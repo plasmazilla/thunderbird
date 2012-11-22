@@ -12,6 +12,8 @@
 #include "nsDOMCSSRGBColor.h"
 #include "nsIDOMRect.h"
 #include "nsDOMClassInfoID.h" // DOMCI_DATA
+#include "nsIURI.h"
+#include "nsError.h"
 
 nsROCSSPrimitiveValue::nsROCSSPrimitiveValue()
   : mType(CSS_PX)
@@ -240,7 +242,7 @@ nsROCSSPrimitiveValue::SetCssText(const nsAString& aCssText)
 
 
 NS_IMETHODIMP
-nsROCSSPrimitiveValue::GetCssValueType(PRUint16* aValueType)
+nsROCSSPrimitiveValue::GetCssValueType(uint16_t* aValueType)
 {
   NS_ENSURE_ARG_POINTER(aValueType);
   *aValueType = nsIDOMCSSValue::CSS_PRIMITIVE_VALUE;
@@ -251,7 +253,7 @@ nsROCSSPrimitiveValue::GetCssValueType(PRUint16* aValueType)
 // nsIDOMCSSPrimitiveValue
 
 NS_IMETHODIMP
-nsROCSSPrimitiveValue::GetPrimitiveType(PRUint16* aPrimitiveType)
+nsROCSSPrimitiveValue::GetPrimitiveType(uint16_t* aPrimitiveType)
 {
   NS_ENSURE_ARG_POINTER(aPrimitiveType);
   *aPrimitiveType = mType;
@@ -261,14 +263,14 @@ nsROCSSPrimitiveValue::GetPrimitiveType(PRUint16* aPrimitiveType)
 
 
 NS_IMETHODIMP
-nsROCSSPrimitiveValue::SetFloatValue(PRUint16 aUnitType, float aFloatValue)
+nsROCSSPrimitiveValue::SetFloatValue(uint16_t aUnitType, float aFloatValue)
 {
   return NS_ERROR_DOM_NO_MODIFICATION_ALLOWED_ERR;
 }
 
 
 NS_IMETHODIMP
-nsROCSSPrimitiveValue::GetFloatValue(PRUint16 aUnitType, float* aReturn)
+nsROCSSPrimitiveValue::GetFloatValue(uint16_t aUnitType, float* aReturn)
 {
   NS_ENSURE_ARG_POINTER(aReturn);
   *aReturn = 0;
@@ -344,7 +346,7 @@ nsROCSSPrimitiveValue::GetFloatValue(PRUint16 aUnitType, float* aReturn)
 
 
 NS_IMETHODIMP
-nsROCSSPrimitiveValue::SetStringValue(PRUint16 aStringType,
+nsROCSSPrimitiveValue::SetStringValue(uint16_t aStringType,
                                       const nsAString& aStringValue)
 {
   return NS_ERROR_DOM_NO_MODIFICATION_ALLOWED_ERR;
@@ -387,7 +389,7 @@ NS_IMETHODIMP
 nsROCSSPrimitiveValue::GetRectValue(nsIDOMRect** aReturn)
 {
   if (mType != CSS_RECT) {
-    *aReturn = nsnull;
+    *aReturn = nullptr;
     return NS_ERROR_DOM_INVALID_ACCESS_ERR;
   }
   NS_ASSERTION(mValue.mRect, "mValue.mRect should never be null");
@@ -400,7 +402,7 @@ NS_IMETHODIMP
 nsROCSSPrimitiveValue::GetRGBColorValue(nsIDOMRGBColor** aReturn)
 {
   if (mType != CSS_RGBCOLOR) {
-    *aReturn = nsnull;
+    *aReturn = nullptr;
     return NS_ERROR_DOM_INVALID_ACCESS_ERR;
   }
   NS_ASSERTION(mValue.mColor, "mValue.mColor should never be null");
@@ -417,7 +419,7 @@ nsROCSSPrimitiveValue::SetNumber(float aValue)
 }
 
 void
-nsROCSSPrimitiveValue::SetNumber(PRInt32 aValue)
+nsROCSSPrimitiveValue::SetNumber(int32_t aValue)
 {
   Reset();
   mValue.mFloat = float(aValue);
@@ -425,7 +427,7 @@ nsROCSSPrimitiveValue::SetNumber(PRInt32 aValue)
 }
 
 void
-nsROCSSPrimitiveValue::SetNumber(PRUint32 aValue)
+nsROCSSPrimitiveValue::SetNumber(uint32_t aValue)
 {
   Reset();
   mValue.mFloat = float(aValue);
@@ -467,7 +469,7 @@ nsROCSSPrimitiveValue::SetIdent(nsCSSKeyword aKeyword)
 
 // FIXME: CSS_STRING should imply a string with "" and a need for escaping.
 void
-nsROCSSPrimitiveValue::SetString(const nsACString& aString, PRUint16 aType)
+nsROCSSPrimitiveValue::SetString(const nsACString& aString, uint16_t aType)
 {
   Reset();
   mValue.mString = ToNewUnicode(aString);
@@ -481,7 +483,7 @@ nsROCSSPrimitiveValue::SetString(const nsACString& aString, PRUint16 aType)
 
 // FIXME: CSS_STRING should imply a string with "" and a need for escaping.
 void
-nsROCSSPrimitiveValue::SetString(const nsAString& aString, PRUint16 aType)
+nsROCSSPrimitiveValue::SetString(const nsAString& aString, uint16_t aType)
 {
   Reset();
   mValue.mString = ToNewUnicode(aString);
@@ -551,7 +553,7 @@ nsROCSSPrimitiveValue::Reset()
     case CSS_COUNTER: // FIXME: Counter should use an object
       NS_ASSERTION(mValue.mString, "Null string should never happen");
       nsMemory::Free(mValue.mString);
-      mValue.mString = nsnull;
+      mValue.mString = nullptr;
       break;
     case CSS_URI:
       NS_IF_RELEASE(mValue.mURI);

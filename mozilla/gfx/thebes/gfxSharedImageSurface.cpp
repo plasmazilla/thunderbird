@@ -15,9 +15,9 @@ using namespace mozilla::ipc;
 static const cairo_user_data_key_t SHM_KEY = {0};
 
 struct SharedImageInfo {
-    PRInt32 width;
-    PRInt32 height;
-    PRInt32 format;
+    int32_t width;
+    int32_t height;
+    int32_t format;
 };
 
 static SharedImageInfo*
@@ -84,12 +84,12 @@ gfxSharedImageSurface::Open(const Shmem& aShmem)
     SharedImageInfo* shmInfo = GetShmInfoPtr(aShmem);
     gfxIntSize size(shmInfo->width, shmInfo->height);
     if (!CheckSurfaceSize(size))
-        return nsnull;
+        return nullptr;
 
     nsRefPtr<gfxSharedImageSurface> s =
         new gfxSharedImageSurface(size,
                                   (gfxImageFormat)shmInfo->format,
                                   aShmem);
     // We didn't create this Shmem and so don't free it on errors
-    return (s->CairoStatus() != 0) ? nsnull : s.forget();
+    return (s->CairoStatus() != 0) ? nullptr : s.forget();
 }

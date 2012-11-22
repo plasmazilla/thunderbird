@@ -12,7 +12,7 @@
 #define nsAttrValue_h___
 
 #include "nscore.h"
-#include "nsString.h"
+#include "nsStringGlue.h"
 #include "nsStringBuffer.h"
 #include "nsColor.h"
 #include "nsCaseTreatment.h"
@@ -23,12 +23,15 @@
 typedef PRUptrdiff PtrBits;
 class nsAString;
 class nsIAtom;
+class nsIDocument;
 template<class E, class A> class nsTArray;
 struct nsTArrayDefaultAllocator;
 
 namespace mozilla {
 namespace css {
 class StyleRule;
+struct URLValue;
+struct ImageValue;
 }
 }
 
@@ -91,22 +94,24 @@ public:
     // Values below here won't matter, they'll be always stored in the 'misc'
     // struct.
     eCSSStyleRule =    0x10
-    ,eAtomArray =      0x11
-    ,eDoubleValue  =   0x12
-    ,eIntMarginValue = 0x13
-    ,eSVGTypesBegin =  0x14
+    ,eURL =            0x11
+    ,eImage =          0x12
+    ,eAtomArray =      0x13
+    ,eDoubleValue  =   0x14
+    ,eIntMarginValue = 0x15
+    ,eSVGTypesBegin =  0x16
     ,eSVGAngle =       eSVGTypesBegin
-    ,eSVGIntegerPair = 0x15
-    ,eSVGLength =      0x16
-    ,eSVGLengthList =  0x17
-    ,eSVGNumberList =  0x18
-    ,eSVGNumberPair =  0x19
-    ,eSVGPathData   =  0x20
-    ,eSVGPointList  =  0x21
-    ,eSVGPreserveAspectRatio = 0x22
-    ,eSVGStringList =  0x23
-    ,eSVGTransformList = 0x24
-    ,eSVGViewBox =     0x25
+    ,eSVGIntegerPair = 0x17
+    ,eSVGLength =      0x18
+    ,eSVGLengthList =  0x19
+    ,eSVGNumberList =  0x20
+    ,eSVGNumberPair =  0x21
+    ,eSVGPathData   =  0x22
+    ,eSVGPointList  =  0x23
+    ,eSVGPreserveAspectRatio = 0x24
+    ,eSVGStringList =  0x25
+    ,eSVGTransformList = 0x26
+    ,eSVGViewBox =     0x27
     ,eSVGTypesEnd =    0x34
   };
 
@@ -117,10 +122,11 @@ public:
   void SetTo(const nsAttrValue& aOther);
   void SetTo(const nsAString& aValue);
   void SetTo(nsIAtom* aValue);
-  void SetTo(PRInt16 aInt);
-  void SetTo(PRInt32 aInt, const nsAString* aSerialized);
+  void SetTo(int16_t aInt);
+  void SetTo(int32_t aInt, const nsAString* aSerialized);
   void SetTo(double aValue, const nsAString* aSerialized);
   void SetTo(mozilla::css::StyleRule* aValue, const nsAString* aSerialized);
+  void SetTo(mozilla::css::URLValue* aValue, const nsAString* aSerialized);
   void SetTo(const nsIntMargin& aValue);
   void SetTo(const nsSVGAngle& aValue, const nsAString* aSerialized);
   void SetTo(const nsSVGIntegerPair& aValue, const nsAString* aSerialized);
@@ -163,12 +169,14 @@ public:
   inline bool IsEmptyString() const;
   const nsCheapString GetStringValue() const;
   inline nsIAtom* GetAtomValue() const;
-  inline PRInt32 GetIntegerValue() const;
+  inline int32_t GetIntegerValue() const;
   bool GetColorValue(nscolor& aColor) const;
-  inline PRInt16 GetEnumValue() const;
+  inline int16_t GetEnumValue() const;
   inline float GetPercentValue() const;
   inline AtomArray* GetAtomArrayValue() const;
   inline mozilla::css::StyleRule* GetCSSStyleRuleValue() const;
+  inline mozilla::css::URLValue* GetURLValue() const;
+  inline mozilla::css::ImageValue* GetImageValue() const;
   inline double GetDoubleValue() const;
   bool GetIntMarginValue(nsIntMargin& aMargin) const;
 
@@ -183,12 +191,12 @@ public:
   // Methods to get access to atoms we may have
   // Returns the number of atoms we have; 0 if we have none.  It's OK
   // to call this without checking the type first; it handles that.
-  PRUint32 GetAtomCount() const;
+  uint32_t GetAtomCount() const;
   // Returns the atom at aIndex (0-based).  Do not call this with
   // aIndex >= GetAtomCount().
-  nsIAtom* AtomAt(PRInt32 aIndex) const;
+  nsIAtom* AtomAt(int32_t aIndex) const;
 
-  PRUint32 HashValue() const;
+  uint32_t HashValue() const;
   bool Equals(const nsAttrValue& aOther) const;
   bool Equals(const nsAString& aValue, nsCaseTreatment aCaseSensitive) const;
   bool Equals(nsIAtom* aValue, nsCaseTreatment aCaseSensitive) const;
@@ -232,7 +240,7 @@ public:
     /** The string the value maps to */
     const char* tag;
     /** The enum value that maps to this string */
-    PRInt16 value;
+    int16_t value;
   };
 
   /**
@@ -249,7 +257,7 @@ public:
   bool ParseEnumValue(const nsAString& aValue,
                         const EnumTable* aTable,
                         bool aCaseSensitive,
-                        const EnumTable* aDefaultValue = nsnull);
+                        const EnumTable* aDefaultValue = nullptr);
 
   /**
    * Parse a string into an integer. Can optionally parse percent (n%).
@@ -282,8 +290,8 @@ public:
    * @param aMax the maximum value (if value is greater it will be chopped down)
    * @return whether the value could be parsed
    */
-  bool ParseIntWithBounds(const nsAString& aString, PRInt32 aMin,
-                            PRInt32 aMax = PR_INT32_MAX);
+  bool ParseIntWithBounds(const nsAString& aString, int32_t aMin,
+                            int32_t aMax = PR_INT32_MAX);
 
   /**
    * Parse a string value into a non-negative integer.
@@ -342,6 +350,14 @@ public:
    */
   bool ParseIntMarginValue(const nsAString& aString);
 
+  /**
+   * Convert a URL nsAttrValue to an Image nsAttrValue.
+   *
+   * @param aDocument the document this nsAttrValue belongs to.
+   * @return whether an image load was attempted
+   */
+  bool LoadImage(nsIDocument* aDocument);
+
   size_t SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf) const;
 
 private:
@@ -362,11 +378,13 @@ private:
     // mStringBits.
     PtrBits mStringBits;
     union {
-      PRInt32 mInteger;
+      int32_t mInteger;
       nscolor mColor;
-      PRUint32 mEnumValue;
-      PRInt32 mPercent;
+      uint32_t mEnumValue;
+      int32_t mPercent;
       mozilla::css::StyleRule* mCSSStyleRule;
+      mozilla::css::URLValue* mURL;
+      mozilla::css::ImageValue* mImage;
       AtomArray* mAtomArray;
       double mDoubleValue;
       nsIntMargin* mIntMargin;
@@ -395,10 +413,10 @@ private:
    * @param aTable   the EnumTable to get the index of.
    * @return         the index of the EnumTable.
    */
-  PRInt16  GetEnumTableIndex(const EnumTable* aTable);
+  int16_t  GetEnumTableIndex(const EnumTable* aTable);
 
   inline void SetPtrValueAndType(void* aValue, ValueBaseType aType);
-  void SetIntValueAndType(PRInt32 aValue, ValueType aType,
+  void SetIntValueAndType(int32_t aValue, ValueType aType,
                           const nsAString* aStringValue);
   void SetColorValue(nscolor aColor, const nsAString& aString);
   void SetMiscAtomOrString(const nsAString* aValue);
@@ -409,21 +427,21 @@ private:
 
   inline void* GetPtr() const;
   inline MiscContainer* GetMiscContainer() const;
-  inline PRInt32 GetIntInternal() const;
+  inline int32_t GetIntInternal() const;
 
   bool EnsureEmptyMiscContainer();
   bool EnsureEmptyAtomArray();
   nsStringBuffer* GetStringBuffer(const nsAString& aValue) const;
   // aStrict is set true if stringifying the return value equals with
   // aValue.
-  PRInt32 StringToInteger(const nsAString& aValue,
+  int32_t StringToInteger(const nsAString& aValue,
                           bool* aStrict,
-                          PRInt32* aErrorCode,
+                          nsresult* aErrorCode,
                           bool aCanBePercent = false,
-                          bool* aIsPercent = nsnull) const;
+                          bool* aIsPercent = nullptr) const;
   // Given an enum table and a particular entry in that table, return
   // the actual integer value we should store.
-  PRInt32 EnumTableEntryToValue(const EnumTable* aEnumTable,
+  int32_t EnumTableEntryToValue(const EnumTable* aEnumTable,
                                 const EnumTable* aTableEntry);  
 
   static nsTArray<const EnumTable*, nsTArrayDefaultAllocator>* sEnumTableArray;
@@ -449,7 +467,7 @@ nsAttrValue::GetAtomValue() const
   return reinterpret_cast<nsIAtom*>(GetPtr());
 }
 
-inline PRInt32
+inline int32_t
 nsAttrValue::GetIntegerValue() const
 {
   NS_PRECONDITION(Type() == eInteger, "wrong type");
@@ -458,15 +476,15 @@ nsAttrValue::GetIntegerValue() const
          : GetMiscContainer()->mInteger;
 }
 
-inline PRInt16
+inline int16_t
 nsAttrValue::GetEnumValue() const
 {
   NS_PRECONDITION(Type() == eEnum, "wrong type");
   // We don't need to worry about sign extension here since we're
-  // returning an PRInt16 which will cut away the top bits.
-  return static_cast<PRInt16>((
+  // returning an int16_t which will cut away the top bits.
+  return static_cast<int16_t>((
     (BaseType() == eIntegerBase)
-    ? static_cast<PRUint32>(GetIntInternal())
+    ? static_cast<uint32_t>(GetIntInternal())
     : GetMiscContainer()->mEnumValue)
       >> NS_ATTRVALUE_ENUMTABLEINDEX_BITS);
 }
@@ -493,6 +511,20 @@ nsAttrValue::GetCSSStyleRuleValue() const
 {
   NS_PRECONDITION(Type() == eCSSStyleRule, "wrong type");
   return GetMiscContainer()->mCSSStyleRule;
+}
+
+inline mozilla::css::URLValue*
+nsAttrValue::GetURLValue() const
+{
+  NS_PRECONDITION(Type() == eURL, "wrong type");
+  return GetMiscContainer()->mURL;
+}
+
+inline mozilla::css::ImageValue*
+nsAttrValue::GetImageValue() const
+{
+  NS_PRECONDITION(Type() == eImage, "wrong type");
+  return GetMiscContainer()->mImage;
 }
 
 inline double
@@ -556,7 +588,7 @@ nsAttrValue::GetMiscContainer() const
   return static_cast<MiscContainer*>(GetPtr());
 }
 
-inline PRInt32
+inline int32_t
 nsAttrValue::GetIntInternal() const
 {
   NS_ASSERTION(BaseType() == eIntegerBase,
@@ -564,7 +596,7 @@ nsAttrValue::GetIntInternal() const
   // Make sure we get a signed value.
   // Lets hope the optimizer optimizes this into a shift. Unfortunatly signed
   // bitshift right is implementaion dependant.
-  return static_cast<PRInt32>(mBits & ~NS_ATTRVALUE_INTEGERTYPE_MASK) /
+  return static_cast<int32_t>(mBits & ~NS_ATTRVALUE_INTEGERTYPE_MASK) /
          NS_ATTRVALUE_INTEGERTYPE_MULTIPLIER;
 }
 

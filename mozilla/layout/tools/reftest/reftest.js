@@ -35,7 +35,7 @@ const NS_DIRECTORY_SERVICE_CONTRACTID =
 const NS_OBSERVER_SERVICE_CONTRACTID =
           "@mozilla.org/observer-service;1";
 
-Components.utils.import("resource://gre/modules/FileUtils.jsm");        
+Components.utils.import("resource://gre/modules/FileUtils.jsm");
 
 var gLoadTimeout = 0;
 var gTimeoutHook = null;
@@ -51,6 +51,8 @@ const BLANK_URL_FOR_CLEARING = "data:text/html,%3C%21%2D%2DCLEAR%2D%2D%3E";
 var gBrowser;
 // Are we testing web content loaded in a separate process?
 var gBrowserIsRemote;           // bool
+// Are we using <iframe mozbrowser>?
+var gBrowserIsIframe;           // bool
 var gBrowserMessageManager;
 var gCanvas1, gCanvas2;
 // gCurrentCanvas is non-null between InitCurrentCanvasWithSnapshot and the next
@@ -109,7 +111,7 @@ const TYPE_SCRIPT = 'script'; // test contains individual test results
 
 // The order of these constants matters, since when we have a status
 // listed for a *manifest*, we combine the status with the status for
-// the test by using the *larger*.  
+// the test by using the *larger*.
 // FIXME: In the future, we may also want to use this rule for combining
 // statuses that are on the same line (rather than making the last one
 // win).
@@ -206,7 +208,7 @@ function OnRefTestLoad(win)
                     .getService(CI.nsIProperties)
                     .get("ProfD", CI.nsIFile);
     gCrashDumpDir.append("minidumps");
-    
+
     var env = CC["@mozilla.org/process/environment;1"].
               getService(CI.nsIEnvironment);
     gVerbose = !!env.get("MOZ_REFTEST_VERBOSE");
@@ -218,7 +220,13 @@ function OnRefTestLoad(win)
     } catch (e) {
         gBrowserIsRemote = false;
     }
-    
+
+    try {
+      gBrowserIsIframe = prefs.getBoolPref("reftest.browser.iframe.enabled");
+    } catch (e) {
+      gBrowserIsIframe = false;
+    }
+
     if (win === undefined || win == null) {
       win = window;
     }
@@ -226,7 +234,12 @@ function OnRefTestLoad(win)
       gContainingWindow = win;
     }
 
-    gBrowser = gContainingWindow.document.createElementNS(XUL_NS, "xul:browser");
+    if (gBrowserIsIframe) {
+      gBrowser = gContainingWindow.document.createElementNS(XHTML_NS, "iframe");
+      gBrowser.setAttribute("mozbrowser", "");
+    } else {
+      gBrowser = gContainingWindow.document.createElementNS(XUL_NS, "xul:browser");
+    }
     gBrowser.setAttribute("id", "browser");
     gBrowser.setAttribute("type", "content-primary");
     gBrowser.setAttribute("remote", gBrowserIsRemote ? "true" : "false");
@@ -235,7 +248,11 @@ function OnRefTestLoad(win)
     gBrowser.setAttribute("style", "min-width: 800px; min-height: 1000px; max-width: 800px; max-height: 1000px");
 
 #if BOOTSTRAP
+#if REFTEST_B2G
+    var doc = gContainingWindow.document.getElementsByTagName("window")[0];
+#else
     var doc = gContainingWindow.document.getElementById('main-window');
+#endif
     while (doc.hasChildNodes()) {
       doc.removeChild(doc.firstChild);
     }
@@ -245,7 +262,7 @@ function OnRefTestLoad(win)
 #endif
 
     gBrowserMessageManager = gBrowser.QueryInterface(CI.nsIFrameLoaderOwner)
-                             .frameLoader.messageManager;
+                                     .frameLoader.messageManager;
     // The content script waits for the initial onload, then notifies
     // us.
     RegisterMessageListenersAndLoadContentScript();
@@ -260,27 +277,31 @@ function InitAndStartRefTests()
     } catch(e) {
         gDumpLog("REFTEST TEST-UNEXPECTED-FAIL | | EXCEPTION: " + e + "\n");
     }
-    
+
     /* set the gLoadTimeout */
     try {
         gLoadTimeout = prefs.getIntPref("reftest.timeout");
-    } catch(e) { 
+    } catch(e) {
         gLoadTimeout = 5 * 60 * 1000; //5 minutes as per bug 479518
     }
-    
+
     /* Get the logfile for android tests */
     try {
         var logFile = prefs.getCharPref("reftest.logFile");
         if (logFile) {
             try {
                 var f = FileUtils.File(logFile);
-                var mfl = FileUtils.openFileOutputStream(f, FileUtils.MODE_WRONLY | FileUtils.MODE_CREATE);  
+                var mfl = FileUtils.openFileOutputStream(f, FileUtils.MODE_WRONLY | FileUtils.MODE_CREATE);
                 // Set to mirror to stdout as well as the file
                 gDumpLog = function (msg) {
 #if BOOTSTRAP
-                    //NOTE: on android-xul, we have a libc crash if we do a dump with %7s in the string
+#if REFTEST_B2G
+                    dump(msg);
 #else
-                    dump(msg); 
+                    //NOTE: on android-xul, we have a libc crash if we do a dump with %7s in the string
+#endif
+#else
+                    dump(msg);
 #endif
                     mfl.write(msg, msg.length);
                 };
@@ -291,10 +312,10 @@ function InitAndStartRefTests()
             }
         }
     } catch(e) {}
-    
+
     try {
         gRemote = prefs.getBoolPref("reftest.remote");
-    } catch(e) { 
+    } catch(e) {
         gRemote = false;
     }
 
@@ -374,22 +395,22 @@ function StartTests()
     } catch(e) {
         gDumpLog("REFTEST TEST-UNEXPECTED-FAIL | | EXCEPTION: " + e + "\n");
     }
-    
+
     try {
         gNoCanvasCache = prefs.getIntPref("reftest.nocache");
-    } catch(e) { 
+    } catch(e) {
         gNoCanvasCache = false;
     }
 
     try {
         gRunSlowTests = prefs.getIntPref("reftest.skipslowtests");
-    } catch(e) { 
+    } catch(e) {
         gRunSlowTests = false;
     }
 
     try {
         uri = prefs.getCharPref("reftest.uri");
-    } catch(e) { 
+    } catch(e) {
         uri = "";
     }
 
@@ -415,7 +436,6 @@ function StartTests()
         DoneTests();
     }
 #endif
-
     try {
         ReadTopManifest(uri);
         BuildUseCounts();
@@ -480,14 +500,26 @@ function BuildConditionSandbox(aURL) {
     }
  
     
+#if REFTEST_B2G
+    // XXX nsIGfxInfo isn't available in B2G
+    sandbox.d2d = false;
+    sandbox.azureQuartz = false;
+    sandbox.azureSkia = false;
+    sandbox.contentSameGfxBackendAsCanvas = false;
+#else
     var gfxInfo = (NS_GFXINFO_CONTRACTID in CC) && CC[NS_GFXINFO_CONTRACTID].getService(CI.nsIGfxInfo);
     try {
       sandbox.d2d = gfxInfo.D2DEnabled;
     } catch (e) {
       sandbox.d2d = false;
     }
-    sandbox.azureQuartz = gfxInfo.getInfo().AzureBackend == "quartz";
-    sandbox.azureSkia = gfxInfo.getInfo().AzureBackend == "skia";
+    var info = gfxInfo.getInfo();
+    sandbox.azureQuartz = info.AzureCanvasBackend == "quartz";
+    sandbox.azureSkia = info.AzureCanvasBackend == "skia";
+    // true if we are using the same Azure backend for rendering canvas and content
+    sandbox.contentSameGfxBackendAsCanvas = info.AzureContentBackend == info.AzureCanvasBackend
+                                            || (info.AzureContentBackend == "none" && info.AzureCanvasBackend == "cairo");
+#endif
 
     sandbox.layersGPUAccelerated =
       gWindowUtils.layerManagerType != "Basic";
@@ -495,7 +527,8 @@ function BuildConditionSandbox(aURL) {
       gWindowUtils.layerManagerType == "OpenGL";
 
     // Shortcuts for widget toolkits.
-    sandbox.Android = xr.OS == "Android";
+    sandbox.B2G = xr.widgetToolkit == "gonk";
+    sandbox.Android = xr.OS == "Android" && !sandbox.B2G;
     sandbox.cocoaWidget = xr.widgetToolkit == "cocoa";
     sandbox.gtk2Widget = xr.widgetToolkit == "gtk2";
     sandbox.qtWidget = xr.widgetToolkit == "qt";
@@ -593,13 +626,13 @@ function BuildConditionSandbox(aURL) {
     // Tests shouldn't care about this except for when they need to
     // crash the content process
     sandbox.browserIsRemote = gBrowserIsRemote;
+    sandbox.bug685516 = sandbox.browserIsRemote && sandbox.Android;
 
     if (!gDumpedConditionSandbox) {
         dump("REFTEST INFO | Dumping JSON representation of sandbox \n");
         dump("REFTEST INFO | " + JSON.stringify(sandbox) + " \n");
         gDumpedConditionSandbox = true;
     }
-
     return sandbox;
 }
 
@@ -624,7 +657,7 @@ function ReadManifest(aURL, inherited_status)
     var inputStream = channel.open();
     if (channel instanceof Components.interfaces.nsIHttpChannel
         && channel.responseStatus != 200) {
-      gDumpLog("REFTEST TEST-UNEXPECTED-FAIL | | HTTP ERROR : " + 
+      gDumpLog("REFTEST TEST-UNEXPECTED-FAIL | | HTTP ERROR : " +
         channel.responseStatus + "\n");
     }
     var streamBuf = getStreamContent(inputStream);
@@ -633,7 +666,6 @@ function ReadManifest(aURL, inherited_status)
 
     // Build the sandbox for fails-if(), etc., condition evaluation.
     var sandbox = BuildConditionSandbox(aURL);
-
     var lineNo = 0;
     var urlprefix = "";
     for each (var str in lines) {
@@ -814,12 +846,14 @@ function ReadManifest(aURL, inherited_status)
             }
         }
 
+        var principal = secMan.getSimpleCodebasePrincipal(aURL);
+
         if (items[0] == "include") {
             if (items.length != 2 || runHttp)
                 throw "Error 2 in manifest file " + aURL.spec + " line " + lineNo;
             var incURI = gIOService.newURI(items[1], null, listURL);
-            secMan.checkLoadURI(aURL, incURI,
-                                CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
+            secMan.checkLoadURIWithPrincipal(principal, incURI,
+                                             CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
             ReadManifest(incURI, expected_status);
         } else if (items[0] == TYPE_LOAD) {
             if (items.length != 2 ||
@@ -827,14 +861,14 @@ function ReadManifest(aURL, inherited_status)
                  expected_status != EXPECTED_DEATH))
                 throw "Error 3 in manifest file " + aURL.spec + " line " + lineNo;
             var [testURI] = runHttp
-                            ? ServeFiles(aURL, httpDepth,
+                            ? ServeFiles(principal, httpDepth,
                                          listURL, [items[1]])
                             : [gIOService.newURI(items[1], null, listURL)];
             var prettyPath = runHttp
                            ? gIOService.newURI(items[1], null, listURL).spec
                            : testURI.spec;
-            secMan.checkLoadURI(aURL, testURI,
-                                CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
+            secMan.checkLoadURIWithPrincipal(principal, testURI,
+                                             CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
             gURLs.push( { type: TYPE_LOAD,
                           expected: expected_status,
                           allowSilentFail: allow_silent_fail,
@@ -853,14 +887,14 @@ function ReadManifest(aURL, inherited_status)
             if (items.length != 2)
                 throw "Error 4 in manifest file " + aURL.spec + " line " + lineNo;
             var [testURI] = runHttp
-                            ? ServeFiles(aURL, httpDepth,
+                            ? ServeFiles(principal, httpDepth,
                                          listURL, [items[1]])
                             : [gIOService.newURI(items[1], null, listURL)];
             var prettyPath = runHttp
                            ? gIOService.newURI(items[1], null, listURL).spec
                            : testURI.spec;
-            secMan.checkLoadURI(aURL, testURI,
-                                CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
+            secMan.checkLoadURIWithPrincipal(principal, testURI,
+                                             CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
             gURLs.push( { type: TYPE_SCRIPT,
                           expected: expected_status,
                           allowSilentFail: allow_silent_fail,
@@ -879,17 +913,17 @@ function ReadManifest(aURL, inherited_status)
             if (items.length != 3)
                 throw "Error 5 in manifest file " + aURL.spec + " line " + lineNo;
             var [testURI, refURI] = runHttp
-                                  ? ServeFiles(aURL, httpDepth,
+                                  ? ServeFiles(principal, httpDepth,
                                                listURL, [items[1], items[2]])
                                   : [gIOService.newURI(items[1], null, listURL),
                                      gIOService.newURI(items[2], null, listURL)];
             var prettyPath = runHttp
                            ? gIOService.newURI(items[1], null, listURL).spec
                            : testURI.spec;
-            secMan.checkLoadURI(aURL, testURI,
-                                CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
-            secMan.checkLoadURI(aURL, refURI,
-                                CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
+            secMan.checkLoadURIWithPrincipal(principal, testURI,
+                                             CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
+            secMan.checkLoadURIWithPrincipal(principal, refURI,
+                                             CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
             gURLs.push( { type: items[0],
                           expected: expected_status,
                           allowSilentFail: allow_silent_fail,
@@ -941,7 +975,7 @@ function BuildUseCounts()
     }
 }
 
-function ServeFiles(manifestURL, depth, aURL, files)
+function ServeFiles(manifestPrincipal, depth, aURL, files)
 {
     var listURL = aURL.QueryInterface(CI.nsIFileURL);
     var directory = listURL.file.parent;
@@ -973,8 +1007,8 @@ function ServeFiles(manifestURL, depth, aURL, files)
         var testURI = gIOService.newURI(file, null, testbase);
 
         // XXX necessary?  manifestURL guaranteed to be file, others always HTTP
-        secMan.checkLoadURI(manifestURL, testURI,
-                            CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
+        secMan.checkLoadURIWithPrincipal(manifestPrincipal, testURI,
+                                         CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
 
         return testURI;
     }
@@ -1178,10 +1212,12 @@ function DoneTests()
         let appStartup = CC["@mozilla.org/toolkit/app-startup;1"].getService(CI.nsIAppStartup);
         appStartup.quit(CI.nsIAppStartup.eForceQuit);
     }
-    if (gServer)
+    if (gServer) {
         gServer.stop(onStopped);
-    else
+    }
+    else {
         onStopped();
+    }
 }
 
 function UpdateCanvasCache(url, canvas)
@@ -1444,25 +1480,29 @@ function RecordResult(testRunTime, errorMsg, scriptResults)
                          gURLs[0].prettyPath + " | "; // the URL being tested
             switch (gURLs[0].type) {
                 case TYPE_REFTEST_NOTEQUAL:
-                    result += "image comparison (!=) ";
+                    result += "image comparison (!=)";
                     break;
                 case TYPE_REFTEST_EQUAL:
-                    result += "image comparison (==) ";
+                    result += "image comparison (==)";
                     break;
             }
-            gDumpLog(result + "\n");
 
             if (!test_passed && expected == EXPECTED_PASS ||
                 !test_passed && expected == EXPECTED_FUZZY ||
                 test_passed && expected == EXPECTED_FAIL) {
                 if (!equal) {
-                    gDumpLog("REFTEST   IMAGE 1 (TEST): " + gCanvas1.toDataURL() + "\n");
-                    gDumpLog("REFTEST   IMAGE 2 (REFERENCE): " + gCanvas2.toDataURL() + "\n");
-                    gDumpLog("REFTEST number of differing pixels: " + differences + " max difference: " + maxDifference.value + "\n");
+                    result += ", max difference: " + maxDifference.value + ", number of differing pixels: " + differences + "\n";
+                    result += "REFTEST   IMAGE 1 (TEST): " + gCanvas1.toDataURL() + "\n";
+                    result += "REFTEST   IMAGE 2 (REFERENCE): " + gCanvas2.toDataURL() + "\n";
                 } else {
+                    result += "\n";
                     gDumpLog("REFTEST   IMAGE: " + gCanvas1.toDataURL() + "\n");
                 }
+            } else {
+                result += "\n";
             }
+
+            gDumpLog(result);
 
             if (!test_passed && expected == EXPECTED_PASS) {
                 FlushTestLog();
@@ -1523,6 +1563,7 @@ function FindUnexpectedCrashDumpFiles()
         let path = String(file.path);
         if (path.match(/\.(dmp|extra)$/) && !gUnexpectedCrashDumpFiles[path]) {
             if (!foundCrashDumpFile) {
+                ++gTestResults.UnexpectedFail;
                 foundCrashDumpFile = true;
                 gDumpLog("REFTEST TEST-UNEXPECTED-FAIL | " + gCurrentURL +
                          " | This test left crash dumps behind, but we weren't expecting it to!\n");

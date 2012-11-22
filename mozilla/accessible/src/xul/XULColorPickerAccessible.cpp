@@ -48,17 +48,17 @@ XULColorPickerTileAccessible::NativeRole()
   return roles::PUSHBUTTON;
 }
 
-PRUint64
+uint64_t
 XULColorPickerTileAccessible::NativeState()
 {
-  PRUint64 state = AccessibleWrap::NativeState();
+  uint64_t state = AccessibleWrap::NativeState();
   if (mContent->HasAttr(kNameSpaceID_None, nsGkAtoms::selected))
     state |= states::SELECTED;
 
   return state;
 }
 
-PRUint64
+uint64_t
 XULColorPickerTileAccessible::NativeInteractiveState() const
 {
   return NativelyUnavailable() ?
@@ -77,7 +77,7 @@ XULColorPickerTileAccessible::ContainerWidget() const
     if (grandParent && grandParent->IsMenuButton())
       return grandParent;
   }
-  return nsnull;
+  return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -94,10 +94,10 @@ XULColorPickerAccessible::
 ////////////////////////////////////////////////////////////////////////////////
 // XULColorPickerAccessible: Accessible
 
-PRUint64
+uint64_t
 XULColorPickerAccessible::NativeState()
 {
-  PRUint64 state = AccessibleWrap::NativeState();
+  uint64_t state = AccessibleWrap::NativeState();
   return state | states::HASPOPUP;
 }
 
@@ -125,7 +125,7 @@ XULColorPickerAccessible::IsActiveWidget() const
 bool
 XULColorPickerAccessible::AreItemsOperable() const
 {
-  Accessible* menuPopup = mChildren.SafeElementAt(0, nsnull);
+  Accessible* menuPopup = mChildren.SafeElementAt(0, nullptr);
   if (menuPopup) {
     nsMenuPopupFrame* menuPopupFrame = do_QueryFrame(menuPopup->GetFrame());
     return menuPopupFrame && menuPopupFrame->IsOpen();
@@ -143,9 +143,9 @@ XULColorPickerAccessible::CacheChildren()
 
   nsAccTreeWalker walker(mDoc, mContent, true);
 
-  Accessible* child = nsnull;
+  Accessible* child = nullptr;
   while ((child = walker.NextChild())) {
-    PRUint32 role = child->Role();
+    uint32_t role = child->Role();
 
     // Get an accessible for menupopup or panel elements.
     if (role == roles::ALERT) {

@@ -13,9 +13,46 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
 const NS_PREFBRANCH_PREFCHANGE_TOPIC_ID = "nsPref:changed";
 const BROWSER_FRAMES_ENABLED_PREF = "dom.mozBrowserFramesEnabled";
+const TOUCH_EVENTS_ENABLED_PREF = "dom.w3c_touch_events.enabled";
 
 function debug(msg) {
   //dump("BrowserElementParent - " + msg + "\n");
+}
+
+function getBoolPref(prefName, def) {
+  try {
+    return Services.prefs.getBoolPref(prefName);
+  }
+  catch(err) {
+    return def;
+  }
+}
+
+function exposeAll(obj) {
+  // Filter for Objects and Arrays.
+  if (typeof obj !== "object" || !obj)
+    return;
+
+  // Recursively expose our children.
+  Object.keys(obj).forEach(function(key) {
+    exposeAll(obj[key]);
+  });
+
+  // If we're not an Array, generate an __exposedProps__ object for ourselves.
+  if (obj instanceof Array)
+    return;
+  var exposed = {};
+  Object.keys(obj).forEach(function(key) {
+    exposed[key] = 'rw';
+  });
+  obj.__exposedProps__ = exposed;
+}
+
+function defineAndExpose(obj, name, value) {
+  obj[name] = value;
+  if (!('__exposedProps__' in obj))
+    obj.__exposedProps__ = {};
+  obj.__exposedProps__[name] = 'r';
 }
 
 /**
@@ -82,17 +119,17 @@ BrowserElementParentFactory.prototype = {
 
   _observeInProcessBrowserFrameShown: function(frameLoader) {
     debug("In-process browser frame shown " + frameLoader);
-    this._createBrowserElementParent(frameLoader);
+    this._createBrowserElementParent(frameLoader, /* hasRemoteFrame = */ false);
   },
 
   _observeRemoteBrowserFrameShown: function(frameLoader) {
     debug("Remote browser frame shown " + frameLoader);
-    this._createBrowserElementParent(frameLoader);
+    this._createBrowserElementParent(frameLoader, /* hasRemoteFrame = */ true);
   },
 
-  _createBrowserElementParent: function(frameLoader) {
+  _createBrowserElementParent: function(frameLoader, hasRemoteFrame) {
     let frameElement = frameLoader.QueryInterface(Ci.nsIFrameLoader).ownerElement;
-    this._bepMap.set(frameElement, new BrowserElementParent(frameLoader));
+    this._bepMap.set(frameElement, new BrowserElementParent(frameLoader, hasRemoteFrame));
   },
 
   observe: function(subject, topic, data) {
@@ -118,11 +155,13 @@ BrowserElementParentFactory.prototype = {
   },
 };
 
-function BrowserElementParent(frameLoader) {
+function BrowserElementParent(frameLoader, hasRemoteFrame) {
   debug("Creating new BrowserElementParent object for " + frameLoader);
   this._domRequestCounter = 0;
   this._pendingDOMRequests = {};
+  this._hasRemoteFrame = hasRemoteFrame;
 
+  this._frameLoader = frameLoader;
   this._frameElement = frameLoader.QueryInterface(Ci.nsIFrameLoader).ownerElement;
   if (!this._frameElement) {
     debug("No frame element?");
@@ -136,10 +175,16 @@ function BrowserElementParent(frameLoader) {
 
   let self = this;
   function addMessageListener(msg, handler) {
-    self._mm.addMessageListener('browser-element-api:' + msg, handler.bind(self));
+    function checkedHandler() {
+      if (self._isAlive()) {
+        return handler.apply(self, arguments);
+      }
+    }
+    self._mm.addMessageListener('browser-element-api:' + msg, checkedHandler);
   }
 
   addMessageListener("hello", this._recvHello);
+  addMessageListener("get-name", this._recvGetName);
   addMessageListener("contextmenu", this._fireCtxMenuEvent);
   addMessageListener("locationchange", this._fireEventFromMsg);
   addMessageListener("loadstart", this._fireEventFromMsg);
@@ -149,33 +194,80 @@ function BrowserElementParent(frameLoader) {
   addMessageListener("close", this._fireEventFromMsg);
   addMessageListener("securitychange", this._fireEventFromMsg);
   addMessageListener("error", this._fireEventFromMsg);
-  addMessageListener("get-mozapp-manifest-url", this._sendMozAppManifestURL);
+  addMessageListener("scroll", this._fireEventFromMsg);
   addMessageListener("keyevent", this._fireKeyEvent);
   addMessageListener("showmodalprompt", this._handleShowModalPrompt);
   addMessageListener('got-screenshot', this._gotDOMRequestResult);
   addMessageListener('got-can-go-back', this._gotDOMRequestResult);
   addMessageListener('got-can-go-forward', this._gotDOMRequestResult);
+  addMessageListener('fullscreen-origin-change', this._remoteFullscreenOriginChange);
+  addMessageListener('rollback-fullscreen', this._remoteFrameFullscreenReverted);
+  addMessageListener('exit-fullscreen', this._exitFullscreen);
+
+  let os = Cc["@mozilla.org/observer-service;1"].getService(Ci.nsIObserverService);
+  os.addObserver(this, 'ask-children-to-exit-fullscreen', /* ownsWeak = */ true);
+  os.addObserver(this, 'oop-frameloader-crashed', /* ownsWeak = */ true);
 
   function defineMethod(name, fn) {
-    XPCNativeWrapper.unwrap(self._frameElement)[name] = fn.bind(self);
+    XPCNativeWrapper.unwrap(self._frameElement)[name] = function() {
+      if (self._isAlive()) {
+        return fn.apply(self, arguments);
+      }
+    };
   }
 
   function defineDOMRequestMethod(domName, msgName) {
-    XPCNativeWrapper.unwrap(self._frameElement)[domName] = self._sendDOMRequest.bind(self, msgName);
+    XPCNativeWrapper.unwrap(self._frameElement)[domName] = function() {
+      if (self._isAlive()) {
+        return self._sendDOMRequest(msgName);
+      }
+    };
   }
 
   // Define methods on the frame element.
   defineMethod('setVisible', this._setVisible);
+  defineMethod('sendMouseEvent', this._sendMouseEvent);
+  if (getBoolPref(TOUCH_EVENTS_ENABLED_PREF, false)) {
+    defineMethod('sendTouchEvent', this._sendTouchEvent);
+  }
   defineMethod('goBack', this._goBack);
   defineMethod('goForward', this._goForward);
+  defineMethod('reload', this._reload);
+  defineMethod('stop', this._stop);
   defineDOMRequestMethod('getScreenshot', 'get-screenshot');
   defineDOMRequestMethod('getCanGoBack', 'get-can-go-back');
   defineDOMRequestMethod('getCanGoForward', 'get-can-go-forward');
+
+  // Listen to mozvisibilitychange on the iframe's owner window, and forward it
+  // down to the child.
+  this._window.addEventListener('mozvisibilitychange',
+                                this._ownerVisibilityChange.bind(this),
+                                /* useCapture = */ false,
+                                /* wantsUntrusted = */ false);
 }
 
 BrowserElementParent.prototype = {
+
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsIObserver,
+                                         Ci.nsISupportsWeakReference]),
+
+  /**
+   * You shouldn't touch this._frameElement or this._window if _isAlive is
+   * false.  (You'll likely get an exception if you do.)
+   */
+  _isAlive: function() {
+    return !Cu.isDeadWrapper(this._frameElement) &&
+           !Cu.isDeadWrapper(this._frameElement.ownerDocument) &&
+           !Cu.isDeadWrapper(this._frameElement.ownerDocument.defaultView);
+  },
+
   get _window() {
     return this._frameElement.ownerDocument.defaultView;
+  },
+
+  get _windowUtils() {
+    return this._window.QueryInterface(Ci.nsIInterfaceRequestor)
+                       .getInterface(Ci.nsIDOMWindowUtils);
   },
 
   _sendAsyncMsg: function(msg, data) {
@@ -187,6 +279,18 @@ BrowserElementParent.prototype = {
 
   _recvHello: function(data) {
     debug("recvHello");
+
+    // Inform our child if our owner element's document is invisible.  Note
+    // that we must do so here, rather than in the BrowserElementParent
+    // constructor, because the BrowserElementChild may not be initialized when
+    // we run our constructor.
+    if (this._window.document.mozHidden) {
+      this._ownerVisibilityChange();
+    }
+  },
+
+  _recvGetName: function(data) {
+    return this._frameElement.getAttribute('name');
   },
 
   _fireCtxMenuEvent: function(data) {
@@ -198,9 +302,9 @@ BrowserElementParent.prototype = {
 
     if (detail.contextmenu) {
       var self = this;
-      XPCNativeWrapper.unwrap(evt.detail).contextMenuItemSelected = function(id) {
+      defineAndExpose(evt.detail, 'contextMenuItemSelected', function(id) {
         self._sendAsyncMsg('fire-ctx-callback', {menuitem: id});
-      };
+      });
     }
     // The embedder may have default actions on context menu events, so
     // we fire a context menu event even if the child didn't define a
@@ -261,9 +365,9 @@ BrowserElementParent.prototype = {
       self._sendAsyncMsg('unblock-modal-prompt', data);
     }
 
-    XPCNativeWrapper.unwrap(evt.detail).unblock = function() {
+    defineAndExpose(evt.detail, 'unblock', function() {
       sendUnblockMsg();
-    };
+    });
 
     this._frameElement.dispatchEvent(evt);
 
@@ -278,6 +382,7 @@ BrowserElementParent.prototype = {
     // This will have to change if we ever want to send a CustomEvent with null
     // detail.  For now, it's OK.
     if (detail !== undefined && detail !== null) {
+      exposeAll(detail);
       return new this._window.CustomEvent('mozbrowser' + evtName,
                                           { bubbles: true,
                                             cancelable: cancelable,
@@ -287,10 +392,6 @@ BrowserElementParent.prototype = {
     return new this._window.Event('mozbrowser' + evtName,
                                   { bubbles: true,
                                     cancelable: cancelable });
-  },
-
-  _sendMozAppManifestURL: function(data) {
-    return this._frameElement.getAttribute('mozapp');
   },
 
   /**
@@ -328,12 +429,48 @@ BrowserElementParent.prototype = {
     this._sendAsyncMsg('set-visible', {visible: visible});
   },
 
+  _sendMouseEvent: function(type, x, y, button, clickCount, modifiers) {
+    this._sendAsyncMsg("send-mouse-event", {
+      "type": type,
+      "x": x,
+      "y": y,
+      "button": button,
+      "clickCount": clickCount,
+      "modifiers": modifiers
+    });
+  },
+
+  _sendTouchEvent: function(type, identifiers, touchesX, touchesY,
+                            radiisX, radiisY, rotationAngles, forces,
+                            count, modifiers) {
+    this._sendAsyncMsg("send-touch-event", {
+      "type": type,
+      "identifiers": identifiers,
+      "touchesX": touchesX,
+      "touchesY": touchesY,
+      "radiisX": radiisX,
+      "radiisY": radiisY,
+      "rotationAngles": rotationAngles,
+      "forces": forces,
+      "count": count,
+      "modifiers": modifiers
+    });
+  },
+
   _goBack: function() {
     this._sendAsyncMsg('go-back');
   },
 
   _goForward: function() {
     this._sendAsyncMsg('go-forward');
+  },
+
+  _reload: function(hardReload) {
+    this._sendAsyncMsg('reload', {hardReload: hardReload});
+  },
+
+  _stop: function() {
+    this._sendAsyncMsg('stop');
   },
 
   _fireKeyEvent: function(data) {
@@ -344,6 +481,53 @@ BrowserElementParent.prototype = {
                      data.json.charCode);
 
     this._frameElement.dispatchEvent(evt);
+  },
+
+  /**
+   * Called when the visibility of the window which owns this iframe changes.
+   */
+  _ownerVisibilityChange: function() {
+    this._sendAsyncMsg('owner-visibility-change',
+                       {visible: !this._window.document.mozHidden});
+  },
+
+  _exitFullscreen: function() {
+    this._windowUtils.exitFullscreen();
+  },
+
+  _remoteFullscreenOriginChange: function(data) {
+    let origin = data.json;
+    this._windowUtils.remoteFrameFullscreenChanged(this._frameElement, origin);
+  },
+
+  _remoteFrameFullscreenReverted: function(data) {
+    this._windowUtils.remoteFrameFullscreenReverted();
+  },
+
+  _fireFatalError: function() {
+    let evt = this._createEvent('error', {type: 'fatal'},
+                                /* cancelable = */ false);
+    this._frameElement.dispatchEvent(evt);
+  },
+
+  observe: function(subject, topic, data) {
+    switch(topic) {
+    case 'oop-frameloader-crashed':
+      if (this._isAlive() && subject == this._frameLoader) {
+        this._fireFatalError();
+      }
+      break;
+    case 'ask-children-to-exit-fullscreen':
+      if (this._isAlive() &&
+          this._frameElement.ownerDocument == subject &&
+          this._hasRemoteFrame) {
+        this._sendAsyncMsg('exit-fullscreen');
+      }
+      break;
+    default:
+      debug('Unknown topic: ' + topic);
+      break;
+    };
   },
 };
 

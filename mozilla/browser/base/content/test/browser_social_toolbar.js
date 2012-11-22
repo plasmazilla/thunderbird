@@ -2,139 +2,125 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-let SocialService = Cu.import("resource://gre/modules/SocialService.jsm", {}).SocialService;
-let gProvider;
-
 function test() {
   waitForExplicitFinish();
 
-  Services.prefs.setBoolPref("social.enabled", true);
-  registerCleanupFunction(function () {
-    Services.prefs.clearUserPref("social.enabled");
-  });
-
-  let oldProvider;
-  function saveOldProviderAndStartTestWith(provider) {
-    oldProvider = Social.provider;
-    registerCleanupFunction(function () {
-      Social.provider = oldProvider;
-    });
-    Social.provider = gProvider = provider;
-    runTests(tests, undefined, undefined, function () {
-      SocialService.removeProvider(provider.origin, finish);
-    });
-  }
-
   let manifest = { // normal provider
     name: "provider 1",
-    origin: "https://example1.com",
-    workerURL: "https://example1.com/worker.js",
-    iconURL: "chrome://branding/content/icon48.png"
+    origin: "https://example.com",
+    workerURL: "https://example.com/browser/browser/base/content/test/social_worker.js",
+    iconURL: "https://example.com/browser/browser/base/content/test/moz.png"
   };
-  SocialService.addProvider(manifest, function(provider) {
-    // If the UI is already active, run the test immediately, otherwise wait
-    // for initialization.
-    if (Social.provider) {
-      saveOldProviderAndStartTestWith(provider);
-    } else {
-      Services.obs.addObserver(function obs() {
-        Services.obs.removeObserver(obs, "test-social-ui-ready");
-        saveOldProviderAndStartTestWith(provider);
-      }, "test-social-ui-ready", false);
-    }
+  runSocialTestWithProvider(manifest, function (finishcb) {
+    runSocialTests(tests, undefined, undefined, finishcb);
   });
 }
 
 var tests = {
   testProfileSet: function(next) {
     let profile = {
-      portrait: "chrome://branding/content/icon48.png",
+      portrait: "https://example.com/portrait.jpg",
       userName: "trickster",
       displayName: "Kuma Lisa",
       profileURL: "http://en.wikipedia.org/wiki/Kuma_Lisa"
     }
-    gProvider.updateUserProfile(profile);
+    Social.provider.updateUserProfile(profile);
     // check dom values
     let portrait = document.getElementById("social-statusarea-user-portrait").getAttribute("src");
-    is(portrait, profile.portrait, "portrait is set");
+    is(profile.portrait, portrait, "portrait is set");
     let userButton = document.getElementById("social-statusarea-username");
     ok(!userButton.hidden, "username is visible");
-    is(userButton.label, profile.userName, "username is set");
+    is(userButton.value, profile.userName, "username is set");
     next();
+  },
+  testNoAmbientNotificationsIsNoKeyboardMenu: function(next) {
+    // The menu bar isn't as easy to instrument on Mac.
+    if (navigator.platform.indexOf("Mac") != -1) {
+      info("Skipping checking the menubar on Mac OS");
+      next();
+    }
+
+    // Test that keyboard accessible menuitem doesn't exist when no ambient icons specified.
+    let toolsPopup = document.getElementById("menu_ToolsPopup");
+    toolsPopup.addEventListener("popupshown", function ontoolspopupshownNoAmbient() {
+      toolsPopup.removeEventListener("popupshown", ontoolspopupshownNoAmbient);
+      let socialToggleMore = document.getElementById("menu_socialAmbientMenu");
+      ok(socialToggleMore, "Keyboard accessible social menu should exist");
+      is(socialToggleMore.querySelectorAll("menuitem").length, 2, "The minimum number of menuitems is two when there are no ambient notifications.");
+      is(socialToggleMore.hidden, false, "Menu should be visible since we show some non-ambient notifications in the menu.");
+      toolsPopup.hidePopup();
+      next();
+    }, false);
+    document.getElementById("menu_ToolsPopup").openPopup();
   },
   testAmbientNotifications: function(next) {
     let ambience = {
       name: "testIcon",
-      iconURL: "chrome://branding/content/icon48.png",
+      iconURL: "https://example.com/browser/browser/base/content/test/moz.png",
       contentPanel: "about:blank",
-      counter: 42
+      counter: 42,
+      label: "Test Ambient 1",
+      menuURL: "https://example.com/testAmbient1"
     };
-    gProvider.setAmbientNotification(ambience);
+    Social.provider.setAmbientNotification(ambience);
 
-    let statusIcons = document.getElementById("social-status-iconbox");
-    ok(!statusIcons.firstChild.collapsed, "status icon is visible");
-    ok(!statusIcons.firstChild.lastChild.collapsed, "status value is visible");
-    is(statusIcons.firstChild.lastChild.textContent, "42", "status value is correct");
+    let statusIcon = document.querySelector("#social-toolbar-item > box");
+    waitForCondition(function() {
+      statusIcon = document.querySelector("#social-toolbar-item > box");
+      return !!statusIcon;
+    }, function () {
+      let statusIconLabel = statusIcon.querySelector("label");
+      is(statusIconLabel.value, "42", "status value is correct");
 
-    ambience.counter = 0;
-    gProvider.setAmbientNotification(ambience);
-    ok(statusIcons.firstChild.lastChild.collapsed, "status value is not visible");
-    is(statusIcons.firstChild.lastChild.textContent, "", "status value is correct");
-    next();
+      ambience.counter = 0;
+      Social.provider.setAmbientNotification(ambience);
+      is(statusIconLabel.value, "", "status value is correct");
+
+      // The menu bar isn't as easy to instrument on Mac.
+      if (navigator.platform.indexOf("Mac") != -1)
+        next();
+
+      // Test that keyboard accessible menuitem was added.
+      let toolsPopup = document.getElementById("menu_ToolsPopup");
+      toolsPopup.addEventListener("popupshown", function ontoolspopupshownAmbient() {
+        toolsPopup.removeEventListener("popupshown", ontoolspopupshownAmbient);
+        let socialToggleMore = document.getElementById("menu_socialAmbientMenu");
+        ok(socialToggleMore, "Keyboard accessible social menu should exist");
+        is(socialToggleMore.querySelectorAll("menuitem").length, 3, "The number of menuitems is minimum plus one ambient notification menuitem.");
+        is(socialToggleMore.hidden, false, "Menu is visible when ambient notifications have label & menuURL");
+        let menuitem = socialToggleMore.querySelector("menuitem");
+        is(menuitem.getAttribute("label"), "Test Ambient 1", "Keyboard accessible ambient menuitem should have specified label");
+        toolsPopup.hidePopup();
+        next();
+      }, false);
+      document.getElementById("menu_ToolsPopup").openPopup();
+    }, "statusIcon was never found");
   },
   testProfileUnset: function(next) {
-    gProvider.updateUserProfile({});
+    Social.provider.updateUserProfile({});
     // check dom values
-    let portrait = document.getElementById("social-statusarea-user-portrait").getAttribute("src");
-    is(portrait, "chrome://browser/skin/social/social.png", "portrait is generic");
     let userButton = document.getElementById("social-statusarea-username");
     ok(userButton.hidden, "username is not visible");
-    let ambience = document.getElementById("social-status-iconbox").firstChild;
-    while (ambience) {
-      ok(ambience.collapsed, "ambient icon is collapsed");
-      ambience = ambience.nextSibling;
+    let ambientIcons = document.querySelectorAll("#social-toolbar-item > box");
+    for (let ambientIcon of ambientIcons) {
+      ok(ambientIcon.collapsed, "ambient icon (" + ambientIcon.id + ") is collapsed");
     }
     
     next();
+  },
+  testShowSidebarMenuitemExists: function(next) {
+    let toggleSidebarMenuitem = document.getElementById("social-toggle-sidebar-menuitem");
+    ok(toggleSidebarMenuitem, "Toggle Sidebar menuitem exists");
+    let toggleSidebarKeyboardMenuitem = document.getElementById("social-toggle-sidebar-keyboardmenuitem");
+    ok(toggleSidebarKeyboardMenuitem, "Toggle Sidebar keyboard menuitem exists");
+    next();
+  },
+  testShowDesktopNotificationsMenuitemExists: function(next) {
+    let toggleDesktopNotificationsMenuitem = document.getElementById("social-toggle-notifications-menuitem");
+    ok(toggleDesktopNotificationsMenuitem, "Toggle notifications menuitem exists");
+    let toggleDesktopNotificationsKeyboardMenuitem = document.getElementById("social-toggle-notifications-keyboardmenuitem");
+    ok(toggleDesktopNotificationsKeyboardMenuitem, "Toggle notifications keyboard menuitem exists");
+    next();
   }
 }
 
-function runTests(tests, cbPreTest, cbPostTest, cbFinish) {
-  let testIter = Iterator(tests);
-
-  if (cbPreTest === undefined) {
-    cbPreTest = function(cb) {cb()};
-  }
-  if (cbPostTest === undefined) {
-    cbPostTest = function(cb) {cb()};
-  }
-
-  function runNextTest() {
-    let name, func;
-    try {
-      [name, func] = testIter.next();
-    } catch (err if err instanceof StopIteration) {
-      // out of items:
-      (cbFinish || finish)();
-      return;
-    }
-    // We run on a timeout as the frameworker also makes use of timeouts, so
-    // this helps keep the debug messages sane.
-    executeSoon(function() {
-      function cleanupAndRunNextTest() {
-        info("sub-test " + name + " complete");
-        cbPostTest(runNextTest);
-      }
-      cbPreTest(function() {
-        info("sub-test " + name + " starting");
-        try {
-          func.call(tests, cleanupAndRunNextTest);
-        } catch (ex) {
-          ok(false, "sub-test " + name + " failed: " + ex.toString() +"\n"+ex.stack);
-          cleanupAndRunNextTest();
-        }
-      })
-    });
-  }
-  runNextTest();
-}

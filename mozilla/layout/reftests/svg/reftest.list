@@ -71,6 +71,7 @@ fuzzy-if(/^Windows\x20NT\x206\.1/.test(http.oscpu),1,2) == clipPath-and-shape-re
 == dynamic-clipPath-02.svg pass.svg
 == dynamic-feFlood-01.svg pass.svg
 == dynamic-feImage-01.svg pass.svg
+== dynamic-fill-01.svg dynamic-fill-01-ref.svg
 == dynamic-filter-contents-01a.svg dynamic-filter-contents-01-ref.svg
 == dynamic-filter-contents-01b.svg dynamic-filter-contents-01-ref.svg
 == dynamic-gradient-contents-01.svg pass.svg
@@ -96,8 +97,8 @@ fuzzy-if(/^Windows\x20NT\x206\.1/.test(http.oscpu),1,2) == clipPath-and-shape-re
 == dynamic-small-object-scaled-up-02.svg pass.svg
 == dynamic-switch-01.svg pass.svg
 == dynamic-text-01.svg dynamic-text-01-ref.svg
-== dynamic-text-02.svg dynamic-text-02-ref.svg
-== dynamic-text-03.svg dynamic-text-03-ref.svg
+fuzzy-if(d2d&&layersGPUAccelerated,2,12739) == dynamic-text-02.svg dynamic-text-02-ref.svg # bug 776038 for Win7
+fuzzy-if(d2d&&layersGPUAccelerated,2,10539) == dynamic-text-03.svg dynamic-text-03-ref.svg # bug 776038 for Win7
 random-if(/^Windows\x20NT\x205\.1/.test(http.oscpu)) == dynamic-text-04.svg dynamic-text-04-ref.svg # bug 421587 for WinXP
 == dynamic-text-05.svg pass.svg
 == dynamic-text-06.svg pass.svg
@@ -137,6 +138,7 @@ fails-if(Android) == filter-extref-differentOrigin-01.svg pass.svg # Bug 695385
 == filter-in-mask-01.svg pass.svg
 == filter-invalidation-01.svg pass.svg
 == filter-scaled-01.svg pass.svg
+== filter-scaled-02.html filter-scaled-02-ref.html
 == filter-translated-01.svg filter-translated-01-ref.svg
 == filters-and-group-opacity-01.svg filters-and-group-opacity-01-ref.svg
 == foreignObject-01.svg pass.svg
@@ -178,7 +180,7 @@ fails == inline-in-xul-basic-01.xul pass.svg
 == nested-viewBox-01.svg pass.svg
 == nesting-invalid-01.svg nesting-invalid-01-ref.svg
 == non-scaling-stroke-01.svg non-scaling-stroke-01-ref.svg 
-fuzzy-if(Android,9,61) == non-scaling-stroke-02.svg non-scaling-stroke-02-ref.svg 
+fuzzy-if(Android,9,61) fuzzy-if(!contentSameGfxBackendAsCanvas,1,99) == non-scaling-stroke-02.svg non-scaling-stroke-02-ref.svg 
 == objectBoundingBox-and-clipPath.svg pass.svg
 # Bug 588684
 random-if(gtk2Widget) == objectBoundingBox-and-fePointLight-01.svg objectBoundingBox-and-fePointLight-01-ref.svg
@@ -207,7 +209,9 @@ random-if(gtk2Widget) == objectBoundingBox-and-fePointLight-02.svg objectBoundin
 == pattern-live-01c.svg pattern-live-01-ref.svg
 == pattern-scale-01a.svg pattern-scale-01-ref.svg
 == pattern-scale-01b.svg pattern-scale-01-ref.svg
+== pattern-scale-01c.svg pattern-scale-01-ref.svg
 == pattern-transform-presence-01.svg pattern-transform-presence-01-ref.svg
+== pattern-transformed-01.svg pattern-transformed-01-ref.svg
 == polygon-marker-01.svg pass.svg
 == polygon-points-negative-01.svg pass.svg
 == polyline-points-invalid-01.svg pass.svg
@@ -300,9 +304,13 @@ random-if(/^Windows\x20NT\x205\.1/.test(http.oscpu)) == tspan-rotate-06.svg tspa
 == tspan-xy-anchor-end-01.svg tspan-xy-anchor-end-ref.svg
 == userSpaceOnUse-and-pattern-01.svg userSpaceOnUse-and-pattern-01-ref.svg
 == viewBox-and-pattern-01.svg pass.svg
+== viewBox-and-pattern-02.svg pass.svg
+== viewBox-and-pattern-03.svg pass.svg
 == viewBox-invalid-01.svg pass.svg
 == viewBox-valid-01.svg pass.svg
+== viewBox-valid-02.xhtml pass.svg
 == viewport-percent-graphic-user-01.svg pass.svg
+== winding-01.svg pass.svg
 
 == svg-effects-area-unzoomed.xhtml svg-effects-area-unzoomed-ref.xhtml
 == svg-effects-area-zoomed-in.xhtml svg-effects-area-zoomed-in-ref.xhtml

@@ -42,7 +42,7 @@
 #include "MapiApi.h"
 
 static NS_DEFINE_IID(kISupportsIID,      NS_ISUPPORTS_IID);
-PRLogModuleInfo *OUTLOOKLOGMODULE = nsnull;
+PRLogModuleInfo *OUTLOOKLOGMODULE = nullptr;
 
 class ImportOutlookMailImpl : public nsIImportMail
 {
@@ -69,19 +69,19 @@ public:
                            bool *fatalError);
 
   /* unsigned long GetImportProgress (); */
-  NS_IMETHOD GetImportProgress(PRUint32 *_retval);
+  NS_IMETHOD GetImportProgress(uint32_t *_retval);
 
   NS_IMETHOD TranslateFolderName(const nsAString & aFolderName, nsAString & _retval);
 
 public:
-  static void  ReportSuccess(nsString& name, PRInt32 count, nsString *pStream);
-  static void ReportError(PRInt32 errorNum, nsString& name, nsString *pStream);
+  static void  ReportSuccess(nsString& name, int32_t count, nsString *pStream);
+  static void ReportError(int32_t errorNum, nsString& name, nsString *pStream);
   static void  AddLinebreak(nsString *pStream);
   static void  SetLogs(nsString& success, nsString& error, PRUnichar **pError, PRUnichar **pSuccess);
 
 private:
   nsOutlookMail  m_mail;
-  PRUint32    m_bytesDone;
+  uint32_t    m_bytesDone;
 };
 
 
@@ -120,9 +120,9 @@ public:
                                PRUnichar **successLog,
                                bool *fatalError);
 
-  NS_IMETHOD GetImportProgress(PRUint32 *_retval);
+  NS_IMETHOD GetImportProgress(uint32_t *_retval);
 
-  NS_IMETHOD GetSampleData(PRInt32 index, bool *pFound, PRUnichar **pStr)
+  NS_IMETHOD GetSampleData(int32_t index, bool *pFound, PRUnichar **pStr)
     { return NS_ERROR_FAILURE;}
 
   NS_IMETHOD SetSampleLocation(nsIFile *) { return NS_OK; }
@@ -131,8 +131,8 @@ private:
   void  ReportSuccess(nsString& name, nsString *pStream);
 
 private:
-  PRUint32    m_msgCount;
-  PRUint32    m_msgTotal;
+  uint32_t    m_msgCount;
+  uint32_t    m_msgTotal;
   nsOutlookMail  m_address;
 };
 ////////////////////////////////////////////////////////////////////////
@@ -162,7 +162,7 @@ NS_IMPL_ISUPPORTS1(nsOutlookImport, nsIImportModule)
 
 NS_IMETHODIMP nsOutlookImport::GetName(PRUnichar **name)
 {
-  NS_PRECONDITION(name != nsnull, "null ptr");
+  NS_PRECONDITION(name != nullptr, "null ptr");
   if (! name)
     return NS_ERROR_NULL_POINTER;
 
@@ -172,7 +172,7 @@ NS_IMETHODIMP nsOutlookImport::GetName(PRUnichar **name)
 
 NS_IMETHODIMP nsOutlookImport::GetDescription(PRUnichar **name)
 {
-  NS_PRECONDITION(name != nsnull, "null ptr");
+  NS_PRECONDITION(name != nullptr, "null ptr");
   if (!name)
     return NS_ERROR_NULL_POINTER;
 
@@ -183,7 +183,7 @@ NS_IMETHODIMP nsOutlookImport::GetDescription(PRUnichar **name)
 
 NS_IMETHODIMP nsOutlookImport::GetSupports(char **supports)
 {
-  NS_PRECONDITION(supports != nsnull, "null ptr");
+  NS_PRECONDITION(supports != nullptr, "null ptr");
   if (! supports)
     return NS_ERROR_NULL_POINTER;
 
@@ -193,7 +193,7 @@ NS_IMETHODIMP nsOutlookImport::GetSupports(char **supports)
 
 NS_IMETHODIMP nsOutlookImport::GetSupportsUpgrade(bool *pUpgrade)
 {
-  NS_PRECONDITION(pUpgrade != nsnull, "null ptr");
+  NS_PRECONDITION(pUpgrade != nullptr, "null ptr");
   if (! pUpgrade)
     return NS_ERROR_NULL_POINTER;
 
@@ -203,19 +203,19 @@ NS_IMETHODIMP nsOutlookImport::GetSupportsUpgrade(bool *pUpgrade)
 
 NS_IMETHODIMP nsOutlookImport::GetImportInterface(const char *pImportType, nsISupports **ppInterface)
 {
-  NS_PRECONDITION(pImportType != nsnull, "null ptr");
+  NS_PRECONDITION(pImportType != nullptr, "null ptr");
   if (! pImportType)
     return NS_ERROR_NULL_POINTER;
-  NS_PRECONDITION(ppInterface != nsnull, "null ptr");
+  NS_PRECONDITION(ppInterface != nullptr, "null ptr");
   if (! ppInterface)
     return NS_ERROR_NULL_POINTER;
 
-  *ppInterface = nsnull;
+  *ppInterface = nullptr;
   nsresult  rv;
   if (!strcmp(pImportType, "mail")) {
     // create the nsIImportMail interface and return it!
-    nsIImportMail *  pMail = nsnull;
-    nsIImportGeneric *pGeneric = nsnull;
+    nsIImportMail *  pMail = nullptr;
+    nsIImportGeneric *pGeneric = nullptr;
     rv = ImportOutlookMailImpl::Create(&pMail);
     if (NS_SUCCEEDED(rv)) {
       nsCOMPtr<nsIImportService> impSvc(do_GetService(NS_IMPORTSERVICE_CONTRACTID, &rv));
@@ -241,8 +241,8 @@ NS_IMETHODIMP nsOutlookImport::GetImportInterface(const char *pImportType, nsISu
 
   if (!strcmp(pImportType, "addressbook")) {
     // create the nsIImportAddressBook interface and return it!
-    nsIImportAddressBooks *  pAddress = nsnull;
-    nsIImportGeneric *    pGeneric = nsnull;
+    nsIImportAddressBooks *  pAddress = nullptr;
+    nsIImportGeneric *    pGeneric = nullptr;
     rv = ImportOutlookAddressImpl::Create(&pAddress);
     if (NS_SUCCEEDED(rv)) {
       nsCOMPtr<nsIImportService> impSvc(do_GetService(NS_IMPORTSERVICE_CONTRACTID, &rv));
@@ -260,7 +260,7 @@ NS_IMETHODIMP nsOutlookImport::GetImportInterface(const char *pImportType, nsISu
   }
 
   if (!strcmp(pImportType, "settings")) {
-    nsIImportSettings *pSettings = nsnull;
+    nsIImportSettings *pSettings = nullptr;
     rv = nsOutlookSettings::Create(&pSettings);
     if (NS_SUCCEEDED(rv))
       pSettings->QueryInterface(kISupportsIID, (void **)ppInterface);
@@ -274,7 +274,7 @@ NS_IMETHODIMP nsOutlookImport::GetImportInterface(const char *pImportType, nsISu
 /////////////////////////////////////////////////////////////////////////////////
 nsresult ImportOutlookMailImpl::Create(nsIImportMail** aImport)
 {
-  NS_PRECONDITION(aImport != nsnull, "null ptr");
+  NS_PRECONDITION(aImport != nullptr, "null ptr");
   if (! aImport)
     return NS_ERROR_NULL_POINTER;
 
@@ -300,14 +300,14 @@ NS_IMPL_THREADSAFE_ISUPPORTS1(ImportOutlookMailImpl, nsIImportMail)
 
 NS_IMETHODIMP ImportOutlookMailImpl::GetDefaultLocation(nsIFile **ppLoc, bool *found, bool *userVerify)
 {
-  NS_PRECONDITION(ppLoc != nsnull, "null ptr");
-  NS_PRECONDITION(found != nsnull, "null ptr");
-  NS_PRECONDITION(userVerify != nsnull, "null ptr");
+  NS_PRECONDITION(ppLoc != nullptr, "null ptr");
+  NS_PRECONDITION(found != nullptr, "null ptr");
+  NS_PRECONDITION(userVerify != nullptr, "null ptr");
   if (!ppLoc || !found || !userVerify)
     return NS_ERROR_NULL_POINTER;
 
   *found = false;
-  *ppLoc = nsnull;
+  *ppLoc = nullptr;
   *userVerify = false;
   // We need to verify here that we can get the mail, if true then
   // return a dummy location, otherwise return no location
@@ -340,8 +340,8 @@ NS_IMETHODIMP ImportOutlookMailImpl::GetDefaultLocation(nsIFile **ppLoc, bool *f
 
 NS_IMETHODIMP ImportOutlookMailImpl::FindMailboxes(nsIFile *pLoc, nsISupportsArray **ppArray)
 {
-  NS_PRECONDITION(pLoc != nsnull, "null ptr");
-  NS_PRECONDITION(ppArray != nsnull, "null ptr");
+  NS_PRECONDITION(pLoc != nullptr, "null ptr");
+  NS_PRECONDITION(ppArray != nullptr, "null ptr");
   if (!pLoc || !ppArray)
     return NS_ERROR_NULL_POINTER;
   return m_mail.GetMailFolders(ppArray);
@@ -353,7 +353,7 @@ void ImportOutlookMailImpl::AddLinebreak(nsString *pStream)
     pStream->Append(PRUnichar('\n'));
 }
 
-void ImportOutlookMailImpl::ReportSuccess(nsString& name, PRInt32 count, nsString *pStream)
+void ImportOutlookMailImpl::ReportSuccess(nsString& name, int32_t count, nsString *pStream)
 {
   if (!pStream)
     return;
@@ -366,7 +366,7 @@ void ImportOutlookMailImpl::ReportSuccess(nsString& name, PRInt32 count, nsStrin
   AddLinebreak(pStream);
 }
 
-void ImportOutlookMailImpl::ReportError(PRInt32 errorNum, nsString& name, nsString *pStream)
+void ImportOutlookMailImpl::ReportError(int32_t errorNum, nsString& name, nsString *pStream)
 {
   if (!pStream)
     return;
@@ -409,7 +409,7 @@ ImportOutlookMailImpl::ImportMailbox(nsIImportMailboxDescriptor *pSource,
     NS_Free( pName);
  }
 
-  PRUint32 mailSize = 0;
+  uint32_t mailSize = 0;
   pSource->GetSize(&mailSize);
   if (mailSize == 0) {
     ReportSuccess(name, 0, &success);
@@ -417,14 +417,14 @@ ImportOutlookMailImpl::ImportMailbox(nsIImportMailboxDescriptor *pSource,
     return NS_OK;
   }
 
-  PRUint32 index = 0;
+  uint32_t index = 0;
   pSource->GetIdentifier(&index);
-  PRInt32  msgCount = 0;
+  int32_t  msgCount = 0;
   nsresult rv = NS_OK;
 
   m_bytesDone = 0;
 
-  rv = m_mail.ImportMailbox(&m_bytesDone, &abort, (PRInt32)index, name.get(),
+  rv = m_mail.ImportMailbox(&m_bytesDone, &abort, (int32_t)index, name.get(),
                             dstFolder, &msgCount);
 
   if (NS_SUCCEEDED(rv))
@@ -438,9 +438,9 @@ ImportOutlookMailImpl::ImportMailbox(nsIImportMailboxDescriptor *pSource,
 }
 
 
-NS_IMETHODIMP ImportOutlookMailImpl::GetImportProgress(PRUint32 *pDoneSoFar)
+NS_IMETHODIMP ImportOutlookMailImpl::GetImportProgress(uint32_t *pDoneSoFar)
 {
-  NS_PRECONDITION(pDoneSoFar != nsnull, "null ptr");
+  NS_PRECONDITION(pDoneSoFar != nullptr, "null ptr");
   if (! pDoneSoFar)
     return NS_ERROR_NULL_POINTER;
 
@@ -463,7 +463,7 @@ NS_IMETHODIMP ImportOutlookMailImpl::TranslateFolderName(const nsAString & aFold
 
 nsresult ImportOutlookAddressImpl::Create(nsIImportAddressBooks** aImport)
 {
-  NS_PRECONDITION(aImport != nsnull, "null ptr");
+  NS_PRECONDITION(aImport != nullptr, "null ptr");
   if (! aImport)
     return NS_ERROR_NULL_POINTER;
 
@@ -489,8 +489,8 @@ NS_IMPL_THREADSAFE_ISUPPORTS1(ImportOutlookAddressImpl, nsIImportAddressBooks)
 
 NS_IMETHODIMP ImportOutlookAddressImpl::GetAutoFind(PRUnichar **description, bool *_retval)
 {
-  NS_PRECONDITION(description != nsnull, "null ptr");
-  NS_PRECONDITION(_retval != nsnull, "null ptr");
+  NS_PRECONDITION(description != nullptr, "null ptr");
+  NS_PRECONDITION(_retval != nullptr, "null ptr");
   if (! description || !_retval)
     return NS_ERROR_NULL_POINTER;
 
@@ -503,7 +503,7 @@ NS_IMETHODIMP ImportOutlookAddressImpl::GetAutoFind(PRUnichar **description, boo
 
 NS_IMETHODIMP ImportOutlookAddressImpl::FindAddressBooks(nsIFile *location, nsISupportsArray **_retval)
 {
-  NS_PRECONDITION(_retval != nsnull, "null ptr");
+  NS_PRECONDITION(_retval != nullptr, "null ptr");
   if (!_retval)
     return NS_ERROR_NULL_POINTER;
 
@@ -520,9 +520,9 @@ NS_IMETHODIMP ImportOutlookAddressImpl::ImportAddressBook(nsIImportABDescriptor 
 {
   m_msgCount = 0;
   m_msgTotal = 0;
-    NS_PRECONDITION(source != nsnull, "null ptr");
-    NS_PRECONDITION(destination != nsnull, "null ptr");
-  NS_PRECONDITION(fatalError != nsnull, "null ptr");
+    NS_PRECONDITION(source != nullptr, "null ptr");
+    NS_PRECONDITION(destination != nullptr, "null ptr");
+  NS_PRECONDITION(fatalError != nullptr, "null ptr");
 
   nsString  success;
   nsString  error;
@@ -538,7 +538,7 @@ NS_IMETHODIMP ImportOutlookAddressImpl::ImportAddressBook(nsIImportABDescriptor 
     nsString name;
     source->GetPreferredName(name);
 
-  PRUint32  id;
+  uint32_t  id;
   if (NS_FAILED(source->GetIdentifier(&id))) {
     ImportOutlookMailImpl::ReportError(OUTLOOKIMPORT_ADDRESS_BADSOURCEFILE, name, &error);
     ImportOutlookMailImpl::SetLogs(success, error, pErrorLog, pSuccessLog);
@@ -558,13 +558,13 @@ NS_IMETHODIMP ImportOutlookAddressImpl::ImportAddressBook(nsIImportABDescriptor 
 }
 
 
-NS_IMETHODIMP ImportOutlookAddressImpl::GetImportProgress(PRUint32 *_retval)
+NS_IMETHODIMP ImportOutlookAddressImpl::GetImportProgress(uint32_t *_retval)
 {
-  NS_PRECONDITION(_retval != nsnull, "null ptr");
+  NS_PRECONDITION(_retval != nullptr, "null ptr");
   if (!_retval)
     return NS_ERROR_NULL_POINTER;
 
-  PRUint32 result = m_msgCount;
+  uint32_t result = m_msgCount;
   if (m_msgTotal) {
     result *= 100;
     result /= m_msgTotal;

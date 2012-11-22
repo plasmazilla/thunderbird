@@ -212,9 +212,10 @@ mdb_err morkNode::CloseMdbObject(morkEnv *ev)
 {
   // if only one ref, Handle_CutStrongRef will clean up better.
   if (mNode_Uses == 1)
-    return CutStrongRef(ev);
+    // XXX Casting mork_uses to mdb_err
+    return static_cast<mdb_err>(CutStrongRef(ev));
 
-  mdb_err outErr = 0;
+  mdb_err outErr = NS_OK;
   
   if ( IsNode() && IsOpenNode() )
   {

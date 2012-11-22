@@ -5,10 +5,10 @@
 package org.mozilla.gecko;
 
 import android.content.Context;
+import android.content.pm.ActivityInfo;
 import android.util.Log;
 import android.view.OrientationEventListener;
 import android.view.Surface;
-import android.content.pm.ActivityInfo;
 
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -17,7 +17,7 @@ import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import org.mozilla.gecko.GeckoEventListener;
+import org.mozilla.gecko.util.GeckoEventListener;
 
 public class GeckoScreenOrientationListener implements GeckoEventListener
 {
@@ -65,7 +65,7 @@ public class GeckoScreenOrientationListener implements GeckoEventListener
       ArrayList<String> prefs = new ArrayList<String>();
       prefs.add(DEFAULT_ORIENTATION_PREF);
       JSONArray jsonPrefs = new JSONArray(prefs);
-      GeckoAppShell.registerGeckoEventListener("Preferences:Data", this);
+      GeckoAppShell.registerEventListener("Preferences:Data", this);
       GeckoEvent event = GeckoEvent.createBroadcastEvent("Preferences:Get", jsonPrefs.toString());
       GeckoAppShell.sendEventToGecko(event);
   
@@ -137,7 +137,7 @@ public class GeckoScreenOrientationListener implements GeckoEventListener
                       unlockScreenOrientation();
 
                       // this is the only pref we care about. unregister after we receive it
-                      GeckoAppShell.unregisterGeckoEventListener("Preferences:Data", this);
+                      GeckoAppShell.unregisterEventListener("Preferences:Data", this);
                   }
               }
           }

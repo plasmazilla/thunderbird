@@ -8,6 +8,7 @@
 interface nsIDOMMozMobileConnectionInfo;
 interface nsIDOMDOMRequest;
 interface nsIDOMWindow;
+interface nsIDOMMozVoicemailStatus;
 
 [scriptable, uuid(c14c71b8-afba-403b-8320-94593de9380f)]
 interface nsIRILTelephonyCallback : nsISupports
@@ -62,7 +63,19 @@ interface nsIRILTelephonyCallback : nsISupports
                    in AString error);
 };
 
-[scriptable, uuid(8a711703-1ee5-4675-9d9a-0b188e944cfe)]
+[scriptable, uuid(521cfe4a-bf79-4134-a9fc-e2242164d657)]
+interface nsIRILVoicemailCallback : nsISupports
+{
+  /**
+   * Called when a voicemail notification has been received by the network.
+   *
+   * @param status
+   *        The new voicemail status
+   */
+  void voicemailNotification(in nsIDOMMozVoicemailStatus status);
+};
+
+[scriptable, uuid(1e602d20-d066-4399-8997-daf36b3158ef)]
 interface nsIRILDataCallInfo : nsISupports
 {
   /**
@@ -73,6 +86,11 @@ interface nsIRILDataCallInfo : nsISupports
   readonly attribute AString cid;
   readonly attribute AString apn;
   readonly attribute AString ifname;
+  readonly attribute AString ip;
+  readonly attribute AString netmask;
+  readonly attribute AString broadcast;
+  readonly attribute AString gw;
+  readonly attribute jsval dns;
 };
 
 [scriptable, uuid(5bcac053-c245-46f0-bb45-d0039bfb89f5)]
@@ -117,11 +135,14 @@ interface nsIRILContactCallback : nsISupports
  * Helper that runs in the content process and exposes information
  * to the DOM.
  */
-[scriptable, uuid(2f8b0929-2ecf-498c-bfa7-42690509696e)]
+[scriptable, uuid(31ea634b-e710-49ce-bb7d-bfcbaa40fb00)]
 interface nsIRILContentHelper : nsIMobileConnectionProvider
 {
   void registerTelephonyCallback(in nsIRILTelephonyCallback callback);
   void unregisterTelephonyCallback(in nsIRILTelephonyCallback callback);
+
+  void registerVoicemailCallback(in nsIRILVoicemailCallback callback);
+  void unregisterVoicemailCallback(in nsIRILVoicemailCallback callback);
 
   /**
    * Will continue calling callback.enumerateCallState until the callback
@@ -133,6 +154,7 @@ interface nsIRILContentHelper : nsIMobileConnectionProvider
    * Functionality for making and managing phone calls.
    */
   void dial(in DOMString number);
+  void dialEmergency(in DOMString number);
   void hangUp(in unsigned long callIndex);
 
   void startTone(in DOMString dtmfChar);
@@ -145,6 +167,10 @@ interface nsIRILContentHelper : nsIMobileConnectionProvider
 
   attribute bool microphoneMuted;
   attribute bool speakerEnabled;
+
+  readonly attribute nsIDOMMozVoicemailStatus voicemailStatus;
+  readonly attribute DOMString voicemailNumber;
+  readonly attribute DOMString voicemailDisplayName;
 };
 
 [scriptable, uuid(fd9e8b38-b839-4d56-8482-3bf1f5c8f2ee)]
@@ -191,21 +217,7 @@ interface nsIICCRecords : nsISupports
   readonly attribute jsval fdn;
 };
 
-[scriptable, uuid(1b47459d-d0bc-4e91-8509-cc106054b9ee)]
-interface nsICellLocation : nsISupports
-{
-  /**
-   * Location Area Code
-   */
-  readonly attribute unsigned short lac;
-
-  /**
-   * Cell Identity
-   */
-  readonly attribute unsigned long cid;
-};
-
-[scriptable, uuid(a6f6977e-f4ee-42b4-ae79-798c8c47c360)]
+[scriptable, uuid(e6dc89f2-0d4e-46fc-902c-cfeeaee15e40)]
 interface nsIRilContext : nsISupports
 {
   readonly attribute DOMString radioState;
@@ -213,8 +225,6 @@ interface nsIRilContext : nsISupports
   readonly attribute DOMString cardState;
 
   readonly attribute nsIICCRecords icc;
-
-  readonly attribute nsICellLocation cell;
 
   readonly attribute nsIDOMMozMobileConnectionInfo voice;
 

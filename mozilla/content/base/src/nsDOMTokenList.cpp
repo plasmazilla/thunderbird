@@ -10,12 +10,14 @@
 
 #include "nsAttrValue.h"
 #include "nsContentUtils.h"
-#include "nsDOMError.h"
+#include "nsError.h"
 #include "nsGenericElement.h"
 #include "dombindings.h"
 
+using namespace mozilla;
+using namespace mozilla::dom;
 
-nsDOMTokenList::nsDOMTokenList(nsGenericElement *aElement, nsIAtom* aAttrAtom)
+nsDOMTokenList::nsDOMTokenList(nsGenericElement* aElement, nsIAtom* aAttrAtom)
   : mElement(aElement),
     mAttrAtom(aAttrAtom)
 {
@@ -44,11 +46,11 @@ NS_IMPL_CYCLE_COLLECTING_RELEASE(nsDOMTokenList)
 void
 nsDOMTokenList::DropReference()
 {
-  mElement = nsnull;
+  mElement = nullptr;
 }
 
 NS_IMETHODIMP
-nsDOMTokenList::GetLength(PRUint32 *aLength)
+nsDOMTokenList::GetLength(uint32_t *aLength)
 {
   const nsAttrValue* attr = GetParsedAttr();
   if (!attr) {
@@ -62,11 +64,11 @@ nsDOMTokenList::GetLength(PRUint32 *aLength)
 }
 
 NS_IMETHODIMP
-nsDOMTokenList::Item(PRUint32 aIndex, nsAString& aResult)
+nsDOMTokenList::Item(uint32_t aIndex, nsAString& aResult)
 {
   const nsAttrValue* attr = GetParsedAttr();
 
-  if (!attr || aIndex >= static_cast<PRUint32>(attr->GetAtomCount())) {
+  if (!attr || aIndex >= static_cast<uint32_t>(attr->GetAtomCount())) {
     SetDOMStringToNull(aResult);
     return NS_OK;
   }
@@ -270,7 +272,7 @@ nsDOMTokenList::ToString(nsAString& aResult)
 JSObject*
 nsDOMTokenList::WrapObject(JSContext *cx, JSObject *scope, bool *triedToWrap)
 {
-  return mozilla::dom::binding::DOMTokenList::create(cx, scope, this,
+  return mozilla::dom::oldproxybindings::DOMTokenList::create(cx, scope, this,
                                                      triedToWrap);
 }
 

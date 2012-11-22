@@ -93,7 +93,7 @@ nsHTMLEditor::ShowInlineTableEditingUI(nsIDOMElement * aCell)
 NS_IMETHODIMP
 nsHTMLEditor::HideInlineTableEditingUI()
 {
-  mInlineEditedCell = nsnull;
+  mInlineEditedCell = nullptr;
 
   RemoveMouseClickListener(mAddColumnBeforeButton);
   RemoveMouseClickListener(mRemoveColumnButton);
@@ -113,17 +113,17 @@ nsHTMLEditor::HideInlineTableEditingUI()
   NS_ENSURE_TRUE(bodyContent, NS_ERROR_FAILURE);
 
   DeleteRefToAnonymousNode(mAddColumnBeforeButton, bodyContent, ps);
-  mAddColumnBeforeButton = nsnull;
+  mAddColumnBeforeButton = nullptr;
   DeleteRefToAnonymousNode(mRemoveColumnButton, bodyContent, ps);
-  mRemoveColumnButton = nsnull;
+  mRemoveColumnButton = nullptr;
   DeleteRefToAnonymousNode(mAddColumnAfterButton, bodyContent, ps);
-  mAddColumnAfterButton = nsnull;
+  mAddColumnAfterButton = nullptr;
   DeleteRefToAnonymousNode(mAddRowBeforeButton, bodyContent, ps);
-  mAddRowBeforeButton = nsnull;
+  mAddRowBeforeButton = nullptr;
   DeleteRefToAnonymousNode(mRemoveRowButton, bodyContent, ps);
-  mRemoveRowButton = nsnull;
+  mRemoveRowButton = nullptr;
   DeleteRefToAnonymousNode(mAddRowAfterButton, bodyContent, ps);
-  mAddRowAfterButton = nsnull;
+  mAddRowAfterButton = nullptr;
 
   return NS_OK;
 }
@@ -145,7 +145,7 @@ nsHTMLEditor::DoInlineTableEditingAction(nsIDOMElement * aElement)
 
     nsCOMPtr<nsIDOMNode> tableNode = GetEnclosingTable(mInlineEditedCell);
     nsCOMPtr<nsIDOMElement> tableElement = do_QueryInterface(tableNode);
-    PRInt32 rowCount, colCount;
+    int32_t rowCount, colCount;
     res = GetTableSize(tableElement, &rowCount, &colCount);
     NS_ENSURE_SUCCESS(res, res);
 
@@ -213,7 +213,7 @@ nsHTMLEditor::RefreshInlineTableEditingUI()
     return NS_ERROR_NULL_POINTER;
   }
 
-  PRInt32 xCell, yCell, wCell, hCell;
+  int32_t xCell, yCell, wCell, hCell;
   GetElementOrigin(mInlineEditedCell, xCell, yCell);
 
   nsresult res = htmlElement->GetOffsetWidth(&wCell);
@@ -221,12 +221,12 @@ nsHTMLEditor::RefreshInlineTableEditingUI()
   res = htmlElement->GetOffsetHeight(&hCell);
   NS_ENSURE_SUCCESS(res, res);
 
-  PRInt32 xHoriz = xCell + wCell/2;
-  PRInt32 yVert  = yCell + hCell/2;
+  int32_t xHoriz = xCell + wCell/2;
+  int32_t yVert  = yCell + hCell/2;
 
   nsCOMPtr<nsIDOMNode> tableNode = GetEnclosingTable(mInlineEditedCell);
   nsCOMPtr<nsIDOMElement> tableElement = do_QueryInterface(tableNode);
-  PRInt32 rowCount, colCount;
+  int32_t rowCount, colCount;
   res = GetTableSize(tableElement, &rowCount, &colCount);
   NS_ENSURE_SUCCESS(res, res);
 

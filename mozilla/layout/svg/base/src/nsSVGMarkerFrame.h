@@ -34,7 +34,7 @@ class nsSVGMarkerFrame : public nsSVGMarkerFrameBase
 protected:
   nsSVGMarkerFrame(nsStyleContext* aContext)
     : nsSVGMarkerFrameBase(aContext)
-    , mMarkedFrame(nsnull)
+    , mMarkedFrame(nullptr)
     , mInUse(false)
     , mInUse2(false)
   {
@@ -51,9 +51,15 @@ public:
                   nsIFrame*        aPrevInFlow);
 #endif
 
-  NS_IMETHOD AttributeChanged(PRInt32         aNameSpaceID,
+  NS_IMETHOD BuildDisplayList(nsDisplayListBuilder*   aBuilder,
+                              const nsRect&           aDirtyRect,
+                              const nsDisplayListSet& aLists) {
+    return NS_OK;
+  }
+
+  NS_IMETHOD AttributeChanged(int32_t         aNameSpaceID,
                               nsIAtom*        aAttribute,
-                              PRInt32         aModType);
+                              int32_t         aModType);
   /**
    * Get the "type" of the frame
    *
@@ -75,7 +81,7 @@ public:
                      float aStrokeWidth);
 
   SVGBBox GetMarkBBoxContribution(const gfxMatrix &aToBBoxUserspace,
-                                  PRUint32 aFlags,
+                                  uint32_t aFlags,
                                   nsSVGPathGeometryFrame *aMarkedFrame,
                                   const nsSVGMark *aMark,
                                   float aStrokeWidth);
@@ -86,7 +92,7 @@ private:
   float mStrokeWidth, mX, mY, mAutoAngle;
 
   // nsSVGContainerFrame methods:
-  virtual gfxMatrix GetCanvasTM(PRUint32 aFor);
+  virtual gfxMatrix GetCanvasTM(uint32_t aFor);
 
   // A helper class to allow us to paint markers safely. The helper
   // automatically sets and clears the mInUse flag on the marker frame (to

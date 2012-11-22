@@ -38,8 +38,8 @@ private:
   bool                               m_closeProgress;
   bool                               m_processCanceled;
   nsString                           m_pendingStatus;
-  PRInt32                            m_pendingStateFlags;
-  PRInt32                            m_pendingStateValue;
+  int32_t                            m_pendingStateFlags;
+  nsresult                           m_pendingStateValue;
   nsWeakPtr                          m_msgWindow;
   nsCOMArray<nsIWebProgressListener> m_listenerList;
 };

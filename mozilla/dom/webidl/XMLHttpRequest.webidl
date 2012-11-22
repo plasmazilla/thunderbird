@@ -51,7 +51,7 @@ dictionary MozXMLHttpRequestParameters
   boolean mozSystem = false;
 };
 
-[Constructor(optional MozXMLHttpRequestParameters? params = null),
+[Constructor(optional MozXMLHttpRequestParameters params),
  // There are apparently callers, specifically CoffeeScript, who do
  // things like this:
  //   c = new(window.ActiveXObject || XMLHttpRequest)("Microsoft.XMLHTTP")
@@ -126,14 +126,11 @@ interface XMLHttpRequest : XMLHttpRequestEventTarget {
   [GetterInfallible, SetterInfallible=MainThread]
   attribute boolean mozBackgroundRequest;
 
-  [ChromeOnly, GetterInfallible, SetterInfallible=MainThread]
+  [ChromeOnly, GetterInfallible]
   readonly attribute MozChannel channel;
 
   void sendAsBinary(DOMString body);
   any getInterface(IID iid);
-
-  [TreatNonCallableAsNull, GetterInfallible=MainThread]
-  attribute Function? onuploadprogress;
 
   [Infallible]
   readonly attribute boolean mozAnon;

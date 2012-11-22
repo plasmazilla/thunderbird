@@ -11,6 +11,13 @@
 #include "nsCycleCollectionParticipant.h"
 #include "nsIPrincipal.h"
 
+// GetCurrentTime is defined in winbase.h as zero argument macro forwarding to
+// GetTickCount() and conflicts with NS_DECL_NSIDOMMEDIASTREAM, containing
+// currentTime getter.
+#ifdef GetCurrentTime
+#undef GetCurrentTime
+#endif
+
 /**
  * DOM wrapper for MediaStreams.
  */
@@ -19,7 +26,7 @@ class nsDOMMediaStream : public nsIDOMMediaStream
   typedef mozilla::MediaStream MediaStream;
 
 public:
-  nsDOMMediaStream() : mStream(nsnull) {}
+  nsDOMMediaStream() : mStream(nullptr) {}
   virtual ~nsDOMMediaStream();
 
   NS_DECL_CYCLE_COLLECTION_CLASS(nsDOMMediaStream)
@@ -47,6 +54,11 @@ public:
    * Create an nsDOMMediaStream whose underlying stream is a SourceMediaStream.
    */
   static already_AddRefed<nsDOMMediaStream> CreateInputStream();
+
+  /**
+   * Create an nsDOMMediaStream whose underlying stream is a TrackUnionStream.
+   */
+  static already_AddRefed<nsDOMMediaStream> CreateTrackUnionStream();
 
 protected:
   // MediaStream is owned by the graph, but we tell it when to die, and it won't

@@ -42,7 +42,7 @@ public:
     return mCurrentFileName;
   }
 
-  PRInt64 RowId() const
+  int64_t RowId() const
   {
     return mRowId;
   }
@@ -56,7 +56,7 @@ private:
   nsString mDirectoryPath;
   nsString mCurrentFileName;
 
-  PRInt64 mRowId;
+  int64_t mRowId;
 };
 
 nsresult
@@ -288,16 +288,16 @@ int RegisterFileSystemModule(sqlite3* aDB, const char* aName)
     Eof,
     Column,
     RowId,
-    nsnull,
-    nsnull,
-    nsnull,
-    nsnull,
-    nsnull,
-    nsnull,
-    nsnull
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr
   };
 
-  return sqlite3_create_module(aDB, aName, &module, nsnull);
+  return sqlite3_create_module(aDB, aName, &module, nullptr);
 }
 
 } // namespace storage

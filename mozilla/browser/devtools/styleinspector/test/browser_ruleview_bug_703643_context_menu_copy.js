@@ -58,7 +58,6 @@ function inspectorUIOpen()
 
   // Make sure the inspector is open.
   ok(InspectorUI.inspecting, "Inspector is highlighting");
-  ok(!InspectorUI.treePanel.isOpen(), "Inspector Tree Panel is not open");
   ok(!InspectorUI.isSidebarOpen, "Inspector Sidebar is not open");
   ok(!InspectorUI.store.isEmpty(), "InspectorUI.store is not empty");
   is(InspectorUI.store.length, 1, "Inspector.store.length = 1");
@@ -122,7 +121,7 @@ function checkCopyRule() {
 function checkCopyRuleWithEditorSelected()
 {
   let contentDoc = ruleViewFrame().contentDocument;
-  let rows = contentDoc.querySelectorAll(".rule-view-row");
+  let rules = contentDoc.querySelectorAll(".ruleview-rule");
   let propNodes = contentDoc.querySelectorAll(".ruleview-property");
   let propNode = propNodes[2];
   let propNameNode = propNode.querySelector(".ruleview-propertyname");
@@ -137,7 +136,7 @@ function checkCopyRuleWithEditorSelected()
     "    color: rgb\\(170, 170, 170\\);[\\r\\n]+" +
     "}[\\r\\n]*";
 
-  let elementRuleEditor = rows[0]._ruleEditor;
+  let elementRuleEditor = rules[0]._ruleEditor;
   waitForEditorFocus(elementRuleEditor.element, function onNewElement(aEditor) {
     ok(aEditor, "we have the editor");
 

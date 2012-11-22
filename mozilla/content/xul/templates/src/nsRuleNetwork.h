@@ -96,22 +96,22 @@ protected:
             mElement->Destroy();
             NS_IF_RELEASE(mNext); }
 
-        PRInt32 AddRef() { return ++mRefCnt; }
+        int32_t AddRef() { return ++mRefCnt; }
 
-        PRInt32 Release() {
-            PRInt32 refcnt = --mRefCnt;
+        int32_t Release() {
+            int32_t refcnt = --mRefCnt;
             if (refcnt == 0) delete this;
             return refcnt; }
 
         MemoryElement* mElement;
-        PRInt32        mRefCnt;
+        int32_t        mRefCnt;
         List*          mNext;
     };
 
     List* mElements;
 
 public:
-    MemoryElementSet() : mElements(nsnull) {
+    MemoryElementSet() : mElements(nullptr) {
         MOZ_COUNT_CTOR(MemoryElementSet); }
 
     MemoryElementSet(const MemoryElementSet& aSet) : mElements(aSet.mElements) {
@@ -178,7 +178,7 @@ public:
     };
 
     ConstIterator First() const { return ConstIterator(mElements); }
-    ConstIterator Last() const { return ConstIterator(nsnull); }
+    ConstIterator Last() const { return ConstIterator(nullptr); }
 
     // N.B. that the set assumes ownership of the element
     nsresult Add(MemoryElement* aElement);
@@ -240,15 +240,15 @@ protected:
             MOZ_COUNT_DTOR(nsAssignmentSet::List);
             NS_IF_RELEASE(mNext); }
 
-        PRInt32 AddRef() { return ++mRefCnt; }
+        int32_t AddRef() { return ++mRefCnt; }
 
-        PRInt32 Release() {
-            PRInt32 refcnt = --mRefCnt;
+        int32_t Release() {
+            int32_t refcnt = --mRefCnt;
             if (refcnt == 0) delete this;
             return refcnt; }
 
         nsAssignment mAssignment;
-        PRInt32 mRefCnt;
+        int32_t mRefCnt;
         List*   mNext;
     };
 
@@ -256,7 +256,7 @@ protected:
 
 public:
     nsAssignmentSet()
-        : mAssignments(nsnull)
+        : mAssignments(nullptr)
         { MOZ_COUNT_CTOR(nsAssignmentSet); }
 
     nsAssignmentSet(const nsAssignmentSet& aSet)
@@ -324,7 +324,7 @@ public:
     };
 
     ConstIterator First() const { return ConstIterator(mAssignments); }
-    ConstIterator Last() const { return ConstIterator(nsnull); }
+    ConstIterator Last() const { return ConstIterator(nullptr); }
 
 public:
     /**
@@ -375,13 +375,13 @@ public:
      * Count the number of assignments in the set
      * @return the number of assignments in the set
      */
-    PRInt32 Count() const;
+    int32_t Count() const;
 
     /**
      * Determine if the set is empty
      * @return true if the assignment set is empty, false otherwise.
      */
-    bool IsEmpty() const { return mAssignments == nsnull; }
+    bool IsEmpty() const { return mAssignments == nullptr; }
 
     bool Equals(const nsAssignmentSet& aSet) const;
     bool operator==(const nsAssignmentSet& aSet) const { return Equals(aSet); }
@@ -466,7 +466,7 @@ public:
         return !Equals(aInstantiation); }
 
     static PLHashNumber Hash(const void* aKey);
-    static PRIntn Compare(const void* aLeft, const void* aRight);
+    static int Compare(const void* aLeft, const void* aRight);
 };
 
 
@@ -737,12 +737,12 @@ public:
     Iterator First() { return Iterator(mNodes); }
     Iterator Last() { return Iterator(mNodes + mCount); }
 
-    PRInt32 Count() const { return mCount; }
+    int32_t Count() const { return mCount; }
 
 protected:
     ReteNode** mNodes;
-    PRInt32 mCount;
-    PRInt32 mCapacity;
+    int32_t mCount;
+    int32_t mCapacity;
 };
 
 //----------------------------------------------------------------------

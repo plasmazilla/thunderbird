@@ -66,7 +66,7 @@ public:
    */
   void Clear()
   {
-    mBuffer = nsnull;
+    mBuffer = nullptr;
     mBufferRect.SetEmpty();
   }
 
@@ -111,7 +111,7 @@ public:
    * fill the buffer bounds).
    */
   PaintState BeginPaint(ThebesLayer* aLayer, ContentType aContentType,
-                        PRUint32 aFlags);
+                        uint32_t aFlags);
 
   enum {
     ALLOW_REPEAT = 0x01
@@ -122,7 +122,7 @@ public:
    * to allow repeat-mode, otherwise it should be in pad (clamp) mode
    */
   virtual already_AddRefed<gfxASurface>
-  CreateBuffer(ContentType aType, const nsIntSize& aSize, PRUint32 aFlags) = 0;
+  CreateBuffer(ContentType aType, const nsIntSize& aSize, uint32_t aFlags) = 0;
 
   /**
    * Get the underlying buffer, if any. This is useful because we can pass
@@ -149,8 +149,8 @@ protected:
                           gfxASurface* aMask,
                           const gfxMatrix* aMaskTransform);
   void DrawBufferWithRotation(gfxContext* aTarget, float aOpacity,
-                              gfxASurface* aMask = nsnull,
-                              const gfxMatrix* aMaskTransform = nsnull);
+                              gfxASurface* aMask = nullptr,
+                              const gfxMatrix* aMaskTransform = nullptr);
 
   /**
    * |BufferRect()| is the rect of device pixels that this
