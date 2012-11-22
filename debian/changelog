@@ -1,3 +1,14 @@
+icedove (10.0.11-1) unstable; urgency=high
+
+  * [317e64c] New Upstream version 10.0.11
+  * Fixes for MFSA2012-{91-93,100,101,103,105,106}, also known as
+    CVE-2012-5842, CVE-2012-4202, CVE-2012-4201, CVE-2012-5841,
+    CVE-2012-4207, CVE-2012-4209, CVE-2012-4214, CVE-2012-4215,
+    CVE-2012-4216, CVE-2012-5829, CVE-2012-5839, CVE-2012-5840,
+    CVE-2012-5830, CVE-2012-5833, CVE-2012-5835
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 22 Nov 2012 18:00:45 -0500
+
 icedove (10.0.10-1) unstable; urgency=high
 
   * [8909154] New Upstream version 10.0.10
