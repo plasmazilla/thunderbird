@@ -59,10 +59,10 @@ index b8065eb..eff43ba 100644
  
  #endif /* nsGtkCursors_h__ */
 diff --git a/mozilla/widget/src/gtk2/nsWindow.cpp b/mozilla/widget/src/gtk2/nsWindow.cpp
-index 2fd6f64..25f1c2a 100644
+index 21ea9fc..358efb3 100644
 --- a/mozilla/widget/src/gtk2/nsWindow.cpp
 +++ b/mozilla/widget/src/gtk2/nsWindow.cpp
-@@ -5602,9 +5602,17 @@ get_gtk_cursor(nsCursor aCursor)
+@@ -5601,9 +5601,17 @@ get_gtk_cursor(nsCursor aCursor)
          break;
      }
  

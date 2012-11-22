@@ -246,7 +246,7 @@ index 841814a..4284c80 100644
  } // namespace mozilla
  
 diff --git a/mozilla/widget/src/gtk2/nsWindow.cpp b/mozilla/widget/src/gtk2/nsWindow.cpp
-index 25f1c2a..8f8cd40 100644
+index 358efb3..1f4b990 100644
 --- a/mozilla/widget/src/gtk2/nsWindow.cpp
 +++ b/mozilla/widget/src/gtk2/nsWindow.cpp
 @@ -110,19 +110,10 @@
@@ -327,7 +327,7 @@ index 25f1c2a..8f8cd40 100644
  #ifdef MOZ_DFB
      if (!mDFB) {
           DirectFBCreate( &mDFB );
-@@ -6517,7 +6485,7 @@ nsWindow::DispatchAccessibleEvent()
+@@ -6516,7 +6484,7 @@ nsWindow::DispatchAccessibleEvent()
  void
  nsWindow::DispatchEventToRootAccessible(PRUint32 aEventType)
  {
