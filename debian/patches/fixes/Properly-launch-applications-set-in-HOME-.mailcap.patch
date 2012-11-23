@@ -4,14 +4,12 @@ Subject: Properly launch applications set in $HOME/.mailcap
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=444440
 
-
-
 ---
  mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp |   12 ++++++++++++
  1 file changed, 12 insertions(+)
 
 diff --git a/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp b/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
-index f39fb1b..cade36b 100644
+index 518e591..8269501 100644
 --- a/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
 +++ b/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
 @@ -65,6 +65,12 @@ nsMIMEInfoUnix::LoadUriInternal(nsIURI * aURI)

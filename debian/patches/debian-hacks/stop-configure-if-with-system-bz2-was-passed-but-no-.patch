@@ -8,10 +8,10 @@ Subject: stop configure if '--with-system-bz2' was passed, but no libbz2 is
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index e731a93..11419ef 100644
+index e689936..90afc46 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
-@@ -4065,7 +4065,8 @@ if test -z "$BZ2_DIR" -o "$BZ2_DIR" = no; then
+@@ -4020,7 +4020,8 @@ if test -z "$BZ2_DIR" -o "$BZ2_DIR" = no; then
      MOZ_NATIVE_BZ2=
  else
      AC_CHECK_LIB(bz2, BZ2_bzread, [MOZ_NATIVE_BZ2=1 MOZ_BZ2_LIBS="-lbz2"],

@@ -4,8 +4,6 @@ Subject: Allow .js preference files to set locked prefs with lockPref()
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=440908
 
-
-
 ---
  mozilla/modules/libpref/src/prefapi.cpp  |    5 ++++-
  mozilla/modules/libpref/src/prefapi.h    |    3 ++-
@@ -14,10 +12,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=440908
  4 files changed, 17 insertions(+), 6 deletions(-)
 
 diff --git a/mozilla/modules/libpref/src/prefapi.cpp b/mozilla/modules/libpref/src/prefapi.cpp
-index e9611e0..28bd9f3 100644
+index 18354b9..24a466e 100644
 --- a/mozilla/modules/libpref/src/prefapi.cpp
 +++ b/mozilla/modules/libpref/src/prefapi.cpp
-@@ -916,7 +916,10 @@ void PREF_ReaderCallback(void       *closure,
+@@ -978,7 +978,10 @@ void PREF_ReaderCallback(void       *closure,
                           const char *pref,
                           PrefValue   value,
                           PrefType    type,
@@ -30,7 +28,7 @@ index e9611e0..28bd9f3 100644
 +        PREF_LockPref(pref, PR_TRUE);
  }
 diff --git a/mozilla/modules/libpref/src/prefapi.h b/mozilla/modules/libpref/src/prefapi.h
-index 5fd902f..bbf049c 100644
+index 2fc8280..086a159 100644
 --- a/mozilla/modules/libpref/src/prefapi.h
 +++ b/mozilla/modules/libpref/src/prefapi.h
 @@ -176,7 +176,8 @@ void PREF_ReaderCallback( void *closure,

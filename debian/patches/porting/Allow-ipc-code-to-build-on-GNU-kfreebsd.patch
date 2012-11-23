@@ -8,7 +8,7 @@ Subject: Allow ipc code to build on GNU/kfreebsd
  2 files changed, 5 insertions(+), 1 deletion(-)
 
 diff --git a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
-index 1b2ecf7..3a7f01e 100644
+index db5f3b7..801f35e 100644
 --- a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 +++ b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 @@ -42,7 +42,11 @@ PlatformThreadId PlatformThread::CurrentId() {

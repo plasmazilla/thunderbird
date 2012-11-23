@@ -5,16 +5,15 @@ Subject: Make system cairo work again
 BZ: https://bugzilla.mozilla.org/show_bug.cgi?id=722975
 Patch: https://bug722975.bugzilla.mozilla.org/attachment.cgi?id=624394
 
-
 ---
  mozilla/gfx/thebes/gfxPlatform.cpp |   16 ++++------------
  1 file changed, 4 insertions(+), 12 deletions(-)
 
 diff --git a/mozilla/gfx/thebes/gfxPlatform.cpp b/mozilla/gfx/thebes/gfxPlatform.cpp
-index 0daf69b..f497b42 100644
+index 7e7e4bf..caae8c0 100644
 --- a/mozilla/gfx/thebes/gfxPlatform.cpp
 +++ b/mozilla/gfx/thebes/gfxPlatform.cpp
-@@ -496,11 +496,9 @@ void SourceBufferDestroy(void *srcBuffer)
+@@ -490,11 +490,9 @@ void SourceBufferDestroy(void *srcBuffer)
    static_cast<SourceSurface*>(srcBuffer)->Release();
  }
  
@@ -28,7 +27,7 @@ index 0daf69b..f497b42 100644
    origSurf->SetData(&kSourceSurface, NULL, NULL);
  }
  
-@@ -597,14 +595,8 @@ gfxPlatform::GetSourceSurfaceForSurface(DrawTarget *aTarget, gfxASurface *aSurfa
+@@ -594,14 +592,8 @@ gfxPlatform::GetSourceSurfaceForSurface(DrawTarget *aTarget, gfxASurface *aSurfa
  
      }
  

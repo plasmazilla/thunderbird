@@ -7,7 +7,7 @@ Subject: Another fix to build ipc code on GNU/hurd and kfreebsd
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
-index 3a7f01e..90d9179 100644
+index 801f35e..5308f26 100644
 --- a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 +++ b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 @@ -9,7 +9,7 @@

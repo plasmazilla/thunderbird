@@ -1,5 +1,7 @@
 icedove/fix-installdir.patch
-icedove/thunderbird-3-profile.patch
+debian-hacks/Icedove-branding.patch
+debian-hacks/Move-profile.patch
+Strip-version-number.patch
 icedove/no-dynamic-nss-softokn.patch
 debian-hacks/Add-another-preferences-directory-for-applications-p.patch
 fixes/Allow-.js-preference-files-to-set-locked-prefs-with-.patch

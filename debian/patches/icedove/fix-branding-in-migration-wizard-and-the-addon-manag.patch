@@ -8,14 +8,13 @@ addon-checking/installing/updating will work
 
 Closes: #565559
 
-
 ---
  mail/app/profile/all-thunderbird.js                |   29 ++++++++++----------
  .../en-US/chrome/messenger/accountCreation.dtd     |    2 +-
  2 files changed, 15 insertions(+), 16 deletions(-)
 
 diff --git a/mail/app/profile/all-thunderbird.js b/mail/app/profile/all-thunderbird.js
-index 02d5878..c4fc36e 100644
+index d4692a4..29da146 100644
 --- a/mail/app/profile/all-thunderbird.js
 +++ b/mail/app/profile/all-thunderbird.js
 @@ -1,4 +1,3 @@
@@ -23,7 +22,7 @@ index 02d5878..c4fc36e 100644
  /* This Source Code Form is subject to the terms of the Mozilla Public
   * License, v. 2.0. If a copy of the MPL was not distributed with this
   * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-@@ -116,7 +115,7 @@ pref("app.update.url", "https://aus3.mozilla.org/update/3/%PRODUCT%/%VERSION%/%B
+@@ -117,7 +116,7 @@ pref("app.update.url", "https://aus3.mozilla.org/update/3/%PRODUCT%/%VERSION%/%B
  pref("app.update.url.manual", "http://www.getthunderbird.com");
  // A default value for the "More information about this update" link
  // supplied in the "An update is available" page of the update wizard. 
@@ -32,7 +31,7 @@ index 02d5878..c4fc36e 100644
  // User-settable override to app.update.url for testing purposes.
  //pref("app.update.url.override", "");
  
-@@ -138,10 +137,10 @@ pref("app.update.service.enabled", true);
+@@ -139,10 +138,10 @@ pref("app.update.service.enabled", true);
  #endif
  
  // Release notes URL
@@ -45,7 +44,7 @@ index 02d5878..c4fc36e 100644
  
  // Controls enabling of the extension system logging (can reduce performance)
  pref("extensions.logging.enabled", false);
-@@ -163,18 +162,18 @@ pref("extensions.autoDisableScopes", 15);
+@@ -164,18 +163,18 @@ pref("extensions.autoDisableScopes", 15);
  // Preferences for AMO integration
  pref("extensions.getAddons.cache.enabled", true);
  pref("extensions.getAddons.maxResults", 15);
@@ -71,7 +70,7 @@ index 02d5878..c4fc36e 100644
  
  // Enables some extra Extension System Logging (can reduce performance) 
  pref("extensions.logging.enabled", false); 
-@@ -192,7 +191,7 @@ pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/Ve
+@@ -193,7 +192,7 @@ pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/Ve
  pref("extensions.update.interval", 86400);  // Check for updates to Extensions and 
                                              // Themes every day
  
@@ -80,7 +79,7 @@ index 02d5878..c4fc36e 100644
  pref("extensions.dss.enabled", false);          // Dynamic Skin Switching                                               
  pref("extensions.dss.switchPending", false);    // Non-dynamic switch pending after next
  
-@@ -392,7 +391,7 @@ pref("javascript.options.showInConsole",    true);
+@@ -394,7 +393,7 @@ pref("javascript.options.showInConsole",    true);
  
  pref("spellchecker.dictionary", "");
  // Dictionary download preference
@@ -89,7 +88,7 @@ index 02d5878..c4fc36e 100644
  
  // profile.force.migration can be used to bypass the migration wizard, forcing migration from a particular
  // mail application without any user intervention. Possible values are: 
-@@ -538,7 +537,7 @@ pref("mailnews.database.global.indexer.enabled", true);
+@@ -543,7 +542,7 @@ pref("mailnews.database.global.indexer.enabled", true);
  pref("mailnews.database.global.logging.console", true);
  
  // page to load to find good header add-ons
@@ -98,7 +97,7 @@ index 02d5878..c4fc36e 100644
  
  // Serif fonts look dated.  Switching those language families to sans-serif
  // where we think it makes sense.  Worth investigating for other font families
-@@ -762,7 +761,7 @@ pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
+@@ -767,7 +766,7 @@ pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
  
  pref("plugins.update.url", "https://www.mozilla.com/%LOCALE%/plugincheck/");
  pref("plugins.update.notifyUser", false);
