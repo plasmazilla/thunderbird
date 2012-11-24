@@ -1,8 +1,8 @@
 Source: icedove
 Section: mail
 Priority: optional
-Maintainer: Alexander Sack <asac@debian.org>
-Uploaders: Guido Günther <agx@sigxcpu.org>, Christoph Goehre <chris@sigxcpu.org>
+Maintainer: Christoph Goehre <chris@sigxcpu.org>
+Uploaders: Guido Günther <agx@sigxcpu.org>
 Build-Depends: bzip2,
 	debhelper (>= 5),
 	autoconf2.13,
