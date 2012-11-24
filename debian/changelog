@@ -1,3 +1,33 @@
+icedove (17.0-1) experimental; urgency=low
+
+  [ Christoph Goehre ]
+  * [0b8ac79] replace transitional depens ttf-lyx with fonts-lyx
+    (Closes: #676505)
+  * [4473d67] fix typo in calendar-google-provider description
+  * [b3a57c0] rebuild patch queue from patch-queue branch
+    added patches:
+    porting/Another-fix-to-build-ipc-code-on-GNU-hurd-and-kfreeb.patch
+
+  [ Jens Reyer ]
+  * [c0e30b6] clarify the relation between iceowl, lightning and sunbird
+    (Closes: #686206)
+
+  [ Guido Günther ]
+  * [394b6a1] New upstream version 17.0
+  * [a17c23f] Update patches.
+    The thunderbird-3-profile.patch got split into three since it
+    addresses different issues:
+        * Strip-version-number.patch
+        * Icedove-branding.patch
+        * Move-profile.patch
+  * [01eef04] Don't overwrite DEB_BUILD_OPTIONS
+    and drop dependency on essential package
+
+  [ Ritesh Raj Sarraf ]
+  * [1ab9095] Add parallel build support
+
+ -- Guido Günther <agx@sigxcpu.org>  Sat, 24 Nov 2012 19:26:19 +0100
+
 icedove (16.0.2-1) experimental; urgency=low
 
   [ Christoph Goehre ]
