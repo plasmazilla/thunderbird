@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY itemGeneral.label                   "General">
 <!ENTITY itemAutoComplete.label              "Adressar">
 <!ENTITY itemSpellCheck.label                "Ortografia">
@@ -17,7 +21,7 @@
 <!ENTITY fontColor.label                      "Colur dal text:">
 <!ENTITY fontColor.accesskey                  "T">
 <!ENTITY bgColor.label                        "Colur dal fund:">
-<!ENTITY bgColor.accesskey                    "B">
+<!ENTITY bgColor.accesskey                    "f">
 <!ENTITY restoreHTMLDefaults.label            "Restaurar la successiun da standard">
 <!ENTITY restoreHTMLDefaults.accesskey        "R">
 

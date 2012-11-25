@@ -3,3 +3,8 @@
 <!ENTITY status.label "Durum:">
 <!ENTITY progress.label "İlerleme:">
 
+
+
+
+<!--LOCALIZATION NOTE sendprogress.dtd Main UI for Send Message Progress Dialog -->
+<!ENTITY sendDialog.title "Processing Message">

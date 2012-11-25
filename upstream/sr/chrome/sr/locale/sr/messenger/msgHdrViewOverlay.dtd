@@ -139,3 +139,7 @@
 <!ENTITY hdrFollowupButton1.label "Followup">
 <!ENTITY hdrFollowupButton1.tooltip "Post a followup to this newsgroup">
 <!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">
+<!ENTITY startExpandedCmd.accesskey    "S">
+
+<!-- Attachment bar context menu items -->
+<!ENTITY startExpandedCmd.label    "Initially Show Attachment Pane">

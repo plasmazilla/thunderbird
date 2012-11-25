@@ -6,7 +6,7 @@
 <!ENTITY email.accesskey                 "l">
 <!ENTITY password.label                  "රහස්පදය:">
 <!ENTITY password.accesskey              "P">
-<!ENTITY password.text                   "වෛකල්පික (Optional), පරිශීලක නාම වලංගුකරණය සඳහා පමණක් භාවිතා වේ">
+<!ENTITY password.text                   "Optional, will only be used to validate the username">
 
 <!ENTITY incoming.label                  "එවුම් :">
 <!ENTITY outgoing.label                  "යැවුම්:">

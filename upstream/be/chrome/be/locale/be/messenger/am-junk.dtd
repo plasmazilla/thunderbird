@@ -1,5 +1,5 @@
 <!ENTITY junkSettings.label "Наладжванні лухты">
-<!ENTITY trainingWarning.label "Спачатку вы павінны натрэнаваць &brandShortName; вызначаць пошту-лухту. Ужывайце кнопку Лухта на паліцы прыладаў для пазначэння лістоў лухтою ці не. Вы мусіце вызначаць як лухтовыя, так і нелухтовыя лісты.">
+<!ENTITY trainingDescription.label "Калі дазволіце, вы спачатку мусіце натрэнаваць &brandShortName; вызначаць пошту-лухту з дапамогаю кнопкі Лухта на паліцы прыладаў для пазначэння лістоў лухтою ці не. Вы мусіце пазначаць і лісты-лухту, і не. Пасля гэтага &brandShortName; будзе здольны вызначаць лухту самастойна.">
 <!ENTITY level.label "Дазволіць прыстасоўныя кіроўцы поштай-лухтой для гэтага рахунку">
 <!ENTITY level.accesskey "Д">
 <!ENTITY move.label "Перамяшчаць новыя лісты-лухту ў:">
@@ -11,17 +11,10 @@
 <!ENTITY purge1.label "Самастойна выдаляць лісты-лухту, старэйшыя чым">
 <!ENTITY purge1.accesskey "С">
 <!ENTITY purge2.label "дзён">
-<!ENTITY whitelist.label "Не пазначаць лісты як лухту, калі адпраўнік у:">
-<!ENTITY whitelist.accesskey "Н">
+<!ENTITY whitelistHeader.label "Не пазначаць самастойна пошту лухтою, калі дасылальнік у:">
+<!ENTITY whitelistHeader.accesskey "Н">
+<!ENTITY ispHeadersWarning.label "Калі дазволена, &brandShortName; пачне самастойна лічыць лісты, пазначаныя гэтым вонкавым класіфікатарам, лухтою.">
 <!ENTITY ispHeaders.label "Давяраць загалоўкам, якія вызначаюць ліст як лухту, усталяваным:">
 <!ENTITY ispHeaders.accesskey "в">
-
-
-<!ENTITY ispHeadersWarning.label "If enabled, &brandShortName; will automatically consider messages marked by this external classifier as junk.">
-<!ENTITY junkActions.label "Destination and Retention">
-
-<!ENTITY junkClassification.label "Selection">
-<!ENTITY trainingDescription.label "If enabled, you must first train &brandShortName; to identify junk mail by using the Junk toolbar button to mark messages as junk or not. You need to identify both junk and non junk messages. After that &brandShortName; will be able to mark junk automatically.">
-<!ENTITY whitelistHeader.accesskey "D">
-
-<!ENTITY whitelistHeader.label "Do not automatically mark mail as junk if the sender is in: ">
+<!ENTITY junkClassification.label "Вылучэнне">
+<!ENTITY junkActions.label "Прызначэнне і ўтрыманне">

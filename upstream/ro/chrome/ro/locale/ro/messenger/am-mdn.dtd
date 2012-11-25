@@ -32,3 +32,6 @@
 <!ENTITY alwaysSend.label             "Trimite">
 <!ENTITY neverSend.label              "Nu trimite">
 
+
+<!ENTITY globalReceipts.accesskey     "G">
+<!ENTITY globalReceipts.label         "Global Preferences…">

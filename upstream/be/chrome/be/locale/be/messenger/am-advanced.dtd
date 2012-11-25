@@ -1,5 +1,5 @@
 <!ENTITY smtpServer.label "Наладжванні выходнага паслугача (SMTP)">
-<!ENTITY smtpDesc.label "Хоць вы можаце прызначыць больш за адзін выходны паслугач (SMTP), гэта раіцца толькі для дасведчаных карыстальнікаў. Усталяванне некалькіх паслугачоў SMTP можа прывесці да памылак падчас дасылання лістоў.">
+<!ENTITY smtpDescription.label "Падчас кіравання вашымі адметамі, вы можаце ўжыць паслугач з спіса, выбраць яго як Выходны Паслугач (SMTP), або скарыстацца змоўчным паслугачом з гэтага спісу, вылучыўшы &quot;Ужыць змоўчны паслугач&quot;.">
 <!ENTITY smtpListAdd.label "Дадаць…">
 <!ENTITY smtpListAdd.accesskey "д">
 <!ENTITY smtpListEdit.label "Правіць…">
@@ -14,7 +14,3 @@
 <!ENTITY userName.label "Імя карыстальніка:">
 <!ENTITY connectionSecurity.label "Бяспека злучэння:">
 <!ENTITY authMethod.label "Метад апазнавання:">
-
-
-<!-- LOCALIZATION NOTE (smtpDescription.label): do not translate "SMTP" in below line -->
-<!ENTITY smtpDescription.label "When managing your identities you can use a server from this list by selecting it as the Outgoing Server (SMTP), or you can use the default server from this list by selecting &quot;Use Default Server&quot;.">

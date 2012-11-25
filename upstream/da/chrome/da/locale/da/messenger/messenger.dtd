@@ -1,5 +1,9 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY titledefault.label "&brandFullName;">
-<!ENTITY titleSeparator.label "-">
+<!ENTITY titleSeparator.label " - ">
 
 <!-- File Menu -->
 <!ENTITY newFolderCmd.label "Mappe…">
@@ -11,7 +15,7 @@
 <!-- LOCALIZATION NOTE (undoCloseTabCmd.label):
      Menu option to attempt to re-open a recently closed tab.
      -->
-<!ENTITY recentlyClosedTabsCmd.label "Nyligt lukkede faneblade">
+<!ENTITY recentlyClosedTabsCmd.label "Senest lukkede faneblade">
 <!ENTITY recentlyClosedTabsCmd.accesskey "N">
 
 <!ENTITY undoCloseTabCmd.commandkey "T">
@@ -290,8 +294,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY findCmd.label "Find i denne meddelelse…">
 <!ENTITY findCmd.accesskey "F">
 <!ENTITY findCmd.key "f">
-<!ENTITY findAgainCmd.label "Find igen">
-<!ENTITY findAgainCmd.accesskey "g">
+<!ENTITY findAgainCmd.label "Find næste">
+<!ENTITY findAgainCmd.accesskey "n">
 <!ENTITY findAgainCmd.key "g">
 <!ENTITY findAgainCmd.key2 "VK_F3">
 <!ENTITY findPrevCmd.key "g">
@@ -341,8 +345,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderMenu.accesskey "M">
 <!ENTITY thisFolder.label "Denne mappe">
 <!ENTITY thisFolder.accesskey "D">
-<!ENTITY goRecentlyClosedTabs.label "Nyligt lukkede faneblade">
-<!ENTITY goRecentlyClosedTabs.accesskey "y">
+<!ENTITY goRecentlyClosedTabs.label "Senest lukkede faneblade">
+<!ENTITY goRecentlyClosedTabs.accesskey "e">
 <!ENTITY startPageCmd.label "Startsiden">
 <!ENTITY startPageCmd.accesskey "S">
 
@@ -506,6 +510,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY errorConsoleCmd.label "Fejlkonsol">
 <!ENTITY errorConsoleCmd.accesskey "j">
 <!ENTITY errorConsoleCmd.commandkey "j">
+<!ENTITY clearRecentHistory.label "Ryd seneste historik…">
+<!ENTITY clearRecentHistory.accesskey "h">
 <!ENTITY accountManagerCmd.label "Kontoindstillinger…">
 <!ENTITY accountManagerCmd.accesskey "o">
 <!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
@@ -547,6 +553,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderLocationToolbarItem.title "Mappeplacering">
 <!ENTITY tagButton.label "Mærkat">
 <!ENTITY compactButton.label "Optimer">
+<!ENTITY appmenuButton.label "Programmenu">
 
 <!-- Mail Toolbar Tooltips-->
 <!ENTITY advancedButton.tooltip "Avanceret adressesøgning">
@@ -577,6 +584,15 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY chatButton.tooltip "Vis fanebladet Chat">
 <!ENTITY tagButton.tooltip "Marker meddelelser">
 <!ENTITY compactButton.tooltip "Fjern slettede meddelelser fra valgte mappe">
+
+<!ENTITY appmenuButton.tooltip "Vis programmenuen">
+
+<!-- AppMenu Popup -->
+<!ENTITY appmenuNewMsgCmd.label "Ny meddelelse">
+<!ENTITY appmenuNewContactCmd.label "Kontakt…">
+<!ENTITY appmenuEditMenu.label "Rediger">
+<!ENTITY appmenuQFBMenu.label "Lynfilterlinje">
+<!ENTITY appmenuToolbarLayout.label "Tilpas værktøjslinje…">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "Nyt mærkat…">

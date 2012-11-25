@@ -19,6 +19,10 @@
 <!ENTITY newCreateEmailAccountCmd.accesskey "н">
 <!ENTITY newExistingEmailAccountCmd.label "Існы рахунак пошты…">
 <!ENTITY newExistingEmailAccountCmd.accesskey "І">
+<!ENTITY newIMAccountCmd.label "Рахунак гутаркі…">
+<!ENTITY newIMAccountCmd.accesskey "г">
+<!ENTITY newIMContactCmd.label "Гутарковая сувязь…">
+<!ENTITY newIMContactCmd.accesskey "г">
 <!ENTITY openMessageFileCmd.label "Адкрыць захаваны ліст…">
 <!ENTITY openMessageFileCmd.accesskey "А">
 <!ENTITY openAttachmentCmd.label "Далучэнні">
@@ -66,7 +70,7 @@
 <!ENTITY printCmd.label "Друкаваць…">
 <!ENTITY printCmd.accesskey "Д">
 <!ENTITY printCmd.key "p">
-<!ENTITY printPreviewCmd.label "Папярэдні прагляд друку">
+<!ENTITY printPreviewCmd.label "Перадпрагляд друку">
 <!ENTITY printPreviewCmd.accesskey "г">
 <!ENTITY printSetupCmd.label "Уладкаваць старонку…">
 <!ENTITY printSetupCmd.accesskey "у">
@@ -292,6 +296,9 @@
 <!ENTITY goBackCmd.label "Назад">
 <!ENTITY goBackCmd.accesskey "Н">
 <!ENTITY goBackCmd.commandKey "[">
+<!ENTITY goChatCmd.label "Гутарка">
+<!ENTITY goChatCmd.accesskey "г">
+<!ENTITY goChatCmd.commandKey "C">
 <!ENTITY prevStarredMsgCmd.label "Ліст з зоркаю">
 <!ENTITY prevStarredMsgCmd.accesskey "з">
 <!ENTITY folderMenu.label "Папка">
@@ -318,8 +325,8 @@
 <!ENTITY replyMsgCmd.key "r">
 <!ENTITY replySenderCmd.label "Адказаць толькі адпраўніку">
 <!ENTITY replySenderCmd.accesskey "А">
-<!ENTITY replyNewsgroupCmd.label "Адказаць навінакупе">
-<!ENTITY replyNewsgroupCmd.accesskey "ь">
+<!ENTITY replyNewsgroupCmd2.label "Адказаць у навінакупе">
+<!ENTITY replyNewsgroupCmd2.accesskey "у">
 <!ENTITY replyToAllMsgCmd.label "Адказаць усім">
 <!ENTITY replyToAllMsgCmd.accesskey "з">
 <!ENTITY replyToAllMsgCmd.key "r">
@@ -429,6 +436,14 @@
 <!ENTITY addons.accesskey "д">
 <!ENTITY activitymanager.label "Кіраўнік дзейнасці">
 <!ENTITY activitymanager.accesskey "д">
+<!ENTITY imAccountsStatus.label "Статус гутаркі">
+<!ENTITY imAccountsStatus.accesskey "г">
+<!ENTITY imStatus.available "Даступны">
+<!ENTITY imStatus.unavailable "Недаступны">
+<!ENTITY imStatus.offline "Па-за сеткаю">
+<!ENTITY imStatus.showAccounts "Паказаць рахункі…">
+<!ENTITY joinChatCmd.label "Далучыцца да гутакі…">
+<!ENTITY joinChatCmd.accesskey "Д">
 <!ENTITY savedFiles.label "Захаваныя файлы">
 <!ENTITY savedFiles.accesskey "ф">
 <!ENTITY savedFiles.key "j">
@@ -448,6 +463,9 @@
 <!ENTITY importCmd.accesskey "І">
 <!ENTITY errorConsoleCmd.label "Кансоль памылак">
 <!ENTITY errorConsoleCmd.accesskey "п">
+<!ENTITY errorConsoleCmd.commandkey "j">
+<!ENTITY clearRecentHistory.label "Ачысціць нядаўнюю гісторыю…">
+<!ENTITY clearRecentHistory.accesskey "ч">
 <!ENTITY accountManagerCmd.label "Наладжванні рахунку…">
 <!ENTITY accountManagerCmd.accesskey "н">
 <!ENTITY accountManagerCmdUnix.accesskey "р">
@@ -460,7 +478,11 @@
 <!ENTITY fileButton.label "Файл">
 <!ENTITY archiveButton.label "Архіў">
 <!ENTITY nextButton.label "Наступны">
+<!ENTITY nextButtonToolbarItem.label "Наступны непрачытаны">
+<!ENTITY nextMsgButton.label "Наступны">
 <!ENTITY previousButton.label "Папярэдні">
+<!ENTITY previousButtonToolbarItem.label "Папярэдні непрачытаны">
+<!ENTITY previousMsgButton.label "Папярэдні">
 <!ENTITY backButton1.label "Назад">
 <!ENTITY goForwardButton1.label "Наперад">
 <!ENTITY deleteItem.title "Выдаліць">
@@ -474,12 +496,14 @@
 <!ENTITY junkButton.label "Лухта">
 <!ENTITY notJunkButton.label "Не лухта">
 <!ENTITY addressBookButton.label "Адрасная кніга">
+<!ENTITY chatButton.label "Гутарка">
 <!ENTITY glodaSearch.title "Агульны пошук">
 <!ENTITY searchItem.title "Хуткі пошук">
 <!ENTITY mailViewsToolbarItem.title "Праявы пошты">
 <!ENTITY folderLocationToolbarItem.title "Месцазнаходжанне папкі">
 <!ENTITY tagButton.label "Метка">
 <!ENTITY compactButton.label "Ушчыльніць">
+<!ENTITY appmenuButton.label "Меню прыстасаванняў">
 <!ENTITY advancedButton.tooltip "Пашыраны пошук лістоў">
 <!ENTITY getMsgButton.tooltip "Атрымаць новыя лісты">
 <!ENTITY getAllNewMsgCmd.label "Атрымаць усе новыя лісты">
@@ -492,7 +516,9 @@
 <!ENTITY fileButton.tooltip "Перамясціць вылучаны ліст">
 <!ENTITY archiveButton.tooltip "Заархівіраваць вылучаныя лісты">
 <!ENTITY nextButton.tooltip "Перамясціцца да наступнага непрачытанага ліста">
+<!ENTITY nextMsgButton.tooltip "Перайсці да наступнага ліста">
 <!ENTITY previousButton.tooltip "Перамясціцца да папярэдняга непрачытанага ліста">
+<!ENTITY previousMsgButton.tooltip "Перайсці да папаярэдняга ліста">
 <!ENTITY goForwardButton.tooltip "Перамясціцца да наступнага ліста">
 <!ENTITY goBackButton.tooltip "Перамясціцца да папярэдняга ліста">
 <!ENTITY deleteButton.tooltip "Выдаліць вылучаны ліст ці папку">
@@ -503,10 +529,19 @@
 <!ENTITY junkButton.tooltip "Пазначыць вылучаныя лісты як лухту">
 <!ENTITY notJunkButton.tooltip "Пазначыць вылучаныя лісты як не лухту">
 <!ENTITY addressBookButton.tooltip "Перайсці ў адрасную кнігу">
+<!ENTITY chatButton.tooltip "Паказаць устаўку гутаркі">
 <!ENTITY tagButton.tooltip "Меткі лістоў">
 <!ENTITY compactButton.tooltip "Прыняць выдаленыя лісты з вылучанай папкі">
+<!ENTITY appmenuButton.tooltip "Паказвае меню прыстасаванняў">
+<!ENTITY appmenuNewMsgCmd.label "Новы ліст">
+<!ENTITY appmenuNewContactCmd.label "Сувязь з адраснай кнігі…">
+<!ENTITY appmenuEditMenu.label "Праўка">
+<!ENTITY appmenuQFBMenu.label "Паліца хуткага сіта">
+<!ENTITY appmenuToolbarLayout.label "Раскладка прыладапаліцы…">
 <!ENTITY addNewTag.label "Новая метка…">
 <!ENTITY addNewTag.accesskey "Н">
+<!ENTITY manageTags.label "Кіраваць тэгамі…">
+<!ENTITY manageTags.accesskey "К">
 <!ENTITY folderColumn.label "Назва">
 <!ENTITY folderSizeColumn.label "Памер">
 <!ENTITY folderContextGetMessages.label "Атрымаць лісты">
@@ -606,8 +641,8 @@
 <!ENTITY contextArchive.accesskey "х">
 <!ENTITY contextReplySender.label "Адказаць толькі адпраўніку">
 <!ENTITY contextReplySender.accesskey "А">
-<!ENTITY contextReplyNewsgroup.label "Адказаць навінакупе">
-<!ENTITY contextReplyNewsgroup.accesskey "ь">
+<!ENTITY contextReplyNewsgroup2.label "Адказаць у навінакупе">
+<!ENTITY contextReplyNewsgroup2.accesskey "н">
 <!ENTITY contextReplyAll.label "Адказаць усім">
 <!ENTITY contextReplyAll.accesskey "У">
 <!ENTITY contextReplyList.label "Адказаць спісу">
@@ -626,7 +661,7 @@
 <!ENTITY contextSaveAs.accesskey "Я">
 <!ENTITY contextPrint.label "Друкаваць…">
 <!ENTITY contextPrint.accesskey "Д">
-<!ENTITY contextPrintPreview.label "Папярэдні прагляд друку">
+<!ENTITY contextPrintPreview.label "Перадпрагляд друку">
 <!ENTITY contextPrintPreview.accesskey "п">
 <!ENTITY columnPicker.resetToInbox.label "Узнавіць змоўчныя слупкі">
 <!ENTITY columnPicker.applyTo.label "Ужыць слупкі…">
@@ -641,7 +676,7 @@
 <!ENTITY contextMute.accesskey "З">
 <!ENTITY contextUnmute.label "Уключыць гук">
 <!ENTITY contextUnmute.accesskey "У">
-<!ENTITY junkBarMessage1.label "Пошта-лухта">
+<!ENTITY junkBarMessage2.label "&brandShortName; лічыць, што гэты ліст пошта-лухта.">
 <!ENTITY junkBarButton1.label "Не лухта">
 <!ENTITY junkInfoButton.label "?">
 <!ENTITY remoteContentMessage2.label "Каб захаваць ваша адасабленне, &brandShortName; блакаваў адлеглае змесціва ў гэтым лісце.">
@@ -655,9 +690,9 @@
 <!ENTITY mdnBarSendButton2.label "Даслаць квіток атрымання">
 <!ENTITY mdnBarSendButton2.accesskey "Д">
 <!ENTITY quickSearchCmd.key "k">
-<!ENTITY searchAllMessages.label.base "Шукаць… #1">
-<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Ctrl+K&gt;">
-<!ENTITY searchAllMessages.keyLabel2.mac "&lt;⌘K&gt;">
+<!ENTITY search.label.base "Пошук… #1">
+<!ENTITY search.keyLabel.nonmac "&lt;Ctrl+K&gt;">
+<!ENTITY search.keyLabel.mac "&lt;⌘K&gt;">
 <!ENTITY AddToAddressBook.label "Дадаць у адрасную кнігу…">
 <!ENTITY AddToAddressBook.accesskey "к">
 <!ENTITY AddDirectlyToAddressBook.label "Дадаць у адрасную кнігу">
@@ -716,59 +751,3 @@
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers "accel,alt">
 <!ENTITY showAllAppsCmdMac.label "Паказаць усе">
-
-<!ENTITY chatButton.label "Chat">
-<!ENTITY chatButton.tooltip "Show the Chat tab">
-<!ENTITY contextReplyNewsgroup2.accesskey "u">
-<!ENTITY contextReplyNewsgroup2.label "Followup to Newsgroup">
-<!ENTITY errorConsoleCmd.commandkey "j">
-<!ENTITY goChatCmd.accesskey "c">
-<!ENTITY goChatCmd.commandKey "C">
-<!ENTITY goChatCmd.label "Chat">
-<!ENTITY imAccountsStatus.accesskey "C">
-<!ENTITY imAccountsStatus.label "Chat status">
-<!ENTITY imStatus.available          "Available">
-<!ENTITY imStatus.offline            "Offline">
-<!ENTITY imStatus.showAccounts       "Show Accounts…">
-<!ENTITY imStatus.unavailable        "Unavailable">
-<!ENTITY joinChatCmd.accesskey "o">
-<!ENTITY joinChatCmd.label "Join Chat…">
-
-<!-- Junk Bar -->
-<!ENTITY junkBarMessage2.label "&brandShortName; thinks this message is junk mail.">
-<!ENTITY manageTags.accesskey "M">
-<!ENTITY manageTags.label "Manage Tags…">
-<!ENTITY newIMAccountCmd.accesskey "C">
-<!ENTITY newIMAccountCmd.label "Chat Account…">
-<!ENTITY newIMContactCmd.accesskey "h">
-<!ENTITY newIMContactCmd.label "Chat Contact…">
-<!ENTITY nextButtonToolbarItem.label "Next Unread">
-<!ENTITY nextMsgButton.label "Next">
-<!ENTITY nextMsgButton.tooltip "Move to the next message">
-<!ENTITY previousButtonToolbarItem.label "Previous Unread">
-<!ENTITY previousMsgButton.label "Previous">
-<!ENTITY previousMsgButton.tooltip "Move to the previous message">
-<!ENTITY replyNewsgroupCmd2.accesskey  "u">
-<!ENTITY replyNewsgroupCmd2.label "Followup to Newsgroup">
-<!-- LOCALIZATION NOTE (search.keyLabel.mac):
-     The description of the key-binding to get into the global search box on mac
-     systems.  We use the key defined in the quickSearchCmd.key entity defined
-     above, the letter should match it.
-     -->
-<!ENTITY search.keyLabel.mac "&lt;&#x2318;K&gt;">
-<!-- LOCALIZATION NOTE (search.keyLabel.nonmac):
-     The description of the key-binding to get into the global search box on
-     windows and linux (which use the control key).  We use the key defined in
-     the quickSearchCmd.key entity defined above, the letter should match it.
-     -->
-<!ENTITY search.keyLabel.nonmac "&lt;Ctrl+K&gt;">
-<!-- LOCALIZATION NOTE (search.label.base):
-     This is the base of the empty text for the global search box.  We replace
-     #1 with the contents of the appropriate search.keyLabel.* value for the
-     platform.
-     The goal is to convey to the user that typing in the box will allow them
-     to search for messages globally and that there is a hotkey they can press
-     to get to the box faster.  If the global indexer is disabled, the search
-     box will be collapsed and the user will never see this message.
-     -->
-<!ENTITY search.label.base "Search… #1">

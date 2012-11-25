@@ -81,3 +81,6 @@
 <!ENTITY channel.selector.cancelButton   "Hủy bỏ">
 
 <!ENTITY cmdCloseMac.commandKey "w">
+
+
+<!ENTITY update.applying            "Applying update…">

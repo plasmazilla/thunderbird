@@ -100,3 +100,11 @@
 <!ENTITY folderQuotaRoot.label                   "Gốc rễ Hạn mức:">
 <!ENTITY folderQuotaUsage.label                  "Sử dụng:">
 <!ENTITY folderQuotaStatus.label                 "Trạng thái:">
+
+
+<!ENTITY numberOfMessages.label                  "Number of messages:">
+<!-- LOCALIZATION NOTE: When the number of messages can't be determined, this string is displayed as the number -->
+<!ENTITY numberUnknown.label                     "unknown">
+<!ENTITY sizeOnDisk.label                        "Size on disk:">
+<!-- LOCALIZATION NOTE: When the size can't be determined, this string is displayed as the size -->
+<!ENTITY sizeUnknown.label                       "unknown">

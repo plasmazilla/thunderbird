@@ -29,3 +29,6 @@
 <!ENTITY askMe.label                  "Запитване">
 <!ENTITY alwaysSend.label             "Винаги изпраща">
 <!ENTITY neverSend.label              "Никога не изпраща">
+
+<!ENTITY globalReceipts.accesskey     "G">
+<!ENTITY globalReceipts.label         "Global Preferences…">

@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!-- Entities for AccountWizard -->
 
 <!ENTITY windowTitle.label "Assistent per contos">
@@ -67,7 +71,7 @@
 <!-- LOCALIZATION NOTE (outgoingServer.description) : Do not translate "SMTP" and "&quot;smtp.example.net&quot;" in below line -->
 <!ENTITY outgoingServer.description "Endatescha il num da tes server da sortida (SMTP) (per exempel &quot;smtp.example.net&quot;).">
 <!ENTITY outgoingServer.label "Server da sortida:">
-<!ENTITY outgoingServer.accesskey "x">
+<!ENTITY outgoingServer.accesskey "s">
 <!ENTITY outgoingUsername.description "Endatescha il num d'utilisader per il server da sortida che ti has retschavì da tes purschider dad e-mail (quai è per ordinari il medem sco il num d'utilisader dal server d'entrada).">
 <!ENTITY outgoingUsername.label "Num d'utilisader dal server da sortida:">
 <!ENTITY outgoingUsername.accesskey "U">

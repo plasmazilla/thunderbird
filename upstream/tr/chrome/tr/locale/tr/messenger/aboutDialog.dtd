@@ -64,3 +64,6 @@
 
 <!ENTITY cmdCloseMac.commandKey "w">
 
+
+
+<!ENTITY update.applying            "Applying update…">

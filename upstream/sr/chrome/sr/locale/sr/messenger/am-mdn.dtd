@@ -26,3 +26,6 @@
 <!ENTITY alwaysSend.label             "Увек шаљи">
 <!ENTITY neverSend.label              "Не шаљи никад">
 
+
+<!ENTITY globalReceipts.accesskey     "G">
+<!ENTITY globalReceipts.label         "Global Preferences…">

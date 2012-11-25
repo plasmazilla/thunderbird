@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY onlineContactsHeader.label "Contacts en ligne">
 <!ENTITY offlineContactsHeader.label "Contacts déconnectés">
 <!ENTITY conversationsHeader.label "Conversations">
@@ -28,8 +32,8 @@
 <!ENTITY openConversationButton.tooltip "Démarrer une conversation">
 <!ENTITY closeConversationButton.tooltip "Fermer une conversation">
 
-<!ENTITY addBuddyButton.label "Ajouter le contact">
-<!ENTITY joinChatButton.label "Rejoindre la messagerie instantanée">
+<!ENTITY addBuddyButton.label "Ajouter un contact">
+<!ENTITY joinChatButton.label "Rejoindre une discussion">
 <!ENTITY chatAccountsButton.label "Afficher les comptes">
 
 <!ENTITY status.available "Disponible">

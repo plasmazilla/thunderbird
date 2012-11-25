@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY itemJunk.label          "Skräppost">
 <!ENTITY itemPhishing.label      "E-postbluffar">
 <!ENTITY itemPasswords.label     "Lösenord">
@@ -14,8 +18,8 @@
 <!ENTITY manualMarkModeDelete.accesskey "T">
 <!ENTITY markAsReadOnSpam.label "Märk skräpklassade meddelanden som lästa">
 <!ENTITY markAsReadOnSpam.accesskey "M">
-<!ENTITY enableJunkLogging.label "Aktivera loggning av skräppostfiltret">
-<!ENTITY enableJunkLogging.accesskey "A">
+<!ENTITY enableAdaptiveJunkLogging.label "Aktivera loggning av skräppostfiltret">
+<!ENTITY enableAdaptiveJunkLogging.accesskey "A">
 <!ENTITY openJunkLog.label "Visa logg">
 <!ENTITY openJunkLog.accesskey "V">
 <!ENTITY resetTrainingData.label "Återställ träningsdata">
@@ -57,9 +61,6 @@
 <!ENTITY  showCookies.label             "Visa kakor…">
 <!ENTITY  showCookies.accesskey         "V">
 
-<!ENTITY doNotTrack.accesskey           "d">
-
 <!-- Do Not Track -->
-<!ENTITY doNotTrack.label               "Tell web sites I do not want to be tracked">
-<!ENTITY enableAdaptiveJunkLogging.accesskey "E">
-<!ENTITY enableAdaptiveJunkLogging.label "Enable adaptive junk filter logging">
+<!ENTITY doNotTrack.label               "Tala om för webbsidor att jag inte vill spåras">
+<!ENTITY doNotTrack.accesskey           "i">

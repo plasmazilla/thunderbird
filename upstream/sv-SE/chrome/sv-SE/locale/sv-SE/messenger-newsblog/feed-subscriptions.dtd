@@ -1,34 +1,37 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!-- Subscription Dialog -->
-<!ENTITY feedSubscriptions.label      "RSS-prenumerationer">
-<!ENTITY subscriptionDesc.label       "Notera: Tar du bort eller ändrar mappen för en kanal påverkas inte tidigare hämtade artiklar.">
-<!ENTITY feedTitle.label              "Titel:">
-<!ENTITY location.label               "Plats:">
+<!ENTITY feedSubscriptions.label     "RSS-prenumerationer">
+<!ENTITY subscriptionDesc.label      "Obs: Att ta bort eller ändra mappen för en kanal påverkar inte tidigare hämtade artiklar.">
 
-<!ENTITY button.addFeed.label         "Lägg till">
-<!ENTITY button.addFeed.accesskey     "L">
-<!ENTITY button.editFeed.label        "Redigera">
-<!ENTITY button.editFeed.accesskey    "R">
-<!ENTITY button.removeFeed.label      "Ta bort">
-<!ENTITY button.removeFeed.accesskey  "T">
-<!ENTITY button.importOPML.label      "Importera">
-<!ENTITY button.importOPML.accesskey  "I">
-<!ENTITY button.exportOPML.label      "Exportera">
-<!ENTITY button.exportOPML.accesskey  "E">
-
-<!ENTITY cmd.close.commandKey         "w">
-
-<!ENTITY button.exportOPML.tooltip   "Export Feeds with folder structure; ctrl click or ctrl enter to export Feeds as a list">
-<!ENTITY feedFolder.accesskey        "S">
-
-<!ENTITY feedFolder.label            "Store Articles in:">
-<!ENTITY feedLocation.accesskey      "U">
-
-<!ENTITY feedLocation.label          "Feed URL:">
-<!ENTITY feedLocation.placeholder    "Enter a valid feed url to Add">
+<!ENTITY feedTitle.label             "Titel:">
 <!ENTITY feedTitle.accesskey         "T">
 
-<!ENTITY locationValidate.label      "Validate">
-<!ENTITY quickMode.accesskey         "h">
+<!ENTITY feedLocation.label          "Kanal-URL:">
+<!ENTITY feedLocation.accesskey      "U">
+<!ENTITY feedLocation.placeholder    "Ange en giltig kanal-URL för att lägga till">
 
-<!ENTITY quickMode.label             "Show the article summary instead of loading the web page">
-<!ENTITY validateText.label          "Check validation and retrieve a valid url.">
+<!ENTITY feedFolder.label            "Lagra artiklar i:">
+<!ENTITY feedFolder.accesskey        "L">
+
+<!ENTITY quickMode.label             "Visa sammanfattning för artikeln istället för att läsa in webbsidan">
+<!ENTITY quickMode.accesskey         "V">
+
+<!ENTITY locationValidate.label      "Validera">
+<!ENTITY validateText.label          "Kontrollera validering och hämta en giltig webbadress.">
+
+<!ENTITY button.addFeed.label        "Lägg till">
+<!ENTITY button.addFeed.accesskey    "L">
+<!ENTITY button.editFeed.label       "Redigera">
+<!ENTITY button.editFeed.accesskey   "R">
+<!ENTITY button.removeFeed.label     "Ta bort">
+<!ENTITY button.removeFeed.accesskey "T">
+<!ENTITY button.importOPML.label     "Importera">
+<!ENTITY button.importOPML.accesskey "I">
+<!ENTITY button.exportOPML.label     "Exportera">
+<!ENTITY button.exportOPML.accesskey "E">
+<!ENTITY button.exportOPML.tooltip   "Exporta kanaler med mappstruktur; ctrl klick eller ctrl enter för arr exportera kanaler som en lista">
+
+<!ENTITY cmd.close.commandKey        "w">

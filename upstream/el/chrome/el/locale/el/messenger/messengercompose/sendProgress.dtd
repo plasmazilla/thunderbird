@@ -1,3 +1,8 @@
 <!ENTITY sendWindow.title "Αποστολή μηνυμάτων">
 <!ENTITY status.label "Κατάσταση:">
 <!ENTITY progress.label "Πρόοδος:">
+
+
+
+<!--LOCALIZATION NOTE sendprogress.dtd Main UI for Send Message Progress Dialog -->
+<!ENTITY sendDialog.title "Processing Message">

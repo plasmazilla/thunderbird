@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!-- for SearchDialog.xul -->
 <!ENTITY searchHeading.label         "Retschertgar ils messadis en:">
 <!ENTITY searchHeading.accesskey     "h">
@@ -14,7 +18,7 @@
 <!ENTITY searchDialogTitle.label     "Tschertgar messadis">
 <!ENTITY results.label               "Resultats">
 <!ENTITY fileHereMenu.label          "Spustar nà qua">
-<!ENTITY fileHereMenu.accesskey      "F">
+<!ENTITY fileHereMenu.accesskey      "n">
 <!ENTITY fileButton.label            "Datoteca">
 <!ENTITY fileButton.accesskey        "D">
 <!ENTITY closeCmd.key                "W"> 

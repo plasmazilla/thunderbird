@@ -103,3 +103,8 @@
 <!ENTITY OpenMessageForMsgId.accesskey "n">
 <!ENTITY OpenBrowserWithMsgId.label "Opne nettlesar med meldings-ID">
 <!ENTITY OpenBrowserWithMsgId.accesskey "e">
+
+<!ENTITY startExpandedCmd.accesskey    "S">
+
+<!-- Attachment bar context menu items -->
+<!ENTITY startExpandedCmd.label    "Initially Show Attachment Pane">

@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY aboutSupport.pageTitle "Informação sobre resolução de problemas">
 
 <!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
@@ -47,14 +51,13 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.jsTitle "JavaScript">
 <!ENTITY aboutSupport.jsIncrementalGC "Incremental GC">
 
+<!ENTITY aboutSupport.a11yTitle "Acessibilidade">
+<!ENTITY aboutSupport.a11yActivated "Ativado">
+<!ENTITY aboutSupport.a11yForceDisabled "Prevenir acessibilidade">
+
 <!ENTITY aboutSupport.libraryVersionsTitle "Versões da biblioteca">
 
 <!ENTITY aboutSupport.installationHistoryTitle "Histórico de instalação">
 <!ENTITY aboutSupport.updateHistoryTitle "Atualizar histórico">
 
 <!ENTITY aboutSupport.copyToClipboard.label "Copiar tudo para o clipboard">
-
-<!ENTITY aboutSupport.a11yActivated "Activated">
-<!ENTITY aboutSupport.a11yForceDisabled "Prevent Accessibility">
-
-<!ENTITY aboutSupport.a11yTitle "Accessibility">

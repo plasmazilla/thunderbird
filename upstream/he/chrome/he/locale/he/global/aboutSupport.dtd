@@ -1,15 +1,7 @@
-<!--
-# Translator(s):
-#
-# elad <el.il@doom.co.il>
-# Yaron <sh.yaron@gmail.com>
-# Tomer Cohen <tomer.mozilla@tomercohen.com>
-#
-# Reviewer(s):
-#
-# Tomer Cohen <tomer.mozilla@tomercohen.com>
-#
--->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY aboutSupport.pageTitle "מידע לפתרון בעיות">
 
 <!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
@@ -26,7 +18,13 @@
 <!ENTITY aboutSupport.appBasicsTitle "מידע יישום בסיסי">
 <!ENTITY aboutSupport.appBasicsName "שם">
 <!ENTITY aboutSupport.appBasicsVersion "גרסה">
+
 <!ENTITY aboutSupport.appBasicsProfileDir "תיקיית פרופיל">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
+This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
+Windows/Mac use the term "Folder" instead of "Directory" -->
+<!ENTITY aboutSupport.appBasicsProfileDirWinMac "תיקיית פרופיל">
+
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "תוספים חיצוניים פעילים">
 <!ENTITY aboutSupport.appBasicsBuildConfig "הגדרות בנייה">
 <!ENTITY aboutSupport.appBasicsUserAgent "סוכן משתמש">
@@ -34,7 +32,6 @@
 <!ENTITY aboutSupport.appBasicsMemoryUse "שימוש בזכרון">
 
 <!ENTITY aboutSupport.showDir.label "פתיחת תיקייה">
-
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
 variant of aboutSupport.showDir.label.  This allows us to use the preferred
 "Finder" terminology on Mac. -->
@@ -49,22 +46,17 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.graphicsTitle "גרפיקה">
 
+<!ENTITY aboutSupport.jsTitle "JavaScript">
+<!ENTITY aboutSupport.jsIncrementalGC "איסוף זבל מצטבר">
+
+<!ENTITY aboutSupport.a11yTitle "נגישות">
+<!ENTITY aboutSupport.a11yActivated "מופעל">
+<!ENTITY aboutSupport.a11yForceDisabled "מניעת נגישות">
+
+<!ENTITY aboutSupport.libraryVersionsTitle "גרסאות ספריה">
+
 <!ENTITY aboutSupport.installationHistoryTitle "היסטוריית התקנות">
 <!ENTITY aboutSupport.updateHistoryTitle "היסטוריית עדכונים">
 
 <!ENTITY aboutSupport.copyToClipboard.label "העתק הכול ללוח">
 
-
-<!ENTITY aboutSupport.a11yActivated "Activated">
-<!ENTITY aboutSupport.a11yForceDisabled "Prevent Accessibility">
-
-<!ENTITY aboutSupport.a11yTitle "Accessibility">
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
-This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
-Windows/Mac use the term "Folder" instead of "Directory" -->
-<!ENTITY aboutSupport.appBasicsProfileDirWinMac "Profile Folder">
-<!ENTITY aboutSupport.jsIncrementalGC "Incremental GC">
-
-<!ENTITY aboutSupport.jsTitle "JavaScript">
-
-<!ENTITY aboutSupport.libraryVersionsTitle "Library Versions">

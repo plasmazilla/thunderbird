@@ -5,6 +5,5 @@
 <!ENTITY identitiesListEdit.accesskey "П">
 <!ENTITY identitiesListDelete.label "Выдаліць">
 <!ENTITY identitiesListDelete.accesskey "В">
-
-<!ENTITY identitiesListClose.accesskey "C">
-<!ENTITY identitiesListClose.label "Close">
+<!ENTITY identitiesListClose.label "Зачыніць">
+<!ENTITY identitiesListClose.accesskey "ч">

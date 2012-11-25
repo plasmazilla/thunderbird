@@ -25,3 +25,6 @@
 <!ENTITY askMe.label                  "Spør meg">
 <!ENTITY alwaysSend.label             "Alltid send">
 <!ENTITY neverSend.label              "Aldri send">
+
+<!ENTITY globalReceipts.accesskey     "G">
+<!ENTITY globalReceipts.label         "Global Preferences…">

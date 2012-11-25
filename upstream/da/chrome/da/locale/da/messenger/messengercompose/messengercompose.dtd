@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!--LOCALIZATION NOTE messengercompose.dtd Main UI for message composition -->
 <!ENTITY msgComposeWindow.title "Skriv: (intet emne)">
 
@@ -65,9 +69,9 @@
 <!ENTITY copyCmd.label "Kopier">
 <!ENTITY copyCmd.key "C">
 <!ENTITY copyCmd.accesskey "o">
-<!ENTITY pasteCmd.label "Sæt ind">
+<!ENTITY pasteCmd.label "Indsæt">
 <!ENTITY pasteCmd.key "V">
-<!ENTITY pasteCmd.accesskey "i">
+<!ENTITY pasteCmd.accesskey "æ">
 <!ENTITY pasteNoFormattingCmd.key "V">
 <!ENTITY pasteAsQuotationCmd.key "o">
 <!ENTITY editRewrapCmd.label "Ombryd igen">
@@ -83,7 +87,7 @@
 <!ENTITY findCmd.label "Find og erstat…">
 <!ENTITY findCmd.key "F">
 <!ENTITY findCmd.accesskey "e">
-<!ENTITY findAgainCmd.label "Find igen">
+<!ENTITY findAgainCmd.label "Find næste">
 <!ENTITY findAgainCmd.key "G">
 <!ENTITY findAgainCmd.accesskey "n">
 <!ENTITY findAgainCmd.key2 "VK_F3">
@@ -148,7 +152,7 @@
 <!ENTITY priorityMenu.label "Prioritet">
 <!ENTITY priorityMenu.accesskey "p">
 <!ENTITY priorityButton.label "Prioritet:">
-<!ENTITY lowestPriorityCmd.label "Lavest">
+<!ENTITY lowestPriorityCmd.label "Laveste">
 <!ENTITY lowestPriorityCmd.accesskey "a">
 <!ENTITY lowPriorityCmd.label "Lav">
 <!ENTITY lowPriorityCmd.accesskey "L">
@@ -156,7 +160,7 @@
 <!ENTITY normalPriorityCmd.accesskey "n">
 <!ENTITY highPriorityCmd.label "Høj">
 <!ENTITY highPriorityCmd.accesskey "h">
-<!ENTITY highestPriorityCmd.label "Højest">
+<!ENTITY highestPriorityCmd.label "Højeste">
 <!ENTITY highestPriorityCmd.accesskey "ø">
 <!ENTITY fileCarbonCopyCmd.label "Send en kopi til">
 <!ENTITY fileCarbonCopyCmd.accesskey "k">
@@ -254,7 +258,7 @@
 <!ENTITY cut.accesskey "k">
 <!ENTITY copy.label "Kopier">
 <!ENTITY copy.accesskey "o">
-<!ENTITY paste.label "Sæt ind">
+<!ENTITY paste.label "Indsæt">
 <!ENTITY paste.accesskey "æ">
 <!ENTITY pasteQuote.label "Indsæt som citat">
 <!ENTITY pasteQuote.accesskey "c">

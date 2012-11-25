@@ -103,3 +103,8 @@
 <!ENTITY OpenMessageForMsgId.accesskey "О">
 <!ENTITY OpenBrowserWithMsgId.label "Отваряне на браузър с Message-ID">
 <!ENTITY OpenBrowserWithMsgId.accesskey "б">
+
+<!ENTITY startExpandedCmd.accesskey    "S">
+
+<!-- Attachment bar context menu items -->
+<!ENTITY startExpandedCmd.label    "Initially Show Attachment Pane">

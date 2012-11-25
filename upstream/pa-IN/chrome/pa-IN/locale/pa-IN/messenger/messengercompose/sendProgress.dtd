@@ -2,3 +2,8 @@
 <!ENTITY sendWindow.title "ਸੁਨੇਹੇ ਭੇਜੇ ਜਾ ਰਹੇ ਹਨ"> 
 <!ENTITY status.label "ਹਾਲਤ:">
 <!ENTITY progress.label "ਤਰੱਕੀ:">
+
+
+
+<!--LOCALIZATION NOTE sendprogress.dtd Main UI for Send Message Progress Dialog -->
+<!ENTITY sendDialog.title "Processing Message">

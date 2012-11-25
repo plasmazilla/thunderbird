@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!-- Subscription Dialog -->
 <!ENTITY feedSubscriptions.label "Pajtime Në Prurje">
 <!ENTITY subscriptionDesc.label "Shënim: Heqja apo ndryshimi i dosjes për prurjet nuk do të prekë artikuj të shkarkuar më parë.">
@@ -31,4 +35,4 @@
 
 <!ENTITY cmd.close.commandKey             "w">
 
-<!ENTITY button.exportOPML.tooltip   "Export Feeds with folder structure; ctrl click or ctrl enter to export Feeds as a list">
+<!ENTITY button.exportOPML.tooltip   "Eksportojini Prurjet me strukturë dosjesh; ctrl klik ose ctrl enter që të eksportohen Prurje si një listë">

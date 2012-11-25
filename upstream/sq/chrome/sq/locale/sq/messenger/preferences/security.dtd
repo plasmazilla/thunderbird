@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY itemJunk.label          "E pavlerë">
 <!ENTITY itemPhishing.label      "Sajesa E-mail">
 <!ENTITY itemPasswords.label     "Fjalëkalime">
@@ -60,7 +64,6 @@
 <!ENTITY showCookies.label              "Shfaqni &quot;Cookie&quot;-t…">
 <!ENTITY showCookies.accesskey          "S">
 
-<!ENTITY doNotTrack.accesskey           "d">
-
 <!-- Do Not Track -->
-<!ENTITY doNotTrack.label               "Tell web sites I do not want to be tracked">
+<!ENTITY doNotTrack.label               "Tregoju site-eve web që nuk dua të më gjurmojnë">
+<!ENTITY doNotTrack.accesskey           "T">
