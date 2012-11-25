@@ -123,8 +123,10 @@ endif
 
 ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 	DEB_PARALLEL_JOBS ?= $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-	MAKEFLAGS += -j$(DEB_PARALLEL_JOBS)
+else
+	DEB_PARALLEL_JOBS += $(shell getconf _NPROCESSORS_ONLN)
 endif
+MAKEFLAGS += -j$(DEB_PARALLEL_JOBS)
 
 ifneq (,$(filter kfreebsd-% hurd-%,$(DEB_BUILD_ARCH)))
 	DEB_CONFIGURE_USER_FLAGS += --disable-necko-wifi
