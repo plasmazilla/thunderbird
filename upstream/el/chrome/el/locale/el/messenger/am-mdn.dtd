@@ -24,3 +24,6 @@
 <!ENTITY askMe.label "Να γίνεται ερώτηση">
 <!ENTITY alwaysSend.label "Να γίνεται πάντα αποστολή">
 <!ENTITY neverSend.label "Να μη γίνεται αποστολή">
+
+<!ENTITY globalReceipts.accesskey     "G">
+<!ENTITY globalReceipts.label         "Global Preferences…">

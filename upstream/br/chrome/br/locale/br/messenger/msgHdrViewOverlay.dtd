@@ -29,7 +29,7 @@
 <!ENTITY hdrReplyButton1.label "Respont">
 <!ENTITY hdrReplyButton2.tooltip "Respont da gaser ar gemennadenn-mañ">
 <!ENTITY hdrReplyAllButton1.label "Respont d'an holl">
-<!ENTITY hdrReplyAllButton1.tooltip "Respont d'ar c'haser ha d'an holl zegemerien">
+<!ENTITY hdrReplyAllButton1.tooltip "Respont d'ar c'haser ha d'an holl zegemererien">
 <!ENTITY hdrReplyListButton1.label "Respont d'ar roll">
 <!ENTITY hdrReplyListButton1.tooltip "Respont d'ar roll skignañ">
 <!ENTITY hdrFollowupButton1.label "Respont d'ar strollad-keleier">
@@ -67,6 +67,10 @@
 <!ENTITY viewSourceMenuItem1.accesskey "G">
 <!ENTITY otherActionsPrint1.label "Moullañ…">
 <!ENTITY otherActionsPrint1.accesskey "M">
+
+<!-- Attachment bar context menu items -->
+<!ENTITY startExpandedCmd.label    "Diskouez penel ar c'henstagadurioù dre ziouer">
+<!ENTITY startExpandedCmd.accesskey    "i">
 
 <!-- Attachment context menu items -->
 <!ENTITY openAttachmentCmd.label    "Digeriñ">

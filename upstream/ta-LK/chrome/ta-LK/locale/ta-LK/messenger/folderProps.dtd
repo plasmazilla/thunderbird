@@ -106,3 +106,11 @@ Entities below were automatically added by compare-locales,
 <!ENTITY folderRebuildSummaryFileTip2.label "Rebuild Summary File Index">
 <!ENTITY folderCheckForNewMessages2.accesskey "c">
 <!ENTITY folderRebuildSummaryFile2.accesskey "R">
+
+
+<!ENTITY numberOfMessages.label                  "Number of messages:">
+<!-- LOCALIZATION NOTE: When the number of messages can't be determined, this string is displayed as the number -->
+<!ENTITY numberUnknown.label                     "unknown">
+<!ENTITY sizeOnDisk.label                        "Size on disk:">
+<!-- LOCALIZATION NOTE: When the size can't be determined, this string is displayed as the size -->
+<!ENTITY sizeUnknown.label                       "unknown">

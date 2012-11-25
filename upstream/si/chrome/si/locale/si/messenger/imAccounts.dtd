@@ -1,5 +1,5 @@
 <!ENTITY accountsWindow.title                "Instant messaging status">
-<!ENTITY accountsWindow.style                "width: 28em; height: 19em;">
+<!ENTITY accountsWindow2.style               "width: 41em; height: 27em;">
 <!ENTITY accountManager.newAccount.label     "නව ගිණුමක්">
 <!ENTITY accountManager.newAccount.accesskey "N">
 <!ENTITY accountManager.close.label          "වසන්න">
@@ -24,5 +24,3 @@
 <!ENTITY account.connecting           "සම්බන්ධ වේ…">
 <!ENTITY account.disconnecting        "විසන්ධි වේ…">
 <!ENTITY account.disconnected         "සම්බන්ධව නැත">
-
-<!ENTITY accountsWindow2.style               "width: 41em; height: 27em;">

@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY  typeColumn.label        "Typ av innehåll">
 <!ENTITY  typeColumn.accesskey    "T">
 
@@ -18,18 +22,17 @@
 <!ENTITY chooseFolderMac.label        "Välj…">
 <!ENTITY chooseFolderMac.accesskey    "V">
 
-<!ENTITY addCloudFileAccount.accesskey    "A">
-<!ENTITY addCloudFileAccount.description  "Add a new Filelink storage service">
+<!ENTITY attachments.incoming.label   "Inkommande">
+<!ENTITY attachments.outgoing.label   "Utgående">
 
-<!ENTITY addCloudFileAccount.label        "Add">
+<!ENTITY addCloudFileAccount.label        "Lägg till">
+<!ENTITY addCloudFileAccount.accesskey    "L">
+<!ENTITY addCloudFileAccount.description  "Lägg till en ny Filelink lagringstjänst">
+<!ENTITY removeCloudFileAccount.label     "Ta bort">
+<!ENTITY removeCloudFileAccount.accesskey "T">
+<!ENTITY authRequired.description         "Ditt tillstånd krävs för att se inställningarna för lagringstjänsten.">
+<!ENTITY authRequired.button.label        "Godkänna">
+<!ENTITY authRequired.button.accesskey    "G">
 
-<!ENTITY attachments.incoming.label   "Incoming">
-<!ENTITY attachments.outgoing.label   "Outgoing">
-<!ENTITY authRequired.button.accesskey    "U">
-<!ENTITY authRequired.button.label        "Authorize">
-<!ENTITY authRequired.description         "Your authorization is required in order to see the settings for this storage service.">
-
-<!ENTITY enableCloudFileAccountOffer.label "Offer to share for files larger than">
+<!ENTITY enableCloudFileAccountOffer.label "Erbjuder dig att dela filer större än">
 <!ENTITY enableCloudFileAccountOffer.mb "MB">
-<!ENTITY removeCloudFileAccount.accesskey "R">
-<!ENTITY removeCloudFileAccount.label     "Remove">

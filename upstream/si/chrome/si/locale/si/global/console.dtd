@@ -65,6 +65,6 @@
 <!ENTITY codeEval.accesskey "o">
 <!ENTITY evaluate.label     "ඇගයීම">
 <!ENTITY evaluate.accesskey "v">
-<!ENTITY codeEval.label     "කේතය:">
+<!ENTITY filter.label       "පෙරනය">
 <!ENTITY filter.accesskey   "F">
-<!ENTITY filter.label       "Filter">
+<!ENTITY codeEval.label     "කේතය:">

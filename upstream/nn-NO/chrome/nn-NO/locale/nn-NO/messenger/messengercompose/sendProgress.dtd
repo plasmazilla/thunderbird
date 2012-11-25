@@ -2,3 +2,8 @@
 <!ENTITY sendWindow.title "Sender meldingar"> 
 <!ENTITY status.label "Status:">
 <!ENTITY progress.label "Framdrift:">
+
+
+
+<!--LOCALIZATION NOTE sendprogress.dtd Main UI for Send Message Progress Dialog -->
+<!ENTITY sendDialog.title "Processing Message">

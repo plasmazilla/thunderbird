@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY window.title "מסננים להודעות">
 <!ENTITY nameColumn.label "שם מסנן">
 <!ENTITY activeColumn.label "מאופשר">
@@ -29,3 +33,11 @@
 <!ENTITY closeCmd.key "W"> 
 
 
+
+<!ENTITY reorderBottomButton "Move to Bottom">
+<!ENTITY reorderBottomButton.accessKey "B">
+<!ENTITY reorderBottomButton.toolTip "Rearrange filter so it executes after all others">
+<!ENTITY reorderTopButton "Move to Top">
+<!ENTITY reorderTopButton.accessKey "o">
+<!ENTITY reorderTopButton.toolTip "Rearrange filter so it executes before all others">
+<!ENTITY searchBox.emptyText "Search filters by name…">

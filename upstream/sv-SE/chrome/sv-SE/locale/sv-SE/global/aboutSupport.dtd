@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY aboutSupport.pageTitle "Felsökningsinformation">
 
 <!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
@@ -16,48 +20,44 @@
 <!ENTITY aboutSupport.appBasicsTitle "Programfakta">
 <!ENTITY aboutSupport.appBasicsName "Namn">
 <!ENTITY aboutSupport.appBasicsVersion "Version">
+
 <!ENTITY aboutSupport.appBasicsProfileDir "Profilmapp">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
+This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
+Windows/Mac use the term "Folder" instead of "Directory" -->
+<!ENTITY aboutSupport.appBasicsProfileDirWinMac "Profilmapp">
+
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Aktiva insticksmoduler">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Byggkonfiguration">
 <!ENTITY aboutSupport.appBasicsUserAgent "Användaragent">
 <!ENTITY aboutSupport.appBasicsCrashIDs "Kraschrapporter">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Minnesanvändning">
 
-<!ENTITY aboutSupport.show.label "Öppna mapp">
-
+<!ENTITY aboutSupport.showDir.label "Öppna katalog">
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
 variant of aboutSupport.show.label.  This allows us to use the preferred
 "Finder" terminology on Mac. -->
 <!ENTITY aboutSupport.showMac.label "Visa i Finder">
+<!-- LOCALIZATION NOTE (aboutSupport.showWin.label): This is the Windows-specific
+variant of aboutSupport.showDir.label. -->
+<!ENTITY aboutSupport.showWin.label "Öppna mapp">
 
-<!ENTITY aboutSupport.modifiedPrefsTitle "Modifierade inställningar">
+<!ENTITY aboutSupport.modifiedKeyPrefsTitle "Viktiga ändrade inställningar">
 <!ENTITY aboutSupport.modifiedPrefsName "Namn">
 <!ENTITY aboutSupport.modifiedPrefsValue "Värde">
 
 <!ENTITY aboutSupport.graphicsTitle "Grafik">
 
+<!ENTITY aboutSupport.jsTitle "JavaScript">
+<!ENTITY aboutSupport.jsIncrementalGC "Incremental GC">
+
+<!ENTITY aboutSupport.a11yTitle "Tillgänglighet">
+<!ENTITY aboutSupport.a11yActivated "Aktiverad">
+<!ENTITY aboutSupport.a11yForceDisabled "Förhindra tillgänglighet">
+
+<!ENTITY aboutSupport.libraryVersionsTitle "Biblioteksversioner">
+
 <!ENTITY aboutSupport.installationHistoryTitle "Installationshistorik">
 <!ENTITY aboutSupport.updateHistoryTitle "Uppdateringshistorik">
 
 <!ENTITY aboutSupport.copyToClipboard.label "Kopiera allt till urklipp">
-
-<!ENTITY aboutSupport.a11yActivated "Activated">
-<!ENTITY aboutSupport.a11yForceDisabled "Prevent Accessibility">
-
-<!ENTITY aboutSupport.a11yTitle "Accessibility">
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
-This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
-Windows/Mac use the term "Folder" instead of "Directory" -->
-<!ENTITY aboutSupport.appBasicsProfileDirWinMac "Profile Folder">
-<!ENTITY aboutSupport.jsIncrementalGC "Incremental GC">
-
-<!ENTITY aboutSupport.jsTitle "JavaScript">
-
-<!ENTITY aboutSupport.libraryVersionsTitle "Library Versions">
-
-<!ENTITY aboutSupport.modifiedKeyPrefsTitle "Important Modified Preferences">
-
-<!ENTITY aboutSupport.showDir.label "Open Directory">
-<!-- LOCALIZATION NOTE (aboutSupport.showWin.label): This is the Windows-specific
-variant of aboutSupport.showDir.label. -->
-<!ENTITY aboutSupport.showWin.label "Show Folder">

@@ -34,3 +34,6 @@ Entities below were automatically added by compare-locales,
 <!ENTITY contribute.getInvolvedLink "ஈடுப்பட்டது!">
 <!ENTITY bottomLinks.rights "இறுதி பாவனையாளரின் உரிமைகள்">
 <!ENTITY community.start2 "&brandShortName; வடிவமைக்கப்பட்டது ">
+
+
+<!ENTITY update.applying            "Applying update…">

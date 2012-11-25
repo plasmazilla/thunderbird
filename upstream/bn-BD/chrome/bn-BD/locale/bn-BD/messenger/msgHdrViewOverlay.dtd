@@ -203,6 +203,10 @@
 <!ENTITY saveAttachmentButton1.label       "Save">
 <!ENTITY saveAttachmentButton1.tooltip     "Save the attached file">
 <!ENTITY senderField3.label "Sender ">
+<!ENTITY startExpandedCmd.accesskey    "S">
+
+<!-- Attachment bar context menu items -->
+<!ENTITY startExpandedCmd.label    "Initially Show Attachment Pane">
 
 <!ENTITY subjectField3.label "Subject ">
 <!ENTITY tagsHdr3.label "Tags ">

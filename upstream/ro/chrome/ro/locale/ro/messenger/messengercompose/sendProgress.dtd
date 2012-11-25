@@ -9,3 +9,8 @@
 <!ENTITY status.label "Stare:">
 <!ENTITY progress.label "Progres:">
 
+
+
+
+<!--LOCALIZATION NOTE sendprogress.dtd Main UI for Send Message Progress Dialog -->
+<!ENTITY sendDialog.title "Processing Message">

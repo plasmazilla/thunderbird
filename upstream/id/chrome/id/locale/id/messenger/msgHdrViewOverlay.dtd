@@ -138,3 +138,7 @@
 <!ENTITY OpenBrowserWithMsgId.accesskey "P">
 
 <!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">
+<!ENTITY startExpandedCmd.accesskey    "S">
+
+<!-- Attachment bar context menu items -->
+<!ENTITY startExpandedCmd.label    "Initially Show Attachment Pane">

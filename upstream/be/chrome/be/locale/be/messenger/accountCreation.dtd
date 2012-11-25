@@ -48,8 +48,8 @@
 <!ENTITY technicaldetails.label "Тэхнічныя падрабязнасці.">
 <!ENTITY confirmWarning.label "Я разумею рызыку.">
 <!ENTITY confirmWarning.accesskey "р">
-<!ENTITY createAccount.label "Стварыць рахунак">
-<!ENTITY createAccount.accesskey "С">
+<!ENTITY doneAccount.label "Гатова">
+<!ENTITY doneAccount.accesskey "Г">
 <!ENTITY changeSettings.label "Змяніць наладжванні">
 <!ENTITY changeSettings.accesskey "З">
 <!ENTITY contactYourProvider.description "&brandShortName; можа дазволіць вам карыстацца вашай поштай з дамамогаю гэтых наладжванняў. Тым не менш, вы павінны паведаміць вашаму спраўніку ці дастаўшчыку э-пошты пра гэтыя няспраўныя злучэнні. Больш падрабязныя звесткі можна атрымаць у Thunderbird FAQ.">
@@ -58,9 +58,3 @@
 <!ENTITY insecureUnencrypted.description "Вашы э-пошта і здаткі апазнавання будуць дасылацца незашыфраванымі, таму іншыя людзі могуць лёгка прачытаць вашы лісты і пароль. &brandShortName; дазволіць вам атрымліваць вашу пошту, але вам трэба папрасіць вашага дастаўшчыка э-пошты наладзіць паслугач ужываць бяспечнае злучэнне.">
 <!ENTITY insecureSelfSigned.description "Паслугач ужывае пасведчанне, якому нельга давяраць, таму нельга быць упэўненым, што хтосьці не перарывае рух паміж &brandShortName; і вашым паслугачом. &brandShortName; &brandShortName; дазволіць вам карыстацца вашый поштай, але вы абавязкова павінны дамовіцца з вашым дастаўшчыком э-пошты пра наладжванне паслуга даверным пасведчаннем.">
 <!ENTITY secureServer.description "Віншаванні! Гэта бяспечны паслугач.">
-
-<!ENTITY doneAccount.accesskey           "D">
-<!-- LOCALIZATION NOTE (doneAccount.label): If there is a security warning
-     on the incoming or outgoing servers, then the page that pops up will
-     have this text in a button to continue by creating the account. -->
-<!ENTITY doneAccount.label               "Done">

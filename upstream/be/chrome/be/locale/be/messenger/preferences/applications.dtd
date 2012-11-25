@@ -13,19 +13,15 @@
 <!ENTITY chooseFolderWin.accesskey "А">
 <!ENTITY chooseFolderMac.label "Выбар…">
 <!ENTITY chooseFolderMac.accesskey "В">
-
-<!ENTITY addCloudFileAccount.accesskey    "A">
-<!ENTITY addCloudFileAccount.description  "Add a new Filelink storage service">
-
-<!ENTITY addCloudFileAccount.label        "Add">
-
-<!ENTITY attachments.incoming.label   "Incoming">
-<!ENTITY attachments.outgoing.label   "Outgoing">
-<!ENTITY authRequired.button.accesskey    "U">
-<!ENTITY authRequired.button.label        "Authorize">
-<!ENTITY authRequired.description         "Your authorization is required in order to see the settings for this storage service.">
-
-<!ENTITY enableCloudFileAccountOffer.label "Offer to share for files larger than">
-<!ENTITY enableCloudFileAccountOffer.mb "MB">
-<!ENTITY removeCloudFileAccount.accesskey "R">
-<!ENTITY removeCloudFileAccount.label     "Remove">
+<!ENTITY attachments.incoming.label "Уваходныя">
+<!ENTITY attachments.outgoing.label "Выходныя">
+<!ENTITY addCloudFileAccount.label "Дадаць">
+<!ENTITY addCloudFileAccount.accesskey "Д">
+<!ENTITY addCloudFileAccount.description "Дадаць новую службу сховішчаў Filelink">
+<!ENTITY removeCloudFileAccount.label "Прыняць">
+<!ENTITY removeCloudFileAccount.accesskey "П">
+<!ENTITY authRequired.description "Патрабуецца ваш дазвол, каб пабачыць наладжванні для службы сховішчаў.">
+<!ENTITY authRequired.button.label "Дазволіць">
+<!ENTITY authRequired.button.accesskey "з">
+<!ENTITY enableCloudFileAccountOffer.label "Прапанова дзяліцца файламі большымі, чым ">
+<!ENTITY enableCloudFileAccountOffer.mb "МБ">

@@ -2,10 +2,10 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY  startupAction.label         "When &brandShortName; starts:">
+<!ENTITY  startupAction.label         "När &brandShortName; startar:">
 <!ENTITY  startupAction.accesskey     "s">
-<!ENTITY  startupOffline.label        "Keep my Chat Accounts offline">
-<!ENTITY  startupConnectAuto.label    "Connect my chat accounts automatically">
+<!ENTITY  startupOffline.label        "Håll mina chattkonton offline">
+<!ENTITY  startupConnectAuto.label    "Anslut mina chattkonton automatiskt">
 
 <!-- LOCALIZATION NOTE: reportIdleAfter.label is displayed first, then
 there's a field where the user can enter a number, and itemTime is
@@ -13,12 +13,12 @@ displayed at the end of the line. The translations of the
 reportIdleAfter.label and idleTime parts don't have to mean the exact
 same thing as in English; please try instead to translate the whole
 sentence. -->
-<!ENTITY  reportIdleAfter.label         "Let my contacts know that I am Idle after">
+<!ENTITY  reportIdleAfter.label         "Låt mina kontakter veta att jag är Inaktiv efter">
 <!ENTITY  reportIdleAfter.accesskey     "I">
-<!ENTITY  idleTime                      "minutes of inactivity">
+<!ENTITY  idleTime                      "minuters inaktivitet">
 
-<!ENTITY  andSetStatusToAway.label      "and set my status to Away with this status message:">
-<!ENTITY  andSetStatusToAway.accesskey  "A">
+<!ENTITY  andSetStatusToAway.label      "och sätt min status till Borta med statusmeddelandet:">
+<!ENTITY  andSetStatusToAway.accesskey  "B">
 
-<!ENTITY  sendTyping.label              "Send typing notifications in conversations">
-<!ENTITY  sendTyping.accesskey          "t">
+<!ENTITY  sendTyping.label              "Skicka skrivmeddelanden i konversationer">
+<!ENTITY  sendTyping.accesskey          "k">

@@ -915,6 +915,17 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY showAllAppsCmdMac.label        "Arată-le pe toate">
 
 
+<!ENTITY appmenuButton.label "AppMenu">
+<!ENTITY appmenuButton.tooltip "Displays the Application Menu">
+<!ENTITY appmenuEditMenu.label "Edit">
+<!ENTITY appmenuNewContactCmd.label "Address Book Contact…">
+
+<!-- AppMenu Popup -->
+<!ENTITY appmenuNewMsgCmd.label "New Message">
+<!ENTITY appmenuQFBMenu.label "Quick Filter Bar">
+<!ENTITY appmenuToolbarLayout.label "Toolbar Layout…">
+<!ENTITY clearRecentHistory.accesskey "H">
+<!ENTITY clearRecentHistory.label "Clear Recent History…">
 <!ENTITY joinChatCmd.accesskey "o">
 <!ENTITY joinChatCmd.label "Join Chat…">
 

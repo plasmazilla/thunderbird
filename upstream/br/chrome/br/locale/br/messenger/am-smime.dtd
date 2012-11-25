@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY securityTitle.label "Diogelroez">
 <!ENTITY securityTab.label "Diogelroez">
 <!ENTITY securityHeading.label "A-benn kas ha degemer kemennadennoù sinet pe enrineget e vefe gwell deoc'h erspizañ un testeni sinañ niverel hag ivez un testeni enrinegañ.">
@@ -5,7 +9,7 @@
 <!ENTITY encryptionChoiceLabel.label "Arventennoù enrinegañ dre ziouer pa vez kaset kemennadennoù :">
 <!ENTITY neverEncrypt.label "Morse (na arverañ an enrinegañ)">
 <!ENTITY neverEncrypt.accesskey "n">
-<!ENTITY alwaysEncryptMessage.label "Azgoulennet (n'hall ket kas kemennadennoù anez ma vefe testenioù gant an holl zegemerion)">
+<!ENTITY alwaysEncryptMessage.label "Azgoulennet (n'hall ket kas kemennadennoù anez ma vefe testenioù gant an holl zegemererien)">
 <!ENTITY alwaysEncryptMessage.accesskey "u">
 <!ENTITY encryptionCert.message "Arverañ an testeni-mañ evit enrinegañ &amp; ezrinegañ ar c'hemennadennoù kaset deoc'h :">
 <!ENTITY digitalSign.certificate.button "Diuzañ…">

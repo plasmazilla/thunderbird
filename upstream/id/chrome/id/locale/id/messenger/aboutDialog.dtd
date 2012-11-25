@@ -63,3 +63,6 @@
 <!ENTITY channel.description.end    ". ">
 
 <!ENTITY cmdCloseMac.commandKey "w">
+
+
+<!ENTITY update.applying            "Applying update…">

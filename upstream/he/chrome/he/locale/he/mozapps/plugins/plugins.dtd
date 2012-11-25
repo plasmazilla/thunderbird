@@ -1,16 +1,3 @@
-<!--
-# Translator(s):
-#
-# http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
-# amire80 <amir.aharoni@mail.huji.ac.il>
-#
--->
-<!--
-# Reviewer(s):
-#
-# http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
-#
--->
 <!ENTITY pluginWizard.title                                  "שירות חיפוש תוספים">
 <!ENTITY pluginWizard.firstPage.title                        "ברוכים הבאים אל &pluginWizard.title;">
 
@@ -33,8 +20,20 @@
 <!ENTITY pluginWizard.finalPage.moreInfo.label               "מצא עוד על תוספים או חפש ידנית תוספים חסרים">
 <!ENTITY pluginWizard.finalPage.restart.label                "יש להפעיל מחדש את &brandShortName; כדי שהתוספים החיצוניים יתפקדו.">
 
-<!ENTITY missingPlugin                                       "נחוץ תוסף חיצוני כדי להציג תוכן זה.">
-<!ENTITY clickToPlayPlugin                                   "הקש כאן להפעלת התוסף.">
+<!-- LOCALIZATION NOTE (unsupportedPlatform.pre): Mobile only. Flash (the only plugin available on mobile)
+     is not supported on some devices. Include a trailing space as needed. -->
+<!ENTITY unsupportedPlatform.pre                             "אנו מצטערים, &brandShortName; אינו יכול להפעיל תוכן Flash על התקן זה.">
+<!-- LOCALIZATION NOTE (unsupportedPlatform.learnMore): Mobile only. This text is used to link to a SUMO page explaining why Flash is not
+     supported on this device. Use the unicode ellipsis char, \u2026, or use "..." if \u2026 doesn't suit traditions in your locale. -->
+<!ENTITY unsupportedPlatform.learnMore                       "מידע נוסף…">
+<!-- LOCALIZATION NOTE (unsupportedPlatform.post): Mobile only. Include text here if needed for your locale. -->
+<!ENTITY unsupportedPlatform.post                            "">
+
+<!ENTITY missingPlugin                                       "נחוץ תוסף חיצוני להצגת תוכן זה.">
+<!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
+<!ENTITY tapToPlayPlugin                                     "נא לגעת כאן להפעלת תוסף חיצוני.">
+<!ENTITY clickToPlayPlugin                                   "נא ללחוץ כאן להפעלת תוסף חיצוני.">
+<!ENTITY checkForUpdates                                     "בדיקת עדכונים…">
 <!ENTITY disabledPlugin                                      "תוסף חיצוני זה אינו פעיל.">
 <!ENTITY blockedPlugin.label                                 "תוסף זה נחסם כדי להגן עליך.">
 
@@ -55,18 +54,3 @@
 <!ENTITY report.failed                                       "השליחה נכשלה.">
 <!ENTITY report.unavailable                                  "אין דיווח זמין.">
 
-
-<!ENTITY checkForUpdates                                     "Check for updates…">
-<!ENTITY clickToPlayPluginVulnerableNoUpdate                 "Click here to activate vulnerable plugin (no update available).">
-<!ENTITY clickToPlayPluginVulnerableUpdateAvailable          "Click here to activate vulnerable plugin.">
-<!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
-<!ENTITY tapToPlayPlugin                                     "Tap here to activate plugin.">
-<!-- LOCALIZATION NOTE (unsupportedPlatform.learnMore): Mobile only. This text is used to link to a SUMO page explaining why Flash is not
-     supported on this device. Use the unicode ellipsis char, \u2026, or use "..." if \u2026 doesn't suit traditions in your locale. -->
-<!ENTITY unsupportedPlatform.learnMore                       "Learn More…">
-<!-- LOCALIZATION NOTE (unsupportedPlatform.post): Mobile only. Include text here if needed for your locale. -->
-<!ENTITY unsupportedPlatform.post                            "">
-
-<!-- LOCALIZATION NOTE (unsupportedPlatform.pre): Mobile only. Flash (the only plugin available on mobile)
-     is not supported on some devices. Include a trailing space as needed. -->
-<!ENTITY unsupportedPlatform.pre                             "We're very sorry, but &brandShortName; can't play Flash on this device. ">

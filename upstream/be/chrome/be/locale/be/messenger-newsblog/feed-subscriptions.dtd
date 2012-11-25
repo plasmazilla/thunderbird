@@ -1,31 +1,25 @@
 <!ENTITY feedSubscriptions.label "Падпіскі на жывільнік">
 <!ENTITY subscriptionDesc.label "Заўвага: выдаленне або змяненне папкі для жывільніка не закране папярэдне загружаныя артыкулы.">
 <!ENTITY feedTitle.label "Загаловак:">
-<!ENTITY location.label "Месцазнаходжанне:">
+<!ENTITY feedTitle.accesskey "г">
+<!ENTITY feedLocation.label "URL жывільніка:">
+<!ENTITY feedLocation.accesskey "U">
+<!ENTITY feedLocation.placeholder "Увядзіце спраўны URL жывільніка для дадання">
+<!ENTITY feedFolder.label "Захоўваць артыкулы ў:">
+<!ENTITY feedFolder.accesskey "З">
+<!ENTITY quickMode.label "Паказваць зводку артыкула замест сцягвання сеціўнай старонкі">
+<!ENTITY quickMode.accesskey "в">
+<!ENTITY locationValidate.label "Праверыць">
+<!ENTITY validateText.label "Правяраць і атрымліваць спраўны URL.">
 <!ENTITY button.addFeed.label "Дадаць">
 <!ENTITY button.addFeed.accesskey "Д">
-<!ENTITY button.editFeed.label "Правіць">
-<!ENTITY button.editFeed.accesskey "П">
+<!ENTITY button.editFeed.label "Абнавіць">
+<!ENTITY button.editFeed.accesskey "н">
 <!ENTITY button.removeFeed.label "Выдаліць">
 <!ENTITY button.removeFeed.accesskey "В">
 <!ENTITY button.importOPML.label "Імпартаваць">
 <!ENTITY button.importOPML.accesskey "І">
 <!ENTITY button.exportOPML.label "Экспартаваць">
 <!ENTITY button.exportOPML.accesskey "Э">
+<!ENTITY button.exportOPML.tooltip "Экспарт жывільнікаў у папках; ctrl-пстрык або ctrl-увод экспартуюць жывільнікі як спіс">
 <!ENTITY cmd.close.commandKey "w">
-
-<!ENTITY button.exportOPML.tooltip   "Export Feeds with folder structure; ctrl click or ctrl enter to export Feeds as a list">
-<!ENTITY feedFolder.accesskey        "S">
-
-<!ENTITY feedFolder.label            "Store Articles in:">
-<!ENTITY feedLocation.accesskey      "U">
-
-<!ENTITY feedLocation.label          "Feed URL:">
-<!ENTITY feedLocation.placeholder    "Enter a valid feed url to Add">
-<!ENTITY feedTitle.accesskey         "T">
-
-<!ENTITY locationValidate.label      "Validate">
-<!ENTITY quickMode.accesskey         "h">
-
-<!ENTITY quickMode.label             "Show the article summary instead of loading the web page">
-<!ENTITY validateText.label          "Check validation and retrieve a valid url.">

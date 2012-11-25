@@ -142,3 +142,7 @@ Entities below were automatically added by compare-locales,
 <!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">
 
 <!ENTITY openAttachment.tooltip "Open the attached file">
+<!ENTITY startExpandedCmd.accesskey    "S">
+
+<!-- Attachment bar context menu items -->
+<!ENTITY startExpandedCmd.label    "Initially Show Attachment Pane">

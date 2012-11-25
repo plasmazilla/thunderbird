@@ -15,6 +15,8 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey "E">
 <!ENTITY newIMAccountCmd.label "චැට් ගිණුම…">
 <!ENTITY newIMAccountCmd.accesskey "C">
+<!ENTITY newIMContactCmd.label "චැට් සබඳතාවය…">
+<!ENTITY newIMContactCmd.accesskey "h">
 <!ENTITY openMessageFileCmd.label "සුරැකූ ලිපියක් අරින්න...">
 <!ENTITY openMessageFileCmd.accesskey "O">
 <!ENTITY openAttachmentCmd.label "ඇමුණන්න">
@@ -453,6 +455,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY imStatus.unavailable        "නොපවතී">
 <!ENTITY imStatus.offline            "අසම්බන්ධිත">
 <!ENTITY imStatus.showAccounts       "ගිණුම් පෙන්වන්න…">
+<!ENTITY joinChatCmd.label "Join Chat…">
+<!ENTITY joinChatCmd.accesskey "o">
 <!ENTITY savedFiles.label "සුරැකූ ගොනු">
 <!ENTITY savedFiles.accesskey "l">
 <!ENTITY savedFiles.key "j">
@@ -468,6 +472,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY errorConsoleCmd.label "දෝෂ කොන්සෝලය">
 <!ENTITY errorConsoleCmd.accesskey "n">
 <!ENTITY errorConsoleCmd.commandkey "j">
+<!ENTITY clearRecentHistory.label "ආසන්න පෙරදෑ හිස් කරන්න…">
+<!ENTITY clearRecentHistory.accesskey "H">
 <!ENTITY filtersCmd.label "ලිපි පෙරහන්...">
 <!ENTITY filtersCmd.accesskey "F">
 <!ENTITY filtersApply.label "ෆෝල්ඩරය මත පෙරහන් ක්‍රියා ක.">
@@ -512,6 +518,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderLocationToolbarItem.title "ෆෝල්ඩර ස්ථානය">
 <!ENTITY tagButton.label "ටැග">
 <!ENTITY compactButton.label "සංයුක්ත">
+<!ENTITY appmenuButton.label "AppMenu">
 
 <!-- Mail Toolbar Tooltips-->
 <!ENTITY advancedButton.tooltip "වැඩිමනත් ලිපි සෙවුම">
@@ -542,10 +549,20 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY addressBookButton.tooltip "ලිපින පොතට යොමුවීමට">
 <!ENTITY tagButton.tooltip "ටැග් ලිපි">
 <!ENTITY compactButton.tooltip "තෝරාගත් ෆෝල්ඩරයෙන් මැකූ ලිපි ඉවත් කිරීමට">
+<!ENTITY appmenuButton.tooltip "යෙදවුම් මෙනුව පෙන්වයි">
+
+<!-- AppMenu Popup -->
+<!ENTITY appmenuNewMsgCmd.label "නව ලිපියක්">
+<!ENTITY appmenuNewContactCmd.label "ලිපින පොතේ සබඳතාවක්…">
+<!ENTITY appmenuEditMenu.label "සැකසුම්">
+<!ENTITY appmenuQFBMenu.label "ක්ෂණික පෙරහන් තීරුව">
+<!ENTITY appmenuToolbarLayout.label "මෙවලම්තීරු සැකසුම…">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "නව ටැගයක්…">
 <!ENTITY addNewTag.accesskey "N">
+<!ENTITY manageTags.label "ටැග් කළමනාකරණය…">
+<!ENTITY manageTags.accesskey "M">
 
 <!-- Folder Pane -->
 <!ENTITY folderColumn.label "නම">
@@ -713,7 +730,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
    of its descendents.  The user selects the folder using the same widget as the
    move to/copy to mechanism (via a series of popups).
   -->
-<!ENTITY columnPicker.applyToFolderAndChildren.label "Folder and its children…">
+<!ENTITY columnPicker.applyToFolderAndChildren.label "ෆෝල්ඩර සහ ඒවායේ කොටස්…">
 <!-- LOCALIZATION NOTE (columnPicker.thisFolder.label):
    This is used in the folder selection widget for the
    "columnPicker.applyToFolder.label" and
@@ -738,7 +755,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 
 
 <!-- Junk Bar -->
-<!ENTITY junkBarMessage1.label "නිසරු ලිපි">
+<!ENTITY junkBarMessage2.label "&brandShortName; මෙම ලිපිය නිසරු සේ සලකයි.">
 <!ENTITY junkBarButton1.label "නිසරු නොවූ">
 <!ENTITY junkInfoButton.label "?">
 
@@ -746,9 +763,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY remoteContentMessage2.label "ඔබගේ පෞද්ගලිකත්වය රැකීම සඳහා, &brandShortName; මෙම ලිපියේ දුරස්ථ අන්තර්ගතයන් අවහිර කර ඇත.">
 <!ENTITY loadRemoteContentButton3.label "දුරස්ථ අන්තර්ගතයන් පෙන්වන්න">
 <!-- Phishing Bar -->
-<!ENTITY phishingBarMessage2.label "This message may be a scam.">
+<!ENTITY phishingBarMessage2.label "මෙම ලිපිය වංචාකාරී (scam) එකක් විය හැකිය.">
 <!ENTITY removePhishingBarButton1.label "අවවාදය නොසලකා වරින්න">
-<!ENTITY reportPhishingError1.label "This message doesn't appear to be a scam.">
+<!ENTITY reportPhishingError1.label "මෙම ලිපිය වංචාකාරී (scam) එකක් සේ නොපෙනේ.">
 
 
 <!-- Quick Search Bar -->
@@ -875,13 +892,3 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY undoCloseTabCmd.commandkey "T">
 <!ENTITY toggleReadCmd.key "m">
 <!ENTITY markAsUnreadCmd.label "නොකියවූ ලෙස">
-
-<!ENTITY joinChatCmd.accesskey "o">
-<!ENTITY joinChatCmd.label "Join Chat…">
-
-<!-- Junk Bar -->
-<!ENTITY junkBarMessage2.label "&brandShortName; thinks this message is junk mail.">
-<!ENTITY manageTags.accesskey "M">
-<!ENTITY manageTags.label "Manage Tags…">
-<!ENTITY newIMContactCmd.accesskey "h">
-<!ENTITY newIMContactCmd.label "Chat Contact…">

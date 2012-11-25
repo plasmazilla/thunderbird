@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!--
 # Translator(s):
 #
@@ -51,9 +55,9 @@
 
 <!-- Cookies -->
 <!ENTITY cookies.intro                  "&brandShortName; מאפשר לך לקבוע איזה בלוגים, הזנות חדשות ואתרים אחרים מורשים להגדיר עוגיות.">
-<!ENTITY acceptCookies.label            "קבל עוגיות מאתרים">
-<!ENTITY acceptCookies.accesskey        "ע">
-<!ENTITY keepUntil.label                "שמור עד ש:">
+<!ENTITY acceptCookies.label            "קבלת עוגיות מאתרים">
+<!ENTITY acceptCookies.accesskey        "ק">
+<!ENTITY keepUntil.label                "שמירה עד ש:">
 <!ENTITY keepUntil.accesskey            "מ">
 <!ENTITY expire.label                   "הן פגות">
 <!ENTITY close.label                    "אני סוגר את &brandShortName;">

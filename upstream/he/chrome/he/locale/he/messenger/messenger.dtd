@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!--
 # Translator(s):
 #
@@ -891,8 +895,19 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY showAllAppsCmdMac.label        "הצג הכול">
 
 
+<!ENTITY appmenuButton.label "AppMenu">
+<!ENTITY appmenuButton.tooltip "Displays the Application Menu">
+<!ENTITY appmenuEditMenu.label "Edit">
+<!ENTITY appmenuNewContactCmd.label "Address Book Contact…">
+
+<!-- AppMenu Popup -->
+<!ENTITY appmenuNewMsgCmd.label "New Message">
+<!ENTITY appmenuQFBMenu.label "Quick Filter Bar">
+<!ENTITY appmenuToolbarLayout.label "Toolbar Layout…">
 <!ENTITY chatButton.label "Chat">
 <!ENTITY chatButton.tooltip "Show the Chat tab">
+<!ENTITY clearRecentHistory.accesskey "H">
+<!ENTITY clearRecentHistory.label "Clear Recent History…">
 <!ENTITY contextReplyNewsgroup2.accesskey "u">
 <!ENTITY contextReplyNewsgroup2.label "Followup to Newsgroup">
 <!ENTITY errorConsoleCmd.commandkey "j">

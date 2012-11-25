@@ -38,3 +38,6 @@
 <!ENTITY askMe.label                  "Հարցնել">
 <!ENTITY alwaysSend.label             "Միշտ ուղարկել">
 <!ENTITY neverSend.label              "Երբեք չուղարկել">
+
+<!ENTITY globalReceipts.accesskey     "G">
+<!ENTITY globalReceipts.label         "Global Preferences…">

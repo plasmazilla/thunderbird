@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY messengerStartPage.label       "&brandShortName;i avaleht">
 <!ENTITY enableStartPage.label          "&brandShortName;i käivitumisel näidatakse kirja alas avalehte">
 <!ENTITY enableStartPage.accesskey      "i">
@@ -27,9 +31,3 @@
 <!ENTITY customsound.accesskey          "e">
 <!ENTITY browse.label                   "Lehitse...">
 <!ENTITY browse.accesskey               "L">
-
-<!ENTITY addonsMgr.label                "Lisad">
-<!ENTITY manageAddonsDescWin.label      "Muuda oma lisade sätteid">
-<!ENTITY manageAddonsDescUnix2.label    "Muuda oma lisade eelistusi">
-<!ENTITY manageAddons.label             "Halda lisasid...">
-<!ENTITY manageAddons.accesskey         "H">

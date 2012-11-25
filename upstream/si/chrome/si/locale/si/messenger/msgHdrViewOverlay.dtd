@@ -61,9 +61,9 @@
 <!ENTITY hdrArchiveButton1.tooltip "මෙම ලිපි සංරක්ෂණය කරන්න">
 <!ENTITY hdrSmartReplyButton1.label "smart reply">
 <!ENTITY hdrReplyButton1.label "පිළිතුරු">
-<!ENTITY hdrReplyButton1.tooltip "මෙම ලිපියට පිළිතුරු යවන්න">
-<!ENTITY hdrReplyAllButton1.label "සැමට පිළිතුරු">
 <!ENTITY hdrReplyAllButton1.tooltip "එවන්නාට සහ සියළු ලබන්නන්ට පිළිතුරු යවන්න">
+<!ENTITY hdrReplyAllButton1.label "සැමට පිළිතුරු">
+<!ENTITY hdrReplyButton2.tooltip "එවන්නාට පිළිතුරු යවන්න">
 <!ENTITY hdrReplyListButton1.label "ලැයිස්තුවට පිළිතුරු">
 <!ENTITY hdrReplyListButton1.tooltip "ලැයිස්තුවට පිළිතුරු යවන්න">
 <!ENTITY hdrForwardButton1.label "යොමු කරන්න">
@@ -102,6 +102,10 @@
 <!ENTITY otherActionsPrint1.label "මුද්‍රණය…">
 <!ENTITY otherActionsPrint1.accesskey "p">
 
+<!-- Attachment bar context menu items -->
+<!ENTITY startExpandedCmd.label    "Initially Show Attachment Pane">
+<!ENTITY startExpandedCmd.accesskey    "S">
+
 <!ENTITY openAttachmentCmd.label    "විවෘත කරන්න">
 <!ENTITY openAttachmentCmd.accesskey		"O">
 <!ENTITY saveAsAttachmentCmd.label    "සුරකින්නේ මෙලෙස...">
@@ -136,5 +140,3 @@
 <!ENTITY saveAttachmentButton1.label "සුරකින්න">
 <!ENTITY detachAttachmentCmd.accesskey "T">
 <!ENTITY saveAllAttachmentsButton1.tooltip "ඇමුණුම් ගොනු සියල්ල සුරකින්න">
-
-<!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">

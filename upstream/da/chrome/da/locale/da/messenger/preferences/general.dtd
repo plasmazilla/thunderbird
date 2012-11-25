@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY messengerStartPage.label         "&brandShortName; startside">
 <!ENTITY enableStartPage.label "Vis startsiden i meddelelsesområdet, når &brandShortName; starter">
 <!ENTITY enableStartPage.accesskey "V">
@@ -26,10 +30,3 @@
 <!ENTITY customsound.accesskey            "n">
 <!ENTITY browse.label                     "Gennemse…">
 <!ENTITY browse.accesskey                 "e">
-
-<!ENTITY addonsMgr.label                  "Tilføjelser">
-<!ENTITY manageAddonsDescWin.label        "Skift indstillinger for dine tilføjelser">
-<!ENTITY manageAddonsDescUnix2.label      "Skift præferencer for dine tilføjelser">
-<!ENTITY manageAddons.label               "Administrer tilføjelser…">
-<!ENTITY manageAddons.accesskey           "m">
-

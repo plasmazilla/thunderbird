@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY  typeColumn.label            "Tipo de conteúdo">
 <!ENTITY  typeColumn.accesskey        "T">
 
@@ -23,7 +27,7 @@
 
 <!ENTITY addCloudFileAccount.label        "Adicionar">
 <!ENTITY addCloudFileAccount.accesskey    "A">
-<!ENTITY addCloudFileAccount.description  "Adicionar um serviço de armazenamento Filelink">
+<!ENTITY addCloudFileAccount.description  "Adicionar um serviço de armazenamento on-line">
 <!ENTITY removeCloudFileAccount.label     "Excluir">
 <!ENTITY removeCloudFileAccount.accesskey "x">
 <!ENTITY authRequired.description         "Sua autorização é necessária para verificar as configurações deste serviço de armazenamento.">
