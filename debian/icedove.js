@@ -1,11 +1,11 @@
 // This is the Debian specific preferences file for Mozilla Firefox
 // You can make any change in here, it is the purpose of this file.
 // You can, with this file and all files present in the
-// /etc/thunderbird/pref directory, override any preference that is
-// present in /usr/lib/thunderbird/defaults/pref directory.
+// /etc/icedove/pref directory, override any preference that is
+// present in /usr/lib/icedove/defaults/pref directory.
 // While your changes will be kept on upgrade if you modify files in
-// /etc/thunderbird/pref, please note that they won't be kept if you
-// do them in /usr/lib/thunderbird/defaults/pref.
+// /etc/icedove/pref, please note that they won't be kept if you
+// do them in /usr/lib/icedove/defaults/pref.
 
 pref("extensions.update.enabled", true);
 
