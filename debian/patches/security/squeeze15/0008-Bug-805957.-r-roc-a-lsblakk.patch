@@ -1,0 +1,25 @@
+From 035832dd9e316ae2c2628e52f910b8c0c14a96ad Mon Sep 17 00:00:00 2001
+From: Mats Palmgren <matspal@gmail.com>
+Date: Mon, 29 Oct 2012 23:07:26 +0100
+Subject: Bug 805957. r=roc a=lsblakk
+
+---
+ content/canvas/src/nsCanvasRenderingContext2D.cpp |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mozilla/content/canvas/src/nsCanvasRenderingContext2D.cpp b/mozilla/content/canvas/src/nsCanvasRenderingContext2D.cpp
+index e63f9ff..40999bf 100644
+--- a/mozilla/content/canvas/src/nsCanvasRenderingContext2D.cpp
++++ b/mozilla/content/canvas/src/nsCanvasRenderingContext2D.cpp
+@@ -3400,7 +3400,7 @@ nsCanvasRenderingContext2D::DrawWindow(nsIDOMWindow* aWindow, PRInt32 aX, PRInt3
+                                                nsnull, 0, &bgColor);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+-    nsIPresShell* presShell = presContext->PresShell();
++    nsCOMPtr<nsIPresShell> presShell = presContext->PresShell();
+     NS_ENSURE_TRUE(presShell, NS_ERROR_FAILURE);
+ 
+     nsRect r(nsPresContext::CSSPixelsToAppUnits(aX),
+-- 
+1.7.10.4
+

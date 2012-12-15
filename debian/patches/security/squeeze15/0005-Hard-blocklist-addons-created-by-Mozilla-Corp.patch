@@ -1,0 +1,40 @@
+From 9da55a0ec644c84fca96bb6c91f5a06af59fef3b Mon Sep 17 00:00:00 2001
+From: Mike Hommey <mh@glandium.org>
+Date: Fri, 7 Dec 2012 18:56:58 +0100
+Subject: Hard-blocklist addons created by "Mozilla Corp."
+
+---
+ toolkit/mozapps/extensions/src/nsExtensionManager.js.in |   10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/mozilla/toolkit/mozapps/extensions/src/nsExtensionManager.js.in b/mozilla/toolkit/mozapps/extensions/src/nsExtensionManager.js.in
+index 8a2facc..5379d61 100644
+--- a/mozilla/toolkit/mozapps/extensions/src/nsExtensionManager.js.in
++++ b/mozilla/toolkit/mozapps/extensions/src/nsExtensionManager.js.in
+@@ -4273,6 +4273,12 @@ ExtensionManager.prototype = {
+       return installData;
+     }
+     
++    // Check if the item is hard-blocklisted (bug 799266)
++    if (getManifestProperty(installManifest, "creator") == "Mozilla Corp.") {
++      installData.error = INSTALLERROR_BLOCKLISTED;
++      return installData;
++    }
++
+     // Check if the item is blocklisted.
+     if (!gBlocklist)
+       gBlocklist = Cc["@mozilla.org/extensions/blocklist;1"].
+@@ -8475,6 +8481,10 @@ ExtensionsDataSource.prototype = {
+    */
+   _rdfGet_blocklisted: function EMDS__rdfGet_blocklisted(item, property) {
+     var id = stripPrefix(item.Value, PREFIX_ITEM_URI);
++
++    // Check if the item is hard-blocklisted (bug 799266)
++    if (this.getItemProperty(id, "creator") == "Mozilla Corp.")
++      return EM_L("true");
+     var version = this.getItemProperty(id, "version");
+     if (!gBlocklist)
+       gBlocklist = Cc["@mozilla.org/extensions/blocklist;1"].
+-- 
+1.7.10.4
+

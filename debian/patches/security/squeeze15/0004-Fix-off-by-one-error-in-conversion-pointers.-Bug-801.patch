@@ -1,0 +1,30 @@
+From 8e88b81d0dfe38c71183ca2a69ea15e784b8eb00 Mon Sep 17 00:00:00 2001
+From: Simon Montagu <smontagu@smontagu.org>
+Date: Thu, 18 Oct 2012 16:35:04 +0200
+Subject: Fix off-by-one error in conversion pointers. Bug 801681, r=emk,
+ a=lsblakk
+
+---
+ intl/uconv/ucvcn/nsHZToUnicode.cpp |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mozilla/intl/uconv/ucvcn/nsHZToUnicode.cpp b/mozilla/intl/uconv/ucvcn/nsHZToUnicode.cpp
+index 7aacde3..5239b70 100644
+--- a/mozilla/intl/uconv/ucvcn/nsHZToUnicode.cpp
++++ b/mozilla/intl/uconv/ucvcn/nsHZToUnicode.cpp
+@@ -174,10 +174,11 @@ NS_IMETHODIMP nsHZToUnicode::ConvertNoBuff(
+             // and ' ' even in GB mode.
+             if (srcByte > 0x20 || HZ_ENCODING_STATE == HZ_STATE_ASCII) {
+               *aDest++ = UCS2_NO_MAPPING;
++              iDestlen++;
+             }
+             aSrc--;
+             (*aSrcLength)--;
+-            iDestlen++;
++            i--;
+             break;
+         }
+       } else if (HZ_ENCODING_STATE == HZ_STATE_GB) {
+-- 
+1.7.10.4
+

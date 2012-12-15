@@ -1,0 +1,36 @@
+From 9b79ec11d469a2df28a5b2b367372558d98177fb Mon Sep 17 00:00:00 2001
+From: Mats Palmgren <matspal@gmail.com>
+Date: Fri, 2 Nov 2012 00:15:15 +0100
+Subject: Bug 798853, gfx. r=roc a=akeybl
+
+---
+ gfx/thebes/public/gfxFont.h |    7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/gfx/thebes/public/gfxFont.h b/mozilla/gfx/thebes/public/gfxFont.h
+index 984ed91..77bd132 100644
+--- a/mozilla/gfx/thebes/public/gfxFont.h
++++ b/mozilla/gfx/thebes/public/gfxFont.h
+@@ -134,14 +134,17 @@ struct THEBES_API gfxFontStyle {
+                                 PRInt8 *outOffset) const;
+ 
+     PRBool Equals(const gfxFontStyle& other) const {
+-        return (size == other.size) &&
++        return
++            (*reinterpret_cast<const PRUint64*>(&size) ==
++             *reinterpret_cast<const PRUint64*>(&other.size)) &&
+             (style == other.style) &&
+             (systemFont == other.systemFont) &&
+             (printerFont == other.printerFont) &&
+             (familyNameQuirks == other.familyNameQuirks) &&
+             (weight == other.weight) &&
+             (langGroup.Equals(other.langGroup)) &&
+-            (sizeAdjust == other.sizeAdjust);
++            (*reinterpret_cast<const PRUint32*>(&sizeAdjust) ==
++             *reinterpret_cast<const PRUint32*>(&other.sizeAdjust));
+     }
+ };
+ 
+-- 
+1.7.10.4
+

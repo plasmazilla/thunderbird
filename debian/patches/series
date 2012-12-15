@@ -211,3 +211,12 @@ security/squeeze14/0008-bug-787704-better-to-remember-addref-release-sConten.pat
 security/squeeze14/0009-Bug-787722-Prevent-out-of-bounds-read-writes-under-n.patch
 security/squeeze14/0010-Bug-788950-Prevent-mRules-from-dying-in-DoInsertHTML.patch
 security/squeeze14/0011-Bug-790856-ensure-bounds-on-the-previous-viewer-r-bz.patch
+security/squeeze15/0001-b-792305-don-t-update-mask-bits-outside-the-mask-r-r.patch
+security/squeeze15/0002-Bug-793848-faster-svg-use-check-r-bz-a-lsblakk.patch
+security/squeeze15/0003-Bug-789046-Port-a-bug-fix-from-the-Webkit-GIF-decode.patch
+security/squeeze15/0004-Fix-off-by-one-error-in-conversion-pointers.-Bug-801.patch
+security/squeeze15/0005-Hard-blocklist-addons-created-by-Mozilla-Corp.patch
+security/squeeze15/0006-Bug-747607-Don-t-throw-when-we-fail-to-find-a-source.patch
+security/squeeze15/0007-Bug-747607-Remove-GetContextFromStack.-r-bz-a-akeybl.patch
+security/squeeze15/0008-Bug-805957.-r-roc-a-lsblakk.patch
+security/squeeze15/0009-Bug-798853-gfx.-r-roc-a-akeybl.patch

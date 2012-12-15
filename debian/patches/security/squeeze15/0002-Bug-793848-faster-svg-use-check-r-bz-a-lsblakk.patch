@@ -1,0 +1,26 @@
+From 4e14b1257d0b9c4b535bf2fcdd095317e31094d2 Mon Sep 17 00:00:00 2001
+From: Olli Pettay <Olli.Pettay@helsinki.fi>
+Date: Mon, 22 Oct 2012 18:25:06 +0300
+Subject: Bug 793848, faster svg:use check, r=bz , a=lsblakk
+
+---
+ layout/base/nsCSSFrameConstructor.cpp |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/mozilla/layout/base/nsCSSFrameConstructor.cpp b/mozilla/layout/base/nsCSSFrameConstructor.cpp
+index 9085f3c..7e9371c 100644
+--- a/mozilla/layout/base/nsCSSFrameConstructor.cpp
++++ b/mozilla/layout/base/nsCSSFrameConstructor.cpp
+@@ -5738,8 +5738,7 @@ nsCSSFrameConstructor::CreateAnonymousFrames(nsFrameConstructorState& aState,
+ #ifdef MOZ_SVG
+     // least-surprise CSS binding until we do the SVG specified
+     // cascading rules for <svg:use> - bug 265894
+-    if (aParent &&
+-        aParent->NodeInfo()->Equals(nsGkAtoms::use, kNameSpaceID_SVG)) {
++    if (aParentFrame->GetType() == nsGkAtoms::svgUseFrame) {
+       content->SetFlags(NODE_IS_ANONYMOUS);
+     } else
+ #endif
+-- 
+1.7.10.4
+
