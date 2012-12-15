@@ -1,3 +1,17 @@
+icedove (3.0.11-1+squeeze15) stable-security; urgency=high
+
+  * [e3162df] backported patches from xulrunner fixes mfsa2012-{91,93,101,105}
+    - MFSA 2012-91 aka CVE-2012-5842: Miscellaneous memory safety hazards
+      (rv:17.0/ rv:10.0.11)
+    - MFSA 2012-93 aka CVE-2012-4201: evalInSanbox location context
+      incorrectly applied
+    - MFSA 2012-101 aka CVE-2012-4207: Improper character decoding in
+      HZ-GB-2312 charset
+    - MFSA 2012-103 aka CVE-2012-4216, CVE-2012-5829: Frames can shadow
+      top.location
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 15 Dec 2012 17:59:04 -0500
+
 icedove (3.0.11-1+squeeze14) stable-security; urgency=low
 
   * [db8ce96] backported patches from xulrunner fixes mfsa2012-{74,77,81,85-87}
