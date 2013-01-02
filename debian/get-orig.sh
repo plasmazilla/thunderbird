@@ -3,10 +3,13 @@
 # Download upstream xpi files from mozilla server and extract into upstream
 # folder. Must run from root of debian package.
 #
-# Need version number (e.g 3.0.1) as argument.
+# Need version number (e.g 3.0.1) as argument. The optional parameter -gz
+# is only usefull if you need *.tar.gz archive. This is just for backward
+# compatibility with git-buildpackage in Squeeze.
 
 if [ "$#" -lt 1 ]; then
-    echo "usage: $0 Version"
+    echo "usage: $0 Version [-gz]"
+    echo "use option [-gz] if you want generate tar.gz archive"
     exit 1
 fi
 
@@ -14,9 +17,20 @@ TMPDIR=`mktemp -d /tmp/icedove-l10n.XXXXXXXXXX`
 CURDIR=`pwd`
 VERSION=$1
 
-if [ -f $CURDIR/../icedove-l10n_$VERSION.orig.tar.xz ]; then
-    echo "icedove-l10n_$VERSION.orig.tar.xz exists, giving up..."
-    exit 1
+if [ "$2" == "-gz" ]; then
+    TAR_OPT="-zcf"
+    TAR_EXT="tar.gz"
+    if [ -f $CURDIR/../icedove-l10n_$VERSION.orig.$TAR_EXT ]; then
+        echo "icedove-l10n_$VERSION.orig.$TAR_EXT exists, giving up..."
+        exit 1
+    fi
+else
+    TAR_OPT="-Jcf"
+    TAR_EXT="tar.xz"
+    if [ -f $CURDIR/../icedove-l10n_$VERSION.orig.$TAR_EXT ]; then
+        echo "icedove-l10n_$VERSION.orig.$TAR_EXT exists, giving up..."
+        exit 1
+    fi
 fi
 
 mkdir $TMPDIR/icedove-l10n-$VERSION
@@ -50,6 +64,6 @@ cd $TMPDIR/icedove-l10n-$VERSION
 rm -rf upstream/en-US
 rm -rf ftp.mozilla.org
 cd ..
-tar -Jcf icedove-l10n_$VERSION.orig.tar.xz icedove-l10n-$VERSION
-cp icedove-l10n_$VERSION.orig.tar.xz $CURDIR/..
+tar $TAR_OPT icedove-l10n_$VERSION.orig.$TAR_EXT icedove-l10n-$VERSION
+cp icedove-l10n_$VERSION.orig.$TAR_EXT $CURDIR/..
 rm -rf $TMPDIR/icedove-l10n-$VERSION
