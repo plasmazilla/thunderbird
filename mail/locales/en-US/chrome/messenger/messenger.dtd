@@ -486,7 +486,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY imStatus.offline            "Offline">
 <!ENTITY imStatus.showAccounts       "Show Accounts…">
 <!ENTITY joinChatCmd.label "Join Chat…">
-<!ENTITY joinChatCmd.accesskey "o">
+<!ENTITY joinChatCmd.accesskey "t">
 <!ENTITY savedFiles.label "Saved Files">
 <!ENTITY savedFiles.accesskey "l">
 <!ENTITY savedFiles.key "j">

@@ -383,11 +383,12 @@ nsPluginHost::~nsPluginHost()
   sInst = nullptr;
 }
 
-NS_IMPL_ISUPPORTS4(nsPluginHost,
+NS_IMPL_ISUPPORTS5(nsPluginHost,
                    nsIPluginHost,
                    nsIObserver,
                    nsITimerCallback,
-                   nsISupportsWeakReference)
+                   nsISupportsWeakReference,
+                   nsIPluginHost2)
 
 nsPluginHost*
 nsPluginHost::GetInst()
@@ -1296,17 +1297,28 @@ nsPluginHost::IsPluginEnabledForType(const char* aMimeType)
   return NS_OK;
 }
  
-bool
-nsPluginHost::IsPluginClickToPlayForType(const char* aMimeType)
+NS_IMETHODIMP
+nsPluginHost::IsPluginClickToPlayForType(const nsACString &aMimeType, bool *aResult)
 {
-  nsPluginTag *plugin = FindPluginForType(aMimeType, true);
-  if (plugin && 
-      (plugin->HasFlag(NS_PLUGIN_FLAG_CLICKTOPLAY) || mPluginsClickToPlay)) {
-    return true;
+  nsPluginTag *plugin = FindPluginForType(aMimeType.Data(), true);
+  if (!plugin) {
+    return NS_ERROR_UNEXPECTED;
+  }
+
+  uint32_t blocklistState = nsIBlocklistService::STATE_NOT_BLOCKED;
+  nsresult rv = GetBlocklistStateForType(aMimeType.Data(), &blocklistState);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  if (mPluginsClickToPlay ||
+      blocklistState == nsIBlocklistService::STATE_VULNERABLE_NO_UPDATE ||
+      blocklistState == nsIBlocklistService::STATE_VULNERABLE_UPDATE_AVAILABLE) {
+    *aResult = true;
   }
   else {
-    return false;
+    *aResult = false;
   }
+
+  return NS_OK;
 }
 
 bool
@@ -2203,10 +2215,6 @@ nsresult nsPluginHost::ScanPluginsDirectory(nsIFile *pluginsDir,
           }
           if (state == nsIBlocklistService::STATE_OUTDATED && !seenBefore) {
              warnOutdated = true;
-          }
-          if (state == nsIBlocklistService::STATE_VULNERABLE_UPDATE_AVAILABLE ||
-              state == nsIBlocklistService::STATE_VULNERABLE_NO_UPDATE) {
-            pluginTag->Mark(NS_PLUGIN_FLAG_CLICKTOPLAY);
           }
         }
       }
@@ -3110,17 +3118,13 @@ nsresult nsPluginHost::NewPluginURLStream(const nsString& aURL,
   if (aURL.Length() <= 0)
     return NS_OK;
 
-  // get the full URL of the document that the plugin is embedded
-  //   in to create an absolute url in case aURL is relative
-  nsCOMPtr<nsIDocument> doc;
-  nsCOMPtr<nsIPluginInstanceOwner> owner;
-  aInstance->GetOwner(getter_AddRefs(owner));
+  // get the base URI for the plugin to create an absolute url
+  // in case aURL is relative
+  nsCOMPtr<nsIPluginInstanceOwner> ownerIF;
+  aInstance->GetOwner(getter_AddRefs(ownerIF));
+  nsPluginInstanceOwner* owner = static_cast<nsPluginInstanceOwner*>(ownerIF.get());
   if (owner) {
-    rv = owner->GetDocument(getter_AddRefs(doc));
-    if (NS_SUCCEEDED(rv) && doc) {
-      // Create an absolute URL
-      rv = NS_MakeAbsoluteURI(absUrl, aURL, doc->GetDocBaseURI());
-    }
+    rv = NS_MakeAbsoluteURI(absUrl, aURL, nsCOMPtr<nsIURI>(owner->GetBaseURI()));
   }
 
   if (absUrl.IsEmpty())
@@ -3130,10 +3134,12 @@ nsresult nsPluginHost::NewPluginURLStream(const nsString& aURL,
   if (NS_FAILED(rv))
     return rv;
 
-  nsCOMPtr<nsIPluginTagInfo> pti = do_QueryInterface(owner);
   nsCOMPtr<nsIDOMElement> element;
-  if (pti)
-    pti->GetDOMElement(getter_AddRefs(element));
+  nsCOMPtr<nsIDocument> doc;
+  if (owner) {
+    owner->GetDOMElement(getter_AddRefs(element));
+    owner->GetDocument(getter_AddRefs(doc));
+  }
 
   int16_t shouldLoad = nsIContentPolicy::ACCEPT;
   rv = NS_CheckContentLoadPolicy(nsIContentPolicy::TYPE_OBJECT_SUBREQUEST,
@@ -3195,8 +3201,12 @@ nsresult nsPluginHost::NewPluginURLStream(const nsString& aURL,
         olc->GetSrcURI(getter_AddRefs(referer));
 
 
-      if (!referer)
+      if (!referer) {
+        if (!doc) {
+          return NS_ERROR_FAILURE;
+        }
         referer = doc->GetDocumentURI();
+      }
 
       rv = httpChannel->SetReferrer(referer);
       NS_ENSURE_SUCCESS(rv,rv);
@@ -3236,21 +3246,26 @@ nsPluginHost::DoURLLoadSecurityCheck(nsNPAPIPluginInstance *aInstance,
   if (!aURL || *aURL == '\0')
     return NS_OK;
 
-  // get the URL of the document that loaded the plugin
-  nsCOMPtr<nsIPluginInstanceOwner> owner;
-  aInstance->GetOwner(getter_AddRefs(owner));
+  // get the base URI for the plugin element
+  nsCOMPtr<nsIPluginInstanceOwner> ownerIF;
+  aInstance->GetOwner(getter_AddRefs(ownerIF));
+  nsPluginInstanceOwner* owner = static_cast<nsPluginInstanceOwner*>(ownerIF.get());
   if (!owner)
+    return NS_ERROR_FAILURE;
+
+  nsCOMPtr<nsIURI> baseURI = owner->GetBaseURI();
+  if (!baseURI)
+    return NS_ERROR_FAILURE;
+
+  // Create an absolute URL for the target in case the target is relative
+  nsCOMPtr<nsIURI> targetURL;
+  NS_NewURI(getter_AddRefs(targetURL), aURL, baseURI);
+  if (!targetURL)
     return NS_ERROR_FAILURE;
 
   nsCOMPtr<nsIDocument> doc;
   owner->GetDocument(getter_AddRefs(doc));
   if (!doc)
-    return NS_ERROR_FAILURE;
-
-  // Create an absolute URL for the target in case the target is relative
-  nsCOMPtr<nsIURI> targetURL;
-  NS_NewURI(getter_AddRefs(targetURL), aURL, doc->GetDocBaseURI());
-  if (!targetURL)
     return NS_ERROR_FAILURE;
 
   nsresult rv;

@@ -1185,9 +1185,6 @@ NS_IMETHODIMP nsImapIncomingServer::PossibleImapMailbox(const nsACString& folder
         if (deleteModel == nsMsgImapDeleteModels::MoveToTrash)
           child->SetFlag(nsMsgFolderFlags::Trash);
       }
-      // only GMail will have an AllMail folder.
-      if (boxFlags & kImapAllMail)
-        SetIsGMailServer(true);
 
       imapFolder->SetBoxFlags(boxFlags);
       imapFolder->SetExplicitlyVerify(explicitlyVerify);
@@ -2173,6 +2170,7 @@ nsImapIncomingServer::PromptPassword(nsIMsgWindow *aMsgWindow,
 NS_IMETHODIMP nsImapIncomingServer::SetCapability(eIMAPCapabilityFlags capability)
 {
   m_capability = capability;
+  SetIsGMailServer((capability & kGmailImapCapability) != 0);
   SetCapabilityACL(capability & kACLCapability);
   SetCapabilityQuota(capability & kQuotaCapability);
   return NS_OK;

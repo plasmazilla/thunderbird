@@ -136,6 +136,19 @@ class nsObjectLoadingContent : public nsImageLoadingContent
      */
     bool SrcStreamLoading() { return mSrcStreamLoading; };
 
+    /**
+     * Requests the plugin instance for scripting, attempting to spawn it if
+     * appropriate.
+     *
+     * The first time content js tries to access a pre-empted plugin
+     * (click-to-play or play preview), an event is dispatched.
+     *
+     * Bug 810082 - This method will be moving to the nsIObjectLoadingContent in
+     *              20+
+     */
+    nsresult ScriptRequestPluginInstance(bool callerIsContentJS,
+                                         nsNPAPIPluginInstance **aResult);
+
   protected:
     /**
      * Begins loading the object when called
@@ -348,13 +361,6 @@ class nsObjectLoadingContent : public nsImageLoadingContent
                             bool aSync, bool aNotify);
 
     /**
-     * Fires the nsPluginErrorEvent. This function doesn't do any checks
-     * whether it should be fired, or whether the given state translates to a
-     * meaningful event
-     */
-    void FirePluginError(FallbackType aFallbackType);
-
-    /**
      * Returns a ObjectType value corresponding to the type of content we would
      * support the given MIME type as, taking capabilities and plugin state
      * into account
@@ -440,12 +446,16 @@ class nsObjectLoadingContent : public nsImageLoadingContent
     // Protects LoadObject from re-entry
     bool                        mIsLoading : 1;
 
+    // For plugin stand-in types (click-to-play, play preview, ...) tracks
+    // whether content js has tried to access the plugin script object.
+    bool                        mScriptRequested : 1;
+
     // Used to track when we might try to instantiate a plugin instance based on
     // a src data stream being delivered to this object. When this is true we
     // don't want plugin instance instantiation code to attempt to load src data
     // again or we'll deliver duplicate streams. Should be cleared when we are
     // not loading src data.
-    bool mSrcStreamLoading;
+    bool                        mSrcStreamLoading : 1;
 
 
     nsWeakFrame                 mPrintFrame;

@@ -26301,6 +26301,14 @@ cat >> confdefs.h <<\EOF
 EOF
 
 fi
+cat >> confdefs.pytmp <<EOF
+        (''' MOZ_UA_BUILDID ''', r''' "$MOZ_UA_BUILDID" ''')
+EOF
+cat >> confdefs.h <<EOF
+#define MOZ_UA_BUILDID "$MOZ_UA_BUILDID"
+EOF
+
+
 
 # We can't use the static application.ini data when building against
 # a libxul SDK.
@@ -26484,9 +26492,9 @@ EOF
 
 
 echo $ac_n "checking for posix_fallocate""... $ac_c" 1>&6
-echo "configure:26488: checking for posix_fallocate" >&5
+echo "configure:26496: checking for posix_fallocate" >&5
 cat > conftest.$ac_ext <<EOF
-#line 26490 "configure"
+#line 26498 "configure"
 #include "confdefs.h"
 #define _XOPEN_SOURCE 600
   #include <fcntl.h>
@@ -26494,7 +26502,7 @@ int main() {
 posix_fallocate(0, 0, 0);
 ; return 0; }
 EOF
-if { (eval echo configure:26498: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:26506: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   ac_cv___posix_fallocate=true
 else
@@ -26526,7 +26534,7 @@ if test "$MOZ_X11"; then
                 _SAVE_CFLAGS=$CFLAGS
     CFLAGS="$CFLAGS $XCFLAGS"
     cat > conftest.$ac_ext <<EOF
-#line 26530 "configure"
+#line 26538 "configure"
 #include "confdefs.h"
 
         #include <stdio.h>
@@ -26545,7 +26553,7 @@ int main() {
     
 ; return 0; }
 EOF
-if { (eval echo configure:26549: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:26557: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   :
 else
   echo "configure: failed program was:" >&5
@@ -26565,12 +26573,12 @@ fi # MOZ_X11
 if test "$MOZ_GL_DEFAULT_PROVIDER" = "GLX"; then
        ac_safe=`echo "GL/glx.h" | sed 'y%./+-%__p_%'`
   echo $ac_n "checking for GL/glx.h""... $ac_c" 1>&6
-echo "configure:26569: checking for GL/glx.h" >&5
+echo "configure:26577: checking for GL/glx.h" >&5
   if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
    cat > conftest.$ac_ext <<EOF
-#line 26574 "configure"
+#line 26582 "configure"
 #include "confdefs.h"
 
 #include <GL/glx.h>
@@ -26578,7 +26586,7 @@ int main() {
 
 ; return 0; }
 EOF
-if { (eval echo configure:26582: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:26590: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   rm -rf conftest*
   eval "ac_cv_header_$ac_safe=yes"
 else
@@ -27364,6 +27372,7 @@ sed 's/$/,/' >> $CONFIG_STATUS <<EOF
         (''' MOZ_APP_MAXVERSION ''', r''' $MOZ_APP_MAXVERSION ''')
         (''' FIREFOX_VERSION ''', r''' $FIREFOX_VERSION ''')
         (''' MOZ_UA_OS_AGNOSTIC ''', r''' $MOZ_UA_OS_AGNOSTIC ''')
+        (''' MOZ_UA_BUILDID ''', r''' $MOZ_UA_BUILDID ''')
         (''' MOZ_APP_STATIC_INI ''', r''' $MOZ_APP_STATIC_INI ''')
         (''' MOZ_PKG_SPECIAL ''', r''' $MOZ_PKG_SPECIAL ''')
         (''' MOZILLA_OFFICIAL ''', r''' $MOZILLA_OFFICIAL ''')

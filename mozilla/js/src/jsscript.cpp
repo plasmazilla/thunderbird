@@ -1164,6 +1164,7 @@ SourceCompressionToken::ensureReady()
 void
 SourceCompressionToken::abort()
 {
+    JS_ASSERT(active());
 #ifdef JS_THREADSAFE
     cx->runtime->sourceCompressorThread.abort(this);
 #endif
@@ -2166,6 +2167,7 @@ js::CloneScript(JSContext *cx, HandleObject enclosingScope, HandleFunction fun, 
     dst->hasSingletons = src->hasSingletons;
     dst->isGenerator = src->isGenerator;
     dst->isGeneratorExp = src->isGeneratorExp;
+    dst->userBit = src->userBit;
 
     /*
      * initScriptCounts updates scriptCountsMap if necessary. The other script

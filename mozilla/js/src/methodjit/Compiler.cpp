@@ -674,6 +674,7 @@ MakeJITScript(JSContext *cx, JSScript *script)
         Vector<CrossChunkEdge> currentEdges(cx);
         uint32_t chunkStart = 0;
 
+        bool preserveNextChunk = false;
         unsigned offset, nextOffset = 0;
         while (nextOffset < script->length) {
             offset = nextOffset;
@@ -691,7 +692,8 @@ MakeJITScript(JSContext *cx, JSScript *script)
             bool finishChunk = false;
 
             /* Keep going, override finishChunk. */
-            bool preserveChunk = false;
+            bool preserveChunk = preserveNextChunk;
+            preserveNextChunk = false;
 
             /*
              * Add an edge for opcodes which perform a branch. Skip LABEL ops,
@@ -815,7 +817,10 @@ MakeJITScript(JSContext *cx, JSScript *script)
                         JSOp(script->code[afterOffset]) == JSOP_LOOPHEAD &&
                         analysis->getLoop(afterOffset))
                     {
-                        finishChunk = true;
+                        if (preserveChunk)
+                            preserveNextChunk = true;
+                        else
+                            finishChunk = true;
                     }
                 }
             }
@@ -6753,7 +6758,7 @@ mjit::Compiler::jsop_newinit()
         masm.storePtr(ImmPtr(type), FrameAddress(offsetof(VMFrame, scratch)));
         masm.move(ImmPtr(stubArg), Registers::ArgReg1);
         INLINE_STUBCALL(stub, REJOIN_FALLTHROUGH);
-        frame.pushSynced(JSVAL_TYPE_OBJECT);
+        frame.pushSynced(knownPushedType(0));
 
         frame.extra(frame.peek(-1)).initArray = (*PC == JSOP_NEWARRAY);
         frame.extra(frame.peek(-1)).initObject = baseobj;
@@ -6780,7 +6785,7 @@ mjit::Compiler::jsop_newinit()
     stubcc.masm.move(ImmPtr(stubArg), Registers::ArgReg1);
     OOL_STUBCALL(stub, REJOIN_FALLTHROUGH);
 
-    frame.pushTypedPayload(JSVAL_TYPE_OBJECT, result);
+    frame.pushTypedPayload(knownPushedType(0), result);
 
     stubcc.rejoin(Changes(1));
 
