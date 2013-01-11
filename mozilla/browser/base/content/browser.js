@@ -1014,15 +1014,12 @@ var gBrowserInit = {
 
     gBrowser.addEventListener("DOMUpdatePageReport", gPopupBlockerObserver, false);
 
-    gBrowser.addEventListener("PluginNotFound",     gPluginHandler, true);
-    gBrowser.addEventListener("PluginCrashed",      gPluginHandler, true);
-    gBrowser.addEventListener("PluginBlocklisted",  gPluginHandler, true);
-    gBrowser.addEventListener("PluginOutdated",     gPluginHandler, true);
-    gBrowser.addEventListener("PluginDisabled",     gPluginHandler, true);
-    gBrowser.addEventListener("PluginClickToPlay",  gPluginHandler, true);
-    gBrowser.addEventListener("PluginPlayPreview",  gPluginHandler, true);
-    gBrowser.addEventListener("PluginVulnerableUpdatable", gPluginHandler, true);
-    gBrowser.addEventListener("PluginVulnerableNoUpdate", gPluginHandler, true);
+    // Note that the XBL binding is untrusted
+    gBrowser.addEventListener("PluginBindingAttached", gPluginHandler, true, true);
+    gBrowser.addEventListener("PluginScripted",        gPluginHandler, true);
+    gBrowser.addEventListener("PluginCrashed",         gPluginHandler, true);
+    gBrowser.addEventListener("PluginOutdated",        gPluginHandler, true);
+
     gBrowser.addEventListener("NewPluginInstalled", gPluginHandler.newPluginInstalled, true);
 #ifdef XP_MACOSX
     gBrowser.addEventListener("npapi-carbon-event-model-failure", gPluginHandler, true);
@@ -2363,6 +2360,10 @@ function URLBarSetURI(aURI) {
 
   if (value == null) {
     let uri = aURI || gBrowser.currentURI;
+    // Strip off "wyciwyg://" and passwords for the location bar
+    try {
+      uri = Services.uriFixup.createExposableURI(uri);
+    } catch (e) {}
 
     // Replace initial page URIs with an empty string
     // only if there's no opener (bug 370555).
@@ -4116,12 +4117,7 @@ var XULBrowserWindow = {
       }
 
       if (gURLBar) {
-        // Strip off "wyciwyg://" and passwords for the location bar
-        let uri = aLocationURI;
-        try {
-          uri = this._uriFixup.createExposableURI(uri);
-        } catch (e) {}
-        URLBarSetURI(uri);
+        URLBarSetURI(aLocationURI);
 
         // Update starring UI
         PlacesStarButton.updateState();
@@ -4517,6 +4513,7 @@ var TabsProgressListener = {
         // Initialize the click-to-play state.
         aBrowser._clickToPlayDoorhangerShown = false;
         aBrowser._clickToPlayPluginsActivated = false;
+        aBrowser._pluginScriptedState = PLUGIN_SCRIPTED_STATE_NONE;
       }
       FullZoom.onLocationChange(aLocationURI, false, aBrowser);
     }

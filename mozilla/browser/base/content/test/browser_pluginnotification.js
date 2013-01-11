@@ -64,20 +64,22 @@ function test() {
   gBrowser.selectedTab = newTab;
   gTestBrowser = gBrowser.selectedBrowser;
   gTestBrowser.addEventListener("load", pageLoad, true);
-  gTestBrowser.addEventListener("PluginClickToPlay", handlePluginClickToPlay, true);
+  gTestBrowser.addEventListener("PluginBindingAttached", handleBindingAttached, true, true);
   prepareTest(test1, gTestRoot + "plugin_unknown.html");
 }
 
 function finishTest() {
   gTestBrowser.removeEventListener("load", pageLoad, true);
-  gTestBrowser.removeEventListener("PluginClickToPlay", handlePluginClickToPlay, true);
+  gTestBrowser.removeEventListener("PluginBindingAttached", handleBindingAttached, true, true);
   gBrowser.removeCurrentTab();
   window.focus();
   finish();
 }
 
-function handlePluginClickToPlay() {
-  gClickToPlayPluginActualEvents++;
+function handleBindingAttached(evt) {
+  evt.target instanceof Ci.nsIObjectLoadingContent;
+  if (evt.target.pluginFallbackType == Ci.nsIObjectLoadingContent.PLUGIN_CLICK_TO_PLAY)
+    gClickToPlayPluginActualEvents++;
 }
 
 function pageLoad() {
@@ -662,8 +664,6 @@ function test18e() {
   ok(objLoadingContent.activated, "Test 18e, Plugin should be activated");
 
   unregisterFakeBlocklistService();
-  var plugin = getTestPlugin();
-  plugin.clicktoplay = false;
   Services.perms.removeAll();
 
   prepareTest(test19a, gTestRoot + "plugin_test.html");
@@ -739,7 +739,7 @@ function test19f() {
 // "display: block" can be clicked to activate.
 function test20a() {
   var clickToPlayNotification = PopupNotifications.getNotification("click-to-play-plugins", gTestBrowser);
-  ok(clickToPlayNotification, "Test 20a, Should have a click-to-play notification");
+  ok(!clickToPlayNotification, "Test 20a, Should not have a click-to-play notification");
   var doc = gTestBrowser.contentDocument;
   var plugin = doc.getElementById("plugin");
   var mainBox = doc.getAnonymousElementByAttribute(plugin, "class", "mainBox");
@@ -761,6 +761,8 @@ function test20a() {
 }
 
 function test20b() {
+  var clickToPlayNotification = PopupNotifications.getNotification("click-to-play-plugins", gTestBrowser);
+  ok(clickToPlayNotification, "Test 20b, Should now have a click-to-play notification");
   var doc = gTestBrowser.contentDocument;
   var plugin = doc.getElementById("plugin");
   var pluginRect = doc.getAnonymousElementByAttribute(plugin, "class", "mainBox").getBoundingClientRect();
@@ -916,5 +918,51 @@ function test21e() {
     ok(objLoadingContent.activated, "Test 21e, Plugin with id=" + plugin.id + " should be activated");
   }
 
-  finishTest();
+  registerFakeBlocklistService(Ci.nsIBlocklistService.STATE_VULNERABLE_UPDATE_AVAILABLE);
+  prepareTest(test22a, gHttpTestRoot + "plugin_test.html");
+}
+
+// Test that the "Check for updates..." link in the popup notification
+// opens the plugin check page in a new tab.
+function test22a() {
+  var notification = PopupNotifications.getNotification("click-to-play-plugins", gTestBrowser);
+  ok(notification, "Test 22a, Should have a click-to-play notification");
+  ok(notification.options.centerActions.length == 1, "Test 22a, Should have one type of plugin in the notification");
+
+  // we have to actually show the panel to get the bindings to instantiate
+  notification.options.dismissed = false;
+  notification.options.eventCallback = test22b;
+  PopupNotifications._showPanel([notification], notification.anchorElement);
+}
+
+function test22b() {
+  var notification = PopupNotifications.getNotification("click-to-play-plugins", gTestBrowser);
+  notification.options.eventCallback = null;
+  var centerAction = notification.options.centerActions[0];
+  is(centerAction.message, "Test", "Test 22b, found center action for the Test plugin");
+
+  var centerItem = null;
+  for (var item of centerAction.popupnotification.childNodes) {
+    if (item.action == centerAction) {
+      centerItem = item;
+      break;
+    }
+  }
+  ok(centerItem, "Test 22b, found center item for the Test plugin");
+
+  var updateLink = centerItem.ownerDocument.getAnonymousElementByAttribute(centerItem, "class", "text-link");
+  ok(updateLink, "Test 22b, Should have update link");
+
+  var tabOpenListener = new TabOpenListener(Services.urlFormatter.formatURLPref("plugins.update.url"), false, false);
+  tabOpenListener.handleEvent = function(event) {
+    if (event.type == "TabOpen") {
+      gBrowser.tabContainer.removeEventListener("TabOpen", this, false);
+      this.tab = event.originalTarget;
+      ok(event.target.label == this.url, "Test 22b, Update link should open up the plugin check page");
+      gBrowser.removeTab(this.tab);
+      unregisterFakeBlocklistService();
+      finishTest();
+    }
+  };
+  EventUtils.synthesizeMouseAtCenter(updateLink, {}, centerItem.ownerDocument.defaultView);
 }
