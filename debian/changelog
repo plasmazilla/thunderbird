@@ -1,3 +1,27 @@
+icedove (17.0.2-1) experimental; urgency=low
+
+  * [8911b88] Finally set Christoph as Maintainer.
+    Thanks for your work Alexander.
+  * [d456018] parallel build: Use number or available cores by default
+  * [daeee47] Don't refer to paths containing thunderbird (Closes: #486617)
+  * [52a202a] New upstream version 17.0.2
+  * [fa07537] Allow webrtc to build on more architectures.
+    Thanks to Mike Hommey and Christoph Göhre
+
+ -- Guido Günther <agx@sigxcpu.org>  Fri, 11 Jan 2013 17:37:46 +0100
+
+icedove (17.0.2-1~1) experimental; urgency=low
+
+  * [8911b88] Finally set Christoph as Maintainer. Thanks for your work
+    Alexander.
+  * [d456018] parallel build: Use number or available cores by default
+  * [daeee47] Don't refer to paths containing thunderbird (Closes: #486617)
+  * [52a202a] New upstream version 17.0.2
+  * [fa07537] Allow webrtc to build on more architectures.
+    Thanks to Mike Hommey and Christoph Göhre
+
+ -- Guido Günther <agx@sigxcpu.org>  Fri, 11 Jan 2013 17:35:22 +0100
+
 icedove (17.0-1) experimental; urgency=low
 
   [ Christoph Goehre ]
