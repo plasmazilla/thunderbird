@@ -47,6 +47,7 @@
 #include "jsclist.h"            // nsXBLJSClass derives from JSCList
 #include "nsFixedSizeAllocator.h"
 #include "nsTArray.h"
+#include "mozilla/Types.h"
 
 class nsXBLBinding;
 class nsXBLDocumentInfo;
@@ -161,11 +162,18 @@ class nsXBLJSClass : public JSCList, public JSClass
 {
 private:
   nsrefcnt mRefCnt;
+  nsCString mKey;
+  static PRUint64 sIdCount;
   nsrefcnt Destroy();
 
 public:
-  nsXBLJSClass(const nsAFlatCString& aClassName);
+  nsXBLJSClass(const nsAFlatCString& aClassName, const nsCString& aKey);
   ~nsXBLJSClass() { nsMemory::Free((void*) name); }
+
+  static PRUint64 NewId() { return ++sIdCount; }
+
+  nsCString& Key() { return mKey; }
+  void SetKey(const nsCString& aKey) { mKey = aKey; }
 
   nsrefcnt Hold() { return ++mRefCnt; }
   nsrefcnt Drop() { return --mRefCnt ? mRefCnt : Destroy(); }
