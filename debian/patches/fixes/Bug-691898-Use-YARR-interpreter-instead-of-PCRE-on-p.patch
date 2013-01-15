@@ -12,10 +12,10 @@ Subject: Bug 691898 - Use YARR interpreter instead of PCRE on platforms where
  5 files changed, 25 insertions(+), 89 deletions(-)
 
 diff --git a/mozilla/js/src/Makefile.in b/mozilla/js/src/Makefile.in
-index be6cdd6..ba6590b 100644
+index ffbf911..30f60d4 100644
 --- a/mozilla/js/src/Makefile.in
 +++ b/mozilla/js/src/Makefile.in
-@@ -421,15 +421,20 @@ CPPSRCS += 	checks.cc \
+@@ -423,15 +423,20 @@ CPPSRCS += 	checks.cc \
  
  ifeq (,$(filter arm% sparc %86 x86_64,$(TARGET_CPU)))
  
@@ -42,7 +42,7 @@ index be6cdd6..ba6590b 100644
  		$(NULL)
  else
  
-@@ -1041,10 +1046,10 @@ endif
+@@ -1043,10 +1048,10 @@ endif
  # Needed to "configure" it correctly.  Unfortunately these
  # flags wind up being applied to all code in js/src, not just
  # the code in js/src/assembler.

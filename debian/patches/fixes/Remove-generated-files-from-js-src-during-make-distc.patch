@@ -9,10 +9,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=541770
  1 file changed, 8 insertions(+)
 
 diff --git a/mozilla/js/src/Makefile.in b/mozilla/js/src/Makefile.in
-index 14f2b32..df8251b 100644
+index a45a8df..75ca4a3 100644
 --- a/mozilla/js/src/Makefile.in
 +++ b/mozilla/js/src/Makefile.in
-@@ -749,6 +749,14 @@ distclean::
+@@ -751,6 +751,14 @@ distclean::
  	cat unallmakefiles | $(XARGS) rm -f
  	$(RM) $(DIST_GARBAGE)
  

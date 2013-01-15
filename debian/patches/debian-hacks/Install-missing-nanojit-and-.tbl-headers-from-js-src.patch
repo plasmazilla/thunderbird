@@ -9,7 +9,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=542789
  1 file changed, 31 insertions(+), 17 deletions(-)
 
 diff --git a/mozilla/js/src/Makefile.in b/mozilla/js/src/Makefile.in
-index f1318e4..be6cdd6 100644
+index 58a359b..ffbf911 100644
 --- a/mozilla/js/src/Makefile.in
 +++ b/mozilla/js/src/Makefile.in
 @@ -229,6 +229,7 @@ INSTALLED_HEADERS = \
@@ -20,7 +20,7 @@ index f1318e4..be6cdd6 100644
  		$(NULL)
  
  ######################################################
-@@ -299,21 +300,21 @@ VPATH		+= \
+@@ -301,21 +302,21 @@ VPATH		+= \
  
  INSTALLED_HEADERS += \
  		jsbuiltins.h    \
@@ -57,7 +57,7 @@ index f1318e4..be6cdd6 100644
  		VMPI.h		\
  		Writer.h	\
  		$(NULL)
-@@ -548,7 +549,15 @@ else
+@@ -550,7 +551,15 @@ else
  CPPSRCS += pm_stub.cpp
  endif
  
@@ -74,7 +74,7 @@ index f1318e4..be6cdd6 100644
  
  DASH_R		= -r
  
-@@ -922,7 +931,12 @@ js-config: js-config.in Makefile $(DEPTH)/config/autoconf.mk $(topsrcdir)/config
+@@ -924,7 +933,12 @@ js-config: js-config.in Makefile $(DEPTH)/config/autoconf.mk $(topsrcdir)/config
  SCRIPTS = js-config
  SDK_BINARY = js-config
  
