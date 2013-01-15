@@ -1,3 +1,14 @@
+icedove (10.0.12-1) unstable; urgency=high
+
+  * [c45eb8d] New Upstream version 10.0.12
+  * Fixes for MFSA-2013-{01,02,04,05,09,11,12,15-17,20}, also known as
+    CVE-2013-0769, CVE-2013-0762, CVE-2013-0766, CVE-2013-0767,
+    CVE-2013-0759, CVE-2013-0744, CVE-2013-0746, CVE-2013-0748,
+    CVE-2013-0750, CVE-2013-0758, CVE-2013-0753, CVE-2013-0754,
+    CVE-2013-0743
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 15 Jan 2013 18:33:23 -0500
+
 icedove (10.0.11-1) unstable; urgency=high
 
   * [317e64c] New Upstream version 10.0.11
