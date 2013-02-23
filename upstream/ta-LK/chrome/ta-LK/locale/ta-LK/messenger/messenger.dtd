@@ -825,7 +825,7 @@ Entities below were automatically added by compare-locales,
 <!ENTITY imStatus.offline            "Offline">
 <!ENTITY imStatus.showAccounts       "Show Accounts…">
 <!ENTITY imStatus.unavailable        "Unavailable">
-<!ENTITY joinChatCmd.accesskey "o">
+<!ENTITY joinChatCmd.accesskey "t">
 <!ENTITY joinChatCmd.label "Join Chat…">
 
 <!-- Junk Bar -->

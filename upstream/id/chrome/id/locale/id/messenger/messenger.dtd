@@ -900,7 +900,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY appmenuToolbarLayout.label "Toolbar Layout…">
 <!ENTITY clearRecentHistory.accesskey "H">
 <!ENTITY clearRecentHistory.label "Clear Recent History…">
-<!ENTITY joinChatCmd.accesskey "o">
+<!ENTITY joinChatCmd.accesskey "t">
 <!ENTITY joinChatCmd.label "Join Chat…">
 
 <!-- Junk Bar -->
