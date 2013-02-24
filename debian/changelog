@@ -1,3 +1,14 @@
+icedove-l10n (1:17.0.3-1) experimental; urgency=low
+
+  [ Christoph Goehre ]
+  * changing download url for xpi files
+
+  [ Carsten Schoenert ]
+  * adding option to get .tar.gz archives
+  * Imported Upstream version 17.0.3
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 24 Feb 2013 09:00:03 +0100
+
 icedove-l10n (1:17.0-1) experimental; urgency=low
 
   [ Christoph Goehre ]
