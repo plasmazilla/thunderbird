@@ -32,3 +32,4 @@ fixes/Make-system-cairo-work-again.patch
 debian-hacks/Fix-build-failure-for-header.py-and-typelib.py.patch
 porting/Another-fix-to-build-ipc-code-on-GNU-hurd-and-kfreeb.patch
 porting/Bug-814693-Allow-webrtc-to-build-on-more-architectur.patch
+fix-function-nsMsgComposeAndSend-to-to-respect-Replo.patch
