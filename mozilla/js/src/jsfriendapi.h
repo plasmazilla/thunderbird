@@ -277,14 +277,24 @@ TraceWeakMaps(WeakMapTracer *trc);
 extern JS_FRIEND_API(bool)
 GCThingIsMarkedGray(void *thing);
 
+extern JS_FRIEND_API(bool)
+AreGCGrayBitsValid(JSRuntime *rt);
+
+/*
+ * Unsets the gray bit for anything reachable from |thing|. |kind| should not be
+ * JSTRACE_SHAPE. |thing| should be non-null.
+ */
+extern JS_FRIEND_API(void)
+UnmarkGrayGCThingRecursively(void *thing, JSGCTraceKind kind);
+
 extern JS_FRIEND_API(JSCompartment*)
 GetGCThingCompartment(void *thing);
 
 typedef void
-(GCThingCallback)(void *closure, void *gcthing);
+(*GCThingCallback)(void *closure, void *gcthing);
 
 extern JS_FRIEND_API(void)
-VisitGrayWrapperTargets(JSCompartment *comp, GCThingCallback *callback, void *closure);
+VisitGrayWrapperTargets(JSCompartment *comp, GCThingCallback callback, void *closure);
 
 extern JS_FRIEND_API(JSObject *)
 GetWeakmapKeyDelegate(JSObject *key);
@@ -976,6 +986,12 @@ SetListBaseInformation(void *listBaseHandlerFamily, uint32_t listBaseExpandoSlot
 
 void *GetListBaseHandlerFamily();
 uint32_t GetListBaseExpandoSlot();
+
+extern JS_FRIEND_API(bool)
+IsReadOnlyDateMethod(JS::IsAcceptableThis test, JS::NativeImpl method);
+
+extern JS_FRIEND_API(bool)
+IsTypedArrayThisCheck(JS::IsAcceptableThis test);
 
 } /* namespace js */
 

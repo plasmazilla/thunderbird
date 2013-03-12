@@ -181,7 +181,8 @@ _BROWSER_FILES = \
                  browser_pinnedTabs.js \
                  browser_plainTextLinks.js \
                  browser_pluginnotification.js \
-                 browser_clickToPlayPluginScriptAccessPopup.js \
+                 browser_plugins_added_dynamically.js \
+                 browser_CTPScriptPlugin.js \
                  browser_pluginplaypreview.js \
                  browser_relatedTabs.js \
                  browser_sanitize-passwordDisabledHosts.js \
@@ -241,10 +242,13 @@ _BROWSER_FILES = \
                  plugin_alternate_content.html \
                  plugin_both.html \
                  plugin_both2.html \
-                 plugin_bug743421.html \
+                 plugin_add_dynamically.html \
                  plugin_clickToPlayAllow.html \
                  plugin_clickToPlayDeny.html \
+                 plugin_bug744745.html \
                  plugin_bug749455.html \
+                 plugin_bug818009.html \
+                 plugin_bug820497.html \
                  plugin_hidden_to_visible.html \
                  plugin_two_types.html \
                  alltabslistener.html \
@@ -271,6 +275,9 @@ _BROWSER_FILES = \
                  browser_tabDrop.js \
                  browser_lastAccessedTab.js \
                  browser_bug734076.js \
+                 browser_bug744745.js \
+                 browser_bug818009.js \
+                 browser_bug820497.js \
                  browser_social.js \
                  browser_social_toolbar.js \
                  browser_social_shareButton.js \

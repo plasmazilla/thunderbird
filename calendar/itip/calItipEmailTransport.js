@@ -213,11 +213,15 @@ calItipEmailTransport.prototype = {
                                               .getService(Components.interfaces.nsIPromptService);
                 let prefCompatMode = cal.getPrefSafe("calendar.itip.compatSendMode", 0);
                 let inoutCheck = { value: (prefCompatMode == 1) };
-                if (!promptService.confirmCheck(null,
-                                                cal.calGetString("lightning", "imipSendMail.title", null, "lightning"),
-                                                cal.calGetString("lightning", "imipSendMail.text", null, "lightning"),
-                                                cal.calGetString("lightning", "imipSendMail.Outlook2000CompatMode.text", null, "lightning"),
-                                                inoutCheck)) {
+                if (promptService.confirmEx(null,
+                                            cal.calGetString("lightning", "imipSendMail.title", null, "lightning"),
+                                            cal.calGetString("lightning", "imipSendMail.text", null, "lightning"),
+                                            promptService.STD_YES_NO_BUTTONS,
+                                            null,
+                                            null,
+                                            null,
+                                            cal.calGetString("lightning", "imipSendMail.Outlook2000CompatMode.text", null, "lightning"),
+                                            inoutCheck)) {
                     break;
                 } // else go on with auto sending for now
                 compatMode = (inoutCheck.value ? 1 : 0);

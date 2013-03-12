@@ -1307,7 +1307,7 @@ int nsParseMailMessageState::FinalizeHeaders()
 
   if (mozstatus)
   {
-    if (strlen(mozstatus->value) == 4)
+    if (mozstatus->length == 4)
     {
       int i;
       for (i=0,s=mozstatus->value ; i<4 ; i++,s++)

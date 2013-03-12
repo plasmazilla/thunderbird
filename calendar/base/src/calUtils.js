@@ -1359,9 +1359,8 @@ calListenerBag.prototype = {
         function notifyFunc(iface) {
             try {
                 iface[func].apply(iface, args ? args : []);
-            }
-            catch (exc) {
-                Components.utils.reportError(exc + " STACK: " + STACK());
+            } catch (exc) {
+                Components.utils.reportError(exc + "\nSTACK: " + exc.stack);
             }
         }
         this.mInterfaces.forEach(notifyFunc);

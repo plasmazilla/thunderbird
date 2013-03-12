@@ -743,9 +743,24 @@ var specialTabs = {
    * This is controlled by the pref toolkit.telemetry.prompted
    */
   shouldShowTelemetryNotification: function(prefs) {
-    // toolkit has decided that the pref should have no default value
+    // For a transitional period (expected end in mid-2013) we allow the pref
+    // kTelemetryPrompted to be bool or int and reset it to bool.
+    // See bug 807848 for more details.
     try {
-      if (prefs.getBoolPref(kTelemetryPrompted) || prefs.getBoolPref(kTelemetryEnabled))
+      if (prefs.getIntPref(kTelemetryPrompted) > 0) {
+        prefs.clearUserPref(kTelemetryPrompted);
+        prefs.setBoolPref(kTelemetryPrompted, true);
+        return false;
+      }
+    } catch (e) {
+      try {
+        if (prefs.getBoolPref(kTelemetryPrompted))
+          return false;
+      } catch (e) { }
+    }
+    try {
+      // toolkit has decided that the pref should have no default value
+      if (prefs.getBoolPref(kTelemetryEnabled))
         return false;
     } catch (e) { }
     return true;

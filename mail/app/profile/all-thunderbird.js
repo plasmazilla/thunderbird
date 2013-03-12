@@ -138,9 +138,6 @@ pref("app.update.showInstalledUI", false);
 pref("app.update.service.enabled", true);
 #endif
 
-// Release notes URL
-pref("app.releaseNotesURL", "http://live.mozillamessaging.com/%APP%/releasenotes?locale=%LOCALE%&version=%VERSION%&os=%OS%&buildid=%APPBUILDID%");
-
 // Base URL for web-based support pages.
 pref("app.support.baseURL", "http://support.live.mozillamessaging.com/%LOCALE%/%APP%/%APPBUILDID%/");
 
