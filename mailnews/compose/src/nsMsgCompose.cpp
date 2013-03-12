@@ -629,8 +629,9 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
   bool sig_bottom = true;
   m_identity->GetReplyOnTop(&reply_on_top);
   m_identity->GetSigBottom(&sig_bottom);
-
   bool sigOnTop = (reply_on_top == 1 && !sig_bottom);
+  bool isForwarded = (mType == nsIMsgCompType::ForwardInline);
+
   if (aQuoted)
   {
     mInsertingQuotedContent = true;
@@ -714,17 +715,17 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
       // when forwarding a message as inline, tag any embedded objects
       // which refer to local images or files so we know not to include
       // send them
-      if (mType == nsIMsgCompType::ForwardInline)
+      if (isForwarded)
         (void)TagEmbeddedObjects(mailEditor);
 
       if (!aSignature.IsEmpty())
       {
-        if (sigOnTop)
+        if (isForwarded && sigOnTop)
           m_editor->BeginningOfDocument();
         else
           m_editor->EndOfDocument();
         htmlEditor->InsertHTML(aSignature);
-        if (sigOnTop)
+        if (isForwarded && sigOnTop)
           m_editor->EndOfDocument();
       }
       else
@@ -732,7 +733,7 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
     }
     else if (htmlEditor)
     {
-      if (sigOnTop && !aSignature.IsEmpty())
+      if (isForwarded && sigOnTop && !aSignature.IsEmpty())
       {
         textEditor->InsertLineBreak();
         InsertDivWrappedTextAtSelection(aSignature,
@@ -749,7 +750,7 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
         m_editor->EndOfDocument();
       }
 
-      if (!sigOnTop && !aSignature.IsEmpty()) {
+      if ((!isForwarded || !sigOnTop) && !aSignature.IsEmpty()) {
         textEditor->InsertLineBreak();
         InsertDivWrappedTextAtSelection(aSignature,
                                         NS_LITERAL_STRING("moz-signature"));

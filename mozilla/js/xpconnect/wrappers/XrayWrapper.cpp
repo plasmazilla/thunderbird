@@ -1466,8 +1466,10 @@ XrayWrapper<Base, Traits>::getPropertyDescriptor(JSContext *cx, JSObject *wrappe
     if (!Traits::resolveOwnProperty(cx, *this, wrapper, holder, id, set, desc))
         return false;
 
-    if (desc->obj)
+    if (desc->obj) {
+        desc->obj = wrapper;
         return true;
+    }
 
     if (!JS_GetPropertyDescriptorById(cx, holder, id, JSRESOLVE_QUALIFIED, desc))
         return false;
@@ -1495,12 +1497,16 @@ XrayWrapper<Base, Traits>::getPropertyDescriptor(JSContext *cx, JSObject *wrappe
         desc->value.setObject(*JS_GetFunctionObject(toString));
     }
 
-    desc->obj = wrapper;
-
     unsigned flags = (set ? JSRESOLVE_ASSIGNING : 0) | JSRESOLVE_QUALIFIED;
-    return JS_DefinePropertyById(cx, holder, id, desc->value, desc->getter, desc->setter,
-                                 desc->attrs) &&
-           JS_GetPropertyDescriptorById(cx, holder, id, flags, desc);
+    if (!JS_DefinePropertyById(cx, holder, id, desc->value, desc->getter,
+                               desc->setter, desc->attrs) ||
+        !JS_GetPropertyDescriptorById(cx, holder, id, flags, desc))
+    {
+        return false;
+    }
+    MOZ_ASSERT(desc->obj);
+    desc->obj = wrapper;
+    return true;
 }
 
 template <typename Base, typename Traits>
@@ -1543,8 +1549,10 @@ XrayWrapper<Base, Traits>::getOwnPropertyDescriptor(JSContext *cx, JSObject *wra
     if (!Traits::resolveOwnProperty(cx, *this, wrapper, holder, id, set, desc))
         return false;
 
-    if (desc->obj)
+    if (desc->obj) {
+        desc->obj = wrapper;
         return true;
+    }
 
     unsigned flags = (set ? JSRESOLVE_ASSIGNING : 0) | JSRESOLVE_QUALIFIED;
     if (!JS_GetPropertyDescriptorById(cx, holder, id, flags, desc))
@@ -1759,47 +1767,50 @@ XrayWrapper<Base, Traits>::construct(JSContext *cx, JSObject *wrapper, unsigned 
     return true;
 }
 
+/*
+ * The Permissive / Security variants should be used depending on whether the
+ * compartment of the wrapper is guranteed to subsume the compartment of the
+ * wrapped object (i.e. - whether it is safe from a security perspective to
+ * unwrap the wrapper).
+ */
 
-#define XRAY XrayWrapper<CrossCompartmentSecurityWrapper, XPCWrappedNativeXrayTraits >
-template <> XRAY XRAY::singleton(0);
-template class XRAY;
-#undef XRAY
+template<>
+PermissiveXrayXPCWN PermissiveXrayXPCWN::singleton(0);
+template class PermissiveXrayXPCWN;
 
-#define XRAY XrayWrapper<SameCompartmentSecurityWrapper, XPCWrappedNativeXrayTraits >
-template <> XRAY XRAY::singleton(0);
-template class XRAY;
-#undef XRAY
+template<>
+SecurityXrayXPCWN SecurityXrayXPCWN::singleton(0);
+template class SecurityXrayXPCWN;
 
-#define XRAY XrayWrapper<CrossCompartmentWrapper, XPCWrappedNativeXrayTraits >
-template <> XRAY XRAY::singleton(0);
-template class XRAY;
-#undef XRAY
+template<>
+PermissiveXrayDOM PermissiveXrayDOM::singleton(0);
+template class PermissiveXrayDOM;
 
-#define XRAY XrayWrapper<CrossCompartmentWrapper, ProxyXrayTraits >
-template <> XRAY XRAY::singleton(0);
-template class XRAY;
-#undef XRAY
+template<>
+SecurityXrayDOM SecurityXrayDOM::singleton(0);
+template class SecurityXrayDOM;
 
-#define XRAY XrayWrapper<CrossCompartmentWrapper, DOMXrayTraits >
-template <> XRAY XRAY::singleton(0);
-template class XRAY;
-#undef XRAY
+template<>
+PermissiveXrayProxy PermissiveXrayProxy::singleton(0);
+template class PermissiveXrayProxy;
 
-/* Same-compartment non-filtering versions. */
+template<>
+SecurityXrayProxy SecurityXrayProxy::singleton(0);
+template class SecurityXrayProxy;
 
-#define XRAY XrayWrapper<DirectWrapper, XPCWrappedNativeXrayTraits >
-template <> XRAY XRAY::singleton(0);
-template class XRAY;
-#undef XRAY
+template<>
+SCPermissiveXrayXPCWN SCPermissiveXrayXPCWN::singleton(0);
+template class SCPermissiveXrayXPCWN;
 
-#define XRAY XrayWrapper<DirectWrapper, ProxyXrayTraits >
-template <> XRAY XRAY::singleton(0);
-template class XRAY;
-#undef XRAY
+template<>
+SCSecurityXrayXPCWN SCSecurityXrayXPCWN::singleton(0);
+template class SCSecurityXrayXPCWN;
 
-#define XRAY XrayWrapper<DirectWrapper, DOMXrayTraits >
-template <> XRAY XRAY::singleton(0);
-template class XRAY;
-#undef XRAY
+template<>
+SCPermissiveXrayDOM SCPermissiveXrayDOM::singleton(0);
+template class SCPermissiveXrayDOM;
 
+template<>
+SCPermissiveXrayProxy SCPermissiveXrayProxy::singleton(0);
+template class SCPermissiveXrayProxy;
 }

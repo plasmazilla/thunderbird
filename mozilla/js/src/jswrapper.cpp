@@ -70,7 +70,7 @@ Wrapper::wrappedObject(RawObject wrapper)
     return GetProxyTargetObject(wrapper);
 }
 
-Wrapper::Wrapper(unsigned flags) : mFlags(flags)
+Wrapper::Wrapper(unsigned flags) : mFlags(flags), mSafeToUnwrap(true)
 {
 }
 
@@ -862,29 +862,34 @@ CrossCompartmentWrapper CrossCompartmentWrapper::singleton(0u);
 template <class Base>
 SecurityWrapper<Base>::SecurityWrapper(unsigned flags)
   : Base(flags)
-{}
+{
+    Base::setSafeToUnwrap(false);
+}
 
 template <class Base>
 bool
+SecurityWrapper<Base>::enter(JSContext *cx, JSObject *wrapper, jsid id,
+                             Wrapper::Action act, bool *bp)
+{
+    JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL, JSMSG_UNWRAP_DENIED);
+    *bp = false;
+    return false;
+}
+
+ template <class Base>
+ bool
 SecurityWrapper<Base>::nativeCall(JSContext *cx, IsAcceptableThis test, NativeImpl impl,
                                   CallArgs args)
 {
-    /*
-     * Let this through until compartment-per-global lets us have stronger
-     * invariants wrt document.domain (bug 714547).
-     */
-    return Base::nativeCall(cx, test, impl, args);
+    JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL, JSMSG_UNWRAP_DENIED);
+    return false;
 }
 
 template <class Base>
 bool
 SecurityWrapper<Base>::objectClassIs(JSObject *obj, ESClassValue classValue, JSContext *cx)
 {
-    /*
-     * Let this through until compartment-per-global lets us have stronger
-     * invariants wrt document.domain (bug 714547).
-     */
-    return Base::objectClassIs(obj, classValue, cx);
+    return false;
 }
 
 template <class Base>

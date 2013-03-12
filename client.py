@@ -35,7 +35,7 @@ DEFAULTS = {
 
 
   # URL of the default hg repository to clone for Mozilla.
-  'MOZILLA_REPO': 'http://hg.mozilla.org/releases/mozilla-release/',
+  'MOZILLA_REPO': 'http://hg.mozilla.org/releases/mozilla-esr17/',
 }
 
 REPO_SHORT_NAMES = {

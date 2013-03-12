@@ -441,7 +441,7 @@ calStorageCalendar.prototype = {
             if (olditem) {
                 if (this.relaxedMode) {
                     // we possibly want to interact with the user before deleting
-                    this.deleteItemById(aItem.id);
+                    this.deleteItemById(aItem.id, true);
                 } else {
                     this.notifyOperationComplete(aListener,
                                                  Components.interfaces.calIErrors.DUPLICATE_ID,
@@ -572,7 +572,7 @@ calStorageCalendar.prototype = {
         }
 
         modifiedItem.makeImmutable();
-        this.flushItem (modifiedItem, aOldItem);
+        this.flushItem(modifiedItem, aOldItem);
         this.setOfflineJournalFlag(aNewItem, oldOfflineFlag);
 
         this.notifyOperationComplete(aListener,
@@ -2077,7 +2077,7 @@ calStorageCalendar.prototype = {
         ASSERT(!item.recurrenceId, "no parent item passed!", true);
 
         try {
-            this.deleteItemById(olditem ? olditem.id : item.id, !!olditem);
+            this.deleteItemById(olditem ? olditem.id : item.id, true);
             this.acquireTransaction();
             this.writeItem(item, olditem);
         } catch (e) {
@@ -2521,7 +2521,7 @@ calStorageCalendar.prototype = {
         this.executeItemStatement(this.mDeleteMetaData, "item_id", id);
         try {
             this.prepareStatement(this.mInsertMetaData);
-            var sp = this.mInsertMetaData.params;
+            let sp = this.mInsertMetaData.params;
             sp.item_id = id;
             sp.value = value;
             this.mInsertMetaData.executeStep();

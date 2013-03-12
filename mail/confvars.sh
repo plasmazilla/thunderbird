@@ -35,9 +35,19 @@ THUNDERBIRD_VERSION=$MOZ_APP_VERSION
 
 MOZ_BRANDING_DIRECTORY=mail/branding/aurora
 MOZ_OFFICIAL_BRANDING_DIRECTORY=other-licenses/branding/thunderbird
-# This should usually be the same as the value MAR_CHANNEL_ID.
-# If more than one ID is needed, then you should use a comma separated list
-# of values.
-ACCEPTED_MAR_CHANNEL_IDS=thunderbird-comm-release
-# The MAR_CHANNEL_ID must not contain the following 3 characters: ",\t "
-MAR_CHANNEL_ID=thunderbird-comm-release
+
+if [ "$MOZ_ESR" ]; then
+  # This should usually be the same as the value MAR_CHANNEL_ID.
+  # If more than one ID is needed, then you should use a comma separated list
+  # of values.
+  ACCEPTED_MAR_CHANNEL_IDS=thunderbird-comm-esr
+  # The MAR_CHANNEL_ID must not contain the following 3 characters: ",\t "
+  MAR_CHANNEL_ID=thunderbird-comm-esr
+else
+  # This should usually be the same as the value MAR_CHANNEL_ID.
+  # If more than one ID is needed, then you should use a comma separated list
+  # of values.
+  ACCEPTED_MAR_CHANNEL_IDS=thunderbird-comm-release
+  # The MAR_CHANNEL_ID must not contain the following 3 characters: ",\t "
+  MAR_CHANNEL_ID=thunderbird-comm-release
+fi

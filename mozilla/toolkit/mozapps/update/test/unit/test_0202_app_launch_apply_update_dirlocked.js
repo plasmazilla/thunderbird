@@ -27,12 +27,6 @@ const FILE_UPDATER_INI_BAK = "updater.ini.bak";
 // Number of milliseconds for each do_timeout call.
 const CHECK_TIMEOUT_MILLI = 1000;
 
-// Maximum number of milliseconds the process that is launched can run before
-// the test will try to kill it.
-const APP_TIMER_TIMEOUT = 15000;
-
-let gAppTimer;
-let gProcess;
 let gActiveUpdate;
 
 // Override getUpdatesRootDir on Mac because we need to apply the update
@@ -103,6 +97,11 @@ function symlinkUpdateFilesIntoBundleDirectory() {
 }
 
 function run_test() {
+  if (APP_BIN_NAME == "xulrunner") {
+    logTestInfo("Unable to run this test on xulrunner");
+    return;
+  }
+
   do_test_pending();
   do_register_cleanup(end_test);
 
@@ -239,7 +238,7 @@ function adjustPathsOnWindows() {
   tmpDir.append("ExecutableDir.tmp");
   tmpDir.createUnique(tmpDir.DIRECTORY_TYPE, 0755);
   let procDir = getCurrentProcessDir();
-  procDir.copyTo(tmpDir, "bin");
+  copyDirRecursive(procDir, tmpDir, "bin");
   let newDir = tmpDir.clone();
   newDir.append("bin");
   gWindowsBinDir = newDir;

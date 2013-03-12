@@ -19631,6 +19631,7 @@ fi
 
 
 
+
 CFLAGS=`echo \
 	$_WARNINGS_CFLAGS \
 	$CFLAGS`
@@ -19760,7 +19761,7 @@ if test "$MOZ_X11"; then
                 _SAVE_CFLAGS=$CFLAGS
     CFLAGS="$CFLAGS $XCFLAGS"
     cat > conftest.$ac_ext <<EOF
-#line 19764 "configure"
+#line 19765 "configure"
 #include "confdefs.h"
 
         #include <stdio.h>
@@ -19778,7 +19779,7 @@ int main() {
     
 ; return 0; }
 EOF
-if { (eval echo configure:19782: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:19783: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   :
 else
   echo "configure: failed program was:" >&5
@@ -20381,6 +20382,7 @@ sed 's/$/,/' >> $CONFIG_STATUS <<EOF
         (''' MOZ_APP_MAXVERSION ''', r''' $MOZ_APP_MAXVERSION ''')
         (''' MAR_CHANNEL_ID ''', r''' $MAR_CHANNEL_ID ''')
         (''' ACCEPTED_MAR_CHANNEL_IDS ''', r''' $ACCEPTED_MAR_CHANNEL_IDS ''')
+        (''' MOZ_ESR ''', r''' $MOZ_ESR ''')
         (''' FIREFOX_VERSION ''', r''' $FIREFOX_VERSION ''')
         (''' THUNDERBIRD_VERSION ''', r''' $THUNDERBIRD_VERSION ''')
         (''' SUNBIRD_VERSION ''', r''' $SUNBIRD_VERSION ''')

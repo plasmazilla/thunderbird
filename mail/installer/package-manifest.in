@@ -308,7 +308,11 @@
 @BINPATH@/defaults/pref/mailnews.js
 @BINPATH@/defaults/pref/mdn.js
 @BINPATH@/defaults/pref/smime.js
+#ifdef MOZ_ESR
+@BINPATH@/defaults/pref/thunderbird-esr-branding.js
+#else
 @BINPATH@/defaults/pref/thunderbird-branding.js
+#endif
 @BINPATH@/greprefs.js
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

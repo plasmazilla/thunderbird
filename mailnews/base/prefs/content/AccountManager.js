@@ -734,6 +734,13 @@ function onAccountTreeSelect(pageId, account)
     return true;
   }
 
+  if (currentPageId) {
+    // Change focus to the account tree first so that any 'onchange' handlers
+    // on elements in the current page have a chance to run before the page
+    // is saved and replaced by the new one.
+    tree.focus();
+  }
+
   // save the previous page
   savePage(currentAccount);
 
