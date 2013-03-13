@@ -1,3 +1,22 @@
+icedove (17.0.4-1) experimental; urgency=low
+
+  [ Guido Günther ]
+  * [9ed54cb] Add Homepage
+  * [bd41337] Add X-Debian-Homepage
+
+  [ Carsten Schoenert ]
+  * [1fba87f] New patch
+    fix-function-nsMsgComposeAndSend-to-to-respect-Replo.patch fix function
+    nsMsgComposeAndSend to respect ReploToSend
+    Thanks to Emilio Pozuelo Monfort for the patch (Closes: #565903)
+
+  [ Christoph Goehre ]
+  * [7a1071b] update debug section in icedove manpage (Closes: #698163)
+  * [017f5b5] Imported Upstream version 17.0.4 (Closes: #702927)
+  * [7c35529] compress debian packages with xz
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 13 Mar 2013 19:00:07 -0400
+
 icedove (17.0.2-1) experimental; urgency=low
 
   * [8911b88] Finally set Christoph as Maintainer.
