@@ -11,6 +11,7 @@ Squashed kFreeBSD/Hurd related fixes:
 - Build fixes for GNU/kFreeBSD in directory/
 - Missing bits for Hurd support
 
+
 ---
  configure.in                                       |    7 ++---
  ldap/sdks/c-sdk/config/nsinstall.c                 |    2 +-
@@ -23,7 +24,7 @@ Squashed kFreeBSD/Hurd related fixes:
  8 files changed, 36 insertions(+), 26 deletions(-)
 
 diff --git a/configure.in b/configure.in
-index 98470a8..659cd82 100644
+index c5a94a8..3989eb4 100644
 --- a/configure.in
 +++ b/configure.in
 @@ -987,6 +987,7 @@ if test -n "$CROSS_COMPILE"; then

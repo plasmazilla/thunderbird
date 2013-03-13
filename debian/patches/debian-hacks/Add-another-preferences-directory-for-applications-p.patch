@@ -5,6 +5,7 @@ Subject: Add another preferences directory for applications:
 
 This can be used to symlink to /etc/ice*/pref.
 
+
 ---
  mozilla/toolkit/xre/nsXREDirProvider.cpp |    2 ++
  1 file changed, 2 insertions(+)

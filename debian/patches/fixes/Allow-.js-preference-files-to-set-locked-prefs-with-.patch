@@ -4,6 +4,7 @@ Subject: Allow .js preference files to set locked prefs with lockPref()
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=440908
 
+
 ---
  mozilla/modules/libpref/src/prefapi.cpp  |    5 ++++-
  mozilla/modules/libpref/src/prefapi.h    |    3 ++-

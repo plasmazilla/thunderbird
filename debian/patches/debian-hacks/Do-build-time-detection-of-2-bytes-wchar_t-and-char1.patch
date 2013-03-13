@@ -6,6 +6,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=559278
 Closes: #577677 - in xulrunner
 Ported to icedove by Christoph Goehre <chris@sigxcpu.org>
 
+
 ---
  mozilla/xpcom/base/nscore.h                   |   22 ++++++++++++++++++++++
  mozilla/xpcom/glue/nsStringAPI.h              |    1 +

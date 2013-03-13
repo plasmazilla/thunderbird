@@ -4,6 +4,7 @@ Subject: Link libldap against libpthread
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=527454
 
+
 ---
  ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

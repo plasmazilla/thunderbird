@@ -4,6 +4,7 @@ Subject: Allow to build against system libffi
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=551138
 
+
 ---
  mozilla/js/src/configure.in |   12 ++++++++++++
  1 file changed, 12 insertions(+)
