@@ -1,3 +1,15 @@
+icedove-l10n (1:17.0.4-1) experimental; urgency=low
+
+  [ Christoph Goehre ]
+  * [b95e1c1] Imported Upstream version 17.0.4
+  * [77892f8] adjust icedove depends to >= 17.0.4
+
+  [ Carsten Schoenert ]
+  * [d1f620d] debian/control: update Standard-Version to 3.9.4
+  * [331b66b] debian/control: remove obsolete "DM-Upload-Allowed" field
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 18 Mar 2013 13:24:58 -0400
+
 icedove-l10n (1:17.0.3-1) experimental; urgency=low
 
   [ Christoph Goehre ]
