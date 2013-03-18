@@ -8,14 +8,14 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-nl@thunderbird.mozilla.org"
                em:name="Nederlands (NL) Language Pack"
-               em:version="17.0.3"
+               em:version="17.0.4"
                em:type="8"
                em:creator="mozilla.org">
     <em:contributor>Gert-Paul van der Beek</em:contributor><em:contributor>Tim Maks van den Broek</em:contributor><em:contributor>Laurens Holst</em:contributor><em:contributor>Ton Kensen</em:contributor><em:contributor>Anne van Kesteren</em:contributor><em:contributor>Hendrik Maryns</em:contributor><em:contributor>Martijn Ras</em:contributor><em:contributor>leden MozBrowser-forum</em:contributor>
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>17.0.3</em:minVersion>
+        <em:minVersion>17.0.4</em:minVersion>
         <em:maxVersion>17.0.*</em:maxVersion>
       </Description>
     </em:targetApplication>
