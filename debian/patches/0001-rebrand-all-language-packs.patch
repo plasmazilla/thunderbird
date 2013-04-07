@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Mon, 5 Sep 2011 19:12:55 +0200
-Subject: [PATCH] rebrand all language packs
+Subject: rebrand all language packs
 
 ---
  upstream/ar/chrome/ar/locale/ar/branding/brand.dtd           |   10 +++++-----
@@ -1433,4 +1433,3 @@ index 459e67a..8a22312 100644
 +brandFullName=Icedove
  vendorShortName=Mozilla
  
--- 
