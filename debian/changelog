@@ -1,3 +1,11 @@
+icedove-l10n (1:17.0.5-1) experimental; urgency=low
+
+  * Imported Upstream version 17.0.5
+  * rebuild patch queue from patch-queue branch
+  * adjust icedove depends to >= 17.0.5
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Sun, 07 Apr 2013 15:05:58 +0200
+
 icedove-l10n (1:17.0.4-1) experimental; urgency=low
 
   [ Christoph Goehre ]
