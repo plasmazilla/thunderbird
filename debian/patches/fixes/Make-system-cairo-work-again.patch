@@ -5,7 +5,6 @@ Subject: Make system cairo work again
 BZ: https://bugzilla.mozilla.org/show_bug.cgi?id=722975
 Patch: https://bug722975.bugzilla.mozilla.org/attachment.cgi?id=624394
 
-
 ---
  mozilla/gfx/thebes/gfxPlatform.cpp |   16 ++++------------
  1 file changed, 4 insertions(+), 12 deletions(-)

@@ -8,7 +8,6 @@ addon-checking/installing/updating will work
 
 Closes: #565559
 
-
 ---
  mail/app/profile/all-thunderbird.js                |   27 ++++++++++----------
  .../en-US/chrome/messenger/accountCreation.dtd     |    2 +-

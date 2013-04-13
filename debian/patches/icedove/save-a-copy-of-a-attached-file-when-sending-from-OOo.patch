@@ -7,7 +7,6 @@ To not loose data when sending an email from OOo and close OOo before sending.
 https://bugzilla.mozilla.org/show_bug.cgi?id=378046
 Closes: #505875
 
-
 ---
  .../compose/content/MsgComposeCommands.js          |   31 ++++++++++++++++++++
  1 file changed, 31 insertions(+)

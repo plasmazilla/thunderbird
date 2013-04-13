@@ -11,7 +11,6 @@ Squashed kFreeBSD/Hurd related fixes:
 - Build fixes for GNU/kFreeBSD in directory/
 - Missing bits for Hurd support
 
-
 ---
  configure.in                                       |    7 ++---
  ldap/sdks/c-sdk/config/nsinstall.c                 |    2 +-
