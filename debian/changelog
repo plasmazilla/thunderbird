@@ -1,3 +1,18 @@
+icedove (17.0.5-1) experimental; urgency=low
+
+  [ Guido Günther ]
+  * [894ea6d] Include all needed libs to link against icedove's libxpcom
+    (Closes: #477747)
+
+  [ Carsten Schoenert ]
+  * [6e00625] Point "Help->What's new" to the Debian Wiki (Closes: #570577)
+
+  [ Christoph Goehre ]
+  * [4766bc9] replace icon in searchplugin (bing, twitter) with download url
+  * [e3dc726] Imported Upstream version 17.0.5
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 13 Apr 2013 12:19:06 -0400
+
 icedove (17.0.4-1) experimental; urgency=low
 
   [ Guido Günther ]
