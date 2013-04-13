@@ -109,7 +109,7 @@ Description: Calendar Extension for Thunderbird/Icedove
  Icedove.
 
 Package: calendar-google-provider
-Architecture: any
+Architecture: all
 Depends: ${shlibs:Depends},
  ${misc:Depends}
 Description: Google Calendar support for lightning- and iceowl-extension

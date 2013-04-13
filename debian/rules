@@ -240,10 +240,9 @@ binary-install/$(DEB_MOZ_APPLICATION)::
 
 common-install-arch::
 	set -e; mkdir -p debian/iceowl-extension/usr/lib/iceowl-extension \
-		debian/calendar-google-provider/usr/lib/calendar-google-provider \
 		debian/calendar-timezones/usr/lib/calendar-timezones; \
 		sh -c "set -e; cd debian/iceowl-extension/usr/lib/iceowl-extension/; unzip $(CURDIR)/mozilla/dist/xpi-stage/lightning.xpi"; \
-		sh -c "set -e; cd debian/calendar-google-provider/usr/lib/calendar-google-provider/; unzip $(CURDIR)/mozilla/dist/xpi-stage/gdata-provider.xpi"; \
+		sh -c "set -e; cd debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/; unzip $(CURDIR)/mozilla/dist/xpi-stage/gdata-provider.xpi"; \
 		sh -c "set -e; cd debian/calendar-timezones/usr/lib/calendar-timezones/; unzip $(CURDIR)/mozilla/dist/xpi-stage/calendar-timezones.xpi"
 
 binary-predeb/$(DEB_MOZ_APPLICATION)::
