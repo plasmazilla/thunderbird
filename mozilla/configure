@@ -28181,6 +28181,7 @@ export MOZ_APP_NAME
 export STLPORT_CPPFLAGS
 export STLPORT_LDFLAGS
 export STLPORT_LIBS
+export JS_STANDALONE=no
 
 
 if test "$no_recursion" != yes; then
