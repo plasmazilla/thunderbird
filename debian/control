@@ -91,7 +91,7 @@ Description: Debug Symbols for Icedove
  you need to debug such a program or if you need a useful backtrace of a crash.
 
 Package: calendar-timezones
-Architecture: any
+Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Timezone Extension for Lightning/Iceowl (mandatory)
  This package provides timezone data for the Lightning/Iceowl extension. It's
@@ -100,7 +100,7 @@ Description: Timezone Extension for Lightning/Iceowl (mandatory)
 Package: iceowl-extension
 Architecture: any
 Depends: icedove (>= ${binary:Version}) | thunderbird (>= ${binary:Version}),
- calendar-timezones (= ${binary:Version}),
+ calendar-timezones (= ${source:Version}),
  ${shlibs:Depends}, ${misc:Depends}
 Recommends: calendar-google-provider
 Suggests: fonts-lyx
