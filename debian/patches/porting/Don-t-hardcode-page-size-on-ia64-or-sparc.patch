@@ -1,0 +1,35 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Fri, 23 Mar 2012 09:57:04 +0100
+Subject: Don't hardcode page size on ia64 or sparc
+
+This patch is from the Iceweasel git repository, some words for
+explaining.
+On IA64 and Sparc the behavior of the malloc() with defined
+MALLOC_STATIC_SIZES produces a error while jmalloc is running:
+
+ ...
+ adding: hyphenation/hyph_uk.dic (deflated 70%)
+ <jemalloc>Compile-time page size does not divide the runtime one.
+
+So let just MALLOC_STATIC_SIZES undefined for IA64 and Sparc.
+
+Signed-off-by: Carsten Schoenert <c.schoenert@t-online.de>
+
+---
+ mozilla/memory/mozjemalloc/jemalloc.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mozilla/memory/mozjemalloc/jemalloc.c b/mozilla/memory/mozjemalloc/jemalloc.c
+index 631e736..ba78597 100644
+--- a/mozilla/memory/mozjemalloc/jemalloc.c
++++ b/mozilla/memory/mozjemalloc/jemalloc.c
+@@ -1091,7 +1091,9 @@ static unsigned		ncpus;
+  * controlling the malloc behavior are defined as compile-time constants
+  * for best performance and cannot be altered at runtime.
+  */
++#if !defined(__ia64__) && !defined(__sparc__)
+ #define MALLOC_STATIC_SIZES 1
++#endif
+ 
+ #ifdef MALLOC_STATIC_SIZES
+ 
