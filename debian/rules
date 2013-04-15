@@ -239,10 +239,13 @@ binary-install/$(DEB_MOZ_APPLICATION)::
 	dh_link -p$(DEB_MOZ_APPLICATION) $(DEBIAN_TB_DIR)/$(DEB_MOZ_APPLICATION) usr/bin/$(DEB_MOZ_APPLICATION)
 
 common-install-arch::
-	set -e; mkdir -p debian/iceowl-extension/usr/lib/iceowl-extension; \
-		sh -c "set -e; cd debian/iceowl-extension/usr/lib/iceowl-extension/; unzip $(CURDIR)/mozilla/dist/xpi-stage/lightning.xpi"; \
-		sh -c "set -e; cd debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/; unzip $(CURDIR)/mozilla/dist/xpi-stage/gdata-provider.xpi"; \
-		sh -c "set -e; cd debian/calendar-timezones/usr/share/xul-ext//calendar-timezones/; unzip $(CURDIR)/mozilla/dist/xpi-stage/calendar-timezones.xpi"
+	mkdir -p debian/iceowl-extension/usr/lib/iceowl-extension
+	cd debian/iceowl-extension/usr/lib/iceowl-extension/ && unzip $(CURDIR)/mozilla/dist/xpi-stage/lightning.xpi
+
+common-install-indep::
+	dh_installdirs -i
+	cd debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/ && unzip $(CURDIR)/mozilla/dist/xpi-stage/gdata-provider.xpi
+	cd debian/calendar-timezones/usr/share/xul-ext//calendar-timezones/ && unzip $(CURDIR)/mozilla/dist/xpi-stage/calendar-timezones.xpi
 
 binary-predeb/$(DEB_MOZ_APPLICATION)::
 	LD_LIBRARY_PATH=$(DEB_DESTDIR)usr/lib/$(DEB_MOZ_APPLICATION) dpkg-shlibdeps -Tdebian/$(DEB_MOZ_APPLICATION).substvars -dDepends -pgnome $(foreach lib,dbusservice mozgnome,debian/$(DEB_MOZ_APPLICATION)/usr/lib/$(DEB_MOZ_APPLICATION)/components/lib$(lib).so)
