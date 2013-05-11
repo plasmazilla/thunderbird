@@ -27,7 +27,6 @@ debian-hacks/Don-t-build-example-component.patch
 fixes/Link-libldap-against-libpthread.patch
 fixes/Bug-628252-os2.cc-fails-to-compile-against-GCC-4.6-m.patch
 fixes/Include-cstdlib-in-gfx-angle-src-compiler-Types.h-fo.patch
-icedove/save-a-copy-of-a-attached-file-when-sending-from-OOo.patch
 fixes/Make-system-cairo-work-again.patch
 debian-hacks/Fix-build-failure-for-header.py-and-typelib.py.patch
 porting/Another-fix-to-build-ipc-code-on-GNU-hurd-and-kfreeb.patch
