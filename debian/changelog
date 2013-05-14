@@ -1,3 +1,10 @@
+icedove-l10n (1:17.0.6-1) unstable; urgency=low
+
+  * Imported Upstream version 17.0.6
+  * adjust icedove depends to >= 17.0.6
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Tue, 14 May 2013 22:17:08 +0200
+
 icedove-l10n (1:17.0.5-1) experimental; urgency=low
 
   * Imported Upstream version 17.0.5
