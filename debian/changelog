@@ -1,3 +1,25 @@
+icedove (17.0.5-2) unstable; urgency=low
+
+  [ Guido Günther ]
+  * [4c7a88a] Install calendar-google-provider to /u/s/xul-ext
+    (Closes: #638480)
+  * [4c97096] Move calendar-timezones to /u/s/xul-ext (Closes: #638481)
+  * [e9d0085] Move arch indep parts to common-install-indep
+
+  [ Carsten Schoenert ]
+  * [40d68d5] Fix build error on IA64 and Sparc
+  * [59939c3] manpage: add example section and convert to UTF-8
+  * [10647cf] fixing build failure depended on python-2.7 changes
+
+  [ Christoph Goehre ]
+  * [0a7bb8b] create links for extension in
+    /usr/share/mozilla/extensions/APPID
+  * [5047e6b] remove
+    icedove/save-a-copy-of-a-attached-file-when-sending-from-OOo.patch
+    (Closes: #695323)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 18 May 2013 17:53:21 -0400
+
 icedove (17.0.5-1) experimental; urgency=low
 
   [ Guido Günther ]
