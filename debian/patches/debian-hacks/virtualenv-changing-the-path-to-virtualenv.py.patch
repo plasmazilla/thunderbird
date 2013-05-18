@@ -1,0 +1,39 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sat, 18 May 2013 21:21:20 +0200
+Subject: virtualenv: changing the path to virtualenv.py
+
+Since Debian changes the structure of python-2.7 in Jessie we have to
+fix the configure scripts to let them find the virtualenv.py.
+The patch based on Guidos work for the Iceowl package because the
+change for the virtualenv.py is needed there too.
+---
+ mozilla/configure    |    2 +-
+ mozilla/configure.in |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/configure b/mozilla/configure
+index 5ac0b2f..0178348 100755
+--- a/mozilla/configure
++++ b/mozilla/configure
+@@ -26730,7 +26730,7 @@ esac
+ echo "$ac_t""Creating Python virtualenv" 1>&6
+ rm -rf _virtualenv
+ mkdir -p _virtualenv
+-MACOSX_DEPLOYMENT_TARGET= PYTHONDONTWRITEBYTECODE= $PYTHON $_topsrcdir/python/virtualenv/virtualenv.py --system-site-packages ./_virtualenv
++MACOSX_DEPLOYMENT_TARGET= PYTHONDONTWRITEBYTECODE= $PYTHON /usr/share/pyshared/virtualenv.py --system-site-packages ./_virtualenv
+ case "$host_os" in
+ mingw*)
+     PYTHON=$MOZ_BUILD_ROOT/_virtualenv/Scripts/python.exe
+diff --git a/mozilla/configure.in b/mozilla/configure.in
+index 18d1371..c3cdd48 100644
+--- a/mozilla/configure.in
++++ b/mozilla/configure.in
+@@ -8701,7 +8701,7 @@ dnl Create a virtualenv where we can install local Python packages
+ AC_MSG_RESULT([Creating Python virtualenv])
+ rm -rf _virtualenv
+ mkdir -p _virtualenv
+-MACOSX_DEPLOYMENT_TARGET= PYTHONDONTWRITEBYTECODE= $PYTHON $_topsrcdir/python/virtualenv/virtualenv.py --system-site-packages ./_virtualenv
++MACOSX_DEPLOYMENT_TARGET= PYTHONDONTWRITEBYTECODE= $PYTHON /usr/share/pyshared/virtualenv.py --system-site-packages ./_virtualenv
+ case "$host_os" in
+ mingw*)
+     PYTHON=$MOZ_BUILD_ROOT/_virtualenv/Scripts/python.exe
