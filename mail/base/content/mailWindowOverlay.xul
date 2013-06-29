@@ -1103,7 +1103,8 @@
         <menu id="appmenu_FolderViews"
               label="&folderView.label;">
           <menupopup id="appmenu_FolderViewsPopup"
-                     onpopupshowing="InitViewFolderViewsMenu(event)">
+                     onpopupshowing="InitAppFolderViewsMenu();
+                                     InitViewFolderViewsMenu(event);">
             <menuitem id="appmenu_allFolders"
                       value="all"
                       label="&allFolders.label;"
@@ -1633,10 +1634,10 @@
             <menu id="appmenu_charsetMenu"
                   label="&charsetMenu.label;"
                   datasources="rdf:charset-menu"
-                  ref="NC:BrowserCharsetMenuRoot"
-                  oncommand="MultiplexHandler(event)"
-                  onpopupshowing="CreateMenu('browser'); CreateMenu('more-menu');"
-                  onpopupshown="UpdateMenus(event);"
+                  ref="NC:MailviewCharsetMenuRoot"
+                  oncommand="MailMultiplexHandler(event)"
+                  onpopupshowing="CreateMenu('mailview');UpdateMailMenus()"
+                  onpopupshown="CreateMenu('more-menu');"
                   observes="isImage">
                 <template>
                   <rule rdf:type="http://home.netscape.com/NC-rdf#BookmarkSeparator">

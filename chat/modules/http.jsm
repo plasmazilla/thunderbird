@@ -2,13 +2,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["doXHRequest"];
+const EXPORTED_SYMBOLS = ["doXHRequest", "percentEncode"];
 
 const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
 Cu.import("resource:///modules/imXPCOMUtils.jsm");
 
 initLogModule("xhr", this);
+
+// Strictly follow RFC 3986 when encoding URI components.
+function percentEncode(aString)
+  encodeURIComponent(aString).replace(/[!'()]/g, escape).replace(/\*/g, "%2A");
 
 function doXHRequest(aUrl, aHeaders, aPOSTData, aOnLoad, aOnError, aThis) {
   let xhr = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
@@ -65,7 +69,7 @@ function doXHRequest(aUrl, aHeaders, aPOSTData, aOnLoad, aOnError, aThis) {
   if (aPOSTData) {
     xhr.setRequestHeader("Content-Type",
                          "application/x-www-form-urlencoded; charset=utf-8");
-    POSTData = aPOSTData.map(function(p) p[0] + "=" + encodeURIComponent(p[1]))
+    POSTData = aPOSTData.map(function(p) p[0] + "=" + percentEncode(p[1]))
                         .join("&");
   }
 
