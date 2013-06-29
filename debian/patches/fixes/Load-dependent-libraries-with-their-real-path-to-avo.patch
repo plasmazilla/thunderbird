@@ -4,7 +4,7 @@ Subject: Load dependent libraries with their real path to avoid confusing gdb
  when they are symlinks
 
 ---
- mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp |    3 +++
+ mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp | 3 +++
  1 file changed, 3 insertions(+)
 
 diff --git a/mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp b/mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp

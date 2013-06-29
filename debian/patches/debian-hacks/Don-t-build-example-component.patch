@@ -3,7 +3,7 @@ Date: Wed, 12 Mar 2008 23:20:52 +0100
 Subject: Don't build example component
 
 ---
- mozilla/xulrunner/Makefile.in |    1 -
+ mozilla/xulrunner/Makefile.in | 1 -
  1 file changed, 1 deletion(-)
 
 diff --git a/mozilla/xulrunner/Makefile.in b/mozilla/xulrunner/Makefile.in

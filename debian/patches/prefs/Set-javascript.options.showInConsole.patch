@@ -3,7 +3,7 @@ Date: Sat, 8 Dec 2007 19:24:40 +0100
 Subject: Set javascript.options.showInConsole
 
 ---
- mozilla/modules/libpref/src/init/all.js |    1 +
+ mozilla/modules/libpref/src/init/all.js | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/mozilla/modules/libpref/src/init/all.js b/mozilla/modules/libpref/src/init/all.js

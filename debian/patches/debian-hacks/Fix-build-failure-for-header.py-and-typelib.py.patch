@@ -8,7 +8,7 @@ This change was not passing the --cachedir option, hence the build failure.
 This patch just hacks the build by passing the cachedir option manually
 
 ---
- config/rules.mk |    4 ++--
+ config/rules.mk | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/config/rules.mk b/config/rules.mk

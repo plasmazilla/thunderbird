@@ -9,8 +9,8 @@ addon-checking/installing/updating will work
 Closes: #565559
 
 ---
- mail/app/profile/all-thunderbird.js                |   27 ++++++++++----------
- .../en-US/chrome/messenger/accountCreation.dtd     |    2 +-
+ mail/app/profile/all-thunderbird.js                | 27 +++++++++++-----------
+ .../en-US/chrome/messenger/accountCreation.dtd     |  2 +-
  2 files changed, 14 insertions(+), 15 deletions(-)
 
 diff --git a/mail/app/profile/all-thunderbird.js b/mail/app/profile/all-thunderbird.js

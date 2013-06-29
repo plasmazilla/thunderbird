@@ -6,9 +6,10 @@ Since Debian changes the structure of python-2.7 in Jessie we have to
 fix the configure scripts to let them find the virtualenv.py.
 The patch based on Guidos work for the Iceowl package because the
 change for the virtualenv.py is needed there too.
+
 ---
- mozilla/configure    |    2 +-
- mozilla/configure.in |    2 +-
+ mozilla/configure    | 2 +-
+ mozilla/configure.in | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/configure b/mozilla/configure

@@ -3,8 +3,8 @@ Date: Sat, 24 Nov 2012 11:36:16 +0100
 Subject: Icedove branding
 
 ---
- mail/app/application.ini |    2 +-
- mail/confvars.sh         |    4 ++--
+ mail/app/application.ini | 2 +-
+ mail/confvars.sh         | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mail/app/application.ini b/mail/app/application.ini

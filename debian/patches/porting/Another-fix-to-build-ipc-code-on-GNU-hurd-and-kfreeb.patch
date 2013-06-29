@@ -3,7 +3,7 @@ Date: Wed, 31 Oct 2012 13:27:07 -0400
 Subject: Another fix to build ipc code on GNU/hurd and kfreebsd
 
 ---
- mozilla/ipc/chromium/src/base/platform_thread_posix.cc |    2 +-
+ mozilla/ipc/chromium/src/base/platform_thread_posix.cc | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc

@@ -4,7 +4,7 @@ Subject: Bug 720682 - Don't crash an app using libxul because of the lack of
  je_malloc_usable_size_in_advance
 
 ---
- mozilla/storage/src/mozStorageService.cpp |    3 ++-
+ mozilla/storage/src/mozStorageService.cpp | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/mozilla/storage/src/mozStorageService.cpp b/mozilla/storage/src/mozStorageService.cpp

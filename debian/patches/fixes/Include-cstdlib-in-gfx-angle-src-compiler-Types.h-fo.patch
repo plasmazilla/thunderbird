@@ -3,7 +3,7 @@ Date: Sun, 18 Mar 2012 09:37:00 +0100
 Subject: Include cstdlib in gfx/angle/src/compiler/Types.h for abort()
 
 ---
- mozilla/gfx/angle/src/compiler/Types.h |    1 +
+ mozilla/gfx/angle/src/compiler/Types.h | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/mozilla/gfx/angle/src/compiler/Types.h b/mozilla/gfx/angle/src/compiler/Types.h
