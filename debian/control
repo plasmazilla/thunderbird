@@ -39,8 +39,8 @@ Build-Depends: bzip2,
 	libvpx-dev (>= 1.0.0),
 	mesa-common-dev,
 	libreadline-dev
-Vcs-Git: git://git.debian.org/pkg-mozilla/icedove.git
-Vcs-Browser: http://git.debian.org/?p=pkg-mozilla/icedove.git;a=summary
+Vcs-Git: git://anonscm.debian.org/pkg-mozilla/icedove.git
+Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-mozilla/icedove.git;a=summary
 Homepage: http://www.mozilla.org/thunderbird/
 X-Debian-Homepage: http://wiki.debian.org/Icedove
 Standards-Version: 3.9.3
