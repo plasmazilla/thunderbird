@@ -1,3 +1,18 @@
+icedove (17.0.7-1) unstable; urgency=low
+
+  * [b8fd345] Imported Upstream version 17.0.7
+  * [3133999] rebuild patch queue from patch-queue branch
+    modified patches:
+    - porting/Don-t-hardcode-page-size-on-ia64-sparc-or-mipsel.patch
+  * [3332f92] lintian: change url to version control system
+  * [534e2d1] linitan: bump up standards version to 3.9.4
+  * [2b511d2] lintian: remove obsolete thunderbird dependency in
+    iceowl-extension
+  * [2081e7e] lintian: add Keywords to icedove desktop file
+  * [7f8333c] lintian: mask minus signs in manpage with a backslash
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 30 Jun 2013 18:46:16 -0400
+
 icedove (17.0.5-2) unstable; urgency=low
 
   [ Guido Günther ]
