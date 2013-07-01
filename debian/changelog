@@ -1,3 +1,15 @@
+icedove-l10n (1:17.0.7-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [1f1bf8c] Imported Upstream version 17.0.7
+  * [204d22d] adjust icedove depends to >= 17.0.7
+
+  [ Christoph Goehre ]
+  * Upload to unstable (Closes: #710918)
+  * [b8c06f5] lintian: change url to version control system
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 30 Jun 2013 23:30:32 -0400
+
 icedove-l10n (1:17.0.6-1) unstable; urgency=low
 
   * Imported Upstream version 17.0.6
