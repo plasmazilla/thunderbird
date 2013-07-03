@@ -1,3 +1,26 @@
+icedove (17.0.7-1~deb7u1) stable-security; urgency=low
+
+  * [b8fd345] Imported Upstream version 17.0.7
+    - MFSA 2013-49 aka CVE-2013-1682
+    - MFSA 2013-50 aka CVE-2013-1684, CVE-2013-1685, CVE-2013-1686
+    - MFSA 2013-51 aka CVE-2013-1687
+    - MFSA 2013-53 aka CVE-2013-1690
+    - MFSA 2013-54 aka CVE-2013-1692
+    - MFSA 2013-55 aka CVE-2013-1693
+    - MFSA 2013-56 aka CVE-2013-1694
+    - MFSA 2013-59 aka CVE-2013-1697
+  * [3133999] rebuild patch queue from patch-queue branch
+    modified patches:
+    - porting/Don-t-hardcode-page-size-on-ia64-sparc-or-mipsel.patch
+  * [3332f92] lintian: change url to version control system
+  * [534e2d1] linitan: bump up standards version to 3.9.4
+  * [2b511d2] lintian: remove obsolete thunderbird dependency in
+    iceowl-extension
+  * [2081e7e] lintian: add Keywords to icedove desktop file
+  * [7f8333c] lintian: mask minus signs in manpage with a backslash
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 03 Jul 2013 14:38:39 -0400
+
 icedove (17.0.5-2) unstable; urgency=low
 
   [ Guido Günther ]
