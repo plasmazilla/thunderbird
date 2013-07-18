@@ -34,3 +34,4 @@ porting/Bug-814693-Allow-webrtc-to-build-on-more-architectur.patch
 fixes/fix-function-nsMsgComposeAndSend-to-to-respect-Replo.patch
 porting/Don-t-hardcode-page-size-on-ia64-sparc-or-mipsel.patch
 debian-hacks/virtualenv-changing-the-path-to-virtualenv.py.patch
+porting/Fix-ipc-chromium-on-kFreeBSD-and-Hurd.patch
