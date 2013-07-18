@@ -1,0 +1,17 @@
+Icedove for Debian
+------------------
+
+Icedove is the Thunderbird email client from Mozilla rebranded by Debian.
+
+Mozilla has changed the kind of developing and managing Thunderbird and make an
+announcement about this on July 8 2012. Since this announcement Mozilla decided
+to change the focus of there own software development and will put more action
+on important web projects and of course on FirefoxOS. Mozilla plans to open the
+Thunderbird development to a more community driven project but will also be
+there for security and stability maintenance. There are no plans to close the
+packaging of Icedove from the Debian side, but the future will see where the
+upstream project will go to.
+As long as Mozilla will provide ESR versions there will be packaged versions of
+those inside the various release of Debian.
+
+-- Carsten Schoenert <c.schoenert@t-online.de>  Sun, 2 July 2013 21:32:07 +0100
