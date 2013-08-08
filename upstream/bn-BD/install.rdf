@@ -8,14 +8,14 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-bn-BD@thunderbird.mozilla.org"
                em:name="ইংরেজী (যুক্তরাষ্ট্র) Language Pack"
-               em:version="17.0.7"
+               em:version="17.0.8"
                em:type="8"
                em:creator="মোজিলা.অর্গ">
     <em:contributor>জো সলোন</em:contributor> <em:contributor>সুজি সলোন</em:contributor>
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>17.0.7</em:minVersion>
+        <em:minVersion>17.0.8</em:minVersion>
         <em:maxVersion>17.0.*</em:maxVersion>
       </Description>
     </em:targetApplication>
