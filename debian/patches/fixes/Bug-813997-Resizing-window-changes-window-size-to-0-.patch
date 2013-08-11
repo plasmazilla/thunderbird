@@ -1,0 +1,101 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sun, 11 Aug 2013 13:00:00 +0200
+Subject: Bug 813997 - Resizing window changes window size to 0 with sawfish
+
+Backporting fix from TB20 to fix Debian Bug #715464.
+Icedove 17.x isn't able to to resize the window apperiance on the window
+manager Sawfish. This issue is fixed in TB20.
+
+---
+ mozilla/widget/gtk2/nsWindow.cpp |   35 ++++++++++++++++++++---------------
+ 1 file changed, 20 insertions(+), 15 deletions(-)
+
+diff --git a/mozilla/widget/gtk2/nsWindow.cpp b/mozilla/widget/gtk2/nsWindow.cpp
+index 44d853d..8db60ef 100644
+--- a/mozilla/widget/gtk2/nsWindow.cpp
++++ b/mozilla/widget/gtk2/nsWindow.cpp
+@@ -358,6 +358,7 @@ nsWindow::nsWindow()
+     mWindowType          = eWindowType_child;
+     mSizeState           = nsSizeMode_Normal;
+     mLastSizeMode        = nsSizeMode_Normal;
++    mSizeConstraints.mMaxSize = GetSafeWindowSize(mSizeConstraints.mMaxSize);
+ 
+ #ifdef MOZ_X11
+     mOldFocusWindow      = 0;
+@@ -925,19 +926,20 @@ nsWindow::ConstrainPosition(bool aAllowSlop, int32_t *aX, int32_t *aY)
+ 
+ void nsWindow::SetSizeConstraints(const SizeConstraints& aConstraints)
+ {
+-  if (mShell) {
+-    GdkGeometry geometry;
+-    geometry.min_width = aConstraints.mMinSize.width;
+-    geometry.min_height = aConstraints.mMinSize.height;
+-    geometry.max_width = aConstraints.mMaxSize.width;
+-    geometry.max_height = aConstraints.mMaxSize.height;
++    mSizeConstraints.mMinSize = aConstraints.mMinSize;
++    mSizeConstraints.mMaxSize = GetSafeWindowSize(aConstraints.mMaxSize);
+ 
+-    uint32_t hints = GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE;
+-    gtk_window_set_geometry_hints(GTK_WINDOW(mShell), nullptr,
+-                                  &geometry, GdkWindowHints(hints));
+-  }
++    if (mShell) {
++        GdkGeometry geometry;
++        geometry.min_width = mSizeConstraints.mMinSize.width;
++        geometry.min_height = mSizeConstraints.mMinSize.height;
++        geometry.max_width = mSizeConstraints.mMaxSize.width;
++        geometry.max_height = mSizeConstraints.mMaxSize.height;
+ 
+-  nsBaseWidget::SetSizeConstraints(aConstraints);
++        uint32_t hints = GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE;
++        gtk_window_set_geometry_hints(GTK_WINDOW(mShell), nullptr,
++                                      &geometry, GdkWindowHints(hints));
++    }
+ }
+ 
+ NS_IMETHODIMP
+@@ -1004,7 +1006,7 @@ nsWindow::Resize(int32_t aWidth, int32_t aHeight, bool aRepaint)
+     // interpreted as frame bounds, but NativeResize treats these as window
+     // bounds (Bug 581866).
+ 
+-    mBounds.SizeTo(GetSafeWindowSize(nsIntSize(aWidth, aHeight)));
++    mBounds.SizeTo(aWidth, aHeight);
+ 
+     if (!mCreated)
+         return NS_OK;
+@@ -1080,7 +1082,7 @@ nsWindow::Resize(int32_t aX, int32_t aY, int32_t aWidth, int32_t aHeight,
+ 
+     mBounds.x = aX;
+     mBounds.y = aY;
+-    mBounds.SizeTo(GetSafeWindowSize(nsIntSize(aWidth, aHeight)));
++    mBounds.SizeTo(aWidth, aHeight);
+ 
+     mNeedsMove = true;
+ 
+@@ -3377,6 +3379,7 @@ nsWindow::Create(nsIWidget        *aParent,
+ 
+     // save our bounds
+     mBounds = aRect;
++    ConstrainSize(&mBounds.width, &mBounds.height);
+ 
+     // figure out our parent window
+     GtkWidget      *parentMozContainer = nullptr;
+@@ -3968,14 +3971,16 @@ nsWindow::SetHasMappedToplevel(bool aState)
+ nsIntSize
+ nsWindow::GetSafeWindowSize(nsIntSize aSize)
+ {
++    // The X protocol uses CARD32 for window sizes, but the server (1.11.3)
++    // reads it as CARD16.  Sizes of pixmaps, used for drawing, are (unsigned)
++    // CARD16 in the protocol, but the server's ProcCreatePixmap returns
++    // BadAlloc if dimensions cannot be represented by signed shorts.
+     nsIntSize result = aSize;
+     const int32_t kInt16Max = 32767;
+     if (result.width > kInt16Max) {
+-        NS_WARNING("Clamping huge window width");
+         result.width = kInt16Max;
+     }
+     if (result.height > kInt16Max) {
+-        NS_WARNING("Clamping huge window height");
+         result.height = kInt16Max;
+     }
+     return result;
