@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=@DEB_MOZ_NAME_FIRST_UPPER@ Mail/News
+Name=@DEB_MOZ_NAME_FIRST_UPPER@
 Comment=Read/Write Mail/News with @DEB_MOZ_NAME_FIRST_UPPER@
 GenericName=Mail Client
 Exec=@DEB_MOZ_APPLICATION@ %u
