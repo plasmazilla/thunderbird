@@ -1,0 +1,26 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sun, 11 Aug 2013 22:26:27 +0200
+Subject: Bug 723497 - Saving message to disk fails silently, fails to report
+ file naming convention violation error.
+
+Bug is fixed in TB 21.
+https://bugzilla.mozilla.org/show_bug.cgi?id=723497
+
+---
+ mailnews/local/src/nsMailboxProtocol.cpp |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mailnews/local/src/nsMailboxProtocol.cpp b/mailnews/local/src/nsMailboxProtocol.cpp
+index 76efe44..9ce1052 100644
+--- a/mailnews/local/src/nsMailboxProtocol.cpp
++++ b/mailnews/local/src/nsMailboxProtocol.cpp
+@@ -517,7 +517,8 @@ nsresult nsMailboxProtocol::LoadUrl(nsIURI * aURL, nsISupports * aConsumer)
+             if (NS_SUCCEEDED(rv))
+             {
+               messageUrl->GetMessageFile(getter_AddRefs(m_tempMessageFile));
+-              MsgNewBufferedFileOutputStream(getter_AddRefs(m_msgFileOutputStream), m_tempMessageFile, -1, 00600);
++              rv = MsgNewBufferedFileOutputStream(getter_AddRefs(m_msgFileOutputStream), m_tempMessageFile, -1, 00600);
++							NS_ENSURE_SUCCESS(rv, rv);
+ 
+               bool addDummyEnvelope = false;
+               messageUrl->GetAddDummyEnvelope(&addDummyEnvelope);
