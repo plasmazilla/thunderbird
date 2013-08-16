@@ -37,3 +37,5 @@ debian-hacks/virtualenv-changing-the-path-to-virtualenv.py.patch
 porting/Fix-ipc-chromium-on-kFreeBSD-and-Hurd.patch
 fixes/Bug-813997-Resizing-window-changes-window-size-to-0-.patch
 fixes/Bug-723497-Saving-message-to-disk-fails-silently-fai.patch
+esr17-backport/Bug-746112-Don-t-decommit-if-page-size-is-too-large.patch
+esr17-backport/Bug-840242-Use-the-runtime-page-size-to-control-aren.patch
