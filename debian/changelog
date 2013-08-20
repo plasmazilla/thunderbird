@@ -1,3 +1,31 @@
+icedove (17.0.8-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [af98dad] The vendorShortName is of course "Mozilla" and not "Icedove" The
+    packages in icedove-l10n already use the correct substition.
+    (Closes: #707207, #715326)
+  * [8ceae38] Sawfish: fix wrong size of resized window.
+    Backported from the TB20 release.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=813997 (Closes: #715464)
+  * [b69cb68] Fix error while saving a message to disk or network.
+    If the user tries to save a message to disk or network share without
+    enough user rights to write the message Icedove fails silently. This
+    backport from TB 21 fixes this.
+  * [fd8f588] Desktop file: shorten the icon name to 'Icedove' (Closes: #507962)
+  * [24b1b45] fix JS compiler segfault errors for various platforms
+    (Closes: #708331)
+
+  [ Christoph Goehre ]
+  * [01f6b7a] add README.Debian to describe upstream status of Thunderbird
+    (Closes: #710888)
+  * [7fa36d6] rebuild patch queue from patch-queue branch added patches:
+      - porting/Fix-ipc-chromium-on-kFreeBSD-and-Hurd.patch
+
+  [ Guido Günther ]
+  * [455bfe7] New upstream version 17.0.8
+
+ -- Guido Günther <agx@sigxcpu.org>  Tue, 20 Aug 2013 16:12:17 +0200
+
 icedove (17.0.7-1) unstable; urgency=low
 
   * [b8fd345] Imported Upstream version 17.0.7
