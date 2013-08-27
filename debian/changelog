@@ -1,3 +1,24 @@
+icedove (17.0.8-1~deb7u1) stable-security; urgency=low
+
+  [ Guido Günther ]
+  * [455bfe7] New upstream version 17.0.8
+    - MFSA 2013-63 aka CVE-2013-1701, CVE-2013-1702
+    - MFSA 2013-68 aka CVE-2013-1709
+    - MFSA 2013-69 aka CVE-2013-1710
+    - MFSA 2013-72 aka CVE-2013-1713
+    - MFSA 2013-73 aka CVE-2013-1714
+    - MFSA 2013-75 aka CVE-2013-1717
+
+  [ Christoph Goehre ]
+  * [19ed581] rebuild patch queue from patch-queue branch
+    added patches:
+    - esr17-backport/Bug-746112-Don-t-decommit-if-page-size-is-too-large.patch
+    - esr17-backport/Bug-840242-Use-the-runtime-page-size-to-control-aren.patch
+      (Closes: #708331)
+    - porting/Fix-ipc-chromium-on-kFreeBSD-and-Hurd.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 27 Aug 2013 12:34:49 -0400
+
 icedove (17.0.7-1~deb7u1) stable-security; urgency=low
 
   * [b8fd345] Imported Upstream version 17.0.7
