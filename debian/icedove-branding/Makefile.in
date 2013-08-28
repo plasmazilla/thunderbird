@@ -44,10 +44,6 @@ VPATH = @srcdir@
 
 include $(topsrcdir)/config/autoconf.mk
 
-DIRS = \
-	locales \
-	$(NULL)
-
 PREF_JS_EXPORTS += $(srcdir)/thunderbird-branding.js
 
 include $(DEPTH)/config/rules.mk
