@@ -33,6 +33,5 @@ debian/stamp-icedove-branding:
 	cp debian/app-icons/icedove256.png $(BRANDING_DIR)/mailicon256.png
 	cp debian/app-icons/icedove48.png $(BRANDING_DIR)/content/icon48.png
 	cp debian/app-icons/icedove64.png $(BRANDING_DIR)/content/icon64.png
-	cp debian/preview.png mail/themes/gnomestripe/mail/preview.png
+	cp debian/preview.png mail/themes/linux/mail/preview.png
 	touch $@
-
