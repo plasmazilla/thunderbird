@@ -13,6 +13,10 @@ Build-Depends: bzip2,
 	unzip,
 	libjpeg-dev,
 	zlib1g-dev,
+	gstreamer0.10-plugins-base (>= 0.10.25),
+	gstreamer0.10-plugins-base-apps,
+	libgstreamer0.10-dev,
+	libgstreamer-plugins-base0.10-dev,
 	libbz2-dev,
 	libxft-dev,
 	libfontconfig1-dev,
@@ -38,7 +42,8 @@ Build-Depends: bzip2,
 	libevent-dev (>= 1.4.1),
 	libvpx-dev (>= 1.0.0),
 	mesa-common-dev,
-	libreadline-dev
+	libreadline-dev,
+	yasm
 Vcs-Git: git://anonscm.debian.org/pkg-mozilla/icedove.git
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-mozilla/icedove.git;a=summary
 Homepage: http://www.mozilla.org/thunderbird/
