@@ -245,7 +245,6 @@ common-install-arch::
 common-install-indep::
 	dh_installdirs -i
 	cd debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/ && unzip $(CURDIR)/mozilla/dist/xpi-stage/gdata-provider.xpi
-	cd debian/calendar-timezones/usr/share/xul-ext//calendar-timezones/ && unzip $(CURDIR)/mozilla/dist/xpi-stage/calendar-timezones.xpi
 
 binary-predeb/$(DEB_MOZ_APPLICATION)::
 	LD_LIBRARY_PATH=$(DEB_DESTDIR)usr/lib/$(DEB_MOZ_APPLICATION) dpkg-shlibdeps -Tdebian/$(DEB_MOZ_APPLICATION).substvars -dDepends -pgnome $(foreach lib,dbusservice mozgnome,debian/$(DEB_MOZ_APPLICATION)/usr/lib/$(DEB_MOZ_APPLICATION)/components/lib$(lib).so)
