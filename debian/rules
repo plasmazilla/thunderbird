@@ -240,7 +240,7 @@ binary-install/$(DEB_MOZ_APPLICATION)::
 
 common-install-arch::
 	mkdir -p debian/iceowl-extension/usr/lib/iceowl-extension
-	cd debian/iceowl-extension/usr/lib/iceowl-extension/ && unzip $(CURDIR)/mozilla/dist/xpi-stage/lightning.xpi
+	cd debian/iceowl-extension/usr/lib/iceowl-extension/ && unzip $(CURDIR)/mozilla/dist/xpi-stage/lightning*.xpi
 
 common-install-indep::
 	dh_installdirs -i
