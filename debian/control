@@ -36,7 +36,9 @@ Depends:
  icedove-l10n-gd,
  icedove-l10n-gl,
  icedove-l10n-he,
+ icedove-l10n-hr,
  icedove-l10n-hu,
+ icedove-l10n-hy-am,
  icedove-l10n-id,
  icedove-l10n-is,
  icedove-l10n-it,
@@ -319,6 +321,17 @@ Description: Hebrew language package for Icedove
  .
  This package contains the localization of Icedove in Hebrew.
 
+Package: icedove-l10n-hr
+Architecture: all
+Depends: ${misc:Depends}, icedove (>= 17.0.8), icedove (<= 17.1)
+Recommends: myspell-hr
+Description: Croatian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Croatian.
+
 Package: icedove-l10n-hu
 Architecture: all
 Depends: ${misc:Depends}, icedove (>= 17.0.8), icedove (<= 17.1)
@@ -329,6 +342,17 @@ Description: Hungarian language package for Icedove
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Hungarian.
+
+Package: icedove-l10n-hy-am
+Architecture: all
+Depends: ${misc:Depends}, icedove (>= 17.0.8), icedove (<= 17.1)
+Recommends: myspell-hy
+Description: Armenian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Armenian.
 
 Package: icedove-l10n-id
 Architecture: all
