@@ -4,14 +4,14 @@ Subject: sl: change Edit (Uredi) to CTRL+E
 
 Closes: #601331
 ---
- upstream/sl/chrome/sl/locale/sl/communicator/utilityOverlay.dtd |    2 +-
+ upstream/sl/chrome/sl/locale/sl/communicator/utilityOverlay.dtd | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/upstream/sl/chrome/sl/locale/sl/communicator/utilityOverlay.dtd b/upstream/sl/chrome/sl/locale/sl/communicator/utilityOverlay.dtd
-index 8c137f4..27db01d 100644
+index 46c5f5f..1058513 100644
 --- a/upstream/sl/chrome/sl/locale/sl/communicator/utilityOverlay.dtd
 +++ b/upstream/sl/chrome/sl/locale/sl/communicator/utilityOverlay.dtd
-@@ -8,7 +8,7 @@
+@@ -12,7 +12,7 @@
  <!ENTITY newMenu.accesskey          "N">
  
  <!ENTITY editMenu.label          "Uredi">

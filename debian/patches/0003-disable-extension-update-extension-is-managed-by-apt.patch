@@ -4,627 +4,627 @@ Subject: disable extension update - extension is managed by apt
 
 Closes: #616102
 ---
- upstream/ar/install.rdf    |    1 +
- upstream/ast/install.rdf   |    1 +
- upstream/be/install.rdf    |    1 +
- upstream/bg/install.rdf    |    1 +
- upstream/bn-BD/install.rdf |    1 +
- upstream/br/install.rdf    |    1 +
- upstream/ca/install.rdf    |    1 +
- upstream/cs/install.rdf    |    1 +
- upstream/da/install.rdf    |    1 +
- upstream/de/install.rdf    |    1 +
- upstream/el/install.rdf    |    1 +
- upstream/en-GB/install.rdf |    1 +
- upstream/es-AR/install.rdf |    1 +
- upstream/es-ES/install.rdf |    1 +
- upstream/et/install.rdf    |    1 +
- upstream/eu/install.rdf    |    1 +
- upstream/fi/install.rdf    |    1 +
- upstream/fr/install.rdf    |    1 +
- upstream/fy-NL/install.rdf |    1 +
- upstream/ga-IE/install.rdf |    1 +
- upstream/gd/install.rdf    |    1 +
- upstream/gl/install.rdf    |    1 +
- upstream/he/install.rdf    |    1 +
- upstream/hu/install.rdf    |    1 +
- upstream/id/install.rdf    |    1 +
- upstream/is/install.rdf    |    1 +
- upstream/it/install.rdf    |    1 +
- upstream/ja/install.rdf    |    1 +
- upstream/ko/install.rdf    |    1 +
- upstream/lt/install.rdf    |    1 +
- upstream/nb-NO/install.rdf |    1 +
- upstream/nl/install.rdf    |    1 +
- upstream/nn-NO/install.rdf |    1 +
- upstream/pa-IN/install.rdf |    1 +
- upstream/pl/install.rdf    |    1 +
- upstream/pt-BR/install.rdf |    1 +
- upstream/pt-PT/install.rdf |    1 +
- upstream/rm/install.rdf    |    1 +
- upstream/ro/install.rdf    |    1 +
- upstream/ru/install.rdf    |    1 +
- upstream/si/install.rdf    |    1 +
- upstream/sk/install.rdf    |    1 +
- upstream/sl/install.rdf    |    1 +
- upstream/sq/install.rdf    |    1 +
- upstream/sr/install.rdf    |    1 +
- upstream/sv-SE/install.rdf |    1 +
- upstream/ta-LK/install.rdf |    1 +
- upstream/tr/install.rdf    |    1 +
- upstream/uk/install.rdf    |    1 +
- upstream/vi/install.rdf    |    1 +
- upstream/zh-CN/install.rdf |    1 +
- upstream/zh-TW/install.rdf |    1 +
+ upstream/ar/install.rdf    | 1 +
+ upstream/ast/install.rdf   | 1 +
+ upstream/be/install.rdf    | 1 +
+ upstream/bg/install.rdf    | 1 +
+ upstream/bn-BD/install.rdf | 1 +
+ upstream/br/install.rdf    | 1 +
+ upstream/ca/install.rdf    | 1 +
+ upstream/cs/install.rdf    | 1 +
+ upstream/da/install.rdf    | 1 +
+ upstream/de/install.rdf    | 1 +
+ upstream/el/install.rdf    | 1 +
+ upstream/en-GB/install.rdf | 1 +
+ upstream/es-AR/install.rdf | 1 +
+ upstream/es-ES/install.rdf | 1 +
+ upstream/et/install.rdf    | 1 +
+ upstream/eu/install.rdf    | 1 +
+ upstream/fi/install.rdf    | 1 +
+ upstream/fr/install.rdf    | 1 +
+ upstream/fy-NL/install.rdf | 1 +
+ upstream/ga-IE/install.rdf | 1 +
+ upstream/gd/install.rdf    | 1 +
+ upstream/gl/install.rdf    | 1 +
+ upstream/he/install.rdf    | 1 +
+ upstream/hu/install.rdf    | 1 +
+ upstream/id/install.rdf    | 1 +
+ upstream/is/install.rdf    | 1 +
+ upstream/it/install.rdf    | 1 +
+ upstream/ja/install.rdf    | 1 +
+ upstream/ko/install.rdf    | 1 +
+ upstream/lt/install.rdf    | 1 +
+ upstream/nb-NO/install.rdf | 1 +
+ upstream/nl/install.rdf    | 1 +
+ upstream/nn-NO/install.rdf | 1 +
+ upstream/pa-IN/install.rdf | 1 +
+ upstream/pl/install.rdf    | 1 +
+ upstream/pt-BR/install.rdf | 1 +
+ upstream/pt-PT/install.rdf | 1 +
+ upstream/rm/install.rdf    | 1 +
+ upstream/ro/install.rdf    | 1 +
+ upstream/ru/install.rdf    | 1 +
+ upstream/si/install.rdf    | 1 +
+ upstream/sk/install.rdf    | 1 +
+ upstream/sl/install.rdf    | 1 +
+ upstream/sq/install.rdf    | 1 +
+ upstream/sr/install.rdf    | 1 +
+ upstream/sv-SE/install.rdf | 1 +
+ upstream/ta-LK/install.rdf | 1 +
+ upstream/tr/install.rdf    | 1 +
+ upstream/uk/install.rdf    | 1 +
+ upstream/vi/install.rdf    | 1 +
+ upstream/zh-CN/install.rdf | 1 +
+ upstream/zh-TW/install.rdf | 1 +
  52 files changed, 52 insertions(+)
 
 diff --git a/upstream/ar/install.rdf b/upstream/ar/install.rdf
-index 3298c61..71396d9 100644
+index d3d46c7..9661ea6 100644
 --- a/upstream/ar/install.rdf
 +++ b/upstream/ar/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/ast/install.rdf b/upstream/ast/install.rdf
-index aac5b8e..b904e16 100644
+index 6d3fb27..d3c6b14 100644
 --- a/upstream/ast/install.rdf
 +++ b/upstream/ast/install.rdf
 @@ -18,5 +18,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/be/install.rdf b/upstream/be/install.rdf
-index 91f7669..0da093b 100644
+index a70cbd2..38195a9 100644
 --- a/upstream/be/install.rdf
 +++ b/upstream/be/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/bg/install.rdf b/upstream/bg/install.rdf
-index 02a5883..f580ab2 100644
+index 0b21090..422b1ab 100644
 --- a/upstream/bg/install.rdf
 +++ b/upstream/bg/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/bn-BD/install.rdf b/upstream/bn-BD/install.rdf
-index 2641357..bbd9fa7 100644
+index 2423078..e9e22be 100644
 --- a/upstream/bn-BD/install.rdf
 +++ b/upstream/bn-BD/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/br/install.rdf b/upstream/br/install.rdf
-index b0d3623..6c21dab 100644
+index c0ba179..a6628b2 100644
 --- a/upstream/br/install.rdf
 +++ b/upstream/br/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/ca/install.rdf b/upstream/ca/install.rdf
-index 993c8b6..29f6b2f 100644
+index bc28f6a..00f1dd1 100644
 --- a/upstream/ca/install.rdf
 +++ b/upstream/ca/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/cs/install.rdf b/upstream/cs/install.rdf
-index 3e0211e..546b99f 100644
+index ae0520e..e1a1d6a 100644
 --- a/upstream/cs/install.rdf
 +++ b/upstream/cs/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/da/install.rdf b/upstream/da/install.rdf
-index f07345b..a43c0d7 100644
+index 8862b12..c0ed22e 100644
 --- a/upstream/da/install.rdf
 +++ b/upstream/da/install.rdf
 @@ -18,5 +18,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/de/install.rdf b/upstream/de/install.rdf
-index 9ee73b4..75b0812 100644
+index 5b4de32..919b71f 100644
 --- a/upstream/de/install.rdf
 +++ b/upstream/de/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/el/install.rdf b/upstream/el/install.rdf
-index d7dd004..dc5415c 100644
+index 5147044..37b3945 100644
 --- a/upstream/el/install.rdf
 +++ b/upstream/el/install.rdf
 @@ -18,5 +18,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/en-GB/install.rdf b/upstream/en-GB/install.rdf
-index 7e9f1fb..6fb9a7e 100644
+index fcd905b..e8afd52 100644
 --- a/upstream/en-GB/install.rdf
 +++ b/upstream/en-GB/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/es-AR/install.rdf b/upstream/es-AR/install.rdf
-index dec181d..f3869b4 100644
+index 190f350..8481a37 100644
 --- a/upstream/es-AR/install.rdf
 +++ b/upstream/es-AR/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/es-ES/install.rdf b/upstream/es-ES/install.rdf
-index 0d94ba4..d5f7011 100644
+index bbc0f9a..896d409 100644
 --- a/upstream/es-ES/install.rdf
 +++ b/upstream/es-ES/install.rdf
 @@ -18,5 +18,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/et/install.rdf b/upstream/et/install.rdf
-index 3f91c22..ef00f52 100644
+index 2d015ae..b32b6c8 100644
 --- a/upstream/et/install.rdf
 +++ b/upstream/et/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/eu/install.rdf b/upstream/eu/install.rdf
-index 531c7a1..59d70a0 100644
+index 5a7ab15..6355b95 100644
 --- a/upstream/eu/install.rdf
 +++ b/upstream/eu/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/fi/install.rdf b/upstream/fi/install.rdf
-index 39e5580..3fcdda9 100644
+index 478bb34..e15e6fd 100644
 --- a/upstream/fi/install.rdf
 +++ b/upstream/fi/install.rdf
 @@ -18,5 +18,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/fr/install.rdf b/upstream/fr/install.rdf
-index 29015f9..cd33117 100644
+index 0ca0080..719f1d6 100644
 --- a/upstream/fr/install.rdf
 +++ b/upstream/fr/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/fy-NL/install.rdf b/upstream/fy-NL/install.rdf
-index 966dcfc..6b2e3ab 100644
+index f8e7aa3..1b2348f 100644
 --- a/upstream/fy-NL/install.rdf
 +++ b/upstream/fy-NL/install.rdf
 @@ -18,5 +18,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/ga-IE/install.rdf b/upstream/ga-IE/install.rdf
-index 7ce897a..e6695be 100644
+index 107907f..4aa80f4 100644
 --- a/upstream/ga-IE/install.rdf
 +++ b/upstream/ga-IE/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/gd/install.rdf b/upstream/gd/install.rdf
-index dd6d5aa..9319aa4 100644
+index d4a290d..4460baf 100644
 --- a/upstream/gd/install.rdf
 +++ b/upstream/gd/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/gl/install.rdf b/upstream/gl/install.rdf
-index 0b54a73..4324f15 100644
+index 898c9b7..ba6ef72 100644
 --- a/upstream/gl/install.rdf
 +++ b/upstream/gl/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/he/install.rdf b/upstream/he/install.rdf
-index 4163eee..ff60cb9 100644
+index 7ffd05e..fa0f209 100644
 --- a/upstream/he/install.rdf
 +++ b/upstream/he/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/hu/install.rdf b/upstream/hu/install.rdf
-index 9b50e05..2e3a7c0 100644
+index a4dd2af..c523e13 100644
 --- a/upstream/hu/install.rdf
 +++ b/upstream/hu/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/id/install.rdf b/upstream/id/install.rdf
-index 2c15f42..b19e131 100644
+index dc0230a..567a89f 100644
 --- a/upstream/id/install.rdf
 +++ b/upstream/id/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/is/install.rdf b/upstream/is/install.rdf
-index 53ea18f..139c739 100644
+index 554ef1f..b7a5874 100644
 --- a/upstream/is/install.rdf
 +++ b/upstream/is/install.rdf
 @@ -18,5 +18,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/it/install.rdf b/upstream/it/install.rdf
-index a844096..19924cf 100644
+index b1e0506..b93a3c6 100644
 --- a/upstream/it/install.rdf
 +++ b/upstream/it/install.rdf
 @@ -18,5 +18,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/ja/install.rdf b/upstream/ja/install.rdf
-index 9fc0c43..7bde074 100644
+index 72352dd..e8eb9c0 100644
 --- a/upstream/ja/install.rdf
 +++ b/upstream/ja/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/ko/install.rdf b/upstream/ko/install.rdf
-index e51414f..7fe3752 100644
+index 68f837b..533e789 100644
 --- a/upstream/ko/install.rdf
 +++ b/upstream/ko/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/lt/install.rdf b/upstream/lt/install.rdf
-index 3645735..b7bf6fb 100644
+index 95a3ed5..215f838 100644
 --- a/upstream/lt/install.rdf
 +++ b/upstream/lt/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/nb-NO/install.rdf b/upstream/nb-NO/install.rdf
-index c54b247..1a3e03a 100644
+index 0446a16..a13bf97 100644
 --- a/upstream/nb-NO/install.rdf
 +++ b/upstream/nb-NO/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/nl/install.rdf b/upstream/nl/install.rdf
-index 397aba5..637b636 100644
+index 2060624..59bc84e 100644
 --- a/upstream/nl/install.rdf
 +++ b/upstream/nl/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/nn-NO/install.rdf b/upstream/nn-NO/install.rdf
-index b02937d..a453bce 100644
+index f24f26c..329bdef 100644
 --- a/upstream/nn-NO/install.rdf
 +++ b/upstream/nn-NO/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/pa-IN/install.rdf b/upstream/pa-IN/install.rdf
-index 498e81b..9a06804 100644
+index f615af6..8146fd8 100644
 --- a/upstream/pa-IN/install.rdf
 +++ b/upstream/pa-IN/install.rdf
 @@ -18,5 +18,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/pl/install.rdf b/upstream/pl/install.rdf
-index d10bc86..12e1955 100644
+index 5897439..287af00 100644
 --- a/upstream/pl/install.rdf
 +++ b/upstream/pl/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/pt-BR/install.rdf b/upstream/pt-BR/install.rdf
-index f938343..aa7f224 100644
+index 919ba25..53a6c22 100644
 --- a/upstream/pt-BR/install.rdf
 +++ b/upstream/pt-BR/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/pt-PT/install.rdf b/upstream/pt-PT/install.rdf
-index 7f83f08..f1f7f3a 100644
+index 2702a87..ec95a3f 100644
 --- a/upstream/pt-PT/install.rdf
 +++ b/upstream/pt-PT/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/rm/install.rdf b/upstream/rm/install.rdf
-index f5de79f..acdaa82 100644
+index cc56b9d..d4674cd 100644
 --- a/upstream/rm/install.rdf
 +++ b/upstream/rm/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/ro/install.rdf b/upstream/ro/install.rdf
-index 673a4c4..7310dc2 100644
+index ba555e8..91a6f79 100644
 --- a/upstream/ro/install.rdf
 +++ b/upstream/ro/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/ru/install.rdf b/upstream/ru/install.rdf
-index baddd77..ffa41c3 100644
+index 5dfa7cb..c12076f 100644
 --- a/upstream/ru/install.rdf
 +++ b/upstream/ru/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/si/install.rdf b/upstream/si/install.rdf
-index c1dddca..25674d0 100644
+index e63b0b0..d44cd11 100644
 --- a/upstream/si/install.rdf
 +++ b/upstream/si/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/sk/install.rdf b/upstream/sk/install.rdf
-index c19568a..64af317 100644
+index 2ef9695..95d6b57 100644
 --- a/upstream/sk/install.rdf
 +++ b/upstream/sk/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/sl/install.rdf b/upstream/sl/install.rdf
-index 39d69b4..445fdda 100644
+index ce30409..22cddf2 100644
 --- a/upstream/sl/install.rdf
 +++ b/upstream/sl/install.rdf
 @@ -18,5 +18,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/sq/install.rdf b/upstream/sq/install.rdf
-index fd23cb5..0db01ba 100644
+index 8b56f43..6fb60fd 100644
 --- a/upstream/sq/install.rdf
 +++ b/upstream/sq/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/sr/install.rdf b/upstream/sr/install.rdf
-index af08010..8f5c618 100644
+index 05a35fd..4a06dcc 100644
 --- a/upstream/sr/install.rdf
 +++ b/upstream/sr/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/sv-SE/install.rdf b/upstream/sv-SE/install.rdf
-index 4581e53..ee855ed 100644
+index 8f2bf08..a608538 100644
 --- a/upstream/sv-SE/install.rdf
 +++ b/upstream/sv-SE/install.rdf
 @@ -18,5 +18,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/ta-LK/install.rdf b/upstream/ta-LK/install.rdf
-index 33391b6..473790c 100644
+index 2f7f1b7..9b8a8dc 100644
 --- a/upstream/ta-LK/install.rdf
 +++ b/upstream/ta-LK/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/tr/install.rdf b/upstream/tr/install.rdf
-index f0fc1cd..52f3040 100644
+index 953bdb0..3f88c97 100644
 --- a/upstream/tr/install.rdf
 +++ b/upstream/tr/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/uk/install.rdf b/upstream/uk/install.rdf
-index ea1beef..62ffd53 100644
+index fa9a036..5c51773 100644
 --- a/upstream/uk/install.rdf
 +++ b/upstream/uk/install.rdf
 @@ -18,5 +18,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/vi/install.rdf b/upstream/vi/install.rdf
-index 8bfd933..9bffc4b 100644
+index 5a0549f..892160c 100644
 --- a/upstream/vi/install.rdf
 +++ b/upstream/vi/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/zh-CN/install.rdf b/upstream/zh-CN/install.rdf
-index 11684eb..7445a07 100644
+index 624458e..50e1d34 100644
 --- a/upstream/zh-CN/install.rdf
 +++ b/upstream/zh-CN/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
 diff --git a/upstream/zh-TW/install.rdf b/upstream/zh-TW/install.rdf
-index 09d65ed..33ee02b 100644
+index c545424..86f6c52 100644
 --- a/upstream/zh-TW/install.rdf
 +++ b/upstream/zh-TW/install.rdf
 @@ -19,5 +19,6 @@
-         <em:maxVersion>17.0.*</em:maxVersion>
+         <em:maxVersion>24.0.*</em:maxVersion>
        </Description>
      </em:targetApplication>
 +    <em:appManaged>true</em:appManaged>
