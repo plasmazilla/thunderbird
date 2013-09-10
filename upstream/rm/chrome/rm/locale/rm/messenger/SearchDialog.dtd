@@ -76,3 +76,8 @@
 <!ENTITY starredColumn.tooltip "Cliccar per zavrar tenor staila">
 <!ENTITY locationColumn.tooltip "Cliccar per zavrar tenor posiziun">
 <!ENTITY idColumn.tooltip "Cliccar per zavrar tenor successiun da retschavida">
+
+<!ENTITY moveButton.accesskey        "T">
+<!ENTITY moveButton.label            "Move To">
+<!ENTITY moveHereMenu.accesskey      "H">
+<!ENTITY moveHereMenu.label          "Move Here">

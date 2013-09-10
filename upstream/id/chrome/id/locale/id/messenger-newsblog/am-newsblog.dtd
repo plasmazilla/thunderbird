@@ -16,3 +16,6 @@
 <!ENTITY feeds.wizardShortName "Feed">
 <!ENTITY feeds.wizardLongName "Feed Blog &amp; Berita">
 <!ENTITY feeds.wizardLongName.accesskey "F">
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

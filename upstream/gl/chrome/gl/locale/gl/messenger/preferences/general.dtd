@@ -31,3 +31,7 @@
 <!ENTITY customsound.accesskey            "n">
 <!ENTITY browse.label                     "Examinar…">
 <!ENTITY browse.accesskey                 "x">
+
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY showTrayIcon.label               "Show a tray icon">

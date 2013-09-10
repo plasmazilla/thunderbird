@@ -84,3 +84,10 @@
 <!ENTITY  update.details.label            "Chi tiết">
 <!ENTITY  update.installedOn.label        "Cài đặt vào:">
 <!ENTITY  update.status.label             "Trạng thái:">
+
+<!ENTITY  unsupported.label               "Your &brandShortName; is out of date, but the latest version is not
+                                           supported on your system. Please upgrade your system, then try again.
+                                           You will not see this notice again, but you can">
+
+<!ENTITY  unsupported.title               "System Unsupported">
+<!ENTITY  unsupportedLink.label           "learn more.">

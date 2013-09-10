@@ -1,3 +1,6 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!ENTITY pluginWizard.title "Þjónusta til að finna tengiforrit">
 <!ENTITY pluginWizard.firstPage.title "Velkomin í &pluginWizard.title;">
 <!ENTITY pluginWizard.checkingForPlugins.description.label "&brandShortName; er að athuga hvaða tengiforrit eru til…">
@@ -24,7 +27,7 @@
 <!ENTITY missingPlugin "Tengiforrit er nauðsynlegt til að birta þetta innihald.">
 <!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
 <!ENTITY tapToPlayPlugin "Smelltu hér til að virkja tengiforrit.">
-<!ENTITY clickToPlayPlugin "Smelltu hér til að virkja tengiforrit.">
+<!ENTITY clickToActivatePlugin "Virkja tengiforrit.">
 <!ENTITY checkForUpdates "Leita að uppfærslum…">
 <!ENTITY disabledPlugin "Þetta tengiforrit er óvirkt.">
 <!ENTITY blockedPlugin.label "Þetta tengiforrit hefur verið stöðvað þér til verndar.">
@@ -43,3 +46,7 @@
 <!ENTITY report.disabled "Hrunskýrslugjöf óvirk.">
 <!ENTITY report.failed "Sending mistókst.">
 <!ENTITY report.unavailable "Engin skýrsla tiltæk.">
+<!ENTITY report.comment "Bæta við athugasemd (athugasemdir eru opnar öllum)">
+<!ENTITY report.pageURL "Bæta við URL síðu">
+<!ENTITY plugin.file "Skrá">
+<!ENTITY plugin.mimeTypes "MIME tegundir">

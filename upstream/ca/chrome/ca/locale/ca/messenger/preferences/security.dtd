@@ -12,7 +12,7 @@
 <!ENTITY junkMail.intro "Defineix els vostres paràmetres de correu brossa per defecte. Els paràmetres específics per cada compte poden configurar-se des de Paràmetres dels comptes.">
 <!ENTITY manualMark.label "Quan marqui els missatges com a correu brossa:">
 <!ENTITY manualMark.accesskey "Q">
-<!ENTITY manualMarkModeMove.label "Passa'ls a la carpeta &quot;Correu brossa&quot; ">
+<!ENTITY manualMarkModeMove.label "Passa&apos;ls a la carpeta &quot;Correu brossa&quot; ">
 <!ENTITY manualMarkModeMove.accesskey "o">
 <!ENTITY manualMarkModeDelete.label "Suprimeix-los">
 <!ENTITY manualMarkModeDelete.accesskey "x">
@@ -48,11 +48,11 @@
 <!ENTITY antiVirus.accesskey  "q">
 <!-- Cookies -->
 
-<!ENTITY cookies.intro                  "El &brandShortName; us permet especificar quins blocs, canals de notícies, i altres llocs web poden utilitzar galetes.">
+<!ENTITY cookies.intro                  "El &brandShortName; us permet especificar quins blogs, canals de notícies i altres llocs web poden utilitzar galetes.">
 <!ENTITY acceptCookies.label            "Accepta galetes dels llocs web">
 <!ENTITY acceptCookies.accesskey        "A">
 <!ENTITY keepUntil.label                "Conserva-les fins:">
-<!ENTITY keepUntil.accesskey            "f">
+<!ENTITY keepUntil.accesskey            "v">
 <!ENTITY expire.label                   "que vencin">
 <!ENTITY close.label                    "que tanqui el &brandShortName;">
 <!ENTITY askEachTime.label              "demana-m'ho cada vegada">

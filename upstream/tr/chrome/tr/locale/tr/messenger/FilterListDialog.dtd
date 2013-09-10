@@ -1,4 +1,8 @@
-<!ENTITY window.title "İleti süzgeçleri">
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY window.title "İleti Süzgeçleri">
 <!ENTITY nameColumn.label "Süzgeç ismi">
 <!ENTITY activeColumn.label "Etkin">
 <!ENTITY newButton.label "Yeni…">
@@ -7,12 +11,18 @@
 <!ENTITY editButton.accesskey "e">
 <!ENTITY deleteButton.label "Sil">
 <!ENTITY deleteButton.accesskey "S">
+<!ENTITY reorderTopButton "Üste taşı">
+<!ENTITY reorderTopButton.accessKey "Ü">
+<!ENTITY reorderTopButton.toolTip "Filtreyi diğerlerinden önce çalışacak şekilde yeniden düzenle">
 <!ENTITY reorderUpButton.label "Yukarı taşı">
 <!ENTITY reorderUpButton.accesskey "Y">
 <!ENTITY reorderDownButton.label "Aşağı taşı">
 <!ENTITY reorderDownButton.accesskey "A">
+<!ENTITY reorderBottomButton "Alta taşı">
+<!ENTITY reorderBottomButton.accessKey "A">
+<!ENTITY reorderBottomButton.toolTip "Filtreyi diğerlerinden sonra çalışacak şekilde yeniden düzenle">
 <!ENTITY filterHeader.label "Etkin süzgeçler aşağıdaki sıralamaya göre otomatik olarak çalıştırılır.">
-<!ENTITY filtersForPrefix.label "Süzgeçlenecek hesap:">
+<!ENTITY filtersForPrefix.label "Süzülecek hesap:">
 <!ENTITY filtersForPrefix.accesskey "S">
 <!ENTITY viewLogButton.label "Süzgeç günlüğü">
 <!ENTITY viewLogButton.accesskey "l">
@@ -27,12 +37,8 @@
 <!ENTITY helpButton.label "Yardım">
 <!ENTITY helpButton.accesskey "Y">
 <!ENTITY closeCmd.key "W"> 
+<!ENTITY searchBox.emptyText "Süzgeçleri isme göre ara…">
 
 
-<!ENTITY reorderBottomButton "Move to Bottom">
-<!ENTITY reorderBottomButton.accessKey "B">
-<!ENTITY reorderBottomButton.toolTip "Rearrange filter so it executes after all others">
-<!ENTITY reorderTopButton "Move to Top">
-<!ENTITY reorderTopButton.accessKey "o">
-<!ENTITY reorderTopButton.toolTip "Rearrange filter so it executes before all others">
-<!ENTITY searchBox.emptyText "Search filters by name…">
+
+

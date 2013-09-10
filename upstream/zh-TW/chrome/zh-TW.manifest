@@ -1,0 +1,24 @@
+locale global zh-TW zh-TW/locale/zh-TW/global/
+locale messenger-region zh-TW zh-TW/locale/zh-TW/messenger-region/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale mozapps zh-TW zh-TW/locale/zh-TW/mozapps/
+locale chat zh-TW zh-TW/locale/zh-TW/chat/
+locale alerts zh-TW zh-TW/locale/zh-TW/alerts/
+locale passwordmgr zh-TW zh-TW/locale/zh-TW/passwordmgr/
+locale mozldap zh-TW zh-TW/locale/zh-TW/mozldap/
+locale messenger-newsblog zh-TW zh-TW/locale/zh-TW/messenger-newsblog/
+locale pippki zh-TW zh-TW/locale/zh-TW/pippki/
+locale global-platform zh-TW zh-TW/locale/zh-TW/global-platform/
+locale places zh-TW zh-TW/locale/zh-TW/places/
+locale cookie zh-TW zh-TW/locale/zh-TW/cookie/
+locale messenger-smime zh-TW zh-TW/locale/zh-TW/messenger-smime/
+locale autoconfig zh-TW zh-TW/locale/zh-TW/autoconfig/
+locale pipnss zh-TW zh-TW/locale/zh-TW/pipnss/
+locale communicator zh-TW zh-TW/locale/zh-TW/communicator/
+locale global-region zh-TW zh-TW/locale/zh-TW/global-region/
+locale messenger zh-TW zh-TW/locale/zh-TW/messenger/
+locale branding zh-TW zh-TW/locale/zh-TW/branding/
+locale necko zh-TW zh-TW/locale/zh-TW/necko/
+locale editor zh-TW zh-TW/locale/zh-TW/editor/
+locale messenger-mapi zh-TW zh-TW/locale/zh-TW/messenger-mapi/

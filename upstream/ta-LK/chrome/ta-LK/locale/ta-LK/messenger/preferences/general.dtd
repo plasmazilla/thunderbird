@@ -33,3 +33,7 @@
 <!ENTITY manageAddonsDescUnix2.label      "உங்களுடைய செருகல்களிற்காக விருப்பத்தேர்வுகளை மாற்றுக">
 <!ENTITY manageAddons.label               "செருகல்களை முகாமைத்துவம் செய்க…">
 <!ENTITY manageAddons.accesskey           "M">
+
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY showTrayIcon.label               "Show a tray icon">

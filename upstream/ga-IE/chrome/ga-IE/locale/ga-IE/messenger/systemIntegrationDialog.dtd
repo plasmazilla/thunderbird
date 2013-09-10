@@ -3,11 +3,16 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY systemIntegration.title "Comhtháthú Córais">
+<!ENTITY acceptIntegration.label "Socraigh mar réamhshocrú">
+<!ENTITY cancelIntegration.label "Ná Bac le Comhtháthú">
+<!ENTITY cancelIntegration2.label "Cealaigh">
 <!ENTITY defaultClient.intro "Úsáid &brandShortName; mar chliant réamhshocraithe le haghaidh:">
 
 <!ENTITY email.label "R-Phost">
 <!ENTITY newsgroups.label "Grúpaí-Nuachta">
 <!ENTITY feeds.label "Fothaí">
+
+<!ENTITY unsetDefault.tooltip "Ní féidir &brandShortName; a dhíshocrú mar chliant réamhshocraithe taobh istigh de &brandShortName;. Chun feidhmchlár eile a roghnú, caithfidh tú an dialóg 'Socraigh mar réamhshocrú' san fheidhmchlár sin a úsáid.">
 
 <!ENTITY checkOnStartup.label "Seiceáil mar seo i gcónaí agus &brandShortName; á thosú">
 <!ENTITY checkOnStartup.accesskey "a">

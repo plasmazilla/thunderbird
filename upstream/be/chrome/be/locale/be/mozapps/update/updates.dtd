@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY updateWizard.title "Абнаўленне праграмнага забеспячэння">
 <!ENTITY checking.title "Праверка абнаўленняў">
 <!ENTITY updateCheck.label "Шукаюцца навейшыя версіі &brandShortName;…">
@@ -67,3 +71,10 @@
 <!ENTITY update.details.label "Падрабязнасці">
 <!ENTITY update.installedOn.label "Усталявана ў:">
 <!ENTITY update.status.label "Статус:">
+
+<!ENTITY  unsupported.label               "Your &brandShortName; is out of date, but the latest version is not
+                                           supported on your system. Please upgrade your system, then try again.
+                                           You will not see this notice again, but you can">
+
+<!ENTITY  unsupported.title               "System Unsupported">
+<!ENTITY  unsupportedLink.label           "learn more.">

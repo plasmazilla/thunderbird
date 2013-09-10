@@ -30,12 +30,12 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey "e">
 <!ENTITY newIMAccountCmd.label "Spjallreikningur…">
 <!ENTITY newIMAccountCmd.accesskey "S">
+<!ENTITY newFeedAccountCmd.label "Straum reikningur…">
+<!ENTITY newFeedAccountCmd.accesskey "S">
 <!ENTITY newIMContactCmd.label "Spjall tengiliður…">
 <!ENTITY newIMContactCmd.accesskey "p">
 <!ENTITY openMessageFileCmd.label "Opna vistaðan póst…">
 <!ENTITY openMessageFileCmd.accesskey "O">
-<!ENTITY openAttachmentCmd.label "Viðhengi">
-<!ENTITY openAttachmentCmd.accesskey "V">
 <!ENTITY saveAsMenu.label "Vista sem">
 <!ENTITY saveAsMenu.accesskey "s">
 <!ENTITY saveAsFileCmd.label "Skrá">
@@ -241,30 +241,6 @@
 <!ENTITY viewFeedSummaryFeedPropsPref.accesskey "S">
 <!ENTITY viewAttachmentsInlineCmd.label "Sýna viðhengi innfelld">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "a">
-<!-- LOCALIZATION NOTE :
-fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
-fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
-If shift key is needed with your locale popular keyboard for them,
-you can use these alternative items. Otherwise, their values should be empty.  -->
-
-<!ENTITY fullZoomEnlargeCmd.label "Stækka">
-<!ENTITY fullZoomEnlargeCmd.accesskey "a">
-<!ENTITY fullZoomEnlargeCmd.commandkey "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "=">
- <!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-<!ENTITY fullZoomReduceCmd.label "Minnka">
-<!ENTITY fullZoomReduceCmd.accesskey "M">
-<!ENTITY fullZoomReduceCmd.commandkey "-">
-<!ENTITY fullZoomReduceCmd.commandkey2 "">
-<!ENTITY fullZoomResetCmd.label "Endursetja">
-<!ENTITY fullZoomResetCmd.accesskey "r">
-<!ENTITY fullZoomResetCmd.commandkey "0">
-<!ENTITY fullZoomResetCmd.commandkey2 "">
-<!ENTITY fullZoomToggleCmd.label "Stækka/minnka einungis texta">
-<!ENTITY fullZoomToggleCmd.accesskey "t">
-<!ENTITY fullZoom.label "Aðdráttur">
-<!ENTITY fullZoom.accesskey "ð">
 <!ENTITY pageSourceCmd.label "Frumkóði pósts">
 <!ENTITY pageSourceCmd.accesskey "p">
 <!ENTITY pageSourceCmd.key "u">
@@ -319,7 +295,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "Spjall">
 <!ENTITY goChatCmd.accesskey "S">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.key "I">
 <!ENTITY prevStarredMsgCmd.label "Stjörnumerktur póstur">
 <!ENTITY prevStarredMsgCmd.accesskey "S">
 <!ENTITY folderMenu.label "Mappa">
@@ -337,7 +313,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY newMsgCmd.accesskey "N">
 <!ENTITY newNewMsgCmd.label "Póstur">
 <!ENTITY newNewMsgCmd.accesskey "P">
-<!ENTITY archiveMsgCmd.label "Skjalasafn">
+<!ENTITY archiveMsgCmd.label "Skjalageymsla">
 <!ENTITY archiveMsgCmd.accesskey "a">
 <!ENTITY archiveMsgCmd.key "a">
 <!ENTITY cancelNewsMsgCmd.label "Hætta við boð">
@@ -438,12 +414,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openConversationCmd.label "Opna í samtali">
 <!ENTITY openConversationCmd.accesskey "s">
 <!ENTITY openConversationCmd.key "o">
-<!ENTITY openFeedMessage.label "Opna straum skilaboð">
-<!ENTITY openFeedMessage.accesskey "O">
-<!ENTITY openFeedWebPageInWindow.label "Vefsíða í nýjum glugga">
-<!ENTITY openFeedWebPageInWindow.accesskey "V">
-<!ENTITY openFeedSummaryInWindow.label "Samantekt í nýjum glugga">
-<!ENTITY openFeedSummaryInWindow.accesskey "S">
+<!ENTITY openAttachmentListCmd.label "Viðhengi">
+<!ENTITY openAttachmentListCmd.accesskey "h">
+<!ENTITY openFeedMessage1.label "Þegar opnaður er póstur í straumi">
+<!ENTITY openFeedMessage1.accesskey "o">
+<!ENTITY openFeedWebPage.label "Opna sem vefsíðu">
+<!ENTITY openFeedWebPage.accesskey "v">
+<!ENTITY openFeedSummary.label "Opna sem samantekt">
+<!ENTITY openFeedSummary.accesskey "s">
 <!ENTITY openFeedWebPageInMP.label "Víxla vefsíðu og samantekt í lestrarrúðu">
 <!ENTITY openFeedWebPageInMP.accesskey "t">
 <!-- Windows Menu -->
@@ -495,6 +473,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
         which is placed under the Edit menu on Unix systems -->
 <!ENTITY accountManagerCmdUnix.accesskey "S">
+<!ENTITY allowRemoteDebugging.label "Leyfa fjartengda aflúsun">
+<!ENTITY allowRemoteDebugging.accesskey "g">
 <!-- Mail Toolbar -->
 <!ENTITY getMsgButton.label "Ná í póst">
 <!ENTITY newMsgButton.label "Skrifa">
@@ -503,7 +483,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyListButton.label "Svara póstlista">
 <!ENTITY forwardButton.label "Áfram">
 <!ENTITY fileButton.label "Skrá">
-<!ENTITY archiveButton.label "Skjalasafn">
+<!ENTITY archiveButton.label "Skjalageymsla">
 <!ENTITY nextButton.label "Næsta">
 <!ENTITY nextButtonToolbarItem.label "Næsta ólesið">
 <!ENTITY nextMsgButton.label "Næsti">
@@ -541,8 +521,10 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyAllButton.tooltip "Svara sendanda og öllum viðtakendum">
 <!ENTITY replyListButton.tooltip "Svara póstlista">
 <!ENTITY forwardButton.tooltip "Áframsenda völdum pósti">
+<!ENTITY forwardAsInline.tooltip "Áframsenda valda pósta sem innfelldan texta">
+<!ENTITY forwardAsAttachment.tooltip "Áframsenda valda pósta sem viðhengi">
 <!ENTITY fileButton.tooltip "Vista valinn póst">
-<!ENTITY archiveButton.tooltip "Setja valinn póst í skjalasafn">
+<!ENTITY archiveButton.tooltip "Setja valinn póst í skjalageymslu">
 <!ENTITY nextButton.tooltip "Fara yfir á næsta ólesna póst">
 <!ENTITY nextMsgButton.tooltip "Fara á næstu skilaboð">
 <!ENTITY previousButton.tooltip "Fara til baka í fyrri ólesin póst">
@@ -560,13 +542,18 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY chatButton.tooltip "Sýna spjallflipann">
 <!ENTITY tagButton.tooltip "Flokka póst">
 <!ENTITY compactButton.tooltip "Eyða eyddum póstum frá valinni möppu">
-<!ENTITY appmenuButton.tooltip "Birta forritavalmynd">
+<!ENTITY appmenuButton1.tooltip "Birta &brandShortName; valmynd">
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Áframsenda innfellt">
+<!ENTITY buttonMenuForwardAsAttachment.label "Áframsenda sem viðhengi">
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Nýr póstur">
 <!ENTITY appmenuNewContactCmd.label "Tengiliður í nafnaskrá…">
 <!ENTITY appmenuEditMenu.label "Breyta">
 <!ENTITY appmenuQFBMenu.label "Flýtisíuslá">
 <!ENTITY appmenuToolbarLayout.label "Útlit tækjaslár…">
+<!ENTITY appmenuSelectThread.label "Velja umræðu">
+<!ENTITY appmenuSelectFlagged.label "Velja stjörnumerkt skilaboð">
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "Nýr flokkur…">
 <!ENTITY addNewTag.accesskey "N">
@@ -578,8 +565,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Folder Pane Context Menu -->
 <!ENTITY folderContextGetMessages.label "Ná í póst">
 <!ENTITY folderContextGetMessages.accesskey "N">
-<!ENTITY folderContextOpenNewWindow.label "Opna">
-<!ENTITY folderContextOpenNewWindow.accesskey "O">
+<!ENTITY folderContextOpenInNewWindow.label "Opna í nýjum glugga">
+<!ENTITY folderContextOpenInNewWindow.accesskey "O">
 <!ENTITY folderContextOpenNewTab.label "Opna í nýjum flipa">
 <!ENTITY folderContextOpenNewTab.accesskey "f">
 <!ENTITY folderContextNew.label "Ný undirmappa…">
@@ -679,8 +666,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextOpenConversation.accesskey "n">
 <!ENTITY contextEditAsNew.label "Breyta pósti sem nýjum…">
 <!ENTITY contextEditAsNew.accesskey "e">
-<!ENTITY contextArchive.label "Skjalasafn">
-<!ENTITY contextArchive.accesskey "n">
+<!ENTITY contextArchive.label "Skjalageymsla">
+<!ENTITY contextArchive.accesskey "j">
 <!ENTITY contextReplySender.label "Svara aðeins sendanda">
 <!ENTITY contextReplySender.accesskey "r">
 <!ENTITY contextReplyNewsgroup2.label "Svara fréttahóp">
@@ -691,14 +678,24 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextReplyList.accesskey "l">
 <!ENTITY contextForward.label "Áfram">
 <!ENTITY contextForward.accesskey "m">
-<!ENTITY contextForwardAsAttachment.label "Áframsenda sem viðhengi">
-<!ENTITY contextForwardAsAttachment.accesskey "m">
+<!ENTITY contextForwardAsMenu.label "Áframsenda sem">
+<!ENTITY contextForwardAsMenu.accesskey "f">
+<!ENTITY contextForwardAsInline.label "Innfellt">
+<!ENTITY contextForwardAsInline.accesskey "I">
+<!ENTITY contextForwardAsAttachmentItem.label "Viðhengi">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "V">
+<!ENTITY contextMultiForwardAsAttachment.label "Áframsenda sem viðhengi">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "f">
 <!ENTITY contextMoveMsgMenu.label "Færa í">
 <!ENTITY contextMoveMsgMenu.accesskey "F">
 <!ENTITY contextMoveCopyMsgRecentMenu.label "Nýlegt">
 <!ENTITY contextMoveCopyMsgRecentMenu.accesskey "N">
 <!ENTITY contextCopyMsgMenu.label "Afrita í">
 <!ENTITY contextCopyMsgMenu.accesskey "A">
+<!ENTITY contextKillThreadMenu.label "Hunsa umræðu">
+<!ENTITY contextKillThreadMenu.accesskey "H">
+<!ENTITY contextKillSubthreadMenu.label "Hunsa undirumræðu">
+<!ENTITY contextWatchThreadMenu.label "Fylgjast með umræðu">
 <!ENTITY contextSaveAs.label "Vista sem…">
 <!ENTITY contextSaveAs.accesskey "s">
 <!ENTITY contextPrint.label "Prenta…">

@@ -288,3 +288,7 @@
 <!-- Title for the address picker panel -->
 <!ENTITY addressesSidebarTitle.label "Kenalan">
 
+
+<!ENTITY deliveryFormatMenu.accesskey "F">
+<!ENTITY deliveryFormatMenu.label "Delivery Format">
+<!ENTITY findReplaceCmd.key "H">

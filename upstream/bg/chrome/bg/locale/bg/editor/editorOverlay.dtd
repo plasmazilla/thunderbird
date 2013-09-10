@@ -342,3 +342,9 @@
 <!ENTITY removeTOC.accesskey      "П">
 <!ENTITY tocMenu.label            "Съдържание…">
 <!ENTITY tocMenu.accesskey        "С">
+
+<!ENTITY decrementFontSize.key "&lt;">
+<!ENTITY decrementFontSize.key2 ","> <!-- < is above this key on many keyboards -->
+<!ENTITY incrementFontSize.key "&gt;">
+<!ENTITY incrementFontSize.key2 "."> <!-- > is above this key on many keyboards -->
+

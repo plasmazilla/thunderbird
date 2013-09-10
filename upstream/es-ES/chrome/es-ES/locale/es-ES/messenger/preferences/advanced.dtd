@@ -22,8 +22,8 @@
 <!ENTITY alwaysCheckDefault.accesskey "C">
 <!ENTITY searchIntegration.label "Permitir que &searchIntegration.engineName; busque en los mensajes">
 <!ENTITY searchIntegration.accesskey "P">
-<!ENTITY checkNow.label "Comprobar ahora">
-<!ENTITY checkNow.accesskey "b">
+<!ENTITY checkDefaultsNow.label "Comprobar ahora…">
+<!ENTITY checkDefaultsNow.accesskey "b">
 <!ENTITY configEditDesc.label "Configuración avanzada">
 <!ENTITY configEdit.label "Editor de configuración…">
 <!ENTITY configEdit.accesskey "E">
@@ -70,7 +70,7 @@
 <!ENTITY showSettings.accesskey "C">
 <!ENTITY proxiesConfigure.label "Configurar cómo se conecta &brandShortName; a Internet">
 <!ENTITY connectionsInfo.caption "Conexión">
-<!ENTITY offlineInfo.caption "Desconectado">
+<!ENTITY offlineInfo.caption "Sin conexión">
 <!ENTITY offlineInfo.label "Configurar modo sin conexión">
 <!ENTITY showOffline.label "Sin conexión…">
 <!ENTITY showOffline.accesskey "S">
@@ -90,8 +90,6 @@
 <!ENTITY certs.ask.accesskey "P">
 <!ENTITY viewCertificates.label "Ver certificados">
 <!ENTITY viewCertificates.accesskey "a">
-<!ENTITY viewCRLs.label "Listas de revocación">
-<!ENTITY viewCRLs.accesskey "L">
 <!ENTITY validation.label "Validación">
 <!ENTITY validation.accesskey "V">
 <!ENTITY viewSecurityDevices.label "Dispositivos de seguridad">

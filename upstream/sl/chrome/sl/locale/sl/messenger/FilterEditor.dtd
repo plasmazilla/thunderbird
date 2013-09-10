@@ -17,14 +17,18 @@
 <!ENTITY highestPriorityCmd.label "Najvišje">
 
 <!ENTITY contextDesc.label "Uporabi filter:">
-<!ENTITY contextDesc.accesskey "f">
-<!ENTITY contextIncoming.label "Preverjanje pošte">
-<!ENTITY contextManual.label "Ročen zagon">
-<!ENTITY contextBoth.label "Preverjanje pošte ali Ročen zagon">
-<!ENTITY contextPostPlugin.label "Preverjanje pošte (po razvrščanju)">
-<!ENTITY contextPostPluginBoth.label "Preverjanje pošte (po razvrščanju) ali Ročen zagon">
+<!ENTITY contextIncomingMail.label "Preverjanje nove pošte:">
+<!ENTITY contextIncomingMail.accesskey "P">
+<!ENTITY contextManual.label "Ročni zagon">
+<!ENTITY contextManual.accesskey "R">
+<!ENTITY contextBeforeCls.label "Preverjanje pošte pred razvrščanjem">
+<!ENTITY contextAfterCls.label "Preverjanje pošte po razvrščanju">
+
 <!ENTITY filterActionDesc.label "Izvedi ta dejanja:">
 <!ENTITY filterActionDesc.accesskey "I">
+
+<!ENTITY filterActionOrderWarning.label "Opomba: dejanja filtra se bodo izvajala v drugačnem vrstnem redu.">
+<!ENTITY filterActionOrder.label "Vrstni red izvajanja">
 
 <!-- New Style Filter Rule Actions -->
 <!ENTITY moveMessage.label "Prestavi sporočilo v">

@@ -1,21 +1,11 @@
-<!--
-# Translator(s):
-#
-# Hrant <hrantohanyan@mail.am>
-#
--->
-<!--
-# Reviewer(s):
-#
-# armenzg <armenzg@gmail.com>
-# Hrant <hrantohanyan@mail.am>
-# alexxed <alexxed@gmail.com>
-#
--->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY identityDialog.style "width: 67ch;">
 <!ENTITY identityTitle.label "Նույնական. կարգ.">
 <!ENTITY identityListDesc.label "Կազմաձևել նույնականացման կարգ-ը.">
 
 <!ENTITY settingsTab.label       "Կարգավորումներ">
-<!ENTITY copiesFoldersTab.label "Թղթ.-ի &amp; պատճենում">
-<!ENTITY addressingTab.label    "Հասցեների &amp; կազմում">
+<!ENTITY copiesFoldersTab.label "Թղթապանակներ &amp; Պատճենում">
+<!ENTITY addressingTab.label    "Նոր նամակ &amp; Հասցեավորում">

@@ -13,6 +13,8 @@
 <!ENTITY removeButton.label "கணக்கை நீக்கு">
 <!ENTITY removeButton.accesskey "R">
 
+<!ENTITY addFeedAccountButton.accesskey "F">
+<!ENTITY addFeedAccountButton.label "Add Feed Account…">
 <!ENTITY addIMAccountButton.accesskey "C">
 <!ENTITY addIMAccountButton.label "Add Chat Account…">
 

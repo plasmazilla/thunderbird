@@ -8,15 +8,15 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-pt-BR@thunderbird.mozilla.org"
                em:name="Português Brasileiro Language Pack"
-               em:version="17.0.8"
+               em:version="24.0"
                em:type="8"
                em:creator="http://mozillabrasil.org.br">
     <em:contributor>Jeferson Hultmann</em:contributor> <em:contributor>Fernando Pereira Silveira</em:contributor>
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>17.0.8</em:minVersion>
-        <em:maxVersion>17.0.*</em:maxVersion>
+        <em:minVersion>24.0</em:minVersion>
+        <em:maxVersion>24.0.*</em:maxVersion>
       </Description>
     </em:targetApplication>
   </Description>

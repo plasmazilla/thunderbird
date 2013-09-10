@@ -23,7 +23,7 @@
 <!ENTITY attachFileCmd.key "A">
 <!ENTITY attachCloudCmd.label "Espace de fichiers">
 <!ENTITY attachCloudCmd.accesskey "E">
-<!ENTITY attachPageCmd.label "Page Web…">
+<!ENTITY attachPageCmd.label "Page web…">
 <!ENTITY attachPageCmd.accesskey "W">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
 <!ENTITY attachVCardCmd.label "Carte de visite (vCard)">
@@ -139,10 +139,10 @@
 
 <!ENTITY returnReceiptMenu.label "Demander un accusé de réception">
 <!ENTITY returnReceiptMenu.accesskey "t">
-<!ENTITY dsnMenu.label "Notification d'état de la distribution">
+<!ENTITY dsnMenu.label "Notification de l'état de la distribution">
 <!ENTITY dsnMenu.accesskey "N">
-<!ENTITY outputFormatMenu.label "Format">
-<!ENTITY outputFormatMenu.accesskey  "f">
+<!ENTITY deliveryFormatMenu.label "Format de distribution">
+<!ENTITY deliveryFormatMenu.accesskey "F">
 <!ENTITY autoFormatCmd.label "Détection automatique">
 <!ENTITY autoFormatCmd.accesskey "a">
 <!ENTITY plainTextFormatCmd.label "Texte seulement">
@@ -284,7 +284,7 @@
 <!ENTITY cancelUpload.accesskey "n">
 <!ENTITY convertRegularAttachment.label "Pièce jointe normale">
 <!ENTITY convertRegularAttachment.accesskey "P">
-<!ENTITY attachPage.label "Joindre une page Web…">
+<!ENTITY attachPage.label "Joindre une page web…">
 <!ENTITY attachPage.accesskey "W">
 
 <!-- Spell checker context menu items -->
@@ -293,3 +293,5 @@
 
 <!-- Title for the address picker panel -->
 <!ENTITY addressesSidebarTitle.label "Contacts">
+
+<!ENTITY findReplaceCmd.key "H">

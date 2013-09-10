@@ -47,3 +47,11 @@
 <!ENTITY defaultSize.accesskey   "M">
 <!ENTITY fontOptions.accesskey   "S">
 <!ENTITY fontOptions.label       "Shkronja…">
+
+<!ENTITY colorButton.accesskey   "C">
+<!ENTITY colorButton.label       "Colors…">
+
+<!-- Fonts and Colors -->
+<!ENTITY fontsAndColors1.label   "Fonts &amp; Colors">
+<!ENTITY quotedTextColor.accesskey        "o">
+<!ENTITY quotedTextColor.label            "Color:">

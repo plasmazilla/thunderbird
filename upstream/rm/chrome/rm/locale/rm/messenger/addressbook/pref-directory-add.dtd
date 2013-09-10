@@ -6,7 +6,7 @@
 <!ENTITY directoryName.label               "Num: ">
 <!ENTITY directoryName.accesskey           "N">
 <!ENTITY directoryHostname.label           "Adressa dal server: ">
-<!ENTITY directoryHostname.accesskey       "S">
+<!ENTITY directoryHostname.accesskey       "A">
 <!ENTITY directoryBaseDN.label             "DN da basa: ">
 <!ENTITY directoryBaseDN.accesskey         "B">
 <!ENTITY findButton.label                  "Tschertgar">

@@ -39,3 +39,7 @@
 <!ENTITY manageAddons.accesskey           "נ">
 
 
+
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY showTrayIcon.label               "Show a tray icon">

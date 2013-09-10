@@ -32,6 +32,9 @@
 <!ENTITY ispHeaders.accesskey "t">
 
 
+<!ENTITY globalJunkPrefs.accesskey "G">
+
+<!ENTITY globalJunkPrefs.label "Global Junk Preferences…">
 
 <!ENTITY ispHeadersWarning.label "If enabled, &brandShortName; will automatically consider messages marked by this external classifier as junk.">
 <!ENTITY junkActions.label "Destination and Retention">

@@ -1,6 +1,12 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY pane.title                   "Returkvitteringar">
 <!ENTITY useGlobalPrefs.label         "Bruk globale innstillingar">
 <!ENTITY useGlobalPrefs.accesskey     "B">
+<!ENTITY globalReceipts.label         "Globale innstillingar …">
+<!ENTITY globalReceipts.accesskey     "G">
 <!ENTITY useCustomPrefs.label         "Bruk eigne innstillingar">
 <!ENTITY useCustomPrefs.accesskey     "r">
 <!ENTITY requestReceipt.label         "Alltid be om kvittering når eg sender ei melding">
@@ -25,6 +31,3 @@
 <!ENTITY askMe.label                  "Spør meg">
 <!ENTITY alwaysSend.label             "Alltid send">
 <!ENTITY neverSend.label              "Aldri send">
-
-<!ENTITY globalReceipts.accesskey     "G">
-<!ENTITY globalReceipts.label         "Global Preferences…">

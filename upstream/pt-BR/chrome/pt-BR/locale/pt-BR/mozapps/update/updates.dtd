@@ -1,3 +1,6 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!ENTITY  updateWizard.title              "Atualização do aplicativo">
 
 <!ENTITY  checking.title                  "Verificando atualizações">
@@ -38,7 +41,7 @@
 <!ENTITY  downloadPage.title              "Recebendo o &brandShortName;">
 <!ENTITY  downloading.intro               "Recebendo a atualização…">
 <!ENTITY  connecting.label                "Conectando-se ao servidor de atualização…">
-<!ENTITY  verificationFailedText.label    "O &brandShortName; não pôde comprovar a integridade da atualização incremental recebida. Será efetuado o download do pacote completo de atualização.">
+<!ENTITY  verificationFailedText.label    "O &brandShortName; não pôde comprovar a integridade do arquivo de atualização incremental. Em andamento o recebimento da atualização completa.">
 
 <!ENTITY  viewDetails.tooltip             "Exibir detalhes desta atualização">
 
@@ -71,3 +74,10 @@
 <!ENTITY  update.details.label            "Detalhes">
 <!ENTITY  update.installedOn.label        "Instalada em:">
 <!ENTITY  update.status.label             "Status:">
+
+<!ENTITY  unsupported.label               "Your &brandShortName; is out of date, but the latest version is not
+                                           supported on your system. Please upgrade your system, then try again.
+                                           You will not see this notice again, but you can">
+
+<!ENTITY  unsupported.title               "System Unsupported">
+<!ENTITY  unsupportedLink.label           "learn more.">

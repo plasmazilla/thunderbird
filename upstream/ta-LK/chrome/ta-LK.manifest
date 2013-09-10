@@ -1,0 +1,24 @@
+locale messenger-smime ta-LK ta-LK/locale/ta-LK/messenger-smime/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+locale autoconfig ta-LK ta-LK/locale/ta-LK/autoconfig/
+locale places ta-LK ta-LK/locale/ta-LK/places/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale pipnss ta-LK ta-LK/locale/ta-LK/pipnss/
+locale communicator ta-LK ta-LK/locale/ta-LK/communicator/
+locale necko ta-LK ta-LK/locale/ta-LK/necko/
+locale editor ta-LK ta-LK/locale/ta-LK/editor/
+locale cookie ta-LK ta-LK/locale/ta-LK/cookie/
+locale messenger-mapi ta-LK ta-LK/locale/ta-LK/messenger-mapi/
+locale messenger-newsblog ta-LK ta-LK/locale/ta-LK/messenger-newsblog/
+locale global-region ta-LK ta-LK/locale/ta-LK/global-region/
+locale mozldap ta-LK ta-LK/locale/ta-LK/mozldap/
+locale pippki ta-LK ta-LK/locale/ta-LK/pippki/
+locale global-platform ta-LK ta-LK/locale/ta-LK/global-platform/
+locale chat ta-LK ta-LK/locale/ta-LK/chat/
+locale mozapps ta-LK ta-LK/locale/ta-LK/mozapps/
+locale passwordmgr ta-LK ta-LK/locale/ta-LK/passwordmgr/
+locale branding ta-LK ta-LK/locale/ta-LK/branding/
+locale messenger-region ta-LK ta-LK/locale/ta-LK/messenger-region/
+locale messenger ta-LK ta-LK/locale/ta-LK/messenger/
+locale global ta-LK ta-LK/locale/ta-LK/global/
+locale alerts ta-LK ta-LK/locale/ta-LK/alerts/

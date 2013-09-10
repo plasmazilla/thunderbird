@@ -1,16 +1,7 @@
-<!--
-# Translator(s):
-#
-# Hrant <hrantohanyan@mail.am>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# alexxed <alexxed@gmail.com>
-#
--->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY serverAdvanced.label "Փոստարկղի ընդլայնված կարգավորումներ">
 <!-- LOCALIZATION NOTE (serverDirectory.label): Do not translate "IMAP" -->
 <!ENTITY serverDirectory.label "IMAP սպասարկիչի տեղը.">
@@ -34,8 +25,6 @@
 <!ENTITY overrideNamespaces.label "Թույլատրել սպասարկիչին կարգավորել այս անվանադաշտերը">
 <!ENTITY overrideNamespaces.accesskey "A">
 <!ENTITY pop3Desc.label "Pop նամակները ստանալիս օգտ. հետևյալ թղթապանակը նոր նամակների համար." >
-<!ENTITY globalInbox.label "Ընդհանուր Մուտքային (Լոկալ թղթ. փոստարկղ)">
-<!ENTITY globalInbox.accesskey "G">
 <!ENTITY accountDirectory.label "Այս սպասարկիչի փոստարկղի Մուտքայինը">
 <!ENTITY accountDirectory.accesskey "s">
 <!ENTITY deferToServer.label "Այլ փոստարկղի Մուտքայինը">

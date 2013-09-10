@@ -33,3 +33,7 @@
 <!ENTITY manageAddonsDescUnix2.label      "Ubah pengaturan Pengaya">
 <!ENTITY manageAddons.label               "Kelola Pengaya…">
 <!ENTITY manageAddons.accesskey           "P">
+
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY showTrayIcon.label               "Show a tray icon">

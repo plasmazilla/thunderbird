@@ -18,3 +18,8 @@
 
 <!ENTITY feedsSectionHdr.label        "ফিড">
 <!ENTITY subscribeFeeds.label         "সাবস্ক্রিপশন ব্যবস্থাপনা">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

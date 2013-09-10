@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY updateWizard.title "Обновление программного обеспечения">
 <!ENTITY checking.title "Идёт проверка наличия обновлений…">
 <!ENTITY updateCheck.label "Идёт поиск новых версий &brandShortName;…">
@@ -11,6 +15,9 @@
 <!ENTITY manualUpdate.desc "Появилось обновление, повышающее безопасность и стабильность работы, но у вас недостаточно прав, требуемых для его установки. Пожалуйста, свяжитесь со своим системным администратором или попробуйте произвести обновление с правами учётной записи, имеющей права на установку программного обеспечения на этом компьютере.">
 <!ENTITY manualUpdate.space.desc "Появилось обновление, повышающее безопасность и стабильность работы, но у вас недостаточно места на диске для его установки.">
 <!ENTITY manualUpdateGetMsg.label "Вы всегда можете получить последнюю версию &brandShortName; на сайте:">
+<!ENTITY unsupported.title "Система не поддерживается">
+<!ENTITY unsupported.label "Ваш &brandShortName; устарел, но его последняя версия не поддерживает вашу операционную систему. Пожалуйста, обновите вашу систему, затем повторите попытку. Вы не увидите это уведомление снова, но вы можете">
+<!ENTITY unsupportedLink.label "узнать об этом больше.">
 <!ENTITY incompatibleCheck.title "Идёт проверка совместимости дополнений">
 <!ENTITY incompatibleCheck.label "Идёт поиск новых версий ваших дополнений…">
 <!ENTITY clickHere.label "Просмотреть более подробную информацию об этом обновлении">

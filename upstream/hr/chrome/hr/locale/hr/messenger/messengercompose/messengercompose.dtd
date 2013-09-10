@@ -125,7 +125,7 @@
 <!ENTITY checkSpellingCmd2.label "Provjeri pravopis…">
 <!ENTITY checkSpellingCmd2.key "p">
 <!ENTITY checkSpellingCmd2.key2 "VK_F7">
-<!ENTITY checkSpellingCmd2.accesskey "h">
+<!ENTITY checkSpellingCmd2.accesskey "r">
 <!ENTITY enableInlineSpellChecker.label "Provjeravaj pravopis tijekom tipkanja">
 <!ENTITY enableInlineSpellChecker.accesskey "s">
 <!ENTITY quoteCmd.label "Citiraj poruku">
@@ -139,10 +139,10 @@
 <!ENTITY returnReceiptMenu.accesskey "t">
 <!ENTITY dsnMenu.label "Potvrda isporuke">
 <!ENTITY dsnMenu.accesskey "o">
-<!ENTITY outputFormatMenu.label "Oblikuj">
-<!ENTITY outputFormatMenu.accesskey "l">
-<!ENTITY autoFormatCmd.label "Automatski detektiraj">
-<!ENTITY autoFormatCmd.accesskey "a">
+<!ENTITY deliveryFormatMenu.label "Oblik isporuke">
+<!ENTITY deliveryFormatMenu.accesskey "l">
+<!ENTITY autoFormatCmd.label "Automatski prepoznaj">
+<!ENTITY autoFormatCmd.accesskey "A">
 <!ENTITY plainTextFormatCmd.label "Samo običan tekst">
 <!ENTITY plainTextFormatCmd.accesskey "S">
 <!ENTITY htmlFormatCmd.label "Samo obogaćeni tekst (HTML)">
@@ -294,3 +294,5 @@
 <!-- Title for the address picker panel -->
 <!ENTITY addressesSidebarTitle.label "Kontakti">
 
+
+<!ENTITY findReplaceCmd.key "H">

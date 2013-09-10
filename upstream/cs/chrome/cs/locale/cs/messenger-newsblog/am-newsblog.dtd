@@ -20,3 +20,6 @@
 <!ENTITY feeds.wizardShortName "Kanály">
 <!ENTITY feeds.wizardLongName "Kanály blogů a novinek">
 <!ENTITY feeds.wizardLongName.accesskey "K">
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

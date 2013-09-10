@@ -22,3 +22,8 @@
 <!ENTITY filtersLink.label            "Criar filtros para mensagens">
 <!ENTITY junkSettings.label           "Configurações de spam">
 <!ENTITY offlineLink.label            "Configurar modo off-line">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

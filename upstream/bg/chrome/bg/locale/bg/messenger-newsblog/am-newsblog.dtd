@@ -20,3 +20,6 @@
 <!ENTITY feeds.wizardShortName "Емисии">
 <!ENTITY feeds.wizardLongName "Блогове и новинарски емисии">
 <!ENTITY feeds.wizardLongName.accesskey "е">
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

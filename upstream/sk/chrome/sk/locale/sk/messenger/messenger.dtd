@@ -32,12 +32,12 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey "E">
 <!ENTITY newIMAccountCmd.label "Účet pre konverzácie…">
 <!ENTITY newIMAccountCmd.accesskey "o">
+<!ENTITY newFeedAccountCmd.label "Účet pre informačné kanály…">
+<!ENTITY newFeedAccountCmd.accesskey "m">
 <!ENTITY newIMContactCmd.label "Kontakt pre konverzácie…">
 <!ENTITY newIMContactCmd.accesskey "v">
 <!ENTITY openMessageFileCmd.label "Otvoriť uložené správy…">
 <!ENTITY openMessageFileCmd.accesskey "O">
-<!ENTITY openAttachmentCmd.label "Prílohy">
-<!ENTITY openAttachmentCmd.accesskey "P">
 <!ENTITY saveAsMenu.label "Uložiť ako">
 <!ENTITY saveAsMenu.accesskey "U">
 <!ENTITY saveAsFileCmd.label "Súbor">
@@ -252,33 +252,6 @@
 <!ENTITY viewAttachmentsInlineCmd.label "Prílohy zobrazovať v správe">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "a">
 
-<!-- LOCALIZATION NOTE :
-fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
-fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
-If shift key is needed with your locale popular keyboard for them,
-you can use these alternative items. Otherwise, their values should be empty.  -->
-
-<!ENTITY fullZoomEnlargeCmd.label       "Priblížiť">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "P">
-<!ENTITY fullZoomEnlargeCmd.commandkey  "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "="> <!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-
-<!ENTITY fullZoomReduceCmd.label        "Vzdialiť">
-<!ENTITY fullZoomReduceCmd.accesskey    "V">
-<!ENTITY fullZoomReduceCmd.commandkey   "-">
-<!ENTITY fullZoomReduceCmd.commandkey2  "">
-
-<!ENTITY fullZoomResetCmd.label         "Obnoviť">
-<!ENTITY fullZoomResetCmd.accesskey     "O">
-<!ENTITY fullZoomResetCmd.commandkey    "0">
-<!ENTITY fullZoomResetCmd.commandkey2   "">
-
-<!ENTITY fullZoomToggleCmd.label        "Meniť iba veľkosť textu">
-<!ENTITY fullZoomToggleCmd.accesskey    "M">
-<!ENTITY fullZoom.label                 "Lupa">
-<!ENTITY fullZoom.accesskey             "L">
-
 <!ENTITY pageSourceCmd.label "Zdrojový kód správy">
 <!ENTITY pageSourceCmd.accesskey "Z">
 <!ENTITY pageSourceCmd.key "u">
@@ -335,7 +308,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "Konverzácie">
 <!ENTITY goChatCmd.accesskey "K">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.key "I">
 <!ENTITY prevStarredMsgCmd.label "Správa s hviezdičkou">
 <!ENTITY prevStarredMsgCmd.accesskey "h">
 <!ENTITY folderMenu.label "Priečinok">
@@ -455,12 +428,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openConversationCmd.label "Otvoriť ako konverzáciu">
 <!ENTITY openConversationCmd.accesskey "c">
 <!ENTITY openConversationCmd.key "o">
-<!ENTITY openFeedMessage.label "Správy informačného kanála otvárať ako">
-<!ENTITY openFeedMessage.accesskey "h">
-<!ENTITY openFeedWebPageInWindow.label "Webová stránka v novom okne">
-<!ENTITY openFeedWebPageInWindow.accesskey "W">
-<!ENTITY openFeedSummaryInWindow.label "Stručný súhrn v novom okne">
-<!ENTITY openFeedSummaryInWindow.accesskey "S">
+<!ENTITY openAttachmentListCmd.label "Prílohy">
+<!ENTITY openAttachmentListCmd.accesskey "l">
+<!ENTITY openFeedMessage1.label "Pri otváraní správ informačného kanála">
+<!ENTITY openFeedMessage1.accesskey "f">
+<!ENTITY openFeedWebPage.label "Otvoriť ako webovú stránku">
+<!ENTITY openFeedWebPage.accesskey "w">
+<!ENTITY openFeedSummary.label "Otvoriť ako stručný súhrn">
+<!ENTITY openFeedSummary.accesskey "s">
 <!ENTITY openFeedWebPageInMP.label "Prepínať medzi stránkou a súhrnom v paneli správy">
 <!ENTITY openFeedWebPageInMP.accesskey "P">
 
@@ -514,6 +489,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
         which is placed under the Edit menu on Unix systems -->
 <!ENTITY accountManagerCmdUnix.accesskey "A">
+<!ENTITY allowRemoteDebugging.label "Povoliť vzdialené ladenie">
+<!ENTITY allowRemoteDebugging.accesskey "P">
 
 <!-- Mail Toolbar -->
 <!ENTITY getMsgButton.label "Prijať">
@@ -562,6 +539,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyAllButton.tooltip "Odpovedať odosielateľovi a všetkým adresátom">
 <!ENTITY replyListButton.tooltip "Odpovedať členom rozosielacieho zoznamu">
 <!ENTITY forwardButton.tooltip "Odoslať označenú správu ďalej">
+<!ENTITY forwardAsInline.tooltip "Odoslať ďalej zvolenú správu v texte novej správy">
+<!ENTITY forwardAsAttachment.tooltip "Odoslať ďalej zvolenú správu ako prílohu">
 <!ENTITY fileButton.tooltip "Uložiť označenú správu do súboru">
 <!ENTITY archiveButton.tooltip "Presunúť označené správy do archívu">
 <!ENTITY nextButton.tooltip "Presunúť sa na nasledujúcu neprečítanú správu">
@@ -581,7 +560,11 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY chatButton.tooltip "Zobraziť kartu Konverzácie">
 <!ENTITY tagButton.tooltip "Priradiť k správe popis">
 <!ENTITY compactButton.tooltip "Odstrániť vymazané správy z označeného priečinka">
-<!ENTITY appmenuButton.tooltip "Zobrazí hlavnú ponuku aplikácie">
+<!ENTITY appmenuButton1.tooltip "Zobraziť hlavnú ponuku aplikácie &brandShortName;">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Odoslať ďalej v texte">
+<!ENTITY buttonMenuForwardAsAttachment.label "Odoslať ďalej ako prílohu">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Nová správa">
@@ -589,6 +572,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY appmenuEditMenu.label "Úpravy">
 <!ENTITY appmenuQFBMenu.label "Panel Rýchly filter">
 <!ENTITY appmenuToolbarLayout.label "Rozloženie panela nástrojov…">
+<!ENTITY appmenuSelectThread.label "Vybrať vlákno">
+<!ENTITY appmenuSelectFlagged.label "Vybrať správy označené hviezdičkou">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "Nový popis…">
@@ -603,8 +588,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Folder Pane Context Menu -->
 <!ENTITY folderContextGetMessages.label "Prijať správy">
 <!ENTITY folderContextGetMessages.accesskey "a">
-<!ENTITY folderContextOpenNewWindow.label "Otvoriť">
-<!ENTITY folderContextOpenNewWindow.accesskey "O">
+<!ENTITY folderContextOpenInNewWindow.label "Otvoriť v novom okne">
+<!ENTITY folderContextOpenInNewWindow.accesskey "O">
 <!-- The key potentially conflicts with cutCmd.accessKey which is defined in
      textcontext.dtd from toolkit. Right now, both menu items can't be visible
      at the same time, but should someone enable copy/paste of message, this key
@@ -722,14 +707,24 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextReplyList.accesskey "d">
 <!ENTITY contextForward.label "Odoslať ďalej">
 <!ENTITY contextForward.accesskey "l">
-<!ENTITY contextForwardAsAttachment.label "Odoslať ďalej ako prílohu">
-<!ENTITY contextForwardAsAttachment.accesskey "o">
+<!ENTITY contextForwardAsMenu.label "Odoslať ďalej ako">
+<!ENTITY contextForwardAsMenu.accesskey "o">
+<!ENTITY contextForwardAsInline.label "V texte">
+<!ENTITY contextForwardAsInline.accesskey "x">
+<!ENTITY contextForwardAsAttachmentItem.label "Príloha">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "P">
+<!ENTITY contextMultiForwardAsAttachment.label "Odoslať ďalej ako prílohy">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "h">
 <!ENTITY contextMoveMsgMenu.label "Presunúť do">
 <!ENTITY contextMoveMsgMenu.accesskey "P">
 <!ENTITY contextMoveCopyMsgRecentMenu.label "Naposledy použité">
 <!ENTITY contextMoveCopyMsgRecentMenu.accesskey "N">
 <!ENTITY contextCopyMsgMenu.label "Skopírovať do">
 <!ENTITY contextCopyMsgMenu.accesskey "r">
+<!ENTITY contextKillThreadMenu.label "Ignorovať vlákno">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillSubthreadMenu.label "Ignorovať podvlákno">
+<!ENTITY contextWatchThreadMenu.label "Sledovať vlákno">
 <!ENTITY contextSaveAs.label "Uložiť ako…">
 <!ENTITY contextSaveAs.accesskey "a">
 <!ENTITY contextPrint.label "Tlačiť…">
@@ -878,7 +873,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY saveImageAsCmd.label "Uložiť obrázok ako…">
 <!ENTITY saveImageAsCmd.accesskey "b">
 <!ENTITY copyLinkCmd.label "Kopírovať adresu odkazu">
-<!ENTITY copyLinkCmd.accesskey "K">
+<!ENTITY copyLinkCmd.accesskey "d">
 <!ENTITY copyImageAllCmd.label "Kopírovať obrázok">
 <!ENTITY copyImageAllCmd.accesskey "o">
 <!ENTITY copyEmailCmd.label "Kopírovať e-mailovú adresu">

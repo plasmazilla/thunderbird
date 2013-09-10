@@ -37,3 +37,7 @@
 <!ENTITY manageAddonsDescUnix2.label      "Промяна на настройките на вашите добавки">
 <!ENTITY manageAddons.label               "Управление на добавките…">
 <!ENTITY manageAddons.accesskey           "У">
+
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY showTrayIcon.label               "Show a tray icon">

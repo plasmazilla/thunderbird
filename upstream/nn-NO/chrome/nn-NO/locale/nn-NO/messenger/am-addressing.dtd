@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!-- extracted from am-addressing.xul -->
 
 <!ENTITY addressing.label          "Utforming og adressering">
@@ -15,7 +19,7 @@
 
 <!-- am-addressing.xul -->
 
-<!ENTITY compositionGroupTitle.label "Utforming">
+<!ENTITY compositionGroupTitle.label          "Utforming">
 <!-- LOCALIZATION NOTE (useHtml.label) : do not translate "html" in below line -->
 <!ENTITY useHtml.label                        "Skriv meldingar i HTML-format">
 <!ENTITY useHtml.accesskey                    "k">
@@ -35,3 +39,9 @@
 <!ENTITY includeSigOnReply.accesskey          "e">
 <!ENTITY includeSigOnForward.label            "Legg ved signaturen min i vidaresende meldingar">
 <!ENTITY includeSigOnForward.accesskey        "s">
+
+<!ENTITY globalComposingPrefs.label           "Globale utformings-innstillingar …">
+<!ENTITY globalComposingPrefs.accesskey       "G">
+
+<!ENTITY globalAddressingPrefs.label          "Globale adresse-innstillingar …">
+<!ENTITY globalAddressingPrefs.accesskey      "a">

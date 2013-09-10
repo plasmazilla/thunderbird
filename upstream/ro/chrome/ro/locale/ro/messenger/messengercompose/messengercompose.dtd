@@ -309,3 +309,7 @@
 <!ENTITY addressesSidebarTitle.label "Adrese">
 
 
+
+<!ENTITY deliveryFormatMenu.accesskey "F">
+<!ENTITY deliveryFormatMenu.label "Delivery Format">
+<!ENTITY findReplaceCmd.key "H">

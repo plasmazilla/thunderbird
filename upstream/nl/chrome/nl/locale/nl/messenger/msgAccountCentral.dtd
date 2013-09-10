@@ -22,3 +22,8 @@
 
 <!ENTITY feedsSectionHdr.label        "Feeds">
 <!ENTITY subscribeFeeds.label         "Abonnementen beheren">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

@@ -32,12 +32,12 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey "u">
 <!ENTITY newIMAccountCmd.label "Cunntas cabadaich…">
 <!ENTITY newIMAccountCmd.accesskey "C">
+<!ENTITY newFeedAccountCmd.label "Cunntas inbhir…">
+<!ENTITY newFeedAccountCmd.accesskey "b">
 <!ENTITY newIMContactCmd.label "Neach-aithne cabadaich…">
 <!ENTITY newIMContactCmd.accesskey "h">
 <!ENTITY openMessageFileCmd.label "Fosgail teachdaireachd a chaidh a shàbhaladh…">
 <!ENTITY openMessageFileCmd.accesskey "o">
-<!ENTITY openAttachmentCmd.label "Ceanglachain">
-<!ENTITY openAttachmentCmd.accesskey "a">
 <!ENTITY saveAsMenu.label "Sàbhail mar">
 <!ENTITY saveAsMenu.accesskey "S">
 <!ENTITY saveAsFileCmd.label "Fhaidhle">
@@ -208,7 +208,7 @@
 <!ENTITY threads.accesskey "e">
 <!ENTITY allMsgsCmd.label "A h-uile">
 <!ENTITY allMsgsCmd.accesskey "A">
-<!ENTITY expandAllThreadsCmd.label "Leudaich a h-ùile snàth">
+<!ENTITY expandAllThreadsCmd.label "Leudaich a h-uile snàth">
 <!ENTITY expandAllThreadsCmd.accesskey "e">
 <!ENTITY expandAllThreadsCmd.key "*">
 <!ENTITY collapseAllThreadsCmd.label "Co-theannaich a h-uile snàth">
@@ -251,33 +251,6 @@
 
 <!ENTITY viewAttachmentsInlineCmd.label "Seall ceanglachain taobh a-staigh loidhne">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "a">
-
-<!-- LOCALIZATION NOTE :
-fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
-fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
-If shift key is needed with your locale popular keyboard for them,
-you can use these alternative items. Otherwise, their values should be empty.  -->
-
-<!ENTITY fullZoomEnlargeCmd.label       "Sùm a-steach">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "S">
-<!ENTITY fullZoomEnlargeCmd.commandkey  "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "="> <!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-
-<!ENTITY fullZoomReduceCmd.label        "Sùm a-mach">
-<!ENTITY fullZoomReduceCmd.accesskey    "S">
-<!ENTITY fullZoomReduceCmd.commandkey   "-">
-<!ENTITY fullZoomReduceCmd.commandkey2  "">
-
-<!ENTITY fullZoomResetCmd.label         "Ath-shuidhich">
-<!ENTITY fullZoomResetCmd.accesskey     "A">
-<!ENTITY fullZoomResetCmd.commandkey    "0">
-<!ENTITY fullZoomResetCmd.commandkey2   "">
-
-<!ENTITY fullZoomToggleCmd.label        "Na sùm ach an teacs">
-<!ENTITY fullZoomToggleCmd.accesskey    "t">
-<!ENTITY fullZoom.label                 "Sùm">
-<!ENTITY fullZoom.accesskey             "S">
 
 <!ENTITY pageSourceCmd.label "Bun-tùs na teachdaireachd">
 <!ENTITY pageSourceCmd.accesskey "B">
@@ -335,7 +308,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "Cabadaich">
 <!ENTITY goChatCmd.accesskey "c">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.key "I">
 <!ENTITY prevStarredMsgCmd.label "Teachdaireachd le rionnag">
 <!ENTITY prevStarredMsgCmd.accesskey "T">
 <!ENTITY folderMenu.label "Pasgan">
@@ -455,12 +428,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openConversationCmd.label "Fosgail ann an còmhradh">
 <!ENTITY openConversationCmd.accesskey "s">
 <!ENTITY openConversationCmd.key "o">
-<!ENTITY openFeedMessage.label "Fosgail teachdaireachd an inbhir">
-<!ENTITY openFeedMessage.accesskey "o">
-<!ENTITY openFeedWebPageInWindow.label "An duilleag-lìn ann an uinneag ùr">
-<!ENTITY openFeedWebPageInWindow.accesskey "A">
-<!ENTITY openFeedSummaryInWindow.label "Gearr-chunntas ann an uinneag ùr">
-<!ENTITY openFeedSummaryInWindow.accesskey "s">
+<!ENTITY openAttachmentListCmd.label "Ceanglachain">
+<!ENTITY openAttachmentListCmd.accesskey "h">
+<!ENTITY openFeedMessage1.label "Nuair a dh'fhosglar teachdaireachd inbhir">
+<!ENTITY openFeedMessage1.accesskey "h">
+<!ENTITY openFeedWebPage.label "Fosgail mar dhuilleag-lìn">
+<!ENTITY openFeedWebPage.accesskey "F">
+<!ENTITY openFeedSummary.label "Fosgail mar ghearr-chunntas">
+<!ENTITY openFeedSummary.accesskey "g">
 <!ENTITY openFeedWebPageInMP.label "Toglaich an duilleag-lìn is an gearr-chunntas ann an leòs na teachdaireachd">
 <!ENTITY openFeedWebPageInMP.accesskey "T">
 
@@ -514,6 +489,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
         which is placed under the Edit menu on Unix systems -->
 <!ENTITY accountManagerCmdUnix.accesskey "A">
+<!ENTITY allowRemoteDebugging.label "Ceadaich dì-bhugachadh cèin">
+<!ENTITY allowRemoteDebugging.accesskey "g">
 
 <!-- Mail Toolbar -->
 <!ENTITY getMsgButton.label "Faigh post">
@@ -562,6 +539,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyAllButton.tooltip "Freagair an seòladair 's a h-uile faightear">
 <!ENTITY replyListButton.tooltip "Freagair an liosta puist">
 <!ENTITY forwardButton.tooltip "Sìn air adhart an teachdaireachd a thagh thu">
+<!ENTITY forwardAsInline.tooltip "Sìn air adhart an teachdaireachd a thagh thu mar theacsa taobh a-staigh na loidhne">
+<!ENTITY forwardAsAttachment.tooltip "Sìn air adhart an teachdaireachd a thagh thu mar cheanglachan">
 <!ENTITY fileButton.tooltip "Faidhlich an teachdaireachd a thagh thu">
 <!ENTITY archiveButton.tooltip "Cuir na teachdaireachdan a thagh thu san tasg-lann">
 <!ENTITY nextButton.tooltip "Gluais dhan ath-theachdaireachd nach deach a leughadh">
@@ -581,7 +560,11 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY chatButton.tooltip "Seall taba na cabadaich">
 <!ENTITY tagButton.tooltip "Cuir taga ris na teachdaireachdan">
 <!ENTITY compactButton.tooltip "Thoir air falbh na teachdaireachdan a chaidh an sguabadh às on phasgan a thagh thu">
-<!ENTITY appmenuButton.tooltip "Seallaidh seo clàr-taice na h-aplacaid">
+<!ENTITY appmenuButton1.tooltip "Seall clàr-taice &brandShortName;">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Sìn air adhart am broinn na loidhne">
+<!ENTITY buttonMenuForwardAsAttachment.label "Sin air adhart mar cheanglachan">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Teachdaireachd ùr">
@@ -589,6 +572,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY appmenuEditMenu.label "Deasaich">
 <!ENTITY appmenuQFBMenu.label "Bàr a' ghrad-chriathraidh">
 <!ENTITY appmenuToolbarLayout.label "Co-dhealbhachd a' bhàr-inneal…">
+<!ENTITY appmenuSelectThread.label "Tagh snàithlean">
+<!ENTITY appmenuSelectFlagged.label "Tagh teachdaireachdan ris a bheil bratach">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "Taga ùr…">
@@ -603,8 +588,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Folder Pane Context Menu -->
 <!ENTITY folderContextGetMessages.label "Faigh teachdaireachdan">
 <!ENTITY folderContextGetMessages.accesskey "g">
-<!ENTITY folderContextOpenNewWindow.label "Fosgail">
-<!ENTITY folderContextOpenNewWindow.accesskey "o">
+<!ENTITY folderContextOpenInNewWindow.label "Fosgail">
+<!ENTITY folderContextOpenInNewWindow.accesskey "o">
 <!ENTITY folderContextOpenNewTab.label "Fosgail ann an taba ùr">
 <!ENTITY folderContextOpenNewTab.accesskey "t">
 <!ENTITY folderContextNew.label "Fo-phasgan ùr…">
@@ -625,7 +610,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderContextUnsubscribe.accesskey "u">
 <!ENTITY folderContextMarkNewsgroupRead.label "Cuir comharra gun deach am buidheann-naidheachd a leughadh">
 <!ENTITY folderContextMarkNewsgroupRead.accesskey "C">
-<!ENTITY folderContextMarkMailFolderRead.label "Cuir comharrach gun deach am pasgan a leughadh">
+<!ENTITY folderContextMarkMailFolderRead.label "Cuir comharra gun deach am pasgan a leughadh">
 <!ENTITY folderContextMarkMailFolderRead.accesskey "C">
 <!ENTITY folderContextSubscribe.label "Fo-sgrìobh…">
 <!ENTITY folderContextSubscribe.accesskey "b">
@@ -722,14 +707,24 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextReplyList.accesskey "l">
 <!ENTITY contextForward.label "Air adhart">
 <!ENTITY contextForward.accesskey "A">
-<!ENTITY contextForwardAsAttachment.label "Sìn air adhart mar cheanglachain">
-<!ENTITY contextForwardAsAttachment.accesskey "S">
+<!ENTITY contextForwardAsMenu.label "Sìn air adhart">
+<!ENTITY contextForwardAsMenu.accesskey "n">
+<!ENTITY contextForwardAsInline.label "am broinn na loidhne">
+<!ENTITY contextForwardAsInline.accesskey "b">
+<!ENTITY contextForwardAsAttachmentItem.label "mar cheanglachan">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "m">
+<!ENTITY contextMultiForwardAsAttachment.label "Sìn air adhart mar cheanglachain">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "S">
 <!ENTITY contextMoveMsgMenu.label "Gluais gu">
 <!ENTITY contextMoveMsgMenu.accesskey "G">
 <!ENTITY contextMoveCopyMsgRecentMenu.label "O chionn ghoirid">
 <!ENTITY contextMoveCopyMsgRecentMenu.accesskey "r">
 <!ENTITY contextCopyMsgMenu.label "Cuir lethbhreac gu">
 <!ENTITY contextCopyMsgMenu.accesskey "C">
+<!ENTITY contextKillThreadMenu.label "Leig seachad an snàithlean">
+<!ENTITY contextKillThreadMenu.accesskey "L">
+<!ENTITY contextKillSubthreadMenu.label "Leig seachad am fo-shnàithlean">
+<!ENTITY contextWatchThreadMenu.label "Cum sùil air an t-snàithlean">
 <!ENTITY contextSaveAs.label "Sàbhail mar…">
 <!ENTITY contextSaveAs.accesskey "S">
 <!ENTITY contextPrint.label "Clò-bhuail…">

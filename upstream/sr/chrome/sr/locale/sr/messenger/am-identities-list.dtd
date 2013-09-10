@@ -9,3 +9,8 @@
 
 <!ENTITY identitiesListClose.accesskey "C">
 <!ENTITY identitiesListClose.label "Close">
+<!ENTITY identitiesListDefault.accesskey "S">
+<!ENTITY identitiesListDefault.label "Set Default">
+
+
+<!ENTITY identitiesListManageDesc.label "Manage the identities for this account. The first identity is used by default.">

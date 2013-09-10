@@ -27,8 +27,8 @@
 <!ENTITY alwaysCheckDefault.accesskey     "a">
 <!ENTITY searchIntegration.label          "Rakendusel &searchIntegration.engineName; on kirjade otsimine lubatud">
 <!ENTITY searchIntegration.accesskey      "R">
-<!ENTITY checkNow.label                   "Kontrolli nüüd">
-<!ENTITY checkNow.accesskey               "n">
+<!ENTITY checkDefaultsNow.label           "Kontrolli nüüd…">
+<!ENTITY checkDefaultsNow.accesskey       "n">
 <!ENTITY configEditDesc.label             "Täpsem häälestamine">
 <!ENTITY configEdit.label                 "Konfiguratsiooni redaktor...">
 <!ENTITY configEdit.accesskey             "n">
@@ -117,8 +117,6 @@
 
 <!ENTITY viewCertificates.label           "Kuva sertifikaate">
 <!ENTITY viewCertificates.accesskey       "f">
-<!ENTITY viewCRLs.label                   "Tühistusnimekirjad">
-<!ENTITY viewCRLs.accesskey               "h">
 <!ENTITY validation.label                 "Verifitseerimine">
 <!ENTITY validation.accesskey             "t">
 <!ENTITY viewSecurityDevices.label        "Turvaseadmed">

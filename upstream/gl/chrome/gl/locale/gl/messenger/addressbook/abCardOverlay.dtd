@@ -159,3 +159,6 @@ a visualización do contido incorporado nas mensaxes HTML deste contacto.">
 <!ENTITY PhotoURL.placeholder           "Pegue ou escriba o enderezo web dunha foto">
 <!ENTITY UpdatePhoto.label              "Actualizar">
 <!ENTITY UpdatePhoto.accesskey          "A">
+
+<!ENTITY IRC.accesskey                  "R">
+<!ENTITY IRC.label                      "IRC Nick:">

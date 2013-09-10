@@ -44,7 +44,7 @@
 <!ENTITY offlineFolder.button.label              "Last ned no">
 <!ENTITY offlineFolder.button.accesskey          "L">
 
-<!ENTITY selectofflineNewsgroup.check.label      "Vel denne nyhendegruppa for fråkopla bruk">
+<!ENTITY selectofflineNewsgroup.check.label      "Vel denne nyheitsgruppa for fråkopla bruk">
 <!ENTITY selectofflineNewsgroup.check.accesskey  "V">
 <!ENTITY offlineNewsgroup.button.label           "Last ned no">
 <!ENTITY offlineNewsgroup.button.accesskey       "L">
@@ -65,10 +65,9 @@
 <!ENTITY folderQuotaUsage.label                  "Bruk:">
 <!ENTITY folderQuotaStatus.label                 "Status:">
 
-
-<!ENTITY numberOfMessages.label                  "Number of messages:">
+<!ENTITY numberOfMessages.label                  "Talet på meldingar:">
 <!-- LOCALIZATION NOTE: When the number of messages can't be determined, this string is displayed as the number -->
-<!ENTITY numberUnknown.label                     "unknown">
-<!ENTITY sizeOnDisk.label                        "Size on disk:">
+<!ENTITY numberUnknown.label                     "ukjend">
+<!ENTITY sizeOnDisk.label                        "Diskplass:">
 <!-- LOCALIZATION NOTE: When the size can't be determined, this string is displayed as the size -->
-<!ENTITY sizeUnknown.label                       "unknown">
+<!ENTITY sizeUnknown.label                       "ukjend">

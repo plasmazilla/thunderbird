@@ -30,3 +30,6 @@
 
 <!ENTITY accountManager.size "width: 111ch; height: 55em;">
 <!ENTITY accountTree.width "width: 36ch;">
+
+<!ENTITY addFeedAccountButton.accesskey "F">
+<!ENTITY addFeedAccountButton.label "Add Feed Account…">

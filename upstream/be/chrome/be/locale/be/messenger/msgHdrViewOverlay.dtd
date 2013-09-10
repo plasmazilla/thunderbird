@@ -1,4 +1,7 @@
-<!--null-->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY toField3.label "Да">
 <!ENTITY fromField3.label "Ад">
 <!ENTITY senderField3.label "Дасылальнік">
@@ -9,7 +12,7 @@
 <!ENTITY bccField3.label "ССА">
 <!ENTITY newsgroupsField3.label "Навінакупы">
 <!ENTITY followupToField3.label "Водгук да">
-<!ENTITY tagsHdr3.label "Тэгі">
+<!ENTITY tagsHdr3.label "Меціны">
 <!ENTITY dateField3.label "Дата">
 <!ENTITY userAgentField3.label "Дзеяч карыстальніка">
 <!ENTITY referencesField3.label "Спасылкі">
@@ -91,3 +94,25 @@
 <!ENTITY OpenMessageForMsgId.accesskey "А">
 <!ENTITY OpenBrowserWithMsgId.label "Адчыніць азіральнік з вызначальнікам-ліста">
 <!ENTITY OpenBrowserWithMsgId.accesskey "з">
+
+<!ENTITY bccField4.label "Bcc">
+<!ENTITY ccField4.label "Cc">
+<!ENTITY dateField4.label "Date">
+<!ENTITY followupToField4.label "Followup to">
+<!ENTITY fromField4.label "From">
+<!ENTITY hdrMenuForwardButton.label "Forward As">
+<!ENTITY inReplyToField4.label "In reply to">
+<!ENTITY messageIdField4.label "Message ID">
+<!ENTITY newsgroupsField4.label "Newsgroups">
+<!ENTITY organizationField4.label "Organization">
+<!ENTITY originalWebsite4.label "Website">
+<!ENTITY referencesField4.label "References">
+<!ENTITY replyToField4.label "Reply to">
+<!ENTITY senderField4.label "Sender">
+
+<!ENTITY subjectField4.label "Subject">
+<!ENTITY tagsHdr4.label "Tags">
+
+
+<!ENTITY toField4.label "To">
+<!ENTITY userAgentField4.label "User agent">

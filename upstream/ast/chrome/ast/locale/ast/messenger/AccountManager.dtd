@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY accountManagerTitle.label "Configuración de la cuenta">
 <!ENTITY accountActionsButton.label "Operaciones sobre la cuenta">
 <!ENTITY accountActionsButton.accesskey "O">
@@ -13,3 +17,5 @@
 <!ENTITY accountTree.width "width: 31ch;">
 <!ENTITY addIMAccountButton.label "Amestar cuenta de chat…">
 <!ENTITY addIMAccountButton.accesskey "C">
+<!ENTITY addFeedAccountButton.label "Amestar cuenta de canales web…">
+<!ENTITY addFeedAccountButton.accesskey "w">

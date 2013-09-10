@@ -22,3 +22,8 @@
 <!ENTITY filtersLink.label            "أدر مرشِّحات الرسائل">
 <!ENTITY junkSettings.label           "إعدادات السخام">
 <!ENTITY offlineLink.label            "إعدادات طور اللا اتصال">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

@@ -12,6 +12,7 @@
 <!ENTITY resetProfile.description         "Jika Anda memiliki masalah yang sulit diatasi, mulai saja dari awal dengan data penting milik Anda.">
 <!ENTITY resetProfile.button.label        "Setel Ulang &brandShortName;">
 
+<!ENTITY resetProfile.button.label2       "Reset &brandShortName;…">
 
 <!ENTITY resetProfile.cleaning.description "Please wait while &brandShortName; cleans up your old data…">
 <!ENTITY resetProfile.dialog.items2.label "&brandShortName; will try to preserve your:">

@@ -1,6 +1,7 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY AdvancedEditButton.label "Composizione avanzata…">
 <!ENTITY AdvancedEditButton.accessKey "v">
 <!ENTITY AdvancedEditButton.tooltip "Aggiunge o modifica attributi, stili HTML ed eventi JavaScript per questo oggetto.">

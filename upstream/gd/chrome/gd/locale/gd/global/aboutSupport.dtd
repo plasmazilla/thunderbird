@@ -15,9 +15,14 @@ agad mu &brandShortName;, cuir sùil air an <a id='supportLink'>làrach-taice</a
 <!ENTITY aboutSupport.extensionVersion "Tionndadh">
 <!ENTITY aboutSupport.extensionId "ID">
 
-<!ENTITY aboutSupport.appBasicsTitle "Bun-tùs a' phrògraim">
+<!ENTITY aboutSupport.appBasicsTitle "Bun-tùs na h-aplacaid">
 <!ENTITY aboutSupport.appBasicsName "Ainm">
 <!ENTITY aboutSupport.appBasicsVersion "Tionndadh">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Eachdraidh nan ùrachaidhean">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Seall eachdraidh nan ùrachaidhean">
 
 <!ENTITY aboutSupport.appBasicsProfileDir "Eòlaire nam pròifilean">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
@@ -43,6 +48,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.modifiedKeyPrefsTitle "Roghainnean cudromach a chaidh atharrachadh">
 <!ENTITY aboutSupport.modifiedPrefsName "Ainm">
 <!ENTITY aboutSupport.modifiedPrefsValue "Luach">
+<!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
+
+<!ENTITY aboutSupport.userJSTitle "Roghainnean user.js">
+<!ENTITY aboutSupport.userJSDescription "Tha faidhle air a bheil <a id='prefs-user-js-link'>user.js</a> ann am pasgan na pròifil agad agus gheibh thu roghainnean 'na bhroinn nach deach an cruthachadh le &brandShortName;.">
 
 <!ENTITY aboutSupport.graphicsTitle "Grafaigean">
 
@@ -58,4 +67,5 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.installationHistoryTitle "Eachdraidh stàlaidh">
 <!ENTITY aboutSupport.updateHistoryTitle "Eachdraidh nan ùrachaidhean">
 
-<!ENTITY aboutSupport.copyToClipboard.label "Cuir lethbhreac dhe na h-uile air a' bhòrd-chliopaichean">
+<!ENTITY aboutSupport.copyTextToClipboard.label "Cuir lethbhreac dhen teacsa air an stòr-bhòrd">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "Cuir lethbhreac dhen dàta lom dhan stòr-bhòrd">

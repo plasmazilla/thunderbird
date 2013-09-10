@@ -1,7 +1,6 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-
 <!ENTITY addons.windowTitle                   "Gehigarrien kudeatzailea">
 
 <!ENTITY search.placeholder                   "Bilatu gehigarri guztiak">
@@ -91,6 +90,13 @@
 <!ENTITY cmd.enableTheme.accesskey            "J">
 <!ENTITY cmd.disableTheme.label               "Erantzi gaia">
 <!ENTITY cmd.disableTheme.accesskey           "E">
+<!ENTITY cmd.askToActivate.label              "Galdetu aktibatzea">
+<!ENTITY cmd.askToActivate.tooltip            "Galdetu aldiro gehigarri hau erabiltzea">
+<!ENTITY cmd.alwaysActivate.label             "Aktibatu beti">
+<!ENTITY cmd.alwaysActivate.tooltip           "Erabili beti gehigarri hau">
+<!ENTITY cmd.neverActivate.label              "Ez aktibatu inoiz">
+<!ENTITY cmd.neverActivate.tooltip            "Ez erabili inoiz gehigarri hau">
+<!ENTITY cmd.stateMenu.tooltip                "Aldatu gehigarri hau exekutatzean">
 <!ENTITY cmd.installAddon.label               "Instalatu">
 <!ENTITY cmd.installAddon.accesskey           "I">
 <!ENTITY cmd.uninstallAddon.label             "Kendu">

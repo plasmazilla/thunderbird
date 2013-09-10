@@ -380,3 +380,9 @@
 <!ENTITY removeTOC.accesskey      "H">
 <!ENTITY tocMenu.label            "Daftar Isi…">
 <!ENTITY tocMenu.accesskey        "D">
+
+<!ENTITY decrementFontSize.key "&lt;">
+<!ENTITY decrementFontSize.key2 ","> <!-- < is above this key on many keyboards -->
+<!ENTITY incrementFontSize.key "&gt;">
+<!ENTITY incrementFontSize.key2 "."> <!-- > is above this key on many keyboards -->
+

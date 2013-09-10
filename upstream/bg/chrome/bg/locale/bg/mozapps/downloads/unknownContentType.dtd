@@ -24,3 +24,6 @@
 <!ENTITY  chooseHandler.accesskey     "Р">
 
 <!ENTITY  unknownPromptText.label     "Да бъде ли записан този файл?">
+
+
+<!ENTITY  whichIs.label              "which is:">

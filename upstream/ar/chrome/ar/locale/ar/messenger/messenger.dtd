@@ -36,8 +36,6 @@
 <!ENTITY newIMContactCmd.accesskey "ت">
 <!ENTITY openMessageFileCmd.label "افتح رسالة محفوظة…">
 <!ENTITY openMessageFileCmd.accesskey "ف">
-<!ENTITY openAttachmentCmd.label "مرفقات">
-<!ENTITY openAttachmentCmd.accesskey "ر">
 <!ENTITY saveAsMenu.label "احفظ ك‍">
 <!ENTITY saveAsMenu.accesskey "ظ">
 <!ENTITY saveAsFileCmd.label "ملف">
@@ -251,34 +249,6 @@
 
 <!ENTITY viewAttachmentsInlineCmd.label "اعرض المرفقات في السّياق">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "ف">
-<!-- LOCALIZATION NOTE :
-fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
-fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
-If shift key is needed with your locale popular keyboard for them,
-you can use these alternative items. Otherwise, their values should be empty.  -->
-
-
-<!ENTITY fullZoomEnlargeCmd.label       "كبّر">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "ر">
-<!ENTITY fullZoomEnlargeCmd.commandkey  "+">
-<!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "="> 
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-
-<!ENTITY fullZoomReduceCmd.label        "صغّر">
-<!ENTITY fullZoomReduceCmd.accesskey    "ص">
-<!ENTITY fullZoomReduceCmd.commandkey   "-">
-<!ENTITY fullZoomReduceCmd.commandkey2  "">
-
-<!ENTITY fullZoomResetCmd.label         "أعِد ضبط">
-<!ENTITY fullZoomResetCmd.accesskey     "ط">
-<!ENTITY fullZoomResetCmd.commandkey    "0">
-<!ENTITY fullZoomResetCmd.commandkey2   "">
-
-<!ENTITY fullZoomToggleCmd.label        "كبّر النص فقط">
-<!ENTITY fullZoomToggleCmd.accesskey    "ص">
-<!ENTITY fullZoom.label                 "كبّر">
-<!ENTITY fullZoom.accesskey             "ك">
 
 <!ENTITY pageSourceCmd.label "مصدر الرسالة">
 <!ENTITY pageSourceCmd.accesskey "ص">
@@ -336,7 +306,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "الدردشة">
 <!ENTITY goChatCmd.accesskey "د">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.key "I">
 <!ENTITY prevStarredMsgCmd.label "الرسائل ذات النجمة">
 <!ENTITY prevStarredMsgCmd.accesskey "ذ">
 <!ENTITY folderMenu.label "المجلد">
@@ -456,12 +426,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openConversationCmd.label "افتح في محادثة">
 <!ENTITY openConversationCmd.accesskey "ث">
 <!ENTITY openConversationCmd.key "o">
-<!ENTITY openFeedMessage.label "افتح رسالة التلقيم">
-<!ENTITY openFeedMessage.accesskey "ف">
-<!ENTITY openFeedWebPageInWindow.label "صفحة وب في نافذة جديدة">
-<!ENTITY openFeedWebPageInWindow.accesskey "و">
-<!ENTITY openFeedSummaryInWindow.label "ملخص في نافذة جديدة">
-<!ENTITY openFeedSummaryInWindow.accesskey "ذ">
+<!ENTITY openAttachmentListCmd.label "مرفقات">
+<!ENTITY openAttachmentListCmd.accesskey "ق">
+<!ENTITY openFeedMessage1.label "عند فتح رسائل التلقيم">
+<!ENTITY openFeedMessage1.accesskey "ف">
+<!ENTITY openFeedWebPage.label "افتح كصفحة وب">
+<!ENTITY openFeedWebPage.accesskey "و">
+<!ENTITY openFeedSummary.label "افتح كملخص">
+<!ENTITY openFeedSummary.accesskey "خ">
 <!ENTITY openFeedWebPageInMP.label "بدّل بين صفحة الوب والملخص في لوحة الرسائل">
 <!ENTITY openFeedWebPageInMP.accesskey "ح">
 <!-- Windows Menu -->
@@ -582,7 +554,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY chatButton.tooltip "أظهر لسان الدردشة">
 <!ENTITY tagButton.tooltip "سِمْ الرسائل">
 <!ENTITY compactButton.tooltip "أزِل الرسائل المحذوفة من المجلد المحدد">
-<!ENTITY appmenuButton.tooltip "يعرض قائمة التطبيق">
+<!ENTITY appmenuButton1.tooltip "اعرض قائمة &brandShortName;">
 <!-- AppMenu Popup -->
 
 <!ENTITY appmenuNewMsgCmd.label "رسالة جديدة">
@@ -590,6 +562,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY appmenuEditMenu.label "تحرير">
 <!ENTITY appmenuQFBMenu.label "شريط الترشيح السريع">
 <!ENTITY appmenuToolbarLayout.label "تنسيق شريط الأدوات…">
+<!ENTITY appmenuSelectThread.label "اختر نقاشًا">
+<!ENTITY appmenuSelectFlagged.label "اختر الرسائل ذات النجمة">
 <!-- Tags Menu Popup -->
 
 <!ENTITY addNewTag.label "وسم جديد…">
@@ -878,8 +852,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY saveLinkAsCmd.accesskey "ك">
 <!ENTITY saveImageAsCmd.label "احفظ الصورة ك‍…">
 <!ENTITY saveImageAsCmd.accesskey "ظ">
-<!ENTITY copyLinkCmd.label "انسخ موقع الرابط">
-<!ENTITY copyLinkCmd.accesskey "ن">
+<!ENTITY copyLinkCmd.label "انسخ مكان الوصلة">
+<!ENTITY copyLinkCmd.accesskey "ص">
 <!ENTITY copyImageAllCmd.label "انسخ الصورة">
 <!ENTITY copyImageAllCmd.accesskey "ص">
 <!ENTITY copyEmailCmd.label "انسخ البريد الإلكتروني">
@@ -914,3 +888,28 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "أظهِر الكل">
+
+<!ENTITY allowRemoteDebugging.accesskey "g">
+<!ENTITY allowRemoteDebugging.label "Allow Remote Debugging">
+<!ENTITY buttonMenuForwardAsAttachment.label "Forward As Attachment">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Forward Inline">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "A">
+<!ENTITY contextForwardAsAttachmentItem.label "Attachment">
+<!ENTITY contextForwardAsInline.accesskey "I">
+<!ENTITY contextForwardAsInline.label "Inline">
+<!ENTITY contextForwardAsMenu.accesskey "o">
+<!ENTITY contextForwardAsMenu.label "Forward As">
+<!ENTITY contextKillSubthreadMenu.label "Ignore Subthread">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillThreadMenu.label "Ignore Thread">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
+<!ENTITY contextMultiForwardAsAttachment.label "Forward as Attachments">
+<!ENTITY contextWatchThreadMenu.label "Watch Thread">
+<!ENTITY folderContextOpenInNewWindow.accesskey "O">
+<!ENTITY folderContextOpenInNewWindow.label "Open in New Window">
+<!ENTITY forwardAsAttachment.tooltip "Forward selected message as an attachment">
+<!ENTITY forwardAsInline.tooltip "Forward selected message as inline text">
+<!ENTITY newFeedAccountCmd.accesskey "d">
+<!ENTITY newFeedAccountCmd.label "Feed Account…">

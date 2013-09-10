@@ -1,0 +1,24 @@
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale messenger-mapi ga-IE ga-IE/locale/ga-IE/messenger-mapi/
+locale communicator ga-IE ga-IE/locale/ga-IE/communicator/
+locale messenger-smime ga-IE ga-IE/locale/ga-IE/messenger-smime/
+locale messenger-newsblog ga-IE ga-IE/locale/ga-IE/messenger-newsblog/
+locale places ga-IE ga-IE/locale/ga-IE/places/
+locale editor ga-IE ga-IE/locale/ga-IE/editor/
+locale global-region ga-IE ga-IE/locale/ga-IE/global-region/
+locale mozldap ga-IE ga-IE/locale/ga-IE/mozldap/
+locale pippki ga-IE ga-IE/locale/ga-IE/pippki/
+locale autoconfig ga-IE ga-IE/locale/ga-IE/autoconfig/
+locale alerts ga-IE ga-IE/locale/ga-IE/alerts/
+locale mozapps ga-IE ga-IE/locale/ga-IE/mozapps/
+locale pipnss ga-IE ga-IE/locale/ga-IE/pipnss/
+locale global-platform ga-IE ga-IE/locale/ga-IE/global-platform/
+locale chat ga-IE ga-IE/locale/ga-IE/chat/
+locale cookie ga-IE ga-IE/locale/ga-IE/cookie/
+locale passwordmgr ga-IE ga-IE/locale/ga-IE/passwordmgr/
+locale branding ga-IE ga-IE/locale/ga-IE/branding/
+locale messenger ga-IE ga-IE/locale/ga-IE/messenger/
+locale global ga-IE ga-IE/locale/ga-IE/global/
+locale messenger-region ga-IE ga-IE/locale/ga-IE/messenger-region/
+locale necko ga-IE ga-IE/locale/ga-IE/necko/

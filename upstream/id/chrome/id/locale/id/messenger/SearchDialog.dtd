@@ -72,3 +72,8 @@
 <!ENTITY starredColumn.tooltip "Klik untuk mengurut berdasarkan bintang">
 <!ENTITY locationColumn.tooltip "Klik untuk mengurut berdasarkan lokasi">
 <!ENTITY idColumn.tooltip "Klik untuk mengurut berdasarkan penerimaan">
+
+<!ENTITY moveButton.accesskey        "T">
+<!ENTITY moveButton.label            "Move To">
+<!ENTITY moveHereMenu.accesskey      "H">
+<!ENTITY moveHereMenu.label          "Move Here">

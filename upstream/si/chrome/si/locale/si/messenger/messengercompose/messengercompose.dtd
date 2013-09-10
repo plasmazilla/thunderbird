@@ -288,3 +288,7 @@
 <!ENTITY headersSpace.style "width: 9em;">
 <!ENTITY spellAddDictionaries.accesskey "A">
 <!ENTITY spellingButton.tooltip "තෝරාගත් කොටසේ හෝ සම්පූර්ණ ලිපියේ අක්ෂර වින්‍යාසය පරීක්ෂා කරන්න">
+
+<!ENTITY deliveryFormatMenu.accesskey "F">
+<!ENTITY deliveryFormatMenu.label "Delivery Format">
+<!ENTITY findReplaceCmd.key "H">

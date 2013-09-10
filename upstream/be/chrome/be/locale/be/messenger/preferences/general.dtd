@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY messengerStartPage.label "Пачатковая старонка &brandShortName;">
 <!ENTITY enableStartPage.label "Паказваць пачатковую старонку ў абсягу ліста, калі &brandShortName; запускаецца">
 <!ENTITY enableStartPage.accesskey "б">
@@ -14,6 +18,8 @@
 <!ENTITY showAnimatedAlert.accesskey "П">
 <!ENTITY customizeMailAlert.label "Наладзіць…">
 <!ENTITY customizeMailAlert.accesskey "Н">
+<!ENTITY showTrayIcon.label "Паказаць значок у латку">
+<!ENTITY showTrayIcon.accesskey "л">
 <!ENTITY play.label "Граць">
 <!ENTITY play.accesskey "Г">
 <!ENTITY systemsound.label "Змоўчны сістэмны гук для новай пошты">

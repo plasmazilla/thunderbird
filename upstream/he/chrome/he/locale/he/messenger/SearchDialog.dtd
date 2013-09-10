@@ -78,3 +78,8 @@
 <!ENTITY idColumn.tooltip "לחץ למיון לפי סדר הקבלה">
 
 
+
+<!ENTITY moveButton.accesskey        "T">
+<!ENTITY moveButton.label            "Move To">
+<!ENTITY moveHereMenu.accesskey      "H">
+<!ENTITY moveHereMenu.label          "Move Here">

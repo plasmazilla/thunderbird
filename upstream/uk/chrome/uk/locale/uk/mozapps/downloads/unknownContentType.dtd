@@ -24,3 +24,6 @@
 <!ENTITY  chooseHandler.accesskey     "б">
 
 <!ENTITY  unknownPromptText.label     "Зберегти цей файл?">
+
+
+<!ENTITY  whichIs.label              "which is:">

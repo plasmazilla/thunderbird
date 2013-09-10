@@ -73,3 +73,8 @@
 <!ENTITY locationColumn.tooltip "Притисните да поређате по месту">
 <!ENTITY idColumn.tooltip "Притисните да поређате по редоследу пријема">
 
+
+<!ENTITY moveButton.accesskey        "T">
+<!ENTITY moveButton.label            "Move To">
+<!ENTITY moveHereMenu.accesskey      "H">
+<!ENTITY moveHereMenu.label          "Move Here">

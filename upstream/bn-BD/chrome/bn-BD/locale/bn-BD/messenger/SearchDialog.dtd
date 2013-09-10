@@ -72,3 +72,8 @@
 <!ENTITY starredColumn.tooltip "তারা অনুসারে সাজাতে ক্লিক করুন">
 <!ENTITY locationColumn.tooltip "অবস্থান অনুসারে সাজাতে জন্য ক্লিক করুন">
 <!ENTITY idColumn.tooltip "গ্রহণের ক্রম অনুসারে সাজাতে জন্য ক্লিক করুন">
+
+<!ENTITY moveButton.accesskey        "T">
+<!ENTITY moveButton.label            "Move To">
+<!ENTITY moveHereMenu.accesskey      "H">
+<!ENTITY moveHereMenu.label          "Move Here">

@@ -20,3 +20,6 @@
 <!ENTITY feeds.wizardShortName "Canales">  
 <!ENTITY feeds.wizardLongName "Blogs y canales de noticias">
 <!ENTITY feeds.wizardLongName.accesskey "B">
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

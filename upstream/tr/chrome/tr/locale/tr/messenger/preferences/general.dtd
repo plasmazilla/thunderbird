@@ -1,10 +1,14 @@
-<!ENTITY messengerStartPage.label         "&brandShortName; başlangıç sayfası">
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY messengerStartPage.label         "&brandShortName; Başlangıç Sayfası">
 <!ENTITY enableStartPage.label            "&brandShortName; açıldığında ileti alanında başlangıç sayfasını göster">
 <!ENTITY enableStartPage.accesskey        "g">
 <!ENTITY location.label                   "Konum:">
 <!ENTITY location1.accesskey               "o">
 <!ENTITY useDefault.label                 "Varsayılanı yükle">
-<!ENTITY useDefault.accesskey             "g">
+<!ENTITY useDefault.accesskey             "V">
 
 <!ENTITY bounceSystemDockIcon.label       "Dock simgesini oynat">
 <!ENTITY bounceSystemDockIcon.accesskey   "o">
@@ -13,7 +17,7 @@
 <!ENTITY playSound.label                  "Ses dosyası çal">
 <!ENTITY playSound1.accesskey              "d">
 <!ENTITY showAnimatedAlert.label          "Uyarı göster">
-<!ENTITY showAnimatedAlert.accesskey      "y">
+<!ENTITY showAnimatedAlert.accesskey      "g">
 <!ENTITY customizeMailAlert.label         "Özelleştir…">
 <!ENTITY customizeMailAlert.accesskey     "z">
 
@@ -24,13 +28,11 @@
 <!ENTITY systemsoundMac.accesskey         "y">
 <!ENTITY systemsound.accesskey            "Y">
 <!ENTITY customsound.label                "Aşağıdaki ses dosyasını kullan">
-<!ENTITY customsound.accesskey            "u">
+<!ENTITY customsound.accesskey            "s">
 <!ENTITY browse.label                     "Gözat…">
 <!ENTITY browse.accesskey                 "G">
 
-<!ENTITY addonsMgr.label                  "Eklentiler">
-<!ENTITY manageAddonsDescWin.label        "Eklenti seçeneklerinizi değiştirin">
-<!ENTITY manageAddonsDescUnix2.label      "Eklenti tercihlerinizi değiştirin">
-<!ENTITY manageAddons.label               "Eklentileri yönet…">
-<!ENTITY manageAddons.accesskey           "E">
 
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY showTrayIcon.label               "Show a tray icon">

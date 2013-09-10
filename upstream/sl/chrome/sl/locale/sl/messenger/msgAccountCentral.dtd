@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY emailSectionHdr.label        "E-pošta"> 
 <!ENTITY readMsgsLink.label           "Beri sporočila"> 
 <!ENTITY composeMsgLink.label         "Sestavi novo sporočilo"> 
@@ -18,3 +22,8 @@
 
 <!ENTITY feedsSectionHdr.label        "Viri">
 <!ENTITY subscribeFeeds.label         "Urejaj naročila">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

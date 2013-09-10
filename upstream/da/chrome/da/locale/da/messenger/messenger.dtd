@@ -35,12 +35,12 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey "E">
 <!ENTITY newIMAccountCmd.label "Chat-konto…">
 <!ENTITY newIMAccountCmd.accesskey "C">
+<!ENTITY newFeedAccountCmd.label "Feed-konto…">
+<!ENTITY newFeedAccountCmd.accesskey "d">
 <!ENTITY newIMContactCmd.label "Chat-kontakt…">
 <!ENTITY newIMContactCmd.accesskey "h">
 <!ENTITY openMessageFileCmd.label "Åbn gemt meddelelse…">
 <!ENTITY openMessageFileCmd.accesskey "g">
-<!ENTITY openAttachmentCmd.label "Åbn…">
-<!ENTITY openAttachmentCmd.accesskey "Å">
 <!ENTITY saveAsMenu.label "Gem som">
 <!ENTITY saveAsMenu.accesskey "m">
 <!ENTITY saveAsFileCmd.label "Fil">
@@ -245,8 +245,8 @@
 
 <!ENTITY bodyMenuFeed.label "Feed-meddelelsens indhold som">
 <!ENTITY bodyMenuFeed.accesskey "F">
-<!ENTITY viewFeedWebPage.label "Hjemmeside">
-<!ENTITY viewFeedWebPage.accesskey "H">
+<!ENTITY viewFeedWebPage.label "Webside">
+<!ENTITY viewFeedWebPage.accesskey "W">
 <!ENTITY viewFeedSummary.label "Sammendrag">
 <!ENTITY viewFeedSummary.accesskey "m">
 <!ENTITY viewFeedSummaryFeedPropsPref.label "Standard format">
@@ -260,27 +260,6 @@ fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
 fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
 If shift key is needed with your locale popular keyboard for them,
 you can use these alternative items. Otherwise, their values should be empty.  -->
-
-<!ENTITY fullZoomEnlargeCmd.label       "Zoom ind">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "i">
-<!ENTITY fullZoomEnlargeCmd.commandkey  "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "="> <!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-
-<!ENTITY fullZoomReduceCmd.label        "Zoom ud">
-<!ENTITY fullZoomReduceCmd.accesskey    "u">
-<!ENTITY fullZoomReduceCmd.commandkey   "-">
-<!ENTITY fullZoomReduceCmd.commandkey2  "">
-
-<!ENTITY fullZoomResetCmd.label         "Nulstil">
-<!ENTITY fullZoomResetCmd.accesskey     "N">
-<!ENTITY fullZoomResetCmd.commandkey    "0">
-<!ENTITY fullZoomResetCmd.commandkey2   "">
-
-<!ENTITY fullZoomToggleCmd.label        "Zoom kun tekst">
-<!ENTITY fullZoomToggleCmd.accesskey    "t">
-<!ENTITY fullZoom.label                 "Zoom">
-<!ENTITY fullZoom.accesskey             "Z">
 
 <!ENTITY pageSourceCmd.label "Kildekode">
 <!ENTITY pageSourceCmd.accesskey "e">
@@ -338,7 +317,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "Chat">
 <!ENTITY goChatCmd.accesskey "c">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.key "C">
 <!ENTITY prevStarredMsgCmd.label "Stjernemarkerede meddelelse">
 <!ENTITY prevStarredMsgCmd.accesskey "S">
 <!ENTITY folderMenu.label "Mappe">
@@ -458,13 +437,15 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openConversationCmd.label "Vis korrespondance i tråd">
 <!ENTITY openConversationCmd.accesskey "o">
 <!ENTITY openConversationCmd.key "å">
-<!ENTITY openFeedMessage.label "Åbn feed-meddelelse">
-<!ENTITY openFeedMessage.accesskey "b">
-<!ENTITY openFeedWebPageInWindow.label "Som hjemmeside i et nyt vindue">
-<!ENTITY openFeedWebPageInWindow.accesskey "h">
-<!ENTITY openFeedSummaryInWindow.label "Som sammendrag i et nyt vindue">
-<!ENTITY openFeedSummaryInWindow.accesskey "S">
-<!ENTITY openFeedWebPageInMP.label "Skift mellem hjemmeside og sammendrag i meddelelsesruden">
+<!ENTITY openAttachmentListCmd.label "Vedhæftede filer">
+<!ENTITY openAttachmentListCmd.accesskey "V">
+<!ENTITY openFeedMessage1.label "Ved åbning af feed-meddelelser">
+<!ENTITY openFeedMessage1.accesskey "b">
+<!ENTITY openFeedWebPage.label "Åbn som webside">
+<!ENTITY openFeedWebPage.accesskey "w">
+<!ENTITY openFeedSummary.label "Åbn som sammendrag">
+<!ENTITY openFeedSummary.accesskey "s">
+<!ENTITY openFeedWebPageInMP.label "Skift mellem webside og sammendrag i meddelelsesruden">
 <!ENTITY openFeedWebPageInMP.accesskey "k">
 
 <!-- Windows Menu -->
@@ -517,6 +498,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
         which is placed under the Edit menu on Unix systems -->
 <!ENTITY accountManagerCmdUnix.accesskey "K">
+<!ENTITY allowRemoteDebugging.label "Tillad remote debugging">
+<!ENTITY allowRemoteDebugging.accesskey "r">
 
 <!-- Mail Toolbar -->
 <!ENTITY getMsgButton.label "Hent">
@@ -565,6 +548,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyAllButton.tooltip "Svar til afsenderen og alle modtagerne">
 <!ENTITY replyListButton.tooltip "Svar til mailingliste">
 <!ENTITY forwardButton.tooltip "Videresend den valgte meddelelse">
+<!ENTITY forwardAsInline.tooltip "Videresend den markerede meddelelse som en del af selve meddelelsen">
+<!ENTITY forwardAsAttachment.tooltip "Videresend dem markerede meddelelse som en vedhæftet fil">
 <!ENTITY fileButton.tooltip "Gem den valgte meddelelse">
 <!ENTITY archiveButton.tooltip "Arkiver valgte meddelelser">
 <!ENTITY nextButton.tooltip "Gå til næste ulæste meddelelse">
@@ -585,7 +570,11 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY tagButton.tooltip "Marker meddelelser">
 <!ENTITY compactButton.tooltip "Fjern slettede meddelelser fra valgte mappe">
 
-<!ENTITY appmenuButton.tooltip "Vis programmenuen">
+<!ENTITY appmenuButton1.tooltip "Vis &brandShortName;-menuen">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Videresend som en del af meddelelsen">
+<!ENTITY buttonMenuForwardAsAttachment.label "Videresend som vedhæftet fil">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Ny meddelelse">
@@ -593,6 +582,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY appmenuEditMenu.label "Rediger">
 <!ENTITY appmenuQFBMenu.label "Lynfilterlinje">
 <!ENTITY appmenuToolbarLayout.label "Tilpas værktøjslinje…">
+<!ENTITY appmenuSelectThread.label "Marker tråd">
+<!ENTITY appmenuSelectFlagged.label "Marker stjernemarkerede meddelelser">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "Nyt mærkat…">
@@ -607,8 +598,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Folder Pane Context Menu -->
 <!ENTITY folderContextGetMessages.label "Hent meddelelser">
 <!ENTITY folderContextGetMessages.accesskey "H">
-<!ENTITY folderContextOpenNewWindow.label "Åbn i et nyt vindue">
-<!ENTITY folderContextOpenNewWindow.accesskey "v">
+<!ENTITY folderContextOpenInNewWindow.label "Åbn i et nyt vindue">
+<!ENTITY folderContextOpenInNewWindow.accesskey "v">
 <!ENTITY folderContextOpenNewTab.label "Åbn i et nyt faneblad">
 <!ENTITY folderContextOpenNewTab.accesskey "T">
 <!ENTITY folderContextNew.label "Ny undermappe…">
@@ -672,7 +663,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY junkStatusColumn.label "Spam-status">
 <!ENTITY unreadColumn.label "Ulæste i tråden">
 <!ENTITY totalColumn.label "I alt i tråden">
-<!ENTITY readColumn.label "Læste">
+<!ENTITY readColumn.label "Læst">
 <!ENTITY receivedColumn.label "Modtaget">
 <!ENTITY starredColumn.label "Stjernemarkeret">
 <!ENTITY locationColumn.label "Placering">
@@ -722,14 +713,24 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextReplyList.accesskey "l">
 <!ENTITY contextForward.label "Videresend">
 <!ENTITY contextForward.accesskey "V">
-<!ENTITY contextForwardAsAttachment.label "Videresend som vedhæftede filer">
-<!ENTITY contextForwardAsAttachment.accesskey "o">
+<!ENTITY contextForwardAsMenu.label "Videresend som">
+<!ENTITY contextForwardAsMenu.accesskey "o">
+<!ENTITY contextForwardAsInline.label "En del af selve meddelelsen">
+<!ENTITY contextForwardAsInline.accesskey "d">
+<!ENTITY contextForwardAsAttachmentItem.label "Vedhæftet fil">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "V">
+<!ENTITY contextMultiForwardAsAttachment.label "Videresend som vedhæftede filer">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "æ">
 <!ENTITY contextMoveMsgMenu.label "Flyt til">
 <!ENTITY contextMoveMsgMenu.accesskey "F">
 <!ENTITY contextMoveCopyMsgRecentMenu.label "Seneste">
 <!ENTITY contextMoveCopyMsgRecentMenu.accesskey "S">
 <!ENTITY contextCopyMsgMenu.label "Kopier til">
 <!ENTITY contextCopyMsgMenu.accesskey "K">
+<!ENTITY contextKillThreadMenu.label "Ignorer tråd">
+<!ENTITY contextKillThreadMenu.accesskey "t">
+<!ENTITY contextKillSubthreadMenu.label "Ignorer undertråd">
+<!ENTITY contextWatchThreadMenu.label "Overvåg tråd">
 <!ENTITY contextSaveAs.label "Gem som…">
 <!ENTITY contextSaveAs.accesskey "G">
 <!ENTITY contextPrint.label "Udskriv…">

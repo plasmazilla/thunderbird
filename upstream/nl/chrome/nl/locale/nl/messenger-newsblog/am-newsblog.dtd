@@ -20,3 +20,6 @@
 <!ENTITY feeds.wizardShortName "Feeds">
 <!ENTITY feeds.wizardLongName "Blogs &amp; nieuwsfeeds">
 <!ENTITY feeds.wizardLongName.accesskey "f">
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

@@ -23,3 +23,8 @@
 <!ENTITY filtersLink.label            "Gérer les filtres de messages">
 <!ENTITY junkSettings.label           "Paramètres des courriers indésirables">
 <!ENTITY offlineLink.label            "Paramètres hors connexion">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

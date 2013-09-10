@@ -159,3 +159,6 @@
 <!ENTITY PhotoURL.placeholder           "Поставете или напишете интернет адреса на снимката">
 <!ENTITY UpdatePhoto.label              "Обновяване">
 <!ENTITY UpdatePhoto.accesskey          "б">
+
+<!ENTITY IRC.accesskey                  "R">
+<!ENTITY IRC.label                      "IRC Nick:">

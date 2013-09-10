@@ -113,3 +113,6 @@
 
 <!ENTITY closeMsgOnMoveOrDelete.accesskey "C">
 <!ENTITY closeMsgOnMoveOrDelete.label "මැකීමේදී හෝ ගෙනයාමේදී නවුළුව/ටැබය වසන්න">
+
+<!ENTITY checkDefaultsNow.accesskey    "N">
+<!ENTITY checkDefaultsNow.label        "Check Now…">

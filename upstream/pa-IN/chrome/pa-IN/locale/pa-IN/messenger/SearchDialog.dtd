@@ -74,3 +74,8 @@
 <!ENTITY starredColumn.tooltip "ਤਾਰੇ ਰਾਹੀਂ ਕ੍ਰਮਬੱਧ ਕਰਨ ਲਈ ਦਬਾਓ">
 <!ENTITY locationColumn.tooltip "ਸਥਿਤੀ ਰਾਹੀਂ ਕ੍ਰਮਬੱਧ ਕਰਨ ਲਈ ਦਬਾਓ">
 <!ENTITY idColumn.tooltip "ਪ੍ਰਾਪਤ ਕ੍ਰਮ ਰਾਹੀਂ ਕ੍ਰਮਬੱਧ ਕਰਨ ਲਈ ਦਬਾਓ">
+
+<!ENTITY moveButton.accesskey        "T">
+<!ENTITY moveButton.label            "Move To">
+<!ENTITY moveHereMenu.accesskey      "H">
+<!ENTITY moveHereMenu.label          "Move Here">

@@ -43,20 +43,30 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.modifiedPrefsName "Adı">
 <!ENTITY aboutSupport.modifiedPrefsValue "Değer">
 
+<!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
+<!ENTITY aboutSupport.userJSTitle "user.js Tercihleri">
+<!ENTITY aboutSupport.userJSDescription "Profil klasörünüz, &brandShortName; tarafından oluşturulmamış tercihler içeren bir <a id='prefs-user-js-link'>user.js dosyası</a> içeriyor.">
+
 <!ENTITY aboutSupport.graphicsTitle "Çizimler">
 
 <!ENTITY aboutSupport.jsTitle "JavaScript">
 <!ENTITY aboutSupport.jsIncrementalGC "Artırımlı GC">
+
+<!ENTITY aboutSupport.a11yTitle "Erişilebilirlik">
+<!ENTITY aboutSupport.a11yActivated "Etkinleştirildi">
+<!ENTITY aboutSupport.a11yForceDisabled "Erişilebilirliği engelle">
 
 <!ENTITY aboutSupport.libraryVersionsTitle "Kitaplık sürümleri">
 
 <!ENTITY aboutSupport.installationHistoryTitle "Kurulum tarihçesi">
 <!ENTITY aboutSupport.updateHistoryTitle "Güncelleme Geçmişi">
 
-<!ENTITY aboutSupport.copyToClipboard.label "Tümünü panoya kopyala">
+<!ENTITY aboutSupport.copyTextToClipboard.label "Metni panoya kopyala">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "Ham metni panoya kopyala">
 
 
-<!ENTITY aboutSupport.a11yActivated "Activated">
-<!ENTITY aboutSupport.a11yForceDisabled "Prevent Accessibility">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
 
-<!ENTITY aboutSupport.a11yTitle "Accessibility">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Update History">

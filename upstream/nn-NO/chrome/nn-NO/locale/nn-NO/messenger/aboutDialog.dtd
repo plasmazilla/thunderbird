@@ -1,6 +1,6 @@
 <!ENTITY aboutDialog.title          "Om &brandFullName;">
 
-<!ENTITY community.start2           "&brandShortName; er utvikla av">
+<!ENTITY community.start2           "&brandShortName; er utvikla av ">
 <!-- LOCALIZATION NOTE (community.mozillaLink): This is a link title that links to http://www.mozilla.org/. -->
 <!ENTITY community.mozillaLink      "&vendorShortName;">
 <!ENTITY community.middle2          ", eit">
@@ -19,7 +19,7 @@
 <!-- LOCALIZATION NOTE (bottomLinks.rights): This is a link title that links to about:rights. -->
 <!ENTITY bottomLinks.rights         "Rettar for sluttbrukarar">
 
-<!-- LOCALIZATION NOTE (bottomLinks.privacy): This is a link title that links to http://www.mozilla.com/legal/privacy/. -->
+<!-- LOCALIZATION NOTE (bottomLinks.privacy): This is a link title that links to https://www.mozilla.org/legal/privacy/. -->
 <!ENTITY bottomLinks.privacy        "personvern">
 
 <!-- LOCALIZATION NOTE (update.checkingForUpdates): try to make the localized text short (see bug 596813 for screenshots). -->
@@ -56,13 +56,23 @@
 <!ENTITY update.downloading.start   "Lastar ned oppdatering — ">
 <!ENTITY update.downloading.end     "">
 
+<!ENTITY update.applying            "Installerer oppdatering …">
+
 <!-- LOCALIZATION NOTE (channel.description.start,channel.description.end): channel.description.start and
      channel.description.end create one sentence, with the current channel label inserted in between.
      example: You are currently on the _Stable_ update channel. -->
-<!ENTITY channel.description.start  "Du nyttar no oppdateringskanalen ">
+<!ENTITY channel.description.start  "Du brukar no oppdateringskanalen ">
 <!ENTITY channel.description.end    " . ">
 
 <!ENTITY cmdCloseMac.commandKey "w">
 
+<!ENTITY update.unsupported.end      "">
+<!ENTITY update.unsupported.linkText "Learn more">
 
-<!ENTITY update.applying            "Applying update…">
+<!-- LOCALIZATION NOTE (update.unsupported.start,update.unsupported.linkText,update.unsupported.end):
+     update.unsupported.start, update.unsupported.linkText, and
+     update.unsupported.end all go into one line with linkText being wrapped in
+     an anchor that links to a site to provide additional information regarding
+     why the system is no longer supported. As this is all in one line, try to
+     make the localized text short (see bug 843497 for screenshots). -->
+<!ENTITY update.unsupported.start    "You can not perform further updates on this system. ">

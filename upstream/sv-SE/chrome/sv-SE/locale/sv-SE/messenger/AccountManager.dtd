@@ -28,3 +28,6 @@
      this window for en-US. -->
 <!ENTITY accountManager.size "width: 106ch; height: 56em;">
 <!ENTITY accountTree.width "width: 31ch;">
+
+<!ENTITY addFeedAccountButton.accesskey "F">
+<!ENTITY addFeedAccountButton.label "Add Feed Account…">

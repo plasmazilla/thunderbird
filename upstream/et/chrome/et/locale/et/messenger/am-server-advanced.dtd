@@ -4,11 +4,11 @@
 
 <!ENTITY serverAdvanced.label               "Konto täpsemad sätted">
 <!-- LOCALIZATION NOTE (serverDirectory.label): DONT_TRANSLATE "IMAP" -->
-<!ENTITY serverDirectory.label              "IMAP-serveri kataloog:">
+<!ENTITY serverDirectory.label              "IMAP-serveri kaust:">
 <!ENTITY serverDirectory.accesskey          "M">
 <!ENTITY usingSubscription.label            "Näidatakse ainult tellitud kaustu">
 <!ENTITY usingSubscription.accesskey        "N">
-<!ENTITY dualUseFolders.label               "Server toetab katalooge, mis sisaldavad sõnumeid ja alamkatalooge">
+<!ENTITY dualUseFolders.label               "Server toetab kaustu, mis sisaldavad sõnumeid ja alamkaustu">
 <!ENTITY dualUseFolders.accesskey           "S">
 <!ENTITY useIdle.label                      "Kasutatatakse IDLE käsku, kui server seda toetab">
 <!ENTITY useIdle.accesskey                  "I">
@@ -25,8 +25,6 @@
 <!ENTITY overrideNamespaces.label           "Serveril lubatakse neid nimeruume mitte kasutada">
 <!ENTITY overrideNamespaces.accesskey       "a">
 <!ENTITY pop3Desc.label                     "POP3 kirjade allalaadimisel kasutatakse uute kirjade jaoks järgnevat kausta:">
-<!ENTITY globalInbox.label                  "Üldine saabuvate kirjade kaust (kohalike kaustade kontos)">
-<!ENTITY globalInbox.accesskey              "n">
 <!ENTITY accountDirectory.label             "Selle konto saabuvate kirjade kaust">
 <!ENTITY accountDirectory.accesskey         "b">
 <!ENTITY deferToServer.label                "Mõne muu konto saabuvate kirjade kaust">

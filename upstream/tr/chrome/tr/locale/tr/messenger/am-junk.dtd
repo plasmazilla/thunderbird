@@ -1,5 +1,9 @@
-<!ENTITY junkSettings.label "Gereksiz posta ayarları">
-<!ENTITY trainingWarning.label "Eğer bu özellik açılmışsa, gereksiz iletileri tanıması için, öncelikle Gereksiz ileti araç çubuğu üzerinden iletileri işaretleyerek &brandShortName; uygulamasını eğitmelisiniz. Hem gereksiz hem de gerekli iletileri tanımlamalısınız.">
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY junkSettings.label "Gereksiz Posta Ayarları">
+<!ENTITY trainingDescription.label "Bunu etkinleştirirseniz, &brandShortName; uygulamasının gereksiz postaları tanıyabilmesi için ilk olarak Gereksiz araç çubuğu düğmesi ile gereksiz ve gerekli iletileri işaretleyerek onu eğitmelisiniz. Hem gereksiz hem de gereksiz olmayan iletileri tanımlamanız gerekir. Ardından &brandShortName; gereksiz iletileri otomatik olarak işaretlemeye başlayacaktır.">
 <!ENTITY level.label "Bu hesap için gereksiz posta denetimini etkinleştir">
 <!ENTITY level.accesskey "e">
 
@@ -13,19 +17,16 @@
 <!ENTITY purge1.accesskey "m">
 <!ENTITY purge2.label "gün sonra otomatik sil">
 
-<!ENTITY whitelist.label "Gönderen burada kayıtlı ise postayı gereksiz olarak işaretleme: ">
-<!ENTITY whitelist.accesskey "k">
+<!ENTITY whitelistHeader.label "Gönderici aşağıdakilerden birindeyse otomatik olarak gereksiz olarak işaretleme: ">
+<!ENTITY whitelistHeader.accesskey "D">
 
+<!ENTITY ispHeadersWarning.label "Bunu etkinleştirirseniz &brandShortName; bu harici sınıflandırıcı tarafından işaretlenen iletileri gereksiz kabul edecektir.">
 <!ENTITY ispHeaders.label "Şu gereksiz posta üstbilgilerine güven: ">
 <!ENTITY ispHeaders.accesskey "t">
 
+<!ENTITY junkClassification.label "Seçim">
+<!ENTITY junkActions.label "Hedef ve Saklama">
 
+<!ENTITY globalJunkPrefs.label "Genel gereksiz posta tercihleri…">
+<!ENTITY globalJunkPrefs.accesskey "G">
 
-<!ENTITY ispHeadersWarning.label "If enabled, &brandShortName; will automatically consider messages marked by this external classifier as junk.">
-<!ENTITY junkActions.label "Destination and Retention">
-
-<!ENTITY junkClassification.label "Selection">
-<!ENTITY trainingDescription.label "If enabled, you must first train &brandShortName; to identify junk mail by using the Junk toolbar button to mark messages as junk or not. You need to identify both junk and non junk messages. After that &brandShortName; will be able to mark junk automatically.">
-<!ENTITY whitelistHeader.accesskey "D">
-
-<!ENTITY whitelistHeader.label "Do not automatically mark mail as junk if the sender is in: ">

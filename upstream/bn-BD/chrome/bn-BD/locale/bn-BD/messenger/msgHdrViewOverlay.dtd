@@ -149,11 +149,11 @@
 <!ENTITY CopyMessageId.accesskey "C">
 <!ENTITY OpenBrowserWithMsgId.accesskey "B">
 <!ENTITY OpenMessageForMsgId.accesskey "O">
-<!ENTITY bccField3.label "Bcc ">
-<!ENTITY ccField3.label "Cc ">
-<!ENTITY dateField3.label "Date ">
-<!ENTITY followupToField3.label "Followup to ">
-<!ENTITY fromField3.label "From ">
+<!ENTITY bccField4.label "Bcc">
+<!ENTITY ccField4.label "Cc">
+<!ENTITY dateField4.label "Date">
+<!ENTITY followupToField4.label "Followup to">
+<!ENTITY fromField4.label "From">
 <!ENTITY hdrArchiveButton1.label "Archive">
 <!ENTITY hdrArchiveButton1.tooltip "Archive this message">
 <!ENTITY hdrFollowupButton1.label "Followup">
@@ -162,6 +162,7 @@
 <!ENTITY hdrForwardButton1.tooltip "Forward this message">
 <!ENTITY hdrJunkButton1.label "Junk">
 <!ENTITY hdrJunkButton1.tooltip "Mark this message as junk">
+<!ENTITY hdrMenuForwardButton.label "Forward As">
 <!ENTITY hdrReplyAllButton1.label "Reply All">
 <!ENTITY hdrReplyAllButton1.tooltip "Reply to sender and all recipients">
 <!ENTITY hdrReplyButton1.label "Reply">
@@ -171,17 +172,17 @@
 <!ENTITY hdrSmartReplyButton1.label "Smart Reply">
 <!ENTITY hdrTrashButton1.label "Delete">
 <!ENTITY hdrTrashButton1.tooltip "Delete this message">
-<!ENTITY inReplyToField3.label "In reply to ">
+<!ENTITY inReplyToField4.label "In reply to">
 <!ENTITY markAsReadMenuItem1.accesskey "R">
 <!ENTITY markAsReadMenuItem1.label "Mark as Read">
 <!ENTITY markAsUnreadMenuItem1.accesskey "r">
 <!ENTITY markAsUnreadMenuItem1.label "Mark as Unread">
-<!ENTITY messageIdField3.label "Message ID ">
-<!ENTITY newsgroupsField3.label "Newsgroups ">
+<!ENTITY messageIdField4.label "Message ID">
+<!ENTITY newsgroupsField4.label "Newsgroups">
 
 <!ENTITY openAttachment.tooltip "Open the attached file">
-<!ENTITY organizationField3.label "Organization ">
-<!ENTITY originalWebsite3.label "Website ">
+<!ENTITY organizationField4.label "Organization">
+<!ENTITY originalWebsite4.label "Website">
 
 <!ENTITY otherActionsButton1.label "Other Actions">
 <!ENTITY otherActionsOpenConversation1.accesskey "C">
@@ -192,8 +193,8 @@
 <!ENTITY otherActionsOpenInNewWindow1.label "Open in New Window">
 <!ENTITY otherActionsPrint1.accesskey "P">
 <!ENTITY otherActionsPrint1.label "Print…">
-<!ENTITY referencesField3.label "References ">
-<!ENTITY replyToField3.label "Reply to ">
+<!ENTITY referencesField4.label "References">
+<!ENTITY replyToField4.label "Reply to">
 <!ENTITY saveAllAttachmentsButton1.label   "Save All">
 <!ENTITY saveAllAttachmentsButton1.tooltip "Save all the attached files">
 <!ENTITY saveAsMenuItem1.accesskey "S">
@@ -202,17 +203,17 @@
 <!-- Attachment toolbar items -->
 <!ENTITY saveAttachmentButton1.label       "Save">
 <!ENTITY saveAttachmentButton1.tooltip     "Save the attached file">
-<!ENTITY senderField3.label "Sender ">
+<!ENTITY senderField4.label "Sender">
 <!ENTITY startExpandedCmd.accesskey    "S">
 
 <!-- Attachment bar context menu items -->
 <!ENTITY startExpandedCmd.label    "Initially Show Attachment Pane">
 
-<!ENTITY subjectField3.label "Subject ">
-<!ENTITY tagsHdr3.label "Tags ">
+<!ENTITY subjectField4.label "Subject">
+<!ENTITY tagsHdr4.label "Tags">
 
 
-<!ENTITY toField3.label "To ">
-<!ENTITY userAgentField3.label "User agent ">
+<!ENTITY toField4.label "To">
+<!ENTITY userAgentField4.label "User agent">
 <!ENTITY viewSourceMenuItem1.accesskey "V">
 <!ENTITY viewSourceMenuItem1.label "View Source">

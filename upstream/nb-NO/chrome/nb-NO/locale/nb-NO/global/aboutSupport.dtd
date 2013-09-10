@@ -46,6 +46,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.modifiedPrefsName "Navn">
 <!ENTITY aboutSupport.modifiedPrefsValue "Verdi">
 
+<!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
+<!ENTITY aboutSupport.userJSTitle "user.js innstillinger">
+<!ENTITY aboutSupport.userJSDescription "Profilmappen din inneholder en <a id='prefs-user-js-link'>user.js-fil</a> som inneholder innstillinger som ikke ble opprettet av &brandShortName;.">
+
 <!ENTITY aboutSupport.graphicsTitle "Grafikk">
 
 <!ENTITY aboutSupport.jsTitle "JavaScript">
@@ -60,4 +64,11 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.installationHistoryTitle "Installasjonshistorikk">
 <!ENTITY aboutSupport.updateHistoryTitle "Oppdateringshistorikk">
 
-<!ENTITY aboutSupport.copyToClipboard.label "Kopier alt til utklippstavlen">
+<!ENTITY aboutSupport.copyTextToClipboard.label "Kopier tekst til utklippstavlen">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "Kopier råtekst til utklippstavlen">
+
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
+
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Update History">

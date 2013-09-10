@@ -14,3 +14,8 @@
 <!ENTITY offlineLink.label "Ρυθμίσεις για εργασία χωρίς σύνδεση">
 <!ENTITY feedsSectionHdr.label "Αρχεία ροής">
 <!ENTITY subscribeFeeds.label "Διαχείριση συνδρομών">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

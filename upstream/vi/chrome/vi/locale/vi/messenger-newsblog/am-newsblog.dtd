@@ -18,3 +18,6 @@
 <!ENTITY feeds.wizardShortName "Feed">
 <!ENTITY feeds.wizardLongName "Blog &amp; Feed Tin tức">
 <!ENTITY feeds.wizardLongName.accesskey "F">
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

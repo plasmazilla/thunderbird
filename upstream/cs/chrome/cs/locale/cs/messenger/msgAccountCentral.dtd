@@ -22,3 +22,8 @@
 <!ENTITY filtersLink.label "Spravovat filtry zpráv">
 <!ENTITY junkSettings.label "Nastavení nevyžádané pošty">
 <!ENTITY offlineLink.label "Nastavení režimu offline">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

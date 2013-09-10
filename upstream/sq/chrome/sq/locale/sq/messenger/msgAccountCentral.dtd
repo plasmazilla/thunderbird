@@ -22,3 +22,8 @@
 
 <!ENTITY feedsSectionHdr.label        "Prurje">
 <!ENTITY subscribeFeeds.label         "Administroni pajtime">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

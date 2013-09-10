@@ -44,3 +44,11 @@
 <!ENTITY defaultSize.accesskey   "U">
 <!ENTITY fontOptions.accesskey   "C">
 <!ENTITY fontOptions.label       "Canggih…">
+
+<!ENTITY colorButton.accesskey   "C">
+<!ENTITY colorButton.label       "Colors…">
+
+<!-- Fonts and Colors -->
+<!ENTITY fontsAndColors1.label   "Fonts &amp; Colors">
+<!ENTITY quotedTextColor.accesskey        "o">
+<!ENTITY quotedTextColor.label            "Color:">

@@ -8,7 +8,7 @@
 <!ENTITY errLine.label   "Rresht:">
 <!ENTITY errColumn.label "Shtyllë:">
 
-<!ENTITY all.label "Tërë">
+<!ENTITY all.label "Krejt">
 <!ENTITY all.accesskey "T">
 <!ENTITY errors.label "Gabime">
 <!ENTITY errors.accesskey "G">
@@ -22,6 +22,8 @@
 <!ENTITY codeEval.accesskey "d">
 <!ENTITY evaluate.label "Çmoje">
 <!ENTITY evaluate.accesskey "Ç">
+<!ENTITY filter.label       "Filtroje">
+<!ENTITY filter.accesskey   "F">
 
 <!ENTITY copyCmd.label "Kopjoje">
 <!ENTITY copyCmd.accesskey "K">
@@ -33,3 +35,6 @@
 <!ENTITY closeCmd.commandkey "w">  
 <!ENTITY focus1.commandkey   "l">  
 <!ENTITY focus2.commandkey   "d">  
+
+<!ENTITY filter2.accesskey  "F">
+<!ENTITY filter2.label      "Filter:">

@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY titledefault.label "&brandFullName;">
 <!ENTITY titleSeparator.label " - ">
 <!ENTITY newFolderCmd.label "Carpeta…">
@@ -23,8 +27,6 @@
 <!ENTITY showFolderPaneCmd.accesskey "r">
 <!ENTITY openMessageFileCmd.label "Abrir mensaxe guardáu…">
 <!ENTITY openMessageFileCmd.accesskey "A">
-<!ENTITY openAttachmentCmd.label "Axuntos">
-<!ENTITY openAttachmentCmd.accesskey "x">
 <!ENTITY saveAsMenu.label "Guardar como">
 <!ENTITY saveAsMenu.accesskey "G">
 <!ENTITY saveAsFileCmd.label "Ficheru">
@@ -225,23 +227,6 @@
 <!ENTITY viewFeedSummaryFeedPropsPref.accesskey "o">
 <!ENTITY viewAttachmentsInlineCmd.label "Ver axuntos incorporaos">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "a">
-<!ENTITY fullZoomEnlargeCmd.label "Agrandar">
-<!ENTITY fullZoomEnlargeCmd.accesskey "A">
-<!ENTITY fullZoomEnlargeCmd.commandkey "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "=">
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-<!ENTITY fullZoomReduceCmd.label "Amenorgar">
-<!ENTITY fullZoomReduceCmd.accesskey "m">
-<!ENTITY fullZoomReduceCmd.commandkey "-">
-<!ENTITY fullZoomReduceCmd.commandkey2 "">
-<!ENTITY fullZoomResetCmd.label "Restablecer">
-<!ENTITY fullZoomResetCmd.accesskey "R">
-<!ENTITY fullZoomResetCmd.commandkey "0">
-<!ENTITY fullZoomResetCmd.commandkey2 "">
-<!ENTITY fullZoomToggleCmd.label "Namái ampliar testu">
-<!ENTITY fullZoomToggleCmd.accesskey "T">
-<!ENTITY fullZoom.label "Tamañu">
-<!ENTITY fullZoom.accesskey "T">
 <!ENTITY pageSourceCmd.label "Formatu orixinal del mensaxe">
 <!ENTITY pageSourceCmd.accesskey "F">
 <!ENTITY pageSourceCmd.key "u">
@@ -313,15 +298,15 @@
 <!ENTITY archiveMsgCmd.key "a">
 <!ENTITY cancelNewsMsgCmd.label "Encaboxar mensaxe">
 <!ENTITY cancelNewsMsgCmd.accesskey "C">
-<!ENTITY replyMsgCmd.label "Retrucar">
+<!ENTITY replyMsgCmd.label "Responder">
 <!ENTITY replyMsgCmd.accesskey "R">
 <!ENTITY replyMsgCmd.key "r">
-<!ENTITY replySenderCmd.label "Retrucar namái al remitente">
+<!ENTITY replySenderCmd.label "Responder namái al remitente">
 <!ENTITY replySenderCmd.accesskey "R">
-<!ENTITY replyToAllMsgCmd.label "Retrucar a toos">
+<!ENTITY replyToAllMsgCmd.label "Responder a toos">
 <!ENTITY replyToAllMsgCmd.accesskey "t">
 <!ENTITY replyToAllMsgCmd.key "r">
-<!ENTITY replyToListMsgCmd.label "Retrucar a la llista">
+<!ENTITY replyToListMsgCmd.label "Responder a la llista">
 <!ENTITY replyToListMsgCmd.accesskey "L">
 <!ENTITY replyToListMsgCmd.key "l">
 <!ENTITY forwardMsgCmd.label "Reunviar">
@@ -407,12 +392,6 @@
 <!ENTITY openConversationCmd.label "Abrir na conversación">
 <!ENTITY openConversationCmd.accesskey "b">
 <!ENTITY openConversationCmd.key "o">
-<!ENTITY openFeedMessage.label "Abrir mensaxe de la canal">
-<!ENTITY openFeedMessage.accesskey "A">
-<!ENTITY openFeedWebPageInWindow.label "Páxina web nuna ventana nueva">
-<!ENTITY openFeedWebPageInWindow.accesskey "W">
-<!ENTITY openFeedSummaryInWindow.label "Resume nuna ventana nueva">
-<!ENTITY openFeedSummaryInWindow.accesskey "S">
 <!ENTITY openFeedWebPageInMP.label "Alternar el resume y la páxina web nel panel de mensaxes">
 <!ENTITY openFeedWebPageInMP.accesskey "T">
 <!ENTITY windowMenu.label "Ventana">
@@ -451,9 +430,9 @@
 <!ENTITY accountManagerCmdUnix.accesskey "A">
 <!ENTITY getMsgButton.label "Recibir">
 <!ENTITY newMsgButton.label "Redactar">
-<!ENTITY replyButton.label "Retrucar">
-<!ENTITY replyAllButton.label "Retr. a toos">
-<!ENTITY replyListButton.label "Retrucar a la llista">
+<!ENTITY replyButton.label "Responder">
+<!ENTITY replyAllButton.label "Resp. a toos">
+<!ENTITY replyListButton.label "Responder a la llista">
 <!ENTITY forwardButton.label "Reunviar">
 <!ENTITY fileButton.label "Ficheru">
 <!ENTITY archiveButton.label "Archivar">
@@ -483,9 +462,9 @@
 <!ENTITY getAllNewMsgCmd.label "Recibir tolos mensaxes nuevos">
 <!ENTITY getAllNewMsgCmd.accesskey "R">
 <!ENTITY newMsgButton.tooltip "Crear mensaxe nuevu">
-<!ENTITY replyButton.tooltip "Retrucar al mensaxe">
-<!ENTITY replyAllButton.tooltip "Retrucar al remitente y a tolos destinatarios">
-<!ENTITY replyListButton.tooltip "Retrucar a la llista de corréu">
+<!ENTITY replyButton.tooltip "Responder al mensaxe">
+<!ENTITY replyAllButton.tooltip "Responder al remitente y a tolos destinatarios">
+<!ENTITY replyListButton.tooltip "Responder a la llista de corréu">
 <!ENTITY forwardButton.tooltip "Reunviar mensaxe esbilláu">
 <!ENTITY fileButton.tooltip "Archivar mensaxe esbilláu">
 <!ENTITY archiveButton.tooltip "Archivar mensaxes esbillaos">
@@ -509,8 +488,6 @@
 <!ENTITY folderSizeColumn.label "Tamañu">
 <!ENTITY folderContextGetMessages.label "Recibir mensaxes">
 <!ENTITY folderContextGetMessages.accesskey "R">
-<!ENTITY folderContextOpenNewWindow.label "Abrir">
-<!ENTITY folderContextOpenNewWindow.accesskey "A">
 <!ENTITY folderContextOpenNewTab.label "Abrir nuna llingüeta nueva">
 <!ENTITY folderContextOpenNewTab.accesskey "b">
 <!ENTITY folderContextNew.label "Subcarpeta nueva…">
@@ -602,16 +579,14 @@
 <!ENTITY contextEditAsNew.accesskey "e">
 <!ENTITY contextArchive.label "Archivar">
 <!ENTITY contextArchive.accesskey "h">
-<!ENTITY contextReplySender.label "Retrucar namái al remitente">
+<!ENTITY contextReplySender.label "Responder namái al remitente">
 <!ENTITY contextReplySender.accesskey "R">
-<!ENTITY contextReplyAll.label "Retrucar a toos">
+<!ENTITY contextReplyAll.label "Responder a toos">
 <!ENTITY contextReplyAll.accesskey "t">
-<!ENTITY contextReplyList.label "Retrucar a la llista">
+<!ENTITY contextReplyList.label "Responder a la llista">
 <!ENTITY contextReplyList.accesskey "l">
 <!ENTITY contextForward.label "Reunviar">
 <!ENTITY contextForward.accesskey "n">
-<!ENTITY contextForwardAsAttachment.label "Reunviar como axuntu">
-<!ENTITY contextForwardAsAttachment.accesskey "o">
 <!ENTITY contextMoveMsgMenu.label "Mover a">
 <!ENTITY contextMoveMsgMenu.accesskey "m">
 <!ENTITY contextMoveCopyMsgRecentMenu.label "Reciente">
@@ -711,12 +686,11 @@
 <!ENTITY showAllAppsCmdMac.label "Amosar too">
 <!ENTITY chatButton.label "Charrar">
 <!ENTITY chatButton.tooltip "Amosar la llingüeta de chat">
-<!ENTITY contextReplyNewsgroup2.label "Retrucar nel grupu de noticies">
+<!ENTITY contextReplyNewsgroup2.label "Responder nel grupu de noticies">
 <!ENTITY contextReplyNewsgroup2.accesskey "u">
 <!ENTITY errorConsoleCmd.commandkey "j">
 <!ENTITY goChatCmd.label "Charrar">
 <!ENTITY goChatCmd.accesskey "h">
-<!ENTITY goChatCmd.commandKey "C">
 <!ENTITY imAccountsStatus.label "Estáu de chat">
 <!ENTITY imAccountsStatus.accesskey "C">
 <!ENTITY imStatus.available "Disponible">
@@ -731,7 +705,7 @@
 <!ENTITY previousButtonToolbarItem.label "Anterior non lleíu">
 <!ENTITY previousMsgButton.label "Anterior">
 <!ENTITY previousMsgButton.tooltip "Movese al mensaxe anterior">
-<!ENTITY replyNewsgroupCmd2.label "Retrucar nel grupu de noticies">
+<!ENTITY replyNewsgroupCmd2.label "Responder nel grupu de noticies">
 <!ENTITY replyNewsgroupCmd2.accesskey "u">
 <!ENTITY search.keyLabel.nonmac "&lt;Ctrl+K&gt;">
 <!ENTITY search.keyLabel.mac "&lt;⌘K&gt;">
@@ -742,12 +716,45 @@
 <!ENTITY newIMContactCmd.accesskey "h">
 <!ENTITY manageTags.label "Alministrar etiquetes…">
 <!ENTITY manageTags.accesskey "m">
-<!ENTITY appmenuButton.label "AppMenu">
-<!ENTITY appmenuButton.tooltip "Amuesa'l menú d'aplicaciones">
-<!ENTITY appmenuEditMenu.label "Editar">
-<!ENTITY appmenuNewContactCmd.label "Contautu de la llibreta de direiciones…">
-<!ENTITY appmenuNewMsgCmd.label "Nuevu mensaxe">
-<!ENTITY appmenuQFBMenu.label "Barra de filtráu rápidu">
-<!ENTITY appmenuToolbarLayout.label "Disposición de la barra de ferramientes…">
-<!ENTITY clearRecentHistory.accesskey "H">
 <!ENTITY clearRecentHistory.label "Llimpiar historial recién…">
+<!ENTITY clearRecentHistory.accesskey "H">
+<!ENTITY appmenuToolbarLayout.label "Disposición de la barra de ferramientes…">
+<!ENTITY appmenuQFBMenu.label "Barra de filtráu rápidu">
+<!ENTITY appmenuNewMsgCmd.label "Mensaxe nuevu">
+<!ENTITY appmenuNewContactCmd.label "Contautu de la llibreta de direiciones…">
+<!ENTITY appmenuEditMenu.label "Editar">
+<!ENTITY appmenuButton.label "AppMenu">
+<!ENTITY goChatCmd.key "I">
+<!ENTITY appmenuButton1.tooltip "Amosar el menú &brandShortName;">
+<!ENTITY appmenuSelectThread.label "Seleicionar conversación">
+<!ENTITY appmenuSelectFlagged.label "Seleicionar mensaxes con estrella">
+<!ENTITY openFeedWebPage.label "Abrir como páxina web">
+<!ENTITY openFeedWebPage.accesskey "m">
+<!ENTITY openFeedSummary.label "Abrir como resume">
+<!ENTITY openFeedSummary.accesskey "e">
+<!ENTITY openFeedMessage1.label "Al abrir mensaxes de canales web">
+<!ENTITY openFeedMessage1.accesskey "c">
+<!ENTITY openAttachmentListCmd.label "Axuntos">
+<!ENTITY openAttachmentListCmd.accesskey "x">
+<!ENTITY newFeedAccountCmd.label "Cuenta de canales web…">
+<!ENTITY newFeedAccountCmd.accesskey "w">
+<!ENTITY forwardAsInline.tooltip "Reunviar el mensaxe esbilláu como testu nel cuerpu">
+<!ENTITY forwardAsAttachment.tooltip "Reunviar el mensaxe esbilláu como un axuntu">
+<!ENTITY folderContextOpenInNewWindow.label "Abrir nuna ventana nueva">
+<!ENTITY folderContextOpenInNewWindow.accesskey "e">
+<!ENTITY contextWatchThreadMenu.label "Observar conversación">
+<!ENTITY contextMultiForwardAsAttachment.label "Reunviar como axuntos">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
+<!ENTITY contextKillThreadMenu.label "Inorar conversación">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillSubthreadMenu.label "Inorar sub-conversación">
+<!ENTITY contextForwardAsMenu.label "Reunviar como">
+<!ENTITY contextForwardAsMenu.accesskey "o">
+<!ENTITY contextForwardAsInline.label "Incorporáu">
+<!ENTITY contextForwardAsInline.accesskey "I">
+<!ENTITY contextForwardAsAttachmentItem.label "Axuntu">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "A">
+<!ENTITY buttonMenuForwardAsInline.label "Reunviar nel cuerpu del mensaxe">
+<!ENTITY buttonMenuForwardAsAttachment.label "Reunviar como axuntu">
+<!ENTITY allowRemoteDebugging.label "Permitir depuración remota">
+<!ENTITY allowRemoteDebugging.accesskey "r">

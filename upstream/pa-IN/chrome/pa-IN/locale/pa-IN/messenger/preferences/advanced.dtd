@@ -114,6 +114,8 @@
 <!ENTITY viewSecurityDevices.label      "ਸੁਰੱਖਿਆ ਜੰਤਰ">
 <!ENTITY viewSecurityDevices.accesskey  "S">
 
+<!ENTITY checkDefaultsNow.accesskey    "N">
+<!ENTITY checkDefaultsNow.label        "Check Now…">
 <!ENTITY offlineCompactFolders.accesskey "a">
 <!ENTITY offlineCompactFolders.label     "Compact all folders when it will save over">
 <!ENTITY offlineCompactFoldersMB.label   "MB in total">

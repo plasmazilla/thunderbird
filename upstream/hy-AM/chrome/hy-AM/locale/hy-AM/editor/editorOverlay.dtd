@@ -1,68 +1,14 @@
-<!--
-# Translator(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# robyerevan <robyerevan@gmail.com>
-# issuart <issuart@yahoo.com>
-# alexxed <alexxed@gmail.com>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# alexxed <alexxed@gmail.com>
-#
--->
-<!-- ***** BEGIN LICENSE BLOCK *****
-   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
-   -
-   - The contents of this file are subject to the Mozilla Public License Version
-   - 1.1 (the "License"); you may not use this file except in compliance with
-   - the License. You may obtain a copy of the License at
-   - http://www.mozilla.org/MPL/
-   -
-   - Software distributed under the License is distributed on an "AS IS" basis,
-   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-   - for the specific language governing rights and limitations under the
-   - License.
-   -
-   - The Original Code is Mozilla Communicator client code, released
-   - March 31, 1998.
-   -
-   - The Initial Developer of the Original Code is
-   - Netscape Communications Corporation.
-   - Portions created by the Initial Developer are Copyright (C) 1999-2000
-   - the Initial Developer. All Rights Reserved.
-   -
-   - Contributor(s):
-   -   Sammy Ford
-   -   Blake Ross
-   -   Ryan Cassin (rcassin@supernova.org)
-   -   Daniel Glazman (glazman@netscape.com)
-   -   Stephen Donner (technutz@netscape.net)
-   -
-   - Alternatively, the contents of this file may be used under the terms of
-   - either of the GNU General Public License Version 2 or later (the "GPL"),
-   - or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-   - in which case the provisions of the GPL or the LGPL are applicable instead
-   - of those above. If you wish to allow use of your version of this file only
-   - under the terms of either the GPL or the LGPL, and not to allow others to
-   - use your version of this file under the terms of the MPL, indicate your
-   - decision by deleting the provisions above and replace them with the notice
-   - and other provisions required by the GPL or the LGPL. If you do not delete
-   - the provisions above, a recipient may use your version of this file under
-   - the terms of any one of the MPL, the GPL or the LGPL.
-   -
-   - ***** END LICENSE BLOCK ***** -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!-- Attn: Localization - some of the menus in this dialog directly affect mail also. -->
 
 <!-- File menu items -->
-<!ENTITY saveCmd.key "Տ">
+<!ENTITY saveCmd.key "S">
 
 <!-- Edit menu items -->
-<!ENTITY pasteNoFormatting.label "Տեղադրել առանց փոփոխման">
+<!ENTITY pasteNoFormatting.label "Տեղադրել առանց ձևավորման">
 <!ENTITY pasteNoFormatting.accesskey "n">
 <!ENTITY pasteNoFormatting.key "V">
 <!ENTITY pasteAs.label "Տեղադրել որպես">
@@ -108,14 +54,14 @@
 <!ENTITY FontFaceSelect.tooltip "Ընտրեք տառատեսակը">
 <!ENTITY fontfaceMenu.label "Տառատեսակը">
 <!ENTITY fontfaceMenu.accesskey "F">
-<!ENTITY fontVarWidth.label "Փոփոխելի լայնքը">
+<!ENTITY fontVarWidth.label "Փոփոխելի լայնքով">
 <!ENTITY fontVarWidth.accesskey "V">
-<!ENTITY fontFixedWidth.label "Ամրագրված լայնքը">
+<!ENTITY fontFixedWidth.label "Ամրագրված լայնքով">
 <!ENTITY fontFixedWidth.accesskey "x">
 <!ENTITY fontFixedWidth.key "T">
 <!ENTITY fontHelvetica.label "Helvetica, Arial">
 <!ENTITY fontHelvetica.accesskey "l">
-<!ENTITY fontTimes.label "Անգամ">
+<!ENTITY fontTimes.label "Times">
 <!ENTITY fontTimes.accesskey "T">
 <!ENTITY fontCourier.label "Courier">
 <!ENTITY fontCourier.accesskey "C">
@@ -124,11 +70,12 @@
 <!ENTITY FontSizeSelect.tooltip "Ընտրեք տառի չափը">
 <!ENTITY decreaseFontSize.label "Փոքր">
 <!ENTITY decreaseFontSize.accesskey "r">
-<!ENTITY decreaseFontSize.key "-">
+<!ENTITY decrementFontSize.key "&lt;">
+<!ENTITY decrementFontSize.key2 ","> <!-- < is above this key on many keyboards -->
 <!ENTITY increaseFontSize.label "Մեծ">
 <!ENTITY increaseFontSize.accesskey "g">
-<!ENTITY increaseFontSize.key "+">
-<!ENTITY increaseFontSize.key2 "="> <!-- + is above this key on many keyboards -->
+<!ENTITY incrementFontSize.key "&gt;">
+<!ENTITY incrementFontSize.key2 "."> <!-- > is above this key on many keyboards -->
 
 <!ENTITY fontSizeMenu.label "Չափը">
 <!ENTITY fontSizeMenu.accesskey "z">
@@ -150,7 +97,7 @@
 <!-- Font Style SubMenu -->
 <!ENTITY fontStyleMenu.label "Տեքստի ոճը">
 <!ENTITY fontStyleMenu.accesskey "S">
-<!ENTITY styleBoldCmd.label "Հաստ">
+<!ENTITY styleBoldCmd.label "Թավ">
 <!ENTITY styleBoldCmd.accesskey "B">
 <!ENTITY styleBoldCmd.key "B">
 <!ENTITY styleItalicCmd.label "Շեղ">
@@ -213,7 +160,7 @@
 <!ENTITY heading6Cmd.accesskey "6">
 <!ENTITY paragraphAddressCmd.label "Հասցեն">
 <!ENTITY paragraphAddressCmd.accesskey "A">
-<!ENTITY paragraphPreformatCmd.label "Նախատեսակ">
+<!ENTITY paragraphPreformatCmd.label "Նախաձևավորմամբ">
 <!ENTITY paragraphPreformatCmd.accesskey "f">
 
 <!-- List menu items -->
@@ -234,7 +181,7 @@
 
 <!ENTITY ParagraphSelect.tooltip "Ընտրեք պարագրաֆի տեսակը">
 <!-- Shared in Paragraph, and Toolbar menulist -->
-<!ENTITY bodyTextCmd.label "Տեքստը">
+<!ENTITY bodyTextCmd.label "Բովամդակությունը">
 <!ENTITY bodyTextCmd.accesskey "T">
 <!-- isn't used in menu now, but may be added in future -->
 <!ENTITY advancedPropertiesCmd.label "Ընդլայնված հատկություններ">
@@ -258,7 +205,7 @@
 
 <!-- Layer toolbar items -->
 <!ENTITY layer.tooltip "Շերտը">
-<!ENTITY layerSendToBack.tooltip "Ուղարկել հետ">
+<!ENTITY layerSendToBack.tooltip "Ուղարկել հետև">
 <!ENTITY layerBringToFront.tooltip "Պահել հետևում">
 
 <!ENTITY increaseIndent.label "Սահմանը մեծացնել">
@@ -335,7 +282,7 @@
 <!ENTITY tableProperties.accesskey "o">
 
 <!-- Toolbar-only items -->
-<!ENTITY menuBar.tooltip "Ընտրացանկ վահանակը">
+<!ENTITY menuBar.tooltip "Ընտրացանկ վահանակ">
 <!ENTITY formatToolbar.tooltip "Գործիքաշերտի կարգ.">
 <!ENTITY cutToolbarCmd.tooltip "Կտրել">
 <!ENTITY copyToolbarCmd.tooltip "Պատճենել">

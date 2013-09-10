@@ -4,7 +4,7 @@
 <!-- Values for changepassword.xul -->
 
 <!ENTITY setPassword.title  "Atharraich am prìomh fhacal-faire">
-<!ENTITY setPassword.tokenName.label "Inneal tèarainteachd">
+<!ENTITY setPassword.tokenName.label "Uidheam tèarainteachd">
 <!ENTITY setPassword.oldPassword.label "Am facal-faire làithreach:">
 <!ENTITY setPassword.newPassword.label "Am facal-faire ùr:">
 <!ENTITY setPassword.reenterPassword.label "Am faca-faire ùr (a-rithist):">
@@ -18,7 +18,7 @@
 <!-- Values for getpassword.xul -->
 
 <!ENTITY getPassword.title  "Cuir a-steach am prìomh fhacal-faire">
-<!ENTITY getPassword.tokenName2.label "Inneal tèarainteachd:">
+<!ENTITY getPassword.tokenName2.label "Uidheam tèarainteachd:">
 <!ENTITY getPassword.password.label "Facal-faire:">
 <!-- These should be common -->
 
@@ -45,10 +45,6 @@
 <!ENTITY downloadCert.viewPolicy.label "Poileasaidh">
 <!ENTITY downloadCert.viewCert.text "Sgrùdaich teisteanas an ùghdarrais theisteanachaidh">
 <!ENTITY downloadCert.viewPolicy.text "Sgrùdaich poileasaidhean is modhan-obrach an ùghdarrais theisteanachaidh">
-<!-- Certificate Exists in database -->
-
-<!ENTITY caCertExists.title "Tha teisteanas ann">
-<!ENTITY caCertExists.message "Tha an teisteanas seo ann mu thràth.">
 <!-- Strings for the SSL client auth ask dialog -->
 
 <!ENTITY clientAuthAsk.title "Iarrtas aithneachadh cleachdaiche">
@@ -79,8 +75,6 @@
 <!ENTITY escrowWarn.message2 "Ge-tà, thèid an iuchair crioptachaidh phrìobhaideach agad a stòradh leis an ùghdarras teisteanachaidh seo agus dh'fhaodadh a chleachdadh gus puist-dhealain no sgrìobhainnean crioptaichte agad a leughadh gun chead uat.">
 <!ENTITY examineCert.label "Seall an teisteanas">
 <!ENTITY examineCert.accesskey "S">
-
-<!ENTITY serverCrlNextupdate.message "Iarr air rianaire an t-siostaim agad do chuideachadh">
 <!-- Strings for the CreateCertInfo dialog  -->
 
 <!ENTITY createCertInfo.title "A' gintinn iuchair phrìobhaideach">

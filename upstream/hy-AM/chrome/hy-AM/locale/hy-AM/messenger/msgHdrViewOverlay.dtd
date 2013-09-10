@@ -1,72 +1,25 @@
-<!--
-# Translator(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# robyerevan <robyerevan@gmail.com>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# alexxed <alexxed@gmail.com>
-#
--->
-<!-- ***** BEGIN LICENSE BLOCK *****
- Version: MPL 1.1/GPL 2.0/LGPL 2.1
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
- The contents of this file are subject to the Mozilla Public License Version
- 1.1 (the "License"); you may not use this file except in compliance with
- the License. You may obtain a copy of the License at
- http://www.mozilla.org/MPL/
+<!ENTITY toField4.label "To">
+<!ENTITY fromField4.label "From">
+<!ENTITY senderField4.label "Sender">
+<!ENTITY organizationField4.label "Organization">
+<!ENTITY replyToField4.label "Reply to">
 
- Software distributed under the License is distributed on an "AS IS" basis,
- WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- for the specific language governing rights and limitations under the
- License.
-
- The Original Code is Mozilla Communicator client code, released
- March 31, 1998.
-
- The Initial Developer of the Original Code is
- Netscape Communications Corporation.
- Portions created by the Initial Developer are Copyright (C) 1998-1999
- the Initial Developer. All Rights Reserved.
-
- Contributor(s):
-
- Alternatively, the contents of this file may be used under the terms of
- either the GNU General Public License Version 2 or later (the "GPL"), or
- the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- in which case the provisions of the GPL or the LGPL are applicable instead
- of those above. If you wish to allow use of your version of this file only
- under the terms of either the GPL or the LGPL, and not to allow others to
- use your version of this file under the terms of the MPL, indicate your
- decision by deleting the provisions above and replace them with the notice
- and other provisions required by the GPL or the LGPL. If you do not delete
- the provisions above, a recipient may use your version of this file under
- the terms of any one of the MPL, the GPL or the LGPL.
-
- ***** END LICENSE BLOCK ***** -->
-
-<!ENTITY toField3.label "Ում">
-<!ENTITY fromField3.label "Ումից">
-<!ENTITY senderField3.label "Ուղարկողը">
-<!ENTITY organizationField3.label "Կազմակերպությունը">
-<!ENTITY replyToField3.label "Պատասխանել՝">
-
-<!ENTITY subjectField3.label "Վերնագիրը">
-<!ENTITY ccField3.label "Cc">
-<!ENTITY bccField3.label "Bcc">
-<!ENTITY newsgroupsField3.label "Նորություններ">
-<!ENTITY followupToField3.label "Հետևել՝">
-<!ENTITY tagsHdr3.label "Պիտակներ">
-<!ENTITY dateField3.label "Ամսաթիվը">
-<!ENTITY userAgentField3.label "Ծրագիրը">
-<!ENTITY referencesField3.label "Հղումները">
-<!ENTITY messageIdField3.label "Նամակի ID-ին">
-<!ENTITY inReplyToField3.label "Պատասխանը՝">
-<!ENTITY originalWebsite3.label "Վեբ կայքը">
+<!ENTITY subjectField4.label "Subject">
+<!ENTITY ccField4.label "Cc">
+<!ENTITY bccField4.label "Bcc">
+<!ENTITY newsgroupsField4.label "Newsgroups">
+<!ENTITY followupToField4.label "Followup to">
+<!ENTITY tagsHdr4.label "Tags">
+<!ENTITY dateField4.label "Date">
+<!ENTITY userAgentField4.label "User agent">
+<!ENTITY referencesField4.label "References">
+<!ENTITY messageIdField4.label "Message ID">
+<!ENTITY inReplyToField4.label "In reply to">
+<!ENTITY originalWebsite4.label "Website">
 
 <!ENTITY editMessageDescription.label "Սա սևագիր նամակ է">
 <!ENTITY editMessageButton.label "Խմբագրել...">
@@ -74,17 +27,18 @@
 <!ENTITY hdrArchiveButton1.tooltip "Արխիվացնել նամակը">
 <!ENTITY hdrSmartReplyButton1.label "Խելացի պատ.">
 <!ENTITY hdrReplyButton1.label "Պատասխանել">
-<!ENTITY hdrReplyButton1.tooltip "Պատասխանել">
+<!ENTITY hdrReplyButton2.tooltip "Պատասխանել նամակի հեղինակին">
 <!ENTITY hdrReplyAllButton1.label "Պատասխանել բոլորին">
 <!ENTITY hdrReplyAllButton1.tooltip "Պատ. ուղարկողին և մյուսներին">
 <!ENTITY hdrReplyListButton1.label "Պատաս-ի ցանկը">
 <!ENTITY hdrReplyListButton1.tooltip "Պատաս. ցանկին">
 <!ENTITY hdrFollowupButton1.label "Followup">
 <!ENTITY hdrFollowupButton1.tooltip "Post a followup to this newsgroup">
+<!ENTITY hdrMenuForwardButton.label "Forward As">
 <!ENTITY hdrForwardButton1.label "Փոխանցել">
 <!ENTITY hdrForwardButton1.tooltip "Փոխանցել նամակը">
-<!ENTITY hdrJunkButton1.label "Խլամ">
-<!ENTITY hdrJunkButton1.tooltip "Նշել նամակը որպես խլամ">
+<!ENTITY hdrJunkButton1.label "Թափոն">
+<!ENTITY hdrJunkButton1.tooltip "Նշել նամակը որպես թափոն">
 <!ENTITY hdrTrashButton1.label "Ջնջել">
 <!ENTITY hdrTrashButton1.tooltip "Ջնջել այս նամակը">
 
@@ -98,15 +52,15 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "R">
 
 <!ENTITY otherActionsButton1.label "Այլք">
-<!ENTITY otherActionsOpenConversation1.label "Բացել պատուհանում">
+<!ENTITY otherActionsOpenConversation1.label "Բացել պատուհանով">
 <!ENTITY otherActionsOpenConversation1.accesskey "Բ">
-<!ENTITY otherActionsOpenInNewWindow1.label "Բացել նոր պատուհանում">
+<!ENTITY otherActionsOpenInNewWindow1.label "Բացել նոր պատուհանով">
 <!ENTITY otherActionsOpenInNewWindow1.accesskey "Բ">
 <!ENTITY otherActionsOpenInNewTab1.label "Բացել նոր էջում">
 <!ENTITY otherActionsOpenInNewTab1.accesskey "Բ">
-<!ENTITY markAsReadMenuItem1.label "Նշել որպես կարդացած">
+<!ENTITY markAsReadMenuItem1.label "Նշել որպես ընթերցված">
 <!ENTITY markAsReadMenuItem1.accesskey "Ն">
-<!ENTITY markAsUnreadMenuItem1.label "Նշել որպես չկարդացած">
+<!ENTITY markAsUnreadMenuItem1.label "Նշել որպես Չընթերցված">
 <!ENTITY markAsUnreadMenuItem1.accesskey "Ն">
 <!ENTITY saveAsMenuItem1.label "Պահպանել որպես...">
 <!ENTITY saveAsMenuItem1.accesskey "Պ">
@@ -114,6 +68,10 @@
 <!ENTITY viewSourceMenuItem1.accesskey "Ն">
 <!ENTITY otherActionsPrint1.label "Տպել…">
 <!ENTITY otherActionsPrint1.accesskey "Տ">
+
+<!-- Attachment bar context menu items -->
+<!ENTITY startExpandedCmd.label    "Initially Show Attachment Pane">
+<!ENTITY startExpandedCmd.accesskey    "S">
 
 <!-- Attachment context menu items -->
 <!ENTITY openAttachmentCmd.label    "Բացել">
@@ -150,9 +108,3 @@
 <!ENTITY OpenMessageForMsgId.accesskey "Բ">
 <!ENTITY OpenBrowserWithMsgId.label "Բացել դիտարկիչը՝ նամակի ID-ով">
 <!ENTITY OpenBrowserWithMsgId.accesskey "Բ">
-
-<!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">
-<!ENTITY startExpandedCmd.accesskey    "S">
-
-<!-- Attachment bar context menu items -->
-<!ENTITY startExpandedCmd.label    "Initially Show Attachment Pane">

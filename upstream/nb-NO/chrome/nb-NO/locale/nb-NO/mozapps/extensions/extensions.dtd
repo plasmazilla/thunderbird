@@ -1,7 +1,6 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-
 <!ENTITY addons.windowTitle                   "Utvidelser">
 
 <!ENTITY search.placeholder                   "Søk i alle utvidelser">
@@ -91,6 +90,13 @@
 <!ENTITY cmd.enableTheme.accesskey            "B">
 <!ENTITY cmd.disableTheme.label               "Slutt å bruke tema">
 <!ENTITY cmd.disableTheme.accesskey           "b">
+<!ENTITY cmd.askToActivate.label              "Spør for å aktivere">
+<!ENTITY cmd.askToActivate.tooltip            "Spør hver gang for å bruke denne utvidelsen">
+<!ENTITY cmd.alwaysActivate.label             "Alltid aktiver">
+<!ENTITY cmd.alwaysActivate.tooltip           "Alltid bruk denne utvidelsen">
+<!ENTITY cmd.neverActivate.label              "Aldri aktiver">
+<!ENTITY cmd.neverActivate.tooltip            "Aldri bruk denne utvidelsen">
+<!ENTITY cmd.stateMenu.tooltip                "Endre når utvidelsen kjører">
 <!ENTITY cmd.installAddon.label               "Installer">
 <!ENTITY cmd.installAddon.accesskey           "I">
 <!ENTITY cmd.uninstallAddon.label             "Slett">

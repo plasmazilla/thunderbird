@@ -41,6 +41,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.modifiedKeyPrefsTitle "التفضيلات المهمّة المُعدّلة">
 <!ENTITY aboutSupport.modifiedPrefsName "الاسم">
 <!ENTITY aboutSupport.modifiedPrefsValue "القيمة">
+<!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
+
+<!ENTITY aboutSupport.userJSTitle "تفضيلات user.js">
+<!ENTITY aboutSupport.userJSDescription "يحتوي مجلد إعداداتك على <a id='prefs-user-js-link'>ملف user.js</a> به تفضيلات لم يُنشئها &brandShortName;.">
 
 <!ENTITY aboutSupport.graphicsTitle "الرسوميات">
 
@@ -56,4 +60,11 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.installationHistoryTitle "تأريخ التثبيت">
 <!ENTITY aboutSupport.updateHistoryTitle "تأريخ التحديث">
 
-<!ENTITY aboutSupport.copyToClipboard.label "انسخ الكل إلى الحافظة">
+<!ENTITY aboutSupport.copyTextToClipboard.label "انسخ النص إلى الحافظة">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "انسخ البيانات الخام إلى الحافظة">
+
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
+
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Update History">

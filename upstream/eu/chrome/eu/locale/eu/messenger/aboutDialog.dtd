@@ -1,6 +1,6 @@
 <!ENTITY aboutDialog.title          "&brandFullName;(r)i buruz">
 
-<!ENTITY community.start2           "">
+<!ENTITY community.start2           "&brandShortName; is designed by ">
 <!-- LOCALIZATION NOTE (community.mozillaLink): This is a link title that links to http://www.mozilla.org/. -->
 <!ENTITY community.mozillaLink      "&vendorShortName;">
 <!ENTITY community.middle2          "k diseinatzen du &brandShortName;, Internet toki hobea izan dadin lanean dabilen ">
@@ -18,7 +18,7 @@
 <!-- LOCALIZATION NOTE (bottomLinks.rights): This is a link title that links to about:rights. -->
 
 <!ENTITY bottomLinks.rights         "Erabiltzailearen eskubideak">
-<!-- LOCALIZATION NOTE (bottomLinks.privacy): This is a link title that links to http://www.mozilla.com/legal/privacy/. -->
+<!-- LOCALIZATION NOTE (bottomLinks.privacy): This is a link title that links to https://www.mozilla.org/legal/privacy/. -->
 
 <!ENTITY bottomLinks.privacy        "Pribatutasun-politika">
 <!-- LOCALIZATION NOTE (update.checkingForUpdates): try to make the localized text short (see bug 596813 for screenshots). -->
@@ -65,3 +65,14 @@
 <!ENTITY channel.description.end    " eguneraketa-kanalean zaude.">
 
 <!ENTITY cmdCloseMac.commandKey "w">
+
+<!ENTITY update.unsupported.end      "">
+<!ENTITY update.unsupported.linkText "Learn more">
+
+<!-- LOCALIZATION NOTE (update.unsupported.start,update.unsupported.linkText,update.unsupported.end):
+     update.unsupported.start, update.unsupported.linkText, and
+     update.unsupported.end all go into one line with linkText being wrapped in
+     an anchor that links to a site to provide additional information regarding
+     why the system is no longer supported. As this is all in one line, try to
+     make the localized text short (see bug 843497 for screenshots). -->
+<!ENTITY update.unsupported.start    "You can not perform further updates on this system. ">

@@ -4,6 +4,8 @@
 
 <!-- Attn: Localization - some of the menus in this dialog directly affect mail also. -->
 
+<!-- Attn: Localization - some of the menus in this dialog directly affect mail also. -->
+
 <!-- File menu items -->
 <!ENTITY saveCmd.key "S">
 
@@ -70,11 +72,12 @@
 <!ENTITY FontSizeSelect.tooltip "Escoller un tamaño de tipo de letra">
 <!ENTITY decreaseFontSize.label "Menor">
 <!ENTITY decreaseFontSize.accesskey "r">
-<!ENTITY decreaseFontSize.key "-">
+<!ENTITY decreaseFontSize.key "&lt;">
+<!ENTITY decreaseFontSize.key2 ","> <!-- < is above this key on many keyboards -->
 <!ENTITY increaseFontSize.label "Maior">
 <!ENTITY increaseFontSize.accesskey "i">
-<!ENTITY increaseFontSize.key "+">
-<!ENTITY increaseFontSize.key2 "="> <!-- + is above this key on many keyboards -->
+<!ENTITY increaseFontSize.key "&gt;">
+<!ENTITY increaseFontSize.key2 "."> <!-- > is above this key on many keyboards -->
 
 <!ENTITY fontSizeMenu.label "Tamaño">
 <!ENTITY fontSizeMenu.accesskey "m">
@@ -341,3 +344,9 @@
 <!ENTITY removeTOC.accesskey      "r">
 <!ENTITY tocMenu.label            "Táboa de contidos…">
 <!ENTITY tocMenu.accesskey        "b">
+
+<!ENTITY decrementFontSize.key "&lt;">
+<!ENTITY decrementFontSize.key2 ","> <!-- < is above this key on many keyboards -->
+<!ENTITY incrementFontSize.key "&gt;">
+<!ENTITY incrementFontSize.key2 "."> <!-- > is above this key on many keyboards -->
+

@@ -1,4 +1,8 @@
-<!ENTITY window.title "Süzgeç kuralları">
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY window.title "Süzgeç Kuralları">
 <!ENTITY filterEditorDialog.dimensions "width: 100ch;">
 <!ENTITY filterName.label "Süzgeç ismi:">
 <!ENTITY filterName.accesskey "S">
@@ -12,13 +16,14 @@
 <!ENTITY highPriorityCmd.label "Yüksek">
 <!ENTITY highestPriorityCmd.label "En yüksek">
 
-<!ENTITY contextDesc.label "Süzgeçlerin çalışma zamanı:">
-<!ENTITY contextDesc.accesskey "z">
-<!ENTITY contextIncoming.label "Posta denetimi esnasında">
+<!ENTITY contextDesc.label "Süzgecin uygulanma zamanı:">
+<!ENTITY contextIncomingMail.label "Yeni posta alırken:">
+<!ENTITY contextIncomingMail.accesskey "Y">
 <!ENTITY contextManual.label "Elle çalıştır">
-<!ENTITY contextBoth.label "Posta denetimi esnasında veya elle">
-<!ENTITY contextPostPlugin.label "Posta denetimi (sınıflandırma sonrası)">
-<!ENTITY contextPostPluginBoth.label "Posta denetimi (sınıflandırma sonrası) veya elle çalıştırma">
+<!ENTITY contextManual.accesskey "E">
+<!ENTITY contextBeforeCls.label "Gereksiz sınıflandırmasından önce süz">
+<!ENTITY contextAfterCls.label "Gereksiz sınıflandırmasından sonra süz">
+
 <!ENTITY filterActionDesc.label "Bu eylemleri uygula:">
 <!ENTITY filterActionDesc.accesskey "u">
 
@@ -41,10 +46,8 @@
 <!ENTITY watchThread.label "Diziyi takip et">
 <!ENTITY stopExecution.label "Süzgeç yürütümünü durdur">
 
-
-
-<!ENTITY addAction.tooltip "Add a new action">
-<!ENTITY filterActionTargetFlexValue "4">
+<!ENTITY addAction.tooltip "Yeni eylem ekle">
+<!ENTITY removeAction.tooltip "Bu eylemi kaldır">
 
 <!-- LOCALIZATION NOTE
   The values below are used to control the widths of the filter action widgets.
@@ -52,4 +55,9 @@
   are truncated in the widgets.
  -->
 <!ENTITY filterActionTypeFlexValue "1">
-<!ENTITY removeAction.tooltip "Remove this action">
+<!ENTITY filterActionTargetFlexValue "4">
+
+
+<!ENTITY filterActionOrder.label "See execution order">
+
+<!ENTITY filterActionOrderWarning.label "Note: Filter actions will be run in a different order.">

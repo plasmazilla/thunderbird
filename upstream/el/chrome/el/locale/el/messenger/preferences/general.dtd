@@ -29,3 +29,7 @@
 <!ENTITY manageAddonsDescUnix2.label "Αλλαγή προτιμήσεων για τα πρόσθετα σας">
 <!ENTITY manageAddons.label "Διαχείριση προσθέτων…">
 <!ENTITY manageAddons.accesskey "Δ">
+
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY showTrayIcon.label               "Show a tray icon">

@@ -13,3 +13,5 @@
 <!ENTITY resetProfile.button.label        "Redefinir &brandShortName;">
 
 <!ENTITY resetProfile.cleaning.description "Spetga p. pl. durant che &brandShortName; fa urden cun las datas veglias…">
+
+<!ENTITY resetProfile.button.label2       "Reset &brandShortName;…">

@@ -1,3 +1,6 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!-- rights.locale-direction instead of the usual local.dir entity, so RTL can skip translating page. -->
 <!ENTITY rights.locale-direction "ltr">
 <!ENTITY rights.pagetitle       "about:rights">
@@ -52,7 +55,7 @@
 <!-- intro paragraph for branded builds -->
 <!ENTITY rights2.webservices-a "A &brandFullName; webalapú információs szolgáltatásokat („Szolgáltatások”) használ egyes funkciók megvalósítására. Ezek a Szolgáltatások a &brandShortName; bináris verziójával együtt érhetők el az alább leírt módon. Ha nem akarja használni a Szolgáltatásokat, illetve az alábbi feltételek elfogadhatatlanok, letilthatja a funkciót vagy a Szolgáltatásokat. Egy adott funkció vagy Szolgáltatás letiltásáról ">
 <!ENTITY rights2.webservices-b "itt">
-<!ENTITY rights2.webservices-c " található információ.">
+<!ENTITY rights3.webservices-c " található információ. Más funkciók és szolgáltatások az alkalmazás beállításaiban kapcsolhatók ki.">
 
 <!-- safe browsing points for branded builds -->
 <!ENTITY rights.safebrowsing-a "SafeBrowsing: ">

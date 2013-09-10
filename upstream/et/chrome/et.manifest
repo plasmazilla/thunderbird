@@ -1,0 +1,24 @@
+locale messenger-newsblog et et/locale/et/messenger-newsblog/
+locale alerts et et/locale/et/alerts/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale global-platform et et/locale/et/global-platform/
+locale cookie et et/locale/et/cookie/
+locale mozapps et et/locale/et/mozapps/
+locale communicator et et/locale/et/communicator/
+locale messenger-mapi et et/locale/et/messenger-mapi/
+locale global et et/locale/et/global/
+locale mozldap et et/locale/et/mozldap/
+locale places et et/locale/et/places/
+locale global-region et et/locale/et/global-region/
+locale pippki et et/locale/et/pippki/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+locale pipnss et et/locale/et/pipnss/
+locale messenger-smime et et/locale/et/messenger-smime/
+locale editor et et/locale/et/editor/
+locale chat et et/locale/et/chat/
+locale messenger et et/locale/et/messenger/
+locale necko et et/locale/et/necko/
+locale passwordmgr et et/locale/et/passwordmgr/
+locale branding et et/locale/et/branding/
+locale autoconfig et et/locale/et/autoconfig/
+locale messenger-region et et/locale/et/messenger-region/

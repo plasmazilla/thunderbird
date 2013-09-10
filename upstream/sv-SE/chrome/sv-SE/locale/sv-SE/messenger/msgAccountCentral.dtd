@@ -22,3 +22,8 @@
 
 <!ENTITY feedsSectionHdr.label        "RSS-kanaler"> 
 <!ENTITY subscribeFeeds.label         "Hantera prenumerationer">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

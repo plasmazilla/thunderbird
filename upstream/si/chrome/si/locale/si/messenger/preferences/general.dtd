@@ -35,3 +35,7 @@
 <!ENTITY browse.label                     "පිරික්සන්න...">
 <!ENTITY browse.accesskey                 "B">
 
+
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY showTrayIcon.label               "Show a tray icon">

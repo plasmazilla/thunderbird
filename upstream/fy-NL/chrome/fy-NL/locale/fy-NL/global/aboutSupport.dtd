@@ -20,6 +20,12 @@
 <!ENTITY aboutSupport.appBasicsTitle "Applikaasjebasis">
 <!ENTITY aboutSupport.appBasicsName "Namme">
 <!ENTITY aboutSupport.appBasicsVersion "Ferzje">
+
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Fernijingsskiednis">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Toan Fernijingsskiednis">
+
 <!ENTITY aboutSupport.appBasicsProfileDir "Profylmap">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
 This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
@@ -45,6 +51,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.modifiedPrefsName "Namme">
 <!ENTITY aboutSupport.modifiedPrefsValue "Wearde">
 
+<!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
+<!ENTITY aboutSupport.userJSTitle "user.js-foarkarren">
+<!ENTITY aboutSupport.userJSDescription "Jo profylmap befettet in <a id='prefs-user-js-link'>user.js bestân</a>, mei foarkarren dy't net makke binne troch &brandShortName;.">
+
 <!ENTITY aboutSupport.graphicsTitle "Grafysk">
 
 <!ENTITY aboutSupport.jsTitle "JavaScript">
@@ -59,4 +69,5 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.installationHistoryTitle "Ynstallaasjeskiednis">
 <!ENTITY aboutSupport.updateHistoryTitle "Fernijingsskiednis">
 
-<!ENTITY aboutSupport.copyToClipboard.label "Kopiearje alles nei klamboerd">
+<!ENTITY aboutSupport.copyTextToClipboard.label "Tekst nei klamboerd kopiearje">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "Rûge gegevens nei klamboerd kopiearje">

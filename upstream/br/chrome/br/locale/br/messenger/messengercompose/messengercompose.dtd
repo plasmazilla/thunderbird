@@ -87,6 +87,7 @@
 <!ENTITY findCmd.label "Kavout hag amsaviñ…">
 <!ENTITY findCmd.key "F">
 <!ENTITY findCmd.accesskey "K">
+<!ENTITY findReplaceCmd.key "H">
 <!ENTITY findAgainCmd.label "Kavout c'hoazh">
 <!ENTITY findAgainCmd.key "G">
 <!ENTITY findAgainCmd.accesskey "K">
@@ -139,8 +140,8 @@
 <!ENTITY returnReceiptMenu.accesskey "e">
 <!ENTITY dsnMenu.label "Kemenn evit stad ar c'has kemennadennoù">
 <!ENTITY dsnMenu.accesskey "K">
-<!ENTITY outputFormatMenu.label "Mentrezh">
-<!ENTITY outputFormatMenu.accesskey "M">
+<!ENTITY deliveryFormatMenu.label "Mentrezh treuzkas">
+<!ENTITY deliveryFormatMenu.accesskey "M">
 <!ENTITY autoFormatCmd.label "EmZiuzañ">
 <!ENTITY autoFormatCmd.accesskey "z">
 <!ENTITY plainTextFormatCmd.label "Kas gant un destenn eeun hepken">

@@ -107,3 +107,24 @@
 <!ENTITY OpenMessageForMsgId.accesskey "O">
 <!ENTITY OpenBrowserWithMsgId.label "Odpri brskalnik z ID sporočila">
 <!ENTITY OpenBrowserWithMsgId.accesskey "B">
+<!ENTITY bccField4.label "Bcc">
+<!ENTITY ccField4.label "Cc">
+<!ENTITY dateField4.label "Date">
+<!ENTITY followupToField4.label "Followup to">
+<!ENTITY fromField4.label "From">
+<!ENTITY hdrMenuForwardButton.label "Forward As">
+<!ENTITY inReplyToField4.label "In reply to">
+<!ENTITY messageIdField4.label "Message ID">
+<!ENTITY newsgroupsField4.label "Newsgroups">
+<!ENTITY organizationField4.label "Organization">
+<!ENTITY originalWebsite4.label "Website">
+<!ENTITY referencesField4.label "References">
+<!ENTITY replyToField4.label "Reply to">
+<!ENTITY senderField4.label "Sender">
+
+<!ENTITY subjectField4.label "Subject">
+<!ENTITY tagsHdr4.label "Tags">
+
+
+<!ENTITY toField4.label "To">
+<!ENTITY userAgentField4.label "User agent">

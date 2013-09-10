@@ -36,3 +36,10 @@
 <!ENTITY includeSigOnForward.label            "Користи потписе при прослеђивању">
 <!ENTITY includeSigOnForward.accesskey        "К">
 
+
+<!ENTITY globalAddressingPrefs.accesskey      "P">
+
+<!ENTITY globalAddressingPrefs.label          "Global Addressing Preferences…">
+<!ENTITY globalComposingPrefs.accesskey       "G">
+
+<!ENTITY globalComposingPrefs.label           "Global Composing Preferences…">

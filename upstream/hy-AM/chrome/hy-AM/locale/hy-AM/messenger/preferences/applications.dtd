@@ -1,18 +1,8 @@
-<!--
-# Translator(s):
-#
-# robyerevan <robyerevan@gmail.com>
-# Hrant <hrantohanyan@mail.am>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# alexxed <alexxed@gmail.com>
-#
--->
-<!ENTITY  typeColumn.label            "Պարունակության տեսակը">
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY  typeColumn.label            "Պարունակությունը">
 <!ENTITY  typeColumn.accesskey        "T">
 
 <!ENTITY  actionColumn2.label         "Գործողություն">
@@ -32,7 +22,7 @@
 <!ENTITY chooseFolderMac.label        "Ընտրել…">
 <!ENTITY chooseFolderMac.accesskey    "C">
 
-<!ENTITY attachments.incoming.label   "Մուտքյին">
+<!ENTITY attachments.incoming.label   "Մուտքային">
 <!ENTITY attachments.outgoing.label   "Ելքային">
 
 <!ENTITY addCloudFileAccount.label        "Ավելացնել">
@@ -44,5 +34,5 @@
 <!ENTITY authRequired.button.label        "Ներկայացում">
 <!ENTITY authRequired.button.accesskey    "Ն">
 
-<!ENTITY enableCloudFileAccountOffer.label "Առաջարկել տարածել ֆայլերչը, որոնք մեծ են՝">
+<!ENTITY enableCloudFileAccountOffer.label "Առաջարկել տարածել ֆայլերը, որոնք մեծ են՝">
 <!ENTITY enableCloudFileAccountOffer.mb "ՄԲ">

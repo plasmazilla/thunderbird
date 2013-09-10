@@ -1,26 +1,12 @@
-<!--
-# Translator(s):
-#
-# robyerevan <robyerevan@gmail.com>
-# Hrant <hrantohanyan@mail.am>
-# issuart <issuart@yahoo.com>
-# Hegine <heghinedavtyan@mail.ru>
-# alexxed <alexxed@gmail.com>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# armenzg <armenzg@gmail.com>
-# alexxed <alexxed@gmail.com>
-#
--->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!--LOCALIZATION NOTE messengercompose.dtd Main UI for message composition -->
-<!ENTITY msgComposeWindow.title "Գրել. (չկա վերնագիր)">
+<!ENTITY msgComposeWindow.title "Նոր նամակ. (անվերնագիր)">
 
 <!-- File Menu -->
-<!ENTITY fileMenu.label "Ֆայլ"> 
+<!ENTITY fileMenu.label "Ֆայլ">
 <!ENTITY fileMenu.accesskey "F">
 <!ENTITY newMenu.label "Նոր">
 <!ENTITY newMenu.accesskey "N">
@@ -69,20 +55,20 @@
 <!ENTITY printCmd.accesskey "P">
 
 <!-- Edit Menu -->
-<!ENTITY editMenu.label "Խմբագրել"> 
+<!ENTITY editMenu.label "Խմբագրել">
 <!ENTITY editMenu.accesskey "E">
-<!ENTITY undoCmd.label "Հետ">
+<!ENTITY undoCmd.label "Ետարկել">
 <!ENTITY undoCmd.key "Հ">
-<!ENTITY undoCmd.accesskey "U"> 
-<!ENTITY redoCmd.label "Առաջ">
+<!ENTITY undoCmd.accesskey "U">
+<!ENTITY redoCmd.label "Կրկնել">
 <!ENTITY redoCmd.key "Ա">
-<!ENTITY redoCmd.accesskey "R"> 
+<!ENTITY redoCmd.accesskey "R">
 <!ENTITY cutCmd.label "Կտրել">
 <!ENTITY cutCmd.key "Կ">
-<!ENTITY cutCmd.accesskey "t"> 
+<!ENTITY cutCmd.accesskey "t">
 <!ENTITY copyCmd.label "Պատճենել">
 <!ENTITY copyCmd.key "Պ">
-<!ENTITY copyCmd.accesskey "C"> 
+<!ENTITY copyCmd.accesskey "C">
 <!ENTITY pasteCmd.label "Տեղադրել">
 <!ENTITY pasteCmd.key "Տ">
 <!ENTITY pasteCmd.accesskey "P">
@@ -97,10 +83,11 @@
 <!ENTITY renameAttachmentCmd.accesskey "Ա">
 <!ENTITY selectAllCmd.label "Ընտրել բոլորը">
 <!ENTITY selectAllCmd.key "Ը">
-<!ENTITY selectAllCmd.accesskey "A"> 
+<!ENTITY selectAllCmd.accesskey "A">
 <!ENTITY findCmd.label "Գտնել և փոխարինել">
 <!ENTITY findCmd.key "Գ">
 <!ENTITY findCmd.accesskey "F">
+<!ENTITY findReplaceCmd.key "H">
 <!ENTITY findAgainCmd.label "Կրկին փնտրել">
 <!ENTITY findAgainCmd.key "Կ">
 <!ENTITY findAgainCmd.accesskey "g">
@@ -108,13 +95,13 @@
 <!ENTITY findPrevCmd.label "Փնտրել Նախորդը">
 <!ENTITY findPrevCmd.key "Փ">
 <!ENTITY findPrevCmd.key2 "VK_F3">
-<!ENTITY findPrevCmd.accesskey "v"> 
+<!ENTITY findPrevCmd.accesskey "v">
 
 <!-- View Menu -->
-<!ENTITY viewMenu.label "Տեսքը"> 
+<!ENTITY viewMenu.label "Տեսքը">
 <!ENTITY viewMenu.accesskey "V">
-<!ENTITY viewToolbarsMenuNew.label "Գործիքաշերտեր"> 
-<!ENTITY viewToolbarsMenuNew.accesskey "T"> 
+<!ENTITY viewToolbarsMenuNew.label "Գործիքաշերտեր">
+<!ENTITY viewToolbarsMenuNew.accesskey "T">
 <!ENTITY menubarCmd.label "Ընտրացանկ վահանակը">
 <!ENTITY menubarCmd.accesskey "Ը">
 <!ENTITY showCompositionToolbarCmd.label "Ստեղծագործության գործիքաշերտը">
@@ -126,8 +113,8 @@
 <!ENTITY customizeToolbar.label "Կարգավորել…">
 <!ENTITY customizeToolbar.accesskey "C">
 
-<!ENTITY addressSidebar.label "Հասցեների կողավահանակ"> 
-<!ENTITY addressSidebar.accesskey "o"> 
+<!ENTITY addressSidebar.label "Հասցեների կողավահանակ">
+<!ENTITY addressSidebar.accesskey "o">
 
 <!-- Format Menu -->
 <!ENTITY formatMenu.label "Տեսակը">
@@ -153,9 +140,9 @@
 <!ENTITY returnReceiptMenu.accesskey "t">
 <!ENTITY dsnMenu.label "Հասցնելու վիճակի տեղեկությունը">
 <!ENTITY dsnMenu.accesskey "N">
-<!ENTITY outputFormatMenu.label "Ձևը">
-<!ENTITY outputFormatMenu.accesskey "F">
-<!ENTITY autoFormatCmd.label "Ինքնաորոշում">
+<!ENTITY deliveryFormatMenu.label "Delivery Format">
+<!ENTITY deliveryFormatMenu.accesskey "F">
+<!ENTITY autoFormatCmd.label "Ինքնաբացահայտում">
 <!ENTITY autoFormatCmd.accesskey "A">
 <!ENTITY plainTextFormatCmd.label "Միայն Սովորական տեքստ">
 <!ENTITY plainTextFormatCmd.accesskey "P">
@@ -195,13 +182,13 @@
 <!ENTITY preferencesCmd.label "Ընտրանքներ...">
 <!ENTITY preferencesCmd.accesskey "O">
 <!ENTITY preferencesCmdUnix.label       "Կարգավորումներ…">
-<!ENTITY preferencesCmdUnix.accesskey   "n"> 
+<!ENTITY preferencesCmdUnix.accesskey   "n">
 
 <!--  Mac OS X Window Menu -->
 <!ENTITY minimizeWindow.key "Թ">
 <!ENTITY minimizeWindow.label "Թաքցնել">
 <!ENTITY bringAllToFront.label "Բոլորից առջև">
-<!ENTITY zoomWindow.label "Խոշորացնել"> 
+<!ENTITY zoomWindow.label "Չափը">
 <!ENTITY windowMenu.label "Պատուհան">
 
 <!-- Mail Toolbar -->
@@ -213,13 +200,13 @@
 <!ENTITY saveButton.label "Պահպանել">
 
 <!-- Mail Toolbar Tooltips -->
-<!ENTITY sendButton.tooltip "Ուղարկել հիմա"> 
-<!ENTITY sendlaterButton.tooltip "Նամակը հետո ուղարկել"> 
-<!ENTITY quoteButton.tooltip "Մեջբերել նախորդ նամակը"> 
-<!ENTITY addressButton.tooltip "Հասցեատերին ընտրել Հասցեագրքից"> 
-<!ENTITY attachButton.tooltip "Ներառել կցորդ"> 
+<!ENTITY sendButton.tooltip "Ուղարկել հիմա">
+<!ENTITY sendlaterButton.tooltip "Նամակը հետո ուղարկել">
+<!ENTITY quoteButton.tooltip "Մեջբերել նախորդ նամակը">
+<!ENTITY addressButton.tooltip "Հասցեատերին ընտրել Հասցեագրքից">
+<!ENTITY attachButton.tooltip "Ներառել կցորդ">
 <!ENTITY spellingButton.tooltip "Ստուգել ընտրվածի ուղղագրությունը">
-<!ENTITY saveButton.tooltip "Պահպանել նամակը"> 
+<!ENTITY saveButton.tooltip "Պահպանել նամակը">
 <!ENTITY cutButton.tooltip              "Կտրել">
 <!ENTITY copyButton.tooltip             "Պատճենել">
 <!ENTITY pasteButton.tooltip            "Տեղադրել">
@@ -230,12 +217,12 @@
 <!ENTITY headersSpace.style "width: 9em;">
 <!ENTITY fromAddr.label "Ումից.">
 <!ENTITY fromAddr.accesskey "r">
-<!ENTITY toAddr.label "Ում."> 
-<!ENTITY ccAddr.label "Cc."> 
-<!ENTITY bccAddr.label "Bcc."> 
-<!ENTITY replyAddr.label "Պատասխանել՝"> 
-<!ENTITY newsgroupsAddr.label "Նորություն."> 
-<!ENTITY followupAddr.label "Հետևել՝"> 
+<!ENTITY toAddr.label "Ում.">
+<!ENTITY ccAddr.label "Cc.">
+<!ENTITY bccAddr.label "Bcc.">
+<!ENTITY replyAddr.label "Պատասխանել՝">
+<!ENTITY newsgroupsAddr.label "Նորություն.">
+<!ENTITY followupAddr.label "Հետևել՝">
 <!ENTITY subject.label "Վերնագիրը.">
 <!ENTITY subject.accesskey "S">
 <!-- LOCALIZATION NOTE attachments.accesskey This access key should correspond
@@ -243,7 +230,7 @@
 <!ENTITY attachments.accesskey "m">
 
 <!-- Format Toolbar, imported from editorAppShell.xul -->
-<!ENTITY SmileButton.tooltip "Ներմուծել ժպտացող երես">
+<!ENTITY SmileButton.tooltip "Ներմուծել ժպտացող դեմք">
 <!ENTITY smiley1Cmd.label "Ժպիտ">
 <!ENTITY smiley2Cmd.label "Մռայլ">
 <!ENTITY smiley3Cmd.label "Հուշում">
@@ -259,7 +246,7 @@
 <!ENTITY smiley13Cmd.label "Գլխիվայր ">
 <!ENTITY smiley14Cmd.label "Անմեղ">
 <!ENTITY smiley15Cmd.label "Լաց">
-<!ENTITY smiley16Cmd.label "Դուրս-ցցված">
+<!ENTITY smiley16Cmd.label "Բերանփակ">
 
 <!-- Message Pane Context Menu -->
 <!ENTITY spellCheckNoSuggestions.label "Առաջարկություններ չկան">
@@ -267,7 +254,7 @@
 <!ENTITY spellCheckIgnoreWord.accesskey "I">
 <!ENTITY spellCheckAddToDictionary.label "Ավելացնել բառարանում">
 <!ENTITY spellCheckAddToDictionary.accesskey "n">
-<!ENTITY undo.label "Հետ">
+<!ENTITY undo.label "Ետարկել">
 <!ENTITY undo.accesskey "U">
 <!ENTITY cut.label "Կտրել">
 <!ENTITY cut.accesskey "t">

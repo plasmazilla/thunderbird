@@ -19,6 +19,11 @@
 <!ENTITY aboutSupport.appBasicsName "名稱">
 <!ENTITY aboutSupport.appBasicsVersion "版本">
 
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "更新記錄">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "顯示更新記錄">
+
 <!ENTITY aboutSupport.appBasicsProfileDir "設定檔目錄">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
 This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
@@ -40,9 +45,13 @@ variant of aboutSupport.showDir.label.  This allows us to use the preferred
 variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.showWin.label "開啟資料夾">
 
-<!ENTITY aboutSupport.modifiedKeyPrefsTitle "匯入已修改的偏好設定">
+<!ENTITY aboutSupport.modifiedKeyPrefsTitle "已修改的重要偏好設定">
 <!ENTITY aboutSupport.modifiedPrefsName "名稱">
 <!ENTITY aboutSupport.modifiedPrefsValue "值">
+
+<!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
+<!ENTITY aboutSupport.userJSTitle "user.js 偏好設定">
+<!ENTITY aboutSupport.userJSDescription "您的設定檔資料夾中有一個 <a id='prefs-user-js-link'>user.js 檔案</a>，當中包含不是由 &brandShortName; 所建立的偏好設定。">
 
 <!ENTITY aboutSupport.graphicsTitle "圖形">
 
@@ -58,5 +67,6 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.installationHistoryTitle "安裝紀錄">
 <!ENTITY aboutSupport.updateHistoryTitle "更新記錄">
 
-<!ENTITY aboutSupport.copyToClipboard.label "全部複製到剪貼簿">
+<!ENTITY aboutSupport.copyTextToClipboard.label "將文字複製到剪貼簿">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "將原始資料複製到剪貼簿">
 

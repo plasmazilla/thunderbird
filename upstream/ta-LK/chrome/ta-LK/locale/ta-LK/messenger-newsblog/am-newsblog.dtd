@@ -18,3 +18,6 @@
 <!ENTITY feeds.wizardShortName "Feeds">
 <!ENTITY feeds.wizardLongName "Blogs &amp; செய்தி ஊட்டல்கள்">
 <!ENTITY feeds.wizardLongName.accesskey "F">
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

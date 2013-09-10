@@ -33,3 +33,7 @@
 <!ENTITY manageAddonsDescUnix2.label      "ਆਪਣੀ ਐਡ-ਆਨ ਲਈ ਪਸੰਦ ਬਦਲੋ">
 <!ENTITY manageAddons.label               "ਐਡ-ਆਨ ਪਰਬੰਧ…">
 <!ENTITY manageAddons.accesskey           "M">
+
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY showTrayIcon.label               "Show a tray icon">

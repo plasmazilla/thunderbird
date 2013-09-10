@@ -12,3 +12,5 @@
 <!ENTITY resetProfile.description         "ඔබට විසඳාගත නොහැකි ප්‍රධාන ප්‍රශ්ණ ඇත්නම් අවශ්‍යම තොරතුරු පමණක් සහිතව නැවත අරඔන්න.">
 <!ENTITY resetProfile.button.label        "&brandShortName; යලි-සකසන්න">
 <!ENTITY resetProfile.cleaning.description "කරුණාකර රැඳී සිටින් &brandShortName; ඔබගේ පැරණි දත්ත හිස් කරයි…">
+
+<!ENTITY resetProfile.button.label2       "Reset &brandShortName;…">

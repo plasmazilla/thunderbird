@@ -13,3 +13,5 @@
 <!ENTITY resetProfile.button.label        "Riktheje &brandShortName;-in te parazgjedhjet">
 
 <!ENTITY resetProfile.cleaning.description "Ju lutem, prisni, teksa &brandShortName;-i pastron të dhënat tuaja të vjetra…">
+
+<!ENTITY resetProfile.button.label2       "Reset &brandShortName;…">

@@ -137,12 +137,33 @@ Entities below were automatically added by compare-locales,
 <!ENTITY CopyMessageId.accesskey "C">
 <!ENTITY OpenBrowserWithMsgId.accesskey "B">
 <!ENTITY OpenMessageForMsgId.accesskey "O">
+<!ENTITY bccField4.label "Bcc">
+<!ENTITY ccField4.label "Cc">
+<!ENTITY dateField4.label "Date">
+<!ENTITY followupToField4.label "Followup to">
+<!ENTITY fromField4.label "From">
 <!ENTITY hdrFollowupButton1.label "Followup">
 <!ENTITY hdrFollowupButton1.tooltip "Post a followup to this newsgroup">
+<!ENTITY hdrMenuForwardButton.label "Forward As">
 <!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">
+<!ENTITY inReplyToField4.label "In reply to">
+<!ENTITY messageIdField4.label "Message ID">
+<!ENTITY newsgroupsField4.label "Newsgroups">
 
 <!ENTITY openAttachment.tooltip "Open the attached file">
+<!ENTITY organizationField4.label "Organization">
+<!ENTITY originalWebsite4.label "Website">
+<!ENTITY referencesField4.label "References">
+<!ENTITY replyToField4.label "Reply to">
+<!ENTITY senderField4.label "Sender">
 <!ENTITY startExpandedCmd.accesskey    "S">
 
 <!-- Attachment bar context menu items -->
 <!ENTITY startExpandedCmd.label    "Initially Show Attachment Pane">
+
+<!ENTITY subjectField4.label "Subject">
+<!ENTITY tagsHdr4.label "Tags">
+
+
+<!ENTITY toField4.label "To">
+<!ENTITY userAgentField4.label "User agent">

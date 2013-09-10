@@ -361,3 +361,9 @@
 <!ENTITY tocMenu.label            "תוכן עניינים…">
 <!ENTITY tocMenu.accesskey        "b">
 
+
+<!ENTITY decrementFontSize.key "&lt;">
+<!ENTITY decrementFontSize.key2 ","> <!-- < is above this key on many keyboards -->
+<!ENTITY incrementFontSize.key "&gt;">
+<!ENTITY incrementFontSize.key2 "."> <!-- > is above this key on many keyboards -->
+

@@ -1,3 +1,6 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!ENTITY addons.windowTitle "Viðbótastjóri">
 <!ENTITY search.placeholder "Leita í öllum viðbótum">
 <!-- LOCALIZATION NOTE (search.commandKey):
@@ -78,6 +81,13 @@
 <!ENTITY cmd.enableTheme.accesskey "þ">
 <!ENTITY cmd.disableTheme.label "Hætta að nota þema">
 <!ENTITY cmd.disableTheme.accesskey "þ">
+<!ENTITY cmd.askToActivate.label "Spyrja hvort eigi að virkja">
+<!ENTITY cmd.askToActivate.tooltip "Spyrja hvort eigi að nota þessa viðbót í hvert skipti">
+<!ENTITY cmd.alwaysActivate.label "Alltaf virkja">
+<!ENTITY cmd.alwaysActivate.tooltip "Alltaf nota þessa viðbót">
+<!ENTITY cmd.neverActivate.label "Aldrei virkja">
+<!ENTITY cmd.neverActivate.tooltip "Aldrei nota þessa viðbót">
+<!ENTITY cmd.stateMenu.tooltip "Breyta hvenær þessi viðbót keyrir">
 <!ENTITY cmd.installAddon.label "Setja upp">
 <!ENTITY cmd.installAddon.accesskey "t">
 <!ENTITY cmd.uninstallAddon.label "Fjarlægja">

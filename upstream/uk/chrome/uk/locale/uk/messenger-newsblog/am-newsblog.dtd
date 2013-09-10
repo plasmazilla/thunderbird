@@ -20,3 +20,6 @@
 <!ENTITY feeds.wizardShortName "Стрічки">
 <!ENTITY feeds.wizardLongName "Блоги та стрічки новин">
 <!ENTITY feeds.wizardLongName.accesskey "с">
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">
