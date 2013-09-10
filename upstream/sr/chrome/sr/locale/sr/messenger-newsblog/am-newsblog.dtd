@@ -19,3 +19,6 @@
 <!ENTITY feeds.wizardLongName "Блогови &amp; доводи вести">
 <!ENTITY feeds.wizardLongName.accesskey "F">
 
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

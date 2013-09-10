@@ -24,3 +24,9 @@
 <!ENTITY searchIntegration.label "Permite &searchIntegration.engineName; căutarea în mesaje">
 <!ENTITY searchIntegration.accesskey "P">
 
+
+<!ENTITY acceptIntegration.label  "Set as Default">
+<!ENTITY cancelIntegration.label  "Skip Integration">
+<!ENTITY cancelIntegration2.label  "Cancel">
+
+<!ENTITY unsetDefault.tooltip "It is not possible to unset &brandShortName; as the default client within &brandShortName;. To make another application the default you must use its 'Set as default' dialog.">

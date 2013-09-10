@@ -54,3 +54,8 @@
 <!ENTITY report.failed                                       "השליחה נכשלה.">
 <!ENTITY report.unavailable                                  "אין דיווח זמין.">
 
+
+<!ENTITY clickToActivatePlugin                               "Activate plugin.">
+
+<!ENTITY plugin.file                                         "File">
+<!ENTITY plugin.mimeTypes                                    "MIME Types">

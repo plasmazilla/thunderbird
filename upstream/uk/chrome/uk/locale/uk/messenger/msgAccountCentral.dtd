@@ -22,3 +22,8 @@
 <!ENTITY filtersLink.label            "Створити фільтри листів">
 <!ENTITY junkSettings.label           "Параметри анти-спам фільтрів">
 <!ENTITY offlineLink.label            "Параметри автономної роботи">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

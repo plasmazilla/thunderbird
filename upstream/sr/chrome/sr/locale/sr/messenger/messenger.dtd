@@ -874,26 +874,50 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY showAllAppsCmdMac.label        "Прикажи све">
 
 
+<!ENTITY allowRemoteDebugging.accesskey "g">
+<!ENTITY allowRemoteDebugging.label "Allow Remote Debugging">
 <!ENTITY appmenuButton.label "AppMenu">
-<!ENTITY appmenuButton.tooltip "Displays the Application Menu">
+<!ENTITY appmenuButton1.tooltip "Display the &brandShortName; Menu">
 <!ENTITY appmenuEditMenu.label "Edit">
 <!ENTITY appmenuNewContactCmd.label "Address Book Contact…">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "New Message">
 <!ENTITY appmenuQFBMenu.label "Quick Filter Bar">
+<!ENTITY appmenuSelectFlagged.label "Select Starred Messages">
+<!ENTITY appmenuSelectThread.label "Select Thread">
 <!ENTITY appmenuToolbarLayout.label "Toolbar Layout…">
+<!ENTITY buttonMenuForwardAsAttachment.label "Forward As Attachment">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Forward Inline">
 <!ENTITY chatButton.label "Chat">
 <!ENTITY chatButton.tooltip "Show the Chat tab">
 <!ENTITY clearRecentHistory.accesskey "H">
 <!ENTITY clearRecentHistory.label "Clear Recent History…">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "A">
+<!ENTITY contextForwardAsAttachmentItem.label "Attachment">
+<!ENTITY contextForwardAsInline.accesskey "I">
+<!ENTITY contextForwardAsInline.label "Inline">
+<!ENTITY contextForwardAsMenu.accesskey "o">
+<!ENTITY contextForwardAsMenu.label "Forward As">
+<!ENTITY contextKillSubthreadMenu.label "Ignore Subthread">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillThreadMenu.label "Ignore Thread">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
+<!ENTITY contextMultiForwardAsAttachment.label "Forward as Attachments">
 <!ENTITY contextReplyNewsgroup2.accesskey "u">
 <!ENTITY contextReplyNewsgroup2.label "Followup to Newsgroup">
+<!ENTITY contextWatchThreadMenu.label "Watch Thread">
 <!ENTITY errorConsoleCmd.commandkey "j">
+<!ENTITY folderContextOpenInNewWindow.accesskey "O">
+<!ENTITY folderContextOpenInNewWindow.label "Open in New Window">
 <!ENTITY folderContextSearchForMessages.accesskey "S">
 <!ENTITY folderContextSearchForMessages.label "Search Messages…">
+<!ENTITY forwardAsAttachment.tooltip "Forward selected message as an attachment">
+<!ENTITY forwardAsInline.tooltip "Forward selected message as inline text">
 <!ENTITY goChatCmd.accesskey "c">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.key "I">
 <!ENTITY goChatCmd.label "Chat">
 <!ENTITY goRecentlyClosedTabs.accesskey "R">
 <!ENTITY imAccountsStatus.accesskey "C">
@@ -909,6 +933,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY junkBarMessage2.label "&brandShortName; thinks this message is junk mail.">
 <!ENTITY manageTags.accesskey "M">
 <!ENTITY manageTags.label "Manage Tags…">
+<!ENTITY newFeedAccountCmd.accesskey "d">
+<!ENTITY newFeedAccountCmd.label "Feed Account…">
 <!ENTITY newIMAccountCmd.accesskey "C">
 <!ENTITY newIMAccountCmd.label "Chat Account…">
 <!ENTITY newIMContactCmd.accesskey "h">
@@ -916,6 +942,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY nextButtonToolbarItem.label "Next Unread">
 <!ENTITY nextMsgButton.label "Next">
 <!ENTITY nextMsgButton.tooltip "Move to the next message">
+<!ENTITY openAttachmentListCmd.accesskey "h">
+<!ENTITY openAttachmentListCmd.label "Attachments">
+<!ENTITY openFeedMessage1.accesskey "O">
+<!ENTITY openFeedMessage1.label "When Opening Feed Messages">
+<!ENTITY openFeedSummary.accesskey "S">
+<!ENTITY openFeedSummary.label "Open as Summary">
+<!ENTITY openFeedWebPage.accesskey "W">
+<!ENTITY openFeedWebPage.label "Open as Web Page">
 <!ENTITY previousButtonToolbarItem.label "Previous Unread">
 <!ENTITY previousMsgButton.label "Previous">
 <!ENTITY previousMsgButton.tooltip "Move to the previous message">

@@ -41,6 +41,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.modifiedKeyPrefsTitle "Sainroghanna Tábhachtacha Athraithe">
 <!ENTITY aboutSupport.modifiedPrefsName "Ainm">
 <!ENTITY aboutSupport.modifiedPrefsValue "Luach">
+<!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
+
+<!ENTITY aboutSupport.userJSTitle "Sainroghanna user.js">
+<!ENTITY aboutSupport.userJSDescription "Tá <a id='prefs-user-js-link'>comhad user.js</a> i do fhillteán próifíle, ina bhfuil sainroghanna nach raibh cruthaithe ag &brandShortName;.">
 
 <!ENTITY aboutSupport.graphicsTitle "Grafaic">
 
@@ -56,4 +60,11 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.installationHistoryTitle "Stair Suiteála">
 <!ENTITY aboutSupport.updateHistoryTitle "Stair na Nuashonruithe">
 
-<!ENTITY aboutSupport.copyToClipboard.label "Cóipeáil gach rud go dtí an Ghearrthaisce">
+<!ENTITY aboutSupport.copyTextToClipboard.label "Cóipeáil an téacs go dtí an ghearrthaisce">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "Cóipeáil amhshonraí go dtí an ghearrthaisce">
+
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
+
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Update History">

@@ -23,8 +23,8 @@
 <!ENTITY attachFileCmd.key "A">
 <!ENTITY attachCloudCmd.label "Filelink">
 <!ENTITY attachCloudCmd.accesskey "i">
-<!ENTITY attachPageCmd.label "Hjemmeside…">
-<!ENTITY attachPageCmd.accesskey "H">
+<!ENTITY attachPageCmd.label "Webside…">
+<!ENTITY attachPageCmd.accesskey "W">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
 <!ENTITY attachVCardCmd.label "Mit visitkort (vCard)">
 <!ENTITY attachVCardCmd.accesskey "V">
@@ -87,6 +87,7 @@
 <!ENTITY findCmd.label "Find og erstat…">
 <!ENTITY findCmd.key "F">
 <!ENTITY findCmd.accesskey "e">
+<!ENTITY findReplaceCmd.key "H">
 <!ENTITY findAgainCmd.label "Find næste">
 <!ENTITY findAgainCmd.key "G">
 <!ENTITY findAgainCmd.accesskey "n">
@@ -139,8 +140,8 @@
 <!ENTITY returnReceiptMenu.accesskey "i">
 <!ENTITY dsnMenu.label "Meddelelse om leveringsstatus">
 <!ENTITY dsnMenu.accesskey "M">
-<!ENTITY outputFormatMenu.label "Formater">
-<!ENTITY outputFormatMenu.accesskey "f">
+<!ENTITY deliveryFormatMenu.label "Leveringsformat">
+<!ENTITY deliveryFormatMenu.accesskey "F">
 <!ENTITY autoFormatCmd.label "Find automatisk">
 <!ENTITY autoFormatCmd.accesskey "a">
 <!ENTITY plainTextFormatCmd.label "Kun ren tekst">
@@ -283,7 +284,7 @@
 <!ENTITY cancelUpload.accesskey "n">
 <!ENTITY convertRegularAttachment.label "Almindelig vedhæftet fil">
 <!ENTITY convertRegularAttachment.accesskey "A">
-<!ENTITY attachPage.label "Vedhæft hjemmeside…">
+<!ENTITY attachPage.label "Vedhæft webside…">
 <!ENTITY attachPage.accesskey "h">
 
 <!-- Spell checker context menu items -->

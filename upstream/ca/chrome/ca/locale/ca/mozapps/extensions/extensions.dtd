@@ -1,7 +1,6 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-
 <!ENTITY addons.windowTitle                   "Gestor de complements">
 
 <!ENTITY search.placeholder                   "Cerca tots els complements">
@@ -91,6 +90,13 @@
 <!ENTITY cmd.enableTheme.accesskey            "v">
 <!ENTITY cmd.disableTheme.label               "Deixa el tema">
 <!ENTITY cmd.disableTheme.accesskey           "x">
+<!ENTITY cmd.askToActivate.label              "Demana si vull activar-lo">
+<!ENTITY cmd.askToActivate.tooltip            "Demana cada vegada permís per utilitzar aquest complement">
+<!ENTITY cmd.alwaysActivate.label             "Activa'l sempre">
+<!ENTITY cmd.alwaysActivate.tooltip           "Utilitza sempre aquest complement">
+<!ENTITY cmd.neverActivate.label              "No l'activis mai">
+<!ENTITY cmd.neverActivate.tooltip            "No utilitzis mai aquest complement">
+<!ENTITY cmd.stateMenu.tooltip                "Canvia quan s'executa aquest complement">
 <!ENTITY cmd.installAddon.label               "Instal·la">
 <!ENTITY cmd.installAddon.accesskey           "I">
 <!ENTITY cmd.uninstallAddon.label             "Suprimeix">
@@ -197,7 +203,7 @@
 <!ENTITY addon.checkingForUpdates.label       "S'està comprovant si hi ha actualitzacions…">
 <!ENTITY addon.releaseNotes.label             "Notes de la versió:">
 <!ENTITY addon.loadingReleaseNotes.label      "S'està carregant…">
-<!ENTITY addon.errorLoadingReleaseNotes.label "Ho sentim, però s'ha produït un error mentre en carregar les notes de la versió.">
+<!ENTITY addon.errorLoadingReleaseNotes.label "S'ha produït un error en carregar les notes de la versió.">
 
 <!ENTITY addon.createdBy.label                "Per ">
 

@@ -185,6 +185,8 @@
 <!ENTITY Gtalk.label                    "Google Talk:">
 <!ENTITY ICQ.accesskey                  "I">
 <!ENTITY ICQ.label                      "ICQ:">
+<!ENTITY IRC.accesskey                  "R">
+<!ENTITY IRC.label                      "IRC Nick:">
 <!ENTITY MSN.accesskey                  "M">
 <!ENTITY MSN.label                      "MSN:">
 <!ENTITY QQ.accesskey                   "Q">

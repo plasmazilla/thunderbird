@@ -1,0 +1,24 @@
+locale necko sq sq/locale/sq/necko/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale communicator sq sq/locale/sq/communicator/
+locale branding sq sq/locale/sq/branding/
+locale global-platform sq sq/locale/sq/global-platform/
+locale messenger-mapi sq sq/locale/sq/messenger-mapi/
+locale global sq sq/locale/sq/global/
+locale cookie sq sq/locale/sq/cookie/
+locale messenger-newsblog sq sq/locale/sq/messenger-newsblog/
+locale autoconfig sq sq/locale/sq/autoconfig/
+locale messenger-smime sq sq/locale/sq/messenger-smime/
+locale alerts sq sq/locale/sq/alerts/
+locale places sq sq/locale/sq/places/
+locale chat sq sq/locale/sq/chat/
+locale pippki sq sq/locale/sq/pippki/
+locale global-region sq sq/locale/sq/global-region/
+locale passwordmgr sq sq/locale/sq/passwordmgr/
+locale mozldap sq sq/locale/sq/mozldap/
+locale editor sq sq/locale/sq/editor/
+locale pipnss sq sq/locale/sq/pipnss/
+locale mozapps sq sq/locale/sq/mozapps/
+locale messenger-region sq sq/locale/sq/messenger-region/
+locale messenger sq sq/locale/sq/messenger/

@@ -46,6 +46,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.modifiedPrefsName "Nombre">
 <!ENTITY aboutSupport.modifiedPrefsValue "Valor">
 
+<!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
+<!ENTITY aboutSupport.userJSTitle "Preferencias en user.js">
+<!ENTITY aboutSupport.userJSDescription "Su carpeta de perfil contiene un <a id='prefs-user-js-link'>archivo user.js</a>, que incluye preferencias que no fueron creadas por &brandShortName;.">
+
 <!ENTITY aboutSupport.graphicsTitle "Gráficos">
 
 <!ENTITY aboutSupport.jsTitle "JavaScript">
@@ -60,4 +64,11 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.installationHistoryTitle "Historial de instalación">
 <!ENTITY aboutSupport.updateHistoryTitle "Historial de actualizaciones">
 
-<!ENTITY aboutSupport.copyToClipboard.label "Copiar todo al portapapeles">
+<!ENTITY aboutSupport.copyTextToClipboard.label "Copiar texto al portapapeles">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "Copiar datos en bruto al portapapeles">
+
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
+
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Update History">

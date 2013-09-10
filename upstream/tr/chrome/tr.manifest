@@ -1,0 +1,24 @@
+locale global-region tr tr/locale/tr/global-region/
+locale messenger-smime tr tr/locale/tr/messenger-smime/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+locale global tr tr/locale/tr/global/
+locale messenger tr tr/locale/tr/messenger/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale places tr tr/locale/tr/places/
+locale pippki tr tr/locale/tr/pippki/
+locale messenger-newsblog tr tr/locale/tr/messenger-newsblog/
+locale mozldap tr tr/locale/tr/mozldap/
+locale chat tr tr/locale/tr/chat/
+locale alerts tr tr/locale/tr/alerts/
+locale passwordmgr tr tr/locale/tr/passwordmgr/
+locale messenger-region tr tr/locale/tr/messenger-region/
+locale global-platform tr tr/locale/tr/global-platform/
+locale pipnss tr tr/locale/tr/pipnss/
+locale cookie tr tr/locale/tr/cookie/
+locale autoconfig tr tr/locale/tr/autoconfig/
+locale mozapps tr tr/locale/tr/mozapps/
+locale branding tr tr/locale/tr/branding/
+locale communicator tr tr/locale/tr/communicator/
+locale necko tr tr/locale/tr/necko/
+locale messenger-mapi tr tr/locale/tr/messenger-mapi/
+locale editor tr tr/locale/tr/editor/

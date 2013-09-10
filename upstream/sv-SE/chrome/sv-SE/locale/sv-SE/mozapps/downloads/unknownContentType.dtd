@@ -24,3 +24,6 @@
 <!ENTITY  chooseHandler.accesskey     "B">
 
 <!ENTITY  unknownPromptText.label     "Vill du spara den här filen?">
+
+
+<!ENTITY  whichIs.label              "which is:">

@@ -20,3 +20,6 @@
 <!ENTITY feeds.wizardShortName "Kanali">
 <!ENTITY feeds.wizardLongName "Blogovi i vijesti">
 <!ENTITY feeds.wizardLongName.accesskey "B">
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

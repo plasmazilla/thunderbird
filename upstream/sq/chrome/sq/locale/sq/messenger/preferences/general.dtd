@@ -31,3 +31,7 @@
 <!ENTITY customsound.accesskey            "o">
 <!ENTITY browse.label                     "Shfletoni…">
 <!ENTITY browse.accesskey                 "f">
+
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY showTrayIcon.label               "Show a tray icon">

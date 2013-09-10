@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY aboutSupport.pageTitle                    "Informacija problemų sprendimui">
 
 <!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
@@ -17,6 +21,12 @@
 <!ENTITY aboutSupport.appBasicsTitle               "Pagrindinės programos savybės">
 <!ENTITY aboutSupport.appBasicsName                "Pavadinimas">
 <!ENTITY aboutSupport.appBasicsVersion             "Laida">
+
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory       "Atnaujinimo žurnalas">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory   "Rodyti atnaujinimo žurnalą">
+
 <!ENTITY aboutSupport.appBasicsProfileDir          "Profilio aplankas">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
 This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
@@ -43,6 +53,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.modifiedPrefsName            "Vardas">
 <!ENTITY aboutSupport.modifiedPrefsValue           "Reikšmė">
 
+<!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
+<!ENTITY aboutSupport.userJSTitle                  "Nuostatos „user.js“ faile">
+<!ENTITY aboutSupport.userJSDescription            "Jūsų profilio aplanke yra <a id='prefs-user-js-link'>„user.js“ failas</a>, kuriame įrašytos nuostatos, sukurtos ne „&brandShortName;“ programoje.">
+
 <!ENTITY aboutSupport.graphicsTitle                "Grafika">
 
 <!ENTITY aboutSupport.jsTitle                      "„JavaScript“">
@@ -57,4 +71,5 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.installationHistoryTitle     "Įdiegimo žurnalas">
 <!ENTITY aboutSupport.updateHistoryTitle           "Atnaujinimo žurnalas">
 
-<!ENTITY aboutSupport.copyToClipboard.label        "Viską kopijuoti į iškarpinę">
+<!ENTITY aboutSupport.copyTextToClipboard.label    "Kopijuoti tekstą į iškarpinę">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "Kopijuoti neapdorotus duomenis į iškarpinę">

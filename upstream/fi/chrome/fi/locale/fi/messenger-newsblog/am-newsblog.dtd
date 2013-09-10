@@ -21,3 +21,6 @@
 <!ENTITY feeds.wizardLongName "Uutis- ja blogisyötteet">
 <!ENTITY feeds.wizardLongName.accesskey "U">
 
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

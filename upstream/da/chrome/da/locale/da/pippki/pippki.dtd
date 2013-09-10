@@ -14,7 +14,7 @@
 <!-- Values for resetpassword.xul -->
 <!ENTITY resetPasswordButtonLabel "Nulstil">
 <!ENTITY resetPassword.title  "Nulstil hovedadgangskode">
-<!ENTITY resetPassword.text  "Hvis du nulstiller din hovedadgangskode, vil alle dine gemte web- og mail-adgangskoder, formulardata, personlige certifikater og private nøgler blive glemt. Er du sikker på at du ønsker at nulstille din hovedadgangskode?">
+<!ENTITY resetPassword.text  "Hvis du nulstiller din hovedadgangskode, vil alle dine gemte web- og mail-adgangskoder, formulardata, personlige certifikater og private nøgler blive glemt. Er du sikker på, at du vil nulstille din hovedadgangskode?">
 
 <!-- Values for getpassword.xul -->
 <!ENTITY getPassword.title  "Indtast hovedadgangskode">
@@ -45,10 +45,6 @@
 <!ENTITY downloadCert.viewPolicy.label "Politik">
 <!ENTITY downloadCert.viewCert.text "Undersøg CA-certifikat">
 <!ENTITY downloadCert.viewPolicy.text "Undersøg CA holdninger og fremgangsmåder">
-
-<!-- Certificate Exists in database -->
-<!ENTITY caCertExists.title "Certifikatet eksisterer">
-<!ENTITY caCertExists.message "Certifikatet eksisterer allerede.">
 
 <!-- Strings for the MismatchDomain dialog  -->
 <!ENTITY examineCert.label "Vis certifikat">
@@ -81,8 +77,6 @@
 <!ENTITY escrowWarn.message1 "Vigtigt: Denne certifikatautoritet har bedt om lov til at tage en kopi af din private krypteringsnøgle.">
 <!ENTITY escrowWarn.benefit1 "Fordelen er, at hvis du mister adgang til din private krypteringsnøgle, kan du bede om en kopi fra denne certifikatautoritet.">
 <!ENTITY escrowWarn.message2 "Men, din private krypteringsnøgle vil blive gemt af certifikatautoriteten, og kan bruges til at læse din krypterede mails og dokumenter uden din tilladelse.">
-
-<!ENTITY serverCrlNextupdate.message "Bed venligst din systemadministrator om hjælp">
 
 <!-- Strings for the CreateCertInfo dialog  -->
 <!ENTITY createCertInfo.title "Generer en privat nøgle">

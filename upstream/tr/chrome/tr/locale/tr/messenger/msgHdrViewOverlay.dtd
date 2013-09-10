@@ -1,39 +1,6 @@
-<!-- ***** BEGIN LICENSE BLOCK *****
- Version: MPL 1.1/GPL 2.0/LGPL 2.1
-
- The contents of this file are subject to the Mozilla Public License Version
- 1.1 (the "License"); you may not use this file except in compliance with
- the License. You may obtain a copy of the License at
- http://www.mozilla.org/MPL/
-
- Software distributed under the License is distributed on an "AS IS" basis,
- WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- for the specific language governing rights and limitations under the
- License.
-
- The Original Code is Mozilla Communicator client code, released
- March 31, 1998.
-
- The Initial Developer of the Original Code is
- Netscape Communications Corporation.
- Portions created by the Initial Developer are Copyright (C) 1998-1999
- the Initial Developer. All Rights Reserved.
-
- Contributor(s):
-
- Alternatively, the contents of this file may be used under the terms of
- either the GNU General Public License Version 2 or later (the "GPL"), or
- the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- in which case the provisions of the GPL or the LGPL are applicable instead
- of those above. If you wish to allow use of your version of this file only
- under the terms of either the GPL or the LGPL, and not to allow others to
- use your version of this file under the terms of the MPL, indicate your
- decision by deleting the provisions above and replace them with the notice
- and other provisions required by the GPL or the LGPL. If you do not delete
- the provisions above, a recipient may use your version of this file under
- the terms of any one of the MPL, the GPL or the LGPL.
-
- ***** END LICENSE BLOCK ***** -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY toField3.label "Kime ">
 <!ENTITY fromField3.label "Kimden ">
@@ -60,7 +27,7 @@
 <!ENTITY hdrArchiveButton1.tooltip "Bu iletiyi arşivle">
 <!ENTITY hdrSmartReplyButton1.label "Akıllı yanıt">
 <!ENTITY hdrReplyButton1.label "Yanıtla">
-<!ENTITY hdrReplyButton1.tooltip "Bu iletiyi yanıtla">
+<!ENTITY hdrReplyButton2.tooltip "Bu iletiyi gönderene yanıt yaz">
 <!ENTITY hdrReplyAllButton1.label "Tümüne yanıtla">
 <!ENTITY hdrReplyAllButton1.tooltip "Göndereni ve tüm alıcıları yanıtla">
 <!ENTITY hdrReplyListButton1.label "Listeyi yanıtla">
@@ -101,6 +68,10 @@
 <!ENTITY otherActionsPrint1.label "Yazdır…">
 <!ENTITY otherActionsPrint1.accesskey "z">
 
+<!-- Attachment bar context menu items -->
+<!ENTITY startExpandedCmd.label    "Ek bölmesini daima göster">
+<!ENTITY startExpandedCmd.accesskey    "g">
+
 <!-- Attachment context menu items -->
 <!ENTITY openAttachmentCmd.label    "Aç">
 <!ENTITY openAttachmentCmd.accesskey    "A">
@@ -138,8 +109,24 @@
 <!ENTITY OpenBrowserWithMsgId.accesskey "B">
 
 
-<!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">
-<!ENTITY startExpandedCmd.accesskey    "S">
+<!ENTITY bccField4.label "Bcc">
+<!ENTITY ccField4.label "Cc">
+<!ENTITY dateField4.label "Date">
+<!ENTITY followupToField4.label "Followup to">
+<!ENTITY fromField4.label "From">
+<!ENTITY hdrMenuForwardButton.label "Forward As">
+<!ENTITY inReplyToField4.label "In reply to">
+<!ENTITY messageIdField4.label "Message ID">
+<!ENTITY newsgroupsField4.label "Newsgroups">
+<!ENTITY organizationField4.label "Organization">
+<!ENTITY originalWebsite4.label "Website">
+<!ENTITY referencesField4.label "References">
+<!ENTITY replyToField4.label "Reply to">
+<!ENTITY senderField4.label "Sender">
 
-<!-- Attachment bar context menu items -->
-<!ENTITY startExpandedCmd.label    "Initially Show Attachment Pane">
+<!ENTITY subjectField4.label "Subject">
+<!ENTITY tagsHdr4.label "Tags">
+
+
+<!ENTITY toField4.label "To">
+<!ENTITY userAgentField4.label "User agent">

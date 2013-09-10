@@ -158,3 +158,6 @@
 <!ENTITY PhotoURL.placeholder           "Hidheni ose shtypeni dorazi adresën web të një fotoje">
 <!ENTITY UpdatePhoto.label              "Përditësojeni">
 <!ENTITY UpdatePhoto.accesskey          "P">
+
+<!ENTITY IRC.accesskey                  "R">
+<!ENTITY IRC.label                      "IRC Nick:">

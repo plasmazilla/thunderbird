@@ -10,3 +10,9 @@
 
 <!ENTITY searchIntegration.label "&searchIntegration.engineName; ට ලිපි සෙවීමට ඉඩදෙන්න">
 <!ENTITY searchIntegration.accesskey "S">
+
+<!ENTITY acceptIntegration.label  "Set as Default">
+<!ENTITY cancelIntegration.label  "Skip Integration">
+<!ENTITY cancelIntegration2.label  "Cancel">
+
+<!ENTITY unsetDefault.tooltip "It is not possible to unset &brandShortName; as the default client within &brandShortName;. To make another application the default you must use its 'Set as default' dialog.">

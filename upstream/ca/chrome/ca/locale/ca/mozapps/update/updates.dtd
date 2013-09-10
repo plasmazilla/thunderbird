@@ -1,3 +1,6 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!ENTITY  updateWizard.title              "Actualització de programari">
 
 <!ENTITY  checking.title                  "Comprovació d'actualitzacions">
@@ -15,6 +18,12 @@
 <!ENTITY  manualUpdate.desc               "Hi ha una actualització de seguretat i estabilitat recomanada disponible, però no teniu els permisos necessaris per instal·lar-la. Contacteu amb el vostre administrador de sistemes o torneu a provar-ho des d'un compte que tingui permisos per instal·lar programari en aquest ordinador.">
 <!ENTITY  manualUpdate.space.desc         "Hi ha una actualització de seguretat i estabilitat recomanada disponible, però no teniu espai suficient per instal·lar-la.">
 <!ENTITY  manualUpdateGetMsg.label        "Sempre podeu aconseguir la darrera versió del &brandShortName; a:">
+
+<!ENTITY  unsupported.title               "Sistema no suportat">
+<!ENTITY  unsupported.label               "el &brandShortName; no està actualitzat, però la darrera versió 
+no té suport per al vostre sistema. Actualitzeu el sistema i torneu a provar. 
+Aquest missatge només es mostra una vegada però podeu">
+<!ENTITY  unsupportedLink.label           "aprendre'n més">
 
 <!ENTITY  incompatibleCheck.title         "S'està comprovant la compatibilitat dels complements">
 <!ENTITY  incompatibleCheck.label         "S'estan cercant versions més noves dels vostres complements…">

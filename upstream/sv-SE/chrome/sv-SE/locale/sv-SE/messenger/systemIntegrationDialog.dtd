@@ -3,14 +3,20 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY systemIntegration.title  "Systemintegration">
+<!ENTITY acceptIntegration.label  "Ange som standard">
+<!ENTITY cancelIntegration.label  "Hoppa över integrationen">
 <!ENTITY defaultClient.intro  "Använd &brandShortName; som standardklient för:">
 
 <!ENTITY email.label "E-post">
 <!ENTITY newsgroups.label "Diskussionsgrupper">
 <!ENTITY feeds.label "RSS-kanaler">
 
+<!ENTITY unsetDefault.tooltip "Det är inte möjligt att ta bort &brandShortName; som standardklient inuti &brandShortName;. För att göra ett annat program till standard måste du använda dess 'Ange som standard'-dialog.">
+
 <!ENTITY checkOnStartup.label "Gör alltid denna kontroll när &brandShortName; startar">
 <!ENTITY checkOnStartup.accesskey "G">
 
 <!ENTITY searchIntegration.label "Låt &searchIntegration.engineName; söka igenom meddelanden">
 <!ENTITY searchIntegration.accesskey "L">
+
+<!ENTITY cancelIntegration2.label  "Cancel">

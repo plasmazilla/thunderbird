@@ -22,3 +22,8 @@
 
 <!ENTITY feedsSectionHdr.label        "Kanali">
 <!ENTITY subscribeFeeds.label         "Upravljanje pretplatama">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

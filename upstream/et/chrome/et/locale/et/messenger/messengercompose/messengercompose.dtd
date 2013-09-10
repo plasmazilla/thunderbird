@@ -87,6 +87,7 @@
 <!ENTITY findCmd.label                       "Otsi ja asenda...">
 <!ENTITY findCmd.key                         "F">
 <!ENTITY findCmd.accesskey                   "O">
+<!ENTITY findReplaceCmd.key                  "H">
 <!ENTITY findAgainCmd.label                  "Otsi uuesti">
 <!ENTITY findAgainCmd.key                    "G">
 <!ENTITY findAgainCmd.accesskey              "u">
@@ -139,8 +140,8 @@
 <!ENTITY returnReceiptMenu.accesskey         "t">
 <!ENTITY dsnMenu.label                       "Saatmise staatuse teavitus">
 <!ENTITY dsnMenu.accesskey                   "S">
-<!ENTITY outputFormatMenu.label              "Vormindus">
-<!ENTITY outputFormatMenu.accesskey          "d">
+<!ENTITY deliveryFormatMenu.label            "Saadetava kirja vorming">
+<!ENTITY deliveryFormatMenu.accesskey        "d">
 <!ENTITY autoFormatCmd.label                 "Tuvastatakse automaatselt">
 <!ENTITY autoFormatCmd.accesskey             "T">
 <!ENTITY plainTextFormatCmd.label            "Tavaline tekst">

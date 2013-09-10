@@ -68,3 +68,6 @@
 <!ENTITY filter.label       "පෙරනය">
 <!ENTITY filter.accesskey   "F">
 <!ENTITY codeEval.label     "කේතය:">
+
+<!ENTITY filter2.accesskey  "F">
+<!ENTITY filter2.label      "Filter:">

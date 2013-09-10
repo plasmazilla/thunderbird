@@ -1,4 +1,4 @@
-<!-- This Source Code Form is subject to the terms of the Mozilla Public
+<!-- his Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
@@ -32,12 +32,12 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey "B">
 <!ENTITY newIMAccountCmd.label "Chataccount…">
 <!ENTITY newIMAccountCmd.accesskey "C">
+<!ENTITY newFeedAccountCmd.label "Feedaccount…">
+<!ENTITY newFeedAccountCmd.accesskey "d">
 <!ENTITY newIMContactCmd.label "Chatkontakt…">
 <!ENTITY newIMContactCmd.accesskey "h">
 <!ENTITY openMessageFileCmd.label "Bewarre berjocht iepenje…">
 <!ENTITY openMessageFileCmd.accesskey "O">
-<!ENTITY openAttachmentCmd.label "Bylagen">
-<!ENTITY openAttachmentCmd.accesskey "B">
 <!ENTITY saveAsMenu.label "Bewarje as">
 <!ENTITY saveAsMenu.accesskey "a">
 <!ENTITY saveAsFileCmd.label "Bestân">
@@ -252,33 +252,6 @@
 <!ENTITY viewAttachmentsInlineCmd.label "Bylagen yn berjocht werjaan">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "a">
 
-<!-- LOCALIZATION NOTE :
-fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
-fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
-If shift key is needed with your locale popular keyboard for them,
-you can use these alternative items. Otherwise, their values should be empty.  -->
-
-<!ENTITY fullZoomEnlargeCmd.label       "Ynzoome">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "Y">
-<!ENTITY fullZoomEnlargeCmd.commandkey  "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "="> <!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-
-<!ENTITY fullZoomReduceCmd.label        "Utzoome">
-<!ENTITY fullZoomReduceCmd.accesskey    "U">
-<!ENTITY fullZoomReduceCmd.commandkey   "-">
-<!ENTITY fullZoomReduceCmd.commandkey2  "">
-
-<!ENTITY fullZoomResetCmd.label         "Tebeksette">
-<!ENTITY fullZoomResetCmd.accesskey     "T">
-<!ENTITY fullZoomResetCmd.commandkey    "0">
-<!ENTITY fullZoomResetCmd.commandkey2   "">
-
-<!ENTITY fullZoomToggleCmd.label        "Alinnich tekst zoome">
-<!ENTITY fullZoomToggleCmd.accesskey    "A">
-<!ENTITY fullZoom.label                 "Zoome">
-<!ENTITY fullZoom.accesskey             "Z">
-
 <!ENTITY pageSourceCmd.label "Berjochtboarne">
 <!ENTITY pageSourceCmd.accesskey "r">
 <!ENTITY pageSourceCmd.key "u">
@@ -335,7 +308,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "Chat">
 <!ENTITY goChatCmd.accesskey "c">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.key "I">
 <!ENTITY prevStarredMsgCmd.label "Berjocht mei stjer">
 <!ENTITY prevStarredMsgCmd.accesskey "s">
 <!ENTITY folderMenu.label "Map">
@@ -455,12 +428,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openConversationCmd.label "Iepenje yn petear">
 <!ENTITY openConversationCmd.accesskey "p">
 <!ENTITY openConversationCmd.key "o">
-<!ENTITY openFeedMessage.label "Iepen feedberjocht">
-<!ENTITY openFeedMessage.accesskey "I">
-<!ENTITY openFeedWebPageInWindow.label "Webside yn nij skerm">
-<!ENTITY openFeedWebPageInWindow.accesskey "W">
-<!ENTITY openFeedSummaryInWindow.label "Gearfetting yn nij skerm">
-<!ENTITY openFeedSummaryInWindow.accesskey "s">
+<!ENTITY openAttachmentListCmd.label "Bylagen">
+<!ENTITY openAttachmentListCmd.accesskey "y">
+<!ENTITY openFeedMessage1.label "By iepenjen feedberjochten">
+<!ENTITY openFeedMessage1.accesskey "B">
+<!ENTITY openFeedWebPage.label "Iepenje as webside">
+<!ENTITY openFeedWebPage.accesskey "I">
+<!ENTITY openFeedSummary.label "Iepenje as gearfetting">
+<!ENTITY openFeedSummary.accesskey "g">
 <!ENTITY openFeedWebPageInMP.label "Wiksel webside en gearfetting yn berjochtpaniel">
 <!ENTITY openFeedWebPageInMP.accesskey "W">
 
@@ -508,12 +483,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY errorConsoleCmd.accesskey "F">
 <!ENTITY errorConsoleCmd.commandkey "j">
 <!ENTITY clearRecentHistory.label "Resinte skiednis wiskje…">
-<!ENTITY clearRecentHistory.accesskey "g">
+<!ENTITY clearRecentHistory.accesskey "R">
 <!ENTITY accountManagerCmd.label "Accountynstellingen…">
 <!ENTITY accountManagerCmd.accesskey "c">
 <!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
         which is placed under the Edit menu on Unix systems -->
 <!ENTITY accountManagerCmdUnix.accesskey "A">
+<!ENTITY allowRemoteDebugging.label "Debugging op ôfstân tastean">
+<!ENTITY allowRemoteDebugging.accesskey "g">
 
 <!-- Mail Toolbar -->
 <!ENTITY getMsgButton.label "E-mail ophelje">
@@ -563,6 +540,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyAllButton.tooltip "Ofstjoerder en alle adressearden beantwurdzje">
 <!ENTITY replyListButton.tooltip "Mailinglist beantwurdzje">
 <!ENTITY forwardButton.tooltip "Selektearre berjocht trochstjoere">
+<!ENTITY forwardAsInline.tooltip "Selektearre berjocht trochstjoer yn berjochttekst">
+<!ENTITY forwardAsAttachment.tooltip "Selektearre berjocht trochstjoer as in bylage">
 <!ENTITY fileButton.tooltip "Selektearre berjocht bewarje">
 <!ENTITY archiveButton.tooltip "Selektearre berjocht argivearje">
 <!ENTITY nextButton.tooltip "Nei it folgjende net-lêzen berjocht gean">
@@ -581,7 +560,11 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY addressBookButton.tooltip "Adresboek iepenje">
 <!ENTITY tagButton.tooltip "Berjocht labelje">
 <!ENTITY compactButton.tooltip "Fuortsmiten berjochten út de selektearre map definityf fuortsmite">
-<!ENTITY appmenuButton.tooltip "Tapassingsmenu toane">
+<!ENTITY appmenuButton1.tooltip "&brandShortName;-menu toane">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Trochstjoere yn berjocht">
+<!ENTITY buttonMenuForwardAsAttachment.label "Trochstjoere as bylage">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Nij berjocht">
@@ -589,6 +572,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY appmenuEditMenu.label "Bewurkje">
 <!ENTITY appmenuQFBMenu.label "Fluchfilterbalke">
 <!ENTITY appmenuToolbarLayout.label "Arkbalke-yndieling…">
+<!ENTITY appmenuSelectThread.label "Konversaasje selektearje">
+<!ENTITY appmenuSelectFlagged.label "Berjochten mei stjer selektearje">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "Nij label…">
@@ -603,8 +588,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Folder Pane Context Menu -->
 <!ENTITY folderContextGetMessages.label "Berjochten ophelje">
 <!ENTITY folderContextGetMessages.accesskey "B">
-<!ENTITY folderContextOpenNewWindow.label "Iepenje">
-<!ENTITY folderContextOpenNewWindow.accesskey "I">
+<!ENTITY folderContextOpenInNewWindow.label "Iepenje yn nij skerm">
+<!ENTITY folderContextOpenInNewWindow.accesskey "s">
 <!ENTITY folderContextOpenNewTab.label "Iepenje yn nij ljepblêd">
 <!ENTITY folderContextOpenNewTab.accesskey "l">
 <!ENTITY folderContextNew.label "Nije submap…">
@@ -722,14 +707,24 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextReplyList.accesskey "L">
 <!ENTITY contextForward.label "Trochstjoere">
 <!ENTITY contextForward.accesskey "s">
-<!ENTITY contextForwardAsAttachment.label "Trochstjoere as bylage">
-<!ENTITY contextForwardAsAttachment.accesskey "t">
+<!ENTITY contextForwardAsMenu.label "Trochstjoere">
+<!ENTITY contextForwardAsMenu.accesskey "o">
+<!ENTITY contextForwardAsInline.label "Yn berjocht">
+<!ENTITY contextForwardAsInline.accesskey "Y">
+<!ENTITY contextForwardAsAttachmentItem.label "As bylage">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "l">
+<!ENTITY contextMultiForwardAsAttachment.label "Trochstjoere as bylagen">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
 <!ENTITY contextMoveMsgMenu.label "Ferpleatse nei">
 <!ENTITY contextMoveMsgMenu.accesskey "F">
 <!ENTITY contextMoveCopyMsgRecentMenu.label "Resint">
 <!ENTITY contextMoveCopyMsgRecentMenu.accesskey "R">
 <!ENTITY contextCopyMsgMenu.label "Kopiearje nei">
 <!ENTITY contextCopyMsgMenu.accesskey "K">
+<!ENTITY contextKillThreadMenu.label "Tried ferjitte">
+<!ENTITY contextKillThreadMenu.accesskey "f">
+<!ENTITY contextKillSubthreadMenu.label "Tried ferjitte">
+<!ENTITY contextWatchThreadMenu.label "Tried besjen">
 <!ENTITY contextSaveAs.label "Bewarje as…">
 <!ENTITY contextSaveAs.accesskey "B">
 <!ENTITY contextPrint.label "Ofdrukke…">

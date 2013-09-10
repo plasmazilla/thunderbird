@@ -28,3 +28,6 @@
 <!ENTITY evaluate.label     "Εκτίμηση">
 <!ENTITY evaluate.accesskey "σ">
 <!ENTITY codeEval.label     "Κώδικας:">
+
+<!ENTITY filter2.accesskey  "F">
+<!ENTITY filter2.label      "Filter:">

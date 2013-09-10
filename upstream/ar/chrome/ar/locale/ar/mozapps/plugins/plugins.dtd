@@ -1,3 +1,6 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!ENTITY pluginWizard.title                                  "خدمة إيجاد الملحقات">
 <!ENTITY pluginWizard.firstPage.title                        "مرحبا في &pluginWizard.title;">
 
@@ -32,7 +35,7 @@
 <!ENTITY missingPlugin                                       "تحتاج تثبيت ملحق لمشاهدة هذا المحتوى.">
 <!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
 <!ENTITY tapToPlayPlugin                                     "اضغط هنا لتفعيل الملحق.">
-<!ENTITY clickToPlayPlugin                                   "اضغط هنا لتفعيل الملحق.">
+<!ENTITY clickToActivatePlugin                               "فعّل المُلحق.">
 <!ENTITY checkForUpdates                                     "التمس التحديثات…">
 <!ENTITY disabledPlugin                                      "هذا الملحق معطل.">
 <!ENTITY blockedPlugin.label                                 "لقد مُنع هذا الملحق من أجل حمايتك.">
@@ -53,3 +56,8 @@
 <!ENTITY report.disabled                                     "التبليغ بالانهيار معطل.">
 <!ENTITY report.failed                                       "فشل الإرسال.">
 <!ENTITY report.unavailable                                  "لا بلاغ متاح.">
+<!ENTITY report.comment                                      "أضِف تعليقًا. ملحوظة: التعليقات متاحة للعموم">
+<!ENTITY report.pageURL                                      "ضمِّن مسار الصفحة">
+
+<!ENTITY plugin.file                                         "الملف">
+<!ENTITY plugin.mimeTypes                                    "أنواع MIME">

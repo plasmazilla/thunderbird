@@ -32,12 +32,12 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey "E">
 <!ENTITY newIMAccountCmd.label "聊天帐号…">
 <!ENTITY newIMAccountCmd.accesskey "C">
+<!ENTITY newFeedAccountCmd.label "收取点账号…">
+<!ENTITY newFeedAccountCmd.accesskey "d">
 <!ENTITY newIMContactCmd.label "聊天联系人…">
 <!ENTITY newIMContactCmd.accesskey "h">
 <!ENTITY openMessageFileCmd.label "打开已保存消息…">
 <!ENTITY openMessageFileCmd.accesskey "O">
-<!ENTITY openAttachmentCmd.label "附件">
-<!ENTITY openAttachmentCmd.accesskey "A">
 <!ENTITY saveAsMenu.label "另存为">
 <!ENTITY saveAsMenu.accesskey "S">
 <!ENTITY saveAsFileCmd.label "文件">
@@ -120,7 +120,7 @@
 <!ENTITY redoMoveMsgCmd.label "重做移动消息">
 <!ENTITY undoCopyMsgCmd.label "撤销 复制消息">
 <!ENTITY redoCopyMsgCmd.label "重做复制消息">
-<!ENTITY undoMarkAllCmd.label "撤消全部标记为已读">
+<!ENTITY undoMarkAllCmd.label "撤销全部标记为已读">
 <!ENTITY redoMarkAllCmd.label "重做全部标记为已读">
 <!ENTITY undoDefaultCmd.label "撤销">
 <!ENTITY undoDefaultCmd.accesskey "U">
@@ -252,33 +252,6 @@
 <!ENTITY viewAttachmentsInlineCmd.label "查看直接插入的附件">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "A">
 
-<!-- LOCALIZATION NOTE :
-fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
-fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
-If shift key is needed with your locale popular keyboard for them,
-you can use these alternative items. Otherwise, their values should be empty.  -->
-
-<!ENTITY fullZoomEnlargeCmd.label       "放大">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "I">
-<!ENTITY fullZoomEnlargeCmd.commandkey  "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "="> <!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-
-<!ENTITY fullZoomReduceCmd.label        "缩小">
-<!ENTITY fullZoomReduceCmd.accesskey    "O">
-<!ENTITY fullZoomReduceCmd.commandkey   "-">
-<!ENTITY fullZoomReduceCmd.commandkey2  "">
-
-<!ENTITY fullZoomResetCmd.label         "重置">
-<!ENTITY fullZoomResetCmd.accesskey     "R">
-<!ENTITY fullZoomResetCmd.commandkey    "0">
-<!ENTITY fullZoomResetCmd.commandkey2   "">
-
-<!ENTITY fullZoomToggleCmd.label        "仅缩放文字">
-<!ENTITY fullZoomToggleCmd.accesskey    "T">
-<!ENTITY fullZoom.label                 "缩放">
-<!ENTITY fullZoom.accesskey             "Z">
-
 <!ENTITY pageSourceCmd.label "消息源代码">
 <!ENTITY pageSourceCmd.accesskey "o">
 <!ENTITY pageSourceCmd.key "u">
@@ -335,7 +308,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "聊天">
 <!ENTITY goChatCmd.accesskey "c">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.key "I">
 <!ENTITY prevStarredMsgCmd.label "已加星标之消息">
 <!ENTITY prevStarredMsgCmd.accesskey "S">
 <!ENTITY folderMenu.label "文件夹">
@@ -455,12 +428,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openConversationCmd.label "在会话中打开">
 <!ENTITY openConversationCmd.accesskey "s">
 <!ENTITY openConversationCmd.key "o">
-<!ENTITY openFeedMessage.label "打开收取点消息">
-<!ENTITY openFeedMessage.accesskey "O">
-<!ENTITY openFeedWebPageInWindow.label "在新窗口中打开网页">
-<!ENTITY openFeedWebPageInWindow.accesskey "W">
-<!ENTITY openFeedSummaryInWindow.label "在新窗口打开摘要">
-<!ENTITY openFeedSummaryInWindow.accesskey "S">
+<!ENTITY openAttachmentListCmd.label "附件">
+<!ENTITY openAttachmentListCmd.accesskey "h">
+<!ENTITY openFeedMessage1.label "当打开收取点信息时">
+<!ENTITY openFeedMessage1.accesskey "O">
+<!ENTITY openFeedWebPage.label "作为网页打开">
+<!ENTITY openFeedWebPage.accesskey "W">
+<!ENTITY openFeedSummary.label "作为摘要打开">
+<!ENTITY openFeedSummary.accesskey "S">
 <!ENTITY openFeedWebPageInMP.label "切换是否显示消息面板中的网页和摘要">
 <!ENTITY openFeedWebPageInMP.accesskey "T">
 
@@ -486,7 +461,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY imStatus.offline            "脱机">
 <!ENTITY imStatus.showAccounts       "显示帐号…">
 <!ENTITY joinChatCmd.label "参与聊天…">
-<!ENTITY joinChatCmd.accesskey "o">
+<!ENTITY joinChatCmd.accesskey "t">
 <!ENTITY savedFiles.label "已保存的文件">
 <!ENTITY savedFiles.accesskey "l">
 <!ENTITY savedFiles.key "j">
@@ -514,6 +489,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
         which is placed under the Edit menu on Unix systems -->
 <!ENTITY accountManagerCmdUnix.accesskey "A">
+<!ENTITY allowRemoteDebugging.label "允许远程调试">
+<!ENTITY allowRemoteDebugging.accesskey "g">
 
 <!-- Mail Toolbar -->
 <!ENTITY getMsgButton.label "获取消息">
@@ -534,7 +511,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goForwardButton1.label "前进">
 <!ENTITY deleteItem.title "删除">
 <!ENTITY deleteButton.label "删除">
-<!ENTITY undeleteButton.label "撤消删除">
+<!ENTITY undeleteButton.label "撤销删除">
 <!ENTITY markButton.label "标记">
 <!ENTITY printButton.label "打印">
 <!ENTITY stopButton.label "停止">
@@ -562,6 +539,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyAllButton.tooltip "回复发件人和所有收件人">
 <!ENTITY replyListButton.tooltip "回复至邮件列表">
 <!ENTITY forwardButton.tooltip "转发选择的消息">
+<!ENTITY forwardAsInline.tooltip "作为内联文本转发选中的消息">
+<!ENTITY forwardAsAttachment.tooltip "作为附件转发选中的消息">
 <!ENTITY fileButton.tooltip "移动选择的消息">
 <!ENTITY archiveButton.tooltip "归档选中的消息">
 <!ENTITY nextButton.tooltip "转至下一条未读消息">
@@ -574,14 +553,18 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY undeleteButton.tooltip "恢复选中消息">
 <!ENTITY markButton.tooltip "标记消息">
 <!ENTITY printButton.tooltip "打印这条消息">
-<!ENTITY stopButton.tooltip "停止当前传送">
+<!ENTITY stopButton.tooltip "停止当前的传输">
 <!ENTITY junkButton.tooltip "将选中的消息标记为垃圾(或者非垃圾)">
 <!ENTITY notJunkButton.tooltip "将所选消息标记为非垃圾邮件">
 <!ENTITY addressBookButton.tooltip "转到通讯录">
 <!ENTITY chatButton.tooltip "显示聊天选项卡">
 <!ENTITY tagButton.tooltip "为消息添加标签">
 <!ENTITY compactButton.tooltip "从选中文件夹移除已删除消息">
-<!ENTITY appmenuButton.tooltip "显示应用程序菜单">
+<!ENTITY appmenuButton1.tooltip "显示 &brandShortName; 菜单">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "内联转发">
+<!ENTITY buttonMenuForwardAsAttachment.label "作为附件转发">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "新建消息">
@@ -589,6 +572,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY appmenuEditMenu.label "编辑">
 <!ENTITY appmenuQFBMenu.label "快速过滤栏">
 <!ENTITY appmenuToolbarLayout.label "工具栏布局…">
+<!ENTITY appmenuSelectThread.label "选择话题">
+<!ENTITY appmenuSelectFlagged.label "选择加星标的消息">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "新建标签…">
@@ -603,8 +588,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Folder Pane Context Menu -->
 <!ENTITY folderContextGetMessages.label "获取消息">
 <!ENTITY folderContextGetMessages.accesskey "G">
-<!ENTITY folderContextOpenNewWindow.label "打开">
-<!ENTITY folderContextOpenNewWindow.accesskey "O">
+<!ENTITY folderContextOpenInNewWindow.label "在新窗口中打开">
+<!ENTITY folderContextOpenInNewWindow.accesskey "O">
 <!ENTITY folderContextOpenNewTab.label "在新标签页中打开">
 <!ENTITY folderContextOpenNewTab.accesskey "T">
 <!ENTITY folderContextNew.label "新建子文件夹…">
@@ -722,14 +707,24 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextReplyList.accesskey "L">
 <!ENTITY contextForward.label "转发">
 <!ENTITY contextForward.accesskey "F">
-<!ENTITY contextForwardAsAttachment.label "作为附件转发">
-<!ENTITY contextForwardAsAttachment.accesskey "o">
+<!ENTITY contextForwardAsMenu.label "转发为">
+<!ENTITY contextForwardAsMenu.accesskey "o">
+<!ENTITY contextForwardAsInline.label "内联">
+<!ENTITY contextForwardAsInline.accesskey "I">
+<!ENTITY contextForwardAsAttachmentItem.label "附件">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "A">
+<!ENTITY contextMultiForwardAsAttachment.label "作为附件转发">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
 <!ENTITY contextMoveMsgMenu.label "移动到">
 <!ENTITY contextMoveMsgMenu.accesskey "M">
 <!ENTITY contextMoveCopyMsgRecentMenu.label "最近">
 <!ENTITY contextMoveCopyMsgRecentMenu.accesskey "R">
 <!ENTITY contextCopyMsgMenu.label "复制到">
 <!ENTITY contextCopyMsgMenu.accesskey "C">
+<!ENTITY contextKillThreadMenu.label "忽略话题">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillSubthreadMenu.label "忽略子话题">
+<!ENTITY contextWatchThreadMenu.label "观察论题">
 <!ENTITY contextSaveAs.label "另存为…">
 <!ENTITY contextSaveAs.accesskey "S">
 <!ENTITY contextPrint.label "打印…">
@@ -878,7 +873,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY saveImageAsCmd.label "图像另存为…">
 <!ENTITY saveImageAsCmd.accesskey "v">
 <!ENTITY copyLinkCmd.label "复制链接地址">
-<!ENTITY copyLinkCmd.accesskey "C">
+<!ENTITY copyLinkCmd.accesskey "L">
 <!ENTITY copyImageAllCmd.label "复制图像">
 <!ENTITY copyImageAllCmd.accesskey "I">
 <!ENTITY copyEmailCmd.label "复制邮件地址">

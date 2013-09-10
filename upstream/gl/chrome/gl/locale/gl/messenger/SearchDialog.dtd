@@ -76,3 +76,8 @@
 <!ENTITY starredColumn.tooltip "Prema para ordenar por estrelas">
 <!ENTITY locationColumn.tooltip "Prema para ordenar por enderezo">
 <!ENTITY idColumn.tooltip "Prema para ordenar por aviso de recepción">
+
+<!ENTITY moveButton.accesskey        "T">
+<!ENTITY moveButton.label            "Move To">
+<!ENTITY moveHereMenu.accesskey      "H">
+<!ENTITY moveHereMenu.label          "Move Here">

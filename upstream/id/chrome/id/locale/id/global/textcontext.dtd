@@ -20,3 +20,6 @@
 <!ENTITY spellNoSuggestions.label "(Tidak ada saran pengejaan)">
 <!ENTITY spellDictionaries.label "Bahasa">
 <!ENTITY spellDictionaries.accesskey "B">
+
+<!ENTITY spellCheckToggle.accesskey "g">
+<!ENTITY spellCheckToggle.label "Check Spelling">

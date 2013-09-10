@@ -87,6 +87,7 @@
 <!ENTITY findCmd.label "Sykje en ferfange…">
 <!ENTITY findCmd.key "F">
 <!ENTITY findCmd.accesskey "S">
+<!ENTITY findReplaceCmd.key "H">
 <!ENTITY findAgainCmd.label "Op 'e nij sykje">
 <!ENTITY findAgainCmd.key "G">
 <!ENTITY findAgainCmd.accesskey "k">
@@ -139,8 +140,8 @@
 <!ENTITY returnReceiptMenu.accesskey "L">
 <!ENTITY dsnMenu.label "Ofleversteatnotifikaasje">
 <!ENTITY dsnMenu.accesskey "A">
-<!ENTITY outputFormatMenu.label "Opmaak">
-<!ENTITY outputFormatMenu.accesskey "O">
+<!ENTITY deliveryFormatMenu.label "Ofleveropmaak">
+<!ENTITY deliveryFormatMenu.accesskey "m">
 <!ENTITY autoFormatCmd.label "Automatysk ûntdekke ">
 <!ENTITY autoFormatCmd.accesskey "A">
 <!ENTITY plainTextFormatCmd.label "Allinnich platte tekst">

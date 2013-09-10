@@ -15,6 +15,11 @@
 <!ENTITY highestPriorityCmd.label "Højeste">
 <!ENTITY filterActionDesc.label "Udfør disse handlinger:">
 <!ENTITY filterActionDesc.accesskey "U">
+
+<!ENTITY filterActionOrderWarning.label "Bemærk: Filtrene vil blive udført i en anden rækkefølge.">
+<!ENTITY filterActionOrder.label "Rækkefølge">
+
+<!-- New Style Filter Rule Actions -->
 <!ENTITY moveMessage.label "Flyt meddelelse til">
 <!ENTITY copyMessage.label "Kopier meddelelse til">
 <!ENTITY forwardTo.label "Videresend meddelelse til">
@@ -34,12 +39,12 @@
 <!ENTITY stopExecution.label "Stop filter">
 
 <!ENTITY contextDesc.label "Kør filter ved:">
-<!ENTITY contextDesc.accesskey "K">
-<!ENTITY contextIncoming.label "Mailhentning">
+<!ENTITY contextIncomingMail.label "Hentning af nye meddelelser:">
+<!ENTITY contextIncomingMail.accesskey "H">
 <!ENTITY contextManual.label "Manuel start">
-<!ENTITY contextBoth.label "Mailhentning og manuel start">
-<!ENTITY contextPostPlugin.label "Mailhentning (efter klassifikation)">
-<!ENTITY contextPostPluginBoth.label "Mailhentning (efter klassifikation) og Manuel start">
+<!ENTITY contextManual.accesskey "s">
+<!ENTITY contextBeforeCls.label "Filtrer før spam-klassificering">
+<!ENTITY contextAfterCls.label "Filtrer efter spam-klassificering">
 
 <!ENTITY addAction.tooltip "Tilføj en ny handling">
 <!ENTITY removeAction.tooltip "Fjern denne handling">

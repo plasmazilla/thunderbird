@@ -36,8 +36,6 @@
 <!ENTITY newIMContactCmd.accesskey "t">
 <!ENTITY openMessageFileCmd.label "Åpne lagret melding …">
 <!ENTITY openMessageFileCmd.accesskey "Å">
-<!ENTITY openAttachmentCmd.label "Vedlegg">
-<!ENTITY openAttachmentCmd.accesskey "d">
 <!ENTITY saveAsMenu.label "Lagre som">
 <!ENTITY saveAsMenu.accesskey "s">
 <!ENTITY saveAsFileCmd.label "Fil">
@@ -252,33 +250,6 @@
 <!ENTITY viewAttachmentsInlineCmd.label "Vis vedlegg innbundet">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "V">
 
-<!-- LOCALIZATION NOTE :
-fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
-fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
-If shift key is needed with your locale popular keyboard for them,
-you can use these alternative items. Otherwise, their values should be empty.  -->
-
-<!ENTITY fullZoomEnlargeCmd.label       "Større">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "S">
-<!ENTITY fullZoomEnlargeCmd.commandkey  "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "="> <!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-
-<!ENTITY fullZoomReduceCmd.label        "Mindre">
-<!ENTITY fullZoomReduceCmd.accesskey    "M">
-<!ENTITY fullZoomReduceCmd.commandkey   "-">
-<!ENTITY fullZoomReduceCmd.commandkey2  "">
-
-<!ENTITY fullZoomResetCmd.label         "Tilbakestill">
-<!ENTITY fullZoomResetCmd.accesskey     "T">
-<!ENTITY fullZoomResetCmd.commandkey    "0">
-<!ENTITY fullZoomResetCmd.commandkey2   "">
-
-<!ENTITY fullZoomToggleCmd.label        "Forstørr bare tekst">
-<!ENTITY fullZoomToggleCmd.accesskey    "B">
-<!ENTITY fullZoom.label                 "Forstørring">
-<!ENTITY fullZoom.accesskey             "F">
-
 <!ENTITY pageSourceCmd.label "Kildekode">
 <!ENTITY pageSourceCmd.accesskey "K">
 <!ENTITY pageSourceCmd.key "u">
@@ -335,7 +306,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "Nettprat">
 <!ENTITY goChatCmd.accesskey "e">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.key "I">
 <!ENTITY prevStarredMsgCmd.label "Melding med stjerne">
 <!ENTITY prevStarredMsgCmd.accesskey "M">
 <!ENTITY folderMenu.label "Mappe">
@@ -455,12 +426,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openConversationCmd.label "Åpne i samtale">
 <!ENTITY openConversationCmd.accesskey "n">
 <!ENTITY openConversationCmd.key "o">
-<!ENTITY openFeedMessage.label "Åpne nyhetskilde-melding">
-<!ENTITY openFeedMessage.accesskey "Å">
-<!ENTITY openFeedWebPageInWindow.label "Nettside i nytt vindu">
-<!ENTITY openFeedWebPageInWindow.accesskey "N">
-<!ENTITY openFeedSummaryInWindow.label "Oppsummering i nytt vindu">
-<!ENTITY openFeedSummaryInWindow.accesskey "O">
+<!ENTITY openAttachmentListCmd.label "Vedlegg">
+<!ENTITY openAttachmentListCmd.accesskey "V">
+<!ENTITY openFeedMessage1.label "Ved åpning av nyhetskilde-melding">
+<!ENTITY openFeedMessage1.accesskey "Å">
+<!ENTITY openFeedWebPage.label "Åpne som nettside">
+<!ENTITY openFeedWebPage.accesskey "N">
+<!ENTITY openFeedSummary.label "Åpne som oppsummering">
+<!ENTITY openFeedSummary.accesskey "O">
 <!ENTITY openFeedWebPageInMP.label "Bytt mellom visning av nettside og oppsummering i meldingsvinduet">
 <!ENTITY openFeedWebPageInMP.accesskey "B">
 
@@ -581,7 +554,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY chatButton.tooltip "Vis nettprat-fanen">
 <!ENTITY tagButton.tooltip "Merk melding">
 <!ENTITY compactButton.tooltip "Fjern slettede meldinger fra valgt mappe">
-<!ENTITY appmenuButton.tooltip "Viser Applikasjon-menyen">
+<!ENTITY appmenuButton1.tooltip "Viser &brandShortName;-menyen">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Ny melding">
@@ -589,6 +562,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY appmenuEditMenu.label "Rediger">
 <!ENTITY appmenuQFBMenu.label "Hurtigfilterlinje">
 <!ENTITY appmenuToolbarLayout.label "Verktøylinjeutseende …">
+<!ENTITY appmenuSelectThread.label "Velg tråd">
+<!ENTITY appmenuSelectFlagged.label "Velg meldinger med stjerne">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "Ny etikett …">
@@ -913,3 +888,28 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Vis alle">
+
+<!ENTITY allowRemoteDebugging.accesskey "g">
+<!ENTITY allowRemoteDebugging.label "Allow Remote Debugging">
+<!ENTITY buttonMenuForwardAsAttachment.label "Forward As Attachment">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Forward Inline">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "A">
+<!ENTITY contextForwardAsAttachmentItem.label "Attachment">
+<!ENTITY contextForwardAsInline.accesskey "I">
+<!ENTITY contextForwardAsInline.label "Inline">
+<!ENTITY contextForwardAsMenu.accesskey "o">
+<!ENTITY contextForwardAsMenu.label "Forward As">
+<!ENTITY contextKillSubthreadMenu.label "Ignore Subthread">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillThreadMenu.label "Ignore Thread">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
+<!ENTITY contextMultiForwardAsAttachment.label "Forward as Attachments">
+<!ENTITY contextWatchThreadMenu.label "Watch Thread">
+<!ENTITY folderContextOpenInNewWindow.accesskey "O">
+<!ENTITY folderContextOpenInNewWindow.label "Open in New Window">
+<!ENTITY forwardAsAttachment.tooltip "Forward selected message as an attachment">
+<!ENTITY forwardAsInline.tooltip "Forward selected message as inline text">
+<!ENTITY newFeedAccountCmd.accesskey "d">
+<!ENTITY newFeedAccountCmd.label "Feed Account…">

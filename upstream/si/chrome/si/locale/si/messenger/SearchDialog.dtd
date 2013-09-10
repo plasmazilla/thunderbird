@@ -72,3 +72,8 @@
 <!ENTITY starredColumn.tooltip "තරු අනුව පිළිවෙළ කිරීමට ක්ලික් කරන්න">
 <!ENTITY locationColumn.tooltip "ස්ථානය අනුව පිළිවෙළ කිරීමට ක්ලික් කරන්න">
 <!ENTITY idColumn.tooltip "ලැබුණු අනුපිළිවෙළට අනුව පිළිවෙළ කිරීමට ක්ලික් කරන්න">
+
+<!ENTITY moveButton.accesskey        "T">
+<!ENTITY moveButton.label            "Move To">
+<!ENTITY moveHereMenu.accesskey      "H">
+<!ENTITY moveHereMenu.label          "Move Here">

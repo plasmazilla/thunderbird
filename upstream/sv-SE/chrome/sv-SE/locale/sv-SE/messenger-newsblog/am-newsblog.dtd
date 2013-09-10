@@ -20,3 +20,6 @@
 <!ENTITY feeds.wizardShortName "RSS-kanaler">  
 <!ENTITY feeds.wizardLongName "Bloggar &amp; nyhetskanaler">
 <!ENTITY feeds.wizardLongName.accesskey "R">
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

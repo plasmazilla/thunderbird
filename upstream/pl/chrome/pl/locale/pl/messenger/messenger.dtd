@@ -29,6 +29,8 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey "K">
 <!ENTITY newIMAccountCmd.label "Konfigurację konta czat…">
 <!ENTITY newIMAccountCmd.accesskey "c">
+<!ENTITY newFeedAccountCmd.label "Konfigurację konta akutalności…">
+<!ENTITY newFeedAccountCmd.accesskey "a">
 <!ENTITY newIMContactCmd.label "Wizytówkę dla kontaktu z czatu…">
 <!ENTITY newIMContactCmd.accesskey "t">
 <!ENTITY newOtherAccountsCmd.label            "Konfigurację innego konta…">
@@ -36,8 +38,6 @@
 
 <!ENTITY openMessageFileCmd.label       "Otwórz zapisaną wiadomość">
 <!ENTITY openMessageFileCmd.accesskey   "O">
-<!ENTITY openAttachmentCmd.label        "Załączniki">
-<!ENTITY openAttachmentCmd.accesskey    "c">
 <!ENTITY saveAsMenu.label               "Zapisz jako">
 <!ENTITY saveAsMenu.accesskey           "a">
 <!ENTITY saveAsFileCmd.label            "Plik">
@@ -257,24 +257,6 @@
 <!ENTITY viewAttachmentsInlineCmd.label     "Pokazuj załączniki w treści wiadomości">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "z">
 
-<!ENTITY fullZoomEnlargeCmd.label       "Powiększ">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "w">
-<!ENTITY fullZoomEnlargeCmd.commandkey  "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "="><!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-<!ENTITY fullZoomReduceCmd.label        "Pomniejsz">
-<!ENTITY fullZoomReduceCmd.accesskey    "m">
-<!ENTITY fullZoomReduceCmd.commandkey   "-">
-<!ENTITY fullZoomReduceCmd.commandkey2  "">
-<!ENTITY fullZoomResetCmd.label         "Rozmiar pierwotny">
-<!ENTITY fullZoomResetCmd.accesskey     "R">
-<!ENTITY fullZoomResetCmd.commandkey    "0">
-<!ENTITY fullZoomResetCmd.commandkey2   "">
-<!ENTITY fullZoomToggleCmd.label        "Powiększaj tylko tekst">
-<!ENTITY fullZoomToggleCmd.accesskey    "k">
-<!ENTITY fullZoom.label                 "Powiększenie">
-<!ENTITY fullZoom.accesskey             "w">
-
 <!ENTITY pageSourceCmd.label     "Źródło wiadomości">
 <!ENTITY pageSourceCmd.accesskey "d">
 <!ENTITY pageSourceCmd.key       "u">
@@ -331,7 +313,7 @@
 <!ENTITY goBackCmd.commandKey        "[">
 <!ENTITY goChatCmd.label "Czat">
 <!ENTITY goChatCmd.accesskey "C">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.key "I">
 <!ENTITY prevStarredMsgCmd.label     "Wiadomość oznaczona gwiazdką">
 <!ENTITY prevStarredMsgCmd.accesskey "O">
 <!ENTITY folderMenu.label            "Folder">
@@ -449,12 +431,14 @@
 <!ENTITY openConversationCmd.label         "Otwórz wątek w karcie">
 <!ENTITY openConversationCmd.accesskey     "k">
 <!ENTITY openConversationCmd.key           "o">
-<!ENTITY openFeedMessage.label             "Otwórz artykuł">
-<!ENTITY openFeedMessage.accesskey         "z">
-<!ENTITY openFeedWebPageInWindow.label     "Strona w nowym oknie">
-<!ENTITY openFeedWebPageInWindow.accesskey "S">
-<!ENTITY openFeedSummaryInWindow.label     "Podsumowanie w nowym oknie">
-<!ENTITY openFeedSummaryInWindow.accesskey "P">
+<!ENTITY openAttachmentListCmd.label "Załączniki">
+<!ENTITY openAttachmentListCmd.accesskey "c">
+<!ENTITY openFeedMessage1.label "Otwieraj artykuły">
+<!ENTITY openFeedMessage1.accesskey "i">
+<!ENTITY openFeedWebPage.label "Jako strony internetowe">
+<!ENTITY openFeedWebPage.accesskey "J">
+<!ENTITY openFeedSummary.label "Jako podsumowania">
+<!ENTITY openFeedSummary.accesskey "o">
 <!ENTITY openFeedWebPageInMP.label         "Wyświetlaj strony i podsumowania w panelu wiadomości">
 <!ENTITY openFeedWebPageInMP.accesskey     "W">
 
@@ -493,6 +477,8 @@
 <!ENTITY errorConsoleCmd.commandkey "K">
 <!ENTITY clearRecentHistory.label "Wyczyść historię przeglądania…">
 <!ENTITY clearRecentHistory.accesskey "h">
+<!ENTITY allowRemoteDebugging.label "Zezwalaj na zdalne debugowanie">
+<!ENTITY allowRemoteDebugging.accesskey "n">
 <!ENTITY filtersCmd.label                  "Filtrowanie wiadomości…">
 <!ENTITY filtersCmd.accesskey              "F">
 <!ENTITY filtersApply.label                "Zastosuj filtry w bieżącym folderze">
@@ -549,6 +535,8 @@
 <!ENTITY replyAllButton.tooltip    "Odpowiedz nadawcy i wszystkim adresatom">
 <!ENTITY replyListButton.tooltip   "Odpowiedz liście dyskusyjnej">
 <!ENTITY forwardButton.tooltip     "Przekaż wybraną wiadomość">
+<!ENTITY forwardAsInline.tooltip "Przekaż zaznaczoną wiadomość bezpośrednio, jako tekst treści">
+<!ENTITY forwardAsAttachment.tooltip "Przekaż zaznaczoną wiadomość jako załącznik">
 <!ENTITY fileButton.tooltip        "Przenieś zaznaczoną wiadomość">
 <!ENTITY archiveButton.tooltip     "Archiwizuj zaznaczone wiadomości">
 <!ENTITY nextButton.tooltip        "Przejdź do następnej nieprzeczytanej wiadomości">
@@ -568,7 +556,11 @@
 <!ENTITY chatButton.tooltip "Wyświetl kartę czatów">
 <!ENTITY tagButton.tooltip         "Oznacz wiadomości etykietą">
 <!ENTITY compactButton.tooltip     "Porządkuj folder, aby wyczyścić pozostałości po usuniętych wiadomościach">
-<!ENTITY appmenuButton.tooltip "Wyświetla menu programu">
+<!ENTITY appmenuButton1.tooltip "Wyświetl menu programu &brandShortName;">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Przekaż bezpośrednio">
+<!ENTITY buttonMenuForwardAsAttachment.label "Przekaż jako załącznik">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Nowa wiadomość">
@@ -576,6 +568,8 @@
 <!ENTITY appmenuEditMenu.label "Edycja">
 <!ENTITY appmenuQFBMenu.label "Pasek szybkiego filtrowania">
 <!ENTITY appmenuToolbarLayout.label "Dostosuj pasek narzędzi…">
+<!ENTITY appmenuSelectThread.label "Zaznacz wątek">
+<!ENTITY appmenuSelectFlagged.label "Zaznacz oznaczone gwiazdką">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label     "Nowa etykieta…">
@@ -590,8 +584,8 @@
 <!-- Folder Pane Context Menu -->
 <!ENTITY folderContextGetMessages.label         "Pobierz wiadomości">
 <!ENTITY folderContextGetMessages.accesskey     "P">
-<!ENTITY folderContextOpenNewWindow.label       "Otwórz">
-<!ENTITY folderContextOpenNewWindow.accesskey   "O">
+<!ENTITY folderContextOpenInNewWindow.label "Otwórz w nowym oknie">
+<!ENTITY folderContextOpenInNewWindow.accesskey "O">
 <!ENTITY folderContextOpenNewTab.label          "Otwórz w nowej karcie">
 <!ENTITY folderContextOpenNewTab.accesskey      "w">
 <!ENTITY contextOpenConversation.label          "Otwórz wątek w nowej karcie">
@@ -703,14 +697,24 @@
 <!ENTITY contextReplyList.accesskey      "l">
 <!ENTITY contextForward.label            "Przekaż">
 <!ENTITY contextForward.accesskey        "P">
-<!ENTITY contextForwardAsAttachment.label       "Przekaż jako załącznik">
-<!ENTITY contextForwardAsAttachment.accesskey   "z">
+<!ENTITY contextForwardAsMenu.label "Przekaż">
+<!ENTITY contextForwardAsMenu.accesskey "z">
+<!ENTITY contextForwardAsInline.label "Bezpośrednio">
+<!ENTITY contextForwardAsInline.accesskey "B">
+<!ENTITY contextForwardAsAttachmentItem.label "Jako załącznik">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "z">
+<!ENTITY contextMultiForwardAsAttachment.label "Jako załączniki">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
 <!ENTITY contextMoveMsgMenu.label               "Przenieś do">
 <!ENTITY contextMoveMsgMenu.accesskey           "z">
 <!ENTITY contextMoveCopyMsgRecentMenu.label     "Ostatni">
 <!ENTITY contextMoveCopyMsgRecentMenu.accesskey "O">
 <!ENTITY contextCopyMsgMenu.label      "Kopiuj do">
 <!ENTITY contextCopyMsgMenu.accesskey  "K">
+<!ENTITY contextKillThreadMenu.label "Ignoruj wątek">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillSubthreadMenu.label "Ignoruj podwątek">
+<!ENTITY contextWatchThreadMenu.label "Obserwuj wątek">
 <!ENTITY contextSaveAs.label           "Zapisz jako…">
 <!ENTITY contextSaveAs.accesskey       "a">
 <!ENTITY contextPrint.label            "Drukuj…">

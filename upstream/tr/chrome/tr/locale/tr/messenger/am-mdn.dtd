@@ -1,6 +1,12 @@
-<!ENTITY pane.title                   "Alındı onayları">
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY pane.title                   "Alındı Onayları">
 <!ENTITY useGlobalPrefs.label         "Bu hesap için genel alındı onayı tercihlerimi kullan">
 <!ENTITY useGlobalPrefs.accesskey     "n">
+<!ENTITY globalReceipts.label         "Global tercihler…">
+<!ENTITY globalReceipts.accesskey     "G">
 <!ENTITY useCustomPrefs.label         "Bu hesap için alındı onayını özelleştir">
 <!ENTITY useCustomPrefs.accesskey     "ö">
 <!ENTITY requestReceipt.label         "E-postaları gönderirken her zaman alındı onayı iste">
@@ -26,6 +32,3 @@
 <!ENTITY alwaysSend.label             "Her zaman gönder">
 <!ENTITY neverSend.label              "Asla gönderme">
 
-
-<!ENTITY globalReceipts.accesskey     "G">
-<!ENTITY globalReceipts.label         "Global Preferences…">

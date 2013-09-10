@@ -1,3 +1,6 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!ENTITY pluginWizard.title "Servicio buscador de plugins">
 <!ENTITY pluginWizard.firstPage.title "Bienvenido al &pluginWizard.title;">
 
@@ -32,7 +35,7 @@
 <!ENTITY missingPlugin                                       "Se necesita un plugin para mostrar este contenido.">
 <!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
 <!ENTITY tapToPlayPlugin                                     "Pulsá aquí para activar el plugin.">
-<!ENTITY clickToPlayPlugin                                   "Clic aquí para activar el plugin.">
+<!ENTITY clickToActivatePlugin                               "Activar plugin.">
 <!ENTITY checkForUpdates                                     "Buscar actualizaciones…">
 <!ENTITY disabledPlugin                                      "Este plugin ha sido deshabilitado.">
 <!ENTITY blockedPlugin.label                                 "Este plugin ha sido bloqueado para su protección.">
@@ -53,4 +56,8 @@
 <!ENTITY report.disabled                                     "Informe de problemas deshabilitado.">
 <!ENTITY report.failed                                       "Falló el envío.">
 <!ENTITY report.unavailable                                  "No hay informe disponible.">
+<!ENTITY report.comment                                      "Agregar un comentario (los comentarios son visibles públicamente)">
+<!ENTITY report.pageURL                                      "Incluir URL de la página">
 
+<!ENTITY plugin.file                                         "Archivo">
+<!ENTITY plugin.mimeTypes                                    "Tipos MIME">

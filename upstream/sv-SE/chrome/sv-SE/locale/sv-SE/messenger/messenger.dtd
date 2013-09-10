@@ -252,33 +252,6 @@
 <!ENTITY viewAttachmentsInlineCmd.label "Visa bilagor i meddelandet">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "b">
 
-<!-- LOCALIZATION NOTE :
-fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
-fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
-If shift key is needed with your locale popular keyboard for them,
-you can use these alternative items. Otherwise, their values should be empty.  -->
-
-<!ENTITY fullZoomEnlargeCmd.label       "Zooma in">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "Z">
-<!ENTITY fullZoomEnlargeCmd.commandkey  "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "="> <!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-
-<!ENTITY fullZoomReduceCmd.label        "Zooma ut">
-<!ENTITY fullZoomReduceCmd.accesskey    "u">
-<!ENTITY fullZoomReduceCmd.commandkey   "-">
-<!ENTITY fullZoomReduceCmd.commandkey2  "">
-
-<!ENTITY fullZoomResetCmd.label         "Återställ">
-<!ENTITY fullZoomResetCmd.accesskey     "Å">
-<!ENTITY fullZoomResetCmd.commandkey    "0">
-<!ENTITY fullZoomResetCmd.commandkey2   "">
-
-<!ENTITY fullZoomToggleCmd.label        "Zooma endast texten">
-<!ENTITY fullZoomToggleCmd.accesskey    "e">
-<!ENTITY fullZoom.label                 "Zoom">
-<!ENTITY fullZoom.accesskey             "Z">
-
 <!ENTITY pageSourceCmd.label "Meddelandets källkod">
 <!ENTITY pageSourceCmd.accesskey "k">
 <!ENTITY pageSourceCmd.key "u">
@@ -335,7 +308,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "Chatt">
 <!ENTITY goChatCmd.accesskey "c">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.key "I">
 <!ENTITY prevStarredMsgCmd.label "Märkta meddelande">
 <!ENTITY prevStarredMsgCmd.accesskey "ä">
 <!ENTITY folderMenu.label "Mapp">
@@ -581,7 +554,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY chatButton.tooltip "Visa fliken chatt">
 <!ENTITY tagButton.tooltip "Sätt etiketter på meddelanden">
 <!ENTITY compactButton.tooltip "Rensa ut borttagna meddelanden från markerad mapp">
-<!ENTITY appmenuButton.tooltip "Visar programmenyn">
+<!ENTITY appmenuButton1.tooltip "Visar &brandShortName; menyn">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Nytt meddelande">
@@ -913,3 +886,38 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Visa alla">
+
+<!ENTITY allowRemoteDebugging.accesskey "g">
+<!ENTITY allowRemoteDebugging.label "Allow Remote Debugging">
+<!ENTITY appmenuSelectFlagged.label "Select Starred Messages">
+<!ENTITY appmenuSelectThread.label "Select Thread">
+<!ENTITY buttonMenuForwardAsAttachment.label "Forward As Attachment">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Forward Inline">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "A">
+<!ENTITY contextForwardAsAttachmentItem.label "Attachment">
+<!ENTITY contextForwardAsInline.accesskey "I">
+<!ENTITY contextForwardAsInline.label "Inline">
+<!ENTITY contextForwardAsMenu.accesskey "o">
+<!ENTITY contextForwardAsMenu.label "Forward As">
+<!ENTITY contextKillSubthreadMenu.label "Ignore Subthread">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillThreadMenu.label "Ignore Thread">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
+<!ENTITY contextMultiForwardAsAttachment.label "Forward as Attachments">
+<!ENTITY contextWatchThreadMenu.label "Watch Thread">
+<!ENTITY folderContextOpenInNewWindow.accesskey "O">
+<!ENTITY folderContextOpenInNewWindow.label "Open in New Window">
+<!ENTITY forwardAsAttachment.tooltip "Forward selected message as an attachment">
+<!ENTITY forwardAsInline.tooltip "Forward selected message as inline text">
+<!ENTITY newFeedAccountCmd.accesskey "d">
+<!ENTITY newFeedAccountCmd.label "Feed Account…">
+<!ENTITY openAttachmentListCmd.accesskey "h">
+<!ENTITY openAttachmentListCmd.label "Attachments">
+<!ENTITY openFeedMessage1.accesskey "O">
+<!ENTITY openFeedMessage1.label "When Opening Feed Messages">
+<!ENTITY openFeedSummary.accesskey "S">
+<!ENTITY openFeedSummary.label "Open as Summary">
+<!ENTITY openFeedWebPage.accesskey "W">
+<!ENTITY openFeedWebPage.label "Open as Web Page">

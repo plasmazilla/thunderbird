@@ -48,3 +48,11 @@
 <!ENTITY defaultSize.accesskey   "T">
 <!ENTITY fontOptions.accesskey   "r">
 <!ENTITY fontOptions.label       "Tipos de letra…">
+
+<!ENTITY colorButton.accesskey   "C">
+<!ENTITY colorButton.label       "Colors…">
+
+<!-- Fonts and Colors -->
+<!ENTITY fontsAndColors1.label   "Fonts &amp; Colors">
+<!ENTITY quotedTextColor.accesskey        "o">
+<!ENTITY quotedTextColor.label            "Color:">

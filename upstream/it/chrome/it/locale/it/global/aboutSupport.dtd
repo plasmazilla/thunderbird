@@ -12,6 +12,8 @@
 <!ENTITY aboutSupport.appBasicsTitle "Informazioni di base">
 <!ENTITY aboutSupport.appBasicsName "Nome">
 <!ENTITY aboutSupport.appBasicsVersion "Versione">
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Cronologia aggiornamenti">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Mostra cronologia aggiornamenti">
 <!ENTITY aboutSupport.appBasicsProfileDir "Cartella del profilo">
 <!ENTITY aboutSupport.appBasicsProfileDirWinMac "Cartella del profilo">
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Plugin attivi">
@@ -25,6 +27,8 @@
 <!ENTITY aboutSupport.modifiedKeyPrefsTitle "Preferenze importanti modificate">
 <!ENTITY aboutSupport.modifiedPrefsName "Nome">
 <!ENTITY aboutSupport.modifiedPrefsValue "Valore">
+<!ENTITY aboutSupport.userJSTitle "Preferenze in user.js">
+<!ENTITY aboutSupport.userJSDescription "Nella cartella del profilo è presente un <a id='prefs-user-js-link'>file user.js</a> con preferenze che non sono state impostate da &brandShortName;.">
 <!ENTITY aboutSupport.graphicsTitle "Grafica">
 <!ENTITY aboutSupport.jsTitle "JavaScript">
 <!ENTITY aboutSupport.jsIncrementalGC "GC incrementale">
@@ -34,4 +38,5 @@
 <!ENTITY aboutSupport.libraryVersionsTitle "Versioni librerie">
 <!ENTITY aboutSupport.installationHistoryTitle "Cronologia installazione">
 <!ENTITY aboutSupport.updateHistoryTitle "Aggiorna cronologia">
-<!ENTITY aboutSupport.copyToClipboard.label "Copia negli appunti">
+<!ENTITY aboutSupport.copyTextToClipboard.label "Copia testo negli appunti">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "Copia dati non elaborati negli appunti">

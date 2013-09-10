@@ -22,8 +22,8 @@
 <!ENTITY success.title.before "Hei">
 <!ENTITY success.title.after ", følgande e-postadresser er tilgjengelege for deg:">
 <!ENTITY success.tip "(Du kan óg prøve å søke etter kallenamn eller andre søkjeord for å finne fleire e-postadresser)">
-<!ENTITY partnership.description "I partnerskap med fleire tilbydarar kan &brandShortName; tilby deg ein ny e-postkonto. Berre fyll inn fornamn og etternamn, og evt. andre ord du ynskjer, i felta nedanfor for å kome i gang.">
-<!ENTITY existing.header "Har du allereie ei adresse du ynskjer å nytte?">
+<!ENTITY partnership.description "I partnerskap med fleire tilbydarar kan &brandShortName; tilby deg ein ny e-postkonto. Berre fyll inn fornamn og etternamn, og evt. andre ord du ønskjer, i felta nedanfor for å kome i gang.">
+<!ENTITY existing.header "Har du allereie ei adresse du ønskjer å nytte?">
 <!ENTITY tinyheader.title "Har du ei adresse?">
 <!ENTITY tinyheader.existing "Bruk den eksisterande e-postadressa mi i staden">
 <!ENTITY content.close "Eg konfigurerer kontoen seinare i staden.">
@@ -35,9 +35,9 @@
 <!ENTITY successful.customize.desc "Der finst tusenvis av utvidingar som lèt deg tilpasse &brandShortName; til dine behov.">
 <!ENTITY successful.attach "Legg ved ein personleg signatur i e-posten">
 <!ENTITY successful.attach.desc "Du kan automatisk leggje ved eit sitat eller informasjon om deg sjølv på slutten av kvar melding du sender.">
-<!ENTITY successful.close "Lat att dete vindauget.">
+<!ENTITY successful.close "Lukk dete vindauget.">
 <!ENTITY input.namePlaceholder "Namnet ditt, eller kallenamnet">
 <!ENTITY input.search "Søk">
 <!ENTITY search_engine.title "Tilpass søkjemotor">
-<!ENTITY search_engine.message "E-posttilbydaren din kan også gi deg søkjealternativ på nettet">
+<!ENTITY search_engine.message "E-posttilbydaren din kan også gje deg søkjealternativ på nettet">
 <!ENTITY search_engine.button "Fullfør">

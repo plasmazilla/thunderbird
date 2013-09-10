@@ -44,3 +44,11 @@
 <!ENTITY defaultSize.accesskey   "S">
 <!ENTITY fontOptions.accesskey   "A">
 <!ENTITY fontOptions.label       "மேம்பட்ட…">
+
+<!ENTITY colorButton.accesskey   "C">
+<!ENTITY colorButton.label       "Colors…">
+
+<!-- Fonts and Colors -->
+<!ENTITY fontsAndColors1.label   "Fonts &amp; Colors">
+<!ENTITY quotedTextColor.accesskey        "o">
+<!ENTITY quotedTextColor.label            "Color:">

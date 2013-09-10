@@ -17,6 +17,11 @@ del &brandShortName;, visiteu el nostre <a id='supportLink'>lloc web d'assistèn
 <!ENTITY aboutSupport.appBasicsTitle "Paràmetres bàsics de l'aplicació">
 <!ENTITY aboutSupport.appBasicsName "Nom">
 <!ENTITY aboutSupport.appBasicsVersion "Versió">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Actualitza l'historial">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Mostra l'actualització de l'historial">
 
 <!ENTITY aboutSupport.appBasicsProfileDir "Directori del perfil">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
@@ -42,6 +47,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.modifiedKeyPrefsTitle "Preferències modificades importants">
 <!ENTITY aboutSupport.modifiedPrefsName "Nom">
 <!ENTITY aboutSupport.modifiedPrefsValue "Valor">
+<!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
+
+<!ENTITY aboutSupport.userJSTitle "Preferències de user.js">
+<!ENTITY aboutSupport.userJSDescription "La vostra carpeta de perfil conté un <a id='prefs-user-js-link'>fitxer user.js</a>, que inclou preferències que el brandShortName no va crear;.">
 
 <!ENTITY aboutSupport.graphicsTitle "Gràfics">
 
@@ -52,9 +61,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.a11yActivated "Activat">
 <!ENTITY aboutSupport.a11yForceDisabled "Evita l'accessibilitat">
 
-<!ENTITY aboutSupport.libraryVersionsTitle "Versions de la llibreria">
+<!ENTITY aboutSupport.libraryVersionsTitle "Versions de la biblioteca">
 
 <!ENTITY aboutSupport.installationHistoryTitle "Historial d'instal·lació">
 <!ENTITY aboutSupport.updateHistoryTitle "Historial d'actualització">
 
-<!ENTITY aboutSupport.copyToClipboard.label "Copia-ho tot al porta-retalls">
+<!ENTITY aboutSupport.copyTextToClipboard.label "Copia el text al porta-retalls">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "Copia les dades sense processar al porta-retalls">

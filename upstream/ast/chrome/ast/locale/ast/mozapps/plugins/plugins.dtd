@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY pluginWizard.title                                  "Serviciu de gueta de complementos">
 <!ENTITY pluginWizard.firstPage.title                        "Bienllegáu al &pluginWizard.title;">
 
@@ -20,7 +24,6 @@
 <!ENTITY pluginWizard.finalPage.moreInfo.label               "Más tocante a Plugins o guetar manualmente los plugins que falten.">
 <!ENTITY pluginWizard.finalPage.restart.label                "Necesítase reaniciar &brandShortName; pa que furrulen los plugins.">
 <!ENTITY missingPlugin                                       "Necesítase un plugin p'amosar esti conteníu.">
-<!ENTITY clickToPlayPlugin                                   "Calca equí p'activar el plugin.">
 <!ENTITY tapToPlayPlugin                                     "Toca equí p'activar el plugin.">
 <!ENTITY disabledPlugin                                      "Esti plugin ta desactiváu.">
 <!ENTITY installPlugin                                       "Instalar plugin…">
@@ -44,3 +47,8 @@
 <!ENTITY unsupportedPlatform.pre "Sentímoslo, pero &brandShortName; nun pue reproducir conteníu Flash nesti preséu. ">
 <!ENTITY unsupportedPlatform.learnMore "Deprender más…">
 <!ENTITY unsupportedPlatform.post "">
+<!ENTITY plugin.mimeTypes "Tipos MIME">
+<!ENTITY plugin.file "Ficheru">
+<!ENTITY report.pageURL "Inclúi la URL de la páxina">
+<!ENTITY report.comment "Amiesta un comentariu (los comentarios son visibles pa tol mundu)">
+<!ENTITY clickToActivatePlugin "Activar plugin.">

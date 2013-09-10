@@ -51,3 +51,8 @@
 <!ENTITY unsupportedPlatform.post                            "">
 <!ENTITY checkForUpdates                                     "යාවත්කාලීන සඳහා පරීක්ෂා කරන්න…">
 
+
+<!ENTITY clickToActivatePlugin                               "Activate plugin.">
+
+<!ENTITY plugin.file                                         "File">
+<!ENTITY plugin.mimeTypes                                    "MIME Types">

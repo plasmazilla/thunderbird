@@ -20,6 +20,8 @@
 <!ENTITY codeEval.accesskey "K">
 <!ENTITY evaluate.label "Gildi">
 <!ENTITY evaluate.accesskey "G">
+<!ENTITY filter2.label "Sía:">
+<!ENTITY filter2.accesskey "S">
 <!ENTITY copyCmd.label "Afrita">
   
 <!ENTITY copyCmd.accesskey "A">

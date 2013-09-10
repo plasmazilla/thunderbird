@@ -35,3 +35,10 @@
 <!ENTITY includeSigOnReply.accesskey          "B">
 <!ENTITY includeSigOnForward.label            "Bao gồm chữ kí trong thư chuyển tiếp">
 <!ENTITY includeSigOnForward.accesskey        "y">
+
+<!ENTITY globalAddressingPrefs.accesskey      "P">
+
+<!ENTITY globalAddressingPrefs.label          "Global Addressing Preferences…">
+<!ENTITY globalComposingPrefs.accesskey       "G">
+
+<!ENTITY globalComposingPrefs.label           "Global Composing Preferences…">

@@ -1,19 +1,7 @@
-<!--
-# Translator(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# robyerevan <robyerevan@gmail.com>
-# Xelgen <xelgen.am@gmail.com>
-# alexxed <alexxed@gmail.com>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# alexxed <alexxed@gmail.com>
-#
--->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY  fontsAndEncodingsDialog.title           "Տառի &amp; կոդավորումը">
 <!ENTITY  window.width                            "39em">
 <!ENTITY  window.macWidth                         "43em">
@@ -47,7 +35,7 @@
 <!ENTITY  font.langGroup.baltic                   "Բալթյան">
 <!ENTITY  font.langGroup.el                       "Հունարեն">
 <!ENTITY  font.langGroup.turkish                  "Թրքերեն">
-<!ENTITY  font.langGroup.unicode                  "Այլ լեզուներ">
+<!ENTITY  font.langGroup.unicode1                 "Յունիկոդ">
 <!ENTITY  font.langGroup.user-def                 "Ձեր ընտրվածը">
 <!ENTITY  font.langGroup.thai                     "Թաի">
 <!ENTITY  font.langGroup.hebrew                   "Եբրայերեն">
@@ -90,5 +78,3 @@
 <!ENTITY viewDefaultCharsetList.accesskey  "I">
 <!ENTITY replyInDefaultCharset2.label     "Հնարավորության դեպքում պատասխանելիս օգտ. ծրագրային կոդավորումը.">
 <!ENTITY replyInDefaultCharset2.accesskey "h">
-
-<!ENTITY  font.langGroup.unicode1                 "Unicode">

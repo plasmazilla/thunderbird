@@ -24,3 +24,8 @@
 <!ENTITY subscribeFeeds.label         "נהל מינויים">
 
 
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

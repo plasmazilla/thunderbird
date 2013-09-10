@@ -31,3 +31,8 @@
 <!ENTITY junkSettings.label           "Setări pentru mesajele nesolicitate">
 <!ENTITY offlineLink.label            "Setări pentru lucru offline">
 
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

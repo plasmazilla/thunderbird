@@ -156,3 +156,6 @@
 <!ENTITY PhotoURL.placeholder           "Endatescha l'adressa web dad ina fotografia">
 <!ENTITY UpdatePhoto.label              "Actualisar">
 <!ENTITY UpdatePhoto.accesskey          "U">
+
+<!ENTITY IRC.accesskey                  "R">
+<!ENTITY IRC.label                      "IRC Nick:">

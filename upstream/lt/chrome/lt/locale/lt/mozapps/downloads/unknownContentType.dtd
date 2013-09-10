@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY  intro2.label                "Pasirinkote atverti failą:">
 <!ENTITY  from.label                  "iš:">
 <!ENTITY  actionQuestion.label        "Jį:">
@@ -12,7 +16,7 @@
 <!ENTITY  rememberChoice.label        "Aukščiau parinktą nuostatą taikyti visiems šio tipo failams.">
 <!ENTITY  rememberChoice.accesskey    "o">
 
-<!ENTITY  whichIsA.label              "tipas:">
+<!ENTITY  whichIs.label               "tipas:">
 
 <!ENTITY  chooseHandlerMac.label      "Parinkti…">
 <!ENTITY  chooseHandlerMac.accesskey  "r">

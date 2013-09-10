@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY pluginWizard.title "Служба поиска плагинов">
 <!ENTITY pluginWizard.firstPage.title "Вас приветствует &pluginWizard.title;">
 <!ENTITY pluginWizard.checkingForPlugins.description.label "&brandShortName; проверяет наличие доступных плагинов…">
@@ -18,7 +22,7 @@
 <!ENTITY unsupportedPlatform.post "">
 <!ENTITY missingPlugin "Для отображения этого содержимого требуется плагин.">
 <!ENTITY tapToPlayPlugin "Нажмите здесь для включения плагина">
-<!ENTITY clickToPlayPlugin "Щёлкните здесь для включения плагина">
+<!ENTITY clickToActivatePlugin "Включить плагин">
 <!ENTITY checkForUpdates "Проверить наличие обновлений…">
 <!ENTITY disabledPlugin "Этот плагин отключён.">
 <!ENTITY blockedPlugin.label "Этот плагин был заблокирован в целях вашей безопасности.">
@@ -33,3 +37,7 @@
 <!ENTITY report.disabled "Отправка сообщений о падении отключена.">
 <!ENTITY report.failed "Отправка не удалась.">
 <!ENTITY report.unavailable "Нет доступных сообщений.">
+<!ENTITY report.comment "Добавить комментарий (комментарии публично доступны)">
+<!ENTITY report.pageURL "Включить URL страницы">
+<!ENTITY plugin.file "Файл">
+<!ENTITY plugin.mimeTypes "Типы MIME">

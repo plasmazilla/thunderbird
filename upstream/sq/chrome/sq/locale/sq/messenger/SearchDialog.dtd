@@ -79,3 +79,8 @@
 
 <!ENTITY openInFolder.label          "Hape në Dosje">
 <!ENTITY openInFolder.accesskey      "H">
+
+<!ENTITY moveButton.accesskey        "T">
+<!ENTITY moveButton.label            "Move To">
+<!ENTITY moveHereMenu.accesskey      "H">
+<!ENTITY moveHereMenu.label          "Move Here">

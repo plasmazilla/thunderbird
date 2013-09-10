@@ -26,3 +26,6 @@
 
 <!ENTITY junkClassification.label "Urval">
 <!ENTITY junkActions.label "Destination och retention">
+
+<!ENTITY globalJunkPrefs.label "Globala skräppostinställningar…">
+<!ENTITY globalJunkPrefs.accesskey "G">

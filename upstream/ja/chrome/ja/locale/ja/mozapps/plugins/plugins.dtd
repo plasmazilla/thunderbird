@@ -1,3 +1,6 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!ENTITY pluginWizard.title					"プラグイン検索サービス">
 <!ENTITY pluginWizard.firstPage.title				"&pluginWizard.title;を開始します">
 
@@ -32,7 +35,7 @@
 <!ENTITY missingPlugin						"このコンテンツを表示するにはプラグインが必要です。">
 <!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
 <!ENTITY tapToPlayPlugin					"ここをタップするとプラグインを実行します。">
-<!ENTITY clickToPlayPlugin					"ここをクリックするとプラグインを実行します。">
+<!ENTITY clickToActivatePlugin					"プラグインを有効化する">
 <!ENTITY checkForUpdates					"更新を確認する...">
 <!ENTITY disabledPlugin						"このプラグインは無効化されています。">
 <!ENTITY blockedPlugin.label					"このプラグインは安全のためにブロックされました。">
@@ -53,3 +56,8 @@
 <!ENTITY report.disabled					"クラッシュレポートの送信は無効になっています">
 <!ENTITY report.failed						"レポートを送信できませんでした">
 <!ENTITY report.unavailable					"送信するレポートはありません">
+<!ENTITY report.comment						"コメントを追加してください (コメントは一般に公開されます)">
+<!ENTITY report.pageURL						"ページの URL を含める">
+
+<!ENTITY plugin.file						"ファイル">
+<!ENTITY plugin.mimeTypes					"MIME タイプ">

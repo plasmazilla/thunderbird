@@ -46,6 +46,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.modifiedPrefsName "Ime">
 <!ENTITY aboutSupport.modifiedPrefsValue "Vrednost">
 
+<!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
+<!ENTITY aboutSupport.userJSTitle "Nastavitve user.js">
+<!ENTITY aboutSupport.userJSDescription "V vaši mapi s profilom se nahaja <a id='prefs-user-js-link'>datoteka user.js</a>, ki vsebuje nastavitve, ki jih ni ustvaril &brandShortName;.">
+
 <!ENTITY aboutSupport.graphicsTitle "Grafika">
 
 <!ENTITY aboutSupport.jsTitle "JavaScript">
@@ -60,4 +64,11 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.installationHistoryTitle "Zgodovina namestitev">
 <!ENTITY aboutSupport.updateHistoryTitle "Zgodovina posodobitev">
 
-<!ENTITY aboutSupport.copyToClipboard.label "Kopiraj v odložišče">
+<!ENTITY aboutSupport.copyTextToClipboard.label "Kopiraj besedilo v odložišče">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "Kopiraj neobdelane podatke v odložišče">
+
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
+
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Update History">

@@ -35,3 +35,10 @@
 <!ENTITY includeSigOnReply.accesskey          "b">
 <!ENTITY includeSigOnForward.label            "Sertakan tanda tangan saya pada pesan yang diteruskan">
 <!ENTITY includeSigOnForward.accesskey        "u">
+
+<!ENTITY globalAddressingPrefs.accesskey      "P">
+
+<!ENTITY globalAddressingPrefs.label          "Global Addressing Preferences…">
+<!ENTITY globalComposingPrefs.accesskey       "G">
+
+<!ENTITY globalComposingPrefs.label           "Global Composing Preferences…">

@@ -87,6 +87,8 @@
 <!ENTITY submitTelemetry.accesskey     "δ">
 <!ENTITY telemetryInfoLink.label       "Περισσότερες πληροφορίες για την τηλεμετρία">
 
+<!ENTITY checkDefaultsNow.accesskey    "N">
+<!ENTITY checkDefaultsNow.label        "Check Now…">
 <!ENTITY offlineCompactFolders.accesskey "a">
 <!ENTITY offlineCompactFolders.label     "Compact all folders when it will save over">
 <!ENTITY offlineCompactFoldersMB.label   "MB in total">

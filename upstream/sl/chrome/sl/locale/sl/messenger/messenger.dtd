@@ -252,33 +252,6 @@
 <!ENTITY viewAttachmentsInlineCmd.label "Pokaži priponke v besedilu">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "P">
 
-<!-- LOCALIZATION NOTE :
-fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
-fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
-If shift key is needed with your locale popular keyboard for them,
-you can use these alternative items. Otherwise, their values should be empty.  -->
-
-<!ENTITY fullZoomEnlargeCmd.label       "Povečaj">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "V">
-<!ENTITY fullZoomEnlargeCmd.commandkey  "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "="> <!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-
-<!ENTITY fullZoomReduceCmd.label        "Pomanjšaj">
-<!ENTITY fullZoomReduceCmd.accesskey    "M">
-<!ENTITY fullZoomReduceCmd.commandkey   "-">
-<!ENTITY fullZoomReduceCmd.commandkey2  "">
-
-<!ENTITY fullZoomResetCmd.label         "Ponastavi">
-<!ENTITY fullZoomResetCmd.accesskey     "N">
-<!ENTITY fullZoomResetCmd.commandkey    "0">
-<!ENTITY fullZoomResetCmd.commandkey2   "">
-
-<!ENTITY fullZoomToggleCmd.label        "Povečaj samo besedilo">
-<!ENTITY fullZoomToggleCmd.accesskey    "B">
-<!ENTITY fullZoom.label                 "Povečaj">
-<!ENTITY fullZoom.accesskey             "p">
-
 <!ENTITY pageSourceCmd.label "Izvor besedila">
 <!ENTITY pageSourceCmd.accesskey "o">
 <!ENTITY pageSourceCmd.key "u">
@@ -335,7 +308,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "Klepet">
 <!ENTITY goChatCmd.accesskey "k">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.key "C">
 <!ENTITY prevStarredMsgCmd.label "Sporočilo z zvezdico">
 <!ENTITY prevStarredMsgCmd.accesskey "v">
 <!ENTITY folderMenu.label "Mapa">
@@ -455,12 +428,12 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openConversationCmd.label "odpri kot pogovor">
 <!ENTITY openConversationCmd.accesskey "g">
 <!ENTITY openConversationCmd.key "g">
-<!ENTITY openFeedMessage.label "Odpri sporočilo RSS vira">
-<!ENTITY openFeedMessage.accesskey "r">
-<!ENTITY openFeedWebPageInWindow.label "Spletna stran v novem oknu">
-<!ENTITY openFeedWebPageInWindow.accesskey "s">
-<!ENTITY openFeedSummaryInWindow.label "Povzetek v novem oknu">
-<!ENTITY openFeedSummaryInWindow.accesskey "p">
+<!ENTITY openFeedMessage1.label "Pri odpiranju sporočil vira">
+<!ENTITY openFeedMessage1.accesskey "r">
+<!ENTITY openFeedWebPage.label "Odpri kot spletno stran">
+<!ENTITY openFeedWebPage.accesskey "s">
+<!ENTITY openFeedSummary.label "Odpri kot povzetek">
+<!ENTITY openFeedSummary.accesskey "p">
 <!ENTITY openFeedWebPageInMP.label "Izbiraj med spletno stranjo in povzetkom v podoknu za sporočila">
 <!ENTITY openFeedWebPageInMP.accesskey "m">
 
@@ -581,7 +554,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY chatButton.tooltip "Pokaži zavihek za klepet">
 <!ENTITY tagButton.tooltip "Označi sporočila">
 <!ENTITY compactButton.tooltip "Odstrani izbrisana sporočila iz izbrane mape">
-<!ENTITY appmenuButton.tooltip "Prikaže meni aplikacije">
+<!ENTITY appmenuButton1.tooltip "Prikaže meni programa &brandShortName;">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Novo sporočilo">
@@ -589,6 +562,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY appmenuEditMenu.label "Uredi">
 <!ENTITY appmenuQFBMenu.label "Vrstica za hitro filtriranje">
 <!ENTITY appmenuToolbarLayout.label "Postavitev orodne vrstice …">
+<!ENTITY appmenuSelectThread.label "Izberite nit">
+<!ENTITY appmenuSelectFlagged.label "Izberite sporočila z zvezdico">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "Nova oznaka …">
@@ -913,3 +888,30 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Pokaži vse">
+
+<!ENTITY allowRemoteDebugging.accesskey "g">
+<!ENTITY allowRemoteDebugging.label "Allow Remote Debugging">
+<!ENTITY buttonMenuForwardAsAttachment.label "Forward As Attachment">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Forward Inline">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "A">
+<!ENTITY contextForwardAsAttachmentItem.label "Attachment">
+<!ENTITY contextForwardAsInline.accesskey "I">
+<!ENTITY contextForwardAsInline.label "Inline">
+<!ENTITY contextForwardAsMenu.accesskey "o">
+<!ENTITY contextForwardAsMenu.label "Forward As">
+<!ENTITY contextKillSubthreadMenu.label "Ignore Subthread">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillThreadMenu.label "Ignore Thread">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
+<!ENTITY contextMultiForwardAsAttachment.label "Forward as Attachments">
+<!ENTITY contextWatchThreadMenu.label "Watch Thread">
+<!ENTITY folderContextOpenInNewWindow.accesskey "O">
+<!ENTITY folderContextOpenInNewWindow.label "Open in New Window">
+<!ENTITY forwardAsAttachment.tooltip "Forward selected message as an attachment">
+<!ENTITY forwardAsInline.tooltip "Forward selected message as inline text">
+<!ENTITY newFeedAccountCmd.accesskey "d">
+<!ENTITY newFeedAccountCmd.label "Feed Account…">
+<!ENTITY openAttachmentListCmd.accesskey "h">
+<!ENTITY openAttachmentListCmd.label "Attachments">

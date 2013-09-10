@@ -65,3 +65,8 @@
 <!ENTITY starredColumn.tooltip "Πατήστε για ταξινόμηση κατά αστέρι">
 <!ENTITY locationColumn.tooltip "Πατήστε για ταξινόμηση κατά τοποθεσία">
 <!ENTITY idColumn.tooltip "Πατήστε για ταξινόμηση κατά σειρά παραλαβής">
+
+<!ENTITY moveButton.accesskey        "T">
+<!ENTITY moveButton.label            "Move To">
+<!ENTITY moveHereMenu.accesskey      "H">
+<!ENTITY moveHereMenu.label          "Move Here">

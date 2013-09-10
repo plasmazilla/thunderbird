@@ -31,3 +31,7 @@
 <!ENTITY customsound.accesskey            "d">
 <!ENTITY browse.label                     "Bläddra…">
 <!ENTITY browse.accesskey                 "B">
+
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY showTrayIcon.label               "Show a tray icon">

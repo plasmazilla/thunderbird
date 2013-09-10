@@ -12,6 +12,8 @@
 <!ENTITY aboutSupport.appBasicsTitle "Configuración básica de la aplicación">
 <!ENTITY aboutSupport.appBasicsName "Nombre">
 <!ENTITY aboutSupport.appBasicsVersion "Versión">
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Historial de actualizaciones">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Mostrar el historial de actualizaciones">
 <!ENTITY aboutSupport.appBasicsProfileDir "Directorio de perfil ">
 <!ENTITY aboutSupport.appBasicsProfileDirWinMac "Carpeta del perfil">
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Plugins activados">
@@ -25,6 +27,8 @@
 <!ENTITY aboutSupport.modifiedKeyPrefsTitle "Preferencias importantes modificadas">
 <!ENTITY aboutSupport.modifiedPrefsName "Nombre">
 <!ENTITY aboutSupport.modifiedPrefsValue "Valor">
+<!ENTITY aboutSupport.userJSTitle "Preferencias en user.js">
+<!ENTITY aboutSupport.userJSDescription "Su carpeta del perfil contiene un <a id='prefs-user-js-link'>archivo user.js</a>, que incluye preferencias que no han sido creadas por &brandShortName;.">
 <!ENTITY aboutSupport.graphicsTitle "Gráficos">
 <!ENTITY aboutSupport.jsTitle "JavaScript">
 <!ENTITY aboutSupport.jsIncrementalGC "Recogida de basura incremental">
@@ -34,4 +38,5 @@
 <!ENTITY aboutSupport.libraryVersionsTitle "Versiones de bibliotecas">
 <!ENTITY aboutSupport.installationHistoryTitle "Historial de instalaciones">
 <!ENTITY aboutSupport.updateHistoryTitle "Historial de actualizaciones">
-<!ENTITY aboutSupport.copyToClipboard.label "Copiar todo al portapapeles">
+<!ENTITY aboutSupport.copyTextToClipboard.label "Copiar el texto al portapapeles">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "Copiar datos en crudo al portapapeles">

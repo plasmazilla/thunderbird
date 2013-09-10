@@ -27,8 +27,8 @@
 <!ENTITY alwaysCheckDefault.accesskey  "l">
 <!ENTITY searchIntegration.label       "Tillat &searchIntegration.engineName; å søke i meldingar">
 <!ENTITY searchIntegration.accesskey   "T">
-<!ENTITY checkNow.label                "Kontroller no">
-<!ENTITY checkNow.accesskey            "n">
+<!ENTITY checkDefaultsNow.label        "Kontroller no …">
+<!ENTITY checkDefaultsNow.accesskey    "K">
 <!ENTITY configEditDesc.label          "Avanserte innstillingar">
 <!ENTITY configEdit.label              "Konfigurasjonseditor …">
 <!ENTITY configEdit.accesskey          "o">
@@ -59,7 +59,7 @@
 <!ENTITY reuseExpRadio0.accesskey      "d">
 <!ENTITY reuseExpRadio1.label          "Eit eksisterande meldingsvindauge">
 <!ENTITY reuseExpRadio1.accesskey      "e">
-<!ENTITY closeMsgOnMoveOrDelete.label  "Lat att meldingsvindauge/fane ved flytting eller sletting">
+<!ENTITY closeMsgOnMoveOrDelete.label  "Lukk meldingsvindauge/fane ved flytting eller sletting">
 <!ENTITY closeMsgOnMoveOrDelete.accesskey "L">
 
 <!-- Update -->

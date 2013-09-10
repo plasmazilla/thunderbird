@@ -1,3 +1,6 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!ENTITY  updateWizard.title              "Ùrachadh bathar-bog">
 
 <!ENTITY  checking.title                  "A' lorg ùrachaidhean">
@@ -21,6 +24,12 @@ bathar-bog a stàladh air a' choimpiutair seo.">
 <!ENTITY  manualUpdate.space.desc         "Tha ùrachadh tèarainteachd is seasmhachd ri fhaighinn ach chan eil 
 àite gu leòr agad airson a stàladh.">
 <!ENTITY  manualUpdateGetMsg.label        "Gheibh an an tionndadh as ùire de &brandShortName; an-seo uair sam bith:">
+
+<!ENTITY  unsupported.title               "Chan eil taic ris an t-siostam">
+<!ENTITY  unsupported.label               "Tha am &brandShortName; agad ro aosta ach chan eil taic ris an tionndadh 
+as ùire air an t-siostam agad. Feuch is àrdaich an siostam agad is feuch ris 
+a-rithist. Chan fhaic thu am brath seo a-rithist ach gheibh thu">
+<!ENTITY  unsupportedLink.label           "barrachd fiosrachaidh an-seo.">
 
 <!ENTITY  incompatibleCheck.title         "A' sgrùdadh co-chòrdalachd nan tuilleadan">
 <!ENTITY  incompatibleCheck.label         "A' lorg tionndaidhean nas ùire dhe na tuilleadain agad…">
@@ -65,7 +74,7 @@ ris a' cheangal seo a luchdadh a-nuas an tionndadh as ùire ann:">
 <!ENTITY  errorpatching.intro             "Cha do ghabh an t-ùrachadh phàirteach seo a chur an sàs. 
 Feuchaidh &brandShortName; ris a-rithist 's e a' luchdadh a-nuas ùrachadh iomlan.">
 
-<!ENTITY  genericBackgroundError.label    "Chan urrainn do &brandShortName; faighinn a-mach a bheil ùrachadh ann. Dèan cinnteach 
+<!ENTITY  genericBackgroundError.label    "Chan urrainn dha &brandShortName; faighinn a-mach a bheil ùrachadh ann. Dèan cinnteach 
 gu bheil an tionndadh as ùire de &brandShortName; agad air:">
 <!ENTITY  errorCertAttrNoUpdate2.label    "Tha rudeigin a' bacadh &brandShortName; o ùrachadh gu tèarainte. 
 Dèan cinnteach gu bheil an tionndadh as ùire de &brandShortName; agad air:">

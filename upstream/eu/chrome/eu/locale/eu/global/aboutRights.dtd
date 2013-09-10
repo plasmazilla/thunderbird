@@ -1,3 +1,6 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!-- rights.locale-direction instead of the usual local.dir entity, so RTL can skip translating page. -->
 <!ENTITY rights.locale-direction "ltr">
 <!ENTITY rights.pagetitle       "about:rights">
@@ -32,7 +35,7 @@
 <!ENTITY rights.intro-point3-unbranded "Produktu honi aplika dakioken edozein pribatutasun-politika hemen agertu beharko litzateke.">
 <!-- point 4 text for official branded builds -->
 
-<!ENTITY rights2.intro-point4a "&brandShortName;(r)en zenbait funtzionaltasunek web bidezko informazio-zerbitzuak erabiltzen dituzte; halere, ezin dugu ziurtatu &#37;100ean errorerik gabeak direnik. Xehetasun gehiago, funtzionaltasunak desgaitzearen ingurukoa barne, ">
+<!ENTITY rights2.intro-point4a "&brandShortName;(r)en zenbait funtzionaltasunek web bidezko informazio-zerbitzuak erabiltzen dituzte; halere, ezin dugu ziurtatu &#037;100ean errorerik gabeak direnik. Xehetasun gehiago, funtzionaltasunak desgaitzearen ingurukoa barne, ">
 <!ENTITY rights.intro-point4b "zerbitzuaren baldintzetan">
 <!ENTITY rights.intro-point4c " aurki daiteke.">
 <!-- point 4 text for unbranded builds -->
@@ -50,7 +53,7 @@
 
 <!ENTITY rights2.webservices-a "&brandFullName;(e)k web bidezko informazio-zerbitzuak erabiltzen ditu (&quot;Zerbitzuak&quot;) &brandShortName;(r)en bertsio bitar honetako funtzionaltasun batzuk hornitzeko, azpian zehaztutako baldintzapean. Ez baduzu Zerbitzu bat edo gehiago erabili nahi edo azpiko baldintzak onargaitzak badira, funtzionaltasuna edo Zerbitzua(k) desgai dezakezu/ditzakezu. Funtzionaltasun konkretuak edo Zerbitzuak desgaitzeko argibideak">
 <!ENTITY rights2.webservices-b "hemen">
-<!ENTITY rights2.webservices-c " aurki daitezke.">
+<!ENTITY rights3.webservices-c " aurki daitezke. Beste eginbide eta zerbitzuak aplikazioaren hobespenetan desgaitu daitezke.">
 <!-- safe browsing points for branded builds -->
 
 <!ENTITY rights.safebrowsing-a "Nabigatze segurua:">

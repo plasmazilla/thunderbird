@@ -18,6 +18,9 @@
 <!ENTITY ispHeaders.label "Να είναι έμπιστες οι κεφαλίδες ανεπιθυμήτων που καθορίζονται από: ">
 <!ENTITY ispHeaders.accesskey "φ">
 
+<!ENTITY globalJunkPrefs.accesskey "G">
+
+<!ENTITY globalJunkPrefs.label "Global Junk Preferences…">
 
 <!ENTITY ispHeadersWarning.label "If enabled, &brandShortName; will automatically consider messages marked by this external classifier as junk.">
 <!ENTITY junkActions.label "Destination and Retention">

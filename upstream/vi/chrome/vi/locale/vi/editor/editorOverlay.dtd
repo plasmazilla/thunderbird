@@ -454,5 +454,10 @@
 
 <!ENTITY copyToolbarCmd.tooltip "Copy">
 <!ENTITY cutToolbarCmd.tooltip "Cut">
+<!ENTITY decrementFontSize.key "&lt;">
+<!ENTITY decrementFontSize.key2 ","> <!-- < is above this key on many keyboards -->
 <!ENTITY formatRemoveNamedAnchors2.key "R">
+<!ENTITY incrementFontSize.key "&gt;">
+<!ENTITY incrementFontSize.key2 "."> <!-- > is above this key on many keyboards -->
+
 <!ENTITY pasteToolbarCmd.tooltip "Paste">

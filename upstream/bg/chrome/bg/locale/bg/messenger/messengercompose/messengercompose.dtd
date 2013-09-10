@@ -294,3 +294,7 @@
 
 <!ENTITY addressesSidebarTitle.label "Контакти">
 
+
+<!ENTITY deliveryFormatMenu.accesskey "F">
+<!ENTITY deliveryFormatMenu.label "Delivery Format">
+<!ENTITY findReplaceCmd.key "H">

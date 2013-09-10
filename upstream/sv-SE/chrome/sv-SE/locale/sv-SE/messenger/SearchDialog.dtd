@@ -76,3 +76,8 @@
 <!ENTITY starredColumn.tooltip "Klicka för att ordna efter märken">
 <!ENTITY locationColumn.tooltip "Klicka för att ordna efter plats">
 <!ENTITY idColumn.tooltip "Klicka för att ordna efter mottagen ordning">
+
+<!ENTITY moveButton.accesskey        "T">
+<!ENTITY moveButton.label            "Move To">
+<!ENTITY moveHereMenu.accesskey      "H">
+<!ENTITY moveHereMenu.label          "Move Here">

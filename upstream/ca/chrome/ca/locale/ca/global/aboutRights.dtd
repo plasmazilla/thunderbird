@@ -1,3 +1,6 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!-- rights.locale-direction instead of the usual local.dir entity, so RTL can skip translating page. -->
 <!ENTITY rights.locale-direction "ltr">
 <!ENTITY rights.pagetitle       "about:rights">
@@ -32,7 +35,7 @@
 <!ENTITY rights.intro-point3-unbranded "Qualsevol política de privadesa d'aquest producte cal llistar-la aquí.">
 <!-- point 4 text for official branded builds -->
 
-<!ENTITY rights2.intro-point4a "Algunes de les funcionalitats del &brandShortName; fan ús de serveis d'informació web; malgrat tot, no podem garantir que siguin 100&#37; acurats o mancats d'errors. Per a més detalls, com ara la informació de com inhabilitar aquests serveis, pot trobar-se als ">
+<!ENTITY rights2.intro-point4a "Algunes de les funcionalitats del &brandShortName; fan ús de serveis d'informació web; malgrat tot, no podem garantir que siguin 100&#037; acurats o mancats d'errors. Per a més detalls, com ara la informació de com inhabilitar aquests serveis, pot trobar-se als ">
 <!ENTITY rights.intro-point4b "termes de servei">
 <!ENTITY rights.intro-point4c ".">
 <!-- point 4 text for unbranded builds -->
@@ -50,7 +53,7 @@
 
 <!ENTITY rights2.webservices-a "El &brandFullName; utilitza serveis d'informació web («serveis» d'ara endavant), per proporcionar algunes de les funcionalitats disponibles per al vostre ús amb aquesta versió binària del &brandShortName;; tal com es descriu a continuació. Si no voleu un o més d'aquests serveis, o bé no considereu llurs termes acceptables, podeu triar inhabilitar-los. Teniu instruccions de com inhabilitar una funcionalitat o servei concret ">
 <!ENTITY rights2.webservices-b "aquí">
-<!ENTITY rights2.webservices-c ".">
+<!ENTITY rights3.webservices-c ". Altres característiques i serveis poden inhabilitar-se en les preferències de l'aplicació.">
 <!-- safe browsing points for branded builds -->
 
 <!ENTITY rights.safebrowsing-a "SafeBrowsing: ">

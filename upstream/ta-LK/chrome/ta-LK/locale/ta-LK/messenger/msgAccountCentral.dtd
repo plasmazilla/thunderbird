@@ -19,3 +19,8 @@
 
 <!ENTITY feedsSectionHdr.label        "பின்னூடடுக்கள்">
 <!ENTITY subscribeFeeds.label         "Manage subscriptions">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

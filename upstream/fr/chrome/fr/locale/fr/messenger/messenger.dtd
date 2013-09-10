@@ -30,7 +30,7 @@
 <!ENTITY newOtherAccountsCmd.label "Autres comptes…">
 <!ENTITY newOtherAccountsCmd.accesskey "m">
 <!ENTITY newCreateEmailAccountCmd.label "Obtenir un nouveau compte courrier…">
-<!ENTITY newCreateEmailAccountCmd.accesskey "O">
+<!ENTITY newCreateEmailAccountCmd.accesskey "b">
 <!ENTITY newExistingEmailAccountCmd.label "Compte courrier existant…">
 <!ENTITY newExistingEmailAccountCmd.accesskey "e">
 <!ENTITY newIMAccountCmd.label "Compte de messagerie instantanée…">
@@ -39,8 +39,6 @@
 <!ENTITY newIMContactCmd.accesskey "n">
 <!ENTITY openMessageFileCmd.label "Ouvrir un fichier…">
 <!ENTITY openMessageFileCmd.accesskey "O">
-<!ENTITY openAttachmentCmd.label "Pièces jointes">
-<!ENTITY openAttachmentCmd.accesskey "j">
 <!ENTITY saveAsMenu.label "Enregistrer comme">
 <!ENTITY saveAsMenu.accesskey "s"> 
 <!ENTITY saveAsFileCmd.label "Fichier">
@@ -61,7 +59,7 @@
 <!ENTITY subscribeCmd.label "S'abonner…">
 <!ENTITY subscribeCmd.accesskey "b">
 <!ENTITY deleteFolder.label "Supprimer le dossier">
-<!ENTITY deleteFolder.accesskey "S">
+<!ENTITY deleteFolder.accesskey "d">
 <!ENTITY renameFolder.label "Renommer le dossier…">
 <!ENTITY renameFolder.accesskey "R">
 <!ENTITY renameFolder.key "VK_F2"> 
@@ -184,7 +182,7 @@
 <!ENTITY sortByTagsCmd.label "Étiquettes">
 <!ENTITY sortByTagsCmd.accesskey "q">
 <!ENTITY sortByJunkStatusCmd.label "Statut indésirable">
-<!ENTITY sortByJunkStatusCmd.accesskey "e">
+<!ENTITY sortByJunkStatusCmd.accesskey "b">
 <!ENTITY sortBySubjectCmd.label "Sujet">
 <!ENTITY sortBySubjectCmd.accesskey "S">
 <!ENTITY sortByFromCmd.label "Expéditeur">
@@ -203,8 +201,8 @@
 <!ENTITY sortThreaded.accesskey "c">
 <!ENTITY sortUnthreaded.label "Discussions non groupées">
 <!ENTITY sortUnthreaded.accesskey "g">
-<!ENTITY groupBySort.label "Groupé par critère de tri">
-<!ENTITY groupBySort.accesskey "G">
+<!ENTITY groupBySort.label "Groupées par critère de tri">
+<!ENTITY groupBySort.accesskey "e">
 <!ENTITY msgsMenu.label "Message">
 <!ENTITY msgsMenu.accesskey "M">
 <!ENTITY threads.label "Discussions">
@@ -227,7 +225,7 @@
 <!ENTITY ignoredThreadsCmd.accesskey "I">
 
 <!ENTITY headersMenu.label "En-têtes">
-<!ENTITY headersMenu.accesskey "n">
+<!ENTITY headersMenu.accesskey "t">
 <!ENTITY headersAllCmd.label "Complets">
 <!ENTITY headersAllCmd.accesskey "C">
 <!ENTITY headersNormalCmd.label "Normaux">
@@ -245,7 +243,7 @@
 
 <!ENTITY bodyMenuFeed.label "Corps de message du flux">
 <!ENTITY bodyMenuFeed.accesskey "C">
-<!ENTITY viewFeedWebPage.label "Page Web">
+<!ENTITY viewFeedWebPage.label "Page web">
 <!ENTITY viewFeedWebPage.accesskey "W">
 <!ENTITY viewFeedSummary.label "Résumé">
 <!ENTITY viewFeedSummary.accesskey "R">
@@ -254,34 +252,6 @@
 
 <!ENTITY viewAttachmentsInlineCmd.label "Afficher les pièces jointes dans les messages">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "A">
-
-<!-- LOCALIZATION NOTE :
-fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
-fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
-If shift key is needed with your locale popular keyboard for them,
-you can use these alternative items. Otherwise, their values should be empty.
--->
-
-<!ENTITY fullZoomEnlargeCmd.label       "Zoom avant">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "v">
-<!ENTITY fullZoomEnlargeCmd.commandkey  "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "="> <!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-
-<!ENTITY fullZoomReduceCmd.label        "Zoom arrière">
-<!ENTITY fullZoomReduceCmd.accesskey    "r">
-<!ENTITY fullZoomReduceCmd.commandkey   "-">
-<!ENTITY fullZoomReduceCmd.commandkey2  "">
-
-<!ENTITY fullZoomResetCmd.label         "Normal">
-<!ENTITY fullZoomResetCmd.accesskey     "N">
-<!ENTITY fullZoomResetCmd.commandkey    "0">
-<!ENTITY fullZoomResetCmd.commandkey2   "">
-
-<!ENTITY fullZoomToggleCmd.label        "Zoom texte seulement">
-<!ENTITY fullZoomToggleCmd.accesskey    "x">
-<!ENTITY fullZoom.label                 "Zoom">
-<!ENTITY fullZoom.accesskey             "Z">
 
 <!ENTITY pageSourceCmd.label "Code source du message">
 <!ENTITY pageSourceCmd.accesskey "s">
@@ -339,8 +309,8 @@ you can use these alternative items. Otherwise, their values should be empty.
 <!ENTITY goBackCmd.accesskey "c">
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "Chat">
-<!ENTITY goChatCmd.accesskey "c">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.accesskey "h">
+<!ENTITY goChatCmd.key "I">
 <!ENTITY prevStarredMsgCmd.label "Message suivi">
 <!ENTITY prevStarredMsgCmd.accesskey "v">
 <!ENTITY folderMenu.label "Dossier">
@@ -381,7 +351,7 @@ you can use these alternative items. Otherwise, their values should be empty.
 <!ENTITY forwardMsgCmd.accesskey "f">
 <!ENTITY forwardMsgCmd.key "l">
 <!ENTITY forwardAsMenu.label "Transférer au format">
-<!ENTITY forwardAsMenu.accesskey "n">
+<!ENTITY forwardAsMenu.accesskey "s">
 <!ENTITY forwardAsInline.label "Intégré">
 <!ENTITY forwardAsInline.accesskey "I">
 <!ENTITY forwardAsAttachmentCmd.label "Pièce jointe">
@@ -458,15 +428,17 @@ you can use these alternative items. Otherwise, their values should be empty.
 <!ENTITY openMessageWindowCmd.accesskey "O">
 <!ENTITY openMessageWindowCmd.key "o">
 <!ENTITY openConversationCmd.label "Ouvrir dans la discussion">
-<!ENTITY openConversationCmd.accesskey "O">
+<!ENTITY openConversationCmd.accesskey "u">
 <!ENTITY openConversationCmd.key "o">
-<!ENTITY openFeedMessage.label "Ouvrir le message du flux">
-<!ENTITY openFeedMessage.accesskey "O">
-<!ENTITY openFeedWebPageInWindow.label "Page Web dans une nouvelle fenêtre">
-<!ENTITY openFeedWebPageInWindow.accesskey "W">
-<!ENTITY openFeedSummaryInWindow.label "Résumé dans une nouvelle fenêtre">
-<!ENTITY openFeedSummaryInWindow.accesskey "R">
-<!ENTITY openFeedWebPageInMP.label "Basculer entre page Web et résumé dans le panneau de message">
+<!ENTITY openAttachmentListCmd.label "Pièces jointes">
+<!ENTITY openAttachmentListCmd.accesskey "j">
+<!ENTITY openFeedMessage1.label "À l'ouverture des messages de flux">
+<!ENTITY openFeedMessage1.accesskey "x">
+<!ENTITY openFeedWebPage.label "Ouvrir en tant que page web">
+<!ENTITY openFeedWebPage.accesskey "w">
+<!ENTITY openFeedSummary.label "Ouvrir en tant que résumé">
+<!ENTITY openFeedSummary.accesskey "t">
+<!ENTITY openFeedWebPageInMP.label "Basculer entre page web et résumé dans le panneau de message">
 <!ENTITY openFeedWebPageInMP.accesskey "B">
 
 <!-- Windows Menu -->
@@ -485,7 +457,7 @@ you can use these alternative items. Otherwise, their values should be empty.
 <!ENTITY activitymanager.label "Activités">
 <!ENTITY activitymanager.accesskey "v">
 <!ENTITY imAccountsStatus.label "État de messagerie instantanée">
-<!ENTITY imAccountsStatus.accesskey "m">
+<!ENTITY imAccountsStatus.accesskey "d">
 <!ENTITY imStatus.available          "Disponible">
 <!ENTITY imStatus.unavailable        "Occupé">
 <!ENTITY imStatus.offline            "Déconnecté">
@@ -586,7 +558,7 @@ you can use these alternative items. Otherwise, their values should be empty.
 <!ENTITY chatButton.tooltip "Afficher l'onglet de messagerie instantanée">
 <!ENTITY tagButton.tooltip "Étiqueter les messages">
 <!ENTITY compactButton.tooltip "Retirer les messages supprimés du dossier sélectionné">
-<!ENTITY appmenuButton.tooltip "Afficher le menu de l'application">
+<!ENTITY appmenuButton1.tooltip "Afficher le menu de &brandShortName;">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Nouveau message">
@@ -594,6 +566,8 @@ you can use these alternative items. Otherwise, their values should be empty.
 <!ENTITY appmenuEditMenu.label "Éditer">
 <!ENTITY appmenuQFBMenu.label "Barre de filtre rapide">
 <!ENTITY appmenuToolbarLayout.label "Personnaliser les barres d'outils…">
+<!ENTITY appmenuSelectThread.label "Sélectionner la discussion">
+<!ENTITY appmenuSelectFlagged.label "Sélectionner les messages suivis">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "Nouvelle étiquette…">
@@ -721,7 +695,7 @@ you can use these alternative items. Otherwise, their values should be empty.
 <!ENTITY contextReplyAll.label "Répondre à tout le monde">
 <!ENTITY contextReplyAll.accesskey "t">
 <!ENTITY contextReplyList.label "Répondre à la liste">
-<!ENTITY contextReplyList.accesskey "o">
+<!ENTITY contextReplyList.accesskey "l">
 <!ENTITY contextForward.label "Transférer">
 <!ENTITY contextForward.accesskey "f">
 <!ENTITY contextForwardAsAttachment.label "Transférer en tant que pièce jointe">
@@ -912,3 +886,28 @@ you can use these alternative items. Otherwise, their values should be empty.
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers "accel,alt">
 <!ENTITY showAllAppsCmdMac.label "Tout afficher">
+
+<!ENTITY allowRemoteDebugging.accesskey "g">
+<!ENTITY allowRemoteDebugging.label "Allow Remote Debugging">
+<!ENTITY buttonMenuForwardAsAttachment.label "Forward As Attachment">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Forward Inline">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "A">
+<!ENTITY contextForwardAsAttachmentItem.label "Attachment">
+<!ENTITY contextForwardAsInline.accesskey "I">
+<!ENTITY contextForwardAsInline.label "Inline">
+<!ENTITY contextForwardAsMenu.accesskey "o">
+<!ENTITY contextForwardAsMenu.label "Forward As">
+<!ENTITY contextKillSubthreadMenu.label "Ignore Subthread">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillThreadMenu.label "Ignore Thread">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
+<!ENTITY contextMultiForwardAsAttachment.label "Forward as Attachments">
+<!ENTITY contextWatchThreadMenu.label "Watch Thread">
+<!ENTITY folderContextOpenInNewWindow.accesskey "O">
+<!ENTITY folderContextOpenInNewWindow.label "Open in New Window">
+<!ENTITY forwardAsAttachment.tooltip "Forward selected message as an attachment">
+<!ENTITY forwardAsInline.tooltip "Forward selected message as inline text">
+<!ENTITY newFeedAccountCmd.accesskey "d">
+<!ENTITY newFeedAccountCmd.label "Feed Account…">

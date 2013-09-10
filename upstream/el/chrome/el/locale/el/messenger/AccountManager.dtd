@@ -16,5 +16,7 @@
 <!ENTITY accountTree.width "width: 35ch;">
 
 
+<!ENTITY addFeedAccountButton.accesskey "F">
+<!ENTITY addFeedAccountButton.label "Add Feed Account…">
 <!ENTITY addIMAccountButton.accesskey "C">
 <!ENTITY addIMAccountButton.label "Add Chat Account…">

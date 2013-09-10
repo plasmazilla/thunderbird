@@ -36,8 +36,6 @@
 <!ENTITY newIMContactCmd.accesskey "c">
 <!ENTITY openMessageFileCmd.label "Abrir arquivo de mensagem…">
 <!ENTITY openMessageFileCmd.accesskey "b">
-<!ENTITY openAttachmentCmd.label "Anexos">
-<!ENTITY openAttachmentCmd.accesskey "x">
 <!ENTITY saveAsMenu.label "Salvar como">
 <!ENTITY saveAsMenu.accesskey "a">
 <!ENTITY saveAsFileCmd.label "Arquivo…">
@@ -252,33 +250,6 @@
 <!ENTITY viewAttachmentsInlineCmd.label "Exibir anexos na mensagem">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "x">
 
-<!-- LOCALIZATION NOTE :
-fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
-fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
-If shift key is needed with your locale popular keyboard for them,
-you can use these alternative items. Otherwise, their values should be empty.  -->
-
-<!ENTITY fullZoomEnlargeCmd.label       "Aumentar">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "A">
-<!ENTITY fullZoomEnlargeCmd.commandkey  "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "="> <!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-
-<!ENTITY fullZoomReduceCmd.label        "Diminuir">
-<!ENTITY fullZoomReduceCmd.accesskey    "D">
-<!ENTITY fullZoomReduceCmd.commandkey   "-">
-<!ENTITY fullZoomReduceCmd.commandkey2  "">
-
-<!ENTITY fullZoomResetCmd.label         "Normal">
-<!ENTITY fullZoomResetCmd.accesskey     "N">
-<!ENTITY fullZoomResetCmd.commandkey    "0">
-<!ENTITY fullZoomResetCmd.commandkey2   "">
-
-<!ENTITY fullZoomToggleCmd.label        "Somente do texto">
-<!ENTITY fullZoomToggleCmd.accesskey    "S">
-<!ENTITY fullZoom.label                 "Zoom">
-<!ENTITY fullZoom.accesskey             "Z">
-
 <!ENTITY pageSourceCmd.label "Código-fonte">
 <!ENTITY pageSourceCmd.accesskey "f">
 <!ENTITY pageSourceCmd.key "U">
@@ -335,7 +306,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "Bate-papo">
 <!ENTITY goChatCmd.accesskey "B">
-<!ENTITY goChatCmd.commandKey "c">
+<!ENTITY goChatCmd.key "I">
 <!ENTITY prevStarredMsgCmd.label "Mensagem com estrela">
 <!ENTITY prevStarredMsgCmd.accesskey "M">
 <!ENTITY folderMenu.label "Pasta">
@@ -450,17 +421,19 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY recalculateJunkScoreCmd.label "Aplicar antispam">
 <!ENTITY recalculateJunkScoreCmd.accesskey "A">
 <!ENTITY openMessageWindowCmd.label "Abrir mensagem">
-<!ENTITY openMessageWindowCmd.accesskey "b">
+<!ENTITY openMessageWindowCmd.accesskey "B">
 <!ENTITY openMessageWindowCmd.key "O">
 <!ENTITY openConversationCmd.label "Abrir como conversa">
-<!ENTITY openConversationCmd.accesskey "r">
+<!ENTITY openConversationCmd.accesskey "R">
 <!ENTITY openConversationCmd.key "O">
-<!ENTITY openFeedMessage.label "Abrir mensagem RSS">
-<!ENTITY openFeedMessage.accesskey "b">
-<!ENTITY openFeedWebPageInWindow.label "Página web em nova janela">
-<!ENTITY openFeedWebPageInWindow.accesskey "P">
-<!ENTITY openFeedSummaryInWindow.label "Resumo em nova janela">
-<!ENTITY openFeedSummaryInWindow.accesskey "R">
+<!ENTITY openAttachmentListCmd.label "Anexos">
+<!ENTITY openAttachmentListCmd.accesskey "X">
+<!ENTITY openFeedMessage1.label "Ao abrir mensagens RSS">
+<!ENTITY openFeedMessage1.accesskey "B">
+<!ENTITY openFeedWebPage.label "Abrir como página web">
+<!ENTITY openFeedWebPage.accesskey "P">
+<!ENTITY openFeedSummary.label "Abrir resumo">
+<!ENTITY openFeedSummary.accesskey "R">
 <!ENTITY openFeedWebPageInMP.label "Alternar entre página web e resumo no painel de mensagens">
 <!ENTITY openFeedWebPageInMP.accesskey "A">
 
@@ -581,7 +554,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY chatButton.tooltip "Exibir aba de bate-papo">
 <!ENTITY tagButton.tooltip "Aplicar tag em mensagens">
 <!ENTITY compactButton.tooltip "Remover as mensagens excluídas da pasta selecionada">
-<!ENTITY appmenuButton.tooltip "Abrir o menu &brandShortName;">
+<!ENTITY appmenuButton1.tooltip "Exibir o menu &brandShortName;">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Nova mensagem">
@@ -589,6 +562,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY appmenuEditMenu.label "Editar">
 <!ENTITY appmenuQFBMenu.label "Barra de filtragem">
 <!ENTITY appmenuToolbarLayout.label "Personalizar barras…">
+<!ENTITY appmenuSelectThread.label "Selecionar tópico">
+<!ENTITY appmenuSelectFlagged.label "Selecionar mensagens com estrela">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "Nova tag…">
@@ -913,3 +888,28 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Mostrar Tudo">
+
+<!ENTITY allowRemoteDebugging.accesskey "g">
+<!ENTITY allowRemoteDebugging.label "Allow Remote Debugging">
+<!ENTITY buttonMenuForwardAsAttachment.label "Forward As Attachment">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Forward Inline">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "A">
+<!ENTITY contextForwardAsAttachmentItem.label "Attachment">
+<!ENTITY contextForwardAsInline.accesskey "I">
+<!ENTITY contextForwardAsInline.label "Inline">
+<!ENTITY contextForwardAsMenu.accesskey "o">
+<!ENTITY contextForwardAsMenu.label "Forward As">
+<!ENTITY contextKillSubthreadMenu.label "Ignore Subthread">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillThreadMenu.label "Ignore Thread">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
+<!ENTITY contextMultiForwardAsAttachment.label "Forward as Attachments">
+<!ENTITY contextWatchThreadMenu.label "Watch Thread">
+<!ENTITY folderContextOpenInNewWindow.accesskey "O">
+<!ENTITY folderContextOpenInNewWindow.label "Open in New Window">
+<!ENTITY forwardAsAttachment.tooltip "Forward selected message as an attachment">
+<!ENTITY forwardAsInline.tooltip "Forward selected message as inline text">
+<!ENTITY newFeedAccountCmd.accesskey "d">
+<!ENTITY newFeedAccountCmd.label "Feed Account…">

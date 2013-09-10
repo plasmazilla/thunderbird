@@ -36,8 +36,6 @@
 <!ENTITY newIMContactCmd.accesskey "x">
 <!ENTITY openMessageFileCmd.label "Ireki gordetako mezua…">
 <!ENTITY openMessageFileCmd.accesskey "I">
-<!ENTITY openAttachmentCmd.label "Eranskinak">
-<!ENTITY openAttachmentCmd.accesskey "E">
 <!ENTITY saveAsMenu.label "Gorde honela">
 <!ENTITY saveAsMenu.accesskey "G">
 <!ENTITY saveAsFileCmd.label "Fitxategia">
@@ -251,34 +249,6 @@
 
 <!ENTITY viewAttachmentsInlineCmd.label "Bistaratu eranskinak barnean">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "a">
-<!-- LOCALIZATION NOTE :
-fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
-fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
-If shift key is needed with your locale popular keyboard for them,
-you can use these alternative items. Otherwise, their values should be empty.  -->
-
-
-<!ENTITY fullZoomEnlargeCmd.label       "Gerturatu">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "G">
-<!ENTITY fullZoomEnlargeCmd.commandkey  "+">
-<!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "="> 
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-
-<!ENTITY fullZoomReduceCmd.label        "Urrundu">
-<!ENTITY fullZoomReduceCmd.accesskey    "U">
-<!ENTITY fullZoomReduceCmd.commandkey   "-">
-<!ENTITY fullZoomReduceCmd.commandkey2  "">
-
-<!ENTITY fullZoomResetCmd.label         "Berrezarri">
-<!ENTITY fullZoomResetCmd.accesskey     "r">
-<!ENTITY fullZoomResetCmd.commandkey    "0">
-<!ENTITY fullZoomResetCmd.commandkey2   "">
-
-<!ENTITY fullZoomToggleCmd.label        "Testua soilik">
-<!ENTITY fullZoomToggleCmd.accesskey    "T">
-<!ENTITY fullZoom.label                 "Zooma">
-<!ENTITY fullZoom.accesskey             "Z">
 
 <!ENTITY pageSourceCmd.label "Mezuaren iturburua">
 <!ENTITY pageSourceCmd.accesskey "u">
@@ -336,7 +306,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "Txata">
 <!ENTITY goChatCmd.accesskey "T">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.key "I">
 <!ENTITY prevStarredMsgCmd.label "Izardun mezura">
 <!ENTITY prevStarredMsgCmd.accesskey "z">
 <!ENTITY folderMenu.label "Karpeta">
@@ -456,12 +426,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openConversationCmd.label "Ireki hizketaldian">
 <!ENTITY openConversationCmd.accesskey "h">
 <!ENTITY openConversationCmd.key "o">
-<!ENTITY openFeedMessage.label "Ireki jarioaren mezua">
-<!ENTITY openFeedMessage.accesskey "I">
-<!ENTITY openFeedWebPageInWindow.label "Web orria leiho berrian">
-<!ENTITY openFeedWebPageInWindow.accesskey "W">
-<!ENTITY openFeedSummaryInWindow.label "Laburpena leiho berrian">
-<!ENTITY openFeedSummaryInWindow.accesskey "L">
+<!ENTITY openAttachmentListCmd.label "Eranskinak">
+<!ENTITY openAttachmentListCmd.accesskey "r">
+<!ENTITY openFeedMessage1.label "Jarioen mezuak irekitzean">
+<!ENTITY openFeedMessage1.accesskey "J">
+<!ENTITY openFeedWebPage.label "Ireki web orri gisa">
+<!ENTITY openFeedWebPage.accesskey "w">
+<!ENTITY openFeedSummary.label "Ireki laburpen gisa">
+<!ENTITY openFeedSummary.accesskey "b">
 <!ENTITY openFeedWebPageInMP.label "Txandakatu web orria eta laburpena mezuen penelean">
 <!ENTITY openFeedWebPageInMP.accesskey "T">
 <!-- Windows Menu -->
@@ -582,7 +554,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY chatButton.tooltip "Erakutsi txataren fitxa">
 <!ENTITY tagButton.tooltip "Etiketatu mezuak">
 <!ENTITY compactButton.tooltip "Kendu ezabatutako mezuak hautatutako karpetatik">
-<!ENTITY appmenuButton.tooltip "Aplikazioen menua bistaratzen du">
+<!ENTITY appmenuButton1.tooltip "Bistaratu &brandShortName; menua">
 <!-- AppMenu Popup -->
 
 <!ENTITY appmenuNewMsgCmd.label "Mezu berria">
@@ -590,6 +562,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY appmenuEditMenu.label "Editatu">
 <!ENTITY appmenuQFBMenu.label "Iragazki bizkorren barra">
 <!ENTITY appmenuToolbarLayout.label "Tresna-barraren diseinua…">
+<!ENTITY appmenuSelectThread.label "Hautatu haria">
+<!ENTITY appmenuSelectFlagged.label "Hautatu mezu izardunak">
 <!-- Tags Menu Popup -->
 
 <!ENTITY addNewTag.label "Etiketa berria…">
@@ -914,3 +888,28 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Erakutsi denak">
+
+<!ENTITY allowRemoteDebugging.accesskey "g">
+<!ENTITY allowRemoteDebugging.label "Allow Remote Debugging">
+<!ENTITY buttonMenuForwardAsAttachment.label "Forward As Attachment">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Forward Inline">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "A">
+<!ENTITY contextForwardAsAttachmentItem.label "Attachment">
+<!ENTITY contextForwardAsInline.accesskey "I">
+<!ENTITY contextForwardAsInline.label "Inline">
+<!ENTITY contextForwardAsMenu.accesskey "o">
+<!ENTITY contextForwardAsMenu.label "Forward As">
+<!ENTITY contextKillSubthreadMenu.label "Ignore Subthread">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillThreadMenu.label "Ignore Thread">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
+<!ENTITY contextMultiForwardAsAttachment.label "Forward as Attachments">
+<!ENTITY contextWatchThreadMenu.label "Watch Thread">
+<!ENTITY folderContextOpenInNewWindow.accesskey "O">
+<!ENTITY folderContextOpenInNewWindow.label "Open in New Window">
+<!ENTITY forwardAsAttachment.tooltip "Forward selected message as an attachment">
+<!ENTITY forwardAsInline.tooltip "Forward selected message as inline text">
+<!ENTITY newFeedAccountCmd.accesskey "d">
+<!ENTITY newFeedAccountCmd.label "Feed Account…">

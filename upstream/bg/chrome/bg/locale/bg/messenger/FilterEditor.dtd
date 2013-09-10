@@ -49,6 +49,14 @@
 <!ENTITY addAction.tooltip "Добавяне на ново действие">
 <!ENTITY removeAction.tooltip "Премахване на това действие">
 
+<!ENTITY contextAfterCls.label "Filter after Junk Classification">
+<!ENTITY contextBeforeCls.label "Filter before Junk Classification">
+<!ENTITY contextIncomingMail.accesskey "G">
+<!ENTITY contextIncomingMail.label "Getting New Mail:">
+<!ENTITY contextManual.accesskey "R">
+<!ENTITY filterActionOrder.label "See execution order">
+
+<!ENTITY filterActionOrderWarning.label "Note: Filter actions will be run in a different order.">
 <!ENTITY filterActionTargetFlexValue "4">
 
 <!-- LOCALIZATION NOTE

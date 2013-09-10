@@ -17,14 +17,18 @@
 <!ENTITY highestPriorityCmd.label "Altuena">
 
 <!ENTITY contextDesc.label "Iragazkia noiz aplikatu:">
-<!ENTITY contextDesc.accesskey "z">
-<!ENTITY contextIncoming.label "Posta arakatzean">
+<!ENTITY contextIncomingMail.label "Posta berria eskuratzea:">
+<!ENTITY contextIncomingMail.accesskey "b">
 <!ENTITY contextManual.label "Exekutatu eskuz">
-<!ENTITY contextBoth.label "Posta arakatzean edo eskuz exekutatzen">
-<!ENTITY contextPostPlugin.label "Posta egiaztatzea (sailkatu ondoren)">
-<!ENTITY contextPostPluginBoth.label "Posta egiaztatzea (sailkatu ondoren) edo eskuz exekutatzea">
+<!ENTITY contextManual.accesskey "E">
+<!ENTITY contextBeforeCls.label "Iragazi zaborra sailkatu aurretik">
+<!ENTITY contextAfterCls.label "Iragazi zaborra sailkatu ondoren">
+
 <!ENTITY filterActionDesc.label "Burutu ekintza hauek:">
 <!ENTITY filterActionDesc.accesskey "B">
+
+<!ENTITY filterActionOrderWarning.label "Oharra: iragazte-ekintzak beste ordena batean exekutatuko dira.">
+<!ENTITY filterActionOrder.label "Ikusi exekuzio-ordena">
 <!-- New Style Filter Rule Actions -->
 
 <!ENTITY moveMessage.label "Mugitu mezua hona:">

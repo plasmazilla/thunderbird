@@ -21,6 +21,11 @@
 <!ENTITY aboutSupport.appBasicsName "Név">
 <!ENTITY aboutSupport.appBasicsVersion "Verzió">
 
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Frissítési előzmények">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Frissítési előzmények megjelenítése">
+
 <!ENTITY aboutSupport.appBasicsProfileDir "Profilkönyvtár">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
 This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
@@ -46,6 +51,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.modifiedPrefsName "Név">
 <!ENTITY aboutSupport.modifiedPrefsValue "Érték">
 
+<!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
+<!ENTITY aboutSupport.userJSTitle "user.js beállítások">
+<!ENTITY aboutSupport.userJSDescription "Profilmappája tartalmaz egy <a id='prefs-user-js-link'>user.js fájlt</a>, amely nem a &brandShortName; által létrehozott beállításokat is tartalmaz.">
+
 <!ENTITY aboutSupport.graphicsTitle "Grafika">
 
 <!ENTITY aboutSupport.jsTitle "JavaScript">
@@ -60,4 +69,5 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.installationHistoryTitle "Telepítési előzmények">
 <!ENTITY aboutSupport.updateHistoryTitle "Frissítési előzmények">
 
-<!ENTITY aboutSupport.copyToClipboard.label "Másolás a vágólapra">
+<!ENTITY aboutSupport.copyTextToClipboard.label "Szöveg másolása a vágólapra">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "Nyers adatok másolása a vágólapra">

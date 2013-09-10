@@ -1,35 +1,24 @@
-<!--
-# Translator(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# robyerevan <robyerevan@gmail.com>
-# issuart <issuart@yahoo.com>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# alexxed <alexxed@gmail.com>
-#
--->
-<!ENTITY itemJunk.label          "Խլամ">
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY itemJunk.label          "Թափոն">
 <!ENTITY itemPhishing.label      "Էլ. խաբկանք">
 <!ENTITY itemPasswords.label     "Գաղտնաբառեր">
 <!ENTITY itemAntiVirus.label     "Հակավիրուս">
 <!ENTITY itemCookies.label       "Վեբ բովանդակություն">
 
 <!-- Junk Mail Controls -->
-<!ENTITY junkMail.intro "Նշեք խլամի հիմնական կարգավորումները փոստարկղի կարգավորումներում։">
-<!ENTITY manualMark.label "Երբ ես նշում եմ նամակը որպես խլամ.">
+<!ENTITY junkMail.intro "Նշեք փոստաղբի հիմնական կարգավորումները փոստարկղի կարգավորումներում։">
+<!ENTITY manualMark.label "Երբ ես նշում եմ նամակը որպես թափոն՝">
 <!ENTITY manualMark.accesskey "W">
-<!ENTITY manualMarkModeMove.label "Տեղափոխել փոստարկղի &quot;Խլամ&quot; թղթապանակ">
+<!ENTITY manualMarkModeMove.label "Տեղափոխել փոստարկղի &quot;Թափոն&quot; թղթապանակ">
 <!ENTITY manualMarkModeMove.accesskey "o">
 <!ENTITY manualMarkModeDelete.label "Ջնջել դրանք">
 <!ENTITY manualMarkModeDelete.accesskey "D">
-<!ENTITY markAsReadOnSpam.label "Նշել խլամ նամակները որպես կարդացած">
+<!ENTITY markAsReadOnSpam.label "Նշել թափոն նամակները որպես ընթերցված">
 <!ENTITY markAsReadOnSpam.accesskey "M">
-<!ENTITY enableAdaptiveJunkLogging.label "Enable adaptive junk filter logging">
+<!ENTITY enableAdaptiveJunkLogging.label "Միացնել թափոնի հարմարողական ֆիլտրի մատյանը">
 <!ENTITY enableAdaptiveJunkLogging.accesskey "E">
 <!ENTITY openJunkLog.label "Ցուցադրել մատյանը">
 <!ENTITY openJunkLog.accesskey "S">
@@ -72,8 +61,6 @@
 <!ENTITY showCookies.label              "Ցուցադրել Cookie-ները...">
 <!ENTITY showCookies.accesskey          "S">
 
-
-<!ENTITY doNotTrack.accesskey           "d">
-
 <!-- Do Not Track -->
-<!ENTITY doNotTrack.label               "Tell web sites I do not want to be tracked">
+<!ENTITY doNotTrack.label               "Տեղեկացրեք վեբ կայքերին,ես չեմ ցանկանում, որ ինձ հետևեն">
+<!ENTITY doNotTrack.accesskey           "d">

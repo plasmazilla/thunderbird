@@ -35,3 +35,9 @@
 <!ENTITY includeSigOnReply.accesskey          "s">
 <!ENTITY includeSigOnForward.label            "ਅੱਗੇ ਭੇਜਣ ਲਈ ਦਸਤਖਤ ਸ਼ਾਮਲ ਕਰੋ">
 <!ENTITY includeSigOnForward.accesskey        "w">
+<!ENTITY globalAddressingPrefs.accesskey      "P">
+
+<!ENTITY globalAddressingPrefs.label          "Global Addressing Preferences…">
+<!ENTITY globalComposingPrefs.accesskey       "G">
+
+<!ENTITY globalComposingPrefs.label           "Global Composing Preferences…">

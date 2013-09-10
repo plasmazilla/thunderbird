@@ -13,3 +13,5 @@
 <!ENTITY resetProfile.button.label        "Återställ &brandShortName;">
 
 <!ENTITY resetProfile.cleaning.description "Vänta medan &brandShortName; rensar ut din gamla data…">
+
+<!ENTITY resetProfile.button.label2       "Reset &brandShortName;…">

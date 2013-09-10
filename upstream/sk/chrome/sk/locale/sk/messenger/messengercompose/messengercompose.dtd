@@ -87,6 +87,7 @@
 <!ENTITY findCmd.label "Hľadať a nahradiť…">
 <!ENTITY findCmd.key "F">
 <!ENTITY findCmd.accesskey "H">
+<!ENTITY findReplaceCmd.key "H">
 <!ENTITY findAgainCmd.label "Hľadať ďalej">
 <!ENTITY findAgainCmd.key "G">
 <!ENTITY findAgainCmd.accesskey "d">
@@ -139,8 +140,8 @@
 <!ENTITY returnReceiptMenu.accesskey "d">
 <!ENTITY dsnMenu.label "Doručiť notifikáciu o stave">
 <!ENTITY dsnMenu.accesskey "o">
-<!ENTITY outputFormatMenu.label "Formát">
-<!ENTITY outputFormatMenu.accesskey "F">
+<!ENTITY deliveryFormatMenu.label "Doručiť vo formáte">
+<!ENTITY deliveryFormatMenu.accesskey "f">
 <!ENTITY autoFormatCmd.label "Automaticky">
 <!ENTITY autoFormatCmd.accesskey "A">
 <!ENTITY plainTextFormatCmd.label "Len text">

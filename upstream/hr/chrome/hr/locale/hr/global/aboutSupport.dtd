@@ -34,7 +34,6 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsMemoryUse "Zauzeće memorije">
 
 <!ENTITY aboutSupport.showDir.label "Otvori direktorij">
-
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
 variant of aboutSupport.show.label.  This allows us to use the preferred
 "Finder" terminology on Mac. -->
@@ -46,6 +45,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.modifiedKeyPrefsTitle "Važne izmijenjene osobitosti">
 <!ENTITY aboutSupport.modifiedPrefsName "Naziv">
 <!ENTITY aboutSupport.modifiedPrefsValue "Vrijednost">
+
+<!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
+<!ENTITY aboutSupport.userJSTitle "user.js osobitosti">
+<!ENTITY aboutSupport.userJSDescription "Vaš profil sadrži <a id='prefs-user-js-link'>user.js datoteku</a>, koja uključuje osobitosti koje nije stvorio &brandShortName;.">
 
 <!ENTITY aboutSupport.graphicsTitle "Grafika">
 
@@ -61,4 +64,11 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.installationHistoryTitle "Povijest instalacija">
 <!ENTITY aboutSupport.updateHistoryTitle "Povijest ažuriranja">
 
-<!ENTITY aboutSupport.copyToClipboard.label "Kopiraj sve u međuspremnik">
+<!ENTITY aboutSupport.copyTextToClipboard.label "Kopiraj tekst u međuspremnik">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "Kopiraj neobrađene podatke u međuspremnik">
+
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
+
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Update History">

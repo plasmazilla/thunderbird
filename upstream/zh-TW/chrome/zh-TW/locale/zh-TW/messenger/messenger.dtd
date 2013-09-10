@@ -21,7 +21,7 @@
      window.
      -->
 <!ENTITY moveToNewWindow.label "移動到新視窗">
-<!ENTITY moveToNewWindow.accesskey "W">
+<!ENTITY moveToNewWindow.accesskey "w">
 <!ENTITY newVirtualFolderCmd.label "即時搜尋…">
 <!ENTITY newVirtualFolderCmd.accesskey "S">
 <!ENTITY newOtherAccountsCmd.label "其他帳號…">
@@ -32,12 +32,12 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey "E">
 <!ENTITY newIMAccountCmd.label "聊天帳號…">
 <!ENTITY newIMAccountCmd.accesskey "C">
+<!ENTITY newFeedAccountCmd.label "資訊來源帳號…">
+<!ENTITY newFeedAccountCmd.accesskey "d">
 <!ENTITY newIMContactCmd.label "聊天聯絡人…">
 <!ENTITY newIMContactCmd.accesskey "h">
 <!ENTITY openMessageFileCmd.label "開啟已存郵件…">
 <!ENTITY openMessageFileCmd.accesskey "O">
-<!ENTITY openAttachmentCmd.label "附件">
-<!ENTITY openAttachmentCmd.accesskey "A">
 <!ENTITY saveAsMenu.label "另存新檔">
 <!ENTITY saveAsMenu.accesskey "S">
 <!ENTITY saveAsFileCmd.label "檔案">
@@ -69,7 +69,7 @@
 <!ENTITY offlineMenu.label "離線">
 <!ENTITY offlineMenu.accesskey "l">
 <!ENTITY offlineGoOfflineCmd.label "離線模式">
-<!ENTITY offlineGoOfflineCmd.accesskey "w">
+<!ENTITY offlineGoOfflineCmd.accesskey "W">
 <!ENTITY synchronizeOfflineCmd.label "立刻下載／同步…">
 <!ENTITY synchronizeOfflineCmd.accesskey "S">
 <!ENTITY settingsOfflineCmd.label "離線模式設定…">
@@ -221,7 +221,7 @@
 <!ENTITY watchedThreadsWithUnreadCmd.label "含有未讀訊息的已追蹤討論串">
 <!ENTITY watchedThreadsWithUnreadCmd.accesskey "W">
 <!ENTITY ignoredThreadsCmd.label "被忽略的討論串">
-<!ENTITY ignoredThreadsCmd.accesskey "i">
+<!ENTITY ignoredThreadsCmd.accesskey "I">
 
 <!ENTITY headersMenu.label "郵件資訊">
 <!ENTITY headersMenu.accesskey "H">
@@ -250,34 +250,7 @@
 <!ENTITY viewFeedSummaryFeedPropsPref.accesskey "D">
 
 <!ENTITY viewAttachmentsInlineCmd.label "直接檢視附件">
-<!ENTITY viewAttachmentsInlineCmd.accesskey "A">
-
-<!-- LOCALIZATION NOTE :
-fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
-fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
-If shift key is needed with your locale popular keyboard for them,
-you can use these alternative items. Otherwise, their values should be empty.  -->
-
-<!ENTITY fullZoomEnlargeCmd.label       "放大">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "I">
-<!ENTITY fullZoomEnlargeCmd.commandkey  "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2 "="> <!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey3 "">
-
-<!ENTITY fullZoomReduceCmd.label        "縮小">
-<!ENTITY fullZoomReduceCmd.accesskey    "O">
-<!ENTITY fullZoomReduceCmd.commandkey   "-">
-<!ENTITY fullZoomReduceCmd.commandkey2  "">
-
-<!ENTITY fullZoomResetCmd.label         "重設">
-<!ENTITY fullZoomResetCmd.accesskey     "R">
-<!ENTITY fullZoomResetCmd.commandkey    "0">
-<!ENTITY fullZoomResetCmd.commandkey2   "">
-
-<!ENTITY fullZoomToggleCmd.label        "只縮放文字">
-<!ENTITY fullZoomToggleCmd.accesskey    "T">
-<!ENTITY fullZoom.label                 "縮放">
-<!ENTITY fullZoom.accesskey             "Z">
+<!ENTITY viewAttachmentsInlineCmd.accesskey "a">
 
 <!ENTITY pageSourceCmd.label "郵件原始內容">
 <!ENTITY pageSourceCmd.accesskey "o">
@@ -304,7 +277,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY searchAddressesCmd.accesskey "S">
 
 <!-- Go Menu -->
-<!ENTITY goMenu.label "衝">
+<!ENTITY goMenu.label "前往">
 <!ENTITY goMenu.accesskey "G">
 <!ENTITY nextMenu.label "下一封">
 <!ENTITY nextMenu.accesskey "N">
@@ -334,12 +307,12 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.accesskey "B">
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "聊天">
-<!ENTITY goChatCmd.accesskey "c">
-<!ENTITY goChatCmd.commandKey "C">
+<!ENTITY goChatCmd.accesskey "C">
+<!ENTITY goChatCmd.key "C">
 <!ENTITY prevStarredMsgCmd.label "已加星號郵件">
 <!ENTITY prevStarredMsgCmd.accesskey "S">
 <!ENTITY folderMenu.label "資料夾">
-<!ENTITY folderMenu.accesskey "O">
+<!ENTITY folderMenu.accesskey "o">
 <!ENTITY thisFolder.label "此資料夾">
 <!ENTITY thisFolder.accesskey "F">
 <!ENTITY goRecentlyClosedTabs.label "最近關閉的分頁">
@@ -370,7 +343,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyToAllMsgCmd.accesskey  "p">
 <!ENTITY replyToAllMsgCmd.key  "r">
 <!ENTITY replyToListMsgCmd.label "回覆至清單">
-<!ENTITY replyToListMsgCmd.accesskey  "L">
+<!ENTITY replyToListMsgCmd.accesskey  "l">
 <!ENTITY replyToListMsgCmd.key  "l">
 <!ENTITY forwardMsgCmd.label "轉寄">
 <!ENTITY forwardMsgCmd.accesskey "F">
@@ -390,7 +363,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY moveMsgToMenu.accesskey "M">
 <!ENTITY moveCopyMsgRecentMenu.label "最近">
 <!ENTITY moveCopyMsgRecentMenu.accesskey "R">
-<!ENTITY copyMessageLocation.label "複製郵件位置">
+<!ENTITY copyMessageLocation.label "複製訊息位置">
 <!ENTITY copyMessageLocation.accesskey "M">
 <!ENTITY copyMsgToMenu.label "複製到">
 <!ENTITY copyMsgToMenu.accesskey "C">
@@ -433,7 +406,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY markThreadAsReadCmd.accesskey "T">
 <!ENTITY markThreadAsReadCmd.key "r">
 <!ENTITY markReadByDateCmd.label "已讀 (依日期指定)…">
-<!ENTITY markReadByDateCmd.accesskey "D">
+<!ENTITY markReadByDateCmd.accesskey "d">
 <!ENTITY markReadByDateCmd.key "c">
 <!ENTITY markAllReadCmd.label "全部郵件已讀">
 <!ENTITY markAllReadCmd.accesskey "A">
@@ -455,12 +428,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openConversationCmd.label "以討論串檢視模式開啟">
 <!ENTITY openConversationCmd.accesskey "s">
 <!ENTITY openConversationCmd.key "o">
-<!ENTITY openFeedMessage.label "開啟來源郵件">
-<!ENTITY openFeedMessage.accesskey "O">
-<!ENTITY openFeedWebPageInWindow.label "網頁於新視窗">
-<!ENTITY openFeedWebPageInWindow.accesskey "W">
-<!ENTITY openFeedSummaryInWindow.label "摘要於新視窗">
-<!ENTITY openFeedSummaryInWindow.accesskey "S">
+<!ENTITY openAttachmentListCmd.label "附件">
+<!ENTITY openAttachmentListCmd.accesskey "h">
+<!ENTITY openFeedMessage1.label "開啟資訊來源的訊息時">
+<!ENTITY openFeedMessage1.accesskey "O">
+<!ENTITY openFeedWebPage.label "開啟為網頁">
+<!ENTITY openFeedWebPage.accesskey "W">
+<!ENTITY openFeedSummary.label "開啟為摘要">
+<!ENTITY openFeedSummary.accesskey "S">
 <!ENTITY openFeedWebPageInMP.label "切換郵件面板的網頁/摘要">
 <!ENTITY openFeedWebPageInMP.accesskey "T">
 
@@ -496,7 +471,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY filtersApply.accesskey "R">
 <!ENTITY filtersApplyToSelection.label "篩選選取的郵件">
 <!ENTITY filtersApplyToSelection.accesskey "u">
-<!ENTITY filtersApplyToMessage.label "過濾此郵件">
+<!ENTITY filtersApplyToMessage.label "篩選郵件">
 <!ENTITY filtersApplyToMessage.accesskey "u">
 <!ENTITY runJunkControls.label "執行垃圾郵件控制">
 <!ENTITY runJunkControls.accesskey "C">
@@ -514,6 +489,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
         which is placed under the Edit menu on Unix systems -->
 <!ENTITY accountManagerCmdUnix.accesskey "A">
+<!ENTITY allowRemoteDebugging.label "允許遠端除錯">
+<!ENTITY allowRemoteDebugging.accesskey "g">
 
 <!-- Mail Toolbar -->
 <!ENTITY getMsgButton.label "下載郵件">
@@ -562,6 +539,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyAllButton.tooltip "回信給寄件者及所有收件者">
 <!ENTITY replyListButton.tooltip "回覆到郵件論壇">
 <!ENTITY forwardButton.tooltip "轉寄選取郵件">
+<!ENTITY forwardAsInline.tooltip "將所選的文字作為行內文字轉寄">
+<!ENTITY forwardAsAttachment.tooltip "將所選的訊息作為附件轉寄">
 <!ENTITY fileButton.tooltip "歸檔所選的訊息">
 <!ENTITY archiveButton.tooltip "將選取的郵件備存">
 <!ENTITY nextButton.tooltip "移至下一封未讀郵件">
@@ -581,14 +560,20 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY chatButton.tooltip "顯示聊天分頁">
 <!ENTITY tagButton.tooltip "將郵件加上標籤">
 <!ENTITY compactButton.tooltip "從指定資料夾移除已刪郵件">
-<!ENTITY appmenuButton.tooltip "顯示應用程式選單">
+<!ENTITY appmenuButton1.tooltip "顯示 &brandShortName; 選單">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "行內轉寄">
+<!ENTITY buttonMenuForwardAsAttachment.label "以附件轉寄">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "寫新訊息">
 <!ENTITY appmenuNewContactCmd.label "通訊錄連絡人…">
 <!ENTITY appmenuEditMenu.label "編輯">
-<!ENTITY appmenuQFBMenu.label "快速過濾列">
+<!ENTITY appmenuQFBMenu.label "快速篩選列">
 <!ENTITY appmenuToolbarLayout.label "工具列配置…">
+<!ENTITY appmenuSelectThread.label "選擇討論串">
+<!ENTITY appmenuSelectFlagged.label "選擇加上星號的郵件">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "新標籤…">
@@ -603,9 +588,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Folder Pane Context Menu -->
 <!ENTITY folderContextGetMessages.label "下載郵件">
 <!ENTITY folderContextGetMessages.accesskey "G">
-<!ENTITY folderContextOpenNewWindow.label "開啟">
-<!ENTITY folderContextOpenNewWindow.accesskey "O">
-<!ENTITY folderContextOpenNewTab.label "以新分頁開啟">
+<!ENTITY folderContextOpenInNewWindow.label "開啟至新視窗">
+<!ENTITY folderContextOpenInNewWindow.accesskey "O">
+<!ENTITY folderContextOpenNewTab.label "用新分頁開啟">
 <!ENTITY folderContextOpenNewTab.accesskey "T">
 <!ENTITY folderContextNew.label "新增子資料夾…">
 <!ENTITY folderContextNew.accesskey "N">
@@ -699,7 +684,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 
 <!-- Thread Pane Context Menu -->
 <!ENTITY contextOpenNewWindow.label "用新視窗開啟郵件">
-<!ENTITY contextOpenNewWindow.accesskey "W">
+<!ENTITY contextOpenNewWindow.accesskey "w">
 <!-- The key potentially conflicts with cutCmd.accessKey which is defined in
      textcontext.dtd from toolkit. Right now, both menu items can't be visible
      at the same time, but should someone enable copy/paste of message, this key
@@ -719,17 +704,27 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextReplyAll.label "回覆給所有人">
 <!ENTITY contextReplyAll.accesskey "A">
 <!ENTITY contextReplyList.label "回覆至清單">
-<!ENTITY contextReplyList.accesskey "L">
+<!ENTITY contextReplyList.accesskey "l">
 <!ENTITY contextForward.label "轉寄">
 <!ENTITY contextForward.accesskey "F">
-<!ENTITY contextForwardAsAttachment.label "以附件方式轉寄">
-<!ENTITY contextForwardAsAttachment.accesskey "o">
+<!ENTITY contextForwardAsMenu.label "轉寄為">
+<!ENTITY contextForwardAsMenu.accesskey "o">
+<!ENTITY contextForwardAsInline.label "引入內文">
+<!ENTITY contextForwardAsInline.accesskey "I">
+<!ENTITY contextForwardAsAttachmentItem.label "附件">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "A">
+<!ENTITY contextMultiForwardAsAttachment.label "以附件方式轉寄">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
 <!ENTITY contextMoveMsgMenu.label "移至">
 <!ENTITY contextMoveMsgMenu.accesskey "M">
 <!ENTITY contextMoveCopyMsgRecentMenu.label "最近">
 <!ENTITY contextMoveCopyMsgRecentMenu.accesskey "R">
 <!ENTITY contextCopyMsgMenu.label "複製到">
 <!ENTITY contextCopyMsgMenu.accesskey "C">
+<!ENTITY contextKillThreadMenu.label "忽略討論串">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillSubthreadMenu.label "忽略回覆討論串">
+<!ENTITY contextWatchThreadMenu.label "追蹤討論串">
 <!ENTITY contextSaveAs.label "另存新檔…">
 <!ENTITY contextSaveAs.accesskey "S">
 <!ENTITY contextPrint.label "列印…">

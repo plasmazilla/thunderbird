@@ -1,16 +1,7 @@
-<!--
-# Translator(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# robyerevan <robyerevan@gmail.com>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Hrant <hrantohanyan@mail.am>
-#
--->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY onlineContactsHeader.label    "Առցանց">
 <!ENTITY offlineContactsHeader.label   "Անցանց">
 <!ENTITY conversationsHeader.label     "Երկխոսություններ">
@@ -18,9 +9,9 @@
 <!ENTITY chat.noConv.title             "Երկխոսությունները կցուցադրվեն այստեղ։">
 <!ENTITY chat.noConv.description       "Զրույցը սկսելու համար օգտագործեք ձախում գտնվող անձանց ցանկը։">
 <!ENTITY chat.noPreviousConv.description       "&brandShortName;-ը չունի որևէ երկխոսություն։">
-<!ENTITY chat.noAccount.title             "Փոստարկղեր չկան։">
-<!ENTITY chat.noAccount.description       "Թույլատրեք &brandShortName;-ին ուղեկցել Ձեզ հաշվեկշիռը կարգավորելու ընթացքում:">
-<!ENTITY chat.accountWizard.button       "Սկիզբը">
+<!ENTITY chat.noAccount.title             "Դեռ մուտք չեք գործել:">
+<!ENTITY chat.noAccount.description       "Թույլատրեք &brandShortName;-ին ուղեկցել Ձեզ՝ չաթի կարգավորումների ընթացքում:">
+<!ENTITY chat.accountWizard.button       "Սկսել">
 <!ENTITY chat.noConnectedAccount.title             "Հաշվեկշիռները միացված չեն:">
 <!ENTITY chat.noConnectedAccount.description       "Կարող եք միանալ 'Զրույցի վիճակը' պատուհանից:">
 <!ENTITY chat.showAccountManager.button       "Ցուցադրել զրույցի վիճակը">
@@ -44,17 +35,6 @@
 <!ENTITY addBuddyButton.label          "Ավելացնել օգտվող">
 <!ENTITY joinChatButton.label          "Միանալ Զրույցին">
 <!ENTITY chatAccountsButton.label      "Ցուցադրել օգտվողներին">
-
-<!-- LOCALIZATION NOTE (searchAllChatMessages.label.base):
-     This is the base of the empty text for the chat search box.  We replace
-     #1 with the contents of the appropriate search.keyLabel.* value for the
-     platform (defined in messenger/messenger.dtd).
-     The goal is to convey to the user that typing in the box will allow them
-     to search for conversations and that there is a hotkey they can press
-     to get to the box faster.  If the global indexer is disabled, the search
-     box will be collapsed and the user will never see this message.
-     -->
-<!ENTITY searchAllChatMessages.label.base "Փնտրել բոլոր երկխոսությունները... #1">
 
 <!ENTITY status.available          "Հասանելի">
 <!ENTITY status.unavailable        "Անհասանելի">

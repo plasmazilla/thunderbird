@@ -20,3 +20,6 @@
 <!ENTITY feeds.wizardShortName "Nyhetskilder">
 <!ENTITY feeds.wizardLongName "Blogger og nyhetskilder">
 <!ENTITY feeds.wizardLongName.accesskey "B">
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

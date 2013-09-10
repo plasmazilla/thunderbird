@@ -20,3 +20,6 @@
 <!ENTITY feeds.wizardShortName "RSS">
 <!ENTITY feeds.wizardLongName "RSS de blogs e notícias">
 <!ENTITY feeds.wizardLongName.accesskey "R">
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

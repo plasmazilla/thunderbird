@@ -123,3 +123,6 @@
 <!ENTITY validation.accesskey           "ж">
 <!ENTITY viewSecurityDevices.label      "Защитни устройства">
 <!ENTITY viewSecurityDevices.accesskey  "З">
+
+<!ENTITY checkDefaultsNow.accesskey    "N">
+<!ENTITY checkDefaultsNow.label        "Check Now…">

@@ -31,3 +31,7 @@
 <!ENTITY customsound.accesskey            "В">
 <!ENTITY browse.label                     "Огляд…">
 <!ENTITY browse.accesskey                 "О">
+
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY showTrayIcon.label               "Show a tray icon">

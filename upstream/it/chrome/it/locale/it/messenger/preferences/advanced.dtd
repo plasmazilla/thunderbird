@@ -22,8 +22,8 @@
 <!ENTITY alwaysCheckDefault.accesskey "A">
 <!ENTITY searchIntegration.label "Permetti a &searchIntegration.engineName; di cercare nei messaggi">
 <!ENTITY searchIntegration.accesskey "P">
-<!ENTITY checkNow.label "Controlla ora">
-<!ENTITY checkNow.accesskey "C">
+<!ENTITY checkDefaultsNow.label "Controlla ora…">
+<!ENTITY checkDefaultsNow.accesskey "O">
 <!ENTITY configEditDesc.label "Impostazioni avanzate">
 <!ENTITY configEdit.label "Editor di configurazione…">
 <!ENTITY configEdit.accesskey "o">
@@ -43,7 +43,7 @@
 <!ENTITY secondsLabel.label "secondi">
 <!ENTITY openMsgIn.label "Apri i messaggi in:">
 <!ENTITY openMsgInNewTab.label "una nuova scheda">
-<!ENTITY openMsgInNewTab.accesskey "u">
+<!ENTITY openMsgInNewTab.accesskey "h">
 <!ENTITY reuseExpRadio0.label "una nuova finestra">
 <!ENTITY reuseExpRadio0.accesskey "u">
 <!ENTITY reuseExpRadio1.label "nella stessa finestra">
@@ -90,8 +90,6 @@
 <!ENTITY certs.ask.accesskey "C">
 <!ENTITY viewCertificates.label "Mostra certificati">
 <!ENTITY viewCertificates.accesskey "M">
-<!ENTITY viewCRLs.label "Elenchi di revoca">
-<!ENTITY viewCRLs.accesskey "E">
 <!ENTITY validation.label "Validazione">
 <!ENTITY validation.accesskey "V">
 <!ENTITY viewSecurityDevices.label "Dispositivi di sicurezza">

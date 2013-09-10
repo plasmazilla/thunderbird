@@ -17,6 +17,10 @@
 <!ENTITY aboutSupport.appBasicsTitle "Grunnupplýsingar forrits">
 <!ENTITY aboutSupport.appBasicsName "Nafn">
 <!ENTITY aboutSupport.appBasicsVersion "Útgáfa">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Uppfærslusaga">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Sýna uppfærslusögu">
 <!ENTITY aboutSupport.appBasicsProfileDir "Notandamappa">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
 This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
@@ -38,6 +42,9 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.modifiedKeyPrefsTitle "Mikilvægar breyttar stillingar">
 <!ENTITY aboutSupport.modifiedPrefsName "Nafn">
 <!ENTITY aboutSupport.modifiedPrefsValue "Gildi">
+<!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
+<!ENTITY aboutSupport.userJSTitle "user.js stillingar">
+<!ENTITY aboutSupport.userJSDescription "Notandamappan þín inniheldur <a id='prefs-user-js-link'>user.js skrá</a>, sem inniheldur stillingar sem voru ekki búnar til af &brandShortName;.">
 <!ENTITY aboutSupport.graphicsTitle "Grafík">
 <!ENTITY aboutSupport.jsTitle "JavaScript">
 <!ENTITY aboutSupport.jsIncrementalGC "Stigvaxandi GC">
@@ -47,4 +54,5 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.libraryVersionsTitle "Útgáfa forritasafns">
 <!ENTITY aboutSupport.installationHistoryTitle "Uppsetningarsaga">
 <!ENTITY aboutSupport.updateHistoryTitle "Uppfærslusaga">
-<!ENTITY aboutSupport.copyToClipboard.label "Afrita allt á klemmuspjald">
+<!ENTITY aboutSupport.copyTextToClipboard.label "Afrita texta á klemmuspjald">
+<!ENTITY aboutSupport.copyRawDataToClipboard.label "Afrita hrá gögn á klemmuspjald">

@@ -19,3 +19,8 @@
 <!ENTITY feedsSectionHdr.label        "Доводи">
 <!ENTITY subscribeFeeds.label         "Управљање праћењима">
 
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

@@ -20,3 +20,6 @@
 <!ENTITY feeds.wizardShortName "Jarioak">
 <!ENTITY feeds.wizardLongName "Blogak eta berrien jarioak">
 <!ENTITY feeds.wizardLongName.accesskey "B">
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

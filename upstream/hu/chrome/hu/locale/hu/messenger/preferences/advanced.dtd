@@ -27,11 +27,11 @@
 <!ENTITY alwaysCheckDefault.accesskey  "I">
 <!ENTITY searchIntegration.label       "A(z) &searchIntegration.engineName; kereshet az üzenetek között">
 <!ENTITY searchIntegration.accesskey   "S">
-<!ENTITY checkNow.label                "Ellenőrzés">
-<!ENTITY checkNow.accesskey            "E">
+<!ENTITY checkDefaultsNow.label        "Ellenőrzés most…">
+<!ENTITY checkDefaultsNow.accesskey    "E">
 <!ENTITY configEditDesc.label          "Haladó beállítások">
 <!ENTITY configEdit.label              "Konfigurációszerkesztő…">
-<!ENTITY configEdit.accesskey          "B">
+<!ENTITY configEdit.accesskey          "K">
 <!ENTITY returnReceiptsInfo.label      "A &brandShortName; tértivevény-kezelésének beállítása">
 <!ENTITY showReturnReceipts.label      "Tértivevények…">
 <!ENTITY showReturnReceipts.accesskey  "T">
@@ -117,8 +117,6 @@
 
 <!ENTITY viewCertificates.label         "Tanúsítványok megjelenítése">
 <!ENTITY viewCertificates.accesskey     "T">
-<!ENTITY viewCRLs.label                 "Visszavonási listák">
-<!ENTITY viewCRLs.accesskey             "V">
 <!ENTITY validation.label               "Érvényesítés">
 <!ENTITY validation.accesskey           "r">
 <!ENTITY viewSecurityDevices.label      "Adatvédelmi eszközök">

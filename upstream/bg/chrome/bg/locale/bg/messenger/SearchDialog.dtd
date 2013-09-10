@@ -76,3 +76,8 @@
 <!ENTITY starredColumn.tooltip "Изберете подреждане по наличие на звезда">
 <!ENTITY locationColumn.tooltip "Изберете подреждане по местоположение">
 <!ENTITY idColumn.tooltip "Изберете подреждане по реда на получаване">
+
+<!ENTITY moveButton.accesskey        "T">
+<!ENTITY moveButton.label            "Move To">
+<!ENTITY moveHereMenu.accesskey      "H">
+<!ENTITY moveHereMenu.label          "Move Here">

@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY cutCmd.label            "Iškirpti">
 <!ENTITY cutCmd.accesskey        "r">
 <!ENTITY copyCmd.label           "Kopijuoti">
@@ -15,8 +19,8 @@
 <!ENTITY spellAddToDictionary.accesskey "t">
 <!ENTITY spellUndoAddToDictionary.label "Atšaukti įtraukimą į žodyną">
 <!ENTITY spellUndoAddToDictionary.accesskey "u">
-<!ENTITY spellCheckEnable.label         "Tikrinti rašybą">
-<!ENTITY spellCheckEnable.accesskey     "r">
+<!ENTITY spellCheckToggle.label         "Tikrinti rašybą">
+<!ENTITY spellCheckToggle.accesskey     "r">
 <!ENTITY spellNoSuggestions.label       "(Nėra rašybos siūlymų)">
 <!ENTITY spellDictionaries.label        "Kalbos">
 <!ENTITY spellDictionaries.accesskey    "K">

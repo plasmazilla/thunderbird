@@ -12,3 +12,6 @@
 <!ENTITY feeds.wizardShortName "Ροές">
 <!ENTITY feeds.wizardLongName "Ιστολόγια &amp; Ροές ειδήσεων">
 <!ENTITY feeds.wizardLongName.accesskey "δ">
+
+
+<!ENTITY feedWindowTitle.label "Feed Account Wizard">

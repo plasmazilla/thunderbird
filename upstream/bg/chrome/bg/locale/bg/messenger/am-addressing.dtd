@@ -39,3 +39,10 @@
 <!ENTITY includeSigOnReply.accesskey          "п">
 <!ENTITY includeSigOnForward.label            "Включване на подпис при препращане">
 <!ENTITY includeSigOnForward.accesskey        "щ">
+
+<!ENTITY globalAddressingPrefs.accesskey      "P">
+
+<!ENTITY globalAddressingPrefs.label          "Global Addressing Preferences…">
+<!ENTITY globalComposingPrefs.accesskey       "G">
+
+<!ENTITY globalComposingPrefs.label           "Global Composing Preferences…">

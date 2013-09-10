@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!--LOCALIZATION NOTE messengercompose.dtd Main UI for message composition -->
 <!ENTITY msgComposeWindow.title "Laiško rašymas">
 
@@ -83,6 +87,7 @@
 <!ENTITY findCmd.label "Ieškoti ir pakeisti…">
 <!ENTITY findCmd.key "F">
 <!ENTITY findCmd.accesskey "I">
+<!ENTITY findReplaceCmd.key "H">
 <!ENTITY findAgainCmd.label "Ieškoti toliau">
 <!ENTITY findAgainCmd.key "G">
 <!ENTITY findAgainCmd.accesskey "e">
@@ -135,8 +140,8 @@
 <!ENTITY returnReceiptMenu.accesskey "g">
 <!ENTITY dsnMenu.label "Prašyti laiško pristatymo pažymos">
 <!ENTITY dsnMenu.accesskey "i">
-<!ENTITY outputFormatMenu.label "Siunčiamo teksto tipas">
-<!ENTITY outputFormatMenu.accesskey "u">
+<!ENTITY deliveryFormatMenu.label "Siunčiamo laiško tipas">
+<!ENTITY deliveryFormatMenu.accesskey "u">
 <!ENTITY autoFormatCmd.label "Parenka programa">
 <!ENTITY autoFormatCmd.accesskey "P">
 <!ENTITY plainTextFormatCmd.label "Grynasis tekstas">

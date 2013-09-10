@@ -17,14 +17,18 @@
 <!ENTITY highestPriorityCmd.label "Is Airde">
 
 <!ENTITY contextDesc.label "Cuir an scagaire seo i bhfeidhm agus:">
-<!ENTITY contextDesc.accesskey "f">
-<!ENTITY contextIncoming.label "ríomhphost á sheiceáil">
-<!ENTITY contextManual.label "scagaire á rith de láimh">
-<!ENTITY contextBoth.label "ríomhphost á sheiceáil nó an scagaire á rith de láimh">
-<!ENTITY contextPostPlugin.label "ríomhphost á sheiceáil (tar éis rangaithe)">
-<!ENTITY contextPostPluginBoth.label "ríomhphost á sheiceáil (tar éis rangaithe) nó rite le láimh">
+<!ENTITY contextIncomingMail.label "Ríomhphost Nua á Fháil:">
+<!ENTITY contextIncomingMail.accesskey "F">
+<!ENTITY contextManual.label "Rith de láimh">
+<!ENTITY contextManual.accesskey "R">
+<!ENTITY contextBeforeCls.label "Scagadh roimh Aicmiú Dramhphoist">
+<!ENTITY contextAfterCls.label "Scagadh tar éis Aicmiú Dramhphoist">
+
 <!ENTITY filterActionDesc.label "Déan na gníomhartha seo:">
 <!ENTITY filterActionDesc.accesskey "g">
+
+<!ENTITY filterActionOrderWarning.label "Nóta: Cuirfear na scagairí i bhfeidhm in ord difriúil.">
+<!ENTITY filterActionOrder.label "Féach ar ord curtha i bhfeidhm">
 <!-- New Style Filter Rule Actions -->
 
 <!ENTITY moveMessage.label "Bog an teachtaireacht go">

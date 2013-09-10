@@ -22,3 +22,8 @@
 <!ENTITY filtersLink.label            "Управление на филтрирането">
 <!ENTITY junkSettings.label           "Настройки за нежелана поща">
 <!ENTITY offlineLink.label            "Настройки за работа без мрежа">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

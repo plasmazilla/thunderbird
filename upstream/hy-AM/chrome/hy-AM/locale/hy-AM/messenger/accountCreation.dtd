@@ -1,18 +1,7 @@
-<!--
-# Translator(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# issuart <issuart@yahoo.com>
-# robyerevan <robyerevan@gmail.com>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# alexxed <alexxed@gmail.com>
-#
--->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY autoconfigWizard.title          "Փոստարկղի կարգավորումներ">
 <!ENTITY name.label                      "Ձեր անունը.">
 <!ENTITY name.accesskey                  "n">
@@ -68,7 +57,7 @@
 <!ENTITY switch-to-provisioner.accesskey "Ն">
 
 
-<!ENTITY warning.label                   "Զգուշացում!">
+<!ENTITY warning.label                   "Զգուշացում:">
 <!ENTITY incomingSettings.label          "Մուտքային կարգավորումներ.">
 <!ENTITY outgoingSettings.label          "Ելքային կարգավորումներ.">
 <!ENTITY technicaldetails.label          "Տեխնիկական մանրամասներ">

@@ -49,3 +49,10 @@
 <!ENTITY includeSigOnForward.label            "Include semnătura pentru mesaje date mai departe">
 <!ENTITY includeSigOnForward.accesskey        "I">
 
+
+<!ENTITY globalAddressingPrefs.accesskey      "P">
+
+<!ENTITY globalAddressingPrefs.label          "Global Addressing Preferences…">
+<!ENTITY globalComposingPrefs.accesskey       "G">
+
+<!ENTITY globalComposingPrefs.label           "Global Composing Preferences…">

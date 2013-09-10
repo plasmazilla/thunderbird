@@ -13,3 +13,5 @@
 <!ENTITY resetProfile.button.label        "Restabelecer o &brandShortName;">
 
 <!ENTITY resetProfile.cleaning.description "Agarde mentres o &brandShortName; limpa os datos antigos…">
+
+<!ENTITY resetProfile.button.label2       "Reset &brandShortName;…">

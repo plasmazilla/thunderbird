@@ -251,3 +251,6 @@
 <!ENTITY convertCloud.label "Convert to…">
 <!ENTITY convertRegularAttachment.accesskey "A">
 <!ENTITY convertRegularAttachment.label "Regular Attachment">
+<!ENTITY deliveryFormatMenu.accesskey "F">
+<!ENTITY deliveryFormatMenu.label "Delivery Format">
+<!ENTITY findReplaceCmd.key "H">

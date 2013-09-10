@@ -26,3 +26,10 @@
 <!ENTITY includeSigOnReply.accesskey "σ">
 <!ENTITY includeSigOnForward.label "Χρήση υπογραφής στις προωθήσεις">
 <!ENTITY includeSigOnForward.accesskey "θ">
+
+<!ENTITY globalAddressingPrefs.accesskey      "P">
+
+<!ENTITY globalAddressingPrefs.label          "Global Addressing Preferences…">
+<!ENTITY globalComposingPrefs.accesskey       "G">
+
+<!ENTITY globalComposingPrefs.label           "Global Composing Preferences…">

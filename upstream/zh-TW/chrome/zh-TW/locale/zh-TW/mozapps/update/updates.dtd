@@ -1,3 +1,6 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!ENTITY  updateWizard.title              "軟體更新">
 
 <!ENTITY  checking.title                  "正在檢查是否有更新檔">
@@ -16,6 +19,10 @@
 <!ENTITY  manualUpdate.space.desc         "已有可用的安全性和穩定性更新，但
                                            您沒有足夠的空間可安裝。">
 <!ENTITY  manualUpdateGetMsg.label        "您可以至此處取得最新的 &brandShortName;:">
+
+<!ENTITY  unsupported.title               "不支援的系統">
+<!ENTITY  unsupported.label               "您的 &brandShortName; 已經過時，但最新版本不支援您的系統。請升級您的系統並再試一次。您將不會再看到到此通知，可在此處">
+<!ENTITY  unsupportedLink.label           "了解更多資訊。">
 
 <!ENTITY  incompatibleCheck.title         "檢查附加元件相容性">
 <!ENTITY  incompatibleCheck.label         "正在尋找您的附加元件的更新版本…">

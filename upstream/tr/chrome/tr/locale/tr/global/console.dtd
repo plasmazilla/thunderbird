@@ -22,6 +22,8 @@
 <!ENTITY codeEval.accesskey "o">
 <!ENTITY evaluate.label     "Değerlendirme">
 <!ENTITY evaluate.accesskey "m">
+<!ENTITY filter.label       "Süzgeç">
+<!ENTITY filter.accesskey   "z">
 
 <!ENTITY copyCmd.label       "Kopyala">  
 <!ENTITY copyCmd.accesskey   "K"> 
@@ -34,3 +36,6 @@
 <!ENTITY focus1.commandkey   "l">  
 <!ENTITY focus2.commandkey   "d">  
 
+
+<!ENTITY filter2.accesskey  "F">
+<!ENTITY filter2.label      "Filter:">

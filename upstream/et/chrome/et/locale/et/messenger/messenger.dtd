@@ -32,12 +32,12 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey          "E">
 <!ENTITY newIMAccountCmd.label                         "Kiirsuhtluse konto…">
 <!ENTITY newIMAccountCmd.accesskey                     "K">
+<!ENTITY newFeedAccountCmd.label                       "Uudistevoogude konto…">
+<!ENTITY newFeedAccountCmd.accesskey                   "U">
 <!ENTITY newIMContactCmd.label                         "Kiirsuhtluse kontakt…">
 <!ENTITY newIMContactCmd.accesskey                     "n">
 <!ENTITY openMessageFileCmd.label                      "Ava salvestatud kiri...">
 <!ENTITY openMessageFileCmd.accesskey                  "i">
-<!ENTITY openAttachmentCmd.label                       "Manused">
-<!ENTITY openAttachmentCmd.accesskey                   "M">
 <!ENTITY saveAsMenu.label                              "Salvesta kui">
 <!ENTITY saveAsMenu.accesskey                          "S">
 <!ENTITY saveAsFileCmd.label                           "Fail">
@@ -252,33 +252,6 @@
 <!ENTITY viewAttachmentsInlineCmd.label                "Manuste kuvamine kirja sees">
 <!ENTITY viewAttachmentsInlineCmd.accesskey            "M">
 
-<!-- LOCALIZATION NOTE :
-fullZoomEnlargeCmd.commandkey3, fullZoomReduceCmd.commandkey2 and
-fullZoomResetCmd.commandkey2 are alternative acceleration keys for zoom.
-If shift key is needed with your locale popular keyboard for them,
-you can use these alternative items. Otherwise, their values should be empty.  -->
-
-<!ENTITY fullZoomEnlargeCmd.label                      "Suurenda">
-<!ENTITY fullZoomEnlargeCmd.accesskey                  "S">
-<!ENTITY fullZoomEnlargeCmd.commandkey                 "+">
-<!ENTITY fullZoomEnlargeCmd.commandkey2                "="> <!-- + is above this key on many keyboards -->
-<!ENTITY fullZoomEnlargeCmd.commandkey3                "">
-
-<!ENTITY fullZoomReduceCmd.label                       "Vähenda">
-<!ENTITY fullZoomReduceCmd.accesskey                   "V">
-<!ENTITY fullZoomReduceCmd.commandkey                  "-">
-<!ENTITY fullZoomReduceCmd.commandkey2                 "">
-
-<!ENTITY fullZoomResetCmd.label                        "Lähtesta">
-<!ENTITY fullZoomResetCmd.accesskey                    "L">
-<!ENTITY fullZoomResetCmd.commandkey                   "0">
-<!ENTITY fullZoomResetCmd.commandkey2                  "">
-
-<!ENTITY fullZoomToggleCmd.label                       "Suurenda ainult teksti">
-<!ENTITY fullZoomToggleCmd.accesskey                   "u">
-<!ENTITY fullZoom.label                                "Suurendamine">
-<!ENTITY fullZoom.accesskey                            "S">
-
 <!ENTITY pageSourceCmd.label                           "Kirja lähtekood">
 <!ENTITY pageSourceCmd.accesskey                       "K">
 <!ENTITY pageSourceCmd.key                             "u">
@@ -335,7 +308,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.commandKey                          "[">
 <!ENTITY goChatCmd.label                               "Kiirsuhtlus">
 <!ENTITY goChatCmd.accesskey                           "r">
-<!ENTITY goChatCmd.commandKey                          "C">
+<!ENTITY goChatCmd.key                                 "I">
 <!ENTITY prevStarredMsgCmd.label                       "Tähistatud kiri">
 <!ENTITY prevStarredMsgCmd.accesskey                   "T">
 <!ENTITY folderMenu.label                              "Kaust">
@@ -455,13 +428,15 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openConversationCmd.label                     "Ava vestlusena">
 <!ENTITY openConversationCmd.accesskey                 "n">
 <!ENTITY openConversationCmd.key                       "o">
-<!ENTITY openFeedMessage.label                         "Ava uudistevoo sõnum">
-<!ENTITY openFeedMessage.accesskey                     "v">
-<!ENTITY openFeedWebPageInWindow.label                 "Veebileht uues aknas">
-<!ENTITY openFeedWebPageInWindow.accesskey             "e">
-<!ENTITY openFeedSummaryInWindow.label                 "Kokkuvõte uues aknas">
-<!ENTITY openFeedSummaryInWindow.accesskey             "t">
-<!ENTITY openFeedWebPageInMP.label                     "Vaheta veebilehe ja kokkuvõtte vahel kirja teksti paneelis">
+<!ENTITY openAttachmentListCmd.label                   "Manused">
+<!ENTITY openAttachmentListCmd.accesskey               "M">
+<!ENTITY openFeedMessage1.label                        "Uudistevoo sõnumi avamisel">
+<!ENTITY openFeedMessage1.accesskey                    "v">
+<!ENTITY openFeedWebPage.label                         "avatakse veebileht">
+<!ENTITY openFeedWebPage.accesskey                     "e">
+<!ENTITY openFeedSummary.label                         "avatakse kokkuvõte">
+<!ENTITY openFeedSummary.accesskey                     "t">
+<!ENTITY openFeedWebPageInMP.label                     "vahetatakse veebilehe ja kokkuvõtte vahel kirja teksti paneelis">
 <!ENTITY openFeedWebPageInMP.accesskey                 "h">
 
 <!-- Windows Menu -->
@@ -514,6 +489,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
         which is placed under the Edit menu on Unix systems -->
 <!ENTITY accountManagerCmdUnix.accesskey               "K">
+<!ENTITY allowRemoteDebugging.label                    "Kaugdebugimine lubatakse">
+<!ENTITY allowRemoteDebugging.accesskey                "g">
 
 <!-- Mail Toolbar -->
 <!ENTITY getMsgButton.label                            "Tõmba kirjad">
@@ -562,6 +539,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyAllButton.tooltip                        "Vasta saatjale ja kõigile saajatele">
 <!ENTITY replyListButton.tooltip                       "Vasta meililistile">
 <!ENTITY forwardButton.tooltip                         "Edasta valitud kiri">
+<!ENTITY forwardAsInline.tooltip                       "Edasta valitud kiri lihttekstina">
+<!ENTITY forwardAsAttachment.tooltip                   "Edasta valitud kiri manusena">
 <!ENTITY fileButton.tooltip                            "Salvesta valitud kiri">
 <!ENTITY archiveButton.tooltip                         "Arhiveeri valitud kirjad">
 <!ENTITY nextButton.tooltip                            "Kuva järgmist lugemata kirja">
@@ -581,7 +560,11 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY chatButton.tooltip                            "Kuva kiirsuhtluse kaarti">
 <!ENTITY tagButton.tooltip                             "Sildista kirju">
 <!ENTITY compactButton.tooltip                         "Eemalda kustutatud kirjad valitud kaustast">
-<!ENTITY appmenuButton.tooltip                         "Kuva rakenduse menüüd">
+<!ENTITY appmenuButton1.tooltip                        "Kuva rakenduse &brandShortName; menüüd">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label               "Edasta lihttekstina">
+<!ENTITY buttonMenuForwardAsAttachment.label           "Edasta manusena">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label                        "Uus kiri">
@@ -589,6 +572,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY appmenuEditMenu.label                         "Redigeerimine">
 <!ENTITY appmenuQFBMenu.label                          "Kiirfiltri riba">
 <!ENTITY appmenuToolbarLayout.label                    "Kohanda tööriistariba…">
+<!ENTITY appmenuSelectThread.label                     "Vali lõim">
+<!ENTITY appmenuSelectFlagged.label                    "Vali tähistatud kirjad">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label                               "Uus silt…">
@@ -603,8 +588,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Folder Pane Context Menu -->
 <!ENTITY folderContextGetMessages.label                "Tõmba kirjad">
 <!ENTITY folderContextGetMessages.accesskey            "T">
-<!ENTITY folderContextOpenNewWindow.label              "Ava">
-<!ENTITY folderContextOpenNewWindow.accesskey          "A">
+<!ENTITY folderContextOpenInNewWindow.label            "Ava uues aknas">
+<!ENTITY folderContextOpenInNewWindow.accesskey        "A">
 <!ENTITY folderContextOpenNewTab.label                 "Ava uuel kaardil">
 <!ENTITY folderContextOpenNewTab.accesskey             "k">
 <!ENTITY folderContextNew.label                        "Uus alamkaust...">
@@ -722,14 +707,24 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextReplyList.accesskey                    "l">
 <!ENTITY contextForward.label                          "Edasta">
 <!ENTITY contextForward.accesskey                      "d">
-<!ENTITY contextForwardAsAttachment.label              "Edasta manusena">
-<!ENTITY contextForwardAsAttachment.accesskey          "m">
+<!ENTITY contextForwardAsMenu.label                    "Edasta">
+<!ENTITY contextForwardAsMenu.accesskey                "E">
+<!ENTITY contextForwardAsInline.label                  "lihttekstina">
+<!ENTITY contextForwardAsInline.accesskey              "i">
+<!ENTITY contextForwardAsAttachmentItem.label          "manusena">
+<!ENTITY contextForwardAsAttachmentItem.accesskey      "m">
+<!ENTITY contextMultiForwardAsAttachment.label         "Edasta manustena">
+<!ENTITY contextMultiForwardAsAttachment.accesskey     "t">
 <!ENTITY contextMoveMsgMenu.label                      "Liiguta kausta">
 <!ENTITY contextMoveMsgMenu.accesskey                  "L">
 <!ENTITY contextMoveCopyMsgRecentMenu.label            "Hiljutised">
 <!ENTITY contextMoveCopyMsgRecentMenu.accesskey        "H">
 <!ENTITY contextCopyMsgMenu.label                      "Kopeeri kausta">
 <!ENTITY contextCopyMsgMenu.accesskey                  "K">
+<!ENTITY contextKillThreadMenu.label                   "Ignoreeri lõime">
+<!ENTITY contextKillThreadMenu.accesskey               "I">
+<!ENTITY contextKillSubthreadMenu.label                "Ignoreeri alamlõime">
+<!ENTITY contextWatchThreadMenu.label                  "Jälgi lõime">
 <!ENTITY contextSaveAs.label                           "Salvesta kui...">
 <!ENTITY contextSaveAs.accesskey                       "S">
 <!ENTITY contextPrint.label                            "Prindi...">

@@ -22,3 +22,8 @@
 <!ENTITY filtersLink.label            "Kudeatu mezu-iragazkiak">
 <!ENTITY junkSettings.label           "Zabor-postaren ezarpenak">
 <!ENTITY offlineLink.label            "Lineaz kanpoko ezarpenak">
+
+
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+<!ENTITY newAcct.label                "Create a new account:">

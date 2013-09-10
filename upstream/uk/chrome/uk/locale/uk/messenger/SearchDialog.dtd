@@ -76,3 +76,8 @@
 <!ENTITY starredColumn.tooltip "Натисніть тут, щоб відсортувати листи за зірочкою">
 <!ENTITY locationColumn.tooltip "Натисніть тут, щоб відсортувати листи за їх розташуванням">
 <!ENTITY idColumn.tooltip "Натисніть тут, щоб відсортувати листи за порядком отримання">
+
+<!ENTITY moveButton.accesskey        "T">
+<!ENTITY moveButton.label            "Move To">
+<!ENTITY moveHereMenu.accesskey      "H">
+<!ENTITY moveHereMenu.label          "Move Here">

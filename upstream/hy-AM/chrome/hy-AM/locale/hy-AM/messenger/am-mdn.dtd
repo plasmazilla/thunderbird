@@ -1,19 +1,12 @@
-<!--
-# Translator(s):
-#
-# Hrant <hrantohanyan@mail.am>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Hrant <hrantohanyan@mail.am>
-# alexxed <alexxed@gmail.com>
-#
--->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY pane.title                   "Պահանջել ստացական">
 <!ENTITY useGlobalPrefs.label         "Օգտ. ստացականի ուղարկման հիմնական կարգավորումները">
 <!ENTITY useGlobalPrefs.accesskey     "U">
+<!ENTITY globalReceipts.label         "Հիմնական կարգավորումները">
+<!ENTITY globalReceipts.accesskey     "G">
 <!ENTITY useCustomPrefs.label         "Ստացականի կարգավորումներ այս փոստարկղի համար">
 <!ENTITY useCustomPrefs.accesskey     "C">
 <!ENTITY requestReceipt.label         "Նամակներ ուղարկելիս պահանջել ստացական">
@@ -38,6 +31,3 @@
 <!ENTITY askMe.label                  "Հարցնել">
 <!ENTITY alwaysSend.label             "Միշտ ուղարկել">
 <!ENTITY neverSend.label              "Երբեք չուղարկել">
-
-<!ENTITY globalReceipts.accesskey     "G">
-<!ENTITY globalReceipts.label         "Global Preferences…">

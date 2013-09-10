@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!-- LOCALIZATION NOTE (quickFilterBar.qfbShowFilterBar.label):
      The label  for the button on the tab bar that toggles the visibility of
      the quick filter bar.
@@ -245,3 +249,29 @@
      -->
 <!ENTITY quickFilterBar.glodaUpsell.pressEnterAndCurrent
          "Pritisnite spet 'Enter', da nadaljujete s svojim iskanjem za: #1">
+
+
+<!-- LOCALIZATION NOTE (quickFilterBar.booleanMode.tooltip):
+     Tooltip of the Any of / All of tagging mode selector.
+     -->
+<!ENTITY quickFilterBar.booleanMode.tooltip "Tag filtering mode">
+
+<!-- LOCALIZATION NOTE (quickFilterBar.booleanModeAll.label):
+     Tooltip of the Any of / All of tagging mode selector.
+     -->
+<!ENTITY quickFilterBar.booleanModeAll.label "All of">
+
+<!-- LOCALIZATION NOTE (quickFilterBar.booleanModeAll.tooltip):
+     Tooltip of the Any of / All of tagging mode selector.
+     -->
+<!ENTITY quickFilterBar.booleanModeAll.tooltip "All of the selected tag criteria must match">
+
+<!-- LOCALIZATION NOTE (quickFilterBar.booleanModeAny.label):
+     Tooltip of the Any of / All of tagging mode selector.
+     -->
+<!ENTITY quickFilterBar.booleanModeAny.label "Any of">
+
+<!-- LOCALIZATION NOTE (quickFilterBar.booleanModeAny.tooltip):
+     Tooltip of the Any of / All of tagging mode selector.
+     -->
+<!ENTITY quickFilterBar.booleanModeAny.tooltip "At least one of the selected tag criteria should match">

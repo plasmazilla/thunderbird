@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY window.title "Regles de filtráu">
 <!ENTITY filterEditorDialog.dimensions "width: 100ch;">
 <!ENTITY filterName.label "Nome del filtru:">
@@ -10,18 +14,13 @@
 <!ENTITY highPriorityCmd.label "Alta">
 <!ENTITY highestPriorityCmd.label "La más alta">
 <!ENTITY contextDesc.label "Aplicar filtru cuando:">
-<!ENTITY contextDesc.accesskey "u">
-<!ENTITY contextIncoming.label "se compruebe'l corréu">
 <!ENTITY contextManual.label "s'execute manualmente">
-<!ENTITY contextBoth.label "se compruebe'l corréu o s'execute manualmente">
-<!ENTITY contextPostPlugin.label "se compruebe'l corréu (tres clasificalu)">
-<!ENTITY contextPostPluginBoth.label "se compruebe'l corréu (tres clasificalu) o s'execute manualmente">
 <!ENTITY filterActionDesc.label "Facer estes aiciones:">
 <!ENTITY filterActionDesc.accesskey "F">
 <!ENTITY moveMessage.label "Mover mensaxe a">
 <!ENTITY copyMessage.label "Copiar mensaxe a">
 <!ENTITY forwardTo.label "Reunviar mensaxe a">
-<!ENTITY replyWithTemplate.label "Retrucar con plantía">
+<!ENTITY replyWithTemplate.label "Responder con plantía">
 <!ENTITY markMessageRead.label "Conseñar como lleíu">
 <!ENTITY markMessageUnread.label "Conseñar como non lleíu">
 <!ENTITY markMessageStarred.label "Amestar estrella">
@@ -37,5 +36,12 @@
 <!ENTITY stopExecution.label "Detener execución de los filtros">
 <!ENTITY addAction.tooltip "Amestar una aición nueva">
 <!ENTITY removeAction.tooltip "Desaniciar esta aición">
-<!ENTITY filterActionTargetFlexValue "4">
 <!ENTITY filterActionTypeFlexValue "1">
+<!ENTITY filterActionTargetFlexValue "4">
+<!ENTITY contextManual.accesskey "s">
+<!ENTITY contextIncomingMail.label "Al recuperar el corréu nuevu:">
+<!ENTITY contextIncomingMail.accesskey "A">
+<!ENTITY contextBeforeCls.label "Peñerar enantes d'identificar el corréu puxarra">
+<!ENTITY contextAfterCls.label "Peñerar tres d'identificar el corréu puxarra">
+<!ENTITY filterActionOrderWarning.label "Nota: les aiciones del filtru van executase nun orde distintu.">
+<!ENTITY filterActionOrder.label "Ver orde d'execución">

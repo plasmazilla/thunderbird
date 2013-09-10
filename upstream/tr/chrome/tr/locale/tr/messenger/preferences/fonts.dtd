@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY  fontsAndEncodingsDialog.title           "Yazı tipleri ve karakter kodlaması">
 <!ENTITY  window.width                            "39em">
 <!ENTITY  window.macWidth                         "43em">
@@ -31,7 +35,7 @@
 <!ENTITY  font.langGroup.baltic                   "Baltık">
 <!ENTITY  font.langGroup.el                       "Yunanca">
 <!ENTITY  font.langGroup.turkish                  "Türkçe">
-<!ENTITY  font.langGroup.unicode                  "Diğer diller">
+<!ENTITY  font.langGroup.unicode1                 "Unicode">
 <!ENTITY  font.langGroup.user-def                 "Kullanıcı tanımlı">
 <!ENTITY  font.langGroup.thai                     "Tay Dili">
 <!ENTITY  font.langGroup.hebrew                   "İbranice">
@@ -75,5 +79,3 @@
 <!ENTITY replyInDefaultCharset2.label     "Yanıtlarda mümkünse varsayılan karakter kodlamasını kullan">
 <!ENTITY replyInDefaultCharset2.accesskey "Y">
 
-
-<!ENTITY  font.langGroup.unicode1                 "Unicode">
