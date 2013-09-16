@@ -1,24 +1,22 @@
 From: Mike Hommey <glandium@debian.org>
-Date: Mon, 9 Nov 2009 16:32:21 +0100
+Date: Mon, 16 Sep 2013 20:46:48 +0200
 Subject: Link libldap against libpthread
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=527454
 
 ---
- ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in b/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in
-index eb68d99..f2f1f53 100644
+index c999b96..f2f1f53 100644
 --- a/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in
 +++ b/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in
-@@ -202,8 +202,8 @@ ifeq ($(OS_ARCH), IRIX)
- EXTRA_LIBS = -L$(dist_libdir) -l$(LBER_LIBNAME) $(OS_LIBS) -lc
+@@ -203,7 +203,7 @@ EXTRA_LIBS = -L$(dist_libdir) -l$(LBER_LIBNAME) $(OS_LIBS) -lc
  endif
  
--ifeq ($(OS_ARCH), Linux)
+ ifneq (,$(filter Linux GNU GNU_%, $(OS_ARCH)))
 -EXTRA_LIBS = -L$(dist_libdir) -l$(LBER_LIBNAME)
-+ifneq (,$(filter Linux GNU GNU_%, $(OS_ARCH)))
 +EXTRA_LIBS = -L$(dist_libdir) -l$(LBER_LIBNAME) -lpthread
  endif
  

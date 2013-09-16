@@ -31,3 +31,4 @@ porting/Another-fix-to-build-ipc-code-on-GNU-hurd-and-kfreeb.patch
 fixes/fix-function-nsMsgComposeAndSend-to-to-respect-Replo.patch
 porting/Don-t-hardcode-page-size-on-ia64-sparc-or-mipsel.patch
 fixes/Link-libldap-against-libpthread.patch
+debian-hacks/creating-a-dummy-.deps-directory-to-get-make-happy.patch
