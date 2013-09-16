@@ -8,9 +8,7 @@
  */
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
-load("../../../resources/IMAPpump.js");
 
 const gFileName = "draft1";
 const gMsgFile = do_get_file("../../../data/" + gFileName);
@@ -29,31 +27,30 @@ function setup() {
    * Ok, prelude done. Read the original message from disk
    * (through a file URI), and add it to the Inbox.
    */
-  let msgfileuri = Cc["@mozilla.org/network/io-service;1"]
-                     .getService(Ci.nsIIOService)
-                     .newFileURI(gMsgFile).QueryInterface(Ci.nsIFileURL);
+  let msgfileuri =
+    Services.io.newFileURI(gMsgFile).QueryInterface(Ci.nsIFileURL);
 
-  gIMAPMailbox.addMessage(new imapMessage(msgfileuri.spec,
-                                          gIMAPMailbox.uidnext++, []));
+  IMAPPump.mailbox.addMessage(new imapMessage(msgfileuri.spec,
+                                          IMAPPump.mailbox.uidnext++, []));
 
   // ...and download for offline use.
-  gIMAPInbox.downloadAllForOffline(asyncUrlListener, null);
+  IMAPPump.inbox.downloadAllForOffline(asyncUrlListener, null);
   yield false;
 }
 
 function downloadAllForOffline() {
-  gIMAPInbox.downloadAllForOffline(asyncUrlListener, null);
+  IMAPPump.inbox.downloadAllForOffline(asyncUrlListener, null);
   yield false;
 }
 
 function checkBccs() {
   // locate the new message by enumerating through the database
-  let enumerator = gIMAPInbox.msgDatabase.EnumerateMessages();
+  let enumerator = IMAPPump.inbox.msgDatabase.EnumerateMessages();
   while(enumerator.hasMoreElements()) {
     let hdr = enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
-    do_check_true(hdr.bccList.indexOf("Another Person") >= 0);
-    do_check_true(hdr.bccList.indexOf("<u1@example.com>") >= 0);
-    do_check_false(hdr.bccList.indexOf("IDoNotExist") >=0);
+    do_check_true(hdr.bccList.contains("Another Person"));
+    do_check_true(hdr.bccList.contains("<u1@example.com>"));
+    do_check_false(hdr.bccList.contains("IDoNotExist"));
   }
 }
 

@@ -6,18 +6,24 @@
 
 // Much of the original code is taken from netwerk's httpserver implementation
 
-// Make sure we execute this file exactly once
-var gMaild_js__;
-if (!gMaild_js__) {
-gMaild_js__ = true;
+Components.utils.import("resource://gre/modules/Services.jsm");
+
+var EXPORTED_SYMBOLS = [
+  'nsMailServer',
+  'gThreadManager', // TODO: kill this export
+  'fsDebugNone', 'fsDebugAll', 'fsDebugRecv', 'fsDebugRecvSend'
+];
 
 var Cc = Components.classes;
 var Ci = Components.interfaces;
 var Cr = Components.results;
 var CC = Components.Constructor;
 
-/** The XPCOM thread manager. */
-var gThreadManager = null;
+/**
+ * The XPCOM thread manager. This declaration is obsolete and exists only
+ * because deleting it breaks several dozen tests at the moment.
+ */
+var gThreadManager = Services.tm;
 
 const fsDebugNone = 0;
 const fsDebugRecv = 1;
@@ -76,16 +82,13 @@ const TIMEOUT = 3*60*1000;
  * // Finished with tests
  * server.stop();
  *
- * var thread = gThreadManager.currentThread;
+ * var thread = Services.tm.currentThread;
  * while (thread.hasPendingEvents())
  *   thread.processNextEvent(true);
  *
  * do_test_finished();
  *****************************************************************************/
 function nsMailServer(handlerCreator, daemon) {
-  if (!gThreadManager)
-    gThreadManager = Cc["@mozilla.org/thread-manager;1"].getService();
-
   this._debug = fsDebugNone;
 
   /** The port on which this server listens. */
@@ -122,7 +125,7 @@ function nsMailServer(handlerCreator, daemon) {
 nsMailServer.prototype = {
   onSocketAccepted : function (socket, trans) {
     if (this._debug != fsDebugNone)
-      print("Received Connection from " + trans.host + ":" + trans.port);
+      dump("Received Connection from " + trans.host + ":" + trans.port + '\n');
 
     const SEGMENT_SIZE = 1024;
     const SEGMENT_COUNT = 1024;
@@ -138,13 +141,13 @@ nsMailServer.prototype = {
     // Note: must use main thread here, or we might get a GC that will cause
     //       threadsafety assertions.  We really need to fix XPConnect so that
     //       you can actually do things in multi-threaded JS.  :-(
-    input.asyncWait(reader, 0, 0, gThreadManager.mainThread);
+    input.asyncWait(reader, 0, 0, Services.tm.mainThread);
     this._test = true;
   },
 
   onStopListening : function (socket, status) {
     if (this._debug != fsDebugNone)
-      print("Connection Lost " + status);
+      dump("Connection Lost " + status + '\n');
 
     this._socketClosed = true;
     // We've been killed or we've stopped, reset the handler to the original
@@ -190,7 +193,7 @@ nsMailServer.prototype = {
       return;
 
     // spin an event loop and wait for the socket-close notification
-    var thr = gThreadManager.currentThread;
+    let thr = Services.tm.currentThread;
     while (!this._socketClosed)
       // Don't wait for the next event, just in case there isn't one.
       thr.processNextEvent(false);
@@ -230,7 +233,7 @@ nsMailServer.prototype = {
   performTest : function (watchWord) {
     this._watchWord = watchWord;
 
-    var thread = gThreadManager.currentThread;
+    let thread = Services.tm.currentThread;
     while (!this.isTestFinished())
       thread.processNextEvent(false);
   },
@@ -317,7 +320,7 @@ function nsMailReader(server, handler, transport, debug, logTransaction) {
   // Send response line
   var response = this._handler.onStartup();
   response = response.replace(/([^\r])\n/g,"$1\r\n");
-  if (response.charAt(response.length-1) != '\n')
+  if (!response.endsWith('\n'))
     response = response + "\r\n";
   if (this.transaction)
     this.transaction.us.push(response);
@@ -386,7 +389,7 @@ nsMailReader.prototype = {
       var line = this._lines.shift();
 
       if (this._debug != fsDebugNone)
-        print("RECV: " + line);
+        dump("RECV: " + line + '\n');
 
       var response;
       try {
@@ -409,7 +412,7 @@ nsMailReader.prototype = {
           command = command.toUpperCase();
 
           if (this._debug == fsDebugAll)
-            print("Received command " + command);
+            dump("Received command " + command + '\n');
 
           if (command in this._handler)
             response = this._handler[command](args);
@@ -436,21 +439,34 @@ nsMailReader.prototype = {
       if (!this._preventLFMunge)
         response = response.replace(/([^\r])\n/g,"$1\r\n");
 
-      if (response.charAt(response.length-1) != '\n')
+      if (!response.endsWith('\n'))
        response = response + "\r\n";
 
       if (this._debug == fsDebugRecvSend) {
-        print("SEND: " + response.split(" ", 1)[0]);
+        dump("SEND: " + response.split(" ", 1)[0] + '\n');
       }
       else if (this._debug == fsDebugAll) {
         var responses = response.split("\n");
-        responses.forEach(function (line) { print("SEND: " + line); });
+        responses.forEach(function (line) { dump("SEND: " + line + '\n'); });
       }
 
       if (this.transaction)
         this.transaction.us.push(response);
-      this._output.write(response, response.length);
-      this._output.flush();
+
+      try {
+        this._output.write(response, response.length);
+        this._output.flush();
+      }
+      catch (ex) {
+        if (ex.result == Cr.NS_BASE_STREAM_CLOSED) {
+          dump("Stream closed whilst sending, this may be expected\n");
+          this._realCloseSocket();
+        }
+        else {
+          // Some other issue, let the test see it.
+          throw ex;
+        }
+      }
 
       if (this._signalStop) {
         this._realCloseSocket();
@@ -459,7 +475,7 @@ nsMailReader.prototype = {
     }
 
     if (this._isRunning) {
-      stream.asyncWait(this, 0, 0, gThreadManager.currentThread);
+      stream.asyncWait(this, 0, 0, Services.tm.currentThread);
       this.timer.initWithCallback(this.observer, TIMEOUT,
                                   Ci.nsITimer.TYPE_ONE_SHOT);
     }
@@ -503,41 +519,3 @@ nsMailReader.prototype = {
     throw Cr.NS_ERROR_NO_INTERFACE;
   }
 };
-
-/**
- * Creates a new fakeserver listening for loopback traffic on the given port,
- * starts it, runs the server until the server processes a shutdown request,
- * spinning an event loop so that events posted by the server's socket are
- * processed, and returns the server transaction log.
- *
- * This method is primarily intended for use in running this script manually
- * from within xpcshell and running a functional fakeserver without having to
- * deal with entire testing frameworks. For example, it could be connected to
- * from telnet or a non-testing version of mailnews for non-automated tests.
- * Actual testing code should abstain from using this method because the
- * server does not persist for multiple tests and it hogs the main thread when
- * called.
- *
- * Note that running multiple servers using variants of this method probably
- * doesn't work, simply due to how the internal event loop is spun and stopped.
- *
- * @param port
- *   the port on which the server will run, or -1 if there exists no preference
- *   for a specific port; note that attempting to use some values for this
- *   parameter (particularly those below 1024) may cause this method to throw or
- *   may result in the server being prematurely shut down
- * @param handler
- *   the handler (as defined in the documentation comment above nsMailReader) to
- *   use on the server
- * @param daemon
- *   the daemon (as defined in the documentation comment above nsMailReader) to
- *   use on the server
- */
-function server(port, handler, daemon) {
-  var srv = new nsMailServer(handler, daemon);
-  srv.start(port);
-  srv.performTest();
-  return srv.playTransaction();
-}
-
-} // gMaild_js__

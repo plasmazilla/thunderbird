@@ -10,6 +10,7 @@
 #include "nsAlgorithm.h"
 #include "nsMsgUtils.h"
 #include "nsIInputStream.h" // used by nsMsgLineStreamBuffer
+#include <algorithm>
 
 nsByteArray::nsByteArray()
 {
@@ -58,7 +59,7 @@ nsresult nsByteArray::AppendBuffer(const char *buffer, uint32_t length)
   nsresult ret = NS_OK;
   if (m_bufferPos + length > m_bufferSize)
     ret = GrowBuffer(m_bufferPos + length, 1024);
-  if (ret == NS_OK)
+  if (NS_SUCCEEDED(ret))
   {
     memcpy(m_buffer + m_bufferPos, buffer, length);
     m_bufferPos += length;
@@ -93,12 +94,10 @@ nsresult nsMsgLineBuffer::BufferInput(const char *net_buffer, int32_t net_buffer
         /* The last buffer ended with a CR.  The new buffer does not start
            with a LF.  This old buffer should be shipped out and discarded. */
         PR_ASSERT(m_bufferSize > m_bufferPos);
-        // XXX -1 is not a valid nsresult
-        if (m_bufferSize <= m_bufferPos) return static_cast<nsresult>(-1);
-        // XXX This returns -1 on error, not an nsresult
-        status = static_cast<nsresult>(ConvertAndSendBuffer());
-        if (NS_FAILED(status))
-           return status;
+        if (m_bufferSize <= m_bufferPos)
+          return NS_ERROR_UNEXPECTED;
+        if (NS_FAILED(ConvertAndSendBuffer()))
+           return NS_ERROR_FAILURE;
         m_bufferPos = 0;
     }
     while (net_buffer_size > 0)
@@ -169,9 +168,8 @@ nsresult nsMsgLineBuffer::BufferInput(const char *net_buffer, int32_t net_buffer
         if (!newline)
             return NS_OK;
 
-        // XXX This returns -1 on error, not an nsresult
-        status = static_cast<nsresult>(ConvertAndSendBuffer());
-        if (NS_FAILED(status)) return status;
+        if (NS_FAILED(ConvertAndSendBuffer()))
+          return NS_ERROR_FAILURE;
         
         net_buffer_size -= (newline - net_buffer);
         net_buffer = newline;
@@ -180,13 +178,13 @@ nsresult nsMsgLineBuffer::BufferInput(const char *net_buffer, int32_t net_buffer
     return NS_OK;
 }
 
-int32_t nsMsgLineBuffer::HandleLine(char *line, uint32_t line_length)
+nsresult nsMsgLineBuffer::HandleLine(char *line, uint32_t line_length)
 {
   NS_ASSERTION(false, "must override this method if you don't provide a handler");
-  return 0;
+  return NS_OK;
 }
 
-int32_t nsMsgLineBuffer::ConvertAndSendBuffer()
+nsresult nsMsgLineBuffer::ConvertAndSendBuffer()
 {
     /* Convert the line terminator to the native form.
      */
@@ -198,12 +196,12 @@ int32_t nsMsgLineBuffer::ConvertAndSendBuffer()
     
     PR_ASSERT(buf && length > 0);
     if (!buf || length <= 0) 
-        return -1;
+        return NS_ERROR_FAILURE;
     newline = buf + length;
     
     PR_ASSERT(newline[-1] == '\r' || newline[-1] == '\n');
     if (newline[-1] != '\r' && newline[-1] != '\n')
-        return -1;
+        return NS_ERROR_FAILURE;
     
     if (m_convertNewlinesP)
     {
@@ -237,14 +235,14 @@ int32_t nsMsgLineBuffer::ConvertAndSendBuffer()
 }
 
 // If there's still some data (non CRLF terminated) flush it out
-int32_t nsMsgLineBuffer::FlushLastLine()
+nsresult nsMsgLineBuffer::FlushLastLine()
 {
   char *buf = m_buffer + m_bufferPos;
   int32_t length = m_bufferPos - 1;
   if (length > 0)
     return (m_handler) ? m_handler->HandleLine(buf, length) : HandleLine(buf, length);
   else
-    return 0;
+    return NS_OK;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -369,7 +367,7 @@ char * nsMsgLineStreamBuffer::ReadNextLine(nsIInputStream * aInputStream, uint32
       NS_ASSERTION(m_startPos == 0, "m_startPos should be 0 .....\n");
     }
     
-    uint32_t numBytesToCopy = NS_MIN(numFreeBytesInBuffer - 1 /* leave one for a null terminator */, numBytesInStream);
+    uint32_t numBytesToCopy = std::min(uint64_t(numFreeBytesInBuffer - 1) /* leave one for a null terminator */, numBytesInStream);
     if (numBytesToCopy > 0)
     {
       // read the data into the end of our data buffer

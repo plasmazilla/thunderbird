@@ -2,10 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-/*
+/**
  * Verify that we are constructing the filters that we expect and that they
  * are hooked up to the right buttons.
  */
+
+// make SOLO_TEST=quick-filter-bar/test-filter-logic.js mozmill-one
 
 var MODULE_NAME = 'test-filter-logic';
 
@@ -15,12 +17,9 @@ var MODULE_REQUIRES = ['folder-display-helpers', 'window-helpers',
                        'quick-filter-bar-helper'];
 
 function setupModule(module) {
-  let fdh = collector.getModule('folder-display-helpers');
-  fdh.installInto(module);
-  let wh = collector.getModule('window-helpers');
-  wh.installInto(module);
-  let qfb = collector.getModule('quick-filter-bar-helper');
-  qfb.installInto(module);
+  collector.getModule("folder-display-helpers").installInto(module);
+  collector.getModule("window-helpers").installInto(module);
+  collector.getModule("quick-filter-bar-helper").installInto(module);
 }
 
 function test_filter_unread() {
@@ -93,9 +92,7 @@ function add_email_to_address_book(aEmailAddr) {
                .createInstance(Ci.nsIAbCard);
   card.primaryEmail = aEmailAddr;
 
-  let enumerator = Cc["@mozilla.org/abmanager;1"]
-                     .getService(Ci.nsIAbManager)
-                     .directories;
+  let enumerator = MailServices.ab.directories;
   while (enumerator.hasMoreElements()) {
     let addrbook = enumerator.getNext();
     if (addrbook instanceof Components.interfaces.nsIAbMDBDirectory &&
@@ -110,7 +107,7 @@ function add_email_to_address_book(aEmailAddr) {
 
 function test_filter_in_address_book() {
   let bookSetDef = {
-    from: ["Qbert Q Qbington", "q@q.q"],
+    from: ["Qbert Q Qbington", "q@q.invalid"],
     count: 1
   };
   add_email_to_address_book(bookSetDef.from[1]);
@@ -141,8 +138,13 @@ function test_filter_tags() {
   toggle_tag_constraints(tagA); // must have tag A
   assert_messages_in_view([setTagA, setTagAB]);
 
-  toggle_tag_constraints(tagB); // must have tag A OR tag B
+  toggle_tag_constraints(tagB);
+  // mode is OR by default -> must have tag A or tag B
   assert_messages_in_view([setTagA, setTagB, setTagAB]);
+
+  toggle_tag_mode();
+  // mode is now AND -> must have tag A and tag B
+  assert_messages_in_view([setTagAB]);
 
   toggle_tag_constraints(tagA); // must have tag B
   assert_messages_in_view([setTagB, setTagAB]);
@@ -167,7 +169,7 @@ function test_filter_tags() {
 
 function test_filter_text_single_word_and_predicates() {
   let folder = create_folder("QuickFilterBarTextSingleWord");
-  let whoFoo = ["zabba", "foo@madeup.nul"];
+  let whoFoo = ["zabba", "foo@madeup.invalid"];
   let [setInert, setSenderFoo, setRecipientsFoo, setSubjectFoo, setBodyFoo] =
     make_new_sets_in_folder(folder, [
       {count: 1}, {count:1, from: whoFoo}, {count: 1, to: [whoFoo]},
@@ -222,8 +224,8 @@ function test_filter_text_single_word_and_predicates() {
 function test_filter_text_multi_word() {
   let folder = create_folder("QuickFilterBarTextMultiWord");
 
-  let whoFoo = ["foo", "zabba@madeup.nul"];
-  let whoBar = ["zabba", "bar@madeup.nul"];
+  let whoFoo = ["foo", "zabba@madeup.invalid"];
+  let whoBar = ["zabba", "bar@madeup.invalid"];
   let [setInert, setPeepMatch, setSubjReverse, setSubjectJustFoo] =
     make_new_sets_in_folder(folder, [
       {count: 1}, {count:1, from: whoFoo, to: [whoBar]},
@@ -243,8 +245,8 @@ function test_filter_text_multi_word() {
  *  sender/recipients/subject/body toggle buttons.
  */
 function test_filter_text_constraints_propagate() {
-  let whoFoo = ["foo", "zabba@madeup.nul"];
-  let whoBar = ["zabba", "bar@madeup.nul"];
+  let whoFoo = ["foo", "zabba@madeup.invalid"];
+  let whoBar = ["zabba", "bar@madeup.invalid"];
 
   let folderOne = create_folder("QuickFilterBarTextPropagate1");
   let [setSubjFoo, setWhoFoo] = make_new_sets_in_folder(folderOne,

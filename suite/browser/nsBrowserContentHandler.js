@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 const nsISupports             = Components.interfaces.nsISupports;
 const nsIBrowserDOMWindow     = Components.interfaces.nsIBrowserDOMWindow;
 const nsIBrowserHistory       = Components.interfaces.nsIBrowserHistory;
@@ -27,7 +29,6 @@ const nsIWindowMediator       = Components.interfaces.nsIWindowMediator;
 const nsIWindowWatcher        = Components.interfaces.nsIWindowWatcher;
 const nsIWebNavigationInfo    = Components.interfaces.nsIWebNavigationInfo;
 
-const NS_BINDING_ABORTED = 0x804b0002;
 const NS_ERROR_WONT_HANDLE_CONTENT = 0x805d0001;
 
 const URI_INHERITS_SECURITY_CONTEXT = nsIHttpProtocolHandler
@@ -73,32 +74,32 @@ function resolveURIInternal(aCmdLine, aArgument)
   return null;
 }
 
-function getHomePageGroup(prefs)
+function getHomePageGroup()
 {
-  var homePage = prefs.getComplexValue("browser.startup.homepage",
-                                       nsIPrefLocalizedString).data;
+  var homePage = Services.prefs.getComplexValue("browser.startup.homepage",
+                                                nsIPrefLocalizedString).data;
 
   var count = 0;
   try {
-    count = prefs.getIntPref("browser.startup.homepage.count");
+    count = Services.prefs.getIntPref("browser.startup.homepage.count");
   } catch (e) {
   }
 
   for (var i = 1; i < count; ++i) {
     try {
-      homePage += '\n' + prefs.getComplexValue("browser.startup.homepage." + i,
-                                               nsISupportsString).data;
+      homePage += '\n' + Services.prefs.getComplexValue("browser.startup.homepage." + i,
+                                                        nsISupportsString).data;
     } catch (e) {
     }
   }
   return homePage;
 }
 
-function needHomePageOverride(prefs)
+function needHomePageOverride()
 {
   var savedmstone = null;
   try {
-    savedmstone = prefs.getCharPref("browser.startup.homepage_override.mstone");
+    savedmstone = Services.prefs.getCharPref("browser.startup.homepage_override.mstone");
     if (savedmstone == "ignore")
       return false;
   } catch (e) {
@@ -110,19 +111,17 @@ function needHomePageOverride(prefs)
   if (mstone == savedmstone)
     return false;
 
-  prefs.setCharPref("browser.startup.homepage_override.mstone", mstone);
+  Services.prefs.setCharPref("browser.startup.homepage_override.mstone", mstone);
 
   return true;
 }
 
 function getURLToLoad()
 {
-  var prefs = Components.classes["@mozilla.org/preferences-service;1"]
-                        .getService(nsIPrefBranch);
   var formatter = Components.classes["@mozilla.org/toolkit/URLFormatterService;1"]
                             .getService(Components.interfaces.nsIURLFormatter);
 
-  if (needHomePageOverride(prefs)) {
+  if (needHomePageOverride()) {
     try {
       return formatter.formatURLPref("startup.homepage_override_url");
     } catch (e) {
@@ -148,13 +147,13 @@ function getURLToLoad()
   }
 
   try {
-    switch (prefs.getIntPref("browser.startup.page")) {
+    switch (Services.prefs.getIntPref("browser.startup.page")) {
     case 1:
-      return getHomePageGroup(prefs);
+      return getHomePageGroup();
 
     case 2:
-      return prefs.getComplexValue("browser.history.last_page_visited",
-                                   nsISupportsString).data;
+      return Services.prefs.getComplexValue("browser.history.last_page_visited",
+                                            nsISupportsString).data;
     }
   } catch (e) {
   } 
@@ -192,9 +191,7 @@ function getMostRecentWindow(aType)
 function getBrowserURL()
 {
   try {
-    return Components.classes["@mozilla.org/preferences-service;1"]
-                     .getService(nsIPrefBranch)
-                     .getCharPref("browser.chromeURL");
+    return Services.prefs.getCharPref("browser.chromeURL");
   } catch (e) {
   }
   return "chrome://navigator/content/navigator.xul";
@@ -348,6 +345,19 @@ var nsBrowserContentHandler = {
       }
     }
 
+    try {
+      var privateParam = cmdLine.handleFlagWithParam("private", false);
+      if (privateParam) {
+        openWindow(null, getBrowserURL(), "private," + features, privateParam);
+        cmdLine.preventDefault = true;
+      }
+    } catch (e) {
+      if (cmdLine.handleFlag("private", false)) {
+        openWindow(null, getBrowserURL(), "private," + features, "about:privatebrowsing");
+        cmdLine.preventDefault = true;
+      }
+    }
+
     // If we don't have a profile selected yet (e.g. the Profile Manager is
     // displayed) we will crash if we open an url and then select a profile. To
     // prevent this handle all url command line flag and set the command line's
@@ -462,9 +472,7 @@ var nsBrowserContentHandler = {
     if (!cmdLine.preventDefault) {
       this.realCmdLine = cmdLine;
 
-      var prefBranch = Components.classes["@mozilla.org/preferences-service;1"]
-                                 .getService(nsIPrefService)
-                                 .getBranch("general.startup.");
+      var prefBranch = Services.prefs.getBranch("general.startup.");
 
       var startupArray = prefBranch.getChildList("");
 
@@ -536,6 +544,7 @@ var nsBrowserContentHandler = {
   },
 
   helpInfo: "  -browser <url>     Open a browser window.\n" +
+            "  -private <url>     Open a private window.\n" +
             "  -new-window <url>  Open <url> in a new browser window.\n" +
             "  -new-tab <url>     Open <url> in a new browser tab.\n" +
             "  -url <url>         Open the specified url.\n" +
@@ -612,7 +621,7 @@ var nsBrowserContentHandler = {
     request.QueryInterface(nsIChannel);
     handURIToExistingBrowser(request.URI,
       nsIBrowserDOMWindow.OPEN_DEFAULTWINDOW, "chrome,all,dialog=no");
-    request.cancel(NS_BINDING_ABORTED);
+    request.cancel(Components.results.NS_BINDING_ABORTED);
   },
 
   /* nsIFactory */

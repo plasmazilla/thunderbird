@@ -12,27 +12,33 @@ OBJDIR = $(OBJDIR_ARCH_1)
 endif
 
 topsrcdir = $(TOPSRCDIR)
-include $(OBJDIR)/config/autoconf.mk
+DEPTH = $(OBJDIR)
+
+include $(DEPTH)/config/autoconf.mk
+include $(topsrcdir)/mozilla/toolkit/mozapps/installer/package-name.mk
+
+LIGHTNING_VERSION := $(shell cat $(topsrcdir)/calendar/sunbird/config/version.txt)
+XPI_PKGNAME = lightning-$(LIGHTNING_VERSION).$(AB_CD).$(MOZ_PKG_PLATFORM)
+
+include $(TOPSRCDIR)/config/config.mk
 
 postflight_all:
 	mkdir -p $(DIST_UNI)/xpi-stage
 	rm -rf $(DIST_UNI)/xpi-stage/lightning*
 	cp -R $(DIST_ARCH_1)/xpi-stage/lightning $(DIST_UNI)/xpi-stage
-	rm -f $(DIST_UNI)/xpi-stage/lightning/components/components.manifest
+	grep -v binary-component $(DIST_ARCH_1)/xpi-stage/lightning/components/libical.manifest > \
+	    $(DIST_UNI)/xpi-stage/lightning/components/libical.manifest
 	platform=`$(PYTHON) $(TOPSRCDIR)/calendar/lightning/build/get-platform.py \
 		$(DIST_ARCH_1)/xpi-stage/lightning`; \
 	mkdir -p $(DIST_UNI)/xpi-stage/lightning/components/$$platform; \
 	mv $(DIST_UNI)/xpi-stage/lightning/components/*.dylib \
 		$(DIST_UNI)/xpi-stage/lightning/components/$$platform; \
-	$(foreach dylib,$(wildcard $(DIST_ARCH_1)/xpi-stage/lightning/components/*.dylib),echo binary-component $$platform/$(notdir $(dylib)) ABI=$$platform >> $(DIST_UNI)/xpi-stage/lightning/components/components.manifest)
+	$(foreach dylib,$(wildcard $(DIST_ARCH_1)/xpi-stage/lightning/components/*.dylib),echo binary-component $$platform/$(notdir $(dylib)) ABI=$$platform >> $(DIST_UNI)/xpi-stage/lightning/components/libical.manifest)
 	platform=`$(PYTHON) $(TOPSRCDIR)/calendar/lightning/build/get-platform.py \
 		$(DIST_ARCH_2)/xpi-stage/lightning`; \
 	mkdir -p $(DIST_UNI)/xpi-stage/lightning/components/$$platform; \
 	cp $(DIST_ARCH_2)/xpi-stage/lightning/components/*.dylib \
 		$(DIST_UNI)/xpi-stage/lightning/components/$$platform; \
-	$(foreach dylib,$(wildcard $(DIST_ARCH_2)/xpi-stage/lightning/components/*.dylib),echo binary-component $$platform/$(notdir $(dylib)) ABI=$$platform >> $(DIST_UNI)/xpi-stage/lightning/components/components.manifest)
-	$(PYTHON) $(TOPSRCDIR)/build/merge-installrdf.py \
-		$(DIST_ARCH_1)/xpi-stage/lightning \
-		$(DIST_ARCH_2)/xpi-stage/lightning \
-		> $(DIST_UNI)/xpi-stage/lightning/install.rdf
-	cd $(DIST_UNI)/xpi-stage/lightning && $(ZIP) -qr ../lightning.xpi *
+	$(foreach dylib,$(wildcard $(DIST_ARCH_2)/xpi-stage/lightning/components/*.dylib),echo binary-component $$platform/$(notdir $(dylib)) ABI=$$platform >> $(DIST_UNI)/xpi-stage/lightning/components/libical.manifest)
+	grep -v em:realTargetPlatform $(DIST_ARCH_1)/xpi-stage/lightning/install.rdf > $(DIST_UNI)/xpi-stage/lightning/install.rdf
+	cd $(DIST_UNI)/xpi-stage/lightning && $(ZIP) -qr ../$(XPI_PKGNAME).xpi *

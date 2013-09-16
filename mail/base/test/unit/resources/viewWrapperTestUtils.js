@@ -5,6 +5,7 @@
 Components.utils.import("resource:///modules/dbViewWrapper.js");
 Components.utils.import("resource:///modules/mailViewManager.js");
 Components.utils.import("resource:///modules/virtualFolderWrapper.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 var gInbox;
 
@@ -78,10 +79,9 @@ var gMockViewWrapperListener = {
   shouldUseMailViews: true,
   shouldDeferMessageDisplayUntilAfterServerConnect: false,
   shouldMarkMessagesReadOnLeavingFolder : function(aMsgFolder) {
-      return Cc["@mozilla.org/preferences-service;1"]
-                 .getService(Ci.nsIPrefBranch)
-                 .getBoolPref("mailnews.mark_message_read." +
-                              aMsgFolder.server.type);
+      return Services.prefs
+                     .getBoolPref("mailnews.mark_message_read." +
+                                  aMsgFolder.server.type);
   },
   messenger: null,
   // use no message window!
@@ -90,7 +90,6 @@ var gMockViewWrapperListener = {
   // event handlers
   allMessagesLoadedEventCount: 0,
   onMessagesLoaded: function(aAll) {
-    dump(aAll ? "ALL LOADED\n" : "SOME LOADED\n");
     if (!aAll)
       return;
     this.allMessagesLoadedEventCount++;

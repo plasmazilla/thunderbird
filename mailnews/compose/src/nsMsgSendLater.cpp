@@ -29,6 +29,7 @@
 #include "nsIMsgLocalMailFolder.h"
 #include "nsIMsgDatabase.h"
 #include "mozilla/Services.h"
+#include "nsArrayUtils.h"
 
 // Consts for checking and sending mail in milliseconds
 
@@ -319,7 +320,7 @@ nsMsgSendLater::BuildNewBuffer(const char* aBuf, uint32_t aCount, uint32_t *tota
 
 // Got data?
 NS_IMETHODIMP
-nsMsgSendLater::OnDataAvailable(nsIRequest *request, nsISupports *ctxt, nsIInputStream *inStr, uint32_t sourceOffset, uint32_t count)
+nsMsgSendLater::OnDataAvailable(nsIRequest *request, nsISupports *ctxt, nsIInputStream *inStr, uint64_t sourceOffset, uint32_t count)
 {
   NS_ENSURE_ARG_POINTER(inStr);
 
@@ -543,30 +544,29 @@ nsMsgSendLater::CompleteMailFileSend()
 
   nsCString decodedString;
   // decoded string is null if the input is not MIME encoded
-  mimeConverter->DecodeMimeHeaderToCharPtr(author.get(), nullptr, false,
-                                           true,
-                                           getter_Copies(decodedString));
+  mimeConverter->DecodeMimeHeaderToUTF8(author, nullptr, false, true,
+                                        decodedString);
 
   fields->SetFrom(decodedString.IsEmpty() ? author.get() : decodedString.get());
 
   if (m_to)
   {
-    mimeConverter->DecodeMimeHeaderToCharPtr(m_to, nullptr, false, true,
-                                             getter_Copies(decodedString));
+    mimeConverter->DecodeMimeHeaderToUTF8(nsDependentCString(m_to), nullptr,
+                                          false, true, decodedString);
     fields->SetTo(decodedString.IsEmpty() ? m_to : decodedString.get());
   }
 
   if (m_bcc)
   {
-    mimeConverter->DecodeMimeHeaderToCharPtr(m_bcc, nullptr, false, true,
-                                             getter_Copies(decodedString));
+    mimeConverter->DecodeMimeHeaderToUTF8(nsDependentCString(m_bcc), nullptr,
+                                          false, true, decodedString);
     fields->SetBcc(decodedString.IsEmpty() ? m_bcc : decodedString.get());
   }
 
   if (m_fcc)
   {
-    mimeConverter->DecodeMimeHeaderToCharPtr(m_fcc, nullptr, false, true,
-                                             getter_Copies(decodedString));
+    mimeConverter->DecodeMimeHeaderToUTF8(nsDependentCString(m_fcc), nullptr,
+                                          false, true, decodedString);
     fields->SetFcc(decodedString.IsEmpty() ? m_fcc : decodedString.get());
   }
 
@@ -574,9 +574,9 @@ nsMsgSendLater::CompleteMailFileSend()
     fields->SetNewsgroups(m_newsgroups);
 
 #if 0
-  // needs cleanup.  SetNewspostUrl()?
+  // needs cleanup. Is this needed?
   if (m_newshost)
-    fields->SetNewshost(m_newshost);
+    fields->SetNewspostUrl(m_newshost);
 #endif
 
   // Create the listener for the send operation...
@@ -705,12 +705,12 @@ nsMsgSendLater::HasUnsentMessages(nsIMsgIdentity *aIdentity, bool *aResult)
     do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsISupportsArray> accounts;
+  nsCOMPtr<nsIArray> accounts;
   accountManager->GetAccounts(getter_AddRefs(accounts));
   NS_ENSURE_SUCCESS(rv, rv);
 
   uint32_t cnt = 0;
-  rv = accounts->Count(&cnt);
+  rv = accounts->GetLength(&cnt);
   if (cnt == 0) {
     *aResult = false;
     return NS_OK; // no account set up -> no unsent messages
@@ -1431,20 +1431,19 @@ nsMsgSendLater::GetIdentityFromKey(const char *aKey, nsIMsgIdentity  **aIdentity
   nsCOMPtr<nsIMsgAccountManager> accountManager = 
     do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv,rv);
- 
+
   if (aKey)
   {
-    nsCOMPtr<nsISupportsArray> identities;
+    nsCOMPtr<nsIArray> identities;
     if (NS_SUCCEEDED(accountManager->GetAllIdentities(getter_AddRefs(identities))))
     {
       nsCOMPtr<nsIMsgIdentity> lookupIdentity;
-      uint32_t          count = 0;
+      uint32_t count = 0;
 
-      identities->Count(&count);
+      identities->GetLength(&count);
       for (uint32_t i = 0; i < count; i++)
       {
-        rv = identities->QueryElementAt(i, NS_GET_IID(nsIMsgIdentity),
-                                  getter_AddRefs(lookupIdentity));
+        lookupIdentity = do_QueryElementAt(identities, i, &rv);
         if (NS_FAILED(rv))
           continue;
 

@@ -184,7 +184,7 @@ function HandleDeleteOrMoveMsgCompleted(folder)
     {
       var nextMstKey = gDBView.getKeyAt(gNextMessageViewIndexAfterDelete);
       if (nextMstKey != nsMsgKey_None &&
-          !pref.getBoolPref("mail.close_message_window.on_delete"))
+          !Services.prefs.getBoolPref("mail.close_message_window.on_delete"))
         LoadMessageByViewIndex(gNextMessageViewIndexAfterDelete);
       else
         window.close();
@@ -427,24 +427,9 @@ function GetSelectedMsgFolders()
 	return folderArray;
 }
 
-function GetFirstSelectedMessage()
-{
-	return GetLoadedMessage();
-}
-
 function GetNumSelectedMessages()
 {
   return (gCurrentMessageUri) ? 1 : 0;
-}
-
-function GetSelectedMessages()
-{
-	var messageArray = new Array(1);
-	var message = GetLoadedMessage();
-	if (message)
-		messageArray[0] = message;	
-
-	return messageArray;
 }
 
 function GetSelectedIndices(dbView)
@@ -618,8 +603,9 @@ var MessageWindowController =
         return GetNumSelectedMessages() > 0;
       case "cmd_reply":
       case "button_reply":
-      case "cmd_replySender":
+      case "cmd_replyList":
       case "cmd_replyGroup":
+      case "cmd_replySender":
       case "cmd_replyall":
       case "cmd_replySenderAndGroup":
       case "cmd_replyAllRecipients":
@@ -695,8 +681,9 @@ var MessageWindowController =
         return enabled.value;
 			case "cmd_reply":
 			case "button_reply":
-			case "cmd_replySender":
+			case "cmd_replyList":
 			case "cmd_replyGroup":
+			case "cmd_replySender":
 			case "cmd_replyall":
 			case "button_replyall":
       case "cmd_replySenderAndGroup":
@@ -813,11 +800,14 @@ var MessageWindowController =
 			case "cmd_reply":
 				MsgReplyMessage(null);
 				break;
-			case "cmd_replySender":
-				MsgReplySender(null);
+			case "cmd_replyList":
+				MsgReplyList(null);
 				break;
 			case "cmd_replyGroup":
 				MsgReplyGroup(null);
+				break;
+			case "cmd_replySender":
+				MsgReplySender(null);
 				break;
 			case "cmd_replyall":
 				MsgReplyToAllMessage(null);

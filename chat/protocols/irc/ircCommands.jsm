@@ -161,9 +161,20 @@ var commands = [
     get helpString() _("command.join", "join"),
     run: function(aMsg, aConv) {
       let params = aMsg.trim().split(/,\s*/);
-      if (!params[0])
-        return false;
       let account = getAccount(aConv);
+      if (!params[0]) {
+        let conv = getConv(aConv);
+        if (!conv.isChat || !conv.left)
+          return false;
+        // Rejoin the current channel. If the channel was explicitly parted
+        // by the user, _chatRoomFields will have been deleted.
+        // Otherwise, make use of it (e.g. if the user was kicked).
+        if (conv._chatRoomFields) {
+          account.joinChat(conv._chatRoomFields);
+          return true;
+        }
+        params = [conv.name];
+      }
       params.forEach(function(joinParam) {
         if (joinParam)
           account.joinChat(account.getChatRoomDefaultFieldValues(joinParam));
@@ -193,9 +204,10 @@ var commands = [
   },
   {
     name: "mode",
-    get helpString() _("command.mode", "mode"),
+    get helpString() _("command.modeUser", "mode") + "\n" +
+                     _("command.modeChannel", "mode"),
     run: function(aMsg, aConv) {
-      function isMode(aString) "+-".indexOf(aString[0]) != -1;
+      function isMode(aString) "+-".contains(aString[0]);
       let params = splitInput(aMsg);
 
       // Check if we have any params, we can't just check params.length, since
@@ -231,8 +243,8 @@ var commands = [
         else if ((!isChannelName && !isOwnNick) || !isMode(params[1]))
           return false;
       }
-      // Otherwise a channel name, new mode and a nick were given or a channel
-      // name and a mode were given. If this is not true, return false.
+      // Otherwise a channel name, new mode, and at least one parameter
+      // was given. If this is not true, return false.
       else if (!(isChannelName && isMode(params[1])))
         return false;
 
@@ -271,11 +283,6 @@ var commands = [
     name: "op",
     get helpString() _("command.op", "op"),
     run: function(aMsg, aConv) setMode(aMsg, aConv, "o", true)
-  },
-  {
-    name: "operwall",
-    get helpString() _("command.wallops", "operwall"),
-    run: function(aMsg, aConv) simpleCommand(aConv, "WALLOPS", aMsg)
   },
   {
     name: "operserv",
@@ -353,18 +360,21 @@ var commands = [
     run: function(aMsg, aConv) setMode(aMsg, aConv, "v", true)
   },
   {
-    name: "wallops",
-    get helpString() _("command.wallops", "wallops"),
-    run: function(aMsg, aConv) simpleCommand(aConv, "WALLOPS", aMsg)
-  },
-  {
     name: "whois",
-    get helpString() _("command.whois", "whois"),
+    get helpString() _("command.whois2", "whois"),
     run: function(aMsg, aConv) {
-      // Note that this will automatically run whowas is the nick is offline.
+      // Note that this will automatically run whowas if the nick is offline.
       aMsg = aMsg.trim();
-      if (!aMsg || aMsg.indexOf(" ") != -1)
+      // If multiple parameters are given, this is an error.
+      if (aMsg.contains(" "))
         return false;
+      // If the user does not provide a nick, but is in a private conversation,
+      // assume the user is trying to whois the person they are talking to.
+      if (!aMsg) {
+        if (aConv.isChat)
+          return false;
+        aMsg = aConv.name;
+      }
       getConv(aConv).requestBuddyInfo(aMsg);
       return true;
     }

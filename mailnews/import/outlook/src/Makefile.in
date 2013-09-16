@@ -10,26 +10,12 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-MODULE		= impOutlk
 LIBRARY_NAME   = impOutlk_s
 ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
 MOZILLA_INTERNAL_API = 1
 LIBXUL_LIBRARY = 1
 endif
 
-
-CPPSRCS		= \
-		nsOutlookStringBundle.cpp	\
-		nsOutlookImport.cpp		\
-		nsOutlookSettings.cpp		\
-		MapiApi.cpp			\
-		nsOutlookMail.cpp		\
-		MapiMessage.cpp			\
-		MapiMimeTypes.cpp		\
-		nsOutlookCompose.cpp		\
-		rtfDecoder.cpp		\
-		rtfMailDecoder.cpp		\
-		$(NULL)
 
 LOCAL_INCLUDES += -I$(srcdir)/../../src
 

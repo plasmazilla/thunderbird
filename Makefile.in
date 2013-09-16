@@ -54,6 +54,8 @@ mochitest-% :: $(SUBMAKEFILES)
 check-sync-dirs::
 	@$(PYTHON) $(topsrcdir)/mozilla/js/src/config/check-sync-dirs.py \
 	   $(topsrcdir)/build $(topsrcdir)/mozilla/build
+	@$(PYTHON) $(topsrcdir)/mozilla/js/src/config/check-sync-dirs.py \
+	   $(topsrcdir)/config/makefiles $(topsrcdir)/mozilla/config/makefiles
 
 check:: check-sync-dirs
 
@@ -81,14 +83,18 @@ endif
 buildsymbols :: $(SUBMAKEFILES)
 	$(MAKE) -C mozilla MAKE_SYM_STORE_PATH=$(MAKE_SYM_STORE_PATH) SYM_STORE_SOURCE_DIRS="$(topsrcdir)/mozilla/extensions/inspector $(topsrcdir)/ldap/sdks $(topsrcdir)/mozilla $(topsrcdir)" $@
 
+# If we don't specify this, then we will end up trying to build as if we were a
+# regular directory in the build tree.
+SUPPRESS_DEFAULT_RULES := 1
+
 include $(topsrcdir)/config/rules.mk
 
 # defined in (mozilla/.../)package-name.mk
 export MOZ_SOURCE_STAMP
 
-DIST_GARBAGE = config.cache config.log config.status config-defs.h \
-   dependencies.beos config/autoconf.mk \
-   unallmakefiles comm-config.h \
+DIST_GARBAGE = config.cache config.log config.status* config-defs.h \
+   config/autoconf.mk \
+   unallmakefiles \
    $(topsrcdir)/.mozconfig.mk $(topsrcdir)/.mozconfig.out
 
 distclean::

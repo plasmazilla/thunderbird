@@ -32,7 +32,8 @@ function teardownTest(module) {
  * data as being from about:support.
  */
 const ABOUT_SUPPORT_STRINGS = ["Application Basics", "Mail and News Accounts",
-                               "Extensions", "Modified Preferences", "Graphics"];
+                               "Extensions", "Modified Preferences", "Graphics",
+                               "JavaScript", "Accessibility", "Library Versions"];
 
 /**
  * Strings that if found in the about:support text or HTML usually indicate an
@@ -200,18 +201,18 @@ function test_copy_to_clipboard_public() {
     let text = data.value.QueryInterface(Ci.nsISupportsString).data;
 
     for (let [, str] in Iterator(ABOUT_SUPPORT_STRINGS)) {
-      if (text.indexOf(str) == -1)
+      if (!text.contains(str))
         mark_failure(["Unable to find \"" + str + "\" in flavor \"" + flavor + "\""]);
     }
 
     for (let [, str] in Iterator(ABOUT_SUPPORT_ERROR_STRINGS)) {
-      if (text.indexOf(str) != -1)
+      if (text.contains(str))
         mark_failure(["Found \"" + str + "\" in flavor \"" + flavor + "\""]);
     }
 
     // Check that private data (profile directory) isn't in the output.
     let profD = Services.dirsvc.get("ProfD", Ci.nsIFile).path;
-    if (text.indexOf(profD) != -1)
+    if (text.contains(profD))
       mark_failure(["Found profile directory in flavor \"" + flavor + "\""]);
   }
   close_tab(tab);
@@ -241,22 +242,22 @@ function test_copy_to_clipboard_private() {
     let text = data.value.QueryInterface(Ci.nsISupportsString).data;
 
     for (let [, str] in Iterator(ABOUT_SUPPORT_STRINGS)) {
-      if (text.indexOf(str) == -1)
+      if (!text.contains(str))
         mark_failure(["Unable to find \"" + str + "\" in flavor \"" + flavor + "\""]);
     }
 
     for (let [, str] in Iterator(ABOUT_SUPPORT_ERROR_STRINGS)) {
-      if (text.indexOf(str) != -1)
+      if (text.contains(str))
         mark_failure(["Found \"" + str + "\" in flavor \"" + flavor + "\""]);
     }
 
     // Check that private data (profile directory) is in the output.
     let profD = Services.dirsvc.get("ProfD", Ci.nsIFile).path;
-    if (text.indexOf(profD) == -1)
+    if (!text.contains(profD))
       mark_failure(["Unable to find profile directory in flavor \"" + flavor + "\""]);
 
     // Check that the warning text is in the output.
-    if (text.indexOf(warningText) == -1)
+    if (!text.contains(warningText))
       mark_failure(["Unable to find warning text in flavor \"" + flavor + "\""]);
   }
   close_tab(tab);
@@ -273,18 +274,18 @@ function test_send_via_email_public() {
   let text = contentFrame.contentDocument.body.innerHTML;
 
   for (let [, str] in Iterator(ABOUT_SUPPORT_STRINGS)) {
-    if (text.indexOf(str) == -1)
+    if (!text.contains(str))
       mark_failure(["Unable to find \"" + str + "\" in compose window"]);
   }
 
   for (let [, str] in Iterator(ABOUT_SUPPORT_ERROR_STRINGS)) {
-    if (text.indexOf(str) != -1)
+    if (text.contains(str))
       mark_failure(["Found \"" + str + "\" in compose window"]);
   }
 
   // Check that private data (profile directory) isn't in the output.
   let profD = Services.dirsvc.get("ProfD", Ci.nsIFile).path;
-  if (text.indexOf(profD) != -1)
+  if (text.contains(profD))
     mark_failure(["Found profile directory in compose window"]);
 
   close_compose_window(cwc);
@@ -312,22 +313,22 @@ function test_send_via_email_private() {
   let text = contentFrame.contentDocument.body.innerHTML;
 
   for (let [, str] in Iterator(ABOUT_SUPPORT_STRINGS)) {
-    if (text.indexOf(str) == -1)
+    if (!text.contains(str))
       mark_failure(["Unable to find \"" + str + "\" in compose window"]);
   }
 
   for (let [, str] in Iterator(ABOUT_SUPPORT_ERROR_STRINGS)) {
-    if (text.indexOf(str) != -1)
+    if (text.contains(str))
       mark_failure(["Found \"" + str + "\" in compose window"]);
   }
 
   // Check that private data (profile directory) is in the output.
   let profD = Services.dirsvc.get("ProfD", Ci.nsIFile).path;
-  if (text.indexOf(profD) == -1)
+  if (!text.contains(profD))
     mark_failure(["Unable to find profile directory in compose window"]);
 
   // Check that the warning text is in the output.
-  if (text.indexOf(warningText) == -1)
+  if (!text.contains(warningText))
     mark_failure(["Unable to find warning text in compose window"]);
 
   close_compose_window(cwc);

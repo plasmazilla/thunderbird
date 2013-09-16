@@ -3,6 +3,9 @@
  * Tests bug 474774 - assertions when saving send later and when sending with 
  * FCC switched off.
  */
+
+Components.utils.import("resource:///modules/mailServices.js");
+
 var type = null;
 var test = null;
 var server;
@@ -12,8 +15,8 @@ var finished = false;
 var identity = null;
 var testFile = do_get_file("data/429891_testcase.eml");
 
-const kSender = "from@invalid.com";
-const kTo = "to@invalid.com";
+const kSender = "from@foo.invalid";
+const kTo = "to@foo.invalid";
 
 var msgSendLater = Cc["@mozilla.org/messengercompose/sendlater;1"]
   .getService(Ci.nsIMsgSendLater);
@@ -91,7 +94,8 @@ function OnStopCopy(aStatus)
     do_check_eq(folder.getTotalMessages(false), 1);
 
     // Now do a comparison of what is in the sent mail folder
-    let msgData = loadMessageToString(folder, firstMsgHdr(folder));
+    let msgData = mailTestUtils
+      .loadMessageToString(folder, mailTestUtils.firstMsgHdr(folder));
 
     // Skip the headers etc that mailnews adds
     var pos = msgData.indexOf("From:");
@@ -165,18 +169,16 @@ function sendMessageLater()
 
 function run_test() {
   // Test file - for bug 429891
-  originalData = loadFileToString(testFile);
+  originalData = IOUtils.loadFileToString(testFile);
 
   // Ensure we have a local mail account, an normal account and appropriate
   // servers and identities.
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
-  var acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
-  acctMgr.setSpecialFolders();
+  MailServices.accounts.setSpecialFolders();
 
-  var account = acctMgr.createAccount();
-  var incomingServer = acctMgr.createIncomingServer("test", "localhost", "pop3");
+  let account = MailServices.accounts.createAccount();
+  let incomingServer = MailServices.accounts.createIncomingServer("test", "localhost", "pop3");
 
   var smtpServer = getBasicSmtpServer();
   identity = getSmtpIdentity(kSender, smtpServer);
@@ -185,7 +187,7 @@ function run_test() {
   account.defaultIdentity = identity;
   account.incomingServer = incomingServer;
 
-  sentFolder = gLocalRootFolder.createLocalSubfolder("Sent");
+  sentFolder = localAccountUtils.rootFolder.createLocalSubfolder("Sent");
 
   identity.doFcc = false;
 

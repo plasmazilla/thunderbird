@@ -123,6 +123,14 @@ nsMsgContentPolicy::ShouldAcceptRemoteContentForSender(nsIMsgDBHdr *aMsgHdr)
     directory = do_QueryInterface(supports);
     if (directory)
     {
+      bool readOnly;
+      rv = directory->GetReadOnly(&readOnly);
+      NS_ENSURE_SUCCESS(rv, false);
+      // Read-only ABs, don't support the remote content property, so skip
+      // this one.
+      if (readOnly)
+        continue;
+
       rv = directory->CardForEmailAddress(emailAddress, getter_AddRefs(cardForAddress));
       if (NS_FAILED(rv) && rv != NS_ERROR_NOT_IMPLEMENTED)
         return false;
@@ -148,7 +156,7 @@ bool nsMsgContentPolicy::IsTrustedDomain(nsIURI * aContentLocation)
 {
   bool trustedDomain = false;
   // get the host name of the server hosting the remote image
-  nsCAutoString host;
+  nsAutoCString host;
   nsresult rv = aContentLocation->GetHost(host);
 
   if (NS_SUCCEEDED(rv) && !mTrustedMailDomains.IsEmpty()) 
@@ -227,6 +235,12 @@ nsMsgContentPolicy::ShouldLoad(uint32_t          aContentType,
       *aDecision = nsIContentPolicy::REJECT_TYPE;
       return NS_OK;
     }
+    break;
+
+  case nsIContentPolicy::TYPE_CSP_REPORT:
+    // We cannot block CSP reports.
+    *aDecision = nsIContentPolicy::ACCEPT;
+    return NS_OK;
     break;
 
   default:
@@ -322,12 +336,12 @@ nsMsgContentPolicy::IsSafeRequestingLocation(nsIURI *aRequestingLocation)
   if (!aRequestingLocation)
     return false;
 
-  // if aRequestingLocation is chrome, resource about or file, allow
-  // aContentLocation to load
+  // If aRequestingLocation is one of chrome, resource, file or view-source,
+  // allow aContentLocation to load.
   bool isChrome;
   bool isRes;
-  bool isAbout;
   bool isFile;
+  bool isViewSource;
 
   nsresult rv = aRequestingLocation->SchemeIs("chrome", &isChrome);
   NS_ENSURE_SUCCESS(rv, false);
@@ -335,18 +349,20 @@ nsMsgContentPolicy::IsSafeRequestingLocation(nsIURI *aRequestingLocation)
   NS_ENSURE_SUCCESS(rv, false);
   rv = aRequestingLocation->SchemeIs("file", &isFile);
   NS_ENSURE_SUCCESS(rv, false);
+  rv = aRequestingLocation->SchemeIs("view-source", &isViewSource);
+  NS_ENSURE_SUCCESS(rv, false);
 
-  if (isChrome || isRes || isFile)
+  if (isChrome || isRes || isFile || isViewSource)
     return true;
 
   // Only allow about: to load anything if the requesting location is not the
   // special about:blank one.
+  bool isAbout;
   rv = aRequestingLocation->SchemeIs("about", &isAbout);
   NS_ENSURE_SUCCESS(rv, false);
 
   if (!isAbout)
     return false;
-
 
   nsCString fullSpec;
   rv = aRequestingLocation->GetSpec(fullSpec);
@@ -362,7 +378,7 @@ nsMsgContentPolicy::IsSafeRequestingLocation(nsIURI *aRequestingLocation)
 bool
 nsMsgContentPolicy::IsExposedProtocol(nsIURI *aContentLocation)
 {
-  nsCAutoString contentScheme;
+  nsAutoCString contentScheme;
   nsresult rv = aContentLocation->GetScheme(contentScheme);
   NS_ENSURE_SUCCESS(rv, false);
 
@@ -515,14 +531,14 @@ nsMsgContentPolicy::ShouldAcceptContentForPotentialMsg(nsIURI *aOriginatorLocati
 
   nsCString resourceURI;
   rv = msgUrl->GetUri(getter_Copies(resourceURI));
-  NS_ENSURE_SUCCESS(rv, );
+  NS_ENSURE_SUCCESS_VOID(rv);
 
   nsCOMPtr<nsIMsgDBHdr> msgHdr;
   rv = GetMsgDBHdrFromURI(resourceURI.get(), getter_AddRefs(msgHdr));
-  NS_ENSURE_SUCCESS(rv, );
+  NS_ENSURE_SUCCESS_VOID(rv);
 
   nsCOMPtr<nsIMsgMailNewsUrl> mailnewsUrl(do_QueryInterface(aOriginatorLocation, &rv));
-  NS_ENSURE_SUCCESS(rv, );
+  NS_ENSURE_SUCCESS_VOID(rv);
 
   // Get a decision on whether or not to allow remote content for this message
   // header.
@@ -560,14 +576,13 @@ void nsMsgContentPolicy::ComposeShouldLoad(nsIMsgCompose *aMsgCompose,
   NS_PRECONDITION(*aDecision == nsIContentPolicy::REJECT_REQUEST,
                   "ComposeShouldLoad expects default decision to be reject!");
 
-  nsresult rv;
   nsCString originalMsgURI;
-  rv = aMsgCompose->GetOriginalMsgURI(getter_Copies(originalMsgURI));
-  NS_ENSURE_SUCCESS(rv, );
+  nsresult rv = aMsgCompose->GetOriginalMsgURI(getter_Copies(originalMsgURI));
+  NS_ENSURE_SUCCESS_VOID(rv);
 
   MSG_ComposeType composeType;
   rv = aMsgCompose->GetType(&composeType);
-  NS_ENSURE_SUCCESS(rv, );
+  NS_ENSURE_SUCCESS_VOID(rv);
 
   // Only allow remote content for new mail compositions or mailto
   // Block remote content for all other types (drafts, templates, forwards, replies, etc)
@@ -580,7 +595,7 @@ void nsMsgContentPolicy::ComposeShouldLoad(nsIMsgCompose *aMsgCompose,
   {
     nsCOMPtr<nsIMsgDBHdr> msgHdr;
     rv = GetMsgDBHdrFromURI(originalMsgURI.get(), getter_AddRefs(msgHdr));
-    NS_ENSURE_SUCCESS(rv, );
+    NS_ENSURE_SUCCESS_VOID(rv);
     *aDecision = ShouldAcceptRemoteContentForMsgHdr(msgHdr, nullptr,
                                                     aContentLocation);
 
@@ -624,11 +639,12 @@ already_AddRefed<nsIMsgCompose> nsMsgContentPolicy::GetMsgComposeForContext(nsIS
   nsCOMPtr<nsIMsgComposeService> composeService(do_GetService(NS_MSGCOMPOSESERVICE_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, nullptr);
 
-  nsIMsgCompose* msgCompose = nullptr;
+  nsCOMPtr<nsIMsgCompose> msgCompose;
   // Don't bother checking rv, as GetMsgComposeForDocShell returns NS_ERROR_FAILURE
-  // for not found. We default to nullptr, so we're still returning a valid value.
-  composeService->GetMsgComposeForDocShell(docShell, &msgCompose);
-  return msgCompose;
+  // for not found.
+  composeService->GetMsgComposeForDocShell(docShell,
+                                           getter_AddRefs(msgCompose));
+  return msgCompose.forget();
 }
 
 nsresult nsMsgContentPolicy::SetDisableItemsOnMailNewsUrlDocshells(

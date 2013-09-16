@@ -238,10 +238,14 @@ NS_IMETHODIMP nsMsgMaildirStore::HasSpaceAvailable(nsIMsgFolder *aFolder,
                                                    int64_t aSpaceRequested,
                                                    bool *aResult)
 {
-  // This should probably check disk space available, though the caller
-  // might be doing that as well.
   NS_ENSURE_ARG_POINTER(aResult);
-  *aResult = true;
+  NS_ENSURE_ARG_POINTER(aFolder);
+
+  nsCOMPtr<nsIFile> pathFile;
+  nsresult rv = aFolder->GetFilePath(getter_AddRefs(pathFile));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  *aResult = DiskSpaceAvailableInStore(pathFile, aSpaceRequested);
   return NS_OK;
 }
 
@@ -609,7 +613,7 @@ nsMsgMaildirStore::GetNewMsgOutputStream(nsIMsgFolder *aFolder,
   }
 
   // generate new file name
-  nsCAutoString newName;
+  nsAutoCString newName;
   newName.AppendInt(static_cast<int64_t>(PR_Now()));
   newFile->AppendNative(newName);
   // CreateUnique, in case we get more than one message per millisecond :-)
@@ -630,7 +634,7 @@ nsMsgMaildirStore::DiscardNewMessage(nsIOutputStream *aOutputStream,
 
   aOutputStream->Close();
   // file path is stored in message header property "storeToken"
-  nsCAutoString fileName;
+  nsAutoCString fileName;
   aNewHdr->GetStringProperty("storeToken", getter_Copies(fileName));
   if (fileName.IsEmpty())
     return NS_ERROR_FAILURE;
@@ -666,7 +670,7 @@ nsMsgMaildirStore::FinishNewMessage(nsIOutputStream *aOutputStream,
   NS_ENSURE_SUCCESS(rv, rv);
 
   // file path is stored in message header property
-  nsCAutoString fileName;
+  nsAutoCString fileName;
   aNewHdr->GetStringProperty("storeToken", getter_Copies(fileName));
   if (fileName.IsEmpty())
   {
@@ -722,7 +726,7 @@ nsMsgMaildirStore::MoveNewlyDownloadedMessage(nsIMsgDBHdr *aNewHdr,
   NS_ENSURE_SUCCESS(rv, rv);
 
   // file path is stored in message header property
-  nsCAutoString fileName;
+  nsAutoCString fileName;
   aNewHdr->GetStringProperty("storeToken", getter_Copies(fileName));
   if (fileName.IsEmpty())
   {
@@ -823,7 +827,7 @@ NS_IMETHODIMP nsMsgMaildirStore::DeleteMessages(nsIArray *aHdrArray)
     nsCOMPtr<nsIFile> path;
     rv = folder->GetFilePath(getter_AddRefs(path));
     NS_ENSURE_SUCCESS(rv, rv);
-    nsCAutoString fileName;
+    nsAutoCString fileName;
     msgHdr->GetStringProperty("storeToken", getter_Copies(fileName));
     if (fileName.IsEmpty())
       return NS_ERROR_FAILURE;
@@ -897,7 +901,7 @@ nsMsgMaildirStore::CopyMessages(bool aIsMove, nsIArray *aHdrArray,
     nsCOMPtr<nsIFile> path;
     rv = srcFolder->GetFilePath(getter_AddRefs(path));
     NS_ENSURE_SUCCESS(rv, rv);
-    nsCAutoString fileName;
+    nsAutoCString fileName;
     msgHdr->GetStringProperty("storeToken", getter_Copies(fileName));
     if (fileName.IsEmpty())
       return NS_ERROR_FAILURE;
@@ -1057,7 +1061,7 @@ nsresult MaildirStoreParser::ParseNextMessage(nsIFile *aFile)
     // A single message needs to be less than 4GB
     newMsgHdr->SetMessageSize((uint32_t) fileSize);
     m_db->AddNewHdrToDB(newMsgHdr, true);
-    nsCAutoString storeToken;
+    nsAutoCString storeToken;
     aFile->GetNativeLeafName(storeToken);
     newMsgHdr->SetStringProperty("storeToken", storeToken.get());
   }
@@ -1086,7 +1090,7 @@ void MaildirStoreParser::TimerCallback(nsITimer *aTimer, void *aClosure)
       {
         nsCOMPtr<nsIMsgMailNewsUrl> url = do_QueryInterface(mailboxurl);
         url->SetUpdatingFolder(true);
-        nsCAutoString uriSpec("mailbox://");
+        nsAutoCString uriSpec("mailbox://");
         // ### TODO - what if SetSpec fails?
         (void) url->SetSpec(uriSpec);
         parser->m_listener->OnStopRunningUrl(url, NS_OK);
@@ -1098,7 +1102,7 @@ void MaildirStoreParser::TimerCallback(nsITimer *aTimer, void *aClosure)
   parser->m_directoryEnumerator->GetNext(getter_AddRefs(aSupport));
   nsresult rv;
   nsCOMPtr<nsIFile> currentFile(do_QueryInterface(aSupport, &rv));
-  NS_ENSURE_SUCCESS(rv,);
+  NS_ENSURE_SUCCESS_VOID(rv);
   parser->ParseNextMessage(currentFile);
   // ### TODO - what if this fails?
 }
@@ -1169,7 +1173,7 @@ nsMsgMaildirStore::GetOutputStream(nsIMsgDBHdr *aHdr,
                                    nsCOMPtr<nsIOutputStream> &aOutputStream)
 {
   // file name is stored in message header property "storeToken"
-  nsCAutoString fileName;
+  nsAutoCString fileName;
   aHdr->GetStringProperty("storeToken", getter_Copies(fileName));
   if (fileName.IsEmpty())
     return NS_ERROR_FAILURE;
@@ -1205,9 +1209,8 @@ NS_IMETHODIMP nsMsgMaildirStore::ChangeKeywords(nsIArray *aHdrArray,
   if (!messageCount)
     return NS_ERROR_INVALID_ARG;
 
-  nsLineBuffer<char> *lineBuffer;
-  rv = NS_InitLineBuffer(&lineBuffer);
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsAutoPtr<nsLineBuffer<char> > lineBuffer(new nsLineBuffer<char>);
+  NS_ENSURE_TRUE(lineBuffer, NS_ERROR_OUT_OF_MEMORY);
 
   nsTArray<nsCString> keywordArray;
   ParseString(aKeywords, ' ', keywordArray);
@@ -1236,7 +1239,7 @@ NS_IMETHODIMP nsMsgMaildirStore::ChangeKeywords(nsIArray *aHdrArray,
     // we need to rewrite the message file with extra room for the keywords,
     // or schedule some sort of background task to do this.
   }
-  PR_Free(lineBuffer);
+  lineBuffer = nullptr;
   return NS_OK;
 }
 

@@ -5,6 +5,7 @@
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource:///modules/DownloadTaskbarIntegration.jsm");
+Components.utils.import("resource:///modules/WindowsPreviewPerTab.jsm");
 
 __defineGetter__("PluralForm", function() {
   Components.utils.import("resource://gre/modules/PluralForm.jsm");
@@ -14,6 +15,9 @@ __defineSetter__("PluralForm", function (val) {
   delete this.PluralForm;
   return this.PluralForm = val;
 });
+
+XPCOMUtils.defineLazyModuleGetter(this, "SafeBrowsing",
+  "resource://gre/modules/SafeBrowsing.jsm");
 
 const REMOTESERVICE_CONTRACTID = "@mozilla.org/toolkit/remote-service;1";
 const XUL_NAMESPACE = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
@@ -173,13 +177,18 @@ const gFormSubmitObserver = {
 
     this.panel.hidden = false;
 
-    var style = element.ownerDocument.defaultView.getComputedStyle(element, null);
+    var win = element.ownerDocument.defaultView;
+    var style = win.getComputedStyle(element, null);
+    var scale = win.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+                   .getInterface(Components.interfaces.nsIDOMWindowUtils)
+                   .fullZoom;
 
-    var offset = style.direction == 'rtl' ? parseInt(style.paddingRight) + 
+    var offset = style.direction == 'rtl' ? parseInt(style.paddingRight) +
                                             parseInt(style.borderRightWidth) :
                                             parseInt(style.paddingLeft) +
                                             parseInt(style.borderLeftWidth);
 
+    offset = Math.round(offset * scale);
     this.panel.openPopup(element, "after_start", offset, 0);
   }
 };
@@ -235,10 +244,7 @@ function removeFormSubmitObserver(observer)
 
 function pageShowEventHandlers(event)
 {
-  // Filter out events that are not about the document load we are interested in
-  if (event.originalTarget == content.document) {
-    checkForDirectoryListing();
-  }
+  checkForDirectoryListing();
 }
 
 /**
@@ -458,24 +464,35 @@ function Startup()
   // set home button tooltip text
   updateHomeButtonTooltip();
 
-  // initialize observers and listeners
-  var xw = window.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+  var lc = window.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
                  .getInterface(Components.interfaces.nsIWebNavigation)
-                 .QueryInterface(Components.interfaces.nsIDocShellTreeItem)
-                 .treeOwner
-                 .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-                 .getInterface(Components.interfaces.nsIXULWindow);
+                 .QueryInterface(Components.interfaces.nsILoadContext);
+  if (lc.usePrivateBrowsing) {
+    gPrivate = window;
+    document.documentElement.removeAttribute("windowtype");
+    var titlemodifier = document.documentElement.getAttribute("titlemodifier");
+    if (titlemodifier)
+      titlemodifier += " ";
+    titlemodifier += document.documentElement.getAttribute("titleprivate");
+    document.documentElement.setAttribute("titlemodifier", titlemodifier);
+    document.title = titlemodifier;
+  }
+
+  // initialize observers and listeners
+  var xw = lc.QueryInterface(Components.interfaces.nsIDocShellTreeItem)
+             .treeOwner
+             .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+             .getInterface(Components.interfaces.nsIXULWindow);
   xw.XULBrowserWindow = window.XULBrowserWindow = new nsBrowserStatusHandler();
 
-  if (Services.prefs.getBoolPref("browser.doorhanger.enabled")) {
-    XPCOMUtils.defineLazyGetter(window, "PopupNotifications", function() {
-      var tmp = {};
-      Components.utils.import("resource://gre/modules/PopupNotifications.jsm", tmp);
-      return XULBrowserWindow.popupNotifications = new tmp.PopupNotifications(
-          getBrowser(),
-          document.getElementById("notification-popup"),
-          document.getElementById("notification-popup-box"));
-    });
+  if (!window.content.opener &&
+      Services.prefs.getBoolPref("browser.doorhanger.enabled")) {
+    var tmp = {};
+    Components.utils.import("resource://gre/modules/PopupNotifications.jsm", tmp);
+    window.PopupNotifications = new tmp.PopupNotifications(
+        getBrowser(),
+        document.getElementById("notification-popup"),
+        document.getElementById("notification-popup-box"));
     // Setting the popup notification attribute causes the XBL to bind
     // and call the constructor again, so we have to destroy it first.
     gBrowser.getNotificationBox().destroy();
@@ -498,7 +515,11 @@ function Startup()
   // (rjc note: not the entire window, otherwise we'll get sidebar pane loads too!)
   //  so we'll be notified when onloads complete.
   var contentArea = document.getElementById("appcontent");
-  contentArea.addEventListener("pageshow", pageShowEventHandlers, true);
+  contentArea.addEventListener("pageshow", function callPageShowHandlers(aEvent) {
+    // Filter out events that are not about the document load we are interested in.
+    if (aEvent.originalTarget == content.document)
+      setTimeout(pageShowEventHandlers, 0, aEvent);
+  }, true);
 
   // set default character set if provided
   if ("arguments" in window && window.arguments.length > 1 && window.arguments[1]) {
@@ -510,8 +531,6 @@ function Startup()
       }
     }
   }
-
-  //initConsoleListener();
 
   // Set a sane starting width/height for all resolutions on new profiles.
   if (!document.documentElement.hasAttribute("width")) {
@@ -587,7 +606,7 @@ function Startup()
     browser.userTypedValue = uriToLoad;
     if ("arguments" in window && window.arguments.length >= 3) {
       loadURI(uriToLoad, window.arguments[2], window.arguments[3] || null,
-              window.arguments[4] || false);
+              window.arguments[4] || false, window.arguments[5] || false);
     } else {
       loadURI(uriToLoad);
     }
@@ -606,14 +625,11 @@ function Startup()
   else
     setTimeout(WindowFocusTimerCallback, 0, content);
 
-  // Perform default browser checking (after window opens).
-  setTimeout(checkForDefaultBrowser, 0);
-
   // hook up browser access support
   window.browserDOMWindow = new nsBrowserAccess();
 
   // hook up remote support
-  if (REMOTESERVICE_CONTRACTID in Components.classes) {
+  if (!gPrivate && REMOTESERVICE_CONTRACTID in Components.classes) {
     var remoteService =
       Components.classes[REMOTESERVICE_CONTRACTID]
                 .getService(Components.interfaces.nsIRemoteService);
@@ -656,13 +672,20 @@ function Startup()
   gBrowser.mPanelContainer.addEventListener("PreviewBrowserTheme", LightWeightThemeWebInstaller, false, true);
   gBrowser.mPanelContainer.addEventListener("ResetBrowserThemePreview", LightWeightThemeWebInstaller, false, true);
 
-  DownloadTaskbarIntegration.onBrowserWindowLoad(window);
+  AeroPeek.onOpenWindow(window);
 
-  // initialize the sync UI
-  gSyncUI.init();
+  if (!gPrivate) {
+    DownloadTaskbarIntegration.onBrowserWindowLoad(window);
 
-  // initialize the session-restore service
-  setTimeout(InitSessionStoreCallback, 0);
+    // initialize the sync UI
+    gSyncUI.init();
+
+    // initialize the session-restore service
+    setTimeout(InitSessionStoreCallback, 0);
+  }
+
+  // Bug 778855 - Perf regression if we do this here. To be addressed in bug 779008.
+  setTimeout(function() { SafeBrowsing.init(); }, 2000);
 }
 
 function UpdateNavBar()
@@ -729,6 +752,8 @@ function WindowFocusTimerCallback(element)
 
 function Shutdown()
 {
+  AeroPeek.onCloseWindow(window);
+
   PlacesStarButton.uninit();
 
   // shut down browser access support
@@ -1177,6 +1202,8 @@ const BrowserSearch = {
    * the sidebar and selected, null otherwise.
    */
   get searchSidebar() {
+    if (sidebarObj.never_built)
+      return null;
     var panel = sidebarObj.panels.get_panel_from_id("urn:sidebar:panel:search");
     return panel && isElementVisible(panel.get_iframe()) &&
            panel.get_iframe()
@@ -1261,7 +1288,7 @@ function QualifySearchTerm()
 function BrowserOpenWindow()
 {
   //opens a window where users can select a web location to open
-  var params = { action: "0", url: "" };
+  var params = { action: gPrivate ? "4" : "0", url: "" };
   openDialog("chrome://communicator/content/openLocation.xul", "_blank", "chrome,modal,titlebar", params);
   var postData = { };
   var url = getShortcutOrURI(params.url, postData);
@@ -1278,6 +1305,9 @@ function BrowserOpenWindow()
       break;
     case "3": // new tab
       gBrowser.selectedTab = gBrowser.addTab(url, {allowThirdPartyFixup: true, postData: postData.value});
+      break;
+    case "4": // private
+      openNewPrivateWith(params.url);
       break;
   }
 }
@@ -1531,14 +1561,17 @@ function BrowserCloseWindow()
   window.close();
 }
 
-function loadURI(uri, referrer, postData, allowThirdPartyFixup)
+function loadURI(uri, referrer, postData, allowThirdPartyFixup, isUTF8)
 {
   try {
     var flags = nsIWebNavigation.LOAD_FLAGS_NONE;
     if (allowThirdPartyFixup) {
       flags = nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP;
     }
-    else if (typeof postData == "number") {
+    if (isUTF8) {
+      flags |= nsIWebNavigation.LOAD_FLAGS_URI_IS_UTF8;
+    }
+    if (!flags && typeof postData == "number") {
       // Deal with legacy code that passes load flags in the third argument.
       flags = postData;
       postData = null;
@@ -1584,6 +1617,7 @@ function handleURLBarCommand(aUserAction, aTriggeringEvent)
     var browser = getBrowser();
     var postData = {};
     url = getShortcutOrURI(url, postData);
+    var isUTF8 = browser.userTypedValue === null;
     // Accept both Control and Meta (=Command) as New-Window-Modifiers
     if (aTriggeringEvent &&
         (('ctrlKey' in aTriggeringEvent && aTriggeringEvent.ctrlKey) ||
@@ -1594,7 +1628,11 @@ function handleURLBarCommand(aUserAction, aTriggeringEvent)
         // Reset url in the urlbar
         URLBarSetURI();
         // Open link in new tab
-        var t = browser.addTab(url, {allowThirdPartyFixup: true, postData: postData.value});
+        var t = browser.addTab(url, {
+                  postData: postData.value,
+                  allowThirdPartyFixup: true,
+                  isUTF8: isUTF8
+                });
 
         // Focus new tab unless shift is pressed
         if (!shiftPressed)
@@ -1602,7 +1640,7 @@ function handleURLBarCommand(aUserAction, aTriggeringEvent)
       } else {
         // Open a new window with the URL
         var newWin = openDialog(getBrowserURL(), "_blank", "all,dialog=no", url,
-            null, null, postData.value, true);
+            null, null, postData.value, true, isUTF8);
         // Reset url in the urlbar
         URLBarSetURI();
 
@@ -1623,7 +1661,7 @@ function handleURLBarCommand(aUserAction, aTriggeringEvent)
                                 .getService(nsIURIFixup);
         url = gURIFixup.createFixupURI(url, nsIURIFixup.FIXUP_FLAGS_MAKE_ALTERNATE_URI).spec;
         // Open filepicker to save the url
-        saveURL(url, null, null, false, true);
+        saveURL(url, null, null, false, true, null, document);
       }
       catch(ex) {
         // XXX Do nothing for now.
@@ -1632,7 +1670,7 @@ function handleURLBarCommand(aUserAction, aTriggeringEvent)
     } else {
       // No modifier was pressed, load the URL normally and
       // focus the content area
-      loadURI(url, null, postData.value, true);
+      loadURI(url, null, postData.value, true, isUTF8);
       content.focus();
     }
   }
@@ -1884,68 +1922,6 @@ function hiddenWindowStartup()
   gBrandBundle = document.getElementById("bundle_brand");
 }
 
-var consoleListener = {
-  observe: function (aMsgObject)
-  {
-    const nsIScriptError = Components.interfaces.nsIScriptError;
-    var scriptError = aMsgObject.QueryInterface(nsIScriptError);
-    var isWarning = scriptError.flags & nsIScriptError.warningFlag != 0;
-    if (!isWarning) {
-      var statusbarDisplay = document.getElementById("statusbar-display");
-      statusbarDisplay.setAttribute("error", "true");
-      statusbarDisplay.addEventListener("click", loadErrorConsole, true);
-      statusbarDisplay.label = gNavigatorBundle.getString("jserror");
-      this.isShowingError = true;
-    }
-  },
-
-  // whether or not an error alert is being displayed
-  isShowingError: false
-};
-
-function initConsoleListener()
-{
-  /**
-   * XXX - console launch hookup requires some work that I'm not sure
-   * how to do.
-   *
-   *       1) ideally, the notification would disappear when the
-   *       document that had the error was flushed. how do I know when
-   *       this happens? All the nsIScriptError object I get tells me
-   *       is the URL. Where is it located in the content area?
-   *       2) the notification service should not display chrome
-   *       script errors.  web developers and users are not interested
-   *       in the failings of our shitty, exception unsafe js. One
-   *       could argue that this should also extend to the console by
-   *       default (although toggle-able via setting for chrome
-   *       authors) At any rate, no status indication should be given
-   *       for chrome script errors.
-   *
-   *       As a result I am commenting out this for the moment.
-   *
-
-  var consoleService = Components.classes["@mozilla.org/consoleservice;1"]
-                                 .getService(Components.interfaces.nsIConsoleService);
-
-  if (consoleService)
-    consoleService.registerListener(consoleListener);
-  */
-}
-
-function loadErrorConsole(aEvent)
-{
-  if (aEvent.detail == 2)
-    toJavaScriptConsole();
-}
-
-function clearErrorNotification()
-{
-  var statusbarDisplay = document.getElementById("statusbar-display");
-  statusbarDisplay.removeAttribute("error");
-  statusbarDisplay.removeEventListener("click", loadErrorConsole, true);
-  consoleListener.isShowingError = false;
-}
-
 function checkForDirectoryListing()
 {
   if ( "HTTPIndex" in content &&
@@ -2159,34 +2135,6 @@ function URLBarClickHandler(aEvent)
       gURLBar.select();
 }
 
-// This function gets the shell service and has it check its setting
-// This will do nothing on platforms without a shell service.
-function checkForDefaultBrowser()
-{
-  const NS_SHELLSERVICE_CID = "@mozilla.org/suite/shell-service;1";
-
-  if (NS_SHELLSERVICE_CID in Components.classes) try {
-    const nsIShellService = Components.interfaces.nsIShellService;
-    var shellService = Components.classes["@mozilla.org/suite/shell-service;1"]
-                                 .getService(nsIShellService);
-    var appTypes = shellService.shouldBeDefaultClientFor;
-
-    // show the default client dialog only if we should check for the default
-    // client and we aren't already the default for the stored app types in
-    // shell.checkDefaultApps
-    if (appTypes && shellService.shouldCheckDefaultClient &&
-        !shellService.isDefaultClient(true, appTypes)) {
-      window.openDialog("chrome://communicator/content/defaultClientDialog.xul",
-                        "DefaultClient",
-                        "modal,centerscreen,chrome,resizable=no"); 
-      // Force the sidebar to build since the windows
-      // integration dialog has come up.
-      SidebarRebuild();
-    }
-  } catch (e) {
-  }
-}
-
 function ShowAndSelectContentsOfURLBar()
 {
   if (!isElementVisible(gURLBar)) {
@@ -2398,7 +2346,7 @@ function WindowIsClosing()
   var numtabs = cn.length;
   var reallyClose = true;
 
-  if (!/Mac/.test(navigator.platform) && isClosingLastBrowser()) {
+  if (!gPrivate && !/Mac/.test(navigator.platform) && isClosingLastBrowser()) {
     let closingCanceled = Components.classes["@mozilla.org/supports-PRBool;1"]
                                     .createInstance(Components.interfaces.nsISupportsPRBool);
     Services.obs.notifyObservers(closingCanceled, "browser-lastwindow-close-requested", null);
@@ -2410,7 +2358,7 @@ function WindowIsClosing()
     return true;
   }
 
-  if (numtabs > 1) {
+  if (!gPrivate && numtabs > 1) {
     var shouldPrompt = Services.prefs.getBoolPref("browser.tabs.warnOnClose");
     if (shouldPrompt) {
       //default to true: if it were false, we wouldn't get this far

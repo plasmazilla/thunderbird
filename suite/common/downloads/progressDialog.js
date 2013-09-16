@@ -29,12 +29,10 @@ function progressStartup() {
   gDownload = window.arguments[0];
 
   var recentDMWindow = Services.wm.getMostRecentWindow("Download:Manager");
-  if (recentDMWindow && recentDMWindow.gDownloadTreeView.rowCount > 0) {
+  if (recentDMWindow &&
+      gDownload.guid in recentDMWindow.gDownloadTreeView._dlMap)
     // we have been opened by a download manager, get the end time from there
-    let dmtree = recentDMWindow.gDownloadTreeView;
-    let dldata = dmtree.getRowData(dmtree._getIdxForID(gDownload.id));
-    gEndTime = dldata.endTime;
-  }
+    gEndTime = recentDMWindow.gDownloadTreeView._dlMap[gDownload.guid].endTime;
 
   // cache elements to save .getElementById() calls
   gDownloadBundle = document.getElementById("dmBundle");
@@ -49,7 +47,10 @@ function progressStartup() {
   // Insert as first controller on the whole window
   window.controllers.insertControllerAt(0, ProgressDlgController);
 
-  gCloseWhenDone.checked = gPrefService.getBoolPref("browser.download.progress.closeWhenDone");
+  if (gDownload.isPrivate)
+    gCloseWhenDone.hidden = true;
+  else
+    gCloseWhenDone.checked = Services.prefs.getBoolPref("browser.download.progress.closeWhenDone");
 
   switch (gDownload.state) {
     case nsIDownloadManager.DOWNLOAD_NOTSTARTED:
@@ -60,7 +61,7 @@ function progressStartup() {
       gDlActive = true;
       break;
     case nsIDownloadManager.DOWNLOAD_FINISHED:
-      if (gCloseWhenDone.checked)
+      if (gCloseWhenDone.checked && window.arguments[1])
         window.close();
     default:
       gDlActive = false;
@@ -83,7 +84,7 @@ function progressStartup() {
 
   // The DlProgressListener handles progress notifications.
   gDownloadListener = new DlProgressListener();
-  gDownloadManager.addListener(gDownloadListener);
+  gDownloadManager.addPrivacyAwareListener(gDownloadListener);
 
   updateDownload();
   updateButtons();
@@ -97,8 +98,9 @@ function progressStartup() {
 function progressShutdown() {
   gDownloadManager.removeListener(gDownloadListener);
   window.controllers.removeController(ProgressDlgController);
-  gPrefService.setBoolPref("browser.download.progress.closeWhenDone",
-                           gCloseWhenDone.checked);
+  if (!gCloseWhenDone.hidden)
+    Services.prefs.setBoolPref("browser.download.progress.closeWhenDone",
+                               gCloseWhenDone.checked);
 }
 
 function updateDownload() {
@@ -314,11 +316,10 @@ var ProgressDlgController = {
         return gDownload.state == nsIDownloadManager.DOWNLOAD_PAUSED &&
                gDownload.resumable;
       case "cmd_open":
-      case "cmd_show":
-        // we can't reveal until the download is complete, because we have not given
-        // the file its final name until them.
         return gDownload.state == nsIDownloadManager.DOWNLOAD_FINISHED &&
                gDownload.targetFile.exists();
+      case "cmd_show":
+        return gDownload.targetFile.exists();
       case "cmd_cancel":
         return gDlActive;
       case "cmd_retry":
@@ -336,14 +337,14 @@ var ProgressDlgController = {
   doCommand: function(aCommand) {
     switch (aCommand) {
       case "cmd_pause":
-        pauseDownload(gDownload.id);
+        gDownload.pause();
         break;
       case "cmd_resume":
-        resumeDownload(gDownload.id);
+        gDownload.resume();
         break;
       case "cmd_retry":
         gRetrying = true;
-        retryDownload(gDownload.id);
+        retryDownload(gDownload);
         break;
       case "cmd_cancel":
         cancelDownload(gDownload);

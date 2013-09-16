@@ -218,7 +218,7 @@
         <body>
           <![CDATA[
             // Enable auto-scroll if the scrollbar is at the bottom.
-            let body = this.contentDocument.getElementsByTagName("body")[0];
+            let body = this.contentDocument.querySelector("body");
             this._autoScrollEnabled =
               body.scrollHeight <= body.scrollTop + body.clientHeight + 10;
             return this._autoScrollEnabled;
@@ -266,6 +266,7 @@
             if (this._messageDisplayPending)
               return;
             this._messageDisplayPending = true;
+            this.contentWindow.messageInsertPending = true;
             Services.tm.mainThread.dispatch(this.displayPendingMessages.bind(this),
                                             Ci.nsIEventTarget.DISPATCH_NORMAL);
           ]]>
@@ -310,6 +311,7 @@
                                               Ci.nsIEventTarget.DISPATCH_NORMAL);
               return;
             }
+            this.contentWindow.messageInsertPending = false;
             this._messageDisplayPending = false;
             this._pendingMessages = [];
             this._nextPendingMessageIndex = 0;
@@ -361,7 +363,7 @@
             if (me)
               msg = msg.replace(/^((<[^>]+>)*)/, "$1/me ");
 
-            aMsg.message = cleanupImMarkup(doc, msg.replace(/\r?\n/g, "<br/>"),
+            aMsg.message = cleanupImMarkup(msg.replace(/\r?\n/g, "<br/>"),
                                            null, this._textModifiers);
 
             let next = (aContext == this._lastMessageIsContext || aMsg.system) &&
@@ -373,6 +375,7 @@
               let html = getHTMLForMessage(aMsg, this.theme, next, aContext);
               let ruler = doc.getElementById("unread-ruler");
               ruler.nextMsgHtml = html;
+              ruler._originalMsg = aMsg;
 
               // Remember where the Next message(s) would have gone.
               let insert = doc.getElementById("insert");
@@ -451,10 +454,13 @@
               actualInsert.id = "actual-insert";
 
             // Add first message following the ruler as a Next type message.
+            // Replicates the relevant parts of insertHTMLForMessage().
             let range = doc.createRange();
             let moveToParent = moveTo.parentNode;
             range.selectNode(moveToParent);
             let documentFragment = range.createContextualFragment(ruler.nextMsgHtml);
+            for (let root = documentFragment.firstChild; root; root = root.nextSibling)
+              root._originalMsg = ruler._originalMsg;
             moveToParent.insertBefore(documentFragment, moveTo);
 
             // If this added an insert node, insert the next messages there.
@@ -576,14 +582,15 @@
             if (!("_lastScrollHeight" in this) ||
                 this._lastScrollHeight != this.scrollHeight ||
                 this._lastScrollWidth != this.scrollWidth) {
-              // if the scrollheight changed, we are resizing the content area,
-              // don't stop the auto scroll.
+              // Ensure scroll events triggered by a change of the
+              // content area size (eg. resizing the window or moving the
+              // textbox splitter) don't affect the auto-scroll behavior.
               this._lastScrollHeight = this.scrollHeight;
               this._lastScrollWidth = this.scrollWidth;
               return;
             }
 
-            // Enable or disable auto-scroll based on the scrollbar position
+            // Enable or disable auto-scroll based on the scrollbar position.
             this._updateAutoScrollEnabled();
           ]]>
          </body>
@@ -612,13 +619,9 @@
           if (aTopic != "nsPref:changed")
             throw "Bad notification";
 
-          var clipboard =
-            Components.classes["@mozilla.org/widget/clipboard;1"]
-                      .getService(Components.interfaces.nsIClipboard);
-
           if (this.magicCopyEnabled) {
             this.contentWindow.controllers.insertControllerAt(0, this);
-            if (clipboard.supportsSelectionClipboard()) {
+            if (Services.clipboard.supportsSelectionClipboard()) {
               this.contentWindow.getSelection()
                   .QueryInterface(Components.interfaces.nsISelectionPrivate)
                   .addSelectionListener(this);
@@ -626,7 +629,7 @@
           }
           else {
             this.contentWindow.controllers.removeController(this);
-            if (clipboard.supportsSelectionClipboard()) {
+            if (Services.clipboard.supportsSelectionClipboard()) {
                this.contentWindow.getSelection()
                    .QueryInterface(Components.interfaces.nsISelectionPrivate)
                    .removeSelectionListener(this);
@@ -713,6 +716,9 @@
                   Components.utils.reportError(e);
                 }
                 this._loadState = 1;
+
+                // Expose scrollToElement to the message styles.
+                this.contentWindow.scrollToElement = this._scrollToElement.bind(this);
                 return;
               }
               this.removeProgressListener(this);
@@ -720,10 +726,7 @@
               if (this.magicCopyEnabled) {
                 this.contentWindow.controllers.insertControllerAt(0, this);
 
-                var clipboard =
-                  Components.classes["@mozilla.org/widget/clipboard;1"]
-                            .getService(Components.interfaces.nsIClipboard);
-                if (clipboard.supportsSelectionClipboard()) {
+                if (Services.clipboard.supportsSelectionClipboard()) {
                   this.contentWindow.getSelection()
                       .QueryInterface(Components.interfaces.nsISelectionPrivate)
                       .addSelectionListener(this);
@@ -1015,9 +1018,7 @@
           if (magicCopyEnabled) {
             // We need to remove the selection listener (unix only)
             // before _contentWindow is changed.
-            var clipboard = Components.classes["@mozilla.org/widget/clipboard;1"]
-                                      .getService(Ci.nsIClipboard);
-            if (clipboard.supportsSelectionClipboard()) {
+            if (Services.clipboard.supportsSelectionClipboard()) {
               aOtherBrowser.contentWindow.getSelection()
                            .QueryInterface(Components.interfaces.nsISelectionPrivate)
                            .removeSelectionListener(aOtherBrowser);
@@ -1058,7 +1059,7 @@
           this.contentWindow.controllers.insertControllerAt(0, this);
 
           // and our selection listener!
-          if (clipboard.supportsSelectionClipboard()) {
+          if (Services.clipboard.supportsSelectionClipboard()) {
             this.contentWindow.getSelection()
                 .QueryInterface(Components.interfaces.nsISelectionPrivate)
                 .addSelectionListener(this);
@@ -1126,7 +1127,7 @@
 
       <handler event="keypress" keycode="VK_F7" group="system">
         <![CDATA[
-          if (event.getPreventDefault() || !event.isTrusted)
+          if (event.defaultPrevented || !event.isTrusted)
             return;
 
           var isEnabled = Services.prefs.getBoolPref("accessibility.browsewithcaret_shortcut.enabled");

@@ -38,6 +38,7 @@
       <field name="mShadowOffset">null</field>
       <field name="mDropShadows">null</field>
       <field name="mMagnifyAmount">0</field>
+      <field name="mPixelScrollDelta">0</field>
       <field name="mPrefObserver"><![CDATA[
       ({ calView: this,
          observe: function calViewPrefChange(subj, topic, pref) {
@@ -70,8 +71,8 @@
               if (!Components.isSuccessCode(aStatus)) {
                   return;
               }
-              let items = aItems.filter(function(x) !isToDo(x) ||
-                                (x.entryDate && x.dueDate));
+              let items = aItems.filter(function(x) !cal.isToDo(x) ||
+                                        (x.entryDate || x.dueDate));
 
               for each (let item in items) {
                   this.calView.doAddItem(item);
@@ -83,13 +84,11 @@
       <field name="mObserver"><![CDATA[
         // the calIObserver, calICompositeObserver, and calIAlarmServiceObserver
         ({
-            QueryInterface: function QueryInterface(aIID) {
-                return cal.doQueryInterface(this, null, aIID,
-                                    [Components.interfaces.calIObserver,
-                                     Components.interfaces.calIAlarmServiceObserver,
-                                     Components.interfaces.calICompositeObserver,
-                                     Components.interfaces.nsISupports]);
-            },
+            QueryInterface: XPCOMUtils.generateQI([
+                Components.interfaces.calIObserver,
+                Components.interfaces.calIAlarmServiceObserver,
+                Components.interfaces.calICompositeObserver
+            ]),
 
             calView: this,
 
@@ -104,8 +103,8 @@
 
             onAddItem: function onAddItem(aItem) {
 
-                if (isToDo(aItem)) {
-                    if (!aItem.entryDate || !aItem.dueDate) {
+                if (cal.isToDo(aItem)) {
+                    if (!aItem.entryDate && !aItem.dueDate) {
                         return;
                     }
                     if(!this.calView.mTasksInView){
@@ -127,14 +126,13 @@
 
             onModifyItem: function onModifyItem(aNewItem, aOldItem) {
 
-                if (isToDo(aNewItem) && isToDo(aOldItem) &&
+                if (cal.isToDo(aNewItem) && cal.isToDo(aOldItem) &&
                     !this.calView.mTasksInView) {
                     return;
                 }
                 let occs;
 
-                if (!isToDo(aOldItem) ||
-                    (aOldItem.entryDate && aOldItem.dueDate)) {
+                if (!cal.isToDo(aOldItem) || aOldItem.entryDate || aOldItem.dueDate) {
                     occs = aOldItem.getOccurrencesBetween(this.calView.startDate,
                                                           this.calView.queryEndDate,
                                                           {});
@@ -142,8 +140,8 @@
                         this.calView.doDeleteItem(occ);
                     }
                 }
-                if (isToDo(aNewItem)) {
-                    if (!aNewItem.entryDate || !aNewItem.dueDate || !this.calView.mTasksInView) {
+                if (cal.isToDo(aNewItem)) {
+                    if (!aNewItem.entryDate && !aNewItem.dueDate || !this.calView.mTasksInView) {
                         return;
                     }
                     if (aNewItem.isCompleted && !this.calView.mShowCompleted) {
@@ -161,11 +159,11 @@
 
             onDeleteItem: function onDeleteItem(aItem) {
 
-                if (isToDo(aItem)) {
+                if (cal.isToDo(aItem)) {
                     if (!this.calView.mTasksInView) {
                         return;
                     }
-                    if (!aItem.entryDate || !aItem.dueDate) {
+                    if (!aItem.entryDate && !aItem.dueDate) {
                         return;
                     }
                     if (aItem.isCompleted && !this.calView.mShowCompleted) {
@@ -225,6 +223,8 @@
                 }
             },
 
+            onAlarmsLoaded: function _onAlarmsLoaded(aCalendar) {},
+
             //
             // calICompositeObserver stuff
             // XXXvv we can be smarter about how we handle this stuff
@@ -249,6 +249,9 @@
       ]]></field>
 
       <constructor><![CDATA[
+        Components.utils.import("resource://gre/modules/Services.jsm");
+        Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+
         const kWorkdaysCommand = "calendar_toggle_workdays_only_command";
         const kTasksInViewCommand = "calendar_toggle_tasks_in_view_command";
         const kShowCompleted = "calendar_toggle_show_completed_in_view_command";
@@ -273,15 +276,14 @@
             self.onResize(self); };
         this.viewBroadcaster.addEventListener(this.getAttribute("type") + "viewresized", this.mResizeHandler, true);
         // add a preference observer to monitor changes
-        let pb2 = Components.classes["@mozilla.org/preferences-service;1"].
-                  getService(Components.interfaces.nsIPrefBranch);
-
-        pb2.addObserver("calendar.", this.mPrefObserver, false);
+        Services.prefs.addObserver("calendar.", this.mPrefObserver, false);
         this.weekStartOffset = getPrefSafe("calendar.week.start", 0);
         this.updateDaysOffPrefs();
       ]]></constructor>
 
       <destructor><![CDATA[
+        Components.utils.import("resource://gre/modules/Services.jsm");
+
         if (this.mCalendar) {
             this.mCalendar.removeObserver(this.mObserver);
         }
@@ -289,9 +291,7 @@
                            .getService(Components.interfaces.calIAlarmService);
         alarmService.removeObserver(this.mObserver);
         this.viewBroadcaster.removeEventListener(this.getAttribute("type") + "viewresized", this.mResizeHandler, true);
-        let pb2 = Components.classes["@mozilla.org/preferences-service;1"].
-                  getService(Components.interfaces.nsIPrefBranch);
-        pb2.removeObserver("calendar.", this.mPrefObserver);
+        Services.prefs.removeObserver("calendar.", this.mPrefObserver);
       ]]></destructor>
 
       <property name="type" readonly="true">
@@ -410,9 +410,9 @@
 
       <method name="popRefreshQueue">
         <body><![CDATA[
-          let pendingRefresh = this.mRefreshPending;
-          if (pendingRefresh) {
-              if (calInstanceOf(pendingRefresh, Components.interfaces.calIOperation)) {
+          let pendingRefresh = cal.wrapInstance(this.mRefreshPending, Components.interfaces.calIOperation);
+          if (this.mRefreshPending) {
+              if (pendingRefresh) {
                   this.mRefreshPending = null;
                   pendingRefresh.cancel(null);
               } else {
@@ -763,9 +763,27 @@
                 break;
         }
       ]]></handler>
-      <handler event="DOMMouseScroll"><![CDATA[
-        if (event.shiftKey && getPrefSafe('calendar.view.mousescroll', true)) {
-            this.moveView(event.detail < 0 ? -1 : 1);
+      <handler event="wheel"><![CDATA[
+        const pixelThreshold = 150;
+        if (event.shiftKey && cal.getPrefSafe('calendar.view.mousescroll', true)){
+            if (event.deltaMode == event.DOM_DELTA_LINE) {
+                if (event.deltaY != 0) {
+                    deltaView = event.deltaY < 0 ? -1 : 1;
+                }
+            } else if (event.deltaMode == event.DOM_DELTA_PIXEL) {
+                this.mPixelScrollDelta += event.deltaY;
+                if (this.mPixelScrollDelta > pixelThreshold){
+                    deltaView = 1;
+                    this.mPixelScrollDelta = 0;
+                } else if (this.mPixelScrollDelta < -pixelThreshold) {
+                    deltaView = -1;
+                    this.mPixelScrollDelta = 0;
+                }
+            }
+
+            if (deltaView != 0) {
+                this.moveView(deltaView);
+            }
         }
 
         // Prevent default scroll handling

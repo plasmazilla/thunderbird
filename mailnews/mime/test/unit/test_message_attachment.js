@@ -6,8 +6,6 @@
  * This test verifies that we don't display text attachments inline
  * when mail.inline_attachments is false.
  */
-load("../../../resources/mailDirService.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/logHelper.js");
 load("../../../resources/asyncTestUtils.js");
 
@@ -42,8 +40,16 @@ let messages = [
                     filename: 'Attached Message',
                     contentType: 'message/rfc822', },
                  ]},
+  { attachments: [{ body: textAttachment,
+                    filename: 'test.html',
+                    format: '' },
+                  { body: '',
+                    filename: '<iframe src=&quote;http://www.example.com&quote></iframe>.htm',
+                    expectedFilename: '&lt;iframe src=&amp;quote;http://www.example.com&amp;quote&gt;&lt;/iframe&gt;.htm',
+                    contentType: 'text/html;', },
+                 ]},
   // no named email attachment with subject header
-  { attachments: [{ expectedFilename: 'testSubject.eml' }],
+  { attachments: [{ body: '', expectedFilename: 'testSubject.eml' }],
     bodyPart: new SyntheticPartMultiMixed([
       new SyntheticPartLeaf('plain body text'),
       msgGen.makeMessage({

@@ -72,8 +72,6 @@ var FeedUtils = {
   // The delay is currently one day.
   INVALID_ITEM_PURGE_DELAY: 24 * 60 * 60 * 1000,
 
-  EPOCHDATE: "Thu, 01 Jan 1970 00:00:00 GMT",
-
   // The delimiter used to delimit feed urls in the folder's "feedUrl" property.
   kFeedUrlDelimiter: "|",
   kBiffMinutesDefault: 100,
@@ -85,6 +83,9 @@ var FeedUtils = {
   kNewsBlogFeedIsBusy: 3,
   // There are no new articles for this feed
   kNewsBlogNoNewItems: 4,
+  kNewsBlogCancel: 5,
+
+  CANCEL_REQUESTED: false,
 
 /**
  * Get all rss account servers rootFolders.
@@ -94,9 +95,9 @@ var FeedUtils = {
   getAllRssServerRootFolders: function() {
     let rssRootFolders = [];
     let allServers = MailServices.accounts.allServers;
-    for (let i = 0; i < allServers.Count(); i++)
+    for (let i = 0; i < allServers.length; i++)
     {
-      let server = allServers.QueryElementAt(i, Ci.nsIMsgIncomingServer);
+      let server = allServers.queryElementAt(i, Ci.nsIMsgIncomingServer);
       if (server && server.type == "rss")
         rssRootFolders.push(server.rootFolder);
     }
@@ -269,18 +270,21 @@ var FeedUtils = {
 
     let feedurls = aFolder.getStringProperty("feedUrl");
     if (feedurls)
-      return feedurls.split(this.kFeedUrlDelimiter);
+      return this.splitFeedUrls(feedurls);
 
     // Go to msgDatabase for the property, make sure to handle errors.
+    // NOTE: the rest of the following code is a migration of the feedUrl
+    // property for pre Tb15 subscriptions.  At some point it can/should be
+    // removed.
     let msgDb;
     try {
       msgDb = aFolder.msgDatabase;
     }
     catch (ex) {}
     if (msgDb && msgDb.dBFolderInfo) {
-      feedurls = msgDb.dBFolderInfo.getCharProperty("feedUrl");
       // Clean up the feedUrl string.
-      feedurls.split(this.kFeedUrlDelimiter).forEach(
+      feedurls = this.splitFeedUrls(msgDb.dBFolderInfo.getCharProperty("feedUrl"));
+      feedurls.forEach(
         function(url) {
           if (url && feedUrlArray.indexOf(url) == -1)
             feedUrlArray.push(url);
@@ -375,11 +379,10 @@ var FeedUtils = {
  * @param  boolean      - true if removing the url.
  */
   updateFolderFeedUrl: function(aFolder, aFeedUrl, aRemoveUrl) {
-    if (!aFeedUrl)
+    if (!aFolder || !aFeedUrl)
       return;
 
-    let curFeedUrls = aFolder.getStringProperty("feedUrl");
-    curFeedUrls = curFeedUrls ? curFeedUrls.split(this.kFeedUrlDelimiter) : [];
+    let curFeedUrls = this.splitFeedUrls(aFolder.getStringProperty("feedUrl"));
     let index = curFeedUrls.indexOf(aFeedUrl);
 
     if (aRemoveUrl)
@@ -396,6 +399,22 @@ var FeedUtils = {
 
     let newFeedUrls = curFeedUrls.join(this.kFeedUrlDelimiter);
     aFolder.setStringProperty("feedUrl", newFeedUrls);
+  },
+
+/**
+ * Return array of folder's feed urls.  Handle bad delimiter choice.
+ *
+ * @param  string aUrlString - the folder's feedUrl string property.
+ * @return array             - array of urls or empty array if no property.
+ */
+  splitFeedUrls: function(aUrlString) {
+    let urlStr = aUrlString.replace(this.kFeedUrlDelimiter + "http://",
+                                    "\x01http://", "g")
+                           .replace(this.kFeedUrlDelimiter + "https://",
+                                    "\x01https://", "g")
+                           .replace(this.kFeedUrlDelimiter + "file://",
+                                    "\x01file://", "g");
+    return urlStr.split("\x01");
   },
 
   getSubscriptionsDS: function(aServer) {
@@ -642,7 +661,7 @@ var FeedUtils = {
 
     // Leaf folder last.
     pathParts.push(aFolder.name);
-    return decodeURI(pathParts.join("/"));
+    return pathParts.join("/");
   },
 
   // Progress glue code.  Acts as a go between the RSS back end and the mail

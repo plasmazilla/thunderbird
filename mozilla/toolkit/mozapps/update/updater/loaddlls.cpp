@@ -12,6 +12,10 @@ struct AutoLoadSystemDependencies
 {
   AutoLoadSystemDependencies()
   {
+    // Remove the current directory from the search path for dynamically loaded
+    // DLLs as a precaution.  This call has no effect for delay load DLLs.
+    SetDllDirectory(L"");
+
     // The order that these are loaded matter, for example if we load something
     // that tries to load profapi.dll first, then profapi.dll would be loaded
     // wrongly from the current directory.

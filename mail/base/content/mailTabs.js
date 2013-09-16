@@ -4,6 +4,7 @@
 
 Components.utils.import("resource:///modules/MsgHdrSyntheticView.js");
 Components.utils.import("resource:///modules/errUtils.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 /**
  * Displays message "folder"s, mail "message"s, and "glodaList" results.  The
@@ -446,9 +447,7 @@ let mailTabType = {
   },
 
   _getNumberOfRealAccounts : function() {
-    let mgr = Components.classes["@mozilla.org/messenger/account-manager;1"]
-                        .getService(Components.interfaces.nsIMsgAccountManager);
-    let accountCount = mgr.accounts.Count();
+    let accountCount = MailServices.accounts.accounts.length;
     // If we have an account, we also always have a "Local Folders" account.
     return accountCount > 0 ? (accountCount - 1) : 0;
   },
@@ -573,7 +572,7 @@ let mailTabType = {
     let displayDeckLegal = aLegalStates.thread ||
                            aLegalStates.accountCentral;
 
-    let layout = pref.getIntPref("mail.pane_config.dynamic");
+    let layout = Services.prefs.getIntPref("mail.pane_config.dynamic");
     if (layout == kWidePaneConfig)
     {
       // in the "wide" configuration, the #messengerBox is left holding the

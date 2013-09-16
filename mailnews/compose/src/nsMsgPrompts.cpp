@@ -15,7 +15,7 @@
 #include "mozilla/Services.h"
 
 nsresult
-nsMsgGetMessageByID(int32_t aMsgID, nsString& aResult)
+nsMsgGetMessageByID(nsresult aMsgID, nsString& aResult)
 {
   nsresult rv;
   nsCOMPtr<nsIStringBundleService> bundleService =
@@ -26,15 +26,30 @@ nsMsgGetMessageByID(int32_t aMsgID, nsString& aResult)
   rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(bundle));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  if (NS_IS_MSG_ERROR(aMsgID))
-    aMsgID = NS_ERROR_GET_CODE(aMsgID);
+  return bundle->GetStringFromID(NS_ERROR_GET_CODE(aMsgID),
+                                 getter_Copies(aResult));
+}
 
-  return bundle->GetStringFromID(aMsgID, getter_Copies(aResult));
+nsresult
+nsMsgGetMessageByName(const nsString &aName, nsString& aResult)
+{
+  nsresult rv;
+  nsCOMPtr<nsIStringBundleService> bundleService =
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
+
+  nsCOMPtr<nsIStringBundle> bundle;
+  rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(bundle));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return bundle->GetStringFromName(aName.get(),
+                                   getter_Copies(aResult));
 }
 
 static nsresult
 nsMsgBuildMessageByName(const PRUnichar *aName, nsIFile *aFile, nsString& aResult)
 {
+  NS_ENSURE_ARG_POINTER(aFile);
   nsresult rv;
   nsCOMPtr<nsIStringBundleService> bundleService =
     mozilla::services::GetStringBundleService();
@@ -64,18 +79,18 @@ nsMsgBuildMessageWithTmpFile(nsIFile *aFile, nsString& aResult)
 }
 
 nsresult
-nsMsgDisplayMessageByID(nsIPrompt * aPrompt, int32_t msgID, const PRUnichar * windowTitle)
+nsMsgDisplayMessageByID(nsIPrompt * aPrompt, nsresult msgID, const PRUnichar * windowTitle)
 {
-  nsresult rv;
-  nsCOMPtr<nsIStringBundleService> bundleService =
-    mozilla::services::GetStringBundleService();
-  NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
-  nsCOMPtr<nsIStringBundle> bundle;
-  rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(bundle));
-  NS_ENSURE_SUCCESS(rv, rv);
-
   nsString msg;
-  bundle->GetStringFromID(NS_IS_MSG_ERROR(msgID) ? NS_ERROR_GET_CODE(msgID) : msgID, getter_Copies(msg));
+  nsMsgGetMessageByID(msgID, msg);
+  return nsMsgDisplayMessageByString(aPrompt, msg.get(), windowTitle);
+}
+
+nsresult
+nsMsgDisplayMessageByName(nsIPrompt *aPrompt, const nsString &aName, const PRUnichar *windowTitle)
+{
+  nsString msg;
+  nsMsgGetMessageByName(aName, msg);
   return nsMsgDisplayMessageByString(aPrompt, msg.get(), windowTitle);
 }
 
@@ -83,7 +98,8 @@ nsresult
 nsMsgDisplayMessageByString(nsIPrompt * aPrompt, const PRUnichar * msg, const PRUnichar * windowTitle)
 {
   NS_ENSURE_ARG_POINTER(msg);
-  nsresult rv;
+
+  nsresult rv = NS_OK;
   nsCOMPtr<nsIPrompt> prompt = aPrompt;
 
   if (!prompt)
@@ -95,17 +111,17 @@ nsMsgDisplayMessageByString(nsIPrompt * aPrompt, const PRUnichar * msg, const PR
 
   if (prompt)
     rv = prompt->Alert(windowTitle, msg);
-  return NS_OK;
+
+  return rv;
 }
 
 nsresult
 nsMsgAskBooleanQuestionByString(nsIPrompt * aPrompt, const PRUnichar * msg, bool *answer, const PRUnichar * windowTitle)
 {
-  nsresult rv;
-  nsCOMPtr<nsIPrompt> dialog = aPrompt;
+  NS_ENSURE_TRUE(msg && *msg, NS_ERROR_INVALID_ARG);
 
-  if ((!msg) || (!*msg))
-    return NS_ERROR_INVALID_ARG;
+  nsresult rv = NS_OK;
+  nsCOMPtr<nsIPrompt> dialog = aPrompt;
 
   if (!dialog)
   {
@@ -114,10 +130,9 @@ nsMsgAskBooleanQuestionByString(nsIPrompt * aPrompt, const PRUnichar * msg, bool
       wwatch->GetNewPrompter(0, getter_AddRefs(dialog));
   }
 
-  if (dialog)
-  {
+  if (dialog) {
     rv = dialog->Confirm(windowTitle, msg, answer);
   }
 
-  return NS_OK;
+  return rv;
 }

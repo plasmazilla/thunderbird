@@ -16,37 +16,26 @@ function calCalendarManager() {
     this.mCalendarObservers = new calListenerBag(Components.interfaces.calIObserver);
 }
 
+const calCalendarManagerClassID = Components.ID("{f42585e7-e736-4600-985d-9624c1c51992}");
+const calCalendarManagerInterfaces = [
+    Components.interfaces.calICalendarManager,
+    Components.interfaces.calIStartupService,
+    Components.interfaces.nsIObserver,
+];
 calCalendarManager.prototype = {
-    classID: Components.ID("{f42585e7-e736-4600-985d-9624c1c51992}"),
-    QueryInterface: XPCOMUtils.generateQI([
-        Components.interfaces.calICalendarManager,
-        Components.interfaces.calIStartupService,
-        Components.interfaces.nsIObserver,
-    ]),
-
+    classID: calCalendarManagerClassID,
+    QueryInterface: XPCOMUtils.generateQI(calCalendarManagerInterfaces),
     classInfo: XPCOMUtils.generateCI({
-        classID: Components.ID("{f42585e7-e736-4600-985d-9624c1c51992}"),
+        classID: calCalendarManagerClassID,
         contractID: "@mozilla.org/calendar/manager;1",
         classDescription: "Calendar Manager",
-        interfaces: [
-            Components.interfaces.calICalendarManager,
-            Components.interfaces.calIStartupService,
-            Components.interfaces.nsIObserver,
-        ],
+        interfaces: calCalendarManagerInterfaces,
         flags: Components.interfaces.nsIClassInfo.SINGLETON
     }),
 
-    get networkCalendarCount() {
-        return this.mNetworkCalendarCount;
-    },
-
-    get readOnlyCalendarCount() {
-        return this.mReadonlyCalendarCount;
-    },
-
-    get calendarCount() {
-        return this.mCalendarCount;
-    },
+    get networkCalendarCount() this.mNetworkCalendarCount,
+    get readOnlyCalendarCount() this.mReadonlyCalendarCount,
+    get calendarCount() this.mCalendarCount,
 
     // calIStartupService:
     startup: function ccm_startup(aCompleteListener) {
@@ -154,7 +143,9 @@ calCalendarManager.prototype = {
                             // The provider may choose to explicitly disable the
                             // rewriting, for example if all calendars on a
                             // domain have the same credentials
-                            authHeader = authHeader.replace(/realm="(.*)"/, 'realm="$1 (' + calendar.name + ')"');
+                            let escapedName = calendar.name.replace('\\', '\\\\', 'g')
+                                                           .replace('"','\\"', 'g');
+                            authHeader = appendToRealm(authHeader, "(" + escapedName + ")");
                             channel.setResponseHeader("WWW-Authenticate", authHeader, false);
                         }
                     }
@@ -441,8 +432,7 @@ calCalendarManager.prototype = {
             errorBoxButtonLabel = calGetString("calendar", "tooNewSchemaButtonRestart", [hostAppName]);
         }
 
-        var promptSvc = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                                  .getService(Components.interfaces.nsIPromptService);
+        var promptSvc = Services.prompt;
 
         var errorBoxButtonFlags = (promptSvc.BUTTON_POS_0 *
                                    promptSvc.BUTTON_TITLE_IS_STRING +
@@ -458,15 +448,13 @@ calCalendarManager.prototype = {
                                          null, // No checkbox
                                          { value: false }); // Unnecessary checkbox state
 
-        var startup = Components.classes["@mozilla.org/toolkit/app-startup;1"]
-                                .getService(Components.interfaces.nsIAppStartup);
         if (isSunbird()) {
-            startup.quit(Components.interfaces.nsIAppStartup.eForceQuit);
+            Services.startup.quit(Components.interfaces.nsIAppStartup.eForceQuit);
         } else {
             // Disable Lightning
             AddonManager.getAddonByID("{e2fda1a4-762b-4020-b5ad-a41df1933103}", function getLightningExt(aAddon) {
                 aAddon.userDisabled = true;
-                startup.quit(Components.interfaces.nsIAppStartup.eRestart |
+                Services.startup.quit(Components.interfaces.nsIAppStartup.eRestart |
                     Components.interfaces.nsIAppStartup.eForceQuit);
             });
         }
@@ -515,13 +503,11 @@ calCalendarManager.prototype = {
             paramBlock.SetString(0, uiMessage);
             paramBlock.SetString(1, "0x" + rc.toString(0x10));
             paramBlock.SetString(2, ex);
-            let wWatcher = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
-                                     .getService(Components.interfaces.nsIWindowWatcher);
-            wWatcher.openWindow(null,
-                                "chrome://calendar/content/calendar-error-prompt.xul",
-                                "_blank",
-                                "chrome,dialog=yes,alwaysRaised=yes",
-                                paramBlock);
+            Services.ww.openWindow(null,
+                                   "chrome://calendar/content/calendar-error-prompt.xul",
+                                   "_blank",
+                                   "chrome,dialog=yes,alwaysRaised=yes",
+                                   paramBlock);
             return null;
         }
     },
@@ -651,10 +637,11 @@ calCalendarManager.prototype = {
         // providers (storage and memory). Otherwise we may nuke someone's
         // calendar stored on a server when all they really wanted to do was
         // unsubscribe.
-        if (cal.calInstanceOf(calendar, Components.interfaces.calICalendarProvider) &&
-            (calendar.type == "storage" || calendar.type == "memory")) {
+        let wrappedCalendar = cal.wrapInstance(calendar, Components.interfaces.calICalendarProvider);
+        if (wrappedCalendar &&
+            (wrappedCalendar.type == "storage" || wrappedCalendar.type == "memory")) {
             try {
-                calendar.deleteCalendar(calendar, null);
+                wrappedCalendar.deleteCalendar(calendar, null);
             } catch (e) {
                 Components.utils.reportError("error purging calendar: " + e);
             }
@@ -913,9 +900,7 @@ calMgrCalendarObserver.prototype = {
 
         var paramBlock = Components.classes["@mozilla.org/embedcomp/dialogparam;1"]
                                    .createInstance(Components.interfaces.nsIDialogParamBlock);
-        var sbs = Components.classes["@mozilla.org/intl/stringbundle;1"]
-                            .getService(Components.interfaces.nsIStringBundleService);
-        var props = sbs.createBundle("chrome://calendar/locale/calendar.properties");
+        var props = Services.strings.createBundle("chrome://calendar/locale/calendar.properties");
         var errMsg;
         paramBlock.SetNumberStrings(3);
         if (!this.storedReadOnly && this.calendar.readOnly) {
@@ -989,10 +974,8 @@ calMgrCalendarObserver.prototype = {
             this.announcedMessages.push(paramBlock);
 
             // Display in prompt window.
-            var wWatcher = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
-                                  .getService(Components.interfaces.nsIWindowWatcher);
             var promptWindow =
-                wWatcher.openWindow
+                Services.ww.openWindow
                     (null, "chrome://calendar/content/calendar-error-prompt.xul",
                      "_blank", "chrome,dialog=yes,alwaysRaised=yes",
                      paramBlock);
@@ -1057,9 +1040,7 @@ function getPrefBranchFor(id) {
  * won't show up. Writing the prefs helps counteract.
  */
 function flushPrefs() {
-    Components.classes["@mozilla.org/preferences-service;1"]
-              .getService(Components.interfaces.nsIPrefService)
-              .savePrefFile(null);
+    Services.prefs.savePrefFile(null);
 }
 
 /**
@@ -1121,3 +1102,24 @@ var gCalendarManagerAddonListener = {
         return args.shouldUninstall;
     }
 };
+
+function appendToRealm(authHeader, appendStr) {
+    let isEscaped = false;
+    let idx = authHeader.search(/realm="(.*?)(\\*)"/);
+    if (idx > -1) {
+        let remain = authHeader.substr(idx + 7); idx += 7;
+        while (remain.length && !isEscaped) {
+            let m = remain.match(/(.*?)(\\*)"/);
+            idx += m[0].length;
+
+            isEscaped = ((m[2].length % 2) == 0);
+            if (!isEscaped) {
+                remain = remain.substr(m[0].length);
+            }
+        }
+        return authHeader.substr(0, idx - 1) + " " +
+                appendStr + authHeader.substr(idx - 1);
+    } else {
+        return authHeader;
+    }
+}

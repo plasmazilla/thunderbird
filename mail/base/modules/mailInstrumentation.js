@@ -15,8 +15,6 @@ const Ci = Components.interfaces;
 const Cu = Components.utils;
 
 const nsIMFNService = Ci.nsIMsgFolderNotificationService;
-var gMFNService = Cc["@mozilla.org/messenger/msgnotificationservice;1"]
-                     .getService(nsIMFNService);
 
 Cu.import("resource:///modules/IOUtils.js");
 Cu.import("resource://gre/modules/Services.jsm");
@@ -49,14 +47,14 @@ var mailInstrumentationManager =
 
   },
   msgAdded: function (aMsg) {
-    gMFNService.removeListener(this);
+    MailServices.mfn.removeListener(this);
     this._mfnListener = false;
     mailInstrumentationManager.addEvent("msgDownloaded", true);
   },
 
   _accountsChanged: function() {
     // check if there are at least two accounts - one is local folders account
-    if (Services.prefs.getCharPref("mail.accountmanager.accounts").indexOf(',') > 0) {
+    if (Services.prefs.getCharPref("mail.accountmanager.accounts").contains(',', 1)) {
       mailInstrumentationManager.addEvent("accountAdded", true);
       this._removeObserver("mail.accountmanager.accounts",
                            this._accountsChanged);
@@ -188,7 +186,7 @@ var mailInstrumentationManager =
     // we should just return immediately.
     if (!Services.prefs.getBoolPref("mail.instrumentation.askUser"))
       return;
-    if (MailServices.accounts.accounts.Count() > 0)
+    if (MailServices.accounts.accounts.length > 0)
       return;
 
     this._loadState();
@@ -199,19 +197,17 @@ var mailInstrumentationManager =
     Services.prefs.addObserver("mail.instrumentation.userOptedIn",
                                this._userOptedIn, false);
     Services.prefs.addObserver("mail.smtpservers", this._smtpServerAdded, false);
-    gMFNService.addListener(this, nsIMFNService.msgAdded);
+    MailServices.mfn.addListener(this, nsIMFNService.msgAdded);
     this._observersRegistered = true;
     this._mfnListener = true;
   },
   uninit: function() {
     if (!this._observersRegistered)
       return;
-    let os = Cc["@mozilla.org/observer-service;1"]
-              .getService(Ci.nsIObserverService);
     Services.obs.removeObserver(this, "mail:composeSendSucceeded");
     Services.obs.removeObserver(this, "mail:setAsDefault");
     if (this._mfnListener)
-      gMFNService.removeListener(this);
+      MailServices.mfn.removeListener(this);
     Services.prefs.removeObserver("mail.accountmanager.accounts", this);
     Services.prefs.removeObserver("mail.instrumentation.userOptedIn", this);
     Services.prefs.removeObserver("mail.smtpservers", this);

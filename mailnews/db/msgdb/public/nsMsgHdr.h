@@ -10,6 +10,7 @@
 #include "nsStringGlue.h"
 #include "MailNewsTypes.h"
 #include "mdb.h"
+#include "nsTArray.h"
 
 class nsMsgDatabase;
 class nsCString;
@@ -39,13 +40,23 @@ public:
     bool        IsAncestorOf(nsIMsgDBHdr *possibleChild);
     bool        IsAncestorKilled(uint32_t ancestorsToCheck);
     void        ReparentInThread(nsIMsgThread *thread);
+
+    size_t SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOfFun) const
+    {
+      return m_references.SizeOfExcludingThis(aMallocSizeOfFun);
+    }
+    size_t SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOfFun) const
+    {
+      return aMallocSizeOfFun(this) + SizeOfExcludingThis(aMallocSizeOfFun);
+    }
+
 protected:
     nsresult SetStringColumn(const char *str, mdb_token token);
     nsresult SetUInt32Column(uint32_t value, mdb_token token);
     nsresult GetUInt32Column(mdb_token token, uint32_t *pvalue, uint32_t defaultValue = 0);
     nsresult SetUInt64Column(uint64_t value, mdb_token token);
     nsresult GetUInt64Column(mdb_token token, uint64_t *pvalue, uint64_t defaultValue = 0);
-    nsresult BuildRecipientsFromArray(const char *names, const char *addresses, uint32_t numAddresses, nsCAutoString& allRecipients);
+    nsresult BuildRecipientsFromArray(const char *names, const char *addresses, uint32_t numAddresses, nsAutoCString& allRecipients);
 
     // reference and threading stuff.
     nsresult	ParseReferences(const char *references);

@@ -2,6 +2,9 @@
 /**
  * Tests sending a message in the background (checks auto-send works).
  */
+
+Components.utils.import("resource:///modules/mailServices.js");
+
 var type = null;
 var test = null;
 var server;
@@ -12,8 +15,8 @@ var identity = null;
 var testFile1 = do_get_file("data/429891_testcase.eml");
 var testFile2 = do_get_file("data/message1.eml");
 
-const kSender = "from@invalid.com";
-const kTo = "to@invalid.com";
+const kSender = "from@foo.invalid";
+const kTo = "to@foo.invalid";
 
 var gMsgSendLater;
 
@@ -84,24 +87,22 @@ function run_test() {
 
   // Ensure we have a local mail account, an normal account and appropriate
   // servers and identities.
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
   // Now load (and internally initialize) the send later service
   gMsgSendLater = Cc["@mozilla.org/messengercompose/sendlater;1"]
                     .getService(Ci.nsIMsgSendLater);
 
   // Test file - for bug 429891
-  originalData = loadFileToString(testFile1);
+  originalData = IOUtils.loadFileToString(testFile1);
 
   // Check that the send later service thinks we don't have messages to send
   do_check_eq(gMsgSendLater.hasUnsentMessages(identity), false);
 
-  var acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
-  acctMgr.setSpecialFolders();
+  MailServices.accounts.setSpecialFolders();
 
-  var account = acctMgr.createAccount();
-  var incomingServer = acctMgr.createIncomingServer("test", "localhost", "pop3");
+  let account = MailServices.accounts.createAccount();
+  let incomingServer = MailServices.accounts.createIncomingServer("test", "localhost", "pop3");
 
   var smtpServer = getBasicSmtpServer();
   identity = getSmtpIdentity(kSender, smtpServer);
@@ -110,7 +111,7 @@ function run_test() {
   account.defaultIdentity = identity;
   account.incomingServer = incomingServer;
 
-  sentFolder = gLocalIncomingServer.rootMsgFolder.createLocalSubfolder("Sent");
+  sentFolder = localAccountUtils.rootFolder.createLocalSubfolder("Sent");
 
   do_check_eq(identity.doFcc, true);
 

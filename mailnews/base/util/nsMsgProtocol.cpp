@@ -24,7 +24,7 @@
 #include "prprf.h"
 #include "plbase64.h"
 #include "nsIStringBundle.h"
-#include "nsIProtocolProxyService.h"
+#include "nsIProtocolProxyService2.h"
 #include "nsIProxyInfo.h"
 #include "nsThreadUtils.h"
 #include "nsIPrefBranch.h"
@@ -33,8 +33,12 @@
 #include "nsMsgUtils.h"
 #include "nsILineInputStream.h"
 #include "nsIMsgIncomingServer.h"
+#include "nsMimeTypes.h"
 #include "nsAlgorithm.h"
 #include "mozilla/Services.h"
+#include <algorithm>
+
+#undef PostMessage // avoid to collision with WinUser.h
 
 using namespace mozilla;
 
@@ -99,7 +103,7 @@ nsMsgProtocol::GetQoSBits(uint8_t *aQoSBits)
   if (!protocol)
     return NS_ERROR_NOT_IMPLEMENTED;
 
-  nsCAutoString prefName("mail.");
+  nsAutoCString prefName("mail.");
   prefName.Append(protocol);
   prefName.Append(".qos");
 
@@ -173,7 +177,7 @@ nsMsgProtocol::OpenNetworkSocket(nsIURI * aURL, const char *connectionType,
 {
   NS_ENSURE_ARG(aURL);
 
-  nsCAutoString hostName;
+  nsAutoCString hostName;
   int32_t port = 0;
 
   aURL->GetPort(&port);
@@ -181,7 +185,7 @@ nsMsgProtocol::OpenNetworkSocket(nsIURI * aURL, const char *connectionType,
 
   nsCOMPtr<nsIProxyInfo> proxyInfo;
 
-  nsCOMPtr<nsIProtocolProxyService> pps =
+  nsCOMPtr<nsIProtocolProxyService2> pps =
       do_GetService("@mozilla.org/network/protocol-proxy-service;1");
 
   NS_ASSERTION(pps, "Couldn't get the protocol proxy service!");
@@ -202,7 +206,7 @@ nsMsgProtocol::OpenNetworkSocket(nsIURI * aURL, const char *connectionType,
       bool isSMTP = false;
       if (NS_SUCCEEDED(aURL->SchemeIs("smtp", &isSMTP)) && isSMTP)
       {
-          nsCAutoString spec;
+          nsAutoCString spec;
           rv = aURL->GetSpec(spec);
           if (NS_SUCCEEDED(rv))
               proxyUri = do_CreateInstance(NS_STANDARDURL_CONTRACTID, &rv);
@@ -218,7 +222,7 @@ nsMsgProtocol::OpenNetworkSocket(nsIURI * aURL, const char *connectionType,
       //             our DNS resolver.
       //
       if (NS_SUCCEEDED(rv))
-          rv = pps->Resolve(proxyUri, 0, getter_AddRefs(proxyInfo));
+          rv = pps->DeprecatedBlockingResolve(proxyUri, 0, getter_AddRefs(proxyInfo));
       NS_ASSERTION(NS_SUCCEEDED(rv), "Couldn't successfully resolve a proxy");
       if (NS_FAILED(rv)) proxyInfo = nullptr;
   }
@@ -232,7 +236,7 @@ nsresult nsMsgProtocol::GetFileFromURL(nsIURI * aURL, nsIFile **aResult)
   NS_ENSURE_ARG_POINTER(aURL);
   NS_ENSURE_ARG_POINTER(aResult);
   // extract the file path from the uri...
-  nsCAutoString urlSpec;
+  nsAutoCString urlSpec;
   aURL->GetPath(urlSpec);
   urlSpec.Insert(NS_LITERAL_CSTRING("file://"), 0);
   nsresult rv;
@@ -350,7 +354,7 @@ nsresult nsMsgProtocol::SendData(const char * dataBuffer, bool aSuppressLogging)
 
 // Whenever data arrives from the connection, core netlib notifices the protocol by calling
 // OnDataAvailable. We then read and process the incoming data from the input stream.
-NS_IMETHODIMP nsMsgProtocol::OnDataAvailable(nsIRequest *request, nsISupports *ctxt, nsIInputStream *inStr, uint32_t sourceOffset, uint32_t count)
+NS_IMETHODIMP nsMsgProtocol::OnDataAvailable(nsIRequest *request, nsISupports *ctxt, nsIInputStream *inStr, uint64_t sourceOffset, uint32_t count)
 {
   // right now, this really just means turn around and churn through the state machine
   nsCOMPtr<nsIURI> uri = do_QueryInterface(ctxt);
@@ -523,10 +527,6 @@ nsresult nsMsgProtocol::LoadUrl(nsIURI * aURL, nsISupports * aConsumer)
 
         m_request = pump; // keep a reference to the pump so we can cancel it
 
-        // This helps when running URLs from the command line
-        rv = pump->SetLoadGroup(m_loadGroup);
-        NS_ENSURE_SUCCESS(rv, rv);
-
         // put us in a state where we are always notified of incoming data
         rv = pump->AsyncRead(this, urlSupports);
         NS_ASSERTION(NS_SUCCEEDED(rv), "AsyncRead failed");
@@ -588,7 +588,7 @@ NS_IMETHODIMP nsMsgProtocol::AsyncOpen(nsIStreamListener *listener, nsISupports 
     if (NS_FAILED(rv))
         return rv;
 
-    nsCAutoString scheme;
+    nsAutoCString scheme;
     rv = m_url->GetScheme(scheme);
     if (NS_FAILED(rv))
         return rv;
@@ -632,8 +632,11 @@ NS_IMETHODIMP nsMsgProtocol::GetContentType(nsACString &aContentType)
 
 NS_IMETHODIMP nsMsgProtocol::SetContentType(const nsACString &aContentType)
 {
-    nsCAutoString charset;
-    return NS_ParseContentType(aContentType, m_ContentType, charset);
+  nsAutoCString charset;
+  nsresult rv = NS_ParseContentType(aContentType, m_ContentType, charset);
+  if (NS_FAILED(rv) || m_ContentType.IsEmpty())
+    m_ContentType.AssignLiteral(UNKNOWN_CONTENT_TYPE);
+  return rv;
 }
 
 NS_IMETHODIMP nsMsgProtocol::GetContentCharset(nsACString &aContentCharset)
@@ -655,7 +658,19 @@ nsMsgProtocol::GetContentDisposition(uint32_t *aContentDisposition)
 }
 
 NS_IMETHODIMP
+nsMsgProtocol::SetContentDisposition(uint32_t aContentDisposition)
+{
+  return NS_ERROR_NOT_AVAILABLE;
+}
+
+NS_IMETHODIMP
 nsMsgProtocol::GetContentDispositionFilename(nsAString &aContentDispositionFilename)
+{
+  return NS_ERROR_NOT_AVAILABLE;
+}
+
+NS_IMETHODIMP
+nsMsgProtocol::SetContentDispositionFilename(const nsAString &aContentDispositionFilename)
 {
   return NS_ERROR_NOT_AVAILABLE;
 }
@@ -666,13 +681,13 @@ nsMsgProtocol::GetContentDispositionHeader(nsACString &aContentDispositionHeader
   return NS_ERROR_NOT_AVAILABLE;
 }
 
-NS_IMETHODIMP nsMsgProtocol::GetContentLength(int32_t *aContentLength)
+NS_IMETHODIMP nsMsgProtocol::GetContentLength(int64_t *aContentLength)
 {
   *aContentLength = mContentLength;
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgProtocol::SetContentLength(int32_t aContentLength)
+NS_IMETHODIMP nsMsgProtocol::SetContentLength(int64_t aContentLength)
 {
   mContentLength = aContentLength;
   return NS_OK;
@@ -735,8 +750,8 @@ nsMsgProtocol::OnTransportStatus(nsITransport *transport, nsresult status,
     return NS_OK;
 
   // these transport events should not generate any status messages
-  if (status == nsISocketTransport::STATUS_RECEIVING_FROM ||
-      status == nsISocketTransport::STATUS_SENDING_TO)
+  if (status == NS_NET_STATUS_RECEIVING_FROM ||
+      status == NS_NET_STATUS_SENDING_TO)
     return NS_OK;
 
   if (!mProgressEventSink)
@@ -746,7 +761,7 @@ nsMsgProtocol::OnTransportStatus(nsITransport *transport, nsresult status,
       return NS_OK;
   }
 
-  nsCAutoString host;
+  nsAutoCString host;
   m_url->GetHost(host);
 
   nsCOMPtr<nsIMsgMailNewsUrl> mailnewsUrl = do_QueryInterface(m_url);
@@ -1068,7 +1083,7 @@ public:
 
         if (avail)
         {
-          rv = aOutStream->WriteFrom(mInStream, NS_MIN(avail, 4096), &bytesWritten);
+          rv = aOutStream->WriteFrom(mInStream, std::min(avail, uint64_t(4096)), &bytesWritten);
           // if were full at the time, the input stream may be backed up and we need to read any remains from the last ODA call
           // before we'll get more ODA calls
           if (protInst->mSuspendedRead)
@@ -1170,7 +1185,7 @@ NS_IMETHODIMP nsMsgFilePostHelper::OnStopRequest(nsIRequest * aChannel, nsISuppo
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgFilePostHelper::OnDataAvailable(nsIRequest * /* aChannel */, nsISupports *ctxt, nsIInputStream *inStr, uint32_t sourceOffset, uint32_t count)
+NS_IMETHODIMP nsMsgFilePostHelper::OnDataAvailable(nsIRequest * /* aChannel */, nsISupports *ctxt, nsIInputStream *inStr, uint64_t sourceOffset, uint32_t count)
 {
   nsMsgAsyncWriteProtocol *protInst = nullptr;
   nsCOMPtr<nsIStreamListener> callback = do_QueryReferent(mProtInstance);
@@ -1393,7 +1408,7 @@ nsresult nsMsgAsyncWriteProtocol::UnblockPostReader()
       uint64_t avail = 0;
       mPostDataStream->Available(&avail);
 
-      m_outputStream->WriteFrom(mPostDataStream, NS_MIN(avail, mSuspendedReadBytes), &amountWritten);
+      m_outputStream->WriteFrom(mPostDataStream, std::min(avail, uint64_t(mSuspendedReadBytes)), &amountWritten);
       // hmm sometimes my mSuspendedReadBytes is getting out of whack...so for now, reset it
       // if necessary.
       if (mSuspendedReadBytes > avail)

@@ -11,13 +11,11 @@
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 
 load("../../../resources/messageGenerator.js");
 load("../../../resources/messageModifier.js");
 load("../../../resources/messageInjection.js");
-load("../../../resources/IMAPpump.js");
 
 var gMessageGenerator = new MessageGenerator();
 var gScenarioFactory = new MessageScenarioFactory(gMessageGenerator);
@@ -27,9 +25,9 @@ const nsMsgMessageFlags = Ci.nsMsgMessageFlags;
 var gMsgFile1 = do_get_file("../../../data/bugmail10");
 const gMsgId1 = "200806061706.m56H6RWT004933@mrapp54.mozilla.org";
 var gMsgFile2 = do_get_file("../../../data/image-attach-test");
-const gMsgId2 = "4A947F73.5030709@xxx.com";
+const gMsgId2 = "4A947F73.5030709@example.com";
 var gMsgFile3 = do_get_file("../../../data/external-attach-test");
-const gMsgId3 = "876TY.5030709@xxx.com";
+const gMsgId3 = "876TY.5030709@example.com";
 
 var gFirstNewMsg;
 var gFirstMsgSize;
@@ -64,13 +62,11 @@ var streamListener =
 // Adds some messages directly to a mailbox (eg new mail)
 function addMessagesToServer(messages, mailbox, localFolder)
 {
-  let ioService = Cc["@mozilla.org/network/io-service;1"]
-                    .getService(Ci.nsIIOService);
-
   // For every message we have, we need to convert it to a file:/// URI
   messages.forEach(function (message)
   {
-    let URI = ioService.newFileURI(message.file).QueryInterface(Ci.nsIFileURL);
+    let URI =
+      Services.io.newFileURI(message.file).QueryInterface(Ci.nsIFileURL);
     message.spec = URI.spec;
   });
 
@@ -97,8 +93,8 @@ function setup() {
   // running initial folder discovery, and adding the folder bails
   // out before we set it as verified online, so we bail out, and
   // then remove the INBOX folder since it's not verified.
-  gIMAPInbox.hierarchyDelimiter = '/';
-  gIMAPInbox.verifiedAsOnlineFolder = true;
+  IMAPPump.inbox.hierarchyDelimiter = '/';
+  IMAPPump.inbox.verifiedAsOnlineFolder = true;
 
 
   // Add a couple of messages to the INBOX
@@ -108,7 +104,7 @@ function setup() {
                         {file: gMsgFile3, messageId: gMsgId3},
 //                         {file: gMsgFile5, messageId: gMsgId5},
                       ],
-                        gIMAPDaemon.getMailbox("INBOX"), gIMAPInbox);
+                        IMAPPump.daemon.getMailbox("INBOX"), IMAPPump.inbox);
 }
 
 var gIMAPService;
@@ -116,7 +112,7 @@ var gIMAPService;
 var tests = [
   setup,
   function updateFolder() {
-    gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+    IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
     yield false;
   },
   function selectFirstMsg() {
@@ -126,10 +122,10 @@ var tests = [
   gIMAPService = Cc["@mozilla.org/messenger/messageservice;1?type=imap"]
                        .getService(Ci.nsIMsgMessageService);
 
-    let db = gIMAPInbox.msgDatabase;
+    let db = IMAPPump.inbox.msgDatabase;
     let msg1 = db.getMsgHdrForMessageID(gMsgId1);
     let url = new Object;
-    gIMAPService.DisplayMessage(gIMAPInbox.getUriForMsg(msg1),
+    gIMAPService.DisplayMessage(IMAPPump.inbox.getUriForMsg(msg1),
                                             streamListener,
                                             null,
                                             asyncUrlListener,
@@ -138,12 +134,12 @@ var tests = [
     yield false;
   },
   function select2ndMsg() {
-    let msg1 = gIMAPInbox.msgDatabase.getMsgHdrForMessageID(gMsgId1);
+    let msg1 = IMAPPump.inbox.msgDatabase.getMsgHdrForMessageID(gMsgId1);
     do_check_neq(msg1.flags & nsMsgMessageFlags.Offline, 0);
-    let db = gIMAPInbox.msgDatabase;
+    let db = IMAPPump.inbox.msgDatabase;
     let msg2 = db.getMsgHdrForMessageID(gMsgId2);
     let url = new Object;
-    gIMAPService.DisplayMessage(gIMAPInbox.getUriForMsg(msg2),
+    gIMAPService.DisplayMessage(IMAPPump.inbox.getUriForMsg(msg2),
                                             streamListener,
                                             null,
                                             asyncUrlListener,
@@ -152,12 +148,12 @@ var tests = [
     yield false;
   },
   function select3rdMsg() {
-    let msg2 = gIMAPInbox.msgDatabase.getMsgHdrForMessageID(gMsgId2);
+    let msg2 = IMAPPump.inbox.msgDatabase.getMsgHdrForMessageID(gMsgId2);
     do_check_neq(msg2.flags & nsMsgMessageFlags.Offline, 0);
-    let db = gIMAPInbox.msgDatabase;
+    let db = IMAPPump.inbox.msgDatabase;
     let msg3 = db.getMsgHdrForMessageID(gMsgId3);
     let url = new Object;
-    gIMAPService.DisplayMessage(gIMAPInbox.getUriForMsg(msg3),
+    gIMAPService.DisplayMessage(IMAPPump.inbox.getUriForMsg(msg3),
                                             streamListener,
                                             null,
                                             asyncUrlListener,
@@ -166,16 +162,16 @@ var tests = [
     yield false;
   },
   function verify3rdMsg() {
-    let msg3 = gIMAPInbox.msgDatabase.getMsgHdrForMessageID(gMsgId3);
+    let msg3 = IMAPPump.inbox.msgDatabase.getMsgHdrForMessageID(gMsgId3);
     // can't turn this on because our fake server doesn't support body structure.
 //    do_check_eq(msg3.flags & nsMsgMessageFlags.Offline, 0);
   },
   function addNewMsgs() {
-    let mbox = gIMAPDaemon.getMailbox("INBOX")
+    let mbox = IMAPPump.daemon.getMailbox("INBOX")
     // make a couple messges
     let messages = [];
     let bodyString = "";
-    for (i = 0; i < 100; i++)
+    for (let i = 0; i < 100; i++)
       bodyString += "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890\r\n";
 
     let gMessageGenerator = new MessageGenerator();
@@ -185,17 +181,14 @@ var tests = [
     // need to account for x-mozilla-status, status2, and envelope.
     gFirstMsgSize = messages[0].toMessageString().length + 102;
 
-    let ioService = Cc["@mozilla.org/network/io-service;1"]
-                      .getService(Ci.nsIIOService);
-
     messages.forEach(function (message)
     {
-      let dataUri = ioService.newURI("data:text/plain;base64," +
-                                      btoa(message.toMessageString()),
-                                     null, null);
+      let dataUri = Services.io.newURI("data:text/plain;base64," +
+                                       btoa(message.toMessageString()),
+                                       null, null);
       mbox.addMessage(new imapMessage(dataUri.spec, mbox.uidnext++, []));
     });
-    gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+    IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
     yield false;
   },
   function testQueuedOfflineDownload()
@@ -203,8 +196,8 @@ var tests = [
     // Make sure that streaming the same message and then trying to download
     // it for offline use doesn't end up in it getting added to the offline 
     // store twice.
-    gImapInboxOfflineStoreSize = gIMAPInbox.filePath.fileSize + gFirstMsgSize;
-    let newMsgHdr = gIMAPInbox.GetMessageHeader(gFirstNewMsg);
+    gImapInboxOfflineStoreSize = IMAPPump.inbox.filePath.fileSize + gFirstMsgSize;
+    let newMsgHdr = IMAPPump.inbox.GetMessageHeader(gFirstNewMsg);
     let msgURI = newMsgHdr.folder.getUriForMsg(newMsgHdr);
     let messenger = Cc["@mozilla.org/messenger;1"].createInstance(Ci.nsIMessenger);
     let msgServ = messenger.messageServiceFromURI(msgURI);
@@ -217,7 +210,7 @@ var tests = [
     // we invoke nsIImapService.downloadMessagesForOffline directly with a 
     // listener.
     MailServices.imap.downloadMessagesForOffline(gFirstNewMsg,
-                                                 gIMAPInbox,
+                                                 IMAPPump.inbox,
                                                  asyncUrlListener,
                                                  null);
     yield false;
@@ -225,12 +218,12 @@ var tests = [
   function checkOfflineStoreSize()
   {
     dump("checking offline store size\n");
-    do_check_true(gIMAPInbox.filePath.fileSize <= gImapInboxOfflineStoreSize);
+    do_check_true(IMAPPump.inbox.filePath.fileSize <= gImapInboxOfflineStoreSize);
   },
   teardown
 ]
 
-gStreamListener = {
+let gStreamListener = {
   QueryInterface : XPCOMUtils.generateQI([Ci.nsIStreamListener]),
   _stream : null,
   _data : null,

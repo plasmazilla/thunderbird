@@ -15,6 +15,8 @@
 #include "nsMsgCompCID.h"
 #include "nsILoginInfo.h"
 #include "nsILoginManager.h"
+#include "nsIArray.h"
+#include "nsArrayUtils.h"
 
 NS_IMPL_ADDREF(nsSmtpServer)
 NS_IMPL_RELEASE(nsSmtpServer)
@@ -61,7 +63,7 @@ nsresult nsSmtpServer::getPrefs()
     if (NS_FAILED(rv))
         return rv;
 
-    nsCAutoString branchName;
+    nsAutoCString branchName;
     branchName.AssignLiteral("mail.smtpserver.");
     branchName += mKey;
     branchName.Append('.');
@@ -303,12 +305,12 @@ nsSmtpServer::GetPassword(nsACString& aPassword)
               && (dotPos = hostName.FindChar('.')) != kNotFound)
             {
               hostName.Cut(0, dotPos);
-              nsCOMPtr<nsISupportsArray> allServers;
+              nsCOMPtr<nsIArray> allServers;
               accountManager->GetAllServers(getter_AddRefs(allServers));
               if (allServers)
               {
                 uint32_t count = 0;
-                allServers->Count(&count);
+                allServers->GetLength(&count);
                 uint32_t i;
                 for (i = 0; i < count; i++)
                 {
@@ -364,6 +366,55 @@ nsSmtpServer::SetPassword(const nsACString& aPassword)
   return NS_OK;
 }
 
+nsresult
+nsSmtpServer::GetPasswordWithoutUI()
+{
+  nsresult rv;
+  nsCOMPtr<nsILoginManager> loginMgr(do_GetService(NS_LOGINMANAGER_CONTRACTID,
+                                                   &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  NS_ConvertASCIItoUTF16 serverUri(GetServerURIInternal(false));
+
+  uint32_t numLogins = 0;
+  nsILoginInfo** logins = nullptr;
+  rv = loginMgr->FindLogins(&numLogins, serverUri, EmptyString(),
+                            serverUri, &logins);
+  // Login manager can produce valid fails, e.g. NS_ERROR_ABORT when a user
+  // cancels the master password dialog. Therefore handle that here, but don't
+  // warn about it.
+  if (NS_FAILED(rv))
+    return rv;
+
+  // Don't abort here, if we didn't find any or failed, then we'll just have
+  // to prompt.
+  if (numLogins > 0)
+  {
+    nsCString serverCUsername;
+    rv = GetUsername(serverCUsername);
+    NS_ConvertASCIItoUTF16 serverUsername(serverCUsername);
+
+    nsString username;
+    for (uint32_t i = 0; i < numLogins; ++i)
+    {
+      rv = logins[i]->GetUsername(username);
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      if (username.Equals(serverUsername))
+      {
+        nsString password;
+        rv = logins[i]->GetPassword(password);
+        NS_ENSURE_SUCCESS(rv, rv);
+
+        LossyCopyUTF16toASCII(password, m_password);
+        break;
+      }
+    }
+  }
+  NS_FREE_XPCOM_ISUPPORTS_POINTER_ARRAY(numLogins, logins);
+  return NS_OK;
+}
+
 NS_IMETHODIMP
 nsSmtpServer::GetPasswordWithUI(const PRUnichar *aPromptMessage,
                                 const PRUnichar *aPromptTitle,
@@ -373,11 +424,24 @@ nsSmtpServer::GetPasswordWithUI(const PRUnichar *aPromptMessage,
   if (!m_password.IsEmpty())
     return GetPassword(aPassword);
 
+  // We need to get a password, but see if we can get it from the password
+  // manager without requiring a prompt.
+  nsresult rv = GetPasswordWithoutUI();
+  if (rv == NS_ERROR_ABORT)
+    return NS_MSG_PASSWORD_PROMPT_CANCELLED;
+
+  // Now re-check if we've got a password or not, if we have, then we
+  // don't need to prompt the user.
+  if (!m_password.IsEmpty())
+  {
+    aPassword = m_password;
+    return NS_OK;
+  }
+
   NS_ENSURE_ARG_POINTER(aDialog);
 
-  nsCString serverUri;
-  nsresult rv = GetServerURI(serverUri);
-  NS_ENSURE_SUCCESS(rv, rv);
+  // PromptPassword needs the username as well.
+  nsCString serverUri(GetServerURIInternal(true));
 
   bool okayValue = true;
   nsString uniPassword;
@@ -471,7 +535,7 @@ nsSmtpServer::ForgetPassword()
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Get the current server URI without the username
-  nsCAutoString serverUri(NS_LITERAL_CSTRING("smtp://"));
+  nsAutoCString serverUri(NS_LITERAL_CSTRING("smtp://"));
 
   nsCString hostname;
   rv = GetHostname(hostname);
@@ -521,31 +585,41 @@ nsSmtpServer::ForgetPassword()
 NS_IMETHODIMP
 nsSmtpServer::GetServerURI(nsACString &aResult)
 {
-    nsCAutoString uri(NS_LITERAL_CSTRING("smtp://"));
+  aResult = GetServerURIInternal(true);
+  return NS_OK;
+}
 
+nsCString
+nsSmtpServer::GetServerURIInternal(const bool aIncludeUsername)
+{
+  nsCString uri(NS_LITERAL_CSTRING("smtp://"));
+  nsresult rv;
+
+  if (aIncludeUsername)
+  {
     nsCString username;
-    nsresult rv = GetUsername(username);
+    rv = GetUsername(username);
 
     if (NS_SUCCEEDED(rv) && !username.IsEmpty()) {
-        nsCString escapedUsername;
-        MsgEscapeString(username, nsINetUtil::ESCAPE_XALPHAS, escapedUsername);
-        // not all servers have a username
-        uri.Append(escapedUsername);
-        uri.AppendLiteral("@");
+      nsCString escapedUsername;
+      MsgEscapeString(username, nsINetUtil::ESCAPE_XALPHAS, escapedUsername);
+      // not all servers have a username
+      uri.Append(escapedUsername);
+      uri.AppendLiteral("@");
     }
+  }
 
-    nsCString hostname;
-    rv = GetHostname(hostname);
+  nsCString hostname;
+  rv = GetHostname(hostname);
 
-    if (NS_SUCCEEDED(rv) && !hostname.IsEmpty()) {
-        nsCString escapedHostname;
-        MsgEscapeString(hostname, nsINetUtil::ESCAPE_URL_PATH, escapedHostname);
-        // not all servers have a hostname
-        uri.Append(escapedHostname);
-    }
+  if (NS_SUCCEEDED(rv) && !hostname.IsEmpty()) {
+    nsCString escapedHostname;
+    MsgEscapeString(hostname, nsINetUtil::ESCAPE_URL_PATH, escapedHostname);
+    // not all servers have a hostname
+    uri.Append(escapedHostname);
+  }
 
-    aResult = uri;
-    return NS_OK;
+  return uri;
 }
 
 NS_IMETHODIMP

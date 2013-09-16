@@ -40,6 +40,7 @@ function installInto(module) {
   // Now copy helper functions
   module.open_compose_new_mail = open_compose_new_mail;
   module.open_compose_with_reply = open_compose_with_reply;
+  module.open_compose_with_reply_to_all = open_compose_with_reply_to_all;
   module.open_compose_with_reply_to_list = open_compose_with_reply_to_list;
   module.open_compose_with_forward = open_compose_with_forward;
   module.open_compose_with_forward_as_attachments = open_compose_with_forward_as_attachments;
@@ -92,6 +93,23 @@ function open_compose_with_reply(aController) {
 
   windowHelper.plan_for_new_window("msgcompose");
   aController.keypress(null, "r", {shiftKey: false, accelKey: true});
+
+  return wait_for_compose_window();
+}
+
+/**
+ * Opens the compose window by replying to all for a selected message and waits
+ * for it to load.
+ *
+ * @return The loaded window of type "msgcompose" wrapped in a MozmillController
+ *         that is augmented using augment_controller.
+ */
+function open_compose_with_reply_to_all(aController) {
+  if (aController === undefined)
+    aController = mc;
+
+  windowHelper.plan_for_new_window("msgcompose");
+  aController.keypress(null, "R", {shiftKey: true, accelKey: true});
 
   return wait_for_compose_window();
 }
@@ -209,7 +227,7 @@ function wait_for_compose_window(aController) {
 
   let replyWindow = windowHelper.wait_for_new_window("msgcompose");
 
-  let editor = replyWindow.window.document.getElementsByTagName("editor")[0];
+  let editor = replyWindow.window.document.querySelector("editor");
 
   if (editor.webNavigation.busyFlags != Ci.nsIDocShell.BUSY_FLAGS_NONE) {
     let editorObserver = {
@@ -305,19 +323,22 @@ function delete_attachment(aComposeWindow, aIndex) {
  * @param aValue the value of the notification to look for.
  * @param aDisplayed true if the notification should be displayed, false
  *                   otherwise.
+ * @returns the notification if we're asserting that the notification is
+ *          displayed, and it actually shows up. Returns null otherwise.
  */
 function assert_notification_displayed(aController, aValue, aDisplayed) {
   let nb = aController.window
                       .document
                       .getElementById("attachmentNotificationBox");
   let hasNotification = false;
-
-  if (nb.getNotificationWithValue(aValue))
-    hasNotification = true;
+  let notification = nb.getNotificationWithValue(aValue);
+  let hasNotification = (notification != null)
 
   if (hasNotification != aDisplayed)
     throw new Error("Expected the notification with value " + aValue +
                     " to be " + (aDisplayed ? "shown" : "not shown"));
+
+  return notification;
 }
 
 /**
@@ -369,7 +390,7 @@ function wait_for_notification_to_show(aController, aValue) {
                       .document
                       .getElementById("attachmentNotificationBox");
 
-  aController.waitFor(function() nb.getNotificationWithValue(aValue),
+  aController.waitFor(function() nb.getNotificationWithValue(aValue) != null,
                       "Timed out waiting for notification with value " +
                       aValue + " to show.");
 }

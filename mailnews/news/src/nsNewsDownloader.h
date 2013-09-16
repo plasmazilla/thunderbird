@@ -14,7 +14,6 @@
 #include "nsIMsgWindow.h"
 #include "nsIMsgSearchNotify.h"
 #include "nsIMsgSearchSession.h"
-#include "nsIEnumerator.h"
 
 // base class for downloading articles in a single newsgroup. Keys to download are passed in
 // to DownloadArticles method.
@@ -105,18 +104,18 @@ public:
   nsresult ProcessNextGroup();
 
 protected:
-  nsresult AdvanceToNextServer(bool *done);
-  nsresult AdvanceToNextGroup(bool *done);
+  bool     AdvanceToNextServer();
+  bool     AdvanceToNextGroup();
   nsresult DownloadMsgsForCurrentGroup();
 
   DownloadMatchingNewsArticlesToNewsDB *m_downloaderForGroup;
 
   nsCOMPtr <nsIMsgFolder> m_currentFolder;
   nsCOMPtr <nsIMsgWindow> m_window;
-  nsCOMPtr <nsISupportsArray> m_allServers;
-  nsCOMPtr <nsISupportsArray> m_allFolders;
+  nsCOMPtr <nsIArray> m_allServers;
+  nsCOMPtr <nsIArray> m_allFolders;
   nsCOMPtr <nsIMsgIncomingServer> m_currentServer;
-  nsCOMPtr <nsIEnumerator> m_serverEnumerator;
+  nsCOMPtr <nsISimpleEnumerator> m_serverEnumerator;
   nsCOMPtr <nsIUrlListener> m_listener;
 
   bool m_downloadedHdrsForCurGroup;

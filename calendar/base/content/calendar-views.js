@@ -4,6 +4,8 @@
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://calendar/modules/calAlarmUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 /**
  * Controller for the views
@@ -416,14 +418,12 @@ function scheduleMidnightUpdate(aRefreshCallback) {
         };
 
         // Add observer
-        var observerService = Components.classes["@mozilla.org/observer-service;1"]
-                                        .getService(Components.interfaces.nsIObserverService);
-        observerService.addObserver(wakeObserver, "wake_notification", false);
+        Services.obs.addObserver(wakeObserver, "wake_notification", false);
 
         // Remove observer on unload
         window.addEventListener("unload",
                                 function() {
-                                    observerService.removeObserver(wakeObserver, "wake_notification");
+                                    Services.obs.removeObserver(wakeObserver, "wake_notification");
                                 }, false);
         gMidnightTimer = Components.classes["@mozilla.org/timer;1"]
                                    .createInstance(Components.interfaces.nsITimer);
@@ -488,17 +488,10 @@ function updateStyleSheetForViews(aCalendar) {
  */
 var categoryPrefBranch;
 var categoryManagement = {
-    QueryInterface: function cM_QueryInterface(aIID) {
-        return cal.doQueryInterface(this,
-                                    categoryManagement.__proto__,
-                                    aIID,
-                                    [Components.interfaces.nsIObserver]);
-    },
+    QueryInterface: XPCOMUtils.generateQI([Components.interfaces.nsIObserver]),
 
     initCategories: function cM_initCategories() {
-      let prefService = Components.classes["@mozilla.org/preferences-service;1"]
-                                  .getService(Components.interfaces.nsIPrefService);
-      categoryPrefBranch = prefService.getBranch("calendar.category.color.");
+      categoryPrefBranch = Services.prefs.getBranch("calendar.category.color.");
       let categories = categoryPrefBranch.getChildList("");
 
       // Fix illegally formatted category prefs.
@@ -524,9 +517,7 @@ var categoryManagement = {
     },
 
     cleanupCategories: function cM_cleanupCategories() {
-      let prefService = Components.classes["@mozilla.org/preferences-service;1"]
-                                  .getService(Components.interfaces.nsIPrefService);
-      categoryPrefBranch = prefService.getBranch("calendar.category.color.");
+      categoryPrefBranch = Services.prefs.getBranch("calendar.category.color.");
       categoryPrefBranch.removeObserver("", categoryManagement);
     },
 
@@ -642,7 +633,7 @@ function toggleWorkdaysOnly() {
     }
 
     // Refresh the current view
-    currentView().goToDay(currentView().selectedDay);
+    currentView().goToDay();
 }
 
 /**
@@ -659,7 +650,7 @@ function toggleTasksInView() {
     }
 
     // Refresh the current view
-    currentView().goToDay(currentView().selectedDay);
+    currentView().goToDay();
 }
 
 /**
@@ -676,7 +667,7 @@ function toggleShowCompletedInView() {
     }
 
     // Refresh the current view
-    currentView().goToDay(currentView().selectedDay);
+    currentView().goToDay();
 }
 
 /**

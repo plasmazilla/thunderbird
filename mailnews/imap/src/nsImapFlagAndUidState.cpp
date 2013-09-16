@@ -102,14 +102,14 @@ nsImapFlagAndUidState::~nsImapFlagAndUidState()
 }
 
 NS_IMETHODIMP
-nsImapFlagAndUidState::OrSupportedUserFlags(uint16 flags)
+nsImapFlagAndUidState::OrSupportedUserFlags(uint16_t flags)
 {
   fSupportedUserFlags |= flags;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsImapFlagAndUidState::GetSupportedUserFlags(uint16 *aFlags)
+nsImapFlagAndUidState::GetSupportedUserFlags(uint16_t *aFlags)
 {
   NS_ENSURE_ARG_POINTER(aFlags);
   *aFlags = fSupportedUserFlags;
@@ -235,9 +235,8 @@ bool nsImapFlagAndUidState::IsLastMessageUnseen()
 imapMessageFlagsType nsImapFlagAndUidState::GetMessageFlagsFromUID(uint32_t uid, bool *foundIt, int32_t *ndx)
 {
   PR_CEnterMonitor(this);
-  *foundIt = fUids.GreatestIndexLtEq(uid,
-                                     nsDefaultComparator<uint32_t, uint32_t>(),
-                                    (uint32_t *) ndx);
+  *ndx = (int32_t) fUids.IndexOfFirstElementGt(uid) - 1;
+  *foundIt = *ndx >= 0 && fUids[*ndx] == uid;
   imapMessageFlagsType retFlags = (*foundIt) ? fFlags[*ndx] : kNoImapMsgFlag;
   PR_CExitMonitor(this);
   return retFlags;

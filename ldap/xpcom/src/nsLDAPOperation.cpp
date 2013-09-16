@@ -169,7 +169,7 @@ nsLDAPOperation::SaslBind(const nsACString &service,
                           nsIAuthModule *authModule)
 {
   nsresult rv;
-  nsCAutoString bindName;
+  nsAutoCString bindName;
   struct berval creds;
   unsigned int credlen;
 
@@ -212,7 +212,7 @@ NS_IMETHODIMP
 nsLDAPOperation::SaslStep(const char *token, uint32_t tokenLen)
 {
   nsresult rv;
-  nsCAutoString bindName;
+  nsAutoCString bindName;
   struct berval clientCreds;
   struct berval serverCreds;
   unsigned int credlen;
@@ -261,7 +261,7 @@ nsLDAPOperation::SimpleBind(const nsACString& passwd)
     // thread. Grabbing a local reference to mConnection may avoid this.
     // See https://bugzilla.mozilla.org/show_bug.cgi?id=557928#c1
     nsresult rv;
-    nsCAutoString bindName;
+    nsAutoCString bindName;
     int32_t originalMsgID = mMsgID;
     // Ugly hack alert:
     // the first time we get called with a passwd, remember it.
@@ -289,7 +289,7 @@ nsLDAPOperation::SimpleBind(const nsACString& passwd)
       connection->RemovePendingOperation(originalMsgID);
 
     mMsgID = ldap_simple_bind(mConnectionHandle, bindName.get(),
-                              PromiseFlatCString(mSavePassword).get());
+                              mSavePassword.get());
 
     if (mMsgID == -1) {
       // XXX Should NS_ERROR_LDAP_SERVER_DOWN cause a rebind here?
@@ -610,7 +610,7 @@ nsLDAPOperation::AddExt(const char *base,
       return NS_ERROR_OUT_OF_MEMORY;
     }
 
-    nsCAutoString type;
+    nsAutoCString type;
     uint32_t index;
     for (index = 0; index < modCount && NS_SUCCEEDED(rv); ++index) {
       attrs[index] = new LDAPMod();
@@ -774,7 +774,7 @@ nsLDAPOperation::ModifyExt(const char *base,
       return NS_ERROR_OUT_OF_MEMORY;
     }
 
-    nsCAutoString type;
+    nsAutoCString type;
     uint32_t index;
     for (index = 0; index < modCount && NS_SUCCEEDED(rv); ++index) {
       attrs[index] = new LDAPMod();

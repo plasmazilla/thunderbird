@@ -9,10 +9,6 @@
  *    - gatherTextUnder
  */
 
-  var pref = null;
-  pref = Components.classes["@mozilla.org/preferences-service;1"]
-                   .getService(Components.interfaces.nsIPrefBranch);
-
   function hrefAndLinkNodeForClickEvent(event)
   {
     var href = "";
@@ -83,9 +79,9 @@
       return true;
     }
 
-    if (pref && !isKeyCommand && event.button == 1 &&
-        pref.getBoolPref("middlemouse.contentLoadURL") &&
-        !pref.getBoolPref("general.autoScroll")) {
+    if (!isKeyCommand && event.button == 1 &&
+        Services.prefs.getBoolPref("middlemouse.contentLoadURL") &&
+        !Services.prefs.getBoolPref("general.autoScroll")) {
       middleMousePaste(event);
     }
 
@@ -95,15 +91,18 @@
   function openNewTabOrWindow(event, href, doc)
   {
     // should we open it in a new tab?
-    if (pref && pref.getBoolPref("browser.tabs.opentabfor.middleclick")) {
+    if (Services.prefs.getBoolPref("browser.tabs.opentabfor.middleclick")) {
       openNewTabWith(href, doc, null, event);
       event.stopPropagation();
       return true;
     }
 
     // should we open it in a new window?
-    if (pref && pref.getBoolPref("middlemouse.openNewWindow")) {
-      openNewWindowWith(href, doc);
+    if (Services.prefs.getBoolPref("middlemouse.openNewWindow")) {
+      if (gPrivate)
+        openNewPrivateWith(href, doc);
+      else
+        openNewWindowWith(href, doc);
       event.stopPropagation();
       return true;
     }
@@ -117,25 +116,26 @@
     // Checking to make sure we are allowed to open this URL
     // (call to urlSecurityCheck) is now done within openNew... functions
 
-    switch (event.button) {                                   
+    var doc = linkNode.ownerDocument;
+    switch (event.button) {
       case 0:                                                         // if left button clicked
         if (event.metaKey || event.ctrlKey) {                         // and meta or ctrl are down
-          if (openNewTabOrWindow(event, href, linkNode.ownerDocument))
+          if (openNewTabOrWindow(event, href, doc))
             return true;
-        } 
+        }
         var saveModifier = GetBoolPref("ui.key.saveLink.shift", true);
         saveModifier = saveModifier ? event.shiftKey : event.altKey;
-          
+
         if (saveModifier) {                                           // if saveModifier is down
           saveURL(href, gatherTextUnder(linkNode), "SaveLinkTitle",
-                  false, true, linkNode.ownerDocument.documentURIObject);
+                  false, true, doc.documentURIObject, doc);
           return true;
         }
         if (event.altKey)                                             // if alt is down
           return true;                                                // do nothing
         return false;
       case 1:                                                         // if middle button clicked
-        if (openNewTabOrWindow(event, href, linkNode.ownerDocument))
+        if (openNewTabOrWindow(event, href, doc))
           return true;
         break;
     }
@@ -178,12 +178,12 @@
           gURLBar.value = url;
       }
       tab.linkedBrowser.loadURI(url);
-      if (event.shiftKey != (pref && pref.getBoolPref("browser.tabs.loadInBackground")))
+      if (event.shiftKey != (Services.prefs.getBoolPref("browser.tabs.loadInBackground")))
         browser.selectedTab = tab;
     }
     else if (event.target == browser) {
       tab = browser.addTab(url);
-      if (event.shiftKey != (pref && pref.getBoolPref("browser.tabs.loadInBackground")))
+      if (event.shiftKey != (Services.prefs.getBoolPref("browser.tabs.loadInBackground")))
         browser.selectedTab = tab;
     }
     else {
@@ -197,6 +197,9 @@
 
   function addToUrlbarHistory(aUrlToAdd)
   {
+    if (gPrivate)
+      return;
+
     // Remove leading and trailing spaces first
     aUrlToAdd = aUrlToAdd.trim();
 
@@ -206,8 +209,8 @@
       return;
 
     if (!gGlobalHistory)
-      gGlobalHistory = Components.classes["@mozilla.org/browser/global-history;2"]
-                                 .getService(Components.interfaces.nsIBrowserHistory);
+      gGlobalHistory = Components.classes["@mozilla.org/browser/nav-history-service;1"]
+                                 .getService(Components.interfaces.nsINavHistoryService);
 
     if (!gURIFixup)
       gURIFixup = Components.classes["@mozilla.org/docshell/urifixup;1"]

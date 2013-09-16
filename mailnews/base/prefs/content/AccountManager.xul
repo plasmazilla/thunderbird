@@ -16,10 +16,9 @@
         buttons="accept,cancel"
         onload="onLoad(event);"
         onunload="onUnload();"
-        ondialogaccept="return onAccept();">
+        ondialogaccept="return onAccept(true);">
 <stringbundle id="bundle_brand" src="chrome://branding/locale/brand.properties"/>
 <stringbundle id="bundle_prefs" src="chrome://messenger/locale/prefs.properties"/>
-<script type="application/javascript" src="chrome://messenger/content/amUtils.js"/>
 <script type="application/javascript" src="chrome://messenger/content/accountUtils.js"/>
 <script type="application/javascript" src="chrome://messenger/content/am-prefs.js"/>
 <script type="application/javascript" src="chrome://messenger/content/AccountManager.js"/>
@@ -51,6 +50,11 @@
                     accesskey="&addIMAccountButton.accesskey;"
                     prefstring="mail.disable_new_account_addition"
                     oncommand="AddIMAccount(event); event.stopPropagation();"/>
+          <menuitem id="accountActionsAddFeedAccount"
+                    label="&addFeedAccountButton.label;"
+                    accesskey="&addFeedAccountButton.accesskey;"
+                    prefstring="mail.disable_new_account_addition"
+                    oncommand="AddFeedAccount(event); event.stopPropagation();"/>
           <menuitem id="accountActionsAddOtherAccount"
                     label="&addOtherAccountButton.label;"
                     accesskey="&addOtherAccountButton.accesskey;"

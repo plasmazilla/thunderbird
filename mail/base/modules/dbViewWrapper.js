@@ -9,6 +9,7 @@ const Ci = Components.interfaces;
 const Cr = Components.results;
 const Cu = Components.utils;
 
+Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource:///modules/mailViewManager.js");
 Cu.import("resource:///modules/searchSpec.js");
 Cu.import("resource:///modules/virtualFolderWrapper.js");
@@ -60,18 +61,12 @@ var FolderNotificationHelper = {
    */
   _init: function FolderNotificationHelper__init() {
     // register with the session for our folded loaded notifications
-    let mailSession =
-      Cc["@mozilla.org/messenger/services/session;1"]
-        .getService(Ci.nsIMsgMailSession);
-    mailSession.AddFolderListener(this,
-                                  Ci.nsIFolderListener.event |
-                                  Ci.nsIFolderListener.intPropertyChanged);
+    MailServices.mailSession.AddFolderListener(this,
+                                               Ci.nsIFolderListener.event |
+                                               Ci.nsIFolderListener.intPropertyChanged);
 
     // register with the notification service for deleted folder notifications
-    let notificationService =
-      Cc["@mozilla.org/messenger/msgnotificationservice;1"]
-        .getService(Ci.nsIMsgFolderNotificationService);
-    notificationService.addListener(this,
+    MailServices.mfn.addListener(this,
       Ci.nsIMsgFolderNotificationService.folderDeleted |
       // we need to track renames because we key off of URIs. frick.
       Ci.nsIMsgFolderNotificationService.folderRenamed |
@@ -270,10 +265,7 @@ var FolderNotificationHelper = {
       for each (let [, wrapper] in Iterator(wrappers.concat())) {
         wrapper._folderMoved(aOldFolder, aNewFolder);
       }
-      // if the folder is deleted, it's not going to get deleted again.
-      delete this._interestedWrappers[aFolder.URI];
     }
-
   },
 
   /**
@@ -975,7 +967,7 @@ DBViewWrapper.prototype = {
       if (mailViewTag && mailViewTag != "0" && mailViewTag != "1") {
         // the tag gets stored with a ":" on the front, presumably done
         //  as a means of name-spacing that was never subsequently leveraged.
-        if (mailViewTag[0] == ":")
+        if (mailViewTag.startsWith(":"))
           mailViewTag = mailViewTag.substr(1);
         // (the true is so we don't persist)
         this.setMailView(MailViewConstants.kViewItemTags, mailViewTag, true);
@@ -1284,8 +1276,8 @@ DBViewWrapper.prototype = {
    * - Single-folder threaded/unthreaded can handle a change to/from unthreaded/
    *    threaded, so set it.
    * - Single-folder can _not_ handle a change between grouped and not-grouped,
-   *    so re-generate the view.  Nor can it handle a change involving
-   *    kUnreadOnly.
+   *    so re-generate the view. Also it can't handle a change involving
+   *    kUnreadOnly or kShowIgnored.
    */
   set _viewFlags(aViewFlags) {
     if (this._viewUpdateDepth || !this.dbView)
@@ -1296,7 +1288,8 @@ DBViewWrapper.prototype = {
       if ((this.isVirtual && this.isMultiFolder) ||
           (this.isSingleFolder &&
            !(changedFlags & (nsMsgViewFlagsType.kGroupBySort |
-                             nsMsgViewFlagsType.kUnreadOnly)))) {
+                             nsMsgViewFlagsType.kUnreadOnly |
+                             nsMsgViewFlagsType.kShowIgnored)))) {
         this.dbView.viewFlags = aViewFlags;
         // ugh, and the single folder case needs us to re-apply his sort...
         if (this.isSingleFolder)
@@ -1608,22 +1601,22 @@ DBViewWrapper.prototype = {
   },
 
   /**
-   * Are we showing ignored/killed threads?  Only meaningful for newsgroups.
+   * Are we showing ignored/killed threads?
    */
   get showIgnored() {
     return Boolean(this._viewFlags & nsMsgViewFlagsType.kShowIgnored);
   },
   /**
-   * Set whether we are showing ignored/killed threads.  Only meaningful for
-   *  newsgroups.
+   * Set whether we are showing ignored/killed threads.
    */
   set showIgnored(aShowIgnored) {
-    if (this.showIgnored != aShowIgnored) {
-      if (aShowIgnored)
-        this._viewFlags |= nsMsgViewFlagsType.kShowIgnored;
-      else
-        this._viewFlags &= ~nsMsgViewFlagsType.kShowIgnored;
-    }
+    if (this.showIgnored == aShowIgnored)
+      return;
+
+    if (aShowIgnored)
+      this._viewFlags |= nsMsgViewFlagsType.kShowIgnored;
+    else
+      this._viewFlags &= ~nsMsgViewFlagsType.kShowIgnored;
   },
 
   /**

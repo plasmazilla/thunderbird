@@ -1,9 +1,9 @@
-bg
 ca
 cs
 da
 de
 en-GB
+en-US
 es-AR
 es-ES
 et
@@ -13,13 +13,12 @@ fr
 fy-NL
 ga-IE
 gd
-gl
 hr
 hu
 is
 it
-ja
-ja-JP-mac
+ja linux win32
+ja-JP-mac osx
 ko
 lt
 nb-NO
@@ -29,9 +28,5 @@ pl
 pt-PT
 ru
 sk
-sq
-sv-SE
-tr
-uk
 zh-CN
 zh-TW

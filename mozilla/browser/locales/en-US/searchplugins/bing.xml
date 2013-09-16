@@ -6,20 +6,16 @@
     <ShortName>Bing</ShortName>
     <Description>Bing. Search by Microsoft.</Description>
     <InputEncoding>UTF-8</InputEncoding>
-    <Image width="16" height="16" type="image/x-icon" type="image/x-icon">http://www.bing.com/favicon.ico</Image>
+    <Image width="16" height="16" type="image/x-icon">http://www.bing.com/favicon.ico</Image>
     <Url type="application/x-suggestions+json" template="http://api.bing.com/osjson.aspx">
         <Param name="query" value="{searchTerms}"/>
         <Param name="form" value="OSDJAS"/>
     </Url>
     <Url type="text/html" method="GET" template="http://www.bing.com/search">
         <Param name="q" value="{searchTerms}"/>
-        <Param name="form" value="MOZSBR"/>
         <MozParam name="pc" condition="pref" pref="ms-pc"/>
-    </Url>
-    <Url type="application/x-moz-keywordsearch" method="GET" template="http://www.bing.com/search">
-        <Param name="q" value="{searchTerms}"/>
-        <Param name="form" value="MOZLBR"/>
-        <MozParam name="pc" condition="pref" pref="ms-pc"/>
+        <MozParam name="form" condition="purpose" purpose="" value="MOZSBR"/>
+        <MozParam name="form" condition="purpose" purpose="keyword" value="MOZLBR"/>
     </Url>
     <SearchForm>http://www.bing.com/search</SearchForm>
 </SearchPlugin>

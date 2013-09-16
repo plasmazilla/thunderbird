@@ -4,6 +4,7 @@
 
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 const ALARM_RELATED_ABSOLUTE = Components.interfaces.calIAlarm.ALARM_RELATED_ABSOLUTE;
 const ALARM_RELATED_START = Components.interfaces.calIAlarm.ALARM_RELATED_START;
@@ -17,6 +18,8 @@ function calAlarm() {
     this.mAttachments = [];
 }
 
+const calAlarmClassID = Components.ID("{b8db7c7f-c168-4e11-becb-f26c1c4f5f8f}");
+const calAlarmInterfaces = [Components.interfaces.calIAlarm];
 calAlarm.prototype = {
 
     mProperties: null,
@@ -34,29 +37,14 @@ calAlarm.prototype = {
     mRelated: 0,
     mRepeat: 0,
 
-    QueryInterface: function cA_QueryInterface(aIID) {
-        return cal.doQueryInterface(this, calAlarm.prototype, aIID, null, this);
-    },
-
-    /**
-     * nsIClassInfo
-     */
-    getInterfaces: function cA_getInterfaces(aCount) {
-        let interfaces = [Components.interfaces.calIAlarm,
-                            Components.interfaces.nsISupports,
-                            Components.interfaces.nsIClassInfo];
-
-        aCount.value = interfaces.length;
-        return interfaces;
-    },
-    getHelperForLanguage: function cA_getHelperForLanguage(aLang) {
-        return null;
-    },
-    contractID: "@mozilla.org/calendar/alarm;1",
-    classDescription: "Describes a VALARM",
-    classID: Components.ID("{b8db7c7f-c168-4e11-becb-f26c1c4f5f8f}"),
-    implementationLanguage: Components.interfaces.nsIProgrammingLanguage.JAVASCRIPT,
-    flags: 0,
+    classID: calAlarmClassID,
+    QueryInterface: XPCOMUtils.generateQI(calAlarmInterfaces),
+    classInfo: XPCOMUtils.generateCI({
+        classID: calAlarmClassID,
+        contractID: "@mozilla.org/calendar/alarm;1",
+        classDescription: "Describes a VALARM",
+        interfaces: calAlarmInterfaces
+    }),
 
     /**
      * calIAlarm
@@ -287,7 +275,8 @@ calAlarm.prototype = {
 
         // All Day events are handled as 00:00:00
         alarmDate.isDate = false;
-        return alarmDate.addDuration(this.mDuration);
+        alarmDate.addDuration(this.mDuration);
+        return alarmDate;
     },
 
     getAttendees: function getAttendees(aCount) {
@@ -403,7 +392,7 @@ calAlarm.prototype = {
         if (this.related == ALARM_RELATED_ABSOLUTE && this.mAbsoluteDate) {
             // Set the trigger to a specific datetime
             triggerProp.setParameter("VALUE", "DATE-TIME");
-            triggerProp.valueAsDatetime = this.mAbsoluteDate.getInTimezone(UTC());
+            triggerProp.valueAsDatetime = this.mAbsoluteDate.getInTimezone(cal.UTC());
         } else if (this.related != ALARM_RELATED_ABSOLUTE && this.mOffset) {
             triggerProp.valueAsIcalString = this.mOffset.icalString;
             if (this.related == ALARM_RELATED_END) {
@@ -418,12 +407,12 @@ calAlarm.prototype = {
 
         // Set up repeat and duration (OPTIONAL, but if one exists, the other
         // MUST also exist)
-        if (this.repeat && this.duration) {
+        if (this.repeat && this.repeatOffset) {
             let repeatProp = icssvc.createIcalProperty("REPEAT");
             let durationProp = icssvc.createIcalProperty("DURATION");
 
             repeatProp.value = this.repeat;
-            durationProp.valueAsIcalString = this.duration.icalString;
+            durationProp.valueAsIcalString = this.repeatOffset.icalString;
 
             comp.addProperty(repeatProp);
             comp.addProperty(durationProp);
@@ -539,12 +528,12 @@ calAlarm.prototype = {
         }
 
         if (durationProp && repeatProp) {
-            this.duration = cal.createDuration(durationProp.valueAsIcalString);
+            this.repeatOffset = cal.createDuration(durationProp.valueAsIcalString);
             this.repeat = repeatProp.value;
         } else if (durationProp || repeatProp) {
             throw Components.results.NS_ERROR_INVALID_ARG;
         } else {
-            this.duration = null;
+            this.repeatOffset = null;
             this.repeat = 0;
         }
 

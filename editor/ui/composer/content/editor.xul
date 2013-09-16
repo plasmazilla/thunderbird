@@ -54,9 +54,7 @@
   <script type="application/javascript" src="chrome://global/content/printUtils.js"/>
   <script type="application/javascript" src="chrome://global/content/nsDragAndDrop.js"/>
 
-  <popupset id="contentAreaContextSet">
-    <menupopup id="contentAreaContextMenu"/>
-  </popupset>
+  <popupset id="contentAreaContextSet"/>
   <menupopup id="structToolbarContext"/>
   <menupopup id="sidebarPopup"/>
   <menupopup id="popupNotificationMenu"/>
@@ -130,6 +128,8 @@
     <key keycode="VK_TAB" modifiers="control" oncommand="return true;"/>
     <key keycode="VK_TAB" modifiers="control,shift" oncommand="return true;"/>
   </keyset>
+
+  <vbox id="titlebar"/>
 
   <toolbox class="toolbox-top" id="EditorToolbox">
   <menubar id="main-menubar" class="chromeclass-menubar" persist="collapsed" grippytooltiptext="&menuBar.tooltip;">
@@ -321,6 +321,7 @@
         <editor editortype="html"
                 type="content-primary"
                 id="content-frame"
+                onclick="EditorClick(event); if (event.detail == 2) EditorDblClick(event);"
                 context="contentAreaContextMenu"
                 flex="1"
                 tooltip="aHTMLTooltip"/>
@@ -335,7 +336,7 @@
     </deck>
 
     <!-- Edit Mode toolbar -->
-    <hbox id="EditModeToolbar"
+    <tabbox id="EditModeToolbar"
           persist="collapsed">
       <tabs id="EditModeTabs"
             class="tabs-bottom"
@@ -363,7 +364,7 @@
              tooltiptext="&PreviewMode.tooltip;"
              command="cmd_PreviewMode"/>
       </tabs>
-    </hbox>
+    </tabbox>
 
   </vbox> <!-- appcontent -->
 </hbox><!-- sidebar-parent -->

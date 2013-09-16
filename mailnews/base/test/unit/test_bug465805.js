@@ -7,8 +7,7 @@
 
 load("../../../resources/searchTestUtils.js");
 
-const copyService = Cc["@mozilla.org/messenger/messagecopyservice;1"].
-                      getService(Ci.nsIMsgCopyService);
+Components.utils.import("resource:///modules/mailServices.js");
 
 const nsMsgSearchScope = Ci.nsMsgSearchScope;
 const nsMsgSearchAttrib = Ci.nsMsgSearchAttrib;
@@ -40,8 +39,7 @@ var Tests =
 function run_test()
 {
   // Setup local mail accounts.
-
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
   // Get a message into the local filestore. function testBodySearch() continues the testing after the copy.
   do_test_pending();
@@ -57,12 +55,12 @@ var copyListener =
   SetMessageId: function(aMessageId) {},
   OnStopCopy: function(aStatus) 
   {
-    var fileName = Files.shift();
+    let fileName = Files.shift();
     if (fileName)
     { 
-      var file = do_get_file(fileName);
-      copyService.CopyFileMessage(file, gLocalInboxFolder, null, false, 0,
-                              "", copyListener, null);
+      let file = do_get_file(fileName);
+      MailServices.copy.CopyFileMessage(file, localAccountUtils.inboxFolder, null,
+                                        false, 0, "", copyListener, null);
     }
     else
       testBodySearch();
@@ -79,7 +77,7 @@ function testBodySearch()
   var test = Tests.shift();
   if (test)
   {
-    testObject = new TestSearch(gLocalInboxFolder,
+    testObject = new TestSearch(localAccountUtils.inboxFolder,
                          test.value,
                          test.attrib,
                          test.op,

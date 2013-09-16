@@ -61,17 +61,15 @@ void nsMsgRDFDataSource::Cleanup()
   mInitialized = false;
 }
 
-NS_IMPL_CYCLE_COLLECTION_CLASS(nsMsgRDFDataSource)
-
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsMsgRDFDataSource)
-  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMARRAY(mObservers)
-  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mWindow)
-  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mRDFService)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK(mObservers)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK(mWindow)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK(mRDFService)
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsMsgRDFDataSource)
-  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMARRAY(mObservers)
-  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mRDFService)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mObservers)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mRDFService)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
 NS_IMPL_CYCLE_COLLECTING_ADDREF(nsMsgRDFDataSource)
@@ -369,32 +367,3 @@ nsMsgRDFDataSource::changeEnumFunc(nsIRDFObserver *aObserver, void *aData)
                      note->oldObject, note->newObject);
   return true;
 }
-nsresult
-nsMsgRDFDataSource::GetTransactionManager(nsISupportsArray *aSources, nsITransactionManager **aTransactionManager)
-{
-  if(!aTransactionManager)
-    return NS_ERROR_NULL_POINTER;
-
-  *aTransactionManager = nullptr;
-  nsresult rv = NS_OK;
-
-  nsCOMPtr<nsITransactionManager> transactionManager;
-
-  uint32_t cnt;
-
-  rv = aSources->Count(&cnt);
-  if (NS_FAILED(rv)) return rv;
-
-  if (cnt > 0)
-  {
-    transactionManager = do_QueryElementAt(aSources, 0, &rv);
-    if (NS_SUCCEEDED(rv) && transactionManager)
-    {
-      aSources->RemoveElementAt(0);
-      NS_IF_ADDREF(*aTransactionManager = transactionManager);
-    }
-  }
-
-  return NS_OK;
-}
-

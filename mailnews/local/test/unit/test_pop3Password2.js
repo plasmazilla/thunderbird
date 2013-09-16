@@ -4,11 +4,13 @@
  * changed (e.g. realusername and realhostname are different from username and
  * hostname).
  */
+
+Components.utils.import("resource:///modules/mailServices.js");
+
 var test = null;
 var server;
 var daemon;
 var incomingServer;
-var pop3Service;
 var firstTest = true;
 var thisTest;
 
@@ -29,7 +31,8 @@ var urlListener =
 
       do_check_transaction(transaction, thisTest.transaction);
 
-      do_check_eq(gLocalInboxFolder.getTotalMessages(false), thisTest.messages.length);
+      do_check_eq(localAccountUtils.inboxFolder.getTotalMessages(false),
+                  thisTest.messages.length);
 
       do_check_eq(result, 0);
     }
@@ -95,8 +98,8 @@ function testNext() {
     daemon.setMessages(thisTest.messages);
 
     // Now get the mail
-    pop3Service.GetNewMail(null, urlListener, gLocalInboxFolder,
-                           incomingServer);
+    MailServices.pop3.GetNewMail(null, urlListener, localAccountUtils.inboxFolder,
+                                 incomingServer);
 
     server.performTest();
   } catch (e) {
@@ -148,7 +151,7 @@ function run_test() {
   var signons = do_get_file("../../../data/signons-mailnews1.8-alt.txt");
 
   // Copy the file to the profile directory
-  signons.copyTo(gProfileDir, "signons.txt");
+  signons.copyTo(do_get_profile(), "signons.txt");
 
   // Set up the Server
   var serverArray = setupServerDaemon();
@@ -160,30 +163,25 @@ function run_test() {
   handler.kUsername = "testpop3";
   handler.kPassword = "pop3test";
 
-  var acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
+  MailServices.accounts.LoadAccounts();
 
-  acctMgr.LoadAccounts();
+  localAccountUtils.incomingServer = MailServices.accounts.localFoldersServer;
 
-  gLocalIncomingServer = acctMgr.localFoldersServer;
-
-  var rootFolder = gLocalIncomingServer.rootMsgFolder.QueryInterface(Ci.nsIMsgLocalMailFolder);
+  var rootFolder = localAccountUtils.incomingServer
+                                    .rootMsgFolder.QueryInterface(Ci.nsIMsgLocalMailFolder);
 
   // Note: Inbox is not created automatically when there is no deferred server,
   // so we need to create it.
-  gLocalInboxFolder = rootFolder.createLocalSubfolder("Inbox");
+  localAccountUtils.inboxFolder = rootFolder.createLocalSubfolder("Inbox");
   // a local inbox should have a Mail flag!
-  gLocalInboxFolder.setFlag(Ci.nsMsgFolderFlags.Mail);
+  localAccountUtils.inboxFolder.setFlag(Ci.nsMsgFolderFlags.Mail);
 
   // Create the incoming server with "original" details.
-  incomingServer = acctMgr.getIncomingServer("server2");
+  incomingServer = MailServices.accounts.getIncomingServer("server2");
 
   // Check that we haven't got any messages in the folder, if we have its a test
   // setup issue.
-  do_check_eq(gLocalInboxFolder.getTotalMessages(false), 0);
-
-  pop3Service = Cc["@mozilla.org/messenger/popservice;1"]
-                      .getService(Ci.nsIPop3Service);
+  do_check_eq(localAccountUtils.inboxFolder.getTotalMessages(false), 0);
 
   do_test_pending();
 

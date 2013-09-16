@@ -21,14 +21,33 @@
 #include "xpcprivate.h"
 #include "nsStringBuffer.h"
 
-static void
-FinalizeDOMString(const JSStringFinalizer *fin, jschar *chars)
+// One-slot cache, because it turns out it's common for web pages to
+// get the same string a few times in a row.  We get about a 40% cache
+// hit rate on this cache last it was measured.  We'd get about 70%
+// hit rate with a hashtable with removal on finalization, but that
+// would take a lot more machinery.
+nsStringBuffer* XPCStringConvert::sCachedBuffer = nullptr;
+JSString* XPCStringConvert::sCachedString = nullptr;
+
+// Called from GC finalize callback to make sure we don't hand out a pointer to
+// a JSString that's about to be finalized by incremental sweeping.
+// static
+void
+XPCStringConvert::ClearCache()
 {
-    nsStringBuffer::FromData(chars)->Release();
+    sCachedBuffer = nullptr;
+    sCachedString = nullptr;
 }
 
-static const JSStringFinalizer sDOMStringFinalizer = { FinalizeDOMString };
+void
+XPCStringConvert::FinalizeDOMString(const JSStringFinalizer *fin, jschar *chars)
+{
+    nsStringBuffer* buf = nsStringBuffer::FromData(chars);
+    buf->Release();
+}
 
+const JSStringFinalizer XPCStringConvert::sDOMStringFinalizer =
+    { XPCStringConvert::FinalizeDOMString };
 
 // convert a readable to a JSString, copying string data
 // static
@@ -47,36 +66,40 @@ XPCStringConvert::ReadableToJSVal(JSContext *cx,
 
     nsStringBuffer *buf = nsStringBuffer::FromString(readable);
     if (buf) {
-        // yay, we can share the string's buffer!
+        JS::RootedValue val(cx);
+        bool shared;
+        bool ok = StringBufferToJSVal(cx, buf, length, val.address(), &shared);
+        if (!ok) {
+            return JS::NullValue();
+        }
 
-        str = JS_NewExternalString(cx,
-                                   reinterpret_cast<jschar *>(buf->Data()),
-                                   length, &sDOMStringFinalizer);
-
-        if (str) {
+        if (shared) {
             *sharedBuffer = buf;
         }
-    } else {
-        // blech, have to copy.
-
-        jschar *chars = reinterpret_cast<jschar *>
-                                        (JS_malloc(cx, (length + 1) *
-                                                   sizeof(jschar)));
-        if (!chars)
-            return JSVAL_NULL;
-
-        if (length && !CopyUnicodeTo(readable, 0,
-                                     reinterpret_cast<PRUnichar *>(chars),
-                                     length)) {
-            JS_free(cx, chars);
-            return JSVAL_NULL;
-        }
-
-        chars[length] = 0;
-
-        str = JS_NewUCString(cx, chars, length);
-        if (!str)
-            JS_free(cx, chars);
+        return val;
     }
+
+    // blech, have to copy.
+
+    jschar *chars = reinterpret_cast<jschar *>
+                                    (JS_malloc(cx, (length + 1) *
+                                               sizeof(jschar)));
+    if (!chars)
+        return JS::NullValue();
+
+    if (length && !CopyUnicodeTo(readable, 0,
+                                 reinterpret_cast<PRUnichar *>(chars),
+                                 length)) {
+        JS_free(cx, chars);
+        return JS::NullValue();
+    }
+
+    chars[length] = 0;
+
+    str = JS_NewUCString(cx, chars, length);
+    if (!str) {
+        JS_free(cx, chars);
+    }
+
     return str ? STRING_TO_JSVAL(str) : JSVAL_NULL;
 }

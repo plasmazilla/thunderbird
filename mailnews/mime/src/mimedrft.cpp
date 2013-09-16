@@ -140,7 +140,7 @@ mime_dump_attachments ( nsMsgAttachmentData *attachData )
 
     if ( tmp->m_url )
     {
-      nsCAutoString spec;
+      nsAutoCString spec;
       tmp->m_url->GetSpec(spec);
       printf("URL               : %s\n", spec.get());
     }
@@ -175,7 +175,7 @@ nsresult CreateComposeParams(nsCOMPtr<nsIMsgComposeParams> &pMsgComposeParams,
   nsMsgAttachmentData *curAttachment = attachmentList;
   if (curAttachment)
   {
-    nsCAutoString spec;
+    nsAutoCString spec;
 
     while (curAttachment && curAttachment->m_url)
     {
@@ -342,7 +342,7 @@ CreateCompositionFields(const char        *from,
   // Now set all of the passed in stuff...
   cFields->SetCharacterSet(!PL_strcasecmp("us-ascii", charset) ? "ISO-8859-1" : charset);
 
-  char *val;
+  nsAutoCString val;
   nsAutoString outString;
 
   if (from) {
@@ -351,9 +351,8 @@ CreateCompositionFields(const char        *from,
   }
 
   if (subject) {
-    val = MIME_DecodeMimeHeader(subject, charset, false, true);
-    cFields->SetSubject(NS_ConvertUTF8toUTF16(val ? val : subject));
-    PR_FREEIF(val);
+    MIME_DecodeMimeHeader(subject, charset, false, true, val);
+    cFields->SetSubject(NS_ConvertUTF8toUTF16(!val.IsEmpty() ? val.get() : subject));
   }
 
   if (reply_to) {
@@ -377,57 +376,49 @@ CreateCompositionFields(const char        *from,
   }
 
   if (fcc) {
-    val = MIME_DecodeMimeHeader(fcc, charset, false, true);
-    cFields->SetFcc(NS_ConvertUTF8toUTF16(val ? val : fcc));
-    PR_FREEIF(val);
+    MIME_DecodeMimeHeader(fcc, charset, false, true, val);
+    cFields->SetFcc(NS_ConvertUTF8toUTF16(!val.IsEmpty() ? val.get() : fcc));
   }
 
   if (newsgroups) {
     // fixme: the newsgroups header had better be decoded using the server-side
     // character encoding,but this |charset| might be different from it.
-    val = MIME_DecodeMimeHeader(newsgroups, charset, false, true);
-    cFields->SetNewsgroups(NS_ConvertUTF8toUTF16(val ? val : newsgroups));
-    PR_FREEIF(val);
+    MIME_DecodeMimeHeader(newsgroups, charset, false, true, val);
+    cFields->SetNewsgroups(NS_ConvertUTF8toUTF16(!val.IsEmpty() ? val.get() : newsgroups));
   }
 
   if (followup_to) {
-    val = MIME_DecodeMimeHeader(followup_to, charset, false, true);
-    cFields->SetFollowupTo(NS_ConvertUTF8toUTF16(val ? val : followup_to));
-    PR_FREEIF(val);
+    MIME_DecodeMimeHeader(followup_to, charset, false, true, val);
+    cFields->SetFollowupTo(NS_ConvertUTF8toUTF16(!val.IsEmpty() ? val.get() : followup_to));
   }
 
   if (organization) {
-    val = MIME_DecodeMimeHeader(organization, charset, false, true);
-    cFields->SetOrganization(NS_ConvertUTF8toUTF16(val ? val : organization));
-    PR_FREEIF(val);
+    MIME_DecodeMimeHeader(organization, charset, false, true, val);
+    cFields->SetOrganization(NS_ConvertUTF8toUTF16(!val.IsEmpty() ? val.get() : organization));
   }
 
   if (references) {
-    val = MIME_DecodeMimeHeader(references, charset, false, true);
-    cFields->SetReferences(val ? val : references);
-    PR_FREEIF(val);
+    MIME_DecodeMimeHeader(references, charset, false, true, val);
+    cFields->SetReferences(!val.IsEmpty() ? val.get() : references);
   }
 
   if (other_random_headers) {
-    val = MIME_DecodeMimeHeader(other_random_headers, charset, false, true);
-    cFields->SetOtherRandomHeaders(NS_ConvertUTF8toUTF16(val ? val : other_random_headers));
-    PR_FREEIF(val);
+    MIME_DecodeMimeHeader(other_random_headers, charset, false, true, val);
+    cFields->SetOtherRandomHeaders(NS_ConvertUTF8toUTF16(!val.IsEmpty() ? val.get() : other_random_headers));
   }
 
   if (priority) {
-    val = MIME_DecodeMimeHeader(priority, charset, false, true);
+    MIME_DecodeMimeHeader(priority, charset, false, true, val);
     nsMsgPriorityValue priorityValue;
-    NS_MsgGetPriorityFromString(val ? val : priority, priorityValue);
-    PR_FREEIF(val);
-    nsCAutoString priorityName;
+    NS_MsgGetPriorityFromString(!val.IsEmpty() ? val.get() : priority, priorityValue);
+    nsAutoCString priorityName;
     NS_MsgGetUntranslatedPriorityName(priorityValue, priorityName);
     cFields->SetPriority(priorityName.get());
   }
 
   if (newspost_url) {
-    val = MIME_DecodeMimeHeader(newspost_url, charset, false, true);
-    cFields->SetNewspostUrl(val ? val : newspost_url);
-    PR_FREEIF(val);
+    MIME_DecodeMimeHeader(newspost_url, charset, false, true, val);
+    cFields->SetNewspostUrl(!val.IsEmpty() ? val.get() : newspost_url);
   }
 
   *_retval = cFields;
@@ -440,7 +431,7 @@ static int
 dummy_file_write( char *buf, int32_t size, void *fileHandle )
 {
   if (!fileHandle)
-    return NS_ERROR_FAILURE;
+    return -1;
 
   nsIOutputStream  *tStream = (nsIOutputStream *) fileHandle;
   uint32_t bytesWritten;
@@ -489,6 +480,7 @@ mime_draft_process_attachments(mime_draft_data *mdd)
   //It's possible we must treat the message body as attachment!
   bool bodyAsAttachment = false;
   if (mdd->messageBody &&
+      !mdd->messageBody->m_type.IsEmpty() &&
       mdd->messageBody->m_type.Find("text/html", CaseInsensitiveCompare) == -1 &&
       mdd->messageBody->m_type.Find("text/plain", CaseInsensitiveCompare) == -1 &&
       !mdd->messageBody->m_type.LowerCaseEqualsLiteral("text"))
@@ -518,7 +510,7 @@ mime_draft_process_attachments(mime_draft_data *mdd)
 
     if ( tmpFile->m_origUrl )
     {
-      nsCAutoString tmpSpec;
+      nsAutoCString tmpSpec;
       if (NS_FAILED(tmpFile->m_origUrl->GetSpec(tmpSpec)))
         goto FAIL;
 
@@ -587,15 +579,14 @@ mime_intl_insert_message_header_1(char        **body,
     NS_MsgSACat(body, ": ");
 
     // MIME decode header
-    char* utf8 = MIME_DecodeMimeHeader(*hdr_value, mailcharset, false,
-                                       true);
-    if (NULL != utf8) {
+    nsAutoCString utf8Value;
+    MIME_DecodeMimeHeader(*hdr_value, mailcharset, false, true, utf8Value);
+    if (!utf8Value.IsEmpty()) {
       char *escaped = nullptr;
       if (htmlEdit)
-        escaped = MsgEscapeHTML(utf8);
-      NS_MsgSACat(body, escaped ? escaped : utf8);
+        escaped = MsgEscapeHTML(utf8Value.get());
+      NS_MsgSACat(body, escaped ? escaped : utf8Value.get());
       NS_Free(escaped);
-      PR_Free(utf8);
     } else {
         NS_MsgSACat(body, *hdr_value); // raw MIME encoded string
     }
@@ -1222,7 +1213,7 @@ mime_parse_stream_complete (nsMIMESession *stream)
         nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
         if (NS_SUCCEEDED(rv))
         {
-          nsCAutoString fwdPrefix;
+          nsAutoCString fwdPrefix;
           prefBranch->GetCharPref("mail.forward_subject_prefix",
                                   getter_Copies(fwdPrefix));
           char *newSubj = PR_smprintf("%s: %s", !fwdPrefix.IsEmpty() ?
@@ -1675,7 +1666,7 @@ int
 mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
 {
   mime_draft_data *mdd = (mime_draft_data *) stream_closure;
-  nsMsgAttachedFile *attachments = 0, *newAttachment = 0;
+  nsMsgAttachedFile *newAttachment = 0;
   int nAttachments = 0;
   //char *hdr_value = NULL;
   char *parm_value = NULL;
@@ -1794,7 +1785,7 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
   // There's no file in the message if it's a cloud part.
   if (!newAttachment->m_cloudPartInfo.IsEmpty())
   {
-    nsCAutoString fileURL;
+    nsAutoCString fileURL;
     fileURL.Adopt(
       MimeHeaders_get_parameter(newAttachment->m_cloudPartInfo.get(), "file",
                                 nullptr, nullptr));
@@ -1809,11 +1800,11 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
   {
     // Let's build a temp file with an extension based on the content-type: nsmail.<extension>
 
-    nsCAutoString  newAttachName ("nsmail");
+    nsAutoCString  newAttachName ("nsmail");
     bool extensionAdded = false;
     // the content type may contain a charset. i.e. text/html; ISO-2022-JP...we want to strip off the charset
     // before we ask the mime service for a mime info for this content type.
-    nsCAutoString contentType (newAttachment->m_type);
+    nsAutoCString contentType (newAttachment->m_type);
     int32_t pos = contentType.FindChar(';');
     if (pos > 0)
       contentType.SetLength(pos);
@@ -1821,7 +1812,7 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
     nsCOMPtr<nsIMIMEService> mimeFinder (do_GetService(NS_MIMESERVICE_CONTRACTID, &rv));
     if (NS_SUCCEEDED(rv) && mimeFinder)
     {
-      nsCAutoString fileExtension;
+      nsAutoCString fileExtension;
       rv = mimeFinder->GetPrimaryExtension(contentType, EmptyCString(), fileExtension);
 
       if (NS_SUCCEEDED(rv) && !fileExtension.IsEmpty())
@@ -1846,7 +1837,7 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
   // if ( (tmpFile) && (!bodyPart) )
   if (tmpFile)
   {
-      nsCAutoString fileURL;
+      nsAutoCString fileURL;
       rv = NS_GetURLSpecFromFile(tmpFile, fileURL);
       if (NS_SUCCEEDED(rv))
         nsMimeNewURI(getter_AddRefs(newAttachment->m_origUrl),
@@ -1989,10 +1980,10 @@ mime_bridge_create_draft_stream(
   if (!mdd)
     return nullptr;
 
-  nsCAutoString turl;
+  nsAutoCString turl;
   nsCOMPtr <nsIMsgMessageService> msgService;
   nsCOMPtr<nsIURI> aURL;
-  nsCAutoString urlString;
+  nsAutoCString urlString;
   nsresult rv;
 
   // first, convert the rdf msg uri into a url that represents the message...

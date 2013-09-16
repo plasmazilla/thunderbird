@@ -28,8 +28,6 @@ ifdef MOZILLA_OFFICIAL
 DEFINES += -DMOZILLA_OFFICIAL
 endif
 
-DIRS		= profile
-
 PREF_JS_EXPORTS = \
     $(srcdir)/profile/all-thunderbird.js \
     $(srcdir)/profile/channel-prefs.js \
@@ -47,10 +45,6 @@ ifdef LIBXUL_SDK
 include $(topsrcdir)/config/rules.mk
 else
 # Build a binary bootstrapping with XRE_main
-
-PROGRAM = $(MOZ_APP_NAME)$(BIN_SUFFIX)
-
-CPPSRCS = nsMailApp.cpp
 
 DIST_FILES = application.ini
 
@@ -94,16 +88,19 @@ endif
 
 ifeq ($(OS_ARCH),WINNT)
 # Extract the icons we care about embedding into the EXE
-mailtoolbar = $(topsrcdir)/mail/themes/qute/mail/icons/mail-toolbar-aero.png
+mailtoolbar = $(topsrcdir)/mail/themes/windows/mail/icons/mail-toolbar-aero.png
 # Each icon is 18x18 in the toolbar, and we want a 16x16 icon here, so we cut
 # off a pixel at each end.
-libs::
+embedded-icons::
 	$(call png2ico,$(mailtoolbar),19,1,16,write-message.ico)
 	$(call png2ico,$(mailtoolbar),37,1,16,address-book.ico)
 
 GARBAGE += write-message.ico address-book.ico
 
 RCINCLUDE = splash.rc
+# Rebuild thunderbird.exe if the manifest changes - it's included by splash.rc.
+# (this dependency should really be just for thunderbird.exe, not other targets)
+EXTRA_DEPS += $(PROGRAM).manifest
 ifndef GNU_CC
 RCFLAGS += -DMOZ_THUNDERBIRD -I$(srcdir)
 else
@@ -120,6 +117,9 @@ endif
 include $(topsrcdir)/config/rules.mk
 
 ifeq ($(OS_ARCH),WINNT)
+
+$(RESFILE): embedded-icons
+
 #
 # Control the default heap size.
 # This is the heap returned by GetProcessHeap().
@@ -193,15 +193,11 @@ libs:: $(srcdir)/blocklist.xml
 	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin
 
 ifdef ENABLE_TESTS
-# XXX This is a hack to ensure that we get the right xpcshell.ini for our tests
-# and that we can share the core mozilla-central xpcshell.ini.
-# mozilla-central does this in testing/xpcshell-tests which means that it is
-# very hard for anyone to specify anything else.
+# Bug 680203 - When making and running packaged tests on our buildbots,
+# Lightning is not included in the package, so Lightning tests cannot run
+# properly even though we build Lightning.
 libs::
-	$(NSINSTALL) -D $(MOZDEPTH)/_tests/xpcshell
-	cp $(MOZILLA_SRCDIR)/testing/xpcshell/xpcshell.ini $(MOZDEPTH)/_tests/xpcshell/xpcshell-core.ini
-	$(INSTALL) $(topsrcdir)/mail/test/xpcshell.ini $(MOZDEPTH)/_tests/xpcshell
-	cp $(topsrcdir)/mail/test/xpcshell.ini $(MOZDEPTH)/_tests/xpcshell/all-test-dirs.list
+	sed -e '/calendar/d' $(MOZDEPTH)/_tests/xpcshell/xpcshell.ini >$(MOZDEPTH)/_tests/xpcshell/all-test-dirs.list
 endif
 
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))

@@ -10,40 +10,6 @@ VPATH   = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-MODULE           = calbase
-LIBRARY_NAME     = calbase_s
-MODULE_NAME      = calBaseModule
-FORCE_STATIC_LIB = 1
-GRE_MODULE       = 1
-FORCE_USE_PIC   = 1 # Force use of PIC
-USE_STATIC_LIBS = 1
-
-
-XPIDL_MODULE	= calbaseinternal
-XPIDLSRCS = \
-	calInternalInterfaces.idl \
-	$(NULL)
-
-CPPSRCS = calDateTime.cpp \
-	  calDuration.cpp \
-	  calPeriod.cpp \
-	  calICSService.cpp \
-	  calTimezone.cpp \
-	  calRecurrenceRule.cpp \
-	  calRecurrenceDate.cpp \
-	  calRecurrenceDateSet.cpp \
-	  calUtils.cpp \
-	  $(NULL)
-
-EXTRA_COMPONENTS = \
-    calItemModule.manifest \
-    calItemModule.js \
-    calTimezoneService.manifest \
-    calTimezoneService.js \
-    calDefaultACLManager.js \
-    calDefaultACLManager.manifest \
-    $(NULL)
-
 EXTRA_SCRIPTS = \
     calAlarm.js \
     calAlarmService.js \
@@ -61,9 +27,11 @@ EXTRA_SCRIPTS = \
     calItemBase.js \
     calItipItem.js \
     calProtocolHandler.js \
+    calRecurrenceDate.js \
     calRecurrenceInfo.js \
     calRelation.js \
     calStartupService.js \
+    calTimezone.js \
     calTodo.js \
     calUtils.js \
     calWeekInfoService.js \

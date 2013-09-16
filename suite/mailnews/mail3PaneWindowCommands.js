@@ -112,8 +112,9 @@ var DefaultController =
       case "cmd_archive":
 			case "cmd_reply":
 			case "button_reply":
-			case "cmd_replySender":
+			case "cmd_replyList":
 			case "cmd_replyGroup":
+			case "cmd_replySender":
 			case "cmd_replyall":
 			case "button_replyall":
       case "cmd_replySenderAndGroup":
@@ -208,7 +209,7 @@ var DefaultController =
       case "cmd_killThread":
       case "cmd_killSubthread":
       case "cmd_cancel":
-        return(isNewsURI(GetFirstSelectedMessage()));
+        return gFolderDisplay.selectedMessageIsNews;
 
 			default:
 				return false;
@@ -262,12 +263,13 @@ var DefaultController =
       case "cmd_saveAsTemplate":
         var msgFolder = GetSelectedMsgFolders();
         var target = msgFolder[0].server.localStoreType;
-        if (GetNumSelectedMessages() > 1 || target == "news")
+        if (GetNumSelectedMessages() == 0 || target == "news")
           return false;   // else fall thru
       case "cmd_reply":
       case "button_reply":
-      case "cmd_replySender":
+      case "cmd_replyList":
       case "cmd_replyGroup":
+      case "cmd_replySender":
       case "cmd_replyall":
       case "button_replyall":
       case "cmd_replySenderAndGroup":
@@ -338,7 +340,7 @@ var DefaultController =
       case "cmd_displayMsgFilters":
         let mgr = Components.classes["@mozilla.org/messenger/account-manager;1"]
                             .getService(Components.interfaces.nsIMsgAccountManager);
-        return mgr.accounts.Count() > 0;
+        return mgr.accounts.length > 0;
       case "cmd_applyFilters":
         if (gDBView)
           gDBView.getCommandStatus(nsMsgViewCommandType.applyFilters, enabled, checkStatus);
@@ -370,7 +372,7 @@ var DefaultController =
       case "cmd_goForward":
         return gDBView && gDBView.navigateStatus(nsMsgNavigationType.forward);
       case "cmd_goStartPage":
-        return pref.getBoolPref("mailnews.start_page.enabled") && !IsMessagePaneCollapsed();
+        return Services.prefs.getBoolPref("mailnews.start_page.enabled") && !IsMessagePaneCollapsed();
       case "cmd_markAllRead":
         return IsFolderSelected() && gDBView && gDBView.msgFolder.getNumUnread(false) > 0;
       case "cmd_markReadByDate":
@@ -472,11 +474,14 @@ var DefaultController =
 			case "cmd_reply":
 				MsgReplyMessage(null);
 				break;
-			case "cmd_replySender":
-				MsgReplySender(null);
+			case "cmd_replyList":
+				MsgReplyList(null);
 				break;
 			case "cmd_replyGroup":
 				MsgReplyGroup(null);
+				break;
+			case "cmd_replySender":
+				MsgReplySender(null);
 				break;
 			case "cmd_replyall":
 				MsgReplyToAllMessage(null);
@@ -1087,9 +1092,10 @@ function CanRenameDeleteJunkMail(aFolderUri)
   {
     var allServers = accountManager.allServers;
 
-    for (var i=0;i<allServers.Count();i++)
+    for (var i = 0; i < allServers.length; i++)
     {
-      var currentServer = allServers.GetElementAt(i).QueryInterface(Components.interfaces.nsIMsgIncomingServer);
+      var currentServer =
+        allServers.queryElementAt(i, Components.interfaces.nsIMsgIncomingServer);
       var settings = currentServer.spamSettings;
       // If junk mail control or move junk mail to folder option is disabled then
       // allow the folder to be removed/renamed since the folder is not used in this case.

@@ -8,7 +8,8 @@
 <InputEncoding>UTF-8</InputEncoding>
 <Image width="16" height="16" type="image/x-icon">http://www.twitter.com/favicon.ico</Image>
 <SearchForm>https://twitter.com/search/</SearchForm>
-<Url type="text/html" method="GET" template="https://twitter.com/search/{searchTerms}">
+<Url type="text/html" method="GET" template="https://twitter.com/search">
+  <Param name="q" value="{searchTerms}"/>
   <Param name="partner" value="Firefox"/>
   <Param name="source" value="desktop-search"/>
 </Url>

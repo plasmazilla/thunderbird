@@ -602,8 +602,8 @@
             aEmailNode.setAttribute("label", aAddress.fullAddress || aAddress.displayName);
             aEmailNode.removeAttribute("tooltiptext");
             aEmailNode.setAttribute("emailAddress", aAddress.emailAddress);
-            aEmailNode.setAttribute("fullAddress", aAddress.fullAddress);
-            aEmailNode.setAttribute("displayName", aAddress.displayName);
+            aEmailNode.setAttribute("fullAddress", aAddress.fullAddress || "");
+            aEmailNode.setAttribute("displayName", aAddress.displayName || "");
 
             // Since the control attribute points to the
             // <mail-multi-emailHeaderField> element rather than the XUL
@@ -926,14 +926,10 @@
 
             // Re-render the node, this time with all the addresses.
             this.fillAddressesNode(this.emailAddresses, true);
-
-            // Scroll slightly to make it clear to the user how to reach
-            // the remaining addresses
-            let eHV = document.getElementById("expandedHeaderView");
-            let style = getComputedStyle(eHV, null);
-
-            // assume that the last two chars are "px" and discard them
-            eHV.scrollTop = style.getPropertyValue("font-size").slice(0, -2);
+            // Compute height of 'expandedHeaderView' from 'expandedHeadersBox'.
+            let expandedHeaderView = document.getElementById("expandedHeaderView");
+            expandedHeaderView.setAttribute("height", document.getElementById("expandedHeadersBox").clientHeight);
+            // This attribute will be reinit in the 'UpdateExpandedMessageHeaders()' method.
           ]]>
         </body>
       </method>
@@ -1292,9 +1288,6 @@
             for (var i = headerValueNode.childNodes.length - 1; i >= 0; --i)
               headerValueNode.removeChild(headerValueNode.childNodes[i]);
 
-            var tagService = Components.classes["@mozilla.org/messenger/tagservice;1"]
-                             .getService(Components.interfaces.nsIMsgTagService);
-
             // tokenize the keywords based on ' '
             var tagsArray = aTags.split(' ');
             for (var index = 0; index < tagsArray.length; index++)
@@ -1305,10 +1298,10 @@
               try {
                 // if we got a bad tag name, getTagForKey will throw an exception, skip it
                 // and go to the next one.
-                tagName = tagService.getTagForKey(tagsArray[index]);
+                tagName = MailServices.tags.getTagForKey(tagsArray[index]);
               } catch (ex) { continue; }
 
-              var color = tagService.getColorForKey(tagsArray[index]);
+              let color = MailServices.tags.getColorForKey(tagsArray[index]);
 
               // now create a label for the tag name, and set the color
               var label = document.createElement("label");
@@ -1333,6 +1326,11 @@
         ]]>
         </body>
       </method>
+      <constructor>
+        <![CDATA[
+          Components.utils.import("resource:///modules/mailServices.js");
+        ]]>
+      </constructor>
     </implementation>
   </binding>
 
@@ -1350,10 +1348,6 @@
         <![CDATA[
            Components.classes['@mozilla.org/mail/search/validityManager;1'].getService(Components.interfaces.nsIMsgSearchValidityManager);
         ]]>
-      </field>
-      <field name="filterService">
-        Components.classes["@mozilla.org/messenger/services/filters;1"]
-                  .getService(Components.interfaces.nsIMsgFilterService)
       </field>
       <property name="searchScope" onget="return this.internalScope;">
         <!-- scope ID - retrieve the table -->
@@ -1463,7 +1457,7 @@
               (this.valueIds.indexOf(typedValue) < 0) ? "true" : null);
 
             // add a hidden menulist item if value is missing
-            let menuitem = menulist.getElementsByAttribute("value", this.value).item(0);
+            let menuitem = menulist.querySelector('[value="' + this.value + '"]');
             if (!menuitem)
             { // need to add a hidden menuitem
               menuitem = menulist.appendItem(this.valueLabel, this.value);
@@ -1536,20 +1530,6 @@
           <![CDATA[
             var menulist = document.getAnonymousNodes(this)[0];
             this.value = menulist.value;
-            // notify targets
-            var targets = this.targets;
-            if (targets) {
-              for (var i=0; i < targets.length; i++) {
-                targets[i].parentValue = menulist.value;
-              }
-            }
-
-            var optargets = this.optargets;
-            if (optargets) {
-              for (i = 0; i < optargets.length; ++i) {
-                optargets[i].opParentValue = menulist.value;
-              }
-            }
           ]]>
         </body>
       </method>
@@ -1562,9 +1542,7 @@
     <implementation>
       <field name="stringBundle">
         <![CDATA[
-          Components.classes["@mozilla.org/intl/stringbundle;1"]
-                    .getService(Components.interfaces.nsIStringBundleService)
-                    .createBundle("chrome://messenger/locale/search-attributes.properties")
+          this.Services.strings.createBundle("chrome://messenger/locale/search-attributes.properties")
         ]]>
       </field>
       <property name="valueLabel" readonly="true">
@@ -1572,20 +1550,18 @@
           <![CDATA[
             if (isNaN(this.value)) // is this a custom term?
             {
-              let customTerm = this.filterService.getCustomTerm(this.value);
+              let customTerm = MailServices.filters.getCustomTerm(this.value);
               if (customTerm)
                 return customTerm.name;
               else
               {
-                let consoleService = Components.classes["@mozilla.org/consoleservice;1"]
-                    .getService(Components.interfaces.nsIConsoleService);
                 let scriptError = Components.classes["@mozilla.org/scripterror;1"]
                     .createInstance(Components.interfaces.nsIScriptError);
                 scriptError.init("Missing custom search term " + this.value,
                     null, null, 0, 0,
                     Components.interfaces.nsIScriptError.errorFlag,
                     "component javascript");
-                consoleService.logMessage(scriptError);
+                this.Services.console.logMessage(scriptError);
                 return this.stringBundle.GetStringFromName("MissingCustomTerm");
               }
             }
@@ -1600,7 +1576,7 @@
             var length = new Object;
             let result = this.validityTable.getAvailableAttributes(length);
             // add any available custom search terms
-            let customEnum = this.filterService.getCustomTerms();
+            let customEnum = MailServices.filters.getCustomTerms();
             while (customEnum && customEnum.hasMoreElements())
             {
               let customTerm =
@@ -1623,9 +1599,7 @@
             let hdrsArray = null;
             try
             {
-              let hdrs = Components.classes["@mozilla.org/preferences-service;1"]
-                                   .getService(Components.interfaces.nsIPrefBranch)
-                                   .getCharPref("mailnews.customHeaders");
+              let hdrs = this.Services.prefs.getCharPref("mailnews.customHeaders");
               hdrs = hdrs.replace(/\s+/g, "");  //remove white spaces before splitting
               hdrsArray = hdrs.match(/[^:]+/g);
             }
@@ -1638,7 +1612,7 @@
             {
               if (isNaN(ids[i])) // Is this a custom search term?
               {
-                let customTerm = this.filterService.getCustomTerm(ids[i]);
+                let customTerm = MailServices.filters.getCustomTerm(ids[i]);
                 if (customTerm)
                   strings[i] = customTerm.name;
                 else
@@ -1656,6 +1630,8 @@
       </property>
       <constructor>
       <![CDATA[
+        Components.utils.import("resource:///modules/mailServices.js");
+        Components.utils.import("resource://gre/modules/Services.jsm", this);
         initializeTermFromId(this.id);
       ]]>
       </constructor>
@@ -1669,9 +1645,7 @@
       <field name="searchAttribute">Components.interfaces.nsMsgSearchAttrib.Default</field>
       <field name="stringBundle">
         <![CDATA[
-          Components.classes["@mozilla.org/intl/stringbundle;1"]
-                    .getService(Components.interfaces.nsIStringBundleService)
-                    .createBundle("chrome://messenger/locale/search-operators.properties")
+          this.Services.strings.createBundle("chrome://messenger/locale/search-operators.properties")
         ]]>
       </field>
       <property name="valueLabel" readonly="true">
@@ -1688,7 +1662,7 @@
             let isCustom = isNaN(this.searchAttribute);
             if (isCustom)
             {
-              let customTerm = this.filterService.getCustomTerm(this.searchAttribute);
+              let customTerm = MailServices.filters.getCustomTerm(this.searchAttribute);
               if (customTerm)
                 return customTerm.getAvailableOperators(this.searchScope, length);
               return [Components.interfaces.nsMsgSearchOp.Contains];
@@ -1733,6 +1707,12 @@
           ]]>
         </getter>
       </property>
+      <constructor>
+        <![CDATA[
+          Components.utils.import("resource:///modules/mailServices.js");
+          Components.utils.import("resource://gre/modules/Services.jsm", this);
+        ]]>
+      </constructor>
     </implementation>
   </binding>
 
@@ -1747,11 +1727,11 @@
       <xul:textbox flex="1" class="search-value-textbox" xbl:inherits="disabled"/>
       <xul:menulist flex="1" class="search-value-menulist" xbl:inherits="disabled">
         <xul:menupopup class="search-value-popup">
-          <xul:menuitem value="2" stringTag="priorityLowest" class="search-value-menuitem"/>
-          <xul:menuitem value="3" stringTag="priorityLow" class="search-value-menuitem"/>
-          <xul:menuitem value="4" stringTag="priorityNormal" class="search-value-menuitem"/>
-          <xul:menuitem value="5" stringTag="priorityHigh" class="search-value-menuitem"/>
           <xul:menuitem value="6" stringTag="priorityHighest" class="search-value-menuitem"/>
+          <xul:menuitem value="5" stringTag="priorityHigh" class="search-value-menuitem"/>
+          <xul:menuitem value="4" stringTag="priorityNormal" class="search-value-menuitem"/>
+          <xul:menuitem value="3" stringTag="priorityLow" class="search-value-menuitem"/>
+          <xul:menuitem value="2" stringTag="priorityLowest" class="search-value-menuitem"/>
         </xul:menupopup>
       </xul:menulist>
       <xul:menulist flex="1" class="search-value-menulist" xbl:inherits="disabled">
@@ -1803,10 +1783,6 @@
       <field name="internalOperator">null</field>
       <field name="internalAttribute">null</field>
       <field name="internalValue">null</field>
-      <field name="filterService">
-        Components.classes["@mozilla.org/messenger/services/filters;1"]
-                  .getService(Components.interfaces.nsIMsgFilterService);
-      </field>
       <property name="opParentValue" onget="return this.internalOperator;">
         <setter>
           <![CDATA[
@@ -1852,9 +1828,9 @@
               // otherwise, switch to the ab picker and select the PAB
               if (this.internalOperator != Components.interfaces.nsMsgSearchOp.IsntInAB &&
                   this.internalOperator != Components.interfaces.nsMsgSearchOp.IsInAB) {
-                var abs = children[4].getElementsByAttribute("value", "moz-abmdbdirectory://abook.mab");
-                if (abs.item(0))
-                  children[4].selectedItem = abs[0];
+                var abs = children[4].querySelector('[value="moz-abmdbdirectory://abook.mab"]');
+                if (abs)
+                  children[4].selectedItem = abs;
                 this.setAttribute("selectedIndex", "4");
               }
             }
@@ -1969,15 +1945,15 @@
           }
           if (attrib == nsMsgSearchAttrib.Priority) {
             var matchingPriority =
-              children[1].getElementsByAttribute("value", val.priority);
-            if (matchingPriority.item(0))
-              children[1].selectedItem = matchingPriority[0];
+              children[1].querySelector('[value="' + val.priority + '"]');
+            if (matchingPriority)
+              children[1].selectedItem = matchingPriority;
           }
           else if (attrib == nsMsgSearchAttrib.MsgStatus) {
             var matchingStatus =
-              children[2].getElementsByAttribute("value", val.status);
-            if (matchingStatus.item(0))
-              children[2].selectedItem = matchingStatus[0];
+              children[2].querySelector('[value="' + val.status + '"]');
+            if (matchingStatus)
+              children[2].selectedItem = matchingStatus;
           }
           else if (attrib == nsMsgSearchAttrib.AgeInDays)
             children[9].value = val.age;
@@ -1991,39 +1967,39 @@
           {
             if (this.internalOperator == Components.interfaces.nsMsgSearchOp.IsntInAB ||
                 this.internalOperator == Components.interfaces.nsMsgSearchOp.IsInAB) {
-              var abs = children[4].getElementsByAttribute("value", val.str);
-              if (abs.item(0))
-                children[4].selectedItem = abs[0];
+              var abs = children[4].querySelector('[value="' + val.str + '"]');
+              if (abs)
+                children[4].selectedItem = abs;
             }
             else
               children[0].value = val.str;
           }
           else if (attrib == nsMsgSearchAttrib.Keywords)
           {
-            var keywordVal = children[5].getElementsByAttribute("value", val.str);
-            if (keywordVal.item(0))
+            var keywordVal = children[5].querySelector('[value="' + val.str + '"]');
+            if (keywordVal)
             {
               children[5].value = val.str;
-              children[5].selectedItem = keywordVal[0];
+              children[5].selectedItem = keywordVal;
             }
           }
           else if (attrib == nsMsgSearchAttrib.JunkStatus) {
             var junkStatus =
-              children[6].getElementsByAttribute("value", val.junkStatus);
-            if (junkStatus.item(0))
-              children[6].selectedItem = junkStatus[0];
+              children[6].querySelector('[value="' + val.junkStatus + '"]');
+            if (junkStatus)
+              children[6].selectedItem = junkStatus;
           }
           else if (attrib == nsMsgSearchAttrib.HasAttachmentStatus) {
             var hasAttachmentStatus =
-              children[7].getElementsByAttribute("value", val.hasAttachmentStatus);
-            if (hasAttachmentStatus.item(0))
-              children[7].selectedItem = hasAttachmentStatus[0];
+              children[7].querySelector('[value="' + val.hasAttachmentStatus + '"]');
+            if (hasAttachmentStatus)
+              children[7].selectedItem = hasAttachmentStatus;
           }
           else if (attrib == nsMsgSearchAttrib.JunkScoreOrigin) {
             var junkScoreOrigin =
-              children[8].getElementsByAttribute("value", val.str);
-            if (junkScoreOrigin.item(0))
-              children[8].selectedItem = junkScoreOrigin[0];
+              children[8].querySelector('[value="' + val.str + '"]');
+            if (junkScoreOrigin)
+              children[8].selectedItem = junkScoreOrigin;
           }
           else if (attrib == nsMsgSearchAttrib.JunkPercent) {
             children[9].value = val.junkPercent;
@@ -2105,9 +2081,7 @@
           <![CDATA[
             var children = document.getAnonymousNodes(this);
             var popupMenu = children[5].firstChild;
-            var tagService = Components.classes["@mozilla.org/messenger/tagservice;1"]
-                                       .getService(Components.interfaces.nsIMsgTagService);
-            var tagArray = tagService.getAllTags({});
+            let tagArray = MailServices.tags.getAllTags({});
             for (var i = 0; i < tagArray.length; ++i)
             {
               var taginfo = tagArray[i];
@@ -2150,10 +2124,11 @@
       </method>
       <constructor>
       <![CDATA[
+        Components.utils.import("resource:///modules/mailServices.js");
+        Components.utils.import("resource://gre/modules/Services.jsm", this);
+
         // initialize strings
-        var bundle = Components.classes["@mozilla.org/intl/stringbundle;1"]
-                       .getService(Components.interfaces.nsIStringBundleService)
-                       .createBundle("chrome://messenger/locale/messenger.properties");
+        var bundle = this.Services.strings.createBundle("chrome://messenger/locale/messenger.properties");
 
         // intialize the priority picker
         this.initialize(document.getAnonymousNodes(this)[1], bundle);
@@ -2196,7 +2171,8 @@
       </constructor>
     </implementation>
     <handlers>
-      <handler event="keypress" keycode="VK_RETURN" action="onEnterInSearchTerm();"/>
+      <handler event="keypress" keycode="VK_RETURN" modifiers="accel any"
+               action="onEnterInSearchTerm(event);" preventdefault="true"/>
     </handlers>
   </binding>
 
@@ -2390,86 +2366,6 @@
     </handlers>
   </binding>
 
-  <binding id="folderTargetPopup" extends="chrome://messenger/content/mailWidgets.xml#popup-base">
-    <xbl:content xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-      <tree class="foldersTree"
-            treelines="true"
-            flex="1"
-            datasources="rdf:msgaccountmanager rdf:mailnewsfolders"
-            ref="msgaccounts:/"
-            flags="dont-build-content"
-            seltype="text"
-            hidecolumnpicker="true">
-        <treecols>
-          <treecol flex="1" primary="true" sort="rdf:http://home.netscape.com/NC-rdf#FolderTreeName?sort=true" sortActive="true" sortDirection="ascending" crop="center" hideheader="true"/>
-        </treecols>
-        <treechildren class="foldersTreeChildren"/>
-        <template>
-          <rule nc:CanFileMessagesOnServer="true" nc:CanFileMessages="true" nc:CanSearchMessages="true">
-            <treechildren>
-              <treeitem uri="rdf:*">
-                <treerow sort="rdf:http://home.netscape.com/NC-rdf#FolderTreeName?sort=true">
-                  <treecell label="rdf:http://home.netscape.com/NC-rdf#FolderTreeSimpleName"
-                    properties="folderNameCol specialFolder-rdf:http://home.netscape.com/NC-rdf#SpecialFolder isServer-rdf:http://home.netscape.com/NC-rdf#IsServer isSecure-rdf:http://home.netscape.com/NC-rdf#IsSecure serverType-rdf:http://home.netscape.com/NC-rdf#ServerType noSelect-rdf:http://home.netscape.com/NC-rdf#NoSelect"/>
-                </treerow>
-              </treeitem>
-            </treechildren>
-          </rule>
-          <rule nc:CanFileMessagesOnServer="true" nc:CanFileMessages="false" nc:CanSearchMessages="true" nc:Virtual="false">
-            <treechildren>
-              <treeitem uri="rdf:*">
-                <treerow sort="rdf:http://home.netscape.com/NC-rdf#FolderTreeName?sort=true">
-                  <treecell label="rdf:http://home.netscape.com/NC-rdf#FolderTreeSimpleName"
-                    properties="folderNameCol specialFolder-rdf:http://home.netscape.com/NC-rdf#SpecialFolder isServer-rdf:http://home.netscape.com/NC-rdf#IsServer isSecure-rdf:http://home.netscape.com/NC-rdf#IsSecure serverType-rdf:http://home.netscape.com/NC-rdf#ServerType noSelect-rdf:http://home.netscape.com/NC-rdf#NoSelect"/>
-                </treerow>
-              </treeitem>
-            </treechildren>
-          </rule>
-          <rule nc:CanFileMessagesOnServer="true" nc:CanFileMessages="true" nc:Virtual="false">
-            <treechildren>
-              <treeitem uri="rdf:*">
-                <treerow sort="rdf:http://home.netscape.com/NC-rdf#FolderTreeName?sort=true">
-                  <treecell label="rdf:http://home.netscape.com/NC-rdf#FolderTreeSimpleName"
-                    properties="folderNameCol specialFolder-rdf:http://home.netscape.com/NC-rdf#SpecialFolder isServer-rdf:http://home.netscape.com/NC-rdf#IsServer isSecure-rdf:http://home.netscape.com/NC-rdf#IsSecure serverType-rdf:http://home.netscape.com/NC-rdf#ServerType noSelect-rdf:http://home.netscape.com/NC-rdf#NoSelect"/>
-                </treerow>
-              </treeitem>
-            </treechildren>
-          </rule>
-        </template>
-      </tree>
-    </xbl:content>
-  </binding>
-
-  <binding id="searchpopup" extends="chrome://messenger/content/mailWidgets.xml#popup-base">
-    <xbl:content xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-      <tree class="foldersTree"
-            treelines="true"
-            flex="1"
-            datasources="rdf:msgaccountmanager rdf:mailnewsfolders"
-            ref="msgaccounts:/"
-            flags="dont-build-content"
-            seltype="text"
-            hidecolumnpicker="true">
-        <treecols>
-          <treecol flex="1" primary="true" sort="rdf:http://home.netscape.com/NC-rdf#FolderTreeName?sort=true" sortActive="true" sortDirection="ascending" crop="center" hideheader="true"/>
-        </treecols>
-        <treechildren class="foldersTreeChildren"/>
-        <template>
-          <rule nc:CanSearchMessages="true" nc:Virtual="false">
-            <treechildren>
-              <treeitem uri="rdf:*">
-                <treerow sort="rdf:http://home.netscape.com/NC-rdf#FolderTreeName?sort=true">
-                  <treecell label="rdf:http://home.netscape.com/NC-rdf#FolderTreeSimpleName"
-                    properties="folderNameCol specialFolder-rdf:http://home.netscape.com/NC-rdf#SpecialFolder isServer-rdf:http://home.netscape.com/NC-rdf#IsServer isSecure-rdf:http://home.netscape.com/NC-rdf#IsSecure serverType-rdf:http://home.netscape.com/NC-rdf#ServerType noSelect-rdf:http://home.netscape.com/NC-rdf#NoSelect"/>
-                </treerow>
-              </treeitem>
-            </treechildren>
-          </rule>
-        </template>
-      </tree>
-    </xbl:content>
-  </binding>
-
   <binding id="folderSummary-popup" extends="chrome://global/content/bindings/popup.xml#tooltip">
     <content>
       <children>
@@ -2479,16 +2375,23 @@
     <handlers>
       <handler event="popupshowing">
         <![CDATA[
-          var msgFolder = gFolderTreeView.getFolderAtCoords(event.clientX,
+          let msgFolder = gFolderTreeView.getFolderAtCoords(event.clientX,
                                                             event.clientY);
-          if (!msgFolder || msgFolder.isServer)
+          if (!msgFolder)
             return false;
 
-          var asyncResults = {};
-          let newMessages = document.getAnonymousNodes(this)[0].parseFolder(msgFolder, null, asyncResults);
-          let addLocation = document.getAnonymousNodes(this)[0].addLocationInfo(msgFolder);
+          let tooltipnode = document.getAnonymousNodes(this)[0];
+          let asyncResults = {};
+          if (tooltipnode.parseFolder(msgFolder, null, asyncResults))
+            return true;
 
-          return newMessages || addLocation;
+          let row = {}, col = {};
+          gFolderTreeView._tree.getCellAt(event.clientX, event.clientY, row, col, {});
+          let cropped = gFolderTreeView._tree.isCellCropped(row.value, col.value);
+          if (tooltipnode.addLocationInfo(msgFolder, cropped))
+            return true;
+
+          return false;
         ]]>
       </handler>
 
@@ -2513,14 +2416,13 @@
         <body>
           <![CDATA[
             // skip servers, Trash, Junk folders and newsgroups
-            if (!aFolder || aFolder.isServer ||
+
+            if (!aFolder || aFolder.isServer || !aFolder.hasNewMessages ||
                 aFolder.getFlag(Components.interfaces.nsMsgFolderFlags.Junk) ||
                 aFolder.getFlag(Components.interfaces.nsMsgFolderFlags.Trash) ||
                 (aFolder.server instanceof Components.interfaces.nsINntpIncomingServer))
               return false;
-            var pref = Components.classes["@mozilla.org/preferences-service;1"]
-                                 .getService(Components.interfaces.nsIPrefBranch);
-            var showPreviewText = pref.getBoolPref("mail.biff.alert.show_preview");
+            var showPreviewText = this.Services.prefs.getBoolPref("mail.biff.alert.show_preview");
             var folderArray = new Array;
             if (aFolder.flags & Components.interfaces.nsMsgFolderFlags.Virtual)
             {
@@ -2582,8 +2484,6 @@
               foundNewMsg = true;
 
               var index = 0;
-              var hdrParser = Components.classes["@mozilla.org/messenger/headerparser;1"]
-                                        .getService(Components.interfaces.nsIMsgHeaderParser);
               while (document.getAnonymousNodes(this)[0].childNodes.length < this.mMaxMsgHdrsInPopup && index < numMsgKeys.value)
               {
                 var msgPopup = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", "folderSummaryMessage");
@@ -2611,7 +2511,7 @@
 
                 var names = {};
                 var emails = {};
-                var numAddresses = hdrParser.parseHeadersWithArray(msgHdr.mime2DecodedAuthor, emails, names, {});
+                let numAddresses = MailServices.headerParser.parseHeadersWithArray(msgHdr.mime2DecodedAuthor, emails, names, {});
                 msgPopup.setAttribute('sender', names.value[0] ? names.value[0] : emails.value[0]);
                 msgPopup.msgHdr = msgHdr;
                 document.getAnonymousNodes(this)[0].appendChild(msgPopup);
@@ -2626,19 +2526,9 @@
 
       <method name="addLocationInfo">
         <parameter name="aFolder"/>
+        <parameter name="aCropped"/>
         <body>
           <![CDATA[
-            // Use the full newsgroup name as tooltip for abbreviated newsgroups.
-            if ((aFolder.server instanceof Components.interfaces.nsINntpIncomingServer) &&
-                !(aFolder.flags & Components.interfaces.nsMsgFolderFlags.Virtual) &&
-                aFolder.server.abbreviate) {
-
-              let loc = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", "folderSummaryLocation");
-              loc.setAttribute("location", aFolder.name);
-              document.getAnonymousNodes(this)[0].appendChild(loc);
-              return true;
-            }
-
             // Display location info for items in favorite folder pane mode.
             if (gFolderTreeView.mode == "favorite") {
               let loc = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", "folderSummaryLocation");
@@ -2649,6 +2539,18 @@
                 midFolder = midFolder.parent;
               }
               loc.setAttribute("location", aFolder.server.prettyName + " - " + midPath + aFolder.name);
+              document.getAnonymousNodes(this)[0].appendChild(loc);
+              return true;
+            }
+
+            // If folder name is cropped or is a newsgroup and abbreviated per
+            // pref, use the full name as a tooltip.
+            if (aCropped ||
+                ((aFolder.server instanceof Components.interfaces.nsINntpIncomingServer) &&
+                 !(aFolder.flags & Components.interfaces.nsMsgFolderFlags.Virtual) &&
+                 aFolder.server.abbreviate) && !aFolder.isServer) {
+              let loc = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", "folderSummaryLocation");
+              loc.setAttribute("location", aFolder.name);
               document.getAnonymousNodes(this)[0].appendChild(loc);
               return true;
             }
@@ -2667,6 +2569,12 @@
           ]]>
         </body>
       </method>
+      <constructor>
+        <![CDATA[
+          Components.utils.import("resource:///modules/mailServices.js");
+          Components.utils.import("resource://gre/modules/Services.jsm", this);
+        ]]>
+      </constructor>
     </implementation>
   </binding>
 
@@ -2693,12 +2601,12 @@
       <constructor>
         <![CDATA[
           Components.utils.import("resource:///modules/MailUtils.js");
-          var pref = Components.classes["@mozilla.org/preferences-service;1"]
-                               .getService(Components.interfaces.nsIPrefBranch);
-          if (!pref.getBoolPref("mail.biff.alert.show_preview"))
+          Components.utils.import("resource://gre/modules/Services.jsm", this);
+
+          if (!this.Services.prefs.getBoolPref("mail.biff.alert.show_preview"))
             document.getAnonymousElementByAttribute(this, "anonid", "preview").hidden = true;
-          var hideSubject = !pref.getBoolPref("mail.biff.alert.show_subject");
-          var hideSender = !pref.getBoolPref("mail.biff.alert.show_sender");
+          var hideSubject = !this.Services.prefs.getBoolPref("mail.biff.alert.show_subject");
+          var hideSender = !this.Services.prefs.getBoolPref("mail.biff.alert.show_sender");
           if (hideSubject)
             document.getAnonymousElementByAttribute(this, "anonid", "subject").hidden = true;
           if (hideSender)

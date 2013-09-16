@@ -120,15 +120,13 @@ function Startup()
 // this function changes status for all non-done/non-failure to failure
 function SetProgressStatusCancel()
 {
-  var listitems = document.getElementsByTagName("listitem");
+  let listitems = document.querySelectorAll('listitem:not([progress="done"]):not([progress="failed"])');
   if (!listitems)
     return;
 
   for (var i=0; i < listitems.length; i++)
   {
-    var attr = listitems[i].getAttribute("progress");
-    if (attr != "done" && attr != "failed")
-      listitems[i].setAttribute("progress", "failed");
+    listitems[i].setAttribute("progress", "failed");
   }
 }
 
@@ -143,24 +141,17 @@ function SetProgressStatus(filename, status)
   if (!status)
     status = "busy";
 
-  // Just set attribute for status icon 
-  // if we already have this filename 
-  var listitems = document.getElementsByTagName("listitem");
-  if (listitems)
+  // Just set attribute for status icon if we already have this filename.
+  let listitem = document.querySelector('listitem[label="' + filename + '"]');
+  if (listitem)
   {
-    for (var i=0; i < listitems.length; i++)
-    {
-      if (listitems[i].getAttribute("label") == filename)
-      {
-        listitems[i].setAttribute("progress", status);
-        return true;
-      }
-    }
+    listitem.setAttribute("progress", status);
+    return true;
   }
   // We're adding a new file item to list
   gTotalFileCount++;
 
-  var listitem = document.createElementNS(XUL_NS, "listitem");
+  listitem = document.createElementNS(XUL_NS, "listitem");
   if (listitem)
   {
     listitem.setAttribute("class", "listitem-iconic progressitem");
@@ -295,19 +286,16 @@ function onClose()
 {
   if (!gFinished)
   {
-    const nsIPromptService = Components.interfaces.nsIPromptService;
-    var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                                  .getService(nsIPromptService);
-    const buttonFlags = (nsIPromptService.BUTTON_TITLE_IS_STRING *
-                         nsIPromptService.BUTTON_POS_0) +
-                        (nsIPromptService.BUTTON_TITLE_CANCEL *
-                         nsIPromptService.BUTTON_POS_1);
-    var button = promptService.confirmEx(window,
-                                         GetString("CancelPublishTitle"),
-                                         GetString("CancelPublishMessage"),
-                                         buttonFlags,
-                                         GetString("CancelPublishContinue"),
-                                         null, null, null, {});
+    const buttonFlags = (Services.prompt.BUTTON_TITLE_IS_STRING *
+                         Services.prompt.BUTTON_POS_0) +
+                        (Services.prompt.BUTTON_TITLE_CANCEL *
+                         Services.prompt.BUTTON_POS_1);
+    let button = Services.prompt.confirmEx(window,
+                                           GetString("CancelPublishTitle"),
+                                           GetString("CancelPublishMessage"),
+                                           buttonFlags,
+                                           GetString("CancelPublishContinue"),
+                                           null, null, null, {});
     if (button == 0)
       return false;
   }

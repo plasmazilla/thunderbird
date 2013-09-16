@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
 
 const mailtolength = 7;
@@ -60,6 +61,8 @@ function fillMailContextMenu(event)
 
   goUpdateCommand('cmd_printpreview');
   goUpdateCommand('cmd_print');
+
+  updateCheckedStateForIgnoreAndWatchThreadCmds();
   
   gContextMenu = new nsContextMenu(event.target, event.shiftKey);
   return gContextMenu.shouldDisplay;
@@ -113,8 +116,8 @@ function GetMessageIdFromNode(messageIdNode, cleanMessageId)
  */
 function OpenBrowserWithMessageId(messageId)
 {
-  var browserURL = pref.getComplexValue("mailnews.messageid_browser.url",
-                                        Components.interfaces.nsIPrefLocalizedString).data;
+  var browserURL = Services.prefs.getComplexValue("mailnews.messageid_browser.url",
+                                                  Components.interfaces.nsIPrefLocalizedString).data;
   browserURL = browserURL.replace(/%mid/, messageId);
   try
   {
@@ -136,28 +139,26 @@ function OpenBrowserWithMessageId(messageId)
  */
 function OpenMessageForMessageId(messageId)
 {
-  var startServer = msgWindow.openFolder.server;
+  let startServer = msgWindow.openFolder.server;
 
   window.setCursor("wait");
 
   // first search in current folder for message id
-  var messageHeader = CheckForMessageIdInFolder(msgWindow.openFolder, messageId);
+  let messageHeader = CheckForMessageIdInFolder(msgWindow.openFolder, messageId);
 
   // if message id not found in current folder search in all folders
   if (!messageHeader)
   {
-    var accountManager = Components.classes["@mozilla.org/messenger/account-manager;1"]
-                                   .getService(Components.interfaces.nsIMsgAccountManager);
-    var allServers = accountManager.allServers;
+    let allServers = MailServices.accounts.allServers;
 
     messageHeader = SearchForMessageIdInSubFolder(startServer.rootFolder, messageId);
 
-    for (var i = 0; i < allServers.Count() && !messageHeader; i++)
+    for (let i = 0; i < allServers.length && !messageHeader; i++)
     {
-      var currentServer = allServers.GetElementAt(i);
-      if ((currentServer instanceof Components.interfaces.nsIMsgIncomingServer) &&
-          startServer != currentServer && currentServer.canSearchMessages &&
-          !currentServer.isDeferredTo)
+      let currentServer =
+        allServers.queryElementAt(i, Components.interfaces.nsIMsgIncomingServer);
+      if (currentServer && startServer != currentServer &&
+          currentServer.canSearchMessages && !currentServer.isDeferredTo)
       {
         messageHeader = SearchForMessageIdInSubFolder(currentServer.rootFolder, messageId);
       }
@@ -168,18 +169,16 @@ function OpenMessageForMessageId(messageId)
   // if message id was found open corresponding message
   // else show error message
   if (messageHeader)
-    OpenMessageByHeader(messageHeader, pref.getBoolPref("mailnews.messageid.openInNewWindow"));
+    OpenMessageByHeader(messageHeader, Services.prefs.getBoolPref("mailnews.messageid.openInNewWindow"));
   else
   {
-    var messageIdStr = "<" + messageId + ">";
-    var bundle = document.getElementById("bundle_messenger");
-    var errorTitle = bundle.getString("errorOpenMessageForMessageIdTitle");
-    var errorMessage = bundle.getFormattedString("errorOpenMessageForMessageIdMessage",
+    let messageIdStr = "<" + messageId + ">";
+    let bundle = document.getElementById("bundle_messenger");
+    let errorTitle = bundle.getString("errorOpenMessageForMessageIdTitle");
+    let errorMessage = bundle.getFormattedString("errorOpenMessageForMessageIdMessage",
                                                  [messageIdStr]);
-    var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                                  .getService(Components.interfaces.nsIPromptService);
 
-    promptService.alert(window, errorTitle, errorMessage);
+    Services.prompt.alert(window, errorTitle, errorMessage);
   }
 }
 
@@ -274,11 +273,9 @@ function CheckForMessageIdInFolder(folder, messageId)
     Components.utils.reportError("Failed to find message-id in folder; " +
                                  "messageId=" + messageId);
   }
-  var mailSession = Components.classes["@mozilla.org/messenger/services/session;1"]
-                              .getService(Components.interfaces.nsIMsgMailSession);
 
   const nsMsgFolderFlags = Components.interfaces.nsMsgFolderFlags;
-  if (!mailSession.IsFolderOpenInWindow(folder) &&
+  if (!MailServices.mailSession.IsFolderOpenInWindow(folder) &&
       !(folder.flags & (nsMsgFolderFlags.Trash | nsMsgFolderFlags.Inbox)))
   {
     folder.msgDatabase = null;

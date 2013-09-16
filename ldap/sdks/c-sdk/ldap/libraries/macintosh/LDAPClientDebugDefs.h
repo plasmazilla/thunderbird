@@ -56,7 +56,6 @@
 #define macintosh
 #endif 
 
-#define XP_MAC
 #define DEBUG	1
 
 #include "IDE_Options.h"

@@ -156,8 +156,15 @@ class nsMsgCopy;
 class nsIPrompt;
 class nsIInterfaceRequestor;
 
+namespace mozilla {
+namespace mailnews {
+class MimeEncoder;
+}
+}
+
 class nsMsgComposeAndSend : public nsIMsgSend
 {
+  typedef mozilla::mailnews::MimeEncoder MimeEncoder;
 public:
   //
   // Define QueryInterface, AddRef and Release for this class
@@ -173,7 +180,7 @@ public:
   NS_IMETHOD  DeliverFileAsMail();
   NS_IMETHOD  DeliverFileAsNews();
   void        DoDeliveryExitProcessing(nsIURI * aUrl, nsresult aExitCode, bool aCheckForMail);
-  nsresult    FormatStringWithSMTPHostNameByID(int32_t aMsgId, PRUnichar **aString);
+  nsresult    FormatStringWithSMTPHostNameByID(nsresult aMsgId, PRUnichar **aString);
 
   nsresult    DoFcc();
   nsresult    StartMessageCopyOperation(nsIFile          *aFileSpec,
@@ -208,8 +215,7 @@ public:
                    nsMsgDeliverMode mode,
                    nsIMsgDBHdr      *msgToReplace,
                    const char       *attachment1_type,
-                   const char       *attachment1_body,
-                   uint32_t         attachment1_body_length,
+                   const nsACString &attachment1_body,
                    nsIArray   *attachments,
                    nsIArray     *preloaded_attachments,
                    const char       *password,
@@ -223,7 +229,7 @@ public:
                                     const nsACString &aOriginalMsgURI,
                                     MSG_ComposeType aType);
 
-  int         SetMimeHeader(nsMsgCompFields::MsgHeaderID header, const char *value);
+  nsresult    SetMimeHeader(nsMsgCompFields::MsgHeaderID header, const char *value);
   NS_IMETHOD  GetBodyFromEditor();
 
 
@@ -243,8 +249,7 @@ public:
   nsCOMPtr<nsISupportsArray> mEmbeddedObjectList; // it's initialized when calling GetMultipartRelatedCount
 
   // Body processing
-  nsresult    SnarfAndCopyBody(const char  *attachment1_body,
-                               uint32_t    attachment1_body_length,
+  nsresult    SnarfAndCopyBody(const nsACString &attachment1_body,
                                const char  *attachment1_type);
 
   int32_t     PreProcessPart(nsMsgAttachmentHandler  *ma,
@@ -307,13 +312,13 @@ public:
   //
   char                    *m_attachment1_type;
   char                    *m_attachment1_encoding;
-  MimeEncoderData         *m_attachment1_encoder_data;
+  nsAutoPtr<MimeEncoder>  m_attachment1_encoder;
   char                    *m_attachment1_body;
   uint32_t                m_attachment1_body_length;
   char                    *mOriginalHTMLBody;
 
   // The plaintext form of the first attachment, if needed.
-  nsMsgAttachmentHandler  *m_plaintext;
+  nsRefPtr<nsMsgAttachmentHandler>  m_plaintext;
 
   // The multipart/related save object for HTML text.
   nsMsgSendPart           *m_related_part;
@@ -324,7 +329,7 @@ public:
   //
   uint32_t                m_attachment_count;
   uint32_t                m_attachment_pending_count;
-  nsMsgAttachmentHandler  *m_attachments;
+  nsTArray< nsRefPtr<nsMsgAttachmentHandler> >  m_attachments;
   nsresult                m_status; // in case some attachments fail but not all
 
   uint32_t                mPreloadedAttachmentCount;
@@ -355,7 +360,6 @@ public:
                                                         // server to be opened, or would cause much seek()ing.
 
   bool                    mGUINotificationEnabled;      // Should we throw up the GUI alerts on errors?
-  bool                    mLastErrorReported;           // Last error reported to the user.
   bool                    mAbortInProcess;              // Used by Abort to avoid reentrance.
 
   nsCOMPtr<nsIMsgComposeSecure> m_crypto_closure;
@@ -365,7 +369,7 @@ protected:
   nsresult GetNotificationCallbacks(nsIInterfaceRequestor** aCallbacks);
 private:
   // will set m_attachment1_body & m_attachment1_body_length;
-  nsresult EnsureLineBreaks(const char *body, uint32_t body_len);
+  nsresult EnsureLineBreaks(const nsCString &aBody);
 
   // generates a message id for our message, if necessary
   void GenerateMessageId( );

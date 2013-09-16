@@ -153,6 +153,8 @@
 <!ENTITY event.location.accesskey                         "L">
 <!ENTITY event.categories.label                           "Category:">
 <!ENTITY event.categories.accesskey                       "y">
+<!ENTITY event.categories.textbox.label                   "Add a new category" >
+<!ENTITY event.categories.textbox.accesskey               "A">
 <!ENTITY event.calendar.label                             "Calendar:" >
 <!ENTITY event.calendar.accesskey                         "C">
 <!ENTITY event.attendees.label                            "Attendees:" >
@@ -171,6 +173,8 @@
 <!ENTITY task.status.accesskey                            "a">
 <!ENTITY event.repeat.label                               "Repeat:" >
 <!ENTITY event.repeat.accesskey                           "R">
+<!ENTITY event.until.label                                "Until:">
+<!ENTITY event.until.accesskey                            "i">
 <!ENTITY event.reminder.label                             "Reminder:" >
 <!ENTITY event.reminder.accesskey                         "m">
 <!ENTITY event.description.label                          "Description:" >

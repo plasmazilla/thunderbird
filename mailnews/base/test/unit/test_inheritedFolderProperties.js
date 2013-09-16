@@ -8,13 +8,13 @@
 
 function run_test()
 { 
-  loadLocalMailAccount();
-  var rootFolder = gLocalIncomingServer.rootMsgFolder;
+  localAccountUtils.loadLocalMailAccount();
+  var rootFolder = localAccountUtils.incomingServer.rootMsgFolder;
 
   // add subfolders to the inbox
-  const subFolder11 = gLocalInboxFolder.createLocalSubfolder("subfolder11")
+  const subFolder11 = localAccountUtils.inboxFolder.createLocalSubfolder("subfolder11")
                          .QueryInterface(Ci.nsIMsgLocalMailFolder);
-  const subFolder12 = gLocalInboxFolder.createLocalSubfolder("subfolder12")
+  const subFolder12 = localAccountUtils.inboxFolder.createLocalSubfolder("subfolder12")
                          .QueryInterface(Ci.nsIMsgLocalMailFolder);
   const subFolder21 = subFolder11.createLocalSubfolder("subfolder21");
   const subFolder22 = subFolder12.createLocalSubfolder("subfolder22");
@@ -46,7 +46,7 @@ function run_test()
   do_check_eq(subFolder22.getInheritedStringProperty(propertyName), globalValue);
 
   // set a root folder value and check
-  gLocalIncomingServer.setCharValue(propertyName, rootValue);
+  localAccountUtils.incomingServer.setCharValue(propertyName, rootValue);
   do_check_eq(rootFolder.getInheritedStringProperty(propertyName), rootValue);
   do_check_eq(subFolder11.getInheritedStringProperty(propertyName), folderValue);
   do_check_eq(subFolder12.getInheritedStringProperty(propertyName), rootValue);
@@ -71,7 +71,7 @@ function run_test()
   do_check_eq(subFolder22.getInheritedStringProperty(propertyName), rootValue);
 
   // force an empty string on the server
-  gLocalIncomingServer.setForcePropertyEmpty(propertyName, true);
+  localAccountUtils.incomingServer.setForcePropertyEmpty(propertyName, true);
   do_check_eq(rootFolder.getInheritedStringProperty(propertyName), "");
   do_check_eq(subFolder11.getInheritedStringProperty(propertyName), folderValue);
   do_check_eq(subFolder12.getInheritedStringProperty(propertyName), "");
@@ -79,8 +79,8 @@ function run_test()
   do_check_eq(subFolder22.getInheritedStringProperty(propertyName), "");
 
   // reset a server to allow inheritance from the global
-  gLocalIncomingServer.setCharValue(propertyName, "");
-  gLocalIncomingServer.setForcePropertyEmpty(propertyName, false);
+  localAccountUtils.incomingServer.setCharValue(propertyName, "");
+  localAccountUtils.incomingServer.setForcePropertyEmpty(propertyName, false);
   do_check_eq(rootFolder.getInheritedStringProperty(propertyName), globalValue);
   do_check_eq(subFolder11.getInheritedStringProperty(propertyName), folderValue);
   do_check_eq(subFolder12.getInheritedStringProperty(propertyName), globalValue);
@@ -89,7 +89,7 @@ function run_test()
 
   // check with all levels populated
   subFolder21.setStringProperty(propertyName, folderValue2);
-  gLocalIncomingServer.setCharValue(propertyName, rootValue);
+  localAccountUtils.incomingServer.setCharValue(propertyName, rootValue);
   do_check_eq(rootFolder.getInheritedStringProperty(propertyName), rootValue);
   do_check_eq(subFolder11.getInheritedStringProperty(propertyName), folderValue);
   do_check_eq(subFolder12.getInheritedStringProperty(propertyName), rootValue);
@@ -98,7 +98,7 @@ function run_test()
   
   // clear the global value and the root value
   Services.prefs.clearUserPref(globalPref);
-  gLocalIncomingServer.setCharValue(propertyName, "");
+  localAccountUtils.incomingServer.setCharValue(propertyName, "");
   do_check_eq(rootFolder.getInheritedStringProperty(propertyName), null);
   do_check_eq(subFolder11.getInheritedStringProperty(propertyName), folderValue);
   do_check_eq(subFolder12.getInheritedStringProperty(propertyName), null);

@@ -3,17 +3,17 @@
  */
 
 
-load("../../../resources/mailTestUtils.js");
+Components.utils.import("resource:///modules/mailServices.js");
+
 var gMessenger = Cc["@mozilla.org/messenger;1"].
                    createInstance(Ci.nsIMessenger);
 
-loadLocalMailAccount();
+localAccountUtils.loadLocalMailAccount();
 
-let acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-               .getService(Ci.nsIMsgAccountManager);
-let localAccount = acctMgr.FindAccountForServer(gLocalIncomingServer);
-let identity = acctMgr.createIdentity();
-identity.email = "bob@t2.exemple.net";
+let localAccount = MailServices.accounts
+                               .FindAccountForServer(localAccountUtils.incomingServer);
+let identity = MailServices.accounts.createIdentity();
+identity.email = "bob@t2.example.net";
 localAccount.addIdentity(identity);
 localAccount.defaultIdentity = identity;
 
@@ -21,11 +21,11 @@ function run_test()
 {
   var headers = 
     "from: alice@t1.example.com\r\n" + 
-    "to: bob@t2.exemple.net\r\n" + 
+    "to: bob@t2.example.net\r\n" + 
     "message-id:   \r\n   <abcmessageid>\r\n";
 
-  let localFolder = gLocalInboxFolder.QueryInterface(Ci.nsIMsgLocalMailFolder);
-  gLocalInboxFolder.addMessage("From \r\n"+ headers + "\r\nhello\r\n");
-  var msgHdr = gLocalInboxFolder.GetMessageHeader(0);
+  let localFolder = localAccountUtils.inboxFolder.QueryInterface(Ci.nsIMsgLocalMailFolder);
+  localAccountUtils.inboxFolder.addMessage("From \r\n"+ headers + "\r\nhello\r\n");
+  var msgHdr = localAccountUtils.inboxFolder.GetMessageHeader(0);
   do_check_eq(msgHdr.messageId, "abcmessageid");
 }

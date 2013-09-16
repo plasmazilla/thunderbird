@@ -7,7 +7,7 @@
 #include "nsIMsgAttachment.idl"
 #include "nsISimpleEnumerator.idl"
 
-[scriptable, uuid(a58cd120-ba9b-11de-8a39-0800200c9a66)]
+[scriptable, uuid(bb793677-87c1-4125-b929-252bd9177794)]
 interface nsIMsgCompFields : nsISupports {
 
   attribute AString from;
@@ -15,17 +15,17 @@ interface nsIMsgCompFields : nsISupports {
   attribute AString to;
   attribute AString cc;
   attribute AString bcc;
-  
+  readonly attribute bool hasRecipients;
+
   attribute AString fcc;
   attribute AString fcc2;
-  
+
   attribute AString newsgroups;
-  attribute string  newshost;
   attribute string  newspostUrl;
   attribute AString followupTo;
 
   attribute AString subject;
-  
+
   attribute AString organization;
   attribute string  references;
   attribute string  priority;
@@ -48,13 +48,6 @@ interface nsIMsgCompFields : nsISupports {
   attribute AString otherRandomHeaders;
 
   /**
-   * Addresses for the other forms of reply.
-   */
-  attribute AString senderReply;
-  attribute AString allReply;
-  attribute AString listReply;
-
-  /**
    * Beware that when setting this property, your body must be properly wrapped,
    * and the line endings must match MSG_LINEBREAK, namely "\r\n" on Windows
    * and "\n" on Linux and OSX.
@@ -67,7 +60,7 @@ interface nsIMsgCompFields : nsISupports {
    * @OBSOLETE, DO NOT USE ANYMORE
    */
   attribute string  temporaryFiles;
-  
+
   readonly attribute nsISimpleEnumerator attachments;
   void addAttachment(in nsIMsgAttachment attachment);
   void removeAttachment(in nsIMsgAttachment attachment);
@@ -91,13 +84,13 @@ interface nsIMsgCompFields : nsISupports {
   // Check if the composing mail headers can be converted to a mail charset.
   boolean checkCharsetConversion(out string fallbackCharset);
 
-  /** 
+  /**
    * Indicates whether we need to check if the current |DocumentCharset|
    * can represent all the characters in the message body. It should be
    * initialized to true and set to false when 'Send Anyway' is selected
    * by a user. (bug 249530)
    */
-  attribute boolean needToCheckCharset; 
+  attribute boolean needToCheckCharset;
 
   attribute nsISupports securityInfo;
 };

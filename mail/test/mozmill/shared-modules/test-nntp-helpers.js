@@ -6,6 +6,8 @@ var Ci = Components.interfaces;
 var Cc = Components.classes;
 var Cu = Components.utils;
 
+Cu.import("resource://gre/modules/Services.jsm");
+
 var elib = {};
 Cu.import('resource://mozmill/modules/elementslib.js', elib);
 var mozmill = {};
@@ -22,7 +24,7 @@ const kSimpleNewsArticle =
   "Date: Sat, 24 Mar 1990 10:59:24 -0500\n"+
   "Newsgroups: test.subscribe.simple\n"+
   "Subject: H2G2 -- What does it mean?\n"+
-  "Message-ID: <TSS1@nntp.test>\n"+
+  "Message-ID: <TSS1@nntp.invalid>\n"+
   "\n"+
   "What does the acronym H2G2 stand for? I've seen it before...\n";
 
@@ -84,9 +86,7 @@ function setupNNTPDaemon() {
 }
 
 // Enable strict threading
-var prefs = Cc["@mozilla.org/preferences-service;1"]
-              .getService(Ci.nsIPrefBranch);
-prefs.setBoolPref("mail.strict_threading", true);
+Services.prefs.setBoolPref("mail.strict_threading", true);
 
 
 // Make sure we don't try to use a protected port. I like adding 1024 to the
@@ -110,14 +110,12 @@ function subscribeServer(incomingServer) {
 function setupLocalServer(port) {
   if (_server != null)
     return _server;
-  var acctmgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
 
-  var server = acctmgr.createIncomingServer(null, "localhost", "nntp");
+  var server = MailServices.accounts.createIncomingServer(null, "localhost", "nntp");
   server.port = port;
   server.valid = false;
 
-  var account = acctmgr.createAccount();
+  var account = MailServices.accounts.createAccount();
   account.incomingServer = server;
   server.valid = true;
 
@@ -128,9 +126,7 @@ function setupLocalServer(port) {
   return server;
 }
 
-const URLCreator = Cc["@mozilla.org/messenger/messageservice;1?type=news"]
-                     .getService(Ci.nsINntpService)
-                     .QueryInterface(Ci.nsIProtocolHandler);
+const URLCreator = MailServices.nntp.QueryInterface(Ci.nsIProtocolHandler);
 
 function create_post(baseURL, file) {
   var url = URLCreator.newURI(baseURL, null, null);

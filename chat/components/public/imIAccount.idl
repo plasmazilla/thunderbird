@@ -12,19 +12,16 @@ interface imIAccountBuddy;
 interface imIAccount;
 interface prplIProtocol;
 interface purpleIProxyInfo;
+interface nsIScriptError;
 
 /*
  * Used to join chat rooms.
  */
 
-[ptr] native GHashTablePtr(GHashTable);
-
-[scriptable, uuid(ea7ab156-d25e-46cc-93ef-29f77b3c0795)]
+[scriptable, uuid(7e91accd-f04c-4787-9954-c7db4fb235fb)]
 interface prplIChatRoomFieldValues: nsISupports {
   AUTF8String getValue(in AUTF8String aIdentifier);
   void setValue(in AUTF8String aIdentifier, in AUTF8String aValue);
-
-  [noscript] readonly attribute GHashTablePtr hashTable;
 };
 
 [scriptable, uuid(19dff981-b125-4a70-bc1a-efc783d07137)]
@@ -150,10 +147,6 @@ interface prplIAccount: nsISupports {
   //    The text buffer must be formatted as a whole.
   readonly attribute boolean singleFormatting;
 
-  //   PURPLE_CONNECTION_NO_NEWLINES
-  //    No new lines are allowed in outgoing messages.
-  readonly attribute boolean noNewlines;
-
   //   PURPLE_CONNECTION_NO_FONTSIZE
   //    Connection does not send/receive font sizes.
   readonly attribute boolean noFontSizes;
@@ -168,6 +161,17 @@ interface prplIAccount: nsISupports {
 
   // This is currently used only by Twitter.
   readonly attribute long maxMessageLength;
+};
+
+
+[scriptable, uuid(488959b4-992e-4626-ae96-beaf6adc4a77)]
+interface imIDebugMessage: nsISupports {
+  const short LEVEL_DEBUG   = 1;
+  const short LEVEL_LOG     = 2;
+  const short LEVEL_WARNING = 3;
+  const short LEVEL_ERROR   = 4;
+  readonly attribute short logLevel; // One of the above constants.
+  readonly attribute nsIScriptError message;
 };
 
 /* This interface should be implemented by the im core. It inherits
@@ -254,6 +258,12 @@ interface imIAccount: prplIAccount {
   readonly attribute boolean connected;
   readonly attribute boolean connecting;
   readonly attribute boolean disconnecting;
+
+  void logDebugMessage(in nsIScriptError aMessage, in short aLevel);
+
+  /* Get an array of the 50 most recent debug messages. */
+  void getDebugMessages([optional] out unsigned long aCount,
+                        [retval, array, size_is(aCount)] out imIDebugMessage aMessages);
 
   /* The imIUserStatusInfo instance this account should observe for
      status changes. When this is null (the default value), the

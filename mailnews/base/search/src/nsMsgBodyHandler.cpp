@@ -92,7 +92,7 @@ int32_t nsMsgBodyHandler::GetNextLine (nsCString &buf)
   int32_t length = -1;          // length of incoming line or -1 eof
   int32_t outLength = -1;       // length of outgoing line or -1 eof
   bool eatThisLine = true;
-  nsCAutoString nextLine;
+  nsAutoCString nextLine;
 
   while (eatThisLine) {
     // first, handle the filtering case...this is easy....
@@ -136,7 +136,7 @@ void nsMsgBodyHandler::OpenLocalFolder()
   nsCOMPtr <nsIInputStream> inputStream;
   nsresult rv = m_scope->GetInputStream(m_msgHdr, getter_AddRefs(inputStream));
   // Warn and return if GetInputStream fails
-  NS_ENSURE_SUCCESS(rv, );
+  NS_ENSURE_SUCCESS_VOID(rv);
   m_fileLineStream = do_QueryInterface(inputStream);
 }
 

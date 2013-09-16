@@ -9,11 +9,9 @@
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 
 // IMAP pump
-load("../../../resources/IMAPpump.js");
 
 setupIMAPPump();
 
@@ -29,7 +27,7 @@ function run_test()
 {
 
   // Create a test filter.
-  let filterList = gIMAPIncomingServer.getFilterList(null);
+  let filterList = IMAPPump.incomingServer.getFilterList(null);
   let filter = filterList.createFilter("test list-id");
   let searchTerm = filter.createTerm();
   searchTerm.attrib = Ci.nsMsgSearchAttrib.OtherHeader + 1;
@@ -57,20 +55,20 @@ function setupTest() {
   let file = do_get_file("../../../data/bugmail19");
   let msgfileuri = Services.io.newFileURI(file).QueryInterface(Ci.nsIFileURL);
 
-  gIMAPMailbox.addMessage(new imapMessage(msgfileuri.spec,
-                                          gIMAPMailbox.uidnext++, []));
-  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+  IMAPPump.mailbox.addMessage(new imapMessage(msgfileuri.spec,
+                                          IMAPPump.mailbox.uidnext++, []));
+  IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
   yield false;
 }
 
 function checkFilterResults() {
-  let msgHdr = firstMsgHdr(gIMAPInbox);
+  let msgHdr = mailTestUtils.firstMsgHdr(IMAPPump.inbox);
   do_check_true(msgHdr.isRead);
   yield true;
 }
 
 // Cleanup
 function endTest() {
-  gIMAPServer.performTest("UID STORE");
+  IMAPPump.server.performTest("UID STORE");
   teardownIMAPPump();
 }

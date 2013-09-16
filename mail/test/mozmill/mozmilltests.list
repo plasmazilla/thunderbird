@@ -11,10 +11,12 @@ folder-display
 folder-pane
 folder-tree-modes
 folder-widget
+im
 instrumentation
 junk-commands
 keyboard
 message-header
+message-reader
 message-window
 migration-to-rdf-ui-2
 migration-to-rdf-ui-3

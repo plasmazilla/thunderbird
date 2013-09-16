@@ -10,7 +10,6 @@ const EXPORTED_SYMBOLS = [
   "GenericConvChatBuddyPrototype",
   "GenericMessagePrototype",
   "GenericProtocolPrototype",
-  "ForwardProtocolPrototype",
   "Message",
   "TooltipInfo"
 ];
@@ -20,55 +19,11 @@ const {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
 Cu.import("resource:///modules/imXPCOMUtils.jsm");
 Cu.import("resource:///modules/imServices.jsm");
 
-initLogModule("jsProtoHelper", this);
-
 XPCOMUtils.defineLazyGetter(this, "_", function()
   l10nHelper("chrome://chat/locale/conversations.properties")
 );
 
 function normalize(aString) aString.replace(/[^a-z0-9]/gi, "").toLowerCase()
-
-const ForwardAccountPrototype = {
-  __proto__: ClassInfo("prplIAccount", "generic account object"),
-  _init: function _init(aBase) {
-    this._base = aBase;
-  },
-
-  observe: function(aSubject, aTopic, aData) {
-    this._base.observe(aSubject, aTopic, aData);
-  },
-  remove: function() this._base.remove(),
-  unInit: function() this._base.unInit(),
-  connect: function() this._base.connect(),
-  disconnect: function() this._base.disconnect(),
-  createConversation: function(aName) this._base.createConversation(aName),
-  addBuddy: function(aTag, aName) this._base.addBuddy(aTag, aName),
-  loadBuddy: function(aBuddy, aTag) this._base.loadBuddy(aBuddy, aTag),
-  requestBuddyInfo: function(aBuddyName) this._base.requestBuddyInfo(aBuddyName),
-  getChatRoomFields: function() this._base.getChatRoomFields(),
-  getChatRoomDefaultFieldValues: function(aDefaultChatName)
-    this._base.getChatRoomDefaultFieldValues(aDefaultChatName),
-  joinChat: function(aComponents) this._base.joinChat(aComponents),
-  setBool: function(aName, aVal) this._base.setBool(aName, aVal),
-  setInt: function(aName, aVal) this._base.setInt(aName, aVal),
-  setString: function(aName, aVal) this._base.setString(aName, aVal),
-
-  get canJoinChat() this._base.canJoinChat,
-  get normalizedName() this._base.normalizedName,
-  get proxyInfo() this._base.proxyInfo,
-  get connectionErrorReason() this._base.connectionErrorReason,
-  get HTMLEnabled() this._base.HTMLEnabled,
-  get noBackgroundColors() this._base.noBackgroundColors,
-  get autoResponses() this._base.autoResponses,
-  get singleFormatting() this._base.singleFormatting,
-  get noNewlines() this._base.noNewlines,
-  get noFontSizes() this._base.noFontSizes,
-  get noUrlDesc() this._base.noUrlDesc,
-  get noImages() this._base.noImages,
-  get maxMessageLength() this._base.maxMessageLength,
-
-  set proxyInfo(val) { this._base.proxyInfo = val; }
-};
 
 const GenericAccountPrototype = {
   __proto__: ClassInfo("prplIAccount", "generic account object"),
@@ -76,6 +31,7 @@ const GenericAccountPrototype = {
   _init: function _init(aProtocol, aImAccount) {
     this.protocol = aProtocol;
     this.imAccount = aImAccount;
+    initLogModule(aProtocol.id, this);
   },
   observe: function(aSubject, aTopic, aData) {},
   remove: function() { throw Cr.NS_ERROR_NOT_IMPLEMENTED; },
@@ -180,7 +136,6 @@ const GenericAccountPrototype = {
   get noBackgroundColors() true,
   get autoResponses() false,
   get singleFormatting() false,
-  get noNewlines() false,
   get noFontSizes() false,
   get noUrlDesc() false,
   get noImages() true,
@@ -190,6 +145,11 @@ const GenericAccountPrototype = {
 
 const GenericAccountBuddyPrototype = {
   __proto__: ClassInfo("imIAccountBuddy", "generic account buddy object"),
+  get DEBUG() this._account.DEBUG,
+  get LOG() this._account.LOG,
+  get WARN() this._account.WARN,
+  get ERROR() this._account.ERROR,
+
   _init: function(aAccount, aBuddy, aTag, aUserName) {
     if (!aBuddy && !aUserName)
       throw "aUserName is required when aBuddy is null";
@@ -386,10 +346,16 @@ const GenericConversationPrototype = {
   flags: Ci.nsIClassInfo.DOM_OBJECT,
   get wrappedJSObject() this,
 
+  get DEBUG() this._account.DEBUG,
+  get LOG() this._account.LOG,
+  get WARN() this._account.WARN,
+  get ERROR() this._account.ERROR,
+
   _init: function(aAccount, aName) {
     this._account = aAccount;
     this._name = aName;
     this._observers = [];
+    this._date = new Date() * 1000;
     Services.conversations.addConversation(this);
   },
 
@@ -434,7 +400,8 @@ const GenericConversationPrototype = {
   get account() this._account.imAccount,
   get name() this._name,
   get normalizedName() normalize(this.name),
-  get title() this.name
+  get title() this.name,
+  get startDate() this._date
 };
 
 const GenericConvIMPrototype = {
@@ -510,7 +477,7 @@ const GenericConvChatPrototype = {
   get nick() this._nick,
   set nick(aNick) {
     this._nick = aNick;
-    let escapedNick = this._nick.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+    let escapedNick = this._nick.replace(/[[\]{}()*+?.\\^$|]/g, "\\$&");
     this._pingRegexp = new RegExp("\\b" + escapedNick + "\\b", "i");
   },
 
@@ -751,45 +718,4 @@ const GenericProtocolPrototype = {
 
   get classDescription() this.name + " Protocol",
   get contractID() "@mozilla.org/chat/" + this.normalizedName + ";1"
-};
-
-function ForwardAccount(aBaseAccount)
-{
-  this._init(aBaseAccount);
-}
-ForwardAccount.prototype = ForwardAccountPrototype;
-
-// the baseId property should be set to the prpl id of the base protocol plugin
-// and the name getter is required.
-const ForwardProtocolPrototype = {
-  __proto__: GenericProtocolPrototype,
-
-  get base() {
-    if (!this.hasOwnProperty("_base"))
-      this._base = Services.core.getProtocolById(this.baseId);
-    return this._base;
-  },
-  getAccount: function(aImAccount)
-    new ForwardAccount(this.base.getAccount(aImAccount)),
-
-  get iconBaseURI() this.base.iconBaseURI,
-  getOptions: function() this.base.getOptions(),
-  getUsernameSplit: function() this.base.getUsernameSplit(),
-  accountExists: function(aName) this.base.accountExists(aName),
-  get uniqueChatName() this.base.uniqueChatName,
-  get chatHasTopic() this.base.chatHasTopic,
-  get noPassword() this.base.noPassword,
-  get newMailNotification() this.base.newMailNotification,
-  get imagesInIM() this.base.imagesInIM,
-  get passwordOptional() this.base.passwordOptional,
-  get usePointSize() this.base.usePointSize,
-  get registerNoScreenName() this.base.registerNoScreenName,
-  get slashCommandsNative() this.base.slashCommandsNative,
-  get usePurpleProxy() this.base.usePurpleProxy,
-
-  registerCommands: function() {
-    // Get the base protocol's commands and re-register them for this protocol.
-    for each (let command in Services.cmd.listCommandsForProtocol(this.baseId))
-      Services.cmd.registerCommand(command, this.id);
-  }
 };

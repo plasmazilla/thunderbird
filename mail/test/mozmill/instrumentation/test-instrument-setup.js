@@ -27,7 +27,6 @@ var user = {
 
 
 function setupModule(module) {
-  let pref = Cc["@mozilla.org/preferences-service;1"].getService(Ci.nsIPrefBranch);
   wh = collector.getModule("window-helpers");
   wh.installInto(module);
   var fdh = collector.getModule("folder-display-helpers");
@@ -40,10 +39,9 @@ function setupModule(module) {
 
 function test_mail_account_setup() {
   // Set the pref to load a local autoconfig file.
-  let pref = Cc["@mozilla.org/preferences-service;1"].getService(Ci.nsIPrefBranch);
   let pref_name = "mailnews.auto_config_url";
   let url = collector.addHttpResource("../account/xml", "autoconfig");
-  pref.setCharPref(pref_name, url);
+  Services.prefs.setCharPref(pref_name, url);
 
   // Force .com MIME-Type to text/xml
   collector.httpd.registerContentType("com", "text/xml");
@@ -75,7 +73,7 @@ function test_mail_account_setup() {
   let events = mc.window.mailInstrumentationManager._currentState.events;
 
   // Clean up
-  pref.clearUserPref(pref_name);
+  Services.prefs.clearUserPref(pref_name);
   wait_for_window_close();
   remove_account();
 
@@ -88,18 +86,13 @@ function test_mail_account_setup() {
 
 // Remove the account we added.
 function remove_account() {
-  let am = Cc["@mozilla.org/messenger/account-manager;1"]
-      .getService(Ci.nsIMsgAccountManager);
-  let smtpService = Cc["@mozilla.org/messengercompose/smtp;1"]
-                     .getService(Ci.nsISmtpService);
-
-  let incomingServer = am.FindServer("roger.sterling", "testin.example.com", "pop3");
-  let account = am.FindAccountForServer(incomingServer)
+  let incomingServer = MailServices.accounts.FindServer("roger.sterling", "testin.example.com", "pop3");
+  let account = MailServices.accounts.FindAccountForServer(incomingServer)
 
   let identity = account.defaultIdentity;
-  am.removeIncomingServer(incomingServer, true);
-  outgoing = smtpService.getServerByKey(identity.smtpServerKey);
-  smtpService.deleteSmtpServer(outgoing);
-  am.removeAccount(account);
+  MailServices.accounts.removeIncomingServer(incomingServer, true);
+  outgoing = MailServices.smtp.getServerByKey(identity.smtpServerKey);
+  MailServices.smtp.deleteServer(outgoing);
+  MailServices.accounts.removeAccount(account);
 }
 

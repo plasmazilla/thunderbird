@@ -71,12 +71,10 @@ function editPage(url, aFileType)
     charsetArg = "charset=" + content.document.characterSet;
 
   try {
-    var uri = createURI(url, null, null);
+    let uri = createURI(url, null, null);
 
-    var windowManager = Components.classes['@mozilla.org/appshell/window-mediator;1'].getService();
-    var windowManagerInterface = windowManager.QueryInterface( Components.interfaces.nsIWindowMediator);
-    var enumerator = windowManagerInterface.getEnumerator("composer:" + aFileType);
-    var emptyWindow;
+    let enumerator = Services.wm.getEnumerator("composer:" + aFileType);
+    let emptyWindow;
     while ( enumerator.hasMoreElements() )
     {
       var win = enumerator.getNext();
@@ -118,9 +116,7 @@ function editPage(url, aFileType)
 function createURI(urlstring)
 {
   try {
-    var ioserv = Components.classes["@mozilla.org/network/io-service;1"]
-               .getService(Components.interfaces.nsIIOService);
-    return ioserv.newURI(urlstring, null, null);
+    return Services.io.newURI(urlstring, null, null);
   } catch (e) {}
 
   return null;

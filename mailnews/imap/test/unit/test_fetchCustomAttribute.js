@@ -8,11 +8,9 @@
 
 // async support
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 
 // IMAP pump
-load("../../../resources/IMAPpump.js");
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 
@@ -41,11 +39,11 @@ var tests = [
 function loadImapMessage()
 {
   let message = new imapMessage(specForFileName(gMessage),
-                          gIMAPMailbox.uidnext++, []);
+                          IMAPPump.mailbox.uidnext++, []);
   message.xCustomValue = gCustomValue;
   message.xCustomList = gCustomList;
-  gIMAPMailbox.addMessage(message);
-  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+  IMAPPump.mailbox.addMessage(message);
+  IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
   yield false;
 }
 
@@ -53,8 +51,8 @@ function loadImapMessage()
 // not in a parenthesis group - Bug 750012
 function testFetchCustomValue()
 {
-  let msgHdr = firstMsgHdr(gIMAPInbox);
-  let uri = gIMAPInbox.fetchCustomMsgAttribute("X-CUSTOM-VALUE", msgHdr.messageKey, gMsgWindow);
+  let msgHdr = mailTestUtils.firstMsgHdr(IMAPPump.inbox);
+  let uri = IMAPPump.inbox.fetchCustomMsgAttribute("X-CUSTOM-VALUE", msgHdr.messageKey, gMsgWindow);
   uri.QueryInterface(Ci.nsIMsgMailNewsUrl);
   uri.RegisterListener(fetchCustomValueListener);
   yield false;
@@ -74,8 +72,8 @@ var fetchCustomValueListener = {
 // Used to verify that nsIServerResponseParser.msg_fetch() can handle a parenthesis group - Bug 735542
 function testFetchCustomList()
 {
-  let msgHdr = firstMsgHdr(gIMAPInbox);
-  let uri = gIMAPInbox.fetchCustomMsgAttribute("X-CUSTOM-LIST", msgHdr.messageKey, gMsgWindow);
+  let msgHdr = mailTestUtils.firstMsgHdr(IMAPPump.inbox);
+  let uri = IMAPPump.inbox.fetchCustomMsgAttribute("X-CUSTOM-LIST", msgHdr.messageKey, gMsgWindow);
   uri.QueryInterface(Ci.nsIMsgMailNewsUrl);
   uri.RegisterListener(fetchCustomListListener);
   yield false;
@@ -112,9 +110,6 @@ function run_test()
 function specForFileName(aFileName)
 {
   let file = do_get_file("../../../data/" + aFileName);
-  let msgfileuri = Cc["@mozilla.org/network/io-service;1"]
-                     .getService(Ci.nsIIOService)
-                     .newFileURI(file)
-                     .QueryInterface(Ci.nsIFileURL);
+  let msgfileuri = Services.io.newFileURI(file).QueryInterface(Ci.nsIFileURL);
   return msgfileuri.spec;
 }

@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 /**** NAMESPACES ****/
 const XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 
@@ -21,9 +23,6 @@ const kOutputSelectionOnly = Components.interfaces.nsIDocumentEncoder.OutputSele
 const kOutputWrap = Components.interfaces.nsIDocumentEncoder.OutputWrap;
 
 var gStringBundle;
-var gIOService;
-var gPrefsService;
-var gPrefsBranch;
 var gFilePickerDirectory;
 
 var gOS = "";
@@ -37,41 +36,16 @@ const kMailComposerWindowID = "msgcomposeWindow";
 var gIsHTMLEditor;
 /************* Message dialogs ***************/
 
-function AlertWithTitle(title, message, parentWindow)
-{
-  if (!parentWindow)
-    parentWindow = window;
-
-  var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"].getService();
-  promptService = promptService.QueryInterface(Components.interfaces.nsIPromptService);
-
-  if (promptService)
-  {
-    if (!title)
-      title = GetString("Alert");
-
-    // "window" is the calling dialog window
-    promptService.alert(parentWindow, title, message);
-  }
-}
-
 // Optional: Caller may supply text to substitue for "Ok" and/or "Cancel"
 function ConfirmWithTitle(title, message, okButtonText, cancelButtonText)
 {
-  var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"].getService();
-  promptService = promptService.QueryInterface(Components.interfaces.nsIPromptService);
+  let okFlag = okButtonText ? Services.prompt.BUTTON_TITLE_IS_STRING : Services.prompt.BUTTON_TITLE_OK;
+  let cancelFlag = cancelButtonText ? Services.prompt.BUTTON_TITLE_IS_STRING : Services.prompt.BUTTON_TITLE_CANCEL;
 
-  if (promptService)
-  {
-    var okFlag = okButtonText ? promptService.BUTTON_TITLE_IS_STRING : promptService.BUTTON_TITLE_OK;
-    var cancelFlag = cancelButtonText ? promptService.BUTTON_TITLE_IS_STRING : promptService.BUTTON_TITLE_CANCEL;
-
-    return promptService.confirmEx(window, title, message,
-                            (okFlag * promptService.BUTTON_POS_0) +
-                            (cancelFlag * promptService.BUTTON_POS_1),
-                            okButtonText, cancelButtonText, null, null, {value:0}) == 0;
-  }
-  return false;
+  return Services.prompt.confirmEx(window, title, message,
+                                   (okFlag * Services.prompt.BUTTON_POS_0) +
+                                   (cancelFlag * Services.prompt.BUTTON_POS_1),
+                                   okButtonText, cancelButtonText, null, null, {value:0}) == 0;
 }
 
 /************* String Utilities ***************/
@@ -81,13 +55,7 @@ function GetString(name)
   if (!gStringBundle)
   {
     try {
-      var strBundleService =
-          Components.classes["@mozilla.org/intl/stringbundle;1"].getService(); 
-      strBundleService = 
-          strBundleService.QueryInterface(Components.interfaces.nsIStringBundleService);
-
-      gStringBundle = strBundleService.createBundle("chrome://editor/locale/editor.properties"); 
-
+      gStringBundle = Services.strings.createBundle("chrome://editor/locale/editor.properties");
     } catch (ex) {}
   }
   if (gStringBundle)
@@ -104,11 +72,7 @@ function GetFormattedString(aName, aVal)
   if (!gStringBundle)
   {
     try {
-      var gStringBundle =
-          Components.classes["@mozilla.org/intl/stringbundle;1"]
-                    .getService(Components.interfaces.nsIStringBundleService)
-                    .createBundle("chrome://editor/locale/editor.properties"); 
-
+      gStringBundle = Services.strings.createBundle("chrome://editor/locale/editor.properties");
     } catch (ex) {}
   }
   if (gStringBundle)
@@ -122,26 +86,24 @@ function GetFormattedString(aName, aVal)
 
 function TrimStringLeft(string)
 {
-  if(!string) return "";
+  if (!string)
+    return "";
   return string.trimLeft();
 }
 
 function TrimStringRight(string)
 {
-  if (!string) return "";
+  if (!string)
+    return "";
   return string.trimRight();
 }
 
 // Remove whitespace from both ends of a string
 function TrimString(string)
 {
-  if (!string) return "";
+  if (!string)
+    return "";
   return string.trim();
-}
-
-function IsWhitespace(string)
-{
-  return /^\s/.test(string);
 }
 
 function TruncateStringAtWordEnd(string, maxLength, addEllipses)
@@ -231,17 +193,17 @@ function GetCurrentTableEditor()
 function GetCurrentEditorElement()
 {
   var tmpWindow = window;
-  
+
   do {
     // Get the <editor> element(s)
-    var editorList = tmpWindow.document.getElementsByTagName("editor");
+    let editorItem = tmpWindow.document.querySelector("editor");
 
     // This will change if we support > 1 editor element
-    if (editorList.item(0))
-      return editorList.item(0);
+    if (editorItem)
+      return editorItem;
 
     tmpWindow = tmpWindow.opener;
-  } 
+  }
   while (tmpWindow);
 
   return null;
@@ -448,102 +410,29 @@ function SetElementEnabled(element, doEnable)
 
 /************* Services / Prefs ***************/
 
-function GetIOService()
-{
-  if (gIOService)
-    return gIOService;
-
-  gIOService = Components.classes["@mozilla.org/network/io-service;1"]
-               .getService(Components.interfaces.nsIIOService);
-
-  return gIOService;
-}
-
 function GetFileProtocolHandler()
 {
-  var ios = GetIOService();
-  var handler = ios.getProtocolHandler("file");
+  let handler = Services.io.getProtocolHandler("file");
   return handler.QueryInterface(Components.interfaces.nsIFileProtocolHandler);
-}
-
-function GetPrefsService()
-{
-  if (gPrefsService)
-    return gPrefsService;
-
-  try {
-    gPrefsService = Components.classes["@mozilla.org/preferences-service;1"].getService(Components.interfaces.nsIPrefService);
-  }
-  catch(ex) {
-    dump("failed to get prefs service!\n");
-  }
-
-  return gPrefsService;
-}
-
-function GetPrefs()
-{
-  if (gPrefsBranch)
-    return gPrefsBranch;
-
-  try {
-    var prefService = GetPrefsService();
-    if (prefService)
-      gPrefsBranch = prefService.getBranch(null);
-
-    if (gPrefsBranch)
-      return gPrefsBranch;
-    else
-      dump("failed to get root prefs!\n");
-  }
-  catch(ex) {
-    dump("failed to get root prefs!\n");
-  }
-  return null;
 }
 
 function GetStringPref(name)
 {
   try {
-    return GetPrefs().getComplexValue(name, Components.interfaces.nsISupportsString).data;
+    return Services.prefs.getComplexValue(name, Components.interfaces.nsISupportsString).data;
   } catch (e) {}
   return "";
 }
 
-function GetBoolPref(name)
+function SetStringPref(aPrefName, aPrefValue)
 {
   try {
-    return GetPrefs().getBoolPref(name);
-  } catch (e) {}
-  return false;
-}
-
-function SetUnicharPref(aPrefName, aPrefValue)
-{
-  var prefs = GetPrefs();
-  if (prefs)
-  {
-    try {
-      var str = Components.classes["@mozilla.org/supports-string;1"]
-                          .createInstance(Components.interfaces.nsISupportsString);
-      str.data = aPrefValue;
-      prefs.setComplexValue(aPrefName, Components.interfaces.nsISupportsString, str);
-    }
-    catch(e) {}
+    let str = Components.classes["@mozilla.org/supports-string;1"]
+                        .createInstance(Components.interfaces.nsISupportsString);
+    str.data = aPrefValue;
+    Services.prefs.setComplexValue(aPrefName, Components.interfaces.nsISupportsString, str);
   }
-}
-
-function GetUnicharPref(aPrefName, aDefVal)
-{
-  var prefs = GetPrefs();
-  if (prefs)
-  {
-    try {
-      return prefs.getComplexValue(aPrefName, Components.interfaces.nsISupportsString).data;
-    }
-    catch(e) {}
-  }
-  return "";
+  catch(e) {}
 }
 
 // Set initial directory for a filepicker from URLs saved in prefs
@@ -552,16 +441,13 @@ function SetFilePickerDirectory(filePicker, fileType)
   if (filePicker)
   {
     try {
-      var prefBranch = GetPrefs();
-      if (prefBranch)
-      {
-        // Save current directory so we can reset it in SaveFilePickerDirectory
-        gFilePickerDirectory = filePicker.displayDirectory;
+      // Save current directory so we can reset it in SaveFilePickerDirectory
+      gFilePickerDirectory = filePicker.displayDirectory;
 
-        var location = prefBranch.getComplexValue("editor.lastFileLocation."+fileType, Components.interfaces.nsILocalFile);
-        if (location)
-          filePicker.displayDirectory = location;
-      }
+      let location = Services.prefs.getComplexValue("editor.lastFileLocation."+fileType,
+                                                    Components.interfaces.nsILocalFile);
+      if (location)
+        filePicker.displayDirectory = location;
     }
     catch(e) {}
   }
@@ -573,17 +459,14 @@ function SaveFilePickerDirectory(filePicker, fileType)
   if (filePicker && filePicker.file)
   {
     try {
-      var prefBranch = GetPrefs();
-
       var fileDir;
       if (filePicker.file.parent)
         fileDir = filePicker.file.parent.QueryInterface(Components.interfaces.nsILocalFile);
 
-      if (prefBranch)
-       prefBranch.setComplexValue("editor.lastFileLocation."+fileType, Components.interfaces.nsILocalFile, fileDir);
-    
-      var prefsService = GetPrefsService();
-        prefsService.savePrefFile(null);
+        Services.prefs.setComplexValue("editor.lastFileLocation." + fileType,
+                                       Components.interfaces.nsILocalFile, fileDir);
+
+        Services.prefs.savePrefFile(null);
     } catch (e) {}
   }
 
@@ -597,16 +480,15 @@ function SaveFilePickerDirectory(filePicker, fileType)
 
 function GetDefaultBrowserColors()
 {
-  var prefs = GetPrefs();
   var colors = { TextColor:0, BackgroundColor:0, LinkColor:0, ActiveLinkColor:0 , VisitedLinkColor:0 };
   var useSysColors = false;
-  try { useSysColors = prefs.getBoolPref("browser.display.use_system_colors"); } catch (e) {}
+  try { useSysColors = Services.prefs.getBoolPref("browser.display.use_system_colors"); } catch (e) {}
 
   if (!useSysColors)
   {
-    try { colors.TextColor = prefs.getCharPref("browser.display.foreground_color"); } catch (e) {}
+    try { colors.TextColor = Services.prefs.getCharPref("browser.display.foreground_color"); } catch (e) {}
 
-    try { colors.BackgroundColor = prefs.getCharPref("browser.display.background_color"); } catch (e) {}
+    try { colors.BackgroundColor = Services.prefs.getCharPref("browser.display.background_color"); } catch (e) {}
   }
   // Use OS colors for text and background if explicitly asked or pref is not set
   if (!colors.TextColor)
@@ -615,9 +497,9 @@ function GetDefaultBrowserColors()
   if (!colors.BackgroundColor)
     colors.BackgroundColor = "window";
 
-  colors.LinkColor = prefs.getCharPref("browser.anchor_color");
-  colors.ActiveLinkColor = prefs.getCharPref("browser.active_color");
-  colors.VisitedLinkColor = prefs.getCharPref("browser.visited_color");
+  colors.LinkColor = Services.prefs.getCharPref("browser.anchor_color");
+  colors.ActiveLinkColor = Services.prefs.getCharPref("browser.active_color");
+  colors.VisitedLinkColor = Services.prefs.getCharPref("browser.visited_color");
 
   return colors;
 }
@@ -636,7 +518,7 @@ function IsUrlAboutBlank(urlString)
 
 function MakeRelativeUrl(url)
 {
-  var inputUrl = TrimString(url);
+  let inputUrl = url.trim();
   if (!inputUrl)
     return inputUrl;
 
@@ -655,10 +537,6 @@ function MakeRelativeUrl(url)
   if (docScheme != urlScheme)
     return inputUrl;
 
-  var IOService = GetIOService();
-  if (!IOService)
-    return inputUrl;
-
   // Host must be the same
   var docHost = GetHost(docUrl);
   var urlHost = GetHost(inputUrl);
@@ -668,8 +546,8 @@ function MakeRelativeUrl(url)
 
   // Get just the file path part of the urls
   // XXX Should we use GetCurrentEditor().documentCharacterSet for 2nd param ?
-  var docPath = IOService.newURI(docUrl, GetCurrentEditor().documentCharacterSet, null).path;
-  var urlPath = IOService.newURI(inputUrl, GetCurrentEditor().documentCharacterSet, null).path;
+  let docPath = Services.io.newURI(docUrl, GetCurrentEditor().documentCharacterSet, null).path;
+  let urlPath = Services.io.newURI(inputUrl, GetCurrentEditor().documentCharacterSet, null).path;
 
   // We only return "urlPath", so we can convert
   //  the entire docPath for case-insensitive comparisons
@@ -703,13 +581,13 @@ function MakeRelativeUrl(url)
 
       // Remove filename for named anchors in the same file
       if (nextDocSlash == -1 && docFilename)
-      { 
+      {
         var anchorIndex = urlPath.indexOf("#");
         if (anchorIndex > 0)
         {
           var urlFilename = doCaseInsensitive ? urlPath.toLowerCase() : urlPath;
-        
-          if (urlFilename.indexOf(docFilename) == 0)
+
+          if (urlFilename.startsWith(docFilename))
             urlPath = urlPath.slice(anchorIndex);
         }
       }
@@ -735,8 +613,8 @@ function MakeRelativeUrl(url)
         // No match, we're done
         done = true;
 
-        // Be sure we are on the same local drive or volume 
-        //   (the first "dir" in the path) because we can't 
+        // Be sure we are on the same local drive or volume
+        //   (the first "dir" in the path) because we can't
         //   relativize to different drives/volumes.
         // UNIX doesn't have volumes, so we must not do this else
         //  the first directory will be misinterpreted as a volume name
@@ -762,34 +640,30 @@ function MakeRelativeUrl(url)
 
 function MakeAbsoluteUrl(url)
 {
-  var resultUrl = TrimString(url);
+  let resultUrl = TrimString(url);
   if (!resultUrl)
     return resultUrl;
 
   // Check if URL is already absolute, i.e., it has a scheme
-  var urlScheme = GetScheme(resultUrl);
+  let urlScheme = GetScheme(resultUrl);
 
   if (urlScheme)
     return resultUrl;
 
-  var docUrl = GetDocumentBaseUrl();
-  var docScheme = GetScheme(docUrl);
+  let docUrl = GetDocumentBaseUrl();
+  let docScheme = GetScheme(docUrl);
 
   // Can't relativize if no doc scheme (page hasn't been saved)
   if (!docScheme)
     return resultUrl;
 
-  var  IOService = GetIOService();
-  if (!IOService)
-    return resultUrl;
-  
   // Make a URI object to use its "resolve" method
-  var absoluteUrl = resultUrl;
-  var docUri = IOService.newURI(docUrl, GetCurrentEditor().documentCharacterSet, null);
+  let absoluteUrl = resultUrl;
+  let docUri = Services.io.newURI(docUrl, GetCurrentEditor().documentCharacterSet, null);
 
   try {
     absoluteUrl = docUri.resolve(resultUrl);
-    // This is deprecated and buggy! 
+    // This is deprecated and buggy!
     // If used, we must make it a path for the parent directory (remove filename)
     //absoluteUrl = IOService.resolveRelativePath(resultUrl, docUrl);
   } catch (e) {}
@@ -804,14 +678,10 @@ function GetDocumentBaseUrl()
   try {
     var docUrl;
 
-    // if document supplies a <base> tag, use that URL instead 
-    var baseList = GetCurrentEditor().document.getElementsByTagName("base");
-    if (baseList)
-    {
-      var base = baseList.item(0);
-      if (base)
-        docUrl = base.getAttribute("href");
-    }
+    // if document supplies a <base> tag, use that URL instead
+    let base = GetCurrentEditor().document.querySelector("base");
+    if (base)
+      docUrl = base.getAttribute("href");
     if (!docUrl)
       docUrl = GetDocumentUrl();
 
@@ -839,14 +709,10 @@ function GetScheme(urlspec)
   if (!resultUrl || IsUrlAboutBlank(resultUrl))
     return "";
 
-  var IOService = GetIOService();
-  if (!IOService)
-    return "";
-
   var scheme = "";
   try {
     // This fails if there's no scheme
-    scheme = IOService.extractScheme(resultUrl);
+    scheme = Services.io.extractScheme(resultUrl);
   } catch (e) {}
 
   return scheme ? scheme.toLowerCase() : "";
@@ -857,13 +723,9 @@ function GetHost(urlspec)
   if (!urlspec)
     return "";
 
-  var IOService = GetIOService();
-  if (!IOService)
-    return "";
-
   var host = "";
   try {
-    host = IOService.newURI(urlspec, null, null).host;
+    host = Services.io.newURI(urlspec, null, null).host;
    } catch (e) {}
 
   return host;
@@ -874,13 +736,9 @@ function GetUsername(urlspec)
   if (!urlspec)
     return "";
 
-  var IOService = GetIOService();
-  if (!IOService)
-    return "";
-
   var username = "";
   try {
-    username = IOService.newURI(urlspec, null, null).username;
+    username = Services.io.newURI(urlspec, null, null).username;
   } catch (e) {}
 
   return username;
@@ -891,17 +749,13 @@ function GetFilename(urlspec)
   if (!urlspec || IsUrlAboutBlank(urlspec))
     return "";
 
-  var IOService = GetIOService();
-  if (!IOService)
-    return "";
-
   var filename;
 
   try {
-    var uri = IOService.newURI(urlspec, null, null);
+    let uri = Services.io.newURI(urlspec, null, null);
     if (uri)
     {
-      var url = uri.QueryInterface(Components.interfaces.nsIURL);
+      let url = uri.QueryInterface(Components.interfaces.nsIURL);
       if (url)
         filename = url.fileName;
     }
@@ -929,13 +783,9 @@ function StripUsernamePassword(urlspec, usernameObj, passwordObj)
   if (atIndex > 0)
   {
     try {
-      var IOService = GetIOService();
-      if (!IOService)
-        return urlspec;
-
-      var uri = IOService.newURI(urlspec, null, null);
-      var username = uri.username;
-      var password = uri.password;
+      let uri = Services.io.newURI(urlspec, null, null);
+      let username = uri.username;
+      let password = uri.password;
 
       if (usernameObj && username)
         usernameObj.value = username;
@@ -943,7 +793,7 @@ function StripUsernamePassword(urlspec, usernameObj, passwordObj)
         passwordObj.value = password;
       if (username)
       {
-        var usernameStart = urlspec.indexOf(username);
+        let usernameStart = urlspec.indexOf(username);
         if (usernameStart != -1)
           return urlspec.slice(0, usernameStart) + urlspec.slice(atIndex+1);
       }
@@ -966,18 +816,14 @@ function StripPassword(urlspec, passwordObj)
   if (atIndex > 0)
   {
     try {
-      var IOService = GetIOService();
-      if (!IOService)
-        return urlspec;
-
-      var password = IOService.newURI(urlspec, null, null).password;
+      let password = Services.io.newURI(urlspec, null, null).password;
 
       if (passwordObj && password)
         passwordObj.value = password;
       if (password)
       {
         // Find last ":" before "@"
-        var colon = urlspec.lastIndexOf(":", atIndex);
+        let colon = urlspec.lastIndexOf(":", atIndex);
         if (colon != -1)
         {
           // Include the "@"
@@ -1003,7 +849,7 @@ function StripUsernamePasswordFromURI(uri)
         start = urlspec.indexOf(userPass);
         urlspec = urlspec.slice(0, start) + urlspec.slice(start+userPass.length+1);
       }
-    } catch (e) {}    
+    } catch (e) {}
   }
   return urlspec;
 }
@@ -1014,8 +860,7 @@ function InsertUsernameIntoUrl(urlspec, username)
     return urlspec;
 
   try {
-    var ioService = GetIOService();
-    var URI = ioService.newURI(urlspec, GetCurrentEditor().documentCharacterSet, null);
+    let URI = Services.io.newURI(urlspec, GetCurrentEditor().documentCharacterSet, null);
     URI.username = username;
     return URI.spec;
   } catch (e) {}
@@ -1030,11 +875,11 @@ function GetOS()
 
   var platform = navigator.platform.toLowerCase();
 
-  if (platform.indexOf("win") != -1)
+  if (platform.contains("win"))
     gOS = gWin;
-  else if (platform.indexOf("mac") != -1)
+  else if (platform.contains("mac"))
     gOS = gMac;
-  else if (platform.indexOf("unix") != -1 || platform.indexOf("linux") != -1 || platform.indexOf("sun") != -1)
+  else if (platform.contains("unix") || platform.contains("linux") || platform.contains("sun"))
     gOS = gUNIX;
   else
     gOS = "";
@@ -1064,10 +909,8 @@ function ConvertRGBColorIntoHEXColor(color)
 
 function GetHTMLOrCSSStyleValue(element, attrName, cssPropertyName)
 {
-  var prefs = GetPrefs();
-  var IsCSSPrefChecked = prefs.getBoolPref("editor.use_css");
   var value;
-  if (IsCSSPrefChecked && IsHTMLEditor())
+  if (Services.prefs.getBoolPref("editor.use_css") && IsHTMLEditor())
     value = element.style.getPropertyValue(cssPropertyName);
 
   if (!value)
@@ -1081,12 +924,12 @@ function GetHTMLOrCSSStyleValue(element, attrName, cssPropertyName)
 
 /************* Miscellaneous ***************/
 // Clone simple JS objects
-function Clone(obj) 
-{ 
+function Clone(obj)
+{
   var clone = {};
   for (var i in obj)
   {
-    if( typeof obj[i] == 'object')
+    if (typeof obj[i] == 'object')
       clone[i] = Clone(obj[i]);
     else
       clone[i] = obj[i];

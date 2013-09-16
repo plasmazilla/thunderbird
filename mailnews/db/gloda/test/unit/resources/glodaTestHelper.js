@@ -26,8 +26,6 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
 
 // Import the main scripts that mailnews tests need to set up and tear down
-load("../../../../resources/mailDirService.js");
-load("../../../../resources/mailTestUtils.js");
 load("../../../../resources/abSetup.js");
 load("../../../../resources/logHelper.js");
 load("../../../../resources/asyncTestUtils.js");
@@ -55,9 +53,7 @@ Components.utils.import("resource:///modules/errUtils.js");
  *  function needs to be called prior to gloda startup.
  */
 function createMeIdentity() {
-  var acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
-  let identity = acctMgr.createIdentity;
+  let identity = MailServices.accounts.createIdentity;
   identity.email = "me@localhost";
   identity.fullName = "Me";
 }
@@ -369,10 +365,7 @@ var _indexMessageState = {
     // waitingForEvents support
     // (we want this to happen after gloda registers its own listener, and it
     //  does.)
-    let notificationService =
-      Cc["@mozilla.org/messenger/msgnotificationservice;1"].
-      getService(Ci.nsIMsgFolderNotificationService);
-    notificationService.addListener(this,
+    MailServices.mfn.addListener(this,
       Ci.nsIMsgFolderNotificationService.msgsClassified);
 
     this._inited = true;
@@ -669,8 +662,10 @@ var _indexMessageState = {
   onIndexNotification: function(aStatus, aPrettyName, aJobIndex,
                                 aJobItemIndex, aJobItemGoal) {
     let ims = _indexMessageState;
+    let waiting = ims.waitingForIndexingCompletion ?
+                  ims.waitingForIndexingCompletion : false;
     LOG.debug("((( Index listener notified! aStatus = " + aStatus +
-              " waiting: " + ims.waitingForIndexingCompletion + "\n");
+              " waiting: " + waiting + "\n");
 
     // we only care if indexing has just completed and we're waiting
     if (aStatus == Gloda.kIndexerIdle && !GlodaIndexer.indexing &&
@@ -1302,15 +1297,13 @@ function nukeGlodaCachesAndCollections() {
  *  personal address book.
  */
 function makeABCardForAddressPair(nameAndAddress) {
-  let abManager = Components.classes["@mozilla.org/abmanager;1"]
-                            .getService(Components.interfaces.nsIAbManager);
   // XXX bug 314448 demands that we trigger creation of the ABs...  If we don't
   //  do this, then the call to addCard will fail if someone else hasn't tickled
   //  this.
-  abManager.directories;
+  MailServices.ab.directories;
 
   // kPABData is from abSetup.js
-  let addressBook = abManager.getDirectory(kPABData.URI);
+  let addressBook = MailServices.ab.getDirectory(kPABData.URI);
 
   let card = Components.classes["@mozilla.org/addressbook/cardproperty;1"]
                        .createInstance(Components.interfaces.nsIAbCard);

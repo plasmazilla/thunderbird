@@ -42,7 +42,7 @@
 }
 
 #mini-day-image {
-  background-image: -moz-linear-gradient(transparent, transparent 48%,
+  background-image: linear-gradient(transparent, transparent 48%,
                     rgba(0, 0, 0, .02) 52%, rgba(0, 0, 0, .1));
 }
 
@@ -200,6 +200,10 @@ agenda-allday-richlist-item {
   background-image: none;
   color: -moz-dialogText;
   background-color: -moz-dialog;
+}
+
+.agenda-allday-container-box .item-classification-box {
+  display: none;
 }
 
 .agenda-event-title {

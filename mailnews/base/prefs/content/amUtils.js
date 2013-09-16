@@ -2,9 +2,6 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-/* Prerequisites:
-   gServer - server.incomingServer defined in the calling page
- */
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
@@ -34,42 +31,11 @@ function BrowseForLocalFolders()
   // Retrieve the selected folder.
   let selectedFolder = fp.file;
 
-  // check that no other account/server has this same local directory
-  let allServers = MailServices.accounts.allServers;
-  for (let i = allServers.Count(); --i >= 0;) {
-    let currentServer = allServers
-      .QueryElementAt(i, Components.interfaces.nsIMsgIncomingServer);
-    if (currentServer.key == gServer.key)
-      continue;
+  // Check if the folder can be used for mail storage.
+  if (!top.checkDirectoryIsUsable(selectedFolder))
+    return;
 
-    if (currentServer.localPath.equals(selectedFolder)) {
-      let dirAlreadyUsed = top.document.getElementById("bundle_prefs")
-                              .getFormattedString("directoryUsedByOtherAccount",
-                                                  [currentServer.prettyName]);
-      Services.prompt.alert(window, null, dirAlreadyUsed);
-      return;
-    }
-  }
   currentFolderTextBox.value = selectedFolder.path;
-}
-
-function hostnameIsIllegal(hostname)
-{
-  // XXX TODO do a complete check.
-  // this only checks for illegal characters in the hostname
-  // but hostnames like "...." and "_" and ".111" will get by
-  // my test.  
-  var validChars = hostname.match(/[A-Za-z0-9.-]/g);
-  if (!validChars || (validChars.length != hostname.length)) {
-    return true;
-  }
-
-  return false;
-}
-
-function trim(string)
-{
-  return string.trim();
 }
 
 /**
@@ -138,6 +104,57 @@ function chooseJunkTargetFolder(aTargetURI, aIsServer)
     server = MailServices.accounts.localFoldersServer;
 
   return server.serverURI + (!aIsServer ? "/Junk" : "");
+}
+
+/**
+ * Fixes junk target folders if they point to an invalid/unusable (e.g. deferred)
+ * folder/account. Only returns the new safe values. It is up to the caller
+ * to push them to the proper elements/prefs.
+ *
+ * @param aSpamActionTargetAccount  The value of the server.*.spamActionTargetAccount pref value (URI).
+ * @param aSpamActionTargetFolder   The value of the server.*.spamActionTargetFolder pref value (URI).
+ * @param aProposedTarget           The URI of a new target to try.
+ * @param aMoveTargetModeValue      The value of the server.*.moveTargetMode pref value (0/1).
+ * @param aServerSpamSettings       The nsISpamSettings object of any server
+ *                                  (used just for the MOVE_TARGET_MODE_* constants).
+ * @param aMoveOnSpam               The server.*.moveOnSpam pref value (bool).
+ *
+ * @return  an array containing:
+ *          newTargetAccount new safe junk target account
+ *          newTargetAccount new safe junk target folder
+ *          newMoveOnSpam    new moveOnSpam value
+ */
+function sanitizeJunkTargets(aSpamActionTargetAccount,
+                             aSpamActionTargetFolder,
+                             aProposedTarget,
+                             aMoveTargetModeValue,
+                             aServerSpamSettings,
+                             aMoveOnSpam)
+{
+  // Check if folder targets are valid.
+  aSpamActionTargetAccount = checkJunkTargetFolder(aSpamActionTargetAccount, true);
+  if (!aSpamActionTargetAccount) {
+    // If aSpamActionTargetAccount is not valid,
+    // reset to default behavior to NOT move junk messages...
+    if (aMoveTargetModeValue == aServerSpamSettings.MOVE_TARGET_MODE_ACCOUNT)
+      aMoveOnSpam = false;
+
+    // ... and find a good default target.
+    aSpamActionTargetAccount = chooseJunkTargetFolder(aProposedTarget, true);
+  }
+
+  aSpamActionTargetFolder = checkJunkTargetFolder(aSpamActionTargetFolder, false);
+  if (!aSpamActionTargetFolder) {
+    // If aSpamActionTargetFolder is not valid,
+    // reset to default behavior to NOT move junk messages...
+    if (aMoveTargetModeValue == aServerSpamSettings.MOVE_TARGET_MODE_FOLDER)
+      aMoveOnSpam = false;
+
+    // ... and find a good default target.
+    aSpamActionTargetFolder = chooseJunkTargetFolder(aProposedTarget, false);
+  }
+
+  return [ aSpamActionTargetAccount, aSpamActionTargetFolder, aMoveOnSpam ];
 }
 
 /**

@@ -8,8 +8,7 @@
  */
 load("../../../resources/searchTestUtils.js");
 
-const copyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
-                      .getService(Ci.nsIMsgCopyService);
+Components.utils.import("resource:///modules/mailServices.js");
 
 const kCustomId = "xpcomtest@mozilla.org#test";
 var gHdr;
@@ -34,12 +33,12 @@ var customTerm =
   getEnabled: function(scope, op)
     {
       return scope == Ci.nsMsgSearchScope.offlineMail &&
-             op == Ci.nsMsgSearchOp::Is
+             op == Ci.nsMsgSearchOp.Is;
     },
   getAvailable: function(scope, op)
     {
       return scope == Ci.nsMsgSearchScope.offlineMail &&
-             op == Ci.nsMsgSearchOp::Is
+             op == Ci.nsMsgSearchOp.Is;
     },
   getAvailableOperators: function(scope, length)
     {
@@ -60,16 +59,16 @@ var customTerm =
 
 function run_test()
 {
-  loadLocalMailAccount();
-  let filterService = Cc["@mozilla.org/messenger/services/filters;1"]
-                        .getService(Ci.nsIMsgFilterService);
-  filterService.addCustomTerm(customTerm);
+  localAccountUtils.loadLocalMailAccount();
+  MailServices.filters.addCustomTerm(customTerm);
 
   var copyListener = 
   {
     OnStartCopy: function() {},
     OnProgress: function(aProgress, aProgressMax) {},
-    SetMessageKey: function(aKey) { gHdr = gLocalInboxFolder.GetMessageHeader(aKey);},
+    SetMessageKey: function(aKey) {
+      gHdr = localAccountUtils.inboxFolder.GetMessageHeader(aKey);
+    },
     SetMessageId: function(aMessageId) {},
     OnStopCopy: function(aStatus) { doTest();}
   };
@@ -79,8 +78,8 @@ function run_test()
   let bugmail1 = do_get_file("../../../data/bugmail1");
   do_test_pending();
 
-  copyService.CopyFileMessage(bugmail1, gLocalInboxFolder, null, false, 0,
-                              "", copyListener, null);
+  MailServices.copy.CopyFileMessage(bugmail1, localAccountUtils.inboxFolder, null,
+                                    false, 0, "", copyListener, null);
 }
 
 var testObject;
@@ -91,7 +90,7 @@ function doTest()
   if (test)
   {
     gHdr.setStringProperty("theTestProperty", test.setValue);
-    testObject = new TestSearch(gLocalInboxFolder,
+    testObject = new TestSearch(localAccountUtils.inboxFolder,
                          test.testValue,
                          Ci.nsMsgSearchAttrib.Custom,
                          test.op,

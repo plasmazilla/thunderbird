@@ -3,6 +3,8 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource://gre/modules/iteratorUtils.jsm");
 
 Components.utils.import("resource://calendar/modules/calAlarmUtils.jsm");
 Components.utils.import("resource://calendar/modules/calIteratorUtils.jsm");
@@ -161,7 +163,6 @@ function updateReminderDetails() {
 
 var gLastAlarmSelection = 0;
 
-
 function matchCustomReminderToMenuitem(reminder) {
     let defaultAlarmType = getDefaultAlarmType();
     let reminderList = document.getElementById("item-alarm");
@@ -172,7 +173,14 @@ function matchCustomReminderToMenuitem(reminder) {
         // Exactly one reminder thats not absolute, we may be able to match up
         // popup items.
         let relation = (reminder.related == reminder.ALARM_RELATED_START ? "START" : "END");
-        let origin = (reminder.offset.isNegative ? "before" : "after");
+        let origin;
+
+        // If the time duration for offset is 0, means the reminder is '0 minutes before'
+        if (reminder.offset.inSeconds == 0 || reminder.offset.isNegative) {
+            origin = "before";
+        } else {
+            origin = "after";
+        }
 
         let unitMap = {
           days: 86400,
@@ -237,7 +245,14 @@ function loadReminders(reminders) {
  * @param item      The item save the reminder into.
  */
 function saveReminder(item) {
-    // Clear alarms, we'll need to remove alarms later  anyway.
+    // We want to compare the old alarms with the new ones. If these are not
+    // the same, then clear the snooze/dismiss times
+    let oldAlarmMap = {};
+    for each (let alarm in item.getAlarms({})) {
+        oldAlarmMap[alarm.icalString] = true;
+    }
+
+    // Clear the alarms so we can add our new ones.
     item.clearAlarms();
 
     let reminderList = document.getElementById("item-alarm");
@@ -268,6 +283,38 @@ function saveReminder(item) {
         // Make sure only alarms are saved that work in the given calendar.
         reminders.filter(function(x) x.action in alarmActions)
                  .forEach(item.addAlarm, item);
+    }
+
+    // Compare alarms to see if something changed.
+    for each (let alarm in item.getAlarms({})) {
+        let ics = alarm.icalString;
+        if (ics in oldAlarmMap) {
+            // The new alarm is also in the old set, remember this
+            delete oldAlarmMap[ics];
+        } else {
+            // The new alarm is not in the old set, this means the alarms
+            // differ and we can break out.
+            oldAlarmMap[ics] = true;
+            break;
+       }
+    }
+
+    // If the alarms differ, clear the snooze/dismiss properties
+    if (Object.keys(oldAlarmMap).length > 0) {
+        let cmp = "X-MOZ-SNOOZE-TIME";
+        let cmpLength = cmp.length;
+
+        // Recurring item alarms potentially have more snooze props, remove them
+        // all.
+        let propIterator = fixIterator(item.propertyEnumerator, Components.interfaces.nsIProperty);
+        let propsToDelete = [
+            prop.name
+            for each (prop in propIterator)
+            if (prop.name.substr(0, cmpLength) == cmp)
+        ];
+
+        item.alarmLastAck = null;
+        propsToDelete.forEach(item.deleteProperty, item);
     }
 }
 
@@ -430,7 +477,7 @@ function updateLink() {
         var handler, uri;
         try {
             uri = makeURL(itemUrlString);
-            handler = getIOService().getProtocolHandler(uri.scheme);
+            handler = Services.io.getProtocolHandler(uri.scheme);
         } catch (e) {
             // No protocol handler for the given protocol, or invalid uri
             hideOrShow(false);
@@ -439,7 +486,8 @@ function updateLink() {
 
         // Only show if its either an internal protcol handler, or its external
         // and there is an external app for the scheme
-        hideOrShow(!calInstanceOf(handler, Components.interfaces.nsIExternalProtocolHandler) ||
+        handler = cal.wrapInstance(handler, Components.interfaces.nsIExternalProtocolHandler);
+        hideOrShow(!handler||
                    handler.externalAppExistsForScheme(uri.scheme));
 
         setTimeout(function() {

@@ -35,7 +35,9 @@ _TEST_FILES += \
 endif
 
 _BROWSER_FILES = \
+                 head.js \
                  browser_bug329212.js \
+                 browser_bug409624.js \
                  browser_bug413915.js \
                  browser_bug427559.js \
                  browser_bug435325.js \
@@ -48,14 +50,22 @@ _BROWSER_FILES = \
                  browser_bug623155.js \
                  browser_fayt.js \
                  browser_page_style_menu.js \
+                 blockPluginVulnerableNoUpdate.xml \
+                 blockPluginVulnerableUpdatable.xml \
+                 blockNoPlugins.xml \
+                 blockPluginHard.xml \
+                 browser_pluginCrashCommentAndURL.js \
                  page_style_sample.html \
                  browser_pageInfo.js \
                  feed_tab.html \
                  browser_pluginnotification.js \
+                 browser_pluginplaypreview.js \
+                 pluginCrashCommentAndURL.html \
                  plugin_alternate_content.html \
                  plugin_bug743421.html \
                  plugin_bug749455.html \
                  plugin_clickToPlayAllow.html \
+                 plugin_clickToPlayDeny.html \
                  plugin_hidden_to_visible.html \
                  plugin_unknown.html \
                  plugin_test.html \
@@ -72,6 +82,8 @@ _BROWSER_FILES = \
                  browser_selectTabAtIndex.js \
                  title_test.svg \
                  redirect_bug623155.sjs \
+                 browser_privatebrowsing_protocolhandler.js \
+                 browser_privatebrowsing_protocolhandler_page.html \
     $(NULL)
 
 ifneq (cocoa,$(MOZ_WIDGET_TOOLKIT))

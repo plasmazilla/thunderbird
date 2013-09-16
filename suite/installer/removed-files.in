@@ -129,6 +129,8 @@ components/nsPlacesDBFlush.js
 components/nsPostUpdateWin.js
 #endif
 components/nsProgressDialog.js
+components/nsProxyAutoConfig.js
+components/nsProxyAutoConfig.manifest
 components/nsResetPref.js
 components/nsScriptableIO.js
 components/nsSetDefaultBrowser.js
@@ -189,6 +191,7 @@ components/nsIQTScriptablePlugin.xpt
 #endif
 D3DCompiler_42.dll
 d3dx9_42.dll
+d3dx9_43.dll
 #ifdef UNIX_BUT_NOT_MAC
 components/nsFilePicker.js
 #endif
@@ -316,6 +319,15 @@ modules/SpatialNavigation.js
 @DLL_PREFIX@mozz@DLL_SUFFIX@
 @DLL_PREFIX@jemalloc@DLL_SUFFIX@
 @DLL_PREFIX@mozutils@DLL_SUFFIX@
+#ifdef MOZ_FOLD_LIBS
+@DLL_PREFIX@nspr4@DLL_SUFFIX@
+@DLL_PREFIX@plds4@DLL_SUFFIX@
+@DLL_PREFIX@plc4@DLL_SUFFIX@
+@DLL_PREFIX@ssl3@DLL_SUFFIX@
+@DLL_PREFIX@smime3@DLL_SUFFIX@
+@DLL_PREFIX@nssutil3@DLL_SUFFIX@
+@DLL_PREFIX@mozsqlite3@DLL_SUFFIX@
+#endif
 #ifdef XP_WIN
   mozcpp19.dll
   mozcrt19.dll
@@ -566,6 +578,7 @@ Throbber-small.gif
   #endif
   updater.ini
 #endif
+@DLL_PREFIX@xpcom@DLL_SUFFIX@
 #ifdef XP_OS2
   @DLL_PREFIX@xpcomcor@DLL_SUFFIX@
 #else
@@ -635,6 +648,7 @@ xpicleanup@BIN_SUFFIX@
   components/mdn-service.js
   components/msgAsyncPrompter.js
   components/NetworkGeolocationProvider.js
+  components/NotificationsComponents.manifest
   components/newsblog.js
   components/nsAbAutoCompleteMyDomain.js
   components/nsAbAutoCompleteSearch.js
@@ -676,14 +690,11 @@ xpicleanup@BIN_SUFFIX@
   components/nsPlacesDBFlush.js
   components/nsPlacesExpiration.js
   components/nsPrompter.js
-  components/nsProxyAutoConfig.js
   components/nsSearchService.js
   components/nsSearchSuggestions.js
   components/nsSessionStartup.js
   components/nsSessionStore.js
-  #ifdef XP_WIN
-    components/nsSetDefault.js
-  #endif
+  components/nsSetDefault.js
   components/nsSidebar.js
   components/nsSMTPProtocolHandler.js
   components/nsSuiteDownloadManagerUI.js
@@ -715,7 +726,7 @@ xpicleanup@BIN_SUFFIX@
   components/Webapps.js
   components/WebContentConverter.js
   components/browser.xpt
-  components/components.manifest
+  components/binary.manifest
   components/interfaces.manifest
   components/mail.xpt
   defaults/profile/bookmarks.html
@@ -1042,6 +1053,7 @@ xpicleanup@BIN_SUFFIX@
   modules/services-common/utils.js
   modules/services-crypto/utils.js
   modules/services-crypto/WeaveCrypto.js
+  modules/services-notifications/service.js
   modules/services-sync/addonsreconciler.js
   modules/services-sync/constants.js
   modules/services-sync/engines/addons.js
@@ -1130,19 +1142,13 @@ xpicleanup@BIN_SUFFIX@
     update.locale
   #endif
 #else
-  #ifndef MOZ_SERVICES_AITC
-    components/Aitc.js
-  #endif
+  components/Aitc.js
   components/binary.manifest
   #ifndef MOZ_SERVICES_SYNC
     components/Weave.js
   #endif
-  #ifndef MOZ_SERVICES_AITC
-    defaults/pref/services-aitc.js
-  #endif
-  #ifndef MOZ_SERVICES_NOTIFICATIONS
-    defaults/pref/services-notifications.js
-  #endif
+  defaults/pref/services-aitc.js
+  defaults/pref/services-notifications.js
   #ifndef MOZ_SERVICES_SYNC
     defaults/pref/services-sync.js
   #endif
@@ -1247,6 +1253,7 @@ components/@DLL_PREFIX@windowds@DLL_SUFFIX@
 components/@DLL_PREFIX@xpautocomplete@DLL_SUFFIX@
 components/@DLL_PREFIX@zipwriter@DLL_SUFFIX@
 #ifdef XP_MACOSX
+  components/libalerts.dylib
   components/libalerts_s.dylib
   components/libwidget_mac.dylib
 #elifdef XP_WIN
@@ -1272,6 +1279,8 @@ components/tkautoc.dll
 components/tkitcmps.dll
 components/xpautoc.dll
 #endif
+
+components/dom_loadsave.xpt
 
 # ****************************************************************************
 # * Remove the XPTs that were present at the time (2010-02) when we started  *
@@ -1312,7 +1321,6 @@ components/dom_events.xpt
 components/dom_geolocation.xpt
 components/dom_html.xpt
 components/dom_json.xpt
-components/dom_loadsave.xpt
 components/dom_offline.xpt
 components/dom_range.xpt
 components/dom_sidebar.xpt

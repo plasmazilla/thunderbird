@@ -107,10 +107,6 @@ GenericImportHelper.prototype =
   }
 };
 
-function endsWith(string, suffix) {
-  return string.indexOf(suffix, string.length - suffix.length) != -1;
-}
-
 /**
  * AbImportHelper
  * A helper for Address Book imports. To use, supply at least the file and type.
@@ -153,13 +149,13 @@ function AbImportHelper(aFile, aModuleSearchString, aAbName, aJsonName)
      "Custom1", "Custom2", "Custom3", "Custom4", "Notes", "_AimScreenName"];
 
   // get the extra attributes supported for the given type of import
-  if (endsWith(this.mFile.leafName.toLowerCase(), ".ldif")) {
+  if (this.mFile.leafName.toLowerCase().endsWith(".ldif")) {
     // LDIF: add PreferMailFormat
     this.mSupportedAttributes = supportedAttributes.concat(["PreferMailFormat"]);
-  } else if (endsWith(this.mFile.leafName.toLowerCase(), ".csv")) {
+  } else if (this.mFile.leafName.toLowerCase().endsWith(".csv")) {
     this.mSupportedAttributes = supportedAttributes;
     this.setFieldMap(this.getDefaultFieldMap(true));
-  } else if (endsWith(this.mFile.leafName.toLowerCase(), ".vcf")) {
+  } else if (this.mFile.leafName.toLowerCase().endsWith(".vcf")) {
     this.mSupportedAttributes = supportedAttributes;
   };
 
@@ -263,8 +259,7 @@ AbImportHelper.prototype =
   getAbByName: function(aName) {
     do_check_true(aName && aName.length > 0);
 
-    var iter = Cc["@mozilla.org/abmanager;1"].getService(Ci.nsIAbManager)
-                                             .directories;
+    var iter = MailServices.ab.directories;
     var data = null;
     while (iter.hasMoreElements()) {
       data = iter.getNext();
@@ -432,8 +427,8 @@ SettingsImportHelper.prototype =
   _ensureNoAccounts: function() {
     let accounts = MailServices.accounts.accounts;
 
-    for (let i = 0; i < accounts.Count(); i++) {
-      let account = accounts.QueryElementAt(i, Ci.nsIMsgAccount);
+    for (let i = 0; i < accounts.length; i++) {
+      let account = accounts.queryElementAt(i, Ci.nsIMsgAccount);
       MailServices.accounts.removeAccount(account);
     }
   },
@@ -478,8 +473,8 @@ SettingsImportHelper.prototype =
   _checkAccount: function(expected, actual) {
     this._checkIncomingServer(expected.incomingServer, actual.incomingServer);
 
-    do_check_eq(1, actual.identities.Count());
-    let actualIdentity = actual.identities.QueryElementAt(0, Ci.nsIMsgIdentity);
+    do_check_eq(1, actual.identities.length);
+    let actualIdentity = actual.identities.queryElementAt(0, Ci.nsIMsgIdentity);
     this._checkIdentity(expected.identity, actualIdentity);
 
     if (expected.incomingServer.type != "nntp") {
@@ -504,8 +499,8 @@ SettingsImportHelper.prototype =
 
   checkResults: function() {
     accounts = MailServices.accounts.accounts;
-    for (let i = 0; i < accounts.Count() - 1; i++) {
-      let actualAccount = accounts.QueryElementAt(i, Ci.nsIMsgAccount);
+    for (let i = 0; i < accounts.length - 1; i++) {
+      let actualAccount = accounts.queryElementAt(i, Ci.nsIMsgAccount);
       if (this._isLocalMailAccount(actualAccount))
         continue;
       let expectedAccounts = this._findExpectedAccount(actualAccount);

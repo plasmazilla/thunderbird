@@ -69,7 +69,7 @@ public:
   uint32_t   HighestRecordedUID();
   void       SetCurrentResponseUID(uint32_t uid);
   bool       IsNumericString(const char *string);
-  int32_t    SizeOfMostRecentMessage();
+  uint32_t   SizeOfMostRecentMessage();
   void       SetTotalDownloadSize(int32_t newSize) { fTotalDownloadSize = newSize; }
 
   nsImapSearchResultIterator *CreateSearchResultIterator();
@@ -129,7 +129,7 @@ protected:
   virtual void    flags();
   virtual void    envelope_data();
   virtual void    xaolenvelope_data();
-  virtual void    parse_address(nsCAutoString &addressLine);
+  virtual void    parse_address(nsAutoCString &addressLine);
   virtual void    internal_date();
   virtual nsresult BeginMessageDownload(const char *content_type);
 
@@ -186,7 +186,6 @@ protected:
   virtual void    SetSyntaxError(bool error, const char *msg = nullptr);
 
 private:
-  bool            fProcessingTaggedResponse;
   bool            fCurrentCommandFailed;
   bool            fReportingErrors;
 

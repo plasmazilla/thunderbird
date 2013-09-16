@@ -193,7 +193,7 @@ bool WMSettings::DoImport(nsIMsgAccount **ppAccount)
   for (int32_t i = fileArray.Count() - 1 ; i >= 0; i--){
     nsWMUtils::MakeXMLdoc(getter_AddRefs(xmlDoc), fileArray[i]);
 
-    nsCAutoString name;
+    nsAutoCString name;
     fileArray[i]->GetNativeLeafName(name);
     nsAutoString value;
     nsCOMPtr<nsIMsgAccount> anAccount;
@@ -716,7 +716,7 @@ void WMSettings::SetSmtpServer(nsIDOMDocument *xmlDoc, nsIMsgIdentity *id,
     }
     else {
       nsCOMPtr<nsISmtpServer> smtpServer;
-      rv = smtpService->CreateSmtpServer(getter_AddRefs(smtpServer));
+      rv = smtpService->CreateServer(getter_AddRefs(smtpServer));
       if (NS_SUCCEEDED(rv) && smtpServer) {
         if (NS_SUCCEEDED(nsWMUtils::GetValueForTag(xmlDoc,
                                                    "SMTP_Port",

@@ -9,6 +9,10 @@ const Ci = Components.interfaces;
 
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
 Components.utils.import("resource:///modules/MailConsts.js");
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource://gre/modules/PluralForm.jsm");
+
 const MC = MailConsts;
 
 /**
@@ -19,24 +23,12 @@ const MC = MailConsts;
 var MailUtils =
 {
   /**
-   * A reference to the root pref branch
-   */
-  get _prefBranch() {
-    delete this._prefBranch;
-    return this._prefBranch = Cc["@mozilla.org/preferences-service;1"]
-                                .getService(Ci.nsIPrefService)
-                                .getBranch(null);
-  },
-
-  /**
    * Discover all folders. This is useful during startup, when you have code
    * that deals with folders and that executes before the main 3pane window is
    * open (the folder tree wouldn't have been initialized yet).
    */
   discoverFolders: function MailUtils_discoverFolders() {
-    let accountManager = Cc["@mozilla.org/messenger/account-manager;1"]
-                           .getService(Ci.nsIMsgAccountManager);
-    let servers = accountManager.allServers;
+    let servers = MailServices.accounts.allServers;
     for each (let server in fixIterator(servers, Ci.nsIMsgIncomingServer)) {
       // Bug 466311 Sometimes this can throw file not found, we're unsure
       // why, but catch it and log the fact.
@@ -44,9 +36,8 @@ var MailUtils =
         server.rootFolder.subFolders;
       }
       catch (ex) {
-        Cc["@mozilla.org/consoleservice;1"].getService(Ci.nsIConsoleService)
-          .logStringMessage("Discovering folders for account failed with " +
-                            "exception: " + ex);
+        Services.console.logStringMessage("Discovering folders for account failed with " +
+                                          "exception: " + ex);
       }
     }
   },
@@ -65,11 +56,9 @@ var MailUtils =
    */
   getFolderForFileInProfile:
       function MailUtils_getFolderForFileInProfile(aFile) {
-    let accountManager = Cc["@mozilla.org/messenger/account-manager;1"]
-                           .getService(Ci.nsIMsgAccountManager);
-    let folders = accountManager.allFolders;
+    let folders = MailServices.accounts.allFolders;
 
-    for each (let folder in fixIterator(folders.enumerate(), Ci.nsIMsgFolder)) {
+    for (let folder in fixIterator(folders, Ci.nsIMsgFolder)) {
       if (folder.filePath.equals(aFile))
         return folder;
     }
@@ -152,7 +141,7 @@ var MailUtils =
    */
   displayMessages: function MailUtils_displayMessages(aMsgHdrs,
                        aViewWrapperToClone, aTabmail) {
-    let openMessageBehavior = this._prefBranch.getIntPref(
+    let openMessageBehavior = Services.prefs.getIntPref(
                                   "mail.openMessageBehavior");
 
     if (openMessageBehavior == MC.OpenMessageBehavior.NEW_WINDOW) {
@@ -168,9 +157,7 @@ var MailUtils =
       let mail3PaneWindow = null;
       if (!aTabmail) {
         // Try opening new tabs in a 3pane window
-        let windowMediator = Cc["@mozilla.org/appshell/window-mediator;1"]
-                               .getService(Ci.nsIWindowMediator);
-        mail3PaneWindow = windowMediator.getMostRecentWindow("mail:3pane");
+        mail3PaneWindow = Services.wm.getMostRecentWindow("mail:3pane");
         if (mail3PaneWindow)
           aTabmail = mail3PaneWindow.document.getElementById("tabmail");
       }
@@ -206,9 +193,7 @@ var MailUtils =
   openMessageInExistingWindow:
       function MailUtils_openMessageInExistingWindow(aMsgHdr,
                                                      aViewWrapperToClone) {
-    let windowMediator = Cc["@mozilla.org/appshell/window-mediator;1"]
-                           .getService(Ci.nsIWindowMediator);
-    let messageWindow = windowMediator.getMostRecentWindow("mail:messageWindow");
+    let messageWindow = Services.wm.getMostRecentWindow("mail:messageWindow");
     if (messageWindow) {
       messageWindow.displayMessage(aMsgHdr, aViewWrapperToClone);
       return true;
@@ -229,9 +214,7 @@ var MailUtils =
     let args = {msgHdr: aMsgHdr, viewWrapperToClone: aViewWrapperToClone};
     args.wrappedJSObject = args;
 
-    let windowWatcher = Cc["@mozilla.org/embedcomp/window-watcher;1"]
-                          .getService(Ci.nsIWindowWatcher);
-    windowWatcher.openWindow(null,
+    Services.ww.openWindow(null,
         "chrome://messenger/content/messageWindow.xul", "",
         "all,chrome,dialog=no,status,toolbar", args);
   },
@@ -248,22 +231,19 @@ var MailUtils =
    openMessagesInNewWindows:
        function MailUtils_openMessagesInNewWindows(aMsgHdrs,
                                                    aViewWrapperToClone) {
-    let openWindowWarning = this._prefBranch.getIntPref(
+    let openWindowWarning = Services.prefs.getIntPref(
                                 "mailnews.open_window_warning");
     let numMessages = aMsgHdrs.length;
 
     if ((openWindowWarning > 1) && (numMessages >= openWindowWarning)) {
-      let bundle = Cc["@mozilla.org/intl/stringbundle;1"]
-                     .getService(Ci.nsIStringBundleService).createBundle(
-                         "chrome://messenger/locale/messenger.properties");
+      let bundle = Services.strings.createBundle(
+        "chrome://messenger/locale/messenger.properties");
 
       let title = bundle.GetStringFromName("openWindowWarningTitle");
-      let params = [numMessages];
-      let message = bundle.formatStringFromName("openWindowWarningText",
-                                                params, params.length);
-      let promptService = Cc["@mozilla.org/embedcomp/prompt-service;1"]
-                            .getService(Ci.nsIPromptService);
-      if (!promptService.confirm(null, title, message))
+      let message = PluralForm.get(numMessages,
+        bundle.GetStringFromName("openWindowWarningConfirmation"))
+                              .replace("#1", numMessages);
+      if (!Services.prompt.confirm(null, title, message))
         return;
     }
 
@@ -281,18 +261,14 @@ var MailUtils =
   displayMessageInFolderTab: function MailUtils_displayMessageInFolderTab(
                                  aMsgHdr) {
     // Try opening new tabs in a 3pane window
-    let windowMediator = Cc["@mozilla.org/appshell/window-mediator;1"]
-                           .getService(Ci.nsIWindowMediator);
-    let mail3PaneWindow = windowMediator.getMostRecentWindow("mail:3pane");
+    let mail3PaneWindow = Services.wm.getMostRecentWindow("mail:3pane");
     if (mail3PaneWindow) {
       mail3PaneWindow.MsgDisplayMessageInFolderTab(aMsgHdr);
     }
     else {
-      let windowWatcher = Cc["@mozilla.org/embedcomp/window-watcher;1"]
-                            .getService(Ci.nsIWindowWatcher);
       let args = {msgHdr: aMsgHdr};
       args.wrappedJSObject = args;
-      windowWatcher.openWindow(null,
+      Services.ww.openWindow(null,
           "chrome://messenger/content/", "",
           "all,chrome,dialog=no,status,toolbar", args);
     }
@@ -352,20 +328,14 @@ var MailUtils =
                                                                  aPropertyValue,
                                                                  aFolder,
                                                                  aCallback) {
-    // - get all the descendents
-    let allFolders = Cc["@mozilla.org/supports-array;1"].
-                       createInstance(Ci.nsISupportsArray);
-    // we need to add the base folder; it does not get added by ListDescendents
-    allFolders.AppendElement(aFolder);
-    aFolder.ListDescendents(allFolders);
+    // We need to add the base folder as it does not get added by ListDescendants.
+    let allFolders = toXPCOMArray([aFolder], Ci.nsIMutableArray);
+    // - get all the descendants
+    aFolder.ListDescendants(allFolders);
 
     // - worker function
     function folder_string_setter_worker() {
       for each (let folder in fixIterator(allFolders, Ci.nsIMsgFolder)) {
-        // skip folders that can't hold messages, no point setting things there.
-        if (!folder.canFileMessages)
-          continue;
-
         // set the property; this may open the database...
         folder.setStringProperty(aPropertyName, aPropertyValue);
         // force the reference to be forgotten.

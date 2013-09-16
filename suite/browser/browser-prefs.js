@@ -8,6 +8,15 @@
  * modules/libpref/src/init/all.js
  */
 
+/* filter substitution
+ *
+ * SYNTAX HINTS:
+ *
+ *  - Dashes are delimiters; use underscores instead.
+ *  - The first character after a period must be alphabetic.
+ *  - Computed values (e.g. 50 * 1024) don't work.
+ */
+
 pref("startup.homepage_override_url","chrome://navigator-region/locale/region.properties");
 pref("general.skins.selectedSkin", "classic/1.0");
 
@@ -32,24 +41,7 @@ pref("general.autoScroll", true);
 
 pref("general.useragent.compatMode.firefox", true);
 
-// site-specific User Agent settings. Example:
-//   To send aol.com the legacy build date instead of the version number in
-//   the UA's Gecko token because mail.aol.com defaults to basic web UI when
-//   accessed with a user agent without Gecko/20100101.
-//   pref("general.useragent.override.aol.com", "Gecko/[^ ]*#Gecko/20100101");
-pref("general.useragent.complexOverride.moodle", true); // bug 797703
-pref("general.useragent.override.bank.barclays.co.uk",   "Gecko/[^ ]*#Gecko/20100101"); // bug 804169
-pref("general.useragent.override.bankmillennium.pl",     "Gecko/[^ ]*#Gecko/20100101"); // bug 804103
-pref("general.useragent.override.becu.org",              "Gecko/[^ ]*#Gecko/20100101"); // bug 804170
-pref("general.useragent.override.becuonlinebanking.org", "Gecko/[^ ]*#Gecko/20100101"); // bug 804170
-pref("general.useragent.override.bfsfcu.org",            "Gecko/[^ ]*#Gecko/20100101"); // bug 804171
-pref("general.useragent.override.cenfedcu.org",          "Gecko/[^ ]*#Gecko/20100101"); // bug 804172
-pref("general.useragent.override.coastal24.com",         "Gecko/[^ ]*#Gecko/20100101"); // bug 804175
-pref("general.useragent.override.mtb.com",               "Gecko/[^ ]*#Gecko/20100101"); // bug 795350
-pref("general.useragent.override.mandtbank.com",         "Gecko/[^ ]*#Gecko/20100101"); // bug 795350
-pref("general.useragent.override.natweststockbrokers.co.uk", "Gecko/[^ ]*#Gecko/20100101"); // bug 804179
-pref("general.useragent.override.natweststockbrokers.com", "Gecko/[^ ]*#Gecko/20100101"); // bug 804179
-pref("general.useragent.override.raiffeisen.hu",         "Gecko/[^ ]*#Gecko/20100101"); // bug 795348
+pref("general.useragent.complexOverride.moodle", false); // bug 797703; bug 815801
 
 // 0 = blank, 1 = home (browser.startup.homepage), 2 = last visited page, 3 = resume previous browser session
 pref("browser.startup.page",                1);
@@ -333,10 +325,7 @@ pref("browser.offline-apps.notify", true);
 
 pref("browser.formfill.expire_days",        180);
 
-pref("mail.biff.alert.show_preview", true);
-pref("mail.biff.alert.show_subject", true);
-pref("mail.biff.alert.show_sender",  true);
-pref("mail.biff.alert.preview_length", 40);
+pref("mail.biff.show_new_alert",     true);
 
 pref("mailnews.ui.deleteMarksRead", true);
 
@@ -403,6 +392,44 @@ pref("browser.contentHandlers.types.5.type", "application/vnd.mozilla.maybe.feed
 pref("browser.feeds.handler", "ask");
 pref("browser.videoFeeds.handler", "ask");
 pref("browser.audioFeeds.handler", "ask");
+
+pref("browser.safebrowsing.enabled", true);
+pref("browser.safebrowsing.malware.enabled", true);
+pref("browser.safebrowsing.debug", false);
+
+// Normally the "client ID" sent in updates is appinfo.name, but
+// official Firefox releases from Mozilla use a special identifier.
+// This is currently unused as we are using the apikey method.
+pref("browser.safebrowsing.id", "SeaMonkey");
+
+pref("browser.safebrowsing.updateURL", "http://safebrowsing.clients.google.com/safebrowsing/downloads?client=api&apikey=ABQIAAAALT_LuARPWqUj7bX2mqWTJRQt2QEr-yGktcva5ZhZnWk7HItT7w&appver=%VERSION%&pver=2.2");
+pref("browser.safebrowsing.keyURL", "https://sb-ssl.google.com/safebrowsing/newkey?client=api&apikey=ABQIAAAALT_LuARPWqUj7bX2mqWTJRQt2QEr-yGktcva5ZhZnWk7HItT7w&appver=%VERSION%&pver=2.2");
+pref("browser.safebrowsing.gethashURL", "http://safebrowsing.clients.google.com/safebrowsing/gethash?client=api&apikey=ABQIAAAALT_LuARPWqUj7bX2mqWTJRQt2QEr-yGktcva5ZhZnWk7HItT7w&appver=%VERSION%&pver=2.2");
+pref("browser.safebrowsing.reportURL", "http://safebrowsing.clients.google.com/safebrowsing/report?");
+pref("browser.safebrowsing.reportGenericURL", "http://%LOCALE%.phish-generic.mozilla.com/?hl=%LOCALE%");
+pref("browser.safebrowsing.reportErrorURL", "http://%LOCALE%.phish-error.mozilla.com/?hl=%LOCALE%");
+pref("browser.safebrowsing.reportPhishURL", "http://%LOCALE%.phish-report.mozilla.com/?hl=%LOCALE%");
+pref("browser.safebrowsing.reportMalwareURL", "http://%LOCALE%.malware-report.mozilla.com/?hl=%LOCALE%");
+pref("browser.safebrowsing.reportMalwareErrorURL", "http://%LOCALE%.malware-error.mozilla.com/?hl=%LOCALE%");
+
+pref("browser.safebrowsing.warning.infoURL", "http://www.mozilla.org/%LOCALE%/firefox/phishing-protection/");
+pref("browser.safebrowsing.malware.reportURL", "http://safebrowsing.clients.google.com/safebrowsing/diagnostic?client=Firefox&hl=%LOCALE%&site=");
+
+// Name of the about: page contributed by safebrowsing to handle display of error
+// pages on phishing/malware hits.  (bug 399233)
+pref("urlclassifier.alternate_error_page", "blocked");
+
+// The number of random entries to send with a gethash request.
+pref("urlclassifier.gethashnoise", 4);
+
+// The list of tables that use the gethash request to confirm partial results.
+// pref("urlclassifier.gethashtables", "goog-phish-shavar,goog-malware-shavar");
+pref("urlclassifier.gethashtables", "googpub-phish-shavar,goog-malware-shavar");
+
+// If an urlclassifier table has not been updated in this number of seconds,
+// a gethash request will be forced to check that the result is still in
+// the database.
+pref("urlclassifier.max-complete-age", 2700);
 
 pref("browser.sessionstore.resume_from_crash", true);
 pref("browser.sessionstore.resume_session_once", false);
@@ -626,6 +653,9 @@ pref("browser.taskbar.lists.recent.enabled", false);
 pref("browser.taskbar.lists.maxListItemCount", 7);
 pref("browser.taskbar.lists.tasks.enabled", true);
 pref("browser.taskbar.lists.refreshInSeconds", 120);
+pref("browser.taskbar.previews.enable", true);
+pref("browser.taskbar.previews.max", 20);
+pref("browser.taskbar.previews.cachetime", 5);
 #endif
 
 pref("sidebar.customize.all_panels.url", "http://sidebar-rdf.netscape.com/%LOCALE%/sidebar-rdf/%SIDEBAR_VERSION%/all-panels.rdf");
@@ -638,7 +668,7 @@ pref("browser.throbber.url","chrome://navigator-region/locale/region.properties"
 // pref to control the alert notification 
 pref("alerts.slideIncrement", 1);
 pref("alerts.slideIncrementTime", 10);
-pref("alerts.totalOpenTime", 4000);
+pref("alerts.totalOpenTime", 10000);
 
 // 0 opens the download manager
 // 1 opens a progress dialog
@@ -684,15 +714,11 @@ pref("dom.disable_window_flip",        true);
 // prevent JS from disabling or replacing context menus
 pref("dom.event.contextmenu.enabled",  true);
 
-// The default for this pref reflects whether the build is capable of IPC.
-// (Turning it on in a no-IPC build will have no effect.)
+pref("dom.identity.enabled", false);
+
 #ifdef XP_MACOSX
-// i386 IPC preferences
-pref("dom.ipc.plugins.enabled.i386", false);
-pref("dom.ipc.plugins.enabled.i386.flash player.plugin", true);
-pref("dom.ipc.plugins.enabled.i386.javaplugin2_npapi.plugin", true);
-pref("dom.ipc.plugins.enabled.i386.javaappletplugin.plugin", true);
-// x86_64 ipc preferences
+// On mac, the default pref is per-architecture
+pref("dom.ipc.plugins.enabled.i386", true);
 pref("dom.ipc.plugins.enabled.x86_64", true);
 
 // This pref governs whether we attempt to work around problems caused by
@@ -714,12 +740,8 @@ pref("plugins.update.notifyUser", false);
 pref("plugins.hide_infobar_for_outdated_plugin", false);
 pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
 pref("plugins.hide_infobar_for_missing_plugin", false);
-pref("plugins.click_to_play", false);
+pref("plugins.click_to_play", true);
 pref("plugin.disable", false);
-
-#ifdef XP_MACOSX
-pref("plugins.use_layers", true);
-#endif
 
 #ifndef XP_MACOSX
 // Restore the spinner that was removed in bug 481359
@@ -759,6 +781,16 @@ pref("breakpad.reportURL", "http://crash-stats.mozilla.com/report/index/");
 
 // Name of alternate about: page for certificate errors (when undefined, defaults to about:neterror)
 pref("security.alternate_certificate_error_page", "certerror");
+pref("security.warn_entering_secure", false);
+pref("security.warn_leaving_secure", false);
+pref("security.warn_submit_insecure", false);
+pref("security.warn_viewing_mixed", true);
+pref("security.warn_mixed_active_content", true);
+pref("security.warn_mixed_display_content", false);
+// Block insecure active content on https pages
+pref("security.mixed_content.block_active_content", true);
+// Turn on the CSP 1.0 parser for Content Security Policy headers
+pref("security.csp.speccompliant", true);
 
 // FAQ URLs
 pref("browser.geolocation.warning.infoURL", "http://www.seamonkey-project.org/doc/2.0/geolocation");
@@ -797,6 +829,8 @@ pref("services.sync.prefs.sync.browser.download.manager.scanWhenDone", true);
 pref("services.sync.prefs.sync.browser.formfill.enable", true);
 pref("services.sync.prefs.sync.browser.link.open_external", true);
 pref("services.sync.prefs.sync.browser.link.open_newwindow", true);
+pref("services.sync.prefs.sync.browser.safebrowsing.enabled", true);
+pref("services.sync.prefs.sync.browser.safebrowsing.malware.enabled", true);
 pref("services.sync.prefs.sync.browser.search.update", true);
 pref("services.sync.prefs.sync.browser.sessionstore.max_concurrent_tabs", true);
 pref("services.sync.prefs.sync.browser.startup.homepage", true);
@@ -889,11 +923,14 @@ pref("services.sync.prefs.sync.privacy.sanitize.sanitizeOnShutdown", true);
 pref("services.sync.prefs.sync.security.OCSP.enabled", true);
 pref("services.sync.prefs.sync.security.OCSP.require", true);
 pref("services.sync.prefs.sync.security.default_personal_cert", true);
-pref("services.sync.prefs.sync.security.enable_ssl3", true);
-pref("services.sync.prefs.sync.security.enable_tls", true);
+pref("services.sync.prefs.sync.security.mixed_content.block_active_content", true);
+pref("services.sync.prefs.sync.security.mixed_content.block_display_content", true);
+pref("services.sync.prefs.sync.security.tls.version.min", true);
+pref("services.sync.prefs.sync.security.tls.version.max", true);
 pref("services.sync.prefs.sync.security.warn_entering_secure", true);
-pref("services.sync.prefs.sync.security.warn_entering_weak", true);
 pref("services.sync.prefs.sync.security.warn_leaving_secure", true);
+pref("services.sync.prefs.sync.security.warn_mixed_active_content", true);
+pref("services.sync.prefs.sync.security.warn_mixed_display_content", true);
 pref("services.sync.prefs.sync.security.warn_submit_insecure", true);
 pref("services.sync.prefs.sync.security.warn_viewing_mixed", true);
 pref("services.sync.prefs.sync.signon.rememberSignons", true);

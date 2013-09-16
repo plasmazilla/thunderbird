@@ -22,7 +22,9 @@ const Cu = Components.utils;
 
 Cu.import("resource:///modules/gloda/log4moz.js");
 Cu.import("resource:///modules/iteratorUtils.jsm");
+Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource:///modules/MailUtils.js");
+Cu.import("resource://gre/modules/Services.jsm");
 
 const PERM_DIRECTORY = parseInt("0755", 8);
 const PERM_FILE = parseInt("0644", 8);
@@ -74,9 +76,7 @@ let SearchSupport =
   get _prefBranch()
   {
     if (!this.__prefBranch)
-      this.__prefBranch = Cc["@mozilla.org/preferences-service;1"]
-                            .getService(Ci.nsIPrefService)
-                            .getBranch(this._prefBase);
+      this.__prefBranch = Services.prefs.getBranch(this._prefBase);
     return this.__prefBranch;
   },
 
@@ -197,28 +197,22 @@ let SearchSupport =
     this._log.info("Enabled status changing from " + this._enabled + " to " +
                    aEnable);
 
-    let notificationService =
-      Cc["@mozilla.org/messenger/msgnotificationservice;1"]
-        .getService(Ci.nsIMsgFolderNotificationService);
-
     this._removeObservers();
 
     if (aEnable)
     {
       // This stuff we always need to do
-      notificationService.addListener(this._msgFolderListener,
-        notificationService.msgAdded |
-        notificationService.msgsDeleted |
-        notificationService.msgsMoveCopyCompleted |
+      MailServices.mfn.addListener(this._msgFolderListener,
+        MailServices.mfn.msgAdded |
+        MailServices.mfn.msgsDeleted |
+        MailServices.mfn.msgsMoveCopyCompleted |
         // this code pre-dates msgsClassified
         // folderAdded intentionally omitted
-        notificationService.folderDeleted |
-        notificationService.folderMoveCopyCompleted |
-        notificationService.folderRenamed);
+        MailServices.mfn.folderDeleted |
+        MailServices.mfn.folderMoveCopyCompleted |
+        MailServices.mfn.folderRenamed);
         // itemEvent intentionally omitted
-      let observerService = Cc["@mozilla.org/observer-service;1"]
-                              .getService(Ci.nsIObserverService);
-      observerService.addObserver(this, "MsgMsgDisplayed", false);
+      Services.obs.addObserver(this, "MsgMsgDisplayed", false);
       let idleService = Cc["@mozilla.org/widget/idleservice;1"]
                           .getService(Ci.nsIIdleService);
       idleService.addIdleObserver(this, this._idleThresholdSecs);
@@ -226,13 +220,13 @@ let SearchSupport =
     else
       // We want to observe moves, deletes and renames in case we're disabled
       // If we don't, we'll have no idea the support files exist later
-      notificationService.addListener(this._msgFolderListener,
-        notificationService.msgsMoveCopyCompleted |
-        notificationService.msgsDeleted |
+      MailServices.mfn.addListener(this._msgFolderListener,
+        MailServices.mfn.msgsMoveCopyCompleted |
+        MailServices.mfn.msgsDeleted |
         // folderAdded intentionally omitted
-        notificationService.folderDeleted |
-        notificationService.folderMoveCopyCompleted |
-        notificationService.folderRenamed);
+        MailServices.mfn.folderDeleted |
+        MailServices.mfn.folderMoveCopyCompleted |
+        MailServices.mfn.folderRenamed);
 
     this._enabled = aEnable;
   },
@@ -249,16 +243,11 @@ let SearchSupport =
     if (this.enabled === null)
       return;
 
-    let notificationService =
-      Cc["@mozilla.org/messenger/msgnotificationservice;1"]
-        .getService(Ci.nsIMsgFolderNotificationService);
-    notificationService.removeListener(this._msgFolderListener);
+    MailServices.mfn.removeListener(this._msgFolderListener);
 
     if (this.enabled)
     {
-      let observerService = Cc["@mozilla.org/observer-service;1"]
-                              .getService(Ci.nsIObserverService);
-      observerService.removeObserver(this, "MsgMsgDisplayed", false);
+      Services.obs.removeObserver(this, "MsgMsgDisplayed", false);
       let idleService = Cc["@mozilla.org/widget/idleservice;1"]
                           .getService(Ci.nsIIdleService);
       idleService.removeIdleObserver(this, this._idleThresholdSecs);
@@ -313,9 +302,7 @@ let SearchSupport =
    */
   _foldersToIndexGenerator: function search_find_next_folder()
   {
-    let accountManager = Cc["@mozilla.org/messenger/account-manager;1"]
-                           .getService(Ci.nsIMsgAccountManager);
-    let servers = accountManager.allServers;
+    let servers = MailServices.accounts.allServers;
 
     // Stores whether we're after the last folder indexed or before that --
     // if the last folder indexed is empty, this needs to be true initially
@@ -323,11 +310,8 @@ let SearchSupport =
 
     for each (var server in fixIterator(servers, Ci.nsIMsgIncomingServer))
     {
-      let rootFolder = server.rootFolder;
-      let allFolders = Cc["@mozilla.org/supports-array;1"]
-                         .createInstance(Ci.nsISupportsArray);
-      rootFolder.ListDescendents(allFolders);
-      let numFolders = allFolders.Count();
+      let allFolders = server.rootFolder.descendants;
+      let numFolders = allFolders.length;
       this._log.debug("in find next folder, lastFolderIndexedUri = " +
                       this._lastFolderIndexedUri);
 

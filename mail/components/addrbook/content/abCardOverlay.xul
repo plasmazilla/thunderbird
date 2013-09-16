@@ -170,12 +170,11 @@
           </vbox> <!-- End of Phonenumbers -->
         </hbox> <!-- End of Name/Email/Phonenumbers -->
         <!-- Email Preferences -->
-        <hbox>
-          <vbox valign="middle">
-            <label control="PreferMailFormatPopup"
-                   value="&PreferMailFormat.label;"
-                   accesskey="&PreferMailFormat.accesskey;"/>
-          </vbox>
+        <hbox align="center">
+          <label control="PreferMailFormatPopup"
+                 value="&PreferMailFormat.label;"
+                 accesskey="&PreferMailFormat.accesskey;"/>
+
           <menulist id="PreferMailFormatPopup">
             <menupopup>
               <!-- 0,1,2 come from nsIAbPreferMailFormat in nsIAbCard.idl -->
@@ -184,6 +183,7 @@
               <menuitem value="2" label="&HTML.label;"/>
             </menupopup>
           </menulist>
+
           <checkbox id="allowRemoteContent" label="&allowRemoteContent1.label;"
                     accesskey="&allowRemoteContent1.accesskey;"
                     tooltiptext="&allowRemoteContent1.tooltip;"/>
@@ -435,6 +435,14 @@
               <textbox id="XMPP" flex="1" onchange="updateChatName();"/>
             </hbox>
           </hbox>
+          <hbox id="IRCContainer" align="center">
+            <spacer flex="1"/>
+            <label control="IRC" value="&IRC.label;"
+                   accesskey="&IRC.accesskey;"/>
+            <hbox class="CardEditWidth">
+              <textbox id="IRC" flex="1" onchange="updateChatName();"/>
+            </hbox>
+          </hbox>
         </vbox>
       </hbox>
 
@@ -453,8 +461,7 @@
                           oncommand="onSwitchPhotoType('generic');">
                   <menupopup>
                     <menuitem label="&DefaultPhoto.label;" selected="true"
-                              value="chrome://messenger/skin/addressbook/icons/contact-generic.png"
-                              image="chrome://messenger/skin/addressbook/icons/contact-generic-tiny.png"/>
+                              value="default"/>
                   </menupopup>
                 </menulist>
               </vbox>

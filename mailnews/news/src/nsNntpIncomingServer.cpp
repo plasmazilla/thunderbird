@@ -45,13 +45,13 @@
 
 // this platform specific junk is so the newsrc filenames we create
 // will resemble the migrated newsrc filenames.
-#if defined(XP_UNIX) || defined(XP_BEOS)
+#if defined(XP_UNIX)
 #define NEWSRC_FILE_PREFIX "newsrc-"
 #define NEWSRC_FILE_SUFFIX ""
 #else
 #define NEWSRC_FILE_PREFIX ""
 #define NEWSRC_FILE_SUFFIX ".rc"
-#endif /* XP_UNIX || XP_BEOS */
+#endif /* XP_UNIX */
 
 // ###tw  This really ought to be the most
 // efficient file reading size for the current
@@ -92,6 +92,8 @@ NS_INTERFACE_MAP_END_INHERITING(nsMsgIncomingServer)
 nsNntpIncomingServer::nsNntpIncomingServer()
 {
   mNewsrcHasChanged = false;
+
+  mGetOnlyNew = true;
 
   mHostInfoLoaded = false;
   mHostInfoHasChanged = false;
@@ -172,7 +174,7 @@ nsNntpIncomingServer::GetNewsrcFilePath(nsIFile **aNewsrcFilePath)
   rv = GetHostName(hostname);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCAutoString newsrcFileName(NEWSRC_FILE_PREFIX);
+  nsAutoCString newsrcFileName(NEWSRC_FILE_PREFIX);
   newsrcFileName.Append(hostname);
   newsrcFileName.Append(NEWSRC_FILE_SUFFIX);
   rv = mNewsrcFilePath->AppendNative(newsrcFileName);
@@ -274,17 +276,18 @@ nsNntpIncomingServer::SetCharset(const nsACString & aCharset)
 NS_IMETHODIMP
 nsNntpIncomingServer::GetCharset(nsACString & aCharset)
 {
-  nsresult rv;
   //first we get the per-server settings mail.server.<serverkey>.charset
-  rv = GetCharValue("charset", aCharset);
+  nsresult rv = GetCharValue("charset", aCharset);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   //if the per-server setting is empty,we get the default charset from
   //mailnews.view_default_charset setting and set it as per-server preference.
-  if(aCharset.IsEmpty()){
+  if (aCharset.IsEmpty()) {
     nsString defaultCharset;
     rv = NS_GetLocalizedUnicharPreferenceWithDefault(nullptr,
          PREF_MAILNEWS_VIEW_DEFAULT_CHARSET,
          NS_LITERAL_STRING("ISO-8859-1"), defaultCharset);
+    NS_ENSURE_SUCCESS(rv, rv);
     LossyCopyUTF16toASCII(defaultCharset, aCharset);
     SetCharset(aCharset);
   }
@@ -449,11 +452,12 @@ bool
 nsNntpIncomingServer::ConnectionTimeOut(nsINNTPProtocol* aConnection)
 {
     bool retVal = false;
-    if (!aConnection) return retVal;
-    nsresult rv;
+    if (!aConnection)
+      return retVal;
 
     PRTime lastActiveTimeStamp;
-    rv = aConnection->GetLastActiveTimeStamp(&lastActiveTimeStamp);
+    if (NS_FAILED(aConnection->GetLastActiveTimeStamp(&lastActiveTimeStamp)))
+      return retVal;
 
     if (PR_Now() - lastActiveTimeStamp >= PRTime(170) * PR_USEC_PER_SEC)
     {
@@ -721,10 +725,12 @@ nsNntpIncomingServer::OnStopRunningUrl(nsIURI *url, nsresult exitCode)
 }
 
 NS_IMETHODIMP
-nsNntpIncomingServer::ContainsNewsgroup(const nsACString &name,
+nsNntpIncomingServer::ContainsNewsgroup(const nsACString &aName,
                                         bool *containsGroup)
 {
-    if (name.IsEmpty()) return NS_ERROR_FAILURE;
+    NS_ENSURE_ARG_POINTER(containsGroup);
+    NS_ENSURE_FALSE(aName.IsEmpty(), NS_ERROR_FAILURE);
+
     if (mSubscribedNewsgroups.Length() == 0)
     {
       // If this is empty, we may need to discover folders
@@ -736,9 +742,9 @@ nsNntpIncomingServer::ContainsNewsgroup(const nsACString &name,
         rootFolder->GetSubFolders(getter_AddRefs(subfolders));
       }
     }
-    nsCAutoString unescapedName;
-    MsgUnescapeString(name, 0, unescapedName);
-    *containsGroup = mSubscribedNewsgroups.Contains(name);
+    nsAutoCString unescapedName;
+    MsgUnescapeString(aName, 0, unescapedName);
+    *containsGroup = mSubscribedNewsgroups.Contains(aName);
     return NS_OK;
 }
 
@@ -746,17 +752,21 @@ NS_IMETHODIMP
 nsNntpIncomingServer::SubscribeToNewsgroup(const nsACString &aName)
 {
     NS_ASSERTION(!aName.IsEmpty(), "no name");
-    if (aName.IsEmpty()) return NS_ERROR_FAILURE;
+    NS_ENSURE_FALSE(aName.IsEmpty(), NS_ERROR_FAILURE);
+
+    // If we already have this newsgroup, do nothing and report success.
+    bool containsGroup = false;
+    nsresult rv = ContainsNewsgroup(aName, &containsGroup);
+    NS_ENSURE_SUCCESS(rv, rv);
+    if (containsGroup)
+      return NS_OK;
 
     nsCOMPtr<nsIMsgFolder> msgfolder;
-    nsresult rv = GetRootMsgFolder(getter_AddRefs(msgfolder));
-    if (NS_FAILED(rv)) return rv;
-    if (!msgfolder) return NS_ERROR_FAILURE;
+    rv = GetRootMsgFolder(getter_AddRefs(msgfolder));
+    NS_ENSURE_SUCCESS(rv, rv);
+    NS_ENSURE_TRUE(msgfolder, NS_ERROR_FAILURE);
 
-    rv = msgfolder->CreateSubfolder(NS_ConvertUTF8toUTF16(aName), nullptr);
-    if (NS_FAILED(rv)) return rv;
-
-    return NS_OK;
+    return msgfolder->CreateSubfolder(NS_ConvertUTF8toUTF16(aName), nullptr);
 }
 
 bool
@@ -798,19 +808,19 @@ nsNntpIncomingServer::WriteHostInfoFile()
   NS_ENSURE_SUCCESS(rv, rv);
 
   // todo, missing some formatting, see the 4.x code
-  nsCAutoString header("# News host information file.");
+  nsAutoCString header("# News host information file.");
   WriteLine(hostInfoStream, header);
   header.Assign("# This is a generated file!  Do not edit.");
   WriteLine(hostInfoStream, header);
   header.Truncate();
   WriteLine(hostInfoStream, header);
-  nsCAutoString version("version=");
+  nsAutoCString version("version=");
   version.AppendInt(VALID_VERSION);
   WriteLine(hostInfoStream, version);
-  nsCAutoString newsrcname("newsrcname=");
+  nsAutoCString newsrcname("newsrcname=");
   newsrcname.Append(hostname);
   WriteLine(hostInfoStream, hostname);
-  nsCAutoString dateStr("lastgroupdate=");
+  nsAutoCString dateStr("lastgroupdate=");
   dateStr.AppendInt(mLastUpdatedTime);
   WriteLine(hostInfoStream, dateStr);
   dateStr ="firstnewdate=";
@@ -860,17 +870,17 @@ nsNntpIncomingServer::LoadHostInfoFile()
 
   nsCOMPtr<nsIInputStream> fileStream;
   rv = NS_NewLocalFileInputStream(getter_AddRefs(fileStream), mHostInfoFile);
-  NS_ENSURE_SUCCESS(rv, NS_OK);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsILineInputStream> lineInputStream(do_QueryInterface(fileStream, &rv));
-  NS_ENSURE_SUCCESS(rv, NS_OK);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   bool more = true;
   nsCString line;
 
   while (more && NS_SUCCEEDED(rv))
   {
-    lineInputStream->ReadLine(line, &more);
+    rv = lineInputStream->ReadLine(line, &more);
     if (line.IsEmpty())
       continue;
     HandleLine(line.get(), line.Length());
@@ -973,7 +983,7 @@ nsNntpIncomingServer::AddNewsgroupToList(const char *aName)
     nsresult rv;
 
     nsAutoString newsgroupName;
-    nsCAutoString dataCharset;
+    nsAutoCString dataCharset;
     rv = GetCharset(dataCharset);
     NS_ENSURE_SUCCESS(rv,rv);
 
@@ -1063,7 +1073,7 @@ NS_IMETHODIMP
 nsNntpIncomingServer::SetAsSubscribed(const nsACString &path)
 {
     mTempSubscribed.AppendElement(path);
-    if (mGetOnlyNew && (mGroupsOnServer.IndexOf(path) == mGroupsOnServer.NoIndex))
+    if (mGetOnlyNew && (!mGroupsOnServer.Contains(path)))
       return NS_OK;
 
     nsresult rv = EnsureInner();
@@ -1171,7 +1181,7 @@ nsNntpIncomingServer::Unsubscribe(const PRUnichar *aUnicharName)
 
   // to handle non-ASCII newsgroup names, we store them internally as escaped.
   // so we need to escape and encode the name, in order to find it.
-  nsCAutoString escapedName;
+  nsAutoCString escapedName;
   rv = NS_MsgEscapeEncodeURLPath(nsDependentString(aUnicharName), escapedName);
 
   nsCOMPtr <nsIMsgFolder> newsgroupFolder;
@@ -1196,14 +1206,16 @@ nsNntpIncomingServer::Unsubscribe(const PRUnichar *aUnicharName)
   return NS_OK;
 }
 
-int32_t
+nsresult
 nsNntpIncomingServer::HandleLine(const char* line, uint32_t line_size)
 {
   NS_ASSERTION(line, "line is null");
-  if (!line) return 0;
+  if (!line)
+    return NS_OK;
 
   // skip blank lines and comments
-  if (line[0] == '#' || line[0] == '\0') return 0;
+  if (line[0] == '#' || line[0] == '\0')
+    return NS_OK;
   // ###TODO - make this truly const, maybe pass in an nsCString &
 
   if (mHasSeenBeginGroups) {
@@ -1243,7 +1255,7 @@ nsNntpIncomingServer::HandleLine(const char* line, uint32_t line_size)
     }
   }
 
-  return 0;
+  return NS_OK;
 }
 
 nsresult
@@ -1500,7 +1512,7 @@ nsNntpIncomingServer::FindGroup(const nsACString &name, nsIMsgNewsFolder **resul
   if (!serverFolder) return NS_ERROR_FAILURE;
 
   // Escape the name for using FindSubFolder
-  nsCAutoString escapedName;
+  nsAutoCString escapedName;
   rv = MsgEscapeString(name, nsINetUtil::ESCAPE_URL_PATH, escapedName);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -1556,7 +1568,7 @@ nsNntpIncomingServer::GroupNotFound(nsIMsgWindow *aMsgWindow,
   NS_ENSURE_SUCCESS(rv,rv);
 
   nsCString hostname;
-  rv = GetHostName(hostname);
+  rv = GetRealHostName(hostname);
   NS_ENSURE_SUCCESS(rv,rv);
 
   NS_ConvertUTF8toUTF16 hostStr(hostname);
@@ -1697,19 +1709,18 @@ nsNntpIncomingServer::SetSelection(nsITreeSelection * aSelection)
 }
 
 NS_IMETHODIMP
-nsNntpIncomingServer::GetRowProperties(int32_t index, nsISupportsArray *properties)
+nsNntpIncomingServer::GetRowProperties(int32_t index, nsAString& properties)
 {
     return NS_OK;
 }
 
 NS_IMETHODIMP
-nsNntpIncomingServer::GetCellProperties(int32_t row, nsITreeColumn* col, nsISupportsArray *properties)
+nsNntpIncomingServer::GetCellProperties(int32_t row, nsITreeColumn* col, nsAString& properties)
 {
     if (!IsValidRow(row))
       return NS_ERROR_UNEXPECTED;
 
     NS_ENSURE_ARG_POINTER(col);
-    NS_ENSURE_ARG_POINTER(properties);
 
     const PRUnichar* colID;
     col->GetIdConst(&colID);
@@ -1719,20 +1730,20 @@ nsNntpIncomingServer::GetCellProperties(int32_t row, nsITreeColumn* col, nsISupp
         // in the "subscribedCol"
         if (mSearchResultSortDescending)
           row = mSubscribeSearchResult.Length() - 1 - row;
-        if (mTempSubscribed.IndexOf(mSubscribeSearchResult.ElementAt(row)) != mTempSubscribed.NoIndex) {
-          properties->AppendElement(mSubscribedAtom);
+        if (mTempSubscribed.Contains(mSubscribeSearchResult.ElementAt(row))) {
+          properties.AssignLiteral("subscribed");
         }
     }
     else if (colID[0] == 'n') {
       // add the "nntp" property to the "nameCol"
       // so we get the news folder icon in the search view
-      properties->AppendElement(mNntpAtom);
+      properties.AssignLiteral("nntp");
     }
     return NS_OK;
 }
 
 NS_IMETHODIMP
-nsNntpIncomingServer::GetColumnProperties(nsITreeColumn* col, nsISupportsArray *properties)
+nsNntpIncomingServer::GetColumnProperties(nsITreeColumn* col, nsAString& properties)
 {
     return NS_OK;
 }
@@ -1842,7 +1853,7 @@ nsNntpIncomingServer::GetCellText(int32_t row, nsITreeColumn* col, nsAString& _r
 
     nsresult rv = NS_OK;
     if (colID[0] == 'n') {
-      nsCAutoString str;
+      nsAutoCString str;
       if (mSearchResultSortDescending)
         row = mSubscribeSearchResult.Length() - 1 - row;
       // some servers have newsgroup names that are non ASCII.  we store
@@ -2108,7 +2119,7 @@ nsNntpIncomingServer::OnUserOrHostNameChanged(const nsACString& oldName,
   // Now unsubscribe & subscribe.
   uint32_t i;
   uint32_t cnt = groupList.Length();
-  nsCAutoString cname;
+  nsAutoCString cname;
   for (i = 0; i < cnt; i++)
   {
     // unsubscribe.
@@ -2125,4 +2136,12 @@ nsNntpIncomingServer::OnUserOrHostNameChanged(const nsACString& oldName,
 
   // Force updating the rc file.
   return CommitSubscribeChanges();
+}
+
+NS_IMETHODIMP
+nsNntpIncomingServer::GetSortOrder(int32_t* aSortOrder)
+{
+  NS_ENSURE_ARG_POINTER(aSortOrder);
+  *aSortOrder = 500000000;
+  return NS_OK;
 }

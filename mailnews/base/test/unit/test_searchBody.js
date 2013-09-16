@@ -7,8 +7,7 @@
  */
 load("../../../resources/searchTestUtils.js");
 
-const copyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
-                      .getService(Ci.nsIMsgCopyService);
+Components.utils.import("resource:///modules/mailServices.js");
 
 const nsMsgSearchScope = Ci.nsMsgSearchScope;
 const nsMsgSearchAttrib = Ci.nsMsgSearchAttrib;
@@ -66,7 +65,7 @@ function fixFile(file) {
   sstream.init(fstream);
 
   var str = sstream.read(4096);
-  if (str.substring(0, 5) == "From ") {
+  if (str.startsWith("From ")) {
     sstream.close();
     fstream.close();
     return file;
@@ -82,7 +81,7 @@ function fixFile(file) {
 
   let targetFile = Cc["@mozilla.org/file/local;1"]
                      .createInstance(Ci.nsILocalFile);
-  targetFile.initWithFile(gProfileDir);
+  targetFile.initWithFile(do_get_profile());
   targetFile.append(file.leafName);
   let ostream = Cc["@mozilla.org/network/file-output-stream;1"]
                   .createInstance(Ci.nsIFileOutputStream);
@@ -104,8 +103,8 @@ var copyListener =
     if (fileName)
     { 
       var file = fixFile(do_get_file(fileName));
-      copyService.CopyFileMessage(file, gLocalInboxFolder, null, false, 0,
-                              "", copyListener, null);
+      MailServices.copy.CopyFileMessage(file, localAccountUtils.inboxFolder, null,
+                                        false, 0, "", copyListener, null);
     }
     else
       testBodySearch();
@@ -114,7 +113,7 @@ var copyListener =
 
 function run_test()
 {
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
   // test that validity table terms are valid
 
@@ -174,7 +173,7 @@ function testBodySearch()
   var test = Tests.shift();
   if (test)
   {
-    testObject = new TestSearch(gLocalInboxFolder,
+    testObject = new TestSearch(localAccountUtils.inboxFolder,
                          test.value,
                          Body,
                          test.op,

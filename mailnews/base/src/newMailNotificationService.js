@@ -16,10 +16,11 @@ const Cc = Components.classes;
 const Ci = Components.interfaces;
 const Cu = Components.utils;
 
-Cu.import("resource://gre/modules/XPCOMUtils.jsm");
+Cu.import("resource:///modules/gloda/log4moz.js");
+Cu.import("resource:///modules/iteratorUtils.jsm");
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource://gre/modules/Services.jsm");
-Cu.import("resource:///modules/gloda/log4moz.js");
+Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
 const NMNS = Ci.mozINewMailNotificationService;
 
@@ -108,8 +109,8 @@ NewMailNotificationService.prototype = {
   _initUnreadCount: function NMNS_initUnreadCount() {
     let total = 0;
     let allServers = MailServices.accounts.allServers;
-    for (let i = 0; i < allServers.Count(); i++) {
-      let currentServer = allServers.QueryElementAt(i, Ci.nsIMsgIncomingServer);
+    for (let i = 0; i < allServers.length; i++) {
+      let currentServer = allServers.queryElementAt(i, Ci.nsIMsgIncomingServer);
       this._log.debug("NMNS_initUnread: server " + currentServer.prettyName + " type " + currentServer.type);
       // Don't bother counting RSS or NNTP servers
       let type = currentServer.type;
@@ -130,9 +131,6 @@ NewMailNotificationService.prototype = {
 
   // Count all the unread messages below the given folder
   _countUnread: function NMNS_countUnread(folder) {
-    let allFolders = Cc["@mozilla.org/supports-array;1"]
-                       .createInstance(Ci.nsISupportsArray);
-
     this._log.trace("NMNS_countUnread: parent folder " + folder.URI);
     let unreadCount = 0;
 
@@ -143,14 +141,11 @@ NewMailNotificationService.prototype = {
         unreadCount += count;
     }
 
-    folder.ListDescendents(allFolders);
-    let numFolders = allFolders.Count();
-
-    for (let i = 0; i < numFolders; i++) {
-      let fold = allFolders.QueryElementAt(i, Ci.nsIMsgFolder);
-      if (this.confirmShouldCount(fold)) {
-        let count = fold.getNumUnread(false);
-        this._log.debug("NMNS_countUnread: folder " + fold.URI + ", " + count + " unread");
+    let allFolders = folder.descendants;
+    for (let folder in fixIterator(allFolders, Ci.nsIMsgFolder)) {
+      if (this.confirmShouldCount(folder)) {
+        let count = folder.getNumUnread(false);
+        this._log.debug("NMNS_countUnread: folder " + folder.URI + ", " + count + " unread");
         if (count > 0)
           unreadCount += count;
       }
@@ -227,10 +222,8 @@ NewMailNotificationService.prototype = {
       // Biff notifications come in for the top level of the server, we need to look for
       // the folder that actually contains the new mail
 
-      let allFolders = Cc["@mozilla.org/supports-array;1"]
-                         .createInstance(Ci.nsISupportsArray);
-      folder.ListDescendents(allFolders);
-      let numFolders = allFolders.Count();
+      let allFolders = folder.descendants;
+      let numFolders = allFolders.length;
 
       this._log.trace("NMNS_biffStateChanged: folder " + folder.URI + " New mail, " + numFolders + " subfolders");
       let newCount = 0;
@@ -242,11 +235,10 @@ NewMailNotificationService.prototype = {
           newCount += folderNew;
       }
 
-      for (let i = 0; i < numFolders; i++) {
-        let fold = allFolders.QueryElementAt(i, Ci.nsIMsgFolder);
-        if (this.confirmShouldCount(fold)) {
-          let folderNew = fold.getNumNewMessages(false);
-          this._log.debug("NMNS_biffStateChanged: folder " + fold.URI + " new messages: " + folderNew);
+      for (let folder in fixIterator(allFolders, Ci.nsIMsgFolder)) {
+        if (this.confirmShouldCount(folder)) {
+          let folderNew = folder.getNumNewMessages(false);
+          this._log.debug("NMNS_biffStateChanged: folder " + folder.URI + " new messages: " + folderNew);
           if (folderNew > 0)
             newCount += folderNew;
         }

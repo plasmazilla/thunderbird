@@ -82,6 +82,7 @@ nsresult nsMsgFolderCache::InitNewDB()
     nsIMdbStore *store = GetStore();
     // create the unique table for the dbFolderInfo.
     mdb_err mdberr;
+    // TODO: this error assignment is suspicious and never checked.
     mdberr = (nsresult) store->NewTable(GetEnv(), m_folderRowScopeToken,
     m_folderTableKindToken, false, nullptr, &m_mdbAllFoldersTable);
   }
@@ -137,8 +138,7 @@ nsresult nsMsgFolderCache::OpenMDB(const nsACString& dbName, bool exists)
     if (NS_SUCCEEDED(ret))
     {
       nsIMdbThumb *thumb = nullptr;
-      nsIMdbHeap* dbHeap = 0;
-      mdb_bool dbFrozen = mdbBool_kFalse; // not readonly, we want modifiable
+      nsIMdbHeap* dbHeap = nullptr;
 
       if (m_mdbEnv)
         m_mdbEnv->SetAutoClear(true);
@@ -148,9 +148,10 @@ nsresult nsMsgFolderCache::OpenMDB(const nsACString& dbName, bool exists)
         mdb_bool canOpen;
         mdbYarn outFormatVersion;
 
-        nsIMdbFile* oldFile = 0;
+        nsIMdbFile* oldFile = nullptr;
         ret = mdbFactory->OpenOldFile(m_mdbEnv, dbHeap, nsCString(dbName).get(),
-          dbFrozen, &oldFile);
+                                      mdbBool_kFalse, // not readonly, we want modifiable
+                                      &oldFile);
         if ( oldFile )
         {
           if (NS_SUCCEEDED(ret))
@@ -181,8 +182,8 @@ nsresult nsMsgFolderCache::OpenMDB(const nsACString& dbName, bool exists)
         do
         {
           ret = thumb->DoMore(m_mdbEnv, &outTotal, &outCurrent, &outDone, &outBroken);
-          if (ret != 0)
-          {// mork isn't really doing NS errors yet.
+          if (NS_FAILED(ret))
+          {
             outDone = true;
             break;
           }
@@ -237,7 +238,7 @@ NS_IMETHODIMP nsMsgFolderCache::Init(nsIFile *aFile)
   bool exists;
   aFile->Exists(&exists);
 
-  nsCAutoString dbPath;
+  nsAutoCString dbPath;
   aFile->GetNativePath(dbPath);
   // ### evil cast until MDB supports file streams.
   nsresult rv = OpenMDB(dbPath, exists);

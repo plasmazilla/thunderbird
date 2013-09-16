@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 var gStateObject;
 var gTreeData;
 
@@ -20,9 +22,8 @@ window.onload = function() {
     }
   }
   // make sure the data is tracked to be restored in case of a subsequent crash
-  var event = document.createEvent("UIEvents");
-  event.initUIEvent("input", true, true, window, 0);
-  sessionData.dispatchEvent(event);
+  sessionData.dispatchEvent(new UIEvent("input",
+    { bubbles: true, cancelable: true, view: window, detail: 0 }));
 
   gStateObject = JSON.parse(sessionData.value);
 
@@ -57,7 +58,7 @@ function initTreeView() {
       };
     });
     gTreeData.push(winState);
-    for each (var tab in winState.tabs)
+    for (var tab of winState.tabs)
       gTreeData.push(tab);
   }, this);
 
@@ -108,9 +109,7 @@ function restoreSession() {
 }
 
 function startNewSession() {
-  if (Components.classes["@mozilla.org/preferences-service;1"]
-                .getService(Components.interfaces.nsIPrefBranch)
-                .getIntPref("browser.startup.page") == 1)
+  if (Services.prefs.getIntPref("browser.startup.page") == 1)
     getBrowserWindow().BrowserHome();
   else
     getBrowserWindow().getBrowser().loadURI("about:blank");
@@ -173,7 +172,7 @@ function toggleRowChecked(aIx) {
 
   if (treeView.isContainer(aIx)) {
     // (un)check all tabs of this window as well
-    for each (var tab in item.tabs) {
+    for (var tab of item.tabs) {
       tab.checked = item.checked;
       treeView.treeBox.invalidateRow(gTreeData.indexOf(tab));
     }
@@ -199,24 +198,13 @@ function restoreSingleTab(aIx, aShifted) {
   ss.setTabState(newTab, JSON.stringify(tabState));
 
   // respect the preference as to whether to select the tab (the Shift key inverses)
-  var prefBranch = Components.classes["@mozilla.org/preferences-service;1"].getService(Components.interfaces.nsIPrefBranch);
-  if (prefBranch.getBoolPref("browser.tabs.loadInBackground") != !aShifted)
+  if (Services.prefs.getBoolPref("browser.tabs.loadInBackground") != !aShifted)
     tabbrowser.selectedTab = newTab;
 }
 
 // Tree controller
 
 var treeView = {
-  _atoms: {},
-  _getAtom: function(aName)
-  {
-    if (!this._atoms[aName]) {
-      var as = Components.classes["@mozilla.org/atom-service;1"].getService(Components.interfaces.nsIAtomService);
-      this._atoms[aName] = as.getAtom(aName);
-    }
-    return this._atoms[aName];
-  },
-
   treeBox: null,
   selection: null,
 
@@ -272,17 +260,17 @@ var treeView = {
     this.treeBox.invalidateRow(idx);
   },
 
-  getCellProperties: function(idx, column, prop) {
+  getCellProperties: function(idx, column) {
     if (column.id == "restore" && this.isContainer(idx) && gTreeData[idx].checked === 0)
-      prop.AppendElement(this._getAtom("partial"));
+      return "partial";
     if (column.id == "title")
-      prop.AppendElement(this._getAtom(this.getImageSrc(idx, column) ? "icon" : "noicon"));
+      return this.getImageSrc(idx, column) ? "icon" : "noicon";
+    return "";
   },
 
-  getRowProperties: function(idx, prop) {
+  getRowProperties: function(idx) {
     var winState = gTreeData[idx].parent || gTreeData[idx];
-    if (winState.ix % 2 != 0)
-      prop.AppendElement(this._getAtom("alternate"));
+    return winState.ix % 2 != 0 ? "alternate" : "";
   },
 
   getImageSrc: function(idx, column) {
@@ -297,5 +285,5 @@ var treeView = {
   selectionChanged: function() { },
   performAction: function(action) { },
   performActionOnCell: function(action, index, column) { },
-  getColumnProperties: function(column, prop) { }
+  getColumnProperties: function(column) { return ""; }
 };

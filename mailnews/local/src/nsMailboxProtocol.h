@@ -67,7 +67,6 @@ public:
 private:
   nsCOMPtr<nsIMailboxUrl>  m_runningUrl; // the nsIMailboxURL that is currently running
   nsMailboxAction m_mailboxAction; // current mailbox action associated with this connnection...
-  int32_t      m_originalContentLength; /* the content length at the time of calling graph progress */
   uint64_t m_msgOffset;
   // Event sink handles
   nsCOMPtr<nsIStreamListener> m_mailboxParser;
@@ -81,7 +80,6 @@ private:
   MailboxStatesEnum  m_initialState;
 
   int64_t   mCurrentProgress;
-  uint32_t  m_messageID;
 
         // can we just use the base class m_tempMsgFile?
   nsCOMPtr<nsIFile> m_tempMessageFile;
@@ -92,7 +90,7 @@ private:
   nsCOMPtr<nsIInputStream> m_multipleMsgMoveCopyStream;
 
   virtual nsresult ProcessProtocolState(nsIURI * url, nsIInputStream * inputStream,
-                        uint32_t sourceOffset, uint32_t length);
+                                        uint64_t sourceOffset, uint32_t length);
   virtual nsresult CloseSocket();
 
   nsresult SetupMessageExtraction();
@@ -108,9 +106,9 @@ private:
 
   // When parsing a mailbox folder in chunks, this protocol state reads in the current chunk
   // and forwards it to the mailbox parser.
-  int32_t ReadFolderResponse(nsIInputStream * inputStream, uint32_t sourceOffset, uint32_t length);
-  int32_t ReadMessageResponse(nsIInputStream * inputStream, uint32_t sourceOffset, uint32_t length);
-  int32_t DoneReadingMessage();
+  int32_t ReadFolderResponse(nsIInputStream * inputStream, uint64_t sourceOffset, uint32_t length);
+  int32_t ReadMessageResponse(nsIInputStream * inputStream, uint64_t sourceOffset, uint32_t length);
+  nsresult DoneReadingMessage();
 
   ////////////////////////////////////////////////////////////////////////////////////////
   // End of Protocol Methods

@@ -10,6 +10,8 @@
  *
  */
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 Services.prefs.setCharPref("mail.serverDefaultStoreContractID",
                            "@mozilla.org/msgstore/berkeleystore;1");
 
@@ -17,15 +19,14 @@ load("../../../resources/POP3pump.js");
 
 // async support
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 
 // IMAP pump
-load("../../../resources/IMAPpump.js");
 
 setupIMAPPump();
 
 var gFinishedRunningURL = -1;
+var gSubfolder;
 
 // tests
 
@@ -40,10 +41,10 @@ const quarantineTests = [
 
 function createSubfolder()
 {
-  gIMAPIncomingServer.rootFolder.createSubfolder("subfolder", null);
+  IMAPPump.incomingServer.rootFolder.createSubfolder("subfolder", null);
   dl('wait for folderAdded notification');
   yield false;
-  gSubfolder = gIMAPIncomingServer.rootFolder.getChildNamed("subfolder");
+  gSubfolder = IMAPPump.incomingServer.rootFolder.getChildNamed("subfolder");
   do_check_true(gSubfolder instanceof Ci.nsIMsgImapMailFolder);
   gSubfolder.updateFolderWithListener(null, urlListener);
   dl('wait for OnStopRunningURL');
@@ -103,9 +104,9 @@ function updateSubfolderAndTest() {
 
   // test
   listMessages(gSubfolder);
-  listMessages(gLocalInboxFolder);
+  listMessages(localAccountUtils.inboxFolder);
   do_check_eq(folderCount(gSubfolder), 1);
-  do_check_eq(folderCount(gLocalInboxFolder), 1);
+  do_check_eq(folderCount(localAccountUtils.inboxFolder), 1);
 }
 
 function get2Messages()
@@ -136,9 +137,9 @@ function updateSubfolderAndTest2() {
 
   //test
   listMessages(gSubfolder);
-  listMessages(gLocalInboxFolder);
+  listMessages(localAccountUtils.inboxFolder);
   do_check_eq(folderCount(gSubfolder), 3);
-  do_check_eq(folderCount(gLocalInboxFolder), 3);
+  do_check_eq(folderCount(localAccountUtils.inboxFolder), 3);
 }
 
 function endTest()
@@ -152,7 +153,7 @@ function endTest()
 
 // listeners
 
-mfnListener =
+let mfnListener =
 {
   folderAdded: function folderAdded(aFolder)
   {
@@ -189,12 +190,10 @@ function run_test()
 
   // Add folder listeners that will capture async events
   const nsIMFNService = Ci.nsIMsgFolderNotificationService;
-  var MFNService = Cc["@mozilla.org/messenger/msgnotificationservice;1"]
-                      .getService(nsIMFNService);
   let flags =
         nsIMFNService.folderAdded |
         nsIMFNService.msgAdded;
-  MFNService.addListener(mfnListener, flags);
+  MailServices.mfn.addListener(mfnListener, flags);
 
   //start first test
   async_run_tests(quarantineTests);

@@ -63,6 +63,7 @@ Feed.prototype =
   mFolder: null,
   mInvalidFeed: false,
   mFeedType: null,
+  mLastModified: null,
 
   get folder()
   {
@@ -122,7 +123,7 @@ Feed.prototype =
     if (!FeedUtils.isValidScheme(uri))
     {
        // Simulate an invalid feed error.
-      FeedUtils.log.debug("Feed.download: invalid protocol for - " + uri.spec);
+      FeedUtils.log.info("Feed.download: invalid protocol for - " + uri.spec);
       this.onParseError(this);
       return;
     }
@@ -137,18 +138,32 @@ Feed.prototype =
       return;
     }
 
+    if (Services.io.offline) {
+      // If offline and don't want to go online, just add the feed subscription;
+      // it can be verified later (the folder name will be the url if not adding
+      // to an existing folder). Only for subscribe actions; passive biff and
+      // active get new messages are handled prior to getting here.
+      let win = Services.wm.getMostRecentWindow("mail:3pane");
+      if (!win.MailOfflineMgr.getNewMail()) {
+        this.storeNextItem();
+        return;
+      }
+    }
+
     this.request = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"].
                    createInstance(Ci.nsIXMLHttpRequest);
     // Must set onProgress before calling open.
     this.request.onprogress = this.onProgress;
     this.request.open("GET", this.url, true);
+    this.request.channel.loadFlags |= Ci.nsIRequest.LOAD_BYPASS_CACHE |
+                                      Ci.nsIRequest.INHIBIT_CACHING;
 
-    let lastModified = this.lastModified;
     // Some servers, if sent If-Modified-Since, will send 304 if subsequently
     // not sent If-Modified-Since, as in the case of an unsubscribe and new
-    // subscribe.  Send start of epoch date to force a download.
-    this.request.setRequestHeader("If-Modified-Since",
-                                  lastModified ? lastModified : FeedUtils.EPOCHDATE);
+    // subscribe.  Send start of century date to force a download; some servers
+    // will 304 on older dates (such as epoch 1970).
+    let lastModified = this.lastModified || "Sat, 01 Jan 2000 00:00:00 GMT";
+    this.request.setRequestHeader("If-Modified-Since", lastModified);
 
     // Only order what you're going to eat...
     this.request.responseType = "document";
@@ -180,9 +195,11 @@ Feed.prototype =
     // feed so we can use it when making future requests, to avoid downloading
     // and parsing feeds that have not changed.  Don't update if merely checking
     // the url, as for subscribe move/copy, as a subsequent refresh may get a 304.
+    // Save the response and persist it only upon successful completion of the
+    // refresh cycle (i.e. not if the request is cancelled).
     let lastModifiedHeader = request.getResponseHeader("Last-Modified");
-    if (lastModifiedHeader && feed.parseItems)
-      feed.lastModified = lastModifiedHeader;
+    feed.mLastModified = (lastModifiedHeader && feed.parseItems) ?
+                           lastModifiedHeader : null;
 
     // The download callback is called asynchronously when parse() is done.
     feed.parse();
@@ -228,8 +245,6 @@ Feed.prototype =
       return;
 
     aFeed.mInvalidFeed = true;
-    aFeed.lastModified = "";
-
     if (aFeed.downloadCallback)
       aFeed.downloadCallback.downloaded(aFeed, FeedUtils.kNewsBlogInvalidFeed);
 
@@ -307,7 +322,7 @@ Feed.prototype =
     if (quickMode)
     {
       quickMode = quickMode.QueryInterface(Ci.nsIRDFLiteral);
-      quickMode = quickMode.Value == "true" ? true : false;
+      quickMode = quickMode.Value == "true";
     }
 
     return quickMode;
@@ -368,6 +383,7 @@ Feed.prototype =
 
     // storeNextItem() will iterate through the parsed items, storing each one.
     this.itemsToStoreIndex = 0;
+    this.itemsStored = 0;
     this.storeNextItem();
   },
 
@@ -450,16 +466,24 @@ Feed.prototype =
   // the next one, otherwise triggers a download done notification to the UI.
   storeNextItem: function()
   {
+    if (FeedUtils.CANCEL_REQUESTED)
+    {
+      FeedUtils.CANCEL_REQUESTED = false;
+      this.cleanupParsingState(this, FeedUtils.kNewsBlogCancel);
+      return;
+    }
+
     if (!this.itemsToStore || !this.itemsToStore.length)
     {
       this.createFolder();
-      this.cleanupParsingState(this);
+      this.cleanupParsingState(this, FeedUtils.kNewsBlogSuccess);
       return;
     }
 
     let item = this.itemsToStore[this.itemsToStoreIndex];
 
-    item.store();
+    if (item.store())
+      this.itemsStored++;
 
     this.itemsToStoreIndex++;
 
@@ -491,28 +515,33 @@ Feed.prototype =
         item.feed.folder.callFilterPlugins(null);
       }
 
-      this.cleanupParsingState(item.feed);
+      this.cleanupParsingState(item.feed, FeedUtils.kNewsBlogSuccess);
     }
   },
 
-  cleanupParsingState: function(aFeed)
+  cleanupParsingState: function(aFeed, aCode)
   {
     // Now that we are done parsing the feed, remove the feed from the cache.
     FeedCache.removeFeed(aFeed.url);
     aFeed.removeInvalidItems(false);
 
+    if (aCode == FeedUtils.kNewsBlogSuccess && aFeed.mLastModified)
+      aFeed.lastModified = aFeed.mLastModified;
+
     // Flush any feed item changes to disk.
     let ds = FeedUtils.getItemsDS(aFeed.server);
     ds.QueryInterface(Ci.nsIRDFRemoteDataSource).Flush();
+    FeedUtils.log.debug("Feed.cleanupParsingState: items stored - " + this.itemsStored);
 
     if (aFeed.downloadCallback)
-      aFeed.downloadCallback.downloaded(aFeed, FeedUtils.kNewsBlogSuccess);
+      aFeed.downloadCallback.downloaded(aFeed, aCode);
 
     // Force the xml http request to go away.  This helps reduce some nasty
     // assertions on shut down.
     this.request = null;
     this.itemsToStore = "";
     this.itemsToStoreIndex = 0;
+    this.itemsStored = 0;
     this.storeItemsTimer = null;
   },
 

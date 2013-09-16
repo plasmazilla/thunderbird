@@ -8,17 +8,17 @@
 
 // Ensure the activity modules are loaded for this window.
 Components.utils.import("resource:///modules/activity/activityModules.js");
-Components.utils.import("resource://gre/modules/PluralForm.jsm");
 Components.utils.import("resource:///modules/attachmentChecker.js");
-
-Components.utils.import("resource:///modules/MailUtils.js");
-Components.utils.import("resource:///modules/errUtils.js");
-Components.utils.import("resource:///modules/iteratorUtils.jsm");
-Components.utils.import("resource://gre/modules/InlineSpellChecker.jsm");
-Components.utils.import("resource://gre/modules/Services.jsm")
-Components.utils.import("resource:///modules/mailServices.js");
-Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource:///modules/cloudFileAccounts.js");
+Components.utils.import("resource:///modules/errUtils.js");
+Components.utils.import("resource:///modules/folderUtils.jsm");
+Components.utils.import("resource:///modules/iteratorUtils.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource:///modules/MailUtils.js");
+Components.utils.import("resource://gre/modules/InlineSpellChecker.jsm");
+Components.utils.import("resource://gre/modules/PluralForm.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm")
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 /**
  * interfaces
@@ -53,17 +53,14 @@ var gSpellChecker = new InlineSpellChecker();
  */
 var gHideMenus;
 var gMsgCompose;
-var gAccountManager;
-var gIOService;
-var gPromptService;
 var gWindowLocked;
+var gSendLocked;
 var gContentChanged;
 var gAutoSaving;
 var gCurrentIdentity;
 var defaultSaveOperation;
 var gSendOrSaveOperationInProgress;
 var gCloseWindowAfterSave;
-var gIsOffline;
 var gSessionAdded;
 var gCurrentAutocompleteDirectory;
 var gSetupLdapAutocomplete;
@@ -115,9 +112,6 @@ function InitializeGlobalVariables()
 {
   gMessenger = Components.classes["@mozilla.org/messenger;1"]
                          .createInstance(Components.interfaces.nsIMessenger);
-  gAccountManager = Components.classes["@mozilla.org/messenger/account-manager;1"].getService(Components.interfaces.nsIMsgAccountManager);
-  gIOService = Components.classes["@mozilla.org/network/io-service;1"].getService(Components.interfaces.nsIIOService);
-  gPromptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"].getService(Components.interfaces.nsIPromptService);
 
   gMsgCompose = null;
   gWindowLocked = false;
@@ -127,7 +121,6 @@ function InitializeGlobalVariables()
   gSendOrSaveOperationInProgress = false;
   gAutoSaving = false;
   gCloseWindowAfterSave = false;
-  gIsOffline = gIOService.offline;
   gSessionAdded = false;
   gCurrentAutocompleteDirectory = null;
   gSetupLdapAutocomplete = false;
@@ -154,9 +147,6 @@ InitializeGlobalVariables();
 
 function ReleaseGlobalVariables()
 {
-  gAccountManager = null;
-  gIOService = null;
-  gPromptService = null;
   gCurrentIdentity = null;
   gCurrentAutocompleteDirectory = null;
   if (gLDAPSession) {
@@ -171,22 +161,24 @@ function ReleaseGlobalVariables()
   msgWindow = null;
 }
 
-function disableEditableFields()
+/**
+ * Disables or enables editable elements in the window.
+ * The elements to operate on are marked with the "disableonsend" attribute.
+ * This includes elements like the address list, attachment list, subject
+ * and message body.
+ *
+ * @param aDisable  true = disable items. false = enable items.
+ */
+function updateEditableFields(aDisable)
 {
-  gMsgCompose.editor.flags |= nsIPlaintextEditorMail.eEditorReadonlyMask;
-  var disableElements = document.getElementsByAttribute("disableonsend", "true");
-  for (let i = 0; i < disableElements.length; i++)
-    disableElements[i].setAttribute('disabled', 'true');
+  if (aDisable)
+    gMsgCompose.editor.flags |= nsIPlaintextEditorMail.eEditorReadonlyMask;
+  else
+    gMsgCompose.editor.flags &= ~nsIPlaintextEditorMail.eEditorReadonlyMask;
 
-}
-
-function enableEditableFields()
-{
-  gMsgCompose.editor.flags &= ~nsIPlaintextEditorMail.eEditorReadonlyMask;
-  var enableElements = document.getElementsByAttribute("disableonsend", "true");
-  for (let i = 0; i < enableElements.length; i++)
-    enableElements[i].removeAttribute('disabled');
-
+  let elements = document.querySelectorAll('[disableonsend="true"]');
+  for (let i = 0; i < elements.length; i++)
+    elements[i].disabled = aDisable;
 }
 
 var gComposeRecyclingListener = {
@@ -200,6 +192,13 @@ var gComposeRecyclingListener = {
     // It will be rebuilt later in ComposeStartup
     ClearIdentityListPopup(document.getElementById("msgIdentityPopup"));
 
+    // Stop gSpellChecker so personal dictionary is saved.
+    // We need to do this before disabling the editor.
+    enableInlineSpellCheck(false);
+    // clear any suggestions in the context menu
+    gSpellChecker.clearSuggestionsFromMenu();
+    gSpellChecker.clearDictionaryListFromMenu();
+
     //Clear the subject
     GetMsgSubjectElement().value = "";
     // be sure to clear the transaction manager for the subject
@@ -207,7 +206,7 @@ var gComposeRecyclingListener = {
     SetComposeWindowTitle();
 
     SetContentAndBodyAsUnmodified();
-    disableEditableFields();
+    updateEditableFields(true);
     ReleaseGlobalVariables();
 
     // Clear the focus
@@ -237,12 +236,6 @@ var gComposeRecyclingListener = {
       document.getElementById("customizeToolbarSheetIFrame")
               .contentWindow.finishToolbarCustomization();
 
-    // Stop gSpellChecker so personal dictionary is saved
-    enableInlineSpellCheck(false);
-    // clear any suggestions in the context menu
-    gSpellChecker.clearSuggestionsFromMenu();
-    gSpellChecker.clearDictionaryListFromMenu();
-
     //Reset editor
     EditorResetFontAndColorAttributes();
     EditorCleanup();
@@ -270,6 +263,7 @@ var gComposeRecyclingListener = {
 var stateListener = {
   NotifyComposeFieldsReady: function() {
     ComposeFieldsReady();
+    updateSendCommands(true);
   },
 
   NotifyComposeBodyReady: function() {
@@ -279,9 +273,7 @@ var stateListener = {
   },
 
   ComposeProcessDone: function(aResult) {
-    gWindowLocked = false;
-    enableEditableFields();
-    updateComposeItems();
+    ToggleWindowLock(false);
 
     if (aResult== Components.results.NS_OK)
     {
@@ -419,7 +411,7 @@ var defaultController = {
         cmd.hidden = !Services.prefs.getBoolPref("mail.cloud_files.enabled") ||
                      (cloudFileAccounts.accounts.length == 0) ||
                      Services.io.offline;
-        return !cmd.hidden;
+        return !cmd.hidden && !gWindowLocked;
       },
       doCommand: function() {
         // We should never actually call this, since the <command> node calls
@@ -483,10 +475,10 @@ var defaultController = {
 
     cmd_sendButton: {
       isEnabled: function() {
-        return !gWindowLocked && !gNumUploadingAttachments;
+        return !gWindowLocked && !gNumUploadingAttachments && !gSendLocked;
       },
       doCommand: function() {
-        if (gIOService && gIOService.offline)
+        if (Services.io.offline)
           SendMessageLater();
         else
           SendMessage();
@@ -495,7 +487,8 @@ var defaultController = {
 
     cmd_sendNow: {
       isEnabled: function() {
-        return !gWindowLocked && !gIsOffline && !gNumUploadingAttachments;
+        return !gWindowLocked && !Services.io.offline && !gSendLocked &&
+               !gNumUploadingAttachments;
       },
       doCommand: function() {
         SendMessage();
@@ -504,7 +497,7 @@ var defaultController = {
 
     cmd_sendLater: {
       isEnabled: function() {
-        return !gWindowLocked && !gNumUploadingAttachments;
+        return !gWindowLocked && !gNumUploadingAttachments && !gSendLocked;
       },
       doCommand: function() {
         SendMessageLater();
@@ -513,7 +506,7 @@ var defaultController = {
 
     cmd_sendWithCheck: {
       isEnabled: function() {
-        return !gWindowLocked && !gNumUploadingAttachments;
+        return !gWindowLocked && !gNumUploadingAttachments && !gSendLocked;
       },
       doCommand: function() {
         SendMessageWithCheck();
@@ -578,6 +571,42 @@ var defaultController = {
       },
       doCommand: function() {
         QuoteSelectedMessage();
+      }
+    },
+
+    cmd_fullZoomReduce: {
+      isEnabled: function () {
+        return true;
+      },
+      doCommand: function() {
+        ZoomManager.reduce();
+      }
+    },
+
+    cmd_fullZoomEnlarge: {
+      isEnabled: function () {
+        return true;
+      },
+      doCommand: function() {
+        ZoomManager.enlarge();
+      }
+    },
+
+    cmd_fullZoomReset: {
+      isEnabled: function () {
+        return true;
+      },
+      doCommand: function() {
+        ZoomManager.reset();
+      }
+    },
+
+    cmd_fullZoomToggle: {
+      isEnabled: function () {
+        return true;
+      },
+      doCommand: function() {
+        ZoomManager.toggleZoom();
       }
     },
   },
@@ -823,6 +852,8 @@ function updateComposeItems()
     if (gMsgCompose && gMsgCompose.composeHTML)
     {
       goUpdateCommand("cmd_renderedHTMLEnabler");
+      goUpdateCommand("cmd_fontColor");
+      goUpdateCommand("cmd_backgroundColor");
       goUpdateCommand("cmd_decreaseFont");
       goUpdateCommand("cmd_increaseFont");
       goUpdateCommand("cmd_bold");
@@ -838,9 +869,74 @@ function updateComposeItems()
 
     // Options Menu
     goUpdateCommand("cmd_spelling");
+
     // Workaround to update 'Quote' toolbar button. (See bug 609926.)
     goUpdateCommand("cmd_quoteMessage");
   } catch(e) {}
+}
+
+/**
+ * Disables or restores all toolbar items (menus/buttons) in the window.
+ *
+ * @param aDisable  true = disable all items. false = restore items to the state
+ *                  stored before disabling them.
+ */
+function updateAllItems(aDisable)
+{
+  function getDisabledState(aElement) {
+    if ("disabled" in aElement)
+      return aElement.disabled;
+    else
+      return aElement.getAttribute("disabled");
+  }
+
+  function setDisabledState(aElement, aValue) {
+    if ("disabled" in aElement)
+      aElement.disabled = aValue;
+    else
+      aElement.setAttribute("disabled", aValue ? "true" : "false");
+  }
+
+
+  // This array will contain HTMLCollection objects as members.
+  let commandItemCollections = [];
+  commandItemCollections.push(document.getElementsByTagName("menu"));
+  commandItemCollections.push(document.getElementsByTagName("toolbarbutton"));
+  commandItemCollections.push(document.querySelectorAll('[command]'));
+  commandItemCollections.push(document.querySelectorAll('[oncommand]'));
+  for each (let itemCollection in commandItemCollections) {
+    for (let item = 0; item < itemCollection.length; item++) {
+      let commandItem = itemCollection[item];
+      if (aDisable) {
+        // Any element can appear multiple times in the commandItemCollections
+        // list so only act on it if we didn't already set the "stateBeforeSend"
+        // attribute on previous visit.
+        if (!commandItem.hasAttribute("stateBeforeSend")) {
+          commandItem.setAttribute("stateBeforeSend", getDisabledState(commandItem));
+          setDisabledState(commandItem, true);
+        }
+      }
+      else {
+        // Any element can appear multiple times in the commandItemCollections
+        // list so only act on it if it still has the "stateBeforeSend"
+        // attribute.
+        if (commandItem.hasAttribute("stateBeforeSend")) {
+          setDisabledState(commandItem, commandItem.getAttribute("stateBeforeSend") == "true");
+          commandItem.removeAttribute("stateBeforeSend");
+        }
+      }
+    }
+  }
+}
+
+function InitFileSaveAsMenu()
+{
+  document.getElementById("cmd_saveAsFile")
+          .setAttribute("checked", defaultSaveOperation == "file");
+  document.getElementById("cmd_saveAsDraft")
+          .setAttribute("checked", defaultSaveOperation == "draft");
+  document.getElementById("cmd_saveAsTemplate")
+          .setAttribute("checked", defaultSaveOperation == "template");
 }
 
 function openEditorContextMenu(popup)
@@ -898,12 +994,20 @@ function updateAttachmentItems()
 /**
  * Update all the commands for sending a message to reflect their current state.
  */
-function updateSendCommands()
+function updateSendCommands(aHaveController)
 {
-  goUpdateCommand("cmd_sendButton");
-  goUpdateCommand("cmd_sendNow");
-  goUpdateCommand("cmd_sendLater");
-  goUpdateCommand("cmd_sendWithCheck");
+  updateSendLock();
+  if (aHaveController) {
+    goUpdateCommand("cmd_sendButton");
+    goUpdateCommand("cmd_sendNow");
+    goUpdateCommand("cmd_sendLater");
+    goUpdateCommand("cmd_sendWithCheck");
+  } else {
+    goSetCommandEnabled("cmd_sendButton",    defaultController.isCommandEnabled("cmd_sendButton"));
+    goSetCommandEnabled("cmd_sendNow",       defaultController.isCommandEnabled("cmd_sendNow"));
+    goSetCommandEnabled("cmd_sendLater",     defaultController.isCommandEnabled("cmd_sendLater"));
+    goSetCommandEnabled("cmd_sendWithCheck", defaultController.isCommandEnabled("cmd_sendWithCheck"));
+  }
 }
 
 function addAttachCloudMenuItems(aParentMenu)
@@ -968,7 +1072,7 @@ function uploadListener(aAttachment, aFile, aCloudProvider)
   // and show a "connecting" icon for the attachment.
   this.attachment.sendViaCloud = true;
   gNumUploadingAttachments++;
-  updateSendCommands();
+  updateSendCommands(true);
 
   let bucket = document.getElementById("attachmentBucket");
   let item = bucket.findItemForAttachment(this.attachment);
@@ -1073,14 +1177,13 @@ uploadListener.prototype = {
 
       // TODO: support actions other than "Upgrade"
       if (displayError) {
-        const prompt = Services.prompt;
         let url = this.cloudProvider.providerUrlForError(aStatusCode);
-        let flags = prompt.BUTTON_POS_0 * prompt.BUTTON_TITLE_OK;
+        let flags = Services.prompt.BUTTON_POS_0 * Services.prompt.BUTTON_TITLE_OK;
         if (url)
-          flags += prompt.BUTTON_POS_1 * prompt.BUTTON_TITLE_IS_STRING;
-        if (prompt.confirmEx(window, title, msg, flags, null,
-                             bundle.getString("errorCloudFileUpgrade.label"),
-                             null, null, {})) {
+          flags += Services.prompt.BUTTON_POS_1 * Services.prompt.BUTTON_TITLE_IS_STRING;
+        if (Services.prompt.confirmEx(window, title, msg, flags, null,
+                                      bundle.getString("errorCloudFileUpgrade.label"),
+                                      null, null, {})) {
           openLinkExternally(url);
         }
       }
@@ -1101,7 +1204,7 @@ uploadListener.prototype = {
     }
 
     gNumUploadingAttachments--;
-    updateSendCommands();
+    updateSendCommands(true);
   },
 
   QueryInterface: XPCOMUtils.generateQI([Components.interfaces.nsIRequestObserver,
@@ -1358,8 +1461,7 @@ var messageComposeOfflineQuitObserver =
     // sanity checks
     if (aTopic == "network:offline-status-changed")
     {
-      gIsOffline = aData == "offline";
-      MessageComposeOfflineStateChanged(gIsOffline);
+      MessageComposeOfflineStateChanged(Services.io.offline);
 
       try {
         setupLdapAutocompleteSession();
@@ -1384,9 +1486,8 @@ function AddMessageComposeOfflineQuitObserver()
   Services.obs.addObserver(messageComposeOfflineQuitObserver,
                            "quit-application-requested", false);
 
-  gIsOffline = gIOService.offline;
   // set the initial state of the send button
-  MessageComposeOfflineStateChanged(gIsOffline);
+  MessageComposeOfflineStateChanged(Services.io.offline);
 }
 
 function RemoveMessageComposeOfflineQuitObserver()
@@ -1408,7 +1509,7 @@ function MessageComposeOfflineStateChanged(goingOffline)
     }
 
     // don't use goUpdateCommand here ... the defaultController might not be installed yet
-    goSetCommandEnabled("cmd_sendNow", defaultController.isCommandEnabled("cmd_sendNow"));
+    updateSendCommands(false);
 
     if (goingOffline)
     {
@@ -1440,55 +1541,47 @@ var directoryServerObserver = {
 }
 
 function AddDirectoryServerObserver(flag) {
-  var branch = Components.classes["@mozilla.org/preferences-service;1"]
-                         .getService(Components.interfaces.nsIPrefBranch);
   if (flag) {
-    branch.addObserver("ldap_2.autoComplete.useDirectory",
-                       directoryServerObserver, false);
-    branch.addObserver("ldap_2.autoComplete.directoryServer",
-                       directoryServerObserver, false);
+    Services.prefs.addObserver("ldap_2.autoComplete.useDirectory",
+                               directoryServerObserver, false);
+    Services.prefs.addObserver("ldap_2.autoComplete.directoryServer",
+                               directoryServerObserver, false);
   }
   else
   {
     var prefstring = "mail.identity." + gCurrentIdentity.key + ".overrideGlobal_Pref";
-    branch.addObserver(prefstring, directoryServerObserver, false);
+    Services.prefs.addObserver(prefstring, directoryServerObserver, false);
     prefstring = "mail.identity." + gCurrentIdentity.key + ".directoryServer";
-    branch.addObserver(prefstring, directoryServerObserver, false);
+    Services.prefs.addObserver(prefstring, directoryServerObserver, false);
   }
 }
 
 function RemoveDirectoryServerObserver(prefstring)
 {
-  var branch = Components.classes["@mozilla.org/preferences-service;1"]
-                         .getService(Components.interfaces.nsIPrefBranch);
   if (!prefstring) {
-    branch.removeObserver("ldap_2.autoComplete.useDirectory",
-                          directoryServerObserver);
-    branch.removeObserver("ldap_2.autoComplete.directoryServer",
-                          directoryServerObserver);
+    Services.prefs.removeObserver("ldap_2.autoComplete.useDirectory",
+                                  directoryServerObserver);
+    Services.prefs.removeObserver("ldap_2.autoComplete.directoryServer",
+                                  directoryServerObserver);
   }
   else
   {
     var str = prefstring + ".overrideGlobal_Pref";
-    branch.removeObserver(str, directoryServerObserver);
+    Services.prefs.removeObserver(str, directoryServerObserver);
     str = prefstring + ".directoryServer";
-    branch.removeObserver(str, directoryServerObserver);
+    Services.prefs.removeObserver(str, directoryServerObserver);
   }
 }
 
 function AddDirectorySettingsObserver()
 {
-  var branch = Components.classes["@mozilla.org/preferences-service;1"]
-                         .getService(Components.interfaces.nsIPrefBranch);
-  branch.addObserver(gCurrentAutocompleteDirectory, directoryServerObserver,
-                     false);
+  Services.prefs.addObserver(gCurrentAutocompleteDirectory, directoryServerObserver,
+                             false);
 }
 
 function RemoveDirectorySettingsObserver(prefstring)
 {
-  var branch = Components.classes["@mozilla.org/preferences-service;1"]
-                         .getService(Components.interfaces.nsIPrefBranch);
-  branch.removeObserver(prefstring, directoryServerObserver);
+  Services.prefs.removeObserver(prefstring, directoryServerObserver);
 }
 
 function setupLdapAutocompleteSession()
@@ -1524,7 +1617,7 @@ function setupLdapAutocompleteSession()
         }
     }
 
-    if (autocompleteDirectory && !gIsOffline) {
+    if (autocompleteDirectory && !Services.io.offline) {
         // Add observer on the directory server we are autocompleting against
         // only if current server is different from previous.
         // Remove observer if current server is different from previous
@@ -1543,11 +1636,9 @@ function setupLdapAutocompleteSession()
         if (LDAPSession) {
             let url = getPref(autocompleteDirectory + ".uri", true);
 
-            LDAPSession.serverURL =
-              Components.classes["@mozilla.org/network/io-service;1"]
-                        .getService(Components.interfaces.nsIIOService)
-                        .newURI(url, null, null)
-                        .QueryInterface(Components.interfaces.nsILDAPURL);
+            LDAPSession.serverURL = Services.io
+                                            .newURI(url, null, null)
+                                            .QueryInterface(Components.interfaces.nsILDAPURL);
 
             // get the login to authenticate as, if there is one
             //
@@ -1559,7 +1650,7 @@ function setupLdapAutocompleteSession()
 
             try {
                  LDAPSession.saslMechanism = getPref(autocompleteDirectory +
-		    ".auth.saslmech", true);
+                                                     ".auth.saslmech", true);
             } catch (ex) {
                 // don't care if we don't have this pref
             }
@@ -1773,10 +1864,20 @@ function DoCommandPrint()
   } catch(ex) {dump("#PRINT ERROR: " + ex + "\n");}
 }
 
-function ToggleWindowLock()
+/**
+ * Locks/Unlocks the window widgets while a message is being saved/sent.
+ * Locking means to disable all possible items in the window so that
+ * the user can't click/activate anything.
+ *
+ * @param aDisable  true = lock the window. false = unlock the window.
+ */
+function ToggleWindowLock(aDisable)
 {
-  gWindowLocked = !gWindowLocked;
-  updateComposeItems();
+  gWindowLocked = aDisable;
+  updateAllItems(aDisable);
+  updateEditableFields(aDisable);
+  if (!aDisable)
+    updateComposeItems();
 }
 
 /* This function will go away soon as now arguments are passed to the window using a object of type nsMsgComposeParams instead of a string */
@@ -1834,7 +1935,7 @@ function GetArgs(originalData)
       continue;
     var argname = pairs[i].substring(0, pos);
     var argvalue = pairs[i].substring(pos + 1);
-    if (argvalue.charAt(0) == "'" && argvalue.charAt(argvalue.length - 1) == "'")
+    if (argvalue.startsWith("'") && argvalue.endsWith("'"))
       args[argname] = argvalue.substring(1, argvalue.length - 1);
     else
       try {
@@ -1859,7 +1960,7 @@ function ComposeFieldsReady()
   }
   CompFields2Recipients(gMsgCompose.compFields);
   SetComposeWindowTitle();
-  enableEditableFields();
+  updateEditableFields(false);
 }
 
 // checks if the passed in string is a mailto url, if it is, generates nsIMsgComposeParams
@@ -1867,15 +1968,13 @@ function ComposeFieldsReady()
 function handleMailtoArgs(mailtoUrl)
 {
   // see if the string is a mailto url....do this by checking the first 7 characters of the string
-  if (/^mailto:/i.test(mailtoUrl))
+  if (mailtoUrl.toLowerCase().startsWith("mailto:"))
   {
     // if it is a mailto url, turn the mailto url into a MsgComposeParams object....
-    var uri = gIOService.newURI(mailtoUrl, null, null);
+    let uri = Services.io.newURI(mailtoUrl, null, null);
 
     if (uri) {
-      var composeSvc = Components.classes["@mozilla.org/messengercompose;1"]
-                                 .getService(Components.interfaces.nsIMsgComposeService);
-      return composeSvc.getParamsForMailto(uri);
+      return MailServices.compose.getParamsForMailto(uri);
     }
   }
 
@@ -1993,7 +2092,7 @@ function ShouldShowAttachmentNotification(async)
       "mail.compose.attachment_reminder_keywords",
       Components.interfaces.nsIPrefLocalizedString).data;
     let mailBody = document.getElementById("content-frame")
-                           .contentDocument.getElementsByTagName("body")[0];
+                           .contentDocument.querySelector("body");
     let mailBodyNode = mailBody.cloneNode(true);
 
     // Don't check quoted text from reply.
@@ -2004,10 +2103,9 @@ function ShouldShowAttachmentNotification(async)
 
     // For plaintext composition the quotes we need to find and exclude are
     // <span _moz_quote="true">.
-    let spans = mailBodyNode.getElementsByTagName("span");
+    let spans = mailBodyNode.querySelectorAll("span[_moz_quote]");
     for (let i = spans.length - 1; i >= 0; i--) {
-      if (spans[i].hasAttribute("_moz_quote"))
-        spans[i].parentNode.removeChild(spans[i]);
+      spans[i].parentNode.removeChild(spans[i]);
     }
 
     // Ignore signature (html compose mode).
@@ -2098,8 +2196,8 @@ function ComposeStartup(recycled, aParams)
   if (!document.documentElement.hasAttribute("width"))
   {
     // Prefer 860x800.
-    let defaultHeight = (screen.availHeight >= 800) ? 800 : screen.availHeight;
-    let defaultWidth = (screen.availWidth >= 860) ? 860 : screen.availWidth;
+    let defaultHeight = Math.min(screen.availHeight, 800);
+    let defaultWidth = Math.min(screen.availWidth, 860);
 
     // On small screens, default to maximized state.
     if (defaultHeight <= 600)
@@ -2181,7 +2279,7 @@ function ComposeStartup(recycled, aParams)
             let title = getComposeBundle().getString("errorFileAttachTitle");
             let msg = getComposeBundle().getFormattedString("errorFileAttachMessage",
                                                         [attachmentName]);
-            gPromptService.alert(window, title, msg);
+            Services.prompt.alert(window, title, msg);
           }
         }
       }
@@ -2197,20 +2295,18 @@ function ComposeStartup(recycled, aParams)
   // " <>" is an empty identity, and most likely not valid
   if (!params.identity || params.identity.identityName == " <>") {
     // no pre selected identity, so use the default account
-    var identities = gAccountManager.defaultAccount.identities;
-    if (identities.Count() == 0)
-      identities = gAccountManager.allIdentities;
-    params.identity = identities.QueryElementAt(0, Components.interfaces.nsIMsgIdentity);
+    let identities = MailServices.accounts.defaultAccount.identities;
+    if (identities.length == 0)
+      identities = MailServices.accounts.allIdentities;
+    params.identity = identities.queryElementAt(0, Components.interfaces.nsIMsgIdentity);
   }
 
   identityList.value = params.identity.key;
   LoadIdentity(true);
-  var composeSvc = Components.classes["@mozilla.org/messengercompose;1"]
-                             .getService(Components.interfaces.nsIMsgComposeService);
 
   // Get the <editor> element to startup an editor
   var editorElement = GetCurrentEditorElement();
-  gMsgCompose = composeSvc.initCompose(params, window, editorElement.docShell);
+  gMsgCompose = MailServices.compose.initCompose(params, window, editorElement.docShell);
 
   // Set the close listener.
   gMsgCompose.recyclingListener = gComposeRecyclingListener;
@@ -2249,7 +2345,6 @@ function ComposeStartup(recycled, aParams)
 
     // Do setup common to Message Composer and Web Composer.
     EditorSharedStartup();
-    InitLanguageMenu();
   }
 
   if (params.bodyIsLink)
@@ -2351,7 +2446,7 @@ var gMsgEditorCreationObserver =
         } catch (e if ((e instanceof Components.interfaces.nsIException) &&
                   (e.result == Components.results.NS_ERROR_INVALID_POINTER))) {
           // See Bug 517919 for discussion of why this exception is thrown
-          // (at time of writing, on pinstripe, there is no messageQuotes.css)
+          // (at time of writing, on osx, there is no messageQuotes.css)
           dump("addOverrideStyleSheet in MsgComposeCommands.js threw an exception, hopefully due to a missing stylesheet\n");
         }
         InitEditor();
@@ -2419,8 +2514,8 @@ function ComposeLoad()
   }
   catch (ex) {
     Components.utils.reportError(ex);
-    gPromptService.alert(window, getComposeBundle().getString("initErrorDlogTitle"),
-                         getComposeBundle().getString("initErrorDlgMessage"));
+    Services.prompt.alert(window, getComposeBundle().getString("initErrorDlogTitle"),
+                          getComposeBundle().getString("initErrorDlgMessage"));
 
     MsgComposeCloseWindow(false); // Don't try to recycle a bogus window
     return;
@@ -2433,9 +2528,7 @@ function ComposeLoad()
   var toolbarset = document.getElementById('customToolbars');
   toolbox.toolbarset = toolbarset;
 
-  // Prevent resizing the subject and format toolbar over the addressswidget.
-  var headerToolbar = document.getElementById("MsgHeadersToolbar");
-  headerToolbar.minHeight = headerToolbar.boxObject.height;
+  awInitializeNumberOfRowsShown();
 }
 
 function ComposeUnload()
@@ -2452,6 +2545,7 @@ function ComposeUnload()
 
   RemoveMessageComposeOfflineQuitObserver();
   RemoveDirectoryServerObserver(null);
+  gAttachmentNotifier.shutdown();
 
   if (gCurrentIdentity)
     RemoveDirectoryServerObserver("mail.identity." + gCurrentIdentity.key);
@@ -2483,7 +2577,8 @@ function UpdateMailEditCharset()
   var send_default_charset = gMsgCompose.compFields.defaultCharacterSet;
 //  dump("send_default_charset is " + send_default_charset + "\n");
 
-  var compFieldsCharset = gMsgCompose.compFields.characterSet;
+  let compFieldsCharset = gMsgCompose.compFields.characterSet ||
+                          "ISO-8859-1";
 //  dump("gMsgCompose.compFields is " + compFieldsCharset + "\n");
 
   if (gCharsetConvertManager) {
@@ -2523,7 +2618,7 @@ function GetCharsetUIString()
   }
 
   charset = charset.toUpperCase();
-  if (charset == "US-ASCII")
+  if (!charset || charset == "US-ASCII")
     charset = "ISO-8859-1";
 
   if (charset != gSendDefaultCharset) {
@@ -2588,6 +2683,12 @@ function GenericSendMessage(msgType)
       msgType == nsIMsgCompDeliverMode.Background;
   if (sending)
   {
+    expandRecipients();
+    // Check if e-mail addresses are complete, in case user turned off
+    // autocomplete to local domain.
+    if (!CheckValidEmailAddress(msgCompFields))
+      return;
+
     // Do we need to check the spelling?
     if (DoSpellCheckBeforeSend())
     {
@@ -2605,8 +2706,7 @@ function GenericSendMessage(msgType)
 
     // Strip trailing spaces and long consecutive WSP sequences from the
     // subject line to prevent getting only WSP chars on a folded line.
-    var fixedSubject = subject.replace(/\s{74,}/g, "    ")
-                              .replace(/\s*$/, "");
+    let fixedSubject = subject.replace(/\s{74,}/g, "    ").trimRight();
     if (fixedSubject != subject)
     {
       subject = fixedSubject;
@@ -2617,12 +2717,12 @@ function GenericSendMessage(msgType)
     // Remind the person if there isn't a subject
     if (subject == "")
     {
-      if (gPromptService.confirmEx(
+      if (Services.prompt.confirmEx(
             window,
             getComposeBundle().getString("subjectEmptyTitle"),
             getComposeBundle().getString("subjectEmptyMessage"),
-            (gPromptService.BUTTON_TITLE_IS_STRING * gPromptService.BUTTON_POS_0) +
-            (gPromptService.BUTTON_TITLE_IS_STRING * gPromptService.BUTTON_POS_1),
+            (Services.prompt.BUTTON_TITLE_IS_STRING * Services.prompt.BUTTON_POS_0) +
+            (Services.prompt.BUTTON_TITLE_IS_STRING * Services.prompt.BUTTON_POS_1),
             getComposeBundle().getString("sendWithEmptySubjectButton"),
             getComposeBundle().getString("cancelSendingButton"),
             null, null, {value:0}) == 1)
@@ -2639,9 +2739,9 @@ function GenericSendMessage(msgType)
     if ((gRemindLater || (getPref("mail.compose.attachment_reminder_aggressive") &&
           document.getElementById("attachmentNotificationBox").currentNotification)) &&
         ShouldShowAttachmentNotification(false)) {
-      var flags = gPromptService.BUTTON_POS_0 * gPromptService.BUTTON_TITLE_IS_STRING +
-                  gPromptService.BUTTON_POS_1 * gPromptService.BUTTON_TITLE_IS_STRING;
-      var hadForgotten = gPromptService.confirmEx(window,
+      let flags = Services.prompt.BUTTON_POS_0 * Services.prompt.BUTTON_TITLE_IS_STRING +
+                  Services.prompt.BUTTON_POS_1 * Services.prompt.BUTTON_TITLE_IS_STRING;
+      let hadForgotten = Services.prompt.confirmEx(window,
                             getComposeBundle().getString("attachmentReminderTitle"),
                             getComposeBundle().getString("attachmentReminderMsg"),
                             flags,
@@ -2655,7 +2755,7 @@ function GenericSendMessage(msgType)
     // Check if the user tries to send a message to a newsgroup through a mail
     // account.
     var currentAccountKey = getCurrentAccountKey();
-    var account = gAccountManager.getAccount(currentAccountKey);
+    let account = MailServices.accounts.getAccount(currentAccountKey);
     if (!account)
     {
       throw new Error("currentAccountKey '" + currentAccountKey +
@@ -2665,11 +2765,11 @@ function GenericSendMessage(msgType)
     {
       const kDontAskAgainPref = "mail.compose.dontWarnMail2Newsgroup";
       // default to ask user if the pref is not set
-      var dontAskAgain = getPref(kDontAskAgainPref);
+      let dontAskAgain = getPref(kDontAskAgainPref);
       if (!dontAskAgain)
       {
-        var checkbox = {value:false};
-        var okToProceed = gPromptService.confirmCheck(
+        let checkbox = {value:false};
+        let okToProceed = Services.prompt.confirmCheck(
                               window,
                               getComposeBundle().getString("noNewsgroupSupportTitle"),
                               getComposeBundle().getString("recipientDlogMessage"),
@@ -2679,10 +2779,7 @@ function GenericSendMessage(msgType)
           return;
 
         if (checkbox.value) {
-          var branch = Components.classes["@mozilla.org/preferences-service;1"]
-                                  .getService(Components.interfaces.nsIPrefBranch);
-
-          branch.setBoolPref(kDontAskAgainPref, true);
+          Services.prefs.setBoolPref(kDontAskAgainPref, true);
         }
       }
 
@@ -2695,10 +2792,6 @@ function GenericSendMessage(msgType)
     // eventually abort.
     var convert = DetermineConvertibility();
     var action = DetermineHTMLAction(convert);
-    // Check if e-mail addresses are complete, in case user turned off
-    // autocomplete to local domain.
-    if (!CheckValidEmailAddress(msgCompFields.to, msgCompFields.cc, msgCompFields.bcc))
-      return;
 
     if (action == nsIMsgCompSendFormat.AskUser)
     {
@@ -2714,7 +2807,7 @@ function GenericSendMessage(msgType)
       action = result2.action;
     }
 
-    // We will remember the users "send format" decision in the address 
+    // We will remember the users "send format" decision in the address
     // collector code (see nsAbAddressCollector::CollectAddress())
     // by using msgCompFields.forcePlainText and msgCompFields.useMultipartAlternative
     // to determine the nsIAbPreferMailFormat (unknown, plaintext, or html).
@@ -2786,13 +2879,11 @@ function GenericSendMessage(msgType)
       throw Components.results.NS_ERROR_ABORT;
 
     gAutoSaving = (msgType == nsIMsgCompDeliverMode.AutoSaveAsDraft);
+
     // disable the ui if we're not auto-saving
     if (!gAutoSaving)
-    {
-      gWindowLocked = true;
-      disableEditableFields();
-      updateComposeItems();
-    }
+      ToggleWindowLock(true);
+
     // If we're auto saving, mark the body as not changed here, and not
     // when the save is done, because the user might change it between now
     // and when the save is done.
@@ -2815,42 +2906,82 @@ function GenericSendMessage(msgType)
   }
   catch (ex) {
     Components.utils.reportError("GenericSendMessage FAILED: " + ex);
-    gWindowLocked = false;
-    enableEditableFields();
-    updateComposeItems();
+    ToggleWindowLock(false);
   }
   if (gMsgCompose && originalCharset != gMsgCompose.compFields.characterSet)
     SetDocumentCharacterSet(gMsgCompose.compFields.characterSet);
 }
 
-function CheckValidEmailAddress(to, cc, bcc)
+/**
+ * Keep the Send buttons disabled until any recipient is entered.
+ */
+function updateSendLock()
 {
-  var invalidStr = null;
-  // crude check that the to, cc, and bcc fields contain at least one '@'.
-  // We could parse each address, but that might be overkill.
-  if (to.length > 0 && (to.indexOf("@") <= 0 && to.toLowerCase() != "postmaster" || to.indexOf("@") == to.length - 1))
-    invalidStr = to;
-  else if (cc.length > 0 && (cc.indexOf("@") <= 0 && cc.toLowerCase() != "postmaster" || cc.indexOf("@") == cc.length - 1))
-    invalidStr = cc;
-  else if (bcc.length > 0 && (bcc.indexOf("@") <= 0 && bcc.toLowerCase() != "postmaster" || bcc.indexOf("@") == bcc.length - 1))
-    invalidStr = bcc;
-  if (invalidStr)
-  {
-    if (gPromptService)
-      gPromptService.alert(window, getComposeBundle().getString("addressInvalidTitle"),
-                           getComposeBundle().getFormattedString("addressInvalid",
-                                                     [invalidStr], 1));
+  gSendLocked = true;
+  if (!gMsgCompose)
+    return;
+
+  let msgCompFields = gMsgCompose.compFields;
+  Recipients2CompFields(msgCompFields);
+  // Enabled send buttons if anything was entered into the recipient fields.
+  // A more thorough check will be performed when a send button is actually clicked.
+  gSendLocked = !msgCompFields.hasRecipients;
+}
+
+/**
+ * Check if the entered addresses are valid and alert the user if they are not.
+ *
+ * @param aMsgCompFields  A nsIMsgCompFields object containing the fields to check.
+ */
+const NS_MSG_NO_RECIPIENTS = "12511"; // from composeMsgs.properties
+function CheckValidEmailAddress(aMsgCompFields)
+{
+  if (!aMsgCompFields.hasRecipients) {
+    Services.prompt.alert(window, getComposeBundle().getString("addressInvalidTitle"),
+                          getComposeBundle().getString(NS_MSG_NO_RECIPIENTS));
+
     return false;
   }
+
+  let invalidStr;
+   // Crude check that the to, cc, and bcc fields contain at least one '@'.
+   // We could parse each address, but that might be overkill.
+  function isInvalidAddress(aAddress) {
+    return (aAddress.length > 0 &&
+            ((!aAddress.contains("@", 1) && aAddress.toLowerCase() != "postmaster") ||
+              aAddress.endsWith("@")));
+  }
+  if (isInvalidAddress(aMsgCompFields.to))
+    invalidStr = aMsgCompFields.to;
+  else if (isInvalidAddress(aMsgCompFields.cc))
+    invalidStr = aMsgCompFields.cc;
+  else if (isInvalidAddress(aMsgCompFields.bcc))
+    invalidStr = aMsgCompFields.bcc;
+  if (invalidStr)
+  {
+    Services.prompt.alert(window, getComposeBundle().getString("addressInvalidTitle"),
+                          getComposeBundle().getFormattedString("addressInvalid",
+                          [invalidStr], 1));
+    return false;
+  }
+
   return true;
 }
 
 function SendMessage()
 {
   let sendInBackground =
-    Components.classes["@mozilla.org/preferences-service;1"]
-              .getService(Components.interfaces.nsIPrefBranch)
-              .getBoolPref("mailnews.sendInBackground");
+    Services.prefs.getBoolPref("mailnews.sendInBackground");
+  if (sendInBackground && !Application.platformIsMac) {
+    let enumerator = Services.wm.getEnumerator(null);
+    let count = 0;
+    while (enumerator.hasMoreElements() && count < 2) {
+      let win = enumerator.getNext();
+      count++;
+    }
+    if (count == 1)
+      sendInBackground = false;
+  }
 
   GenericSendMessage(sendInBackground ?
                      nsIMsgCompDeliverMode.Background :
@@ -2862,12 +2993,12 @@ function SendMessageWithCheck()
     var warn = getPref("mail.warn_on_send_accel_key");
 
     if (warn) {
-        var checkValue = {value:false};
-        var buttonPressed = gPromptService.confirmEx(window,
+        let checkValue = {value:false};
+        let buttonPressed = Services.prompt.confirmEx(window,
               getComposeBundle().getString('sendMessageCheckWindowTitle'),
               getComposeBundle().getString('sendMessageCheckLabel'),
-              (gPromptService.BUTTON_TITLE_IS_STRING * gPromptService.BUTTON_POS_0) +
-              (gPromptService.BUTTON_TITLE_CANCEL * gPromptService.BUTTON_POS_1),
+              (Services.prompt.BUTTON_TITLE_IS_STRING * Services.prompt.BUTTON_POS_0) +
+              (Services.prompt.BUTTON_TITLE_CANCEL * Services.prompt.BUTTON_POS_1),
               getComposeBundle().getString('sendMessageCheckSendButtonLabel'),
               null, null,
               getComposeBundle().getString('CheckMsg'),
@@ -2876,19 +3007,13 @@ function SendMessageWithCheck()
             return;
         }
         if (checkValue.value) {
-            var branch = Components.classes["@mozilla.org/preferences-service;1"]
-                                   .getService(Components.interfaces.nsIPrefBranch);
-
-            branch.setBoolPref("mail.warn_on_send_accel_key", false);
+            Services.prefs.setBoolPref("mail.warn_on_send_accel_key", false);
         }
     }
 
-  let sendInBackground =
-    Components.classes["@mozilla.org/preferences-service;1"]
-              .getService(Components.interfaces.nsIPrefBranch)
-              .getBoolPref("mailnews.sendInBackground");
+  let sendInBackground = Services.prefs.getBoolPref("mailnews.sendInBackground");
 
-  GenericSendMessage(gIsOffline ? nsIMsgCompDeliverMode.Later :
+  GenericSendMessage(Services.io.offline ? nsIMsgCompDeliverMode.Later :
                      (sendInBackground ?
                       nsIMsgCompDeliverMode.Background :
                       nsIMsgCompDeliverMode.Now));
@@ -2962,8 +3087,8 @@ function updatePriorityMenu()
     if (msgCompFields && msgCompFields.priority)
     {
       var priorityMenu = document.getElementById('priorityMenu' );
-      priorityMenu.getElementsByAttribute( "checked", 'true' )[0].removeAttribute('checked');
-      priorityMenu.getElementsByAttribute( "value", msgCompFields.priority )[0].setAttribute('checked', 'true');
+      priorityMenu.querySelector('[checked="true"]').removeAttribute('checked');
+      priorityMenu.querySelector('[value="' + msgCompFields.priority + '"]').setAttribute('checked', 'true');
     }
   }
 }
@@ -3021,34 +3146,62 @@ function addRecipientsToIgnoreList(aAddressesToAdd)
   if (gSpellChecker.enabled)
   {
     // break the list of potentially many recipients back into individual names
-    var hdrParser = Components.classes["@mozilla.org/messenger/headerparser;1"].getService(Components.interfaces.nsIMsgHeaderParser);
     var emailAddresses = {};
     var names = {};
     var fullNames = {};
-    var numAddresses = hdrParser.parseHeadersWithArray(aAddressesToAdd, emailAddresses, names, fullNames);
+    let numAddresses = MailServices.headerParser.parseHeadersWithArray(aAddressesToAdd, emailAddresses, names, fullNames);
     if (!names)
       return;
     var tokenizedNames = new Array();
 
     // each name could consist of multiple word delimited by either commas or spaces. i.e. Green Lantern
     // or Lantern,Green. Tokenize on comma first, then tokenize again on spaces.
-    for (name in names.value)
+    for (let name in names.value)
     {
       if (!names.value[name])
         continue;
-      var splitNames = names.value[name].split(',');
+      let splitNames = names.value[name].split(',');
       for (let i = 0; i < splitNames.length; i++)
       {
         // now tokenize off of white space
-        var splitNamesFromWhiteSpaceArray = splitNames[i].split(' ');
+        let splitNamesFromWhiteSpaceArray = splitNames[i].split(' ');
         for (let whiteSpaceIndex = 0; whiteSpaceIndex < splitNamesFromWhiteSpaceArray.length; whiteSpaceIndex++)
           if (splitNamesFromWhiteSpaceArray[whiteSpaceIndex])
             tokenizedNames.push(splitNamesFromWhiteSpaceArray[whiteSpaceIndex]);
       }
     }
 
-    gSpellChecker.mInlineSpellChecker.ignoreWords(tokenizedNames, tokenizedNames.length);
+
+    if (gSpellChecker.mInlineSpellChecker.spellCheckPending)
+    {
+      // spellchecker is enabled, but we must wait for its init to complete
+      Services.obs.addObserver(function observe(subject, topic, data) {
+        if (subject == gMsgCompose.editor)
+        {
+          Services.obs.removeObserver(observe, topic);
+          gSpellChecker.mInlineSpellChecker.ignoreWords(tokenizedNames, tokenizedNames.length);
+        }
+      }, "inlineSpellChecker-spellCheck-ended", false);
+    }
+    else
+    {
+      gSpellChecker.mInlineSpellChecker.ignoreWords(tokenizedNames, tokenizedNames.length);
+    }
   }
+}
+
+function onAddressColCommand(aAddressWidgetId)
+{
+  gContentChanged = true;
+  awSetAutoComplete(aAddressWidgetId.slice(aAddressWidgetId.lastIndexOf('#') + 1));
+  updateSendCommands(true);
+}
+
+function onRecipientsInput()
+{
+  gContentChanged = true;
+  setupAutocomplete();
+  updateSendCommands(true);
 }
 
 function InitLanguageMenu()
@@ -3142,11 +3295,11 @@ function InitLanguageMenu()
 function OnShowDictionaryMenu(aTarget)
 {
   InitLanguageMenu();
-  var spellChecker = gSpellChecker.mInlineSpellChecker.spellChecker;
-  var curLang = spellChecker.GetCurrentDictionary();
-  var languages = aTarget.getElementsByAttribute("value", curLang);
-  if (languages.length > 0)
-    languages[0].setAttribute("checked", true);
+  let spellChecker = gSpellChecker.mInlineSpellChecker.spellChecker;
+  let curLang = spellChecker.GetCurrentDictionary();
+  let language = aTarget.querySelector('[value="' + curLang + '"]');
+  if (language)
+    language.setAttribute("checked", true);
 }
 
 function ChangeLanguage(event)
@@ -3199,15 +3352,6 @@ function ToggleAttachVCard(target)
   }
 }
 
-function queryISupportsArray(supportsArray, iid) {
-    var result = new Array;
-    let count = supportsArray.Count();
-    for (let i = 0; i < count; i++)
-      result[i] = supportsArray.QueryElementAt(i, iid);
-
-    return result;
-}
-
 function ClearIdentityListPopup(popup)
 {
   if (popup)
@@ -3217,42 +3361,41 @@ function ClearIdentityListPopup(popup)
 
 function FillIdentityList(menulist)
 {
-  var mgr = Components.classes["@mozilla.org/messenger/account-manager;1"]
-                      .getService(Components.interfaces.nsIMsgAccountManager);
-  var accounts = queryISupportsArray(mgr.accounts,
-                                     Components.interfaces.nsIMsgAccount);
+  let accounts = allAccountsSorted(true);
 
-  // Ugly hack to work around bug 41133. :-(
-  accounts = accounts.filter(function isNonSuckyAccount(a) { return !!a.incomingServer; });
-  function sortAccounts(a, b) {
-    if (a.key == mgr.defaultAccount.key)
-      return -1;
-    if (b.key == mgr.defaultAccount.key)
-      return 1;
-    var aIsNews = a.incomingServer.type == "nntp";
-    var bIsNews = b.incomingServer.type == "nntp";
-    if (aIsNews && !bIsNews)
-      return 1;
-    if (bIsNews && !aIsNews)
-      return -1;
+  let accountHadSeparator = false;
+  let firstAccountWithIdentities = true;
+  for (let acc = 0; acc < accounts.length; acc++) {
+    let account = accounts[acc];
+    let identities = toArray(fixIterator(account.identities,
+                                         Components.interfaces.nsIMsgIdentity));
 
-    var aIsLocal = a.incomingServer.type == "none";
-    var bIsLocal = b.incomingServer.type == "none";
-    if (aIsLocal && !bIsLocal)
-      return 1;
-    if (bIsLocal && !aIsLocal)
-      return -1;
-    return 0;
-  }
-  accounts.sort(sortAccounts);
+    if (identities.length == 0)
+      continue;
 
-  for each (var account in accounts) {
-    var identites = queryISupportsArray(account.identities,
-                                        Components.interfaces.nsIMsgIdentity);
-    for each (var identity in identites) {
-      var item = menulist.appendItem(identity.identityName, identity.key,
+    let needSeparator = (identities.length > 1);
+    if (needSeparator || accountHadSeparator) {
+      // Separate identities from this account from the previous
+      // account's identities if there is more than 1 in the current
+      // or previous account.
+      if (!firstAccountWithIdentities) {
+        // only if this is not the first account shown
+        let separator = document.createElement("menuseparator");
+        menulist.menupopup.appendChild(separator);
+      }
+      accountHadSeparator = needSeparator;
+    }
+    firstAccountWithIdentities = false;
+
+    for (let i = 0; i < identities.length; i++) {
+      let identity = identities[i];
+      let item = menulist.appendItem(identity.identityName, identity.key,
                                      account.incomingServer.prettyName);
       item.setAttribute("accountkey", account.key);
+      if (i == 0) {
+        // Mark the first identity as default.
+        item.setAttribute("default", "true");
+      }
     }
   }
 }
@@ -3260,7 +3403,7 @@ function FillIdentityList(menulist)
 function getCurrentIdentity()
 {
   var identityKey = document.getElementById("msgIdentity").value;
-  return gAccountManager.getIdentity(identityKey);
+  return MailServices.accounts.getIdentity(identityKey);
 }
 
 function getCurrentAccountKey()
@@ -3272,7 +3415,7 @@ function getCurrentAccountKey()
 
 function getIdentityForKey(key)
 {
-    return gAccountManager.getIdentity(key);
+    return MailServices.accounts.getIdentity(key);
 }
 
 function AdjustFocus()
@@ -3317,30 +3460,27 @@ function ComposeCanClose()
   ReleaseAutoCompleteState();
   if (gSendOrSaveOperationInProgress)
   {
-    var result;
+    let result;
 
-    if (gPromptService)
+    let brandBundle = document.getElementById("brandBundle");
+    let brandShortName = brandBundle.getString("brandShortName");
+    let promptTitle = getComposeBundle().getString("quitComposeWindowTitle");
+    let promptMsg = getComposeBundle().getFormattedString("quitComposeWindowMessage2",
+        [brandShortName], 1);
+    let quitButtonLabel = getComposeBundle().getString("quitComposeWindowQuitButtonLabel2");
+    let waitButtonLabel = getComposeBundle().getString("quitComposeWindowWaitButtonLabel2");
+
+    result = Services.prompt.confirmEx(window, promptTitle, promptMsg,
+        (Services.prompt.BUTTON_TITLE_IS_STRING * Services.prompt.BUTTON_POS_0) +
+        (Services.prompt.BUTTON_TITLE_IS_STRING * Services.prompt.BUTTON_POS_1),
+        waitButtonLabel, quitButtonLabel, null, null, {value:0});
+
+    if (result == 1)
     {
-      var brandBundle = document.getElementById("brandBundle");
-      var brandShortName = brandBundle.getString("brandShortName");
-      var promptTitle = getComposeBundle().getString("quitComposeWindowTitle");
-      var promptMsg = getComposeBundle().getFormattedString("quitComposeWindowMessage2",
-                                                [brandShortName], 1);
-      var quitButtonLabel = getComposeBundle().getString("quitComposeWindowQuitButtonLabel2");
-      var waitButtonLabel = getComposeBundle().getString("quitComposeWindowWaitButtonLabel2");
-
-      result = gPromptService.confirmEx(window, promptTitle, promptMsg,
-          (gPromptService.BUTTON_TITLE_IS_STRING*gPromptService.BUTTON_POS_0) +
-          (gPromptService.BUTTON_TITLE_IS_STRING*gPromptService.BUTTON_POS_1),
-          waitButtonLabel, quitButtonLabel, null, null, {value:0});
-
-      if (result == 1)
-      {
-        gMsgCompose.abort();
-        return true;
-      }
-      return false;
+      gMsgCompose.abort();
+      return true;
     }
+    return false;
   }
 
   // Returns FALSE only if user cancels save action
@@ -3349,45 +3489,43 @@ function ComposeCanClose()
     // call window.focus, since we need to pop up a dialog
     // and therefore need to be visible (to prevent user confusion)
     window.focus();
-    if (gPromptService)
+    let result = Services.prompt
+                         .confirmEx(window,
+                                    getComposeBundle().getString("saveDlogTitle"),
+                                    getComposeBundle().getString("saveDlogMessage"),
+                                    (Services.prompt.BUTTON_TITLE_SAVE * Services.prompt.BUTTON_POS_0) +
+                                    (Services.prompt.BUTTON_TITLE_CANCEL * Services.prompt.BUTTON_POS_1) +
+                                    (Services.prompt.BUTTON_TITLE_DONT_SAVE * Services.prompt.BUTTON_POS_2),
+                                    null, null, null,
+                                    null, {value:0});
+    switch (result)
     {
-      result = gPromptService.confirmEx(window,
-                              getComposeBundle().getString("saveDlogTitle"),
-                              getComposeBundle().getString("saveDlogMessage"),
-                              (gPromptService.BUTTON_TITLE_SAVE * gPromptService.BUTTON_POS_0) +
-                              (gPromptService.BUTTON_TITLE_CANCEL * gPromptService.BUTTON_POS_1) +
-                              (gPromptService.BUTTON_TITLE_DONT_SAVE * gPromptService.BUTTON_POS_2),
-                              null, null, null,
-                              null, {value:0});
-      switch (result)
-      {
-        case 0: //Save
-          // Since we're going to save the message, we tell toolkit that
-          // the close command failed, by returning false, and then
-          // we close the window ourselves after the save is done.
-          gCloseWindowAfterSave = true;
-          // We catch the exception because we need to tell toolkit that it
-          // shouldn't close the window, because we're going to close it
-          // ourselves. If we don't tell toolkit that, and then close the window
-          // ourselves, the toolkit code that keeps track of the open windows
-          // gets off by one and the app can close unexpectedly on os's that
-          // shutdown the app when the last window is closed.
-          try {
-            GenericSendMessage(nsIMsgCompDeliverMode.AutoSaveAsDraft);
-          }
-          catch (ex) {
-            Components.utils.reportError(ex);
-          }
-          return false;
-        case 1: //Cancel
-          return false;
-        case 2: //Don't Save
-          // don't delete the draft if we didn't start off editing a draft
-          // and the user hasn't explicitly saved it.
-          if (!gEditingDraft && gAutoSaveKickedIn)
-            RemoveDraft();
-          break;
-      }
+      case 0: //Save
+        // Since we're going to save the message, we tell toolkit that
+        // the close command failed, by returning false, and then
+        // we close the window ourselves after the save is done.
+        gCloseWindowAfterSave = true;
+        // We catch the exception because we need to tell toolkit that it
+        // shouldn't close the window, because we're going to close it
+        // ourselves. If we don't tell toolkit that, and then close the window
+        // ourselves, the toolkit code that keeps track of the open windows
+        // gets off by one and the app can close unexpectedly on os's that
+        // shutdown the app when the last window is closed.
+        try {
+          GenericSendMessage(nsIMsgCompDeliverMode.AutoSaveAsDraft);
+        }
+        catch (ex) {
+          Components.utils.reportError(ex);
+        }
+        return false;
+      case 1: //Cancel
+        return false;
+      case 2: //Don't Save
+        // don't delete the draft if we didn't start off editing a draft
+        // and the user hasn't explicitly saved it.
+        if (!gEditingDraft && gAutoSaveKickedIn)
+          RemoveDraft();
+        break;
     }
   }
 
@@ -3459,9 +3597,9 @@ function GetLastAttachDirectory()
   var lastDirectory;
 
   try {
-    var branch = Components.classes["@mozilla.org/preferences-service;1"]
-                           .getService(Components.interfaces.nsIPrefBranch);
-    lastDirectory = branch.getComplexValue(kComposeAttachDirPrefName, Components.interfaces.nsILocalFile);
+    lastDirectory = Services.prefs
+                            .getComplexValue(kComposeAttachDirPrefName,
+                                             Components.interfaces.nsIFile);
   }
   catch (ex) {
     // this will fail the first time we attach a file
@@ -3476,12 +3614,11 @@ function GetLastAttachDirectory()
 function SetLastAttachDirectory(attachedLocalFile)
 {
   try {
-    var file = attachedLocalFile.QueryInterface(Components.interfaces.nsIFile);
-    var parent = file.parent.QueryInterface(Components.interfaces.nsILocalFile);
+    let file = attachedLocalFile.QueryInterface(Components.interfaces.nsIFile);
+    let parent = file.parent.QueryInterface(Components.interfaces.nsIFile);
 
-    var branch = Components.classes["@mozilla.org/preferences-service;1"]
-                           .getService(Components.interfaces.nsIPrefBranch);
-    branch.setComplexValue(kComposeAttachDirPrefName, Components.interfaces.nsILocalFile, parent);
+    Services.prefs.setComplexValue(kComposeAttachDirPrefName,
+                                   Components.interfaces.nsIFile, parent);
   }
   catch (ex) {
     dump("error: SetLastAttachDirectory failed: " + ex + "\n");
@@ -3599,7 +3736,7 @@ function AddAttachments(aAttachments, aCallback)
       // web url that had a query or reference string after the file name and for
       // mailnews urls where the filename is hidden in the url as a &filename=
       // part.
-      var url = gIOService.newURI(attachment.url, null, null);
+      let url = Services.io.newURI(attachment.url, null, null);
       if (url instanceof Components.interfaces.nsIURL &&
           url.fileName && !url.schemeIs("file"))
         item.image = "moz-icon://" + url.fileName;
@@ -3656,22 +3793,20 @@ function MessageGetNumSelectedAttachments()
 
 function AttachPage()
 {
-   if (gPromptService)
-   {
-      var result = {value:"http://"};
-      if (gPromptService.prompt(window,
-                                getComposeBundle().getString("attachPageDlogTitle"),
-                                getComposeBundle().getString("attachPageDlogMessage"),
-                                result,
-                                null,
-                                {value:0}))
-      {
-        var attachment = Components.classes["@mozilla.org/messengercompose/attachment;1"]
-                                   .createInstance(Components.interfaces.nsIMsgAttachment);
-        attachment.url = result.value;
-        AddAttachments([attachment]);
-      }
-   }
+  let result = {value:"http://"};
+  if (Services.prompt
+              .prompt(window,
+                      getComposeBundle().getString("attachPageDlogTitle"),
+                      getComposeBundle().getString("attachPageDlogMessage"),
+                      result,
+                      null,
+                      {value:0}))
+  {
+    let attachment = Components.classes["@mozilla.org/messengercompose/attachment;1"]
+                               .createInstance(Components.interfaces.nsIMsgAttachment);
+    attachment.url = result.value;
+    AddAttachments([attachment]);
+  }
 }
 
 /**
@@ -3788,19 +3923,19 @@ function RemoveSelectedAttachment()
 
 function RenameSelectedAttachment()
 {
-  var bucket = document.getElementById("attachmentBucket");
+  let bucket = document.getElementById("attachmentBucket");
   if (bucket.selectedItems.length != 1)
     return; // not one attachment selected
 
-  var item = bucket.getSelectedItem(0);
-  var attachmentName = {value: item.attachment.name};
-  if (gPromptService.prompt(
-                     window,
-                     getComposeBundle().getString("renameAttachmentTitle"),
-                     getComposeBundle().getString("renameAttachmentMessage"),
-                     attachmentName,
-                     null,
-                     {value: 0}))
+  let item = bucket.getSelectedItem(0);
+  let attachmentName = {value: item.attachment.name};
+  if (Services.prompt
+              .prompt(window,
+                      getComposeBundle().getString("renameAttachmentTitle"),
+                      getComposeBundle().getString("renameAttachmentMessage"),
+                      attachmentName,
+                      null,
+                      {value: 0}))
   {
     if (attachmentName.value == "")
       return; // name was not filled, bail out
@@ -3825,17 +3960,17 @@ function AttachmentElementHasItems()
 
 function OpenSelectedAttachment()
 {
-  var child;
-  var bucket = document.getElementById("attachmentBucket");
+  let child;
+  let bucket = document.getElementById("attachmentBucket");
   if (bucket.selectedItems.length == 1)
   {
-    var attachmentUrl = bucket.getSelectedItem(0).attachment.url;
+    let attachmentUrl = bucket.getSelectedItem(0).attachment.url;
 
-    var messagePrefix = /^mailbox-message:|^imap-message:|^news-message:/i;
+    let messagePrefix = /^mailbox-message:|^imap-message:|^news-message:/i;
     if (messagePrefix.test(attachmentUrl))
     {
       // we must be dealing with a forwarded attachment, treat this special
-      var msgHdr = gMessenger.messageServiceFromURI(attachmentUrl).messageURIToMsgHdr(attachmentUrl);
+      let msgHdr = gMessenger.messageServiceFromURI(attachmentUrl).messageURIToMsgHdr(attachmentUrl);
       if (msgHdr)
         MailUtils.openMessageInNewWindow(msgHdr);
     }
@@ -3843,15 +3978,15 @@ function OpenSelectedAttachment()
     {
       // turn the url into a nsIURL object then open it
 
-      var url = gIOService.newURI(attachmentUrl, null, null);
+      let url = Services.io.newURI(attachmentUrl, null, null);
       url = url.QueryInterface( Components.interfaces.nsIURL );
 
       if (url)
       {
-        var channel = gIOService.newChannelFromURI(url);
+        let channel = Services.io.newChannelFromURI(url);
         if (channel)
         {
-          var uriLoader = Components.classes["@mozilla.org/uriloader;1"].getService(Components.interfaces.nsIURILoader);
+          let uriLoader = Components.classes["@mozilla.org/uriloader;1"].getService(Components.interfaces.nsIURILoader);
           uriLoader.openURI(channel, true, new nsAttachmentOpener());
         } // if channel
       } // if url
@@ -3906,35 +4041,26 @@ nsAttachmentOpener.prototype =
   parentContentListener: null
 }
 
+/**
+ * Check what to do with HTML message according to what preference we have
+ * stored for the recipients.
+ *
+ * @param convertible  An nsIMsgCompConvertible constant describing
+ *                     message convertibility to plain text.
+ */
 function DetermineHTMLAction(convertible)
 {
-    var obj;
-    if (! gMsgCompose.composeHTML)
-    {
-        try {
-          obj = new Object;
-          gMsgCompose.checkAndPopulateRecipients(true, false, obj);
-        } catch(ex) {
-          dump("gMsgCompose.checkAndPopulateRecipients failed: " + ex + "\n");
-        }
+    if (!gMsgCompose.composeHTML)
         return nsIMsgCompSendFormat.PlainText;
-    }
 
     if (gSendFormat == nsIMsgCompSendFormat.AskUser)
     {
         //Well, before we ask, see if we can figure out what to do for ourselves
-
-        var noHtmlRecipients;
-        var noHtmlnewsgroups;
         var preferFormat;
 
         //Check the address book for the HTML property for each recipient
-        try {
-          obj = new Object;
-          preferFormat = gMsgCompose.checkAndPopulateRecipients(true, true, obj);
-          noHtmlRecipients = obj.value;
-        } catch(ex) {
-          dump("gMsgCompose.checkAndPopulateRecipients failed: " + ex + "\n");
+        let noHtmlRecipients = getNonHtmlRecipients();
+        if (!noHtmlRecipients) {
           var msgCompFields = gMsgCompose.compFields;
           noHtmlRecipients = msgCompFields.to + "," + msgCompFields.cc + "," + msgCompFields.bcc;
           preferFormat = nsIAbPreferMailFormat.unknown;
@@ -3942,14 +4068,14 @@ function DetermineHTMLAction(convertible)
         // dump("DetermineHTMLAction: preferFormat = " + preferFormat + ", noHtmlRecipients are " + noHtmlRecipients + "\n");
 
         //Check newsgroups now...
-        noHtmlnewsgroups = gMsgCompose.compFields.newsgroups;
+        let noHtmlnewsgroups = gMsgCompose.compFields.newsgroups;
 
-        if (noHtmlRecipients != "" || noHtmlnewsgroups != "")
+        if (noHtmlRecipients || noHtmlnewsgroups)
         {
             if (convertible == nsIMsgCompConvertible.Plain)
               return nsIMsgCompSendFormat.PlainText;
 
-            if (noHtmlnewsgroups == "")
+            if (!noHtmlnewsgroups)
             {
                 switch (preferFormat)
                 {
@@ -3971,20 +4097,30 @@ function DetermineHTMLAction(convertible)
             }
             return nsIMsgCompSendFormat.AskUser;
         }
-        else
-            return nsIMsgCompSendFormat.HTML;
-    }
-    else
-    {
-      try {
-        obj = new Object;
-        gMsgCompose.checkAndPopulateRecipients(true, false, obj);
-      } catch(ex) {
-          dump("gMsgCompose.checkAndPopulateRecipients failed: " + ex + "\n");
-      }
+
+        return nsIMsgCompSendFormat.HTML;
     }
 
     return gSendFormat;
+}
+
+/**
+ * Expands mailinglists found in the recipient fields.
+ */
+function expandRecipients()
+{
+  let dummyObj = new Object();
+  gMsgCompose.checkAndPopulateRecipients(true, false, dummyObj);
+}
+
+/**
+ * Returns recipients that prefer to get messages in plain text.
+ */
+function getNonHtmlRecipients()
+{
+  let recipients = new Object();
+  gMsgCompose.checkAndPopulateRecipients(true, true, recipients);
+  return recipients.value;
 }
 
 function DetermineConvertibility()
@@ -3998,6 +4134,30 @@ function DetermineConvertibility()
     return nsIMsgCompConvertible.No;
 }
 
+/**
+ * Hides addressing options (To, CC, Bcc, Newsgroup, Followup-To, etc.)
+ * that are not relevant for the account type used for sending.
+ *
+ * @param aAccountKey  Key of the account that is currently selected
+ *                     as the sending account.
+ */
+function hideIrrelevantAddressingOptions(aAccountKey)
+{
+  let hideNews = MailServices.accounts.getAccount(aAccountKey)
+                                      .incomingServer.type != "nntp";
+  // If we are not posting from a News (NNTP) account
+  // hide the Newsgroup recipient type in all the menulists.
+  let addrWidget = document.getElementById("addressingWidget");
+  // Only really touch the News related items we know about.
+  let newsTypes = addrWidget
+    .querySelectorAll('menuitem[value="addr_newsgroups"], menuitem[value="addr_followup"]');
+  // Collapsing the menuitem only prevents it getting chosen, it does not
+  // affect the menulist widget display when Newsgroup is already selected.
+  for (let item of newsTypes) {
+    item.collapsed = hideNews;
+  }
+}
+
 function LoadIdentity(startup)
 {
     var identityElement = document.getElementById("msgIdentity");
@@ -4005,11 +4165,14 @@ function LoadIdentity(startup)
 
     if (identityElement) {
         var idKey = identityElement.value;
-        gCurrentIdentity = gAccountManager.getIdentity(idKey);
+        gCurrentIdentity = MailServices.accounts.getIdentity(idKey);
 
-        // set the  account name on the menu list value.
-        if (identityElement.selectedItem)
-          identityElement.setAttribute('accountname', identityElement.selectedItem.getAttribute('accountname'));
+        // Set the account key value on the menu list.
+        if (identityElement.selectedItem) {
+          let accountKey = identityElement.selectedItem.getAttribute("accountkey");
+          identityElement.setAttribute("accountkey", accountKey);
+          hideIrrelevantAddressingOptions(accountKey);
+        }
 
         let maxRecipients = awGetMaxRecipients();
         for (let i = 1; i <= maxRecipients; i++)
@@ -4208,10 +4371,9 @@ var envelopeDragObserver = {
         {
           if (item.flavour.contentType == "application/x-moz-file")
           {
-            var fileHandler = Components.classes["@mozilla.org/network/io-service;1"]
-                                        .getService(Components.interfaces.nsIIOService)
-                                        .getProtocolHandler("file")
-                                        .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+            let fileHandler = Services.io
+                                      .getProtocolHandler("file")
+                                      .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
 
             size = rawData.fileSize;
             rawData = fileHandler.getURLSpecFromFile(rawData);
@@ -4236,12 +4398,12 @@ var envelopeDragObserver = {
             // if this is a url (or selected text)
             // see if it's a valid url by checking
             // if we can extract a scheme
-            // using the ioservice
+            // using Services.io
             //
             // also skip mailto:, since it doesn't make sense
             // to attach and send mailto urls
             try {
-              var scheme = gIOService.extractScheme(rawData);
+              let scheme = Services.io.extractScheme(rawData);
               // don't attach mailto: urls
               if (scheme == "mailto")
                 isValid = false;
@@ -4326,18 +4488,19 @@ function DisplaySaveFolderDlg(folderURI)
   }
 
   if (showDialog){
-    var msgfolder = GetMsgFolderFromUri(folderURI, true);
+    let msgfolder = GetMsgFolderFromUri(folderURI, true);
     if (!msgfolder)
       return;
-    var checkbox = {value:0};
-    var SaveDlgTitle = getComposeBundle().getString("SaveDialogTitle");
-    var dlgMsg = bundle.getFormattedString("SaveDialogMsg",
+    let checkbox = {value:0};
+    let SaveDlgTitle = getComposeBundle().getString("SaveDialogTitle");
+    let dlgMsg = bundle.getFormattedString("SaveDialogMsg",
                                            [msgfolder.name,
                                             msgfolder.server.prettyName]);
 
-    var CheckMsg = bundle.getString("CheckMsg");
-    gPromptService.alertCheck(window, SaveDlgTitle, dlgMsg,
-                              getComposeBundle().getString("CheckMsg"), checkbox);
+    let CheckMsg = bundle.getString("CheckMsg");
+    Services.prompt
+            .alertCheck(window, SaveDlgTitle, dlgMsg,
+                        getComposeBundle().getString("CheckMsg"), checkbox);
     try {
           gCurrentIdentity.showSaveMsgDlg = !checkbox.value;
     }//try
@@ -4531,6 +4694,7 @@ function toggleAddressPicker()
 function AddRecipient(recipientType, address)
 {
   awAddRecipient(recipientType, address);
+  onRecipientsInput();
 }
 
 function loadHTMLMsgPrefs()
@@ -4589,6 +4753,33 @@ function AutoSave()
 
 const gAttachmentNotifier =
 {
+  _obs: null,
+
+  init: function gAN_init(aDocument) {
+    if (this._obs)
+      this.shutdown();
+
+    this._obs = new MutationObserver(function gAN_handleMutations(aMutations) {
+      gAttachmentNotifier.timer.cancel();
+      gAttachmentNotifier.timer.initWithCallback(gAttachmentNotifier.event, 500,
+                                                 Components.interfaces.nsITimer.TYPE_ONE_SHOT);
+    });
+
+    this._obs.observe(aDocument, {
+      attributes: true,
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+  },
+
+  shutdown: function gAN_shutdown() {
+    if (this._obs)
+      this._obs.disconnect();
+
+    this._obs = null;
+  },
+
   event: {
     notify: function(timer)
     {
@@ -4597,19 +4788,13 @@ const gAttachmentNotifier =
   },
 
   timer: Components.classes["@mozilla.org/timer;1"]
-                   .createInstance(Components.interfaces.nsITimer),
-
-  EditAction: function EditAction()
-  {
-    this.timer.cancel();
-    this.timer.initWithCallback(this.event, 500,
-                                Components.interfaces.nsITimer.TYPE_ONE_SHOT);
-  }
+                   .createInstance(Components.interfaces.nsITimer)
 };
 
 function InitEditor()
 {
   var editor = GetCurrentEditor();
+
   editor.QueryInterface(nsIEditorStyleSheets);
   // We use addOverrideStyleSheet rather than addStyleSheet so that we get
   // a synchronous load, rather than having a late-finishing async load
@@ -4633,11 +4818,7 @@ function InitEditor()
           .setAttribute('hidden', gSpellChecker.canSpellCheck);
   // Then, we enable related UI entries.
   enableInlineSpellCheck(getPref("mail.spellcheck.inline"));
-  let dictMenu = document.getElementById("spellCheckDictionariesMenu");
-  let dictSep = document.getElementById("spellCheckLanguageSeparator");
-  gSpellChecker.addDictionaryListToMenu(dictMenu, dictSep);
-
-  editor.addEditorObserver(gAttachmentNotifier);
+  gAttachmentNotifier.init(editor.document);
 }
 
 // This function modifies gSpellChecker and updates the UI accordingly. It's
@@ -4663,18 +4844,17 @@ function getMailToolbox()
 
 function getPref(aPrefName, aIsComplex) {
   const Ci = Components.interfaces;
-  const prefB = Components.classes["@mozilla.org/preferences-service;1"]
-                          .getService(Ci.nsIPrefBranch);
   if (aIsComplex) {
-      return prefB.getComplexValue(aPrefName, Ci.nsISupportsString).data;
+    return Services.prefs
+                   .getComplexValue(aPrefName, Ci.nsISupportsString).data;
   }
-  switch (prefB.getPrefType(aPrefName)) {
+  switch (Services.prefs.getPrefType(aPrefName)) {
     case Ci.nsIPrefBranch.PREF_BOOL:
-      return prefB.getBoolPref(aPrefName);
+      return Services.prefs.getBoolPref(aPrefName);
     case Ci.nsIPrefBranch.PREF_INT:
-      return prefB.getIntPref(aPrefName);
+      return Services.prefs.getIntPref(aPrefName);
     case Ci.nsIPrefBranch.PREF_STRING:
-      return prefB.getCharPref(aPrefName);
+      return Services.prefs.getCharPref(aPrefName);
     default: // includes nsIPrefBranch.PREF_INVALID
       return null;
   }
@@ -4691,4 +4871,28 @@ function dispatchAttachmentBucketEvent(aEventType, aData) {
   let event = document.createEvent("CustomEvent");
   event.initCustomEvent(aEventType, true, true, aData);
   bucket.dispatchEvent(event);
+}
+
+/** Update state of zoom type (text vs. full) menu item. */
+function UpdateFullZoomMenu() {
+  let menuItem = document.getElementById("menu_fullZoomToggle");
+  menuItem.setAttribute("checked", !ZoomManager.useFullZoom);
+}
+
+// The zoom manager, view source and possibly some other functions still rely
+// on the getBrowser function.
+function getBrowser()
+{
+  // return our <editor> element
+  return document.getElementById("content-frame");
+}
+
+function goUpdateMailMenuItems(commandset)
+{
+  for (let i = 0; i < commandset.childNodes.length; i++)
+  {
+    let commandID = commandset.childNodes[i].getAttribute("id");
+    if (commandID)
+      goUpdateCommand(commandID);
+  }
 }

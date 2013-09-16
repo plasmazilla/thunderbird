@@ -8,7 +8,6 @@
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 
 load("../../../resources/messageGenerator.js");
@@ -16,7 +15,6 @@ load("../../../resources/messageModifier.js");
 load("../../../resources/messageInjection.js");
 
 // IMAP pump
-load("../../../resources/IMAPpump.js");
 
 setupIMAPPump();
 
@@ -40,7 +38,7 @@ var streamListener =
   },
   onStopRequest: function(aRequest, aContext, aStatusCode) {
     do_check_eq(aStatusCode, 0);
-    do_check_neq(this._data.indexOf("Content-Type"), -1);
+    do_check_true(this._data.contains("Content-Type"));
     async_driver();
   },
 
@@ -57,13 +55,11 @@ var streamListener =
 // Adds some messages directly to a mailbox (eg new mail)
 function addMessagesToServer(messages, mailbox)
 {
-  let ioService = Cc["@mozilla.org/network/io-service;1"]
-                    .getService(Ci.nsIIOService);
-
   // For every message we have, we need to convert it to a file:/// URI
   messages.forEach(function (message)
   {
-    let URI = ioService.newFileURI(message.file).QueryInterface(Ci.nsIFileURL);
+    let URI =
+      Services.io.newFileURI(message.file).QueryInterface(Ci.nsIFileURL);
     message.spec = URI.spec;
   });
 
@@ -80,7 +76,7 @@ function run_test() {
   // Add a couple of messages to the INBOX
   // this is synchronous, afaik
   addMessagesToServer([{file: gMsgFile1, messageId: gMsgId1}],
-                        gIMAPDaemon.getMailbox("INBOX"));
+                        IMAPPump.daemon.getMailbox("INBOX"));
   Services.prefs.setBoolPref("mail.server.server1.autosync_offline_stores", false);
   async_run_tests(tests);
  }
@@ -93,18 +89,18 @@ var tests = [
 ]
 
 function test_updateFolder() {
-  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+  IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
   yield false;
 }
 
 function test_downloadForOffline() {
-  gIMAPInbox.downloadAllForOffline(asyncUrlListener, null);
+  IMAPPump.inbox.downloadAllForOffline(asyncUrlListener, null);
   yield false;
 }
 
 function test_streamHeaders()
 {
-  let newMsgHdr = gIMAPInbox.GetMessageHeader(1);
+  let newMsgHdr = IMAPPump.inbox.GetMessageHeader(1);
   let msgURI = newMsgHdr.folder.getUriForMsg(newMsgHdr);
   let messenger = Cc["@mozilla.org/messenger;1"].createInstance(Ci.nsIMessenger);
   let msgServ = messenger.messageServiceFromURI(msgURI);

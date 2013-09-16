@@ -432,7 +432,7 @@ nsMsgComposeService::GetOrigWindowSelection(MSG_ComposeType type, nsIMsgWindow *
   NS_ENSURE_SUCCESS(rv, rv);
 
   bool requireMultipleWords = true;
-  nsCAutoString charsOnlyIf;
+  nsAutoCString charsOnlyIf;
   prefs->GetBoolPref(PREF_MAILNEWS_REPLY_QUOTING_SELECTION_MULTI_WORD, &requireMultipleWords);
   prefs->GetCharPref(PREF_MAILNEWS_REPLY_QUOTING_SELECTION_ONLY_IF, getter_Copies(charsOnlyIf));
   if (sel && (requireMultipleWords || !charsOnlyIf.IsEmpty()))
@@ -445,6 +445,9 @@ nsMsgComposeService::GetOrigWindowSelection(MSG_ComposeType type, nsIMsgWindow *
     // two words selected in order to quote just the selected text
     if (requireMultipleWords)
     {
+      if (selPlain.IsEmpty())
+        return NS_ERROR_ABORT;
+
       nsCOMPtr<nsILineBreaker> lineBreaker = do_GetService(NS_LBRK_CONTRACTID, &rv);
 
       if (NS_SUCCEEDED(rv))
@@ -514,7 +517,7 @@ nsMsgComposeService::OpenComposeWindow(const char *msgComposeWindowURL, nsIMsgDB
   if (type == nsIMsgCompType::ForwardInline || type == nsIMsgCompType::Draft || type == nsIMsgCompType::Template
     || type == nsIMsgCompType::ReplyWithTemplate || type == nsIMsgCompType::Redirect)
   {
-    nsCAutoString uriToOpen(originalMsgURI);
+    nsAutoCString uriToOpen(originalMsgURI);
     uriToOpen += (uriToOpen.FindChar('?') == kNotFound) ? '?' : '&';
     uriToOpen.Append("fetchCompleteMessage=true");
     if (type == nsIMsgCompType::Redirect)
@@ -545,7 +548,7 @@ nsMsgComposeService::OpenComposeWindow(const char *msgComposeWindowURL, nsIMsgDB
           type == nsIMsgCompType::ReplyToSenderAndGroup ||
           type == nsIMsgCompType::ReplyToList)
       {
-        nsCAutoString selHTML;
+        nsAutoCString selHTML;
         if (NS_SUCCEEDED(GetOrigWindowSelection(type, aMsgWindow, selHTML)))
           pMsgComposeParams->SetHtmlToQuote(selHTML);
       }
@@ -554,9 +557,9 @@ nsMsgComposeService::OpenComposeWindow(const char *msgComposeWindowURL, nsIMsgDB
       {
         if (type == nsIMsgCompType::NewsPost)
         {
-          nsCAutoString newsURI(originalMsgURI);
-          nsCAutoString group;
-          nsCAutoString host;
+          nsAutoCString newsURI(originalMsgURI);
+          nsAutoCString group;
+          nsAutoCString host;
 
           int32_t slashpos = newsURI.RFindChar('/');
           if (slashpos > 0 )
@@ -569,12 +572,12 @@ nsMsgComposeService::OpenComposeWindow(const char *msgComposeWindowURL, nsIMsgDB
           else
             group = originalMsgURI;
 
-          nsCAutoString unescapedName;
+          nsAutoCString unescapedName;
           MsgUnescapeString(group,
                             nsINetUtil::ESCAPE_URL_FILE_BASENAME | nsINetUtil::ESCAPE_URL_FORCED,
                             unescapedName);
           pMsgCompFields->SetNewsgroups(NS_ConvertUTF8toUTF16(unescapedName));
-          pMsgCompFields->SetNewshost(host.get());
+          pMsgCompFields->SetNewspostUrl(host.get());
         }
         else
         {
@@ -1018,7 +1021,7 @@ NS_IMETHODIMP
 nsMsgTemplateReplyHelper::OnDataAvailable(nsIRequest* request,
                                   nsISupports* aSupport,
                                   nsIInputStream* inStream,
-                                  uint32_t srcOffset,
+                                  uint64_t srcOffset,
                                   uint32_t count)
 {
   nsresult rv = NS_OK;
@@ -1109,7 +1112,7 @@ NS_IMETHODIMP nsMsgComposeService::ReplyWithTemplate(nsIMsgDBHdr *aMsgHdr, const
   if (!query)
     return NS_ERROR_FAILURE;
 
-  nsCAutoString folderUri(Substring(templateUri, query)); 
+  nsAutoCString folderUri(Substring(templateUri, query)); 
   nsresult rv = GetExistingFolder(folderUri, getter_AddRefs(templateFolder));
   NS_ENSURE_SUCCESS(rv, rv);
   rv = templateFolder->GetMsgDatabase(getter_AddRefs(templateDB));
@@ -1119,8 +1122,8 @@ NS_IMETHODIMP nsMsgComposeService::ReplyWithTemplate(nsIMsgDBHdr *aMsgHdr, const
   if (subject)
   {
     const char *subjectEnd = subject + strlen(subject);
-    nsCAutoString messageId(Substring(query + 11, subject));
-    nsCAutoString subjectString(Substring(subject + 9, subjectEnd));
+    nsAutoCString messageId(Substring(query + 11, subject));
+    nsAutoCString subjectString(Substring(subject + 9, subjectEnd));
     templateDB->GetMsgHdrForMessageID(messageId.get(), getter_AddRefs(helper->mTemplateHdr));
     if (helper->mTemplateHdr)
       templateFolder->GetUriForMsg(helper->mTemplateHdr, templateMsgHdrUri);
@@ -1374,7 +1377,7 @@ nsresult nsMsgComposeService::AddGlobalHtmlDomains()
       rv = prefBranch->GetCharPref(USER_CURRENT_HTMLDOMAINLIST_PREF_NAME, getter_Copies(currentHtmlDomainList));
       NS_ENSURE_SUCCESS(rv,rv);
 
-      nsCAutoString newHtmlDomainList(currentHtmlDomainList);
+      nsAutoCString newHtmlDomainList(currentHtmlDomainList);
       // Get the current html domain list into new list var
       ParseString(currentHtmlDomainList, DOMAIN_DELIMITER, domainArray);
 

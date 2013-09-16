@@ -220,8 +220,8 @@ public: // other morkNode methods
   mork_refs  WeakRefsOnly() const { return (mork_refs) ( mNode_Refs - mNode_Uses ); }
 
   // (this refcounting derives from public domain IronDoc node refcounts)
-  virtual mork_refs    AddStrongRef(morkEnv* ev);
-  virtual mork_refs    CutStrongRef(morkEnv* ev);
+  virtual mork_uses    AddStrongRef(morkEnv* ev);
+  virtual mork_uses    CutStrongRef(morkEnv* ev);
   mork_refs    AddWeakRef(morkEnv* ev);
   mork_refs    CutWeakRef(morkEnv* ev);
 
@@ -286,15 +286,6 @@ nsIMdbFile_SlotStrongFile(nsIMdbFile* self, morkEnv* ev, nsIMdbFile** ioSlot);
   // calling AddStrongRef(), and if the return value shows success,
   // then self is put into slot *ioSlot.  Note self can be nil, so we take
   // expression 'nsIMdbFile_SlotStrongFile(0, ev, &slot)'.
-
-extern void // utility method very similar to morkNode::SlotStrongNode():
-nsIMdbCompare_SlotStrongCompare(nsIMdbCompare* self, morkEnv* ev,
-  nsIMdbCompare** ioSlot);
-  // If *ioSlot is non-nil, that compare is released by CutStrongRef() and
-  // then zeroed out.  Then if self is non-nil, this is acquired by
-  // calling AddStrongRef(), and if the return value shows success,
-  // then self is put into slot *ioSlot.  Note self can be nil, so we take
-  // expression 'nsIMdbCompare_SlotStrongCompare(0, ev, &slot)'.
 
 //3456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789
 

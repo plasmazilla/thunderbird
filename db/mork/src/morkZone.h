@@ -279,9 +279,8 @@ public:
     
   NS_IMETHOD Free(nsIMdbEnv* ev, // free block allocated earlier by Alloc()
     void* inBlock);
-    
-  NS_IMETHOD HeapAddStrongRef(nsIMdbEnv* ev); // does nothing
-  NS_IMETHOD HeapCutStrongRef(nsIMdbEnv* ev); // does nothing
+
+  virtual size_t GetUsedSize() { return mZone_Heap->GetUsedSize(); }
 // } ===== end nsIMdbHeap methods =====
   
 // { ===== begin morkNode interface =====

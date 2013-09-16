@@ -323,7 +323,8 @@ var PlacesOrganizer = {
     if (fp.show() != Components.interfaces.nsIFilePicker.returnCancel) {
       if (fp.fileURL) {
         Components.utils.import("resource://gre/modules/BookmarkHTMLUtils.jsm");
-        BookmarkHTMLUtils.importFromURL(fp.fileURL.spec, false);
+        BookmarkHTMLUtils.importFromURL(fp.fileURL.spec, false)
+                         .then(null, Components.utils.reportError);
       }
     }
   },
@@ -339,9 +340,9 @@ var PlacesOrganizer = {
     fp.appendFilters(Components.interfaces.nsIFilePicker.filterHTML);
     fp.defaultString = "bookmarks.html";
     if (fp.show() != Components.interfaces.nsIFilePicker.returnCancel) {
-      var exporter = Components.classes["@mozilla.org/browser/places/import-export-service;1"]
-                               .getService(Components.interfaces.nsIPlacesImportExportService);
-      exporter.exportHTMLToFile(fp.file);
+      Components.utils.import("resource://gre/modules/BookmarkHTMLUtils.jsm");
+      BookmarkHTMLUtils.exportToFile(fp.file)
+                       .then(null, Components.utils.reportError);
     }
   },
 
@@ -358,13 +359,13 @@ var PlacesOrganizer = {
     while (restorePopup.childNodes.length > 1)
       restorePopup.removeChild(restorePopup.firstChild);
 
-    let backupFiles = PlacesUtils.backups.entries;
+    let backupFiles = PlacesBackups.entries;
     if (backupFiles.length == 0)
       return;
 
     // Populate menu with backups.
     for (let i = 0; i < backupFiles.length; i++) {
-      let backupDate = PlacesUtils.backups.getDateForFile(backupFiles[i]);
+      let backupDate = PlacesBackups.getDateForFile(backupFiles[i]);
       let m = restorePopup.insertBefore(document.createElement("menuitem"),
                                         document.getElementById("restoreFromFile"));
       m.setAttribute("label",
@@ -388,7 +389,7 @@ var PlacesOrganizer = {
    */
   onRestoreMenuItemClick: function PO_onRestoreMenuItemClick(aMenuItem) {
     let backupName = aMenuItem.getAttribute("value");
-    let backupFiles = PlacesUtils.backups.entries;
+    let backupFiles = PlacesBackups.entries;
     for (let i = 0; i < backupFiles.length; i++) {
       if (backupFiles[i].leafName == backupName) {
         this.restoreBookmarksFromFile(backupFiles[i]);
@@ -465,10 +466,10 @@ var PlacesOrganizer = {
     var backupsDir = dirSvc.get("Desk", Components.interfaces.nsILocalFile);
     fp.displayDirectory = backupsDir;
 
-    fp.defaultString = PlacesUtils.backups.getFilenameForDate();
+    fp.defaultString = PlacesBackups.getFilenameForDate();
 
     if (fp.show() != Components.interfaces.nsIFilePicker.returnCancel)
-      PlacesUtils.backups.saveBookmarksToJSONFile(fp.file);
+      PlacesBackups.saveBookmarksToJSONFile(fp.file);
   },
 
   _paneDisabled: false,

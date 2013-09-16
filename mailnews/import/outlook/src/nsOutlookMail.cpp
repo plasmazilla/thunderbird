@@ -390,6 +390,10 @@ nsresult nsOutlookMail::ImportMailbox(uint32_t *pDoneSoFar, bool *pAbort,
 
     rv = msgStore->GetNewMsgOutputStream(dstFolder, getter_AddRefs(msgHdr), &reusable,
                                          getter_AddRefs(outputStream));
+    if (NS_FAILED(rv)) {
+      IMPORT_LOG1("*** Error getting nsIOutputStream of mailbox: %S\n", pName);
+      return rv;
+    }
     totalCount = contents.GetCount();
     doneCalc = *pMsgCount;
     doneCalc /= totalCount;
@@ -603,7 +607,7 @@ nsresult nsOutlookMail::CreateList(const PRUnichar * pName,
   nsCOMPtr <nsIMdbRow> newListRow;
   rv = pDb->GetNewListRow(getter_AddRefs(newListRow));
   NS_ENSURE_SUCCESS(rv, rv);
-  nsCAutoString column;
+  nsAutoCString column;
   LossyCopyUTF16toASCII(nsDependentString(pName), column);
   rv = pDb->AddListName(newListRow, column.get());
   NS_ENSURE_SUCCESS(rv, rv);

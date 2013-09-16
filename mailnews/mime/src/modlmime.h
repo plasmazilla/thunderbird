@@ -10,7 +10,6 @@
 #undef Bool
 #endif
 
-#include "prtypes.h"
 #include "nsStringGlue.h"
 #include "nsMailHeaders.h"
 #include "nsIMimeStreamConverter.h"
@@ -19,7 +18,7 @@
 #include "nsIPrefBranch.h"
 #include "mozITXTToHTMLConv.h"
 #include "nsCOMPtr.h"
-#include "nsIMimeConverter.h" // for MimeConverterOutputCallback
+#include "modmimee.h" // for MimeConverterOutputCallback
 
 #define MIME_DRAFTS
 

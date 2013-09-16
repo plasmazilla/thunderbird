@@ -450,7 +450,7 @@ const char *nsMsgFilterList::GetStringForAttrib(nsMsgFilterFileAttribValue attri
 
 nsresult nsMsgFilterList::LoadValue(nsCString &value, nsIInputStream *aStream)
 {
-  nsCAutoString  valueStr;
+  nsAutoCString  valueStr;
   char  curChar;
   value = "";
   curChar = SkipWhitespace(aStream);
@@ -507,7 +507,7 @@ nsresult nsMsgFilterList::LoadTextFilters(nsIInputStream *aStream)
   // We'd really like to move lot's of these into the objects that they refer to.
   do
   {
-    nsCAutoString value;
+    nsAutoCString value;
     nsresult intToStringResult;
 
     char curChar;
@@ -515,8 +515,9 @@ nsresult nsMsgFilterList::LoadTextFilters(nsIInputStream *aStream)
     if (curChar == (char) -1)  //reached eof
       break;
     err = LoadValue(value, bufStream);
-    if (err != NS_OK)
+    if (NS_FAILED(err))
       break;
+
     switch(attrib)
     {
     case nsIMsgFilterList::attribNone:
@@ -542,7 +543,7 @@ nsresult nsMsgFilterList::LoadTextFilters(nsIInputStream *aStream)
         {
           int32_t nextFilterStartPos = m_unparsedFilterBuffer.RFind("name");
 
-          nsCAutoString nextFilterPart;
+          nsAutoCString nextFilterPart;
           nextFilterPart = Substring(m_unparsedFilterBuffer, nextFilterStartPos, m_unparsedFilterBuffer.Length());
           m_unparsedFilterBuffer.SetLength(nextFilterStartPos);
 
@@ -646,7 +647,7 @@ nsresult nsMsgFilterList::LoadTextFilters(nsIInputStream *aStream)
           int32_t labelInt = value.ToInteger(&res);
           if (NS_SUCCEEDED(res))
           {
-            nsCAutoString keyword("$label");
+            nsAutoCString keyword("$label");
             keyword.Append('0' + labelInt);
             currentFilterAction->SetType(nsMsgFilterAction::AddTag);
             currentFilterAction->SetStrValue(keyword);
@@ -817,7 +818,7 @@ nsresult nsMsgFilterList::WriteIntAttr(nsMsgFilterFileAttribValue attrib, int va
   if (attribStr)
   {
     uint32_t bytesWritten;
-    nsCAutoString writeStr(attribStr);
+    nsAutoCString writeStr(attribStr);
     writeStr.AppendLiteral("=\"");
     writeStr.AppendInt(value);
     writeStr.AppendLiteral("\"" MSG_LINEBREAK);
@@ -841,7 +842,7 @@ nsMsgFilterList::WriteStrAttr(nsMsgFilterFileAttribValue attrib,
     if (attribStr)
     {
       uint32_t bytesWritten;
-      nsCAutoString writeStr(attribStr);
+      nsAutoCString writeStr(attribStr);
       writeStr.AppendLiteral("=\"");
       writeStr.Append((escapedStr) ? escapedStr : aStr);
       writeStr.AppendLiteral("\"" MSG_LINEBREAK);
@@ -867,15 +868,14 @@ nsMsgFilterList::WriteWstrAttr(nsMsgFilterFileAttribValue attrib,
 
 nsresult nsMsgFilterList::SaveTextFilters(nsIOutputStream *aStream)
 {
-  const char *attribStr;
   uint32_t   filterCount = 0;
   nsresult   err = GetFilterCount(&filterCount);
   NS_ENSURE_SUCCESS(err, err);
-  err = NS_OK;
 
-  attribStr = GetStringForAttrib(nsIMsgFilterList::attribVersion);
   err = WriteIntAttr(nsIMsgFilterList::attribVersion, kFileVersion, aStream);
+  NS_ENSURE_SUCCESS(err, err);
   err = WriteBoolAttr(nsIMsgFilterList::attribLogging, m_loggingEnabled, aStream);
+  NS_ENSURE_SUCCESS(err, err);
   for (uint32_t i = 0; i < filterCount; i ++)
   {
     nsCOMPtr<nsIMsgFilter> filter;
@@ -887,7 +887,8 @@ nsresult nsMsgFilterList::SaveTextFilters(nsIOutputStream *aStream)
       bool isTemporary;
       err = filter->GetTemporary(&isTemporary);
       if (NS_SUCCEEDED(err) && !isTemporary) {
-        if ((err = filter->SaveToTextFile(aStream)) != NS_OK)
+        err = filter->SaveToTextFile(aStream);
+        if (NS_FAILED(err))
           break;
       }
     }
@@ -922,7 +923,7 @@ nsresult nsMsgFilterList::GetFilterAt(uint32_t filterIndex, nsIMsgFilter **filte
 
   uint32_t filterCount = 0;
   GetFilterCount(&filterCount);
-  NS_ENSURE_ARG_MAX(filterIndex, filterCount - 1);
+  NS_ENSURE_ARG(filterIndex < filterCount);
 
   NS_IF_ADDREF(*filter = m_filters[filterIndex]);
   return NS_OK;
@@ -998,7 +999,7 @@ nsresult nsMsgFilterList::MoveFilterAt(uint32_t filterIndex,
   nsresult rv = GetFilterCount(&filterCount);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  NS_ENSURE_ARG_MAX(filterIndex, filterCount - 1);
+  NS_ENSURE_ARG(filterIndex < filterCount);
 
   uint32_t newIndex = filterIndex;
 
@@ -1009,7 +1010,6 @@ nsresult nsMsgFilterList::MoveFilterAt(uint32_t filterIndex,
       return NS_OK;
 
     newIndex = filterIndex - 1;
-
   }
   else if (motion == nsMsgFilterMotion::down)
   {
@@ -1037,7 +1037,7 @@ nsresult nsMsgFilterList::MoveFilterAt(uint32_t filterIndex,
 nsresult nsMsgFilterList::MoveFilter(nsIMsgFilter *aFilter,
                                      nsMsgFilterMotionValue motion)
 {
-  int32_t filterIndex = m_filters.IndexOf(aFilter, 0);
+  uint32_t filterIndex = m_filters.IndexOf(aFilter, 0);
   NS_ENSURE_ARG(filterIndex != m_filters.NoIndex);
 
   return MoveFilterAt(filterIndex, motion);
@@ -1067,20 +1067,19 @@ NS_IMETHODIMP nsMsgFilterList::MatchOrChangeFilterTarget(const nsACString &oldFo
     rv = GetFilterAt(index, getter_AddRefs(filter));
     NS_ENSURE_SUCCESS(rv, rv);
 
-    nsCOMPtr<nsISupportsArray> filterActionList;
-    rv = filter->GetActionList(getter_AddRefs(filterActionList));
-    NS_ENSURE_SUCCESS(rv, rv);
     uint32_t numActions;
-    filterActionList->Count(&numActions);
+    rv = filter->GetActionCount(&numActions);
+    NS_ENSURE_SUCCESS(rv, rv);
 
     for (uint32_t actionIndex = 0; actionIndex < numActions; actionIndex++)
     {
-      nsCOMPtr<nsIMsgRuleAction> filterAction =
-          do_QueryElementAt(filterActionList, actionIndex);
+      nsCOMPtr<nsIMsgRuleAction> filterAction;
+      rv = filter->GetActionAt(actionIndex, getter_AddRefs(filterAction));
+      if (NS_FAILED(rv) || !filterAction)
+        continue;
+
       nsMsgRuleActionType actionType;
-      if (filterAction)
-        filterAction->GetType(&actionType);
-      else
+      if (NS_FAILED(filterAction->GetType(&actionType)))
         continue;
 
       if (actionType == nsMsgFilterAction::MoveToFolder ||

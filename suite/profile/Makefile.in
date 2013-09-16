@@ -9,15 +9,8 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-PARALLEL_DIRS	= migration/public migration/src
-
-MODULE		= suiteprofile
 LIBRARY_NAME	= suiteprofile_s
 
-
-CPPSRCS 	= \
-		nsSuiteDirectoryProvider.cpp \
-		$(NULL)
 
 EXTRA_DSO_LDOPTS = $(MOZ_COMPONENT_LIBS)
 

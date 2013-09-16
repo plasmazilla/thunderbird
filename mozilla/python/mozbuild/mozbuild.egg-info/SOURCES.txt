@@ -1,8 +1,0 @@
-setup.py
-mozbuild/__init__.py
-mozbuild/logger.py
-mozbuild/util.py
-mozbuild.egg-info/PKG-INFO
-mozbuild.egg-info/SOURCES.txt
-mozbuild.egg-info/dependency_links.txt
-mozbuild.egg-info/top_level.txt

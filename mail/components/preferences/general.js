@@ -10,10 +10,14 @@ var gGeneralPane = {
   init: function ()
   {
     this.mPane = document.getElementById("paneGeneral");
-    
+
+    this.updateStartPage();
+
     this.updatePlaySound();
+
+    this.updateCustomizeAlert();
   },
-    
+
   /**
    * Restores the default start page as the user's start page
    */
@@ -31,11 +35,9 @@ var gGeneralPane = {
   {
     var pref = document.getElementById("mailnews.start_page.url");
     this.mStartPageUrl = pref.value;
-    var formatter = Components.classes["@mozilla.org/toolkit/URLFormatterService;1"].
-                               getService(Components.interfaces.nsIURLFormatter);
-    return formatter.formatURL(this.mStartPageUrl);
+    return Services.urlFormatter.formatURL(this.mStartPageUrl);
   },
-  
+
   /**
    * Returns the value of the mailnews start page url represented by the UI.
    * If the url matches the formatted version of our stored value, then 
@@ -44,11 +46,9 @@ var gGeneralPane = {
   writeStartPageUrl: function()
   {
     var startPage = document.getElementById('mailnewsStartPageUrl');
-    var formatter = Components.classes["@mozilla.org/toolkit/URLFormatterService;1"].
-                               getService(Components.interfaces.nsIURLFormatter);
-    return formatter.formatURL(this.mStartPageUrl) == startPage.value ? this.mStartPageUrl : startPage.value;         
+    return Services.urlFormatter.formatURL(this.mStartPageUrl) == startPage.value ? this.mStartPageUrl : startPage.value;
   },
-  
+
   customizeMailAlert: function()
   {
     document.documentElement
@@ -61,10 +61,11 @@ var gGeneralPane = {
     // convert the file url into a nsILocalFile
     if (aFileURL)
     {
-      var ios = Components.classes["@mozilla.org/network/io-service;1"].getService(Components.interfaces.nsIIOService);
-      var fph = ios.getProtocolHandler("file").QueryInterface(Components.interfaces.nsIFileProtocolHandler);
-      return fph.getFileFromURLSpec(aFileURL);
-    } 
+      return Services.io
+                     .getProtocolHandler("file")
+                     .QueryInterface(Components.interfaces.nsIFileProtocolHandler)
+                     .getFileFromURLSpec(aFileURL);
+    }
     else
       return null;
   },
@@ -80,24 +81,21 @@ var gGeneralPane = {
     }
     return undefined;
   },
-  
+
   previewSound: function ()
-  {  
+  {
     sound = Components.classes["@mozilla.org/sound;1"].createInstance(Components.interfaces.nsISound);
-    
+
     var soundLocation;
-    soundLocation = document.getElementById('soundType').value == 1 ? 
+    soundLocation = document.getElementById('soundType').value == 1 ?
                     document.getElementById('soundUrlLocation').value : "_moz_mailbeep"
 
-    if (soundLocation.indexOf("file://") == -1) 
+    if (!soundLocation.contains("file://"))
       sound.playSystemSound(soundLocation);
-    else 
-    {
-      var ioService = Components.classes["@mozilla.org/network/io-service;1"].getService(Components.interfaces.nsIIOService);
-      sound.play(ioService.newURI(soundLocation, null, null));
-    }
+    else
+      sound.play(Services.io.newURI(soundLocation, null, null));
   },
-  
+
   browseForSoundFile: function ()
   {
     const nsIFilePicker = Components.interfaces.nsIFilePicker;
@@ -111,13 +109,16 @@ var gGeneralPane = {
 
     // XXX todo, persist the last sound directory and pass it in
     fp.init(window, document.getElementById("bundlePreferences").getString("soundFilePickerTitle"), nsIFilePicker.modeOpen);
-    fp.appendFilter("*.wav", "*.wav");
     
-    // On Mac, allow AIFF files too
-    if (Application.platformIsMac) {
-      fp.appendFilter("*.aif", "*.aif");
-      fp.appendFilter("*.aiff", "*.aiff");
-    }
+    // On Mac, allow AIFF and CAF files too
+    var bundlePrefs = document.getElementById("bundlePreferences");
+    var soundFilesText = bundlePrefs.getString("soundFilesDescription");
+    if (Application.platformIsMac)
+      fp.appendFilter(soundFilesText, "*.wav; *.aif; *.aiff; *.caf");
+    else if (Application.platformIsLinux)
+      fp.appendFilter(soundFilesText, "*.wav; *.ogg");
+    else
+      fp.appendFilter(soundFilesText, "*.wav");
 
     var ret = fp.show();
     if (ret == nsIFilePicker.returnOK) 
@@ -137,5 +138,17 @@ var gGeneralPane = {
     soundTypeEl.disabled = soundsDisabled;
     document.getElementById('browseForSound').disabled = soundsDisabled || soundTypeEl.value != 1;
     document.getElementById('playSound').disabled = soundsDisabled || soundTypeEl.value != 1; 
+  },
+
+  updateStartPage: function()
+  {
+    document.getElementById("mailnewsStartPageUrl").disabled =
+      !document.getElementById("mailnewsStartPageEnabled").checked;
+  },
+
+  updateCustomizeAlert: function()
+  {
+    document.getElementById("customizeMailAlert").disabled =
+      !document.getElementById("newMailNotificationAlert").checked;
   }
 };

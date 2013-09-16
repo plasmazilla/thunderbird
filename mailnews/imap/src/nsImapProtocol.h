@@ -139,7 +139,7 @@ public:
   virtual ~nsImapProtocol();
 
   virtual nsresult ProcessProtocolState(nsIURI * url, nsIInputStream * inputStream,
-                  uint32_t sourceOffset, uint32_t length);
+                                        uint64_t sourceOffset, uint32_t length);
 
   // nsIRunnable method
   NS_IMETHOD Run();
@@ -274,7 +274,6 @@ public:
   void XAOL_Option(const char *option);
   void MailboxData();
   void GetMyRightsForFolder(const char *mailboxName);
-  void AutoSubscribeToMailboxIfNecessary(const char *mailboxName);
   void Bodystructure(const nsCString &messageId, bool idIsUid);
   void PipelinedFetchMessageParts(const char *uid, nsIMAPMessagePartIDArray *parts);
 
@@ -389,7 +388,7 @@ private:
   // biff
   void  PeriodicBiff();
   void  SendSetBiffIndicatorEvent(nsMsgBiffState newState);
-  bool    CheckNewMail();
+  bool  CheckNewMail();
 
   // folder opening and listing header functions
   void FolderHeaderDump(uint32_t *msgUids, uint32_t msgCount);
@@ -452,8 +451,9 @@ private:
   nsImapFlagAndUidState  *m_flagState;
   nsMsgBiffState        m_currentBiffState;
   // manage the IMAP server command tags
-  char m_currentServerCommandTag[10];   // enough for a billion
-  int  m_currentServerCommandTagNumber;
+  // 11 = enough memory for the decimal representation of MAX_UINT + trailing nul
+  char m_currentServerCommandTag[11];
+  uint32_t m_currentServerCommandTagNumber;
   void IncrementCommandTagNumber();
   const char *GetServerCommandTag();
 
@@ -534,6 +534,9 @@ private:
   void DiscoverAllAndSubscribedBoxes();
   void MailboxDiscoveryFinished();
   void NthLevelChildList(const char *onlineMailboxPrefix, int32_t depth);
+  // LIST SUBSCRIBED command (from RFC 5258) crashes some servers. so we need to
+  // identify those servers
+  bool GetListSubscribedIsBrokenOnServer();
   void Lsub(const char *mailboxPattern, bool addDirectoryIfNecessary);
   void List(const char *mailboxPattern, bool addDirectoryIfNecessary,
             bool useXLIST = false);
@@ -578,6 +581,7 @@ private:
 
   bool m_isGmailServer;
   nsTArray<nsCString> mCustomDBHeaders;
+  nsTArray<nsCString> mCustomHeaders;
   bool    m_trackingTime;
   PRTime  m_startTime;
   PRTime  m_endTime;
@@ -599,7 +603,7 @@ private:
   nsRefPtr <nsMsgImapLineDownloadCache> m_downloadLineCache;
   nsRefPtr <nsMsgImapHdrXferInfo> m_hdrDownloadCache;
   nsCOMPtr <nsIImapHeaderInfo> m_curHdrInfo;
-  // mapping between special xlist mailboxes and the corresponding folder flag
+  // mapping between special xlist mailboxes and the corresponding folder flags
   nsDataHashtable<nsCStringHashKey, int32_t> m_specialXListMailboxes;
 
   nsIImapHostSessionList * m_hostSessionList;

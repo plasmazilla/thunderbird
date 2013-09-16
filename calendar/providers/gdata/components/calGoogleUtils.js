@@ -584,11 +584,12 @@ function ItemToXMLEntry(aItem, aCalendar, aAuthorEmail, aAuthorName) {
             // Add all recurrence items to the ical string
             for each (let ritem in recurrenceItems) {
                 let prop = ritem.icalProperty;
-                if (calInstanceOf(ritem, Components.interfaces.calIRecurrenceDate)) {
+                let wrappedRItem = cal.wrapInstance(wrappedRItem, Components.interfaces.calIRecurrenceDate);
+                if (wrappedRItem) {
                     // EXDATES require special casing, since they might contain
                     // a TZID. To avoid the need for conversion of TZID strings,
                     // convert to UTC before serialization.
-                    prop.valueAsDatetime = ritem.date.getInTimezone(UTC());
+                    prop.valueAsDatetime = wrappedRItem.date.getInTimezone(cal.UTC());
                 }
                 icalString += prop.icalString;
             }
@@ -1085,11 +1086,11 @@ function XMLEntryToItem(aXMLEntry, aTimezone, aCalendar, aReferenceItem) {
 
         // published
         let createdText = gdataXPathFirst(aXMLEntry, 'atom:published/text()');
-        item.setProperty("CREATED", cal.fromRFC3339(createdText, aTimezone));
+        item.setProperty("CREATED", cal.fromRFC3339(createdText, aTimezone).getInTimezone(cal.UTC()));
 
         // updated (This must be set last!)
         let lastmodText = gdataXPathFirst(aXMLEntry, 'atom:updated/text()');
-        item.setProperty("LAST-MODIFIED", cal.fromRFC3339(lastmodText, aTimezone));
+        item.setProperty("LAST-MODIFIED", cal.fromRFC3339(lastmodText, aTimezone).getInTimezone(cal.UTC()));
 
         // XXX Google currently has no priority support. See
         // http://code.google.com/p/google-gdata/issues/detail?id=52

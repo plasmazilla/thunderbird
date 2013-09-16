@@ -110,7 +110,7 @@ protected:
   // As data arrives on the socket, OnDataAvailable calls ProcessProtocolState.
   
   virtual nsresult ProcessProtocolState(nsIURI * url, nsIInputStream * inputStream, 
-                  uint32_t sourceOffset, uint32_t length) = 0;
+                                        uint64_t sourceOffset, uint32_t length) = 0;
 
   // SendData -- Writes the data contained in dataBuffer into the current output stream. 
   // It also informs the transport layer that this data is now available for transmission.
@@ -158,7 +158,7 @@ protected:
   nsCOMPtr<nsIInterfaceRequestor> mCallbacks;
   nsCOMPtr<nsISupports>       mOwner;
   nsCString                   m_ContentType;
-  int32_t                     mContentLength;
+  int64_t                     mContentLength;
 
   nsCString m_lastPasswordSent; // used to prefill the password prompt
 

@@ -5,10 +5,8 @@
  */
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 load("../../../resources/messageGenerator.js");
-load("../../../resources/IMAPpump.js");
 
 var gMessage;
 var gSecondFolder;
@@ -17,7 +15,7 @@ var gSynthMessage;
 var tests = [
   setup,
   function switchAwayFromInbox() {
-    let rootFolder = gIMAPIncomingServer.rootFolder;
+    let rootFolder = IMAPPump.incomingServer.rootFolder;
     gSecondFolder =  rootFolder.getChildNamed("secondFolder")
                            .QueryInterface(Ci.nsIMsgImapMailFolder);
 
@@ -32,11 +30,11 @@ var tests = [
   },
   function simulateForwardFlagSet() {
     gMessage.setFlag("$Forwarded");
-    gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+    IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
     yield false;
   },
   function checkForwardedFlagSet() {
-    let msgHdr = gIMAPInbox.msgDatabase.getMsgHdrForMessageID(gSynthMessage.messageId);
+    let msgHdr = IMAPPump.inbox.msgDatabase.getMsgHdrForMessageID(gSynthMessage.messageId);
     do_check_eq(msgHdr.flags & Ci.nsMsgMessageFlags.Forwarded,
       Ci.nsMsgMessageFlags.Forwarded);
     gSecondFolder.updateFolderWithListener(null, asyncUrlListener);
@@ -44,22 +42,22 @@ var tests = [
   },
   function clearForwardedFlag() {
     gMessage.clearFlag("$Forwarded");
-    gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+    IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
     yield false;
   },
   function checkForwardedFlagCleared() {
-    let msgHdr = gIMAPInbox.msgDatabase.getMsgHdrForMessageID(gSynthMessage.messageId);
+    let msgHdr = IMAPPump.inbox.msgDatabase.getMsgHdrForMessageID(gSynthMessage.messageId);
     do_check_eq(msgHdr.flags & Ci.nsMsgMessageFlags.Forwarded, 0);
     gSecondFolder.updateFolderWithListener(null, asyncUrlListener);
     yield false;
   },
   function setSeenFlag() {
     gMessage.setFlag("\\Seen");
-    gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+    IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
     yield false;
   },
   function checkSeenFlagSet() {
-    let msgHdr = gIMAPInbox.msgDatabase.getMsgHdrForMessageID(gSynthMessage.messageId);
+    let msgHdr = IMAPPump.inbox.msgDatabase.getMsgHdrForMessageID(gSynthMessage.messageId);
     do_check_eq(msgHdr.flags & Ci.nsMsgMessageFlags.Read,
                 Ci.nsMsgMessageFlags.Read);
     gSecondFolder.updateFolderWithListener(null, asyncUrlListener);
@@ -67,11 +65,11 @@ var tests = [
   },
   function simulateRepliedFlagSet() {
     gMessage.setFlag("\\Answered");
-    gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+    IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
     yield false;
   },
   function checkRepliedFlagSet() {
-    let msgHdr = gIMAPInbox.msgDatabase.getMsgHdrForMessageID(gSynthMessage.messageId);
+    let msgHdr = IMAPPump.inbox.msgDatabase.getMsgHdrForMessageID(gSynthMessage.messageId);
     do_check_eq(msgHdr.flags & Ci.nsMsgMessageFlags.Replied,
       Ci.nsMsgMessageFlags.Replied);
     gSecondFolder.updateFolderWithListener(null, asyncUrlListener);
@@ -79,25 +77,25 @@ var tests = [
   },
   function simulateTagAdded() {
     gMessage.setFlag("randomtag");
-    gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+    IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
     yield false;
   },
   function checkTagSet() {
-    let msgHdr = gIMAPInbox.msgDatabase.getMsgHdrForMessageID(gSynthMessage.messageId);
+    let msgHdr = IMAPPump.inbox.msgDatabase.getMsgHdrForMessageID(gSynthMessage.messageId);
     let keywords = msgHdr.getStringProperty("keywords");
-    do_check_true(keywords.indexOf("randomtag") != -1);
+    do_check_true(keywords.contains("randomtag"));
     gSecondFolder.updateFolderWithListener(null, asyncUrlListener);
     yield false;
   },
   function clearTag() {
     gMessage.clearFlag("randomtag");
-    gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+    IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
     yield false;
   },
   function checkTagCleared() {
-    let msgHdr = gIMAPInbox.msgDatabase.getMsgHdrForMessageID(gSynthMessage.messageId);
+    let msgHdr = IMAPPump.inbox.msgDatabase.getMsgHdrForMessageID(gSynthMessage.messageId);
     let keywords = msgHdr.getStringProperty("keywords");
-    do_check_eq(keywords.indexOf("randomtag"), -1);
+    do_check_false(keywords.contains("randomtag"));
   },
   teardown
 ];
@@ -107,7 +105,7 @@ function setup() {
 
   setupIMAPPump();
 
-  gIMAPDaemon.createMailbox("secondFolder", {subscribed : true});
+  IMAPPump.daemon.createMailbox("secondFolder", {subscribed : true});
 
   // build up a diverse list of messages
   let messages = [];
@@ -115,17 +113,15 @@ function setup() {
   messages = messages.concat(gMessageGenerator.makeMessage());
   gSynthMessage = messages[0];
 
-  let ioService = Cc["@mozilla.org/network/io-service;1"]
-                  .getService(Ci.nsIIOService);
   let msgURI =
-    ioService.newURI("data:text/plain;base64," +
-                     btoa(gSynthMessage.toMessageString()),
-                     null, null);
-  gMessage = new imapMessage(msgURI.spec, gIMAPMailbox.uidnext++, []);
-  gIMAPMailbox.addMessage(gMessage);
+    Services.io.newURI("data:text/plain;base64," +
+                       btoa(gSynthMessage.toMessageString()),
+                       null, null);
+  gMessage = new imapMessage(msgURI.spec, IMAPPump.mailbox.uidnext++, []);
+  IMAPPump.mailbox.addMessage(gMessage);
 
   // update folder to download header.
-  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+  IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
   yield false;
 }
 

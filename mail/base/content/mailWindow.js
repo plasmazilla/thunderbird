@@ -5,6 +5,7 @@
 
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/appIdleManager.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource:///modules/gloda/log4moz.js");
 Components.utils.import("resource:///modules/gloda/public.js");
@@ -12,7 +13,6 @@ Components.utils.import("resource:///modules/glodaWebSearch.js");
 
 //This file stores variables common to mail windows
 var messenger;
-var pref;
 var statusFeedback;
 var msgWindow;
 
@@ -36,9 +36,7 @@ function OnMailWindowUnload()
   //  the tabs which close their views) and OnUnloadMessageWindow for the
   //  standalone message window.
 
-  var mailSession = Components.classes["@mozilla.org/messenger/services/session;1"]
-                              .getService(Components.interfaces.nsIMsgMailSession);
-  mailSession.RemoveMsgWindow(msgWindow);
+  MailServices.mailSession.RemoveMsgWindow(msgWindow);
   // the tabs have the FolderDisplayWidget close their 'messenger' instances for us
 
   window.QueryInterface(Components.interfaces.nsIDOMChromeWindow)
@@ -60,9 +58,6 @@ function CreateMailWindowGlobals()
   // get the messenger instance
   messenger = Components.classes["@mozilla.org/messenger;1"]
                         .createInstance(Components.interfaces.nsIMessenger);
-
-  pref = Components.classes["@mozilla.org/preferences-service;1"]
-          .getService(Components.interfaces.nsIPrefBranch);
 
   window.addEventListener("blur", appIdleManager.onBlur, false);
   window.addEventListener("focus", appIdleManager.onFocus, false);
@@ -93,7 +88,7 @@ function CreateMailWindowGlobals()
   msgWindow = Components.classes["@mozilla.org/messenger/msgwindow;1"]
                         .createInstance(Components.interfaces.nsIMsgWindow);
 
-  accountManager = Components.classes["@mozilla.org/messenger/account-manager;1"].getService(Components.interfaces.nsIMsgAccountManager);
+  accountManager = MailServices.accounts;
 
   msgWindow.notificationCallbacks = new BadCertHandler();
 }
@@ -105,9 +100,7 @@ function InitMsgWindow()
   msgWindow.domWindow = window;
   msgWindow.statusFeedback = statusFeedback;
   msgWindow.msgHeaderSink = messageHeaderSink;
-  Components.classes["@mozilla.org/messenger/services/session;1"]
-            .getService(Components.interfaces.nsIMsgMailSession)
-            .AddMsgWindow(msgWindow);
+  MailServices.mailSession.AddMsgWindow(msgWindow);
   let messagepane = document.getElementById("messagepane");
   messagepane.docShell.allowAuth = false;
   messagepane.docShell.allowDNSPrefetch = false;
@@ -167,13 +160,6 @@ nsMsgStatusFeedback.prototype =
       this.showStatusString(status);
   },
 
-  setJSDefaultStatus: function(status) {
-    if (status.length > 0) {
-      this._defaultStatusText = status;
-      this._statusText.label = status;
-    }
-  },
-
   setOverLink: function(link, context) {
     this._statusText.label = link;
   },
@@ -201,6 +187,13 @@ nsMsgStatusFeedback.prototype =
     else
       this._defaultStatusText = "";
     this._statusText.label = statusText;
+  },
+
+  setStatusString: function(status) {
+    if (status.length > 0) {
+      this._defaultStatusText = status;
+      this._statusText.label = status;
+    }
   },
 
   _startMeteors: function() {
@@ -236,7 +229,7 @@ nsMsgStatusFeedback.prototype =
   },
 
   _stopMeteors: function() {
-    this.showStatusString(defaultStatus);
+    this.showStatusString(this._defaultStatusText);
 
     // stop the throbber
     if (this._throbber)
@@ -439,16 +432,11 @@ function loadStartPage(aForce)
     return;
 
   gMessageNotificationBar.clearMsgNotifications();
-  let startpage = Components.classes["@mozilla.org/toolkit/URLFormatterService;1"]
-                            .getService(Components.interfaces.nsIURLFormatter)
-                            .formatURLPref("mailnews.start_page.url");
+  let startpage = Services.urlFormatter.formatURLPref("mailnews.start_page.url");
   if (startpage)
   {
     try {
-      let urifixup = Components.classes["@mozilla.org/docshell/urifixup;1"]
-                               .getService(Components.interfaces.nsIURIFixup);
-
-      let uri = urifixup.createFixupURI(startpage, 0);
+      let uri = Services.uriFixup.createFixupURI(startpage, 0);
       GetMessagePaneFrame().location.href = uri.spec;
     }
     catch (e) {
@@ -666,10 +654,7 @@ nsBrowserAccess.prototype = {
       if (aURI) {
         if (aOpener) {
           let location = aOpener.location;
-          let referrer =
-            Components.classes["@mozilla.org/network/io-service;1"]
-                      .getService(Components.interfaces.nsIIOService)
-                      .newURI(location, null, null);
+          let referrer = Services.io.newURI(location, null, null);
         }
         newWindow.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
                  .getInterface(Components.interfaces.nsIWebNavigation)

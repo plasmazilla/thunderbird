@@ -120,9 +120,9 @@ pageInfoTreeView.prototype = {
     this.tree.ensureRowIsVisible(0);
   },
 
-  getRowProperties: function(row, prop) { },
-  getCellProperties: function(row, column, prop) { },
-  getColumnProperties: function(column, prop) { },
+  getRowProperties: function(row) { return ""; },
+  getCellProperties: function(row, column) { return ""; },
+  getColumnProperties: function(column) { return ""; },
   isContainer: function(index) { return false; },
   isContainerOpen: function(index) { return false; },
   isSeparator: function(index) { return false; },
@@ -175,28 +175,22 @@ var gFieldView = new pageInfoTreeView(COPYCOL_FIELD_VALUE);
 var gLinkView = new pageInfoTreeView(COPYCOL_LINK_ADDRESS);
 var gImageView = new pageInfoTreeView(COPYCOL_IMAGE);
 
-var gAtomSvc = Components.classes["@mozilla.org/atom-service;1"]
-                         .getService(Components.interfaces.nsIAtomService);
-var gBrokenAtom = gAtomSvc.getAtom("broken");
-var gLtrAtom = gAtomSvc.getAtom("ltr");
+gImageView.getCellProperties = function(row, col) {
+  var properties = col.id == "image-address" ? "ltr" : "";
 
-gImageView.getCellProperties = function(row, col, props) {
   if (gImageView.data[row][COL_IMAGE_SIZE] == gStrings.unknown &&
       !/^https:/.test(gImageView.data[row][COL_IMAGE_ADDRESS]))
-    props.AppendElement(gBrokenAtom);
+    properties += " broken";
 
-  if (col.id == "image-address")
-    props.AppendElement(gLtrAtom);
+  return properties;
 };
 
-gFormView.getCellProperties = function(row, col, props) {
-  if (col.id == "form-action")
-    props.AppendElement(gLtrAtom);
+gFormView.getCellProperties = function(row, col) {
+  return col.id == "form-action" ? "ltr" : "";
 };
 
-gLinkView.getCellProperties = function(row, col, props) {
-  if (col.id == "link-address")
-    props.AppendElement(gLtrAtom);
+gLinkView.getCellProperties = function(row, col) {
+  return col.id == "link-address" ? "ltr" : "";
 };
 
 gImageView.cycleHeader = function(col)
@@ -891,8 +885,17 @@ function saveMedia()
     var item = getSelectedImage(tree);
     var url = gImageView.data[tree.currentIndex][COL_IMAGE_ADDRESS];
 
-    if (url)
-      saveURL(url, null, "SaveImageTitle", false, true, makeURI(item.baseURI));
+    if (url) {
+      let titleKey = "SaveImageTitle";
+
+      if (item instanceof HTMLVideoElement)
+        titleKey = "SaveVideoTitle";
+      else if (item instanceof HTMLAudioElement)
+        titleKey = "SaveAudioTitle";
+
+      saveURL(url, null, titleKey, false, true, makeURI(item.baseURI),
+              gDocument);
+    }
   }
   else {
     var odir  = selectSaveFolder();
@@ -909,7 +912,7 @@ function saveMedia()
 
     var saveAnImage = function(aURIString, aChosenData, aBaseURI) {
       internalSave(aURIString, null, null, null, null, false, "SaveImageTitle",
-                   aChosenData, aBaseURI);
+                   aChosenData, aBaseURI, gDocument);
     }
 
     for (var i = 0; i < rowArray.length; i++) {
@@ -1037,12 +1040,16 @@ function makePreview(row)
   setItemValue("imagesizetext", sizeText);
 
   var mimeType;
-  var numFrames = 0;
+  var typeString = "mediaImageType";
   if (!isBG) {
     if (item instanceof nsIImageLoadingContent) {
       var imageRequest = item.getRequest(nsIImageLoadingContent.CURRENT_REQUEST);
-      if (imageRequest)
+      if (imageRequest) {
         mimeType = imageRequest.mimeType;
+        if (imageRequest.imageStatus & imageRequest.STATUS_DECODE_COMPLETE &&
+            imageRequest.image.animated)
+          typeString = "mediaAnimatedType";
+      }
     }
     if (!mimeType &&
         (item instanceof HTMLObjectElement ||
@@ -1066,11 +1073,7 @@ function makePreview(row)
     let imageMimeType = /^image\/(.*)/.exec(mimeType);
     if (imageMimeType) {
       imageType = imageMimeType[1].toUpperCase();
-      if (numFrames > 1)
-        imageType = gBundle.getFormattedString("mediaAnimatedImageType",
-                                               [imageType, numFrames]);
-      else
-        imageType = gBundle.getFormattedString("mediaImageType", [imageType]);
+      imageType = gBundle.getFormattedString(typeString, [imageType]);
     }
     else {
       // the MIME type doesn't begin with image/, display the raw type
@@ -1136,7 +1139,7 @@ function makePreview(row)
   else if (item instanceof HTMLVideoElement && isProtocolAllowed) {
     newImage = document.createElementNS("http://www.w3.org/1999/xhtml", "video");
     newImage.id = "thepreviewimage";
-    newImage.mozLoadFrom(item);
+    newImage.src = url;
     newImage.controls = true;
     width = physWidth = item.videoWidth;
     height = physHeight = item.videoHeight;

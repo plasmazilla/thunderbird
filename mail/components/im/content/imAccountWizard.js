@@ -4,6 +4,7 @@
 
 const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 Cu.import("resource:///modules/imServices.jsm");
+Cu.import("resource:///modules/mailServices.js");
 
 const PREF_EXTENSIONS_GETMOREPROTOCOLSURL = "extensions.getMoreProtocolsURL";
 
@@ -396,21 +397,18 @@ var accountWizard = {
         am.selectAccount(acc.id);
     }
 
-    var accountManager = Cc["@mozilla.org/messenger/account-manager;1"]
-                           .getService(Ci.nsIMsgAccountManager);
-    
     var inServer =
-      accountManager.createIncomingServer(this.username,
-                                          this.proto.id, // hostname
-                                          "im");
+      MailServices.accounts.createIncomingServer(this.username,
+                                                 this.proto.id, // hostname
+                                                 "im");
     inServer.wrappedJSObject.imAccount = acc;
 
-    var account = accountManager.createAccount();
+    var account = MailServices.accounts.createAccount();
     // Avoid new folder notifications.
     inServer.valid = false;
     account.incomingServer = inServer;
     inServer.valid = true;
-    accountManager.notifyServerLoaded(inServer);
+    MailServices.accounts.notifyServerLoaded(inServer);
 
     return true;
   },
@@ -474,9 +472,7 @@ var accountWizard = {
 
     if (Services.prefs.getPrefType(prefURL) != nsIPrefBranch2.PREF_INVALID) {
       try {
-        var getMoreURL = Components.classes["@mozilla.org/toolkit/URLFormatterService;1"]
-                                   .getService(Components.interfaces.nsIURLFormatter)
-                                   .formatURLPref(prefURL);
+        var getMoreURL = Services.urlFormatter.formatURLPref(prefURL);
         getMore.setAttribute("getMoreURL", getMoreURL);
         showGetMore = getMoreURL != "about:blank";
       }

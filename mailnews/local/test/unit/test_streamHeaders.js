@@ -11,7 +11,6 @@
 
 // async support
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 load("../../../resources/alertTestUtils.js");
 
@@ -37,7 +36,7 @@ function loadMessages()
   yield false;
 
   // get message headers for the inbox folder
-  let enumerator = gLocalInboxFolder.msgDatabase.EnumerateMessages();
+  let enumerator = localAccountUtils.inboxFolder.msgDatabase.EnumerateMessages();
   var msgCount = 0;
   while(enumerator.hasMoreElements())
   {
@@ -59,7 +58,7 @@ function goodStreaming()
     function theString(k) {
       dump('the string:\n' + k + '\n');
       // The message contains this header
-      do_check_true(k.indexOf("X-Mozilla-Draft-Info: internal/draft; vcard=0; receipt=0; DSN=0; uuencode=0") > 0);
+      do_check_true(k.contains("X-Mozilla-Draft-Info: internal/draft; vcard=0; receipt=0; DSN=0; uuencode=0"));
       async_driver();
     }), null, true);
   yield false;
@@ -69,10 +68,10 @@ function goodStreaming()
 function badStreaming()
 {
   // try to stream the headers of the last message
-  let folder = gHdr.folder
+  let folder = gHdr.folder;
   let uri = folder.getUriForMsg(gHdr);
 
-  dbFile = folder.msgStore.getSummaryFile(folder);
+  let dbFile = folder.msgStore.getSummaryFile(folder);
   // force invalid database
   folder.msgDatabase.ForceClosed();
   dbFile.remove(false);

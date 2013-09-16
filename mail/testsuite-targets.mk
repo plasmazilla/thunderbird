@@ -38,6 +38,7 @@ mozmill:
 	--binary=$(PROGRAM) \
 	--dir=$(call core_abspath,$(topsrcdir))/mail/test/mozmill \
 	--symbols-path=$(call core_abspath,$(DIST)/crashreporter-symbols) \
+	--plugins-path=$(call core_abspath,$(DIST)/plugins) \
 	$(MOZMILL_EXTRA)
 
 mozmill-one: solo-test = $(find-solo-test)
@@ -47,6 +48,7 @@ mozmill-one:
 	--test=$(call core_abspath,$(topsrcdir))/mail/test/mozmill/$(solo-test) \
 	--binary=$(PROGRAM) \
 	--symbols-path=$(call core_abspath,$(DIST)/crashreporter-symbols) \
+	--plugins-path=$(call core_abspath,$(DIST)/plugins) \
 	$(MOZMILL_EXTRA)
 
 # XXX The mozilla/testing/testsuite-targets.mk doesn't really allow for hooks
@@ -69,7 +71,8 @@ else
 	$(MAKE) -C $(DEPTH)/mozilla/testing/mochitest stage-chromejar PKG_STAGE=$(DIST)/universal
 endif
 	cd $(PKG_STAGE) && \
-	  zip -r9D "$(call core_abspath,$(DIST)/$(PKG_PATH)$(TEST_PACKAGE))" *
+	  zip -r9D "$(call core_abspath,$(DIST)/$(PKG_PATH)$(TEST_PACKAGE))" \
+	  * -x \*/.mkdir.done
 
 make-stage-dir:
 	rm -rf $(PKG_STAGE) && $(NSINSTALL) -D $(PKG_STAGE) && $(NSINSTALL) -D $(PKG_STAGE)/bin && $(NSINSTALL) -D $(PKG_STAGE)/bin/components && $(NSINSTALL) -D $(PKG_STAGE)/certs

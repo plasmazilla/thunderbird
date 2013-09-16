@@ -225,17 +225,17 @@ function OnLoadMsgHeaderPane()
 
   // load any preferences that at are global with regards to
   // displaying a message...
-  gCollectIncoming = pref.getBoolPref("mail.collect_email_address_incoming");
-  gCollectNewsgroup = pref.getBoolPref("mail.collect_email_address_newsgroup");
-  gCollectOutgoing = pref.getBoolPref("mail.collect_email_address_outgoing");
-  gShowCondensedEmailAddresses = pref.getBoolPref("mail.showCondensedAddresses");
-  gShowUserAgent = pref.getBoolPref("mailnews.headers.showUserAgent");
-  gShowOrganization = pref.getBoolPref("mailnews.headers.showOrganization");
-  gShowReferences = pref.getBoolPref("mailnews.headers.showReferences");
-  gShowMessageId = pref.getBoolPref("mailnews.headers.showMessageId");
-  gExtraExpandedHeaders = pref.getCharPref("mailnews.headers.extraExpandedHeaders");
+  gCollectIncoming = Services.prefs.getBoolPref("mail.collect_email_address_incoming");
+  gCollectNewsgroup = Services.prefs.getBoolPref("mail.collect_email_address_newsgroup");
+  gCollectOutgoing = Services.prefs.getBoolPref("mail.collect_email_address_outgoing");
+  gShowCondensedEmailAddresses = Services.prefs.getBoolPref("mail.showCondensedAddresses");
+  gShowUserAgent = Services.prefs.getBoolPref("mailnews.headers.showUserAgent");
+  gShowOrganization = Services.prefs.getBoolPref("mailnews.headers.showOrganization");
+  gShowReferences = Services.prefs.getBoolPref("mailnews.headers.showReferences");
+  gShowMessageId = Services.prefs.getBoolPref("mailnews.headers.showMessageId");
+  gExtraExpandedHeaders = Services.prefs.getCharPref("mailnews.headers.extraExpandedHeaders");
 
-  pref.addObserver("mail.showCondensedAddresses", MsgHdrViewObserver, false);
+  Services.prefs.addObserver("mail.showCondensedAddresses", MsgHdrViewObserver, false);
 
   initializeHeaderViewTables();
 
@@ -251,23 +251,21 @@ function OnLoadMsgHeaderPane()
     gCollapsedHeaderViewMode = true;   
 
   // dispatch an event letting any listeners know that we have loaded the message pane
-  var event = document.createEvent('Events');
-  event.initEvent('messagepane-loaded', false, true);
-  toggleHeaderView.dispatchEvent(event);
+  toggleHeaderView.dispatchEvent(new Event('messagepane-loaded',
+    { bubbles: false, cancelable: true }));
 }
 
 function OnUnloadMsgHeaderPane()
 {
-  pref.removeObserver("mail.showCondensedAddresses", MsgHdrViewObserver);
+  Services.prefs.removeObserver("mail.showCondensedAddresses", MsgHdrViewObserver);
 
   Components.classes["@mozilla.org/abmanager;1"]
             .getService(Components.interfaces.nsIAbManager)
             .removeAddressBookListener(AddressBookListener);
 
   // dispatch an event letting any listeners know that we have unloaded the message pane
-  var event = document.createEvent('Events');
-  event.initEvent('messagepane-unloaded', false, true);
-  GetHeaderPane().dispatchEvent(event);
+  GetHeaderPane().dispatchEvent(new Event('messagepane-unloaded',
+    { bubbles: false, cancelable: true }));
 }
 
 const MsgHdrViewObserver =
@@ -279,7 +277,7 @@ const MsgHdrViewObserver =
     {
       if (prefName == "mail.showCondensedAddresses")
       {
-        gShowCondensedEmailAddresses = pref.getBoolPref("mail.showCondensedAddresses");
+        gShowCondensedEmailAddresses = Services.prefs.getBoolPref("mail.showCondensedAddresses");
         ReloadMessage();
       }
     }
@@ -350,7 +348,7 @@ var messageHeaderSink = {
       }
 
       // every time we start to redisplay a message, check the view all headers pref....
-      var showAllHeadersPref = pref.getIntPref("mail.show_headers");
+      var showAllHeadersPref = Services.prefs.getIntPref("mail.show_headers");
       if (showAllHeadersPref == 2)
       {
         gViewAllHeaders = true;
@@ -431,6 +429,8 @@ var messageHeaderSink = {
             this.mDummyMsgHeader.replyTo = header.headerValue;
           else if (lowerCaseHeaderName == "message-id")
             this.mDummyMsgHeader.messageId = header.headerValue;
+          else if (lowerCaseHeaderName == "list-post")
+            this.mDummyMsgHeader.listPost = header.headerValue;
           else if (lowerCaseHeaderName == "date")
             this.mDummyMsgHeader.date = Date.parse(header.headerValue) * 1000;
         }
@@ -516,8 +516,8 @@ var messageHeaderSink = {
       catch (ex) {}
       if (contentType == "text/x-vcard")
       {
-        var inlineAttachments = pref.getBoolPref("mail.inline_attachments");
-        var displayHtmlAs = pref.getIntPref("mailnews.display.html_as");
+        var inlineAttachments = Services.prefs.getBoolPref("mail.inline_attachments");
+        var displayHtmlAs = Services.prefs.getIntPref("mailnews.display.html_as");
         if (inlineAttachments && !displayHtmlAs)
           return;
       }
@@ -986,6 +986,14 @@ function ClearCurrentHeaders()
   currentAttachments = new Array();
 }
 
+function IsListPost()
+{
+  if ("list-post" in currentHeaderData)
+    return /<mailto:.+@.+>/.test(currentHeaderData["list-post"].headerValue);
+
+  return false;
+}
+
 function ShowMessageHeaderPane()
 {
   var node;
@@ -1077,9 +1085,9 @@ function OutputEmailAddresses(headerEntry, emailAddresses)
       // if we aren't including a short/long view OR if we are and we haven't parsed enough
       // addresses to reach the cutoff valve yet then add it to the default (short) div.
       var address = {};
-      address.emailAddress = addresses.value[index];
-      address.fullAddress = fullNames.value[index];
-      address.displayName = names.value[index];
+      address.emailAddress = addresses.value[index] || "";
+      address.fullAddress = fullNames.value[index] || "";
+      address.displayName = names.value[index] || "";
       if (headerEntry.useToggle)
         headerEntry.enclosingBox.addAddressView(address);
       else
@@ -1104,14 +1112,14 @@ function setFromBuddyIcon(email)
   var myScreenName = null;
   try {
     // TODO: Cache this.
-    myScreenName = pref.getCharPref("aim.session.screenname");
+    myScreenName = Services.prefs.getCharPref("aim.session.screenname");
   }
   catch (ex) {
     // No screenname preference.
   }
   if (myScreenName)
   {
-    var card = getCardForAddress(email);
+    var card = GetCardForEmail(email).card;
     if (card)
     {
       // For now, retrieve the screen name only.
@@ -1355,11 +1363,11 @@ createNewAttachmentInfo.prototype.saveAttachment = function saveAttachment()
     internalSave(this.url, null,
                  this.displayName, null,
                  this.contentType, false,
-                 null, null, null);
+                 null, null, null, document);
   else
-    messenger.saveAttachment(this.contentType, 
-                             this.url, 
-                             encodeURIComponent(this.displayName), 
+    messenger.saveAttachment(this.contentType,
+                             this.url,
+                             encodeURIComponent(this.displayName),
                              this.uri,
                              false);
 }
@@ -1407,9 +1415,9 @@ createNewAttachmentInfo.prototype.openAttachment = function openAttachment()
 createNewAttachmentInfo.prototype.printAttachment = function printAttachment()
 {
   /* we haven't implemented the ability to print attachments yet...
-  messenger.printAttachment(this.contentType, 
-                            this.url, 
-                            encodeURIComponent(this.displayName), 
+  messenger.printAttachment(this.contentType,
+                            this.url,
+                            encodeURIComponent(this.displayName),
                             this.uri);
   */
 }
@@ -1434,9 +1442,9 @@ createNewAttachmentInfo.prototype.detachAttachment = function detachAttachment()
 
 function CanDetachAttachments()
 {
-  var uri = GetLoadedMessage();
-  var canDetach = !IsNewsMessage(uri) &&
-                  (!IsImapMessage(uri) || !Services.io.offline);
+  var canDetach = !gFolderDisplay.selectedMessageIsNews &&
+                  (!gFolderDisplay.selectedMessageIsImap ||
+                   !Services.io.offline);
   if (canDetach && ("content-type" in currentHeaderData))
     canDetach = !ContentTypeIsSMIME(currentHeaderData["content-type"].headerValue);
   return canDetach;
@@ -1971,7 +1979,9 @@ nsDummyMsgHeader.prototype =
   get mime2DecodedSubject() { return this.subject; },  
   ccList : null,
   messageId : null,
+  listPost : null,
   date : 0,
   accountKey : "",
+  flags : 0,
   folder : null
 };

@@ -19,6 +19,7 @@ Cu.import('resource://mozmill/modules/utils.js', utils);
 
 Cu.import('resource:///modules/iteratorUtils.jsm');
 Cu.import('resource://gre/modules/NetUtil.jsm');
+Cu.import("resource://gre/modules/Services.jsm");
 
 const MODULE_NAME = 'window-helpers';
 
@@ -57,13 +58,7 @@ const WINDOW_CLOSE_CHECK_INTERVAL_MS = 100;
  */
 const WINDOW_FOCUS_TIMEOUT_MS = 10000;
 
-const focusManager = Cc["@mozilla.org/focus-manager;1"].
-                       getService(Ci.nsIFocusManager);
-const threadManager = Cc["@mozilla.org/thread-manager;1"]
-                        .getService(Ci.nsIThreadManager);
-const hiddenWindow = Cc["@mozilla.org/appshell/appShellService;1"]
-                       .getService(Ci.nsIAppShellService)
-                       .hiddenDOMWindow;
+const hiddenWindow = Services.appShell.hiddenDOMWindow;
 
 // Have a dummy mark_action function in case test-folder-display-helpers does
 // not provide us with one.
@@ -94,6 +89,7 @@ function installInto(module) {
   module.wait_for_window_close = wait_for_window_close;
   module.close_window = close_window;
   module.wait_for_existing_window = wait_for_existing_window;
+  module.wait_for_window_focused = wait_for_window_focused;
 
   module.wait_for_browser_load = wait_for_browser_load;
   module.wait_for_frame_load = wait_for_frame_load;
@@ -214,14 +210,14 @@ var WindowWatcher = {
    *  that appear and dis-appear do so without dangerously confusing us (as
    *  long as another one comes along...)
    */
-  waitingList: {},
+  waitingList: new Map(),
   /**
    * Note that we will be looking for a window with the given window type
    *  (ex: "mailnews:search").  This allows us to be ready if an event shows
    *  up before waitForWindow is called.
    */
   planForWindowOpen: function WindowWatcher_planForWindowOpen(aWindowType) {
-    this.waitingList[aWindowType] = null;
+    this.waitingList.set(aWindowType, null);
   },
 
   /**
@@ -229,7 +225,7 @@ var WindowWatcher = {
    */
   planForAlreadyOpenWindow:
       function WindowWatcher_planForAlreadyOpenWindow(aWindowType) {
-    this.waitingList[aWindowType] = null;
+    this.waitingList.set(aWindowType, null);
     // We need to iterate over all the XUL windows and consider them all.
     //  We can't pass the window type because the window might not have a
     //  window type yet.
@@ -265,10 +261,10 @@ var WindowWatcher = {
                   this);
 
     this.waitingForOpen = null;
-    let xulWindow = this.waitingList[aWindowType];
+    let xulWindow = this.waitingList.get(aWindowType);
     let domWindow = xulWindow.docShell.QueryInterface(Ci.nsIInterfaceRequestor)
                                       .getInterface(Ci.nsIDOMWindow);
-    delete this.waitingList[aWindowType];
+    this.waitingList.delete(aWindowType);
     // spin the event loop to make sure any setTimeout 0 calls have gotten their
     //  time in the sun.
     controller.sleep(0);
@@ -301,7 +297,7 @@ var WindowWatcher = {
       this._timer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
     this.waitingForOpen = aWindowType;
     this.subTestFunc = aSubTestFunc;
-    this.waitingList[aWindowType] = null;
+    this.waitingList.set(aWindowType, null);
 
     this._timerRuntimeSoFar = 0;
     this._timer.initWithCallback(this, WINDOW_OPEN_CHECK_INTERVAL_MS,
@@ -314,31 +310,58 @@ var WindowWatcher = {
   notify: function WindowWatcher_notify() {
     if (this.monitorizeOpen()) {
       // okay, the window is opened, and we should be in its event loop now.
-      let xulWindow = this.waitingList[this.waitingForOpen];
+      let xulWindow = this.waitingList.get(this.waitingForOpen);
       let domWindow = xulWindow.docShell.QueryInterface(Ci.nsIInterfaceRequestor)
                                         .getInterface(Ci.nsIDOMWindow);
       let troller = new controller.MozMillController(domWindow);
       augment_controller(troller, this.waitingForOpen);
 
-      delete this.waitingList[this.waitingForOpen];
       this._timer.cancel();
 
-      // now we are waiting for it to close...
-      this.waitingForClose = this.waitingForOpen;
-      this.waitingForOpen = null;
+      let self = this;
+      function startTest() {
+        try {
+          let runner = new frame.Runner(collector);
+          runner.wrapper(self.subTestFunc, troller);
+        }
+        finally {
+          self.subTestFunc = null;
+        }
 
-      try {
-        let runner = new frame.Runner(collector);
-        runner.wrapper(this.subTestFunc, troller);
-      }
-      finally {
-        this.subTestFunc = null;
+        // if the test failed, make sure we force the window closed...
+        // except I'm not sure how to easily figure that out...
+        // so just close it no matter what.
+        troller.window.close();
+
+        self.waitingList.delete(self.waitingForOpen);
+        // now we are waiting for it to close...
+        self.waitingForClose = self.waitingForOpen;
+        self.waitingForOpen = null;
       }
 
-      // if the test failed, make sure we force the window closed...
-      // except I'm not sure how to easily figure that out...
-      // so just close it no matter what.
-      troller.window.close();
+      let targetFocusedWindow = {};
+      Services.focus.getFocusedElementForWindow(domWindow, true,
+                                                targetFocusedWindow);
+      targetFocusedWindow = targetFocusedWindow.value;
+
+      let focusedWindow = {};
+      if (Services.focus.activeWindow) {
+        Services.focus.getFocusedElementForWindow(Services.focus.activeWindow, true,
+                                                  focusedWindow);
+
+        focusedWindow = focusedWindow.value;
+      }
+
+      if (focusedWindow == targetFocusedWindow) {
+        startTest();
+      } else {
+        function onFocus(event) {
+          targetFocusedWindow.removeEventListener("focus", onFocus, true);
+          targetFocusedWindow.setTimeout(startTest, 0);
+        }
+        targetFocusedWindow.addEventListener("focus", onFocus, true);
+        targetFocusedWindow.focus();
+      }
     }
     // notify is only used for modal dialogs, which are never the first window,
     //  so we can always just use this set of timeouts/intervals.
@@ -370,7 +393,7 @@ var WindowWatcher = {
     let windowType =
       aXULWindow.document.documentElement.getAttribute("windowtype") ||
       aXULWindow.document.documentElement.getAttribute("id");
-    this.waitingList[windowType] = aXULWindow;
+    this.waitingList.set(windowType, aXULWindow);
     this.waitingForClose = windowType;
   },
 
@@ -383,8 +406,8 @@ var WindowWatcher = {
     utils.waitFor(function () this.monitorizeClose(),
                   "Timeout waiting for window to close!",
       WINDOW_CLOSE_TIMEOUT_MS, WINDOW_CLOSE_CHECK_INTERVAL_MS, this);
-    let didDisappear = this.waitingList[this.waitingForClose] == null;
-    delete this.waitingList[windowType];
+    let didDisappear = (this.waitingList.get(this.waitingForClose) == null);
+    this.waitingList.delete(windowType);
     let windowType = this.waitingForClose;
     this.waitingForClose = null;
     if (!didDisappear)
@@ -417,7 +440,8 @@ var WindowWatcher = {
         this.monitoringList.splice(iWin, 1);
     }
 
-    return this.waitingList[this.waitingForOpen] != null;
+    return this.waitingList.has(this.waitingForOpen) &&
+           (this.waitingList.get(this.waitingForOpen) != null);
   },
 
   /**
@@ -427,7 +451,7 @@ var WindowWatcher = {
    * @return true if it closed.
    */
   monitorizeClose: function () {
-    return this.waitingList[this.waitingForClose] == null;
+    return this.waitingList.get(this.waitingForClose) == null;
   },
 
   /**
@@ -461,7 +485,7 @@ var WindowWatcher = {
     mark_action("winhelp", "onOpenWindow",
                 [getWindowTypeForXulWindow(aXULWindow, true) +
                    " (" + getUniqueIdForXulWindow(aXULWindow) + ")",
-                   "active?", focusManager.focusedWindow == aXULWindow]);
+                   "active?", Services.focus.focusedWindow == aXULWindow]);
     if (!this.consider(aXULWindow))
       this.monitorWindowLoad(aXULWindow);
   },
@@ -480,8 +504,8 @@ var WindowWatcher = {
       return false;
 
     // stash the window if we were watching for it
-    if (windowType in this.waitingList) {
-      this.waitingList[windowType] = aXULWindow;
+    if (this.waitingList.has(windowType)) {
+      this.waitingList.set(windowType, aXULWindow);
     }
 
     return true;
@@ -500,10 +524,8 @@ var WindowWatcher = {
     mark_action("winhelp", "onCloseWindow",
                 [getWindowTypeForXulWindow(aXULWindow, true) +
                    " (" + getUniqueIdForXulWindow(aXULWindow) + ")"]);
-    // XXX because of how we dance with things, equivalence is not gonna
-    //  happen for us.  This is most pragmatic.
-    if (this.waitingList[windowType] !== null)
-      this.waitingList[windowType] = null;
+    if (this.waitingList.has(windowType))
+      this.waitingList.set(windowType, null);
   },
 };
 
@@ -636,6 +658,42 @@ function close_window(aController) {
 }
 
 /**
+ * Wait for the window to be focused.
+ *
+ * @param aWindow the window to be focused.
+ */
+function wait_for_window_focused(aWindow) {
+  let targetWindow = {};
+
+  Services.focus.getFocusedElementForWindow(aWindow, true,
+                                            targetWindow);
+  targetWindow = targetWindow.value;
+
+  let focusedWindow = {};
+  if (Services.focus.activeWindow) {
+    Services.focus.getFocusedElementForWindow(Services.focus.activeWindow,
+                                              true, focusedWindow);
+    focusedWindow = focusedWindow.value;
+  }
+
+  let focused = false;
+  if (focusedWindow == targetWindow) {
+    focused = true;
+  } else {
+    function onFocus(event) {
+      targetWindow.removeEventListener("focus", onFocus, true);
+      focused = true;
+    }
+    targetWindow.addEventListener("focus", onFocus, true);
+    targetWindow.focus();
+  }
+
+  utils.waitFor(function() focused,
+      "Timeout waiting for window to be focused.",
+      WINDOW_FOCUS_TIMEOUT_MS, 100, this);
+}
+
+/**
  * Given a <browser>, waits for it to completely load.
  *
  * @param aBrowser The <browser> element to wait for.
@@ -712,8 +770,6 @@ function _wait_for_generic_load(aDetails, aURLOrPredicate) {
 }
 
 
-let obsService = Cc["@mozilla.org/observer-service;1"]
-                   .getService(Ci.nsIObserverService);
 let observationWaitFuncs = {};
 let observationSaw = {};
 /**
@@ -730,7 +786,7 @@ function plan_for_observable_event(aTopic) {
       observationSaw[aTopic] = true;
     }
   };
-  obsService.addObserver(waiter, aTopic, false);
+  Services.obs.addObserver(waiter, aTopic, false);
 }
 
 /**
@@ -749,7 +805,7 @@ function wait_for_observable_event(aTopic) {
                   "Timed out waiting for notification: " + aTopic);
   }
   finally {
-    obsService.removeObserver(observationWaitFuncs[aTopic], aTopic);
+    Services.obs.removeObserver(observationWaitFuncs[aTopic], aTopic);
     delete observationWaitFuncs[aTopic];
     delete observationSaw[aTopic];
   }
@@ -849,9 +905,9 @@ var AugmentEverybodyWith = {
         let index;
         for (let iNode = 0; iNode < anonNodes.length; iNode++) {
           let node = anonNodes[iNode];
-          let named = node.getElementsByTagName(aQuery.tagName);
-          if (named.length)
-            return named[0];
+          let named = node.querySelector(aQuery.tagName);
+          if (named)
+            return named;
         }
       }
       else {
@@ -974,9 +1030,9 @@ var AugmentEverybodyWith = {
       //  in the event that there is no focused element but there is a focused
       //  sub-frame, we can know that.
       for (;;) {
-        focusedElement = focusManager.getFocusedElementForWindow(curWindow,
-                                                                 false,
-                                                                 focusedWinOut);
+        focusedElement = Services.focus.getFocusedElementForWindow(curWindow,
+                                                                   false,
+                                                                   focusedWinOut);
         arr.push("focused kid:");
         arr.push(focusedElement);
 
@@ -993,8 +1049,8 @@ var AugmentEverybodyWith = {
   getters: {
     focusedElement: function() {
       let ignoredFocusedWindow = {};
-      return focusManager.getFocusedElementForWindow(this.window, true,
-                                                     ignoredFocusedWindow);
+      return Services.focus.getFocusedElementForWindow(this.window, true,
+                                                       ignoredFocusedWindow);
     },
   },
 };
@@ -1326,11 +1382,10 @@ var UNIQUE_WINDOW_ID_ATTR = "__winHelper_uniqueId";
 var DOM_KEYCODE_TO_NAME = {};
 function populateDomKeycodeMap() {
   let nsIDOMKeyEvent = Ci.nsIDOMKeyEvent;
-  let re_dom_vk = /^DOM_VK_/;
 
   for (let key in nsIDOMKeyEvent) {
-    
-    if (re_dom_vk.test(key)) {
+
+    if (key.startsWith("DOM_VK_")) {
       let val = nsIDOMKeyEvent[key];
       DOM_KEYCODE_TO_NAME[val] = key;
     }
@@ -1341,7 +1396,7 @@ populateDomKeycodeMap();
 /**
  * Given something you would find on event.target (should be a DOM node /
  *  DOM window), attempt to describe the hierarchy of that thing all the way
- *  to the outermost enclosing window.  This is intended to solve the probem
+ *  to the outermost enclosing window.  This is intended to solve the problem
  *  where our event target can be the "Window" of an iframe, which is not
  *  very enlightening.  We really want to know the frameElement and what
  *  window it lives in.
@@ -1356,20 +1411,24 @@ populateDomKeycodeMap();
  * @returns a list suitable for concatenating with another list to be passed
  *   to mark_action.
  */
-function describeEventElementInHierarchy(elem) {
-  let arr = [], win;
-  // DOM element.
-  if ("ownerDocument" in elem) {
-    arr.push(normalize_for_json(elem));
-    win = elem.ownerDocument.defaultView;
+function describeEventElementInHierarchy(aNode) {
+  let arr = [];
+  let win = null;
+  // DOM node ?
+  if ("ownerDocument" in aNode) {
+    arr.push(normalize_for_json(aNode));
+    if (aNode.ownerDocument)
+      win = aNode.ownerDocument.defaultView;
+    else
+      win = aNode.defaultView;
   }
-  // should already be a window
   else {
-    win = elem;
+    // Otherwise this should be a window.
+    win = aNode;
   }
   let treeItem = win.QueryInterface(Ci.nsIInterfaceRequestor)
-                  .getInterface(Ci.nsIWebNavigation)
-                  .QueryInterface(Ci.nsIDocShellTreeItem);
+                    .getInterface(Ci.nsIWebNavigation)
+                    .QueryInterface(Ci.nsIDocShellTreeItem);
   while (treeItem) {
     win = treeItem.QueryInterface(Ci.nsIInterfaceRequestor)
                   .getInterface(Ci.nsIDOMWindow);
@@ -1743,10 +1802,7 @@ function captureWindowStatesForErrorReporting(normalizeForJsonFunc) {
   let info = {};
   let windows = info.windows = [];
 
-  let windowMediator = Cc["@mozilla.org/appshell/window-mediator;1"]
-                         .getService(Ci.nsIWindowMediator);
-
-  let enumerator = windowMediator.getEnumerator(null);
+  let enumerator = Services.wm.getEnumerator(null);
   let iWin=0;
   while (enumerator.hasMoreElements()) {
     let win = enumerator.getNext().QueryInterface(Ci.nsIDOMWindow);
@@ -1769,10 +1825,10 @@ function captureWindowStatesForErrorReporting(normalizeForJsonFunc) {
       dims: {width: win.outerWidth, height: win.outerHeight},
       pageOffsets: {x: win.pageXOffset, y: win.pageYOffset},
       screenshotDataUrl: screenshotToDataURL(win),
-      isActive: focusManager.activeWindow == win,
+      isActive: Services.focus.activeWindow == win,
       focusedElem: normalizeForJsonFunc(
-        focusManager.getFocusedElementForWindow(win, true,
-                                                ignoredFocusedWindow)),
+        Services.focus.getFocusedElementForWindow(win, true,
+                                                  ignoredFocusedWindow)),
       openPopups: openPopups,
     };
 

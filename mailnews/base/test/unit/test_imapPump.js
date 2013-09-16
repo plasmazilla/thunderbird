@@ -2,16 +2,18 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-// This test is intended as a simple demonstration of the imap pump test method
+/**
+ * Simple demonstration of the imap pump test method.
+ */
 
 // async support 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 load("../../../resources/alertTestUtils.js");
 
 // IMAP pump
-load("../../../resources/IMAPpump.js");
+Components.utils.import("resource://testing-common/mailnews/IMAPpump.js");
+Components.utils.import("resource://testing-common/mailnews/imapd.js");
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 
@@ -31,12 +33,12 @@ var tests = [
 // load and update a message in the imap fake server
 function loadImapMessage()
 {
-  gIMAPMailbox.addMessage(new imapMessage(specForFileName(gMessage),
-                          gIMAPMailbox.uidnext++, []));
-  gIMAPInbox.updateFolderWithListener(gDummyMsgWindow, asyncUrlListener);
+  IMAPPump.mailbox.addMessage(new imapMessage(specForFileName(gMessage),
+                          IMAPPump.mailbox.uidnext++, []));
+  IMAPPump.inbox.updateFolderWithListener(gDummyMsgWindow, asyncUrlListener);
   yield false;
-  do_check_eq(1, gIMAPInbox.getTotalMessages(false));
-  let msgHdr = firstMsgHdr(gIMAPInbox);
+  do_check_eq(1, IMAPPump.inbox.getTotalMessages(false));
+  let msgHdr = mailTestUtils.firstMsgHdr(IMAPPump.inbox);
   do_check_true(msgHdr instanceof Ci.nsIMsgDBHdr);
   yield true;
 }
@@ -61,9 +63,6 @@ function run_test()
 function specForFileName(aFileName)
 {
   let file = do_get_file("../../../data/" + aFileName);
-  let msgfileuri = Cc["@mozilla.org/network/io-service;1"]
-                     .getService(Ci.nsIIOService)
-                     .newFileURI(file)
-                     .QueryInterface(Ci.nsIFileURL);
+  let msgfileuri = Services.io.newFileURI(file).QueryInterface(Ci.nsIFileURL);
   return msgfileuri.spec;
 }

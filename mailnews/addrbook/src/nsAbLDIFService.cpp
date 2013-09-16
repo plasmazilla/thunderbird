@@ -370,7 +370,7 @@ void nsAbLDIFService::AddLdifRowToDatabase(nsIAddrDatabase *aDatabase,
   int length = 0;  // the length  of an ldif attribute
   while ( (line = str_getline(&cursor)) != nullptr)
   {
-    if ( str_parse_line(line, &typeSlot, &valueSlot, &length) == 0) {
+    if (NS_SUCCEEDED(str_parse_line(line, &typeSlot, &valueSlot, &length))) {
       AddLdifColToDatabase(aDatabase, newRow, typeSlot, valueSlot, bIsList);
     }
     else
@@ -390,8 +390,8 @@ void nsAbLDIFService::AddLdifColToDatabase(nsIAddrDatabase *aDatabase,
                                            nsIMdbRow* newRow, char* typeSlot,
                                            char* valueSlot, bool bIsList)
 {
-  nsCAutoString colType(typeSlot);
-  nsCAutoString column(valueSlot);
+  nsAutoCString colType(typeSlot);
+  nsAutoCString column(valueSlot);
 
   // 4.x exports attributes like "givenname", 
   // mozilla does "givenName" to be compliant with RFC 2798
@@ -622,7 +622,7 @@ void nsAbLDIFService::AddLdifColToDatabase(nsIAddrDatabase *aDatabase,
 
     else if (colType.EqualsLiteral("postofficebox"))
     {
-      nsCAutoString workAddr1, workAddr2;
+      nsAutoCString workAddr1, workAddr2;
       SplitCRLFAddressField(column, workAddr1, workAddr2);
       aDatabase->AddWorkAddress(newRow, workAddr1.get());
       aDatabase->AddWorkAddress2(newRow, workAddr2.get());
@@ -652,7 +652,7 @@ void nsAbLDIFService::AddLdifColToDatabase(nsIAddrDatabase *aDatabase,
 
     else if (colType.EqualsLiteral("streetaddress"))
     {
-      nsCAutoString addr1, addr2;
+      nsAutoCString addr1, addr2;
       SplitCRLFAddressField(column, addr1, addr2);
       if (mStoreLocAsHome)
       {

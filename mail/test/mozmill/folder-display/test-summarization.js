@@ -308,12 +308,10 @@ function test_summary_when_multiple_identities() {
 
 function extract_first_address(thread)
 {
-  let headerParser = Cc["@mozilla.org/messenger/headerparser;1"]
-                       .getService(Ci.nsIMsgHeaderParser);
   let addresses = {};
   let fullNames = {};
   let names = {};
-  let numAddresses = headerParser.parseHeadersWithArray(
+  let numAddresses = MailServices.headerParser.parseHeadersWithArray(
     thread1.getMsgHdr(0).mime2DecodedAuthor,
     addresses, names, fullNames);
 
@@ -322,10 +320,10 @@ function extract_first_address(thread)
 
 function check_address_name(name) {
   let htmlframe = mc.e('multimessage');
-  let matches = htmlframe.contentDocument.getElementsByClassName('sender');
-  if (matches[0].textContent != name)
+  let match = htmlframe.contentDocument.querySelector('.sender');
+  if (match.textContent != name)
     throw new Error("Expected to find sender named '" + name + "', found '" +
-                    matches[0].textContent + "'");
+                    match.textContent + "'");
 }
 
 function test_display_name_no_abook()

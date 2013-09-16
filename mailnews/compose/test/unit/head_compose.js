@@ -1,14 +1,27 @@
-// Import the main scripts that mailnews tests need to set up and tear down
-load("../../../resources/mailDirService.js");
-load("../../../resources/mailTestUtils.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource:///modules/IOUtils.js");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+Components.utils.import("resource://testing-common/mailnews/mailTestUtils.js");
+Components.utils.import("resource://testing-common/mailnews/localAccountUtils.js");
+
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var CC = Components.Constructor;
+
+// Ensure the profile directory is set up
+do_get_profile();
 
 // Import the required setup scripts.
 load("../../../resources/abSetup.js");
 
 // Import the smtp server scripts
-load("../../../fakeserver/maild.js")
-load("../../../fakeserver/auth.js")
-load("../../../fakeserver/smtpd.js")
+Components.utils.import("resource://testing-common/mailnews/maild.js");
+Components.utils.import("resource://testing-common/mailnews/smtpd.js");
+Components.utils.import("resource://testing-common/mailnews/auth.js");
+
+Components.utils.import("resource:///modules/mailServices.js");
 
 const SMTP_PORT = 1024+120;
 var gDraftFolder;
@@ -16,13 +29,13 @@ var gDraftFolder;
 // Setup the daemon and server
 function setupServerDaemon(handler) {
   if (!handler)
-    handler = function (d) { return new SMTP_RFC2821_handler(d); }
+    handler = function (d) { return new SMTP_RFC2821_handler(d); };
   var server = new nsMailServer(handler, new smtpDaemon());
   return server;
 }
 
 function getBasicSmtpServer() {
-  let server = create_outgoing_server(SMTP_PORT, "user", "password");
+  let server = localAccountUtils.create_outgoing_server(SMTP_PORT, "user", "password");
 
   // Override the default greeting so we get something predicitable
   // in the ELHO message
@@ -32,12 +45,8 @@ function getBasicSmtpServer() {
 }
 
 function getSmtpIdentity(senderName, smtpServer) {
-  // Get the servers
-  var acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
-
   // Set up the identity
-  var identity = acctMgr.createIdentity();
+  let identity = MailServices.accounts.createIdentity();
   identity.email = senderName;
   identity.smtpServerKey = smtpServer.key;
 
@@ -122,7 +131,7 @@ function createMessage(aAttachment) {
   let msgCompose = MailServices.compose.initCompose(params);
   let identity = getSmtpIdentity(null, getBasicSmtpServer());
 
-  let rootFolder = gLocalIncomingServer.rootMsgFolder;
+  let rootFolder = localAccountUtils.rootFolder;
   gDraftFolder = null;
   // Make sure the drafts folder is empty
   try {
@@ -156,14 +165,6 @@ function createMessage(aAttachment) {
   msgCompose.SendMsg(Ci.nsIMsgSend.nsMsgSaveAsDraft, identity, "", null,
                      progress);
   return false;
-}
-
-// get the first message header found in a folder
-function firstMsgHdr(folder) {
-  let enumerator = folder.msgDatabase.EnumerateMessages();
-  if (enumerator.hasMoreElements())
-    return enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
-  return null;
 }
 
 function getAttachmentFromContent(aContent) {

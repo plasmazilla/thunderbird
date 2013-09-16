@@ -29,8 +29,6 @@ nsMsgStatusFeedback::nsMsgStatusFeedback() :
   m_lastPercent(0),
   m_lastProgressTime(0)
 {
-
-  nsresult rv;
   nsCOMPtr<nsIStringBundleService> bundleService =
     mozilla::services::GetStringBundleService();
 
@@ -199,9 +197,8 @@ NS_IMETHODIMP
 nsMsgStatusFeedback::SetStatusString(const nsAString& aStatus)
 {
   nsCOMPtr<nsIMsgStatusFeedback> jsStatusFeedback(do_QueryReferent(mJSStatusFeedbackWeak));
-  nsCOMPtr <nsIXULBrowserWindow> xulBrowserWindow = do_QueryInterface(jsStatusFeedback);
-  if (xulBrowserWindow)
-    xulBrowserWindow->SetJSDefaultStatus(aStatus);
+  if (jsStatusFeedback)
+    jsStatusFeedback->SetStatusString(aStatus);
   return NS_OK;
 }
 

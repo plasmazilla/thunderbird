@@ -12,11 +12,10 @@ include $(DEPTH)/config/autoconf.mk
 # Calendar builders currently use STRIP_XPI to reduce the binary component in
 # Lightning.
 
-MODULE		= lightning
-
 export XPI_NAME = lightning
 export USE_EXTENSION_MANIFEST = 1
-XPI_PKGNAME = lightning
+XPI_PKGNAME = lightning-$(LIGHTNING_VERSION).$(AB_CD).$(MOZ_PKG_PLATFORM)
+XPI_VERSION = $(LIGHTNING_VERSION)
 
 XPI_EM_ID = {e2fda1a4-762b-4020-b5ad-a41df1933103}
 
@@ -27,6 +26,7 @@ PREF_JS_EXPORTS = $(srcdir)/content/lightning.js
 LIGHTNING_VERSION := $(shell cat $(srcdir)/../sunbird/config/version.txt)
 THUNDERBIRD_VERSION := $(shell cat $(topsrcdir)/mail/config/version.txt)
 SEAMONKEY_VERSION := $(shell cat $(topsrcdir)/suite/config/version.txt)
+GDATA_VERSION := $(shell $(PYTHON) $(topsrcdir)/calendar/providers/gdata/makeversion.py $(LIGHTNING_VERSION))
 
 # For extensions we require a max version that is compatible across security releases.
 # THUNDERBIRD_MAXVERSION and SEAMONKEY_MAXVERSION is our method for doing that.
@@ -47,8 +47,9 @@ ifneq (,$(findstring a,$(LIGHTNING_VERSION)))
 DEFINES += -DLIGHTNING_PRERELEASE_VERSION=1
 endif
 
-ifdef LIGHTNING_UPDATE_LOCATION
-DEFINES += -DLIGHTNING_UPDATE_LOCATION=$(LIGHTNING_UPDATE_LOCATION)
+# Enable nightly updates on aurora and nightly channel
+ifeq (nightly,$(subst aurora,nightly,$(MOZ_UPDATE_CHANNEL)))
+DEFINES += -DLIGHTNING_UPDATE_LOCATION=https://calendar.mozilla.org/update.php
 endif
 
 # Gecko milestone
@@ -86,38 +87,17 @@ include $(topsrcdir)/config/config.mk
 # (see bug 406441 and bug 440017), so we need to provide a hook for the
 # tinderboxen to disable that.
 ifndef DISABLE_LIGHTNING_INSTALL
-ifndef MOZ_SUNBIRD
 # install Lightning as a global extension in dist/bin/extensions/
 INSTALL_EXTENSION_ID = $(XPI_EM_ID)
 endif
-endif
-
-DIRS = ../libical \
-       ../locales \
-       ../base \
-       ../providers \
-       ../import-export \
-       ../itip \
-       components \
-       locales \
-       $(NULL)
-
-ifdef ENABLE_TESTS
-DIRS += ../test
-endif
-
-# Select a theme from which to pull our skin goodness
-# Linux: gnomestripe
-# OS X: pinstripe
-# Windows: winstripe
 
 ifneq (,$(filter gtk2 qt,$(MOZ_WIDGET_TOOLKIT)))
-THEME=gnomestripe
+THEME=linux
 else
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
-THEME=pinstripe
+THEME=osx
 else
-THEME=winstripe
+THEME=windows
 endif
 endif
 
@@ -142,11 +122,17 @@ libs::
 include $(topsrcdir)/config/rules.mk
 include $(srcdir)/lightning-packager.mk
 
+# For Lightning, we also need to preprocess the l10n prefs
+repack-process-extrafiles: lightning-extrafiles
+lightning-extrafiles: LOCALE_BASEDIR=$(call EXPAND_LOCALE_SRCDIR,calendar/locales)
+lightning-extrafiles:
+	$(PYTHON) $(MOZILLA_SRCDIR)/config/Preprocessor.py $(PREF_PPFLAGS) $(DEFINES) $(ACDEFINES) $(XULPPFLAGS) $(LOCALE_BASEDIR)/lightning-l10n.js  > $(DIST)/$(UNIVERSAL_PATH)xpi-stage/$(L10N_XPI_NAME)/$(PREF_DIR)/lightning-l10n.js
+
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 # If the macbundle dist dir was already created, sync lightning here to avoid
 # the need to make -C objdir/mail/app each time
 libs::
-	[ -d $(DIST)/$(MOZ_MACBUNDLE_NAME) ] && rsync -a $(FINAL_TARGET) $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/MacOS/extensions/$(XPI_EM_ID) || true
+	[ -d $(DIST)/$(MOZ_MACBUNDLE_NAME) ] && rsync -aL $(FINAL_TARGET)/ $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/MacOS/extensions/$(XPI_EM_ID) || true
 endif
 
 ident:

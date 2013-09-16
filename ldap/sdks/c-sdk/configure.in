@@ -663,36 +663,12 @@ else
     CFLAGS=$_SAVE_CFLAGS
     LDFLAGS=$_SAVE_LDFLAGS
 
-    case "$build:$target" in 
-      powerpc-apple-darwin8*:i?86-apple-darwin*)
-        dnl The Darwin cross compiler doesn't necessarily point itself at a
-        dnl root that has libraries for the proper architecture, it defaults
-        dnl to the system root.  The libraries in the system root on current
-        dnl versions of PPC OS X 10.4 aren't fat, so these target compiler
-        dnl checks will fail.  Fake a working SDK in that case.
-        _SAVE_CFLAGS=$CFLAGS 
-        _SAVE_CXXFLAGS=$CXXLAGS
-        CFLAGS="-isysroot /Developer/SDKs/MacOSX10.4u.sdk $CFLAGS"
-        CXXFLAGS="-isysroot /Developer/SDKs/MacOSX10.4u.sdk $CXXFLAGS"
-        ;;        
-    esac            
-
     AC_CHECK_PROGS(CC, $CC "${target_alias}-gcc" "${target}-gcc", echo)
     unset ac_cv_prog_CC
     AC_PROG_CC
     AC_CHECK_PROGS(CXX, $CXX "${target_alias}-g++" "${target}-g++", echo)
     unset ac_cv_prog_CXX
     AC_PROG_CXX
-
-    case "$build:$target" in
-      powerpc-apple-darwin8*:i?86-apple-darwin*)
-        dnl Revert the changes made above.  From this point on, the target
-        dnl compiler will never be used without applying the SDK to CFLAGS
-        dnl (see --with-macos-sdk below).
-        CFLAGS=$_SAVE_CFLAGS
-        CXXFLAGS=$_SAVE_CXXFLAGS
-        ;;
-    esac
 
     AC_CHECK_PROGS(RANLIB, $RANLIB "${target_alias}-ranlib" "${target}-ranlib", echo)
     AC_CHECK_PROGS(AR, $AR "${target_alias}-ar" "${target}-ar", echo)
@@ -712,15 +688,6 @@ if test "`echo | $AS -v 2>&1 | grep -c GNU`" != "0"; then
     GNU_AS=1
 fi
 rm -f a.out
-
-case "$build:$target" in
-    i?86-apple-darwin*:powerpc-apple-darwin*)
-        dnl cross_compiling will have erroneously been set to "no" in this
-        dnl case, because the x86 build host is able to run ppc code in a
-        dnl translated environment, making a cross compiler appear native.
-        cross_compiling=yes
-        ;;
-esac
 
 if test "$cross_compiling"  = "yes"; then
     CROSS_COMPILE=1
@@ -859,10 +826,6 @@ CYGWIN_9*|CYGWIN_ME*)
 OS_2)
     OS_ARCH=OS2
     OS_TARGET=OS2
-    ;;
-WINCE)
-    OS_ARCH=WINCE
-    OS_TARGET=WINCE
     ;;
 esac
 
@@ -1854,9 +1817,9 @@ mips-sony-newsos*)
     CFLAGS="$CFLAGS -ansi -Wall"
     CXXFLAGS="$CXXFLAGS -ansi -Wall"
     if test "$SO_VERSION"; then
-        DLL_SUFFIX=".so.$SO_VERSION"
+        DLL_SUFFIX="so.$SO_VERSION"
     else
-        DLL_SUFFIX=".so.1.0"
+        DLL_SUFFIX=so.1.0
     fi
     DSO_CFLAGS=-fPIC
     USE_NSPR_THREADS=1

@@ -8,14 +8,14 @@
  * then compare the date and filesize of the folder file with the
  * stored result in dbfolderinfo. If they don't match, that's bad.
  */
-const copyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
-                      .getService(Ci.nsIMsgCopyService);
+Components.utils.import("resource:///modules/mailServices.js");
+
 const bugmail1 = do_get_file("../../../data/bugmail1");
 var gHdr; // header of test message in local folder
 
-loadLocalMailAccount();
+localAccountUtils.loadLocalMailAccount();
 // create a subfolder as a target for copies
-var gSubfolder = gLocalInboxFolder.createLocalSubfolder("subfolder");
+var gSubfolder = localAccountUtils.inboxFolder.createLocalSubfolder("subfolder");
 
 function run_test()
 {
@@ -27,8 +27,8 @@ function run_test()
 
   do_test_pending();
   // step 1: copy a message into the local inbox
-  copyService.CopyFileMessage(bugmail1, gLocalInboxFolder, null, false, 0,
-                              "", step2, null);
+  MailServices.copy.CopyFileMessage(bugmail1, localAccountUtils.inboxFolder, null,
+                                    false, 0, "", step2, null);
   return;
 }
 
@@ -42,7 +42,7 @@ var step2 =
   SetMessageKey: function(aKey)
   {
     dump("in set message key\n");
-    gHdr = gLocalInboxFolder.GetMessageHeader(aKey);
+    gHdr = localAccountUtils.inboxFolder.GetMessageHeader(aKey);
   },
   SetMessageId: function(aMessageId) {},
   OnStopCopy: function(aStatus)
@@ -51,8 +51,8 @@ var step2 =
     // copy the message into the subfolder
     var messages = Cc["@mozilla.org/array;1"].createInstance(Ci.nsIMutableArray);
     messages.appendElement(gHdr, false);
-    copyService.CopyMessages(gLocalInboxFolder, messages, gSubfolder, false,
-                             step3, null, false);
+    MailServices.copy.CopyMessages(localAccountUtils.inboxFolder, messages, gSubfolder,
+                                   false, step3, null, false);
   }
 };
 
@@ -76,8 +76,8 @@ function step4()
 {
   var messages = Cc["@mozilla.org/array;1"].createInstance(Ci.nsIMutableArray);
   messages.appendElement(gHdr, false);
-  copyService.CopyMessages(gLocalInboxFolder, messages, gSubfolder, false,
-                           step5, null, false);
+  MailServices.copy.CopyMessages(localAccountUtils.inboxFolder, messages, gSubfolder,
+                                 false, step5, null, false);
 }
 
 // step 5:  actual tests of file size and date

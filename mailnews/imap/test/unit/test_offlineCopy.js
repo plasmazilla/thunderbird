@@ -14,21 +14,19 @@
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
-load("../../../resources/IMAPpump.js");
 
 const nsMsgMessageFlags = Ci.nsMsgMessageFlags;
 
 var gMsgFile1 = do_get_file("../../../data/bugmail10");
 const gMsgId1 = "200806061706.m56H6RWT004933@mrapp54.mozilla.org";
 var gMsgFile2 = do_get_file("../../../data/image-attach-test");
-const gMsgId2 = "4A947F73.5030709@xxx.com";
+const gMsgId2 = "4A947F73.5030709@example.com";
 var gMessages = Cc["@mozilla.org/array;1"].createInstance(Ci.nsIMutableArray);
 var gMsgFile3 = do_get_file("../../../data/SpamAssassinYes");
 var gMsg3Id = "bugmail7.m47LtAEf007543@mrapp51.mozilla.org";
 var gMsgFile4 = do_get_file("../../../data/bug460636");
-var gMsg4Id = "foo.12345@bar";
+var gMsg4Id = "foo.12345@example";
 
 var gFolder1;
 
@@ -60,51 +58,51 @@ function setup() {
   setupIMAPPump();
 
   MailServices.mfn.addListener(mfnListener, MailServices.mfn.folderAdded);
-  gIMAPIncomingServer.rootFolder.createSubfolder("folder 1", null);
+  IMAPPump.incomingServer.rootFolder.createSubfolder("folder 1", null);
   yield false;
 
-  gFolder1 = gIMAPIncomingServer.rootFolder.getChildNamed("folder 1");
+  gFolder1 = IMAPPump.incomingServer.rootFolder.getChildNamed("folder 1");
   do_check_true(gFolder1 instanceof Ci.nsIMsgFolder);
 
   // these hacks are required because we've created the inbox before
   // running initial folder discovery, and adding the folder bails
   // out before we set it as verified online, so we bail out, and
   // then remove the INBOX folder since it's not verified.
-  gIMAPInbox.hierarchyDelimiter = '/';
-  gIMAPInbox.verifiedAsOnlineFolder = true;
+  IMAPPump.inbox.hierarchyDelimiter = '/';
+  IMAPPump.inbox.verifiedAsOnlineFolder = true;
 
   // Add messages to the INBOX
   // this is synchronous, afaik
   addMessagesToServer([{file: gMsgFile1, messageId: gMsgId1},
                        {file: gMsgFile2, messageId: gMsgId2},
                       ],
-                      gIMAPDaemon.getMailbox("INBOX"), gIMAPInbox);
+                      IMAPPump.daemon.getMailbox("INBOX"), IMAPPump.inbox);
 }
 
 var tests = [
   setup,
   function updateFolder() {
-    gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+    IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
     yield false;
   },
   function downloadAllForOffline() {
-     gIMAPInbox.downloadAllForOffline(asyncUrlListener, null);
+     IMAPPump.inbox.downloadAllForOffline(asyncUrlListener, null);
      yield false;
   },
   function copyMessagesToInbox() {
 
-    MailServices.copy.CopyFileMessage(gMsgFile3, gIMAPInbox, null, false, 0,
+    MailServices.copy.CopyFileMessage(gMsgFile3, IMAPPump.inbox, null, false, 0,
                                       "", asyncCopyListener, null);
     yield false;
 
-    MailServices.copy.CopyFileMessage(gMsgFile4, gIMAPInbox, null, false, 0,
+    MailServices.copy.CopyFileMessage(gMsgFile4, IMAPPump.inbox, null, false, 0,
                                       "", asyncCopyListener, null);
     yield false;
 
-    gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+    IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
     yield false;
 
-    let db = gIMAPInbox.msgDatabase;
+    let db = IMAPPump.inbox.msgDatabase;
 
     // test the headers in the inbox
     let enumerator = db.EnumerateMessages();
@@ -124,11 +122,11 @@ var tests = [
   },
   function copyMessagesToSubfolder() {
     //  a message created from IMAP download
-    let db = gIMAPInbox.msgDatabase;
+    let db = IMAPPump.inbox.msgDatabase;
     let msg1 = db.getMsgHdrForMessageID(gMsgId1);
     gMessages.appendElement(msg1, false);
     // this is sync, I believe?
-    MailServices.copy.CopyMessages(gIMAPInbox, gMessages, gFolder1, false,
+    MailServices.copy.CopyMessages(IMAPPump.inbox, gMessages, gFolder1, false,
                                    null, null, true);
 
     // two messages originally created from file copies (like in Send)
@@ -136,7 +134,7 @@ var tests = [
     do_check_true(msg3 instanceof Ci.nsIMsgDBHdr);
     gMessages.clear();
     gMessages.appendElement(msg3, false);
-    MailServices.copy.CopyMessages(gIMAPInbox, gMessages, gFolder1, false,
+    MailServices.copy.CopyMessages(IMAPPump.inbox, gMessages, gFolder1, false,
                                    null, null, true);
 
     let msg4 = db.getMsgHdrForMessageID(gMsg4Id);
@@ -147,12 +145,12 @@ var tests = [
     msg4.messageOffset = 0;
     gMessages.clear();
     gMessages.appendElement(msg4, false);
-    MailServices.copy.CopyMessages(gIMAPInbox, gMessages, gFolder1, false,
+    MailServices.copy.CopyMessages(IMAPPump.inbox, gMessages, gFolder1, false,
                                    null, null, true);
 
     // test the db headers in folder1
     db = gFolder1.msgDatabase;
-    enumerator = db.EnumerateMessages();
+    let enumerator = db.EnumerateMessages();
     while (enumerator.hasMoreElements())
     {
       var message = enumerator.getNext();
@@ -167,7 +165,7 @@ var tests = [
   },
   function test_headers() {
     let msgIds = [gMsgId1, gMsg3Id, gMsg4Id];
-    for each (msgId in msgIds)
+    for (let msgId of msgIds)
     {
       let newMsgHdr= gFolder1.msgDatabase.getMsgHdrForMessageID(msgId);
       let msgURI = newMsgHdr.folder.getUriForMsg(newMsgHdr);
@@ -177,7 +175,7 @@ var tests = [
       msgServ.streamHeaders(msgURI, streamListener, asyncUrlListener,true);
       yield false;
       dump('\nheaders for messageId ' + msgId + '\n' + streamListener._data + '\n\n');
-      do_check_true(streamListener._data.indexOf(msgId) != -1);
+      do_check_true(streamListener._data.contains(msgId));
     }
   },
   teardown

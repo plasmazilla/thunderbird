@@ -10,6 +10,9 @@
  * Originally written to test bug 429891 where saving to the sent folder was
  * mangling the message.
  */
+
+Components.utils.import("resource:///modules/mailServices.js");
+
 var type = null;
 var test = null;
 var server;
@@ -17,8 +20,8 @@ var sentFolder;
 var originalData;
 var finished = false;
 
-const kSender = "from@invalid.com";
-const kTo = "to@invalid.com";
+const kSender = "from@foo.invalid";
+const kTo = "to@foo.invalid";
 
 function msl() {}
 
@@ -70,7 +73,8 @@ msl.prototype = {
     do_check_eq(aStatus, 0);
     try {
       // Now do a comparison of what is in the sent mail folder
-      let msgData = loadMessageToString(sentFolder, firstMsgHdr(sentFolder));
+      let msgData = mailTestUtils
+        .loadMessageToString(sentFolder, mailTestUtils.firstMsgHdr(sentFolder));
 
       // Skip the headers etc that mailnews adds
       var pos = msgData.indexOf("From:");
@@ -105,19 +109,17 @@ function run_test() {
 
   // Test file - for bug 429891
   var testFile = do_get_file("data/429891_testcase.eml");
-  originalData = loadFileToString(testFile);
+  originalData = IOUtils.loadFileToString(testFile);
 
   // Ensure we have at least one mail account
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
-  var acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
-  acctMgr.setSpecialFolders();
+  MailServices.accounts.setSpecialFolders();
 
   var smtpServer = getBasicSmtpServer();
   var identity = getSmtpIdentity(kSender, smtpServer);
 
-  sentFolder = gLocalIncomingServer.rootMsgFolder.createLocalSubfolder("Sent");
+  sentFolder = localAccountUtils.rootFolder.createLocalSubfolder("Sent");
 
   do_check_eq(identity.doFcc, true);
 

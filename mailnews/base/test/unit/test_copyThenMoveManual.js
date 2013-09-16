@@ -6,19 +6,20 @@
  */
 
 load("../../../resources/POP3pump.js");
+
+Components.utils.import("resource:///modules/mailServices.js");
+
 const gFiles = ["../../../data/bugmail1"];
 var gCopyFolder;
 var gMoveFolder;
 var gFilter; // the test filter
 var gFilterList;
 var gCurTestNum = 1;
-var gFilterService = Cc["@mozilla.org/messenger/services/filters;1"]
-                       .getService(Ci.nsIMsgFilterService);
 const gTestArray =
 [
   function createFilters() {
     // setup manual copy then move mail filters on the inbox
-    gFilterList = gLocalIncomingServer.getFilterList(null);
+    gFilterList = localAccountUtils.incomingServer.getFilterList(null);
     gFilter = gFilterList.createFilter("copyThenMoveAll");
     let searchTerm = gFilter.createTerm();
     searchTerm.matchAll = true;
@@ -48,10 +49,10 @@ const gTestArray =
   function applyFilters() {
     let messages = Cc["@mozilla.org/array;1"]
                      .createInstance(Ci.nsIMutableArray);
-    messages.appendElement(gLocalInboxFolder.firstNewMessage, false);
+    messages.appendElement(localAccountUtils.inboxFolder.firstNewMessage, false);
     ++gCurTestNum;
-    gFilterService.applyFilters(Ci.nsMsgFilterType.Manual,
-                                messages, gLocalInboxFolder, null);
+    MailServices.filters.applyFilters(Ci.nsMsgFilterType.Manual,
+                                      messages, localAccountUtils.inboxFolder, null);
   },
   function verifyFolders1() {
     // Copy and Move should each now have 1 message in them.
@@ -59,7 +60,7 @@ const gTestArray =
     do_check_eq(folderCount(gMoveFolder), 1);
     // the local inbox folder should now be empty, since the second
     // operation was a move
-    do_check_eq(folderCount(gLocalInboxFolder), 0);
+    do_check_eq(folderCount(localAccountUtils.inboxFolder), 0);
     ++gCurTestNum;
     doTest();
   },
@@ -72,11 +73,11 @@ const gTestArray =
   },
   // use the alternate call into the filter service
   function applyFiltersToFolders() {
-    let folders = Cc["@mozilla.org/supports-array;1"]
-                    .createInstance(Ci.nsISupportsArray);
-    folders.AppendElement(gLocalInboxFolder);
+    let folders = Cc["@mozilla.org/array;1"]
+                    .createInstance(Ci.nsIMutableArray);
+    folders.appendElement(localAccountUtils.inboxFolder, false);
     ++gCurTestNum;
-    gFilterService.applyFiltersToFolders(gFilterList, folders, null);
+    MailServices.filters.applyFiltersToFolders(gFilterList, folders, null);
   },
   function verifyFolders2() {
     // Copy and Move should each now have 2 message in them.
@@ -84,7 +85,7 @@ const gTestArray =
     do_check_eq(folderCount(gMoveFolder), 2);
     // the local inbox folder should now be empty, since the second
     // operation was a move
-    do_check_eq(folderCount(gLocalInboxFolder), 0);
+    do_check_eq(folderCount(localAccountUtils.inboxFolder), 0);
     ++gCurTestNum;
     doTest();
   }
@@ -104,17 +105,15 @@ function folderCount(folder)
 
 function run_test()
 {
-  if (!gLocalInboxFolder)
-    loadLocalMailAccount();
+  if (!localAccountUtils.inboxFolder)
+    localAccountUtils.loadLocalMailAccount();
 
-  gCopyFolder = gLocalIncomingServer.rootFolder.createLocalSubfolder("CopyFolder");
-  gMoveFolder = gLocalIncomingServer.rootFolder.createLocalSubfolder("MoveFolder");
-  const mailSession = Cc["@mozilla.org/messenger/services/session;1"]
-                        .getService(Ci.nsIMsgMailSession);
+  gCopyFolder = localAccountUtils.rootFolder.createLocalSubfolder("CopyFolder");
+  gMoveFolder = localAccountUtils.rootFolder.createLocalSubfolder("MoveFolder");
 
-  mailSession.AddFolderListener(FolderListener, Ci.nsIFolderListener.event |
-                                                Ci.nsIFolderListener.added |
-                                                Ci.nsIFolderListener.removed);
+  MailServices.mailSession.AddFolderListener(FolderListener, Ci.nsIFolderListener.event |
+                                                             Ci.nsIFolderListener.added |
+                                                             Ci.nsIFolderListener.removed);
 
   // "Master" do_test_pending(), paired with a do_test_finished() at the end of
   // all the operations.

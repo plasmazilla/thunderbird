@@ -12,16 +12,14 @@
  */
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
-load("../../../resources/IMAPpump.js");
+
+Components.utils.import("resource:///modules/mailServices.js");
 
 var gMsgHdr = null;
 
 // Take a multipart message as we're testing attachment URLs as well
 const gFile = do_get_file("../../../data/multipart-complex2");
-const gMFNService = Cc["@mozilla.org/messenger/msgnotificationservice;1"]
-                      .getService(Ci.nsIMsgFolderNotificationService);
                    
 var tests = [
   setup,
@@ -32,13 +30,10 @@ var tests = [
 
 // Adds some messages directly to a mailbox (eg new mail)
 function addMessageToServer() {
-  let ioService = Cc["@mozilla.org/network/io-service;1"]
-                    .getService(Ci.nsIIOService);
+  let URI = Services.io.newFileURI(gFile).QueryInterface(Ci.nsIFileURL);
+  IMAPPump.mailbox.addMessage(new imapMessage(URI.spec, IMAPPump.mailbox.uidnext++, []));
 
-  let URI = ioService.newFileURI(gFile).QueryInterface(Ci.nsIFileURL);
-  gIMAPMailbox.addMessage(new imapMessage(URI.spec, gIMAPMailbox.uidnext++, []));
-
-  gIMAPInbox.updateFolder(null);
+  IMAPPump.inbox.updateFolder(null);
   yield false;
 }
 
@@ -53,13 +48,13 @@ function setup() {
   setupIMAPPump();
 
   // Set up nsIMsgFolderListener to get the header when it's received
-  gMFNService.addListener(msgFolderListener, gMFNService.msgAdded);
+  MailServices.mfn.addListener(msgFolderListener, MailServices.mfn.msgAdded);
 
-  gIMAPInbox.flags &= ~Ci.nsMsgFolderFlags.Offline;
+  IMAPPump.inbox.flags &= ~Ci.nsMsgFolderFlags.Offline;
 }
 
 function verifyContentLength() {
-  let messageUri = gIMAPInbox.getUriForMsg(gMsgHdr);
+  let messageUri = IMAPPump.inbox.getUriForMsg(gMsgHdr);
   // Convert this to a URI that necko can run
   let messenger = Cc["@mozilla.org/messenger;1"].createInstance(Ci.nsIMessenger);
   let neckoURL = {};
@@ -67,23 +62,23 @@ function verifyContentLength() {
   messageService.GetUrlForUri(messageUri, neckoURL, null);
   // Don't use the necko URL directly. Instead, get the spec and create a new
   // URL using the IO service
-  let urlToRun = gIOService.newURI(neckoURL.value.spec, null, null);
+  let urlToRun = Services.io.newURI(neckoURL.value.spec, null, null);
 
   // Get a channel from this URI, and check its content length
-  let channel = gIOService.newChannelFromURI(urlToRun);
+  let channel = Services.io.newChannelFromURI(urlToRun);
   do_check_eq(channel.contentLength, gFile.fileSize);
 
   // Now try an attachment. &part=1.2
-  let attachmentURL = gIOService.newURI(neckoURL.value.spec + "&part=1.2",
+  let attachmentURL = Services.io.newURI(neckoURL.value.spec + "&part=1.2",
                                         null, null);
-  let attachmentChannel = gIOService.newChannelFromURI(attachmentURL);
+  let attachmentChannel = Services.io.newChannelFromURI(attachmentURL);
   // Currently attachments have their content length set to the length of the
   // entire message
   do_check_eq(attachmentChannel.contentLength, gFile.fileSize);
 }
 
 function teardown() {
-  gMFNService.removeListener(msgFolderListener);
+  MailServices.mfn.removeListener(msgFolderListener);
   teardownIMAPPump();
 }
 

@@ -23,6 +23,7 @@
 #include "nsIMsgFilterPlugin.h"
 #include "nsMsgMessageFlags.h"
 #include "nsMsgUtils.h"
+#include "nsIMsgFolder.h"
 
 extern "C"
 {
@@ -444,10 +445,10 @@ nsresult nsMsgSearchOfflineMail::ProcessSearchTerm(nsIMsgDBHdr *msgToMatch,
           nsCString reString;
           reString.Assign("Re: ");
           reString.Append(matchString);
-          err = aTerm->MatchRfc2047String(reString.get(), charset, charsetOverride, &result);
+          err = aTerm->MatchRfc2047String(reString, charset, charsetOverride, &result);
         }
         else
-          err = aTerm->MatchRfc2047String (matchString.get(), charset, charsetOverride, &result);
+          err = aTerm->MatchRfc2047String(matchString, charset, charsetOverride, &result);
         break;
       }
       case nsMsgSearchAttrib::ToOrCC:
@@ -689,8 +690,7 @@ nsresult nsMsgSearchOfflineMail::MatchTerms(nsIMsgDBHdr *msgToMatch,
   return NS_OK;
 }
 
-
-nsresult nsMsgSearchOfflineMail::Search (bool *aDone)
+nsresult nsMsgSearchOfflineMail::Search(bool *aDone)
 {
   nsresult err = NS_OK;
 
@@ -712,7 +712,7 @@ nsresult nsMsgSearchOfflineMail::Search (bool *aDone)
   if (NS_SUCCEEDED(err))
   {
     if (!m_listContext)
-      dbErr = m_db->EnumerateMessages (getter_AddRefs(m_listContext));
+      dbErr = m_db->ReverseEnumerateMessages(getter_AddRefs(m_listContext));
     if (NS_SUCCEEDED(dbErr) && m_listContext)
     {
       PRIntervalTime startTime = PR_IntervalNow();

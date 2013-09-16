@@ -34,13 +34,12 @@ function run_test() {
   run_next_test();
 }
 
-// Dummy function.
-function LOG(aStr) {};
-
 function test_tryNewNick() {
   for (let currentNick in testData) {
     let account = {
+      LOG: function(aStr) {},
       maxNicknameLength: 9,
+      normalize: function(aStr) aStr,
       sendMessage: function(aCommand, aNewNick) {
         do_check_eq(aNewNick, testData[currentNick]);
       }

@@ -9,6 +9,8 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
+STANDALONE_MAKEFILE := 1
+
 include $(topsrcdir)/config/rules.mk
 
 MOZ_PKG_REMOVALS = $(srcdir)/removed-files.in
@@ -31,11 +33,7 @@ MOZ_LOCALIZED_PKG_LIST = \
 
 DEFINES += -DAB_CD=$(AB_CD) -DMOZ_APP_NAME=$(MOZ_APP_NAME) -DPREF_DIR=$(PREF_DIR)
 
-ifeq ($(MOZ_CHROME_FILE_FORMAT), jar)
-DEFINES += -DJAREXT=.jar
-else
 DEFINES += -DJAREXT=
-endif
 
 ifdef ENABLE_TESTS
 DEFINES += -DENABLE_TESTS=1
@@ -45,9 +43,8 @@ ifdef LIBXUL_SDK
 DEFINES += -DLIBXUL_SDK=1
 endif
 
-ifdef MOZ_ANGLE
-DEFINES += -DMOZ_ANGLE=$(MOZ_ANGLE)
-DEFINES += -DMOZ_D3DX9_DLL=$(MOZ_D3DX9_DLL)
+ifdef MOZ_ANGLE_RENDERER
+DEFINES += -DMOZ_ANGLE_RENDERER=$(MOZ_ANGLE_RENDERER)
 DEFINES += -DMOZ_D3DCOMPILER_DLL=$(MOZ_D3DCOMPILER_DLL)
 endif
 
@@ -117,7 +114,6 @@ ifeq (,$(filter-out WINNT OS2,$(OS_ARCH)))
 DEFINES += -DWIN_OR_OS2=1
 endif
 
-include $(MOZILLA_SRCDIR)/ipc/app/defs.mk
 DEFINES += -DMOZ_CHILD_PROCESS_NAME=$(MOZ_CHILD_PROCESS_NAME)
 
 ifdef MOZ_PKG_MANIFEST_P
@@ -180,7 +176,7 @@ ifdef MOZ_PKG_MANIFEST_P
 	rm -f $(DIST)/pack-list.txt $(DIST)/bin-list.txt
 endif
 
-installer: removed-files
+installer:
 ifdef INSTALLER_DIR
 	$(MAKE) -C $(INSTALLER_DIR)
 endif

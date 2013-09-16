@@ -128,7 +128,7 @@ int main(int argc, char* argv[])
   }
 
   char *lastSlash = strrchr(exePath, XPCOM_FILE_PATH_SEPARATOR[0]);
-  if (!lastSlash || (lastSlash - exePath > MAXPATHLEN - sizeof(XPCOM_DLL) - 1))
+  if (!lastSlash || (size_t(lastSlash - exePath) > MAXPATHLEN - sizeof(XPCOM_DLL) - 1))
     return 255;
 
   strcpy(++lastSlash, XPCOM_DLL);
@@ -200,6 +200,5 @@ int main(int argc, char* argv[])
     result = do_main(exePath, argc, argv);
   }
 
-  XPCOMGlueShutdown();
   return result;
 }
