@@ -23,6 +23,7 @@
 #include "nsComponentManagerUtils.h"
 #include "nsServiceManagerUtils.h"
 #include "mozilla/Services.h"
+#include "nsArrayUtils.h"
 
 NS_IMPL_ISUPPORTS1(nsDefaultAutoSyncMsgStrategy, nsIAutoSyncMsgStrategy)
 
@@ -278,7 +279,7 @@ void nsAutoSyncManager::TimerCallback(nsITimer *aTimer, void *aClosure)
 {
   if (!aClosure)
     return;
-  
+
   nsAutoSyncManager *autoSyncMgr = static_cast<nsAutoSyncManager*>(aClosure);
   if (autoSyncMgr->GetIdleState() == notIdle ||
     (autoSyncMgr->mDiscoveryQ.Count() <= 0 && autoSyncMgr->mUpdateQ.Count() <= 0))
@@ -327,7 +328,7 @@ void nsAutoSyncManager::TimerCallback(nsITimer *aTimer, void *aClosure)
           if (folder)
           {
             nsCOMPtr <nsIMsgImapMailFolder> imapFolder = do_QueryInterface(folder, &rv);
-            NS_ENSURE_SUCCESS(rv,);
+            NS_ENSURE_SUCCESS_VOID(rv);
             rv = imapFolder->InitiateAutoSync(autoSyncMgr);
             if (NS_SUCCEEDED(rv))
             {
@@ -741,12 +742,12 @@ nsresult nsAutoSyncManager::AutoUpdateFolders()
   nsCOMPtr<nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv,rv);
 
-  nsCOMPtr<nsISupportsArray> accounts;
+  nsCOMPtr<nsIArray> accounts;
   rv = accountManager->GetAccounts(getter_AddRefs(accounts));
   NS_ENSURE_SUCCESS(rv,rv);
 
   uint32_t accountCount;
-  accounts->Count(&accountCount);
+  accounts->GetLength(&accountCount);
 
   for (uint32_t i = 0; i < accountCount; ++i) 
   {
@@ -772,27 +773,26 @@ nsresult nsAutoSyncManager::AutoUpdateFolders()
       continue;
 
     nsCOMPtr<nsIMsgFolder> rootFolder;
-    nsCOMPtr<nsISupportsArray> allDescendents;
+    nsCOMPtr<nsIArray> allDescendants;
 
     rv = incomingServer->GetRootFolder(getter_AddRefs(rootFolder));
     if (rootFolder)
     {
-      allDescendents = do_CreateInstance(NS_SUPPORTSARRAY_CONTRACTID, &rv);
       if (NS_FAILED(rv))
         continue;
 
-      rv = rootFolder->ListDescendents(allDescendents);
-      if (!allDescendents)
+      rv = rootFolder->GetDescendants(getter_AddRefs(allDescendants));
+      if (!allDescendants)
         continue;
 
       uint32_t cnt = 0;
-      rv = allDescendents->Count(&cnt);
+      rv = allDescendants->GetLength(&cnt);
       if (NS_FAILED(rv))
         continue;
 
       for (uint32_t i = 0; i < cnt; i++)
       {
-        nsCOMPtr<nsIMsgFolder> folder(do_QueryElementAt(allDescendents, i, &rv));
+        nsCOMPtr<nsIMsgFolder> folder(do_QueryElementAt(allDescendants, i, &rv));
         if (NS_FAILED(rv))
           continue;
 

@@ -7,6 +7,7 @@
  */
 
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 function UpdateMailToolbar(caller)
 {
@@ -20,17 +21,16 @@ function UpdateMailToolbar(caller)
   document.commandDispatcher.updateCommands('mail-toolbar');
 
   // hook for extra toolbar items
-  var observerService = Components.classes["@mozilla.org/observer-service;1"].getService(Components.interfaces.nsIObserverService);
-  observerService.notifyObservers(window, "mail:updateToolbarItems", null);
+  Services.obs.notifyObservers(window, "mail:updateToolbarItems", null);
 }
 
 function isNewsURI(uri)
 {
-    if (!uri || uri[0] != 'n') {
+    if (!uri || !uri.startsWith('n')) {
         return false;
     }
     else {
-        return ((uri.substring(0,6) == "news:/") || (uri.substring(0,14) == "news-message:/"));
+        return ((uri.startsWith("news:/")) || (uri.startsWith("news-message:/")));
     }
 }
 
@@ -141,9 +141,9 @@ function UpdateStatusQuota(folder)
     gQuotaUICache.panel = document.getElementById("quotaPanel");
     gQuotaUICache.label = document.getElementById("quotaLabel");
     const kBranch = "mail.quota.mainwindow_threshold.";
-    gQuotaUICache.showTreshold = gPrefBranch.getIntPref(kBranch + "show");
-    gQuotaUICache.warningTreshold = gPrefBranch.getIntPref(kBranch + "warning");
-    gQuotaUICache.criticalTreshold = gPrefBranch.getIntPref(kBranch + "critical");
+    gQuotaUICache.showTreshold = Services.prefs.getIntPref(kBranch + "show");
+    gQuotaUICache.warningTreshold = Services.prefs.getIntPref(kBranch + "warning");
+    gQuotaUICache.criticalTreshold = Services.prefs.getIntPref(kBranch + "critical");
   }
 
   var valid = {value: null};
@@ -279,10 +279,12 @@ var gCurSortType;
 
 function ChangeMessagePaneVisibility(now_hidden)
 {
-  // we also have to hide the File/Attachments menuitem
-  var node = document.getElementById("fileAttachmentMenu");
-  if (node)
-    node.hidden = now_hidden;
+  // We also have to disable the Message/Attachments menuitem.
+  // It will be enabled when loading a message with attachments
+  // (see messageHeaderSink.handleAttachment).
+  var node = document.getElementById("msgAttachmentMenu");
+  if (node && now_hidden)
+    node.setAttribute("disabled", "true");
 
   gMessageDisplay.visible = !now_hidden;
 

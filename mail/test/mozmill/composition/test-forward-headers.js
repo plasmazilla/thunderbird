@@ -59,9 +59,7 @@ function forward_selected_messages_and_go_to_drafts_folder(f) {
   // actually quite the window
   wait_for_window_close();
 
-  let acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
-  let draftsFolder = acctMgr.localFoldersServer.rootFolder.getChildNamed("Drafts");
+  let draftsFolder = MailServices.accounts.localFoldersServer.rootFolder.getChildNamed("Drafts");
   be_in_folder(draftsFolder);
 }
 
@@ -75,6 +73,7 @@ function test_forward_inline () {
   // forwarded message header
   let fMsgHdr = select_click_row(0);
 
+  assert_true(fMsgHdr.numReferences > 0, "No References Header in forwarded msg.");
   assert_equals(fMsgHdr.getStringReference(0), oMsgHdr.messageId,
     "The forwarded message should have References: = Message-Id: of the original msg");
 
@@ -101,6 +100,8 @@ function test_forward_as_attachments () {
   // forwarded message header
   let fMsgHdr = select_click_row(0);
 
+  assert_true(fMsgHdr.numReferences > 0, "No References Header in forwarded msg.");
+  assert_true(fMsgHdr.numReferences > 1, "Only one References Header in forwarded msg.");
   assert_equals(fMsgHdr.getStringReference(1), oMsgHdr1.messageId,
     "The forwarded message should have References: = Message-Id: of the original msg#1");
   assert_equals(fMsgHdr.getStringReference(0), oMsgHdr0.messageId,

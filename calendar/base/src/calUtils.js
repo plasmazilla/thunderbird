@@ -7,115 +7,53 @@
  * that loading this file twice in the same scope will throw errors.
  */
 
-Components.utils.import("resource:///modules/Services.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
-/**
- * Returns a clean new calIEvent
- *
- * @param aIcalString       (optional) The icalString to read event details from.
+/* HACK: Loading calUtils.jsm here is a hack and should be fixed asap. If you
+ * see this here after Lightning 2.6, please drop everything and make it go
+ * away. See bug 902916 for details.
  */
-function createEvent(aIcalString) {
-    let event = Components.classes["@mozilla.org/calendar/event;1"]
-                          .createInstance(Components.interfaces.calIEvent);
-    if (aIcalString) {
-        event.icalString = aIcalString;
-    }
-    return event;
+Components.utils.import("resource://calendar/modules/calUtils.jsm");
+
+function _calIcalCreator(cid, iid) {
+    return function(icalString) {
+        let thing = Components.classes[cid].createInstance(iid);
+        if (icalString) {
+            thing.icalString = icalString;
+        }
+        return thing;
+    };
 }
 
-/**
- * Returns a clean new calITodo
- *
- * @param aIcalString       (optional) The icalString to read task details from.
- */
-function createTodo(aIcalString) {
-    let todo = Components.classes["@mozilla.org/calendar/todo;1"]
-                         .createInstance(Components.interfaces.calITodo);
-    if (aIcalString) {
-        todo.icalString = aIcalString;
-    }
-    return todo;
-}
+let createEvent = _calIcalCreator("@mozilla.org/calendar/event;1",
+                                  Components.interfaces.calIEvent);
+let createTodo = _calIcalCreator("@mozilla.org/calendar/todo;1",
+                                 Components.interfaces.calITodo);
+let createDateTime  = _calIcalCreator("@mozilla.org/calendar/datetime;1",
+                                      Components.interfaces.calIDateTime);
+let createDuration = _calIcalCreator("@mozilla.org/calendar/duration;1",
+                                     Components.interfaces.calIDuration);
+let createAttendee = _calIcalCreator("@mozilla.org/calendar/attendee;1",
+                                     Components.interfaces.calIAttendee);
+let createAttachment = _calIcalCreator("@mozilla.org/calendar/attachment;1",
+                                       Components.interfaces.calIAttachment);
+let createAlarm = _calIcalCreator("@mozilla.org/calendar/alarm;1",
+                                  Components.interfaces.calIAlarm);
+let createRelation = _calIcalCreator("@mozilla.org/calendar/relation;1",
+                                     Components.interfaces.calIRelation);
+let createRecurrenceDate = _calIcalCreator("@mozilla.org/calendar/recurrence-date;1",
+                                           Components.interfaces.calIRecurrenceDate);
+let createRecurrenceRule = _calIcalCreator("@mozilla.org/calendar/recurrence-rule;1",
+                                           Components.interfaces.calIRecurrenceRule);
 
-/* Returns a clean new calIDateTime */
-function createDateTime(aIcalString) {
-    var dt = Components.classes["@mozilla.org/calendar/datetime;1"]
-                       .createInstance(Components.interfaces.calIDateTime);
-    if (aIcalString) {
-        dt.icalString = aIcalString;
-    }
-    return dt;
-}
-
-/* Returns a clean new calIDuration */
-function createDuration(aIcalString) {
-    var dur = Components.classes["@mozilla.org/calendar/duration;1"]
-                        .createInstance(Components.interfaces.calIDuration);
-    if (aIcalString) {
-        dur.icalString = aIcalString;
-    }
-    return dur;
-}
 /* Returns a clean new calIRecurrenceInfo */
 function createRecurrenceInfo(aItem) {
     var recInfo = Components.classes["@mozilla.org/calendar/recurrence-info;1"].
            createInstance(Components.interfaces.calIRecurrenceInfo);
     recInfo.item = aItem;
     return recInfo;
-}
-
-/* Returns a clean new calIRecurrenceRule */
-function createRecurrenceRule() {
-    return Components.classes["@mozilla.org/calendar/recurrence-rule;1"].
-           createInstance(Components.interfaces.calIRecurrenceRule);
-}
-
-/* Returns a clean new calIRecurrenceRule */
-function createRecurrenceDate() {
-    return Components.classes["@mozilla.org/calendar/recurrence-date;1"].
-           createInstance(Components.interfaces.calIRecurrenceDate);
-}
-
-/* Returns a clean new calIAttendee */
-function createAttendee() {
-    return Components.classes["@mozilla.org/calendar/attendee;1"].
-           createInstance(Components.interfaces.calIAttendee);
-}
-
-/* Returns a clean new calIAttachment */
-function createAttachment() {
-    return Components.classes["@mozilla.org/calendar/attachment;1"].
-           createInstance(Components.interfaces.calIAttachment);
-}
-
-/* Returns a clean new calIAlarm*/
-function createAlarm() {
-    return Components.classes["@mozilla.org/calendar/alarm;1"].
-           createInstance(Components.interfaces.calIAlarm);
-}
-
-/* Returns a clean new calIRelation */
-function createRelation() {
-    return Components.classes["@mozilla.org/calendar/relation;1"].
-           createInstance(Components.interfaces.calIRelation);
-}
-
-/* Shortcut to the console service */
-function getConsoleService() {
-    return Components.classes["@mozilla.org/consoleservice;1"]
-                     .getService(Components.interfaces.nsIConsoleService);
-}
-
-/* Shortcut to the account manager service */
-function getAccountManager() {
-    return Components.classes["@mozilla.org/messenger/account-manager;1"]
-                     .getService(Components.interfaces.nsIMsgAccountManager);
-}
-
-/* Shortcut to the IO service */
-function getIOService() {
-    return Components.classes["@mozilla.org/network/io-service;1"]
-                     .getService(Components.interfaces.nsIIOService);
 }
 
 /* Shortcut to the calendar-manager service */
@@ -284,9 +222,7 @@ function formatStringForCSSRule(aString) {
  */
 function getCalendarDirectory() {
     if (getCalendarDirectory.mDir === undefined) {
-        var dirSvc = Components.classes["@mozilla.org/file/directory_service;1"]
-                               .getService(Components.interfaces.nsIProperties);
-        var dir = dirSvc.get("ProfD", Components.interfaces.nsILocalFile);
+        var dir = Services.dirsvc.get("ProfD", Components.interfaces.nsILocalFile);
         dir.append("calendar-data");
         if (!dir.exists()) {
             try {
@@ -313,7 +249,7 @@ function getCalendarDirectory() {
 function isCalendarWritable(aCalendar) {
     return (!aCalendar.getProperty("disabled") &&
             !aCalendar.readOnly &&
-            (!getIOService().offline ||
+            (!Services.io.offline ||
              aCalendar.getProperty("cache.enabled") ||
              aCalendar.getProperty("cache.always") ||
              aCalendar.getProperty("requiresNetwork") === false));
@@ -438,7 +374,7 @@ function calPrint() {
  * @returns  an nsIURI whose spec is aUriString
  */
 function makeURL(aUriString) {
-    return getIOService().newURI(aUriString, null, null);
+    return Services.io.newURI(aUriString, null, null);
 }
 
 /**
@@ -487,6 +423,19 @@ function isItemSupported(aItem, aCalendar) {
 }
 
 /**
+ * @deprecated This function has been replaced by cal.wrapInstance()
+ */
+function calInstanceOf(aObject, aInterface) {
+    if (!calInstanceOf.warningIssued) {
+        cal.WARN("Use of calInstanceOf() is deprecated and will be removed " +
+                 "with the next release. Use cal.wrapInstance() instead.\n" +
+                 cal.STACK(10));
+        calInstanceOf.warningIssued = true;
+    }
+    return (cal.wrapInstance(aObject, aInterface) != null);
+}
+
+/**
  * (At least on branch 1.8), the js instanceof operator does not work to test
  * interfaces on direct implementation objects, i.e. non-wrapped objects.
  * This function falla back to using QueryInterface to check whether the interface
@@ -513,7 +462,7 @@ function calInstanceOf(aObject, aInterface) {
  * @returns        true if the object is a calIEvent, false otherwise
  */
 function isEvent(aObject) {
-    return calInstanceOf(aObject, Components.interfaces.calIEvent);
+    return (cal.wrapInstance(aObject, Components.interfaces.calIEvent) != null);
 }
 
 /**
@@ -523,7 +472,7 @@ function isEvent(aObject) {
  * @returns        true if the object is a calITodo, false otherwise
  */
 function isToDo(aObject) {
-    return calInstanceOf(aObject, Components.interfaces.calITodo);
+    return (cal.wrapInstance(aObject, Components.interfaces.calITodo) != null);
 }
 
 /**
@@ -536,8 +485,7 @@ function isToDo(aObject) {
  */
 function getPrefSafe(aPrefName, aDefault) {
     const nsIPrefBranch = Components.interfaces.nsIPrefBranch;
-    const prefB = Components.classes["@mozilla.org/preferences-service;1"]
-                            .getService(nsIPrefBranch);
+    const prefB = Services.prefs;
     // Since bug 193332 does not fix the current branch, calling get*Pref will
     // throw NS_ERROR_UNEXPECTED if clearUserPref() was called and there is no
     // default value. To work around that, catch the exception.
@@ -579,17 +527,15 @@ function setPref(aPrefName, aPrefValue, aPrefType) {
                 break;
         }
     }
-    let prefB = Components.classes["@mozilla.org/preferences-service;1"]
-                          .getService(Components.interfaces.nsIPrefBranch);
     switch (aPrefType) {
         case "BOOL":
-            prefB.setBoolPref(aPrefName, aPrefValue);
+            Services.prefs.setBoolPref(aPrefName, aPrefValue);
             break;
         case "INT":
-            prefB.setIntPref(aPrefName, aPrefValue);
+            Services.prefs.setIntPref(aPrefName, aPrefValue);
             break;
         case "CHAR":
-            prefB.setCharPref(aPrefName, aPrefValue);
+            Services.prefs.setCharPref(aPrefName, aPrefValue);
             break;
     }
 }
@@ -601,12 +547,10 @@ function setPref(aPrefName, aPrefValue, aPrefType) {
  * @param aString     the string to which the preference value should be set
  */
 function setLocalizedPref(aPrefName, aString) {
-    const prefB = Components.classes["@mozilla.org/preferences-service;1"].
-                  getService(Components.interfaces.nsIPrefBranch);
     var str = Components.classes["@mozilla.org/supports-string;1"].
               createInstance(Components.interfaces.nsISupportsString);
     str.data = aString;
-    prefB.setComplexValue(aPrefName, Components.interfaces.nsISupportsString, str);
+    Services.prefs.setComplexValue(aPrefName, Components.interfaces.nsISupportsString, str);
 }
 
 /**
@@ -616,11 +560,9 @@ function setLocalizedPref(aPrefName, aString) {
  * @param aDefault    (optional) the value to return if the pref is undefined
  */
 function getLocalizedPref(aPrefName, aDefault) {
-    const pb2 = Components.classes["@mozilla.org/preferences-service;1"].
-                getService(Components.interfaces.nsIPrefBranch);
     var result;
     try {
-        result = pb2.getComplexValue(aPrefName, Components.interfaces.nsISupportsString).data;
+        result = Services.prefs.getComplexValue(aPrefName, Components.interfaces.nsISupportsString).data;
     } catch(ex) {
         return aDefault;
     }
@@ -711,7 +653,13 @@ function categoriesStringToArray(aCategories) {
     }
     // \u001A is the unicode "SUBSTITUTE" character
     function revertCommas(name) { return name.replace(/\u001A/g, ","); }
-    return aCategories.replace(/\\,/g, "\u001A").split(",").map(revertCommas);
+    let categories = aCategories.replace(/\\,/g, "\u001A").split(",").map(revertCommas);
+    if (categories.length == 1 && categories[0] == "") {
+        // Split will return an array with an empty element when splitting an
+        // empty string, correct this.
+        categories.pop();
+    }
+    return categories;
 }
 
 /**
@@ -738,18 +686,6 @@ function categoriesArrayToString(aSortedCategoriesArray) {
 }
 
 /**
- * Creates a string bundle.
- *
- * @param bundleURL The bundle URL
- * @return string bundle
- */
-function calGetStringBundle(bundleURL) {
-    let service = Components.classes["@mozilla.org/intl/stringbundle;1"]
-                            .getService(Components.interfaces.nsIStringBundleService);
-    return service.createBundle(bundleURL);
-}
-
-/**
  * Gets the value of a string in a .properties file from the calendar bundle
  *
  * @param aBundleName  the name of the properties file.  It is assumed that the
@@ -764,7 +700,7 @@ function calGetString(aBundleName, aStringName, aParams, aComponent) {
             aComponent = "calendar";
         }
         var propName = "chrome://" + aComponent + "/locale/" + aBundleName + ".properties";
-        var props = calGetStringBundle(propName);
+        var props = Services.strings.createBundle(propName);
 
         if (aParams && aParams.length) {
             return props.formatStringFromName(aStringName, aParams, aParams.length);
@@ -776,24 +712,6 @@ function calGetString(aBundleName, aStringName, aParams, aComponent) {
         Components.utils.reportError(s + " Error: " + ex);
         return s;
     }
-}
-
-/**
- * Gets the value of the fields of a string array in a .properties file from the calendar bundle
- *
- * @param aBundleName  the name of the properties file. It is assumed that the
- *                     file lives in chrome://calendar/locale/
- * @param aStringNames the array with the name of the strings within the properties file
- * @param aParams      optional array of parameters to format the string
- * @param aComponent   optional stringbundle component name
- */
-
-function calGetStringArray(aBundleName, aStringNames, aParams, aComponent) {
-    var retArray = [];
-    for (var i = 0; i < aStringNames.length; ++i) {
-        retArray.push(calGetString(aBundleName, aStringNames[i], aParams, aComponent));
-    }
-    return retArray;
 }
 
 /**
@@ -892,6 +810,7 @@ function compareArrays(aOne, aTwo, compareFunc) {
  * Takes care of all QueryInterface business, including calling the QI of any
  * existing parent prototypes.
  *
+ * @deprecated
  * @param aSelf         The object the QueryInterface is being made to
  * @param aProto        Caller's prototype object
  * @param aIID          The IID to check for
@@ -901,6 +820,13 @@ function compareArrays(aOne, aTwo, compareFunc) {
  *                        prototype.
  */
 function doQueryInterface(aSelf, aProto, aIID, aList, aClassInfo) {
+    if (!doQueryInterface.warningIssued) {
+        cal.WARN("Use of doQueryInterface() is deprecated and will be removed " +
+                 "with the next release. Use XPCOMUtils.generateQI() instead.\n" +
+                 cal.STACK(10));
+        doQueryInterface.warningIssued = true;
+    }
+
     if (aClassInfo) {
         if (aIID.equals(Components.interfaces.nsIClassInfo)) {
             return aClassInfo;
@@ -1003,11 +929,9 @@ function setDefaultStartEndHour(aItem, aReferenceDate) {
  *              properties should be logged.
  */
 function LOG(aArg) {
-    var prefB = Components.classes["@mozilla.org/preferences-service;1"].
-                getService(Components.interfaces.nsIPrefBranch);
     var shouldLog = false;
     try {
-        shouldLog = prefB.getBoolPref("calendar.debug.log");
+        shouldLog = Services.prefs.getBoolPref("calendar.debug.log");
     } catch(ex) {}
 
     if (!shouldLog) {
@@ -1028,7 +952,7 @@ function LOG(aArg) {
 
     // xxx todo consider using function debug()
     dump(string + '\n');
-    getConsoleService().logStringMessage(string);
+    Services.console.logStringMessage(string);
 }
 
 /**
@@ -1043,7 +967,7 @@ function WARN(aMessage) {
     scriptError.init(aMessage, null, null, 0, 0,
                      Components.interfaces.nsIScriptError.warningFlag,
                      "component javascript");
-    getConsoleService().logMessage(scriptError);
+    Services.console.logMessage(scriptError);
 }
 
 /**
@@ -1058,7 +982,7 @@ function ERROR(aMessage) {
     scriptError.init(aMessage, null, null, 0, 0,
                      Components.interfaces.nsIScriptError.errorFlag,
                      "component javascript");
-    getConsoleService().logMessage(scriptError);
+    Services.console.logMessage(scriptError);
 }
 
 /**
@@ -1115,9 +1039,7 @@ function ASSERT(aCondition, aMessage, aCritical) {
 function showError(aMsg) {
     let window = window || null;
     if (window) {
-        let promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                                      .getService(Components.interfaces.nsIPromptService);
-        promptService.alert(window, calGetString("calendar", "genericErrorTitle"), aMsg);
+        Services.prompt.alert(window, calGetString("calendar", "genericErrorTitle"), aMsg);
     }
 }
 
@@ -1185,6 +1107,7 @@ function checkIfInRange(item, rangeStart, rangeEnd, returnDtstartOrDue)
 {
     let startDate;
     let endDate;
+    let queryStart = ensureDateTime(rangeStart);
     if (isEvent(item)) {
         startDate = item.startDate;
         if (!startDate) { // DTSTART mandatory
@@ -1203,21 +1126,17 @@ function checkIfInRange(item, rangeStart, rangeEnd, returnDtstartOrDue)
             // A "VTODO" calendar component without the "DTSTART" and "DUE" (or
             // "DURATION") properties specifies a to-do that will be associated
             // with each successive calendar date, until it is completed.
-            let completedDate = item.completedDate;
-            if (completedDate) {
-                let queryStart = ensureDateTime(rangeStart);
-                completedDate = ensureDateTime(completedDate);
-                return (!queryStart || completedDate.compare(queryStart) > 0);
-            }
-            return true;
+            let completedDate = ensureDateTime(item.completedDate);
+            dueDate = ensureDateTime(dueDate);
+            return !completedDate || !queryStart ||
+                   completedDate.compare(queryStart) > 0 ||
+                   (dueDate && dueDate.compare(queryStart) >= 0);
         }
         endDate = (dueDate || startDate);
     }
 
     let start = ensureDateTime(startDate);
     let end = ensureDateTime(endDate);
-
-    let queryStart = ensureDateTime(rangeStart);
     let queryEnd = ensureDateTime(rangeEnd);
 
     if (start.compare(end) == 0) {
@@ -1281,21 +1200,6 @@ function isSunbird() {
         }
     }
     return isSunbird.mIsSunbird;
-}
-
-function hasPositiveIntegerValue(elementId)
-{
-    var value = document.getElementById(elementId).value;
-    if (value && (parseInt(value) == value) && value > 0) {
-        return true;
-    }
-    return false;
-}
-
-function getAtomFromService(aStr) {
-    var atomService = Components.classes["@mozilla.org/atom-service;1"]
-                      .getService(Components.interfaces.nsIAtomService);
-    return atomService.getAtom(aStr);
 }
 
 function calInterfaceBag(iid) {
@@ -1368,51 +1272,20 @@ calListenerBag.prototype = {
 };
 
 function sendMailTo(aRecipient, aSubject, aBody) {
+    let msgParams = Components.classes["@mozilla.org/messengercompose/composeparams;1"]
+                              .createInstance(Components.interfaces.nsIMsgComposeParams);
+    let composeFields = Components.classes["@mozilla.org/messengercompose/composefields;1"]
+                                  .createInstance(Components.interfaces.nsIMsgCompFields);
 
-    if (Components.classes["@mozilla.org/messengercompose;1"]) {
-        // We are in Thunderbird, we can use the compose interface directly
-        var msgComposeService = Components.classes["@mozilla.org/messengercompose;1"]
-                                .getService(Components.interfaces.nsIMsgComposeService);
-        var msgParams = Components.classes["@mozilla.org/messengercompose/composeparams;1"]
-                        .createInstance(Components.interfaces.nsIMsgComposeParams);
-        var composeFields = Components.classes["@mozilla.org/messengercompose/composefields;1"]
-                            .createInstance(Components.interfaces.nsIMsgCompFields);
+    composeFields.to = aRecipient;
+    composeFields.subject = aSubject;
+    composeFields.body = aBody;
 
-        composeFields.to = aRecipient;
-        composeFields.subject = aSubject;
-        composeFields.body = aBody;
+    msgParams.type = Components.interfaces.nsIMsgCompType.New;
+    msgParams.format = Components.interfaces.nsIMsgCompFormat.Default;
+    msgParams.composeFields = composeFields;
 
-        msgParams.type = Components.interfaces.nsIMsgCompType.New;
-        msgParams.format = Components.interfaces.nsIMsgCompFormat.Default;
-        msgParams.composeFields = composeFields;
-
-        msgComposeService.OpenComposeWindowWithParams(null, msgParams);
-    } else {
-        // We are in a place without a composer. Use the external protocol
-        // service.
-        var protoSvc = Components.classes["@mozilla.org/uriloader/external-protocol-service;1"]
-                       .getService(Components.interfaces.nsIExternalProtocolService);
-
-        var uriString = "mailto:";
-        var uriParams = [];
-        if (aRecipient) {
-            uriString += aRecipient;
-        }
-
-        if (aSubject) {
-            uriParams.push("subject=" + encodeURIComponent(aSubject));
-        }
-
-        if (aBody) {
-            uriParams.push("body=" + encodeURIComponent(aSubject));
-        }
-
-        if (uriParams.length > 0) {
-            uriString += "?" + uriParams.join("&");
-        }
-
-        protoSvc.loadUrl(makeURL(uriString));
-    }
+    MailServices.compose.OpenComposeWindowWithParams(null, msgParams);
 }
 
 /**
@@ -1542,7 +1415,8 @@ function calGetProductVersion() {
  */
 function calSetProdidVersion(aIcalComponent) {
     // Throw for an invalid parameter
-    if (!calInstanceOf(aIcalComponent, Components.interfaces.calIIcalComponent)) {
+    aIcalComponent = cal.wrapInstance(aIcalComponent, Components.interfaces.calIIcalComponent);
+    if (!aIcalComponent) {
         throw Components.results.NS_ERROR_INVALID_ARG;
     }
     // Set the prodid and version
@@ -1555,53 +1429,6 @@ function calSetProdidVersion(aIcalComponent) {
  * TODO: The following UI-related functions need to move somewhere different,
  * i.e calendar-ui-utils.js
  */
-
-/**
- * This function returns a sibling of a XUL element, that is positioned behind
- * it in the DOM hierarchy *
- * @param
- *      aElement  The XUL element to derive the sibling from
- * @param
- *      aDistance  An integer value denoting how the relative position
- *                  of the returned sibling within the parent container
- */
-function getAdjacentSibling(aElement, aDistance) {
-    var retElement = aElement;
-    if (aDistance > 0) {
-        for (var i = 0; i < aDistance; i++) {
-            if (retElement) {
-                try {
-                    retElement = retElement.nextSibling;
-                } catch (e) {
-                    retElement = null;
-                    i = aDistance;
-                }
-            }
-        }
-    }
-    return retElement;
-}
-
-/**
- * deeply clones a popupmenu
- *
- * @param aMenuPopupId The Id of the popup-menu to be cloned
- * @param aNewPopupId The new id of the cloned popup-menu
- * @param aNewIdPrefix To keep the ids unique the childnodes of the returned
- * popup-menu are prepended with a prefix
- * @return the cloned popup-menu
- */
-function clonePopupMenu(aMenuPopupId, aNewPopupId, aNewIdPrefix) {
-    var oldMenuPopup = document.getElementById(aMenuPopupId);
-    var retMenuPopup = oldMenuPopup.cloneNode(true);
-    retMenuPopup.setAttribute("id", aNewPopupId);
-    var menuElements = retMenuPopup.getElementsByAttribute("id", "*");
-    for (var i = 0; i < menuElements.length; i++) {
-        var lid = menuElements[i].getAttribute("id");
-        menuElements[i].setAttribute("id", aNewIdPrefix + lid);
-    }
-    return retMenuPopup;
-}
 
 /**
  * applies a value to all children of a Menu. If the respective childnodes define
@@ -1838,9 +1665,7 @@ calPropertyBagEnumerator.prototype = {
         }
         var name = this.mKeys[this.mIndex++];
         return { // nsIProperty:
-            QueryInterface: function cpb_enum_prop_QueryInterface(aIID) {
-                return doQueryInterface(this, null, aIID, [Components.interfaces.nsIProperty]);
-            },
+            QueryInterface: XPCOMUtils.generateQI([Components.interfaces.nsIProperty]),
             name: name,
             value: this.mCurrentValue
         };
@@ -1862,12 +1687,12 @@ calPropertyBagEnumerator.prototype = {
  * If the called function returns false, iteration is stopped.
  */
 function calIterateEmailIdentities(func) {
-    var accounts = getAccountManager().accounts;
-    for (var i = 0; i < accounts.Count(); ++i) {
-        var account = accounts.GetElementAt(i).QueryInterface(Components.interfaces.nsIMsgAccount);
+    var accounts = MailServices.accounts.accounts;
+    for (var i = 0; i < accounts.length; ++i) {
+        var account = accounts.queryElementAt(i, Components.interfaces.nsIMsgAccount);
         var identities = account.identities;
-        for (var j = 0; j < identities.Count(); ++j) {
-            var identity = identities.GetElementAt(j).QueryInterface(Components.interfaces.nsIMsgIdentity);
+        for (var j = 0; j < identities.length; ++j) {
+            var identity = identities.queryElementAt(j, Components.interfaces.nsIMsgIdentity);
             if (!func(identity, account)) {
                 break;
             }
@@ -1878,21 +1703,75 @@ function calIterateEmailIdentities(func) {
 /**
  * Compare two items by *content*, leaving out any revision information such as
  * X-MOZ-GENERATION, SEQUENCE, DTSTAMP, LAST-MODIFIED.
+
+ * The format for the parameters to ignore object is:
+ * { "PROPERTY-NAME": ["PARAM-NAME", ...] }
+ *
+ * If aIgnoreProps is not passed, these properties are ignored:
+ *  X-MOZ-GENERATION, SEQUENCE, DTSTAMP, LAST-MODIFIED, X-MOZ-SEND-INVITATIONS
+ *
+ * If aIgnoreParams is not passed, these parameters are ignored:
+ *  ATTENDEE: CN
+ *  ORGANIZER: CN
+ *
+ * @param aFirstItem        The item to compare.
+ * @param aSecondItem       The item to compare to.
+ * @param aIgnoreProps      (optional) An array of parameters to ignore.
+ * @param aIgnoreParams     (optional) An object describing which parameters to
+ *                                     ignore.
+ * @return                  True, if items match.
  */
-function compareItemContent(aFirstItem, aSecondItem) {
-    function hashItem(aItem) {
-        let icalString = aItem.icalString;
-        icalString = icalString.replace(/\r\nX-MOZ-GENERATION:.+/, "");
-        icalString = icalString.replace(/\r\nSEQUENCE:.+/, "");
-        icalString = icalString.replace(/\r\nLAST-MODIFIED:.+/, "");
-        icalString = icalString.replace(/\r\nDTSTAMP:.+/, "");
-        let propStrings = icalString.split("\n");
-        propStrings.sort();
-        return propStrings.join("\n");
+function compareItemContent(aFirstItem, aSecondItem, aIgnoreProps, aIgnoreParams) {
+    let ignoreProps = arr2hash(aIgnoreProps ||
+        [ "X-MOZ-GENERATION", "SEQUENCE", "DTSTAMP",
+          "LAST-MODIFIED", "X-MOZ-SEND-INVITATIONS" ]);
+
+    let ignoreParams = aIgnoreParams ||
+        { "ATTENDEE": ["CN"], "ORGANIZER": ["CN"] };
+    for (let x in ignoreParams) {
+        ignoreParams[x] = arr2hash(ignoreParams[x]);
     }
-    let firstIcalString = hashItem(aFirstItem);
-    let secondIcalString = hashItem(aSecondItem);
-    return (firstIcalString == secondIcalString);
+
+    function arr2hash(arr) {
+        let hash = {};
+        for each (let x in arr) {
+            hash[x] = true;
+        }
+        return hash;
+    }
+
+    // This doesn't have to be super correct rfc5545, it just needs to be
+    // in the same order
+    function normalizeComponent(comp) {
+        let props = [
+            normalizeProperty(prop)
+            for (prop in cal.ical.propertyIterator(comp))
+            if (!(prop.propertyName in ignoreProps))
+        ].sort();
+
+        let comps = [
+            normalizeComponent(subcomp)
+            for (subcomp in cal.ical.subcomponentIterator(comp))
+        ].sort();
+
+        return comp.componentType + props.join("\r\n") + comps.join("\r\n");
+    }
+
+    function normalizeProperty(prop) {
+        let params = [
+            k + "=" + v
+            for each ([k,v] in cal.ical.paramIterator(prop))
+            if (!(prop.propertyName in ignoreParams) ||
+            !(k in ignoreParams[prop.propertyName]))
+        ].sort();
+
+        return prop.propertyName + ";" +
+               params.join(";") + ":" +
+               prop.valueAsIcalString;
+    }
+
+    return normalizeComponent(aFirstItem.icalComponent) ==
+           normalizeComponent(aSecondItem.icalComponent);
 }
 
 /**
@@ -1933,7 +1812,7 @@ function binarySearch(itemArray, newItem, comptor) {
     }
     if (!comptor) {
         comptor = function defaultComptor(a,b) {
-            return a > b;
+            return (a > b) - (a < b);
         }
     }
     return binarySearchInternal(0, itemArray.length - 1);

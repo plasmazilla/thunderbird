@@ -76,8 +76,9 @@ nsContextMenu.prototype = {
 
   initOpenItems: function() {
     var showOpen = this.onSaveableLink || (this.inDirList && this.onLink);
-    this.showItem("context-openlink", showOpen);
     this.showItem("context-openlinkintab", showOpen);
+    this.showItem("context-openlink", showOpen && !gPrivate);
+    this.showItem("context-openlinkinprivatewindow", showOpen);
     this.showItem("context-sep-open", showOpen);
   },
 
@@ -244,7 +245,7 @@ nsContextMenu.prototype = {
                   !(this.isContentSelected || this.onTextInput ||
                     this.onStandaloneImage || this.onVideo || this.onAudio));
     this.showItem("context-bookmarklink", this.onLink && !this.onMailtoLink);
-    this.showItem("context-searchselect", this.isTextSelected && !this.onTextInput);
+    this.showItem("context-searchselect", this.isTextSelected);
     this.showItem("context-keywordfield", this.onTextInput && this.onKeywordField);
     this.showItem("frame", this.inFrame);
     this.showItem("frame-sep", this.inFrame);
@@ -445,14 +446,12 @@ nsContextMenu.prototype = {
     // Remember the node that was clicked.
     this.target = aNode;
 
-    if (aNode.namespaceURI == xulNS || this.isTargetAFormControl(aNode)) {
+    if (aNode.namespaceURI == xulNS) {
       this.shouldDisplay = false;
       return;
     }
 
-    this.autoDownload = Components.classes["@mozilla.org/preferences-service;1"]
-                                  .getService(Components.interfaces.nsIPrefBranch)
-                                  .getBoolPref("browser.download.useDownloadDir");
+    this.autoDownload = Services.prefs.getBoolPref("browser.download.useDownloadDir");
 
     // if the document is editable, show context menu like in text inputs
     var win = this.target.ownerDocument.defaultView;
@@ -516,7 +515,7 @@ nsContextMenu.prototype = {
       else if (this.target instanceof HTMLInputElement) {
         this.onTextInput = this.isTargetATextBox(this.target);
         // allow spellchecking UI on all writable text boxes except passwords
-        if (!this.target.readOnly && !this.target.disabled &&
+        if (this.onTextInput && !this.target.readOnly &&
             this.target.mozIsTextField(true)) {
           this.possibleSpellChecking = true;
           InlineSpellCheckerUI.init(this.target.QueryInterface(Components.interfaces.nsIDOMNSEditableElement).editor);
@@ -525,8 +524,8 @@ nsContextMenu.prototype = {
         this.onKeywordField = this.isTargetAKeywordField(this.target);
       }
       else if (this.target instanceof HTMLTextAreaElement) {
-        this.onTextInput = true;
-        if (!this.target.readOnly && !this.target.disabled) {
+        this.onTextInput = this.isTextBoxEnabled(this.target);
+        if (this.onTextInput && !this.target.readOnly) {
           this.possibleSpellChecking = true;
           InlineSpellCheckerUI.init(this.target.QueryInterface(Components.interfaces.nsIDOMNSEditableElement).editor);
           InlineSpellCheckerUI.initFromEvent(aRangeParent, aRangeOffset);
@@ -737,17 +736,21 @@ nsContextMenu.prototype = {
     Services.perms.remove(uri.host, "image");
   },
 
-  // Open linked-to URL in a new window.
-  openLink: function() {
-    // Determine linked-to URL.
-    return openNewWindowWith(this.linkURL, this.target.ownerDocument);
-  },
-
   // Open linked-to URL in a new tab.
   openLinkInTab: function(aEvent) {
     // Determine linked-to URL.
     return openNewTabWith(this.linkURL, this.target.ownerDocument, null,
                           aEvent);
+  },
+
+  // Open linked-to URL in a new window.
+  openLinkInWindow: function() {
+    return openNewWindowWith(this.linkURL, this.target.ownerDocument);
+  },
+
+  // Open linked-to URL in a private window.
+  openLinkInPrivateWindow: function() {
+    return openNewPrivateWith(this.linkURL, this.target.ownerDocument);
   },
 
   // Open frame in a new tab.
@@ -861,7 +864,8 @@ nsContextMenu.prototype = {
     ctxDraw.drawImage(video, 0, 0);
     saveImageURL(canvas.toDataURL("image/jpeg", ""), name, "SaveImageTitle",
                                   true, true,
-                                  this.target.ownerDocument.documentURIObject);
+                                  this.target.ownerDocument.documentURIObject,
+                                  this.target.ownerDocument);
   },
 
   // Full screen video playback
@@ -952,7 +956,7 @@ nsContextMenu.prototype = {
         if (aStatusCode == NS_ERROR_SAVE_LINK_AS_TIMEOUT) {
           // Do it the old fashioned way, which will pick the best filename
           // it can without waiting.
-          saveURL(linkURL, linkText, dialogTitle, bypassCache, true, doc.documentURIObject);
+          saveURL(linkURL, linkText, dialogTitle, bypassCache, true, doc.documentURIObject, doc);
         }
         if (this.extListener)
           this.extListener.onStopRequest(aRequest, aContext, aStatusCode);
@@ -1003,6 +1007,9 @@ nsContextMenu.prototype = {
 
     channel.loadFlags |= flags;
 
+    if (channel instanceof Components.interfaces.nsIPrivateBrowsingChannel)
+      channel.setPrivate(gPrivate);
+
     if (channel instanceof Components.interfaces.nsIHttpChannel) {
       channel.referrer = doc.documentURIObject;
       if (channel instanceof Components.interfaces.nsIHttpChannelInternal)
@@ -1010,9 +1017,7 @@ nsContextMenu.prototype = {
     }
 
     // fallback to the old way if we don't see the headers quickly
-    var timeToWait = Components.classes["@mozilla.org/preferences-service;1"]
-                               .getService(Components.interfaces.nsIPrefBranch)
-                               .getIntPref("browser.download.saveLinkAsFilenameTimeout");
+    var timeToWait = Services.prefs.getIntPref("browser.download.saveLinkAsFilenameTimeout");
     var timer = setTimeout(timerCallback, timeToWait);
 
     // kick off the channel with our proxy object as the listener
@@ -1021,17 +1026,17 @@ nsContextMenu.prototype = {
 
   // Save URL of clicked-on image, video, or audio.
   saveMedia: function() {
+    var doc = this.target.ownerDocument;
     if (this.onCanvas)
       // Bypass cache, since it's a data: URL.
       saveImageURL(this.target.toDataURL(), "canvas.png", "SaveImageTitle",
-                   true, true, null);
+                   true, true, null, doc);
     else if (this.onImage)
       saveImageURL(this.mediaURL, null, "SaveImageTitle", false, true,
-                   this.target.ownerDocument.documentURIObject);
+                   doc.documentURIObject, doc);
     else if (this.onVideo || this.onAudio) {
       var dialogTitle = this.onVideo ? "SaveVideoTitle" : "SaveAudioTitle";
-      this.saveHelper(this.mediaURL, null, dialogTitle, false,
-                      this.target.ownerDocument);
+      this.saveHelper(this.mediaURL, null, dialogTitle, false, doc);
     }
   },
 
@@ -1245,6 +1250,7 @@ nsContextMenu.prototype = {
    */
   isTextSelection: function() {
     var searchSelectText = this.searchSelected(16);
+
     if (!searchSelectText)
       return false;
 
@@ -1263,11 +1269,11 @@ nsContextMenu.prototype = {
 
     // format "Search <engine> for <selection>" string to show in menu
     const bundle = document.getElementById("contentAreaCommandsBundle");
-    var menuLabel = bundle.getFormattedString("contextMenuSearchText",
+    var menuLabel = bundle.getFormattedString("searchSelected",
                                               [engineName, searchSelectText]);
     this.setItemAttr("context-searchselect", "label", menuLabel);
     this.setItemAttr("context-searchselect", "accesskey",
-                     bundle.getString("contextMenuSearchText.accesskey"));
+                     bundle.getString("searchSelected.accesskey"));
 
     return true;
   },
@@ -1276,6 +1282,16 @@ nsContextMenu.prototype = {
     var focusedWindow = document.commandDispatcher.focusedWindow;
     var searchStr = focusedWindow.getSelection();
     searchStr = searchStr.toString();
+
+    if (this.onTextInput) {
+      var fElem = this.target;
+      if ((fElem instanceof HTMLInputElement &&
+           fElem.mozIsTextField(true)) ||
+           fElem instanceof HTMLTextAreaElement) {
+        searchStr = fElem.value.substring(fElem.selectionStart, fElem.selectionEnd);
+      }
+    }
+
     // searching for more than 150 chars makes no sense
     if (!aCharlen)
       aCharlen = 150;
@@ -1314,23 +1330,18 @@ nsContextMenu.prototype = {
            "contextMenu.hasBGImage = " + this.hasBGImage + "\n";
   },
 
-  // Returns true if aNode is a form control (except text boxes and images).
-  // This is used to disable the context menu for form controls.
-  isTargetAFormControl: function(aNode) {
-    if (aNode instanceof HTMLInputElement)
-      return (!aNode.mozIsTextField(false) && aNode.type != "image");
-
-    return (aNode instanceof HTMLButtonElement) ||
-           (aNode instanceof HTMLSelectElement) ||
-           (aNode instanceof HTMLOptionElement) ||
-           (aNode instanceof HTMLOptGroupElement);
+  isTextBoxEnabled: function(aNode) {
+    return !aNode.ownerDocument.defaultView
+                 .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+                 .getInterface(Components.interfaces.nsIDOMWindowUtils)
+                 .isNodeDisabledForEvents(aNode);
   },
 
   isTargetATextBox: function(aNode) {
     if (aNode instanceof HTMLInputElement)
-      return aNode.mozIsTextField(false);
+      return aNode.mozIsTextField(false) && this.isTextBoxEnabled(aNode);
 
-    return (aNode instanceof HTMLTextAreaElement);
+    return aNode instanceof HTMLTextAreaElement && this.isTextBoxEnabled(aNode);
   },
 
   isTargetAKeywordField: function(aNode) {
@@ -1384,14 +1395,11 @@ nsContextMenu.prototype = {
         media.setAttribute("controls", "true");
         break;
       case "showstats":
-        var event = document.createEvent("CustomEvent");
-        event.initCustomEvent("media-showStatistics", false, true, true);
-        media.dispatchEvent(event);
-        break;
       case "hidestats":
-        var event = document.createEvent("CustomEvent");
-        event.initCustomEvent("media-showStatistics", false, true, false);
-        media.dispatchEvent(event);
+        var win = media.ownerDocument.defaultView;
+        var showing = aCommand == "showstats";
+        media.dispatchEvent(new win.CustomEvent("media-showStatistics",
+          { bubbles: false, cancelable: true, detail: showing }));
         break;
     }
   },

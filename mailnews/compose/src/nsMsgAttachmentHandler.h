@@ -7,13 +7,13 @@
 #define _nsMsgAttachmentHandler_H_
 
 #include "nsIURL.h"
-#include "nsIMimeConverter.h"
 #include "nsMsgCompFields.h"
 #include "nsIMsgStatusFeedback.h"
 #include "nsIChannel.h"
 #include "nsIMsgSend.h"
 #include "nsIFileStreams.h"
 #include "nsIStreamConverter.h"
+#include "nsAutoPtr.h"
 
 #ifdef XP_MACOSX
 
@@ -51,18 +51,27 @@ class nsSimpleZipper
 };
 #endif  // XP_MACOSX
 
+namespace mozilla {
+namespace mailnews {
+class MimeEncoder;
+}
+}
+
 //
 // This is a class that deals with processing remote attachments. It implements
 // an nsIStreamListener interface to deal with incoming data
 //
 class nsMsgAttachmentHandler
 {
+  NS_INLINE_DECL_THREADSAFE_REFCOUNTING(nsMsgAttachmentHandler)
+
+  typedef mozilla::mailnews::MimeEncoder MimeEncoder;
 public:
   nsMsgAttachmentHandler();
   ~nsMsgAttachmentHandler();
 public:
   nsresult              SnarfAttachment(nsMsgCompFields *compFields);
-  int                   PickEncoding (const char *charset, nsIMsgSend* mime_delivery_state);
+  nsresult              PickEncoding(const char *charset, nsIMsgSend* mime_delivery_state);
   nsresult              PickCharset();
   void                  AnalyzeSnarfedFile ();      // Analyze a previously-snarfed file.
                                                     // (Currently only used for plaintext
@@ -167,7 +176,7 @@ public:
   uint32_t              m_lines;
   bool                  m_file_analyzed;
 
-  MimeEncoderData       *m_encoder_data;  /* Opaque state for base64/qp encoder. */
+  nsAutoPtr<MimeEncoder> m_encoder;
   nsCString             m_uri; // original uri string
 
   nsresult              GetMimeDeliveryState(nsIMsgSend** _retval);

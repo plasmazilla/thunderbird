@@ -7,6 +7,7 @@
 #include "nscore.h"
 #include "nsOE5File.h"
 #include "wabobject.h"
+#include <algorithm>
 
 enum {
     ieidPR_DISPLAY_NAME = 0,
@@ -122,7 +123,7 @@ CWAB::CWAB(nsIFile *file)
         else {
             if (GetSystemDirectory(szWABDllPath, MAX_PATH)) {
                 _tcsncat(szWABDllPath, WAB_DLL_NAME,
-                         NS_MIN(_tcslen(WAB_DLL_NAME), MAX_PATH - _tcslen(szWABDllPath) - 1));
+                         std::min(_tcslen(WAB_DLL_NAME), MAX_PATH - _tcslen(szWABDllPath) - 1));
             }
             else {
                 // Yet another error condition.
@@ -328,7 +329,7 @@ HRESULT CWAB::IterateWABContents(CWabIterator *pIter, int *pDone)
 
   // Read all the rows of the table one by one
   //
-  keepGoing = TRUE;
+  keepGoing = NS_OK;
   do {
 
     hr = lpAB->QueryRows(1,  0, &lpRowAB);

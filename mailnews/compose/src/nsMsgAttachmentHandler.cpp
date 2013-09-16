@@ -12,7 +12,6 @@
 #include "nsIPrefBranch.h"
 #include "nsMsgSend.h"
 #include "nsMsgCompUtils.h"
-#include "nsMsgEncoders.h"
 #include "nsMsgI18N.h"
 #include "nsURLFetcher.h"
 #include "nsMimeTypes.h"
@@ -34,6 +33,7 @@
 #include "nsIZipWriter.h"
 #include "nsIDirectoryEnumerator.h"
 #include "mozilla/Services.h"
+#include "mozilla/mailnews/MimeEncoder.h"
 
 ///////////////////////////////////////////////////////////////////////////
 // Mac Specific Attachment Handling for AppleDouble Encoded Files
@@ -138,7 +138,7 @@ nsMsgAttachmentHandler::nsMsgAttachmentHandler() :
   m_file_analyzed(false),
 
   // Mime
-  m_encoder_data(nullptr)
+  m_encoder(nullptr)
 {
 }
 
@@ -260,7 +260,7 @@ nsMsgAttachmentHandler::AnalyzeSnarfedFile(void)
 // Given a content-type and some info about the contents of the document,
 // decide what encoding it should have.
 //
-int
+nsresult
 nsMsgAttachmentHandler::PickEncoding(const char *charset, nsIMsgSend *mime_delivery_state)
 {
   nsCOMPtr<nsIPrefBranch> pPrefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID));
@@ -271,7 +271,7 @@ nsMsgAttachmentHandler::PickEncoding(const char *charset, nsIMsgSend *mime_deliv
   if (mSendViaCloud)
   {
     m_encoding = ENCODING_7BIT;
-    return 0;
+    return NS_OK;
   }
   if (m_already_encoded_p)
     goto DONE;
@@ -284,12 +284,11 @@ nsMsgAttachmentHandler::PickEncoding(const char *charset, nsIMsgSend *mime_deliv
     pPrefBranch->GetBoolPref ("mail.file_attach_binary", &forceB64);
 
   if (!mMainBody && (forceB64 || mime_type_requires_b64_p (m_type.get()) ||
-    m_have_cr+m_have_lf+m_have_crlf != 1 || m_current_column != 0))
+    m_have_cr + m_have_lf + m_have_crlf != 1))
   {
-  /* If the content-type is "image/" or something else known to be binary
-  or several flavors of newlines are present or last line is incomplete,
-  always use base64 (so that we don't get confused by newline
-  conversions.)
+    /* If the content-type is "image/" or something else known to be binary
+       or several flavors of newlines are present, always use base64
+       (so that we don't get confused by newline conversions.)
      */
     needsB64 = true;
   }
@@ -373,22 +372,20 @@ nsMsgAttachmentHandler::PickEncoding(const char *charset, nsIMsgSend *mime_deliv
 
   /* Now that we've picked an encoding, initialize the filter.
   */
-  NS_ASSERTION(!m_encoder_data, "not-null m_encoder_data");
+  NS_ASSERTION(!m_encoder, "not-null m_encoder");
   if (m_encoding.LowerCaseEqualsLiteral(ENCODING_BASE64))
   {
-    m_encoder_data = MIME_B64EncoderInit(mime_encoder_output_fn,
+    m_encoder = MimeEncoder::GetBase64Encoder(mime_encoder_output_fn,
       mime_delivery_state);
-    if (!m_encoder_data) return NS_ERROR_OUT_OF_MEMORY;
   }
   else if (m_encoding.LowerCaseEqualsLiteral(ENCODING_QUOTED_PRINTABLE))
   {
-    m_encoder_data = MIME_QPEncoderInit(mime_encoder_output_fn,
+    m_encoder = MimeEncoder::GetQPEncoder(mime_encoder_output_fn,
       mime_delivery_state);
-    if (!m_encoder_data) return NS_ERROR_OUT_OF_MEMORY;
   }
   else
   {
-    m_encoder_data = 0;
+    m_encoder = nullptr;
   }
 
   /* Do some cleanup for documents with unknown content type.
@@ -422,7 +419,7 @@ DONE:
     else
       m_type = TEXT_PLAIN;
   }
-  return 0;
+  return NS_OK;
 }
 
 nsresult
@@ -525,7 +522,7 @@ nsMsgAttachmentHandler::SnarfMsgAttachment(nsMsgCompFields *compFields)
     rv = GetMessageServiceFromURI(m_uri, getter_AddRefs(messageService));
     if (NS_SUCCEEDED(rv) && messageService)
     {
-      nsCAutoString uri(m_uri);
+      nsAutoCString uri(m_uri);
       uri += (uri.FindChar('?') == kNotFound) ? '?' : '&';
       uri.Append("fetchCompleteMessage=true");
       nsCOMPtr<nsIStreamListener> strListener;
@@ -639,9 +636,9 @@ nsMsgAttachmentHandler::SnarfAttachment(nsMsgCompFields *compFields)
   if (!m_bogus_attachment && StringBeginsWith(sourceURISpec, NS_LITERAL_CSTRING("file://")))
   {
     // Unescape the path (i.e. un-URLify it) before making a FSSpec
-    nsCAutoString filePath;
+    nsAutoCString filePath;
     filePath.Adopt(nsMsgGetLocalFileFromURL(sourceURISpec.get()));
-    nsCAutoString unescapedFilePath;
+    nsAutoCString unescapedFilePath;
     MsgUnescapeString(filePath, 0, unescapedFilePath);
 
     nsCOMPtr<nsIFile> sourceFile;
@@ -686,7 +683,7 @@ nsresult
 nsMsgAttachmentHandler::ConvertToZipFile(nsILocalFileMac *aSourceFile)
 {
   // append ".zip" to the real file name
-  nsCAutoString zippedName;
+  nsAutoCString zippedName;
   nsresult rv = aSourceFile->GetNativeLeafName(zippedName);
   NS_ENSURE_SUCCESS(rv, rv);
   zippedName.AppendLiteral(".zip");
@@ -726,13 +723,13 @@ nsMsgAttachmentHandler::ConvertToAppleEncoding(const nsCString &aFileURI,
 
   nsresult rv = aSourceFile->GetFileType(&type);
   if (NS_FAILED(rv))
-    return false;
+    return rv;
   PR_snprintf(fileInfo, sizeof(fileInfo), "%X", type);
   m_xMacType = fileInfo;
 
   rv = aSourceFile->GetFileCreator(&creator);
   if (NS_FAILED(rv))
-    return false;
+    return rv;
   PR_snprintf(fileInfo, sizeof(fileInfo), "%X", creator);
   m_xMacCreator = fileInfo;
 
@@ -749,7 +746,7 @@ nsMsgAttachmentHandler::ConvertToAppleEncoding(const nsCString &aFileURI,
       rv = fileUrl->SetSpec(aFileURI);
       if (NS_SUCCEEDED(rv))
       {
-        nsCAutoString ext;
+        nsAutoCString ext;
         rv = fileUrl->GetFileExtension(ext);
         if (NS_SUCCEEDED(rv) && !ext.IsEmpty())
         {
@@ -839,7 +836,7 @@ nsMsgAttachmentHandler::ConvertToAppleEncoding(const nsCString &aFileURI,
 
     int32_t count;
 
-    nsresult status = noErr;
+    OSErr status = noErr;
     m_size = 0;
     while (status == noErr)
     {
@@ -852,7 +849,7 @@ nsMsgAttachmentHandler::ConvertToAppleEncoding(const nsCString &aFileURI,
         uint32_t bytesWritten;
         obj->fileStream->Write(obj->buff, count, &bytesWritten);
         if (bytesWritten != (uint32_t) count)
-          status = NS_MSG_ERROR_WRITING_FILE;
+          status = errFileWrite;
       }
     }
 
@@ -1051,7 +1048,7 @@ nsMsgAttachmentHandler::UrlExit(nsresult status, const PRUnichar* aMsg)
       printfString = nsTextFormatter::smprintf(msg.get(), m_realName.get());
     else if (NS_SUCCEEDED(mURL->GetSpec(turl)) && !turl.IsEmpty())
     {
-      nsCAutoString unescapedUrl;
+      nsAutoCString unescapedUrl;
       MsgUnescapeString(turl, 0, unescapedUrl);
       if (unescapedUrl.IsEmpty())
         printfString = nsTextFormatter::smprintf(msg.get(), turl.get());
@@ -1113,7 +1110,7 @@ nsMsgAttachmentHandler::UrlExit(nsresult status, const PRUnichar* aMsg)
 
         if (NS_SUCCEEDED(rv))
         {
-          nsCAutoString tData;
+          nsAutoCString tData;
           if (NS_FAILED(ConvertFromUnicode(m_charset.get(), conData, tData)))
             LossyCopyUTF16toASCII(conData, tData);
           if (!tData.IsEmpty())
@@ -1156,18 +1153,15 @@ nsMsgAttachmentHandler::UrlExit(nsresult status, const PRUnichar* aMsg)
      */
     uint32_t i;
     nsMsgAttachmentHandler *next = 0;
-    nsMsgAttachmentHandler *attachments = nullptr;
-    uint32_t attachmentCount = 0;
+    nsTArray<nsRefPtr<nsMsgAttachmentHandler>> *attachments;
 
-    m_mime_delivery_state->GetAttachmentCount(&attachmentCount);
-    if (attachmentCount)
-      m_mime_delivery_state->GetAttachmentHandlers(&attachments);
+    m_mime_delivery_state->GetAttachmentHandlers(&attachments);
 
-    for (i = 0; i < attachmentCount; i++)
+    for (i = 0; i < attachments->Length(); i++)
     {
-      if (!attachments[i].m_done)
+      if (!(*attachments)[i]->m_done)
       {
-        next = &attachments[i];
+        next = (*attachments)[i];
         //
         // rhp: We need to get a little more understanding to failed URL
         // requests. So, at this point if most of next is NULL, then we
@@ -1176,8 +1170,8 @@ nsMsgAttachmentHandler::UrlExit(nsresult status, const PRUnichar* aMsg)
         //
         if ( (!next->mURL) && (next->m_uri.IsEmpty()) )
         {
-          attachments[i].m_done = true;
-          attachments[i].SetMimeDeliveryState(nullptr);
+          (*attachments)[i]->m_done = true;
+          (*attachments)[i]->SetMimeDeliveryState(nullptr);
           m_mime_delivery_state->GetPendingAttachmentCount(&pendingAttachmentCount);
           m_mime_delivery_state->SetPendingAttachmentCount(pendingAttachmentCount - 1);
           next->mPartUserOmissionOverride = true;

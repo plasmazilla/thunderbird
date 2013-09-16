@@ -13,6 +13,8 @@
 #include "nsIMsgFolder.h"
 #include "nsIFile.h"
 #include "nsCOMPtr.h"
+#include "nsCOMArray.h"
+#include "nsIPop3IncomingServer.h"
 #include "nsWeakReference.h"
 #include "nsIMsgDatabase.h"
 #include "nsISpamSettings.h"
@@ -61,7 +63,7 @@ protected:
   nsCOMPtr <nsIMsgPluggableStore> m_msgStore;
 
   nsresult CreateLocalFolder(const nsAString& folderName);
-  nsresult GetDeferredServers(nsIMsgIncomingServer *server, nsISupportsArray **_retval);
+  static nsresult GetDeferredServers(nsIMsgIncomingServer *destServer, nsCOMArray<nsIPop3IncomingServer>& aServers);
 
   nsresult CreateRootFolder();
   virtual nsresult CreateRootFolderFromUri(const nsCString &serverUri,
@@ -69,7 +71,6 @@ protected:
 
   nsresult InternalSetHostName(const nsACString& aHostname, const char * prefName);
 
-  nsresult getProtocolInfo(nsIMsgProtocolInfo **aResult);
   nsCOMPtr <nsIFile> mFilterFile;
   nsCOMPtr <nsIMsgFilterList> mFilterList;
   nsCOMPtr <nsIMsgFilterList> mEditableFilterList;

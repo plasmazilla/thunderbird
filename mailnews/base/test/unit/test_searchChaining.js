@@ -10,6 +10,8 @@
 
 load("../../../resources/messageGenerator.js");
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 var gIMAPInbox;
 var gIMAPDaemon, gServer, gIMAPIncomingServer;
 
@@ -18,7 +20,7 @@ function run_test()
   // Pull in the IMAP fake server code
   load("../../../imap/test/unit/head_server.js");
 
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
   /*
    * Set up an IMAP server.
@@ -30,17 +32,15 @@ function run_test()
   gIMAPIncomingServer.maximumConnectionsNumber = 1;
 
   // We need an identity so that updateFolder doesn't fail
-  let acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-  .getService(Ci.nsIMsgAccountManager);
-  let localAccount = acctMgr.createAccount();
-  let identity = acctMgr.createIdentity();
+  let localAccount = MailServices.accounts.createAccount();
+  let identity = MailServices.accounts.createIdentity();
   localAccount.addIdentity(identity);
   localAccount.defaultIdentity = identity;
-  localAccount.incomingServer = gLocalIncomingServer;
-  acctMgr.defaultAccount = localAccount;
+  localAccount.incomingServer = localAccountUtils.incomingServer;
+  MailServices.accounts.defaultAccount = localAccount;
   
   // Let's also have another account, using the same identity
-  let imapAccount = acctMgr.createAccount();
+  let imapAccount = MailServices.accounts.createAccount();
   imapAccount.addIdentity(identity);
   imapAccount.defaultIdentity = identity;
   imapAccount.incomingServer = gIMAPIncomingServer;
@@ -57,12 +57,10 @@ function run_test()
   messages = messages.concat(gMessageGenerator.makeMessage());
   gSynthMessage = messages[0];
 
-  let ioService = Cc["@mozilla.org/network/io-service;1"]
-                  .getService(Ci.nsIIOService);
   let msgURI =
-    ioService.newURI("data:text/plain;base64," +
-                     btoa(gSynthMessage.toMessageString()),
-                     null, null);
+    Services.io.newURI("data:text/plain;base64," +
+                       btoa(gSynthMessage.toMessageString()),
+                       null, null);
   let imapInbox =  IMAPDaemon.getMailbox("INBOX")
   gMessage = new imapMessage(msgURI.spec, imapInbox.uidnext++, []);
   imapInbox.addMessage(gMessage);
@@ -91,7 +89,7 @@ var UrlListener =
 function searchTest()
 {
   // Get the IMAP inbox...
-  emptyLocal1 = gLocalIncomingServer.rootFolder.createLocalSubfolder("empty 1");
+  var emptyLocal1 = localAccountUtils.rootFolder.createLocalSubfolder("empty 1");
 
   let searchSession = Cc["@mozilla.org/messenger/searchSession;1"]
                         .createInstance(Ci.nsIMsgSearchSession);

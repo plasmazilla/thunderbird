@@ -13,8 +13,7 @@
  * attribute boolean open - whether or not this item's children are exposed
  * string getText(aColName) - return the text to display for this row in the
  *                            specified column
- * void getProperties(aProps) - set the css-selectors on aProps when this is
- *                              called
+ * string getProperties() - return the css-selectors
  * attribute array children - return an array of child-objects also meeting this
  *                            interface
  */
@@ -34,8 +33,8 @@ PROTO_TREE_VIEW.prototype = {
    * CSS files will cue off of these.  Note that we reach into the rowMap's
    * items so that custom data-displays can define their own properties
    */
-  getCellProperties: function jstv_getCellProperties(aRow, aCol, aProps) {
-    this._rowMap[aRow].getProperties(aProps, aCol);
+  getCellProperties: function jstv_getCellProperties(aRow, aCol) {
+    return this._rowMap[aRow].getProperties(aCol);
   },
 
   /**
@@ -64,8 +63,8 @@ PROTO_TREE_VIEW.prototype = {
    * This is duplicative for our normal jstv views, but custom data-displays may
    * want to do something special here
    */
-  getRowProperties: function jstv_getRowProperties(aIndex, aProps) {
-    this._rowMap[aIndex].getProperties(aProps);
+  getRowProperties: function jstv_getRowProperties(aRow) {
+    return this._rowMap[aRow].getProperties();
   },
 
   /**
@@ -120,6 +119,20 @@ PROTO_TREE_VIEW.prototype = {
     this._tree = aTree;
   },
 
+  recursivelyAddToMap: function jstv_recursivelyAddToMap(aChild, aNewIndex) {
+    // When we add sub-children, we're going to need to increase our index
+    // for the next add item at our own level.
+    let currentCount = this._rowMap.length;
+    if (aChild.children.length && aChild.open) {
+      for (let [i, child] in Iterator(this._rowMap[aNewIndex].children)) {
+        let index = aNewIndex + i + 1;
+        this._rowMap.splice(index, 0, child);
+        aNewIndex += this.recursivelyAddToMap(child, index);
+      }
+    }
+    return this._rowMap.length - currentCount;
+  },
+
   /**
    * Opens or closes a container with children.  The logic here is a bit hairy, so
    * be very careful about changing anything.
@@ -158,23 +171,7 @@ PROTO_TREE_VIEW.prototype = {
       // Note that these children may have been open when we were last closed,
       // and if they are, we also have to add those grandchildren to the map
       let oldCount = this._rowMap.length;
-      function recursivelyAddToMap(aChild, aNewIndex, tree) {
-        // When we add sub-children, we're going to need to increase our index
-        // for the next add item at our own level
-        let currentCount = tree._rowMap.length;
-        if (aChild.children.length && aChild.open) {
-          for (let [i, child] in Iterator(tree._rowMap[aNewIndex].children)) {
-            let index = aNewIndex + i + 1;
-            tree._rowMap.splice(index, 0, child);
-            aNewIndex += recursivelyAddToMap(child, index, tree);
-          }
-        }
-        return tree._rowMap.length - currentCount;
-      }
-
-      // Workaround for bug 682096, by passing this for the recursive function,
-      // as opposed to setting "tree = this" outside of the function.
-      recursivelyAddToMap(this._rowMap[aIndex], aIndex, this);
+      this.recursivelyAddToMap(this._rowMap[aIndex], aIndex);
 
       // Add this container to the persist map
       let id = this._rowMap[aIndex].id;
@@ -201,7 +198,7 @@ PROTO_TREE_VIEW.prototype = {
   setCellText: function jstv_setCellText(aRow, aCol, aValue) {},
   setCellValue: function jstv_setCellValue(aRow, aCol, aValue) {},
   getCellValue: function jstv_getCellValue(aRow, aCol) {},
-  getColumnProperties: function jstv_getColumnProperties(aCol, aProps) {},
+  getColumnProperties: function jstv_getColumnProperties(aCol) { return ""; },
   getImageSrc: function jstv_getImageSrc(aRow, aCol) {},
   getProgressMode: function jstv_getProgressMode(aRow, aCol) {},
   cycleCell: function jstv_cycleCell(aRow, aCol) {},

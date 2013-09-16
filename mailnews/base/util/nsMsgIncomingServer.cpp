@@ -43,8 +43,12 @@
 #include "nsMsgFolderFlags.h"
 #include "nsMsgUtils.h"
 #include "nsMsgMessageFlags.h"
+#include "nsIMsgSearchTerm.h"
 #include "nsAppDirectoryServiceDefs.h"
 #include "mozilla/Services.h"
+#include "nsIMsgFilter.h"
+#include "nsIArray.h"
+#include "nsArrayUtils.h"
 
 #define PORT_NOT_SET -1
 
@@ -104,7 +108,7 @@ nsMsgIncomingServer::SetKey(const nsACString& serverKey)
   nsCOMPtr<nsIPrefService> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCAutoString branchName;
+  nsAutoCString branchName;
   branchName.AssignLiteral("mail.server.");
   branchName.Append(m_serverKey);
   branchName.Append('.');
@@ -881,7 +885,7 @@ nsMsgIncomingServer::SetDefaultLocalPath(nsIFile *aDefaultLocalPath)
 {
   nsresult rv;
   nsCOMPtr<nsIMsgProtocolInfo> protocolInfo;
-  rv = getProtocolInfo(getter_AddRefs(protocolInfo));
+  rv = GetProtocolInfo(getter_AddRefs(protocolInfo));
   NS_ENSURE_SUCCESS(rv, rv);
   return protocolInfo->SetDefaultLocalPath(aDefaultLocalPath);
 }
@@ -901,7 +905,7 @@ nsMsgIncomingServer::GetLocalPath(nsIFile **aLocalPath)
   // hostname, unless that directory exists.
 // this should prevent all collisions.
   nsCOMPtr<nsIMsgProtocolInfo> protocolInfo;
-  rv = getProtocolInfo(getter_AddRefs(protocolInfo));
+  rv = GetProtocolInfo(getter_AddRefs(protocolInfo));
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIFile> localPath;
@@ -1060,7 +1064,7 @@ nsMsgIncomingServer::GetFilterList(nsIMsgWindow *aMsgWindow, nsIMsgFilterList **
 
       if (!filterType.IsEmpty() && !filterType.EqualsLiteral("default"))
       {
-        nsCAutoString contractID("@mozilla.org/filterlist;1?type=");
+        nsAutoCString contractID("@mozilla.org/filterlist;1?type=");
         contractID += filterType;
         ToLowerCase(contractID);
         mFilterList = do_CreateInstance(contractID.get(), &rv);
@@ -1138,7 +1142,7 @@ nsMsgIncomingServer::GetEditableFilterList(nsIMsgWindow *aMsgWindow, nsIMsgFilte
     rv = GetCharValue("filter.editable.type", filterType);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    nsCAutoString contractID("@mozilla.org/filterlist;1?type=");
+    nsAutoCString contractID("@mozilla.org/filterlist;1?type=");
     contractID += filterType;
     ToLowerCase(contractID);
     mEditableFilterList = do_CreateInstance(contractID.get(), &rv);
@@ -1172,7 +1176,7 @@ nsMsgIncomingServer::InternalSetHostName(const nsACString& aHostname, const char
   if (MsgCountChar(hostname, ':') == 1)
   {
     int32_t colonPos = hostname.FindChar(':');
-    nsCAutoString portString(Substring(hostname, colonPos));
+    nsAutoCString portString(Substring(hostname, colonPos));
     hostname.SetLength(colonPos);
     nsresult err;
     int32_t port = portString.ToInteger(&err);
@@ -1353,7 +1357,7 @@ nsMsgIncomingServer::GetDoBiff(bool *aDoBiff)
   // if the pref isn't set, use the default
   // value based on the protocol
   nsCOMPtr<nsIMsgProtocolInfo> protocolInfo;
-  rv = getProtocolInfo(getter_AddRefs(protocolInfo));
+  rv = GetProtocolInfo(getter_AddRefs(protocolInfo));
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = protocolInfo->GetDefaultDoBiff(aDoBiff);
@@ -1389,7 +1393,7 @@ nsMsgIncomingServer::GetPort(int32_t *aPort)
   // if the port isn't set, use the default
   // port based on the protocol
   nsCOMPtr<nsIMsgProtocolInfo> protocolInfo;
-  rv = getProtocolInfo(getter_AddRefs(protocolInfo));
+  rv = GetProtocolInfo(getter_AddRefs(protocolInfo));
   NS_ENSURE_SUCCESS(rv, rv);
 
   int32_t socketType;
@@ -1405,7 +1409,7 @@ nsMsgIncomingServer::SetPort(int32_t aPort)
   nsresult rv;
 
   nsCOMPtr<nsIMsgProtocolInfo> protocolInfo;
-  rv = getProtocolInfo(getter_AddRefs(protocolInfo));
+  rv = GetProtocolInfo(getter_AddRefs(protocolInfo));
   NS_ENSURE_SUCCESS(rv, rv);
 
   int32_t socketType;
@@ -1418,22 +1422,22 @@ nsMsgIncomingServer::SetPort(int32_t aPort)
   return SetIntValue("port", aPort == defaultPort ? PORT_NOT_SET : aPort);
 }
 
-nsresult
-nsMsgIncomingServer::getProtocolInfo(nsIMsgProtocolInfo **aResult)
+NS_IMETHODIMP
+nsMsgIncomingServer::GetProtocolInfo(nsIMsgProtocolInfo **aResult)
 {
   NS_ENSURE_ARG_POINTER(aResult);
-  nsresult rv;
 
   nsCString type;
-  rv = GetType(type);
+  nsresult rv = GetType(type);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCAutoString contractid(NS_MSGPROTOCOLINFO_CONTRACTID_PREFIX);
+  nsAutoCString contractid(NS_MSGPROTOCOLINFO_CONTRACTID_PREFIX);
   contractid.Append(type);
 
   nsCOMPtr<nsIMsgProtocolInfo> protocolInfo = do_GetService(contractid.get(), &rv);
   NS_ENSURE_SUCCESS(rv, rv);
-  protocolInfo.swap(*aResult);
+
+  protocolInfo.forget(aResult);
   return NS_OK;
 }
 
@@ -1586,9 +1590,10 @@ NS_IMETHODIMP
 nsMsgIncomingServer::GetOfflineSupportLevel(int32_t *aSupportLevel)
 {
   NS_ENSURE_ARG_POINTER(aSupportLevel);
-  nsresult rv;
 
-  rv = GetIntValue("offline_support_level", aSupportLevel);
+  nsresult rv = GetIntValue("offline_support_level", aSupportLevel);
+  NS_ENSURE_SUCCESS(rv, rv);
+
   if (*aSupportLevel == OFFLINE_SUPPORT_LEVEL_UNDEFINED)
     *aSupportLevel = OFFLINE_SUPPORT_LEVEL_NONE;
   return NS_OK;
@@ -1800,7 +1805,7 @@ nsMsgIncomingServer::ConfigureTemporaryServerSpamFilters(nsIMsgFilterList *filte
 
   // For performance reasons, we'll handle clearing of filters if the user turns
   // off the server-side filters from the junk mail controls, in the junk mail controls.
-  nsCAutoString serverFilterName;
+  nsAutoCString serverFilterName;
   spamSettings->GetServerFilterName(serverFilterName);
   if (serverFilterName.IsEmpty())
     return NS_OK;
@@ -2080,7 +2085,7 @@ nsMsgIncomingServer::GetSpamSettings(nsISpamSettings **aSpamSettings)
 {
   NS_ENSURE_ARG_POINTER(aSpamSettings);
 
-  nsCAutoString spamActionTargetAccount;
+  nsAutoCString spamActionTargetAccount;
   GetCharValue("spamActionTargetAccount", spamActionTargetAccount);
   if (spamActionTargetAccount.IsEmpty())
   {
@@ -2117,42 +2122,38 @@ nsMsgIncomingServer::GetSpamFilterPlugin(nsIMsgFilterPlugin **aFilterPlugin)
 
 // get all the servers that defer to the account for the passed in server. Note that
 // destServer may not be "this"
-nsresult nsMsgIncomingServer::GetDeferredServers(nsIMsgIncomingServer *destServer, nsISupportsArray **_retval)
+nsresult nsMsgIncomingServer::GetDeferredServers(nsIMsgIncomingServer *destServer, nsCOMArray<nsIPop3IncomingServer>& aServers)
 {
   nsresult rv;
   nsCOMPtr<nsIMsgAccountManager> accountManager
     = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-  nsCOMPtr<nsISupportsArray> servers;
-  rv = NS_NewISupportsArray(getter_AddRefs(servers));
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr <nsIMsgAccount> thisAccount;
   accountManager->FindAccountForServer(destServer, getter_AddRefs(thisAccount));
   if (thisAccount)
   {
-    nsCOMPtr <nsISupportsArray> allServers;
+    nsCOMPtr<nsIArray> allServers;
     nsCString accountKey;
     thisAccount->GetKey(accountKey);
     accountManager->GetAllServers(getter_AddRefs(allServers));
     if (allServers)
     {
       uint32_t serverCount;
-      allServers->Count(&serverCount);
+      allServers->GetLength(&serverCount);
       for (uint32_t i = 0; i < serverCount; i++)
       {
-        nsCOMPtr <nsIMsgIncomingServer> server (do_QueryElementAt(allServers, i));
+        nsCOMPtr<nsIPop3IncomingServer> server(do_QueryElementAt(allServers, i));
         if (server)
         {
           nsCString deferredToAccount;
-          server->GetCharValue("deferred_to_account", deferredToAccount);
+          server->GetDeferredToAccount(deferredToAccount);
           if (deferredToAccount.Equals(accountKey))
-            servers->AppendElement(server);
+            aServers.AppendElement(server);
         }
       }
     }
   }
-  servers.swap(*_retval);
   return rv;
 }
 
@@ -2167,14 +2168,14 @@ NS_IMETHODIMP nsMsgIncomingServer::GetIsDeferredTo(bool *aIsDeferredTo)
     accountManager->FindAccountForServer(this, getter_AddRefs(thisAccount));
     if (thisAccount)
     {
-      nsCOMPtr <nsISupportsArray> allServers;
+      nsCOMPtr<nsIArray> allServers;
       nsCString accountKey;
       thisAccount->GetKey(accountKey);
       accountManager->GetAllServers(getter_AddRefs(allServers));
       if (allServers)
       {
         uint32_t serverCount;
-        allServers->Count(&serverCount);
+        allServers->GetLength(&serverCount);
         for (uint32_t i = 0; i < serverCount; i++)
         {
           nsCOMPtr <nsIMsgIncomingServer> server (do_QueryElementAt(allServers, i));
@@ -2224,7 +2225,7 @@ NS_IMETHODIMP nsMsgIncomingServer::IsNewHdrDuplicate(nsIMsgDBHdr *aNewHdr, bool 
   if (flags & nsMsgMessageFlags::Partial)
     return NS_OK;
 
-  nsCAutoString strHashKey;
+  nsAutoCString strHashKey;
   nsCString messageId, subject;
   aNewHdr->GetMessageId(getter_Copies(messageId));
   strHashKey.Append(messageId);
@@ -2255,7 +2256,7 @@ NS_IMETHODIMP
 nsMsgIncomingServer::GetForcePropertyEmpty(const char *aPropertyName, bool *_retval)
 {
   NS_ENSURE_ARG_POINTER(_retval);
-  nsCAutoString nameEmpty(aPropertyName);
+  nsAutoCString nameEmpty(aPropertyName);
   nameEmpty.Append(NS_LITERAL_CSTRING(".empty"));
   nsCString value;
   GetCharValue(nameEmpty.get(), value);
@@ -2266,8 +2267,16 @@ nsMsgIncomingServer::GetForcePropertyEmpty(const char *aPropertyName, bool *_ret
 NS_IMETHODIMP
 nsMsgIncomingServer::SetForcePropertyEmpty(const char *aPropertyName, bool aValue)
 {
- nsCAutoString nameEmpty(aPropertyName);
+ nsAutoCString nameEmpty(aPropertyName);
  nameEmpty.Append(NS_LITERAL_CSTRING(".empty"));
  return SetCharValue(nameEmpty.get(),
    aValue ? NS_LITERAL_CSTRING("true") : NS_LITERAL_CSTRING(""));
+}
+
+NS_IMETHODIMP
+nsMsgIncomingServer::GetSortOrder(int32_t* aSortOrder)
+{
+  NS_ENSURE_ARG_POINTER(aSortOrder);
+  *aSortOrder = 100000000;
+  return NS_OK;
 }

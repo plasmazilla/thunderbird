@@ -19,7 +19,7 @@ var FullZoom = {
   // when first requested, then updated by the pref change listener as it changes.
   // If there is no global value, then this should be undefined.
   get globalValue() {
-    var globalValue = Services.contentPrefs.getPref(null, this.name);
+    var globalValue = Services.contentPrefs.getPref(null, this.name, null);
     if (typeof globalValue != "undefined")
       globalValue = this._ensureValid(globalValue);
     delete this.globalValue;
@@ -51,7 +51,7 @@ var FullZoom = {
 
   init: function FullZoom_init() {
     // Listen for scrollwheel events so we can save scrollwheel-based changes.
-    window.addEventListener("wheel", this, false);
+    window.addEventListener("wheel", this, true);
 
     // Register ourselves with the service so we know when our pref changes.
     Services.contentPrefs.addObserver(this.name, this);
@@ -68,7 +68,7 @@ var FullZoom = {
   destroy: function FullZoom_destroy() {
     Services.prefs.removeObserver("browser.zoom.", this);
     Services.contentPrefs.removeObserver(this.name, this);
-    window.removeEventListener("wheel", this, false);
+    window.removeEventListener("wheel", this, true);
   },
 
 
@@ -148,7 +148,7 @@ var FullZoom = {
       // If the current page doesn't have a site-specific preference,
       // then its zoom should be set to the new global preference now that
       // the global preference has changed.
-      if (!Services.contentPrefs.hasPref(getBrowser().currentURI, this.name))
+      if (!Services.contentPrefs.hasPref(getBrowser().currentURI, this.name, getBrowser().docShell))
         this._applyPrefToSetting();
     }
   },
@@ -162,7 +162,7 @@ var FullZoom = {
       // If the current page doesn't have a site-specific preference,
       // then its zoom should be set to the default preference now that
       // the global preference has changed.
-      if (!Services.contentPrefs.hasPref(getBrowser().currentURI, this.name))
+      if (!Services.contentPrefs.hasPref(getBrowser().currentURI, this.name, getBrowser().docShell))
         this._applyPrefToSetting();
     }
   },
@@ -196,16 +196,18 @@ var FullZoom = {
       return;
     }
 
-    if (Services.contentPrefs.hasCachedPref(aURI, this.name)) {
-      let zoomValue = Services.contentPrefs.getPref(aURI, this.name);
+    var loadContext = aBrowser.docShell;
+    if (Services.contentPrefs.hasCachedPref(aURI, this.name, loadContext)) {
+      let zoomValue = Services.contentPrefs.getPref(aURI, this.name, loadContext);
       this._applyPrefToSetting(zoomValue, aBrowser);
     } else {
       var self = this;
-      Services.contentPrefs.getPref(aURI, this.name, function (aResult) {
+      Services.contentPrefs.getPref(aURI, this.name, loadContext, function (aResult) {
         // Check that we're still where we expect to be in case this took a while.
-        if (!aBrowser || aURI.equals(aBrowser.currentURI)) {
+        // Null check currentURI, since the window may have been destroyed before
+        // we were called.
+        if (aBrowser.currentURI && aURI.equals(aBrowser.currentURI))
           self._applyPrefToSetting(aResult, aBrowser);
-        }
       });
     }
   },
@@ -303,12 +305,12 @@ var FullZoom = {
       return;
 
     var zoomLevel = ZoomManager.zoom;
-    Services.contentPrefs.setPref(getBrowser().currentURI, this.name, zoomLevel);
+    Services.contentPrefs.setPref(getBrowser().currentURI, this.name, zoomLevel, getBrowser().docShell);
   },
 
   _removePref: function FullZoom_removePref() {
     if (!content.document.mozSyntheticDocument)
-      Services.contentPrefs.removePref(getBrowser().currentURI, this.name);
+      Services.contentPrefs.removePref(getBrowser().currentURI, this.name, getBrowser().docShell);
   },
 
 

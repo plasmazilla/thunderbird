@@ -93,8 +93,10 @@ nsThunderbirdProfileMigrator::Migrate(uint16_t aItems,
        aItems & nsISuiteProfileMigrator::PASSWORDS ||
        !aItems)) {
     // Permissions (Images, Cookies, Popups)
-    rv |= CopyFile(FILE_NAME_SITEPERM_NEW, FILE_NAME_SITEPERM_NEW);
-    rv |= CopyFile(FILE_NAME_SITEPERM_OLD, FILE_NAME_SITEPERM_OLD);
+    if (NS_SUCCEEDED(rv))
+      rv = CopyFile(FILE_NAME_SITEPERM_NEW, FILE_NAME_SITEPERM_NEW);
+    if (NS_SUCCEEDED(rv))
+      rv = CopyFile(FILE_NAME_SITEPERM_OLD, FILE_NAME_SITEPERM_OLD);
   }
 
   // the last thing to do is to actually copy over any mail folders
@@ -217,12 +219,6 @@ nsThunderbirdProfileMigrator::FillProfileDataFromRegistry()
                    getter_AddRefs(thunderbirdData));
   
   thunderbirdData->Append(NS_LITERAL_STRING(".thunderbird"));
-
-#elif defined(XP_BEOS)
-   fileLocator->Get(NS_BEOS_SETTINGS_DIR, NS_GET_IID(nsIFile),
-                    getter_AddRefs(thunderbirdData));
-
-   thunderbirdData->Append(NS_LITERAL_STRING("Thunderbird"));
 
 #elif defined(XP_OS2)
   fileLocator->Get(NS_OS2_HOME_DIR, NS_GET_IID(nsIFile),
@@ -460,11 +456,10 @@ nsThunderbirdProfileMigrator::PrefTransform gTransforms[] = {
   MAKESAMETYPEPREFTRANSFORM("plugin.override_internal_types",          Bool),
   MAKESAMETYPEPREFTRANSFORM("plugin.expose_full_path",                 Bool),
   MAKESAMETYPEPREFTRANSFORM("security.default_personal_cert",          String),
-  MAKESAMETYPEPREFTRANSFORM("security.enable_ssl3",                    Bool),
-  MAKESAMETYPEPREFTRANSFORM("security.enable_tls",                     Bool),
   MAKESAMETYPEPREFTRANSFORM("security.password_lifetime",              Int),
+  MAKESAMETYPEPREFTRANSFORM("security.tls.version.min",                Int),
+  MAKESAMETYPEPREFTRANSFORM("security.tls.version.max",                Int),
   MAKESAMETYPEPREFTRANSFORM("security.warn_entering_secure",           Bool),
-  MAKESAMETYPEPREFTRANSFORM("security.warn_entering_weak",             Bool),
   MAKESAMETYPEPREFTRANSFORM("security.warn_leaving_secure",            Bool),
   MAKESAMETYPEPREFTRANSFORM("security.warn_submit_insecure",           Bool),
   MAKESAMETYPEPREFTRANSFORM("security.warn_viewing_mixed",             Bool),
@@ -586,20 +581,31 @@ nsThunderbirdProfileMigrator::CopyPreferences(bool aReplace)
   if (!aReplace)
     return rv;
 
-  rv |= TransformPreferences(FILE_NAME_PREFS, FILE_NAME_PREFS);
-  rv |= CopyFile(FILE_NAME_USER_PREFS, FILE_NAME_USER_PREFS);
+  if (NS_SUCCEEDED(rv))
+    rv = TransformPreferences(FILE_NAME_PREFS, FILE_NAME_PREFS);
+  if (NS_SUCCEEDED(rv))
+    rv = CopyFile(FILE_NAME_USER_PREFS, FILE_NAME_USER_PREFS);
 
   // Security Stuff
-  rv |= CopyFile(FILE_NAME_CERT8DB, FILE_NAME_CERT8DB);
-  rv |= CopyFile(FILE_NAME_KEY3DB, FILE_NAME_KEY3DB);
-  rv |= CopyFile(FILE_NAME_SECMODDB, FILE_NAME_SECMODDB);
+  if (NS_SUCCEEDED(rv))
+    rv = CopyFile(FILE_NAME_CERT8DB, FILE_NAME_CERT8DB);
+  if (NS_SUCCEEDED(rv))
+    rv = CopyFile(FILE_NAME_KEY3DB, FILE_NAME_KEY3DB);
+  if (NS_SUCCEEDED(rv))
+    rv = CopyFile(FILE_NAME_SECMODDB, FILE_NAME_SECMODDB);
 
   // User MIME Type overrides
-  rv |= CopyFile(FILE_NAME_MIMETYPES, FILE_NAME_MIMETYPES);
-  rv |= CopyFile(FILE_NAME_PERSONALDICTIONARY, FILE_NAME_PERSONALDICTIONARY);
-  rv |= CopyFile(FILE_NAME_MAILVIEWS, FILE_NAME_MAILVIEWS);
+  if (NS_SUCCEEDED(rv))
+    rv = CopyFile(FILE_NAME_MIMETYPES, FILE_NAME_MIMETYPES);
+  if (NS_SUCCEEDED(rv))
+    rv = CopyFile(FILE_NAME_PERSONALDICTIONARY, FILE_NAME_PERSONALDICTIONARY);
+  if (NS_SUCCEEDED(rv))
+    rv = CopyFile(FILE_NAME_MAILVIEWS, FILE_NAME_MAILVIEWS);
 
-  return rv | CopyUserSheet(FILE_NAME_USERCONTENT);
+  if (NS_SUCCEEDED(rv))
+    rv = CopyUserSheet(FILE_NAME_USERCONTENT);
+
+  return rv;
 }
 
 nsresult

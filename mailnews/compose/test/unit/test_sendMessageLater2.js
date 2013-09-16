@@ -15,6 +15,8 @@
 load("../../../resources/logHelper.js");
 load("../../../resources/asyncTestUtils.js");
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 var test = "sendMessageLater";
 var server = null;
 var gSentFolder;
@@ -36,8 +38,8 @@ var gLastSentMessage = 0;
 // 2 = sendUnsentMessages has exited.
 var gMessageSendStatus = 0;
 
-const kSender = "from@invalid.com";
-const kTo = "to@invalid.com";
+const kSender = "from@foo.invalid";
+const kTo = "to@foo.invalid";
 
 var msgSendLater = Cc["@mozilla.org/messengercompose/sendlater;1"]
                      .getService(Ci.nsIMsgSendLater);
@@ -61,7 +63,7 @@ msll.prototype = {
 
   // nsIMsgSendLaterListener
   onStartSending: function (aTotalMessageCount) {
-    do_check_eq(aTotal, gMsgOrder.length);
+    do_check_eq(aTotalMessageCount, gMsgOrder.length);
     do_check_eq(msgSendLater.sendingMessages, true);
   },
   onMessageStartSending: function (aCurrentMessage, aTotalMessageCount,
@@ -213,22 +215,20 @@ function actually_run_test() {
 function run_test() {
   // Load in the test files so we have a record of length and their data.
   for (var i = 0; i < gMsgFile.length; ++i) {
-    gMsgFileData[i] = loadFileToString(gMsgFile[i]);
+    gMsgFileData[i] = IOUtils.loadFileToString(gMsgFile[i]);
   }
 
   // Ensure we have a local mail account, an normal account and appropriate
   // servers and identities.
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
   // Check that the send later service thinks we don't have messages to send.
   do_check_eq(msgSendLater.hasUnsentMessages(identity), false);
 
-  var acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
-  acctMgr.setSpecialFolders();
+  MailServices.accounts.setSpecialFolders();
 
-  var account = acctMgr.createAccount();
-  var incomingServer = acctMgr.createIncomingServer("test", "localhost", "pop3");
+  let account = MailServices.accounts.createAccount();
+  let incomingServer = MailServices.accounts.createIncomingServer("test", "localhost", "pop3");
 
   var smtpServer = getBasicSmtpServer();
   identity = getSmtpIdentity(kSender, smtpServer);
@@ -237,7 +237,7 @@ function run_test() {
   account.defaultIdentity = identity;
   account.incomingServer = incomingServer;
 
-  gLocalIncomingServer.rootMsgFolder.createLocalSubfolder("Sent");
+  localAccountUtils.rootFolder.createLocalSubfolder("Sent");
 
   gSentFolder = msgSendLater.getUnsentMessagesFolder(identity);
 

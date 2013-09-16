@@ -6,14 +6,19 @@
  * This test creates some messages with attachments of different types and
  * checks that libmime reports the expected size for each of them.
  */
-load("../../../resources/mailDirService.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/logHelper.js");
 load("../../../resources/asyncTestUtils.js");
 
 load("../../../resources/messageGenerator.js");
 load("../../../resources/messageModifier.js");
 load("../../../resources/messageInjection.js");
+
+// Somehow we hit the blocklist service, and that needs appInfo defined
+Components.utils.import("resource://testing-common/AppInfo.jsm");
+updateAppInfo();
+
+// Register the mime types provider we need for this test.
+mailTestUtils.registerUMimTypProvider();
 
 let gMessenger = Cc["@mozilla.org/messenger;1"]
                    .createInstance(Ci.nsIMessenger);
@@ -60,7 +65,7 @@ const uuAttachment =
 
 const yencText =
   "Hello there --\n"+
-  "=ybegin line=128 size=174 name=jane.doe\n"+
+  "=ybegin line=128 size=174 name=jane\n"+
   "\x76\x99\x98\x91\x9e\x8f\x97\x9a\x9d\x56\x4a\x94\x8f\x4a\x97\x8f"+
   "\x4a\x9d\x9f\x93\x9d\x4a\x8d\x99\x9f\x8d\x92\xed\xd3\x4a\x8e\x8f"+
   "\x4a\x8c\x99\x98\x98\x8f\x4a\x92\x8f\x9f\x9c\x8f\x58\x4a\x7a\x8b"+
@@ -146,7 +151,7 @@ let messages = [
   // yencoded attachment
   { bodyPart: new SyntheticPartLeaf("I am text! Woo!\n\n"+yencText,
                                     { contentType: '' } ),
-    subject: "yEnc-Prefix: \"jane.doe\" 174 yEnc bytes - yEnc test (1)",
+    subject: "yEnc-Prefix: \"jane\" 174 yEnc bytes - yEnc test (1)",
     size: yencSize },
   // an attached eml that used to return a size that's -1
   {
@@ -192,12 +197,10 @@ let gStreamListener = {
   onStopRequest: function (aRequest, aContext, aStatusCode) {
     dump("*** Size is "+gMessageHeaderSink.size+" (expecting "+this.expectedSize+")\n\n");
     do_check_true(Math.abs(gMessageHeaderSink.size - this.expectedSize) <= epsilon);
+    this._stream = null;
     async_driver();
   },
 
-  /* okay, our onDataAvailable should actually never be called.  the stream
-     converter is actually eating everything except the start and stop
-     notification. */
   // nsIStreamListener part
   _stream : null,
 

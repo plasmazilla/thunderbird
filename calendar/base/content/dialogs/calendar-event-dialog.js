@@ -5,6 +5,7 @@
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://calendar/modules/calRecurrenceUtils.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
 
 try {
     Components.utils.import("resource:///modules/cloudFileAccounts.js");
@@ -21,6 +22,7 @@ var gEndTime = null;
 var gItemDuration = null;
 var gStartTimezone = null;
 var gEndTimezone = null;
+var gUntilDate = null;
 var gIsReadOnly = false;
 var gPrivacy = null;
 var gAttachMap = {};
@@ -261,8 +263,7 @@ function onCommandCancel() {
         return true;
     }
 
-    var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                        .getService(Components.interfaces.nsIPromptService);
+    var promptService = Components.interfaces.nsIPromptService;
 
     var promptTitle = calGetString("calendar",
                                    isEvent(window.calendarItem) ?
@@ -280,15 +281,15 @@ function onCommandCancel() {
                 promptService.BUTTON_TITLE_DONT_SAVE *
                 promptService.BUTTON_POS_2;
 
-    var choice = promptService.confirmEx(null,
-                                         promptTitle,
-                                         promptMessage,
-                                         flags,
-                                         null,
-                                         null,
-                                         null,
-                                         null,
-                                         {});
+    var choice = Services.prompt.confirmEx(null,
+                                           promptTitle,
+                                           promptMessage,
+                                           flags,
+                                           null,
+                                           null,
+                                           null,
+                                           null,
+                                           {});
     switch (choice) {
         case 0: // Save
             onCommandSave(true);
@@ -305,6 +306,7 @@ function onCommandCancel() {
 /**
  * Handler function to be called when the cancel button is pressed.
  *
+ * @return    Returns true if the window should be closed.
  */
 function onCancel() {
     // The datepickers need to remove the focus in order to trigger the
@@ -341,10 +343,7 @@ function loadDialog(item) {
     }
 
     // Categories
-    var categoryMenuList = document.getElementById("item-categories");
-    var indexToSelect = appendCategoryItems(item, categoryMenuList);
-
-    categoryMenuList.selectedIndex = indexToSelect;
+    loadCategories(item);
 
     // Attachment
     loadCloudProviders();
@@ -454,6 +453,60 @@ function loadDialog(item) {
 
     gShowTimeAs = item.getProperty("TRANSP");
     updateShowTimeAs();
+}
+
+/**
+ * Loads the item's categories into the category panel
+ *
+ * @param aItem     The item to load into the category panel
+ */
+function loadCategories(aItem) {
+    let categoryPanel = document.getElementById("item-categories-panel");
+    categoryPanel.loadItem(aItem);
+    updateCategoryMenulist();
+}
+
+/**
+ * Updates the category menulist to show the correct label, depending on the
+ * selected categories in the category panel
+ */
+function updateCategoryMenulist() {
+    let categoryMenulist = document.getElementById("item-categories");
+    let categoryPanel = document.getElementById("item-categories-panel");
+
+    // Make sure the maximum number of categories is applied to the listbox
+    let calendar = getCurrentCalendar();
+    let maxCount = calendar.getProperty("capabilities.categories.maxCount");
+    categoryPanel.maxCount = (maxCount === null ? -1 : maxCount);
+
+    // Hide the categories listbox and label in case categories are not
+    // supported
+    setBooleanAttribute("item-categories", "hidden", (maxCount === 0));
+    setBooleanAttribute("item-categories-label", "hidden", (maxCount === 0));
+    setBooleanAttribute("item-calendar-label", "hidden", (maxCount === 0));
+    setBooleanAttribute("item-calendar-aux-label", "hidden", (maxCount !== 0));
+
+    let label;
+    let categoryList = categoryPanel.categories;
+    if (categoryList.length > 1) {
+        label = cal.calGetString("calendar", "multipleCategories");
+    } else if (categoryList.length == 1) {
+        label = categoryList[0];
+    } else {
+        label = cal.calGetString("calendar", "None");
+    }
+    categoryMenulist.setAttribute("label", label);
+}
+
+/**
+ * Saves the selected categories into the passed item
+ *
+ * @param aItem     The item to set the categories on
+ */
+function saveCategories(aItem) {
+    let categoryPanel = document.getElementById("item-categories-panel");
+    let categoryList = categoryPanel.categories;
+    aItem.setCategories(categoryList.length, categoryList);
 }
 
 /**
@@ -636,18 +689,20 @@ function dateTimeControls2State(aStartDatepicker) {
 
     updateDateTime();
     updateTimezone();
+    updateAccept();
 
     if (warning) {
+        // Disable the "Save" and "Save and Close" commands as long as the
+        // warning dialog is showed.
+        enableAcceptCommand(false);
         gWarning = true;
-        var callback = function func() {
-            var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                                .getService(Components.interfaces.nsIPromptService);
-            promptService.alert(
-                null,
-                document.title,
-                calGetString("calendar", "warningEndBeforeStart"));
-                gWarning = false;
-        }
+        let callback = function func() {
+            Services.prompt.alert(null,
+                                  document.title,
+                                  cal.calGetString("calendar", "warningEndBeforeStart"));
+            gWarning = false;
+            updateAccept();
+        };
         setTimeout(callback, 1);
     }
 }
@@ -758,21 +813,20 @@ function loadRepeat(item) {
             }
         }
         if (rules.length == 1) {
-            var rule = rules[0];
-            if (calInstanceOf(rule, Components.interfaces.calIRecurrenceRule)) {
+            let rule = cal.wrapInstance(rules[0], Components.interfaces.calIRecurrenceRule);
+            if (rule) {
                 switch (rule.type) {
                     case 'DAILY':
-                        if (rule.interval == 1 && !rule.isFinite) {
-                            if (!checkRecurrenceRule(rule, ['BYSECOND',
-                                                            'BYMINUTE',
-                                                            'BYHOUR',
-                                                            'BYMONTHDAY',
-                                                            'BYYEARDAY',
-                                                            'BYWEEKNO',
-                                                            'BYMONTH',
-                                                            'BYSETPOS'])) {
-                                var ruleComp = rule.getComponent("BYDAY",
-                                                                 {});
+                        if (!checkRecurrenceRule(rule, ['BYSECOND',
+                                                        'BYMINUTE',
+                                                        'BYHOUR',
+                                                        'BYMONTHDAY',
+                                                        'BYYEARDAY',
+                                                        'BYWEEKNO',
+                                                        'BYMONTH',
+                                                        'BYSETPOS'])) {
+                            let ruleComp = rule.getComponent("BYDAY", {});
+                            if (rule.interval == 1) {
                                 if (ruleComp.length > 0) {
                                     if (ruleComp.length == 5) {
                                         for (var i = 0; i < 5; i++) {
@@ -781,12 +835,17 @@ function loadRepeat(item) {
                                             }
                                         }
                                         if (i==5) {
-                                            setElementValue("item-repeat",
-                                                            "every.weekday");
+                                            if (!rule.isFinite || !rule.isByCount) {
+                                                setElementValue("item-repeat", "every.weekday");
+                                                updateUntilControls(rule);
+                                            }
                                         }
                                     }
                                 } else {
-                                    setElementValue("item-repeat", "daily");
+                                    if (!rule.isFinite || !rule.isByCount) {
+                                        setElementValue("item-repeat", "daily");
+                                        updateUntilControls(rule);
+                                    }
                                 }
                             }
                         }
@@ -801,10 +860,11 @@ function loadRepeat(item) {
                                                         'BYWEEKNO',
                                                         'BYMONTH',
                                                         'BYSETPOS'])) {
-                            if (!rule.isFinite && rule.interval == 1) {
-                                setElementValue("item-repeat", "weekly");
-                            } else if (!rule.isFinite && rule.interval == 2) {
-                                setElementValue("item-repeat", "bi.weekly");
+                            let weekType=["weekly", "bi.weekly"];
+                            if ((rule.interval == 1 || rule.interval == 2) &&
+                                (!rule.isFinite || !rule.isByCount)) {
+                                  setElementValue("item-repeat", weekType[rule.interval - 1]);
+                                updateUntilControls(rule);
                             }
                         }
                         break;
@@ -818,8 +878,9 @@ function loadRepeat(item) {
                                                         'BYWEEKNO',
                                                         'BYMONTH',
                                                         'BYSETPOS'])) {
-                            if (!rule.isFinite && rule.interval == 1) {
+                            if (rule.interval == 1 && (!rule.isFinite || !rule.isByCount)) {
                                 setElementValue("item-repeat", "monthly");
+                                updateUntilControls(rule);
                             }
                         }
                         break;
@@ -833,8 +894,9 @@ function loadRepeat(item) {
                                                         'BYWEEKNO',
                                                         'BYMONTH',
                                                         'BYSETPOS'])) {
-                            if (!rule.isFinite && rule.interval == 1) {
+                            if (rule.interval == 1 && (!rule.isFinite || !rule.isByCount)) {
                                 setElementValue("item-repeat", "yearly");
+                                updateUntilControls(rule);
                             }
                         }
                         break;
@@ -848,7 +910,25 @@ function loadRepeat(item) {
 
     if (item.parentItem != item) {
         disableElement("item-repeat");
+        disableElement("repeat-until-datepicker");
     }
+}
+
+/**
+ * Shows the repeat-until-datepicker and sets its date
+ *
+ * @param rule    The recurrence rule.
+ */
+function updateUntilControls(rule) {
+    let untilDate = "forever";
+    if (!rule.isByCount) {
+        gUntilDate = rule.untilDate;
+        if (gUntilDate) {
+            untilDate = gUntilDate.getInTimezone(cal.floating()).jsDate;
+        }
+    }
+    document.getElementById("repeat-deck").selectedIndex = 0;
+    setElementValue("repeat-until-datepicker", untilDate);
 }
 
 /**
@@ -890,7 +970,8 @@ function saveDialog(item) {
         setItemProperty(item, "PERCENT-COMPLETE", percentCompleteInteger);
     }
 
-    setCategory(item, "item-categories");
+    // Categories
+    saveCategories(item);
 
     // Attachment
     // We want the attachments to be up to date, remove all first.
@@ -1064,17 +1145,24 @@ function onPopupShowing(menuPopup) {
  * constraining factors like
  */
 function updateAccept() {
-    var enableAccept = true;
-
-    var kDefaultTimezone = calendarDefaultTimezone();
+    let enableAccept = true;
+    let kDefaultTimezone = calendarDefaultTimezone();
+    let startDate;
+    let endDate;
+    let isEvent = cal.isEvent(window.calendarItem);
 
     // don't allow for end dates to be before start dates
-    var startDate;
-    var endDate;
-    if (isEvent(window.calendarItem)) {
+    if (isEvent) {
         startDate = cal.jsDateToDateTime(getElementValue("event-starttime"));
         endDate = cal.jsDateToDateTime(getElementValue("event-endtime"));
+    } else {
+        startDate = getElementValue("todo-has-entrydate", "checked") ?
+            cal.jsDateToDateTime(getElementValue("todo-entrydate")) : null;
+        endDate = getElementValue("todo-has-duedate", "checked") ?
+            cal.jsDateToDateTime(getElementValue("todo-duedate")) : null;
+    }
 
+    if (startDate && endDate) {
         var menuItem = document.getElementById('options-timezone-menuitem');
         if (menuItem.getAttribute('checked') == 'true') {
             var startTimezone = gStartTimezone;
@@ -1097,7 +1185,7 @@ function updateAccept() {
 
         // For all-day events we are not interested in times and compare only
         // dates.
-        if (getElementValue("event-all-day", "checked")) {
+        if (isEvent && getElementValue("event-all-day", "checked")) {
             // jsDateToDateTime returnes the values in UTC. Depending on the
             // local timezone and the values selected in datetimepicker the date
             // in UTC might be shifted to the previous or next day.
@@ -1111,25 +1199,26 @@ function updateAccept() {
             startDate.isDate = true;
             endDate.isDate = true;
         }
-    } else {
-        startDate = getElementValue("todo-has-entrydate", "checked") ?
-            cal.jsDateToDateTime(getElementValue("todo-entrydate")) : null;
-        endDate = getElementValue("todo-has-duedate", "checked") ?
-            cal.jsDateToDateTime(getElementValue("todo-duedate")) : null;
     }
 
     if (endDate && startDate && endDate.compare(startDate) == -1) {
         enableAccept = false;
     }
 
-    var accept = document.getElementById("cmd_accept");
-    if (enableAccept) {
-        accept.removeAttribute('disabled');
-    } else {
-        accept.setAttribute('disabled', 'true');
-    }
+    enableAcceptCommand(enableAccept);
 
     return enableAccept;
+}
+
+/**
+ * Enables/disables the commands cmd_accept and cmd_save related to the
+ * save operation.
+ *
+ * @param aEnable           true: enables the command
+ */
+function enableAcceptCommand(aEnable) {
+    setElementValue("cmd_accept", !aEnable, "disabled");
+    setElementValue("cmd_save", !aEnable, "disabled");
 }
 
 // Global variables used to restore start and end date-time when changing the
@@ -1255,15 +1344,13 @@ function openNewTask() {
  * Open a new Thunderbird compose window.
  */
 function openNewMessage() {
-    var msgComposeService = Components.classes["@mozilla.org/messengercompose;1"]
-                            .getService(Components.interfaces.nsIMsgComposeService);
-    msgComposeService.OpenComposeWindow(null,
-                                        null,
-                                        null,
-                                        Components.interfaces.nsIMsgCompType.New,
-                                        Components.interfaces.nsIMsgCompFormat.Default,
-                                        null,
-                                        null);
+    MailServices.compose.OpenComposeWindow(null,
+                                           null,
+                                           null,
+                                           Components.interfaces.nsIMsgCompType.New,
+                                           Components.interfaces.nsIMsgCompFormat.Default,
+                                           null,
+                                           null);
 }
 
 /**
@@ -1664,7 +1751,9 @@ function loadCloudProviders() {
         }
 
         // Add the item to the different places we advertise cloud providers
-        toolbarPopup.appendChild(item.cloneNode()).cloudProvider = cloudProvider;
+        if (toolbarPopup) {
+            toolbarPopup.appendChild(item.cloneNode()).cloudProvider = cloudProvider;
+        }
         attachmentPopup.appendChild(item.cloneNode()).cloudProvider = cloudProvider;
 
         // The last one doesn't need to clone, just use the item itself.
@@ -1676,19 +1765,17 @@ function loadCloudProviders() {
  * Prompts the user to attach an url to this item.
  */
 function attachURL() {
-    var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                       .getService(Components.interfaces.nsIPromptService);
-    if (promptService) {
+    if (Services.prompt) {
         // ghost in an example...
         var result = { value: "http://" };
-        if (promptService.prompt(window,
-                                 calGetString("calendar-event-dialog",
-                                              "specifyLinkLocation"),
-                                 calGetString("calendar-event-dialog",
-                                              "enterLinkLocation"),
-                                 result,
-                                 null,
-                                 { value: 0 })) {
+        if (Services.prompt.prompt(window,
+                                   calGetString("calendar-event-dialog",
+                                                "specifyLinkLocation"),
+                                   calGetString("calendar-event-dialog",
+                                                "enterLinkLocation"),
+                                   result,
+                                   null,
+                                   { value: 0 })) {
 
             try {
                 // If something bogus was entered, makeURL may fail.
@@ -1967,15 +2054,13 @@ function deleteAllAttachments() {
     var ok = (itemCount < 2);
 
     if (itemCount > 1) {
-        var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                                      .getService(Components.interfaces.nsIPromptService);
-        ok = promptService.confirm(window,
-                                       calGetString("calendar-event-dialog",
-                                                    "removeCalendarsTitle"),
-                                       calGetString("calendar-event-dialog",
-                                                    "removeCalendarsText",
-                                                    [itemCount]),
-                                       {});
+        ok = Services.prompt.confirm(window,
+                                     calGetString("calendar-event-dialog",
+                                                  "removeCalendarsTitle"),
+                                     calGetString("calendar-event-dialog",
+                                                  "removeCalendarsText",
+                                                  [itemCount]),
+                                     {});
     }
 
     if (ok) {
@@ -2131,6 +2216,7 @@ function updateCalendar() {
         var item = window.calendarItem;
         if (item.parentItem != item) {
             disableElement("item-repeat");
+            disableElement("repeat-until-datepicker");
             var repeatDetails = document.getElementById("repeat-details");
             var numChilds = repeatDetails.childNodes.length;
             for (var i = 0; i < numChilds; i++) {
@@ -2195,25 +2281,12 @@ function editRepeat() {
  *
  * @param aSuppressDialogs     If true, controls are updated without prompting
  *                               for changes with the recurrence dialog
+ * @param aItemRepeatCall      True when the function is being called from
+ *                               the item-repeat menu list. It allows to detect
+ *                               a change from the "custom" option.
  */
-function updateRepeat(aSuppressDialogs) {
-    var repeatMenu = document.getElementById("item-repeat");
-    var repeatItem = repeatMenu.selectedItem;
-    var repeatValue = repeatItem.getAttribute("value");
-
-    if (repeatValue == 'none') {
-        window.recurrenceInfo = null;
-        var item = window.calendarItem;
-        if (isToDo(item)) {
-            enableElementWithLock("todo-has-entrydate", "repeat-lock");
-        }
-    } else if (repeatValue == 'custom') {
-        // the user selected custom repeat pattern. we now need to bring
-        // up the appropriate dialog in order to let the user specify the
-        // new rule. first of all, retrieve the item we want to specify
-        // the custom repeat pattern for.
-        var item = window.calendarItem;
-
+function updateRepeat(aSuppressDialogs, aItemRepeatCall) {
+    function setUpEntrydateForTask(item) {
         // if this item is a task, we need to make sure that it has
         // an entry-date, otherwise we can't create a recurrence.
         if (isToDo(item)) {
@@ -2230,6 +2303,29 @@ function updateRepeat(aSuppressDialogs) {
             // revoked if the user turns off the repeat pattern.
             disableElementWithLock("todo-has-entrydate", "repeat-lock");
         }
+    }
+
+    let repeatMenu = document.getElementById("item-repeat");
+    let repeatValue = repeatMenu.selectedItem.getAttribute("value");
+    let repeatDeck = document.getElementById("repeat-deck");
+
+    if (repeatValue == 'none') {
+        repeatDeck.selectedIndex = -1;
+        window.recurrenceInfo = null;
+        var item = window.calendarItem;
+        if (isToDo(item)) {
+            enableElementWithLock("todo-has-entrydate", "repeat-lock");
+        }
+    } else if (repeatValue == 'custom') {
+        let lastRepeatDeck = repeatDeck.selectedIndex;
+        repeatDeck.selectedIndex = 1;
+        // the user selected custom repeat pattern. we now need to bring
+        // up the appropriate dialog in order to let the user specify the
+        // new rule. First of all, retrieve the item we want to specify
+        // the custom repeat pattern for.
+        var item = window.calendarItem;
+
+        setUpEntrydateForTask(item);
 
         // retrieve the current recurrence info, we need this
         // to find out whether or not the user really created
@@ -2244,71 +2340,114 @@ function updateRepeat(aSuppressDialogs) {
         }
 
         // we need to address two separate cases here.
-        // 1) we need to revoke the selection of the repeat
-        //    drop down list in case the user didn't specify
-        //    a new repeat pattern (i.e. canceled the dialog)
-        // 2) re-enable the 'has entrydate' option in case
-        //    we didn't end up with a recurrence rule.
+        // 1)- We need to revoke the selection of the repeat
+        //     drop down list in case the user didn't specify
+        //     a new repeat pattern (i.e. canceled the dialog);
+        //   - re-enable the 'has entrydate' option in case
+        //     we didn't end up with a recurrence rule.
+        // 2)  Check whether the new recurrence rule needs the
+        //     recurrence details text or it can be displayed
+        //     only with the repeat-until-datepicker.
         if (recurrenceInfo == window.recurrenceInfo) {
             repeatMenu.selectedIndex = gLastRepeatSelection;
+            repeatDeck.selectedIndex = lastRepeatDeck;
             if (isToDo(item)) {
                 if (!window.recurrenceInfo) {
                     enableElementWithLock("todo-has-entrydate", "repeat-lock");
                 }
             }
+        } else {
+            // From the Edit Recurrence dialog, the rules "every day" and
+            // "every weekday" don't need the recurrence details text when they
+            // have only the until date. The loadRepeat() function verifies
+            // whether this is the case and properly sets the controls.
+            loadRepeat(item);
         }
     } else {
-        var item = window.calendarItem;
-        var recurrenceInfo = window.recurrenceInfo || item.recurrenceInfo;
+        let item = window.calendarItem;
+        let recurrenceInfo = window.recurrenceInfo || item.recurrenceInfo;
+        let proposedUntilDate = (gStartTime || window.initialStartDateValue).clone();
+
         if (recurrenceInfo) {
             recurrenceInfo = recurrenceInfo.clone();
-            var rrules = splitRecurrenceRules(recurrenceInfo);
+            let rrules = splitRecurrenceRules(recurrenceInfo);
+            let rule = rrules[0][0];
+
+            // If the previous rule was "custom" we have to recover the until
+            // date, or the last occurrence's date in order to set the
+            // repeat-until-datepicker with the same date.
+            if (aItemRepeatCall && repeatDeck.selectedIndex == 1) {
+                if (!rule.isByCount || !rule.isFinite) {
+                    setElementValue("repeat-until-datepicker",
+                                    !rule.isByCount ? rule.untilDate.getInTimezone(cal.floating()).jsDate
+                                                    : "forever");
+                } else {
+                    // Try to recover the last occurrence in 10(?) years.
+                    let endDate = gStartTime.clone();
+                    endDate.year += 10;
+                    let lastOccurrenceDate = null;
+                    let dates = recurrenceInfo.getOccurrenceDates(gStartTime, endDate, 0, {});
+                    if (dates) {
+                        lastOccurrenceDate = dates[dates.length - 1];
+                    }
+                    setElementValue("repeat-until-datepicker",
+                                    (lastOccurrenceDate || proposedUntilDate).getInTimezone(cal.floating()).jsDate);
+                }
+            }
             if (rrules[0].length > 0) {
-                recurrenceInfo.deleteRecurrenceItem(rrules[0][0]);
+                recurrenceInfo.deleteRecurrenceItem(rule);
             }
         } else {
+            // New event proposes "forever" as default until date.
             recurrenceInfo = createRecurrenceInfo(item);
+            setElementValue("repeat-until-datepicker", "forever");
         }
 
+        repeatDeck.selectedIndex = 0;
+
+        let recRule = createRecurrenceRule();
+        recRule.interval = 1;
         switch (repeatValue) {
             case 'daily':
-              var recRule = createRecurrenceRule();
               recRule.type = 'DAILY';
-              recRule.interval = 1;
-              recRule.count = -1;
               break;
             case 'weekly':
-              var recRule = createRecurrenceRule();
               recRule.type = 'WEEKLY';
-              recRule.interval = 1;
-              recRule.count = -1;
               break;
             case 'every.weekday':
-              var recRule = createRecurrenceRule();
               recRule.type = 'DAILY';
-              recRule.interval = 1;
-              recRule.count = -1;
-              var onDays = [2, 3, 4, 5, 6];
+              let onDays = [2, 3, 4, 5, 6];
               recRule.setComponent("BYDAY", onDays.length, onDays);
               break;
             case 'bi.weekly':
-              var recRule = createRecurrenceRule();
               recRule.type = 'WEEKLY';
               recRule.interval = 2;
-              recRule.count = -1;
               break;
             case 'monthly':
-              var recRule = createRecurrenceRule();
               recRule.type = 'MONTHLY';
-              recRule.interval = 1;
-              recRule.count = -1;
               break;
             case 'yearly':
-              var recRule = createRecurrenceRule();
               recRule.type = 'YEARLY';
-              recRule.interval = 1;
-              recRule.count = -1;
               break;
+        }
+
+        setUpEntrydateForTask(item);
+        let repeatUntilDate = getElementValue("repeat-until-datepicker");
+
+        if (repeatUntilDate != "forever") {
+            let untilDate = cal.jsDateToDateTime(repeatUntilDate, gStartTime.timezone);
+            untilDate.isDate = gStartTime.isDate; // enforce same value type as DTSTART
+            if (!gStartTime.isDate) {
+                untilDate.hour = gStartTime.hour;
+                untilDate.minute = gStartTime.minute;
+                untilDate.second = gStartTime.second;
+            }
+            recRule.untilDate = untilDate;
+            gUntilDate = untilDate;
+        } else {
+            // Rule that recurs forever.
+            recRule.count = -1;
+            gUntilDate = null;
         }
 
         recurrenceInfo.insertRecurrenceItemAt(recRule, 0);
@@ -2334,7 +2473,9 @@ function updateRepeat(aSuppressDialogs) {
 /**
  * Updates the UI controls related to a task's completion status.
  *
- * @param status                    The item's completion status.
+ * @param status                    The item's completion status or a string
+ *                                  that allows to identify a change in the
+ *                                  percent-complete's textbox.
  * @param passedInCompletedDate     The item's completed date (as a JSDate).
  */
 function updateToDoStatus(status, passedInCompletedDate) {
@@ -2344,21 +2485,36 @@ function updateToDoStatus(status, passedInCompletedDate) {
   // back to COMPLETED). When we go to store this VTODO as .ics the
   // date will get lost.
 
-  var completedDate;
+  // remember the original values
+  let oldPercentComplete = getElementValue("percent-complete-textbox");
+  let oldCompletedDate = getElementValue("completed-date-picker");
+
+  // If the percent completed has changed to 100 or from 100 to another
+  // value, the status must change.
+  if (status == "percent-changed") {
+      let menuItemCompleted = document.getElementById("todo-status").selectedIndex == 3;
+      if (oldPercentComplete == "100") {
+          status = "COMPLETED";
+      } else if (menuItemCompleted) {
+          status = "IN-PROCESS";
+      } else {
+          // Changing to any other value doesn't change the status.
+          return;
+      }
+  }
+
+  let completedDate;
   if (passedInCompletedDate) {
       completedDate = passedInCompletedDate;
   } else {
       completedDate = null;
   }
 
-  // remember the original values
-  var oldPercentComplete = getElementValue("percent-complete-textbox");
-  var oldCompletedDate   = getElementValue("completed-date-picker");
-
   switch (status) {
       case null:
       case "":
       case "NONE":
+          oldPercentComplete = 0;
           document.getElementById("todo-status").selectedIndex = 0;
           disableElement("percent-complete-textbox");
           disableElement("percent-complete-label");
@@ -2390,7 +2546,12 @@ function updateToDoStatus(status, passedInCompletedDate) {
           break;
   }
 
-  if (status == "COMPLETED") {
+  if ((status == "IN-PROCESS" || status == "NEEDS-ACTION") &&
+       oldPercentComplete == "100") {
+      setElementValue("percent-complete-textbox", "0");
+      setElementValue("completed-date-picker", oldCompletedDate);
+      disableElement("completed-date-picker");
+  } else if (status == "COMPLETED") {
       setElementValue("percent-complete-textbox", "100");
       setElementValue("completed-date-picker", completedDate);
       enableElement("completed-date-picker");
@@ -2538,8 +2699,6 @@ function onCommandSave(aIsClosing) {
 function onCommandDeleteItem() {
     // only ask for confirmation, if the User changed anything on a new item or we modify an existing item
     if (isItemChanged() || window.mode != "new") {
-        let promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                                    .getService(Components.interfaces.nsIPromptService);
         let promptTitle = "";
         let promptMessage = "";
 
@@ -2551,7 +2710,7 @@ function onCommandDeleteItem() {
             promptMessage = calGetString("calendar", "deleteTaskMessage");
         }
 
-        let answerDelete = promptService.confirm(
+        let answerDelete = Services.prompt.confirm(
                                     null,
                                     promptTitle,
                                     promptMessage);
@@ -3120,7 +3279,7 @@ function updateAttendees() {
         let callback = function func() {
             attendeeList.setAttribute('value', attendeeNames.join(', '));
             attendeeList.setAttribute('tooltiptext', attendeeEmails.join(', '));
-        }
+        };
         setTimeout(callback, 1);
     } else {
         attendeeRow.setAttribute('collapsed', 'true');
@@ -3135,11 +3294,11 @@ function updateAttendees() {
 function updateRepeatDetails() {
     // Don't try to show the details text for
     // anything but a custom recurrence rule.
-    let item = window.calendarItem;
     let recurrenceInfo = window.recurrenceInfo;
     let itemRepeat = document.getElementById("item-repeat");
     if (itemRepeat.value == "custom" && recurrenceInfo) {
-
+        let item = window.calendarItem;
+        document.getElementById("repeat-deck").selectedIndex = 1;
         // First of all collapse the details text. If we fail to
         // create a details string, we simply don't show anything.
         // this could happen if the repeat rule is something exotic
@@ -3318,6 +3477,7 @@ function updateCapabilities() {
     updatePriority();
     updatePrivacy();
     updateReminderDetails();
+    updateCategoryMenulist();
 }
 
 /**
@@ -3365,4 +3525,49 @@ function capValues(aCap, aDefault) {
     let calendar = getCurrentCalendar();
     let vals = calendar.getProperty("capabilities." + aCap + ".values");
     return (vals === null ? aDefault : vals);
+}
+
+ /**
+ * Checks the until date just entered in the datepicker in order to avoid
+ * setting a date earlier than the start date.
+ * Restores the previous correct date; sets the warning flag to prevent closing
+ * the dialog when the user enters a wrong until date.
+ */
+function checkUntilDate() {
+    let repeatUntilDate = getElementValue("repeat-until-datepicker");
+    if (repeatUntilDate == "forever") {
+        updateRepeat();
+        // "forever" is never earlier than another date.
+        return;
+    }
+
+    // The "time" part of the until date will be correctly assigned in the
+    // updateRepeat() function, but here we need to check only the date.
+    let untilDate = cal.jsDateToDateTime(repeatUntilDate, gStartTime.timezone);
+    let startDate = gStartTime.clone();
+    startDate.isDate = true;
+    if (untilDate.compare(startDate) < 0) {
+        // Restore the previous date. Since we are checking an until date,
+        // a null value for gUntilDate means repeat "forever".
+        setElementValue("repeat-until-datepicker",
+                        gUntilDate ? gUntilDate.getInTimezone(cal.floating()).jsDate
+                                   : "forever");
+        gWarning = true;
+        let callback = function() {
+            // Disable the "Save" and "Save and Close" commands as long as the
+            // warning dialog is showed.
+            enableAcceptCommand(false);
+
+            Services.prompt.alert(
+                null,
+                document.title,
+                calGetString("calendar", "warningUntilBeforeStart"));
+            enableAcceptCommand(true);
+            gWarning = false;
+        };
+        setTimeout(callback, 1);
+    } else {
+        gUntilDate = untilDate;
+        updateRepeat();
+    }
 }

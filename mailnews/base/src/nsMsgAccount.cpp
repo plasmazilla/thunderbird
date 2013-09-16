@@ -24,6 +24,7 @@
 #include "nsMemory.h"
 #include "nsComponentManagerUtils.h"
 #include "nsMsgUtils.h"
+#include "nsArrayUtils.h"
 
 NS_IMPL_ISUPPORTS1(nsMsgAccount, nsIMsgAccount)
 
@@ -47,7 +48,7 @@ nsMsgAccount::getPrefService()
   nsCOMPtr<nsIPrefService> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCAutoString accountRoot("mail.account.");
+  nsAutoCString accountRoot("mail.account.");
   accountRoot.Append(m_accountKey);
   accountRoot.Append('.');
   return prefs->GetBranch(accountRoot.get(), getter_AddRefs(m_prefs));
@@ -173,9 +174,8 @@ nsMsgAccount::SetIncomingServer(nsIMsgIncomingServer *aIncomingServer)
   return NS_OK;
 }
 
-/* nsISupportsArray GetIdentities (); */
 NS_IMETHODIMP
-nsMsgAccount::GetIdentities(nsISupportsArray **_retval)
+nsMsgAccount::GetIdentities(nsIArray **_retval)
 {
   NS_ENSURE_ARG_POINTER(_retval);
   NS_ENSURE_TRUE(m_identities, NS_ERROR_FAILURE);
@@ -193,10 +193,11 @@ nsMsgAccount::createIdentities()
 {
   NS_ENSURE_FALSE(m_identities, NS_ERROR_FAILURE);
 
-  NS_NewISupportsArray(getter_AddRefs(m_identities));
+  nsresult rv;
+  m_identities = do_CreateInstance(NS_ARRAY_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   nsCString identityKey;
-  nsresult rv;
   rv = getPrefService();
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -213,7 +214,7 @@ nsMsgAccount::createIdentities()
 
   // temporaries used inside the loop
   nsCOMPtr<nsIMsgIdentity> identity;
-  nsCAutoString key;
+  nsAutoCString key;
 
   // iterate through id1,id2, etc
   while (token) {
@@ -245,28 +246,33 @@ nsMsgAccount::GetDefaultIdentity(nsIMsgIdentity **aDefaultIdentity)
 
   *aDefaultIdentity = nullptr;
   uint32_t count;
-  nsresult rv = m_identities->Count(&count);
+  nsresult rv = m_identities->GetLength(&count);
   NS_ENSURE_SUCCESS(rv, rv);
   if (count == 0)
     return NS_OK;
 
-  nsCOMPtr<nsIMsgIdentity> identity( do_QueryElementAt(m_identities, 0, &rv));
+  nsCOMPtr<nsIMsgIdentity> identity = do_QueryElementAt(m_identities, 0, &rv);
   identity.swap(*aDefaultIdentity);
   return rv;
 }
 
-// todo - make sure this is in the identity array!
 NS_IMETHODIMP
 nsMsgAccount::SetDefaultIdentity(nsIMsgIdentity *aDefaultIdentity)
 {
   NS_ENSURE_TRUE(m_identities, NS_ERROR_FAILURE);
 
-  NS_ASSERTION(m_identities->IndexOf(aDefaultIdentity) != -1, "Where did that identity come from?!");
-  if (m_identities->IndexOf(aDefaultIdentity) == -1)
-    return NS_ERROR_UNEXPECTED;
+  uint32_t position = 0;
+  nsresult rv = m_identities->IndexOf(0, aDefaultIdentity, &position);
+  NS_ENSURE_SUCCESS(rv, rv);
 
-  m_defaultIdentity = aDefaultIdentity;
-  return NS_OK;
+  rv = m_identities->RemoveElementAt(position);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // The passed in identity is in the list, so we have at least one element.
+  rv = m_identities->InsertElementAt(aDefaultIdentity, 0, false);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return saveIdentitiesPref();
 }
 
 // add the identity to m_identities, but don't fiddle with the
@@ -277,7 +283,7 @@ nsMsgAccount::addIdentityInternal(nsIMsgIdentity *identity)
 {
   NS_ENSURE_TRUE(m_identities, NS_ERROR_FAILURE);
 
-  return m_identities->AppendElement(identity);
+  return m_identities->AppendElement(identity, false);
 }
 
 /* void addIdentity (in nsIMsgIdentity identity); */
@@ -296,9 +302,9 @@ nsMsgAccount::AddIdentity(nsIMsgIdentity *identity)
     nsCString identityList;
     m_prefs->GetCharPref("identities", getter_Copies(identityList));
 
-    nsCAutoString newIdentityList(identityList);
+    nsAutoCString newIdentityList(identityList);
 
-    nsCAutoString testKey;      // temporary to strip whitespace
+    nsAutoCString testKey;      // temporary to strip whitespace
     bool foundIdentity = false; // if the input identity is found
 
     if (!identityList.IsEmpty()) {
@@ -331,12 +337,7 @@ nsMsgAccount::AddIdentity(nsIMsgIdentity *identity)
   }
 
   // now add it to the in-memory list
-  rv = addIdentityInternal(identity);
-
-  if (!m_defaultIdentity)
-    SetDefaultIdentity(identity);
-
-  return rv;
+  return addIdentityInternal(identity);
 }
 
 /* void removeIdentity (in nsIMsgIdentity identity); */
@@ -347,28 +348,35 @@ nsMsgAccount::RemoveIdentity(nsIMsgIdentity *aIdentity)
   NS_ENSURE_TRUE(m_identities, NS_ERROR_FAILURE);
 
   uint32_t count = 0;
-  m_identities->Count(&count);
+  m_identities->GetLength(&count);
+  // At least one identity must stay after the delete.
+  NS_ENSURE_TRUE(count > 1, NS_ERROR_FAILURE);
 
-  NS_ENSURE_TRUE(count > 1, NS_ERROR_FAILURE); // you must have at least one identity
-
-  nsCString key;
-  nsresult rv = aIdentity->GetKey(key);
+  uint32_t pos = 0;
+  nsresult rv = m_identities->IndexOf(0, aIdentity, &pos);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   // remove our identity
-  m_identities->RemoveElement(aIdentity);
-  count--;
+  m_identities->RemoveElementAt(pos);
 
   // clear out the actual pref values associated with the identity
   aIdentity->ClearAllValues();
 
-  // if we just deleted the default identity, clear it out so we pick a new one
-  if (m_defaultIdentity == aIdentity)
-    m_defaultIdentity = nullptr;
+  return saveIdentitiesPref();
+}
 
-  // now rebuild the identity pref
-  nsCAutoString newIdentityList;
+nsresult
+nsMsgAccount::saveIdentitiesPref()
+{
+  nsAutoCString newIdentityList;
 
-  // iterate over the remaining identities
+  // Iterate over the existing identities and build the pref value,
+  // a string of identity keys: id1, id2, idX...
+  uint32_t count;
+  nsresult rv = m_identities->GetLength(&count);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCString key;
   for (uint32_t index = 0; index < count; index++)
   {
     nsCOMPtr<nsIMsgIdentity> identity = do_QueryElementAt(m_identities, index, &rv);
@@ -376,8 +384,9 @@ nsMsgAccount::RemoveIdentity(nsIMsgIdentity *aIdentity)
     {
       identity->GetKey(key);
 
-      if (!index)
+      if (!index) {
         newIdentityList = key;
+      }
       else
       {
         newIdentityList.Append(',');
@@ -386,9 +395,10 @@ nsMsgAccount::RemoveIdentity(nsIMsgIdentity *aIdentity)
     }
   }
 
+  // Save the pref.
   m_prefs->SetCharPref("identities", newIdentityList.get());
 
-  return rv;
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsMsgAccount::GetKey(nsACString& accountKey)
@@ -422,5 +432,5 @@ nsMsgAccount::ClearAllValues()
   nsresult rv = getPrefService();
   NS_ENSURE_SUCCESS(rv, rv);
 
-  return m_prefs->DeleteBranch(nullptr);
+  return m_prefs->DeleteBranch("");
 }

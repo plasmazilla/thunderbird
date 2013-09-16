@@ -5,6 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef MOZ_WIDGET_QT
+#include <unistd.h> // for _exit()
 #include <QtCore/QTimer>
 #include "nsQAppInstance.h"
 #include "NestedLoopTimer.h"
@@ -54,6 +55,8 @@
 #include "PluginInterposeOSX.h"
 #include "PluginUtilsOSX.h"
 #endif
+
+#include "GeckoProfiler.h"
 
 using namespace mozilla;
 using namespace mozilla::plugins;
@@ -168,15 +171,19 @@ PluginModuleChild::Init(const std::string& aPluginFilename,
 
     // Maemo flash can render with any provided rectangle and so does not
     // require this quirk.
-#if defined(MOZ_X11) && !defined(MOZ_PLATFORM_MAEMO)
+#if (defined(MOZ_X11) && !defined(MOZ_PLATFORM_MAEMO)) || defined(OS_MACOSX)
     nsPluginInfo info = nsPluginInfo();
     if (NS_FAILED(pluginFile.GetPluginInfo(info, &mLibrary)))
         return false;
 
+#if defined(MOZ_X11) && !defined(MOZ_PLATFORM_MAEMO)
     NS_NAMED_LITERAL_CSTRING(flash10Head, "Shockwave Flash 10.");
     if (StringBeginsWith(nsDependentCString(info.fDescription), flash10Head)) {
         AddQuirk(QUIRK_FLASH_EXPOSE_COORD_TRANSLATION);
     }
+#else // defined(OS_MACOSX)
+    mozilla::plugins::PluginUtilsOSX::SetProcessName(info.fName);
+#endif
 
     if (!mLibrary)
 #endif
@@ -196,7 +203,7 @@ PluginModuleChild::Init(const std::string& aPluginFilename,
 
     // TODO: use PluginPRLibrary here
 
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_BSD)
     mShutdownFunc =
         (NP_PLUGINSHUTDOWN) PR_FindFunctionSymbol(mLibrary, "NP_Shutdown");
 
@@ -221,13 +228,6 @@ PluginModuleChild::Init(const std::string& aPluginFilename,
 
 #  error Please copy the initialization code from nsNPAPIPlugin.cpp
 
-#endif
-
-#ifdef XP_MACOSX
-    nsPluginInfo info = nsPluginInfo();
-    if (pluginFile.GetPluginInfo(info, &mLibrary) == NS_OK) {
-        mozilla::plugins::PluginUtilsOSX::SetProcessName(info.fName);
-    }
 #endif
 
     return true;
@@ -748,7 +748,11 @@ PluginModuleChild::UnregisterActorForNPObject(NPObject* aObject)
     NS_ASSERTION(mObjectMap.IsInitialized(), "Not initialized!");
     NS_ASSERTION(aObject, "Null pointer!");
 
-    mObjectMap.GetEntry(aObject)->actor = NULL;
+    NPObjectData* d = mObjectMap.GetEntry(aObject);
+    NS_ASSERTION(d, "NPObject not in object table");
+    if (d) {
+        d->actor = NULL;
+    }
 }
 
 PluginScriptableObjectChild*
@@ -1053,10 +1057,8 @@ _geturlnotify(NPP aNPP,
     StreamNotifyChild* sn = new StreamNotifyChild(url);
 
     NPError err;
-    if (!InstCast(aNPP)->CallPStreamNotifyConstructor(
-           sn, url, NullableString(aTarget), false, nsCString(), false, &err)) {
-        NS_RUNTIMEABORT("StreamNotify constructor failed");
-    }
+    InstCast(aNPP)->CallPStreamNotifyConstructor(
+        sn, url, NullableString(aTarget), false, nsCString(), false, &err);
 
     if (NPERR_NO_ERROR == err) {
         // If NPN_PostURLNotify fails, the parent will immediately send us
@@ -1096,7 +1098,7 @@ _getvalue(NPP aNPP,
             *(NPBool*)aValue = value ? true : false;
             return result;
         }
-#if defined(MOZ_WIDGET_GTK)
+#if (MOZ_WIDGET_GTK == 2)
         case NPNVxDisplay: {
             if (aNPP) {
                 return InstCast(aNPP)->NPN_GetValue(aVariable, aValue);
@@ -1166,11 +1168,9 @@ _posturlnotify(NPP aNPP,
     StreamNotifyChild* sn = new StreamNotifyChild(url);
 
     NPError err;
-    if (!InstCast(aNPP)->CallPStreamNotifyConstructor(
-            sn, url, NullableString(aTarget), true,
-            nsCString(aBuffer, aLength), aIsFile, &err)) {
-        NS_RUNTIMEABORT("StreamNotify constructor failed");
-    }
+    InstCast(aNPP)->CallPStreamNotifyConstructor(
+        sn, url, NullableString(aTarget), true,
+        nsCString(aBuffer, aLength), aIsFile, &err);
 
     if (NPERR_NO_ERROR == err) {
         // If NPN_PostURLNotify fails, the parent will immediately send us
@@ -1774,7 +1774,10 @@ _convertpoint(NPP instance,
               double *destX, double *destY, NPCoordinateSpace destSpace)
 {
     PLUGIN_LOG_DEBUG_FUNCTION;
-    AssertPluginThread();
+    if (!IsPluginThread()) {
+        NS_WARNING("Not running on the plugin's main thread!");
+        return false;
+    }
 
     double rDestX = 0;
     bool ignoreDestX = !destX;
@@ -1831,7 +1834,7 @@ PluginModuleChild::AnswerNP_GetEntryPoints(NPError* _retval)
     PLUGIN_LOG_DEBUG_METHOD;
     AssertPluginThread();
 
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_BSD)
     return true;
 #elif defined(OS_WIN) || defined(OS_MACOSX)
     *_retval = mGetEntryPointsFunc(&mFunctions);
@@ -1860,7 +1863,7 @@ PluginModuleChild::AnswerNP_Initialize(const uint32_t& aFlags, NPError* _retval)
     SendBackUpXResources(FileDescriptor(xSocketFd));
 #endif
 
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_BSD)
     *_retval = mInitializeFunc(&sBrowserFuncs, &mFunctions);
     return true;
 #elif defined(OS_WIN) || defined(OS_MACOSX)
@@ -1996,6 +1999,9 @@ PluginModuleChild::InitQuirksModes(const nsCString& aMimeType)
     // Whitelist Flash and Quicktime to support offline renderer
     NS_NAMED_LITERAL_CSTRING(flash, "application/x-shockwave-flash");
     NS_NAMED_LITERAL_CSTRING(quicktime, "QuickTime Plugin.plugin");
+    if (FindInReadable(flash, aMimeType)) {
+      mQuirks |= QUIRK_FLASH_AVOID_CGMODE_CRASHES;
+    }
     if (FindInReadable(flash, aMimeType) ||
         FindInReadable(quicktime, mPluginFilename)) {
         mQuirks |= QUIRK_ALLOW_OFFLINE_RENDERER;
@@ -2299,7 +2305,7 @@ PluginModuleChild::NPN_IntFromIdentifier(NPIdentifier aIdentifier)
     if (!static_cast<PluginIdentifierChild*>(aIdentifier)->IsString()) {
       return static_cast<PluginIdentifierChildInt*>(aIdentifier)->ToInt();
     }
-    return PR_INT32_MIN;
+    return INT32_MIN;
 }
 
 #ifdef OS_WIN
@@ -2421,3 +2427,16 @@ PluginModuleChild::ProcessNativeEvents() {
     CallProcessSomeEvents();    
 }
 #endif
+
+bool
+PluginModuleChild::AnswerGeckoGetProfile(nsCString* aProfile) {
+    char* profile = profiler_get_profile();
+    if (profile != NULL) {
+        *aProfile = nsCString(profile, strlen(profile));
+        free(profile);
+    } else {
+        *aProfile = nsCString("", 0);
+    }
+    return true;
+}
+

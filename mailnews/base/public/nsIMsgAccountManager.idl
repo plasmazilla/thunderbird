@@ -10,11 +10,10 @@
 #include "nsIIncomingServerListener.idl"
 #include "nsIMsgFolder.idl"
 
-interface nsISupportsArray;
 interface nsIMsgFolderCache;
 interface nsIFolderListener;
 
-[scriptable, uuid(5cd9a7cc-3bd1-4553-95d8-b1b48f19ed1e)]
+[scriptable, uuid(d5ab0eea-49c5-42f2-b2e6-8ad306606d8b)]
 interface nsIMsgAccountManager : nsISupports {
 
   nsIMsgAccount createAccount();
@@ -76,17 +75,17 @@ interface nsIMsgAccountManager : nsISupports {
    * Accounts with hidden servers are not returned.
    * array of nsIMsgAccount
    */
-  readonly attribute nsISupportsArray accounts;
+  readonly attribute nsIArray accounts;
 
   /* list of all identities in all accounts
    * array of nsIMsgIdentity
    */
-  readonly attribute nsISupportsArray allIdentities;
+  readonly attribute nsIArray allIdentities;
 
   /* list of all servers in all accounts, except for hidden and IM servers
    * array of nsIMsgIncomingServer
    */
-  readonly attribute nsISupportsArray allServers;
+  readonly attribute nsIArray allServers;
 
   /* summary of summary files folder cache */
   readonly attribute nsIMsgFolderCache folderCache;
@@ -139,7 +138,7 @@ interface nsIMsgAccountManager : nsISupports {
   /* given a server, return all identities in accounts that have this server
    * returns an array of nsIMsgIdentity
    */
-  nsISupportsArray GetIdentitiesForServer(in nsIMsgIncomingServer server);
+  nsIArray getIdentitiesForServer(in nsIMsgIncomingServer server);
 
   /**
    * given a server, return the first identity in accounts that have this server
@@ -150,7 +149,7 @@ interface nsIMsgAccountManager : nsISupports {
    * this identity
    * returns an array of nsIMsgIncomingServer
    */
-  nsISupportsArray GetServersForIdentity(in nsIMsgIdentity identity);
+  nsIArray getServersForIdentity(in nsIMsgIdentity identity);
 
   /* there is a special server "Local Folders" that is guaranteed to exist.
    * this will allow you to get */
@@ -213,6 +212,9 @@ interface nsIMsgAccountManager : nsISupports {
    * @return the URI of the folder that corresponds to aLocalPath
    */
   ACString folderUriForPath(in nsIFile aLocalPath);
+
+  // Used to sort servers (accounts) for e.g. the folder pane
+  long getSortOrder(in nsIMsgIncomingServer server);
 };
 
 %{C++

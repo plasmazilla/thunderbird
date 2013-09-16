@@ -6,19 +6,16 @@ const EXPORTED_SYMBOLS = ["doXHRequest", "percentEncode"];
 
 const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
-Cu.import("resource:///modules/imXPCOMUtils.jsm");
-
-initLogModule("xhr", this);
-
 // Strictly follow RFC 3986 when encoding URI components.
 function percentEncode(aString)
   encodeURIComponent(aString).replace(/[!'()]/g, escape).replace(/\*/g, "%2A");
 
-function doXHRequest(aUrl, aHeaders, aPOSTData, aOnLoad, aOnError, aThis) {
+function doXHRequest(aUrl, aHeaders, aPOSTData, aOnLoad, aOnError, aThis,
+                     aMethod, aLogger) {
   let xhr = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
               .createInstance(Ci.nsIXMLHttpRequest);
   xhr.mozBackgroundRequest = true; // no error dialogs
-  xhr.open(aPOSTData ? "POST" : "GET", aUrl);
+  xhr.open(aMethod || (aPOSTData ? "POST" : "GET"), aUrl);
   xhr.channel.loadFlags = Ci.nsIChannel.LOAD_ANONYMOUS | // don't send cookies
                           Ci.nsIChannel.LOAD_BYPASS_CACHE |
                           Ci.nsIChannel.INHIBIT_CACHING;
@@ -43,8 +40,9 @@ function doXHRequest(aUrl, aHeaders, aPOSTData, aOnLoad, aOnError, aThis) {
   xhr.onload = function (aRequest) {
     try {
       let target = aRequest.target;
-      DEBUG("Received response: " + target.responseText);
-      if (target.status != 200) {
+      if (aLogger)
+        aLogger.DEBUG("Received response: " + target.responseText);
+      if (target.status < 200 || target.status >= 300) {
         let errorText = target.responseText;
         if (!errorText || /<(ht|\?x)ml\b/i.test(errorText))
           errorText = target.statusText;
@@ -65,15 +63,20 @@ function doXHRequest(aUrl, aHeaders, aPOSTData, aOnLoad, aOnError, aThis) {
     });
   }
 
-  let POSTData = "";
-  if (aPOSTData) {
+  // aPOSTData can be:
+  //  - a string: send it as is
+  //  - an array of parameters: encode as form values
+  //  - null/undefined: no POST data.
+  let POSTData = aPOSTData || "";
+  if (Array.isArray(POSTData)) {
     xhr.setRequestHeader("Content-Type",
                          "application/x-www-form-urlencoded; charset=utf-8");
     POSTData = aPOSTData.map(function(p) p[0] + "=" + percentEncode(p[1]))
                         .join("&");
   }
 
-  LOG("sending request to " + aUrl + " (POSTData = " + POSTData + ")");
+  if (aLogger)
+    aLogger.LOG("sending request to " + aUrl + " (POSTData = " + POSTData + ")");
   xhr.send(POSTData);
   return xhr;
 }

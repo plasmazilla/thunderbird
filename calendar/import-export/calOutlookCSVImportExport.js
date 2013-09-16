@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://calendar/modules/calAlarmUtils.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 const localeEn = {
     headTitle       : "Subject",
@@ -86,32 +87,19 @@ function getOutlookCsvFileTypes(aCount) {
 
 // Importer
 function calOutlookCSVImporter() {
+    this.wrappedJSObject = this;
 }
-
+const calOutlookCSVImporterClassID = Components.ID("{64a5d17a-0497-48c5-b54f-72b15c9e9a14}");
+const calOutlookCSVImporterInterfaces = [Components.interfaces.calIImporter];
 calOutlookCSVImporter.prototype = {
-    getInterfaces: function (count) {
-        const ifaces = [
-            Components.interfaces.nsISupports,
-            Components.interfaces.nsIClassInfo,
-            Components.interfaces.calIImporter,
-        ];
-        count.value = ifaces.length;
-        return ifaces;
-    },
-
-    getHelperForLanguage: function (language) {
-        return null;
-    },
-
-    contractID: "@mozilla.org/calendar/import;1?type=csv",
-    classDescription: "Calendar Outlook CSV Importer",
-    classID: Components.ID("{64a5d17a-0497-48c5-b54f-72b15c9e9a14}"),
-    implementationLanguage: Components.interfaces.nsIProgrammingLanguage.JAVASCRIPT,
-    flags: 0,
-
-    QueryInterface: function QueryInterface(aIID) {
-        return cal.doQueryInterface(this, calOutlookCSVImporter.prototype, aIID, null, this);
-    },
+    classID: calOutlookCSVImporterClassID,
+    QueryInterface: XPCOMUtils.generateQI(calOutlookCSVImporterInterfaces),
+    classInfo: XPCOMUtils.generateCI({
+        classID: calOutlookCSVImporterClassID,
+        contractID: "@mozilla.org/calendar/import;1?type=csv",
+        classDescription: "Calendar Outlook CSV Importer",
+        interfaces: calOutlookCSVImporterInterfaces
+    }),
 
     getFileTypes: getOutlookCsvFileTypes,
 
@@ -158,9 +146,10 @@ calOutlookCSVImporter.prototype = {
 
             let locale;
             let i;
+            let knownIndxs;
             for (i in locales) {
                 locale = locales[i];
-                let knownIndxs = 0;
+                knownIndxs = 0;
                 args.titleIndex = 0;
                 args.startDateIndex = 0;
                 for (let i = 1; i <= header.length; ++i) {
@@ -222,7 +211,7 @@ calOutlookCSVImporter.prototype = {
             const eventRegExp = new RegExp(regExpStr, "gm");
 
             // match first line
-            let eventFields = eventRegExp(str);
+            let eventFields = eventRegExp.exec(str);
 
             if (eventFields == null)
                 break parse;
@@ -351,7 +340,7 @@ calOutlookCSVImporter.prototype = {
                     if ("categoriesIndex" in args) {
                         txt = this.parseTextField(eventFields[args.categoriesIndex])
                         if (txt) {
-                            let categories = categoriesStringToArray(txt);
+                            let categories = cal.categoriesStringToArray(txt);
                             event.setCategories(categories.length, categories);
                         }
                     }
@@ -367,7 +356,7 @@ calOutlookCSVImporter.prototype = {
                 }
 
                 //get next events fields
-                eventFields = eventRegExp(str);
+                eventFields = eventRegExp.exec(str);
 
             } while (eventRegExp.lastIndex != 0);
 
@@ -429,31 +418,17 @@ calOutlookCSVImporter.prototype = {
 // Exporter
 function calOutlookCSVExporter() {
 }
-
+const calOutlookCSVExporterClassID = Components.ID("{48e6d3a6-b41b-4052-9ed2-40b27800bd4b}");
+const calOutlookCSVExporterInterfaces = [Components.interfaces.calIExporter];
 calOutlookCSVExporter.prototype = {
-    getInterfaces: function (count) {
-        const ifaces = [
-            Components.interfaces.nsISupports,
-            Components.interfaces.nsIClassInfo,
-            Components.interfaces.calIExporter,
-        ];
-        count.value = ifaces.length;
-        return ifaces;
-    },
-
-    getHelperForLanguage: function (language) {
-        return null;
-    },
-
-    contractID: "@mozilla.org/calendar/export;1?type=csv",
-    classDescription: "Calendar Outlook CSV Exporter",
-    classID: Components.ID("{48e6d3a6-b41b-4052-9ed2-40b27800bd4b}"),
-    implementationLanguage: Components.interfaces.nsIProgrammingLanguage.JAVASCRIPT,
-    flags: 0,
-
-    QueryInterface: function QueryInterface(aIID) {
-        return cal.doQueryInterface(this, calOutlookCSVExporter.prototype, aIID, null, this);
-    },
+    classID: calOutlookCSVExporterClassID,
+    QueryInterface: XPCOMUtils.generateQI(calOutlookCSVExporterInterfaces),
+    classInfo: XPCOMUtils.generateCI({
+        classID: calOutlookCSVExporterClassID,
+        contractID: "@mozilla.org/calendar/export;1?type=csv",
+        classDescription: "Calendar Outlook CSV Exporter",
+        interfaces: calOutlookCSVExporterInterfaces
+    }),
 
     getFileTypes: getOutlookCsvFileTypes,
 

@@ -10,13 +10,8 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-MODULE		= mime
-
-PARALLEL_DIRS	= public src emitters cthandlers
-
-ifdef ENABLE_TESTS
-PARALLEL_DIRS += test
-endif
+libs:: jsmime/mimeParser.jsm
+	$(call install_cmd,$(IFLAGS1) $^ $(FINAL_TARGET)/modules)
 
 include $(topsrcdir)/config/rules.mk
 

@@ -13,6 +13,15 @@
  * @author Ben Bucksch <ben.bucksch beonex.com>
  */
 
+var EXPORTED_SYMBOLS = [
+  "AuthPLAIN",
+  "AuthLOGIN",
+  "AuthCRAM"
+];
+
+const Cc = Components.classes;
+const Ci = Components.interfaces;
+
 /**
  * Implements AUTH PLAIN
  * @see RFC 4616
@@ -28,7 +37,7 @@ var AuthPLAIN = {
   decodeLine: function(line) {
     dump("AUTH PLAIN line -" + line + "-\n");
     line = atob(line); // base64 decode
-    aap = line.split("\u0000"); // 0-charater is delimiter
+    let aap = line.split("\u0000"); // 0-charater is delimiter
     if (aap.length != 3)
       throw "Expected three parts";
     /* aap is: authorize-id, authenticate-id, password.

@@ -151,9 +151,7 @@
   <key id="key_renameAttachment"/>
 </keyset>
 
-  <popupset id="contentAreaContextSet">
-    <menupopup id="contentAreaContextMenu"/>
-  </popupset>
+  <popupset id="contentAreaContextSet"/>
 
   <popupset id="msgComposePopupSet">
     <menupopup id="sidebarPopup"/>
@@ -183,6 +181,8 @@
     </menupopup>
   </popupset>
 
+  <vbox id="titlebar"/>
+
   <toolbox id="compose-toolbox"
            class="toolbox-top"
            mode="full"
@@ -211,6 +211,7 @@
                   <menuseparator id="menuNewPopupSeparator"/>
                   <menuitem id="menu_newCard"/>
                   <menuitem id="menu_newNavigator"/>
+                  <menuitem id="menu_newPrivateWindow"/>
                   <menuitem id="menu_newEditor"/>
                 </menupopup>
               </menu>
@@ -625,6 +626,7 @@
   <!-- The mail message body frame -->
   <vbox id="appcontent" flex="1">
     <editor type="content-primary" id="content-frame" src="about:blank" name="browser.message.body" flex="1"
+            onclick="if (event.detail == 2) EditorDblClick(event);"
             context="contentAreaContextMenu"/>
   </vbox>
 </hbox>

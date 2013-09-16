@@ -12,8 +12,6 @@
  *  adds a lot of runtime overhead which makes certain debugging strategies like
  *  using chronicle-recorder impractical.
  */
-load("../../../../resources/mailDirService.js");
-load("../../../../resources/mailTestUtils.js");
 load("../../../../resources/logHelper.js");
 load("../../../../resources/asyncTestUtils.js");
 
@@ -127,7 +125,7 @@ var tachApplication = {filename: 'funky.funk',
 
 var relImage = {contentType: 'image/png',
                 encoding: 'base64', charset: null, format: null,
-                contentId: 'part1.foo@bar.com',
+                contentId: 'part1.foo@bar.invalid',
                 body: b64Text};
 
 var tachVCard = {filename: 'bob.vcf', contentType: 'text/x-vcard',

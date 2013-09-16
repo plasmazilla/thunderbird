@@ -7,9 +7,9 @@
  */
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
-load("../../../resources/IMAPpump.js");
+
+Components.utils.import("resource:///modules/mailServices.js");
 
 // Globals
 var gFilter; // a message filter with a subject search
@@ -40,7 +40,7 @@ function setup() {
   setupIMAPPump();
 
   // Create a test filter.
-  let filterList = gIMAPIncomingServer.getFilterList(null);
+  let filterList = IMAPPump.incomingServer.getFilterList(null);
   gFilter = filterList.createFilter("test offline");
   let searchTerm = gFilter.createTerm();
   searchTerm.matchAll = true;
@@ -52,14 +52,12 @@ function setup() {
   gAction = gFilter.createAction();
 
   // add the custom actions
-  var filterService = Cc["@mozilla.org/messenger/services/filters;1"]
-                        .getService(Ci.nsIMsgFilterService);
-  filterService.addCustomAction(actionTestOffline);
+  MailServices.filters.addCustomAction(actionTestOffline);
 }
 
 // basic preparation done for each test
 function runFilterAction(aFilter, aAction) {
-  let filterList = gIMAPIncomingServer.getFilterList(null);
+  let filterList = IMAPPump.incomingServer.getFilterList(null);
   while (filterList.filterCount)
     filterList.removeFilterAt(0);
   if (aFilter) {
@@ -69,9 +67,9 @@ function runFilterAction(aFilter, aAction) {
       filterList.insertFilterAt(0, aFilter);
     }
   }
-  gIMAPMailbox.addMessage(new imapMessage(specForFileName(gMessage),
-                          gIMAPMailbox.uidnext++, []));
-  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+  IMAPPump.mailbox.addMessage(new imapMessage(specForFileName(gMessage),
+                          IMAPPump.mailbox.uidnext++, []));
+  IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
   yield false;
 }
 
@@ -84,7 +82,7 @@ function run_test() {
 }
 
 // custom action to test offline status
-actionTestOffline =
+let actionTestOffline =
 {
   id: "mailnews@mozilla.org#testOffline",
   name: "test if offline",
@@ -93,8 +91,8 @@ actionTestOffline =
     for (var i = 0; i < aMsgHdrs.length; i++)
     {
       var msgHdr = aMsgHdrs.queryElementAt(i, Ci.nsIMsgDBHdr);
-      let isOffline = msgHdr.flags & Ci.nsMsgMessageFlags.Offline ? true : false;
-      do_check_eq(isOffline, aActionValue == 'true' ? true : false);
+      let isOffline = msgHdr.flags & Ci.nsMsgMessageFlags.Offline;
+      do_check_eq(isOffline, aActionValue == 'true');
     }
   },
   isValidForType: function(type, scope) {return true;},
@@ -114,9 +112,6 @@ actionTestOffline =
 function specForFileName(aFileName)
 {
   let file = do_get_file("../../../data/" + aFileName);
-  let msgfileuri = Cc["@mozilla.org/network/io-service;1"]
-                     .getService(Ci.nsIIOService)
-                     .newFileURI(file)
-                     .QueryInterface(Ci.nsIFileURL);
+  let msgfileuri = Services.io.newFileURI(file).QueryInterface(Ci.nsIFileURL);
   return msgfileuri.spec;
 }

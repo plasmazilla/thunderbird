@@ -6,8 +6,6 @@
  * This test creates some messages with attachments of different types and
  * checks that libmime emits (or doesn't emit) the attachments as appropriate.
  */
-load("../../../resources/mailDirService.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/logHelper.js");
 load("../../../resources/asyncTestUtils.js");
 
@@ -114,13 +112,11 @@ let gStreamListener = {
       if (expectedAttachments[i])
         do_check_eq(expectedAttachments[i], gMessageHeaderSink.attachments[i]);
     }
+    this._stream = null;
 
     async_driver();
   },
 
-  /* okay, our onDataAvailable should actually never be called.  the stream
-     converter is actually eating everything except the start and stop
-     notification. */
   // nsIStreamListener part
   _stream : null,
 

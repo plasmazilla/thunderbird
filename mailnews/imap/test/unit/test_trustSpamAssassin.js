@@ -13,13 +13,13 @@
 
 // async support 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 
 // IMAP pump
-load("../../../resources/IMAPpump.js");
 
 // Globals
+Components.utils.import("resource:///modules/mailServices.js");
+
 const gMessage = "SpamAssassinYes"; // message file used as the test message
 
 setupIMAPPump();
@@ -38,10 +38,10 @@ var tests = [
 let gJunkFolder;
 function createJunkFolder()
 {
-  gIMAPIncomingServer.rootFolder.createSubfolder("Junk", null);
+  IMAPPump.incomingServer.rootFolder.createSubfolder("Junk", null);
   dl('wait for folderAdded');
   yield false;
-  gJunkFolder = gIMAPIncomingServer.rootFolder.getChildNamed("Junk");
+  gJunkFolder = IMAPPump.incomingServer.rootFolder.getChildNamed("Junk");
   do_check_true(gJunkFolder instanceof Ci.nsIMsgImapMailFolder);
   gJunkFolder.updateFolderWithListener(null, asyncUrlListener);
   dl('wait for OnStopRunningURL');
@@ -54,13 +54,13 @@ function createJunkFolder()
  */
 function loadImapMessage()
 {
-  gIMAPMailbox.addMessage(new imapMessage(specForFileName(gMessage),
-                          gIMAPMailbox.uidnext++, []));
+  IMAPPump.mailbox.addMessage(new imapMessage(specForFileName(gMessage),
+                          IMAPPump.mailbox.uidnext++, []));
   /*
    * The message matched the SpamAssassin header, so it moved
    *  to the junk folder
    */
-  gIMAPInbox.updateFolder(null);
+  IMAPPump.inbox.updateFolder(null);
   dl('wait for msgsMoveCopyCompleted');
   yield false;
   gJunkFolder.updateFolderWithListener(null, asyncUrlListener);
@@ -70,7 +70,7 @@ function loadImapMessage()
 
 function testMessageInJunk()
 {
-  do_check_eq(0, gIMAPInbox.getTotalMessages(false));
+  do_check_eq(0, IMAPPump.inbox.getTotalMessages(false));
   do_check_eq(1, gJunkFolder.getTotalMessages(false));
   yield true;
 }
@@ -84,7 +84,7 @@ function markMessageAsGood()
    *  filters. So I will simply simulate the operations that would typically
    *  be done by a manual marking of the messages.
    */
-  let msgHdr = firstMsgHdr(gJunkFolder);
+  let msgHdr = mailTestUtils.firstMsgHdr(gJunkFolder);
   msgHdr.setStringProperty("junkscoreorigin", "user");
   msgHdr.setStringProperty("junkpercent", "0"); // good percent
   msgHdr.setStringProperty("junkscore", "0");   // good score
@@ -97,8 +97,6 @@ function markMessageAsGood()
   let messages = Cc["@mozilla.org/array;1"]
                    .createInstance(Ci.nsIMutableArray);
   messages.appendElement(msgHdr, false);
-  let copyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
-                       .getService(Ci.nsIMsgCopyService);
   /*
   void CopyMessages(in nsIMsgFolder srcFolder,
                     in nsIArray messages,
@@ -109,22 +107,22 @@ function markMessageAsGood()
                     in boolean allowUndo);
   */
 
-  copyService.CopyMessages(gJunkFolder, messages, gIMAPInbox, true,
-                            null, null, false);
+  MailServices.copy.CopyMessages(gJunkFolder, messages, IMAPPump.inbox, true,
+                                 null, null, false);
   dl('wait for msgsMoveCopyCompleted');
   yield false;
 }
 
 function updateFoldersAndCheck()
 {
-  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+  IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
   dl('wait for OnStopRunningURL');
   yield false;
   gJunkFolder.updateFolderWithListener(null, asyncUrlListener);
   dl('wait for OnStopRunningURL');
   yield false;
   // bug 540385 causes this test to fail
-  do_check_eq(1, gIMAPInbox.getTotalMessages(false));
+  do_check_eq(1, IMAPPump.inbox.getTotalMessages(false));
   do_check_eq(0, gJunkFolder.getTotalMessages(false));
   yield true;
 }
@@ -136,7 +134,7 @@ function endTest()
 
 function run_test()
 {
-  let server = gIMAPIncomingServer;
+  let server = IMAPPump.incomingServer;
   let spamSettings = server.spamSettings;
   server.setBoolValue("useServerFilter", true);
   server.setCharValue("serverFilterName", "SpamAssassin");
@@ -149,20 +147,18 @@ function run_test()
 
   // Add folder listeners that will capture async events
   const nsIMFNService = Ci.nsIMsgFolderNotificationService;
-  let MFNService = Cc["@mozilla.org/messenger/msgnotificationservice;1"]
-                      .getService(nsIMFNService);
 
   let flags =
         nsIMFNService.msgsMoveCopyCompleted |
         nsIMFNService.folderAdded | 
         nsIMFNService.msgAdded;
-  MFNService.addListener(mfnListener, flags);
+  MailServices.mfn.addListener(mfnListener, flags);
 
   //start first test
   async_run_tests(tests);
 }
 
-mfnListener =
+let mfnListener =
 {
   msgsMoveCopyCompleted: function (aMove, aSrcMsgs, aDestFolder, aDestMsgs)
   {
@@ -180,7 +176,7 @@ mfnListener =
 
   msgAdded: function msgAdded(aMsg)
   {
-    dl('msgAdded with subject <' + aMsg.subject + '>')
+    dl('msgAdded with subject <' + aMsg.subject + '>');
   }
 };
 
@@ -192,10 +188,7 @@ mfnListener =
 function specForFileName(aFileName)
 {
   let file = do_get_file("../../../data/" + aFileName);
-  let msgfileuri = Cc["@mozilla.org/network/io-service;1"]
-                     .getService(Ci.nsIIOService)
-                     .newFileURI(file)
-                     .QueryInterface(Ci.nsIFileURL);
+  let msgfileuri = Services.io.newFileURI(file).QueryInterface(Ci.nsIFileURL);
   return msgfileuri.spec;
 }
 

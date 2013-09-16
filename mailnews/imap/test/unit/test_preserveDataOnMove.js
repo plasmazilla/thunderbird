@@ -7,13 +7,12 @@
 
 // async support 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 
 // IMAP pump
-load("../../../resources/IMAPpump.js");
 
 // Globals
+Components.utils.import("resource:///modules/mailServices.js");
 
 const gMessage = "bugmail10"; // message file used as the test message
 
@@ -31,10 +30,10 @@ var tests = [
 let gSubfolder;
 function createSubfolder()
 {
-  gIMAPIncomingServer.rootFolder.createSubfolder("Subfolder", null);
+  IMAPPump.incomingServer.rootFolder.createSubfolder("Subfolder", null);
   dl('wait for folderAdded notification');
   yield false; 
-  gSubfolder = gIMAPIncomingServer.rootFolder.getChildNamed("Subfolder");
+  gSubfolder = IMAPPump.incomingServer.rootFolder.getChildNamed("Subfolder");
   do_check_true(gSubfolder instanceof Ci.nsIMsgImapMailFolder);
   gSubfolder.updateFolderWithListener(null, asyncUrlListener);
   dl('wait for OnStopRunningURL');
@@ -44,13 +43,13 @@ function createSubfolder()
 // load and update a message in the imap fake server
 function loadImapMessage()
 {
-  gIMAPMailbox.addMessage(new imapMessage(specForFileName(gMessage),
-                          gIMAPMailbox.uidnext++, []));
-  gIMAPInbox.updateFolder(null);
+  IMAPPump.mailbox.addMessage(new imapMessage(specForFileName(gMessage),
+                          IMAPPump.mailbox.uidnext++, []));
+  IMAPPump.inbox.updateFolder(null);
   dl('wait for msgAdded notification');
   yield false;
-  do_check_eq(1, gIMAPInbox.getTotalMessages(false));
-  let msgHdr = firstMsgHdr(gIMAPInbox);
+  do_check_eq(1, IMAPPump.inbox.getTotalMessages(false));
+  let msgHdr = mailTestUtils.firstMsgHdr(IMAPPump.inbox);
   do_check_true(msgHdr instanceof Ci.nsIMsgDBHdr);
 
   // set an arbitrary property
@@ -61,7 +60,7 @@ function loadImapMessage()
 // move the message to a subfolder
 function moveMessageToSubfolder()
 {
-  let msgHdr = firstMsgHdr(gIMAPInbox);
+  let msgHdr = mailTestUtils.firstMsgHdr(IMAPPump.inbox);
 
   // Now move this message to the subfolder.
   var messages = Cc["@mozilla.org/array;1"]
@@ -77,10 +76,8 @@ function moveMessageToSubfolder()
                     in boolean allowUndo);
   */
 
-  let copyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
-                      .getService(Ci.nsIMsgCopyService);
-  copyService.CopyMessages(gIMAPInbox, messages, gSubfolder, true,
-                           asyncCopyListener, null, false);
+  MailServices.copy.CopyMessages(IMAPPump.inbox, messages, gSubfolder, true,
+                                 asyncCopyListener, null, false);
   dl('wait for OnStopCopy');
   yield false;
 }
@@ -92,7 +89,7 @@ function testPropertyOnMove()
   yield false; // wait for msgAdded notification
   dl('wait for OnStopRunningURL');
   yield false; // wait for OnStopRunningUrl
-  let msgHdr = firstMsgHdr(gSubfolder);
+  let msgHdr = mailTestUtils.firstMsgHdr(gSubfolder);
   do_check_eq(msgHdr.getStringProperty("testprop"), "somevalue");
   yield true;
 }
@@ -105,7 +102,7 @@ function endTest()
 
 // listeners
 
-mfnListener =
+let mfnListener =
 {
   folderAdded: function folderAdded(aFolder)
   {
@@ -128,12 +125,10 @@ function run_test()
   Services.prefs.setBoolPref("mail.server.default.autosync_offline_stores", false);
   // Add folder listeners that will capture async events
   const nsIMFNService = Ci.nsIMsgFolderNotificationService;
-  var MFNService = Cc["@mozilla.org/messenger/msgnotificationservice;1"]
-                      .getService(nsIMFNService);
   let flags =
         nsIMFNService.folderAdded |
         nsIMFNService.msgAdded;
-  MFNService.addListener(mfnListener, flags);
+  MailServices.mfn.addListener(mfnListener, flags);
   async_run_tests(tests);
 }
 
@@ -145,10 +140,7 @@ function run_test()
 function specForFileName(aFileName)
 {
   let file = do_get_file("../../../data/" + aFileName);
-  let msgfileuri = Cc["@mozilla.org/network/io-service;1"]
-                     .getService(Ci.nsIIOService)
-                     .newFileURI(file)
-                     .QueryInterface(Ci.nsIFileURL);
+  let msgfileuri = Services.io.newFileURI(file).QueryInterface(Ci.nsIFileURL);
   return msgfileuri.spec;
 }
 

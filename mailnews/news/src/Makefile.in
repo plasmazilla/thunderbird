@@ -10,7 +10,6 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-MODULE		= msgnews
 LIBRARY_NAME	= msgnews_s
 ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
 MOZILLA_INTERNAL_API = 1
@@ -18,20 +17,9 @@ LIBXUL_LIBRARY = 1
 endif
 
 
-CPPSRCS		= \
-		nsNNTPArticleList.cpp \
-		nsNNTPNewsgroupList.cpp \
-		nsNNTPNewsgroupPost.cpp \
-		nsNNTPProtocol.cpp \
-		nsNntpUrl.cpp \
-		nsNntpService.cpp \
-		nsNewsFolder.cpp \
-		nsNntpIncomingServer.cpp \
-		nsNntpMockChannel.cpp \
-		nsNewsUtils.cpp \
-		nsNewsDownloadDialogArgs.cpp \
-		nsNewsDownloader.cpp \
-		$(NULL)
+ifeq ($(OS_ARCH),WINNT)
+OS_CXXFLAGS += -DNOMINMAX
+endif
 
 # we don't want the shared lib, but we want to force the creation of a static lib.
 FORCE_STATIC_LIB = 1

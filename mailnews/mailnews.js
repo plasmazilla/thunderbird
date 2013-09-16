@@ -56,6 +56,11 @@ pref("mailnews.default_sort_type", 18); //
 pref("mailnews.default_news_sort_order", 1); // for News (nsNewsDatabase)
 pref("mailnews.default_news_sort_type", 21); //
 
+// hidden pref for whether "sort by date" and "sort by received date" in
+// threaded mode should be based on the newest message in the thread, or on
+// the thread root
+pref("mailnews.sort_threads_by_root", false);
+
 // default view flags for new folders
 // both flags are int values reflecting nsMsgViewFlagsType values
 // as defined in nsIMsgDBView.idl (kNone = 0, kThreadedDisplay = 1 etc.)
@@ -176,7 +181,6 @@ pref("mail.dsn.ret_full_on", true);                    // DSN request is sent wi
 pref("news.show_size_in_lines",             true);
 pref("news.update_unread_on_expand",        true);
 pref("news.get_messages_on_select",         true);
-pref("news.allow_delete_with_no_undo",      false);
 
 pref("mailnews.wraplength",                 72);
 pref("mail.compose.wrap_to_window_width",   false);
@@ -201,6 +205,8 @@ pref("mailnews.reply_quoting_selection.multi_word",    true);
 
 pref("mail.operate_on_msgs_in_collapsed_threads", false);
 pref("mail.warn_on_collapsed_thread_operation", true);
+pref("mail.warn_on_shift_delete", true);
+pref("news.warn_on_delete", true);
 pref("mail.purge_threshhold_mb", 20);
 pref("mail.prompt_purge_threshhold",       true);
 pref("mail.purge.ask",                     true);
@@ -594,8 +600,6 @@ pref("mail.quota.mainwindow_threshold.show", 75); // in percent. when the quota 
 pref("mail.quota.mainwindow_threshold.warning", 80); // when it gets yellow
 pref("mail.quota.mainwindow_threshold.critical", 95); // when it gets red
 
-// Pref controlling confirmation of folder deletion on empty trash
-pref("mail.imap.confirm_emptyTrashFolderDeletion", false);
 // Pref controlling the updates on the pre-configured accounts.
 // In order to add new pre-configured accounts (after a version),
 // increase the following version number besides updating the
@@ -607,6 +611,11 @@ pref("mailnews.append_preconfig_accounts.version", 1);
 // increase the following version number besides updating the
 // pref mail.smtpservers.appendsmtpservers
 pref("mail.append_preconfig_smtpservers.version", 1);
+
+pref("mail.biff.alert.show_preview", true);
+pref("mail.biff.alert.show_subject", true);
+pref("mail.biff.alert.show_sender",  true);
+pref("mail.biff.alert.preview_length", 40);
 
 pref("mail.biff.play_sound", true);
 // 0 == default system sound, 1 == user specified wav

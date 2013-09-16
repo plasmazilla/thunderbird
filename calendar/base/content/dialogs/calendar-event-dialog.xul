@@ -6,6 +6,7 @@
 <?xml-stylesheet type="text/css" href="chrome://global/skin/global.css"?>
 <?xml-stylesheet type="text/css" href="chrome://calendar/skin/calendar-alarms.css"?>
 <?xml-stylesheet type="text/css" href="chrome://calendar/skin/calendar-attendees.css"?>
+<?xml-stylesheet type="text/css" href="chrome://calendar/content/widgets/calendar-widget-bindings.css"?>
 <?xml-stylesheet type="text/css" href="chrome://calendar/skin/calendar-event-dialog.css"?>
 <?xml-stylesheet type="text/css" href="chrome://calendar/content/calendar-event-dialog.css"?>
 <?xml-stylesheet type="text/css" href="chrome://calendar/content/datetimepickers/datetimepickers.css"?>
@@ -632,6 +633,8 @@
         <toolbar id="event-toolbar"
                  class="chromeclass-toolbar"
                  customizable="true"
+                 labelalign="end"
+                 defaultlabelalign="end"
                  context="event-dialog-toolbar-context-menu"
                  defaultset="button-save,button-attendees,button-privacy,button-url,button-delete"/>
         <toolbarset id="custom-toolbars"/>
@@ -674,17 +677,31 @@
             <!-- Category & Calendar -->
             <row id="event-grid-category-color-row"
                  align="center">
-                <label value="&event.categories.label;"
-                       accesskey="&event.categories.accesskey;"
-                       control="item-categories"
-                       disable-on-readonly="true"/>
+                <hbox id="event-grid-category-labels-box">
+                  <label value="&event.categories.label;"
+                         accesskey="&event.categories.accesskey;"
+                         control="item-categories"
+                         id="item-categories-label"
+                         disable-on-readonly="true"/>
+                  <label value="&event.calendar.label;"
+                         accesskey="&event.calendar.accesskey;"
+                         id="item-calendar-aux-label"
+                         control="item-calendar"
+                         disable-on-readonly="true"/>
+                </hbox>
                 <hbox id="event-grid-category-box" align="center">
                     <menulist id="item-categories"
+                              type="panel-menulist"
                               disable-on-readonly="true"
-                              flex="1"/>
+                              flex="1">
+                        <panel id="item-categories-panel"
+                               type="category-panel"
+                               onpopuphiding="updateCategoryMenulist()"/>
+                    </menulist>
                     <label value="&event.calendar.label;"
                            accesskey="&event.calendar.accesskey;"
                            control="item-calendar"
+                           id="item-calendar-label"
                            disable-on-readonly="true"/>
                     <menulist id="item-calendar"
                               disable-on-readonly="true"
@@ -868,7 +885,9 @@
                              min="0"
                              max="100"
                              disable-on-readonly="true"
-                             size="3"/>
+                             size="3"
+                             oninput="updateToDoStatus('percent-changed')"
+                             onselect="updateToDoStatus('percent-changed')"/>
                     <label id="percent-complete-label"
                            class="todo-only"
                            disable-on-readonly="true"
@@ -890,7 +909,7 @@
                       flex="1">
                     <menulist id="item-repeat"
                               disable-on-readonly="true"
-                              oncommand="updateRepeat()">
+                              oncommand="updateRepeat(null, true)">
                         <menupopup id="item-repeat-menupopup">
                             <menuitem id="repeat-none-menuitem"
                                       label="&event.repeat.does.not.repeat.label;"
@@ -920,14 +939,27 @@
                                       value="custom"/>
                         </menupopup>
                     </menulist>
-                    <vbox id="repeat-details" flex="1">
-                        <label class="text-link"
-                               crop="right"
-                               disable-on-readonly="true"
-                               hyperlink="true"
-                               flex="1"
-                               onclick="updateRepeat()"/>
-                    </vbox>
+                    <deck id="repeat-deck" selectedIndex="-1">
+                        <hbox id="repeat-untilDate" align="center">
+                            <label value="&event.until.label;"
+                                   accesskey="&event.until.accesskey;"
+                                   control="repeat-until-datepicker"
+                                   disable-on-readonly="true"/>
+                            <datepicker-forever id="repeat-until-datepicker" flex="1"
+                                                disable-on-readonly="true"
+                                                onchange="checkUntilDate();"
+                                                oncommand="checkUntilDate();"
+                                                value=""/>
+                        </hbox>
+                        <vbox id="repeat-details" flex="1">
+                            <label class="text-link"
+                                   crop="right"
+                                   disable-on-readonly="true"
+                                   hyperlink="true"
+                                   flex="1"
+                                   onclick="updateRepeat()"/>
+                        </vbox>
+                    </deck>
                 </hbox>
             </row>
 
@@ -1119,15 +1151,15 @@
                       collapsed="true"
                       pack="start">
         <label value="&event.priority2.label;"/>
-        <image id="button-importance-low"
+        <image id="image-priority-low"
                class="cal-statusbar-1"
                collapsed="true"
                value="low"/>
-        <image id="button-importance-medium"
+        <image id="image-priority-normal"
                class="cal-statusbar-1"
                collapsed="true"
                value="normal"/>
-        <image id="button-importance-high"
+        <image id="image-priority-high"
                class="cal-statusbar-1"
                collapsed="true"
                value="high"/>

@@ -120,6 +120,17 @@ var tasksCfg = [
                             //  shutdown.  Thus true for consistency.
   },
 
+  // Open private window
+  {
+    get title()       _getString("taskbar.tasks.newPrivate.label"),
+    get description() _getString("taskbar.tasks.newPrivate.description"),
+    args:             "-private",
+    iconIndex:        0, // SeaMonkey app icon
+    open:             true,
+    close:            true, // No point, but we don't always update the list on
+                            //  shutdown.  Thus true for consistency.
+  },
+
   // Open mailnews
   {
     get title()       _getString("taskbar.tasks.mailWindow.label"),
@@ -419,10 +430,7 @@ var WinTaskbarJumpList =
   _getHandlerAppItem: function WTBJL__getHandlerAppItem(name, description,
                                                         args, iconIndex,
                                                         faviconPageUri) {
-    var file = Services.dirsvc.get("XCurProcD", Ci.nsILocalFile);
-
-    // XXX where can we grab this from in the build? Do we need to?
-    file.append("seamonkey.exe");
+    var file = Services.dirsvc.get("XREExeF", Ci.nsILocalFile);
 
     var handlerApp = Cc["@mozilla.org/uriloader/local-handler-app;1"].
                      createInstance(Ci.nsILocalHandlerApp);

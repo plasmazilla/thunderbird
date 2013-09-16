@@ -120,19 +120,13 @@ nsMsgSearchDBView::CopyDBView(nsMsgDBView *aNewMsgDBView, nsIMessenger *aMesseng
   newMsgDBView->mDestFolder = mDestFolder;
   newMsgDBView->mCommand = mCommand;
   newMsgDBView->mTotalIndices = mTotalIndices;
-  newMsgDBView->mCurIndex = mCurIndex; 
+  newMsgDBView->mCurIndex = mCurIndex;
   newMsgDBView->m_folders.InsertObjectsAt(m_folders, 0);
   newMsgDBView->m_curCustomColumn = m_curCustomColumn;
-
-  if (m_hdrsForEachFolder)
-    m_hdrsForEachFolder->Clone(getter_AddRefs(newMsgDBView->m_hdrsForEachFolder));
-
-  if (m_copyListenerList)
-    m_copyListenerList->Clone(getter_AddRefs(newMsgDBView->m_copyListenerList));
-
+  newMsgDBView->m_hdrsForEachFolder.InsertObjectsAt(m_hdrsForEachFolder, 0);
   newMsgDBView->m_uniqueFoldersSelected.InsertObjectsAt(m_uniqueFoldersSelected, 0);
 
-  int32_t count = m_dbToUseList.Count(); 
+  int32_t count = m_dbToUseList.Count();
   for(int32_t i = 0; i < count; i++)
   {
     newMsgDBView->m_dbToUseList.AppendObject(m_dbToUseList[i]);
@@ -950,14 +944,7 @@ nsMsgSearchDBView::GetFoldersAndHdrsForSelection(nsMsgViewIndex *indices, int32_
   nsresult rv = NS_OK; 
   mCurIndex = 0;
   m_uniqueFoldersSelected.Clear();
-  
-  if (!m_hdrsForEachFolder)
-  {
-    m_hdrsForEachFolder = do_CreateInstance(NS_SUPPORTSARRAY_CONTRACTID, &rv);
-    NS_ENSURE_SUCCESS(rv,rv);
-  }
-  else
-    m_hdrsForEachFolder->Clear();
+  m_hdrsForEachFolder.Clear();
 
   nsCOMPtr<nsIMutableArray> messages(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -1001,9 +988,7 @@ nsMsgSearchDBView::GetFoldersAndHdrsForSelection(nsMsgViewIndex *indices, int32_
         }
       }
     }
-    nsCOMPtr<nsISupports> supports = do_QueryInterface(msgHdrsForOneFolder, &rv);
-    if (NS_SUCCEEDED(rv) && supports)
-      m_hdrsForEachFolder->AppendElement(supports);
+    m_hdrsForEachFolder.AppendElement(msgHdrsForOneFolder);
   }
   return rv;
 }
@@ -1071,8 +1056,7 @@ nsresult nsMsgSearchDBView::ProcessRequestsInOneFolder(nsIMsgWindow *window)
 
     nsIMsgFolder *curFolder = m_uniqueFoldersSelected[mCurIndex];
     NS_ASSERTION(curFolder, "curFolder is null");
-    nsCOMPtr<nsIMutableArray> messageArray =
-        do_QueryElementAt(m_hdrsForEachFolder, mCurIndex);
+    nsCOMPtr<nsIMutableArray> messageArray = m_hdrsForEachFolder[mCurIndex];
     NS_ASSERTION(messageArray, "messageArray is null");
 
     // called for delete with trash, copy and move
@@ -1104,8 +1088,7 @@ nsresult nsMsgSearchDBView::ProcessRequestsInAllFolders(nsIMsgWindow *window)
     nsIMsgFolder *curFolder = m_uniqueFoldersSelected[folderIndex];
     NS_ASSERTION (curFolder, "curFolder is null");
 
-    nsCOMPtr<nsIMutableArray> messageArray =
-           do_QueryElementAt(m_hdrsForEachFolder, folderIndex);
+    nsCOMPtr<nsIMutableArray> messageArray = m_hdrsForEachFolder[folderIndex];
     NS_ASSERTION(messageArray, "messageArray is null");
 
     curFolder->DeleteMessages(messageArray, window, true /* delete storage */, false /* is move*/, nullptr/*copyServListener*/, false /*allowUndo*/ );
@@ -1258,7 +1241,7 @@ nsresult nsMsgSearchDBView::GetXFThreadFromMsgHdr(nsIMsgDBHdr *msgHdr,
 {
   NS_ENSURE_ARG_POINTER(pThread);
 
-  nsCAutoString messageId;
+  nsAutoCString messageId;
   msgHdr->GetMessageId(getter_Copies(messageId));
   *pThread = nullptr;
   m_threadsTable.Get(messageId, pThread);
@@ -1272,7 +1255,7 @@ nsresult nsMsgSearchDBView::GetXFThreadFromMsgHdr(nsIMsgDBHdr *msgHdr,
     msgHdr->GetNumReferences(&numReferences);
     for (int32_t i = numReferences - 1; i >= 0  && !*pThread; i--)
     {
-      nsCAutoString reference;
+      nsAutoCString reference;
       
       msgHdr->GetStringReference(i, reference);
       if (reference.IsEmpty())
@@ -1329,7 +1312,7 @@ nsresult nsMsgSearchDBView::AddMsgToHashTables(nsIMsgDBHdr *msgHdr,
   msgHdr->GetNumReferences(&numReferences);
   for (int32_t i = 0; i < numReferences; i++)
   {
-    nsCAutoString reference;
+    nsAutoCString reference;
 
     msgHdr->GetStringReference(i, reference);
     if (reference.IsEmpty())
@@ -1369,7 +1352,7 @@ nsresult nsMsgSearchDBView::RemoveMsgFromHashTables(nsIMsgDBHdr *msgHdr)
 
   for (int32_t i = 0; i < numReferences; i++)
   {
-    nsCAutoString reference;
+    nsAutoCString reference;
     msgHdr->GetStringReference(i, reference);
     if (reference.IsEmpty())
       break;

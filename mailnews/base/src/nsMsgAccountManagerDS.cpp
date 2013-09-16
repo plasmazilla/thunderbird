@@ -1,4 +1,4 @@
-/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -25,6 +25,7 @@
 #include "nsArrayEnumerator.h"
 #include "nsMsgUtils.h"
 #include "mozilla/Services.h"
+#include "nsArrayUtils.h"
 
 // turn this on to see useful output
 #undef DEBUG_amds
@@ -42,16 +43,6 @@
 
 
 #define NC_RDF_ACCOUNTROOT "msgaccounts:/"
-
-typedef struct _serverCreationParams {
-  nsCOMArray<nsIRDFResource> *serverArray;
-  nsIRDFService *rdfService;
-} serverCreationParams;
-
-typedef struct {
-  nsCString serverKey;
-  bool found;
-} findServerByKeyEntry;
 
 // the root resource (msgaccounts:/)
 nsIRDFResource* nsMsgAccountManagerDataSource::kNC_AccountRoot=nullptr;
@@ -170,7 +161,7 @@ nsMsgAccountManagerDataSource::nsMsgAccountManagerDataSource()
     // that's easily extensible
     getRDFService()->GetResource(NS_LITERAL_CSTRING(NC_RDF_SETTINGS), &kNC_Settings);
 
-    kDefaultServerAtom = MsgNewAtom("DefaultServer");
+    kDefaultServerAtom = MsgNewAtom("DefaultServer").get();
   }
 }
 
@@ -336,14 +327,14 @@ nsMsgAccountManagerDataSource::GetTarget(nsIRDFResource *source,
         NS_ENSURE_TRUE(sourceValue && (strlen(sourceValue) > strlen(NC_RDF_PAGETITLE_PREFIX)), NS_ERROR_UNEXPECTED);
 
         nsCOMPtr<nsIMsgAccountManager> am = do_QueryReferent(mAccountManager, &rv);
-        NS_ENSURE_SUCCESS(rv, NS_OK);
+        NS_ENSURE_SUCCESS(rv, rv);
 
         // turn NC#PageTitlefoobar into foobar, so we can get the am-foobar.properties bundle
         nsCString chromePackageName;
         rv = am->GetChromePackageName(nsCString(sourceValue + strlen(NC_RDF_PAGETITLE_PREFIX)), chromePackageName);
         NS_ENSURE_SUCCESS(rv,rv);
 
-        nsCAutoString bundleURL;
+        nsAutoCString bundleURL;
         bundleURL = "chrome://";
         bundleURL += chromePackageName;
         bundleURL += "/locale/am-";
@@ -428,22 +419,10 @@ nsMsgAccountManagerDataSource::GetTarget(nsIRDFResource *source,
       nsCOMPtr<nsIMsgAccountManager> am = do_QueryReferent(mAccountManager);
 
       if (isDefaultServer(server))
-        str.AssignLiteral("0000");
+        str.AssignLiteral("000000000");
       else {
-        rv = am->FindServerIndex(server, &accountNum);
-        if (NS_FAILED(rv)) return rv;
-
-        // this is a hack for now - hardcode server order by type
-        nsCString serverType;
-        server->GetType(serverType);
-
-        if (MsgLowerCaseEqualsLiteral(serverType, "none"))
-          accountNum += 2000;
-        else if (MsgLowerCaseEqualsLiteral(serverType, "nntp"))
-          accountNum += 3000;
-        else
-          accountNum += 1000;     // default is to appear at the top
-
+        rv = am->GetSortOrder(server, &accountNum);
+        NS_ENSURE_SUCCESS(rv, rv);
         str.AppendInt(accountNum);
       }
     }
@@ -461,7 +440,7 @@ nsMsgAccountManagerDataSource::GetTarget(nsIRDFResource *source,
       // so that the folder data source will take care of it.
       if (sourceValue && (strncmp(sourceValue, NC_RDF_PAGETITLE_PREFIX, strlen(NC_RDF_PAGETITLE_PREFIX)) == 0)) {
         if (source == kNC_PageTitleSMTP)
-          str.AssignLiteral("4000");
+          str.AssignLiteral("900000000");
         else if (source == kNC_PageTitleServer)
           str.AssignLiteral("1");
         else if (source == kNC_PageTitleCopies)
@@ -582,13 +561,31 @@ nsMsgAccountManagerDataSource::createRootResources(nsIRDFResource *property,
     nsCOMPtr<nsIMsgAccountManager> am = do_QueryReferent(mAccountManager);
     if (!am) return NS_ERROR_FAILURE;
 
-    nsCOMPtr<nsISupportsArray> servers;
+    nsCOMPtr<nsIArray> servers;
     rv = am->GetAllServers(getter_AddRefs(servers));
-    if (NS_FAILED(rv)) return rv;
+    NS_ENSURE_SUCCESS(rv, rv);
 
-    // fill up the nodes array with the RDF Resources for the servers
-    serverCreationParams params = { aNodeArray, getRDFService() };
-    servers->EnumerateForwards(createServerResources, (void*)&params);
+    uint32_t length;
+    rv = servers->GetLength(&length);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    for (uint32_t i = 0; i < length; ++i)
+    {
+      nsCOMPtr<nsIMsgIncomingServer> server(do_QueryElementAt(servers, i, &rv));
+      if (NS_FAILED(rv))
+        continue;
+
+      nsCOMPtr<nsIMsgFolder> serverFolder;
+      rv = server->GetRootFolder(getter_AddRefs(serverFolder));
+      if (NS_FAILED(rv))
+        continue;
+
+      // add the resource to the array
+      nsCOMPtr<nsIRDFResource> serverResource = do_QueryInterface(serverFolder);
+      if (serverResource)
+        (void) aNodeArray->AppendObject(serverResource);
+    }
+
 #ifdef DEBUG_amds
     uint32_t nodecount;
     aNodeArray->GetLength(&nodecount);
@@ -627,7 +624,7 @@ nsMsgAccountManagerDataSource::appendGenericSettingsResources(nsIMsgIncomingServ
       if (NS_FAILED(rv) || !catEntry)
         break;
 
-      nsCAutoString entryString;
+      nsAutoCString entryString;
       rv = catEntry->GetData(entryString);
       if (NS_FAILED(rv))
         break;
@@ -671,7 +668,7 @@ nsMsgAccountManagerDataSource::appendGenericSetting(const char *name,
 
   nsCOMPtr <nsIRDFResource> resource;
 
-  nsCAutoString resourceStr;
+  nsAutoCString resourceStr;
   resourceStr = NC_RDF_PAGETITLE_PREFIX;
   resourceStr += name;
 
@@ -748,47 +745,19 @@ nsMsgAccountManagerDataSource::serverHasIdentities(nsIMsgIncomingServer* aServer
 
   if (NS_FAILED(rv)) return rv;
 
-  nsCOMPtr<nsISupportsArray> identities;
+  nsCOMPtr<nsIArray> identities;
   rv = am->GetIdentitiesForServer(aServer, getter_AddRefs(identities));
 
   // no identities just means no arcs
   if (NS_FAILED(rv)) return NS_OK;
 
   uint32_t count;
-  rv = identities->Count(&count);
+  rv = identities->GetLength(&count);
   if (NS_FAILED(rv)) return NS_OK;
 
   if (count >0)
     *aResult = true;
   return NS_OK;
-}
-
-// enumeration function to convert each server (element)
-// to an nsIRDFResource and append it to the array (in data)
-// always return true to try on every element instead of aborting early
-bool
-nsMsgAccountManagerDataSource::createServerResources(nsISupports *element,
-                                                     void *data)
-{
-  nsresult rv;
-  // get parameters out of the data argument
-  serverCreationParams *params = (serverCreationParams*)data;
-  nsCOMArray<nsIRDFResource> *servers = params->serverArray;
-  nsCOMPtr<nsIRDFService> rdf = params->rdfService;
-
-  // the server itself is in the element argument
-  nsCOMPtr<nsIMsgIncomingServer> server = do_QueryInterface(element, &rv);
-  if (NS_FAILED(rv)) return true;
-
-  nsCOMPtr <nsIMsgFolder> serverFolder;
-  rv = server->GetRootFolder(getter_AddRefs(serverFolder));
-  if(NS_FAILED(rv)) return true;
-
-  // add the resource to the array
-  nsCOMPtr<nsIRDFResource> serverResource = do_QueryInterface(serverFolder);
-  if(serverResource)
-    (void) servers->AppendObject(serverResource);
-  return true;
 }
 
 nsresult
@@ -841,13 +810,12 @@ nsMsgAccountManagerDataSource::getAccountRootArcs(nsIMutableArray **aResult)
 NS_IMETHODIMP
 nsMsgAccountManagerDataSource::HasArcOut(nsIRDFResource *source, nsIRDFResource *aArc, bool *result)
 {
-  nsresult rv = NS_OK;
   if (aArc == kNC_Settings) {
     // based on createSettingsResources()
     // we only have settings for local folders and servers with identities
     nsCOMPtr<nsIMsgIncomingServer> server;
-    rv = getServerForFolderNode(source, getter_AddRefs(server));
-    if (server) {
+    nsresult rv = getServerForFolderNode(source, getter_AddRefs(server));
+    if (NS_SUCCEEDED(rv) && server) {
       // Check the offline capability before adding arc
       int32_t offlineSupportLevel = 0;
       (void) server->GetOfflineSupportLevel(&offlineSupportLevel);
@@ -996,18 +964,13 @@ nsMsgAccountManagerDataSource::supportsFilters(nsIMsgIncomingServer *aServer)
 bool
 nsMsgAccountManagerDataSource::canGetMessages(nsIMsgIncomingServer *aServer)
 {
-  nsCString type;
-  nsresult rv = aServer->GetType(type);
+  nsCOMPtr<nsIMsgProtocolInfo> protocolInfo;
+  nsresult rv = aServer->GetProtocolInfo(getter_AddRefs(protocolInfo));
   NS_ENSURE_SUCCESS(rv, false);
 
-  nsCAutoString contractid(NS_MSGPROTOCOLINFO_CONTRACTID_PREFIX);
-  contractid.Append(type);
-
-  nsCOMPtr<nsIMsgProtocolInfo> protocolInfo = do_GetService(contractid.get(), &rv);
+  bool canGetMessages;
+  rv = protocolInfo->GetCanGetMessages(&canGetMessages);
   NS_ENSURE_SUCCESS(rv, false);
-
-  bool canGetMessages = false;
-  protocolInfo->GetCanGetMessages(&canGetMessages);
 
   return canGetMessages;
 }
@@ -1015,18 +978,13 @@ nsMsgAccountManagerDataSource::canGetMessages(nsIMsgIncomingServer *aServer)
 bool
 nsMsgAccountManagerDataSource::canGetIncomingMessages(nsIMsgIncomingServer *aServer)
 {
-  nsCString type;
-  nsresult rv = aServer->GetType(type);
+  nsCOMPtr<nsIMsgProtocolInfo> protocolInfo;
+  nsresult rv = aServer->GetProtocolInfo(getter_AddRefs(protocolInfo));
   NS_ENSURE_SUCCESS(rv, false);
 
-  nsCAutoString contractid(NS_MSGPROTOCOLINFO_CONTRACTID_PREFIX);
-  contractid.Append(type);
-
-  nsCOMPtr<nsIMsgProtocolInfo> protocolInfo = do_GetService(contractid.get(), &rv);
+  bool canGetIncomingMessages;
+  rv = protocolInfo->GetCanGetIncomingMessages(&canGetIncomingMessages);
   NS_ENSURE_SUCCESS(rv, false);
-
-  bool canGetIncomingMessages = false;
-  protocolInfo->GetCanGetIncomingMessages(&canGetIncomingMessages);
 
   return canGetIncomingMessages;
 }
@@ -1037,9 +995,6 @@ nsMsgAccountManagerDataSource::HasAssertionAccountRoot(nsIRDFResource *aProperty
                                                        bool aTruthValue,
                                                        bool *_retval)
 {
-
-  nsresult rv;
-
   // set up default
   *_retval = false;
 
@@ -1047,7 +1002,7 @@ nsMsgAccountManagerDataSource::HasAssertionAccountRoot(nsIRDFResource *aProperty
   if (isContainment(aProperty)) {
 
     nsCOMPtr<nsIMsgIncomingServer> server;
-    rv = getServerForFolderNode(aTarget, getter_AddRefs(server));
+    nsresult rv = getServerForFolderNode(aTarget, getter_AddRefs(server));
     if (NS_FAILED(rv) || !server) return rv;
 
     nsCString serverKey;
@@ -1056,16 +1011,28 @@ nsMsgAccountManagerDataSource::HasAssertionAccountRoot(nsIRDFResource *aProperty
     nsCOMPtr<nsIMsgAccountManager> am = do_QueryReferent(mAccountManager, &rv);
     if (NS_FAILED(rv)) return rv;
 
-    nsCOMPtr<nsISupportsArray> serverArray;
+    nsCOMPtr<nsIArray> serverArray;
     rv = am->GetAllServers(getter_AddRefs(serverArray));
-    if (NS_FAILED(rv)) return rv;
+    NS_ENSURE_SUCCESS(rv, rv);
 
-    findServerByKeyEntry entry;
-    entry.serverKey = serverKey;
-    entry.found = false;
+    uint32_t length;
+    rv = serverArray->GetLength(&length);
+    NS_ENSURE_SUCCESS(rv, rv);
 
-    serverArray->EnumerateForwards(findServerByKey, &entry);
-    (*_retval) = entry.found;
+    for (uint32_t i = 0; i < length; ++i)
+    {
+      nsCOMPtr<nsIMsgIncomingServer> server(do_QueryElementAt(serverArray, i, &rv));
+      if (NS_FAILED(rv))
+        continue;
+
+      nsCString key;
+      server->GetKey(key);
+      if (key.Equals(serverKey))
+      {
+        *_retval = true;
+        break;
+      }
+    }
   }
 
   return NS_OK;
@@ -1096,27 +1063,6 @@ nsMsgAccountManagerDataSource::getServerForFolderNode(nsIRDFNode *aResource,
       return folder->GetServer(aResult);
   }
   return NS_ERROR_FAILURE;
-}
-
-bool
-nsMsgAccountManagerDataSource::findServerByKey(nsISupports *aElement,
-                                               void *aData)
-{
-  nsresult rv;
-  findServerByKeyEntry *entry = (findServerByKeyEntry*)aData;
-
-  nsCOMPtr<nsIMsgIncomingServer> server = do_QueryInterface(aElement, &rv);
-  if (NS_FAILED(rv)) return true;
-
-  nsCString key;
-  server->GetKey(key);
-  if (key.Equals(entry->serverKey))
-  {
-    entry->found = true;
-    return false;        // stop when found
-  }
-
-  return true;
 }
 
 nsresult

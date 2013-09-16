@@ -10,8 +10,8 @@
 #include "nsIMsgFolder.h"
 #include "nsIMsgAccountManager.h"
 #include "nsIMsgFolder.h"
-#include "nsISupportsArray.h"
 #include "nsIMsgIncomingServer.h"
+#include "nsIMsgProtocolInfo.h"
 #include "nsISupports.h"
 #include "nsIRDFService.h"
 #include "nsIRDFResource.h"
@@ -29,6 +29,7 @@
 #include "nsServiceManagerUtils.h"
 #include "nsComponentManagerUtils.h"
 #include "nsMsgUtils.h"
+#include "nsArrayUtils.h"
 
 static NS_DEFINE_CID(kRDFServiceCID, NS_RDFSERVICE_CID);
 
@@ -362,35 +363,47 @@ nsMsgCopy::GetSentFolder(nsIMsgIdentity *userIdentity, nsIMsgFolder **folder, bo
 nsresult
 nsMsgCopy::CreateIfMissing(nsIMsgFolder **folder, bool *waitForUrl)
 {
-  nsresult ret = NS_OK;
+  nsresult rv = NS_OK;
   if (folder && *folder)
   {
-    nsCOMPtr <nsIMsgFolder> parent;
+    nsCOMPtr<nsIMsgFolder> parent;
     (*folder)->GetParent(getter_AddRefs(parent));
     if (!parent)
     {
-      nsCOMPtr <nsIFile> folderPath;
+      nsCOMPtr<nsIFile> folderPath;
       // for local folders, path is to the berkeley mailbox.
       // for imap folders, path needs to have .msf appended to the name
       (*folder)->GetFilePath(getter_AddRefs(folderPath));
-        bool isImapFolder = !PL_strncasecmp(mSavePref, "imap:", 5);
+
+      nsCOMPtr<nsIMsgIncomingServer> server;
+      rv = (*folder)->GetServer(getter_AddRefs(server));
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      nsCOMPtr<nsIMsgProtocolInfo> protocolInfo;
+      rv = server->GetProtocolInfo(getter_AddRefs(protocolInfo));
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      bool isAsyncFolder;
+      rv = protocolInfo->GetFoldersCreatedAsync(&isAsyncFolder);
+      NS_ENSURE_SUCCESS(rv, rv);
+
       // if we can't get the path from the folder, then try to create the storage.
       // for imap, it doesn't matter if the .msf file exists - it still might not
       // exist on the server, so we should try to create it
       bool exists = false;
-      if (!isImapFolder && folderPath)
+      if (!isAsyncFolder && folderPath)
         folderPath->Exists(&exists);
         if (!exists)
         {
           (*folder)->CreateStorageIfMissing(this);
-          if (isImapFolder)
+          if (isAsyncFolder)
             *waitForUrl = true;
 
-          ret = NS_OK;
+          rv = NS_OK;
         }
       }
     }
-  return ret;
+  return rv;
 }
 ////////////////////////////////////////////////////////////////////////////////////
 // Utility Functions for MsgFolders
@@ -450,14 +463,14 @@ LocateMessageFolder(nsIMsgIdentity   *userIdentity,
              do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
     if (NS_FAILED(rv)) return rv;
 
-    // if anyfolder will do, go look for one.
-    nsCOMPtr<nsISupportsArray> retval;
+    // If any folder will do, go look for one.
+    nsCOMPtr<nsIArray> retval;
     accountManager->GetServersForIdentity(userIdentity, getter_AddRefs(retval));
     if (!retval) return NS_ERROR_FAILURE;
 
     // Ok, we have to look through the servers and try to find the server that
     // has a valid folder of the type that interests us...
-    rv = retval->Count(&cnt);
+    rv = retval->GetLength(&cnt);
     if (NS_FAILED(rv)) return rv;
 
     for (i=0; i<cnt; i++) {

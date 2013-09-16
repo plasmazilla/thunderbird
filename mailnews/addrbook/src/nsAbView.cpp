@@ -3,6 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "mozilla/DebugOnly.h"
+
 #include "nsAbView.h"
 #include "nsISupports.h"
 #include "nsCOMPtr.h"
@@ -27,7 +29,6 @@
 #include "nsIAddrDatabase.h" // for kPriEmailColumn
 #include "nsMsgUtils.h"
 #include "mozilla/Services.h"
-#include "mozilla/Util.h" // for DebugOnly
 
 using namespace mozilla;
 
@@ -48,7 +49,6 @@ nsAbView::nsAbView() : mInitialized(false),
                        mSuppressCountChange(false),
                        mGeneratedNameFormat(0)
 {
-  mMailListAtom = MsgGetAtom("MailList");
 }
 
 nsAbView::~nsAbView()
@@ -293,12 +293,12 @@ NS_IMETHODIMP nsAbView::SetSelection(nsITreeSelection * aSelection)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsAbView::GetRowProperties(int32_t index, nsISupportsArray *properties)
+NS_IMETHODIMP nsAbView::GetRowProperties(int32_t index, nsAString& properties)
 {
     return NS_OK;
 }
 
-NS_IMETHODIMP nsAbView::GetCellProperties(int32_t row, nsITreeColumn* col, nsISupportsArray *properties)
+NS_IMETHODIMP nsAbView::GetCellProperties(int32_t row, nsITreeColumn* col, nsAString& properties)
 {
   NS_ENSURE_TRUE(row >= 0, NS_ERROR_UNEXPECTED);
 
@@ -317,15 +317,13 @@ NS_IMETHODIMP nsAbView::GetCellProperties(int32_t row, nsITreeColumn* col, nsISu
   nsresult rv = card->GetIsMailList(&isMailList);
   NS_ENSURE_SUCCESS(rv,rv);
 
-  if (isMailList) {
-    rv = properties->AppendElement(mMailListAtom);  
-    NS_ENSURE_SUCCESS(rv,rv);
-  }
+  if (isMailList)
+    properties.AssignLiteral("MailList");
 
   return NS_OK;
 }
 
-NS_IMETHODIMP nsAbView::GetColumnProperties(nsITreeColumn* col, nsISupportsArray *properties)
+NS_IMETHODIMP nsAbView::GetColumnProperties(nsITreeColumn* col, nsAString& properties)
 {
     return NS_OK;
 }

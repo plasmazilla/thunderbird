@@ -13,19 +13,15 @@
 
  // async support
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 
 const gFile = do_get_file("../../../data/bug92111b");
 var gIMAPDaemon, gIMAPServer, gIMAPIncomingServer;
 
-var gIOService = Cc["@mozilla.org/network/io-service;1"]
-                  .getService(Ci.nsIIOService);
-
 // Adds some messages directly to a mailbox (eg new mail)
 function addMessageToServer(file, mailbox)
 {
-  let URI = gIOService.newFileURI(file).QueryInterface(Ci.nsIFileURL);
+  let URI = Services.io.newFileURI(file).QueryInterface(Ci.nsIFileURL);
   let msg = new imapMessage(URI.spec, mailbox.uidnext++, []);
   // underestimate the actual file size, like some IMAP servers do
   msg.setSize(file.fileSize - 55);
@@ -74,7 +70,7 @@ function verifyContentLength()
   imapS.GetUrlForUri("imap-message://user@localhost/INBOX#1", uri, null);
 
   // Get a channel from this URI, and check its content length
-  let channel = gIOService.newChannelFromURI(uri.value);
+  let channel = Services.io.newChannelFromURI(uri.value);
 
   dump(channel + "\n");
 
@@ -83,15 +79,15 @@ function verifyContentLength()
   yield false;
   // Now check whether our stream listener got the right bytes
   // First, clean up line endings to avoid CRLF vs. LF differences
-  let origData = loadFileToString(gFile).replace(/\r\n/g, "\n");
+  let origData = IOUtils.loadFileToString(gFile).replace(/\r\n/g, "\n");
   let streamData = gStreamListener._data.replace(/\r\n/g, "\n");
   do_check_eq(origData.length, streamData.length);
   do_check_eq(origData, streamData);
 
   // Now try an attachment. &part=1.2
-  // let attachmentURL = gIOService.newURI(neckoURL.value.spec + "&part=1.2",
-  //                                       null, null);
-  // let attachmentChannel = gIOService.newChannelFromURI(attachmentURL);
+  // let attachmentURL = Services.io.newURI(neckoURL.value.spec + "&part=1.2",
+  //                                        null, null);
+  // let attachmentChannel = Services.io.newChannelFromURI(attachmentURL);
   // Currently attachments have their content length set to the length of the
   // entire message
   // do_check_eq(attachmentChannel.contentLength, gFile.fileSize);
@@ -110,7 +106,7 @@ function endTest()
   yield true;
 }
 
-gStreamListener = {
+var gStreamListener = {
   QueryInterface : XPCOMUtils.generateQI([Ci.nsIStreamListener]),
   _stream : null,
   _data : null,

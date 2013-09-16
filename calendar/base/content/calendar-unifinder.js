@@ -13,6 +13,7 @@
  */
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 // Set this to true when the calendar event tree is clicked to allow for
@@ -51,15 +52,11 @@ function getCurrentUnifinderFilter() {
  * @see calICompositeObserver
  */
 var unifinderObserver = {
-
-    QueryInterface: function uO_QueryInterface (aIID) {
-        return cal.doQueryInterface(this,
-                                    null, // this singleton has no prototype
-                                    aIID,
-                                    [Components.interfaces.calICompositeObserver,
-                                     Components.interfaces.nsIObserver,
-                                     Components.interfaces.calIObserver]);
-    },
+    QueryInterface: XPCOMUtils.generateQI([
+        Components.interfaces.calICompositeObserver,
+        Components.interfaces.nsIObserver,
+        Components.interfaces.calIObserver
+    ]),
 
     // calIObserver:
     onStartBatch: function uO_onStartBatch() {
@@ -188,9 +185,7 @@ function prepareCalendarUnifinder() {
     let unifinderTree = document.getElementById("unifinder-search-results-tree");
 
     // Add pref observer
-    let prefService = Components.classes["@mozilla.org/preferences-service;1"]
-                                .getService(Components.interfaces.nsIPrefService);
-    let branch = prefService.getBranch("");
+    let branch = Services.prefs.getBranch("");
     branch.addObserver("calendar.", unifinderObserver, false);
 
     // Check if this is not the hidden window, which has no UI elements
@@ -246,9 +241,7 @@ function finishCalendarUnifinder() {
     ccalendar.removeObserver(unifinderObserver);
 
     // Remove pref observer
-    let prefService = Components.classes["@mozilla.org/preferences-service;1"]
-                                .getService(Components.interfaces.nsIPrefService);
-    let branch = prefService.getBranch("");
+    let branch = Services.prefs.getBranch("");
     branch.removeObserver("calendar.", unifinderObserver, false);
 
     let viewDeck = getViewDeck();
@@ -678,38 +671,40 @@ var unifinderTreeView = {
     // an itemTreeView that these tree views can inherit, that contains this
     // code, and possibly other code related to sorting and storing items. See
     // bug 432582 for more details.
-    getCellProperties: function uTV_getCellProperties(aRow, aCol, aProps) {
-        this.getRowProperties(aRow, aProps);
-        this.getColumnProperties(aCol, aProps);
+    getCellProperties: function uTV_getCellProperties(aRow, aCol) {
+        let rowProps = this.getRowProperties(aRow);
+        let colProps = this.getColumnProperties(aCol);
+        return rowProps + (rowProps && colProps ? " " : "") + colProps;
     },
-    getRowProperties: function uTV_getRowProperties(aRow, aProps) {
+    getRowProperties: function uTV_getRowProperties(aRow) {
+        let properties = [];
         let item = this.eventArray[aRow];
         if (item.priority > 0 && item.priority < 5) {
-            aProps.AppendElement(getAtomFromService("highpriority"));
+            properties.push("highpriority");
         } else if (item.priority > 5 && item.priority < 10) {
-            aProps.AppendElement(getAtomFromService("lowpriority"));
+            properties.push("lowpriority");
         }
 
         // Add calendar name atom
-        let calendarAtom = "calendar-" + formatStringForCSSRule(item.calendar.name);
-        aProps.AppendElement(getAtomFromService(calendarAtom));
+        properties.push("calendar-" + formatStringForCSSRule(item.calendar.name));
 
         // Add item status atom
         if (item.status) {
-            aProps.AppendElement(getAtomFromService("status-" + item.status.toLowerCase()));
+            properties.push("status-" + item.status.toLowerCase());
         }
 
         // Alarm status atom
         if (item.getAlarms({}).length) {
-            aProps.AppendElement(getAtomFromService("alarm"));
+            properties.push("alarm");
         }
 
         // Task categories
-        item.getCategories({}).map(formatStringForCSSRule)
-                              .map(getAtomFromService)
-                              .forEach(aProps.AppendElement, aProps);
+        properties = properties.concat(item.getCategories({})
+                                           .map(formatStringForCSSRule));
+
+        return properties.join(" ");
     },
-    getColumnProperties: function uTV_getColumnProperties(aCol, aProps) {},
+    getColumnProperties: function uTV_getColumnProperties(aCol) "",
 
     isContainer: function uTV_isContainer() {
         return false;

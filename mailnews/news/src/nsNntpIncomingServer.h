@@ -58,7 +58,7 @@ public:
                                        bool hostnameChanged);
 
     // for nsMsgLineBuffer
-    virtual int32_t HandleLine(const char *line, uint32_t line_size);
+    virtual nsresult HandleLine(const char *line, uint32_t line_size);
 
     // override to clear all passwords associated with server
     NS_IMETHODIMP ForgetPassword();
@@ -72,6 +72,7 @@ public:
 
     NS_IMETHOD GetSocketType(int32_t *aSocketType); // override nsMsgIncomingServer impl
     NS_IMETHOD SetSocketType(int32_t aSocketType); // override nsMsgIncomingServer impl
+    NS_IMETHOD GetSortOrder(int32_t* aSortOrder);
 
 protected:
    virtual nsresult CreateRootFolderFromUri(const nsCString &serverUri,

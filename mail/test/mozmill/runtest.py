@@ -28,12 +28,30 @@ sys.path.append(SCRIPT_DIRECTORY)
 from automation import Automation
 automation = Automation()
 
-from automationutils import checkForCrashes
+# --------------------------------------------------------------
+# TODO: this is a hack for mozbase without virtualenv, remove with bug 849900
+#
+here = os.path.dirname(__file__)
+mozbase = os.path.realpath(os.path.join(os.path.dirname(here), 'mozbase'))
+
+try:
+    import mozcrash
+except:
+    deps = ['mozcrash',
+            'mozlog']
+    for dep in deps:
+        module = os.path.join(mozbase, dep)
+        if module not in sys.path:
+            sys.path.append(module)
+    import mozcrash
+# ---------------------------------------------------------------
+
 from time import sleep
 import imp
 
 PROFILE_DIR = os.path.join(SCRIPT_DIRECTORY, 'mozmillprofile')
 SYMBOLS_PATH = None
+PLUGINS_PATH = None
 # XXX This breaks any semblance of test runner modularity, and only works
 # because we know that we run MozMill only once per process. This needs to be
 # fixed if that ever changes.
@@ -103,11 +121,9 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         # Do not allow check new mail to be set
         'mail.startup.enabledMailCheckOnce' :  True,
         # Disable compatibility checking
-        'extensions.checkCompatibility.17.0': False,
+        'extensions.checkCompatibility.24.0': False,
         # Stop any pings to AMO on add-on install
         'extensions.getAddons.cache.enabled': False,
-        # Disable test pilot new tab (this can be set to anything currently, just needs to be set).
-        'extensions.testpilot.lastversion': '1.0',
         # In case a developer is working on a laptop without a network
         # connection, don't detect offline mode; hence we'll still startup
         # online which is what mozmill currently requires. It'll also protect us
@@ -125,7 +141,7 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         # Do not allow fonts to be upgraded
         'mail.font.windows.version': 2,
         # No, we don't want to be prompted about Telemetry
-        'toolkit.telemetry.prompted': True,
+        'toolkit.telemetry.prompted': 999,
         }
 
     # Dummied up local accounts to stop the account wizard
@@ -133,20 +149,21 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         'mail.account.account1.server' :  "server1",
         'mail.account.account2.identities' :  "id1,id2",
         'mail.account.account2.server' :  "server2",
-        'mail.accountmanager.accounts' :  "account1,account2",
+        'mail.account.account3.server' :  "server3",
+        'mail.accountmanager.accounts' :  "account1,account2,account3",
         'mail.accountmanager.defaultaccount' :  "account2",
         'mail.accountmanager.localfoldersserver' :  "server1",
         'mail.identity.id1.fullName' :  "Tinderbox",
         'mail.identity.id1.htmlSigFormat' : False,
         'mail.identity.id1.htmlSigText' : "Tinderbox is soo 90ies",
         'mail.identity.id1.smtpServer' :  "smtp1",
-        'mail.identity.id1.useremail' :  "tinderbox@invalid.com",
+        'mail.identity.id1.useremail' :  "tinderbox@foo.invalid",
         'mail.identity.id1.valid' :  True,
         'mail.identity.id2.fullName' : "Tinderboxpushlog",
         'mail.identity.id2.htmlSigFormat' : True,
         'mail.identity.id2.htmlSigText' : "Tinderboxpushlog is the new <b>hotness!</b>",
         'mail.identity.id2.smtpServer' : "smtp1",
-        'mail.identity.id2.useremail' : "tinderboxpushlog@invalid.com",
+        'mail.identity.id2.useremail' : "tinderboxpushlog@foo.invalid",
         'mail.identity.id2.valid' : True,
         'mail.server.server1.directory-rel' :  "[ProfD]Mail/Local Folders",
         'mail.server.server1.hostname' :  "Local Folders",
@@ -158,14 +175,23 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         'mail.server.server2.download_on_biff' :  True,
         'mail.server.server2.hostname' :  "tinderbox",
         'mail.server.server2.login_at_startup' :  False,
-        'mail.server.server2.name' :  "tinderbox@invalid.com",
+        'mail.server.server2.name' :  "tinderbox@foo.invalid",
         'mail.server.server2.type' :  "pop3",
         'mail.server.server2.userName' :  "tinderbox",
         'mail.server.server2.whiteListAbURI': "",
+        'mail.server.server3.hostname' :  "prpl-irc",
+        'mail.server.server3.imAccount' :  "account1",
+        'mail.server.server3.type' :  "im",
+        'mail.server.server3.userName' :  "mozmilltest@irc.mozilla.invalid",
         'mail.smtp.defaultserver' :  "smtp1",
         'mail.smtpserver.smtp1.hostname' :  "tinderbox",
         'mail.smtpserver.smtp1.username' :  "tinderbox",
         'mail.smtpservers' :  "smtp1",
+        'messenger.account.account1.autoLogin' :  False,
+        'messenger.account.account1.firstConnectionState' :  1,
+        'messenger.account.account1.name' :  "mozmilltest@irc.mozilla.invalid",
+        'messenger.account.account1.prpl' :  "prpl-irc",
+        'messenger.accounts' :  "account1",
     }
 
     def create_new_profile(self, binary):
@@ -181,6 +207,13 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         print 'Using profile dir:', PROFILE_DIR
         if not os.path.exists(PROFILE_DIR):
             raise Exception('somehow failed to create profile dir!')
+
+        if PLUGINS_PATH:
+          if not os.path.exists(PLUGINS_PATH):
+            raise Exception('Plugins path "%s" does not exist.' % PLUGINS_PATH)
+
+          dest = os.path.join(PROFILE_DIR, "plugins")
+          shutil.copytree(PLUGINS_PATH, dest)
 
         if wrapper is not None and hasattr(wrapper, "on_profile_created"):
             # It's a little dangerous to allow on_profile_created access to the
@@ -305,9 +338,11 @@ class ThunderTestCLI(mozmill.CLI):
     parser_options = copy.copy(mozmill.CLI.parser_options)
     parser_options[('--symbols-path',)] = {"default": None, "dest": "symbols",
                                            "help": "The path to the symbol files from build_symbols"}
+    parser_options[('--plugins-path',)] = {"default": None, "dest": "plugins",
+                                           "help": "The path to the plugins directory for the created profile"}
 
     def __init__(self, *args, **kwargs):
-        global SYMBOLS_PATH, TEST_NAME
+        global SYMBOLS_PATH, PLUGINS_PATH, TEST_NAME
 
         # mozmill 1.5.4 still explicitly hardcodes references to Firefox; in
         # order to avoid missing out on initializer logic or needing to copy
@@ -321,6 +356,7 @@ class ThunderTestCLI(mozmill.CLI):
         mozmill.CLI.__init__(self, *args, **kwargs)
 
         SYMBOLS_PATH = self.options.symbols
+        PLUGINS_PATH = self.options.plugins
         if isinstance(self.options.test, basestring):
             test_paths = [self.options.test]
         else:
@@ -465,8 +501,8 @@ def dumpRichResults():
         print '##### MOZMILL-RICH-FAILURES-END #####'
 
 def checkCrashesAtExit():
-    if checkForCrashes(os.path.join(PROFILE_DIR, 'minidumps'), SYMBOLS_PATH,
-                       TEST_NAME):
+    if mozcrash.check_for_crashes(os.path.join(PROFILE_DIR, 'minidumps'), SYMBOLS_PATH,
+                                  TEST_NAME):
         print >> sys.stderr, 'TinderboxPrint: ' + TEST_NAME + '<br/><em class="testfail">CRASH</em>'
         sys.exit(1)
 

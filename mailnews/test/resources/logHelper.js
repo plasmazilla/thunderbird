@@ -10,6 +10,7 @@
 
 Components.utils.import("resource:///modules/gloda/log4moz.js");
 Components.utils.import("resource:///modules/IOUtils.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 var _testLogger;
 var _xpcshellLogger;
@@ -37,21 +38,15 @@ function logHelperHasInterestedListeners() {
  */
 let _errorConsoleTunnel = {
   initialize: function () {
-    this.consoleService = Cc["@mozilla.org/consoleservice;1"]
-                            .getService(Ci.nsIConsoleService);
-    this.consoleService.registerListener(this);
+    Services.console.registerListener(this);
 
     // we need to unregister our listener at shutdown if we don't want explosions
-    this.observerService = Cc["@mozilla.org/observer-service;1"]
-                             .getService(Ci.nsIObserverService);
-    this.observerService.addObserver(this, "quit-application", false);
+    Services.obs.addObserver(this, "quit-application", false);
   },
 
   shutdown: function () {
-    this.consoleService.unregisterListener(this);
-    this.observerService.removeObserver(this, "quit-application");
-    this.consoleService = null;
-    this.observerService = null;
+    Services.console.unregisterListener(this);
+    Services.obs.removeObserver(this, "quit-application");
   },
 
   observe: function (aMessage, aTopic, aData) {
@@ -64,7 +59,7 @@ let _errorConsoleTunnel = {
       // meh, let's just use mark_failure for now.
       // and let's avoid feedback loops (happens in mozmill)
       if ((aMessage instanceof Components.interfaces.nsIScriptError) &&
-        (aMessage.errorMessage.indexOf("Error console says") == -1))
+        (!aMessage.errorMessage.contains("Error console says")))
         mark_failure(["Error console says", aMessage]);
     }
     catch (ex) {
@@ -105,9 +100,7 @@ function _init_log_helper() {
   _xpcshellLogger = Log4Moz.repository.getLogger("xpcshell");
 
   // - logsploder
-  let file = Cc["@mozilla.org/file/directory_service;1"]
-               .getService(Ci.nsIProperties)
-               .get("TmpD", Ci.nsIFile);
+  let file = Services.dirsvc.get("TmpD", Ci.nsIFile);
   file.append("logsploder.ptr");
   if (file.exists()) {
     _logHelperInterestedListeners = true;
@@ -390,22 +383,28 @@ function _normalize_for_json(aObj, aDepthAllowed, aJsonMeNotNeeded) {
   // DOM nodes, including elements
   else if (aObj instanceof Ci.nsIDOMNode) {
     let name = aObj.nodeName;
+    let objAttrs = {};
+
     if (aObj instanceof Ci.nsIDOMElement)
       name += "#" + aObj.getAttribute("id");
 
-    let nodeAttrs = aObj.attributes, objAttrs = {};
-    for (let iAttr = 0; iAttr < nodeAttrs.length; iAttr++) {
-      objAttrs[nodeAttrs[iAttr].name] = nodeAttrs[iAttr].value;
+    if ("attributes" in aObj) {
+      let nodeAttrs = aObj.attributes;
+      for (let iAttr = 0; iAttr < nodeAttrs.length; iAttr++) {
+        objAttrs[nodeAttrs[iAttr].name] = nodeAttrs[iAttr].value;
+      }
     }
 
-    let bounds = aObj.getBoundingClientRect();
+    let bounds = { left: null, top: null, width: null, height: null }
+    if ("getBoundingClientRect" in aObj)
+      bounds = aObj.getBoundingClientRect();
+
     return {
       type: "domNode",
       name: name,
       value: aObj.nodeValue,
       namespace: aObj.namespaceURI,
-      boundingClientRect: {left: bounds.left, top: bounds.top,
-                           width: bounds.width, height: bounds.height},
+      boundingClientRect: bounds,
       attrs: objAttrs,
     };
   }

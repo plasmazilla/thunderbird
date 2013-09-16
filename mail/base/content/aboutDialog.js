@@ -37,7 +37,7 @@ function init(aEvent)
   if (/a\d+(pre)?$/.test(version)) {
     let buildID = Services.appinfo.appBuildID;
     let buildDate = buildID.slice(0,4) + "-" + buildID.slice(4,6) + "-" + buildID.slice(6,8);
-    document.getElementById("version").value += " (" + buildDate + ")";
+    document.getElementById("version").textContent += " (" + buildDate + ")";
   }
 
 #ifdef MOZ_UPDATER
@@ -61,9 +61,7 @@ function openAboutTab(url)
 {
   let tabmail;
   // Check existing windows
-  let mailWindow = Components.classes["@mozilla.org/appshell/window-mediator;1"]
-                             .getService(Components.interfaces.nsIWindowMediator)
-                             .getMostRecentWindow("mail:3pane");
+  let mailWindow = Services.wm.getMostRecentWindow("mail:3pane");
   if (mailWindow) {
     mailWindow.focus();
     mailWindow.document.getElementById("tabmail")
@@ -125,9 +123,6 @@ function appUpdater()
   XPCOMUtils.defineLazyServiceGetter(this, "um",
                                      "@mozilla.org/updates/update-manager;1",
                                      "nsIUpdateManager");
-  XPCOMUtils.defineLazyServiceGetter(this, "bs",
-                                     "@mozilla.org/extensions/blocklist;1",
-                                     "nsIBlocklistService");
 
   this.bundle = Services.strings.
                 createBundle("chrome://messenger/locale/messenger.properties");
@@ -291,10 +286,8 @@ appUpdater.prototype =
         env.set("MOZ_SAFE_MODE_RESTART", "1");
       }
 
-      Components.classes["@mozilla.org/toolkit/app-startup;1"].
-      getService(Components.interfaces.nsIAppStartup).
-      quit(Components.interfaces.nsIAppStartup.eAttemptQuit |
-           Components.interfaces.nsIAppStartup.eRestart);
+      Services.startup.quit(Components.interfaces.nsIAppStartup.eAttemptQuit |
+                            Components.interfaces.nsIAppStartup.eRestart);
       return;
     }
 
@@ -318,17 +311,10 @@ appUpdater.prototype =
 
   /**
    * Implements nsIUpdateCheckListener. The methods implemented by
-   * nsIUpdateCheckListener have to be in a different scope from
-   * nsIIncrementalDownload because both nsIUpdateCheckListener and
-   * nsIIncrementalDownload implement onProgress.
+   * nsIUpdateCheckListener are in a different scope from nsIIncrementalDownload
+   * to make it clear which are used by each interface.
    */
   updateCheckListener: {
-    /**
-     * See nsIUpdateService.idl
-     */
-    onProgress: function(aRequest, aPosition, aTotalSize) {
-    },
-
     /**
      * See nsIUpdateService.idl
      */
@@ -338,6 +324,17 @@ appUpdater.prototype =
                            selectUpdate(aUpdates, aUpdates.length);
       if (!gAppUpdater.update) {
         gAppUpdater.selectPanel("noUpdatesFound");
+        return;
+      }
+
+      if (gAppUpdater.update.unsupported) {
+        let unsupportedLink = document.getElementById("unsupportedLink");
+        if (gAppUpdater.update.detailsURL)
+          unsupportedLink.href = gAppUpdater.update.detailsURL;
+        else
+          unsupportedLink.setAttribute("hidden", true);
+        
+        gAppUpdater.selectPanel("unsupportedSystem");
         return;
       }
 
@@ -469,9 +466,9 @@ appUpdater.prototype =
    * See XPIProvider.jsm
    */
   onUpdateAvailable: function(aAddon, aInstall) {
-    if (!this.bs.isAddonBlocklisted(aAddon.id, aInstall.version,
-                                    this.update.appVersion,
-                                    this.update.platformVersion)) {
+    if (!Services.blocklist.isAddonBlocklisted(aAddon.id, aInstall.version,
+                                               this.update.appVersion,
+                                               this.update.platformVersion)) {
       // Compatibility or new version updates mean the same thing here.
       this.onCompatibilityUpdateAvailable(aAddon);
     }

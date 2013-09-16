@@ -53,11 +53,11 @@ static NS_DEFINE_CID(kMsgCompFieldsCID, NS_MSGCOMPFIELDS_CID);
 
 #ifdef IMPORT_DEBUG
 static char *p_test_headers =
-"Received: from netppl.fi (IDENT:monitor@get.freebsd.because.microsoftsucks.net [209.3.31.115])\n\
- by mail4.sirius.com (8.9.1/8.9.1) with SMTP id PAA27232;\n\
+"Received: from netppl.invalid (IDENT:monitor@get.freebsd.because.microsoftsucks.invalid [209.3.31.115])\n\
+ by mail4.sirius.invalid (8.9.1/8.9.1) with SMTP id PAA27232;\n\
  Mon, 17 May 1999 15:27:43 -0700 (PDT)\n\
-Message-ID: <ikGD3jRTsKklU.Ggm2HmE2A1Jsqd0p@netppl.fi>\n\
-From: \"adsales@qualityservice.com\" <adsales@qualityservice.com>\n\
+Message-ID: <ikGD3jRTsKklU.Ggm2HmE2A1Jsqd0p@netppl.invalid>\n\
+From: \"adsales@qualityservice.invalid\" <adsales@qualityservice.invalid>\n\
 Subject: Re: Your College Diploma (36822)\n\
 Date: Mon, 17 May 1999 15:09:29 -0400 (EDT)\n\
 MIME-Version: 1.0\n\
@@ -527,7 +527,7 @@ nsresult nsEudoraCompose::GetLocalAttachments(nsIArray **aArray)
 
     nsCOMPtr <nsIURI> uri;
     nsresult rv = NS_NewFileURI(getter_AddRefs(uri), pAttach->pAttachment);
-    NS_ENSURE_SUCCESS(rv, nullptr);
+    NS_ENSURE_SUCCESS(rv, rv);
     uri->GetSpec(urlStr);
     if (urlStr.IsEmpty())
       return NS_ERROR_FAILURE;
@@ -659,8 +659,7 @@ nsresult nsEudoraCompose::SendTheMessage(nsIFile *pMailImportLocation, nsIFile *
                         s_pIdentity,                  // dummy identity
                         m_pMsgFields,                 // message fields
                         pMimeType,                    // body type
-                        body.get(),                   // body pointer
-                        body.Length(),                // body length
+                        body,                         // body pointer
                         createAsDraft,
                         pAttach,                      // local attachments
                         embeddedObjects,

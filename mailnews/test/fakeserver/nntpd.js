@@ -1,6 +1,20 @@
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 // This file implements test NNTP servers
 
+Components.utils.import("resource:///modules/mimeParser.jsm");
+
+var EXPORTED_SYMBOLS = [
+  'nntpDaemon',
+  'newsArticle',
+  'NNTP_POSTABLE',
+  'NNTP_REAL_LENGTH',
+  'NNTP_RFC977_handler',
+  'NNTP_RFC2980_handler',
+  'NNTP_RFC3977_handler',
+  'NNTP_Giganews_handler',
+  'NNTP_RFC4643_extension'
+];
+
 function nntpDaemon(flags) {
   this._groups = {};
   this._messages = {};
@@ -66,29 +80,17 @@ function newsArticle(text) {
   this.messageID = "";
   this.fullText = text;
 
-  var lines = text.split("\n"), passedHeaders = false;
-  var preamble = "";
-  for each(var line in lines) {
-    if (!passedHeaders) {
-      if (line.length == 0) {
-        passedHeaders = true;
-        continue;
-      }
-      preamble += line + '\n';
-      var parts = line.split(/:[ \t]*/);
-      this.headers[parts[0].toLowerCase()] = parts[1];
-      switch (parts[0].toLowerCase()) {
-        case "message-id":
-          var start = parts[1].indexOf('<');
-          var end = parts[1].indexOf('>', start);
-          this.messageID = parts[1].substring(start, end+1);
-          break;
-        case "newsgroups":
-          this.groups = parts[1].split(/[ \t]*,[ \t]*/);
-          break;
-      }
-    } else {
-      this.body += line + "\n";
+  var headerMap;
+  [headerMap, this.body] = MimeParser.extractHeadersAndBody(text);
+  for (var [header, values] of headerMap) {
+    var value = values[0];
+    this.headers[header] = value;
+    if (header == "message-id") {
+      var start = value.indexOf('<');
+      var end = value.indexOf('>', start);
+      this.messageID = value.substring(start, end+1);
+    } else if (header == "newsgroups") {
+      this.groups = value.split(/[ \t]*,[ \t]*/);
     }
   }
 
@@ -97,16 +99,13 @@ function newsArticle(text) {
   {
     let lines = this.body.split('\n').length;
     this.headers["lines"] = lines;
-    preamble += "Lines: "+lines;
   }
-
-  this.fulltext = preamble + '\n' + this.body;
 }
 
 /**
  * This function converts an NNTP wildmat into a regular expression.
  *
- * I don't know how accurate it is wrt i18n characters, but it's primary usage
+ * I don't know how accurate it is wrt i18n characters, but its primary usage
  * right now is just XPAT, where i18n effects are utterly unspecified, so I am
  * not too concerned.
  *
@@ -118,8 +117,10 @@ function wildmat2regex(wildmat) {
       return "\\" + str;
   });
   wildmat = wildmat.replace(/(\\*)([*?])/, function (str, p1, p2) {
+    // TODO: This function appears to be wrong on closer inspection.
     if (p1.length % 2 == 0)
       return p2 == '*' ? '.*' : '.';
+    return str;
   });
   return new RegExp(wildmat);
 }
@@ -314,7 +315,7 @@ NNTP_RFC977_handler.prototype = {
     }
 
     if (this.posting) {
-      if (line.charAt(0) == '.')
+      if (line.startsWith('.'))
         line = line.substring(1);
 
       this.post += line+'\n';
@@ -345,7 +346,7 @@ NNTP_RFC977_handler.prototype = {
 
       art = this.group[this.articleKey];
       key = this.articleKey;
-    } else if (args.charAt(0) == '<') {
+    } else if (args.startsWith('<')) {
       art = this._daemon.getArticle(args);
       key = 0;
 

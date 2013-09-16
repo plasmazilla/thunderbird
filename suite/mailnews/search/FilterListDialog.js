@@ -53,9 +53,6 @@ var gStatusFeedback = {
 };
 
 var gFilterTreeView = {
-  mEnabledAtom: Components.classes['@mozilla.org/atom-service;1']
-                          .getService(Components.interfaces.nsIAtomService)
-                          .getAtom('Enabled-true'),
   mTree: null,
   get tree() {
     return this.mTree;
@@ -82,15 +79,13 @@ var gFilterTreeView = {
     return this.mFilterList.filterCount;
   },
   selection: null,
-  getRowProperties: function getRowProperties(index, properties) {
-    if (this.mFilterList.getFilterAt(index).enabled)
-      properties.AppendElement(this.mEnabledAtom);
+  getRowProperties: function getRowProperties(row) {
+    return this.mFilterList.getFilterAt(row).enabled ? "Enabled-true" : "";
   },
-  getCellProperties: function getCellProperties(row, col, properties) {
-    if (this.mFilterList.getFilterAt(row).enabled)
-      properties.AppendElement(this.mEnabledAtom);
+  getCellProperties: function getCellProperties(row, col) {
+    return this.mFilterList.getFilterAt(row).enabled ? "Enabled-true" : "";
   },
-  getColumnProperties: function getColumnProperties(col, properties) {},
+  getColumnProperties: function getColumnProperties(col) { return ""; },
   isContainer: function isContainer(index) { return false; },
   isContainerOpen: function isContainerOpen(index) { return false; },
   isContainerEmpty: function isContainerEmpty(index) { return false; },
@@ -461,10 +456,13 @@ function runSelectedFilters()
   var folderURI = gRunFiltersFolderPicker.getAttribute("uri");
   var resource = gRDF.GetResource(folderURI);
   var msgFolder = resource.QueryInterface(Components.interfaces.nsIMsgFolder);
-  var filterService = Components.classes["@mozilla.org/messenger/services/filters;1"].getService(Components.interfaces.nsIMsgFilterService);
+  var filterService = Components.classes["@mozilla.org/messenger/services/filters;1"]
+                                .getService(Components.interfaces.nsIMsgFilterService);
+
   var filterList = filterService.getTempFilterList(msgFolder);
-  var folders = Components.classes["@mozilla.org/supports-array;1"].createInstance(Components.interfaces.nsISupportsArray);
-  folders.AppendElement(msgFolder);
+  var folders = Components.classes["@mozilla.org/array;1"]
+                          .createInstance(Components.interfaces.nsIMutableArray);
+  folders.appendElement(msgFolder, false);
 
   // make sure the tmp filter list uses the real filter list log stream
   filterList.logStream = currentFilterList().logStream;
@@ -582,12 +580,12 @@ function getServerThatCanHaveFilters()
     else
     {
         var allServers = accountManager.allServers;
-        var numServers = allServers.Count();
+        var numServers = allServers.length;
         var index = 0;
         for (index = 0; index < numServers; index++)
         {
-            var currentServer
-            = allServers.GetElementAt(index).QueryInterface(Components.interfaces.nsIMsgIncomingServer);
+            var currentServer =
+              allServers.queryElementAt(index, Components.interfaces.nsIMsgIncomingServer);
 
             if (currentServer.canHaveFilters)
             {

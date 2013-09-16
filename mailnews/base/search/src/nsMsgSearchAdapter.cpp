@@ -26,6 +26,7 @@
 #include "nsMsgMessageFlags.h"
 #include "nsISupportsArray.h"
 #include "nsAlgorithm.h"
+#include <algorithm>
 
 // This stuff lives in the base class because the IMAP search syntax
 // is used by the Dredd SEARCH command as well as IMAP itself
@@ -121,8 +122,8 @@ NS_IMETHODIMP nsMsgSearchAdapter::SendUrl ()
   return NS_OK;
 }
 
-/* void CurrentUrlDone (in long exitCode); */
-NS_IMETHODIMP nsMsgSearchAdapter::CurrentUrlDone(int32_t exitCode)
+/* void CurrentUrlDone (in nsresult exitCode); */
+NS_IMETHODIMP nsMsgSearchAdapter::CurrentUrlDone(nsresult exitCode)
 {
   // base implementation doesn't need to do anything.
   return NS_OK;
@@ -299,7 +300,7 @@ nsresult nsMsgSearchAdapter::EncodeImapTerm (nsIMsgSearchTerm *term, bool really
   bool useNot = false;
   bool useQuotes = false;
   bool ignoreValue = false;
-  nsCAutoString arbitraryHeader;
+  nsAutoCString arbitraryHeader;
   const char *whichMnemonic = nullptr;
   const char *orHeaderMnemonic = nullptr;
 
@@ -503,7 +504,7 @@ nsresult nsMsgSearchAdapter::EncodeImapTerm (nsIMsgSearchTerm *term, bool really
       else if (attrib == nsMsgSearchAttrib::Size)
       {
         uint32_t sizeValue;
-        nsCAutoString searchTermValue;
+        nsAutoCString searchTermValue;
         searchValue->GetSize(&sizeValue);
 
         // Multiply by 1024 to get into kb resolution
@@ -543,7 +544,7 @@ nsresult nsMsgSearchAdapter::EncodeImapTerm (nsIMsgSearchTerm *term, bool really
                     (nsDependentString(convertedValue).FindChar(PRUnichar(' ')) != -1)) &&
            (attrib != nsMsgSearchAttrib::Keywords));
         // now convert to char* and escape quoted_specials
-        nsCAutoString valueStr;
+        nsAutoCString valueStr;
         nsresult rv = ConvertFromUnicode(NS_LossyConvertUTF16toASCII(destCharset).get(),
           nsDependentString(convertedValue), valueStr);
         if (NS_SUCCEEDED(rv))
@@ -638,7 +639,7 @@ nsresult nsMsgSearchAdapter::EncodeImapValue(char *encoding, const char *value, 
 
   if (!NS_IsAscii(value))
   {
-    nsCAutoString lengthStr;
+    nsAutoCString lengthStr;
     PL_strcat(encoding, "{");
     lengthStr.AppendInt((int32_t) strlen(value));
     PL_strcat(encoding, lengthStr.get());
@@ -694,7 +695,7 @@ nsresult nsMsgSearchAdapter::EncodeImap (char **ppOutEncoding, nsISupportsArray 
   if (NS_SUCCEEDED(err))
   {
     // Catenate the intermediate encodings together into a big string
-    nsCAutoString encodingBuff;
+    nsAutoCString encodingBuff;
 
     if (!reallyDredd)
       encodingBuff.Append(m_kImapUnDeleted);
@@ -898,7 +899,7 @@ nsMsgSearchValidityTable::GetAvailableOperators(nsMsgSearchAttribValue aAttribut
     if (aAttribute == nsMsgSearchAttrib::Default)
       attr = m_defaultAttrib;
     else
-      attr = NS_MIN(aAttribute,
+      attr = std::min(aAttribute,
                     (nsMsgSearchAttribValue)nsMsgSearchAttrib::OtherHeader);
 
     uint32_t totalOperators=0;
@@ -1153,7 +1154,7 @@ nsMsgSearchValidityManager::SetOtherHeadersInTable (nsIMsgSearchValidityTable *a
   uint32_t numHeaders=0;
   if (customHeadersLength)
   {
-    nsCAutoString hdrStr(customHeaders);
+    nsAutoCString hdrStr(customHeaders);
     hdrStr.StripWhitespace();  //remove whitespace before parsing
     char *newStr = hdrStr.BeginWriting();
     char *token = NS_strtok(":", &newStr);
@@ -1166,7 +1167,7 @@ nsMsgSearchValidityManager::SetOtherHeadersInTable (nsIMsgSearchValidityTable *a
 
   NS_ASSERTION(nsMsgSearchAttrib::OtherHeader + numHeaders < nsMsgSearchAttrib::kNumMsgSearchAttributes, "more headers than the table can hold");
 
-  uint32_t maxHdrs = NS_MIN(nsMsgSearchAttrib::OtherHeader + numHeaders + 1,
+  uint32_t maxHdrs = std::min(nsMsgSearchAttrib::OtherHeader + numHeaders + 1,
                             (uint32_t)nsMsgSearchAttrib::kNumMsgSearchAttributes);
   for (uint32_t i=nsMsgSearchAttrib::OtherHeader+1;i< maxHdrs;i++)
   {

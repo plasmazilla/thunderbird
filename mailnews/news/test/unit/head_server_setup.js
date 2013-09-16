@@ -1,17 +1,26 @@
-// Import the servers
-load("../../../fakeserver/maild.js");
-load("../../../fakeserver/nntpd.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+Components.utils.import("resource://testing-common/mailnews/localAccountUtils.js");
 
-// Generic mailnews resource scripts
-load("../../../resources/mailDirService.js");
-load("../../../resources/mailTestUtils.js");
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var CC = Components.Constructor;
+
+// Ensure the profile directory is set up
+do_get_profile();
+
+// Import the servers
+Components.utils.import("resource://testing-common/mailnews/maild.js");
+Components.utils.import("resource://testing-common/mailnews/nntpd.js");
 
 const kSimpleNewsArticle =
   "From: John Doe <john.doe@example.com>\n"+
   "Date: Sat, 24 Mar 1990 10:59:24 -0500\n"+
   "Newsgroups: test.subscribe.simple\n"+
   "Subject: H2G2 -- What does it mean?\n"+
-  "Message-ID: <TSS1@nntp.test>\n"+
+  "Message-ID: <TSS1@nntp.invalid>\n"+
   "\n"+
   "What does the acronym H2G2 stand for? I've seen it before...\n";
 
@@ -100,7 +109,8 @@ function subscribeServer(incomingServer) {
 function setupLocalServer(port) {
   if (_server != null)
     return _server;
-  let server = create_incoming_server("nntp", port, null, null);
+  let server = localAccountUtils.create_incoming_server("nntp", port,
+							null, null);
   subscribeServer(server);
 
   _server = server;
@@ -108,9 +118,7 @@ function setupLocalServer(port) {
   return server;
 }
 
-const URLCreator = Cc["@mozilla.org/messenger/messageservice;1?type=news"]
-                     .getService(Ci.nsINntpService)
-                     .QueryInterface(Ci.nsIProtocolHandler);
+const URLCreator = MailServices.nntp.QueryInterface(Ci.nsIProtocolHandler);
 
 // Sets up a protocol object and prepares to run the test for the news url
 function setupProtocolTest(port, newsUrl, incomingServer) {

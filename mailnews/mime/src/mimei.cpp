@@ -68,7 +68,7 @@
 #include "nsMimeTypes.h"
 #include "nsMsgUtils.h"
 #include "nsIPrefBranch.h"
-#include "imgILoader.h"
+#include "imgLoader.h"
 
 #include "nsIMsgMailNewsUrl.h"
 #include "nsIMsgHdr.h"
@@ -193,8 +193,8 @@ mime_locate_external_content_handler(const char *content_type,
   MimeObjectClass               *newObj = NULL;
   nsresult rv;
 
-  nsCAutoString lookupID("@mozilla.org/mimecth;1?type=");
-  nsCAutoString lowerCaseContentType;
+  nsAutoCString lookupID("@mozilla.org/mimecth;1?type=");
+  nsAutoCString lowerCaseContentType;
   ToLowerCase(nsDependentCString(content_type), lowerCaseContentType);
   lookupID += lowerCaseContentType;
 
@@ -721,10 +721,7 @@ mime_find_class (const char *content_type, MimeHeaders *hdrs,
     /* The magic image types which we are able to display internally...
     */
     else if (!PL_strncasecmp(content_type,    "image/", 6)) {
-        nsCOMPtr<imgILoader> loader(do_GetService("@mozilla.org/image/loader;1"));
-        bool isReg = false;
-        loader->SupportImageWithMimeType(content_type, &isReg);
-        if (isReg)
+        if (imgLoader::SupportImageWithMimeType(content_type))
           clazz = (MimeObjectClass *)&mimeInlineImageClass;
         else
           clazz = (MimeObjectClass *)&mimeExternalObjectClass;
@@ -882,7 +879,7 @@ mime_create (const char *content_type, MimeHeaders *hdrs,
         encoding.Adopt(MimeHeaders_get(hdrs,
                                        HEADER_CONTENT_TRANSFER_ENCODING,
                                        true, false));
-        if (encoding.EqualsLiteral(ENCODING_BASE64))
+        if (encoding.LowerCaseEqualsLiteral(ENCODING_BASE64))
           override_content_type = nullptr;
       }
 
@@ -1247,7 +1244,7 @@ mime_set_url_part(const char *url, const char *part, bool append_p)
 
   if (!url || !part) return 0;
 
-  nsCAutoString urlString(url);
+  nsAutoCString urlString(url);
   int32_t typeIndex = urlString.Find("?type=application/x-message-display");
   if (typeIndex != -1)
   {
@@ -1725,7 +1722,11 @@ MimeOptions_write(MimeDisplayOptions *opt, nsCString &name, const char *data,
           opt->state->separator_suppressed_p = false;
           if (lstatus < 0) return lstatus;
 
-          lstatus = opt->output_fn(name.get(), name.Length(), closure);
+          nsCString escapedName;
+          escapedName.Adopt(MsgEscapeHTML(name.get()));
+
+          lstatus = opt->output_fn(escapedName.get(),
+                                   escapedName.Length(), closure);
           opt->state->separator_suppressed_p = false;
           if (lstatus < 0) return lstatus;
 

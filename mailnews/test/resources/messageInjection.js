@@ -2,6 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 var gMessageGenerator, gMessageScenarioFactory;
 
 // We can be executed from multiple depths
@@ -33,12 +36,8 @@ function configure_message_injection(aInjectionConfig) {
 
 
   // we need to pull in the notification service so we get events?
-  mis.mfnService = Cc["@mozilla.org/messenger/msgnotificationservice;1"]
-                     .getService(Ci.nsIMsgFolderNotificationService);
+  mis.mfnService = MailServices.mfn;
 
-
-  let acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
 
   if (mis.injectionConfig.mode == "pop") {
     // -- Pull in the POP3 fake-server / local account helper code
@@ -54,8 +53,7 @@ function configure_message_injection(aInjectionConfig) {
     mis.rootFolder = mis.incomingServer.rootMsgFolder;
     mis.inboxFolder = mis.rootFolder.getChildNamed("Inbox");
 
-    mis.pop3Service = Cc["@mozilla.org/messenger/popservice;1"]
-      .getService(Ci.nsIPop3Service);
+    mis.pop3Service = MailServices.pop3;
 
     mis.server.start(POP3_PORT);
   }
@@ -63,24 +61,24 @@ function configure_message_injection(aInjectionConfig) {
     // This does createIncomingServer() and createAccount(), sets the server as
     //  the account's server, then sets the server
     try {
-      acctMgr.createLocalMailAccount();
+      MailServices.accounts.createLocalMailAccount();
     }
     catch (ex) {
       // This will fail if someone already called this.  Like in the mozmill
       //  case.
     }
 
-    let localAccount = acctMgr.FindAccountForServer(acctMgr.localFoldersServer);
+    let localAccount = MailServices.accounts.FindAccountForServer(MailServices.accounts.localFoldersServer);
 
     // We need an identity or we get angry warnings.
-    let identity = acctMgr.createIdentity();
+    let identity = MailServices.accounts.createIdentity();
     // We need an email to protect against random code assuming it exists and
     // throwing exceptions.
-    identity.email = "sender@nul.nul";
+    identity.email = "sender@nul.invalid";
     localAccount.addIdentity(identity);
     localAccount.defaultIdentity = identity;
 
-    mis.incomingServer = acctMgr.localFoldersServer;
+    mis.incomingServer = MailServices.accounts.localFoldersServer;
     // Note: Inbox is not created automatically when there is no deferred server,
     // so we need to create it.
     mis.rootFolder = mis.incomingServer.rootMsgFolder;
@@ -121,21 +119,21 @@ function configure_message_injection(aInjectionConfig) {
     mis.server._logTransactions = false;
 
     // we need a local account for the IMAP server to have its sent messages in
-    acctMgr.createLocalMailAccount();
+    MailServices.accounts.createLocalMailAccount();
 
     // We need an identity so that updateFolder doesn't fail
-    let localAccount = acctMgr.createAccount();
-    let identity = acctMgr.createIdentity();
+    let localAccount = MailServices.accounts.createAccount();
+    let identity = MailServices.accounts.createIdentity();
     // We need an email to protect against random code assuming it exists and
     // throwing exceptions.
-    identity.email = "sender@nul.nul";
+    identity.email = "sender@nul.invalid";
     localAccount.addIdentity(identity);
     localAccount.defaultIdentity = identity;
     localAccount.incomingServer = mis.incomingServer;
-    acctMgr.defaultAccount = localAccount;
+    MailServices.accounts.defaultAccount = localAccount;
 
     // Let's also have another account, using the same identity
-    let imapAccount = acctMgr.createAccount();
+    let imapAccount = MailServices.accounts.createAccount();
     imapAccount.addIdentity(identity);
     imapAccount.defaultIdentity = identity;
     imapAccount.incomingServer = mis.incomingServer;
@@ -157,8 +155,7 @@ function configure_message_injection(aInjectionConfig) {
     _messageInjectionSetup.notifyListeners("onRealFolderCreated",
                                            [mis.inboxFolder]);
 
-    mis.imapService = Cc["@mozilla.org/messenger/imapservice;1"]
-                        .getService(Ci.nsIImapService);
+    mis.imapService = MailServices.imap;
 
     mis.handleUriToRealFolder = {};
     mis.handleUriToFakeFolder = {};
@@ -358,11 +355,9 @@ function make_empty_folder(aFolderName, aSpecialFlags) {
 
 // Small helper for moving folder. You have to yield move_folder(f1, f2);
 function move_folder(aSource, aTarget) {
-  let cs = Cc["@mozilla.org/messenger/messagecopyservice;1"]
-          .getService(Ci.nsIMsgCopyService);
   let array = toXPCOMArray([get_nsIMsgFolder(aSource)], Ci.nsIMutableArray);
   // we're doing a true move
-  cs.CopyFolders(array, get_nsIMsgFolder(aTarget), true, {
+  MailServices.copy.CopyFolders(array, get_nsIMsgFolder(aTarget), true, {
     /* nsIMsgCopyServiceListener implementation */
     OnStartCopy: function() {},
     OnProgress: function(aProgress, aProgressMax) {},
@@ -631,7 +626,7 @@ function add_sets_to_folders(aMsgFolders, aMessageSets, aDoNotForceUpdate) {
   let mis = _messageInjectionSetup;
 
   let iterFolders, folderList;
-  let ioService, popMessages, msgHdrs;
+  let popMessages, msgHdrs;
 
   _messageInjectionSetup.notifyListeners("onInjectingMessages", []);
 
@@ -647,9 +642,6 @@ function add_sets_to_folders(aMsgFolders, aMessageSets, aDoNotForceUpdate) {
     // no protection is possible because of our dependency on promises,
     //  although we could check that the fake URL is one we handed out.
     folderList = aMsgFolders;
-
-    ioService = Cc["@mozilla.org/network/io-service;1"]
-                  .getService(Ci.nsIIOService);
   }
   else if (mis.injectionConfig.mode == "pop") {
     for each (let [, folder] in Iterator(aMsgFolders)) {
@@ -762,9 +754,9 @@ function add_sets_to_folders(aMsgFolders, aMessageSets, aDoNotForceUpdate) {
             let fakeFolder = mis.handleUriToFakeFolder[folder];
             let synMsg = messageSet._trackMessageAddition(realFolder, iPerSet);
             let msgURI =
-              ioService.newURI("data:text/plain;base64," +
-                               btoa(synMsg.toMessageString()),
-                               null, null);
+              Services.io.newURI("data:text/plain;base64," +
+                                 btoa(synMsg.toMessageString()),
+                                 null, null);
             let imapMsg = new imapMessage(msgURI.spec, fakeFolder.uidnext++, []);
             // If the message's meta-state indicates it is junk, set that flag.
             // There is also a NotJunk flag, but we're not playing with that
@@ -790,7 +782,7 @@ function add_sets_to_folders(aMsgFolders, aMessageSets, aDoNotForceUpdate) {
         let realFolder = mis.handleUriToRealFolder[aMsgFolders[iFolder]];
         mark_action("messageInjection", "forcing update of folder",
                     [realFolder]);
-        updateFolderAndNotify(realFolder, async_driver);
+        mailTestUtils.updateFolderAndNotify(realFolder, async_driver);
         yield false;
 
         // compel download of the messages if appropriate
@@ -886,8 +878,6 @@ function async_move_messages(aSynMessageSet, aDestFolder, aAllowUndo) {
       // and then we can make sure we have the actual folder
       let realDestFolder = get_real_injection_folder(aDestFolder);
 
-      let copyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
-                          .getService(Ci.nsIMsgCopyService);
       for (let [folder, xpcomHdrArray] in
            aSynMessageSet.foldersWithXpcomHdrArrays) {
         mark_action("messageInjection",
@@ -900,10 +890,10 @@ function async_move_messages(aSynMessageSet, aDestFolder, aAllowUndo) {
           _messageInjectionSetup.notifyListeners(
             "onMovingMessagesWithoutDestHeaders", [realDestFolder]);
 
-        copyService.CopyMessages(folder, xpcomHdrArray,
-                                 realDestFolder, /* move */ true,
-                                 asyncCopyListener, null,
-                                 Boolean(aAllowUndo));
+        MailServices.copy.CopyMessages(folder, xpcomHdrArray,
+                                       realDestFolder, /* move */ true,
+                                       asyncCopyListener, null,
+                                       Boolean(aAllowUndo));
         // update the synthetic message set's folder entry...
         aSynMessageSet._folderSwap(folder, realDestFolder);
         yield false;
@@ -914,14 +904,14 @@ function async_move_messages(aSynMessageSet, aDestFolder, aAllowUndo) {
                       "forcing update of folder so IMAP move issued",
                       [folder]);
           // update the source folder to force it to issue the move
-          updateFolderAndNotify(folder, async_driver);
+          mailTestUtils.updateFolderAndNotify(folder, async_driver);
           yield false;
 
           mark_action("messageInjection",
                       "forcing update of folder so IMAP moved header seen",
                       [realDestFolder]);
           // update the dest folder to see the new header.
-          updateFolderAndNotify(realDestFolder, async_driver);
+          mailTestUtils.updateFolderAndNotify(realDestFolder, async_driver);
           yield false;
 
           // compel download of messages in dest folder if appropriate
@@ -969,7 +959,7 @@ function async_trash_messages(aSynMessageSet) {
                       "forcing update of folder so IMAP move issued",
                       [folder]);
           // update the source folder to force it to issue the move
-          updateFolderAndNotify(folder, async_driver);
+          mailTestUtils.updateFolderAndNotify(folder, async_driver);
           yield false;
 
           // trash folder may not have existed at startup but the deletion
@@ -980,7 +970,7 @@ function async_trash_messages(aSynMessageSet) {
                       "forcing update of folder so IMAP moved header seen",
                       [trashFolder]);
           // update the dest folder to see the new header.
-          updateFolderAndNotify(trashFolder, async_driver);
+          mailTestUtils.updateFolderAndNotify(trashFolder, async_driver);
           yield false;
 
           // compel download of messages in dest folder if appropriate

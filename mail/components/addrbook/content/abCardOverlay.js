@@ -64,7 +64,8 @@ const kVcardFields =
          ["QQ", "_QQ"],
          ["MSN", "_MSN"],
          ["ICQ", "_ICQ"],
-         ["XMPP", "_JabberId"]
+         ["XMPP", "_JabberId"],
+         ["IRC", "_IRC"]
         ];
 
 const kDefaultYear = 2000;
@@ -161,7 +162,7 @@ function OnLoadNewCard()
   // focus on first or last name based on the pref
   var focus = document.getElementById(gEditCard.displayLastNameFirst
                                       ? "LastName" : "FirstName");
-  if ( focus ) {
+  if (focus) {
     // XXX Using the setTimeout hack until bug 103197 is fixed
     setTimeout( function(firstTextBox) { firstTextBox.focus(); }, 0, focus );
   }
@@ -233,11 +234,11 @@ function OnLoadEditCard()
 
   if (window.arguments && window.arguments[0])
   {
-    if ( window.arguments[0].card )
+    if (window.arguments[0].card)
       gEditCard.card = window.arguments[0].card;
-    if ( window.arguments[0].okCallback )
+    if (window.arguments[0].okCallback)
       gOkCallback = window.arguments[0].okCallback;
-    if ( window.arguments[0].abURI )
+    if (window.arguments[0].abURI)
       gEditCard.abURI = window.arguments[0].abURI;
   }
 
@@ -412,13 +413,13 @@ function NewCardOKButton()
   }
 
   var popup = document.getElementById('abPopup');
-  if ( popup )
+  if (popup)
   {
     var uri = popup.value;
 
     // FIX ME - hack to avoid crashing if no ab selected because of blank option bug from template
     // should be able to just remove this if we are not seeing blank lines in the ab popup
-    if ( !uri )
+    if (!uri)
       return false;  // don't close window
     // -----
 
@@ -533,6 +534,7 @@ function GetCardValues(cardproperty, doc)
 function HideNonVcardFields()
 {
   document.getElementById("homeTabButton").hidden = true;
+  document.getElementById("chatTabButton").hidden = true;
   document.getElementById("photoTabButton").hidden = true;
   var i;
   for (i = kNonVcardFields.length; i-- > 0; )
@@ -595,13 +597,13 @@ function CheckAndSetCardValues(cardproperty, doc, check)
 function CleanUpWebPage(webPage)
 {
   // no :// yet so we should add something
-  if ( webPage.length && webPage.search("://") == -1 )
+  if (webPage.length && !webPage.contains("://"))
   {
     // check for missing / on http://
-    if ( webPage.substr(0, 6) == "http:/" )
-      return( "http://" + webPage.substr(6) );
+    if (webPage.startsWith("http:/"))
+      return("http://" + webPage.substr(6));
     else
-      return( "http://" + webPage );
+      return("http://" + webPage);
   }
   else
     return(webPage);
@@ -882,7 +884,7 @@ function modifyDatepicker(aDatepicker) {
 }
 
 const chatNameFieldIds =
-  ["Gtalk", "AIM", "Yahoo", "Skype", "QQ", "MSN", "ICQ", "XMPP"];
+  ["Gtalk", "AIM", "Yahoo", "Skype", "QQ", "MSN", "ICQ", "XMPP", "IRC"];
 
 /**
  * Show the 'Chat' tab and focus the first field that has a value, or

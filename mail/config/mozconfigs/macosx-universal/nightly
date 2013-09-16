@@ -16,12 +16,16 @@ ac_add_options --enable-update-packaging
 ac_add_options --enable-codesighs
 ac_add_options --disable-install-strip
 ac_add_options --enable-signmar
+ac_add_options --enable-calendar
 
 # For NSS symbols
 export MOZ_DEBUG_SYMBOLS=1
 
 # Needed to enable breakpad in application.ini
 export MOZILLA_OFFICIAL=1
+
+# Make sure Lightning is also unified
+mk_add_options MOZ_POSTFLIGHT_ALL+=calendar/lightning/build/universal.mk
 
 # Enable parallel compiling
 CONCURRENCY=$(( `sysctl hw.logicalcpu | awk {'print $2'}`  + 2 ))

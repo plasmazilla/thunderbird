@@ -16,12 +16,14 @@ load("../../../../mailnews/resources/messageInjection.js");
 
 load("resources/viewWrapperTestUtils.js");
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 initViewWrapperTestUtils({mode: "imap", offline: false});
 
 /**
  * A custom search term, that just does Subject Contains
  */
-gCustomSearchTermSubject = {
+var gCustomSearchTermSubject = {
   id: "mailnews@mozilla.org#test",
   name: "Test-mailbase Subject",
   getEnabled: function subject_getEnabled(scope, op) {
@@ -35,14 +37,12 @@ gCustomSearchTermSubject = {
     return [Components.interfaces.nsMsgSearchOp.Contains];
   },
   match: function subject_match(aMsgHdr, aSearchValue, aSearchOp) {
-    return (aMsgHdr.subject.indexOf(aSearchValue) != -1);
+    return (aMsgHdr.subject.contains(aSearchValue));
   },
   needsBody: false,
 };
 
-let filterService = Cc["@mozilla.org/messenger/services/filters;1"]
-                      .getService(Ci.nsIMsgFilterService);
-filterService.addCustomTerm(gCustomSearchTermSubject);
+MailServices.filters.addCustomTerm(gCustomSearchTermSubject);
 
 /**
  * Make sure we open a virtual folder backed by a single underlying folder

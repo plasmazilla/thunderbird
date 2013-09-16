@@ -2,8 +2,7 @@
 <html>
 <head>
   <title>Tests for browser context menu</title>
-  <script type="text/javascript" src="/MochiKit/packed.js"></script>
-  <script type="text/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>  
+  <script type="text/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
   <script type="text/javascript" src="/tests/SimpleTest/EventUtils.js"></script>
   <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css" />
 </head>
@@ -19,14 +18,15 @@ Browser context menu tests.
 
 /** Test for Login Manager: multiple login autocomplete. **/
 
-netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
+SpecialPowers.Cu.import("resource://gre/modules/InlineSpellChecker.jsm", window);
+SpecialPowers.Cu.import("resource://gre/modules/AsyncSpellCheckTestHelper.jsm", window);
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
+const Cc = SpecialPowers.Cc;
+const Ci = SpecialPowers.Ci;
 
-function openContextMenuFor(element, shiftkey, shouldWaitForFocus) {
+function openContextMenuFor(element, shiftkey, waitForSpellCheck) {
     // Context menu should be closed before we open it again.
-    is(contextMenu.state, "closed", "checking if popup is closed");
+    is(SpecialPowers.wrap(contextMenu).state, "closed", "checking if popup is closed");
 
     if (lastElement)
       lastElement.blur();
@@ -39,8 +39,9 @@ function openContextMenuFor(element, shiftkey, shouldWaitForFocus) {
       var eventDetails = { type : "contextmenu", button : 2, shiftKey : shiftkey };
       synthesizeMouse(element, 2, 2, eventDetails, element.ownerDocument.defaultView);
     }
-    if (shouldWaitForFocus)
-      SimpleTest.executeSoon(actuallyOpenContextMenuFor);
+
+    if (waitForSpellCheck)
+      onSpellCheck(element, actuallyOpenContextMenuFor);
     else
       actuallyOpenContextMenuFor();
 }
@@ -53,13 +54,13 @@ function executeCopyCommand(command, expectedValue)
 {
   // Just execute the command directly rather than simulating a context menu
   // press to avoid having to deal with its asynchronous nature
-  subwindow.controllers.getControllerForCommand(command).doCommand(command);
+  SpecialPowers.wrap(subwindow).controllers.getControllerForCommand(command).doCommand(command);
 
   // The easiest way to check the clipboard is to paste the contents into a
   // textbox
   input.focus();
   input.value = "";
-  input.controllers.getControllerForCommand("cmd_paste").doCommand("cmd_paste");
+  SpecialPowers.wrap(input).controllers.getControllerForCommand("cmd_paste").doCommand("cmd_paste");
   is(input.value, expectedValue, "paste for command " + command);
 }
 
@@ -170,7 +171,7 @@ function checkContextMenu(expectedItems) {
  *                   ["sub1", true,         // submenu contents
  *                    "sub2", false], null, // submenu contents
  *               "lol", false]              // item disabled
- * 
+ *
  */
 function checkMenu(menu, expectedItems, data) {
     var actualItems = getVisibleMenuItems(menu, data);
@@ -236,8 +237,6 @@ function checkMenu(menu, expectedItems, data) {
  *
  */
 function runTest(testNum) {
-  // Seems we need to enable this again, or sendKeyEvent() complaints.
-  netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
   ok(true, "Starting test #" + testNum);
 
   switch (testNum) {
@@ -248,7 +247,7 @@ function runTest(testNum) {
 
     case 2:
         // Context menu for plain text
-        checkContextMenu(["popupwindow-reject",   true,
+        plainTextItems = ["popupwindow-reject",   true,
                           "---",                  null,
                           "context-back",         false,
                           "context-forward",      false,
@@ -263,7 +262,8 @@ function runTest(testNum) {
                           "context-selectall",    true,
                           "---",                  null,
                           "context-viewsource",   true,
-                          "context-viewinfo",     true]);
+                          "context-viewinfo",     true];
+        checkContextMenu(plainTextItems);
         closeContextMenu();
         openContextMenuFor(link); // Invoke context menu for next test.
         break;
@@ -274,6 +274,7 @@ function runTest(testNum) {
                           "---",                   null,
                           "context-openlinkintab", true,
                           "context-openlink",      true,
+                          "context-openlinkinprivatewindow", true,
                           "---",                   null,
                           "context-bookmarklink",  true,
                           "context-savelink",      true,
@@ -282,7 +283,6 @@ function runTest(testNum) {
                           "---",                   null,
                           "context-bookmarkpage",  true,
                           "context-savepage",      true,
-                          "context-sendpage",      true,
                           "---",                   null,
                           "context-metadata",      true]);
         closeContextMenu();
@@ -298,7 +298,6 @@ function runTest(testNum) {
                           "---",                   null,
                           "context-bookmarkpage",  true,
                           "context-savepage",      true,
-                          "context-sendpage",      true,
                           "---",                   null,
                           "context-metadata",      true]);
         closeContextMenu();
@@ -321,10 +320,32 @@ function runTest(testNum) {
                           "---",                 null,
                           "spell-check-enabled", true]);
         closeContextMenu();
-        openContextMenuFor(img); // Invoke context menu for next test.
+        input_sel.value = "test";
+        input_sel.select();
+        openContextMenuFor(input_sel); // Invoke context menu for next test.
         break;
 
     case 6:
+        // Context menu for text input field with text
+        checkContextMenu(["popupwindow-reject",  true,
+                          "---",                 null,
+                          "context-undo",        false,
+                          "context-redo",        false,
+                          "---",                 null,
+                          "context-cut",         true,
+                          "context-copy",        true,
+                          "context-paste",       null, // ignore clipboard state
+                          "context-delete",      true,
+                          "---",                 null,
+                          "context-selectall",   true,
+                          "context-searchselect",     true,
+                          "---",                 null,
+                          "spell-check-enabled", true]);
+        closeContextMenu();
+        openContextMenuFor(img); // Invoke context menu for next test.
+        break;
+
+    case 7:
         // Context menu for an image
         checkContextMenu(["popupwindow-reject",   true,
                           "---",                  null,
@@ -335,7 +356,7 @@ function runTest(testNum) {
                           "---",                  null,
                           "context-saveimage",    true,
                           "context-sendimage",    true].concat(
-                         ("@mozilla.org/suite/shell-service;1" in Components.classes) ?
+                         ("@mozilla.org/suite/shell-service;1" in Cc) ?
                          ["context-setDesktopBackground", true] : []).concat(
                          ["---",                  null,
                           "context-bookmarkpage", true,
@@ -347,7 +368,7 @@ function runTest(testNum) {
         openContextMenuFor(canvas); // Invoke context menu for next test.
         break;
 
-    case 7:
+    case 8:
         // Context menu for a canvas
         checkContextMenu(["popupwindow-reject",   true,
                           "---",                  null,
@@ -360,7 +381,7 @@ function runTest(testNum) {
         openContextMenuFor(video_ok); // Invoke context menu for next test.
         break;
 
-    case 8:
+    case 9:
         // Context menu for a video (with a VALID media source)
         checkContextMenu(["popupwindow-reject",         true,
                           "---",                        null,
@@ -380,7 +401,7 @@ function runTest(testNum) {
         openContextMenuFor(audio_in_video); // Invoke context menu for next test.
         break;
 
-    case 9:
+    case 10:
         // Context menu for a video (with an audio-only file)
         checkContextMenu(["popupwindow-reject",         true,
                           "---",                        null,
@@ -396,7 +417,7 @@ function runTest(testNum) {
         openContextMenuFor(video_bad); // Invoke context menu for next test.
         break;
 
-    case 10:
+    case 11:
         // Context menu for a video (with an INVALID media source)
         checkContextMenu(["popupwindow-reject",         true,
                           "---",                        null,
@@ -416,7 +437,7 @@ function runTest(testNum) {
         openContextMenuFor(video_bad2); // Invoke context menu for next test.
         break;
 
-    case 11:
+    case 12:
         // Context menu for a video (with an INVALID media source)
         checkContextMenu(["popupwindow-reject",         true,
                           "---",                        null,
@@ -436,7 +457,7 @@ function runTest(testNum) {
         openContextMenuFor(iframe); // Invoke context menu for next test.
         break;
 
-    case 12:
+    case 13:
         // Context menu for an iframe
         checkContextMenu(["popupwindow-reject",   true,
                           "---",                  null,
@@ -472,7 +493,7 @@ function runTest(testNum) {
         openContextMenuFor(video_in_iframe); // Invoke context menu for next test.
         break;
 
-    case 13:
+    case 14:
         // Context menu for a video in an iframe
         checkContextMenu(["popupwindow-reject",         true,
                           "---",                        null,
@@ -506,7 +527,7 @@ function runTest(testNum) {
         openContextMenuFor(image_in_iframe); // Invoke context menu for next test.
         break;
 
-    case 14:
+    case 15:
         // Context menu for an image in an iframe
         checkContextMenu(["popupwindow-reject",   true,
                           "---",                  null,
@@ -518,7 +539,7 @@ function runTest(testNum) {
                           "context-saveimage",    true,
                           "context-sendimage",    true,
                          ].concat(
-                         ("@mozilla.org/suite/shell-service;1" in Components.classes) ?
+                         ("@mozilla.org/suite/shell-service;1" in Cc) ?
                          ["context-setDesktopBackground", true] : [])
                           .concat(
                          ["---",                  null,
@@ -540,10 +561,42 @@ function runTest(testNum) {
                                "context-viewframesource",   true,
                                "context-viewframeinfo",     true], null]));
         closeContextMenu();
+        openContextMenuFor(text); // Invoke context menu for next test.
+        break;
+
+    case 16:
+        // Re-check context menu for plain text to make sure it hasn't changed
+        checkContextMenu(plainTextItems);
+        closeContextMenu();
+        textarea_sel.select();
+        openContextMenuFor(textarea_sel, false, true);
+        break;
+
+    case 17:
+        // search for text with text area's selected value
+        checkContextMenu(["popupwindow-reject",  true,
+                          "---",                 null,
+                          "context-undo",        false,
+                          "context-redo",        false,
+                          "---",                 null,
+                          "context-cut",         true,
+                          "context-copy",        true,
+                          "context-paste",       null, // ignore clipboard state
+                          "context-delete",      true,
+                          "---",                 null,
+                          "context-selectall",   true,
+                          "context-searchselect",     true,
+                          "---",                 null,
+                          "spell-check-enabled", true,
+                          "spell-dictionaries",  true,
+                              ["spell-check-dictionary-en-US", true,
+                               "---",                          null,
+                               "spell-add-dictionaries",       true], null]);
+        closeContextMenu();
         openContextMenuFor(textarea, false, true); // Invoke context menu for next test, but wait for the spellcheck.
         break;
 
-    case 15:
+    case 18:
         // Context menu for textarea
         checkContextMenu(["popupwindow-reject",  true,
                           "---",                 null,
@@ -568,11 +621,41 @@ function runTest(testNum) {
                                "---",                          null,
                                "spell-add-dictionaries",       true], null]);
 
+        contextMenu.ownerDocument.getElementById("spell-add-to-dictionary").doCommand(); // Add to dictionary
         closeContextMenu();
-        openContextMenuFor(contenteditable); // Invoke context menu for next test.
+        openContextMenuFor(textarea, false, true); // Invoke context menu for next test.
         break;
 
-    case 16:
+    case 19:
+        // Context menu for textarea after a word has been added
+        // to the dictionary
+        checkContextMenu(["popupwindow-reject",  true,
+                          "---",                 null,
+                          "spell-undo-add-to-dictionary", true,
+                          "---",                 null,
+                          "context-undo",        false,
+                          "context-redo",        false,
+                          "---",                 null,
+                          "context-cut",         false,
+                          "context-copy",        false,
+                          "context-paste",       null, // ignore clipboard state
+                          "context-delete",      false,
+                          "---",                 null,
+                          "context-selectall",   true,
+                          "---",                 null,
+                          "spell-check-enabled", true,
+                          "spell-dictionaries",  true,
+                              ["spell-check-dictionary-en-US", true,
+                               "---",                          null,
+                               "spell-add-dictionaries",       true], null,
+                         ]);
+
+        contextMenu.ownerDocument.getElementById("spell-undo-add-to-dictionary").doCommand(); // Undo add to dictionary
+        closeContextMenu();
+        openContextMenuFor(contenteditable, false, true);
+        break;
+
+    case 20:
         // Context menu for contenteditable
         checkContextMenu(["popupwindow-reject",  true,
                           "---",                 null,
@@ -598,10 +681,10 @@ function runTest(testNum) {
                                "spell-add-dictionaries",       true], null]);
 
         closeContextMenu();
-        openContextMenuFor(inputspell); // Invoke context menu for next test.
+        openContextMenuFor(inputspell, false, true); // Invoke context menu for next test.
         break;
 
-    case 17:
+    case 21:
         // Context menu for spell-check input
         checkContextMenu(["popupwindow-reject",  true,
                           "---",                 null,
@@ -630,13 +713,13 @@ function runTest(testNum) {
         openContextMenuFor(link); // Invoke context menu for next test.
         break;
 
-    case 18:
+    case 22:
         executeCopyCommand("cmd_copyLink", "http://mozilla.com/");
         closeContextMenu();
         openContextMenuFor(pagemenu); // Invoke context menu for next test.
         break;
 
-    case 19:
+    case 23:
         // Context menu for element with assigned content context menu
         checkContextMenu(["+Plain item",          {type: "", icon: "", checked: false, disabled: false},
                           "+Disabled item",       {type: "", icon: "", checked: false, disabled: true},
@@ -680,7 +763,7 @@ function runTest(testNum) {
         openContextMenuFor(pagemenu, true); // Invoke context menu for next test.
         break;
 
-    case 20:
+    case 24:
         // Context menu for element with assigned content context menu
         // The shift key should bypass content context menu processing
         checkContextMenu(["popupwindow-reject",   true,
@@ -705,12 +788,13 @@ function runTest(testNum) {
         openContextMenuFor(img_link); // Invoke context menu for next test.
         break;
 
-    case 21:
+    case 25:
         // Context menu for an image with a link
         checkContextMenu(["popupwindow-reject",   true,
                           "---",                  null,
                           "context-openlinkintab", true,
                           "context-openlink",      true,
+                          "context-openlinkinprivatewindow", true,
                           "---",                   null,
                           "context-bookmarklink",  true,
                           "context-savelink",      true,
@@ -724,7 +808,7 @@ function runTest(testNum) {
                           "---",                  null,
                           "context-saveimage",    true,
                           "context-sendimage",    true].concat(
-                         ("@mozilla.org/suite/shell-service;1" in Components.classes) ?
+                         ("@mozilla.org/suite/shell-service;1" in Cc) ?
                          ["context-setDesktopBackground", true] : []).concat(
                          ["---",                  null,
                           "context-bookmarkpage", true,
@@ -734,7 +818,7 @@ function runTest(testNum) {
         openContextMenuFor(img_mailto); // Invoke context menu for next test.
         break;
 
-    case 22:
+    case 26:
         // Context menu for an image with a mailto: link
         checkContextMenu(["popupwindow-reject",   true,
                           "---",                  null,
@@ -748,7 +832,7 @@ function runTest(testNum) {
                           "---",                  null,
                           "context-saveimage",    true,
                           "context-sendimage",    true].concat(
-                         ("@mozilla.org/suite/shell-service;1" in Components.classes) ?
+                         ("@mozilla.org/suite/shell-service;1" in Cc) ?
                          ["context-setDesktopBackground", true] : []).concat(
                          ["---",                  null,
                           "context-bookmarkpage", true,
@@ -788,8 +872,7 @@ var text, link, mailto, input, img, canvas, video_ok, video_bad, video_bad2,
 var img_link, img_mailto;
 
 function startTest() {
-    netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
-    chromeWin = subwindow
+    chromeWin = SpecialPowers.wrap(subwindow)
                     .QueryInterface(Ci.nsIInterfaceRequestor)
                     .getInterface(Ci.nsIWebNavigation)
                     .QueryInterface(Ci.nsIDocShellTreeItem)
@@ -812,6 +895,7 @@ function startTest() {
     link       = subwindow.document.getElementById("test-link");
     mailto     = subwindow.document.getElementById("test-mailto");
     input      = subwindow.document.getElementById("test-input");
+    input_sel  = subwindow.document.getElementById("test-input-select");
     img        = subwindow.document.getElementById("test-image");
     canvas     = subwindow.document.getElementById("test-canvas");
     video_ok   = subwindow.document.getElementById("test-video-ok");
@@ -824,7 +908,9 @@ function startTest() {
     video_in_iframe.pause();
     image_in_iframe = subwindow.document.getElementById("test-image-in-iframe").contentDocument.getElementsByTagName("img")[0];
     textarea   = subwindow.document.getElementById("test-textarea");
+    textarea_sel   = subwindow.document.getElementById("test-textarea-sel");
     contenteditable = subwindow.document.getElementById("test-contenteditable");
+    contenteditable.focus(); // content editable needs to be focused to enable spellcheck
     inputspell = subwindow.document.getElementById("test-input-spellcheck");
     pagemenu = subwindow.document.getElementById("test-pagemenu");
 

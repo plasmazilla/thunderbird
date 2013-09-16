@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://calendar/modules/calRecurrenceUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 var taskDetailsView = {
 
@@ -143,6 +144,37 @@ var taskDetailsView = {
                 }
             }
         }
+    },
+
+    loadCategories: function loadCategories(event) {
+        let panel = event.target;
+        let item = document.getElementById("calendar-task-tree").currentTask;
+        panel.loadItem(item);
+    },
+
+    saveCategories: function saveCategories(event) {
+        let panel = event.target;
+        let item = document.getElementById("calendar-task-tree").currentTask;
+        let categoriesMap = {};
+
+        for each (let cat in item.getCategories({})) {
+            categoriesMap[cat] = true;
+        }
+
+        for each (let cat in panel.categories) {
+            if (cat in categoriesMap) {
+                delete categoriesMap[cat];
+            } else {
+                categoriesMap[cat] = false;
+            }
+        }
+
+        if (categoriesMap.toSource() != "({})") {
+            let newItem = item.clone();
+            newItem.setCategories(panel.categories.length, panel.categories);
+
+            doTransaction('modify', newItem, newItem.calendar, item, null);
+        }
     }
 };
 
@@ -264,10 +296,7 @@ function taskViewOnLoad() {
     var toolbarset = document.getElementById("customToolbars");
     toolbox.toolbarset = toolbarset;
 
-    Components.classes["@mozilla.org/observer-service;1"]
-              .getService(Components.interfaces.nsIObserverService)
-              .notifyObservers(window, "calendar-taskview-startup-done",
-                               false);
+    Services.obs.notifyObservers(window, "calendar-taskview-startup-done", false);
 }
 
 /**

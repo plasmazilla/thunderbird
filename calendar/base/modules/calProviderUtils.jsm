@@ -2,8 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://calendar/modules/calAuthUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 /*
  * Provider helper code
@@ -26,7 +29,7 @@ EXPORTED_SYMBOLS = ["cal"]; // even though it's defined in calUtils.jsm, import 
  * @param aExisting                  An existing channel to modify (optional)
  */
 cal.prepHttpChannel = function calPrepHttpChannel(aUri, aUploadData, aContentType, aNotificationCallbacks, aExisting) {
-    let channel = aExisting || cal.getIOService().newChannelFromURI(aUri);
+    let channel = aExisting || Services.io.newChannelFromURI(aUri);
     let httpchannel = channel.QueryInterface(Components.interfaces.nsIHttpChannel);
 
     httpchannel.setRequestHeader("Accept", "text/xml", false);
@@ -113,19 +116,19 @@ cal.InterfaceRequestor_getInterface = function calInterfaceRequestor_getInterfac
         // Support Auth Prompt Interfaces
         if (aIID.equals(Components.interfaces.nsIAuthPrompt2)) {
             if (!this.calAuthPrompt) {
-                this.calAuthPrompt = new cal.auth.Prompt();
+                this.calAuthPrompt = new cal.auth.Prompt(this);
             }
             return this.calAuthPrompt;
         } else if (aIID.equals(Components.interfaces.nsIAuthPromptProvider) ||
                    aIID.equals(Components.interfaces.nsIPrompt)) {
-            return Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
-                             .getService(Components.interfaces.nsIWindowWatcher)
-                             .getNewPrompter(null);
+            return Services.ww.getNewPrompter(null);
         } else if (aIID.equals(Components.interfaces.nsIBadCertListener2)) {
             if (!this.badCertHandler) {
                 this.badCertHandler = new cal.BadCertHandler(this);
             }
             return this.badCertHandler;
+        } else if (aIID.equals(Components.interfaces.nsIWebNavigation)) {
+            return new cal.LoadContext();
         } else {
             Components.returnCode = e;
         }
@@ -141,11 +144,7 @@ cal.BadCertHandler = function calBadCertHandler(thisProvider) {
     this.thisProvider = thisProvider;
 };
 cal.BadCertHandler.prototype = {
-    QueryInterface: function cBCL_QueryInterface(aIID) {
-        return cal.doQueryInterface(this, cal.BadCertListener.prototype, aIID,
-                                    [Components.interfaces.nsISupports,
-                                     Components.interfaces.nsIBadCertListener2]);
-    },
+    QueryInterface: XPCOMUtils.generateQI([Components.interfaces.nsIBadCertListener2]),
 
     notifyCertProblem: function cBCL_notifyCertProblem(socketInfo, status, targetSite) {
         if (!status) {
@@ -186,6 +185,25 @@ cal.BadCertHandler.prototype = {
 };
 
 /**
+ * Implements an nsILoadContext that allows auth prompts to avoid using private
+ * browsing without a parent DOM window
+ */
+cal.LoadContext = function calLoadContext() {
+};
+cal.LoadContext.prototype = {
+    QueryInterface: XPCOMUtils.generateQI([Components.interfaces.nsISupports,
+                                           Components.interfaces.nsILoadContext]),
+    associatedWindow: null,
+    topWindow: null,
+    topFrameElement: null,
+    isAppOfType: function() false,
+    isContent: false,
+    usePrivateBrowsing: false,
+    isInBrowserElement: false,
+    appId: null
+};
+
+/**
  * Freebusy interval implementation. All parameters are optional.
  *
  * @param aCalId         The calendar id to set up with.
@@ -204,13 +222,7 @@ cal.FreeBusyInterval = function calFreeBusyInterval(aCalId, aFreeBusyType, aStar
     this.freeBusyType = aFreeBusyType || Components.interfaces.calIFreeBusyInterval.UNKNOWN;
 };
 cal.FreeBusyInterval.prototype = {
-    QueryInterface: function cFBI_QueryInterface(aIID) {
-        return doQueryInterface(this,
-                                cal.FreeBusyInterval.prototype,
-                                aIID,
-                                [Components.interfaces.calIFreeBusyInterval]);
-    },
-
+    QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIFreeBusyInterval]),
     calId: null,
     interval: null,
     freeBusyType: Components.interfaces.calIFreeBusyInterval.UNKNOWN
@@ -263,28 +275,26 @@ cal.getEmailIdentityOfCalendar = function calGetEmailIdentityOfCalendar(aCalenda
         return identity;
     } else { // take default account/identity:
 
-        let accounts = cal.getAccountManager().accounts;
+        let accounts = MailServices.accounts.accounts;
         let account = null;
         let identity = null;
         try {
-            account = cal.getAccountManager().defaultAccount;
+            account = MailServices.accounts.defaultAccount;
         } catch (exc) {}
 
-        for (let i = 0; accounts && (i < accounts.Count()) && (!account || !identity); ++i) {
+        for (let i = 0; accounts && (i < accounts.length) && (!account || !identity); ++i) {
             if (!account) { // Pick an account only if none was set (i.e there is no default account)
-                account = accounts.GetElementAt(i);
                 try {
-                    account = account.QueryInterface(Components.interfaces.nsIMsgAccount);
+                  account = accounts.queryElementAt(i, Components.interfaces.nsIMsgAccount);
                 } catch (exc) {
-                    account = null;
+                  account = null;
                 }
             }
 
-            if (account && account.identities.Count()) { // Pick an identity
+            if (account && account.identities.length) { // Pick an identity
                 identity = account.defaultIdentity;
                 if (!identity) { // there is no default identity, use the first
-                    identity = account.identities.GetElementAt(0)
-                                                 .QueryInterface(Components.interfaces.nsIMsgIdentity);
+                    identity = account.identities.queryElementAt(0, Components.interfaces.nsIMsgIdentity);
                 }
             } else { // If this account has no identities, continue to the next account.
                 account = null;
@@ -503,12 +513,10 @@ cal.ProviderBase.mTransientProperties = {
     "organizerCN": true
 };
 cal.ProviderBase.prototype = {
-    QueryInterface: function cPB_QueryInterface(aIID) {
-        return cal.doQueryInterface(this, cal.ProviderBase.prototype, aIID,
-                                    [Components.interfaces.nsISupports,
-                                     Components.interfaces.calICalendar,
-                                     Components.interfaces.calISchedulingSupport]);
-    },
+    QueryInterface: XPCOMUtils.generateQI([
+        Components.interfaces.calICalendar,
+        Components.interfaces.calISchedulingSupport
+    ]),
 
     mID: null,
     mUri: null,

@@ -46,7 +46,8 @@
 #include "nsMsgUtils.h"
 #include "nsNetUtil.h"
 #include "mozilla/Services.h"
-
+#include "nsIArray.h"
+#include "nsArrayUtils.h"
 #include "nsEmbedCID.h"
 
 extern PRLogModuleInfo *MAPI;
@@ -202,19 +203,16 @@ bool nsMapiHook::VerifyUserName(const nsString& aUsername, nsCString& aIdKey)
 
   nsCOMPtr<nsIMsgAccountManager> accountManager(do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv));
   if (NS_FAILED(rv)) return false;
-  nsCOMPtr<nsISupportsArray> identities;
+  nsCOMPtr<nsIArray> identities;
   rv = accountManager->GetAllIdentities(getter_AddRefs(identities));
   if (NS_FAILED(rv)) return false;
-  uint32_t numIndentities;
-  identities->Count(&numIndentities);
+
+  uint32_t numIndentities = 0;
+  identities->GetLength(&numIndentities);
 
   for (uint32_t i = 0; i < numIndentities; i++)
   {
-    // convert supports->Identity
-    nsCOMPtr<nsISupports> thisSupports;
-    rv = identities->GetElementAt(i, getter_AddRefs(thisSupports));
-    if (NS_FAILED(rv)) continue;
-    nsCOMPtr<nsIMsgIdentity> thisIdentity(do_QueryInterface(thisSupports, &rv));
+    nsCOMPtr<nsIMsgIdentity> thisIdentity(do_QueryElementAt(identities, i, &rv));
     if (NS_SUCCEEDED(rv) && thisIdentity)
     {
       nsCString email;
@@ -304,7 +302,7 @@ nsresult nsMapiHook::BlindSendMail (unsigned long aSession, nsIMsgCompFields * a
   if (!pMapiConfig) return NS_ERROR_FAILURE ;  // get the singelton obj
   PRUnichar * password = pMapiConfig->GetPassword(aSession) ;
   // password
-  nsCAutoString smtpPassword;
+  nsAutoCString smtpPassword;
   LossyCopyUTF16toASCII(password, smtpPassword);
 
   // Id key
@@ -453,8 +451,8 @@ nsresult nsMapiHook::HandleAttachments (nsIMsgCompFields * aCompFields, int32_t 
 {
     nsresult rv = NS_OK ;
 
-    nsCAutoString Attachments ;
-    nsCAutoString TempFiles ;
+    nsAutoCString Attachments ;
+    nsAutoCString TempFiles ;
 
     nsCOMPtr <nsIFile> pFile = do_CreateInstance (NS_LOCAL_FILE_CONTRACTID, &rv) ;
     if (NS_FAILED(rv) || (!pFile) ) return rv ;
@@ -541,7 +539,7 @@ nsresult nsMapiHook::HandleAttachments (nsIMsgCompFields * aCompFields, int32_t 
             attachment->SetTemporary(true); // this one is a temp file so set the flag for MsgCompose
 
             // now set the attachment object
-            nsCAutoString pURL ;
+            nsAutoCString pURL ;
             NS_GetURLSpecFromFile(pFile, pURL);
             attachment->SetUrl(pURL);
 
@@ -619,7 +617,7 @@ nsresult nsMapiHook::PopulateCompFieldsWithConversion(lpnsMapiMessage aMessage,
 
   PR_LOG(MAPI, PR_LOG_DEBUG, ("to: %s cc: %s bcc: %s \n", NS_ConvertUTF16toUTF8(To).get(), NS_ConvertUTF16toUTF8(Cc).get(), NS_ConvertUTF16toUTF8(Bcc).get()));
 
-  nsCAutoString platformCharSet;
+  nsAutoCString platformCharSet;
   // set subject
   if (aMessage->lpszSubject)
   {
@@ -780,7 +778,7 @@ nsresult nsMapiHook::PopulateCompFieldsForSendDocs(nsIMsgCompFields * aCompField
       attachment->SetTemporary(true);
 
       // now set the attachment object
-      nsCAutoString pURL;
+      nsAutoCString pURL;
       NS_GetURLSpecFromFile(pTempDir, pURL);
       attachment->SetUrl(pURL);
 

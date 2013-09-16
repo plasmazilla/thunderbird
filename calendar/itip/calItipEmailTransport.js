@@ -2,7 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 function convertFromUnicode(aCharset, aSrc) {
@@ -19,37 +21,25 @@ function calItipEmailTransport() {
     this.wrappedJSObject = this;
     this._initEmailTransport();
 }
-
+const calItipEmailTransportClassID = Components.ID("{d4d7b59e-c9e0-4a7a-b5e8-5958f85515f0}");
+const calItipEmailTransportInterfaces = [Components.interfaces.calIItipTransport];
 calItipEmailTransport.prototype = {
-    classID: Components.ID("{d4d7b59e-c9e0-4a7a-b5e8-5958f85515f0}"),
-    contractID: "@mozilla.org/calendar/itip-transport;1?type=email",
-    classDescription: "Calendar iTIP Email Transport",
-
-    getInterfaces: function getInterfaces(count) {
-        const ifaces = [Components.interfaces.calIItipTransport,
-                        Components.interfaces.nsIClassInfo,
-                        Components.interfaces.nsISupports];
-        count.value = ifaces.length;
-        return ifaces;
-    },
-    getHelperForLanguage: function getHelperForLanguage(language) {
-        return null;
-    },
-    implementationLanguage: Components.interfaces.nsIProgrammingLanguage.JAVASCRIPT,
-    flags: 0,
-
-    QueryInterface: function QueryInterface(aIID) {
-        return cal.doQueryInterface(this, calItipEmailTransport.prototype, aIID, null, this);
-    },
+    classID: calItipEmailTransportClassID,
+    QueryInterface: XPCOMUtils.generateQI(calItipEmailTransportInterfaces),
+    classInfo: XPCOMUtils.generateCI({
+        classID: calItipEmailTransportClassID,
+        contractID: "@mozilla.org/calendar/itip-transport;1?type=email",
+        classDescription: "Calendar iTIP Email Transport",
+        interfaces: calItipEmailTransportInterfaces,
+    }),
 
     mHasXpcomMail: false,
     mDefaultAccount: null,
     mDefaultIdentity: null,
     mDefaultSmtpServer: null,
 
-    get scheme() {
-        return "mailto";
-    },
+    get scheme() "mailto",
+    get type() "email",
 
     mSenderAddress: null,
     get senderAddress() {
@@ -59,9 +49,6 @@ calItipEmailTransport.prototype = {
         return (this.mSenderAddress = aValue);
     },
 
-    get type() {
-        return "email";
-    },
 
     sendItems: function cietSI(aCount, aRecipients, aItipItem) {
         if (this.mHasXpcomMail) {
@@ -152,23 +139,17 @@ calItipEmailTransport.prototype = {
         this.mHasXpcomMail = true;
 
         try {
-            let smtpSvc = Components.classes["@mozilla.org/messengercompose/smtp;1"]
-                                    .getService(Components.interfaces.nsISmtpService);
-            this.mDefaultSmtpServer = smtpSvc.defaultServer;
-
-            let accountMgrSvc = Components.classes["@mozilla.org/messenger/account-manager;1"]
-                                          .getService(Components.interfaces.nsIMsgAccountManager);
-            this.mDefaultAccount = accountMgrSvc.defaultAccount;
+            this.mDefaultSmtpServer = MailServices.smtp.defaultServer;
+            this.mDefaultAccount = MailServices.accounts.defaultAccount;
             this.mDefaultIdentity = this.mDefaultAccount.defaultIdentity;
 
             if (!this.mDefaultIdentity) {
                 // If there isn't a default identity (i.e Local Folders is your
                 // default identity, then go ahead and use the first available
                 // identity.
-                let allIdentities = accountMgrSvc.allIdentities;
-                if (allIdentities.Count() > 0) {
-                    this.mDefaultIdentity = allIdentities.GetElementAt(0)
-                                                         .QueryInterface(Components.interfaces.nsIMsgIdentity);
+                let allIdentities = MailServices.accounts.allIdentities;
+                if (allIdentities.length > 0) {
+                    this.mDefaultIdentity = allIdentities.queryElementAt(0, Components.interfaces.nsIMsgIdentity);
                 } else {
                     // If there are no identities, then we are in the same
                     // situation as if we didn't have Xpcom Mail.
@@ -209,19 +190,17 @@ calItipEmailTransport.prototype = {
                         "This will disable OL (up to 2003) to consume the mail as an iTIP invitation showing\n" +
                         "the usual calendar buttons.");
                 // To somehow have a last resort before sending spam, the user can choose to send the mail.
-                let promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                                              .getService(Components.interfaces.nsIPromptService);
                 let prefCompatMode = cal.getPrefSafe("calendar.itip.compatSendMode", 0);
                 let inoutCheck = { value: (prefCompatMode == 1) };
-                if (promptService.confirmEx(null,
-                                            cal.calGetString("lightning", "imipSendMail.title", null, "lightning"),
-                                            cal.calGetString("lightning", "imipSendMail.text", null, "lightning"),
-                                            promptService.STD_YES_NO_BUTTONS,
-                                            null,
-                                            null,
-                                            null,
-                                            cal.calGetString("lightning", "imipSendMail.Outlook2000CompatMode.text", null, "lightning"),
-                                            inoutCheck)) {
+                if (Services.prompt.confirmEx(null,
+                                              cal.calGetString("lightning", "imipSendMail.title", null, "lightning"),
+                                              cal.calGetString("lightning", "imipSendMail.text", null, "lightning"),
+                                              Services.prompt.STD_YES_NO_BUTTONS,
+                                              null,
+                                              null,
+                                              null,
+                                              cal.calGetString("lightning", "imipSendMail.Outlook2000CompatMode.text", null, "lightning"),
+                                              inoutCheck)) {
                     break;
                 } // else go on with auto sending for now
                 compatMode = (inoutCheck.value ? 1 : 0);
@@ -264,8 +243,8 @@ calItipEmailTransport.prototype = {
                                             mailFile,
                                             true  /* deleteSendFileOnCompletion */,
                                             false /* digest_p */,
-                                            (cal.getIOService().offline ? Components.interfaces.nsIMsgSend.nsMsgQueueForLater
-                                                                    : Components.interfaces.nsIMsgSend.nsMsgDeliverNow),
+                                            (Services.io.offline ? Components.interfaces.nsIMsgSend.nsMsgQueueForLater
+                                                                 : Components.interfaces.nsIMsgSend.nsMsgDeliverNow),
                                             null  /* nsIMsgDBHdr msgToReplace */,
                                             null  /* nsIMsgSendListener aListener */,
                                             null  /* nsIMsgStatusFeedback aStatusFeedback */,
@@ -292,14 +271,13 @@ calItipEmailTransport.prototype = {
                 return convertFromUnicode("UTF-8", text).replace(/(\r\n)|\n/g, "\r\n");
             }
             function encodeMimeHeader(header) {
-                let mimeConverter = Components.classes["@mozilla.org/messenger/mimeconverter;1"]
-                                              .createInstance(Components.interfaces.nsIMimeConverter);
                 let fieldNameLen = (header.indexOf(": ") + 2);
-                return mimeConverter.encodeMimePartIIStr_UTF8(header,
-                                                              false,
-                                                              "UTF-8",
-                                                              fieldNameLen,
-                                                              Components.interfaces.nsIMimeConverter.MIME_ENCODED_WORD_SIZE);
+                return MailServices.mimeConverter
+                                   .encodeMimePartIIStr_UTF8(header,
+                                                             false,
+                                                             "UTF-8",
+                                                             fieldNameLen,
+                                                             Components.interfaces.nsIMimeConverter.MIME_ENCODED_WORD_SIZE);
             }
 
             let itemList = aItem.getItemList({});
@@ -364,9 +342,7 @@ calItipEmailTransport.prototype = {
             }
             cal.LOG("mail text:\n" + mailText);
 
-            let dirUtils = Components.classes["@mozilla.org/file/directory_service;1"]
-                                     .createInstance(Components.interfaces.nsIProperties);
-            let tempFile = dirUtils.get("TmpD", Components.interfaces.nsIFile);
+            let tempFile = Services.dirsvc.get("TmpD", Components.interfaces.nsIFile);
             tempFile.append("itipTemp");
             tempFile.createUnique(Components.interfaces.nsIFile.NORMAL_FILE_TYPE,
                                   parseInt("0600", 8));

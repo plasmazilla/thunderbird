@@ -130,6 +130,11 @@ function calAlarmService() {
     };
 }
 
+const calAlarmServiceClassID = Components.ID("{7a9200dd-6a64-4fff-a798-c5802186e2cc}");
+const calAlarmServiceInterfaces = [
+    Components.interfaces.calIAlarmService,
+    Components.interfaces.nsIObserver
+];
 calAlarmService.prototype = {
     mRangeStart: null,
     mRangeEnd: null,
@@ -139,33 +144,15 @@ calAlarmService.prototype = {
     mObservers: null,
     mTimezone: null,
 
-    getInterfaces: function cAS_getInterfaces(aCount) {
-        let ifaces = [
-            Components.interfaces.nsISupports,
-            Components.interfaces.calIAlarmService,
-            Components.interfaces.nsIObserver,
-            Components.interfaces.nsIClassInfo
-        ];
-        aCount.value = ifaces.length;
-        return ifaces;
-    },
-
-    getHelperForLanguage: function cAS_getHelperForLanguage(language) {
-        return null;
-    },
-
-    /**
-     * nsIClassInfo
-     */
-    contractID: "@mozilla.org/calendar/alarm-service;1",
-    classDescription: "Calendar Alarm Service",
-    classID: Components.ID("{7a9200dd-6a64-4fff-a798-c5802186e2cc}"),
-    implementationLanguage: Components.interfaces.nsIProgrammingLanguage.JAVASCRIPT,
-    flags: Components.interfaces.nsIClassInfo.SINGLETON,
-
-    QueryInterface: function cAS_QueryInterface(aIID) {
-        return doQueryInterface(this, calAlarmService.prototype, aIID, null, this);
-    },
+    classID: calAlarmServiceClassID,
+    QueryInterface: XPCOMUtils.generateQI(calAlarmServiceInterfaces),
+    classInfo: XPCOMUtils.generateCI({
+        classID: calAlarmServiceClassID,
+        contractID: "@mozilla.org/calendar/alarm-service;1",
+        classDescription: "Calendar Alarm Service",
+        interfaces: calAlarmServiceInterfaces,
+        flags: Components.interfaces.nsIClassInfo.SINGLETON
+    }),
 
     /**
      * nsIObserver
@@ -255,13 +242,9 @@ calAlarmService.prototype = {
             return;
         }
 
-        let observerSvc = Components.classes["@mozilla.org/observer-service;1"]
-                          .getService
-                          (Components.interfaces.nsIObserverService);
-
-        observerSvc.addObserver(this, "profile-after-change", false);
-        observerSvc.addObserver(this, "xpcom-shutdown", false);
-        observerSvc.addObserver(this, "wake_notification", false);
+        Services.obs.addObserver(this, "profile-after-change", false);
+        Services.obs.addObserver(this, "xpcom-shutdown", false);
+        Services.obs.addObserver(this, "wake_notification", false);
 
         /* Tell people that we're alive so they can start monitoring alarms.
          */
@@ -343,12 +326,9 @@ calAlarmService.prototype = {
 
         this.mRangeEnd = null;
 
-        let observerSvc = Components.classes["@mozilla.org/observer-service;1"]
-                          .getService(Components.interfaces.nsIObserverService);
-
-        observerSvc.removeObserver(this, "profile-after-change");
-        observerSvc.removeObserver(this, "xpcom-shutdown");
-        observerSvc.removeObserver(this, "wake_notification");
+        Services.obs.removeObserver(this, "profile-after-change");
+        Services.obs.removeObserver(this, "xpcom-shutdown");
+        Services.obs.removeObserver(this, "wake_notification");
 
         this.mSleepMonitor.stop();
 
@@ -546,6 +526,9 @@ calAlarmService.prototype = {
                                                                      aDetail) {
                 // calendar has been loaded, so until now, onLoad events can be ignored:
                 this.alarmService.mLoadedCalendars[aCalendar.id] = true;
+
+                // notify observers that the alarms for the calendar have been loaded
+                this.alarmService.mObservers.notify("onAlarmsLoaded", [aCalendar]);
             },
             onGetResult: function cAS_fA_onGetResult(aCalendar,
                                                      aStatus,

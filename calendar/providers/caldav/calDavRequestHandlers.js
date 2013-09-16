@@ -2,8 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 /**
  * This is a handler for the etag request in calDavCalendar.js' getUpdatedItem.
@@ -41,15 +41,12 @@ etagsHandler.prototype = {
     itemsReported: null,
     itemsNeedFetching: null,
 
-    QueryInterface: function QueryInterface(aIID) {
-        return doQueryInterface(this,
-                                etagsHandler.prototype,
-                                aIID,
-                                [Components.interfaces.nsISAXContentHandler,
-                                 Components.interfaces.nsISAXErrorHandler,
-                                 Components.interfaces.nsIRequestObserver,
-                                 Components.interfaces.nsIStreamListener]);
-    },
+    QueryInterface: XPCOMUtils.generateQI([
+        Components.interfaces.nsISAXContentHandler,
+        Components.interfaces.nsISAXErrorHandler,
+        Components.interfaces.nsIRequestObserver,
+        Components.interfaces.nsIStreamListener
+    ]),
 
     /**
      * @see nsIStreamListener
@@ -317,20 +314,17 @@ webDavSyncHandler.prototype = {
     itemsReported: null,
     itemsNeedFetching: null,
 
-    QueryInterface: function QueryInterface(aIID) {
-        return doQueryInterface(this,
-                                webDavSyncHandler.prototype,
-                                aIID,
-                                [Components.interfaces.nsISAXContentHandler,
-                                 Components.interfaces.nsISAXErrorHandler,
-                                 Components.interfaces.nsIRequestObserver,
-                                 Components.interfaces.nsIStreamListener]);
-    },
+    QueryInterface: XPCOMUtils.generateQI([
+        Components.interfaces.nsISAXContentHandler,
+        Components.interfaces.nsISAXErrorHandler,
+        Components.interfaces.nsIRequestObserver,
+        Components.interfaces.nsIStreamListener
+    ]),
 
     doWebDAVSync: function doWebDAVSync() {
         if (this.calendar.mDisabled) {
             // check if maybe our calendar has become available
-            this.calendar.checkDavResourceType(this.changeLogListener);
+            this.calendar.setupAuthentication(this.changeLogListener);
             return;
         }
 
@@ -357,10 +351,10 @@ webDavSyncHandler.prototype = {
             cal.LOG("CalDAV: send(" + requestUri.spec + "): " + queryXml);
         }
         cal.LOG("CalDAV: webdav-sync Token: " + this.calendar.mWebdavSyncToken);
-        let httpchannel = cal.prepHttpChannel(requestUri,
-                                              queryXml,
-                                              "text/xml; charset=utf-8",
-                                              this.calendar);
+        let httpchannel = this.calendar.prepHttpChannel(requestUri,
+                                                        queryXml,
+                                                        "text/xml; charset=utf-8",
+                                                        this.calendar);
         httpchannel.setRequestHeader("Depth", "1", false);
         httpchannel.requestMethod = "REPORT";
         // Submit the request
@@ -658,20 +652,17 @@ multigetSyncHandler.prototype = {
     unhandledErrors : 0,
     itemsNeedFetching: null,
 
-    QueryInterface: function QueryInterface(aIID) {
-        return doQueryInterface(this,
-                                multigetSyncHandler.prototype,
-                                aIID,
-                                [Components.interfaces.nsISAXContentHandler,
-                                 Components.interfaces.nsISAXErrorHandler,
-                                 Components.interfaces.nsIRequestObserver,
-                                 Components.interfaces.nsIStreamListener]);
-    },
+    QueryInterface: XPCOMUtils.generateQI([
+        Components.interfaces.nsISAXContentHandler,
+        Components.interfaces.nsISAXErrorHandler,
+        Components.interfaces.nsIRequestObserver,
+        Components.interfaces.nsIStreamListener
+    ]),
 
     doMultiGet: function doMultiGet() {
         if (this.calendar.mDisabled) {
             // check if maybe our calendar has become available
-            this.calendar.checkDavResourceType(this.changeLogListener);
+            this.calendar.setupAuthentication(this.changeLogListener);
             return;
         }
 
@@ -699,10 +690,10 @@ multigetSyncHandler.prototype = {
         if (this.calendar.verboseLogging()) {
             cal.LOG("CalDAV: send(" + requestUri.spec + "): " + queryXml);
         }
-        let httpchannel = cal.prepHttpChannel(requestUri,
-                                              queryXml,
-                                              "text/xml; charset=utf-8",
-                                              this.calendar);
+        let httpchannel = this.calendar.prepHttpChannel(requestUri,
+                                                        queryXml,
+                                                        "text/xml; charset=utf-8",
+                                                        this.calendar);
         httpchannel.setRequestHeader("Depth", "1", false);
         httpchannel.requestMethod = "REPORT";
         // Submit the request
@@ -895,6 +886,8 @@ multigetSyncHandler.prototype = {
                                                             this.baseUri,
                                                             r.getetag,
                                                             this.listener);
+                    } else {
+                        cal.LOG("CalDAV: skipping item with unmodified etag : " + oldEtag);
                     }
                 } else {
                     cal.WARN("CalDAV: Unexpected response, status: " +

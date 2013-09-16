@@ -7,15 +7,12 @@
  */
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 
 // javascript mime emitter functions
-mimeMsg = {};
+var mimeMsg = {};
+Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/gloda/mimemsg.js", mimeMsg);
-
-const copyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
-                      .getService(Ci.nsIMsgCopyService);
 
 var tests = [
   startCopy,
@@ -28,15 +25,15 @@ function startCopy()
 {
   // Get a message into the local filestore.
   var mailFile = do_get_file("../../../data/external-attach-test");
-  copyService.CopyFileMessage(mailFile, gLocalInboxFolder, null, false, 0,
-                              "", asyncCopyListener, null);
+  MailServices.copy.CopyFileMessage(mailFile, localAccountUtils.inboxFolder, null,
+                                    false, 0, "", asyncCopyListener, null);
   yield false;
 }
 
 // process the message through mime
 function startMime()
 {
-  let msgHdr = firstMsgHdr(gLocalInboxFolder);
+  let msgHdr = mailTestUtils.firstMsgHdr(localAccountUtils.inboxFolder);
 
   mimeMsg.MsgHdrToMimeMessage(msgHdr, gCallbackObject, gCallbackObject.callback,
                               true /* allowDownload */);
@@ -46,13 +43,13 @@ function startMime()
 // detach any found attachments
 function startDetach()
 {
-  let msgHdr = firstMsgHdr(gLocalInboxFolder);
+  let msgHdr = mailTestUtils.firstMsgHdr(localAccountUtils.inboxFolder);
   let msgURI = msgHdr.folder.generateMessageURI(msgHdr.messageKey);
 
   let messenger = Cc["@mozilla.org/messenger;1"].createInstance(Ci.nsIMessenger);
   let attachment = gCallbackObject.attachments[0];
 
-  messenger.detachAttachmentsWOPrompts(gProfileDir, 1,
+  messenger.detachAttachmentsWOPrompts(do_get_profile(), 1,
                                        [attachment.contentType], [attachment.url],
                                        [attachment.name], [msgURI], asyncUrlListener);
   yield false;
@@ -66,7 +63,7 @@ function testDetach()
   yield false;
   // The message contained a file "check.pdf" which should
   //  now exist in the profile directory.
-  let checkFile = gProfileDir.clone();
+  let checkFile = do_get_profile().clone();
   checkFile.append("check.pdf");
   do_check_true(checkFile.exists());
 
@@ -74,10 +71,10 @@ function testDetach()
   //  and search for "AttachmentDetached" which is added on detachment.
 
   // Get the message header
-  let msgHdr = firstMsgHdr(gLocalInboxFolder);
+  let msgHdr = mailTestUtils.firstMsgHdr(localAccountUtils.inboxFolder);
 
   let messageContent = getContentFromMessage(msgHdr);
-  do_check_true(messageContent.indexOf("AttachmentDetached") != -1);
+  do_check_true(messageContent.contains("AttachmentDetached"));
 }
 
 function SaveAttachmentCallback() {
@@ -94,8 +91,8 @@ let gCallbackObject = new SaveAttachmentCallback();
 
 function run_test()
 {
-  if (!gLocalInboxFolder)
-    loadLocalMailAccount();
+  if (!localAccountUtils.inboxFolder)
+    localAccountUtils.loadLocalMailAccount();
   async_run_tests(tests);
 }
 

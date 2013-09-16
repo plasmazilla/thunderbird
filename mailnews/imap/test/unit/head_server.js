@@ -1,16 +1,27 @@
 // We can be executed from multiple depths
 // Provide gDEPTH if not already defined
 if (typeof gDEPTH == "undefined")
-  gDEPTH = "../../../../";
+  var gDEPTH = "../../../../";
+
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+Components.utils.import("resource://testing-common/mailnews/mailTestUtils.js");
+Components.utils.import("resource://testing-common/mailnews/localAccountUtils.js");
+Components.utils.import("resource://testing-common/mailnews/IMAPpump.js");
+
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var CC = Components.Constructor;
+
+// Ensure the profile directory is set up
+do_get_profile();
 
 // Import fakeserver
-load(gDEPTH + "mailnews/fakeserver/maild.js");
-load(gDEPTH + "mailnews/fakeserver/auth.js");
-load(gDEPTH + "mailnews/fakeserver/imapd.js");
-
-// And mailnews scripts
-load(gDEPTH + "mailnews/resources/mailDirService.js");
-load(gDEPTH + "mailnews/resources/mailTestUtils.js");
+Components.utils.import("resource://testing-common/mailnews/maild.js");
+Components.utils.import("resource://testing-common/mailnews/imapd.js");
+Components.utils.import("resource://testing-common/mailnews/auth.js");
 
 const IMAP_PORT = 1024 + 143;
 
@@ -25,7 +36,7 @@ function makeServer(daemon, infoString, otherProps) {
 
     var parts = infoString.split(/ *, */);
     for each (var part in parts) {
-      if (part.substring(0, 3) == "RFC")
+      if (part.startsWith("RFC"))
         mixinExtension(handler, eval("IMAP_" + part + "_extension"));
     }
     if (otherProps) {
@@ -40,7 +51,8 @@ function makeServer(daemon, infoString, otherProps) {
 }
 
 function createLocalIMAPServer() {
-  let server = create_incoming_server("imap", IMAP_PORT, "user", "password");
+  let server = localAccountUtils.create_incoming_server("imap", IMAP_PORT,
+							"user", "password");
   server.QueryInterface(Ci.nsIImapIncomingServer);
   return server;
 }

@@ -1,17 +1,20 @@
-/* -*- Mode: Java; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+Components.utils.import("resource:///modules/hostnameUtils.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
 
 var gProtocolInfo = null;
 var gPrefsBundle;
 
 function outgoingPageValidate() {
-  var canAdvance = true;
+  let canAdvance = true;
 
-  var smtpserver = document.getElementById("smtphostname").value;
-  var usingDefaultSMTP = document.getElementById("noSmtp").hidden;
-  if (!usingDefaultSMTP && hostnameIsIllegal(smtpserver))
+  let smtpServer = document.getElementById("smtphostname").value;
+  let usingDefaultSMTP = document.getElementById("noSmtp").hidden;
+  if (!usingDefaultSMTP && !isLegalHostNameOrIP(cleanUpHostName(smtpServer)))
     canAdvance = false;
 
   document.documentElement.canAdvance = canAdvance;
@@ -20,8 +23,8 @@ function outgoingPageValidate() {
 function outgoingPageUnload() {
   var pageData = parent.GetPageData();
   var username = document.getElementById("username").value;
-  var smtpserver = document.getElementById("smtphostname");
-  setPageData(pageData, "server", "smtphostname", trim(smtpserver.value));
+  let smtpserver = document.getElementById("smtphostname").value;
+  setPageData(pageData, "server", "smtphostname", cleanUpHostName(smtpserver));
 
   // If SMTP username box is blank it is because the
   // incoming and outgoing server names were the same,
@@ -43,8 +46,8 @@ function outgoingPageInit() {
     // Don't use the default smtp server if smtp server creation was explicitly
     // requested in isp rdf.
     // If we're reusing the default smtp we should not set the smtp hostname.
-    if (parent.smtpService.defaultServer && !smtpCreateNewServer) {
-      smtpServer = parent.smtpService.defaultServer;
+    if (MailServices.smtp.defaultServer && !smtpCreateNewServer) {
+      smtpServer = MailServices.smtp.defaultServer;
       setPageData(pageData, "identity", "smtpServerKey", "");
     }
 
@@ -80,7 +83,7 @@ function outgoingPageInit() {
       boxToShow.removeAttribute("hidden");
 
     var smtpNameInput = document.getElementById("smtpusername");
-    var smtpServer = parent.smtpService.defaultServer;
+    let smtpServer = MailServices.smtp.defaultServer;
     if (smtpServer && smtpServer.hostname && smtpServer.username) {
       // we have a default SMTP server, so modify and show the static text
       // and store the username for the default server in the textbox.

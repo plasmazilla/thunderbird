@@ -14,21 +14,19 @@
  * Original Author: Kent James <kent@caspia.com>
  *
  */
+
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://testing-common/mailnews/localAccountUtils.js");
+
 // We can be executed from multiple depths
 // Provide understandable error message
 if (typeof gDEPTH == "undefined")
   do_throw("gDEPTH must be defined when using IMAPpump.js");
 
 // Import the pop3 server scripts
-if (typeof nsMailServer == 'undefined')
-  load(gDEPTH + "mailnews/fakeserver/maild.js");
-if (typeof AuthPLAIN == 'undefined')
-  load(gDEPTH + "mailnews/fakeserver/auth.js")
-if (typeof pop3Daemon == 'undefined')
-  load(gDEPTH + "mailnews/fakeserver/pop3d.js");
-
-// Add mailTestUtils for create_incoming_server
-load(gDEPTH + "mailnews/resources/mailTestUtils.js");
+Components.utils.import("resource://testing-common/mailnews/maild.js");
+Components.utils.import("resource://testing-common/mailnews/auth.js");
+Components.utils.import("resource://testing-common/mailnews/pop3d.js");
 
 function POP3Pump()
 {
@@ -47,7 +45,7 @@ function POP3Pump()
   this._firstFile = true;
   this._tests = [];
   this._finalCleanup = false;
-
+  this._expectedResult = 0;
 }
 
 POP3Pump.prototype._urlListener =
@@ -55,20 +53,16 @@ POP3Pump.prototype._urlListener =
   OnStartRunningUrl: function OnStartRunningUrl(url) {},
   OnStopRunningUrl: function OnStopRunningUrl(aUrl, aResult)
   {
-    try
+    if (aResult != 0)
     {
-      do_check_eq(aResult, 0);
-    }
-    catch (e)
-    {
-      // If we have an error, clean up nicely before we throw it.
-      this._server.stop();
+      // If we have an error, clean up nicely.
+      gPOP3Pump._server.stop();
 
-      var thread = gThreadManager.currentThread;
+      var thread = Services.tm.currentThread;
       while (thread.hasPendingEvents())
         thread.processNextEvent(true);
-      do_throw(e);
     }
+    do_check_eq(aResult, gPOP3Pump._expectedResult);
 
     // Let OnStopRunningUrl return cleanly before doing anything else.
     do_timeout(0, _checkPumpBusy);
@@ -92,12 +86,12 @@ POP3Pump.prototype._setupServerDaemon = function _setupServerDaemon(aDebugOption
 POP3Pump.prototype._createPop3ServerAndLocalFolders =
   function _createPop3ServerAndLocalFolders()
 {
-  if (typeof gLocalInboxFolder == 'undefined')
-    loadLocalMailAccount();
+  if (typeof localAccountUtils.inboxFolder == 'undefined')
+    localAccountUtils.loadLocalMailAccount();
 
   if (!this.fakeServer)
-    this.fakeServer = create_incoming_server("pop3", this.kPOP3_PORT,
-                                             "fred", "wilma");
+    this.fakeServer = localAccountUtils.create_incoming_server("pop3", this.kPOP3_PORT,
+							       "fred", "wilma");
 
   return this.fakeServer;
 };
@@ -117,7 +111,7 @@ POP3Pump.prototype._checkBusy = function _checkBusy()
 
   if (this._finalCleanup)
   {
-    if (gThreadManager.currentThread.hasPendingEvents())
+    if (Services.tm.currentThread.hasPendingEvents())
       do_timeout(20, _checkPumpBusy);
     else
     {
@@ -166,7 +160,7 @@ POP3Pump.prototype._testNext = function _testNext()
     this._daemon.setMessages(thisFiles);
 
     // Now get the mail
-    this._pop3Service.GetNewMail(null, this._urlListener, gLocalInboxFolder,
+    this._pop3Service.GetNewMail(null, this._urlListener, localAccountUtils.inboxFolder,
                                  this._incomingServer);
 
     this._server.performTest();
@@ -177,13 +171,13 @@ POP3Pump.prototype._testNext = function _testNext()
     do_throw(e);
   } finally
   {
-    var thread = gThreadManager.currentThread;
+    var thread = Services.tm.currentThread;
     while (thread.hasPendingEvents())
       thread.processNextEvent(true);
   }
 };
 
-POP3Pump.prototype.run = function run()
+POP3Pump.prototype.run = function run(aExpectedResult)
 {
   do_test_pending();
   // Disable new mail notifications
@@ -199,6 +193,9 @@ POP3Pump.prototype.run = function run()
   this._firstFile = true;
   this._finalCleanup = false;
 
+  if (aExpectedResult)
+    this._expectedResult = aExpectedResult;
+
   // In the default configuration, only a single test is accepted
   // by this routine. But the infrastructure exists to support
   // multiple tests, as this was in the original files. We leave that
@@ -208,8 +205,7 @@ POP3Pump.prototype.run = function run()
 
   this._tests[0] = this.files;
 
-  this._pop3Service = Cc["@mozilla.org/messenger/popservice;1"]
-                        .getService(Ci.nsIPop3Service);
+  this._pop3Service = MailServices.pop3;
   this._testNext();
 };
 

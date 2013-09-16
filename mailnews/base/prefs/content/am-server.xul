@@ -34,9 +34,10 @@
     <grid>
       <columns>
         <column/>
+        <column flex="1"/>
         <column/>
       </columns>
-      <rows>      
+      <rows>
         <row align="center">
           <label value="&serverType.label;"/>
           <label id="servertype.verbose"/>
@@ -48,8 +49,14 @@
           </hbox>
           <hbox align="center">
               <label id="fixedServerName" collapsed="true" use="server.realHostName"/>
-              <textbox wsm_persist="true" size="20" id="server.realHostName"
-                       prefstring="mail.server.%serverkey%.realhostname" class="uri-element"/>
+              <textbox wsm_persist="true"
+                       size="20"
+                       flex="1"
+                       id="server.realHostName"
+                       prefstring="mail.server.%serverkey%.realhostname"
+                       class="uri-element"/>
+          </hbox>
+          <hbox align="center">
               <label hidefor="movemail" value="&port.label;"
                      accesskey="&port.accesskey;" control="server.port"/>
               <label id="fixedServerPort" hidefor="movemail"
@@ -70,7 +77,10 @@
           </hbox>
           <hbox align="center" hidefor="nntp">
               <label id="fixedUserName" collapsed="true" use="server.realUsername"/>
-              <textbox wsm_persist="true" size="20" id="server.realUsername"
+              <textbox wsm_persist="true"
+                       size="20"
+                       flex="1"
+                       id="server.realUsername"
                        prefstring="mail.server.%serverkey%.realusername"/>
           </hbox>
         </row>
@@ -215,41 +225,61 @@
       <label value="&deleteMessagePrefix.label;" align="left"
              control="imap.deleteModel"/>
     </hbox>
-    <hbox align="center" id="imap.deleteModel.box" hidefor="pop3,nntp,movemail">
-      <radiogroup wsm_persist="true" id="imap.deleteModel"
-                  oncommand="selectImapDeleteModel(this.value)"
-                  prefstring="mail.server.%serverkey%.delete_model">
-        <grid class="specialFolderPickerGrid">
-          <columns>
-            <column/>
-            <column flex="1"/>
-          </columns>
-          <rows>
-            <row align="center">
-              <radio id="modelMoveToTrash"
-                     value="1" label="&modelMoveToTrash.label;"
-                     accesskey="&modelMoveToTrash.accesskey;"/>
-              <menulist id="msgTrashFolderPicker"
-                        aria-labelledby="modelMoveToTrash"
-                        oncommand="folderPickerChange(event)">
-                <menupopup id="msgTrashFolderPopup" type="folder" mode="filing"
-                           showFileHereLabel="true"
-                           fileHereLabel="&filemessageschoosethis.label;"/>
-              </menulist>
-            </row>
-            <row align="center">
-              <radio id="modelMarkDeleted"
-                     value="0" label="&modelMarkDeleted.label;"
-                     accesskey="&modelMarkDeleted.accesskey;"/>
-            </row>
-            <row align="center">
-              <radio id="modelDeleteImmediately"
-                     value="2" label="&modelDeleteImmediately.label;"
-                     accesskey="&modelDeleteImmediately.accesskey;"/>
-            </row>
-          </rows>
-        </grid>
-      </radiogroup>
+    <hbox align="end">
+      <hbox align="center"
+            id="imap.deleteModel.box"
+            hidefor="pop3,nntp,movemail"
+            flex="1">
+        <radiogroup id="imap.deleteModel"
+                    wsm_persist="true"
+                    oncommand="selectImapDeleteModel(this.value);"
+                    prefstring="mail.server.%serverkey%.delete_model">
+          <grid class="specialFolderPickerGrid">
+            <columns>
+              <column/>
+              <column flex="1"/>
+            </columns>
+            <rows>
+              <row align="center">
+                <radio id="modelMoveToTrash"
+                       value="1"
+                       label="&modelMoveToTrash.label;"
+                       accesskey="&modelMoveToTrash.accesskey;"/>
+                <menulist id="msgTrashFolderPicker"
+                          aria-labelledby="modelMoveToTrash"
+                          oncommand="folderPickerChange(event);">
+                  <menupopup id="msgTrashFolderPopup"
+                             type="folder"
+                             mode="filing"
+                             showFileHereLabel="true"
+                             fileHereLabel="&filemessageschoosethis.label;"/>
+                </menulist>
+              </row>
+              <row align="center">
+                <radio id="modelMarkDeleted"
+                       value="0"
+                       label="&modelMarkDeleted.label;"
+                       accesskey="&modelMarkDeleted.accesskey;"/>
+              </row>
+              <row align="center">
+                <radio id="modelDeleteImmediately"
+                       value="2"
+                       label="&modelDeleteImmediately.label;"
+                       accesskey="&modelDeleteImmediately.accesskey;"/>
+              </row>
+            </rows>
+          </grid>
+        </radiogroup>
+      </hbox>
+      <!-- This button should have identical attributes to the
+           server.popAdvancedButton except the hidefor attribute. -->
+      <button label="&advancedButton.label;"
+              accesskey="&advancedButton.accesskey;"
+              oncommand="onAdvanced();"
+              wsm_persist="true"
+              id="server.imapAdvancedButton"
+              prefstring="mail.server.%serverkey%.advanced.disable"
+              hidefor="pop3,nntp,movemail"/>
     </hbox>
 
     <!-- Advanced IMAP settings -->
@@ -335,9 +365,9 @@
                 accesskey="&advancedButton.accesskey;"
                 oncommand="onAdvanced();"
                 wsm_persist="true"
-                id="server.advancedbutton"
+                id="server.popAdvancedButton"
                 prefstring="mail.server.%serverkey%.advanced.disable"
-                hidefor="nntp,movemail"/>
+                hidefor="imap,nntp,movemail"/>
       </hbox>
 
       <vbox hidefor="imap,pop3,movemail">

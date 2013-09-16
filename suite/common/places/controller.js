@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 // XXXmano: we should move most/all of these constants to PlacesUtils
@@ -410,7 +411,6 @@ PlacesController.prototype = {
    *    "tagChild"          node is a child of a tag
    *    "folder"            node is a folder
    *    "query"             node is a query
-   *    "dynamiccontainer"  node is a dynamic container
    *    "separator"         node is a separator line
    *    "host"              node is a host
    *
@@ -453,9 +453,6 @@ PlacesController.prototype = {
             }
           }
           break;
-        case Components.interfaces.nsINavHistoryResultNode.RESULT_TYPE_DYNAMIC_CONTAINER:
-          nodeData["dynamiccontainer"] = true;
-          break;
         case Components.interfaces.nsINavHistoryResultNode.RESULT_TYPE_FOLDER:
         case Components.interfaces.nsINavHistoryResultNode.RESULT_TYPE_FOLDER_SHORTCUT:
           nodeData["folder"] = true;
@@ -465,7 +462,6 @@ PlacesController.prototype = {
           break;
         case Components.interfaces.nsINavHistoryResultNode.RESULT_TYPE_URI:
         case Components.interfaces.nsINavHistoryResultNode.RESULT_TYPE_VISIT:
-        case Components.interfaces.nsINavHistoryResultNode.RESULT_TYPE_FULL_VISIT:
           nodeData["link"] = true;
           uri = PlacesUtils._uri(node.uri);
           if (PlacesUtils.nodeIsBookmark(node)) {
@@ -701,13 +697,10 @@ PlacesController.prototype = {
    * Gives the user a chance to cancel loading lots of tabs at once
    */
   _confirmOpenTabs: function(numTabsToOpen) {
-    var pref = Components.classes["@mozilla.org/preferences-service;1"]
-                         .getService(Components.interfaces.nsIPrefBranch);
-
     const kWarnOnOpenPref = "browser.tabs.warnOnOpen";
     var reallyOpen = true;
-    if (pref.getBoolPref(kWarnOnOpenPref)) {
-      if (numTabsToOpen >= pref.getIntPref("browser.tabs.maxOpenBeforeWarn")) {
+    if (Services.prefs.getBoolPref(kWarnOnOpenPref)) {
+      if (numTabsToOpen >= Services.prefs.getIntPref("browser.tabs.maxOpenBeforeWarn")) {
         var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
                                       .getService(Components.interfaces.nsIPromptService);
 
@@ -737,7 +730,7 @@ PlacesController.prototype = {
          reallyOpen = (buttonPressed == 0);
          // don't set the pref unless they press OK and it's false
          if (reallyOpen && !warnOnOpen.value)
-           pref.setBoolPref(kWarnOnOpenPref, false);
+           Services.prefs.setBoolPref(kWarnOnOpenPref, false);
       }
     }
     return reallyOpen;

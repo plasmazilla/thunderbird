@@ -33,14 +33,12 @@ void
 MimeHeaders_convert_header_value(MimeDisplayOptions *opt, nsCString &value,
                                  bool convert_charset_only)
 {
-  char        *converted;
-
   if (value.IsEmpty())
     return;
 
   if (convert_charset_only)
   {
-    nsCAutoString output;
+    nsAutoCString output;
     ConvertRawBytesToUTF8(value, opt->default_charset, output);
     value.Assign(output);
     return;
@@ -48,12 +46,13 @@ MimeHeaders_convert_header_value(MimeDisplayOptions *opt, nsCString &value,
 
   if (opt && opt->rfc1522_conversion_p)
   {
-    converted = MIME_DecodeMimeHeader(value.get(), opt->default_charset,
-                                      opt->override_charset, true);
+    nsAutoCString temporary;
+    MIME_DecodeMimeHeader(value.get(), opt->default_charset,
+                          opt->override_charset, true, temporary);
 
-    if (converted)
+    if (!temporary.IsEmpty())
     {
-      value.Adopt(converted);
+      value = temporary;
     }
   }
   else
@@ -588,8 +587,8 @@ MimeHeaders_write_all_headers (MimeHeaders *hdrs, MimeDisplayOptions *opt, bool 
     while (end > contents && IS_SPACE(end[-1]))
       end--;
 
-    nsCAutoString name(Substring(head, colon));
-    nsCAutoString hdr_value;
+    nsAutoCString name(Substring(head, colon));
+    nsAutoCString hdr_value;
 
     if ( (end - contents) > 0 )
     {
@@ -605,7 +604,7 @@ MimeHeaders_write_all_headers (MimeHeaders *hdrs, MimeDisplayOptions *opt, bool 
     // if we're saving as html, we need to convert headers from utf8 to message charset, if any
     if (opt->format_out == nsMimeOutput::nsMimeMessageSaveAs && charset)
     {
-      nsCAutoString convertedStr;
+      nsAutoCString convertedStr;
       if (NS_SUCCEEDED(ConvertFromUnicode(charset, NS_ConvertUTF8toUTF16(hdr_value),
                        convertedStr)))
       {
@@ -613,10 +612,14 @@ MimeHeaders_write_all_headers (MimeHeaders *hdrs, MimeDisplayOptions *opt, bool 
       }
     }
 
-    if (attachment)
-      status = mimeEmitterAddAttachmentField(opt, name.get(), hdr_value.get());
-    else
-      status = mimeEmitterAddHeaderField(opt, name.get(), hdr_value.get());
+    if (attachment) {
+      if (NS_FAILED(mimeEmitterAddAttachmentField(opt, name.get(), hdr_value.get())))
+        status = -1;
+    }
+    else {
+      if (NS_FAILED(mimeEmitterAddHeaderField(opt, name.get(), hdr_value.get())))
+        status = -1;
+    }
 
     if (status < 0) return status;
     if (!wrote_any_p)
@@ -673,7 +676,7 @@ mime_decode_filename(const char *name, const char *charset,
 
   if (NS_FAILED(rv))
     return nullptr;
-  nsCAutoString result;
+  nsAutoCString result;
   rv = mimehdrpar->DecodeParameter(nsDependentCString(name), charset,
                                    opt ? opt->default_charset : nullptr,
                                    opt ? opt->override_charset : false,

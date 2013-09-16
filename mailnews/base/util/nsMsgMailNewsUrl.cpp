@@ -25,6 +25,7 @@
 #include <time.h>
 #include "nsMsgUtils.h"
 #include "mozilla/Services.h"
+#include <algorithm>
 
 nsMsgMailNewsUrl::nsMsgMailNewsUrl()
 {
@@ -138,8 +139,8 @@ NS_IMETHODIMP nsMsgMailNewsUrl::GetServer(nsIMsgIncomingServer ** aIncomingServe
   // we can look at caching it later.
 
   nsresult rv;
-  nsCAutoString urlstr;
-  nsCAutoString scheme;
+  nsAutoCString urlstr;
+  nsAutoCString scheme;
 
   nsCOMPtr<nsIURL> url = do_CreateInstance(NS_STANDARDURL_CONTRACTID, &rv);
   if (NS_FAILED(rv)) return rv;
@@ -352,7 +353,7 @@ NS_IMETHODIMP nsMsgMailNewsUrl::GetSpec(nsACString &aSpec)
 
 NS_IMETHODIMP nsMsgMailNewsUrl::SetSpec(const nsACString &aSpec)
 {
-  nsCAutoString spec(aSpec);
+  nsAutoCString spec(aSpec);
   // Parse out "filename" attribute if present.
   char *start, *end;
   start = PL_strcasestr(spec.BeginWriting(),"?filename=");
@@ -538,7 +539,7 @@ NS_IMETHODIMP nsMsgMailNewsUrl::SchemeIs(const char *aScheme, bool *_retval)
 NS_IMETHODIMP nsMsgMailNewsUrl::Clone(nsIURI **_retval)
 {
   nsresult rv;
-  nsCAutoString urlSpec;
+  nsAutoCString urlSpec;
   nsCOMPtr<nsIIOService> ioService =
     mozilla::services::GetIOService();
   NS_ENSURE_TRUE(ioService, NS_ERROR_UNEXPECTED);
@@ -573,7 +574,7 @@ NS_IMETHODIMP nsMsgMailNewsUrl::Resolve(const nsACString &relativePath, nsACStri
     nsCOMPtr<nsIIOService> ioService =
       mozilla::services::GetIOService();
     NS_ENSURE_TRUE(ioService, NS_ERROR_UNEXPECTED);
-    nsCAutoString scheme;
+    nsAutoCString scheme;
 
     rv = ioService->ExtractScheme(relativePath, scheme);
     // if we have a fully qualified scheme then pass the relative path back as the result
@@ -717,7 +718,7 @@ NS_IMETHODIMP nsMsgMailNewsUrl::SetImageCacheSession(nsICacheSession *imageCache
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgMailNewsUrl:: GetImageCacheSession(nsICacheSession **imageCacheSession)
+NS_IMETHODIMP nsMsgMailNewsUrl::GetImageCacheSession(nsICacheSession **imageCacheSession)
 {
   NS_ENSURE_ARG(imageCacheSession);
 
@@ -726,28 +727,16 @@ NS_IMETHODIMP nsMsgMailNewsUrl:: GetImageCacheSession(nsICacheSession **imageCac
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgMailNewsUrl:: CacheCacheEntry(nsICacheEntryDescriptor *cacheEntry)
+NS_IMETHODIMP nsMsgMailNewsUrl::CacheCacheEntry(nsICacheEntryDescriptor *cacheEntry)
 {
-  if (!m_cachedMemCacheEntries)
-    NS_NewISupportsArray(getter_AddRefs(m_cachedMemCacheEntries));
-  if (m_cachedMemCacheEntries)
-  {
-    nsCOMPtr<nsISupports> cacheEntrySupports(do_QueryInterface(cacheEntry));
-    if(cacheEntrySupports)
-      m_cachedMemCacheEntries->AppendElement(cacheEntrySupports);
-  }
+  m_cachedMemCacheEntries.AppendObject(cacheEntry);
 
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgMailNewsUrl:: RemoveCacheEntry(nsICacheEntryDescriptor *cacheEntry)
+NS_IMETHODIMP nsMsgMailNewsUrl::RemoveCacheEntry(nsICacheEntryDescriptor *cacheEntry)
 {
-  if (m_cachedMemCacheEntries)
-  {
-    nsCOMPtr<nsISupports> cacheEntrySupports(do_QueryInterface(cacheEntry));
-    if(cacheEntrySupports)
-      m_cachedMemCacheEntries->RemoveElement(cacheEntrySupports);
-  }
+  m_cachedMemCacheEntries.RemoveObject(cacheEntry);
   return NS_OK;
 }
 
@@ -820,7 +809,7 @@ nsMsgSaveAsListener::OnStopRequest(nsIRequest *request, nsISupports * aCtxt, nsr
 NS_IMETHODIMP nsMsgSaveAsListener::OnDataAvailable(nsIRequest* request, 
                                   nsISupports* aSupport,
                                   nsIInputStream* inStream, 
-                                  uint32_t srcOffset,
+                                  uint64_t srcOffset,
                                   uint32_t count)
 {
   nsresult rv;
@@ -917,7 +906,7 @@ NS_IMETHODIMP nsMsgSaveAsListener::OnDataAvailable(nsIRequest* request,
   }
   return rv;
   
-  //  rv = m_outputStream->WriteFrom(inStream, NS_MIN(available, count), &bytesWritten);
+  //  rv = m_outputStream->WriteFrom(inStream, std::min(available, count), &bytesWritten);
 }
 
 nsresult nsMsgSaveAsListener::SetupMsgWriteStream(nsIFile *aFile, bool addDummyEnvelope)
@@ -934,12 +923,12 @@ nsresult nsMsgSaveAsListener::SetupMsgWriteStream(nsIFile *aFile, bool addDummyE
   aFile->Remove(false);
 
   nsresult rv = MsgNewBufferedFileOutputStream(getter_AddRefs(m_outputStream),
-                                               aFile, -1, 00600);
+                                               aFile, -1, 0666);
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (m_outputStream && addDummyEnvelope)
   {
-    nsCAutoString result;
+    nsAutoCString result;
     uint32_t writeCount;
 
     time_t now = time((time_t*) 0);
@@ -997,7 +986,7 @@ NS_IMETHODIMP nsMsgMailNewsUrl::SetMsgHeaderSink(nsIMsgHeaderSink * aMsgHdrSink)
 NS_IMETHODIMP nsMsgMailNewsUrl::GetIsMessageUri(bool *aIsMessageUri)
 {
   NS_ENSURE_ARG(aIsMessageUri);
-  nsCAutoString scheme;
+  nsAutoCString scheme;
   m_baseURL->GetScheme(scheme);
   *aIsMessageUri = StringEndsWith(scheme, NS_LITERAL_CSTRING("-message"));
   return NS_OK;

@@ -397,7 +397,7 @@ NS_IMETHODIMP nsMailboxProtocol::OnStopRequest(nsIRequest *request, nsISupports 
 // End of nsIStreamListenerSupport
 //////////////////////////////////////////////////////////////////////////////////////////////
 
-int32_t nsMailboxProtocol::DoneReadingMessage()
+nsresult nsMailboxProtocol::DoneReadingMessage()
 {
   nsresult rv = NS_OK;
   // and close the article file if it was open....
@@ -467,7 +467,7 @@ nsresult nsMailboxProtocol::LoadUrl(nsIURI * aURL, nsISupports * aConsumer)
         nsCOMPtr<nsIMsgMailNewsUrl> msgUrl = do_QueryInterface(m_runningUrl, &rv);
         NS_ENSURE_SUCCESS(rv,rv);
 
-        nsCAutoString queryStr;
+        nsAutoCString queryStr;
         rv = msgUrl->GetQuery(queryStr);
         NS_ENSURE_SUCCESS(rv,rv);
 
@@ -517,7 +517,8 @@ nsresult nsMailboxProtocol::LoadUrl(nsIURI * aURL, nsISupports * aConsumer)
             if (NS_SUCCEEDED(rv))
             {
               messageUrl->GetMessageFile(getter_AddRefs(m_tempMessageFile));
-              MsgNewBufferedFileOutputStream(getter_AddRefs(m_msgFileOutputStream), m_tempMessageFile, -1, 00600);
+              rv = MsgNewBufferedFileOutputStream(getter_AddRefs(m_msgFileOutputStream), m_tempMessageFile, -1, 00600);
+              NS_ENSURE_SUCCESS(rv, rv);
 
               bool addDummyEnvelope = false;
               messageUrl->GetAddDummyEnvelope(&addDummyEnvelope);
@@ -551,7 +552,7 @@ nsresult nsMailboxProtocol::LoadUrl(nsIURI * aURL, nsISupports * aConsumer)
   return rv;
 }
 
-int32_t nsMailboxProtocol::ReadFolderResponse(nsIInputStream * inputStream, uint32_t sourceOffset, uint32_t length)
+int32_t nsMailboxProtocol::ReadFolderResponse(nsIInputStream * inputStream, uint64_t sourceOffset, uint32_t length)
 {
   // okay we are doing a folder read in 8K chunks of a mail folder....
   // this is almost too easy....we can just forward the data in this stream on to our
@@ -582,7 +583,7 @@ int32_t nsMailboxProtocol::ReadFolderResponse(nsIInputStream * inputStream, uint
   return 0; 
 }
 
-int32_t nsMailboxProtocol::ReadMessageResponse(nsIInputStream * inputStream, uint32_t sourceOffset, uint32_t length)
+int32_t nsMailboxProtocol::ReadMessageResponse(nsIInputStream * inputStream, uint64_t sourceOffset, uint32_t length)
 {
   char *line = nullptr;
   uint32_t status = 0;
@@ -665,7 +666,7 @@ int32_t nsMailboxProtocol::ReadMessageResponse(nsIInputStream * inputStream, uin
  *
  * returns zero or more if the transfer needs to be continued.
  */
-nsresult nsMailboxProtocol::ProcessProtocolState(nsIURI * url, nsIInputStream * inputStream, uint32_t offset, uint32_t length)
+nsresult nsMailboxProtocol::ProcessProtocolState(nsIURI * url, nsIInputStream * inputStream, uint64_t offset, uint32_t length)
 {
   nsresult rv = NS_OK;
   int32_t status = 0;

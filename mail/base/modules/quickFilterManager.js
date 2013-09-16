@@ -10,16 +10,15 @@ const Cr = Components.results;
 const Cu = Components.utils;
 
 Cu.import("resource://gre/modules/PluralForm.jsm");
+Cu.import("resource://gre/modules/Services.jsm");
 
-Cu.import("resource:///modules/searchSpec.js");
 Cu.import("resource:///modules/iteratorUtils.jsm");
 Cu.import("resource:///modules/errUtils.js");
+Cu.import("resource:///modules/mailServices.js");
+Cu.import("resource:///modules/searchSpec.js");
 
 const Application = Cc["@mozilla.org/steel/application;1"]
                       .getService(Ci.steelIApplication);
-
-const FocusManager = Cc["@mozilla.org/focus-manager;1"]
-                       .getService(Ci.nsIFocusManager);
 
 const nsMsgSearchAttrib = Components.interfaces.nsMsgSearchAttrib;
 const nsMsgMessageFlags = Components.interfaces.nsMsgMessageFlags;
@@ -590,9 +589,7 @@ QuickFilterManager.defineFilter({
   domId: "qfb-inaddrbook",
   appendTerms: function(aTermCreator, aTerms, aFilterValue) {
     let term, value;
-    let enumerator = Components.classes["@mozilla.org/abmanager;1"]
-                               .getService(Components.interfaces.nsIAbManager)
-                               .directories;
+    let enumerator = MailServices.ab.directories;
     let firstBook = true;
     term = null;
     while (enumerator.hasMoreElements()) {
@@ -642,9 +639,9 @@ let TagFacetingFilter = {
     // it's the simple case if the value is just a boolean
     if (typeof(aFilterValue) != "object")
       return true;
-    // but also if the object contains no true values
+    // but also if the object contains no non-null values
     let simpleCase = true;
-    for each (let [key, value] in Iterator(aFilterValue)) {
+    for each (let [key, value] in Iterator(aFilterValue.tags)) {
       if (value !== null) {
         simpleCase = false;
         break;
@@ -656,14 +653,15 @@ let TagFacetingFilter = {
   /**
    * Because we support both inclusion and exclusion we can produce up to two
    *  groups.  One group for inclusion, one group for exclusion.  To get listed
-   *  you only need to include one of the tags marked for inclusion, but you
-   *  must not have any of the tags marked for exclusion.
+   *  the message must have any/all of the tags marked for inclusion,
+   *  (depending on mode), but it cannot have any of the tags marked for
+   *  exclusion.
    */
   appendTerms: function TFF_appendTerms(aTermCreator, aTerms, aFilterValue) {
-    let term, value;
-
     if (aFilterValue == null)
       return null;
+
+    let term, value;
 
     // just the true/false case
     if (this.isSimple(aFilterValue)) {
@@ -689,7 +687,8 @@ let TagFacetingFilter = {
 
       let excludeTerms = [];
 
-      for each (let [key, shouldFilter] in Iterator(aFilterValue)) {
+      let mode = aFilterValue.mode;
+      for each (let [key, shouldFilter] in Iterator(aFilterValue.tags)) {
         if (shouldFilter !== null) {
           term = aTermCreator.createTerm();
           term.attrib = Components.interfaces.nsMsgSearchAttrib.Keywords;
@@ -699,8 +698,9 @@ let TagFacetingFilter = {
           term.value = value;
           if (shouldFilter) {
             term.op = nsMsgSearchOp.Contains;
-            // AND for the group, but OR inside the group
-            term.booleanAnd = firstIncludeClause;
+            // AND for the group. Inside the group we also want AND if the
+            // mode is set to "All of".
+            term.booleanAnd = firstIncludeClause || (mode === "AND");
             term.beginsGrouping = firstIncludeClause;
             aTerms.push(term);
             firstIncludeClause = false;
@@ -741,7 +741,6 @@ let TagFacetingFilter = {
         aTerms.push.apply(aTerms, excludeTerms);
       }
     }
-
     return null;
   },
 
@@ -764,18 +763,15 @@ let TagFacetingFilter = {
       return [null, false, false];
 
     // only propagate things that are actually tags though!
-    let outKeyMap = {};
-    let tagService = Cc["@mozilla.org/messenger/tagservice;1"]
-                       .getService(Ci.nsIMsgTagService);
-    let tags = tagService.getAllTags({});
+    let outKeyMap = {tags: {}};
+    let tags = MailServices.tags.getAllTags({});
     let tagCount = tags.length;
-    for (let iTag=0; iTag < tagCount; iTag++) {
+    for (let iTag = 0; iTag < tagCount; iTag++) {
       let tag = tags[iTag];
 
       if (tag.key in aKeywordMap)
-        outKeyMap[tag.key] = aKeywordMap[tag.key];
+        outKeyMap.tags[tag.key] = aKeywordMap[tag.key];
     }
-
     return [outKeyMap, true, false];
   },
 
@@ -806,10 +802,20 @@ let TagFacetingFilter = {
     return [checked, true];
   },
 
+  domBindExtra: function(aDocument, aMuxer, aNode) {
+    // Tag filtering mode menu (All of/Any of)
+    function commandHandler(aEvent) {
+      let filterValue = aMuxer.getFilterValueForMutation(TagFacetingFilter.name);
+      filterValue.mode = aEvent.target.value;
+      aMuxer.updateSearch();
+    }
+    aDocument.getElementById("qfb-boolean-mode").addEventListener(
+      "ValueChange", commandHandler, false);
+  },
+
   reflectInDOM: function TFF_reflectInDOM(aNode, aFilterValue,
                                           aDocument, aMuxer) {
     aNode.checked = aFilterValue ? true : false;
-
     if ((aFilterValue != null) &&
         (typeof(aFilterValue) == "object"))
       this._populateTagBar(aFilterValue, aDocument, aMuxer);
@@ -819,12 +825,21 @@ let TagFacetingFilter = {
 
   _populateTagBar: function TFF__populateTagMenu(aState, aDocument, aMuxer) {
     let tagbar = aDocument.getElementById("quick-filter-bar-tab-bar");
-    let keywordMap = aState;
+    let keywordMap = aState.tags;
+
+    // If we have a mode stored use that. If we don't have a mode, then update
+    // our state to agree with what the UI is currently displaying;
+    // this will happen for fresh profiles.
+    let qbm = aDocument.getElementById("qfb-boolean-mode");
+    if (aState.mode)
+      qbm.value = aState.mode;
+    else
+      aState.mode = qbm.value;
 
     function commandHandler(aEvent) {
       let tagKey = aEvent.target.getAttribute("value");
       let state = aMuxer.getFilterValueForMutation(TagFacetingFilter.name);
-      state[tagKey] = aEvent.target.checked ? true : null;
+      state.tags[tagKey] = aEvent.target.checked ? true : null;
       aEvent.target.removeAttribute("inverted");
       aMuxer.updateSearch();
     };
@@ -838,7 +853,7 @@ let TagFacetingFilter = {
 
         let tagKey = aEvent.target.getAttribute("value");
         let state = aMuxer.getFilterValueForMutation(TagFacetingFilter.name);
-        state[tagKey] = aEvent.target.checked ? false : null;
+        state.tags[tagKey] = aEvent.target.checked ? false : null;
         if (aEvent.target.checked)
           aEvent.target.setAttribute("inverted", "true");
         else
@@ -849,18 +864,17 @@ let TagFacetingFilter = {
       }
     }
 
-    // -- nuke existing exposed tags
-    while (tagbar.lastChild)
+    // -- nuke existing exposed tags, but not the mode selector (which is first)
+    while (tagbar.lastChild && tagbar.lastChild !== tagbar.firstChild) {
       tagbar.removeChild(tagbar.lastChild);
+    }
 
     let addCount = 0;
 
     // -- create an element for each tag
-    let tagService = Components.classes["@mozilla.org/messenger/tagservice;1"]
-                           .getService(Components.interfaces.nsIMsgTagService);
-    let tags = tagService.getAllTags({});
+    let tags = MailServices.tags.getAllTags({});
     let tagCount = tags.length;
-    for (let iTag=0; iTag < tagCount; iTag++) {
+    for (let iTag = 0; iTag < tagCount; iTag++) {
       let tag = tags[iTag];
 
       if (tag.key in keywordMap) {
@@ -891,7 +905,6 @@ let TagFacetingFilter = {
         tagbar.appendChild(button);
       }
     }
-
     tagbar.collapsed = !addCount;
   },
 };
@@ -956,7 +969,7 @@ let MessageTextFilter = {
     }
 
     while (aSearchString) {
-      if (aSearchString[0] == '"') {
+      if (aSearchString.startsWith('"')) {
         let endIndex = aSearchString.indexOf(aSearchString[0], 1);
         // treat a quote without a friend as making a phrase containing the
         // rest of the string...
@@ -1076,7 +1089,7 @@ let MessageTextFilter = {
     // -- Blurring kills upsell.
     aNode.addEventListener("blur", function(aEvent) {
       let panel = aDocument.getElementById("qfb-text-search-upsell");
-      if ((FocusManager.activeWindow != aDocument.defaultView ||
+      if ((Services.focus.activeWindow != aDocument.defaultView ||
            aDocument.commandDispatcher.focusedElement != aNode.inputField) &&
           panel.state == "open") {
         panel.hidePopup();

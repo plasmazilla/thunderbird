@@ -10,8 +10,6 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-MODULE		= msgbase
-XPIDL_MODULE	= msgsearch
 LIBRARY_NAME	= msgsearch_s
 ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
 MOZILLA_INTERNAL_API = 1
@@ -20,25 +18,6 @@ endif
 EXPORT_DIR	= $(DIST)/bin/isp
 
 
-CPPSRCS		= \
-		nsMsgFilterService.cpp \
-		nsMsgFilterList.cpp \
-		nsMsgFilter.cpp \
-		nsMsgSearchTerm.cpp \
-		nsMsgBodyHandler.cpp \
-		nsMsgLocalSearch.cpp \
-		nsMsgSearchValue.cpp \
-		nsMsgSearchAdapter.cpp \
-		nsMsgSearchSession.cpp \
-		nsMsgImapSearch.cpp \
-		nsMsgSearchNews.cpp \
-		$(NULL)
-
-EXTRA_COMPONENTS += \
-		nsMsgTraitService.js \
-		nsMsgTraitService.manifest \
-		$(NULL)
- 
 EXPORT_RESOURCE_FILES	= \
 				  Bogofilter.sfd \
 				  DSPAM.sfd \

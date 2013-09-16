@@ -153,7 +153,7 @@ function HandleColumnClick(columnID)
   var dbview = GetDBView();
   var simpleColumns = false;
   try {
-    simpleColumns = !pref.getBoolPref("mailnews.thread_pane_column_unthreads");
+    simpleColumns = !Services.prefs.getBoolPref("mailnews.thread_pane_column_unthreads");
   }
   catch (ex) {
   }
@@ -188,11 +188,8 @@ function ThreadPaneDoubleClick()
   }
   else if(IsSpecialFolderSelected(nsMsgFolderFlags.Templates, true))
   {
-    var loadedFolder = GetLoadedMsgFolder();
-    var messageArray = GetSelectedMessages();
-    ComposeMessage(Components.interfaces.nsIMsgCompType.Template,
-                   Components.interfaces.nsIMsgCompFormat.Default,
-                   loadedFolder, messageArray);
+    ComposeMsgByType(Components.interfaces.nsIMsgCompType.Template, null,
+                     Components.interfaces.nsIMsgCompFormat.Default);
   }
   else if (AllowOpenTabOnDoubleClick() &&
            document.documentElement.id != "searchMailWindow")
@@ -459,7 +456,7 @@ function ThreadPaneOnLoad()
     return;
 
   tree.addEventListener("mousedown",TreeOnMouseDown,true);
-  var delay = pref.getIntPref("mailnews.threadpane_select_delay");
+  var delay = Services.prefs.getIntPref("mailnews.threadpane_select_delay");
   document.getElementById("threadTree")._selectDelay = delay;
 }
 

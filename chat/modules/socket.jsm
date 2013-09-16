@@ -15,13 +15,26 @@
  * nsIProxyService, nsIProxyInfo.
  *
  * High-level methods:
- *   .connect(<host>, <port>[, ("starttls" | "ssl" | "udp") [, <proxy>]])
- *   .disconnect()
- *   .listen(port)
- *   .send(String data)
- *   .startTLS()
+ *   connect(<host>, <port>[, ("starttls" | "ssl" | "udp") [, <proxy>]])
+ *   disconnect()
+ *   listen(<port>)
+ *   stopListening()
+ *   sendData(String <data>[, <logged data>])
+ *   sendString(String <data>[, <encoding>[, <logged data>]])
+ *   sendBinaryData(<arraybuffer data>)
+ *   startTLS()
+ *   resetPingTimer()
+ *   cancelDisconnectTimer()
+ *
  * High-level properties:
- *   XXX Need to include properties here
+ *   binaryMode
+ *   delimiter
+ *   inputSegmentSize
+ *   outputSegmentSize
+ *   proxyFlags
+ *   connectTimeout (default is no timeout)
+ *   readWriteTimeout (default is no timeout)
+ *   isConnected
  *
  * Users should "subclass" this object, i.e. set their .__proto__ to be it. And
  * then implement:
@@ -31,11 +44,27 @@
  *   onConnectionReset()
  *   onBadCertificate(AString aNSSErrorMessage)
  *   onConnectionClosed()
- *   onDataReceived(data)
- *   onBinaryDataReceived(ArrayBuffer data, int length)
- *   onTransportStatus(nsISocketTransport transport, nsresult status,
- *                     unsigned long progress, unsigned longprogressMax)
- *   log(message)
+ *   onDataReceived(String <data>)
+ *   <length handled> = onBinaryDataReceived(ArrayBuffer <data>)
+ *   onTransportStatus(nsISocketTransport <transport>, nsresult <status>,
+ *                     unsigned long <progress>, unsigned long <progress max>)
+ *   sendPing()
+ *   LOG(<message>)
+ *   DEBUG(<message>)
+ *
+ * Optional features:
+ *   The ping functionality: Included in the socket object is a higher level
+ *   "ping" messaging system, which is commonly used in instant messaging
+ *   protocols. The ping functionality works by calling a user defined method,
+ *   sendPing(), if resetPingTimeout() is not called after two minutes. If no
+ *   ping response is received after 30 seconds, the socket will disconnect.
+ *   Thus, a socket using this functionality should:
+ *     1. Implement sendPing() to send an appropriate ping message for the
+ *        protocol.
+ *     2. Call resetPingTimeout() to start the ping messages.
+ *     3. Call resetPingTimeout() each time a message is received (i.e. the
+ *        socket is known to still be alive).
+ *     4. Call cancelDisconnectTimer() when a ping response is received.
  */
 
 /*
@@ -49,6 +78,7 @@ const EXPORTED_SYMBOLS = ["Socket"];
 
 const {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
 Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource:///modules/imXPCOMUtils.jsm");
 
 // Network errors see: xpcom/base/nsError.h
 const NS_ERROR_MODULE_NETWORK = 2152398848;
@@ -111,7 +141,7 @@ const Socket = {
     if (Services.io.offline)
       throw Cr.NS_ERROR_FAILURE;
 
-    this.log("Connecting to: " + aHost + ":" + aPort);
+    this.LOG("Connecting to: " + aHost + ":" + aPort);
     this.host = aHost;
     this.port = aPort;
 
@@ -144,7 +174,7 @@ const Socket = {
 
   // Disconnect all open streams.
   disconnect: function() {
-    this.log("Disconnect");
+    this.LOG("Disconnect");
 
     // Close all input and output streams.
     if ("_inputStream" in this) {
@@ -165,12 +195,18 @@ const Socket = {
         this._proxyCancel.cancel(Cr.NS_ERROR_ABORT); // Has to give a failure code
       delete this._proxyCancel;
     }
+
+    if (this._pingTimer) {
+      clearTimeout(this._pingTimer);
+      delete this._pingTimer;
+    }
+    this.cancelDisconnectTimer();
   },
 
   // Listen for a connection on a port.
   // XXX take a timeout and then call stopListening
   listen: function(port) {
-    this.log("Listening on port " + port);
+    this.LOG("Listening on port " + port);
 
     this.serverSocket = new ServerSocket(port, false, -1);
     this.serverSocket.asyncListen(this);
@@ -178,7 +214,7 @@ const Socket = {
 
   // Stop listening for a connection.
   stopListening: function() {
-    this.log("Stop listening");
+    this.LOG("Stop listening");
     // Close the socket to stop listening.
     if ("serverSocket" in this)
       this.serverSocket.close();
@@ -187,11 +223,10 @@ const Socket = {
   // Send data on the output stream. Provide aLoggedData to log something
   // different than what is actually sent.
   sendData: function(/* string */ aData, aLoggedData) {
-    this.log("Sending:\n" + (aLoggedData || aData));
+    this.LOG("Sending:\n" + (aLoggedData || aData));
 
     try {
-      this._outputStream.write(aData + this.delimiter,
-                               aData.length + this.delimiter.length);
+      this._outputStream.write(aData, aData.length);
     } catch(e) {
       Cu.reportError(e);
     }
@@ -200,12 +235,12 @@ const Socket = {
   // Send a string to the output stream after converting the encoding. Provide
   // aLoggedData to log something different than what is actually sent.
   sendString: function(aString, aEncoding, aLoggedData) {
-    this.log("Sending:\n" + (aLoggedData || aString));
+    this.LOG("Sending:\n" + (aLoggedData || aString));
 
     let converter = new ScriptableUnicodeConverter();
     converter.charset = aEncoding || "UTF-8";
     try {
-      let stream = converter.convertToInputStream(aString + this.delimiter);
+      let stream = converter.convertToInputStream(aString);
       this._outputStream.writeFrom(stream, stream.available());
     } catch(e) {
       Cu.reportError(e);
@@ -213,7 +248,7 @@ const Socket = {
   },
 
   sendBinaryData: function(/* ArrayBuffer */ aData) {
-    this.log("Sending binary data data: <" + aData + ">");
+    this.LOG("Sending binary data data: <" + aData + ">");
 
     let uint8 = Uint8Array(aData);
 
@@ -235,6 +270,25 @@ const Socket = {
     this.transport.securityInfo.QueryInterface(Ci.nsISSLSocketControl).StartTLS();
   },
 
+  // If using the ping functionality, this should be called whenever a message is
+  // received (e.g. when it is known the socket is still open). Calling this for
+  // the first time enables the ping functionality.
+  resetPingTimer: function() {
+    if (this._pingTimer)
+      clearTimeout(this._pingTimer);
+    // Send a ping every 2 minutes if there's no traffic on the socket.
+    this._pingTimer = setTimeout(this._sendPing.bind(this), 120000);
+  },
+
+  // If using the ping functionality, this should be called when a ping receives
+  // a response.
+  cancelDisconnectTimer: function() {
+    if (!this._disconnectTimer)
+      return;
+    clearTimeout(this._disconnectTimer);
+    delete this._disconnectTimer;
+  },
+
   /*
    *****************************************************************************
    ***************************** Interface methods *****************************
@@ -245,17 +299,17 @@ const Socket = {
    */
   onProxyAvailable: function(aRequest, aURI, aProxyInfo, aStatus) {
     if (!("_proxyCancel" in this)) {
-      this.log("onProxyAvailable called, but disconnect() was called before.");
+      this.LOG("onProxyAvailable called, but disconnect() was called before.");
       return;
     }
 
     if (aProxyInfo) {
       if (aProxyInfo.type == "http") {
-        this.log("ignoring http proxy");
+        this.LOG("ignoring http proxy");
         aProxyInfo = null;
       }
       else {
-        this.log("using " + aProxyInfo.type + " proxy: " +
+        this.LOG("using " + aProxyInfo.type + " proxy: " +
                  aProxyInfo.host + ":" + aProxyInfo.port);
       }
     }
@@ -268,7 +322,7 @@ const Socket = {
    */
   // Called after a client connection is accepted when we're listening for one.
   onSocketAccepted: function(aServerSocket, aTransport) {
-    this.log("onSocketAccepted");
+    this.LOG("onSocketAccepted");
     // Store the values
     this.transport = aTransport;
     this.host = this.transport.host;
@@ -284,7 +338,7 @@ const Socket = {
   // Called when the listening socket stops for some reason.
   // The server socket is effectively dead after this notification.
   onStopListening: function(aSocket, aStatus) {
-    this.log("onStopListening");
+    this.LOG("onStopListening");
     if ("serverSocket" in this)
       delete this.serverSocket;
   },
@@ -302,7 +356,7 @@ const Socket = {
                                                  .readByteArray(aCount));
 
       let size = this.inputSegmentSize || this._incomingDataBuffer.length;
-      this.log(size + " " + this._incomingDataBuffer.length);
+      this.LOG(size + " " + this._incomingDataBuffer.length);
       while (this._incomingDataBuffer.length >= size) {
         let buffer = new ArrayBuffer(size);
 
@@ -338,11 +392,11 @@ const Socket = {
    */
   // Signifies the beginning of an async request
   onStartRequest: function(aRequest, aContext) {
-    this.log("onStartRequest");
+    this.DEBUG("onStartRequest");
   },
   // Called to signify the end of an asynchronous request.
   onStopRequest: function(aRequest, aContext, aStatus) {
-    this.log("onStopRequest (" + aStatus + ")");
+    this.DEBUG("onStopRequest (" + aStatus + ")");
     delete this.isConnected;
     if (aStatus == NS_ERROR_NET_RESET)
       this.onConnectionReset();
@@ -386,7 +440,7 @@ const Socket = {
          0x804b0006: "STATUS_RECEIVING_FROM"
     };
     let status = nsITransportEventSinkStatus[aStatus];
-    this.log("onTransportStatus(" + (status || ("0x" + aStatus.toString(16))) +")");
+    this.DEBUG("onTransportStatus(" + (status || ("0x" + aStatus.toString(16))) +")");
 
     if (status == "STATUS_CONNECTED_TO") {
       this.isConnected = true;
@@ -472,12 +526,22 @@ const Socket = {
     this.pump.asyncRead(this, this);
   },
 
+  _pingTimer: null,
+  _disconnectTimer: null,
+  _sendPing: function() {
+    delete this._pingTimer;
+    this.sendPing();
+    this._disconnectTimer = setTimeout(this.onConnectionTimedOut.bind(this),
+                                       30000);
+  },
+
   /*
    *****************************************************************************
    ********************* Methods for subtypes to override **********************
    *****************************************************************************
    */
-  log: function(aString) { },
+  LOG: function(aString) { },
+  DEBUG: function(aString) { },
   // Called when a connection is established.
   onConnection: function() { },
   // Called when a socket is accepted after listening.
@@ -496,6 +560,10 @@ const Socket = {
 
   // Called when binary data is available.
   onBinaryDataReceived: function(/* ArrayBuffer */ aData) { },
+
+  // If using the ping functionality, this is called when a new ping message
+  // should be sent on the socket.
+  sendPing: function() { },
 
   /* QueryInterface and nsIInterfaceRequestor implementations */
   _interfaces: [Ci.nsIServerSocketListener, Ci.nsIStreamListener,

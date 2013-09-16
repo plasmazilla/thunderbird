@@ -163,7 +163,7 @@ function wait_to_be_offline(w) {
 function remove_email_account(aAddress) {
   for each (let account in fixIterator(MailServices.accounts.accounts,
                                        Ci.nsIMsgAccount)) {
-    if (account.defaultIdentity.email == aAddress) {
+    if (account.defaultIdentity && account.defaultIdentity.email == aAddress) {
       MailServices.accounts.removeAccount(account);
       break;
     }
@@ -197,7 +197,7 @@ var gConsoleListener = {
     if (!this._msg)
       return;
 
-    this._sawMsg |= (aMsg.message.indexOf(this._msg) != -1);
+    this._sawMsg |= (aMsg.message.contains(this._msg));
   },
 
   listenFor: function(aMsg) {

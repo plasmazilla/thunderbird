@@ -15,7 +15,6 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 load("../../../resources/alertTestUtils.js");
 
@@ -24,7 +23,6 @@ var server;
 var daemon;
 var incomingServer;
 var attempt = 0;
-var loginMgr = Cc["@mozilla.org/login-manager;1"].getService(Ci.nsILoginManager);
 var count = {};
 var logins;
 
@@ -78,7 +76,7 @@ function promptPasswordPS(aParent, aDialogTitle, aText, aPassword, aCheckMsg,
 }
 
 function getPopMail() {
-  MailServices.pop3.GetNewMail(gDummyMsgWindow, urlListener, gLocalInboxFolder,
+  MailServices.pop3.GetNewMail(gDummyMsgWindow, urlListener, localAccountUtils.inboxFolder,
                                incomingServer);
 }
 
@@ -89,7 +87,7 @@ var urlListener =
   OnStopRunningUrl: function (url, result) {
     try {
       // On the last attempt, we should have successfully got one mail.
-      do_check_eq(gLocalInboxFolder.getTotalMessages(false),
+      do_check_eq(localAccountUtils.inboxFolder.getTotalMessages(false),
                   attempt == 4 ? 1 : 0);
 
       // If we've just cancelled, expect failure rather than success
@@ -136,8 +134,8 @@ function getMail1() {
 
   // Check that we haven't forgetton the login even though we've retried and
   // canceled.
-  logins = loginMgr.findLogins(count, "mailbox://localhost", null,
-                                   "mailbox://localhost");
+  logins = Services.logins.findLogins(count, "mailbox://localhost", null,
+                                      "mailbox://localhost");
 
   do_check_eq(count.value, 1);
   do_check_eq(logins[0].username, kUserName);
@@ -158,8 +156,8 @@ function getMail2() {
 
 function endTest() {
   // Now check the new one has been saved.
-  logins = loginMgr.findLogins(count, "mailbox://localhost", null,
-                               "mailbox://localhost");
+  logins = Services.logins.findLogins(count, "mailbox://localhost", null,
+                                      "mailbox://localhost");
 
   do_check_eq(count.value, 1);
   do_check_eq(logins[0].username, kUserName);
@@ -180,7 +178,7 @@ function run_test()
   let signons = do_get_file("../../../data/signons-mailnews1.8.txt");
 
   // Copy the file to the profile directory for a PAB
-  signons.copyTo(gProfileDir, "signons.txt");
+  signons.copyTo(do_get_profile(), "signons.txt");
 
   registerAlertTestUtils();
 
@@ -201,7 +199,7 @@ function run_test()
   // We would use createPop3ServerAndLocalFolders() however we want to have
   // a different username and NO password for this test (as we expect to load
   // it from signons.txt).
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
   incomingServer = MailServices.accounts
                     .createIncomingServer(kUserName, "localhost", "pop3");
@@ -209,7 +207,7 @@ function run_test()
 
   // Check that we haven't got any messages in the folder, if we have its a test
   // setup issue.
-  do_check_eq(gLocalInboxFolder.getTotalMessages(false), 0);
+  do_check_eq(localAccountUtils.inboxFolder.getTotalMessages(false), 0);
 
   actually_run_test();
 }

@@ -6,6 +6,7 @@
 /* This is where functions related to the standalone message window are kept */
 
 Components.utils.import("resource:///modules/jsTreeSelection.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource:///modules/MsgHdrSyntheticView.js");
 
@@ -257,10 +258,11 @@ StandaloneMessageDisplayWidget.prototype = {
   onMessagesRemoved:
       function StandaloneMessageDisplayWidget_onMessagesRemoved() {
     if (this.folderDisplay.treeSelection.count == 0 &&
-        pref.getBoolPref("mail.close_message_window.on_delete")) {
+        Services.prefs.getBoolPref("mail.close_message_window.on_delete")) {
       window.close();
       return true;
     }
+    return false;
   },
 };
 
@@ -311,8 +313,7 @@ var messagepaneObserver = {
 function UpdateStatusMessageCounts()
 {
   // hook for extra toolbar items
-  var observerService = Components.classes["@mozilla.org/observer-service;1"].getService(Components.interfaces.nsIObserverService);
-  observerService.notifyObservers(window, "mail:updateStandAloneMessageCounts", "");
+  Services.obs.notifyObservers(window, "mail:updateStandAloneMessageCounts", "");
 }
 
 // we won't show the window until the onload() handler is finished
@@ -357,6 +358,8 @@ function delayedOnLoadMessageWindow()
     onEndHeaders: function() {
       if (gMessageDisplay.isDummy)
         gMessageDisplay.onDisplayingMessage(messageHeaderSink.dummyMsgHeader);
+      if (!FeedMessageHandler.shouldShowSummary(gMessageDisplay.displayedMessage, false))
+        FeedMessageHandler.setContent(gMessageDisplay.displayedMessage, false);
       UpdateMailToolbar(".eml/message from attachment finished loading");
     },
     onEndAttachments: function () {},
@@ -760,7 +763,7 @@ function ReloadMessage()
 // MessageWindowController object (handles commands when one of the trees does not have focus)
 var MessageWindowController =
 {
-   supportsCommand: function(command)
+  supportsCommand: function(command)
   {
     switch ( command )
     {
@@ -825,7 +828,6 @@ var MessageWindowController =
       case "button_goForward":
       case "button_goBack":
         return gFolderDisplay.selectedMessage != null;
-
       case "cmd_reply":
       case "button_reply":
       case "cmd_replySender":
@@ -865,6 +867,7 @@ var MessageWindowController =
       case "cmd_viewAllHeader":
       case "cmd_viewNormalHeader":
       case "cmd_stop":
+      case "cmd_chat":
         return true;
       case "cmd_synchronizeOffline":
       case "cmd_downloadFlagged":
@@ -1011,10 +1014,10 @@ var MessageWindowController =
         return SetupUndoRedoCommand(command);
       case "cmd_moveToFolderAgain":
         loadedFolder = gFolderDisplay.displayedFolder;
-        if (!loadedFolder || (pref.getBoolPref("mail.last_msg_movecopy_was_move") &&
+        if (!loadedFolder || (Services.prefs.getBoolPref("mail.last_msg_movecopy_was_move") &&
             !loadedFolder.canDeleteMessages))
           return false;
-        let targetURI = pref.getCharPref("mail.last_msg_movecopy_target_uri");
+        let targetURI = Services.prefs.getCharPref("mail.last_msg_movecopy_target_uri");
         if (!targetURI)
           return false;
         let targetFolder = MailUtils.getFolderForURI(targetURI);
@@ -1024,6 +1027,8 @@ var MessageWindowController =
       case "cmd_runJunkControls":
       case "cmd_deleteJunk":
         return false;
+      case "cmd_chat":
+        return true;
       default:
         return false;
     }
@@ -1085,8 +1090,8 @@ var MessageWindowController =
         MsgEditMessageAsNew();
         break;
       case "cmd_moveToFolderAgain":
-        var folderId = pref.getCharPref("mail.last_msg_movecopy_target_uri");
-        if (pref.getBoolPref("mail.last_msg_movecopy_was_move"))
+        var folderId = Services.prefs.getCharPref("mail.last_msg_movecopy_target_uri");
+        if (Services.prefs.getBoolPref("mail.last_msg_movecopy_was_move"))
           MsgMoveMessage(GetMsgFolderFromUri(folderId));
         else
           MsgCopyMessage(GetMsgFolderFromUri(folderId));
@@ -1263,6 +1268,18 @@ var MessageWindowController =
         break;
       case "cmd_stop":
         msgWindow.StopUrls();
+        break;
+      case "cmd_chat":
+        let win = Services.wm.getMostRecentWindow("mail:3pane");
+        if (win) {
+          win.focus();
+          win.showChatTab();
+        }
+        else {
+          window.openDialog("chrome://messenger/content/", "_blank",
+                            "chrome,extrachrome,menubar,resizable,scrollbars,status,toolbar",
+                            null, {tabType: "chat", tabParams: {}});
+        }
         break;
       }
   },

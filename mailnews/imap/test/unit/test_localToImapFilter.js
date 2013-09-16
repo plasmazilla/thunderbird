@@ -8,19 +8,16 @@
  */
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 load("../../../resources/POP3pump.js");
-load("../../../resources/IMAPpump.js");
 Components.utils.import("resource:///modules/folderUtils.jsm");
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
 
 var gIMAPTrashFolder;
 var gEmptyLocal1, gEmptyLocal2;
 var gLastKey;
 var gMessages = Cc["@mozilla.org/array;1"].createInstance(Ci.nsIMutableArray);
-var gCopyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
-                .getService(Ci.nsIMsgCopyService);
 const gFiles = ["../../../data/bugmail1",
                 "../../../data/draft1"];
 
@@ -31,7 +28,7 @@ var tests = [
     let folders = new Array;
     folders.push(gEmptyLocal1.QueryInterface(Ci.nsIMsgFolder));
     let array = toXPCOMArray(folders, Ci.nsIMutableArray);
-    gCopyService.CopyFolders(array, gIMAPInbox, false, CopyListener, null);
+    MailServices.copy.CopyFolders(array, IMAPPump.inbox, false, CopyListener, null);
     yield false;
   },
   function copyFolder2() {
@@ -39,7 +36,7 @@ var tests = [
     let folders = new Array;
     folders.push(gEmptyLocal2);
     let array = toXPCOMArray(folders, Ci.nsIMutableArray);
-    gCopyService.CopyFolders(array, gIMAPInbox, false, CopyListener, null);
+    MailServices.copy.CopyFolders(array, IMAPPump.inbox, false, CopyListener, null);
     yield false;
   },
   function getLocalMessages() {
@@ -51,11 +48,11 @@ var tests = [
     filter.appendTerm(searchTerm);
     let copyAction = filter.createAction();
     copyAction.type = Ci.nsMsgFilterAction.CopyToFolder;
-    copyAction.targetFolderUri = gIMAPInbox.getChildNamed("empty 1").URI;
+    copyAction.targetFolderUri = IMAPPump.inbox.getChildNamed("empty 1").URI;
     filter.appendAction(copyAction);
     let moveAction = filter.createAction();
     moveAction.type = Ci.nsMsgFilterAction.MoveToFolder;
-    moveAction.targetFolderUri = gIMAPInbox.getChildNamed("empty 2").URI;
+    moveAction.targetFolderUri = IMAPPump.inbox.getChildNamed("empty 2").URI;
     filter.appendAction(moveAction);
     filter.enabled = true;
     filterList.insertFilterAt(0, filter);
@@ -66,21 +63,21 @@ var tests = [
     yield false;
   },
   function update1() {
-    let folder1 = gIMAPInbox.getChildNamed("empty 1").QueryInterface(Ci.nsIMsgImapMailFolder);
+    let folder1 = IMAPPump.inbox.getChildNamed("empty 1").QueryInterface(Ci.nsIMsgImapMailFolder);
     folder1.updateFolderWithListener(null, asyncUrlListener);
     yield false;
   },
   function update2() {
-    let folder2 = gIMAPInbox.getChildNamed("empty 2").QueryInterface(Ci.nsIMsgImapMailFolder);
+    let folder2 = IMAPPump.inbox.getChildNamed("empty 2").QueryInterface(Ci.nsIMsgImapMailFolder);
     folder2.updateFolderWithListener(null, asyncUrlListener);
     yield false;
   },
   function verifyFolders() {
-    let folder1 = gIMAPInbox.getChildNamed("empty 1");
+    let folder1 = IMAPPump.inbox.getChildNamed("empty 1");
     listMessages(folder1);
-    let folder2 = gIMAPInbox.getChildNamed("empty 2");
+    let folder2 = IMAPPump.inbox.getChildNamed("empty 2");
     listMessages(folder2);
-    listMessages(gLocalInboxFolder);
+    listMessages(localAccountUtils.inboxFolder);
     do_check_neq(folder1, null);
     do_check_neq(folder2, null);
     // folder 1 and 2 should each now have 2 messages in them.
@@ -88,7 +85,7 @@ var tests = [
     do_check_eq(folderCount(folder2), 2);
     // the local inbox folder should now be empty, since the second
     // operation was a move
-    do_check_eq(folderCount(gLocalInboxFolder), 0);
+    do_check_eq(folderCount(localAccountUtils.inboxFolder), 0);
   },
   teardown
 ];
@@ -107,15 +104,17 @@ function folderCount(folder)
 
 function setup() {
   setupIMAPPump(); 
-  gEmptyLocal1 = gLocalIncomingServer.rootFolder.createLocalSubfolder("empty 1");
-  gEmptyLocal2 = gLocalIncomingServer.rootFolder.createLocalSubfolder("empty 2");
+  gEmptyLocal1 = localAccountUtils.incomingServer
+                                  .rootFolder.createLocalSubfolder("empty 1");
+  gEmptyLocal2 = localAccountUtils.incomingServer
+                                  .rootFolder.createLocalSubfolder("empty 2");
 
   // these hacks are required because we've created the inbox before
   // running initial folder discovery, and adding the folder bails
   // out before we set it as verified online, so we bail out, and
   // then remove the INBOX folder since it's not verified.
-  gIMAPInbox.hierarchyDelimiter = '/';
-  gIMAPInbox.verifiedAsOnlineFolder = true;
+  IMAPPump.inbox.hierarchyDelimiter = '/';
+  IMAPPump.inbox.verifiedAsOnlineFolder = true;
 }
 
 // nsIMsgCopyServiceListener implementation - runs next test when copy

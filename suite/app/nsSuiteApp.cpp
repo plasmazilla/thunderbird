@@ -47,10 +47,21 @@ static void Output(const char *fmt, ... )
   va_list ap;
   va_start(ap, fmt);
 
-#if defined(XP_WIN) && !MOZ_WINCONSOLE
-  PRUnichar msg[2048];
-  _vsnwprintf(msg, sizeof(msg)/sizeof(msg[0]), NS_ConvertUTF8toUTF16(fmt).get(), ap);
-  MessageBoxW(NULL, msg, L"XULRunner", MB_OK | MB_ICONERROR);
+#ifdef XP_WIN
+  char msg[2048];
+
+  vsnprintf_s(msg, _countof(msg), _TRUNCATE, fmt, ap);
+
+  wchar_t wide_msg[2048];
+  MultiByteToWideChar(CP_UTF8, 0, msg, -1, wide_msg, _countof(wide_msg));
+
+#if MOZ_WINCONSOLE
+  fwprintf_s(stderr, wide_msg);
+#else
+  MessageBoxW(NULL, wide_msg, L"XULRunner", MB_OK
+                                          | MB_ICONERROR
+                                          | MB_SETFOREGROUND);
+#endif
 #else
   vfprintf(stderr, fmt, ap);
 #endif
@@ -178,23 +189,23 @@ static int do_main(const char *exePath, int argc, char* argv[])
 int main(int argc, char* argv[])
 {
   char exePath[MAXPATHLEN];
-  
+
 #ifdef XP_MACOSX
   TriggerQuirks();
 #endif
-  
+
   nsresult rv = mozilla::BinaryPath::Get(argv[0], exePath);
   if (NS_FAILED(rv)) {
     Output("Couldn't calculate the application directory.\n");
     return 255;
   }
-  
+
   char *lastSlash = strrchr(exePath, XPCOM_FILE_PATH_SEPARATOR[0]);
-  if (!lastSlash || (lastSlash - exePath > MAXPATHLEN - sizeof(XPCOM_DLL) - 1))
+  if (!lastSlash || (size_t(lastSlash - exePath) > MAXPATHLEN - sizeof(XPCOM_DLL) - 1))
     return 255;
-  
+
   strcpy(++lastSlash, XPCOM_DLL);
-  
+
   int gotCounters;
 #if defined(XP_UNIX)
   struct rusage initialRUsage;
@@ -261,6 +272,5 @@ int main(int argc, char* argv[])
     result = do_main(exePath, argc, argv);
   }
   
-  XPCOMGlueShutdown();
   return result;
 }

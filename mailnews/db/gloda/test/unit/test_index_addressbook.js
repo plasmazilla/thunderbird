@@ -4,6 +4,8 @@
 
 load("resources/glodaTestHelper.js");
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 var gInbox;
 
 function add_card(aEmailAddress, aDisplayName) {
@@ -16,9 +18,7 @@ function add_card(aEmailAddress, aDisplayName) {
 }
 
 function get_card_for_email(aEmailAddress) {
-  var books = Cc["@mozilla.org/abmanager;1"]
-                .getService(Ci.nsIAbManager)
-                .directories;
+  let books = MailServices.ab.directories;
 
   let book, card;
 
@@ -39,10 +39,8 @@ function delete_card(aEmailAddress) {
                     .createInstance(Ci.nsIMutableArray);
   cardArray.appendElement(card, false);
 
-  Cc["@mozilla.org/abmanager;1"]
-    .getService(Components.interfaces.nsIAbManager)
-    .getDirectory(book.URI)
-    .deleteCards(cardArray);
+  MailServices.ab.getDirectory(book.URI)
+              .deleteCards(cardArray);
 }
 
 function get_cached_gloda_identity_for_email(aEmailAddress) {
@@ -50,7 +48,7 @@ function get_cached_gloda_identity_for_email(aEmailAddress) {
     Gloda.NOUN_IDENTITY, "email@" + aEmailAddress.toLowerCase());
 }
 
-const EMAIL_ADDRESS = "all.over@the.world";
+const EMAIL_ADDRESS = "all.over@the.world.invalid";
 const DISPLAY_NAME = "every day";
 
 let identityCollection;

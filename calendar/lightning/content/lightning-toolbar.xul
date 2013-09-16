@@ -10,9 +10,7 @@
   <!ENTITY % lightningDTD SYSTEM "chrome://lightning/locale/lightning.dtd"> %lightningDTD;
   <!ENTITY % calendarDTD SYSTEM "chrome://calendar/locale/calendar.dtd" > %calendarDTD;
   <!ENTITY % toolbarDTD SYSTEM "chrome://lightning/locale/lightning-toolbar.dtd" > %toolbarDTD;
-  <!-- This two entities are to not break SM -->
-  <!ENTITY appmenuButton.label "AppMenu">
-  <!ENTITY appmenuButton.tooltip "Displays the Application Menu">
+  <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd" > %brandDTD;
 ]>
 
 <?xml-stylesheet href="chrome://lightning/skin/lightning.css" type="text/css"?>
@@ -20,13 +18,17 @@
 
 <overlay id="ltnToolbarOverlay" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
   <popupset id="calendar-popupset">
-    <menupopup id="calendar-toolbar-context">
+    <menupopup id="calendar-toolbar-context"
+               onpopupshowing="onViewToolbarsPopupShowing(event, ['calendar-toolbox', 'navigation-toolbox']);">
+      <menuseparator id="customizeCalendarToolbarMenuSeparator"/>
       <menuitem id="CustomizeCalendarToolbar"
                 label="&calendar.menu.customize.label;"
                 accesskey="&calendar.menu.customize.accesskey;"
                 oncommand="CustomizeMailToolbar('calendar-toolbox', 'CustomizeCalendarToolbar')"/>
     </menupopup>
-    <menupopup id="task-toolbar-context">
+    <menupopup id="task-toolbar-context"
+               onpopupshowing="onViewToolbarsPopupShowing(event, ['task-toolbox', 'navigation-toolbox']);">
+      <menuseparator id="customizeTaskToolbarMenuSeparator"/>
       <menuitem id="CustomizeTaskToolbar"
                 label="&calendar.menu.customize.label;"
                 accesskey="&calendar.menu.customize.accesskey;"
@@ -114,8 +116,8 @@
                      observes="calendar_show_unifinder_command"/>
       <toolbarbutton id="calendar-appmenu-button"
                      class="toolbarbutton-1 button-appmenu"
-                     label="&appmenuButton.label;"
-                     tooltiptext="&appmenuButton.tooltip;"/>
+                     label="&lightning.toolbar.appmenuButton.label;"
+                     tooltiptext="&lightning.toolbar.appmenuButton1.tooltip;"/>
     </toolbarpalette>
 
     <toolbar id="calendar-toolbar2" class="inline-toolbar chromeclass-toolbar"
@@ -168,8 +170,8 @@
                      observes="cmd_print"/>
       <toolbarbutton id="task-appmenu-button"
                      class="toolbarbutton-1 button-appmenu"
-                     label="&appmenuButton.label;"
-                     tooltiptext="&appmenuButton.tooltip;"/>
+                     label="&lightning.toolbar.appmenuButton.label;"
+                     tooltiptext="&lightning.toolbar.appmenuButton1.tooltip;"/>
     </toolbarpalette>
 
     <toolbar id="task-toolbar2" class="inline-toolbar chromeclass-toolbar"

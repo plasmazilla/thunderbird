@@ -6,13 +6,12 @@
 #ifndef _MIMEMOZ_H_
 #define _MIMEMOZ_H_
 
-#include "prtypes.h"
 #include "nsStreamConverter.h"
 #include "nsIMimeEmitter.h"
 #include "nsIURI.h"
 #include "mozITXTToHTMLConv.h"
 #include "nsIMsgSend.h"
-#include "nsIMimeConverter.h"
+#include "modmimee.h"
 #include "nsMsgAttachmentData.h"
 
 // SHERRY - Need to get these out of here eventually

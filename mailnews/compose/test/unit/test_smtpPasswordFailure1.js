@@ -10,6 +10,8 @@
  * multiple sends, the rest of this test is in test_smtpPasswordFailure2.js.
  */
 
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 load("../../../resources/alertTestUtils.js");
@@ -17,8 +19,8 @@ load("../../../resources/alertTestUtils.js");
 var server;
 var attempt = 0;
 
-const kSender = "from@invalid.com";
-const kTo = "to@invalid.com";
+const kSender = "from@foo.invalid";
+const kTo = "to@foo.invalid";
 const kUsername = "testsmtp";
 // This is the same as in the signons file.
 const kInvalidPassword = "smtptest";
@@ -66,7 +68,7 @@ function run_test() {
   var signons = do_get_file("../../../data/signons-mailnews1.8.txt");
 
   // Copy the file to the profile directory for a PAB
-  signons.copyTo(gProfileDir, "signons.txt");
+  signons.copyTo(do_get_profile(), "signons.txt");
 
   registerAlertTestUtils();
 
@@ -74,13 +76,10 @@ function run_test() {
   var testFile = do_get_file("data/message1.eml");
 
   // Ensure we have at least one mail account
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
   var smtpServer = getBasicSmtpServer();
   var identity = getSmtpIdentity(kSender, smtpServer);
-
-  var smtpService = Cc["@mozilla.org/messengercompose/smtp;1"]
-                      .getService(Ci.nsISmtpService);
 
   // Handle the server in a try/catch/finally loop so that we always will stop
   // the server if something fails.
@@ -97,9 +96,9 @@ function run_test() {
 
     dump("Send\n");
 
-    smtpService.sendMailMessage(testFile, kTo, identity,
-                                null, null, null, null,
-                                false, {}, {});
+    MailServices.smtp.sendMailMessage(testFile, kTo, identity,
+                                      null, null, null, null,
+                                      false, {}, {});
 
     server.performTest();
 
@@ -109,10 +108,9 @@ function run_test() {
 
     // Check that we haven't forgetton the login even though we've retried and
     // canceled.
-    let loginMgr = Cc["@mozilla.org/login-manager;1"].getService(Ci.nsILoginManager);
-
     let count = {};
-    let logins = loginMgr.findLogins(count, "smtp://localhost", null,
+    let logins = Services.logins
+                         .findLogins(count, "smtp://localhost", null,
                                      "smtp://localhost");
 
     do_check_eq(count.value, 1);

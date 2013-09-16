@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/mailViewManager.js");
 
 // these constants are now authoritatively defined in mailViewManager.js (above)
@@ -123,17 +124,16 @@ var ViewPickerBinding = {
       let value = this.currentViewValue;
 
       let viewPickerPopup = document.getElementById("viewPickerPopup");
-      let selectedItems =
-        viewPickerPopup.getElementsByAttribute("value", value);
-      if (!selectedItems || !selectedItems.length)
+      let selectedItem =
+        viewPickerPopup.querySelector('[value="' + value + '"]');
+      if (!selectedItem)
       {
         // we may have a new item, so refresh to make it show up
         RefreshAllViewPopups(viewPickerPopup, true);
-        selectedItems = viewPickerPopup.getElementsByAttribute("value", value);
+        selectedItem = viewPickerPopup.querySelector('[value="' + value + '"]');
       }
       viewPicker.setAttribute("label",
-                              selectedItems && selectedItems.length &&
-                              selectedItems.item(0).getAttribute("label"));
+                              selectedItem && selectedItem.getAttribute("label"));
     }
   },
 };
@@ -168,14 +168,14 @@ function RefreshViewPopup(aViewPopup)
   // mark default views if selected
   let currentViewValue = ViewPickerBinding.currentViewValue;
 
-  var viewAll = aViewPopup.getElementsByAttribute("value", kViewItemAll)[0];
+  let viewAll = aViewPopup.querySelector('[value="' + kViewItemAll + '"]');
   viewAll.setAttribute("checked", currentViewValue == kViewItemAll);
   let viewUnread =
-    aViewPopup.getElementsByAttribute("value", kViewItemUnread)[0];
+    aViewPopup.querySelector('[value="' + kViewItemUnread + '"]');
   viewUnread.setAttribute("checked", currentViewValue == kViewItemUnread);
 
   let viewNotDeleted =
-    aViewPopup.getElementsByAttribute("value", kViewItemNotDeleted)[0];
+    aViewPopup.querySelector('[value="' + kViewItemNotDeleted + '"]');
   var folderArray = GetSelectedMsgFolders();
   if (folderArray.length == 0)
     return;
@@ -232,21 +232,19 @@ function RefreshTagsPopup(aMenupopup)
     aMenupopup.removeChild(aMenupopup.lastChild);
 
   // create tag menuitems
-  var currentTagKey = gFolderDisplay.view.mailViewIndex == kViewItemTags ?
+  let currentTagKey = gFolderDisplay.view.mailViewIndex == kViewItemTags ?
                         gFolderDisplay.view.mailViewData : "";
-  var tagService = Components.classes["@mozilla.org/messenger/tagservice;1"]
-                             .getService(Components.interfaces.nsIMsgTagService);
-  var tagArray = tagService.getAllTags({});
-  for (var i = 0; i < tagArray.length; ++i)
+  let tagArray = MailServices.tags.getAllTags({});
+  for (let i = 0; i < tagArray.length; ++i)
   {
-    var tagInfo = tagArray[i];
-    var menuitem = document.createElement("menuitem");
+    let tagInfo = tagArray[i];
+    let menuitem = document.createElement("menuitem");
     menuitem.setAttribute("label", tagInfo.tag);
     menuitem.setAttribute("value", kViewTagMarker + tagInfo.key);
     menuitem.setAttribute("type", "radio");
     if (tagInfo.key == currentTagKey)
       menuitem.setAttribute("checked", true);
-    var color = tagInfo.color;
+    let color = tagInfo.color;
     if (color)
       menuitem.setAttribute("class", "lc-" + color.substr(1));
     aMenupopup.appendChild(menuitem);

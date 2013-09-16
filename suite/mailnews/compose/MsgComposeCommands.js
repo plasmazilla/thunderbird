@@ -3,6 +3,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/folderUtils.jsm");
+Components.utils.import("resource:///modules/iteratorUtils.jsm");
+
 /**
  * interfaces
  */
@@ -26,9 +29,6 @@ const mozISpellCheckingEngine = Components.interfaces.mozISpellCheckingEngine;
 var sMsgComposeService = Components.classes["@mozilla.org/messengercompose;1"].getService(Components.interfaces.nsIMsgComposeService);
 var sComposeMsgsBundle;
 var sBrandBundle;
-
-var sPrefs = null;
-var sPrefBranchInternal = null;
 
 var sRDF = null;
 var sNameProperty = null;
@@ -164,6 +164,13 @@ var gComposeRecyclingListener = {
     // We need to clear the identity popup menu in case the user will change them. It will be rebuilded later in ComposeStartup
     ClearIdentityListPopup(document.getElementById("msgIdentityPopup"));
 
+    // Stop InlineSpellCheckerUI so personal dictionary is saved.
+    // We need to do this before disabling the editor.
+    EnableInlineSpellCheck(false);
+    // clear any suggestions in the context menu
+    InlineSpellCheckerUI.clearSuggestionsFromMenu();
+    InlineSpellCheckerUI.clearDictionaryListFromMenu();
+
     //Clear the subject
     GetMsgSubjectElement().value = "";
     SetComposeWindowTitle();
@@ -198,12 +205,6 @@ var gComposeRecyclingListener = {
     if (getMailToolbox().customizing && gCustomizeSheet)
       document.getElementById("customizeToolbarSheetIFrame")
               .contentWindow.finishToolbarCustomization();
-
-    // Stop InlineSpellCheckerUI so personal dictionary is saved
-    EnableInlineSpellCheck(false);
-    // clear any suggestions in the context menu
-    InlineSpellCheckerUI.clearSuggestionsFromMenu();
-    InlineSpellCheckerUI.clearDictionaryListFromMenu();
 
     //Reset editor
     EditorResetFontAndColorAttributes();
@@ -551,14 +552,8 @@ function QuoteSelectedMessage()
 
 function GetSelectedMessages()
 {
-  if (gMsgCompose) {
-    var mailWindow = Services.wm.getMostRecentWindow("mail:3pane");
-    if (mailWindow) {
-      return mailWindow.GetSelectedMessages();
-    }
-  }
-
-  return null;
+  var mailWindow = gMsgCompose && Services.wm.getMostRecentWindow("mail:3pane");
+  return mailWindow && mailWindow.gFolderDisplay.selectedMessageUris;
 }
 
 function SetupCommandUpdateHandlers()
@@ -749,54 +744,52 @@ var directoryServerObserver = {
 
 function AddDirectoryServerObserver(flag) {
   if (flag) {
-    sPrefBranchInternal.addObserver("ldap_2.autoComplete.useDirectory",
-                                    directoryServerObserver, false);
-    sPrefBranchInternal.addObserver("ldap_2.autoComplete.directoryServer",
-                                    directoryServerObserver, false);
+    Services.prefs.addObserver("ldap_2.autoComplete.useDirectory",
+                               directoryServerObserver, false);
+    Services.prefs.addObserver("ldap_2.autoComplete.directoryServer",
+                               directoryServerObserver, false);
   }
   else
   {
     var prefstring = "mail.identity." + gCurrentIdentity.key + ".overrideGlobal_Pref";
-    sPrefBranchInternal.addObserver(prefstring, directoryServerObserver, false);
+    Services.prefs.addObserver(prefstring, directoryServerObserver, false);
     prefstring = "mail.identity." + gCurrentIdentity.key + ".directoryServer";
-    sPrefBranchInternal.addObserver(prefstring, directoryServerObserver, false);
+    Services.prefs.addObserver(prefstring, directoryServerObserver, false);
   }
 }
 
 function RemoveDirectoryServerObserver(prefstring)
 {
   if (!prefstring) {
-    sPrefBranchInternal.removeObserver("ldap_2.autoComplete.useDirectory", directoryServerObserver);
-    sPrefBranchInternal.removeObserver("ldap_2.autoComplete.directoryServer", directoryServerObserver);
+    Services.prefs.removeObserver("ldap_2.autoComplete.useDirectory", directoryServerObserver);
+    Services.prefs.removeObserver("ldap_2.autoComplete.directoryServer", directoryServerObserver);
   }
   else
   {
     var str = prefstring + ".overrideGlobal_Pref";
-    sPrefBranchInternal.removeObserver(str, directoryServerObserver);
+    Services.prefs.removeObserver(str, directoryServerObserver);
     str = prefstring + ".directoryServer";
-    sPrefBranchInternal.removeObserver(str, directoryServerObserver);
+    Services.prefs.removeObserver(str, directoryServerObserver);
   }
 }
 
 function AddDirectorySettingsObserver()
 {
-  sPrefBranchInternal.addObserver(gCurrentAutocompleteDirectory, directoryServerObserver, false);
+  Services.prefs.addObserver(gCurrentAutocompleteDirectory, directoryServerObserver, false);
 }
 
 function RemoveDirectorySettingsObserver(prefstring)
 {
-  sPrefBranchInternal.removeObserver(prefstring, directoryServerObserver);
+  Services.prefs.removeObserver(prefstring, directoryServerObserver);
 }
 
 function setupLdapAutocompleteSession()
 {
-    var autocompleteLdap = false;
     var autocompleteDirectory = null;
     var prevAutocompleteDirectory = gCurrentAutocompleteDirectory;
 
-    autocompleteLdap = sPrefs.getBoolPref("ldap_2.autoComplete.useDirectory");
-    if (autocompleteLdap)
-        autocompleteDirectory = sPrefs.getCharPref(
+    if (Services.prefs.getBoolPref("ldap_2.autoComplete.useDirectory"))
+        autocompleteDirectory = Services.prefs.getCharPref(
             "ldap_2.autoComplete.directoryServer");
 
     if(gCurrentIdentity.overrideGlobalPref) {
@@ -839,7 +832,7 @@ function setupLdapAutocompleteSession()
         // fill in the session params if there is a session
         //
         if (LDAPSession) {
-            let url = sPrefs.getComplexValue(autocompleteDirectory +".uri",
+            let url = Services.prefs.getComplexValue(autocompleteDirectory +".uri",
               Components.interfaces.nsISupportsString).data;
 
             LDAPSession.serverURL =
@@ -849,7 +842,7 @@ function setupLdapAutocompleteSession()
             // get the login to authenticate as, if there is one
             //
             try {
-                LDAPSession.login = sPrefs.getComplexValue(
+                LDAPSession.login = Services.prefs.getComplexValue(
                     autocompleteDirectory + ".auth.dn",
                     Components.interfaces.nsISupportsString).data;
             } catch (ex) {
@@ -857,7 +850,7 @@ function setupLdapAutocompleteSession()
             }
             
             try {
-                LDAPSession.saslMechanism = sPrefs.getComplexValue(
+                LDAPSession.saslMechanism = Services.prefs.getComplexValue(
                     autocompleteDirectory + ".auth.saslmech",
                     Components.interfaces.nsISupportsString).data;
             } catch (ex) {
@@ -867,8 +860,8 @@ function setupLdapAutocompleteSession()
             // set the LDAP protocol version correctly
             var protocolVersion;
             try {
-                protocolVersion = sPrefs.getCharPref(autocompleteDirectory +
-                                                      ".protocolVersion");
+                protocolVersion = Services.prefs.getCharPref(autocompleteDirectory +
+                                                             ".protocolVersion");
             } catch (ex) {
                 // if we don't have this pref, no big deal
             }
@@ -880,7 +873,7 @@ function setupLdapAutocompleteSession()
             // don't search on non-CJK strings shorter than this
             //
             try {
-                LDAPSession.minStringLength = sPrefs.getIntPref(
+                LDAPSession.minStringLength = Services.prefs.getIntPref(
                     autocompleteDirectory + ".autoComplete.minStringLength");
             } catch (ex) {
                 // if this pref isn't there, no big deal.  just let
@@ -890,7 +883,7 @@ function setupLdapAutocompleteSession()
             // don't search on CJK strings shorter than this
             //
             try {
-                LDAPSession.cjkMinStringLength = sPrefs.getIntPref(
+                LDAPSession.cjkMinStringLength = Services.prefs.getIntPref(
                   autocompleteDirectory + ".autoComplete.cjkMinStringLength");
             } catch (ex) {
                 // if this pref isn't there, no big deal.  just let
@@ -908,9 +901,9 @@ function setupLdapAutocompleteSession()
             //
             try {
                 ldapFormatter.nameFormat =
-                    sPrefs.getComplexValue(autocompleteDirectory +
-                                      ".autoComplete.nameFormat",
-                                      Components.interfaces.nsISupportsString).data;
+                    Services.prefs.getComplexValue(autocompleteDirectory +
+                                                   ".autoComplete.nameFormat",
+                                                   Components.interfaces.nsISupportsString).data;
             } catch (ex) {
                 // if this pref isn't there, no big deal.  just let
                 // nsAbLDAPAutoCompFormatter use its default.
@@ -920,9 +913,9 @@ function setupLdapAutocompleteSession()
             //
             try {
                 ldapFormatter.addressFormat =
-                    sPrefs.getComplexValue(autocompleteDirectory +
-                                      ".autoComplete.addressFormat",
-                                      Components.interfaces.nsISupportsString).data;
+                    Services.prefs.getComplexValue(autocompleteDirectory +
+                                                   ".autoComplete.addressFormat",
+                                                   Components.interfaces.nsISupportsString).data;
             } catch (ex) {
                 // if this pref isn't there, no big deal.  just let
                 // nsAbLDAPAutoCompFormatter use its default.
@@ -936,15 +929,13 @@ function setupLdapAutocompleteSession()
                 // 2 = other per-addressbook format
                 //
                 var showComments = 0;
-                showComments = sPrefs.getIntPref(
-                    "mail.autoComplete.commentColumn");
 
-                switch (showComments) {
+                switch (Services.prefs.getIntPref("mail.autoComplete.commentColumn")) {
 
                 case 1:
                     // use the name of this directory
                     //
-                    ldapFormatter.commentFormat = sPrefs.getComplexValue(
+                    ldapFormatter.commentFormat = Services.prefs.getComplexValue(
                                 autocompleteDirectory + ".description",
                                 Components.interfaces.nsISupportsString).data;
                     break;
@@ -954,9 +945,9 @@ function setupLdapAutocompleteSession()
                     //
                     try {
                         ldapFormatter.commentFormat =
-                            sPrefs.getComplexValue(autocompleteDirectory +
-                                        ".autoComplete.commentFormat",
-                                        Components.interfaces.nsISupportsString).data;
+                            Services.prefs.getComplexValue(autocompleteDirectory +
+                                                           ".autoComplete.commentFormat",
+                                                           Components.interfaces.nsISupportsString).data;
                     } catch (innerException) {
                         // if nothing has been specified, use the ldap
                         // organization field
@@ -984,9 +975,9 @@ function setupLdapAutocompleteSession()
             //
             try {
                 LDAPSession.outputFormat =
-                    sPrefs.getComplexValue(autocompleteDirectory +
-                                      ".autoComplete.outputFormat",
-                                      Components.interfaces.nsISupportsString).data;
+                    Services.prefs.getComplexValue(autocompleteDirectory +
+                                                   ".autoComplete.outputFormat",
+                                                   Components.interfaces.nsISupportsString).data;
 
             } catch (ex) {
                 // if this pref isn't there, no big deal.  just let
@@ -996,7 +987,7 @@ function setupLdapAutocompleteSession()
             // override default search filter template?
             //
             try {
-                LDAPSession.filterTemplate = sPrefs.getComplexValue(
+                LDAPSession.filterTemplate = Services.prefs.getComplexValue(
                     autocompleteDirectory + ".autoComplete.filterTemplate",
                     Components.interfaces.nsISupportsString).data;
 
@@ -1012,7 +1003,7 @@ function setupLdapAutocompleteSession()
                 // but there's no UI for that yet
                 //
                 LDAPSession.maxHits =
-                    sPrefs.getIntPref(autocompleteDirectory + ".maxHits");
+                    Services.prefs.getIntPref(autocompleteDirectory + ".maxHits");
             } catch (ex) {
                 // if this pref isn't there, or is out of range, no big deal.
                 // just let nsLDAPAutoCompleteSession use its default.
@@ -1285,9 +1276,9 @@ function ComposeStartup(recycled, aParams)
   if (!params.identity || params.identity.identityName == " <>") {
     // no pre selected identity, so use the default account
     var identities = gAccountManager.defaultAccount.identities;
-    if (identities.Count() == 0)
+    if (identities.length == 0)
       identities = gAccountManager.allIdentities;
-    params.identity = identities.QueryElementAt(0, Components.interfaces.nsIMsgIdentity);
+    params.identity = identities.queryElementAt(0, Components.interfaces.nsIMsgIdentity);
   }
 
   identityList.value = params.identity.key;
@@ -1482,13 +1473,6 @@ function ComposeLoad()
   sComposeMsgsBundle = document.getElementById("bundle_composeMsgs");
   sBrandBundle = document.getElementById("brandBundle");
 
-  // XXX: Get the preferences service. Remove this once LDAP autocomplete has
-  // been moved to toolkit interfaces.
-  sPrefs = Components.classes["@mozilla.org/preferences-service;1"]
-                     .getService(Components.interfaces.nsIPrefService)
-                     .QueryInterface(Components.interfaces.nsIPrefBranch);
-  sPrefBranchInternal = sPrefs;
-
   var otherHeaders = getPref("mail.compose.other.header");
 
   sRDF = Components.classes['@mozilla.org/rdf/rdf-service;1']
@@ -1671,7 +1655,9 @@ function GenericSendMessage( msgType )
       msgCompFields.subject = subject;
       Attachments2CompFields(msgCompFields);
 
-      if (msgType == nsIMsgCompDeliverMode.Now || msgType == nsIMsgCompDeliverMode.Later)
+      if (msgType == nsIMsgCompDeliverMode.Now ||
+          msgType == nsIMsgCompDeliverMode.Later ||
+          msgType == nsIMsgCompDeliverMode.Background)
       {
         //Do we need to check the spelling?
         if (DoSpellCheckBeforeSend())
@@ -1796,6 +1782,7 @@ function GenericSendMessage( msgType )
       // Check if the headers of composing mail can be converted to a mail charset.
       if (msgType == nsIMsgCompDeliverMode.Now ||
         msgType == nsIMsgCompDeliverMode.Later ||
+        msgType == nsIMsgCompDeliverMode.Background ||
         msgType == nsIMsgCompDeliverMode.Save ||
         msgType == nsIMsgCompDeliverMode.SaveAsDraft ||
         msgType == nsIMsgCompDeliverMode.AutoSaveAsDraft ||
@@ -1895,7 +1882,21 @@ function CheckValidEmailAddress(aTo, aCC, aBCC)
 
 function SendMessage()
 {
-  GenericSendMessage(nsIMsgCompDeliverMode.Now);
+  let sendInBackground = Services.prefs.getBoolPref("mailnews.sendInBackground");
+  if (sendInBackground && !/Mac/.test(navigator.platform))
+  {
+    let enumerator = Services.wm.getEnumerator(null);
+    let count = 0;
+    while (enumerator.hasMoreElements() && count < 2)
+    {
+      enumerator.getNext();
+      count++;
+    }
+    if (count == 1)
+      sendInBackground = false;
+  }
+  GenericSendMessage(sendInBackground ? nsIMsgCompDeliverMode.Background
+                                      : nsIMsgCompDeliverMode.Now);
 }
 
 function SendMessageWithCheck()
@@ -1921,8 +1922,10 @@ function SendMessageWithCheck()
         }
     }
 
-  GenericSendMessage(Services.io.offline ? nsIMsgCompDeliverMode.Later
-                                         : nsIMsgCompDeliverMode.Now);
+    if (Services.io.offline)
+      SendMessageLater();
+    else
+      SendMessage();
 }
 
 function SendMessageLater()
@@ -2076,7 +2079,21 @@ function addRecipientsToIgnoreList(aAddressesToAdd)
         tokenizedNames = tokenizedNames.concat(splitNames);
     }
 
-    InlineSpellCheckerUI.mInlineSpellChecker.ignoreWords(tokenizedNames, tokenizedNames.length);
+    if (InlineSpellCheckerUI.mInlineSpellChecker.spellCheckPending)
+    {
+      // spellchecker is enabled, but we must wait for its init to complete
+      Services.obs.addObserver(function observe(subject, topic, data) {
+        if (subject == gMsgCompose.editor)
+        {
+          Services.obs.removeObserver(observe, topic);
+          InlineSpellCheckerUI.mInlineSpellChecker.ignoreWords(tokenizedNames, tokenizedNames.length);
+        }
+      }, "inlineSpellChecker-spellCheck-ended", false);
+    }
+    else
+    {
+      InlineSpellCheckerUI.mInlineSpellChecker.ignoreWords(tokenizedNames, tokenizedNames.length);
+    }
   }
 }
 
@@ -2230,15 +2247,6 @@ function ToggleAttachVCard(target)
   }
 }
 
-function queryISupportsArray(supportsArray, iid) {
-    var result = new Array;
-    let count = supportsArray.Count();
-    for (let i = 0; i < count; i++)
-      result[i] = supportsArray.QueryElementAt(i, iid);
-
-    return result;
-}
-
 function ClearIdentityListPopup(popup)
 {
   if (popup)
@@ -2248,42 +2256,28 @@ function ClearIdentityListPopup(popup)
 
 function FillIdentityList(menulist)
 {
-  var accounts = queryISupportsArray(gAccountManager.accounts,
-                                     Components.interfaces.nsIMsgAccount);
-  // Ugly hack to work around bug 41133. :-(
-  accounts = accounts.filter(function IsNonSuckyAccount(a) {return !!a.incomingServer;});
-  function SortAccounts(a, b)
-  {
-    if (a.key == gAccountManager.defaultAccount.key)
-      return -1;
-    if (b.key == gAccountManager.defaultAccount.key)
-      return 1;
-    var aIsNews = a.incomingServer.type == "nntp";
-    var bIsNews = b.incomingServer.type == "nntp";
-    if (aIsNews && !bIsNews)
-      return 1;
-    if (bIsNews && !aIsNews)
-      return -1;
+  var accounts = allAccountsSorted(true);
 
-    var aIsLocal = a.incomingServer.type == "none";
-    var bIsLocal = b.incomingServer.type == "none";
-    if (aIsLocal && !bIsLocal)
-      return 1;
-    if (bIsLocal && !aIsLocal)
-      return -1;
-    return 0;
-  }
-  accounts.sort(SortAccounts);
-
-  for each (let account in accounts)
+  for (let acc = 0; acc < accounts.length; acc++)
   {
-    let identites = queryISupportsArray(account.identities,
-                                        Components.interfaces.nsIMsgIdentity);
-    for each (let identity in identites)
+    let account = accounts[acc];
+    let identities = toArray(fixIterator(account.identities,
+                                         Components.interfaces.nsIMsgIdentity));
+
+    if (identities.length == 0)
+      continue;
+
+    for (let i = 0; i < identities.length; i++)
     {
+      let identity = identities[i];
       let item = menulist.appendItem(identity.identityName, identity.key,
                                      account.incomingServer.prettyName);
       item.setAttribute("accountkey", account.key);
+      if (i == 0)
+      {
+        // Mark the first identity as default.
+        item.setAttribute("default", "true");
+      }
     }
   }
 }
@@ -2585,7 +2579,7 @@ function MessageGetNumSelectedAttachments()
 
 function AttachPage()
 {
-  var params = { action: "4", url: null };
+  var params = { action: "5", url: null };
   window.openDialog("chrome://communicator/content/openLocation.xul",
                     "_blank", "chrome,close,titlebar,modal", params);
   if (params.url)

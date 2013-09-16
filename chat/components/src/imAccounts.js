@@ -21,10 +21,6 @@ const kPrefAccountFirstConnectionState = "firstConnectionState";
 const kPrefConvertOldPasswords = "messenger.accounts.convertOldPasswords";
 const kPrefAccountPassword = "password";
 
-XPCOMUtils.defineLazyGetter(this, "LoginManager", function()
-  Cc["@mozilla.org/login-manager;1"].getService(Ci.nsILoginManager)
-);
-
 XPCOMUtils.defineLazyGetter(this, "_", function()
   l10nHelper("chrome://chat/locale/accounts.properties")
 );
@@ -104,11 +100,12 @@ UnknownProtocol.prototype = {
 // 2 values should be stored.
 function imAccount(aKey, aName, aPrplId)
 {
-  if (aKey.indexOf(kAccountKeyPrefix) != 0)
+  if (!aKey.startsWith(kAccountKeyPrefix))
     throw Cr.NS_ERROR_INVALID_ARG;
 
   this.id = aKey;
   this.numericId = parseInt(aKey.substr(kAccountKeyPrefix.length));
+  gAccountsService._keepAccount(this);
   this.prefBranch = Services.prefs.getBranch(kPrefAccountPrefix + aKey + ".");
 
   if (aName) {
@@ -203,7 +200,7 @@ imAccount.prototype = {
         if (this.timeOfNextReconnect - Date.now() > 1000) {
           // This is a manual reconnection, reset the auto-reconnect stuff
           this.timeOfLastConnect = 0;
-          this.cancelReconnection();
+          this._cancelReconnection();
         }
       }
       if (this.firstConnectionState != Ci.imIAccount.FIRST_CONNECTION_OK)
@@ -248,11 +245,38 @@ imAccount.prototype = {
         this._sendNotification("account-connect-error");
       }
     }
-    else if (aTopic == "account-disconnected")
+    else if (aTopic == "account-disconnected") {
       this.connectionState = Ci.imIAccount.STATE_DISCONNECTED;
+      if (this._statusObserver &&
+          this.prplAccount.connectionErrorReason == Ci.prplIAccount.NO_ERROR &&
+          this.statusInfo.statusType > Ci.imIStatusInfo.STATUS_OFFLINE) {
+        // If the status changed back to online while an account was still
+        // disconnecting, it was not reconnected automatically at that point,
+        // so we must do it now. (This happens for protocols like IRC where
+        // disconnection is not immediate.)
+        this._sendNotification(aTopic, aData);
+        this.connect();
+        return;
+      }
+    }
     else
       throw Cr.NS_ERROR_UNEXPECTED;
     this._sendNotification(aTopic, aData);
+  },
+
+  _debugMessages: null,
+  logDebugMessage: function(aMessage, aLevel) {
+    if (!this._debugMessages)
+      this._debugMessages = [];
+    if (this._debugMessages.length >= 50)
+      this._debugMessages.shift();
+    this._debugMessages.push({logLevel: aLevel, message: aMessage});
+  },
+  getDebugMessages: function(aCount) {
+    let messages = this._debugMessages || [];
+    if (aCount)
+      aCount.value = messages.length;
+    return messages;
   },
 
   _observedStatusInfo: null,
@@ -402,7 +426,7 @@ imAccount.prototype = {
     let passwordURI = "im://" + this.protocol.id;
     let logins;
     try {
-      logins = LoginManager.findLogins({}, passwordURI, null, passwordURI);
+      logins = Services.logins.findLogins({}, passwordURI, null, passwordURI);
     } catch (e) {
       this._handleMasterPasswordException(e);
       return "";
@@ -443,20 +467,20 @@ imAccount.prototype = {
     newLogin.init(passwordURI, null, passwordURI, this.normalizedName,
                   aPassword, "", "");
     try {
-      let logins = LoginManager.findLogins({}, passwordURI, null, passwordURI);
+      let logins = Services.logins.findLogins({}, passwordURI, null, passwordURI);
       let saved = false;
       for each (let login in logins) {
         if (newLogin.matches(login, true)) {
           if (aPassword)
-            LoginManager.modifyLogin(login, newLogin);
+            Services.logins.modifyLogin(login, newLogin);
           else
-            LoginManager.removeLogin(login);
+            Services.logins.removeLogin(login);
           saved = true;
           break;
         }
       }
       if (!saved && aPassword)
-        LoginManager.addLogin(newLogin);
+        Services.logins.addLogin(newLogin);
     } catch (e) {
       this._handleMasterPasswordException(e);
     }
@@ -524,10 +548,10 @@ imAccount.prototype = {
     // lots of cases this.name is equivalent.
     let name = this.prplAccount ? this.normalizedName : this.name;
     login.init(passwordURI, null, passwordURI, name, "", "", "");
-    let logins = LoginManager.findLogins({}, passwordURI, null, passwordURI);
+    let logins = Services.logins.findLogins({}, passwordURI, null, passwordURI);
     for each (let l in logins) {
       if (login.matches(l, true)) {
-        LoginManager.removeLogin(l);
+        Services.logins.removeLogin(l);
         break;
       }
     }
@@ -539,7 +563,7 @@ imAccount.prototype = {
   },
   unInit: function() {
     // remove any pending reconnection timer.
-    this.cancelReconnection();
+    this._cancelReconnection();
 
     // remove any pending autologin preference used for crash detection.
     this._finishedAutoLogin();
@@ -601,10 +625,11 @@ imAccount.prototype = {
           if (statusType == Ci.imIStatusInfo.STATUS_OFFLINE) {
             if (this.connected || this.connecting)
               this.prplAccount.disconnect();
-            this.cancelReconnection();
+            this._cancelReconnection();
           }
           else if (statusType > Ci.imIStatusInfo.STATUS_OFFLINE &&
-                   this.disconnected)
+                   this.disconnected &&
+                   this.connectionErrorReason == Ci.prplIAccount.NO_ERROR)
             this.prplAccount.connect();
           else if (this.connected)
             this.prplAccount.observe(aSubject, aTopic, aData);
@@ -633,13 +658,23 @@ imAccount.prototype = {
   get connecting() this.connectionState == Ci.imIAccount.STATE_CONNECTING,
   get disconnecting() this.connectionState == Ci.imIAccount.STATE_DISCONNECTING,
 
-  cancelReconnection: function() {
+  _cancelReconnection: function() {
     if (this._reconnectTimer) {
       clearTimeout(this._reconnectTimer);
       delete this._reconnectTimer;
     }
     delete this.reconnectAttempt;
     delete this.timeOfNextReconnect;
+  },
+  cancelReconnection: function() {
+    if (!this.disconnected)
+      throw Cr.NS_ERROR_UNEXPECTED;
+
+    // Ensure we don't keep a status observer that could re-enable the
+    // auto-reconnect timers.
+    this.disconnect();
+
+    this._cancelReconnection();
   },
   createConversation: function(aName)
     this._ensurePrplAccount.createConversation(aName),
@@ -690,7 +725,6 @@ imAccount.prototype = {
   get noBackgroundColors() this._ensurePrplAccount.noBackgroundColors,
   get autoResponses() this._ensurePrplAccount.autoResponses,
   get singleFormatting() this._ensurePrplAccount.singleFormatting,
-  get noNewlines() this._ensurePrplAccount.noNewlines,
   get noFontSizes() this._ensurePrplAccount.noFontSizes,
   get noUrlDesc() this._ensurePrplAccount.noUrlDesc,
   get noImages() this._ensurePrplAccount.noImages,
@@ -720,9 +754,7 @@ AccountsService.prototype = {
         account.trim();
         if (!account)
           throw Cr.NS_ERROR_INVALID_ARG;
-        let newAccount = new imAccount(account);
-        this._accounts.push(newAccount);
-        this._accountsById[newAccount.numericId] = newAccount;
+        new imAccount(account);
       } catch (e) {
         Cu.reportError(e);
         dump(e + " " + e.toSource() + "\n");
@@ -747,7 +779,7 @@ AccountsService.prototype = {
 
     this._accounts =
       this._accountList.split(",").map(String.trim)
-          .filter(function (k) k.indexOf(kAccountKeyPrefix) == 0)
+          .filter(function (k) k.startsWith(kAccountKeyPrefix))
           .map(function (k) parseInt(k.substr(kAccountKeyPrefix.length)))
           .map(this.getAccountByNumericId, this)
           .filter(function (a) a);
@@ -888,13 +920,17 @@ AccountsService.prototype = {
   },
 
   getAccountById: function(aAccountId) {
-    if (aAccountId.indexOf(kAccountKeyPrefix) != 0)
+    if (!aAccountId.startsWith(kAccountKeyPrefix))
       throw Cr.NS_ERROR_INVALID_ARG;
 
     let id = parseInt(aAccountId.substr(kAccountKeyPrefix.length));
     return this.getAccountByNumericId(id);
   },
 
+  _keepAccount: function(aAccount) {
+    this._accounts.push(aAccount);
+    this._accountsById[aAccount.numericId] = aAccount;
+  },
   getAccountByNumericId: function(aAccountId) this._accountsById[aAccountId],
   getAccounts: function() new nsSimpleEnumerator(this._accounts),
 
@@ -925,10 +961,6 @@ AccountsService.prototype = {
     /* Actually create the new account. */
     let key = kAccountKeyPrefix + id;
     let account = new imAccount(key, aName, aPrpl);
-
-    /* Keep it in the local account lists. */
-    this._accounts.push(account);
-    this._accountsById[id] = account;
 
     /* Save the account list pref. */
     let list = this._accountList;

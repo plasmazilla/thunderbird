@@ -7,6 +7,8 @@
  * default port or the SSL default port. Nothing else!
  */
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 // The basic daemon to use for testing nntpd.js implementations
 var daemon = setupNNTPDaemon();
 
@@ -40,7 +42,7 @@ function run_test() {
   Services.prefs.setCharPref("mail.server.server1.type", "none");
   Services.prefs.setCharPref("mail.server.server1.userName", "nobody");
   Services.prefs.setCharPref("mail.server.server2.directory-rel",
-                             "[ProfD]Mail/invalid");
+                             "[ProfD]News/invalid");
   Services.prefs.setCharPref("mail.server.server2.hostname", "invalid");
   Services.prefs.setCharPref("mail.server.server2.name",
                              "testnntp on localhost");
@@ -55,7 +57,7 @@ function run_test() {
   var signons = do_get_file("../../../data/signons-mailnews1.8-alt.txt");
 
   // Copy the file to the profile directory
-  signons.copyTo(gProfileDir, "signons.txt");
+  signons.copyTo(do_get_profile(), "signons.txt");
 
   var server = makeServer(NNTP_RFC4643_extension, daemon);
   server.start(NNTP_PORT);
@@ -69,13 +71,10 @@ function run_test() {
     test = "news:*";
 
     // Get the existing incoming server
-    var acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-      .getService(Ci.nsIMsgAccountManager);
-
-    acctMgr.LoadAccounts();
+    MailServices.accounts.LoadAccounts();
 
     // Create the incoming server with "original" details.
-    var incomingServer = acctMgr.getIncomingServer("server2");
+    var incomingServer = MailServices.accounts.getIncomingServer("server2");
 
     subscribeServer(incomingServer);
 

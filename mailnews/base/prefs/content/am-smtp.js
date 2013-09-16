@@ -52,7 +52,7 @@ var gSmtpServerListWindow =
 
       if (!cancel)
       {
-        MailServices.smtp.deleteSmtpServer(server);
+        MailServices.smtp.deleteServer(server);
         parent.replaceWithDefaultSmtpServer(server.key);
         this.refreshServerList("", true);
       }
@@ -150,13 +150,13 @@ var gSmtpServerListWindow =
       this.mServerList.removeChild(this.mServerList.lastChild);
 
     this.fillSmtpServers(this.mServerList,
-                         MailServices.smtp.smtpServers,
+                         MailServices.smtp.servers,
                          MailServices.smtp.defaultServer);
 
     if (aServerKeyToSelect)
-      this.mServerList.selectItem(this.mServerList.getElementsByAttribute("key", aServerKeyToSelect)[0]);
+      this.setSelectedServer(this.mServerList.querySelector('[key="' + aServerKeyToSelect + '"]'));
     else // select the default server
-      this.mServerList.selectItem(this.mServerList.getElementsByAttribute("default", "true")[0]);
+      this.setSelectedServer(this.mServerList.querySelector('[default="true"]'));
 
     if (aFocusList)
       this.mServerList.focus();
@@ -222,6 +222,14 @@ var gSmtpServerListWindow =
       this.refreshServerList(aServer ? aServer.key : args.addSmtpServer, true);
 
     return args.result;
+  },
+
+  setSelectedServer: function(aServer)
+  {
+    setTimeout(function(aServerList) {
+      aServerList.ensureElementIsVisible(aServer);
+      aServerList.selectItem(aServer);
+    }, 0, this.mServerList);
   },
 
   getSelectedServer: function()

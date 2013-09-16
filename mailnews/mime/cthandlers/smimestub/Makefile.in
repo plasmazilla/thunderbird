@@ -10,7 +10,6 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-MODULE		= smime
 LIBRARY_NAME	= smimestb
 EXPORT_LIBRARY = 1
 IS_COMPONENT	= 1
@@ -27,11 +26,6 @@ DEFFILE		= $(win_srcdir)/smime.def
 endif
 
 EXTRA_DSO_LIBS	= mimecthglue_s
-
-CPPSRCS		= \
-		nsSMIMEStub.cpp \
-		nsSMIMEStubFactory.cpp \
-		$(NULL)
 
 ifdef MOZILLA_INTERNAL_API
 EXTRA_DSO_LDOPTS = \

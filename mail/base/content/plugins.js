@@ -6,6 +6,8 @@
  * mozilla/browser/base/content/browser.js
  */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 #ifdef MOZ_CRASHREPORTER
 XPCOMUtils.defineLazyServiceGetter(this, "gCrashReporter",
                                    "@mozilla.org/xre/app-info;1",
@@ -74,6 +76,10 @@ var gPluginHandler = {
     browser.removeEventListener("PluginCrashed", gPluginHandler);
     browser.removeEventListener("PluginOutdated", gPluginHandler);
     browser.removeEventListener("NewPluginInstalled", gPluginHandler);
+  },
+
+  getPluginUI: function (plugin, className) {
+    return plugin.ownerDocument.getAnonymousElementByAttribute(plugin, "class", className);
   },
 
   get CrashSubmit() {
@@ -206,7 +212,7 @@ var gPluginHandler = {
           let iconStatus = doc.getAnonymousElementByAttribute(plugin, "class", "icon");
           iconStatus.setAttribute("status", "ready");
 
-          let installLink = doc.getAnonymousElementByAttribute(plugin, "class", "installPluginLink");
+          let installLink = doc.getAnonymousElementByAttribute(plugin, "anonid", "installPluginLink");
           self.addLinkClickCallback(installLink, "installSinglePlugin", plugin);
         }
         /* FALLTHRU */
@@ -220,7 +226,7 @@ var gPluginHandler = {
         break;
 
       case "PluginDisabled":
-        let manageLink = doc.getAnonymousElementByAttribute(plugin, "class", "managePluginsLink");
+        let manageLink = doc.getAnonymousElementByAttribute(plugin, "anonid", "managePluginsLink");
         self.addLinkClickCallback(manageLink, "managePlugins");
         break;
     }
@@ -267,14 +273,19 @@ var gPluginHandler = {
   },
 
   // Callback for user clicking "submit a report" link
-  submitReport : function ph_submitReport(pluginDumpID, browserDumpID) {
-    // The crash reporter wants a DOM element it can append an IFRAME to,
-    // which it uses to submit a form. Let's just give it curBrowser.
-
+  submitReport : function ph_submitReport(pluginDumpID, browserDumpID, plugin) {
+    let keyVals = {};
+    if (plugin) {
+      let userComment = this.getPluginUI(plugin, "submitComment").value.trim();
+      if (userComment)
+        keyVals.PluginUserComment = userComment;
+      if (this.getPluginUI(plugin, "submitURLOptIn").checked)
+        keyVals.PluginContentURL = plugin.ownerDocument.URL;
+    }
     var curBrowser = document.getElementById('tabmail').getBrowserForSelectedTab();
-    this.CrashSubmit.submit(pluginDumpID, curBrowser, null, null);
+    this.CrashSubmit.submit(pluginDumpID, { extraExtraKeyVals: keyVals });
     if (browserDumpID)
-      this.CrashSubmit.submit(browserDumpID, curBrowser, null, null);
+      this.CrashSubmit.submit(browserDumpID);
   },
 
   // Callback for user clicking a "reload page" link
@@ -352,8 +363,9 @@ var gPluginHandler = {
       if (cancelQuit.data)
         return;
 
-      let as = Cc["@mozilla.org/toolkit/app-startup;1"].getService(Ci.nsIAppStartup);
-      as.quit(Ci.nsIAppStartup.eRestarti386 | Ci.nsIAppStartup.eRestart | Ci.nsIAppStartup.eAttemptQuit);
+      Services.startup.quit(Ci.nsIAppStartup.eRestarti386 |
+                            Ci.nsIAppStartup.eRestart |
+                            Ci.nsIAppStartup.eAttemptQuit);
     }
 #endif
 
@@ -541,10 +553,16 @@ var gPluginHandler = {
     else { // doPrompt
       status = "please";
       // XXX can we make the link target actually be blank?
-      let pleaseLink = doc.getAnonymousElementByAttribute(
-                            plugin, "class", "pleaseSubmitLink");
-      this.addLinkClickCallback(pleaseLink, "submitReport",
-                                pluginDumpID, browserDumpID);
+      this.getPluginUI(plugin, "submitButton").addEventListener("click",
+        function (event) {
+	  if (event.button != 0 || !event.isTrusted)
+            return;
+          this.submitReport(pluginDumpID, browserDumpID, plugin);
+          pref.setBoolPref("", optInCB.checked);
+	}.bind(this));
+      let optInCB = this.getPluginUI(plugin, "submitURLOptIn");
+      let pref = Services.prefs.getBranch("dom.ipc.plugins.reportCrashURL");
+      optInCB.checked = pref.getBoolPref("");
     }
 
     // If we don't have a minidumpID, we can't (or didn't) submit anything.
@@ -555,8 +573,6 @@ var gPluginHandler = {
 
     statusDiv.setAttribute("status", status);
 
-    let bottomLinks = doc.getAnonymousElementByAttribute(plugin, "class", "msg msgBottomLinks");
-    bottomLinks.style.display = "block";
     let helpIcon = doc.getAnonymousElementByAttribute(plugin, "class", "helpIcon");
     this.addLinkClickCallback(helpIcon, "openPluginCrashHelpPage");
 
@@ -593,7 +609,7 @@ var gPluginHandler = {
     }
 #endif
 
-    let crashText = doc.getAnonymousElementByAttribute(plugin, "class", "msg msgCrashed");
+    let crashText = doc.getAnonymousElementByAttribute(plugin, "class", "msgCrashedText");
     crashText.textContent = messageString;
     let browser = tabmail.getBrowserForSelectedTab();
 
@@ -602,21 +618,32 @@ var gPluginHandler = {
 
     let notificationBox = getNotificationBox(browser.contentWindow);
 
+    let isShowing = true;
+
     // Is the <object>'s size too small to hold what we want to show?
     if (this.isTooSmall(plugin, overlay)) {
-        // Hide the overlay's contents. Use visibility style, so that it
-        // doesn't collapse down to 0x0.
+      // First try hiding the crash report submission UI.
+      statusDiv.removeAttribute("status");
+
+      if (this.isTooSmall(plugin, overlay)) {
+	// Hide the overlay's contents. Use visibility style, so that it doesn't
+        // collpase down to 0x0.
         overlay.style.visibility = "hidden";
-        // If another plugin on the page was large enough to show our UI, we
-        // don't want to show a notification bar.
-        if (!doc.mozNoPluginCrashedNotification)
-          showNotificationBar(pluginDumpID, browserDumpID);
+        isShowing = false;
+      }
+    }
+
+    if (isShowing) {
+      // If a previous plugin on the page was too small and resulted in adding a
+      // notification bar, then remove it because this plugin instance is big
+      // enough to serve as in-content notification.
+      hideNotificationBar();
+      doc.mozNoPluginCrashedNotification = true;
     } else {
-        // If a previous plugin on the page was too small and resulted in
-        // adding a notification bar, then remove it because this plugin
-        // instance it big enough to serve as in-content notification.
-        hideNotificationBar();
-        doc.mozNoPluginCrashedNotification = true;
+      // If another plugin on the page was large enough to show our UI, we don't
+      // want to show a notification bar.
+      if (!doc.mozNoPluginCrashedNotification)
+        showNotificationBar(pluginDumpID, browserDumpID);
     }
 
     function hideNotificationBar() {

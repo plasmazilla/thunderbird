@@ -4,15 +4,14 @@
 var gServer, gImapServer;
 var gIMAPInbox, gIMAPFolder1, gIMAPFolder2;
 var gFolder2Mailbox;
+var gFolder1, gFolder2;
 
 load("../../../resources/messageGenerator.js");
 // async support
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 
-const nsIIOService = Cc["@mozilla.org/network/io-service;1"]
-                     .getService(Ci.nsIIOService);
+Components.utils.import("resource:///modules/mailServices.js");
 
 var tests = [
   checkStatSelect,
@@ -33,20 +32,18 @@ function run_test() {
   gImapServer = createLocalIMAPServer();
   gImapServer.maximumConnectionsNumber = 1;
 
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
   // We need an identity so that updateFolder doesn't fail
-  let acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
-  let localAccount = acctMgr.createAccount();
-  let identity = acctMgr.createIdentity();
+  let localAccount = MailServices.accounts.createAccount();
+  let identity = MailServices.accounts.createIdentity();
   localAccount.addIdentity(identity);
   localAccount.defaultIdentity = identity;
-  localAccount.incomingServer = gLocalIncomingServer;
-  acctMgr.defaultAccount = localAccount;
+  localAccount.incomingServer = localAccountUtils.incomingServer;
+  MailServices.accounts.defaultAccount = localAccount;
 
   // Let's also have another account, using the same identity
-  let imapAccount = acctMgr.createAccount();
+  let imapAccount = MailServices.accounts.createAccount();
   imapAccount.addIdentity(identity);
   imapAccount.defaultIdentity = identity;
   imapAccount.incomingServer = gImapServer;
@@ -97,10 +94,8 @@ function checkStatNoSelect() {
   // we've cleared the ImapNoselect flag, so we will attempt to STAT folder 1,
   // which will fail. So we verify that we go on and STAT folder 2, and that
   // it picks up the message we added to it above.
-  let mailSession = Cc["@mozilla.org/messenger/services/session;1"].
-    getService(Ci.nsIMsgMailSession);
-  mailSession.AddFolderListener(gFolderListener,
-                                Ci.nsIFolderListener.boolPropertyChanged);
+  MailServices.mailSession.AddFolderListener(gFolderListener,
+                                             Ci.nsIFolderListener.boolPropertyChanged);
   gIMAPInbox.getNewMessages(null, null);
   // Wait for the folder listener to get told about new messages.
   yield false;
@@ -113,9 +108,9 @@ function addMessageToFolder(mbox) {
   messages = messages.concat(gMessageGenerator.makeMessage());
 
   let msgURI =
-    nsIIOService.newURI("data:text/plain;base64," +
-                     btoa(messages[0].toMessageString()),
-                     null, null);
+    Services.io.newURI("data:text/plain;base64," +
+                       btoa(messages[0].toMessageString()),
+                       null, null);
   let message = new imapMessage(msgURI.spec, mbox.uidnext++);
   mbox.addMessage(message);
 }

@@ -10,10 +10,6 @@ load("../../../resources/POP3pump.js");
 
 // Globals
 
-const nsIJunkMailPlugin =
-  Cc["@mozilla.org/messenger/filter-plugin;1?name=bayesianfilter"]
-    .getService(Ci.nsIJunkMailPlugin);
-
 const gDbService = Cc["@mozilla.org/msgDatabase/msgDBService;1"]
                      .getService(Ci.nsIMsgDBService);
 
@@ -37,12 +33,12 @@ var gTests =
   {
     command: kTrain,
     fileName: kGoodFile,
-    traitId: nsIJunkMailPlugin.GOOD_TRAIT,
+    traitId: MailServices.junk.GOOD_TRAIT,
   },
   {
     command: kTrain,
     fileName: kJunkFile,
-    traitId: nsIJunkMailPlugin.JUNK_TRAIT,
+    traitId: MailServices.junk.JUNK_TRAIT,
   },
   // test a filter that acts on GOOD messages
   {
@@ -70,7 +66,7 @@ function run_test()
   // Setup some incoming filters, setting junk priority low, and good high.
 
   // Can't use the fake server, must use the deferredTo local server!
-  let filterList = gLocalIncomingServer.getFilterList(null);
+  let filterList = localAccountUtils.incomingServer.getFilterList(null);
 
   // junkIsLow filter
   let filter = filterList.createFilter("junkIsLow");
@@ -78,7 +74,7 @@ function run_test()
   searchTerm.attrib = Ci.nsMsgSearchAttrib.JunkStatus;
   let value = searchTerm.value;
   value.attrib = Ci.nsMsgSearchAttrib.JunkStatus;
-  value.junkStatus = nsIJunkMailPlugin.JUNK;
+  value.junkStatus = MailServices.junk.JUNK;
   searchTerm.value = value;
   searchTerm.op = Ci.nsMsgSearchOp.Is;
   searchTerm.booleanAnd = false;
@@ -97,7 +93,7 @@ function run_test()
   searchTerm.attrib = Ci.nsMsgSearchAttrib.JunkStatus;
   let value = searchTerm.value;
   value.attrib = Ci.nsMsgSearchAttrib.JunkStatus;
-  value.junkStatus = nsIJunkMailPlugin.GOOD;
+  value.junkStatus = MailServices.junk.GOOD;
   searchTerm.value = value;
   searchTerm.op = Ci.nsMsgSearchOp.Is;
   searchTerm.booleanAnd = false;
@@ -113,7 +109,7 @@ function run_test()
   // setup a db listener to grab the message headers. There's probably an
   // easier way, but this works.
   gInboxListener = new DBListener();
-  gDbService.registerPendingListener(gLocalInboxFolder, gInboxListener);
+  gDbService.registerPendingListener(localAccountUtils.inboxFolder, gInboxListener);
 
   do_test_pending();
 
@@ -179,7 +175,7 @@ DBListener.prototype =
       if (gInboxListener)
       {
         try {
-          gIMAPInbox.msgDatabase.RemoveListener(gInboxListener);
+          IMAPPump.inbox.msgDatabase.RemoveListener(gInboxListener);
         }
         catch (e) {dump(" listener not found\n");}
       }
@@ -230,7 +226,7 @@ function startCommand()
       var proArray = [];
       proArray.push(gTest.traitId);
 
-      nsIJunkMailPlugin.setMsgTraitClassification(
+      MailServices.junk.setMsgTraitClassification(
         getSpec(gTest.fileName), //in string aMsgURI
         0,
         null,         // in nsIArray aOldTraits
@@ -253,9 +249,7 @@ function startCommand()
 function getSpec(aFileName)
 {
   var file = do_get_file(aFileName);
-  var uri = Cc["@mozilla.org/network/io-service;1"]
-               .getService(Ci.nsIIOService)
-               .newFileURI(file).QueryInterface(Ci.nsIURL);
+  var uri = Services.io.newFileURI(file).QueryInterface(Ci.nsIURL);
   uri.query = "type=application/x-message-display";
   return uri.spec;
 }

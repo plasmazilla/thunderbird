@@ -8,12 +8,13 @@
 #include "nsIServiceManager.h"
 #include "nsStringGlue.h"
 #include "nsIComponentManager.h"
+#include "nsIDNSRecord.h"
 #include "nsLDAPConnection.h"
 #include "nsLDAPMessage.h"
 #include "nsThreadUtils.h"
 #include "nsIConsoleService.h"
 #include "nsIDNSService.h"
-#include "nsIDNSRecord.h"
+#include "nsINetAddr.h"
 #include "nsIRequestObserver.h"
 #include "nsError.h"
 #include "nsLDAPOperation.h"
@@ -379,48 +380,37 @@ nsLDAPConnection::RemovePendingOperation(uint32_t aOperationID)
 class nsOnLDAPMessageRunnable : public nsRunnable
 {
 public:
-  nsOnLDAPMessageRunnable(nsILDAPMessageListener *aListener,
-                          nsILDAPMessage *aMsg);
+  nsOnLDAPMessageRunnable(nsLDAPMessage *aMsg, bool aClear)
+    : m_msg(aMsg)
+    , m_clear(aClear)
+  {}
   NS_DECL_NSIRUNNABLE
 private:
-  nsCOMPtr<nsILDAPMessage> m_msg;
-  nsCOMPtr<nsILDAPMessageListener> m_listener;
+  nsRefPtr<nsLDAPMessage> m_msg;
+  bool m_clear;
 };
-
-nsOnLDAPMessageRunnable::nsOnLDAPMessageRunnable(nsILDAPMessageListener *aListener,
-                                                 nsILDAPMessage *aMsg) :
-  m_msg(aMsg), m_listener(aListener)
-{
-}
 
 NS_IMETHODIMP nsOnLDAPMessageRunnable::Run()
 {
-  return m_listener->OnLDAPMessage(m_msg);
-}
+  // get the message listener object.
+  nsLDAPOperation *nsoperation = static_cast<nsLDAPOperation *>(m_msg->mOperation.get());
+  nsCOMPtr<nsILDAPMessageListener> listener;
+  nsresult rv = nsoperation->GetMessageListener(getter_AddRefs(listener));
 
-class nsOnLDAPInitMessageRunnable : public nsRunnable
-{
-public:
-  nsOnLDAPInitMessageRunnable(nsILDAPMessageListener *aListener,
-                              nsILDAPConnection *aConn,
-                              nsresult aStatus);
-  NS_DECL_NSIRUNNABLE
-private:
-  nsCOMPtr<nsILDAPConnection> m_conn;
-  nsCOMPtr<nsILDAPMessageListener> m_listener;
-  nsresult m_status;
-};
+  if (m_clear)
+  {
+    // try to break cycles
+    nsoperation->Clear();
+  }
 
-nsOnLDAPInitMessageRunnable::nsOnLDAPInitMessageRunnable(nsILDAPMessageListener *aListener,
-                                                         nsILDAPConnection *aConn,
-                                                         nsresult aStatus) :
-  m_listener(aListener), m_conn(aConn), m_status(aStatus)
-{
-}
+  if (!listener)
+  {
+    NS_ERROR("nsLDAPConnection::InvokeMessageCallback(): probable "
+             "memory corruption: GetMessageListener() returned nullptr");
+    return rv;
+  }
 
-NS_IMETHODIMP nsOnLDAPInitMessageRunnable::Run()
-{
-  return m_listener->OnLDAPInit(m_conn, m_status);
+  return listener->OnLDAPMessage(m_msg);
 }
 
 nsresult
@@ -434,41 +424,25 @@ nsLDAPConnection::InvokeMessageCallback(LDAPMessage *aMsgHandle,
   PR_LOG(gLDAPLogModule, PR_LOG_DEBUG, ("InvokeMessageCallback entered\n"));
 #endif
 
-  nsresult rv;
   // Get the operation.
   nsCOMPtr<nsILDAPOperation> operation;
   mPendingOperations.Get((uint32_t)aOperation, getter_AddRefs(operation));
 
   NS_ENSURE_TRUE(operation, NS_ERROR_NULL_POINTER);
 
-  static_cast<nsLDAPMessage *>(aMsg)->mOperation = operation;
+  nsLDAPMessage *msg = static_cast<nsLDAPMessage *>(aMsg);
+  msg->mOperation = operation;
 
-  // get the message listener object.
-  nsCOMPtr<nsILDAPMessageListener> listener;
-  rv = operation->GetMessageListener(getter_AddRefs(listener));
-  if (NS_FAILED(rv))
-  {
-    NS_ERROR("nsLDAPConnection::InvokeMessageCallback(): probable "
-             "memory corruption: GetMessageListener() returned error");
-    return NS_ERROR_UNEXPECTED;
-  }
   // proxy the listener callback to the ui thread.
-  if (listener)
-  {
-    nsRefPtr<nsOnLDAPMessageRunnable> runnable =
-      new nsOnLDAPMessageRunnable(listener, aMsg);
-    // invoke the callback
-    NS_DispatchToMainThread(runnable);
-  }
+  nsRefPtr<nsOnLDAPMessageRunnable> runnable =
+    new nsOnLDAPMessageRunnable(msg, aRemoveOpFromConnQ);
+  // invoke the callback
+  NS_DispatchToMainThread(runnable);
 
   // if requested (ie the operation is done), remove the operation
   // from the connection queue.
   if (aRemoveOpFromConnQ)
   {
-    // try to break cycles
-    nsLDAPOperation* nsoperation = static_cast<nsLDAPOperation *>(operation.get());
-    if (nsoperation)
-      nsoperation->Clear();
     mPendingOperations.Remove(aOperation);
 
     PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
@@ -492,16 +466,17 @@ nsLDAPConnection::OnLookupComplete(nsICancelable *aRequest,
         mResolvedIP.Truncate();
 
         int32_t index = 0;
-        char addrbuf[64];
-        PRNetAddr addr;
+        nsCString addrbuf;
+        nsCOMPtr<nsINetAddr> addr;
 
-        while (NS_SUCCEEDED(aRecord->GetNextAddr(0, &addr))) {
+        while (NS_SUCCEEDED(aRecord->GetScriptableNextAddr(0, getter_AddRefs(addr)))) {
             // We can only use v4 addresses
             //
+            uint16_t family = 0;
             bool v4mapped = false;
-            if (addr.raw.family == PR_AF_INET6)
-                v4mapped = PR_IsNetAddrType(&addr, PR_IpAddrV4Mapped);
-            if (addr.raw.family == PR_AF_INET || v4mapped) {
+            addr->GetFamily(&family);
+            addr->GetIsV4Mapped(&v4mapped);
+            if (family == nsINetAddr::FAMILY_INET || v4mapped) {
                 // If there are more IPs in the list, we separate them with
                 // a space, as supported/used by the LDAP C-SDK.
                 //
@@ -512,9 +487,9 @@ nsLDAPConnection::OnLookupComplete(nsICancelable *aRequest,
                 // list of IPs.  Strip leading '::FFFF:' (the IPv4-mapped-IPv6
                 // indicator) if present.
                 //
-                PR_NetAddrToString(&addr, addrbuf, sizeof(addrbuf));
-                if ((addrbuf[0] == ':') && (strlen(addrbuf) > 7))
-                    mResolvedIP.Append(addrbuf+7);
+                addr->GetAddress(addrbuf);
+                if (addrbuf[0] == ':' && addrbuf.Length() > 7)
+                    mResolvedIP.Append(Substring(addrbuf, 7));
                 else
                     mResolvedIP.Append(addrbuf);
             }
@@ -687,7 +662,7 @@ NS_IMETHODIMP nsLDAPConnectionRunnable::Run()
           if (errorCode == LDAP_PROTOCOL_ERROR &&
               mConnection->mVersion == nsILDAPConnection::VERSION3)
           {
-            nsCAutoString password;
+            nsAutoCString password;
             mConnection->mVersion = nsILDAPConnection::VERSION2;
             ldap_set_option(mConnection->mConnectionHandle,
                             LDAP_OPT_PROTOCOL_VERSION, &mConnection->mVersion);

@@ -3,22 +3,22 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /**
- * Tests the get an account workflow.
+ * Tests the get an account (account provisioning) workflow.
  */
 
 var Cu = Components.utils;
 var Cc = Components.classes;
 var Ci = Components.interfaces;
 
-var MODULE_NAME = 'test-newmailaccount';
+const MODULE_NAME = 'test-newmailaccount';
 
-var RELATIVE_ROOT = '../shared-modules';
-var MODULE_REQUIRES = ['folder-display-helpers',
-                       'content-tab-helpers',
-                       'window-helpers',
-                       'newmailaccount-helpers',
-                       'keyboard-helpers',
-                       'dom-helpers'];
+const RELATIVE_ROOT = '../shared-modules';
+const MODULE_REQUIRES = ['folder-display-helpers',
+                         'content-tab-helpers',
+                         'window-helpers',
+                         'newmailaccount-helpers',
+                         'keyboard-helpers',
+                         'dom-helpers'];
 
 var controller = {};
 var mozmill = {};
@@ -59,16 +59,11 @@ var gOldAcceptLangs = Services.prefs.getCharPref(kAcceptedLanguage);
 var gNumAccounts;
 
 function setupModule(module) {
-  let fdh = collector.getModule('folder-display-helpers');
-  fdh.installInto(module);
-  let cth = collector.getModule('content-tab-helpers');
-  cth.installInto(module);
-  let wh = collector.getModule('window-helpers');
-  wh.installInto(module);
-  let nmah = collector.getModule('newmailaccount-helpers');
-  nmah.installInto(module);
-  let kh = collector.getModule('keyboard-helpers');
-  kh.installInto(module);
+  collector.getModule('folder-display-helpers').installInto(module);
+  collector.getModule('content-tab-helpers').installInto(module);
+  collector.getModule('window-helpers').installInto(module);
+  collector.getModule('newmailaccount-helpers').installInto(module);
+  collector.getModule('keyboard-helpers').installInto(module);
   collector.getModule('dom-helpers').installInto(module);
 
   // Make sure we enable the Account Provisioner.
@@ -458,11 +453,11 @@ function subtest_html_characters_and_ampersands(w) {
   // & should have been replaced with &amp;, and the
   // greater than / less than characters with &gt; and
   // &lt; respectively.
-  assert_true(displayedName.indexOf("&amp;") != -1,
+  assert_true(displayedName.contains("&amp;"),
               "Should have eliminated ampersands");
-  assert_true(displayedName.indexOf("&gt;") != -1,
+  assert_true(displayedName.contains("&gt;"),
               "Should have eliminated greater-than signs");
-  assert_true(displayedName.indexOf("&lt;") != -1,
+  assert_true(displayedName.contains("&lt;"),
               "Should have eliminated less-than signs");
 }
 
@@ -608,7 +603,7 @@ function subtest_shows_error_on_empty_suggest_from_name(w) {
  */
 function test_throws_console_error_on_corrupt_XML() {
   // Open the provisioner - once opened, let subtest_get_an_account run.
-  get_to_order_form("corrupt@corrupt.nul");
+  get_to_order_form("corrupt@corrupt.invalid");
   let tab = mc.tabmail.currentTabInfo;
 
   // Record how many accounts we start with.
@@ -997,7 +992,7 @@ function test_external_link_opening_behaviour() {
 function test_return_to_provisioner_on_error_XML() {
   const kOriginalTabNum = mc.tabmail.tabContainer.childNodes.length;
 
-  get_to_order_form("error@error.nul");
+  get_to_order_form("error@error.invalid");
 
   let tab = mc.tabmail.currentTabInfo;
   let doc = tab.browser.contentWindow.document;
@@ -1130,8 +1125,13 @@ function test_search_button_disabled_if_no_lang_support() {
   let oldLang = Services.prefs.getCharPref(kAcceptedLanguage);
   Services.prefs.setCharPref(kAcceptedLanguage, "foo");
 
-  plan_for_modal_dialog("AccountCreation",
-                        subtest_search_button_disabled_on_init);
+  plan_for_modal_dialog("AccountCreation", function(aController) {
+    wait_for_provider_list_loaded(aController);
+    // The search button should be disabled.
+    wait_for_element_enabled(aController, aController.e("searchSubmit"), false);
+    close_dialog_immediately(aController);
+  });
+
   open_provisioner_window();
   wait_for_modal_dialog("AccountCreation");
 
@@ -1140,13 +1140,18 @@ function test_search_button_disabled_if_no_lang_support() {
 
 /**
  * Subtest used by several functions that checks to make sure that the
- * search button is disabled when the Account Provisioner dialog  is opened.
+ * search button is disabled when the Account Provisioner dialog is opened,
+ * in case there's no search input yet.
  */
-function subtest_search_button_disabled_on_init(aController) {
+function subtest_search_button_enabled_state_on_init(aController) {
   wait_for_provider_list_loaded(aController);
 
-  // The search button should be disabled.
-  wait_for_element_enabled(aController, aController.e("searchSubmit"), false);
+  let enabled = !!aController.e("name").value;
+
+  // The search button should be disabled if there's not search input.
+  wait_for_element_enabled(aController, aController.e("searchSubmit"), enabled);
+
+
   close_dialog_immediately(aController);
 }
 
@@ -1195,20 +1200,17 @@ function test_search_button_disabled_if_no_query_on_init() {
   // We have to do a little bit of gymnastics to access the local storage
   // for the accountProvisioner dialog...
   let url = "chrome://content/messenger/accountProvisionerStorage/accountProvisioner";
-  let ssm = Cc["@mozilla.org/scriptsecuritymanager;1"]
-    .getService(Ci.nsIScriptSecurityManager);
-  let dsm = Cc["@mozilla.org/dom/storagemanager;1"]
-    .getService(Ci.nsIDOMStorageManager);
+  let dsm = Services.domStorageManager;
 
   let uri = Services.io.newURI(url, "", null);
-  let principal = ssm.getNoAppCodebasePrincipal(uri);
+  let principal = Services.scriptSecurityManager.getNoAppCodebasePrincipal(uri);
   let storage = dsm.getLocalStorageForPrincipal(principal, url);
 
   // Ok, got it. Now let's blank out the name.
   storage.setItem("name", "");
 
   plan_for_modal_dialog("AccountCreation",
-                        subtest_search_button_disabled_on_init);
+                        subtest_search_button_enabled_state_on_init);
   open_provisioner_window();
   wait_for_modal_dialog("AccountCreation");
 }

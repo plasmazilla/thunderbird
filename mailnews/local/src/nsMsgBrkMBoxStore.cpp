@@ -35,6 +35,8 @@
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
 #include "prprf.h"
+#include <cstdlib> // for std::abs(int/long)
+#include <cmath> // for std::abs(float/double)
 
 nsMsgBrkMBoxStore::nsMsgBrkMBoxStore()
 {
@@ -167,16 +169,14 @@ void nsMsgBrkMBoxStore::GetMailboxModProperties(nsIMsgFolder *aFolder,
   *aSize = 0;
   nsCOMPtr<nsIFile> pathFile;
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(pathFile));
-  NS_ENSURE_SUCCESS(rv, );
+  NS_ENSURE_SUCCESS_VOID(rv);
 
   rv = pathFile->GetFileSize(aSize);
-  if (NS_FAILED(rv))
-    return;
+  NS_ENSURE_SUCCESS_VOID(rv);
 
   PRTime lastModTime;
   rv = pathFile->GetLastModifiedTime(&lastModTime);
-  if (NS_FAILED(rv))
-    return;
+  NS_ENSURE_SUCCESS_VOID(rv);
 
   *aDate = (uint32_t) (lastModTime / PR_MSEC_PER_SEC);
 }
@@ -187,16 +187,19 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::HasSpaceAvailable(nsIMsgFolder *aFolder,
 {
   NS_ENSURE_ARG_POINTER(aResult);
   NS_ENSURE_ARG_POINTER(aFolder);
+
   nsCOMPtr<nsIFile> pathFile;
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(pathFile));
   NS_ENSURE_SUCCESS(rv, rv);
+
   int64_t fileSize;
   rv = pathFile->GetFileSize(&fileSize);
   NS_ENSURE_SUCCESS(rv, rv);
-  // ### I think we're allowing mailboxes > 4GB, so we should be checking
-  // for disk space here, not total file size.
-  // 0xFFC00000 = 4 GiB - 4 MiB.
-  *aResult = ((fileSize + aSpaceRequested) < 0xFFC00000);
+
+  // Allow the mbox to only reach 0xFFC00000 = 4 GiB - 4 MiB for now.
+  *aResult = ((fileSize + aSpaceRequested) < 0xFFC00000) &&
+              DiskSpaceAvailableInStore(pathFile, aSpaceRequested);
+
   return NS_OK;
 }
 
@@ -258,7 +261,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::IsSummaryFileValid(nsIMsgFolder *aFolder,
     if (gTimeStampLeeway == 0)
       *aResult = folderDate == actualFolderTimeStamp;
     else
-      *aResult = NS_ABS((int32_t) (actualFolderTimeStamp - folderDate)) <= gTimeStampLeeway;
+      *aResult = std::abs((int32_t) (actualFolderTimeStamp - folderDate)) <= gTimeStampLeeway;
   }
   return NS_OK;
 }
@@ -366,7 +369,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::RenameFolder(nsIMsgFolder *aFolder,
   nsAutoString safeName(aNewName);
   NS_MsgHashIfNecessary(safeName);
 
-  nsCAutoString oldLeafName;
+  nsAutoCString oldLeafName;
   oldPathFile->GetNativeLeafName(oldLeafName);
 
   nsCOMPtr<nsIFile> parentPathFile;
@@ -944,9 +947,8 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::ChangeKeywords(nsIArray *aHdrArray,
   nsCOMPtr<nsIInputStream> inputStream = do_QueryInterface(outputStream, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsLineBuffer<char> *lineBuffer;
-  rv = NS_InitLineBuffer(&lineBuffer);
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsAutoPtr<nsLineBuffer<char> > lineBuffer(new nsLineBuffer<char>);
+  NS_ENSURE_TRUE(lineBuffer, NS_ERROR_OUT_OF_MEMORY);
 
   // For each message, we seek to the beginning of the x-mozilla-status header,
   // and start reading lines, looking for x-mozilla-keys: headers; If we're
@@ -978,7 +980,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::ChangeKeywords(nsIArray *aHdrArray,
     ChangeKeywordsHelper(msgHdr, desiredOffset, lineBuffer, keywordArray,
                          aAdd, outputStream, seekableStream, inputStream);
   }
-  PR_Free(lineBuffer);
+  lineBuffer = nullptr;
   if (restoreStreamPos != -1)
     seekableStream->Seek(nsISeekableStream::NS_SEEK_SET, restoreStreamPos);
   else if (outputStream)

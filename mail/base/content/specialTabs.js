@@ -185,22 +185,18 @@ const DOMLinkHandler = {
       // Verify that the load of this icon is legal.
       // Some error or special pages can load their favicon.
       // To be on the safe side, only allow chrome:// favicons.
-      let isAllowedPage = [
-        /^about:neterror\?/,
-        /^about:blocked\?/,
-        /^about:certerror\?/,
-        /^about:home$/
-      ].some(function (re) { re.test(targetDoc.documentURI); });
+      let isAllowedPage = (targetDoc.documentURI == "about:home") ||
+        ["about:neterror?",
+         "about:blocked?",
+         "about:certerror?"
+        ].some(function (aStart) { targetDoc.documentURI.startsWith(aStart); });
 
       if (!isAllowedPage || !uri.schemeIs("chrome")) {
         // Be extra paraniod and just make sure we're not going to load
         // something we shouldn't. Firefox does this, so we're doing the same.
-        let ssm = Components.classes["@mozilla.org/scriptsecuritymanager;1"]
-          .getService(Components.interfaces.nsIScriptSecurityManager);
-
           try {
-            ssm.checkLoadURIWithPrincipal(targetDoc.nodePrincipal, uri,
-                                          Components.interfaces.nsIScriptSecurityManager.DISALLOW_SCRIPT);
+            Services.scriptSecurityManager.checkLoadURIWithPrincipal(targetDoc.nodePrincipal, uri,
+                                           Components.interfaces.nsIScriptSecurityManager.DISALLOW_SCRIPT);
           }
           catch (ex) {
             return;
@@ -244,7 +240,10 @@ const DOMLinkHandler = {
 
 const kTelemetryPrompted    = "toolkit.telemetry.prompted";
 const kTelemetryEnabled     = "toolkit.telemetry.enabled";
+const kTelemetryRejected    = "toolkit.telemetry.rejected";
 const kTelemetryServerOwner = "toolkit.telemetry.server_owner";
+// This is used to reprompt/renotify users when privacy message changes
+const kTelemetryPromptRev   = 2;
 
 var contentTabBaseType = {
   inContentWhitelist: ['about:addons'],
@@ -480,8 +479,7 @@ var specialTabs = {
 
     // enable global history
     try {
-      browser.docShell.QueryInterface(Components.interfaces.nsIDocShellHistory)
-             .useGlobalHistory = true;
+      browser.docShell.useGlobalHistory = true;
     } catch(ex) {
       Components.utils.reportError("Places database may be locked: " + ex);
     }
@@ -490,15 +488,12 @@ var specialTabs = {
 
     let tabmail = document.getElementById('tabmail');
 
-    var prefs = Components.classes["@mozilla.org/preferences-service;1"]
-                          .getService(Components.interfaces.nsIPrefBranch);
-
     tabmail.registerTabType(this.contentTabType);
     tabmail.registerTabType(this.chromeTabType);
 
     // If we've upgraded (note: always get these values so that we set
     // the mstone preference for the new version):
-    let [fromVer, toVer] = this.getApplicationUpgradeVersions(prefs);
+    let [fromVer, toVer] = this.getApplicationUpgradeVersions();
 
     // Although this might not be really necessary because of the version checks, we'll
     // check this pref anyway and clear it so that we are consistent with what Firefox
@@ -516,10 +511,10 @@ var specialTabs = {
     }
 
     // Show the about rights notification if we need to.
-    if (this.shouldShowAboutRightsNotification(prefs))
-      this.showAboutRightsNotification(prefs);
-    else if (this.shouldShowTelemetryNotification(prefs))
-      this.showTelemetryNotification(prefs);
+    if (this.shouldShowAboutRightsNotification())
+      this.showAboutRightsNotification();
+    else if (this.shouldShowTelemetryNotification())
+      this.showTelemetryNotification();
   },
 
   /**
@@ -575,8 +570,8 @@ var specialTabs = {
       aTab.root = clone;
 
       // Start setting up the browser.
-      aTab.browser = aTab.panel.getElementsByTagName("browser")[0];
-      aTab.toolbar = aTab.panel.getElementsByClassName("contentTabToolbar")[0];
+      aTab.browser = aTab.panel.querySelector("browser");
+      aTab.toolbar = aTab.panel.querySelector(".contentTabToolbar");
 
       // As we're opening this tab, showTab may not get called, so set
       // the type according to if we're opening in background or not.
@@ -599,7 +594,7 @@ var specialTabs = {
       gPluginHandler.addEventListeners(aTab.browser);
 
       // Now initialise the find bar.
-      aTab.findbar = aTab.panel.getElementsByTagName("findbar")[0];
+      aTab.findbar = aTab.panel.querySelector("findbar");
       aTab.findbar.setAttribute("browserid",
                                 "contentTabBrowser" + this.lastBrowserId);
 
@@ -694,12 +689,12 @@ var specialTabs = {
    * or the pref being set to ignore - return null and the current version.
    * In either case, updates the pref with the latest version.
    */
-  getApplicationUpgradeVersions: function(prefs) {
+  getApplicationUpgradeVersions: function() {
     let savedAppVersion = null;
     let prefstring = "mailnews.start_page_override.mstone";
 
     try {
-      savedAppVersion = prefs.getCharPref(prefstring);
+      savedAppVersion = Services.prefs.getCharPref(prefstring);
     } catch (ex) {}
 
     let currentApplicationVersion = Application.version;
@@ -708,7 +703,7 @@ var specialTabs = {
       return [null, this.splitVersion(currentApplicationVersion)];
 
     if (savedAppVersion != currentApplicationVersion)
-      prefs.setCharPref(prefstring, currentApplicationVersion);
+      Services.prefs.setCharPref(prefstring, currentApplicationVersion);
 
     return [this.splitVersion(savedAppVersion), this.splitVersion(currentApplicationVersion)];
   },
@@ -742,31 +737,31 @@ var specialTabs = {
    *
    * This is controlled by the pref toolkit.telemetry.prompted
    */
-  shouldShowTelemetryNotification: function(prefs) {
-    // For a transitional period (expected end in mid-2013) we allow the pref
-    // kTelemetryPrompted to be bool or int and reset it to bool.
-    // See bug 807848 for more details.
+  shouldShowTelemetryNotification: function() {
+    // Toolkit has decided that the pref should have no default value, so this
+    // throws if not yet initialized.
+    let telemetryPrompted = false;
     try {
-      if (prefs.getIntPref(kTelemetryPrompted) > 0) {
-        prefs.clearUserPref(kTelemetryPrompted);
-        prefs.setBoolPref(kTelemetryPrompted, true);
-        return false;
-      }
-    } catch (e) {
-      try {
-        if (prefs.getBoolPref(kTelemetryPrompted))
-          return false;
-      } catch (e) { }
-    }
-    try {
-      // toolkit has decided that the pref should have no default value
-      if (prefs.getBoolPref(kTelemetryEnabled))
-        return false;
+      telemetryPrompted = (Services.prefs.getIntPref(kTelemetryPrompted) >= kTelemetryPromptRev);
     } catch (e) { }
+    let telemetryEnabled = false;
+    try {
+      telemetryEnabled = (Services.prefs.getBoolPref(kTelemetryEnabled));
+    } catch (e) { }
+    // In case user already allowed telemetry, do not bother him with any updated
+    // prompt. Clear the pref first, in case it was not Int (from older versions).
+    if (telemetryEnabled && !telemetryPrompted) {
+      Services.prefs.clearUserPref(kTelemetryPrompted);
+      Services.prefs.setIntPref(kTelemetryPrompted, kTelemetryPromptRev);
+    }
+
+    if (telemetryEnabled || telemetryPrompted)
+      return false;
+
     return true;
   },
 
-  showTelemetryNotification: function(prefs) {
+  showTelemetryNotification: function() {
     var notifyBox = document.getElementById("mail-notification-box");
 
     var brandBundle =
@@ -775,8 +770,13 @@ var specialTabs = {
       new StringBundle("chrome://messenger/locale/telemetry.properties");
 
     var productName = brandBundle.get("brandFullName");
-    var serverOwner = prefs.getCharPref(kTelemetryServerOwner);
+    var serverOwner = Services.prefs.getCharPref(kTelemetryServerOwner);
     var telemetryText = telemetryBundle.get("telemetryText", [productName, serverOwner]);
+
+    // Clear all the prefs as we will set them as needed after answering the prompt.
+    Services.prefs.clearUserPref(kTelemetryPrompted);
+    Services.prefs.clearUserPref(kTelemetryEnabled);
+    Services.prefs.clearUserPref(kTelemetryRejected);
 
     var buttons = [
       {
@@ -784,19 +784,21 @@ var specialTabs = {
         accessKey: telemetryBundle.get("telemetryYesButtonAccessKey"),
         popup:     null,
         callback:  function(aNotificationBar, aButton) {
-          prefs.setBoolPref(kTelemetryEnabled, true);
+          Services.prefs.setBoolPref(kTelemetryEnabled, true);
         }
       },
       {
         label:     telemetryBundle.get("telemetryNoButtonLabel"),
         accessKey: telemetryBundle.get("telemetryNoButtonAccessKey"),
         popup:     null,
-        callback:  function(aNotificationBar, aButton) {}
+        callback:  function(aNotificationBar, aButton) {
+          Services.prefs.setBoolPref(kTelemetryRejected, true);
+        }
       }
     ];
 
     // Set pref to indicate we've shown the notification.
-    prefs.setBoolPref(kTelemetryPrompted, true);
+    Services.prefs.setIntPref(kTelemetryPrompted, kTelemetryPromptRev);
 
     var notification = notifyBox.appendNotification(telemetryText, "telemetry", null, notifyBox.PRIORITY_INFO_LOW, buttons);
     notification.persistence = 3; // arbitrary number, just so bar sticks around for a bit
@@ -833,24 +835,21 @@ var specialTabs = {
    *     If this pref isn't set or the value is less than the current version
    *     then we show the about:rights notification.
    */
-  shouldShowAboutRightsNotification: function(prefs) {
+  shouldShowAboutRightsNotification: function() {
     try {
-      return !prefs.getBoolPref("mail.rights.override");
+      return !Services.prefs.getBoolPref("mail.rights.override");
     } catch (e) { }
 
-    return prefs.getIntPref("mail.rights.version") < this._kAboutRightsVersion;
+    return Services.prefs.getIntPref("mail.rights.version") < this._kAboutRightsVersion;
   },
 
-  showAboutRightsNotification: function(prefs) {
+  showAboutRightsNotification: function() {
     var notifyBox = document.getElementById("mail-notification-box");
 
-    var stringBundle =
-      Components.classes["@mozilla.org/intl/stringbundle;1"]
-                .getService(Components.interfaces.nsIStringBundleService);
     var brandBundle =
-      stringBundle.createBundle("chrome://branding/locale/brand.properties");
+      Services.strings.createBundle("chrome://branding/locale/brand.properties");
     var rightsBundle =
-      stringBundle.createBundle("chrome://messenger/locale/aboutRights.properties");
+      Services.strings.createBundle("chrome://messenger/locale/aboutRights.properties");
 
     var productName = brandBundle.GetStringFromName("brandFullName");
     var notifyRightsText = rightsBundle.formatStringFromName("notifyRightsText",
@@ -877,7 +876,7 @@ var specialTabs = {
     box.persistence = 3;
 
     // Set the pref to say we've displayed the notification.
-    prefs.setIntPref("mail.rights.version", this._kAboutRightsVersion);
+    Services.prefs.setIntPref("mail.rights.version", this._kAboutRightsVersion);
   },
 
   /**
@@ -1020,7 +1019,7 @@ var specialTabs = {
       aTab.panel.appendChild(clone);
 
       // Start setting up the browser.
-      aTab.browser = aTab.panel.getElementsByTagName("browser")[0];
+      aTab.browser = aTab.panel.querySelector("browser");
 
       // As we're opening this tab, showTab may not get called, so set
       // the type according to if we're opening in background or not.
@@ -1437,8 +1436,9 @@ var specialTabs = {
    */
   setTabIcon: function(aTab, aIcon) {
     if (aIcon && this.mFaviconService)
-      this.mFaviconService.setAndFetchFaviconForPage(aTab.browser.currentURI,
-                                                     makeURI(aIcon), false);
+      this.mFaviconService.setAndFetchFaviconForPage(
+        aTab.browser.currentURI, makeURI(aIcon), false,
+        this.mFaviconService.FAVICON_LOAD_NON_PRIVATE);
 
     // Save this off so we know about it later,
     aTab.browser.mIconURL = aIcon;

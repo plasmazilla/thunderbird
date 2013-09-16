@@ -29,7 +29,6 @@
 #include "nsLocalMailFolder.h"
 #include "nsIMailboxUrl.h"
 #include "nsIPrompt.h"
-#include "nsLocalStrings.h"
 #include "nsINetUtil.h"
 #include "nsComponentManagerUtils.h"
 #include "nsServiceManagerUtils.h"
@@ -317,7 +316,7 @@ NS_IMETHODIMP nsPop3Service::NewURI(const nsACString &aSpec,
 {
     NS_ENSURE_ARG_POINTER(_retval);
 
-    nsCAutoString folderUri(aSpec);
+    nsAutoCString folderUri(aSpec);
     nsCOMPtr<nsIRDFResource> resource;
     int32_t offset = folderUri.FindChar('?');
     if (offset != kNotFound)
@@ -389,7 +388,7 @@ NS_IMETHODIMP nsPop3Service::NewURI(const nsACString &aSpec,
     nsCString escapedUsername;
     MsgEscapeString(username, nsINetUtil::ESCAPE_XALPHAS, escapedUsername);
 
-    nsCAutoString popSpec("pop://");
+    nsAutoCString popSpec("pop://");
     popSpec += escapedUsername;
     popSpec += "@";
     popSpec += hostname;
@@ -415,7 +414,7 @@ NS_IMETHODIMP nsPop3Service::NewURI(const nsACString &aSpec,
     nsCOMPtr<nsIPop3URL> popurl = do_QueryInterface(mailnewsurl, &rv);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    nsCAutoString messageUri (aSpec);
+    nsAutoCString messageUri (aSpec);
     if (!strncmp(messageUri.get(), "mailbox:", 8))
       messageUri.Replace(0, 8, "mailbox-message:");
     offset = messageUri.Find("?number=");
@@ -455,7 +454,9 @@ void nsPop3Service::AlertServerBusy(nsIMsgMailNewsUrl *url)
   NS_ENSURE_SUCCESS(rv, void(0));
 
   nsString alertString;
-  bundle->GetStringFromID(POP3_MESSAGE_FOLDER_BUSY, getter_Copies(alertString));
+  bundle->GetStringFromName(
+    NS_LITERAL_STRING("pop3MessageFolderBusy").get(),
+    getter_Copies(alertString));
   if (!alertString.IsEmpty())
     dialog->Alert(nullptr, alertString.get());
 }
@@ -606,6 +607,14 @@ nsPop3Service::GetShowComposeMsgLink(bool *showComposeMsgLink)
     NS_ENSURE_ARG_POINTER(showComposeMsgLink);
     *showComposeMsgLink = true;
     return NS_OK;
+}
+
+NS_IMETHODIMP
+nsPop3Service::GetFoldersCreatedAsync(bool *aAsyncCreation)
+{
+  NS_ENSURE_ARG_POINTER(aAsyncCreation);
+  *aAsyncCreation = false;
+  return NS_OK;
 }
 
 NS_IMETHODIMP

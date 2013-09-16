@@ -107,7 +107,7 @@ var gExpandedHeaderView  = {};
  * information is contained in the view objects.
  * For a given entry in this array you can ask for:
  * .headerName   name of the header (i.e. 'to'). Always stored in lower case
- * .headerValue  value of the header "johndoe@netscape.net"
+ * .headerValue  value of the header "johndoe@example.com"
  */
 var currentHeaderData = {};
 
@@ -217,13 +217,13 @@ function OnLoadMsgHeaderPane()
 
   // Load any preferences that at are global with regards to
   // displaying a message...
-  gMinNumberOfHeaders = pref.getIntPref("mailnews.headers.minNumHeaders");
-  gShowCondensedEmailAddresses = pref.getBoolPref("mail.showCondensedAddresses");
-  gHeadersShowReferences = pref.getBoolPref("mailnews.headers.showReferences");
+  gMinNumberOfHeaders = Services.prefs.getIntPref("mailnews.headers.minNumHeaders");
+  gShowCondensedEmailAddresses = Services.prefs.getBoolPref("mail.showCondensedAddresses");
+  gHeadersShowReferences = Services.prefs.getBoolPref("mailnews.headers.showReferences");
 
   // listen to the
-  pref.addObserver("mail.showCondensedAddresses", MsgHdrViewObserver, false);
-  pref.addObserver("mailnews.headers.showReferences", MsgHdrViewObserver, false);
+  Services.prefs.addObserver("mail.showCondensedAddresses", MsgHdrViewObserver, false);
+  Services.prefs.addObserver("mailnews.headers.showReferences", MsgHdrViewObserver, false);
 
   initializeHeaderViewTables();
 
@@ -333,8 +333,8 @@ function initToolbarMenu() {
 
 function OnUnloadMsgHeaderPane()
 {
-  pref.removeObserver("mail.showCondensedAddresses", MsgHdrViewObserver);
-  pref.removeObserver("mailnews.headers.showReferences", MsgHdrViewObserver);
+  Services.prefs.removeObserver("mail.showCondensedAddresses", MsgHdrViewObserver);
+  Services.prefs.removeObserver("mailnews.headers.showReferences", MsgHdrViewObserver);
 
   MailServices.ab.removeAddressBookListener(AddressBookListener);
 
@@ -354,12 +354,12 @@ const MsgHdrViewObserver =
     if (topic == "nsPref:changed") {
       if (prefName == "mail.showCondensedAddresses") {
         gShowCondensedEmailAddresses =
-          pref.getBoolPref("mail.showCondensedAddresses");
+          Services.prefs.getBoolPref("mail.showCondensedAddresses");
         ReloadMessage();
       }
       else if (prefName == "mailnews.headers.showReferences") {
         gHeadersShowReferences =
-          pref.getBoolPref("mailnews.headers.showReferences");
+          Services.prefs.getBoolPref("mailnews.headers.showReferences");
         ReloadMessage();
       }
     }
@@ -412,7 +412,7 @@ var messageHeaderSink = {
       this.mSaveHdr = null;
       // Every time we start to redisplay a message, check the view all headers
       // pref...
-      var showAllHeadersPref = pref.getIntPref("mail.show_headers");
+      var showAllHeadersPref = Services.prefs.getIntPref("mail.show_headers");
       if (showAllHeadersPref == 2) {
         gViewAllHeaders = true;
       } else {
@@ -541,7 +541,7 @@ var messageHeaderSink = {
         var fromMailboxes = kMailboxSeparator +
           MailServices.headerParser.extractHeaderAddressMailboxes(
             currentHeaderData.from.headerValue) + kMailboxSeparator;
-        if (fromMailboxes.indexOf(senderMailbox) >= 0)
+        if (fromMailboxes.contains(senderMailbox))
           delete currentHeaderData.sender;
       }
 
@@ -576,14 +576,14 @@ var messageHeaderSink = {
         this.mSaveHdr = messenger.messageServiceFromURI(uri)
                                  .messageURIToMsgHdr(uri);
       if (contentType == "text/x-vcard") {
-        var inlineAttachments = pref.getBoolPref("mail.inline_attachments");
-        var displayHtmlAs = pref.getIntPref("mailnews.display.html_as");
+        var inlineAttachments = Services.prefs.getBoolPref("mail.inline_attachments");
+        var displayHtmlAs = Services.prefs.getIntPref("mailnews.display.html_as");
         if (inlineAttachments && !displayHtmlAs)
           return;
       }
 
       var size = null;
-      if (isExternalAttachment && /^file:/.test(url)) {
+      if (isExternalAttachment && url.startsWith("file:")) {
         let fileHandler = Services.io.getProtocolHandler("file")
           .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
         try {
@@ -610,15 +610,15 @@ var messageHeaderSink = {
       // We only need to do this on the first attachment.
       var numAttachments = currentAttachments.length;
       if (numAttachments == 1) {
-        // we also have to enable the File/Attachments menuitem
-        var node = document.getElementById("fileAttachmentMenu");
+        // We also have to enable the Message/Attachments menuitem.
+        var node = document.getElementById("msgAttachmentMenu");
         if (node)
           node.removeAttribute("disabled");
 
         // convert the uri into a hdr
         this.mSaveHdr.markHasAttachments(true);
         // we also do the same on appmenu
-        let appmenunode = document.getElementById("appmenu_fileAttachmentMenu");
+        let appmenunode = document.getElementById("appmenu_msgAttachmentMenu");
         if (appmenunode)
           appmenunode.removeAttribute("disabled");
 
@@ -683,6 +683,41 @@ var messageHeaderSink = {
       }
       if (!currentAttachments.length && this.mSaveHdr)
         this.mSaveHdr.markHasAttachments(false);
+
+      let browser = getBrowser();
+      if (currentAttachments.length &&
+          Services.prefs.getBoolPref("mail.inline_attachments") &&
+          this.mSaveHdr && gFolderDisplay.selectedMessageIsFeed &&
+          browser && browser.contentDocument && browser.contentDocument.body) {
+        for (let img of browser.contentDocument.body.getElementsByClassName("moz-attached-image")) {
+          for each (let [, attachment] in Iterator(currentAttachments)) {
+            let partID = img.src.split("&part=")[1];
+            partID = partID ? partID.split("&")[0] : null;
+            if (attachment.partID && partID == attachment.partID) {
+              img.src = attachment.url;
+              break;
+            }
+            else {
+              // GlodaUtils.PART_RE fails to extract a partID for urls with
+              // an embedded ?, at least. So, check the filename too. Frontend
+              // feed parsing ensures no duplicate urls in enclosures.
+              let name = decodeURI(img.src.split("&filename=")[1]);
+              name = name ? name.split("&")[0] : null;
+              if (name == attachment.name) {
+                img.src = attachment.url;
+                break;
+              }
+            }
+          }
+
+          img.addEventListener("load", function(event) {
+            if (this.clientWidth > this.parentNode.clientWidth &&
+                this.hasAttribute("shrinktofit"))
+              this.setAttribute("isshrunk", true);
+          });
+        }
+      }
+
       OnMsgParsed(url);
     },
 
@@ -872,7 +907,7 @@ function EnsureMinimumNumberOfHeaders (headerTable)
     // We may have already dynamically created our empty rows and we just need
     // to make them visible.
     for each (let [index, headerEntry] in Iterator(headerTable)) {
-      if (index.indexOf("Dummy-Header") == 0 && numEmptyHeaders) {
+      if (index.startsWith("Dummy-Header") && numEmptyHeaders) {
         headerEntry.valid = true;
         numEmptyHeaders--;
       }
@@ -916,7 +951,7 @@ function updateExpandedView()
   displayAttachmentsForExpandedView();
 
   try {
-    AdjustHeaderView(pref.getIntPref("mail.show_headers"));
+    AdjustHeaderView(Services.prefs.getIntPref("mail.show_headers"));
   } catch (e) { logException(e); }
 }
 
@@ -1027,6 +1062,10 @@ function UpdateExpandedMessageHeaders() {
   // that attachment-splitter causes if it's moved high enough to affect
   // the header box:
   document.getElementById("msgHeaderView").removeAttribute("height");
+  // This height attribute may be set by toggleWrap() if the user clicked 
+  // the "more" button" in the header.
+  // Remove it so that the height is determined automatically.
+  document.getElementById("expandedHeaderView").removeAttribute("height");
 
   for (headerName in currentHeaderData) {
     var headerField = currentHeaderData[headerName];
@@ -1096,31 +1135,18 @@ function ClearCurrentHeaders()
 function ShowMessageHeaderPane()
 {
   document.getElementById("msgHeaderView").collapsed = false;
-
-  // We used to do this as a work-around for long-ago bug 39655
-  // there apparently was a layout bug where the message pane
-  // 'toolbar' was being hidden as a result of the folder change,
-  // then re-shown, but the layout would glitch and not show it.
-  // As much as I love cargo-culting, I am commenting this out
-  // because I have great respect for our layout ninjas and little
-  // respect for random global variables such as the one that
-  // controlled this.
-  //
-  //var el = document.getElementById("msgHeaderView");
-  //el.setAttribute("style", el.getAttribute("style"));
-  //
 }
 
 function HideMessageHeaderPane()
 {
   document.getElementById("msgHeaderView").collapsed = true;
 
-  // disable the File/Attachments menuitem
-  document.getElementById("fileAttachmentMenu").setAttribute("disabled", "true");
+  // Disable the Message/Attachments menuitem.
+  document.getElementById("msgAttachmentMenu").setAttribute("disabled", "true");
 
   // If the App Menu is being used, disable the attachment menu in there as
   // well.
-  let appMenuNode = document.getElementById("appmenu_fileAttachmentMenu");
+  let appMenuNode = document.getElementById("appmenu_msgAttachmentMenu");
   if (appMenuNode)
     appMenuNode.setAttribute("disabled", "true");
 
@@ -1211,8 +1237,8 @@ function OutputEmailAddresses(headerEntry, emailAddresses)
 function updateEmailAddressNode(emailAddressNode, address)
 {
   emailAddressNode.setAttribute("emailAddress", address.emailAddress);
-  emailAddressNode.setAttribute("fullAddress", address.fullAddress);
-  emailAddressNode.setAttribute("displayName", address.displayName);
+  emailAddressNode.setAttribute("fullAddress", address.fullAddress || "");
+  emailAddressNode.setAttribute("displayName", address.displayName || "");
 
   UpdateEmailNodeDetails(address.emailAddress, emailAddressNode);
 }
@@ -1248,7 +1274,7 @@ function FormatDisplayName(aEmailAddress, aHeaderDisplayName, aContext, aCard)
     }
 
     // Make sure we have an unambiguous name if there are multiple identities
-    if (accountManager.allIdentities.Count() > 1)
+    if (accountManager.allIdentities.length > 1)
       displayName += " <"+identity.email+">";
   }
 
@@ -1256,12 +1282,12 @@ function FormatDisplayName(aEmailAddress, aHeaderDisplayName, aContext, aCard)
   // this are then responsible for falling back to something else (e.g. the
   // value from the message header).
   if (card) {
-    if (!displayName)
+    if (!displayName && aHeaderDisplayName)
       displayName = aHeaderDisplayName;
 
     // getProperty may return a "1" or "0" string, we want a boolean
     if (!displayName || card.getProperty("PreferDisplayName", true) != false)
-      displayName = card.displayName;
+      displayName = card.displayName || null;
   }
 
   return displayName;
@@ -1731,24 +1757,27 @@ function CopyNewsgroupURL(newsgroupNode)
 
   let ng = newsgroupNode.getAttribute("newsgroup");
 
-  // TODO let backend construct URL and return as attribute
   let url;
   if (server.socketType != Components.interfaces.nsMsgSocketType.SSL) {
     url = "news://" + server.hostName;
     if (server.port != Components.interfaces.nsINntpUrl.DEFAULT_NNTP_PORT)
       url += ":" + server.port;
-
     url += "/" + ng;
   } else {
     url = "snews://" + server.hostName;
     if (server.port != Components.interfaces.nsINntpUrl.DEFAULT_NNTPS_PORT)
       url += ":" + server.port;
-
     url += "/" + ng;
   }
-  let clipboard = Components.classes["@mozilla.org/widget/clipboardhelper;1"]
-                            .getService(Components.interfaces.nsIClipboardHelper);
-  clipboard.copyString(decodeURI(url));
+
+  try {
+    let uri = Services.io.newURI(url, null, null);
+    let clipboard = Components.classes["@mozilla.org/widget/clipboardhelper;1"]
+                              .getService(Components.interfaces.nsIClipboardHelper);
+    clipboard.copyString(decodeURI(uri.spec));
+  } catch(e) {
+     Components.utils.reportError("Invalid URL: "+ url);
+  }
 }
 
 /**
@@ -1841,7 +1870,7 @@ AttachmentInfo.prototype = {
   {
     if (this.isDeleted)
       return false;
-    if (this.isExternalAttachment && /^file:/.test(this.url) &&
+    if (this.isExternalAttachment && this.url.startsWith("file:") &&
         this.size === null)
       return false;
 
@@ -2648,12 +2677,12 @@ function HandleMultipleAttachments(attachments, action)
 
 function ClearAttachmentList()
 {
-  // we also have to disable the File/Attachments menuitem
-  var node = document.getElementById("fileAttachmentMenu");
+  // We also have to disable the Message/Attachments menuitem.
+  var node = document.getElementById("msgAttachmentMenu");
   if (node)
     node.setAttribute("disabled", "true");
-  // we also do the same on appmenu
-  let appmenunode = document.getElementById("appmenu_fileAttachmentMenu");
+  // Do the same on appmenu.
+  let appmenunode = document.getElementById("appmenu_msgAttachmentMenu");
   if (appmenunode)
     appmenunode.setAttribute("disabled", "true");
 
@@ -2753,6 +2782,7 @@ nsDummyMsgHeader.prototype =
   messageId : null,
   date : 0,
   accountKey : "",
+  flags : 0,
   // If you change us to return a fake folder, please update
   // folderDisplay.js's FolderDisplayWidget's selectedMessageIsExternal getter.
   folder : null

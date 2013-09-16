@@ -50,7 +50,7 @@
               <xul:menuitem class="open-engine-manager"
                             anonid="open-engine-manager"
                             label="&cmd_engineManager.label;"
-                            oncommand="openManager(event);"/>
+                            oncommand="OpenSearchEngineManager();"/>
             </xul:menupopup>
           </xul:toolbarbutton>
         </xul:box>
@@ -67,6 +67,9 @@
       <constructor><![CDATA[
         if (this.parentNode.parentNode.localName == "toolbarpaletteitem")
           return;
+
+        if (this.usePrivateBrowsing)
+          this._textbox.searchParam += "|private";
 
         this.searchService.init(this);
         var os = Components.classes["@mozilla.org/observer-service;1"]
@@ -100,6 +103,12 @@
       <field name="_searchService">
         Components.classes["@mozilla.org/browser/search-service;1"]
                   .getService(Components.interfaces.nsIBrowserSearchService);
+      </field>
+      <field name="usePrivateBrowsing" readonly="true">
+        window.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+              .getInterface(Components.interfaces.nsIWebNavigation)
+              .QueryInterface(Components.interfaces.nsILoadContext)
+              .usePrivateBrowsing
       </field>
       <field name="_addedObserver">false</field>
       <field name="_engines">null</field>
@@ -376,25 +385,6 @@
         ]]></body>
       </method>
 
-      <method name="openManager">
-        <parameter name="aEvent"/>
-        <body><![CDATA[
-          var wm =
-                Components.classes["@mozilla.org/appshell/window-mediator;1"]
-                          .getService(Components.interfaces.nsIWindowMediator);
-
-          var window = wm.getMostRecentWindow("Browser:SearchManager");
-          if (window)
-            window.focus()
-          else {
-            setTimeout(function () {
-              openDialog("chrome://communicator/content/search/engineManager.xul",
-                         "_blank", "chrome,dialog,modal,centerscreen,resizable");
-            }, 0);
-          }
-        ]]></body>
-      </method>
-
       <method name="selectEngine">
         <parameter name="aEvent"/>
         <parameter name="isNextEngine"/>
@@ -430,10 +420,9 @@
           }
 
           // Save the current value in the form history
-          if (textValue) {
+          if (textValue && !this.usePrivateBrowsing) {
             try {
-              textBox._formHistSvc.addEntry(textBox.getAttribute("autocompletesearchparam"),
-                                            textValue);
+              textBox._formHistSvc.addEntry("searchbar-history", textValue);
             } catch (ex) {
               Components.utils.reportError("Saving search to form history failed: " + ex);
             }
@@ -487,13 +476,16 @@
         var engine = this.currentEngine;
         var connector = Components.classes["@mozilla.org/network/io-service;1"]
                                   .getService(Components.interfaces.nsISpeculativeConnect);
+        var callbacks = window.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+                              .getInterface(Components.interfaces.nsIWebNavigation)
+                              .QueryInterface(Components.interfaces.nsILoadContext);
         var searchURI = engine.getSubmission("dummy").uri;
-        connector.speculativeConnect(searchURI, null, null);
+        connector.speculativeConnect(searchURI, callbacks);
 
         if (engine.supportsResponseType(SUGGEST_TYPE)) {
           var suggestURI = engine.getSubmission("dummy", SUGGEST_TYPE).uri;
           if (suggestURI.prePath != searchURI.prePath)
-            connector.speculativeConnect(suggestURI, null, null);
+            connector.speculativeConnect(suggestURI, callbacks);
         }
       ]]></handler>
     </handlers>
@@ -607,7 +599,7 @@
                              .getControllerForCommand("cmd_paste")
                              .isCommandEnabled("cmd_paste");
             case "cmd_clearhistory":
-              return this._formHistSvc.nameExists(this.searchParam);
+              return this._formHistSvc.nameExists("searchbar-history");
             case "cmd_togglesuggest":
               return true;
           }
@@ -622,8 +614,7 @@
               this.onTextEntered();
               break;
             case "cmd_clearhistory":
-              var param = this.getAttribute("autocompletesearchparam");
-              this._formHistSvc.removeEntriesForName(param);
+              this._formHistSvc.removeEntriesForName("searchbar-history");
               this.value = "";
               break;
             case "cmd_togglesuggest":

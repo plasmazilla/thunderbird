@@ -2,7 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-
 const ELLIPSIS = Services.prefs.getComplexValue("intl.ellipsis",
                                                 Ci.nsIPrefLocalizedString).data;
 
@@ -20,6 +19,16 @@ const PREFS_WHITELIST = [
   "browser.link.open_newwindow",
   "browser.mousewheel.",
   "browser.places.",
+  "browser.privatebrowsing.",
+  "browser.search.context.loadInBackground",
+  "browser.search.log",
+  "browser.search.openintab",
+  "browser.search.param",
+  "browser.search.searchEnginesURL",
+  "browser.search.suggest.enabled",
+  "browser.search.update",
+  "browser.search.useDBForOrder",
+  "browser.sessionstore.",
   "browser.startup.homepage",
   "browser.tabs.",
   "browser.zoom.",
@@ -47,6 +56,7 @@ const PREFS_WHITELIST = [
   "privacy.",
   "security.",
   "svg.",
+  "toolkit.startup.recent_crashes",
   "webgl.",
   // mail-specific prefs
   "mail.openMessageBehavior.",

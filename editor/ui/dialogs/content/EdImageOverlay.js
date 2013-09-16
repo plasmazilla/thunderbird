@@ -3,11 +3,11 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
- Note: We encourage non-empty alt text for images inserted into a page. 
+ Note: We encourage non-empty alt text for images inserted into a page.
  When there's no alt text, we always write 'alt=""' as the attribute, since "alt" is a required attribute.
  We allow users to not have alt text by checking a "Don't use alterate text" radio button,
  and we don't accept spaces as valid alt text. A space used to be required to avoid the error message
- if user didn't enter alt text, but is unnecessary now that we no longer annoy the user 
+ if user didn't enter alt text, but is unnecessary now that we no longer annoy the user
  with the error dialog if alt="" is present on an img element.
  We trim all spaces at the beginning and end of user's alt text
 */
@@ -117,10 +117,10 @@ function InitImage()
 
   // dialog.border.value       = globalElement.getAttribute("border");
   var bv = GetHTMLOrCSSStyleValue(globalElement, "border", "border-top-width");
-  if (/px/.test(bv))
+  if (bv.contains("px"))
   {
     // Strip out the px
-    bv = RegExp.leftContext;
+    bv = bv.substr(0, bv.indexOf("px"));
   }
   else if (bv == "thin")
   {
@@ -193,15 +193,10 @@ function GetImageMap()
   if (usemap)
   {
     gCanRemoveImageMap = true;
-    var mapname = usemap.substring(1, usemap.length);
-    var mapCollection;
+    let mapname = usemap.substr(1);
     try {
-      mapCollection = GetCurrentEditor().document.getElementsByName(mapname);
+      return GetCurrentEditor().document.querySelector('[name="' + mapname + '"]');
     } catch (e) {}
-    if (mapCollection && mapCollection[0] != null)
-    {
-      return mapCollection[0];
-    }
   }
   else
   {
@@ -288,24 +283,20 @@ function LoadPreviewImage()
     // Remove the image URL from image cache so it loads fresh
     //  (if we don't do this, loads after the first will always use image cache
     //   and we won't see image edit changes or be able to get actual width and height)
-    
-    var IOService = GetIOService();
-    if (IOService)
+
+    // We must have an absolute URL to preview it or remove it from the cache
+    imageSrc = MakeAbsoluteUrl(imageSrc);
+
+    if (GetScheme(imageSrc))
     {
-      // We must have an absolute URL to preview it or remove it from the cache
-      imageSrc = MakeAbsoluteUrl(imageSrc);
-
-      if (GetScheme(imageSrc))
+      let uri = Services.io.newURI(imageSrc, null, null);
+      if (uri)
       {
-        var uri = IOService.newURI(imageSrc, null, null);
-        if (uri)
-        {
-          var imgCacheService = Components.classes["@mozilla.org/image/cache;1"].getService();
-          var imgCache = imgCacheService.QueryInterface(Components.interfaces.imgICache);
+        let imgCacheService = Components.classes["@mozilla.org/image/cache;1"].getService();
+        let imgCache = imgCacheService.QueryInterface(Components.interfaces.imgICache);
 
-          // This returns error if image wasn't in the cache; ignore that
-          imgCache.removeEntry(uri);
-        }
+        // This returns error if image wasn't in the cache; ignore that
+        imgCache.removeEntry(uri);
       }
     }
   } catch(e) {}
@@ -315,7 +306,7 @@ function LoadPreviewImage()
 
   if (gDialog.ImageHolder.firstChild)
     gDialog.ImageHolder.removeChild(gDialog.ImageHolder.firstChild);
-    
+
   gDialog.PreviewImage = document.createElementNS("http://www.w3.org/1999/xhtml", "html:img");
   if (gDialog.PreviewImage)
   {
@@ -459,28 +450,26 @@ function ValidateImage()
   gValidateTab = gDialog.tabLocation;
   if (!gDialog.srcInput.value)
   {
-    AlertWithTitle(null, GetString("MissingImageError"));
+    Services.prompt.alert(window, GetString("Alert"), GetString("MissingImageError"));
     SwitchToValidatePanel();
     gDialog.srcInput.focus();
     return false;
   }
 
   // We must convert to "file:///" or "http://" format else image doesn't load!
-  var src = TrimString(gDialog.srcInput.value);
+  let src = gDialog.srcInput.value.trim();
   var checkbox = document.getElementById("MakeRelativeCheckbox");
   try
   {
     if (checkbox && !checkbox.checked)
     {
-      var URIFixup = Components.classes["@mozilla.org/docshell/urifixup;1"]
-                               .getService(Components.interfaces.nsIURIFixup);
-      src = URIFixup.createFixupURI(src, Components.interfaces.nsIURIFixup.FIXUP_FLAG_NONE).spec;
+      src = Services.uriFixup.createFixupURI(src, Components.interfaces.nsIURIFixup.FIXUP_FLAG_NONE).spec;
     }
   } catch (e) { }
 
   globalElement.setAttribute("src", src);
 
-  var title = TrimString(gDialog.titleInput.value);
+  let title = gDialog.titleInput.value.trim();
   if (title)
     globalElement.setAttribute("title", title);
   else
@@ -503,7 +492,7 @@ function ValidateImage()
   }
   else
   {
-    AlertWithTitle(null, GetString("NoAltText"));
+    Services.prompt.alert(window, GetString("Alert"), GetString("NoAltText"));
     SwitchToValidatePanel();
     gDialog.altTextInput.focus();
     return false;
@@ -516,12 +505,12 @@ function ValidateImage()
   if (!gDialog.actualSizeRadio.selected)
   {
     // Get user values for width and height
-    width = ValidateNumber(gDialog.widthInput, gDialog.widthUnitsMenulist, 1, gMaxPixels, 
+    width = ValidateNumber(gDialog.widthInput, gDialog.widthUnitsMenulist, 1, gMaxPixels,
                            globalElement, "width", false, true);
     if (gValidationError)
       return false;
 
-    height = ValidateNumber(gDialog.heightInput, gDialog.heightUnitsMenulist, 1, gMaxPixels, 
+    height = ValidateNumber(gDialog.heightInput, gDialog.heightUnitsMenulist, 1, gMaxPixels,
                             globalElement, "height", false, true);
     if (gValidationError)
       return false;
@@ -544,23 +533,23 @@ function ValidateImage()
 
   if (height)
     editor.setAttributeOrEquivalent(globalElement, "height", height, true);
-  else if (srcChanged) 
+  else if (srcChanged)
     editor.removeAttributeOrEquivalent(globalElement, "height", true);
 
   // spacing attributes
   gValidateTab = gDialog.tabBorder;
-  ValidateNumber(gDialog.imagelrInput, null, 0, gMaxPixels, 
+  ValidateNumber(gDialog.imagelrInput, null, 0, gMaxPixels,
                  globalElement, "hspace", false, true, true);
   if (gValidationError)
     return false;
 
-  ValidateNumber(gDialog.imagetbInput, null, 0, gMaxPixels, 
+  ValidateNumber(gDialog.imagetbInput, null, 0, gMaxPixels,
                  globalElement, "vspace", false, true);
   if (gValidationError)
     return false;
 
   // note this is deprecated and should be converted to stylesheets
-  ValidateNumber(gDialog.border, null, 0, gMaxPixels, 
+  ValidateNumber(gDialog.border, null, 0, gMaxPixels,
                  globalElement, "border", false, true);
   if (gValidationError)
     return false;

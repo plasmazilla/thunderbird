@@ -62,7 +62,7 @@ protected:
   uint32_t m_size;
 
    // sum of the sizes of the messages, accumulated as we visit each msg.
-  uint32_t m_totalMsgSize;
+  uint64_t m_totalMsgSize;
 
   uint32_t m_curIndex; // index of the current copied message key in key array
   uint64_t m_startOfNewMsg; // offset in mailbox of new message
@@ -96,7 +96,7 @@ public:
                                     nsresult status);
   NS_IMETHODIMP OnDataAvailable(nsIRequest *request, nsISupports *ctxt,
                                 nsIInputStream *inStr,
-                                uint32_t sourceOffset, uint32_t count);
+                                uint64_t sourceOffset, uint32_t count);
 
 protected:
     nsresult         CopyNextMessage(bool &done);

@@ -52,6 +52,8 @@
 #include <prmem.h>
 #include "nsIMsgTraitService.h"
 #include "mozilla/Services.h"
+#include <cstdlib> // for std::abs(int/long)
+#include <cmath> // for std::abs(float/double)
 
 static PRLogModuleInfo *BayesianFilterLogModule = nullptr;
 
@@ -291,12 +293,11 @@ Tokenizer::Tokenizer() :
 {
   nsresult rv;
   nsCOMPtr<nsIPrefService> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, );
+  NS_ENSURE_SUCCESS_VOID(rv);
 
   nsCOMPtr<nsIPrefBranch> prefBranch;
   rv = prefs->GetBranch("mailnews.bayesian_spam_filter.", getter_AddRefs(prefBranch));
-  if (NS_FAILED(rv)) // no branch defined, just use defaults
-    return;
+  NS_ENSURE_SUCCESS_VOID(rv); // no branch defined, just use defaults
 
   /*
    * RSS feeds store their summary as alternate content of an iframe. But due
@@ -500,8 +501,8 @@ void Tokenizer::addTokenForHeader(const char * aTokenPrefix, nsACString& aValue,
 
 void Tokenizer::tokenizeAttachment(const char * aContentType, const char * aFileName)
 {
-  nsCAutoString contentType;
-  nsCAutoString fileName;
+  nsAutoCString contentType;
+  nsAutoCString fileName;
   fileName.Assign(aFileName);
   contentType.Assign(aContentType);
 
@@ -516,7 +517,7 @@ void Tokenizer::tokenizeAttachment(const char * aContentType, const char * aFile
 void Tokenizer::tokenizeHeaders(nsIUTF8StringEnumerator * aHeaderNames, nsIUTF8StringEnumerator * aHeaderValues)
 {
   nsCString headerValue;
-  nsCAutoString headerName; // we'll be normalizing all header names to lower case
+  nsAutoCString headerName; // we'll be normalizing all header names to lower case
   bool hasMore;
  
   while (aHeaderNames->HasMore(&hasMore), hasMore)
@@ -863,7 +864,7 @@ void Tokenizer::tokenize(const char* aText)
 // helper function to escape \n, \t, etc from a CString
 void Tokenizer::UnescapeCString(nsCString& aCString)
 {
-  nsCAutoString result;
+  nsAutoCString result;
 
   const char* readEnd = aCString.EndReading();
   char* writeStart = result.BeginWriting();
@@ -1076,8 +1077,8 @@ NS_IMETHODIMP TokenStreamListener::OnStartRequest(nsIRequest *aRequest, nsISuppo
     return NS_OK;
 }
 
-/* void onDataAvailable (in nsIRequest aRequest, in nsISupports aContext, in nsIInputStream aInputStream, in unsigned long aOffset, in unsigned long aCount); */
-NS_IMETHODIMP TokenStreamListener::OnDataAvailable(nsIRequest *aRequest, nsISupports *aContext, nsIInputStream *aInputStream, uint32_t aOffset, uint32_t aCount)
+/* void onDataAvailable (in nsIRequest aRequest, in nsISupports aContext, in nsIInputStream aInputStream, in unsigned long long aOffset, in unsigned long aCount); */
+NS_IMETHODIMP TokenStreamListener::OnDataAvailable(nsIRequest *aRequest, nsISupports *aContext, nsIInputStream *aInputStream, uint64_t aOffset, uint32_t aCount)
 {
     nsresult rv = NS_OK;
 
@@ -1346,9 +1347,9 @@ public:
       {
         // call all listeners with null parameters to signify end of batch
         if (mJunkListener)
-          mJunkListener->OnMessageClassified(nullptr, nullptr, nullptr);
+          mJunkListener->OnMessageClassified(nullptr, nsIJunkMailPlugin::UNCLASSIFIED, 0);
         if (mTraitListener)
-          mTraitListener->OnMessageTraitsClassified(nullptr, nullptr, nullptr, nullptr);
+          mTraitListener->OnMessageTraitsClassified(nullptr, 0, nullptr, nullptr);
         mTokenListener = nullptr; // this breaks the circular ref that keeps this object alive
                                  // so we will be destroyed as a result.
       }
@@ -1587,7 +1588,7 @@ void nsBayesianFilter::classifyMessage(
 
         double n = proCount + antiCount;
         prob =  (0.225 + n * prob) / (.45 + n);
-        double distance = NS_ABS(prob - 0.5);
+        double distance = std::abs(prob - 0.5);
         if (distance >= .1)
         {
           nsresult rv = setAnalysis(token, traitIndex, distance, prob);
@@ -2717,18 +2718,16 @@ void CorpusStore::remove(const char* word, uint32_t aTraitId, uint32_t aCount)
 
 uint32_t CorpusStore::getMessageCount(uint32_t aTraitId)
 {
-  const uint32_t kNoIndex = uint32_t(-1);
   uint32_t index = mMessageCountsId.IndexOf(aTraitId);
-  if (index == kNoIndex)
+  if (index == mMessageCountsId.NoIndex)
     return 0;
   return mMessageCounts.ElementAt(index);
 }
 
 void CorpusStore::setMessageCount(uint32_t aTraitId, uint32_t aCount)
 {
-  const uint32_t kNoIndex = uint32_t(-1);
   uint32_t index = mMessageCountsId.IndexOf(aTraitId);
-  if (index == kNoIndex)
+  if (index == mMessageCountsId.NoIndex)
   {
     mMessageCounts.AppendElement(aCount);
     mMessageCountsId.AppendElement(aTraitId);

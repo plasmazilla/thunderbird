@@ -16,11 +16,9 @@
 
 // async support
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 
 // IMAP pump
-load("../../../resources/IMAPpump.js");
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 
@@ -31,10 +29,15 @@ const gXGmMsgid = "1278455344230334865";
 const gXGmThrid = "1266894439832287888";
 const gXGmLabels = '(\\Inbox \\Sent Important "Muy Importante" foo)';
 
-var gMsgWindow = Cc["@mozilla.org/messenger/msgwindow;1"]
-  .createInstance(Ci.nsIMsgWindow);
-
 setupIMAPPump("GMail");
+
+IMAPPump.mailbox.specialUseFlag = "\\Inbox";
+IMAPPump.mailbox.subscribed = true;
+
+// need all mail folder to identify this as gmail server.
+IMAPPump.daemon.createMailbox("[Gmail]", {flags : ["\\NoSelect"] });
+IMAPPump.daemon.createMailbox("[Gmail]/All Mail", {subscribed : true,
+                                               specialUseFlag : "\\AllMail"});
 
 // Definition of tests
 var tests = [
@@ -49,32 +52,32 @@ var tests = [
 function loadImapMessage()
 {
   let message = new imapMessage(specForFileName(gMessage),
-                          gIMAPMailbox.uidnext++, []);
+                                IMAPPump.mailbox.uidnext++, []);
   message.xGmMsgid = gXGmMsgid;
   message.xGmThrid = gXGmThrid;
   message.xGmLabels = gXGmLabels;
-  gIMAPMailbox.addMessage(message);
-  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+  IMAPPump.mailbox.addMessage(message);
+  IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
   yield false;
 }
 
 function testFetchXGmMsgid()
 {
-  let msgHdr = firstMsgHdr(gIMAPInbox);
+  let msgHdr = mailTestUtils.firstMsgHdr(IMAPPump.inbox);
   let val = msgHdr.getStringProperty("X-GM-MSGID");
   do_check_eq(val, gXGmMsgid);
 }
 
 function testFetchXGmThrid()
 {
-  let msgHdr = firstMsgHdr(gIMAPInbox);
+  let msgHdr = mailTestUtils.firstMsgHdr(IMAPPump.inbox);
   let val = msgHdr.getStringProperty("X-GM-THRID");
   do_check_eq(val, gXGmThrid);
 }
 
 function testFetchXGmLabels()
 {
-  let msgHdr = firstMsgHdr(gIMAPInbox);
+  let msgHdr = mailTestUtils.firstMsgHdr(IMAPPump.inbox);
   let val = msgHdr.getStringProperty("X-GM-LABELS");
    // We need to remove the starting "(" and ending ")" from gXGmLabels while comparing
   do_check_eq(val, gXGmLabels.substring(1 ,gXGmLabels.length - 1));
@@ -100,9 +103,6 @@ function run_test()
 function specForFileName(aFileName)
 {
   let file = do_get_file("../../../data/" + aFileName);
-  let msgfileuri = Cc["@mozilla.org/network/io-service;1"]
-                     .getService(Ci.nsIIOService)
-                     .newFileURI(file)
-                     .QueryInterface(Ci.nsIFileURL);
+  let msgfileuri = Services.io.newFileURI(file).QueryInterface(Ci.nsIFileURL);
   return msgfileuri.spec;
 }

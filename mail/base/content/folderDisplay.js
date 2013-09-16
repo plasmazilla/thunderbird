@@ -4,11 +4,13 @@
 
 Components.utils.import("resource:///modules/dbViewWrapper.js");
 Components.utils.import("resource:///modules/jsTreeSelection.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 var gFolderDisplay = null;
 var gMessageDisplay = null;
 
 var nsMsgFolderFlags = Components.interfaces.nsMsgFolderFlags;
+var nsMsgMessageFlags = Components.interfaces.nsMsgMessageFlags;
 
 /**
  * Maintains a list of listeners for all FolderDisplayWidget instances in this
@@ -65,8 +67,9 @@ let FolderDisplayListenerManager = {
         try {
           listener[aEventName].apply(listener, aArgs);
         }
-        catch(ex) {
-          Components.utils.reportError(ex);
+        catch(e) {
+          Components.utils.reportError(aEventName + " event listener FAILED; " +
+                                       e + " at: " + e.stack);
         }
       }
     }
@@ -208,7 +211,7 @@ FolderDisplayWidget.prototype = {
    *     offline.
    */
   get summarizeSelectionInFolder() {
-    return gPrefBranch.getBoolPref("mail.operate_on_msgs_in_collapsed_threads") &&
+    return Services.prefs.getBoolPref("mail.operate_on_msgs_in_collapsed_threads") &&
       !(this.displayedFolder instanceof Components.interfaces.nsIMsgNewsFolder);
   },
 
@@ -454,30 +457,16 @@ FolderDisplayWidget.prototype = {
   },
 
   /**
-   * Track whether we know the columns are dirty.  If we know they are dirty we
-   *  have kicked off a timer event that will persist things.
-   */
-  _columnsDirty: false,
-
-  /**
    * Let us know that the state of the columns has changed.  This is either due
    *  to a re-ordering or hidden-ness being toggled.
    *
    * This method should only be called on (the active) gFolderDisplay.
    */
   hintColumnsChanged: function FolderDisplayWidget_hintColumnsChanged() {
-    // ignore this if we are the ones doing things or we already are handling it
-    if (this._touchingColumns || this._columnsDirty)
+    // ignore this if we are the ones doing things
+    if (this._touchingColumns)
       return;
-    this._columnsDirty = true;
-    let dis = this;
-    // Since DOM manipulations come in batches, use a timer so that we persist
-    //  things after the DOM manipulating code has finished its business.
-    window.setTimeout(function () {
-                        dis._persistColumnStates(dis.getColumnStates());
-                        dis._columnsDirty = false;
-                      },
-                      0);
+    this._persistColumnStates(this.getColumnStates());
   },
 
   /**
@@ -804,7 +793,7 @@ FolderDisplayWidget.prototype = {
   get shouldDeferMessageDisplayUntilAfterServerConnect() {
     let passwordPromptRequired = false;
 
-    if (gPrefBranch.getBoolPref("mail.password_protect_local_cache"))
+    if (Services.prefs.getBoolPref("mail.password_protect_local_cache"))
       passwordPromptRequired =
         this.view.displayedFolder.server.passwordPromptRequired;
 
@@ -819,8 +808,8 @@ FolderDisplayWidget.prototype = {
    */
   shouldMarkMessagesReadOnLeavingFolder:
     function FolderDisplayWidget_crazyMarkOnReadChecker (aMsgFolder) {
-      return gPrefBranch.getBoolPref("mailnews.mark_message_read." +
-                                     aMsgFolder.server.type);
+      return Services.prefs.getBoolPref("mailnews.mark_message_read." +
+                                        aMsgFolder.server.type);
   },
 
   /**
@@ -889,16 +878,12 @@ FolderDisplayWidget.prototype = {
     FolderDisplayListenerManager._fireListeners("onActiveCreatedView",
                                                 [this]);
 
-    let ObserverService =
-      Components.classes["@mozilla.org/observer-service;1"]
-                .getService(Components.interfaces.nsIObserverService);
     // The data payload used to be viewType + ":" + viewFlags.  We no longer
     //  do this because we already have the implied contract that gDBView is
     //  valid at the time we generate the notification.  In such a case, you
     //  can easily get that information from the gDBView.  (The documentation
     //  on creating a custom column assumes gDBView.)
-    ObserverService.notifyObservers(this.displayedFolder,
-                                    "MsgCreateDBView", "");
+    Services.obs.notifyObservers(this.displayedFolder, "MsgCreateDBView", "");
   },
 
   /**
@@ -1070,7 +1055,7 @@ FolderDisplayWidget.prototype = {
 
     // - new messages
     // if configured to scroll to new messages, try that
-    if (gPrefBranch.getBoolPref("mailnews.scroll_to_new_message") &&
+    if (Services.prefs.getBoolPref("mailnews.scroll_to_new_message") &&
         this.navigate(nsMsgNavigationType.firstNew, /* select */ false))
       return;
 
@@ -1079,7 +1064,7 @@ FolderDisplayWidget.prototype = {
     //  persistent than our saveSelection/restoreSelection stuff), and the view
     //  is backed by a single underlying folder (the only way having just a
     //  message key works out), try that
-    if (gPrefBranch.getBoolPref("mailnews.remember_selected_message") &&
+    if (Services.prefs.getBoolPref("mailnews.remember_selected_message") &&
         this.view.isSingleFolder) {
       // use the displayed folder; nsMsgDBView goes to the effort to save the
       //  state to the viewFolder, so this is the correct course of action.
@@ -1280,8 +1265,11 @@ FolderDisplayWidget.prototype = {
     let msgHdr = (viewIndex != nsMsgViewIndex_None) ?
                    this.view.dbView.getMsgHdrAt(viewIndex) : null;
 
-    if (!FeedMessageHandler.shouldShowSummary(msgHdr, false))
+    if (this._tabInfo && !FeedMessageHandler.shouldShowSummary(msgHdr, false)) {
+      // Load a web page if we have a tabInfo (i.e. 3pane), but not for a
+      // standalone window instance; it has its own method.
       FeedMessageHandler.setContent(msgHdr, false);
+    }
 
     this.messageDisplay.onDisplayingMessage(msgHdr);
 
@@ -1667,8 +1655,8 @@ FolderDisplayWidget.prototype = {
     var prefName = "mailnews.account_central_page.url";
     // oh yeah, 'pref' is a global all right.
     var acctCentralPage =
-      pref.getComplexValue(prefName,
-                           Components.interfaces.nsIPrefLocalizedString).data;
+      Services.prefs.getComplexValue(prefName,
+                                     Components.interfaces.nsIPrefLocalizedString).data;
     window.frames["accountCentralPane"].location.href = acctCentralPage;
   },
 
@@ -1956,6 +1944,36 @@ FolderDisplayWidget.prototype = {
   },
 
   /**
+   * @return true if there is a selected message and the message belongs to an
+   *              ignored thread.
+   */
+  get selectedMessageThreadIgnored() {
+    let message = this.selectedMessage;
+    return Boolean(message && message.folder &&
+                   message.folder.msgDatabase.IsIgnored(message.messageKey));
+  },
+
+  /**
+   * @return true if there is a selected message and the message is the base
+   *              message for an ignored subthread.
+   */
+  get selectedMessageSubthreadIgnored() {
+    let message = this.selectedMessage;
+    return Boolean(message && message.folder &&
+                   (message.flags & nsMsgMessageFlags.Ignored));
+  },
+
+  /**
+   * @return true if there is a selected message and the message belongs to a
+   *              watched thread.
+   */
+  get selectedMessageThreadWatched() {
+    let message = this.selectedMessage;
+    return Boolean(message && message.folder &&
+                   message.folder.msgDatabase.IsWatched(message.messageKey));
+  },
+
+  /**
    * @return the number of selected messages.  If summarizeSelectionInFolder is
    *  true, then any collapsed thread roots that are selected will also
    *  conceptually have all of the messages in that thread selected.
@@ -2005,9 +2023,9 @@ FolderDisplayWidget.prototype = {
     // getMsgHdrsForSelection returns an nsIMutableArray.  We want our callers
     //  to have a user-friendly JS array and not have to worry about
     //  QueryInterfacing the values (or needing to know to use fixIterator).
-    return [msgHdr for each
+    return [msgHdr for
               (msgHdr in fixIterator(
-                          this.view.dbView.getMsgHdrsForSelection().enumerate(),
+                          this.view.dbView.getMsgHdrsForSelection(),
                           Components.interfaces.nsIMsgDBHdr))];
   },
 
@@ -2032,7 +2050,7 @@ FolderDisplayWidget.prototype = {
    * @return true if all the selected messages can be archived, false otherwise.
    */
   get canArchiveSelectedMessages() {
-    if (!this.view.dbView)
+    if (!this.view.dbView || this.messageDisplay.isDummy)
       return false;
 
     if (this.selectedCount == 0)

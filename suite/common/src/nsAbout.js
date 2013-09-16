@@ -13,6 +13,8 @@ function About() { }
 About.prototype = {
   Flags: SCRIPT,
   URI: "chrome://communicator/content/about.xhtml",
+  blockedFlags: SCRIPT | UNTRUSTED | HIDE,
+  blockedURI: "chrome://communicator/content/blockedSite.xhtml",
   certerrorFlags: SCRIPT | UNTRUSTED | HIDE,
   certerrorURI: "chrome://communicator/content/certError.xhtml",
   dataFlags: SCRIPT,
@@ -21,6 +23,8 @@ About.prototype = {
   feedsURI: "chrome://communicator/content/feeds/subscribe.xhtml",
   lifeFlags: SCRIPT | HIDE,
   lifeURI: "chrome://communicator/content/aboutLife.xhtml",
+  privatebrowsingFlags: SCRIPT,
+  privatebrowsingURI: "chrome://communicator/content/aboutPrivateBrowsing.xul",
   rightsFlags: SCRIPT | UNTRUSTED,
   rightsURI: "chrome://branding/content/aboutRights.xhtml",
   sessionrestoreFlags: SCRIPT | HIDE,

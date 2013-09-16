@@ -6,8 +6,6 @@
  * This test verifies that we don't display text attachments inline
  * when mail.inline_attachments is false.
  */
-load("../../../resources/mailDirService.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/logHelper.js");
 load("../../../resources/asyncTestUtils.js");
 
@@ -42,7 +40,7 @@ let gStreamListener = {
   },
   onStopRequest: function (aRequest, aContext, aStatusCode) {
     // check that text attachment contents didn't end up inline.
-    do_check_eq(this._str.indexOf(textAttachment), -1);
+    do_check_true(!this._str.contains(textAttachment));
     async_driver();
   },
 

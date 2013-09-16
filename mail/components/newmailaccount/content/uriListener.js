@@ -16,6 +16,7 @@ let Cr = Components.results;
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/NetUtil.jsm");
+Cu.import("resource://gre/modules/JXON.js");
 
 /**
  * This is an observer that watches all HTTP requests for one where the
@@ -57,7 +58,7 @@ httpRequestObserver.prototype = {
       return;
     }
 
-    if (contentType.toLowerCase().indexOf("text/xml") != 0)
+    if (!contentType.toLowerCase().startsWith("text/xml"))
       return;
 
     let requestWindow = this._getWindowForRequest(aSubject);
@@ -175,10 +176,12 @@ TracingListener.prototype = {
     try {
       // Attempt to construct the downloaded data into XML
       let data = this.chunks.join("");
-      let xml = new XML(data);
 
       // Attempt to derive email account information
-      let accountConfig = accountCreationFuncs.readFromXML(xml);
+      let domParser = Cc["@mozilla.org/xmlextras/domparser;1"]
+                       .createInstance(Ci.nsIDOMParser);
+      let accountConfig = accountCreationFuncs.readFromXML(JXON.build(
+        domParser.parseFromString(data, "text/xml")));
       accountCreationFuncs.replaceVariables(accountConfig,
                                             this.params.realName,
                                             this.params.email);

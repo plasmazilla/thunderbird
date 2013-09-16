@@ -20,6 +20,7 @@
   <keyset id="editorKeys">
     <!-- defined in globalOverlay -->
     <key id="key_newNavigator"/>
+    <key id="key_newPrivateWindow"/>
     <key id="key_newBlankPage"/>
     <key id="key_save"
          key="&saveCmd.key;"
@@ -92,17 +93,17 @@
          command="cmd_removeNamedAnchors"
          modifiers="accel, shift"/>
     <key id="decreasefontsizekb"
-         key="&decreaseFontSize.key;"
+         key="&decrementFontSize.key;"
          command="cmd_decreaseFont"
          modifiers="accel"/>
     <key id="increasefontsizekb"
-         key="&increaseFontSize.key;"
+         key="&incrementFontSize.key;"
          command="cmd_increaseFont"
          modifiers="accel"/>
-    <key key="&increaseFontSize.key;"
+    <key key="&incrementFontSize.key;"
          command="cmd_increaseFont"
          modifiers="accel,shift"/>
-    <key key="&increaseFontSize.key2;"
+    <key key="&incrementFontSize.key2;"
          command="cmd_increaseFont"
          modifiers="accel"/>
 
@@ -281,6 +282,7 @@
     <command id="toggleSidebar"/>
     <!-- file menu -->
     <command id="cmd_newNavigator"/>
+    <command id="cmd_newPrivateWindow"/>
     <command id="cmd_newEditor"/>
     <command id="cmd_newEditorTemplate"/>
     <command id="cmd_newEditorDraft"/>

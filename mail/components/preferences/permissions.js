@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 const nsIPermissionManager = Components.interfaces.nsIPermissionManager;
 const nsICookiePermission = Components.interfaces.nsICookiePermission;
 
@@ -17,8 +19,6 @@ function Permission(host, rawHost, type, capability, perm)
 var gPermissionManager = {
   _type         : "",
   _permissions  : [],
-  _pm           : Components.classes["@mozilla.org/permissionmanager;1"]
-                            .getService(Components.interfaces.nsIPermissionManager),
   _bundle       : null,
   _tree         : null,
 
@@ -44,12 +44,11 @@ var gPermissionManager = {
     getImageSrc: function(aRow, aColumn) {},
     getProgressMode: function(aRow, aColumn) {},
     getCellValue: function(aRow, aColumn) {},
-    cycleHeader: function(column) {},
-    getRowProperties: function(row,prop){},
-    getColumnProperties: function(column,prop){},
-    getCellProperties: function(row,column,prop){
-      if (column.element.getAttribute("id") == "siteCol")
-        prop.AppendElement(this._ltrAtom);
+    cycleHeader: function(aColumn) {},
+    getRowProperties: function(aRow) { return ""; },
+    getColumnProperties: function(aColumn) { return ""; },
+    getCellProperties: function(aRow, aColumn) {
+      return (aColumn.element.getAttribute("id") == "siteCol") ? "ltr" : "";
     }
   },
 
@@ -75,16 +74,12 @@ var gPermissionManager = {
     var textbox = document.getElementById("url");
     var host = textbox.value.replace(/^\s*([-\w]*:\/+)?/, ""); // trim any leading space and scheme
     try {
-      var ioService = Components.classes["@mozilla.org/network/io-service;1"]
-                                .getService(Components.interfaces.nsIIOService);
-      var uri = ioService.newURI("http://"+host, null, null);
+      var uri = Services.io.newURI("http://" + host, null, null);
       host = uri.host;
     } catch(ex) {
-      var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                                    .getService(Components.interfaces.nsIPromptService);
       var message = this._bundle.getString("invalidURI");
       var title = this._bundle.getString("invalidURITitle");
-      promptService.alert(window, title, message);
+      Services.prompt.alert(window, title, message);
       return;
     }
 
@@ -103,9 +98,9 @@ var gPermissionManager = {
     }
 
     if (!exists) {
-      host = (host.charAt(0) == ".") ? host.substring(1,host.length) : host;
-      var uri = ioService.newURI("http://" + host, null, null);
-      this._pm.add(uri, this._type, aCapability);
+      host = host.startsWith(".") ? host.substr(1) : host;
+      let uri = Services.io.newURI("http://" + host, null, null);
+      Services.perms.add(uri, this._type, aCapability);
     }
     textbox.value = "";
     textbox.focus();
@@ -169,24 +164,16 @@ var gPermissionManager = {
     var urlLabel = document.getElementById("urlLabel");
     urlLabel.hidden = !urlFieldVisible;
 
-    var os = Components.classes["@mozilla.org/observer-service;1"]
-                       .getService(Components.interfaces.nsIObserverService);
-    os.addObserver(this, "perm-changed", false);
+    Services.obs.addObserver(this, "perm-changed", false);
 
     this._loadPermissions();
 
     urlField.focus();
-
-    this._ltrAtom = Components.classes["@mozilla.org/atom-service;1"]
-                              .getService(Components.interfaces.nsIAtomService)
-                              .getAtom("ltr");
   },
 
   uninit: function ()
   {
-    var os = Components.classes["@mozilla.org/observer-service;1"]
-                       .getService(Components.interfaces.nsIObserverService);
-    os.removeObserver(this, "perm-changed");
+    Services.obs.removeObserver(this, "perm-changed");
   },
 
   observe: function (aSubject, aTopic, aData)
@@ -242,7 +229,7 @@ var gPermissionManager = {
     gTreeUtils.deleteSelectedItems(this._tree, this._view, this._permissions, removedPermissions);
     for (var i = 0; i < removedPermissions.length; ++i) {
       var p = removedPermissions[i];
-      this._pm.remove(p.host, p.type);
+      Services.perms.remove(p.host, p.type);
     }
     document.getElementById("removePermission").disabled = !this._permissions.length;
     document.getElementById("removeAllPermissions").disabled = !this._permissions.length;
@@ -256,7 +243,7 @@ var gPermissionManager = {
     gTreeUtils.deleteAll(this._tree, this._view, this._permissions, removedPermissions);
     for (var i = 0; i < removedPermissions.length; ++i) {
       var p = removedPermissions[i];
-      this._pm.remove(p.host, p.type);
+      Services.perms.remove(p.host, p.type);
     }
     document.getElementById("removePermission").disabled = true;
     document.getElementById("removeAllPermissions").disabled = true;
@@ -289,7 +276,7 @@ var gPermissionManager = {
 
     // load permissions into a table
     var count = 0;
-    var enumerator = this._pm.enumerator;
+    var enumerator = Services.perms.enumerator;
     while (enumerator.hasMoreElements()) {
       var nextPermission = enumerator.getNext().QueryInterface(Components.interfaces.nsIPermission);
       this._addPermissionToList(nextPermission);
@@ -314,7 +301,7 @@ var gPermissionManager = {
       var host = aPermission.host;
       var capabilityString = this._getCapabilityString(aPermission.capability);
       var p = new Permission(host,
-                             (host.charAt(0) == ".") ? host.substring(1,host.length) : host,
+                             (host.startsWith(".")) ? host.substring(1, host.length) : host,
                              aPermission.type,
                              capabilityString,
                              aPermission.capability);

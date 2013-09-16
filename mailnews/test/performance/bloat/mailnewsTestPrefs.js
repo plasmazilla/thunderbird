@@ -16,7 +16,7 @@ user_pref("mail.accountmanager.defaultaccount", "account2");
 user_pref("mail.accountmanager.localfoldersserver", "server1");
 user_pref("mail.identity.id1.fullName", "Tinderbox");
 user_pref("mail.identity.id1.smtpServer", "smtp1");
-user_pref("mail.identity.id1.useremail", "tinderbox@invalid.com");
+user_pref("mail.identity.id1.useremail", "tinderbox@foo.invalid");
 user_pref("mail.identity.id1.valid", true);
 user_pref("mail.root.none-rel", "[ProfD]Mail");
 user_pref("mail.root.pop3-rel", "[ProfD]Mail");
@@ -30,7 +30,7 @@ user_pref("mail.server.server2.directory-rel", "[ProfD]Mail/tinderbox");
 user_pref("mail.server.server2.download_on_biff", true);
 user_pref("mail.server.server2.hostname", "tinderbox");
 user_pref("mail.server.server2.login_at_startup", false);
-user_pref("mail.server.server2.name", "tinderbox@invalid.com");
+user_pref("mail.server.server2.name", "tinderbox@foo.invalid");
 user_pref("mail.server.server2.type", "pop3");
 user_pref("mail.server.server2.userName", "tinderbox");
 user_pref("mail.smtp.defaultserver", "smtp1");
@@ -44,7 +44,7 @@ user_pref("mailnews.database.global.indexer.enabled", false);
 user_pref("ldap_2.servers.osx.position", 0);
 user_pref("ldap_2.servers.oe.position", 0);
 // Suppress Telemetry opt-in prompt
-user_pref("toolkit.telemetry.prompted", true);
+user_pref("toolkit.telemetry.prompted", 999);
 
 //
 // SeaMonkey preferences.

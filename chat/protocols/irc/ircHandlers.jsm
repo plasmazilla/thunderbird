@@ -27,6 +27,9 @@ var ircHandlers = {
   // Object to hold the ISUPPORT handlers, expects the same fields as
   // _ircHandlers.
   _isupportHandlers: [],
+  // Object to hold the Client Capabilities handlers, expects the same fields as
+  // _ircHandlers.
+  _capHandlers: [],
   // Object to hold the CTCP handlers, expects the same fields as _ircHandlers.
   _ctcpHandlers: [],
   // Object to hold the DCC handlers, expects the same fields as _ircHandlers.
@@ -38,11 +41,13 @@ var ircHandlers = {
   _registerHandler: function(aArray, aHandler) {
     // Protect ourselves from adding broken handlers.
     if (!("commands" in aHandler)) {
-      ERROR("IRC handlers must have a \"commands\" property: " + aHandler.name);
+      Cu.reportError(new Error("IRC handlers must have a \"commands\" " +
+                               "property: " + aHandler.name));
       return false;
     }
     if (!("isEnabled" in aHandler)) {
-      ERROR("IRC handlers must have a \"isEnabled\" property: " + aHandler.name);
+      Cu.reportError(new Error("IRC handlers must have a \"isEnabled\" " +
+                               "property: " + aHandler.name));
       return false;
     }
 
@@ -64,6 +69,11 @@ var ircHandlers = {
     this._registerHandler(this._isupportHandlers, aHandler),
   unregisterISUPPORTHandler: function(aHandler)
     this._unregisterHandler(this._isupportHandlers, aHandler),
+
+  registerCAPHandler: function(aHandler)
+    this._registerHandler(this._capHandlers, aHandler),
+  unregisterCAPHandler: function(aHandler)
+    this._unregisterHandler(this._capHandlers, aHandler),
 
   registerCTCPHandler: function(aHandler)
     this._registerHandler(this._ctcpHandlers, aHandler),
@@ -91,15 +101,14 @@ var ircHandlers = {
         if (handler.isEnabled.call(aAccount) &&
             hasOwnProperty(handler.commands, aCommand) &&
             handler.commands[aCommand].call(aAccount, aMessage)) {
-          DEBUG(JSON.stringify(aMessage));
+          aAccount.DEBUG(JSON.stringify(aMessage));
           return true;
         }
       } catch (e) {
-        // We want to catch an error here because one of our handlers are broken,
-        // if we don't catch the error, the whole IRC plug-in will die.
-        ERROR("Error running command " + aCommand + " with handler " +
-              handler.name + ":\n" + JSON.stringify(aMessage));
-        Cu.reportError(e);
+        // We want to catch an error here because one of our handlers are
+        // broken, if we don't catch the error, the whole IRC plug-in will die.
+        aAccount.ERROR("Error running command " + aCommand + " with handler " +
+                       handler.name + ":\n" + JSON.stringify(aMessage), e);
       }
     }
 
@@ -113,6 +122,10 @@ var ircHandlers = {
   handleISUPPORTMessage: function(aAccount, aMessage)
     this._handleMessage(this._isupportHandlers, aAccount, aMessage,
                         aMessage.isupport.parameter),
+
+  handleCAPMessage: function(aAccount, aMessage)
+    this._handleMessage(this._capHandlers, aAccount, aMessage,
+                        aMessage.cap.parameter),
 
   // aMessage is a CTCP Message, which inherits from an IRC Message.
   handleCTCPMessage: function(aAccount, aMessage)
@@ -132,6 +145,7 @@ var ircHandlers = {
   // Checking if handlers exist.
   get hasHandlers() this._ircHandlers.length > 0,
   get hasISUPPORTHandlers() this._isupportHandlers.length > 0,
+  get hasCAPHandlers() this._capHandlers.length > 0,
   get hasCTCPHandlers() this._ctcpHandlers.length > 0,
   get hasDCCHandlers() this._dccHandlers.length > 0,
   get hasServicesHandlers() this._servicesHandlers.length > 0,

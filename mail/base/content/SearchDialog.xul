@@ -6,6 +6,7 @@
 
 <?xml-stylesheet href="chrome://messenger/skin/searchDialog.css" type="text/css"?>
 <?xml-stylesheet href="chrome://messenger/skin/folderPane.css" type="text/css"?>
+<?xml-stylesheet href="chrome://messenger/skin/folderMenus.css" type="text/css"?>
 
 <?xul-overlay href="chrome://messenger/content/searchTermOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/utilityOverlay.xul"?>
@@ -78,8 +79,11 @@
          <hbox align="center">
          <label value="&searchHeading.label;" accesskey="&searchHeading.accesskey;"
                 control="searchableFolders"/>
-         <menulist id="searchableFolders" flex="2">
-           <menupopup class="searchPopup" oncommand="updateSearchFolderPicker(this.getAttribute('uri'));"/>
+         <menulist id="searchableFolders" flex="2" class="folderMenuItem">
+           <menupopup class="searchPopup menulist-menupopup"
+                      type="folder" mode="search"
+                      showAccountsFileHere="true" showFileHereLabel="true"
+                      oncommand="updateSearchFolderPicker(event.target._folder);"/>
          </menulist>
          <spacer flex="10"/>
          <button id="search-button" oncommand="onSearchButton(event);" default="true"/>
@@ -178,13 +182,13 @@
       </vbox>
       <hbox align="start"> 
         <button label="&openButton.label;" id="openButton" command="cmd_open" accesskey="&openButton.accesskey;"/>
-        <button id="fileMessageButton" type="menu" label="&fileButton.label;"
-                accesskey="&fileButton.accesskey;"
+        <button id="fileMessageButton" type="menu" label="&moveButton.label;"
+                accesskey="&moveButton.accesskey;"
                 observes="file_message_button"
                 oncommand="MoveMessageInSearch(event.target)">
         <menupopup type="folder" showFileHereLabel="true" mode="filing"
-                   fileHereLabel="&fileHereMenu.label;"
-                   fileHereAccessKey="&fileHereMenu.accesskey;"/>
+                   fileHereLabel="&moveHereMenu.label;"
+                   fileHereAccessKey="&moveHereMenu.accesskey;"/>
       </button>
 
       <button label="&deleteButton.label;" id="deleteButton" command="button_delete" accesskey="&deleteButton.accesskey;"/>

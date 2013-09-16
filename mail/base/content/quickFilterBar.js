@@ -4,11 +4,8 @@
 
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
 Components.utils.import("resource:///modules/errUtils.js");
-
-Components.utils.import("resource:///modules/searchSpec.js");
-
 Components.utils.import("resource:///modules/quickFilterManager.js");
-
+Components.utils.import("resource:///modules/searchSpec.js");
 
 ////////////////////////////////////////////////////////////////////////////////
 //// Proper Code
@@ -73,22 +70,21 @@ let QuickFilterBarMuxer = {
    * quickFilter toggle should be enabled, and set it appropriately.
    */
   _updateToggle: function QFBM__updateToggle(aTabInfo) {
-    let folderDisplay = aTabInfo.folderDisplay;
-
-    let hasQuickFilter = "quickFilter" in aTabInfo._ext;
-    let isFolderView = (aTabInfo.mode.name == "folder" &&
-                        folderDisplay.displayedFolder &&
-                        !folderDisplay.displayedFolder.isServer);
-    let isGlodaList = aTabInfo.mode.name == "glodaList";
-    let appropriate = hasQuickFilter && (isGlodaList || isFolderView);
-
-    let qfbButton = document.getElementById("qfb-show-filter-bar");
-
-    if (qfbButton) {
-      qfbButton.disabled = !appropriate;
-      if (!appropriate)
-        qfbButton.checked = false;
+    if (!this.isCommandEnabled("cmd_toggleQuickFilterBar", aTabInfo)) {
+      document.getElementById("view_toolbars_popup_quickFilterBar")
+              .setAttribute("checked", false);
     }
+
+    this._updateCommands();
+  },
+
+  /**
+   * Update the commands associated with the quick filter bar.
+   */
+  _updateCommands: function QFBM__updateCommands() {
+    goUpdateCommand("cmd_popQuickFilterBarStack");
+    goUpdateCommand("cmd_showQuickFilterBar");
+    goUpdateCommand("cmd_toggleQuickFilterBar");
   },
 
   /**
@@ -256,9 +252,8 @@ let QuickFilterBarMuxer = {
 
     document.getElementById("quick-filter-bar").collapsed =
       !aFilterer.visible;
-    let qfbButton = document.getElementById("qfb-show-filter-bar");
-    if (qfbButton)
-      qfbButton.checked = aFilterer.visible;
+    document.getElementById("view_toolbars_popup_quickFilterBar")
+            .setAttribute("checked", aFilterer.visible);
   },
 
   /**
@@ -459,11 +454,7 @@ let QuickFilterBarMuxer = {
     let filterer = this.maybeActiveFilterer;
     if (filterer)
       this.reflectFiltererState(filterer, aTab.folderDisplay);
-    else { // this only happens for tabs we are not legal on
-      let qfbButton = document.getElementById("qfb-show-filter-bar");
-      if (qfbButton)
-        qfbButton.disabled = true;
-    }
+    this._updateCommands();
   },
 
   supportsCommand: function QFBM_supportsCommand(aCommand, aTab) {
@@ -481,6 +472,14 @@ let QuickFilterBarMuxer = {
   isCommandEnabled: function QFBM_isCommandEnabled(aCommand, aTab) {
     // we are not active on tab types we do not support (message tabs)
     if (!("quickFilter" in aTab._ext))
+      return null;
+
+    let isFolderView = (aTab.mode.name == "folder" &&
+                        aTab.folderDisplay.displayedFolder &&
+                        !aTab.folderDisplay.displayedFolder.isServer);
+    let isGlodaList = aTab.mode.name == "glodaList";
+
+    if (!isFolderView && !isGlodaList)
       return null;
 
     if (aCommand == "cmd_popQuickFilterBarStack" ||
@@ -516,13 +515,15 @@ let QuickFilterBarMuxer = {
   },
 
   get maybeActiveFilterer() {
-    if ("quickFilter" in this.tabmail.currentTabInfo._ext)
+    if (this.tabmail.currentTabInfo &&
+       "quickFilter" in this.tabmail.currentTabInfo._ext)
       return this.tabmail.currentTabInfo._ext.quickFilter;
     return null;
   },
 
   get activeFilterer() {
-    if ("quickFilter" in this.tabmail.currentTabInfo._ext)
+    if (this.tabmail.currentTabInfo &&
+        "quickFilter" in this.tabmail.currentTabInfo._ext)
       return this.tabmail.currentTabInfo._ext.quickFilter;
     throw errorWithDebug("There is no active filterer but we want one.");
   },

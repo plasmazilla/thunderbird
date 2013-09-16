@@ -45,9 +45,18 @@
       <preference id="mailnews.database.global.indexer.enabled" 
                   name="mailnews.database.global.indexer.enabled" 
                   type="bool"/>
-      <preference id="toolkit.telemetry.enabled" 
-                  name="toolkit.telemetry.enabled" 
+
+      <preference id="toolkit.telemetry.enabled"
+                  name="toolkit.telemetry.enabled"
+                  onchange="gAdvancedPane.telemetryEnabledChanged(event);"
                   type="bool"/>
+      <preference id="toolkit.telemetry.prompted"
+                  name="toolkit.telemetry.prompted"
+                  type="int"/>
+      <preference id="toolkit.telemetry.rejected"
+                  name="toolkit.telemetry.rejected"
+                  type="bool"/>
+
 #ifdef HAVE_SHELL_SERVICE
       <preference id="mail.shell.checkDefaultClient"
                   name="mail.shell.checkDefaultClient"
@@ -122,9 +131,6 @@
       <preference id="security.disable_button.openCertManager"
                   name="security.disable_button.openCertManager"
                   type="bool"/>
-      <preference id="security.OCSP.disable_button.managecrl"
-                  name="security.OCSP.disable_button.managecrl"
-                  type="bool"/>
       <preference id="security.disable_button.openDeviceManager"
                   name="security.disable_button.openDeviceManager"
                   type="bool"/>
@@ -182,8 +188,8 @@
                         preference="mail.shell.checkDefaultClient"
                         label="&alwaysCheckDefault.label;"
                         accesskey="&alwaysCheckDefault.accesskey;" flex="1"/>
-              <button id="checkDefaultButton" label="&checkNow.label;"
-                      accesskey="&checkNow.accesskey;"
+              <button id="checkDefaultButton" label="&checkDefaultsNow.label;"
+                      accesskey="&checkDefaultsNow.accesskey;"
                       oncommand="gAdvancedPane.checkDefaultNow();"
                       preference="pref.general.disable_button.default_mail"/>
             </hbox>
@@ -429,35 +435,21 @@
 
           <separator/>
 
-#ifdef XP_MACOSX
-          <vbox>
-#endif
           <hbox>
             <button id="viewCertificatesButton"
                     label="&viewCertificates.label;"
                     accesskey="&viewCertificates.accesskey;"
                     oncommand="gAdvancedPane.showCertificates();"
                     preference="security.disable_button.openCertManager"/>
-            <button id="viewCRLButton"
-                    label="&viewCRLs.label;" accesskey="&viewCRLs.accesskey;"
-                    oncommand="gAdvancedPane.showCRLs();"
-                    preference="security.OCSP.disable_button.managecrl"/>
             <button id="verificationButton"
                     label="&validation.label;" accesskey="&validation.accesskey;"
                     oncommand="gAdvancedPane.showOCSP();"/>
-#ifdef XP_MACOSX
-          </hbox>
-          <hbox>
-#endif
             <button id="viewSecurityDevicesButton"
                     label="&viewSecurityDevices.label;"
                     accesskey="&viewSecurityDevices.accesskey;"
                     oncommand="gAdvancedPane.showSecurityDevices();"
                     preference="security.disable_button.openDeviceManager"/>
           </hbox>
-#ifdef XP_MACOSX
-          </vbox>
-#endif
         </tabpanel>
       </tabpanels>
     </tabbox>

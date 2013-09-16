@@ -28,6 +28,7 @@
 #include "EudoraDebugLog.h"
 #include "prmem.h"
 #include "plstr.h"
+#include <algorithm>
 
 static NS_DEFINE_IID(kISupportsIID,      NS_ISUPPORTS_IID);
 
@@ -202,7 +203,7 @@ nsresult nsEudoraWin32::ScanMailDir(nsIFile *pFolder, nsISupportsArray *pArray, 
       inputStream->Close();
       return rv;
     }
-    uint32_t bytesLeft = NS_MIN(PR_UINT32_MAX - 1, bytesLeft64);
+    uint32_t bytesLeft = std::min(uint64_t(PR_UINT32_MAX - 1), bytesLeft64);
     pContents = (char *) PR_Malloc(bytesLeft + 1);
     if (!pContents)
       return NS_ERROR_OUT_OF_MEMORY;
@@ -433,7 +434,7 @@ nsresult nsEudoraWin32::FoundMailbox(nsIFile *mailFile, const char *pName, nsISu
   NS_CopyNativeToUnicode(nsDependentCString(pName), displayName);
 
 #ifdef IMPORT_DEBUG
-  nsCAutoString path;
+  nsAutoCString path;
   mailFile->GetNativePath(path);
   if (!path.IsEmpty())
     IMPORT_LOG2("Found eudora mailbox, %s: %s\n", path.get(), pName);
@@ -474,7 +475,7 @@ nsresult nsEudoraWin32::FoundMailFolder(nsIFile *mailFolder, const char *pName, 
   NS_CopyNativeToUnicode(nsDependentCString(pName), displayName);
 
 #ifdef IMPORT_DEBUG
-  nsCAutoString path;
+  nsAutoCString path;
   mailFolder->GetNativePath(path);
   if (!path.IsEmpty())
     IMPORT_LOG2("Found eudora folder, %s: %s\n", path.get(), pName);
@@ -508,7 +509,7 @@ nsresult nsEudoraWin32::FoundMailFolder(nsIFile *mailFolder, const char *pName, 
 nsresult nsEudoraWin32::FindTOCFile(nsIFile *pMailFile, nsIFile **ppTOCFile, bool *pDeleteToc)
 {
   nsresult    rv;
-  nsCAutoString  leaf;
+  nsAutoCString  leaf;
 
   *pDeleteToc = false;
   *ppTOCFile = nullptr;
@@ -688,7 +689,7 @@ bool nsEudoraWin32::GetMailboxNameHierarchy(const nsACString& pEudoraLocation, c
     pathLength = strlen(pEudoraFilePath);
 
   bool more = true;
-  nsCAutoString buf;
+  nsAutoCString buf;
   while (more)
   {
     rv = lineStream->ReadLine(buf, &more);
@@ -835,7 +836,7 @@ bool nsEudoraWin32::BuildPOPAccount(nsIMsgAccountManager *accMgr, const char *pS
         IMPORT_LOG0("Created a new account and set the incoming server to the POP3 server.\n");
 
         nsCOMPtr<nsIPop3IncomingServer> pop3Server = do_QueryInterface(in, &rv);
-        NS_ENSURE_SUCCESS(rv,rv);
+        NS_ENSURE_SUCCESS(rv,false);
         UINT valInt = ::GetPrivateProfileInt(pSection, "LeaveMailOnServer", 0, pIni);
         pop3Server->SetLeaveMessagesOnServer(valInt ? true : false);
 
@@ -910,9 +911,9 @@ bool nsEudoraWin32::BuildIMAPAccount(nsIMsgAccountManager *accMgr, const char *p
 
 void nsEudoraWin32::SetIdentities(nsIMsgAccountManager *accMgr, nsIMsgAccount *acc, const char *pSection, const char *pIniFile, const char *userName, const char *serverName, char *pBuff)
 {
-  nsCAutoString realName;
-  nsCAutoString email;
-  nsCAutoString server;
+  nsAutoCString realName;
+  nsAutoCString email;
+  nsAutoCString server;
   DWORD valSize;
   nsresult rv;
 
@@ -968,7 +969,7 @@ void nsEudoraWin32::SetSmtpServer(nsIMsgAccountManager *pMgr, nsIMsgAccount *pAc
     }
     nsCOMPtr<nsISmtpServer>    smtpServer;
 
-    rv = smtpService->CreateSmtpServer(getter_AddRefs(smtpServer));
+    rv = smtpService->CreateServer(getter_AddRefs(smtpServer));
     if (NS_SUCCEEDED(rv) && smtpServer)
     {
       smtpServer->SetHostname(nsDependentCString(pServer));
@@ -1003,7 +1004,7 @@ nsresult nsEudoraWin32::GetAttachmentInfo(const char *pFileName, nsIFile *pFile,
     //
     // Check to see if we have any better luck looking for the attachment
     // in the current attachment directory.
-    nsCAutoString name;
+    nsAutoCString name;
     pFile->GetNativeLeafName(name);
     if (name.IsEmpty())
       return NS_ERROR_FAILURE;
@@ -1043,7 +1044,7 @@ nsresult nsEudoraWin32::GetAttachmentInfo(const char *pFileName, nsIFile *pFile,
 
   if (exists && isFile)
   {
-    nsCAutoString name;
+    nsAutoCString name;
     pFile->GetNativeLeafName(name);
     if (name.IsEmpty())
       return NS_ERROR_FAILURE;
@@ -1079,7 +1080,7 @@ bool nsEudoraWin32::FindMimeIniFile(nsIFile *pFile)
   bool hasMore;
   nsCOMPtr<nsISimpleEnumerator> directoryEnumerator;
   nsresult rv = pFile->GetDirectoryEntries(getter_AddRefs(directoryEnumerator));
-  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_SUCCESS(rv, false);
 
   directoryEnumerator->HasMoreElements(&hasMore);
   bool              isFile;
@@ -1189,7 +1190,7 @@ void nsEudoraWin32::GetMimeTypeFromExtension(nsCString& ext, nsCString& mimeType
         return;
     }
 
-    nsCAutoString fileName;
+    nsAutoCString fileName;
     pFile->GetNativePath(fileName);
     if (fileName.IsEmpty())
       return;

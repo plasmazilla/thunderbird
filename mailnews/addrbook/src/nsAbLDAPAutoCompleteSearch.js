@@ -3,6 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 const ACR = Components.interfaces.nsIAutoCompleteResult;
@@ -72,9 +74,7 @@ nsAbLDAPAutoCompleteResult.prototype = {
 }
 
 function nsAbLDAPAutoCompleteSearch() {
-  Components.classes["@mozilla.org/observer-service;1"]
-            .getService(Components.interfaces.nsIObserverService)
-            .addObserver(this, "quit-application", false);
+  Services.obs.addObserver(this, "quit-application", false);
 }
 
 nsAbLDAPAutoCompleteSearch.prototype = {
@@ -101,15 +101,14 @@ nsAbLDAPAutoCompleteSearch.prototype = {
   // The listener to pass back results to.
   _listener: null,
 
-  _parser: Components.classes["@mozilla.org/messenger/headerparser;1"]
-                     .getService(Components.interfaces.nsIMsgHeaderParser),
+  _parser: MailServices.headerParser,
 
   // Private methods
   // fullString is the full search string.
   // rest is anything after the first word.
   _checkEntry: function _checkEntry(card, search) {
-    return card.displayName.toLocaleLowerCase().lastIndexOf(search, 0) == 0 ||
-           card.primaryEmail.toLocaleLowerCase().lastIndexOf(search, 0) == 0;
+    return card.displayName.toLocaleLowerCase().startsWith(search) ||
+           card.primaryEmail.toLocaleLowerCase().startsWith(search);
   },
 
   _checkDuplicate: function _checkDuplicate(card, emailAddress) {
@@ -162,9 +161,7 @@ nsAbLDAPAutoCompleteSearch.prototype = {
         this._cachedQueries[item].attributes = null;
       }
       this._cachedQueries = {};
-      Components.classes["@mozilla.org/observer-service;1"]
-                .getService(Components.interfaces.nsIObserverService)
-                .removeObserver(this, "quit-application");
+      Services.obs.removeObserver(this, "quit-application");
     }
   },
 
@@ -180,7 +177,7 @@ nsAbLDAPAutoCompleteSearch.prototype = {
     // result ignored.
     // The comma check is so that we don't autocomplete against the user
     // entering multiple addresses.
-    if (!aSearchString || /,/.test(aSearchString)) {
+    if (!aSearchString || aSearchString.contains(",")) {
       this._result.searchResult = ACR.RESULT_IGNORED;
       aListener.onSearchResult(this, this._result);
       return;
@@ -189,8 +186,8 @@ nsAbLDAPAutoCompleteSearch.prototype = {
     // Compare lowercase strings, because autocomplete may mangle the case
     // depending on the previous results.
     if (aPreviousResult instanceof nsIAbAutoCompleteResult &&
-        aSearchString.lastIndexOf(
-          aPreviousResult.searchString.toLocaleLowerCase(), 0) == 0 &&
+        aSearchString.startsWith(
+          aPreviousResult.searchString.toLocaleLowerCase()) &&
         aPreviousResult.searchResult == ACR.RESULT_SUCCESS) {
       // We have successful previous matches, therefore iterate through the
       // list and reduce as appropriate.
@@ -221,10 +218,7 @@ nsAbLDAPAutoCompleteSearch.prototype = {
     // results to fall back on.
 
     if (aParam != this._cachedParam) {
-      this._cachedIdentity =
-        Components.classes['@mozilla.org/messenger/account-manager;1']
-                  .getService(Components.interfaces.nsIMsgAccountManager)
-                  .getIdentity(aParam);
+      this._cachedIdentity = MailServices.accounts.getIdentity(aParam);
       this._cachedParam = aParam;
     }
 
@@ -237,10 +231,8 @@ nsAbLDAPAutoCompleteSearch.prototype = {
       acDirURI = this._cachedIdentity.directoryServer;
     else {
       // Try the global one
-      var prefSvc = Components.classes["@mozilla.org/preferences-service;1"]
-                              .getService(Components.interfaces.nsIPrefBranch);
-      if (prefSvc.getBoolPref("ldap_2.autoComplete.useDirectory"))
-        acDirURI = prefSvc.getCharPref("ldap_2.autoComplete.directoryServer");
+      if (Services.prefs.getBoolPref("ldap_2.autoComplete.useDirectory"))
+        acDirURI = Services.prefs.getCharPref("ldap_2.autoComplete.directoryServer");
     }
 
     if (!acDirURI) {
@@ -249,16 +241,13 @@ nsAbLDAPAutoCompleteSearch.prototype = {
       return;
     }
 
-    var abMgr = Components.classes["@mozilla.org/abmanager;1"]
-                          .getService(Components.interfaces.nsIAbManager);
-
     // If we don't already have a cached query for this URI, build a new one.
     if (!(acDirURI in this._cachedQueries)) {
       var query =
         Components.classes["@mozilla.org/addressbook/ldap-directory-query;1"]
                   .createInstance(Components.interfaces.nsIAbDirectoryQuery);
-      var book = abMgr.getDirectory("moz-abldapdirectory://" + acDirURI)
-                      .QueryInterface(Components.interfaces.nsIAbLDAPDirectory);
+      let book = MailServices.ab.getDirectory("moz-abldapdirectory://" + acDirURI)
+                                .QueryInterface(Components.interfaces.nsIAbLDAPDirectory);
 
       // Create a minimal map just for the display name and primary email.
       var attributes =
@@ -290,14 +279,21 @@ nsAbLDAPAutoCompleteSearch.prototype = {
       Components.classes["@mozilla.org/addressbook/directory/query-arguments;1"]
                 .createInstance(Components.interfaces.nsIAbDirectoryQueryArguments);
 
-    // These are hard-coded for now and the _checkEntry function should match
-    // what these statements do.
-    var searchStr = "(or(PrimaryEmail,bw,@V)(DisplayName,bw,@V))";
-    searchStr = searchStr.replace(/@V/g, encodeURIComponent(aSearchString));
+    var filterTemplate = queryObject.book.getStringValue("autoComplete.filterTemplate", "");
 
-    args.expression = abMgr.convertQueryStringToExpression(searchStr);
+    // Use default value when preference is not set or it contains empty string    
+    if (!filterTemplate)
+      filterTemplate = "(|(cn=%v1*%v2-*)(mail=%v1*%v2-*)(sn=%v1*%v2-*))";
+
+    // Create filter from filter template and search string
+    var ldapSvc = Components.classes["@mozilla.org/network/ldap-service;1"]
+                            .getService(Components.interfaces.nsILDAPService);
+    var filter = ldapSvc.createFilter(1024, filterTemplate, "", "", "", aSearchString);
+    if (!filter)
+      throw new Error("Filter string is empty, check if filterTemplate variable is valid in prefs.js.");
     args.typeSpecificArg = queryObject.attributes;
     args.querySubDirectories = true;
+    args.filter = filter;
 
     // Start the actual search
     queryObject.context =

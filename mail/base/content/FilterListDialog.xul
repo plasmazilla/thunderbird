@@ -28,8 +28,6 @@
     <stringbundle id="bundle_filter" src="chrome://messenger/locale/filter.properties"/>
   </stringbundleset>
 
-  <keyset id="dialogKeys"/>
-
   <keyset>
     <key key="&closeCmd.key;" modifiers="accel" oncommand="if (onFilterClose()) window.close();"/>
     <key keycode="VK_ESCAPE" oncommand="if (onFilterClose()) window.close();"/>
@@ -46,6 +44,7 @@
               ServerType="none"
               oncommand="onFilterFolderClick(event.target._folder);">
       <menupopup id="serverMenuPopup" type="folder" mode="filters"
+                 class="menulist-menupopup"
                  expandFolders="nntp" headlabels="&choosethisnewsserver.label;"/>
     </menulist>
     <textbox id="searchBox"
@@ -133,7 +132,9 @@
                    disabled="true" control="runFiltersFolder"/>
             <menulist id="runFiltersFolder" disabled="true" flex="1"
                       oncommand="onTargetSelect(event);">
-              <menupopup id="runFiltersPopup" type="folder"
+              <menupopup id="runFiltersPopup"
+                         class="menulist-menupopup"
+                         type="folder"
                          showFileHereLabel="true"
                          fileHereLabel="&filemessageschoosethis.label;"/>
             </menulist>

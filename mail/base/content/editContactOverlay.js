@@ -3,6 +3,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 var editContactInlineUI = {
   _overlayLoaded: false,
   _overlayLoading: false,
@@ -83,8 +86,7 @@ var editContactInlineUI = {
 
   showEditContactPanel: function showEditContactPanel(aCardDetails, aAnchorElement) {
     this._cardDetails = aCardDetails;
-    let position = (getComputedStyle(this.panel, null).direction == "rtl") ?
-      "after_end" : "after_start";
+    let position = "after_start";
     this._doShowEditContactPanel(aAnchorElement, position);
   },
 
@@ -144,7 +146,7 @@ var editContactInlineUI = {
             !list.isMailList)
           continue;
 
-        for (let card in fixIterator(list.addressLists.enumerate())) {
+        for (let card in fixIterator(list.addressLists)) {
           if (card instanceof Components.interfaces.nsIAbCard &&
               card.primaryEmail == this._cardDetails.card.primaryEmail) {
             inMailList = true;
@@ -185,21 +187,16 @@ var editContactInlineUI = {
     this.panel.hidePopup();
 
     var bundle = document.getElementById("bundle_editContact");
-    if (!Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                  .getService(Components.interfaces.nsIPromptService)
-                  .confirm(window,
-                            bundle.getString("deleteContactTitle"),
-                            bundle.getString("deleteContactMessage")))
+    if (!Services.prompt.confirm(window,
+                                 bundle.getString("deleteContactTitle"),
+                                 bundle.getString("deleteContactMessage")))
       return;  /* XXX would be nice to bring the popup back up here */
 
     let cardArray = Components.classes["@mozilla.org/array;1"]
                               .createInstance(Components.interfaces.nsIMutableArray);
     cardArray.appendElement(this._cardDetails.card, false);
 
-    Components.classes["@mozilla.org/abmanager;1"]
-              .getService(Components.interfaces.nsIAbManager)
-              .getDirectory(this._cardDetails.book.URI)
-              .deleteCards(cardArray);
+    MailServices.ab.getDirectory(this._cardDetails.book.URI).deleteCards(cardArray);
   },
 
   saveChanges: function() {
@@ -213,9 +210,7 @@ var editContactInlineUI = {
 
     let abURI = document.getElementById("editContactAddressBookList").value;
     if (abURI != originalBook.URI) {
-      let abManager = Components.classes["@mozilla.org/abmanager;1"]
-                                .getService(Components.interfaces.nsIAbManager);
-      this._cardDetails.book = abManager.getDirectory(abURI);
+      this._cardDetails.book = MailServices.ab.getDirectory(abURI);
     }
 
     // We can assume the email address stays the same, so just update the name

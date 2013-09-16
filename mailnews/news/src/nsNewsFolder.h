@@ -48,7 +48,8 @@ public:
 
   NS_IMETHOD GetExpungedBytesCount(uint32_t *count);
   NS_IMETHOD GetDeletable (bool *deletable);
-  NS_IMETHOD GetRequiresCleanup(bool *requiresCleanup);
+
+  NS_IMETHOD RefreshSizeOnDisk();
 
   NS_IMETHOD GetSizeOnDisk(uint32_t *size);
 
@@ -64,7 +65,6 @@ public:
   NS_IMETHOD GetCanCreateSubfolders(bool *aResult);
   NS_IMETHOD GetCanRename(bool *aResult);
   NS_IMETHOD GetCanCompact(bool *aResult);
-  NS_IMETHOD GetCanDeleteMessages(bool *aResult);
   NS_IMETHOD OnReadChanged(nsIDBChangeListener * aInstigator);
 
   NS_IMETHOD DownloadMessagesForOffline(nsIArray *messages, nsIMsgWindow *window);

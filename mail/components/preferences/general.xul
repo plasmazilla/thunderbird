@@ -24,6 +24,7 @@
       <preference id="mailnews.start_page.enabled" name="mailnews.start_page.enabled" type="bool"/>
       <preference id="mailnews.start_page.url" name="mailnews.start_page.url" type="string"/>
       <preference id="mail.biff.show_alert" name="mail.biff.show_alert" type="bool"/>
+      <preference id="mail.biff.show_tray_icon" name="mail.biff.show_tray_icon" type="bool" />
       <preference id="mail.biff.play_sound" name="mail.biff.play_sound" type="bool"/>
       <preference id="mail.biff.play_sound.type" name="mail.biff.play_sound.type" type="int"/>
       <preference id="mail.biff.play_sound.url" name="mail.biff.play_sound.url" type="string"/>      
@@ -39,7 +40,8 @@
         <hbox align="start">
           <checkbox id="mailnewsStartPageEnabled" label="&enableStartPage.label;"
                     preference="mailnews.start_page.enabled"
-                    accesskey="&enableStartPage.accesskey;"/>
+                    accesskey="&enableStartPage.accesskey;"
+                    oncommand="gGeneralPane.updateStartPage();"/>
         </hbox>
         <hbox align="center">
           <label value="&location.label;" accesskey="&location1.accesskey;" control="mailnewsStartPageUrl"/>
@@ -61,13 +63,26 @@
       <checkbox id="newMailNotificationBounce" label="&bounceSystemDockIcon.label;"
                 preference="mail.biff.animate_dock_icon"
                 accesskey="&bounceSystemDockIcon.accesskey;"/>
+      <checkbox id="newMailNotificationAlert" label="&showAnimatedAlert.label;"
+                preference="mail.biff.show_alert"
+                accesskey="&showAnimatedAlert.accesskey;"/>
 #else
       <hbox align="center" flex="1">
-        <checkbox id="newMailNotificationAlert" label="&showAnimatedAlert.label;" accesskey="&showAnimatedAlert.accesskey;"
-                  preference="mail.biff.show_alert" flex="1"/>
+        <checkbox id="newMailNotificationAlert"
+                  label="&showAnimatedAlert.label;"
+                  accesskey="&showAnimatedAlert.accesskey;"
+                  preference="mail.biff.show_alert"
+                  oncommand="gGeneralPane.updateCustomizeAlert();"
+                  flex="1"/>
         <button id="customizeMailAlert" label="&customizeMailAlert.label;" accesskey="&customizeMailAlert.accesskey;"
                 oncommand="gGeneralPane.customizeMailAlert();"/>
       </hbox>
+      <checkbox id="newMailNotificationTrayIcon" label="&showTrayIcon.label;"
+#ifndef XP_WIN
+                hidden="true"
+#endif
+                preference="mail.biff.show_tray_icon"
+                accesskey="&showTrayIcon.accesskey;" />
 #endif
       <checkbox id="newMailNotification" accesskey="&playSound1.accesskey;"
                 preference="mail.biff.play_sound" label="&playSound.label;"

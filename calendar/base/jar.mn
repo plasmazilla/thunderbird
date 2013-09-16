@@ -106,7 +106,6 @@ calendar.jar:
     content/calendar/Windows98ToZoneInfoTZId.properties    (src/Windows98ToZoneInfoTZId.properties)
     content/calendar/WindowsNTToZoneInfoTZId.properties    (src/WindowsNTToZoneInfoTZId.properties)
 % skin calendar classic/1.0 %skin/calendar/
-% style chrome://calendar/content/calendar-event-dialog.xul chrome://global/skin/toolbar.css
 % style chrome://global/content/customizeToolbar.xul chrome://calendar/skin/calendar-task-view.css
 % style chrome://global/content/customizeToolbar.xul chrome://calendar/skin/calendar-event-dialog.css
 % style chrome://calendar/content/calendar-event-dialog.xul chrome://calendar/skin/common/dialogs/calendar-event-dialog.css
@@ -128,7 +127,6 @@ calendar.jar:
     skin/calendar/calendar-status.png                      (themes/common/images/calendar-status.png)
     skin/calendar/classification.png                       (themes/common/images/classification.png)
     skin/calendar/common/calendar-task-tree.css            (themes/common/calendar-task-tree.css)
-    skin/calendar/daypicker-background.png                 (themes/common/images/daypicker-background.png)
     skin/calendar/day-box-item-image.png                   (themes/common/images/day-box-item-image.png)
     skin/calendar/event-grippy-bottom.png                  (themes/common/images/event-grippy-bottom.png)
     skin/calendar/event-grippy-left.png                    (themes/common/images/event-grippy-left.png)
@@ -204,6 +202,7 @@ calendar.jar:
     skin/calendar/calendar-occurrence-prompt-aero.png      (themes/@THEME@/images/calendar-occurrence-prompt-aero.png)
     skin/calendar/tasks-actions-aero.png                   (themes/@THEME@/images/tasks-actions-aero.png)
     skin/calendar/toolbar-aero.png                         (themes/@THEME@/images/toolbar-aero.png)
+    skin/calendar/toolbar-aero-inverted.png                (themes/@THEME@/images/toolbar-aero-inverted.png)
     skin/calendar/toolbar-large-aero.png                   (themes/@THEME@/images/toolbar-large-aero.png)
     skin/calendar/toolbar-small-aero.png                   (themes/@THEME@/images/toolbar-small-aero.png)
 #endif

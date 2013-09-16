@@ -14,15 +14,12 @@ include $(DEPTH)/config/autoconf.mk
 # and not find it when we're loaded into explorer.exe or similar
 USE_STATIC_LIBS = 1
 
-MODULE		= mozMapi32
 LIBRARY_NAME	= $(MODULE)
 DEFFILE		= $(win_srcdir)/Mapi32.def
 ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
 MOZILLA_INTERNAL_API = 1
 endif
 
-
-CPPSRCS		= MapiDll.cpp
 
 OS_LIBS		+= ole32.lib
 

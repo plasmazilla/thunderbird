@@ -48,37 +48,13 @@
 #include "nsIAbDirectory.h"
 #include "nsIAbCard.h"
 #include "mozilla/Services.h"
+#include "nsVoidArray.h"
+#include <algorithm>
 
 nsrefcnt nsMsgDBView::gInstanceCount  = 0;
 
-#ifdef SUPPORT_PRIORITY_COLORS
-nsIAtom * nsMsgDBView::kHighestPriorityAtom = nullptr;
-nsIAtom * nsMsgDBView::kHighPriorityAtom = nullptr;
-nsIAtom * nsMsgDBView::kLowestPriorityAtom = nullptr;
-nsIAtom * nsMsgDBView::kLowPriorityAtom = nullptr;
-#endif
-
-nsIAtom * nsMsgDBView::kUnreadMsgAtom  = nullptr;
-nsIAtom * nsMsgDBView::kNewMsgAtom = nullptr;
-nsIAtom * nsMsgDBView::kReadMsgAtom  = nullptr;
-nsIAtom * nsMsgDBView::kRepliedMsgAtom = nullptr;
-nsIAtom * nsMsgDBView::kForwardedMsgAtom = nullptr;
-nsIAtom * nsMsgDBView::kOfflineMsgAtom  = nullptr;
-nsIAtom * nsMsgDBView::kFlaggedMsgAtom = nullptr;
-nsIAtom * nsMsgDBView::kImapDeletedMsgAtom = nullptr;
-nsIAtom * nsMsgDBView::kAttachMsgAtom = nullptr;
-nsIAtom * nsMsgDBView::kHasUnreadAtom = nullptr;
-nsIAtom * nsMsgDBView::kWatchThreadAtom = nullptr;
-nsIAtom * nsMsgDBView::kIgnoreThreadAtom = nullptr;
-nsIAtom * nsMsgDBView::kIgnoreSubthreadAtom = nullptr;
-nsIAtom * nsMsgDBView::kHasImageAtom = nullptr;
-
 nsIAtom * nsMsgDBView::kJunkMsgAtom = nullptr;
 nsIAtom * nsMsgDBView::kNotJunkMsgAtom = nullptr;
-nsIAtom * nsMsgDBView::kDummyMsgAtom = nullptr;
-
-nsIAtom * nsMsgDBView::kLabelColorWhiteAtom = nullptr;
-nsIAtom * nsMsgDBView::kLabelColorBlackAtom = nullptr;
 
 PRUnichar * nsMsgDBView::kHighestPriorityString = nullptr;
 PRUnichar * nsMsgDBView::kHighPriorityString = nullptr;
@@ -151,6 +127,7 @@ nsMsgDBView::nsMsgDBView()
   m_deletingRows = false;
   mNumMessagesRemainingInBatch = 0;
   mShowSizeInLines = false;
+  mSortThreadsByRoot = false;
 
   /* mCommandsNeedDisablingBecauseOfSelection - A boolean that tell us if we needed to disable commands because of what's selected.
     If we're offline w/o a downloaded msg selected, or a dummy message was selected.
@@ -173,29 +150,8 @@ nsMsgDBView::nsMsgDBView()
 
 void nsMsgDBView::InitializeAtomsAndLiterals()
 {
-  kUnreadMsgAtom = MsgNewAtom("unread");
-  kNewMsgAtom = MsgNewAtom("new");
-  kReadMsgAtom = MsgNewAtom("read");
-  kRepliedMsgAtom = MsgNewAtom("replied");
-  kForwardedMsgAtom = MsgNewAtom("forwarded");
-  kOfflineMsgAtom = MsgNewAtom("offline");
-  kFlaggedMsgAtom = MsgNewAtom("flagged");
-  kImapDeletedMsgAtom = MsgNewAtom("imapdeleted");
-  kAttachMsgAtom = MsgNewAtom("attach");
-  kHasUnreadAtom = MsgNewAtom("hasUnread");
-  kWatchThreadAtom = MsgNewAtom("watch");
-  kIgnoreThreadAtom = MsgNewAtom("ignore");
-  kIgnoreSubthreadAtom = MsgNewAtom("ignoreSubthread");
-  kHasImageAtom = MsgNewAtom("hasimage");
-  kJunkMsgAtom = MsgNewAtom("junk");
-  kNotJunkMsgAtom = MsgNewAtom("notjunk");
-  kDummyMsgAtom = MsgNewAtom("dummy");
-#ifdef SUPPORT_PRIORITY_COLORS
-  kHighestPriorityAtom = MsgNewAtom("priority-highest");
-  kHighPriorityAtom = MsgNewAtom("priority-high");
-  kLowestPriorityAtom = MsgNewAtom("priority-lowest");
-  kLowPriorityAtom = MsgNewAtom("priority-low");
-#endif
+  kJunkMsgAtom = MsgNewAtom("junk").get();
+  kNotJunkMsgAtom = MsgNewAtom("notjunk").get();
 
   // priority strings
   kHighestPriorityString = GetString(NS_LITERAL_STRING("priorityHighest").get());
@@ -203,9 +159,6 @@ void nsMsgDBView::InitializeAtomsAndLiterals()
   kLowestPriorityString = GetString(NS_LITERAL_STRING("priorityLowest").get());
   kLowPriorityString = GetString(NS_LITERAL_STRING("priorityLow").get());
   kNormalPriorityString = GetString(NS_LITERAL_STRING("priorityNormal").get());
-
-  kLabelColorWhiteAtom = MsgNewAtom("lc-white");
-  kLabelColorBlackAtom = MsgNewAtom("lc-black");
 
   kReadString = GetString(NS_LITERAL_STRING("read").get());
   kRepliedString = GetString(NS_LITERAL_STRING("replied").get());
@@ -221,33 +174,8 @@ nsMsgDBView::~nsMsgDBView()
   gInstanceCount--;
   if (gInstanceCount <= 0)
   {
-    NS_IF_RELEASE(kUnreadMsgAtom);
-    NS_IF_RELEASE(kNewMsgAtom);
-    NS_IF_RELEASE(kReadMsgAtom);
-    NS_IF_RELEASE(kRepliedMsgAtom);
-    NS_IF_RELEASE(kForwardedMsgAtom);
-    NS_IF_RELEASE(kOfflineMsgAtom);
-    NS_IF_RELEASE(kFlaggedMsgAtom);
-    NS_IF_RELEASE(kImapDeletedMsgAtom);
-    NS_IF_RELEASE(kAttachMsgAtom);
-    NS_IF_RELEASE(kHasUnreadAtom);
-    NS_IF_RELEASE(kWatchThreadAtom);
-    NS_IF_RELEASE(kIgnoreThreadAtom);
-    NS_IF_RELEASE(kIgnoreSubthreadAtom);
-    NS_IF_RELEASE(kHasImageAtom);
     NS_IF_RELEASE(kJunkMsgAtom);
     NS_IF_RELEASE(kNotJunkMsgAtom);
-    NS_IF_RELEASE(kDummyMsgAtom);
-
-#ifdef SUPPORT_PRIORITY_COLORS
-    NS_IF_RELEASE(kHighestPriorityAtom);
-    NS_IF_RELEASE(kHighPriorityAtom);
-    NS_IF_RELEASE(kLowestPriorityAtom);
-    NS_IF_RELEASE(kLowPriorityAtom);
-#endif
-
-    NS_IF_RELEASE(kLabelColorWhiteAtom);
-    NS_IF_RELEASE(kLabelColorBlackAtom);
 
     NS_Free(kHighestPriorityString);
     NS_Free(kHighPriorityString);
@@ -318,7 +246,7 @@ nsresult nsMsgDBView::GetPrefLocalizedString(const char *aPrefName, nsString& aR
   return rv;
 }
 
-nsresult nsMsgDBView::AppendKeywordProperties(const nsACString& keywords, nsISupportsArray *properties, bool addSelectedTextProperty)
+nsresult nsMsgDBView::AppendKeywordProperties(const nsACString& keywords, nsAString& properties, bool addSelectedTextProperty)
 {
   // get the top most keyword's color and append that as a property.
   nsresult rv;
@@ -339,12 +267,14 @@ nsresult nsMsgDBView::AppendKeywordProperties(const nsACString& keywords, nsISup
   if (NS_SUCCEEDED(rv) && !color.IsEmpty())
   {
     if (addSelectedTextProperty)
-      properties->AppendElement(color.EqualsLiteral(LABEL_COLOR_WHITE_STRING)
-        ? kLabelColorBlackAtom
-        : kLabelColorWhiteAtom);
+    {
+      if (color.EqualsLiteral(LABEL_COLOR_WHITE_STRING))
+        properties.AppendLiteral(" lc-black");
+      else
+        properties.AppendLiteral(" lc-white");
+    }
     color.Replace(0, 1, NS_LITERAL_CSTRING(LABEL_COLOR_STRING));
-    nsCOMPtr <nsIAtom> keywordAtom = MsgGetAtom(color.get());
-    properties->AppendElement(keywordAtom);
+    properties.AppendASCII(color.get());
   }
   return rv;
 }
@@ -838,7 +768,7 @@ nsresult nsMsgDBView::FetchKeywords(nsIMsgDBHdr *aHdr, nsACString &keywordString
   aHdr->GetStringProperty("keywords", getter_Copies(keywords));
   if (label > 0)
   {
-    nsCAutoString labelStr("$label");
+    nsAutoCString labelStr("$label");
     labelStr.Append((char) (label + '0'));
     if (keywords.Find(labelStr, CaseInsensitiveCompare) == -1)
     {
@@ -906,7 +836,7 @@ nsresult nsMsgDBView::FetchTags(nsIMsgDBHdr *aHdr, nsAString &aTagString)
   rv = aHdr->GetLabel(&label);
   if (label > 0)
   {
-    nsCAutoString labelStr("$label");
+    nsAutoCString labelStr("$label");
     labelStr.Append((char) (label + '0'));
     if (keywords.Find(labelStr, CaseInsensitiveCompare) == -1)
       FetchLabel(aHdr, tags);
@@ -1140,7 +1070,7 @@ NS_IMETHODIMP nsMsgDBView::ReloadMessageWithAllParts()
   if (m_currentlyDisplayedMsgUri.IsEmpty() || mSuppressMsgDisplay)
     return NS_OK;
 
-  nsCAutoString forceAllParts(m_currentlyDisplayedMsgUri);
+  nsAutoCString forceAllParts(m_currentlyDisplayedMsgUri);
   forceAllParts += (forceAllParts.FindChar('?') == kNotFound) ? '?' : '&';
   forceAllParts.AppendLiteral("fetchCompleteMessage=true");
   nsCOMPtr<nsIMessenger> messenger (do_QueryReferent(mMessengerWeak));
@@ -1389,7 +1319,7 @@ nsresult nsMsgDBView::GetSelectedIndices(nsMsgViewIndexArray& selection)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgDBView::GetRowProperties(int32_t index, nsISupportsArray *properties)
+NS_IMETHODIMP nsMsgDBView::GetRowProperties(int32_t index, nsAString& properties)
 {
   if (!IsValidIndex(index))
     return NS_MSG_INVALID_DBVIEW_INDEX;
@@ -1412,17 +1342,25 @@ NS_IMETHODIMP nsMsgDBView::GetRowProperties(int32_t index, nsISupportsArray *pro
 
   // give the custom column handlers a chance to style the row.
   for (int i = 0; i < m_customColumnHandlers.Count(); i++)
-    m_customColumnHandlers[i]->GetRowProperties(index, properties);
+  {
+    nsString extra;
+    m_customColumnHandlers[i]->GetRowProperties(index, extra);
+    if (!extra.IsEmpty())
+    {
+      properties.Append(' ');
+      properties.Append(extra);
+    }
+  }
 
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgDBView::GetColumnProperties(nsITreeColumn* col, nsISupportsArray *properties)
+NS_IMETHODIMP nsMsgDBView::GetColumnProperties(nsITreeColumn* col, nsAString& properties)
 {
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgDBView::GetCellProperties(int32_t aRow, nsITreeColumn *col, nsISupportsArray *properties)
+NS_IMETHODIMP nsMsgDBView::GetCellProperties(int32_t aRow, nsITreeColumn *col, nsAString& properties)
 {
   if (!IsValidIndex(aRow))
     return NS_MSG_INVALID_DBVIEW_INDEX;
@@ -1441,52 +1379,73 @@ NS_IMETHODIMP nsMsgDBView::GetCellProperties(int32_t aRow, nsITreeColumn *col, n
     return NS_MSG_INVALID_DBVIEW_INDEX;
   }
 
+  const PRUnichar* colID;
+  col->GetIdConst(&colID);
+  nsIMsgCustomColumnHandler* colHandler = GetColumnHandler(colID);
+  if (colHandler != nullptr)
+    colHandler->GetCellProperties(aRow, col, properties);
+
+  if (!properties.IsEmpty())
+    properties.Append(' ');
+
+  properties.Append(mMessageType);
+
   uint32_t flags;
   msgHdr->GetFlags(&flags);
 
   if (!(flags & nsMsgMessageFlags::Read))
-    properties->AppendElement(kUnreadMsgAtom);
+    properties.AppendLiteral(" unread");
   else
-    properties->AppendElement(kReadMsgAtom);
+    properties.AppendLiteral(" read");
 
   if (flags & nsMsgMessageFlags::Replied)
-    properties->AppendElement(kRepliedMsgAtom);
+    properties.AppendLiteral(" replied");
 
   if (flags & nsMsgMessageFlags::Forwarded)
-    properties->AppendElement(kForwardedMsgAtom);
+    properties.AppendLiteral(" forwarded");
 
   if (flags & nsMsgMessageFlags::New)
-    properties->AppendElement(kNewMsgAtom);
+    properties.AppendLiteral(" new");
 
-  if (flags & nsMsgMessageFlags::Ignored)
-    properties->AppendElement(kIgnoreSubthreadAtom);
+  if (m_flags[aRow] & nsMsgMessageFlags::Marked)
+    properties.AppendLiteral(" flagged");
+
+  // For threaded display add the ignoreSubthread property to the
+  // subthread top row (this row). For non-threaded add it to all rows.
+  if (!(m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay) &&
+      (flags & nsMsgMessageFlags::Ignored)) {
+    properties.AppendLiteral(" ignoreSubthread");
+  }
+  else {
+    bool ignored;
+    msgHdr->GetIsKilled(&ignored);
+    if (ignored)
+      properties.AppendLiteral(" ignoreSubthread");
+  }
 
   nsCOMPtr <nsIMsgLocalMailFolder> localFolder = do_QueryInterface(m_folder);
 
   if ((flags & nsMsgMessageFlags::Offline) || (localFolder && !(flags & nsMsgMessageFlags::Partial)))
-    properties->AppendElement(kOfflineMsgAtom);
+    properties.AppendLiteral(" offline");
 
   if (flags & nsMsgMessageFlags::Attachment)
-    properties->AppendElement(kAttachMsgAtom);
+    properties.AppendLiteral(" attach");
 
   if ((mDeleteModel == nsMsgImapDeleteModels::IMAPDelete) && (flags & nsMsgMessageFlags::IMAPDeleted))
-    properties->AppendElement(kImapDeletedMsgAtom);
-
-  if (mMessageTypeAtom)
-    properties->AppendElement(mMessageTypeAtom);
+    properties.AppendLiteral(" imapdeleted");
 
   nsCString imageSize;
   msgHdr->GetStringProperty("imageSize", getter_Copies(imageSize));
   if (!imageSize.IsEmpty())
-  {
-    properties->AppendElement(kHasImageAtom);
-  }
+    properties.AppendLiteral(" hasimage");
 
   nsCString junkScoreStr;
   msgHdr->GetStringProperty("junkscore", getter_Copies(junkScoreStr));
   if (!junkScoreStr.IsEmpty()) {
-    properties->AppendElement(junkScoreStr.ToInteger(&rv) == nsIJunkMailPlugin::IS_SPAM_SCORE ?
-                              kJunkMsgAtom : kNotJunkMsgAtom);
+    if (junkScoreStr.ToInteger(&rv) == nsIJunkMailPlugin::IS_SPAM_SCORE)
+      properties.AppendLiteral(" junk");
+    else
+      properties.AppendLiteral(" notjunk");
     NS_ASSERTION(NS_SUCCEEDED(rv), "Converting junkScore to integer failed.");
   }
 
@@ -1503,17 +1462,14 @@ NS_IMETHODIMP nsMsgDBView::GetCellProperties(int32_t aRow, nsITreeColumn *col, n
   msgHdr->GetStringProperty("keywords", getter_Copies(keywordProperty));
   if (!keywordProperty.IsEmpty())
   {
-    nsCAutoString keywords(keywordProperty);
-    nsCAutoString nextKeyword;
+    NS_ConvertUTF8toUTF16 keywords(keywordProperty);
     int32_t spaceIndex = 0;
     do
     {
       spaceIndex = keywords.FindChar(' ');
       int32_t endOfKeyword = (spaceIndex == -1) ? keywords.Length() : spaceIndex;
-      nextKeyword.AssignLiteral("kw-");
-      nextKeyword.Append(StringHead(keywords, endOfKeyword));
-      nsCOMPtr <nsIAtom> keywordAtom = MsgGetAtom(nextKeyword.get());
-      properties->AppendElement(keywordAtom);
+      properties.AppendLiteral(" kw-");
+      properties.Append(StringHead(keywords, endOfKeyword));
       if (spaceIndex > 0)
         keywords.Cut(0, endOfKeyword + 1);
     }
@@ -1527,63 +1483,44 @@ NS_IMETHODIMP nsMsgDBView::GetCellProperties(int32_t aRow, nsITreeColumn *col, n
   switch (priority)
   {
   case nsMsgPriority::highest:
-    properties->AppendElement(kHighestPriorityAtom);
+    properties.append(" priority-highest");
     break;
   case nsMsgPriority::high:
-    properties->AppendElement(kHighPriorityAtom);
+    properties.append(" priority-high");
     break;
   case nsMsgPriority::low:
-    properties->AppendElement(kLowPriorityAtom);
+    properties.append(" priority-low");
     break;
   case nsMsgPriority::lowest:
-    properties->AppendElement(kLowestPriorityAtom);
+    properties.append(" priority-lowest");
     break;
   default:
     break;
   }
 #endif
 
-  const PRUnichar* colID;
-  col->GetIdConst(&colID);
-  if (colID[0] == 'f')
+
+  nsCOMPtr <nsIMsgThread> thread;
+  rv = GetThreadContainingIndex(aRow, getter_AddRefs(thread));
+  if (NS_SUCCEEDED(rv) && thread)
   {
-    if (m_flags[aRow] & nsMsgMessageFlags::Marked)
-    {
-      properties->AppendElement(kFlaggedMsgAtom);
+    uint32_t numUnreadChildren;
+    thread->GetNumUnreadChildren(&numUnreadChildren);
+    if (numUnreadChildren > 0)
+      properties.AppendLiteral(" hasUnread");
+
+    // For threaded display add the ignore/watch properties to the
+    // thread top row. For non-threaded add it to all rows.
+    if (!(m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay) ||
+         ((m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay) &&
+        (m_flags[aRow] & MSG_VIEW_FLAG_ISTHREAD))) {
+      thread->GetFlags(&flags);
+      if (flags & nsMsgMessageFlags::Watched)
+        properties.AppendLiteral(" watch");
+      if (flags & nsMsgMessageFlags::Ignored)
+        properties.AppendLiteral(" ignore");
     }
   }
-
-  if (m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay)
-  {
-    if (m_flags[aRow] & MSG_VIEW_FLAG_ISTHREAD)
-    {
-      nsCOMPtr <nsIMsgThread> thread;
-      rv = GetThreadContainingIndex(aRow, getter_AddRefs(thread));
-      if (NS_SUCCEEDED(rv) && thread)
-      {
-        uint32_t numUnreadChildren;
-        thread->GetNumUnreadChildren(&numUnreadChildren);
-        if (numUnreadChildren > 0)
-          properties->AppendElement(kHasUnreadAtom);
-        thread->GetFlags(&flags);
-        if (flags & nsMsgMessageFlags::Watched)
-          properties->AppendElement(kWatchThreadAtom);
-        if (flags & nsMsgMessageFlags::Ignored)
-          properties->AppendElement(kIgnoreThreadAtom);
-      }
-    }
-  }
-
-  //custom column handlers are called at the end of getCellProperties
-  //to make life easier for extension writers
-  nsIMsgCustomColumnHandler* colHandler = GetColumnHandler(colID);
-
-  if (colHandler != nullptr)
-  {
-    colHandler->GetCellProperties(aRow, col, properties);
-    return NS_OK;
-  }
-
   return NS_OK;
 }
 
@@ -1899,12 +1836,12 @@ bool nsMsgDBView::WasHdrRecentlyDeleted(nsIMsgDBHdr *msgHdr)
 NS_IMETHODIMP nsMsgDBView::AddColumnHandler(const nsAString& column, nsIMsgCustomColumnHandler* handler)
 {
 
-  int32_t index = m_customColumnHandlerIDs.IndexOf(column);
+  uint32_t index = m_customColumnHandlerIDs.IndexOf(column);
 
   nsAutoString strColID(column);
 
   //does not exist
-  if (index == -1)
+  if (index == m_customColumnHandlerIDs.NoIndex)
   {
     m_customColumnHandlerIDs.AppendElement(strColID);
     m_customColumnHandlers.AppendObject(handler);
@@ -2308,23 +2245,21 @@ NS_IMETHODIMP nsMsgDBView::Open(nsIMsgFolder *folder, nsMsgViewSortTypeValue sor
     if (!mIsXFVirtual && MsgLowerCaseEqualsLiteral(type, "rss"))
       mIsRss = true;
 
-    if (type.IsEmpty())
-      mMessageTypeAtom = nullptr;
-    else  // special case nntp --> news since we'll break themes if we try to be consistent
-      mMessageTypeAtom = MsgGetAtom(mIsNews ? "news" : type.get());
+    // special case nntp --> news since we'll break themes if we try to be consistent
+    if (mIsNews)
+      mMessageType.AssignLiteral("news");
+    else
+      CopyUTF8toUTF16(type, mMessageType);
 
     GetImapDeleteModel(nullptr);
 
-    if (mIsNews)
+    nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID));
+    if (prefs)
     {
-      nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID));
-      if (prefs)
-      {
-        bool temp;
-        rv = prefs->GetBoolPref("news.show_size_in_lines", &temp);
-        if (NS_SUCCEEDED(rv))
-          mShowSizeInLines = temp;
-      }
+      prefs->GetBoolPref("mailnews.sort_threads_by_root", &mSortThreadsByRoot);
+
+      if (mIsNews)
+        prefs->GetBoolPref("news.show_size_in_lines", &mShowSizeInLines);
     }
   }
   return NS_OK;
@@ -3136,45 +3071,74 @@ nsresult nsMsgDBView::DeleteMessages(nsIMsgWindow *window, nsMsgViewIndex *indic
   NS_ENSURE_SUCCESS(rv, rv);
   uint32_t numMsgs;
   messageArray->GetLength(&numMsgs);
+
+  const char *warnCollapsedPref = "mail.warn_on_collapsed_thread_operation";
+  const char *warnShiftDelPref = "mail.warn_on_shift_delete";
+  const char *warnNewsPref = "news.warn_on_delete";
+  const char *activePref = nullptr;
+  nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+
   if (uint32_t(numIndices) != numMsgs)
   {
-    const char *warnPref = "mail.warn_on_collapsed_thread_operation";
-    bool shouldWarn = false;
-    nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
+    bool pref = false;
+    prefBranch->GetBoolPref(warnCollapsedPref, &pref);
+    if (pref)
+      activePref = warnCollapsedPref;
+  }
+
+  if (!activePref && deleteStorage)
+  {
+    bool pref = false;
+    prefBranch->GetBoolPref(warnShiftDelPref, &pref);
+    if (pref)
+      activePref = warnShiftDelPref;
+  }
+
+  if (!activePref && mIsNews)
+  {
+    bool pref = false;
+    prefBranch->GetBoolPref(warnNewsPref, &pref);
+    if (pref)
+      activePref = warnNewsPref;
+  }
+
+  if (activePref)
+  {
+    nsCOMPtr<nsIPrompt> dialog;
+
+    nsCOMPtr<nsIWindowWatcher> wwatch(do_GetService(NS_WINDOWWATCHER_CONTRACTID, &rv));
     NS_ENSURE_SUCCESS(rv, rv);
 
-    prefBranch->GetBoolPref(warnPref, &shouldWarn);
-    if (shouldWarn)
-    {
-      nsCOMPtr<nsIPrompt> dialog;
+    rv = wwatch->GetNewPrompter(0, getter_AddRefs(dialog));
+    NS_ENSURE_SUCCESS(rv, rv);
+    bool dontAsk = false; // "Don't ask..." - unchecked by default.
+    PRInt32 buttonPressed = 0;
 
-      nsCOMPtr<nsIWindowWatcher> wwatch(do_GetService(NS_WINDOWWATCHER_CONTRACTID, &rv));
-      NS_ENSURE_SUCCESS(rv, rv);
-      rv = wwatch->GetNewPrompter(0, getter_AddRefs(dialog));
-      NS_ENSURE_SUCCESS(rv, rv);
-      bool alwaysAsk = true; // "Always ask..." - checked by default.
-      int32_t buttonPressed = 0;
+    nsString dialogTitle;
+    nsString confirmString;
+    nsString checkboxText;
+    nsString buttonApplyNowText;
+    dialogTitle.Adopt(GetString(NS_LITERAL_STRING("confirmMsgDelete.title").get()));
+    checkboxText.Adopt(GetString(NS_LITERAL_STRING("confirmMsgDelete.dontAsk.label").get()));
+    buttonApplyNowText.Adopt(GetString(NS_LITERAL_STRING("confirmMsgDelete.delete.label").get()));
 
-      nsString dialogTitle;
-      nsString confirmString;
-      nsString checkboxText;
-      nsString buttonApplyNowText;
-      dialogTitle.Adopt(GetString(NS_LITERAL_STRING("applyToCollapsedMsgsTitle").get()));
-      confirmString.Adopt(GetString(NS_LITERAL_STRING("applyToCollapsedMsgs").get()));
-      checkboxText.Adopt(GetString(NS_LITERAL_STRING("applyToCollapsedAlwaysAskCheckbox").get()));
-      buttonApplyNowText.Adopt(GetString(NS_LITERAL_STRING("applyNowButton").get()));
-      const uint32_t buttonFlags =
-        (nsIPrompt::BUTTON_TITLE_IS_STRING * nsIPrompt::BUTTON_POS_0) +
-        (nsIPrompt::BUTTON_TITLE_CANCEL * nsIPrompt::BUTTON_POS_1);
-      rv = dialog->ConfirmEx(dialogTitle.get(), confirmString.get(), buttonFlags,
-                             buttonApplyNowText.get(), nullptr, nullptr,
-                             checkboxText.get(), &alwaysAsk, &buttonPressed);
-      NS_ENSURE_SUCCESS(rv, rv);
-      if (buttonPressed)
-        return NS_ERROR_FAILURE;
-       if (!alwaysAsk)
-         prefBranch->SetBoolPref(warnPref, false);
-    }
+    if (activePref == warnCollapsedPref)
+      confirmString.Adopt(GetString(NS_LITERAL_STRING("confirmMsgDelete.collapsed.desc").get()));
+    else // if (activePref == warnShiftDelPref || activePref == warnNewsPref)
+      confirmString.Adopt(GetString(NS_LITERAL_STRING("confirmMsgDelete.deleteNoTrash.desc").get()));
+
+    const PRUint32 buttonFlags =
+      (nsIPrompt::BUTTON_TITLE_IS_STRING * nsIPrompt::BUTTON_POS_0) +
+      (nsIPrompt::BUTTON_TITLE_CANCEL * nsIPrompt::BUTTON_POS_1);
+    rv = dialog->ConfirmEx(dialogTitle.get(), confirmString.get(), buttonFlags,
+                           buttonApplyNowText.get(), nullptr, nullptr,
+                           checkboxText.get(), &dontAsk, &buttonPressed);
+    NS_ENSURE_SUCCESS(rv, rv);
+    if (buttonPressed)
+      return NS_ERROR_FAILURE;
+    if (dontAsk)
+      prefBranch->SetBoolPref(activePref, false);
   }
 
   if (mDeleteModel != nsMsgImapDeleteModels::IMAPDelete)
@@ -3379,7 +3343,7 @@ nsresult nsMsgDBView::SetMsgHdrJunkStatus(nsIJunkMailPlugin *aJunkPlugin,
 
     // set the junk score on the message itself
 
-    nsCAutoString msgJunkScore;
+    nsAutoCString msgJunkScore;
     msgJunkScore.AppendInt(aNewClassification == nsIJunkMailPlugin::JUNK ?
           nsIJunkMailPlugin::IS_SPAM_SCORE:
           nsIJunkMailPlugin::IS_HAM_SCORE);
@@ -3532,12 +3496,12 @@ nsMsgDBView::PerformActionsOnJunkMsgs(bool msgsAreJunk)
         }
         hdrsToDelete->GetLength(&cnt);
         if (cnt)
-          rv = srcFolder->DeleteMessages(hdrsToDelete, msgWindow, PR_FALSE, PR_FALSE,
-                                         nullptr, PR_TRUE);
+          rv = srcFolder->DeleteMessages(hdrsToDelete, msgWindow, false, false,
+                                         nullptr, true);
       }
       else
-        rv = srcFolder->DeleteMessages(mJunkHdrs, msgWindow, PR_FALSE, PR_FALSE,
-                                       nullptr, PR_TRUE);
+        rv = srcFolder->DeleteMessages(mJunkHdrs, msgWindow, false, false,
+                                       nullptr, true);
 
     }
     else if (mDeleteModel == nsMsgImapDeleteModels::IMAPDelete)
@@ -3545,7 +3509,7 @@ nsMsgDBView::PerformActionsOnJunkMsgs(bool msgsAreJunk)
       nsCOMPtr<nsIMsgImapMailFolder> imapFolder(do_QueryInterface(srcFolder));
       nsTArray<nsMsgKey> imapUids;
       imapUids.SetLength(numJunkHdrs);
-      for (uint32 i = 0; i < numJunkHdrs; i++)
+      for (uint32_t i = 0; i < numJunkHdrs; i++)
       {
         nsCOMPtr<nsIMsgDBHdr> msgHdr = do_QueryElementAt(mJunkHdrs, i);
         msgHdr->GetMessageKey(&imapUids[i]);
@@ -3905,7 +3869,7 @@ nsresult nsMsgDBView::GetFieldTypeAndLenForSort(nsMsgViewSortTypeValue sortType,
         }
         default:
         {
-           nsCAutoString message("unexpected switch value: sortType=");
+           nsAutoCString message("unexpected switch value: sortType=");
            message.AppendInt(sortType);
            NS_WARNING(message.get());
            return NS_ERROR_UNEXPECTED;
@@ -4007,10 +3971,11 @@ nsresult nsMsgDBView::GetLongField(nsIMsgDBHdr *msgHdr, nsMsgViewSortTypeValue s
         *result = !(bits & nsMsgMessageFlags::Attachment);
       break;
     case nsMsgViewSortType::byDate:
-      // when sorting threads by date, we want the date of the newest msg
+      // when sorting threads by date, we may want the date of the newest msg
       // in the thread
       if (m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay
-        && ! (m_viewFlags & nsMsgViewFlagsType::kGroupBySort))
+        && ! (m_viewFlags & nsMsgViewFlagsType::kGroupBySort)
+        && ! mSortThreadsByRoot)
       {
         nsCOMPtr <nsIMsgThread> thread;
         rv = GetThreadContainingMsgHdr(msgHdr, getter_AddRefs(thread));
@@ -4023,10 +3988,11 @@ nsresult nsMsgDBView::GetLongField(nsIMsgDBHdr *msgHdr, nsMsgViewSortTypeValue s
       rv = msgHdr->GetDateInSeconds(result);
       break;
     case nsMsgViewSortType::byReceived:
-      // when sorting threads by received date, we want the received date of the newest msg
-      // in the thread
+      // when sorting threads by received date, we may want the received date
+      // of the newest msg in the thread
       if (m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay
-        && ! (m_viewFlags & nsMsgViewFlagsType::kGroupBySort))
+        && ! (m_viewFlags & nsMsgViewFlagsType::kGroupBySort)
+        && ! mSortThreadsByRoot)
       {
         nsCOMPtr <nsIMsgThread> thread;
         rv = GetThreadContainingMsgHdr(msgHdr, getter_AddRefs(thread));
@@ -4441,7 +4407,7 @@ NS_IMETHODIMP nsMsgDBView::Sort(nsMsgViewSortTypeValue sortType, nsMsgViewSortOr
   uint32_t maxSize = (keyOffset + maxLen) * (arraySize - numSoFar);
 
   const uint32_t maxBlockSize = (uint32_t) 0xf000L;
-  uint32_t allocSize = NS_MIN(maxBlockSize, maxSize);
+  uint32_t allocSize = std::min(maxBlockSize, maxSize);
   char *pTemp = (char *) PR_Malloc(allocSize);
   NS_ASSERTION(pTemp, "out of memory, can't sort");
   if (!pTemp)
@@ -4510,9 +4476,9 @@ NS_IMETHODIMP nsMsgDBView::Sort(nsMsgViewSortTypeValue sortType, nsMsgViewSortOr
     if ((uint32_t)(pTemp - pBase) + (keyOffset + actualFieldLen) >= allocSize)
     {
       maxSize = (keyOffset + maxLen) * (arraySize - numSoFar);
-      allocSize = NS_MIN(maxBlockSize, maxSize);
+      allocSize = std::min(maxBlockSize, maxSize);
       // make sure allocSize is big enough for the current value
-      allocSize = NS_MAX(allocSize, keyOffset + actualFieldLen);
+      allocSize = std::max(allocSize, keyOffset + actualFieldLen);
       pTemp = (char *) PR_Malloc(allocSize);
       NS_ASSERTION(pTemp, "out of memory, can't sort");
       if (!pTemp)
@@ -4658,7 +4624,7 @@ nsMsgViewIndex nsMsgDBView::ThreadIndexOfMsg(nsMsgKey msgKey,
 nsMsgViewIndex nsMsgDBView::GetThreadIndex(nsMsgViewIndex msgIndex)
 {
   if (!IsValidIndex(msgIndex))
-    return NS_MSG_INVALID_DBVIEW_INDEX;
+    return nsMsgViewIndex_None;
 
   // scan up looking for level 0 message.
   while (m_levels[msgIndex] && msgIndex)
@@ -5517,6 +5483,53 @@ void nsMsgDBView::RemoveRows(nsMsgViewIndex viewIndex, int32_t numRows)
   m_levels.RemoveElementsAt(viewIndex, numRows);
 }
 
+NS_IMETHODIMP nsMsgDBView::InsertTreeRows(nsMsgViewIndex aIndex,
+                                          uint32_t aNumRows,
+                                          nsMsgKey aKey,
+                                          nsMsgViewFlagsTypeValue aFlags,
+                                          uint32_t aLevel,
+                                          nsIMsgFolder *aFolder)
+{
+  if (GetSize() < aIndex)
+    return NS_ERROR_UNEXPECTED;
+
+  nsCOMArray<nsIMsgFolder> *folders = GetFolders();
+  if (folders)
+  {
+    // In a search/xfvf view only, a folder is required.
+    NS_ENSURE_ARG_POINTER(aFolder);
+    for (int32_t i = 0; i < aNumRows; i++)
+      // Insert into m_folders.
+      if (!folders->InsertObjectAt(aFolder, aIndex + i))
+        return NS_ERROR_UNEXPECTED;
+  }
+
+  if (m_keys.InsertElementsAt(aIndex, aNumRows, aKey) &&
+      m_flags.InsertElementsAt(aIndex, aNumRows, aFlags) &&
+      m_levels.InsertElementsAt(aIndex, aNumRows, aLevel))
+    return NS_OK;
+
+  return NS_ERROR_UNEXPECTED;
+}
+
+NS_IMETHODIMP nsMsgDBView::RemoveTreeRows(nsMsgViewIndex aIndex,
+                                          uint32_t aNumRows)
+{
+  // Prevent a crash if attempting to remove rows which don't exist.
+  if (GetSize() < aIndex + aNumRows)
+    return NS_ERROR_UNEXPECTED;
+
+  nsMsgDBView::RemoveRows(aIndex, aNumRows);
+
+  nsCOMArray<nsIMsgFolder> *folders = GetFolders();
+  if (folders)
+    // In a search/xfvf view only, remove from m_folders.
+    if (!folders->RemoveObjectsAt(aIndex, aNumRows))
+      return NS_ERROR_UNEXPECTED;
+
+  return NS_OK;
+}
+
 nsresult nsMsgDBView::ListIdsInThread(nsIMsgThread *threadHdr, nsMsgViewIndex startOfThreadViewIndex, uint32_t *pNumListed)
 {
   NS_ENSURE_ARG(threadHdr);
@@ -6094,9 +6107,9 @@ NS_IMETHODIMP nsMsgDBView::GetSuppressChangeNotifications(bool * aSuppressChange
   return NS_OK;
 }
 
-
-void nsMsgDBView::NoteChange(nsMsgViewIndex firstLineChanged, int32_t numChanged,
-                             nsMsgViewNotificationCodeValue changeType)
+NS_IMETHODIMP nsMsgDBView::NoteChange(nsMsgViewIndex firstLineChanged,
+                                      int32_t numChanged,
+                                      nsMsgViewNotificationCodeValue changeType)
 {
   if (mTree && !mSuppressChangeNotification)
   {
@@ -6117,6 +6130,7 @@ void nsMsgDBView::NoteChange(nsMsgViewIndex firstLineChanged, int32_t numChanged
       break;
     }
   }
+  return NS_OK;
 }
 
 void nsMsgDBView::NoteStartChange(nsMsgViewIndex firstlineChanged, int32_t numChanged,
@@ -6361,7 +6375,7 @@ nsresult nsMsgDBView::NavigateFromPos(nsMsgNavigationTypeValue motion, nsMsgView
             break;
         case nsMsgNavigationType::nextMessage:
             // return same index and id on next on last message
-            *pResultIndex = NS_MIN(startIndex + 1, lastIndex);
+            *pResultIndex = std::min(startIndex + 1, lastIndex);
             *pResultKey = m_keys[*pResultIndex];
             break;
         case nsMsgNavigationType::previousMessage:
@@ -6855,11 +6869,13 @@ nsresult nsMsgDBView::ToggleIgnored(nsMsgViewIndex * indices, int32_t numIndices
 
 nsresult nsMsgDBView::ToggleMessageKilled(nsMsgViewIndex * indices, int32_t numIndices, nsMsgViewIndex *resultIndex, bool *resultToggleState)
 {
-  nsCOMPtr <nsIMsgDBHdr> header;
-  nsresult rv;
+  NS_ENSURE_ARG_POINTER(resultToggleState);
 
+  nsCOMPtr <nsIMsgDBHdr> header;
   // Ignored state is toggled based on the first selected message
-  rv = GetMsgHdrForViewIndex(indices[0], getter_AddRefs(header));
+  nsresult rv = GetMsgHdrForViewIndex(indices[0], getter_AddRefs(header));
+  NS_ENSURE_SUCCESS(rv, rv);
+
   uint32_t msgFlags;
   header->GetFlags(&msgFlags);
   uint32_t ignored = msgFlags & nsMsgMessageFlags::Ignored;
@@ -6874,6 +6890,7 @@ nsresult nsMsgDBView::ToggleMessageKilled(nsMsgViewIndex * indices, int32_t numI
     {
       msgIndex = indices[numIndices];
       rv = GetMsgHdrForViewIndex(msgIndex, getter_AddRefs(header));
+      NS_ENSURE_SUCCESS(rv, rv);
       header->GetFlags(&msgFlags);
       if ((msgFlags & nsMsgMessageFlags::Ignored) == ignored)
         SetSubthreadKilled(header, msgIndex, !ignored);
@@ -6894,7 +6911,9 @@ nsMsgViewIndex  nsMsgDBView::GetThreadFromMsgIndex(nsMsgViewIndex index,
   nsMsgKey        msgKey = GetAt(index);
   nsMsgViewIndex  threadIndex;
 
-  NS_ENSURE_ARG(threadHdr);
+  if (threadHdr == nullptr)
+    return nsMsgViewIndex_None;
+
   nsresult rv = GetThreadContainingIndex(index, threadHdr);
   NS_ENSURE_SUCCESS(rv,nsMsgViewIndex_None);
 
@@ -7105,9 +7124,11 @@ nsMsgDBView::GetMsgToSelectAfterDelete(nsMsgViewIndex *msgToSelectAfterDelete)
     int32_t startRange;
     int32_t endRange;
     nsresult rv = mTreeSelection->GetRangeCount(&selectionCount);
+    NS_ENSURE_SUCCESS(rv, rv);
     for (int32_t i = 0; i < selectionCount; i++)
     {
       rv = mTreeSelection->GetRangeAt(i, &startRange, &endRange);
+      NS_ENSURE_SUCCESS(rv, rv);
 
       // save off the first range in case we need it later
       if (i == 0) {
@@ -7120,7 +7141,7 @@ nsMsgDBView::GetMsgToSelectAfterDelete(nsMsgViewIndex *msgToSelectAfterDelete)
         NS_WARN_IF_FALSE(endFirstRange != startRange,
                          "goofy tree selection state: two ranges are adjacent!");
       }
-      *msgToSelectAfterDelete = NS_MIN(*msgToSelectAfterDelete,
+      *msgToSelectAfterDelete = std::min(*msgToSelectAfterDelete,
                                        (nsMsgViewIndex)startRange);
     }
 
@@ -7639,7 +7660,7 @@ void nsMsgDBView::SetMRUTimeForFolder(nsIMsgFolder *folder)
 {
   uint32_t seconds;
   PRTime2Seconds(PR_Now(), &seconds);
-  nsCAutoString nowStr;
+  nsAutoCString nowStr;
   nowStr.AppendInt(seconds);
   folder->SetStringProperty(MRU_TIME_PROPERTY, nowStr);
 }
@@ -7731,7 +7752,7 @@ bool nsMsgDBView::JunkControlsEnabled(nsMsgViewIndex aViewIndex)
     {
       nsCOMPtr <nsIMsgIncomingServer> server;
       folder->GetServer(getter_AddRefs(server));
-      nsCAutoString type;
+      nsAutoCString type;
       if (server)
         server->GetType(type);
       if (!(MsgLowerCaseEqualsLiteral(type, "nntp") || MsgLowerCaseEqualsLiteral(type, "rss")))
@@ -7739,7 +7760,7 @@ bool nsMsgDBView::JunkControlsEnabled(nsMsgViewIndex aViewIndex)
     }
 
     // For rss and news, check the inherited folder property.
-    nsCAutoString junkEnableOverride;
+    nsAutoCString junkEnableOverride;
     folder->GetInheritedStringProperty("dobayes.mailnews@mozilla.org#junk",
                                        junkEnableOverride);
     if (junkEnableOverride.EqualsLiteral("true"))

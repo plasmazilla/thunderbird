@@ -1,6 +1,13 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 // This file implements test SMTP servers
 
+var EXPORTED_SYMBOLS = [
+  'smtpDaemon',
+  'SMTP_RFC2821_handler',
+];
+
+Components.utils.import("resource://testing-common/mailnews/auth.js");
+
 function smtpDaemon(flags) {
   this._messages = {};
 }
@@ -235,7 +242,7 @@ SMTP_RFC2821_handler.prototype = {
     }
 
     if (this.expectingData) {
-      if (line.charAt(0) == '.')
+      if (line.startsWith('.'))
         line = line.substring(1);
       // This uses CR LF to match with the specification
       this._daemon.post += line + '\r\n';

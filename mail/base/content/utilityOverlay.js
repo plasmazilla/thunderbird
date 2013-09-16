@@ -118,14 +118,14 @@ function GenerateValidFilename(filename, extension)
 function validateFileName(aFileName)
 {
   var re = /[\/]+/g;
-  if (navigator.appVersion.indexOf("Windows") != -1) {
+  if (navigator.appVersion.contains("Windows")) {
     re = /[\\\/\|]+/g;
     aFileName = aFileName.replace(/[\"]+/g, "'");
     aFileName = aFileName.replace(/[\*\:\?]+/g, " ");
     aFileName = aFileName.replace(/[\<]+/g, "(");
     aFileName = aFileName.replace(/[\>]+/g, ")");
   }
-  else if (navigator.appVersion.indexOf("Macintosh") != -1)
+  else if (navigator.appVersion.contains("Macintosh"))
     re = /[\:\/]+/g;
   
   return aFileName.replace(re, "_");
@@ -174,12 +174,7 @@ function openUILink(url, event)
 
 function openWhatsNew()
 {
-  let startpage =
-    Components.classes["@mozilla.org/toolkit/URLFormatterService;1"]
-              .getService(Components.interfaces.nsIURLFormatter)
-              .formatURLPref("mailnews.start_page.override_url");
-
-  openContentTab(startpage);
+  openContentTab(Services.urlFormatter.formatURLPref("mailnews.start_page.override_url"));
 }
 
 /**

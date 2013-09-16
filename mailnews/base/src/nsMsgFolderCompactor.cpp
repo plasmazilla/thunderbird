@@ -263,7 +263,9 @@ nsFolderCompactState::Init(nsIMsgFolder *folder, const char *baseMsgUri, nsIMsgD
   m_file->SetFollowLinks(true);
 
   m_file->SetNativeLeafName(NS_LITERAL_CSTRING("nstmp"));
-  m_file->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 00600);   //make sure we are not crunching existing nstmp file
+  rv = m_file->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 00600);   //make sure we are not crunching existing nstmp file
+  NS_ENSURE_SUCCESS(rv, rv);
+
   m_window = aMsgWindow;
   m_keyArray = new nsMsgKeyArray;
   m_size = 0;
@@ -286,7 +288,6 @@ nsFolderCompactState::Init(nsIMsgFolder *folder, const char *baseMsgUri, nsIMsgD
   if (NS_FAILED(rv))
   {
     m_status = rv;
-    Release(); // let go of ourselves...
   }
   return rv;
 }
@@ -389,9 +390,9 @@ nsFolderCompactState::FinishCompact()
   nsCOMPtr <nsIFile> oldSummaryFile;
   rv = GetSummaryFileLocation(folderPath, getter_AddRefs(oldSummaryFile));
   NS_ENSURE_SUCCESS(rv, rv);
-  nsCAutoString dbName;
+  nsAutoCString dbName;
   oldSummaryFile->GetNativeLeafName(dbName);
-  nsCAutoString folderName;
+  nsAutoCString folderName;
   path->GetNativeLeafName(folderName);
 
   // close down the temp file stream; preparing for deleting the old folder
@@ -440,7 +441,7 @@ nsFolderCompactState::FinishCompact()
     if (NS_SUCCEEDED(rv))
       rv = tempSummaryFile->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 0600);
 
-    nsCAutoString tempSummaryFileName;
+    nsAutoCString tempSummaryFileName;
     if (NS_SUCCEEDED(rv))
       rv = tempSummaryFile->GetNativeLeafName(tempSummaryFileName);
 
@@ -657,7 +658,7 @@ nsFolderCompactState::OnStopRequest(nsIRequest *request, nsISupports *ctxt,
 NS_IMETHODIMP
 nsFolderCompactState::OnDataAvailable(nsIRequest *request, nsISupports *ctxt,
                                       nsIInputStream *inStr,
-                                      uint32_t sourceOffset, uint32_t count)
+                                      uint64_t sourceOffset, uint32_t count)
 {
   if (!m_fileStream || !inStr) 
     return NS_ERROR_FAILURE;
@@ -792,7 +793,7 @@ nsFolderCompactState::OnDataAvailable(nsIRequest *request, nsISupports *ctxt,
         {
           if (msgHdrKeywords.Length() < sizeof(X_MOZILLA_KEYWORDS) - sizeof(HEADER_X_MOZILLA_KEYWORDS) + 10 /* allow some slop */)
           { // keywords fit in normal blank header, so replace blanks in keyword hdr with keywords
-            nsCAutoString keywordsHdr(X_MOZILLA_KEYWORDS);
+            nsAutoCString keywordsHdr(X_MOZILLA_KEYWORDS);
             keywordsHdr.Replace(sizeof(HEADER_X_MOZILLA_KEYWORDS) + 1, msgHdrKeywords.Length(), msgHdrKeywords);
             m_fileStream->Write(keywordsHdr.get(), keywordsHdr.Length(), &bytesWritten);
             m_addedHeaderSize += bytesWritten;
@@ -832,7 +833,7 @@ nsFolderCompactState::OnDataAvailable(nsIRequest *request, nsISupports *ctxt,
         // let's just rewrite all the keywords on several lines and add a blank line,
         // instead of worrying about which are missing.
         bool done = false;
-        nsCAutoString keywordHdr(HEADER_X_MOZILLA_KEYWORDS ": ");
+        nsAutoCString keywordHdr(HEADER_X_MOZILLA_KEYWORDS ": ");
         int32_t nextBlankOffset = 0;
         int32_t curHdrLineStart = 0;
         int32_t newKeywordSize = 0;
@@ -1188,7 +1189,7 @@ nsresult nsOfflineStoreCompactState::StartCompacting()
 NS_IMETHODIMP
 nsOfflineStoreCompactState::OnDataAvailable(nsIRequest *request, nsISupports *ctxt,
                                             nsIInputStream *inStr,
-                                            uint32_t sourceOffset, uint32_t count)
+                                            uint64_t sourceOffset, uint32_t count)
 {
   if (!m_fileStream || !inStr) 
     return NS_ERROR_FAILURE;
