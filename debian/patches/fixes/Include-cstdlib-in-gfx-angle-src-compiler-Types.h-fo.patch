@@ -7,7 +7,7 @@ Subject: Include cstdlib in gfx/angle/src/compiler/Types.h for abort()
  1 file changed, 1 insertion(+)
 
 diff --git a/mozilla/gfx/angle/src/compiler/Types.h b/mozilla/gfx/angle/src/compiler/Types.h
-index 86a02e9..87784f2 100644
+index fec7adb..64bc081 100644
 --- a/mozilla/gfx/angle/src/compiler/Types.h
 +++ b/mozilla/gfx/angle/src/compiler/Types.h
 @@ -7,6 +7,7 @@
@@ -17,4 +17,4 @@ index 86a02e9..87784f2 100644
 +#include <cstdlib>
  #include "compiler/BaseTypes.h"
  #include "compiler/Common.h"
- #include "compiler/compilerdebug.h"
+ #include "compiler/compiler_debug.h"

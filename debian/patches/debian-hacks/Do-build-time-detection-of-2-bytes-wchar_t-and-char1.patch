@@ -13,10 +13,10 @@ Ported to icedove by Christoph Goehre <chris@sigxcpu.org>
  3 files changed, 24 insertions(+)
 
 diff --git a/mozilla/xpcom/base/nscore.h b/mozilla/xpcom/base/nscore.h
-index 1facf12..09ee2bf 100644
+index c786455..f198d96 100644
 --- a/mozilla/xpcom/base/nscore.h
 +++ b/mozilla/xpcom/base/nscore.h
-@@ -350,6 +350,28 @@ typedef uint32_t nsrefcnt;
+@@ -333,6 +333,28 @@ typedef uint32_t nsrefcnt;
    #define HAVE_CPP_2BYTE_WCHAR_T
  #endif
  
@@ -46,10 +46,10 @@ index 1facf12..09ee2bf 100644
  #define __PRUNICHAR__
    /* For now, don't use wchar_t on Unix because it breaks the Netscape
 diff --git a/mozilla/xpcom/glue/nsStringAPI.h b/mozilla/xpcom/glue/nsStringAPI.h
-index 59cb44a..dc0b479 100644
+index 658f080..c848d67 100644
 --- a/mozilla/xpcom/glue/nsStringAPI.h
 +++ b/mozilla/xpcom/glue/nsStringAPI.h
-@@ -1076,6 +1076,7 @@ private:
+@@ -1092,6 +1092,7 @@ private:
    #define NS_NAMED_MULTILINE_LITERAL_STRING(n,s)  const nsDependentString n(reinterpret_cast<const nsAString::char_type*>(s), uint32_t((sizeof(s)/2)-1))
    typedef nsDependentString nsLiteralString;
  #else
@@ -58,14 +58,14 @@ index 59cb44a..dc0b479 100644
    #define NS_MULTILINE_LITERAL_STRING(s)          NS_ConvertASCIItoUTF16(s, uint32_t(sizeof(s)-1))
    #define NS_MULTILINE_LITERAL_STRING_INIT(n,s)   n(s, uint32_t(sizeof(s)-1))
 diff --git a/mozilla/xpcom/string/public/nsLiteralString.h b/mozilla/xpcom/string/public/nsLiteralString.h
-index 84a3381..301227f 100644
+index 9acf940..8c080d5 100644
 --- a/mozilla/xpcom/string/public/nsLiteralString.h
 +++ b/mozilla/xpcom/string/public/nsLiteralString.h
-@@ -58,6 +58,7 @@ literal_string( const nsACString::char_type* aPtr, uint32_t aLength )
-   #define NS_NAMED_MULTILINE_LITERAL_STRING(n,s)  const nsDependentString n(reinterpret_cast<const nsAString::char_type*>(s), uint32_t((sizeof(s)/2)-1))
+@@ -56,6 +56,7 @@ inline uint32_t LiteralWStringLength(const wchar_t (&c)[n])
+   #define NS_NAMED_MULTILINE_LITERAL_STRING(n,s)  const nsDependentString n(reinterpret_cast<const nsAString::char_type*>(s), mozilla::internal::LiteralWStringLength(s))
    typedef nsDependentString nsLiteralString;
  #else
 +  #warning Using conversions for literal strings. Please consider using 2-bytes wchar_t or char16_t instead
    #define NS_LL(s)                                s
-   #define NS_MULTILINE_LITERAL_STRING(s)          NS_ConvertASCIItoUTF16(s, uint32_t(sizeof(s)-1))
-   #define NS_MULTILINE_LITERAL_STRING_INIT(n,s)   n(s, uint32_t(sizeof(s)-1))
+   #define NS_MULTILINE_LITERAL_STRING(s)          NS_ConvertASCIItoUTF16(s, mozilla::internal::LiteralStringLength(s))
+   #define NS_MULTILINE_LITERAL_STRING_INIT(n,s)   n(s, mozilla::internal::LiteralStringLength(s))

@@ -12,10 +12,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=440908
  4 files changed, 17 insertions(+), 6 deletions(-)
 
 diff --git a/mozilla/modules/libpref/src/prefapi.cpp b/mozilla/modules/libpref/src/prefapi.cpp
-index 18354b9..24a466e 100644
+index cec84da..7822981 100644
 --- a/mozilla/modules/libpref/src/prefapi.cpp
 +++ b/mozilla/modules/libpref/src/prefapi.cpp
-@@ -978,7 +978,10 @@ void PREF_ReaderCallback(void       *closure,
+@@ -988,7 +988,10 @@ void PREF_ReaderCallback(void       *closure,
                           const char *pref,
                           PrefValue   value,
                           PrefType    type,
@@ -28,10 +28,10 @@ index 18354b9..24a466e 100644
 +        PREF_LockPref(pref, PR_TRUE);
  }
 diff --git a/mozilla/modules/libpref/src/prefapi.h b/mozilla/modules/libpref/src/prefapi.h
-index 2fc8280..086a159 100644
+index 76c8f6d..d5503c0 100644
 --- a/mozilla/modules/libpref/src/prefapi.h
 +++ b/mozilla/modules/libpref/src/prefapi.h
-@@ -176,7 +176,8 @@ void PREF_ReaderCallback( void *closure,
+@@ -178,7 +178,8 @@ void PREF_ReaderCallback( void *closure,
                            const char *pref,
                            PrefValue   value,
                            PrefType    type,
@@ -39,8 +39,8 @@ index 2fc8280..086a159 100644
 +                          bool        isDefault,
 +                          bool        isLocked);
  
- PR_END_EXTERN_C
- #endif
+ #ifdef __cplusplus
+ }
 diff --git a/mozilla/modules/libpref/src/prefread.cpp b/mozilla/modules/libpref/src/prefread.cpp
 index f0423e8..444d08a 100644
 --- a/mozilla/modules/libpref/src/prefread.cpp
@@ -92,10 +92,10 @@ index f0423e8..444d08a 100644
                  ps->nextstate = PREF_PARSE_UNTIL_COMMA; /* return here when done */
                  state = PREF_PARSE_QUOTED_STRING;
 diff --git a/mozilla/modules/libpref/src/prefread.h b/mozilla/modules/libpref/src/prefread.h
-index fe9850d..e4a474f 100644
+index 8d66746..75f3cab 100644
 --- a/mozilla/modules/libpref/src/prefread.h
 +++ b/mozilla/modules/libpref/src/prefread.h
-@@ -30,7 +30,8 @@ typedef void (*PrefReader)(void       *closure,
+@@ -32,7 +32,8 @@ typedef void (*PrefReader)(void       *closure,
                             const char *pref,
                             PrefValue   val,
                             PrefType    type,
@@ -105,7 +105,7 @@ index fe9850d..e4a474f 100644
  
  /* structure fields are private */
  typedef struct PrefParseState {
-@@ -51,6 +52,7 @@ typedef struct PrefParseState {
+@@ -53,6 +54,7 @@ typedef struct PrefParseState {
      char       *vb;         /* value buffer (ptr into lb)    */
      PrefType    vtype;      /* PREF_STRING,INT,BOOL          */
      bool        fdefault;   /* true if (default) pref     */

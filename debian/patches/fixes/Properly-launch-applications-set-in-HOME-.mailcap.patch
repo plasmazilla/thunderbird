@@ -5,36 +5,21 @@ Subject: Properly launch applications set in $HOME/.mailcap
 https://bugzilla.mozilla.org/show_bug.cgi?id=444440
 
 ---
- mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp | 4 ++++
+ 1 file changed, 4 insertions(+)
 
 diff --git a/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp b/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
-index 518e591..8269501 100644
+index 3bb9165..3336661 100644
 --- a/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
 +++ b/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
-@@ -65,6 +65,12 @@ nsMIMEInfoUnix::LoadUriInternal(nsIURI * aURI)
- NS_IMETHODIMP
- nsMIMEInfoUnix::GetHasDefaultHandler(bool *_retval)
- {
-+  // if mDefaultApplication is set, it means the application has been set from
-+  // either /etc/mailcap or ${HOME}/.mailcap, in which case we don't want to
-+  // give the GNOME answer.
-+  if (mDefaultApplication)
-+    return nsMIMEInfoImpl::GetHasDefaultHandler(_retval);
-+
-   *_retval = false;
-   nsRefPtr<nsMIMEInfoBase> mimeInfo = nsGNOMERegistry::GetFromType(mSchemeOrType);
-   if (!mimeInfo) {
-@@ -105,6 +111,12 @@ nsMIMEInfoUnix::GetHasDefaultHandler(bool *_retval)
- nsresult
- nsMIMEInfoUnix::LaunchDefaultWithFile(nsIFile *aFile)
- {
-+  // if mDefaultApplication is set, it means the application has been set from
-+  // either /etc/mailcap or ${HOME}/.mailcap, in which case we don't want to
-+  // give the GNOME answer.
-+  if (mDefaultApplication)
-+    return nsMIMEInfoImpl::LaunchDefaultWithFile(aFile);
-+
-   nsCAutoString nativePath;
+@@ -117,6 +117,10 @@ nsMIMEInfoUnix::LaunchDefaultWithFile(nsIFile *aFile)
+     return nsMIMEInfoImpl::LaunchDefaultWithFile(aFile);
+ 
+   nsAutoCString nativePath;
++/* the name of the function has changed
++ * the old was the following:
++  nsCAutoString nativePath;
++  */
    aFile->GetNativePath(nativePath);
  
+ #if (MOZ_PLATFORM_MAEMO == 5) && defined (MOZ_ENABLE_GNOMEVFS)

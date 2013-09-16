@@ -12,10 +12,10 @@ This patch just hacks the build by passing the cachedir option manually
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/config/rules.mk b/config/rules.mk
-index cd988df..05100d4 100644
+index d19e37c..7b3906d 100644
 --- a/config/rules.mk
 +++ b/config/rules.mk
-@@ -1454,7 +1454,7 @@ $(XPIDL_GEN_DIR)/%.h: %.idl $(XPIDL_DEPS) $(XPIDL_GEN_DIR)/.done
+@@ -1428,7 +1428,7 @@ $(XPIDL_GEN_DIR)/%.h: %.idl $(XPIDL_DEPS) $(XPIDL_GEN_DIR)/.done
  	$(REPORT_BUILD)
  	$(PYTHON) -u $(MOZILLA_DIR)/config/pythonpath.py \
  	  $(PLY_INCLUDE) \
@@ -24,7 +24,7 @@ index cd988df..05100d4 100644
  	@if test -n "$(findstring $*.h, $(EXPORTS))"; \
  	  then echo "*** WARNING: file $*.h generated from $*.idl overrides $(srcdir)/$*.h"; else true; fi
  
-@@ -1466,7 +1466,7 @@ $(XPIDL_GEN_DIR)/%.xpt: %.idl $(XPIDL_DEPS) $(XPIDL_GEN_DIR)/.done
+@@ -1440,7 +1440,7 @@ $(XPIDL_GEN_DIR)/%.xpt: %.idl $(XPIDL_DEPS) $(XPIDL_GEN_DIR)/.done
  	$(PYTHON) -u $(MOZILLA_DIR)/config/pythonpath.py \
  	  $(PLY_INCLUDE) \
  	  -I$(MOZILLA_DIR)/xpcom/typelib/xpt/tools \

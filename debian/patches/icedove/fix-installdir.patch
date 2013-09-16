@@ -7,7 +7,7 @@ Subject: fix installdir
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mail/app/Makefile.in b/mail/app/Makefile.in
-index d5b4489..c386bb4 100644
+index 74275cc..f4b1b5f 100644
 --- a/mail/app/Makefile.in
 +++ b/mail/app/Makefile.in
 @@ -172,10 +172,10 @@ libs:: $(addprefix $(DIST)/branding/,$(BRANDED_ICON_FILES))

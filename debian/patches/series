@@ -23,7 +23,6 @@ fixes/Load-dependent-libraries-with-their-real-path-to-avo.patch
 prefs/Set-javascript.options.showInConsole.patch
 prefs/Don-t-auto-disable-extensions-in-system-directories.patch
 debian-hacks/Don-t-build-example-component.patch
-fixes/Link-libldap-against-libpthread.patch
 fixes/Bug-628252-os2.cc-fails-to-compile-against-GCC-4.6-m.patch
 fixes/Include-cstdlib-in-gfx-angle-src-compiler-Types.h-fo.patch
 fixes/Make-system-cairo-work-again.patch
@@ -31,3 +30,4 @@ debian-hacks/Fix-build-failure-for-header.py-and-typelib.py.patch
 porting/Another-fix-to-build-ipc-code-on-GNU-hurd-and-kfreeb.patch
 fixes/fix-function-nsMsgComposeAndSend-to-to-respect-Replo.patch
 porting/Don-t-hardcode-page-size-on-ia64-sparc-or-mipsel.patch
+fixes/Link-libldap-against-libpthread.patch
