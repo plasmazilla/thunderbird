@@ -72,7 +72,6 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--with-default-mozilla-five-home=$(DEBIAN_TB_DIR) \
 	--enable-startup-notification \
 	--with-user-appdir=.mozilla \
-	--with-system-jpeg=/usr \
 	--with-system-zlib=/usr \
 	--with-system-bz2 \
 	--with-system-libvpx \
