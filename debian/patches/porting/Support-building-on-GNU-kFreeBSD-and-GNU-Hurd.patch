@@ -12,7 +12,6 @@ Squashed kFreeBSD/Hurd related fixes:
 - Missing bits for Hurd support
 
 ---
- configure.in                                       |  7 +++---
  ldap/sdks/c-sdk/config/nsinstall.c                 |  2 +-
  ldap/sdks/c-sdk/configure.in                       | 15 ++++++++----
  ldap/sdks/c-sdk/ldap/include/portable.h            | 28 ++++++++++++----------
@@ -20,47 +19,8 @@ Squashed kFreeBSD/Hurd related fixes:
  ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in |  2 +-
  ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c    |  2 +-
  .../c-sdk/ldap/libraries/libprldap/ldappr-error.c  |  2 +-
- 8 files changed, 36 insertions(+), 26 deletions(-)
+ 7 files changed, 32 insertions(+), 23 deletions(-)
 
-diff --git a/configure.in b/configure.in
-index c5a94a8..3989eb4 100644
---- a/configure.in
-+++ b/configure.in
-@@ -987,6 +987,7 @@ if test -n "$CROSS_COMPILE"; then
-     case "${target_os}" in
-         linux*)       OS_ARCH=Linux OS_TARGET=Linux ;;
-         kfreebsd*-gnu) OS_ARCH=GNU_kFreeBSD OS_TARGET=GNU_kFreeBSD ;;
-+        gnu*)         OS_ARCH=GNU ;;
-         solaris*)     OS_ARCH=SunOS OS_RELEASE=5 ;;
-         mingw*)       OS_ARCH=WINNT ;;
-         wince*)       OS_ARCH=WINCE ;;
-@@ -1617,7 +1618,7 @@ case "$host" in
-     HOST_OPTIMIZE_FLAGS="${HOST_OPTIMIZE_FLAGS=-O3}"
-     ;;
- 
--*-linux*|*-kfreebsd*-gnu)
-+*-linux*|*-kfreebsd*-gnu|*-gnu*)
-     HOST_CFLAGS="$HOST_CFLAGS -DXP_UNIX"
-     HOST_NSPR_MDCPUCFG='\"md/_linux.cfg\"'
-     HOST_OPTIMIZE_FLAGS="${HOST_OPTIMIZE_FLAGS=-O3}"
-@@ -2572,7 +2573,7 @@ dnl ========================================================
- dnl = Flags to strip unused symbols from .so components
- dnl ========================================================
- case "$target" in
--    *-linux*|*-kfreebsd*-gnu)
-+    *-linux*|*-kfreebsd*-gnu|*-gnu*)
-         MOZ_COMPONENTS_VERSION_SCRIPT_LDFLAGS='-Wl,--version-script -Wl,$(BUILD_TOOLS)/gnu-ld-scripts/components-version-script'
-         ;;
-     *-solaris*)
-@@ -3219,7 +3220,7 @@ then
- 			fi
- 			;;
- 
--	    *-*-linux*|*-*-kfreebsd*-gnu)
-+	    *-*-linux*|*-*-kfreebsd*-gnu|*-*-gnu*)
- 			AC_DEFINE(_REENTRANT) 
- 			;;
- 
 diff --git a/ldap/sdks/c-sdk/config/nsinstall.c b/ldap/sdks/c-sdk/config/nsinstall.c
 index dfdb837..9f9c84a 100644
 --- a/ldap/sdks/c-sdk/config/nsinstall.c
@@ -75,10 +35,10 @@ index dfdb837..9f9c84a 100644
  #endif
  
 diff --git a/ldap/sdks/c-sdk/configure.in b/ldap/sdks/c-sdk/configure.in
-index 3b1d5cb..32aa83e 100644
+index d797443..2eabec2 100644
 --- a/ldap/sdks/c-sdk/configure.in
 +++ b/ldap/sdks/c-sdk/configure.in
-@@ -794,6 +794,7 @@ if test -n "$CROSS_COMPILE"; then
+@@ -761,6 +761,7 @@ if test -n "$CROSS_COMPILE"; then
      OS_TEST="${target_cpu}"
      case "${target_os}" in
          linux*)       OS_ARCH=Linux ;;
@@ -86,7 +46,7 @@ index 3b1d5cb..32aa83e 100644
          solaris*)     OS_ARCH=SunOS OS_RELEASE=5 ;;
          mingw*)     OS_ARCH=WINNT ;;
          darwin*)    OS_ARCH=Darwin ;;
-@@ -1519,7 +1520,7 @@ tools are selected during the Xcode/Developer Tools installation.])
+@@ -1482,7 +1483,7 @@ tools are selected during the Xcode/Developer Tools installation.])
  	esac
      ;;
  
@@ -95,7 +55,7 @@ index 3b1d5cb..32aa83e 100644
      if test -z "$USE_NSPR_THREADS"; then
          USE_PTHREADS=1
      fi
-@@ -1529,8 +1530,12 @@ tools are selected during the Xcode/Developer Tools installation.])
+@@ -1492,8 +1493,12 @@ tools are selected during the Xcode/Developer Tools installation.])
      AC_DEFINE(_SVID_SOURCE)
      AC_DEFINE(_LARGEFILE64_SOURCE)
      AC_DEFINE(HAVE_FCNTL_FILE_LOCKING)
@@ -110,7 +70,7 @@ index 3b1d5cb..32aa83e 100644
      LD='$(CC)'
      CFLAGS="$CFLAGS -ansi -Wall"
      CXXFLAGS="$CXXFLAGS -ansi -Wall"
-@@ -2405,7 +2410,7 @@ if test -n "$USE_PTHREADS"; then
+@@ -2368,7 +2373,7 @@ if test -n "$USE_PTHREADS"; then
  	        _PTHREAD_LDFLAGS=
  	    fi
  	    ;;
@@ -119,7 +79,7 @@ index 3b1d5cb..32aa83e 100644
          AC_DEFINE(_REENTRANT)
          ;;
      esac
-@@ -2481,7 +2486,7 @@ case "$target" in
+@@ -2444,7 +2449,7 @@ case "$target" in
          fi
      fi
      ;;
