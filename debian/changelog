@@ -1,3 +1,48 @@
+icedove (24.0~b3-1) experimental; urgency=low
+
+  [ Guido Günther ]
+  * Upload to experimental
+  * [eae533c] Adjust watch file once again
+  * [5280050] Invoke repack.py directly
+  * [0f4e8de] New upstream version 24.0~b3
+    (Closes: #706859, #720931, #723630)
+  * [3b6374b] Don't use system jpeg
+    since it doesn't have the needed features
+  * [f6aeba2] Don't try to remove nonexistent libxpcom.so
+
+  [ Carsten Schoenert ]
+  * [04844ae] icedove-branding: adopt new build schema to Debian branding
+    by using moz.build.
+  * [11c4677] icedove-branding: change the target directory for preview.png.
+  * [55f6762] debian/control: remove package calendar-timezones.
+    The calendar-timezones related files are now inside the lightning
+    package.
+  * [6f4948d] debian/rules: catch any gdata-provider*.xpi file.
+    The gdata-provider XPI file now has a version appended.
+  * [d5a63c9] debian/rules: catch any lightning*.xpi file.
+    The lightning XPI file now has a version appended.
+  * [e77e911] debian/thunderbird.install.in: 
+    remove mozilla/components/binary.manifest since it no longer exists.
+  * [ef3f3b1] debian/control: Build-Depend on gstreamer an yasm now used by
+    icedove.
+  * [9f5fe3e] Drop patches fixed upstream.
+        Bug-720682-Don-t-crash-an-app-using-libxul-because-o.patch
+        Bug-723497-Saving-message-to-disk-fails-silently-fai.patch
+        Bug-746112-Don-t-decommit-if-page-size-is-too-large.patch
+        Bug-814693-Allow-webrtc-to-build-on-more-architectur.patch
+        Bug-840242-Use-the-runtime-page-size-to-control-aren.patch
+        virtualenv-changing-the-path-to-virtualenv.py.patch
+  * [4503610] Adjust to build system changes:
+        debian-hacks/Don-t-build-example-component.patch
+  * [290f1e0] Partially applied upstream:
+        Support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+  * [2eaf6ae] Rediff remaining patches
+  * [4217c0e] Create missing .deps dir.
+    Workaround to make build complete
+  * [f95db9c] Drop autoconf.mk mangling since it confuses the build system
+
+ -- Guido Günther <agx@sigxcpu.org>  Thu, 19 Sep 2013 20:10:24 +0200
+
 icedove (17.0.8-1) unstable; urgency=low
 
   [ Carsten Schoenert ]
