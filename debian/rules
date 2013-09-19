@@ -204,7 +204,6 @@ endif
 # remove duplicate .so files in dev package
 	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libmozalloc.so
 	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libmozjs.so
-	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libxpcom.so
 	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libxul.so
 
 install/$(DEB_MOZ_APPLICATION)-dev::
