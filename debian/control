@@ -97,7 +97,7 @@ Description: Debug Symbols for Icedove
 
 Package: iceowl-extension
 Architecture: any
-Depends: icedove (>= ${binary:Version})
+Depends: icedove (>= ${binary:Version}),
  ${shlibs:Depends}, ${misc:Depends}
 Recommends: calendar-google-provider
 Suggests: fonts-lyx
