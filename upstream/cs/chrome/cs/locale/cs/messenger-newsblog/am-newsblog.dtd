@@ -15,11 +15,10 @@
 <!ENTITY manageSubscriptions.label "Správce RSS kanálů…">
 <!ENTITY manageSubscriptions.accesskey "S">
 
+<!ENTITY feedWindowTitle.label "Průvodce vytvořením účtu pro kanály">
+
 <!-- entities from defaults/isp/rss.rdf -->
 <!ENTITY feeds.accountName "Kanaly blogu a novinek">
 <!ENTITY feeds.wizardShortName "Kanály">
 <!ENTITY feeds.wizardLongName "Kanály blogů a novinek">
 <!ENTITY feeds.wizardLongName.accesskey "K">
-
-
-<!ENTITY feedWindowTitle.label "Feed Account Wizard">

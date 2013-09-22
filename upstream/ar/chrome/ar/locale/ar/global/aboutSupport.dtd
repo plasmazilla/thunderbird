@@ -16,6 +16,11 @@
 <!ENTITY aboutSupport.appBasicsTitle "أساسيات التطبيق">
 <!ENTITY aboutSupport.appBasicsName "الاسم">
 <!ENTITY aboutSupport.appBasicsVersion "النسخة">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+
+<!ENTITY aboutSupport.appBasicsUpdateHistory "تأريخ التحديث">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "أظهر تأريخ التحديث">
 
 <!ENTITY aboutSupport.appBasicsProfileDir "مجلد الملف الشخصي">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
@@ -62,9 +67,3 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.copyTextToClipboard.label "انسخ النص إلى الحافظة">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "انسخ البيانات الخام إلى الحافظة">
-
-<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
-
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
-"Update" is a noun here, not a verb. -->
-<!ENTITY aboutSupport.appBasicsUpdateHistory "Update History">

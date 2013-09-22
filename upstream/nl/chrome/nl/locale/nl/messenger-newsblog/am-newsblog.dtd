@@ -15,11 +15,10 @@
 <!ENTITY manageSubscriptions.label "Abonnementen beheren…">
 <!ENTITY manageSubscriptions.accesskey "b">
 
+<!ENTITY feedWindowTitle.label "Feedaccountwizard">
+
 <!-- entities from rss.rdf -->
 <!ENTITY feeds.accountName "Blogs &amp; nieuwsfeeds">
 <!ENTITY feeds.wizardShortName "Feeds">
 <!ENTITY feeds.wizardLongName "Blogs &amp; nieuwsfeeds">
 <!ENTITY feeds.wizardLongName.accesskey "f">
-
-
-<!ENTITY feedWindowTitle.label "Feed Account Wizard">

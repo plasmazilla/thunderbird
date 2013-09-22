@@ -2,25 +2,25 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY  colorsDialog.title              "Colors">
+<!ENTITY  colorsDialog.title              "Färger">
 <!ENTITY  window.width                    "38em">
 <!ENTITY  window.macWidth                 "41em">
 
-<!ENTITY  allowPagesToUse.label           "Allow content to choose its own colors, instead of my selections above">
-<!ENTITY  allowPagesToUse.accesskey       "A">
+<!ENTITY  allowPagesToUse.label           "Låt innehåll välja sina egna färger, istället för ovanstående val">
+<!ENTITY  allowPagesToUse.accesskey       "l">
 
-<!ENTITY  color                           "Text and Background">
+<!ENTITY  color                           "Text och bakgrund">
 <!ENTITY  textColor.label                 "Text:">
 <!ENTITY  textColor.accesskey             "t">
-<!ENTITY  backgroundColor.label           "Background:">
+<!ENTITY  backgroundColor.label           "Bakgrund:">
 <!ENTITY  backgroundColor.accesskey       "b">
-<!ENTITY  useSystemColors.label           "Use system colors">
+<!ENTITY  useSystemColors.label           "Använd systemets färger">
 <!ENTITY  useSystemColors.accesskey       "s">
 
-<!ENTITY  underlineLinks.label            "Underline links">
+<!ENTITY  underlineLinks.label            "Understrukna länkar">
 <!ENTITY  underlineLinks.accesskey        "u">
-<!ENTITY  links                           "Link Colors">
-<!ENTITY  linkColor.label                 "Unvisited Links:">
-<!ENTITY  linkColor.accesskey             "l">
-<!ENTITY  visitedLinkColor.label          "Visited Links:">
-<!ENTITY  visitedLinkColor.accesskey      "v">
+<!ENTITY  links                           "Länkfärger">
+<!ENTITY  linkColor.label                 "Obesökta länkar:">
+<!ENTITY  linkColor.accesskey             "o">
+<!ENTITY  visitedLinkColor.label          "Besökta länkar:">
+<!ENTITY  visitedLinkColor.accesskey      "b">

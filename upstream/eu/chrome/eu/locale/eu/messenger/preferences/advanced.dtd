@@ -104,7 +104,7 @@
 
 <!ENTITY useCacheBefore.label            "Erabili gehienez">
 <!ENTITY useCacheBefore.accesskey        "E">
-<!ENTITY useCacheAfter.label             "MB cache-arentzat">
+<!ENTITY useCacheAfter.label             "MB cachearentzat">
 <!ENTITY clearCacheNow.label             "Garbitu orain">
 <!ENTITY clearCacheNow.accesskey         "G">
 <!-- Certificates -->
@@ -117,8 +117,6 @@
 
 <!ENTITY viewCertificates.label         "Ikusi ziurtagiriak">
 <!ENTITY viewCertificates.accesskey     "a">
-<!ENTITY viewCRLs.label                 "Baliogabetze zerrendak">
-<!ENTITY viewCRLs.accesskey             "e">
 <!ENTITY validation.label               "Balidazioa">
 <!ENTITY validation.accesskey           "d">
 <!ENTITY viewSecurityDevices.label      "Segurtasun-gailuak">

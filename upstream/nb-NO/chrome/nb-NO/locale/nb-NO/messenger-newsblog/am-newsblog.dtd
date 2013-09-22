@@ -15,11 +15,10 @@
 <!ENTITY manageSubscriptions.label "Behandle abonnement …"> 
 <!ENTITY manageSubscriptions.accesskey "B">
 
+<!ENTITY feedWindowTitle.label "Kontoveiviser for nyhetskilder">
+
 <!-- entities from rss.rdf -->
 <!ENTITY feeds.accountName "Blogger og nyhetskilder">
 <!ENTITY feeds.wizardShortName "Nyhetskilder">
 <!ENTITY feeds.wizardLongName "Blogger og nyhetskilder">
 <!ENTITY feeds.wizardLongName.accesskey "B">
-
-
-<!ENTITY feedWindowTitle.label "Feed Account Wizard">

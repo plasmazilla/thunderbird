@@ -5,6 +5,7 @@
 <!ENTITY systemIntegration.title  "Системна інтеграція">
 <!ENTITY acceptIntegration.label  "Встановити типовим">
 <!ENTITY cancelIntegration.label  "Пропустити інтеграцію">
+<!ENTITY cancelIntegration2.label  "Скасувати">
 <!ENTITY defaultClient.intro  "Використовувати &brandShortName; як типовий клієнт для:">
 
 <!ENTITY email.label "Електронної пошти">
@@ -18,5 +19,3 @@
 
 <!ENTITY searchIntegration.label "Дозволити &searchIntegration.engineName; шукати листи">
 <!ENTITY searchIntegration.accesskey "ш">
-
-<!ENTITY cancelIntegration2.label  "Cancel">

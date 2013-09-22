@@ -15,11 +15,10 @@
 <!ENTITY manageSubscriptions.label "Administrar suscripciones…">
 <!ENTITY manageSubscriptions.accesskey "M">
 
+<!ENTITY feedWindowTitle.label "Asistente de cuentas de canal">
+
 <!-- entities from rss.rdf -->
 <!ENTITY feeds.accountName "Blogs y canales de noticias">
 <!ENTITY feeds.wizardShortName "Canales">  
 <!ENTITY feeds.wizardLongName "Blogs y canales de noticias">
 <!ENTITY feeds.wizardLongName.accesskey "B">
-
-
-<!ENTITY feedWindowTitle.label "Feed Account Wizard">

@@ -12,18 +12,17 @@
 <!ENTITY feedsSectionHdr.label        "Jarioak">
 <!ENTITY subscribeFeeds.label         "Kudeatu harpidetzak">
 
+<!ENTITY chat.label                   "Txata">
+<!ENTITY movemail.label               "Movemail">
+
 <!ENTITY accountsSectionHdr.label     "Kontuak">
 <!ENTITY subscribeImapFolders.label   "Kudeatu karpeten harpidetzak">
 <!ENTITY settingsLink.label           "Ikusi kontu honen ezarpenak">
 <!ENTITY newAcctLink.label            "Sortu kontu berria">
+<!ENTITY newAcct.label                "Sortu kontu berria:">
 
 <!ENTITY advFeaturesSectionHdr.label  "Eginbide aurreratuak">
 <!ENTITY searchMsgsLink.label         "Bilatu mezuak">
 <!ENTITY filtersLink.label            "Kudeatu mezu-iragazkiak">
 <!ENTITY junkSettings.label           "Zabor-postaren ezarpenak">
 <!ENTITY offlineLink.label            "Lineaz kanpoko ezarpenak">
-
-
-<!ENTITY chat.label                   "Chat">
-<!ENTITY movemail.label               "Movemail">
-<!ENTITY newAcct.label                "Create a new account:">

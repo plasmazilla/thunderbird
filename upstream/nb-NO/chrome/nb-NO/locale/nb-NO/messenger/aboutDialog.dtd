@@ -6,11 +6,11 @@
 <!ENTITY community.middle2          ", et ">
 <!-- LOCALIZATION NOTE (community.creditsLink): This is a link title that links to about:credits. -->
 <!ENTITY community.creditsLink      "globalt samfunn">
-<!ENTITY community.end2             " som jobber for å gjøre Internett bedre. Vi synes at Internett bør være åpent, allment og tilgjengelig for alle, uten noen begrensninger.">
+<!ENTITY community.end2             " som jobber for å gjøre Internett bedre. Vi synes at Internett bør være åpent, allment og tilgjengelig for alle, uten begrensninger.">
 
 <!ENTITY contribute.start           "Høres dette interessant ut? ">
 <!-- LOCALIZATION NOTE (contribute.getInvolvedLink): This is a link title that links to http://www.mozilla.org/contribute/. -->
-<!ENTITY contribute.getInvolvedLink "Involver deg!">
+<!ENTITY contribute.getInvolvedLink "Engasjer deg!">
 <!ENTITY contribute.end             "">
 
 <!-- LOCALIZATION NOTE (bottomLinks.license): This is a link title that links to about:license. -->
@@ -19,7 +19,7 @@
 <!-- LOCALIZATION NOTE (bottomLinks.rights): This is a link title that links to about:rights. -->
 <!ENTITY bottomLinks.rights         "Rettigheter for sluttbrukere">
 
-<!-- LOCALIZATION NOTE (bottomLinks.privacy): This is a link title that links to http://www.mozilla.com/legal/privacy/. -->
+<!-- LOCALIZATION NOTE (bottomLinks.privacy): This is a link title that links to https://www.mozilla.org/legal/privacy/. -->
 <!ENTITY bottomLinks.privacy        "Personvern">
 
 <!-- LOCALIZATION NOTE (update.checkingForUpdates): try to make the localized text short (see bug 596813 for screenshots). -->
@@ -48,6 +48,16 @@
 <!ENTITY update.manual.linkText     "nyeste versjonen">
 <!ENTITY update.manual.end          "">
 
+<!-- LOCALIZATION NOTE (update.unsupported.start,update.unsupported.linkText,update.unsupported.end):
+     update.unsupported.start, update.unsupported.linkText, and
+     update.unsupported.end all go into one line with linkText being wrapped in
+     an anchor that links to a site to provide additional information regarding
+     why the system is no longer supported. As this is all in one line, try to
+     make the localized text short (see bug 843497 for screenshots). -->
+<!ENTITY update.unsupported.start    "Du kan ikke utføre flere oppdateringer på dette systemet. ">
+<!ENTITY update.unsupported.linkText "Les mer">
+<!ENTITY update.unsupported.end      "">
+
 <!-- LOCALIZATION NOTE (update.downloading.start,update.downloading.end): update.downloading.start and 
      update.downloading.end all go into one line, with the amount downloaded inserted in between. As this
      is all in one line, try to make the localized text short (see bug 596813 for screenshots). The — is
@@ -62,17 +72,6 @@
      channel.description.end create one sentence, with the current channel label inserted in between.
      example: You are currently on the _Stable_ update channel. -->
 <!ENTITY channel.description.start  "Du bruker nå oppdateringskanalen ">
-<!ENTITY channel.description.end    " . ">
+<!ENTITY channel.description.end    ". ">
 
 <!ENTITY cmdCloseMac.commandKey "w">
-
-<!ENTITY update.unsupported.end      "">
-<!ENTITY update.unsupported.linkText "Learn more">
-
-<!-- LOCALIZATION NOTE (update.unsupported.start,update.unsupported.linkText,update.unsupported.end):
-     update.unsupported.start, update.unsupported.linkText, and
-     update.unsupported.end all go into one line with linkText being wrapped in
-     an anchor that links to a site to provide additional information regarding
-     why the system is no longer supported. As this is all in one line, try to
-     make the localized text short (see bug 843497 for screenshots). -->
-<!ENTITY update.unsupported.start    "You can not perform further updates on this system. ">

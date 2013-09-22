@@ -22,6 +22,12 @@
                                            no tiene espacio suficiente para instalarla.">
 <!ENTITY  manualUpdateGetMsg.label        "Siempre puede obtener la última versión de &brandShortName; en:">
 
+<!ENTITY  unsupported.title               "Sistema no soportado">
+<!ENTITY  unsupported.label               "Su &brandShortName; está desactualizado, pero la última versión no es
+                                           soportada por sus sitema. Actualice su sistema e intente nuevamente.
+                                           No verá más este mensaje, pero puede">
+<!ENTITY  unsupportedLink.label           "conocer más.">
+
 <!ENTITY  incompatibleCheck.title         "Verificando compatibilidad de complementos">
 <!ENTITY  incompatibleCheck.label         "Buscando nuevas versiones de sus complementos…">
 
@@ -90,10 +96,3 @@
 <!ENTITY update.details.label "Detalles">
 <!ENTITY update.installedOn.label "Instalada el:">
 <!ENTITY update.status.label "Estado:">
-
-<!ENTITY  unsupported.label               "Your &brandShortName; is out of date, but the latest version is not
-                                           supported on your system. Please upgrade your system, then try again.
-                                           You will not see this notice again, but you can">
-
-<!ENTITY  unsupported.title               "System Unsupported">
-<!ENTITY  unsupportedLink.label           "learn more.">

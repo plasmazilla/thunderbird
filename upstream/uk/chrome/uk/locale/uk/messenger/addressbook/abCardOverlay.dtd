@@ -140,6 +140,8 @@
 <!ENTITY ICQ.accesskey                  "I">
 <!ENTITY XMPP.label                     "Jabber ID:">
 <!ENTITY XMPP.accesskey                 "J">
+<!ENTITY IRC.label                      "IRC Нік:">
+<!ENTITY IRC.accesskey                  "R">
 
 <!ENTITY Photo.tab                      "Зображення">
 <!ENTITY Photo.accesskey                "З">
@@ -156,6 +158,3 @@
 <!ENTITY PhotoURL.placeholder           "Вставте або введіть веб-адресу фотографії">
 <!ENTITY UpdatePhoto.label              "Оновити">
 <!ENTITY UpdatePhoto.accesskey          "о">
-
-<!ENTITY IRC.accesskey                  "R">
-<!ENTITY IRC.label                      "IRC Nick:">

@@ -21,6 +21,11 @@
 <!ENTITY aboutSupport.appBasicsName "Nimi">
 <!ENTITY aboutSupport.appBasicsVersion "Versio">
 
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Päivityshistoria">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Näytä päivityshistoria">
+
 <!ENTITY aboutSupport.appBasicsProfileDir "Profiilikansio">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
 This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
@@ -66,9 +71,3 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.copyTextToClipboard.label "Kopioi teksti leikepöydälle">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Kopioi muokkaamaton data leikepöydälle">
-
-<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
-
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
-"Update" is a noun here, not a verb. -->
-<!ENTITY aboutSupport.appBasicsUpdateHistory "Update History">

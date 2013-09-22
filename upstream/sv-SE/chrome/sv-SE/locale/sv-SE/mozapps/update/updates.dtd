@@ -25,6 +25,12 @@
                                            du har inte tillräckligt med utrymme för att installera den.">
 <!ENTITY  manualUpdateGetMsg.label        "Du kan alltid hämta den senaste versionen av &brandShortName; från:">
 
+<!ENTITY  unsupported.title               "Systemet stöds inte">
+<!ENTITY  unsupported.label               "Din &brandShortName; är gammal men den senaste versionen stöds inte
+                                           på ditt system. Uppgradera systemet och försök sedan igen.
+                                           Det här meddelandet visas inte igen, men du kan">
+<!ENTITY  unsupportedLink.label           "läsa mer.">
+
 <!ENTITY  incompatibleCheck.title         "Kontrollerar tilläggens kompatibilitet">
 <!ENTITY  incompatibleCheck.label         "Söker efter nyare versioner av dina tillägg…">
 
@@ -93,10 +99,3 @@
 <!ENTITY  update.details.label            "Detaljer">
 <!ENTITY  update.installedOn.label        "Installerad:">
 <!ENTITY  update.status.label             "Status:">
-
-<!ENTITY  unsupported.label               "Your &brandShortName; is out of date, but the latest version is not
-                                           supported on your system. Please upgrade your system, then try again.
-                                           You will not see this notice again, but you can">
-
-<!ENTITY  unsupported.title               "System Unsupported">
-<!ENTITY  unsupportedLink.label           "learn more.">

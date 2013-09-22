@@ -15,11 +15,10 @@
 <!ENTITY manageSubscriptions.label "Upravljanje naročnin …"> 
 <!ENTITY manageSubscriptions.accesskey "U">
 
+<!ENTITY feedWindowTitle.label "Čarovnik za račune virov">
+
 <!-- entities from rss.rdf -->
 <!ENTITY feeds.accountName "Novice in spletni dnevniki RSS">
 <!ENTITY feeds.wizardShortName "Viri">
 <!ENTITY feeds.wizardLongName "Novice in spletni dnevniki RSS">
 <!ENTITY feeds.wizardLongName.accesskey "V">
-
-
-<!ENTITY feedWindowTitle.label "Feed Account Wizard">

@@ -18,6 +18,11 @@ bazabiltza, bisitatu gure <a id='supportLink'>laguntzaren webgunea</a>.">
 <!ENTITY aboutSupport.appBasicsTitle "Aplikazioaren oinarrizko konfigurazioa">
 <!ENTITY aboutSupport.appBasicsName "Izena">
 <!ENTITY aboutSupport.appBasicsVersion "Bertsioa">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Eguneraketen historia">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Erakutsi eguneraketen historia">
 
 <!ENTITY aboutSupport.appBasicsProfileDir "Profilaren direktorioa">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
@@ -64,9 +69,3 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.copyTextToClipboard.label "Kopiatu testua arbelean">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Kopiatu datu gordinak arbelean">
-
-<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
-
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
-"Update" is a noun here, not a verb. -->
-<!ENTITY aboutSupport.appBasicsUpdateHistory "Update History">

@@ -87,6 +87,7 @@
 <!ENTITY findCmd.label "Buscar y reemplazar…">
 <!ENTITY findCmd.key "F">
 <!ENTITY findCmd.accesskey "B">
+<!ENTITY findReplaceCmd.key "H">
 <!ENTITY findAgainCmd.label "Repetir la búsqueda">
 <!ENTITY findAgainCmd.key "G">
 <!ENTITY findAgainCmd.accesskey "q">
@@ -292,5 +293,3 @@
 
 <!-- Title for the address picker panel -->
 <!ENTITY addressesSidebarTitle.label "Contactos">
-
-<!ENTITY findReplaceCmd.key "H">

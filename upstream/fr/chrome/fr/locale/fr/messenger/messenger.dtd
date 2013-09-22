@@ -35,6 +35,8 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey "e">
 <!ENTITY newIMAccountCmd.label "Compte de messagerie instantanée…">
 <!ENTITY newIMAccountCmd.accesskey "C">
+<!ENTITY newFeedAccountCmd.label "Compte de flux…">
+<!ENTITY newFeedAccountCmd.accesskey "d">
 <!ENTITY newIMContactCmd.label "Contact de messagerie instantanée…">
 <!ENTITY newIMContactCmd.accesskey "n">
 <!ENTITY openMessageFileCmd.label "Ouvrir un fichier…">
@@ -355,7 +357,7 @@
 <!ENTITY forwardAsInline.label "Intégré">
 <!ENTITY forwardAsInline.accesskey "I">
 <!ENTITY forwardAsAttachmentCmd.label "Pièce jointe">
-<!ENTITY forwardAsAttachmentCmd.accesskey "j">
+<!ENTITY forwardAsAttachmentCmd.accesskey "P">
 <!ENTITY editMsgAsNewCmd.label "Modifier comme un nouveau message">
 <!ENTITY editMsgAsNewCmd.accesskey "e">
 <!ENTITY editMsgAsNewCmd.key "e">
@@ -491,6 +493,8 @@
 <!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
         which is placed under the Edit menu on Unix systems -->
 <!ENTITY accountManagerCmdUnix.accesskey "a">
+<!ENTITY allowRemoteDebugging.label "Autoriser le débogage distant">
+<!ENTITY allowRemoteDebugging.accesskey "g">
 
 <!-- Mail Toolbar -->
 <!ENTITY getMsgButton.label "Relever">
@@ -539,6 +543,8 @@
 <!ENTITY replyAllButton.tooltip "Répondre à l'expéditeur et à tous les destinataires">
 <!ENTITY replyListButton.tooltip "Répondre à la liste de diffusion">
 <!ENTITY forwardButton.tooltip "Transférer le message sélectionné">
+<!ENTITY forwardAsInline.tooltip "Transférer le message sélectionné au format intégré">
+<!ENTITY forwardAsAttachment.tooltip "Transférer le message sélectionné au format pièce jointe">
 <!ENTITY fileButton.tooltip "Classer les messages sélectionnés">
 <!ENTITY archiveButton.tooltip "Archiver les messages sélectionnés">
 <!ENTITY nextButton.tooltip "Aller au prochain message non lu">
@@ -559,6 +565,10 @@
 <!ENTITY tagButton.tooltip "Étiqueter les messages">
 <!ENTITY compactButton.tooltip "Retirer les messages supprimés du dossier sélectionné">
 <!ENTITY appmenuButton1.tooltip "Afficher le menu de &brandShortName;">
+
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Transférer au format intégré">
+<!ENTITY buttonMenuForwardAsAttachment.label "Transférer au format pièce jointe">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Nouveau message">
@@ -582,8 +592,8 @@
 <!-- Folder Pane Context Menu -->
 <!ENTITY folderContextGetMessages.label "Relever les nouveaux messages">
 <!ENTITY folderContextGetMessages.accesskey "R">
-<!ENTITY folderContextOpenNewWindow.label "Ouvrir">
-<!ENTITY folderContextOpenNewWindow.accesskey "O">
+<!ENTITY folderContextOpenInNewWindow.label "Ouvrir dans une nouvelle fenêtre">
+<!ENTITY folderContextOpenInNewWindow.accesskey "O">
 <!ENTITY folderContextOpenNewTab.label "Ouvrir dans un nouvel onglet">
 <!ENTITY folderContextOpenNewTab.accesskey "u">
 <!ENTITY folderContextNew.label "Nouveau sous-dossier…">
@@ -698,14 +708,24 @@
 <!ENTITY contextReplyList.accesskey "l">
 <!ENTITY contextForward.label "Transférer">
 <!ENTITY contextForward.accesskey "f">
-<!ENTITY contextForwardAsAttachment.label "Transférer en tant que pièce jointe">
-<!ENTITY contextForwardAsAttachment.accesskey "j">
+<!ENTITY contextForwardAsMenu.label "Transférer au format">
+<!ENTITY contextForwardAsMenu.accesskey "n">
+<!ENTITY contextForwardAsInline.label "Intégré">
+<!ENTITY contextForwardAsInline.accesskey "I">
+<!ENTITY contextForwardAsAttachmentItem.label "Pièce jointe">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "P">
+<!ENTITY contextMultiForwardAsAttachment.label "Transférer au format pièce jointe">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "p">
 <!ENTITY contextMoveMsgMenu.label "Déplacer vers">
 <!ENTITY contextMoveMsgMenu.accesskey "D">
 <!ENTITY contextMoveCopyMsgRecentMenu.label "Récent">
 <!ENTITY contextMoveCopyMsgRecentMenu.accesskey "R">
 <!ENTITY contextCopyMsgMenu.label "Copier vers">
 <!ENTITY contextCopyMsgMenu.accesskey "c">
+<!ENTITY contextKillThreadMenu.label "Ignorer le sujet">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillSubthreadMenu.label "Ignorer le sous-sujet">
+<!ENTITY contextWatchThreadMenu.label "Surveiller le sujet">
 <!ENTITY contextSaveAs.label "Enregistrer comme…">
 <!ENTITY contextSaveAs.accesskey "s">
 <!ENTITY contextPrint.label "Imprimer…">
@@ -886,28 +906,3 @@
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers "accel,alt">
 <!ENTITY showAllAppsCmdMac.label "Tout afficher">
-
-<!ENTITY allowRemoteDebugging.accesskey "g">
-<!ENTITY allowRemoteDebugging.label "Allow Remote Debugging">
-<!ENTITY buttonMenuForwardAsAttachment.label "Forward As Attachment">
-
-<!-- Toolbar Button Popup -->
-<!ENTITY buttonMenuForwardAsInline.label "Forward Inline">
-<!ENTITY contextForwardAsAttachmentItem.accesskey "A">
-<!ENTITY contextForwardAsAttachmentItem.label "Attachment">
-<!ENTITY contextForwardAsInline.accesskey "I">
-<!ENTITY contextForwardAsInline.label "Inline">
-<!ENTITY contextForwardAsMenu.accesskey "o">
-<!ENTITY contextForwardAsMenu.label "Forward As">
-<!ENTITY contextKillSubthreadMenu.label "Ignore Subthread">
-<!ENTITY contextKillThreadMenu.accesskey "I">
-<!ENTITY contextKillThreadMenu.label "Ignore Thread">
-<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
-<!ENTITY contextMultiForwardAsAttachment.label "Forward as Attachments">
-<!ENTITY contextWatchThreadMenu.label "Watch Thread">
-<!ENTITY folderContextOpenInNewWindow.accesskey "O">
-<!ENTITY folderContextOpenInNewWindow.label "Open in New Window">
-<!ENTITY forwardAsAttachment.tooltip "Forward selected message as an attachment">
-<!ENTITY forwardAsInline.tooltip "Forward selected message as inline text">
-<!ENTITY newFeedAccountCmd.accesskey "d">
-<!ENTITY newFeedAccountCmd.label "Feed Account…">

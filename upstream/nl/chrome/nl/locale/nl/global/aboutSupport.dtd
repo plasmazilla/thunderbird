@@ -21,6 +21,11 @@
 <!ENTITY aboutSupport.appBasicsName "Naam">
 <!ENTITY aboutSupport.appBasicsVersion "Versie">
 
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Updategeschiedenis">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Updategeschiedenis tonen">
+
 <!ENTITY aboutSupport.appBasicsProfileDir "Profielmap">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
 This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
@@ -66,9 +71,3 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.copyTextToClipboard.label "Tekst naar klembord kopiëren">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Onbewerkte gegevens naar klembord kopiëren">
-
-<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
-
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
-"Update" is a noun here, not a verb. -->
-<!ENTITY aboutSupport.appBasicsUpdateHistory "Update History">
