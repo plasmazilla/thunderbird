@@ -1,3 +1,17 @@
+icedove (17.0.9-1~deb7u1) stable-security; urgency=low
+
+  * [f503b4d] Imported Upstream version 17.0.9
+    - MFSA 2013-76 aka CVE-2013-1718
+    - MFSA 2013-79 aka CVE-2013-1722
+    - MFSA 2013-82 aka CVE-2013-1725
+    - MFSA 2013-88 aka CVE-2013-1730
+    - MFSA 2013-89 aka CVE-2013-1732
+    - MFSA 2013-90 aka CVE-2013-1735, CVE-2013-1736
+    - MFSA 2013-91 aka CVE-2013-1737
+  * [5a8b5aa] rebuild patch queue from patch-queue branch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 22 Sep 2013 17:52:17 -0400
+
 icedove (17.0.8-1~deb7u1) stable-security; urgency=low
 
   [ Guido Günther ]
