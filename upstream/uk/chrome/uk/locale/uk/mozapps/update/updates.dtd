@@ -24,6 +24,11 @@
 <!ENTITY  manualUpdate.space.desc         "Наявне рекомендоване оновлення стабільності та безпеки, але ви не маєте достатньо місця, щоб його встановити.">
 <!ENTITY  manualUpdateGetMsg.label        "Ви завжди можете завантажити найостаннішу версію &brandShortName; з:">
 
+<!ENTITY  unsupported.title               "Система не підтримується">
+<!ENTITY  unsupported.label               "Ваш &brandShortName; застарів, але це остання версія, котра підтримується на вашій операційній системі. Оновіть систему, тоді спробуйте ще раз.
+                                           Ви більше не побачите цього повідомлення, але ви можете">
+<!ENTITY  unsupportedLink.label           "дізнатись більше.">
+
 <!ENTITY  incompatibleCheck.title         "Перевірка сумісності додатків">
 <!ENTITY  incompatibleCheck.label         "Пошук нових версій ваших додатків…">
 
@@ -89,10 +94,3 @@
 <!ENTITY  update.details.label            "Подробиці">
 <!ENTITY  update.installedOn.label        "Встановлено:">
 <!ENTITY  update.status.label             "Стан:">
-
-<!ENTITY  unsupported.label               "Your &brandShortName; is out of date, but the latest version is not
-                                           supported on your system. Please upgrade your system, then try again.
-                                           You will not see this notice again, but you can">
-
-<!ENTITY  unsupported.title               "System Unsupported">
-<!ENTITY  unsupportedLink.label           "learn more.">

@@ -81,6 +81,7 @@
 <!ENTITY findCmd.label "Знайсці і замяніць…">
 <!ENTITY findCmd.key "F">
 <!ENTITY findCmd.accesskey "З">
+<!ENTITY findReplaceCmd.key "H">
 <!ENTITY findAgainCmd.label "Знайсці зноў">
 <!ENTITY findAgainCmd.key "G">
 <!ENTITY findAgainCmd.accesskey "ў">
@@ -254,5 +255,3 @@
 <!ENTITY spellAddDictionaries.label "Дадаць слоўнікі…">
 <!ENTITY spellAddDictionaries.accesskey "Д">
 <!ENTITY addressesSidebarTitle.label "Сувязі">
-
-<!ENTITY findReplaceCmd.key "H">

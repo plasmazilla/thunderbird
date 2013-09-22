@@ -2,24 +2,24 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY toField3.label "Pour ">
-<!ENTITY fromField3.label "De ">
-<!ENTITY senderField3.label "Expéditeur ">
-<!ENTITY organizationField3.label "Organisation ">
-<!ENTITY replyToField3.label "Réponse à ">
+<!ENTITY toField4.label "Pour">
+<!ENTITY fromField4.label "De">
+<!ENTITY senderField4.label "Expéditeur">
+<!ENTITY organizationField4.label "Organisation">
+<!ENTITY replyToField4.label "Réponse à">
 
-<!ENTITY subjectField3.label "Sujet ">
-<!ENTITY ccField3.label "Copie à ">
-<!ENTITY bccField3.label "Copie cachée à ">
-<!ENTITY newsgroupsField3.label "Groupes ">
-<!ENTITY followupToField3.label "Faire suivre à ">
-<!ENTITY tagsHdr3.label "Étiquettes ">
-<!ENTITY dateField3.label "Date ">
-<!ENTITY userAgentField3.label "Agent utilisateur ">
-<!ENTITY referencesField3.label "Références ">
-<!ENTITY messageIdField3.label "Identifiant du message ">
-<!ENTITY inReplyToField3.label "En réponse à ">
-<!ENTITY originalWebsite3.label "Site web ">
+<!ENTITY subjectField4.label "Sujet">
+<!ENTITY ccField4.label "Copie à">
+<!ENTITY bccField4.label "Copie cachée à">
+<!ENTITY newsgroupsField4.label "Groupes">
+<!ENTITY followupToField4.label "Faire suivre à">
+<!ENTITY tagsHdr4.label "Étiquettes">
+<!ENTITY dateField4.label "Date">
+<!ENTITY userAgentField4.label "Agent utilisateur">
+<!ENTITY referencesField4.label "Références">
+<!ENTITY messageIdField4.label "Identifiant du message">
+<!ENTITY inReplyToField4.label "En réponse à">
+<!ENTITY originalWebsite4.label "Site web">
 
 <!ENTITY editMessageDescription.label "Ceci est un brouillon">
 <!ENTITY editMessageButton.label "Modifier…">
@@ -34,6 +34,7 @@
 <!ENTITY hdrReplyListButton1.tooltip "Répondre à la liste de diffusion">
 <!ENTITY hdrFollowupButton1.label "Répondre au groupe">
 <!ENTITY hdrFollowupButton1.tooltip "Faire suivre à ce groupe">
+<!ENTITY hdrMenuForwardButton.label "Transférer au format">
 <!ENTITY hdrForwardButton1.label "Transférer">
 <!ENTITY hdrForwardButton1.tooltip "Transférer ce message">
 <!ENTITY hdrJunkButton1.label "Indésirable">
@@ -107,25 +108,3 @@
 <!ENTITY OpenMessageForMsgId.accesskey "O">
 <!ENTITY OpenBrowserWithMsgId.label "Ouvrir le navigateur avec l'identifiant de message">
 <!ENTITY OpenBrowserWithMsgId.accesskey "v">
-
-<!ENTITY bccField4.label "Bcc">
-<!ENTITY ccField4.label "Cc">
-<!ENTITY dateField4.label "Date">
-<!ENTITY followupToField4.label "Followup to">
-<!ENTITY fromField4.label "From">
-<!ENTITY hdrMenuForwardButton.label "Forward As">
-<!ENTITY inReplyToField4.label "In reply to">
-<!ENTITY messageIdField4.label "Message ID">
-<!ENTITY newsgroupsField4.label "Newsgroups">
-<!ENTITY organizationField4.label "Organization">
-<!ENTITY originalWebsite4.label "Website">
-<!ENTITY referencesField4.label "References">
-<!ENTITY replyToField4.label "Reply to">
-<!ENTITY senderField4.label "Sender">
-
-<!ENTITY subjectField4.label "Subject">
-<!ENTITY tagsHdr4.label "Tags">
-
-
-<!ENTITY toField4.label "To">
-<!ENTITY userAgentField4.label "User agent">

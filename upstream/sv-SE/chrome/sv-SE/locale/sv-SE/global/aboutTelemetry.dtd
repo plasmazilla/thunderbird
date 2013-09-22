@@ -28,6 +28,10 @@
   Enkla mätningar
 ">
 
+<!ENTITY aboutTelemetry.lateWritesSection "
+  Sena skrivningar
+">
+
 <!ENTITY aboutTelemetry.systemInfoSection "
   Systeminformation
 ">
@@ -58,9 +62,4 @@
 
 <!ENTITY aboutTelemetry.hideSymbols "
   Visa rådata från hängningar
-">
-
-
-<!ENTITY aboutTelemetry.lateWritesSection "
-  Late Writes
 ">

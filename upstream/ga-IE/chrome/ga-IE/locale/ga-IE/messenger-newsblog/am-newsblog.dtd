@@ -14,12 +14,11 @@
 
 <!ENTITY manageSubscriptions.label "Bainistiú na Síntiús…">
 <!ENTITY manageSubscriptions.accesskey "S">
+
+<!ENTITY feedWindowTitle.label "Treoraí na gCuntas Fotha">
 <!-- entities from rss.rdf -->
 
 <!ENTITY feeds.accountName "Blaganna agus Fothaí Nuachta">
 <!ENTITY feeds.wizardShortName "Fothaí">
 <!ENTITY feeds.wizardLongName "Blaganna agus Fothaí Nuachta">
 <!ENTITY feeds.wizardLongName.accesskey "F">
-
-
-<!ENTITY feedWindowTitle.label "Feed Account Wizard">

@@ -9,10 +9,14 @@
 <!ENTITY newsSectionHdr.label         "Nieuwsgroepen">
 <!ENTITY subscribeNewsLink.label      "Nieuwsgroepabonnementen beheren">
 
+<!ENTITY chat.label                   "Chat">
+<!ENTITY movemail.label               "Movemail">
+
 <!ENTITY accountsSectionHdr.label     "Accounts">
 <!ENTITY subscribeImapFolders.label   "Mapabonnementen beheren">
 <!ENTITY settingsLink.label           "Instellingen voor deze account bekijken">
 <!ENTITY newAcctLink.label            "Nieuwe account aanmaken">
+<!ENTITY newAcct.label                "Nieuwe account aanmaken:">
 
 <!ENTITY advFeaturesSectionHdr.label  "Geavanceerde functies">
 <!ENTITY searchMsgsLink.label         "Berichten zoeken">
@@ -22,8 +26,3 @@
 
 <!ENTITY feedsSectionHdr.label        "Feeds">
 <!ENTITY subscribeFeeds.label         "Abonnementen beheren">
-
-
-<!ENTITY chat.label                   "Chat">
-<!ENTITY movemail.label               "Movemail">
-<!ENTITY newAcct.label                "Create a new account:">

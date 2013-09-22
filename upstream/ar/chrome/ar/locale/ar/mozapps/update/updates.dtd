@@ -20,6 +20,12 @@
 <!ENTITY  manualUpdate.space.desc         "هناك تحديث أمني وثباتي متاح، ولكنك لا تملك مساحة كافية لتثبيته.">
 <!ENTITY  manualUpdateGetMsg.label        "يمكنك دائمًا الحصول على أحدث نسخة من &brandShortName; في:">
 
+<!ENTITY  unsupported.title               "النظام غير مدعوم">
+<!ENTITY  unsupported.label               "نسختك من &brandShortName; غير مُحدّثة، لكن أحدث نسخة
+ليست مدعومة على نظامك. من فضل رقِّ نظامك ثم أعد المحاولة.
+لن ترى هذا التنبيه مرة أخرى، لكن تستطيع">
+<!ENTITY  unsupportedLink.label           "الاطلاع على المزيد.">
+
 <!ENTITY  incompatibleCheck.title         "يجري التحقق من توافق الإضافة">
 <!ENTITY  incompatibleCheck.label         "يجري البحث عن إصدارات أحدث من إضافاتك…">
 
@@ -75,10 +81,3 @@
 <!ENTITY  update.details.label            "التفاصيل">
 <!ENTITY  update.installedOn.label        "مثبّت في:">
 <!ENTITY  update.status.label             "الحالة:">
-
-<!ENTITY  unsupported.label               "Your &brandShortName; is out of date, but the latest version is not
-                                           supported on your system. Please upgrade your system, then try again.
-                                           You will not see this notice again, but you can">
-
-<!ENTITY  unsupported.title               "System Unsupported">
-<!ENTITY  unsupportedLink.label           "learn more.">

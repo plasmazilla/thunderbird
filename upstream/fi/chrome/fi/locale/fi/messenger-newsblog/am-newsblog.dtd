@@ -15,12 +15,11 @@
 <!ENTITY manageSubscriptions.label  "Muokkaa tilauksia…">
 <!ENTITY manageSubscriptions.accesskey  "M">
 
+<!ENTITY feedWindowTitle.label "Ohjattu syötetilin luonti">
+
 <!-- entities from rss.rdf -->
 <!ENTITY feeds.accountName "Uutiset ja blogit">
 <!ENTITY feeds.wizardShortName "Syötteet">
 <!ENTITY feeds.wizardLongName "Uutis- ja blogisyötteet">
 <!ENTITY feeds.wizardLongName.accesskey "U">
 
-
-
-<!ENTITY feedWindowTitle.label "Feed Account Wizard">

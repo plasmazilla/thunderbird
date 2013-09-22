@@ -64,7 +64,7 @@
 <!ENTITY deleteContactsCmd.label                        "Вилучити кілька карток">
 <!ENTITY deleteListCmd.label                            "Видалити список">
 <!ENTITY deleteListsCmd.label                           "Видалити списки">
-<!ENTITY deleteItemsCmd.label                           "Видалитичити елементи">
+<!ENTITY deleteItemsCmd.label                           "Видалити елементи">
 <!ENTITY selectAllCmd.label                             "Виділити все">
 <!ENTITY selectAllCmd.key                               "A">
 <!ENTITY searchAddressesCmd.key                         "f">

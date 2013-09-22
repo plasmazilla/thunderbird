@@ -12,6 +12,8 @@
 <!ENTITY addMailAccountButton.accesskey "L">
 <!ENTITY addIMAccountButton.label "Lisää pikaviestitili…">
 <!ENTITY addIMAccountButton.accesskey "p">
+<!ENTITY addFeedAccountButton.label "Lisää syötetili…">
+<!ENTITY addFeedAccountButton.accesskey "s">
 <!ENTITY addOtherAccountButton.label "Lisää muu tili…">
 <!ENTITY addOtherAccountButton.accesskey "m">
 <!ENTITY setDefaultButton.label  "Aseta oletukseksi">
@@ -30,6 +32,3 @@
      this window for en-US. -->
 <!ENTITY accountManager.size "width: 105ch; height: 55em;">
 <!ENTITY accountTree.width "width: 31ch;">
-
-<!ENTITY addFeedAccountButton.accesskey "F">
-<!ENTITY addFeedAccountButton.label "Add Feed Account…">

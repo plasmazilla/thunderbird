@@ -22,6 +22,12 @@
                                            vendar nimate dovolj prostora za namestitev.">
 <!ENTITY  manualUpdateGetMsg.label        "Najnovejšo različico programa &brandShortName; lahko vedno najdete na:">
 
+<!ENTITY  unsupported.title               "Sistem ni podprt">
+<!ENTITY  unsupported.label               "Vaš &brandShortName; je zastarel, vendar najnovejša različica ni podprta
+                                           na vašem sistemu. Posodobite sistem in poskusite znova.
+                                           Tega opozorila vam ne bomo več prikazovali, lahko pa preberete ">
+<!ENTITY  unsupportedLink.label           "več o tem.">
+
 <!ENTITY  incompatibleCheck.title         "Preverjanje združljivosti dodatkov">
 <!ENTITY  incompatibleCheck.label         "Iskanje novih različic vaših dodatkov ...">
 
@@ -86,10 +92,3 @@
 <!ENTITY update.details.label "Podrobnosti">
 <!ENTITY update.installedOn.label "Datum namestitve:">
 <!ENTITY update.status.label "Stanje:">
-
-<!ENTITY  unsupported.label               "Your &brandShortName; is out of date, but the latest version is not
-                                           supported on your system. Please upgrade your system, then try again.
-                                           You will not see this notice again, but you can">
-
-<!ENTITY  unsupported.title               "System Unsupported">
-<!ENTITY  unsupportedLink.label           "learn more.">

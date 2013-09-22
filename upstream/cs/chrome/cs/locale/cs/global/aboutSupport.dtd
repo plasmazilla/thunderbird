@@ -21,6 +21,11 @@ aplikace &brandShortName; naleznete na <a id='supportLink'>webových stránkách
 <!ENTITY aboutSupport.appBasicsName "Název">
 <!ENTITY aboutSupport.appBasicsVersion "Verze">
 
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Historie aktualizací">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Zobrazit historii aktualizací">
+
 <!ENTITY aboutSupport.appBasicsProfileDir "Adresář profilu">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
 This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
@@ -60,16 +65,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.a11yActivated "Aktivována">
 <!ENTITY aboutSupport.a11yForceDisabled "Zakázána">
 
-<!ENTITY aboutSupport.libraryVersionsTitle "Verze knihovny">
+<!ENTITY aboutSupport.libraryVersionsTitle "Verze knihoven">
 
 <!ENTITY aboutSupport.installationHistoryTitle "Historie instalací">
 <!ENTITY aboutSupport.updateHistoryTitle "Aktualizovat historii">
 
 <!ENTITY aboutSupport.copyTextToClipboard.label "Zkopírovat text do schránky">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Zkopírovat data do schránky">
-
-<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
-
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
-"Update" is a noun here, not a verb. -->
-<!ENTITY aboutSupport.appBasicsUpdateHistory "Update History">

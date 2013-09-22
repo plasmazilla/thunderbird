@@ -20,6 +20,12 @@
 spáis agat chun é a shuiteáil.">
 <!ENTITY manualUpdateGetMsg.label "Tá an leagan is déanaí de &brandShortName; ar fáil i gcónaí ó:">
 
+<!ENTITY unsupported.title "Ní thacaítear leis an gcóras seo">
+<!ENTITY unsupported.label "Tá &brandShortName; as dáta, ach níl an leagan is déanaí ar fáil 
+ar do chóras. Ba chóir duit do chóras a nuashonrú, ansin déan iarracht eile. 
+Ní fheicfidh tú an fógra arís, ach is féidir leat">
+<!ENTITY unsupportedLink.label "tuilleadh eolais a fháil.">
+
 <!ENTITY incompatibleCheck.title "Comhoiriúnacht na mBreiseán á Seiceáil">
 <!ENTITY incompatibleCheck.label "Leaganacha níos nuaí de do bhreiseáin á lorg…">
 
@@ -78,10 +84,3 @@ chaoi go nglacfaidh sé le nuashonrú contúirteach. Téigh i dteagmháil le do 
 <!ENTITY update.details.label "Mionsonraí">
 <!ENTITY update.installedOn.label "Suiteáilte ar:">
 <!ENTITY update.status.label "Stádas:">
-
-<!ENTITY  unsupported.label               "Your &brandShortName; is out of date, but the latest version is not
-                                           supported on your system. Please upgrade your system, then try again.
-                                           You will not see this notice again, but you can">
-
-<!ENTITY  unsupported.title               "System Unsupported">
-<!ENTITY  unsupportedLink.label           "learn more.">

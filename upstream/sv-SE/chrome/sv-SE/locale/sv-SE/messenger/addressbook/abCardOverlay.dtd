@@ -144,6 +144,8 @@ sådant externt inbäddat innehåll i HTML-meddelanden från den här kontakten.
 <!ENTITY ICQ.accesskey                  "I">
 <!ENTITY XMPP.label                     "Jabber ID:">
 <!ENTITY XMPP.accesskey                 "J">
+<!ENTITY IRC.label                      "IRC Smeknamn:">
+<!ENTITY IRC.accesskey                  "R">
 
 <!ENTITY Photo.tab                      "Foto">
 <!ENTITY Photo.accesskey                "F">
@@ -160,6 +162,3 @@ sådant externt inbäddat innehåll i HTML-meddelanden från den här kontakten.
 <!ENTITY PhotoURL.placeholder           "Klistra eller skriv in webbadressen till ett foto">
 <!ENTITY UpdatePhoto.label              "Uppdatera">
 <!ENTITY UpdatePhoto.accesskey          "U">
-
-<!ENTITY IRC.accesskey                  "R">
-<!ENTITY IRC.label                      "IRC Nick:">

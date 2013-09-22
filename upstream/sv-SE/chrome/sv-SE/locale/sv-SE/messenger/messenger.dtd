@@ -30,14 +30,14 @@
 <!ENTITY newCreateEmailAccountCmd.accesskey "S">
 <!ENTITY newExistingEmailAccountCmd.label "Existerande e-postkonto…">
 <!ENTITY newExistingEmailAccountCmd.accesskey "E">
-<!ENTITY newIMAccountCmd.label "Nytt chattkonto…">
+<!ENTITY newIMAccountCmd.label "Chattkonto…">
 <!ENTITY newIMAccountCmd.accesskey "c">
+<!ENTITY newFeedAccountCmd.label "RSS-kanelkonto…">
+<!ENTITY newFeedAccountCmd.accesskey "d">
 <!ENTITY newIMContactCmd.label "Ny chattkontakt…">
 <!ENTITY newIMContactCmd.accesskey "h">
 <!ENTITY openMessageFileCmd.label "Öppna sparat meddelande…">
 <!ENTITY openMessageFileCmd.accesskey "s">
-<!ENTITY openAttachmentCmd.label "Bilagor">
-<!ENTITY openAttachmentCmd.accesskey "B">
 <!ENTITY saveAsMenu.label "Spara som">
 <!ENTITY saveAsMenu.accesskey "m">
 <!ENTITY saveAsFileCmd.label "Fil">
@@ -348,11 +348,11 @@
 <!ENTITY forwardMsgCmd.label "Vidarebefordra">
 <!ENTITY forwardMsgCmd.accesskey "V">
 <!ENTITY forwardMsgCmd.key  "l">
-<!ENTITY forwardAsMenu.label "Vidarebefordra genom att">
-<!ENTITY forwardAsMenu.accesskey "b">
-<!ENTITY forwardAsInline.label "Infoga">
+<!ENTITY forwardAsMenu.label "Vidarebefordra som">
+<!ENTITY forwardAsMenu.accesskey "d">
+<!ENTITY forwardAsInline.label "Infogad">
 <!ENTITY forwardAsInline.accesskey "I">
-<!ENTITY forwardAsAttachmentCmd.label "Bifoga">
+<!ENTITY forwardAsAttachmentCmd.label "Bilaga">
 <!ENTITY forwardAsAttachmentCmd.accesskey "B">
 <!ENTITY editMsgAsNewCmd.label "Redigera som nytt meddelande">
 <!ENTITY editMsgAsNewCmd.accesskey "R">
@@ -428,12 +428,14 @@
 <!ENTITY openConversationCmd.label "Öppna i konversationen">
 <!ENTITY openConversationCmd.accesskey "s">
 <!ENTITY openConversationCmd.key "o">
-<!ENTITY openFeedMessage.label "Öppna flödets meddelande som">
-<!ENTITY openFeedMessage.accesskey "Ö">
-<!ENTITY openFeedWebPageInWindow.label "Webbsida i nytt fönster">
-<!ENTITY openFeedWebPageInWindow.accesskey "W">
-<!ENTITY openFeedSummaryInWindow.label "Sammanfattning i nytt fönster">
-<!ENTITY openFeedSummaryInWindow.accesskey "S">
+<!ENTITY openAttachmentListCmd.label "Bilagor">
+<!ENTITY openAttachmentListCmd.accesskey "B">
+<!ENTITY openFeedMessage1.label "När du öppnar RSS-meddelanden">
+<!ENTITY openFeedMessage1.accesskey "ö">
+<!ENTITY openFeedWebPage.label "Öppna som webbsida">
+<!ENTITY openFeedWebPage.accesskey "w">
+<!ENTITY openFeedSummary.label "Öppna som sammanfattning">
+<!ENTITY openFeedSummary.accesskey "s">
 <!ENTITY openFeedWebPageInMP.label "Växla webbsida och sammanfattning i meddelandepanelen">
 <!ENTITY openFeedWebPageInMP.accesskey "V">
 
@@ -487,6 +489,8 @@
 <!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
         which is placed under the Edit menu on Unix systems -->
 <!ENTITY accountManagerCmdUnix.accesskey "ä">
+<!ENTITY allowRemoteDebugging.label "Tillåt fjärrfelsökning">
+<!ENTITY allowRemoteDebugging.accesskey "f">
 
 <!-- Mail Toolbar -->
 <!ENTITY getMsgButton.label "Hämta">
@@ -535,6 +539,8 @@
 <!ENTITY replyAllButton.tooltip "Svarar avsändaren och även alla mottagare">
 <!ENTITY replyListButton.tooltip "Svara till mailinglistan">
 <!ENTITY forwardButton.tooltip "Vidarebefordrar meddelandet">
+<!ENTITY forwardAsInline.tooltip "Vidarbefordra markerat meddelande som infogad text">
+<!ENTITY forwardAsAttachment.tooltip "Vidarbefordra markerat meddelande som bilaga">
 <!ENTITY fileButton.tooltip "Sparar markerat meddelande">
 <!ENTITY archiveButton.tooltip "Arkiverar markerat meddelande">
 <!ENTITY nextButton.tooltip "Flytta till nästa olästa meddelande">
@@ -556,12 +562,18 @@
 <!ENTITY compactButton.tooltip "Rensa ut borttagna meddelanden från markerad mapp">
 <!ENTITY appmenuButton1.tooltip "Visar &brandShortName; menyn">
 
+<!-- Toolbar Button Popup -->
+<!ENTITY buttonMenuForwardAsInline.label "Vidarbefordra som infogad text">
+<!ENTITY buttonMenuForwardAsAttachment.label "Vidarbefordra som bilaga">
+
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Nytt meddelande">
 <!ENTITY appmenuNewContactCmd.label "Kontakt adressbok…">
 <!ENTITY appmenuEditMenu.label "Redigera">
 <!ENTITY appmenuQFBMenu.label "Snabbfilter">
 <!ENTITY appmenuToolbarLayout.label "Layout verktygsfält…">
+<!ENTITY appmenuSelectThread.label "Välj tråd">
+<!ENTITY appmenuSelectFlagged.label "Välj stjärnmärkta meddelanden">
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "Ny etikett…">
@@ -576,8 +588,8 @@
 <!-- Folder Pane Context Menu -->
 <!ENTITY folderContextGetMessages.label "Hämta meddelanden">
 <!ENTITY folderContextGetMessages.accesskey "H">
-<!ENTITY folderContextOpenNewWindow.label "Öppna">
-<!ENTITY folderContextOpenNewWindow.accesskey "Ö">
+<!ENTITY folderContextOpenInNewWindow.label "Öppna i nytt fönster">
+<!ENTITY folderContextOpenInNewWindow.accesskey "Ö">
 <!ENTITY folderContextOpenNewTab.label "Öppna i ny flik">
 <!ENTITY folderContextOpenNewTab.accesskey "n">
 <!ENTITY folderContextNew.label "Ny undermapp…">
@@ -695,14 +707,24 @@
 <!ENTITY contextReplyList.accesskey "l">
 <!ENTITY contextForward.label "Vidarebefordra">
 <!ENTITY contextForward.accesskey "V">
-<!ENTITY contextForwardAsAttachment.label "Vidarebefordra som bilaga">
-<!ENTITY contextForwardAsAttachment.accesskey "b">
+<!ENTITY contextForwardAsMenu.label "Vidarebefordra som">
+<!ENTITY contextForwardAsMenu.accesskey "d">
+<!ENTITY contextForwardAsInline.label "Infogad text">
+<!ENTITY contextForwardAsInline.accesskey "I">
+<!ENTITY contextForwardAsAttachmentItem.label "Bilaga">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "B">
+<!ENTITY contextMultiForwardAsAttachment.label "Vidarbefordra som bilagor">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "d">
 <!ENTITY contextMoveMsgMenu.label "Flytta till">
 <!ENTITY contextMoveMsgMenu.accesskey "F">
 <!ENTITY contextMoveCopyMsgRecentMenu.label "Tidigare">
 <!ENTITY contextMoveCopyMsgRecentMenu.accesskey "T">
 <!ENTITY contextCopyMsgMenu.label "Kopiera till">
 <!ENTITY contextCopyMsgMenu.accesskey "o">
+<!ENTITY contextKillThreadMenu.label "Ignorera tråd">
+<!ENTITY contextKillThreadMenu.accesskey "I">
+<!ENTITY contextKillSubthreadMenu.label "Ignorera undertråd">
+<!ENTITY contextWatchThreadMenu.label "Bevaka tråd">
 <!ENTITY contextSaveAs.label "Spara som…">
 <!ENTITY contextSaveAs.accesskey "S">
 <!ENTITY contextPrint.label "Skriv ut…">
@@ -886,38 +908,3 @@
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Visa alla">
-
-<!ENTITY allowRemoteDebugging.accesskey "g">
-<!ENTITY allowRemoteDebugging.label "Allow Remote Debugging">
-<!ENTITY appmenuSelectFlagged.label "Select Starred Messages">
-<!ENTITY appmenuSelectThread.label "Select Thread">
-<!ENTITY buttonMenuForwardAsAttachment.label "Forward As Attachment">
-
-<!-- Toolbar Button Popup -->
-<!ENTITY buttonMenuForwardAsInline.label "Forward Inline">
-<!ENTITY contextForwardAsAttachmentItem.accesskey "A">
-<!ENTITY contextForwardAsAttachmentItem.label "Attachment">
-<!ENTITY contextForwardAsInline.accesskey "I">
-<!ENTITY contextForwardAsInline.label "Inline">
-<!ENTITY contextForwardAsMenu.accesskey "o">
-<!ENTITY contextForwardAsMenu.label "Forward As">
-<!ENTITY contextKillSubthreadMenu.label "Ignore Subthread">
-<!ENTITY contextKillThreadMenu.accesskey "I">
-<!ENTITY contextKillThreadMenu.label "Ignore Thread">
-<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
-<!ENTITY contextMultiForwardAsAttachment.label "Forward as Attachments">
-<!ENTITY contextWatchThreadMenu.label "Watch Thread">
-<!ENTITY folderContextOpenInNewWindow.accesskey "O">
-<!ENTITY folderContextOpenInNewWindow.label "Open in New Window">
-<!ENTITY forwardAsAttachment.tooltip "Forward selected message as an attachment">
-<!ENTITY forwardAsInline.tooltip "Forward selected message as inline text">
-<!ENTITY newFeedAccountCmd.accesskey "d">
-<!ENTITY newFeedAccountCmd.label "Feed Account…">
-<!ENTITY openAttachmentListCmd.accesskey "h">
-<!ENTITY openAttachmentListCmd.label "Attachments">
-<!ENTITY openFeedMessage1.accesskey "O">
-<!ENTITY openFeedMessage1.label "When Opening Feed Messages">
-<!ENTITY openFeedSummary.accesskey "S">
-<!ENTITY openFeedSummary.label "Open as Summary">
-<!ENTITY openFeedWebPage.accesskey "W">
-<!ENTITY openFeedWebPage.label "Open as Web Page">

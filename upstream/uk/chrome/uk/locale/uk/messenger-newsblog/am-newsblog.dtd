@@ -15,11 +15,10 @@
 <!ENTITY manageSubscriptions.label "Упорядкувати підписки…"> 
 <!ENTITY manageSubscriptions.accesskey "У">
 
+<!ENTITY feedWindowTitle.label "Майстер облікового запису стрічок">
+
 <!-- entities from rss.rdf -->
 <!ENTITY feeds.accountName "Блоги та стрічки новин">
 <!ENTITY feeds.wizardShortName "Стрічки">
 <!ENTITY feeds.wizardLongName "Блоги та стрічки новин">
 <!ENTITY feeds.wizardLongName.accesskey "с">
-
-
-<!ENTITY feedWindowTitle.label "Feed Account Wizard">
