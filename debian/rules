@@ -208,6 +208,7 @@ endif
 
 install/$(DEB_MOZ_APPLICATION)-dev::
 	find debian/tmp/usr/share/idl/icedove -type f -name '*.idl' -exec chmod a-x {} \;
+	chmod 0755 debian/tmp/usr/lib/icedove-devel/sdk/bin/xpcshell
 
 binary-install/$(DEB_MOZ_APPLICATION)::
 	touch debian/$(DEB_MOZ_NAME)$(DEBIAN_TB_DIR)/.autoreg
