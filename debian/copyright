@@ -1,6 +1,5 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: Thunderbird
-Name: Iceweasel
 Source: http://ftp.mozilla.org/pub/mozilla.org/thunderbird/
 Disclaimer: The original upstream tarball is modified from upstream by
  removing a set of sourceless binary, non-free, and VCS-related files. You
