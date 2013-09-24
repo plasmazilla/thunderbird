@@ -1,3 +1,11 @@
+icedove (24.0~b3-2) experimental; urgency=low
+
+  * [47fe004] Add lintian override for our use of the embedded libjpeg
+  * [3c103e6] Make sure xpcshell is executable so dh_shlibdeps picks it up to
+    calculate lib dependencies
+
+ -- Guido Günther <agx@sigxcpu.org>  Tue, 24 Sep 2013 20:03:33 +0200
+
 icedove (24.0~b3-1) experimental; urgency=low
 
   [ Guido Günther ]
