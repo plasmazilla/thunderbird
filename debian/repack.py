@@ -169,6 +169,8 @@ def main():
         help="use the given filter list", metavar="FILE")
     parser.add_option("-p", "--package", dest="package",
         help="use the given package name", metavar="NAME")
+    parser.add_option("-c", "--compression", dest="compression",
+        help="use the given compression for the new tarball")
     (options, args) = parser.parse_args()
 
     if not options.upstream_version:
@@ -192,7 +194,7 @@ def main():
         new_file = args[0]
     else:
         orig = args[0]
-        compression = file_extension(orig)
+        compression = options.compression or file_extension(orig)
         new_file = options.package + "_" + options.upstream_version + ".orig.tar." + compression
         new_file = os.path.realpath(os.path.join(dirname(orig), new_file))
     print(orig, new_file)
