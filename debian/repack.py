@@ -1,22 +1,22 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 from optparse import OptionParser
 import fnmatch
 import tarfile
-import StringIO
+import io
 import re
 import os
 import sys
-import rfc822
-import urllib2
-from urlparse import urlparse
+import email
+import urllib.request, urllib.error, urllib.parse
+from urllib.parse import urlparse
 
 class URLFile(object):
     '''Simple proxy to urllib2.urlopen, that responds to seek only if
        it's called before read. This is enough for tarfile to be happy'''
 
     def __init__(self, url):
-        self.file = urllib2.urlopen(url)
+        self.file = urllib.request.urlopen(url)
 
     def seek(self, offset, whence = os.SEEK_SET):
         if whence != os.SEEK_SET or offset != 0 or self.read == self._read:
@@ -104,6 +104,9 @@ def file_extension(name):
     return os.path.splitext(name)[1][1:]
 
 def filter_tar(orig, new, filt):
+    def u8(x):
+        return x.decode('utf-8')
+
     filt = TarFilterList(filt)
     if urlparse(orig).scheme:
         tar = tarfile.open(orig, "r:" + file_extension(orig), URLFile(orig))
@@ -117,27 +120,28 @@ def filter_tar(orig, new, filt):
             break
         do_filt = filt.match(info.name)
         if do_filt == None:
-            print >> sys.stderr, "Removing %s" % (info.name)
+            print("Removing %s" % (info.name), file=sys.stderr)
             continue
 
         if info.isfile():
             file = tar.extractfile(info)
             if do_filt:
-                print >> sys.stderr, "Filtering %s" % (info.name)
+                print("Filtering %s" % (info.name), file=sys.stderr)
                 orig = file
-                file = StringIO.StringIO()
-                the_filt = lambda l: l
+                file = io.BytesIO()
+                the_filt = lambda l: u8(l)
                 if do_filt[0].isalpha():
                     f = do_filt.split(do_filt[1])
                     if f[0] == 's':
-                        the_filt = lambda l: re.sub(f[1], f[2], l)
+                        the_filt = lambda l: re.sub(f[1], f[2], u8(l))
                 else:
                     f = do_filt.split(do_filt[0])
                     if f[2] == 'd':
-                        the_filt = lambda l: "" if re.search(f[1], l) else l
-                file.writelines(map(the_filt, orig.readlines()))
+                        the_filt = lambda l: "" if re.search(f[1], u8(l)) else u8(l)
+                file.writelines([x.encode('utf-8') for x in map(the_filt, orig.readlines())])
+                file.seek(2, 0)
+                info.size = file.tell()
                 file.seek(0);
-                info.size = len(file.buf)
             new_tar.addfile(info, file)
         else:
             new_tar.addfile(info)
@@ -147,13 +151,14 @@ def filter_tar(orig, new, filt):
     os.rename(new_tar.name, new)
     unused = filt.unused()
     if unused:
-        print 'Unused filters:'
-        print '', '\n '.join(unused)
+        print('Unused filters:')
+        print('', '\n '.join(unused))
         exit(1)
 
 def get_package_name():
     control = os.path.join(os.path.dirname(__file__), "control")
-    return rfc822.Message(open(control))["Source"]
+    return email.parser.Parser().parse(open(control), headersonly=True)["Source"]
+
 
 def main():
     parser = OptionParser()
@@ -190,7 +195,7 @@ def main():
         compression = file_extension(orig)
         new_file = options.package + "_" + options.upstream_version + ".orig.tar." + compression
         new_file = os.path.realpath(os.path.join(dirname(orig), new_file))
-    print orig, new_file
+    print(orig, new_file)
     filter_tar(orig, new_file, options.filter)
 
 if __name__ == '__main__':
