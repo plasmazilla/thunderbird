@@ -1,3 +1,18 @@
+icedove (17.0.9-1) unstable; urgency=low
+
+  [ Guido Günther ]
+  * [eae533c] Adjust watch file once again
+  * [5280050] Invoke repack.py directly
+
+  [ Christoph Goehre ]
+  * [f503b4d] Imported Upstream version 17.0.9
+  * [25bfa8b] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting/Bug-892366-Support-R_ARM_JUMP24-and-R_ARM_CALL-reloc.patch
+  * [81c3e83] Reduce memory usage of the linker. Thanks to Mike Hommey
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 29 Sep 2013 18:12:34 -0400
+
 icedove (17.0.8-1) unstable; urgency=low
 
   [ Carsten Schoenert ]
