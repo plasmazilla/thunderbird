@@ -8,8 +8,8 @@ the arena size and disabled decommit logic in that case.
 https://hg.mozilla.org/mozilla-central/rev/0558ede9693e
 
 ---
- mozilla/js/src/gc/Heap.h     |   15 ++++++++++-----
- mozilla/js/src/gc/Memory.cpp |   15 +++++++++++++++
+ mozilla/js/src/gc/Heap.h     | 15 ++++++++++-----
+ mozilla/js/src/gc/Memory.cpp | 15 +++++++++++++++
  2 files changed, 25 insertions(+), 5 deletions(-)
 
 diff --git a/mozilla/js/src/gc/Heap.h b/mozilla/js/src/gc/Heap.h

@@ -7,7 +7,7 @@ Icedove 17.x isn't able to to resize the window apperiance on the window
 manager Sawfish. This issue is fixed in TB20.
 
 ---
- mozilla/widget/gtk2/nsWindow.cpp |   35 ++++++++++++++++++++---------------
+ mozilla/widget/gtk2/nsWindow.cpp | 35 ++++++++++++++++++++---------------
  1 file changed, 20 insertions(+), 15 deletions(-)
 
 diff --git a/mozilla/widget/gtk2/nsWindow.cpp b/mozilla/widget/gtk2/nsWindow.cpp

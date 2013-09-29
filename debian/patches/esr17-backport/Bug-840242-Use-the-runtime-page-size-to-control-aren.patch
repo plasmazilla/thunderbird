@@ -7,12 +7,12 @@ package.
 https://hg.mozilla.org/mozilla-central/rev/49e4ff129351
 
 ---
- mozilla/js/src/gc/Heap.h     |   20 +-------
- mozilla/js/src/gc/Memory.cpp |  111 +++++++++++++++++++++---------------------
- mozilla/js/src/gc/Memory.h   |   19 +++++---
- mozilla/js/src/jsapi.cpp     |    2 -
- mozilla/js/src/jscntxt.h     |    9 ++++
- mozilla/js/src/jsgc.cpp      |   36 ++++++++------
+ mozilla/js/src/gc/Heap.h     |  20 +-------
+ mozilla/js/src/gc/Memory.cpp | 111 +++++++++++++++++++++----------------------
+ mozilla/js/src/gc/Memory.h   |  19 +++++---
+ mozilla/js/src/jsapi.cpp     |   2 -
+ mozilla/js/src/jscntxt.h     |   9 ++++
+ mozilla/js/src/jsgc.cpp      |  36 +++++++-------
  6 files changed, 98 insertions(+), 99 deletions(-)
 
 diff --git a/mozilla/js/src/gc/Heap.h b/mozilla/js/src/gc/Heap.h
