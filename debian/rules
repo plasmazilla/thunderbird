@@ -10,6 +10,13 @@ MOZ_APPLICATION=mail
 XUL_VERSION=1.9.1
 MAIN_LDFLAGS := -Wl,--as-needed
 
+# Reduce memory usage of the linker at the expense of processing time
+# This should help on lower-end architectures like arm and mips, which
+# spend an immense amount of time swapping.
+MAIN_LDFLAGS += -Wl,--no-keep-memory -Wl,--reduce-memory-overheads
+# Also add execution time and memory usage stats in the logs
+MAIN_LDFLAGS += -Wl,--stats
+
 ifeq ($(DEB_MOZ_NAME),icedove)
   DEBIAN_DIST := org.debian
   EXTRA_BRANDING_CONFIGURE_FLAGS = --with-branding=${MOZ_APPLICATION}/branding/$(DEB_MOZ_NAME)/
