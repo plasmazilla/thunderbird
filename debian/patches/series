@@ -40,3 +40,4 @@ fixes/Bug-723497-Saving-message-to-disk-fails-silently-fai.patch
 esr17-backport/Bug-746112-Don-t-decommit-if-page-size-is-too-large.patch
 esr17-backport/Bug-840242-Use-the-runtime-page-size-to-control-aren.patch
 porting/Bug-892366-Support-R_ARM_JUMP24-and-R_ARM_CALL-reloc.patch
+porting/Bug-898916-Properly-align-statically-allocated-class.patch
