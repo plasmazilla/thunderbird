@@ -13,7 +13,9 @@ LDFLAGS += -Wl,--as-needed
 # Reduce memory usage of the linker at the expense of processing time
 # This should help on lower-end architectures like arm and mips, which
 # spend an immense amount of time swapping.
-LDFLAGS += -Wl,--no-keep-memory -Wl,--reduce-memory-overheads
+ifneq ($(DEB_BUILD_ARCH),ia64)
+	LDFLAGS += -Wl,--no-keep-memory -Wl,--reduce-memory-overheads
+endif
 # Also add execution time and memory usage stats in the logs
 LDFLAGS += -Wl,--stats
 
