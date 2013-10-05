@@ -1,3 +1,12 @@
+icedove (17.0.9-2) unstable; urgency=low
+
+  * [ab3a41c] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting/Bug-898916-Properly-align-statically-allocated-class.patch
+  * [c68b8b7] ia64 don't like LDFLAG --no-keep-memory
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 05 Oct 2013 11:50:47 -0400
+
 icedove (17.0.9-1) unstable; urgency=low
 
   [ Guido Günther ]
