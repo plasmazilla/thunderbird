@@ -1,3 +1,12 @@
+icedove-l10n (1:24.0-1) experimental; urgency=low
+
+  [ Carsten Schoenert ]
+  * [04ce082] Imported Upstream version 24.0
+  * [e22ba3f] adding new languages for Armenian and Croatian
+  * [59655ab] adjust icedove depends to >= 24.0
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 11 Oct 2013 18:54:50 -0400
+
 icedove-l10n (1:17.0.8-1) unstable; urgency=low
 
   * Imported Upstream version 17.0.8
