@@ -1,3 +1,24 @@
+icedove (24.0-1) experimental; urgency=low
+
+  [ Guido Günther ]
+  * [6f9d98e] New upstream version 24.0
+  * [ef58a98] Refresh patches
+  * [435516d] Switch to xz compressed upstream tarball
+  * [f529a99] repack.py: port to python3
+  * [50423d9] repack.py: allow to specify compression
+
+  [ Christoph Goehre ]
+  * [b45b2b9] remove superfluous gstreamer build depends
+  * [96ac1d0] Reduce memory usage of the linker. Thanks to Mike Hommey
+  * [af55374] ia64 don't like LDFLAG --no-keep-memory
+  * [c3cb093] remove export-subst in mozilla/addon-sdk/source/.gitattributes.
+
+  [ Carsten Schoenert ]
+  * [ac4caea] debian/copyright: correcting out-of-date-copyright-format-uri.
+  * [585bf84] debian/copyright: remove obsolete field 'Name:'
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 15 Oct 2013 18:51:16 -0400
+
 icedove (24.0~b3-2) experimental; urgency=low
 
   * [47fe004] Add lintian override for our use of the embedded libjpeg
