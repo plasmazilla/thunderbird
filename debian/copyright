@@ -31,7 +31,8 @@ License: GPL-2+ | LGPL-2.1+ | MPL-1.1
 Files: debian/*
 Copyright: 2006-2007 Hans Ofverbeck <hans.ofverbeck@home.se>
            2007-2009 Daniel Baumann <daniel@debian.org>
-           2010-2011 Christoph Goehre <chris@sigxcpu.org>
+           2010-2013 Christoph Goehre <chris@sigxcpu.org>
+                2013 Carsten Schoenert <c.schoenert@t-online.de>
 License: GPL-2+
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
