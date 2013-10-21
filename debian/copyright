@@ -88,60 +88,60 @@ Copyright: 2003-2009 Alexander Sack <asac@debian.org>
            2010-2012 Christoph Goehre <chris@sigxcpu.org>
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: mozilla/extensions/pref/system-pref/src/gconf/nsSystemPrefService.cpp,
-  mozilla/extensions/pref/system-pref/src/gconf/nsSystemPrefService.h,
-  mozilla/extensions/pref/system-pref/src/nsSystemPref.cpp,
-  mozilla/extensions/pref/system-pref/src/nsSystemPref.h,
-  mozilla/extensions/pref/system-pref/src/nsSystemPrefFactory.cpp,
-  mozilla/extensions/pref/system-pref/src/nsSystemPrefLog.h,
-  mozilla/modules/plugin/sdk/samples/npruntime/np_entry.cpp,
-  mozilla/modules/plugin/sdk/samples/npruntime/npn_gate.cpp,
-  mozilla/modules/plugin/sdk/samples/npruntime/npp_gate.cpp,
-  mozilla/modules/plugin/sdk/samples/npruntime/plugin.cpp,
-  mozilla/modules/plugin/sdk/samples/npruntime/plugin.h,
-  mozilla/netwerk/base/public/nsIIOService2.idl,
-  mozilla/netwerk/base/public/nsINetworkLinkService.idl,
-  mozilla/toolkit/system/dbus/nsDBusModule.cpp,
-  mozilla/toolkit/system/dbus/nsDBusService.cpp,
-  mozilla/toolkit/system/dbus/nsDBusService.h,
-  mozilla/toolkit/system/dbus/nsNetworkManagerListener.cpp,
+Files: mozilla/extensions/pref/system-pref/src/gconf/nsSystemPrefService.cpp
+  mozilla/extensions/pref/system-pref/src/gconf/nsSystemPrefService.h
+  mozilla/extensions/pref/system-pref/src/nsSystemPref.cpp
+  mozilla/extensions/pref/system-pref/src/nsSystemPref.h
+  mozilla/extensions/pref/system-pref/src/nsSystemPrefFactory.cpp
+  mozilla/extensions/pref/system-pref/src/nsSystemPrefLog.h
+  mozilla/modules/plugin/sdk/samples/npruntime/np_entry.cpp
+  mozilla/modules/plugin/sdk/samples/npruntime/npn_gate.cpp
+  mozilla/modules/plugin/sdk/samples/npruntime/npp_gate.cpp
+  mozilla/modules/plugin/sdk/samples/npruntime/plugin.cpp
+  mozilla/modules/plugin/sdk/samples/npruntime/plugin.h
+  mozilla/netwerk/base/public/nsIIOService2.idl
+  mozilla/netwerk/base/public/nsINetworkLinkService.idl
+  mozilla/toolkit/system/dbus/nsDBusModule.cpp
+  mozilla/toolkit/system/dbus/nsDBusService.cpp
+  mozilla/toolkit/system/dbus/nsDBusService.h
+  mozilla/toolkit/system/dbus/nsNetworkManagerListener.cpp
   mozilla/toolkit/system/dbus/nsNetworkManagerListener.h
 Copyright: 2003, Sun Microsystems, Inc.
            1998, Netscape Communications Corporation
            2006, Novell Inc.
 License: NPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: mozilla/intl/uconv/ucvibm/864i.uf,
-  mozilla/intl/uconv/ucvibm/cp850.uf,
-  mozilla/intl/uconv/ucvibm/cp852.uf,
-  mozilla/intl/uconv/ucvibm/cp855.uf,
-  mozilla/intl/uconv/ucvibm/cp857.uf,
-  mozilla/intl/uconv/ucvibm/cp862.uf,
-  mozilla/intl/uconv/ucvibm/cp864.uf,
-  mozilla/intl/uconv/ucvmath/mathematica1.uf,
-  mozilla/intl/uconv/ucvmath/mathematica2.uf,
-  mozilla/intl/uconv/ucvmath/mathematica3.uf,
-  mozilla/intl/uconv/ucvmath/mathematica4.uf,
-  mozilla/intl/uconv/ucvmath/mathematica5.uf,
-  mozilla/intl/uconv/ucvmath/mtextra.uf,
-  mozilla/intl/uconv/ucvmath/texcmex-t1.uf,
-  mozilla/intl/uconv/ucvmath/texcmex-ttf.uf,
-  mozilla/intl/uconv/ucvmath/texcmmi-t1.uf,
-  mozilla/intl/uconv/ucvmath/texcmmi-ttf.uf,
-  mozilla/intl/uconv/ucvmath/texcmr-ttf.uf,
+Files: mozilla/intl/uconv/ucvibm/864i.uf
+  mozilla/intl/uconv/ucvibm/cp850.uf
+  mozilla/intl/uconv/ucvibm/cp852.uf
+  mozilla/intl/uconv/ucvibm/cp855.uf
+  mozilla/intl/uconv/ucvibm/cp857.uf
+  mozilla/intl/uconv/ucvibm/cp862.uf
+  mozilla/intl/uconv/ucvibm/cp864.uf
+  mozilla/intl/uconv/ucvmath/mathematica1.uf
+  mozilla/intl/uconv/ucvmath/mathematica2.uf
+  mozilla/intl/uconv/ucvmath/mathematica3.uf
+  mozilla/intl/uconv/ucvmath/mathematica4.uf
+  mozilla/intl/uconv/ucvmath/mathematica5.uf
+  mozilla/intl/uconv/ucvmath/mtextra.uf
+  mozilla/intl/uconv/ucvmath/texcmex-t1.uf
+  mozilla/intl/uconv/ucvmath/texcmex-ttf.uf
+  mozilla/intl/uconv/ucvmath/texcmmi-t1.uf
+  mozilla/intl/uconv/ucvmath/texcmmi-ttf.uf
+  mozilla/intl/uconv/ucvmath/texcmr-ttf.uf
   mozilla/intl/uconv/ucvmath/texcmsy-t1.uf
 Copyright: 1998, Netscape Communications Corporation
            1999, IBM Corporation
 License: NPL-1.1
 
-Files: mozilla/build/autoconf/codeset.m4,
-  mozilla/build/autoconf/config.guess,
-  mozilla/build/autoconf/config.sub,
-  mozilla/js/src/build/autoconf/config.guess,
-  mozilla/js/src/build/autoconf/config.sub,
-  mozilla/nsprpub/build/autoconf/config.guess,
-  mozilla/nsprpub/build/autoconf/config.sub,
-  mozilla/toolkit/crashreporter/google-breakpad/autotools/config.guess,
+Files: mozilla/build/autoconf/codeset.m4
+  mozilla/build/autoconf/config.guess
+  mozilla/build/autoconf/config.sub
+  mozilla/js/src/build/autoconf/config.guess
+  mozilla/js/src/build/autoconf/config.sub
+  mozilla/nsprpub/build/autoconf/config.guess
+  mozilla/nsprpub/build/autoconf/config.sub
+  mozilla/toolkit/crashreporter/google-breakpad/autotools/config.guess
   mozilla/toolkit/crashreporter/google-breakpad/autotools/config.sub
 Copyright: 1992-2008, Free Software Foundation Inc.
 License: GPL-2+
@@ -150,20 +150,20 @@ Files: mozilla/dom/tests/mochitest/ajax/jquery/dist/jquery.js
 Copyright: 2008 John Resig <http://jquery.com>
 License: GPL-2 or MIT
 
-Files: mozilla/aclocal.m4,
-  mozilla/build/autoconf/freetype2.m4,
-  mozilla/build/autoconf/gtk.m4,
-  mozilla/build/autoconf/nspr.m4,
-  mozilla/db/mork/src/morkDeque.cpp,
-  mozilla/db/mork/src/morkDeque.h,
-  mozilla/js/src/aclocal.m4,
-  mozilla/js/src/build/autoconf/nspr.m4,
-  mozilla/nsprpub/config/nspr.m4,
+Files: mozilla/aclocal.m4
+  mozilla/build/autoconf/freetype2.m4
+  mozilla/build/autoconf/gtk.m4
+  mozilla/build/autoconf/nspr.m4
+  mozilla/db/mork/src/morkDeque.cpp
+  mozilla/db/mork/src/morkDeque.h
+  mozilla/js/src/aclocal.m4
+  mozilla/js/src/build/autoconf/nspr.m4
+  mozilla/nsprpub/config/nspr.m4
   mozilla/toolkit/crashreporter/google-breakpad/aclocal.m4
 Copyright: Public Domain
 License: Public Domain
 
-Files: mozilla/db/mork/src/morkQuickSort.cpp,
+Files: mozilla/db/mork/src/morkQuickSort.cpp
   mozilla/xpcom/glue/nsQuickSort.cpp
 Copyright: 1992, 1993 The Regents of the University of California.
 License: BSD-3
@@ -191,16 +191,16 @@ License: BSD-3
  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  SUCH DAMAGE.
 
-Files: mozilla/build/autoconf/install-sh,
-  mozilla/js/src/build/autoconf/install-sh,
-  mozilla/nsprpub/build/autoconf/install-sh,
-  mozilla/security/nss/tests/pkcs11/netscape/trivial/install-sh,
+Files: mozilla/build/autoconf/install-sh
+  mozilla/js/src/build/autoconf/install-sh
+  mozilla/nsprpub/build/autoconf/install-sh
+  mozilla/security/nss/tests/pkcs11/netscape/trivial/install-sh
   mozilla/toolkit/crashreporter/google-breakpad/autotools/install-sh
 Copyright: X11R5
 License: other
  Without any clear licensing terms
 
-Files: mozilla/embedding/qa/mozembed/public/nsIQABrowserUIGlue.idl,
+Files: mozilla/embedding/qa/mozembed/public/nsIQABrowserUIGlue.idl
   mozilla/embedding/tests/*
 Copyright: 2002 Netscape Communications Corporation and other contributors
 License: MIT
@@ -258,10 +258,10 @@ License: BSD-2
  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  POSSIBILITY OF SUCH DAMAGE.
 
-Files: mozilla/netwerk/dns/src/nameprep.c,
-  mozilla/netwerk/dns/src/nameprepdata.c,
-  mozilla/netwerk/dns/src/nameprep_template.c,
-  mozilla/netwerk/dns/src/nsIDNKitInterface.h,
+Files: mozilla/netwerk/dns/src/nameprep.c
+  mozilla/netwerk/dns/src/nameprepdata.c
+  mozilla/netwerk/dns/src/nameprep_template.c
+  mozilla/netwerk/dns/src/nsIDNKitInterface.h
   mozilla/netwerk/dns/src/race.c
 Copyright: 2001,2002 Japan Network Information Center
 License: other
@@ -313,7 +313,7 @@ License: other
  version information.  Derivative works need not be licensed under
  similar terms.
 
-Files: mozilla/plugin/oji/JEP/MRJPlugin.plugin/*,
+Files: mozilla/plugin/oji/JEP/MRJPlugin.plugin/*
   mozilla/plugin/oji/JEP/JavaEmbeddingPlugin.bundle/*
 Copyright: 2004, Steven Michaud <smichaud@pobox.com>
 License: MIT
@@ -662,8 +662,8 @@ License: other
  Licensing details are available in
  toolkit/crashreporter/google-breakpad/COPYING
 
-Files: mozilla/media/libogg/*,
-  mozilla/media/libtheora/*,
+Files: mozilla/media/libogg/*
+  mozilla/media/libtheora/*
   mozilla/media/libvorbis/*
 Copyright: 2002-2007 Xiph.org Foundation
 License: BSD-3
@@ -709,9 +709,9 @@ License: other
  ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-Files: mozilla/media/libnestegg/src/halloc.*,
-       mozilla/media/libnestegg/src/align.h,
-       mozilla/media/libnestegg/src/hlist.h,
+Files: mozilla/media/libnestegg/src/halloc.*
+       mozilla/media/libnestegg/src/align.h
+       mozilla/media/libnestegg/src/hlist.h
        mozilla/media/libnestegg/src/macros.h
 Copyright: 2004-2010 Alex Pankratov
 License: BSD-3
@@ -769,7 +769,7 @@ License: BSD-3
  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Files: mozilla/ipc/chromium/*,
+Files: mozilla/ipc/chromium/*
        mozilla/gfx/ycbcr/*
 Copyright: 2006-2008 The Chromium Authors
 License: BSD-3
@@ -850,7 +850,7 @@ License: LGPL-3+
  On Debian systems, the complete text of the GNU Lesser General Public
  License can be found in the file `/usr/share/common-licenses/LGPL-3'.
 
-Files: mozilla/parser/html/java/translator/src/nu/validator/htmlparser/generator/GenerateNamedCharacters.java,
+Files: mozilla/parser/html/java/translator/src/nu/validator/htmlparser/generator/GenerateNamedCharacters.java
        mozilla/parser/html/javasrc/*
 Copyright: 2007-2009 Mozilla Foundation
            2005-2007 Henri Sivonen
