@@ -24,6 +24,10 @@ License: GPL-2
  On Debian systems, the complete text of the GNU General Public
  License can be found in the file /usr/share/common-licenses/GPL-2'.
 
+License: GPL-2+
+ On Debian systems, the complete text of the GNU General Public
+ License can be found in the file /usr/share/common-licenses/GPL-2'.
+
 License: LGPL-2.1
  On Debian systems, the complete text of the GNU Lesser General Public
  License can be found in the file `/usr/share/common-licenses/LGPL-2.1'.
@@ -838,7 +842,9 @@ License: other
 
 Files: mozilla/modules/lib7z/*
 Copyright: Public Domain
-License: Public Domain
+License: public-domain
+They may be distributed freely and/or modified as long as the original
+Author is mentioned!
 
 Files: mozilla/netwerk/system/maemo/*
 Copyright: 2009 Nokia Corporation
@@ -969,5 +975,5 @@ License: MPL-1.1
 
 Files: calendar/libical/*
 Copyright: Eric Busboom
-License: MPL-1.1 or LGPL
+License: MPL-1.1 or LGPL-2.1
 
