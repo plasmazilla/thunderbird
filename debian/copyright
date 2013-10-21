@@ -85,8 +85,9 @@ License: MPL-1.1 or GPL-2 or LGPL-2.1
 Files: debian/*
 Copyright: 2003-2009 Alexander Sack <asac@debian.org>
            2008 Fabien Tassin <fta@sofaraway.org>
-           2009 Guido Günther <agx@sigxcpu.org>
-           2010-2012 Christoph Goehre <chris@sigxcpu.org>
+           2013 Carsten Schoenert <c.schoenert@t-online.de>
+           2009-2013 Guido Günther <agx@sigxcpu.org>
+           2010-2013 Christoph Goehre <chris@sigxcpu.org>
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
 Files: mozilla/extensions/pref/system-pref/src/gconf/nsSystemPrefService.cpp
