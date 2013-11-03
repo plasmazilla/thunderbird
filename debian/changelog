@@ -1,3 +1,18 @@
+icedove (17.0.10-1) unstable; urgency=low
+
+  [ Christoph Goehre ]
+  * [6f2593b] Imported Upstream version 17.0.10
+
+  [ Carsten Schoenert ]
+  * [2f1ee4f] debian/copyright: correcting wrong comma usage
+  * [2a86740] debian/copyright: adjusting copyright infos
+  * [c99ec66] debian/copyright: correcting various lintian warning
+  * [114c9ec] debian/control: expanding icedove-dev dependency on python
+  * [1643ba3] debian/control: adding a more specific description for
+    iceowl-extension and google-cal-prov
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 03 Nov 2013 17:31:45 -0500
+
 icedove (17.0.9-2) unstable; urgency=low
 
   * [ab3a41c] rebuild patch queue from patch-queue branch
