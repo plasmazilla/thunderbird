@@ -1,3 +1,15 @@
+icedove (17.0.10-1~deb7u1) stable-security; urgency=low
+
+  * [6f2593b] Imported Upstream version 17.0.10
+    - MFSA 2013-93 aka CVE-2013-5590
+    - MFSA 2013-95 aka CVE-2013-5604
+    - MFSA 2013-96 aka CVE-2013-5595
+    - MFSA 2013-98 aka CVE-2013-5597
+    - MFSA 2013-100 CVE-2013-5599, CVE-2013-5600, CVE-2013-5601
+    - MFSA 2013-101 aka CVE-2013-5602
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 03 Nov 2013 18:22:24 -0500
+
 icedove (17.0.9-1~deb7u1) stable-security; urgency=low
 
   * [f503b4d] Imported Upstream version 17.0.9
