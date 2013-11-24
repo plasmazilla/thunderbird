@@ -1,6 +1,7 @@
 mozilla/other-licenses/7zstub/firefox/7zSD.sfx
 mozilla/toolkit/mozapps/update/updater/macbuild/Contents/Resources/English.lproj/MainMenu.nib/keyedobjects.nib
 mozilla/toolkit/mozapps/update/updater/macbuild/Contents/PkgInfo
+mozilla/toolkit/crashreporter/google-breakpad/autotools/compile
 mozilla/config/makedep.exe
 mozilla/intl/unicharutil/tools/data/case.dat
 mozilla/intl/unicharutil/tools/data/cmbcl.dat
