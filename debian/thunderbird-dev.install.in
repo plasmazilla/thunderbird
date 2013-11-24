@@ -2,3 +2,9 @@ debian/tmp/usr/share/idl/@DEB_MOZ_APPLICATION@/* usr/share/idl/@DEB_MOZ_APPLICAT
 debian/tmp/usr/include/@DEB_MOZ_APPLICATION@/* usr/include/@DEB_MOZ_APPLICATION@/
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@-devel usr/lib/
 debian/@DEB_MOZ_APPLICATION@.pc usr/lib/pkgconfig/
+mozilla/config/buildlist.py usr/lib/@DEB_MOZ_APPLICATION@-devel/config/
+mozilla/config/Expression.py usr/lib/@DEB_MOZ_APPLICATION@-devel/config/
+mozilla/config/JarMaker.py usr/lib/@DEB_MOZ_APPLICATION@-devel/config/
+mozilla/config/MozZipFile.py usr/lib/@DEB_MOZ_APPLICATION@-devel/config/
+mozilla/config/Preprocessor.py usr/lib/@DEB_MOZ_APPLICATION@-devel/config/
+mozilla/config/utils.py usr/lib/@DEB_MOZ_APPLICATION@-devel/config/
