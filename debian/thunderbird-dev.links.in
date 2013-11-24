@@ -1,5 +1,6 @@
 usr/lib/@DEB_MOZ_APPLICATION@/libprldap60.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libprldap60.so
 usr/lib/@DEB_MOZ_APPLICATION@/libldap60.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libldap60.so
+usr/lib/@DEB_MOZ_APPLICATION@/libldif60.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libldif60.so
 usr/lib/@DEB_MOZ_APPLICATION@/libmozalloc.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libmozalloc.so
 usr/lib/@DEB_MOZ_APPLICATION@/libmozjs.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libmozjs.so
 usr/lib/@DEB_MOZ_APPLICATION@/libxul.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libxul.so
