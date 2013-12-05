@@ -179,6 +179,13 @@ radio[pane=paneLightning] {
   width: 3px;
 }
 
+#calsidebar_splitter[state="collapsed"] {
+  min-width: 5px;
+  width: 5px;
+  -moz-margin-start: 1px;
+  background: url("chrome://global/skin/splitter/dimple.png") transparent no-repeat center;
+}
+
 #today-splitter {
   -moz-border-start: 1px solid #8B8B8B;
   -moz-margin-end: -2px;
