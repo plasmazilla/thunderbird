@@ -1,10 +1,9 @@
-From: =?UTF-8?q?Guido=20G=C3=BCnther?= <agx@sigxcpu.org>
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
 Date: Sat, 24 Nov 2012 11:39:58 +0100
 Subject: Strip version number
 
 Strip icedove's version number from the installation directories so we
 have a fixed location for extensions that build against it.
-
 ---
  config/baseconfig.mk | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)

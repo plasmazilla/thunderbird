@@ -14,7 +14,6 @@ MALLOC_STATIC_SIZES produces a error while jmalloc is running:
 So let just MALLOC_STATIC_SIZES undefined for IA64 and Sparc.
 
 Signed-off-by: Carsten Schoenert <c.schoenert@t-online.de>
-
 ---
  mozilla/memory/mozjemalloc/jemalloc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

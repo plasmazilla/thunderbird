@@ -1,10 +1,9 @@
-From: =?UTF-8?q?Guido=20G=C3=BCnther?= <agx@sigxcpu.org>
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
 Date: Tue, 12 Jun 2012 20:25:34 +0200
 Subject: Make system cairo work again
 
 BZ: https://bugzilla.mozilla.org/show_bug.cgi?id=722975
 Patch: https://bug722975.bugzilla.mozilla.org/attachment.cgi?id=624394
-
 ---
  mozilla/gfx/thebes/gfxPlatform.cpp | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)

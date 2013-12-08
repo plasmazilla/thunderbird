@@ -5,7 +5,6 @@ Subject: creating a dummy .deps/ directory to get make happy
 The Mozilla buildsystem doesn't take care on the directory
   mozilla/js/src/.deps/
 so we added this to let make/g++ doesn't stop.
-
 ---
  mozilla/js/src/.deps/dummy | 1 +
  1 file changed, 1 insertion(+)

@@ -1,17 +1,17 @@
-From: =?UTF-8?q?Guido=20G=C3=BCnther?= <agx@sigxcpu.org>
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
 Date: Thu, 25 Oct 2012 19:37:44 +0200
-Subject: stop configure if '--with-system-bz2' was passed, but no libbz2 is
- around
+Subject: stop configure if '--with-system-bz2' was passed,
+ but no libbz2 is around
 
 ---
  mozilla/configure.in | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index c9a1ddc..a1c509e 100644
+index 3f3fdbb..7856b57 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
-@@ -4050,7 +4050,7 @@ if test -z "$BZ2_DIR" -o "$BZ2_DIR" = no; then
+@@ -4052,7 +4052,7 @@ if test -z "$BZ2_DIR" -o "$BZ2_DIR" = no; then
      MOZ_NATIVE_BZ2=
  else
      AC_CHECK_LIB(bz2, BZ2_bzread, [MOZ_NATIVE_BZ2=1 MOZ_BZ2_LIBS="-lbz2"],

@@ -7,7 +7,6 @@ Update %APP% with the respective Mozilla names so
 addon-checking/installing/updating will work
 
 Closes: #565559
-
 ---
  mail/app/profile/all-thunderbird.js                | 26 +++++++++++-----------
  .../en-US/chrome/messenger/accountCreation.dtd     |  2 +-

@@ -1,0 +1,114 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Thu, 5 Dec 2013 10:22:31 -0500
+Subject: ipc/chromium: fix #if define() for kFreeBSD and Hurd
+
+The kFreeBSD and Hurd platforms need some other macros to include
+the correct needed headers.
+Depended on this some minor changes to call the correct functions
+also needed. Also the list of the cpp source file for the chromium
+things needs to expanded.
+The changes is an adoption of the previous droped patch 'Fix
+ipc/chromium on kFreeBSD and Hurd' from the the version 17.
+---
+ mozilla/ipc/chromium/moz.build                         | 5 ++++-
+ mozilla/ipc/chromium/src/base/base_paths.h             | 2 +-
+ mozilla/ipc/chromium/src/base/path_service.cc          | 6 +++---
+ mozilla/ipc/chromium/src/base/platform_thread_posix.cc | 9 +++++----
+ 4 files changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
+index dfb1418..ca4242e 100644
+--- a/mozilla/ipc/chromium/moz.build
++++ b/mozilla/ipc/chromium/moz.build
+@@ -192,7 +192,10 @@ if os_bsd:
+         'time_posix.cc',
+     ]
+     if CONFIG['OS_ARCH'] == 'GNU_kFreeBSD':
+-        CPP_SOURCES += ['process_util_linux.cc']
++        CPP_SOURCES += [
++        'process_util_linux.cc',
++        'base_paths_linux.cc',
++    ]
+     else:
+         CPP_SOURCES += ['process_util_bsd.cc']
+     if CONFIG['MOZ_WIDGET_GTK']:
+diff --git a/mozilla/ipc/chromium/src/base/base_paths.h b/mozilla/ipc/chromium/src/base/base_paths.h
+index 2cb1df1..14b7fd1 100644
+--- a/mozilla/ipc/chromium/src/base/base_paths.h
++++ b/mozilla/ipc/chromium/src/base/base_paths.h
+@@ -13,7 +13,7 @@
+ #include "base/base_paths_win.h"
+ #elif defined(OS_MACOSX)
+ #include "base/base_paths_mac.h"
+-#elif defined(OS_LINUX) || defined(OS_BSD)
++#elif defined(OS_LINUX) || defined(OS_BSD) || defined(__FreeBSD_kernel__)
+ #include "base/base_paths_linux.h"
+ #endif
+ #include "base/path_service.h"
+diff --git a/mozilla/ipc/chromium/src/base/path_service.cc b/mozilla/ipc/chromium/src/base/path_service.cc
+index f625c98..8292799 100644
+--- a/mozilla/ipc/chromium/src/base/path_service.cc
++++ b/mozilla/ipc/chromium/src/base/path_service.cc
+@@ -24,7 +24,7 @@ namespace base {
+   bool PathProviderWin(int key, FilePath* result);
+ #elif defined(OS_MACOSX)
+   bool PathProviderMac(int key, FilePath* result);
+-#elif defined(OS_LINUX)
++#elif defined(OS_LINUX) || defined(__FreeBSD_kernel__)
+   bool PathProviderLinux(int key, FilePath* result);
+ #endif
+ }
+@@ -80,7 +80,7 @@ static Provider base_provider_mac = {
+ };
+ #endif
+ 
+-#if defined(OS_LINUX)
++#if defined(OS_LINUX) || defined(__FreeBSD_kernel__)
+ static Provider base_provider_linux = {
+   base::PathProviderLinux,
+   &base_provider,
+@@ -104,7 +104,7 @@ struct PathData {
+     providers = &base_provider_win;
+ #elif defined(OS_MACOSX)
+     providers = &base_provider_mac;
+-#elif defined(OS_LINUX)
++#elif defined(OS_LINUX) || defined(__FreeBSD_kernel__)
+     providers = &base_provider_linux;
+ #endif
+   }
+diff --git a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
+index 81fe411..d6436a6 100644
+--- a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
++++ b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
+@@ -11,10 +11,11 @@
+ #include <mach/mach.h>
+ #elif defined(OS_NETBSD)
+ #include <lwp.h>
+-#elif defined(OS_LINUX) || defined(__GLIBC__) || defined(__GNU__)
++//#elif defined(OS_LINUX) && !defined(OS_BSD) && !defined(OS_FREEBSD)
++#elif defined(OS_LINUX) && !defined(__FreeBSD_kernel__)
+ #include <sys/syscall.h>
+ #include <sys/prctl.h>
+-#elif defined(OS_FREEBSD) && !defined(__GLIBC__)
++#elif defined(OS_FREEBSD) && !defined(__FreeBSD_kernel__)
+ #include <sys/param.h>
+ #include <sys/thr.h>
+ #endif
+@@ -23,7 +24,7 @@
+ #include <unistd.h>
+ #endif
+ 
+-#if defined(OS_BSD) && !defined(OS_NETBSD) && !defined(__GLIBC__)
++#if !defined(OS_BSD) && !defined(NetBSD) && !defined(__FreeBSD_kernel__) && !defined(__GLIBC__)
+ #include <pthread_np.h>
+ #endif
+ 
+@@ -108,7 +109,7 @@ void PlatformThread::SetName(const char* name) {
+   // Note that glibc also has a 'pthread_setname_np' api, but it may not be
+   // available everywhere and it's only benefit over using prctl directly is
+   // that it can set the name of threads other than the current thread.
+-#if defined(OS_LINUX)
++#if defined(OS_LINUX) && !defined(__FreeBSD_kernel__) && !defined(__GNU__)
+   prctl(PR_SET_NAME, reinterpret_cast<uintptr_t>(name), 0, 0, 0); 
+ #elif defined(OS_NETBSD)
+   pthread_setname_np(pthread_self(), "%s", (void *)name);

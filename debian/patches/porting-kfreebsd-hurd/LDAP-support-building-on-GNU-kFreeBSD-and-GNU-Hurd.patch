@@ -1,16 +1,13 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Tue, 11 Mar 2008 08:29:25 +0100
-Subject: Support building on GNU/kFreeBSD and GNU/Hurd
+Subject: LDAP: support building on GNU/kFreeBSD and GNU/Hurd
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=356011
 
 Squashed kFreeBSD/Hurd related fixes:
 - Fix FTBFS on Hurd-i386
-- Don't build oss support on *bsd and hurd
-- Fix FTBFS of liboggplay on hurd
 - Build fixes for GNU/kFreeBSD in directory/
 - Missing bits for Hurd support
-
 ---
  ldap/sdks/c-sdk/config/nsinstall.c                 |  2 +-
  ldap/sdks/c-sdk/configure.in                       | 15 ++++++++----

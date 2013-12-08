@@ -1,9 +1,8 @@
-From: =?UTF-8?q?Guido=20G=C3=BCnther?= <agx@sigxcpu.org>
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
 Date: Mon, 16 Sep 2013 19:29:47 +0200
 Subject: Don't build example component
 
 Gp-Pq-Topic: debian-hacks
-
 ---
  mozilla/xulrunner/moz.build | 1 -
  1 file changed, 1 deletion(-)

@@ -6,7 +6,6 @@ Earlier builds were passing the --cachedir option
 Sometime during TB15, Mozilla changed that to variables.
 This change was not passing the --cachedir option, hence the build failure.
 This patch just hacks the build by passing the cachedir option manually
-
 ---
  config/rules.mk | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
