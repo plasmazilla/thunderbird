@@ -1,3 +1,32 @@
+icedove (24.1.1-1) experimental; urgency=low
+
+  [ Carsten Schoenert ]
+  * [e8cbac4] debian/copyright: correcting wrong comma usage.
+  * [d24a6be] debian/copyright: adjusting copyright infos
+  * [51a32a1] debian/copyright: correcting various lintian warning.
+  * [50874e0] debian/control: expanding icedove-dev dependency on python
+  * [2996a33] debian/control: adding a more specific description for
+    iceowl-extension and google-cal-prov.
+  * [85b4400] debian/control: adjust proper version dependencies.
+    (Closes: #729712)
+  * [4d6b204] debian/control: adding metadata for mozilla-devscripts.
+    (Closes: #562984)
+
+  [ Christoph Goehre ]
+  * [aa7782b] Imported Upstream version 24.1.1 (Closes: #720931, #723630)
+  * [e4ca9cd] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Wrap-non-prefixed-freetype-headers-from-newer-freety.patch
+    - porting-kfreebsd-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and.patch
+  * [849988b] make python scripts in /usr/lib/icedove-devel/sdk/bin executable
+  * [9890b1c] ship python config scripts to make building of extensions easier
+    (Closes: #729431)
+  * [8b08106] remove libxpcom.so from pkgconfig file (Closes: #729168)
+  * [4759bde] add libldif60 to pkgconfig file
+  * [db575b4] lintian: remove unsafe symlink from upstream tarball
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 08 Dec 2013 10:08:19 -0500
+
 icedove (24.0-1) experimental; urgency=low
 
   [ Guido Günther ]
