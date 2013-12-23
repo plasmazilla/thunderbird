@@ -1,3 +1,17 @@
+icedove-l10n (1:24.1.1-1) experimental; urgency=low
+
+  [ Carsten Schoenert ]
+  * [0f53abe] Imported Upstream version 24.1.1
+  * [864cf55] rebuild patch queue from patch-queue branch:
+    - Adding Armenian and Croatian l10n updates handled by Apt
+  * [e051ce4] debian/control: adding a 'Homepage' field to every l10n package
+  * [0adc1b6] debian/copyright: correcting out-of-date-copyright-format-uri
+  * [449f30e] debian/copyright: adjusting copyright holders
+  * [22f5e50] debian/control: bump up standards version to 3.9.5
+  * [624d823] adjust icedove depends to >= 24.1.1
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 23 Dec 2013 11:59:57 -0500
+
 icedove-l10n (1:24.0-1) experimental; urgency=low
 
   [ Carsten Schoenert ]
