@@ -1,3 +1,14 @@
+icedove (17.0.11-1~deb7u1) stable-security; urgency=low
+
+  * [a7e267e] Imported Upstream version 17.0.11
+    - MFSA 2013-103 aka CVE-2013-5605
+  * [3c457db] rebuild patch queue from patch-queue branch
+    modified patches:
+    - porting/Don-t-hardcode-page-size-on-ia64-sparc-or-mipsel.patch
+      (Closes: #734074)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 04 Jan 2014 15:24:33 -0500
+
 icedove (17.0.10-1~deb7u1) stable-security; urgency=low
 
   * [6f2593b] Imported Upstream version 17.0.10
