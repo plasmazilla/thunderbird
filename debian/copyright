@@ -843,8 +843,8 @@ License: other
 Files: mozilla/modules/lib7z/*
 Copyright: Public Domain
 License: public-domain
-They may be distributed freely and/or modified as long as the original
-Author is mentioned!
+ They may be distributed freely and/or modified as long as the original
+ Author is mentioned!
 
 Files: mozilla/netwerk/system/maemo/*
 Copyright: 2009 Nokia Corporation
