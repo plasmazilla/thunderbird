@@ -3197,10 +3197,19 @@ function onAddressColCommand(aAddressWidgetId)
   updateSendCommands(true);
 }
 
-function onRecipientsInput()
+/**
+ * Called if the list of recipients changed in any way.
+ *
+ * @param aAutomatic  Set to true if the change of recipients was invoked
+ *                    programatically and should not be considered a change
+ *                    of message content.
+ */
+function onRecipientsChanged(aAutomatic)
 {
-  gContentChanged = true;
-  setupAutocomplete();
+  if (!aAutomatic) {
+    gContentChanged = true;
+    setupAutocomplete();
+  }
   updateSendCommands(true);
 }
 
@@ -4698,7 +4707,6 @@ function toggleAddressPicker()
 function AddRecipient(recipientType, address)
 {
   awAddRecipient(recipientType, address);
-  onRecipientsInput();
 }
 
 function loadHTMLMsgPrefs()

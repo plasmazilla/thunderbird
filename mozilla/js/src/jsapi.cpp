@@ -708,6 +708,8 @@ JSRuntime::JSRuntime(JSUseHelperThreads useHelperThreads)
     interpreterFrames(NULL),
     cxCallback(NULL),
     destroyCompartmentCallback(NULL),
+    destroyZoneCallback(NULL),
+    sweepZoneCallback(NULL),
     compartmentNameCallback(NULL),
     activityCallback(NULL),
     activityCallbackArg(NULL),
@@ -1392,6 +1394,18 @@ JS_SetDestroyCompartmentCallback(JSRuntime *rt, JSDestroyCompartmentCallback cal
 }
 
 JS_PUBLIC_API(void)
+JS_SetDestroyZoneCallback(JSRuntime *rt, JSZoneCallback callback)
+{
+    rt->destroyZoneCallback = callback;
+}
+
+JS_PUBLIC_API(void)
+JS_SetSweepZoneCallback(JSRuntime *rt, JSZoneCallback callback)
+{
+    rt->sweepZoneCallback = callback;
+}
+
+JS_PUBLIC_API(void)
 JS_SetCompartmentNameCallback(JSRuntime *rt, JSCompartmentNameCallback callback)
 {
     rt->compartmentNameCallback = callback;
@@ -1469,6 +1483,18 @@ JS_PUBLIC_API(void *)
 JS_GetCompartmentPrivate(JSCompartment *compartment)
 {
     return compartment->data;
+}
+
+JS_PUBLIC_API(void)
+JS_SetZoneUserData(JS::Zone *zone, void *data)
+{
+    zone->data = data;
+}
+
+JS_PUBLIC_API(void *)
+JS_GetZoneUserData(JS::Zone *zone)
+{
+    return zone->data;
 }
 
 JS_PUBLIC_API(JSBool)
@@ -1601,92 +1627,6 @@ JS_TransplantObject(JSContext *cx, HandleObject origobj, HandleObject target)
     // The new identity object might be one of several things. Return it to avoid
     // ambiguity.
     return newIdentity;
-}
-
-/*
- * Some C++ objects (such as the location object and XBL) require both an XPConnect
- * reflector and a security wrapper for that reflector. We expect that there are
- * no live references to the reflector, so when we perform the transplant we turn
- * the security wrapper into a cross-compartment wrapper. Just in case there
- * happen to be live references to the reflector, we swap it out to limit the harm.
- */
-JS_FRIEND_API(JSObject *)
-js_TransplantObjectWithWrapper(JSContext *cx,
-                               HandleObject origobj,
-                               HandleObject origwrapper,
-                               HandleObject targetobj,
-                               HandleObject targetwrapper)
-{
-    AutoMaybeTouchDeadZones agc(cx);
-    AutoDisableProxyCheck adpc(cx->runtime());
-
-    AssertHeapIsIdle(cx);
-    JS_ASSERT(!IsCrossCompartmentWrapper(origobj));
-    JS_ASSERT(!IsCrossCompartmentWrapper(origwrapper));
-    JS_ASSERT(!IsCrossCompartmentWrapper(targetobj));
-    JS_ASSERT(!IsCrossCompartmentWrapper(targetwrapper));
-
-    RootedObject newWrapper(cx);
-    JSCompartment *destination = targetobj->compartment();
-
-    // |origv| is the map entry we're looking up. The map entries are going to
-    // be for |origobj|, not |origwrapper|.
-    Value origv = ObjectValue(*origobj);
-
-    // There might already be a wrapper for the original object in the new
-    // compartment.
-    if (WrapperMap::Ptr p = destination->lookupWrapper(origv)) {
-        // There is. Make the existing cross-compartment wrapper a same-
-        // compartment wrapper.
-        newWrapper = &p->value.toObject();
-
-        // When we remove origv from the wrapper map, its wrapper, newWrapper,
-        // must immediately cease to be a cross-compartment wrapper. Neuter it.
-        destination->removeWrapper(p);
-        NukeCrossCompartmentWrapper(cx, newWrapper);
-
-        if (!JSObject::swap(cx, newWrapper, targetwrapper))
-            MOZ_CRASH();
-    } else {
-        // Otherwise, use the passed-in wrapper as the same-compartment wrapper.
-        newWrapper = targetwrapper;
-    }
-
-    // Now, iterate through other scopes looking for references to the old
-    // object. Note that the entries in the maps are for |origobj| and not
-    // |origwrapper|. They need to be updated to point at the new object.
-    if (!RemapAllWrappersForObject(cx, origobj, targetobj))
-        MOZ_CRASH();
-
-    // Lastly, update things in the original compartment. Our invariants dictate
-    // that the original compartment can only have one cross-compartment wrapper
-    // to the new object. So we choose to update |origwrapper|, not |origobj|,
-    // since there are probably no live direct intra-compartment references to
-    // |origobj|.
-    {
-        AutoCompartment ac(cx, origobj);
-
-        // We can't be sure that the reflector is completely dead. This is bad,
-        // because it is in a weird state. To minimize potential harm we create
-        // a new unreachable dummy object and swap it with the reflector.
-        // After the swap we have a possibly-live object that isn't dangerous,
-        // and a possibly-dangerous object that isn't live.
-        RootedObject reflectorGuts(cx, NewDeadProxyObject(cx, JS_GetGlobalForObject(cx, origobj)));
-        if (!reflectorGuts || !JSObject::swap(cx, origobj, reflectorGuts))
-            MOZ_CRASH();
-
-        // Turn origwrapper into a CCW to the new object.
-        RootedObject wrapperGuts(cx, targetobj);
-        if (!JS_WrapObject(cx, wrapperGuts.address()))
-            MOZ_CRASH();
-        JS_ASSERT(Wrapper::wrappedObject(wrapperGuts) == targetobj);
-        if (!JSObject::swap(cx, origwrapper, wrapperGuts))
-            MOZ_CRASH();
-        origwrapper->compartment()->putWrapper(ObjectValue(*targetobj),
-                                               ObjectValue(*origwrapper));
-    }
-
-    return newWrapper;
 }
 
 /*

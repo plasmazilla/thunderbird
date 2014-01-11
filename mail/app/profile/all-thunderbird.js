@@ -77,10 +77,10 @@ pref("app.update.cert.maxErrors", 5);
 // If these conditions aren't met it will be treated the same as when there is
 // no update available. This validation will not be performed when using the
 // |app.update.url.override| preference for update checking.
-pref("app.update.certs.1.issuerName", "OU=Equifax Secure Certificate Authority,O=Equifax,C=US");
+pref("app.update.certs.1.issuerName", "CN=Thawte SSL CA,O=\"Thawte, Inc.\",C=US");
 pref("app.update.certs.1.commonName", "aus3.mozilla.org");
 
-pref("app.update.certs.2.issuerName", "CN=Thawte SSL CA,O=\"Thawte, Inc.\",C=US");
+pref("app.update.certs.2.issuerName", "CN=DigiCert Secure Server CA,O=DigiCert Inc,C=US");
 pref("app.update.certs.2.commonName", "aus3.mozilla.org");
 
 // Whether or not app updates are enabled
