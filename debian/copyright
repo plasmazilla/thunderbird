@@ -304,7 +304,7 @@ License: other
     OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
     ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
-Files: mozilla/netwerk/dns/src/punycode.c,
+Files: mozilla/netwerk/dns/src/punycode.c
   mozilla/netwerk/dns/src/punycode.h
 Copyright: Adam M. Costello <http://www.nicemice.net/idn/>
 License: other
@@ -532,7 +532,7 @@ License: other
  OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  SOFTWARE.
 
-Files: mozilla/gfx/cairo/libpixman/src/pixman.h,
+Files: mozilla/gfx/cairo/libpixman/src/pixman.h
   mozilla/gfx/cairo/libpixman/src/pixman-region.c
 Copyright: 1987, 1988, 1989, 1998  The Open Group
            1987, 1988, 1989 by Digital Equipment Corporation, Maynard, Massachusetts
@@ -618,7 +618,7 @@ Copyright: various contributors
 License: other
  Licensing details are available in modules/libimg/png/LICENSE
 
-Files: mozilla/modules/zlib/src/*,
+Files: mozilla/modules/zlib/src/*
   mozilla/security/nss/cmd/zlib/*
 Copyright: 1995-2004 Jean-loup Gailly and Mark Adler
 License: other
@@ -655,7 +655,7 @@ Copyright: 1998, 1999, 2000 Thai Open Source Software Center Ltd
            2001, 2002 Expat maintainers
 License: MIT
 
-Files: mozilla/memory/jemalloc/jemalloc.c,
+Files: mozilla/memory/jemalloc/jemalloc.c
   mozilla/memory/jemalloc/tree.h
 Copyright: 2006-2008 Jason Evans
            2002 Niels Provos
