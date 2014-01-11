@@ -2,12 +2,16 @@ mozilla/other-licenses/7zstub/firefox/7zSD.sfx
 mozilla/toolkit/mozapps/update/updater/macbuild/Contents/Resources/English.lproj/MainMenu.nib/keyedobjects.nib
 mozilla/toolkit/mozapps/update/updater/macbuild/Contents/PkgInfo
 mozilla/toolkit/crashreporter/google-breakpad/autotools/compile
+mozilla/toolkit/crashreporter/google-breakpad/src/tools/solaris/dump_syms/testdata/dump_syms_regtest.o
 mozilla/config/makedep.exe
 mozilla/intl/unicharutil/tools/data/case.dat
 mozilla/intl/unicharutil/tools/data/cmbcl.dat
 mozilla/intl/unicharutil/tools/data/ctype.dat
 mozilla/intl/unicharutil/tools/data/decomp.dat
 mozilla/intl/unicharutil/tools/data/num.dat
+mozilla/python/psutil/_psutil_linux.so
+mozilla/python/psutil/_psutil_posix.so
+mozilla/python/psutil/build
 mozilla/netwerk/protocol/ftp/doc/rfc959.txt
 mozilla/layout/doc
 mozilla/content/xml/tests
