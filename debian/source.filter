@@ -1,9 +1,12 @@
 mozilla/other-licenses/7zstub/firefox/7zSD.sfx
+mozilla/other-licenses/nsis/Plugins
+mozilla/other-licenses/nsis/nsisui.exe
 mozilla/toolkit/mozapps/update/updater/macbuild/Contents/Resources/English.lproj/MainMenu.nib/keyedobjects.nib
 mozilla/toolkit/mozapps/update/updater/macbuild/Contents/PkgInfo
 mozilla/toolkit/crashreporter/google-breakpad/autotools/compile
 mozilla/toolkit/crashreporter/google-breakpad/src/tools/solaris/dump_syms/testdata/dump_syms_regtest.o
-mozilla/config/makedep.exe
+mozilla/toolkit/crashreporter/google-breakpad/src/tools/windows/binaries
+mozilla/toolkit/crashreporter/tools/win32
 mozilla/intl/unicharutil/tools/data/case.dat
 mozilla/intl/unicharutil/tools/data/cmbcl.dat
 mozilla/intl/unicharutil/tools/data/ctype.dat
