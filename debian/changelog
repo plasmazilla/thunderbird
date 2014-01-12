@@ -1,3 +1,11 @@
+icedove-l10n (1:24.2.0-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [ec98bec] Imported Upstream version 24.2.0
+  * [922f5b2] adjust icedove depends to >= 24.2.0
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 12 Jan 2014 10:28:54 -0500
+
 icedove-l10n (1:24.1.1-1) experimental; urgency=low
 
   [ Carsten Schoenert ]
