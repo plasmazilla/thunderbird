@@ -1,3 +1,23 @@
+icedove (24.2.0-1) unstable; urgency=low
+
+  [ Christoph Goehre ]
+  * [963a61e] Imported Upstream version 24.2.0
+  * [852abe3] rebuild patch queue from patch-queue branch
+    obsolete patches (fixed upstream):
+    - fixes/Wrap-non-prefixed-freetype-headers-from-newer-freety.patch
+    - porting/Don-t-hardcode-page-size-on-ia64-sparc-or-mipsel.patch
+      (Closes: #734074)
+  * [a9d6680] lintian: remove prebuild-binaries from upstream tarball
+  * [fc25943] linitan: remove prebuilt-windows-binary from upstream tarball
+  * [faa24eb] lintian: fix comma separated files copyright
+  * [835790d] lintian: declare public-domain license at the beginning
+
+  [ Carsten Schoenert ]
+  * [c583a2f] debian/copyright: fix indentation for 'public domain' license
+  * [78ddee2] linitan: bump up standards version to 3.9.5
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 11 Jan 2014 20:17:24 -0500
+
 icedove (24.1.1-1) experimental; urgency=low
 
   [ Carsten Schoenert ]
