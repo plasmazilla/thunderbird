@@ -77,6 +77,10 @@ License: BSD-2
  OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+License: public-domain
+ They may be distributed freely and/or modified as long as the original
+ Author is mentioned!
+
 Files: *
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 Copyright: 1998-2010, Mozilla Project
@@ -166,7 +170,7 @@ Files: mozilla/aclocal.m4
   mozilla/nsprpub/config/nspr.m4
   mozilla/toolkit/crashreporter/google-breakpad/aclocal.m4
 Copyright: Public Domain
-License: Public Domain
+License: public-domain
 
 Files: mozilla/db/mork/src/morkQuickSort.cpp
   mozilla/xpcom/glue/nsQuickSort.cpp
@@ -843,8 +847,6 @@ License: other
 Files: mozilla/modules/lib7z/*
 Copyright: Public Domain
 License: public-domain
- They may be distributed freely and/or modified as long as the original
- Author is mentioned!
 
 Files: mozilla/netwerk/system/maemo/*
 Copyright: 2009 Nokia Corporation
