@@ -15,6 +15,7 @@ mozilla/intl/unicharutil/tools/data/num.dat
 mozilla/python/psutil/_psutil_linux.so
 mozilla/python/psutil/_psutil_posix.so
 mozilla/python/psutil/build
+mozilla/build/pgo/blueprint/valid.png
 mozilla/netwerk/protocol/ftp/doc/rfc959.txt
 mozilla/layout/doc
 mozilla/content/xml/tests
