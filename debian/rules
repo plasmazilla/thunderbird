@@ -178,6 +178,8 @@ $(DEB_MOZ_APPLICATION)%: thunderbird%.in
 	       < $< > $@
 
 pre-build:: $(subst_files)
+	cp /usr/share/javascript/jquery/jquery.min.js mail/jquery/
+	cp /usr/share/javascript/jquery-ui/jquery-ui.min.js mail/jquery/
 
 makebuilddir/$(DEB_MOZ_APPLICATION):: debian/stamp-autotools-files-moz
 debian/stamp-autotools-files-moz:

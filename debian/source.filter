@@ -33,3 +33,7 @@ mozilla/browser/locales/en-US/searchplugins/yahoo.xml s,>data:.*<, type="image/x
 other-licenses/7zstub
 ldap/sdks/c-sdk/ldap/examples/macintosh
 ldap/sdks/c-sdk/ldap/libraries/macintosh/LDAPClient.mcp
+mail/jquery/jquery-1.6.4.min.js
+mail/jquery/jquery-ui-1.8.2.min.js
+mozilla/addon-sdk/source/examples/annotator/data/jquery-1.4.2.min.js
+mozilla/addon-sdk/source/examples/reddit-panel/data/jquery-1.4.4.min.js

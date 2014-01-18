@@ -40,7 +40,9 @@ Build-Depends: bzip2,
 	libvpx-dev (>= 1.0.0),
 	mesa-common-dev,
 	libreadline-dev,
-	yasm (>= 1.1)
+	yasm (>= 1.1),
+	libjs-jquery,
+	libjs-jquery-ui
 Vcs-Git: git://anonscm.debian.org/pkg-mozilla/icedove.git
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-mozilla/icedove.git;a=summary
 Homepage: http://www.mozilla.org/thunderbird/
