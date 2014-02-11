@@ -1,3 +1,17 @@
+icedove (24.3.0-1) unstable; urgency=low
+
+  * [a656560] lintian: remove non-free w3c valid.png icon (Closes: #735119)
+  * [f4e6c08] lintian: remove prebuild javascript objects from upstream
+    tarball (Closes: #735234)
+  * [adf9c96] Imported Upstream version 24.3.0
+  * [8419e65] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/remove-non-free-W3C-icon-valid.png.patch
+    - debian-hacks/use-system-jquery-jquery-ui.patch
+  * [948af3e] a newer icedove will break iceowl-extension (Closes: #732742)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 10 Feb 2014 19:44:36 -0500
+
 icedove (24.2.0-1) unstable; urgency=low
 
   [ Christoph Goehre ]
