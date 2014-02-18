@@ -17,7 +17,7 @@ debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/omni.ja usr/share/@DEB_MOZ_APPLICATION@
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/searchplugins usr/share/@DEB_MOZ_APPLICATION@
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/dependentlibs.list
 
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/components/lib*.so
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/components/*
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/chrome.manifest
 
 debian/icedove.js etc/@DEB_MOZ_APPLICATION@/pref
