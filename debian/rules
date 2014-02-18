@@ -233,6 +233,9 @@ binary-install/$(DEB_MOZ_APPLICATION)::
 common-install-arch::
 	mkdir -p debian/iceowl-extension/usr/lib/iceowl-extension
 	cd debian/iceowl-extension/usr/lib/iceowl-extension/ && unzip $(CURDIR)/mozilla/dist/xpi-stage/lightning*.xpi
+# fix files permissions
+	chmod 0644 debian/iceowl-extension/usr/lib/iceowl-extension/calendar-js/*.js
+	chmod 0644 debian/iceowl-extension/usr/lib/iceowl-extension/chrome/calendar/content/calendar/calendarCreation.xul
 
 common-install-indep::
 	dh_installdirs -i
