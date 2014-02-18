@@ -8,7 +8,6 @@ DEB_MOZ_NAME=icedove
 DEB_MOZ_APPLICATION=$(DEB_MOZ_NAME)
 MOZ_APPLICATION=mail
 XUL_VERSION=1.9.1
-LDFLAGS += -Wl,--as-needed
 
 # Reduce memory usage of the linker at the expense of processing time
 # This should help on lower-end architectures like arm and mips, which
