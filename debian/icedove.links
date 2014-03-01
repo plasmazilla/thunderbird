@@ -1,3 +1,4 @@
+usr/lib/icedove/icedove         usr/bin/icedove
 usr/share/icedove/chrome        usr/lib/icedove/chrome
 usr/share/icedove/defaults      usr/lib/icedove/defaults
 usr/share/icedove/isp           usr/lib/icedove/isp
