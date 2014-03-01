@@ -2,7 +2,7 @@
 
 set -e
 
-LIBDIR=@LIBDIR@
+LIBDIR=/usr/lib/icedove
 
 if [ "$1" = "remove" ] || [ "$1" = "deconfigure" ] || [ "$1" = upgrade ]; then
     rm -f $LIBDIR/.autoreg

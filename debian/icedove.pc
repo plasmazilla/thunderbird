@@ -1,5 +1,5 @@
 prefix=/usr
-sdkdir=${prefix}/lib/@DEB_MOZ_APPLICATION@-devel/
+sdkdir=${prefix}/lib/icedove-devel/
 libdir=${sdkdir}lib
 includedir=${sdkdir}include
 idldir=${sdkdir}idl
