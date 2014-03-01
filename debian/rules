@@ -43,6 +43,41 @@ override_dh_auto_install:
 	export MOZCONFIG=$(shell pwd)/mozconfig.icedove; \
 	make -f client.mk install DESTDIR=$(CURDIR)/debian/tmp
 
+override_dh_install:
+	dh_install
+	# prepare iceowl-extension
+	cd debian/iceowl-extension/usr/lib/iceowl-extension/ &&\
+		unzip $(CURDIR)/obj-icedove/mozilla/dist/xpi-stage/lightning*.xpi
+	chmod 0644 debian/iceowl-extension/usr/lib/iceowl-extension/calendar-js/*.js
+	chmod 0644 debian/iceowl-extension/usr/lib/iceowl-extension/chrome/calendar/content/calendar/calendarCreation.xul
+	# prepare calendar-google-provider
+	mkdir -p debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/
+	cd debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/ && \
+		unzip $(CURDIR)/obj-icedove/mozilla/dist/xpi-stage/gdata-provider*.xpi
+	# install Icedove menu icon
+	install -d -m 755 debian/icedove/usr/share/pixmaps/
+	install -m 644 debian/icedove.xpm debian/icedove/usr/share/pixmaps/
+	# install Icedove icons
+	install -d -m 755 debian/icedove/usr/share/icons/hicolor/16x16/apps
+	install -m 644 debian/app-icons/icedove16.png \
+		debian/icedove/usr/share/icons/hicolor/16x16/apps/icedove.png
+	install -d -m 755 debian/icedove/usr/share/icons/hicolor/32x32/apps
+	install -m 644 debian/app-icons/icedove32.png \
+		debian/icedove/usr/share/icons/hicolor/32x32/apps/icedove.png
+	install -d -m 755 debian/icedove/usr/share/icons/hicolor/64x64/apps
+	install -m 644 debian/app-icons/icedove64.png \
+		debian/icedove/usr/share/icons/hicolor/64x64/apps/icedove.png
+	install -d -m 755 debian/icedove/usr/share/icons/hicolor/128x128/apps
+	install -m 644 debian/app-icons/icedove128.png \
+		debian/icedove/usr/share/icons/hicolor/128x128/apps/icedove.png
+	install -d -m 755 debian/icedove/usr/share/icons/hicolor/scalable/apps
+	install -m 644 debian/app-icons/icedovebig.svg \
+		debian/icedove/usr/share/icons/hicolor/scalable/apps/icedove.svg
+	# remove duplicate .so files in dev package
+	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libmozalloc.so
+	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libmozjs.so
+	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libxul.so
+
 override_dh_fixperms:
 	dh_fixperms
 	chmod a-x debian/icedove-dev/usr/share/idl/icedove/*.idl
