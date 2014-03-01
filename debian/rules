@@ -43,3 +43,12 @@ override_dh_auto_install:
 	export MOZCONFIG=$(shell pwd)/mozconfig.icedove; \
 	make -f client.mk install DESTDIR=$(CURDIR)/debian/tmp
 
+override_dh_fixperms:
+	dh_fixperms
+	chmod a-x debian/icedove-dev/usr/share/idl/icedove/*.idl
+	chmod 0755 debian/icedove-dev/usr/lib/icedove-devel/sdk/bin/xpcshell
+	chmod 0755 debian/icedove-dev/usr/lib/icedove-devel/sdk/bin/header.py
+	chmod 0755 debian/icedove-dev/usr/lib/icedove-devel/sdk/bin/typelib.py
+	chmod 0755 debian/icedove-dev/usr/lib/icedove-devel/sdk/bin/xpidl.py
+	chmod 0755 debian/icedove-dev/usr/lib/icedove-devel/sdk/bin/xpt.py
+
