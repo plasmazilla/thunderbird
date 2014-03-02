@@ -6,7 +6,7 @@ idldir=${sdkdir}idl
 
 Name: icedove
 Description: Icedove/Thunderbird Development Files
-Version: 3.0
+Version: @Version@
 Requires: nspr >= 4.8.2
 Libs: -L${libdir} -lxpcomglue_s -lxul -lmozjs -lmozalloc -lldap60 -lprldap60
 Cflags: -I${includedir}
