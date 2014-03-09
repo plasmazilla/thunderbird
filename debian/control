@@ -166,8 +166,7 @@ Description: Calendar Extension for Thunderbird/Icedove
 
 Package: calendar-google-provider
 Architecture: all
-Depends: ${shlibs:Depends},
- ${misc:Depends}
+Depends: ${misc:Depends}
 Description: Google Calendar support for lightning- and iceowl-extension
  Google Calendar support extension for the Iceowl/Lightning extension. This
  extension adds the Google Calendar web interface as a new tab directly into
