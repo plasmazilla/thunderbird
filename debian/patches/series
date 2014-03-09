@@ -34,3 +34,4 @@ debian-hacks/creating-a-dummy-.deps-directory-to-get-make-happy.patch
 porting-kfreebsd-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-Hurd.patch
 debian-hacks/remove-non-free-W3C-icon-valid.png.patch
 debian-hacks/use-system-jquery-jquery-ui.patch
+porting-powerpcspe/FTBFS-Altivec-is-not-available-on-powerpcspe.patch
