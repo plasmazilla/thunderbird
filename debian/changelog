@@ -1,3 +1,21 @@
+icedove (24.3.0-2) unstable; urgency=low
+
+  [ Christoph Goehre ]
+  * [122ffe9] remove ldif60 from pkgconfig file (Closes: #732652)
+  * [b64ccac] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting-powerpcspe/FTBFS-Altivec-is-not-available-on-powerpcspe.patch
+    (Closes: #734859)
+
+  [ Carsten Schoenert ]
+  * [aa4f5b1] thunderbird.install.in: shipping all files in /u/l/i/components
+    (Closes: #737811)
+  * [3bf4738] debian/rules: fix *.js file-permissions for iceowl-extension
+  * [50ab7a5] debian/rules: remove -Wl,--as-needed linker option
+    (Closes: #732652, #730450, #724688)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 09 Mar 2014 15:33:05 -0400
+
 icedove (24.3.0-1) unstable; urgency=low
 
   * [a656560] lintian: remove non-free w3c valid.png icon (Closes: #735119)
