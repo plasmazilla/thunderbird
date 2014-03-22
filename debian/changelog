@@ -1,3 +1,13 @@
+icedove (24.4.0-1) unstable; urgency=low
+
+  * [a2b13c0] Imported Upstream version 24.4.0
+  * [fd90463] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting-hppa/FTBFS-hppa-correcting-code-inside-JS_STACK_GROWTH_DI.patch
+      (Closes: #741245)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 22 Mar 2014 11:10:18 -0400
+
 icedove (24.3.0-2) unstable; urgency=low
 
   [ Christoph Goehre ]
