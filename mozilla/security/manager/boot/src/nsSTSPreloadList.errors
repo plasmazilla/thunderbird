@@ -4,9 +4,11 @@ api.recurly.com: did not receive HSTS header
 api.simple.com: did not receive HSTS header
 apis.google.com: did not receive HSTS header
 appengine.google.com: did not receive HSTS header
+bassh.net: did not receive HSTS header
 bcrook.com: max-age too low: 86400
 betnet.fr: could not connect to host
 bigshinylock.minazo.net: could not connect to host
+blacklane.com: did not receive HSTS header
 braintreegateway.com: did not receive HSTS header
 braintreepayments.com: did not receive HSTS header
 browserid.org: did not receive HSTS header
@@ -35,7 +37,6 @@ factor.cc: could not connect to host
 fatzebra.com.au: did not receive HSTS header
 fj.simple.com: did not receive HSTS header
 get.zenpayroll.com: did not receive HSTS header
-getcloak.com: max-age too low: 2678400
 glass.google.com: did not receive HSTS header
 gmail.com: did not receive HSTS header
 googlemail.com: did not receive HSTS header
@@ -54,7 +55,7 @@ jottit.com: did not receive HSTS header
 kiwiirc.com: max-age too low: 5256000
 ledgerscope.net: did not receive HSTS header
 liberty.lavabit.com: could not connect to host
-lifeguard.aecom.com: max-age too low: 3600
+lifeguard.aecom.com: did not receive HSTS header
 lists.mayfirst.org: did not receive HSTS header
 mail.google.com: did not receive HSTS header
 market.android.com: did not receive HSTS header
@@ -64,7 +65,6 @@ mydigipass.com: did not receive HSTS header
 neonisi.com: could not connect to host
 openshift.redhat.com: did not receive HSTS header
 ottospora.nl: could not connect to host
-packagist.org: max-age too low: 2592000
 passport.yandex.by: did not receive HSTS header
 passport.yandex.com: did not receive HSTS header
 passport.yandex.com.tr: did not receive HSTS header
@@ -75,8 +75,7 @@ paypal.com: max-age too low: 14400
 payroll.xero.com: max-age too low: 3600
 platform.lookout.com: could not connect to host
 play.google.com: did not receive HSTS header
-plus.google.com: did not receive HSTS header
-plus.sandbox.google.com: did not receive HSTS header
+prodpad.com: did not receive HSTS header
 profiles.google.com: did not receive HSTS header
 rapidresearch.me: did not receive HSTS header
 sah3.net: could not connect to host
@@ -100,12 +99,12 @@ talkgadget.google.com: did not receive HSTS header
 translate.googleapis.com: did not receive HSTS header
 uprotect.it: could not connect to host
 wallet.google.com: did not receive HSTS header
+webmail.mayfirst.org: did not receive HSTS header
 whonix.org: did not receive HSTS header
 www.cueup.com: did not receive HSTS header
 www.developer.mydigipass.com: could not connect to host
 www.dropcam.com: max-age too low: 2592000
 www.elanex.biz: did not receive HSTS header
-www.getcloak.com: max-age too low: 2678400
 www.gmail.com: did not receive HSTS header
 www.googlemail.com: did not receive HSTS header
 www.greplin.com: could not connect to host
