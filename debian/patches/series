@@ -35,3 +35,4 @@ porting-kfreebsd-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-Hurd.patch
 debian-hacks/remove-non-free-W3C-icon-valid.png.patch
 debian-hacks/use-system-jquery-jquery-ui.patch
 porting-powerpcspe/FTBFS-Altivec-is-not-available-on-powerpcspe.patch
+porting-hppa/FTBFS-hppa-correcting-code-inside-JS_STACK_GROWTH_DI.patch
