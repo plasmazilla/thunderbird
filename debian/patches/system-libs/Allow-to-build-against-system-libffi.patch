@@ -3,16 +3,15 @@ Date: Tue, 9 Mar 2010 09:44:37 +0100
 Subject: Allow to build against system libffi
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=551138
-
 ---
  mozilla/js/src/configure.in | 12 ++++++++++++
  1 file changed, 12 insertions(+)
 
 diff --git a/mozilla/js/src/configure.in b/mozilla/js/src/configure.in
-index d7e29b6..b67d3fb 100644
+index 1eee559..b39b0d8 100644
 --- a/mozilla/js/src/configure.in
 +++ b/mozilla/js/src/configure.in
-@@ -3645,6 +3645,18 @@ if test -n "$JSGC_GENERATIONAL"; then
+@@ -3616,6 +3616,18 @@ if test -n "$JSGC_GENERATIONAL"; then
      AC_DEFINE(JSGC_GENERATIONAL)
  fi
  

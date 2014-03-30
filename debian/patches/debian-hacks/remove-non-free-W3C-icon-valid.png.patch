@@ -1,0 +1,21 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Mon, 13 Jan 2014 18:50:08 -0500
+Subject: remove non-free W3C icon (valid.png)
+
+Closes: #735119
+---
+ mozilla/build/Makefile.in | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/mozilla/build/Makefile.in b/mozilla/build/Makefile.in
+index 3da5dda..faf0c5b 100644
+--- a/mozilla/build/Makefile.in
++++ b/mozilla/build/Makefile.in
+@@ -104,7 +104,6 @@ _LEAKTEST_FILES =    \
+ 		$(topsrcdir)/build/pgo/blueprint/grid.html \
+ 		$(topsrcdir)/build/pgo/blueprint/test.jpg \
+ 		$(topsrcdir)/build/pgo/blueprint/test-small.jpg \
+-		$(topsrcdir)/build/pgo/blueprint/valid.png \
+ 		$(topsrcdir)/build/pgo/blueprint/screen.css \
+ 		$(topsrcdir)/build/pgo/blueprint/print.css \
+ 		$(topsrcdir)/build/pgo/blueprint/grid.png \

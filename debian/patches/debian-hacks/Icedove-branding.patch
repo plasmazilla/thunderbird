@@ -1,4 +1,4 @@
-From: =?UTF-8?q?Guido=20G=C3=BCnther?= <agx@sigxcpu.org>
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
 Date: Sat, 24 Nov 2012 11:36:16 +0100
 Subject: Icedove branding
 
@@ -21,7 +21,7 @@ index 8380eb7..12902c2 100644
  BuildID=@GRE_BUILDID@
  #ifdef MOZ_SOURCE_REPO
 diff --git a/mail/confvars.sh b/mail/confvars.sh
-index 6e6b88a..416e3c0 100755
+index 2b9a055..2798559 100644
 --- a/mail/confvars.sh
 +++ b/mail/confvars.sh
 @@ -3,8 +3,8 @@

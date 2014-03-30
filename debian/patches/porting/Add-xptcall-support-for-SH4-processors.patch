@@ -4,7 +4,6 @@ Subject: Add xptcall support for SH4 processors
 
 Closes: #573400
 https://bugzilla.mozilla.org/show_bug.cgi?id=382214
-
 ---
  .../xpcom/reflect/xptcall/src/md/unix/Makefile.in  |  11 +
  .../xptcall/src/md/unix/xptcinvoke_linux_sh.cpp    | 203 +++++++++++++++
@@ -14,10 +13,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=382214
  create mode 100644 mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_linux_sh.cpp
 
 diff --git a/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in b/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
-index 54fdddb..e7bb545 100644
+index 6290bdc..294d236 100644
 --- a/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
 +++ b/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
-@@ -396,6 +396,17 @@ CPPSRCS		:= xptcinvoke_linux_s390x.cpp xptcstubs_linux_s390x.cpp
+@@ -271,6 +271,17 @@ ifeq ($(OS_ARCH)$(OS_TEST),Linuxs390x)
  CXXFLAGS	+= -fno-strict-aliasing -fno-inline -fomit-frame-pointer -mbackchain
  endif
  

@@ -1,0 +1,41 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Wed, 12 Feb 2014 17:56:33 -0500
+Subject: FTBFS: Altivec is not available on powerpcspe
+
+Closes: #734859
+---
+ mozilla/gfx/qcms/Makefile.in | 2 ++
+ mozilla/gfx/qcms/transform.c | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mozilla/gfx/qcms/Makefile.in b/mozilla/gfx/qcms/Makefile.in
+index 625d025..89e17cb 100644
+--- a/mozilla/gfx/qcms/Makefile.in
++++ b/mozilla/gfx/qcms/Makefile.in
+@@ -51,11 +51,13 @@ endif
+ else
+ ifeq (ppc,$(findstring ppc,$(CPU_ARCH)))
+ ifdef GNU_CC
++ifeq ($(shell echo | gcc -x c -c -maltivec - 2>&1),)
+ 	CSRCS += transform-altivec.c
+ 	ALTIVEC_FLAGS=-maltivec
+ endif
+ endif
+ endif
++endif
+ 
+ FORCE_STATIC_LIB = 1
+ 
+diff --git a/mozilla/gfx/qcms/transform.c b/mozilla/gfx/qcms/transform.c
+index 785cb76..ae922b9 100644
+--- a/mozilla/gfx/qcms/transform.c
++++ b/mozilla/gfx/qcms/transform.c
+@@ -1283,7 +1283,7 @@ qcms_transform* qcms_transform_create(
+ #endif
+ 		    } else
+ #endif
+-#if (defined(__POWERPC__) || defined(__powerpc__))
++#if ((defined(__POWERPC__) || defined(__powerpc__)) && !defined(__NO_FPRS__))
+ 		    if (have_altivec()) {
+ 			    if (in_type == QCMS_DATA_RGB_8)
+ 				    transform->transform_fn = qcms_transform_data_rgb_out_lut_altivec;
