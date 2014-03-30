@@ -722,8 +722,8 @@ function test_streamed_bodies_are_size_capped() {
 
   yield wait_for_gloda_indexer(msgSet, {augment: true});
   let gmsg = msgSet.glodaMessages[0];
-  do_check_eq(gmsg.indexedBodyText.indexOf("aabb"), 0);
-  do_check_eq(gmsg.indexedBodyText.indexOf("xxyy"), -1);
+  do_check_true(gmsg.indexedBodyText.startsWith("aabb"));
+  do_check_false(gmsg.indexedBodyText.contains("xxyy"));
 
   if (gmsg.indexedBodyText.length > (20 * 1024 + 58 + 10))
     do_throw("indexed body text is too big! (" + gmsg.indexedBodyText.length +
@@ -1034,9 +1034,7 @@ function test_folder_deletion_nested() {
   let trash = make_empty_folder(null, [Ci.nsMsgFolderFlags.Trash]);
   yield move_folder(folder1, trash);
 
-  let descendentFolders = Cc["@mozilla.org/supports-array;1"]
-                          .createInstance(Ci.nsISupportsArray);
-  get_nsIMsgFolder(trash).ListDescendents(descendentFolders);
+  let descendentFolders = get_nsIMsgFolder(trash).descendants;
   let folders = [folder for (folder in fixIterator(descendentFolders, Ci.nsIMsgFolder))];
   do_check_eq(folders.length, 2);
   let [newFolder1, newFolder2] = folders;

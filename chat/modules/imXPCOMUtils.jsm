@@ -20,27 +20,42 @@ const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource:///modules/imServices.jsm");
 
-const DEBUG_MISC = 1; // Very verbose (= 'DEBUG')
-const DEBUG_INFO = 2; // Verbose (= 'LOG')
-const DEBUG_WARNING = 3;
-const DEBUG_ERROR = 4;
+const kLogLevelPref = "purple.debug.loglevel";
 
-function scriptError(aModule, aLevel, aMessage) {
-  // Only continue if we want to see this level of logging.
-  let logLevel = Services.prefs.getIntPref("purple.debug.loglevel");
-  if (logLevel > aLevel)
-    return;
-
-  dump(aModule + ": " + aMessage + "\n");
-
-  // Log a debug statement.
-  if (aLevel == DEBUG_INFO && logLevel == DEBUG_INFO) {
-    Services.console.logStringMessage(aMessage);
-    return;
+/**
+ * Creates an nsIScriptError instance and logs it.
+ *
+ * @param aModule
+ *        string identifying the module within which the error occurred.
+ * @param aLevel
+ *        the error level as defined in imIDebugMessage.
+ * @param aMessage
+ *        the error message string.
+ * @param aOriginalError
+ *        (optional) JS Error object containing the location where the
+ *        actual error occurred. Its error message is appended to aMessage.
+ */
+function scriptError(aModule, aLevel, aMessage, aOriginalError) {
+  // Figure out the log level, based on the module and the prefs set.
+  // The module name is split on periods, and if no pref is set the pref with
+  // the last section removed is attempted (until no sections are left, using
+  // the global default log level).
+  let logLevel = -1;
+  let logKeys = ["level"].concat(aModule.split("."));
+  for (; logKeys.length > 0; logKeys.pop()) {
+    let logKey = logKeys.join(".");
+    if (logKey in gLogLevels) {
+      logLevel = gLogLevels[logKey];
+      break;
+    }
   }
 
+  // Only continue if we will log this message.
+  if (logLevel > aLevel && (!"imAccount" in this))
+    return;
+
   let flag = Ci.nsIScriptError.warningFlag;
-  if (aLevel >= DEBUG_ERROR)
+  if (aLevel >= Ci.imIDebugMessage.LEVEL_ERROR)
     flag = Ci.nsIScriptError.errorFlag;
 
   let scriptError =
@@ -52,18 +67,77 @@ function scriptError(aModule, aLevel, aMessage) {
       sourceLine += ": ";
     sourceLine += caller.name;
   }
-  scriptError.init(aMessage, caller.filename, sourceLine, caller.lineNumber,
-                   null, flag, "component javascript");
-  Services.console.logMessage(scriptError);
+  let fileName = caller.filename;
+  let lineNumber = caller.lineNumber;
+  if (aOriginalError) {
+    aMessage += "\n" + (aOriginalError.message || aOriginalError);
+    if (aOriginalError.fileName)
+      fileName = aOriginalError.fileName;
+    if (aOriginalError.lineNumber)
+      lineNumber = aOriginalError.lineNumber
+  }
+  scriptError.init(aMessage, fileName, sourceLine, lineNumber, null, flag,
+                   "component javascript");
+
+  if (logLevel <= aLevel) {
+    dump(aModule + ": " + aMessage + "\n");
+    if (aLevel == Ci.imIDebugMessage.LEVEL_LOG && logLevel == aLevel)
+      Services.console.logStringMessage(aMessage);
+    else
+      Services.console.logMessage(scriptError);
+  }
+  if ("imAccount" in this)
+    this.imAccount.logDebugMessage(scriptError, aLevel);
 }
 function initLogModule(aModule, aThis)
 {
-  aThis = Components.utils.getGlobalForObject(aThis);
-  aThis.DEBUG = scriptError.bind(aThis, aModule, DEBUG_MISC);
-  aThis.LOG   = scriptError.bind(aThis, aModule, DEBUG_INFO);
-  aThis.WARN  = scriptError.bind(aThis, aModule, DEBUG_WARNING);
-  aThis.ERROR = scriptError.bind(aThis, aModule, DEBUG_ERROR);
+  let obj = aThis || {};
+  obj.DEBUG = scriptError.bind(obj, aModule, Ci.imIDebugMessage.LEVEL_DEBUG);
+  obj.LOG   = scriptError.bind(obj, aModule, Ci.imIDebugMessage.LEVEL_LOG);
+  obj.WARN  = scriptError.bind(obj, aModule, Ci.imIDebugMessage.LEVEL_WARNING);
+  obj.ERROR = scriptError.bind(obj, aModule, Ci.imIDebugMessage.LEVEL_ERROR);
+  return obj;
 }
+XPCOMUtils.defineLazyGetter(Cu.getGlobalForObject({}), "gLogLevels", function() {
+  // This object functions both as an obsever as well as a dict keeping the
+  // log levels with prefs; the log levels all start with "level" (i.e. "level"
+  // for the global level, "level.irc" for the IRC module).  The dual-purpose
+  // is necessary to make sure the observe is left alive while being a weak ref
+  // to avoid cycles with the pref service.
+  let logLevels = {
+    observe: function(aSubject, aTopic, aData) {
+      let module = "level" + aData.substr(kLogLevelPref.length);
+      if (Services.prefs.getPrefType(aData) == Services.prefs.PREF_INT)
+        gLogLevels[module] = Services.prefs.getIntPref(aData);
+      else
+        delete gLogLevels[module];
+    },
+    QueryInterface: XPCOMUtils.generateQI([Ci.nsIObserver,
+                                           Ci.nsISupportsWeakReference]),
+  };
+
+  // Add weak pref observer to see log level pref changes.
+  Services.prefs.addObserver(kLogLevelPref, logLevels, true /* weak */);
+
+  // Initialize with existing log level prefs.
+  for each (let pref in Services.prefs.getChildList(kLogLevelPref)) {
+    if (Services.prefs.getPrefType(pref) == Services.prefs.PREF_INT)
+      logLevels["level" + pref.substr(kLogLevelPref.length)] = Services.prefs.getIntPref(pref);
+  }
+
+  // Let environment variables override prefs.
+  Cc["@mozilla.org/process/environment;1"]
+    .getService(Ci.nsIEnvironment)
+    .get("PRPL_LOG")
+    .split(/[;,]/)
+    .filter(function(n) n != "")
+    .forEach(function(env) {
+      let [, module, level] = env.match(/(?:(.*?)[:=])?(\d+)/);
+      logLevels["level" + (module ? "." + module : "")] = parseInt(level, 10);
+    });
+
+  return logLevels;
+});
 
 function setTimeout(aFunction, aDelay)
 {

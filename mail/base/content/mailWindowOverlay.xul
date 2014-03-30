@@ -39,6 +39,8 @@
   %utilityDTD;
   <!ENTITY % charsetDTD SYSTEM "chrome://global/locale/charsetOverlay.dtd">
   %charsetDTD;
+  <!ENTITY % viewZoomOverlayDTD SYSTEM "chrome://messenger/locale/viewZoomOverlay.dtd">
+  %viewZoomOverlayDTD;
 ]>
 
 <overlay  xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
@@ -223,6 +225,7 @@
   <command id="cmd_undoCloseTab" oncommand="goDoCommand('cmd_undoCloseTab');"/> 
   <command id="cmd_goForward" oncommand="goDoCommand('cmd_goForward')" disabled="true"/>
   <command id="cmd_goBack" oncommand="goDoCommand('cmd_goBack')" disabled="true"/>
+  <command id="cmd_chat" oncommand="goDoCommand('cmd_chat')" disabled="true"/>
 </commandset>
 
 <commandset id="mailMessageMenuItems"
@@ -230,14 +233,14 @@
             events="create-menu-message"
             oncommandupdate="goUpdateMailMenuItems(this)">
   <command id="cmd_archive" oncommand="goDoCommand('cmd_archive')"/>
-  <command id="cmd_reply" oncommand="goDoCommand('cmd_reply')"/>
-  <command id="cmd_replySender" oncommand="goDoCommand('cmd_replySender')"/>
-  <command id="cmd_replyGroup" oncommand="goDoCommand('cmd_replyGroup')"/>
-  <command id="cmd_replyall" oncommand="goDoCommand('cmd_replyall')"/>
-  <command id="cmd_replylist" oncommand="goDoCommand('cmd_replylist')"/>
-  <command id="cmd_forward" oncommand="goDoCommand('cmd_forward')"/>
-  <command id="cmd_forwardInline" oncommand="goDoCommand('cmd_forwardInline')"/>
-  <command id="cmd_forwardAttachment" oncommand="goDoCommand('cmd_forwardAttachment')"/>
+  <command id="cmd_reply" oncommand="MsgReplyMessage(event)"/>
+  <command id="cmd_replySender" oncommand="MsgReplySender(event);"/>
+  <command id="cmd_replyGroup" oncommand="MsgReplyGroup(event);"/>
+  <command id="cmd_replyall" oncommand="MsgReplyToAllMessage(event);"/>
+  <command id="cmd_replylist" oncommand="MsgReplyToListMessage(event);"/>
+  <command id="cmd_forward" oncommand="MsgForwardMessage(event);"/>
+  <command id="cmd_forwardInline" oncommand="MsgForwardAsInline(event)"/>
+  <command id="cmd_forwardAttachment" oncommand="MsgForwardAsAttachment(event);"/>
   <command id="cmd_editAsNew" oncommand="goDoCommand('cmd_editAsNew')"/>
   <command id="cmd_openMessage" oncommand="goDoCommand('cmd_openMessage')"/>
   <command id="cmd_openConversation" oncommand="goDoCommand('cmd_openConversation')"/>
@@ -252,7 +255,6 @@
             commandupdater="true"
             events="mail-toolbar"
             oncommandupdate="goUpdateMailMenuItems(this)">
-
   <command id="button_reply"/>
   <command id="button_replyall"/>
   <command id="button_replylist"/>
@@ -274,6 +276,7 @@
   <command id="cmd_delete"/>
   <command id="button_junk"/>
   <command id="button_compact"/>
+  <command id="cmd_chat"/>
 </commandset>
 
 <commandset id="mailGetMsgMenuItems"
@@ -402,7 +405,7 @@
   <key id="key_archive" key="&archiveMsgCmd.key;"                    oncommand="goDoCommand('cmd_archive')"/>
   <key id="key_goForward" key="&goForwardCmd.commandKey;"            oncommand="goDoCommand('cmd_goForward')"/>
   <key id="key_goBack" key="&goBackCmd.commandKey;"                  oncommand="goDoCommand('cmd_goBack')"/>
-  <key id="key_goChat" key="&goChatCmd.commandKey;"                  modifiers="accel,shift"/>
+  <key id="key_goChat" key="&goChatCmd.key;"                         oncommand="goDoCommand('cmd_chat')" modifiers="accel,shift"/>
   <key id="key_goStartPage" keycode="VK_HOME"                        oncommand="goDoCommand('cmd_goStartPage')" modifiers="alt"/>
   <key id="key_undoCloseTab" key="&undoCloseTabCmd.commandkey;"      oncommand="goDoCommand('cmd_undoCloseTab')" modifiers="accel, shift"/> 
   <key id="key_reply" key="&replyMsgCmd.key;"                        oncommand="goDoCommand('cmd_reply')" modifiers="accel"/>
@@ -604,15 +607,15 @@
     <menuseparator id="mailContext-sep-clipboard"/>
 
     <menuitem id="mailContext-searchTheWeb"
-              label="Search the web"
+              label="[glodaComplete.webSearch1.label]"
               oncommand="openSearchTab(event.target.value)"/>
 
     <!-- Spellchecking general menu items (enable, add dictionaries...) -->
     <menuseparator id="mailContext-spell-separator"/>
     <menuitem id="mailContext-spell-check-enabled"
-              label="&spellCheckEnable.label;"
+              label="&spellCheckToggle.label;"
               type="checkbox"
-              accesskey="&spellCheckEnable.accesskey;"
+              accesskey="&spellCheckToggle.accesskey;"
               oncommand="gSpellChecker.toggleEnabled();"/>
     <menuitem id="mailContext-spell-add-dictionaries-main"
               label="&spellAddDictionaries.label;"
@@ -647,14 +650,14 @@
               label="&contextUnmute.label;"
               accesskey="&contextUnmute.accesskey;"
               oncommand="gContextMenu.mediaCommand('unmute');"/>
-    <menuitem id="mailContext-openNewWindow"
-              label="&contextOpenNewWindow.label;"
-              accesskey="&contextOpenNewWindow.accesskey;"
-              oncommand="MsgOpenNewWindowForMessage();"/>
     <menuitem id="threadPaneContext-openNewTab"
               label="&contextOpenNewTab.label;"
               accesskey="&contextOpenNewTab.accesskey;"
               oncommand="OpenMessageInNewTab(event);"/>
+    <menuitem id="mailContext-openNewWindow"
+              label="&contextOpenNewWindow.label;"
+              accesskey="&contextOpenNewWindow.accesskey;"
+              oncommand="MsgOpenNewWindowForMessage();"/>
     <menuitem id="mailContext-openConversation"
               label="&contextOpenConversation.label;"
               accesskey="&contextOpenConversation.accesskey;"
@@ -680,9 +683,23 @@
               label="&contextForward.label;"
               accesskey="&contextForward.accesskey;"
               oncommand="MsgForwardMessage(event);"/>
-    <menuitem id="mailContext-forwardAsAttachment"
-              label="&contextForwardAsAttachment.label;"
-              accesskey="&contextForwardAsAttachment.accesskey;"
+    <menu id="mailContext-forwardAsMenu"
+          label="&contextForwardAsMenu.label;"
+          accesskey="&contextForwardAsMenu.accesskey;">
+      <menupopup id="mailContext-forwardAsPopup">
+        <menuitem id="mailContext-forwardAsInline"
+                  label="&contextForwardAsInline.label;"
+                  accesskey="&contextForwardAsInline.accesskey;"
+                  command="cmd_forwardInline"/>
+        <menuitem id="mailContext-forwardAsAttachment"
+                  label="&contextForwardAsAttachmentItem.label;"
+                  accesskey="&contextForwardAsAttachmentItem.accesskey;"
+                  command="cmd_forwardAttachment"/>
+      </menupopup>
+    </menu>
+    <menuitem id="mailContext-multiForwardAsAttachment"
+              label="&contextMultiForwardAsAttachment.label;"
+              accesskey="&contextMultiForwardAsAttachment.accesskey;"
               oncommand="MsgForwardAsAttachment(event);"/>
     <menuitem id="mailContext-editAsNew"
               label="&contextEditAsNew.label;"
@@ -794,6 +811,17 @@
               label="&moveToFolderAgain.label;"
               accesskey="&moveToFolderAgain.accesskey;"/>
     <menuseparator id="paneContext-afterMove"/>
+    <menuitem id="mailContext-ignoreThread"
+              label="&contextKillThreadMenu.label;"
+              accesskey="&contextKillThreadMenu.accesskey;"
+              command="cmd_killThread"/>
+    <menuitem id="mailContext-ignoreSubthread"
+              label="&contextKillSubthreadMenu.label;"
+              command="cmd_killSubthread"/>
+    <menuitem id="mailContext-watchThread"
+              label="&contextWatchThreadMenu.label;"
+              command="cmd_watchThread"/>
+    <menuseparator id="mailContext-afterWatchThread"/>
     <menuitem id="mailContext-saveAs"
               label="&contextSaveAs.label;"
               accesskey="&contextSaveAs.accesskey;"
@@ -859,14 +887,14 @@
               label="&folderContextGetMessages.label;"
               accesskey="&folderContextGetMessages.accesskey;"
               oncommand="MsgGetMessage();"/>
-    <menuitem id="folderPaneContext-openNewWindow"
-              label="&folderContextOpenNewWindow.label;"
-              accesskey="&folderContextOpenNewWindow.accesskey;"
-              oncommand="MsgOpenNewWindowForFolder(null,-1);"/>
     <menuitem id="folderPaneContext-openNewTab"
               label="&folderContextOpenNewTab.label;"
               accesskey="&folderContextOpenNewTab.accesskey;"
               oncommand="FolderPaneContextMenuNewTab(event);"/>
+    <menuitem id="folderPaneContext-openNewWindow"
+              label="&folderContextOpenInNewWindow.label;"
+              accesskey="&folderContextOpenInNewWindow.accesskey;"
+              oncommand="MsgOpenNewWindowForFolder(null,-1);"/>
     <menuitem id="folderPaneContext-searchMessages"
               label="&folderContextSearchForMessages.label;"
               accesskey="&folderContextSearchForMessages.accesskey;"
@@ -972,6 +1000,10 @@
               <menuitem id="appmenu_newIMAccountMenuItem"
                         label="&newIMAccountCmd.label;"
                         oncommand="openIMAccountWizard();"/>
+              <menuitem id="appmenu_newFeedAccountMenuItem"
+                        label="&newFeedAccountCmd.label;"
+                        accesskey="&newFeedAccountCmd.accesskey;"
+                        oncommand="AddFeedAccount();"/>
               <menuitem id="appmenu_newAccountMenuItem"
                         label="&newOtherAccountsCmd.label;"
                         oncommand="MsgAccountWizard();"/>
@@ -984,10 +1016,9 @@
                         oncommand="chatHandler.addBuddy();"/>
             </menupopup>
         </splitmenu>
-        <menu id="appmenu_fileAttachmentMenu"
-              label="&openAttachmentCmd.label;"
-              disabled="true"
-              persist="hidden">
+        <menu id="appmenu_msgAttachmentMenu"
+              label="&openAttachmentListCmd.label;"
+              disabled="true">
           <menupopup id="appmenu_attachmentMenuList"
                      onpopupshowing="FillAttachmentListPopup(this);"/>
         </menu>
@@ -1038,11 +1069,27 @@
                         label="&redoCmd.label;"
                         key="key_redo"
                         command="cmd_redo"/>
-              <menuseparator/>
+              <menuseparator id="appmenu_messageAfterRedoEditSeparator"/>
+              <menuitem id="appmenu_delete"
+                        label="&deleteCmd.label;"
+#ifdef XP_MACOSX
+                        acceltext="⌫"
+#else
+                        key="key_delete"
+#endif
+                        command="cmd_delete"/>
+              <menuseparator id="appmenu_messageAfterDeleteEditSeparator"/>
               <menuitem id="appmenu-editmenu-selectAll"
                         label="&selectAllCmd.label;"
                         key="key_selectAll"
                         command="cmd_selectAll"/>
+              <menuitem id="appmenu_selectThread"
+                        label="&appmenuSelectThread.label;"
+                        key="key_selectThread"
+                        command="cmd_selectThread"/>
+              <menuitem id="appmenu_selectFlagged"
+                        label="&appmenuSelectFlagged.label;"
+                        command="cmd_selectFlagged"/>
             </menupopup>
           </menu>
         </hbox>
@@ -1079,9 +1126,11 @@
                         label="&printCmd.label;"
                         key="key_print"
                         command="cmd_print"/>
+#ifndef XP_MACOSX
               <menuitem id="appmenu_printPreview"
                         label="&printPreviewCmd.label;"
                         command="cmd_printpreview"/>
+#endif
               <menuitem id="appmenu_printSetup"
                         label="&printSetupCmd.label;"
                         command="cmd_printSetup"/>
@@ -1567,6 +1616,25 @@
                   label="&bodyMenuFeed.label;">
               <menupopup id="appmenu_viewFeedSummaryPopupMenu"
                          onpopupshowing="InitAppmenuViewBodyMenu()">
+                <menuitem id="appmenu_bodyFeedGlobalWebPage"
+                          type="radio"
+                          name="viewFeedSummaryGroup"
+                          label="&viewFeedWebPage.label;"
+                          observes="bodyFeedGlobalWebPage"
+                          oncommand="FeedMessageHandler.onSelectPref = 0"/>
+                <menuitem id="appmenu_bodyFeedGlobalSummary"
+                          type="radio"
+                          name="viewFeedSummaryGroup"
+                          label="&viewFeedSummary.label;"
+                          observes="bodyFeedGlobalSummary"
+                          oncommand="FeedMessageHandler.onSelectPref = 1"/>
+                <menuitem id="appmenu_bodyFeedPerFolderPref"
+                          type="radio"
+                          name="viewFeedSummaryGroup"
+                          label="&viewFeedSummaryFeedPropsPref.label;"
+                          observes="bodyFeedPerFolderPref"
+                          oncommand="FeedMessageHandler.onSelectPref = 2"/>
+                <menuseparator id="appmenu_viewFeedSummarySeparator"/>
                 <menuitem id="appmenu_bodyFeedSummaryAllowHTML"
                           type="radio"
                           name="viewFeedBodyHTMLGroup"
@@ -1582,22 +1650,6 @@
                           name="viewFeedBodyHTMLGroup"
                           label="&bodyAsPlaintext.label;"
                           oncommand="MsgFeedBodyRenderPrefs(true, 1, gDisallow_classes_no_html)"/>
-                <menuseparator id="appmenu_viewFeedSummarySeparator"/>
-                <menuitem id="appmenu_bodyFeedGlobalWebPage"
-                          type="radio"
-                          name="viewFeedSummaryGroup"
-                          label="&viewFeedWebPage.label;"
-                          oncommand="ChangeFeedShowSummaryPref(0)"/>
-                <menuitem id="appmenu_bodyFeedGlobalSummary"
-                          type="radio"
-                          name="viewFeedSummaryGroup"
-                          label="&viewFeedSummary.label;"
-                          oncommand="ChangeFeedShowSummaryPref(1)"/>
-                <menuitem id="appmenu_bodyFeedPerFolderPref"
-                          type="radio"
-                          name="viewFeedSummaryGroup"
-                          label="&viewFeedSummaryFeedPropsPref.label;"
-                          oncommand="ChangeFeedShowSummaryPref(2)"/>
               </menupopup>
             </menu>
             <menuitem id="appmenu_viewAttachmentsInlineMenuitem"
@@ -1734,18 +1786,6 @@
                       <menupopup>
                       </menupopup>
                     </menu>
-                    <menu label="&charsetMenuUnicode.label;"
-                          datasources="rdf:charset-menu" ref="NC:BrowserUnicodeCharsetMenuRoot">
-                      <template>
-                        <rule>
-                          <menupopup>
-                            <menuitem uri="..." label="rdf:http://home.netscape.com/NC-rdf#Name"/>
-                          </menupopup>
-                        </rule>
-                      </template>
-                      <menupopup>
-                      </menupopup>
-                    </menu>
                     <menuseparator />
                   </menupopup>
                 </menu>
@@ -1814,7 +1854,7 @@
             <menuitem id="appmenu_goChat"
                       label="&goChatCmd.label;"
                       key="key_goChat"
-                      oncommand="showChatTab();"/>
+                      command="cmd_chat"/>
             <menuseparator id="appmenu_goChatSeparator"/>
             <menu id="appmenu_goFolderMenu"
                   label="&folderMenu.label;"
@@ -1828,7 +1868,8 @@
             </menu>
             <menuseparator id="appmenu_goFolderSeparator"/>
             <menu id="appmenu_goRecentlyClosedTabs"
-                  label="&goRecentlyClosedTabs.label;">
+                  label="&goRecentlyClosedTabs.label;"
+                  observes="cmd_undoCloseTab">
               <menupopup id="appmenu_GoRecentlyClosedTabsPopup"
                          onpopupshowing="return InitRecentlyClosedTabsPopup(this)" />
             </menu>
@@ -1896,23 +1937,23 @@
                       key="key_openConversation"
                       command="cmd_openConversation"/>
             <menu id="appmenu_openFeedMessage"
-                  label="&openFeedMessage.label;">
-              <menupopup id="appmenu_openFeedMessage">
-                <menuitem id="appmenu_openFeedWebPageInWindow"
+                  label="&openFeedMessage1.label;">
+              <menupopup id="appmenu_openFeedMessagePopup">
+                <menuitem id="appmenu_openFeedWebPage"
                           type="radio"
                           name="openFeedGroup"
-                          label="&openFeedWebPageInWindow.label;"
-                          oncommand="ChangeFeedOpenHandler(0);"/>
-                <menuitem id="appmenu_openFeedSummaryInWindow"
+                          label="&openFeedWebPage.label;"
+                          oncommand="FeedMessageHandler.onOpenPref = 0"/>
+                <menuitem id="appmenu_openFeedSummary"
                           type="radio"
                           name="openFeedGroup"
-                          label="&openFeedSummaryInWindow.label;"
-                          oncommand="ChangeFeedOpenHandler(1);"/>
+                          label="&openFeedSummary.label;"
+                          oncommand="FeedMessageHandler.onOpenPref = 1"/>
                 <menuitem id="appmenu_openFeedWebPageInMessagePane"
                           type="radio"
                           name="openFeedGroup"
                           label="&openFeedWebPageInMP.label;"
-                          oncommand="ChangeFeedOpenHandler(2);"/>
+                          oncommand="FeedMessageHandler.onOpenPref = 2"/>
               </menupopup>
             </menu>
             <menuseparator id="appmenu_messageAfterOpenMsgSeparator"/>
@@ -2015,14 +2056,17 @@
             <menuitem label="&killThreadMenu.label;"
                       id="appmenu_killThread"
                       key="key_killThread"
+                      type="checkbox"
                       command="cmd_killThread"/>
             <menuitem label="&killSubthreadMenu.label;"
                       id="appmenu_killSubthread"
                       key="key_killSubthread"
+                      type="checkbox"
                       command="cmd_killSubthread"/>
             <menuitem label="&watchThreadMenu.label;"
                       id="appmenu_watchThread"
                       key="key_watchThread"
+                      type="checkbox"
                       command="cmd_watchThread"/>
           </menupopup>
         </menu>
@@ -2179,6 +2223,10 @@
                         label="&newIMAccountCmd.label;"
                         accesskey="&newIMAccountCmd.accesskey;"
                         oncommand="openIMAccountWizard();"/>
+              <menuitem id="newFeedAccountMenuItem"
+                        label="&newFeedAccountCmd.label;"
+                        accesskey="&newFeedAccountCmd.accesskey;"
+                        oncommand="AddFeedAccount();"/>
               <menuitem id="newAccountMenuItem"
                         label="&newOtherAccountsCmd.label;"
                         accesskey="&newOtherAccountsCmd.accesskey;"
@@ -2194,9 +2242,6 @@
           <menuitem id="openMessageFileMenuitem" label="&openMessageFileCmd.label;"
             accesskey="&openMessageFileCmd.accesskey;"
             oncommand="MsgOpenFromFile();"/>
-          <menu id="fileAttachmentMenu" label="&openAttachmentCmd.label;" accesskey="&openAttachmentCmd.accesskey;" disabled="true" persist="hidden">
-            <menupopup id="attachmentMenuList" onpopupshowing="FillAttachmentListPopup(this);"/>
-          </menu>
           <menuitem id="menu_close"/>
           <menuseparator id="fileMenuAfterCloseSeparator"/>
           <menu id="menu_saveAs" label="&saveAsMenu.label;" accesskey="&saveAsMenu.accesskey;">
@@ -2212,6 +2257,7 @@
           </menu>
           <menuseparator id="fileMenuAfterSaveSeparator"/>
           <menu label="&getNewMsgForCmd.label;" accesskey="&getNewMsgForCmd.accesskey;"
+                id="menu_getAllNewMsg"
                 oncommand="MsgGetMessagesForAccount(event.target._folder)">
             <menupopup type="folder" mode="getMail" id="menu_getAllNewMsgPopup"
                        expandFolders="false">
@@ -2495,6 +2541,25 @@
                 accesskey="&bodyMenuFeed.accesskey;">
             <menupopup id="viewFeedSummaryPopupMenu" 
                        onpopupshowing="InitViewBodyMenu()">
+              <menuitem id="bodyFeedGlobalWebPage"
+                        type="radio"
+                        name="viewFeedSummaryGroup"
+                        label="&viewFeedWebPage.label;"
+                        accesskey="&viewFeedWebPage.accesskey;"
+                        oncommand="FeedMessageHandler.onSelectPref = 0"/>
+              <menuitem id="bodyFeedGlobalSummary"
+                        type="radio"
+                        name="viewFeedSummaryGroup"
+                        label="&viewFeedSummary.label;"
+                        accesskey="&viewFeedSummary.accesskey;"
+                        oncommand="FeedMessageHandler.onSelectPref = 1"/>
+              <menuitem id="bodyFeedPerFolderPref"
+                        type="radio"
+                        name="viewFeedSummaryGroup"
+                        label="&viewFeedSummaryFeedPropsPref.label;"
+                        accesskey="&viewFeedSummaryFeedPropsPref.accesskey;"
+                        oncommand="FeedMessageHandler.onSelectPref = 2"/>
+              <menuseparator id="viewFeedSummarySeparator"/>
               <menuitem id="bodyFeedSummaryAllowHTML" 
                         type="radio" 
                         name="viewFeedBodyHTMLGroup"
@@ -2513,25 +2578,6 @@
                         label="&bodyAsPlaintext.label;" 
                         accesskey="&bodyAsPlaintext.accesskey;"
                         oncommand="MsgFeedBodyRenderPrefs(true, 1, gDisallow_classes_no_html)"/>
-              <menuseparator id="viewFeedSummarySeparator"/>
-              <menuitem id="bodyFeedGlobalWebPage" 
-                        type="radio" 
-                        name="viewFeedSummaryGroup"
-                        label="&viewFeedWebPage.label;" 
-                        accesskey="&viewFeedWebPage.accesskey;"
-                        oncommand="FeedMessageHandler.onSelectPref = 0"/>
-              <menuitem id="bodyFeedGlobalSummary" 
-                        type="radio" 
-                        name="viewFeedSummaryGroup"
-                        label="&viewFeedSummary.label;" 
-                        accesskey="&viewFeedSummary.accesskey;"
-                        oncommand="FeedMessageHandler.onSelectPref = 1"/>
-              <menuitem id="bodyFeedPerFolderPref" 
-                        type="radio" 
-                        name="viewFeedSummaryGroup"
-                        label="&viewFeedSummaryFeedPropsPref.label;" 
-                        accesskey="&viewFeedSummaryFeedPropsPref.accesskey;"
-                        oncommand="FeedMessageHandler.onSelectPref = 2"/>
             </menupopup>
           </menu>
           <menuitem id="viewAttachmentsInlineMenuitem" label="&viewAttachmentsInlineCmd.label;" accesskey="&viewAttachmentsInlineCmd.accesskey;"
@@ -2600,7 +2646,9 @@
                     key="key_goBack"/>
           <menuseparator id="goNextSeparator"/>
           <menuitem id="menu_goChat" label="&goChatCmd.label;"
-                    accesskey="&goChatCmd.accesskey;" oncommand="showChatTab();"/>
+                    accesskey="&goChatCmd.accesskey;"
+                    command="cmd_chat"
+                    key="key_goChat"/>
           <menuseparator id="goChatSeparator"/>
           <menu id="goFolderMenu"
                 label="&folderMenu.label;"
@@ -2619,7 +2667,8 @@
           
           <menu id="goRecentlyClosedTabs"
                 label="&goRecentlyClosedTabs.label;"
-                accesskey="&goRecentlyClosedTabs.accesskey;">
+                accesskey="&goRecentlyClosedTabs.accesskey;"
+                observes="cmd_undoCloseTab">
             <menupopup id="menu_GoRecentlyClosedTabsPopup"
                        onpopupshowing="return InitRecentlyClosedTabsPopup(this)" />
           </menu>
@@ -2689,20 +2738,20 @@
                       accesskey="&openConversationCmd.accesskey;"
                       key="key_openConversation"/>
             <menu id="openFeedMessage" 
-                  label="&openFeedMessage.label;" 
-                  accesskey="&openFeedMessage.accesskey;">
+                  label="&openFeedMessage1.label;"
+                  accesskey="&openFeedMessage1.accesskey;">
               <menupopup id="menu_openFeedMessage">
-                <menuitem id="menu_openFeedWebPageInWindow" 
+                <menuitem id="menu_openFeedWebPage"
                           type="radio"
                           name="openFeedGroup" 
-                          label="&openFeedWebPageInWindow.label;"
-                          accesskey="&openFeedWebPageInWindow.accesskey;"
+                          label="&openFeedWebPage.label;"
+                          accesskey="&openFeedWebPage.accesskey;"
                           oncommand="FeedMessageHandler.onOpenPref = 0"/>
-                <menuitem id="menu_openFeedSummaryInWindow" 
+                <menuitem id="menu_openFeedSummary"
                           type="radio"
                           name="openFeedGroup" 
-                          label="&openFeedSummaryInWindow.label;"
-                          accesskey="&openFeedSummaryInWindow.accesskey;"
+                          label="&openFeedSummary.label;"
+                          accesskey="&openFeedSummary.accesskey;"
                           oncommand="FeedMessageHandler.onOpenPref = 1"/>
                 <menuitem id="menu_openFeedWebPageInMessagePane" 
                           type="radio"
@@ -2713,6 +2762,13 @@
               </menupopup>
             </menu>
             <menuseparator id="messageAfterOpenMsgSeparator"/>
+            <menu id="msgAttachmentMenu"
+                  label="&openAttachmentListCmd.label;"
+                  accesskey="&openAttachmentListCmd.accesskey;"
+                  disabled="true">
+              <menupopup id="attachmentMenuList" onpopupshowing="FillAttachmentListPopup(this);"/>
+            </menu>
+            <menuseparator id="messageAfterAttachmentMenuSeparator"/>
             <menu id="tagMenu" label="&tagMenu.label;" accesskey="&tagMenu.accesskey;" command="cmd_tag">
               <menupopup id="tagMenu-tagpopup"
                          onpopupshowing="InitMessageTags(this);">
@@ -2800,21 +2856,24 @@
                       accesskey="&createFilter.accesskey;"
                       command="cmd_createFilterFromMenu"/>
         <menuseparator id="threadItemsSeparator"/>
-        <menuitem label="&killThreadMenu.label;"
-            accesskey="&killThreadMenu.accesskey;"
-            id="killThread"
-            command="cmd_killThread"
-            key="key_killThread"/>
-        <menuitem label="&killSubthreadMenu.label;"
-            accesskey="&killSubthreadMenu.accesskey;"
-            id="killSubthread"
-            command="cmd_killSubthread"
-            key="key_killSubthread"/>
-        <menuitem label="&watchThreadMenu.label;"
-            accesskey="&watchThreadMenu.accesskey;"
-            id="watchThread"
-            command="cmd_watchThread"
-            key="key_watchThread"/>
+        <menuitem id="killThread"
+                  label="&killThreadMenu.label;"
+                  accesskey="&killThreadMenu.accesskey;"
+                  command="cmd_killThread"
+                  type="checkbox"
+                  key="key_killThread"/>
+        <menuitem id="killSubthread"
+                  label="&killSubthreadMenu.label;"
+                  accesskey="&killSubthreadMenu.accesskey;"
+                  type="checkbox"
+                  command="cmd_killSubthread"
+                  key="key_killSubthread"/>
+        <menuitem id="watchThread"
+                  label="&watchThreadMenu.label;"
+                  accesskey="&watchThreadMenu.accesskey;"
+                  type="checkbox"
+                  command="cmd_watchThread"
+                  key="key_watchThread"/>
       </menupopup>
     </menu>
 
@@ -2963,25 +3022,37 @@
                    label="&replyButton.label;"
                    tooltiptext="&replyButton.tooltip;"
                    observes="button_reply"
-                   oncommand="MsgReplyMessage(event)"/>
+                   command="cmd_reply"/>
     <toolbarbutton id="button-replyall"
                    class="toolbarbutton-1"
                    label="&replyAllButton.label;"
                    tooltiptext="&replyAllButton.tooltip;"
                    observes="button_replyall"
-                   oncommand="MsgReplyToAllMessage(event)"/>
+                   command="cmd_replyall"/>
     <toolbarbutton id="button-replylist"
                    class="toolbarbutton-1"
                    label="&replyListButton.label;"
                    tooltiptext="&replyListButton.tooltip;"
                    observes="button_replylist"
-                   oncommand="MsgReplyToListMessage(event)"/>
+                   command="cmd_replylist"/>
     <toolbarbutton id="button-forward"
+                   type="menu-button"
                    class="toolbarbutton-1"
                    label="&forwardButton.label;"
                    tooltiptext="&forwardButton.tooltip;"
                    observes="button_forward"
-                   oncommand="MsgForwardMessage(event)"/>
+                   command="cmd_forward">
+      <menupopup id="button-ForwardPopup">
+        <menuitem id="button-ForwardAsInlineMenu"
+                  label="&buttonMenuForwardAsInline.label;"
+                  tooltiptext="&forwardAsInline.tooltip;"
+                  command="cmd_forwardInline"/>
+        <menuitem id="button-ForwardAsAttachmentMenu"
+                  label="&buttonMenuForwardAsAttachment.label;"
+                  tooltiptext="&forwardAsAttachment.tooltip;"
+                  command="cmd_forwardAttachment"/>
+      </menupopup>
+    </toolbarbutton>
     <toolbarbutton id="button-file"
                    type="menu"
                    class="toolbarbutton-1"
@@ -3194,7 +3265,8 @@
     <toolbarbutton id="button-chat"
                    class="toolbarbutton-1"
                    label="&chatButton.label;"
-                   oncommand="showChatTab();"
+                   command="cmd_chat"
+                   observes="cmd_chat"
                    tooltiptext="&chatButton.tooltip;"/>
     <toolbaritem id="throbber-box" title="&throbberItem.title;" align="center" pack="center"
                  mousethrough="always">
@@ -3208,7 +3280,7 @@
     <toolbarbutton id="button-appmenu"
                    class="toolbarbutton-1 button-appmenu"
                    label="&appmenuButton.label;"
-                   tooltiptext="&appmenuButton.tooltip;"/>
+                   tooltiptext="&appmenuButton1.tooltip;"/>
   </toolbarpalette>
 
   <!-- If changes are made to the default set of toolbar buttons, you may need to rev the id

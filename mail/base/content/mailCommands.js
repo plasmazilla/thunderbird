@@ -7,12 +7,12 @@ Components.utils.import("resource:///modules/mailServices.js");
 
 /**
  * Get the identity that most likely is the best one to use, given the hint.
- * @param identities nsISupportsArray<nsIMsgIdentity> of identities
- * @param optionalHint string containing comma separated mailboxes
+ * @param identities    nsIArray<nsIMsgIdentity> of identities
+ * @param optionalHint  string containing comma separated mailboxes
  */
 function getBestIdentity(identities, optionalHint)
 {
-  let identityCount = identities.Count();
+  let identityCount = identities.length;
   if (identityCount < 1)
     return null;
 
@@ -29,19 +29,19 @@ function getBestIdentity(identities, optionalHint)
         if (!identity.email)
           continue;
         if (hints[i].trim() == identity.email.toLowerCase() ||
-            hints[i].indexOf("<" + identity.email.toLowerCase() + ">") != -1)
+            hints[i].contains("<" + identity.email.toLowerCase() + ">"))
           return identity;
       }
     }
   }
 
   // Still no matches? Give up and pick the first one.
-  return identities.QueryElementAt(0, Components.interfaces.nsIMsgIdentity);
+  return identities.queryElementAt(0, Components.interfaces.nsIMsgIdentity);
 }
 
 function getIdentityForServer(server, optionalHint)
 {
-  var identities = accountManager.GetIdentitiesForServer(server);
+  var identities = accountManager.getIdentitiesForServer(server);
   return getBestIdentity(identities, optionalHint);
 }
 
@@ -73,7 +73,7 @@ function getIdentityForHeader(hdr, type)
           continue;
         // If the deliver-to header contains the defined identity, that's it.
         if (deliveredTos[i] == identity.email.toLowerCase() ||
-            deliveredTos[i].indexOf("<" + identity.email.toLowerCase() + ">") != -1)
+            deliveredTos[i].contains("<" + identity.email.toLowerCase() + ">"))
           return identity.email;
       }
     }
@@ -124,9 +124,43 @@ function GetNextNMessages(folder)
   }
 }
 
+/**
+ * Figure out the message key from the message uri.
+ * @param uri string defining internal storage
+ */
+function GetMsgKeyFromURI(uri) {
+  // Format of 'uri' : protocol://email/folder#key?params
+  //                   '?params' are optional
+  //   ex : mailbox-message://john%2Edoe@pop.isp.invalid/Drafts#123456?fetchCompleteMessage=true
+  //   ex : mailbox-message://john%2Edoe@pop.isp.invalid/Drafts#12345
+  // We keep only the part after '#' and before an optional '?'.
+  // The regexp expects 'key' to be an integer (a serie of digits) : '\d+'.
+  let match = /.+#(\d+)/.exec(uri);
+  return (match) ? match[1] : null;
+}
+
 // type is a nsIMsgCompType and format is a nsIMsgCompFormat
 function ComposeMessage(type, format, folder, messageArray)
 {
+  // Check if the draft is already open in another window. If it is, just focus the window.
+  if (type == Components.interfaces.nsIMsgCompType.Draft && messageArray.length == 1) {
+    // We'll search this uri in the opened windows.
+    let messageKey = GetMsgKeyFromURI(messageArray[0]);
+    let wenum = Services.wm.getEnumerator("");
+    while (wenum.hasMoreElements()) {
+      let w = wenum.getNext();
+      // Check if it is a compose window.
+      if (w.document.defaultView.gMsgCompose && w.document.defaultView.gMsgCompose.compFields.draftId) {
+        let wKey = GetMsgKeyFromURI(w.document.defaultView.gMsgCompose.compFields.draftId);
+        if (wKey == messageKey) {
+          // Found ! just focus it...
+          w.focus();
+          // ...and nothing to do anymore.
+          return;
+        }
+      }
+    }
+  }
   var msgComposeType = Components.interfaces.nsIMsgCompType;
   var identity = null;
   var newsgroup = null;
@@ -366,9 +400,9 @@ function SaveAsTemplate(uri) {
     let templates = MailUtils.getFolderForURI(identity.stationeryFolder, false);
     if (!templates.parent) {
       templates.setFlag(Ci.nsMsgFolderFlags.Templates);
-      let isImap = templates.server.type == "imap";
+      let isAsync = templates.server.protocolInfo.foldersCreatedAsync;
       templates.createStorageIfMissing(new saveAsUrlListener(uri, identity));
-      if (isImap)
+      if (isAsync)
         return;
     }
     messenger.saveAs(uri, false, identity, null);
@@ -397,16 +431,12 @@ function ViewPageSource(messages)
   }
 
   try {
-    // First, get the mail session
-    const nsIMsgMailSession = Components.interfaces.nsIMsgMailSession;
-    var mailSession = Components.classes["@mozilla.org/messenger/services/session;1"]
-                                .getService(nsIMsgMailSession);
     var mailCharacterSet = "charset=" + msgWindow.mailCharacterSet;
 
     for (var i = 0; i < numMessages; i++)
     {
       // Now, we need to get a URL from a URI
-      var url = mailSession.ConvertMsgURIToMsgURL(messages[i], msgWindow);
+      var url = MailServices.mailSession.ConvertMsgURIToMsgURL(messages[i], msgWindow);
 
       // Strip out the message-display parameter to ensure that attached emails
       // display the message source, not the processed HTML.

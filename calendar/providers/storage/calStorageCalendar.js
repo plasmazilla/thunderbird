@@ -25,34 +25,24 @@ function calStorageCalendar() {
     this.mRecEventCache = {};
     this.mRecTodoCache = {};
 }
-
+const calStorageCalendarClassID = Components.ID("{b3eaa1c4-5dfe-4c0a-b62a-b3a514218461}");
+const calStorageCalendarInterfaces = [
+    Components.interfaces.calICalendar,
+    Components.interfaces.calICalendarProvider,
+    Components.interfaces.calIOfflineStorage,
+    Components.interfaces.calISchedulingSupport,
+    Components.interfaces.calISyncWriteCalendar,
+];
 calStorageCalendar.prototype = {
     __proto__: cal.ProviderBase.prototype,
-
-    //
-    // nsIClassInfo interface
-    //
-    classID: Components.ID("{b3eaa1c4-5dfe-4c0a-b62a-b3a514218461}"),
-    contractID: "@mozilla.org/calendar/calendar;1?type=storage",
-    classDescription: "Calendar Storage Provider",
-    getInterfaces: function (count) {
-        let ifaces = [
-            Components.interfaces.nsISupports,
-            Components.interfaces.calICalendar,
-            Components.interfaces.calICalendarProvider,
-            Components.interfaces.calIOfflineStorage,
-            Components.interfaces.calISchedulingSupport,
-            Components.interfaces.calISyncWriteCalendar,
-            Components.interfaces.nsIClassInfo
-        ];
-        count.value = ifaces.length;
-        return ifaces;
-    },
-    getHelperForLanguage: function (language) {
-        return null;
-    },
-    implementationLanguage: Components.interfaces.nsIProgrammingLanguage.JAVASCRIPT,
-    flags: 0,
+    classID: calStorageCalendarClassID,
+    QueryInterface: XPCOMUtils.generateQI(calStorageCalendarInterfaces),
+    classInfo: XPCOMUtils.generateCI({
+        classID: calStorageCalendarClassID,
+        contractID: "@mozilla.org/calendar/calendar;1?type=storage",
+        classDescription: "Calendar Storage Provider",
+        interfaces: calStorageCalendarInterfaces
+    }),
 
     //
     // private members
@@ -63,13 +53,6 @@ calStorageCalendar.prototype = {
     mRecEventCache: null,
     mRecTodoCache: null,
     mLastStatement: null,
-
-    //
-    // nsISupports interface
-    //
-    QueryInterface: function (aIID) {
-        return cal.doQueryInterface(this, calStorageCalendar.prototype, aIID, null, this);
-    },
 
     //
     // calICalendarProvider interface
@@ -1143,15 +1126,13 @@ calStorageCalendar.prototype = {
                 "  OR   offline_journal != " + cICL.OFFLINE_FLAG_DELETED_RECORD + ")) " +
                 "  OR (offline_journal == :offline_journal))"
                 );
-           /**
-            * WHERE (due > rangeStart AND start < rangeEnd) OR
-            *       (due = rangeStart AND start = rangeStart) OR
-            *       (due IS NULL AND ((start >= rangeStart AND start < rangeEnd) OR
-            *                         (start IS NULL AND
-            *                          (completed > rangeStart OR completed IS NULL))) OR
-            *       (start IS NULL AND due >= rangeStart AND due < rangeEnd)
-            */
 
+            //
+            // WHERE (due > rangeStart  AND  (entry IS NULL  OR  entry < rangeEnd)) OR
+            //       (due = rangeStart  AND  (entry IS NULL  OR  entry = rangeStart)) OR
+            //       (due IS NULL  AND  (entry >= rangeStart  AND  entry < rangeEnd)) OR
+            //       (entry IS NULL  AND  (completed > rangeStart  OR  completed IS NULL))
+            //
             var floatingTodoEntry = "todo_entry_tz = 'floating' AND todo_entry";
             var nonFloatingTodoEntry = "todo_entry_tz != 'floating' AND todo_entry";
             var floatingTodoDue = "todo_due_tz = 'floating' AND todo_due";
@@ -1164,17 +1145,19 @@ calStorageCalendar.prototype = {
                 "WHERE " +
                 "(((("+floatingTodoDue+" > :range_start + :start_offset) OR " +
                 "   ("+nonFloatingTodoDue+" > :range_start)) AND " +
-                "  (("+floatingTodoEntry+" < :range_end + :end_offset) OR " +
-                "   ("+nonFloatingTodoEntry+" < :range_end))) OR " +
+                "  ((todo_entry IS NULL) OR " +
+                "   (("+floatingTodoEntry+" < :range_end + :end_offset) OR " +
+                "    ("+nonFloatingTodoEntry+" < :range_end)))) OR " +
                 " ((("+floatingTodoDue+" = :range_start + :start_offset) OR " +
                 "   ("+nonFloatingTodoDue+" = :range_start)) AND " +
-                "  (("+floatingTodoEntry+" = :range_start + :start_offset) OR " +
-                "   ("+nonFloatingTodoEntry+" = :range_start))) OR " +
+                "  ((todo_entry IS NULL) OR " +
+                "   (("+floatingTodoEntry+" = :range_start + :start_offset) OR " +
+                "    ("+nonFloatingTodoEntry+" = :range_start)))) OR " +
                 " ((todo_due IS NULL) AND " +
                 "  ((("+floatingTodoEntry+" >= :range_start + :start_offset) OR " +
                 "    ("+nonFloatingTodoEntry+" >= :range_start)) AND " +
-                "    (("+floatingTodoEntry+" < :range_end + :end_offset) OR " +
-                "     ("+nonFloatingTodoEntry+" < :range_end)))) OR " +
+                "   (("+floatingTodoEntry+" < :range_end + :end_offset) OR " +
+                "    ("+nonFloatingTodoEntry+" < :range_end)))) OR " +
                 " ((todo_entry IS NULL) AND " +
                 "  ((("+floatingCompleted+" > :range_start + :start_offset) OR " +
                 "    ("+nonFloatingCompleted+" > :range_start)) OR " +
@@ -1243,8 +1226,7 @@ calStorageCalendar.prototype = {
 
             this.mSelectRecurrenceForItem = this.mDB.createStatement(
                 "SELECT * FROM cal_recurrence " +
-                "WHERE item_id = :item_id AND cal_id = :cal_id" +
-                " ORDER BY recur_index"
+                "WHERE item_id = :item_id AND cal_id = :cal_id"
                 );
 
             this.mSelectAttachmentsForItem = this.mDB.createStatement(
@@ -1324,25 +1306,25 @@ calStorageCalendar.prototype = {
                 );
             this.mInsertAttendee = this.mDB.createStatement(
                 "INSERT INTO cal_attendees " +
-                "  (cal_id, item_id, recurrence_id, recurrence_id_tz, attendee_id, common_name, rsvp, role, status, type, is_organizer, properties) " +
-                "VALUES (:cal_id, :item_id, :recurrence_id, :recurrence_id_tz, :attendee_id, :common_name, :rsvp, :role, :status, :type, :is_organizer, :properties)"
+                "  (cal_id, item_id, recurrence_id, recurrence_id_tz, icalString) " +
+                "VALUES (:cal_id, :item_id, :recurrence_id, :recurrence_id_tz, :icalString)"
                 );
             this.mInsertRecurrence = this.mDB.createStatement(
                 "INSERT INTO cal_recurrence " +
-                "  (cal_id, item_id, recur_index, recur_type, is_negative, dates, count, end_date, interval, second, minute, hour, day, monthday, yearday, weekno, month, setpos) " +
-                "VALUES (:cal_id, :item_id, :recur_index, :recur_type, :is_negative, :dates, :count, :end_date, :interval, :second, :minute, :hour, :day, :monthday, :yearday, :weekno, :month, :setpos)"
+                "  (cal_id, item_id, icalString) " +
+                "VALUES (:cal_id, :item_id, :icalString)"
                 );
 
             this.mInsertAttachment = this.mDB.createStatement(
                 "INSERT INTO cal_attachments " +
-                " (cal_id, item_id, data, format_type, encoding, recurrence_id, recurrence_id_tz) " +
-                "VALUES (:cal_id, :item_id, :data, :format_type, :encoding, :recurrence_id, :recurrence_id_tz)"
+                " (cal_id, item_id, icalString, recurrence_id, recurrence_id_tz) " +
+                "VALUES (:cal_id, :item_id, :icalString, :recurrence_id, :recurrence_id_tz)"
                 );
 
             this.mInsertRelation = this.mDB.createStatement(
                 "INSERT INTO cal_relations " +
-                " (cal_id, item_id, rel_type, rel_id, recurrence_id, recurrence_id_tz) " +
-                "VALUES (:cal_id, :item_id, :rel_type, :rel_id, :recurrence_id, :recurrence_id_tz)"
+                " (cal_id, item_id, icalString, recurrence_id, recurrence_id_tz) " +
+                "VALUES (:cal_id, :item_id, :icalString, :recurrence_id, :recurrence_id_tz)"
                 );
 
             this.mInsertMetaData = this.mDB.createStatement(
@@ -1682,7 +1664,7 @@ calStorageCalendar.prototype = {
                 this.prepareStatement(selectItem);
                 selectItem.params.item_id = item.id;
                 while (selectItem.executeStep()) {
-                    var attendee = this.getAttendeeFromRow(selectItem.row);
+                    let attendee = cal.createAttendee(selectItem.row.icalString);
                     if (attendee && attendee.id) {
                         if (attendee.isOrganizer) {
                             item.organizer = attendee;
@@ -1742,92 +1724,20 @@ calStorageCalendar.prototype = {
 
         var i;
         if (flags & CAL_ITEM_FLAG.HAS_RECURRENCE) {
-            if (item.recurrenceId)
+            if (item.recurrenceId) {
                 throw Components.results.NS_ERROR_UNEXPECTED;
+            }
 
-            var rec = null;
+            let recInfo = cal.createRecurrenceInfo(item);
+            item.recurrenceInfo = recInfo;
 
             try {
                 this.prepareStatement(this.mSelectRecurrenceForItem);
                 this.mSelectRecurrenceForItem.params.item_id = item.id;
                 while (this.mSelectRecurrenceForItem.executeStep()) {
-                    row = this.mSelectRecurrenceForItem.row;
-
-                    var ritem = null;
-
-                    if (row.recur_type == null ||
-                        row.recur_type == "x-dateset")
-                    {
-                        ritem = Components.classes["@mozilla.org/calendar/recurrence-date-set;1"]
-                                          .createInstance(Components.interfaces.calIRecurrenceDateSet);
-
-                        var dates = row.dates.split(",");
-                        for (i = 0; i < dates.length; i++) {
-                            var date = textToDate(dates[i]);
-                            ritem.addDate(date);
-                        }
-                    } else if (row.recur_type == "x-date") {
-                        ritem = Components.classes["@mozilla.org/calendar/recurrence-date;1"]
-                                          .createInstance(Components.interfaces.calIRecurrenceDate);
-                        var d = row.dates;
-                        ritem.date = textToDate(d);
-                    } else {
-                        ritem = cal.createRecurrenceRule();
-
-                        ritem.type = row.recur_type;
-                        if (row.count) {
-                            try {
-                                ritem.count = row.count;
-                            } catch (exc) {
-                            }
-                        } else {
-                            if (row.end_date) {
-                                let dtstart = item.startDate || item.entryDate;
-                                let allday = dtstart.isDate && dtstart.timezone == "floating";
-                                let untilDate = newDateTime(row.end_date, allday ? "" : "UTC");
-                                if (allday) {
-                                    untilDate.isDate = true;
-                                }
-                                ritem.untilDate = untilDate;
-                            } else {
-                                ritem.untilDate = null;
-                            }
-                        }
-                        try {
-                            ritem.interval = row.interval;
-                        } catch (exc) {
-                        }
-
-                        var rtypes = ["second",
-                                      "minute",
-                                      "hour",
-                                      "day",
-                                      "monthday",
-                                      "yearday",
-                                      "weekno",
-                                      "month",
-                                      "setpos"];
-
-                        for (i = 0; i < rtypes.length; i++) {
-                            var comp = "BY" + rtypes[i].toUpperCase();
-                            if (row[rtypes[i]]) {
-                                var rstr = row[rtypes[i]].toString().split(",");
-                                var rarray = [];
-                                for (var j = 0; j < rstr.length; j++) {
-                                    rarray[j] = parseInt(rstr[j]);
-                                }
-
-                                ritem.setComponent (comp, rarray.length, rarray);
-                            }
-                        }
-                    }
-
-                    if (row.is_negative)
-                        ritem.isNegative = true;
-                    if (rec == null) {
-                        rec = cal.createRecurrenceInfo(item);
-                    }
-                    rec.appendRecurrenceItem(ritem);
+                    let row = this.mSelectRecurrenceForItem.row;
+                    let ritem = this.getRecurrenceItemFromRow(row);
+                    recInfo.appendRecurrenceItem(ritem);
                 }
             } catch (e) {
                 this.logError("Error getting recurrence for item '" +
@@ -1835,12 +1745,6 @@ calStorageCalendar.prototype = {
             } finally {
                 this.mSelectRecurrenceForItem.reset();
             }
-
-            if (rec == null) {
-                dump ("XXXX Expected to find recurrence, but got no items!\n");
-            }
-            item.recurrenceInfo = rec;
-
         }
 
         if (flags & CAL_ITEM_FLAG.HAS_EXCEPTIONS) {
@@ -1898,8 +1802,7 @@ calStorageCalendar.prototype = {
                 selectAttachment.params.item_id = item.id;
                 while (selectAttachment.executeStep()) {
                     let row = selectAttachment.row;
-                    let attachment = this.getAttachmentFromRow(row);
-                    item.addAttachment(attachment);
+                    item.addAttachment(cal.createAttachment(row.icalString));
                 }
             } catch (e) {
                 this.logError("Error getting attachments for item '" +
@@ -1920,8 +1823,7 @@ calStorageCalendar.prototype = {
                 selectRelation.params.item_id = item.id;
                 while (selectRelation.executeStep()) {
                     let row = selectRelation.row;
-                    let relation = this.getRelationFromRow(row);
-                    item.addRelation(relation);
+                    item.addRelation(cal.createRelation(row.icalString));
                 }
             } catch (e) {
                 this.logError("Error getting relations for item '" +
@@ -1942,9 +1844,7 @@ calStorageCalendar.prototype = {
                 this.prepareStatement(selectAlarm);
                 while (selectAlarm.executeStep()) {
                     let row = selectAlarm.row;
-                    let alarm = cal.createAlarm();
-                    alarm.icalString = row.icalString;
-                    item.addAlarm(alarm);
+                    item.addAlarm(cal.createAlarm(row.icalString));
                 }
             } catch (e) {
                 this.logError("Error getting alarms for item '" +
@@ -1958,51 +1858,25 @@ calStorageCalendar.prototype = {
         item.setProperty("LAST-MODIFIED", savedLastModifiedTime);
     },
 
-    getAttendeeFromRow: function cSC_getAttendeeFromRow(row) {
-        let a = cal.createAttendee();
-
-        a.id = row.attendee_id;
-        a.commonName = row.common_name;
-        switch (row.rsvp) {
-            case 0:
-                a.rsvp = "FALSE";
+    getRecurrenceItemFromRow: function cSC_getRecurrenceItemFromRow(row, item) {
+        let prop = cal.getIcsService().createIcalPropertyFromString(row.icalString);
+        switch (prop.propertyName) {
+            case "RDATE":
+            case "EXDATE":
+                ritem = Components.classes["@mozilla.org/calendar/recurrence-date;1"]
+                                  .createInstance(Components.interfaces.calIRecurrenceDate);
                 break;
-            case 1:
-                a.rsvp = "TRUE";
+            case "RRULE":
+            case "EXRULE":
+                ritem = cal.createRecurrenceRule();
                 break;
-            // default: keep undefined
-        }
-        a.role = row.role;
-        a.participationStatus = row.status;
-        a.userType = row.type;
-        a.isOrganizer = row.is_organizer;
-        let props = row.properties;
-        if (props) {
-            for each (let pair in props.split(",")) {
-                [key, value] = pair.split(":");
-                a.setProperty(decodeURIComponent(key), decodeURIComponent(value));
-            }
+            default:
+                throw "Unknown recurrence item: " + prop.propertyName;
+                break;
         }
 
-        return a;
-    },
-
-    getAttachmentFromRow: function cSC_getAttachmentFromRow(row) {
-        let a = cal.createAttachment();
-
-        // TODO we don't support binary data here, libical doesn't either.
-        a.uri = makeURL(row.data);
-        a.formatType = row.format_type;
-        a.encoding = row.encoding;
-
-        return a;
-    },
-
-    getRelationFromRow: function cSC_getRelationFromRow(row) {
-        let r = cal.createRelation();
-        r.relType = row.rel_type;
-        r.relId = row.rel_id;
-        return r;
+        ritem.icalProperty = prop;
+        return ritem;
     },
 
     //
@@ -2207,39 +2081,7 @@ calStorageCalendar.prototype = {
                 try {
                     this.prepareStatement(this.mInsertAttendee);
                     this.setDateParamHelper(ap, "recurrence_id", item.recurrenceId);
-                    ap.attendee_id = att.id;
-                    ap.common_name = att.commonName;
-                    switch (att.rsvp) {
-                        case "FALSE":
-                            ap.rsvp = 0;
-                            break;
-                        case "TRUE":
-                            ap.rsvp = 1;
-                            break;
-                        default:
-                            ap.rsvp = 2;
-                            break;
-                    }
-                    ap.role = att.role;
-                    ap.status = att.participationStatus;
-                    ap.type = att.userType;
-                    ap.is_organizer = att.isOrganizer;
-
-                    var props = "";
-                    var propEnum = att.propertyEnumerator;
-                    while (propEnum && propEnum.hasMoreElements()) {
-                        var prop = propEnum.getNext().QueryInterface(Components.interfaces.nsIProperty);
-                        if (props.length) {
-                            props += ",";
-                        }
-                        props += encodeURIComponent(prop.name);
-                        props += ":";
-                        props += encodeURIComponent(prop.value);
-                    }
-                    if (props.length) {
-                        ap.properties = props;
-                    }
-
+                    ap.icalString = att.icalString;
                     this.mInsertAttendee.executeStep();
                 } finally {
                     this.mInsertAttendee.reset();
@@ -2257,8 +2099,9 @@ calStorageCalendar.prototype = {
             this.prepareStatement(this.mInsertProperty);
             var pp = this.mInsertProperty.params;
             pp.key = propName;
-            if (calInstanceOf(propValue, Components.interfaces.calIDateTime)) {
-                pp.value = propValue.nativeTime;
+            let wPropValue = cal.wrapInstance(propValue, Components.interfaces.calIDateTime);
+            if (wPropValue) {
+                pp.value = wPropValue.nativeTime;
             } else {
                 try {
                     pp.value = propValue;
@@ -2305,65 +2148,13 @@ calStorageCalendar.prototype = {
         var rec = item.recurrenceInfo;
         if (rec) {
             flags = CAL_ITEM_FLAG.HAS_RECURRENCE;
-            var ritems = rec.getRecurrenceItems ({});
-            for (let i in ritems) {
-                var ritem = ritems[i];
-                var ap = this.mInsertRecurrence.params;
+            let ritems = rec.getRecurrenceItems({});
+            for each (let ritem in ritems) {
+                let ap = this.mInsertRecurrence.params;
                 try {
                     this.prepareStatement(this.mInsertRecurrence);
                     ap.item_id = item.id;
-                    ap.recur_index = i;
-                    ap.is_negative = ritem.isNegative;
-                    if (calInstanceOf(ritem, Components.interfaces.calIRecurrenceDate)) {
-                        ap.recur_type = "x-date";
-                        ap.dates = dateToText(getInUtcOrKeepFloating(ritem.date));
-
-                    } else if (calInstanceOf(ritem, Components.interfaces.calIRecurrenceDateSet)) {
-                        ap.recur_type = "x-dateset";
-
-                        var rdates = ritem.getDates({});
-                        var datestr = "";
-                        for (j in rdates) {
-                            if (j != 0)
-                                datestr += ",";
-
-                            datestr += dateToText(getInUtcOrKeepFloating(rdates[j]));
-                        }
-
-                        ap.dates = datestr;
-
-                    } else if (calInstanceOf(ritem, Components.interfaces.calIRecurrenceRule)) {
-                        ap.recur_type = ritem.type;
-
-                        if (ritem.isByCount) {
-                            ap.count = ritem.count;
-                        } else {
-                            ap.end_date = ritem.untilDate ? ritem.untilDate.nativeTime : null;
-                        }
-
-                        ap.interval = ritem.interval;
-
-                        var rtypes = ["second",
-                                      "minute",
-                                      "hour",
-                                      "day",
-                                      "monthday",
-                                      "yearday",
-                                      "weekno",
-                                      "month",
-                                      "setpos"];
-                        for (var j = 0; j < rtypes.length; j++) {
-                            var comp = "BY" + rtypes[j].toUpperCase();
-                            var comps = ritem.getComponent(comp, {});
-                            if (comps && comps.length > 0) {
-                                var compstr = comps.join(",");
-                                ap[rtypes[j]] = compstr;
-                            }
-                        }
-                    } else {
-                        dump ("##### Don't know how to serialize recurrence item " + ritem + "!\n");
-                    }
-
+                    ap.icalString = ritem.icalString;
                     this.mInsertRecurrence.executeStep();
                 } finally {
                     this.mInsertRecurrence.reset();
@@ -2400,9 +2191,7 @@ calStorageCalendar.prototype = {
                     this.prepareStatement(this.mInsertAttachment);
                     this.setDateParamHelper(ap, "recurrence_id", item.recurrenceId);
                     ap.item_id = item.id;
-                    ap.data = (att.uri ? att.uri.spec : "");
-                    ap.format_type = att.formatType;
-                    ap.encoding = att.encoding;
+                    ap.icalString = att.icalString;
 
                     this.mInsertAttachment.executeStep();
                 } finally {
@@ -2423,8 +2212,7 @@ calStorageCalendar.prototype = {
                     this.prepareStatement(this.mInsertRelation);
                     this.setDateParamHelper(rp, "recurrence_id", item.recurrenceId);
                     rp.item_id = item.id;
-                    rp.rel_type = rel.relType;
-                    rp.rel_id = rel.relId;
+                    rp.icalString = rel.icalString;
 
                     this.mInsertRelation.executeStep();
                 } finally {
@@ -2655,15 +2443,4 @@ const scriptLoadOrder = [
     "calUtils.js",
 ];
 
-function NSGetFactory(cid) {
-    if (!this.scriptsLoaded) {
-        Services.io.getProtocolHandler("resource")
-                .QueryInterface(Components.interfaces.nsIResProtocolHandler)
-                .setSubstitution("calendar", Services.io.newFileURI(__LOCATION__.parent.parent));
-        Components.utils.import("resource://calendar/modules/calUtils.jsm");
-        cal.loadScripts(scriptLoadOrder, Components.utils.getGlobalForObject(this));
-        this.scriptsLoaded = true;
-    }
-
-    return (XPCOMUtils.generateNSGetFactory([calStorageCalendar]))(cid);
-}
+var NSGetFactory = cal.loadingNSGetFactory(scriptLoadOrder, [calStorageCalendar], this);

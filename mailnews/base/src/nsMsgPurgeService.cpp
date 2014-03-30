@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include "nsComponentManagerUtils.h"
 #include "nsServiceManagerUtils.h"
+#include "nsArrayUtils.h"
 
 static PRLogModuleInfo *MsgPurgeLogModule = nullptr;
 
@@ -137,12 +138,12 @@ nsresult nsMsgPurgeService::PerformPurge()
   NS_ENSURE_SUCCESS(rv,rv);
   bool keepApplyingRetentionSettings = true;
 
-  nsCOMPtr<nsISupportsArray> allServers;
+  nsCOMPtr<nsIArray> allServers;
   rv = accountManager->GetAllServers(getter_AddRefs(allServers));
   if (NS_SUCCEEDED(rv) && allServers)
   {
     uint32_t numServers;
-    rv = allServers->Count(&numServers);
+    rv = allServers->GetLength(&numServers);
     PR_LOG(MsgPurgeLogModule, PR_LOG_ALWAYS, ("%d servers", numServers));
     nsCOMPtr<nsIMsgFolder> folderToPurge;
     PRIntervalTime startTime = PR_IntervalNow();
@@ -167,12 +168,12 @@ nsresult nsMsgPurgeService::PerformPurge()
           rv = server->GetRootFolder(getter_AddRefs(rootFolder));
           NS_ENSURE_SUCCESS(rv, rv);
 
-          nsCOMPtr <nsISupportsArray> childFolders = do_CreateInstance(NS_SUPPORTSARRAY_CONTRACTID, &rv);
+          nsCOMPtr<nsIArray> childFolders;
+          rv = rootFolder->GetDescendants(getter_AddRefs(childFolders));
           NS_ENSURE_SUCCESS(rv, rv);
-          rv = rootFolder->ListDescendents(childFolders);
 
           uint32_t cnt = 0;
-          childFolders->Count(&cnt);
+          childFolders->GetLength(&cnt);
 
           nsCOMPtr<nsISupports> supports;
           nsCOMPtr<nsIUrlListener> urlListener;
@@ -227,13 +228,6 @@ nsresult nsMsgPurgeService::PerformPurge()
         nsCString type;
         nsresult rv = server->GetType(type);
         NS_ENSURE_SUCCESS(rv, rv);
-
-        nsCAutoString contractid(NS_MSGPROTOCOLINFO_CONTRACTID_PREFIX);
-        contractid.Append(type);
-
-        nsCOMPtr<nsIMsgProtocolInfo> protocolInfo =
-          do_GetService(contractid.get(), &rv);
-        NS_ENSURE_SUCCESS(rv, NS_OK);
 
         nsCString realHostName;
         server->GetRealHostName(realHostName);
@@ -471,7 +465,6 @@ NS_IMETHODIMP nsMsgPurgeService::OnSearchHit(nsIMsgDBHdr* aMsgHdr, nsIMsgFolder 
 
 NS_IMETHODIMP nsMsgPurgeService::OnSearchDone(nsresult status)
 {
-  nsresult rv = NS_OK;
   if (NS_SUCCEEDED(status))
   {
     uint32_t count;
@@ -482,7 +475,7 @@ NS_IMETHODIMP nsMsgPurgeService::OnSearchDone(nsresult status)
     if (count > 0) {
       PR_LOG(MsgPurgeLogModule, PR_LOG_ALWAYS, ("delete messages"));
       if (mSearchFolder)
-        rv = mSearchFolder->DeleteMessages(mHdrsToDelete, nullptr, false /*delete storage*/, false /*isMove*/, nullptr, false /*allowUndo*/);
+        mSearchFolder->DeleteMessages(mHdrsToDelete, nullptr, false /*delete storage*/, false /*isMove*/, nullptr, false /*allowUndo*/);
     }
   }
   if (mHdrsToDelete)

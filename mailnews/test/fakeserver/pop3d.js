@@ -6,40 +6,65 @@
 /* This file implements test POP3 servers
  */
 
+var EXPORTED_SYMBOLS = [
+  'pop3Daemon',
+  'POP3_RFC1939_handler',
+  'POP3_RFC2449_handler',
+  'POP3_RFC5034_handler'
+];
+
+Components.utils.import("resource://gre/modules/IOUtils.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource://testing-common/mailnews/auth.js");
+
+const Cc = Components.classes;
+const Ci = Components.interfaces;
+
 // Since we don't really need to worry about peristence, we can just
 // use a UIDL counter.
 var gUIDLCount = 1;
 
+/**
+ * Read the contents of a file to the string.
+ *
+ * @param fileName A path relative to the current working directory, or
+ *                 a filename underneath the "data" directory relative to
+ *                 the cwd.
+ */
 function readFile(fileName) {
-  var file = do_get_file("data/" + fileName, true); // allow nonexistent
-  // also allow files from general locations
-  if (!file || !file.exists())
-    file = do_get_file(fileName);
+  let cwd = Services.dirsvc.get("CurWorkD", Ci.nsIFile);
 
-  // If these fail, there is a problem with the test
-  do_check_neq(file, null);
-  do_check_true(file.exists());
+  // Try to find the file relative to either the data directory or to the
+  // current working directory.
+  let file = cwd.clone();
+  if ("@mozilla.org/windows-registry-key;1" in Components.classes) {
+    // Windows doesn't allow '..' in appendRelativePath,
+    // so we'll have to do this the long way.
+    if (fileName.contains('/')) {
+      let parts = fileName.split('/');
+      for (let part of parts) {
+        if (part == "..")
+          file = file.parent;
+        else
+          file.append(part);
+      }
+    }
+    else {
+      file.append("data");
+      file.append(fileName);
+    }
+  } else {
+    file.appendRelativePath("data/" + fileName);
+    if (!file.exists()) {
+      file = cwd.clone();
+      file.appendRelativePath(fileName);
+    }
+  }
 
-  var ioService = Cc["@mozilla.org/network/io-service;1"]
-                    .getService(Ci.nsIIOService);
+  if (!file.exists())
+    throw new Error("Cannot find file named " + fileName);
 
-  var fileURI = ioService.newFileURI(file);
-
-  var fileStream = ioService.newChannelFromURI(fileURI).open();
-
-  var inputStream = Cc["@mozilla.org/scriptableinputstream;1"]
-                      .createInstance(Ci.nsIScriptableInputStream);
-  inputStream.init(fileStream);
-
-  var fileData = "";
-
-  do {
-    var chunk = inputStream.read(512);
-    if (chunk.length)
-      fileData += chunk;
-  } while (chunk.length != 0);
-
-  return fileData;
+  return IOUtils.loadFileToString(file);
 }
 
 function pop3Daemon(flags) {

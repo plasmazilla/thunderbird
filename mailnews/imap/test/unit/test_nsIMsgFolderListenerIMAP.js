@@ -17,6 +17,8 @@
 
 load("../../../resources/msgFolderListenerSetup.js");
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 // Globals
 var gRootFolder;
 var gIMAPInbox, gIMAPFolder2, gIMAPFolder3, gIMAPTrashFolder;
@@ -94,13 +96,11 @@ function doUpdateFolder(test)
 // Adds some messages directly to a mailbox (eg new mail)
 function addMessagesToServer(messages, mailbox, localFolder)
 {
-  let ioService = Cc["@mozilla.org/network/io-service;1"]
-                    .getService(Ci.nsIIOService);
-
   // For every message we have, we need to convert it to a file:/// URI
   messages.forEach(function (message)
   {
-    let URI = ioService.newFileURI(message.file).QueryInterface(Ci.nsIFileURL);
+    let URI =
+      Services.io.newFileURI(message.file).QueryInterface(Ci.nsIFileURL);
     message.spec = URI.spec;
     // We can't get the headers again, so just pass on the message id
     gExpectedEvents.push([gMFNService.msgAdded, {expectedMessageId: message.messageId}]);
@@ -206,20 +206,18 @@ function run_test()
 
   // Also make sure a local folders server is created, as that's what is used
   // for sent items
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
   // We need an identity so that updateFolder doesn't fail
-  let acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
-  let localAccount = acctMgr.createAccount();
-  let identity = acctMgr.createIdentity();
+  let localAccount = MailServices.accounts.createAccount();
+  let identity = MailServices.accounts.createIdentity();
   localAccount.addIdentity(identity);
   localAccount.defaultIdentity = identity;
-  localAccount.incomingServer = gLocalIncomingServer;
-  acctMgr.defaultAccount = localAccount;
+  localAccount.incomingServer = localAccountUtils.incomingServer;
+  MailServices.accounts.defaultAccount = localAccount;
 
   // Let's also have another account, using the same identity
-  let imapAccount = acctMgr.createAccount();
+  let imapAccount = MailServices.accounts.createAccount();
   imapAccount.addIdentity(identity);
   imapAccount.defaultIdentity = identity;
   imapAccount.incomingServer = gIMAPIncomingServer;

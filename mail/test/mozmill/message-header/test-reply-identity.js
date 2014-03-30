@@ -76,21 +76,18 @@ var setupModule = function (module) {
 
 
 var addIdentitiesAndFolder = function() {
-  let acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                .getService(Ci.nsIMsgAccountManager);
-
-  let server = acctMgr.createIncomingServer("nobody",
-                                            "Reply Identity Testing", "pop3");
+  let server = MailServices.accounts.createIncomingServer("nobody",
+                                                          "Reply Identity Testing", "pop3");
   testFolder = server.rootFolder.QueryInterface(Ci.nsIMsgLocalMailFolder)
                      .createLocalSubfolder("Replies");
 
-  let identity = acctMgr.createIdentity();
+  let identity = MailServices.accounts.createIdentity();
   identity.email = identity1Email;
 
-  let identity2 = acctMgr.createIdentity();
+  let identity2 = MailServices.accounts.createIdentity();
   identity2.email = identity2Email;
 
-  let account = acctMgr.createAccount();
+  let account = MailServices.accounts.createAccount();
   account.incomingServer = server;
   account.addIdentity(identity);
   account.addIdentity(identity2);
@@ -98,7 +95,7 @@ var addIdentitiesAndFolder = function() {
 
 var checkReply = function (replyWin, expectedFromEmail) {
   let identityList = replyWin.e("msgIdentity");
-  if (identityList.selectedItem.label.indexOf(expectedFromEmail) == -1)
+  if (!identityList.selectedItem.label.contains(expectedFromEmail))
     throw new Error("The From address is not correctly selected! Expected: " +
                     expectedFromEmail + "; Actual: "  +
                     identityList.selectedItem.label);

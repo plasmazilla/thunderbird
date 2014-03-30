@@ -7,9 +7,6 @@
  * type reported in bug 659355.
  * Adapted from test_attachment_size.js
  */
-Components.utils.import("resource://gre/modules/Services.jsm");
-load("../../../resources/mailDirService.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/logHelper.js");
 load("../../../resources/asyncTestUtils.js");
 
@@ -62,12 +59,10 @@ let gStreamListener = {
   onStopRequest: function (aRequest, aContext, aStatusCode) {
     dump("*** ContentType is "+gMessageHeaderSink.contentType+" (expecting "+this.expectedContentType+")\n\n");
     do_check_eq(gMessageHeaderSink.contentType, this.expectedContentType);
+    this._stream = null;
     async_driver();
   },
 
-  /* okay, our onDataAvailable should actually never be called.  the stream
-     converter is actually eating everything except the start and stop
-     notification. */
   // nsIStreamListener part
   _stream : null,
 

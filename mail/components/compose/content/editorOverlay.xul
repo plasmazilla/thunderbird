@@ -28,13 +28,16 @@
     <key id="decreaseindentkb"  key="&decreaseIndent.key;"  observes="cmd_outdent"  modifiers="accel"/>
 
     <key id="removestyleskb"       key="&formatRemoveStyles.key;"   observes="cmd_removeStyles"  modifiers="accel, shift"/>
-    <key id="removestyleskb2"       key=" "   observes="cmd_removeStyles"  modifiers="accel"/>
+    <key id="removestyleskb2"      key=" "   observes="cmd_removeStyles"  modifiers="accel"/>
     <key id="removelinkskb"        key="&formatRemoveLinks.key;"    observes="cmd_removeLinks"  modifiers="accel, shift"/>
     <key id="removenamedanchorskb" key="&formatRemoveNamedAnchors2.key;"    observes="cmd_removeNamedAnchors"  modifiers="accel, shift"/>
-    <key id="decreasefontsizekb"   key="&decreaseFontSize.key;"     observes="cmd_decreaseFont"  modifiers="accel"/>
-    <key id="increasefontsizekb"   key="&increaseFontSize.key;"     observes="cmd_increaseFont"  modifiers="accel"/>
-    <key                           key="&increaseFontSize.key;"     observes="cmd_increaseFont"  modifiers="accel,shift"/>
-    <key                           key="&increaseFontSize.key2;"    observes="cmd_increaseFont"  modifiers="accel"/>
+    <key id="decreasefontsizekb"   key="&decrementFontSize.key;"    observes="cmd_decreaseFont"  modifiers="accel"/>
+    <key                           key="&decrementFontSize.key;"    observes="cmd_decreaseFont"  modifiers="accel, shift"/>
+    <key                           key="&decrementFontSize.key2;"   observes="cmd_decreaseFont"  modifiers="accel"/>
+
+    <key id="increasefontsizekb"   key="&incrementFontSize.key;"    observes="cmd_increaseFont"  modifiers="accel"/>
+    <key                           key="&incrementFontSize.key;"    observes="cmd_increaseFont"  modifiers="accel, shift"/>
+    <key                           key="&incrementFontSize.key2;"   observes="cmd_increaseFont"  modifiers="accel"/>
 
     <key id="insertlinkkb"         key="&insertLinkCmd.key;"           observes="cmd_link"          modifiers="accel"/>
   </keyset>
@@ -139,8 +142,8 @@
     <command id="cmd_fontFace"        state=""         oncommand="doStatefulCommand('cmd_fontFace', event.target.value)"/>
 
     <!-- No "oncommand", use EditorSelectColor() to bring up color dialog -->
-    <command id="cmd_fontColor"       state=""/>
-    <command id="cmd_backgroundColor" state=""/>
+    <command id="cmd_fontColor"       state=""        disabled="false"/>
+    <command id="cmd_backgroundColor" state=""        disabled="false"/>
     <command id="cmd_highlight"       state="transparent"  oncommand="EditorSelectColor('Highlight', event);"/>
 
     <command id="cmd_fontSize"                         oncommand="goDoCommand('cmd_fontSize')"/>
@@ -853,10 +856,11 @@
              observes="cmd_renderedHTMLEnabler">
   <menulist id="ParagraphSelect"
             class="toolbar-focustarget"
+            oncommand="doStatefulCommand('cmd_paragraphState', event.target.value)"
             crop="right">
     <observes element="paragraph-select-container" attribute="disabled"/>
     <observes element="cmd_paragraphState" attribute="state" onbroadcast="onParagraphFormatChange(this.parentNode, 'cmd_paragraphState')"/>
-    <menupopup id="ParagraphPopup" oncommand="doStatefulCommand('cmd_paragraphState', event.target.value)">
+    <menupopup id="ParagraphPopup">
       <menuitem id="toolbarmenu_bodyText" label="&bodyTextCmd.label;" value=""/>
       <menuitem id="toolbarmenu_paragraph" label="&paragraphParagraphCmd.label;" value="p"/>
       <menuitem id="toolbarmenu_h1" label="&heading1Cmd.label;" value="h1"/>
@@ -878,10 +882,11 @@
              observes="cmd_renderedHTMLEnabler">
   <menulist id="FontFaceSelect"
             class="toolbar-focustarget"
+            oncommand="doStatefulCommand('cmd_fontFace', event.target.value)"
             crop="right">
     <observes element="font-face-select-container" attribute="disabled"/>
     <observes element="cmd_fontFace" attribute="state" onbroadcast="onFontFaceChange(this.parentNode, 'cmd_fontFace')"/>
-    <menupopup id="FontFacePopup" oncommand="doStatefulCommand('cmd_fontFace', event.target.value)">
+    <menupopup id="FontFacePopup">
       <menuitem id="toolbarmenu_fontVarWidth" label="&fontVarWidth.label;" value=""/>
       <menuitem id="toolbarmenu_fontFixedWidth" label="&fontFixedWidth.label;" value="tt"/>
       <menuseparator id="toolbarmenuAfterFontFaceFontFixedWidthSeparator"/>
@@ -923,11 +928,17 @@
     <observes element="cmd_fontColor"       attribute="state" onbroadcast="onFontColorChange()"/>
     <observes element="cmd_backgroundColor" attribute="state" onbroadcast="onBackgroundColorChange()"/>
     <box class="color-button" id="BackgroundColorButton"
-          onclick="EditorSelectColor('', event);"
-          tooltiptext="&BackgroundColorButton.tooltip;"/>
+         onclick="if (!this.hasAttribute('disabled') || this.getAttribute('disabled') != 'true') { EditorSelectColor('', event); }"
+         tooltiptext="&BackgroundColorButton.tooltip;"
+         oncommand="/* See MsgComposeCommands.js::updateAllItems for why this attribute is needed here. */">
+      <observes element="cmd_backgroundColor" attribute="disabled"/>
+    </box>
     <box class="color-button" id="TextColorButton"
-          onclick="EditorSelectColor('Text', event);"
-          tooltiptext="&TextColorButton.tooltip;"/>
+         onclick="if (!this.hasAttribute('disabled') || this.getAttribute('disabled') != 'true') { EditorSelectColor('Text', event); }"
+         tooltiptext="&TextColorButton.tooltip;"
+         oncommand="/* See MsgComposeCommands.js::updateAllItems for why this attribute is needed here. */">
+      <observes element="cmd_fontColor" attribute="disabled"/>
+    </box>
   </stack>
 </toolbaritem>
   <toolbarbutton id="HighlightColorButton"

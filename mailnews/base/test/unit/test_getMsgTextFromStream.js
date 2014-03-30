@@ -53,8 +53,8 @@ const gTestFiles =
 
 function run_test()
 {
-  loadLocalMailAccount();
-  var folder = gLocalIncomingServer.rootMsgFolder;
+  localAccountUtils.loadLocalMailAccount();
+  var folder = localAccountUtils.incomingServer.rootMsgFolder;
 
   gTestFiles.forEach(function (test)
   {
@@ -73,7 +73,7 @@ function run_test()
     do_check_eq(test.contentType, contentType.value);
 
     var resultFile = do_get_file(kDataRoot + test.name + ".out");
-    var actualBody = loadFileToString(resultFile, "UTF-8");
+    var actualBody = mailTestUtils.loadFileToString(resultFile, "UTF-8");
     do_check_eq(body, actualBody);
   });
 }

@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://calendar/modules/calAlarmUtils.jsm");
 Components.utils.import("resource://calendar/modules/calIteratorUtils.jsm");
@@ -20,8 +21,9 @@ cal.itip = {
      getSequence: function cal_itip_getSequence(item) {
         let seq = null;
 
-        if (cal.calInstanceOf(item, Components.interfaces.calIAttendee)) {
-            seq = item.getProperty("RECEIVED-SEQUENCE");
+        let wrappedItem = cal.wrapInstance(item, Components.interfaces.calIAttendee);
+        if (wrappedItem) {
+            seq = wrappedItem.getProperty("RECEIVED-SEQUENCE");
         } else if (item) {
             // Unless the below is standardized, we store the last original
             // REQUEST/PUBLISH SEQUENCE in X-MOZ-RECEIVED-SEQUENCE to test against it
@@ -54,8 +56,9 @@ cal.itip = {
     getStamp: function cal_itip_getStamp(item) {
         let dtstamp = null;
 
-        if (cal.calInstanceOf(item, Components.interfaces.calIAttendee)) {
-            let st = item.getProperty("RECEIVED-DTSTAMP");
+        let wrappedItem = cal.wrapInstance(item, Components.interfaces.calIAttendee);
+        if (wrappedItem) {
+            let st = wrappedItem.getProperty("RECEIVED-DTSTAMP");
             if (st) {
                 dtstamp = cal.createDateTime(st);
             }
@@ -146,6 +149,7 @@ cal.itip = {
             return (cal.itip.isSchedulingCalendar(aCalendar)
                     && cal.userCanAddItemsToCalendar(aCalendar));
         }
+
         let writableCalendars = cal.getCalendarManager().getCalendars({}).filter(isWritableCalendar);
         if (writableCalendars.length > 0) {
             let compCal = Components.classes["@mozilla.org/calendar/calendar;1?type=composite"]
@@ -231,7 +235,7 @@ cal.itip = {
      * @param rc              The result of retrieving the item
      * @param actionFunc      The action function.
      */
-    getOptionsText: function getOptionsText(itipItem, rc, actionFunc) {
+    getOptionsText: function getOptionsText(itipItem, rc, actionFunc, foundItems) {
         function _gs(strName) {
             return cal.calGetString("lightning", strName, null, "lightning");
         }
@@ -244,13 +248,18 @@ cal.itip = {
             data[btn] = { label: null, actionMethod: "" };
         }
 
-        if (Components.isSuccessCode(rc) && !actionFunc) {
+        if (rc == Components.interfaces.calIErrors.CAL_IS_READONLY) {
+            // No writable calendars, tell the user about it
+            data.label = _gs("imipBarNotWritable");
+        } else if (Components.isSuccessCode(rc) && !actionFunc) {
             // This case, they clicked on an old message that has already been
             // added/updated, we want to tell them that.
             data.label = _gs("imipBarAlreadyProcessedText");
-            // TODO this needs its own string, but we are in string freeze. (Details...)
-            data.button1.label = cal.calGetString("calendar", "Open");
-            data.button1.actionMethod = "X-SHOWDETAILS"; // not a real method, but helps us decide
+            if (foundItems && foundItems.length) {
+                data.button1.label = _gs("imipDetails.label");
+                // Not a real method, but helps us decide
+                data.button1.actionMethod = "X-SHOWDETAILS";
+            }
         } else if (Components.isSuccessCode(rc)) {
 
             cal.LOG("iTIP options on: " + actionFunc.method);
@@ -266,9 +275,14 @@ cal.itip = {
                     data.button1.label = _gs("imipAddToCalendar.label");
                     break;
                 case "REQUEST:UPDATE":
-                    data.label = _gs("imipBarUpdateText");
-                    // fall-thru intended
+                case "REQUEST:NEEDS-ACTION":
                 case "REQUEST": {
+                    if (actionFunc.method == "REQUEST:UPDATE") {
+                        data.label = _gs("imipBarUpdateText");
+                    } else if (actionFunc.method == "REQUEST:NEEDS-ACTION") {
+                        data.label = _gs("imipBarProcessedNeedsAction");
+                    }
+
                     data.button1.label = _gs("imipAcceptInvitation.label");
                     data.button1.actionMethod = "ACCEPTED";
                     data.button2.label = _gs("imipDeclineInvitation.label");
@@ -310,18 +324,18 @@ cal.itip = {
         }
 
         let identities;
-        let actMgr = cal.getAccountManager();
+        let actMgr = MailServices.accounts;
         if (aMsgHdr.accountKey) {
             // First, check if the message has an account key. If so, we can use the
             // account identities to find the correct recipient
             identities = actMgr.getAccount(aMsgHdr.accountKey).identities;
         } else {
             // Without an account key, we have to revert back to using the server
-            identities = actMgr.GetIdentitiesForServer(aMsgHdr.folder.server);
+            identities = actMgr.getIdentitiesForServer(aMsgHdr.folder.server);
         }
 
         let emailMap = {};
-        if (identities.Count() == 0) {
+        if (identities.length == 0) {
             // If we were not able to retrieve identities above, then we have no
             // choice but to revert to the default identity
             let identity = actMgr.defaultAccount.defaultIdentity;
@@ -330,9 +344,8 @@ cal.itip = {
                 // default identity), then go ahead and use the first available
                 // identity.
                 let allIdentities = actMgr.allIdentities;
-                if (allIdentities.Count() > 0) {
-                    identity = allIdentities.GetElementAt(0)
-                                            .QueryInterface(Components.interfaces.nsIMsgIdentity);
+                if (allIdentities.length > 0) {
+                    identity = allIdentities.queryElementAt(0, Components.interfaces.nsIMsgIdentity);
                 } else {
                     // If there are no identities at all, we cannot get a recipient.
                     return null;
@@ -341,15 +354,13 @@ cal.itip = {
             emailMap[identity.email.toLowerCase()] = true;
         } else {
             // Build a map of usable email addresses
-            for (let i = 0; i < identities.Count(); i++) {
-                let identity = identities.GetElementAt(i)
-                                         .QueryInterface(Components.interfaces.nsIMsgIdentity);
+            for (let i = 0; i < identities.length; i++) {
+                let identity = identities.queryElementAt(i, Components.interfaces.nsIMsgIdentity);
                 emailMap[identity.email.toLowerCase()] = true;
             }
         }
 
-        let hdrParser = Components.classes["@mozilla.org/messenger/headerparser;1"]
-                                  .getService(Components.interfaces.nsIMsgHeaderParser);
+        let hdrParser = MailServices.headerParser;
         let emails = {};
 
         // First check the recipient list
@@ -492,7 +503,9 @@ cal.itip = {
                 // Per iTIP spec (new Draft 4), multiple items in an iTIP message MUST have
                 // same ID, this simplifies our searching, we can just look for Item[0].id
                 let itemList = itipItem.getItemList({});
-                if (itemList.length > 0) {
+                if (!itipItem.targetCalendar) {
+                    optionsFunc(itipItem, Components.interfaces.calIErrors.CAL_IS_READONLY);
+                } else if (itemList.length > 0) {
                     ItipItemFinderFactory.findItem(itemList[0].id, itipItem, optionsFunc);
                 } else if (optionsFunc) {
                     optionsFunc(itipItem, Components.results.NS_OK);
@@ -534,15 +547,18 @@ cal.itip = {
                 let clonedItem = aItem.clone();
                 let exdates = [];
                 for each (let ritem in clonedItem.recurrenceInfo.getRecurrenceItems({})) {
+
+                    let wrappedRItem = cal.wrapInstance(ritem, Components.interfaces.calIRecurrenceDate);
                     if (ritem.isNegative &&
-                        cal.calInstanceOf(ritem, Components.interfaces.calIRecurrenceDate) &&
+                        wrappedRItem &&
                         !aOriginalItem.recurrenceInfo.getRecurrenceItems({}).some(
                             function(r) {
+                                let wrappedR = cal.wrapInstance(r, Components.interfaces.calIRecurrenceDate);
                                 return (r.isNegative &&
-                                        cal.calInstanceOf(r, Components.interfaces.calIRecurrenceDate) &&
-                                        r.date.compare(ritem.date) == 0);
+                                        wrappedR &&
+                                        wrappedR.date.compare(wrappedRItem.date) == 0);
                             })) {
-                        exdates.push(ritem);
+                        exdates.push(wrappedRItem);
                     }
                 }
                 if (exdates.length > 0) {
@@ -748,14 +764,16 @@ cal.itip = {
  * @param itipItemItem received iTIP item
  */
 function setReceivedInfo(item, itipItemItem) {
-    item.setProperty(cal.calInstanceOf(item, Components.interfaces.calIAttendee) ? "RECEIVED-SEQUENCE"
-                                                                                 : "X-MOZ-RECEIVED-SEQUENCE",
-                     String(cal.itip.getSequence(itipItemItem)));
+
+    let wrappedItem = cal.wrapInstance(item, Components.interfaces.calIAttendee);
+    item.setProperty(wrappedItem ? "RECEIVED-SEQUENCE"
+                                 : "X-MOZ-RECEIVED-SEQUENCE",
+                                 String(cal.itip.getSequence(itipItemItem)));
     let dtstamp = cal.itip.getStamp(itipItemItem);
     if (dtstamp) {
-        item.setProperty(cal.calInstanceOf(item, Components.interfaces.calIAttendee) ? "RECEIVED-DTSTAMP"
-                                                                                     : "X-MOZ-RECEIVED-DTSTAMP",
-                         dtstamp.getInTimezone(cal.UTC()).icalString);
+        item.setProperty(wrappedItem ? "RECEIVED-DTSTAMP"
+                                     : "X-MOZ-RECEIVED-DTSTAMP",
+                                     dtstamp.getInTimezone(cal.UTC()).icalString);
     }
 }
 
@@ -834,6 +852,28 @@ function updateItem(item, itipItemItem) {
 }
 
 /** local to this module file
+ * Copies the provider-specified properties from the itip item to the passed
+ * item. Special case property "METHOD" uses the itipItem's receivedMethod.
+ *
+ * @param itipItem      The itip item containing the receivedMethod.
+ * @param itipItemItem  The calendar item inside the itip item.
+ * @param item          The target item to copy to.
+ */
+function copyProviderProperties(itipItem, itipItemItem, item) {
+    // Copy over itip properties to the item if requested by the provider
+    let copyProps = item.calendar.getProperty("itip.copyProperties") || [];
+    for each (let prop in copyProps) {
+        if (prop == "METHOD") {
+            // Special case, this copies over the received method
+            item.setProperty("METHOD", itipItem.receivedMethod.toUpperCase());
+        } else if (itipItemItem.hasProperty(prop)) {
+            // Otherwise just copy from the item contained in the itipItem
+            item.setProperty(prop, itipItemItem.getProperty(prop));
+        }
+    }
+}
+
+/** local to this module file
  * Creates an organizer calIAttendee object based on the calendar's configured organizer id.
  *
  * @return calIAttendee object
@@ -864,18 +904,9 @@ function sendMessage(aItem, aMethod, aRecipientsList, autoResponse) {
     if (aRecipientsList.length == 0) {
         return;
     }
-    if (cal.calInstanceOf(aItem.calendar, Components.interfaces.calISchedulingSupport)) {
-        // HACK: Usage of QueryInterface kind of hackish, need to remove all
-        // calls of calInstanceOf since casting happens per-compartment.
-        //
-        // Works:
-        //   let foo = aItem.calendar;
-        //   (foo instanceof Ci.calISchedulingSupport);
-        //   cal.calInstanceOf(aItem.calendar, Ci.calISchedulingSupport) && aItem.calendar.canNotify();
-        // Fails:
-        //   let foo = aItem.calendar;
-        //   cal.calInstanceOf(aItem.calendar, Ci.calISchedulingSupport) && aItem.calendar.canNotify();
-        if (aItem.calendar.QueryInterface(Components.interfaces.calISchedulingSupport)
+    let calendar = cal.wrapInstance(aItem.calendar, Components.interfaces.calISchedulingSupport);
+    if (calendar) {
+        if (calendar.QueryInterface(Components.interfaces.calISchedulingSupport)
                           .canNotify(aMethod, aItem)) {
             return; //provider will handle that
         }
@@ -1129,6 +1160,7 @@ ItipItemFinder.prototype = {
                                     itipItemItem = itipItemItem.parentItem;
                                 }
                             }
+
                             switch (method) {
                                 case "REFRESH": { // xxx todo test
                                     let attendees = itipItemItem.getAttendees({});
@@ -1161,9 +1193,7 @@ ItipItemFinder.prototype = {
                                         operations.push(action);
                                     }
                                     break;
-                                case "REQUEST":
-                                    if (item.calendar.getProperty("itip.disableRevisionChecks") ||
-                                        cal.itip.compare(itipItemItem, item) > 0) {
+                                case "REQUEST": {
                                         let newItem = updateItem(item, itipItemItem);
                                         let att = cal.getInvitedAttendee(newItem);
                                         if (!att) { // fall back to using configured organizer
@@ -1173,24 +1203,54 @@ ItipItemFinder.prototype = {
                                             }
                                         }
                                         if (att) {
-                                            addScheduleAgentClient(newItem, item.calendar);
-                                            newItem.removeAttendee(att);
-                                            att = att.clone();
-                                            let action = function(opListener, partStat) {
-                                                if (!partStat) { // keep PARTSTAT
-                                                    let att_ = cal.getInvitedAttendee(item);
-                                                    partStat = (att_ ? att_.participationStatus : "NEEDS-ACTION");
-                                                }
-                                                att.participationStatus = partStat;
-                                                newItem.addAttendee(att);
-                                                return newItem.calendar.modifyItem(
-                                                    newItem, item, new ItipOpListener(opListener, item));
-                                            };
-                                            let isMinorUpdate = (cal.itip.getSequence(newItem) ==
-                                                                 cal.itip.getSequence(item));
-                                            actionMethod = (isMinorUpdate ? method + ":UPDATE-MINOR"
-                                                                          : method + ":UPDATE");
-                                            operations.push(action);
+                                            let firstFoundItem = this.mFoundItems[0];
+                                            // again, fall back to using configured organizer if not found
+                                            let foundAttendee = firstFoundItem.getAttendeeById(att.id) || att;
+
+                                            // If the the user hasn't responded to the invitation yet and we
+                                            // are viewing the current representation of the item, show the
+                                            // accept/decline buttons. This means newer events will show the
+                                            // "Update" button and older events will show the "already
+                                            // processed" text.
+                                            if (foundAttendee.participationStatus == "NEEDS-ACTION" &&
+                                                (item.calendar.getProperty("itip.disableRevisionChecks") ||
+                                                 cal.itip.compare(itipItemItem, item) == 0)) {
+
+                                                actionMethod = "REQUEST:NEEDS-ACTION";
+                                                operations.push(function(opListener, partStat) {
+                                                    let changedItem = firstFoundItem.clone();
+                                                    changedItem.removeAttendee(foundAttendee);
+                                                    foundAttendee = foundAttendee.clone();
+                                                    if (partStat) {
+                                                        foundAttendee.participationStatus = partStat;
+                                                    }
+                                                    changedItem.addAttendee(foundAttendee);
+
+                                                    return changedItem.calendar.modifyItem(
+                                                        changedItem, firstFoundItem, new ItipOpListener(opListener, firstFoundItem));
+                                                });
+                                            } else if (item.calendar.getProperty("itip.disableRevisionChecks") ||
+                                                       cal.itip.compare(itipItemItem, item) > 0) {
+
+                                                addScheduleAgentClient(newItem, item.calendar);
+
+                                                let isMinorUpdate = (cal.itip.getSequence(newItem) ==
+                                                                     cal.itip.getSequence(item));
+                                                actionMethod = (isMinorUpdate ? method + ":UPDATE-MINOR"
+                                                                              : method + ":UPDATE");
+                                                operations.push(function(opListener, partStat) {
+                                                    if (!partStat) { // keep PARTSTAT
+                                                        let att_ = cal.getInvitedAttendee(item);
+                                                        partStat = (att_ ? att_.participationStatus : "NEEDS-ACTION");
+                                                    }
+                                                    newItem.removeAttendee(att);
+                                                    att = att.clone();
+                                                    att.participationStatus = partStat;
+                                                    newItem.addAttendee(att);
+                                                    return newItem.calendar.modifyItem(
+                                                        newItem, item, new ItipOpListener(opListener, item));
+                                                });
+                                            }
                                         }
                                     }
                                     break;
@@ -1208,6 +1268,10 @@ ItipItemFinder.prototype = {
                                         setReceivedInfo(att, itipItemItem);
                                         att.participationStatus = attendees[0].participationStatus;
                                         newItem.addAttendee(att);
+
+                                        // Make sure the provider-specified properties are copied over
+                                        copyProviderProperties(this.mItipItem, itipItemItem, newItem);
+
                                         let action = function(opListener) {
                                             return newItem.calendar.modifyItem(
                                                 newItem, item,
@@ -1235,6 +1299,10 @@ ItipItemFinder.prototype = {
                                     if (!newItem) {
                                         newItem = item.clone();
                                         modifiedItems[item.id] = newItem;
+
+                                        // Make sure the provider-specified properties are copied over
+                                        copyProviderProperties(this.mItipItem, itipItemItem, newItem);
+
                                         operations.push(
                                             function(opListener) {
                                                 return newItem.calendar.modifyItem(newItem, item, opListener);

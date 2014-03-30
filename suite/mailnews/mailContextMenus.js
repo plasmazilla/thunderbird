@@ -107,18 +107,11 @@ function FillMailContextMenu(aTarget)
   var oneOrMore = (numSelected > 0);
   var single = (numSelected == 1);
 
-  var isNewsgroup = false;
-  var selectedMessage = null;
+  var isNewsgroup = gFolderDisplay.selectedMessageIsNews;
 
   // Clear the global var used to keep track if a 'Delete Message' or 'Move
   // To' command has been triggered via the thread pane context menu.
   gThreadPaneDeleteOrMoveOccurred = false;
-
-  if (numSelected >= 0)
-  {
-    selectedMessage = GetFirstSelectedMessage();
-    isNewsgroup = IsNewsMessage(selectedMessage);
-  }
 
   // Don't show mail items for links/images, just show related items.
   var showMailItems = inThreadPane ||
@@ -137,18 +130,20 @@ function FillMailContextMenu(aTarget)
 
   ShowMenuItem("mailContext-editAsNew", showMailItems && oneOrMore);
   ShowMenuItem("mailContext-replySender", showMailItems && single);
+  ShowMenuItem("mailContext-replyList",
+               showMailItems && single && !isNewsgroup && IsListPost());
   ShowMenuItem("mailContext-replyNewsgroup",
                showMailItems && single && isNewsgroup);
   ShowMenuItem("mailContext-replySenderAndNewsgroup",
                showMailItems && single && isNewsgroup);
-  ShowMenuItem("mailContext-archive", showMailItems && oneOrMore &&
-               gFolderDisplay.canArchiveSelectedMessages);
   ShowMenuItem("mailContext-replyAll", showMailItems && single);
   ShowMenuItem("mailContext-forward", showMailItems && single);
   ShowMenuItem("mailContext-forwardAsAttachment",
                showMailItems && (numSelected > 1));
   ShowMenuItem("mailContext-copyMessageUrl",
                showMailItems && single && isNewsgroup);
+  ShowMenuItem("mailContext-archive", showMailItems && oneOrMore &&
+               gFolderDisplay.canArchiveSelectedMessages);
 
   // Set up the move menu. We can't move from newsgroups.
   // Disable move if we can't delete message(s) from this folder.
@@ -534,12 +529,12 @@ function OpenMessageForMessageId(messageId)
 
     messageHeader = SearchForMessageIdInSubFolder(startServer.rootFolder, messageId);
 
-    for (var i = 0; i < allServers.Count() && !messageHeader; i++)
+    for (var i = 0; i < allServers.length && !messageHeader; i++)
     {
-      var currentServer = allServers.GetElementAt(i);
-      if ((currentServer instanceof Components.interfaces.nsIMsgIncomingServer) &&
-          startServer != currentServer && currentServer.canSearchMessages &&
-          !currentServer.isDeferredTo)
+      var currentServer =
+        allServers.queryElementAt(i, Components.interfaces.nsIMsgIncomingServer);
+      if (currentServer && startServer != currentServer &&
+          currentServer.canSearchMessages && !currentServer.isDeferredTo)
       {
         messageHeader = SearchForMessageIdInSubFolder(currentServer.rootFolder, messageId);
       }
@@ -550,7 +545,7 @@ function OpenMessageForMessageId(messageId)
   // if message id was found open corresponding message
   // else show error message
   if (messageHeader)
-    OpenMessageByHeader(messageHeader, pref.getBoolPref("mailnews.messageid.openInNewWindow"));
+    OpenMessageByHeader(messageHeader, Services.prefs.getBoolPref("mailnews.messageid.openInNewWindow"));
   else
   {
     var messageIdStr = "<" + messageId + ">";

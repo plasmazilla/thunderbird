@@ -9,11 +9,12 @@
 #include "nsIMessengerOSIntegration.h"
 #include "nsIFolderListener.h"
 #include "nsIUrlListener.h"
-#include "nsISupportsArray.h"
+#include "nsIMutableArray.h"
 #include "nsIStringBundle.h"
 #include "nsIObserver.h"
 #include "nsIAtom.h"
 #include "nsDataHashtable.h"
+#include "nsTArray.h"
 
 #define NS_MESSENGERUNIXINTEGRATION_CID \
   {0xf62f3d3a, 0x1dd1, 0x11b2, \
@@ -45,14 +46,12 @@ private:
   void FillToolTipInfo();
   nsresult GetMRUTimestampForFolder(nsIMsgFolder *aFolder, uint32_t *aLastMRUTime);
 
-#ifdef MOZ_THUNDERBIRD
   bool BuildNotificationBody(nsIMsgDBHdr *aHdr, nsIStringBundle *Bundle, nsString &aBody);
   bool BuildNotificationTitle(nsIMsgFolder *aFolder, nsIStringBundle *aBundle, nsString &aTitle);
   nsresult ShowNewAlertNotification(bool aUserInitiated);
   nsresult PutMRUTimestampForFolder(nsIMsgFolder *aFolder, uint32_t aLastMRUTime);
-#endif
 
-  nsCOMPtr<nsISupportsArray> mFoldersWithNewMail;  // keep track of all the root folders with pending new mail
+  nsCOMPtr<nsIMutableArray> mFoldersWithNewMail;  // keep track of all the root folders with pending new mail
   nsCOMPtr<nsIAtom> mBiffStateAtom;
   nsCOMPtr<nsIAtom> mNewMailReceivedAtom;
   bool mAlertInProgress;

@@ -3,6 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 function GetNewMessages(selectedFolders, server)
 {
   if (!selectedFolders.length)
@@ -24,7 +26,7 @@ function getBestIdentity(identities, optionalHint)
 {
   var identity = null;
 
-  var identitiesCount = identities.Count();
+  var identitiesCount = identities.length;
 
   try
   {
@@ -39,7 +41,7 @@ function getBestIdentity(identities, optionalHint)
 
       var lengthOfLongestMatchingEmail = 0;
       for (id = 0; id < identitiesCount; ++id) {
-        tempID = identities.GetElementAt(id).QueryInterface(Components.interfaces.nsIMsgIdentity);
+        tempID = identities.queryElementAt(id, Components.interfaces.nsIMsgIdentity);
         if (optionalHint.indexOf(tempID.email.toLowerCase()) >= 0) {
           // Be careful, the user can have several adresses with the same
           // postfix e.g. aaa.bbb@ccc.ddd and bbb@ccc.ddd. Make sure we get the
@@ -61,7 +63,7 @@ function getBestIdentity(identities, optionalHint)
 
       if (!identity) {
         for (id = 0; id < identitiesCount; ++id) {
-          tempID = identities.GetElementAt(id).QueryInterface(Components.interfaces.nsIMsgIdentity);
+          tempID = identities.queryElementAt(id, Components.interfaces.nsIMsgIdentity);
           // extract out the partial domain
           var start = tempID.email.lastIndexOf("@"); // be sure to include the @ sign in our search to reduce the risk of false positives
           if (optionalHint.search(tempID.email.slice(start).toLowerCase()) >= 0) {
@@ -77,7 +79,7 @@ function getBestIdentity(identities, optionalHint)
   // Still no matches ?
   // Give up and pick the first one (if it exists), like we used to.
   if (!identity && identitiesCount > 0)
-    identity = identities.GetElementAt(0).QueryInterface(Components.interfaces.nsIMsgIdentity);
+    identity = identities.queryElementAt(0, Components.interfaces.nsIMsgIdentity);
 
   return identity;
 }
@@ -88,7 +90,7 @@ function getIdentityForServer(server, optionalHint)
 
     if (server) {
         // Get the identities associated with this server.
-        var identities = accountManager.GetIdentitiesForServer(server);
+        var identities = accountManager.getIdentitiesForServer(server);
         // dump("identities = " + identities + "\n");
         // Try and find the best one.
         identity = getBestIdentity(identities, optionalHint);
@@ -333,7 +335,7 @@ function SaveAsFile(aUris)
 {
   if (/type=application\/x-message-display/.test(aUris[0]))
   {
-    saveURL(aUris[0], null, "", true, false, null);
+    saveURL(aUris[0], null, "", true, false, null, document);
     return;
   }
 
@@ -369,20 +371,30 @@ saveAsUrlListener.prototype = {
   }
 };
 
-function SaveAsTemplate(uri)
+function SaveAsTemplate(aUris)
 {
-  if (uri)
+  // For backwards compatibility check if the argument is a string and,
+  // if so, convert to an array.
+  if (typeof aUris == "string")
+    aUris = [aUris];
+
+  var num = aUris.length;
+  if (!num)
+    return;
+
+  for (let i = 0; i < num; i++)
   {
+    let uri = aUris[i];
     var hdr = messenger.msgHdrFromURI(uri);
     var identity = GetIdentityForHeader(hdr, Components.interfaces.nsIMsgCompType.Template);
     var templates = MailUtils.getFolderForURI(identity.stationeryFolder, false);
     if (!templates.parent)
     {
       templates.setFlag(Components.interfaces.nsMsgFolderFlags.Templates);
-      let isImap = templates.server.type == "imap";
+      let isAsync = templates.server.protocolInfo.foldersCreatedAsync;
       templates.createStorageIfMissing(new saveAsUrlListener(uri, identity));
-      if (isImap)
-        return;
+      if (isAsync)
+        continue;
     }
     messenger.saveAs(uri, false, identity, null);
   }
@@ -448,9 +460,7 @@ function confirmToProceed(commandName)
   // default to ask user if the pref is not set
   var dontAskAgain = false;
   try {
-    var pref = Components.classes["@mozilla.org/preferences-service;1"]
-                        .getService(Components.interfaces.nsIPrefBranch);
-    dontAskAgain = pref.getBoolPref(kDontAskAgainPref);
+    dontAskAgain = Services.prefs.getBoolPref(kDontAskAgainPref);
   } catch (ex) {}
 
   if (!dontAskAgain)
@@ -466,7 +476,7 @@ function confirmToProceed(commandName)
                    checkbox);
     try {
       if (checkbox.value)
-        pref.setBoolPref(kDontAskAgainPref, true);
+        Services.prefs.setBoolPref(kDontAskAgainPref, true);
     } catch (ex) {}
 
     if (choice != 0)

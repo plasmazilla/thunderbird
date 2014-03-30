@@ -14,7 +14,6 @@
 #include "nsIMsgFolder.h"
 #include "nsCOMArray.h"
 #include "nsIDBChangeListener.h"
-#include "nsIEnumerator.h"
 
 class nsImapOfflineSync : public nsIUrlListener,
                           public nsIMsgCopyServiceListener,
@@ -43,8 +42,8 @@ public: // set to one folder to playback one folder only
 protected:
   bool      CreateOfflineFolders();
   bool      DestFolderOnSameServer(nsIMsgFolder *destFolder);
-  nsresult  AdvanceToNextServer();
-  nsresult  AdvanceToNextFolder();
+  bool      AdvanceToNextServer();
+  bool      AdvanceToNextFolder();
   void      AdvanceToFirstIMAPFolder();
   void      DeleteAllOfflineOpsForCurrentDB();
   void      ClearCurrentOps();
@@ -61,12 +60,12 @@ protected:
   nsCOMPtr <nsIMsgFolder> m_currentFolder;
   nsCOMPtr <nsIMsgFolder> m_singleFolderToUpdate;
   nsCOMPtr <nsIMsgWindow> m_window;
-  nsCOMPtr <nsISupportsArray> m_allServers;
-  nsCOMPtr <nsISupportsArray> m_allFolders;
+  nsCOMPtr <nsIArray> m_allServers;
+  nsCOMPtr <nsIArray> m_allFolders;
   nsCOMPtr <nsIMsgIncomingServer> m_currentServer;
-  nsCOMPtr <nsIEnumerator> m_serverEnumerator;
+  nsCOMPtr <nsISimpleEnumerator> m_serverEnumerator;
   nsCOMPtr <nsIFile> m_curTempFile;
-  
+
   nsTArray<nsMsgKey> m_CurrentKeys;
   nsCOMArray<nsIMsgOfflineImapOperation> m_currentOpsToClear;
   uint32_t      m_KeyIndex;

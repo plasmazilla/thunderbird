@@ -3,12 +3,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifdef MOZ_LOGGING
-#define FORCE_PR_LOG /* Allow logging in the release build */
-#endif
-
 #include "nscore.h"
 #include "nsMsgUtils.h"
+#include "nsArrayUtils.h"
 #include "nsMessengerOSXIntegration.h"
 #include "nsIMsgMailSession.h"
 #include "nsIMsgIncomingServer.h"
@@ -33,11 +30,9 @@
 #include "nsIPrefBranch.h"
 #include "nsIMessengerWindowService.h"
 #include "prprf.h"
-#include "prlog.h"
 #include "nsIAlertsService.h"
 #include "nsIStringBundle.h"
 #include "nsToolkitCompsCID.h"
-#include "nsINotificationsList.h"
 #include "nsIMsgDatabase.h"
 #include "nsIMsgHdr.h"
 #include "nsIMsgHeaderParser.h"
@@ -63,8 +58,6 @@
 #define kMaxDisplayCount 10
 #define kNewChatMessageTopic "new-directed-incoming-message"
 #define kUnreadImCountChangedTopic "unread-im-count-changed"
-
-static PRLogModuleInfo *MsgDockCountsLogModule = nullptr;
 
 // HACK: Limitations in Focus/SetFocus on Mac (see bug 465446)
 nsresult FocusAppNative()
@@ -190,11 +183,9 @@ NS_INTERFACE_MAP_END
 nsresult
 nsMessengerOSXIntegration::Init()
 {
-  // need to register a named Growl notification
   nsresult rv;
   nsCOMPtr<nsIObserverService> observerService = do_GetService("@mozilla.org/observer-service;1", &rv);
   NS_ENSURE_SUCCESS(rv, rv);
-  observerService->AddObserver(this, "before-growl-registration", false);
   return observerService->AddObserver(this, "mail-startup-done", false);
 }
 
@@ -224,6 +215,13 @@ nsMessengerOSXIntegration::Observe(nsISupports* aSubject, const char* aTopic, co
 
   if (!strcmp(aTopic, "alertclickcallback"))
     return OnAlertClicked(aData);
+
+#ifdef MOZ_SUITE
+  // SeaMonkey does most of the GUI work in JS code when clicking on a mail
+  // notification, so it needs an extra function here 
+  if (!strcmp(aTopic, "alertclicksimplecallback"))
+    return OnAlertClickedSimple();
+#endif
 
   if (!strcmp(aTopic, "mail-startup-done")) {
     nsresult rv;
@@ -258,28 +256,6 @@ nsMessengerOSXIntegration::Observe(nsISupports* aSubject, const char* aTopic, co
     NS_ENSURE_SUCCESS(rv, rv);
 
     return mailSession->AddFolderListener(this, nsIFolderListener::boolPropertyChanged | nsIFolderListener::intPropertyChanged);
-  }
-
-  // register named Growl notification for new mail alerts.
-  if (!strcmp(aTopic, "before-growl-registration"))
-  {
-    nsresult rv;
-    nsCOMPtr<nsIObserverService> observerService = do_GetService("@mozilla.org/observer-service;1", &rv);
-    if (NS_SUCCEEDED(rv))
-      observerService->RemoveObserver(this, "before-growl-registration");
-
-    nsCOMPtr<nsINotificationsList> notifications = do_QueryInterface(aSubject, &rv);
-    if (NS_SUCCEEDED(rv))
-    {
-      nsCOMPtr<nsIStringBundle> bundle;
-      GetStringBundle(getter_AddRefs(bundle));
-      if (bundle)
-      {
-        nsString growlNotification;
-        bundle->GetStringFromName(NS_LITERAL_STRING("growlNotification").get(), getter_Copies(growlNotification));
-        notifications->AddNotification(growlNotification, true);
-      }
-    }
   }
 
   if (!strcmp(aTopic, kNewChatMessageTopic)) {
@@ -414,25 +390,16 @@ nsMessengerOSXIntegration::ShowAlertMessage(const nsAString& aAlertTitle,
 
   if (showAlert)
   {
-    // Use growl if installed
     nsCOMPtr<nsIAlertsService> alertsService (do_GetService(NS_ALERTSERVICE_CONTRACTID, &rv));
+    // If we have an nsIAlertsService implementation, use it:
     if (NS_SUCCEEDED(rv))
     {
-      nsCOMPtr<nsIStringBundle> bundle;
-      GetStringBundle(getter_AddRefs(bundle));
-      if (bundle)
-      {
-        nsString growlNotification;
-        bundle->GetStringFromName(NS_LITERAL_STRING("growlNotification").get(),
-                                  getter_Copies(growlNotification));
-        rv = alertsService->ShowAlertNotification(NS_LITERAL_STRING(kNewMailAlertIcon),
-                                                  aAlertTitle,
-                                                  aAlertText,
-                                                  true,
-                                                  NS_ConvertASCIItoUTF16(aFolderURI),
-                                                  this,
-                                                  growlNotification);
-      }
+      alertsService->ShowAlertNotification(NS_LITERAL_STRING(kNewMailAlertIcon),
+                                           aAlertTitle, aAlertText, true,
+                                           NS_ConvertASCIItoUTF16(aFolderURI),
+                                           this, EmptyString(),
+                                           NS_LITERAL_STRING("auto"),
+                                           EmptyString());
     }
 
     BounceDockIcon();
@@ -487,6 +454,17 @@ nsMessengerOSXIntegration::OnAlertClicked(const PRUnichar* aAlertCookie)
   openMailWindow(NS_ConvertUTF16toUTF8(aAlertCookie));
   return NS_OK;
 }
+
+#ifdef MOZ_SUITE
+nsresult
+nsMessengerOSXIntegration::OnAlertClickedSimple()
+{
+  // SeaMonkey only function; only focus the app here, rest of the work will
+  // be done in suite/mailnews/mailWidgets.xml
+  FocusAppNative();
+  return NS_OK;
+}
+#endif
 
 nsresult
 nsMessengerOSXIntegration::OnAlertFinished()
@@ -685,7 +663,7 @@ nsMessengerOSXIntegration::GetNewMailAuthors(nsIMsgFolder* aFolder,
 
           notify->SetData(true);
           os->NotifyObservers(notify, "newmail-notification-requested",
-                              PromiseFlatString(author).get());
+                              author.get());
 
           bool includeSender;
           notify->GetData(&includeSender);
@@ -716,22 +694,21 @@ nsMessengerOSXIntegration::GetFirstFolderWithNewMail(nsIMsgFolder* aFolder, nsCS
   {
     nsCOMPtr<nsIMsgFolder> msgFolder;
     // enumerate over the folders under this root folder till we find one with new mail....
-    nsCOMPtr<nsISupportsArray> allFolders;
-    NS_NewISupportsArray(getter_AddRefs(allFolders));
-    nsresult rv = aFolder->ListDescendents(allFolders);
+    nsCOMPtr<nsIArray> allFolders;
+    nsresult rv = aFolder->GetDescendants(getter_AddRefs(allFolders));
     NS_ENSURE_SUCCESS(rv, rv);
 
-    nsCOMPtr<nsIEnumerator> enumerator;
-    allFolders->Enumerate(getter_AddRefs(enumerator));
-    if (enumerator)
+    nsCOMPtr<nsISimpleEnumerator> enumerator;
+    rv = allFolders->Enumerate(getter_AddRefs(enumerator));
+    if (NS_SUCCEEDED(rv) && enumerator)
     {
       nsCOMPtr<nsISupports> supports;
       int32_t numNewMessages = 0;
-      nsresult more = enumerator->First();
-      while (NS_SUCCEEDED(more))
+      bool hasMore = false;
+      while (NS_SUCCEEDED(enumerator->HasMoreElements(&hasMore)) && hasMore)
       {
-        rv = enumerator->CurrentItem(getter_AddRefs(supports));
-        if (supports)
+        rv = enumerator->GetNext(getter_AddRefs(supports));
+        if (NS_SUCCEEDED(rv) && supports)
         {
           msgFolder = do_QueryInterface(supports, &rv);
           if (msgFolder)
@@ -740,7 +717,6 @@ nsMessengerOSXIntegration::GetFirstFolderWithNewMail(nsIMsgFolder* aFolder, nsCS
             msgFolder->GetNumNewMessages(false, &numNewMessages);
             if (numNewMessages)
               break; // kick out of the while loop
-            more = enumerator->Next();
           }
         } // if we have a folder
       }  // if we have more potential folders to enumerate

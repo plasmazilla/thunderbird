@@ -10,15 +10,13 @@ Components.utils.import("resource:///modules/mailServices.js");
 var gMessages = Cc["@mozilla.org/array;1"].createInstance(Ci.nsIMutableArray);
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 load("../../../resources/messageGenerator.js");
 
 // IMAP pump
-load("../../../resources/IMAPpump.js");
 setupIMAPPump("CUSTOM1");
 
-var gIMAPInbox, gFolder1;
+var gFolder1;
 
 var tests = [
   startTest,
@@ -33,37 +31,36 @@ function startTest()
   // Add folder listeners that will capture async events
   MailServices.mfn.addListener(mfnListener, MailServices.mfn.folderAdded);
 
-  gIMAPIncomingServer.rootFolder.createSubfolder("folder 1", null);
+  IMAPPump.incomingServer.rootFolder.createSubfolder("folder 1", null);
   yield false;
   let messages = [];
   let gMessageGenerator = new MessageGenerator();
   messages = messages.concat(gMessageGenerator.makeMessage());
-  gSynthMessage = messages[0];
   let dataUri = Services.io.newURI("data:text/plain;base64," +
                   btoa(messages[0].toMessageString()),
                   null, null);
-  let imapMsg = new imapMessage(dataUri.spec, gIMAPMailbox.uidnext++, []);
-  gIMAPMailbox.addMessage(imapMsg);
+  let imapMsg = new imapMessage(dataUri.spec, IMAPPump.mailbox.uidnext++, []);
+  IMAPPump.mailbox.addMessage(imapMsg);
 
-  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+  IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
   yield false;
 }
 
 function doMove() {
-  let rootFolder = gIMAPIncomingServer.rootFolder;
+  let rootFolder = IMAPPump.incomingServer.rootFolder;
   gFolder1 = rootFolder.getChildNamed("folder 1")
                .QueryInterface(Components.interfaces.nsIMsgImapMailFolder);
-  let msg = gIMAPInbox.msgDatabase.GetMsgHdrForKey(gIMAPMailbox.uidnext - 1);
+  let msg = IMAPPump.inbox.msgDatabase.GetMsgHdrForKey(IMAPPump.mailbox.uidnext - 1);
   gMessages.appendElement(msg, false);
-  gIMAPServer._test = true;
-  MailServices.copy.CopyMessages(gIMAPInbox, gMessages, gFolder1, true,
+  IMAPPump.server._test = true;
+  MailServices.copy.CopyMessages(IMAPPump.inbox, gMessages, gFolder1, true,
                             asyncCopyListener, null, false);
-  gIMAPServer.performTest("UID MOVE");
+  IMAPPump.server.performTest("UID MOVE");
   yield false;
 }
 
 function testMove() {
-  do_check_eq(gIMAPInbox.getTotalMessages(false), 0);
+  do_check_eq(IMAPPump.inbox.getTotalMessages(false), 0);
   gFolder1.updateFolderWithListener(null, asyncUrlListener);
   yield false;
   do_check_eq(gFolder1.getTotalMessages(false), 1);

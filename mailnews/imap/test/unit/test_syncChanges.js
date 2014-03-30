@@ -6,10 +6,8 @@
  */
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 load("../../../resources/messageGenerator.js");
-load("../../../resources/IMAPpump.js");
 
 var gMessage;
 var gSecondFolder;
@@ -18,7 +16,7 @@ var gSynthMessage;
 var tests = [
   setup,
   function switchAwayFromInbox() {
-    let rootFolder = gIMAPIncomingServer.rootFolder;
+    let rootFolder = IMAPPump.incomingServer.rootFolder;
     gSecondFolder =  rootFolder.getChildNamed("secondFolder")
                            .QueryInterface(Ci.nsIMsgImapMailFolder);
 
@@ -33,14 +31,14 @@ var tests = [
   },
   function simulateMailboxEmptied() {
     gMessage.setFlag("\\Deleted");
-    gIMAPInbox.expunge(asyncUrlListener, null);
+    IMAPPump.inbox.expunge(asyncUrlListener, null);
     yield false;
-    gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+    IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
     yield false;
   },
   function checkMailboxEmpty() {
-    let msgHdr = gIMAPInbox.msgDatabase.getMsgHdrForMessageID(gSynthMessage.messageId);
-    do_check_eq(gIMAPInbox.getTotalMessages(false), 0);
+    let msgHdr = IMAPPump.inbox.msgDatabase.getMsgHdrForMessageID(gSynthMessage.messageId);
+    do_check_eq(IMAPPump.inbox.getTotalMessages(false), 0);
   },
   teardown
 ];
@@ -51,24 +49,22 @@ function setup() {
    */
   setupIMAPPump();
 
-  gIMAPDaemon.createMailbox("secondFolder", {subscribed : true});
+  IMAPPump.daemon.createMailbox("secondFolder", {subscribed : true});
 
   let messages = [];
   let gMessageGenerator = new MessageGenerator();
   messages = messages.concat(gMessageGenerator.makeMessage());
   gSynthMessage = messages[0];
 
-  let ioService = Cc["@mozilla.org/network/io-service;1"]
-                  .getService(Ci.nsIIOService);
   let msgURI =
-    ioService.newURI("data:text/plain;base64," +
-                     btoa(gSynthMessage.toMessageString()),
-                     null, null);
-  gMessage = new imapMessage(msgURI.spec, gIMAPMailbox.uidnext++, []);
-  gIMAPMailbox.addMessage(gMessage);
+    Services.io.newURI("data:text/plain;base64," +
+                       btoa(gSynthMessage.toMessageString()),
+                       null, null);
+  gMessage = new imapMessage(msgURI.spec, IMAPPump.mailbox.uidnext++, []);
+  IMAPPump.mailbox.addMessage(gMessage);
 
   // update folder to download header.
-  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+  IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
   yield false;
 }
 

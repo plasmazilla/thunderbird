@@ -49,6 +49,7 @@
 #include "nsIMsgMailNewsUrl.h"
 #include "nsIMsgMailSession.h"
 #include "nsISupportsPrimitives.h"
+#include "nsArrayUtils.h"
 
 #undef GetPort  // XXX Windows!
 #undef SetPort  // XXX Windows!
@@ -182,7 +183,7 @@ nsNntpService::CreateMessageIDURL(nsIMsgFolder *folder, nsMsgKey key, char **url
     rv = folder->GetName(groupName);
     NS_ENSURE_SUCCESS(rv,rv);
 
-    nsCAutoString uri;
+    nsAutoCString uri;
     uri = rootFolderURI.get();
     uri += '/';
     uri += escapedMessageID;
@@ -210,7 +211,7 @@ nsNntpService::DisplayMessage(const char* aMessageURI, nsISupports * aDisplayCon
   rv = DecomposeNewsMessageURI(aMessageURI, getter_AddRefs(folder), &key);
   NS_ENSURE_SUCCESS(rv,rv);
 
-  nsCAutoString urlStr;
+  nsAutoCString urlStr;
   // if we are displaying (or printing), we want the news://host/message-id url
   // we keep the original uri around, for cancelling and so we can get to the
   // articles by doing GROUP and then ARTICLE <n>.
@@ -407,7 +408,7 @@ NS_IMETHODIMP nsNntpService::FetchMimePart(nsIURI *aURI, const char *aMessageURI
 // while offline working
 //    if (msgMessageUrl)
 //    {
-//      nsCAutoString spec;
+//      nsAutoCString spec;
 //      aURI->GetSpec(spec);
 //      msgMessageUrl->SetOriginalSpec(spec.get());
 //    }
@@ -427,7 +428,7 @@ NS_IMETHODIMP nsNntpService::OpenAttachment(const char *aContentType,
 
   nsCOMPtr<nsIURI> url;
   nsresult rv = NS_OK;
-  nsCAutoString newsUrl;
+  nsAutoCString newsUrl;
   newsUrl = aUrl;
   newsUrl += "&type=";
   newsUrl += aContentType;
@@ -533,7 +534,7 @@ nsNntpService::DecomposeNewsMessageURI(const char * aMessageURI, nsIMsgFolder **
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Get the group name and key from the url
-  nsCAutoString groupName;
+  nsAutoCString groupName;
   rv = nntpUrl->GetGroup(groupName);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -560,7 +561,7 @@ nsNntpService::GetFolderFromUri(const char *aUri, nsIMsgFolder **aFolder)
   nsresult rv = NS_NewURI(getter_AddRefs(uri), nsDependentCString(aUri));
   NS_ENSURE_SUCCESS(rv,rv);
 
-  nsCAutoString path;
+  nsAutoCString path;
   rv = uri->GetPath(path);
   NS_ENSURE_SUCCESS(rv,rv);
 
@@ -626,40 +627,6 @@ nsNntpService::CopyMessages(uint32_t aNumKeys, nsMsgKey *akeys,
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-struct findNewsServerEntry {
-  const char *newsgroup;
-  nsINntpIncomingServer *server;
-};
-
-
-bool
-nsNntpService::findNewsServerWithGroup(nsISupports *aElement, void *data)
-{
-  nsresult rv;
-
-  nsCOMPtr<nsINntpIncomingServer> newsserver = do_QueryInterface(aElement, &rv);
-  if (NS_FAILED(rv) || ! newsserver) return true;
-
-  findNewsServerEntry *entry = (findNewsServerEntry*) data;
-
-  bool containsGroup = false;
-  NS_ASSERTION(MsgIsUTF8(nsDependentCString(entry->newsgroup)),
-               "newsgroup is not in UTF-8");
-  rv = newsserver->ContainsNewsgroup(nsDependentCString(entry->newsgroup),
-                                     &containsGroup);
-  if (NS_FAILED(rv)) return true;
-
-  if (containsGroup)
-  {
-    entry->server = newsserver;
-    return false;            // stop on first find
-  }
-  else
-  {
-    return true;
-  }
-}
-
 nsresult
 nsNntpService::FindServerWithNewsgroup(nsCString &host, nsCString &groupName)
 {
@@ -667,26 +634,40 @@ nsNntpService::FindServerWithNewsgroup(nsCString &host, nsCString &groupName)
 
   nsCOMPtr <nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv,rv);
-  nsCOMPtr<nsISupportsArray> servers;
 
+  nsCOMPtr<nsIArray> servers;
   rv = accountManager->GetAllServers(getter_AddRefs(servers));
   NS_ENSURE_SUCCESS(rv,rv);
 
-  findNewsServerEntry serverInfo;
-  serverInfo.server = nullptr;
-  serverInfo.newsgroup = groupName.get();
+  NS_ASSERTION(MsgIsUTF8(groupName),
+               "newsgroup is not in UTF-8");
 
   // XXX TODO
   // this only looks at the list of subscribed newsgroups.
   // fix to use the hostinfo.dat information
-  servers->EnumerateForwards(findNewsServerWithGroup, (void *)&serverInfo);
-  if (serverInfo.server)
-  {
-    nsCOMPtr<nsIMsgIncomingServer> server = do_QueryInterface(serverInfo.server);
-    rv = server->GetHostName(host);
-  }
 
-  return rv;
+  uint32_t length;
+  rv = servers->GetLength(&length);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  for (uint32_t i = 0; i < length; ++i)
+  {
+    nsCOMPtr<nsINntpIncomingServer> newsserver(do_QueryElementAt(servers, i, &rv));
+    if (NS_FAILED(rv))
+      continue;
+
+    bool containsGroup = false;
+    rv = newsserver->ContainsNewsgroup(groupName,
+                                       &containsGroup);
+    if (containsGroup)
+    {
+      nsCOMPtr<nsIMsgIncomingServer> server(do_QueryInterface(newsserver, &rv));
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      return server->GetHostName(host);
+    }
+  }
+  return NS_OK;
 }
 
 nsresult nsNntpService::FindHostFromGroup(nsCString &host, nsCString &groupName)
@@ -744,9 +725,8 @@ nsNntpService::GenerateNewsHeaderValsForPosting(const nsACString& newsgroupsList
   // we are not going to allow the user to cross post to multiple hosts.
   // if we detect that, we stop and return error.
 
-  nsCAutoString host;
-  nsCAutoString str;
-  nsCAutoString newsgroups;
+  nsAutoCString host;
+  nsAutoCString newsgroups;
 
   nsTArray<nsCString> list;
   ParseString(newsgroupsList, ',', list);
@@ -755,9 +735,9 @@ nsNntpService::GenerateNewsHeaderValsForPosting(const nsACString& newsgroupsList
     list[index].StripWhitespace();
     if (!list[index].IsEmpty())
     {
-      nsCAutoString currentHost;
-      nsCAutoString theRest;
-      // does str start with "news:/"?
+      nsAutoCString currentHost;
+      nsAutoCString theRest;
+      // does list[index] start with "news:/"?
       if (StringBeginsWith(list[index], NS_LITERAL_CSTRING(kNewsRootURI)))
       {
         // we have news://group or news://host/group
@@ -776,7 +756,7 @@ nsNntpService::GenerateNewsHeaderValsForPosting(const nsACString& newsgroupsList
       int32_t slashpos = theRest.FindChar('/');
       if (slashpos > 0 )
       {
-        nsCAutoString currentGroup;
+        nsAutoCString currentGroup;
 
         // theRest is "host/group"
         currentHost = StringHead(theRest, slashpos);
@@ -795,14 +775,14 @@ nsNntpService::GenerateNewsHeaderValsForPosting(const nsACString& newsgroupsList
       }
       else
       {
-        // str is "group"
-        rv = FindHostFromGroup(currentHost, str);
+        // theRest is "group"
+        rv = FindHostFromGroup(currentHost, theRest);
         if (NS_FAILED(rv))
           return rv;
         // build up the newsgroups
         if (!newsgroups.IsEmpty())
           newsgroups += ",";
-        newsgroups += list[index];
+        newsgroups += theRest;
       }
 
       if (!currentHost.IsEmpty())
@@ -991,9 +971,9 @@ nsNntpService::CreateNewsAccount(const char *aHostname, bool aUseSSL,
 nsresult
 nsNntpService::GetServerForUri(nsIURI *aUri, nsINntpIncomingServer **aServer)
 {
-  nsCAutoString hostName;
-  nsCAutoString scheme;
-  nsCAutoString path;
+  nsAutoCString hostName;
+  nsAutoCString scheme;
+  nsAutoCString path;
   int32_t port = 0;
   nsresult rv;
 
@@ -1013,7 +993,7 @@ nsNntpService::GetServerForUri(nsIURI *aUri, nsINntpIncomingServer **aServer)
   // Grab all servers for if this is a no-authority URL. This also loads
   // accounts if they haven't been loaded, i.e., we're running this straight
   // from the command line
-  nsCOMPtr <nsISupportsArray> servers;
+  nsCOMPtr <nsIArray> servers;
   rv = accountManager->GetAllServers(getter_AddRefs(servers));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -1052,7 +1032,7 @@ nsNntpService::GetServerForUri(nsIURI *aUri, nsINntpIncomingServer **aServer)
 
   NS_IF_ADDREF(*aServer = nntpServer);
 
-  nsCAutoString spec;
+  nsAutoCString spec;
   rv = aUri->GetSpec(spec);
   NS_ENSURE_SUCCESS(rv,rv);
 
@@ -1244,7 +1224,7 @@ NS_IMETHODIMP nsNntpService::NewURI(const nsACString &aSpec,
 
     if (aBaseURI)
     {
-      nsCAutoString newSpec;
+      nsAutoCString newSpec;
       aBaseURI->Resolve(aSpec, newSpec);
       rv = nntpUri->SetSpec(newSpec);
     }
@@ -1379,6 +1359,14 @@ nsNntpService::GetShowComposeMsgLink(bool *showComposeMsgLink)
     return NS_OK;
 }
 
+NS_IMETHODIMP
+nsNntpService::GetFoldersCreatedAsync(bool *aAsyncCreation)
+{
+  NS_ENSURE_ARG_POINTER(aAsyncCreation);
+  *aAsyncCreation = false;
+  return NS_OK;
+}
+
 //
 // rhp: Right now, this is the same as simple DisplayMessage, but it will change
 // to support print rendering.
@@ -1404,7 +1392,7 @@ nsNntpService::StreamMessage(const char *aMessageURI, nsISupports *aConsumer,
     // The nntp protocol object will look for "header=filter" to decide if it wants to convert
     // the data instead of using aConvertData. It turns out to be way too hard to pass aConvertData
     // all the way over to the nntp protocol object.
-    nsCAutoString aURIString(aMessageURI);
+    nsAutoCString aURIString(aMessageURI);
 
     if (!aAdditionalHeader.IsEmpty())
     {
@@ -1418,7 +1406,7 @@ nsNntpService::StreamMessage(const char *aMessageURI, nsISupports *aConsumer,
     nsresult rv = DecomposeNewsMessageURI(aMessageURI, getter_AddRefs(folder), &key);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    nsCAutoString urlStr;
+    nsAutoCString urlStr;
     rv = CreateMessageIDURL(folder, key, getter_Copies(urlStr));
     NS_ENSURE_SUCCESS(rv, rv);
 
@@ -1495,7 +1483,7 @@ NS_IMETHODIMP nsNntpService::StreamHeaders(const char *aMessageURI,
     if (inputStream)
       return MsgStreamMsgHeaders(inputStream, aConsumer);
   }
-  nsCAutoString urlStr;
+  nsAutoCString urlStr;
   rv = CreateMessageIDURL(folder, key, getter_Copies(urlStr));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -1533,7 +1521,7 @@ NS_IMETHODIMP nsNntpService::IsMsgInMemCache(nsIURI *aUrl,
   if (mCacheSession)
   {
     // check if message is in memory cache
-    nsCAutoString cacheKey;
+    nsAutoCString cacheKey;
     aUrl->GetAsciiSpec(cacheKey);
     // nntp urls are truncated at the query part when used as cache keys
     int32_t pos = cacheKey.FindChar('?');

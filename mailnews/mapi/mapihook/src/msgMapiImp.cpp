@@ -336,7 +336,7 @@ LONG CMapiImp::InitContext(unsigned long session, MsgMapiListContext **listConte
 {
   nsMAPIConfiguration * pMapiConfig = nsMAPIConfiguration::GetMAPIConfiguration() ;
   if (!pMapiConfig)
-    return NS_ERROR_FAILURE ;  // get the singelton obj
+    return MAPI_E_FAILURE ;  // get the singelton obj
   *listContext = (MsgMapiListContext *) pMapiConfig->GetMapiListContext(session);
   // This is the first message
   if (!*listContext)
@@ -382,7 +382,7 @@ STDMETHODIMP CMapiImp::FindNext(unsigned long aSession, unsigned long ulUIParam,
   if (!pMapiConfig) 
   {
     NS_ASSERTION(false, "failed to get config in findnext");
-    return NS_ERROR_FAILURE ;  // get the singelton obj
+    return MAPI_E_FAILURE ;  // get the singelton obj
   }
   MsgMapiListContext *listContext;
   LONG ret = InitContext(aSession, &listContext);
@@ -416,7 +416,7 @@ STDMETHODIMP CMapiImp::ReadMail(unsigned long aSession, unsigned long ulUIParam,
                               unsigned long flFlags, unsigned long ulReserved, lpnsMapiMessage *lppMessage)
 {
   nsresult irv;
-  nsCAutoString keyString((char *) lpszMessageID);
+  nsAutoCString keyString((char *) lpszMessageID);
   PR_LOG(MAPI, PR_LOG_DEBUG, ("CMapiImp::ReadMail asking for key %s\n", (char *) lpszMessageID));
   nsMsgKey msgKey = keyString.ToInteger(&irv);
   if (NS_FAILED(irv))
@@ -442,7 +442,7 @@ STDMETHODIMP CMapiImp::DeleteMail(unsigned long aSession, unsigned long ulUIPara
                               unsigned long flFlags, unsigned long ulReserved)
 {
   nsresult irv;
-  nsCAutoString keyString((char *) lpszMessageID);
+  nsAutoCString keyString((char *) lpszMessageID);
   nsMsgKey msgKey = keyString.ToInteger(&irv);
   // XXX Why do we return success on failure?
   if (NS_FAILED(irv))
@@ -740,7 +740,7 @@ char *MsgMapiListContext::ConvertBodyToMapiFormat (nsIMsgDBHdr *hdr)
     nsCOMPtr <nsISeekableStream> seekableStream = do_QueryInterface(inputStream);
     seekableStream->Seek(PR_SEEK_SET, messageOffset);
     bool hasMore = true;
-    nsCAutoString curLine;
+    nsAutoCString curLine;
     bool inMessageBody = false;
     nsresult rv = NS_OK;
     while (hasMore) // advance past message headers

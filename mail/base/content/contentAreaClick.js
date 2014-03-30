@@ -10,6 +10,9 @@
    *
    * @return href for the url being clicked
    */
+
+  Components.utils.import("resource://gre/modules/Services.jsm");
+
   function hRefForClickEvent(aEvent, aDontCheckInputElement)
   {
     var href;
@@ -46,28 +49,25 @@
   function messagePaneOnResize(aEvent)
   {
     // scale any overflowing images
-    var messagepane = document.getElementById("messagepane");
-    var doc = messagepane.contentDocument;
-    var imgs = doc.images;
-    for each (var img in imgs)
+    let doc = document.getElementById("messagepane").contentDocument;
+    let imgs = doc.querySelectorAll("img.moz-attached-image");
+    for (let i = 0; i < imgs.length; i++)
     {
-      if (img.className == "moz-attached-image")
+      let img = imgs[i];
+      if (img.naturalWidth <= doc.body.clientWidth)
       {
-        if (img.naturalWidth <= doc.body.clientWidth)
-        {
-          img.removeAttribute("isshrunk");
-          img.removeAttribute("overflowing");
-        }
-        else if (img.hasAttribute("shrinktofit"))
-        {
-          img.setAttribute("isshrunk", "true");
-          img.removeAttribute("overflowing");
-        }
-        else
-        {
-          img.setAttribute("overflowing", "true");
-          img.removeAttribute("isshrunk");
-        }
+        img.removeAttribute("isshrunk");
+        img.removeAttribute("overflowing");
+      }
+      else if (img.hasAttribute("shrinktofit"))
+      {
+        img.setAttribute("isshrunk", "true");
+        img.removeAttribute("overflowing");
+      }
+      else
+      {
+        img.setAttribute("overflowing", "true");
+        img.removeAttribute("isshrunk");
       }
     }
   }
@@ -90,7 +90,7 @@ function contentAreaClick(aEvent)
         return true;
 
       // is it an inline attachment?
-      if (/^moz-attached-image/.test(target.className)) {
+      if (target.classList.contains("moz-attached-image")) {
         if (target.hasAttribute("isshrunk")) {
           // currently shrunk to fit, so unshrink it
           target.removeAttribute("isshrunk");
@@ -143,9 +143,7 @@ function openLinkExternally(url)
 {
   let uri = url;
   if (!(uri instanceof Components.interfaces.nsIURI))
-    uri = Components.classes["@mozilla.org/network/io-service;1"]
-                    .getService(Components.interfaces.nsIIOService)
-                    .newURI(url, null, null);
+    uri = Services.io.newURI(url, null, null);
 
   Components.classes["@mozilla.org/uriloader/external-protocol-service;1"]
             .getService(Components.interfaces.nsIExternalProtocolService)

@@ -8,6 +8,8 @@
  */
 
 Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource://gre/modules/PluralForm.jsm");
 
 // Controller object for folder pane
 var FolderPaneController =
@@ -232,15 +234,16 @@ var DefaultController =
       case "cmd_viewAllHeader":
       case "cmd_viewNormalHeader":
       case "cmd_stop":
+      case "cmd_chat":
+      case "cmd_watchThread":
+      case "cmd_killThread":
+      case "cmd_killSubthread":
         return true;
       case "cmd_downloadFlagged":
       case "cmd_downloadSelected":
       case "cmd_synchronizeOffline":
         return MailOfflineMgr.isOnline();
 
-      case "cmd_watchThread":
-      case "cmd_killThread":
-      case "cmd_killSubthread":
       case "cmd_cancel":
         return(gFolderDisplay.selectedMessageIsNews);
 
@@ -286,7 +289,7 @@ var DefaultController =
         return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.junk);
       case "cmd_killThread":
       case "cmd_killSubthread":
-        return GetNumSelectedMessages() > 0;
+        return (GetNumSelectedMessages() > 0);
       case "cmd_watchThread":
         return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.toggleThreadWatched);
       case "cmd_createFilterFromPopup":
@@ -367,7 +370,7 @@ var DefaultController =
         return true;
       case "cmd_markAsFlagged":
       case "button_file":
-	return GetNumSelectedMessages() > 0;
+        return GetNumSelectedMessages() > 0;
       case "cmd_archive":
       case "button_archive":
         return gFolderDisplay.canArchiveSelectedMessages;
@@ -382,9 +385,7 @@ var DefaultController =
         return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.junk) &&
                gFolderDisplay.getCommandStatus(nsMsgViewCommandType.runJunkControls);
       case "cmd_displayMsgFilters":
-        let mgr = Components.classes["@mozilla.org/messenger/account-manager;1"]
-                            .getService(Components.interfaces.nsIMsgAccountManager);
-        return mgr.accounts.Count() > 0;
+        return MailServices.accounts.accounts.length > 0;
       case "cmd_applyFilters":
         return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.applyFilters);
       case "cmd_runJunkControls":
@@ -451,7 +452,7 @@ var DefaultController =
         // and have more than one message selected.
         return (!IsMessagePaneCollapsed() && (GetNumSelectedMessages() == 1));
       case "cmd_search":
-        return (MailServices.accounts.accounts.Count() > 0);
+        return MailServices.accounts.accounts.length > 0;
       case "cmd_selectAll":
       case "cmd_selectFlagged":
         return !!gDBView;
@@ -508,7 +509,7 @@ var DefaultController =
       case "button_compact":
       {
         let folders = gFolderTreeView.getSelectedFolders();
-        function canCompact(folder) {
+        let canCompact = function canCompact(folder) {
           return !folder.isServer &&
             !(folder.flags & Components.interfaces.nsMsgFolderFlags.Virtual) &&
             (folder.server.type != "imap" || folder.server.canCompactFoldersOnServer) &&
@@ -519,7 +520,7 @@ var DefaultController =
       case "cmd_compactFolder":
       {
         let folders = gFolderTreeView.getSelectedFolders();
-        function canCompactAll(folder) {
+        let canCompactAll = function canCompactAll(folder) {
           return (folder.server.type != "imap" ||
                   folder.server.canCompactFoldersOnServer) &&
                   folder.isCommandEnabled("cmd_compactFolder") ;
@@ -539,13 +540,13 @@ var DefaultController =
       case "cmd_moveToFolderAgain":
         // Disable "Move to <folder> Again" for news and other read only
         // folders since we can't really move messages from there - only copy.
-        if (pref.getBoolPref("mail.last_msg_movecopy_was_move"))
+        if (Services.prefs.getBoolPref("mail.last_msg_movecopy_was_move"))
         {
           let loadedFolder = gFolderTreeView.getSelectedFolders()[0];
           if (loadedFolder && !loadedFolder.canDeleteMessages)
             return false;
         }
-        let targetURI = pref.getCharPref("mail.last_msg_movecopy_target_uri");
+        let targetURI = Services.prefs.getCharPref("mail.last_msg_movecopy_target_uri");
         if (!targetURI)
           return false;
         let targetFolder = MailUtils.getFolderForURI(targetURI);
@@ -560,8 +561,9 @@ var DefaultController =
         // always allow zooming in the message
         if (document.getElementById("tabmail").selectedTab.mode.name == "message")
           return true;
-
         return IsFolderSelected() && !IsMessagePaneCollapsed();
+      case "cmd_chat":
+        return true;
       default:
         return false;
     }
@@ -649,10 +651,28 @@ var DefaultController =
         gFolderTreeController.deleteFolder();
         break;
       case "cmd_killThread":
-        /* kill thread kills the thread and then does a next unread */
+        if (!gFolderDisplay.selectedMessageIsNews) {
+          if (!gFolderDisplay.selectedMessageThreadIgnored) {
+            ShowIgnoredMessageNotification(gFolderDisplay.selectedMessages, false);
+          }
+          else {
+            document.getElementById("msg-footer-notification-box")
+                    .removeTransientNotifications();
+          }
+        }
+        // kill thread kills the thread and then does a next unread
         GoNextMessage(nsMsgNavigationType.toggleThreadKilled, true);
         break;
       case "cmd_killSubthread":
+        if (!gFolderDisplay.selectedMessageIsNews) {
+          if (!gFolderDisplay.selectedMessageSubthreadIgnored) {
+            ShowIgnoredMessageNotification(gFolderDisplay.selectedMessages, true);
+          }
+          else {
+            document.getElementById("msg-footer-notification-box")
+                    .removeTransientNotifications();
+          }
+        }
         GoNextMessage(nsMsgNavigationType.toggleSubthreadKilled, true);
         break;
       case "cmd_watchThread":
@@ -899,8 +919,8 @@ var DefaultController =
           MailOfflineMgr.openOfflineAccountSettings();
           break;
       case "cmd_moveToFolderAgain":
-          var folderId = pref.getCharPref("mail.last_msg_movecopy_target_uri");
-          if (pref.getBoolPref("mail.last_msg_movecopy_was_move"))
+          var folderId = Services.prefs.getCharPref("mail.last_msg_movecopy_target_uri");
+          if (Services.prefs.getBoolPref("mail.last_msg_movecopy_was_move"))
             MsgMoveMessage(GetMsgFolderFromUri(folderId));
           else
             MsgCopyMessage(GetMsgFolderFromUri(folderId));
@@ -934,6 +954,9 @@ var DefaultController =
       case "cmd_fullZoomToggle":
         ZoomManager.toggleZoom();
         break;
+      case "cmd_chat":
+        showChatTab();
+        break;
     }
   },
 
@@ -948,11 +971,87 @@ var DefaultController =
   }
 };
 
+/**
+ * Show a notification in the message pane footer, allowing the user to learn
+ * more about the ignore thread feature, and also allowing undo ignore thread.
+ * @param aMsgs the messages that were ignore
+ * @param aSubThread only boolean indicating if it was ignore subthread or
+ *                   ignore thread
+ */
+function ShowIgnoredMessageNotification(aMsgs, aSubthreadOnly) {
+  let notifyBox = document.getElementById("msg-footer-notification-box");
+  notifyBox.removeTransientNotifications(); // don't wanna pile these up
+
+  let bundle = new StringBundle("chrome://messenger/locale/messenger.properties");
+
+  let buttons = [
+    {
+      label:     bundle.get("learnMoreAboutIgnoreThread"),
+      accessKey: bundle.get("learnMoreAboutIgnoreThreadAccessKey"),
+      popup:     null,
+      callback:  function(aNotificationBar, aButton) {
+        let url = Services.prefs.getCharPref("mail.ignore_thread.learn_more_url");
+        openContentTab(url);
+        return true; // keep notification open
+      }
+    },
+    {
+      label:     bundle.get(!aSubthreadOnly ? "undoIgnoreThread":
+                                              "undoIgnoreSubthread"),
+      accessKey: bundle.get(!aSubthreadOnly ? "undoIgnoreThreadAccessKey":
+                                              "undoIgnoreSubthreadAccessKey"),
+      isDefault: true,
+      popup:     null,
+      callback:  function(aNotificationBar, aButton) {
+        aMsgs.forEach(function(msg) {
+          let msgDb = msg.folder.msgDatabase;
+          if (aSubthreadOnly) {
+            msgDb.MarkHeaderKilled(msg, false, gDBView);
+          }
+          else {
+            let thread = msgDb.GetThreadContainingMsgHdr(msg);
+            msgDb.MarkThreadIgnored(thread, thread.threadKey, false, gDBView);
+          }
+        });
+        return false; // close notification
+      }
+    }
+  ];
+
+  let threadIds = [];
+  aMsgs.forEach(function(msg) {
+    if (threadIds.indexOf(msg.threadId) == -1)
+      threadIds.push(msg.threadId);
+  });
+  let nbrOfThreads = threadIds.length;
+
+  if (nbrOfThreads == 1) {
+    let ignoredThreadText = bundle.get(!aSubthreadOnly ?
+      "ignoredThreadFeedback": "ignoredSubthreadFeedback");
+    let subj = aMsgs[0].mime2DecodedSubject || "";
+    if (subj.length > 45)
+      subj = subj.substring(0, 45) + "…";
+    let text = ignoredThreadText.replace("#1", subj);
+
+    let notification = notifyBox.appendNotification(
+      text, "ignoreThreadInfo", null,
+      notifyBox.PRIORITY_INFO_MEDIUM, buttons);
+  }
+  else {
+    let ignoredThreadText = bundle.get(!aSubthreadOnly ?
+      "ignoredThreadsFeedback": "ignoredSubthreadsFeedback");
+    let text = PluralForm.get(nbrOfThreads, ignoredThreadText).replace("#1", nbrOfThreads);
+    let notification = notifyBox.appendNotification(
+      text, "ignoreThreadsInfo", null,
+      notifyBox.PRIORITY_INFO_MEDIUM, buttons);
+  }
+}
+
 function CloseTabOrWindow()
 {
   let tabmail = document.getElementById('tabmail');
   if (tabmail.tabInfo.length == 1) {
-    if (pref.getBoolPref("mail.tabs.closeWindowWithLastTab"))
+    if (Services.prefs.getBoolPref("mail.tabs.closeWindowWithLastTab"))
       window.close();
   }
   else {
@@ -1041,9 +1140,7 @@ function IsSendUnsentMsgsEnabled(unsentMsgsFolder)
     identity = getIdentityForServer(folders[0].server);
 
   if (!identity)
-    identity = Components.classes["@mozilla.org/messenger/account-manager;1"]
-                         .getService(Components.interfaces.nsIMsgAccountManager)
-                         .defaultAccount.defaultIdentity;
+    identity = MailServices.accounts.defaultAccount.defaultIdentity;
 
   return msgSendlater.hasUnsentMessages(identity);
 }
@@ -1178,9 +1275,9 @@ function CanRenameDeleteJunkMail(aFolderUri)
   {
     var allServers = accountManager.allServers;
 
-    for (var i=0;i<allServers.Count();i++)
+    for (var i = 0; i < allServers.length; i++)
     {
-      var currentServer = allServers.GetElementAt(i).QueryInterface(Components.interfaces.nsIMsgIncomingServer);
+      var currentServer = allServers.queryElementAt(i, Components.interfaces.nsIMsgIncomingServer);
       var settings = currentServer.spamSettings;
       // If junk mail control or move junk mail to folder option is disabled then
       // allow the folder to be removed/renamed since the folder is not used in this case.

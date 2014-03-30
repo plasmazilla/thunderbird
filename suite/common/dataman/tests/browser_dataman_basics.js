@@ -15,16 +15,17 @@ var gLocSvc = {
 const DATAMAN_LOADED = "dataman-loaded";
 const TEST_DONE = "dataman-test-done";
 
-const kPreexistingDomains = 12;
+const kPreexistingDomains = 13;
 
 function test() {
   // Preload data.
   // Note that before this test starts, what is already set are permissions for
   // getpersonas.com and addons.mozilla.org to install addons as well as
   // permissions for a number of sites used in mochitest to load XUL/XBL.
-  // For the latter, those 12 domains are used/listed: 127.0.0.1, bank1.com,
+  // For the latter, those 13 domains are used/listed: 127.0.0.1, bank1.com,
   // bank2.com, example.com, example.org, mochi.test, mozilla.com, test,
-  // w3.org, w3c-test.org, xn--exmple-cua.test, xn--hxajbheg2az3al.xn--jxalpdlp
+  // w3.org, w3c-test.org, xn--exaple-kqf.test, xn--exmple-cua.test,
+  // xn--hxajbheg2az3al.xn--jxalpdlp
   // We should not touch those permissions so other tests can run, which means
   // we should avoid using those domains altogether as we can't remove them.
 
@@ -235,7 +236,7 @@ function test_fdata_panel(aWin) {
      "value0,value2,value3",
      "After sort, correct items are selected");
 
-   // Select only one for testing remove button, as catching the prompt is hard.
+  // Select only one for testing remove button, as catching the prompt is hard.
   aWin.gFormdata.tree.view.selection.select(5);
   aWin.document.getElementById("fdataRemove").click();
   is(aWin.gFormdata.tree.view.rowCount, 5,
@@ -248,7 +249,7 @@ function test_fdata_panel(aWin) {
 },
 
 function test_cookies_panel(aWin) {
-  aWin.gDomains.tree.view.selection.select(7);
+  aWin.gDomains.tree.view.selection.select(8);
   is(aWin.gDomains.selectedDomain.title, "geckoisgecko.org",
      "For cookie tests 1, correct domain is selected");
   is(aWin.gTabs.activePanel, "cookiesPanel",
@@ -311,7 +312,7 @@ function test_cookies_panel(aWin) {
 },
 
 function test_permissions_panel(aWin) {
-  aWin.gDomains.tree.view.selection.select(7);
+  aWin.gDomains.tree.view.selection.select(8);
   is(aWin.gDomains.selectedDomain.title, "getpersonas.com",
      "For permissions tests, correct domain is selected");
   is(aWin.gTabs.activePanel, "permissionsPanel",
@@ -324,16 +325,24 @@ function test_permissions_panel(aWin) {
                      "geo", Services.perms.ALLOW_ACTION);
   Services.perms.add(Services.io.newURI("http://image.getpersonas.com/", null, null),
                      "image", Services.perms.DENY_ACTION);
+  Services.perms.add(Services.io.newURI("http://indexedDB.getpersonas.com/", null, null),
+                     "indexedDB", Services.perms.ALLOW_ACTION);
   Services.perms.add(Services.io.newURI("http://install.getpersonas.com/", null, null),
                      "install", Services.perms.ALLOW_ACTION);
+  Services.perms.add(Services.io.newURI("http://offline.getpersonas.com/", null, null),
+                     "offline-app", Services.perms.ALLOW_ACTION);
   Services.perms.add(Services.io.newURI("http://popup.getpersonas.com/", null, null),
                      "popup", Services.perms.ALLOW_ACTION);
+  Services.perms.add(Services.io.newURI("http://stsuse.getpersonas.com/", null, null),
+                     "sts/use", Services.perms.ALLOW_ACTION);
+  Services.perms.add(Services.io.newURI("http://stssubd.getpersonas.com/", null, null),
+                     "sts/subd", Services.perms.ALLOW_ACTION);
   Services.perms.add(Services.io.newURI("http://test.getpersonas.com/", null, null),
                      "test", Services.perms.DENY_ACTION);
   Services.perms.add(Services.io.newURI("http://xul.getpersonas.com/", null, null),
                      "allowXULXBL", Services.perms.ALLOW_ACTION);
   Services.logins.setLoginSavingEnabled("password.getpersonas.com", false);
-  is(aWin.gPerms.list.children.length, 10,
+  is(aWin.gPerms.list.children.length, 14,
      "The correct number of permissions is displayed in the list");
   for (let i = 1; i < aWin.gPerms.list.children.length; i++) {
     let perm = aWin.gPerms.list.children[i];
@@ -374,8 +383,26 @@ function test_permissions_panel(aWin) {
         is(perm.capability, 1,
            "Set back to correct default");
         break;
+      case "indexedDB":
+        is(perm.getAttribute("label"), "Store Local Databases",
+           "Correct label for type: " + perm.type);
+        is(perm.capability, 1,
+           "Correct capability for: " + perm.host);
+        perm.useDefault(true);
+        is(perm.capability, 2,
+           "Set back to correct default");
+        break;
       case "install":
         is(perm.getAttribute("label"), "Install Add-ons",
+           "Correct label for type: " + perm.type);
+        is(perm.capability, 1,
+           "Correct capability for: " + perm.host);
+        perm.useDefault(true);
+        is(perm.capability, 2,
+           "Set back to correct default");
+        break;
+      case "offline-app":
+        is(perm.getAttribute("label"), "Offline Web Applications",
            "Correct label for type: " + perm.type);
         is(perm.capability, 1,
            "Correct capability for: " + perm.host);
@@ -401,6 +428,24 @@ function test_permissions_panel(aWin) {
         is(perm.capability, 1,
            "Set back to correct default");
         break;
+      case "sts/use":
+        is(perm.getAttribute("label"), "Use Strict Transport Security",
+           "Correct label for type: " + perm.type);
+        is(perm.capability, 1,
+           "Correct capability for: " + perm.host);
+        perm.useDefault(true);
+        is(perm.capability, 0,
+           "Set back to correct default");
+        break;
+      case "sts/subd":
+        is(perm.getAttribute("label"), "Apply Strict Transport Security to subdomains",
+           "Correct label for type: " + perm.type);
+        is(perm.capability, 1,
+           "Correct capability for: " + perm.host);
+        perm.useDefault(true);
+        is(perm.capability, 0,
+           "Set back to correct default");
+        break;
       default:
         is(perm.getAttribute("label"), perm.type,
            "Correct default label for type: " + perm.type);
@@ -414,7 +459,7 @@ function test_permissions_panel(aWin) {
   }
 
   aWin.gDomains.tree.view.selection.select(0); // Switch to * domain.
-  aWin.gDomains.tree.view.selection.select(7); // Switch back to rebuild the perm list.
+  aWin.gDomains.tree.view.selection.select(8); // Switch back to rebuild the perm list.
   is(aWin.gPerms.list.children.length, 1,
      "After the test, the correct number of permissions is displayed in the list");
   Services.obs.notifyObservers(window, TEST_DONE, null);
@@ -476,7 +521,7 @@ function test_permissions_add(aWin) {
   aWin.gTabs.tabbox.selectedTab = aWin.document.getElementById("permissionsTab");
   is(aWin.gPerms.list.disabled, true,
      "After switching between panels, the permissions list is disabled again");
-  aWin.gDomains.tree.view.selection.select(7);
+  aWin.gDomains.tree.view.selection.select(8);
   is(aWin.gDomains.selectedDomain.title, "getpersonas.com",
      "Switched to correct domain for another add test");
   is(aWin.gTabs.activePanel, "permissionsPanel",
@@ -490,8 +535,8 @@ function test_permissions_add(aWin) {
 },
 
 function test_prefs_panel(aWin) {
-  Services.contentPrefs.setPref("my.drumbeat.org", "data_manager.test", "foo");
-  Services.contentPrefs.setPref("drumbeat.org", "data_manager.test", "bar");
+  Services.contentPrefs.setPref("my.drumbeat.org", "data_manager.test", "foo", null);
+  Services.contentPrefs.setPref("drumbeat.org", "data_manager.test", "bar", null);
   is(aWin.gDomains.tree.view.rowCount, kPreexistingDomains + 5,
      "The domain for prefs tests has been added from the list");
   aWin.gDomains.tree.view.selection.select(4);
@@ -569,7 +614,7 @@ function test_prefs_panel(aWin) {
 },
 
 function test_passwords_panel(aWin) {
-  aWin.gDomains.tree.view.selection.select(6);
+  aWin.gDomains.tree.view.selection.select(7);
   is(aWin.gDomains.selectedDomain.title, "geckoisgecko.org",
      "For passwords tests, correct domain is selected");
   is(aWin.gTabs.activePanel, "cookiesPanel",
@@ -655,7 +700,7 @@ function test_idn(aWin) {
      "Search for 'xn--' returns one result");
   is(aWin.gDomains.displayedDomains.map(function(aDom) { return aDom.title; })
                                    .join(","),
-     "xn--exmple-cua.test", "In xn-- search, only the non-decodable domain is listed");
+     "xn--exaple-kqf.test", "In xn-- search, only the non-decodable domain is listed");
   aWin.document.getElementById("domainSearch").value = idnDomain.charAt(3);
   aWin.document.getElementById("domainSearch").doCommand();
   is(aWin.gDomains.tree.view.rowCount, 1,
@@ -688,12 +733,12 @@ function test_idn(aWin) {
      "Permission has correct display host");
 
   // Add pref with decoded IDN name.
-  Services.contentPrefs.setPref(testDomain, "data_manager.test", "foo");
+  Services.contentPrefs.setPref(testDomain, "data_manager.test", "foo", null);
   aWin.gTabs.tabbox.selectedTab = aWin.document.getElementById("preferencesTab");
   is(aWin.gTabs.activePanel, "preferencesPanel",
      "Successfully switched to preferences panel for IDN tests");
   // Add pref with encoded IDN name while panel is shown (different code path).
-  Services.contentPrefs.setPref(idnDomain, "data_manager.test2", "bar");
+  Services.contentPrefs.setPref(idnDomain, "data_manager.test2", "bar", null);
   is(aWin.gPrefs.tree.view.getCellText(0, aWin.gPrefs.tree.columns["prefsHostCol"]),
      idnDomain,
      "Correct domain displayed for punycode IDN preference");
@@ -722,6 +767,71 @@ function test_idn(aWin) {
   aWin.document.getElementById("pwdRemove").click();
   is(aWin.gTabs.activePanel, "permissionsPanel",
      "After deleting, correctly switched back to permissions panel");
+
+  Services.obs.notifyObservers(window, TEST_DONE, null);
+},
+
+function test_storage_load(aWin) {
+  // Load the page that fills in several web storage entries.
+  Services.perms.add(Services.io.newURI("http://mochi.test:8888/", null, null),
+                     "offline-app", Services.perms.ALLOW_ACTION);
+
+  // Get the http address from the current chrome test path
+  let rootDir = getRootDirectory(gTestPath).replace("chrome://mochitests/content/", "http://mochi.test:8888/");
+  let testURL = rootDir + "dataman_storage.html";
+  let storagetab = gBrowser.addTab(testURL);
+  let stWin = storagetab.linkedBrowser.contentWindow.wrappedJSObject;
+  let dmStorageListener = {
+    handleEvent: function dmStorageHandler(aEvent) {
+      let tab = aEvent.target;
+      if (tab == storagetab) {
+        gBrowser.tabContainer.removeEventListener("TabClose", this, false);
+        // Force DOM Storage to write its data to the disk.
+        Services.obs.notifyObservers(null, "domstorage-flush-timer", "");
+        Services.perms.remove("mochi.test", "offline-app");
+        Services.obs.notifyObservers(window, TEST_DONE, null);
+      }
+    },
+  };
+  gBrowser.tabContainer.addEventListener("TabClose", dmStorageListener, false);
+},
+
+function test_storage_wait(aWin) {
+  // Wait to make sure that DOM Storage flushing has actually worked.
+  setTimeout(function foo() {
+      Services.obs.notifyObservers(window, TEST_DONE, null); }, 1000);
+},
+
+function test_storage(aWin) {
+  aWin.gStorage.reloadList();
+  info("appcache groups: " + aWin.gLocSvc.appcache.getGroups().length);
+  aWin.gDomains.tree.view.selection.select(8);
+  is(aWin.gDomains.selectedDomain.title, "mochi.test",
+    "For storage tests, correct domain is selected");
+  is(aWin.document.getElementById("storageTab").disabled, false,
+    "Storage panel is enabled");
+  aWin.gTabs.tabbox.selectedTab = aWin.document.getElementById("storageTab");
+  is(aWin.gTabs.activePanel, "storagePanel",
+    "Storage panel is selected");
+  is(aWin.gStorage.tree.view.rowCount, 3,
+    "The correct number of storages is listed");
+  is(aWin.gStorage.displayedStorages
+         .map(function(aStorage) { return aStorage.type; })
+         .sort().join(","),
+      "appCache,indexedDB,localStorage",
+      "The correct types of storage are listed");
+
+  for (let i = aWin.gStorage.tree.view.rowCount - 1; i >= 0; i--) {
+    let remType = aWin.gStorage.displayedStorages[0].type;
+    info("Removing " + remType);
+    aWin.gStorage.tree.view.selection.select(0);
+    aWin.document.getElementById("storageRemove").click();
+    is(aWin.gStorage.tree.view.rowCount, i,
+      remType + " entry removed");
+  }
+
+  isnot(aWin.gTabs.activePanel, "storagePanel",
+    "Storage panel is not selected any more");
 
   Services.obs.notifyObservers(window, TEST_DONE, null);
 },

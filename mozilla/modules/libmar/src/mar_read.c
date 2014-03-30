@@ -175,7 +175,7 @@ MarFile *mar_open(const char *path) {
 }
 
 #ifdef XP_WIN
-MarFile *mar_wopen(const PRUnichar *path) {
+MarFile *mar_wopen(const wchar_t *path) {
   FILE *fp;
 
   _wfopen_s(&fp, path, L"rb");
@@ -254,7 +254,7 @@ int get_mar_file_info_fp(FILE *fp,
       return -1;
     }
 
-    /* Read the offset to the index. */
+    /* Read the number of signatures field */
     if (fread(numSignatures, sizeof(*numSignatures), 1, fp) != 1) {
       return -1;
     }

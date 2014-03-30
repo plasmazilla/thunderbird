@@ -4,10 +4,9 @@
 
 // Test of chaining copies between the same folders
 
-const copyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
-                      .getService(Ci.nsIMsgCopyService);
-
 load("../../../resources/messageGenerator.js");
+
+Components.utils.import("resource:///modules/mailServices.js");
 
 var gCopySource;
 var gCopyDest;
@@ -42,8 +41,8 @@ function CopyNextMessage()
       Components.interfaces.nsIMsgDBHdr);
     var messages = Cc["@mozilla.org/array;1"].createInstance(Ci.nsIMutableArray);
     messages.appendElement(msgHdr, false);
-    copyService.CopyMessages(gCopySource, messages, gCopyDest, true,
-                             copyListener, null, false);
+    MailServices.copy.CopyMessages(gCopySource, messages, gCopyDest, true,
+                                   copyListener, null, false);
   }
   else
     do_throw ('TEST FAILED - out of messages');
@@ -51,8 +50,7 @@ function CopyNextMessage()
 
 function run_test()
 {
-
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
   let messageGenerator = new MessageGenerator();
   let scenarioFactory = new MessageScenarioFactory(messageGenerator);
 
@@ -60,14 +58,14 @@ function run_test()
   // all the operations.
   do_test_pending();
 
-  gCopyDest = gLocalInboxFolder.createLocalSubfolder("copyDest");
+  gCopyDest = localAccountUtils.inboxFolder.createLocalSubfolder("copyDest");
   // build up a diverse list of messages
   let messages = [];
   messages = messages.concat(scenarioFactory.directReply(10));
-  gCopySource = gLocalIncomingServer.rootMsgFolder.createLocalSubfolder("copySource");
+  gCopySource = localAccountUtils.rootFolder.createLocalSubfolder("copySource");
   addMessagesToFolder(messages, gCopySource);
 
-  updateFolderAndNotify(gCopySource, doTest);
+  mailTestUtils.updateFolderAndNotify(gCopySource, doTest);
   return true;
 }
 

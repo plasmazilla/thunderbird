@@ -309,19 +309,23 @@ var BookmarkPropertiesPanel = {
 
     // When collapsible elements change their collapsed attribute we must
     // resize the dialog.
-    var prefs = Components.classes["@mozilla.org/preferences-service;1"]
-                          .getService(Components.interfaces.nsIPrefBranch);
+    var observer = new MutationObserver(function(aRecords, aObserver) {
+      var el = document.getElementById("editBookmarkPanelContent");
+      var width = el.boxObject.width;
+      window.sizeToContent();
+      window.outerWidth -= el.boxObject.width - width;
+    });
     if (!this._element("tagsRow").collapsed) {
-      if (prefs.getBoolPref("browser.bookmarks.editDialog.expandTags"))
+      if (Services.prefs.getBoolPref("browser.bookmarks.editDialog.expandTags"))
         gEditItemOverlay.toggleTagsSelector();
-      this._element("tagsSelectorRow")
-          .addEventListener("DOMAttrModified", this, false);
+      observer.observe(this._element("tagsSelectorRow"),
+                       {attributes: true, attributeFilter: ["collapsed"]});
     }
     if (!this._element("folderRow").collapsed) {
-      if (prefs.getBoolPref("browser.bookmarks.editDialog.expandFolders"))
+      if (Services.prefs.getBoolPref("browser.bookmarks.editDialog.expandFolders"))
         gEditItemOverlay.toggleFolderTreeVisibility();
-      this._element("folderTreeRow")
-          .addEventListener("DOMAttrModified", this, false);
+      observer.observe(this._element("folderTreeRow"),
+                       {attributes: true, attributeFilter: ["collapsed"]});
     }
 
     if (!this._readOnly) {
@@ -347,7 +351,6 @@ var BookmarkPropertiesPanel = {
   },
 
   // nsIDOMEventListener
-  _elementsHeight: [],
   handleEvent: function BPP_handleEvent(aEvent) {
     var target = aEvent.target;
     switch (aEvent.type) {
@@ -368,20 +371,6 @@ var BookmarkPropertiesPanel = {
           if (el.boxObject.height)
             el.height = el.boxObject.height;
         });
-        break;
-
-      case "DOMAttrModified":
-        // this is called when collapsing a node, but also its direct children,
-        // we only need to resize when the original node changes.
-        if ((target.id == "editBMPanel_tagsSelectorRow" ||
-             target.id == "editBMPanel_folderTreeRow") &&
-            aEvent.attrName == "collapsed" &&
-            target == aEvent.originalTarget) {
-          var el = document.getElementById("editBookmarkPanelContent");
-          var width = el.boxObject.width;
-          window.sizeToContent();
-          window.outerWidth -= el.boxObject.width - width;
-        }
         break;
     }
   },
@@ -404,7 +393,7 @@ var BookmarkPropertiesPanel = {
     if (this._batching)
       return;
 
-    PlacesUtils.transactionManager.beginBatch();
+    PlacesUtils.transactionManager.beginBatch(null);
     this._batching = true;
   },
 
@@ -412,7 +401,7 @@ var BookmarkPropertiesPanel = {
     if (!this._batching)
       return;
 
-    PlacesUtils.transactionManager.endBatch();
+    PlacesUtils.transactionManager.endBatch(false);
     this._batching = false;
   },
 
@@ -454,10 +443,6 @@ var BookmarkPropertiesPanel = {
     // gEditItemOverlay does not exist anymore here, so don't rely on it.
     // Calling removeEventListener with arguments which do not identify any
     // currently registered EventListener on the EventTarget has no effect.
-    this._element("tagsSelectorRow")
-        .removeEventListener("DOMAttrModified", this, false);
-    this._element("folderTreeRow")
-        .removeEventListener("DOMAttrModified", this, false);
     this._element("locationField")
         .removeEventListener("input", this, false);
     this._element("feedLocationField")
@@ -465,14 +450,12 @@ var BookmarkPropertiesPanel = {
     this._element("siteLocationField")
         .removeEventListener("input", this, false);
 
-    var prefs = Components.classes["@mozilla.org/preferences-service;1"]
-                          .getService(Components.interfaces.nsIPrefBranch);
     if (!this._element("tagsRow").collapsed)
-      prefs.setBoolPref("browser.bookmarks.editDialog.expandTags",
-                        !this._element("tagsSelectorRow").collapsed);
+      Services.prefs.setBoolPref("browser.bookmarks.editDialog.expandTags",
+                                 !this._element("tagsSelectorRow").collapsed);
     if (!this._element("folderRow").collapsed)
-      prefs.setBoolPref("browser.bookmarks.editDialog.expandFolders",
-                        !this._element("folderTreeRow").collapsed);
+      Services.prefs.setBoolPref("browser.bookmarks.editDialog.expandFolders",
+                                 !this._element("folderTreeRow").collapsed);
   },
 
   onDialogAccept: function BPP_onDialogAccept() {

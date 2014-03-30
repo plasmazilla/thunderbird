@@ -28,8 +28,9 @@
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource:///modules/folderUtils.jsm");
+Components.utils.import("resource:///modules/hostnameUtils.jsm");
 
-var gSmtpHostNameIsIllegal = false;
 // If Local directory has changed the app needs to restart. Once this is set
 // a restart will be attempted at each attempt to close the Account manager with OK.
 var gRestartNeeded = false;
@@ -45,6 +46,42 @@ var currentPageId;
 
 var pendingAccount;
 var pendingPageId;
+
+/**
+ * This array contains filesystem folders that are deemed inappropriate
+ * for use as the local directory pref for message storage.
+ * It is global to allow extensions to add to/remove from it if needed.
+ * Extentions adding new server types should first consider setting
+ * nsIMsgProtocolInfo(of the server type).defaultLocalPath properly
+ * so that the test will allow that directory automatically.
+ * See the checkLocalDirectoryIsSafe function for description of the members.
+ */
+var gDangerousLocalStorageDirs = [
+  // profile folder
+  { dirsvc: "ProfD",    OS: null },
+  // GRE install folder
+  { dirsvc: "GreD",     OS: null },
+  // Application install folder
+  { dirsvc: "CurProcD", OS: null },
+  // system temporary folder
+  { dirsvc: "TmpD",     OS: null },
+  // Windows system folder
+  { dirsvc: "SysD",     OS: "WINNT" },
+  // Windows folder
+  { dirsvc: "WinD",     OS: "WINNT" },
+  // Program Files folder
+  { dirsvc: "ProgF",    OS: "WINNT" },
+  // trash folder
+  { dirsvc: "Trsh",     OS: "Darwin" },
+  // Mac OS system folder
+  { dir:    "/System",  OS: "Darwin" },
+  // devices folder
+  { dir:    "/dev",     OS: "Darwin,Linux" },
+  // process info folder
+  { dir:    "/proc",    OS: "Linux" },
+  // system state folder
+  { dir:    "/sys",     OS: "Linux" }
+];
 
 // This sets an attribute in a xul element so that we can later
 // know what value to substitute in a prefstring.  Different
@@ -72,15 +109,15 @@ function updateElementWithKeys(account, element, type) {
 }
 
 function hideShowControls(serverType) {
-  var controls = document.getElementsByAttribute("hidefor", "*");
-  for (var controlNo = 0; controlNo < controls.length; controlNo++) {
-    var control = controls[controlNo];
-    var hideFor = control.getAttribute("hidefor");
+  let controls = document.querySelectorAll("[hidefor]");
+  for (let controlNo = 0; controlNo < controls.length; controlNo++) {
+    let control = controls[controlNo];
+    let hideFor = control.getAttribute("hidefor");
 
     // Hide unsupported server types using hideFor="servertype1,servertype2".
-    var hide = false;
-    var hideForTokens = hideFor.split(",");
-    for (var tokenNo = 0; tokenNo < hideForTokens.length; tokenNo++) {
+    let hide = false;
+    let hideForTokens = hideFor.split(",");
+    for (let tokenNo = 0; tokenNo < hideForTokens.length; tokenNo++) {
       if (hideForTokens[tokenNo] == serverType) {
         hide = true;
         break;
@@ -120,7 +157,7 @@ function onUnload() {
   gAccountTree.unload();
 }
 
-function selectServer(server, selectPage)
+function selectServer(server, selectPageId)
 {
   let childrenNode = document.getElementById("account-tree-children");
 
@@ -129,28 +166,35 @@ function selectServer(server, selectPage)
 
   // Find the tree-node for the account we want to select
   if (server) {
-    for (var i = 0; i < childrenNode.childNodes.length; i++) {
+    for (let i = 0; i < childrenNode.childNodes.length; i++) {
       let account = childrenNode.childNodes[i]._account;
       if (account && server == account.incomingServer) {
         accountNode = childrenNode.childNodes[i];
+        // Make sure all the panes of the account to be selected are shown.
+        accountNode.setAttribute("open", "true");
         break;
       }
     }
   }
 
-  var pageToSelect = accountNode;
-  if (selectPage) {
-    // Find the page that also corresponds to this server
-    var pages = accountNode.getElementsByAttribute("PageTag", selectPage);
-    pageToSelect = pages[0];
+  let pageToSelect = accountNode;
+
+  if (selectPageId) {
+    // Find the page that also corresponds to this server.
+    // It either is the accountNode itself...
+    let pageId = accountNode.getAttribute("PageTag");
+    if (pageId != selectPageId) {
+      // ... or one of its children.
+      pageToSelect = accountNode.querySelector('[PageTag="' + selectPageId + '"]');
+    }
   }
 
-  var accountTree = document.getElementById("accounttree");
-  var index = accountTree.contentView.getIndexOfItem(pageToSelect);
+  let accountTree = document.getElementById("accounttree");
+  let index = accountTree.contentView.getIndexOfItem(pageToSelect);
   accountTree.view.selection.select(index);
   accountTree.treeBoxObject.ensureRowIsVisible(index);
 
-  var lastItem = accountNode.lastChild.lastChild;
+  let lastItem = accountNode.lastChild.lastChild;
   if (lastItem.localName == "treeitem")
     index = accountTree.contentView.getIndexOfItem(lastItem);
 
@@ -187,14 +231,18 @@ function replaceWithDefaultSmtpServer(deletedSmtpServerKey)
   }
 }
 
-function onAccept() {
-  // Check if user/host have been modified correctly.
-  if (!checkUserServerChanges(true))
-    return false;
-
-  if (gSmtpHostNameIsIllegal) {
-    gSmtpHostNameIsIllegal = false;
-    return false;
+/**
+ * Called when OK is clicked on the dialog.
+ *
+ * @param aDoChecks  If true, execute checks on data, otherwise hope they
+ *                   were already done elsewhere and proceed directly to saving
+ *                   the data.
+ */
+function onAccept(aDoChecks) {
+  if (aDoChecks) {
+    // Check if user/host have been modified correctly.
+    if (!checkUserServerChanges(true))
+      return false;
   }
 
   if (!onSave())
@@ -213,6 +261,213 @@ function onAccept() {
 }
 
 /**
+ * See if the given path to a directory is usable on the current OS.
+ *
+ * aLocalPath  the nsIFile of a directory to check.
+ */
+function checkDirectoryIsValid(aLocalPath) {
+  // Any directory selected in the file picker already exists.
+  // Any directory specified in prefs.js will be created at start if it does
+  // not exist yet.
+  // If at the time of entering Account Manager the directory does not exist,
+  // it must be invalid in the current OS or not creatable due to permissions.
+  // Even then, the backend sometimes tries to create a new one
+  // under the current profile.
+  if (!aLocalPath.exists() || !aLocalPath.isDirectory())
+    return false;
+
+  if (Services.appinfo.OS == "WINNT") {
+    // Do not allow some special filenames on Windows.
+    // Taken from mozilla/widget/windows/nsDataObj.cpp::MangleTextToValidFilename()
+    let dirLeafName = aLocalPath.leafName;
+    const kForbiddenNames = [
+      "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+      "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+      "CON", "PRN", "AUX", "NUL", "CLOCK$" ];
+    if (kForbiddenNames.indexOf(dirLeafName) != -1)
+      return false;
+  }
+
+  // The directory must be readable and writable to work as a mail store.
+  if (!(aLocalPath.isReadable() && aLocalPath.isWritable()))
+    return false;
+
+  return true;
+}
+
+/**
+ * Even if the local path is usable, there are some special folders we do not
+ * want to allow for message storage as they cause problems (see e.g. bug 750781).
+ *
+ * aLocalPath  The nsIFile of a directory to check.
+ */
+function checkDirectoryIsAllowed(aLocalPath) {
+  /**
+   * Check if the local path (aLocalPath) is 'safe' i.e. NOT a parent
+   * or subdirectory of the given special system/app directory (aDirToCheck).
+   *
+   * @param aDirToCheck  An object describing the special directory.
+   *        The object has the following members:
+   *        dirsvc      : A path keyword to retrieve from the Directory service.
+   *        dir         : An absolute filesystem path.
+   *                      Only one of 'dirsvc' or 'dir' can be specified.
+   *        OS          : A string of comma separated values defining on which
+   *                      Operating systems the folder is unusable:
+   *                       null   = all
+   *                       WINNT  = Windows
+   *                       Darwin = OS X
+   *                       Linux  = Linux
+   *        safeSubdirs : An array of directory names that are allowed to be used
+   *                      under the tested directory.
+   * @param aLocalPath  An nsIFile of the directory to check, intended for message storage.
+   */
+  function checkLocalDirectoryIsSafe(aDirToCheck, aLocalPath) {
+    if (aDirToCheck.OS) {
+      if (aDirToCheck.OS.split(",").indexOf(Services.appinfo.OS) == -1)
+        return true;
+    }
+
+    let testDir = null;
+    if ("dirsvc" in aDirToCheck) {
+      try {
+        testDir = Services.dirsvc.get(aDirToCheck.dirsvc, Components.interfaces.nsIFile);
+      } catch (e) {
+        Components.utils.reportError("The special folder " + aDirToCheck.dirsvc +
+          " cannot be retrieved on this platform: " + e);
+      }
+
+      if (!testDir)
+        return true;
+    }
+    else if ("dir" in aDirToCheck) {
+      testDir = Components.classes["@mozilla.org/file/local;1"]
+                          .createInstance(Components.interfaces.nsIFile);
+      testDir.initWithPath(aDirToCheck.dir);
+      if (!testDir.exists())
+        return true;
+    } else {
+      Components.utils.reportError("No directory to check?");
+      return true;
+    }
+
+    testDir.normalize();
+
+    if (testDir.equals(aLocalPath) || aLocalPath.contains(testDir, true))
+      return false;
+
+    if (testDir.contains(aLocalPath, true)) {
+      if (!("safeSubdirs" in aDirToCheck))
+        return false;
+
+      // While the tested directory may not be safe,
+      // a subdirectory of some safe subdirectories may be fine.
+      let isInSubdir = false;
+      for (let subDir of aDirToCheck.safeSubdirs) {
+        let checkDir = testDir.clone();
+        checkDir.append(subDir);
+        if (checkDir.contains(aLocalPath, true)) {
+          isInSubdir = true;
+          break;
+        }
+      }
+      return isInSubdir;
+    }
+
+    return true;
+  } // end of checkDirectoryIsNotSpecial
+
+  // If the server type has a nsIMsgProtocolInfo.defaultLocalPath set,
+  // allow that directory.
+  if (currentAccount.incomingServer) {
+    try {
+      let defaultPath = currentAccount.incomingServer.protocolInfo.defaultLocalPath;
+      if (defaultPath) {
+        defaultPath.normalize();
+        if (defaultPath.contains(aLocalPath, true))
+          return true;
+      }
+    } catch (e) { /* No problem if this fails. */ }
+  }
+
+  for (let tryDir of gDangerousLocalStorageDirs) {
+    if (!checkLocalDirectoryIsSafe(tryDir, aLocalPath))
+      return false;
+  }
+
+  return true;
+}
+
+/**
+ * Check if the specified directory does meet all the requirements
+ * for safe mail storage.
+ *
+ * aLocalPath  the nsIFile of a directory to check.
+ */
+function checkDirectoryIsUsable(aLocalPath) {
+  const kAlertTitle = document.getElementById("bundle_prefs")
+                              .getString("prefPanel-server");
+  const originalPath = aLocalPath;
+
+  let invalidPath = false;
+  try{
+    aLocalPath.normalize();
+  } catch (e) { invalidPath = true; }
+
+  if (invalidPath || !checkDirectoryIsValid(aLocalPath)) {
+    let alertString = document.getElementById("bundle_prefs")
+                              .getFormattedString("localDirectoryInvalid",
+                                                  [originalPath.path]);
+    Services.prompt.alert(window, kAlertTitle, alertString);
+    return false;
+  }
+
+  if (!checkDirectoryIsAllowed(aLocalPath)) {
+    let alertNotAllowed = document.getElementById("bundle_prefs")
+                                  .getFormattedString("localDirectoryNotAllowed",
+                                                      [originalPath.path]);
+    Services.prompt.alert(window, kAlertTitle, alertNotAllowed);
+    return false;
+  }
+
+  // Check that no other account has this same or dependent local directory.
+  let allServers = MailServices.accounts.allServers;
+
+  for (let server in fixIterator(allServers,
+                                 Components.interfaces.nsIMsgIncomingServer))
+  {
+    if (server.key == currentAccount.incomingServer.key)
+      continue;
+
+    let serverPath = server.localPath;
+    try {
+      serverPath.normalize();
+      let alertStringID = null;
+      if (serverPath.equals(aLocalPath))
+        alertStringID = "directoryAlreadyUsedByOtherAccount";
+      else if (serverPath.contains(aLocalPath, true))
+        alertStringID = "directoryParentUsedByOtherAccount";
+      else if (aLocalPath.contains(serverPath, true))
+        alertStringID = "directoryChildUsedByOtherAccount";
+
+      if (alertStringID) {
+        let alertString = document.getElementById("bundle_prefs")
+                                  .getFormattedString(alertStringID,
+                                                      [server.prettyName]);
+
+        Services.prompt.alert(window, kAlertTitle, alertString);
+        return false;
+      }
+    } catch (e) {
+      // The other account's path is seriously broken, so we can't compare it.
+      Components.utils.reportError("The Local Directory path of the account " +
+        server.prettyName + " seems invalid.");
+    }
+  }
+
+  return true;
+}
+
+/**
  * Check if the user and/or host names have been changed and if so check
  * if the new names already exists for an account or are empty.
  * Also check if the Local Directory path was changed.
@@ -223,18 +478,6 @@ function checkUserServerChanges(showAlert) {
   const prefBundle = document.getElementById("bundle_prefs");
   const alertTitle = prefBundle.getString("prefPanel-server");
   var alertText = null;
-  if (MailServices.smtp.defaultServer) {
-    try {
-      var smtpHostName = top.frames["contentFrame"]
-                            .document.getElementById("smtp.hostname");
-      if (smtpHostName && hostnameIsIllegal(smtpHostName.value)) {
-        alertText = prefBundle.getString("enterValidHostname");
-        Services.prompt.alert(window, alertTitle, alertText);
-        gSmtpHostNameIsIllegal = true;
-      }
-    }
-    catch (ex) {}
-  }
 
   var accountValues = getValueArrayFor(currentAccount);
   if (!accountValues)
@@ -244,15 +487,17 @@ function checkUserServerChanges(showAlert) {
   if (!pageElements)
     return true;
 
+  let currentServer = currentAccount ? currentAccount.incomingServer : null;
+
   // Get the new username, hostname and type from the page
   var newUser, newHost, newType, oldUser, oldHost;
   var uIndx, hIndx;
-  for (var i = 0; i < pageElements.length; i++) {
+  for (let i = 0; i < pageElements.length; i++) {
     if (pageElements[i].id) {
-      var vals = pageElements[i].id.split(".");
+      let vals = pageElements[i].id.split(".");
       if (vals.length >= 2) {
-        var type = vals[0];
-        var slot = vals[1];
+        let type = vals[0];
+        let slot = pageElements[i].id.slice(type.length + 1);
 
         // if this type doesn't exist (just removed) then return.
         if (!(type in accountValues) || !accountValues[type]) return true;
@@ -274,22 +519,34 @@ function checkUserServerChanges(showAlert) {
   }
 
   var checkUser = true;
-  // There is no username defined for news so reset it.
-  if (newType == "nntp") {
+  // There is no username needed for e.g. news so reset it.
+  if (currentServer && !currentServer.protocolInfo.requiresUsername) {
     oldUser = newUser = "";
     checkUser = false;
   }
   alertText = null;
   // If something is changed then check if the new user/host already exists.
   if ((oldUser != newUser) || (oldHost != newHost)) {
-    if ((checkUser && (newUser == "")) || (newHost == "")) {
-        alertText = prefBundle.getString("serverNameEmpty");
-    } else {
-      let sameServer = MailServices.accounts
-                                   .findRealServer(newUser, newHost, newType, 0)
-      if (sameServer && (sameServer != currentAccount.incomingServer))
-        alertText = prefBundle.getString("modifiedAccountExists");
+    newUser = newUser.trim();
+    newHost = cleanUpHostName(newHost);
+    if (checkUser && (newUser == "")) {
+      alertText = prefBundle.getString("userNameEmpty");
     }
+    else if (!isLegalHostNameOrIP(newHost)) {
+      alertText = prefBundle.getString("enterValidServerName");
+    }
+    else {
+      let sameServer = MailServices.accounts
+                                   .findRealServer(newUser, newHost, newType, 0);
+      if (sameServer && (sameServer != currentServer)) {
+        alertText = prefBundle.getString("modifiedAccountExists");
+      } else {
+        // New hostname passed all checks. We may have cleaned it up so set
+        // the new value back into the input element.
+        setFormElementValue(pageElements[hIndx], newHost);
+      }
+    }
+
     if (alertText) {
       if (showAlert)
         Services.prompt.alert(window, alertTitle, alertText);
@@ -297,7 +554,9 @@ function checkUserServerChanges(showAlert) {
       if (checkUser)
         setFormElementValue(pageElements[uIndx], oldUser);
       setFormElementValue(pageElements[hIndx], oldHost);
-      return false;
+      // If no message is shown to the user, silently revert the values
+      // and consider the check a success.
+      return !showAlert;
     }
 
     // If username is changed remind users to change Your Name and Email Address.
@@ -305,8 +564,8 @@ function checkUserServerChanges(showAlert) {
     // to edit rules.
     if (showAlert) {
       let filterList;
-      if (currentAccount && checkUser) {
-        filterList = currentAccount.incomingServer.getEditableFilterList(null);
+      if (currentServer && checkUser) {
+        filterList = currentServer.getEditableFilterList(null);
       }
       let changeText = "";
       if ((oldHost != newHost) &&
@@ -319,6 +578,21 @@ function checkUserServerChanges(showAlert) {
 
       if (changeText != "")
         Services.prompt.alert(window, alertTitle, changeText.trim());
+    }
+  }
+
+  // Check the new value of the server.localPath field for validity.
+  for (let i = 0; i < pageElements.length; i++) {
+    if (pageElements[i].id) {
+      if (pageElements[i].id == "server.localPath") {
+        if (!checkDirectoryIsUsable(getFormElementValue(pageElements[i]))) {
+//          return false; // Temporarily disable this. Just show warning but do not block. See bug 921371.
+          Components.utils.reportError("Local directory '" +
+            getFormElementValue(pageElements[i]).path + "' of account " +
+            currentAccount.key + " is not safe to use. Consider changing it.");
+        }
+        break;
+      }
     }
   }
 
@@ -394,8 +668,10 @@ function AddIMAccount()
  * optionally un-highlight the previous one.
  */
 function markDefaultServer(newDefault, oldDefault) {
-  let accountTree = document.getElementById("account-tree-children");
-  for each (let accountNode in accountTree.childNodes) {
+  let accountTreeNodes = document.getElementById("account-tree-children")
+                                 .childNodes;
+  for (let i = 0; i < accountTreeNodes.length; i++) {
+    let accountNode = accountTreeNodes[i];
     if (newDefault == accountNode._account) {
       accountNode.firstChild
                  .firstChild
@@ -430,15 +706,9 @@ function onRemoveAccount(event) {
     return;
 
   let server = currentAccount.incomingServer;
-  let type = server.type;
   let prettyName = server.prettyName;
 
-  let canDelete = false;
-  if (Components.classes["@mozilla.org/messenger/protocol/info;1?type=" + type]
-                .getService(Components.interfaces.nsIMsgProtocolInfo).canDelete)
-    canDelete = true;
-  else
-    canDelete = server.canDelete;
+  let canDelete = server.protocolInfo.canDelete || server.canDelete;
 
   if (!canDelete)
     return;
@@ -651,17 +921,12 @@ function updateItems(tree, account, addAccountItem, setDefaultItem, removeItem) 
     // Otherwise we have either selected a SMTP server, or there is some
     // problem. Either way, we don't want the user to act on it.
     let server = account.incomingServer;
-    let type = server.type;
 
     if (account != MailServices.accounts.defaultAccount &&
-        server.canBeDefaultServer && account.identities.Count() > 0)
+        server.canBeDefaultServer && account.identities.length > 0)
       canSetDefault = true;
 
-    if (Components.classes["@mozilla.org/messenger/protocol/info;1?type=" + type]
-                  .getService(Components.interfaces.nsIMsgProtocolInfo).canDelete)
-      canDelete = true;
-    else
-      canDelete = server.canDelete;
+    canDelete = server.protocolInfo.canDelete || server.canDelete;
   }
 
   setEnabled(addAccountItem, true);
@@ -725,13 +990,16 @@ function onAccountTreeSelect(pageId, account)
   if (pageId == currentPageId && account == currentAccount)
     return true;
 
-  // check if user/host names have been changed
-  checkUserServerChanges(false);
+  if (document.getElementById("contentFrame").contentDocument.getElementById("server.localPath")) {
+    // Check if user/host names have been changed or the Local Directory is invalid.
+    if (!checkUserServerChanges(false)) {
+      changeView = true;
+      account = currentAccount;
+      pageId = currentPageId;
+    }
 
-  if (gSmtpHostNameIsIllegal) {
-    gSmtpHostNameIsIllegal = false;
-    selectServer(currentAccount.incomingServer, currentPageId);
-    return true;
+    if (gRestartNeeded)
+      onAccept(false);
   }
 
   if (currentPageId) {
@@ -793,7 +1061,7 @@ function onPanelLoaded(pageId) {
   pendingPageId = null;
 }
 
-function loadPage(pageId)
+function pageURL(pageId)
 {
   let chromePackageName;
   try {
@@ -806,8 +1074,14 @@ function loadPage(pageId)
   catch (ex) {
     chromePackageName = "messenger";
   }
+  return "chrome://" + chromePackageName + "/content/" + pageId;
+}
+
+function loadPage(pageId)
+{
   const LOAD_FLAGS_NONE = Components.interfaces.nsIWebNavigation.LOAD_FLAGS_NONE;
-  document.getElementById("contentFrame").webNavigation.loadURI("chrome://" + chromePackageName + "/content/" + pageId, LOAD_FLAGS_NONE, null, null, null);
+  document.getElementById("contentFrame").webNavigation.loadURI(pageURL(pageId),
+    LOAD_FLAGS_NONE, null, null, null);
 }
 
 // save the values of the widgets to the given server
@@ -829,12 +1103,12 @@ function savePage(account)
     return;
 
   // store the value in the account
-  for (var i = 0; i < pageElements.length; i++) {
+  for (let i = 0; i < pageElements.length; i++) {
     if (pageElements[i].id) {
-      var vals = pageElements[i].id.split(".");
+      let vals = pageElements[i].id.split(".");
       if (vals.length >= 2) {
-        var type = vals[0];
-        var slot = vals[1];
+        let type = vals[0];
+        let slot = pageElements[i].id.slice(type.length + 1);
 
         setAccountValue(accountValues,
                         type, slot,
@@ -938,12 +1212,13 @@ function restorePage(pageId, account)
     return;
 
   // restore the value from the account
-  for (var i = 0; i < pageElements.length; i++) {
+  for (let i = 0; i < pageElements.length; i++) {
     if (pageElements[i].id) {
-      var vals = pageElements[i].id.split(".");
+      let vals = pageElements[i].id.split(".");
       if (vals.length >= 2) {
-        var type = vals[0];
-        var slot = vals[1];
+        let type = vals[0];
+        let slot = pageElements[i].id.slice(type.length + 1);
+
         // buttons are lockable, but don't have any data so we skip that part.
         // elements that do have data, we get the values at poke them in.
         if (pageElements[i].localName != "button") {
@@ -1013,9 +1288,6 @@ function getFormElementValue(formElement) {
 
 // sets the value of a widget
 function setFormElementValue(formElement, value) {
-
-  //formElement.value = formElement.defaultValue;
-  //  formElement.checked = formElement.defaultChecked;
   var type = formElement.localName;
   if (type == "checkbox") {
     if (value == undefined) {
@@ -1030,20 +1302,11 @@ function setFormElementValue(formElement, value) {
         formElement.checked = value;
     }
   }
-
   else if (type == "radiogroup" || type =="menulist") {
-
-    var selectedItem;
-    if (value == undefined) {
-      if (type == "radiogroup")
-        selectedItem = formElement.firstChild;
-      else
-        selectedItem = formElement.firstChild.firstChild;
-    }
+    if (value == undefined)
+      formElement.selectedIndex = 0;
     else
-      selectedItem = formElement.getElementsByAttribute("value", value)[0];
-
-    formElement.selectedItem = selectedItem;
+      formElement.value = value;
   }
   // handle nsILocalFile
   else if (type == "textbox" &&
@@ -1066,6 +1329,13 @@ function setFormElementValue(formElement, value) {
   else if (type == "textbox") {
     if (value == null || value == undefined) {
       formElement.value = null;
+    } else {
+      formElement.value = value;
+    }
+  }
+  else if (type == "label") {
+    if (value == null || value == undefined) {
+      formElement.value = "";
     } else {
       formElement.value = value;
     }
@@ -1131,6 +1401,36 @@ var gAccountTree = {
   },
   onServerChanged: function at_onServerChanged(aServer) {},
 
+  _rdf: Components.classes["@mozilla.org/rdf/rdf-service;1"]
+                  .getService(Components.interfaces.nsIRDFService),
+  _rdfDataSource: null,
+  _rdfOpenAttribute: null,
+
+  /**
+   * Retrieve from localstore.rdf whether the account should be expanded (open)
+   * in the account tree.
+   *
+   * @param aAccountKey  key of the account to check
+   */
+  _getAccountOpenState: function at_getAccountOpenState(aAccountKey) {
+    // The code for this was ported from
+    // mozilla/browser/components/nsBrowserGlue.js.
+    if (!this._rdfDataSource) {
+      this._rdfDataSource = this._rdf.GetDataSource("rdf:local-store");
+      this._rdfOpenAttribute = this._rdf.GetResource("open");
+    }
+
+    // Retrieve the persisted value from localstore.rdf.
+    // It is stored under the URI of the current document and ID of the XUL element.
+    let resource = this._rdf.GetResource(document.documentURI + "#" + aAccountKey);
+    let target = this._rdfDataSource.GetTarget(resource, this._rdfOpenAttribute, true);
+    if (target instanceof Components.interfaces.nsIRDFLiteral)
+      return target.Value;
+
+    // If there was no value stored, use opened state.
+    return "true";
+  },
+
   _build: function at_build() {
     const Ci = Components.interfaces;
     var bundle = document.getElementById("bundle_prefs");
@@ -1142,36 +1442,9 @@ var gAccountTree = {
                   {string: get("prefPanel-addressing"), src: "am-addressing.xul"},
                   {string: get("prefPanel-junk"), src: "am-junk.xul"}];
 
-    // Get our account list, and add the proper items
-    var mgr = MailServices.accounts;
+    let accounts = allAccountsSorted(false);
 
-    var accounts = [a for each (a in fixIterator(mgr.accounts, Ci.nsIMsgAccount))];
-    // Stupid bug 41133 hack. Grr...
-    accounts = accounts.filter(function fix(a) { return a.incomingServer; });
-
-    function sortAccounts(a, b) {
-      if (a.key == mgr.defaultAccount.key)
-        return -1;
-      if (b.key == mgr.defaultAccount.key)
-        return 1;
-      var aIsNews = a.incomingServer.type == "nntp";
-      var bIsNews = b.incomingServer.type == "nntp";
-      if (aIsNews && !bIsNews)
-        return 1;
-      if (bIsNews && !aIsNews)
-        return -1;
-
-      var aIsLocal = a.incomingServer.type == "none";
-      var bIsLocal = b.incomingServer.type == "none";
-      if (aIsLocal && !bIsLocal)
-        return 1;
-      if (bIsLocal && !aIsLocal)
-        return -1;
-      return 0;
-    }
-    accounts.sort(sortAccounts);
-
-    var mainTree = document.getElementById("account-tree-children");
+    let mainTree = document.getElementById("account-tree-children");
     // Clear off all children...
     while (mainTree.firstChild)
       mainTree.removeChild(mainTree.firstChild);
@@ -1193,8 +1466,8 @@ var gAccountTree = {
 
       // Now add our panels
       var panelsToKeep = [];
-      var idents = mgr.GetIdentitiesForServer(server);
-      if (idents.Count()) {
+      let idents = MailServices.accounts.getIdentitiesForServer(server);
+      if (idents.length) {
         panelsToKeep.push(panels[0]); // The server panel is valid
         panelsToKeep.push(panels[1]); // also the copies panel
         panelsToKeep.push(panels[4]); // and addresssing
@@ -1248,14 +1521,19 @@ var gAccountTree = {
           kidtreeitem._account = account;
         }
         treeitem.setAttribute("container", "true");
-        treeitem.setAttribute("open", "true");
+        treeitem.id = account.key;
+        // Load the 'open' state of the account from localstore.rdf.
+        treeitem.setAttribute("open", this._getAccountOpenState(account.key));
+        // Let the localstore.rdf automatically save the 'open' state of the
+        // account when it is changed.
+        treeitem.setAttribute("persist", "open");
       }
       treeitem.setAttribute("PageTag", server ? server.accountManagerChrome
                                               : "am-main.xul");
       treeitem._account = account;
     }
 
-    markDefaultServer(mgr.defaultAccount, null);
+    markDefaultServer(MailServices.accounts.defaultAccount, null);
 
     // Now add the outgoing server node
     var treeitem = document.createElement("treeitem");

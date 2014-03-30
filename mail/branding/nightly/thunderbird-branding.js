@@ -8,9 +8,6 @@ pref("mailnews.start_page.url","https://live.mozillamessaging.com/%APP%/start?lo
 // start page override to load after an update
 pref("mailnews.start_page.override_url","https://live.mozillamessaging.com/%APP%/whatsnew?locale=%LOCALE%&version=%VERSION%&os=%OS%&buildid=%APPBUILDID%");
 
-// Release notes URL
-pref("app.releaseNotesURL", "http://live.mozillamessaging.com/%APP%/releasenotes?locale=%LOCALE%&version=%VERSION%&os=%OS%&buildid=%APPBUILDID%");
-
 // Interval: Time between checks for a new version (in seconds)
 // nightly=1 hour, official=24 hours
 pref("app.update.interval", 3600);

@@ -3,6 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/iteratorUtils.jsm");
+
 var gIncomingServer;
 var gServerType;
 var gImapIncomingServer;
@@ -45,30 +47,26 @@ function initServerSettings()
         document.getElementById("offline.folders").checked =  gImapIncomingServer.offlineDownload;
     }
 }
-  
+
 function initRetentionSettings()
 {
-    var retentionSettings =  gIncomingServer.retentionSettings; 
-    initCommonRetentionSettings(retentionSettings);
+  let retentionSettings = gIncomingServer.retentionSettings;
+  initCommonRetentionSettings(retentionSettings);
 
-    document.getElementById("nntp.removeBody").checked =  retentionSettings.cleanupBodiesByDays;
-    if(retentionSettings.daysToKeepBodies > 0)
-        document.getElementById("nntp.removeBodyMin").setAttribute("value", retentionSettings.daysToKeepBodies);
-    else
-        document.getElementById("nntp.removeBodyMin").setAttribute("value", "30");
+  document.getElementById("nntp.removeBody").checked = retentionSettings.cleanupBodiesByDays;
+  document.getElementById("nntp.removeBodyMin").value =
+    (retentionSettings.daysToKeepBodies > 0) ? retentionSettings.daysToKeepBodies : 30;
 }
-
 
 function initDownloadSettings()
 {
-    var downloadSettings =  gIncomingServer.downloadSettings;
-    document.getElementById("nntp.downloadMsg").checked = downloadSettings.downloadByDate;
-    document.getElementById("nntp.notDownloadRead").checked = downloadSettings.downloadUnreadOnly;
-    if(downloadSettings.ageLimitOfMsgsToDownload > 0)
-        document.getElementById("nntp.downloadMsgMin").setAttribute("value", downloadSettings.ageLimitOfMsgsToDownload);
-    else
-        document.getElementById("nntp.downloadMsgMin").setAttribute("value", "30");
- 
+  let downloadSettings = gIncomingServer.downloadSettings;
+  document.getElementById("nntp.downloadMsg").checked = downloadSettings.downloadByDate;
+  document.getElementById("nntp.notDownloadRead").checked = downloadSettings.downloadUnreadOnly;
+  document.getElementById("nntp.downloadMsgMin").value =
+    (downloadSettings.ageLimitOfMsgsToDownload > 0) ?
+      downloadSettings.ageLimitOfMsgsToDownload : 30;
+
   // Figure out what the most natural division of the autosync pref into
   // a value and an interval is.
   let autosyncSelect = document.getElementById("autosyncSelect");
@@ -259,10 +257,6 @@ function onLockPreference()
     var initPrefString = "mail.server"; 
     var finalPrefString; 
 
-    var prefService = Components.classes["@mozilla.org/preferences-service;1"];
-    prefService = prefService.getService();
-    prefService = prefService.QueryInterface(Components.interfaces.nsIPrefService);
-
     // This panel does not use the code in AccountManager.js to handle
     // the load/unload/disable.  keep in mind new prefstrings and changes
     // to code in AccountManager, and update these as well.
@@ -285,7 +279,7 @@ function onLockPreference()
     ];
 
     finalPrefString = initPrefString + "." + gIncomingServer.key + ".";
-    gPref = prefService.getBranch(finalPrefString);
+    gPref = Services.prefs.getBranch(finalPrefString);
 
     disableIfLocked( allPrefElements );
 } 
@@ -304,55 +298,30 @@ function onCheckItem(changeElementId, checkElementId)
 
 function toggleOffline()
 {
-    var offline = document.getElementById("offline.folders").checked;
-    var rootFolder = gIncomingServer.rootFolder;
-    var allFolders = Components.classes["@mozilla.org/supports-array;1"]
-                               .createInstance(Components.interfaces.nsISupportsArray);
-    rootFolder.ListDescendents(allFolders);
-    var numFolders = allFolders.Count();
-    var folder;
-    for (var folderIndex = 0; folderIndex < numFolders; folderIndex++)
-    {
-      folder = allFolders.QueryElementAt(folderIndex,
-                                         Components.interfaces.nsIMsgFolder);
+    let offline = document.getElementById("offline.folders").checked;
+    let allFolders = gIncomingServer.rootFolder.descendants;
+    for (let folder in fixIterator(allFolders, Components.interfaces.nsIMsgFolder)) {
       if (offline)
         folder.setFlag(Components.interfaces.nsMsgFolderFlags.Offline);
       else
         folder.clearFlag(Components.interfaces.nsMsgFolderFlags.Offline);
     }
-    
 }
 
 function collectOfflineFolders()
 {
-    var offlineFolderMap = {};
-    var rootFolder = gIncomingServer.rootFolder;
-    var allFolders = Components.classes["@mozilla.org/supports-array;1"]
-                               .createInstance(Components.interfaces.nsISupportsArray);
-    rootFolder.ListDescendents(allFolders);
-    var numFolders = allFolders.Count();
-    var folder;
-    for (var folderIndex = 0; folderIndex < numFolders; folderIndex++)
-    {
-      folder = allFolders.QueryElementAt(folderIndex,
-                                         Components.interfaces.nsIMsgFolder);
+    let offlineFolderMap = {};
+    let allFolders = gIncomingServer.rootFolder.descendants;
+    for (let folder in fixIterator(allFolders, Components.interfaces.nsIMsgFolder))
       offlineFolderMap[folder.folderURL] = folder.getFlag(Components.interfaces.nsMsgFolderFlags.Offline);
-    }
+
     return offlineFolderMap;
 }
 
 function restoreOfflineFolders(offlineFolderMap)
 {
-    var rootFolder = gIncomingServer.rootFolder;
-    var allFolders = Components.classes["@mozilla.org/supports-array;1"]
-                               .createInstance(Components.interfaces.nsISupportsArray);
-    rootFolder.ListDescendents(allFolders);
-    var numFolders = allFolders.Count();
-    var folder;
-    for (var folderIndex = 0; folderIndex < numFolders; folderIndex++)
-    {
-      folder = allFolders.QueryElementAt(folderIndex,
-                                         Components.interfaces.nsIMsgFolder);
+    let allFolders = gIncomingServer.rootFolder.descendants;
+    for (let folder in fixIterator(allFolders, Components.interfaces.nsIMsgFolder)) {
       if (offlineFolderMap[folder.folderURL])
         folder.setFlag(Components.interfaces.nsMsgFolderFlags.Offline);
       else

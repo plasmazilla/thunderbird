@@ -1,13 +1,25 @@
-gDEPTH = "../../../../";
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+Components.utils.import("resource://testing-common/mailnews/mailTestUtils.js");
+Components.utils.import("resource://testing-common/mailnews/localAccountUtils.js");
 
-// Import the main scripts that mailnews tests need to set up and tear down
-load("../../../resources/mailDirService.js");
-load("../../../resources/mailTestUtils.js");
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var CC = Components.Constructor;
+
+// Ensure the profile directory is set up
+do_get_profile();
+
+var gDEPTH = "../../../../";
 
 // Import the pop3 server scripts
-load("../../../fakeserver/maild.js")
-load("../../../fakeserver/auth.js")
-load("../../../fakeserver/pop3d.js")
+Components.utils.import("resource://testing-common/mailnews/maild.js");
+Components.utils.import("resource://testing-common/mailnews/auth.js");
+Components.utils.import("resource://testing-common/mailnews/pop3d.js");
+
+Components.utils.import("resource:///modules/mailServices.js");
 
 const POP3_PORT = 1024+110;
 
@@ -30,8 +42,9 @@ function setupServerDaemon(debugOption) {
 }
 
 function createPop3ServerAndLocalFolders() {
-  loadLocalMailAccount();
-  let server = create_incoming_server("pop3", POP3_PORT, "fred", "wilma");
+  localAccountUtils.loadLocalMailAccount();
+  let server = localAccountUtils.create_incoming_server("pop3", POP3_PORT,
+							"fred", "wilma");
   return server;
 }
 
@@ -51,9 +64,9 @@ var gCopyListener =
   GetMessageId: function(aMessageId) {},
   OnStopCopy: function(aStatus) {
     if (this.callbackFunction) {
-      do_timeout_function(0, this.callbackFunction,
-                          null,
-                          [ this.copiedMessageHeaderKeys, aStatus ]);
+      mailTestUtils.do_timeout_function(0, this.callbackFunction,
+					null,
+					[ this.copiedMessageHeaderKeys, aStatus ]);
     }
   }
 };
@@ -78,19 +91,17 @@ function copyFileMessageInLocalFolder(aMessageFile,
                                       aMessageWindow,
                                       aCallback) {
   // Set up local folders
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
   gCopyListener.callbackFunction = aCallback;
   // Copy a message into the local folder
-  Cc["@mozilla.org/messenger/messagecopyservice;1"]
-    .getService(Ci.nsIMsgCopyService)
-    .CopyFileMessage(aMessageFile,
-                     gLocalInboxFolder,
-                     null, false,
-                     aMessageFlags,
-                     aMessageKeywords,
-                     gCopyListener,
-                     aMessageWindow);
+  MailServices.copy.CopyFileMessage(aMessageFile,
+                                    localAccountUtils.inboxFolder,
+                                    null, false,
+                                    aMessageFlags,
+                                    aMessageKeywords,
+                                    gCopyListener,
+                                    aMessageWindow);
 }
 
 function do_check_transaction(real, expected) {
@@ -110,11 +121,9 @@ function do_check_transaction(real, expected) {
 }
 
 function create_temporary_directory() {
-  let directory = Cc["@mozilla.org/file/directory_service;1"]
-    .getService(Ci.nsIProperties)
-    .get("TmpD", Ci.nsIFile);
+  let directory = Services.dirsvc.get("TmpD", Ci.nsIFile);
   directory.append("mailFolder");
-  directory.createUnique(Ci.nsIFile.DIRECTORY_TYPE, 0700);
+  directory.createUnique(Ci.nsIFile.DIRECTORY_TYPE, parseInt("0700", 8));
   return directory;
 }
 

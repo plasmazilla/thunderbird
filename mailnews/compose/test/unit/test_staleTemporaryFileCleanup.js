@@ -7,12 +7,12 @@
  * is initialized.
  */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 var gExpectedFiles;
 
 function create_temporary_files_for(name) {
-  let file = Cc["@mozilla.org/file/directory_service;1"]
-               .getService(Ci.nsIProperties)
-               .get("TmpD", Ci.nsIFile);
+  let file = Services.dirsvc.get("TmpD", Ci.nsIFile);
   file.append(name);
   file.createUnique(Ci.nsIFile.NORMAL_FILE_TYPE, 0600);
 
@@ -49,7 +49,7 @@ function run_test() {
   });
 
   // Ensure we have at least one mail account
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
   let composeService = MailServices.compose;
   do_test_pending();
   check_files_not_exist(gExpectedFiles);

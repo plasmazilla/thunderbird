@@ -51,7 +51,6 @@
 #include "nsIMsgCopyService.h"
 #include "nsICryptoHash.h"
 #include "nsIStringBundle.h"
-#include "nsLocalStrings.h"
 #include "nsIMsgFilterPlugin.h"
 #include "nsIMutableArray.h"
 #include "nsArrayUtils.h"
@@ -71,7 +70,7 @@ NS_IMPL_ISUPPORTS_INHERITED2(nsMsgMailboxParser,
 
 // Whenever data arrives from the connection, core netlib notifices the protocol by calling
 // OnDataAvailable. We then read and process the incoming data from the input stream.
-NS_IMETHODIMP nsMsgMailboxParser::OnDataAvailable(nsIRequest *request, nsISupports *ctxt, nsIInputStream *aIStream, uint32_t sourceOffset, uint32_t aLength)
+NS_IMETHODIMP nsMsgMailboxParser::OnDataAvailable(nsIRequest *request, nsISupports *ctxt, nsIInputStream *aIStream, uint64_t sourceOffset, uint32_t aLength)
 {
     // right now, this really just means turn around and process the url
     nsresult rv = NS_OK;
@@ -118,8 +117,7 @@ NS_IMETHODIMP nsMsgMailboxParser::OnStartRequest(nsIRequest *request, nsISupport
           path->GetFileSize(&fileSize);
             // the size of the mailbox file is our total base line for measuring progress
             m_graph_progress_total = (uint32_t) fileSize;
-            UpdateStatusText(LOCAL_STATUS_SELECTING_MAILBOX);
-
+            UpdateStatusText("buildingSummary");
             nsCOMPtr<nsIMsgDBService> msgDBService = do_GetService(NS_MSGDB_SERVICE_CONTRACTID, &rv);
             if (msgDBService)
             {
@@ -176,7 +174,7 @@ NS_IMETHODIMP nsMsgMailboxParser::OnStopRequest(nsIRequest *request, nsISupports
     // be sure to clear any status text and progress info..
     m_graph_progress_received = 0;
     UpdateProgressPercent();
-    UpdateStatusText(LOCAL_STATUS_DOCUMENT_DONE);
+    UpdateStatusText("localStatusDocumentDone");
 
     return NS_OK;
 }
@@ -279,7 +277,7 @@ nsresult nsMsgMailboxParser::Init()
   return AcquireFolderLock();
 }
 
-void nsMsgMailboxParser::UpdateStatusText (uint32_t stringID)
+void nsMsgMailboxParser::UpdateStatusText (const char* stringName)
 {
   if (m_statusFeedback)
   {
@@ -293,14 +291,9 @@ void nsMsgMailboxParser::UpdateStatusText (uint32_t stringID)
     if (NS_FAILED(rv))
       return;
     nsString finalString;
-    if (stringID == LOCAL_STATUS_SELECTING_MAILBOX)
-    {
-      const PRUnichar * stringArray[] = { m_folderName.get() };
-      rv = bundle->FormatStringFromID(stringID, stringArray, 1,
-                                      getter_Copies(finalString));
-    }
-    else
-      bundle->GetStringFromID(stringID, getter_Copies(finalString));
+    const PRUnichar * stringArray[] = { m_folderName.get() };
+    rv = bundle->FormatStringFromName(NS_ConvertASCIItoUTF16(stringName).get(),
+                                      stringArray, 1, getter_Copies(finalString));
     m_statusFeedback->ShowStatusString(finalString);
   }
 }
@@ -438,10 +431,8 @@ void nsMsgMailboxParser::OnNewMessage(nsIMsgWindow *msgWindow)
   Clear();
 }
 
-int32_t nsMsgMailboxParser::HandleLine(char *line, uint32_t lineLength)
+nsresult nsMsgMailboxParser::HandleLine(char *line, uint32_t lineLength)
 {
-  int status = 0;
-
   /* If this is the very first line of a non-empty folder, make sure it's an envelope */
   if (m_graph_progress_received == 0)
   {
@@ -478,21 +469,18 @@ int32_t nsMsgMailboxParser::HandleLine(char *line, uint32_t lineLength)
     NS_ASSERTION (m_state == nsIMsgParseMailMsgState::ParseBodyState ||
            m_state == nsIMsgParseMailMsgState::ParseHeadersState, "invalid parse state"); /* else folder corrupted */
     OnNewMessage(nullptr);
-    status = StartNewEnvelope(line, lineLength);
-    NS_ASSERTION(status >= 0, " error starting envelope parsing mailbox");
+    nsresult rv = StartNewEnvelope(line, lineLength);
+    NS_ASSERTION(NS_SUCCEEDED(rv), " error starting envelope parsing mailbox");
     // at the start of each new message, update the progress bar
     UpdateProgressPercent();
-    if (status < 0)
-      return status;
+    return rv;
   }
+
   // otherwise, the message parser can handle it completely.
-  else if (m_mailDB != nullptr)  // if no DB, do we need to parse at all?
+  if (m_mailDB != nullptr)  // if no DB, do we need to parse at all?
     return ParseFolderLine(line, lineLength);
-        else
-          return NS_ERROR_NULL_POINTER; // need to error out if we don't have a db.
 
-  return 0;
-
+  return NS_ERROR_NULL_POINTER; // need to error out if we don't have a db.
 }
 
 void
@@ -505,7 +493,7 @@ nsMsgMailboxParser::ReleaseFolderLock()
   bool haveSemaphore;
   nsCOMPtr <nsISupports> supports = do_QueryInterface(static_cast<nsIMsgParseMailMsgState*>(this));
   result = folder->TestSemaphore(supports, &haveSemaphore);
-  if(NS_SUCCEEDED(result) && haveSemaphore)
+  if (NS_SUCCEEDED(result) && haveSemaphore)
     (void) folder->ReleaseSemaphore(supports);
 }
 
@@ -534,7 +522,7 @@ nsParseMailMessageState::nsParseMailMessageState()
   // a mail message with the X-Spam-Score header, we'll set the
   // "x-spam-score" property of nsMsgHdr to the value of the header.
   m_customDBHeaderValues = nullptr;
-  nsCString customDBHeaders;
+  nsCString customDBHeaders; // not shown in search UI
   nsCOMPtr<nsIPrefBranch> pPrefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID));
   if (pPrefBranch)
   {
@@ -543,6 +531,20 @@ nsParseMailMessageState::nsParseMailMessageState()
      if (customDBHeaders.Find("content-base") == -1)
       customDBHeaders.Insert(NS_LITERAL_CSTRING("content-base "), 0);
      ParseString(customDBHeaders, ' ', m_customDBHeaders);
+
+     // now add customHeaders
+     nsCString customHeadersString; // shown in search UI
+     nsTArray<nsCString> customHeadersArray;
+     pPrefBranch->GetCharPref("mailnews.customHeaders", getter_Copies(customHeadersString));
+     ToLowerCase(customHeadersString);
+     customHeadersString.StripWhitespace();
+     ParseString(customHeadersString, ':', customHeadersArray);
+     for (uint32_t i = 0; i < customHeadersArray.Length(); i++)
+     {
+       if (!m_customDBHeaders.Contains(customHeadersArray[i]))
+         m_customDBHeaders.AppendElement(customHeadersArray[i]);
+     }
+
      if (m_customDBHeaders.Length())
      {
        m_customDBHeaderValues = new struct message_header [m_customDBHeaders.Length()];
@@ -601,6 +603,7 @@ NS_IMETHODIMP nsParseMailMessageState::Clear()
   m_headers.ResetWritePos();
   m_envelope.ResetWritePos();
   m_receivedTime = 0;
+  m_receivedValue.Truncate();
   for (uint32_t i = 0; i < m_customDBHeaders.Length(); i++)
     m_customDBHeaderValues[i].length = 0;
 
@@ -658,24 +661,23 @@ NS_IMETHODIMP nsParseMailMessageState::ParseAFolderLine(const char *line, uint32
   return NS_OK;
 }
 
-int32_t nsParseMailMessageState::ParseFolderLine(const char *line, uint32_t lineLength)
+nsresult nsParseMailMessageState::ParseFolderLine(const char *line, uint32_t lineLength)
 {
-  int status = 0;
+  nsresult rv;
 
   if (m_state == nsIMsgParseMailMsgState::ParseHeadersState)
   {
     if (EMPTY_MESSAGE_LINE(line))
     {
       /* End of headers.  Now parse them. */
-      status = ParseHeaders();
-      NS_ASSERTION(status >= 0, "error parsing headers parsing mailbox");
-      if (status < 0)
-        return status;
+      rv = ParseHeaders();
+      NS_ASSERTION(NS_SUCCEEDED(rv), "error parsing headers parsing mailbox");
+      NS_ENSURE_SUCCESS(rv, rv);
 
-      status = FinalizeHeaders();
-      NS_ASSERTION(status >= 0, "error finalizing headers parsing mailbox");
-      if (status < 0)
-        return status;
+      rv = FinalizeHeaders();
+      NS_ASSERTION(NS_SUCCEEDED(rv), "error finalizing headers parsing mailbox");
+      NS_ENSURE_SUCCESS(rv, rv);
+
       m_state = nsIMsgParseMailMsgState::ParseBodyState;
     }
     else
@@ -693,7 +695,7 @@ int32_t nsParseMailMessageState::ParseFolderLine(const char *line, uint32_t line
 
   m_position += lineLength;
 
-  return 0;
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsParseMailMessageState::SetMailDB(nsIMsgDatabase *mailDB)
@@ -872,12 +874,11 @@ void nsParseMailMessageState::GetAggregateHeader (nsVoidArray &list, struct mess
   {
     header = (struct message_header*) list.ElementAt(i);
     length += (header->length + 1); //+ for ","
-    NS_ASSERTION(header->length == (int32_t)strlen(header->value), "header corrupted");
   }
 
   if (length > 0)
   {
-    char *value = (char*) PR_MALLOC (length + 1); //+1 for null term
+    char *value = (char*) PR_CALLOC (length + 1); //+1 for null term
     if (value)
     {
       // Catenate all the To lines together, separated by commas
@@ -886,7 +887,7 @@ void nsParseMailMessageState::GetAggregateHeader (nsVoidArray &list, struct mess
       for (i = 0; i < size; i++)
       {
         header = (struct message_header*) list.ElementAt(i);
-        PL_strcat (value, header->value);
+        PL_strncat (value, header->value, header->length);
         if (i + 1 < size)
           PL_strcat (value, ",");
       }
@@ -912,7 +913,7 @@ void nsParseMailMessageState::ClearAggregateHeader (nsVoidArray &list)
 }
 
 // We've found a new envelope to parse.
-int nsParseMailMessageState::StartNewEnvelope(const char *line, uint32_t lineLength)
+nsresult nsParseMailMessageState::StartNewEnvelope(const char *line, uint32_t lineLength)
 {
   m_envelope_pos = m_position;
   m_state = nsIMsgParseMailMsgState::ParseHeadersState;
@@ -923,13 +924,14 @@ int nsParseMailMessageState::StartNewEnvelope(const char *line, uint32_t lineLen
 
 /* largely lifted from mimehtml.c, which does similar parsing, sigh...
 */
-int nsParseMailMessageState::ParseHeaders ()
+nsresult nsParseMailMessageState::ParseHeaders ()
 {
   char *buf = m_headers.GetBuffer();
-  char *buf_end = buf + m_headers.GetBufferPos();
+  uint32_t buf_length = m_headers.GetBufferPos();
+  char *buf_end = buf + buf_length;
   while (buf < buf_end)
   {
-    char *colon = PL_strchr (buf, ':');
+    char *colon = PL_strnchr(buf, ':', buf_length);
     char *end;
     char *value = 0;
     struct message_header *header = 0;
@@ -1042,8 +1044,8 @@ int nsParseMailMessageState::ParseHeaders ()
 #endif
 
       ToLowerCase(headerStr);
-      int32_t customHeaderIndex = m_customDBHeaders.IndexOf(headerStr);
-      if (customHeaderIndex != -1)
+      uint32_t customHeaderIndex = m_customDBHeaders.IndexOf(headerStr);
+      if (customHeaderIndex != m_customDBHeaders.NoIndex)
         header = & m_customDBHeaderValues[customHeaderIndex];
     }
 
@@ -1053,7 +1055,7 @@ int nsParseMailMessageState::ParseHeaders ()
 SEARCH_NEWLINE:
     // move past any non terminating characters, rewriting them if folding white space
     // exists
-    while (buf < buf_end && *buf != '\r' && *buf != '\n')
+    while (buf <= buf_end && *buf != '\r' && *buf != '\n')
     {
       if (writeOffset)
         *(buf - writeOffset) = *buf;
@@ -1098,6 +1100,8 @@ SEARCH_NEWLINE:
 
       header->value = value;
       header->length = buf - header->value - writeOffset;
+      if (header->length < 0)
+        header->length = 0;
     }
     if (*buf == '\r' || *buf == '\n')
     {
@@ -1118,29 +1122,44 @@ SEARCH_NEWLINE:
       while (header->length > 0 &&
         IS_SPACE (header->value [header->length - 1]))
         ((char *) header->value) [--header->length] = 0;
-      if (header == &receivedBy && m_receivedTime == 0)
+      if (header == &receivedBy)
       {
-        // parse Received: header for date.
-        // We trust the first header as that is closest to recipient,
-        // and less likely to be spoofed.
-        nsCAutoString receivedHdr(header->value, header->length);
-        int32_t lastSemicolon = receivedHdr.RFindChar(';');
-        if (lastSemicolon != -1)
+        if (m_receivedTime == 0)
         {
-          nsCAutoString receivedDate;
-          receivedDate = Substring(receivedHdr, lastSemicolon + 1);
-          receivedDate.Trim(" \t\b\r\n");
-          PRTime resultTime;
-          if (PR_ParseTimeString (receivedDate.get(), false, &resultTime) == PR_SUCCESS)
-            m_receivedTime = resultTime;
+          // parse Received: header for date.
+          // We trust the first header as that is closest to recipient,
+          // and less likely to be spoofed.
+          nsAutoCString receivedHdr(header->value, header->length);
+          int32_t lastSemicolon = receivedHdr.RFindChar(';');
+          if (lastSemicolon != -1)
+          {
+            nsAutoCString receivedDate;
+            receivedDate = Substring(receivedHdr, lastSemicolon + 1);
+            receivedDate.Trim(" \t\b\r\n");
+            PRTime resultTime;
+            if (PR_ParseTimeString (receivedDate.get(), false, &resultTime) == PR_SUCCESS)
+              m_receivedTime = resultTime;
+            else
+              NS_WARNING("PR_ParseTimeString failed in ParseHeaders().");
+          }
+        }
+        // Someone might want the received header saved.
+        if (m_customDBHeaders.Length())
+        {
+          if (m_customDBHeaders.Contains(NS_LITERAL_CSTRING("received")))
+          {
+            if (!m_receivedValue.IsEmpty())
+              m_receivedValue.Append(' ');
+            m_receivedValue.Append(header->value, header->length);
+          }
         }
       }
     }
   }
-  return 0;
+  return NS_OK;
 }
 
-int nsParseMailMessageState::ParseEnvelope (const char *line, uint32_t line_size)
+nsresult nsParseMailMessageState::ParseEnvelope (const char *line, uint32_t line_size)
 {
   const char *end;
   char *s;
@@ -1160,14 +1179,16 @@ int nsParseMailMessageState::ParseEnvelope (const char *line, uint32_t line_size
     s++;
   m_envelope_date.value = s;
   m_envelope_date.length = (uint16_t) (line_size - (s - m_envelope.GetBuffer()));
-  while (IS_SPACE (m_envelope_date.value [m_envelope_date.length - 1]))
+
+  while (m_envelope_date.length > 0 &&
+         IS_SPACE (m_envelope_date.value [m_envelope_date.length - 1]))
     m_envelope_date.length--;
 
   /* #### short-circuit const */
   ((char *) m_envelope_from.value) [m_envelope_from.length] = 0;
   ((char *) m_envelope_date.value) [m_envelope_date.length] = 0;
 
-  return 0;
+  return NS_OK;
 }
 
 #ifdef WE_CONDENSE_MIME_STRINGS
@@ -1184,7 +1205,7 @@ msg_condense_mime2_string(char *sourceStr)
 }
 #endif // WE_CONDENSE_MIME_STRINGS
 
-int nsParseMailMessageState::InternSubject (struct message_header *header)
+nsresult nsParseMailMessageState::InternSubject (struct message_header *header)
 {
   char *key;
   uint32_t L;
@@ -1192,10 +1213,8 @@ int nsParseMailMessageState::InternSubject (struct message_header *header)
   if (!header || header->length == 0)
   {
     m_newMsgHdr->SetSubject("");
-    return 0;
+    return NS_OK;
   }
-
-  NS_ASSERTION (header->length == (short) strlen(header->value), "subject corrupt while parsing message");
 
   key = (char *) header->value;  /* #### const evilness */
 
@@ -1231,14 +1250,14 @@ int nsParseMailMessageState::InternSubject (struct message_header *header)
   (modifiedSubject.IsEmpty() ? key : modifiedSubject.get()));
   PR_FREEIF(condensedKey);
 
-  return 0;
+  return NS_OK;
 }
 
 // we've reached the end of the envelope, and need to turn all our accumulated message_headers
 // into a single nsIMsgDBHdr to store in a database.
-int nsParseMailMessageState::FinalizeHeaders()
+nsresult nsParseMailMessageState::FinalizeHeaders()
 {
-  int status = 0;
+  nsresult rv;
   struct message_header *sender;
   struct message_header *recipient;
   struct message_header *subject;
@@ -1268,7 +1287,7 @@ int nsParseMailMessageState::FinalizeHeaders()
   uint32_t labelFlags = 0;
 
   if (!m_mailDB)    // if we don't have a valid db, skip the header.
-    return 0;
+    return NS_OK;
 
   struct message_header to;
   GetAggregateHeader (m_toList, &to);
@@ -1284,7 +1303,7 @@ int nsParseMailMessageState::FinalizeHeaders()
   recipient  = (to.length         ? &to :
   cc.length         ? &cc :
   m_newsgroups.length ? &m_newsgroups :
-  sender);
+  0);
   ccList     = (cc.length ? &cc : 0);
   bccList    = (m_bccList.length    ? &m_bccList    : 0);
   subject    = (m_subject.length    ? &m_subject    : 0);
@@ -1335,13 +1354,16 @@ int nsParseMailMessageState::FinalizeHeaders()
   if (!(flags & nsMsgMessageFlags::Expunged))  // message was deleted, don't bother creating a hdr.
   {
     // We'll need the message id first to recover data from the backup database
-    nsCAutoString rawMsgId;
+    nsAutoCString rawMsgId;
     /* Take off <> around message ID. */
     if (id)
     {
-      if (id->value[0] == '<')
-        id->value++, id->length--;
-      if (id->value[id->length - 1] == '>')
+      if (id->length > 0 && id->value[0] == '<')
+        id->length--, id->value++;
+
+      NS_WARN_IF_FALSE(id->length > 0, "id->length failure in FinalizeHeaders().");
+
+      if (id->length > 0 && id->value[id->length - 1] == '>')
         /* generate a new null-terminated string without the final > */
         rawMsgId.Assign(id->value, id->length - 1);
       else
@@ -1418,12 +1440,11 @@ int nsParseMailMessageState::FinalizeHeaders()
       group in the summary list, and only being able to sort on the first
         group rather than the whole list.  It's worth it. */
         char * ch;
-        NS_ASSERTION (recipient->length == (uint16_t) strlen(recipient->value), "invalid recipient");
         ch = PL_strchr(recipient->value, ',');
         if (ch)
         {
           /* generate a new string that terminates before the , */
-          nsCAutoString firstGroup;
+          nsAutoCString firstGroup;
           firstGroup.Assign(recipient->value, ch - recipient->value);
           m_newMsgHdr->SetRecipients(firstGroup.get());
         }
@@ -1440,7 +1461,7 @@ int nsParseMailMessageState::FinalizeHeaders()
         ret = m_HeaderAddressParser->ParseHeaderAddresses(recipient->value,
                                                           &names, &addresses,
                                                           &numAddresses);
-        if (ret == NS_OK)
+        if (NS_SUCCEEDED(ret))
         {
           m_newMsgHdr->SetRecipientsArray(names, addresses, numAddresses);
           PR_Free(addresses);
@@ -1488,13 +1509,13 @@ int nsParseMailMessageState::FinalizeHeaders()
           m_newMsgHdr->SetBccList(bccList->value);
       }
 
-      status = InternSubject (subject);
-      if (status >= 0)
+      rv = InternSubject (subject);
+      if (NS_SUCCEEDED(rv))
       {
         if (! id)
         {
           // what to do about this? we used to do a hash of all the headers...
-          nsCAutoString hash;
+          nsAutoCString hash;
           const char *md5_b64 = "dummy.message.id";
           nsresult rv;
           nsCOMPtr<nsICryptoHash> hasher = do_CreateInstance("@mozilla.org/security/hash;1", &rv);
@@ -1535,6 +1556,9 @@ int nsParseMailMessageState::FinalizeHeaders()
             case 'U': case 'u':
               m_newMsgHdr->SetFlags(msgFlags & ~nsMsgMessageFlags::Read);
               break;
+            default:            // Should check for corrupt file.
+              NS_ERROR("Corrupt file. Should not happen.");
+              break;
             }
           }
         }
@@ -1568,6 +1592,8 @@ int nsParseMailMessageState::FinalizeHeaders()
             m_newMsgHdr->SetDate(resultTime);
             PRTime2Seconds(resultTime, &rcvTimeSecs);
           }
+          else
+            NS_WARNING("PR_ParseTimeString of date failed in FinalizeHeader().");
         }
         else
         {  // PR_Now()
@@ -1590,6 +1616,8 @@ int nsParseMailMessageState::FinalizeHeaders()
           PRStatus timeStatus = PR_ParseTimeString (deliveryDate->value, false, &resultTime);
           if (PR_SUCCESS == timeStatus)
             PRTime2Seconds(resultTime, &rcvTimeSecs);
+          else // TODO/FIXME: We need to figure out what to do in this case!
+            NS_WARNING("PR_ParseTimeString of delivery date failed in FinalizeHeader().");
         }
         m_newMsgHdr->SetUint32Property("dateReceived", rcvTimeSecs);
 
@@ -1601,7 +1629,7 @@ int nsParseMailMessageState::FinalizeHeaders()
         {
           // When there are many keywords, some may not have been written
           // to the message file, so add extra keywords from the backup
-          nsCAutoString oldKeywords;
+          nsAutoCString oldKeywords;
           m_newMsgHdr->GetStringProperty("keywords", getter_Copies(oldKeywords));
           nsTArray<nsCString> newKeywordArray, oldKeywordArray;
           ParseString(Substring(keywords->value, keywords->value + keywords->length), ' ', newKeywordArray);
@@ -1609,7 +1637,7 @@ int nsParseMailMessageState::FinalizeHeaders()
           for (uint32_t i = 0; i < oldKeywordArray.Length(); i++)
             if (!newKeywordArray.Contains(oldKeywordArray[i]))
               newKeywordArray.AppendElement(oldKeywordArray[i]);
-          nsCAutoString newKeywords;
+          nsAutoCString newKeywords;
           for (uint32_t i = 0; i < newKeywordArray.Length(); i++)
           {
             if (i)
@@ -1622,6 +1650,9 @@ int nsParseMailMessageState::FinalizeHeaders()
         {
           if (m_customDBHeaderValues[i].length)
             m_newMsgHdr->SetStringProperty(m_customDBHeaders[i].get(), m_customDBHeaderValues[i].value);
+          // The received header is accumulated separately
+          if (m_customDBHeaders[i].EqualsLiteral("received") && !m_receivedValue.IsEmpty())
+            m_newMsgHdr->SetStringProperty("received", m_receivedValue.get());
         }
         if (content_type)
         {
@@ -1644,7 +1675,7 @@ int nsParseMailMessageState::FinalizeHeaders()
                 if (*end != '\0') {
                   // if we're not at the very end of the line, we need
                   // to generate a new string without the trailing crud
-                  nsCAutoString rawCharSet;
+                  nsAutoCString rawCharSet;
                   rawCharSet.Assign(charset, end - charset);
                   m_newMsgHdr->SetCharset(rawCharSet.get());
                 } else {
@@ -1665,11 +1696,11 @@ int nsParseMailMessageState::FinalizeHeaders()
     else
     {
       NS_ASSERTION(false, "error creating message header");
-      status = NS_ERROR_OUT_OF_MEMORY;
+      rv = NS_ERROR_OUT_OF_MEMORY;
     }
   }
   else
-    status = 0;
+    rv = NS_OK;
 
   //### why is this stuff const?
   char *tmp = (char*) to.value;
@@ -1677,7 +1708,7 @@ int nsParseMailMessageState::FinalizeHeaders()
   tmp = (char*) cc.value;
   PR_Free(tmp);
 
-  return status;
+  return rv;
 }
 
 nsParseNewMailState::nsParseNewMailState()
@@ -1905,7 +1936,7 @@ nsresult nsParseNewMailState::GetTrashFolder(nsIMsgFolder **pTrashFolder)
   if (!pTrashFolder)
     return NS_ERROR_NULL_POINTER;
 
-  if(m_downloadFolder)
+  if (m_downloadFolder)
   {
     nsCOMPtr <nsIMsgIncomingServer> incomingServer;
     m_downloadFolder->GetServer(getter_AddRefs(incomingServer));
@@ -1960,10 +1991,9 @@ void nsParseNewMailState::ApplyFilters(bool *pMoved, nsIMsgWindow *msgWindow, ui
 
 NS_IMETHODIMP nsParseNewMailState::ApplyFilterHit(nsIMsgFilter *filter, nsIMsgWindow *msgWindow, bool *applyMore)
 {
+  NS_ENSURE_ARG_POINTER(filter);
   NS_ENSURE_ARG_POINTER(applyMore);
 
-  nsMsgRuleActionType actionType;
-  nsCString actionTargetFolderUri;
   uint32_t newFlags;
   nsresult rv = NS_OK;
 
@@ -1971,14 +2001,13 @@ NS_IMETHODIMP nsParseNewMailState::ApplyFilterHit(nsIMsgFilter *filter, nsIMsgWi
 
   nsCOMPtr<nsIMsgDBHdr> msgHdr = m_newMsgHdr;
 
-  nsCOMPtr<nsISupportsArray> filterActionList;
-  rv = NS_NewISupportsArray(getter_AddRefs(filterActionList));
-  NS_ENSURE_SUCCESS(rv, rv);
-  rv = filter->GetSortedActionList(filterActionList);
+  nsCOMPtr<nsIArray> filterActionList;
+
+  rv = filter->GetSortedActionList(getter_AddRefs(filterActionList));
   NS_ENSURE_SUCCESS(rv, rv);
 
   uint32_t numActions;
-  rv = filterActionList->Count(&numActions);
+  rv = filterActionList->GetLength(&numActions);
   NS_ENSURE_SUCCESS(rv, rv);
 
   bool loggingEnabled = false;
@@ -1986,20 +2015,24 @@ NS_IMETHODIMP nsParseNewMailState::ApplyFilterHit(nsIMsgFilter *filter, nsIMsgWi
     m_filterList->GetLoggingEnabled(&loggingEnabled);
 
   bool msgIsNew = true;
-  for (uint32_t actionIndex =0; actionIndex < numActions && *applyMore; actionIndex++)
+  for (uint32_t actionIndex = 0; actionIndex < numActions && *applyMore; actionIndex++)
   {
     nsCOMPtr<nsIMsgRuleAction> filterAction;
-    filterActionList->QueryElementAt(actionIndex, NS_GET_IID(nsIMsgRuleAction), getter_AddRefs(filterAction));
-    if (!filterAction)
+    rv = filterActionList->QueryElementAt(actionIndex, NS_GET_IID(nsIMsgRuleAction),
+                                                       getter_AddRefs(filterAction));
+    if (NS_FAILED(rv) || !filterAction)
       continue;
 
+    nsMsgRuleActionType actionType;
     if (NS_SUCCEEDED(filterAction->GetType(&actionType)))
     {
+      nsCString actionTargetFolderUri;
       if (actionType == nsMsgFilterAction::MoveToFolder ||
           actionType == nsMsgFilterAction::CopyToFolder)
       {
-        filterAction->GetTargetFolderUri(actionTargetFolderUri);
-        if (actionTargetFolderUri.IsEmpty())
+
+        rv = filterAction->GetTargetFolderUri(actionTargetFolderUri);
+        if (NS_FAILED(rv) || actionTargetFolderUri.IsEmpty())
         {
           NS_ASSERTION(false, "actionTargetFolderUri is empty");
           continue;
@@ -2143,7 +2176,7 @@ NS_IMETHODIMP nsParseNewMailState::ApplyFilterHit(nsIMsgFilter *filter, nsIMsgWi
         break;
       case nsMsgFilterAction::JunkScore:
       {
-        nsCAutoString junkScoreStr;
+        nsAutoCString junkScoreStr;
         int32_t junkScore;
         filterAction->GetJunkScore(&junkScore);
         junkScoreStr.AppendInt(junkScore);
@@ -2233,7 +2266,7 @@ NS_IMETHODIMP nsParseNewMailState::ApplyFilterHit(nsIMsgFilter *filter, nsIMsgWi
         rv = filterAction->GetCustomAction(getter_AddRefs(customAction));
         NS_ENSURE_SUCCESS(rv, rv);
 
-        nsCAutoString value;
+        nsAutoCString value;
         filterAction->GetStrValue(value);
 
         nsCOMPtr<nsIMutableArray> messageArray(
@@ -2433,6 +2466,7 @@ nsresult nsParseNewMailState::MoveIncorporatedMessage(nsIMsgDBHdr *mailHdr,
                                                       nsIMsgFilter *filter,
                                                       nsIMsgWindow *msgWindow)
 {
+  NS_ENSURE_ARG_POINTER(destIFolder);
   nsresult rv = NS_OK;
 
   // check if the destination is a real folder (by checking for null parent)
@@ -2468,8 +2502,7 @@ nsresult nsParseNewMailState::MoveIncorporatedMessage(nsIMsgDBHdr *mailHdr,
     do_QueryInterface(static_cast<nsIMsgParseMailMsgState*>(this));
 
   // Make sure no one else is writing into this folder
-  if (destIFolder &&
-      NS_FAILED(rv = destIFolder->AcquireSemaphore (myISupports)))
+  if (NS_FAILED(rv = destIFolder->AcquireSemaphore (myISupports)))
   {
     destIFolder->ThrowAlertMsg("filterFolderDeniedLocked", msgWindow);
     return rv;
@@ -2480,9 +2513,7 @@ nsresult nsParseNewMailState::MoveIncorporatedMessage(nsIMsgDBHdr *mailHdr,
   if (!inputStream)
   {
     NS_ERROR("couldn't get source msg input stream in move filter");
-    if (destIFolder)
-      destIFolder->ReleaseSemaphore (myISupports);
-
+    destIFolder->ReleaseSemaphore (myISupports);
     return NS_MSG_FOLDER_UNREADABLE;  // ### dmb
   }
 
@@ -2500,12 +2531,17 @@ nsresult nsParseNewMailState::MoveIncorporatedMessage(nsIMsgDBHdr *mailHdr,
   nsCOMPtr<nsIMsgDBHdr> newHdr;
 
   if (destMailDB)
-    destMailDB->CopyHdrFromExistingHdr(nsMsgKey_None, mailHdr, true,
-                                       getter_AddRefs(newHdr));
-  uint32_t messageLength;
-  mailHdr->GetMessageSize(&messageLength);
-  rv = AppendMsgFromStream(inputStream, newHdr, messageLength,
-                           destIFolder);
+    rv = destMailDB->CopyHdrFromExistingHdr(nsMsgKey_None, mailHdr, true,
+                                            getter_AddRefs(newHdr));
+  if (NS_SUCCEEDED(rv) && !newHdr)
+    rv = NS_ERROR_UNEXPECTED;
+  if (NS_SUCCEEDED(rv))
+  {
+    uint32_t messageLength;
+    mailHdr->GetMessageSize(&messageLength);
+    rv = AppendMsgFromStream(inputStream, newHdr, messageLength,
+                             destIFolder);
+  }
 
   if (NS_FAILED(rv))
   {
@@ -2523,43 +2559,39 @@ nsresult nsParseNewMailState::MoveIncorporatedMessage(nsIMsgDBHdr *mailHdr,
   bool movedMsgIsNew = false;
   // if we have made it this far then the message has successfully been written to the new folder
   // now add the header to the destMailDB.
-  if (NS_SUCCEEDED(rv) && destMailDB)
+
+  uint32_t newFlags;
+  newHdr->GetFlags(&newFlags);
+  nsMsgKey msgKey;
+  newHdr->GetMessageKey(&msgKey);
+  if (!(newFlags & nsMsgMessageFlags::Read))
   {
-    uint32_t newFlags;
-    newHdr->GetFlags(&newFlags);
-    nsMsgKey msgKey;
-    newHdr->GetMessageKey(&msgKey);
-    if (! (newFlags & nsMsgMessageFlags::Read))
+    nsCString junkScoreStr;
+    (void) newHdr->GetStringProperty("junkscore", getter_Copies(junkScoreStr));
+    if (atoi(junkScoreStr.get()) == nsIJunkMailPlugin::IS_HAM_SCORE)
     {
-      nsCString junkScoreStr;
-      (void) newHdr->GetStringProperty("junkscore", getter_Copies(junkScoreStr));
-      if (atoi(junkScoreStr.get()) == nsIJunkMailPlugin::IS_HAM_SCORE)
-      {
-        newHdr->OrFlags(nsMsgMessageFlags::New, &newFlags);
-        destMailDB->AddToNewList(msgKey);
-        movedMsgIsNew = true;
-      }
+      newHdr->OrFlags(nsMsgMessageFlags::New, &newFlags);
+      destMailDB->AddToNewList(msgKey);
+      movedMsgIsNew = true;
     }
-    nsCOMPtr<nsIMsgFolderNotificationService> notifier(do_GetService(NS_MSGNOTIFICATIONSERVICE_CONTRACTID));
-    if (notifier)
-      notifier->NotifyMsgAdded(newHdr);
-    // mark the header as not yet reported classified
-    destIFolder->OrProcessingFlags(
-    msgKey, nsMsgProcessingFlags::NotReportedClassified);
-    m_msgToForwardOrReply = newHdr;
   }
+  nsCOMPtr<nsIMsgFolderNotificationService> notifier(do_GetService(NS_MSGNOTIFICATIONSERVICE_CONTRACTID));
+  if (notifier)
+    notifier->NotifyMsgAdded(newHdr);
+  // mark the header as not yet reported classified
+  destIFolder->OrProcessingFlags(
+    msgKey, nsMsgProcessingFlags::NotReportedClassified);
+  m_msgToForwardOrReply = newHdr;
+
   if (movedMsgIsNew)
     destIFolder->SetHasNewMessages(true);
-  if (m_filterTargetFolders.IndexOf(destIFolder) == -1)
+  if (!m_filterTargetFolders.Contains(destIFolder))
     m_filterTargetFolders.AppendObject(destIFolder);
 
-  if (destIFolder)
-    destIFolder->ReleaseSemaphore (myISupports);
-
+  destIFolder->ReleaseSemaphore (myISupports);
 
   (void) localFolder->RefreshSizeOnDisk();
-  if (destIFolder)
-    destIFolder->SetFlag(nsMsgFolderFlags::GotNew);
+  destIFolder->SetFlag(nsMsgFolderFlags::GotNew);
 
   nsCOMPtr<nsIMsgPluggableStore> store;
   rv = m_downloadFolder->GetMsgStore(getter_AddRefs(store));
@@ -2567,15 +2599,12 @@ nsresult nsParseNewMailState::MoveIncorporatedMessage(nsIMsgDBHdr *mailHdr,
     store->DiscardNewMessage(m_outputStream, mailHdr);
   if (sourceDB)
     sourceDB->RemoveHeaderMdbRow(mailHdr);
-  if (destMailDB)
-  {
-    // update the folder size so we won't reparse.
-    UpdateDBFolderInfo(destMailDB);
-    if (destIFolder != nullptr)
-      destIFolder->UpdateSummaryTotals(true);
 
-    destMailDB->Commit(nsMsgDBCommitType::kLargeCommit);
-  }
+  // update the folder size so we won't reparse.
+  UpdateDBFolderInfo(destMailDB);
+  destIFolder->UpdateSummaryTotals(true);
+
+  destMailDB->Commit(nsMsgDBCommitType::kLargeCommit);
   return rv;
 }
 

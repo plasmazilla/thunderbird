@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 var gStartDate = null;
 var gEndDate = null;
 var gStartTimezone = null;
@@ -25,10 +27,14 @@ function onLoad() {
     window.addEventListener("resize", onResize, true);
     window.addEventListener("modify", onModify, true);
     window.addEventListener("rowchange", onRowChange, true);
-    window.addEventListener("DOMMouseScroll", onMouseScroll, true);
     window.addEventListener("DOMAttrModified", onAttrModified, true);
     window.addEventListener("timebar", onTimebar, true);
     window.addEventListener("timechange", onTimeChange, true);
+
+    // As long as DOMMouseScroll is still implemented, we need to keep it
+    // around to make sure scrolling is blocked.
+    window.addEventListener("wheel", onMouseScroll, true);
+    window.addEventListener("DOMMouseScroll", onMouseScroll, true);
 
     var args = window.arguments[0];
     var startTime = args.startTime;
@@ -68,7 +74,8 @@ function onLoad() {
 
     loadDateTime(startTime, endTime);
     propagateDateTime();
-
+    // Set the scroll bar at where the event is
+    scrollToCurrentTime();
     updateButtons();
 
     // we need to enforce several layout constraints which can't be modelled
@@ -103,12 +110,10 @@ function onLoad() {
             }
         }
     }
-    var pb2 = Components.classes["@mozilla.org/preferences-service;1"].
-              getService(Components.interfaces.nsIPrefBranch);
-    pb2.addObserver("calendar.", prefObserver, false);
+    Services.prefs.addObserver("calendar.", prefObserver, false);
     window.addEventListener("unload",
         function() {
-            pb2.removeObserver("calendar.", prefObserver);
+            Services.prefs.removeObserver("calendar.", prefObserver);
         },
         false);
 
@@ -409,12 +414,7 @@ function updateEndTime() {
 
     if (warning) {
         var callback = function() {
-            var promptService =
-                Components.classes[
-                    "@mozilla.org/embedcomp/prompt-service;1"]
-                    .getService(
-                        Components.interfaces.nsIPromptService);
-            promptService.alert(
+            Services.prompt.alert(
                 null,
                 document.title,
                 calGetString("calendar", "warningEndBeforeStart"));
@@ -616,8 +616,9 @@ function onChangeCalendar(calendar) {
     // assume we're the organizer [in case that the calendar
     // does not support the concept of identities].
     gIsInvitation = false;
-    if (calInstanceOf(args.item.calendar, Components.interfaces.calISchedulingSupport)) {
-        gIsInvitation = args.item.calendar.isInvitation(args.item);
+    calendar = cal.wrapInstance(args.item.calendar, Components.interfaces.calISchedulingSupport);
+    if (calendar) {
+        gIsInvitation = calendar.isInvitation(args.item);
     }
 
     if (gIsReadOnly || gIsInvitation) {
@@ -720,7 +721,7 @@ function onPreviousSlot() {
  */
 function scrollToCurrentTime() {
     var timebar = document.getElementById("timebar");
-    var ratio = (gStartDate.hour - gStartHour) * timebar.step;
+    var ratio = (gStartDate.hour - gStartHour - 1) * timebar.step;
     if (ratio <= 0.0) {
         ratio = 0.0;
     }
@@ -857,7 +858,7 @@ function onRowChange(event) {
 /**
  * Handler function to take care of mouse scrolling on the window
  *
- * @param event     The DOMMouseScroll event caused by scrolling.
+ * @param event     The wheel event caused by scrolling.
  */
 function onMouseScroll(event) {
     // ignore mouse scrolling for now...

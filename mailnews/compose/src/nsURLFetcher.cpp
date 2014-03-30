@@ -196,7 +196,7 @@ nsURLFetcher::StillRunning(bool *running)
 // Methods for nsIStreamListener...
 nsresult
 nsURLFetcher::OnDataAvailable(nsIRequest *request, nsISupports * ctxt, nsIInputStream *aIStream, 
-                              uint32_t sourceOffset, uint32_t aLength)
+                              uint64_t sourceOffset, uint32_t aLength)
 {
   /* let our converter or consumer process the data */
   if (!mConverter)
@@ -211,11 +211,10 @@ nsresult
 nsURLFetcher::OnStartRequest(nsIRequest *request, nsISupports *ctxt)
 {
   /* check if the user has canceld the operation */
-  nsMsgAttachmentHandler *attachmentHdl = (nsMsgAttachmentHandler *)mTagData;
-  if (attachmentHdl)
+  if (mTagData)
   {
     nsCOMPtr<nsIMsgSend> sendPtr;
-    attachmentHdl->GetMimeDeliveryState(getter_AddRefs(sendPtr));
+    mTagData->GetMimeDeliveryState(getter_AddRefs(sendPtr));
     if (sendPtr)
     {
       nsCOMPtr<nsIMsgProgress> progress;
@@ -228,7 +227,7 @@ nsURLFetcher::OnStartRequest(nsIRequest *request, nsISupports *ctxt)
           return request->Cancel(NS_ERROR_ABORT);
       }
     }
-    attachmentHdl->mRequest = request;
+    mTagData->mRequest = request;
   }
 
   /* call our converter or consumer */
@@ -241,24 +240,21 @@ nsURLFetcher::OnStartRequest(nsIRequest *request, nsISupports *ctxt)
 NS_IMETHODIMP
 nsURLFetcher::OnStopRequest(nsIRequest *request, nsISupports * ctxt, nsresult aStatus)
 {
-
-  nsresult rv = NS_OK;
-
   // it's possible we could get in here from the channel calling us with an OnStopRequest and from our
   // onStatusChange method (in the case of an error). So we should protect against this to make sure we
   // don't process the on stop request twice...
 
   if (mOnStopRequestProcessed)
     return NS_OK;
+
   mOnStopRequestProcessed = true;
-  
+
   /* first, call our converter or consumer */
   if (mConverter)
-    rv = mConverter->OnStopRequest(request, ctxt, aStatus);
+    (void) mConverter->OnStopRequest(request, ctxt, aStatus);
 
-  nsMsgAttachmentHandler *attachmentHdl = (nsMsgAttachmentHandler *)mTagData;
-  if (attachmentHdl)
-    attachmentHdl->mRequest = nullptr;
+  if (mTagData)
+    mTagData->mRequest = nullptr;
 
   //
   // Now complete the stream!
@@ -290,7 +286,7 @@ nsresult
 nsURLFetcher::Initialize(nsIFile *localFile, 
                          nsIOutputStream *outputStream,
                          nsAttachSaveCompletionCallback cb, 
-                         void *tagData)
+                         nsMsgAttachmentHandler *tagData)
 {
   if (!outputStream || !localFile)
     return NS_ERROR_INVALID_ARG;
@@ -298,13 +294,13 @@ nsURLFetcher::Initialize(nsIFile *localFile,
   mOutStream = outputStream;
   mLocalFile = localFile;
   mCallback = cb;     //JFD: Please, no more callback, use a listener...
-  mTagData = tagData; //JFD: TODO, WE SHOULD USE A NSCOMPTR to hold this stuff!!!
+  mTagData = tagData;
   return NS_OK;
 }
 
 nsresult
 nsURLFetcher::FireURLRequest(nsIURI *aURL, nsIFile *localFile, nsIOutputStream *outputStream, 
-                             nsAttachSaveCompletionCallback cb, void *tagData)
+                             nsAttachSaveCompletionCallback cb, nsMsgAttachmentHandler *tagData)
 {
   nsresult rv;
 
@@ -445,8 +441,8 @@ NS_IMETHODIMP nsURLFetcherStreamConsumer::OnStopRequest(nsIRequest *aRequest, ns
     return NS_ERROR_FAILURE;
 
   // Check the content type!
-  nsCAutoString contentType;
-  nsCAutoString charset;
+  nsAutoCString contentType;
+  nsAutoCString charset;
 
   nsCOMPtr<nsIChannel> channel = do_QueryInterface(aRequest);
   if(!channel) return NS_ERROR_FAILURE;
@@ -454,7 +450,7 @@ NS_IMETHODIMP nsURLFetcherStreamConsumer::OnStopRequest(nsIRequest *aRequest, ns
   if (NS_SUCCEEDED(channel->GetContentType(contentType)) &&
       !contentType.EqualsLiteral(UNKNOWN_CONTENT_TYPE))
   {
-    nsCAutoString uriSpec;
+    nsAutoCString uriSpec;
     nsCOMPtr <nsIURI> channelURI;
     channel->GetURI(getter_AddRefs(channelURI));
     channelURI->GetSpec(uriSpec);
@@ -474,8 +470,8 @@ NS_IMETHODIMP nsURLFetcherStreamConsumer::OnStopRequest(nsIRequest *aRequest, ns
 
 /** nsIStreamListener methods **/
 
-/* void onDataAvailable (in nsIRequest request, in nsISupports ctxt, in nsIInputStream inStr, in unsigned long sourceOffset, in unsigned long count); */
-NS_IMETHODIMP nsURLFetcherStreamConsumer::OnDataAvailable(nsIRequest *aRequest, nsISupports *ctxt, nsIInputStream *inStr, uint32_t sourceOffset, uint32_t count)
+/* void onDataAvailable (in nsIRequest request, in nsISupports ctxt, in nsIInputStream inStr, in unsigned long long sourceOffset, in unsigned long count); */
+NS_IMETHODIMP nsURLFetcherStreamConsumer::OnDataAvailable(nsIRequest *aRequest, nsISupports *ctxt, nsIInputStream *inStr, uint64_t sourceOffset, uint32_t count)
 {
   uint32_t        readLen = count;
   uint32_t        wroteIt;

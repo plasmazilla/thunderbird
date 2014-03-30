@@ -133,8 +133,7 @@ public:
 
   NS_IMETHOD  GetManyHeadersToDownload(bool *retval);
 
-  NS_IMETHOD GetDeletable (bool *deletable); 
-  NS_IMETHOD GetRequiresCleanup(bool *requiresCleanup);
+  NS_IMETHOD GetDeletable (bool *deletable);
   NS_IMETHOD GetSizeOnDisk(uint32_t* size);
 
   NS_IMETHOD  GetDBFolderInfoAndDB(nsIDBFolderInfo **folderInfo, nsIMsgDatabase **db);
@@ -254,7 +253,7 @@ protected:
 #define DOWNLOAD_NOTIFY_STYLE DOWNLOAD_NOTIFY_FIRST
 #endif
 
-  nsCOMPtr<nsISupportsArray> mDownloadMessages;
+  nsCOMArray<nsIMsgDBHdr> mDownloadMessages;
   nsCOMPtr<nsIMsgWindow> mDownloadWindow;
   nsMsgKey mDownloadSelectKey;
   uint32_t mDownloadState;

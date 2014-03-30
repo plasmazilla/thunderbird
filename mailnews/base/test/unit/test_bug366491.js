@@ -9,15 +9,12 @@
 // only needed during debug
 //do_import_script("mailnews/extensions/bayesian-spam-filter/test/resources/trainingfile.js");
 
-const nsIJunkMailPlugin = Cc["@mozilla.org/messenger/filter-plugin;1?name=bayesianfilter"]
-                            .getService(Ci.nsIJunkMailPlugin);
-const nsIIOService = Cc["@mozilla.org/network/io-service;1"]
-                       .getService(Ci.nsIIOService);
+Components.utils.import("resource:///modules/mailServices.js");
 
 // local constants
-const kUnclassified = nsIJunkMailPlugin.UNCLASSIFIED;
-const kJunk = nsIJunkMailPlugin.JUNK;
-const kGood = nsIJunkMailPlugin.GOOD;
+const kUnclassified = MailServices.junk.UNCLASSIFIED;
+const kJunk = MailServices.junk.JUNK;
+const kGood = MailServices.junk.GOOD;
 
 /*
  * This test is not intended to check the spam calculations,
@@ -46,7 +43,7 @@ var emails =
 // main test
 function run_test()
 {
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
   do_test_pending();
   doTestingListener.onMessageClassified(null, null, null);
   return true;
@@ -60,8 +57,9 @@ var doTestingListener =
     // Do we have more training emails? If so, train
     var email = emails.shift();
     if (email)
-    { nsIJunkMailPlugin.setMessageClassification(getSpec(email.fileName),
-          kUnclassified, email.classification, null, doTestingListener);
+    {
+      MailServices.junk.setMessageClassification(getSpec(email.fileName),
+        kUnclassified, email.classification, null, doTestingListener);
       return;
     }
 
@@ -80,7 +78,7 @@ var doTestingListener =
     if (tests.length)
     {
       haveClassification = true;
-      nsIJunkMailPlugin.classifyMessage(getSpec(tests[0].fileName),
+      MailServices.junk.classifyMessage(getSpec(tests[0].fileName),
         null, doTestingListener);
       return;
     }
@@ -95,7 +93,7 @@ var doTestingListener =
 function getSpec(aFileName)
 {
   var file = do_get_file("../../../extensions/bayesian-spam-filter/test/unit/resources/" + aFileName);
-  var uri = nsIIOService.newFileURI(file).QueryInterface(Ci.nsIURL);
+  var uri = Services.io.newFileURI(file).QueryInterface(Ci.nsIURL);
   uri.query = "type=application/x-message-display";
   return uri.spec;
 }

@@ -36,8 +36,9 @@ function ServiceMessage(aAccount, aMessage) {
   // map "bar": "NickServ"). Note that the keys of this map should be
   // normalized.
   let nicknameToServiceName = {
-    "nickserv": "NickServ",
-    "chanserv": "ChanServ"
+    "chanserv": "ChanServ",
+    "infoserv": "InfoServ",
+    "nickserv": "NickServ"
   }
 
   let nickname = aAccount.normalize(aMessage.nickname);
@@ -51,6 +52,13 @@ var ircServices = {
   name: "IRC Services",
   priority: ircHandlers.HIGH_PRIORITY,
   isEnabled: function() true,
+  sendIdentify: function(aAccount) {
+    if (aAccount.imAccount.password && aAccount.shouldAuthenticate &&
+        !aAccount.isAuthenticated) {
+      aAccount.sendMessage("IDENTIFY", aAccount.imAccount.password,
+                           "IDENTIFY <password not logged>");
+    }
+  },
 
   commands: {
     // If we automatically reply to a NOTICE message this does not abide by RFC
@@ -68,6 +76,46 @@ var ircServices = {
       // If the name is recognized as a service name, add the service name field
       // and run it through the handlers.
       return ircHandlers.handleServicesMessage(this, message);
+    },
+
+    "NICK": function(aMessage) {
+      let newNick = aMessage.params[0];
+      // We only auto-authenticate for the account nickname.
+      if (this.normalize(newNick) != this.normalize(this._accountNickname))
+        return false;
+
+      // We may still be authenticated, but we try to authenticate with the
+      // new nick anyway, since there is no good way to tell if we are still
+      // authenticated.
+      delete this.isAuthenticated;
+      ircServices.sendIdentify(this);
+
+      // We always want the RFC 2812 handler to handle NICK, so return false.
+      return false;
+    },
+
+    "001": function(aMessage) { // RPL_WELCOME
+      // If SASL authentication failed, attempt IDENTIFY.
+      ircServices.sendIdentify(this);
+
+      // We always want the RFC 2812 handler to handle 001, so return false.
+      return false;
+    },
+
+    "421": function(aMessage) { // ERR_UNKNOWNCOMMAND
+      // <command> :Unknown command
+      // IDENTIFY failed, try NICKSERV IDENTIFY.
+      if (aMessage.params[1] == "IDENTIFY" && this.imAccount.password &&
+          this.shouldAuthenticate && !this.isAuthenticated) {
+        this.sendMessage("NICKSERV", ["IDENTIFY", this.imAccount.password],
+                         "NICKSERV IDENTIFY <password not logged>");
+        return true;
+      }
+      if (aMessage.params[1] == "NICKSERV") {
+        this.WARN("NICKSERV command does not exist.");
+        return true;
+      }
+      return false;
     }
   }
 };
@@ -102,6 +150,33 @@ var servicesBase = {
       return true;
     },
 
+    "InfoServ": function(aMessage) {
+      let text = aMessage.params[1];
+
+      // Show the message of the day in the server tab.
+      if (text == "*** \u0002Message(s) of the Day\u0002 ***") {
+        this._infoServMotd = [text];
+        return true;
+      }
+      else if (text == "*** \u0002End of Message(s) of the Day\u0002 ***") {
+        if (this._showServerTab && this._infoServMotd) {
+          this._infoServMotd.push(text);
+          this.getConversation(aMessage.servername || this._currentServerName)
+              .writeMessage(aMessage.servername || aMessage.nickname,
+                            this._infoServMotd.join("\n"),
+                            {incoming: true});
+          delete this._infoServMotd;
+        }
+        return true;
+      }
+      else if (this.hasOwnProperty("_infoServMotd")) {
+        this._infoServMotd.push(text);
+        return true;
+      }
+
+      return false;
+    },
+
     "NickServ": function(aMessage) {
       let text = aMessage.params[1];
 
@@ -114,10 +189,11 @@ var servicesBase = {
       // If we have a queue of messages, we're waiting for authentication.
       if (this.nickservMessageQueue) {
         if (text == "Password accepted - you are now recognized." || // Anope.
-            text == "You are now identified for \x02" + aMessage.params[0] + "\x02.") { // Atheme.
+            text.slice(0, 28) == "You are now identified for \x02") { // Atheme.
           // Password successfully accepted by NickServ, don't display the
           // queued messages.
-          LOG("Successfully authenticated with NickServ.");
+          this.LOG("Successfully authenticated with NickServ.");
+          this.isAuthenticated = true;
           clearTimeout(this.nickservAuthTimeout);
           delete this.nickservAuthTimeout;
           delete this.nickservMessageQueue;
@@ -134,17 +210,26 @@ var servicesBase = {
       if (text == "This nick is owned by someone else.  Please choose another." || // Anope.
           text == "This nickname is registered and protected.  If it is your" || // Anope (SECURE enabled).
           text == "This nickname is registered. Please choose a different nickname, or identify via \x02/msg NickServ identify <password>\x02.") { // Atheme.
-        LOG("Authentication requested by NickServ.");
+        this.LOG("Authentication requested by NickServ.");
 
         // Wait one second before showing the message to the user (giving the
-        // the server time to process the PASS command).
+        // the server time to process the log-in).
         this.nickservMessageQueue = [aMessage];
         this.nickservAuthTimeout = setTimeout(function() {
           this.isHandlingQueuedMessages = true;
           this.nickservMessageQueue.every(function(aMessage)
             ircHandlers.handleMessage(this, aMessage), this);
           delete this.isHandlingQueuedMessages;
-        }.bind(this), 1000);
+          delete this.nickservMessageQueue;
+        }.bind(this), 10000);
+        return true;
+      }
+
+      if (!this.isAuthenticated &&
+          (text == "You are already identified." || // Anope.
+           text.slice(0, 30) == "You are already logged in as \x02")) { // Atheme.
+        // Do not show the message if caused by the automatic reauthentication.
+        this.isAuthenticated = true;
         return true;
       }
 

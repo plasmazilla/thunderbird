@@ -42,8 +42,7 @@ var security = {
     if (!isInsecure && status) {
       status.QueryInterface(nsISSLStatus);
       var cert = status.serverCert;
-      var issuerName =
-        this.mapIssuerOrganization(cert.issuerOrganization) || cert.issuerName;
+      var issuerName = cert.issuerOrganization || cert.issuerName;
 
       var retval = {
         hostName : hName,
@@ -85,18 +84,6 @@ var security = {
     return null;
   },
 
-  // Interface for mapping a certificate issuer organization to
-  // the value to be displayed.
-  // Bug 82017 - this implementation should be moved to pipnss C++ code
-  mapIssuerOrganization: function(name) {
-    if (!name) return null;
-
-    if (name == "RSA Data Security, Inc.") return "Verisign, Inc.";
-
-    // No mapping required
-    return name;
-  },
-  
   /**
    * Open the cookie manager window
    */
@@ -140,7 +127,7 @@ function securityOnLoad() {
     // fields must be specified for subject and issuer so that case is simpler.
     if (info.isEV) {
       owner = info.cert.organization;
-      verifier = security.mapIssuerOrganization(info.cAName);
+      verifier = info.cAName;
       generalPageIdentityString =
         pageInfoBundle.getFormattedString("generalSiteIdentity",
                                           [owner, verifier]);
@@ -153,9 +140,7 @@ function securityOnLoad() {
       // vetting standards are good enough (that's what EV is for) so we default to
       // treating these certs as domain-validated only.
       owner = pageInfoBundle.getString("securityNoOwner");
-      verifier = security.mapIssuerOrganization(info.cAName ||
-                                                info.cert.issuerCommonName ||
-                                                info.cert.issuerName);
+      verifier = info.cAName || info.cert.issuerCommonName || info.cert.issuerName;
       generalPageIdentityString = owner;
       identityClass = "verifiedDomain";
     }
@@ -204,36 +189,29 @@ function securityOnLoad() {
   }
 
   /* Set the Technical Detail section messages */
-  const pkiBundle = document.getElementById("pkiBundle");
   var hdr;
   var msg1;
   var msg2;
 
   if (info.isBroken) {
-    hdr = pkiBundle.getString("pageInfo_MixedContent");
-    msg1 = pkiBundle.getString("pageInfo_Privacy_Mixed1");
-    msg2 = pkiBundle.getString("pageInfo_Privacy_None2");
+    hdr = pageInfoBundle.getString("securityMixedContent");
+    msg1 = pageInfoBundle.getString("securityMixed1");
+    msg2 = pageInfoBundle.getString("securityNone2");
   }
-  else if (info.encryptionStrength >= 90) {
-    hdr = pkiBundle.getFormattedString("pageInfo_StrongEncryptionWithBits",
-                                       [info.encryptionAlgorithm, info.encryptionStrength + ""]);
-    msg1 = pkiBundle.getString("pageInfo_Privacy_Strong1");
-    msg2 = pkiBundle.getString("pageInfo_Privacy_Strong2");
+  else if (info.encryptionStrength) {
+    hdr = pageInfoBundle.getFormattedString("securityEncryptionWithBits",
+                         [info.encryptionAlgorithm, info.encryptionStrength]);
+    msg1 = pageInfoBundle.getString("securityEncryption1");
+    msg2 = pageInfoBundle.getString("securityEncryption2");
     security._cert = info.cert;
   }
-  else if (info.encryptionStrength > 0) {
-    hdr  = pkiBundle.getFormattedString("pageInfo_WeakEncryptionWithBits",
-                                        [info.encryptionAlgorithm, info.encryptionStrength + ""]);
-    msg1 = pkiBundle.getFormattedString("pageInfo_Privacy_Weak1", [info.hostName]);
-    msg2 = pkiBundle.getString("pageInfo_Privacy_Weak2");
-  }
   else {
-    hdr = pkiBundle.getString("pageInfo_NoEncryption");
-    if (info.hostName != null)
-      msg1 = pkiBundle.getFormattedString("pageInfo_Privacy_None1", [info.hostName]);
+    hdr = pageInfoBundle.getString("securityNoEncryption");
+    if (info.hostName)
+      msg1 = pageInfoBundle.getFormattedString("securityNone1", [info.hostName]);
     else
-      msg1 = pkiBundle.getString("pageInfo_Privacy_None3");
-    msg2 = pkiBundle.getString("pageInfo_Privacy_None2");
+      msg1 = pageInfoBundle.getString("securityNone3");
+    msg2 = pageInfoBundle.getString("securityNone2");
   }
   setText("security-technical-shortform", hdr);
   setText("security-technical-longform1", msg1);

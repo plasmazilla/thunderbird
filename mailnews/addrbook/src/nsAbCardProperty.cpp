@@ -100,7 +100,8 @@ static const AppendItem CHAT_ATTRS_ARRAY[] = {
   {kQQProperty, "propertyQQ", eAppendLabel},
   {kMSNProperty, "propertyMSN", eAppendLabel},
   {kICQProperty, "propertyICQ", eAppendLabel},
-  {kXMPPProperty, "propertyXMPP", eAppendLabel}
+  {kXMPPProperty, "propertyXMPP", eAppendLabel},
+  {kIRCProperty, "propertyIRC", eAppendLabel}
 };
 
 nsAbCardProperty::nsAbCardProperty()
@@ -256,29 +257,37 @@ NS_IMETHODIMP nsAbCardProperty::GetProperty(const nsACString &name,
   return NS_OK;
 }
 
-NS_IMETHODIMP nsAbCardProperty::GetPropertyAsAString(const char *name, nsAString &value) 
+NS_IMETHODIMP nsAbCardProperty::GetPropertyAsAString(const char *name, nsAString &value)
 {
+  NS_ENSURE_ARG_POINTER(name);
+
   nsCOMPtr<nsIVariant> variant;
   return m_properties.Get(nsDependentCString(name), getter_AddRefs(variant)) ?
     variant->GetAsAString(value) : NS_ERROR_NOT_AVAILABLE;
 }
 
-NS_IMETHODIMP nsAbCardProperty::GetPropertyAsAUTF8String(const char *name, nsACString &value) 
+NS_IMETHODIMP nsAbCardProperty::GetPropertyAsAUTF8String(const char *name, nsACString &value)
 {
+  NS_ENSURE_ARG_POINTER(name);
+
   nsCOMPtr<nsIVariant> variant;
   return m_properties.Get(nsDependentCString(name), getter_AddRefs(variant)) ?
     variant->GetAsAUTF8String(value) : NS_ERROR_NOT_AVAILABLE;
 }
 
-NS_IMETHODIMP nsAbCardProperty::GetPropertyAsUint32(const char *name, uint32_t *value) 
+NS_IMETHODIMP nsAbCardProperty::GetPropertyAsUint32(const char *name, uint32_t *value)
 {
+  NS_ENSURE_ARG_POINTER(name);
+
   nsCOMPtr<nsIVariant> variant;
   return m_properties.Get(nsDependentCString(name), getter_AddRefs(variant)) ?
     variant->GetAsUint32(value) : NS_ERROR_NOT_AVAILABLE;
 }
 
-NS_IMETHODIMP nsAbCardProperty::GetPropertyAsBool(const char *name, bool *value) 
+NS_IMETHODIMP nsAbCardProperty::GetPropertyAsBool(const char *name, bool *value)
 {
+  NS_ENSURE_ARG_POINTER(name);
+
   nsCOMPtr<nsIVariant> variant;
   return m_properties.Get(nsDependentCString(name), getter_AddRefs(variant)) ?
     variant->GetAsBool(value) : NS_ERROR_NOT_AVAILABLE;
@@ -290,32 +299,40 @@ NS_IMETHODIMP nsAbCardProperty::SetProperty(const nsACString &name, nsIVariant *
   return NS_OK;
 }
 
-NS_IMETHODIMP nsAbCardProperty::SetPropertyAsAString(const char *name, const nsAString &value) 
+NS_IMETHODIMP nsAbCardProperty::SetPropertyAsAString(const char *name, const nsAString &value)
 {
+  NS_ENSURE_ARG_POINTER(name);
+
   nsCOMPtr<nsIWritableVariant> variant = do_CreateInstance(NS_VARIANT_CONTRACTID);
   variant->SetAsAString(value);
   m_properties.Put(nsDependentCString(name), variant);
   return NS_OK;
 }
 
-NS_IMETHODIMP nsAbCardProperty::SetPropertyAsAUTF8String(const char *name, const nsACString &value) 
+NS_IMETHODIMP nsAbCardProperty::SetPropertyAsAUTF8String(const char *name, const nsACString &value)
 {
+  NS_ENSURE_ARG_POINTER(name);
+
   nsCOMPtr<nsIWritableVariant> variant = do_CreateInstance(NS_VARIANT_CONTRACTID);
   variant->SetAsAUTF8String(value);
   m_properties.Put(nsDependentCString(name), variant);
   return NS_OK;
 }
 
-NS_IMETHODIMP nsAbCardProperty::SetPropertyAsUint32(const char *name, uint32_t value) 
+NS_IMETHODIMP nsAbCardProperty::SetPropertyAsUint32(const char *name, uint32_t value)
 {
+  NS_ENSURE_ARG_POINTER(name);
+
   nsCOMPtr<nsIWritableVariant> variant = do_CreateInstance(NS_VARIANT_CONTRACTID);
   variant->SetAsUint32(value);
   m_properties.Put(nsDependentCString(name), variant);
   return NS_OK;
 }
 
-NS_IMETHODIMP nsAbCardProperty::SetPropertyAsBool(const char *name, bool value) 
+NS_IMETHODIMP nsAbCardProperty::SetPropertyAsBool(const char *name, bool value)
 {
+  NS_ENSURE_ARG_POINTER(name);
+
   nsCOMPtr<nsIWritableVariant> variant = do_CreateInstance(NS_VARIANT_CONTRACTID);
   variant->SetAsBool(value);
   m_properties.Put(nsDependentCString(name), variant);
@@ -1173,5 +1190,6 @@ NS_IMETHODIMP nsAbCardProperty::GenerateChatName(nsAString &aResult)
   CHECK_CHAT_PROPERTY(MSN);
   CHECK_CHAT_PROPERTY(ICQ);
   CHECK_CHAT_PROPERTY(XMPP);
+  CHECK_CHAT_PROPERTY(IRC);
   return NS_OK;
 }

@@ -15,6 +15,8 @@
   * - Compacting imap offline stores.
   */
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 Services.prefs.setCharPref("mail.serverDefaultStoreContractID",
                            "@mozilla.org/msgstore/berkeleystore;1");
 
@@ -32,9 +34,6 @@ var gExpectedInboxSize;
 var gExpectedFolder2Size;
 var gExpectedFolder3Size;
 
-const gCopyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
-                      .getService(Ci.nsIMsgCopyService);
-
 // nsIMsgCopyServiceListener implementation
 var copyListener = 
 {
@@ -42,7 +41,7 @@ var copyListener =
   OnProgress: function(aProgress, aProgressMax) {},
   SetMessageKey: function(aKey)
   {
-    let hdr = gLocalInboxFolder.GetMessageHeader(aKey);
+    let hdr = localAccountUtils.inboxFolder.GetMessageHeader(aKey);
     gMsgHdrs.push({hdr: hdr, ID: hdr.messageId});
   },
   SetMessageId: function(aMessageId) {},
@@ -75,7 +74,7 @@ var urlListener =
 
 function copyFileMessage(file, destFolder, isDraftOrTemplate)
 {
-  gCopyService.CopyFileMessage(file, destFolder, null, isDraftOrTemplate, 0, "", copyListener, null);
+  MailServices.copy.CopyFileMessage(file, destFolder, null, isDraftOrTemplate, 0, "", copyListener, null);
 }
 
 function copyMessages(items, isMove, srcFolder, destFolder)
@@ -84,7 +83,7 @@ function copyMessages(items, isMove, srcFolder, destFolder)
   items.forEach(function (item) {
     array.appendElement(item, false);
   });
-  gCopyService.CopyMessages(srcFolder, array, destFolder, isMove, copyListener, null, true);
+  MailServices.copy.CopyMessages(srcFolder, array, destFolder, isMove, copyListener, null, true);
 }
 
 function deleteMessages(srcFolder, items)
@@ -139,14 +138,26 @@ function verifyMsgOffsets(folder)
 const gTestArray =
 [
   // Copying messages from files
-  function testCopyFileMessage1() { copyFileMessage(gMsgFile1, gLocalInboxFolder, false); },
-  function testCopyFileMessage2() { copyFileMessage(gMsgFile2, gLocalInboxFolder, false); },
-  function testCopyFileMessage3() { copyFileMessage(gMsgFile3, gLocalInboxFolder, true); },
+  function testCopyFileMessage1() {
+    copyFileMessage(gMsgFile1, localAccountUtils.inboxFolder, false);
+  },
+  function testCopyFileMessage2() {
+    copyFileMessage(gMsgFile2, localAccountUtils.inboxFolder, false);
+  },
+  function testCopyFileMessage3() {
+    copyFileMessage(gMsgFile3, localAccountUtils.inboxFolder, true);
+  },
 
   // Moving/copying messages
-  function testCopyMessages1() { copyMessages([gMsgHdrs[0].hdr], false, gLocalInboxFolder, gLocalFolder2); },
-  function testCopyMessages2() { copyMessages([gMsgHdrs[1].hdr, gMsgHdrs[2].hdr], false, gLocalInboxFolder, gLocalFolder2); },
-  function testMoveMessages1() { copyMessages([gMsgHdrs[0].hdr, gMsgHdrs[1].hdr], true, gLocalInboxFolder, gLocalFolder3); },
+  function testCopyMessages1() {
+    copyMessages([gMsgHdrs[0].hdr], false, localAccountUtils.inboxFolder, gLocalFolder2);
+  },
+  function testCopyMessages2() {
+    copyMessages([gMsgHdrs[1].hdr, gMsgHdrs[2].hdr], false, localAccountUtils.inboxFolder, gLocalFolder2);
+  },
+  function testMoveMessages1() {
+    copyMessages([gMsgHdrs[0].hdr, gMsgHdrs[1].hdr], true, localAccountUtils.inboxFolder, gLocalFolder3);
+  },
 
   // Deleting messages
   function testDeleteMessages1() { // delete to trash
@@ -174,7 +185,7 @@ const gTestArray =
   },
   function compactAllFolders()
   {
-    gExpectedInboxSize = calculateFolderSize(gLocalInboxFolder);
+    gExpectedInboxSize = calculateFolderSize(localAccountUtils.inboxFolder);
     gExpectedFolder2Size = calculateFolderSize(gLocalFolder2);
     gExpectedFolder3Size = calculateFolderSize(gLocalFolder3);
     // force expunged bytes count to get cached.
@@ -187,33 +198,33 @@ const gTestArray =
     let dbPath = gLocalFolder2.filePath;
     dbPath.leafName = dbPath.leafName + ".msf";
     dbPath.remove(false);
-    gLocalInboxFolder.compactAll(urlListener, null, true);
+    localAccountUtils.inboxFolder.compactAll(urlListener, null, true);
   },
   function lastTestCheck()
   {
-    do_check_eq(gExpectedInboxSize, gLocalInboxFolder.filePath.fileSize);
+    do_check_eq(gExpectedInboxSize, localAccountUtils.inboxFolder.filePath.fileSize);
     do_check_eq(gExpectedFolder2Size, gLocalFolder2.filePath.fileSize);
     do_check_eq(gExpectedFolder3Size, gLocalFolder3.filePath.fileSize);
     verifyMsgOffsets(gLocalFolder2);
     verifyMsgOffsets(gLocalFolder3);
-    verifyMsgOffsets(gLocalInboxFolder);
+    verifyMsgOffsets(localAccountUtils.inboxFolder);
     urlListener.OnStopRunningUrl(null, 0);
   }
 ];
 
 function run_test()
 {
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
   // Load up some messages so that we can copy them in later.
   gMsgFile1 = do_get_file("../../../data/bugmail10");
   gMsgFile2 = do_get_file("../../../data/bugmail11");
   gMsgFile3 = do_get_file("../../../data/draft1");
 
   // Create another folder to move and copy messages around, and force initialization.
-  gLocalFolder2 = gLocalRootFolder.createLocalSubfolder("folder2");
+  gLocalFolder2 = localAccountUtils.rootFolder.createLocalSubfolder("folder2");
   let folderName = gLocalFolder2.prettiestName;
   // Create a third folder for more testing.
-  gLocalFolder3 = gLocalRootFolder.createLocalSubfolder("folder3");
+  gLocalFolder3 = localAccountUtils.rootFolder.createLocalSubfolder("folder3");
   folderName = gLocalFolder3.prettiestName;
 
   // "Master" do_test_pending(), paired with a do_test_finished() at the end of all the operations.

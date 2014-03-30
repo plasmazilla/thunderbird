@@ -10,11 +10,13 @@
 var MODULE_NAME = 'test-message-commands';
 
 var RELATIVE_ROOT = '../shared-modules';
-var MODULE_REQUIRES = ['folder-display-helpers', 'content-tab-helpers'];
+var MODULE_REQUIRES = ['folder-display-helpers', 'content-tab-helpers',
+                       'window-helpers'];
 
 Components.utils.import("resource:///modules/MailUtils.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
-var unreadFolder;
+var unreadFolder, shiftDeleteFolder, threadDeleteFolder;
 var archiveSrcFolder = null;
 var archiveURI;
 
@@ -26,20 +28,24 @@ var setupModule = function(module) {
   fdh.installInto(module);
   let cth = collector.getModule('content-tab-helpers');
   cth.installInto(module);
+  let wh = collector.getModule('window-helpers');
+  wh.installInto(module);
 
-
-  unreadFolder = create_folder("UnreadFolder");
-  archiveSrcFolder = create_folder("ArchiveSrc");
+  unreadFolder = create_folder('UnreadFolder');
+  shiftDeleteFolder = create_folder('ShiftDeleteFolder');
+  threadDeleteFolder = create_folder('ThreadDeleteFolder');
+  archiveSrcFolder = create_folder('ArchiveSrc');
 
   make_new_sets_in_folder(unreadFolder, [{count: 2}]);
+  make_new_sets_in_folder(shiftDeleteFolder, [{count: 3}]);
+  add_sets_to_folders([threadDeleteFolder],
+                      [create_thread(3), create_thread(3), create_thread(3)]);
 
   // Create messages from 20 different months, which will mean 2 different
   // years as well.
   make_new_sets_in_folder(archiveSrcFolder, [{count: 20, age_incr: {weeks: 5}}]);
 
-  let tagService = Components.classes["@mozilla.org/messenger/tagservice;1"]
-                             .getService(Components.interfaces.nsIMsgTagService);
-  tagArray = tagService.getAllTags({});
+  tagArray = MailServices.tags.getAllTags({});
 };
 
 /**
@@ -82,9 +88,7 @@ function check_read_menuitems(index, canMarkRead, canMarkUnread) {
 }
 
 function enable_archiving(enabled) {
-  Cc["@mozilla.org/preferences-service;1"]
-   .getService(Ci.nsIPrefService).getBranch(null)
-   .setBoolPref("mail.identity.default.archive_enabled", enabled);
+  Services.prefs.setBoolPref("mail.identity.default.archive_enabled", enabled);
 }
 
 /**
@@ -258,6 +262,80 @@ function test_mark_all_read() {
   assert_true(allReadDisabled, "Mark All Read menu item should be disabled!");
 }
 
+function test_shift_delete_prompt() {
+  be_in_folder(shiftDeleteFolder);
+  let curMessage = select_click_row(0);
+
+  // First, try shift-deleting and then cancelling at the prompt.
+  Services.prefs.setBoolPref('mail.warn_on_shift_delete', true);
+  plan_for_modal_dialog('commonDialog', function(controller) {
+    controller.window.document.documentElement.getButton('cancel').doCommand();
+  });
+  // We don't use press_delete here because we're not actually deleting this
+  // time!
+  mc.keypress(null, 'VK_DELETE', {shiftKey: true});
+  wait_for_modal_dialog('commonDialog');
+  // Make sure we didn't actually delete the message.
+  assert_equals(curMessage, select_click_row(0));
+
+  // Second, try shift-deleting and then accepting the deletion.
+  plan_for_modal_dialog('commonDialog', function(controller) {
+    controller.window.document.documentElement.getButton('accept').doCommand();
+  });
+  press_delete(mc, {shiftKey: true});
+  wait_for_modal_dialog('commonDialog');
+  // Make sure we really did delete the message.
+  assert_not_equals(curMessage, select_click_row(0));
+
+  // Finally, try shift-deleting when we turned off the prompt.
+  Services.prefs.setBoolPref('mail.warn_on_shift_delete', false);
+  curMessage = select_click_row(0);
+  press_delete(mc, {shiftKey: true});
+  wait_for_modal_dialog('commonDialog');
+  // Make sure we really did delete the message.
+  assert_not_equals(curMessage, select_click_row(0));
+
+  Services.prefs.clearUserPref('mail.warn_on_shift_delete');
+}
+
+function test_thread_delete_prompt() {
+  be_in_folder(threadDeleteFolder);
+  make_display_threaded();
+  collapse_all_threads();
+
+  let curMessage = select_click_row(0);
+  // First, try deleting and then cancelling at the prompt.
+  Services.prefs.setBoolPref('mail.warn_on_collapsed_thread_operation', true);
+  plan_for_modal_dialog('commonDialog', function(controller) {
+    controller.window.document.documentElement.getButton('cancel').doCommand();
+  });
+  // We don't use press_delete here because we're not actually deleting this
+  // time!
+  mc.keypress(null, 'VK_DELETE', {});
+  wait_for_modal_dialog('commonDialog');
+  // Make sure we didn't actually delete the message.
+  assert_equals(curMessage, select_click_row(0));
+
+  // Second, try deleting and then accepting the deletion.
+  plan_for_modal_dialog('commonDialog', function(controller) {
+    controller.window.document.documentElement.getButton('accept').doCommand();
+  });
+  press_delete(mc);
+  wait_for_modal_dialog('commonDialog');
+  // Make sure we really did delete the message.
+  assert_not_equals(curMessage, select_click_row(0));
+
+  // Finally, try shift-deleting when we turned off the prompt.
+  Services.prefs.setBoolPref('mail.warn_on_collapsed_thread_operation', false);
+  curMessage = select_click_row(0);
+  press_delete(mc);
+  wait_for_modal_dialog('commonDialog');
+  // Make sure we really did delete the message.
+  assert_not_equals(curMessage, select_click_row(0));
+
+  Services.prefs.clearUserPref('mail.warn_on_collapsed_thread_operation');
+}
+
 function test_yearly_archive() {
   yearly_archive(false);
 }
@@ -267,11 +345,8 @@ function yearly_archive(keep_structure) {
   make_display_unthreaded();
   mc.folderDisplay.view.sort(Ci.nsMsgViewSortType.byDate, Ci.nsMsgViewSortOrder.ascending);
 
-  acctMgr = Components.classes["@mozilla.org/messenger/account-manager;1"]
-              .getService(Ci.nsIMsgAccountManager);
-
-  let identity = acctMgr.getFirstIdentityForServer(mc.folderDisplay.view.dbView
-                                                   .getMsgHdrAt(0).folder.server);
+  let identity = MailServices.accounts.getFirstIdentityForServer(mc.folderDisplay.view.dbView
+                                                                 .getMsgHdrAt(0).folder.server);
   identity.archiveGranularity = Ci.nsIMsgIdentity.perYearArchiveFolders;
   // We need to get all the info about the messages before we do the archive,
   // because deleting the headers could make extracting values from them fail.
@@ -316,8 +391,8 @@ function test_monthly_archive() {
 
 function monthly_archive(keep_structure) {
   be_in_folder(archiveSrcFolder);
-  let identity = acctMgr.getFirstIdentityForServer(mc.folderDisplay.view.dbView
-                                                   .getMsgHdrAt(0).folder.server);
+  let identity = MailServices.accounts.getFirstIdentityForServer(mc.folderDisplay.view.dbView
+                                                                 .getMsgHdrAt(0).folder.server);
   identity.archiveGranularity = Ci.nsIMsgIdentity.perMonthArchiveFolders;
   select_click_row(0);
   select_control_click_row(1);
@@ -360,9 +435,7 @@ function monthly_archive(keep_structure) {
 
 function test_folder_structure_archiving() {
   enable_archiving(true);
-  Cc["@mozilla.org/preferences-service;1"]
-   .getService(Ci.nsIPrefService).getBranch(null)
-   .setBoolPref("mail.identity.default.archive_keep_folder_structure", true);
+  Services.prefs.setBoolPref("mail.identity.default.archive_keep_folder_structure", true);
   monthly_archive(true);
   yearly_archive(true);
 }
@@ -370,8 +443,8 @@ function test_folder_structure_archiving() {
 function test_selection_after_archive() {
   enable_archiving(true);
   be_in_folder(archiveSrcFolder);
-  let identity = acctMgr.getFirstIdentityForServer(mc.folderDisplay.view.dbView
-                                                   .getMsgHdrAt(0).folder.server);
+  let identity = MailServices.accounts.getFirstIdentityForServer(mc.folderDisplay.view.dbView
+                                                                 .getMsgHdrAt(0).folder.server);
   identity.archiveGranularity = Ci.nsIMsgIdentity.perMonthArchiveFolders;
   // We had a bug where we would always select the 0th message after an
   // archive, so test that we'll actually select the next remaining message

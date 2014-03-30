@@ -6,8 +6,6 @@
  * This test verifies that we emit a message/rfc822 body part as an attachment
  * whether or not mail.inline_attachments is true.
  */
-load("../../../resources/mailDirService.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/logHelper.js");
 load("../../../resources/asyncTestUtils.js");
 
@@ -37,6 +35,7 @@ let messages = [
 ];
 
 let gStreamListener = {
+  stream: null,
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIStreamListener]),
 
   // nsIRequestObserver part
@@ -55,7 +54,7 @@ let gStreamListener = {
                     createInstance(Ci.nsIScriptableInputStream);
       this.stream.init(aInputStream);
     }
-  },
+  }
 };
 
 let gMessageHeaderSink = {

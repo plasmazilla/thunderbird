@@ -16,11 +16,20 @@ FeedParser.prototype =
   // parseFeed returns an empty feed in addition to calling aFeed.onParseError.
   parseFeed: function (aFeed, aDOM, aBaseURI)
   {
-    let doc = aDOM.documentElement;
-    if (!(aDOM instanceof Ci.nsIDOMXMLDocument) ||
-        doc.getElementsByTagNameNS(FeedUtils.MOZ_PARSERERROR_NS, "parsererror")[0])
+    if (!(aDOM instanceof Ci.nsIDOMXMLDocument))
     {
-      // No xml doc or gecko caught a basic parsing error.
+      // No xml doc.
+      aFeed.onParseError(aFeed);
+      return new Array();
+    }
+
+    let doc = aDOM.documentElement;
+    if (doc.namespaceURI == FeedUtils.MOZ_PARSERERROR_NS)
+    {
+      // Gecko caught a basic parsing error.
+      let errStr = doc.firstChild.textContent + "\n" +
+                   doc.firstElementChild.textContent;
+      FeedUtils.log.info("FeedParser.parseFeed: - " + errStr);
       aFeed.onParseError(aFeed);
       return new Array();
     }
@@ -79,7 +88,7 @@ FeedParser.prototype =
     // Get the first channel (assuming there is only one per RSS File).
     let parsedItems = new Array();
 
-    let channel = aDOM.getElementsByTagName("channel")[0];
+    let channel = aDOM.querySelector("channel");
     if (!channel)
       return aFeed.onParseError(aFeed);
 
@@ -101,12 +110,14 @@ FeedParser.prototype =
     // XXX use getElementsByTagNameNS for now; childrenByTagNameNS would be
     // better, but RSS .90 is still with us.
     let itemNodes = aDOM.getElementsByTagNameNS(nsURI, "item");
+    itemNodes = itemNodes ? itemNodes : [];
     FeedUtils.log.debug("FeedParser.parseAsRSS2: items to parse - " +
                         itemNodes.length);
 
-    for (let i = 0; i < itemNodes.length; i++)
+    for (let itemNode of itemNodes)
     {
-      let itemNode = itemNodes[i];
+      if (!itemNode.childElementCount)
+        continue;
       let item = new FeedItem();
       item.feed = aFeed;
       item.characterSet = "UTF-8";
@@ -165,7 +176,7 @@ FeedParser.prototype =
                     item.author;
 
       tags = this.childrenByTagNameNS(itemNode, nsURI, "pubDate");
-      if (!tags)
+      if (!tags || !this.getNodeValue(tags[0]))
         tags = this.childrenByTagNameNS(itemNode, FeedUtils.DC_NS, "date");
       item.date = this.getNodeValue(tags ? tags[0] : null) || item.date;
 
@@ -218,7 +229,7 @@ FeedParser.prototype =
                                                    tag.getAttribute("fileSize")));
         }
 
-      parsedItems[i] = item;
+      parsedItems.push(item);
     }
 
     return parsedItems;
@@ -309,7 +320,7 @@ FeedParser.prototype =
     let parsedItems = new Array();
 
     // Get the first channel (assuming there is only one per Atom File).
-    let channel = aDOM.getElementsByTagName("feed")[0];
+    let channel = aDOM.querySelector("feed");
     if (!channel)
     {
       aFeed.onParseError(aFeed);
@@ -329,12 +340,14 @@ FeedParser.prototype =
 
     aFeed.invalidateItems();
     let items = this.childrenByTagNameNS(channel, FeedUtils.ATOM_03_NS, "entry");
+    items = items ? items : [];
     FeedUtils.log.debug("FeedParser.parseAsAtom: items to parse - " +
                         items.length);
 
-    for (let i = 0; i < items.length; i++)
+    for (let itemNode of items)
     {
-      let itemNode = items[i];
+      if (!itemNode.childElementCount)
+        continue;
       let item = new FeedItem();
       item.feed = aFeed;
       item.characterSet = "UTF-8";
@@ -375,9 +388,9 @@ FeedParser.prototype =
       item.author = author || item.author || aFeed.title;
 
       tags = this.childrenByTagNameNS(itemNode, FeedUtils.ATOM_03_NS, "modified");
-      if (!tags)
+      if (!tags || !this.getNodeValue(tags[0]))
         tags = this.childrenByTagNameNS(itemNode, FeedUtils.ATOM_03_NS, "issued");
-      if (!tags)
+      if (!tags || !this.getNodeValue(tags[0]))
         tags = this.childrenByTagNameNS(channel, FeedUtils.ATOM_03_NS, "created");
 
       item.date = this.getNodeValue(tags ? tags[0] : null) || item.date;
@@ -418,7 +431,7 @@ FeedParser.prototype =
       }
 
       item.content = content;
-      parsedItems[i] = item;
+      parsedItems.push(item);
     }
 
     return parsedItems;
@@ -451,12 +464,14 @@ FeedParser.prototype =
 
     aFeed.invalidateItems();
     let items = this.childrenByTagNameNS(channel, FeedUtils.ATOM_IETF_NS, "entry");
+    items = items ? items : [];
     FeedUtils.log.debug("FeedParser.parseAsAtomIETF: items to parse - " +
                         items.length);
 
-    for (let i = 0; i < items.length; i++)
+    for (let itemNode of items)
     {
-      let itemNode = items[i];
+      if (!itemNode.childElementCount)
+        continue;
       let item = new FeedItem();
       item.feed = aFeed;
       item.characterSet = "UTF-8";
@@ -480,7 +495,7 @@ FeedParser.prototype =
       let source = tags ? tags[0] : null;
 
       tags = this.childrenByTagNameNS(itemNode, FeedUtils.ATOM_IETF_NS, "author");
-      if (!tags && source)
+      if (!tags)
         tags = this.childrenByTagNameNS(source, FeedUtils.ATOM_IETF_NS, "author");
       if (!tags)
         tags = this.childrenByTagNameNS(channel, FeedUtils.ATOM_IETF_NS, "author");
@@ -503,7 +518,9 @@ FeedParser.prototype =
       item.author = author || item.author || aFeed.title;
 
       tags = this.childrenByTagNameNS(itemNode, FeedUtils.ATOM_IETF_NS, "updated");
-      if (!tags && source)
+      if (!tags || !this.getNodeValue(tags[0]))
+        tags = this.childrenByTagNameNS(itemNode, FeedUtils.ATOM_IETF_NS, "published");
+      if (!tags || !this.getNodeValue(tags[0]))
         tags = this.childrenByTagNameNS(source, FeedUtils.ATOM_IETF_NS, "published");
       item.date = this.getNodeValue(tags ? tags[0] : null) || item.date;
 
@@ -533,7 +550,7 @@ FeedParser.prototype =
                                                    tag.getAttribute("title")));
         }
 
-      parsedItems[i] = item;
+      parsedItems.push(item);
     }
 
     return parsedItems;
@@ -618,6 +635,8 @@ FeedParser.prototype =
   // Finds elements that are direct children of the first arg.
   childrenByTagNameNS: function(aElement, aNamespace, aTagName)
   {
+    if (!aElement)
+      return null;
     let matches = aElement.getElementsByTagNameNS(aNamespace, aTagName);
     let matchingChildren = new Array();
     for (let i = 0; i < matches.length; i++)

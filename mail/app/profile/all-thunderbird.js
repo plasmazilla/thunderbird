@@ -77,10 +77,10 @@ pref("app.update.cert.maxErrors", 5);
 // If these conditions aren't met it will be treated the same as when there is
 // no update available. This validation will not be performed when using the
 // |app.update.url.override| preference for update checking.
-pref("app.update.certs.1.issuerName", "OU=Equifax Secure Certificate Authority,O=Equifax,C=US");
+pref("app.update.certs.1.issuerName", "CN=Thawte SSL CA,O=\"Thawte, Inc.\",C=US");
 pref("app.update.certs.1.commonName", "aus3.mozilla.org");
 
-pref("app.update.certs.2.issuerName", "CN=Thawte SSL CA,O=\"Thawte, Inc.\",C=US");
+pref("app.update.certs.2.issuerName", "CN=DigiCert Secure Server CA,O=DigiCert Inc,C=US");
 pref("app.update.certs.2.commonName", "aus3.mozilla.org");
 
 // Whether or not app updates are enabled
@@ -138,6 +138,9 @@ pref("app.update.showInstalledUI", false);
 pref("app.update.service.enabled", true);
 #endif
 
+// Release notes URL
+pref("app.releaseNotesURL", "http://live.mozillamessaging.com/%APP%/releasenotes?locale=%LOCALE%&version=%VERSION%&os=%OS%&buildid=%APPBUILDID%");
+
 // Base URL for web-based support pages.
 pref("app.support.baseURL", "http://support.live.mozillamessaging.com/%LOCALE%/%APP%/%APPBUILDID%/");
 
@@ -190,7 +193,6 @@ pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/Ve
 pref("extensions.update.interval", 86400);  // Check for updates to Extensions and 
                                             // Themes every day
 
-pref("extensions.getMoreThemesURL", "https://addons.mozilla.org/%LOCALE%/%APP%/themes/");
 pref("extensions.dss.enabled", false);          // Dynamic Skin Switching                                               
 pref("extensions.dss.switchPending", false);    // Non-dynamic switch pending after next
 
@@ -212,17 +214,15 @@ pref("general.autoScroll", true);
 pref("mail.shell.checkDefaultClient", true);
 pref("mail.spellcheck.inline", true);
 
-pref("mail.biff.alert.show_preview", true);
-pref("mail.biff.alert.show_subject", true);
-pref("mail.biff.alert.show_sender",  true);
-pref("mail.biff.alert.preview_length", 40);
-
 pref("mail.folder.views.version", 0);
 
 // target folder URI used for the last move or copy
 pref("mail.last_msg_movecopy_target_uri", "");
 // last move or copy operation was a move
 pref("mail.last_msg_movecopy_was_move", true);
+
+//Set the font color for links to something lighter
+pref("browser.anchor_color", "#0B6CDA");
 
 #ifdef XP_WIN
 pref("browser.preferences.instantApply", false);
@@ -276,6 +276,7 @@ pref("mailnews.reply_header_type", 2);
 
 pref("mail.operate_on_msgs_in_collapsed_threads", true);
 pref("mail.warn_on_collapsed_thread_operation", true);
+pref("mail.warn_on_shift_delete", true);
 
 // only affects cookies from RSS articles
 // 0-Accept, 1-dontAcceptForeign, 2-dontUse
@@ -387,8 +388,6 @@ pref("browser.download.manager.focusWhenStarting", false);
 pref("browser.download.manager.flashCount", 0);
 pref("browser.download.manager.addToRecentDocs", true);
 
-pref("javascript.options.showInConsole",    true);
-
 pref("spellchecker.dictionary", "");
 // Dictionary download preference
 pref("spellchecker.dictionaries.download.url", "https://addons.mozilla.org/%LOCALE%/%APP%/dictionaries/");
@@ -400,7 +399,7 @@ pref("profile.force.migration", "");
 
 // prefs to control the mail alert notification
 pref("alerts.slideIncrementTime", 50);
-pref("alerts.totalOpenTime", 3000);
+pref("alerts.totalOpenTime", 10000);
 
 // analyze urls in mail messages for scams
 pref("mail.phishing.detection.enabled", true);
@@ -428,14 +427,10 @@ pref("browser.safebrowsing.provider.0.reportPhishURL", "http://{moz:locale}.phis
 
 // FAQ URL
 // XXX Firefox is hard-coded because we haven't got our own version yet.
-pref("browser.safebrowsing.warning.infoURL", "http://www.mozilla.com/%LOCALE%/firefox/phishing-protection/");
+pref("browser.safebrowsing.warning.infoURL", "https://www.mozilla.org/%LOCALE%/firefox/phishing-protection/");
 
 // prevent status-bar spoofing even if people are foolish enough to turn on JS
 pref("dom.disable_window_status_change",          true);
-
-// For the Empty Junk/Trash confirmation dialogs.
-pref("mail.emptyJunk.dontAskAgain", false);
-pref("mail.emptyTrash.dontAskAgain", false);
 
 // If a message is opened using Enter or a double click, what should we do?
 // 0 - open it in a new window
@@ -499,6 +494,9 @@ pref("toolbar.customization.usesheet", true);
 #else
 pref("toolbar.customization.usesheet", false);
 #endif
+
+// Number of recipient rows shown by default
+pref("mail.compose.addresswidget.numRowsShownDefault", 3);
 
 // Check for missing attachments?
 pref("mail.compose.attachment_reminder", true);
@@ -762,7 +760,7 @@ pref("plugins.use_layers", false);
 pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
 #endif
 
-pref("plugins.update.url", "https://www.mozilla.com/%LOCALE%/plugincheck/");
+pref("plugins.update.url", "https://www.mozilla.org/%LOCALE%/plugincheck/");
 pref("plugins.update.notifyUser", false);
 pref("plugins.crash.supportUrl", "https://live.mozillamessaging.com/%APP%/plugin-crashed?locale=%LOCALE%&version=%VERSION%&os=%OS%&buildid=%APPBUILDID%");
 
@@ -812,6 +810,9 @@ pref("purple.conversations.im.send_typing", true);
 pref("mail.cloud_files.enabled", true);
 pref("mail.cloud_files.inserted_urls.footer.link", "http://www.getthunderbird.com");
 pref("mail.cloud_files.learn_more_url", "https://support.mozillamessaging.com/kb/filelink-large-attachments");
+
+// Ignore threads
+pref("mail.ignore_thread.learn_more_url", "https://support.mozillamessaging.com/kb/ignore-threads");
 
 // Sanitize dialog window
 pref("privacy.cpd.cookies", true);

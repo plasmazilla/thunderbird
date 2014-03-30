@@ -8,9 +8,6 @@ const RELATIVE_ROOT = "../shared-modules";
 const MODULE_REQUIRES = ["folder-display-helpers", "window-helpers",
                          "account-manager-helpers"];
 
-Cu.import("resource:///modules/mailServices.js");
-Cu.import("resource://gre/modules/Services.jsm");
-
 let imapAccount, nntpAccount, originalAccountCount;
 
 function setupModule(module) {
@@ -19,7 +16,7 @@ function setupModule(module) {
   collector.getModule("account-manager-helpers").installInto(module);
 
   // There may be pre-existing accounts from other tests.
-  originalAccountCount = MailServices.accounts.allServers.Count();
+  originalAccountCount = MailServices.accounts.allServers.length;
   // There already should be a Local Folders account created.
   // It is needed for this test.
   assert_true(MailServices.accounts.localFoldersServer);
@@ -38,7 +35,7 @@ function setupModule(module) {
 
   // Create a NNTP server
   let nntpServer = MailServices.accounts
-    .createIncomingServer(null, "example.nntp.com", "nntp")
+    .createIncomingServer(null, "example.nntp.invalid", "nntp")
     .QueryInterface(Components.interfaces.nsINntpIncomingServer);
 
   identity = MailServices.accounts.createIdentity();
@@ -48,7 +45,7 @@ function setupModule(module) {
   nntpAccount.incomingServer = nntpServer;
   nntpAccount.addIdentity(identity);
   // Now there should be 2 more accounts.
-  assert_equals(MailServices.accounts.allServers.Count(), originalAccountCount + 2);
+  assert_equals(MailServices.accounts.allServers.length, originalAccountCount + 2);
 }
 
 function teardownModule(module) {
@@ -56,7 +53,7 @@ function teardownModule(module) {
   MailServices.accounts.removeAccount(nntpAccount);
   MailServices.accounts.removeAccount(imapAccount);
   // There should be only the original accounts left.
-  assert_equals(MailServices.accounts.allServers.Count(), originalAccountCount);
+  assert_equals(MailServices.accounts.allServers.length, originalAccountCount);
 }
 
 /**
@@ -72,25 +69,8 @@ function teardownModule(module) {
 function subtest_check_account_actions(amc, aAccountKey, aIsSetAsDefaultEnabled,
                                        aIsRemoveEnabled, aIsAddAccountEnabled)
 {
-  let rowIndex = 0; // count which row in the account tree we need to click
-  let accountTreeNode = amc.e("account-tree-children");
-  for (let i = 0; i < accountTreeNode.childNodes.length; i++) {
-    if ("_account" in accountTreeNode.childNodes[i]) {
-      if (aAccountKey == accountTreeNode.childNodes[i]._account.key) {
-        click_account_tree_row(amc, rowIndex);
-        break;
-      }
-      // skip all of this account's setting panes
-      rowIndex += accountTreeNode.childNodes[i].getElementsByAttribute("PageTag", "*").length;
-    } else {
-      // a row without _account should be the SMTP server
-      if (aAccountKey == null) {
-        click_account_tree_row(amc, rowIndex);
-        break;
-      }
-    }
-    rowIndex++;
-  }
+  let accountRow = get_account_tree_row(aAccountKey, null, amc);
+  click_account_tree_row(amc, accountRow);
 
   // click the Actions Button to bring up the popup with menuitems to test
   amc.click(amc.eid("accountActionsButton"), 5, 5);

@@ -49,11 +49,9 @@ function CoalesceGetMsgsForPop3ServersByDestFolder(aCurrentServer,
     inbox.clearNewMessages();
     aLocalFoldersToDownloadTo.push(inbox);
     index = aPOP3DownloadServersArray.length;
-    aPOP3DownloadServersArray[index] =
-      Components.classes["@mozilla.org/supports-array;1"]
-                .createInstance(Components.interfaces.nsISupportsArray);
+    aPOP3DownloadServersArray.push([]);
   }
-  aPOP3DownloadServersArray[index].AppendElement(aCurrentServer);
+  aPOP3DownloadServersArray[index].push(aCurrentServer);
 }
 
 function MailTasksGetMessagesForAllServers(aBiff, aMsgWindow, aDefaultServer)
@@ -64,21 +62,20 @@ function MailTasksGetMessagesForAllServers(aBiff, aMsgWindow, aDefaultServer)
     var allServers = Components.classes["@mozilla.org/messenger/account-manager;1"]
                                .getService(Components.interfaces.nsIMsgAccountManager)
                                .allServers;
-    // array of ISupportsArrays of servers for a particular folder
+    // array of array of servers for a particular folder
     var pop3DownloadServersArray = [];
     // parallel array of folders to download to...
     var localFoldersToDownloadTo = [];
     var pop3Server = null;
-    for (let i = 0; i < allServers.Count(); ++i)
+    for (let i = 0; i < allServers.length; ++i)
     {
-      let currentServer = allServers.GetElementAt(i);
-      if (currentServer instanceof Components.interfaces.nsIMsgIncomingServer)
+      let currentServer = allServers.queryElementAt(i, Components.interfaces.nsIMsgIncomingServer);
+      if (currentServer)
       {
-        let protocolinfo = Components.classes["@mozilla.org/messenger/protocol/info;1?type=" + currentServer.type]
-                                     .getService(Components.interfaces.nsIMsgProtocolInfo);
         if (aBiff)
         {
-          if (protocolinfo.canLoginAtStartUp && currentServer.loginAtStartUp)
+          if (currentServer.protocolInfo.canLoginAtStartUp &&
+              currentServer.loginAtStartUp)
           {
             if (aDefaultServer &&
                 aDefaultServer.equals(currentServer) &&
@@ -103,7 +100,8 @@ function MailTasksGetMessagesForAllServers(aBiff, aMsgWindow, aDefaultServer)
         }
         else
         {
-          if (protocolinfo.canGetMessages && !currentServer.passwordPromptRequired)
+          if (currentServer.protocolInfo.canGetMessages &&
+              !currentServer.passwordPromptRequired)
           {
             if (currentServer.type == "pop3")
             {
@@ -129,6 +127,7 @@ function MailTasksGetMessagesForAllServers(aBiff, aMsgWindow, aDefaultServer)
         // any ol' pop3Server will do -
         // the serversArray specifies which servers to download from
         pop3Server.downloadMailFromServers(pop3DownloadServersArray[i],
+                                           pop3DownloadServersArray[i].length,
                                            aMsgWindow,
                                            localFoldersToDownloadTo[i],
                                            null);
@@ -179,10 +178,7 @@ function MailTasksOnLoad(aEvent)
 
   // Performing biff here will mean performing it for all new windows opened!
   // This might make non-users of mailnews unhappy...
-  const kPrefBranch = Components.classes["@mozilla.org/preferences-service;1"]
-                                .getService(Components.interfaces.nsIPrefService)
-                                .getBranch(null);
-  if (!kPrefBranch.getBoolPref("mail.biff.on_new_window"))
+  if (!Services.prefs.getBoolPref("mail.biff.on_new_window"))
     return;
 
   // The MailNews main window will perform biff later in its onload handler,

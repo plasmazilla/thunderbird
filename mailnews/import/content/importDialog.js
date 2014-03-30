@@ -4,6 +4,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 var importType = null;
 var gImportMsgsBundle;
 var gFeedsBundle;
@@ -64,7 +67,7 @@ function SetUpImportType()
   document.getElementById("importFields").value = importType;
   
   // Mac migration not working right now, so disable it
-  if (navigator.platform.match("^Mac"))
+  if (navigator.platform.startsWith("Mac"))
   {
     document.getElementById("allRadio").setAttribute("disabled", "true");
     if (importType == "all")
@@ -100,15 +103,12 @@ function SetDivText(id, text)
 
 function CheckIfLocalFolderExists()
 {
-  var acctMgr = Components.classes["@mozilla.org/messenger/account-manager;1"].getService(Components.interfaces.nsIMsgAccountManager);
-  if (acctMgr) {
-    try {
-      if (acctMgr.localFoldersServer)
-        progressInfo.localFolderExists = true; 
-    }
-    catch (ex) {
-      progressInfo.localFolderExists = false;
-    }
+  try {
+    if (MailServices.accounts.localFoldersServer)
+      progressInfo.localFolderExists = true;
+  }
+  catch (ex) {
+    progressInfo.localFolderExists = false;
   }
 }
 
@@ -417,7 +417,7 @@ function ListFeedAccounts() {
 }
 
 function ContinueImport( info) {
-  var isMail = info.importType == 'mail' ? true : false;
+  var isMail = info.importType == 'mail';
   var clear = true;
   var deck;
   var pcnt;
@@ -548,13 +548,11 @@ function ShowImportResultsRaw(title, results, good)
   var backButton = document.getElementById("back");
   backButton.setAttribute("disabled", "true");
 
-  // If the Local Folder is not existed, create it after successfully 
-  // import "mail" and "settings"
-  var checkLocalFolder = (top.progressInfo.importType == 'mail' || top.progressInfo.importType == 'settings') ? true : false;
+  // If the Local Folder doesn't exist, create it after successfully 
+  // importing "mail" and "settings"
+  var checkLocalFolder = (top.progressInfo.importType == 'mail' || top.progressInfo.importType == 'settings');
   if (good && checkLocalFolder && !top.progressInfo.localFolderExists) {
-    var am = Components.classes["@mozilla.org/messenger/account-manager;1"].getService(Components.interfaces.nsIMsgAccountManager);
-    if (am)
-      am.createLocalMailAccount();
+    MailServices.accounts.createLocalMailAccount();
   }
 }
 
@@ -860,9 +858,8 @@ function ImportAddress( module, success, error) {
 
     if ( !fileIsDirectory && (file.fileSize == 0) ) {
       var errorText = gImportMsgsBundle.getFormattedString('ImportEmptyAddressBook', [path]);
-      var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"].getService(Components.interfaces.nsIPromptService);
 
-      promptService.alert(window, document.title, errorText);
+      Services.prompt.alert(window, document.title, errorText);
       return false;
     }
     addInterface.SetData("addressLocation", file);

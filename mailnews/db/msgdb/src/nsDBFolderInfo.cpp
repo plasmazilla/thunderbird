@@ -214,10 +214,10 @@ nsDBFolderInfo::nsDBFolderInfo(nsMsgDatabase *mdb)
 
     //		mdb->AddRef();
     err = m_mdb->GetStore()->StringToToken(mdb->GetEnv(), kDBFolderInfoScope, &m_rowScopeToken);
-    if (err == NS_OK)
+    if (NS_SUCCEEDED(err))
     {
       err = m_mdb->GetStore()->StringToToken(mdb->GetEnv(), kDBFolderInfoTableKind, &m_tableKindToken);
-      if (err == NS_OK)
+      if (NS_SUCCEEDED(err))
       {
         gDBFolderInfoOID.mOid_Scope = m_rowScopeToken;
         gDBFolderInfoOID.mOid_Id = 1;
@@ -302,18 +302,18 @@ nsresult nsDBFolderInfo::InitFromExistingDB()
       {
         // find singleton row for global info.
         ret = m_mdbTable->HasOid(m_mdb->GetEnv(), &gDBFolderInfoOID, &hasOid);
-        if (ret == NS_OK)
+        if (NS_SUCCEEDED(ret))
         {
           nsIMdbTableRowCursor *rowCursor;
           rowPos = -1;
           ret= m_mdbTable->GetTableRowCursor(m_mdb->GetEnv(), rowPos, &rowCursor);
-          if (ret == NS_OK)
+          if (NS_SUCCEEDED(ret))
           {
             ret = rowCursor->NextRow(m_mdb->GetEnv(), &m_mdbRow, &rowPos);
             NS_RELEASE(rowCursor);
             if (!m_mdbRow)
               ret = NS_ERROR_FAILURE;
-            if (ret == NS_OK)
+            if (NS_SUCCEEDED(ret))
               LoadMemberVariables();
           }
         }
@@ -936,10 +936,10 @@ NS_IMETHODIMP nsDBFolderInfo::GetTransferInfo(nsIDBFolderInfo **transferInfo)
   for (mdb_count cellIndex = 0; cellIndex < numCells; cellIndex++)
   {
     mdb_err err = m_mdbRow->SeekCellYarn(m_mdb->GetEnv(), cellIndex, &cellColumn, nullptr);
-    if (!err)
+    if (NS_SUCCEEDED(err))
     {
       err = m_mdbRow->AliasCellYarn(m_mdb->GetEnv(), cellColumn, &cellYarn);
-      if (!err)
+      if (NS_SUCCEEDED(err))
       {
         m_mdb->GetStore()->TokenToString(m_mdb->GetEnv(), cellColumn, &cellName);
         newInfo->m_values.AppendElement(Substring((const char *)cellYarn.mYarn_Buf,

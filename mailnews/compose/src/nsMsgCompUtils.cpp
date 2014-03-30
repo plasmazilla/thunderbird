@@ -156,6 +156,38 @@ nsMsgMIMESetConformToStandard (bool conform_p)
   }
 }
 
+/**
+ * Checks if the recipient fields have sane values for message send.
+ */
+nsresult mime_sanity_check_fields_recipients (
+          const char *to,
+          const char *cc,
+          const char *bcc,
+          const char *newsgroups)
+{
+  if (to)
+    while (IS_SPACE(*to))
+      to++;
+  if (cc)
+    while (IS_SPACE(*cc))
+      cc++;
+  if (bcc)
+    while (IS_SPACE(*bcc))
+      bcc++;
+  if (newsgroups)
+    while (IS_SPACE(*newsgroups))
+      newsgroups++;
+
+  if ((!to || !*to) && (!cc || !*cc) &&
+      (!bcc || !*bcc) && (!newsgroups || !*newsgroups))
+    return NS_MSG_NO_RECIPIENTS;
+
+  return NS_OK;
+}
+
+/**
+ * Checks if the compose fields have sane values for message send.
+ */
 nsresult mime_sanity_check_fields (
           const char *from,
           const char *reply_to,
@@ -171,39 +203,23 @@ nsresult mime_sanity_check_fields (
           const char * /*other_random_headers*/)
 {
   if (from)
-    while (IS_SPACE (*from))
+    while (IS_SPACE(*from))
       from++;
   if (reply_to)
-    while (IS_SPACE (*reply_to))
+    while (IS_SPACE(*reply_to))
       reply_to++;
-  if (to)
-    while (IS_SPACE (*to))
-      to++;
-  if (cc)
-    while (IS_SPACE (*cc))
-      cc++;
-  if (bcc)
-    while (IS_SPACE (*bcc))
-      bcc++;
   if (fcc)
-    while (IS_SPACE (*fcc))
+    while (IS_SPACE(*fcc))
       fcc++;
-  if (newsgroups)
-    while (IS_SPACE (*newsgroups))
-      newsgroups++;
   if (followup_to)
-    while (IS_SPACE (*followup_to))
+    while (IS_SPACE(*followup_to))
       followup_to++;
 
-  /* #### sanity check other_random_headers for newline conventions */
+  // TODO: sanity check other_random_headers for newline conventions
   if (!from || !*from)
     return NS_MSG_NO_SENDER;
-  else
-    if ((!to || !*to) && (!cc || !*cc) &&
-        (!bcc || !*bcc) && (!newsgroups || !*newsgroups))
-      return NS_MSG_NO_RECIPIENTS;
-  else
-    return NS_OK;
+
+  return mime_sanity_check_fields_recipients(to, cc, bcc, newsgroups);
 }
 
 static char *
@@ -287,7 +303,7 @@ mime_generate_headers (nsMsgCompFields *fields,
 
   bool hasDisclosedRecipient = false;
 
-  nsCAutoString headerBuf;    // accumulate header strings to get length
+  nsAutoCString headerBuf;    // accumulate header strings to get length
   headerBuf.Truncate();
 
   NS_ASSERTION (fields, "null fields");
@@ -447,7 +463,7 @@ mime_generate_headers (nsMsgCompFields *fields,
   nsCOMPtr<nsIHttpProtocolHandler> pHTTPHandler = do_GetService(NS_NETWORK_PROTOCOL_CONTRACTID_PREFIX "http", &rv);
   if (NS_SUCCEEDED(rv) && pHTTPHandler)
   {
-    nsCAutoString userAgentString;
+    nsAutoCString userAgentString;
     pHTTPHandler->GetUserAgent(userAgentString);
 
     if (!userAgentString.IsEmpty())
@@ -632,8 +648,8 @@ mime_generate_headers (nsMsgCompFields *fields,
 
     // Skip default priority.
     if (priorityValue != nsMsgPriority::Default) {
-      nsCAutoString priorityName;
-      nsCAutoString priorityValueString;
+      nsAutoCString priorityName;
+      nsAutoCString priorityValueString;
 
       NS_MsgGetPriorityValueString(priorityValue, priorityValueString);
       NS_MsgGetUntranslatedPriorityName(priorityValue, priorityName);
@@ -1140,7 +1156,7 @@ RFC2231ParmFolding(const char *parmName, const nsCString& charset,
 
   if (!NS_IsAscii(parmValue.get()) || is7bitCharset(charset)) {
     needEscape = true;
-    nsCAutoString nativeParmValue;
+    nsAutoCString nativeParmValue;
     ConvertFromUnicode(charset.get(), parmValue, nativeParmValue);
     MsgEscapeString(nativeParmValue, nsINetUtil::ESCAPE_ALL, dupParm);
   }
@@ -1241,25 +1257,25 @@ RFC2231ParmFolding(const char *parmName, const nsCString& charset,
         // check to see if we are in the middle of escaped char
         if (*end == '%')
         {
-          tmp = '%'; *end = nullptr;
+          tmp = '%'; *end = 0;
         }
         else if (end-1 > start && *(end-1) == '%')
         {
-          end -= 1; tmp = '%'; *end = nullptr;
+          end -= 1; tmp = '%'; *end = 0;
         }
         else if (end-2 > start && *(end-2) == '%')
         {
-          end -= 2; tmp = '%'; *end = nullptr;
+          end -= 2; tmp = '%'; *end = 0;
         }
         else
         {
-          tmp = *end; *end = nullptr;
+          tmp = *end; *end = 0;
         }
       }
       else
       {
         // XXX should check if we are in the middle of escaped char (RFC 822)
-        tmp = *end; *end = nullptr;
+        tmp = *end; *end = 0;
       }
       NS_MsgSACat(&foldedParm, start);
       if (!needEscape)
@@ -1706,7 +1722,7 @@ nsMsgNewURL(nsIURI** aInstancePtrResult, const char * aSpec)
   if (PL_strstr(aSpec, "://") == nullptr && strncmp(aSpec, "data:", 5))
   {
     //XXXjag Temporary fix for bug 139362 until the real problem(bug 70083) get fixed
-    nsCAutoString uri(NS_LITERAL_CSTRING("http://"));
+    nsAutoCString uri(NS_LITERAL_CSTRING("http://"));
     uri.Append(aSpec);
     rv = pNetService->NewURI(uri, nullptr, nullptr, aInstancePtrResult);
   }
@@ -1757,7 +1773,7 @@ nsMsgParseURLHost(const char *url)
   if (NS_FAILED(rv) || !workURI)
     return nullptr;
 
-  nsCAutoString host;
+  nsAutoCString host;
   rv = workURI->GetHost(host);
   NS_IF_RELEASE(workURI);
   if (NS_FAILED(rv))

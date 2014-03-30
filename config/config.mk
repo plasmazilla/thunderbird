@@ -12,6 +12,9 @@
 #
 
 # Define an include-at-most-once flag
+ifdef INCLUDED_CONFIG_MK
+$(error Do not include config.mk twice!)
+endif
 INCLUDED_CONFIG_MK = 1
 
 EXIT_ON_ERROR = set -e; # Shell loops continue past errors without this.
@@ -23,6 +26,20 @@ endif
 ifndef INCLUDED_AUTOCONF_MK
 include $(DEPTH)/config/autoconf.mk
 endif
+
+space = $(NULL) $(NULL)
+
+# Include defs.mk files that can be found in $(srcdir)/$(DEPTH),
+# $(srcdir)/$(DEPTH-1), $(srcdir)/$(DEPTH-2), etc., and $(srcdir)
+# where $(DEPTH-1) is one level less of depth, $(DEPTH-2), two, etc.
+# i.e. for DEPTH=../../.., DEPTH-1 is ../.. and DEPTH-2 is ..
+# These defs.mk files are used to define variables in a directory
+# and all its subdirectories, recursively.
+__depth := $(subst /, ,$(DEPTH))
+ifeq (.,$(__depth))
+__depth :=
+endif
+$(foreach __d,$(__depth) .,$(eval __depth = $(wordlist 2,$(words $(__depth)),$(__depth))$(eval -include $(subst $(space),/,$(strip $(srcdir) $(__depth) defs.mk)))))
 
 COMMA = ,
 
@@ -46,20 +63,19 @@ check-variable = $(if $(filter-out 0 1,$(words $($(x))z)),$(error Spaces are not
 $(foreach x,$(CHECK_VARS),$(check-variable))
 
 core_abspath = $(if $(findstring :,$(1)),$(1),$(if $(filter /%,$(1)),$(1),$(CURDIR)/$(1)))
+core_realpath = $(if $(realpath $(1)),$(realpath $(1)),$(call core_abspath,$(1)))
 
 RM = rm -f
-
-nullstr :=
-space :=$(nullstr) # EOL
 
 core_winabspath = $(firstword $(subst /, ,$(call core_abspath,$(1)))):$(subst $(space),,$(patsubst %,\\%,$(wordlist 2,$(words $(subst /, ,$(call core_abspath,$(1)))), $(strip $(subst /, ,$(call core_abspath,$(1)))))))
 
 # FINAL_TARGET specifies the location into which we copy end-user-shipped
 # build products (typelibs, components, chrome).
 #
-# It will usually be the well-loved $(DIST)/bin, today, but can also be an
-# XPI-contents staging directory for ambitious and right-thinking extensions.
-FINAL_TARGET = $(if $(XPI_NAME),$(DIST)/xpi-stage/$(XPI_NAME),$(DIST)/bin)
+# If XPI_NAME is set, the files will be shipped to $(DIST)/xpi-stage/$(XPI_NAME)
+# If DIST_SUBDIR is set, the files will be shipped to $(DIST)/$(DIST_SUBDIR)
+# Otherwise, the default $(DIST)/bin will be used.
+FINAL_TARGET = $(if $(XPI_NAME),$(DIST)/xpi-stage/$(XPI_NAME),$(if $(DIST_SUBDIR),$(DIST)/bin/$(DIST_SUBDIR),$(DIST)/bin))
 
 ifdef XPI_NAME
 DEFINES += -DXPI_NAME=$(XPI_NAME)
@@ -79,23 +95,12 @@ endif
 CONFIG_TOOLS	= $(MOZ_BUILD_ROOT)/mozilla/config
 AUTOCONF_TOOLS	= $(MOZILLA_SRCDIR)/build/autoconf
 
-ifeq ($(OS_ARCH),QNX)
-ifeq ($(OS_TARGET),NTO)
-LD		:= qcc -Vgcc_ntox86 -nostdlib
-else
-LD		:= $(CC)
-endif
-endif
-ifeq ($(OS_ARCH),BeOS)
-BEOS_ADDON_WORKAROUND	= 1
-endif
-
 #
 # Strip off the excessively long version numbers on these platforms,
 # but save the version to allow multiple versions of the same base
 # platform to be built in the same tree.
 #
-ifneq (,$(filter FreeBSD HP-UX IRIX Linux NetBSD OpenBSD OSF1 SunOS,$(OS_ARCH)))
+ifneq (,$(filter FreeBSD HP-UX Linux NetBSD OpenBSD SunOS,$(OS_ARCH)))
 OS_RELEASE	:= $(basename $(OS_RELEASE))
 
 # Allow the user to ignore the OS_VERSION, which is usually irrelevant.
@@ -114,6 +119,11 @@ FINAL_LINK_COMP_NAMES = $(MOZDEPTH)/config/final-link-comp-names
 
 MOZ_UNICHARUTIL_LIBS = $(LIBXUL_DIST)/lib/$(LIB_PREFIX)unicharutil_s.$(LIB_SUFFIX)
 MOZ_WIDGET_SUPPORT_LIBS    = $(DIST)/lib/$(LIB_PREFIX)widgetsupport_s.$(LIB_SUFFIX)
+
+ifdef _MSC_VER
+CC_WRAPPER ?= $(PYTHON) -O $(topsrcdir)/mozilla/build/cl.py
+CXX_WRAPPER ?= $(PYTHON) -O $(topsrcdir)/mozilla/build/cl.py
+endif # _MSC_VER
 
 CC := $(CC_WRAPPER) $(CC)
 CXX := $(CXX_WRAPPER) $(CXX)
@@ -308,16 +318,6 @@ ifeq ($(OS_ARCH),OS2)
 TAR_CREATE_FLAGS = -cvf
 endif
 
-ifdef LOCALE_MERGEDIR
-MERGE_FILE = $(firstword \
-  $(wildcard $(LOCALE_MERGEDIR)/$(subst /locales,,$(relativesrcdir))/$(1)) \
-  $(wildcard $(LOCALE_SRCDIR)/$(1)) \
-  $(srcdir)/en-US/$(1) )
-else
-MERGE_FILE = $(LOCALE_SRCDIR)/$(1)
-endif
-MERGE_FILES = $(foreach f,$(1),$(call MERGE_FILE,$(f)))
-
 #
 # Personal makefile customizations go in these optional make include files.
 #
@@ -442,18 +442,16 @@ endif
 # we link statically or dynamic?  Assuming dynamic for now.
 
 ifneq (WINNT_,$(OS_ARCH)_$(GNU_CC))
-ifneq (,$(filter-out WINCE,$(OS_ARCH)))
 LIBS_DIR	= -L$(DIST)/bin -L$(DIST)/lib
 ifdef LIBXUL_SDK
 LIBS_DIR	+= -L$(LIBXUL_SDK)/bin -L$(LIBXUL_SDK)/lib
-endif
 endif
 endif
 
 # Default location of include files
 IDL_DIR		= $(DIST)/idl
 
-XPIDL_FLAGS = -I$(srcdir) -I$(IDL_DIR)
+XPIDL_FLAGS += -I$(srcdir) -I$(IDL_DIR)
 ifdef LIBXUL_SDK
 XPIDL_FLAGS += -I$(LIBXUL_SDK)/idl
 endif
@@ -517,15 +515,6 @@ endif # MOZ_OPTIMIZE=2
 endif # MOZ_OPTIMIZE
 endif # OS_ARCH=Darwin
 
-
-ifdef MOZ_NATIVE_MAKEDEPEND
-MKDEPEND_DIR	=
-MKDEPEND	= $(CYGWIN_WRAPPER) $(MOZ_NATIVE_MAKEDEPEND)
-else
-MKDEPEND_DIR	= $(CONFIG_TOOLS)/mkdepend
-MKDEPEND	= $(CYGWIN_WRAPPER) $(MKDEPEND_DIR)/mkdepend$(BIN_SUFFIX)
-endif
-
 # Set link flags according to whether we want a console.
 ifdef MOZ_WINCONSOLE
 ifeq ($(MOZ_WINCONSOLE),1)
@@ -577,7 +566,7 @@ DEFINES		+= -DOSARCH=$(OS_ARCH)
 
 ######################################################################
 
-GARBAGE		+= $(DEPENDENCIES) $(MKDEPENDENCIES) $(MKDEPENDENCIES).bak core $(wildcard core.[0-9]*) $(wildcard *.err) $(wildcard *.pure) $(wildcard *_pure_*.o) Templates.DB
+GARBAGE		+= $(DEPENDENCIES) core $(wildcard core.[0-9]*) $(wildcard *.err) $(wildcard *.pure) $(wildcard *_pure_*.o) Templates.DB
 
 ifeq ($(OS_ARCH),Darwin)
 ifndef NSDISTMODE
@@ -634,12 +623,6 @@ sysinstall_cmd = install_cmd
 DIR_INSTALL = $(INSTALL)
 dir_install_cmd = install_cmd
 
-ifeq ($(OS_ARCH),WINNT)
-ifneq (,$(CYGDRIVE_MOUNT))
-export CYGDRIVE_MOUNT
-endif
-endif
-
 # png to ico converter. The function takes 5 arguments, in order: source png
 # file, left, top, size, output ico file.
 png2ico = $(PYTHON) $(MOZILLA_DIR)/config/pythonpath.py \
@@ -655,31 +638,44 @@ png2ico = $(PYTHON) $(MOZILLA_DIR)/config/pythonpath.py \
 AB_CD = $(MOZ_UI_LOCALE)
 
 ifndef L10NBASEDIR
-L10NBASEDIR = $(error L10NBASEDIR not defined by configure)
+  L10NBASEDIR = $(error L10NBASEDIR not defined by configure)
+else
+  IS_LANGUAGE_REPACK = 1
 endif
 
-EXPAND_LOCALE_SRCDIR = $(if $(filter en-US,$(AB_CD)),$(topsrcdir)/$(1)/en-US,$(L10NBASEDIR)/$(AB_CD)/$(subst /locales,,$(1)))
-EXPAND_MOZLOCALE_SRCDIR = $(if $(filter en-US,$(AB_CD)),$(MOZILLA_SRCDIR)/$(1)/en-US,$(L10NBASEDIR)/$(AB_CD)/$(subst /locales,,$(1)))
+EXPAND_LOCALE_SRCDIR = $(if $(filter en-US,$(AB_CD)),$(topsrcdir)/$(1)/en-US,$(call core_realpath,$(L10NBASEDIR)/$(AB_CD)/$(subst /locales,,$(1))))
+EXPAND_MOZLOCALE_SRCDIR = $(if $(filter en-US,$(AB_CD)),$(MOZILLA_SRCDIR)/$(1)/en-US,$(call core_realpath,$(L10NBASEDIR)/$(AB_CD)/$(subst /locales,,$(1))))
 
 ifdef relativesrcdir
 LOCALE_SRCDIR = $(call EXPAND_LOCALE_SRCDIR,$(relativesrcdir))
 endif
 
-ifdef LOCALE_SRCDIR
-# if LOCALE_MERGEDIR is set, use mergedir first, then the localization,
-# and finally en-US
+ifdef relativesrcdir
+MAKE_JARS_FLAGS += --relativesrcdir=$(relativesrcdir)
+ifneq (en-US,$(AB_CD))
 ifdef LOCALE_MERGEDIR
-MAKE_JARS_FLAGS += -c $(LOCALE_MERGEDIR)/$(subst /locales,,$(relativesrcdir))
+MAKE_JARS_FLAGS += --locale-mergedir=$(LOCALE_MERGEDIR)
 endif
-MAKE_JARS_FLAGS += -c $(LOCALE_SRCDIR)
-ifdef LOCALE_MERGEDIR
-MAKE_JARS_FLAGS += -c $(topsrcdir)/$(relativesrcdir)/en-US
+ifdef IS_LANGUAGE_REPACK
+MAKE_JARS_FLAGS += --l10n-base=$(L10NBASEDIR)/$(AB_CD)
 endif
-endif
-
-ifdef WINCE
-RUN_TEST_PROGRAM = $(PYTHON) $(MOZILLA_SRCDIR)/build/mobile/devicemanager-run-test.py
 else
+MAKE_JARS_FLAGS += -c $(LOCALE_SRCDIR)
+endif # en-US
+else
+MAKE_JARS_FLAGS += -c $(LOCALE_SRCDIR)
+endif # ! relativesrcdir
+
+ifdef LOCALE_MERGEDIR
+MERGE_FILE = $(firstword \
+  $(wildcard $(LOCALE_MERGEDIR)/$(subst /locales,,$(relativesrcdir))/$(1)) \
+  $(wildcard $(LOCALE_SRCDIR)/$(1)) \
+  $(srcdir)/en-US/$(1) )
+else
+MERGE_FILE = $(LOCALE_SRCDIR)/$(1)
+endif
+MERGE_FILES = $(foreach f,$(1),$(call MERGE_FILE,$(f)))
+
 ifeq (OS2,$(OS_ARCH))
 RUN_TEST_PROGRAM = $(MOZILLA_SRCDIR)/build/os2/test_os2.cmd "$(DIST)"
 else
@@ -687,21 +683,15 @@ ifneq (WINNT,$(OS_ARCH))
 RUN_TEST_PROGRAM = $(DIST)/bin/run-mozilla.sh
 endif # ! WINNT
 endif # ! OS2
-endif # ! WINCE
-
-ifdef TIERS
-DIRS += $(foreach tier,$(TIERS),$(tier_$(tier)_dirs))
-STATIC_DIRS += $(foreach tier,$(TIERS),$(tier_$(tier)_staticdirs))
-endif
-
-OPTIMIZE_JARS_CMD = $(PYTHON) $(call core_abspath,$(MOZILLA_SRCDIR)/config/optimizejars.py)
 
 CREATE_PRECOMPLETE_CMD = $(PYTHON) $(call core_abspath,$(MOZILLA_SRCDIR)/config/createprecomplete.py)
 
-LIBS_DESC_SUFFIX = desc
-EXPAND_LIBS = $(PYTHON) -I$(MOZDEPTH)/config $(MOZILLA_SRCDIR)/config/expandlibs.py
-EXPAND_LIBS_EXEC = $(PYTHON) $(MOZILLA_SRCDIR)/config/pythonpath.py -I$(MOZDEPTH)/config $(MOZILLA_SRCDIR)/config/expandlibs_exec.py $(if $@,--depend $(MDDEPDIR)/$(basename $(@F)).pp --target $@)
-EXPAND_LIBS_GEN = $(PYTHON) $(MOZILLA_SRCDIR)/config/pythonpath.py -I$(MOZDEPTH)/config $(MOZILLA_SRCDIR)/config/expandlibs_gen.py $(if $@,--depend $(MDDEPDIR)/$(basename $(@F)).pp)
+# MDDEPDIR is the subdirectory where dependency files are stored
+MDDEPDIR := .deps
+
+EXPAND_LIBS = $(PYTHON) $(MOZILLA_SRCDIR)/config/expandlibs.py
+EXPAND_LIBS_EXEC = $(PYTHON) $(MOZILLA_SRCDIR)/config/expandlibs_exec.py $(if $@,--depend $(MDDEPDIR)/$(basename $(@F)).pp --target $@)
+EXPAND_LIBS_GEN = $(PYTHON) $(MOZILLA_SRCDIR)/config/expandlibs_gen.py $(if $@,--depend $(MDDEPDIR)/$(basename $(@F)).pp)
 EXPAND_AR = $(EXPAND_LIBS_EXEC) --extract -- $(AR)
 EXPAND_CC = $(EXPAND_LIBS_EXEC) --uselist -- $(CC)
 EXPAND_CCC = $(EXPAND_LIBS_EXEC) --uselist -- $(CCC)
@@ -731,6 +721,10 @@ ifndef MOZ_SYSTEM_PLY
 PLY_INCLUDE = -I$(MOZILLA_DIR)/other-licenses/ply
 endif
  
+export CL_INCLUDES_PREFIX
+
 # autoconf.mk sets OBJ_SUFFIX to an error to avoid use before including
 # this file
 OBJ_SUFFIX := $(_OBJ_SUFFIX)
+
+DEFINES += -DNO_NSPR_10_SUPPORT

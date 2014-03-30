@@ -8,6 +8,7 @@
 
 #include "nsMsgSearchCore.h"
 #include "nsIMsgSearchAdapter.h"
+#include "nsTArray.h"
 
 // nsMsgResultElement specifies a single search hit.
 
@@ -30,7 +31,7 @@ public:
   nsresult GetPrettyName (nsMsgSearchValue**);
   nsresult Open (void *window);
 
-    nsCOMPtr<nsISupportsArray> m_valueList;
+  nsTArray<nsCOMPtr<nsIMsgSearchValue> > m_valueList;
   nsIMsgSearchAdapter *m_adapter;
 
 protected:

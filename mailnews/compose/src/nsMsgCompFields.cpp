@@ -40,7 +40,7 @@ nsMsgCompFields::nsMsgCompFields()
 
   // Get the default charset from pref, use this as a mail charset.
   nsString charset;
-  NS_GetLocalizedUnicharPreferenceWithDefault(nullptr, "mailnews.send_default_charset", 
+  NS_GetLocalizedUnicharPreferenceWithDefault(nullptr, "mailnews.send_default_charset",
                                               NS_LITERAL_STRING("ISO-8859-1"), charset);
 
   LossyCopyUTF16toASCII(charset, m_DefaultCharacterSet); // Charsets better be ASCII
@@ -70,10 +70,10 @@ nsresult nsMsgCompFields::SetAsciiHeader(MsgHeaderID header, const char *value)
     if (value)
     {
         m_headers[header] = strdup(value);
-        if (!m_headers[header]) 
+        if (!m_headers[header])
            rv = NS_ERROR_OUT_OF_MEMORY;
     }
-    else 
+    else
       m_headers[header] = nullptr;
 
     PR_FREEIF(old);
@@ -182,17 +182,6 @@ NS_IMETHODIMP nsMsgCompFields::GetNewsgroups(nsAString &aGroup)
   return GetUnicodeHeader(MSG_NEWSGROUPS_HEADER_ID, aGroup);
 }
 
-NS_IMETHODIMP nsMsgCompFields::SetNewshost(const char *value)
-{
-  return SetAsciiHeader(MSG_NEWSPOSTURL_HEADER_ID, value);
-}
-
-NS_IMETHODIMP nsMsgCompFields::GetNewshost(char **_retval)
-{
-  *_retval = strdup(GetAsciiHeader(MSG_NEWSPOSTURL_HEADER_ID));
-  return *_retval ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
-}
-
 NS_IMETHODIMP nsMsgCompFields::SetFollowupTo(const nsAString &aValue)
 {
   return SetUnicodeHeader(MSG_FOLLOWUP_TO_HEADER_ID, aValue);
@@ -201,6 +190,16 @@ NS_IMETHODIMP nsMsgCompFields::SetFollowupTo(const nsAString &aValue)
 NS_IMETHODIMP nsMsgCompFields::GetFollowupTo(nsAString &_retval)
 {
   return GetUnicodeHeader(MSG_FOLLOWUP_TO_HEADER_ID, _retval);
+}
+
+NS_IMETHODIMP nsMsgCompFields::GetHasRecipients(bool *_retval)
+{
+  NS_ENSURE_ARG_POINTER(_retval);
+
+  *_retval = NS_SUCCEEDED(mime_sanity_check_fields_recipients(
+    GetTo(), GetCc(), GetBcc(), GetNewsgroups()));
+
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsMsgCompFields::SetSubject(const nsAString &value)
@@ -254,36 +253,6 @@ NS_IMETHODIMP nsMsgCompFields::SetOtherRandomHeaders(const nsAString &value)
 NS_IMETHODIMP nsMsgCompFields::GetOtherRandomHeaders(nsAString &_retval)
 {
   return GetUnicodeHeader(MSG_OTHERRANDOMHEADERS_HEADER_ID, _retval);
-}
-
-NS_IMETHODIMP nsMsgCompFields::SetSenderReply(const nsAString &value)
-{
-  return SetUnicodeHeader(MSG_SENDERREPLY_HEADER_ID, value);
-}
-
-NS_IMETHODIMP nsMsgCompFields::GetSenderReply(nsAString &_retval)
-{
-  return GetUnicodeHeader(MSG_SENDERREPLY_HEADER_ID, _retval);
-}
-
-NS_IMETHODIMP nsMsgCompFields::SetAllReply(const nsAString &value)
-{
-  return SetUnicodeHeader(MSG_ALLREPLY_HEADER_ID, value);
-}
-
-NS_IMETHODIMP nsMsgCompFields::GetAllReply(nsAString &_retval)
-{
-  return GetUnicodeHeader(MSG_ALLREPLY_HEADER_ID, _retval);
-}
-
-NS_IMETHODIMP nsMsgCompFields::SetListReply(const nsAString &value)
-{
-  return SetUnicodeHeader(MSG_LISTREPLY_HEADER_ID, value);
-}
-
-NS_IMETHODIMP nsMsgCompFields::GetListReply(nsAString &_retval)
-{
-  return GetUnicodeHeader(MSG_LISTREPLY_HEADER_ID, _retval);
 }
 
 NS_IMETHODIMP nsMsgCompFields::SetNewspostUrl(const char *value)
@@ -575,9 +544,9 @@ nsMsgCompFields::SplitRecipients(const nsAString &aRecipients,
       if (!aEmailAddressOnly)
       {
         nsCString decodedName;
-        converter->DecodeMimeHeaderToCharPtr(pNames, GetCharacterSet(),
-                                             false, true,
-                                             getter_Copies(decodedName));
+        converter->DecodeMimeHeaderToUTF8(nsDependentCString(pNames),
+                                          GetCharacterSet(), false, true,
+                                          decodedName);
         rv = parser->MakeFullAddressString((!decodedName.IsEmpty() ?
                                             decodedName.get() : pNames),
                                            pAddresses,
@@ -624,18 +593,18 @@ nsresult nsMsgCompFields::SplitRecipientsEx(const nsAString &recipients,
                                             nsTArray<nsMsgRecipient> &aResult)
 {
   nsresult rv;
-  
+
   nsCOMPtr<nsIMsgHeaderParser> parser =
     do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
   nsCOMPtr<nsIMimeConverter> converter = do_GetService(NS_MIME_CONVERTER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCAutoString recipientsStr;
+  nsAutoCString recipientsStr;
   char *names;
   char *addresses;
   uint32_t numAddresses;
-      
+
   CopyUTF16toUTF8(recipients, recipientsStr);
   rv = parser->ParseHeaderAddresses(recipientsStr.get(), &names,
                                     &addresses, &numAddresses);
@@ -648,11 +617,12 @@ nsresult nsMsgCompFields::SplitRecipientsEx(const nsAString &recipients,
     {
       nsCString fullAddress;
       nsCString decodedName;
-      converter->DecodeMimeHeaderToCharPtr(pNames, GetCharacterSet(), false, true, 
-                                           getter_Copies(decodedName));
-      rv = parser->MakeFullAddressString((!decodedName.IsEmpty() ? 
-                                          decodedName.get() : pNames), 
-                                         pAddresses, 
+      converter->DecodeMimeHeaderToUTF8(nsDependentCString(pNames),
+                                        GetCharacterSet(), false, true,
+                                        decodedName);
+      rv = parser->MakeFullAddressString((!decodedName.IsEmpty() ?
+                                          decodedName.get() : pNames),
+                                         pAddresses,
                                          getter_Copies(fullAddress));
 
       nsMsgRecipient msgRecipient;
@@ -676,14 +646,14 @@ nsresult nsMsgCompFields::SplitRecipientsEx(const nsAString &recipients,
     PR_FREEIF(names);
     PR_FREEIF(addresses);
   }
- 
+
   return rv;
 }
 
 NS_IMETHODIMP nsMsgCompFields::ConvertBodyToPlainText()
 {
   nsresult rv = NS_OK;
-  
+
   if (!m_body.IsEmpty())
   {
     nsAutoString body;
@@ -716,14 +686,14 @@ NS_IMETHODIMP nsMsgCompFields::GetDefaultCharacterSet(char * *aDefaultCharacterS
 {
   NS_ENSURE_ARG_POINTER(aDefaultCharacterSet);
   *aDefaultCharacterSet = ToNewCString(m_DefaultCharacterSet);
-  return *aDefaultCharacterSet ? NS_OK : NS_ERROR_OUT_OF_MEMORY; 
+  return *aDefaultCharacterSet ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
 }
 
 NS_IMETHODIMP nsMsgCompFields::CheckCharsetConversion(char **fallbackCharset, bool *_retval)
 {
   NS_ENSURE_ARG_POINTER(_retval);
 
-  nsCAutoString headers;
+  nsAutoCString headers;
   for (int16_t i = 0; i < MSG_MAX_HEADERS; i++)
     headers.Append(m_headers[i]);
 

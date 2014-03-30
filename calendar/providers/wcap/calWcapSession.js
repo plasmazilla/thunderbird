@@ -4,6 +4,8 @@
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://calendar/modules/calIteratorUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 function calWcapTimezone(tzProvider, tzid_, component_) {
     this.wrappedJSObject = this;
@@ -96,36 +98,26 @@ function calWcapSession(contextId) {
     this.m_loginQueue = [];
 
     // listen for shutdown, being logged out:
-    var observerService = Components.classes["@mozilla.org/observer-service;1"]
-                                    .getService(Components.interfaces.nsIObserverService);
-    observerService.addObserver(this, "quit-application", false /* don't hold weakly */);
+    Services.obs.addObserver(this, "quit-application", false /* don't hold weakly */);
     cal.getCalendarManager().addObserver(this);
 }
+const calWcapSessionClassID = Components.ID("{cbf803fd-4469-4999-ae39-367af1c7b077}");
+const calWcapSessionInterfaces = [
+    calIWcapSession,
+    calIFreeBusyProvider,
+    calICalendarSearchProvider,
+    Components.interfaces.calITimezoneProvider,
+    Components.interfaces.calICalendarManagerObserver
+];
 calWcapSession.prototype = {
-    getInterfaces: function ci_wcapSession_getInterfaces(count) {
-        const ifaces = [calIWcapSession,
-                        calIFreeBusyProvider,
-                        calICalendarSearchProvider,
-                        Components.interfaces.calITimezoneProvider,
-                        Components.interfaces.calICalendarManagerObserver,
-                        Components.interfaces.nsIClassInfo,
-                        nsISupports];
-        count.value = ifaces.length;
-        return ifaces;
-    },
-    classDescription: "Sun Java System Calendar Server WCAP Session",
-    contractID: "@mozilla.org/calendar/wcap/session;1",
-    classID: Components.ID("{cbf803fd-4469-4999-ae39-367af1c7b077}"),
-    getHelperForLanguage: function ci_wcapSession_getHelperForLanguage(language) {
-        return null;
-    },
-    implementationLanguage: Components.interfaces.nsIProgrammingLanguage.JAVASCRIPT,
-    flags: 0,
-
-    // nsISupports:
-    QueryInterface: function calWcapSession_QueryInterface(iid) {
-        return cal.doQueryInterface(this, calWcapSession.prototype, iid, null, this);
-    },
+    classID: calWcapSessionClassID,
+    QueryInterface: XPCOMUtils.generateQI(calWcapSessionInterfaces),
+    classInfo: XPCOMUtils.generateCI({
+        classID: calWcapSessionClassID,
+        contractID: "@mozilla.org/calendar/wcap/session;1",
+        classDescription: "Sun Java System Calendar Server WCAP Session",
+        interfaces: calWcapSessionInterfaces
+    }),
 
     toString: function calWcapSession_toString(msg) {
         let str = ("context-id: " + this.m_contextId + ", uri: " + (this.uri ? this.uri.spec : "unknown"));
@@ -133,7 +125,7 @@ calWcapSession.prototype = {
             str += (", userId=" + this.credentials.userId);
         }
         if (!this.m_sessionId) {
-            str += (getIOService().offline ? ", offline" : ", not logged in");
+            str += (Services.io.offline ? ", offline" : ", not logged in");
         }
         return str;
     },
@@ -198,7 +190,7 @@ calWcapSession.prototype = {
 
     getSessionId:
     function calWcapSession_getSessionId(request, respFunc, timedOutSessionId) {
-        if (getIOService().offline) {
+        if (Services.io.offline) {
             log("in offline mode.", this);
             respFunc(new Components.Exception(errorToString(NS_ERROR_OFFLINE), NS_ERROR_OFFLINE));
             return;
@@ -460,7 +452,7 @@ calWcapSession.prototype = {
                         vars.push(prop ? prop.value : "<unknown>");
                         vars.push(strVers);
 
-                        var prompt = getWindowWatcher().getNewPrompter(null);
+                        var prompt = Services.ww.getNewPrompter(null);
                         var labelText = cal.calGetString("wcap", "insufficientWcapVersionConfirmation.label");
                         if (!prompt.confirm(labelText,
                                             cal.calGetString("wcap", "insufficientWcapVersionConfirmation.text", vars))) {
@@ -1057,9 +1049,7 @@ calWcapSession.prototype = {
             this.logout(null);
             // xxx todo: valid upon notification?
             cal.getCalendarManager().removeObserver(this);
-            var observerService = Components.classes["@mozilla.org/observer-service;1"]
-                                            .getService(Components.interfaces.nsIObserverService);
-            observerService.removeObserver(this, "quit-application");
+            Services.obs.removeObserver(this, "quit-application");
         }
     },
 
@@ -1150,7 +1140,7 @@ function confirmInsecureLogin(uri)
     if (confirmedEntry) {
         bConfirmed = (confirmedEntry == "1");
     } else {
-        var prompt = getWindowWatcher().getNewPrompter(null);
+        var prompt = Services.ww.getNewPrompter(null);
         var out_dontAskAgain = { value: false };
         var bConfirmed = prompt.confirmCheck(
             cal.calGetString("wcap", "noHttpsConfirmation.label"),

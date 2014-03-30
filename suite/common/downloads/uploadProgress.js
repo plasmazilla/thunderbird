@@ -45,15 +45,14 @@ function onLoad()
   document.getElementById("source").value =
       gBundle.getFormattedString("fromSource", [gSource.file.leafName]);
   gPersist.progressListener = gProgressListener;
-  gPersist.saveURI(gSource, null, null, null, null, gTarget);
+  gPersist.saveURI(gSource, null, null, null, null, gTarget, null);
   document.documentElement.getButton("cancel").focus();
 }
 
 function onUnload()
 {
-  const NS_BINDING_ABORTED = 0x804b0002;
   if (gPersist)
-    gPersist.cancel(NS_BINDING_ABORTED);
+    gPersist.cancel(Components.results.NS_BINDING_ABORTED);
   gPersist = null;
 }
 

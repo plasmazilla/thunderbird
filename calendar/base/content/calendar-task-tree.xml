@@ -115,7 +115,9 @@
     <implementation implements="nsIObserver">
       <constructor><![CDATA[
         Components.utils.import("resource://gre/modules/PluralForm.jsm");
+        Components.utils.import("resource://gre/modules/Services.jsm");
         Components.utils.import("resource://calendar/modules/calItemUtils.jsm");
+        Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
         let self = this;
 
         // set up the tree filter
@@ -131,9 +133,7 @@
         composite.addObserver(this.mTaskTreeObserver);
 
         // set up the preference observer
-        let prefService = Components.classes["@mozilla.org/preferences-service;1"]
-                                    .getService(Components.interfaces.nsIPrefService);
-        let branch = prefService.getBranch("");
+        let branch = Services.prefs.getBranch("");
         branch.addObserver("calendar.", this, false);
 
 
@@ -174,14 +174,14 @@
         }
       ]]></constructor>
       <destructor><![CDATA[
+          Components.utils.import("resource://gre/modules/Services.jsm");
+
           // remove composite calendar observer
           let composite = getCompositeCalendar();
           composite.removeObserver(this.mTaskTreeObserver);
 
           // remove the preference observer
-          let prefService = Components.classes["@mozilla.org/preferences-service;1"]
-                                      .getService(Components.interfaces.nsIPrefService);
-          let branch = prefService.getBranch("");
+          let branch = Services.prefs.getBranch("");
           branch.removeObserver("calendar.", this, false);
 
           let widths = "";
@@ -495,49 +495,47 @@
           // create an itemTreeView that these tree views can inherit, that
           // contains this code, and possibly other code related to sorting and
           // storing items. See bug 432582 for more details.
-          getCellProperties: function mTV_getCellProperties(aRow, aCol, aProps) {
-              this.getRowProperties(aRow, aProps);
-              this.getColumnProperties(aCol, aProps);
+          getCellProperties: function mTV_getCellProperties(aRow, aCol) {
+              let rowProps = this.getRowProperties(aRow);
+              let colProps = this.getColumnProperties(aCol);
+              return rowProps + (rowProps && colProps ? " " : "") + colProps;
           },
 
           // Called to get properties to paint a column background.
           // For shading the sort column, etc.
-          getColumnProperties: function mTV_getColumnProperties(aCol, aProps) {
-              if (aCol.element.hasAttribute("anonid")) {
-                  aProps.AppendElement(getAtomFromService(aCol.element.getAttribute("anonid")));
-              }
+          getColumnProperties: function mTV_getColumnProperties(aCol) {
+              return aCol.element.getAttribute("anonid") || "";
           },
 
-          getRowProperties: function mTV_getRowProperties(aRow, aProps) {
-              var item = this.binding.mTaskArray[aRow];
+          getRowProperties: function mTV_getRowProperties(aRow) {
+              let properties = [];
+              let item = this.binding.mTaskArray[aRow];
               if (item.priority > 0 && item.priority < 5) {
-                  aProps.AppendElement(getAtomFromService("highpriority"));
+                  properties.push("highpriority");
               } else if (item.priority > 5 && item.priority < 10) {
-                  aProps.AppendElement(getAtomFromService("lowpriority"));
+                  properties.push("lowpriority");
               }
-              aProps.AppendElement(getAtomFromService(getProgressAtom(item)));
+              properties.push(getProgressAtom(item));
 
               // Add calendar name and id atom
-              var calendarNameAtom = "calendar-" + formatStringForCSSRule(item.calendar.name);
-              var calendarIdAtom = "calendarid-" +  formatStringForCSSRule(item.calendar.id);
-              aProps.AppendElement(getAtomFromService(calendarNameAtom));
-              aProps.AppendElement(getAtomFromService(calendarIdAtom));
+              properties.push("calendar-" + formatStringForCSSRule(item.calendar.name));
+              properties.push("calendarid-" +  formatStringForCSSRule(item.calendar.id));
 
               // Add item status atom
               if (item.status) {
-                  aProps.AppendElement(getAtomFromService("status-" + item.status.toLowerCase()));
+                  properties.push("status-" + item.status.toLowerCase());
               }
 
               // Alarm status atom
               if (item.getAlarms({}).length) {
-                  aProps.AppendElement(getAtomFromService("alarm"));
+                  properties.push("alarm");
               }
 
               // Task categories
-              var categories = item.getCategories({});
-              categories.map(formatStringForCSSRule)
-                        .map(getAtomFromService)
-                        .forEach(aProps.AppendElement, aProps);
+              properties = properties.concat(item.getCategories({})
+                                                 .map(formatStringForCSSRule));
+
+              return properties.join(" ");
           },
 
           // Called on the view when a cell in a non-selectable cycling
@@ -823,13 +821,12 @@
       ({
           binding: this,
 
-          QueryInterface: function tTO_QueryInterface(aIID) {
-              return doQueryInterface(this, null, aIID,
-                                      [Components.interfaces.calICompositeObserver,
-                                       Components.interfaces.calIObserver]);
-          },
+          QueryInterface: XPCOMUtils.generateQI([
+              Components.interfaces.calICompositeObserver,
+              Components.interfaces.calIObserver
+          ]),
 
-         /**
+          /**
            * calIObserver methods and properties
            */
           onStartBatch: function tTO_onStartBatch() {

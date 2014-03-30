@@ -13,9 +13,16 @@ var gFolderDisplay =
 
   get selectedMessage()
   {
-    if (!this.selectedCount)
+    if (!this.selectedIndices.length)
       return null;
     return gDBView.hdrForFirstSelectedMessage;
+  },
+
+  get selectedMessageUri()
+  {
+    if (!this.selectedIndices.length)
+      return null;
+    return gDBView.URIForFirstSelectedMessage;
   },
 
   get selectedMessageIsFeed()

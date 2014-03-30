@@ -34,7 +34,7 @@ function EditorOnLoad()
     // get default character set if provided
     if (window.arguments.length > 1 && window.arguments[1])
     {
-      if (window.arguments[1].indexOf("charset=") != -1)
+      if (window.arguments[1].contains("charset="))
       {
         var arrayArgComponents = window.arguments[1].split("=");
         if (arrayArgComponents)
@@ -55,7 +55,7 @@ function EditorOnLoad()
   // and tell the editor if a CR in a paragraph creates a new paragraph.
   var cmd = document.getElementById("cmd_highlight");
   if (cmd) {
-    if (!gPrefs.getBoolPref(kUseCssPref))
+    if (!Services.prefs.getBoolPref(kUseCssPref))
       cmd.collapsed = true;
   }
 
@@ -96,9 +96,6 @@ function EditorStartup(aUrl, aCharset)
   root.QueryInterface(Components.interfaces.nsIDocShell).appType =
     Components.interfaces.nsIDocShell.APP_TYPE_EDITOR;
 
-  // Set up our global prefs object.
-  GetPrefsService();
-
   // EditorSharedStartup also used by Message Composer.
   EditorSharedStartup();
 
@@ -117,8 +114,7 @@ function EditorStartup(aUrl, aCharset)
   // Get url for editor content and load it. The editor gets instantiated by
   // the editingSession when the URL has finished loading.
   try {
-    var contentViewer = GetCurrentEditorElement().docShell.contentViewer;
-    contentViewer.QueryInterface(Components.interfaces.nsIMarkupDocumentViewer);
+    var contentViewer = GetCurrentEditorElement().markupDocumentViewer;
     contentViewer.defaultCharacterSet = aCharset;
     contentViewer.forceCharacterSet = aCharset;
   } catch (e) {}

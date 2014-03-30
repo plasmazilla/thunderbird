@@ -17,13 +17,15 @@
 #include "nsIPrefBranch.h"
 #include "nsIPrefService.h"
 #include "nsIMsgFilterList.h"
+#include "nsIMsgSearchTerm.h"
 #include "nsIMsgAccountManager.h"
 #include "nsIStringBundle.h"
 #include "mozilla/Services.h"
-
+#include "nsIMsgfilter.h"
 #include "nsEudoraFilters.h"
 #include "nsEudoraStringBundle.h"
-
+#include "nsIArray.h"
+#include "nsArrayUtils.h"
 #include "nsNetUtil.h"
 #include "nsILineInputStream.h"
 #include "EudoraDebugLog.h"
@@ -160,12 +162,12 @@ bool nsEudoraFilters::RealImport()
   }
 
   nsCOMPtr<nsILineInputStream> lineStream(do_QueryInterface(inputStream, &rv));
-  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_SUCCESS(rv, false);
 
   nsCString     line;
   bool          more = true;
-  nsCAutoString header;
-  nsCAutoString verb;
+  nsAutoCString header;
+  nsAutoCString verb;
   nsAutoString  name;
 
   // Windows Eudora filters files have a version header as a first line - just skip it
@@ -261,7 +263,7 @@ bool nsEudoraFilters::RealImport()
       }
       else if (!strncmp(pLine, "label ", 6))
       {
-        nsCAutoString tagName("$label");
+        nsAutoCString tagName("$label");
         tagName += pLine + 6;
         rv = AddStringAction(nsMsgFilterAction::AddTag, tagName.get());
       }
@@ -399,12 +401,12 @@ nsresult nsEudoraFilters::LoadServers()
   nsCOMPtr<nsIMsgAccountManager> accountMgr = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsISupportsArray> allServers;
+  nsCOMPtr<nsIArray> allServers;
   rv = accountMgr->GetAllServers(getter_AddRefs(allServers));
   NS_ENSURE_SUCCESS(rv, rv);
 
   uint32_t numServers;
-  rv = allServers->Count(&numServers);
+  rv = allServers->GetLength(&numServers);
   NS_ENSURE_SUCCESS(rv, rv);
   for (uint32_t serverIndex = 0; serverIndex < numServers; serverIndex++)
   {
@@ -415,7 +417,7 @@ nsresult nsEudoraFilters::LoadServers()
       rv = server->GetCanHaveFilters(&canHaveFilters);
       if (NS_SUCCEEDED(rv) && canHaveFilters)
       {
-        nsCAutoString serverType;
+        nsAutoCString serverType;
         rv = server->GetType(serverType);
         if (NS_SUCCEEDED(rv) && !serverType.IsEmpty())
         {
@@ -631,13 +633,13 @@ static int32_t AddCustomHeader(const char* pHeader)
   nsCOMPtr<nsIPrefBranch> pref(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, index);
 
-  nsCAutoString headers;
+  nsAutoCString headers;
   pref->GetCharPref(MAILNEWS_CUSTOM_HEADERS, getter_Copies(headers));
   index = 0;
   if (!headers.IsEmpty())
   {
     char *headersString = ToNewCString(headers);
-    nsCAutoString hdrStr;
+    nsAutoCString hdrStr;
     hdrStr.Adopt(headersString);
     hdrStr.StripWhitespace();  //remove whitespace before parsing
 
@@ -664,7 +666,7 @@ nsresult nsEudoraFilters::AddTerm(const char* pHeader, const char* pVerb, const 
 
   nsMsgSearchAttribValue attrib = FindHeader(pHeader);
   nsMsgSearchOpValue     op = FindOperator(pVerb);
-  nsCAutoString          arbitraryHeader;
+  nsAutoCString          arbitraryHeader;
   nsAutoString           unicodeHeader, unicodeVerb, unicodeValue;
   nsAutoString           filterTitle;
 
@@ -809,7 +811,7 @@ nsresult nsEudoraFilters::AddAction(nsMsgRuleActionType actionType, int32_t junk
     {
       case nsMsgFilterAction::MoveToFolder:
       case nsMsgFilterAction::CopyToFolder:
-        rv = action->SetTargetFolderUri(nsCAutoString(targetFolderUri));
+        rv = action->SetTargetFolderUri(nsAutoCString(targetFolderUri));
         break;
 
       case nsMsgFilterAction::ChangePriority:
@@ -823,7 +825,7 @@ nsresult nsEudoraFilters::AddAction(nsMsgRuleActionType actionType, int32_t junk
       case nsMsgFilterAction::AddTag:
       case nsMsgFilterAction::Reply:
       case nsMsgFilterAction::Forward:
-        rv = action->SetStrValue(nsCAutoString(strValue));
+        rv = action->SetStrValue(nsAutoCString(strValue));
         break;
 
       case nsMsgFilterAction::MarkRead:
@@ -876,7 +878,7 @@ nsresult nsEudoraFilters::AddMailboxAction(const char* pMailboxPath, bool isTran
   nsCOMPtr<nsIMsgFolder> folder;
   rv = GetMailboxFolder(nameHierarchy.get(), getter_AddRefs(folder));
 
-  nsCAutoString folderURI;
+  nsAutoCString folderURI;
   if (NS_SUCCEEDED(rv))
     rv = folder->GetURI(folderURI);
   if (NS_FAILED(rv))
@@ -900,7 +902,7 @@ nsresult nsEudoraFilters::GetMailboxFolder(const char* pNameHierarchy, nsIMsgFol
   // *ppFolder is null on outgoing if there is an error
   *ppFolder = nullptr;
   
-  nsCAutoString name(pNameHierarchy + 1);
+  nsAutoCString name(pNameHierarchy + 1);
   int32_t sepIndex = name.FindChar(*pNameHierarchy);
   if (sepIndex >= 0)
     name.SetLength(sepIndex);

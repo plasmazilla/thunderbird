@@ -10,10 +10,9 @@ load("../../../resources/searchTestUtils.js");
 // add address book setup
 load("../../../resources/abSetup.js");
 
-const ABUri = kPABData.URI;
+Components.utils.import("resource:///modules/mailServices.js");
 
-const copyService = Cc["@mozilla.org/messenger/messagecopyservice;1"].
-                      getService(Ci.nsIMsgCopyService);
+const ABUri = kPABData.URI;
 
 const nsMsgSearchScope = Ci.nsMsgSearchScope;
 const nsMsgSearchAttrib = Ci.nsMsgSearchAttrib;
@@ -117,14 +116,13 @@ var messageKey, hdr;
 function run_test()
 {
   // Setup local mail accounts.
-
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
     
     // Test setup - copy the data file into place
   var testAB = do_get_file("../../../addrbook/test/unit/data/cardForEmail.mab");
 
   // Copy the file to the profile directory for a PAB
-  testAB.copyTo(gProfileDir, kPABData.fileName);
+  testAB.copyTo(do_get_profile(), kPABData.fileName);
 
   // test that validity table terms are valid
 
@@ -237,8 +235,8 @@ var copyListener =
     if (fileName)
     { 
       var file = do_get_file(fileName);
-      copyService.CopyFileMessage(file, gLocalInboxFolder, null, false, 0,
-                              "", copyListener, null);
+      MailServices.copy.CopyFileMessage(file, localAccountUtils.inboxFolder, null,
+                                        false, 0, "", copyListener, null);
     }
     else
       testAbSearch();
@@ -255,7 +253,7 @@ function testAbSearch()
   var test = Tests.shift();
   if (test)
   {
-    testObject = new TestSearch(gLocalInboxFolder,
+    testObject = new TestSearch(localAccountUtils.inboxFolder,
                          test.value,
                          test.attrib,
                          test.op,

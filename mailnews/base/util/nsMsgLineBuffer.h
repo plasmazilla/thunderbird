@@ -33,7 +33,7 @@ protected:
 class NS_MSG_BASE nsMsgLineBufferHandler : public nsByteArray
 {
 public:
-  virtual int32_t HandleLine(char *line, uint32_t line_length) = 0;
+  virtual nsresult HandleLine(char *line, uint32_t line_length) = 0;
 };
 
 class NS_MSG_BASE nsMsgLineBuffer : public nsMsgLineBufferHandler
@@ -46,13 +46,13 @@ public:
   // Not sure why anyone cares, by NNTPHost seems to want to know the buf pos.
   uint32_t    GetBufferPos() {return m_bufferPos;}
   
-  virtual int32_t HandleLine(char *line, uint32_t line_length);
+  virtual nsresult HandleLine(char *line, uint32_t line_length);
   // flush last line, though it won't be CRLF terminated.
-  virtual int32_t FlushLastLine();
+  virtual nsresult FlushLastLine();
 protected:
   nsMsgLineBuffer(bool convertNewlinesP);
   
-  int32_t ConvertAndSendBuffer();
+  nsresult ConvertAndSendBuffer();
   void SetLookingForCRLF(bool b);
   
   nsMsgLineBufferHandler *m_handler;

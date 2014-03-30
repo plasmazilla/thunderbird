@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://calendar/modules/calAlarmUtils.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 /**
  * Used by the "quick add" feature for tasks, for example in the task view or
@@ -60,7 +61,7 @@ var taskEdit = {
     onFocus: function tE_onFocus(aEvent) {
         var edit = aEvent.target;
         if (edit.localName == "input") {
-            // For some reason, we only recieve an onfocus event for the textbox
+            // For some reason, we only receive an onfocus event for the textbox
             // when debugging with venkman.
             edit = edit.parentNode.parentNode;
         }
@@ -90,7 +91,7 @@ var taskEdit = {
     onBlur: function tE_onBlur(aEvent) {
         var edit = aEvent.target;
         if (edit.localName == "input") {
-            // For some reason, we only recieve the blur event for the input
+            // For some reason, we only receive the blur event for the input
             // element. There are no targets that point to the textbox. Go up
             // the parent chain until we reach the textbox.
             edit = edit.parentNode.parentNode;
@@ -167,10 +168,7 @@ var taskEdit = {
      * @see calIObserver
      */
     calendarObserver: {
-        QueryInterface: function tE_calObs_QueryInterface(aIID) {
-            return doQueryInterface(this, null, aIID,
-                                    [Components.interfaces.calIObserver]);
-        },
+        QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIObserver]),
 
         // calIObserver:
         onStartBatch: function() {},
@@ -217,11 +215,10 @@ var taskEdit = {
      * @see calICompositeObserver
      */
     compositeObserver: {
-        QueryInterface: function tE_compObs_QueryInterface(aIID) {
-            return doQueryInterface(this, null, aIID,
-                                    [Components.interfaces.calIObserver,
-                                     Components.interfaces.calICompositeObserver]);
-        },
+        QueryInterface: XPCOMUtils.generateQI([
+            Components.interfaces.calIObserver,
+            Components.interfaces.calICompositeObserver
+        ]),
 
         // calIObserver:
         onStartBatch: function() {},

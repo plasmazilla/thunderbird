@@ -61,8 +61,8 @@ function InitDialog()
   // Just to be confusing, "size" is used instead of height because it does
   // not accept % values, only pixels
   var height = GetHTMLOrCSSStyleValue(globalElement, "size", "height")
-  if (/px/.test(height)) {
-    height = RegExp.leftContext;
+  if (height.contains("px")) {
+    height = height.substr(0, height.indexOf("px"));
   }
   if(!height) {
     height = 2; //Default value
@@ -100,51 +100,45 @@ function onSaveDefault()
   // "false" means set attributes on the globalElement,
   //   not the real element being edited
   if (ValidateData()) {
-    var prefs = GetPrefs();
-    if (prefs) {
-
-      var alignInt;
-      if (align == "left") {
-        alignInt = 0;
-      } else if (align == "right") {
-        alignInt = 2;
-      } else {
-        alignInt = 1;
-      }
-      prefs.setIntPref("editor.hrule.align", alignInt);
-
-      var percent;
-      var widthInt;
-      var heightInt;
-
-      if (width)
-      {
-        if (/%/.test(width)) {
-          percent = true;
-          widthInt = Number(RegExp.leftContext);
-        } else {
-          percent = false;
-          widthInt = Number(width);
-        }
-      }
-      else
-      {
-        percent = true;
-        widthInt = Number(100);
-      }
-
-      heightInt = height ? Number(height) : 2;
-
-      prefs.setIntPref("editor.hrule.width", widthInt);
-      prefs.setBoolPref("editor.hrule.width_percent", percent);
-      prefs.setIntPref("editor.hrule.height", heightInt);
-      prefs.setBoolPref("editor.hrule.shading", shading);
-
-      // Write the prefs out NOW!
-      var prefService = Components.classes["@mozilla.org/preferences-service;1"]
-                                  .getService(Components.interfaces.nsIPrefService);
-      prefService.savePrefFile(null);
+    var alignInt;
+    if (align == "left") {
+      alignInt = 0;
+    } else if (align == "right") {
+      alignInt = 2;
+    } else {
+      alignInt = 1;
     }
+    Services.prefs.setIntPref("editor.hrule.align", alignInt);
+
+    var percent;
+    var widthInt;
+    var heightInt;
+
+    if (width)
+    {
+      if (width.contains("%")) {
+        percent = true;
+        widthInt = Number(width.substr(0, width.indexOf("%")));
+      } else {
+        percent = false;
+        widthInt = Number(width);
+      }
+    }
+    else
+    {
+      percent = true;
+      widthInt = Number(100);
+    }
+
+    heightInt = height ? Number(height) : 2;
+
+    Services.prefs.setIntPref("editor.hrule.width", widthInt);
+    Services.prefs.setBoolPref("editor.hrule.width_percent", percent);
+    Services.prefs.setIntPref("editor.hrule.height", heightInt);
+    Services.prefs.setBoolPref("editor.hrule.shading", shading);
+
+    // Write the prefs out NOW!
+    Services.prefs.savePrefFile(null);
 	}
 }
 

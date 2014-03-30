@@ -13,7 +13,6 @@
 #include "nsIDBFolderInfo.h"
 #include "nsIMsgDatabase.h"
 #include "nsMsgUtils.h"
-#include "nsISupportsArray.h"
 #include "nsThreadUtils.h"
 #include "nsServiceManagerUtils.h"
 #include "nsComponentManagerUtils.h"
@@ -470,7 +469,7 @@ NS_IMETHODIMP nsImapMoveCopyMsgTxn::OnStopRunningUrl(nsIURI *aUrl, nsresult aExi
       }
       if (dstKeys.Length())
       {
-        nsCAutoString uids;
+        nsAutoCString uids;
         nsImapMailFolder::AllocateUidStringFromKeys(dstKeys.Elements(), dstKeys.Length(), uids);
         rv = imapService->OnlineMessageCopy(dstFolder, uids, srcFolder,
                                             true, true, nullptr,
@@ -548,7 +547,7 @@ NS_IMETHODIMP nsImapOfflineTxn::UndoTransaction(void)
     case nsIMsgOfflineImapOperation::kFlagsChanged:
     case nsIMsgOfflineImapOperation::kDeletedMsg:
     {
-      if (m_srcHdrs.Count() == 0)
+      if (m_srcHdrs.IsEmpty())
       {
         NS_ASSERTION(false, "No msg header to apply undo.");
         break;
@@ -634,7 +633,6 @@ NS_IMETHODIMP nsImapOfflineTxn::RedoTransaction(void)
   nsCOMPtr <nsIMsgDatabase> destDB;
   rv = srcFolder->GetDBFolderInfoAndDB(getter_AddRefs(folderInfo), getter_AddRefs(srcDB));
   NS_ENSURE_SUCCESS(rv, rv);
-  nsMsgKey hdrKey = nsMsgKey_None;
 
   switch (m_opType)
   {

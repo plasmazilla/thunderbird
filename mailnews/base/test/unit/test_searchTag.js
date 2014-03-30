@@ -11,10 +11,7 @@
  */
 load("../../../resources/searchTestUtils.js");
 
-const tagService = Cc["@mozilla.org/messenger/tagservice;1"]
-                     .getService(Ci.nsIMsgTagService);
-const copyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
-                      .getService(Ci.nsIMsgCopyService);
+Components.utils.import("resource:///modules/mailServices.js");
 
 const nsMsgSearchScope = Ci.nsMsgSearchScope;
 const nsMsgSearchAttrib = Ci.nsMsgSearchAttrib;
@@ -283,7 +280,7 @@ var hdr;
 
 function run_test()
 {
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
   // test that validity table terms are valid
 
@@ -333,19 +330,21 @@ function run_test()
   testValidityTable(news, IsBefore, Keywords, false);
 
   // delete any existing tags
-  var tagArray = tagService.getAllTags({});
+  let tagArray = MailServices.tags.getAllTags({});
   for (var i = 0; i < tagArray.length; i++)
-    tagService.deleteKey(tagArray[i].key);
+    MailServices.tags.deleteKey(tagArray[i].key);
 
   // add as valid tags Tag1 and Tag4
-  tagService.addTagForKey(Tag1, Tag1, null, null);
-  tagService.addTagForKey(Tag4, Tag4, null, null);
+  MailServices.tags.addTagForKey(Tag1, Tag1, null, null);
+  MailServices.tags.addTagForKey(Tag4, Tag4, null, null);
 
   var copyListener = 
   {
     OnStartCopy: function() {},
     OnProgress: function(aProgress, aProgressMax) {},
-    SetMessageKey: function(aKey) { hdr = gLocalInboxFolder.GetMessageHeader(aKey);},
+    SetMessageKey: function(aKey) {
+      hdr = localAccountUtils.inboxFolder.GetMessageHeader(aKey);
+    },
     SetMessageId: function(aMessageId) {},
     OnStopCopy: function(aStatus) { testKeywordSearch();}
   };
@@ -353,8 +352,8 @@ function run_test()
   // Get a message into the local filestore. function testKeywordSearch() continues the testing after the copy.
   var bugmail1 = do_get_file("../../../data/bugmail1");
   do_test_pending();
-  copyService.CopyFileMessage(bugmail1, gLocalInboxFolder, null, false, 0,
-                              "", copyListener, null);
+  MailServices.copy.CopyFileMessage(bugmail1, localAccountUtils.inboxFolder, null,
+                                    false, 0, "", copyListener, null);
 }
 
 // process each test from queue, calls itself upon completion of each search
@@ -365,7 +364,7 @@ function testKeywordSearch()
   if (test)
   {
     hdr.setStringProperty("keywords", test.msgTag);
-    testObject = new TestSearch(gLocalInboxFolder,
+    testObject = new TestSearch(localAccountUtils.inboxFolder,
                          test.testTag,
                          nsMsgSearchAttrib.Keywords,
                          test.op,

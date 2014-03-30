@@ -8,7 +8,6 @@
 
 #include "nsIURL.h"
 #include "nsStringGlue.h"
-#include "nsIEnumerator.h"
 #include "msgCore.h"
 #include "nsCOMPtr.h"
 #include "MailNewsTypes2.h"
@@ -59,7 +58,7 @@ NS_MSG_BASE nsresult NS_MsgGetUntranslatedPriorityName(
                        nsACString & outName);
 
 NS_MSG_BASE nsresult NS_MsgHashIfNecessary(nsAutoString &name);
-NS_MSG_BASE nsresult NS_MsgHashIfNecessary(nsCAutoString &name);
+NS_MSG_BASE nsresult NS_MsgHashIfNecessary(nsAutoCString &name);
 
 NS_MSG_BASE nsresult FormatFileSize(uint64_t size, bool useKB, nsAString &formattedSize);
 
@@ -295,16 +294,6 @@ NS_MSG_BASE nsresult MsgDetectCharsetFromFile(nsIFile *aFile, nsACString &aChars
  */
 NS_MSG_BASE nsresult ConvertBufToPlainText(nsString &aConBuf, bool formatFlowed, bool formatOutput);
 
-inline uint32_t NS_MIN(uint32_t a, uint64_t b)
-{
-  return b < a ? (uint32_t)b : a;
-}
-
-inline uint32_t NS_MIN(uint64_t a, uint32_t b)
-{
-  return b < a ? b : (uint32_t)a;
-}
-
 /**
  * The following definitons exist for compatibility between the internal and
  * external APIs. Where possible they just forward to the existing API.
@@ -438,7 +427,7 @@ NS_MSG_BASE PRUnichar *MsgEscapeHTML2(const PRUnichar *aBuffer, int32_t aLen);
 // Existing replacement for IsUTF8
 NS_MSG_BASE bool MsgIsUTF8(const nsACString& aString);
 /// Equivalent of NS_NewAtom(aUTF8String)
-NS_MSG_BASE nsIAtom* MsgNewAtom(const char* aString);
+NS_MSG_BASE already_AddRefed<nsIAtom> MsgNewAtom(const char* aString);
 /// Replacement of NS_RegisterStaticAtoms
 NS_MSG_BASE nsIAtom* MsgNewPermanentAtom(const char* aString);
 /// Equivalent of do_GetAtom(aUTF8String)

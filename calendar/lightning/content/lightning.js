@@ -127,3 +127,6 @@ pref("calendar.view.useSystemColors", false);
 // Maximum number of iterations allowed when searching for the next matching
 // occurrence of a repeating item in calFilter
 pref("calendar.filter.maxiterations", 50);
+
+// Backend to use. false: libical, true: ical.js
+pref("calendar.icaljs", false);

@@ -22,10 +22,11 @@
 #include "nsIMsgWindow.h"
 #include "nsImapMoveCoalescer.h"
 #include "nsAutoPtr.h"
-
+#include "nsStringGlue.h"
 #include "nsIMsgFilterList.h"
 #include "nsIMsgFilterHitNotify.h"
 #include "nsIMsgFolderNotificationService.h"
+#include "nsVoidArray.h"
 
 class nsByteArray;
 class nsOutputFileStream;
@@ -56,12 +57,12 @@ public:
   virtual               ~nsParseMailMessageState();
 
   void                  Init(uint32_t fileposition);
-  virtual int32_t       ParseFolderLine(const char *line, uint32_t lineLength);
-  virtual int           StartNewEnvelope(const char *line, uint32_t lineLength);
-  int                   ParseHeaders();
-  int                   FinalizeHeaders();
-  int                   ParseEnvelope (const char *line, uint32_t line_size);
-  int                   InternSubject (struct message_header *header);
+  virtual nsresult      ParseFolderLine(const char *line, uint32_t lineLength);
+  virtual nsresult      StartNewEnvelope(const char *line, uint32_t lineLength);
+  nsresult              ParseHeaders();
+  nsresult              FinalizeHeaders();
+  nsresult              ParseEnvelope (const char *line, uint32_t line_size);
+  nsresult              InternSubject (struct message_header *header);
 
   static bool    IsEnvelopeLine(const char *buf, int32_t buf_size);
   static int  msg_UnHex(char C);
@@ -124,6 +125,7 @@ public:
   // pref, mailnews.customDBHeaders
   nsTArray<nsCString>   m_customDBHeaders;
   struct message_header *m_customDBHeaderValues;
+  nsCString m_receivedValue; // accumulated received header
 protected:
 };
 
@@ -162,11 +164,11 @@ public:
   virtual void  AbortNewHeader();
 
   // for nsMsgLineBuffer
-  virtual int32_t HandleLine(char *line, uint32_t line_length);
+  virtual nsresult HandleLine(char *line, uint32_t line_length);
 
   void  UpdateDBFolderInfo();
   void  UpdateDBFolderInfo(nsIMsgDatabase *mailDB);
-  void  UpdateStatusText (uint32_t stringID);
+  void  UpdateStatusText(const char* stringName);
 
   // Update the progress bar based on what we know.
   virtual void    UpdateProgressPercent ();

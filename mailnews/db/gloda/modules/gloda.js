@@ -21,6 +21,8 @@ Cu.import("resource:///modules/gloda/utils.js");
 
 Cu.import("resource:///modules/iteratorUtils.jsm");
 Cu.import("resource:///modules/IOUtils.js");
+Cu.import("resource:///modules/mailServices.js");
+Cu.import("resource://gre/modules/Services.jsm");
 
 /**
  * @see |Gloda.BadItemContentsError|
@@ -161,9 +163,7 @@ var Gloda = {
 
     try {
       // figure out if event-driven indexing should be enabled...
-      let prefService = Cc["@mozilla.org/preferences-service;1"].
-                          getService(Ci.nsIPrefService);
-      let branch = prefService.getBranch("mailnews.database.global.logging.");
+      let branch = Services.prefs.getBranch("mailnews.database.global.logging.");
       enableConsoleLogging = branch.getBoolPref("console");
       enableDumpLogging = branch.getBoolPref("dump");
       enableUpstreamLogging = branch.getBoolPref("upstream");
@@ -188,9 +188,7 @@ var Gloda = {
     }
 
     if (considerNetLogging) {
-      let file = Cc["@mozilla.org/file/directory_service;1"]
-                    .getService(Ci.nsIProperties)
-                    .get("TmpD", Ci.nsIFile);
+      let file = Services.dirsvc.get("TmpD", Ci.nsIFile);
       file.append("chainsaw.ptr");
       if (file.exists()) {
         let data = IOUtils.loadFileToString(file);
@@ -374,7 +372,7 @@ var Gloda = {
    * @param ... One or more strings.  Each string can contain zero or more
    *   e-mail addresses with display name.  If more than one address is given,
    *   they should be comma-delimited.  For example
-   *   '"Bob Smith" <bob@smith.com>' is an address with display name.  Mime
+   *   '"Bob Smith" <bob@example.com>' is an address with display name.  Mime
    *   header decoding is performed, but is ignorant of any folder-level
    *   character set overrides.
    * @returns via the callback handle mechanism, a list containing one sub-list
@@ -514,17 +512,16 @@ var Gloda = {
     let existingIdentities = [];
     let identitiesToCreate = [];
 
-    let msgAccountManager = Cc["@mozilla.org/messenger/account-manager;1"].
-                            getService(Ci.nsIMsgAccountManager);
-    let numIdentities = msgAccountManager.allIdentities.Count();
+    let numIdentities = MailServices.accounts.allIdentities.length;
 
     // nothing to do if there are no accounts/identities.
     if (!numIdentities)
       return;
 
     for (let iIdentity = 0; iIdentity < numIdentities; iIdentity++) {
-      let msgIdentity = msgAccountManager.allIdentities.GetElementAt(iIdentity)
-                                         .QueryInterface(Ci.nsIMsgIdentity);
+      let msgIdentity =
+        MailServices.accounts.allIdentities.queryElementAt(iIdentity,
+                                                           Ci.nsIMsgIdentity);
 
       if (!fullName)
         fullName = msgIdentity.fullName;
@@ -1182,13 +1179,8 @@ var Gloda = {
               continue;
             seenRootFolders[rootFolder.URI] = true;
 
-            let allFolders = Cc["@mozilla.org/supports-array;1"].
-              createInstance(Ci.nsISupportsArray);
-            rootFolder.ListDescendents(allFolders);
-            let numFolders = allFolders.Count();
-            for (let folderIndex = 0; folderIndex < numFolders; folderIndex++) {
-              let folder = allFolders.GetElementAt(folderIndex).QueryInterface(
-                Ci.nsIMsgFolder);
+            let allFolders = rootFolder.descendants;
+            for (let folder in fixIterator(allFolders, Ci.nsIMsgFolder)) {
               let folderFlags = folder.flags;
 
               // Ignore virtual folders, non-mail folders.
@@ -1524,7 +1516,7 @@ var Gloda = {
           return this;
         };
       }
-      else if (aAttrDef.canQuery || aAttrDef.attributeName[0] == "_") {
+      else if (aAttrDef.canQuery || aAttrDef.attributeName.startsWith("_")) {
         constrainer = function() {
           let constraint = [GlodaDatastore.kConstraintIn, aAttrDef];
           for (let iArg = 0; iArg < arguments.length; iArg++) {
@@ -2033,7 +2025,7 @@ var Gloda = {
       // ignore keys that start with underscores, they are private and not
       //  persisted by our attribute mechanism.  (they are directly handled by
       //  the object implementation.)
-      if (key[0] == "_")
+      if (key.startsWith("_"))
         continue;
       // find the attribute definition that corresponds to this key
       let attrib = attribsByBoundName[key];
@@ -2164,7 +2156,7 @@ var Gloda = {
       // ignore keys that start with underscores, they are private and not
       //  persisted by our attribute mechanism.  (they are directly handled by
       //  the object implementation.)
-      if (key[0] == "_")
+      if (key.startsWith("_"))
         continue;
       // ignore things we saw in the new guy
       if (key in aItem)

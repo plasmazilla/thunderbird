@@ -5,16 +5,16 @@
 
 var EXPORTED_SYMBOLS = ["Sanitizer"];
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 var Sanitizer = {
   get _prefs() {
     delete this._prefs;
-    return this._prefs = Components.classes["@mozilla.org/preferences-service;1"]
-                                   .getService(Components.interfaces.nsIPrefService)
-                                   .getBranch("privacy.sanitize.");
+    return this._prefs = Services.prefs.getBranch("privacy.sanitize.");
   },
 
   /**
-   * Deletes privacy sensitive data in a batch, optionally showing the 
+   * Deletes privacy sensitive data in a batch, optionally showing the
    * sanitize UI, according to user preferences
    *
    * @returns  null if everything's fine
@@ -31,9 +31,7 @@ var Sanitizer = {
   },
 
   readSettings: function(aParentWindow) {
-    var itemPrefs = Components.classes["@mozilla.org/preferences-service;1"]
-                              .getService(Components.interfaces.nsIPrefService)
-                              .getBranch("privacy.item.");
+    var itemPrefs = Services.prefs.getBranch("privacy.item.");
     for (var itemName in this.items) {
       var item = this.items[itemName];
       if ("clear" in item)
@@ -42,11 +40,10 @@ var Sanitizer = {
     if (this._prefs.getBoolPref("promptOnSanitize")) {
       var ww = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
                          .getService(Components.interfaces.nsIWindowWatcher);
-#ifdef XP_MACOSX
-      ww.openWindow(null, // make this an app-modal window on Mac
-#else
-      ww.openWindow(aParentWindow,
-#endif
+      // make this an app-modal window on Mac.
+      var win = "nsILocalFileMac" in Components.interfaces ? null
+                                                           : aParentWindow;
+      ww.openWindow(win,
                     "chrome://communicator/content/sanitize.xul", "Sanitize",
                     "chrome,titlebar,centerscreen,dialog,modal", null);
     }
@@ -122,9 +119,17 @@ var Sanitizer = {
   items: {
     cache: {
       clear: function() {
+        // use try/catch for everything but the last task so we clear as much as possible
         var cacheService = Components.classes["@mozilla.org/network/cache-service;1"]
                                      .getService(Components.interfaces.nsICacheService);
-        cacheService.evictEntries(Components.interfaces.nsICache.STORE_ANYWHERE);
+        try {
+          cacheService.evictEntries(Components.interfaces.nsICache.STORE_ANYWHERE);
+        } catch(ex) {}
+
+        Components.classes["@mozilla.org/image/tools;1"]
+                  .getService(Components.interfaces.imgITools)
+                  .getImgCacheForDocument(null)
+                  .clearCache(false); // true=chrome, false=content
       },
 
       canClear: true
@@ -138,10 +143,6 @@ var Sanitizer = {
                                        .getService(Components.interfaces.nsICacheService);
           cacheService.evictEntries(Components.interfaces.nsICache.STORE_OFFLINE);
         } catch(ex) {}
-
-        var storageMgr = Components.classes["@mozilla.org/dom/storagemanager;1"]
-                                   .getService(Components.interfaces.nsIDOMStorageManager);
-        storageMgr.clearOfflineApps();
       },
 
       canClear: true
@@ -156,11 +157,8 @@ var Sanitizer = {
         Sanitizer._clearPluginData("FLAG_CLEAR_ALL");
 
         // clear any network geolocation provider sessions
-        var psvc = Components.classes["@mozilla.org/preferences-service;1"]
-                             .getService(Components.interfaces.nsIPrefService);
         try {
-          var branch = psvc.getBranch("geo.wifi.access_token.");
-          branch.deleteBranch("");
+          Services.prefs.deleteBranch("geo.wifi.access_token.");
         } catch (e) {}
       },
 
@@ -171,7 +169,7 @@ var Sanitizer = {
       clear: function() {
         // use try/catch for everything but the last task so we clear as much as possible
         try {
-          var globalHistory = Components.classes["@mozilla.org/browser/global-history;2"]
+          var globalHistory = Components.classes["@mozilla.org/browser/nav-history-service;1"]
                                         .getService(Components.interfaces.nsIBrowserHistory);
           globalHistory.removeAllPages();
         } catch(ex) {}
@@ -191,10 +189,8 @@ var Sanitizer = {
     urlbar: {
       clear: function() {
         // Clear last URL of the Open Web Location dialog
-        var prefs = Components.classes["@mozilla.org/preferences-service;1"]
-                              .getService(Components.interfaces.nsIPrefBranch);
         try {
-          prefs.clearUserPref("general.open_location.last_url");
+          Services.prefs.clearUserPref("general.open_location.last_url");
         } catch(ex) {}
 
         // Clear URLbar history (see also pref-history.js)
@@ -207,10 +203,8 @@ var Sanitizer = {
       },
 
       get canClear() {
-        var prefs = Components.classes["@mozilla.org/preferences-service;1"]
-                              .getService(Components.interfaces.nsIPrefBranch);
-        if (!prefs.prefIsLocked("general.open_location.last_url") &&
-            prefs.prefHasUserValue("general.open_location.last_url"))
+        if (!Services.prefs.prefIsLocked("general.open_location.last_url") &&
+            Services.prefs.prefHasUserValue("general.open_location.last_url"))
           return true;
 
         var file = Components.classes["@mozilla.org/file/directory_service;1"]
@@ -223,12 +217,59 @@ var Sanitizer = {
 
     formdata: {
       clear: function() {
+        // Clear undo history of all search and find bars.
+        var windowManager = Components.classes['@mozilla.org/appshell/window-mediator;1']
+                                      .getService(Components.interfaces.nsIWindowMediator);
+        var windows = windowManager.getEnumerator("navigator:browser");
+        while (windows.hasMoreElements()) {
+          var win = windows.getNext();
+          var currentDocument = win.document;
+
+          var findBar = currentDocument.getElementById("FindToolbar");
+          if (findBar)
+            findBar.clear();
+          var searchBar = currentDocument.getElementById("searchbar");
+          if (searchBar && searchBar.textbox)
+            searchBar.textbox.reset();
+          var sideSearchBar = win.BrowserSearch.searchSidebar;
+          if (sideSearchBar)
+            sideSearchBar.reset();
+        }
+
         var formHistory = Components.classes["@mozilla.org/satchel/form-history;1"]
                                     .getService(Components.interfaces.nsIFormHistory2);
         formHistory.removeAllEntries();
       },
 
       get canClear() {
+        var windowManager = Components.classes['@mozilla.org/appshell/window-mediator;1']
+                                      .getService(Components.interfaces.nsIWindowMediator);
+        var windows = windowManager.getEnumerator("navigator:browser");
+        while (windows.hasMoreElements()) {
+          var win = windows.getNext();
+          var currentDocument = win.document;
+
+          var findBar = currentDocument.getElementById("FindToolbar");
+          if (findBar && findBar.canClear)
+            return true;
+          var searchBar = currentDocument.getElementById("searchbar");
+          if (searchBar && searchBar.textbox && searchBar.textbox.editor) {
+            var transactionMgr = searchBar.textbox.editor.transactionManager;
+            if (searchBar.value ||
+                transactionMgr.numberOfUndoItems ||
+                transactionMgr.numberOfRedoItems)
+              return true;
+          }
+          var sideSearchBar = win.BrowserSearch.searchSidebar;
+          if (sideSearchBar) {
+            var sidebarTm = sideSearchBar.editor.transactionManager;
+            if (sideSearchBar.value ||
+                sidebarTm.numberOfUndoItems ||
+                sidebarTm.numberOfRedoItems)
+              return true;
+          }
+        }
+
         var formHistory = Components.classes["@mozilla.org/satchel/form-history;1"]
                                     .getService(Components.interfaces.nsIFormHistory2);
         return formHistory.hasEntries;

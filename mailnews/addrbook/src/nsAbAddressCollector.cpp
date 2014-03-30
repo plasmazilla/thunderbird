@@ -54,7 +54,7 @@ nsAbAddressCollector::GetCardFromProperty(const char *aName,
   bool hasMore;
   nsCOMPtr<nsISupports> supports;
   nsCOMPtr<nsIAbDirectory> directory;
-  nsIAbCard *result = nullptr;
+  nsCOMPtr<nsIAbCard> result;
   while (NS_SUCCEEDED(enumerator->HasMoreElements(&hasMore)) && hasMore)
   {
     rv = enumerator->GetNext(getter_AddRefs(supports));
@@ -67,14 +67,14 @@ nsAbAddressCollector::GetCardFromProperty(const char *aName,
     // Some implementations may return NS_ERROR_NOT_IMPLEMENTED here,
     // so just catch the value and continue.
     if (NS_FAILED(directory->GetCardFromProperty(aName, aValue, true,
-                                                 &result)))
+                                                 getter_AddRefs(result))))
       continue;
 
     if (result)
     {
       if (aDirectory)
-        directory.swap(*aDirectory);
-      return result;
+        directory.forget(aDirectory);
+      return result.forget();
     }
   }
   return nullptr;
@@ -348,14 +348,14 @@ nsAbAddressCollector::SetUpAbFromPrefs(nsIPrefBranch *aPrefBranch)
 
   nsresult rv;
   nsCOMPtr<nsIAbManager> abManager(do_GetService(NS_ABMANAGER_CONTRACTID, &rv));
-  NS_ENSURE_SUCCESS(rv, );
+  NS_ENSURE_SUCCESS_VOID(rv);
 
   rv = abManager->GetDirectory(mABURI, getter_AddRefs(mDirectory));
-  NS_ENSURE_SUCCESS(rv, );
+  NS_ENSURE_SUCCESS_VOID(rv);
 
   bool readOnly;
   rv = mDirectory->GetReadOnly(&readOnly);
-  NS_ENSURE_SUCCESS(rv, );
+  NS_ENSURE_SUCCESS_VOID(rv);
 
   // If the directory is read-only, we can't write to it, so just blank it out
   // here, and warn because we shouldn't hit this (UI is wrong).

@@ -71,10 +71,7 @@ public:
     MSG_X_TEMPLATE_HEADER_ID,
     MSG_DRAFT_ID_HEADER_ID,
     MSG_TEMPORARY_FILES_HEADER_ID,
-    MSG_SENDERREPLY_HEADER_ID,
-    MSG_ALLREPLY_HEADER_ID,
-    MSG_LISTREPLY_HEADER_ID,
-    
+
     MSG_MAX_HEADERS   //Must be the last one.
   } MsgHeaderID;
 
@@ -82,10 +79,10 @@ public:
   const char* GetAsciiHeader(MsgHeaderID header); //just return the address of the internal header variable, don't dispose it
 
   nsresult SetUnicodeHeader(MsgHeaderID header, const nsAString &value);
-  nsresult GetUnicodeHeader(MsgHeaderID header, nsAString &_retval); 
+  nsresult GetUnicodeHeader(MsgHeaderID header, nsAString &_retval);
 
   /* Convenience routines to get and set header's value...
-  
+
     IMPORTANT:
     all routines const char* GetXxx(void) will return a pointer to the header, please don't free it.
   */
@@ -114,8 +111,6 @@ public:
   nsresult SetNewsgroups(const char *aValue) {return SetAsciiHeader(MSG_NEWSGROUPS_HEADER_ID, aValue);}
   const char* GetNewsgroups() {return GetAsciiHeader(MSG_NEWSGROUPS_HEADER_ID);}
 
-  const char* GetNewshost() {return GetAsciiHeader(MSG_NEWSPOSTURL_HEADER_ID);}
-
   nsresult SetFollowupTo(const char *aValue) {return SetAsciiHeader(MSG_FOLLOWUP_TO_HEADER_ID, aValue);}
   const char* GetFollowupTo() {return GetAsciiHeader(MSG_FOLLOWUP_TO_HEADER_ID);}
 
@@ -139,15 +134,6 @@ public:
 
   nsresult SetOtherRandomHeaders(const char *value) {return SetAsciiHeader(MSG_OTHERRANDOMHEADERS_HEADER_ID, value);}
   const char* GetOtherRandomHeaders() {return GetAsciiHeader(MSG_OTHERRANDOMHEADERS_HEADER_ID);}
-
-  nsresult SetSenderReply(const char *value) {return SetAsciiHeader(MSG_SENDERREPLY_HEADER_ID, value);}
-  const char* GetSenderReply() {return GetAsciiHeader(MSG_SENDERREPLY_HEADER_ID);}
-
-  nsresult SetAllReply(const char *value) {return SetAsciiHeader(MSG_ALLREPLY_HEADER_ID, value);}
-  const char* GetAllReply() {return GetAsciiHeader(MSG_ALLREPLY_HEADER_ID);}
-
-  nsresult SetListReply(const char *value) {return SetAsciiHeader(MSG_LISTREPLY_HEADER_ID, value);}
-  const char* GetListReply() {return GetAsciiHeader(MSG_LISTREPLY_HEADER_ID);}
 
   const char* GetNewspostUrl() {return GetAsciiHeader(MSG_NEWSPOSTURL_HEADER_ID);}
 
@@ -174,7 +160,7 @@ public:
   const char* GetBody();
 
   nsresult SplitRecipientsEx(const nsAString &recipients,
-                             nsTArray<nsMsgRecipient> &aResult); 
+                             nsTArray<nsMsgRecipient> &aResult);
 
 protected:
   char*       m_headers[MSG_MAX_HEADERS];

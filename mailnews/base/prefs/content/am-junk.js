@@ -1,20 +1,15 @@
-/*
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-*/
+/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
 
-const KEY_ISP_DIRECTORY_LIST = "ISPDL";
-var gPrefBranch = null;
 let gDeferredToAccount = "";
 
 function onInit(aPageId, aServerId)
 {
-  const kMoveFolderJunk = 0;
-  const kMoveFolderOther = 1;
-
   // manually adjust several pref UI elements
   document.getElementById('server.spamLevel.visible').setAttribute("checked",
     document.getElementById('server.spamLevel').value > 0);
@@ -33,34 +28,21 @@ function onInit(aPageId, aServerId)
   let spamActionTargetAccount = spamActionTargetAccountElement.value;
   let spamActionTargetFolder = spamActionTargetFolderElement.value;
 
-  // check if folder targets are valid
-  spamActionTargetAccount = checkJunkTargetFolder(spamActionTargetAccount, true);
-  spamActionTargetFolder = checkJunkTargetFolder(spamActionTargetFolder, false);
+  let moveOnSpamCheckbox = document.getElementById("server.moveOnSpam");
+  let moveOnSpamValue = moveOnSpamCheckbox.checked;
 
-  let moveCheckbox = document.getElementById("server.moveOnSpam");
-  let moveTargetModeValue = document.getElementById("server.moveTargetMode").value;
+  // Check if there are any invalid junk targets and fix them.
+  [ spamActionTargetAccount, spamActionTargetFolder, moveOnSpamValue ] =
+    sanitizeJunkTargets(spamActionTargetAccount,
+                        spamActionTargetFolder,
+                        deferredToURI || aServerId,
+                        document.getElementById("server.moveTargetMode").value,
+                        GetMsgFolderFromUri(aServerId, false).server.spamSettings,
+                        moveOnSpamValue);
 
-  if (!spamActionTargetAccount) {
-    // spamActionTargetAccount is not valid,
-    // reset to default behavior to NOT move junk messages...
-    if (moveTargetModeValue == kMoveFolderJunk)
-      moveCheckbox.setAttribute("checked", false);
-
-    // ... and find a good default target.
-    spamActionTargetAccount = chooseJunkTargetFolder(deferredToURI || aServerId, true);
-    spamActionTargetAccountElement.value = spamActionTargetAccount;
-  }
-
-  if (!spamActionTargetFolder) {
-    // spamActionTargetFolder is not valid,
-    // reset to default behavior to NOT move junk messages...
-    if (moveTargetModeValue == kMoveFolderOther)
-      moveCheckbox.setAttribute("checked", false);
-
-    // ... and find a good default target.
-    spamActionTargetFolder = chooseJunkTargetFolder(deferredToURI || aServerId, false);
-    spamActionTargetFolderElement.value = spamActionTargetFolder;
-  }
+  spamActionTargetAccountElement.value = spamActionTargetAccount;
+  spamActionTargetFolderElement.value = spamActionTargetFolder;
+  moveOnSpamCheckbox.checked = moveOnSpamValue;
 
   let server = GetMsgFolderFromUri(spamActionTargetAccount, false);
   document.getElementById("actionTargetAccount")
@@ -71,10 +53,10 @@ function onInit(aPageId, aServerId)
   try {
     folder = GetMsgFolderFromUri(spamActionTargetFolder, true);
     document.getElementById("actionFolderPopup").selectFolder(folder);
-  } catch (e) {
-    // OK for folder to not exist.
+  } catch (e) { } // OK for the folder to not exist.
+  if (!folder)
     folder = GetMsgFolderFromUri(spamActionTargetFolder, false);
-  }
+
   document.getElementById("actionTargetFolder")
           .setAttribute("label", prettyFolderName(folder));
 
@@ -86,8 +68,9 @@ function onInit(aPageId, aServerId)
   var wList = document.getElementById("whiteListAbURI");
 
   // Ensure the whitelist is empty
-  while (wList.lastChild)
+  while (wList.hasChildNodes()) {
     wList.removeChild(wList.lastChild);
+  }
 
   // Populate the listbox with address books
   let abItems = [];
@@ -135,16 +118,11 @@ function onInit(aPageId, aServerId)
   // enable or disable the useServerFilter checkbox
   onCheckItem("useServerFilterList", ["server.useServerFilter"]);
 
-  updateMoveTargetMode(document.getElementById('server.moveOnSpam').checked);
+  updateJunkTargetsAndRetention();
 }
 
 function onPreInit(account, accountValues)
 {
-  gPrefBranch = Components.classes["@mozilla.org/preferences-service;1"]
-                          .getService(Components.interfaces.nsIPrefService)
-                          .getBranch("mail.server." +
-                                      account.incomingServer.key + ".");
-
   if (getAccountValue(account, accountValues, "server", "type", null, false) == "pop3")
     gDeferredToAccount = getAccountValue(account, accountValues,
                                          "pop3", "deferredToAccount",
@@ -153,30 +131,11 @@ function onPreInit(account, accountValues)
   buildServerFilterMenuList();
 }
 
-function updateMoveTargetMode(aEnable)
-{
-  if (aEnable)
-    document.getElementById("broadcaster_moveMode").removeAttribute("disabled");
-  else
-    document.getElementById("broadcaster_moveMode").setAttribute("disabled", "true");
-
-  updatePurgeSpam(aEnable, "purgeSpam");
-  updatePurgeSpam(aEnable, "purgeSpamInterval");
-}
-
-function updatePurgeSpam(aEnable, aPref)
-{
-  if (!aEnable || gPrefBranch.prefIsLocked(aPref))
-    document.getElementById("server." + aPref).setAttribute("disabled", "true");
-  else
-    document.getElementById("server." + aPref).removeAttribute("disabled");
-}
-
 /**
  * Called when someone checks or unchecks the adaptive junk mail checkbox.
  * set the value of the hidden element accordingly
  *
- * @param  the boolean value of the checkbox
+ * @param aValue  the boolean value of the checkbox
  */
 function updateSpamLevel(aValue)
 {
@@ -196,9 +155,7 @@ function onServerFilterListChange()
 
 /**
  * Called when someone checks or unchecks the adaptive junk mail checkbox.
- * We need to enable or disable the whitelist accordingly
- *
- * @param aValue  the boolean value of the checkbox
+ * We need to enable or disable the whitelist accordingly.
  */
 function onAdaptiveJunkToggle()
 {
@@ -212,6 +169,35 @@ function onAdaptiveJunkToggle()
 
   for (let i = 0; i < wList.getRowCount(); i++)
     wList.getItemAtIndex(i).disabled = wListDisabled;
+}
+
+/**
+ * Called when someone checks or unchecks the "move new junk messages to"
+ * Enable/disable the radio group accordingly.
+ */
+function updateJunkTargetsAndRetention() {
+  onCheckItem("server.moveTargetMode", ["server.moveOnSpam"]);
+  updateJunkTargets();
+  onCheckItem("server.purgeSpam", ["server.moveOnSpam"]);
+  document.getElementById("purgeLabel").disabled =
+    document.getElementById("server.purgeSpam").disabled;
+  updateJunkRetention();
+}
+
+/**
+ * Enable/disable the folder pickers depending on which radio item is selected.
+ */
+function updateJunkTargets() {
+  onCheckItem("actionTargetAccount", ["server.moveOnSpam", "moveTargetMode0"]);
+  onCheckItem("actionTargetFolder",  ["server.moveOnSpam", "moveTargetMode1"]);
+}
+
+/**
+ * Enable/disable the junk deletion interval depending on the state
+ * of the controlling checkbox.
+ */
+function updateJunkRetention() {
+  onCheckItem("server.purgeSpamInterval", ["server.purgeSpam", "server.moveOnSpam"]);
 }
 
 function onSave()
@@ -241,50 +227,82 @@ function onSaveWhiteList()
   document.getElementById("server.useWhiteList").checked = (wlValue != "");
 }
 
+/**
+ * Called when a new value is chosen in one of the junk target folder pickers.
+ * Sets the menu label according to the folder name.
+ */
 function onActionTargetChange(aEvent, aWSMElementId)
 {
-  var folder = aEvent.target._folder;
+  let folder = aEvent.target._folder;
   document.getElementById(aWSMElementId).value = folder.URI;
   aEvent.currentTarget.setAttribute("label", prettyFolderName(folder));
 }
 
+/**
+ * Enumerates over the "ISPDL" directories, calling buildServerFilterListFromDir
+ * for each one.
+ */
 function buildServerFilterMenuList()
 {
-  var fileLocator = Components.classes["@mozilla.org/file/directory_service;1"]
-                              .getService(Components.interfaces.nsIProperties);
-  // Now walk through the isp directories looking for sfd files
-  var ispDirectories = fileLocator.get(KEY_ISP_DIRECTORY_LIST, Components.interfaces.nsISimpleEnumerator);
-  while (ispDirectories.hasMoreElements()) 
+  const KEY_ISP_DIRECTORY_LIST = "ISPDL";
+  let ispHeaderList = document.getElementById("useServerFilterList");
+  // Ensure the menulist is empty.
+  while (ispHeaderList.hasChildNodes()) {
+    ispHeaderList.removeChild(ispHeaderList.lastChild);
+  }
+
+  // Now walk through the isp directories looking for sfd files.
+  let ispDirectories = Services.dirsvc.get(KEY_ISP_DIRECTORY_LIST,
+                                           Components.interfaces.nsISimpleEnumerator);
+
+  let menuEntries = [];
+  while (ispDirectories.hasMoreElements())
   {
-    var ispDirectory = ispDirectories.getNext().QueryInterface(Components.interfaces.nsIFile);
+    let ispDirectory = ispDirectories.getNext()
+                                     .QueryInterface(Components.interfaces.nsIFile);
     if (ispDirectory)
-      buildServerFilterListFromDir(ispDirectory);
+      menuEntries.push.apply(menuEntries, buildServerFilterListFromDir(ispDirectory, menuEntries));
+  }
+
+  menuEntries.sort(function(a,b) a.localeCompare(b));
+  for (let entry of menuEntries) {
+    ispHeaderList.appendItem(entry, entry);
   }
 }
 
-// helper function called by buildServerFilterMenuList. Enumerates over the passed in
-// directory looking for .sfd files. For each entry found, it gets appended to the menu list
-function buildServerFilterListFromDir(aDir)
+/**
+ * Helper function called by buildServerFilterMenuList. Enumerates over the
+ * passed in directory looking for .sfd files. For each entry found, it gets
+ * appended to the menu list.
+ *
+ * @param aDir              directory to look for .sfd files
+ * @param aExistingEntries  Filter names already found.
+ */
+function buildServerFilterListFromDir(aDir, aExistingEntries)
 {
-  var ispHeaderList = document.getElementById('useServerFilterList');
+  let newEntries = [];
+  // Now iterate over each file in the directory looking for .sfd files.
+  const kSuffix = ".sfd";
+  let entries = aDir.directoryEntries
+                    .QueryInterface(Components.interfaces.nsIDirectoryEnumerator);
 
-  // now iterate over each file in the directory looking for .sfd files
-  var entries = aDir.directoryEntries.QueryInterface(Components.interfaces.nsIDirectoryEnumerator);
-
-  while (entries.hasMoreElements())
-  {
-    var entry = entries.nextFile;
-    if (entry.isFile())
-    {
-      // we only care about files that end in .sfd
-      if (entry.isFile() && /\.sfd$/.test(entry.leafName))
-      {
-        var fileName = RegExp.leftContext;
-        // if we've already added an item with this name, then don't add it again.
-        if (ispHeaderList.getElementsByAttribute("value", fileName).item(0))
-          continue;
-        ispHeaderList.appendItem(fileName, fileName);
-      }
+  while (entries.hasMoreElements()) {
+    let entry = entries.nextFile;
+    // we only care about files that end in .sfd
+    if (entry.isFile() && entry.leafName.endsWith(kSuffix)) {
+      let fileName = entry.leafName.slice(0, -kSuffix.length);
+      // If we've already added an item with this name, then don't add it again.
+      if (aExistingEntries.indexOf(fileName) == -1)
+        newEntries.push(fileName);
     }
   }
+  return newEntries;
+}
+
+/**
+ * Open the Preferences dialog on the Junk settings tab.
+ */
+function showGlobalJunkPrefs()
+{
+  openPrefsFromAccountManager("paneSecurity", "junkTab", null, "junk_pane");
 }

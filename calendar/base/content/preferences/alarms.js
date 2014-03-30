@@ -4,6 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 /**
  * Global Object to hold methods for the alarms pref pane
@@ -73,7 +74,7 @@ var gAlarmsPane = {
     convertURLToLocalFile: function gAP_convertURLToLocalFile(aFileURL) {
         // Convert the file url into a nsILocalFile
         if (aFileURL) {
-            var fph = cal.getIOService()
+            var fph = Services.io
                          .getProtocolHandler("file")
                          .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
             return fph.getFileFromURLSpec(aFileURL);
@@ -91,10 +92,10 @@ var gAlarmsPane = {
         soundUrl.value = document.getElementById("calendar.alarms.soundURL").value;
         if (soundUrl.value.indexOf("file://") == 0) {
             soundUrl.label = this.convertURLToLocalFile(soundUrl.value).leafName;
-            soundUrl.image = "moz-icon://" + soundUrl.label + "?size=16";
         } else {
             soundUrl.label = soundUrl.value;
         }
+        soundUrl.image = "moz-icon://" + soundUrl.label + "?size=16";
         return undefined;
     },
 
@@ -141,12 +142,11 @@ var gAlarmsPane = {
         var soundUrl = document.getElementById("alarmSoundFileField").value;
         var soundIfc = Components.classes["@mozilla.org/sound;1"]
                             .createInstance(Components.interfaces.nsISound);
-        var ios = cal.getIOService();
         var url;
         try {
             soundIfc.init();
             if (soundUrl && soundUrl.length && soundUrl.length > 0) {
-                url = ios.newURI(soundUrl, null, null);
+                url = Services.io.newURI(soundUrl, null, null);
                 soundIfc.play(url);
             } else {
                 soundIfc.beep();

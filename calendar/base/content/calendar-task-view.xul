@@ -6,6 +6,7 @@
 <?xml-stylesheet type="text/css" href="chrome://global/skin/global.css"?>
 <?xml-stylesheet type="text/css" href="chrome://calendar/skin/calendar-task-view.css"?>
 <?xml-stylesheet type="text/css" href="chrome://calendar/content/calendar-bindings.css"?>
+<?xml-stylesheet type="text/css" href="chrome://calendar/content/widgets/calendar-widget-bindings.css"?>
 
 <?xml-stylesheet type="text/css" href="chrome://messenger/skin/messageHeader.css"?>
 
@@ -58,7 +59,8 @@
               class="main-header-area"
               flex="1"
               persist="height"
-              context="task-actions-toolbar-context-menu">
+              context="task-actions-toolbar-context-menu"
+              hidden="true">
           <hbox id="calendar-task-details">
             <grid id="calendar-task-details-grid" flex="1">
               <columns id="calendar-task-details-columns">
@@ -80,17 +82,20 @@
                            value="&calendar.task-details.priority.low.label;"
                            class="task-details-value"
                            crop="end"
-                           flex="1"/>
+                           flex="1"
+                           hidden="true"/>
                     <label id="calendar-task-details-priority-normal"
                            value="&calendar.task-details.priority.normal.label;"
                            class="task-details-value"
                            crop="end"
-                           flex="1"/>
+                           flex="1"
+                           hidden="true"/>
                     <label id="calendar-task-details-priority-high"
                            value="&calendar.task-details.priority.high.label;"
                            class="task-details-value"
                            crop="end"
-                           flex="1"/>
+                           flex="1"
+                           hidden="true"/>
                     <hbox id="other-actions-box" align="end" flex="1" pack="end">
                       <menupopup id="task-actions-toolbar-context-menu">
                         <menuitem id="CustomizeTaskActionsToolbar"
@@ -115,8 +120,10 @@
                                          command="calendar_task_category_command"
                                          observes="calendar_task_category_command"
                                          class="toolbarbutton-1 msgHeaderView-button">
-                            <menupopup id="task-actions-category-menupopup"
-                                       onpopupshowing="addCategoryNames(event)"/>
+                              <panel id="task-actions-category-panel"
+                                     type="category-panel"
+                                     onpopupshowing="taskDetailsView.loadCategories(event)"
+                                     onpopuphiding="taskDetailsView.saveCategories(event)"/>
                           </toolbarbutton>
                           <toolbarbutton id="task-actions-markcompleted"
                                          type="menu-button"

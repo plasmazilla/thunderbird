@@ -2,16 +2,20 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource://testing-common/AppInfo.jsm");
+updateAppInfo();
+
 const Cc = Components.classes;
 const Ci = Components.interfaces;
+const Cr = Components.results;
 
 (function load_lightning_manifest() {
-  let bindir = Components.classes["@mozilla.org/file/directory_service;1"]
-                         .getService(Components.interfaces.nsIProperties)
-                         .get("CurProcD", Components.interfaces.nsIFile);
+  let bindir = Services.dirsvc.get("CurProcD", Components.interfaces.nsIFile);
   bindir.append("extensions");
   bindir.append("{e2fda1a4-762b-4020-b5ad-a41df1933103}");
   bindir.append("chrome.manifest");
+  dump("Loading" + bindir.path + "\n");
   Components.manager.autoRegister(bindir);
 })();
 
@@ -73,13 +77,11 @@ function getMemoryCal() {
 }
 
 function getStorageCal() {
-    var dirSvc = Cc["@mozilla.org/file/directory_service;1"]
-                 .getService(Ci.nsIProperties);
-    var db = dirSvc.get("TmpD", Ci.nsIFile);
+    var db = Services.dirsvc.get("TmpD", Ci.nsIFile);
     db.append("test_storage.sqlite");
 
     // create URI
-    var uri = cal.getIOService().newFileURI(db);
+    var uri = Services.io.newFileURI(db);
 
     // Make sure timezone service is initialized
     Components.classes["@mozilla.org/calendar/timezone-service;1"]
@@ -184,4 +186,51 @@ function compareItemsSpecific(aLeftItem, aRightItem, aPropArray) {
                     getProps(aRightItem,
                     aPropArray[i]));
     }
+}
+
+/**
+ * Test whether specified function throws exception with expected
+ * result.
+ *
+ * @param func
+ *        Function to be tested.
+ * @param result
+ *        Expected result. <code>null</code> for no throws.
+ * @param stack
+ *        Optional stack object to be printed. <code>null</code> for
+ *        Components#stack#caller.
+ */
+function do_check_throws(func, result, stack)
+{
+  if (!stack)
+    stack = Components.stack.caller;
+
+  try {
+    func();
+  } catch (exc) {
+    if (exc.result == result || exc == result) {
+      ++_passedChecks;
+      dump("TEST-PASS | " + stack.filename + " | [" + stack.name + " : " +
+           stack.lineNumber + "] " + exc.result + " == " + result + "\n");
+      return;
+    }
+    do_throw("expected result " + result + ", caught " + (exc.result || exc), stack);
+  }
+
+  if (result) {
+    do_throw("expected result " + result + ", none thrown", stack);
+  }
+}
+
+function ics_foldline(aLine) {
+  const NEWLINE_CHAR = "\r\n";
+  const FOLD_LENGTH = 74;
+  let result = "";
+  let line = aLine || "";
+
+  while (line.length) {
+    result += NEWLINE_CHAR + " " + line.substr(0, FOLD_LENGTH);
+    line = line.substr(FOLD_LENGTH);
+  }
+  return result.substr(NEWLINE_CHAR.length + 1);
 }

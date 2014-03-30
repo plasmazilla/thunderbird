@@ -9,7 +9,6 @@ VPATH     = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-MODULE         = pgpmime
 LIBRARY_NAME   = pgpmime_s
 EXPORT_LIBRARY = 1
 IS_COMPONENT   = 1
@@ -20,14 +19,6 @@ LIBXUL_LIBRARY = 1
 endif
 
 EXTRA_DSO_LIBS = mimecthglue_s
-
-CPPSRCS = \
-  nsPgpMimeProxy.cpp \
-  $(NULL)
-
-EXPORTS	= \
-  nsPgpMimeProxy.h \
-  $(NULL)
 
 ifdef MOZILLA_INTERNAL_API
 EXTRA_DSO_LDOPTS = \

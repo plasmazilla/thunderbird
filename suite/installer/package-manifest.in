@@ -62,11 +62,12 @@
 @BINPATH@/@DLL_PREFIX@mozjs@DLL_SUFFIX@
 #endif
 #ifndef MOZ_NATIVE_NSPR
+#ifndef MOZ_FOLD_LIBS
 @BINPATH@/@DLL_PREFIX@nspr4@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@plc4@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@plds4@DLL_SUFFIX@
 #endif
-@BINPATH@/@DLL_PREFIX@xpcom@DLL_SUFFIX@
+#endif
 #ifdef XP_MACOSX
 @BINPATH@/XUL
 #else
@@ -79,13 +80,13 @@
 @BINPATH@/@MOZ_CHILD_PROCESS_NAME@
 #endif
 ; ANGLE GLES-on-D3D rendering library
-#ifdef MOZ_ANGLE
+#ifdef MOZ_ANGLE_RENDERER
 @BINPATH@/libEGL.dll
 @BINPATH@/libGLESv2.dll
-@BINPATH@/@MOZ_D3DX9_DLL@
 @BINPATH@/@MOZ_D3DCOMPILER_DLL@
 #endif
 #ifdef XP_WIN32
+@BINPATH@/plugin-hang-ui@BIN_SUFFIX@
 #ifndef MOZ_DEBUG
 #if MOZ_MSVC_REDIST == 1400
 @BINPATH@/Microsoft.VC80.CRT.manifest
@@ -124,7 +125,9 @@
 @BINPATH@/@DLL_PREFIX@mozsqlt3@DLL_SUFFIX@
 #else
 #ifndef MOZ_NATIVE_SQLITE
+#ifndef MOZ_FOLD_LIBS
 @BINPATH@/@DLL_PREFIX@mozsqlite3@DLL_SUFFIX@
+#endif
 #endif
 #endif
 @BINPATH@/license.txt
@@ -142,12 +145,8 @@
 #ifdef ACCESSIBILITY
 #ifdef XP_WIN32
 @BINPATH@/AccessibleMarshal.dll
-@BINPATH@/components/accessibility-msaa.xpt
 #endif
 @BINPATH@/components/accessibility.xpt
-#endif
-#ifdef XP_MACOSX
-@BINPATH@/components/libalerts.dylib
 #endif
 @BINPATH@/components/alerts.xpt
 @BINPATH@/components/appshell.xpt
@@ -165,7 +164,6 @@
 @BINPATH@/components/content_htmldoc.xpt
 @BINPATH@/components/content_html.xpt
 @BINPATH@/components/content_xslt.xpt
-@BINPATH@/components/content_xtf.xpt
 @BINPATH@/components/cookie.xpt
 #ifdef MOZ_ENABLE_DBUS
 @BINPATH@/components/@DLL_PREFIX@dbusservice@DLL_SUFFIX@
@@ -186,26 +184,34 @@
 @BINPATH@/components/dom_devicestorage.xpt
 @BINPATH@/components/dom_events.xpt
 @BINPATH@/components/dom_file.xpt
+#ifdef MOZ_GAMEPAD
+@BINPATH@/components/dom_gamepad.xpt
+#endif
 @BINPATH@/components/dom_geolocation.xpt
 @BINPATH@/components/dom_html.xpt
 @BINPATH@/components/dom_indexeddb.xpt
 @BINPATH@/components/dom_json.xpt
-@BINPATH@/components/dom_loadsave.xpt
 @BINPATH@/components/dom_media.xpt
+@BINPATH@/components/dom_mobilemessage.xpt
 @BINPATH@/components/dom_network.xpt
 @BINPATH@/components/dom_notification.xpt
 @BINPATH@/components/dom_offline.xpt
+@BINPATH@/components/dom_permissionsettings.xpt
 @BINPATH@/components/dom_power.xpt
+@BINPATH@/components/dom_quota.xpt
 @BINPATH@/components/dom_range.xpt
 @BINPATH@/components/dom_settings.xpt
 @BINPATH@/components/dom_sidebar.xpt
 @BINPATH@/components/dom_smil.xpt
-@BINPATH@/components/dom_sms.xpt
 @BINPATH@/components/dom_storage.xpt
 @BINPATH@/components/dom_stylesheets.xpt
 @BINPATH@/components/dom_svg.xpt
 @BINPATH@/components/dom_system.xpt
 @BINPATH@/components/dom_traversal.xpt
+#ifdef MOZ_WEBSPEECH
+@BINPATH@/components/dom_webspeechrecognition.xpt
+@BINPATH@/components/dom_webspeechsynth.xpt
+#endif
 @BINPATH@/components/dom_xbl.xpt
 @BINPATH@/components/dom_xpath.xpt
 @BINPATH@/components/dom_xul.xpt
@@ -235,7 +241,6 @@
 @BINPATH@/components/jsdservice.xpt
 @BINPATH@/components/jsinspector.xpt
 @BINPATH@/components/layout_base.xpt
-@BINPATH@/components/layout_forms.xpt
 #ifdef NS_PRINTING
 @BINPATH@/components/layout_printing.xpt
 #endif
@@ -270,6 +275,9 @@
 @BINPATH@/components/@DLL_PREFIX@nkgnomevfs@DLL_SUFFIX@
 #endif
 @BINPATH@/components/parentalcontrols.xpt
+#ifdef MOZ_WEBRTC
+@BINPATH@/components/peerconnection.xpt
+#endif
 @BINPATH@/components/places.xpt
 @BINPATH@/components/plugin.xpt
 @BINPATH@/components/pref.xpt
@@ -338,10 +346,6 @@
 
 ; JavaScript components
 @BINPATH@/components/addonManager.js
-#ifdef MOZ_SERVICES_AITC
-@BINPATH@/components/Aitc.js
-@BINPATH@/components/AitcComponents.manifest
-#endif
 @BINPATH@/components/AlarmsManager.js
 @BINPATH@/components/AlarmsManager.manifest
 @BINPATH@/components/amContentHandler.js
@@ -360,12 +364,13 @@
 @BINPATH@/components/contentSecurityPolicy.js
 @BINPATH@/components/contentSecurityPolicy.manifest
 @BINPATH@/components/crypto-SDR.js
+@BINPATH@/components/cryptoComponents.manifest
+@BINPATH@/components/Downloads.manifest
+@BINPATH@/components/DownloadLegacy.js
 @BINPATH@/components/FeedConverter.js
 @BINPATH@/components/FeedProcessor.js
 @BINPATH@/components/FeedProcessor.manifest
 @BINPATH@/components/FeedWriter.js
-@BINPATH@/components/GPSDGeolocationProvider.js
-@BINPATH@/components/GPSDGeolocationProvider.manifest
 @BINPATH@/components/Identity.manifest
 @BINPATH@/components/jsconsole-clhandler.js
 @BINPATH@/components/jsconsole-clhandler.manifest
@@ -373,12 +378,7 @@
 @BINPATH@/components/messageWakeupService.manifest
 @BINPATH@/components/NetworkGeolocationProvider.js
 @BINPATH@/components/NetworkGeolocationProvider.manifest
-#ifdef MOZ_SERVICES_NOTIFICATIONS
-@BINPATH@/components/NotificationsComponents.manifest
-#endif
 @BINPATH@/components/nsAbout.js
-@BINPATH@/components/nsBadCertHandler.js
-@BINPATH@/components/nsBadCertHandler.manifest
 @BINPATH@/components/nsBlocklistService.js
 @BINPATH@/components/nsBrowserContentHandler.js
 @BINPATH@/components/nsComposerCmdLineHandler.js
@@ -396,6 +396,7 @@
 #endif
 @BINPATH@/components/nsFormAutoComplete.js
 @BINPATH@/components/nsFormHistory.js
+@BINPATH@/components/FormHistoryStartup.js
 @BINPATH@/components/nsHandlerService.js
 @BINPATH@/components/nsHandlerService.manifest
 @BINPATH@/components/nsHelperAppDlg.js
@@ -413,8 +414,6 @@
 @BINPATH@/components/nsPlacesExpiration.js
 @BINPATH@/components/nsPrompter.js
 @BINPATH@/components/nsPrompter.manifest
-@BINPATH@/components/nsProxyAutoConfig.js
-@BINPATH@/components/nsProxyAutoConfig.manifest
 @BINPATH@/components/nsSearchService.js
 @BINPATH@/components/nsSearchSuggestions.js
 @BINPATH@/components/nsSessionStartup.js
@@ -422,10 +421,8 @@
 @BINPATH@/components/nsSidebar.js
 @BINPATH@/components/nsSuiteDownloadManagerUI.js
 @BINPATH@/components/nsSuiteGlue.js
-#ifdef XP_WIN32
 @BINPATH@/components/nsSetDefault.js
 @BINPATH@/components/nsSetDefault.manifest
-#endif
 @BINPATH@/components/nsTaggingService.js
 @BINPATH@/components/nsTypeAheadFind.js
 #ifdef MOZ_UPDATER
@@ -446,8 +443,15 @@
 @BINPATH@/components/nsWebHandlerApp.js
 @BINPATH@/components/nsWebHandlerApp.manifest
 @BINPATH@/components/passwordmgr.manifest
+#ifdef MOZ_WEBRTC
+@BINPATH@/components/PeerConnection.js
+@BINPATH@/components/PeerConnection.manifest
+#endif
+@BINPATH@/components/PermissionSettings.js
+@BINPATH@/components/PermissionSettings.manifest
 @BINPATH@/components/PlacesCategoriesStarter.js
 @BINPATH@/components/pluginGlue.manifest
+@BINPATH@/components/servicesComponents.manifest
 @BINPATH@/components/SettingsManager.js
 @BINPATH@/components/SettingsManager.manifest
 @BINPATH@/components/SiteSpecificUserAgent.js
@@ -461,6 +465,7 @@
 #endif
 @BINPATH@/components/TCPSocket.js
 @BINPATH@/components/TCPSocket.manifest
+@BINPATH@/components/TCPSocketParentIntermediary.js
 @BINPATH@/components/TelemetryPing.js
 @BINPATH@/components/TelemetryPing.manifest
 @BINPATH@/components/txEXSLTRegExFunctions.js
@@ -576,12 +581,6 @@
 #ifdef LIBXUL_SDK
 @BINPATH@/@PREF_DIR@/channel-prefs.js
 #endif
-#ifdef MOZ_SERVICES_AITC
-@BINPATH@/@PREF_DIR@/services-aitc.js
-#endif
-#ifdef MOZ_SERVICES_NOTIFICATIONS
-@BINPATH@/@PREF_DIR@/services-notifications.js
-#endif
 #ifdef MOZ_SERVICES_SYNC
 @BINPATH@/@PREF_DIR@/services-sync.js
 #endif
@@ -603,7 +602,7 @@
 @BINPATH@/components/layout_debug.xpt
 #endif
 #endif
-; Style Sheets, Graphics and other Resources used by the layout engine. 
+; Style Sheets, Graphics and other Resources used by the layout engine.
 @BINPATH@/res/contenteditable.css
 @BINPATH@/res/designmode.css
 @BINPATH@/res/EditorOverride.css
@@ -629,6 +628,7 @@
 @BINPATH@/res/table-remove-row-active.gif
 @BINPATH@/res/table-remove-row-hover.gif
 @BINPATH@/res/table-remove-row.gif
+@BINPATH@/res/ImageDocument.css
 @BINPATH@/res/TopLevelImageDocument.css
 @BINPATH@/res/TopLevelVideoDocument.css
 #ifdef XP_MACOSX
@@ -654,10 +654,12 @@
 #ifndef NSS_DISABLE_DBM
 @BINPATH@/@DLL_PREFIX@nssdbm3@DLL_SUFFIX@
 #endif
+#ifndef MOZ_FOLD_LIBS
 @BINPATH@/@DLL_PREFIX@nssutil3@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@smime3@DLL_SUFFIX@
-@BINPATH@/@DLL_PREFIX@softokn3@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@ssl3@DLL_SUFFIX@
+#endif
+@BINPATH@/@DLL_PREFIX@softokn3@DLL_SUFFIX@
 #endif
 @BINPATH@/chrome/pippki@JAREXT@
 @BINPATH@/chrome/pippki.manifest
@@ -708,6 +710,9 @@ bin/libfreebl_32int64_3.so
 #endif
 #endif
 @BINPATH@/crashreporter-override.ini
+#ifdef MOZ_CRASHREPORTER_INJECTOR
+@BINPATH@/breakpadinjector.dll
+#endif
 #endif
 
 ; [OS/2]
@@ -742,7 +747,9 @@ bin/libfreebl_32int64_3.so
 ; MailNews JS components
 @BINPATH@/components/mdn-service.js
 @BINPATH@/components/mdn-service.manifest
+@BINPATH@/components/mimeJSComponents.js
 @BINPATH@/components/msgAsyncPrompter.js
+@BINPATH@/components/msgMime.manifest
 @BINPATH@/components/newsblog.js
 @BINPATH@/components/newsblog.manifest
 @BINPATH@/components/nsAbAutoCompleteMyDomain.js

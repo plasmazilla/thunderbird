@@ -1,11 +1,12 @@
-/* -*- Mode: Java; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/iteratorUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 var gServer;
-var gObserver;
-const Ci = Components.interfaces;
 
 function onInit(aPageId, aServerId) 
 {
@@ -29,9 +30,7 @@ function onPreInit(account, accountValues)
   var type = parent.getAccountValue(account, accountValues, "server", "type", null, false);
   hideShowControls(type);
 
-  gObserver= Components.classes["@mozilla.org/observer-service;1"].
-             getService(Components.interfaces.nsIObserverService);
-  gObserver.notifyObservers(null, "charsetmenu-selected", "other");
+  Services.obs.notifyObservers(null, "charsetmenu-selected", "other");
 
   gServer = account.incomingServer;
 
@@ -100,6 +99,7 @@ function onAdvanced()
   serverSettings.serverType = serverType;
 
   serverSettings.serverPrettyName = gServer.prettyName;
+  serverSettings.account = top.getCurrentAccount();
 
   if (serverType == "imap")
   {
@@ -140,9 +140,56 @@ function onAdvanced()
   {
     document.getElementById("pop3.deferGetNewMail").checked = serverSettings.deferGetNewMail;
     document.getElementById("pop3.deferredToAccount").setAttribute("value", serverSettings.deferredToAccount);
-    var pop3Server = gServer.QueryInterface(Components.interfaces.nsIPop3IncomingServer);
+    let pop3Server = gServer.QueryInterface(Components.interfaces.nsIPop3IncomingServer);
     // we're explicitly setting this so we'll go through the SetDeferredToAccount method
     pop3Server.deferredToAccount = serverSettings.deferredToAccount;
+    // Setting the server to be deferred causes a rebuild of the account tree,
+    // losing the current selection. Reselect the current server again as it
+    // didn't really disappear.
+    parent.selectServer(parent.getCurrentAccount().incomingServer, parent.currentPageId);
+
+    // Iterate over all accounts to see if any of their junk targets are now
+    // invalid (pointed to the account that is now deferred).
+    // If any such target is found it is reset to a new safe folder
+    // (the deferred to account or Local Folders). If junk was really moved
+    // to that folder (moveOnSpam = true) then moving junk is disabled
+    // (so that the user notices it and checks the settings).
+    // This is the same sanitization as in am-junk.js, just applied to all POP accounts.
+    let deferredURI = serverSettings.deferredToAccount &&
+                      MailServices.accounts.getAccount(serverSettings.deferredToAccount)
+                                           .incomingServer.serverURI;
+
+    for each (let account in fixIterator(MailServices.accounts.accounts,
+                                         Components.interfaces.nsIMsgAccount)) {
+      let accountValues = parent.getValueArrayFor(account);
+      let type = parent.getAccountValue(account, accountValues, "server", "type",
+                                        null, false);
+      // Try to keep this list of account types not having Junk settings
+      // synchronized with the list in AccountManager.js.
+      if (type != "nntp" && type != "rss" && type != "im") {
+        let spamActionTargetAccount = parent.getAccountValue(account, accountValues,
+          "server", "spamActionTargetAccount", "string", true);
+        let spamActionTargetFolder =  parent.getAccountValue(account, accountValues,
+          "server", "spamActionTargetFolder", "string", true);
+        let moveOnSpam = parent.getAccountValue(account, accountValues,
+          "server", "moveOnSpam", "bool", true);
+
+        // Check if there are any invalid junk targets and fix them.
+        [ spamActionTargetAccount, spamActionTargetFolder, moveOnSpam ] =
+          sanitizeJunkTargets(spamActionTargetAccount,
+                              spamActionTargetFolder,
+                              deferredURI || account.incomingServer.serverURI,
+                              parent.getAccountValue(account, accountValues, "server", "moveTargetMode", "int", true),
+                              account.incomingServer.spamSettings,
+                              moveOnSpam);
+
+        parent.setAccountValue(accountValues, "server", "moveOnSpam", moveOnSpam);
+        parent.setAccountValue(accountValues, "server", "spamActionTargetAccount",
+                               spamActionTargetAccount);
+        parent.setAccountValue(accountValues, "server", "spamActionTargetFolder",
+                               spamActionTargetFolder);
+      }
+    }
   }
 }
 
@@ -150,15 +197,13 @@ function secureSelect(aLoading)
 {
     var socketType = document.getElementById("server.socketType").value;
     var serverType = document.getElementById("server.type").value;
-    var protocolInfo = Components.classes["@mozilla.org/messenger/protocol/info;1?type=" + serverType]
-                                 .getService(Components.interfaces.nsIMsgProtocolInfo);
-
-    var defaultPort = protocolInfo.getDefaultServerPort(false);
-    var defaultPortSecure = protocolInfo.getDefaultServerPort(true);
+    var defaultPort = gServer.protocolInfo.getDefaultServerPort(false);
+    var defaultPortSecure = gServer.protocolInfo.getDefaultServerPort(true);
     var port = document.getElementById("server.port");
     var portDefault = document.getElementById("defaultPort");
     var prevDefaultPort = portDefault.value;
 
+    const Ci = Components.interfaces;
     if (socketType == Ci.nsMsgSocketType.SSL) {
       portDefault.value = defaultPortSecure;
       if (port.value == "" || (!aLoading && port.value == defaultPort && prevDefaultPort != portDefault.value))
@@ -253,7 +298,9 @@ function setupImapDeleteUI(aServerId)
   trashPopup._parentFolder = GetMsgFolderFromUri(aServerId);
   trashPopup._ensureInitialized();
 
-  var trashFolder = GetMsgFolderFromUri(aServerId+"/"+trashFolderName);
+  // TODO: There is something wrong here, selectFolder() fails even if the
+  // folder does exist. Try to fix in bug 802609.
+  let trashFolder = GetMsgFolderFromUri(aServerId + "/" + trashFolderName, false);
   try {
     trashPopup.selectFolder(trashFolder);
   } catch(ex) {

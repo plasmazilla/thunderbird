@@ -22,11 +22,10 @@ var jumlib = {};
 Components.utils.import("resource://mozmill/modules/jum.js", jumlib);
 var elib = {};
 Components.utils.import("resource://mozmill/modules/elementslib.js", elib);
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 var composeHelper = null;
 var cwc = null; // compose window controller
-var prefBranch = Cc["@mozilla.org/preferences-service;1"]
-                   .getService(Ci.nsIPrefService).getBranch(null);
 
 var setupModule = function (module) {
   let fdh = collector.getModule("folder-display-helpers");
@@ -38,15 +37,13 @@ var setupModule = function (module) {
 
   // Ensure we're in the tinderbox account as that has the right identities set
   // up for this test.
-  let acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
-  let server = acctMgr.FindServer("tinderbox", "tinderbox", "pop3");
+  let server = MailServices.accounts.FindServer("tinderbox", FAKE_SERVER_HOSTNAME, "pop3");
   let inbox = server.rootFolder.getChildNamed("Inbox");
   be_in_folder(inbox);
 };
 
 function setupComposeWin(toAddr, subj, body) {
-  cwc.type(cwc.a("addressingWidget", {class: "addressingWidgetCell", crazyDeck: 1}), toAddr);
+  cwc.type(null, toAddr);
   cwc.type(cwc.eid("msgSubject"), subj);
   cwc.type(cwc.eid("content-frame"), body);
 }
@@ -56,12 +53,12 @@ function setupComposeWin(toAddr, subj, body) {
  * and has the correct signature after switching to another identity.
  */
 function plaintextComposeWindowSwitchSignatures(suppressSigSep) {
-  prefBranch.setBoolPref("mail.identity.id1.compose_html", false);
+  Services.prefs.setBoolPref("mail.identity.id1.compose_html", false);
   cwc = composeHelper.open_compose_new_mail();
-  prefBranch.setBoolPref("mail.identity.id1.suppress_signature_separator",
-                         suppressSigSep);
-  prefBranch.setBoolPref("mail.identity.id2.suppress_signature_separator",
-                         suppressSigSep);
+  Services.prefs.setBoolPref("mail.identity.id1.suppress_signature_separator",
+                             suppressSigSep);
+  Services.prefs.setBoolPref("mail.identity.id2.suppress_signature_separator",
+                             suppressSigSep);
 
   let contentFrame = cwc.e("content-frame");
   let mailBody = contentFrame.contentDocument.body;
@@ -157,11 +154,11 @@ function testPlaintextComposeWindowSwitchSignatures() {
  * Same test, but with an HTML compose window
  */
 function HTMLComposeWindowSwitchSignatures(suppressSigSep) {
-  prefBranch.setBoolPref("mail.identity.id1.compose_html", true);
-  prefBranch.setBoolPref("mail.identity.id1.suppress_signature_separator",
-                         suppressSigSep);
-  prefBranch.setBoolPref("mail.identity.id2.suppress_signature_separator",
-                         suppressSigSep);
+  Services.prefs.setBoolPref("mail.identity.id1.compose_html", true);
+  Services.prefs.setBoolPref("mail.identity.id1.suppress_signature_separator",
+                             suppressSigSep);
+  Services.prefs.setBoolPref("mail.identity.id2.suppress_signature_separator",
+                             suppressSigSep);
   cwc = composeHelper.open_compose_new_mail();
 
   setupComposeWin("", "HTML compose window", "Body, first line.");

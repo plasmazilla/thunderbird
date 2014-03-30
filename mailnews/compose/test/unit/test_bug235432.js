@@ -2,11 +2,15 @@
 /**
  * Test for bug 235432
  */
+
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 var testmail = do_get_file("data/message1.eml");
 var expectedTemporaryFile;
 
-const kSender = "from@invalid.com";
-const kTo = "to@invalid.com";
+const kSender = "from@foo.invalid";
+const kTo = "to@foo.invalid";
 
 var msgSend = Cc["@mozilla.org/messengercompose/send;1"]
                 .createInstance(Ci.nsIMsgSend);
@@ -27,9 +31,9 @@ var gCopyListener =
   GetMessageId: function(aMessageId) {},
   OnStopCopy: function(aStatus) {
     if (this.callbackFunction) {
-      do_timeout_function(0, this.callbackFunction,
-                          null,
-                          [ this.copiedMessageHeaderKeys, aStatus ]);
+      mailTestUtils.do_timeout_function(0, this.callbackFunction,
+                                        null,
+                                        [ this.copiedMessageHeaderKeys, aStatus ]);
     }
   }
 };
@@ -54,28 +58,24 @@ function copyFileMessageInLocalFolder(aMessageFile,
                                       aMessageWindow,
                                       aCallback) {
   // Set up local folders
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
   gCopyListener.callbackFunction = aCallback;
   // Copy a message into the local folder
-  Cc["@mozilla.org/messenger/messagecopyservice;1"]
-    .getService(Ci.nsIMsgCopyService)
-    .CopyFileMessage(aMessageFile,
-                     gLocalInboxFolder,
-                     null, false,
-                     aMessageFlags,
-                     aMessageKeywords,
-                     gCopyListener,
-                     aMessageWindow);
+  MailServices.copy.CopyFileMessage(aMessageFile,
+                                    localAccountUtils.inboxFolder,
+                                    null, false,
+                                    aMessageFlags,
+                                    aMessageKeywords,
+                                    gCopyListener,
+                                    aMessageWindow);
 }
 
 // The attatchment file can not be obtained from js test,
 // so we have to generate the file name here.
 function createExpectedTemporaryFile() {
   function createTemporaryFile() {
-    let file = Cc["@mozilla.org/file/directory_service;1"]
-                 .getService(Ci.nsIProperties)
-                 .get("TmpD", Ci.nsIFile);
+    let file = Services.dirsvc.get("TmpD", Ci.nsIFile);
     file.append("nsmail.tmp");
     file.createUnique(Ci.nsIFile.NORMAL_FILE_TYPE, 0600);
     return file;
@@ -112,8 +112,7 @@ function send_message_later(aMessageHeaderKeys, aStatus) {
                  .createInstance(Ci.nsIMsgComposeParams);
   params.composeFields = compFields;
   let msgCompose = MailServices.compose.initCompose(params);
-  let rootFolder = gLocalIncomingServer.rootMsgFolder;
-  rootFolder.createLocalSubfolder("Drafts");
+  localAccountUtils.rootFolder.createLocalSubfolder("Drafts");
 
   let smtpServer = getBasicSmtpServer();
   let identity = getSmtpIdentity(kSender, smtpServer);
@@ -121,8 +120,8 @@ function send_message_later(aMessageHeaderKeys, aStatus) {
   compFields.from = identity.email;
   compFields.to = kTo;
 
-  let msgHdr = gLocalInboxFolder.GetMessageHeader(aMessageHeaderKeys[0]);
-  let messageUri = gLocalInboxFolder.getUriForMsg(msgHdr);
+  let msgHdr = localAccountUtils.inboxFolder.GetMessageHeader(aMessageHeaderKeys[0]);
+  let messageUri = localAccountUtils.inboxFolder.getUriForMsg(msgHdr);
 
   let attachment = Cc["@mozilla.org/messengercompose/attachment;1"]
                      .createInstance(Ci.nsIMsgAttachment);
@@ -142,7 +141,6 @@ function send_message_later(aMessageHeaderKeys, aStatus) {
                                null,
                                'text/plain',
                                'bodyText\n',
-                               9,
                                null,
                                null,
                                null,

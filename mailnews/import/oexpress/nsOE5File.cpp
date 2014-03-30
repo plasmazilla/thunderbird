@@ -298,7 +298,7 @@ nsresult nsOE5File::ImportMailbox(uint32_t *pBytesDone, bool *pAbort,
   uint32_t  didBytes = 0;
   uint32_t  next, size;
   char *pStart, *pEnd, *partialLineStart;
-  nsCAutoString partialLine, tempLine;
+  nsAutoCString partialLine, tempLine;
   nsCOMPtr<nsIOutputStream> outputStream;
   rv = NS_OK;
 
@@ -339,7 +339,7 @@ nsresult nsOE5File::ImportMailbox(uint32_t *pBytesDone, bool *pAbort,
         {
           // Get the "From " line so write it out.
           rv = outputStream->Write(pStart, pChar-pStart+2, &written);
-          if (rv)
+          if (NS_SUCCEEDED(rv))
             // Now buffer starts from the 2nd line.
             pStart = pChar + 2;
         }
@@ -453,7 +453,7 @@ nsresult nsOE5File::ImportMailbox(uint32_t *pBytesDone, bool *pAbort,
       // From - Jan 1965 00:00:00     <<<--- 1st msg starts here
       // Subject: Test msg
       // . . . (more headers)
-      // To: <someone@netscape.com>
+      // To: <someone@example.com>
       // From - Jan 1965 00:00:00     <<<--- 2nd msg starts here
       // Subject: How are you
       // . . .(more headers)

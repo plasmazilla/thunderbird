@@ -7,6 +7,7 @@
 #include "nsIMsgAccount.h"
 #include "nsIPrefBranch.h"
 #include "nsStringGlue.h"
+#include "nsIMutableArray.h"
 
 class nsMsgAccount : public nsIMsgAccount
 {
@@ -23,12 +24,12 @@ private:
   nsCOMPtr<nsIPrefBranch> m_prefs;
   nsCOMPtr<nsIMsgIncomingServer> m_incomingServer;
 
-  nsCOMPtr<nsIMsgIdentity> m_defaultIdentity;
-  nsCOMPtr<nsISupportsArray> m_identities;
+  nsCOMPtr<nsIMutableArray> m_identities;
 
   nsresult getPrefService();
   nsresult createIncomingServer();
   nsresult createIdentities();
+  nsresult saveIdentitiesPref();
   nsresult addIdentityInternal(nsIMsgIdentity* identity);
 
   // Have we tried to get the server yet?

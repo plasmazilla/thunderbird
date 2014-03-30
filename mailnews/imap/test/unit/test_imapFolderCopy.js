@@ -3,17 +3,14 @@
 // could be added.
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 load("../../../resources/messageGenerator.js");
-load("../../../resources/IMAPpump.js");
 
 var gEmptyLocal1, gEmptyLocal2, gEmptyLocal3, gNotEmptyLocal4;
-var gCopyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
-                .getService(Ci.nsIMsgCopyService);
 
 Components.utils.import("resource:///modules/folderUtils.jsm");
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
 
 var tests = [
   setup,
@@ -22,7 +19,7 @@ var tests = [
     let folders = new Array;
     folders.push(gEmptyLocal1.QueryInterface(Ci.nsIMsgFolder));
     let array = toXPCOMArray(folders, Ci.nsIMutableArray);
-    gCopyService.CopyFolders(array, gIMAPInbox, false, CopyListener, null);
+    MailServices.copy.CopyFolders(array, IMAPPump.inbox, false, CopyListener, null);
     yield false;
   },
   function copyFolder2() {
@@ -30,7 +27,7 @@ var tests = [
     let folders = new Array;
     folders.push(gEmptyLocal2);
     let array = toXPCOMArray(folders, Ci.nsIMutableArray);
-    gCopyService.CopyFolders(array, gIMAPInbox, false, CopyListener, null);
+    MailServices.copy.CopyFolders(array, IMAPPump.inbox, false, CopyListener, null);
     yield false;
   },
   function copyFolder3() {
@@ -38,15 +35,15 @@ var tests = [
     let folders = new Array;
     folders.push(gEmptyLocal3);
     let array = toXPCOMArray(folders, Ci.nsIMutableArray);
-    gCopyService.CopyFolders(array, gIMAPInbox, false, CopyListener, null);
+    MailServices.copy.CopyFolders(array, IMAPPump.inbox, false, CopyListener, null);
     yield false;
   },
   function verifyFolders() {
-    let folder1 = gIMAPInbox.getChildNamed("empty 1");
+    let folder1 = IMAPPump.inbox.getChildNamed("empty 1");
     dump("found folder1\n");
-    let folder2 = gIMAPInbox.getChildNamed("empty 2");
+    let folder2 = IMAPPump.inbox.getChildNamed("empty 2");
     dump("found folder2\n");
-    let folder3 = gIMAPInbox.getChildNamed("empty 3");
+    let folder3 = IMAPPump.inbox.getChildNamed("empty 3");
     dump("found folder3\n");
     do_check_neq(folder1, null);
     do_check_neq(folder2, null);
@@ -54,24 +51,24 @@ var tests = [
   },
   function moveImapFolder1() {
     let folders = new Array;
-    let folder1 = gIMAPInbox.getChildNamed("empty 1");
-    let folder2 = gIMAPInbox.getChildNamed("empty 2");
+    let folder1 = IMAPPump.inbox.getChildNamed("empty 1");
+    let folder2 = IMAPPump.inbox.getChildNamed("empty 2");
     folders.push(folder2.QueryInterface(Ci.nsIMsgFolder));
     let array = toXPCOMArray(folders, Ci.nsIMutableArray);
-    gCopyService.CopyFolders(array, folder1, true, CopyListener, null);
+    MailServices.copy.CopyFolders(array, folder1, true, CopyListener, null);
     yield false;
   },
   function moveImapFolder2() {
     let folders = new Array;
-    let folder1 = gIMAPInbox.getChildNamed("empty 1");
-    let folder3 = gIMAPInbox.getChildNamed("empty 3");
+    let folder1 = IMAPPump.inbox.getChildNamed("empty 1");
+    let folder3 = IMAPPump.inbox.getChildNamed("empty 3");
     folders.push(folder3.QueryInterface(Ci.nsIMsgFolder));
     let array = toXPCOMArray(folders, Ci.nsIMutableArray);
-    gCopyService.CopyFolders(array, folder1, true, CopyListener, null);
+    MailServices.copy.CopyFolders(array, folder1, true, CopyListener, null);
     yield false;
   },
   function verifyImapFolders() {
-    let folder1 = gIMAPInbox.getChildNamed("empty 1");
+    let folder1 = IMAPPump.inbox.getChildNamed("empty 1");
     dump("found folder1\n");
     let folder2 = folder1.getChildNamed("empty 2");
     dump("found folder2\n");
@@ -85,10 +82,10 @@ var tests = [
     let folders = new Array;
     folders.push(gNotEmptyLocal4.QueryInterface(Ci.nsIMsgFolder));
     let array = toXPCOMArray(folders, Ci.nsIMutableArray);
-    gIMAPDaemon.commandToFail = "APPEND";
+    IMAPPump.daemon.commandToFail = "APPEND";
     // we expect NS_MSG_ERROR_IMAP_COMMAND_FAILED;
     CopyListener._expectedStatus = 0x80550021;
-    gCopyService.CopyFolders(array, gIMAPInbox, false, CopyListener, null);
+    MailServices.copy.CopyFolders(array, IMAPPump.inbox, false, CopyListener, null);
 
     // In failure case OnStopCopy is sent twice, the first one comes from
     // nsMsgCopyService, the second one comes from nsImapFolderCopyState.
@@ -102,10 +99,10 @@ var tests = [
 function setup() {
   setupIMAPPump();
 
-  gEmptyLocal1 = gLocalIncomingServer.rootFolder.createLocalSubfolder("empty 1");
-  gEmptyLocal2 = gLocalIncomingServer.rootFolder.createLocalSubfolder("empty 2");
-  gEmptyLocal3 = gLocalIncomingServer.rootFolder.createLocalSubfolder("empty 3");
-  gNotEmptyLocal4 = gLocalIncomingServer.rootFolder.createLocalSubfolder("not empty 4");
+  gEmptyLocal1 = localAccountUtils.rootFolder.createLocalSubfolder("empty 1");
+  gEmptyLocal2 = localAccountUtils.rootFolder.createLocalSubfolder("empty 2");
+  gEmptyLocal3 = localAccountUtils.rootFolder.createLocalSubfolder("empty 3");
+  gNotEmptyLocal4 = localAccountUtils.rootFolder.createLocalSubfolder("not empty 4");
 
   let messageGenerator = new MessageGenerator();
   let message = messageGenerator.makeMessage();
@@ -116,8 +113,8 @@ function setup() {
   // running initial folder discovery, and adding the folder bails
   // out before we set it as verified online, so we bail out, and
   // then remove the INBOX folder since it's not verified.
-  gIMAPInbox.hierarchyDelimiter = '/';
-  gIMAPInbox.verifiedAsOnlineFolder = true;
+  IMAPPump.inbox.hierarchyDelimiter = '/';
+  IMAPPump.inbox.verifiedAsOnlineFolder = true;
 }
 
 // nsIMsgCopyServiceListener implementation - runs next test when copy

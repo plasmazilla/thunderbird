@@ -12,7 +12,6 @@
  *
  */
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 
 var testSubjects = ["[Bug 397009] A filter will let me tag, but not untag",
@@ -20,7 +19,7 @@ var testSubjects = ["[Bug 397009] A filter will let me tag, but not untag",
 var gMsgFile1 = do_get_file("../../../data/bugmail1");
 var gMsgFile2 = do_get_file("../../../data/draft1");
 
-gTargetFolder = null;
+var gTargetFolder = null;
 
 var tests = [
   function setup()
@@ -30,10 +29,10 @@ var tests = [
       do_check_true(false);
     });
  
-    if (typeof gLocalInboxFolder == 'undefined')
-      loadLocalMailAccount();
-    gLocalRootFolder.createSubfolder("target", null);
-    gTargetFolder = gLocalRootFolder.getChildNamed("target");
+    if (typeof localAccountUtils.inboxFolder == 'undefined')
+      localAccountUtils.loadLocalMailAccount();
+    localAccountUtils.rootFolder.createSubfolder("target", null);
+    gTargetFolder = localAccountUtils.rootFolder.getChildNamed("target");
 
     MailServices.copy.CopyFileMessage(gMsgFile1, gTargetFolder, null, false, 0,
                                       "", asyncCopyListener, null);
@@ -59,7 +58,7 @@ var tests = [
     do_check_eq(msgCount, 2);
 
     // try an update
-    updateFolderAndNotify(gTargetFolder, function () {
+    mailTestUtils.updateFolderAndNotify(gTargetFolder, function () {
       dump("after FolderLoaded1\n");
       async_driver();
     });
@@ -71,7 +70,7 @@ var tests = [
     // If the following executes, the test hangs in bug 787557.
     gTargetFolder.msgDatabase = null;
     // try an update
-    updateFolderAndNotify(gTargetFolder, function () {
+    mailTestUtils.updateFolderAndNotify(gTargetFolder, function () {
       dump("after FolderLoaded2\n");
       async_driver();
     });

@@ -9,13 +9,11 @@
  
  // async support
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 
-var gServer, gIMAPIncomingServer, gIMAPDaemon;
-var gThreadManager = Cc["@mozilla.org/thread-manager;1"].getService();
+Components.utils.import("resource://gre/modules/Services.jsm");
 
-const ioS = Cc["@mozilla.org/network/io-service;1"].getService(Ci.nsIIOService);
+var gServer, gIMAPIncomingServer, gIMAPDaemon;
 
 var tests = [
   streamMessages,
@@ -58,8 +56,9 @@ function streamMessages() {
   let msgFiles = do_get_file("../../../data/").directoryEntries;
   while (msgFiles.hasMoreElements()) {
     let file = msgFiles.getNext();
-    let msgfileuri = ioS.newFileURI(file).QueryInterface(Ci.nsIFileURL);
-    if (/^bodystructure/i.test(msgfileuri.fileName)) {
+    let msgfileuri =
+      Services.io.newFileURI(file).QueryInterface(Ci.nsIFileURL);
+    if (msgfileuri.fileName.toLowerCase().startsWith("bodystructure")) {
       inbox.addMessage(new imapMessage(msgfileuri.spec, inbox.uidnext++, []));
       fileNames.push(msgfileuri.fileName);
     }
@@ -72,17 +71,17 @@ function streamMessages() {
     // 0 orig html 3 sanitized 1 plain text
     Services.prefs.setIntPref ("mailnews.display.html_as", isPlain ? 1 : 0);
     Services.prefs.setBoolPref("mailnews.display.prefer_plaintext", isPlain);
-    let markerRe;
+    let marker;
     if (isPlain)
-      markerRe = /thisplaintextneedstodisplaytopasstest/;
+      marker = "thisplaintextneedstodisplaytopasstest";
     else
-      markerRe = /thishtmltextneedstodisplaytopasstest/;
+      marker = "thishtmltextneedstodisplaytopasstest";
 
     for (let i = 1; i < inbox.uidnext ; i++) {
       let uri = {};
       imapS.GetUrlForUri("imap-message://user@localhost/INBOX#" + i,uri,null);
       uri.value.spec += "?header=quotebody";
-      let channel = ioS.newChannelFromURI(uri.value);
+      let channel = Services.io.newChannelFromURI(uri.value);
       channel.asyncOpen(gStreamListener, null);
       yield false;
       let buf = gStreamListener._data;
@@ -92,7 +91,7 @@ function streamMessages() {
            "##########\nTesting--->" + fileNames[i-1] +
            "; 'prefer plain text': " + isPlain + "\n");
       try {
-        do_check_true(markerRe.test(buf));
+        do_check_true(buf.contains(marker));
       }
       catch(e){}
     }
@@ -100,7 +99,7 @@ function streamMessages() {
   yield true;
 }
 
-gStreamListener = {
+let gStreamListener = {
   QueryInterface : XPCOMUtils.generateQI([Ci.nsIStreamListener]),
   _stream : null,
   _data : null,
@@ -123,7 +122,7 @@ gStreamListener = {
 function endTest() {
   gIMAPIncomingServer.closeCachedConnections();
   gServer.stop();
-  let thread = gThreadManager.currentThread;
+  let thread = Services.tm.currentThread;
   while (thread.hasPendingEvents())
     thread.processNextEvent(true);
   yield true;

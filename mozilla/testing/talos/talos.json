@@ -1,15 +1,15 @@
 {
     "talos.zip": {
-        "url": "http://talos-bundles.pvt.build.mozilla.org/zips/talos.38e088867f7b.zip",
+        "url": "http://talos-bundles.pvt.build.mozilla.org/zips/talos.a11542b55a70.zip",
         "path": ""
     },
     "global": {
-        "talos_repo": "http://hg.mozilla.org/build/talos",
-        "talos_revision": "38e088867f7b"
+        "talos_repo": "https://hg.mozilla.org/build/talos",
+        "talos_revision": "a11542b55a70"
     },
     "suites": {
         "chromez": {
-            "tests": ["tresize"],
+            "tests": ["tdhtmlr", "tresize"],
             "talos_options": [
                 "--mozAfterPaint",
                 "--filter",

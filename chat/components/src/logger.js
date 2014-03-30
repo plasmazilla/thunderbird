@@ -27,6 +27,25 @@ const LocalFile = CC("@mozilla.org/file/local;1",
 
 const kLineBreak = "@mozilla.org/windows-registry-key;1" in Cc ? "\r\n" : "\n";
 
+// This function checks names against OS naming conventions and alters them
+// accordingly so that they can be used as file/folder names.
+function encodeName(aName)
+{
+  // Reserved device names by Windows (prefixing "%").
+  var reservedNames = /^(CON|PRN|AUX|NUL|COM\d|LPT\d)$/i;
+  if (reservedNames.test(aName))
+    return "%" + aName;
+
+  // "." and " " must not be at the end of a file or folder name (appending "_").
+  if (/[\. _]/.test(aName.slice(-1)))
+    aName += "_";
+
+  // Reserved characters are replaced by %[hex value]. encodeURIComponent() is
+  // not sufficient, nevertheless decodeURIComponent() can be used to decode.
+  function encodeReservedChars(match) "%" + match.charCodeAt(0).toString(16);
+  return aName.replace(/[<>:"\/\\|?*&%]/g, encodeReservedChars);
+}
+
 function getLogFolderForAccount(aAccount, aCreate)
 {
   let file = logDir.clone();
@@ -37,14 +56,14 @@ function getLogFolderForAccount(aAccount, aCreate)
   createIfNotExists(file);
   file.append(aAccount.protocol.normalizedName);
   createIfNotExists(file);
-  file.append(aAccount.normalizedName);
+  file.append(encodeName(aAccount.normalizedName));
   createIfNotExists(file);
   return file;
 }
 
-function getNewLogFileName(aFormat)
+function getNewLogFileName(aFormat, aDate)
 {
-  let date = new Date();
+  let date = aDate ? new Date(aDate / 1000) : new Date();
   let dateTime = date.toLocaleFormat("%Y-%m-%d.%H%M%S");
   let offset = date.getTimezoneOffset();
   if (offset < 0) {
@@ -76,12 +95,12 @@ ConversationLog.prototype = {
     let name = this._conv.normalizedName;
     if (convIsRealMUC(this._conv))
       name += ".chat";
-    file.append(name);
+    file.append(encodeName(name));
     if (!file.exists())
       file.create(Ci.nsIFile.DIRECTORY_TYPE, 0777);
     if (Services.prefs.getCharPref("purple.logging.format") == "json")
       this.format = "json";
-    file.append(getNewLogFileName(this.format));
+    file.append(getNewLogFileName(this.format, this._conv.startDate));
     this.file = file;
     let os = Cc["@mozilla.org/network/file-output-stream;1"].
              createInstance(Ci.nsIFileOutputStream);
@@ -100,15 +119,16 @@ ConversationLog.prototype = {
   {
     let account = this._conv.account;
     if (this.format == "json") {
-      return JSON.stringify({date: new Date(),
+      return JSON.stringify({date: new Date(this._conv.startDate / 1000),
                              name: this._conv.name,
                              title: this._conv.title,
                              account: account.normalizedName,
-                             protocol: account.protocol.normalizedName
+                             protocol: account.protocol.normalizedName,
+                             isChat: this._conv.isChat
                             }) + "\n";
     }
     return "Conversation with " + this._conv.name +
-           " at " + (new Date).toLocaleString() +
+           " at " + (new Date(this._conv.startDate / 1000)).toLocaleString() +
            " on " + account.name +
            " (" + account.protocol.normalizedName + ")" + kLineBreak;
   },
@@ -165,8 +185,8 @@ ConversationLog.prototype = {
       if (aMessage.autoResponse)
         line += sender + " <AUTO-REPLY>: " + msg;
       else {
-        if (/^\/me /.test(msg))
-          line += "***" + sender + " " + msg.replace(/^\/me /, "");
+        if (msg.startsWith("/me "))
+          line += "***" + sender + " " + msg.substr(4);
         else
           line += sender + ": " + msg;
       }
@@ -321,10 +341,12 @@ function LogConversation(aLineInputStreams)
 
     if (firstFile) {
       let data = JSON.parse(line.value);
+      this.startDate = new Date(data.date) * 1000;
       this.name = data.name;
       this.title = data.title;
       this._accountName = data.account;
       this._protocolName = data.protocol;
+      this._isChat = data.isChat;
       firstFile = false;
     }
 
@@ -344,7 +366,7 @@ function LogConversation(aLineInputStreams)
 }
 LogConversation.prototype = {
   __proto__: ClassInfo("imILogConversation", "Log conversation object"),
-  get isChat() false,
+  get isChat() this._isChat,
   get buddy() null,
   get account() ({
     alias: "",
@@ -450,7 +472,7 @@ LogEnumerator.prototype = {
 function DailyLogEnumerator(aEntries) {
   this._entries = {};
 
-  for each (entry in aEntries) {
+  for each (let entry in aEntries) {
     while (entry.hasMoreElements()) {
       let file = entry.getNext();
       if (!(file instanceof Ci.nsIFile))
@@ -554,7 +576,7 @@ Logger.prototype = {
   _enumerateLogs: function logger__enumerateLogs(aAccount, aNormalizedName,
                                                  aGroupByDay) {
     let file = getLogFolderForAccount(aAccount);
-    file.append(aNormalizedName);
+    file.append(encodeName(aNormalizedName));
     if (!file.exists())
       return EmptyEnumerator;
 
@@ -606,7 +628,7 @@ Logger.prototype = {
     aContact.getBuddies().forEach(function (aBuddy) {
       aBuddy.getAccountBuddies().forEach(function (aAccountBuddy) {
         let file = getLogFolderForAccount(aAccountBuddy.account);
-        file.append(aAccountBuddy.normalizedName);
+        file.append(encodeName(aAccountBuddy.normalizedName));
         if (file.exists())
           entries.push(file.directoryEntries);
       });
@@ -617,7 +639,7 @@ Logger.prototype = {
     let entries = [];
     aBuddy.getAccountBuddies().forEach(function (aAccountBuddy) {
       let file = getLogFolderForAccount(aAccountBuddy.account);
-      file.append(aAccountBuddy.normalizedName);
+      file.append(encodeName(aAccountBuddy.normalizedName));
       if (file.exists())
         entries.push(file.directoryEntries);
     });

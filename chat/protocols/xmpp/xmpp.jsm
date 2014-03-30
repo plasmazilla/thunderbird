@@ -35,8 +35,6 @@ XPCOMUtils.defineLazyServiceGetter(this, "imgTools",
                                    "@mozilla.org/image/tools;1",
                                    "imgITools");
 
-initLogModule("xmpp", this);
-
 XPCOMUtils.defineLazyGetter(this, "_", function()
   l10nHelper("chrome://chat/locale/xmpp.properties")
 );
@@ -112,8 +110,8 @@ const XMPPMUCConversationPrototype = {
     let nick = this._account._parseJID(from).resource;
     if (aStanza.attributes["type"] == "unavailable") {
       if (!(nick in this._participants)) {
-        WARN("received unavailable presence for an unknown MUC participant: " +
-             from);
+        this.WARN("received unavailable presence for an unknown MUC participant: " +
+                  from);
         return;
       }
       delete this._participants[nick];
@@ -144,7 +142,7 @@ const XMPPMUCConversationPrototype = {
       from = this.name;
     }
     else if (aStanza.attributes["type"] == "error") {
-      aMsg = _("connection.error.incorrectResponse");
+      aMsg = _("conversation.error.notDelivered", aMsg);
       flags.system = true;
       flags.error = true;
     }
@@ -272,7 +270,7 @@ const XMPPConversationPrototype = {
     this._targetResource = this._account._parseJID(from).resource;
     let flags = {};
     if (aStanza.attributes["type"] == "error") {
-      aMsg = _("connection.error.incorrectResponse");
+      aMsg = _("conversation.error.notDelivered", aMsg);
       flags.system = true;
       flags.error = true;
     }
@@ -369,8 +367,8 @@ const XMPPAccountBuddyPrototype = {
   get serverAlias() this._rosterAlias || this._vCardFormattedName || this._serverAlias,
   set serverAlias(aNewAlias) {
     if (!this._rosterItem) {
-      ERROR("attempting to update the server alias of an account buddy for " +
-            "which we haven't received a roster item.");
+      this.ERROR("attempting to update the server alias of an account buddy " +
+                 "for which we haven't received a roster item.");
       return;
     }
 
@@ -391,6 +389,44 @@ const XMPPAccountBuddyPrototype = {
 
   /* Display name of the buddy */
   get contactDisplayName() this.buddy.contact.displayName || this.displayName,
+
+  get tag() this._tag,
+  set tag(aNewTag) {
+    let oldTag = this._tag;
+    if (oldTag.name == aNewTag.name) {
+      this.ERROR("attempting to set the tag to the same value");
+      return;
+    }
+
+    this._tag = aNewTag;
+    Services.contacts.accountBuddyMoved(this, oldTag, aNewTag);
+
+    if (!this._rosterItem) {
+      this.ERROR("attempting to change the tag of an account buddy without roster item");
+      return;
+    }
+
+    let item = this._rosterItem;
+    let oldXML = item.getXML();
+    // Remove the old tag if it was listed in the roster item.
+    item.children =
+      item.children.filter(function (c) c.qName != "group" ||
+                                        c.innerText != oldTag.name);
+    // Ensure the new tag is listed.
+    let newTagName = aNewTag.name;
+    if (!item.getChildren("group").some(function (g) g.innerText == newTagName))
+      item.addChild(Stanza.node("group", null, null, newTagName));
+    // Avoid sending anything to the server if the roster item hasn't changed.
+    // It's possible that the roster item hasn't changed if the roster
+    // item had several groups and the user moved locally the contact
+    // to another group where it already was on the server.
+    if (item.getXML() == oldXML)
+      return;
+
+    let s = Stanza.iq("set", null, null,
+                      Stanza.node("query", Stanza.NS.roster, null, item));
+    this._account._connection.sendStanza(s);
+  },
 
   remove: function() {
     if (!this._account.connected)
@@ -713,13 +749,13 @@ const XMPPAccountPrototype = {
       throw "The account isn't connected";
 
     let jid = this._normalizeJID(aName);
-    if (!jid || jid.indexOf("@") == -1)
+    if (!jid || !jid.contains("@"))
       throw "Invalid username";
 
     if (this._buddies.hasOwnProperty(jid)) {
       let subscription = this._buddies[jid].subscription;
       if (subscription && (subscription == "both" || subscription == "to")) {
-        DEBUG("not re-adding an existing buddy");
+        this.DEBUG("not re-adding an existing buddy");
         return;
       }
     }
@@ -786,7 +822,7 @@ const XMPPAccountPrototype = {
   /* Called when a presence stanza is received */
   onPresenceStanza: function(aStanza) {
     let from = aStanza.attributes["from"];
-    DEBUG("Received presence stanza for " + from);
+    this.DEBUG("Received presence stanza for " + from);
 
     let jid = this._normalizeJID(from);
     let type = aStanza.attributes["type"];
@@ -830,7 +866,7 @@ const XMPPAccountPrototype = {
         // We have attempted to join, but not created the conversation yet.
         if (aStanza.attributes["type"] == "error") {
           delete this._mucs[jid];
-          ERROR("Failed to join MUC: " + aStanza.convertToString());
+          this.ERROR("Failed to join MUC: " + aStanza.convertToString());
           return;
         }
         let nick = this._mucs[jid];
@@ -839,7 +875,7 @@ const XMPPAccountPrototype = {
       this._mucs[jid].onPresenceStanza(aStanza);
     }
     else if (from != this._connection._jid.jid)
-      WARN("received presence stanza for unknown buddy " + from);
+      this.WARN("received presence stanza for unknown buddy " + from);
   },
 
   /* Called when a message stanza is received */
@@ -849,8 +885,21 @@ const XMPPAccountPrototype = {
     let type = aStanza.attributes["type"];
     let body;
     let b = aStanza.getElement(["body"]);
-    if (b)
-      body = b.getXML();
+    if (b) {
+      // If there's a <body> child we have more than just typing notifications.
+      // Prefer HTML (in <html><body>) and use plain text (<body>) as fallback.
+      let htmlBody = aStanza.getElement(["html", "body"]);
+      if (htmlBody)
+        body = htmlBody.innerXML;
+      else {
+        // Even if the message is in plain text, the prplIMessage
+        // should contain a string that's correctly escaped for
+        // insertion in an HTML document.
+        body = Components.classes["@mozilla.org/txttohtmlconv;1"]
+                         .getService(Ci.mozITXTToHTMLConv)
+                         .scanTXT(b.innerText, Ci.mozITXTToHTMLConv.kEntities);
+      }
+    }
     if (body) {
       let date;
       let delay = aStanza.getElement(["delay"]);
@@ -863,7 +912,7 @@ const XMPPAccountPrototype = {
       if (type == "groupchat" ||
           (type == "error" && this._mucs.hasOwnProperty(norm))) {
         if (!this._mucs.hasOwnProperty(norm)) {
-          WARN("Received a groupchat message for unknown MUC " + norm);
+          this.WARN("Received a groupchat message for unknown MUC " + norm);
           return;
         }
         this._mucs[norm].incomingMessage(body, aStanza, date);
@@ -888,7 +937,7 @@ const XMPPAccountPrototype = {
     if (s.length > 0)
       state = s[0].localName;
     if (state) {
-      DEBUG(state);
+      this.DEBUG(state);
       if (state == "active")
         this._conv[norm].updateTyping(Ci.prplIConvIM.NOT_TYPING);
       else if (state == "composing")
@@ -966,7 +1015,7 @@ const XMPPAccountPrototype = {
   _onRosterItem: function(aItem, aNotifyOfUpdates) {
     let jid = aItem.attributes["jid"];
     if (!jid) {
-      WARN("Received a roster item without jid: " + aItem.getXML());
+      this.WARN("Received a roster item without jid: " + aItem.getXML());
       return "";
     }
     jid = this._normalizeJID(jid);
@@ -980,8 +1029,24 @@ const XMPPAccountPrototype = {
     }
 
     let buddy;
-    if (this._buddies.hasOwnProperty(jid))
+    if (this._buddies.hasOwnProperty(jid)) {
       buddy = this._buddies[jid];
+      let groups = aItem.getChildren("group");
+      if (groups.length) {
+        // If the server specified at least one group, ensure the group we use
+        // as the account buddy's tag is still a group on the server...
+        let tagName = buddy.tag.name;
+        if (!groups.some(function (g) g.innerText == tagName)) {
+          // ... otherwise we need to move our account buddy to a new group.
+          tagName = groups[0].innerText;
+          if (tagName) { // Should always be true, but check just in case...
+            let oldTag = buddy.tag;
+            buddy._tag = Services.tags.createTag(tagName);
+            Services.contacts.accountBuddyMoved(buddy, oldTag, buddy._tag);
+          }
+        }
+      }
+    }
     else {
       let tagName = _("defaultGroup");
       for each (let group in aItem.getChildren("group")) {
@@ -1079,7 +1144,7 @@ const XMPPAccountPrototype = {
   /* Create a new conversation */
   createConversation: function(aNormalizedName) {
     if (!this._buddies.hasOwnProperty(aNormalizedName)) {
-      ERROR("Trying to create a conversation; buddy not present: " + aNormalizedName);
+      this.ERROR("Trying to create a conversation; buddy not present: " + aNormalizedName);
       return null;
     }
 
@@ -1165,6 +1230,11 @@ const XMPPAccountPrototype = {
     if (this._idleSince) {
       let time = Math.floor(Date.now() / 1000) - this._idleSince;
       children.push(Stanza.node("query", Stanza.NS.last, {seconds: time}));
+    }
+    if (this.prefs.prefHasUserValue("priority")) {
+      let priority = Math.max(-128, Math.min(127, this.getInt("priority")));
+      if (priority)
+        children.push(Stanza.node("priority", null, null, priority.toString()));
     }
     this._connection.sendStanza(Stanza.presence({"xml:lang": "en"}, children));
   },
@@ -1324,6 +1394,6 @@ const XMPPAccountPrototype = {
     if (this._userVCard.getXML() != existingVCard)
       this._connection.sendStanza(Stanza.iq("set", null, null, this._userVCard));
     else
-      LOG("Not sending the vCard because the server stored vCard is identical.");
+      this.LOG("Not sending the vCard because the server stored vCard is identical.");
   }
 };

@@ -3,6 +3,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+// Suppress windef.h min and max macros - they make std::min/max not compile.
+#define NOMINMAX 1
+
 #include <windows.h>
 #include <shellapi.h>
 
@@ -47,6 +50,8 @@
 #include "mozilla/LookAndFeel.h"
 #endif
 #include "mozilla/Services.h"
+#include "nsIMutableArray.h"
+#include "nsArrayUtils.h"
 
 #include "nsToolkitCompsCID.h"
 #include <stdlib.h>
@@ -64,6 +69,8 @@
 #define SHOW_ALERT_PREF     "mail.biff.show_alert"
 #define SHOW_TRAY_ICON_PREF "mail.biff.show_tray_icon"
 #define SHOW_BALLOON_PREF   "mail.biff.show_balloon"
+#define SHOW_NEW_ALERT_PREF "mail.biff.show_new_alert"
+#define ALERT_ORIGIN_PREF   "ui.alertNotificationOrigin"
 
 // since we are including windows.h in this file, undefine get user name....
 #ifdef GetUserName
@@ -80,6 +87,13 @@
 
 #ifndef NIN_BALOONUSERCLICK
 #define NIN_BALLOONUSERCLICK (WM_USER + 5)
+#endif
+
+#ifndef MOZ_THUNDERBIRD
+// from LookAndFeel.h
+#define NS_ALERT_HORIZONTAL 1
+#define NS_ALERT_LEFT       2
+#define NS_ALERT_TOP        4
 #endif
 
 using namespace mozilla;
@@ -161,7 +175,6 @@ static void CALLBACK delayedSingleClick(HWND msgWindow, UINT msg, INT_PTR idEven
 {
   ::KillTimer(msgWindow, idEvent);
 
-#ifdef MOZ_THUNDERBIRD
   // single clicks on the biff icon should re-open the alert notification
   nsresult rv = NS_OK;
   nsCOMPtr<nsIMessengerOSIntegration> integrationService =
@@ -173,7 +186,6 @@ static void CALLBACK delayedSingleClick(HWND msgWindow, UINT msg, INT_PTR idEven
                                                                    (static_cast<nsIMessengerOSIntegration*>(integrationService.get()));
     winIntegrationService->ShowNewAlertNotification(true, EmptyString(), EmptyString());
   }
-#endif
 }
 
 // Window proc.
@@ -245,7 +257,7 @@ nsMessengerWinIntegration::nsMessengerWinIntegration()
   mSuppressBiffIcon = false;
   mAlertInProgress = false;
   mBiffIconInitialized = false;
-  NS_NewISupportsArray(getter_AddRefs(mFoldersWithNewMail));
+  mFoldersWithNewMail = do_CreateInstance(NS_ARRAY_CONTRACTID);
 }
 
 nsMessengerWinIntegration::~nsMessengerWinIntegration()
@@ -434,6 +446,8 @@ nsresult nsMessengerWinIntegration::ShowAlertMessage(const nsString& aAlertTitle
       rv = alertsService->ShowAlertNotification(NS_LITERAL_STRING(NEW_MAIL_ALERT_ICON), aAlertTitle,
                                                 aAlertText, true,
                                                 NS_ConvertASCIItoUTF16(aFolderURI), this,
+                                                EmptyString(),
+                                                NS_LITERAL_STRING("auto"),
                                                 EmptyString());
       mAlertInProgress = true;
     }
@@ -444,7 +458,7 @@ nsresult nsMessengerWinIntegration::ShowAlertMessage(const nsString& aAlertTitle
 
   return rv;
 }
-#else
+#endif
 // Opening Thunderbird's new mail alert notification window
 // aUserInitiated --> true if we are opening the alert notification in response to a user action
 //                    like clicking on the biff icon
@@ -484,16 +498,15 @@ nsresult nsMessengerWinIntegration::ShowNewAlertNotification(bool aUserInitiated
 
   if (showAlert)
   {
-    nsCOMPtr<nsISupportsArray> argsArray;
-    rv = NS_NewISupportsArray(getter_AddRefs(argsArray));
+    nsCOMPtr<nsIMutableArray> argsArray(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
     NS_ENSURE_SUCCESS(rv, rv);
 
     // pass in the array of folders with unread messages
     nsCOMPtr<nsISupportsInterfacePointer> ifptr = do_CreateInstance(NS_SUPPORTS_INTERFACE_POINTER_CONTRACTID, &rv);
     NS_ENSURE_SUCCESS(rv, rv);
     ifptr->SetData(mFoldersWithNewMail);
-    ifptr->SetDataIID(&NS_GET_IID(nsISupportsArray));
-    rv = argsArray->AppendElement(ifptr);
+    ifptr->SetDataIID(&NS_GET_IID(nsIArray));
+    rv = argsArray->AppendElement(ifptr, false);
     NS_ENSURE_SUCCESS(rv, rv);
 
     // pass in the observer
@@ -502,25 +515,63 @@ nsresult nsMessengerWinIntegration::ShowNewAlertNotification(bool aUserInitiated
     nsCOMPtr <nsISupports> supports = do_QueryInterface(static_cast<nsIMessengerOSIntegration*>(this));
     ifptr->SetData(supports);
     ifptr->SetDataIID(&NS_GET_IID(nsIObserver));
-    rv = argsArray->AppendElement(ifptr);
+    rv = argsArray->AppendElement(ifptr, false);
     NS_ENSURE_SUCCESS(rv, rv);
 
     // pass in the animation flag
     nsCOMPtr<nsISupportsPRBool> scriptableUserInitiated (do_CreateInstance(NS_SUPPORTS_PRBOOL_CONTRACTID, &rv));
     NS_ENSURE_SUCCESS(rv, rv);
     scriptableUserInitiated->SetData(aUserInitiated);
-    rv = argsArray->AppendElement(scriptableUserInitiated);
+    rv = argsArray->AppendElement(scriptableUserInitiated, false);
     NS_ENSURE_SUCCESS(rv, rv);
 
     // pass in the alert origin
     nsCOMPtr<nsISupportsPRUint8> scriptableOrigin (do_CreateInstance(NS_SUPPORTS_PRUINT8_CONTRACTID));
     NS_ENSURE_TRUE(scriptableOrigin, NS_ERROR_FAILURE);
     scriptableOrigin->SetData(0);
-    int32_t origin = LookAndFeel::GetInt(LookAndFeel::eIntID_AlertNotificationOrigin);
-    if (origin && origin >= 0 && origin <= 7)
-      scriptableOrigin->SetData(origin);
+    int32_t origin = 0;
+#ifdef MOZ_THUNDERBIRD
+    origin = LookAndFeel::GetInt(LookAndFeel::eIntID_AlertNotificationOrigin);
+#else
+    // Get task bar window handle
+    HWND shellWindow = FindWindowW(L"Shell_TrayWnd", NULL);
 
-    rv = argsArray->AppendElement(scriptableOrigin);
+    rv = prefBranch->GetIntPref(ALERT_ORIGIN_PREF, &origin);
+    if (NS_FAILED(rv) && (shellWindow != NULL))
+    {
+      // Determine position
+      APPBARDATA appBarData;
+      appBarData.hWnd = shellWindow;
+      appBarData.cbSize = sizeof(appBarData);
+      if (SHAppBarMessage(ABM_GETTASKBARPOS, &appBarData))
+      {
+        // Set alert origin as a bit field - see LookAndFeel.h
+        // 0 represents bottom right, sliding vertically.
+        switch(appBarData.uEdge)
+        {
+          case ABE_LEFT:
+            origin = NS_ALERT_HORIZONTAL | NS_ALERT_LEFT;
+            break;
+          case ABE_RIGHT:
+            origin = NS_ALERT_HORIZONTAL;
+            break;
+          case ABE_TOP:
+            origin = NS_ALERT_TOP;
+            // fall through for the right-to-left handling.
+          case ABE_BOTTOM:
+            // If the task bar is right-to-left,
+            // move the origin to the left
+            if (::GetWindowLong(shellWindow, GWL_EXSTYLE) &
+                  WS_EX_LAYOUTRTL)
+              origin |= NS_ALERT_LEFT;
+            break;
+        }
+      }
+    }
+#endif
+    scriptableOrigin->SetData(origin);
+
+    rv = argsArray->AppendElement(scriptableOrigin, false);
     NS_ENSURE_SUCCESS(rv, rv);
 
     nsCOMPtr<nsIWindowWatcher> wwatch(do_GetService(NS_WINDOWWATCHER_CONTRACTID));
@@ -539,20 +590,19 @@ nsresult nsMessengerWinIntegration::ShowNewAlertNotification(bool aUserInitiated
 
   return rv;
 }
-#endif
 
 nsresult nsMessengerWinIntegration::AlertFinished()
 {
   // okay, we are done showing the alert
   // now put an icon in the system tray, if allowed
-  bool showTrayIcon = !mSuppressBiffIcon;
+  bool showTrayIcon = !mSuppressBiffIcon || sBiffIconData.szInfo[0];
   if (showTrayIcon)
   {
     nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID));
     if (prefBranch)
       prefBranch->GetBoolPref(SHOW_TRAY_ICON_PREF, &showTrayIcon);
   }
-  if (showTrayIcon || sBiffIconData.szInfo[0])
+  if (showTrayIcon)
   {
     GenericShellNotify(NIM_ADD);
     mBiffIconVisible = true;
@@ -564,7 +614,6 @@ nsresult nsMessengerWinIntegration::AlertFinished()
 
 nsresult nsMessengerWinIntegration::AlertClicked()
 {
-#ifdef MOZ_THUNDERBIRD
   nsresult rv;
   nsCOMPtr<nsIMsgMailSession> mailSession = do_GetService(NS_MSGMAILSESSION_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv,rv);
@@ -580,7 +629,6 @@ nsresult nsMessengerWinIntegration::AlertClicked()
       return NS_OK;
     }
   }
-#endif
   // make sure we don't insert the icon in the system tray since the user clicked on the alert.
   mSuppressBiffIcon = true;
   nsCString folderURI;
@@ -588,6 +636,14 @@ nsresult nsMessengerWinIntegration::AlertClicked()
   openMailWindow(folderURI);
   return NS_OK;
 }
+
+#ifdef MOZ_SUITE
+nsresult nsMessengerWinIntegration::AlertClickedSimple()
+{
+  mSuppressBiffIcon = true;
+  return NS_OK;
+}
+#endif MOZ_SUITE
 
 NS_IMETHODIMP
 nsMessengerWinIntegration::Observe(nsISupports* aSubject, const char* aTopic, const PRUnichar* aData)
@@ -597,6 +653,13 @@ nsMessengerWinIntegration::Observe(nsISupports* aSubject, const char* aTopic, co
 
   if (strcmp(aTopic, "alertclickcallback") == 0)
       return AlertClicked();
+
+#ifdef MOZ_SUITE
+  // SeaMonkey does most of the GUI work in JS code when clicking on a mail
+  // notification, so it needs an extra function here
+  if (strcmp(aTopic, "alertclicksimplecallback") == 0)
+      return AlertClickedSimple();
+#endif
 
   return NS_OK;
 }
@@ -642,7 +705,7 @@ void nsMessengerWinIntegration::FillToolTipInfo()
   int32_t numNewMessages = 0;
 
   uint32_t count = 0;
-  mFoldersWithNewMail->Count(&count);
+  NS_ENSURE_SUCCESS_VOID(mFoldersWithNewMail->GetLength(&count));
 
   for (uint32_t index = 0; index < count; index++)
   {
@@ -697,20 +760,27 @@ void nsMessengerWinIntegration::FillToolTipInfo()
   if (!mBiffIconVisible)
   {
 #ifndef MOZ_THUNDERBIRD
+  nsresult rv;
+  bool showNewAlert = false;
+  nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS_VOID(rv);
+
+  prefBranch->GetBoolPref(SHOW_NEW_ALERT_PREF, &showNewAlert);
+  if (!showNewAlert)
     ShowAlertMessage(accountName, animatedAlertText, EmptyCString());
-#else
-    ShowNewAlertNotification(false, accountName, animatedAlertText);
+  else
 #endif
+    ShowNewAlertNotification(false, accountName, animatedAlertText);
   }
   else
    GenericShellNotify( NIM_MODIFY);
 }
 
-// get the first top level folder which we know has new mail, then enumerate over all the subfolders
-// looking for the first real folder with new mail. Return the folderURI for that folder.
+// Get the first top level folder which we know has new mail, then enumerate over
+// all the subfolders looking for the first real folder with new mail.
+// Return the folderURI for that folder.
 nsresult nsMessengerWinIntegration::GetFirstFolderWithNewMail(nsACString& aFolderURI)
 {
-  nsresult rv;
   NS_ENSURE_TRUE(mFoldersWithNewMail, NS_ERROR_FAILURE);
 
   nsCOMPtr<nsIMsgFolder> folder;
@@ -718,9 +788,8 @@ nsresult nsMessengerWinIntegration::GetFirstFolderWithNewMail(nsACString& aFolde
   int32_t numNewMessages = 0;
 
   uint32_t count = 0;
-  mFoldersWithNewMail->Count(&count);
-
-  if (!count)  // kick out if we don't have any folders with new mail
+  nsresult rv = mFoldersWithNewMail->GetLength(&count);
+  if (NS_FAILED(rv) || !count)  // kick out if we don't have any folders with new mail
     return NS_OK;
 
   weakReference = do_QueryElementAt(mFoldersWithNewMail, 0);
@@ -730,21 +799,20 @@ nsresult nsMessengerWinIntegration::GetFirstFolderWithNewMail(nsACString& aFolde
   {
     nsCOMPtr<nsIMsgFolder> msgFolder;
     // enumerate over the folders under this root folder till we find one with new mail....
-    nsCOMPtr<nsISupportsArray> allFolders;
-    NS_NewISupportsArray(getter_AddRefs(allFolders));
-    rv = folder->ListDescendents(allFolders);
+    nsCOMPtr<nsIArray> allFolders;
+    rv = folder->GetDescendants(getter_AddRefs(allFolders));
     NS_ENSURE_SUCCESS(rv, rv);
 
-    nsCOMPtr<nsIEnumerator> enumerator;
-    allFolders->Enumerate(getter_AddRefs(enumerator));
-    if (enumerator)
+    nsCOMPtr<nsISimpleEnumerator> enumerator;
+    rv = allFolders->Enumerate(getter_AddRefs(enumerator));
+    if (NS_SUCCEEDED(rv) && enumerator)
     {
       nsCOMPtr<nsISupports> supports;
-      nsresult more = enumerator->First();
-      while (NS_SUCCEEDED(more))
+      bool hasMore = false;
+      while (NS_SUCCEEDED(enumerator->HasMoreElements(&hasMore)) && hasMore)
       {
-        rv = enumerator->CurrentItem(getter_AddRefs(supports));
-        if (supports)
+        rv = enumerator->GetNext(getter_AddRefs(supports));
+        if (NS_SUCCEEDED(rv) && supports)
         {
           msgFolder = do_QueryInterface(supports, &rv);
           if (msgFolder)
@@ -753,7 +821,6 @@ nsresult nsMessengerWinIntegration::GetFirstFolderWithNewMail(nsACString& aFolde
             msgFolder->GetNumNewMessages(false, &numNewMessages);
             if (numNewMessages)
               break; // kick out of the while loop
-            more = enumerator->Next();
           }
         } // if we have a folder
       }  // if we have more potential folders to enumerate
@@ -832,7 +899,9 @@ nsMessengerWinIntegration::OnItemIntPropertyChanged(nsIMsgFolder *aItem, nsIAtom
   if (mBiffStateAtom == aProperty && mFoldersWithNewMail)
   {
     nsCOMPtr<nsIWeakReference> weakFolder = do_GetWeakReference(aItem);
-    int32_t indexInNewArray = mFoldersWithNewMail->IndexOf(weakFolder);
+    uint32_t indexInNewArray;
+    nsresult rv = mFoldersWithNewMail->IndexOf(0, weakFolder, &indexInNewArray);
+    bool folderFound = NS_SUCCEEDED(rv);
 
     if (!mBiffIconInitialized)
       InitializeBiffStatusIcon();
@@ -851,8 +920,8 @@ nsMessengerWinIntegration::OnItemIntPropertyChanged(nsIMsgFolder *aItem, nsIAtom
         if (!performingBiff)
           return NS_OK; // kick out right now...
       }
-      if (indexInNewArray == -1)
-        mFoldersWithNewMail->InsertElementAt(weakFolder, 0);
+      if (!folderFound)
+        mFoldersWithNewMail->InsertElementAt(weakFolder, 0, false);
       // now regenerate the tooltip
       FillToolTipInfo();
     }
@@ -867,7 +936,7 @@ nsMessengerWinIntegration::OnItemIntPropertyChanged(nsIMsgFolder *aItem, nsIAtom
       if (mAlertInProgress)
         mSuppressBiffIcon = true;
 
-      if (indexInNewArray != -1)
+      if (folderFound)
         mFoldersWithNewMail->RemoveElementAt(indexInNewArray);
       if (mBiffIconVisible)
       {

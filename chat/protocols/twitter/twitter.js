@@ -124,8 +124,23 @@ Conversation.prototype = {
   inReplyToStatusId: null,
   startReply: function(aTweet) {
     this.inReplyToStatusId = aTweet.id_str;
-    this.notifyObservers(null, "replying-to-prompt",
-                         "@" + aTweet.user.screen_name + " ");
+    let entities = aTweet.entities;
+
+    // Twitter replies go to all the users mentioned in the tweet.
+    let nicks = [aTweet.user.screen_name];
+    if ("user_mentions" in entities && Array.isArray(entities.user_mentions)) {
+      nicks = nicks.concat(entities.user_mentions
+                                   .map(function(um) um.screen_name));
+    }
+    // Ignore duplicates and the user's nick.
+    let prompt =
+      nicks.filter(function(aNick, aPos) {
+             return nicks.indexOf(aNick) == aPos && aNick != this._account.name;
+           }, this)
+           .map(function(aNick) "@" + aNick)
+           .join(" ") + " ";
+
+    this.notifyObservers(null, "replying-to-prompt", prompt);
     this.notifyObservers(null, "status-text-changed",
                          _("replyingToStatusText", aTweet.text));
   },
@@ -167,7 +182,6 @@ Conversation.prototype = {
     if (tweet.user.screen_name != this._account.name)
       throw "Wrong screen_name... Uh?";
     this._account.displayMessages([tweet]);
-    this.setTopic(tweet.text, tweet.user.screen_name);
   },
   _parseError: function(aData) {
     let error = "";
@@ -303,7 +317,7 @@ Conversation.prototype = {
       name == this._account.name ? {outgoing: true} : {incoming: true};
     flags.time = Math.round(new Date(aTweet.created_at) / 1000);
     flags._iconURL = aTweet.user.profile_image_url;
-    if (text.indexOf(this.nick) != -1)
+    if (text.contains("@" + this.nick))
       flags.containsNick = true;
 
     (new Tweet(aTweet, name, text, flags)).conversation = this;
@@ -317,16 +331,16 @@ Conversation.prototype = {
     this.notifyObservers(new nsSimpleEnumerator([chatBuddy]),
                          "chat-buddy-add");
   },
-  setTopic: function(aTopic, aTopicSetter) {
-    const kEntities = {amp: "&", gt: ">", lt: "<"};
-    let topic =
-      aTopic.replace(/&([gl]t|amp);/g, function(str, entity) kEntities[entity]);
-    GenericConvChatPrototype.setTopic.call(this, topic, aTopicSetter, true);
-  },
   get name() this.nick + " timeline",
   get title() _("timeline", this.nick),
-  get nick() "@" + this._account.name,
-  set nick(aNick) {}
+  get nick() this._account.name,
+  set nick(aNick) {},
+  get topicSettable() this.nick == this._account.name,
+  get topic() this._topic, // can't add a setter without redefining the getter
+  set topic(aTopic) {
+    if (this.topicSettable)
+      this._account.setUserDescription(aTopic);
+  }
 };
 
 function Account(aProtocol, aImAccount)
@@ -379,7 +393,7 @@ Account.prototype = {
       return;
     }
 
-    LOG("Connecting using existing token");
+    this.LOG("Connecting using existing token");
     this.getTimelines();
   },
 
@@ -447,7 +461,8 @@ Account.prototype = {
       "OAuth " + params.map(function (p) p[0] + "=\"" + p[1] + "\"").join(", ");
     let headers = (aHeaders || []).concat([["Authorization", authorization]]);
 
-    return doXHRequest(url, headers, aPOSTData, aOnLoad, aOnError, aThis);
+    return doXHRequest(url, headers, aPOSTData, aOnLoad, aOnError, aThis, null,
+                       this);
   },
   _parseURLData: function(aData) {
     let result = {};
@@ -520,7 +535,7 @@ Account.prototype = {
         this._lastMsgId = lastMsgId;
       }
       else
-        WARN("invalid value for the lastMessageId preference: " + lastMsgId);
+        this.WARN("invalid value for the lastMessageId preference: " + lastMsgId);
     }
     let getParams = "?count=200" + lastMsgParam;
     this._pendingRequests = [
@@ -557,9 +572,9 @@ Account.prototype = {
       if (id.length > lastMsgId.length ||
           (id.length == lastMsgId.length && id > lastMsgId))
         lastMsgId = id;
-      this._knownMessageIds[id] = tweet;
+      this._knownMessageIds[id] = true;
       if ("description" in tweet.user)
-        this._userInfo[tweet.user.screen_name] = tweet.user;
+        this.setUserInfo(tweet.user);
       this.timeline.displayTweet(tweet);
     }
     if (lastMsgId != this._lastMsgId) {
@@ -569,7 +584,7 @@ Account.prototype = {
   },
 
   onTimelineError: function(aError, aResponseText, aRequest) {
-    ERROR(aError);
+    this.ERROR(aError);
     if (aRequest.status == 401)
       ++this._timelineAuthError;
     this._doneWithTimelineRequest(aRequest);
@@ -615,14 +630,8 @@ Account.prototype = {
     this._timelineBuffer.sort(this.sortByDate);
     this.displayMessages(this._timelineBuffer);
 
-    // Use the users' newest tweet as the topic.
-    for (let i = this._timelineBuffer.length - 1; i >= 0; --i) {
-      let tweet = this._timelineBuffer[i];
-      if (tweet.user.screen_name == this.name) {
-        this.timeline.setTopic(tweet.text, tweet.user.screen_name);
-        break;
-      }
-    }
+    // Fetch userInfo for the user if we don't already have it.
+    this.requestBuddyInfo(this.name);
 
     // Reset in case we get disconnected
     delete this._timelineBuffer;
@@ -645,14 +654,29 @@ Account.prototype = {
                        this.onStreamError, this);
     this._streamingRequest.responseType = "moz-chunked-text";
     this._streamingRequest.onprogress = this.onDataAvailable.bind(this);
+    this.resetStreamTimeout();
+  },
+  _streamTimeout: null,
+  resetStreamTimeout: function() {
+    if (this._streamTimeout)
+      clearTimeout(this._streamTimeout);
+    // The twitter Streaming API sends a keep-alive newline every 30 seconds
+    // so if we haven't received anything for 90s, we should disconnect and try
+    // to reconnect.
+    this._streamTimeout = setTimeout(this.onStreamTimeout.bind(this), 90000);
   },
   onStreamError: function(aError) {
     delete this._streamingRequest;
+    // _streamTimeout is cleared by cleanUp called by gotDisconnected.
     this.gotDisconnected(Ci.prplIAccount.ERROR_NETWORK_ERROR, aError);
   },
+  onStreamTimeout: function() {
+    this.gotDisconnected(Ci.prplIAccount.ERROR_NETWORK_ERROR, "timeout");
+  },
   onDataAvailable: function(aRequest) {
+    this.resetStreamTimeout();
     let newText = this._pendingData + aRequest.target.response;
-    DEBUG("Received data: " + newText);
+    this.DEBUG("Received data: " + newText);
     let messages = newText.split(/\r\n?/);
     this._pendingData = messages.pop();
     for each (let message in messages) {
@@ -662,32 +686,35 @@ Account.prototype = {
       try {
         msg = JSON.parse(message);
       } catch (e) {
-        ERROR(e + " while parsing " + message);
+        this.ERROR(e + " while parsing " + message);
         continue;
       }
-      if ("text" in msg) {
+      if ("text" in msg)
         this.displayMessages([msg]);
-        // If the message is from us, set it as the topic.
-        if (("user" in msg) && (msg.user.screen_name == this.name))
-          this.timeline.setTopic(msg.text, msg.user.screen_name);
-      }
       else if ("friends" in msg)
         this._friends = msg.friends.map(function(aId) aId.toString());
-      else if (("event" in msg) && msg.event == "follow") {
+      else if ("event" in msg) {
         let user, event;
-        if (msg.source.screen_name == this.name) {
-          this._friends.push(msg.target.id_str);
-          user = msg.target;
-          event = "follow";
-        }
-        else if (msg.target.screen_name == this.name) {
-          user = msg.source;
-          event = "followed";
-        }
-        if (user) {
-          this._userInfo[user.screen_name] = user;
-          this.timeline.systemMessage(_("event." + event, user.screen_name),
-                                      false, new Date(msg.created_at) / 1000);
+        switch(msg.event) {
+          case "follow":
+            if (msg.source.screen_name == this.name) {
+              this._friends.push(msg.target.id_str);
+              user = msg.target;
+              event = "follow";
+            }
+            else if (msg.target.screen_name == this.name) {
+              user = msg.source;
+              event = "followed";
+            }
+            if (user) {
+              this.setUserInfo(user);
+              this.timeline.systemMessage(_("event." + event, user.screen_name),
+                                          false, new Date(msg.created_at) / 1000);
+            }
+            break;
+          case "user_update":
+            this.setUserInfo(msg.target);
+            break;
         }
       }
     }
@@ -702,7 +729,7 @@ Account.prototype = {
                      oauthParams);
   },
   onRequestTokenReceived: function(aData) {
-    LOG("Received request token.");
+    this.LOG("Received request token.");
     let data = this._parseURLData(aData);
     if (!data.oauth_callback_confirmed ||
         !data.oauth_token || !data.oauth_token_secret) {
@@ -747,7 +774,7 @@ Account.prototype = {
             delete this.window;
           },
           _checkForRedirect: function(aURL) {
-            if (aURL.indexOf(this._parent.completionURI) != 0)
+            if (!aURL.startsWith(this._parent.completionURI))
               return;
 
             this._parent.finishAuthorizationRequest();
@@ -801,7 +828,7 @@ Account.prototype = {
                      [["oauth_verifier", aTokenVerifier]]);
   },
   onAccessTokenReceived: function(aData) {
-    LOG("Received access token.");
+    this.LOG("Received access token.");
     let result = this._parseURLData(aData);
     if (!this.fixAccountName(result))
       return;
@@ -827,8 +854,8 @@ Account.prototype = {
       return false;
     }
 
-    LOG("Fixing the case of the account name: " +
-        this.name + " -> " + aAuthResult.screen_name);
+    this.LOG("Fixing the case of the account name: " +
+             this.name + " -> " + aAuthResult.screen_name);
     this.__defineGetter__("name", function() aAuthResult.screen_name);
     return true;
   },
@@ -840,10 +867,15 @@ Account.prototype = {
         request.abort();
       delete this._pendingRequests;
     }
+    if (this._streamTimeout) {
+      clearTimeout(this._streamTimeout);
+      delete this._streamTimeout;
+    }
     if (this._streamingRequest) {
       this._streamingRequest.abort();
       delete this._streamingRequest;
     }
+    delete this._pendingData;
     delete this.token;
     delete this.tokenSecret;
   },
@@ -882,9 +914,30 @@ Account.prototype = {
       this.gotDisconnected(Ci.prplIAccount.ERROR_OTHER_ERROR, aException.toString());
   },
 
+  setUserDescription: function(aDescription) {
+    const kMaxUserDescriptionLength = 160;
+    if (aDescription.length > kMaxUserDescriptionLength) {
+      aDescription = aDescription.substr(0, kMaxUserDescriptionLength);
+      this.WARN("Description too long (over " + kMaxUserDescriptionLength +
+                " characters):\n" + aDescription + ".");
+      this.timeline.systemMessage(_("error.descriptionTooLong", aDescription));
+    }
+    // Don't need to catch the reply since the stream receives user_update.
+    this.signAndSend("1.1/account/update_profile.json", null,
+                     [["description", aDescription]]);
+  },
+
+  setUserInfo: function(aUser) {
+    let nick = aUser.screen_name;
+    this._userInfo[nick] = aUser;
+
+    // If it's the user's userInfo, update the timeline topic.
+    if (nick == this.name && "description" in aUser)
+      this.timeline.setTopic(aUser.description, nick, true);
+  },
   onRequestedInfoReceived: function(aData) {
     let user = JSON.parse(aData);
-    this._userInfo[user.screen_name] = user;
+    this.setUserInfo(user);
     this.requestBuddyInfo(user.screen_name);
   },
   requestBuddyInfo: function(aBuddyName) {
@@ -901,6 +954,7 @@ Account.prototype = {
     // See https://dev.twitter.com/docs/api/1/get/users/show for the options.
     let normalizeBool = function(isFollowing) _(isFollowing ? "yes" : "no");
     const kFields = {
+      name: null,
       following: normalizeBool,
       description: null,
       url: null,

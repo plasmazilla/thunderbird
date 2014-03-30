@@ -183,19 +183,19 @@ nsMsgFolderDataSource::nsMsgFolderDataSource()
     rdf->GetResource(NS_LITERAL_CSTRING(NC_RDF_RENAME), &kNC_Rename);
     rdf->GetResource(NS_LITERAL_CSTRING(NC_RDF_EMPTYTRASH), &kNC_EmptyTrash);
 
-    kTotalMessagesAtom           = MsgNewAtom("TotalMessages");
-    kTotalUnreadMessagesAtom     = MsgNewAtom("TotalUnreadMessages");
-    kFolderSizeAtom              = MsgNewAtom("FolderSize");
-    kBiffStateAtom               = MsgNewAtom("BiffState");
-    kSortOrderAtom               = MsgNewAtom("SortOrder");
-    kNewMessagesAtom             = MsgNewAtom("NewMessages");
-    kNameAtom                    = MsgNewAtom("Name");
-    kSynchronizeAtom             = MsgNewAtom("Synchronize");
-    kOpenAtom                    = MsgNewAtom("open");
-    kIsDeferredAtom              = MsgNewAtom("isDeferred");
-    kIsSecureAtom                = MsgNewAtom("isSecure");
-    kCanFileMessagesAtom         = MsgNewAtom("canFileMessages");
-    kInVFEditSearchScopeAtom     = MsgNewAtom("inVFEditSearchScope");
+    kTotalMessagesAtom           = MsgNewAtom("TotalMessages").get();
+    kTotalUnreadMessagesAtom     = MsgNewAtom("TotalUnreadMessages").get();
+    kFolderSizeAtom              = MsgNewAtom("FolderSize").get();
+    kBiffStateAtom               = MsgNewAtom("BiffState").get();
+    kSortOrderAtom               = MsgNewAtom("SortOrder").get();
+    kNewMessagesAtom             = MsgNewAtom("NewMessages").get();
+    kNameAtom                    = MsgNewAtom("Name").get();
+    kSynchronizeAtom             = MsgNewAtom("Synchronize").get();
+    kOpenAtom                    = MsgNewAtom("open").get();
+    kIsDeferredAtom              = MsgNewAtom("isDeferred").get();
+    kIsSecureAtom                = MsgNewAtom("isSecure").get();
+    kCanFileMessagesAtom         = MsgNewAtom("canFileMessages").get();
+    kInVFEditSearchScopeAtom     = MsgNewAtom("inVFEditSearchScope").get();
   }
 
   CreateLiterals(rdf);
@@ -399,7 +399,7 @@ NS_IMETHODIMP nsMsgFolderDataSource::GetTargets(nsIRDFResource* source,
   nsCOMPtr<nsIMsgFolder> folder(do_QueryInterface(source, &rv));
   if (NS_SUCCEEDED(rv))
   {
-    if ((kNC_Child == property))
+    if (kNC_Child == property)
     {
       rv = folder->GetSubFolders(targets);
     }
@@ -699,58 +699,58 @@ nsMsgFolderDataSource::DoCommand(nsISupportsArray/*<nsIRDFResource>*/* aSources,
     nsCOMPtr<nsIMsgFolder> folder = do_QueryElementAt(aSources, i, &rv);
     if (NS_SUCCEEDED(rv))
     {
-      if ((aCommand == kNC_Delete))
+      if (aCommand == kNC_Delete)
       {
         rv = DoDeleteFromFolder(folder, aArguments, window, false);
       }
-      if ((aCommand == kNC_ReallyDelete))
+      if (aCommand == kNC_ReallyDelete)
       {
         rv = DoDeleteFromFolder(folder, aArguments, window, true);
       }
-      else if((aCommand == kNC_NewFolder))
+      else if (aCommand == kNC_NewFolder)
       {
         rv = DoNewFolder(folder, aArguments, window);
       }
-      else if((aCommand == kNC_GetNewMessages))
+      else if (aCommand == kNC_GetNewMessages)
       {
         nsCOMPtr<nsIMsgIncomingServer> server = do_QueryElementAt(aArguments, i, &rv);
         NS_ENSURE_SUCCESS(rv, rv);
         rv = server->GetNewMessages(folder, window, nullptr);
       }
-      else if((aCommand == kNC_Copy))
+      else if (aCommand == kNC_Copy)
       {
         rv = DoCopyToFolder(folder, aArguments, window, false);
       }
-      else if((aCommand == kNC_Move))
+      else if (aCommand == kNC_Move)
       {
         rv = DoCopyToFolder(folder, aArguments, window, true);
       }
-      else if((aCommand == kNC_CopyFolder))
+      else if (aCommand == kNC_CopyFolder)
       {
         rv = DoFolderCopyToFolder(folder, aArguments, window, false);
       }
-      else if((aCommand == kNC_MoveFolder))
+      else if (aCommand == kNC_MoveFolder)
       {
         rv = DoFolderCopyToFolder(folder, aArguments, window, true);
       }
-      else if((aCommand == kNC_MarkAllMessagesRead))
+      else if (aCommand == kNC_MarkAllMessagesRead)
       {
         rv = folder->MarkAllMessagesRead(window);
       }
-      else if ((aCommand == kNC_Compact))
+      else if (aCommand == kNC_Compact)
       {
         rv = folder->Compact(nullptr, window);
       }
-      else if ((aCommand == kNC_CompactAll))
+      else if (aCommand == kNC_CompactAll)
       {
         // this will also compact offline stores for IMAP
         rv = folder->CompactAll(nullptr, window, true);
       }
-      else if ((aCommand == kNC_EmptyTrash))
+      else if (aCommand == kNC_EmptyTrash)
       {
           rv = folder->EmptyTrash(window, nullptr);
       }
-      else if ((aCommand == kNC_Rename))
+      else if (aCommand == kNC_Rename)
       {
         nsCOMPtr<nsIRDFLiteral> literal = do_QueryElementAt(aArguments, 0, &rv);
         if(NS_SUCCEEDED(rv))
@@ -912,63 +912,63 @@ nsresult nsMsgFolderDataSource::createFolderNode(nsIMsgFolder* folder,
     rv = createFolderTreeNameNode(folder, target);
   else if (kNC_FolderTreeSimpleName == property)
     rv = createFolderTreeSimpleNameNode(folder, target);
-  else if ((kNC_SpecialFolder == property))
+  else if (kNC_SpecialFolder == property)
     rv = createFolderSpecialNode(folder,target);
-  else if ((kNC_ServerType == property))
+  else if (kNC_ServerType == property)
     rv = createFolderServerTypeNode(folder, target);
-  else if ((kNC_IsDeferred == property))
+  else if (kNC_IsDeferred == property)
     rv = createServerIsDeferredNode(folder, target);
-  else if ((kNC_CanCreateFoldersOnServer == property))
+  else if (kNC_CanCreateFoldersOnServer == property)
     rv = createFolderCanCreateFoldersOnServerNode(folder, target);
-  else if ((kNC_CanFileMessagesOnServer == property))
+  else if (kNC_CanFileMessagesOnServer == property)
     rv = createFolderCanFileMessagesOnServerNode(folder, target);
-  else if ((kNC_IsServer == property))
+  else if (kNC_IsServer == property)
     rv = createFolderIsServerNode(folder, target);
-  else if ((kNC_IsSecure == property))
+  else if (kNC_IsSecure == property)
     rv = createFolderIsSecureNode(folder, target);
-  else if ((kNC_CanSubscribe == property))
+  else if (kNC_CanSubscribe == property)
     rv = createFolderCanSubscribeNode(folder, target);
-  else if ((kNC_SupportsOffline == property))
+  else if (kNC_SupportsOffline == property)
     rv = createFolderSupportsOfflineNode(folder, target);
-  else if ((kNC_CanFileMessages == property))
+  else if (kNC_CanFileMessages == property)
     rv = createFolderCanFileMessagesNode(folder, target);
-  else if ((kNC_CanCreateSubfolders == property))
+  else if (kNC_CanCreateSubfolders == property)
     rv = createFolderCanCreateSubfoldersNode(folder, target);
-  else if ((kNC_CanRename == property))
+  else if (kNC_CanRename == property)
     rv = createFolderCanRenameNode(folder, target);
-  else if ((kNC_CanCompact == property))
+  else if (kNC_CanCompact == property)
     rv = createFolderCanCompactNode(folder, target);
-  else if ((kNC_TotalMessages == property))
+  else if (kNC_TotalMessages == property)
     rv = createTotalMessagesNode(folder, target);
-  else if ((kNC_TotalUnreadMessages == property))
+  else if (kNC_TotalUnreadMessages == property)
     rv = createUnreadMessagesNode(folder, target);
-  else if ((kNC_FolderSize == property))
+  else if (kNC_FolderSize == property)
     rv = createFolderSizeNode(folder, target);
-  else if ((kNC_Charset == property))
+  else if (kNC_Charset == property)
     rv = createCharsetNode(folder, target);
-  else if ((kNC_BiffState == property))
+  else if (kNC_BiffState == property)
     rv = createBiffStateNodeFromFolder(folder, target);
-  else if ((kNC_HasUnreadMessages == property))
+  else if (kNC_HasUnreadMessages == property)
     rv = createHasUnreadMessagesNode(folder, false, target);
-  else if ((kNC_NewMessages == property))
+  else if (kNC_NewMessages == property)
     rv = createNewMessagesNode(folder, target);
-  else if ((kNC_SubfoldersHaveUnreadMessages == property))
+  else if (kNC_SubfoldersHaveUnreadMessages == property)
     rv = createHasUnreadMessagesNode(folder, true, target);
-  else if ((kNC_Child == property))
+  else if (kNC_Child == property)
     rv = createFolderChildNode(folder, target);
-  else if ((kNC_NoSelect == property))
+  else if (kNC_NoSelect == property)
     rv = createFolderNoSelectNode(folder, target);
-  else if ((kNC_VirtualFolder == property))
+  else if (kNC_VirtualFolder == property)
     rv = createFolderVirtualNode(folder, target);
   else if (kNC_InVFEditSearchScope == property)
     rv = createInVFEditSearchScopeNode(folder, target);
-  else if ((kNC_ImapShared == property))
+  else if (kNC_ImapShared == property)
     rv = createFolderImapSharedNode(folder, target);
-  else if ((kNC_Synchronize == property))
+  else if (kNC_Synchronize == property)
     rv = createFolderSynchronizeNode(folder, target);
-  else if ((kNC_SyncDisabled == property))
+  else if (kNC_SyncDisabled == property)
     rv = createFolderSyncDisabledNode(folder, target);
-  else if ((kNC_CanSearchMessages == property))
+  else if (kNC_CanSearchMessages == property)
     rv = createCanSearchMessages(folder, target);
   return NS_FAILED(rv) ? NS_RDF_NO_VALUE : rv;
 }
@@ -1885,7 +1885,11 @@ nsresult nsMsgFolderDataSource::DoFolderCopyToFolder(nsIMsgFolder *dstFolder, ns
     // Create an nsIMutableArray from the nsISupportsArray
     nsCOMPtr<nsIMutableArray> folderArray(do_CreateInstance(NS_ARRAY_CONTRACTID));
     for (uint32_t i = 0; i < itemCount; i++)
-      folderArray->AppendElement(arguments->ElementAt(i), false);
+    {
+      nsCOMPtr<nsISupports> element(do_QueryElementAt(arguments, i, &rv));
+      if (NS_SUCCEEDED(rv))
+        folderArray->AppendElement(element, false);
+    }
 
     //Call copyservice with dstFolder, srcFolder, folders and isMoveFolder
     nsCOMPtr<nsIMsgCopyService> copyService = do_GetService(NS_MSGCOPYSERVICE_CONTRACTID, &rv);
@@ -2002,7 +2006,7 @@ nsresult nsMsgFolderDataSource::DoFolderAssert(nsIMsgFolder *folder, nsIRDFResou
 {
   nsresult rv = NS_ERROR_FAILURE;
 
-  if((kNC_Charset == property))
+  if (kNC_Charset == property)
   {
     nsCOMPtr<nsIRDFLiteral> literal(do_QueryInterface(target));
     if(literal)
@@ -2048,7 +2052,7 @@ nsresult nsMsgFolderDataSource::DoFolderHasAssertion(nsIMsgFolder *folder,
     return NS_OK;
   }
 
-  if((kNC_Child == property))
+  if (kNC_Child == property)
   {
     nsCOMPtr<nsIMsgFolder> childFolder(do_QueryInterface(target, &rv));
     if(NS_SUCCEEDED(rv))
@@ -2114,7 +2118,7 @@ nsresult nsMsgFlatFolderDataSource::Init()
   nsIRDFService* rdf = getRDFService();
   NS_ENSURE_TRUE(rdf, NS_ERROR_FAILURE);
   nsCOMPtr<nsIRDFResource> source;
-  nsCAutoString dsUri(m_dsName);
+  nsAutoCString dsUri(m_dsName);
   dsUri.Append(":/");
   rdf->GetResource(dsUri, getter_AddRefs(m_rootResource));
 
@@ -2160,60 +2164,36 @@ NS_IMETHODIMP nsMsgFlatFolderDataSource::GetTargets(nsIRDFResource* source,
 
 void nsMsgFlatFolderDataSource::EnsureFolders()
 {
-  if (!m_builtFolders)
+  if (m_builtFolders)
+    return;
+
+  m_builtFolders = true; // in case something goes wrong
+
+  nsresult rv;
+  nsCOMPtr<nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS_VOID(rv);
+
+  nsCOMPtr<nsIArray> allFolders;
+  rv = accountManager->GetAllFolders(getter_AddRefs(allFolders));
+  if (NS_FAILED(rv) || !allFolders)
+    return;
+
+  uint32_t count;
+  rv = allFolders->GetLength(&count);
+  NS_ENSURE_SUCCESS_VOID(rv);
+
+  for (uint32_t i = 0; i < count; i++)
   {
-    m_builtFolders = true; // in case something goes wrong
-
-    // need an enumerator that gives all folders with unread
-    nsresult rv;
-    nsCOMPtr <nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
-    if (NS_FAILED(rv))
-      return;
-
-    nsCOMPtr<nsISupportsArray> allServers;
-    rv = accountManager->GetAllServers(getter_AddRefs(allServers));
-    nsCOMPtr <nsISupportsArray> allFolders = do_CreateInstance(NS_SUPPORTSARRAY_CONTRACTID, &rv);
-    if (NS_SUCCEEDED(rv) && allServers)
-    {
-      uint32_t count = 0;
-      allServers->Count(&count);
-      uint32_t i;
-      for (i = 0; i < count; i++)
-      {
-        nsCOMPtr<nsIMsgIncomingServer> server = do_QueryElementAt(allServers, i);
-        if (server)
-        {
-          nsCOMPtr <nsIMsgFolder> rootFolder;
-          server->GetRootFolder(getter_AddRefs(rootFolder));
-          if (rootFolder)
-          {
-            nsCOMPtr<nsISimpleEnumerator> subFolders;
-            rv = rootFolder->GetSubFolders(getter_AddRefs(subFolders));
-
-            uint32_t lastEntry;
-            allFolders->Count(&lastEntry);
-            rv = rootFolder->ListDescendents(allFolders);
-            uint32_t newLastEntry;
-            allFolders->Count(&newLastEntry);
-            for (uint32_t newEntryIndex = lastEntry; newEntryIndex < newLastEntry; newEntryIndex++)
-            {
-              nsCOMPtr <nsIMsgFolder> curFolder = do_QueryElementAt(allFolders, newEntryIndex);
-              if (WantsThisFolder(curFolder))
-              {
-                m_folders.AppendObject(curFolder);
-              }
-            }
-          }
-        }
-      }
-    }
+    nsCOMPtr<nsIMsgFolder> curFolder = do_QueryElementAt(allFolders, i);
+    if (WantsThisFolder(curFolder))
+      m_folders.AppendObject(curFolder);
   }
 }
 
 
 NS_IMETHODIMP nsMsgFlatFolderDataSource::GetURI(char* *aUri)
 {
-  nsCAutoString uri("rdf:");
+  nsAutoCString uri("rdf:");
   uri.Append(m_dsName);
   return (*aUri = ToNewCString(uri))
     ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
@@ -2360,102 +2340,82 @@ void nsMsgRecentFoldersDataSource::Cleanup()
 
 void nsMsgRecentFoldersDataSource::EnsureFolders()
 {
-  if (!m_builtFolders)
+  if (m_builtFolders)
+    return;
+
+  m_builtFolders = true; // in case something goes wrong
+
+  nsresult rv;
+  nsCOMPtr<nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS_VOID(rv);
+
+  nsCOMPtr<nsIArray> allFolders;
+  rv = accountManager->GetAllFolders(getter_AddRefs(allFolders));
+  if (NS_FAILED(rv) || !allFolders)
+    return;
+
+  uint32_t count;
+  rv = allFolders->GetLength(&count);
+  NS_ENSURE_SUCCESS_VOID(rv);
+
+  for (uint32_t i = 0; i < count; i++)
   {
-    m_builtFolders = true;
-
-    nsresult rv;
-    nsCOMPtr <nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
+    nsCOMPtr<nsIMsgFolder> curFolder = do_QueryElementAt(allFolders, i);
+    nsCString dateStr;
+    curFolder->GetStringProperty(MRU_TIME_PROPERTY, dateStr);
+    uint32_t curFolderDate = (uint32_t) dateStr.ToInteger(&rv);
     if (NS_FAILED(rv))
-      return;
+      curFolderDate = 0;
 
-    nsCOMPtr<nsISupportsArray> allServers;
-    rv = accountManager->GetAllServers(getter_AddRefs(allServers));
-    nsCOMPtr <nsISupportsArray> allFolders = do_CreateInstance(NS_SUPPORTSARRAY_CONTRACTID, &rv);
-    if (NS_SUCCEEDED(rv) && allServers)
+    if (curFolderDate > m_cutOffDate)
     {
-      uint32_t count = 0;
-      allServers->Count(&count);
-      uint32_t i;
-      for (i = 0; i < count; i++)
+      // if m_folders is "full", replace oldest folder with this folder,
+      // and adjust m_cutOffDate so that it's the mrutime
+      // of the "new" oldest folder.
+      uint32_t curFaveFoldersCount = m_folders.Count();
+      if (curFaveFoldersCount > m_maxNumFolders)
       {
-        nsCOMPtr<nsIMsgIncomingServer> server = do_QueryElementAt(allServers, i);
-        if (server)
+        uint32_t indexOfOldestFolder = 0;
+        uint32_t oldestFaveDate = 0;
+        uint32_t newOldestFaveDate = 0;
+        for (uint32_t index = 0; index < curFaveFoldersCount; )
         {
-          nsCOMPtr <nsIMsgFolder> rootFolder;
-          server->GetRootFolder(getter_AddRefs(rootFolder));
-          if (rootFolder)
+          nsCString curFaveFolderDateStr;
+          m_folders[index]->GetStringProperty(MRU_TIME_PROPERTY, curFaveFolderDateStr);
+          uint32_t curFaveFolderDate = (uint32_t) curFaveFolderDateStr.ToInteger(&rv);
+          if (!oldestFaveDate || curFaveFolderDate < oldestFaveDate)
           {
-            nsCOMPtr<nsISimpleEnumerator> subFolders;
-            rv = rootFolder->GetSubFolders(getter_AddRefs(subFolders));
-
-            uint32_t lastEntry;
-            allFolders->Count(&lastEntry);
-            rv = rootFolder->ListDescendents(allFolders);
-            uint32_t newLastEntry;
-            allFolders->Count(&newLastEntry);
-            for (uint32_t newEntryIndex = lastEntry; newEntryIndex < newLastEntry; newEntryIndex++)
-            {
-              nsCOMPtr <nsIMsgFolder> curFolder = do_QueryElementAt(allFolders, newEntryIndex);
-              nsCString dateStr;
-              nsresult err;
-              curFolder->GetStringProperty(MRU_TIME_PROPERTY, dateStr);
-              uint32_t curFolderDate = (uint32_t) dateStr.ToInteger(&err);
-              if (err)
-                curFolderDate = 0;
-              if (curFolderDate > m_cutOffDate)
-              {
-                // if m_folders is "full", replace oldest folder with this folder,
-                // and adjust m_cutOffDate so that it's the mrutime
-                // of the "new" oldest folder.
-                uint32_t curFaveFoldersCount = m_folders.Count();
-                if (curFaveFoldersCount > m_maxNumFolders)
-                {
-                  uint32_t indexOfOldestFolder = 0;
-                  uint32_t oldestFaveDate = 0;
-                  uint32_t newOldestFaveDate = 0;
-                  for (uint32_t index = 0; index < curFaveFoldersCount; )
-                  {
-                    nsCString curFaveFolderDateStr;
-                    m_folders[index]->GetStringProperty(MRU_TIME_PROPERTY, curFaveFolderDateStr);
-                    uint32_t curFaveFolderDate = (uint32_t) curFaveFolderDateStr.ToInteger(&err);
-                    if (!oldestFaveDate || curFaveFolderDate < oldestFaveDate)
-                    {
-                      indexOfOldestFolder = index;
-                      newOldestFaveDate = oldestFaveDate;
-                      oldestFaveDate = curFaveFolderDate;
-                    }
-                    if (!newOldestFaveDate || (index != indexOfOldestFolder
-                                                && curFaveFolderDate < newOldestFaveDate))
-                      newOldestFaveDate = curFaveFolderDate;
-                    index++;
-                  }
-                  if (curFolderDate > oldestFaveDate && m_folders.IndexOf(curFolder) == kNotFound)
-                    m_folders.ReplaceObjectAt(curFolder, indexOfOldestFolder);
-
-                  NS_ASSERTION(newOldestFaveDate >= m_cutOffDate, "cutoff date should be getting bigger");
-                  m_cutOffDate = newOldestFaveDate;
-                }
-                else if (m_folders.IndexOf(curFolder) == kNotFound)
-                  m_folders.AppendObject(curFolder);
-              }
-#ifdef DEBUG_David_Bienvenu
-              else
-              {
-                for (uint32_t index = 0; index < m_folders.Count(); index++)
-                {
-                  nsCString curFaveFolderDateStr;
-                  m_folders[index]->GetStringProperty(MRU_TIME_PROPERTY, curFaveFolderDateStr);
-                  uint32_t curFaveFolderDate = (uint32_t) curFaveFolderDateStr.ToInteger(&err);
-                  NS_ASSERTION(curFaveFolderDate > curFolderDate, "folder newer then faves but not added");
-                }
-              }
-#endif
-            }
+            indexOfOldestFolder = index;
+            newOldestFaveDate = oldestFaveDate;
+            oldestFaveDate = curFaveFolderDate;
           }
+          if (!newOldestFaveDate || (index != indexOfOldestFolder
+              && curFaveFolderDate < newOldestFaveDate)) {
+            newOldestFaveDate = curFaveFolderDate;
+          }
+          index++;
         }
+        if (curFolderDate > oldestFaveDate && m_folders.IndexOf(curFolder) == kNotFound)
+          m_folders.ReplaceObjectAt(curFolder, indexOfOldestFolder);
+
+        NS_ASSERTION(newOldestFaveDate >= m_cutOffDate, "cutoff date should be getting bigger");
+        m_cutOffDate = newOldestFaveDate;
+      }
+      else if (m_folders.IndexOf(curFolder) == kNotFound)
+        m_folders.AppendObject(curFolder);
+    }
+#ifdef DEBUG_David_Bienvenu
+    else
+    {
+      for (uint32_t index = 0; index < m_folders.Count(); index++)
+      {
+        nsCString curFaveFolderDateStr;
+        m_folders[index]->GetStringProperty(MRU_TIME_PROPERTY, curFaveFolderDateStr);
+        uint32_t curFaveFolderDate = (uint32_t) curFaveFolderDateStr.ToInteger(&rv);
+        NS_ASSERTION(curFaveFolderDate > curFolderDate, "folder newer then faves but not added");
       }
     }
+#endif
   }
 }
 

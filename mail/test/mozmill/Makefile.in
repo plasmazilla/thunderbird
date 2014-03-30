@@ -11,8 +11,6 @@ relativesrcdir = @relativesrcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-MODULE = mozmill
-
 include $(topsrcdir)/config/rules.mk
 
 # We're installing to _tests/mozmill
@@ -53,7 +51,8 @@ libs::
 VIRTUALENV_DIR = $(_DEST_DIR)/../mozmill-virtualenv
 mozmill-virtualenv: NSDISTMODE=copy
 mozmill-virtualenv:
-	$(DIR_INSTALL) $(topsrcdir)/mail/test/resources $(_DEST_DIR)
+	$(INSTALL) $(topsrcdir)/mail/test/resources $(_DEST_DIR)
+	$(INSTALL) $(topsrcdir)/mozilla/python/virtualenv $(_DEST_DIR)/resources/
 	rm -rf $(VIRTUALENV_DIR) && \
 	mkdir $(VIRTUALENV_DIR) && \
 	unset MACOSX_DEPLOYMENT_TARGET && \

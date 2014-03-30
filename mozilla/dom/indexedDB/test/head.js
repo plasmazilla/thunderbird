@@ -60,7 +60,7 @@ function triggerSecondaryCommand(popup, index)
 
   // Cancel the arrow panel slide-in transition (bug 767133) such that
   // it won't interfere with us interacting with the dropdown.
-  document.getAnonymousNodes(popup)[0].style.transition = "none";
+  SpecialPowers.wrap(document).getAnonymousNodes(popup)[0].style.transition = "none";
 
   notification.button.focus();
 
@@ -87,9 +87,12 @@ function dismissNotification(popup)
   });
 }
 
-function setFinishedCallback(callback)
+function setFinishedCallback(callback, win)
 {
-  let testPage = gBrowser.selectedBrowser.contentWindow.wrappedJSObject;
+  if (!win) {
+    win = window;
+  }
+  let testPage = win.gBrowser.selectedBrowser.contentWindow.wrappedJSObject;
   testPage.testFinishedCallback = function(result, exception) {
     setTimeout(function() {
       info("got finished callback");

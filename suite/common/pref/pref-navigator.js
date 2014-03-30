@@ -253,16 +253,10 @@ function SwitchPage(aIndex)
   document.getElementById("behaviourDeck").selectedIndex = aIndex;
 }
 
-function ReadConcurrentTabs()
+function WriteConcurrentTabs()
 {
-  var val = document.getElementById("browser.sessionstore.max_concurrent_tabs").value;
-  return val != 0 && val != -1 ? 3 : val;
-}
-
-function WriteConcurrentTabs(aValue)
-{
-  return aValue == "0" || aValue == "-1" ? aValue :
-      document.getElementById("maxConcurrentTabs").value;
+  var val = document.getElementById("maxConcurrentTabsGroup").value;
+  return val > 0 ? document.getElementById("maxConcurrentTabs").value : val;
 }
 
 // platform integration
@@ -277,17 +271,22 @@ function ApplySetAsDefaultBrowser()
   shellSvc.shouldBeDefaultClientFor |= nsIShellService.BROWSER;
 }
 
+function IsDefaultBrowser()
+{
+  const nsIShellService = Components.interfaces.nsIShellService;
+  var shellSvc = Components.classes["@mozilla.org/suite/shell-service;1"]
+                           .getService(nsIShellService);
+
+  return shellSvc.isDefaultClient(false, nsIShellService.BROWSER);
+}
+
 function InitPlatformIntegration()
 {
   const NS_SHELLSERVICE_CID = "@mozilla.org/suite/shell-service;1";
 
   if (NS_SHELLSERVICE_CID in Components.classes) try {
-    const nsIShellService = Components.interfaces.nsIShellService;
-    var shellSvc = Components.classes["@mozilla.org/suite/shell-service;1"]
-                             .getService(nsIShellService);
-
     var desc = document.getElementById("defaultBrowserDesc");
-    if (shellSvc.isDefaultClient(false, nsIShellService.BROWSER))
+    if (IsDefaultBrowser())
       desc.textContent = desc.getAttribute("desc1");
     else {
       desc.textContent = desc.getAttribute("desc0");
@@ -301,19 +300,22 @@ function InitPlatformIntegration()
 
 function SetAsDefaultBrowser()
 {
-  document.getElementById("defaultBrowserButton").disabled = true;
+  var desc = document.getElementById("defaultBrowserDesc");
 
   if (document.documentElement.instantApply)
   {
-    var desc = document.getElementById("defaultBrowserDesc"); 
-    desc.textContent = desc.getAttribute("desc1");
-    ApplySetAsDefaultBrowser();
+    if (IsDefaultBrowser())
+      desc.textContent = desc.getAttribute("desc1");
+    else {
+      desc.textContent = desc.getAttribute("desc3");
+      ApplySetAsDefaultBrowser();
+    }
   }
   else
   {
     // register OK handler for the capturing phase
-    var desc = document.getElementById("defaultBrowserDesc");
     desc.textContent = desc.getAttribute("desc2");
     window.addEventListener("dialogaccept", this.ApplySetAsDefaultBrowser, true);
+    document.getElementById("defaultBrowserButton").disabled = true;
   }
 }

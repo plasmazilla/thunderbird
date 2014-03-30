@@ -2,8 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+Components.utils.import("resource://gre/modules/Timer.jsm");
 
 /**
  * This is a handler for the etag request in calDavCalendar.js' getUpdatedItem.
@@ -41,15 +42,12 @@ etagsHandler.prototype = {
     itemsReported: null,
     itemsNeedFetching: null,
 
-    QueryInterface: function QueryInterface(aIID) {
-        return doQueryInterface(this,
-                                etagsHandler.prototype,
-                                aIID,
-                                [Components.interfaces.nsISAXContentHandler,
-                                 Components.interfaces.nsISAXErrorHandler,
-                                 Components.interfaces.nsIRequestObserver,
-                                 Components.interfaces.nsIStreamListener]);
-    },
+    QueryInterface: XPCOMUtils.generateQI([
+        Components.interfaces.nsISAXContentHandler,
+        Components.interfaces.nsISAXErrorHandler,
+        Components.interfaces.nsIRequestObserver,
+        Components.interfaces.nsIStreamListener
+    ]),
 
     /**
      * @see nsIStreamListener
@@ -164,6 +162,7 @@ etagsHandler.prototype = {
                                        this.calendar,
                                        this.baseUri,
                                        null,
+                                       false,
                                        null,
                                        this.changeLogListener)
             multiget.doMultiGet();
@@ -316,21 +315,19 @@ webDavSyncHandler.prototype = {
     unhandledErrors : 0,
     itemsReported: null,
     itemsNeedFetching: null,
+    additionalSyncNeeded: false,
 
-    QueryInterface: function QueryInterface(aIID) {
-        return doQueryInterface(this,
-                                webDavSyncHandler.prototype,
-                                aIID,
-                                [Components.interfaces.nsISAXContentHandler,
-                                 Components.interfaces.nsISAXErrorHandler,
-                                 Components.interfaces.nsIRequestObserver,
-                                 Components.interfaces.nsIStreamListener]);
-    },
+    QueryInterface: XPCOMUtils.generateQI([
+        Components.interfaces.nsISAXContentHandler,
+        Components.interfaces.nsISAXErrorHandler,
+        Components.interfaces.nsIRequestObserver,
+        Components.interfaces.nsIStreamListener
+    ]),
 
     doWebDAVSync: function doWebDAVSync() {
         if (this.calendar.mDisabled) {
             // check if maybe our calendar has become available
-            this.calendar.checkDavResourceType(this.changeLogListener);
+            this.calendar.setupAuthentication(this.changeLogListener);
             return;
         }
 
@@ -345,6 +342,7 @@ webDavSyncHandler.prototype = {
           xmlHeader +
           '<sync-collection xmlns="DAV:">' +
             syncTokenString +
+            '<sync-level>1</sync-level>' +
             '<prop>' +
               '<getcontenttype/>' +
               '<getetag/>' +
@@ -357,14 +355,22 @@ webDavSyncHandler.prototype = {
             cal.LOG("CalDAV: send(" + requestUri.spec + "): " + queryXml);
         }
         cal.LOG("CalDAV: webdav-sync Token: " + this.calendar.mWebdavSyncToken);
-        let httpchannel = cal.prepHttpChannel(requestUri,
-                                              queryXml,
-                                              "text/xml; charset=utf-8",
-                                              this.calendar);
-        httpchannel.setRequestHeader("Depth", "1", false);
-        httpchannel.requestMethod = "REPORT";
-        // Submit the request
-        httpchannel.asyncOpen(this, httpchannel);
+        this.calendar.sendHttpRequest(requestUri, queryXml, MIME_TEXT_XML, null, (channel) => {
+            // The depth header adheres to an older version of the webdav-sync
+            // spec and has been replaced by the <sync-level> tag above.
+            // Unfortunately some servers still depend on the depth header,
+            // therefore we send both (yuck).
+            channel.setRequestHeader("Depth", "1", false);
+
+            channel.requestMethod = "REPORT";
+            return this;
+        }, () => {
+            // Something went wrong with the OAuth token, notify failure
+            if (this.calendar.isCached && this.changeLogListener) {
+                this.changeLogListener.onResult({ status: Components.results.NS_ERROR_NOT_AVAILABLE },
+                                                Components.results.NS_ERROR_NOT_AVAILABLE);
+            }
+        }, false);
     },
 
     /**
@@ -494,6 +500,7 @@ webDavSyncHandler.prototype = {
                                                    this.calendar,
                                                    this.baseUri,
                                                    this.newSyncToken,
+                                                   this.additionalSyncNeeded,
                                                    null,
                                                    this.changeLogListener)
             multiget.doMultiGet();
@@ -584,16 +591,27 @@ webDavSyncHandler.prototype = {
                         // Etag mismatch, getting new/updated item.
                         this.itemsNeedFetching.push(r.href);
                     }
-                // If the response element is still not handled, log an error
-                // only if the content-type is text/calendar or the
-                // response status is different than 404 not found.
-                // We don't care about response elements
-                // on non-calendar resources or whose status is not indicating
-                // a deleted resource.
+                } else if (r.status &&
+                            r.status.indexOf(" 507") > -1) {
+                    // webdav-sync says that if a 507 is encountered and the
+                    // url matches the request, the current token should be
+                    // saved and another request should be made. We don't
+                    // actually compare the URL, its too easy to get this
+                    // wrong.
+
+                    // The 507 doesn't mean the data received is invalid, so
+                    // continue processing.
+                    this.additionalSyncNeeded = true;
                 } else if ((r.getcontenttype &&
                             r.getcontenttype.substr(0,13) == "text/calendar") ||
                            (r.status &&
                             r.status.indexOf(" 404") == -1)) {
+                    // If the response element is still not handled, log an
+                    // error only if the content-type is text/calendar or the
+                    // response status is different than 404 not found.  We
+                    // don't care about response elements on non-calendar
+                    // resources or whose status is not indicating a deleted
+                    // resource.
                     cal.WARN("CalDAV: Unexpected response, status: " + r.status + ", href: " + r.href);
                     this.unhandledErrors++;
                 } else {
@@ -628,12 +646,15 @@ webDavSyncHandler.prototype = {
  *                              array of un-encoded paths.
  * @param aCalendar             The (unwrapped) calendar this request belongs to
  * @param aBaseUri              The URI requested (i.e inbox or collection)
+ * @param aAdditionalSyncNeeded (optional) If true, the passed sync token is not the
+ *                                latest, another webdav sync run should be
+ *                                done after completion.
  * @param aNewSyncToken         (optional) new Sync token to set if operation successful
  * @param aListener             (optional) The listener to notify
  * @param aChangeLogListener    (optional) for cached calendars, the listener to
  *                                notify.
  */
-function multigetSyncHandler(aItemsNeedFetching, aCalendar, aBaseUri, aNewSyncToken, aListener, aChangeLogListener) {
+function multigetSyncHandler(aItemsNeedFetching, aCalendar, aBaseUri, aNewSyncToken, aAdditionalSyncNeeded, aListener, aChangeLogListener) {
     this.calendar = aCalendar;
     this.baseUri = aBaseUri;
     this.listener = aListener;
@@ -645,6 +666,7 @@ function multigetSyncHandler(aItemsNeedFetching, aCalendar, aBaseUri, aNewSyncTo
     this._reader.errorHandler = this;
     this._reader.parseAsync(null);
     this.itemsNeedFetching = aItemsNeedFetching;
+    this.additionalSyncNeeded = aAdditionalSyncNeeded;
 }
 multigetSyncHandler.prototype = {
     currentResponse: null,
@@ -657,21 +679,19 @@ multigetSyncHandler.prototype = {
     logXML: null,
     unhandledErrors : 0,
     itemsNeedFetching: null,
+    additionalSyncNeeded: false,
 
-    QueryInterface: function QueryInterface(aIID) {
-        return doQueryInterface(this,
-                                multigetSyncHandler.prototype,
-                                aIID,
-                                [Components.interfaces.nsISAXContentHandler,
-                                 Components.interfaces.nsISAXErrorHandler,
-                                 Components.interfaces.nsIRequestObserver,
-                                 Components.interfaces.nsIStreamListener]);
-    },
+    QueryInterface: XPCOMUtils.generateQI([
+        Components.interfaces.nsISAXContentHandler,
+        Components.interfaces.nsISAXErrorHandler,
+        Components.interfaces.nsIRequestObserver,
+        Components.interfaces.nsIStreamListener
+    ]),
 
     doMultiGet: function doMultiGet() {
         if (this.calendar.mDisabled) {
             // check if maybe our calendar has become available
-            this.calendar.checkDavResourceType(this.changeLogListener);
+            this.calendar.setupAuthentication(this.changeLogListener);
             return;
         }
 
@@ -699,14 +719,17 @@ multigetSyncHandler.prototype = {
         if (this.calendar.verboseLogging()) {
             cal.LOG("CalDAV: send(" + requestUri.spec + "): " + queryXml);
         }
-        let httpchannel = cal.prepHttpChannel(requestUri,
-                                              queryXml,
-                                              "text/xml; charset=utf-8",
-                                              this.calendar);
-        httpchannel.setRequestHeader("Depth", "1", false);
-        httpchannel.requestMethod = "REPORT";
-        // Submit the request
-        httpchannel.asyncOpen(this, httpchannel);
+        this.calendar.sendHttpRequest(requestUri, queryXml, MIME_TEXT_XML, null, (channel) => {
+            channel.requestMethod = "REPORT";
+            channel.setRequestHeader("Depth", "1", false);
+            return this;
+        }, () => {
+            // Something went wrong with the OAuth token, notify failure
+            if (this.calendar.isCached && this.changeLogListener) {
+                this.changeLogListener.onResult({ status: Components.results.NS_ERROR_NOT_AVAILABLE },
+                                                Components.results.NS_ERROR_NOT_AVAILABLE);
+            }
+        }, false);
     },
 
     /**
@@ -751,8 +774,17 @@ multigetSyncHandler.prototype = {
               cal.LOG("CalDAV: New webdav-sync Token: " + this.calendar.mWebdavSyncToken);
             }
 
-            this.calendar.finalizeUpdatedItems(this.changeLogListener,
-                                               this.baseUri);
+            if (this.additionalSyncNeeded) {
+                setTimeout(() => {
+                    let wds = new webDavSyncHandler(this.calendar,
+                                                    this.baseUri,
+                                                    this.changeLogListener);
+                    wds.doWebDAVSync();
+                }, 0);
+            } else {
+                this.calendar.finalizeUpdatedItems(this.changeLogListener,
+                                                   this.baseUri);
+            }
         }
         if (!this._reader) {
             // No reader means there was a request error. The error is already
@@ -895,6 +927,8 @@ multigetSyncHandler.prototype = {
                                                             this.baseUri,
                                                             r.getetag,
                                                             this.listener);
+                    } else {
+                        cal.LOG("CalDAV: skipping item with unmodified etag : " + oldEtag);
                     }
                 } else {
                     cal.WARN("CalDAV: Unexpected response, status: " +

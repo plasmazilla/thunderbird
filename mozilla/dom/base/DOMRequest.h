@@ -7,11 +7,11 @@
 #ifndef mozilla_dom_domrequest_h__
 #define mozilla_dom_domrequest_h__
 
-#include "nsContentUtils.h"
 #include "nsIDOMDOMRequest.h"
-#include "nsIDOMDOMError.h"
 #include "nsDOMEventTargetHelper.h"
 #include "mozilla/Attributes.h"
+#include "mozilla/dom/DOMError.h"
+#include "mozilla/dom/DOMRequestBinding.h"
 
 #include "nsCOMPtr.h"
 
@@ -22,22 +22,53 @@ class DOMRequest : public nsDOMEventTargetHelper,
                    public nsIDOMDOMRequest
 {
 protected:
-  jsval mResult;
-  nsCOMPtr<nsIDOMDOMError> mError;
+  JS::Heap<JS::Value> mResult;
+  nsRefPtr<DOMError> mError;
   bool mDone;
-
-  NS_DECL_EVENT_HANDLER(success)
-  NS_DECL_EVENT_HANDLER(error)
 
 public:
   NS_DECL_ISUPPORTS_INHERITED
   NS_DECL_NSIDOMDOMREQUEST
-  NS_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetHelper::)
+  NS_REALLY_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetHelper)
 
   NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS_INHERITED(DOMRequest,
                                                          nsDOMEventTargetHelper)
 
-  void FireSuccess(jsval aResult);
+  // WrapperCache
+  nsPIDOMWindow* GetParentObject() const
+  {
+    return GetOwner();
+  }
+
+  virtual JSObject* WrapObject(JSContext* aCx,
+                               JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
+
+  // WebIDL Interface
+  DOMRequestReadyState ReadyState() const
+  {
+    return mDone ? DOMRequestReadyState::Done
+                 : DOMRequestReadyState::Pending;
+  }
+
+  JS::Value Result(JSContext* = nullptr) const
+  {
+    NS_ASSERTION(mDone || mResult == JSVAL_VOID,
+               "Result should be undefined when pending");
+    return mResult;
+  }
+
+  DOMError* GetError() const
+  {
+    NS_ASSERTION(mDone || !mError,
+                 "Error should be null when pending");
+    return mError;
+  }
+
+  IMPL_EVENT_HANDLER(success)
+  IMPL_EVENT_HANDLER(error)
+
+
+  void FireSuccess(JS::Handle<JS::Value> aResult);
   void FireError(const nsAString& aError);
   void FireError(nsresult aError);
 
@@ -53,7 +84,7 @@ public:
 protected:
   void FireEvent(const nsAString& aType, bool aBubble, bool aCancelable);
 
-  virtual void RootResultVal();
+  void RootResultVal();
 
   void Init(nsIDOMWindow* aWindow);
 };

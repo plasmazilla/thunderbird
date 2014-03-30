@@ -2,13 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["DEBUG", "LOG", "WARN", "ERROR", "_",
-                          "ctcpFormatToText", "ctcpFormatToHTML"];
+const EXPORTED_SYMBOLS = ["_", "ctcpFormatToText", "ctcpFormatToHTML",
+                          "conversationErrorMessage"];
 
 const {classes: Cc, interfaces: Ci} = Components;
 
 Components.utils.import("resource:///modules/imXPCOMUtils.jsm");
-initLogModule("irc", this);
 
 XPCOMUtils.defineLazyGetter(this, "_", function()
   l10nHelper("chrome://chat/locale/irc.properties")
@@ -211,4 +210,12 @@ function mIRCColoring(aStack, aInput) {
   }
 
   return [stack, output, length];
+}
+
+function conversationErrorMessage(aAccount, aMessage, aError) {
+  let conv = aAccount.getConversation(aMessage.params[1]);
+  conv.writeMessage(aMessage.servername, _(aError, aMessage.params[1]),
+                    {error: true, system: true});
+  delete conv._pendingMessage;
+  return true;
 }

@@ -47,39 +47,29 @@ function calICSCalendar() {
     this.queue = new Array();
     this.mModificationActions = [];
 }
-
+const calICSCalendarClassID = Components.ID("{f8438bff-a3c9-4ed5-b23f-2663b5469abf}");
+const calICSCalendarInterfaces = [
+    Components.interfaces.calICalendarProvider,
+    Components.interfaces.calICalendar,
+    Components.interfaces.calISchedulingSupport,
+    Components.interfaces.nsIStreamListener,
+    Components.interfaces.nsIStreamLoaderObserver,
+    Components.interfaces.nsIChannelEventSink,
+    Components.interfaces.nsIInterfaceRequestor,
+];
 calICSCalendar.prototype = {
     __proto__: cal.ProviderBase.prototype,
-
-    classID: Components.ID("{f8438bff-a3c9-4ed5-b23f-2663b5469abf}"),
-    contractID: "@mozilla.org/calendar/calendar;1?type=ics",
-    classDescription: "Calendar ICS provider",
-
-    getInterfaces: function getInterfaces(count) {
-        const ifaces = [Components.interfaces.calICalendarProvider,
-                        Components.interfaces.calICalendar,
-                        Components.interfaces.calISchedulingSupport,
-                        Components.interfaces.nsIStreamListener,
-                        Components.interfaces.nsIStreamLoaderObserver,
-                        Components.interfaces.nsIChannelEventSink,
-                        Components.interfaces.nsIInterfaceRequestor,
-                        Components.interfaces.nsIClassInfo,
-                        Components.interfaces.nsISupports];
-        count.value = ifaces.length;
-        return ifaces;
-    },
-    getHelperForLanguage: function getHelperForLanguage(language) {
-        return null;
-    },
-    implementationLanguage: Components.interfaces.nsIProgrammingLanguage.JAVASCRIPT,
-    flags: 0,
+    classID: calICSCalendarClassID,
+    QueryInterface: XPCOMUtils.generateQI(calICSCalendarInterfaces),
+    classInfo: XPCOMUtils.generateCI({
+        classID: calICSCalendarClassID,
+        contractID: "@mozilla.org/calendar/calendar;1?type=ics",
+        classDescription: "Calendar ICS provider",
+        interfaces: calICSCalendarInterfaces,
+    }),
 
     mObserver: null,
     locked: false,
-
-    QueryInterface: function (aIID) {
-        return cal.doQueryInterface(this, calICSCalendar.prototype, aIID, null, this);
-    },
 
     initICSCalendar: function() {
         this.mMemoryCalendar = Components.classes["@mozilla.org/calendar/calendar;1?type=memory"]
@@ -125,11 +115,13 @@ calICSCalendar.prototype = {
 
         // Use the ioservice, to create a channel, which makes finding the
         // right hooks to use easier.
-        var channel = cal.getIOService().newChannelFromURI(this.mUri);
+        var channel = Services.io.newChannelFromURI(this.mUri);
+        let wHttpChannel = cal.wrapInstance(channel, Components.interfaces.nsIHttpChannel);
+        let wFileChannel = cal.wrapInstance(channel, Components.interfaces.nsIFileChannel);
 
-        if (calInstanceOf(channel, Components.interfaces.nsIHttpChannel)) {
+        if (wHttpChannel) {
             this.mHooks = new httpHooks(this);
-        } else if (calInstanceOf(channel, Components.interfaces.nsIFileChannel)) {
+        } else if (wFileChannel) {
             this.mHooks = new fileHooks(this);
         } else {
             this.mHooks = new dummyHooks(this);
@@ -180,7 +172,7 @@ calICSCalendar.prototype = {
                                  .createInstance(Components.interfaces.nsISupportsPRBool);
         prbForce.data = aForce;
 
-        var channel = cal.getIOService().newChannelFromURI(this.mUri);
+        var channel = Services.io.newChannelFromURI(this.mUri);
         this.prepareChannel(channel, aForce);
 
         var streamLoader = Components.classes["@mozilla.org/network/stream-loader;1"]
@@ -314,8 +306,6 @@ calICSCalendar.prototype = {
     doWriteICS: function () {
         cal.LOG("[calICSCalendar] Writing ICS File " + this.uri.spec);
         var savedthis = this;
-        var appStartup = Components.classes["@mozilla.org/toolkit/app-startup;1"]
-                                   .getService(Components.interfaces.nsIAppStartup);
         var listener =
         {
             serializer: null,
@@ -326,7 +316,7 @@ calICSCalendar.prototype = {
                     // All events are returned. Now set up a channel and a
                     // streamloader to upload.  onStopRequest will be called
                     // once the write has finished
-                    var channel = cal.getIOService().newChannelFromURI(savedthis.mUri);
+                    var channel = Services.io.newChannelFromURI(savedthis.mUri);
 
                     // Allow the hook to add things to the channel, like a
                     // header that checks etags
@@ -343,12 +333,12 @@ calICSCalendar.prototype = {
                         uploadChannel.setUploadStream(icsStream,
                                                     "text/calendar", -1);
 
-                        appStartup.enterLastWindowClosingSurvivalArea();
+                        Services.startup.enterLastWindowClosingSurvivalArea();
                         inLastWindowClosingSurvivalArea = true;
                         channel.asyncOpen(savedthis, savedthis);
                     } else {
                         if (inLastWindowClosingSurvivalArea) {
-                            appStartup.exitLastWindowClosingSurvivalArea();
+                            Services.startup.exitLastWindowClosingSurvivalArea();
                         }
                         savedthis.mObserver.onError(savedthis.superCalendar,
                                                     calIErrors.MODIFICATION_FAILED,
@@ -357,7 +347,7 @@ calICSCalendar.prototype = {
                     }
                 } catch (ex) {
                     if (inLastWindowClosingSurvivalArea) {
-                        appStartup.exitLastWindowClosingSurvivalArea();
+                        Services.startup.exitLastWindowClosingSurvivalArea();
                     }
                     savedthis.mObserver.onError(savedthis.superCalendar,
                                                 ex.result, "The calendar could not be saved; there " +
@@ -422,9 +412,6 @@ calICSCalendar.prototype = {
         } catch(e) {
         }
 
-        let appStartup = Components.classes["@mozilla.org/toolkit/app-startup;1"]
-                                   .getService(Components.interfaces.nsIAppStartup);
-
         if ((httpChannel && !httpChannel.requestSucceeded) ||
             (!httpChannel && !Components.isSuccessCode(request.status))) {
             ctxt.mObserver.onError(this.superCalendar,
@@ -438,7 +425,7 @@ calICSCalendar.prototype = {
             // the PUT has failed, refresh, and signal error to all modifying operations:
             this.forceRefresh();
             ctxt.unlock(calIErrors.MODIFICATION_FAILED);
-            appStartup.exitLastWindowClosingSurvivalArea();
+            Services.startup.exitLastWindowClosingSurvivalArea();
             return;
         }
 
@@ -447,7 +434,7 @@ calICSCalendar.prototype = {
         ctxt.mHooks.onAfterPut(request,
                                function() {
                                    ctxt.unlock();
-                                   appStartup.exitLastWindowClosingSurvivalArea();
+                                   Services.startup.exitLastWindowClosingSurvivalArea();
                                });
     },
 
@@ -774,7 +761,7 @@ calICSCalendar.prototype = {
         purgeOldBackups();
 
         // Now go download the remote file, and store it somewhere local.
-        var channel = cal.getIOService().newChannelFromURI(this.mUri);
+        var channel = Services.io.newChannelFromURI(this.mUri);
         channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
         channel.notificationCallbacks = this;
 
@@ -1085,15 +1072,4 @@ const scriptLoadOrder = [
     "calUtils.js",
 ];
 
-function NSGetFactory(cid) {
-    if (!this.scriptsLoaded) {
-        Services.io.getProtocolHandler("resource")
-                .QueryInterface(Components.interfaces.nsIResProtocolHandler)
-                .setSubstitution("calendar", Services.io.newFileURI(__LOCATION__.parent.parent));
-        Components.utils.import("resource://calendar/modules/calUtils.jsm");
-        cal.loadScripts(scriptLoadOrder, Components.utils.getGlobalForObject(this));
-        this.scriptsLoaded = true;
-    }
-
-    return (XPCOMUtils.generateNSGetFactory([calICSCalendar]))(cid);
-}
+var NSGetFactory = cal.loadingNSGetFactory(scriptLoadOrder, [calICSCalendar], this);

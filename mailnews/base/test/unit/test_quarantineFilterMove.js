@@ -49,16 +49,16 @@ const gTestArray =
     do_check_eq(folderCount(gMoveFolder), 2);
     // the local inbox folder should now be empty, since the second
     // operation was a move
-    do_check_eq(folderCount(gLocalInboxFolder), 0);
+    do_check_eq(folderCount(localAccountUtils.inboxFolder), 0);
 
     let enumerator = gMoveFolder.msgDatabase.EnumerateMessages();
     let firstMsgHdr = enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
     let secondMsgHdr = enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
     // Check that the messages have content
     messageContent = getContentFromMessage(firstMsgHdr);
-    do_check_true(messageContent.indexOf("Some User <bugmail@example.org> changed") != -1);
+    do_check_true(messageContent.contains("Some User <bugmail@example.org> changed"));
     messageContent = getContentFromMessage(secondMsgHdr);
-    do_check_true(messageContent.indexOf("https://bugzilla.mozilla.org/show_bug.cgi?id=436880") != -1);
+    do_check_true(messageContent.contains("https://bugzilla.mozilla.org/show_bug.cgi?id=436880"));
 
     ++gCurTestNum;
     doTest();
@@ -82,9 +82,9 @@ const gTestArray =
     let secondMsgHdr = enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
     // Check that the messages have content
     messageContent = getContentFromMessage(firstMsgHdr);
-    do_check_true(messageContent.indexOf("Some User <bugmail@example.org> changed") != -1);
+    do_check_true(messageContent.contains("Some User <bugmail@example.org> changed"));
     messageContent = getContentFromMessage(secondMsgHdr);
-    do_check_true(messageContent.indexOf("https://bugzilla.mozilla.org/show_bug.cgi?id=436880") != -1);
+    do_check_true(messageContent.contains("https://bugzilla.mozilla.org/show_bug.cgi?id=436880"));
 
     ++gCurTestNum;
     doTest();
@@ -112,19 +112,15 @@ function run_test()
 
   // quarantine messages
   Services.prefs.setBoolPref("mailnews.downloadToTempFile", true);
-  if (!gLocalInboxFolder)
-    loadLocalMailAccount();
+  if (!localAccountUtils.inboxFolder)
+    localAccountUtils.loadLocalMailAccount();
 
-  gMoveFolder = gLocalIncomingServer.rootMsgFolder
-                  .createLocalSubfolder("MoveFolder");
-  gMoveFolder2 = gLocalIncomingServer.rootMsgFolder
-                  .createLocalSubfolder("MoveFolder2");
-  const mailSession = Cc["@mozilla.org/messenger/services/session;1"]
-                        .getService(Ci.nsIMsgMailSession);
+  gMoveFolder = localAccountUtils.rootFolder.createLocalSubfolder("MoveFolder");
+  gMoveFolder2 = localAccountUtils.rootFolder.createLocalSubfolder("MoveFolder2");
 
-  mailSession.AddFolderListener(FolderListener, Ci.nsIFolderListener.event |
-                                                Ci.nsIFolderListener.added |
-                                                Ci.nsIFolderListener.removed);
+  MailServices.mailSession.AddFolderListener(FolderListener, Ci.nsIFolderListener.event |
+                                                             Ci.nsIFolderListener.added |
+                                                             Ci.nsIFolderListener.removed);
 
   // "Master" do_test_pending(), paired with a do_test_finished() at the end of
   // all the operations.

@@ -4,6 +4,7 @@
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://calendar/modules/calIteratorUtils.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 /**
  * calItemBase prototype definition
@@ -52,10 +53,7 @@ calItemBase.prototype = {
     /**
      * @see nsISupports
      */
-    QueryInterface: function cIB_QueryInterface(aIID) {
-        return doQueryInterface(this, calItemBase.prototype, aIID,
-                                [Components.interfaces.calIItemBase]);
-    },
+    QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIItemBase]),
 
     /**
      * @see calIItemBase
@@ -462,10 +460,14 @@ calItemBase.prototype = {
     setPropertyParameter: function cIB_setPropertyParameter(aPropName, aParamName, aParamValue) {
         let propName = aPropName.toUpperCase();
         let paramName = aParamName.toUpperCase();
-        if (!(propName in this.mPropertyParams)) {
-            throw "Property " + aPropName + " not set";
-        }
         this.modify();
+        if (!(propName in this.mPropertyParams)) {
+            if (!this.hasProperty(propName)) {
+                throw "Property " + aPropName + " not set";
+            } else {
+                this.mPropertyParams[propName] = {};
+            }
+        }
         if (aParamValue || !isNaN(parseInt(aParamValue, 10))) {
             this.mPropertyParams[propName][paramName] = aParamValue;
         } else {
@@ -490,9 +492,7 @@ calItemBase.prototype = {
             getNext: function cIB_gPE_getNext() {
                 let paramName = this.mParamNames.pop()
                 return { // nsIProperty
-                    QueryInterface: function cIB_gPE_gN_QueryInterface(aIID) {
-                        return doQueryInterface(this, null, aIID, [Components.interfaces.nsIProperty]);
-                    },
+                    QueryInterface: XPCOMUtils.generateQI([Components.interfaces.nsIProperty]),
                     name: paramName,
                     value: parameters[paramName]
                 };
@@ -581,7 +581,7 @@ calItemBase.prototype = {
     removeAttachment: function cIB_removeAttachment(aAttachment) {
         this.modify();
         for (var attIndex in this.mAttachments) {
-            if (cal.compareObjects(mAttachments[attIndex], aAttachment, Components.interfaces.calIAttachment)) {
+            if (cal.compareObjects(this.mAttachments[attIndex], aAttachment, Components.interfaces.calIAttachment)) {
                 this.modify();
                 this.mAttachments.splice(attIndex, 1);
                 break;
@@ -693,6 +693,7 @@ calItemBase.prototype = {
     // void setCategories(in PRUint32 aCount,
     //                    [array, size_is(aCount)] in wstring aCategories);
     setCategories: function cib_setCategories(aCount, aCategories) {
+        this.modify();
         this.mCategories = aCategories.concat([]);
     },
 

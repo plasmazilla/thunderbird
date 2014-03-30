@@ -8,6 +8,8 @@
  *  for now.
  */
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 function registerFolderEventLogHelper() {
   // Bail if there's no one on the other end who cares about our very
   //  expensive log additions.
@@ -16,15 +18,10 @@ function registerFolderEventLogHelper() {
   if (!logHelperHasInterestedListeners())
     return;
 
-  let mailSession = Cc["@mozilla.org/messenger/services/session;1"].
-    getService(Ci.nsIMsgMailSession);
-  mailSession.AddFolderListener(_folderEventLogHelper_folderListener,
-                                Ci.nsIFolderListener.propertyFlagChanged |
-                                Ci.nsIFolderListener.event);
-  let notificationService =
-    Cc["@mozilla.org/messenger/msgnotificationservice;1"]
-      .getService(Ci.nsIMsgFolderNotificationService);
-  notificationService.addListener(_folderEventLogHelper_msgFolderListener,
+  MailServices.mailSession.AddFolderListener(_folderEventLogHelper_folderListener,
+                                             Ci.nsIFolderListener.propertyFlagChanged |
+                                             Ci.nsIFolderListener.event);
+  MailServices.mfn.addListener(_folderEventLogHelper_msgFolderListener,
         Ci.nsIMsgFolderNotificationService.msgAdded |
         Ci.nsIMsgFolderNotificationService.msgsClassified |
         Ci.nsIMsgFolderNotificationService.msgsDeleted |
@@ -52,8 +49,7 @@ let _folderEventLogHelper_msgFolderListener = {
       aJunkProcessed ? "junk processed" : "did not junk process",
       aTraitProcessed ? "trait processed" : "did not trait process"
     ];
-    for each (let msgHdr in fixIterator(aMsgs.enumerate(),
-                                        Components.interfaces.nsIMsgDBHdr)) {
+    for (let msgHdr in fixIterator(aMsgs, Components.interfaces.nsIMsgDBHdr)) {
       args.push(msgHdr);
     }
     mark_action("msgEvent", "msgsClassified", args);
@@ -61,8 +57,7 @@ let _folderEventLogHelper_msgFolderListener = {
 
   msgsDeleted: function felh_msgsDeleted(aMsgs) {
     let args = [];
-    for each (let msgHdr in fixIterator(aMsgs.enumerate(),
-                                        Components.interfaces.nsIMsgDBHdr)) {
+    for (let msgHdr in fixIterator(aMsgs, Components.interfaces.nsIMsgDBHdr)) {
       args.push(msgHdr);
     }
     mark_action("msgEvent", "msgsDeleted", args);
@@ -72,16 +67,14 @@ let _folderEventLogHelper_msgFolderListener = {
                                                              aDestFolder,
                                                              aDestMsgs) {
     let args = [aMove ? "moved" : "copied"];
-    for each (let msgHdr in fixIterator(aSrcMsgs.enumerate(),
-                                        Components.interfaces.nsIMsgDBHdr)) {
+    for (let msgHdr in fixIterator(aSrcMsgs, Components.interfaces.nsIMsgDBHdr)) {
       args.push(msgHdr);
     }
     args.push("to");
     args.push(aDestFolder);
     if (aDestMsgs) {
       args.push("dest headers:");
-      for each (let msgHdr in fixIterator(aDestMsgs.enumerate(),
-                                          Components.interfaces.nsIMsgDBHdr)) {
+      for (let msgHdr in fixIterator(aDestMsgs, Components.interfaces.nsIMsgDBHdr)) {
         args.push(msgHdr);
       }
     }

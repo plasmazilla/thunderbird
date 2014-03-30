@@ -3,6 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 const kDefaultFontType          = "font.default.%LANG%";
 const kFontNameFmtSerif         = "font.name.serif.%LANG%";
 const kFontNameFmtSansSerif     = "font.name.sans-serif.%LANG%";
@@ -75,31 +77,32 @@ var gFontsDialog = {
     // - there is no setting
     // - the font selected by the user is no longer present (e.g. deleted from
     //   fonts folder)
-    var preference = document.getElementById(aElement.getAttribute("preference"));
+    let preference = document.getElementById(aElement.getAttribute("preference"));
+    let fontItem;
     if (preference.value) {
-      var fontItems = aElement.getElementsByAttribute("value", preference.value);
+      fontItem = aElement.querySelector('[value="' + preference.value + '"]');
 
       // There is a setting that actually is in the list. Respect it.
-      if (fontItems.length > 0)
+      if (fontItem)
         return undefined;
     }
 
-    var defaultValue = aElement.firstChild.firstChild.getAttribute("value");
-    var languagePref = document.getElementById("font.language.group");
+    let defaultValue = aElement.firstChild.firstChild.getAttribute("value");
+    let languagePref = document.getElementById("font.language.group");
     preference = document.getElementById("font.name-list." + aElement.id + "." + languagePref.value);
     if (!preference)
       return defaultValue;
 
-    var fontNames = preference.value.split(",");
+    let fontNames = preference.value.split(",");
 
-    for (var i = 0; i < fontNames.length; ++i) {
-      var fontName = fontNames[i].trim();
-      fontItems = aElement.getElementsByAttribute("value", fontName);
-      if (fontItems.length)
+    for (let i = 0; i < fontNames.length; ++i) {
+      let fontName = fontNames[i].trim();
+      fontItem = aElement.querySelector('[value="' + fontName + '"]');
+      if (fontItem)
         break;
     }
-    if (fontItems.length)
-      return fontItems[0].getAttribute("value");
+    if (fontItem)
+      return fontItem.getAttribute("value");
     return defaultValue;
   },
 
@@ -172,9 +175,7 @@ var gFontsDialog = {
   {
     if (!this.mCharsetMenuInitialized)
     {
-      Components.classes["@mozilla.org/observer-service;1"]
-                .getService(Components.interfaces.nsIObserverService)
-                .notifyObservers(null, "charsetmenu-selected", "mailedit");
+      Services.obs.notifyObservers(null, "charsetmenu-selected", "mailedit");
       // build the charset menu list. We do this by hand instead of using the xul template
       // builder because of Bug #285076,
       this.createCharsetMenus(document.getElementById("sendDefaultCharset-menupopup"), "NC:MaileditCharsetMenuRoot",

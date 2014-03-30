@@ -35,6 +35,8 @@
 #include "nsIWeakReferenceUtils.h"
 #define MESSENGER_STRING_URL       "chrome://messenger/locale/messenger.properties"
 
+class nsVoidArray;
+
 typedef nsAutoTArray<nsMsgViewIndex, 1> nsMsgViewIndexArray;
 
 enum eFieldType {
@@ -67,7 +69,7 @@ public:
 #define PREF_LABELS_DESCRIPTION  "mailnews.labels.description."
 #define PREF_LABELS_COLOR  "mailnews.labels.color."
 
-#define LABEL_COLOR_STRING "lc-"
+#define LABEL_COLOR_STRING " lc-"
 #define LABEL_COLOR_WHITE_STRING "#FFFFFF"
 
 struct IdUint32
@@ -115,29 +117,6 @@ public:
 
 protected:
   static nsrefcnt gInstanceCount;
-  // atoms used for styling the view. we're going to have a lot of
-  // these so i'm going to make them static.
-  static nsIAtom* kUnreadMsgAtom;
-  static nsIAtom* kNewMsgAtom;
-  static nsIAtom* kReadMsgAtom;
-  static nsIAtom* kRepliedMsgAtom;
-  static nsIAtom* kForwardedMsgAtom;
-  static nsIAtom* kOfflineMsgAtom;
-  static nsIAtom* kFlaggedMsgAtom;
-  static nsIAtom* kImapDeletedMsgAtom;
-  static nsIAtom* kAttachMsgAtom;
-  static nsIAtom* kHasUnreadAtom;
-  static nsIAtom* kWatchThreadAtom;
-  static nsIAtom* kIgnoreThreadAtom;
-  static nsIAtom* kIgnoreSubthreadAtom;
-  static nsIAtom* kHasImageAtom;
-
-#ifdef SUPPORT_PRIORITY_COLORS
-  static nsIAtom* kHighestPriorityAtom;
-  static nsIAtom* kHighPriorityAtom;
-  static nsIAtom* kLowestPriorityAtom;
-  static nsIAtom* kLowPriorityAtom;
-#endif
 
   static PRUnichar* kHighestPriorityString;
   static PRUnichar* kHighPriorityString;
@@ -145,13 +124,8 @@ protected:
   static PRUnichar* kLowPriorityString;
   static PRUnichar* kNormalPriorityString;
 
-  static nsIAtom* kLabelColorWhiteAtom;
-  static nsIAtom* kLabelColorBlackAtom;
-
   static nsIAtom* kJunkMsgAtom;
   static nsIAtom* kNotJunkMsgAtom;
-
-  static nsIAtom* kDummyMsgAtom;
 
   static PRUnichar* kReadString;
   static PRUnichar* kRepliedString;
@@ -302,8 +276,6 @@ protected:
   uint32_t GetSize(void) {return(m_keys.Length());}
 
   // notification api's
-  void  NoteChange(nsMsgViewIndex firstlineChanged, int32_t numChanged,
-                    nsMsgViewNotificationCodeValue changeType);
   void  NoteStartChange(nsMsgViewIndex firstlineChanged, int32_t numChanged,
                         nsMsgViewNotificationCodeValue changeType);
   void  NoteEndChange(nsMsgViewIndex firstlineChanged, int32_t numChanged,
@@ -377,7 +349,7 @@ protected:
   PRUnichar * GetString(const PRUnichar *aStringName);
   nsresult GetPrefLocalizedString(const char *aPrefName, nsString& aResult);
   nsresult GetLabelPrefStringAndAtom(const char *aPrefName, nsString& aColor, nsIAtom** aColorAtom);
-  nsresult AppendKeywordProperties(const nsACString& keywords, nsISupportsArray *properties, bool addSelectedTextProperty);
+  nsresult AppendKeywordProperties(const nsACString& keywords, nsAString& properties, bool addSelectedTextProperty);
   nsresult InitLabelStrings(void);
   nsresult CopyDBView(nsMsgDBView *aNewMsgDBView, nsIMessenger *aMessengerInstance, nsIMsgWindow *aMsgWindow, nsIMsgDBViewCommandUpdater *aCmdUpdater);
   void InitializeAtomsAndLiterals();
@@ -417,6 +389,7 @@ protected:
   bool mIsXFVirtual;        // a virtual folder with multiple folders
 
   bool mShowSizeInLines;    // for news we show lines instead of size when true
+  bool mSortThreadsByRoot;  // as opposed to by the newest message
   bool m_sortValid;
   bool mSelectionSummarized;
   // we asked the front end to summarize the selection and it did not.
@@ -426,7 +399,7 @@ protected:
   nsCOMPtr <nsIMsgDatabase> m_db;
   nsCOMPtr <nsIMsgFolder> m_folder;
   nsCOMPtr <nsIMsgFolder> m_viewFolder; // for virtual folders, the VF db.
-  nsCOMPtr <nsIAtom> mMessageTypeAtom; // news, rss, mail, etc. 
+  nsString mMessageType;
   nsTArray <MsgViewSortColumnInfo> m_sortColumns;
   nsMsgViewSortTypeValue  m_sortType;
   nsMsgViewSortOrderValue m_sortOrder;

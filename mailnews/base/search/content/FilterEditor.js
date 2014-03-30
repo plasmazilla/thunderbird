@@ -1,4 +1,4 @@
-/* -*- Mode: Java; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -13,10 +13,9 @@ var gFilter;
 var gFilterList;
 // The filter name as it appears in the "Filter Name" field of dialog.
 var gFilterNameElement;
-var gFilterContext;
+var gFilterTypeSelector;
 var gFilterBundle;
 var gPreFillName;
-var nsMsgSearchScope = Components.interfaces.nsMsgSearchScope;
 var gSessionFolderListenerAdded = false;
 var gFilterActionList;
 var gCustomActions = null;
@@ -30,9 +29,17 @@ var gFilterActionStrings = ["none", "movemessage", "setpriorityto", "deletemessa
                             "fetchfrompopserver", "copymessage", "addtagtomessage",
                             "ignoresubthread", "markasunread"];
 
-var nsMsgFilterAction = Components.interfaces.nsMsgFilterAction;
+// A temporary filter with the current state of actions in the UI.
+let gTempFilter = null;
+// A nsIArray of the currently defined actions in the order they will be run.
+let gActionListOrdered = null;
 
 var gFilterEditorMsgWindow = null;
+
+const nsMsgFilterAction = Components.interfaces.nsMsgFilterAction;
+const nsMsgFilterType   = Components.interfaces.nsMsgFilterType;
+const nsIMsgRuleAction  = Components.interfaces.nsIMsgRuleAction;
+const nsMsgSearchScope  = Components.interfaces.nsMsgSearchScope;
 
 function filterEditorOnLoad()
 {
@@ -52,11 +59,8 @@ function filterEditorOnLoad()
       // the postPlugin filters cannot be applied to servers that are
       // deferred, (you must define them on the deferredTo server instead).
       let server = gFilterList.folder.server;
-      let postPluginDisabled = server.rootFolder != server.rootMsgFolder;
-      document.getElementById("contextMenuListPostPlugin")
-              .disabled = postPluginDisabled;
-      document.getElementById("contextMenuListPostPluginBoth")
-              .disabled = postPluginDisabled;
+      if (server.rootFolder != server.rootMsgFolder)
+        gFilterTypeSelector.disableAfterPlugins();
     }
 
     if ("filterPosition" in args)
@@ -101,7 +105,7 @@ function filterEditorOnLoad()
         // for everything else, it's MoveToFolder
         var filterAction = gFilter.createAction();
         filterAction.type = (getScopeFromFilterList(gFilterList) ==
-            Components.interfaces.nsMsgSearchScope.newsFilter) ?
+            nsMsgSearchScope.newsFilter) ?
             nsMsgFilterAction.Delete : nsMsgFilterAction.MoveToFolder;
         gFilter.appendAction(filterAction);
         initializeDialog(gFilter);
@@ -117,12 +121,12 @@ function filterEditorOnLoad()
   if (!gFilter)
   {
     // This is a new filter. Set to both Incoming and Manual contexts.
-    gFilterContext.selectedIndex = 2;
+    gFilterTypeSelector.setType(nsMsgFilterType.Incoming | nsMsgFilterType.Manual);
   }
 
   // in the case of a new filter, we may not have an action row yet.
   ensureActionRow();
-  gFilterType = determineFilterType();
+  gFilterType = gFilterTypeSelector.getType();
 
   gFilterNameElement.select();
   // This call is required on mac and linux.  It has no effect under win32.  See bug 94800.
@@ -135,9 +139,15 @@ function filterEditorOnUnload()
     MailServices.mailSession.RemoveFolderListener(gFolderListener);
 }
 
-function onEnterInSearchTerm()
+function onEnterInSearchTerm(event)
 {
-  // do nothing.  onOk() will get called since this is a dialog
+  if (event.ctrlKey || (Services.appinfo.OS == "Darwin" && event.metaKey)) {
+    // If accel key (Ctrl on Win/Linux, Cmd on Mac) was held too, accept the dialog.
+    document.getElementById("FilterEditor").acceptDialog();
+  } else {
+    // If only plain Enter was pressed, add a new rule line.
+    onMore(event);
+  }
 }
 
 function onAccept()
@@ -211,51 +221,113 @@ function initializeFilterWidgets()
 {
   gFilterNameElement = document.getElementById("filterName");
   gFilterActionList = document.getElementById("filterActionList");
-  gFilterContext = document.getElementById("contextMenuList");
+  initializeFilterTypeSelector();
+}
+
+function initializeFilterTypeSelector()
+{
+  /**
+   * This object controls code interaction with the widget allowing specifying
+   * the filter type (event when the filter is run).
+   */
+  gFilterTypeSelector = {
+    checkBoxManual: document.getElementById("runManual"),
+    checkBoxIncoming : document.getElementById("runIncoming"),
+
+    menulistIncoming: document.getElementById("pluginsRunOrder"),
+
+    menuitemBeforePlugins: document.getElementById("runBeforePlugins"),
+    menuitemAfterPlugins: document.getElementById("runAfterPlugins"),
+
+    /**
+     * Returns the currently set filter type (checkboxes) in terms
+     * of a Components.interfaces.nsMsgFilterType value.
+     */
+    getType: function()
+    {
+      let type = nsMsgFilterType.None;
+
+      if (this.checkBoxManual.checked)
+        type |= nsMsgFilterType.Manual;
+
+      if (this.checkBoxIncoming.checked) {
+        if (this.menulistIncoming.selectedItem == this.menuitemAfterPlugins) {
+          type |= nsMsgFilterType.PostPlugin;
+        } else {
+          // this.menuitemBeforePlugins selected
+          if (getScopeFromFilterList(gFilterList) ==
+              nsMsgSearchScope.newsFilter)
+            type |= nsMsgFilterType.NewsRule;
+          else
+            type |= nsMsgFilterType.InboxRule;
+        }
+      }
+
+      return type;
+    },
+
+    /**
+     * Sets the checkboxes to represent the filter type passed in.
+     *
+     * @param aType  the filter type to set in terms
+     *               of Components.interfaces.nsMsgFilterType values.
+     */
+    setType: function(aType)
+    {
+      // If there is no type (event) requested, force "when manually run"
+      if (aType == nsMsgFilterType.None)
+        aType = nsMsgFilterType.Manual;
+
+      this.checkBoxManual.checked   = aType & nsMsgFilterType.Manual;
+
+      this.checkBoxIncoming.checked = aType & (nsMsgFilterType.PostPlugin |
+                                               nsMsgFilterType.Incoming);
+
+      this.menulistIncoming.selectedItem = aType & nsMsgFilterType.PostPlugin ?
+        this.menuitemAfterPlugins : this.menuitemBeforePlugins;
+
+      this.updateClassificationMenu();
+    },
+
+    /**
+     * Enable the "before/after classification" menulist depending on
+     * whether "run when incoming mail" is selected.
+     */
+    updateClassificationMenu: function()
+    {
+      this.menulistIncoming.disabled = !this.checkBoxIncoming.checked;
+      updateFilterType();
+    },
+
+    /**
+     * Disable the "After classification" option for this filter.
+     */
+    disableAfterPlugins: function()
+    {
+      this.menuitemAfterPlugins.disabled = true;
+    }
+  };
 }
 
 function initializeDialog(filter)
 {
   gFilterNameElement.value = filter.filterName;
-  /*
-   * contextIndex = 0: checking mail
-   *              = 1: manually run
-   *              = 2: checking mail or manually run
-   *              = 3: post analysis
-   *              = 4: post analysis or manually run
-   */
   let filterType = filter.filterType;
-  let nsMsgFilterType = Components.interfaces.nsMsgFilterType;
-  let contextIndex;
-  if (filterType & nsMsgFilterType.Manual)
-  {
-    if (filterType & nsMsgFilterType.Incoming)
-      contextIndex = 2;
-    else if (filterType & nsMsgFilterType.PostPlugin)
-      contextIndex = 4;
-    else
-      contextIndex = 1;
-  }
-  else if (filterType & nsMsgFilterType.PostPlugin)
-    contextIndex = 3;
-  else
-    contextIndex = 0;
-  gFilterContext.selectedIndex = contextIndex;
+  gFilterTypeSelector.setType(filter.filterType);
 
-  var actionList = filter.actionList;
-  var numActions = actionList.Count();
-
-  for (var actionIndex=0; actionIndex < numActions; actionIndex++)
+  let numActions = filter.actionCount;
+  for (let actionIndex = 0; actionIndex < numActions; actionIndex++)
   {
-    var filterAction = actionList.QueryElementAt(actionIndex, Components.interfaces.nsIMsgRuleAction);
+    let filterAction = filter.getActionAt(actionIndex);
 
     var newActionRow = document.createElement('listitem');
     newActionRow.setAttribute('initialActionIndex', actionIndex);
     newActionRow.className = 'ruleaction';
     gFilterActionList.appendChild(newActionRow);
     newActionRow.setAttribute('value',
-        filterAction.type == Components.interfaces.nsMsgFilterAction.Custom ?
+        filterAction.type == nsMsgFilterAction.Custom ?
         filterAction.customId : gFilterActionStrings[filterAction.type]);
+    newActionRow.setAttribute('onfocus', 'this.storeFocus();');
   }
 
   var gSearchScope = getFilterScope(getScope(filter), filter.filterType, filter.filterList);
@@ -278,11 +350,15 @@ function ensureActionRow()
 // move to overlay
 function saveFilter()
 {
-  var isNewFilter;
-  var filterAction;
+  // See if at least one filter type (activation event) is selected.
+  if (gFilterType == nsMsgFilterType.None) {
+    Services.prompt.alert(window,
+                          gFilterBundle.getString("mustHaveFilterTypeTitle"),
+                          gFilterBundle.getString("mustHaveFilterTypeMessage"));
+    return false;
+  }
 
-  var filterName= gFilterNameElement.value;
-
+  let filterName = gFilterNameElement.value;
   // If we think have a duplicate, then we need to check that if we
   // have an original filter name (i.e. we are editing a filter), then
   // we must check that the original is not the current as that is what
@@ -296,8 +372,12 @@ function saveFilter()
   }
 
   // Check that all of the search attributes and operators are valid.
-  let allValid = true;
-  for (var index = 0; index < gSearchTerms.length && allValid; index++)
+  function rule_desc(index, obj) {
+    return (index + 1) + " (" + obj.searchattribute.label + ", " + obj.searchoperator.label + ")";
+  }
+
+  let invalidRule = false;
+  for (let index = 0; index < gSearchTerms.length; index++)
   {
     let obj = gSearchTerms[index].obj;
     // We don't need to check validity of matchAll terms
@@ -313,19 +393,23 @@ function saveFilter()
     {
       let customTerm = MailServices.filters.getCustomTerm(obj.searchattribute.value);
       if (!customTerm)
-      { 
-        allValid = false;
-        Components.utils.reportError("filter not saved because custom term not found");
+      {
+        invalidRule = true;
+        Components.utils.reportError("Filter not saved because custom search term '" +
+                                     obj.searchattribute.value + "' in rule " + rule_desc(index, obj) + " not found");
       }
       else
       {
-        allValid = customTerm.getAvailable(obj.searchScope, obj.searchattribute.value);
-        if (!allValid)
-          Components.utils.reportError("filter not saved because custom search term not available");
+        if (!customTerm.getAvailable(obj.searchScope, obj.searchattribute.value))
+        {
+          invalidRule = true;
+          Components.utils.reportError("Filter not saved because custom search term '" +
+                                       customTerm.name + "' in rule " + rule_desc(index, obj) + " not available");
+        }
       }
     }
-
-    else {
+    else
+    {
       let otherHeader = Components.interfaces.nsMsgSearchAttrib.OtherHeader;
       let attribValue = (obj.searchattribute.value > otherHeader) ?
         otherHeader : obj.searchattribute.value;
@@ -333,23 +417,26 @@ function saveFilter()
             .validityTable
             .getAvailable(attribValue, obj.searchoperator.value))
       {
-        allValid = false;
-        Components.utils.reportError("filter not saved because standard search term not available");
+        invalidRule = true;
+        Components.utils.reportError("Filter not saved because standard search term '" +
+                                     attribValue + "' in rule " + rule_desc(index, obj) + " not available in this context");
       }
     }
-  }
 
-  if (!allValid)
-  {
-    Services.prompt.alert(window,
-                          gFilterBundle.getString("searchTermsInvalidTitle"),
-                          gFilterBundle.getString("searchTermsInvalidMessage"));
-    return false;
+    if (invalidRule) {
+      Services.prompt.alert(window,
+                            gFilterBundle.getString("searchTermsInvalidTitle"),
+                            gFilterBundle.getFormattedString("searchTermsInvalidRule",
+                                                             [obj.searchattribute.label,
+                                                              obj.searchoperator.label]));
+      return false;
+    }
+
   }
 
   // before we go any further, validate each specified filter action, abort the save
   // if any of the actions is invalid...
-  for (var index = 0; index < gFilterActionList.getRowCount(); index++)
+  for (let index = 0; index < gFilterActionList.itemCount; index++)
   {
     var listItem = gFilterActionList.getItemAtIndex(index);
     if (!listItem.validateAction())
@@ -357,13 +444,13 @@ function saveFilter()
   }
 
   // if we made it here, all of the actions are valid, so go ahead and save the filter
-
+  let isNewFilter;
   if (!gFilter)
   {
     // This is a new filter
     gFilter = gFilterList.createFilter(filterName);
     isNewFilter = true;
-    gFilter.enabled=true;
+    gFilter.enabled = true;
   }
   else
   {
@@ -374,7 +461,7 @@ function saveFilter()
     if (gPreFillName)
     {
       isNewFilter = true;
-      gFilter.enabled=true;
+      gFilter.enabled = true;
     }
     else
       isNewFilter = false;
@@ -383,7 +470,7 @@ function saveFilter()
   }
 
   // add each filteraction to the filter
-  for (index = 0; index < gFilterActionList.getRowCount(); index++)
+  for (let index = 0; index < gFilterActionList.itemCount; index++)
     gFilterActionList.getItemAtIndex(index).saveToFilter(gFilter);
 
   // If we do not have a filter name at this point, generate one.
@@ -403,10 +490,79 @@ function saveFilter()
   return true;
 }
 
+/**
+ * Check if the list of actions the user created will be executed in a different order.
+ * Exposes a note to the user if that is the case.
+ */
+function checkActionsReorder()
+{
+  setTimeout(_checkActionsReorder, 0);
+}
+
+/**
+ * This should be called from setTimeout otherwise some of the elements calling
+ * may not be fully initialized yet (e.g. we get ".saveToFilter is not a function").
+ * It is OK to schedule multiple timeouts with this function.
+ */
+function _checkActionsReorder() {
+  // Create a temporary disposable filter and add current actions to it.
+  if (!gTempFilter)
+    gTempFilter = gFilterList.createFilter("");
+  else
+    gTempFilter.clearActionList();
+
+  for (let index = 0; index < gFilterActionList.itemCount; index++)
+    gFilterActionList.getItemAtIndex(index).saveToFilter(gTempFilter);
+
+  // Now get the actions out of the filter in the order they will be executed in.
+  gActionListOrdered = gTempFilter.sortedActionList;
+
+  // Compare the two lists.
+  let statusBar = document.getElementById("statusbar");
+  for (let index = 0; index < gActionListOrdered.length; index++) {
+    if (index != gTempFilter.getActionIndex(
+        gActionListOrdered.queryElementAt(index, nsIMsgRuleAction)))
+    {
+      // If the lists are not the same unhide the status bar and show warning.
+      statusBar.style.visibility = "visible";
+      return;
+    }
+  }
+
+  statusBar.style.visibility = "hidden";
+}
+
+/**
+ * Show a dialog with the ordered list of actions.
+ * The fetching of action label and argument is separated from checkActionsReorder
+ * function to make that one more lightweight. The list is built only upon
+ * user request.
+ */
+function showActionsOrder()
+{
+  // Fetch the actions and arguments as a string.
+  let actionStrings = [];
+  for (let index = 0; index < gFilterActionList.itemCount; index++)
+    gFilterActionList.getItemAtIndex(index).getActionStrings(actionStrings);
+
+  // Present a nicely formatted list of action names and arguments.
+  let actionList = gFilterBundle.getString("filterActionOrderExplanation");
+  for (let i = 0; i < gActionListOrdered.length; i++) {
+    let actionIndex = gTempFilter.getActionIndex(
+      gActionListOrdered.queryElementAt(i, nsIMsgRuleAction));
+    let action = actionStrings[actionIndex];
+    actionList += gFilterBundle.getFormattedString("filterActionItem",
+      [(i + 1), action.label, action.argument]);
+  }
+
+  Services.prompt.confirmEx(window,
+                            gFilterBundle.getString("filterActionOrderTitle"),
+                            actionList, Services.prompt.BUTTON_TITLE_OK,
+                            null, null, null, null, {value:false});
+}
 
 function AssignMeaningfulName()
 {
-
   // termRoot points to the first search object, which is the one we care about.
   let termRoot = gSearchTerms[0].obj;
   // stub is used as the base name for a filter.
@@ -583,39 +739,13 @@ function getCustomActions()
 
 function updateFilterType()
 {
-  gFilterType = determineFilterType();
+  gFilterType = gFilterTypeSelector.getType();
   setFilterScope(gFilterType, gFilterList);
 
   // set valid actions
   var ruleActions = gFilterActionList.getElementsByAttribute('class', 'ruleaction');
   for (var i = 0; i < ruleActions.length; i++)
     ruleActions[i].mRuleActionType.hideInvalidActions();
-}
-
-function determineFilterType()
-{
-  /*
-   * contextIndex = 0: checking mail
-   *              = 1: manually run
-   *              = 2: checking mail or manually run
-   *              = 3: post analysis
-   *              = 4: post analysis or manually run
-   */
-  let contextIndex = gFilterContext.selectedIndex;
-  let filterType = 0;
-  if (contextIndex == 1 || contextIndex == 2 || contextIndex == 4) // manual
-    filterType |= Components.interfaces.nsMsgFilterType.Manual;
-  if (contextIndex == 3 || contextIndex == 4) // post analysis
-    filterType |= Components.interfaces.nsMsgFilterType.PostPlugin;
-  if (contextIndex == 0 || contextIndex == 2) // checking mail
-  {
-    if (getScopeFromFilterList(gFilterList) ==
-        Components.interfaces.nsMsgSearchScope.newsFilter)
-      filterType |= Components.interfaces.nsMsgFilterType.NewsRule;
-    else
-      filterType |= Components.interfaces.nsMsgFilterType.InboxRule;
-  }
-  return filterType;
 }
 
 // Given a filter type, set the global search scope to the filter scope
@@ -633,15 +763,21 @@ function setFilterScope(aFilterType, aFilterList)
 // followed by manual and post-plugin.
 function getFilterScope(aServerFilterScope, aFilterType, aFilterList)
 {
-  let Ci = Components.interfaces;
-
-  if (aFilterType & Ci.nsMsgFilterType.Incoming)
+  if (aFilterType & nsMsgFilterType.Incoming)
     return aServerFilterScope;
 
   // Manual or PostPlugin
   // local mail allows body and junk types
-  if (aServerFilterScope == Ci.nsMsgSearchScope.offlineMailFilter)
-    return Ci.nsMsgSearchScope.offlineMail;
+  if (aServerFilterScope == nsMsgSearchScope.offlineMailFilter)
+    return nsMsgSearchScope.offlineMail;
   // IMAP and NEWS online don't allow body
-  return Ci.nsMsgSearchScope.onlineManual;
+  return nsMsgSearchScope.onlineManual;
+}
+
+/**
+ * Re-focus the action that was focused before focus was lost.
+ */
+function setLastActionFocus() {
+  let lastAction = gFilterActionList.getAttribute("focusedAction");
+  gFilterActionList.getItemAtIndex(lastAction).mRuleActionType.menulist.focus();
 }

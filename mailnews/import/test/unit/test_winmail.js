@@ -57,7 +57,7 @@ let expectedNewsMozillaOrgAccount = {
 let expectedMicrosoftCommunitiesAccount = {
   incomingServer: {
     type: 'nntp',
-    hostName: 'testmsnews.microsoft.com',
+    hostName: 'testmsnews.microsoft.invalid',
     prettyName: 'Microsoft Communities Test',
     port: 119,
     socketType: 0,
@@ -75,7 +75,7 @@ let expectedMicrosoftCommunitiesAccount = {
 let expectedDonHallNntpAccount = {
   incomingServer: {
     type: 'nntp',
-    hostName: 'news.wingtiptoys.com',
+    hostName: 'news.wingtiptoys.invalid',
     prettyName: 'donhallnntp',
     port: 563,
     username: 'don',
@@ -88,15 +88,15 @@ let expectedDonHallNntpAccount = {
   identity: {
     fullName: 'Don Hall',
     organization: 'Wingtip Toys',
-    email: 'don@wingtiptoys.com',
-    replyTo: 'don@wingtiptoys.com',
+    email: 'don@wingtiptoys.invalid',
+    replyTo: 'don@wingtiptoys.invalid',
   },
 };
 
 let expectedDonHallImapAccount = {
   incomingServer: {
     type: 'imap',
-    hostName: 'mail.wingtiptoys.com',
+    hostName: 'mail.wingtiptoys.invalid',
     prettyName: 'donhallimap',
     port: 993,
     isSecure: true,
@@ -109,11 +109,11 @@ let expectedDonHallImapAccount = {
   identity: {
     fullName: 'Don Hall',
     organization: 'Wingtip Toys',
-    email: 'don@wingtiptoys.com',
-    replyTo: 'don@wingtiptoys.com',
+    email: 'don@wingtiptoys.invalid',
+    replyTo: 'don@wingtiptoys.invalid',
   },
   smtpServer: {
-    hostname: 'smtp.wingtiptoys.com',
+    hostname: 'smtp.wingtiptoys.invalid',
     username: 'don',
     port: 25,
     socketType: Ci.nsMsgSocketType.SSL,
@@ -156,11 +156,11 @@ function _test(registry, expectedAccounts) {
 }
 
 function teardown() {
-  let smtpServers = MailServices.smtp.smtpServers;
+  let smtpServers = MailServices.smtp.servers;
 
   while (smtpServers.hasMoreElements()) {
     let server = smtpServers.getNext().QueryInterface(Ci.nsISmtpServer);
-    MailServices.smtp.deleteSmtpServer(server);
+    MailServices.smtp.deleteServer(server);
   }
 
   teardown_mock_registry();

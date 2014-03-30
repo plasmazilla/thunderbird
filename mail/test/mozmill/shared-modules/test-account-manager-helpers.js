@@ -37,6 +37,7 @@ function installInto(module) {
   module.open_advanced_settings_from_account_wizard =
     open_advanced_settings_from_account_wizard;
   module.click_account_tree_row = click_account_tree_row;
+  module.get_account_tree_row = get_account_tree_row;
 }
 
 /**
@@ -75,8 +76,12 @@ function click_account_tree_row(controller, rowIndex) {
   utils.waitFor(function () controller.window.currentAccount != null,
                 "Timeout waiting for currentAccount to become non-null");
 
-  var tree = controller.window.document.getElementById("accounttree");
-  var selection = tree.view.selection;
+  let tree = controller.window.document.getElementById("accounttree");
+
+  if (rowIndex < 0 || rowIndex >= tree.view.rowCount)
+    throw new Error("Row " + rowIndex + " does not exist in the account tree!");
+
+  let selection = tree.view.selection;
   selection.select(rowIndex);
   tree.treeBoxObject.ensureRowIsVisible(rowIndex);
 
@@ -93,4 +98,61 @@ function click_account_tree_row(controller, rowIndex) {
 
   utils.waitFor(function () controller.window.pendingAccount == null,
                 "Timeout waiting for pendingAccount to become null");
+
+  // Ensure the page is fully loaded (e.g. onInit functions).
+  wh.wait_for_frame_load(controller.e("contentFrame"),
+    controller.window.pageURL(tree.contentView.getItemAtIndex(rowIndex)
+                                              .getAttribute("PageTag")));
+}
+
+/**
+ * Returns the index of the row in account tree corresponding to the wanted
+ * account and its settings pane.
+ *
+ * @param aAccountKey  The key of the account to return.
+ *                     If 'null', the SMTP pane is returned.
+ * @param aPaneId      The ID of the account settings pane to select.
+ *
+ * @return  The row index of the account and pane. If it was not found return -1.
+ *          Do not throw as callers may intentionally just check if a row exists.
+ *          Just dump into the log so that a subsequent throw in
+ *          click_account_tree_row has a useful context.
+ */
+function get_account_tree_row(aAccountKey, aPaneId, aController) {
+  let rowIndex = 0;
+  let accountTreeNode = aController.e("account-tree-children");
+
+  for (let i = 0; i < accountTreeNode.childNodes.length; i++) {
+    if ("_account" in accountTreeNode.childNodes[i]) {
+      let accountHead = accountTreeNode.childNodes[i];
+      if (aAccountKey == accountHead._account.key) {
+        // If this is the wanted account, find the wanted settings pane.
+        let accountBlock = accountHead.querySelectorAll("[PageTag]");
+        // A null aPaneId means the main pane.
+        if (!aPaneId)
+          return rowIndex;
+
+        // Otherwise find the pane in the children.
+        for (let j = 0; j < accountBlock.length; j++) {
+          if (accountBlock[j].getAttribute("PageTag") == aPaneId)
+            return rowIndex + j + 1;
+        }
+
+        // The pane was not found.
+        dump("The treerow for pane " + aPaneId + " of account " + aAccountKey + " was not found!\n");
+        return -1;
+      }
+      // If this is not the wanted account, skip all of its settings panes.
+      rowIndex += accountHead.querySelectorAll("[PageTag]").length;
+    } else {
+      // A row without _account should be the SMTP server.
+      if (aAccountKey == null)
+        return rowIndex;
+    }
+    rowIndex++;
+  }
+
+  // The account was not found.
+  dump("The treerow for account " + aAccountKey + " was not found!\n");
+  return -1;
 }

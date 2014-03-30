@@ -10,18 +10,19 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 Services.prefs.setIntPref("mail.imap.mime_parts_on_demand_threshold", 1000);
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 load("../../../resources/messageGenerator.js");
 
+// Register the mime types provider we need for this test.
+mailTestUtils.registerUMimTypProvider();
+
 // javascript mime emitter functions
-mimeMsg = {};
+var mimeMsg = {};
 Components.utils.import("resource:///modules/gloda/mimemsg.js", mimeMsg);
 
 var gSecondMsg;
 
 // IMAP pump
-load("../../../resources/IMAPpump.js");
 
 setupIMAPPump();
 
@@ -52,26 +53,24 @@ function loadImapMessage()
 {
   let gMessageGenerator = new MessageGenerator();
 
-  let ioService = Cc["@mozilla.org/network/io-service;1"]
-                  .getService(Ci.nsIIOService);
   let file = do_get_file("../../../data/bodystructuretest1");
-  let msgURI = ioService.newFileURI(file).QueryInterface(Ci.nsIFileURL);
+  let msgURI = Services.io.newFileURI(file).QueryInterface(Ci.nsIFileURL);
 
-  let imapInbox =  gIMAPDaemon.getMailbox("INBOX")
+  let imapInbox = IMAPPump.daemon.getMailbox("INBOX");
   let message = new imapMessage(msgURI.spec, imapInbox.uidnext++, []);
-  gIMAPMailbox.addMessage(message);
+  IMAPPump.mailbox.addMessage(message);
   // add a second message with no external parts. We want to make
   // sure that streaming this message doesn't mark it read, even
   // though we will fallback to fetching the whole message.
   file = do_get_file("../../../data/bodystructuretest3");
-  msgURI = ioService.newFileURI(file).QueryInterface(Ci.nsIFileURL);
+  msgURI = Services.io.newFileURI(file).QueryInterface(Ci.nsIFileURL);
   message = new imapMessage(msgURI.spec, imapInbox.uidnext++, []);
-  gIMAPMailbox.addMessage(message);
-  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+  IMAPPump.mailbox.addMessage(message);
+  IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
   yield false;
 
-  do_check_eq(2, gIMAPInbox.getTotalMessages(false));
-  let msgHdr = firstMsgHdr(gIMAPInbox);
+  do_check_eq(2, IMAPPump.inbox.getTotalMessages(false));
+  let msgHdr = mailTestUtils.firstMsgHdr(IMAPPump.inbox);
   do_check_true(msgHdr instanceof Ci.nsIMsgDBHdr);
   yield true;
 }
@@ -79,13 +78,13 @@ function loadImapMessage()
 // process the message through mime
 function startMime()
 {
-  let msgHdr = firstMsgHdr(gIMAPInbox);
+  let msgHdr = mailTestUtils.firstMsgHdr(IMAPPump.inbox);
 
   mimeMsg.MsgHdrToMimeMessage(msgHdr, this, function (aMsgHdr, aMimeMessage) {
     let url = aMimeMessage.allUserAttachments[0].url;
     // A URL containing this string indicates that the attachment will be
     // downloaded on demand.
-    do_check_true(url.indexOf("/;section=") >= 0);
+    do_check_true(url.contains("/;section="));
     async_driver();
   }, true /* allowDownload */, { partsOnDemand: true });
   yield false;
@@ -94,7 +93,7 @@ function startMime()
 // test that we don't mark all inline messages as read.
 function testAllInlineMessage()
 {
-  let enumerator = gIMAPInbox.msgDatabase.EnumerateMessages();
+  let enumerator = IMAPPump.inbox.msgDatabase.EnumerateMessages();
 
   if (enumerator.hasMoreElements())
   {
@@ -110,17 +109,17 @@ function updateCounts()
 {
   // select the trash, then the inbox again, to force an update of the 
   // read state of messages.
-  let trash = gIMAPIncomingServer.rootFolder.getChildNamed("Trash");
+  let trash = IMAPPump.incomingServer.rootFolder.getChildNamed("Trash");
   do_check_true(trash instanceof Ci.nsIMsgImapMailFolder);
   trash.updateFolderWithListener(null, asyncUrlListener);
   yield false;
-  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+  IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
   yield false;
 }
 
 function testNotRead()
 {
-  do_check_eq(2, gIMAPInbox.getNumUnread(false));
+  do_check_eq(2, IMAPPump.inbox.getNumUnread(false));
   yield true;
 }
 

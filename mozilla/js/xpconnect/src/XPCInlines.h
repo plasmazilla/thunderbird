@@ -40,13 +40,6 @@ XPCCallContext::IsValid() const
     return mState != INIT_FAILED;
 }
 
-inline nsXPConnect*
-XPCCallContext::GetXPConnect() const
-{
-    CHECK_STATE(HAVE_CONTEXT);
-    return mXPC;
-}
-
 inline XPCJSRuntime*
 XPCCallContext::GetRuntime() const
 {
@@ -66,13 +59,6 @@ XPCCallContext::GetJSContext() const
 {
     CHECK_STATE(HAVE_CONTEXT);
     return mJSContext;
-}
-
-inline JSBool
-XPCCallContext::GetContextPopRequired() const
-{
-    CHECK_STATE(HAVE_CONTEXT);
-    return mContextPopRequired;
 }
 
 inline XPCContext::LangType
@@ -128,9 +114,7 @@ inline XPCWrappedNativeProto*
 XPCCallContext::GetProto() const
 {
     CHECK_STATE(HAVE_OBJECT);
-    if (mWrapper)
-        return mWrapper->GetProto();
-    return mFlattenedJSObject ? GetSlimWrapperProto(mFlattenedJSObject) : nullptr;
+    return mWrapper ? mWrapper->GetProto() : nullptr;
 }
 
 inline JSBool
@@ -243,7 +227,7 @@ XPCCallContext::GetResolveName() const
 }
 
 inline jsid
-XPCCallContext::SetResolveName(jsid name)
+XPCCallContext::SetResolveName(JS::HandleId name)
 {
     CHECK_STATE(HAVE_CONTEXT);
     return XPCJSRuntime::Get()->SetResolveName(name);
@@ -275,20 +259,6 @@ XPCCallContext::SetMethodIndex(uint16_t index)
 {
     CHECK_STATE(HAVE_OBJECT);
     mMethodIndex = index;
-}
-
-inline JSBool
-XPCCallContext::GetDestroyJSContextInDestructor() const
-{
-    CHECK_STATE(HAVE_CONTEXT);
-    return mDestroyJSContextInDestructor;
-}
-
-inline void
-XPCCallContext::SetDestroyJSContextInDestructor(JSBool b)
-{
-    CHECK_STATE(HAVE_CONTEXT);
-    mDestroyJSContextInDestructor = b;
 }
 
 /***************************************************************************/
@@ -582,26 +552,10 @@ xpc_ForcePropertyResolve(JSContext* cx, JSObject* obj, jsid id)
     return true;
 }
 
-inline JSObject*
-xpc_NewSystemInheritingJSObject(JSContext *cx, JSClass *clasp, JSObject *proto,
-                                bool uniqueType, JSObject *parent)
-{
-    // Global creation should go through XPCWrappedNative::WrapNewGlobal().
-    MOZ_ASSERT(!(clasp->flags & JSCLASS_IS_GLOBAL));
-
-    JSObject *obj;
-    if (uniqueType) {
-        obj = JS_NewObjectWithUniqueType(cx, clasp, proto, parent);
-    } else {
-        obj = JS_NewObject(cx, clasp, proto, parent);
-    }
-    return obj;
-}
-
 inline jsid
 GetRTIdByIndex(JSContext *cx, unsigned index)
 {
-  XPCJSRuntime *rt = nsXPConnect::FastGetXPConnect()->GetRuntime();
+  XPCJSRuntime *rt = nsXPConnect::XPConnect()->GetRuntime();
   return rt->GetStringID(index);
 }
 
@@ -617,27 +571,6 @@ void ThrowBadResult(nsresult result, XPCCallContext& ccx)
 {
     XPCThrower::ThrowBadResult(NS_ERROR_XPC_NATIVE_RETURNED_FAILURE,
                                result, ccx);
-}
-
-inline void
-XPCLazyCallContext::SetWrapper(XPCWrappedNative* wrapper,
-                               XPCWrappedNativeTearOff* tearoff)
-{
-    mWrapper = wrapper;
-    mTearOff = tearoff;
-    if (mTearOff)
-        mFlattenedJSObject = mTearOff->GetJSObject();
-    else
-        mFlattenedJSObject = mWrapper->GetFlatJSObject();
-}
-inline void
-XPCLazyCallContext::SetWrapper(JSObject* flattenedJSObject)
-{
-    NS_ASSERTION(IS_SLIM_WRAPPER_OBJECT(flattenedJSObject),
-                 "What kind of object is this?");
-    mWrapper = nullptr;
-    mTearOff = nullptr;
-    mFlattenedJSObject = flattenedJSObject;
 }
 
 /***************************************************************************/

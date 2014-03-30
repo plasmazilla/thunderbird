@@ -2,12 +2,13 @@
 /**
  * Protocol tests for POP3.
  */
+Components.utils.import("resource:///modules/mailServices.js");
+
 var type = null;
 var test = null;
 var server;
 var daemon;
 var incomingServer;
-var pop3Service;
 var firstTest = true;
 var thisTest;
 
@@ -28,8 +29,8 @@ var urlListener =
 
       do_check_transaction(transaction, thisTest.transaction);
 
-      do_check_eq(gLocalInboxFolder.getTotalMessages(false), 2);
-      do_check_eq(gLocalInboxFolder.getNumUnread(false), 1);
+      do_check_eq(localAccountUtils.inboxFolder.getTotalMessages(false), 2);
+      do_check_eq(localAccountUtils.inboxFolder.getNumUnread(false), 1);
 
       do_check_eq(result, 0);
     }
@@ -96,8 +97,8 @@ function testNext() {
     daemon.setMessages(thisTest.messages);
 
     // Now get the mail
-    pop3Service.GetNewMail(null, urlListener, gLocalInboxFolder,
-                           incomingServer);
+    MailServices.pop3.GetNewMail(null, urlListener, localAccountUtils.inboxFolder,
+                                 incomingServer);
 
     server.performTest();
   } catch (e) {
@@ -152,10 +153,7 @@ function run_test() {
 
   // Check that we haven't got any messages in the folder, if we have its a test
   // setup issue.
-  do_check_eq(gLocalInboxFolder.getTotalMessages(false), 0);
-
-  pop3Service = Cc["@mozilla.org/messenger/popservice;1"]
-                      .getService(Ci.nsIPop3Service);
+  do_check_eq(localAccountUtils.inboxFolder.getTotalMessages(false), 0);
 
   do_test_pending();
 

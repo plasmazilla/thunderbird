@@ -1246,9 +1246,6 @@ case $os in
         -os400*)
 		os=-os400
 		;;
-	-wince*)
-		os=-wince
-		;;
 	-osfrose*)
 		os=-osfrose
 		;;

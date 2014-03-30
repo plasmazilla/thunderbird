@@ -41,12 +41,15 @@ chrome/US.jar
 components/accessibility-atk.xpt
 components/airbag.xpt
 #ifdef XP_MACOSX
+  components/libalerts.dylib
   components/libalerts_s.dylib
 #endif
 components/bookmarks.xpt
+components/chardet.xpt
 components/downloadmanager.xpt
 components/compreg.dat
 components/components.list
+components/dom_loadsave.xpt
 components/history.xpt
 components/jsconsole.xpt
 components/layout.xpt
@@ -68,6 +71,8 @@ components/nsLDAPPrefsService.js
   components/nsPostUpdateWin.js
 #endif
 components/nsProgressDialog.js
+components/nsProxyAutoConfig.js
+components/nsProxyAutoConfig.manifest
 components/nsScriptableIO.js
 #ifdef XP_MACOSX
   components/nsSpotlightIntegration.js
@@ -117,6 +122,7 @@ components/myspell/en-US.aff
 components/myspell/
 D3DCompiler_42.dll
 d3dx9_42.dll
+d3dx9_43.dll
 defaults/isp/dotmac.rdf
 defaults/isp/movemail.rdf
 defaults/isp/rss.rdf
@@ -160,6 +166,17 @@ defaults/wallet/DistinguishedSchema.tbl
 defaults/wallet/SchemaStrings.tbl
 defaults/wallet/PositionalSchema.tbl
 defaults/wallet/StateSchema.tbl
+
+# Remove obsolete bundled thunderbird test pilot.
+# In the average case, this directory is only used by Test Pilot, and will get
+# removed by the updater. In some cases (eg, partner builds), distribution/
+# will have other files and/or directories in it. In these cases, the updater
+# will print a non-fatal error and continue on, because we're not appending
+# '*' to force a recursive removal.
+distribution/
+distribution/extensions/
+distribution/extensions/tbtestpilot@labs.mozilla.com.xpi
+
 greprefs/all.js
 greprefs/security-prefs.js
 greprefs/xpinstall.js
@@ -262,23 +279,23 @@ modules/JSON.jsm
 modules/quickSearchManager.js
 mozilla-runtime@BIN_SUFFIX@
 #ifdef XP_WIN
-  #if _MSC_VER != 1400
+  #if MOZ_MSVC_REDIST != 1400
     Microsoft.VC80.CRT.manifest
     msvcm80.dll
     msvcp80.dll
     msvcr80.dll
   #endif
-  #if _MSC_VER != 1500
+  #if MOZ_MSVC_REDIST != 1500
     Microsoft.VC90.CRT.manifest
     msvcm90.dll
     msvcp90.dll
     msvcr90.dll
   #endif
-  #if _MSC_VER != 1600
+  #if MOZ_MSVC_REDIST != 1600
     msvcp100.dll
     msvcr100.dll
   #endif
-  #if _MSC_VER != 1700
+  #if MOZ_MSVC_REDIST != 1700
     msvcp110.dll
     msvcr110.dll
   #endif
@@ -372,6 +389,7 @@ regxpcom.exe
 #else
   xpicleanup
 #endif
+@DLL_PREFIX@xpcom@DLL_SUFFIX@
 @DLL_PREFIX@xpcom_compat@DLL_SUFFIX@
 @DLL_PREFIX@xpistub@DLL_SUFFIX@
 @DLL_PREFIX@zlib@DLL_SUFFIX@
@@ -412,7 +430,7 @@ regxpcom.exe
   components/addonManager.js
   components/amContentHandler.js
   components/amWebInstallListener.js
-  components/components.manifest
+  components/binary.manifest
   components/ConsoleAPI.js
   components/contentAreaDropListener.js
   components/contentSecurityPolicy.js
@@ -467,7 +485,6 @@ regxpcom.exe
   components/nsPlacesDBFlush.js
   components/nsPlacesExpiration.js
   components/nsPrompter.js
-  components/nsProxyAutoConfig.js
   components/nsSMTPProtocolHandler.js
   components/nsSetDefaultMail.js
   components/nsTaggingService.js
@@ -897,7 +914,6 @@ components/xmlextras.xpt
   components/appshell.xpt
   components/autocomplete.xpt
   components/caps.xpt
-  components/chardet.xpt
   components/chrome.xpt
   components/commandhandler.xpt
   components/composer.xpt
@@ -1027,7 +1043,6 @@ components/xmlextras.xpt
   components/autocomplete.xpt
   components/autoconfig.xpt
   components/caps.xpt
-  components/chardet.xpt
   components/chrome.xpt
   components/commandhandler.xpt
   components/commandlines.xpt
@@ -1050,7 +1065,6 @@ components/xmlextras.xpt
   components/dom_geolocation.xpt
   components/dom_html.xpt
   components/dom_json.xpt
-  components/dom_loadsave.xpt
   components/dom_offline.xpt
   components/dom_range.xpt
   components/dom_sidebar.xpt

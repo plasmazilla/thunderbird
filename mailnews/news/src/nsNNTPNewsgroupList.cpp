@@ -24,7 +24,7 @@
 #include "nsIMsgIncomingServer.h"
 #include "nsINntpIncomingServer.h"
 #include "nsMsgBaseCID.h"
-
+#include "nsIMsgFilter.h"
 #include "nsNNTPNewsgroupList.h"
 
 #include "nsINNTPArticleList.h"
@@ -116,7 +116,7 @@ nsNNTPNewsgroupList::Initialize(nsINntpUrl *runningURL, nsIMsgNewsFolder *newsFo
 
   rv = server->GetFilterList(m_msgWindow, getter_AddRefs(m_serverFilterList));
   NS_ENSURE_SUCCESS(rv,rv);
-  nsCAutoString servHeaders;
+  nsAutoCString servHeaders;
   m_serverFilterList->GetArbitraryHeaders(servHeaders);
 
   nsTArray<nsCString> servArray;
@@ -125,7 +125,7 @@ nsNNTPNewsgroupList::Initialize(nsINntpUrl *runningURL, nsIMsgNewsFolder *newsFo
   // servArray may have duplicates already in m_filterHeaders.
   for (uint32_t i = 0; i < servArray.Length(); i++)
   {
-    if (m_filterHeaders.IndexOf(servArray[i]) == m_filterHeaders.NoIndex)
+    if (!m_filterHeaders.Contains(servArray[i]))
       m_filterHeaders.AppendElement(servArray[i]);
   }
   return NS_OK;
@@ -624,14 +624,13 @@ NS_IMETHODIMP nsNNTPNewsgroupList::ApplyFilterHit(nsIMsgFilter *aFilter, nsIMsgW
   // you can't move news messages, so applyMore is always true
   *aApplyMore = true;
 
-  nsCOMPtr<nsISupportsArray> filterActionList;
-  nsresult rv = NS_NewISupportsArray(getter_AddRefs(filterActionList));
-  NS_ENSURE_SUCCESS(rv, rv);
-  rv = aFilter->GetSortedActionList(filterActionList);
+  nsCOMPtr<nsIArray> filterActionList;
+
+  nsresult rv = aFilter->GetSortedActionList(getter_AddRefs(filterActionList));
   NS_ENSURE_SUCCESS(rv, rv);
 
   uint32_t numActions;
-  rv = filterActionList->Count(&numActions);
+  rv = filterActionList->GetLength(&numActions);
   NS_ENSURE_SUCCESS(rv, rv);
 
   bool loggingEnabled = false;
@@ -643,8 +642,9 @@ NS_IMETHODIMP nsNNTPNewsgroupList::ApplyFilterHit(nsIMsgFilter *aFilter, nsIMsgW
   for (uint32_t actionIndex = 0; actionIndex < numActions; actionIndex++)
   {
     nsCOMPtr<nsIMsgRuleAction> filterAction;
-    filterActionList->QueryElementAt(actionIndex, NS_GET_IID(nsIMsgRuleAction), getter_AddRefs(filterAction));
-    if (!filterAction)
+    rv = filterActionList->QueryElementAt(actionIndex, NS_GET_IID(nsIMsgRuleAction),
+                                                       getter_AddRefs(filterAction));
+    if (NS_FAILED(rv) || !filterAction)
       continue;
 
     nsMsgRuleActionType actionType;
@@ -720,7 +720,7 @@ NS_IMETHODIMP nsNNTPNewsgroupList::ApplyFilterHit(nsIMsgFilter *aFilter, nsIMsgW
         rv = filterAction->GetCustomAction(getter_AddRefs(customAction));
         NS_ENSURE_SUCCESS(rv, rv);
 
-        nsCAutoString value;
+        nsAutoCString value;
         filterAction->GetStrValue(value);
 
         nsCOMPtr<nsIMutableArray> messageArray(
@@ -930,15 +930,14 @@ nsNNTPNewsgroupList::ProcessXHDRLine(const nsACString &line)
   if (key.CharAt(0) < '0' || key.CharAt(0) > '9')
     return NS_OK;
 
-  nsresult code;
-  int32_t number = key.ToInteger(&code);
-  if (code != NS_OK)
-    return NS_ERROR_FAILURE;
+  nsresult rv;
+  int32_t number = key.ToInteger(&rv);
+  NS_ENSURE_SUCCESS(rv, NS_ERROR_FAILURE);
   // RFC 2980 specifies one or more spaces.
   value.Trim(" ");
 
-  nsCOMPtr <nsIMsgDBHdr> header;
-  nsresult rv = m_newsDB->GetMsgHdrForKey(number, getter_AddRefs(header));
+  nsCOMPtr<nsIMsgDBHdr> header;
+  rv = m_newsDB->GetMsgHdrForKey(number, getter_AddRefs(header));
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = header->SetStringProperty(m_filterHeaders[m_currentXHDRIndex].get(), value.get());
@@ -1087,7 +1086,7 @@ nsNNTPNewsgroupList::AddHeader(const char *header, const char *value)
   {
     rv = m_newMsgHdr->SetLineCount(atol(value));
   }
-  else if (m_filterHeaders.IndexOf(nsDependentCString(header)) != m_filterHeaders.NoIndex)
+  else if (m_filterHeaders.Contains(nsDependentCString(header)))
   {
     rv = m_newMsgHdr->SetStringProperty(header, value);
   }

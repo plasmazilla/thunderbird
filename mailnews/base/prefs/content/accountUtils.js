@@ -4,8 +4,8 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
 
-var accountManagerContractID   = "@mozilla.org/messenger/account-manager;1";
 var gAnyValidIdentity = false; //If there are no valid identities for any account
 // returns the first account with an invalid server or identity
 
@@ -13,11 +13,11 @@ var gNewAccountToLoad = null;   // used to load new messages if we come from the
 
 function getInvalidAccounts(accounts)
 {
-    var numAccounts = accounts.Count();
-    var invalidAccounts = new Array;
-    var numIdentities = 0;
-    for (var i=0; i<numAccounts; i++) {
-        var account = accounts.QueryElementAt(i, Components.interfaces.nsIMsgAccount);
+    let numAccounts = accounts.length;
+    let invalidAccounts = new Array;
+    let numIdentities = 0;
+    for (let i = 0; i < numAccounts; i++) {
+        let account = accounts.queryElementAt(i, Components.interfaces.nsIMsgAccount);
         try {
             if (!account.incomingServer.valid) {
                 invalidAccounts[invalidAccounts.length] = account;
@@ -30,10 +30,10 @@ function getInvalidAccounts(accounts)
         }
 
         var identities = account.identities;
-        numIdentities = identities.Count();
+        numIdentities = identities.length;
 
-        for (var j=0; j<numIdentities; j++) {
-            var identity = identities.QueryElementAt(j, Components.interfaces.nsIMsgIdentity);
+        for (var j = 0; j < numIdentities; j++) {
+            let identity = identities.queryElementAt(j, Components.interfaces.nsIMsgIdentity);
             if (identity.valid) {
               gAnyValidIdentity = true;
             }
@@ -51,8 +51,6 @@ function showMailIntegrationDialog() {
   try {
     var shellService = Components.classes["@mozilla.org/suite/shell-service;1"]
                                  .getService(nsIShellService);
-    var accountManager = Components.classes[accountManagerContractID].getService(Components.interfaces.nsIMsgAccountManager);
-    var defaultAccount = accountManager.defaultAccount;
     var appTypesCheck = shellService.shouldBeDefaultClientFor &
                         (nsIShellService.MAIL | nsIShellService.NEWS);
 
@@ -87,17 +85,15 @@ function verifyAccounts(wizardCallback, needsIdentity, wizardOpen)
   var ret = true;
 
     try {
-        var am = Components.classes[accountManagerContractID].getService(Components.interfaces.nsIMsgAccountManager);
-
         // migrate quoting preferences from global to per account. This function returns
         // true if it had to migrate, which we will use to mean this is a just migrated
         // or new profile
-        var newProfile = migrateGlobalQuotingPrefs(am.allIdentities);
+        var newProfile = migrateGlobalQuotingPrefs(MailServices.accounts.allIdentities);
 
-        var accounts = am.accounts;
+        var accounts = MailServices.accounts.accounts;
 
         // as long as we have some accounts, we're fine.
-        var accountCount = accounts.Count();
+        var accountCount = accounts.length;
         var invalidAccounts = getInvalidAccounts(accounts);
         if (invalidAccounts.length > 0 && invalidAccounts.length == accountCount) {
             prefillAccount = invalidAccounts[0];
@@ -110,10 +106,8 @@ function verifyAccounts(wizardCallback, needsIdentity, wizardOpen)
           // check if MCD is configured. If not, say this is not a new profile
           // so that we don't accidentally remigrate non MCD profiles.
           var adminUrl;
-          var pref = Components.classes["@mozilla.org/preferences-service;1"]
-                                 .getService(Components.interfaces.nsIPrefBranch);
           try {
-            adminUrl = pref.getCharPref("autoadmin.global_config_url");
+            adminUrl = Services.prefs.getCharPref("autoadmin.global_config_url");
           }
           catch (ex) {}
           if (!adminUrl)
@@ -146,7 +140,7 @@ function verifyAccounts(wizardCallback, needsIdentity, wizardOpen)
           var localFoldersExists;
           try
           {
-            localFoldersExists = am.localFoldersServer;
+            localFoldersExists = MailServices.accounts.localFoldersServer;
           }
           catch (ex)
           {
@@ -155,7 +149,7 @@ function verifyAccounts(wizardCallback, needsIdentity, wizardOpen)
 
           // we didn't create the MsgAccountWizard - we need to verify that local folders exists.
           if (!localFoldersExists)
-            am.createLocalMailAccount();
+            MailServices.accounts.createLocalMailAccount();
         }
 
         // This will do nothing on platforms without a shell service
@@ -185,14 +179,16 @@ function MsgAccountWizard(wizardCallback)
  * Open the Old Mail Account Wizard, or focus it if it's already open.
  *
  * @param wizardCallback if the wizard is run, callback when it is done.
+ * @param type - optional account type token, for Tb.
  * @see msgNewMailAccount below for the new implementation.
  */
-function msgOpenAccountWizard(wizardCallback)
+function msgOpenAccountWizard(wizardCallback, type)
 {
   gNewAccountToLoad = null;
 
   window.openDialog("chrome://messenger/content/AccountWizard.xul", "AccountWizard",
-                    "chrome,modal,titlebar,centerscreen", {okCallback: wizardCallback});
+                    "chrome,modal,titlebar,centerscreen",
+                    {okCallback: wizardCallback, acctType: type});
 
   loadInboxForNewAccount();
 
@@ -204,16 +200,35 @@ function msgOpenAccountWizard(wizardCallback)
     selectServer(null, null);
 }
 
+function initAccountWizardTB(args) {
+  let type = args[0] && args[0].acctType;
+  let selType = type == "newsgroups" ? "newsaccount" :
+                type == "movemail" ? "Movemail" : null;
+  let accountwizard = document.getElementById("AccountWizard");
+  let acctyperadio = document.getElementById("acctyperadio");
+  let feedRadio = acctyperadio.querySelector("radio[value='Feeds']");
+  if (feedRadio)
+    feedRadio.parentNode.removeChild(feedRadio);
+  if (selType) {
+    acctyperadio.selectedItem = acctyperadio.querySelector("radio[value='"+selType+"']");
+    accountwizard.advance("identitypage");
+  }
+  else
+    acctyperadio.selectedItem = acctyperadio.getItemAtIndex(0);
+}
+
+function AddFeedAccount() {
+  window.openDialog("chrome://messenger-newsblog/content/feedAccountWizard.xul",
+                    "", "chrome,modal,titlebar,centerscreen");
+}
+
 // selectPage: the xul file name for the viewing page,
 // null for the account main page, other pages are
 // 'am-server.xul', 'am-copies.xul', 'am-offline.xul',
 // 'am-addressing.xul', 'am-smtp.xul'
 function MsgAccountManager(selectPage)
 {
-    var windowManager = Components.classes['@mozilla.org/appshell/window-mediator;1'].
-                            getService(Components.interfaces.nsIWindowMediator);
-
-    var existingAccountManager = windowManager.getMostRecentWindow("mailnews:accountmanager");
+    var existingAccountManager = Services.wm.getMostRecentWindow("mailnews:accountmanager");
 
     if (existingAccountManager)
         existingAccountManager.focus();
@@ -257,32 +272,29 @@ function migrateGlobalQuotingPrefs(allIdentities)
   var quotingPrefs = 0;
   var migrated = false;
   try {
-    var prefService = Components.classes["@mozilla.org/preferences-service;1"]
-                                .getService(Components.interfaces.nsIPrefService);
-    var pref = prefService.getBranch(null);
-    quotingPrefs = pref.getIntPref("mailnews.quotingPrefs.version");
+    quotingPrefs = Services.prefs.getIntPref("mailnews.quotingPrefs.version");
   } catch (ex) {}
-  
+
   // If the quotingPrefs version is 0 then we need to migrate our preferences
   if (quotingPrefs == 0) {
     migrated = true;
     try {
-      reply_on_top = pref.getIntPref("mailnews.reply_on_top");
-      auto_quote = pref.getBoolPref("mail.auto_quote");
+      reply_on_top = Services.prefs.getIntPref("mailnews.reply_on_top");
+      auto_quote = Services.prefs.getBoolPref("mail.auto_quote");
     } catch (ex) {}
 
     if (!auto_quote || reply_on_top) {
-      var numIdentities = allIdentities.Count();
+      let numIdentities = allIdentities.length;
       var identity = null;
       for (var j = 0; j < numIdentities; j++) {
-        identity = allIdentities.QueryElementAt(j, Components.interfaces.nsIMsgIdentity);
+        identity = allIdentities.queryElementAt(j, Components.interfaces.nsIMsgIdentity);
         if (identity.valid) {
           identity.autoQuote = auto_quote;
           identity.replyOnTop = reply_on_top;
         }
       }
     }
-    pref.setIntPref("mailnews.quotingPrefs.version", 1);
+    Services.prefs.setIntPref("mailnews.quotingPrefs.version", 1);
   }
   return migrated;
 }
@@ -327,9 +339,8 @@ function NewMailAccountProvisioner(aMsgWindow, args) {
   if (!args)
     args = {};
   if (!aMsgWindow)
-    aMsgWindow = Components.classes["@mozilla.org/messenger/services/session;1"]
-                   .getService(Components.interfaces.nsIMsgMailSession)
-                   .topmostMsgWindow;
+    aMsgWindow = MailServices.mailSession.topmostMsgWindow;
+
   args.msgWindow = aMsgWindow;
 
   let mail3Pane = Services.wm.getMostRecentWindow("mail:3pane");
@@ -408,10 +419,8 @@ function msgNewMailAccount(msgWindow, okCallback, extraData)
 {
   if (!msgWindow)
     throw new Error("msgNewMailAccount must be given a msgWindow.");
-  let wm = Components.classes["@mozilla.org/appshell/window-mediator;1"]
-                     .getService()
-                     .QueryInterface(Components.interfaces.nsIWindowMediator);
-  let existingWindow = wm.getMostRecentWindow("mail:autoconfig");
+
+  let existingWindow = Services.wm.getMostRecentWindow("mail:autoconfig");
   if (existingWindow)
     existingWindow.focus();
   else

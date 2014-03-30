@@ -3,18 +3,15 @@
  * Test suite for nsIMsgHeaderParser functions.
  */
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 function run_test() {
-  var i;
-
-  var parser = Components.classes["@mozilla.org/messenger/headerparser;1"]
-                         .getService(Components.interfaces.nsIMsgHeaderParser);
-
   var checks =
   [
-    ["", "test@invalid.com", "test@invalid.com"],
-    ["Test", "test@invalid.com", "Test <test@invalid.com>"],
-    ["Test", "\"abc!x.yz\"@invalid.com", "Test <\"abc!x.yz\"@invalid.com>"],
-    ["Test", "test.user@invalid.com", "Test <test.user@invalid.com>"],
+    ["", "test@foo.invalid", "test@foo.invalid"],
+    ["Test", "test@foo.invalid", "Test <test@foo.invalid>"],
+    ["Test", "\"abc!x.yz\"@foo.invalid", "Test <\"abc!x.yz\"@foo.invalid>"],
+    ["Test", "test.user@foo.invalid", "Test <test.user@foo.invalid>"],
     ["Test", "test@[xyz!]", "Test <test@[xyz!]>"],
     // Based on RFC 2822 A.1.1
     ["John Doe", "jdoe@machine.example", "John Doe <jdoe@machine.example>"],
@@ -27,11 +24,11 @@ function run_test() {
 
   // Test - empty strings
 
-  do_check_eq(parser.makeFullAddress("", ""), "");
+  do_check_eq(MailServices.headerParser.makeFullAddress("", ""), "");
 
   // Test - makeFullAddressWString
 
-  for (i = 0; i < checks.length; ++i)
-    do_check_eq(parser.makeFullAddress(checks[i][0], checks[i][1]),
+  for (let i = 0; i < checks.length; ++i)
+    do_check_eq(MailServices.headerParser.makeFullAddress(checks[i][0], checks[i][1]),
                 checks[i][2]);
 }

@@ -13,6 +13,7 @@
 #include "nsIMsgWindow.h"
 #include "nsIMsgStatusFeedback.h"
 #include "nsCOMPtr.h"
+#include "nsCOMArray.h"
 #include "nsIMimeHeaders.h"
 #include "nsIMsgMailNewsUrl.h"
 #include "nsIURL.h"
@@ -20,9 +21,9 @@
 #include "nsIMsgSearchSession.h"
 #include "nsICacheEntryDescriptor.h"
 #include "nsICacheSession.h"
-#include "nsISupportsArray.h"
 #include "nsIMimeMiscStatus.h"
 #include "nsWeakReference.h"
+#include "nsStringGlue.h"
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Okay, I found that all of the mail and news url interfaces needed to support
@@ -56,7 +57,7 @@ protected:
   nsCOMPtr<nsIMsgSearchSession> m_searchSession;
   nsCOMPtr<nsICacheEntryDescriptor> m_memCacheEntry;
   nsCOMPtr<nsICacheSession> m_imageCacheSession;
-  nsCOMPtr<nsISupportsArray> m_cachedMemCacheEntries;
+  nsCOMArray<nsICacheEntryDescriptor> m_cachedMemCacheEntries;
   nsCOMPtr<nsIMsgHeaderSink> mMsgHeaderSink;
   char *m_errorMessage;
   int64_t mMaxProgress;

@@ -7,8 +7,12 @@ const XULNS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/AddonManager.jsm");
+Components.utils.import("resource://gre/modules/LoginManagerContent.jsm");
 Components.utils.import("resource:///modules/Sanitizer.jsm");
 Components.utils.import("resource:///modules/mailnewsMigrator.js");
+
+var onContentLoaded = LoginManagerContent.onContentLoaded.bind(LoginManagerContent);
+var onUsernameInput = LoginManagerContent.onUsernameInput.bind(LoginManagerContent);
 
 XPCOMUtils.defineLazyModuleGetter(this, "NetUtil",
                                   "resource://gre/modules/NetUtil.jsm");
@@ -16,8 +20,14 @@ XPCOMUtils.defineLazyModuleGetter(this, "NetUtil",
 XPCOMUtils.defineLazyModuleGetter(this, "UserAgentOverrides",
                                   "resource://gre/modules/UserAgentOverrides.jsm");
 
+XPCOMUtils.defineLazyModuleGetter(this, "FileUtils",
+                                  "resource://gre/modules/FileUtils.jsm");
+
 XPCOMUtils.defineLazyModuleGetter(this, "PlacesUtils",
                                   "resource://gre/modules/PlacesUtils.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "PlacesBackups",
+                                  "resource://gre/modules/PlacesBackups.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "BookmarkHTMLUtils",
                                   "resource://gre/modules/BookmarkHTMLUtils.jsm");
@@ -44,9 +54,6 @@ SuiteGlue.prototype = {
   _saveSession: false,
   _sound: null,
   _isIdleObserver: false,
-  _isPlacesInitObserver: false,
-  _isPlacesLockedObserver: false,
-  _isPlacesShutdownObserver: false,
   _isPlacesDatabaseLocked: false,
   _migrationImportsDefaultBookmarks: false,
 
@@ -96,15 +103,15 @@ SuiteGlue.prototype = {
     delay = delay <= MAX_DELAY ? delay : MAX_DELAY;
 
     Components.utils.import("resource://services-sync/main.js");
-    Weave.SyncScheduler.delayedAutoConnect(delay);
+    Weave.Service.scheduler.delayedAutoConnect(delay);
   },
 
   // nsIObserver implementation
   observe: function(subject, topic, data)
   {
     switch(topic) {
-      case "xpcom-shutdown":
-        this._dispose();
+      case "profile-before-change":
+        this._onProfileShutdown();
         break;
       case "profile-after-change":
         this._onProfileAfterChange();
@@ -164,25 +171,19 @@ SuiteGlue.prototype = {
           this._initPlaces(false);
 
         Services.obs.removeObserver(this, "places-init-complete");
-        this._isPlacesInitObserver = false;
         // No longer needed, since history was initialized completely.
         Services.obs.removeObserver(this, "places-database-locked");
-        this._isPlacesLockedObserver = false;
         break;
       case "places-database-locked":
         this._isPlacesDatabaseLocked = true;
         // Stop observing, so further attempts to load history service
         // will not show the prompt.
         Services.obs.removeObserver(this, "places-database-locked");
-        this._isPlacesLockedObserver = false;
         break;
       case "places-shutdown":
-        if (this._isPlacesShutdownObserver) {
-          Services.obs.removeObserver(this, "places-shutdown");
-          this._isPlacesShutdownObserver = false;
-        }
+        Services.obs.removeObserver(this, "places-shutdown");
         // places-shutdown is fired when the profile is about to disappear.
-        this._onProfileShutdown();
+        this._onPlacesShutdown();
         break;
       case "idle":
         if (this._idleService.idleTime > BOOKMARKS_BACKUP_IDLE_TIME * 1000)
@@ -200,8 +201,9 @@ SuiteGlue.prototype = {
     if (aWebProgress.DOMWindow.top == aWebProgress.DOMWindow &&
         aWebProgress instanceof Components.interfaces.nsIDocShell &&
         aWebProgress.loadType & Components.interfaces.nsIDocShell.LOAD_CMD_NORMAL &&
-        aWebProgress instanceof Components.interfaces.nsIDocShellHistory &&
-        aWebProgress.useGlobalHistory) {
+        aWebProgress.useGlobalHistory &&
+        aWebProgress instanceof Components.interfaces.nsILoadContext &&
+        !aWebProgress.usePrivateBrowsing) {
       switch (aLocation.scheme) {
         case "about":
         case "imap":
@@ -226,62 +228,36 @@ SuiteGlue.prototype = {
     }
   },
 
+  onStateChange: function(aWebProgress, aRequest, aStateFlags, aStatus) {
+    aWebProgress.DOMWindow.addEventListener("DOMContentLoaded", onContentLoaded, true);
+    aWebProgress.DOMWindow.addEventListener("DOMAutoComplete", onUsernameInput, true);
+    aWebProgress.DOMWindow.addEventListener("change", onUsernameInput, true);
+  },
+
   // initialization (called on application startup)
   _init: function()
   {
     // observer registration
-    Services.obs.addObserver(this, "xpcom-shutdown", false);
-    Services.obs.addObserver(this, "profile-after-change", false);
-    Services.obs.addObserver(this, "final-ui-startup", false);
-    Services.obs.addObserver(this, "sessionstore-windows-restored", false);
-    Services.obs.addObserver(this, "browser:purge-session-history", false);
-    Services.obs.addObserver(this, "quit-application-requested", false);
-    Services.obs.addObserver(this, "quit-application-granted", false);
-    Services.obs.addObserver(this, "browser-lastwindow-close-requested", false);
-    Services.obs.addObserver(this, "browser-lastwindow-close-granted", false);
-    Services.obs.addObserver(this, "console-api-log-event", false);
-    Services.obs.addObserver(this, "weave:service:ready", false);
-    Services.obs.addObserver(this, "weave:engine:clients:display-uri", false);
-    Services.obs.addObserver(this, "session-save", false);
-    Services.obs.addObserver(this, "dl-done", false);
-    Services.obs.addObserver(this, "places-init-complete", false);
-    this._isPlacesInitObserver = true;
-    Services.obs.addObserver(this, "places-database-locked", false);
-    this._isPlacesLockedObserver = true;
-    Services.obs.addObserver(this, "places-shutdown", false);
-    this._isPlacesShutdownObserver = true;
+    Services.obs.addObserver(this, "profile-before-change", true);
+    Services.obs.addObserver(this, "profile-after-change", true);
+    Services.obs.addObserver(this, "final-ui-startup", true);
+    Services.obs.addObserver(this, "sessionstore-windows-restored", true);
+    Services.obs.addObserver(this, "browser:purge-session-history", true);
+    Services.obs.addObserver(this, "quit-application-requested", true);
+    Services.obs.addObserver(this, "quit-application-granted", true);
+    Services.obs.addObserver(this, "browser-lastwindow-close-requested", true);
+    Services.obs.addObserver(this, "browser-lastwindow-close-granted", true);
+    Services.obs.addObserver(this, "console-api-log-event", true);
+    Services.obs.addObserver(this, "weave:service:ready", true);
+    Services.obs.addObserver(this, "weave:engine:clients:display-uri", true);
+    Services.obs.addObserver(this, "session-save", true);
+    Services.obs.addObserver(this, "dl-done", true);
+    Services.obs.addObserver(this, "places-init-complete", true);
+    Services.obs.addObserver(this, "places-database-locked", true);
+    Services.obs.addObserver(this, "places-shutdown", true);
     Components.classes['@mozilla.org/docloaderservice;1']
               .getService(Components.interfaces.nsIWebProgress)
-              .addProgressListener(this, Components.interfaces.nsIWebProgress.NOTIFY_LOCATION);
-  },
-
-  // cleanup (called on application shutdown)
-  _dispose: function()
-  {
-    // observer removal
-    Services.obs.removeObserver(this, "xpcom-shutdown");
-    Services.obs.removeObserver(this, "profile-after-change");
-    Services.obs.removeObserver(this, "final-ui-startup");
-    Services.obs.removeObserver(this, "sessionstore-windows-restored");
-    Services.obs.removeObserver(this, "browser:purge-session-history");
-    Services.obs.removeObserver(this, "quit-application-requested");
-    Services.obs.removeObserver(this, "quit-application-granted");
-    Services.obs.removeObserver(this, "browser-lastwindow-close-requested");
-    Services.obs.removeObserver(this, "browser-lastwindow-close-granted");
-    Services.obs.removeObserver(this, "console-api-log-event");
-    Services.obs.removeObserver(this, "weave:service:ready");
-    Services.obs.removeObserver(this, "weave:engine:clients:display-uri");
-    Services.obs.removeObserver(this, "session-save");
-    Services.obs.removeObserver(this, "dl-done");
-    if (this._isIdleObserver)
-      this._idleService.removeIdleObserver(this, BOOKMARKS_BACKUP_IDLE_TIME);
-    if (this._isPlacesInitObserver)
-      Services.obs.removeObserver(this, "places-init-complete");
-    if (this._isPlacesLockedObserver)
-      Services.obs.removeObserver(this, "places-database-locked");
-    if (this._isPlacesShutdownObserver)
-      Services.obs.removeObserver(this, "places-shutdown");
-    UserAgentOverrides.uninit();
+              .addProgressListener(this, Components.interfaces.nsIWebProgress.NOTIFY_LOCATION | Components.interfaces.nsIWebProgress.NOTIFY_STATE_DOCUMENT);
   },
 
   // profile is available
@@ -324,7 +300,7 @@ SuiteGlue.prototype = {
         cookies = aHttpChannel.getRequestHeader("Cookie");
       } catch (e) { /* no cookie sent */ }
 
-      if (cookies && cookies.indexOf("MoodleSession") > -1)
+      if (cookies && cookies.contains("MoodleSession"))
         return aOriginalUA.replace(/Gecko\/[^ ]*/, "Gecko/20100101");
       return null;
     }
@@ -343,15 +319,17 @@ SuiteGlue.prototype = {
     // them to the user.
     var browser = aWindow.getBrowser();
     var changedIDs = AddonManager.getStartupChanges(AddonManager.STARTUP_CHANGE_INSTALLED);
-    AddonManager.getAddonsByIDs(changedIDs, function(aAddons) {
-      aAddons.forEach(function(aAddon) {
-        // If the add-on isn't user disabled or can't be enabled then skip it.
-        if (!aAddon.userDisabled || !(aAddon.permissions & AddonManager.PERM_CAN_ENABLE))
-          return;
+    if (changedIDs.length) {
+      AddonManager.getAddonsByIDs(changedIDs, function(aAddons) {
+        aAddons.forEach(function(aAddon) {
+          // If the add-on isn't user disabled or can't be enabled then skip it.
+          if (!aAddon.userDisabled || !(aAddon.permissions & AddonManager.PERM_CAN_ENABLE))
+            return;
 
-        browser.selectedTab = browser.addTab("about:newaddon?id=" + aAddon.id);
-      })
-    });
+          browser.selectedTab = browser.addTab("about:newaddon?id=" + aAddon.id);
+        })
+      });
+    }
 
     var notifyBox = browser.getNotificationBox();
 
@@ -375,14 +353,18 @@ SuiteGlue.prototype = {
     // Detect if updates are off and warn for outdated builds.
     if (this._shouldShowUpdateWarning())
       notifyBox.showUpdateWarning();
+
+    this._checkForDefaultClient(aWindow);
   },
 
-  // profile shutdown handler (contains profile cleanup routines)
+  /**
+   * Profile shutdown handler (contains profile cleanup routines).
+   * All components depending on Places should be shut down in
+   * _onPlacesShutdown() and not here.
+   */
   _onProfileShutdown: function()
   {
-    this._shutdownPlaces();
-    if (!Sanitizer.doPendingSanitize())
-      Services.prefs.setBoolPref("privacy.sanitize.didShutdownSanitize", true);
+    UserAgentOverrides.uninit()
   },
 
   _promptForMasterPassword: function()
@@ -631,6 +613,30 @@ SuiteGlue.prototype = {
     return (buildTime + maxAge <= now);
   },
 
+  // This method gets the shell service and has it check its settings.
+  // This will do nothing on platforms without a shell service.
+  _checkForDefaultClient: function checkForDefaultClient(aWindow)
+  {
+    const NS_SHELLSERVICE_CID = "@mozilla.org/suite/shell-service;1";
+    if (NS_SHELLSERVICE_CID in Components.classes) try {
+      const nsIShellService = Components.interfaces.nsIShellService;
+
+      var shellService = Components.classes[NS_SHELLSERVICE_CID]
+                                   .getService(nsIShellService);
+      var appTypes = shellService.shouldBeDefaultClientFor;
+
+      // Show the default client dialog only if we should check for the default
+      // client and we aren't already the default for the stored app types in
+      // shell.checkDefaultApps.
+      if (appTypes && shellService.shouldCheckDefaultClient &&
+          !shellService.isDefaultClient(true, appTypes)) {
+        aWindow.openDialog("chrome://communicator/content/defaultClientDialog.xul",
+                           "DefaultClient",
+                           "modal,centerscreen,chrome,resizable=no");
+      }
+    } catch (e) {}
+  },
+
   /**
    * Initialize Places
    * - imports the bookmarks html file if bookmarks database is empty, try to
@@ -655,7 +661,7 @@ SuiteGlue.prototype = {
     // We must instantiate the history service since it will tell us if we
     // need to import or restore bookmarks due to first-run, corruption or
     // forced migration (due to a major schema change).
-    var bookmarksBackupFile = PlacesUtils.backups.getMostRecent("json");
+    var bookmarksBackupFile = PlacesBackups.getMostRecent("json");
 
     // If the database is corrupt or has been newly created we should
     // import bookmarks. Same if we don't have any JSON backups, which
@@ -753,16 +759,15 @@ SuiteGlue.prototype = {
       if (bookmarksURI) {
         // Import from bookmarks.html file.
         try {
-          BookmarkHTMLUtils.importFromURL(bookmarksURI.spec, true, (function (success) {
-            if (success) {
-              // Ensure that smart bookmarks are created once the operation is
-              // complete.
-              this.ensurePlacesDefaultQueriesInitialized();
-            }
-            else {
+          BookmarkHTMLUtils.importFromURL(bookmarksURI.spec, true).then(null,
+            function onFailure() {
               Components.utils.reportError("Bookmarks.html file could be corrupt.");
             }
-          }).bind(this));
+          ).then(
+            // Ensure that smart bookmarks are created once the operation is
+            // complete.
+            this.ensurePlacesDefaultQueriesInitialized.bind(this)
+          );
         }
         catch(ex) {
           Components.utils.reportError("bookmarks.html file could be corrupt. " + ex);
@@ -792,11 +797,9 @@ SuiteGlue.prototype = {
    * Places shut-down tasks
    * - back up bookmarks if needed.
    * - export bookmarks as HTML, if so configured.
-   *
-   * Note: quit-application-granted notification is received twice
-   *       so replace this method with a no-op when first called.
+   * - finalize components depending on Places.
    */
-  _shutdownPlaces: function() {
+  _onPlacesShutdown: function() {
     if (this._isIdleObserver) {
       this._idleService.removeIdleObserver(this, BOOKMARKS_BACKUP_IDLE_TIME);
       this._isIdleObserver = false;
@@ -805,34 +808,52 @@ SuiteGlue.prototype = {
 
     // Backup bookmarks to bookmarks.html to support apps that depend
     // on the legacy format.
-    var autoExportHTML = false;
     try {
-      autoExportHTML = Services.prefs.getBoolPref("browser.bookmarks.autoExportHTML");
+      // If this fails to get the preference value, we don't export.
+      if (Services.prefs.getBoolPref("browser.bookmarks.autoExportHTML")) {
+        // Exceptionally, since this is a non-default setting and HTML format is
+        // discouraged in favor of the JSON backups, we spin the event loop on
+        // shutdown, to wait for the export to finish.  We cannot safely spin
+        // the event loop on shutdown until we include a watchdog to prevent
+        // potential hangs (bug 518683).  The asynchronous shutdown operations
+        // will then be handled by a shutdown service (bug 435058).
+        var shutdownComplete = false;
+        BookmarkHTMLUtils.exportToFile(FileUtils.getFile("BMarks", [])).then(
+          function onSuccess() {
+            shutdownComplete = true;
+          },
+          function onFailure() {
+            // There is no point in reporting errors since we are shutting down.
+            shutdownComplete = true;
+          }
+        );
+        var thread = Services.tm.currentThread;
+        while (!shutdownComplete) {
+          thread.processNextEvent(true);
+        }
+      }
     } catch(ex) { /* Don't export */ }
 
-    if (autoExportHTML) {
-      Components.classes["@mozilla.org/browser/places/import-export-service;1"]
-                .getService(Components.interfaces.nsIPlacesImportExportService)
-                .backupBookmarksFile();
-    }
+    if (!Sanitizer.doPendingSanitize())
+      Services.prefs.setBoolPref("privacy.sanitize.didShutdownSanitize", true);
   },
 
   /**
    * Backup bookmarks if needed.
    */
   _backupBookmarks: function() {
-    let lastBackupFile = PlacesUtils.backups.getMostRecent();
+    let lastBackupFile = PlacesBackups.getMostRecent();
 
     // Backup bookmarks if there are no backups or the maximum interval between
     // backups elapsed.
     if (!lastBackupFile ||
-        new Date() - PlacesUtils.backups.getDateForFile(lastBackupFile) > BOOKMARKS_BACKUP_INTERVAL) {
+        new Date() - PlacesBackups.getDateForFile(lastBackupFile) > BOOKMARKS_BACKUP_INTERVAL) {
       let maxBackups = BOOKMARKS_BACKUP_MAX_BACKUPS;
       try {
         maxBackups = Services.prefs.getIntPref("browser.bookmarks.max_backups");
       } catch(ex) { /* Use default. */ }
 
-      PlacesUtils.backups.create(maxBackups); // Don't force creation.
+      PlacesBackups.create(maxBackups); // Don't force creation.
     }
   },
 
@@ -1071,7 +1092,12 @@ ContentPermissionPrompt.prototype = {
 
   prompt: function(aRequest)
   {
-    if (aRequest.type != "geolocation")
+    const kFeatureKeys = { "geolocation" : "geo",
+                           "desktop-notification" : "desktop-notification",
+                         };
+
+    // Make sure that we support the request.
+    if (!(aRequest.type in kFeatureKeys))
       return;
 
     var path, host;
@@ -1086,7 +1112,8 @@ ContentPermissionPrompt.prototype = {
     else
       return;
 
-    switch (Services.perms.testExactPermissionFromPrincipal(requestingPrincipal, "geo")) {
+    var perm = kFeatureKeys[aRequest.type];
+    switch (Services.perms.testExactPermissionFromPrincipal(requestingPrincipal, perm)) {
       case Services.perms.ALLOW_ACTION:
         aRequest.allow();
         return;
@@ -1095,26 +1122,38 @@ ContentPermissionPrompt.prototype = {
         return;
     }
 
-    function allowCallback(remember) {
+    function allowCallback(remember, expireType) {
       if (remember)
-        Services.perms.addFromPrincipal(requestingPrincipal, "geo", Services.perms.ALLOW_ACTION);
+        Services.perms.addFromPrincipal(requestingPrincipal, perm,
+                                        Services.perms.ALLOW_ACTION,
+                                        expireType);
       aRequest.allow();
     }
 
-    function cancelCallback(remember) {
+    function cancelCallback(remember, expireType) {
       if (remember)
-        Services.perms.addFromPrincipal(requestingPrincipal, "geo", Services.perms.DENY_ACTION);
+        Services.perms.addFromPrincipal(requestingPrincipal, perm,
+                                        Services.perms.DENY_ACTION,
+                                        expireType);
       aRequest.cancel();
     }
 
-    aRequest.window
-            .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-            .getInterface(Components.interfaces.nsIWebNavigation)
-            .QueryInterface(Components.interfaces.nsIDocShell)
-            .chromeEventHandler.parentNode.wrappedJSObject
-            .showGeolocationPrompt(path, host,
-                                   allowCallback,
-                                   cancelCallback);
+    var nb = aRequest.window
+                     .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+                     .getInterface(Components.interfaces.nsIWebNavigation)
+                     .QueryInterface(Components.interfaces.nsIDocShell)
+                     .chromeEventHandler.parentNode;
+
+    // Show the prompt.
+    switch (aRequest.type) {
+      case "geolocation":
+        nb.showGeolocationPrompt(path, host, allowCallback, cancelCallback);
+        break;
+      case "desktop-notification":
+        if (host)
+          nb.showWebNotificationPrompt(host, allowCallback, cancelCallback);
+        break;
+    }
   },
 };
 

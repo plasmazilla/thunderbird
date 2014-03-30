@@ -31,7 +31,7 @@
                   <xul:vbox pack="center">
                     <xul:image anonid="item-icon"
                                class="calendar-item-image"
-                               xbl:inherits="progress,allday,itemType"/>
+                               xbl:inherits="progress,allday,itemType,todoType"/>
                   </xul:vbox>
                   <xul:label anonid="item-label"
                              class="calendar-month-day-box-item-label"
@@ -327,7 +327,7 @@
           this.calendarView.setSelectedItems(0, []);
         }
       ]]></handler>
-      <handler event="DOMMouseScroll"><![CDATA[
+      <handler event="wheel"><![CDATA[
         if (getParentNodeOrThisByAttribute(event.originalTarget, "anonid", "day-label") == null) {
             if (this.dayitems.scrollHeight > this.dayitems.clientHeight) {
                 event.stopPropagation();
@@ -609,8 +609,16 @@
       <method name="showDate">
         <parameter name="aDate"/>
         <body><![CDATA[
-          this.setDateRange(aDate.startOfMonth, aDate.endOfMonth);
-          this.selectedDay = aDate;
+          // If aDate is null it means that only a refresh is needed
+          // without changing the start and end of the view.
+          if (aDate) {
+              this.setDateRange(aDate.startOfMonth, aDate.endOfMonth);
+              this.selectedDay = aDate;
+          } else {
+              this.refresh();
+              // Refresh the selected day if it doesn't appear in the view.
+              this.selectedDay = this.selectedDay;
+          }
         ]]></body>
       </method>
 
@@ -744,6 +752,13 @@
               var daybox = row.childNodes[j];
               var date = dateList[dateBoxes.length];
 
+              // Remove the attribute "relation" for all the column headers.
+              // Consider only the first row index otherwise it will be
+              // removed again afterwards the correct setting.
+              if (i == 0) {
+                  this.labeldaybox.childNodes[j].removeAttribute("relation");
+              }
+
               daybox.setAttribute("context", this.getAttribute("context"));
               daybox.setAttribute("item-context", this.getAttribute("item-context") || this.getAttribute("context"));
 
@@ -768,6 +783,7 @@
                       break;
                   case 0:
                       daybox.setAttribute("relation", "today");
+                      this.labeldaybox.childNodes[j].setAttribute("relation", "today");
                       break;
                   case 1:
                       daybox.setAttribute("relation", "future");
@@ -783,7 +799,6 @@
                 daybox.showMonthLabel = false;
               }
               daybox.calendarView = this;
-              
               daybox.date = date;
               dateBoxes.push(daybox);
 
@@ -806,17 +821,6 @@
           this.mDateBoxes = dateBoxes;
           this.hideDaysOff();
 
-          // Highlight box and column header corresponding to today if it's
-          // in the range of the view.
-          for (let i = 0; i < this.labeldaybox.childNodes.length; i++) {
-              this.labeldaybox.childNodes[i].removeAttribute("relation");
-          }
-          if (today.compare(dateList[0]) != -1 &&
-              today.compare(dateList[dateList.length-1]) != 1) {
-              this.findDayBoxForDate(today).setAttribute("today", "true");
-              this.labeldaybox.childNodes[(7 + today.weekday - this.weekStartOffset) % 7]
-                              .setAttribute("relation", "today");
-          }
           this.adjustWeekdayLength();
         ]]></body>
       </method>
@@ -853,16 +857,15 @@
           var boxes = new Array();
 
           // All our boxes are in default tz, so we need these times in them too.
-          if (isEvent(aItem)) {
-            targetDate = aItem.startDate.getInTimezone(this.mTimezone);
-            finishDate = aItem.endDate.getInTimezone(this.mTimezone);
-          } else if (isToDo(aItem)) {
-            if (aItem.entryDate) {
-              targetDate = aItem.entryDate.getInTimezone(this.mTimezone);
-              if (aItem.dueDate) {
-                finishDate = aItem.dueDate.getInTimezone(this.mTimezone);
+          if (cal.isEvent(aItem)) {
+              targetDate = aItem.startDate.getInTimezone(this.mTimezone);
+              finishDate = aItem.endDate.getInTimezone(this.mTimezone);
+          } else if (cal.isToDo(aItem)) {
+              // Consider tasks without entry OR due date.
+              if (aItem.entryDate || aItem.dueDate) {
+                  targetDate = (aItem.entryDate || aItem.dueDate).getInTimezone(this.mTimezone);
+                  finishDate = (aItem.dueDate || aItem.entryDate).getInTimezone(this.mTimezone);
               }
-            }
           }
 
           if (!targetDate)
@@ -884,7 +887,8 @@
           }
 
           if (targetDate.compare(finishDate) == 0) {
-              // Zero length events are silly, but we have to handle them
+              // We have also to handle zero length events in particular for
+              // tasks without entry or due date.
               let box = this.findDayBoxForDate(targetDate);
               if (box) {
                   boxes.push(box);
@@ -1000,18 +1004,34 @@
     </implementation>
 
     <handlers>
-      <handler event="DOMMouseScroll"><![CDATA[
+      <handler event="wheel"><![CDATA[
+        const pixelThreshold = 150;
         let scrollEnabled = getPrefSafe('calendar.view.mousescroll', true);
-        if (!event.ctrlKey &&
-            !event.shiftKey &&
-            !event.altKey &&
-            !event.metaKey &&
-            scrollEnabled) {
+        if (!event.ctrlKey && !event.shiftKey &&
+            !event.altKey && !event.metaKey && scrollEnabled) {
             // In the month view, the only thing that can be scrolled
             // is the month the user is in. calendar-base-view takes care
             // of the shift key, so only move the view when no modifier
             // is pressed.
-            this.moveView(event.detail < 0 ? -1 : 1);
+            let deltaView = 0;
+            if (event.deltaMode == event.DOM_DELTA_LINE) {
+                if (event.deltaY != 0) {
+                    deltaView = event.deltaY < 0 ? -1 : 1;
+                }
+            } else if (event.deltaMode == event.DOM_DELTA_PIXEL) {
+                this.mPixelScrollDelta += event.deltaY;
+                if (this.mPixelScrollDelta > pixelThreshold){
+                    deltaView = 1;
+                    this.mPixelScrollDelta = 0;
+                } else if (this.mPixelScrollDelta < -pixelThreshold) {
+                    deltaView = -1;
+                    this.mPixelScrollDelta = 0;
+                }
+            }
+
+            if (deltaView != 0) {
+                this.moveView(deltaView);
+            }
         }
       ]]></handler>
     </handlers>

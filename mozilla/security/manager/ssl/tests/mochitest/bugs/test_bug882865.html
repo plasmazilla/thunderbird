@@ -30,10 +30,7 @@
     } catch (e) {
       // The 'key generation argument' in this case was an empty array,
       // which gets interpreted as an empty string.
-      // This should be giving us an exception with the message
-      //   "Error: error:invalid key generation argument:"
-      // but instead it's giving us a generalized NS_ERROR_FAILURE result.
-      is(e.result, 0x80004005, "expected result");
+      is(e.toString(), "Error: error:invalid key generation argument:", "expected exception");
     }
     SimpleTest.finish();
   }

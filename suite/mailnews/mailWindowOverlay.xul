@@ -111,6 +111,7 @@
 
 <commandset id="mailCommands">
   <command id="cmd_newNavigator"/>
+  <command id="cmd_newPrivateWindow"/>
   <command id="cmd_newEditor"/>
   <command id="cmd_createFilterFromPopup" oncommand="goDoCommand('cmd_createFilterFromPopup')"/>
   <command id="cmd_pageSetup"/>
@@ -215,8 +216,9 @@
             oncommandupdate="goUpdateMailMenuItems(this)">
   <command id="cmd_archive" oncommand="goDoCommand('cmd_archive')"/>
   <command id="cmd_reply" oncommand="goDoCommand('cmd_reply')"/>
-  <command id="cmd_replySender" oncommand="goDoCommand('cmd_replySender')"/>
+  <command id="cmd_replyList" oncommand="goDoCommand('cmd_replyList')"/>
   <command id="cmd_replyGroup" oncommand="goDoCommand('cmd_replyGroup')"/>
+  <command id="cmd_replySender" oncommand="goDoCommand('cmd_replySender')"/>
   <command id="cmd_replyall" oncommand="goDoCommand('cmd_replyall')"/>
   <command id="cmd_replySenderAndGroup" oncommand="goDoCommand('cmd_replySenderAndGroup')"/>
   <command id="cmd_replyAllRecipients" oncommand="goDoCommand('cmd_replyAllRecipients')"/>
@@ -311,6 +313,7 @@
        modifiers="accel"
        oncommand="MsgOpenNewTab();"/>
   <key id="key_newNavigator"/>
+  <key id="key_newPrivateWindow"/>
   <key id="key_newBlankPage"/>
   <key id="key_close"/>
   <!-- Edit Menu -->
@@ -492,7 +495,7 @@
     <menuitem id="context-openlink"
               label="&openLinkCmd.label;"
               accesskey="&openLinkCmd.accesskey;"
-              oncommand="gContextMenu.openLink();"/>
+              oncommand="gContextMenu.openLinkInWindow();"/>
     <menuseparator id="mailContext-sep-link"/>
     <menuitem id="context-selectall"/>
     <menuitem id="context-copy"/>
@@ -507,14 +510,18 @@
               accesskey="&contextOpenNewWindow.accesskey;"
               oncommand="MsgOpenNewWindowForMessage();"/>
     <menuseparator id="mailContext-sep-open"/>
-    <menuitem id="mailContext-replyNewsgroup"
-              label="&contextReplyNewsgroup.label;"
-              accesskey="&contextReplyNewsgroup.accesskey;"
-              oncommand="MsgReplyGroup(event);"/>
     <menuitem id="mailContext-replySender"
               label="&contextReplySender.label;"
               accesskey="&contextReplySender.accesskey;"
               oncommand="MsgReplySender(event);"/>
+    <menuitem id="mailContext-replyList"
+              label="&contextReplyList.label;"
+              accesskey="&contextReplyList.accesskey;"
+              oncommand="MsgReplyList(event);"/>
+    <menuitem id="mailContext-replyNewsgroup"
+              label="&contextReplyNewsgroup.label;"
+              accesskey="&contextReplyNewsgroup.accesskey;"
+              oncommand="MsgReplyGroup(event);"/>
     <menuitem id="mailContext-replySenderAndNewsgroup"
               label="&contextReplySenderAndNewsgroup.label;"
               accesskey="&contextReplySenderAndNewsgroup.accesskey;"
@@ -916,6 +923,7 @@
                     key="key_newTab"
                     oncommand="MsgOpenNewTab();"/>
           <menuitem id="menu_newNavigator"/>
+          <menuitem id="menu_newPrivateWindow"/>
           <menuitem id="menu_newEditor"/>
         </menupopup>
       </menu>
@@ -1254,13 +1262,13 @@
                     name="viewFeedBodyHTMLGroup"
                     label="&bodySanitized.label;" 
                     accesskey="&bodySanitized.accesskey;"
-                    oncommand="MsgFeedBodyRenderPrefs(false, 3, gDisallow_classes_no_html)"/>
+                    oncommand="MsgFeedBodyRenderPrefs(false, 3, disallow_classes_no_html)"/>
           <menuitem id="bodyFeedSummaryAsPlaintext" 
                     type="radio" 
                     name="viewFeedBodyHTMLGroup"
                     label="&bodyAsPlaintext.label;" 
                     accesskey="&bodyAsPlaintext.accesskey;"
-                    oncommand="MsgFeedBodyRenderPrefs(true, 1, gDisallow_classes_no_html)"/>
+                    oncommand="MsgFeedBodyRenderPrefs(true, 1, disallow_classes_no_html)"/>
           <menuseparator id="viewFeedSummarySeparator"/>
           <menuitem id="bodyFeedGlobalWebPage" 
                     type="radio" 
@@ -1435,6 +1443,10 @@
                 accesskey="&replyMsgCmd.accesskey;"
                 key="key_reply"
                 command="cmd_reply"/>
+      <menuitem id="replyListMainMenu"
+                label="&replyListCmd.label;"
+                accesskey="&replyListCmd.accesskey;"
+                command="cmd_replyList"/>
       <menuitem id="replyNewsgroupMainMenu"
                 label="&replyNewsgroupCmd.label;"
                 accesskey="&replyNewsgroupCmd.accesskey;"
@@ -1916,11 +1928,20 @@
     </toolbarbutton>
     <toolbarbutton id="button-reply"
                    class="toolbarbutton-1"
+                   type="menu-button"
                    label="&replyButton.label;"
                    tooltiptext="&replyButton.tooltip;"
                    observes="button_reply"
                    oncommand="MsgReplyMessage(event)">
-      <menupopup id="button-replyPopup">
+      <menupopup id="button-replyPopup"
+                 onpopupshowing="InitMessageReply(this);">
+        <menuitem label="&replyMsgCmd.label;"
+                  accesskey="&replyMsgCmd.accesskey;"
+                  command="cmd_reply"
+                  default="true"/>
+        <menuitem label="&replyListCmd.label;"
+                  accesskey="&replyListCmd.accesskey;"
+                  command="cmd_replyList"/>
         <menuitem label="&replyNewsgroupCmd.label;"
                   accesskey="&replyNewsgroupCmd.accesskey;"
                   command="cmd_replyGroup"
@@ -2127,6 +2148,7 @@
     </toolbarbutton>
 
     <toolbaritem id="button-junk"
+                 title="&junkButton.label;"
                  observes="button_junk">
       <deck id="junk-deck"
             oncommand="goDoCommand('button_junk')">
@@ -2144,6 +2166,7 @@
     </toolbaritem>
 
     <toolbaritem id="button-delete"
+                 title="&deleteButton.label;"
                  observes="button_delete">
       <deck id="delete-deck">
         <toolbarbutton id="button-mark-deleted"

@@ -7,7 +7,6 @@
  */
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 load("../../../resources/messageGenerator.js");
 
@@ -16,7 +15,6 @@ Components.utils.import("resource:///modules/mailServices.js");
 // javascript mime emitter functions
 
 // IMAP pump
-load("../../../resources/IMAPpump.js");
 
 setupIMAPPump();
 
@@ -26,7 +24,7 @@ const kBiffStateAtom = Cc["@mozilla.org/atom-service;1"]
 // Dummy message window so we can say the inbox is open in a window.
 var dummyMsgWindow =
 {
-  openFolder : gIMAPInbox,
+  openFolder : IMAPPump.inbox,
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIMsgWindow,
                                          Ci.nsISupportsWeakReference])
 };
@@ -61,17 +59,17 @@ function uploadImapMessages()
   messages = messages.concat(scenarioFactory.directReply(10));
 
   // Add 10 messages with uids 1-10.
-  let imapInbox = gIMAPDaemon.getMailbox("INBOX")
+  let imapInbox = IMAPPump.daemon.getMailbox("INBOX")
   // Create the imapMessages and store them on the mailbox
   messages.forEach(function (message)
   {
     let dataUri = Services.io.newURI("data:text/plain;base64," +
-                                      btoa(message.toMessageString()),
+                                     btoa(message.toMessageString()),
                                      null, null);
     imapInbox.addMessage(new imapMessage(dataUri.spec, imapInbox.uidnext++, []));
   });
   // updateFolderWithListener with null for nsIMsgWindow makes biff notify.
-  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+  IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
   yield false;
 }
 
@@ -81,13 +79,13 @@ function testMessageFetched() {
   do_check_true(gFolderListener._gotNewMailBiff);
   // Should have only downloaded first chunk of headers when message
   // has finished streaming.
-  do_check_eq(gIMAPInbox.msgDatabase.dBFolderInfo.numMessages, 3);
+  do_check_eq(IMAPPump.inbox.msgDatabase.dBFolderInfo.numMessages, 3);
   yield false;
 }
 
 function testHdrsDownloaded() {
   // Make sure we got all 10 headers.
-  do_check_eq(gIMAPInbox.msgDatabase.dBFolderInfo.numMessages, 10);
+  do_check_eq(IMAPPump.inbox.msgDatabase.dBFolderInfo.numMessages, 10);
   yield true;
 }
 

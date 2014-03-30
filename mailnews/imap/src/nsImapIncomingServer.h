@@ -15,6 +15,7 @@
 #include "nsIUrlListener.h"
 #include "nsIMsgImapMailFolder.h"
 #include "nsCOMArray.h"
+#include "nsVoidArray.h"
 #include "mozilla/Mutex.h"
 
 class nsIRDFService;
@@ -89,7 +90,7 @@ private:
   nsresult GetImapConnection(nsIImapUrl* aImapUrl,
                              nsIImapProtocol** aImapConnection);
   nsresult CreateProtocolInstance(nsIImapProtocol ** aImapConnection);
-  nsresult CreateHostSpecificPrefName(const char *prefPrefix, nsCAutoString &prefName);
+  nsresult CreateHostSpecificPrefName(const char *prefPrefix, nsAutoCString &prefName);
 
   nsresult DoomUrlIfChannelHasError(nsIImapUrl *aImapUrl, bool *urlDoomed);
   bool ConnectionTimeOut(nsIImapProtocol* aImapConnection);

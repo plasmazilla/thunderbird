@@ -12,6 +12,7 @@
 #include "nsIStringBundle.h"
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
+#include "nsIURI.h"
 #include "mimexpcom.h"
 #include "nsMsgUtils.h"
 
@@ -22,6 +23,7 @@
 #include "nspr.h"
 #include "plstr.h"
 #include "nsIPgpMimeProxy.h"
+#include "nsComponentManagerUtils.h"
 
 static NS_DEFINE_CID(kMimeObjectClassAccessCID, NS_MIME_OBJECT_CLASS_ACCESS_CID);
 
@@ -137,9 +139,6 @@ MimePgpe_init(MimeObject *obj,
   if (!(obj && obj->options && output_fn))
     return nullptr;
 
-  MimeDisplayOptions *opts;
-  opts = obj->options;
-
   MimePgpeData* data = new MimePgpeData();
   NS_ENSURE_TRUE(data, nullptr);
 
@@ -163,7 +162,14 @@ MimePgpe_init(MimeObject *obj,
   if (NS_FAILED(rv))
     return nullptr;
 
-  if (NS_FAILED(data->mimeDecrypt->SetMimeCallback(output_fn, output_closure)))
+  mime_stream_data *msd = (mime_stream_data *) (data->self->options->stream_closure);
+  nsIChannel *channel = msd->channel;
+
+  nsCOMPtr<nsIURI> uri;
+  if (channel)
+    channel->GetURI(getter_AddRefs(uri));
+
+  if (NS_FAILED(data->mimeDecrypt->SetMimeCallback(output_fn, output_closure, uri)))
     return nullptr;
 
   return data;
@@ -190,8 +196,6 @@ MimePgpe_eof(void* output_closure, bool abort_p)
 
   if (!data || !data->output_fn)
     return -1;
-
-  mime_stream_data *msd = (mime_stream_data *) (data->self->options->stream_closure);
 
   if (NS_FAILED(data->mimeDecrypt->Finish()))
     return -1;
@@ -249,7 +253,8 @@ nsPgpMimeProxy::Finalize()
 
 NS_IMETHODIMP
 nsPgpMimeProxy::SetMimeCallback(MimeDecodeCallbackFun outputFun,
-                        void* outputClosure)
+                        void* outputClosure,
+                        nsIURI* myUri)
 {
   if (!outputFun || !outputClosure)
     return NS_ERROR_NULL_POINTER;
@@ -262,7 +267,7 @@ nsPgpMimeProxy::SetMimeCallback(MimeDecodeCallbackFun outputFun,
   mByteBuf.Truncate();
 
   if (mDecryptor)
-    return mDecryptor->OnStartRequest((nsIRequest*) this, nullptr);
+    return mDecryptor->OnStartRequest((nsIRequest*) this, myUri);
 
   return NS_OK;
 }
@@ -377,7 +382,7 @@ nsPgpMimeProxy::IsPending(bool *result)
 {
   NS_ENSURE_TRUE(mInitialized, NS_ERROR_NOT_INITIALIZED);
 
-  *result = (mCancelStatus == NS_OK);
+  *result = NS_SUCCEEDED(mCancelStatus);
   return NS_OK;
 }
 
@@ -398,10 +403,10 @@ nsPgpMimeProxy::Cancel(nsresult status)
   NS_ENSURE_TRUE(mInitialized, NS_ERROR_NOT_INITIALIZED);
 
   // Need a non-zero status code to cancel
-  if (status == NS_OK)
+  if (NS_SUCCEEDED(status))
     return NS_ERROR_FAILURE;
 
-  if (mCancelStatus == NS_OK)
+  if (NS_SUCCEEDED(mCancelStatus))
     mCancelStatus = status;
 
   return NS_OK;
@@ -540,7 +545,7 @@ nsPgpMimeProxy::OnStopRequest(nsIRequest* aRequest, nsISupports* aContext,
 NS_IMETHODIMP
 nsPgpMimeProxy::OnDataAvailable(nsIRequest* aRequest, nsISupports* aContext,
                               nsIInputStream *aInputStream,
-                              uint32_t aSourceOffset,
+                              uint64_t aSourceOffset,
                               uint32_t aLength)
 {
   NS_ENSURE_TRUE(mInitialized, NS_ERROR_NOT_INITIALIZED);

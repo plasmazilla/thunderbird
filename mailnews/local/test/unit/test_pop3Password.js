@@ -2,11 +2,13 @@
 /**
  * Authentication tests for POP3.
  */
+
+Components.utils.import("resource:///modules/mailServices.js");
+
 var test = null;
 var server;
 var daemon;
 var incomingServer;
-var pop3Service;
 var firstTest = true;
 var thisTest;
 
@@ -27,7 +29,8 @@ var urlListener =
 
       do_check_transaction(transaction, thisTest.transaction);
 
-      do_check_eq(gLocalInboxFolder.getTotalMessages(false), thisTest.messages.length);
+      do_check_eq(localAccountUtils.inboxFolder.getTotalMessages(false),
+                  thisTest.messages.length);
 
       do_check_eq(result, 0);
     }
@@ -93,8 +96,8 @@ function testNext() {
     daemon.setMessages(thisTest.messages);
 
     // Now get the mail
-    pop3Service.GetNewMail(null, urlListener, gLocalInboxFolder,
-                           incomingServer);
+    MailServices.pop3.GetNewMail(null, urlListener, localAccountUtils.inboxFolder,
+                                 incomingServer);
 
     server.performTest();
   } catch (e) {
@@ -119,7 +122,7 @@ function run_test() {
   var signons = do_get_file("../../../data/signons-mailnews1.8.txt");
 
   // Copy the file to the profile directory for a PAB
-  signons.copyTo(gProfileDir, "signons.txt");
+  signons.copyTo(do_get_profile(), "signons.txt");
 
   // Set up the Server
   var serverArray = setupServerDaemon();
@@ -135,21 +138,15 @@ function run_test() {
   // We would use createPop3ServerAndLocalFolders() however we want to have
   // a different username and NO password for this test (as we expect to load
   // it from signons.txt).
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
-  var acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
-
-  incomingServer = acctMgr.createIncomingServer("testpop3", "localhost", "pop3");
+  incomingServer = MailServices.accounts.createIncomingServer("testpop3", "localhost", "pop3");
 
   incomingServer.port = POP3_PORT;
 
   // Check that we haven't got any messages in the folder, if we have its a test
   // setup issue.
-  do_check_eq(gLocalInboxFolder.getTotalMessages(false), 0);
-
-  pop3Service = Cc["@mozilla.org/messenger/popservice;1"]
-                      .getService(Ci.nsIPop3Service);
+  do_check_eq(localAccountUtils.inboxFolder.getTotalMessages(false), 0);
 
   do_test_pending();
 

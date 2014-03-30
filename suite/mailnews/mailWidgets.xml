@@ -115,9 +115,8 @@
       <method name="_fireOnSelect">
         <body><![CDATA[
           if (!this._suppressOnSelect && !this.suppressOnSelect) {
-            let evt = document.createEvent("Events");
-            evt.initEvent("select", false, true);
-            this.dispatchEvent(evt);
+            this.dispatchEvent(new Event("select",
+              { bubbles: false, cancelable: true }));
           }
         ]]></body>
       </method>
@@ -838,7 +837,7 @@
         <setter>
           <![CDATA[
             if (this.internalValue == val)
-              return;
+              return val;
             this.internalValue = val;
             var menulist = document.getAnonymousNodes(this)[0];
             menulist.selectedItem = this.validMenuitem;
@@ -880,7 +879,7 @@
 
             // custom attribute to style the unavailable menulist item
             menulist.setAttribute("unavailable",
-              (this.valueIds.indexOf(typedValue) < 0) ? "true" : null);
+              this.valueIds.indexOf(typedValue) < 0);
 
             // add a hidden menulist item if value is missing
             let menuitem = menulist.getElementsByAttribute("value", this.value).item(0);
@@ -956,20 +955,6 @@
           <![CDATA[
             var menulist = document.getAnonymousNodes(this)[0];
             this.value = menulist.value;
-            // notify targets
-            var targets = this.targets;
-            if (targets) {
-              for (var i=0; i < targets.length; i++) {
-                targets[i].parentValue = menulist.value;
-              }
-            }
-
-            var optargets = this.optargets;
-            if (optargets) {
-              for (i = 0; i < optargets.length; ++i) {
-                optargets[i].opParentValue = menulist.value;
-              }
-            }
           ]]>
         </body>
       </method>
@@ -1167,11 +1152,11 @@
       <xul:textbox flex="1" class="search-value-textbox" xbl:inherits="disabled"/>
       <xul:menulist flex="1" class="search-value-menulist" xbl:inherits="disabled">
         <xul:menupopup class="search-value-popup">
-          <xul:menuitem value="2" stringTag="priorityLowest" class="search-value-menuitem"/>
-          <xul:menuitem value="3" stringTag="priorityLow" class="search-value-menuitem"/>
-          <xul:menuitem value="4" stringTag="priorityNormal" class="search-value-menuitem"/>
-          <xul:menuitem value="5" stringTag="priorityHigh" class="search-value-menuitem"/>
           <xul:menuitem value="6" stringTag="priorityHighest" class="search-value-menuitem"/>
+          <xul:menuitem value="5" stringTag="priorityHigh" class="search-value-menuitem"/>
+          <xul:menuitem value="4" stringTag="priorityNormal" class="search-value-menuitem"/>
+          <xul:menuitem value="3" stringTag="priorityLow" class="search-value-menuitem"/>
+          <xul:menuitem value="2" stringTag="priorityLowest" class="search-value-menuitem"/>
         </xul:menupopup>
       </xul:menulist>
       <xul:menulist flex="1" class="search-value-menulist" xbl:inherits="disabled">
@@ -1595,7 +1580,8 @@
       </constructor>
     </implementation>
     <handlers>
-      <handler event="keypress" keycode="VK_RETURN" action="onEnterInSearchTerm();"/>
+      <handler event="keypress" keycode="VK_RETURN" modifiers="accel any"
+               action="onEnterInSearchTerm(event);" preventdefault="true"/>
     </handlers>
   </binding>
 
@@ -1786,56 +1772,6 @@
         ]]>
       </handler>
     </handlers>
-  </binding>
-
-  <binding id="folderTargetPopup" extends="chrome://messenger/content/mailWidgets.xml#popup-base">
-    <xbl:content xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-      <tree class="foldersTree"
-            treelines="true"
-            flex="1"
-            datasources="rdf:msgaccountmanager rdf:mailnewsfolders"
-            ref="msgaccounts:/"
-            flags="dont-build-content"
-            seltype="text"
-            hidecolumnpicker="true">
-        <treecols>
-          <treecol flex="1" primary="true" sort="rdf:http://home.netscape.com/NC-rdf#FolderTreeName?sort=true" sortActive="true" sortDirection="ascending" crop="center" hideheader="true"/>
-        </treecols>
-        <treechildren class="foldersTreeChildren"/>
-        <template>
-          <rule nc:CanFileMessagesOnServer="true" nc:CanFileMessages="true" nc:CanSearchMessages="true">
-            <treechildren>
-              <treeitem uri="rdf:*">
-                <treerow sort="rdf:http://home.netscape.com/NC-rdf#FolderTreeName?sort=true">
-                  <treecell label="rdf:http://home.netscape.com/NC-rdf#FolderTreeSimpleName"
-                    properties="folderNameCol specialFolder-rdf:http://home.netscape.com/NC-rdf#SpecialFolder isServer-rdf:http://home.netscape.com/NC-rdf#IsServer isSecure-rdf:http://home.netscape.com/NC-rdf#IsSecure serverType-rdf:http://home.netscape.com/NC-rdf#ServerType noSelect-rdf:http://home.netscape.com/NC-rdf#NoSelect"/>
-                </treerow>
-              </treeitem>
-            </treechildren>
-          </rule>
-          <rule nc:CanFileMessagesOnServer="true" nc:CanFileMessages="false" nc:CanSearchMessages="true" nc:Virtual="false">
-            <treechildren>
-              <treeitem uri="rdf:*">
-                <treerow sort="rdf:http://home.netscape.com/NC-rdf#FolderTreeName?sort=true">
-                  <treecell label="rdf:http://home.netscape.com/NC-rdf#FolderTreeSimpleName"
-                    properties="folderNameCol specialFolder-rdf:http://home.netscape.com/NC-rdf#SpecialFolder isServer-rdf:http://home.netscape.com/NC-rdf#IsServer isSecure-rdf:http://home.netscape.com/NC-rdf#IsSecure serverType-rdf:http://home.netscape.com/NC-rdf#ServerType noSelect-rdf:http://home.netscape.com/NC-rdf#NoSelect"/>
-                </treerow>
-              </treeitem>
-            </treechildren>
-          </rule>
-          <rule nc:CanFileMessagesOnServer="true" nc:CanFileMessages="true" nc:Virtual="false">
-            <treechildren>
-              <treeitem uri="rdf:*">
-                <treerow sort="rdf:http://home.netscape.com/NC-rdf#FolderTreeName?sort=true">
-                  <treecell label="rdf:http://home.netscape.com/NC-rdf#FolderTreeSimpleName"
-                    properties="folderNameCol specialFolder-rdf:http://home.netscape.com/NC-rdf#SpecialFolder isServer-rdf:http://home.netscape.com/NC-rdf#IsServer isSecure-rdf:http://home.netscape.com/NC-rdf#IsSecure serverType-rdf:http://home.netscape.com/NC-rdf#ServerType noSelect-rdf:http://home.netscape.com/NC-rdf#NoSelect"/>
-                </treerow>
-              </treeitem>
-            </treechildren>
-          </rule>
-        </template>
-      </tree>
-    </xbl:content>
   </binding>
 
   <binding id="locationpopup" extends="chrome://messenger/content/mailWidgets.xml#popup-base">
@@ -2133,6 +2069,9 @@
 
           if (topmostMsgWindow)
           {
+            // Bring window to the front
+            topmostMsgWindow.domWindow.focus();
+
             try {
               // SelectFolder throws an exception if the folder is not in the current folder view
               mailSession.topmostMsgWindow.windowCommands.selectFolder(this.folderUri);
@@ -2148,7 +2087,7 @@
           }
 
           if (gAlertListener)
-            gAlertListener.observe(null, "alertclickcallback", "");
+            gAlertListener.observe(null, "alertclicksimplecallback", "");
         ]]>
       </handler>
     </handlers>

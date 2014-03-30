@@ -6,6 +6,7 @@
 var gAdvancedPane = {
   mPane: null,
   mInitialized: false,
+  mShellServiceWorking: false,
 
   init: function ()
   {
@@ -53,6 +54,21 @@ var gAdvancedPane = {
       document.getElementById("searchintegration.enable").disabled = true;
     }
 
+#ifdef HAVE_SHELL_SERVICE
+    // If the shell service is not working, disable the "Check now" button
+    // and "perform check at startup" checkbox.
+    try {
+      let shellSvc = Components.classes["@mozilla.org/mail/shell-service;1"]
+                               .getService(Components.interfaces.nsIShellService);
+      this.mShellServiceWorking = true;
+    } catch (ex) {
+      document.getElementById("alwaysCheckDefault").disabled = true;
+      document.getElementById("alwaysCheckDefault").checked = false;
+      document.getElementById("checkDefaultButton").disabled = true;
+      this.mShellServiceWorking = false;
+    }
+#endif
+
     this.mInitialized = true;
   },
 
@@ -75,36 +91,13 @@ var gAdvancedPane = {
    */
   checkDefaultNow: function (aAppType)
   {
-    var nsIShellService = Components.interfaces.nsIShellService;
-    var shellSvc;
-    try {
-      shellSvc = Components.classes["@mozilla.org/mail/shell-service;1"]
-                           .getService(nsIShellService);
-    } catch (ex) { return; }
+    if (!this.mShellServiceWorking)
+      return;
 
-    // If we are already the default for all the handled types, alert the user.
-    if (shellSvc.isDefaultClient(false, nsIShellService.MAIL |
-                                        nsIShellService.NEWS |
-                                        nsIShellService.RSS))
-    {
-      var brandBundle = document.getElementById("bundleBrand");
-      var preferencesBundle = document.getElementById("bundlePreferences");
-      var brandShortName = brandBundle.getString("brandShortName");
-      var promptTitle = preferencesBundle.getString("alreadyDefaultClientTitle");
-      var psvc = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                           .getService(Components.interfaces.nsIPromptService);
-
-      var promptMessage = preferencesBundle.getFormattedString("alreadyDefault",
-                                                               [brandShortName]);
-      psvc.alert(window, promptTitle, promptMessage);
-    }
-    else
-    {
-      // otherwise, bring up the default client dialog
-      window.openDialog("chrome://messenger/content/systemIntegrationDialog.xul",
-                        "SystemIntegration",
-                        "modal,centerscreen,chrome,resizable=no");
-    }
+    // otherwise, bring up the default client dialog
+    window.openDialog("chrome://messenger/content/systemIntegrationDialog.xul",
+                      "SystemIntegration",
+                      "modal,centerscreen,chrome,resizable=no", "calledFromPrefs");
   },
 #endif
 
@@ -113,6 +106,18 @@ var gAdvancedPane = {
     document.documentElement.openWindow("Preferences:ConfigManager",
                                         "chrome://global/content/config.xul",
                                         "", null);
+  },
+
+  /**
+   * When the user toggles telemetry, update the rejected value as well, so we
+   * know he expressed a choice, and don't re-prompt inadvertently.
+   */
+  telemetryEnabledChanged: function (event)
+  {
+    let rejected = document.getElementById("toolkit.telemetry.rejected");
+    rejected.value = !event.target.value;
+    let displayed = document.getElementById("toolkit.telemetry.prompted");
+    displayed.value = 2;
   },
 
   // NETWORK TAB
@@ -150,10 +155,8 @@ var gAdvancedPane = {
    */
   clearCache: function ()
   {
-    var cacheService = Components.classes["@mozilla.org/network/cache-service;1"]
-                                 .getService(Components.interfaces.nsICacheService);
     try {
-      cacheService.evictEntries(Components.interfaces.nsICache.STORE_ANYWHERE);
+      Services.cache.evictEntries(Components.interfaces.nsICache.STORE_ANYWHERE);
     } catch(ex) {}
   },
 
@@ -357,16 +360,6 @@ var gAdvancedPane = {
   {
     document.documentElement.openWindow("mozilla:certmanager",
                                         "chrome://pippki/content/certManager.xul",
-                                        "", null);
-  },
-
-  /**
-   * Display a dialog which describes the user's CRLs.
-   */
-  showCRLs: function ()
-  {
-    document.documentElement.openWindow("mozilla:crlmanager",
-                                        "chrome://pippki/content/crlManager.xul",
                                         "", null);
   },
 

@@ -11,8 +11,6 @@ Cu.import("resource:///modules/socket.jsm");
 Cu.import("resource:///modules/xmpp-xml.jsm");
 Cu.import("resource:///modules/xmpp-authmechs.jsm");
 
-initLogModule("xmpp-session", this);
-
 XPCOMUtils.defineLazyGetter(this, "_", function()
   l10nHelper("chrome://chat/locale/xmpp.properties")
 );
@@ -33,6 +31,12 @@ function XMPPSession(aHost, aPort, aSecurity, aJID, aPassword, aAccount) {
   else if (this._connectionSecurity != "none")
     this._security = [(aPort == 5223 || aPort == 443) ? "ssl" : "starttls"];
 
+  if (!aJID.node) {
+    aAccount.reportDisconnecting(Ci.prplIAccount.ERROR_INVALID_USERNAME,
+                                 _("connection.error.invalidUsername"));
+    aAccount.reportDisconnected();
+    return;
+  }
   this._jid = aJID;
   this._domain = aJID.domain;
   this._password = aPassword;
@@ -60,7 +64,17 @@ XMPPSession.prototype = {
   /* for the socket.jsm helper */
   __proto__: Socket,
   connectTimeout: 60,
-  readWriteTimeout: 0,
+  readWriteTimeout: 300,
+  sendPing: function() {
+    this.sendStanza(Stanza.iq("get", null, null,
+                              Stanza.node("ping", Stanza.NS.ping)),
+                    this.cancelDisconnectTimer, this);
+  },
+
+  get DEBUG() this._account.DEBUG,
+  get LOG() this._account.LOG,
+  get WARN() this._account.WARN,
+  get ERROR() this._account.ERROR,
 
   _security: null,
   _encrypted: false,
@@ -75,6 +89,7 @@ XMPPSession.prototype = {
       this._parser.destroy();
       delete this._parser;
     }
+    this.cancelDisconnectTimer();
   },
 
   /* Report errors to the account */
@@ -147,9 +162,6 @@ XMPPSession.prototype = {
     this.sendStanza(s);
   },
 
-  /* Log a message (called by the socket code) */
-  log: LOG,
-
   /* Socket events */
   /* The connection is established */
   onConnection: function() {
@@ -165,6 +177,8 @@ XMPPSession.prototype = {
 
   /* When incoming data is available to be parsed */
   onDataReceived: function(aData) {
+    if (this.onXmppStanza == this.stanzaListeners.accountListening)
+      this.resetPingTimer();
     let istream = Cc["@mozilla.org/io/string-input-stream;1"]
                     .createInstance(Ci.nsIStringInputStream);
     istream.setData(aData, aData.length);
@@ -199,9 +213,9 @@ XMPPSession.prototype = {
   /* Methods called by the XMPPParser instance */
   onXMLError: function(aError, aException) {
     if (aError == "parsing-characters")
-      WARN(aError + ": " + aException + "\n" + this._lastReceivedData);
+      this.WARN(aError + ": " + aException + "\n" + this._lastReceivedData);
     else
-      ERROR(aError + ": " + aException + "\n" + this._lastReceivedData);
+      this.ERROR(aError + ": " + aException + "\n" + this._lastReceivedData);
     if (aError != "parse-warning" && aError != "parsing-characters")
       this._networkError(_("connection.error.receivedUnexpectedData"));
   },
@@ -211,7 +225,7 @@ XMPPSession.prototype = {
   stanzaListeners: {
     initStream: function(aStanza) {
       if (aStanza.localName != "features") {
-        ERROR("Unexpected stanza " + aStanza.localName + ", expected 'features'");
+        this.ERROR("Unexpected stanza " + aStanza.localName + ", expected 'features'");
         this._networkError(_("connection.error.incorrectResponse"));
         return;
       }
@@ -252,7 +266,7 @@ XMPPSession.prototype = {
     },
     startAuth: function(aStanza) {
       if (aStanza.localName != "features") {
-        ERROR("Unexpected stanza " + aStanza.localName + ", expected 'features'");
+        this.ERROR("Unexpected stanza " + aStanza.localName + ", expected 'features'");
         this._networkError(_("connection.error.incorrectResponse"));
         return;
       }
@@ -332,7 +346,7 @@ XMPPSession.prototype = {
       try {
         result = this._auth.next(aStanza);
       } catch(e) {
-        ERROR(e);
+        this.ERROR(e);
         this.onError(Ci.prplIAccount.ERROR_AUTHENTICATION_FAILED,
                      _("connection.error.authenticationFailure"));
         return;
@@ -355,7 +369,7 @@ XMPPSession.prototype = {
     },
     startBind: function(aStanza) {
       if (!aStanza.getElement(["bind"])) {
-        ERROR("Unexpected lack of the bind feature");
+        this.ERROR("Unexpected lack of the bind feature");
         this._networkError(_("connection.error.incorrectResponse"));
         return;
       }
@@ -374,7 +388,7 @@ XMPPSession.prototype = {
         return;
       }
       jid = jid.innerText;
-      DEBUG("jid = " + jid);
+      this.DEBUG("jid = " + jid);
       this._jid = this._account._parseJID(jid);
       this.startSession();
     },
@@ -475,6 +489,7 @@ XMPPSession.prototype = {
       this.sendStanza(s);
     },
     sessionStarted: function(aStanza) {
+      this.resetPingTimer();
       this._account.onConnection();
       this.onXmppStanza = this.stanzaListeners.accountListening;
     },
@@ -494,6 +509,6 @@ XMPPSession.prototype = {
     }
   },
   onXmppStanza: function(aStanza) {
-    ERROR("should not be reached\n");
+    this.ERROR("should not be reached\n");
   }
 };

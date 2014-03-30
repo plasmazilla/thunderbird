@@ -1,24 +1,24 @@
-// This file tests the mailbox handling of IMAP.
+/**
+ * Tests basic mailbox handling of IMAP, like discovery, rename and empty folder.
+ */
 
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 load("../../../resources/messageGenerator.js");
-load("../../../resources/IMAPpump.js");
 
 function setup() {
   setupIMAPPump();
 
-  gIMAPDaemon.createMailbox("I18N box\u00E1", {subscribed : true});
-  gIMAPDaemon.createMailbox("Unsubscribed box");
+  IMAPPump.daemon.createMailbox("I18N box\u00E1", {subscribed : true});
+  IMAPPump.daemon.createMailbox("Unsubscribed box");
   // Create an all upper case trash folder name to make sure
   // we handle special folder names case-insensitively.
-  gIMAPDaemon.createMailbox("TRASH", {subscribed : true});
+  IMAPPump.daemon.createMailbox("TRASH", {subscribed : true});
 
   // Get the server list...
-  gIMAPServer.performTest("LIST");
+  IMAPPump.server.performTest("LIST");
 
-  gIMAPInbox.updateFolderWithListener(null, asyncUrlListener);
+  IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
   yield false;
 }
 
@@ -26,7 +26,7 @@ var tests = [
   setup,
   function checkDiscovery() {
     dump("in check discovery\n");
-    let rootFolder = gIMAPIncomingServer.rootFolder;
+    let rootFolder = IMAPPump.incomingServer.rootFolder;
     // Check that we've subscribed to the boxes returned by LSUB. We also get
     // checking of proper i18n in mailboxes for free here.
     do_check_true(rootFolder.containsChildNamed("Inbox"));
@@ -48,7 +48,7 @@ var tests = [
     yield false;
   },
   function checkRename() {
-    let rootFolder = gIMAPIncomingServer.rootFolder;
+    let rootFolder = IMAPPump.incomingServer.rootFolder;
     do_check_true(rootFolder.containsChildNamed("test \u00E4"));
     let newChild = rootFolder.getChildNamed("test \u00E4").
                    QueryInterface(Ci.nsIMsgImapMailFolder);
@@ -57,7 +57,7 @@ var tests = [
   },
   function checkEmptyFolder() {
     try {
-    let serverSink = gIMAPServer.QueryInterface(Ci.nsIImapServerSink);
+    let serverSink = IMAPPump.server.QueryInterface(Ci.nsIImapServerSink);
       serverSink.possibleImapMailbox("/", '/', 0);
     }
     catch (ex) {

@@ -12,6 +12,8 @@ load("../../../resources/abSetup.js");
 // add fake POP3 server driver
 load("../../../resources/POP3pump.js");
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 /*
  * The address available in the test address book is "PrimaryEmail1@test.invalid"
  * Test emails may also include the address "invalid@example.com"
@@ -24,9 +26,9 @@ load("../../../resources/POP3pump.js");
  *
  */
  
- // indices into hdrs[] of email by domain
- const kDomainTest = 0;
- const kDomainExample = 1;
+// indices into hdrs[] of email by domain
+const kDomainTest = 0;
+const kDomainExample = 1;
 
 var Files = 
 [
@@ -43,7 +45,7 @@ function run_test()
   var testAB = do_get_file("../../../addrbook/test/unit/data/cardForEmail.mab");
 
   // Copy the file to the profile directory for a PAB (this is the personal address book)
-  testAB.copyTo(gProfileDir, kPABData.fileName);
+  testAB.copyTo(do_get_profile(), kPABData.fileName);
 
   do_test_pending();
 
@@ -56,12 +58,12 @@ function run_test()
 function continueTest()
 {
   // get the message headers
-  let headerEnum = gLocalInboxFolder.messages;
+  let headerEnum = localAccountUtils.inboxFolder.messages;
   while (headerEnum.hasMoreElements())
     hdrs.push(headerEnum.getNext().QueryInterface(Ci.nsIMsgDBHdr));
 
   // check with spam properties set on the local server
-  doChecks(gLocalIncomingServer);
+  doChecks(localAccountUtils.incomingServer);
 
   // Free our globals
   hdrs = null;
@@ -137,20 +139,18 @@ function doChecks(server)
    */
 
   // setup
-  let accountManager = Cc["@mozilla.org/messenger/account-manager;1"]
-                         .getService(Ci.nsIMsgAccountManager);
-  let account = accountManager.FindAccountForServer(server);
-  let identity = accountManager.createIdentity();
+  let account = MailServices.accounts.FindAccountForServer(server);
+  let identity = MailServices.accounts.createIdentity();
   // start with an email that does not match
   identity.email = "iAmNotTheSender@test.invalid";
   account.addIdentity(identity);
 
   // setup account and identify for the deferred-from fake server
-  let fakeAccount = accountManager.createAccount();
+  let fakeAccount = MailServices.accounts.createAccount();
   fakeAccount.incomingServer = gPOP3Pump.fakeServer;
-  let fakeIdentity = accountManager.createIdentity();
+  let fakeIdentity = MailServices.accounts.createIdentity();
   // start with an email that does not match
-  fakeIdentity.email = "iAmNotTheSender@wrong.domain";
+  fakeIdentity.email = "iAmNotTheSender@wrong.invalid";
   fakeAccount.addIdentity(fakeIdentity);
 
   // gPOP3Pump delivers messages to the local inbox regardless of other
@@ -186,10 +186,10 @@ function doChecks(server)
   do_check_true(spamSettings.checkWhiteList(hdrs[kDomainTest]));
 
   // remove the matching email from the fake identity
-  fakeIdentity.email = "iAmNotTheSender@wrong.domain";
+  fakeIdentity.email = "iAmNotTheSender@wrong.invalid";
 
   // add a fully non-matching domain to the identity
-  identity.email = "PrimaryEmail1@wrong.domain";
+  identity.email = "PrimaryEmail1@wrong.invalid";
 
   // suppress whitelist by matching domain
   server.setBoolValue("inhibitWhiteListingIdentityDomain", true);

@@ -11,15 +11,14 @@
  *
  * @return - the account created.
  */
+
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 function createAccountInBackend(config)
 {
-  var accountManager = Cc["@mozilla.org/messenger/account-manager;1"]
-                       .getService(Ci.nsIMsgAccountManager);
-  var smtpManager = Cc["@mozilla.org/messengercompose/smtp;1"]
-                    .getService(Ci.nsISmtpService);
-
   // incoming server
-  var inServer = accountManager.createIncomingServer(
+  let inServer = MailServices.accounts.createIncomingServer(
       config.incoming.username,
       config.incoming.hostname,
       sanitize.enum(config.incoming.type, ["pop3", "imap", "nntp"]));
@@ -41,14 +40,12 @@ function createAccountInBackend(config)
 
   inServer.doBiff = true;
   inServer.biffMinutes = config.incoming.checkInterval;
-  let prefs = Cc["@mozilla.org/preferences-service;1"]
-              .getService(Ci.nsIPrefBranch);
   const loginAtStartupPrefTemplate =
     "mail.server.%serverkey%.login_at_startup";
   var loginAtStartupPref =
     loginAtStartupPrefTemplate.replace("%serverkey%", inServer.key);
-  prefs.setBoolPref(loginAtStartupPref,
-                    config.incoming.loginAtStartup);
+  Services.prefs.setBoolPref(loginAtStartupPref,
+                             config.incoming.loginAtStartup);
   if (config.incoming.type == "pop3")
   {
     const leaveOnServerPrefTemplate =
@@ -71,21 +68,21 @@ function createAccountInBackend(config)
       deleteFromServerPrefTemplate.replace("%serverkey%", inServer.key);
     let downloadOnBiffPref =
       downloadOnBiffPrefTemplate.replace("%serverkey%", inServer.key);
-    prefs.setBoolPref(leaveOnServerPref,
-                      config.incoming.leaveMessagesOnServer);
-    prefs.setIntPref(daysToLeaveOnServerPref,
-                     config.incoming.daysToLeaveMessagesOnServer);
-    prefs.setBoolPref(deleteFromServerPref,
-                      config.incoming.deleteOnServerWhenLocalDelete);
-    prefs.setBoolPref(ageFromServerPref,
-                      config.incoming.deleteByAgeFromServer);
-    prefs.setBoolPref(downloadOnBiffPref,
-                      config.incoming.downloadOnBiff);
+    Services.prefs.setBoolPref(leaveOnServerPref,
+                               config.incoming.leaveMessagesOnServer);
+    Services.prefs.setIntPref(daysToLeaveOnServerPref,
+                              config.incoming.daysToLeaveMessagesOnServer);
+    Services.prefs.setBoolPref(deleteFromServerPref,
+                               config.incoming.deleteOnServerWhenLocalDelete);
+    Services.prefs.setBoolPref(ageFromServerPref,
+                               config.incoming.deleteByAgeFromServer);
+    Services.prefs.setBoolPref(downloadOnBiffPref,
+                               config.incoming.downloadOnBiff);
   }
   inServer.valid = true;
 
   let username = config.outgoing.auth > 1 ? config.outgoing.username : null;
-  let outServer = smtpManager.findServer(username, config.outgoing.hostname);
+  let outServer = MailServices.smtp.findServer(username, config.outgoing.hostname);
   assert(config.outgoing.addThisServer ||
          config.outgoing.useGlobalPreferredServer ||
          config.outgoing.existingServerKey,
@@ -93,7 +90,7 @@ function createAccountInBackend(config)
 
   if (config.outgoing.addThisServer && !outServer)
   {
-    outServer = smtpManager.createSmtpServer();
+    outServer = MailServices.smtp.createServer();
     outServer.hostname = config.outgoing.hostname;
     outServer.port = config.outgoing.port;
     outServer.authMethod = config.outgoing.auth;
@@ -118,16 +115,39 @@ function createAccountInBackend(config)
       outServer.password = config.outgoing.password;
 
     // If this is the first SMTP server, set it as default
-    if (!smtpManager.defaultServer ||
-        !smtpManager.defaultServer.hostname)
-      smtpManager.defaultServer = outServer;
+    if (!MailServices.smtp.defaultServer ||
+        !MailServices.smtp.defaultServer.hostname)
+      MailServices.smtp.defaultServer = outServer;
   }
 
   // identity
   // TODO accounts without identity?
-  var identity = accountManager.createIdentity();
+  let identity = MailServices.accounts.createIdentity();
   identity.fullName = config.identity.realname;
   identity.email = config.identity.emailAddress;
+
+  // for new accounts, default to replies being positioned above the quote
+  // if a default account is defined already, take its settings instead
+  if (config.incoming.type == "imap" || config.incoming.type == "pop3")
+  {
+    identity.replyOnTop = 1;
+    // identity.sigBottom = false; // don't set this until Bug 218346 is fixed
+
+    if (MailServices.accounts.accounts.length &&
+        MailServices.accounts.defaultAccount)
+    {
+      let defAccount = MailServices.accounts.defaultAccount;
+      let defIdentity = defAccount.defaultIdentity;
+      if (defAccount.incomingServer.canBeDefaultServer &&
+          defIdentity && defIdentity.valid)
+      {
+        identity.replyOnTop = defIdentity.replyOnTop;
+        identity.sigBottom = defIdentity.sigBottom;
+      }
+    }
+  }
+
+  // due to accepted conventions, news accounts should default to plain text
   if (config.incoming.type == "nntp")
     identity.composeHtml = false;
 
@@ -143,21 +163,21 @@ function createAccountInBackend(config)
   // itself, which could be a problem if we came from it and we haven't set
   // the identity (see bug 521955), so make sure everything else on the
   // account is set up before you set the incomingServer.
-  var account = accountManager.createAccount();
+  let account = MailServices.accounts.createAccount();
   account.addIdentity(identity);
   account.incomingServer = inServer;
-  if (!accountManager.defaultAccount)
-    accountManager.defaultAccount = account;
+  if (inServer.canBeDefaultServer && (!MailServices.accounts.defaultAccount ||
+                                      !MailServices.accounts.defaultAccount
+                                       .incomingServer.canBeDefaultServer))
+    MailServices.accounts.defaultAccount = account;
 
-  verifyLocalFoldersAccount(accountManager);
+  verifyLocalFoldersAccount(MailServices.accounts);
   setFolders(identity, inServer);
 
   // save
-  accountManager.saveAccountInfo();
+  MailServices.accounts.saveAccountInfo();
   try {
-    Cc["@mozilla.org/preferences-service;1"]
-    .getService(Ci.nsIPrefService)
-    .savePrefFile(null);
+    Services.prefs.savePrefFile(null);
   } catch (ex) {
     ddump("Could not write out prefs: " + ex);
   }
@@ -197,14 +217,12 @@ function rememberPassword(server, password)
   else
     throw new NotReached("Server type not supported");
 
-  let lm = Cc["@mozilla.org/login-manager;1"]
-           .getService(Ci.nsILoginManager);
   let login = Cc["@mozilla.org/login-manager/loginInfo;1"]
               .createInstance(Ci.nsILoginInfo);
   login.init(passwordURI, null, passwordURI, server.username, password, "", "");
   try {
-    lm.addLogin(login);
-  } catch (e if e.message.indexOf("This login already exists") != -1) {
+    Services.logins.addLogin(login);
+  } catch (e if e.message.contains("This login already exists")) {
     // TODO modify
   }
 }
@@ -223,18 +241,16 @@ function rememberPassword(server, password)
 function checkIncomingServerAlreadyExists(config)
 {
   assert(config instanceof AccountConfig);
-  var accountManager = Cc["@mozilla.org/messenger/account-manager;1"]
-                       .getService(Ci.nsIMsgAccountManager);
-  var incoming = config.incoming;
-  var existing = accountManager.findRealServer(incoming.username,
+  let incoming = config.incoming;
+  let existing = MailServices.accounts.findRealServer(incoming.username,
         incoming.hostname,
         sanitize.enum(incoming.type, ["pop3", "imap", "nntp"]),
         incoming.port);
 
   // if username does not have an '@', also check the e-mail
   // address form of the name.
-  if (!existing && incoming.username.indexOf("@") == -1)
-    existing = accountManager.findRealServer(config.identity.emailAddress,
+  if (!existing && !incoming.username.contains("@"))
+    existing = MailServices.accounts.findRealServer(config.identity.emailAddress,
           incoming.hostname,
           sanitize.enum(incoming.type, ["pop3", "imap", "nntp"]),
           incoming.port);
@@ -254,9 +270,7 @@ function checkIncomingServerAlreadyExists(config)
 function checkOutgoingServerAlreadyExists(config)
 {
   assert(config instanceof AccountConfig);
-  var smtpManager = Cc["@mozilla.org/messengercompose/smtp;1"]
-                    .getService(Ci.nsISmtpService);
-  var smtpServers = smtpManager.smtpServers;
+  let smtpServers = MailServices.smtp.servers;
   while (smtpServers.hasMoreElements())
   {
     let existingServer = smtpServers.getNext()

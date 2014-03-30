@@ -11,13 +11,15 @@ var MODULE_NAME = "test-display-names";
 var RELATIVE_ROOT = "../shared-modules";
 var MODULE_REQUIRES = ["folder-display-helpers", "address-book-helpers"];
 
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 var folder;
 var decoyFolder;
-var acctMgr;
 var localAccount;
 var secondIdentity;
-var myEmail = "sender@nul.nul"; // Dictated by messagerInjector.js
-var friendEmail = "carl@sagan.com";
+var myEmail = "sender@nul.invalid"; // Dictated by messagerInjector.js
+var friendEmail = "carl@sagan.invalid";
 var friendName = "Carl Sagan";
 var headertoFieldMe;
 var collectedAddresses;
@@ -28,28 +30,26 @@ function setupModule(module) {
   let abh = collector.getModule("address-book-helpers");
   abh.installInto(module);
 
-  acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-              .getService(Ci.nsIMsgAccountManager);
-  localAccount = acctMgr.FindAccountForServer(acctMgr.localFoldersServer);
+  localAccount = MailServices.accounts.FindAccountForServer(MailServices.accounts.localFoldersServer);
 
   // We need to make sure we have only one identity:
   // 1) Delete all accounts except for Local Folders
-  for (let i = acctMgr.accounts.Count()-1; i >= 0; i--) {
-    let account = acctMgr.accounts.QueryElementAt(i, Ci.nsIMsgAccount);
+  for (let i = MailServices.accounts.accounts.length - 1; i >= 0; i--) {
+    let account = MailServices.accounts.accounts.queryElementAt(i, Ci.nsIMsgAccount);
     if (account != localAccount)
-      acctMgr.removeAccount(account);
+      MailServices.accounts.removeAccount(account);
   }
 
   // 2) Delete all identities except for one
-  for (let i = localAccount.identities.Count()-1; i >= 0; i--) {
-    let identity = localAccount.identities.QueryElementAt(i, Ci.nsIMsgIdentity);
+  for (let i = localAccount.identities.length - 1; i >= 0; i--) {
+    let identity = localAccount.identities.queryElementAt(i, Ci.nsIMsgIdentity);
     if (identity.email != myEmail)
       localAccount.removeIdentity(identity);
   }
 
   // 3) Create a second identity and hold onto it for later
-  secondIdentity = acctMgr.createIdentity();
-  secondIdentity.email = "nobody@nowhere.com";
+  secondIdentity = MailServices.accounts.createIdentity();
+  secondIdentity.email = "nobody@nowhere.invalid";
 
   folder = create_folder("DisplayNamesA");
   decoyFolder = create_folder("DisplayNamesB");
@@ -58,30 +58,28 @@ function setupModule(module) {
   add_message_to_folder(folder, create_message({from: ["", friendEmail] }));
   add_message_to_folder(folder, create_message({from: [friendName, friendEmail] }));
 
-  let abManager = Cc["@mozilla.org/abmanager;1"].getService(Ci.nsIAbManager);
   // Ensure all the directories are initialised.
-  abManager.directories;
-  collectedAddresses = abManager.getDirectory("moz-abmdbdirectory://history.mab");
+  MailServices.ab.directories;
+  collectedAddresses = MailServices.ab.getDirectory("moz-abmdbdirectory://history.mab");
 
-  let bundle = Cc["@mozilla.org/intl/stringbundle;1"]
-                 .getService(Ci.nsIStringBundleService).createBundle(
+  let bundle = Services.strings.createBundle(
                    "chrome://messenger/locale/messenger.properties");
   headertoFieldMe = bundle.GetStringFromName("headertoFieldMe");
 }
 
 function ensure_single_identity() {
-  if (localAccount.identities.Count() > 1)
+  if (localAccount.identities.length > 1)
     localAccount.removeIdentity(secondIdentity);
-  assert_true(acctMgr.allIdentities.Count() == 1,
-              "Expected 1 identity, but got " + acctMgr.allIdentities.Count() +
+  assert_true(MailServices.accounts.allIdentities.length == 1,
+              "Expected 1 identity, but got " + MailServices.accounts.allIdentities.length +
               " identities");
 }
 
 function ensure_multiple_identities() {
-  if (localAccount.identities.Count() == 1)
+  if (localAccount.identities.length == 1)
     localAccount.addIdentity(secondIdentity);
-  assert_true(acctMgr.allIdentities.Count() > 1,
-              "Expected multiple identities, but got only one identity")
+  assert_true(MailServices.accounts.allIdentities.length > 1,
+              "Expected multiple identities, but got only one identity");
 }
 
 function help_test_display_name(message, field, expectedValue) {

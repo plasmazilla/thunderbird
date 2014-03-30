@@ -9,18 +9,20 @@ Components.utils.import("resource://calendar/modules/calXMLUtils.jsm");
 Components.utils.import("resource://calendar/modules/calRecurrenceUtils.jsm");
 
 function ltnMimeConverter() {
+    this.wrappedJSObject = this;
 }
 
+const ltnMimeConverterClassID = Components.ID("{c70acb08-464e-4e55-899d-b2c84c5409fa}");
+const ltnMimeConverterInterfaces = [Components.interfaces.nsISimpleMimeConverter];
 ltnMimeConverter.prototype = {
-    classID: Components.ID("{c70acb08-464e-4e55-899d-b2c84c5409fa}"),
-
-    QueryInterface: XPCOMUtils.generateQI([Components.interfaces.nsISimpleMimeConverter]),
+    classID: ltnMimeConverterClassID,
+    QueryInterface: XPCOMUtils.generateQI(ltnMimeConverterInterfaces),
 
     classInfo: XPCOMUtils.generateCI({
-        classID: Components.ID("{c70acb08-464e-4e55-899d-b2c84c5409fa}"),
+        classID: ltnMimeConverterClassID,
         contractID: "@mozilla.org/lightning/mime-converter;1",
         classDescription: "Lightning text/calendar handler",
-        interfaces: [Components.interfaces.nsISimpleMimeConverter]
+        interfaces: ltnMimeConverterInterfaces
     }),
 
     /**
@@ -75,10 +77,8 @@ ltnMimeConverter.prototype = {
             let item = aItipItem.getItemList({})[0];
             let summary = item.getProperty("SUMMARY") || "";
             let organizer = item.organizer;
-            let organizerString = organizer.toString();
-            if (organizer.commonName) {
-                organizerString = organizer.commonName;
-            }
+            let organizerString = (organizer) ?
+              (organizer.commonName || organizer.toString()) : "";
 
             switch (aItipItem.responseMethod) {
                 case "REQUEST":
@@ -134,6 +134,8 @@ ltnMimeConverter.prototype = {
     createHtml: function createHtml(event, aNewItipItem) {
         // Creates HTML using the Node strings in the properties file
         let doc = cal.xml.parseFile("chrome://lightning/content/lightning-invitation.xhtml");
+        let formatter = cal.getDateFormatter();
+
         let self = this;
         function field(field, contentText, linkify) {
             let descr = doc.getElementById("imipHtml-" + field + "-descr");
@@ -162,7 +164,7 @@ ltnMimeConverter.prototype = {
         field("summary", event.title);
         field("location", event.getProperty("LOCATION"));
 
-        let dateString = cal.getDateFormatter().formatItemInterval(event);
+        let dateString = formatter.formatItemInterval(event);
 
         if (event.recurrenceInfo) {
             let kDefaultTimezone = cal.calendarDefaultTimezone();
@@ -174,6 +176,55 @@ ltnMimeConverter.prototype = {
                                                      endDate, startDate.isDate);
             if (repeatString) {
                 dateString = repeatString;
+            }
+
+            let formattedExDates = [];
+            let modifiedOccurrences = [];
+            function dateComptor(a,b) a.startDate.compare(b.startDate);
+
+            // Show removed instances
+            for each (let exc in event.recurrenceInfo.getRecurrenceItems({})) {
+                if (exc instanceof Components.interfaces.calIRecurrenceDate) {
+                    if (exc.isNegative) {
+                        // This is an EXDATE
+                        formattedExDates.push(formatter.formatDateTime(exc.date));
+                    } else {
+                        // This is an RDATE, close enough to a modified occurrence
+                        let excItem = event.recurrenceInfo.getOccurrenceFor(exc.date);
+                        cal.binaryInsert(modifiedOccurrences, excItem, dateComptor, true)
+                    }
+                }
+            }
+            if (formattedExDates.length > 0) {
+                field("canceledOccurrences", formattedExDates.join("\n"));
+            }
+
+            // Show modified occurrences
+            for each (let recurrenceId in event.recurrenceInfo.getExceptionIds({})) {
+                let exc = event.recurrenceInfo.getExceptionFor(recurrenceId);
+                let excLocation = exc.getProperty("LOCATION");
+
+                // Only show modified occurrence if start, duration or location
+                // has changed.
+                if (exc.startDate.compare(exc.recurrenceId) != 0 ||
+                    exc.duration.compare(event.duration) != 0 ||
+                    excLocation != event.getProperty("LOCATION")) {
+                    cal.binaryInsert(modifiedOccurrences, exc, dateComptor, true)
+                }
+            }
+
+            function stringifyOcc(occ) {
+                let formattedExc = formatter.formatItemInterval(occ);
+                let occLocation = occ.getProperty("LOCATION");
+                if (occLocation != event.getProperty("LOCATION")) {
+                    let location = cal.calGetString("lightning", "imipHtml.newLocation", [occLocation], "lightning");
+                    formattedExc += " (" + location + ")";
+                }
+                return formattedExc;
+            }
+
+            if (modifiedOccurrences.length > 0) {
+                field("modifiedOccurrences", modifiedOccurrences.map(stringifyOcc).join("\n"));
             }
         }
 
@@ -268,9 +319,7 @@ ltnMimeConverter.prototype = {
                     sinkProps.setPropertyAsInterface("itipItem", itipItem);
 
                     // Notify the observer that the itipItem is available
-                    let observer = Components.classes["@mozilla.org/observer-service;1"]
-                                             .getService(Components.interfaces.nsIObserverService);
-                    observer.notifyObservers(null, "onItipItemCreation", 0);
+                    Services.obs.notifyObservers(null, "onItipItemCreation", 0);
                 }
             }
         } catch (e) {

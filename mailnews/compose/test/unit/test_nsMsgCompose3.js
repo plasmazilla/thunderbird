@@ -4,6 +4,8 @@
  * checkAndPopulateRecipients.
  */
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 const MsgComposeContractID = "@mozilla.org/messengercompose/compose;1";
 const MsgComposeParamsContractID = "@mozilla.org/messengercompose/composeparams;1";
 const MsgComposeFieldsContractID = "@mozilla.org/messengercompose/composefields;1";
@@ -65,12 +67,10 @@ function run_test() {
   let testAB = do_get_file("../../../data/tb2hexpopularity.mab");
 
   // Copy the file to the profile directory for a PAB
-  testAB.copyTo(gProfileDir, kPABData.fileName);
+  testAB.copyTo(do_get_profile(), kPABData.fileName);
 
   // Check the popularity index on a couple of cards.
-  let abManager = Cc["@mozilla.org/abmanager;1"].getService(Ci.nsIAbManager);
-
-  let AB = abManager.getDirectory(kPABData.URI);
+  let AB = MailServices.ab.getDirectory(kPABData.URI);
 
   for (let i = 0; i < TESTS.length; ++i) {
     let card = AB.cardForEmailAddress(TESTS[i].email);

@@ -3,7 +3,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource:///modules/hostnameUtils.jsm");
 
 /**
  * This is the dialog opened by menu File | New account | Mail... .
@@ -31,8 +33,6 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 
 // from http://xyfer.blogspot.com/2005/01/javascript-regexp-email-validator.html
 var emailRE = /^[-_a-z0-9\'+*$^&%=~!?{}]+(?:\.[-_a-z0-9\'+*$^&%=~!?{}]+)*@(?:[-a-z0-9.]+\.[a-z]{2,6}|\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/i;
-var domainRE = /^((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$|(\[?(\d{1,3}\.){3}\d{1,3}\]?)$/i
-const kHighestPort = 65535;
 
 Cu.import("resource:///modules/gloda/log4moz.js");
 let gEmailWizardLogger = Log4Moz.getConfiguredLogger("mail.wizard");
@@ -143,9 +143,20 @@ EmailConfigWizard.prototype =
      * account or to show it to the user), you need to run replaceVariables().
      */
     this._currentConfig = null;
+
+    let userFullname;
+    try {
+      let userInfo = Cc["@mozilla.org/userinfo;1"].getService(Ci.nsIUserInfo);
+      userFullname = userInfo.fullname;
+    } catch(e) {
+      // nsIUserInfo may not be implemented on all platforms, and name might
+      // not be avaialble even if it is.
+    }
+
     this._domain = "";
     this._email = "";
-    this._realname = "";
+    this._realname = (userFullname) ? userFullname : "";
+    e("realname").value = this._realname;
     this._password = "";
     this._okCallback = null;
 
@@ -189,15 +200,13 @@ EmailConfigWizard.prototype =
     // Populate SMTP server dropdown with already configured SMTP servers from
     // other accounts.
     var menulist = e("outgoing_hostname");
-    var smtpManager = Cc["@mozilla.org/messengercompose/smtp;1"]
-        .getService(Ci.nsISmtpService);
-    var smtpServers = smtpManager.smtpServers;
+    let smtpServers = MailServices.smtp.servers;
     while (smtpServers.hasMoreElements()) {
       let server = smtpServers.getNext().QueryInterface(Ci.nsISmtpServer);
       let label = server.displayname;
       let key = server.key;
-      if (smtpManager.defaultServer &&
-          smtpManager.defaultServer.key == key) {
+      if (MailServices.smtp.defaultServer &&
+          MailServices.smtp.defaultServer.key == key) {
         label += " " + gStringsBundle.getString("default_server_tag");
       }
       let menuitem = menulist.appendItem(label, key, ""); // label,value,descr
@@ -895,7 +904,7 @@ EmailConfigWizard.prototype =
     } catch (e) { gEmailWizardLogger.warn(e); }
     try {
       config.incoming.port = sanitize.integerRange(e("incoming_port").value,
-                                                   1, kHighestPort);
+                                                   kMinPort, kMaxPort);
     } catch (e) {
       config.incoming.port = undefined; // incl. default "Auto"
     }
@@ -928,7 +937,7 @@ EmailConfigWizard.prototype =
       } catch (e) { gEmailWizardLogger.warn(e); }
       try {
         config.outgoing.port = sanitize.integerRange(e("outgoing_port").value,
-              1, kHighestPort);
+              kMinPort, kMaxPort);
       } catch (e) {
         config.outgoing.port = undefined; // incl. default "Auto"
       }
@@ -1326,7 +1335,7 @@ EmailConfigWizard.prototype =
   onAdvancedSetup : function()
   {
     assert(this._currentConfig instanceof AccountConfig);
-    var configFilledIn = this.getConcreteConfig();
+    let configFilledIn = this.getConcreteConfig();
 
     if (checkIncomingServerAlreadyExists(configFilledIn)) {
       alertPrompt(gStringsBundle.getString("error_creating_account"),
@@ -1335,11 +1344,9 @@ EmailConfigWizard.prototype =
     }
 
     gEmailWizardLogger.info("creating account in backend");
-    var newAccount = createAccountInBackend(configFilledIn);
+    let newAccount = createAccountInBackend(configFilledIn);
 
-    var windowManager = Cc["@mozilla.org/appshell/window-mediator;1"]
-        .getService(Ci.nsIWindowMediator);
-    var existingAccountManager = windowManager
+    let existingAccountManager = Services.wm
         .getMostRecentWindow("mailnews:accountmanager");
     if (existingAccountManager) {
       existingAccountManager.focus();

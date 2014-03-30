@@ -7,8 +7,10 @@
 #define MOZILLA_IMAGELIB_DECODER_H_
 
 #include "RasterImage.h"
-
-#include "imgIDecoderObserver.h"
+#include "imgDecoderObserver.h"
+#include "mozilla/RefPtr.h"
+#include "DecodeStrategy.h"
+#include "ImageMetadata.h"
 
 namespace mozilla {
 namespace image {
@@ -17,30 +19,25 @@ class Decoder
 {
 public:
 
-  Decoder(RasterImage& aImage, imgIDecoderObserver* aObserver);
+  Decoder(RasterImage& aImage);
   virtual ~Decoder();
 
   /**
    * Initialize an image decoder. Decoders may not be re-initialized.
    *
-   * @param aContainer The image container to decode to.
-   * @param aObserver The observer for decode notification events.
-   *
    * Notifications Sent: TODO
    */
   void Init();
 
-
   /**
-   * Initializes a decoder whose aImage and aObserver is already being used by a
+   * Initializes a decoder whose image and observer is already being used by a
    * parent decoder. Decoders may not be re-initialized.
-   *
-   * @param aContainer The image container to decode to.
-   * @param aObserver The observer for decode notification events.
    *
    * Notifications Sent: TODO
    */
-  void InitSharedDecoder();
+  void InitSharedDecoder(uint8_t* imageData, uint32_t imageDataLength,
+                         uint32_t* colormap, uint32_t colormapSize,
+                         imgFrame* currentFrame);
 
   /**
    * Writes data to the decoder.
@@ -52,14 +49,14 @@ public:
    *
    * Notifications Sent: TODO
    */
-  void Write(const char* aBuffer, uint32_t aCount);
+  void Write(const char* aBuffer, uint32_t aCount, DecodeStrategy aStrategy);
 
   /**
    * Informs the decoder that all the data has been written.
    *
    * Notifications Sent: TODO
    */
-  void Finish();
+  void Finish(RasterImage::eShutdownIntent aShutdownIntent);
 
   /**
    * Informs the shared decoder that all the data has been written.
@@ -80,7 +77,7 @@ public:
   void FlushInvalidations();
 
   // We're not COM-y, so we don't get refcounts by default
-  NS_INLINE_DECL_REFCOUNTING(Decoder)
+  NS_INLINE_DECL_THREADSAFE_REFCOUNTING(Decoder)
 
   /*
    * State.
@@ -89,11 +86,17 @@ public:
   // If we're doing a "size decode", we more or less pass through the image
   // data, stopping only to scoop out the image dimensions. A size decode
   // must be enabled by SetSizeDecode() _before_calling Init().
-  bool IsSizeDecode() { return mSizeDecode; };
+  bool IsSizeDecode() { return mSizeDecode; }
   void SetSizeDecode(bool aSizeDecode)
   {
     NS_ABORT_IF_FALSE(!mInitialized, "Can't set size decode after Init()!");
     mSizeDecode = aSizeDecode;
+  }
+
+  void SetObserver(imgDecoderObserver* aObserver)
+  {
+    MOZ_ASSERT(aObserver);
+    mObserver = aObserver;
   }
 
   // The number of frames we have, including anything in-progress. Thus, this
@@ -104,10 +107,10 @@ public:
   uint32_t GetCompleteFrameCount() { return mInFrame ? mFrameCount - 1 : mFrameCount; }
 
   // Error tracking
-  bool HasError() { return HasDataError() || HasDecoderError(); };
-  bool HasDataError() { return mDataError; };
-  bool HasDecoderError() { return NS_FAILED(mFailCode); };
-  nsresult GetDecoderError() { return mFailCode; };
+  bool HasError() { return HasDataError() || HasDecoderError(); }
+  bool HasDataError() { return mDataError; }
+  bool HasDecoderError() { return NS_FAILED(mFailCode); }
+  nsresult GetDecoderError() { return mFailCode; }
   void PostResizeError() { PostDataError(); }
   bool GetDecodeDone() const {
     return mDecodeDone;
@@ -120,11 +123,46 @@ public:
     DECODER_NO_PREMULTIPLY_ALPHA = 0x2,     // imgIContainer::FLAG_DECODE_NO_PREMULTIPLY_ALPHA
     DECODER_NO_COLORSPACE_CONVERSION = 0x4  // imgIContainer::FLAG_DECODE_NO_COLORSPACE_CONVERSION
   };
+
+  enum DecodeStyle {
+      PROGRESSIVE, // produce intermediate frames representing the partial state of the image
+      SEQUENTIAL // decode to final image immediately
+  };
+
   void SetDecodeFlags(uint32_t aFlags) { mDecodeFlags = aFlags; }
   uint32_t GetDecodeFlags() { return mDecodeFlags; }
 
+  bool HasSize() const { return mImageMetadata.HasSize(); }
+  void SetSizeOnImage();
+
   // Use HistogramCount as an invalid Histogram ID
   virtual Telemetry::ID SpeedHistogram() { return Telemetry::HistogramCount; }
+
+  ImageMetadata& GetImageMetadata() { return mImageMetadata; }
+
+  // Tell the decoder infrastructure to allocate a frame. By default, frame 0
+  // is created as an ARGB frame with no offset and with size width * height.
+  // If decoders need something different, they must ask for it.
+  // This is called by decoders when they need a new frame. These decoders
+  // must then save the data they have been sent but not yet processed and
+  // return from WriteInternal. When the new frame is created, WriteInternal
+  // will be called again with nullptr and 0 as arguments.
+  void NeedNewFrame(uint32_t frameNum, uint32_t x_offset, uint32_t y_offset,
+                    uint32_t width, uint32_t height,
+                    gfxASurface::gfxImageFormat format,
+                    uint8_t palette_depth = 0);
+
+  virtual bool NeedsNewFrame() const { return mNeedsNewFrame; }
+
+  // Try to allocate a frame as described in mNewFrameData and return the
+  // status code from that attempt. Clears mNewFrameData.
+  virtual nsresult AllocateFrame();
+
+  // Called when a chunk of decoding has been done and the frame needs to be
+  // marked as dirty. Must be called only on the main thread.
+  void MarkFrameDirty();
+
+  imgFrame* GetCurrentFrame() const { return mCurrentFrame; }
 
 protected:
 
@@ -133,7 +171,7 @@ protected:
    * only these methods.
    */
   virtual void InitInternal();
-  virtual void WriteInternal(const char* aBuffer, uint32_t aCount);
+  virtual void WriteInternal(const char* aBuffer, uint32_t aCount, DecodeStrategy aStrategy);
   virtual void FinishInternal();
 
   /*
@@ -144,10 +182,19 @@ protected:
   // the image of its size and sends notifications.
   void PostSize(int32_t aWidth, int32_t aHeight);
 
-  // Called by decoders when they begin/end a frame. Informs the image, sends
+  // Called by decoders when they begin a frame. Informs the image, sends
   // notifications, and does internal book-keeping.
   void PostFrameStart();
-  void PostFrameStop();
+
+  // Called by decoders when they end a frame. Informs the image, sends
+  // notifications, and does internal book-keeping.
+  // Specify whether this frame is opaque as an optimization.
+  // For animated images, specify the disposal, blend method and timeout for
+  // this frame.
+  void PostFrameStop(FrameBlender::FrameAlpha aFrameAlpha = FrameBlender::kFrameHasAlpha,
+                     FrameBlender::FrameDisposalMethod aDisposalMethod = FrameBlender::kDisposeKeep,
+                     int32_t aTimeout = 0,
+                     FrameBlender::FrameBlendMethod aBlendMethod = FrameBlender::kBlendOver);
 
   // Called by the decoders when they have a region to invalidate. We may not
   // actually pass these invalidations on right away.
@@ -158,7 +205,10 @@ protected:
   // the stream, or by us calling FinishInternal().
   //
   // May not be called mid-frame.
-  void PostDecodeDone();
+  //
+  // For animated images, specify the loop count. -1 means loop forever, 0
+  // means a single iteration, stopping on the last frame.
+  void PostDecodeDone(int32_t aLoopCount = 0);
 
   // Data errors are the fault of the source data, decoder errors are our fault
   void PostDataError();
@@ -169,7 +219,14 @@ protected:
    *
    */
   RasterImage &mImage;
-  nsCOMPtr<imgIDecoderObserver> mObserver;
+  imgFrame* mCurrentFrame;
+  RefPtr<imgDecoderObserver> mObserver;
+  ImageMetadata mImageMetadata;
+
+  uint8_t* mImageData;       // Pointer to image data in either Cairo or 8bit format
+  uint32_t mImageDataLength;
+  uint32_t* mColormap;       // Current colormap to be used in Cairo format
+  uint32_t mColormapSize;
 
   uint32_t mDecodeFlags;
   bool mDecodeDone;
@@ -182,6 +239,32 @@ private:
 
   nsresult mFailCode;
 
+  struct NewFrameData
+  {
+    NewFrameData()
+    {}
+
+    NewFrameData(uint32_t num, uint32_t offsetx, uint32_t offsety,
+                 uint32_t width, uint32_t height,
+                 gfxASurface::gfxImageFormat format, uint8_t paletteDepth)
+      : mFrameNum(num)
+      , mOffsetX(offsetx)
+      , mOffsetY(offsety)
+      , mWidth(width)
+      , mHeight(height)
+      , mFormat(format)
+      , mPaletteDepth(paletteDepth)
+    {}
+    uint32_t mFrameNum;
+    uint32_t mOffsetX;
+    uint32_t mOffsetY;
+    uint32_t mWidth;
+    uint32_t mHeight;
+    gfxASurface::gfxImageFormat mFormat;
+    uint8_t mPaletteDepth;
+  };
+  NewFrameData mNewFrameData;
+  bool mNeedsNewFrame;
   bool mInitialized;
   bool mSizeDecode;
   bool mInFrame;

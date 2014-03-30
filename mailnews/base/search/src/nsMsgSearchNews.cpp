@@ -200,7 +200,7 @@ char *nsMsgSearchNews::EncodeTerm (nsIMsgSearchTerm *term)
   else
     pattern[0] = '\0';
 #else
-    nsCAutoString pattern;
+    nsAutoCString pattern;
 #endif
 
 
@@ -296,8 +296,8 @@ NS_IMETHODIMP nsMsgSearchNews::AddHit(nsMsgKey key)
   return NS_OK;
 }
 
-/* void CurrentUrlDone (in long exitCode); */
-NS_IMETHODIMP nsMsgSearchNews::CurrentUrlDone(int32_t exitCode)
+/* void CurrentUrlDone (in nsresult exitCode); */
+NS_IMETHODIMP nsMsgSearchNews::CurrentUrlDone(nsresult exitCode)
 {
   CollateHits();
   ReportHits();

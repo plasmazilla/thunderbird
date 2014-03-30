@@ -12,7 +12,7 @@
 <?xul-overlay href="chrome://navigator/content/linkToolbarOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/contentAreaContextOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/sidebar/sidebarOverlay.xul"?>
-
+<?xul-overlay href="chrome://navigator/content/safeBrowsingOverlay.xul"?>
 
 <!DOCTYPE window [
 <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd" >
@@ -30,6 +30,7 @@
         title="&mainWindow.title;" 
         titlemodifier="&mainWindow.titlemodifier;" 
         titlemenuseparator="&mainWindow.titlemodifiermenuseparator;"
+        titleprivate="&mainWindow.titleprivate;"
         toggletoolbar="true"
         lightweightthemes="true"
         lightweightthemesfooter="status-bar"
@@ -40,7 +41,6 @@
   <!-- Generic Utility -->
   <script type="application/javascript" src="chrome://global/content/nsUserSettings.js"/>
   <script type="application/javascript" src="chrome://global/content/nsClipboard.js"/>
-  <script type="application/javascript" src="chrome://global/content/nsDragAndDrop.js"/>
   <script type="application/javascript" src="chrome://global/content/viewSourceUtils.js"/>
 
   <!-- Content Area -->
@@ -138,6 +138,8 @@
 
   <!-- context menu -->
   <popupset id="contentAreaContextSet"/>
+
+  <vbox id="titlebar"/>
 
   <toolbox id="navigator-toolbox" class="toolbox-top" deferattached="true"
            mode="full" defaultmode="full">
@@ -277,6 +279,7 @@
             <image id="indexedDB-notification-icon" class="notification-anchor-icon" role="button"/>
             <image id="password-notification-icon" class="notification-anchor-icon" role="button"/>
             <image id="plugins-notification-icon" class="notification-anchor-icon" role="button"/>
+            <image id="web-notifications-notification-icon" class="notification-anchor-icon" role="button"/>
           </box>
           <deck id="page-proxy-deck"
                 class="urlbar-icons"
@@ -460,7 +463,7 @@
                     onnewtabclick="checkForMiddleClick(this, event);"
                     autocompletepopup="PopupAutoComplete"
                     onbookmarkgroup="PlacesCommandHook.bookmarkCurrentPages();"
-                    onclick="return contentAreaClick(event);"
+                    oncontentclick="return contentAreaClick(event);"
                     oncommand="BrowserOnCommand(event);"/>
         <!-- The oncommand listener above lets us fix bugs like 401575 which
              require error page UI to do privileged things, without letting

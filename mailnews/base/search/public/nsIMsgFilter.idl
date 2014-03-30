@@ -6,15 +6,17 @@
 
 #include "nsISupports.idl"
 #include "nsMsgFilterCore.idl"
-#include "nsIMsgSearchScopeTerm.idl"
-#include "nsIMsgSearchValue.idl"
-#include "nsIMsgSearchTerm.idl"
 #include "nsISupportsArray.idl"
 
-interface nsOutputStream;
+interface nsIArray;
+interface nsIOutputStream;
 interface nsIMsgFilterCustomAction;
+interface nsIMsgFilterList;
+interface nsIMsgSearchScopeTerm;
+interface nsIMsgSearchValue;
+interface nsIMsgSearchTerm;
 
-[scriptable, uuid(190A2A18-D245-473a-A402-9F0814598C7F)]
+[scriptable, uuid(36d2748e-9246-44f3-bb74-46cbb0b8c23a)]
 interface nsIMsgRuleAction : nsISupports {
 
   attribute nsMsgRuleActionType type;
@@ -41,7 +43,7 @@ interface nsIMsgRuleAction : nsISupports {
   
 };
 
-[scriptable, uuid(ed4b7a8e-3190-4b0b-b842-d4f1ca65216f)]
+[scriptable, uuid(ed4b7a8e-3190-4b0b-b842-d4f1ca652170)]
 interface nsIMsgFilter : nsISupports {
     attribute nsMsgFilterTypeType filterType;
     /**
@@ -80,8 +82,8 @@ interface nsIMsgFilter : nsISupports {
 
     attribute nsIMsgSearchScopeTerm scope;
 
-    // marking noscript because "headers" is actually a null-separated
-    // list of headers, which is not scriptable
+    // Marking noscript because "headers" is actually a null-separated
+    // list of headers, which is not scriptable.
     [noscript] void MatchHdr(in nsIMsgDBHdr msgHdr, in nsIMsgFolder folder,
                   in nsIMsgDatabase db,
                   in string headers,
@@ -89,15 +91,21 @@ interface nsIMsgFilter : nsISupports {
                   in unsigned long headerSize, out boolean result);
 
     void logRuleHit(in nsIMsgRuleAction aFilterAction, in nsIMsgDBHdr aHeader);
+
     nsIMsgRuleAction createAction();
 
-    nsIMsgRuleAction getActionAt(in long aIndex);
+    nsIMsgRuleAction getActionAt(in unsigned long aIndex);
+
+    long getActionIndex(in nsIMsgRuleAction aAction);
 
     void appendAction(in nsIMsgRuleAction action);
 
+    readonly attribute unsigned long actionCount;
+
     void clearActionList();
-    void getSortedActionList(in nsISupportsArray actionList);  //will return an action list with moveAction (if present) as last one.
-    readonly attribute nsISupportsArray actionList;
+
+    // Returns the action list in the order it will be really executed in.
+    readonly attribute nsIArray sortedActionList;
 
     void SaveToTextFile(in nsIOutputStream aStream);
 };

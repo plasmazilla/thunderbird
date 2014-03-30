@@ -90,7 +90,7 @@ NS_IMETHODIMP nsSmtpService::SendMailMessage(nsIFile * aFilePath,
   nsresult rv = NS_OK;
 
   nsCOMPtr<nsISmtpServer> smtpServer;
-  rv = GetSmtpServerByIdentity(aSenderIdentity, getter_AddRefs(smtpServer));
+  rv = GetServerByIdentity(aSenderIdentity, getter_AddRefs(smtpServer));
 
   if (NS_SUCCEEDED(rv) && smtpServer)
   {
@@ -150,7 +150,7 @@ nsresult NS_MsgBuildSmtpUrl(nsIFile * aFilePath,
   nsCOMPtr<nsISmtpUrl> smtpUrl(do_CreateInstance(kCSmtpUrlCID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCAutoString urlSpec("smtp://");
+  nsAutoCString urlSpec("smtp://");
 
   if (!smtpUserName.IsEmpty())
   {
@@ -178,7 +178,8 @@ nsresult NS_MsgBuildSmtpUrl(nsIFile * aFilePath,
   smtpUrl->SetRequestDSN(aRequestDSN);
   smtpUrl->SetPostMessageFile(aFilePath);
   smtpUrl->SetSenderIdentity(aSenderIdentity);
-  smtpUrl->SetNotificationCallbacks(aNotificationCallbacks);
+  if (aNotificationCallbacks)
+    smtpUrl->SetNotificationCallbacks(aNotificationCallbacks);
   smtpUrl->SetSmtpServer(aSmtpServer);
 
   nsCOMPtr<nsIPrompt> smtpPrompt(do_GetInterface(aNotificationCallbacks));
@@ -197,7 +198,8 @@ nsresult NS_MsgBuildSmtpUrl(nsIFile * aFilePath,
   smtpUrl->SetPrompt(smtpPrompt);            
   smtpUrl->SetAuthPrompt(smtpAuthPrompt);
 
-  url->RegisterListener(aUrlListener);
+  if (aUrlListener)
+    url->RegisterListener(aUrlListener);
   if (aStatusFeedback)
     url->SetStatusFeedback(aStatusFeedback);
 
@@ -294,7 +296,7 @@ NS_IMETHODIMP nsSmtpService::NewURI(const nsACString &aSpec,
   nsCOMPtr<nsIURI> mailtoUrl = do_CreateInstance(kCMailtoUrlCID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCAutoString utf8Spec;
+  nsAutoCString utf8Spec;
   if (aOriginCharset)
   {
     nsCOMPtr<nsIUTF8ConverterService>
@@ -337,7 +339,7 @@ NS_IMETHODIMP nsSmtpService::NewChannel(nsIURI *aURI, nsIChannel **_retval)
 
 
 NS_IMETHODIMP
-nsSmtpService::GetSmtpServers(nsISimpleEnumerator **aResult)
+nsSmtpService::GetServers(nsISimpleEnumerator **aResult)
 {
   NS_ENSURE_ARG_POINTER(aResult);
 
@@ -576,7 +578,7 @@ nsSmtpService::findServerByKey(nsISmtpServer *aServer, void *aData)
 }
 
 NS_IMETHODIMP
-nsSmtpService::CreateSmtpServer(nsISmtpServer **aResult)
+nsSmtpService::CreateServer(nsISmtpServer **aResult)
 {
     if (!aResult) return NS_ERROR_NULL_POINTER;
 
@@ -586,7 +588,7 @@ nsSmtpService::CreateSmtpServer(nsISmtpServer **aResult)
     bool unique = false;
 
     findServerByKeyEntry entry;
-    nsCAutoString key;
+    nsAutoCString key;
 
     do {
         key = "smtp";
@@ -630,7 +632,7 @@ nsSmtpService::GetServerByKey(const char* aKey, nsISmtpServer **aResult)
 }
 
 NS_IMETHODIMP
-nsSmtpService::DeleteSmtpServer(nsISmtpServer *aServer)
+nsSmtpService::DeleteServer(nsISmtpServer *aServer)
 {
     if (!aServer) return NS_OK;
 
@@ -648,7 +650,7 @@ nsSmtpService::DeleteSmtpServer(nsISmtpServer *aServer)
     if (mSessionDefaultServer.get() == aServer)
         mSessionDefaultServer = nullptr;
     
-    nsCAutoString newServerList;
+    nsAutoCString newServerList;
     nsCString tmpStr = mServerKeyList;
     char *newStr = tmpStr.BeginWriting();
     char *token = NS_strtok(",", &newStr);
@@ -723,7 +725,8 @@ nsSmtpService::FindServer(const char *aUsername,
 }
 
 NS_IMETHODIMP
-nsSmtpService::GetSmtpServerByIdentity(nsIMsgIdentity *aSenderIdentity, nsISmtpServer **aSmtpServer)
+nsSmtpService::GetServerByIdentity(nsIMsgIdentity *aSenderIdentity,
+                                   nsISmtpServer **aSmtpServer)
 {
   NS_ENSURE_ARG_POINTER(aSmtpServer);
   nsresult rv = NS_ERROR_FAILURE;

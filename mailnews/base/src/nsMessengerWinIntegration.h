@@ -17,7 +17,7 @@
 #include "nsITimer.h"
 #include "nsCOMPtr.h"
 #include "nsStringGlue.h"
-#include "nsISupportsArray.h"
+#include "nsIMutableArray.h"
 #include "nsIObserver.h"
 
 typedef enum tagMOZ_QUERY_USER_NOTIFICATION_STATE {
@@ -56,15 +56,17 @@ public:
   NS_DECL_NSIFOLDERLISTENER
   NS_DECL_NSIOBSERVER
 
-#ifdef MOZ_THUNDERBIRD
   nsresult ShowNewAlertNotification(bool aUserInitiated, const nsString& aAlertTitle, const nsString& aAlertText);
-#else
+#ifndef MOZ_THUNDERBIRD
   nsresult ShowAlertMessage(const nsString& aAlertTitle, const nsString& aAlertText, const nsACString& aFolderURI);
 #endif
 
 private:
   nsresult AlertFinished();
   nsresult AlertClicked();
+#ifdef MOZ_SUITE
+  nsresult AlertClickedSimple();
+#endif
 
   void InitializeBiffStatusIcon(); 
   void FillToolTipInfo();
@@ -74,7 +76,7 @@ private:
   nsresult GetFirstFolderWithNewMail(nsACString& aFolderURI);
 
   nsresult GetStringBundle(nsIStringBundle **aBundle);
-  nsCOMPtr<nsISupportsArray> mFoldersWithNewMail;  // keep track of all the root folders with pending new mail
+  nsCOMPtr<nsIMutableArray> mFoldersWithNewMail;  // keep track of all the root folders with pending new mail
   nsCOMPtr<nsIAtom> mBiffStateAtom;
   uint32_t mCurrentBiffState;
 

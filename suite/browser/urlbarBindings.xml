@@ -101,6 +101,9 @@
       <method name="_formatValue">
         <parameter name="formattingEnabled"/>
         <body><![CDATA[
+          if (!this.editor)
+            return;
+
           var controller = this.editor.selectionController;
           var selection = controller.getSelection(controller.SELECTION_URLSECONDARY);
           selection.removeAllRanges();
@@ -123,10 +126,14 @@
           if (domain[0] != "[") {
             try {
               var baseDomain = Services.eTLD.getBaseDomainFromHost(domain);
+              if (!domain.endsWith(baseDomain)) {
+                // getBaseDomainFromHost converts its resultant to ACE.
+                let IDNService = Components.classes["@mozilla.org/network/idn-service;1"]
+                                           .getService(Components.interfaces.nsIIDNService);
+                baseDomain = IDNService.convertACEtoUTF8(baseDomain);
+              }
               if (baseDomain != domain) {
-                function dots(s) { return s.replace(/[^.]*/g, "").length; }
-                var subSegments = dots(domain) - dots(baseDomain);
-                subDomain = domain.match(new RegExp("(?:[^.]*\.){" + subSegments + "}"))[0];
+                subDomain = domain.slice(0, -baseDomain.length);
               }
             } catch (e) {}
           }
@@ -604,7 +611,7 @@
     </content>
     
     <handlers>
-      <handler event="mouseover">
+      <handler event="mousemove">
         this.parentNode.selectedIndex = Number(this.getAttribute("engineIndex"));
       </handler>
 

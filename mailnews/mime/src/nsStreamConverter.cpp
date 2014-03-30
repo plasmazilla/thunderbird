@@ -198,7 +198,7 @@ bridge_new_new_uri(void *bridgeStream, nsIURI *aURI, int32_t aOutputType)
             }
           }
         }
-        nsCAutoString urlString;
+        nsAutoCString urlString;
         if (NS_SUCCEEDED(aURI->GetSpec(urlString)))
         {
           if (!urlString.IsEmpty())
@@ -526,7 +526,7 @@ NS_IMETHODIMP nsStreamConverter::Init(nsIURI *aURI, nsIStreamListener * aOutList
   nsMimeOutputType newType = mOutputType;
   if (!mAlreadyKnowOutputType)
   {
-    nsCAutoString urlSpec;
+    nsAutoCString urlSpec;
     rv = aURI->GetSpec(urlSpec);
     DetermineOutputFormat(urlSpec.get(), &newType);
     mAlreadyKnowOutputType = true;
@@ -604,7 +604,7 @@ NS_IMETHODIMP nsStreamConverter::Init(nsIURI *aURI, nsIStreamListener * aOutList
   if ( (newType != nsMimeOutput::nsMimeMessageDraftOrTemplate) &&
     (newType != nsMimeOutput::nsMimeMessageEditorTemplate) )
   {
-    nsCAutoString categoryName ("@mozilla.org/messenger/mimeemitter;1?type=");
+    nsAutoCString categoryName ("@mozilla.org/messenger/mimeemitter;1?type=");
     if (!mOverrideFormat.IsEmpty())
       categoryName += mOverrideFormat;
     else
@@ -867,7 +867,7 @@ nsresult
 nsStreamConverter::OnDataAvailable(nsIRequest     *request,
                                    nsISupports    *ctxt,
                                    nsIInputStream *aIStream,
-                                   uint32_t       sourceOffset,
+                                   uint64_t       sourceOffset,
                                    uint32_t       aLength)
 {
   nsresult        rc=NS_OK;     // should this be an error instead?
@@ -887,7 +887,7 @@ const char output[] = "\
 </FRAMESET>\
 </HTML>";
 
-    nsCAutoString url;
+    nsAutoCString url;
     if (NS_FAILED(mURI->GetSpec(url)))
       return NS_ERROR_FAILURE;
 
@@ -1045,7 +1045,8 @@ nsStreamConverter::OnStopRequest(nsIRequest *request, nsISupports *ctxt, nsresul
         if (NS_SUCCEEDED(rv))
         {
           if (*workHeaders)
-            mimeHeaders->Initialize((*workHeaders)->all_headers, (*workHeaders)->all_headers_fp);
+            mimeHeaders->Initialize(Substring((*workHeaders)->all_headers,
+              (*workHeaders)->all_headers_fp));
           mMimeStreamConverterListener->OnHeadersReady(mimeHeaders);
         }
         else

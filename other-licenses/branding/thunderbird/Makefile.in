@@ -10,16 +10,7 @@ VPATH = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-DIRS = \
-	locales \
-	$(NULL)
-
-ifdef MOZ_ESR
-PREF_JS_EXPORTS = $(srcdir)/thunderbird-esr-branding.js
-DEFINES += -DMOZ_ESR=1
-else
 PREF_JS_EXPORTS = $(srcdir)/thunderbird-branding.js
-endif
 
 include $(topsrcdir)/config/rules.mk
 

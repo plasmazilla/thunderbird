@@ -22,7 +22,7 @@ load("../../../resources/messageInjection.js");
 const gTestArray =
 [
   function deleteMessage() {
-    let msgToDelete = firstMsgHdr(gTestFolder);
+    let msgToDelete = mailTestUtils.firstMsgHdr(gTestFolder);
     gMsgId1 = msgToDelete.messageId;
     gMessages.appendElement(msgToDelete, false);
     gTestFolder.deleteMessages(gMessages, gMsgWindow, false, true, CopyListener,
@@ -35,7 +35,7 @@ const gTestArray =
   },
   function verifyFolders() {
     let msgRestored = gTestFolder.msgDatabase.getMsgHdrForMessageID(gMsgId1);
-    let msg = loadMessageToString(gTestFolder, msgRestored);
+    let msg = mailTestUtils.loadMessageToString(gTestFolder, msgRestored);
     do_check_eq(msg, gMsg1.toMboxString());
     doTest(++gCurTestNum);
   },
@@ -131,9 +131,8 @@ function endTest()
   gMessages.clear();
   gMsgWindow.closeWindow();
   gMsgWindow = null;
-  gRootFolder = null;
-  gLocalInboxFolder = null;
-  gLocalIncomingServer = null;
+  localAccountUtils.inboxFolder = null;
+  localAccountUtils.incomingServer = null;
 
   do_test_finished(); // for the one in run_test()
 }

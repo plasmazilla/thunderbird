@@ -16,18 +16,16 @@
   */
 
 // Globals
+Components.utils.import("resource:///modules/mailServices.js");
+
 var gMsgFile1;
 var gLocalTrashFolder;
 var gCurTestNum;
 var gMsgHdrs = new Array();
 var gRootFolder;
 
-const mFNSContractID = "@mozilla.org/messenger/msgnotificationservice;1";
 const nsIMFNService = Ci.nsIMsgFolderNotificationService;
 const nsIMFListener = Ci.nsIMsgFolderListener;
-
-const gCopyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
-                      .getService(Ci.nsIMsgCopyService);
 
 // nsIMsgCopyServiceListener implementation
 var copyListener = 
@@ -36,7 +34,7 @@ var copyListener =
   OnProgress: function(aProgress, aProgressMax) {},
   SetMessageKey: function(aKey)
   {
-    let hdr = gLocalInboxFolder.GetMessageHeader(aKey);
+    let hdr = localAccountUtils.inboxFolder.GetMessageHeader(aKey);
     gMsgHdrs.push({hdr: hdr, ID: hdr.messageId});
   },
   SetMessageId: function(aMessageId) {},
@@ -69,7 +67,7 @@ var urlListener =
 
 function copyFileMessage(file, destFolder, isDraftOrTemplate)
 {
-  gCopyService.CopyFileMessage(file, destFolder, null, isDraftOrTemplate, 0, "", copyListener, null);
+  MailServices.copy.CopyFileMessage(file, destFolder, null, isDraftOrTemplate, 0, "", copyListener, null);
 }
 
 function deleteMessages(srcFolder, items)
@@ -90,20 +88,22 @@ function deleteMessages(srcFolder, items)
 const gTestArray =
 [
   // Copying message from file
-  function testCopyFileMessage1() { copyFileMessage(gMsgFile1, gLocalInboxFolder, false); },
+  function testCopyFileMessage1() {
+    copyFileMessage(gMsgFile1, localAccountUtils.inboxFolder, false);
+  },
 
   // Delete message
   function testDeleteMessage() { // delete to trash
     // Let's take a moment to re-initialize stuff that got moved
-    let inboxDB = gLocalInboxFolder.msgDatabase;
+    let inboxDB = localAccountUtils.inboxFolder.msgDatabase;
     gMsgHdrs[0].hdr = inboxDB.getMsgHdrForMessageID(gMsgHdrs[0].ID);
 
     // Now delete the message
-    deleteMessages(gLocalInboxFolder, [gMsgHdrs[0].hdr], false, false);
+    deleteMessages(localAccountUtils.inboxFolder, [gMsgHdrs[0].hdr], false, false);
   },
   function emptyTrash()
   {
-    gRootFolder = gLocalIncomingServer.rootMsgFolder;
+    gRootFolder = localAccountUtils.incomingServer.rootMsgFolder;
     gLocalTrashFolder = gRootFolder.getChildNamed("Trash");
     // hold onto a db to make sure that empty trash deals with the case
     // of someone holding onto the db, but the trash folder has a null db.
@@ -121,8 +121,6 @@ const gTestArray =
   }
 ];
 
-var gMFNService = Cc[mFNSContractID].getService(nsIMFNService);
-
 // Our listener, which captures events.
 function gMFListener() {}
 gMFListener.prototype =
@@ -135,13 +133,13 @@ gMFListener.prototype =
 
 function run_test()
 {
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
   // Load up a message so that we can copy it in later.
   gMsgFile1 = do_get_file("../../../data/bugmail10");
   // our front end code clears the msg db when it gets told the folder for
   // an open view has been deleted - so simulate that.
   var folderDeletedListener = new gMFListener();
-  gMFNService.addListener(folderDeletedListener, nsIMFNService.folderDeleted);
+  MailServices.mfn.addListener(folderDeletedListener, nsIMFNService.folderDeleted);
 
   // "Master" do_test_pending(), paired with a do_test_finished() at the end of all the operations.
   do_test_pending();

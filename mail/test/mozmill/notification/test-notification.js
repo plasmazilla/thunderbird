@@ -18,6 +18,7 @@ var gFolder2 = null;
 // An object to keep track of the boolean preferences we change, so that
 // we can put them back.
 var gOrigBoolPrefs = {};
+var gTotalOpenTime;
 
 // Used by make_gradually_newer_sets_in_folders
 var gMsgMinutes = 9000;
@@ -107,7 +108,7 @@ function setupModule(module) {
   // Create a second identity to check cross-account
   // notifications.
   var identity2 = MailServices.accounts.createIdentity();
-  identity2.email = "new-account@invalid.com";
+  identity2.email = "new-account@foo.invalid";
 
   var server = MailServices.accounts
                            .createIncomingServer("nobody",
@@ -127,6 +128,7 @@ function setupModule(module) {
 
 function teardownModule(module) {
   put_bool_prefs_back();
+  Services.prefs.setIntPref("alerts.totalOpenTime", gTotalOpenTime);
 }
 
 function setupTest(test) {
@@ -140,6 +142,8 @@ function setupTest(test) {
   remember_and_set_bool_pref("mail.biff.alert.show_subject", true);
   remember_and_set_bool_pref("mail.biff.alert.show_sender", true);
   remember_and_set_bool_pref("mail.biff.alert.show_preview", true);
+  gTotalOpenTime = Services.prefs.getIntPref("alerts.totalOpenTime");
+  Services.prefs.setIntPref("alerts.totalOpenTime", 3000);
 }
 
 function put_bool_prefs_back() {
@@ -152,7 +156,7 @@ function remember_and_set_bool_pref(aPrefString, aBoolValue) {
   if (!gOrigBoolPrefs[aPrefString])
     gOrigBoolPrefs[aPrefString] = Services.prefs.getBoolPref(aPrefString);
 
-  Services.prefs.setBoolPref(aPrefString, true);
+  Services.prefs.setBoolPref(aPrefString, aBoolValue);
 }
 
 /* This function wraps up make_new_sets_in_folder, and takes the
@@ -227,7 +231,7 @@ function test_show_oldest_new_unread_since_last_notification() {
                                       [{count: 1,
                                         body: {body: notifyFirst}}])
   assert_true(gMockAlertsService._didNotify, "Should have notified.");
-  assert_true(gMockAlertsService._text.search(notifyFirst) > 0,
+  assert_true(gMockAlertsService._text.contains(notifyFirst, 1),
               "Should have notified for the first message");
 
   be_in_folder(gFolder);
@@ -240,7 +244,7 @@ function test_show_oldest_new_unread_since_last_notification() {
                                       [{count: 1,
                                         body: {body: notifySecond}}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified.");
-  assert_true(gMockAlertsService._text.search(notifySecond) > 0,
+  assert_true(gMockAlertsService._text.contains(notifySecond, 1),
               "Should have notified for the second message");
 }
 test_show_oldest_new_unread_since_last_notification.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
@@ -298,7 +302,7 @@ function test_show_subject() {
                                         subject: subject
                                        }]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(gMockAlertsService._text.search(subject) != -1,
+  assert_true(gMockAlertsService._text.contains(subject),
               "Should have displayed the subject");
 }
 test_show_subject.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
@@ -314,7 +318,7 @@ function test_hide_subject() {
                                         subject: subject
                                        }]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_equals(gMockAlertsService._text.search(subject), -1,
+  assert_true(!gMockAlertsService._text.contains(subject),
                 "Should not have displayed the subject");
 }
 test_hide_subject.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
@@ -327,7 +331,7 @@ function test_show_only_subject() {
   Services.prefs.setBoolPref("mail.biff.alert.show_sender", false);
   Services.prefs.setBoolPref("mail.biff.alert.show_subject", true);
 
-  let sender = ["John Cleese", "john@cleese.net"];
+  let sender = ["John Cleese", "john@cleese.invalid"];
   let subject = "This should not be displayed";
   let messageBody = "My message preview";
 
@@ -337,11 +341,11 @@ function test_show_only_subject() {
                                         subject: subject,
                                         body: {body: messageBody}}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(gMockAlertsService._text.search(subject) != -1,
+  assert_true(gMockAlertsService._text.contains(subject),
               "Should have displayed the subject");
-  assert_equals(gMockAlertsService._text.search(messageBody), -1,
+  assert_true(!gMockAlertsService._text.contains(messageBody),
                 "Should not have displayed the preview");
-  assert_equals(gMockAlertsService._text.search(sender[0]), -1,
+  assert_true(!gMockAlertsService._text.contains(sender[0]),
                 "Should not have displayed the sender");
 
 }
@@ -352,12 +356,12 @@ test_show_only_subject.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
  * Test that we can show the message sender in the notification.
  */
 function test_show_sender() {
-  let sender = ["John Cleese", "john@cleese.net"];
+  let sender = ["John Cleese", "john@cleese.invalid"];
   make_gradually_newer_sets_in_folder(gFolder,
                                       [{count: 1,
                                         from: sender}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(gMockAlertsService._text.search(sender[0]) != -1,
+  assert_true(gMockAlertsService._text.contains(sender[0]),
               "Should have displayed the sender");
 }
 test_show_sender.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
@@ -367,12 +371,12 @@ test_show_sender.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
  */
 function test_hide_sender() {
   Services.prefs.setBoolPref("mail.biff.alert.show_sender", false);
-  let sender = ["John Cleese", "john@cleese.net"];
+  let sender = ["John Cleese", "john@cleese.invalid"];
   make_gradually_newer_sets_in_folder(gFolder,
                                       [{count: 1,
                                         from: sender}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_equals(gMockAlertsService._text.search(sender[0]), -1,
+  assert_true(!gMockAlertsService._text.contains(sender[0]),
                 "Should not have displayed the sender");
 }
 test_hide_sender.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
@@ -385,7 +389,7 @@ function test_show_only_sender() {
   Services.prefs.setBoolPref("mail.biff.alert.show_sender", true);
   Services.prefs.setBoolPref("mail.biff.alert.show_subject", false);
 
-  let sender = ["John Cleese", "john@cleese.net"];
+  let sender = ["John Cleese", "john@cleese.invalid"];
   let subject = "This should not be displayed";
   let messageBody = "My message preview";
 
@@ -395,11 +399,11 @@ function test_show_only_sender() {
                                         subject: subject,
                                         body: {body: messageBody}}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(gMockAlertsService._text.search(sender[0]) != -1,
+  assert_true(gMockAlertsService._text.contains(sender[0]),
               "Should have displayed the sender");
-  assert_equals(gMockAlertsService._text.search(messageBody), -1,
+  assert_true(!gMockAlertsService._text.contains(messageBody),
                 "Should not have displayed the preview");
-  assert_equals(gMockAlertsService._text.search(subject), -1,
+  assert_true(!gMockAlertsService._text.contains(subject),
                 "Should not have displayed the subject");
 
 }
@@ -415,7 +419,7 @@ function test_show_preview() {
                                       [{count: 1,
                                         body: {body: messageBody}}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(gMockAlertsService._text.search(messageBody) != -1,
+  assert_true(gMockAlertsService._text.contains(messageBody),
               "Should have displayed the preview");
 }
 test_show_preview.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
@@ -430,7 +434,7 @@ function test_hide_preview() {
                                       [{count: 1,
                                         body: {body: messageBody}}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_equals(gMockAlertsService._text.search(messageBody), -1,
+  assert_true(!gMockAlertsService._text.contains(messageBody),
                 "Should not have displayed the preview");
 }
 test_hide_preview.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
@@ -443,7 +447,7 @@ function test_show_only_preview() {
   Services.prefs.setBoolPref("mail.biff.alert.show_sender", false);
   Services.prefs.setBoolPref("mail.biff.alert.show_subject", false);
 
-  let sender = ["John Cleese", "john@cleese.net"];
+  let sender = ["John Cleese", "john@cleese.invalid"];
   let subject = "This should not be displayed";
   let messageBody = "My message preview";
   make_gradually_newer_sets_in_folder(gFolder,
@@ -452,11 +456,11 @@ function test_show_only_preview() {
                                         subject: subject,
                                         body: {body: messageBody}}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(gMockAlertsService._text.search(messageBody) != -1,
+  assert_true(gMockAlertsService._text.contains(messageBody),
               "Should have displayed the preview: " + gMockAlertsService._text);
-  assert_equals(gMockAlertsService._text.search(sender[0]), -1,
+  assert_true(!gMockAlertsService._text.contains(sender[0]),
                 "Should not have displayed the sender");
-  assert_equals(gMockAlertsService._text.search(subject), -1,
+  assert_true(!gMockAlertsService._text.contains(subject),
                 "Should not have displayed the subject");
 }
 test_show_only_preview.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];

@@ -23,32 +23,14 @@ USING_WORKERS_NAMESPACE
 using namespace mozilla::dom;
 using mozilla::ErrorResult;
 
-// These are temporary until these classes are moved to be codegenerated.
-bool
-WorkerResolveProperty(JSContext* cx, JSObject* wrapper, jsid id, bool set,
-                      JSPropertyDescriptor* desc)
-{
-  return true;
-}
-bool
-WorkerEnumerateProperties(JSContext* cx, JSObject* wrapper,
-                          JS::AutoIdVector& props)
-{
-  return true;
-}
-NativePropertyHooks mozilla::dom::workers::sNativePropertyHooks =
-  { WorkerResolveProperty, WorkerResolveProperty,
-    WorkerEnumerateProperties, WorkerEnumerateProperties,
-    NULL };
-
-
 namespace {
 
 class Worker
 {
   static DOMJSClass sClass;
-  static JSPropertySpec sProperties[];
-  static JSFunctionSpec sFunctions[];
+  static DOMIfaceAndProtoJSClass sProtoClass;
+  static const JSPropertySpec sProperties[];
+  static const JSFunctionSpec sFunctions[];
 
 protected:
   enum {
@@ -64,16 +46,32 @@ public:
     return sClass.ToJSClass();
   }
 
+  static JSClass*
+  ProtoClass()
+  {
+    return sProtoClass.ToJSClass();
+  }
+
+  static DOMClass*
+  DOMClassStruct()
+  {
+    return &sClass.mClass;
+  }
+
   static JSObject*
   InitClass(JSContext* aCx, JSObject* aObj, JSObject* aParentProto,
             bool aMainRuntime)
   {
-    JSObject* proto =
-      js::InitClassWithReserved(aCx, aObj, aParentProto, Class(), Construct, 0,
-                                sProperties, sFunctions, NULL, NULL);
+    JS::Rooted<JSObject*> proto(aCx,
+      js::InitClassWithReserved(aCx, aObj, aParentProto, ProtoClass(),
+                                Construct, 0, sProperties, sFunctions,
+                                NULL, NULL));
     if (!proto) {
       return NULL;
     }
+
+    js::SetReservedSlot(proto, DOM_PROTO_INSTANCE_CLASS_SLOT,
+                        JS::PrivateValue(DOMClassStruct()));
 
     if (!aMainRuntime) {
       WorkerPrivate* parent = GetWorkerPrivateFromContext(aCx);
@@ -102,7 +100,7 @@ protected:
       return false;
     }
 
-    JSString* scriptURL = JS_ValueToString(aCx, JS_ARGV(aCx, aVp)[0]);
+    JS::Rooted<JSString*> scriptURL(aCx, JS_ValueToString(aCx, JS_ARGV(aCx, aVp)[0]));
     if (!scriptURL) {
       return false;
     }
@@ -127,7 +125,7 @@ protected:
       parent->AssertIsOnWorkerThread();
     }
 
-    JSObject* obj = JS_NewObject(aCx, aClass, nullptr, nullptr);
+    JS::Rooted<JSObject*> obj(aCx, JS_NewObject(aCx, aClass, nullptr, nullptr));
     if (!obj) {
       return false;
     }
@@ -135,6 +133,10 @@ protected:
     nsRefPtr<WorkerPrivate> worker =
       WorkerPrivate::Create(aCx, obj, parent, scriptURL, aIsChromeWorker);
     if (!worker) {
+      // It'd be better if we could avoid allocating the JSObject until after we
+      // make sure we have a WorkerPrivate, but failing that we should at least
+      // make sure that the DOM_OBJECT_SLOT always has a PrivateValue.
+      js::SetReservedSlot(obj, DOM_OBJECT_SLOT, JS::PrivateValue(nullptr));
       return false;
     }
 
@@ -161,7 +163,10 @@ private:
   ~Worker();
 
   static bool
-  IsWorker(const JS::Value& v);
+  IsWorker(const JS::Value& v)
+  {
+    return v.isObject() && ClassIsWorker(JS_GetClass(&v.toObject()));
+  }
 
   static bool
   GetEventListener(JSContext* aCx, const JS::CallArgs aArgs,
@@ -173,7 +178,7 @@ private:
     MOZ_ASSERT(worker);
 
     ErrorResult rv;
-    JSObject* listener = worker->GetEventListener(Substring(aNameStr, 2), rv);
+    JS::Rooted<JSObject*> listener(aCx, worker->GetEventListener(Substring(aNameStr, 2), rv));
 
     if (rv.Failed()) {
       JS_ReportError(aCx, "Failed to get listener!");
@@ -219,10 +224,8 @@ private:
                          NS_ConvertUTF16toUTF8(aNameStr).get());
     MOZ_ASSERT(worker);
 
-    JSObject* listener;
-    if (!JS_ValueToObject(aCx,
-                          aArgs.length() > 0 ? aArgs[0] : JS::UndefinedValue(),
-                          &listener)) {
+    JS::Rooted<JSObject*> listener(aCx);
+    if (!JS_ValueToObject(aCx, aArgs.get(0), listener.address())) {
       return false;
     }
 
@@ -274,8 +277,7 @@ private:
   Finalize(JSFreeOp* aFop, JSObject* aObj)
   {
     JS_ASSERT(JS_GetClass(aObj) == Class());
-    WorkerPrivate* worker =
-      UnwrapDOMObject<WorkerPrivate>(aObj, eRegularDOMObject);
+    WorkerPrivate* worker = UnwrapDOMObject<WorkerPrivate>(aObj);
     if (worker) {
       worker->_finalize(aFop);
     }
@@ -285,8 +287,7 @@ private:
   Trace(JSTracer* aTrc, JSObject* aObj)
   {
     JS_ASSERT(JS_GetClass(aObj) == Class());
-    WorkerPrivate* worker =
-      UnwrapDOMObject<WorkerPrivate>(aObj, eRegularDOMObject);
+    WorkerPrivate* worker = UnwrapDOMObject<WorkerPrivate>(aObj);
     if (worker) {
       worker->_trace(aTrc);
     }
@@ -300,7 +301,7 @@ private:
       return false;
     }
 
-    const char*& name = sFunctions[0].name;
+    const char* name = sFunctions[0].name;
     WorkerPrivate* worker = GetInstancePrivate(aCx, obj, name);
     if (!worker) {
       return !JS_IsExceptionPending(aCx);
@@ -317,51 +318,76 @@ private:
       return false;
     }
 
-    const char*& name = sFunctions[1].name;
+    const char* name = sFunctions[1].name;
     WorkerPrivate* worker = GetInstancePrivate(aCx, obj, name);
     if (!worker) {
       return !JS_IsExceptionPending(aCx);
     }
 
-    jsval message;
-    if (!JS_ConvertArguments(aCx, aArgc, JS_ARGV(aCx, aVp), "v", &message)) {
+    JS::Rooted<JS::Value> message(aCx);
+    JS::Rooted<JS::Value> transferable(aCx, JS::UndefinedValue());
+    if (!JS_ConvertArguments(aCx, aArgc, JS_ARGV(aCx, aVp), "v/v",
+                             message.address(), transferable.address())) {
       return false;
     }
 
-    return worker->PostMessage(aCx, message);
+    return worker->PostMessage(aCx, message, transferable);
   }
 };
 
-MOZ_STATIC_ASSERT(prototypes::MaxProtoChainLength == 3,
-                  "The MaxProtoChainLength must match our manual DOMJSClasses");
-
-// When this DOMJSClass is removed and it's the last consumer of
-// sNativePropertyHooks then sNativePropertyHooks should be removed too.
 DOMJSClass Worker::sClass = {
   {
     "Worker",
-    JSCLASS_IS_DOMJSCLASS | JSCLASS_HAS_RESERVED_SLOTS(1) |
+    JSCLASS_IS_DOMJSCLASS | JSCLASS_HAS_RESERVED_SLOTS(3) |
     JSCLASS_IMPLEMENTS_BARRIERS,
-    JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_StrictPropertyStub,
+    JS_PropertyStub, JS_DeletePropertyStub, JS_PropertyStub, JS_StrictPropertyStub,
     JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, Finalize,
     NULL, NULL, NULL, NULL, Trace
   },
   {
-    { prototypes::id::EventTarget_workers, prototypes::id::_ID_Count,
-      prototypes::id::_ID_Count },
+    INTERFACE_CHAIN_1(prototypes::id::EventTarget_workers),
     false,
-    &sNativePropertyHooks
-  },
-  -1
+    &sWorkerNativePropertyHooks
+  }
 };
 
-JSPropertySpec Worker::sProperties[] = {
+DOMIfaceAndProtoJSClass Worker::sProtoClass = {
+  {
+    // XXXbz we use "Worker" here to match sClass so that we can
+    // js::InitClassWithReserved this JSClass and then call
+    // JS_NewObject with our sClass and have it find the right
+    // prototype.
+    "Worker",
+    JSCLASS_IS_DOMIFACEANDPROTOJSCLASS | JSCLASS_HAS_RESERVED_SLOTS(2),
+    JS_PropertyStub,       /* addProperty */
+    JS_DeletePropertyStub, /* delProperty */
+    JS_PropertyStub,       /* getProperty */
+    JS_StrictPropertyStub, /* setProperty */
+    JS_EnumerateStub,
+    JS_ResolveStub,
+    JS_ConvertStub,
+    nullptr,               /* finalize */
+    nullptr,               /* checkAccess */
+    nullptr,               /* call */
+    nullptr,               /* hasInstance */
+    nullptr,               /* construct */
+    nullptr,               /* trace */
+    JSCLASS_NO_INTERNAL_MEMBERS
+  },
+  eInterfacePrototype,
+  &sWorkerNativePropertyHooks,
+  "[object Worker]",
+  prototypes::id::_ID_Count,
+  0
+};
+
+const JSPropertySpec Worker::sProperties[] = {
   JS_PSGS("onerror", GetOnerror, SetOnerror, JSPROP_ENUMERATE),
   JS_PSGS("onmessage", GetOnmessage, SetOnmessage, JSPROP_ENUMERATE),
   JS_PS_END
 };
 
-JSFunctionSpec Worker::sFunctions[] = {
+const JSFunctionSpec Worker::sFunctions[] = {
   JS_FN("terminate", Terminate, 0, FUNCTION_FLAGS),
   JS_FN("postMessage", PostMessage, 1, FUNCTION_FLAGS),
   JS_FS_END
@@ -370,6 +396,7 @@ JSFunctionSpec Worker::sFunctions[] = {
 class ChromeWorker : public Worker
 {
   static DOMJSClass sClass;
+  static DOMIfaceAndProtoJSClass sProtoClass;
 
 public:
   static JSClass*
@@ -378,16 +405,31 @@ public:
     return sClass.ToJSClass();
   }
 
+  static JSClass*
+  ProtoClass()
+  {
+    return sProtoClass.ToJSClass();
+  }
+
+  static DOMClass*
+  DOMClassStruct()
+  {
+    return &sClass.mClass;
+  }
+
   static JSObject*
   InitClass(JSContext* aCx, JSObject* aObj, JSObject* aParentProto,
             bool aMainRuntime)
   {
-    JSObject* proto =
-      js::InitClassWithReserved(aCx, aObj, aParentProto, Class(), Construct, 0,
-                                NULL, NULL, NULL, NULL);
+    JS::Rooted<JSObject*> proto(aCx,
+      js::InitClassWithReserved(aCx, aObj, aParentProto, ProtoClass(),
+                                Construct, 0, NULL, NULL, NULL, NULL));
     if (!proto) {
       return NULL;
     }
+
+    js::SetReservedSlot(proto, DOM_PROTO_INSTANCE_CLASS_SLOT,
+                        JS::PrivateValue(DOMClassStruct()));
 
     if (!aMainRuntime) {
       WorkerPrivate* parent = GetWorkerPrivateFromContext(aCx);
@@ -416,7 +458,7 @@ private:
     if (aObj) {
       JSClass* classPtr = JS_GetClass(aObj);
       if (classPtr == Class()) {
-        return UnwrapDOMObject<WorkerPrivate>(aObj, eRegularDOMObject);
+        return UnwrapDOMObject<WorkerPrivate>(aObj);
       }
     }
 
@@ -433,8 +475,7 @@ private:
   Finalize(JSFreeOp* aFop, JSObject* aObj)
   {
     JS_ASSERT(JS_GetClass(aObj) == Class());
-    WorkerPrivate* worker =
-      UnwrapDOMObject<WorkerPrivate>(aObj, eRegularDOMObject);
+    WorkerPrivate* worker = UnwrapDOMObject<WorkerPrivate>(aObj);
     if (worker) {
       worker->_finalize(aFop);
     }
@@ -444,55 +485,57 @@ private:
   Trace(JSTracer* aTrc, JSObject* aObj)
   {
     JS_ASSERT(JS_GetClass(aObj) == Class());
-    WorkerPrivate* worker =
-      UnwrapDOMObject<WorkerPrivate>(aObj, eRegularDOMObject);
+    WorkerPrivate* worker = UnwrapDOMObject<WorkerPrivate>(aObj);
     if (worker) {
       worker->_trace(aTrc);
     }
   }
 };
 
-MOZ_STATIC_ASSERT(prototypes::MaxProtoChainLength == 3,
-                  "The MaxProtoChainLength must match our manual DOMJSClasses");
-
-// When this DOMJSClass is removed and it's the last consumer of
-// sNativePropertyHooks then sNativePropertyHooks should be removed too.
 DOMJSClass ChromeWorker::sClass = {
   { "ChromeWorker",
-    JSCLASS_IS_DOMJSCLASS | JSCLASS_HAS_RESERVED_SLOTS(1) |
+    JSCLASS_IS_DOMJSCLASS | JSCLASS_HAS_RESERVED_SLOTS(3) |
     JSCLASS_IMPLEMENTS_BARRIERS,
-    JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_StrictPropertyStub,
+    JS_PropertyStub, JS_DeletePropertyStub, JS_PropertyStub, JS_StrictPropertyStub,
     JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, Finalize,
     NULL, NULL, NULL, NULL, Trace,
   },
   {
-    { prototypes::id::EventTarget_workers, prototypes::id::_ID_Count,
-      prototypes::id::_ID_Count },
+    INTERFACE_CHAIN_1(prototypes::id::EventTarget_workers),
     false,
-    &sNativePropertyHooks
-  },
-  -1
+    &sWorkerNativePropertyHooks
+  }
 };
 
-} // anonymous namespace
-
-BEGIN_WORKERS_NAMESPACE
-
-bool
-ClassIsWorker(JSClass* aClass)
-{
-  return Worker::Class() == aClass || ChromeWorker::Class() == aClass;
-}
-
-END_WORKERS_NAMESPACE
-
-namespace {
-
-bool
-Worker::IsWorker(const JS::Value& v)
-{
-  return v.isObject() && ClassIsWorker(JS_GetClass(&v.toObject()));
-}
+DOMIfaceAndProtoJSClass ChromeWorker::sProtoClass = {
+  {
+    // XXXbz we use "ChromeWorker" here to match sClass so that we can
+    // js::InitClassWithReserved this JSClass and then call
+    // JS_NewObject with our sClass and have it find the right
+    // prototype.
+    "ChromeWorker",
+    JSCLASS_IS_DOMIFACEANDPROTOJSCLASS | JSCLASS_HAS_RESERVED_SLOTS(2),
+    JS_PropertyStub,       /* addProperty */
+    JS_DeletePropertyStub, /* delProperty */
+    JS_PropertyStub,       /* getProperty */
+    JS_StrictPropertyStub, /* setProperty */
+    JS_EnumerateStub,
+    JS_ResolveStub,
+    JS_ConvertStub,
+    nullptr,               /* finalize */
+    nullptr,               /* checkAccess */
+    nullptr,               /* call */
+    nullptr,               /* hasInstance */
+    nullptr,               /* construct */
+    nullptr,               /* trace */
+    JSCLASS_NO_INTERNAL_MEMBERS
+  },
+  eInterfacePrototype,
+  &sWorkerNativePropertyHooks,
+  "[object ChromeWorker]",
+  prototypes::id::_ID_Count,
+  0
+};
 
 WorkerPrivate*
 Worker::GetInstancePrivate(JSContext* aCx, JSObject* aObj,
@@ -500,7 +543,7 @@ Worker::GetInstancePrivate(JSContext* aCx, JSObject* aObj,
 {
   JSClass* classPtr = JS_GetClass(aObj);
   if (ClassIsWorker(classPtr)) {
-    return UnwrapDOMObject<WorkerPrivate>(aObj, eRegularDOMObject);
+    return UnwrapDOMObject<WorkerPrivate>(aObj);
   }
 
   JS_ReportErrorNumber(aCx, js_GetErrorMessage, NULL, JSMSG_INCOMPATIBLE_PROTO,
@@ -550,6 +593,12 @@ InitClass(JSContext* aCx, JSObject* aGlobal, JSObject* aProto,
 }
 
 } // namespace chromeworker
+
+bool
+ClassIsWorker(JSClass* aClass)
+{
+  return Worker::Class() == aClass || ChromeWorker::Class() == aClass;
+}
 
 JSBool
 GetterOnlyJSNative(JSContext* aCx, unsigned aArgc, JS::Value* aVp)

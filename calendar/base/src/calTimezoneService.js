@@ -7,55 +7,7 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://calendar/modules/calIteratorUtils.jsm");
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
-
-var g_stringBundle = null;
-
-function calIntrinsicTimezone(tzid, component, latitude, longitude) {
-    this.wrappedJSObject = this;
-    this.tzid = tzid;
-    this.mComponent = component;
-    this.isUTC = false;
-    this.isFloating = false;
-    this.latitude = latitude;
-    this.longitude = longitude;
-}
-calIntrinsicTimezone.prototype = {
-    QueryInterface: function QueryInterface(aIID) {
-        return cal.doQueryInterface(this, calIntrinsicTimezone, aIID, [
-            Components.interfaces.calITimezone,
-            Components.interfaces.nsISupports
-        ]);
-    },
-    toString: function calIntrinsicTimezone_toString() {
-        return (this.component ? this.component.toString() : this.tzid);
-    },
-
-    get icalComponent() {
-        var comp = this.mComponent;
-        if (comp && (typeof(comp) == "string")) {
-            this.mComponent = cal.getIcsService().parseICS("BEGIN:VCALENDAR\r\n" + comp + "END:VCALENDAR\r\n", null)
-                                                 .getFirstSubcomponent("VTIMEZONE");
-        }
-        return this.mComponent;
-    },
-
-    get displayName() {
-        if (this.mDisplayName === undefined) {
-            try {
-                this.mDisplayName = g_stringBundle.GetStringFromName("pref.timezone." + this.tzid.replace(/\//g, "."));
-            } catch (exc) {
-                // don't assert here, but gracefully fall back to TZID:
-                cal.LOG("Timezone property lookup failed! Falling back to " + this.tzid + "\n" + exc);
-                this.mDisplayName = this.tzid;
-            }
-        }
-        return this.mDisplayName;
-    },
-
-    get provider() {
-        return cal.getTimezoneService();
-    }
-};
+Components.utils.import("resource://calendar/modules/ical.js");
 
 function calStringEnumerator(stringArray) {
     this.mIndex = 0;
@@ -74,12 +26,22 @@ calStringEnumerator.prototype = {
     }
 };
 
+var g_stringBundle = null;
+
 function calTimezoneService() {
     this.wrappedJSObject = this;
 
     this.mTimezoneCache = {};
     this.mBlacklist = {};
+
+    ICAL.TimezoneService = this.wrappedJSObject;
 }
+const calTimezoneServiceClassID = Components.ID("{e736f2bd-7640-4715-ab35-887dc866c587}");
+const calTimezoneServiceInterfaces = [
+    Components.interfaces.calITimezoneService,
+    Components.interfaces.calITimezoneProvider,
+    Components.interfaces.calIStartupService
+];
 calTimezoneService.prototype = {
     mTimezoneCache: null,
     mBlacklist: null,
@@ -89,29 +51,23 @@ calTimezoneService.prototype = {
     mUTC: null,
     mDb: null,
 
+    classID: calTimezoneServiceClassID,
+    QueryInterface: XPCOMUtils.generateQI(calTimezoneServiceInterfaces),
+    classInfo: XPCOMUtils.generateCI({
+        classID: calTimezoneServiceClassID,
+        contractID: "@mozilla.org/calendar/timezone-service;1",
+        classDescription: "Calendar Timezone Service",
+        interfaces: calTimezoneServiceInterfaces,
+        flags: Components.interfaces.nsIClassInfo.SINGLETON
+    }),
 
-    // nsIClassInfo:
-    getInterfaces: function calTimezoneService_getInterfaces(count) {
-        const ifaces = [Components.interfaces.calITimezoneService,
-                        Components.interfaces.calITimezoneProvider,
-                        Components.interfaces.calIStartupService,
-                        Components.interfaces.nsIClassInfo,
-                        Components.interfaces.nsISupports];
-        count.value = ifaces.length;
-        return ifaces;
+    // ical.js TimezoneService methods
+    has: function(id) this.getTimezone(id) != null,
+    get: function(id) {
+        return id ? unwrapSingle(ICAL.Timezone, this.getTimezone(id)) : null;
     },
-    classDescription: "Calendar Timezone Service",
-    contractID: "@mozilla.org/calendar/timezone-service;1",
-    classID: Components.ID("{e736f2bd-7640-4715-ab35-887dc866c587}"),
-    getHelperForLanguage: function calTimezoneService_getHelperForLanguage(language) {
-        return null;
-    },
-    implementationLanguage: Components.interfaces.nsIProgrammingLanguage.JAVASCRIPT,
-    flags: Components.interfaces.nsIClassInfo.SINGLETON,
-
-    QueryInterface: function calTimezoneService_QueryInterface(aIID) {
-        return cal.doQueryInterface(this, calTimezoneService.prototype, aIID, null, this);
-    },
+    remove: function() {},
+    register: function() {},
 
     // calIStartupService:
     startup: function startup(aCompleteListener) {
@@ -133,10 +89,23 @@ calTimezoneService.prototype = {
 
     get UTC() {
         if (!this.mUTC) {
-            this.mUTC = new calIntrinsicTimezone("UTC", null, "", "");
-            this.mUTC.isUTC = true;
-            this.mTimezoneCache.UTC = this.mUTC;
-            this.mTimezoneCache.utc = this.mUTC;
+            if (cal.getPrefSafe("calendar.icaljs", false)) {
+                this.mUTC = new calICALJSTimezone(ICAL.Timezone.utcTimezone);
+            } else {
+                this.mUTC = new calLibicalTimezone("UTC", null, "", "");
+                this.mUTC.mUTC = true;
+            }
+
+            // These UTC aliases are taken from wikipedia, included in case
+            // other clients make use of them without specifying a definition.
+            const utcAliases = ["UTC", "utc", "Z", "Etc/GMT", "Etc/GMT+0",
+                                "Etc/UCT", "Etc/Unversal", "Etc/UTC",
+                                "Etc/Zulu", "GMT", "GMT+0", "GMT0",
+                                "Greenwich", "UCT", "Universal", "Zulu"];
+
+            for (let zone of utcAliases) {
+                this.mTimezoneCache[zone] = this.mUTC;
+            }
         }
 
         return this.mUTC;
@@ -144,8 +113,12 @@ calTimezoneService.prototype = {
 
     get floating() {
         if (!this.mFloating) {
-            this.mFloating = new calIntrinsicTimezone("floating", null, "", "");
-            this.mFloating.isFloating = true;
+            if (cal.getPrefSafe("calendar.icaljs", false)) {
+                this.mFloating = new calICALJSTimezone(ICAL.Timezone.localTimezone);
+            } else {
+                this.mFloating = new calLibicalTimezone("floating", null, "", "");
+                this.mFloating.isFloating = true;
+            }
             this.mTimezoneCache.floating = this.mFloating;
         }
 
@@ -161,9 +134,7 @@ calTimezoneService.prototype = {
     _initDB: function _initDB(sqlTzFile) {
         try {
             cal.LOG("[calTimezoneService] using " + sqlTzFile.path);
-            let dbService = Components.classes["@mozilla.org/storage/service;1"]
-                                      .getService(Components.interfaces.mozIStorageService);
-            this.mDb = dbService.openDatabase(sqlTzFile);
+            this.mDb = Services.storage.openDatabase(sqlTzFile);
             if (this.mDb) {
                 this.mSelectByTzid = this.mDb.createStatement("SELECT * FROM tz_data WHERE tzid = :tzid LIMIT 1");
 
@@ -190,12 +161,12 @@ calTimezoneService.prototype = {
             let uri = cal.makeURL(uriSpec);
 
             if (uri.schemeIs("file")) {
-                let handler = cal.getIOService().getProtocolHandler("file")
-                                 .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+                let handler = Services.io.getProtocolHandler("file")
+                                      .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
                 return handler.getFileFromURLSpec(uri.spec);
             } else if (uri.schemeIs("resource")) {
-                let handler = cal.getIOService().getProtocolHandler("resource")
-                                 .QueryInterface(Components.interfaces.nsIResProtocolHandler);
+                let handler = Services.io.getProtocolHandler("resource")
+                                      .QueryInterface(Components.interfaces.nsIResProtocolHandler);
                 let newUriSpec;
                 try {
                     newUriSpec = handler.resolveURI(uri);
@@ -236,7 +207,7 @@ calTimezoneService.prototype = {
 
         if (canInit) {
             // Seems like a success, make the bundle url global
-            g_stringBundle = cal.calGetStringBundle(bundleURL);
+            g_stringBundle = ICAL.Timezone.cal_tz_bundle = Services.strings.createBundle(bundleURL);
         } else {
             // Otherwise, we have to give up. Show an error and fail hard!
             let msg = cal.calGetString("calendar", "missingCalendarTimezonesError");
@@ -276,8 +247,19 @@ calTimezoneService.prototype = {
                 var alias = row.alias;
                 if (alias && alias.length > 0) {
                     tz = alias; // resolve later
+                } else if (cal.getPrefSafe("calendar.icaljs", false)) {
+                    let parsedComp = ICAL.parse("BEGIN:VCALENDAR\r\n" + row.component + "\r\nEND:VCALENDAR");
+
+                    let icalComp = new ICAL.Component(parsedComp[1]);
+                    let tzComp = icalComp.getFirstSubcomponent("vtimezone");
+                    tz = new calICALJSTimezone(ICAL.Timezone.fromData({
+                        tzid: row.tzid,
+                        component: tzComp,
+                        latitude: row.latitude,
+                        longitude: row.longitude
+                    }));
                 } else {
-                    tz = new calIntrinsicTimezone(row.tzid, row.component, row.latitude, row.longitude);
+                    tz = new calLibicalTimezone(row.tzid, row.component, row.latitude, row.longitude);
                 }
             }
             this.mSelectByTzid.reset();
@@ -579,7 +561,7 @@ function guessSystemTimezone() {
     var probableTZScore = 0;
     var probableTZSource = null;
 
-    const calProperties = cal.calGetStringBundle("chrome://calendar/locale/calendar.properties");
+    const calProperties = Services.strings.createBundle("chrome://calendar/locale/calendar.properties");
 
     // First, try to detect operating system timezone.
     try {
@@ -638,8 +620,8 @@ function guessSystemTimezone() {
             if (osUserTimeZone != null) {
                 // Lookup timezone registry key in table of known tz keys
                 // to convert to ZoneInfo timezone id.
-                const regKeyToZoneInfoBundle = cal.calGetStringBundle("chrome://calendar/content/"+
-                                                                      fileOSName + "ToZoneInfoTZId.properties");
+                const regKeyToZoneInfoBundle = Services.strings.createBundle("chrome://calendar/content/"+
+                                                                             fileOSName + "ToZoneInfoTZId.properties");
                 zoneInfoIdFromOSUserTimeZone =
                     regKeyToZoneInfoBundle.GetStringFromName(osUserTimeZone);
             }
@@ -892,4 +874,4 @@ function guessSystemTimezone() {
     return probableTZId;
 }
 
-var NSGetFactory = XPCOMUtils.generateNSGetFactory([calTimezoneService]);
+var NSGetFactory = cal.loadingNSGetFactory(["calTimezone.js"], [calTimezoneService], this);

@@ -163,14 +163,20 @@ NS_IMETHODIMP nsMsgSendReport::SetError(int32_t process, nsresult newError, bool
     return NS_ERROR_ILLEGAL_VALUE;
 
   if (process == process_Current)
+  {
+    if (mCurrentProcess == process_Current)
+      // We don't know what we're currently trying to do
+      return NS_ERROR_ILLEGAL_VALUE;
+
     process = mCurrentProcess;
+  }
 
   if (!mProcessReport[process])
     return NS_ERROR_NOT_INITIALIZED;
 
   nsresult currError = NS_OK;
   mProcessReport[process]->GetError(&currError);
-  if (overwriteError || currError == NS_OK)
+  if (overwriteError || NS_SUCCEEDED(currError))
     return mProcessReport[process]->SetError(newError);
   else
     return NS_OK;
@@ -183,7 +189,13 @@ NS_IMETHODIMP nsMsgSendReport::SetMessage(int32_t process, const PRUnichar *mess
     return NS_ERROR_ILLEGAL_VALUE;
 
   if (process == process_Current)
+  {
+    if (mCurrentProcess == process_Current)
+      // We don't know what we're currently trying to do
+      return NS_ERROR_ILLEGAL_VALUE;
+
     process = mCurrentProcess;
+  }
 
   if (!mProcessReport[process])
     return NS_ERROR_NOT_INITIALIZED;
@@ -204,7 +216,13 @@ NS_IMETHODIMP nsMsgSendReport::GetProcessReport(int32_t process, nsIMsgProcessRe
     return NS_ERROR_ILLEGAL_VALUE;
 
   if (process == process_Current)
+  {
+    if (mCurrentProcess == process_Current)
+      // We don't know what we're currently trying to do
+      return NS_ERROR_ILLEGAL_VALUE;
+
     process = mCurrentProcess;
+  }
 
   NS_IF_ADDREF(*_retval = mProcessReport[process]);
   return NS_OK;
@@ -214,6 +232,9 @@ NS_IMETHODIMP nsMsgSendReport::GetProcessReport(int32_t process, nsIMsgProcessRe
 NS_IMETHODIMP nsMsgSendReport::DisplayReport(nsIPrompt *prompt, bool showErrorOnly, bool dontShowReportTwice, nsresult *_retval)
 {
   NS_ENSURE_ARG_POINTER(_retval);
+
+  NS_ENSURE_TRUE(mCurrentProcess >= 0 && mCurrentProcess <= SEND_LAST_PROCESS,
+                 NS_ERROR_NOT_INITIALIZED);
 
   nsresult currError = NS_OK;
   mProcessReport[mCurrentProcess]->GetError(&currError);
@@ -282,7 +303,7 @@ NS_IMETHODIMP nsMsgSendReport::DisplayReport(nsIPrompt *prompt, bool showErrorOn
 
     bundle->GetStringFromID(NS_MSG_SEND_ERROR_TITLE, getter_Copies(dialogTitle));
 
-    int32_t preStrId = NS_ERROR_SEND_FAILED;
+    nsresult preStrId = NS_ERROR_SEND_FAILED;
     bool askToGoBackToCompose = false;
     switch (mCurrentProcess)
     {
@@ -312,7 +333,7 @@ NS_IMETHODIMP nsMsgSendReport::DisplayReport(nsIPrompt *prompt, bool showErrorOn
         askToGoBackToCompose = (mDeliveryMode == nsIMsgCompDeliverMode::Now);
         break;
     }
-    bundle->GetStringFromID(preStrId, getter_Copies(dialogMessage));
+    bundle->GetStringFromID(NS_ERROR_GET_CODE(preStrId), getter_Copies(dialogMessage));
 
     //Do we already have an error message?
     if (!askToGoBackToCompose && currMessage.IsEmpty())
@@ -350,7 +371,7 @@ NS_IMETHODIMP nsMsgSendReport::DisplayReport(nsIPrompt *prompt, bool showErrorOn
   else
   {
     int32_t titleID;
-    int32_t preStrId;
+    nsresult preStrId;
 
     switch (mDeliveryMode)
     {
@@ -378,8 +399,8 @@ NS_IMETHODIMP nsMsgSendReport::DisplayReport(nsIPrompt *prompt, bool showErrorOn
     }
 
     bundle->GetStringFromID(titleID, getter_Copies(dialogTitle));
-    // preStrId could be a string ID or it could be an error code...yuck.
-    bundle->GetStringFromID(NS_IS_MSG_ERROR(preStrId) ? NS_ERROR_GET_CODE(preStrId) : preStrId, getter_Copies(dialogMessage));
+    bundle->GetStringFromID(NS_ERROR_GET_CODE(preStrId),
+                            getter_Copies(dialogMessage));
 
     //Do we have an error message...
     if (currMessage.IsEmpty())

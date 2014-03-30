@@ -4,6 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
  //This file stores variables common to mail windows
+
 var messenger;
 var statusFeedback;
 var msgWindow;
@@ -65,8 +66,7 @@ function CreateMailWindowGlobals()
   // get the messenger instance
   messenger = Components.classes["@mozilla.org/messenger;1"]
                         .createInstance(Components.interfaces.nsIMessenger);
-  // force pref service initialization
-  GetPrefService();
+  
   //Create windows status feedback
   // set the JS implementation of status feedback before creating the c++ one..
   window.MsgStatusFeedback = new nsMsgStatusFeedback();
@@ -283,7 +283,7 @@ nsMsgStatusFeedback.prototype =
   stopTimeoutID  : null,
   pendingStartRequests : 0,
   meteorsSpinning : false,
-  myDefaultStatus : null,
+  myDefaultStatus : "",
 
   ensureStatusFields : function()
     {
@@ -299,14 +299,6 @@ nsMsgStatusFeedback.prototype =
     {
       if (status.length > 0)
         this.showStatusString(status);
-    },
-  setJSDefaultStatus : function(status)
-    {
-      if (status.length > 0)
-      {
-        this.myDefaultStatus = status;
-        this.statusTextFld.label = status;
-      }
     },
   setOverLink : function(link, context)
     {
@@ -340,6 +332,14 @@ nsMsgStatusFeedback.prototype =
         this.myDefaultStatus = "";
       this.statusTextFld.label = statusText;
   },
+  setStatusString : function(status)
+    {
+      if (status.length > 0)
+      {
+        this.myDefaultStatus = status;
+        this.statusTextFld.label = status;
+      }
+    },
   _startMeteors : function()
     {
       this.ensureStatusFields();
@@ -385,7 +385,7 @@ nsMsgStatusFeedback.prototype =
         gTimelineService.resetTimer("FolderLoading");
       }
       this.ensureStatusFields();
-      this.showStatusString(defaultStatus);
+      this.showStatusString(this.myDefaultStatus);
 
       // stop the throbber
       if (this.throbber)
@@ -480,7 +480,7 @@ function loadStartPage()
   {
     gMessageNotificationBar.clearMsgNotifications();
 
-    var startpageenabled = pref.getBoolPref("mailnews.start_page.enabled");
+    var startpageenabled = Services.prefs.getBoolPref("mailnews.start_page.enabled");
     if (startpageenabled)
     {
       var startpage = GetLocalizedStringPref("mailnews.start_page.url");

@@ -2,11 +2,11 @@
  * Test bug 460636 - Saving message in local folder as .EML removes starting dot in all lines, and ignores line if single dot only line.
  */
 
+Components.utils.import("resource:///modules/IOUtils.js");
+
 const MSG_LINEBREAK = "\r\n";
 const dot = do_get_file("data/dot");
-let saveFile = Cc["@mozilla.org/file/directory_service;1"]
-               .getService(Ci.nsIProperties)
-               .get("TmpD", Ci.nsIFile);
+let saveFile = Services.dirsvc.get("TmpD", Ci.nsIFile);
 saveFile.append(dot.leafName + ".eml");
 saveFile.createUnique(Ci.nsIFile.NORMAL_FILE_TYPE, 0600);
 
@@ -25,8 +25,8 @@ function save_message(aMessageHeaderKeys, aStatus) {
   let headerKeys = aMessageHeaderKeys;
   do_check_neq(headerKeys, null);
 
-  let message = gLocalInboxFolder.GetMessageHeader(headerKeys[0]);
-  let msgURI = gLocalInboxFolder.getUriForMsg(message);
+  let message = localAccountUtils.inboxFolder.GetMessageHeader(headerKeys[0]);
+  let msgURI = localAccountUtils.inboxFolder.getUriForMsg(message);
   let messageService = Cc["@mozilla.org/messenger/messageservice;1?type=mailbox-message"]
                        .getService(Ci.nsIMsgMessageService);
   messageService.SaveMessageToDisk(msgURI, saveFile,
@@ -48,7 +48,8 @@ var UrlListener = {
   },
   OnStopRunningUrl: function(aUrl, aExitCode) {
     do_check_eq(aExitCode, 0);
-    check_each_line(loadFileToString(dot), loadFileToString(saveFile));
+    check_each_line(IOUtils.loadFileToString(dot),
+		    IOUtils.loadFileToString(saveFile));
     do_test_finished();
   }
 };

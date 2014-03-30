@@ -109,14 +109,6 @@ function serverErrorMessage(aAccount, aMessage, aError) {
   return writeMessage(aAccount, aMessage, aError, "error")
 }
 
-function conversationErrorMessage(aAccount, aMessage, aError) {
-  let conv = aAccount.getConversation(aMessage.params[1]);
-  conv.writeMessage(aMessage.servername, _(aError, aMessage.params[1]),
-                    {error: true, system: true});
-  delete conv._pendingMessage;
-  return true;
-}
-
 // Try a new nick if the previous tried nick is already in use.
 function tryNewNick(aAccount, aMessage) {
   let nickParts = /^(.+?)(\d*)$/.exec(aMessage.params[1]);
@@ -142,7 +134,17 @@ function tryNewNick(aAccount, aMessage) {
   // Append the digits.
   newNick += newDigits;
 
-  LOG(aMessage.params[1] + " is already in use, trying " + newNick);
+  if (aAccount.normalize(newNick) == aAccount.normalize(aAccount._nickname)) {
+    // The nick we were about to try next is our current nick. This means
+    // the user attempted to change to a version of the nick with a lower or
+    // absent number suffix, and this failed.
+    let msg = _("message.nick.fail", aAccount._nickname);
+    for each (let conversation in aAccount._conversations)
+      conversation.writeMessage(aAccount._nickname, msg, {system: true});
+    return true;
+  }
+
+  aAccount.LOG(aMessage.params[1] + " is already in use, trying " + newNick);
   aAccount.sendMessage("NICK", newNick); // Nick message.
   return true;
 }
@@ -163,7 +165,8 @@ var ircBase = {
       if (!this.disconnecting) {
         // We received an ERROR message when we weren't expecting it, this is
         // probably the server giving us a ping timeout.
-        ERROR("Received unexpected ERROR response:\n" + aMessage.params[0]);
+        this.ERROR("Received unexpected ERROR response:\n" +
+                   aMessage.params[0]);
         this.gotDisconnected(Ci.prplIAccount.ERROR_NETWORK_ERROR,
                              _("connection.error.lost"));
       }
@@ -179,8 +182,13 @@ var ircBase = {
     },
     "INVITE": function(aMessage) {
       // INVITE <nickname> <channel>
-      // Auto-accept the invite.
-      this.joinChat(this.getChatRoomDefaultFieldValues(aMessage.params[1]));
+      if (Services.prefs.getIntPref("messenger.conversations.autoAcceptChatInvitations") == 1) {
+        // Auto-accept the invite.
+        this.joinChat(this.getChatRoomDefaultFieldValues(aMessage.params[1]));
+        this.LOG("Received invite for " + aMessage.params[1] +
+                 ", auto-accepting.");
+      }
+      // Otherwise, just notify the user.
       this.getConversation(aMessage.params[1])
           .writeMessage(aMessage.nickname,
                         _("message.inviteReceived", aMessage.nickname,
@@ -191,15 +199,36 @@ var ircBase = {
       // JOIN ( <channel> *( "," <channel> ) [ <key> *( "," <key> ) ] ) / "0"
       // Add the buddy to each channel
       for each (let channelName in aMessage.params[0].split(",")) {
+        let convAlreadyExists = this.hasConversation(channelName);
         let conversation = this.getConversation(channelName);
         if (this.normalize(aMessage.nickname, this.userPrefixes) ==
             this.normalize(this._nickname)) {
-          // If you join, clear the participants list to avoid errors w/
+          // If you join, clear the participants list to avoid errors with
           // repeated participants.
           conversation.removeAllParticipants();
           conversation.left = false;
           conversation.notifyObservers(conversation, "update-conv-chatleft");
-          delete this._chatRoomFieldsList[this.normalize(conversation.name)];
+
+          // If the user parted from this room earlier, confirm the rejoin.
+          // If conversation._chatRoomFields is present, the rejoin was due to
+          // an automatic reconnection, for which we already notify the user.
+          if (convAlreadyExists && !conversation._chatRoomFields) {
+            conversation.writeMessage(aMessage.nickname, _("message.rejoined"),
+                                      {system: true});
+          }
+
+          // Ensure chatRoomFields information is available for reconnection.
+          let nName = this.normalize(channelName);
+          if (hasOwnProperty(this._chatRoomFieldsList, nName)) {
+            conversation._chatRoomFields = this._chatRoomFieldsList[nName];
+            delete this._chatRoomFieldsList[nName];
+          }
+          else {
+            this.WARN("Opening a MUC without storing its " +
+                      "prplIChatRoomFieldValues first.");
+            conversation._chatRoomFields =
+              this.getChatRoomDefaultFieldValues(channelName);
+          }
         }
         else {
           // Don't worry about adding ourself, RPL_NAMES takes care of that
@@ -229,26 +258,20 @@ var ircBase = {
     "MODE": function(aMessage) {
       // MODE <nickname> *( ( "+" / "-") *( "i" / "w" / "o" / "O" / "r" ) )
       // MODE <channel> *( ( "-" / "+" ) *<modes> *<modeparams> )
-      if (aMessage.params.length >= 3) {
-        // If there are 3 parameters given, then the mode of a participant is
-        // being given: update the mode of the ConvChatBuddy.
-        let conversation = this.getConversation(aMessage.params[0]);
-        conversation.getParticipant(aMessage.params[2])
-                    .setMode(aMessage.params[1], aMessage.nickname);
-
-        return true;
-      }
       if (this.isMUCName(aMessage.params[0])) {
-        // Otherwise if the first parameter is a channel name, it's a channel
-        // mode.
+        // If the first parameter is a channel name, a channel/participant mode
+        // was updated.
         this.getConversation(aMessage.params[0])
-            .setMode(aMessage.params[1], aMessage);
+            .setMode(aMessage.params[1], aMessage.params.slice(2),
+                     aMessage.nickname || aMessage.servername);
 
         return true;
       }
+
       // Otherwise the user's own mode is being returned to them.
-      // TODO
-      return false;
+      return this.setUserMode(aMessage.params[0], aMessage.params[1],
+                              aMessage.nickname || aMessage.servername,
+                              !this._userModeReceived);
     },
     "NICK": function(aMessage) {
       // NICK <nickname>
@@ -270,9 +293,15 @@ var ircBase = {
                       aMessage.params.length == 2 ? aMessage.params[1] : null);
     },
     "PING": function(aMessage) {
-      // PING <server1 [ <server2> ]
+      // PING <server1> [ <server2> ]
       // Keep the connection alive.
       this.sendMessage("PONG", aMessage.params[0]);
+      return true;
+    },
+    "PONG": function(aMessage) {
+      // PONG <server> [ <server2> ]
+      // Ping to keep the connection alive.
+      this._socket.cancelDisconnectTimer();
       return true;
     },
     "PRIVMSG": function(aMessage) {
@@ -285,7 +314,7 @@ var ircBase = {
       // Some IRC servers automatically prefix a "Quit: " string. Remove the
       // duplication and use a localized version.
       let quitMsg = aMessage.params[0] || "";
-      if (quitMsg.indexOf("Quit: ") == 0)
+      if (quitMsg.startsWith("Quit: "))
         quitMsg = quitMsg.slice(6); // "Quit: ".length
       // If a quit message was included, show it.
       let msg = _("message.quit", aMessage.nickname,
@@ -325,19 +354,36 @@ var ircBase = {
     "001": function(aMessage) { // RPL_WELCOME
       // Welcome to the Internet Relay Network <nick>!<user>@<host>
       this.reportConnected();
+      this._socket.resetPingTimer();
+      this._currentServerName = aMessage.servername;
+
+      // Clear user mode.
+      this._modes = [];
+      this._userModeReceived = false;
+
       // Check if our nick has changed.
       if (aMessage.params[0] != this._nickname)
         this.changeBuddyNick(this._nickname, aMessage.params[0]);
+
+      // Get our full prefix.
+      this.prefix = aMessage.params[1].slice(
+        aMessage.params[1].lastIndexOf(" ") + 1);
+      // Remove the nick from the prefix.
+      this.prefix = this.prefix.slice(this.prefix.indexOf("!"));
+
       // If our status is Unavailable, tell the server.
       if (this.imAccount.statusInfo.statusType < Ci.imIStatusInfo.STATUS_AVAILABLE)
         this.observe(null, "status-changed");
+
       // Check if any of our buddies are online!
       this.sendIsOn();
+
       // Reconnect channels if they were not parted by the user.
       for each (let conversation in this._conversations) {
         if (conversation.isChat && conversation._chatRoomFields)
           this.joinChat(conversation._chatRoomFields);
       }
+
       return serverMessage(this, aMessage);
     },
     "002": function(aMessage) { // RPL_YOURHOST
@@ -453,8 +499,8 @@ var ircBase = {
 
     "221": function(aMessage) { // RPL_UMODEIS
       // <user mode string>
-      // TODO track and update the UI accordingly.
-      return false;
+      return this.setUserMode(aMessage.params[0], aMessage.params[1],
+                              aMessage.servername, true);
     },
 
     /*
@@ -731,8 +777,9 @@ var ircBase = {
      * LIST
      */
     "321": function(aMessage) { // RPL_LISTSTART
+      // Channel :Users Name
       // Obsolete. Not used.
-      return false;
+      return true;
     },
     "322": function(aMessage) { // RPL_LIST
       // <channel> <# visible> :<topic>
@@ -749,8 +796,9 @@ var ircBase = {
      */
     "324": function(aMessage) { // RPL_CHANNELMODEIS
       // <channel> <mode> <mode params>
-      this.getConversation(aMessage.params[1]).setMode(aMessage.params[2],
-                                                       aMessage);
+      this.getConversation(aMessage.params[1])
+          .setMode(aMessage.params[2], aMessage.params.slice(3),
+                   aMessage.servername);
 
       return true;
     },
@@ -904,13 +952,23 @@ var ircBase = {
      */
     "367": function(aMessage) { // RPL_BANLIST
       // <channel> <banmask>
-      // TODO
-      return false;
+      let conv = this.getConversation(aMessage.params[1]);
+      if (conv.banMasks.indexOf(aMessage.params[2]) == -1)
+        conv.banMasks.push(aMessage.params[2]);
+      return true;
     },
     "368": function(aMessage) { // RPL_ENDOFBANLIST
       // <channel> :End of channel ban list
-      // TODO
-      return false;
+      let conv = this.getConversation(aMessage.params[1]);
+      let msg;
+      if (conv.banMasks.length) {
+        msg = [_("message.banMasks", aMessage.params[1])]
+               .concat(conv.banMasks).join("\n");
+      }
+      else
+        msg = _("message.noBanMasks", aMessage.params[1]);
+      conv.writeMessage(aMessage.servername, msg, {system: true});
+      return true;
     },
     "369": function(aMessage) { // RPL_ENDOFWHOWAS
       // <nick> :End of WHOWAS
@@ -970,7 +1028,7 @@ var ircBase = {
     },
     "383": function(aMessage) { // RPL_YOURESERVICE
       // You are service <servicename>
-      WARN("Received \"You are a service\" message.");
+      this.WARN("Received \"You are a service\" message.");
       return true;
     },
 
@@ -1070,37 +1128,37 @@ var ircBase = {
     "411": function(aMessage) { // ERR_NORECIPIENT
       // :No recipient given (<command>)
       // If this happens a real error with the protocol occurred.
-      ERROR("ERR_NORECIPIENT: No recipient given for PRIVMSG.");
+      this.ERROR("ERR_NORECIPIENT: No recipient given for PRIVMSG.");
       return true;
     },
     "412": function(aMessage) { // ERR_NOTEXTTOSEND
       // :No text to send
       // If this happens a real error with the protocol occurred: we should
       // always block the user from sending empty messages.
-      ERROR("ERR_NOTEXTTOSEND: No text to send for PRIVMSG.");
+      this.ERROR("ERR_NOTEXTTOSEND: No text to send for PRIVMSG.");
       return true;
     },
     "413": function(aMessage) { // ERR_NOTOPLEVEL
       // <mask> :No toplevel domain specified
       // If this response is received, a real error occurred in the protocol.
-      ERROR("ERR_NOTOPLEVEL: Toplevel domain not specified.");
+      this.ERROR("ERR_NOTOPLEVEL: Toplevel domain not specified.");
       return true;
     },
     "414": function(aMessage) { // ERR_WILDTOPLEVEL
       // <mask> :Wildcard in toplevel domain
       // If this response is received, a real error occurred in the protocol.
-      ERROR("ERR_WILDTOPLEVEL: Wildcard toplevel domain specified.");
+      this.ERROR("ERR_WILDTOPLEVEL: Wildcard toplevel domain specified.");
       return true;
     },
     "415": function(aMessage) { // ERR_BADMASK
       // <mask> :Bad Server/host mask
       // If this response is received, a real error occurred in the protocol.
-      ERROR("ERR_BADMASK: Bad server/host mask specified.");
+      this.ERROR("ERR_BADMASK: Bad server/host mask specified.");
       return true;
     },
     "421": function(aMessage) { // ERR_UNKNOWNCOMMAND
       // <command> :Unknown command
-      // TODO This shouldn't occur
+      // TODO This shouldn't occur.
       return false;
     },
     "422": function(aMessage) { // ERR_NOMOTD
@@ -1125,12 +1183,12 @@ var ircBase = {
     },
     "432": function(aMessage) { // ERR_ERRONEUSNICKNAME
       // <nick> :Erroneous nickname
-      let msg = _("error.erroneousNickname", aMessage.params[1]);
+      let msg = _("error.erroneousNickname", this._requestedNickname);
       serverErrorMessage(this, aMessage, msg);
       if (this._requestedNickname == this._accountNickname) {
         // The account has been set up with an illegal nickname.
-        ERROR("Erroneous nickname " + aMessage.params[1] + ": " +
-              aMessage.params[2]);
+        this.ERROR("Erroneous nickname " + this._requestedNickname + ": " +
+                   aMessage.params.slice(1).join(" "));
         this.gotDisconnected(Ci.prplIAccount.ERROR_INVALID_USERNAME, msg);
       }
       else {
@@ -1161,8 +1219,9 @@ var ircBase = {
     },
     "442": function(aMessage) { // ERR_NOTONCHANNEL
       // <channel> :You're not on that channel
-      // TODO
-      return false;
+      this.ERROR("A command affecting " + aMessage.params[1] +
+                 " failed because you aren't in that channel.");
+      return true;
     },
     "443": function(aMessage) { // ERR_USERONCHANNEL
       // <user> <channel> :is already on channel
@@ -1186,6 +1245,11 @@ var ircBase = {
     },
     "451": function(aMessage) { // ERR_NOTREGISTERED
       // :You have not registered
+      // If the server doesn't understand CAP it might return this error.
+      if (aMessage.params[0] == "CAP") {
+        this.LOG("Server doesn't support CAP.");
+        return true;
+      }
       // TODO
       return false;
     },
@@ -1206,8 +1270,9 @@ var ircBase = {
     },
     "464": function(aMessage) { // ERR_PASSWDMISMATCH
       // :Password incorrect
-      // TODO prompt user for new password
-      return false;
+      this.gotDisconnected(Ci.prplIAccount.ERROR_AUTHENTICATION_FAILED,
+                           _("connection.error.invalidPassword"));
+      return true;
     },
     "465": function(aMessage) { // ERR_YOUREBANEDCREEP
       // :You are banned from this server
@@ -1249,9 +1314,18 @@ var ircBase = {
     },
     "475": function(aMessage) { // ERR_BADCHANNELKEY
       // <channel> :Cannot join channel (+k)
-      // TODO need to inform the user.
-      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
-      return false;
+      let channelName = aMessage.params[1];
+
+      // Display an error message to the user.
+      let msg = _("error.wrongKey", channelName);
+      let conversation = this.getConversation(channelName);
+      conversation.writeMessage(aMessage.servername, msg, {system: true});
+
+      // The stored information is out of date, remove it.
+      delete conversation._chatRoomFields;
+      delete this._chatRoomFieldsList[this.normalize(channelName)];
+
+      return true;
     },
     "476": function(aMessage) { // ERR_BADCHANMASK
       // <channel> :Bad Channel Mask

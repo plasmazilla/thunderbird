@@ -3,36 +3,24 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://calendar/modules/calIteratorUtils.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 function calAttendee() {
     this.wrappedJSObject = this;
     this.mProperties = new calPropertyBag();
 }
 
+const calAttendeeClassID = Components.ID("{5c8dcaa3-170c-4a73-8142-d531156f664d}");
+const calAttendeeInterfaces = [Components.interfaces.calIAttendee];
 calAttendee.prototype = {
-    getInterfaces: function (count) {
-        var ifaces = [
-            Components.interfaces.nsISupports,
-            Components.interfaces.calIAttendee,
-            Components.interfaces.nsIClassInfo
-        ];
-        count.value = ifaces.length;
-        return ifaces;
-    },
-
-    getHelperForLanguage: function (language) {
-        return null;
-    },
-
-    contractID: "@mozilla.org/calendar/attendee;1",
-    classDescription: "Calendar Attendee",
-    classID: Components.ID("{5c8dcaa3-170c-4a73-8142-d531156f664d}"),
-    implementationLanguage: Components.interfaces.nsIProgrammingLanguage.JAVASCRIPT,
-    flags: 0,
-
-    QueryInterface: function (aIID) {
-        return cal.doQueryInterface(this, calAttendee.prototype, aIID, null, this);
-    },
+    classID: calAttendeeClassID,
+    QueryInterface: XPCOMUtils.generateQI(calAttendeeInterfaces),
+    classInfo: XPCOMUtils.generateCI({
+        classID: calAttendeeClassID,
+        contractID: "@mozilla.org/calendar/attendee;1",
+        classDescription: "Calendar Attendee",
+        interfaces: calAttendeeInterfaces
+    }),
 
     mImmutable: false,
     get isMutable() { return !this.mImmutable; },
@@ -83,6 +71,7 @@ calAttendee.prototype = {
     set icalProperty (icalatt) {
         this.modify();
         this.id = icalatt.valueAsIcalString;
+        this.mIsOrganizer = (icalatt.propertyName == "ORGANIZER");
 
         let promotedProps = { };
         for each (let prop in this.icalAttendeePropMap) {
@@ -137,6 +126,19 @@ calAttendee.prototype = {
             }
         }
         return icalatt;
+    },
+
+    get icalString() {
+        let comp = this.icalProperty;
+        return (comp ? comp.icalString : "");
+    },
+    set icalString(val) {
+        let prop = cal.getIcsService().createIcalPropertyFromString(val);
+        if (prop.propertyName != "ORGANIZER" && prop.propertyName != "ATTENDEE") {
+            throw Components.results.NS_ERROR_ILLEGAL_VALUE;
+        }
+        this.icalProperty = prop;
+        return val;
     },
 
     get propertyEnumerator() { return this.mProperties.enumerator; },

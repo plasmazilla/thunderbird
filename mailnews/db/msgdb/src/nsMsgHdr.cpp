@@ -8,6 +8,7 @@
 #include "nsMsgDatabase.h"
 #include "nsMsgUtils.h"
 #include "nsIMsgHeaderParser.h"
+#include "nsIMsgThread.h"
 #include "nsMsgMimeCID.h"
 #include "nsIMimeConverter.h"
 
@@ -27,7 +28,7 @@ nsMsgHdr::nsMsgHdr(nsMsgDatabase *db, nsIMdbRow *dbRow)
   {
     m_mdb->AddRef();
     mdbOid outOid;
-    if (dbRow && dbRow->GetOid(m_mdb->GetEnv(), &outOid) == NS_OK)
+    if (dbRow && NS_SUCCEEDED(dbRow->GetOid(m_mdb->GetEnv(), &outOid)))
     {
       m_messageKey = outOid.mOid_Id;
       m_mdb->AddHdrToUseCache((nsIMsgDBHdr *) this, m_messageKey);
@@ -60,7 +61,7 @@ nsresult nsMsgHdr::InitCachedValues()
   {
     uint32_t uint32Value;
     mdbOid outOid;
-    if (m_mdbRow->GetOid(m_mdb->GetEnv(), &outOid) == NS_OK)
+    if (NS_SUCCEEDED(m_mdbRow->GetOid(m_mdb->GetEnv(), &outOid)))
       m_messageKey = outOid.mOid_Id;
 
     err = GetUInt32Column(m_mdb->m_messageSizeColumnToken, &m_messageSize);
@@ -115,7 +116,7 @@ NS_IMETHODIMP nsMsgHdr::GetMessageKey(nsMsgKey *result)
   if (m_messageKey == nsMsgKey_None && m_mdbRow != NULL)
   {
     mdbOid outOid;
-    if (m_mdbRow->GetOid(m_mdb->GetEnv(), &outOid) == NS_OK)
+    if (NS_SUCCEEDED(m_mdbRow->GetOid(m_mdb->GetEnv(), &outOid)))
       m_messageKey = outOid.mOid_Id;
 
   }
@@ -314,7 +315,7 @@ NS_IMETHODIMP nsMsgHdr::GetNumReferences(uint16_t *result)
 nsresult nsMsgHdr::ParseReferences(const char *references)
 {
   const char *startNextRef = references;
-  nsCAutoString resultReference;
+  nsAutoCString resultReference;
   nsCString messageId;
   GetMessageId(getter_Copies(messageId));
 
@@ -361,7 +362,7 @@ NS_IMETHODIMP nsMsgHdr::SetMessageId(const char *messageId)
 {
   if (messageId && *messageId == '<')
   {
-    nsCAutoString tempMessageID(messageId + 1);
+    nsAutoCString tempMessageID(messageId + 1);
     if (tempMessageID.CharAt(tempMessageID.Length() - 1) == '>')
       tempMessageID.SetLength(tempMessageID.Length() - 1);
     return SetStringColumn(tempMessageID.get(), m_mdb->m_messageIdColumnToken);
@@ -396,7 +397,7 @@ NS_IMETHODIMP nsMsgHdr::SetRecipients(const char *recipients)
   return SetStringColumn(recipients, m_mdb->m_recipientsColumnToken);
 }
 
-nsresult nsMsgHdr::BuildRecipientsFromArray(const char *names, const char *addresses, uint32_t numAddresses, nsCAutoString& allRecipients)
+nsresult nsMsgHdr::BuildRecipientsFromArray(const char *names, const char *addresses, uint32_t numAddresses, nsAutoCString& allRecipients)
 {
   NS_ENSURE_ARG_POINTER(names);
   NS_ENSURE_ARG_POINTER(addresses);
@@ -443,7 +444,7 @@ nsresult nsMsgHdr::BuildRecipientsFromArray(const char *names, const char *addre
 NS_IMETHODIMP nsMsgHdr::SetRecipientsArray(const char *names, const char *addresses, uint32_t numAddresses)
 {
 	nsresult ret;
-	nsCAutoString	allRecipients;
+	nsAutoCString	allRecipients;
 
     ret = BuildRecipientsFromArray(names, addresses, numAddresses, allRecipients);
     if (NS_FAILED(ret))
@@ -462,7 +463,7 @@ NS_IMETHODIMP nsMsgHdr::SetCcList(const char *ccList)
 NS_IMETHODIMP nsMsgHdr::SetCCListArray(const char *names, const char *addresses, uint32_t numAddresses)
 {
 	nsresult ret;
-	nsCAutoString	allRecipients;
+	nsAutoCString	allRecipients;
 
     ret = BuildRecipientsFromArray(names, addresses, numAddresses, allRecipients);
     if (NS_FAILED(ret))
@@ -482,7 +483,7 @@ nsMsgHdr::SetBCCListArray(const char *names,
                           const char *addresses,
                           uint32_t numAddresses)
 {
-  nsCAutoString allRecipients;
+  nsAutoCString allRecipients;
 
   nsresult rv = BuildRecipientsFromArray(names, addresses, numAddresses,
                                          allRecipients);
@@ -875,7 +876,7 @@ bool nsMsgHdr::IsParentOf(nsIMsgDBHdr *possibleChild)
 {
   uint16_t referenceToCheck = 0;
   possibleChild->GetNumReferences(&referenceToCheck);
-  nsCAutoString reference;
+  nsAutoCString reference;
 
   nsCString messageId;
   GetMessageId(getter_Copies(messageId));

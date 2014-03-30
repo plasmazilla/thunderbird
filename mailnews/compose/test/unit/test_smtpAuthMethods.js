@@ -5,17 +5,18 @@
  * Test code <copied from="test_pop3AuthMethods.js">
  */
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 var server;
 var kAuthSchemes;
 var smtpServer;
-var smtpService;
 var testFile;
 var identity;
 
 const kUsername = "fred";
 const kPassword = "wilma";
-const kSender = "from@invalid.com";
-const kTo = "to@invalid.com";
+const kSender = "from@foo.invalid";
+const kTo = "to@foo.invalid";
 const MAILFROM = "MAIL FROM:<" + kSender + "> SIZE=155";
 const RCPTTO = "RCPT TO:<" + kTo + ">";
 const AUTHPLAIN = "AUTH PLAIN " + AuthPLAIN.encodeLine(kUsername, kPassword);
@@ -73,9 +74,9 @@ function nextTest() {
   smtpServer.authMethod = curTest.clientAuthMethod;
 
   // Run test
-  smtpService.sendMailMessage(testFile, kTo, identity,
-                              null, null, null, null,
-                              false, {}, {});
+  MailServices.smtp.sendMailMessage(testFile, kTo, identity,
+                                    null, null, null, null,
+                                    false, {}, {});
   server.performTest();
 
   do_check_transaction(server.playTransaction(), curTest.transaction);
@@ -99,14 +100,12 @@ function run_test() {
     dump("AUTH PLAIN = " + AUTHPLAIN + "\n");
     server.start(SMTP_PORT);
 
-    loadLocalMailAccount();
+    localAccountUtils.loadLocalMailAccount();
     smtpServer = getBasicSmtpServer();
     smtpServer.socketType = Ci.nsMsgSocketType.plain;
     smtpServer.username = kUsername;
     smtpServer.password = kPassword;
     identity = getSmtpIdentity(kSender, smtpServer);
-    smtpService = Cc["@mozilla.org/messengercompose/smtp;1"]
-                        .getService(Ci.nsISmtpService);
 
     testFile = do_get_file("data/message1.eml");
 

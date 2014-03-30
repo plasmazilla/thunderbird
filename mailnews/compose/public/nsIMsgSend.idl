@@ -145,12 +145,14 @@ interface nsIMsgEmbeddedImageData : nsISupports
 %{ C++
 // Forward declaration
 class nsMsgAttachmentHandler;
+#include "nsAutoPtr.h"
+#include "nsTArray.h"
 %}
 
-[ptr] native nsMsgAttachmentHandler(nsMsgAttachmentHandler);
 [ptr] native nsMsgAttachedFile(nsMsgAttachedFile);
+[ptr] native nsMsgAttachmentHandlerArray(nsTArray<nsRefPtr<nsMsgAttachmentHandler> >);
 
-[scriptable, uuid(22cfe1cb-4e9a-451f-82e5-0b75d2b65a95)]
+[scriptable, uuid(648f8e40-3977-4dd8-88f1-b932bc654aef)]
 interface nsIMsgSend : nsISupports
 {
   //
@@ -193,7 +195,6 @@ interface nsIMsgSend : nsISupports
    * @param aMsgToReplace e.g., when saving a draft over an old draft. May be 0
    * @param aBodyType content type of message body
    * @param aBody message body text (should have native line endings)
-   * @param aBodyLength passed in to avoid extra strlen call.
    * @param aAttachments Array of nsIMsgAttachmentData
    * @param aPreloadedAttachments Array of nsIMsgAttachedFile
    * @param aParentWindow compose window; may be null.
@@ -212,8 +213,7 @@ interface nsIMsgSend : nsISupports
                               in nsMsgDeliverMode aMode,
                               in nsIMsgDBHdr aMsgToReplace,
                               in string aBodyType,
-                              in string aBody,
-                              in unsigned long aBodyLength,
+                              in ACString aBody,
                               in nsIArray aAttachments,
                               in nsIArray aPreloadedAttachments,
                               in nsIDOMWindow aParentWindow,
@@ -234,7 +234,6 @@ interface nsIMsgSend : nsISupports
    *                         on who to send the message to.
    * @param aBodyType content type of message body
    * @param aBody message body text (should have native line endings)
-   * @param aBodyLength passed in to avoid extra strlen call.
    * @param aCreateAsDraft If true, this message will be put in a drafts folder
    * @param aAttachments Array of nsIMsgAttachmentData
    * @param aEmbeddedObjects Array of nsIDomNode objects for MHTML messages.
@@ -247,8 +246,7 @@ interface nsIMsgSend : nsISupports
   void createRFC822Message(in nsIMsgIdentity aUserIdentity,
                            in nsIMsgCompFields aFields,
                            in string aBodyType,
-                           in string aBody,
-                           in unsigned long aBodyLength,
+                           in ACString aBody,
                            in boolean aCreateAsDraft,
                            in nsIArray aAttachments,
                            in nsISupportsArray aEmbeddedObjects,
@@ -301,8 +299,17 @@ interface nsIMsgSend : nsISupports
     /* Abort current send/save operation */
     void abort();
 
-    /* Report a send failure */
-    nsresult fail(in nsresult failure_code, in wstring error_msg);
+    /**
+     * Report a send failure.
+     *
+     * @param aFailureCode     The failure code of the send operation. See
+     *                         nsComposeStrings.h for possible values. NS_OK is a possible
+     *                         value as well; if passed, the function won't prompt the user     *                         but will still about the session.
+     * @param aErrorMsg        The appropriate error string for the failure.
+     * @result                 A modified result value in the case a user action results in
+     *                         a different way to handle the failure.
+     */
+    nsresult fail(in nsresult aFailureCode, in wstring aErrorMsg);
 
     /* Disable UI notification (alert message) */
     void setGUINotificationState(in boolean aEnableFlag);
@@ -349,7 +356,7 @@ interface nsIMsgSend : nsISupports
     /* process attachment */
     void gatherMimeAttachments();
     readonly attribute boolean processAttachmentsSynchronously;
-    [noscript] nsMsgAttachmentHandler getAttachmentHandlers();
+    [noscript] nsMsgAttachmentHandlerArray getAttachmentHandlers();
     readonly attribute unsigned long attachmentCount;
     attribute unsigned long pendingAttachmentCount;
     readonly attribute nsMsgDeliverMode deliveryMode;

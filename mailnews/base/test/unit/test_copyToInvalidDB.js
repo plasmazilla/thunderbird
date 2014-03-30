@@ -53,7 +53,7 @@ function actually_run_test() {
   dbPath.remove(false);
   gTestFolder2.msgDatabase = null;
 
-  let msgHdr = firstMsgHdr(gTestFolder);
+  let msgHdr = mailTestUtils.firstMsgHdr(gTestFolder);
   let messages = Cc["@mozilla.org/array;1"].createInstance(Ci.nsIMutableArray);
   gMsgId1 = msgHdr.messageId;
   messages.appendElement(msgHdr, false);
@@ -67,7 +67,7 @@ function actually_run_test() {
   }
   yield false;
   let msgRestored = gTestFolder2.msgDatabase.getMsgHdrForMessageID(gMsgId1);
-  let msg = loadMessageToString(gTestFolder2, msgRestored);
+  let msg = mailTestUtils.loadMessageToString(gTestFolder2, msgRestored);
   do_check_eq(msg, gMsg1.toMboxString());
   do_test_finished();
 }

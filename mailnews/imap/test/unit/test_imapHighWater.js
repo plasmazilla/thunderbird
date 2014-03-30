@@ -8,7 +8,6 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 load("../../../resources/logHelper.js");
-load("../../../resources/mailTestUtils.js");
 load("../../../resources/alertTestUtils.js");
 load("../../../resources/asyncTestUtils.js");
 load("../../../resources/messageGenerator.js");
@@ -33,7 +32,7 @@ function addMessagesToServer(messages, mailbox)
 
 function run_test()
 {
-  loadLocalMailAccount();
+  localAccountUtils.loadLocalMailAccount();
 
   /*
    * Set up an IMAP server.
@@ -49,7 +48,7 @@ function run_test()
   let identity = MailServices.accounts.createIdentity();
   localAccount.addIdentity(identity);
   localAccount.defaultIdentity = identity;
-  localAccount.incomingServer = gLocalIncomingServer;
+  localAccount.incomingServer = localAccountUtils.incomingServer;
   MailServices.accounts.defaultAccount = localAccount;
 
   // Let's also have another account, using the same identity

@@ -6,12 +6,9 @@
  *   extractHeaderAddressName
  */
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 function run_test() {
-  var i;
-
-  var parser = Components.classes["@mozilla.org/messenger/headerparser;1"]
-                         .getService(Components.interfaces.nsIMsgHeaderParser);
-
   // In this array, the sub arrays consist of the following elements:
   // 0: input string
   // 1: expected output from extractHeaderAddressMailboxes
@@ -19,34 +16,34 @@ function run_test() {
   // 3: expected output from extractHeaderAddressName
   const checks =
   [
-    ["abc@invalid.com",
-     "abc@invalid.com",
-     "abc@invalid.com",
-     "abc@invalid.com" ],
-    ["foo <ghj@invalid.com>",
-     "ghj@invalid.com",
+    ["abc@foo.invalid",
+     "abc@foo.invalid",
+     "abc@foo.invalid",
+     "abc@foo.invalid" ],
+    ["foo <ghj@foo.invalid>",
+     "ghj@foo.invalid",
      "foo",
      "foo" ],
-    ["abc@invalid.com, foo <ghj@invalid.com>",
-     "abc@invalid.com, ghj@invalid.com",
-     "abc@invalid.com, foo",
-     "abc@invalid.com" ],
+    ["abc@foo.invalid, foo <ghj@foo.invalid>",
+     "abc@foo.invalid, ghj@foo.invalid",
+     "abc@foo.invalid, foo",
+     "abc@foo.invalid" ],
     ["foo bar <foo@bar.invalid>",
      "foo@bar.invalid",
      "foo bar",
      "foo bar" ],
-    ["foo bar <foo@bar.invalid>, abc@invalid.com, foo <ghj@invalid.com>",
-     "foo@bar.invalid, abc@invalid.com, ghj@invalid.com",
-     "foo bar, abc@invalid.com, foo",
+    ["foo bar <foo@bar.invalid>, abc@foo.invalid, foo <ghj@foo.invalid>",
+     "foo@bar.invalid, abc@foo.invalid, ghj@foo.invalid",
+     "foo bar, abc@foo.invalid, foo",
      "foo bar" ],
     // UTF-8 names
-    ["foo\u00D0 bar <foo@bar.invalid>, \u00F6foo <ghj@invalid.com>",
-     "foo@bar.invalid, ghj@invalid.com",
+    ["foo\u00D0 bar <foo@bar.invalid>, \u00F6foo <ghj@foo.invalid>",
+     "foo@bar.invalid, ghj@foo.invalid",
      "foo\u00D0 bar, \u00F6foo",
      "foo\u00D0 bar" ],
     // More complicated examples drawn from RFC 2822
-    ["\"Joe Q. Public\" <john.q.public@example.com>,Test <\"abc!x.yz\"@invalid.com>, Test <test@[xyz!]>,\"Giant; \\\"Big\\\" Box\" <sysservices@example.net>",
-     "john.q.public@example.com, \"abc!x.yz\"@invalid.com, test@[xyz!], sysservices@example.net",
+    ["\"Joe Q. Public\" <john.q.public@example.com>,Test <\"abc!x.yz\"@foo.invalid>, Test <test@[xyz!]>,\"Giant; \\\"Big\\\" Box\" <sysservices@example.net>",
+     "john.q.public@example.com, \"abc!x.yz\"@foo.invalid, test@[xyz!], sysservices@example.net",
      "\"Joe Q. Public\", Test, Test, \"Giant; \\\"Big\\\" Box\"",
      // extractHeaderAddressName returns unquoted names, hence the difference.
      "Joe Q. Public" ],
@@ -59,28 +56,28 @@ function run_test() {
 
   // this used to cause memory read overruns
   let addresses = {}, names = {}, fullAddresses = {};
-  parser.parseHeadersWithArray("\" \"@a a;b", addresses, names, fullAddresses);
+  MailServices.headerParser.parseHeadersWithArray("\" \"@a a;b", addresses, names, fullAddresses);
 
   // This checks that the mime header parser doesn't march past the end
   // of strings with ":;" in them. The second ":;" is required to force the
   // parser to keep going.
-  do_check_eq(parser.extractHeaderAddressMailboxes(
-    "undisclosed-recipients:;\0:; foo <ghj@veryveryveryverylongveryveryveryveryinvalidaddress.com>"),
+  do_check_eq(MailServices.headerParser.extractHeaderAddressMailboxes(
+    "undisclosed-recipients:;\0:; foo <ghj@veryveryveryverylongveryveryveryveryinvalidaddress.invalid>"),
               "undisclosed-recipients:;");
 
-  do_check_eq(parser.extractHeaderAddressMailboxes("<a;a@invalid"), "");
+  do_check_eq(MailServices.headerParser.extractHeaderAddressMailboxes("<a;a@invalid"), "");
 
   // Test - empty strings
 
-  do_check_eq(parser.extractHeaderAddressMailboxes(""), "");
-  do_check_eq(parser.extractHeaderAddressNames(""), "");
-  do_check_eq(parser.extractHeaderAddressName(""), "");
+  do_check_eq(MailServices.headerParser.extractHeaderAddressMailboxes(""), "");
+  do_check_eq(MailServices.headerParser.extractHeaderAddressNames(""), "");
+  do_check_eq(MailServices.headerParser.extractHeaderAddressName(""), "");
 
   // Test - extractHeaderAddressMailboxes
 
-  for (i = 0; i < checks.length; ++i) {
-    do_check_eq(parser.extractHeaderAddressMailboxes(checks[i][0]), checks[i][1]);
-    do_check_eq(parser.extractHeaderAddressNames(checks[i][0]), checks[i][2]);
-    do_check_eq(parser.extractHeaderAddressName(checks[i][0]), checks[i][3]);
+  for (let i = 0; i < checks.length; ++i) {
+    do_check_eq(MailServices.headerParser.extractHeaderAddressMailboxes(checks[i][0]), checks[i][1]);
+    do_check_eq(MailServices.headerParser.extractHeaderAddressNames(checks[i][0]), checks[i][2]);
+    do_check_eq(MailServices.headerParser.extractHeaderAddressName(checks[i][0]), checks[i][3]);
   }
 }

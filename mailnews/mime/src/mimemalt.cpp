@@ -189,11 +189,11 @@ MimeMultipartAlternative_flush_children(MimeObject *obj,
        create it with output off.
   */
   MimeMultipartAlternative *malt = (MimeMultipartAlternative *) obj;
-  bool have_displayable, do_flush, do_display, in_attach;
+  bool have_displayable, do_flush, do_display;
 
   /* Case 1 */
   if (! malt->pending_parts)
-    return NS_OK;
+    return 0;
 
   have_displayable =
     MimeMultipartAlternative_display_part_p(obj, malt->buffered_hdrs[0]);
@@ -225,7 +225,7 @@ MimeMultipartAlternative_flush_children(MimeObject *obj,
   }
   else {
     NS_ERROR("mimemalt.cpp: logic error in flush_children");
-    return NS_ERROR_FAILURE;
+    return -1;
   }
   
   if (do_flush) {
@@ -240,7 +240,7 @@ MimeMultipartAlternative_flush_children(MimeObject *obj,
     }
     malt->pending_parts = 0;
   }
-  return NS_OK;
+  return 0;
 }
 
 static int
@@ -274,29 +274,30 @@ MimeMultipartAlternative_create_child(MimeObject *obj)
     MimeMultipartAlternative_display_part_p (obj, mult->hdrs);
 
   MimeMultipartAlternative_flush_children(obj, false, displayable);
-  
+
   mult->state = MimeMultipartPartFirstLine;
   int32_t i = malt->pending_parts++;
   if (malt->pending_parts > malt->max_parts) {
     malt->max_parts = malt->pending_parts;
-    malt->buffered_hdrs = (MimeHeaders **)
-      PR_REALLOC(malt->buffered_hdrs, malt->max_parts *
-                 sizeof *malt->buffered_hdrs);
-    if (! malt->buffered_hdrs)
-      return MIME_OUT_OF_MEMORY;
-    malt->part_buffers = (MimePartBufferData **)
-      PR_REALLOC(malt->part_buffers, malt->max_parts *
-                 sizeof *malt->part_buffers);
-    if (! malt->part_buffers)
-      return MIME_OUT_OF_MEMORY;
+    MimeHeaders **newBuf = (MimeHeaders **)
+      PR_REALLOC(malt->buffered_hdrs,
+                 malt->max_parts * sizeof(*malt->buffered_hdrs));
+    NS_ENSURE_TRUE(newBuf, MIME_OUT_OF_MEMORY);
+    malt->buffered_hdrs = newBuf;
+
+    MimePartBufferData **newBuf2 = (MimePartBufferData **)
+      PR_REALLOC(malt->part_buffers,
+                 malt->max_parts * sizeof(*malt->part_buffers));
+    NS_ENSURE_TRUE(newBuf2, MIME_OUT_OF_MEMORY);
+    malt->part_buffers = newBuf2;
   }
-  
+
   malt->buffered_hdrs[i] = MimeHeaders_copy(mult->hdrs);
-  if (!malt->buffered_hdrs[i])
-    return MIME_OUT_OF_MEMORY;
+  NS_ENSURE_TRUE(malt->buffered_hdrs[i], MIME_OUT_OF_MEMORY);
+
   malt->part_buffers[i] = MimePartBufferCreate();
-  if (!malt->part_buffers[i])
-    return MIME_OUT_OF_MEMORY;
+  NS_ENSURE_TRUE(malt->part_buffers[i], MIME_OUT_OF_MEMORY);
+
   return 0;
 }
 

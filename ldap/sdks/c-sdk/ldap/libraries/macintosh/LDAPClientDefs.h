@@ -57,8 +57,6 @@
 #define macintosh
 #endif 
 
-#define XP_MAC
-
 #include "IDE_Options.h"
 // #define NO_USERINTERFACE
 // #define LDAP_DEBUG

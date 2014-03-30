@@ -214,7 +214,7 @@ function updateRemoveRowButton()
 {
   var firstListItem = gSearchTermList.getItemAtIndex(0);
   if (firstListItem)
-    firstListItem.lastChild.lastChild.lastChild.setAttribute("disabled", gTotalSearchTerms == 1);
+    firstListItem.lastChild.lastChild.setAttribute("disabled", gTotalSearchTerms == 1);
 }
  
 // Returns the actual list item row index in the list of search rows
@@ -284,8 +284,8 @@ function updateSearchAttributes()
 
 function booleanChanged(event) {
     // when boolean changes, we have to update all the attributes on the search terms
-    var newBoolValue = (event.target.getAttribute("value") == "and") ? true : false;
-    var matchAllValue = (event.target.getAttribute("value") == "matchAll") ? true : false;
+    var newBoolValue = (event.target.getAttribute("value") == "and");
+    var matchAllValue = (event.target.getAttribute("value") == "matchAll");
     if (document.getElementById("abPopup")) {
       var selectedAB = document.getElementById("abPopup").selectedItem.value;
       setSearchScope(GetScopeForDirectoryURI(selectedAB));
@@ -309,10 +309,7 @@ function createSearchRow(index, scope, searchTerm)
     var searchAttr = document.createElement("searchattribute");
     var searchOp = document.createElement("searchoperator");
     var searchVal = document.createElement("searchvalue");
-    var enclosingBox = document.createElement('vbox');
 
-    var buttonBox = document.createElement("hbox");
-    buttonBox.setAttribute("align", "start");
     var moreButton = document.createElement("button");
     var lessButton = document.createElement("button");
     moreButton.setAttribute("class", "small-button");
@@ -324,23 +321,16 @@ function createSearchRow(index, scope, searchTerm)
     lessButton.setAttribute('label', '\u2212');
     lessButton.setAttribute('tooltiptext', gLessButtonTooltipText);
 
-    enclosingBox.setAttribute('align', 'right');
-
     // now set up ids:
     searchAttr.id = "searchAttr" + gUniqueSearchTermCounter;
     searchOp.id  = "searchOp" + gUniqueSearchTermCounter;
     searchVal.id = "searchVal" + gUniqueSearchTermCounter;
 
-    buttonBox.appendChild(moreButton);
-    buttonBox.appendChild(lessButton);
-
     searchAttr.setAttribute("for", searchOp.id + "," + searchVal.id);
     searchOp.setAttribute("opfor", searchVal.id);
 
-    var rowdata = new Array(enclosingBox, searchAttr,
-                            null, searchOp,
-                            null, searchVal,
-                            null, buttonBox);
+    var rowdata = [searchAttr, searchOp, searchVal,
+                   [moreButton, lessButton] ];
     var searchrow = constructRow(rowdata);
     searchrow.id = "searchRow" + gUniqueSearchTermCounter;
 
@@ -351,22 +341,6 @@ function createSearchRow(index, scope, searchTerm)
 
     // now insert the new search term into our list of terms
     gSearchTerms.splice(index, 0, {obj:searchTermObj, scope:scope, searchTerm:searchTerm, initialized:false});
-
-    // and/or string handling:
-    // this is scary - basically we want to take every other
-    // listcell, (note the i+=2) which will be a text label,
-    // and set the searchTermObj's
-    // booleanNodes to that
-    var stringNodes = new Array;
-    var listcells = searchrow.childNodes;
-    var j=0;
-    for (var i=0; i<listcells.length; i+=2) {
-      stringNodes[j++] = listcells[i];
-
-      // see bug #183994 for why these cells are hidden
-      listcells[i].hidden = true;
-    }
-    searchTermObj.booleanNodes = stringNodes;
 
     var editFilter = null;
     try { editFilter = gFilter; } catch(e) { }
@@ -425,19 +399,28 @@ function initializeTermFromIndex(index)
     gSearchTerms[index].initialized = true;
 }
 
-// creates a <listitem> using the array children as
-// the children of each listcell
-function constructRow(children)
+/**
+ * Creates a <listitem> using the array children as the children
+ * of each listcell.
+ * @param aChildren  An array of XUL elements to put into the listitem.
+ *                   Each array member is put into a separate listcell.
+ *                   If the member itself is an array of elements,
+ *                   all of them are put into the same listcell.
+ */
+function constructRow(aChildren)
 {
-    var listitem = document.createElement("listitem");
+    let listitem = document.createElement("listitem");
     listitem.setAttribute("allowevents", "true");
-    for (var i = 0; i < children.length; i++) {
-      var listcell = document.createElement("listcell");
+    for (let i = 0; i < aChildren.length; i++) {
+      let listcell = document.createElement("listcell");
+      let child = aChildren[i];
 
-      // it's ok to have empty cells
-      if (children[i]) {
-          children[i].setAttribute("flex", "1");
-          listcell.appendChild(children[i]);
+      if (child instanceof Array) {
+        for (let j = 0; j < child.length; j++)
+          listcell.appendChild(child[j]);
+      } else {
+        child.setAttribute("flex", "1");
+        listcell.appendChild(child);
       }
       listitem.appendChild(listcell);
     }
@@ -492,37 +475,30 @@ function saveSearchTerms(searchTerms, termOwner)
 {
     var matchAll = gSearchBooleanRadiogroup.value == 'matchAll';
     var i;
+    for (i = 0; i < gSearchRemovedTerms.length; i++)
+        searchTerms.RemoveElement(gSearchRemovedTerms[i]);
+
     for (i = 0; i<gSearchTerms.length; i++) {
         try {
-            var searchTerm = gSearchTerms[i].obj.searchTerm;
-
-            // the term might be an offscreen one we haven't initialized yet
-            // if so, don't bother saving it.
-            if (!searchTerm && !gSearchTerms[i].initialized) {
-                // is an existing term, but not initialize, so skip saving
-                continue;
-            }
             gSearchTerms[i].obj.matchAll = matchAll;
+            var searchTerm = gSearchTerms[i].obj.searchTerm;
             if (searchTerm)
                 gSearchTerms[i].obj.save();
+            else if (!gSearchTerms[i].initialized)
+                // the term might be an offscreen one we haven't initialized yet
+                searchTerm = gSearchTerms[i].searchTerm;
             else {
                 // need to create a new searchTerm, and somehow save it to that
                 searchTerm = termOwner.createTerm();
                 gSearchTerms[i].obj.saveTo(searchTerm);
+                // this might not be the right place for the term,
+                // but we need to make the array longer anyway
                 termOwner.appendTerm(searchTerm);
             }
+            searchTerms.SetElementAt(i, searchTerm);
         } catch (ex) {
             dump("** Error saving element " + i + ": " + ex + "\n");
         }
-    }
-
-    // now remove the queued elements
-    for (i=0; i<gSearchRemovedTerms.length; i++) {
-        // this is so nasty, we have to iterate through
-        // because GetIndexOf is acting funny
-        var searchTermSupports =
-            gSearchRemovedTerms[i].QueryInterface(Components.interfaces.nsISupports);
-        searchTerms.RemoveElement(searchTermSupports);
     }
 }
 

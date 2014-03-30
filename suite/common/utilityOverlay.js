@@ -34,9 +34,12 @@ const kProxyManual = ["network.proxy.ftp",
 const kExistingWindow = Components.interfaces.nsIBrowserDOMWindow.OPEN_CURRENTWINDOW;
 const kNewWindow = Components.interfaces.nsIBrowserDOMWindow.OPEN_NEWWINDOW;
 const kNewTab = Components.interfaces.nsIBrowserDOMWindow.OPEN_NEWTAB;
+const kExistingTab = Components.interfaces.nsIBrowserDOMWindow.OPEN_SWITCHTAB;
+const kNewPrivate = 5;
 var TAB_DROP_TYPE = "application/x-moz-tabbrowser-tab";
 var gShowBiDi = false;
 var gUtilityBundle = null;
+var gPrivate = null;
 
 function toggleOfflineStatus()
 {
@@ -243,7 +246,7 @@ function goPreferences(paneID)
     lastPrefWindow.focus();
   else
     openDialog("chrome://communicator/content/pref/preferences.xul",
-               "PrefWindow", "chrome,titlebar,dialog=no,resizable",
+               "PrefWindow", "non-private,chrome,titlebar,dialog=no,resizable",
                paneID);
 }
 
@@ -572,7 +575,7 @@ function goClickThrobber(urlPref, aEvent)
 
 function getTopWin()
 {
-  return Services.wm.getMostRecentWindow("navigator:browser");
+  return top.gPrivate || Services.wm.getMostRecentWindow("navigator:browser");
 }
 
 function isRestricted( url )
@@ -968,6 +971,7 @@ function openAsExternal(aURL)
 /**
  * openNewTabWith: opens a new tab with the given URL.
  * openNewWindowWith: opens a new window with the given URL.
+ * openNewPrivateWith: opens a private window with the given URL.
  *
  * @param aURL
  *        The URL to open (as a string).
@@ -991,6 +995,14 @@ function openAsExternal(aURL)
  *        If aDocument is null, then this will be used as the referrer.
  *        There will be no security check.
  */
+function openNewPrivateWith(aURL, aDoc, aPostData, aAllowThirdPartyFixup,
+                            aReferrer)
+{
+  return openNewTabWindowOrExistingWith(kNewPrivate, aURL, aDoc, false,
+                                        aPostData, aAllowThirdPartyFixup,
+                                        aReferrer);
+}
+
 function openNewWindowWith(aURL, aDoc, aPostData, aAllowThirdPartyFixup,
                            aReferrer)
 {
@@ -1035,7 +1047,7 @@ function openNewTabWindowOrExistingWith(aType, aURL, aDoc, aLoadInBackground,
 
   var browserWin;
   // if we're not opening a new window, try and find existing window
-  if (aType != kNewWindow)
+  if (aType != kNewWindow && aType != kNewPrivate)
     browserWin = getTopWin();
 
   // Where appropriate we want to pass the charset of the
@@ -1049,10 +1061,13 @@ function openNewTabWindowOrExistingWith(aType, aURL, aDoc, aLoadInBackground,
 
   // We want to open in a new window or no existing window can be found.
   if (!browserWin) {
+    var features = "private,chrome,all,dialog=no";
+    if (aType != kNewPrivate)
+      features = "non-" + features;
     var charsetArg = null;
     if (originCharset)
       charsetArg = "charset=" + originCharset;
-    return window.openDialog(getBrowserURL(), "_blank", "chrome,all,dialog=no",
+    return window.openDialog(getBrowserURL(), "_blank", features,
                              aURL, charsetArg, referrerURI, aPostData,
                              aAllowThirdPartyFixup);
   }
@@ -1092,12 +1107,13 @@ function BrowserOnCommand(event)
 
   const ot = event.originalTarget;
   const ownerDoc = ot.ownerDocument;
+  const docURI = ownerDoc.documentURI;
+  const buttonID = ot.getAttribute("anonid");
 
   // If the event came from an ssl error page, it is probably either the "Add
   // Exception" or "Get Me Out Of Here" button
-  if (/^about:neterror\?e=nssBadCert/.test(ownerDoc.documentURI) ||
-      /^about:certerror\?/.test(ownerDoc.documentURI)) {
-    if (ot.getAttribute('anonid') == 'exceptionDialogButton') {
+  if (docURI.startsWith("about:certerror?")) {
+    if (buttonID == "exceptionDialogButton") {
       var params = { exceptionAdded : false };
 
       switch (GetIntPref("browser.ssl_override_behavior", 2)) {
@@ -1115,12 +1131,70 @@ function BrowserOnCommand(event)
       if (params.exceptionAdded)
         ownerDoc.location.reload();
     }
-    else if (ot.getAttribute('anonid') == 'getMeOutOfHereButton') {
+    else if (buttonID == "getMeOutOfHereButton") {
       // Redirect them to a known-functioning page, default start page
-      content.location = GetLocalizedStringPref("browser.startup.homepage",
-                                                "about:blank");
+      getMeOutOfHere();
     }
   }
+  else if (docURI.startsWith("about:blocked")) {
+    // The event came from a button on a malware/phishing block page
+    // First check whether it's malware or phishing, so that we can
+    // use the right strings/links
+    let isMalware = /e=malwareBlocked/.test(docURI);
+
+    switch (buttonID) {
+      case "getMeOutOfHereButton":
+        getMeOutOfHere();
+        break;
+
+      case "reportButton":
+        // This is the "Why is this site blocked" button.  For malware,
+        // we can fetch a site-specific report, for phishing, we redirect
+        // to the generic page describing phishing protection.
+
+        if (isMalware) {
+          // Get the stop badware "why is this blocked" report url,
+          // append the current url, and go there.
+          try {
+            let reportURL = Services.urlFormatter.formatURLPref("browser.safebrowsing.malware.reportURL");
+            reportURL += ownerDoc.location.href;
+            loadURI(reportURL);
+          } catch (e) {
+            Components.utils.reportError("Couldn't get malware report URL: " + e);
+          }
+        }
+        else { // It's a phishing site, not malware
+          try {
+            loadURI(Services.urlFormatter.formatURLPref("browser.safebrowsing.warning.infoURL"));
+          } catch (e) {
+            Components.utils.reportError("Couldn't get phishing info URL: " + e);
+          }
+        }
+        break;
+
+      case "ignoreWarningButton":
+        getBrowser().getNotificationBox().ignoreSafeBrowsingWarning(isMalware);
+        break;
+    }
+  }
+}
+
+/**
+ * Re-direct the browser to a known-safe page.  This function is
+ * used when, for example, the user browses to a known malware page
+ * and is presented with about:blocked.  The "Get me out of here!"
+ * button should take the user to the default start page so that even
+ * when their own homepage is infected, we can get them somewhere safe.
+ */
+function getMeOutOfHere() {
+  // Get the start page from the *default* pref branch, not the user's
+  var prefs = Services.prefs.getDefaultBranch(null);
+  var url = "about:blank";
+  try {
+    url = prefs.getComplexValue("browser.startup.homepage",
+                                Components.interfaces.nsIPrefLocalizedString).data;
+  } catch(e) {}
+  loadURI(url);
 }
 
 function popupNotificationMenuShowing(event)
@@ -1290,11 +1364,38 @@ function togglePaneSplitter(aSplitterId)
     splitter.setAttribute("state", "collapsed");
 }
 
-// openUILink handles clicks on UI elements that cause URLs to load.
-function openUILink(url, e, ignoreButton, ignoreSave, allowKeywordFixup, postData, referrerUrl)
+/* openUILink handles clicks on UI elements that cause URLs to load.
+ *
+ * As the third argument, you may pass an object with the same properties as
+ * accepted by openUILinkIn, plus "ignoreButton" and "ignoreSave".
+ *
+ * Note: Firefox uses aIgnoreAlt while SeaMonkey uses aIgnoreSave because in
+ * SeaMonkey, Save can be Alt or Shift depending on ui.key.saveLink.shift.
+ *
+ * For API compatibility with Firefox the object version uses params.ignoreAlt
+ * although for SeaMonkey it is effectively ignoreSave.
+ */
+function openUILink(url, aEvent, aIgnoreButton, aIgnoreSave, aAllowThirdPartyFixup, aPostData, aReferrerURI)
 {
-  var where = whereToOpenLink(e, ignoreButton, ignoreSave);
-  return openUILinkIn(url, where, allowKeywordFixup, postData, referrerUrl);
+  var params;
+  if (aIgnoreButton && typeof aIgnoreButton == "object") {
+    params = aIgnoreButton;
+
+    // don't forward "ignoreButton" and "ignoreSave" to openUILinkIn.
+    aIgnoreButton = params.ignoreButton;
+    aIgnoreSave = params.ignoreAlt;
+    delete params.ignoreButton;
+    delete params.ignoreAlt;
+  }
+  else {
+    params = {allowThirdPartyFixup: aAllowThirdPartyFixup,
+              postData: aPostData,
+              referrerURI: aReferrerURI,
+              initiatingDoc: aEvent ? aEvent.target.ownerDocument : document}
+  }
+
+  var where = whereToOpenLink(aEvent, aIgnoreButton, aIgnoreSave);
+  return openUILinkIn(url, where, params);
 }
 
 /* whereToOpenLink() looks at an event to decide where to open a link.
@@ -1362,6 +1463,7 @@ function whereToOpenLink(e, ignoreButton, ignoreSave, ignoreBackground)
  *   postData             (nsIInputStream)
  *   referrerURI          (nsIURI)
  *   relatedToCurrent     (boolean)
+ *   initiatingDoc        (document)
  */
 function openUILinkIn(url, where, aAllowThirdPartyFixup, aPostData, aReferrerURI)
 {
@@ -1369,6 +1471,8 @@ function openUILinkIn(url, where, aAllowThirdPartyFixup, aPostData, aReferrerURI
     return null;
 
   var aRelatedToCurrent;
+  var aInitiatingDoc;
+  var aIsUTF8;
   if (arguments.length == 3 &&
       arguments[2] != null &&
       typeof arguments[2] == "object") {
@@ -1377,10 +1481,12 @@ function openUILinkIn(url, where, aAllowThirdPartyFixup, aPostData, aReferrerURI
     aPostData             = params.postData;
     aReferrerURI          = params.referrerURI;
     aRelatedToCurrent     = params.relatedToCurrent;
+    aInitiatingDoc        = params.initiatingDoc ? params.initiatingDoc : document;
+    aIsUTF8               = params.isUTF8;
   }
 
   if (where == "save") {
-    saveURL(url, null, null, true, true, aReferrerURI);
+    saveURL(url, null, null, true, true, aReferrerURI, aInitiatingDoc);
     return null;
   }
 
@@ -1388,7 +1494,7 @@ function openUILinkIn(url, where, aAllowThirdPartyFixup, aPostData, aReferrerURI
 
   if (!w || where == "window") {
     return window.openDialog(getBrowserURL(), "_blank", "chrome,all,dialog=no", url,
-                             null, null, aPostData, aAllowThirdPartyFixup);
+                             null, null, aPostData, aAllowThirdPartyFixup, aIsUTF8);
   }
 
   var loadInBackground = GetBoolPref("browser.tabs.loadInBackground", false);
@@ -1399,7 +1505,7 @@ function openUILinkIn(url, where, aAllowThirdPartyFixup, aPostData, aReferrerURI
 
   switch (where) {
   case "current":
-    w.loadURI(url, aReferrerURI, aPostData, aAllowThirdPartyFixup);
+    w.loadURI(url, aReferrerURI, aPostData, aAllowThirdPartyFixup, aIsUTF8);
     w.content.focus();
     break;
   case "tabfocused":
@@ -1415,7 +1521,8 @@ function openUILinkIn(url, where, aAllowThirdPartyFixup, aPostData, aReferrerURI
                 referrerURI: aReferrerURI,
                 postData: aPostData,
                 allowThirdPartyFixup: aAllowThirdPartyFixup,
-                relatedToCurrent: aRelatedToCurrent
+                relatedToCurrent: aRelatedToCurrent,
+                isUTF8: aIsUTF8
               });
     if (!loadInBackground) {
       browser.selectedTab = tab;
@@ -1436,7 +1543,7 @@ function openUILinkArrayIn(urlArray, where, allowThirdPartyFixup)
 
   if (where == "save") {
     for (var i = 0; i < urlArray.length; i++)
-      saveURL(urlArray[i], null, null, true, true);
+      saveURL(urlArray[i], null, null, true, true, null, document);
     return null;
   }
 

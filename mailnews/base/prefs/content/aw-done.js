@@ -3,6 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 var gPrefsBundle;
 
 function donePageInit() {
@@ -125,7 +127,7 @@ function donePageInit() {
 
         var smtpServerName="";
         if (pageData.server && pageData.server.smtphostname) {
-          var smtpServer = parent.smtpService.defaultServer;
+          let smtpServer = MailServices.smtp.defaultServer;
           smtpServerName = pageData.server.smtphostname.value;
           if (!smtpServerName && smtpServer && smtpServer.hostname)
               smtpServerName = smtpServer.hostname;
@@ -167,8 +169,7 @@ function hideShowDownloadMsgsUI(isPop)
   // from the 3 pane
   var downloadMsgs = document.getElementById("downloadMsgs");
   if (isPop) {
-    var ioService = Components.classes["@mozilla.org/network/io-service;1"].getService(Components.interfaces.nsIIOService);
-    if (!ioService.offline) {
+    if (!Services.io.offline) {
       if (window.opener.location.href == "chrome://messenger/content/messenger.xul") {
         downloadMsgs.hidden = false;
         return;
