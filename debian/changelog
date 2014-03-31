@@ -1,3 +1,65 @@
+icedove (24.4.0-1~deb7u1) stable-security; urgency=low
+
+  [ Christoph Goehre ]
+  * [a2b13c0] Imported Upstream version 24.4.0
+  * [8b392ad] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/creating-a-dummy-.deps-directory-to-get-make-happy.patch
+    - debian-hacks/remove-non-free-W3C-icon-valid.png.patch
+    - debian-hacks/use-system-jquery-jquery-ui.patch
+    - porting-hppa/FTBFS-hppa-correcting-code-inside-JS_STACK_GROWTH_DI.patch
+    - porting-kfreebsd-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-Hurd.patch
+    - porting-powerpcspe/FTBFS-Altivec-is-not-available-on-powerpcspe.patch
+    - stable-security/libnss-tuning-mozilla-security-nss-.def-files.patch
+    - stable-security/sqlite-dev-revert-version-to-3.7.13.patch
+    obsolete patches (fixed upstream):
+    - debian-hacks/virtualenv-changing-the-path-to-virtualenv.py.patch
+    - esr17-backport/Bug-746112-Don-t-decommit-if-page-size-is-too-large.patch
+    - esr17-backport/Bug-840242-Use-the-runtime-page-size-to-control-aren.patch
+    - fixes/Bug-720682-Don-t-crash-an-app-using-libxul-because-o.patch
+    - porting/Bug-814693-Allow-webrtc-to-build-on-more-architectur.patch
+    - porting/Don-t-hardcode-page-size-on-ia64-sparc-or-mipsel.patch
+    - porting/Fix-ipc-chromium-on-kFreeBSD-and-Hurd.patch
+  * [ec100ee] Reduce memory usage of the linker
+  * [dc499ae] ia64 don't like LDFLAG --no-keep-memory
+  * [0cf014b] make python scripts in /usr/lib/icedove-devel/sdk/bin executable
+  * [4ae79c3] ship python config scripts to make building of extensions easier
+    (Closes: #729431)
+  * [110b5dd] remove libxpcom.so from pkgconfig file (Closes: #729168)
+  * [dc1231e] add libldif60 to pkgconfig file
+  * [f13ee5c] lintian: remove prebuild javascript objects from upstream tarball
+    (Closes: #735234)
+  * [3216b93] a newer icedove will break iceowl-extension (Closes: #732742)
+  * [4e0ebde] remove ldif60 from pkgconfig file (Closes: #732652)
+  * [cd268e3] replace duplicate .so files in icedove and icedove-dev with symlinks.
+
+  [ Carsten Schoenert ]
+  * [8e60b3f] adopting dependencies for wheezy stable-security build
+  * [0729636] The vendorShortName is of course "Mozilla" and not "Icedove"
+    (Closes: #707207, #715326)
+  * [2167a1e] icedove-branding: adopting new build schema to Debian branding
+  * [11b2f51] icedove-branding: changing the target directory for preview.png
+  * [00d3dd1] debian/control: remove package calendar-timezones
+  * [bc344cd] debian/rules: catching any gdata-provider*.xpi file
+  * [39e6a3f] debian/rules: catching any lightning*.xpi file
+  * [14650d8] debian/thunderbird.install.in: remove
+    mozilla/components/binary.manifest
+  * [febd94d] debian/control: Build-Depend on gstreamer an yasm
+  * [c02d6de] Drop autoconf.mk mangling
+  * [4a939cb] debian/control: expanding icedove-dev dependency on python
+  * [358d8ab] thunderbird.install.in: shipping all files in /u/l/i/components
+    (Closes: #737811)
+  * [cb99d7e] debian/rules: remove -Wl,--as-needed linker option.
+    (Closes: #732652, #730450, #724688)
+
+  [ Guido Günther ]
+  * [030f0e8] Don't use system jpeg
+  * [fca8246] Don't try to remove nonexistent libxpcom.so
+  * [b74b297] Add lintian override for our use of the embedded libjpeg
+  * [ad46a4d] Make sure xpcshell is executable
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 31 Mar 2014 17:59:12 -0400
+
 icedove (17.0.11-1~deb7u1) stable-security; urgency=low
 
   * [a7e267e] Imported Upstream version 17.0.11
