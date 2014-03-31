@@ -4,3 +4,10 @@ usr/lib/@DEB_MOZ_APPLICATION@/libldif60.so usr/lib/@DEB_MOZ_APPLICATION@-devel/s
 usr/lib/@DEB_MOZ_APPLICATION@/libmozalloc.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libmozalloc.so
 usr/lib/@DEB_MOZ_APPLICATION@/libmozjs.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libmozjs.so
 usr/lib/@DEB_MOZ_APPLICATION@/libxul.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libxul.so
+usr/lib/@DEB_MOZ_APPLICATION@/libnspr4.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libnspr4.so
+usr/lib/@DEB_MOZ_APPLICATION@/libnss3.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libnss3.so
+usr/lib/@DEB_MOZ_APPLICATION@/libnssutil3.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libnssutil3.so
+usr/lib/@DEB_MOZ_APPLICATION@/libplc4.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libplc4.so
+usr/lib/@DEB_MOZ_APPLICATION@/libplds4.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libplds4.so
+usr/lib/@DEB_MOZ_APPLICATION@/libsmime3.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libsmime3.so
+usr/lib/@DEB_MOZ_APPLICATION@/libssl3.so usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libssl3.so

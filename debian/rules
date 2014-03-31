@@ -215,6 +215,13 @@ endif
 	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libmozalloc.so
 	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libmozjs.so
 	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libxul.so
+	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libnspr4.so
+	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libnss3.so
+	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libnssutil3.so
+	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libplc4.so
+	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libplds4.so
+	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libsmime3.so
+	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libssl3.so
 
 install/$(DEB_MOZ_APPLICATION)-dev::
 	find debian/tmp/usr/share/idl/icedove -type f -name '*.idl' -exec chmod a-x {} \;
