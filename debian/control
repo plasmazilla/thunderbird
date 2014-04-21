@@ -6,7 +6,7 @@ Uploaders: Guido Günther <agx@sigxcpu.org>
 Build-Depends: autoconf2.13,
 	autotools-dev,
 	bzip2,
-	debhelper (>= 5),
+	debhelper (>= 7.0.50~),
 	dpkg-dev (>= 1.16.1~),
 	libasound2-dev [linux-any],
 	libbz2-dev,
