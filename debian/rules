@@ -79,10 +79,16 @@ override_dh_install:
 		unzip $(CURDIR)/obj-icedove/mozilla/dist/xpi-stage/lightning*.xpi
 	chmod 0644 debian/iceowl-extension/usr/lib/iceowl-extension/calendar-js/*.js
 	chmod 0644 debian/iceowl-extension/usr/lib/iceowl-extension/chrome/calendar/content/calendar/calendarCreation.xul
+	# sometimes there are temporary build files in iceowl-extension
+	@echo "    --> searching for temporary build files in 'iceowl-extension' ..."
+	@for i in `find debian/iceowl-extension/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
 	# prepare calendar-google-provider
 	mkdir -p debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/
 	cd debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/ && \
 		unzip $(CURDIR)/obj-icedove/mozilla/dist/xpi-stage/gdata-provider*.xpi
+	# sometimes there are temporary build files in calendoar-google-provider
+	@echo "    --> searching for temporary build files in 'calendar-google-provider' ..."
+	@for i in `find debian/calendar-google-provider/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
 	# install Icedove menu icon
 	install -d -m 755 debian/icedove/usr/share/pixmaps/
 	install -m 644 debian/icedove.xpm debian/icedove/usr/share/pixmaps/
