@@ -19,7 +19,7 @@ Closes: #741245
  2 files changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/mozilla/js/src/gc/RootMarking.cpp b/mozilla/js/src/gc/RootMarking.cpp
-index 861c2d6..3b2fd8f 100644
+index 88574f3..25d94f3 100644
 --- a/mozilla/js/src/gc/RootMarking.cpp
 +++ b/mozilla/js/src/gc/RootMarking.cpp
 @@ -320,7 +320,7 @@ MarkConservativeStackRoots(JSTracer *trc, bool useSavedRoots)
@@ -32,7 +32,7 @@ index 861c2d6..3b2fd8f 100644
  #else
      stackMin = cgcd->nativeStackTop + 1;
 diff --git a/mozilla/js/src/jsapi.cpp b/mozilla/js/src/jsapi.cpp
-index 3632a74..aa86c1b 100644
+index 68b6afa..3c79597 100644
 --- a/mozilla/js/src/jsapi.cpp
 +++ b/mozilla/js/src/jsapi.cpp
 @@ -864,9 +864,9 @@ JSRuntime::JSRuntime(JSUseHelperThreads useHelperThreads)

@@ -1,0 +1,317 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sat, 29 Mar 2014 20:58:55 +0100
+Subject: FTBFS hurd: fixing unsupported platform Hurd
+
+Hurd failed to build in mozilla/js/src/jit/AsmJSSignalHandlers.cpp:131
+because of unsupported mode for reading / writing thead state with
+following message.
+
+ # error "Don't know how to read/write to the thread state via the mcontext_t."
+
+The original patch comes from Richard Brown <rbraun@sceen.net>
+https://lists.alioth.debian.org/pipermail/pkg-mozilla-maintainers/2014-March/015565.html
+---
+ mozilla/dom/plugins/ipc/PluginModuleChild.cpp                | 6 +++---
+ mozilla/dom/plugins/ipc/PluginModuleChild.h                  | 2 +-
+ mozilla/ipc/chromium/chromium-config.mk                      | 7 +++++++
+ mozilla/ipc/chromium/moz.build                               | 5 ++++-
+ mozilla/ipc/chromium/src/base/debug_util_posix.cc            | 5 +++--
+ mozilla/ipc/chromium/src/base/file_version_info.h            | 2 +-
+ mozilla/ipc/chromium/src/base/message_loop.cc                | 4 ++--
+ mozilla/ipc/chromium/src/base/process_util_posix.cc          | 2 +-
+ mozilla/ipc/chromium/src/build/build_config.h                | 3 ++-
+ mozilla/ipc/chromium/src/chrome/common/transport_dib.h       | 6 +++---
+ mozilla/ipc/glue/GeckoChildProcessHost.cpp                   | 8 ++++----
+ mozilla/js/src/jit/AsmJSSignalHandlers.cpp                   | 4 +++-
+ mozilla/toolkit/components/osfile/osfile_unix_allthreads.jsm | 1 +
+ 13 files changed, 35 insertions(+), 20 deletions(-)
+
+diff --git a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
+index 1f15265..ae134e1 100644
+--- a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
++++ b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
+@@ -203,7 +203,7 @@ PluginModuleChild::Init(const std::string& aPluginFilename,
+ 
+     // TODO: use PluginPRLibrary here
+ 
+-#if defined(OS_LINUX) || defined(OS_BSD)
++#if defined(OS_LINUX) || defined(OS_BSD) || defined(OS_HURD)
+     mShutdownFunc =
+         (NP_PLUGINSHUTDOWN) PR_FindFunctionSymbol(mLibrary, "NP_Shutdown");
+ 
+@@ -1834,7 +1834,7 @@ PluginModuleChild::AnswerNP_GetEntryPoints(NPError* _retval)
+     PLUGIN_LOG_DEBUG_METHOD;
+     AssertPluginThread();
+ 
+-#if defined(OS_LINUX) || defined(OS_BSD)
++#if defined(OS_LINUX) || defined(OS_BSD) || defined(OS_HURD)
+     return true;
+ #elif defined(OS_WIN) || defined(OS_MACOSX)
+     *_retval = mGetEntryPointsFunc(&mFunctions);
+@@ -1863,7 +1863,7 @@ PluginModuleChild::AnswerNP_Initialize(const uint32_t& aFlags, NPError* _retval)
+     SendBackUpXResources(FileDescriptor(xSocketFd));
+ #endif
+ 
+-#if defined(OS_LINUX) || defined(OS_BSD)
++#if defined(OS_LINUX) || defined(OS_BSD) || defined(OS_HURD)
+     *_retval = mInitializeFunc(&sBrowserFuncs, &mFunctions);
+     return true;
+ #elif defined(OS_WIN) || defined(OS_MACOSX)
+diff --git a/mozilla/dom/plugins/ipc/PluginModuleChild.h b/mozilla/dom/plugins/ipc/PluginModuleChild.h
+index d47a6bd..4f731fd 100644
+--- a/mozilla/dom/plugins/ipc/PluginModuleChild.h
++++ b/mozilla/dom/plugins/ipc/PluginModuleChild.h
+@@ -328,7 +328,7 @@ private:
+ 
+     // we get this from the plugin
+     NP_PLUGINSHUTDOWN mShutdownFunc;
+-#if defined(OS_LINUX) || defined(OS_BSD)
++#if defined(OS_LINUX) || defined(OS_BSD) || defined(OS_HURD)
+     NP_PLUGINUNIXINIT mInitializeFunc;
+ #elif defined(OS_WIN) || defined(OS_MACOSX)
+     NP_PLUGININIT mInitializeFunc;
+diff --git a/mozilla/ipc/chromium/chromium-config.mk b/mozilla/ipc/chromium/chromium-config.mk
+index 46af9d7..71cf59d 100644
+--- a/mozilla/ipc/chromium/chromium-config.mk
++++ b/mozilla/ipc/chromium/chromium-config.mk
+@@ -103,6 +103,12 @@ DEFINES += \
+   $(NULL)
+ 
+ else # } {
++ifeq ($(OS_ARCH),hurd-%) # {
++
++OS_HURD = 1
++
++
++else # } {
+ 
+ OS_LINUX = 1
+ DEFINES += \
+@@ -115,4 +121,5 @@ endif # }
+ endif # }
+ endif # }
+ endif # }
++endif # }
+ 
+diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
+index ca4242e..797e8d5 100644
+--- a/mozilla/ipc/chromium/moz.build
++++ b/mozilla/ipc/chromium/moz.build
+@@ -12,6 +12,7 @@ os_freebsd = 0
+ os_netbsd = 0
+ os_openbsd = 0
+ os_bsd = 0
++os_hurd = 0
+ os_linux = 0
+ 
+ if CONFIG['OS_ARCH'] == 'WINNT':
+@@ -32,6 +33,8 @@ else:
+     elif CONFIG['OS_ARCH'] == 'OpenBSD':
+         os_openbsd = 1
+         os_bsd = 1
++    elif CONFIG['OS_ARCH'] == 'GNU':
++        os_hurd = 1
+     else:
+         os_linux = 1
+ 
+@@ -167,7 +170,7 @@ if os_macosx:
+         'transport_dib_mac.cc',
+     ]
+ 
+-if os_linux:
++if os_linux or os_hurd:
+     CPP_SOURCES += [
+         'atomicops_internals_x86_gcc.cc',
+         'base_paths_linux.cc',
+diff --git a/mozilla/ipc/chromium/src/base/debug_util_posix.cc b/mozilla/ipc/chromium/src/base/debug_util_posix.cc
+index b32c86d..d697b3e 100644
+--- a/mozilla/ipc/chromium/src/base/debug_util_posix.cc
++++ b/mozilla/ipc/chromium/src/base/debug_util_posix.cc
+@@ -5,7 +5,8 @@
+ #include "build/build_config.h"
+ #include "base/debug_util.h"
+ 
+-#define MOZ_HAVE_EXECINFO_H (defined(OS_LINUX) && !defined(ANDROID))
++#define MOZ_HAVE_EXECINFO_H ((defined(OS_LINUX) || defined(OS_HURD)) \
++	&& !defined(ANDROID))
+ 
+ #include <errno.h>
+ #include <fcntl.h>
+@@ -107,7 +108,7 @@ bool DebugUtil::BeingDebugged() {
+   return being_debugged;
+ }
+ 
+-#elif defined(OS_LINUX)
++#elif defined(OS_LINUX) || defined(OS_HURD)
+ 
+ // We can look in /proc/self/status for TracerPid.  We are likely used in crash
+ // handling, so we are careful not to use the heap or have side effects.
+diff --git a/mozilla/ipc/chromium/src/base/file_version_info.h b/mozilla/ipc/chromium/src/base/file_version_info.h
+index f38d23f..dadd9c0 100644
+--- a/mozilla/ipc/chromium/src/base/file_version_info.h
++++ b/mozilla/ipc/chromium/src/base/file_version_info.h
+@@ -86,7 +86,7 @@ class FileVersionInfo {
+   explicit FileVersionInfo(NSBundle *bundle);
+ 
+   NSBundle *bundle_;
+-#elif defined(OS_LINUX)
++#elif defined(OS_LINUX) || defined(OS_HURD)
+   FileVersionInfo();
+ #endif
+ 
+diff --git a/mozilla/ipc/chromium/src/base/message_loop.cc b/mozilla/ipc/chromium/src/base/message_loop.cc
+index 9178867..d680d16 100644
+--- a/mozilla/ipc/chromium/src/base/message_loop.cc
++++ b/mozilla/ipc/chromium/src/base/message_loop.cc
+@@ -19,7 +19,7 @@
+ #if defined(OS_POSIX)
+ #include "base/message_pump_libevent.h"
+ #endif
+-#if defined(OS_LINUX) || defined(OS_BSD)
++#if defined(OS_LINUX) || defined(OS_BSD) || defined(OS_HURD)
+ #if defined(MOZ_WIDGET_GTK)
+ #include "base/message_pump_glib.h"
+ #endif
+@@ -130,7 +130,7 @@ MessageLoop::MessageLoop(Type type)
+   if (type_ == TYPE_UI) {
+ #if defined(OS_MACOSX)
+     pump_ = base::MessagePumpMac::Create();
+-#elif defined(OS_LINUX) || defined(OS_BSD)
++#elif defined(OS_LINUX) || defined(OS_BSD) || defined(OS_HURD)
+     pump_ = new base::MessagePumpForUI();
+ #endif  // OS_LINUX
+   } else if (type_ == TYPE_IO) {
+diff --git a/mozilla/ipc/chromium/src/base/process_util_posix.cc b/mozilla/ipc/chromium/src/base/process_util_posix.cc
+index 15bd1cf..51fd938 100644
+--- a/mozilla/ipc/chromium/src/base/process_util_posix.cc
++++ b/mozilla/ipc/chromium/src/base/process_util_posix.cc
+@@ -110,7 +110,7 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
+ #if defined(ANDROID)
+   static const rlim_t kSystemDefaultMaxFds = 1024;
+   static const char kFDDir[] = "/proc/self/fd";
+-#elif defined(OS_LINUX)
++#elif defined(OS_LINUX) || defined(OS_HURD)
+   static const rlim_t kSystemDefaultMaxFds = 8192;
+   static const char kFDDir[] = "/proc/self/fd";
+ #elif defined(OS_MACOSX)
+diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
+index ada04ae..2255908 100644
+--- a/mozilla/ipc/chromium/src/build/build_config.h
++++ b/mozilla/ipc/chromium/src/build/build_config.h
+@@ -18,6 +18,7 @@
+ #if defined(__APPLE__)
+ #define OS_MACOSX 1
+ #elif defined(__linux__) || defined(ANDROID) || defined(__GLIBC__) || defined(__GNU__)
++#define OS_HURD 1
+ #define OS_LINUX 1
+ #elif defined(__DragonFly__)
+ #define OS_DRAGONFLY 1
+@@ -42,7 +43,7 @@
+ 
+ // For access to standard POSIX features, use OS_POSIX instead of a more
+ // specific macro.
+-#if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_BSD)
++#if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_BSD) || defined(OS_HURD)
+ #define OS_POSIX 1
+ #endif
+ 
+diff --git a/mozilla/ipc/chromium/src/chrome/common/transport_dib.h b/mozilla/ipc/chromium/src/chrome/common/transport_dib.h
+index f466966..cb68eb4 100644
+--- a/mozilla/ipc/chromium/src/chrome/common/transport_dib.h
++++ b/mozilla/ipc/chromium/src/chrome/common/transport_dib.h
+@@ -7,7 +7,7 @@
+ 
+ #include "base/basictypes.h"
+ 
+-#if defined(OS_WIN) || defined(OS_MACOSX) || defined(OS_BSD)
++#if defined(OS_WIN) || defined(OS_MACOSX) || defined(OS_BSD) || defined(OS_HURD)
+ #include "base/shared_memory.h"
+ #endif
+ 
+@@ -66,7 +66,7 @@ class TransportDIB {
+     uint32_t sequence_num;
+   };
+   typedef HandleAndSequenceNum Id;
+-#elif defined(OS_MACOSX) || defined(OS_BSD)
++#elif defined(OS_MACOSX) || defined(OS_BSD) || defined(OS_HURD)
+   typedef base::SharedMemoryHandle Handle;
+   // On Mac, the inode number of the backing file is used as an id.
+   typedef base::SharedMemoryId Id;
+@@ -108,7 +108,7 @@ class TransportDIB {
+ 
+  private:
+   TransportDIB();
+-#if defined(OS_WIN) || defined(OS_MACOSX) || defined(OS_BSD)
++#if defined(OS_WIN) || defined(OS_MACOSX) || defined(OS_BSD) || defined(OS_HURD)
+   explicit TransportDIB(base::SharedMemoryHandle dib);
+   base::SharedMemory shared_memory_;
+ #elif defined(OS_LINUX)
+diff --git a/mozilla/ipc/glue/GeckoChildProcessHost.cpp b/mozilla/ipc/glue/GeckoChildProcessHost.cpp
+index 9e31907..7286acd 100644
+--- a/mozilla/ipc/glue/GeckoChildProcessHost.cpp
++++ b/mozilla/ipc/glue/GeckoChildProcessHost.cpp
+@@ -490,7 +490,7 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
+   // and passing wstrings from one config to the other is unsafe.  So
+   // we split the logic here.
+ 
+-#if defined(OS_LINUX) || defined(OS_MACOSX) || defined(OS_BSD)
++#if defined(OS_LINUX) || defined(OS_MACOSX) || defined(OS_BSD) || defined(OS_HURD)
+   base::environment_map newEnvVars;
+   ChildPrivileges privs = mPrivileges;
+   if (privs == base::PRIVILEGES_DEFAULT) {
+@@ -509,7 +509,7 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
+       if (NS_SUCCEEDED(rv)) {
+         nsCString path;
+         greDir->GetNativePath(path);
+-# if defined(OS_LINUX) || defined(OS_BSD)
++# if defined(OS_LINUX) || defined(OS_BSD) || defined(OS_HURD)
+ #  if defined(MOZ_WIDGET_ANDROID)
+         path += "/lib";
+ #  endif  // MOZ_WIDGET_ANDROID
+@@ -618,7 +618,7 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
+   childArgv.push_back(pidstring);
+ 
+ #if defined(MOZ_CRASHREPORTER)
+-#  if defined(OS_LINUX) || defined(OS_BSD)
++#  if defined(OS_LINUX) || defined(OS_BSD) || defined(OS_HURD)
+   int childCrashFd, childCrashRemapFd;
+   if (!CrashReporter::CreateNotificationPipeForChild(
+         &childCrashFd, &childCrashRemapFd))
+@@ -651,7 +651,7 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
+   childArgv.push_back(childProcessType);
+ 
+   base::LaunchApp(childArgv, mFileMap,
+-#if defined(OS_LINUX) || defined(OS_MACOSX) || defined(OS_BSD)
++#if defined(OS_LINUX) || defined(OS_MACOSX) || defined(OS_BSD) || defined(OS_HURD)
+                   newEnvVars, privs,
+ #endif
+                   false, &process, arch);
+diff --git a/mozilla/js/src/jit/AsmJSSignalHandlers.cpp b/mozilla/js/src/jit/AsmJSSignalHandlers.cpp
+index 4d62f6a..be7d40e 100644
+--- a/mozilla/js/src/jit/AsmJSSignalHandlers.cpp
++++ b/mozilla/js/src/jit/AsmJSSignalHandlers.cpp
+@@ -56,9 +56,11 @@ using namespace mozilla;
+ # define R13_sig(p) ((p)->sc_r13)
+ # define R14_sig(p) ((p)->sc_r14)
+ # define R15_sig(p) ((p)->sc_r15)
+-#elif defined(__linux__) || defined(SOLARIS)
++#elif defined(__linux__) || defined(SOLARIS) || defined(__GNU__)
+ # if defined(__linux__)
+ #  define XMM_sig(p,i) ((p)->uc_mcontext.fpregs->_xmm[i])
++#  elif defined(__GNU__)
++#   define EIP_sig(p) ((p)->uc_mcontext.gregs[REG_EIP])
+ # else
+ #  define XMM_sig(p,i) ((p)->uc_mcontext.fpregs.fp_reg_set.fpchip_state.xmm[i])
+ # endif
+diff --git a/mozilla/toolkit/components/osfile/osfile_unix_allthreads.jsm b/mozilla/toolkit/components/osfile/osfile_unix_allthreads.jsm
+index 89b2e6b..eeac727 100644
+--- a/mozilla/toolkit/components/osfile/osfile_unix_allthreads.jsm
++++ b/mozilla/toolkit/components/osfile/osfile_unix_allthreads.jsm
+@@ -41,6 +41,7 @@ if (typeof Components != "undefined") {
+   let libc;
+   let libc_candidates =  [ "libSystem.B.dylib",
+                            "libc.so.6",
++                           "libc.so.0.3",
+                            "libc.so" ];
+   for (let i = 0; i < libc_candidates.length; ++i) {
+     try {

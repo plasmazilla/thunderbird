@@ -27,7 +27,6 @@ fixes/Bug-628252-os2.cc-fails-to-compile-against-GCC-4.6-m.patch
 fixes/Include-cstdlib-in-gfx-angle-src-compiler-Types.h-fo.patch
 fixes/Make-system-cairo-work-again.patch
 debian-hacks/Fix-build-failure-for-header.py-and-typelib.py.patch
-porting-kfreebsd-hurd/Another-fix-to-build-ipc-code-on-GNU-hurd-and-kfreeb.patch
 fixes/fix-function-nsMsgComposeAndSend-to-to-respect-Replo.patch
 fixes/Link-libldap-against-libpthread.patch
 debian-hacks/creating-a-dummy-.deps-directory-to-get-make-happy.patch
@@ -36,3 +35,4 @@ debian-hacks/remove-non-free-W3C-icon-valid.png.patch
 debian-hacks/use-system-jquery-jquery-ui.patch
 porting-powerpcspe/FTBFS-Altivec-is-not-available-on-powerpcspe.patch
 porting-hppa/FTBFS-hppa-correcting-code-inside-JS_STACK_GROWTH_DI.patch
+porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
