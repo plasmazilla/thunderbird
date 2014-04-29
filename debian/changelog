@@ -1,3 +1,37 @@
+icedove (24.5.0-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [7c13dbf] calender-timezones: remove no longer needed helper files
+  * [2d4328c] debian/control: sort various fields alphabetically
+  * [436c212] debian/control: remove build-depens on cdbs
+  * [dae8b3e] icedove branding: adopt current Makefile.in style to upstream
+  * [045be10] debian/rules: switch to debhelper
+  * [b852c8c] debian/mozconfig*: adding mozconfig files
+  * [7bac68c] debian/icedove.configopts: Remove no longer needed file
+  * [6c597b9] Switch the old thunderbird*.in files to icedove.*
+  * [9781e61] debian/icedove.links: adding /u/b/i link
+  * [f325194] debian/icedove.dirs: add helper file for needed directories
+  * [fe0376a] debian/icedove.install: sort entrys alphabetical
+  * [0111ccc] debian/icedove.js: fix small typo and reformat
+  * [a7e5b05] debian/rules: add override for dh_fixperms
+  * [8e44df2] debian/rules: add override for dh_install
+  * [24fa03a] debian/rules: add override for dh_shlibdeps
+  * [2f22ed0] debian/rules: add override for dh_strip
+  * [259a6f4] debian/control: remove ${shlibs:Depends} from c-g-p depends
+  * [cdc9272] debian/rules: add additional LDFLAGS
+  * [9d620d5] debian/rules: correct Icedove version inside icedove.pc during
+    install
+
+  [ Christoph Goehre ]
+  * [460818b] Imported Upstream version 24.5.0
+  * [4c65ecc] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    obsolete patches:
+    - porting-kfreebsd-hurd/Another-fix-to-build-ipc-code-on-GNU-hurd-an.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 29 Apr 2014 17:56:40 -0400
+
 icedove (24.4.0-1) unstable; urgency=low
 
   * [a2b13c0] Imported Upstream version 24.4.0
