@@ -52,6 +52,10 @@ function onLoad() {
 
     // Make sure zoom factor is set up correctly (from persisted value)
     setZoomFactor(zoom.value);
+    if(gZoomFactor == 100) {
+        // if zoom factor was not changed, make sure it is applied at least once
+        applyCurrentZoomFactor();
+    }
 
     initTimeRange();
 
@@ -749,6 +753,14 @@ function setZoomFactor(aValue) {
     }
 
     gZoomFactor = aValue;
+    applyCurrentZoomFactor();
+    return aValue;
+}
+
+/**
+ * applies the current zoom factor for the time grid
+ */
+function applyCurrentZoomFactor() {
     var timebar = document.getElementById("timebar");
     timebar.zoomFactor = gZoomFactor;
     var selectionbar = document.getElementById("selection-bar");
@@ -770,8 +782,6 @@ function setZoomFactor(aValue) {
         grid.scroll = ratio;
         selectionbar.ratio = ratio;
     }
-
-    return aValue;
 }
 
 /**
