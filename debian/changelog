@@ -1,3 +1,17 @@
+icedove (24.5.0-1~deb7u1) stable-security; urgency=low
+
+  * [460818b] Imported Upstream version 24.5.0
+    - MFSA 2014-34 aka CVE-2014-1518
+    - MFSA 2014-37 aka CVE-2014-1523
+    - MFSA 2014-38 aka CVE-2014-1524
+    - MFSA 2014-42 aka CVE-2014-1529
+    - MFSA 2014-43 aka CVE-2014-1530
+    - MFSA 2014-44 aka CVE-2014-1531
+    - MFSA 2014-46 aka CVE-2014-1532
+  * [1683aef] debian/NEWS: add incompatibility info for Lightning
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 04 May 2014 11:02:22 -0400
+
 icedove (24.4.0-1~deb7u1) stable-security; urgency=low
 
   [ Christoph Goehre ]
