@@ -4,6 +4,8 @@ BRANDING_DIR_ICEDOVE := mail/branding/icedove
 
 ICEDOVE_VERSION=$(shell tail -1 mail/config/version.txt)
 
+DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/buildflags.mk
 
 # special LDFLAGS for various platforms
 ifeq ($(DEB_BUILD_ARCH),alpha)
@@ -18,6 +20,7 @@ ifneq ($(DEB_BUILD_ARCH),ia64)
 endif
 # Also add execution time and memory usage stats in the logs
 LDFLAGS += -Wl,--stats
+
 
 %:
 	dh $@
