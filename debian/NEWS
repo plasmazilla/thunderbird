@@ -1,3 +1,15 @@
+icedove (24.5.0-1~deb7u1) stable-security; urgency=low
+
+  Due to a symbol versioning problem (#745593) Mozilla Ligthning isn't
+  compatible with Icedove 24. Please use the Debian package
+  iceowl-extension instead. To do so run icedove in safe-mode (icedove
+  -safe-mode), uninstall lightning and afterwards install iceowl-extension
+  via apt.
+
+  A fix to make Lightning and Icedove compatible again is in the works.
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 04 May 2014 10:31:48 -0400
+
 icedove (3.0.4-1) unstable; urgency=low
 
   The old profile folder ~/.mozilla-thunderbird will renamed into ~/.icedove on
