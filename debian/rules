@@ -4,7 +4,6 @@ BRANDING_DIR_ICEDOVE := mail/branding/icedove
 
 ICEDOVE_VERSION=$(shell tail -1 mail/config/version.txt)
 
-LDFLAGS += -Wl,--stats
 
 # special LDFLAGS for various platforms
 ifeq ($(DEB_BUILD_ARCH),alpha)
