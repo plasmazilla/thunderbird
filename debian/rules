@@ -22,6 +22,7 @@ endif
 # Also add execution time and memory usage stats in the logs
 LDFLAGS += -Wl,--stats
 
+export MOZCONFIG=$(shell pwd)/mozconfig.icedove
 
 %:
 	dh $@
@@ -57,16 +58,13 @@ override_dh_auto_configure:
 	cp debian/mozconfig.* mozilla/
 	# configure the various build settings
 	# icedove, icedove-dev, calendar-google-provider, iceowl-extension
-	export MOZCONFIG=$(shell pwd)/mozconfig.icedove; \
 	make -f client.mk configure
 
 override_dh_auto_build:
 	# building the stuff
-	export MOZCONFIG=$(shell pwd)/mozconfig.icedove; \
 	make -f client.mk build
 
 override_dh_auto_install:
-	export MOZCONFIG=$(shell pwd)/mozconfig.icedove; \
 	make -f client.mk install DESTDIR=$(CURDIR)/debian/tmp
 
 override_dh_install:
