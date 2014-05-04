@@ -28,6 +28,8 @@ export MOZCONFIG=$(shell pwd)/mozconfig.icedove
 	dh $@
 
 override_dh_auto_configure:
+	# update config.sub and config.guess
+	dh_autotools-dev_updateconfig
 	# run autoconf for all configure files
 	if [ "Z$(DEB_AUTO_UPDATE_AUTOCONF)" != Z ] || [ ! -e $(CURDIR)/configure ]; \
 	then cd $(CURDIR) && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
