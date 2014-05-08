@@ -104,7 +104,6 @@ override_dh_install:
 		debian/icedove/usr/share/icons/hicolor/scalable/apps/icedove.svg
 	# remove duplicate .so files in dev package
 	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libmozalloc.so
-	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libmozjs.so
 	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libxul.so
 
 override_dh_fixperms:

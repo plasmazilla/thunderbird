@@ -2,5 +2,4 @@ usr/lib/icedove/libprldap60.so   usr/lib/icedove-devel/sdk/lib/libprldap60.so
 usr/lib/icedove/libldap60.so     usr/lib/icedove-devel/sdk/lib/libldap60.so
 usr/lib/icedove/libldif60.so     usr/lib/icedove-devel/sdk/lib/libldif60.so
 usr/lib/icedove/libmozalloc.so   usr/lib/icedove-devel/sdk/lib/libmozalloc.so
-usr/lib/icedove/libmozjs.so      usr/lib/icedove-devel/sdk/lib/libmozjs.so
 usr/lib/icedove/libxul.so        usr/lib/icedove-devel/sdk/lib/libxul.so
