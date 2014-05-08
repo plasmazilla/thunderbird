@@ -23,6 +23,7 @@ endif
 LDFLAGS += -Wl,--stats
 
 export MOZCONFIG=$(shell pwd)/mozconfig.icedove
+export MOZILLA_OFFICIAL=1
 
 %:
 	dh $@
