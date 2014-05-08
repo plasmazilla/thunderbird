@@ -68,6 +68,8 @@ ac_add_options --with-default-mozilla-five-home=/usr/lib/icedove
 ac_add_options --with-user-appdir=.mozilla
 ac_add_options --disable-debug
 ac_add_options --prefix=/usr
+ac_add_options --build=$DEB_BUILD_GNU_TYPE
+ac_add_options --host=$DEB_HOST_GNU_TYPE
 #ac_add_options --with-libxul-sdk=
 
 # some platform depended things
