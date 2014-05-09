@@ -1,3 +1,20 @@
+icedove (24.5.0-2) unstable; urgency=low
+
+  * [e4a43ed] debian/rules: remove duplicate LDFLAGS += -Wl,--stats
+  * [f9dba4b] debian/rules: export all compiler flags into build environment
+  * [8dc0712] debian/rules: run autoconf for all configue files
+  * [95d4b48] debian/rules: export MOZCONFIG onces
+  * [577bd03] debian/rules: update config.sub and config.guess before autoconf
+    run
+  * [7f958c7] parse DEB_BUILD_OPTIONS for how many parallel buildjobs to start
+    (Closes: #746984)
+  * [0f8b062] debian/rules: export MOZILLA_OFFICIAL
+  * [1c3d277] run configure with --build and --host
+  * [f190e19] don't build a shared js library (Closes: #724688, #729073,
+    #745593)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 08 May 2014 20:07:06 -0400
+
 icedove (24.5.0-1) unstable; urgency=low
 
   [ Carsten Schoenert ]
