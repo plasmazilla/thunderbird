@@ -10,15 +10,20 @@
 #include <cmath>
 #include <limits>
 #include "mozilla/TypeTraits.h"
-#include "mozilla/Assertions.h"
-#include "AudioParamTimeline.h"
+#include "mozilla/FloatingPoint.h"
 #include "MediaSegment.h"
+
+// Forward declaration
+typedef struct SpeexResamplerState_ SpeexResamplerState;
 
 namespace mozilla {
 
 class AudioNodeStream;
+class MediaStream;
 
 namespace dom {
+
+class AudioParamTimeline;
 
 struct WebAudioUtils {
   // This is an arbitrary large number used to protect against OOMs.
@@ -44,15 +49,6 @@ struct WebAudioUtils {
   {
     return 1.0 - std::exp(-1.0 / (aDuration * aSampleRate));
   }
-
-  /**
-   * Convert a time in second relative to the destination stream to
-   * TrackTicks relative to the source stream.
-   */
-  static TrackTicks
-  ConvertDestinationStreamTimeToSourceStreamTime(double aTime,
-                                                 AudioNodeStream* aSource,
-                                                 MediaStream* aDestination);
 
   /**
    * Converts AudioParamTimeline floating point time values to tick values
@@ -108,14 +104,6 @@ struct WebAudioUtils {
   {
     return aTime >= 0 &&  aTime <= (MEDIA_TIME_MAX >> MEDIA_TIME_FRAC_BITS);
   }
-
-  /**
-   * Convert a stream position into the time coordinate of the destination
-   * stream.
-   */
-  static double StreamPositionToDestinationTime(TrackTicks aSourcePosition,
-                                                AudioNodeStream* aSource,
-                                                AudioNodeStream* aDestination);
 
   /**
    * Converts a floating point value to an integral type in a safe and
@@ -184,10 +172,10 @@ struct WebAudioUtils {
   {
     using namespace std;
 
-    MOZ_STATIC_ASSERT((mozilla::IsIntegral<IntType>::value == true),
-                      "IntType must be an integral type");
-    MOZ_STATIC_ASSERT((mozilla::IsFloatingPoint<FloatType>::value == true),
-                      "FloatType must be a floating point type");
+    static_assert(mozilla::IsIntegral<IntType>::value == true,
+                  "IntType must be an integral type");
+    static_assert(mozilla::IsFloatingPoint<FloatType>::value == true,
+                  "FloatType must be a floating point type");
 
     if (f != f) {
       // It is the responsibility of the caller to deal with NaN values.
@@ -210,6 +198,20 @@ struct WebAudioUtils {
     // Otherwise, this conversion must be well defined.
     return IntType(f);
   }
+
+  static void Shutdown();
+
+  static int
+  SpeexResamplerProcess(SpeexResamplerState* aResampler,
+                        uint32_t aChannel,
+                        const float* aIn, uint32_t* aInLen,
+                        float* aOut, uint32_t* aOutLen);
+
+  static int
+  SpeexResamplerProcess(SpeexResamplerState* aResampler,
+                        uint32_t aChannel,
+                        const int16_t* aIn, uint32_t* aInLen,
+                        float* aOut, uint32_t* aOutLen);
 };
 
 }

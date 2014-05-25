@@ -50,15 +50,9 @@ nsHTMLDNSPrefetch::Initialize()
   }
   
   sPrefetches = new nsHTMLDNSPrefetch::nsDeferrals();
-  if (!sPrefetches)
-    return NS_ERROR_OUT_OF_MEMORY;
   NS_ADDREF(sPrefetches);
 
   sDNSListener = new nsHTMLDNSPrefetch::nsListener();
-  if (!sDNSListener) {
-    NS_IF_RELEASE(sPrefetches);
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
   NS_ADDREF(sDNSListener);
 
   sPrefetches->Activate();
@@ -229,8 +223,8 @@ nsHTMLDNSPrefetch::CancelPrefetchLow(const nsAString &hostname, nsresult aReason
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsHTMLDNSPrefetch::nsListener,
-                              nsIDNSListener)
+NS_IMPL_ISUPPORTS1(nsHTMLDNSPrefetch::nsListener,
+                   nsIDNSListener)
 
 NS_IMETHODIMP
 nsHTMLDNSPrefetch::nsListener::OnLookupComplete(nsICancelable *request,
@@ -433,7 +427,7 @@ NS_IMETHODIMP
 nsHTMLDNSPrefetch::nsDeferrals::OnStatusChange(nsIWebProgress* aWebProgress,
                                                nsIRequest* aRequest,
                                                nsresult aStatus,
-                                               const PRUnichar* aMessage)
+                                               const char16_t* aMessage)
 {
   return NS_OK;
 }
@@ -451,7 +445,7 @@ nsHTMLDNSPrefetch::nsDeferrals::OnSecurityChange(nsIWebProgress *aWebProgress,
 NS_IMETHODIMP
 nsHTMLDNSPrefetch::nsDeferrals::Observe(nsISupports *subject,
                                         const char *topic,
-                                        const PRUnichar *data)
+                                        const char16_t *data)
 {
   if (!strcmp(topic, "xpcom-shutdown"))
     Flush();

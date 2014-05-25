@@ -169,7 +169,7 @@ public:
   //
   // Define QueryInterface, AddRef and Release for this class
   //
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
 
   nsMsgComposeAndSend();
   virtual     ~nsMsgComposeAndSend();
@@ -180,7 +180,7 @@ public:
   NS_IMETHOD  DeliverFileAsMail();
   NS_IMETHOD  DeliverFileAsNews();
   void        DoDeliveryExitProcessing(nsIURI * aUrl, nsresult aExitCode, bool aCheckForMail);
-  nsresult    FormatStringWithSMTPHostNameByID(nsresult aMsgId, PRUnichar **aString);
+  nsresult    FormatStringWithSMTPHostNameByID(nsresult aMsgId, char16_t **aString);
 
   nsresult    DoFcc();
   nsresult    StartMessageCopyOperation(nsIFile          *aFileSpec,

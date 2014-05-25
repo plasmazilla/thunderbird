@@ -5,15 +5,12 @@
 "use strict";
 
 let {Cu} = require("chrome");
-
+let Services = require("Services");
 let promise = require("sdk/core/promise");
 let {Class} = require("sdk/core/heritage");
 let {EventTarget} = require("sdk/event/target");
 let events = require("sdk/event/core");
 let object = require("sdk/util/object");
-
-// For telemetry
-Cu.import("resource://gre/modules/Services.jsm");
 
 // Waiting for promise.done() to be added, see bug 851321
 function promiseDone(err) {
@@ -81,6 +78,8 @@ types.getType = function(type) {
 
     if (collection === "array") {
       return types.addArrayType(subtype);
+    } else if (collection === "nullable") {
+      return types.addNullableType(subtype);
     }
 
     if (registeredLifetimes.has(collection)) {
@@ -103,6 +102,17 @@ types.getType = function(type) {
   }
 
   throw Error("Unknown type: " + type);
+}
+
+/**
+ * Don't allow undefined when writing primitive types to packets.  If
+ * you want to allow undefined, use a nullable type.
+ */
+function identityWrite(v) {
+  if (v === undefined) {
+    throw Error("undefined passed where a value is required");
+  }
+  return v;
 }
 
 /**
@@ -136,8 +146,8 @@ types.addType = function(name, typeObject={}, options={}) {
   let type = object.merge({
     name: name,
     primitive: !(typeObject.read || typeObject.write),
-    read: v => v,
-    write: v => v
+    read: identityWrite,
+    write: identityWrite
   }, typeObject);
 
   registeredTypes.set(name, type);
@@ -241,12 +251,13 @@ types.addActorType = function(name) {
       // Reading a response on the client side, check for an
       // existing front on the connection, and create the front
       // if it isn't found.
-      let front = ctx.conn.getActor(v.actor);
+      let actorID = typeof(v) === "string" ? v : v.actor;
+      let front = ctx.conn.getActor(actorID);
       if (front) {
         front.form(v, detail, ctx);
       } else {
         front = new type.frontClass(ctx.conn, v, detail, ctx)
-        front.actorID = v.actor;
+        front.actorID = actorID;
         ctx.marshallPool().manage(front);
       }
       return front;
@@ -270,6 +281,24 @@ types.addActorType = function(name) {
     thawed: true
   });
   return type;
+}
+
+types.addNullableType = function(subtype) {
+  subtype = types.getType(subtype);
+  return types.addType("nullable:" + subtype.name, {
+    read: (value, ctx) => {
+      if (value == null) {
+        return value;
+      }
+      return subtype.read(value, ctx);
+    },
+    write: (value, ctx) => {
+      if (value == null) {
+        return value;
+      }
+      return subtype.write(value, ctx);
+    }
+  });
 }
 
 /**
@@ -364,32 +393,19 @@ types.JSON = types.addType("json");
  *    The argument index to place at this position.
  * @param type type
  *    The argument should be marshalled as this type.
- * @param object options
- *    Argument options:
- *      optional: true if the argument can be undefined or null.
  * @constructor
  */
 let Arg = Class({
-  initialize: function(index, type, options={}) {
+  initialize: function(index, type) {
     this.index = index;
     this.type = types.getType(type);
-    this.optional = !!options.optional;
   },
 
   write: function(arg, ctx) {
-    if (arg === undefined || arg === null) {
-      if (!this.optional) throw Error("Required argument " + this.name + " not specified.");
-      return undefined;
-    }
     return this.type.write(arg, ctx);
   },
 
   read: function(v, ctx, outArgs) {
-    if (v === undefined || v === null) {
-      if (!this.optional) throw Error("Required argument " + this.name + " not specified.");
-      outArgs[this.index] = v;
-      return;
-    }
     outArgs[this.index] = this.type.read(v, ctx);
   }
 });
@@ -446,34 +462,18 @@ exports.Option = Option;
  *
  * @param type type
  *    The return value should be marshalled as this type.
- * @param object options
- *    Argument options:
- *      optional: true if the argument can be undefined or null.
  */
 let RetVal = Class({
-  initialize: function(type, options={}) {
+  initialize: function(type) {
     this.type = types.getType(type);
-    this.optional = !!options.optional;
   },
 
   write: function(v, ctx) {
-    if (v !== undefined && v != null) {
-      return this.type.write(v, ctx);
-    }
-    if (!this.optional) {
-      throw Error("Return value not specified.");
-    }
-    return v;
+    return this.type.write(v, ctx);
   },
 
   read: function(v, ctx) {
-    if (v !== undefined && v != null) {
-      return this.type.read(v, ctx);
-    }
-    if (!this.optional) {
-      throw Error("Return value not specified.");
-    }
-    return v;
+    return this.type.read(v, ctx);
   }
 });
 
@@ -821,6 +821,12 @@ let Actor = Class({
       message: err.toString()
     });
   },
+
+  _queueResponse: function(create) {
+    let pending = this._pendingResponse || promise.resolve(null);
+    let response = create(pending);
+    this._pendingResponse = response;
+  }
 });
 exports.Actor = Actor;
 
@@ -867,8 +873,8 @@ let actorProto = function(actorProto) {
       let frozenSpec = desc.value._methodSpec;
       let spec = {};
       spec.name = frozenSpec.name || name;
-      spec.request = Request(object.merge({type: spec.name}, frozenSpec.request));
-      spec.response = Response(frozenSpec.response);
+      spec.request = Request(object.merge({type: spec.name}, frozenSpec.request || undefined));
+      spec.response = Response(frozenSpec.response || undefined);
       spec.telemetry = frozenSpec.telemetry;
       spec.release = frozenSpec.release;
       spec.oneway = frozenSpec.oneway;
@@ -906,20 +912,27 @@ let actorProto = function(actorProto) {
           response.from = this.actorID;
           // If spec.release has been specified, destroy the object.
           if (spec.release) {
-            this.destroy();
+            try {
+              this.destroy();
+            } catch(e) {
+              this.writeError(e);
+              return;
+            }
           }
 
           conn.send(response);
         };
 
-        if (ret && ret.then) {
-          ret.then(sendReturn).then(null, this.writeError.bind(this));
-        } else {
-          sendReturn(ret);
-        }
-
+        this._queueResponse(p => {
+          return p
+            .then(() => ret)
+            .then(sendReturn)
+            .then(null, this.writeError.bind(this));
+        })
       } catch(e) {
-        this.writeError(e);
+        this._queueResponse(p => {
+          return p.then(() => this.writeError(e));
+        });
       }
     };
 
@@ -977,6 +990,12 @@ let Front = Class({
   },
 
   destroy: function() {
+    // Reject all outstanding requests, they won't make sense after
+    // the front is destroyed.
+    while (this._requests && this._requests.length > 0) {
+      let deferred = this._requests.shift();
+      deferred.reject(new Error("Connection closed"));
+    }
     Pool.prototype.destroy.call(this);
     this.actorID = null;
   },
@@ -1036,7 +1055,10 @@ let Front = Class({
 
     // Remaining packets must be responses.
     if (this._requests.length === 0) {
-      throw Error("Unexpected packet from " + this.actorID + ", " + packet.type);
+      let msg = "Unexpected packet " + this.actorID + ", " + JSON.stringify(packet);
+      let err = Error(msg);
+      console.error(err);
+      throw err;
     }
 
     let deferred = this._requests.shift();

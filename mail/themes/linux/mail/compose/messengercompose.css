@@ -120,6 +120,14 @@ toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
   list-style-image: url("moz-icon://stock/gtk-paste?size=toolbar&state=disabled");
 }
 
+#button-print {
+  list-style-image: url("moz-icon://stock/gtk-print?size=toolbar");
+}
+
+#button-print[disabled="true"] {
+  list-style-image: url("moz-icon://stock/gtk-print?size=toolbar&state=disabled");
+}
+
 /* ::::: small primary toolbar buttons ::::: */
 
 toolbar[iconsize="small"] #button-send {
@@ -127,7 +135,7 @@ toolbar[iconsize="small"] #button-send {
   -moz-image-region: rect(144px 16px 160px 0px);
 }
 
-toolbar[iconsize="small"] #button-send[disabled] {
+toolbar[iconsize="small"] #button-send[disabled="true"] {
   -moz-image-region: rect(128px 16px 144px 0px) !important;
 }
 
@@ -136,7 +144,7 @@ toolbar[iconsize="small"] #button-contacts {
   -moz-image-region: rect(16px 16px 32px 0px) !important;
 }
 
-toolbar[iconsize="small"] #button-contacts[disabled] {
+toolbar[iconsize="small"] #button-contacts[disabled="true"] {
   -moz-image-region: rect(0px 16px 16px 0px) !important;
 }
 
@@ -153,7 +161,7 @@ toolbar[iconsize="small"] #button-attach {
   -moz-image-region: rect(48px 16px 64px 0px);
 }
 
-toolbar[iconsize="small"] #button-attach[disabled] {
+toolbar[iconsize="small"] #button-attach[disabled="true"] {
   -moz-image-region: rect(32px 16px 48px 0px) !important;
 }
 
@@ -161,7 +169,7 @@ toolbar[iconsize="small"] #button-save {
   list-style-image: url("moz-icon://stock/gtk-save?size=menu");
 }
 
-toolbar[iconsize="small"] #button-save[disabled] {
+toolbar[iconsize="small"] #button-save[disabled="true"] {
   list-style-image: url("moz-icon://stock/gtk-save?size=menu&state=disabled");
 }
 
@@ -189,6 +197,7 @@ toolbar[iconsize="small"] #copy-button {
 toolbar[iconsize="small"] #copy-button[disabled="true"] {
   list-style-image: url("moz-icon://stock/gtk-copy?size=menu&state=disabled");
 }
+
 toolbar[iconsize="small"] #paste-button {
   list-style-image: url("moz-icon://stock/gtk-paste?size=menu");
 }
@@ -197,19 +206,26 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
   list-style-image: url("moz-icon://stock/gtk-paste?size=menu&state=disabled");
 }
 
+toolbar[iconsize="small"] #button-print {
+  list-style-image: url("moz-icon://stock/gtk-print?size=menu");
+}
+
+toolbar[iconsize="small"] #button-print[disabled="true"] {
+  list-style-image: url("moz-icon://stock/gtk-print?size=menu&state=disabled");
+}
+
 #priority-button:not(:-moz-lwtheme) > label {
   color: MenuText;
 }
 
 /* ::::: special toolbar colors ::::: */
 
-#appcontent {
-  border-bottom: 1px solid ThreeDShadow;
-}
-
 #attachmentbucket-sizer {
   border-top: none;
-  border-bottom: none;
+}
+
+#attachments-box {
+  padding-top: 5px;
 }
 
 #attachmentBucketSize {
@@ -251,19 +267,37 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
   margin-top: 2px;
 }
 
-#compose-toolbar-sizer {
-  -moz-appearance: none;
-  position: relative;
-  z-index: 10;
-  min-height: 0;
-  height: 5px;
-  margin-top: -5px;
-  border-bottom: 1px solid ThreeDShadow;
+#subjectLabel {
+  padding-bottom: 1px;
+}
+
+#subject-box {
+  -moz-margin-start: -2px;
 }
 
 #msgSubject {
-  margin-top: 0px;
-  margin-bottom: 4px;
+  -moz-appearance: none;
+  margin-top: 0;
+  -moz-margin-start: 6px;
+  -moz-margin-end: 5px;
+  background-color: inherit;
+  border-color: transparent;
+  -moz-border-top-colors: none;
+  -moz-border-left-colors: none;
+  -moz-border-right-colors: none;
+  -moz-border-bottom-colors: ThreeDShadow ThreeDHighlight;
+  padding: 2px;
+  -moz-padding-start: 5px !important;
+  transition: border .2s, background-color .2s;
+}
+
+#msgSubject:hover,
+#msgSubject[focused="true"] {
+  background-color: -moz-field;
+  -moz-border-top-colors: ThreeDShadow ThreeDHighlight;
+  -moz-border-right-colors: ThreeDShadow ThreeDHighlight;
+  -moz-border-bottom-colors: ThreeDShadow ThreeDHighlight;
+  -moz-border-left-colors: ThreeDShadow ThreeDHighlight;
 }
 
 /* ::::: autocomplete icons ::::: */
@@ -286,6 +320,13 @@ treechildren::-moz-tree-image(remote-err) {
   list-style-image: url("chrome://messenger/skin/addressbook/icons/remote-addrbook-error.png");
 }
 
+treechildren::-moz-tree-image(subscribed-news) {
+  -moz-margin-start: 3px;
+  -moz-margin-end: 2px;
+  list-style-image: url("chrome://messenger/skin/icons/folder-pane.png");
+  -moz-image-region: rect(208px 16px 224px 0px);
+}
+
 /* ::::: addressing widget ::::: */
 
 .autocomplete-treebody::-moz-tree-cell-text(comment) {
@@ -296,44 +337,63 @@ treechildren::-moz-tree-image(remote-err) {
   -moz-user-focus: none;
   -moz-appearance: none;
   width: 0;
+  margin-top: 0;
+  margin-bottom: 0;
   border: none;
   background-color: transparent;
 }
 
 #addressingWidget listboxbody {
   margin: 1px 0;
-}
-
-#textcol-addressingWidget {
-  border: 1px solid threedshadow;
-  background-color: -moz-field;
+  background-color: transparent;
 }
 
 .addressingWidgetItem,
 .dummy-row {
-  border: none !important;
   background-color: transparent !important;
   color: inherit !important;
 }
 
-.addressingWidgetCell {
-  border-bottom: 1px solid #CACAFF;
-  padding: 0px;
-}
+.textbox-addressingWidget,
+.dummy-row-cell:not(:first-child) {
+  padding: 2px !important;
+  border: solid 2px transparent !important;
+  -moz-border-top-colors: none !important;
+  -moz-border-left-colors: none !important;
+  -moz-border-right-colors: none !important;
+  -moz-border-bottom-colors: ThreeDShadow ThreeDHighlight !important;
+  transition: border .2s, background-color .2s;
+ }
 
 .addressingWidgetCell:first-child,
 .dummy-row-cell:first-child {
   border-bottom-color: transparent;
 }
 
-.person-icon {
-  margin: 0 3px;
-  list-style-image: url("chrome://messenger/skin/addressbook/icons/abcard.png");
+.textbox-addressingWidget[focused="true"],
+.textbox-addressingWidget:hover {
+  background-color: -moz-field;
+  -moz-border-top-colors: ThreeDShadow ThreeDHighlight !important;
+  -moz-border-right-colors: ThreeDShadow ThreeDHighlight !important;
+  -moz-border-bottom-colors: ThreeDShadow ThreeDHighlight !important;
+  -moz-border-left-colors: ThreeDShadow ThreeDHighlight !important;
 }
 
 .aw-menulist {
-  -moz-appearance: button;
+  -moz-appearance: none;
+  -moz-margin-start: 5px;
   -moz-margin-end: 7px;
+  background-color: rgba(125, 125, 125, .3);
+  border: rgba(125, 125, 125, .4) 1px solid;
+  transition: background-color .25s ease-in;
+}
+
+.aw-menulist:-moz-window-inactive {
+  opacity: .7;
+}
+
+.aw-menulist:hover {
+  background-color: rgba(125, 125, 125, .4);
 }
 
 .aw-menulist > .menulist-label-box {
@@ -344,17 +404,75 @@ treechildren::-moz-tree-image(remote-err) {
   height: 11px;
 }
 
+#composeContentBox {
+  background-color: -moz-dialog;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.4) inset;
+
+  /*
+   * In order to remove the shadow border on left/right edges elegantly,
+   * use left/right margins of -3px. We make up for this by adding 3px 
+   * of padding instead.
+   */
+
+  margin-right: -3px;
+  margin-left: -3px;
+  padding-right: 3px;
+  padding-left: 3px;
+}
+
+#composeContentBox:-moz-window-inactive {
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.3) inset;
+}
+
+#headers-box {
+  background-color: transparent;
+}
+
 #MsgHeadersToolbar {
-  -moz-appearance: toolbar;
+  -moz-appearance: none !important;
   color: WindowText;
   text-shadow: none;
+  background-image: url("chrome://messenger/skin/messengercompose/linux-noise.png");
+  padding-top: 3px;
+}
+
+#identityLabel {
+  padding-top: 3px;
+}
+
+#msgIdentity {
+  -moz-appearance: none;
+  margin-right: 5px;
+  margin-bottom: 0;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  -moz-padding-end: 30px;
+  background: transparent;
+  height: 22px;
+  line-height: 1;
+  border: 2px solid transparent;
+  -moz-border-bottom-colors: ThreeDShadow ThreeDHighlight;
+  background: url("chrome://global/skin/arrow/arrow-dn.gif") no-repeat;
+  background-position: 99%;
+  transition: border .2s, background-color .2s;
+}
+
+#msgIdentity:hover {
+  background-color: -moz-field;
+  -moz-border-top-colors: ThreeDShadow ThreeDHighlight;
+  -moz-border-right-colors: ThreeDShadow ThreeDHighlight;
+  -moz-border-bottom-colors: ThreeDShadow ThreeDHighlight;
+  -moz-border-left-colors: ThreeDShadow ThreeDHighlight;
 }
 
 /* ::::: format toolbar ::::: */
 
 #FormatToolbar {
-  -moz-appearance: toolbar;
+  -moz-appearance: none;
   color: WindowText;
+  margin-left: 3px;
+  margin-right: 3px;
+  background-image: url("chrome://messenger/skin/messengercompose/linux-noise.png");
 }
 
 toolbarbutton.formatting-button {

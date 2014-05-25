@@ -341,11 +341,10 @@ private:
   {
     MOZ_ASSERT(!mFlags.mHasHashedFrames);
     uint32_t count = GetChildCount();
-    mFrames = new nsTHashtable< nsPtrHashKey<nsIFrame> >();
     mFlags.mHasHashedFrames = 1;
     uint32_t minSize =
       std::max(kMinChildCountForHashtable, uint32_t(PL_DHASH_MIN_SIZE));
-    mFrames->Init(std::max(count, minSize));
+    mFrames = new nsTHashtable< nsPtrHashKey<nsIFrame> >(std::max(count, minSize));
     for (nsIFrame* f = mFirstChild; count-- > 0; f = f->GetNextSibling()) {
       mFrames->PutEntry(f);
     }
@@ -400,7 +399,10 @@ public:
   }
   void SetBreakTypeBefore(uint8_t aBreakType) {
     NS_ASSERTION(IsBlock(), "Only blocks have break-before");
-    NS_ASSERTION(aBreakType <= NS_STYLE_CLEAR_LEFT_AND_RIGHT,
+    NS_ASSERTION(aBreakType == NS_STYLE_CLEAR_NONE ||
+                 aBreakType == NS_STYLE_CLEAR_LEFT ||
+                 aBreakType == NS_STYLE_CLEAR_RIGHT ||
+                 aBreakType == NS_STYLE_CLEAR_BOTH,
                  "Only float break types are allowed before a line");
     mFlags.mBreakType = aBreakType;
   }
@@ -419,7 +421,7 @@ public:
   bool HasFloatBreakAfter() const {
     return !IsBlock() && (NS_STYLE_CLEAR_LEFT == mFlags.mBreakType ||
                           NS_STYLE_CLEAR_RIGHT == mFlags.mBreakType ||
-                          NS_STYLE_CLEAR_LEFT_AND_RIGHT == mFlags.mBreakType);
+                          NS_STYLE_CLEAR_BOTH == mFlags.mBreakType);
   }
   uint8_t GetBreakTypeAfter() const {
     return !IsBlock() ? mFlags.mBreakType : NS_STYLE_CLEAR_NONE;
@@ -497,10 +499,11 @@ public:
                                     nsIFrame* aLastFrameBeforeEnd,
                                     int32_t* aFrameIndexInLine);
 
-#ifdef DEBUG
+#ifdef DEBUG_FRAME_DUMP
   char* StateToString(char* aBuf, int32_t aBufSize) const;
 
   void List(FILE* out, int32_t aIndent, uint32_t aFlags = 0) const;
+  void List(FILE* out = stderr, const char* aPrefix = "", uint32_t aFlags = 0) const;
   nsIFrame* LastChild() const;
 #endif
 

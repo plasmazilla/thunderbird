@@ -3,15 +3,13 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-MODULE = 'msgbase'
-
 EXPORTS += [
     'nsMailDirServiceDefs.h',
     'nsMsgRDFDataSource.h',
     'nsMsgRDFUtils.h',
 ]
 
-CPP_SOURCES += [
+SOURCES += [
     'MailNewsDLF.cpp',
     'nsCidProtocolHandler.cpp',
     'nsCopyMessageStreamListener.cpp',
@@ -56,17 +54,15 @@ CPP_SOURCES += [
 ]
 
 if CONFIG['NS_PRINTING']:
-    CPP_SOURCES += ['nsMsgPrintEngine.cpp']
+    SOURCES += ['nsMsgPrintEngine.cpp']
 
 if CONFIG['OS_ARCH'] == 'WINNT':
-    CPP_SOURCES += ['nsMessengerWinIntegration.cpp']
-elif CONFIG['OS_ARCH'] == 'OS2':
-    CPP_SOURCES += ['nsMessengerOS2Integration.cpp']
+    SOURCES += ['nsMessengerWinIntegration.cpp']
 
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gtk2':
-    CPP_SOURCES += ['nsMessengerUnixIntegration.cpp']
+    SOURCES += ['nsMessengerUnixIntegration.cpp']
 elif CONFIG['MOZ_WIDGET_TOOLKIT'] == 'cocoa':
-    CMMSRCS += ['nsMessengerOSXIntegration.mm']
+    SOURCES += ['nsMessengerOSXIntegration.mm']
 
 EXTRA_COMPONENTS += [
     'msgAsyncPrompter.js',
@@ -78,4 +74,6 @@ EXTRA_COMPONENTS += [
 EXTRA_JS_MODULES += [
     'virtualFolderWrapper.js',
 ]
+
+FINAL_LIBRARY = 'mail'
 

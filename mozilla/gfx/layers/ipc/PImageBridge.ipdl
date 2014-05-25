@@ -4,14 +4,15 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 include LayersSurfaces;
-include LayerTransaction;
+include LayersMessages;
 include protocol PGrallocBuffer;
 include protocol PCompositable;
+include protocol PTexture;
+include ProtocolTypes;
 
-include "mozilla/layers/CompositorTypes.h";
+include "mozilla/GfxMessageUtils.h";
 
-using ImageHandle;
-using mozilla::layers::TextureInfo;
+using struct mozilla::layers::TextureInfo from "mozilla/layers/CompositorTypes.h";
 
 namespace mozilla {
 namespace layers {
@@ -21,10 +22,11 @@ namespace layers {
  * frames directly to the compositor thread/process without relying on the main thread
  * which might be too busy dealing with content script.
  */
-/*FIXME: sync*/ rpc protocol PImageBridge
+intr protocol PImageBridge
 {
   manages PCompositable;
   manages PGrallocBuffer;
+  manages PTexture;
 
 parent:
 
@@ -36,7 +38,7 @@ parent:
   // buffer directly. The format is a enum defined in
   // system/graphics.h and the usage is the GraphicBuffer usage
   // flag. See GraphicBuffer.h and gralloc.h.
-  sync PGrallocBuffer(gfxIntSize size, uint32_t format, uint32_t usage)
+  sync PGrallocBuffer(IntSize size, uint32_t format, uint32_t usage)
     returns (MaybeMagicGrallocBufferHandle handle);
 
   // First step of the destruction sequence. This puts all the ImageContainerParents
@@ -49,6 +51,7 @@ parent:
   sync Stop();
 
   sync PCompositable(TextureInfo aInfo) returns (uint64_t id);
+  async PTexture(SurfaceDescriptor aSharedData, uint32_t aTextureFlags);
 };
 
 

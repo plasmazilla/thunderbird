@@ -79,6 +79,7 @@ CSRCS =             \
 	multiacc.c		\
 	multiwait.c		\
 	many_cv.c		\
+	monref.c		\
 	nameshm1.c      \
 	nbconn.c		\
 	nblayer.c		\
@@ -119,6 +120,7 @@ CSRCS =             \
 	randseed.c      \
 	reinit.c        \
 	rmdir.c			\
+	rwlockrank.c    \
 	rwlocktest.c    \
 	sel_spd.c  		\
 	selct_er.c	    \

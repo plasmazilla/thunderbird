@@ -3,7 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "mozilla/Util.h"
+#include "mozilla/ArrayUtils.h"
 
 #include "nsPrintDialogX.h"
 #include "nsIPrintSettings.h"
@@ -49,11 +49,12 @@ nsPrintDialogServiceX::Show(nsIDOMWindow *aParent, nsIPrintSettings *aSettings,
     return NS_ERROR_FAILURE;
 
   // Set the print job title
-  PRUnichar** docTitles;
+  char16_t** docTitles;
   uint32_t titleCount;
   nsresult rv = aWebBrowserPrint->EnumerateDocumentNames(&titleCount, &docTitles);
   if (NS_SUCCEEDED(rv) && titleCount > 0) {
-    CFStringRef cfTitleString = CFStringCreateWithCharacters(NULL, docTitles[0], NS_strlen(docTitles[0]));
+    CFStringRef cfTitleString = CFStringCreateWithCharacters(NULL, reinterpret_cast<const UniChar*>(docTitles[0]),
+                                                             NS_strlen(docTitles[0]));
     if (cfTitleString) {
       ::PMPrintSettingsSetJobName(settingsX->GetPMPrintSettings(), cfTitleString);
       CFRelease(cfTitleString);
@@ -168,7 +169,7 @@ nsPrintDialogServiceX::ShowPageSetup(nsIDOMWindow *aParent,
 - (NSButton*)checkboxWithLabel:(const char*)aLabel andFrame:(NSRect)aRect;
 
 - (NSPopUpButton*)headerFooterItemListWithFrame:(NSRect)aRect
-                                   selectedItem:(const PRUnichar*)aCurrentString;
+                                   selectedItem:(const char16_t*)aCurrentString;
 
 - (void)addOptionsSection;
 
@@ -297,7 +298,7 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
 }
 
 - (NSPopUpButton*)headerFooterItemListWithFrame:(NSRect)aRect
-                                   selectedItem:(const PRUnichar*)aCurrentString
+                                   selectedItem:(const char16_t*)aCurrentString
 {
   NSPopUpButton* list = [[[NSPopUpButton alloc] initWithFrame:aRect pullsDown:NO] autorelease];
   [list setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];

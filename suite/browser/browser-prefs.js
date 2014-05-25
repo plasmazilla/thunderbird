@@ -91,7 +91,7 @@ pref("browser.findbar.enabled", true);
 pref("browser.doorhanger.enabled", true);
 
 // search engines URL
-pref("browser.search.searchEnginesURL", "https://addons.mozilla.org/%LOCALE%/%APP%/search-engines/");
+pref("browser.search.searchEnginesURL", "https://addons.mozilla.org/%LOCALE%/%APP%/search/?atype=4");
 
 // pointer to the default engine name
 pref("browser.search.defaultenginename", "chrome://communicator-region/locale/region.properties");
@@ -132,6 +132,7 @@ pref("keyword.URL", "");
 
 pref("browser.urlbar.autocomplete.enabled", true);
 pref("browser.urlbar.formatting.enabled", true);
+pref("browser.urlbar.highlight.secure", true);
 pref("browser.urlbar.clickSelectsAll", true);
 // when clickSelectsAll=true, does it also apply when the click is past end of text?
 pref("browser.urlbar.clickAtEndSelects", true);
@@ -290,6 +291,7 @@ pref("browser.link.open_newwindow.restriction", 2);
 // Translation service
 pref("browser.translation.service", "chrome://navigator-region/locale/region.properties");
 pref("browser.translation.serviceDomain", "chrome://navigator-region/locale/region.properties");
+pref("browser.validate.html.service", "chrome://navigator-region/locale/region.properties");
 
 // 0 goes back
 // 1 act like pgup
@@ -637,7 +639,6 @@ pref("extensions.modern@themes.mozilla.org.description", "chrome://navigator/loc
 
 pref("xpinstall.enabled", true);
 pref("xpinstall.whitelist.add", "addons.mozilla.org");
-pref("xpinstall.whitelist.add.36", "getpersonas.com");
 
 pref("lightweightThemes.update.enabled", true);
 
@@ -784,9 +785,9 @@ pref("security.alternate_certificate_error_page", "certerror");
 pref("security.warn_entering_secure", false);
 pref("security.warn_leaving_secure", false);
 pref("security.warn_submit_insecure", false);
-pref("security.warn_viewing_mixed", true);
+pref("security.warn_viewing_mixed", false);
 pref("security.warn_mixed_active_content", true);
-pref("security.warn_mixed_display_content", false);
+pref("security.warn_mixed_display_content", true);
 // Block insecure active content on https pages
 pref("security.mixed_content.block_active_content", true);
 // Turn on the CSP 1.0 parser for Content Security Policy headers
@@ -869,6 +870,7 @@ pref("services.sync.prefs.sync.mailnews.display.prefer_plaintext", true);
 pref("services.sync.prefs.sync.mailnews.display.show_all_body_parts_menu", true);
 pref("services.sync.prefs.sync.mailnews.emptyTrash.dontAskAgain", true);
 pref("services.sync.prefs.sync.mailnews.filters.confirm_delete", true);
+pref("services.sync.prefs.sync.mailnews.forward_header_originalmessage", true);
 pref("services.sync.prefs.sync.mailnews.headers.extraExpandedHeaders", true);
 pref("services.sync.prefs.sync.mailnews.headers.showMessageId", true);
 pref("services.sync.prefs.sync.mailnews.headers.showOrganization", true);
@@ -910,6 +912,7 @@ pref("services.sync.prefs.sync.network.cookie.cookieBehavior", true);
 pref("services.sync.prefs.sync.network.cookie.lifetimePolicy", true);
 pref("services.sync.prefs.sync.permissions.default.image", true);
 pref("services.sync.prefs.sync.privacy.donottrackheader.enabled", true);
+pref("services.sync.prefs.sync.privacy.donottrackheader.value", true);
 pref("services.sync.prefs.sync.privacy.item.cache", true);
 pref("services.sync.prefs.sync.privacy.item.cookies", true);
 pref("services.sync.prefs.sync.privacy.item.downloads", true);
@@ -919,6 +922,7 @@ pref("services.sync.prefs.sync.privacy.item.offlineApps", true);
 pref("services.sync.prefs.sync.privacy.item.passwords", true);
 pref("services.sync.prefs.sync.privacy.item.sessions", true);
 pref("services.sync.prefs.sync.privacy.item.urlbar", true);
+pref("services.sync.prefs.sync.privacy.sanitize.promptOnSanitize", true);
 pref("services.sync.prefs.sync.privacy.sanitize.sanitizeOnShutdown", true);
 pref("services.sync.prefs.sync.security.OCSP.enabled", true);
 pref("services.sync.prefs.sync.security.OCSP.require", true);

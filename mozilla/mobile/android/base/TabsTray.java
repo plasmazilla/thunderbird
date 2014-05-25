@@ -5,6 +5,9 @@
 
 package org.mozilla.gecko;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.mozilla.gecko.animation.PropertyAnimator;
 import org.mozilla.gecko.animation.PropertyAnimator.Property;
 import org.mozilla.gecko.animation.ViewHelper;
@@ -14,7 +17,6 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
-import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -27,9 +29,6 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class TabsTray extends TwoWayView
                       implements TabsPanel.PanelView {
@@ -49,6 +48,7 @@ public class TabsTray extends TwoWayView
     private static final int ANIMATION_DURATION = 250;
 
     private static final String ABOUT_HOME = "about:home";
+    private int mOriginalSize = 0;
 
     public TabsTray(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -201,11 +201,22 @@ public class TabsTray extends TwoWayView
         // Updates the selected position in the list so that it will be scrolled to the right place.
         private void updateSelectedPosition() {
             int selected = getPositionForTab(Tabs.getInstance().getSelectedTab());
-            for (int i=0; i < getCount(); i++)
-                 TabsTray.this.setItemChecked(i, (i == selected));
+            updateSelectedStyle(selected);
 
-            if (selected != -1)
+            if (selected != -1) {
                 TabsTray.this.setSelection(selected);
+            }
+        }
+
+        /**
+         * Updates the selected/unselected style for the tabs.
+         *
+         * @param selected position of the selected tab
+         */
+        private void updateSelectedStyle(int selected) {
+            for (int i = 0; i < getCount(); i++) {
+                TabsTray.this.setItemChecked(i, (i == selected));
+            }
         }
 
         public void clear() {
@@ -239,7 +250,9 @@ public class TabsTray extends TwoWayView
             if (tab.isPrivate() == mIsPrivate && mTabs != null) {
                 mTabs.remove(tab);
                 notifyDataSetChanged(); // Be sure to call this whenever mTabs changes.
-                updateSelectedPosition();
+
+                int selected = getPositionForTab(Tabs.getInstance().getSelectedTab());
+                updateSelectedStyle(selected);
             }
         }
 
@@ -250,15 +263,30 @@ public class TabsTray extends TwoWayView
             row.id = tab.getId();
 
             Drawable thumbnailImage = tab.getThumbnail();
-            if (thumbnailImage != null)
+            if (thumbnailImage != null) {
                 row.thumbnail.setImageDrawable(thumbnailImage);
-            else if (TextUtils.equals(tab.getURL(), ABOUT_HOME))
+            } else if (AboutPages.isAboutHome(tab.getURL())) {
                 row.thumbnail.setImageResource(R.drawable.abouthome_thumbnail);
-            else
+            } else {
                 row.thumbnail.setImageResource(R.drawable.tab_thumbnail_default);
+            }
 
             row.title.setText(tab.getDisplayTitle());
             row.close.setTag(row);
+        }
+
+        private void resetTransforms(View view) {
+            ViewHelper.setAlpha(view, 1);
+            if (mOriginalSize == 0)
+                return;
+
+            if (isVertical()) {
+                ViewHelper.setHeight(view, mOriginalSize);
+                ViewHelper.setTranslationX(view, 0);
+            } else {
+                ViewHelper.setWidth(view, mOriginalSize);
+                ViewHelper.setTranslationY(view, 0);
+            }
         }
 
         @Override
@@ -272,6 +300,9 @@ public class TabsTray extends TwoWayView
                 convertView.setTag(row);
             } else {
                 row = (TabRow) convertView.getTag();
+                // If we're recycling this view, there's a chance it was transformed during
+                // the close animation. Remove any of those properties.
+                resetTransforms(convertView);
             }
 
             Tab tab = mTabs.get(position);
@@ -297,7 +328,7 @@ public class TabsTray extends TwoWayView
         mCloseAnimationCount++;
         mPendingClosedTabs.add(view);
 
-        animator.setPropertyAnimationListener(new PropertyAnimator.PropertyAnimationListener() {
+        animator.addPropertyAnimationListener(new PropertyAnimator.PropertyAnimationListener() {
             @Override
             public void onPropertyAnimationStart() { }
             @Override
@@ -331,23 +362,15 @@ public class TabsTray extends TwoWayView
 
         TabRow tab = (TabRow)view.getTag();
         final int tabId = tab.id;
-        final int originalSize = (isVertical ? view.getHeight() : view.getWidth());
+        // Caching this assumes that all rows are the same height
+	if (mOriginalSize == 0)
+            mOriginalSize = (isVertical ? view.getHeight() : view.getWidth());
 
-        animator.setPropertyAnimationListener(new PropertyAnimator.PropertyAnimationListener() {
+        animator.addPropertyAnimationListener(new PropertyAnimator.PropertyAnimationListener() {
             @Override
             public void onPropertyAnimationStart() { }
             @Override
             public void onPropertyAnimationEnd() {
-                ViewHelper.setAlpha(view, 1);
-
-                if (isVertical) {
-                    ViewHelper.setHeight(view, originalSize);
-                    ViewHelper.setTranslationX(view, 0);
-                } else {
-                    ViewHelper.setWidth(view, originalSize);
-                    ViewHelper.setTranslationY(view, 0);
-                }
-
                 Tabs tabs = Tabs.getInstance();
                 Tab tab = tabs.getTab(tabId);
                 tabs.closeTab(tab);
@@ -367,7 +390,7 @@ public class TabsTray extends TwoWayView
             animator.attach(view, Property.TRANSLATION_Y, 0);
 
 
-        animator.setPropertyAnimationListener(new PropertyAnimator.PropertyAnimationListener() {
+        animator.addPropertyAnimationListener(new PropertyAnimator.PropertyAnimationListener() {
             @Override
             public void onPropertyAnimationStart() { }
             @Override

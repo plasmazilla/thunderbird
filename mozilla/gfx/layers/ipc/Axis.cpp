@@ -1,124 +1,99 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set sw=4 ts=8 et tw=80 : */
+/* vim: set sw=2 ts=8 et tw=80 : */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "Axis.h"
-#include "AsyncPanZoomController.h"
-#include "mozilla/Preferences.h"
-#include "nsThreadUtils.h"
-#include <algorithm>
+#include <math.h>                       // for fabsf, pow, powf
+#include <algorithm>                    // for max
+#include "AsyncPanZoomController.h"     // for AsyncPanZoomController
+#include "mozilla/layers/APZCTreeManager.h" // for APZCTreeManager
+#include "FrameMetrics.h"               // for FrameMetrics
+#include "mozilla/Attributes.h"         // for MOZ_FINAL
+#include "mozilla/Preferences.h"        // for Preferences
+#include "mozilla/gfx/Rect.h"           // for RoundedIn
+#include "mozilla/mozalloc.h"           // for operator new
+#include "nsMathUtils.h"                // for NS_lround
+#include "nsThreadUtils.h"              // for NS_DispatchToMainThread, etc
+#include "nscore.h"                     // for NS_IMETHOD
+#include "gfxPrefs.h"                   // for the preferences
 
 namespace mozilla {
 namespace layers {
 
-static const float EPSILON = 0.0001f;
+/**
+ * These are the preferences that control the behavior of APZ
+ */
 
 /**
+ * "apz.max_event_acceleration"
+ *
  * Maximum acceleration that can happen between two frames. Velocity is
  * throttled if it's above this. This may happen if a time delta is very low,
  * or we get a touch point very far away from the previous position for some
  * reason.
+ *
+ * The default value is 999.0f, set in gfxPrefs.h
  */
-static float gMaxEventAcceleration = 999.0f;
 
 /**
+ * "apz.fling_friction"
+ *
  * Amount of friction applied during flings.
+ *
+ * The default value is 0.002f, set in gfxPrefs.h
  */
-static float gFlingFriction = 0.006f;
 
 /**
- * Threshold for velocity beneath which we turn off any acceleration we had
- * during repeated flings.
- */
-static float gVelocityThreshold = 0.14f;
-
-/**
- * Amount of acceleration we multiply in each time the user flings in one
- * direction. Every time they let go of the screen, we increase the acceleration
- * by this amount raised to the power of the amount of times they have let go,
- * times two (to make the curve steeper).  This stops if the user lets go and we
- * slow down enough, or if they put their finger down without moving it for a
- * moment (or in the opposite direction).
- */
-static float gAccelerationMultiplier = 1.125f;
-
-/**
+ * "apz.fling_stopped_threshold"
+ *
  * When flinging, if the velocity goes below this number, we just stop the
  * animation completely. This is to prevent asymptotically approaching 0
  * velocity and rerendering unnecessarily.
+ *
+ * The default value is 0.01f, set in gfxPrefs.h.
  */
-static float gFlingStoppedThreshold = 0.01f;
 
 /**
+ * "apz.max_velocity_queue_size"
+ *
  * Maximum size of velocity queue. The queue contains last N velocity records.
  * On touch end we calculate the average velocity in order to compensate
  * touch/mouse drivers misbehaviour.
+ *
+ * The default value is 5, set in gfxPrefs.h
  */
-static int gMaxVelocityQueueSize = 5;
 
-static void ReadAxisPrefs()
-{
-  Preferences::AddFloatVarCache(&gMaxEventAcceleration, "gfx.axis.max_event_acceleration", gMaxEventAcceleration);
-  Preferences::AddFloatVarCache(&gFlingFriction, "gfx.axis.fling_friction", gFlingFriction);
-  Preferences::AddFloatVarCache(&gVelocityThreshold, "gfx.axis.velocity_threshold", gVelocityThreshold);
-  Preferences::AddFloatVarCache(&gAccelerationMultiplier, "gfx.axis.acceleration_multiplier", gAccelerationMultiplier);
-  Preferences::AddFloatVarCache(&gFlingStoppedThreshold, "gfx.axis.fling_stopped_threshold", gFlingStoppedThreshold);
-  Preferences::AddIntVarCache(&gMaxVelocityQueueSize, "gfx.axis.max_velocity_queue_size", gMaxVelocityQueueSize);
-}
-
-class ReadAxisPref MOZ_FINAL : public nsRunnable {
-public:
-  NS_IMETHOD Run()
-  {
-    ReadAxisPrefs();
-    return NS_OK;
-  }
-};
-
-static void InitAxisPrefs()
-{
-  static bool sInitialized = false;
-  if (sInitialized)
-    return;
-
-  sInitialized = true;
-  if (NS_IsMainThread()) {
-    ReadAxisPrefs();
-  } else {
-    // We have to dispatch an event to the main thread to read the pref.
-    NS_DispatchToMainThread(new ReadAxisPref());
-  }
-}
+/**
+ * "apz.max_velocity_inches_per_ms"
+ *
+ * Maximum velocity in inches per millisecond.  Velocity will be capped at this
+ * value if a faster fling occurs.  Negative values indicate unlimited velocity.
+ *
+ * The default value is -1.0f, set in gfxPrefs.h
+ */
 
 Axis::Axis(AsyncPanZoomController* aAsyncPanZoomController)
   : mPos(0),
     mVelocity(0.0f),
-    mAcceleration(0),
+    mAxisLocked(false),
     mAsyncPanZoomController(aAsyncPanZoomController)
 {
-  InitAxisPrefs();
 }
 
 void Axis::UpdateWithTouchAtDevicePoint(int32_t aPos, const TimeDuration& aTimeDelta) {
-  float newVelocity = (mPos - aPos) / aTimeDelta.ToMilliseconds();
-
-  bool curVelocityBelowThreshold = fabsf(newVelocity) < gVelocityThreshold;
-  bool directionChange = (mVelocity > 0) != (newVelocity > 0);
-
-  // If we've changed directions, or the current velocity threshold, stop any
-  // acceleration we've accumulated.
-  if (directionChange || curVelocityBelowThreshold) {
-    mAcceleration = 0;
+  float newVelocity = mAxisLocked ? 0 : (mPos - aPos) / aTimeDelta.ToMilliseconds();
+  if (gfxPrefs::APZMaxVelocity() > 0.0f) {
+    newVelocity = std::min(newVelocity, gfxPrefs::APZMaxVelocity() * APZCTreeManager::GetDPI());
   }
 
   mVelocity = newVelocity;
   mPos = aPos;
 
-  // Keep last gMaxVelocityQueueSize or less velocities in the queue.
+  // Limit queue size pased on pref
   mVelocityQueue.AppendElement(mVelocity);
-  if (mVelocityQueue.Length() > gMaxVelocityQueueSize) {
+  if (mVelocityQueue.Length() > gfxPrefs::APZMaxVelocityQueueSize()) {
     mVelocityQueue.RemoveElementAt(0);
   }
 }
@@ -126,23 +101,25 @@ void Axis::UpdateWithTouchAtDevicePoint(int32_t aPos, const TimeDuration& aTimeD
 void Axis::StartTouch(int32_t aPos) {
   mStartPos = aPos;
   mPos = aPos;
+  mAxisLocked = false;
 }
 
-float Axis::GetDisplacementForDuration(float aScale, const TimeDuration& aDelta) {
-  if (fabsf(mVelocity) < gVelocityThreshold) {
-    mAcceleration = 0;
+float Axis::AdjustDisplacement(float aDisplacement, float& aOverscrollAmountOut) {
+  if (mAxisLocked) {
+    aOverscrollAmountOut = 0;
+    return 0;
   }
 
-  float accelerationFactor = GetAccelerationFactor();
-  float displacement = mVelocity * aScale * aDelta.ToMilliseconds() * accelerationFactor;
+  float displacement = aDisplacement;
+
   // If this displacement will cause an overscroll, throttle it. Can potentially
   // bring it to 0 even if the velocity is high.
   if (DisplacementWillOverscroll(displacement) != OVERSCROLL_NONE) {
     // No need to have a velocity along this axis anymore; it won't take us
     // anywhere, so we're just spinning needlessly.
     mVelocity = 0.0f;
-    mAcceleration = 0;
-    displacement -= DisplacementWillOverscrollAmount(displacement);
+    aOverscrollAmountOut = DisplacementWillOverscrollAmount(displacement);
+    displacement -= aOverscrollAmountOut;
   }
   return displacement;
 }
@@ -151,9 +128,11 @@ float Axis::PanDistance() {
   return fabsf(mPos - mStartPos);
 }
 
-void Axis::EndTouch() {
-  mAcceleration++;
+float Axis::PanDistance(float aPos) {
+  return fabsf(aPos - mStartPos);
+}
 
+void Axis::EndTouch() {
   // Calculate the mean velocity and empty the queue.
   int count = mVelocityQueue.Length();
   if (count) {
@@ -168,21 +147,27 @@ void Axis::EndTouch() {
 
 void Axis::CancelTouch() {
   mVelocity = 0.0f;
-  mAcceleration = 0;
   while (!mVelocityQueue.IsEmpty()) {
     mVelocityQueue.RemoveElementAt(0);
   }
 }
 
+bool Axis::Scrollable() {
+    if (mAxisLocked) {
+        return false;
+    }
+    return GetCompositionLength() < GetPageLength();
+}
+
 bool Axis::FlingApplyFrictionOrCancel(const TimeDuration& aDelta) {
-  if (fabsf(mVelocity) <= gFlingStoppedThreshold) {
+  if (fabsf(mVelocity) <= gfxPrefs::APZFlingStoppedThreshold()) {
     // If the velocity is very low, just set it to 0 and stop the fling,
     // otherwise we'll just asymptotically approach 0 and the user won't
     // actually see any changes.
     mVelocity = 0.0f;
     return false;
   } else {
-    mVelocity *= pow(1.0f - gFlingFriction, float(aDelta.ToMilliseconds()));
+    mVelocity *= pow(1.0f - gfxPrefs::APZFlingFriction(), float(aDelta.ToMilliseconds()));
   }
   return true;
 }
@@ -245,42 +230,33 @@ float Axis::DisplacementWillOverscrollAmount(float aDisplacement) {
   }
 }
 
-Axis::Overscroll Axis::ScaleWillOverscroll(float aScale, float aFocus) {
-  float originAfterScale = (GetOrigin() + aFocus) * aScale - aFocus;
+float Axis::ScaleWillOverscrollAmount(float aScale, float aFocus) {
+  float originAfterScale = (GetOrigin() + aFocus) - (aFocus / aScale);
 
   bool both = ScaleWillOverscrollBothSides(aScale);
-  bool minus = originAfterScale < GetPageStart() * aScale;
-  bool plus = (originAfterScale + GetCompositionLength()) > GetPageEnd() * aScale;
+  bool minus = originAfterScale < GetPageStart();
+  bool plus = (originAfterScale + (GetCompositionLength() / aScale)) > GetPageEnd();
 
   if ((minus && plus) || both) {
-    return OVERSCROLL_BOTH;
+    // If we ever reach here it's a bug in the client code.
+    MOZ_ASSERT(false, "In an OVERSCROLL_BOTH condition in ScaleWillOverscrollAmount");
+    return 0;
   }
   if (minus) {
-    return OVERSCROLL_MINUS;
+    return originAfterScale - GetPageStart();
   }
   if (plus) {
-    return OVERSCROLL_PLUS;
+    return originAfterScale + (GetCompositionLength() / aScale) - GetPageEnd();
   }
-  return OVERSCROLL_NONE;
-}
-
-float Axis::ScaleWillOverscrollAmount(float aScale, float aFocus) {
-  float originAfterScale = (GetOrigin() + aFocus) * aScale - aFocus;
-  switch (ScaleWillOverscroll(aScale, aFocus)) {
-  case OVERSCROLL_MINUS: return originAfterScale - GetPageStart() * aScale;
-  case OVERSCROLL_PLUS: return (originAfterScale + GetCompositionLength()) -
-                               NS_lround(GetPageEnd() * aScale);
-  // Don't handle OVERSCROLL_BOTH. Client code is expected to deal with it.
-  default: return 0;
-  }
+  return 0;
 }
 
 float Axis::GetVelocity() {
-  return mVelocity;
+  return mAxisLocked ? 0 : mVelocity;
 }
 
-float Axis::GetAccelerationFactor() {
-  return powf(gAccelerationMultiplier, std::max(0, (mAcceleration - 4) * 3));
+void Axis::SetVelocity(float aVelocity) {
+  mVelocity = aVelocity;
 }
 
 float Axis::GetCompositionEnd() {
@@ -292,14 +268,13 @@ float Axis::GetPageEnd() {
 }
 
 float Axis::GetOrigin() {
-  CSSPoint origin = mAsyncPanZoomController->GetFrameMetrics().mScrollOffset;
+  CSSPoint origin = mAsyncPanZoomController->GetFrameMetrics().GetScrollOffset();
   return GetPointOffset(origin);
 }
 
 float Axis::GetCompositionLength() {
   const FrameMetrics& metrics = mAsyncPanZoomController->GetFrameMetrics();
-  CSSRect cssCompositedRect =
-    AsyncPanZoomController::CalculateCompositedRectInCssPixels(metrics);
+  CSSRect cssCompositedRect = CSSRect(metrics.CalculateCompositedRectInCssPixels());
   return GetRectLength(cssCompositedRect);
 }
 
@@ -316,12 +291,10 @@ float Axis::GetPageLength() {
 bool Axis::ScaleWillOverscrollBothSides(float aScale) {
   const FrameMetrics& metrics = mAsyncPanZoomController->GetFrameMetrics();
 
-  CSSRect cssContentRect = metrics.mScrollableRect;
+  CSSToParentLayerScale scale(metrics.GetZoomToParent().scale * aScale);
+  CSSRect cssCompositionBounds = metrics.mCompositionBounds / scale;
 
-  CSSToScreenScale scale(metrics.mZoom.scale * aScale);
-  CSSIntRect cssCompositionBounds = RoundedIn(metrics.mCompositionBounds / scale);
-
-  return GetRectLength(cssContentRect) < GetRectLength(CSSRect(cssCompositionBounds));
+  return GetRectLength(metrics.mScrollableRect) < GetRectLength(cssCompositionBounds);
 }
 
 AxisX::AxisX(AsyncPanZoomController* aAsyncPanZoomController)

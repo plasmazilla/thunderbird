@@ -93,6 +93,7 @@
             this.missingPlugins = null;
             this.crashNotified = false;
             this.clickToPlayPluginsActivated = false;
+            this.clickToPlayTypes = Set();
             if (this.popupCount) {
               this.popupCount = 0;
               this.notifyPopupCountChanged();
@@ -458,6 +459,10 @@
                   if (missingNotification)
                     this.removeNotification(missingNotification);
 
+                  var disabledNotification = this.getNotificationWithValue("disabled-plugins");
+                  if (disabledNotification)
+                    this.removeNotification(disabledNotification);
+
                   var blockedNotification = this.getNotificationWithValue("blocked-plugins");
                   if (blockedNotification)
                     this.removeNotification(blockedNotification);
@@ -514,6 +519,8 @@
 
       <field name="clickToPlayPluginsActivated">false</field>
 
+      <field name="clickToPlayTypes">Set()</field>
+
       <method name="getPluginInfo">
         <parameter name="pluginElement"/>
         <body>
@@ -569,10 +576,12 @@
             var pluginInfo = this.getPluginInfo(aPlugin);
             this.missingPlugins.set(pluginInfo.mimetype, pluginInfo);
 
-            // Hide the in-content UI if it's too big. The crashed plugin handler already does this.
-            var overlay = this.getPluginUI(aPlugin, "mainBox");
-            if (this.isTooSmall(aPlugin, overlay))
-              overlay.style.visibility = "hidden";
+            // Show the in-content UI if it's not too big. The crashed plugin handler already does this.
+            var overlay = this.getPluginUI(aPlugin, "main");
+            aPlugin.addEventListener("overflow", this);
+            aPlugin.addEventListener("underflow", this);
+            overlay.classList.toggle("visible",
+                                     !this.isTooSmall(aPlugin, overlay));
 
             if (this._prefs.getBoolPref(aPref || "plugins.hide_infobar_for_missing_plugin"))
               return;
@@ -580,6 +589,7 @@
             var notification;
             var notifications = [
               "blocked-plugins",
+              "disabled-plugins",
               "missing-plugins",
               "carbon-failure-plugins",
               "outdated-plugins",
@@ -609,6 +619,7 @@
 
       <method name="canActivatePlugin">
         <parameter name="aPlugin"/>
+        <parameter name="aSkipFallbackType"/>
         <body>
           <![CDATA[
             const nsIObjectLoadingContent = Components.interfaces.nsIObjectLoadingContent;
@@ -616,8 +627,9 @@
             var actualType = objLoadingContent.actualType;
             if (objLoadingContent.getContentTypeForMIMEType(actualType) != nsIObjectLoadingContent.TYPE_PLUGIN ||
                 objLoadingContent.activated ||
-                objLoadingContent.pluginFallbackType < nsIObjectLoadingContent.PLUGIN_CLICK_TO_PLAY ||
-                objLoadingContent.pluginFallbackType > nsIObjectLoadingContent.PLUGIN_VULNERABLE_NO_UPDATE)
+                (!aSkipFallbackType &&
+                 (objLoadingContent.pluginFallbackType < nsIObjectLoadingContent.PLUGIN_CLICK_TO_PLAY ||
+                  objLoadingContent.pluginFallbackType > nsIObjectLoadingContent.PLUGIN_VULNERABLE_NO_UPDATE)))
               return false;
 
             var ph = Components.classes["@mozilla.org/plugin/host;1"]
@@ -641,27 +653,34 @@
             const nsIPermissionManager = Components.interfaces.nsIPermissionManager;
             var pm = Components.classes["@mozilla.org/permissionmanager;1"]
                                .getService(nsIPermissionManager);
-            var plugins = this.contentWindowUtils.plugins;
-            for (var plugin of plugins) {
-              if (this.canActivatePlugin(plugin)) {
-                var permissionString = ph.getPermissionStringForType(plugin.actualType);
-                pm.add(this.activeBrowser.currentURI, permissionString, aPermission);
-              }
+            for (var type of this.clickToPlayTypes) {
+              var permissionString = ph.getPermissionStringForType(type);
+              pm.add(this.activeBrowser.currentURI, permissionString, aPermission);
             }
           ]]>
         </body>
       </method>
 
       <method name="activatePlugins">
+        <parameter name="aCheckForReload"/>
         <body>
           <![CDATA[
             this.clickToPlayPluginsActivated = true;
             var plugins = this.contentWindowUtils.plugins;
             for (let plugin of plugins) {
               if (this.canActivatePlugin(plugin))
-                plugin.playPlugin();
+                this.clickToPlayTypes.delete(plugin.actualType);
             }
-            this.removePluginClickToPlayPrompt();
+            if (aCheckForReload && this.clickToPlayTypes.size)
+              this.reloadPage();
+            else {
+              for (let plugin of plugins) {
+                if (this.canActivatePlugin(plugin))
+                  plugin.playPlugin();
+              }
+              if (!this.clickToPlayTypes.size)
+                this.removePluginClickToPlayPrompt();
+            }
           ]]>
         </body>
       </method>
@@ -808,10 +827,10 @@
 
       <method name="getPluginUI">
         <parameter name="aPlugin"/>
-        <parameter name="aClassName"/>
+        <parameter name="aAnonId"/>
         <body>
           <![CDATA[
-            return aPlugin.ownerDocument.getAnonymousElementByAttribute(aPlugin, "class", aClassName);
+            return aPlugin.ownerDocument.getAnonymousElementByAttribute(aPlugin, "anonid", aAnonId);
           ]]>
         </body>
       </method>
@@ -956,23 +975,33 @@
         <parameter name="aEvent"/>
         <body>
           <![CDATA[
-          if (!aEvent.isTrusted)
-            return;
+            if (!aEvent.isTrusted)
+              return;
 
-          if (aEvent.type != "MozPlayPlugin")
-            return;
+            switch (aEvent.type) {
+              case "overflow":
+              case "underflow":
+                var plugin = aEvent.target;
+                var overlay = this.getPluginUI(plugin, "main");
+                if (overlay)
+                  overlay.classList.toggle("visible",
+                                           !this.isTooSmall(plugin, overlay));
+                break;
 
-          var previewContent = aEvent.currentTarget;
-          previewContent.removeEventListener("MozPlayPlugin", this, true);
+              case "MozPlayPlugin":
+                var previewContent = aEvent.currentTarget;
+                previewContent.removeEventListener("MozPlayPlugin", this, true);
 
-          var pluginElement = previewContent.ownerDocument.getBindingParent(previewContent);
-          var playPlugin = !aEvent.detail;
-          this.stopPlayPreview(pluginElement, playPlugin);
+                var pluginElement = previewContent.ownerDocument.getBindingParent(previewContent);
+                var playPlugin = !aEvent.detail;
+                this.stopPlayPreview(pluginElement, playPlugin);
 
-          // cleaning up: removes overlay iframe from the DOM
-          var iframe = previewContent.getElementsByClassName("previewPluginContentFrame")[0];
-          if (iframe)
-            previewContent.removeChild(iframe);
+                // cleaning up: removes overlay iframe from the DOM
+                var iframe = previewContent.getElementsByClassName("previewPluginContentFrame")[0];
+                if (iframe)
+                  iframe.remove();
+                break;
+            }
           ]]>
         </body>
       </method>
@@ -1336,7 +1365,7 @@
               callback: (function () {
                 if (checkbox.checked)
                   this.setPermissionForPlugins(nsIPermissionManager.ALLOW_ACTION);
-                this.activatePlugins();
+                this.activatePlugins(checkbox.checked);
               }).bind(this)
             }, {
               label: this._stringBundle.GetStringFromName("activatepluginsMessage.dismiss.label"),
@@ -1344,7 +1373,7 @@
               callback: (function () {
                 if (checkbox.checked)
                   this.setPermissionForPlugins(nsIPermissionManager.DENY_ACTION);
-                this.removeClickToPlayOverlays();
+                this.hideAllPluginOverlays();
               }).bind(this)
             }];
             var box = this.appendNotification(messageString,
@@ -1359,23 +1388,23 @@
         </body>
       </method>
 
-      <method name="removeClickToPlayOverlays">
+      <method name="hideAllPluginOverlays">
         <body>
           <![CDATA[
             var plugins = this.contentWindowUtils.plugins;
             for (let plugin of plugins)
-              this.hideClickToPlayOverlay(plugin);
+              this.hidePluginOverlay(plugin);
           ]]>
         </body>
       </method>
 
-      <method name="hideClickToPlayOverlay">
+      <method name="hidePluginOverlay">
         <parameter name="pluginElement"/>
         <body>
           <![CDATA[
-            var overlay = this.getPluginUI(pluginElement, "mainBox");
+            var overlay = this.getPluginUI(pluginElement, "main");
             if (overlay) // no overlay if plugin has been activated
-              overlay.style.visibility = "hidden";
+              overlay.classList.remove("visible");
           ]]>
         </body>
       </method>
@@ -1400,10 +1429,10 @@
         <parameter name="aTriggeredByNewPlugin"/>
         <body>
           <![CDATA[
-            var overlay = this.getPluginUI(pluginElement, "mainBox");
+            var overlay = this.getPluginUI(pluginElement, "main");
 
             if (!this.canActivatePlugin(pluginElement)) {
-              overlay.style.visibility = "hidden";
+              overlay.classList.remove("visible");
               return;
             }
 
@@ -1412,21 +1441,20 @@
               return;
             }
 
+            this.clickToPlayTypes.add(pluginElement.actualType);
             this.showPluginClickToPlayPrompt(aTriggeredByNewPlugin);
 
-            if (this.isTooSmall(pluginElement, overlay)) {
-              overlay.style.visibility = "hidden";
-              return;
-            }
+            // Show the in-content UI if it's not too big. The crashed plugin handler already does this.
+            pluginElement.addEventListener("overflow", this);
+            pluginElement.addEventListener("underflow", this);
+            overlay.classList.toggle("visible",
+                                     !this.isTooSmall(pluginElement, overlay));
 
             var pluginName = this.getPluginInfo(pluginElement).pluginName;
             var messageString = this._stringBundle.formatStringFromName("PluginClickToActivate", [pluginName], 1);
-            var overlayText = this.getPluginUI(pluginElement, "msg msgClickToPlay");
+            var overlayText = this.getPluginUI(pluginElement, "clickToPlay");
             overlayText.textContent = messageString;
             this.addLinkClickCallback(overlay, this.activateSinglePlugin, pluginElement);
-
-            var closeIcon = this.getPluginUI(pluginElement, "closeIcon");
-            this.addLinkClickCallback(closeIcon, this.hideClickToPlayOverlay, pluginElement);
           ]]>
         </body>
       </method>
@@ -2135,8 +2163,10 @@
           if (!(plugin instanceof nsIObjectLoadingContent))
             return;
 
+          var closeIcon = this.getPluginUI(plugin, "closeIcon");
+          this.addLinkClickCallback(closeIcon, this.hidePluginOverlay, plugin);
+
           var notification, message, buttons, pref;
-          var doc = plugin.ownerDocument;
           switch (plugin.pluginFallbackType) {
             case nsIObjectLoadingContent.PLUGIN_UNSUPPORTED:
               // For broken non-object plugin tags, register a click handler so
@@ -2149,7 +2179,7 @@
                 installStatus.setAttribute("status", "ready");
                 var iconStatus = this.getPluginUI(plugin, "icon");
                 iconStatus.setAttribute("status", "ready");
-                var installLink = doc.getAnonymousElementByAttribute(plugin, "anonid", "installPluginLink");
+                var installLink = this.getPluginUI(plugin, "installPluginLink");
                 this.addLinkClickCallback(installLink, installMissingPlugins);
               }
 
@@ -2164,11 +2194,25 @@
               break;
 
             case nsIObjectLoadingContent.PLUGIN_DISABLED:
+              if (!this.canActivatePlugin(plugin, true))
+                return;
+
+              notification = "disabled-plugins";
+              message = this._stringBundle.GetStringFromName("missingpluginsMessage.title");
               if ("toEM" in window) {
-                var manageLink = doc.getAnonymousElementByAttribute(plugin, "anonid", "managePluginsLink");
+                buttons = [{
+                  label: this._stringBundle.GetStringFromName("addonInstallManageButton"),
+                  accessKey: this._stringBundle.GetStringFromName("addonInstallManageButton.accesskey"),
+                  popup: null,
+                  callback: function() {
+                    window.toEM("addons://list/plugin");
+                  }
+                }];
+
+                var manageLink = this.getPluginUI(plugin, "managePluginsLink");
                 this.addLinkClickCallback(manageLink, window.toEM, "addons://list/plugin");
               }
-              return;
+              break;
 
             case nsIObjectLoadingContent.PLUGIN_BLOCKLISTED:
               notification = "blocked-plugins";
@@ -2199,14 +2243,14 @@
               break;
 
             case nsIObjectLoadingContent.PLUGIN_VULNERABLE_UPDATABLE:
-              var updateLink = doc.getAnonymousElementByAttribute(plugin, "anonid", "checkForUpdatesLink");
+              var updateLink = this.getPluginUI(plugin, "checkForUpdatesLink");
               this.addLinkClickCallback(updateLink, this.openURLPref, "plugins.update.url");
               // fall through
             case nsIObjectLoadingContent.PLUGIN_VULNERABLE_NO_UPDATE:
               var eventType = this.getBindingType(plugin);
               // When we got here, we deal with a vulnerable plugin object, so setup UI elements for this case
               var vulnerabilityString = this._stringBundle.GetStringFromName(eventType);
-              var vulnerabilityText = doc.getAnonymousElementByAttribute(plugin, "anonid", "vulnerabilityStatus");
+              var vulnerabilityText = this.getPluginUI(plugin, "vulnerabilityStatus");
               vulnerabilityText.textContent = vulnerabilityString;
               // fall through
             case nsIObjectLoadingContent.PLUGIN_CLICK_TO_PLAY:
@@ -2243,7 +2287,7 @@
           plugin.clientTop;
 
           // Configure the crashed-plugin placeholder.
-          var overlay = this.getPluginUI(plugin, "mainBox");
+          var overlay = this.getPluginUI(plugin, "main");
 
           var status;
           var statusDiv = this.getPluginUI(plugin, "submitStatus");
@@ -2316,7 +2360,7 @@
           this.addLinkClickCallback(helpIcon, this.openHelpPage);
 
           var messageString = this._stringBundle.formatStringFromName("crashedpluginsMessage.title", [pluginName], 1);
-          var crashText = this.getPluginUI(plugin, "msgCrashedText");
+          var crashText = this.getPluginUI(plugin, "crashedText");
           crashText.textContent = messageString;
 
           var link = this.getPluginUI(plugin, "reloadLink");
@@ -2326,18 +2370,15 @@
 
           // Is the <object>'s size too small to hold what we want to show?
           if (this.isTooSmall(plugin, overlay)) {
-            // First try hiding the comment box and related report submission UI.
+            // Try hiding the comment box and related report submission UI.
             statusDiv.removeAttribute("status");
 
-            if (this.isTooSmall(plugin, overlay)) {
-              // Hide the overlay's contents. Use visibility style, so that it doesn't
-              // collapse down to 0x0.
-              overlay.style.visibility = "hidden";
+            if (this.isTooSmall(plugin, overlay))
               isShowing = false;
-            }
           }
 
           if (isShowing) {
+            overlay.classList.add("visible");
             // If a previous plugin on the page was too small and resulted in
             // adding a notification bar, then remove it because this plugin
             // instance it big enough to serve as in-content notification.
@@ -2346,6 +2387,7 @@
               this.removeNotification(notification, true);
             this.crashNotified = true;
           } else {
+            overlay.classList.remove("visible");
             // If another plugin on the page was large enough to show our UI, we don't
             // want to show a notification bar.
             if (!this.crashNotified)
@@ -2652,7 +2694,7 @@
               accessKey: this._stringBundle.GetStringFromName("activatepluginsMessage.always.accesskey"),
               callback: (function () {
                 this.setPermissionForPlugins(nsIPermissionManager.ALLOW_ACTION);
-                this.activatePlugins();
+                this.activatePlugins(true);
               }).bind(this)
             }, {
               label: this._stringBundle.GetStringFromName("activatepluginsMessage.never.label"),
@@ -2663,7 +2705,7 @@
                                                                       this.activeBrowser);
                 if (notification)
                   notification.remove();
-                this.removeClickToPlayOverlays();
+                this.hideAllPluginOverlays();
               }).bind(this)
             }];
             var options = {

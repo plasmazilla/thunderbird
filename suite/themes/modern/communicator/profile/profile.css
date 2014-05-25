@@ -21,16 +21,13 @@ treechildren::-moz-tree-image(rowMigrate-no) {
   list-style-image: url("chrome://communicator/skin/profile/migrate.gif");
 }
 
-#intro {
+#intro,
+#label {
   width: 17em;
 }
 
 #managebuttons > button {
   min-width: 8em;
-}
-
-box.selection {
-  margin-top: 4px;
 }
 
 #finishtext {

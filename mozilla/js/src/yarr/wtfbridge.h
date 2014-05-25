@@ -15,12 +15,10 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include "jsstr.h"
-#include "jsprvtd.h"
 #include "vm/String.h"
 #include "assembler/wtf/Platform.h"
 #include "assembler/jit/ExecutableAllocator.h"
-#include "CheckedArithmetic.h"
-#include "js/TemplateLib.h"
+#include "yarr/CheckedArithmetic.h"
 
 namespace JSC { namespace Yarr {
 
@@ -84,8 +82,7 @@ class OwnPtr {
     OwnPtr(PassOwnPtr<T> p) : ptr(p.get()) { }
 
     ~OwnPtr() {
-        if (ptr)
-            js_delete(ptr);
+        js_delete(ptr);
     }
 
     OwnPtr<T> &operator=(PassOwnPtr<T> p) {
@@ -172,7 +169,7 @@ class Vector {
 
     template <size_t M>
     void append(const Vector<T,M> &v) {
-        if (!impl.append(v.impl))
+        if (!impl.appendAll(v.impl))
             MOZ_CRASH();
     }
 
@@ -248,7 +245,7 @@ deleteAllValues(Vector<T, N> &v) {
 }
 
 static inline void
-dataLog(const char *fmt, ...)
+dataLogF(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);

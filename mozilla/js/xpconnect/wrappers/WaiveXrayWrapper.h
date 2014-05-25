@@ -10,7 +10,6 @@
 
 #include "mozilla/Attributes.h"
 
-#include "jsapi.h"
 #include "jswrapper.h"
 
 namespace xpc {
@@ -21,11 +20,12 @@ class WaiveXrayWrapper : public js::CrossCompartmentWrapper {
     virtual ~WaiveXrayWrapper();
 
     virtual bool getPropertyDescriptor(JSContext *cx, JS::Handle<JSObject*> wrapper,
-                                       JS::Handle<jsid> id, js::PropertyDescriptor *desc,
+                                       JS::Handle<jsid> id,
+                                       JS::MutableHandle<JSPropertyDescriptor> desc,
                                        unsigned flags) MOZ_OVERRIDE;
     virtual bool getOwnPropertyDescriptor(JSContext *cx, JS::Handle<JSObject*> wrapper,
                                           JS::Handle<jsid> id,
-                                          js::PropertyDescriptor *desc,
+                                          JS::MutableHandle<JSPropertyDescriptor> desc,
                                           unsigned flags) MOZ_OVERRIDE;
     virtual bool get(JSContext *cx, JS::Handle<JSObject*> wrapper, JS::Handle<JSObject*> receiver,
                      JS::Handle<jsid> id, JS::MutableHandle<JS::Value> vp) MOZ_OVERRIDE;
@@ -37,6 +37,9 @@ class WaiveXrayWrapper : public js::CrossCompartmentWrapper {
 
     virtual bool nativeCall(JSContext *cx, JS::IsAcceptableThis test,
                             JS::NativeImpl impl, JS::CallArgs args) MOZ_OVERRIDE;
+
+    virtual bool getPrototypeOf(JSContext *cx, JS::Handle<JSObject*> wrapper,
+                                JS::MutableHandle<JSObject*> protop) MOZ_OVERRIDE;
 
     static WaiveXrayWrapper singleton;
 };

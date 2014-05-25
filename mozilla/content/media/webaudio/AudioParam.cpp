@@ -5,15 +5,15 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "AudioParam.h"
-#include "nsContentUtils.h"
-#include "nsIDOMWindow.h"
-#include "mozilla/ErrorResult.h"
 #include "mozilla/dom/AudioParamBinding.h"
 #include "AudioNodeEngine.h"
 #include "AudioNodeStream.h"
+#include "AudioContext.h"
 
 namespace mozilla {
 namespace dom {
+
+NS_IMPL_CYCLE_COLLECTION_CLASS(AudioParam)
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(AudioParam)
   tmp->DisconnectFromGraphAndDestroyStream();
@@ -138,6 +138,7 @@ AudioParamTimeline::AudioNodeInputValue(size_t aCounter) const
     MOZ_ASSERT(lastAudioNodeChunk.GetDuration() == WEBAUDIO_BLOCK_SIZE);
     audioNodeInputValue =
       static_cast<const float*>(lastAudioNodeChunk.mChannelData[0])[aCounter];
+    audioNodeInputValue *= lastAudioNodeChunk.mVolume;
   }
 
   return audioNodeInputValue;

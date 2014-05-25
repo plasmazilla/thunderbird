@@ -17,6 +17,11 @@ const LATEST_STORAGE_VERSION = 3;
 const EXPIRATION_MIN_CHUNK_SIZE = 50;
 const EXPIRATION_INTERVAL_SECS = 3600;
 
+// If a request for a thumbnail comes in and we find one that is "stale"
+// (or don't find one at all) we automatically queue a request to generate a
+// new one.
+const MAX_THUMBNAIL_AGE_SECS = 172800; // 2 days == 60*60*24*2 == 172800 secs.
+
 /**
  * Name of the directory in the profile that contains the thumbnails.
  */
@@ -180,6 +185,18 @@ this.PageThumbs = {
            "?url=" + encodeURIComponent(aUrl);
   },
 
+   /**
+    * Gets the path of the thumbnail file for a given web page's
+    * url. This file may or may not exist depending on whether the
+    * thumbnail has been captured or not.
+    *
+    * @param aUrl The web page's url.
+    * @return The path of the thumbnail file.
+    */
+   getThumbnailPath: function PageThumbs_getThumbnailPath(aUrl) {
+     return PageThumbsStorage.getFilePathForURL(aUrl);
+   },
+
   /**
    * Captures a thumbnail for the given window.
    * @param aWindow The DOM window to capture a thumbnail from.
@@ -278,12 +295,15 @@ this.PageThumbs = {
     let channel = aBrowser.docShell.currentDocumentChannel;
     let originalURL = channel.originalURI.spec;
 
+    // see if this was an error response.
+    let wasError = this._isChannelErrorResponse(channel);
+
     TaskUtils.spawn((function task() {
       let isSuccess = true;
       try {
         let blob = yield this.captureToBlob(aBrowser.contentWindow);
         let buffer = yield TaskUtils.readBlob(blob);
-        yield this._store(originalURL, url, buffer);
+        yield this._store(originalURL, url, buffer, wasError);
       } catch (_) {
         isSuccess = false;
       }
@@ -294,6 +314,33 @@ this.PageThumbs = {
   },
 
   /**
+   * Checks if an existing thumbnail for the specified URL is either missing
+   * or stale, and if so, captures and stores it.  Once the thumbnail is stored,
+   * an observer service notification will be sent, so consumers should observe
+   * such notifications if they want to be notified of an updated thumbnail.
+   *
+   * @param aBrowser The content window of this browser will be captured.
+   * @param aCallback The function to be called when finished (optional).
+   */
+  captureAndStoreIfStale: function PageThumbs_captureAndStoreIfStale(aBrowser, aCallback) {
+    let url = aBrowser.currentURI.spec;
+    PageThumbsStorage.isFileRecentForURL(url).then(recent => {
+      if (!recent.ok &&
+          // Careful, the call to PageThumbsStorage is async, so the browser may
+          // have navigated away from the URL or even closed.
+          aBrowser.currentURI &&
+          aBrowser.currentURI.spec == url) {
+        this.captureAndStore(aBrowser, aCallback);
+      } else if (aCallback) {
+        aCallback(true);
+      }
+    }, err => {
+      if (aCallback)
+        aCallback(false);
+    });
+  },
+
+  /**
    * Stores data to disk for the given URLs.
    *
    * NB: The background thumbnail service calls this, too.
@@ -301,15 +348,18 @@ this.PageThumbs = {
    * @param aOriginalURL The URL with which the capture was initiated.
    * @param aFinalURL The URL to which aOriginalURL ultimately resolved.
    * @param aData An ArrayBuffer containing the image data.
+   * @param aNoOverwrite If true and files for the URLs already exist, the files
+   *                     will not be overwritten.
    * @return {Promise}
    */
-  _store: function PageThumbs__store(aOriginalURL, aFinalURL, aData) {
+  _store: function PageThumbs__store(aOriginalURL, aFinalURL, aData, aNoOverwrite) {
     return TaskUtils.spawn(function () {
       let telemetryStoreTime = new Date();
-      yield PageThumbsStorage.writeData(aFinalURL, aData);
+      yield PageThumbsStorage.writeData(aFinalURL, aData, aNoOverwrite);
       Services.telemetry.getHistogramById("FX_THUMBNAILS_STORE_TIME_MS")
         .add(new Date() - telemetryStoreTime);
 
+      Services.obs.notifyObservers(null, "page-thumbnail:create", aFinalURL);
       // We've been redirected. Create a copy of the current thumbnail for
       // the redirect source. We need to do this because:
       //
@@ -321,8 +371,10 @@ this.PageThumbs = {
       //    Because of bug 559175 this information can get lost when using
       //    Sync and therefore also redirect sources appear on the newtab
       //    page. We also want thumbnails for those.
-      if (aFinalURL != aOriginalURL)
-        yield PageThumbsStorage.copy(aFinalURL, aOriginalURL);
+      if (aFinalURL != aOriginalURL) {
+        yield PageThumbsStorage.copy(aFinalURL, aOriginalURL, aNoOverwrite);
+        Services.obs.notifyObservers(null, "page-thumbnail:create", aOriginalURL);
+      }
     });
   },
 
@@ -423,9 +475,28 @@ this.PageThumbs = {
     return [this._thumbnailWidth, this._thumbnailHeight];
   },
 
+  /**
+   * Given a channel, returns true if it should be considered an "error
+   * response", false otherwise.
+   */
+  _isChannelErrorResponse: function(channel) {
+    // No valid document channel sounds like an error to me!
+    if (!channel)
+      return true;
+    if (!(channel instanceof Ci.nsIHttpChannel))
+      // it might be FTP etc, so assume it's ok.
+      return false;
+    try {
+      return !channel.requestSucceeded;
+    } catch (_) {
+      // not being able to determine success is surely failure!
+      return true;
+    }
+  },
+
   _prefEnabled: function PageThumbs_prefEnabled() {
     try {
-      return Services.prefs.getBoolPref("browser.pageThumbs.enabled");
+      return !Services.prefs.getBoolPref("browser.pagethumbnails.capturing_disabled");
     }
     catch (e) {
       return true;
@@ -476,10 +547,12 @@ this.PageThumbsStorage = {
    * @param {ArrayBuffer} aData The data to store in the thumbnail, as
    * an ArrayBuffer. This array buffer is neutered and cannot be
    * reused after the copy.
+   * @param {boolean} aNoOverwrite If true and the thumbnail's file already
+   * exists, the file will not be overwritten.
    *
    * @return {Promise}
    */
-  writeData: function Storage_writeData(aURL, aData) {
+  writeData: function Storage_writeData(aURL, aData, aNoOverwrite) {
     let path = this.getFilePathForURL(aURL);
     this.ensurePath();
     aData = new Uint8Array(aData);
@@ -489,12 +562,14 @@ this.PageThumbsStorage = {
       {
         tmpPath: path + ".tmp",
         bytes: aData.byteLength,
+        noOverwrite: aNoOverwrite,
         flush: false /*thumbnails do not require the level of guarantee provided by flush*/
       }];
     return PageThumbsWorker.post("writeAtomic", msg,
       msg /*we don't want that message garbage-collected,
            as OS.Shared.Type.void_t.in_ptr.toMsg uses C-level
-           memory tricks to enforce zero-copy*/);
+           memory tricks to enforce zero-copy*/).
+      then(null, this._eatNoOverwriteError(aNoOverwrite));
   },
 
   /**
@@ -502,14 +577,18 @@ this.PageThumbsStorage = {
    *
    * @param {string} aSourceURL The url of the thumbnail to copy.
    * @param {string} aTargetURL The url of the target thumbnail.
+   * @param {boolean} aNoOverwrite If true and the target file already exists,
+   * the file will not be overwritten.
    *
    * @return {Promise}
    */
-  copy: function Storage_copy(aSourceURL, aTargetURL) {
+  copy: function Storage_copy(aSourceURL, aTargetURL, aNoOverwrite) {
     this.ensurePath();
     let sourceFile = this.getFilePathForURL(aSourceURL);
     let targetFile = this.getFilePathForURL(aTargetURL);
-    return PageThumbsWorker.post("copy", [sourceFile, targetFile]);
+    let options = { noOverwrite: aNoOverwrite };
+    return PageThumbsWorker.post("copy", [sourceFile, targetFile, options]).
+      then(null, this._eatNoOverwriteError(aNoOverwrite));
   },
 
   /**
@@ -530,6 +609,16 @@ this.PageThumbsStorage = {
     return PageThumbsWorker.post("wipe", [this.path]);
   },
 
+  fileExistsForURL: function Storage_fileExistsForURL(aURL) {
+    return PageThumbsWorker.post("exists", [this.getFilePathForURL(aURL)]);
+  },
+
+  isFileRecentForURL: function Storage_isFileRecentForURL(aURL) {
+    return PageThumbsWorker.post("isFileRecent",
+                                 [this.getFilePathForURL(aURL),
+                                  MAX_THUMBNAIL_AGE_SECS]);
+  },
+
   _calculateMD5Hash: function Storage_calculateMD5Hash(aValue) {
     let hash = gCryptoHash;
     let value = gUnicodeConverter.convertToByteArray(aValue);
@@ -544,6 +633,26 @@ this.PageThumbsStorage = {
     for (let i = 0; i < aData.length; i++)
       hex += ("0" + aData.charCodeAt(i).toString(16)).slice(-2);
     return hex;
+  },
+
+  /**
+   * For functions that take a noOverwrite option, OS.File throws an error if
+   * the target file exists and noOverwrite is true.  We don't consider that an
+   * error, and we don't want such errors propagated.
+   *
+   * @param {aNoOverwrite} The noOverwrite option used in the OS.File operation.
+   *
+   * @return {function} A function that should be passed as the second argument
+   * to then() (the `onError` argument).
+   */
+  _eatNoOverwriteError: function Storage__eatNoOverwriteError(aNoOverwrite) {
+    return function onError(err) {
+      if (!aNoOverwrite ||
+          !(err instanceof OS.File.Error) ||
+          !err.becauseExists) {
+        throw err;
+      }
+    };
   },
 
   // Deprecated, please do not use

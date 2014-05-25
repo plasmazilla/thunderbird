@@ -25,6 +25,7 @@
 #include "nsIMsgCompFields.h"
 #include "nsIMsgAccountManager.h"
 #include "nsIMsgSend.h"
+#include "nsIMutableArray.h"
 #include "nsImportEmbeddedImageData.h"
 #include "nsNetCID.h"
 #include "nsCRT.h"
@@ -122,7 +123,7 @@ public:
   virtual ~OutlookSendListener() { NS_IF_RELEASE(m_location); }
 
   // nsISupports interface
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
 
   /* void OnStartSending (in string aMsgID, in uint32_t aMsgSize); */
   NS_IMETHOD OnStartSending(const char *aMsgID, uint32_t aMsgSize) {return NS_OK;}
@@ -131,10 +132,10 @@ public:
   NS_IMETHOD OnProgress(const char *aMsgID, uint32_t aProgress, uint32_t aProgressMax) {return NS_OK;}
 
   /* void OnStatus (in string aMsgID, in wstring aMsg); */
-  NS_IMETHOD OnStatus(const char *aMsgID, const PRUnichar *aMsg) {return NS_OK;}
+  NS_IMETHOD OnStatus(const char *aMsgID, const char16_t *aMsg) {return NS_OK;}
 
   /* void OnStopSending (in string aMsgID, in nsresult aStatus, in wstring aMsg, in nsIFile returnFile); */
-  NS_IMETHOD OnStopSending(const char *aMsgID, nsresult aStatus, const PRUnichar *aMsg,
+  NS_IMETHOD OnStopSending(const char *aMsgID, nsresult aStatus, const char16_t *aMsg,
                nsIFile *returnFile) {
     m_done = true;
     NS_IF_ADDREF(m_location = returnFile);
@@ -155,7 +156,7 @@ public:
   nsIFile * m_location;
 };
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(OutlookSendListener, nsIMsgSendListener)
+NS_IMPL_ISUPPORTS1(OutlookSendListener, nsIMsgSendListener)
 
 nsresult OutlookSendListener::CreateSendListener(nsIMsgSendListener **ppListener)
 {
@@ -176,13 +177,13 @@ nsresult OutlookSendListener::CreateSendListener(nsIMsgSendListener **ppListener
 /////////////////////////////////////////////////////////////////////////////////
 
 #define hackBeginA "begin"
-#define hackBeginW NS_L(hackBeginA)
+#define hackBeginW MOZ_UTF16(hackBeginA)
 #define hackEndA "\015\012end"
-#define hackEndW NS_L(hackEndA)
+#define hackEndW MOZ_UTF16(hackEndA)
 #define hackCRLFA "crlf"
-#define hackCRLFW NS_L(hackCRLFA)
+#define hackCRLFW MOZ_UTF16(hackCRLFA)
 #define hackAmpersandA "amp"
-#define hackAmpersandW NS_L(hackAmpersandA)
+#define hackAmpersandW MOZ_UTF16(hackAmpersandA)
 
 nsOutlookCompose::nsOutlookCompose()
 {
@@ -294,7 +295,7 @@ nsresult nsOutlookCompose::ComposeTheMessage(nsMsgDeliverMode mode, CMapiMessage
     bodyW = msg.GetBody();
   // End Bug 593907
 
-  nsCOMPtr<nsISupportsArray> embeddedObjects;
+  nsCOMPtr<nsIMutableArray> embeddedObjects;
 
   if (msg.BodyIsHtml()) {
     for (unsigned int i = 0; i <msg.EmbeddedAttachmentsCount(); i++) {
@@ -303,13 +304,13 @@ nsresult nsOutlookCompose::ComposeTheMessage(nsMsgDeliverMode mode, CMapiMessage
       const char* name;
       if (msg.GetEmbeddedAttachmentInfo(i, &uri, &cid, &name)) {
         if (!embeddedObjects) {
-          embeddedObjects = do_CreateInstance(NS_SUPPORTSARRAY_CONTRACTID, &rv);
+          embeddedObjects = do_CreateInstance(NS_ARRAY_CONTRACTID, &rv);
           NS_ENSURE_SUCCESS(rv, rv);
         }
         nsCOMPtr<nsIMsgEmbeddedImageData> imageData =
           new nsImportEmbeddedImageData(uri, nsDependentCString(cid),
                                      nsDependentCString(name));
-        embeddedObjects->AppendElement(imageData);
+        embeddedObjects->AppendElement(imageData, false);
       }
     }
   }

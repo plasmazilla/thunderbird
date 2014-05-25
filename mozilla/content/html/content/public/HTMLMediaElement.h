@@ -9,47 +9,53 @@
 #include "nsIDOMHTMLMediaElement.h"
 #include "nsGenericHTMLElement.h"
 #include "MediaDecoderOwner.h"
-#include "nsIChannel.h"
-#include "nsIHttpChannel.h"
-#include "nsThreadUtils.h"
-#include "nsIDOMRange.h"
 #include "nsCycleCollectionParticipant.h"
-#include "nsILoadGroup.h"
 #include "nsIObserver.h"
-#include "AudioStream.h"
-#include "VideoFrameContainer.h"
 #include "mozilla/CORSMode.h"
 #include "DOMMediaStream.h"
-#include "mozilla/Mutex.h"
-#include "mozilla/dom/TimeRanges.h"
-#include "nsIDOMWakeLock.h"
 #include "AudioChannelCommon.h"
 #include "DecoderTraits.h"
-#include "MediaMetadataManager.h"
-#include "AudioChannelAgent.h"
+#include "nsIAudioChannelAgent.h"
 #include "mozilla/Attributes.h"
-#include "mozilla/dom/TextTrack.h"
-#include "mozilla/dom/TextTrackList.h"
-#include "mozilla/ErrorResult.h"
+#include "mozilla/dom/AudioChannelBinding.h"
+#include "mozilla/dom/TextTrackManager.h"
 
 // Define to output information on decoding and painting framerate
 /* #define DEBUG_FRAME_RATE 1 */
+
+class nsIChannel;
+class nsIHttpChannel;
+class nsILoadGroup;
 
 typedef uint16_t nsMediaNetworkState;
 typedef uint16_t nsMediaReadyState;
 
 namespace mozilla {
+class AudioStream;
+class ErrorResult;
 class MediaResource;
 class MediaDecoder;
+class VideoFrameContainer;
+namespace dom {
+class TextTrack;
+class TimeRanges;
+class WakeLock;
+}
 }
 
 class nsITimer;
 class nsRange;
+class nsIRunnable;
 
 namespace mozilla {
 namespace dom {
 
+// Number of milliseconds between timeupdate events as defined by spec
+#define TIMEUPDATE_MS 250
+
 class MediaError;
+class MediaSource;
+class TextTrackList;
 
 class HTMLMediaElement : public nsGenericHTMLElement,
                          public nsIObserver,
@@ -69,7 +75,7 @@ public:
     return mCORSMode;
   }
 
-  HTMLMediaElement(already_AddRefed<nsINodeInfo> aNodeInfo);
+  HTMLMediaElement(already_AddRefed<nsINodeInfo>& aNodeInfo);
   virtual ~HTMLMediaElement();
 
   /**
@@ -205,10 +211,6 @@ public:
   virtual VideoFrameContainer* GetVideoFrameContainer() MOZ_FINAL MOZ_OVERRIDE;
   layers::ImageContainer* GetImageContainer();
 
-  // Called by the video frame to get the print surface, if this is
-  // a static document and we're not actually playing video
-  gfxASurface* GetPrintSurface() { return mPrintSurface; }
-
   // Dispatch events
   using nsGenericHTMLElement::DispatchEvent;
   virtual nsresult DispatchEvent(const nsAString& aName) MOZ_FINAL MOZ_OVERRIDE;
@@ -321,6 +323,13 @@ public:
   void SetRequestHeaders(nsIHttpChannel* aChannel);
 
   /**
+   * Asynchronously awaits a stable state, whereupon aRunnable runs on the main
+   * thread. This adds an event which run aRunnable to the appshell's list of
+   * sections synchronous the next time control returns to the event loop.
+   */
+  void RunInStableState(nsIRunnable* aRunnable);
+
+  /**
    * Fires a timeupdate event. If aPeriodic is true, the event will only
    * be fired if we've not fired a timeupdate event (for any reason) in the
    * last 250ms, as required by the spec when the current time is periodically
@@ -359,6 +368,10 @@ public:
   {
     return mNetworkState;
   }
+
+  // Called by the media decoder object, on the main thread,
+  // when the connection between Rtsp server and client gets lost.
+  void ResetConnectionState() MOZ_FINAL MOZ_OVERRIDE;
 
   // XPCOM GetPreload() is OK
   void SetPreload(const nsAString& aValue, ErrorResult& aRv)
@@ -505,21 +518,36 @@ public:
 
   double MozFragmentEnd();
 
-  // XPCOM GetMozAudioChannelType() is OK
+  AudioChannel MozAudioChannelType() const;
+  void SetMozAudioChannelType(AudioChannel aValue, ErrorResult& aRv);
 
-  void SetMozAudioChannelType(const nsAString& aValue, ErrorResult& aRv)
-  {
-    SetHTMLAttr(nsGkAtoms::mozaudiochannel, aValue, aRv);
-  }
-
-  TextTrackList* TextTracks() const;
+  TextTrackList* TextTracks();
 
   already_AddRefed<TextTrack> AddTextTrack(TextTrackKind aKind,
                                            const nsAString& aLabel,
                                            const nsAString& aLanguage);
 
   void AddTextTrack(TextTrack* aTextTrack) {
-    mTextTracks->AddTextTrack(aTextTrack);
+    GetOrCreateTextTrackManager()->AddTextTrack(aTextTrack);
+  }
+
+  void RemoveTextTrack(TextTrack* aTextTrack, bool aPendingListOnly = false) {
+    if (mTextTrackManager) {
+      mTextTrackManager->RemoveTextTrack(aTextTrack, aPendingListOnly);
+    }
+  }
+
+  void AddCue(TextTrackCue& aCue) {
+    if (mTextTrackManager) {
+      mTextTrackManager->AddCue(aCue);
+    }
+  }
+
+  /**
+   * A public wrapper for FinishDecoderSetup()
+   */
+  nsresult FinishDecoderSetup(MediaDecoder* aDecoder, MediaResource* aStream) {
+    return FinishDecoderSetup(aDecoder, aStream, nullptr, nullptr);
   }
 
 protected:
@@ -562,7 +590,7 @@ protected:
    */
   virtual void WakeLockCreate();
   virtual void WakeLockRelease();
-  nsCOMPtr<nsIDOMMozWakeLock> mWakeLock;
+  nsRefPtr<WakeLock> mWakeLock;
 
   /**
    * Logs a warning message to the web console to report various failures.
@@ -571,7 +599,7 @@ protected:
    * of parameters in aParams.
    */
   void ReportLoadError(const char* aMsg,
-                       const PRUnichar** aParams = nullptr,
+                       const char16_t** aParams = nullptr,
                        uint32_t aParamCount = 0);
 
   /**
@@ -804,7 +832,7 @@ protected:
   void SetMutedInternal(uint32_t aMuted);
   /**
    * Update the volume of the output audio stream to match the element's
-   * current mMuted/mVolume state.
+   * current mMuted/mVolume/mAudioChannelFaded state.
    */
   void SetVolumeInternal();
 
@@ -833,11 +861,20 @@ protected:
   // Check the permissions for audiochannel.
   bool CheckAudioChannelPermissions(const nsAString& aType);
 
-  // This method does the check for muting/unmuting the audio channel.
-  nsresult UpdateChannelMuteState(bool aCanPlay);
+  // This method does the check for muting/fading/unmuting the audio channel.
+  nsresult UpdateChannelMuteState(mozilla::dom::AudioChannelState aCanPlay);
 
   // Update the audio channel playing state
   virtual void UpdateAudioChannelPlayingState();
+
+  // Adds to the element's list of pending text tracks each text track
+  // in the element's list of text tracks whose text track mode is not disabled
+  // and whose text track readiness state is loading.
+  void PopulatePendingTextTrackList();
+
+  // Gets a reference to the MediaElement's TextTrackManager. If the
+  // MediaElement doesn't yet have one then it will create it.
+  TextTrackManager* GetOrCreateTextTrackManager();
 
   // The current decoder. Load() has been called on this decoder.
   // At most one of mDecoder and mSrcStream can be non-null.
@@ -866,6 +903,9 @@ protected:
 
   // Holds a reference to the MediaStreamListener attached to mSrcStream.
   nsRefPtr<StreamListener> mSrcStreamListener;
+
+  // Holds a reference to the MediaSource supplying data for playback.
+  nsRefPtr<MediaSource> mMediaSource;
 
   // Holds a reference to the first channel we open to the media resource.
   // Once the decoder is created, control over the channel passes to the
@@ -980,8 +1020,6 @@ protected:
   // True if pitch correction is applied when playbackRate is set to a
   // non-intrinsic value.
   bool mPreservesPitch;
-
-  nsRefPtr<gfxASurface> mPrintSurface;
 
   // Reference to the source element last returned by GetNextSource().
   // This is the child source element which we're trying to load from.
@@ -1116,14 +1154,16 @@ protected:
   // Audio Channel Type.
   AudioChannelType mAudioChannelType;
 
+  // The audio channel has been faded.
+  bool mAudioChannelFaded;
+
   // Is this media element playing?
   bool mPlayingThroughTheAudioChannel;
 
   // An agent used to join audio channel service.
   nsCOMPtr<nsIAudioChannelAgent> mAudioChannelAgent;
 
-  // List of our attached text track objects.
-  nsRefPtr<TextTrackList> mTextTracks;
+  nsRefPtr<TextTrackManager> mTextTrackManager;
 };
 
 } // namespace dom

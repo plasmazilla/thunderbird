@@ -6,6 +6,7 @@
 #ifndef nsPop3Protocol_h__
 #define nsPop3Protocol_h__
 
+#include "mozilla/Attributes.h"
 #include "nsIStreamListener.h"
 #include "nsIOutputStream.h"
 #include "nsIInputStream.h"
@@ -261,7 +262,7 @@ public:
   NS_DECL_NSIMSGASYNCPROMPTLISTENER
 
   nsresult Initialize(nsIURI * aURL);
-  virtual nsresult LoadUrl(nsIURI *aURL, nsISupports * aConsumer = nullptr);
+  virtual nsresult LoadUrl(nsIURI *aURL, nsISupports * aConsumer = nullptr) MOZ_OVERRIDE;
   void Cleanup();
 
   const char* GetUsername() { return m_username.get(); }
@@ -269,9 +270,9 @@ public:
 
   nsresult StartGetAsyncPassword(Pop3StatesEnum aNextState);
 
-  NS_IMETHOD OnTransportStatus(nsITransport *transport, nsresult status, uint64_t progress, uint64_t progressMax);
-  NS_IMETHOD OnStopRequest(nsIRequest *request, nsISupports * aContext, nsresult aStatus);
-  NS_IMETHOD Cancel(nsresult status);
+  NS_IMETHOD OnTransportStatus(nsITransport *transport, nsresult status, uint64_t progress, uint64_t progressMax) MOZ_OVERRIDE;
+  NS_IMETHOD OnStopRequest(nsIRequest *request, nsISupports * aContext, nsresult aStatus) MOZ_OVERRIDE;
+  NS_IMETHOD Cancel(nsresult status) MOZ_OVERRIDE;
 
   static void MarkMsgInHashTable(PLHashTable *hashTable, const Pop3UidlEntry *uidl,
                                   bool *changed);
@@ -295,7 +296,7 @@ private:
   // progress state information
   void UpdateProgressPercent (uint32_t totalDone, uint32_t total);
   void UpdateStatus(const nsString &aStatusName);
-  void UpdateStatusWithString(const PRUnichar * aString);
+  void UpdateStatusWithString(const char16_t * aString);
   nsresult FormatCounterString(const nsString &stringName,
                                uint32_t count1,
                                uint32_t count2,
@@ -309,10 +310,10 @@ private:
   int32_t m_totalBytesReceived; // total # bytes received for the connection
 
   virtual nsresult ProcessProtocolState(nsIURI * url, nsIInputStream * inputStream,
-                                        uint64_t sourceOffset, uint32_t length);
+                                        uint64_t sourceOffset, uint32_t length) MOZ_OVERRIDE;
   virtual int32_t Pop3SendData(const char * dataBuffer, bool aSuppressLogging = false);
 
-  virtual const char* GetType() {return "pop3";}
+  virtual const char* GetType() MOZ_OVERRIDE {return "pop3";}
 
   nsCOMPtr<nsIURI> m_url;
   nsCOMPtr<nsIPop3Sink> m_nsIPop3Sink;
@@ -354,7 +355,8 @@ private:
                                            uint32_t length);
   int32_t WaitForResponse(nsIInputStream* inputStream,
                           uint32_t length);
-  int32_t Error(const char* err_code);
+  int32_t Error(const char* err_code, const char16_t **params = nullptr,
+                uint32_t length = 0);
   int32_t SendAuth();
   int32_t AuthResponse(nsIInputStream* inputStream, uint32_t length);
   int32_t SendCapa();

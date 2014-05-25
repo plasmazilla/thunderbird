@@ -4,6 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsSuiteProfileMigratorUtils.h"
+#include "mozilla/ArrayUtils.h"
 #include "nsCRT.h"
 #include "nsDirectoryServiceDefs.h"
 #include "nsIObserverService.h"
@@ -26,6 +27,7 @@
 #define FILE_NAME_KEY3DB          "key3.db"
 #define FILE_NAME_SECMODDB        "secmod.db"
 #define FILE_NAME_HISTORY         "history.dat"
+#define FILE_NAME_SIGNONS         "signons.sqlite"
 #define FILE_NAME_MIMETYPES       "mimeTypes.rdf"
 #define FILE_NAME_USER_PREFS      "user.js"
 #define FILE_NAME_PERSONALDICTIONARY "persdict.dat"
@@ -48,7 +50,7 @@ nsThunderbirdProfileMigrator::~nsThunderbirdProfileMigrator()
 NS_IMETHODIMP
 nsThunderbirdProfileMigrator::Migrate(uint16_t aItems,
                                       nsIProfileStartup* aStartup,
-                                      const PRUnichar* aProfile)
+                                      const char16_t* aProfile)
 {
   nsresult rv = NS_OK;
   bool aReplace = aStartup ? true : false;
@@ -109,7 +111,7 @@ nsThunderbirdProfileMigrator::Migrate(uint16_t aItems,
 }
 
 NS_IMETHODIMP
-nsThunderbirdProfileMigrator::GetMigrateData(const PRUnichar* aProfile,
+nsThunderbirdProfileMigrator::GetMigrateData(const char16_t* aProfile,
                                              bool aReplace,
                                              uint16_t* aResult)
 {
@@ -140,6 +142,9 @@ nsThunderbirdProfileMigrator::GetMigrateData(const PRUnichar* aProfile,
                            { FILE_NAME_HISTORY,
                              nsISuiteProfileMigrator::HISTORY,
                              true },
+                           { FILE_NAME_SIGNONS,
+                             nsISuiteProfileMigrator::PASSWORDS,
+                             true },
                            { FILE_NAME_DOWNLOADS,
                              nsISuiteProfileMigrator::OTHERDATA,
                              true },
@@ -152,23 +157,6 @@ nsThunderbirdProfileMigrator::GetMigrateData(const PRUnichar* aProfile,
                                                                   
   GetMigrateDataFromArray(data, sizeof(data)/sizeof(MigrationData),
                           aReplace, mSourceProfile, aResult);
-
-  // Now locate passwords
-  nsCString signonsFileName;
-  GetSignonFileName(aReplace, getter_Copies(signonsFileName));
-
-  if (!signonsFileName.IsEmpty()) {
-    nsAutoString fileName;
-    fileName.Assign(NS_ConvertUTF8toUTF16(signonsFileName));
-    nsCOMPtr<nsIFile> sourcePasswordsFile;
-    mSourceProfile->Clone(getter_AddRefs(sourcePasswordsFile));
-    sourcePasswordsFile->Append(fileName);
-    
-    bool exists;
-    sourcePasswordsFile->Exists(&exists);
-    if (exists)
-      *aResult |= nsISuiteProfileMigrator::PASSWORDS;
-  }
 
   return NS_OK;
 }
@@ -220,11 +208,6 @@ nsThunderbirdProfileMigrator::FillProfileDataFromRegistry()
   
   thunderbirdData->Append(NS_LITERAL_STRING(".thunderbird"));
 
-#elif defined(XP_OS2)
-  fileLocator->Get(NS_OS2_HOME_DIR, NS_GET_IID(nsIFile),
-                   getter_AddRefs(thunderbirdData));
-  
-  thunderbirdData->Append(NS_LITERAL_STRING("Thunderbird"));
 #else
   // On other OS just abort
   return NS_ERROR_FILE_NOT_FOUND;
@@ -464,7 +447,6 @@ nsThunderbirdProfileMigrator::PrefTransform gTransforms[] = {
   MAKESAMETYPEPREFTRANSFORM("security.warn_submit_insecure",           Bool),
   MAKESAMETYPEPREFTRANSFORM("security.warn_viewing_mixed",             Bool),
 
-  MAKESAMETYPEPREFTRANSFORM("signon.SignonFileName",                   String),
   MAKESAMETYPEPREFTRANSFORM("signon.rememberSignons",                  Bool),
 
   MAKESAMETYPEPREFTRANSFORM("slider.snapMultiplier",                   Int),
@@ -533,9 +515,9 @@ nsThunderbirdProfileMigrator::TransformPreferences(
     "wallet."
   };
 
-  PBStructArray branches[NS_ARRAY_LENGTH(branchNames)];
+  PBStructArray branches[MOZ_ARRAY_LENGTH(branchNames)];
   uint32_t i;
-  for (i = 0; i < NS_ARRAY_LENGTH(branchNames); ++i)
+  for (i = 0; i < MOZ_ARRAY_LENGTH(branchNames); ++i)
     ReadBranch(branchNames[i], psvc, branches[i]);
 
   // the signature file prefs may be paths to files in the thunderbird profile
@@ -566,7 +548,7 @@ nsThunderbirdProfileMigrator::TransformPreferences(
   for (transform = gTransforms; transform < end; ++transform)
     transform->prefSetterFunc(transform, branch);
 
-  for (i = 0; i < NS_ARRAY_LENGTH(branchNames); ++i)
+  for (i = 0; i < MOZ_ARRAY_LENGTH(branchNames); ++i)
     WriteBranch(branchNames[i], psvc, branches[i]);
 
   psvc->SavePrefFile(targetPrefsFile);
@@ -612,4 +594,10 @@ nsresult
 nsThunderbirdProfileMigrator::CopyHistory(bool aReplace)
 {
   return aReplace ? CopyFile(FILE_NAME_HISTORY, FILE_NAME_HISTORY) : NS_OK;
+}
+
+nsresult
+nsThunderbirdProfileMigrator::CopyPasswords(bool aReplace)
+{
+  return aReplace ? CopyFile(FILE_NAME_SIGNONS, FILE_NAME_SIGNONS) : NS_OK;
 }

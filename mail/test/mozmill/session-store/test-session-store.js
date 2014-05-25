@@ -30,6 +30,9 @@ var windowHelper;
 
 var folderA, folderB;
 
+// With async file writes, use a delay larger than the session autosave timer.
+const asyncFileWriteDelayMS = 500;
+
 /* ........ Helper Functions ................*/
 
 /**
@@ -50,7 +53,8 @@ function readFile() {
 }
 
 function waitForFileRefresh() {
-  controller.sleep(sessionStoreManager._sessionAutoSaveTimerIntervalMS);
+  controller.sleep(sessionStoreManager._sessionAutoSaveTimerIntervalMS +
+                   asyncFileWriteDelayMS);
   jumlib.assert(sessionStoreManager.sessionFile.exists(),
                 "file should exist");
 }
@@ -175,6 +179,9 @@ function test_restore_single_3pane_persistence() {
 
   // close the 3pane window
   mail3PaneWindow.close();
+  // Wait for window close async session write to finish.
+  controller.sleep(sessionStoreManager._sessionAutoSaveTimerIntervalMS +
+                   asyncFileWriteDelayMS);
 
   mc = open3PaneWindow();
   be_in_folder(folderA);
@@ -228,6 +235,9 @@ function test_message_pane_height_persistence() {
 
   // The 3pane window is closed.
   mail3PaneWindow.close();
+  // Wait for window close async session write to finish.
+  controller.sleep(sessionStoreManager._sessionAutoSaveTimerIntervalMS +
+                   asyncFileWriteDelayMS);
 
   mc = open3PaneWindow();
   be_in_folder(folderA);
@@ -244,6 +254,9 @@ function test_message_pane_height_persistence() {
 
   // The 3pane window is closed.
   mail3PaneWindow.close();
+  // Wait for window close async session write to finish.
+  controller.sleep(sessionStoreManager._sessionAutoSaveTimerIntervalMS +
+                   asyncFileWriteDelayMS);
 
   mc = open3PaneWindow();
   be_in_folder(folderA);
@@ -302,6 +315,9 @@ function test_message_pane_width_persistence() {
 
   // The 3pane window is closed.
   mail3PaneWindow.close();
+  // Wait for window close async session write to finish.
+  controller.sleep(sessionStoreManager._sessionAutoSaveTimerIntervalMS +
+                   asyncFileWriteDelayMS);
 
   mc = open3PaneWindow();
   be_in_folder(folderA);
@@ -327,6 +343,9 @@ function test_message_pane_width_persistence() {
 
   // The 3pane window is closed.
   mail3PaneWindow.close();
+  // Wait for window close async session write to finish.
+  controller.sleep(sessionStoreManager._sessionAutoSaveTimerIntervalMS +
+                   asyncFileWriteDelayMS);
 
   mc = open3PaneWindow();
   be_in_folder(folderA);
@@ -401,7 +420,11 @@ function test_bad_session_file_simple() {
   jumlib.assert(!sessionStoreManager._initialState,
                 "saved state is bad so state object should be null");
 
-  // the bad session file should have also been deleted
+  // Wait for bad file async rename to finish.
+  controller.sleep(sessionStoreManager._sessionAutoSaveTimerIntervalMS +
+                   asyncFileWriteDelayMS);
+
+  // The bad session file should now not exist.
   jumlib.assert(!sessionStoreManager.sessionFile.exists(),
                 "file should not exist");
 }
@@ -425,8 +448,12 @@ function test_clean_shutdown_session_persistence_simple() {
     if (!enumerator.hasMoreElements())
       lastWindowState = window.getWindowStateForSessionPersistence();
 
-    window.close();
+    close_window(new mozmill.controller.MozMillController(window));
   }
+
+  // Wait for window close async session write to finish.
+  controller.sleep(sessionStoreManager._sessionAutoSaveTimerIntervalMS +
+                   asyncFileWriteDelayMS);
 
   // load the saved state from disk
   let loadedState = readFile();

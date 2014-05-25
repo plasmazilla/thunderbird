@@ -12,7 +12,6 @@
 #include "nsIHttpProtocolHandler.h"
 #include "nsMailHeaders.h"
 #include "nsMsgI18N.h"
-#include "nsIMsgHeaderParser.h"
 #include "nsINntpService.h"
 #include "nsMimeTypes.h"
 #include "nsDirectoryServiceDefs.h"
@@ -31,6 +30,7 @@
 #include "nsCRTGlue.h"
 #include <ctype.h>
 #include "mozilla/Services.h"
+#include "nsIMIMEInfo.h"
 
 NS_IMPL_ISUPPORTS1(nsMsgCompUtils, nsIMsgCompUtils)
 
@@ -280,7 +280,7 @@ mime_generate_headers (nsMsgCompFields *fields,
 
   bool usemime = nsMsgMIMEGetConformToStandard();
   int32_t size = 0;
-  char *buffer = 0, *buffer_tail = 0;
+  char *buffer = nullptr, *buffer_tail = nullptr;
   bool isDraft =
     deliver_mode == nsIMsgSend::nsMsgSaveAsDraft ||
     deliver_mode == nsIMsgSend::nsMsgSaveAsTemplate ||
@@ -307,9 +307,10 @@ mime_generate_headers (nsMsgCompFields *fields,
   headerBuf.Truncate();
 
   NS_ASSERTION (fields, "null fields");
-  if (!fields)
+  if (!fields) {
+    *status = NS_ERROR_NULL_POINTER;
     return nullptr;
-
+  }
   pFrom = fields->GetFrom();
   if (pFrom)
     headerBuf.Append(pFrom);
@@ -343,8 +344,10 @@ mime_generate_headers (nsMsgCompFields *fields,
   size += 2560;
 
   buffer = (char *) PR_Malloc (size);
-  if (!buffer)
+  if (!buffer) {
+    *status = NS_ERROR_OUT_OF_MEMORY;
     return nullptr; /* NS_ERROR_OUT_OF_MEMORY */
+  }
 
   buffer_tail = buffer;
 
@@ -455,6 +458,11 @@ mime_generate_headers (nsMsgCompFields *fields,
       PUSH_STRING("DSN=0");
     PUSH_STRING("; ");
     PUSH_STRING("uuencode=0");
+    PUSH_STRING("; ");
+    if (fields->GetAttachmentReminder())
+      PUSH_STRING("attachmentreminder=1");
+    else
+      PUSH_STRING("attachmentreminder=0");
 
     PUSH_NEWLINE ();
   }
@@ -482,6 +490,7 @@ mime_generate_headers (nsMsgCompFields *fields,
     char *duppedNewsGrp = PL_strdup(pNewsGrp);
     if (!duppedNewsGrp) {
       PR_FREEIF(buffer);
+      *status = NS_ERROR_OUT_OF_MEMORY;
       return nullptr; /* NS_ERROR_OUT_OF_MEMORY */
     }
     char *n2 = nsMsgStripLine(duppedNewsGrp);
@@ -515,7 +524,7 @@ mime_generate_headers (nsMsgCompFields *fields,
     // "news://news.mozilla.org/netscape.test,news://news.mozilla.org/netscape.junk"
     // we need to turn that into: "netscape.test,netscape.junk"
     //
-    nsCOMPtr <nsINntpService> nntpService = do_GetService("@mozilla.org/messenger/nntpservice;1");
+    nsCOMPtr<nsINntpService> nntpService = do_GetService("@mozilla.org/messenger/nntpservice;1", &rv);
     if (NS_FAILED(rv) || !nntpService) {
       *status = NS_ERROR_FAILURE;
       return nullptr;
@@ -707,13 +716,16 @@ mime_generate_headers (nsMsgCompFields *fields,
     PUSH_STRING (pOtherHdr);
   }
 
-  if (buffer_tail > buffer + size - 1)
+  if (buffer_tail > buffer + size - 1) {
+    PR_FREEIF(buffer);
     return nullptr;
-
+  }
   /* realloc it smaller... */
-  buffer = (char*)PR_REALLOC (buffer, buffer_tail - buffer + 1);
+  char *newBuffer = (char*) PR_REALLOC(buffer, buffer_tail - buffer + 1);
+  if (!newBuffer) // The original bigger buffer is still usable to the caller.
+    return buffer;
 
-  return buffer;
+  return newBuffer;
 }
 
 static void
@@ -1349,13 +1361,7 @@ mime_fix_header_1 (const char *string, bool addr_p, bool news_p)
     return 0;
 
   if (addr_p) {
-    nsresult rv = NS_OK;
-    nsCOMPtr<nsIMsgHeaderParser> pHeader = do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID, &rv);
-    if (NS_SUCCEEDED(rv)) {
-      char *n;
-      pHeader->ReformatHeaderAddresses(string, &n);
-      if (n)        return n;
-    }
+    return strdup(string);
   }
 
   old_size = PL_strlen (string);
@@ -1577,7 +1583,7 @@ msg_make_filename_qtext(const char *srcText, bool stripCRLFs)
 /* Rip apart the URL and extract a reasonable value for the `real_name' slot.
  */
 void
-msg_pick_real_name (nsMsgAttachmentHandler *attachment, const PRUnichar *proposedName, const char *charset)
+msg_pick_real_name (nsMsgAttachmentHandler *attachment, const char16_t *proposedName, const char *charset)
 {
   const char *s, *s2;
 

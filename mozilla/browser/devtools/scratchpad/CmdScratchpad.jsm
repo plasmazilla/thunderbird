@@ -4,7 +4,8 @@
 
 this.EXPORTED_SYMBOLS = [ ];
 
-Components.utils.import("resource://gre/modules/devtools/gcli.jsm");
+const { devtools } = Components.utils.import("resource://gre/modules/devtools/Loader.jsm", {});
+const gcli = devtools.require("gcli/index");
 
 /**
  * 'scratchpad' command
@@ -12,7 +13,7 @@ Components.utils.import("resource://gre/modules/devtools/gcli.jsm");
 gcli.addCommand({
   name: "scratchpad",
   buttonId: "command-button-scratchpad",
-  buttonClass: "command-button",
+  buttonClass: "command-button command-button-invertable",
   tooltipText: gcli.lookup("scratchpadOpenTooltip"),
   hidden: true,
   exec: function(args, context) {

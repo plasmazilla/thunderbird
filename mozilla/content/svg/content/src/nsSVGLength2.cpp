@@ -3,20 +3,18 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "mozilla/Util.h"
+#include "mozilla/ArrayUtils.h"
 
 #include "nsSVGLength2.h"
-#include "prdtoa.h"
-#include "nsTextFormatter.h"
-#include "mozilla/dom/SVGSVGElement.h"
-#include "nsIFrame.h"
-#include "nsSVGIntegrationUtils.h"
-#include "nsSVGAttrTearoffTable.h"
-#include "nsContentUtils.h" // NS_ENSURE_FINITE
-#include "nsSMILValue.h"
-#include "nsSMILFloatType.h"
-#include "nsAttrValueInlines.h"
 #include "mozilla/dom/SVGAnimatedLength.h"
+#include "mozilla/dom/SVGSVGElement.h"
+#include "nsContentUtils.h" // NS_ENSURE_FINITE
+#include "nsIFrame.h"
+#include "nsSMILFloatType.h"
+#include "nsSMILValue.h"
+#include "nsSVGAttrTearoffTable.h"
+#include "nsSVGIntegrationUtils.h"
+#include "nsTextFormatter.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -112,9 +110,9 @@ GetUnitTypeForString(const nsAString& unitStr)
 static void
 GetValueString(nsAString &aValueAsString, float aValue, uint16_t aUnitType)
 {
-  PRUnichar buf[24];
-  nsTextFormatter::snprintf(buf, sizeof(buf)/sizeof(PRUnichar),
-                            NS_LITERAL_STRING("%g").get(),
+  char16_t buf[24];
+  nsTextFormatter::snprintf(buf, sizeof(buf)/sizeof(char16_t),
+                            MOZ_UTF16("%g"),
                             (double)aValue);
   aValueAsString.Assign(buf);
 
@@ -123,28 +121,22 @@ GetValueString(nsAString &aValueAsString, float aValue, uint16_t aUnitType)
   aValueAsString.Append(unitString);
 }
 
-static nsresult
-GetValueFromString(const nsAString &aValueAsString,
-                   float *aValue,
-                   uint16_t *aUnitType)
+static bool
+GetValueFromString(const nsAString& aString,
+                   float& aValue,
+                   uint16_t* aUnitType)
 {
-  NS_ConvertUTF16toUTF8 value(aValueAsString);
-  const char *str = value.get();
+  RangedPtr<const char16_t> iter =
+    SVGContentUtils::GetStartRangedPtr(aString);
+  const RangedPtr<const char16_t> end =
+    SVGContentUtils::GetEndRangedPtr(aString);
 
-  if (NS_IsAsciiWhitespace(*str))
-    return NS_ERROR_DOM_SYNTAX_ERR;
-  
-  char *rest;
-  *aValue = float(PR_strtod(str, &rest));
-  if (rest != str && NS_finite(*aValue)) {
-    *aUnitType = GetUnitTypeForString(
-      Substring(aValueAsString, rest - str));
-    if (IsValidUnitType(*aUnitType)) {
-      return NS_OK;
-    }
+  if (!SVGContentUtils::ParseNumber(iter, end, aValue)) {
+    return false;
   }
-  
-  return NS_ERROR_DOM_SYNTAX_ERR;
+  const nsAString& units = Substring(iter.get(), end.get());
+  *aUnitType = GetUnitTypeForString(units);
+  return IsValidUnitType(*aUnitType);
 }
 
 static float
@@ -169,7 +161,7 @@ nsSVGLength2::GetAxisLength(SVGSVGElement *aCtx) const
 float
 nsSVGLength2::GetAxisLength(nsIFrame *aNonSVGFrame) const
 {
-  gfxSize size =
+  gfx::Size size =
     nsSVGIntegrationUtils::GetSVGCoordContextForNonSVGFrame(aNonSVGFrame);
   float length;
   switch (mCtxType) {
@@ -400,12 +392,11 @@ nsSVGLength2::SetBaseValueString(const nsAString &aValueAsString,
   float value;
   uint16_t unitType;
 
-  nsresult rv = GetValueFromString(aValueAsString, &value, &unitType);
-  if (NS_FAILED(rv)) {
-    return rv;
+  if (!GetValueFromString(aValueAsString, value, &unitType)) {
+    return NS_ERROR_DOM_SYNTAX_ERR;
   }
 
-  if (mIsBaseSet && mBaseVal == value &&
+  if (mIsBaseSet && mBaseVal == float(value) &&
       mSpecifiedUnitType == uint8_t(unitType)) {
     return NS_OK;
   }
@@ -471,14 +462,6 @@ nsSVGLength2::SetAnimValue(float aValue, nsSVGElement *aSVGElement)
                                aSVGElement);
 }
 
-nsresult
-nsSVGLength2::ToDOMAnimatedLength(nsIDOMSVGAnimatedLength **aResult,
-                                  nsSVGElement *aSVGElement)
-{
-  *aResult = ToDOMAnimatedLength(aSVGElement).get();
-  return NS_OK;
-}
-
 already_AddRefed<SVGAnimatedLength>
 nsSVGLength2::ToDOMAnimatedLength(nsSVGElement* aSVGElement)
 {
@@ -512,9 +495,8 @@ nsSVGLength2::SMILLength::ValueFromString(const nsAString& aStr,
   float value;
   uint16_t unitType;
   
-  nsresult rv = GetValueFromString(aStr, &value, &unitType);
-  if (NS_FAILED(rv)) {
-    return rv;
+  if (!GetValueFromString(aStr, value, &unitType)) {
+    return NS_ERROR_DOM_SYNTAX_ERR;
   }
 
   nsSMILValue val(nsSMILFloatType::Singleton());

@@ -6,7 +6,7 @@
 #ifndef __mozilla_widget_GfxDriverInfo_h__
 #define __mozilla_widget_GfxDriverInfo_h__
 
-#include "mozilla/Util.h" // ArrayLength
+#include "mozilla/ArrayUtils.h" // ArrayLength
 #include "nsString.h"
 
 // Macros for adding a blocklist item to the static list.
@@ -35,6 +35,7 @@ enum OperatingSystem {
   DRIVER_OS_WINDOWS_VISTA,
   DRIVER_OS_WINDOWS_7,
   DRIVER_OS_WINDOWS_8,
+  DRIVER_OS_WINDOWS_8_1,
   DRIVER_OS_LINUX,
   DRIVER_OS_OS_X_10_5,
   DRIVER_OS_OS_X_10_6,
@@ -213,7 +214,7 @@ inline void PadDriverDecimal(char *aString)
 }
 
 inline bool
-ParseDriverVersion(nsAString& aVersion, uint64_t *aNumericVersion)
+ParseDriverVersion(const nsAString& aVersion, uint64_t *aNumericVersion)
 {
 #if defined(XP_WIN)
   int a, b, c, d;

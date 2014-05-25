@@ -6,38 +6,35 @@ XPCOMUtils.defineLazyModuleGetter(this, "DownloadsCommon",
                                   "resource:///modules/DownloadsCommon.jsm");
 
 var gMainPane = {
-  _pane: null,
-
   /**
    * Initialization of this.
    */
   init: function ()
   {
-    this._pane = document.getElementById("paneMain");
-
     // set up the "use current page" label-changing listener
     this._updateUseCurrentButton();
     window.addEventListener("focus", this._updateUseCurrentButton.bind(this), false);
 
     this.updateBrowserStartupLastSession();
 
-    this.setupDownloadsWindowOptions();
-
     // Notify observers that the UI is now ready
     Components.classes["@mozilla.org/observer-service;1"]
               .getService(Components.interfaces.nsIObserverService)
               .notifyObservers(window, "main-pane-loaded", null);
-  },
 
-  setupDownloadsWindowOptions: function ()
-  {
-    let showWhenDownloading = document.getElementById("showWhenDownloading");
-    let closeWhenDone = document.getElementById("closeWhenDone");
+    //Functionality for "Show tabs in taskbar" on Win XP
 
-    // These radio buttons should be hidden when the Downloads Panel is enabled.
-    let shouldHide = !DownloadsCommon.useToolkitUI;
-    showWhenDownloading.hidden = shouldHide;
-    closeWhenDone.hidden = shouldHide;
+#ifdef XP_WIN
+    try {
+      let sysInfo = Cc["@mozilla.org/system-info;1"].
+                    getService(Ci.nsIPropertyBag2);
+      let ver = parseFloat(sysInfo.getProperty("version"));
+      let showTabsInTaskbar = document.getElementById("showTabsInTaskbar");
+      showTabsInTaskbar.hidden = ver < 6.1 || (ver >= 6.1 && history.state != "tabs");
+    } catch (ex) {}
+
+#endif
+
   },
 
   // HOME PAGE
@@ -191,12 +188,6 @@ var gMainPane = {
   /*
    * Preferences:
    *
-   * browser.download.showWhenStarting - bool
-   *   True if the Download Manager should be opened when a download is
-   *   started, false if it shouldn't be opened.
-   * browser.download.closeWhenDone - bool
-   *   True if the Download Manager should be closed when all downloads
-   *   complete, false if it should be left open.
    * browser.download.useDownloadDir - bool
    *   True - Save files directly to the folder configured via the
    *   browser.download.folderList preference.
@@ -223,30 +214,6 @@ var gMainPane = {
    * browser.download.defaultFolder
    *   deprecated.
    */
-
-  /**
-   * Updates preferences which depend upon the value of the preference which
-   * determines whether the Downloads manager is opened at the start of a
-   * download.
-   */
-  readShowDownloadsWhenStarting: function ()
-  {
-    this.showDownloadsWhenStartingPrefChanged();
-
-    // don't override the preference's value in UI
-    return undefined;
-  },
-
-  /**
-   * Enables or disables the "close Downloads manager when downloads finished"
-   * preference element, consequently updating the associated UI.
-   */
-  showDownloadsWhenStartingPrefChanged: function ()
-  {
-    var showWhenStartingPref = document.getElementById("browser.download.manager.showWhenStarting");
-    var closeWhenDonePref = document.getElementById("browser.download.manager.closeWhenDone");
-    closeWhenDonePref.disabled = !showWhenStartingPref.value;
-  },
 
   /**
    * Enables/disables the folder field and Browse button based on whether a
@@ -475,5 +442,28 @@ var gMainPane = {
       option.removeAttribute("disabled");
       startupPref.updateElements(); // select the correct index in the startup menulist
     }
+  },
+  // TABS
+
+
+  /**
+   * Determines where a link which opens a new window will open.
+   *
+   * @returns |true| if such links should be opened in new tabs
+   */
+  readLinkTarget: function() {
+    var openNewWindow = document.getElementById("browser.link.open_newwindow");
+    return openNewWindow.value != 2;
+  },
+
+  /**
+   * Determines where a link which opens a new window will open.
+   *
+   * @returns 2 if such links should be opened in new windows,
+   *          3 if such links should be opened in new tabs
+   */
+  writeLinkTarget: function() {
+    var linkTargeting = document.getElementById("linkTargeting");
+    return linkTargeting.checked ? 3 : 2;
   }
 };

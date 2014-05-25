@@ -3,8 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef nsHtml5StreamParser_h__
-#define nsHtml5StreamParser_h__
+#ifndef nsHtml5StreamParser_h
+#define nsHtml5StreamParser_h
 
 #include "nsAutoPtr.h"
 #include "nsCOMPtr.h"
@@ -20,6 +20,7 @@
 #include "nsHtml5Speculation.h"
 #include "nsITimer.h"
 #include "nsICharsetDetector.h"
+#include "nsIThreadRetargetableStreamListener.h"
 
 class nsHtml5Parser;
 
@@ -101,6 +102,7 @@ enum eHtml5StreamState {
 };
 
 class nsHtml5StreamParser : public nsIStreamListener,
+                            public nsIThreadRetargetableStreamListener,
                             public nsICharsetDetectionObserver {
 
   friend class nsHtml5RequestStopper;
@@ -125,6 +127,8 @@ class nsHtml5StreamParser : public nsIStreamListener,
     NS_DECL_NSIREQUESTOBSERVER
     // nsIStreamListener methods:
     NS_DECL_NSISTREAMLISTENER
+    // nsIThreadRetargetableStreamListener methods:
+    NS_DECL_NSITHREADRETARGETABLESTREAMLISTENER
     
     // nsICharsetDetectionObserver
     /**
@@ -177,7 +181,8 @@ class nsHtml5StreamParser : public nsIStreamListener,
      */
     void ContinueAfterFailedCharsetSwitch();
 
-    void Terminate() {
+    void Terminate()
+    {
       mozilla::MutexAutoLock autoLock(mTerminatedMutex);
       mTerminated = true;
     }
@@ -189,7 +194,7 @@ class nsHtml5StreamParser : public nsIStreamListener,
      * case if aEncoding names a supported rough ASCII superset and sets
      * the mCharset and mCharsetSource to the UTF-8 default otherwise.
      */
-    void SetEncodingFromExpat(const PRUnichar* aEncoding);
+    void SetEncodingFromExpat(const char16_t* aEncoding);
 
     /**
      * Sets the URL for View Source title in case this parser ends up being
@@ -216,12 +221,14 @@ class nsHtml5StreamParser : public nsIStreamListener,
      * avoid having a previous in-flight runnable cancel your Interrupt()
      * call on the other thread too soon.
      */
-    void Interrupt() {
+    void Interrupt()
+    {
       mozilla::MutexAutoLock autoLock(mTerminatedMutex);
       mInterrupted = true;
     }
 
-    void Uninterrupt() {
+    void Uninterrupt()
+    {
       NS_ASSERTION(IsParserThread(), "Wrong thread!");
       mTokenizerMutex.AssertCurrentThreadOwns();
       // Not acquiring mTerminatedMutex because mTokenizerMutex is already
@@ -239,14 +246,23 @@ class nsHtml5StreamParser : public nsIStreamListener,
     
     void DoStopRequest();
     
-    void DoDataAvailable(uint8_t* aBuffer, uint32_t aLength);
+    void DoDataAvailable(const uint8_t* aBuffer, uint32_t aLength);
 
-    bool IsTerminatedOrInterrupted() {
+    static NS_METHOD CopySegmentsToParser(nsIInputStream *aInStream,
+                                          void *aClosure,
+                                          const char *aFromSegment,
+                                          uint32_t aToOffset,
+                                          uint32_t aCount,
+                                          uint32_t *aWriteCount);
+
+    bool IsTerminatedOrInterrupted()
+    {
       mozilla::MutexAutoLock autoLock(mTerminatedMutex);
       return mTerminated || mInterrupted;
     }
 
-    bool IsTerminated() {
+    bool IsTerminated()
+    {
       mozilla::MutexAutoLock autoLock(mTerminatedMutex);
       return mTerminated;
     }
@@ -254,7 +270,8 @@ class nsHtml5StreamParser : public nsIStreamListener,
     /**
      * True when there is a Unicode decoder already
      */
-    inline bool HasDecoder() {
+    inline bool HasDecoder()
+    {
       return !!mUnicodeDecoder;
     }
 
@@ -312,32 +329,14 @@ class nsHtml5StreamParser : public nsIStreamListener,
                                                                   uint32_t* aWriteCount);
 
     /**
-     * Write the sniffing buffer into the Unicode decoder followed by the
-     * current network buffer.
-     *
-     * @param aFromSegment The current network buffer or null if the sniffing
-     *                     buffer is being flushed due to network stream ending.
-     * @param aCount       The number of bytes in aFromSegment (ignored if
-     *                     aFromSegment is null)
-     * @param aWriteCount  Return value for how many bytes got read from the
-     *                     buffer.
-     */
-    nsresult WriteSniffingBufferAndCurrentSegment(const uint8_t* aFromSegment,
-                                                  uint32_t aCount,
-                                                  uint32_t* aWriteCount);
-
-    /**
      * Initialize the Unicode decoder, mark the BOM as the source and
      * drop the sniffer.
      *
-     * @param aCharsetName The charset name to report to the outside (UTF-16
-     *                     or UTF-8)
-     * @param aDecoderCharsetName The actual name for the decoder's charset
+     * @param aDecoderCharsetName The name for the decoder's charset
      *                            (UTF-16BE, UTF-16LE or UTF-8; the BOM has
      *                            been swallowed)
      */
-    nsresult SetupDecodingFromBom(const char* aCharsetName,
-                                  const char* aDecoderCharsetName);
+    nsresult SetupDecodingFromBom(const char* aDecoderCharsetName);
 
     /**
      * Become confident or resolve and encoding name to its preferred form.
@@ -548,4 +547,4 @@ class nsHtml5StreamParser : public nsIStreamListener,
     static int32_t                sTimerSubsequentDelay;
 };
 
-#endif // nsHtml5StreamParser_h__
+#endif // nsHtml5StreamParser_h

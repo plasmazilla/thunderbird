@@ -144,7 +144,12 @@ function Recipients2CompFields(msgCompFields)
           case "addr_bcc"   :
           case "addr_reply" :
             try {
-              recipient = MailServices.headerParser.reformatUnquotedAddresses(fieldValue);
+              let headerParser = MailServices.headerParser;
+              recipient = [headerParser.makeMimeAddress(fullValue.name,
+                                                        fullValue.email) for
+                  (fullValue of
+                    headerParser.makeFromDisplayAddress(fieldValue, {}))]
+                .join(", ");
             } catch (ex) {recipient = fieldValue;}
             break;
         }
@@ -289,18 +294,8 @@ function awSetInputAndPopupFromArray(inputArray, popupValue, parentNode, templat
 {
   if (popupValue)
   {
-    var recipient;
-    for (var index = 0; index < inputArray.length; index++)
-    {
-      recipient = null;
-      try {
-        recipient =
-          MailServices.headerParser.unquotePhraseOrAddrWString(inputArray[index], true);
-      } catch (ex) {};
-      if (!recipient)
-        recipient = inputArray[index];
+    for (let recipient of inputArray)
       _awSetInputAndPopup(recipient, popupValue, parentNode, templateNode);
-    }
   }
 }
 
@@ -546,14 +541,6 @@ function awAppendNewRow(setFocus)
     {
       input[0].setAttribute("value", "");
 
-      //this copies the autocomplete sessions list from recipient#1
-      input[0].syncSessions(document.getElementById('addressCol2#1'));
-
-      // also clone the showCommentColumn setting
-      //
-      input[0].showCommentColumn =
-        document.getElementById("addressCol2#1").showCommentColumn;
-
       // We always clone the first row.  The problem is that the first row
       // could be focused.  When we clone that row, we end up with a cloned
       // XUL textbox that has a focused attribute set.  Therefore we think
@@ -664,18 +651,12 @@ function awCopyNode(node, parentNode, beforeNode)
 
 function awRemoveRow(row)
 {
-  var listbox = document.getElementById('addressingWidget');
-
-  awRemoveNodeAndChildren(listbox, awGetListItem(row));
+  awGetListItem(row).remove();
   awFitDummyRows();
 
   top.MAX_RECIPIENTS --;
 }
 
-function awRemoveNodeAndChildren(parent, nodeToRemove)
-{
-  nodeToRemove.parentNode.removeChild(nodeToRemove);
-}
 
 function awSetFocus(row, inputElement)
 {
@@ -784,9 +765,9 @@ function DropRecipient(target, recipient)
 
 function _awSetAutoComplete(selectElem, inputElem)
 {
-  inputElem.disableAutoComplete = selectElem.value == 'addr_newsgroups' ||
-                                  selectElem.value == 'addr_followup' ||
-                                  selectElem.value == 'addr_other';
+  let params = JSON.parse(inputElem.getAttribute('autocompletesearchparam'));
+  params.type = selectElem.value;
+  inputElem.setAttribute('autocompletesearchparam', JSON.stringify(params));
 }
 
 function awSetAutoComplete(rowNumber)
@@ -840,7 +821,7 @@ function awRecipientErrorCommand(errItem, element)
   if (specificErrString == "")
     specificErrString = "Internal error";
 
-  gPromptService.alert(window, generalErrString, specificErrString);
+  Services.prompt.alert(window, generalErrString, specificErrString);
 }
 
 function awRecipientKeyPress(event, element)
@@ -945,7 +926,7 @@ function awCreateOrRemoveDummyRows()
   let kids = listbox.querySelectorAll('[_isDummyRow]');
   for (let i = kids.length - 1; gAWContentHeight > listboxHeight && i >= 0; --i) {
     gAWContentHeight -= gAWRowHeight;
-    listbox.removeChild(kids[i]);
+    kids[i].remove();
   }
 
   // add rows to fill space

@@ -5,6 +5,7 @@
 #ifndef MEDIAENGINE_H_
 #define MEDIAENGINE_H_
 
+#include "mozilla/RefPtr.h"
 #include "nsIDOMFile.h"
 #include "DOMMediaStream.h"
 #include "MediaStreamGraph.h"
@@ -35,9 +36,10 @@ enum {
   kAudioTrack = 2
 };
 
-class MediaEngine
+class MediaEngine : public RefCounted<MediaEngine>
 {
 public:
+  MOZ_DECLARE_REFCOUNTED_TYPENAME(MediaEngine)
   virtual ~MediaEngine() {}
 
   static const int DEFAULT_VIDEO_FPS = 30;
@@ -100,6 +102,11 @@ public:
   virtual nsresult Config(bool aEchoOn, uint32_t aEcho,
                           bool aAgcOn, uint32_t aAGC,
                           bool aNoiseOn, uint32_t aNoise) = 0;
+
+  /* Returns true if a source represents a fake capture device and
+   * false otherwise
+   */
+  virtual bool IsFake() = 0;
 
   /* Return false if device is currently allocated or started */
   bool IsAvailable() {

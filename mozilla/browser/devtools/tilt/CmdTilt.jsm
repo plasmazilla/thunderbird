@@ -8,8 +8,8 @@
 this.EXPORTED_SYMBOLS = [ ];
 
 Components.utils.import('resource://gre/modules/XPCOMUtils.jsm');
-Components.utils.import("resource://gre/modules/devtools/gcli.jsm");
-Components.utils.import("resource://gre/modules/devtools/Loader.jsm");
+const { devtools } = Components.utils.import("resource://gre/modules/devtools/Loader.jsm", {});
+const gcli = devtools.require("gcli/index");
 
 // Fetch TiltManager using the current loader, but don't save a
 // reference to it, because it might change with a tool reload.
@@ -54,7 +54,7 @@ gcli.addCommand({
 gcli.addCommand({
   name: "tilt toggle",
   buttonId: "command-button-tilt",
-  buttonClass: "command-button",
+  buttonClass: "command-button command-button-invertable",
   tooltipText: gcli.lookup("tiltToggleTooltip"),
   hidden: true,
   state: {

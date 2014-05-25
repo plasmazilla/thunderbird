@@ -31,15 +31,15 @@ public:
 
   nsresult Init();
 
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSISTRINGBUNDLESERVICE
   NS_DECL_NSIOBSERVER
     
 private:
   nsresult getStringBundle(const char *aUrl, nsIStringBundle** aResult);
   nsresult FormatWithBundle(nsIStringBundle* bundle, nsresult aStatus, 
-                            uint32_t argCount, PRUnichar** argArray,
-                            PRUnichar* *result);
+                            uint32_t argCount, char16_t** argArray,
+                            char16_t* *result);
 
   void flushBundleCache();
   

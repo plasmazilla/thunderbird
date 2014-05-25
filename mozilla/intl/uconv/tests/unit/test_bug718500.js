@@ -73,11 +73,6 @@ var encoderList = [
   "x-mac-gujarati",
   "x-mac-hebrew",
 
-  "Adobe-Symbol-Encoding",
-  "x-zapf-dingbats",
-  "x-tscii",
-  "x-tamilttf-0",
-
   "IBM850",
   "IBM852",
   "IBM855",
@@ -99,6 +94,7 @@ var encoderList = [
   "gbk",
   "HZ-GB-2312",
   "gb18030",
+  "replacement",
 ];
 
 var decoderList = [
@@ -183,6 +179,7 @@ var decoderList = [
   "gb18030",
   "ISO-2022-KR",
   "ISO-2022-CN",
+  "replacement",
 ];
 
 function verifyList(aEnumerator, aList)

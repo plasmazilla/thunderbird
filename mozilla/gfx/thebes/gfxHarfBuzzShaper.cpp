@@ -3,15 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "nsAlgorithm.h"
 #include "nsString.h"
-#include "nsBidiUtils.h"
-#include "nsMathUtils.h"
-
-#include "gfxTypes.h"
-
 #include "gfxContext.h"
-#include "gfxPlatform.h"
 #include "gfxHarfBuzzShaper.h"
 #include "gfxFontUtils.h"
 #include "nsUnicodeProperties.h"
@@ -21,9 +14,6 @@
 #include "harfbuzz/hb.h"
 #include "harfbuzz/hb-ot.h"
 
-#include "cairo.h"
-
-#include "nsCRT.h"
 #include <algorithm>
 
 #define FloatToFixed(f) (65536 * (f))
@@ -83,7 +73,7 @@ hb_codepoint_t
 gfxHarfBuzzShaper::GetGlyph(hb_codepoint_t unicode,
                             hb_codepoint_t variation_selector) const
 {
-    hb_codepoint_t gid;
+    hb_codepoint_t gid = 0;
 
     if (mUseFontGetGlyph) {
         gid = mFont->GetGlyph(unicode, variation_selector);
@@ -98,6 +88,18 @@ gfxHarfBuzzShaper::GetGlyph(hb_codepoint_t unicode,
         const uint8_t* data =
             (const uint8_t*)hb_blob_get_data(mCmapTable, nullptr);
 
+        if (variation_selector) {
+            if (mUVSTableOffset) {
+                gid =
+                    gfxFontUtils::MapUVSToGlyphFormat14(data + mUVSTableOffset,
+                                                        unicode,
+                                                        variation_selector);
+            }
+            // If the variation sequence was not supported, return zero here;
+            // harfbuzz will call us again for the base character alone
+            return gid;
+        }
+
         switch (mCmapFormat) {
         case 4:
             gid = unicode < UNICODE_BMP_LIMIT ?
@@ -110,20 +112,7 @@ gfxHarfBuzzShaper::GetGlyph(hb_codepoint_t unicode,
             break;
         default:
             NS_WARNING("unsupported cmap format, glyphs will be missing");
-            gid = 0;
             break;
-        }
-
-        if (gid && variation_selector && mUVSTableOffset) {
-            hb_codepoint_t varGID =
-                gfxFontUtils::MapUVSToGlyphFormat14(data + mUVSTableOffset,
-                                                    unicode,
-                                                    variation_selector);
-            if (varGID) {
-                gid = varGID;
-            }
-            // else the variation sequence was not supported, use default
-            // mapping of the character code alone
         }
     }
 
@@ -657,7 +646,7 @@ HBGetEastAsianWidth(hb_unicode_funcs_t *ufuncs, hb_codepoint_t aCh,
 
 // Hebrew presentation forms with dagesh, for characters 0x05D0..0x05EA;
 // note that some letters do not have a dagesh presForm encoded
-static const PRUnichar sDageshForms[0x05EA - 0x05D0 + 1] = {
+static const char16_t sDageshForms[0x05EA - 0x05D0 + 1] = {
     0xFB30, // ALEF
     0xFB31, // BET
     0xFB32, // GIMEL
@@ -790,7 +779,7 @@ HBUnicodeDecompose(hb_unicode_funcs_t *ufuncs,
 }
 
 static PLDHashOperator
-AddFeature(const uint32_t& aTag, uint32_t& aValue, void *aUserArg)
+AddOpenTypeFeature(const uint32_t& aTag, uint32_t& aValue, void *aUserArg)
 {
     nsTArray<hb_feature_t>* features = static_cast<nsTArray<hb_feature_t>*> (aUserArg);
 
@@ -807,10 +796,12 @@ AddFeature(const uint32_t& aTag, uint32_t& aValue, void *aUserArg)
 
 static hb_font_funcs_t * sHBFontFuncs = nullptr;
 static hb_unicode_funcs_t * sHBUnicodeFuncs = nullptr;
+static const hb_script_t sMathScript =
+    hb_ot_tag_to_script(HB_TAG('m','a','t','h'));
 
 bool
 gfxHarfBuzzShaper::ShapeText(gfxContext      *aContext,
-                             const PRUnichar *aText,
+                             const char16_t *aText,
                              uint32_t         aOffset,
                              uint32_t         aLength,
                              int32_t          aScript,
@@ -943,7 +934,7 @@ gfxHarfBuzzShaper::ShapeText(gfxContext      *aContext,
                           mergedFeatures))
     {
         // enumerate result and insert into hb_feature array
-        mergedFeatures.Enumerate(AddFeature, &features);
+        mergedFeatures.Enumerate(AddOpenTypeFeature, &features);
     }
 
     bool isRightToLeft = aShapedText->IsRightToLeft();
@@ -951,12 +942,17 @@ gfxHarfBuzzShaper::ShapeText(gfxContext      *aContext,
     hb_buffer_set_unicode_funcs(buffer, sHBUnicodeFuncs);
     hb_buffer_set_direction(buffer, isRightToLeft ? HB_DIRECTION_RTL :
                                                     HB_DIRECTION_LTR);
-    // For unresolved "common" or "inherited" runs, default to Latin for now.
-    // (Should we somehow use the language or locale to try and infer
-    // a better default?)
-    hb_script_t scriptTag = (aScript <= MOZ_SCRIPT_INHERITED) ?
-        HB_SCRIPT_LATIN :
-        hb_script_t(GetScriptTagForCode(aScript));
+    hb_script_t scriptTag;
+    if (aShapedText->Flags() & gfxTextRunFactory::TEXT_USE_MATH_SCRIPT) {
+        scriptTag = sMathScript;
+    } else if (aScript <= MOZ_SCRIPT_INHERITED) {
+        // For unresolved "common" or "inherited" runs, default to Latin for
+        // now.  (Should we somehow use the language or locale to try and infer
+        // a better default?)
+        scriptTag = HB_SCRIPT_LATIN;
+    } else {
+        scriptTag = hb_script_t(GetScriptTagForCode(aScript));
+    }
     hb_buffer_set_script(buffer, scriptTag);
 
     hb_language_t language;
@@ -1001,7 +997,7 @@ gfxHarfBuzzShaper::SetGlyphsFromRun(gfxContext      *aContext,
                                     gfxShapedText   *aShapedText,
                                     uint32_t         aOffset,
                                     uint32_t         aLength,
-                                    const PRUnichar *aText,
+                                    const char16_t *aText,
                                     hb_buffer_t     *aBuffer)
 {
     uint32_t numGlyphs;
@@ -1014,7 +1010,7 @@ gfxHarfBuzzShaper::SetGlyphsFromRun(gfxContext      *aContext,
 
     uint32_t wordLength = aLength;
     static const int32_t NO_GLYPH = -1;
-    nsAutoTArray<int32_t,SMALL_GLYPH_RUN> charToGlyphArray;
+    AutoFallibleTArray<int32_t,SMALL_GLYPH_RUN> charToGlyphArray;
     if (!charToGlyphArray.SetLength(wordLength)) {
         return NS_ERROR_OUT_OF_MEMORY;
     }

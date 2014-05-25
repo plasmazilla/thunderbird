@@ -3,22 +3,23 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "mozilla/BasicEvents.h"
+#include "mozilla/EventListenerManager.h"
 #include "nsCOMPtr.h"
 #include "nsWindowRoot.h"
 #include "nsPIDOMWindow.h"
-#include "nsEventListenerManager.h"
 #include "nsPresContext.h"
 #include "nsLayoutCID.h"
 #include "nsContentCID.h"
 #include "nsString.h"
 #include "nsEventDispatcher.h"
-#include "nsGUIEvent.h"
 #include "nsGlobalWindow.h"
 #include "nsFocusManager.h"
 #include "nsIContent.h"
 #include "nsIDOMHTMLInputElement.h"
 #include "nsIDOMHTMLTextAreaElement.h"
 #include "nsIControllers.h"
+#include "nsIController.h"
 
 #include "nsCycleCollectionParticipant.h"
 
@@ -28,8 +29,6 @@
 
 using namespace mozilla;
 using namespace mozilla::dom;
-
-static NS_DEFINE_CID(kEventListenerManagerCID,    NS_EVENTLISTENERMANAGER_CID);
 
 nsWindowRoot::nsWindowRoot(nsPIDOMWindow* aWindow)
 {
@@ -65,8 +64,7 @@ NS_IMPL_DOMTARGET_DEFAULTS(nsWindowRoot)
 NS_IMETHODIMP
 nsWindowRoot::RemoveEventListener(const nsAString& aType, nsIDOMEventListener* aListener, bool aUseCapture)
 {
-  nsRefPtr<nsEventListenerManager> elm = GetListenerManager(false);
-  if (elm) {
+  if (nsRefPtr<EventListenerManager> elm = GetExistingListenerManager()) {
     elm->RemoveEventListener(aType, aListener, aUseCapture);
   }
   return NS_OK;
@@ -85,7 +83,7 @@ nsWindowRoot::DispatchEvent(nsIDOMEvent* aEvt, bool *aRetVal)
 }
 
 nsresult
-nsWindowRoot::DispatchDOMEvent(nsEvent* aEvent,
+nsWindowRoot::DispatchDOMEvent(WidgetEvent* aEvent,
                                nsIDOMEvent* aDOMEvent,
                                nsPresContext* aPresContext,
                                nsEventStatus* aEventStatus)
@@ -106,7 +104,7 @@ nsWindowRoot::AddEventListener(const nsAString& aType,
                "aWantsUntrusted to false or make the aWantsUntrusted "
                "explicit by making optional_argc non-zero.");
 
-  nsEventListenerManager* elm = GetListenerManager(true);
+  EventListenerManager* elm = GetOrCreateListenerManager();
   NS_ENSURE_STATE(elm);
   elm->AddEventListener(aType, aListener, aUseCapture, aWantsUntrusted);
   return NS_OK;
@@ -114,13 +112,13 @@ nsWindowRoot::AddEventListener(const nsAString& aType,
 
 void
 nsWindowRoot::AddEventListener(const nsAString& aType,
-                                nsIDOMEventListener* aListener,
+                                EventListener* aListener,
                                 bool aUseCapture,
                                 const Nullable<bool>& aWantsUntrusted,
                                 ErrorResult& aRv)
 {
   bool wantsUntrusted = !aWantsUntrusted.IsNull() && aWantsUntrusted.Value();
-  nsEventListenerManager* elm = GetListenerManager(true);
+  EventListenerManager* elm = GetOrCreateListenerManager();
   if (!elm) {
     aRv.Throw(NS_ERROR_UNEXPECTED);
     return;
@@ -145,14 +143,20 @@ nsWindowRoot::AddSystemEventListener(const nsAString& aType,
                                    aWantsUntrusted);
 }
 
-nsEventListenerManager*
-nsWindowRoot::GetListenerManager(bool aCreateIfNotFound)
+EventListenerManager*
+nsWindowRoot::GetOrCreateListenerManager()
 {
-  if (!mListenerManager && aCreateIfNotFound) {
+  if (!mListenerManager) {
     mListenerManager =
-      new nsEventListenerManager(static_cast<EventTarget*>(this));
+      new EventListenerManager(static_cast<EventTarget*>(this));
   }
 
+  return mListenerManager;
+}
+
+EventListenerManager*
+nsWindowRoot::GetExistingListenerManager() const
+{
   return mListenerManager;
 }
 

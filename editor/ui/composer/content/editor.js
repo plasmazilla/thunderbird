@@ -482,80 +482,6 @@ function EditorSharedStartup()
   gColorObj.LastHighlightColor = "";
 }
 
-function toggleAffectedChrome(aHide)
-{
-  // chrome to toggle includes:
-  //   (*) menubar
-  //   (*) toolbox
-  //   (*) sidebar
-  //   (*) statusbar
-
-  if (!gChromeState)
-    gChromeState = new Object;
-
-  var statusbar = document.getElementById("status-bar");
-
-  // sidebar states map as follows:
-  //   hidden    => hide/show nothing
-  //   collapsed => hide/show only the splitter
-  //   shown     => hide/show the splitter and the box
-  if (aHide)
-  {
-    // going into print preview mode
-    gChromeState.sidebar = SidebarGetState();
-    SidebarSetState("hidden");
-
-    // deal with the Status Bar
-    gChromeState.statusbarWasHidden = statusbar.hidden;
-    statusbar.hidden = true;
-  }
-  else
-  {
-    // restoring normal mode (i.e., leaving print preview mode)
-    SidebarSetState(gChromeState.sidebar);
-
-    // restore the Status Bar
-    statusbar.hidden = gChromeState.statusbarWasHidden;
-  }
-
-  // if we are unhiding and sidebar used to be there rebuild it
-  if (!aHide && gChromeState.sidebar == "visible")
-    SidebarRebuild();
-
-  document.getElementById("EditorToolbox").hidden = aHide;
-  document.getElementById("appcontent").collapsed = aHide;
-}
-
-var PrintPreviewListener = {
-  getPrintPreviewBrowser: function () {
-    var browser = document.getElementById("ppBrowser");
-    if (!browser) {
-      browser = document.createElement("browser");
-      browser.setAttribute("id", "ppBrowser");
-      browser.setAttribute("flex", "1");
-      browser.setAttribute("disablehistory", "true");
-      browser.setAttribute("disablesecurity", "true");
-      browser.setAttribute("type", "content");
-      document.getElementById("sidebar-parent").
-        insertBefore(browser, document.getElementById("appcontent"));
-    }
-    return browser;
-  },
-  getSourceBrowser: function () {
-    return GetCurrentEditorElement();
-  },
-  getNavToolbox: function () {
-    return document.getElementById("EditorToolbox");
-  },
-  onEnter: function () {
-    toggleAffectedChrome(true);
-  },
-  onExit: function () {
-    document.getElementById("ppBrowser").collapsed = true;
-    toggleAffectedChrome(false);
-  }
-}
-
 // This method is only called by Message composer when recycling a compose window
 function EditorResetFontAndColorAttributes()
 {
@@ -696,11 +622,12 @@ function CheckAndSaveDocument(command, allowDontSave)
 
 // --------------------------- View menu ---------------------------
 
-function EditorSetDocumentCharacterSet(aCharset)
+function EditorSetCharacterSet(aEvent)
 {
   try {
     var editor = GetCurrentEditor();
-    editor.documentCharacterSet = aCharset;
+    if (aEvent.target.hasAttribute("charset"))
+      editor.documentCharacterSet = aEvent.target.getAttribute("charset");
     var docUrl = GetDocumentUrl();
     if( !IsUrlAboutBlank(docUrl))
     {
@@ -1610,7 +1537,7 @@ function SetEditMode(mode)
         else {
           var fragment = editor.document.createRange().createContextualFragment(source);
           editor.enableUndo(false);
-          editor.document.documentElement.removeChild(GetBodyElement());
+          GetBodyElement().remove();
           editor.document.replaceChild(fragment.firstChild, editor.document.documentElement);
           editor.enableUndo(true);
         }
@@ -2360,7 +2287,7 @@ function RemoveItem(id)
 {
   var item = document.getElementById(id);
   if (item)
-    item.parentNode.removeChild(item);
+    item.remove();
 }
 
 // Command Updating Strategy:
@@ -2822,12 +2749,11 @@ function UpdateStructToolbar()
   var toolbar = document.getElementById("structToolbar");
   if (!toolbar) return;
   var childNodes = toolbar.childNodes;
-  var childNodesLength = childNodes.length;
   // We need to leave the <label> to flex the buttons to the left
   // so, don't remove the last child at position length - 1
   while (childNodes.length > 1) {
     // Remove back to front so there's less moving about.
-    toolbar.removeChild(childNodes.item(childNodes.length - 2));
+    childNodes.lastChild.previousSibling.remove();
   }
 
   toolbar.removeAttribute("label");
@@ -3026,13 +2952,13 @@ function RemoveTOC()
   var theDocument = GetCurrentEditor().document;
   var elt = theDocument.getElementById("mozToc");
   if (elt) {
-    elt.parentNode.removeChild(elt);
+    elt.remove();
   }
 
   let anchorNodes = theDocument.querySelectorAll('a[name^="mozTocId"]');
   for (let node of anchorNodes) {
     if (node.parentNode) {
-      node.parentNode.removeChild(node);
+      node.remove();
     }
   }
 }

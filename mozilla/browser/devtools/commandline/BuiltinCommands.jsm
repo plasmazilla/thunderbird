@@ -13,22 +13,24 @@ this.EXPORTED_SYMBOLS = [ "CmdAddonFlags", "CmdCommands", "DEFAULT_DEBUG_PORT", 
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
-Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js");
+let promise = Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js").Promise;
 Cu.import("resource://gre/modules/osfile.jsm");
 
-Cu.import("resource://gre/modules/devtools/gcli.jsm");
-Cu.import("resource:///modules/devtools/shared/event-emitter.js");
+Cu.import("resource://gre/modules/devtools/event-emitter.js");
 
-var require = Cu.import("resource://gre/modules/devtools/Loader.jsm", {}).devtools.require;
-let Telemetry = require("devtools/shared/telemetry");
+let devtools = Cu.import("resource://gre/modules/devtools/Loader.jsm", {}).devtools;
+let gcli = devtools.require("gcli/index");
+let Telemetry = devtools.require("devtools/shared/telemetry");
 let telemetry = new Telemetry();
 
 XPCOMUtils.defineLazyModuleGetter(this, "gDevTools",
                                   "resource:///modules/devtools/gDevTools.jsm");
-XPCOMUtils.defineLazyModuleGetter(this, "devtools",
-                                  "resource://gre/modules/devtools/Loader.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
                                   "resource:///modules/devtools/AppCacheUtils.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "Downloads",
+                                  "resource://gre/modules/Downloads.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "Task",
+                                  "resource://gre/modules/Task.jsm");
 
 /* CmdAddon ---------------------------------------------------------------- */
 
@@ -329,11 +331,15 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
           let name = representAddon(addon);
           let message = "";
 
-          if (addon.userDisabled) {
-            message = gcli.lookupFormat("addonAlreadyDisabled", [name]);
-          } else {
+          // If the addon is not disabled or is set to "click to play" then
+          // disable it. Otherwise display the message "Add-on is already
+          // disabled."
+          if (!addon.userDisabled ||
+              addon.userDisabled === AddonManager.STATE_ASK_TO_ACTIVATE) {
             addon.userDisabled = true;
             message = gcli.lookupFormat("addonDisabled", [name]);
+          } else {
+            message = gcli.lookupFormat("addonAlreadyDisabled", [name]);
           }
           this.resolve(message);
         }
@@ -600,6 +606,11 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
     return prefService.getBranch(null).QueryInterface(Ci.nsIPrefBranch2);
   });
 
+  XPCOMUtils.defineLazyGetter(this, 'supportsString', function() {
+    return Cc["@mozilla.org/supports-string;1"]
+             .createInstance(Ci.nsISupportsString);
+  });
+
   XPCOMUtils.defineLazyModuleGetter(this, "NetUtil",
                                     "resource://gre/modules/NetUtil.jsm");
   XPCOMUtils.defineLazyModuleGetter(this, "console",
@@ -646,8 +657,8 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
         dirName = homeDir + dirName;
       }
 
-      let promise = OS.File.stat(dirName);
-      promise = promise.then(
+      let statPromise = OS.File.stat(dirName);
+      statPromise = statPromise.then(
         function onSuccess(stat) {
           if (!stat.isDir) {
             throw new Error('\'' + dirName + '\' is not a directory.');
@@ -664,7 +675,7 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
         }
       );
 
-      promise.then(
+      statPromise.then(
         function onSuccess() {
           let iterator = new OS.File.DirectoryIterator(dirName);
           let iterPromise = iterator.forEach(
@@ -697,8 +708,8 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
    * we eval the script from the .mozcmd file. This should be a chrome window.
    */
   function loadCommandFile(aFileEntry, aSandboxPrincipal) {
-    let promise = OS.File.read(aFileEntry.path);
-    promise = promise.then(
+    let readPromise = OS.File.read(aFileEntry.path);
+    readPromise = readPromise.then(
       function onSuccess(array) {
         let decoder = new TextDecoder();
         let source = decoder.decode(array);
@@ -719,7 +730,6 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
           gcli.addCommand(commandSpec);
           commands.push(commandSpec.name);
         });
-
       },
       function onError(reason) {
         console.error("OS.File.read(" + aFileEntry.path + ") failed.");
@@ -733,7 +743,9 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
    */
   gcli.addCommand({
     name: "cmd",
-    get hidden() { return !prefBranch.prefHasUserValue(PREF_DIR); },
+    get hidden() {
+      return !prefBranch.prefHasUserValue(PREF_DIR);
+    },
     description: gcli.lookup("cmdDesc")
   });
 
@@ -743,10 +755,49 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
   gcli.addCommand({
     name: "cmd refresh",
     description: gcli.lookup("cmdRefreshDesc"),
-    get hidden() { return !prefBranch.prefHasUserValue(PREF_DIR); },
-    exec: function Command_cmdRefresh(args, context) {
+    get hidden() {
+      return !prefBranch.prefHasUserValue(PREF_DIR);
+    },
+    exec: function(args, context) {
       let chromeWindow = context.environment.chromeDocument.defaultView;
       CmdCommands.refreshAutoCommands(chromeWindow);
+
+      let dirName = prefBranch.getComplexValue(PREF_DIR,
+                                              Ci.nsISupportsString).data.trim();
+      return gcli.lookupFormat("cmdStatus", [ commands.length, dirName ]);
+    }
+  });
+
+  /**
+   * 'cmd setdir' command
+   */
+  gcli.addCommand({
+    name: "cmd setdir",
+    description: gcli.lookup("cmdSetdirDesc"),
+    params: [
+      {
+        name: "directory",
+        description: gcli.lookup("cmdSetdirDirectoryDesc"),
+        type: {
+          name: "file",
+          filetype: "directory",
+          existing: "yes"
+        },
+        defaultValue: null
+      }
+    ],
+    returnType: "string",
+    get hidden() {
+      return true; // !prefBranch.prefHasUserValue(PREF_DIR);
+    },
+    exec: function(args, context) {
+      supportsString.data = args.directory;
+      prefBranch.setComplexValue(PREF_DIR, Ci.nsISupportsString, supportsString);
+
+      let chromeWindow = context.environment.chromeDocument.defaultView;
+      CmdCommands.refreshAutoCommands(chromeWindow);
+
+      return gcli.lookupFormat("cmdStatus", [ commands.length, args.directory ]);
     }
   });
 }(this));
@@ -754,8 +805,13 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
 /* CmdConsole -------------------------------------------------------------- */
 
 (function(module) {
-  XPCOMUtils.defineLazyModuleGetter(this, "HUDService",
-                                    "resource:///modules/HUDService.jsm");
+  Object.defineProperty(this, "HUDService", {
+    get: function() {
+      return devtools.require("devtools/webconsole/hudservice");
+    },
+    configurable: true,
+    enumerable: true
+  });
 
   /**
    * 'console' command
@@ -787,10 +843,8 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
   gcli.addCommand({
     name: "console close",
     description: gcli.lookup("consolecloseDesc"),
-    exec: function Command_consoleClose(args, context) {
-      let gBrowser = context.environment.chromeDocument.defaultView.gBrowser;
-      let target = devtools.TargetFactory.forTab(gBrowser.selectedTab);
-      return gDevTools.closeToolbox(target);
+    exec: function(args, context) {
+      return gDevTools.closeToolbox(context.environment.target);
     }
   });
 
@@ -800,10 +854,8 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
   gcli.addCommand({
     name: "console open",
     description: gcli.lookup("consoleopenDesc"),
-    exec: function Command_consoleOpen(args, context) {
-      let gBrowser = context.environment.chromeDocument.defaultView.gBrowser;
-      let target = devtools.TargetFactory.forTab(gBrowser.selectedTab);
-      return gDevTools.showToolbox(target, "webconsole");
+    exec: function(args, context) {
+      return gDevTools.showToolbox(context.environment.target, "webconsole");
     }
   });
 }(this));
@@ -905,7 +957,7 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
       return host == null;
     }
     if (cookie.host.startsWith(".")) {
-      return cookie.host === "." + host;
+      return host.endsWith(cookie.host);
     }
     else {
       return cookie.host == host;
@@ -1493,7 +1545,11 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
     params: [
       {
         name: "srcdir",
-        type: "string",
+        type: "string" /* {
+          name: "file",
+          filetype: "directory",
+          existing: "yes"
+        } */,
         description: gcli.lookup("toolsSrcdirDir")
       }
     ],
@@ -1596,7 +1652,7 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
 
 (function(module) {
   XPCOMUtils.defineLazyModuleGetter(this, "LayoutHelpers",
-                                    "resource:///modules/devtools/LayoutHelpers.jsm");
+                                    "resource://gre/modules/devtools/LayoutHelpers.jsm");
 
   // String used as an indication to generate default file name in the following
   // format: "Screen Shot yyyy-mm-dd at HH.MM.SS.png"
@@ -1665,159 +1721,158 @@ XPCOMUtils.defineLazyModuleGetter(this, "AppCacheUtils",
       }
       var document = args.chrome? context.environment.chromeDocument
                                 : context.environment.document;
+      var deferred = context.defer();
       if (args.delay > 0) {
-        var deferred = context.defer();
         document.defaultView.setTimeout(function Command_screenshotDelay() {
-          let reply = this.grabScreen(document, args.filename, args.clipboard,
-                                      args.fullpage);
-          deferred.resolve(reply);
+          let promise = this.grabScreen(document, args.filename, args.clipboard,
+                                        args.fullpage);
+          promise.then(deferred.resolve, deferred.reject);
         }.bind(this), args.delay * 1000);
-        return deferred.promise;
       }
       else {
-        return this.grabScreen(document, args.filename, args.clipboard,
-                              args.fullpage, args.selector);
+        let promise = this.grabScreen(document, args.filename, args.clipboard,
+                                      args.fullpage, args.selector);
+        promise.then(deferred.resolve, deferred.reject);
       }
+      return deferred.promise;
     },
     grabScreen: function(document, filename, clipboard, fullpage, node) {
-      let window = document.defaultView;
-      let canvas = document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
-      let left = 0;
-      let top = 0;
-      let width;
-      let height;
-      let div = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+      return Task.spawn(function() {
+        let window = document.defaultView;
+        let canvas = document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+        let left = 0;
+        let top = 0;
+        let width;
+        let height;
+        let div = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
 
-      if (!fullpage) {
-        if (!node) {
-          left = window.scrollX;
-          top = window.scrollY;
-          width = window.innerWidth;
-          height = window.innerHeight;
-        } else {
-          let rect = LayoutHelpers.getRect(node, window);
-          top = rect.top;
-          left = rect.left;
-          width = rect.width;
-          height = rect.height;
-        }
-      } else {
-        width = window.innerWidth + window.scrollMaxX;
-        height = window.innerHeight + window.scrollMaxY;
-      }
-      canvas.width = width;
-      canvas.height = height;
-
-      let ctx = canvas.getContext("2d");
-      ctx.drawWindow(window, left, top, width, height, "#fff");
-      let data = canvas.toDataURL("image/png", "");
-
-      let loadContext = document.defaultView
-                                .QueryInterface(Ci.nsIInterfaceRequestor)
-                                .getInterface(Ci.nsIWebNavigation)
-                                .QueryInterface(Ci.nsILoadContext);
-
-      try {
-        if (clipboard) {
-          let io = Cc["@mozilla.org/network/io-service;1"]
-                    .getService(Ci.nsIIOService);
-          let channel = io.newChannel(data, null, null);
-          let input = channel.open();
-          let imgTools = Cc["@mozilla.org/image/tools;1"]
-                          .getService(Ci.imgITools);
-
-          let container = {};
-          imgTools.decodeImageData(input, channel.contentType, container);
-
-          let wrapped = Cc["@mozilla.org/supports-interface-pointer;1"]
-                          .createInstance(Ci.nsISupportsInterfacePointer);
-          wrapped.data = container.value;
-
-          let trans = Cc["@mozilla.org/widget/transferable;1"]
-                        .createInstance(Ci.nsITransferable);
-          trans.init(loadContext);
-          trans.addDataFlavor(channel.contentType);
-          trans.setTransferData(channel.contentType, wrapped, -1);
-
-          let clipid = Ci.nsIClipboard;
-          let clip = Cc["@mozilla.org/widget/clipboard;1"].getService(clipid);
-          clip.setData(trans, null, clipid.kGlobalClipboard);
-          div.textContent = gcli.lookup("screenshotCopied");
-          return div;
-        }
-      }
-      catch (ex) {
-        div.textContent = gcli.lookup("screenshotErrorCopying");
-        return div;
-      }
-
-      let file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsILocalFile);
-
-      // Create a name for the file if not present
-      if (filename == FILENAME_DEFAULT_VALUE) {
-        let date = new Date();
-        let dateString = date.getFullYear() + "-" + (date.getMonth() + 1) +
-                        "-" + date.getDate();
-        dateString = dateString.split("-").map(function(part) {
-          if (part.length == 1) {
-            part = "0" + part;
+        if (!fullpage) {
+          if (!node) {
+            left = window.scrollX;
+            top = window.scrollY;
+            width = window.innerWidth;
+            height = window.innerHeight;
+          } else {
+            let lh = new LayoutHelpers(window);
+            let rect = lh.getRect(node, window);
+            top = rect.top;
+            left = rect.left;
+            width = rect.width;
+            height = rect.height;
           }
-          return part;
-        }).join("-");
-        let timeString = date.toTimeString().replace(/:/g, ".").split(" ")[0];
-        filename = gcli.lookupFormat("screenshotGeneratedFilename",
-                                    [dateString, timeString]) + ".png";
-      }
-      // Check there is a .png extension to filename
-      else if (!filename.match(/.png$/i)) {
-        filename += ".png";
-      }
+        } else {
+          width = window.innerWidth + window.scrollMaxX;
+          height = window.innerHeight + window.scrollMaxY;
+        }
+        canvas.width = width;
+        canvas.height = height;
 
-      // If the filename is relative, tack it onto the download directory
-      if (!filename.match(/[\\\/]/)) {
-        let downloadMgr = Cc["@mozilla.org/download-manager;1"]
-                            .getService(Ci.nsIDownloadManager);
-        let tempfile = downloadMgr.userDownloadsDirectory;
-        tempfile.append(filename);
-        filename = tempfile.path;
-      }
+        let ctx = canvas.getContext("2d");
+        ctx.drawWindow(window, left, top, width, height, "#fff");
+        let data = canvas.toDataURL("image/png", "");
 
-      try {
-        file.initWithPath(filename);
-      } catch (ex) {
-        div.textContent = gcli.lookup("screenshotErrorSavingToFile") + " " + filename;
-        return div;
-      }
+        let loadContext = document.defaultView
+                                  .QueryInterface(Ci.nsIInterfaceRequestor)
+                                  .getInterface(Ci.nsIWebNavigation)
+                                  .QueryInterface(Ci.nsILoadContext);
 
-      let ioService = Cc["@mozilla.org/network/io-service;1"]
-                        .getService(Ci.nsIIOService);
+        if (clipboard) {
+          try {
+            let io = Cc["@mozilla.org/network/io-service;1"]
+                      .getService(Ci.nsIIOService);
+            let channel = io.newChannel(data, null, null);
+            let input = channel.open();
+            let imgTools = Cc["@mozilla.org/image/tools;1"]
+                            .getService(Ci.imgITools);
 
-      let Persist = Ci.nsIWebBrowserPersist;
-      let persist = Cc["@mozilla.org/embedding/browser/nsWebBrowserPersist;1"]
-                      .createInstance(Persist);
-      persist.persistFlags = Persist.PERSIST_FLAGS_REPLACE_EXISTING_FILES |
-                            Persist.PERSIST_FLAGS_AUTODETECT_APPLY_CONVERSION;
+            let container = {};
+            imgTools.decodeImageData(input, channel.contentType, container);
 
-      let source = ioService.newURI(data, "UTF8", null);
-      persist.saveURI(source, null, null, null, null, file, loadContext);
+            let wrapped = Cc["@mozilla.org/supports-interface-pointer;1"]
+                            .createInstance(Ci.nsISupportsInterfacePointer);
+            wrapped.data = container.value;
 
-      div.textContent = gcli.lookup("screenshotSavedToFile") + " \"" + filename +
-                        "\"";
-      div.addEventListener("click", function openFile() {
-        div.removeEventListener("click", openFile);
-        file.reveal();
+            let trans = Cc["@mozilla.org/widget/transferable;1"]
+                          .createInstance(Ci.nsITransferable);
+            trans.init(loadContext);
+            trans.addDataFlavor(channel.contentType);
+            trans.setTransferData(channel.contentType, wrapped, -1);
+
+            let clipid = Ci.nsIClipboard;
+            let clip = Cc["@mozilla.org/widget/clipboard;1"].getService(clipid);
+            clip.setData(trans, null, clipid.kGlobalClipboard);
+            div.textContent = gcli.lookup("screenshotCopied");
+          }
+          catch (ex) {
+            div.textContent = gcli.lookup("screenshotErrorCopying");
+          }
+          throw new Task.Result(div);
+        }
+
+        let file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsILocalFile);
+
+        // Create a name for the file if not present
+        if (filename == FILENAME_DEFAULT_VALUE) {
+          let date = new Date();
+          let dateString = date.getFullYear() + "-" + (date.getMonth() + 1) +
+                          "-" + date.getDate();
+          dateString = dateString.split("-").map(function(part) {
+            if (part.length == 1) {
+              part = "0" + part;
+            }
+            return part;
+          }).join("-");
+          let timeString = date.toTimeString().replace(/:/g, ".").split(" ")[0];
+          filename = gcli.lookupFormat("screenshotGeneratedFilename",
+                                      [dateString, timeString]) + ".png";
+        }
+        // Check there is a .png extension to filename
+        else if (!filename.match(/.png$/i)) {
+          filename += ".png";
+        }
+        // If the filename is relative, tack it onto the download directory
+        if (!filename.match(/[\\\/]/)) {
+          let preferredDir = yield Downloads.getPreferredDownloadsDirectory();
+          filename = OS.Path.join(preferredDir, filename);
+        }
+
+        try {
+          file.initWithPath(filename);
+        } catch (ex) {
+          div.textContent = gcli.lookup("screenshotErrorSavingToFile") + " " + filename;
+          throw new Task.Result(div);
+        }
+
+        let ioService = Cc["@mozilla.org/network/io-service;1"]
+                          .getService(Ci.nsIIOService);
+
+        let Persist = Ci.nsIWebBrowserPersist;
+        let persist = Cc["@mozilla.org/embedding/browser/nsWebBrowserPersist;1"]
+                        .createInstance(Persist);
+        persist.persistFlags = Persist.PERSIST_FLAGS_REPLACE_EXISTING_FILES |
+                               Persist.PERSIST_FLAGS_AUTODETECT_APPLY_CONVERSION;
+
+        let source = ioService.newURI(data, "UTF8", null);
+        persist.saveURI(source, null, null, null, null, file, loadContext);
+
+        div.textContent = gcli.lookup("screenshotSavedToFile") + " \"" + filename +
+                          "\"";
+        div.addEventListener("click", function openFile() {
+          div.removeEventListener("click", openFile);
+          file.reveal();
+        });
+        div.style.cursor = "pointer";
+        let image = document.createElement("div");
+        let previewHeight = parseInt(256*height/width);
+        image.setAttribute("style",
+                          "width:256px; height:" + previewHeight + "px;" +
+                          "max-height: 256px;" +
+                          "background-image: url('" + data + "');" +
+                          "background-size: 256px " + previewHeight + "px;" +
+                          "margin: 4px; display: block");
+        div.appendChild(image);
+        throw new Task.Result(div);
       });
-      div.style.cursor = "pointer";
-      let image = document.createElement("div");
-      let previewHeight = parseInt(256*height/width);
-      image.setAttribute("style",
-                        "width:256px; height:" + previewHeight + "px;" +
-                        "max-height: 256px;" +
-                        "background-image: url('" + data + "');" +
-                        "background-size: 256px " + previewHeight + "px;" +
-                        "margin: 4px; display: block");
-      div.appendChild(image);
-      return div;
     }
   });
 }(this));
@@ -1932,7 +1987,7 @@ gcli.addCommand({
     name: 'paintflashing toggle',
     hidden: true,
     buttonId: "command-button-paintflashing",
-    buttonClass: "command-button",
+    buttonClass: "command-button command-button-invertable",
     state: {
       isChecked: function(aTarget) {
         if (aTarget.isLocalTab) {
@@ -2166,4 +2221,115 @@ gcli.addCommand({
       return utils.viewEntry(args.key);
     }
   });
+}(this));
+
+/* CmdMedia ------------------------------------------------------- */
+
+(function(module) {
+  /**
+   * 'media' command
+   */
+
+  gcli.addCommand({
+    name: "media",
+    description: gcli.lookup("mediaDesc")
+  });
+
+  gcli.addCommand({
+    name: "media emulate",
+    description: gcli.lookup("mediaEmulateDesc"),
+    manual: gcli.lookup("mediaEmulateManual"),
+    params: [
+      {
+        name: "type",
+        description: gcli.lookup("mediaEmulateType"),
+        type: {
+               name: "selection",
+               data: ["braille", "embossed", "handheld", "print", "projection",
+                      "screen", "speech", "tty", "tv"]
+              }
+      }
+    ],
+    exec: function(args, context) {
+      let markupDocumentViewer = context.environment.chromeWindow
+                                        .gBrowser.markupDocumentViewer;
+      markupDocumentViewer.emulateMedium(args.type);
+    }
+  });
+
+  gcli.addCommand({
+    name: "media reset",
+    description: gcli.lookup("mediaResetDesc"),
+    manual: gcli.lookup("mediaEmulateManual"),
+    exec: function(args, context) {
+      let markupDocumentViewer = context.environment.chromeWindow
+                                        .gBrowser.markupDocumentViewer;
+      markupDocumentViewer.stopEmulatingMedium();
+    }
+  });
+}(this));
+
+/* CmdSplitConsole ------------------------------------------------------- */
+
+(function(module) {
+  /**
+   * 'splitconsole' command (hidden)
+   */
+
+  gcli.addCommand({
+    name: 'splitconsole',
+    hidden: true,
+    buttonId: "command-button-splitconsole",
+    buttonClass: "command-button command-button-invertable",
+    tooltipText: gcli.lookup("splitconsoleTooltip"),
+    state: {
+      isChecked: function(aTarget) {
+        let toolbox = gDevTools.getToolbox(aTarget);
+        return toolbox &&
+          toolbox.splitConsole;
+      },
+      onChange: function(aTarget, aChangeHandler) {
+        eventEmitter.on("changed", aChangeHandler);
+      },
+      offChange: function(aTarget, aChangeHandler) {
+        eventEmitter.off("changed", aChangeHandler);
+      },
+    },
+    exec: function(args, context) {
+      toggleSplitConsole(context);
+    }
+  });
+
+  function toggleSplitConsole(context) {
+    let gBrowser = context.environment.chromeDocument.defaultView.gBrowser;
+    let target = devtools.TargetFactory.forTab(gBrowser.selectedTab);
+    let toolbox = gDevTools.getToolbox(target);
+
+    if (!toolbox) {
+      gDevTools.showToolbox(target, "inspector").then((toolbox) => {
+        toolbox.toggleSplitConsole();
+      });
+    } else {
+      toolbox.toggleSplitConsole();
+    }
+  }
+
+  let eventEmitter = new EventEmitter();
+  function fireChange(tab) {
+    eventEmitter.emit("changed", tab);
+  }
+
+  gDevTools.on("toolbox-ready", (e, toolbox) => {
+    if (!toolbox.target) {
+      return;
+    }
+    let fireChangeForTab = fireChange.bind(this, toolbox.target.tab);
+    toolbox.on("split-console", fireChangeForTab);
+    toolbox.on("select", fireChangeForTab);
+    toolbox.once("destroyed", () => {
+      toolbox.off("split-console", fireChangeForTab);
+      toolbox.off("select", fireChangeForTab);
+    });
+  });
+
 }(this));

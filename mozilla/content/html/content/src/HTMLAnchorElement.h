@@ -8,43 +8,35 @@
 #define mozilla_dom_HTMLAnchorElement_h
 
 #include "mozilla/Attributes.h"
+#include "mozilla/dom/Link.h"
 #include "nsGenericHTMLElement.h"
 #include "nsIDOMHTMLAnchorElement.h"
-#include "nsILink.h"
-#include "Link.h"
-#include "base/compiler_specific.h"
+#include "nsDOMTokenList.h"
 
 namespace mozilla {
 namespace dom {
 
-class HTMLAnchorElement : public nsGenericHTMLElement,
-                          public nsIDOMHTMLAnchorElement,
-                          public nsILink,
-                          public Link
+class HTMLAnchorElement MOZ_FINAL : public nsGenericHTMLElement,
+                                    public nsIDOMHTMLAnchorElement,
+                                    public Link
 {
 public:
   using Element::GetText;
   using Element::SetText;
 
-  HTMLAnchorElement(already_AddRefed<nsINodeInfo> aNodeInfo)
+  HTMLAnchorElement(already_AddRefed<nsINodeInfo>& aNodeInfo)
     : nsGenericHTMLElement(aNodeInfo)
-    , ALLOW_THIS_IN_INITIALIZER_LIST(Link(this))
+    , Link(MOZ_THIS_IN_INITIALIZER_LIST())
   {
-    SetIsDOMBinding();
   }
   virtual ~HTMLAnchorElement();
 
   // nsISupports
   NS_DECL_ISUPPORTS_INHERITED
 
-  // nsIDOMNode
-  NS_FORWARD_NSIDOMNODE_TO_NSINODE
-
-  // nsIDOMElement
-  NS_FORWARD_NSIDOMELEMENT_TO_GENERIC
-
-  // nsIDOMHTMLElement
-  NS_FORWARD_NSIDOMHTMLELEMENT_TO_GENERIC
+  // CC
+  NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(HTMLAnchorElement,
+                                           nsGenericHTMLElement)
 
   virtual int32_t TabIndexDefault() MOZ_OVERRIDE;
   virtual bool Draggable() const MOZ_OVERRIDE;
@@ -54,10 +46,6 @@ public:
 
   // DOM memory reporter participant
   NS_DECL_SIZEOF_EXCLUDING_THIS
-
-  // nsILink
-  NS_IMETHOD LinkAdded() MOZ_OVERRIDE { return NS_OK; }
-  NS_IMETHOD LinkRemoved() MOZ_OVERRIDE { return NS_OK; }
 
   virtual nsresult BindToTree(nsIDocument* aDocument, nsIContent* aParent,
                               nsIContent* aBindingParent,
@@ -90,8 +78,6 @@ public:
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const MOZ_OVERRIDE;
 
   virtual nsEventStates IntrinsicState() const MOZ_OVERRIDE;
-
-  virtual nsIDOMNode* AsDOMNode() MOZ_OVERRIDE { return this; }
 
   virtual void OnDNSPrefetchDeferred();
   virtual void OnDNSPrefetchRequested();
@@ -132,6 +118,7 @@ public:
   {
     SetHTMLAttr(nsGkAtoms::rel, aValue, rv);
   }
+  nsDOMTokenList* RelList();
   void GetHreflang(nsString& aValue)
   {
     GetHTMLAttr(nsGkAtoms::hreflang, aValue);
@@ -153,6 +140,15 @@ public:
   {
     rv = SetText(aValue);
   }
+
+  // Link::GetOrigin is OK for us
+
+  // Link::GetUsername is OK for us
+  // Link::SetUsername is OK for us
+
+  // Link::Getpassword is OK for us
+  // Link::Setpassword is OK for us
+
   // The XPCOM URI decomposition attributes are fine for us
   void GetCoords(nsString& aValue)
   {
@@ -204,6 +200,7 @@ protected:
   virtual void SetItemValueText(const nsAString& text) MOZ_OVERRIDE;
   virtual JSObject* WrapNode(JSContext *aCx,
                              JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
+  nsRefPtr<nsDOMTokenList > mRelList;
 };
 
 } // namespace dom

@@ -67,3 +67,40 @@ nsInputStreamChannel::SetContentStream(nsIInputStream *stream)
   mContentStream = stream;
   return NS_OK;
 }
+
+NS_IMETHODIMP
+nsInputStreamChannel::GetSrcdocData(nsAString& aSrcdocData)
+{
+  aSrcdocData = mSrcdocData;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsInputStreamChannel::SetSrcdocData(const nsAString& aSrcdocData)
+{
+  mSrcdocData = aSrcdocData;
+  mIsSrcdocChannel = true;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsInputStreamChannel::GetIsSrcdocChannel(bool *aIsSrcdocChannel)
+{
+  *aIsSrcdocChannel = mIsSrcdocChannel;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsInputStreamChannel::GetBaseURI(nsIURI** aBaseURI)
+{
+  *aBaseURI = mBaseURI;
+  NS_IF_ADDREF(*aBaseURI);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsInputStreamChannel::SetBaseURI(nsIURI* aBaseURI)
+{
+  mBaseURI = aBaseURI;
+  return NS_OK;
+}

@@ -17,38 +17,29 @@
 #include "AudioSampleFormat.h"
 #include "AudioChannelCommon.h"
 #include <algorithm>
-#include "mozilla/Preferences.h"
-
-static bool
-IsAudioAPIEnabled()
-{
-  return mozilla::Preferences::GetBool("media.audio_data.enabled", true);
-}
+#include "nsComponentManagerUtils.h"
+#include "nsIHttpChannel.h"
+#include "mozilla/dom/TimeRanges.h"
+#include "AudioStream.h"
 
 NS_IMPL_NS_NEW_HTML_ELEMENT(Audio)
 
 namespace mozilla {
 namespace dom {
 
-NS_IMPL_ADDREF_INHERITED(HTMLAudioElement, HTMLMediaElement)
-NS_IMPL_RELEASE_INHERITED(HTMLAudioElement, HTMLMediaElement)
+extern bool IsAudioAPIEnabled();
 
-NS_INTERFACE_TABLE_HEAD(HTMLAudioElement)
-  NS_HTML_CONTENT_INTERFACES(HTMLMediaElement)
-  NS_INTERFACE_TABLE_INHERITED4(HTMLAudioElement, nsIDOMHTMLMediaElement,
-                                nsIDOMHTMLAudioElement, nsITimerCallback,
-                                nsIAudioChannelAgentCallback)
-  NS_INTERFACE_TABLE_TO_MAP_SEGUE
-NS_ELEMENT_INTERFACE_MAP_END
+NS_IMPL_ISUPPORTS_INHERITED4(HTMLAudioElement, HTMLMediaElement,
+                             nsIDOMHTMLMediaElement, nsIDOMHTMLAudioElement,
+                             nsITimerCallback, nsIAudioChannelAgentCallback)
 
 NS_IMPL_ELEMENT_CLONE(HTMLAudioElement)
 
 
-HTMLAudioElement::HTMLAudioElement(already_AddRefed<nsINodeInfo> aNodeInfo)
+HTMLAudioElement::HTMLAudioElement(already_AddRefed<nsINodeInfo>& aNodeInfo)
   : HTMLMediaElement(aNodeInfo),
     mTimerActivated(false)
 {
-  SetIsDOMBinding();
 }
 
 HTMLAudioElement::~HTMLAudioElement()
@@ -61,19 +52,19 @@ HTMLAudioElement::Audio(const GlobalObject& aGlobal,
                         const Optional<nsAString>& aSrc,
                         ErrorResult& aRv)
 {
-  nsCOMPtr<nsPIDOMWindow> win = do_QueryInterface(aGlobal.Get());
+  nsCOMPtr<nsPIDOMWindow> win = do_QueryInterface(aGlobal.GetAsSupports());
   nsIDocument* doc;
   if (!win || !(doc = win->GetExtantDoc())) {
     aRv.Throw(NS_ERROR_FAILURE);
     return nullptr;
   }
 
-  nsCOMPtr<nsINodeInfo> nodeInfo =
+  already_AddRefed<nsINodeInfo> nodeInfo =
     doc->NodeInfoManager()->GetNodeInfo(nsGkAtoms::audio, nullptr,
                                         kNameSpaceID_XHTML,
                                         nsIDOMNode::ELEMENT_NODE);
 
-  nsRefPtr<HTMLAudioElement> audio = new HTMLAudioElement(nodeInfo.forget());
+  nsRefPtr<HTMLAudioElement> audio = new HTMLAudioElement(nodeInfo);
   audio->SetHTMLAttr(nsGkAtoms::preload, NS_LITERAL_STRING("auto"), aRv);
   if (aRv.Failed()) {
     return nullptr;
@@ -120,8 +111,8 @@ HTMLAudioElement::MozSetup(uint32_t aChannels, uint32_t aRate, ErrorResult& aRv)
   }
 #endif
 
-  mAudioStream = AudioStream::AllocateStream();
-  aRv = mAudioStream->Init(aChannels, aRate, mAudioChannelType);
+  mAudioStream = new AudioStream();
+  aRv = mAudioStream->Init(aChannels, aRate, mAudioChannelType, AudioStream::HighLatency);
   if (aRv.Failed()) {
     mAudioStream->Shutdown();
     mAudioStream = nullptr;
@@ -214,16 +205,12 @@ nsresult HTMLAudioElement::SetAcceptHeader(nsIHttpChannel* aChannel)
 #ifdef MOZ_WEBM
       "audio/webm,"
 #endif
-#ifdef MOZ_OGG
       "audio/ogg,"
-#endif
 #ifdef MOZ_WAVE
       "audio/wav,"
 #endif
       "audio/*;q=0.9,"
-#ifdef MOZ_OGG
       "application/ogg;q=0.7,"
-#endif
       "video/*;q=0.6,*/*;q=0.5");
 
     return aChannel->SetRequestHeader(NS_LITERAL_CSTRING("Accept"),
@@ -239,7 +226,7 @@ HTMLAudioElement::WrapNode(JSContext* aCx, JS::Handle<JSObject*> aScope)
 
 /* void canPlayChanged (in boolean canPlay); */
 NS_IMETHODIMP
-HTMLAudioElement::CanPlayChanged(bool canPlay)
+HTMLAudioElement::CanPlayChanged(int32_t canPlay)
 {
   NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
   // Only Audio_Data API will initialize the mAudioStream, so we call the parent
@@ -248,7 +235,7 @@ HTMLAudioElement::CanPlayChanged(bool canPlay)
     return HTMLMediaElement::CanPlayChanged(canPlay);
   }
 #ifdef MOZ_B2G
-  if (canPlay) {
+  if (canPlay != AUDIO_CHANNEL_STATE_MUTED) {
     SetMutedInternal(mMuted & ~MUTED_BY_AUDIO_CHANNEL);
   } else {
     SetMutedInternal(mMuted | MUTED_BY_AUDIO_CHANNEL);
@@ -256,6 +243,12 @@ HTMLAudioElement::CanPlayChanged(bool canPlay)
 
 #endif
   return NS_OK;
+}
+
+NS_IMETHODIMP
+HTMLAudioElement::WindowVolumeChanged()
+{
+  return HTMLMediaElement::WindowVolumeChanged();
 }
 
 NS_IMETHODIMP
@@ -287,18 +280,14 @@ HTMLAudioElement::UpdateAudioChannelPlayingState()
         return;
       }
       // Use a weak ref so the audio channel agent can't leak |this|.
-      mAudioChannelAgent->InitWithWeakCallback(mAudioChannelType, this);
+      mAudioChannelAgent->InitWithWeakCallback(OwnerDoc()->GetWindow(),
+                                               mAudioChannelType, this);
 
-      nsCOMPtr<nsIDOMDocument> domDoc = do_QueryInterface(OwnerDoc());
-      if (domDoc) {
-        bool hidden = false;
-        domDoc->GetHidden(&hidden);
-        mAudioChannelAgent->SetVisibilityState(!hidden);
-      }
+      mAudioChannelAgent->SetVisibilityState(!OwnerDoc()->Hidden());
     }
 
     if (mPlayingThroughTheAudioChannel) {
-      bool canPlay;
+      int32_t canPlay;
       mAudioChannelAgent->StartPlaying(&canPlay);
       CanPlayChanged(canPlay);
     } else {

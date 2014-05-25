@@ -14,6 +14,7 @@
 #include "nsIFile.h"
 #include "nsThreadUtils.h"
 #include "prlog.h"
+#include "prtime.h"
 
 #include "mozStorageConnection.h"
 #include "mozIStorageStatement.h"
@@ -21,6 +22,7 @@
 #include "mozIStoragePendingStatement.h"
 #include "mozIStorageError.h"
 #include "mozStorageHelper.h"
+#include "nsXULAppAPI.h"
 
 #define OBSERVER_TOPIC_IDLE_DAILY "idle-daily"
 #define OBSERVER_TOPIC_XPCOM_SHUTDOWN "xpcom-shutdown"
@@ -316,6 +318,11 @@ VacuumManager::gVacuumManager = nullptr;
 VacuumManager *
 VacuumManager::getSingleton()
 {
+  //Don't allocate it in the child Process.
+  if (XRE_GetProcessType() != GeckoProcessType_Default) {
+    return nullptr;
+  }
+
   if (gVacuumManager) {
     NS_ADDREF(gVacuumManager);
     return gVacuumManager;
@@ -352,13 +359,13 @@ VacuumManager::~VacuumManager()
 NS_IMETHODIMP
 VacuumManager::Observe(nsISupports *aSubject,
                        const char *aTopic,
-                       const PRUnichar *aData)
+                       const char16_t *aData)
 {
   if (strcmp(aTopic, OBSERVER_TOPIC_IDLE_DAILY) == 0) {
     // Try to run vacuum on all registered entries.  Will stop at the first
     // successful one.
-    const nsCOMArray<mozIStorageVacuumParticipant> &entries =
-      mParticipants.GetEntries();
+    nsCOMArray<mozIStorageVacuumParticipant> entries;
+    mParticipants.GetEntries(entries);
     // If there are more entries than what a month can contain, we could end up
     // skipping some, since we run daily.  So we use a starting index.
     static const char* kPrefName = PREF_VACUUM_BRANCH "index";

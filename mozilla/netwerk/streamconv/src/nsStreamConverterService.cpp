@@ -19,20 +19,48 @@
  */
 
 #include "nsStreamConverterService.h"
-#include "nsIServiceManager.h"
-#include "nsIComponentManager.h"
 #include "nsIComponentRegistrar.h"
 #include "nsString.h"
-#include "nsReadableUtils.h"
 #include "nsIAtom.h"
 #include "nsDeque.h"
 #include "nsIInputStream.h"
-#include "nsIOutputStream.h"
 #include "nsIStreamConverter.h"
 #include "nsICategoryManager.h"
 #include "nsXPCOM.h"
 #include "nsISupportsPrimitives.h"
-#include "nsXPIDLString.h"
+#include "nsCOMArray.h"
+#include "nsTArray.h"
+#include "nsServiceManagerUtils.h"
+#include "nsHashtable.h"
+#include "nsISimpleEnumerator.h"
+
+///////////////////////////////////////////////////////////////////
+// Breadth-First-Search (BFS) algorithm state classes and types.
+
+// used  to establish discovered vertecies.
+enum BFScolors {white, gray, black};
+
+struct BFSState {
+    BFScolors   color;
+    int32_t     distance;
+    nsCStringKey  *predecessor;
+    ~BFSState() {
+        delete predecessor;
+    }
+};
+
+// adjacency list and BFS hashtable data class.
+struct SCTableData {
+    nsCStringKey *key;
+    union _data {
+        BFSState *state;
+        nsCOMArray<nsIAtom> *edges;
+    } data;
+
+    SCTableData(nsCStringKey* aKey) : key(aKey) {
+        data.state = nullptr;
+    }
+};
 
 ////////////////////////////////////////////////////////////
 // nsISupports methods
@@ -97,9 +125,11 @@ nsStreamConverterService::BuildGraph() {
     if (NS_FAILED(rv)) return rv;
 
     // go through each entry to build the graph
+    nsCOMPtr<nsISupports> supports;
     nsCOMPtr<nsISupportsCString> entry;
-    rv = entries->GetNext(getter_AddRefs(entry));
+    rv = entries->GetNext(getter_AddRefs(supports));
     while (NS_SUCCEEDED(rv)) {
+        entry = do_QueryInterface(supports);
 
         // get the entry string
         nsAutoCString entryString;
@@ -114,7 +144,7 @@ nsStreamConverterService::BuildGraph() {
         rv = AddAdjacency(contractID.get());
         if (NS_FAILED(rv)) return rv;
 
-        rv = entries->GetNext(getter_AddRefs(entry));
+        rv = entries->GetNext(getter_AddRefs(supports));
     }
 
     return NS_OK;

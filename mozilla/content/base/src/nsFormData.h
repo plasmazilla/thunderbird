@@ -6,6 +6,7 @@
 #define nsFormData_h__
 
 #include "mozilla/Attributes.h"
+#include "nsIDOMFile.h"
 #include "nsIDOMFormData.h"
 #include "nsIXMLHttpRequest.h"
 #include "nsFormSubmission.h"
@@ -42,7 +43,7 @@ public:
 
   // nsWrapperCache
   virtual JSObject* WrapObject(JSContext* aCx,
-			       JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
+                               JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
 
   // WebIDL
   nsISupports*

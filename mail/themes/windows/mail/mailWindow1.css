@@ -14,7 +14,7 @@
 @import url("chrome://messenger/skin/folderPane.css");
 @import url("chrome://messenger/skin/tagColors.css");
 
-@namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+%include ../../shared/mail/mailWindow1.inc.css
 
 /* give the toolbox a min-height of 41px for Australis theme */
 .mail-toolbox:not([mode="full"]) > toolbar:only-of-type,
@@ -23,12 +23,14 @@
   margin-bottom: 6px;
 }
 
+%ifndef WINDOWS_AERO
 .mail-toolbox[iconsize="large"]:not([mode="full"]) > toolbar:only-of-type,
 .mail-toolbox[iconsize="large"][mode="full"][labelalign="end"] >
 toolbar:only-of-type {
   margin-top: 2px;
   margin-bottom: 2px;
 }
+%endif
 
 .mail-toolbox[mode="text"]:not([mode="full"]) > toolbar:only-of-type {
   margin-top: 4px;
@@ -43,29 +45,8 @@ toolbar:only-of-type {
   color: -moz-FieldText;
 }
 
-@media (-moz-windows-default-theme) {
-  #folderTree {
-    background-image: url("chrome://messenger/skin/grain.png");
-  }
-}
-
 #messengerBox {
   background-color: -moz-Dialog;
-}
-
-#tabmail:-moz-lwtheme {
-  text-shadow: none;
-}
-
-#folderUnreadCol,
-#folderTotalCol,
-#folderSizeCol {
-  text-align: right;
-}
-
-#folderNameCol [sortDirection="ascending"],
-#folderNameCol [sortDirection="descending"] {
-  list-style-image: none;
 }
 
 /* ::::: thread decoration ::::: */
@@ -88,23 +69,8 @@ treechildren::-moz-tree-cell-text(dummy) {
   font-weight: bold;
 }
 
-treechildren::-moz-tree-cell-text(read) {
-  font-weight: normal;
-}
-
-treechildren::-moz-tree-cell-text(unread) {
-  font-weight: bold;
-}
-
 treechildren::-moz-tree-cell-text(imapdeleted) {
   text-decoration: line-through;
-}
-
-/* on a collapsed thread, if the top level message is read, but the thread has
- * unread children, underline the text.  4.x mac did this, very slick 
- */
-treechildren::-moz-tree-cell-text(container, closed, hasUnread, read) {
-  text-decoration: underline;
 }
 
 /* ::::: message column icons ::::: */
@@ -157,10 +123,6 @@ treechildren::-moz-tree-image(unreadButtonColHeader) {
   list-style-image: url("chrome://messenger/skin/icons/readmail.png");
 }
 
-treechildren::-moz-tree-image(unreadButtonColHeader, dummy) {
-  list-style-image: none;
-}
-
 treechildren::-moz-tree-image(unreadButtonColHeader, unread) {
   list-style-image: url("chrome://messenger/skin/icons/unreadmail.png");
 }
@@ -187,10 +149,6 @@ treechildren::-moz-tree-image(flaggedCol) {
   -moz-padding-end: 2px;
 }
 
-treechildren::-moz-tree-image(flaggedCol, dummy) {
-  list-style-image: none;
-}
-
 treechildren::-moz-tree-image(flaggedCol, flagged) {
   list-style-image: url("chrome://messenger/skin/icons/flag.png");
 }
@@ -199,7 +157,6 @@ treechildren::-moz-tree-image(flaggedCol, flagged) {
 
 .junkStatusHeader {
   list-style-image: url("chrome://messenger/skin/icons/junk-col.svg");
-  -moz-padding-end: 3px;
 }
 
 /* "unknown" now looks like "not junk".  see bug #182386 */
@@ -213,10 +170,6 @@ treechildren::-moz-tree-image(junkStatusCol, junk) {
   -moz-image-region: rect(0 128px 16px 112px);
 }
 
-treechildren::-moz-tree-image(junkStatusCol, dummy) {
-  list-style-image: none;
-}
-
 treechildren::-moz-tree-image(junkStatusCol, notjunk) {
   list-style-image: url("chrome://messenger/skin/icons/readmail.png");
   -moz-padding-start: 0px;
@@ -224,6 +177,7 @@ treechildren::-moz-tree-image(junkStatusCol, notjunk) {
 
 /* ..... subject column ..... */
 
+%ifndef WINDOWS_AERO
 #subjectCol {
   -moz-padding-start: 17px;
 }
@@ -231,15 +185,12 @@ treechildren::-moz-tree-image(junkStatusCol, notjunk) {
 #subjectCol[primary="true"] {
   -moz-padding-start: 30px;
 }
+%endif
 
 treechildren::-moz-tree-image(subjectCol) {
   -moz-margin-end: 2px;
   list-style-image: url("chrome://messenger/skin/icons/message.png");
   -moz-image-region: rect(0 16px 16px 0);
-}
-
-treechildren::-moz-tree-image(subjectCol, dummy) {
-  list-style-image: none;
 }
 
 treechildren::-moz-tree-image(subjectCol, forwarded) {
@@ -266,26 +217,8 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
   -moz-image-region: rect(0 80px 16px 64px);
 }
 
-treechildren::-moz-tree-cell-text(subjectCol) {
-  -moz-padding-start: 0 !important;
-}
-
-#sizeCol,
-#unreadCol,
-#totalCol {
-  text-align: right;
-}
-
 #threadTree treecolpicker.treecol-image {
   padding-bottom: 2px;
-}
-
-/* We need to hide overflow in messagepanebox, so that resizing doesn't spill
-   header content over the statusbar.
-   */
-
-#messagepanebox {
-  overflow: hidden;
 }
 
 /* ..... folder pane adjustments ..... */
@@ -295,9 +228,11 @@ treechildren::-moz-tree-cell-text(subjectCol) {
   -moz-padding-end: 8px;
 }
 
+%ifndef WINDOWS_AERO
 .folderview-cycler {
   -moz-padding-end: 0px;
 }
+%endif
 
 .folderview-cycler[dir="prev"],
 .folderview-cycler[dir="next"]:-moz-locale-dir(rtl) {
@@ -350,6 +285,7 @@ treechildren::-moz-tree-cell-text(subjectCol) {
   border-top: 0;
 }
 
+%ifndef WINDOWS_AERO
 #mailContent[layout="wide"] #threadPaneBox,
 #mailContent[layout="wide"] #folderPaneBox {
   /* ... draw it here instead! (This removes the white highlight just below the
@@ -360,6 +296,7 @@ treechildren::-moz-tree-cell-text(subjectCol) {
   border-bottom: 2px solid;
   -moz-border-bottom-colors: ThreeDHighlight ThreeDShadow;
 }
+%endif
 
 #mailContent[layout="wide"] #folderPaneBox:-moz-locale-dir(ltr),
 #mailContent[layout="wide"] #threadPaneBox:-moz-locale-dir(rtl) {
@@ -371,32 +308,13 @@ treechildren::-moz-tree-cell-text(subjectCol) {
 
 /* ..... status bar adjustments ..... */
 
-#quotaMeter {
-  min-width: 4em;
-  max-width: 4em;
-  border: 1px solid ThreeDShadow;
-}
-#quotaPanel .progress-bar {
-  -moz-appearance: none;
-  background-color: #88AAFF;
-  opacity: .5;
-}
-#quotaPanel[alert="warning"] .progress-bar {
-  background-color: orange;
-}
-#quotaPanel[alert="critical"] .progress-bar {
-  background-color: red;
-  opacity: .6;
-}
-#quotaLabel {
-  text-align: center;
-}
-
+%ifndef WINDOWS_AERO
 #threadTree treechildren::-moz-tree-row(odd) {
   background-image: url("chrome://messenger/skin/icons/row.png");
   background-position: bottom;
   background-repeat: repeat-x;
 }
+%endif
 
 .tabmail-tab[type="message"] {
   list-style-image: url("chrome://messenger/skin/icons/server.png");
@@ -426,6 +344,7 @@ treechildren::-moz-tree-cell-text(subjectCol) {
   }
 }
 
+%ifndef WINDOWS_AERO
 /* Luna silver needs special colors. Default doesn't look good */
 @media (-moz-windows-theme: luna-silver) {
   #messengerWindow[tabsintitlebar] {
@@ -458,6 +377,7 @@ treechildren::-moz-tree-cell-text(subjectCol) {
     background-color: #4B4B4B;
   }
 }
+%endif
 
 #messengerWindow[tabsintitlebar]:-moz-lwtheme {
   background-color: transparent;
@@ -551,6 +471,7 @@ treechildren::-moz-tree-cell-text(subjectCol) {
   }
 }
 
+%ifndef WINDOWS_AERO
 @media (-moz-windows-theme: luna-silver) {
   #messengerWindow[sizemode="normal"] > #titlebar > #titlebar-content {
     -moz-border-top-colors: rgba(0, 0, 0, .4) rgba(255, 255, 255, .3)
@@ -574,9 +495,30 @@ treechildren::-moz-tree-cell-text(subjectCol) {
     color: white;
   }
 }
+%endif
 
 #messengerWindow[tabsintitlebar][sizemode="maximized"] > #navigation-toolbox{
   margin-top: -12px;
+}
+
+#viewPicker > .menulist-label-box > .menulist-icon,
+#locationFolders > .menulist-label-box > .menulist-icon {
+  min-height: 16px;
+}
+
+#viewPickerPopup > menuitem[type="radio"] {
+  -moz-appearance: none;
+}
+
+#viewPickerPopup > menu > .menu-text {
+  -moz-appearance: none;
+  -moz-margin-start: 0 !important;
+  -moz-padding-start: 0 !important;
+}
+
+#viewPickerTagsPopup > menuitem > .menu-iconic-text,
+#viewPickerCustomViewsPopup > menuitem > .menu-iconic-text {
+  padding: 1px 3px;
 }
 
 @media not all and (-moz-windows-compositor) {

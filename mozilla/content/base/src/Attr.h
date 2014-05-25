@@ -20,18 +20,19 @@
 #include "nsINodeInfo.h"
 #include "nsCycleCollectionParticipant.h"
 #include "nsStubMutationObserver.h"
+#include "nsIDocument.h"
 
 namespace mozilla {
 namespace dom {
 
 // Attribute helper class used to wrap up an attribute with a dom
 // object that implements nsIDOMAttr and nsIDOMNode
-class Attr : public nsIAttribute,
-             public nsIDOMAttr
+class Attr MOZ_FINAL : public nsIAttribute,
+                       public nsIDOMAttr
 {
 public:
   Attr(nsDOMAttributeMap* aAttrMap,
-       already_AddRefed<nsINodeInfo> aNodeInfo,
+       already_AddRefed<nsINodeInfo>&& aNodeInfo,
        const nsAString& aValue,
        bool aNsAware);
   virtual ~Attr() {}

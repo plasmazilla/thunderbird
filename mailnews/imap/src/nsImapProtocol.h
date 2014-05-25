@@ -6,6 +6,7 @@
 #ifndef nsImapProtocol_h___
 #define nsImapProtocol_h___
 
+#include "mozilla/Attributes.h"
 #include "nsIImapProtocol.h"
 #include "nsIImapUrl.h"
 
@@ -73,7 +74,7 @@ typedef struct _msg_line_info {
 class nsMsgImapLineDownloadCache : public nsIImapHeaderInfo, public nsByteArray
 {
 public:
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIIMAPHEADERINFO
   nsMsgImapLineDownloadCache();
   virtual ~nsMsgImapLineDownloadCache();
@@ -94,7 +95,7 @@ private:
 class nsMsgImapHdrXferInfo : public nsIImapHeaderXferInfo
 {
 public:
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIIMAPHEADERXFERINFO
   nsMsgImapHdrXferInfo();
   virtual ~nsMsgImapHdrXferInfo();
@@ -133,16 +134,16 @@ class nsImapProtocol : public nsIImapProtocol,
 {
 public:
 
-  NS_DECL_ISUPPORTS
+  NS_DECL_ISUPPORTS_INHERITED
   NS_DECL_NSIINPUTSTREAMCALLBACK
   nsImapProtocol();
   virtual ~nsImapProtocol();
 
   virtual nsresult ProcessProtocolState(nsIURI * url, nsIInputStream * inputStream,
-                                        uint64_t sourceOffset, uint32_t length);
+                                        uint64_t sourceOffset, uint32_t length) MOZ_OVERRIDE;
 
   // nsIRunnable method
-  NS_IMETHOD Run();
+  NS_IMETHOD Run() MOZ_OVERRIDE;
 
   //////////////////////////////////////////////////////////////////////////////////
   // we support the nsIImapProtocol interface
@@ -235,14 +236,14 @@ public:
 
   // Event handlers for the imap parser.
   void DiscoverMailboxSpec(nsImapMailboxSpec * adoptedBoxSpec);
-  void AlertUserEventUsingId(uint32_t aMessageId);
+  void AlertUserEventUsingName(const char* aMessageId);
   void AlertUserEvent(const char * message);
   void AlertUserEventFromServer(const char * aServerEvent);
 
-  void ProgressEventFunctionUsingId(uint32_t aMsgId);
-  void ProgressEventFunctionUsingIdWithString(uint32_t aMsgId, const char *
+  void ProgressEventFunctionUsingName(const char* aMsgId);
+  void ProgressEventFunctionUsingNameWithString(const char* aMsgName, const char *
     aExtraInfo);
-  void PercentProgressUpdateEvent(PRUnichar *message, int64_t currentProgress, int64_t maxProgress);
+  void PercentProgressUpdateEvent(char16_t *message, int64_t currentProgress, int64_t maxProgress);
   void ShowProgress();
 
   // utility function calls made by the server
@@ -432,7 +433,7 @@ private:
   // aSuppressLogging --> set to true if you wish to suppress logging for this particular command.
   // this is useful for making sure we don't log authenication information like the user's password (which was
   // encoded anyway), but still we shouldn't add that information to the log.
-  nsresult SendData(const char * dataBuffer, bool aSuppressLogging = false);
+  nsresult SendData(const char * dataBuffer, bool aSuppressLogging = false) MOZ_OVERRIDE;
 
   // state ported over from 4.5
   bool m_pseudoInterrupted;
@@ -603,8 +604,11 @@ private:
   nsRefPtr <nsMsgImapLineDownloadCache> m_downloadLineCache;
   nsRefPtr <nsMsgImapHdrXferInfo> m_hdrDownloadCache;
   nsCOMPtr <nsIImapHeaderInfo> m_curHdrInfo;
+  // mapping between mailboxes and the corresponding folder flags
+  nsDataHashtable<nsCStringHashKey, int32_t> m_standardListMailboxes;
   // mapping between special xlist mailboxes and the corresponding folder flags
   nsDataHashtable<nsCStringHashKey, int32_t> m_specialXListMailboxes;
+
 
   nsIImapHostSessionList * m_hostSessionList;
 
@@ -620,13 +624,13 @@ private:
   nsString mAcceptLanguages;
   
   // progress stuff
-  void SetProgressString(int32_t stringId);
+  void SetProgressString(const char* stringName);
   
   nsString m_progressString;
-  int32_t       m_progressStringId;
+  nsCString     m_progressStringName;
   int32_t       m_progressIndex;
   int32_t       m_progressCount;
-  uint32_t      m_lastProgressStringId;
+  nsCString     m_lastProgressStringName;
   int32_t       m_lastPercent;
   int64_t       m_lastProgressTime;
 
@@ -652,6 +656,7 @@ private:
       kListingForInfoAndDiscovery,
       kDiscoveringNamespacesOnly,
       kXListing,
+      kListingForFolderFlags,
       kListingForCreate
   };
   EMailboxHierarchyNameState  m_hierarchyNameState;
@@ -681,7 +686,7 @@ class nsImapMockChannel : public nsIImapMockChannel
 public:
   friend class nsImapProtocol;
 
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIIMAPMOCKCHANNEL
   NS_DECL_NSICHANNEL
   NS_DECL_NSIREQUEST

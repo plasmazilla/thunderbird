@@ -81,6 +81,7 @@ function start() {
   
   var GLDRIVER_MESA   = 'mesa';
   var GLDRIVER_NVIDIA = 'nvidia';
+  var GLDRIVER_X86EMULATOR = 'android x86 emulator';
 
   var kOS = null;
   var kOSVersion = null;
@@ -90,10 +91,7 @@ function start() {
     kOS = OS_WINDOWS;
     
     // code borrowed from browser/modules/test/browser_taskbar_preview.js
-    netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
-    var version = SpecialPowers.Cc['@mozilla.org/system-info;1']
-                               .getService(SpecialPowers.Ci.nsIPropertyBag2)
-                               .getProperty('version');
+    var version = SpecialPowers.Services.sysinfo.getProperty('version');
     kOSVersion = parseFloat(version);
     // Version 6.0 is Vista, 6.1 is 7.
   } else if (navigator.platform.indexOf('Mac') == 0) {
@@ -115,6 +113,8 @@ function start() {
   
   if (glRenderer.contains('llvmpipe')) {
     kGLDriver = GLDRIVER_MESA;
+  } else if (glRenderer.contains('Android Emulator')) {
+    kGLDriver = GLDRIVER_X86EMULATOR;
   } else if (glVendor.contains('NVIDIA')) {
     kGLDriver = GLDRIVER_NVIDIA;
   }
@@ -139,7 +139,6 @@ function start() {
     requestLongerTimeoutLen = 6;
 
   function getEnv(env) {
-    netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
     var envsvc = SpecialPowers.Cc["@mozilla.org/process/environment;1"].getService(SpecialPowers.Ci.nsIEnvironment);
     var val = envsvc.get(env);
     if (val == "")
@@ -523,13 +522,18 @@ function start() {
       break;
     }
     case OS_ANDROID: {
-      skippedTestsFilename = 'skipped_tests_android.txt';
       switch (kGLDriver) {
         case GLDRIVER_NVIDIA:
           failingTestsFilename = 'failing_tests_android_nvidia.txt';
+          skippedTestsFilename = 'skipped_tests_android.txt';
+          break;
+        case GLDRIVER_X86EMULATOR:
+          failingTestsFilename = 'failing_tests_android_x86.txt';
+          skippedTestsFilename = 'skipped_tests_android_x86.txt';
           break;
         default:
           failingTestsFilename = 'failing_tests_android.txt';
+          skippedTestsFilename = 'skipped_tests_android.txt';
           break;
       }
       break;

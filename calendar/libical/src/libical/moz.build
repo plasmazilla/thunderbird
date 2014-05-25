@@ -3,20 +3,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-MODULE = 'ical'
-
-EXPORTS += [
-    'ical.h',
-]
-
-CSRCS += [
+SOURCES += [
     'caldate.c',
     'icalarray.c',
     'icalattach.c',
     'icalcomponent.c',
-    'icalderivedparameter.c',
-    'icalderivedproperty.c',
-    'icalderivedvalue.c',
     'icalduration.c',
     'icalenums.c',
     'icalerror.c',
@@ -28,7 +19,6 @@ CSRCS += [
     'icalperiod.c',
     'icalproperty.c',
     'icalrecur.c',
-    'icalrestriction.c',
     'icaltime.c',
     'icaltimezone.c',
     'icaltypes.c',
@@ -37,4 +27,6 @@ CSRCS += [
     'sspm.c',
     'vsnprintf.c',
 ]
+
+FINAL_LIBRARY = 'calbasecomps'
 

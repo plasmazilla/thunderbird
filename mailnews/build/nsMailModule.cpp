@@ -39,7 +39,6 @@
 #include "nsIFactory.h"
 #include "nsISupports.h"
 #include "nsIModule.h"
-#include "pratom.h"
 #include "nsICategoryManager.h"
 #include "nsIComponentManager.h"
 #include "nsIServiceManager.h"
@@ -103,9 +102,6 @@
 #ifdef XP_WIN
 #include "nsMessengerWinIntegration.h"
 #endif
-#ifdef XP_OS2
-#include "nsMessengerOS2Integration.h"
-#endif
 #ifdef XP_MACOSX
 #include "nsMessengerOSXIntegration.h"
 #endif
@@ -153,14 +149,10 @@
 // fix them.
 //#include "nsAbLDAPChangeLogQuery.h"
 //#include "nsAbLDAPChangeLogData.h"
-#ifndef MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE
-#include "nsAbLDAPAutoCompFormatter.h"
-#include "nsLDAPAutoCompleteSession.h"
-#endif
 #endif
 
 
-#if defined(XP_WIN) && !defined(__MINGW32__)
+#if defined(MOZ_MAPI_SUPPORT)
 #include "nsAbOutlookDirFactory.h"
 #include "nsAbOutlookDirectory.h"
 #endif
@@ -284,6 +276,14 @@
 #include "nsMsgMdnGenerator.h"
 
 ///////////////////////////////////////////////////////////////////////////////
+// smime includes
+///////////////////////////////////////////////////////////////////////////////
+#include "nsMsgSMIMECID.h"
+#include "nsMsgComposeSecure.h"
+#include "nsSMimeJSHelper.h"
+#include "nsEncryptedSMIMEURIsService.h"
+
+///////////////////////////////////////////////////////////////////////////////
 // vcard includes
 ///////////////////////////////////////////////////////////////////////////////
 #include "nsMimeContentTypeHandler.h"
@@ -354,9 +354,6 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsMsgShutdownService)
 #ifdef XP_WIN
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsMessengerWinIntegration, Init)
 #endif
-#ifdef XP_OS2
-NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsMessengerOS2Integration, Init)
-#endif
 #ifdef XP_MACOSX
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsMessengerOSXIntegration, Init)
 #endif
@@ -417,9 +414,6 @@ NS_DEFINE_NAMED_CID(NS_MSGNOTIFICATIONSERVICE_CID);
 #ifdef XP_WIN
 NS_DEFINE_NAMED_CID(NS_MESSENGERWININTEGRATION_CID);
 #endif
-#ifdef XP_OS2
-NS_DEFINE_NAMED_CID(NS_MESSENGEROS2INTEGRATION_CID);
-#endif
 #ifdef XP_MACOSX
 NS_DEFINE_NAMED_CID(NS_MESSENGEROSXINTEGRATION_CID);
 #endif
@@ -450,7 +444,7 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbDirFactoryService)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbMDBDirFactory)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAddbookProtocolHandler)
 
-#if defined(XP_WIN) && !defined(__MINGW32__)
+#if defined(MOZ_MAPI_SUPPORT)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbOutlookDirectory)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbOutlookDirFactory)
 #endif
@@ -472,10 +466,6 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPProcessReplicationData)
 // fix them.
 //NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPChangeLogQuery)
 //NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPProcessChangeLogData)
-#ifndef MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPAutoCompFormatter)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsLDAPAutoCompleteSession)
-#endif
 #endif
 
 
@@ -506,7 +496,7 @@ NS_DEFINE_NAMED_CID(NS_ABMDBDIRFACTORY_CID);
 NS_DEFINE_NAMED_CID(NS_ABDIRECTORYQUERYARGUMENTS_CID);
 NS_DEFINE_NAMED_CID(NS_BOOLEANCONDITIONSTRING_CID);
 NS_DEFINE_NAMED_CID(NS_BOOLEANEXPRESSION_CID);
-#if defined(XP_WIN) && !defined(__MINGW32__)
+#if defined(MOZ_MAPI_SUPPORT)
 NS_DEFINE_NAMED_CID(NS_ABOUTLOOKDIRECTORY_CID);
 NS_DEFINE_NAMED_CID(NS_ABOUTLOOKDIRFACTORY_CID);
 #endif
@@ -519,10 +509,6 @@ NS_DEFINE_NAMED_CID(NS_ABLDAPDIRFACTORY_CID);
 NS_DEFINE_NAMED_CID(NS_ABLDAP_REPLICATIONSERVICE_CID);
 NS_DEFINE_NAMED_CID(NS_ABLDAP_REPLICATIONQUERY_CID);
 NS_DEFINE_NAMED_CID(NS_ABLDAP_PROCESSREPLICATIONDATA_CID);
-#ifndef MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE
-NS_DEFINE_NAMED_CID(NS_ABLDAPAUTOCOMPFORMATTER_CID);
-NS_DEFINE_NAMED_CID(NS_LDAPAUTOCOMPLETESESSION_CID);
-#endif
 #endif
 NS_DEFINE_NAMED_CID(NS_ABDIRECTORYQUERYPROXY_CID);
 #ifdef XP_MACOSX
@@ -735,6 +721,19 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsMsgMdnGenerator)
 NS_DEFINE_NAMED_CID(NS_MSGMDNGENERATOR_CID);
 
 ////////////////////////////////////////////////////////////////////////////////
+// smime factories
+////////////////////////////////////////////////////////////////////////////////
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsMsgComposeSecure)
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsMsgSMIMEComposeFields)
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsSMimeJSHelper)
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsEncryptedSMIMEURIsService)
+
+NS_DEFINE_NAMED_CID(NS_MSGCOMPOSESECURE_CID);
+NS_DEFINE_NAMED_CID(NS_MSGSMIMECOMPFIELDS_CID);
+NS_DEFINE_NAMED_CID(NS_SMIMEJSJELPER_CID);
+NS_DEFINE_NAMED_CID(NS_SMIMEENCRYPTURISERVICE_CID);
+
+////////////////////////////////////////////////////////////////////////////////
 // vcard factories
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -858,9 +857,6 @@ const mozilla::Module::CIDEntry kMailNewsCIDs[] = {
 #ifdef XP_WIN
   { &kNS_MESSENGERWININTEGRATION_CID, false, NULL, nsMessengerWinIntegrationConstructor},
 #endif
-#ifdef XP_OS2
-  { &kNS_MESSENGEROS2INTEGRATION_CID, false, NULL, nsMessengerOS2IntegrationConstructor},
-#endif
 #ifdef XP_MACOSX
   { &kNS_MESSENGEROSXINTEGRATION_CID, false, NULL, nsMessengerOSXIntegrationConstructor},
 #endif
@@ -888,7 +884,7 @@ const mozilla::Module::CIDEntry kMailNewsCIDs[] = {
   { &kNS_ABCONTENTHANDLER_CID, false, NULL, nsAbContentHandlerConstructor },
   { &kNS_ABDIRFACTORYSERVICE_CID, false, NULL, nsAbDirFactoryServiceConstructor },
   { &kNS_ABMDBDIRFACTORY_CID, false, NULL, nsAbMDBDirFactoryConstructor },
-#if defined(XP_WIN) && !defined(__MINGW32__)
+#if defined(MOZ_MAPI_SUPPORT)
   { &kNS_ABOUTLOOKDIRECTORY_CID, false, NULL, nsAbOutlookDirectoryConstructor },
   { &kNS_ABOUTLOOKDIRFACTORY_CID, false, NULL, nsAbOutlookDirFactoryConstructor },
 #endif
@@ -904,10 +900,6 @@ const mozilla::Module::CIDEntry kMailNewsCIDs[] = {
   { &kNS_ABLDAP_REPLICATIONQUERY_CID, false, NULL, nsAbLDAPReplicationQueryConstructor },
   { &kNS_ABLDAP_PROCESSREPLICATIONDATA_CID, false, NULL, nsAbLDAPProcessReplicationDataConstructor },
   { &kNS_ABLDAPDIRFACTORY_CID, false, NULL, nsAbLDAPDirFactoryConstructor },
-#ifndef MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE
-  { &kNS_ABLDAPAUTOCOMPFORMATTER_CID, false, NULL, nsAbLDAPAutoCompFormatterConstructor },
-  { &kNS_LDAPAUTOCOMPLETESESSION_CID, false, NULL, nsLDAPAutoCompleteSessionConstructor },
-#endif
 #endif
   { &kNS_ABDIRECTORYQUERYPROXY_CID, false, NULL, nsAbDirectoryQueryProxyConstructor },
 #ifdef XP_MACOSX
@@ -1002,6 +994,11 @@ const mozilla::Module::CIDEntry kMailNewsCIDs[] = {
   { &kNS_MSGMAILVIEWLIST_CID, false, NULL, nsMsgMailViewListConstructor },
   // mdn Entries
   { &kNS_MSGMDNGENERATOR_CID, false, NULL, nsMsgMdnGeneratorConstructor },
+  // SMime Entries
+  { &kNS_MSGCOMPOSESECURE_CID, false, NULL, nsMsgComposeSecureConstructor },
+  { &kNS_MSGSMIMECOMPFIELDS_CID, false, NULL, nsMsgSMIMEComposeFieldsConstructor },
+  { &kNS_SMIMEJSJELPER_CID, false, NULL, nsSMimeJSHelperConstructor },
+  { &kNS_SMIMEENCRYPTURISERVICE_CID, false, NULL, nsEncryptedSMIMEURIsServiceConstructor },
   // Vcard Entries
   { &kNS_VCARD_CONTENT_TYPE_HANDLER_CID, false, NULL, nsVCardMimeContentTypeHandlerConstructor},
   // PGP/MIME Entries
@@ -1062,9 +1059,6 @@ const mozilla::Module::ContractIDEntry kMailNewsContracts[] = {
 #ifdef XP_WIN
   { NS_MESSENGEROSINTEGRATION_CONTRACTID, &kNS_MESSENGERWININTEGRATION_CID },
 #endif
-#ifdef XP_OS2
-  { NS_MESSENGEROSINTEGRATION_CONTRACTID, &kNS_MESSENGEROS2INTEGRATION_CID },
-#endif
 #ifdef XP_MACOSX
   { NS_MESSENGEROSINTEGRATION_CONTRACTID, &kNS_MESSENGEROSXINTEGRATION_CID },
 #endif
@@ -1093,7 +1087,7 @@ const mozilla::Module::ContractIDEntry kMailNewsContracts[] = {
   { NS_CONTENT_HANDLER_CONTRACTID_PREFIX"text/x-vcard", &kNS_ABCONTENTHANDLER_CID },
   { NS_ABDIRFACTORYSERVICE_CONTRACTID, &kNS_ABDIRFACTORYSERVICE_CID },
   { NS_ABMDBDIRFACTORY_CONTRACTID, &kNS_ABMDBDIRFACTORY_CID },
-#if defined(XP_WIN) && !defined(__MINGW32__)
+#if defined(MOZ_MAPI_SUPPORT)
   { NS_ABOUTLOOKDIRECTORY_CONTRACTID, &kNS_ABOUTLOOKDIRECTORY_CID },
   { NS_ABOUTLOOKDIRFACTORY_CONTRACTID, &kNS_ABOUTLOOKDIRFACTORY_CID },
 #endif
@@ -1111,10 +1105,6 @@ const mozilla::Module::ContractIDEntry kMailNewsContracts[] = {
   { NS_ABLDAP_PROCESSREPLICATIONDATA_CONTRACTID, &kNS_ABLDAP_PROCESSREPLICATIONDATA_CID },
   { NS_ABLDAPACDIRFACTORY_CONTRACTID, &kNS_ABLDAPDIRFACTORY_CID },
   { NS_ABLDAPSACDIRFACTORY_CONTRACTID, &kNS_ABLDAPDIRFACTORY_CID },
-#ifndef MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE
-  { NS_ABLDAPAUTOCOMPFORMATTER_CONTRACTID, &kNS_ABLDAPAUTOCOMPFORMATTER_CID },
-  { "@mozilla.org/autocompleteSession;1?type=ldap", &kNS_LDAPAUTOCOMPLETESESSION_CID },
-#endif
 #endif
 
   { NS_ABDIRECTORYQUERYPROXY_CONTRACTID, &kNS_ABDIRECTORYQUERYPROXY_CID },
@@ -1234,6 +1224,11 @@ const mozilla::Module::ContractIDEntry kMailNewsContracts[] = {
   { NS_MSGMAILVIEWLIST_CONTRACTID, &kNS_MSGMAILVIEWLIST_CID },
   // mdn Entries
   { NS_MSGMDNGENERATOR_CONTRACTID, &kNS_MSGMDNGENERATOR_CID },
+  // SMime Entries
+  { NS_MSGCOMPOSESECURE_CONTRACTID, &kNS_MSGCOMPOSESECURE_CID },
+  { NS_MSGSMIMECOMPFIELDS_CONTRACTID, &kNS_MSGSMIMECOMPFIELDS_CID },
+  { NS_SMIMEJSHELPER_CONTRACTID, &kNS_SMIMEJSJELPER_CID },
+  { NS_SMIMEENCRYPTURISERVICE_CONTRACTID, &kNS_SMIMEENCRYPTURISERVICE_CID },
   // Vcard Entries
   { "@mozilla.org/mimecth;1?type=text/x-vcard", &kNS_VCARD_CONTENT_TYPE_HANDLER_CID },
   // PGP/MIME Entries
@@ -1277,7 +1272,6 @@ static void
 msgMailNewsModuleDtor()
 {
   nsAddrDatabase::CleanupCache();
-  nsMsgDatabase::CleanupCache();
 }
 
 static const mozilla::Module kMailNewsModule = {

@@ -3,7 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "nsINameSpaceManager.h"
+#include "nsNameSpaceManager.h"
 #include "nsGkAtoms.h"
 #include "nsIDOMElement.h"
 #include "nsIBoxObject.h"
@@ -39,6 +39,8 @@ nsTreeColumn::~nsTreeColumn()
     mNext->SetPrevious(nullptr);
   }
 }
+
+NS_IMPL_CYCLE_COLLECTION_CLASS(nsTreeColumn)
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsTreeColumn)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mContent)
@@ -192,7 +194,7 @@ nsTreeColumn::GetId(nsAString& aId)
 }
 
 NS_IMETHODIMP
-nsTreeColumn::GetIdConst(const PRUnichar** aIdConst)
+nsTreeColumn::GetIdConst(const char16_t** aIdConst)
 {
   *aIdConst = mId.get();
   return NS_OK;

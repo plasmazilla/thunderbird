@@ -19,20 +19,10 @@ if test "$OS_ARCH" = "WINNT"; then
   fi
 fi
 
-# Disable Accessibility on Mac for now as unit tests fail (bug 862238).
-if test "$OS_ARCH" = "Darwin"; then
-  ACCESSIBILITY=
-fi
-
 MOZ_SAFE_BROWSING=1
 MOZ_MEDIA_NAVIGATOR=1
 MOZ_MORK=1
-MAIL_COMPONENT="mail msgsmime import"
-MAIL_MODULE="MODULE(nsMailModule) MODULE(nsMsgSMIMEModule) MODULE(nsImportServiceModule)"
-if test -n "$_WIN32_MSVC"; then
-  MAIL_COMPONENT="$MAIL_COMPONENT msgMapi"
-  MAIL_MODULE="$MAIL_MODULE MODULE(msgMapiModule)"
-fi
+MAIL_MODULE="MODULE(nsMailModule) MODULE(nsImportServiceModule)"
 
 MOZ_APP_VERSION_TXT=${_topsrcdir}/$MOZ_BUILD_APP/config/version.txt
 MOZ_APP_VERSION=`cat $MOZ_APP_VERSION_TXT`
@@ -46,6 +36,9 @@ MOZ_APP_ID={3550f703-e582-4d05-9a08-453d09bdfdc6}
 # This should usually be the same as the value MAR_CHANNEL_ID.
 # If more than one ID is needed, then you should use a comma separated list
 # of values.
-ACCEPTED_MAR_CHANNEL_IDS=thunderbird-comm-release
+ACCEPTED_MAR_CHANNEL_IDS=thunderbird-comm-beta,thunderbird-comm-release
 # The MAR_CHANNEL_ID must not contain the following 3 characters: ",\t "
-MAR_CHANNEL_ID=thunderbird-comm-release
+MAR_CHANNEL_ID=thunderbird-comm-beta
+if test "$OS_TARGET" = "WINNT" -o "$OS_TARGET" = "Darwin"; then
+  MOZ_FOLD_LIBS=1
+fi

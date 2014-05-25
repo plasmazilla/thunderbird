@@ -6,9 +6,8 @@
 
 #include "gc/Memory.h"
 
-#include "jscntxt.h"
-
 #include "js/HeapAPI.h"
+#include "vm/Runtime.h"
 
 using namespace js;
 using namespace js::gc;
@@ -42,7 +41,7 @@ gc::MapAlignedPages(JSRuntime *rt, size_t size, size_t alignment)
 
     /* Special case: If we want allocation alignment, no further work is needed. */
     if (alignment == rt->gcSystemAllocGranularity) {
-        return VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        return VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     }
 
     /*
@@ -51,20 +50,20 @@ gc::MapAlignedPages(JSRuntime *rt, size_t size, size_t alignment)
      * final result via one mapping operation.  This means unmapping any
      * preliminary result that is not correctly aligned.
      */
-    void *p = NULL;
+    void *p = nullptr;
     while (!p) {
         /*
-         * Over-allocate in order to map a memory region that is
-         * definitely large enough then deallocate and allocate again the
-         * correct sizee, within the over-sized mapping.
+         * Over-allocate in order to map a memory region that is definitely
+         * large enough, then deallocate and allocate again the correct size,
+         * within the over-sized mapping.
          *
          * Since we're going to unmap the whole thing anyway, the first
          * mapping doesn't have to commit pages.
          */
-        p = VirtualAlloc(NULL, size * 2, MEM_RESERVE, PAGE_READWRITE);
+        p = VirtualAlloc(nullptr, size * 2, MEM_RESERVE, PAGE_READWRITE);
         if (!p)
-            return NULL;
-        void *chunkStart = (void *)(uintptr_t(p) + (alignment - (uintptr_t(p) % alignment)));
+            return nullptr;
+        void *chunkStart = (void *)AlignBytes(uintptr_t(p), alignment);
         UnmapPages(rt, p, size * 2);
         p = VirtualAlloc(chunkStart, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
@@ -108,138 +107,6 @@ gc::GetPageFaultCount()
     return pmc.PageFaultCount;
 }
 
-#elif defined(XP_OS2)
-
-#define INCL_DOSMEMMGR
-#include <os2.h>
-
-#define JS_GC_HAS_MAP_ALIGN 1
-#define OS2_MAX_RECURSIONS  16
-
-void
-gc::InitMemorySubsystem(JSRuntime *rt)
-{
-    rt->gcSystemPageSize = rt->gcSystemAllocGranularity = ArenaSize;
-}
-
-void
-gc::UnmapPages(JSRuntime *rt, void *addr, size_t size)
-{
-    if (!DosFreeMem(addr))
-        return;
-
-    /*
-     * If DosFreeMem() failed, 'addr' is probably part of an "expensive"
-     * allocation, so calculate the base address and try again.
-     */
-    unsigned long cb = 2 * size;
-    unsigned long flags;
-    if (DosQueryMem(addr, &cb, &flags) || cb < size)
-        return;
-
-    uintptr_t base = reinterpret_cast<uintptr_t>(addr) - ((2 * size) - cb);
-    DosFreeMem(reinterpret_cast<void*>(base));
-
-    return;
-}
-
-static void *
-MapAlignedPagesRecursively(JSRuntime *rt, size_t size, size_t alignment, int& recursions)
-{
-    if (++recursions >= OS2_MAX_RECURSIONS)
-        return NULL;
-
-    void *tmp;
-    if (DosAllocMem(&tmp, size,
-                    OBJ_ANY | PAG_COMMIT | PAG_READ | PAG_WRITE)) {
-        JS_ALWAYS_TRUE(DosAllocMem(&tmp, size,
-                                   PAG_COMMIT | PAG_READ | PAG_WRITE) == 0);
-    }
-    size_t offset = reinterpret_cast<uintptr_t>(tmp) & (alignment - 1);
-    if (!offset)
-        return tmp;
-
-    /*
-     * If there are 'filler' bytes of free space above 'tmp', free 'tmp',
-     * then reallocate it as a 'filler'-sized block;  assuming we're not
-     * in a race with another thread, the next recursion should succeed.
-     */
-    size_t filler = size + alignment - offset;
-    unsigned long cb = filler;
-    unsigned long flags = 0;
-    unsigned long rc = DosQueryMem(&(static_cast<char*>(tmp))[size],
-                                   &cb, &flags);
-    if (!rc && (flags & PAG_FREE) && cb >= filler) {
-        UnmapPages(rt, tmp, 0);
-        if (DosAllocMem(&tmp, filler,
-                        OBJ_ANY | PAG_COMMIT | PAG_READ | PAG_WRITE)) {
-            JS_ALWAYS_TRUE(DosAllocMem(&tmp, filler,
-                                       PAG_COMMIT | PAG_READ | PAG_WRITE) == 0);
-        }
-    }
-
-    void *p = MapAlignedPagesRecursively(rt, size, alignment, recursions);
-    UnmapPages(rt, tmp, 0);
-
-    return p;
-}
-
-void *
-gc::MapAlignedPages(JSRuntime *rt, size_t size, size_t alignment)
-{
-    JS_ASSERT(size >= alignment);
-    JS_ASSERT(size % alignment == 0);
-    JS_ASSERT(size % rt->gcSystemPageSize == 0);
-    JS_ASSERT(alignment % rt->gcSystemAllocGranularity == 0);
-
-    int recursions = -1;
-
-    /*
-     * Make up to OS2_MAX_RECURSIONS attempts to get an aligned block
-     * of the right size by recursively allocating blocks of unaligned
-     * free memory until only an aligned allocation is possible.
-     */
-    void *p = MapAlignedPagesRecursively(rt, size, alignment, recursions);
-    if (p)
-        return p;
-
-    /*
-     * If memory is heavily fragmented, the recursive strategy may fail;
-     * instead, use the "expensive" strategy:  allocate twice as much
-     * as requested and return an aligned address within this block.
-     */
-    if (DosAllocMem(&p, 2 * size,
-                    OBJ_ANY | PAG_COMMIT | PAG_READ | PAG_WRITE)) {
-        JS_ALWAYS_TRUE(DosAllocMem(&p, 2 * size,
-                                   PAG_COMMIT | PAG_READ | PAG_WRITE) == 0);
-    }
-
-    uintptr_t addr = reinterpret_cast<uintptr_t>(p);
-    addr = (addr + (alignment - 1)) & ~(alignment - 1);
-
-    return reinterpret_cast<void *>(addr);
-}
-
-bool
-gc::MarkPagesUnused(JSRuntime *rt, void *p, size_t size)
-{
-    JS_ASSERT(uintptr_t(p) % rt->gcSystemPageSize == 0);
-    return true;
-}
-
-bool
-gc::MarkPagesInUse(JSRuntime *rt, void *p, size_t size)
-{
-    JS_ASSERT(uintptr_t(p) % rt->gcSystemPageSize == 0);
-    return true;
-}
-
-size_t
-gc::GetPageFaultCount()
-{
-    return 0;
-}
-
 #elif defined(SOLARIS)
 
 #include <sys/mman.h>
@@ -268,7 +135,7 @@ gc::MapAlignedPages(JSRuntime *rt, size_t size, size_t alignment)
 
     void *p = mmap((caddr_t)alignment, size, prot, flags, -1, 0);
     if (p == MAP_FAILED)
-        return NULL;
+        return nullptr;
     return p;
 }
 
@@ -298,7 +165,7 @@ gc::GetPageFaultCount()
     return 0;
 }
 
-#elif defined(XP_UNIX) || defined(XP_MACOSX) || defined(DARWIN)
+#elif defined(XP_UNIX)
 
 #include <sys/mman.h>
 #include <sys/resource.h>
@@ -319,7 +186,7 @@ MapMemory(size_t length, int prot, int flags, int fd, off_t offset)
      * which ia64's mmap doesn't support directly. However, we can emulate it by passing
      * mmap an "addr" parameter with those bits clear. The mmap will return that address,
      * or the nearest available memory above that address, providing a near-guarantee
-     * that those bits are clear. If they are not, we return NULL below to indicate
+     * that those bits are clear. If they are not, we return nullptr below to indicate
      * out-of-memory.
      *
      * The addr is chosen as 0x0000070000000000, which still allows about 120TB of virtual
@@ -330,7 +197,7 @@ MapMemory(size_t length, int prot, int flags, int fd, off_t offset)
     void *region = mmap((void*)0x0000070000000000, length, prot, flags, fd, offset);
     if (region == MAP_FAILED)
         return MAP_FAILED;
-    /* 
+    /*
      * If the allocated memory doesn't have its upper 17 bits clear, consider it
      * as out of memory.
      */
@@ -340,7 +207,7 @@ MapMemory(size_t length, int prot, int flags, int fd, off_t offset)
     }
     return region;
 #else
-    return mmap(NULL, length, prot, flags, fd, offset);
+    return mmap(nullptr, length, prot, flags, fd, offset);
 #endif
 }
 
@@ -359,7 +226,7 @@ gc::MapAlignedPages(JSRuntime *rt, size_t size, size_t alignment)
     if (alignment == rt->gcSystemAllocGranularity) {
         void *region = MapMemory(size, prot, flags, -1, 0);
         if (region == MAP_FAILED)
-            return NULL;
+            return nullptr;
         return region;
     }
 
@@ -367,13 +234,13 @@ gc::MapAlignedPages(JSRuntime *rt, size_t size, size_t alignment)
     size_t reqSize = Min(size + 2 * alignment, 2 * size);
     void *region = MapMemory(reqSize, prot, flags, -1, 0);
     if (region == MAP_FAILED)
-        return NULL;
+        return nullptr;
 
     uintptr_t regionEnd = uintptr_t(region) + reqSize;
     uintptr_t offset = uintptr_t(region) % alignment;
     JS_ASSERT(offset < reqSize - size);
 
-    void *front = (void *)(uintptr_t(region) + (alignment - offset));
+    void *front = (void *)AlignBytes(uintptr_t(region), alignment);
     void *end = (void *)(uintptr_t(front) + size);
     if (front != region)
         JS_ALWAYS_TRUE(0 == munmap(region, alignment - offset));

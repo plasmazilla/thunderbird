@@ -22,6 +22,7 @@
 #include "nsIMsgFolder.h"
 #include "nsServiceManagerUtils.h"
 #include "mozilla/Services.h"
+#include "nsMsgUtils.h"
 
 #define MSGFEEDBACK_TIMER_INTERVAL 500
 
@@ -44,16 +45,8 @@ nsMsgStatusFeedback::~nsMsgStatusFeedback()
   mBundle = nullptr;
 }
 
-NS_IMPL_THREADSAFE_ADDREF(nsMsgStatusFeedback)
-NS_IMPL_THREADSAFE_RELEASE(nsMsgStatusFeedback)
-
-NS_INTERFACE_MAP_BEGIN(nsMsgStatusFeedback)
-  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIMsgStatusFeedback)
-  NS_INTERFACE_MAP_ENTRY(nsIMsgStatusFeedback)
-  NS_INTERFACE_MAP_ENTRY(nsIProgressEventSink) 
-  NS_INTERFACE_MAP_ENTRY(nsIWebProgressListener) 
-  NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
-NS_INTERFACE_MAP_END
+NS_IMPL_ISUPPORTS4(nsMsgStatusFeedback, nsIMsgStatusFeedback,
+  nsIProgressEventSink, nsIWebProgressListener, nsISupportsWeakReference)
 
 //////////////////////////////////////////////////////////////////////////////////
 // nsMsgStatusFeedback::nsIWebProgressListener
@@ -94,7 +87,7 @@ nsMsgStatusFeedback::OnStateChange(nsIWebProgress* aWebProgress,
       m_lastPercent = 0;
       StartMeteors();
       nsString loadingDocument;
-      rv = mBundle->GetStringFromName(NS_LITERAL_STRING("documentLoading").get(),
+      rv = mBundle->GetStringFromName(MOZ_UTF16("documentLoading"),
                                       getter_Copies(loadingDocument));
       if (NS_SUCCEEDED(rv))
         ShowStatusString(loadingDocument);
@@ -148,7 +141,7 @@ nsMsgStatusFeedback::OnStateChange(nsIWebProgress* aWebProgress,
       }
       StopMeteors();
       nsString documentDone;
-      rv = mBundle->GetStringFromName(NS_LITERAL_STRING("documentDone").get(),
+      rv = mBundle->GetStringFromName(MOZ_UTF16("documentDone"),
                                       getter_Copies(documentDone));
       if (NS_SUCCEEDED(rv))
         ShowStatusString(documentDone);
@@ -169,7 +162,7 @@ NS_IMETHODIMP
 nsMsgStatusFeedback::OnStatusChange(nsIWebProgress* aWebProgress,
                                     nsIRequest* aRequest,
                                     nsresult aStatus,
-                                    const PRUnichar* aMessage)
+                                    const char16_t* aMessage)
 {
     return NS_OK;
 }
@@ -262,14 +255,49 @@ NS_IMETHODIMP nsMsgStatusFeedback::OnProgress(nsIRequest *request, nsISupports* 
 }
 
 NS_IMETHODIMP nsMsgStatusFeedback::OnStatus(nsIRequest *request, nsISupports* ctxt, 
-                                            nsresult aStatus, const PRUnichar* aStatusArg)
+                                            nsresult aStatus, const char16_t* aStatusArg)
 {
   nsresult rv;
+  nsCOMPtr<nsIURI> uri;
+  nsString accountName;
+  // fetching account name from nsIRequest
+  nsCOMPtr<nsIChannel> aChannel = do_QueryInterface(request);
+  rv = aChannel->GetURI(getter_AddRefs(uri));
+  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsIMsgMailNewsUrl> url(do_QueryInterface(uri));
+  if (url)
+  {
+    nsCOMPtr<nsIMsgIncomingServer> server;
+    url->GetServer(getter_AddRefs(server));
+    if (server)
+      server->GetPrettyName(accountName);
+  }
+
+  // forming the status message
   nsCOMPtr<nsIStringBundleService> sbs =
     mozilla::services::GetStringBundleService();
   NS_ENSURE_TRUE(sbs, NS_ERROR_UNEXPECTED);
   nsString str;
   rv = sbs->FormatStatusMessage(aStatus, aStatusArg, getter_Copies(str));
   NS_ENSURE_SUCCESS(rv, rv);
-  return ShowStatusString(str);
+
+  // prefixing the account name to the status message if status message isn't blank
+  // and doesn't already contain the account name.
+  nsString statusMessage;
+  if (!str.IsEmpty() && str.Find(accountName) == kNotFound)
+  {
+    nsCOMPtr<nsIStringBundle> bundle;
+    rv = sbs->CreateBundle(MSGS_URL, getter_AddRefs(bundle));
+    const char16_t *params[] = { accountName.get(),
+                                  str.get() };
+    rv = bundle->FormatStringFromName(
+      MOZ_UTF16("statusMessage"),
+      params, 2, getter_Copies(statusMessage));
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
+  else
+  {
+    statusMessage.Assign(str);
+  }
+  return ShowStatusString(statusMessage);
 }

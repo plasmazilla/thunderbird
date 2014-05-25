@@ -60,6 +60,22 @@ function getDummyDatabase(name, extraOptions={}) {
   throw new Task.Result(c);
 }
 
+function getDummyTempDatabase(name, extraOptions={}) {
+  const TABLES = {
+    dirs: "id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT",
+    files: "id INTEGER PRIMARY KEY AUTOINCREMENT, dir_id INTEGER, path TEXT",
+  };
+
+  let c = yield getConnection(name, extraOptions);
+  c._initialStatementCount = 0;
+
+  for (let [k, v] in Iterator(TABLES)) {
+    yield c.execute("CREATE TEMP TABLE " + k + "(" + v + ")");
+    c._initialStatementCount++;
+  }
+
+  throw new Task.Result(c);
+}
 
 function run_test() {
   Cu.import("resource://testing-common/services-common/logging.js");
@@ -87,6 +103,34 @@ add_task(function test_get_dummy_database() {
   yield db.close();
 });
 
+add_task(function test_schema_version() {
+  let db = yield getDummyDatabase("schema_version");
+
+  let version = yield db.getSchemaVersion();
+  do_check_eq(version, 0);
+
+  db.setSchemaVersion(14);
+  version = yield db.getSchemaVersion();
+  do_check_eq(version, 14);
+
+  for (let v of [0.5, "foobar", NaN]) {
+    let success;
+    try {
+      yield db.setSchemaVersion(v);
+      do_print("Schema version " + v + " should have been rejected");
+      success = false;
+    } catch (ex if ex.message.startsWith("Schema version must be an integer.")) {
+      success = true;
+    }
+    do_check_true(success);
+
+    version = yield db.getSchemaVersion();
+    do_check_eq(version, 14);
+  }
+
+  yield db.close();
+});
+
 add_task(function test_simple_insert() {
   let c = yield getDummyDatabase("simple_insert");
 
@@ -109,8 +153,10 @@ add_task(function test_simple_bound_object() {
   let result = yield c.execute("INSERT INTO dirs VALUES (:id, :path)",
                                {id: 1, path: "foo"});
   do_check_eq(result.length, 0);
-  do_check_eq(c.lastInsertRowID, 1);
-  do_check_eq(c.affectedRows, 1);
+  result = yield c.execute("SELECT id, path FROM dirs");
+  do_check_eq(result.length, 1);
+  do_check_eq(result[0].getResultByName("id"), 1);
+  do_check_eq(result[0].getResultByName("path"), "foo");
   yield c.close();
 });
 
@@ -166,6 +212,27 @@ add_task(function test_index_exists() {
   let c = yield getDummyDatabase("index_exists");
 
   do_check_false(yield c.indexExists("does_not_exist"));
+
+  yield c.execute("CREATE INDEX my_index ON dirs (path)");
+  do_check_true(yield c.indexExists("my_index"));
+
+  yield c.close();
+});
+
+add_task(function test_temp_table_exists() {
+  let c = yield getDummyTempDatabase("temp_table_exists");
+
+  do_check_false(yield c.tableExists("temp_does_not_exist"));
+  do_check_true(yield c.tableExists("dirs"));
+  do_check_true(yield c.tableExists("files"));
+
+  yield c.close();
+});
+
+add_task(function test_temp_index_exists() {
+  let c = yield getDummyTempDatabase("temp_index_exists");
+
+  do_check_false(yield c.indexExists("temp_does_not_exist"));
 
   yield c.execute("CREATE INDEX my_index ON dirs (path)");
   do_check_true(yield c.indexExists("my_index"));

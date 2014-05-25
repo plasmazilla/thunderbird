@@ -10,11 +10,8 @@ XPIDL_SOURCES += [
 
 XPIDL_MODULE = 'directory'
 
-MODULE = 'appcomps'
-
-CPP_SOURCES += [
+SOURCES += [
     'nsDirectoryViewer.cpp',
 ]
 
-LIBRARY_NAME = 'directory_s'
-
+FINAL_LIBRARY = 'appcomps'

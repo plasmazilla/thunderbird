@@ -86,7 +86,7 @@ StatementRow::GetProperty(nsIXPConnectWrappedNative *aWrapper,
       uint32_t length;
       const uint8_t *blob = static_cast<mozIStorageStatement *>(mStatement)->
         AsSharedBlob(idx, &length);
-      JSObject *obj = ::JS_NewArrayObject(aCtx, length, nullptr);
+      JSObject *obj = ::JS_NewArrayObject(aCtx, length);
       if (!obj) {
         *_retval = false;
         return NS_OK;
@@ -95,8 +95,7 @@ StatementRow::GetProperty(nsIXPConnectWrappedNative *aWrapper,
 
       // Copy the blob over to the JS array.
       for (uint32_t i = 0; i < length; i++) {
-        JS::Rooted<JS::Value> val(aCtx, INT_TO_JSVAL(blob[i]));
-        if (!::JS_SetElement(aCtx, scope, i, val.address())) {
+        if (!::JS_SetElement(aCtx, scope, i, blob[i])) {
           *_retval = false;
           return NS_OK;
         }
@@ -122,6 +121,8 @@ StatementRow::NewResolve(nsIXPConnectWrappedNative *aWrapper,
                          JSObject **_objp,
                          bool *_retval)
 {
+  JS::Rooted<JSObject*> scopeObj(aCtx, aScopeObj);
+
   NS_ENSURE_TRUE(mStatement, NS_ERROR_NOT_INITIALIZED);
   // We do not throw at any point after this because we want to allow the
   // prototype chain to be checked for the property.
@@ -137,13 +138,13 @@ StatementRow::NewResolve(nsIXPConnectWrappedNative *aWrapper,
       // It's highly likely that the name doesn't exist, so let the JS engine
       // check the prototype chain and throw if that doesn't have the property
       // either.
-      *_objp = NULL;
+      *_objp = nullptr;
       return NS_OK;
     }
 
-    *_retval = ::JS_DefinePropertyById(aCtx, aScopeObj, aId, JSVAL_VOID,
+    *_retval = ::JS_DefinePropertyById(aCtx, scopeObj, aId, JSVAL_VOID,
                                      nullptr, nullptr, 0);
-    *_objp = aScopeObj;
+    *_objp = scopeObj;
     return NS_OK;
   }
 

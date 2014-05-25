@@ -8,6 +8,8 @@
 
 #include "nsContentUtils.h"
 
+using namespace JS;
+
 xpcJSWeakReference::xpcJSWeakReference()
 {
 }
@@ -51,9 +53,9 @@ nsresult xpcJSWeakReference::Init(JSContext* cx, const JS::Value& object)
 }
 
 NS_IMETHODIMP
-xpcJSWeakReference::Get(JSContext* aCx, JS::Value* aRetval)
+xpcJSWeakReference::Get(JSContext* aCx, MutableHandleValue aRetval)
 {
-    *aRetval = JSVAL_NULL;
+    aRetval.setNull();
 
     if (!mReferent) {
         return NS_OK;
@@ -68,7 +70,7 @@ xpcJSWeakReference::Get(JSContext* aCx, JS::Value* aRetval)
     if (!wrappedObj) {
         // We have a generic XPCOM object that supports weak references here.
         // Wrap it and pass it out.
-        JS::Rooted<JSObject*> global(aCx, JS_GetGlobalForScopeChain(aCx));
+        RootedObject global(aCx, CurrentGlobalOrNull(aCx));
         return nsContentUtils::WrapNative(aCx, global,
                                           supports, &NS_GET_IID(nsISupports),
                                           aRetval);
@@ -84,10 +86,10 @@ xpcJSWeakReference::Get(JSContext* aCx, JS::Value* aRetval)
     // xpcconvert. However, because we're doing this directly
     // through the native call context, we need to call
     // JS_WrapObject().
-    if (!JS_WrapObject(aCx, obj.address())) {
+    if (!JS_WrapObject(aCx, &obj)) {
         return NS_ERROR_FAILURE;
     }
 
-    *aRetval = OBJECT_TO_JSVAL(obj);
+    aRetval.setObject(*obj);
     return NS_OK;
 }

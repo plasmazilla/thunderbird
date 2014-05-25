@@ -1,4 +1,3 @@
-/* vim:set ts=2 sw=2 sts=2 et: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -183,6 +182,11 @@ function getTabId(tab) {
 }
 exports.getTabId = getTabId;
 
+function getTabForId(id) {
+  return getTabs().find(tab => getTabId(tab) === id) || null;
+}
+exports.getTabForId = getTabForId;
+
 function getTabTitle(tab) {
   return getBrowserForTab(tab).contentDocument.title || tab.label || "";
 }
@@ -265,7 +269,7 @@ function getTabForWindow(window) {
         return tab;
     }
   }
-  return null; 
+  return null;
 }
 
 function getTabURL(tab) {

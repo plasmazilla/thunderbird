@@ -6,7 +6,6 @@
 #define AccGroupInfo_h_
 
 #include "Accessible-inl.h"
-#include "nsAccUtils.h"
 
 namespace mozilla {
 namespace a11y {
@@ -42,7 +41,6 @@ public:
   {
     mozilla::a11y::role role = aAccessible->Role();
     if (role != mozilla::a11y::roles::ROW &&
-        role != mozilla::a11y::roles::GRID_CELL &&
         role != mozilla::a11y::roles::OUTLINEITEM &&
         role != mozilla::a11y::roles::OPTION &&
         role != mozilla::a11y::roles::LISTITEM &&
@@ -93,10 +91,10 @@ private:
   }
 
   /**
-   * Return true if the given parent role is conceptual parent of the given
-   * role.
+   * Return true if the given parent and child roles should have their node
+   * relations reported.
    */
-  static bool IsConceptualParent(a11y::role aRole, a11y::role aParentRole);
+  static bool ShouldReportRelations(a11y::role aRole, a11y::role aParentRole);
 
   uint32_t mPosInSet;
   uint32_t mSetSize;

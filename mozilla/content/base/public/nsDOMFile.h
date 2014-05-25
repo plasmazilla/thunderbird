@@ -19,10 +19,12 @@
 #include "nsString.h"
 #include "nsIXMLHttpRequest.h"
 #include "nsAutoPtr.h"
+#include "nsFileStreams.h"
+#include "nsTemporaryFileInputStream.h"
 
 #include "mozilla/GuardObjects.h"
 #include "mozilla/LinkedList.h"
-#include "mozilla/StandardInteger.h"
+#include <stdint.h>
 #include "mozilla/StaticMutex.h"
 #include "mozilla/StaticPtr.h"
 #include "mozilla/dom/DOMError.h"
@@ -147,6 +149,7 @@ protected:
 
   nsString mContentType;
   nsString mName;
+  nsString mPath; // The path relative to a directory chosen by the user
 
   uint64_t mStart;
   uint64_t mLength;
@@ -178,7 +181,7 @@ public:
   : nsDOMFileBase(aContentType, aStart, aLength)
   { }
 
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
 };
 
 class nsDOMFileCC : public nsDOMFileBase
@@ -293,10 +296,12 @@ public:
   // Overrides
   NS_IMETHOD GetSize(uint64_t* aSize) MOZ_OVERRIDE;
   NS_IMETHOD GetType(nsAString& aType) MOZ_OVERRIDE;
-  NS_IMETHOD GetLastModifiedDate(JSContext* cx, JS::Value* aLastModifiedDate) MOZ_OVERRIDE;
+  NS_IMETHOD GetLastModifiedDate(JSContext* cx, JS::MutableHandle<JS::Value> aLastModifiedDate) MOZ_OVERRIDE;
   NS_IMETHOD GetMozLastModifiedDate(uint64_t* aLastModifiedDate) MOZ_OVERRIDE;
   NS_IMETHOD GetMozFullPathInternal(nsAString& aFullPath) MOZ_OVERRIDE;
   NS_IMETHOD GetInternalStream(nsIInputStream**) MOZ_OVERRIDE;
+
+  void SetPath(const nsAString& aFullPath);
 
 protected:
   // Create slice
@@ -374,6 +379,8 @@ public:
   }
 
   NS_IMETHOD GetInternalStream(nsIInputStream**) MOZ_OVERRIDE;
+
+  NS_IMETHOD_(bool) IsMemoryFile(void) MOZ_OVERRIDE;
 
 protected:
   // Create slice
@@ -514,6 +521,42 @@ public:
   nsAutoString mUrl;
 private:
   MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
+};
+// This class would take the ownership of aFD and the caller must not close it.
+class nsDOMTemporaryFileBlob : public nsDOMFile
+{
+public:
+  nsDOMTemporaryFileBlob(PRFileDesc* aFD, uint64_t aStartPos, uint64_t aLength,
+                         const nsAString& aContentType)
+    : nsDOMFile(aContentType, aLength),
+      mLength(aLength),
+      mStartPos(aStartPos),
+      mContentType(aContentType)
+  {
+    mFileDescOwner = new nsTemporaryFileInputStream::FileDescOwner(aFD);
+  }
+
+  ~nsDOMTemporaryFileBlob() { }
+  NS_IMETHOD GetInternalStream(nsIInputStream**) MOZ_OVERRIDE;
+
+protected:
+  nsDOMTemporaryFileBlob(const nsDOMTemporaryFileBlob* aOther, uint64_t aStart, uint64_t aLength,
+                         const nsAString& aContentType)
+    : nsDOMFile(aContentType, aLength),
+      mLength(aLength),
+      mStartPos(aStart),
+      mFileDescOwner(aOther->mFileDescOwner),
+      mContentType(aContentType) { }
+
+  virtual already_AddRefed<nsIDOMBlob>
+  CreateSlice(uint64_t aStart, uint64_t aLength,
+              const nsAString& aContentType) MOZ_OVERRIDE;
+
+private:
+  uint64_t mLength;
+  uint64_t mStartPos;
+  nsRefPtr<nsTemporaryFileInputStream::FileDescOwner> mFileDescOwner;
+  nsString mContentType;
 };
 
 #endif

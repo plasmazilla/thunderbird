@@ -2,9 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "tests.h"
+#include "jsapi-tests/tests.h"
 
-static JSClass ObjectEmulatingUndefinedClass = {
+static const JSClass ObjectEmulatingUndefinedClass = {
     "ObjectEmulatingUndefined",
     JSCLASS_EMULATES_UNDEFINED,
     JS_PropertyStub,
@@ -16,7 +16,7 @@ static JSClass ObjectEmulatingUndefinedClass = {
     JS_ConvertStub
 };
 
-static JSBool
+static bool
 ObjectEmulatingUndefinedConstructor(JSContext *cx, unsigned argc, jsval *vp)
 {
     JSObject *obj = JS_NewObjectForConstructor(cx, &ObjectEmulatingUndefinedClass, vp);
@@ -28,8 +28,9 @@ ObjectEmulatingUndefinedConstructor(JSContext *cx, unsigned argc, jsval *vp)
 
 BEGIN_TEST(testObjectEmulatingUndefined_truthy)
 {
-    CHECK(JS_InitClass(cx, global, NULL, &ObjectEmulatingUndefinedClass,
-                       ObjectEmulatingUndefinedConstructor, 0, NULL, NULL, NULL, NULL));
+    CHECK(JS_InitClass(cx, global, js::NullPtr(), &ObjectEmulatingUndefinedClass,
+                       ObjectEmulatingUndefinedConstructor, 0,
+                       nullptr, nullptr, nullptr, nullptr));
 
     JS::RootedValue result(cx);
 
@@ -53,8 +54,9 @@ END_TEST(testObjectEmulatingUndefined_truthy)
 
 BEGIN_TEST(testObjectEmulatingUndefined_equal)
 {
-    CHECK(JS_InitClass(cx, global, NULL, &ObjectEmulatingUndefinedClass,
-                       ObjectEmulatingUndefinedConstructor, 0, NULL, NULL, NULL, NULL));
+    CHECK(JS_InitClass(cx, global, js::NullPtr(), &ObjectEmulatingUndefinedClass,
+                       ObjectEmulatingUndefinedConstructor, 0,
+                       nullptr, nullptr, nullptr, nullptr));
 
     JS::RootedValue result(cx);
 

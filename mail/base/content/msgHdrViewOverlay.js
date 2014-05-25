@@ -433,7 +433,6 @@ var messageHeaderSink = {
       gBuiltExpandedView = false;
       gBuildAttachmentsForCurrentMsg = false;
       ClearAttachmentList();
-      ClearEditMessageBox();
       gMessageNotificationBar.clearMsgNotifications();
 
       for (let index in gMessageListeners)
@@ -464,7 +463,7 @@ var messageHeaderSink = {
         UpdateExpandedMessageHeaders();
       }
 
-      ShowEditMessageBox();
+      gMessageNotificationBar.setDraftEditMessage();
       UpdateJunkButton();
 
       for (let index in gMessageListeners)
@@ -711,9 +710,10 @@ var messageHeaderSink = {
           }
 
           img.addEventListener("load", function(event) {
-            if (this.clientWidth > this.parentNode.clientWidth &&
-                this.hasAttribute("shrinktofit"))
-              this.setAttribute("isshrunk", true);
+            if (this.clientWidth > this.parentNode.clientWidth) {
+              img.setAttribute("overflowing", "true");
+              img.setAttribute("shrinktofit", "true");
+            }
           });
         }
       }
@@ -1042,7 +1042,7 @@ function RemoveNewHeaderViews(aHeaderTable)
 {
   for each (let [, headerEntry] in Iterator(aHeaderTable)) {
     if (headerEntry.isNewHeader)
-      headerEntry.enclosingRow.parentNode.removeChild(headerEntry.enclosingRow);
+      headerEntry.enclosingRow.remove();
   }
 }
 
@@ -1154,7 +1154,7 @@ function HideMessageHeaderPane()
   document.getElementById("attachmentView").collapsed = true;
   document.getElementById("attachment-splitter").collapsed = true;
 
-  ClearEditMessageBox();
+  gMessageNotificationBar.clearMsgNotifications();
 }
 
 /**
@@ -1796,7 +1796,6 @@ function AttachmentInfo(contentType, url, name, uri,
                         isExternalAttachment, size)
 {
   this.contentType = contentType;
-  this.url = url;
   this.name = name;
   this.uri = uri;
   this.isExternalAttachment = isExternalAttachment;
@@ -1804,6 +1803,11 @@ function AttachmentInfo(contentType, url, name, uri,
 
   let match = GlodaUtils.PART_RE.exec(url);
   this.partID = match && match[1];
+  // Remove [?&]part= from remote urls, after getting the partID.
+  if (url.startsWith("http") || url.startsWith("file"))
+    url = url.replace(new RegExp("[?&]part=" + this.partID + "$"), "");
+
+  this.url = url;
 }
 
 AttachmentInfo.prototype = {
@@ -2419,8 +2423,8 @@ function FillAttachmentListPopup(aEvent, aPopup)
 function ClearAttachmentMenu(popup)
 {
   if (popup) {
-    while (popup.childNodes[0].localName == "menu")
-      popup.removeChild(popup.childNodes[0]);
+    while (popup.firstChild.localName == "menu")
+      popup.firstChild.remove();
   }
 }
 
@@ -2454,14 +2458,17 @@ function addAttachmentToPopup(popup, attachment, attachmentIndex)
   var indexOfSeparator = 0;
   while (popup.childNodes[indexOfSeparator].localName != "menuseparator")
     indexOfSeparator++;
-
+  // We increment the attachmentIndex here since we only use it for the
+  // label and accesskey attributes, and we want the accesskeys for the
+  // attachments list in the menu to be 1-indexed.
+  attachmentIndex++;
   var displayName = SanitizeAttachmentDisplayName(attachment);
   var label = document.getElementById("bundle_messenger")
                       .getFormattedString("attachmentDisplayNameFormat",
                                           [attachmentIndex, displayName]);
   item.setAttribute("crop", "center");
   item.setAttribute("label", label);
-  item.setAttribute("accesskey", attachmentIndex);
+  item.setAttribute("accesskey", attachmentIndex % 10);
 
   // Each attachment in the list gets its own menupopup with options for
   // saving, deleting, detaching, etc.
@@ -2691,7 +2698,7 @@ function ClearAttachmentList()
   list.selectedItems.length = 0;
 
   while (list.hasChildNodes())
-    list.removeChild(list.lastChild);
+    list.lastChild.remove();
 }
 
 var attachmentListDNDObserver = {
@@ -2712,25 +2719,6 @@ var attachmentNameDNDObserver = {
       attachmentList.getItemAtIndex(0).attachment);
   }
 };
-
-function ShowEditMessageBox()
-{
-  // It would be nice if we passed in the msgHdr from the back end.
-  var msgHdr = gFolderDisplay.selectedMessage;
-  if (!msgHdr || !msgHdr.folder)
-    return;
-
-  const nsMsgFolderFlags = Components.interfaces.nsMsgFolderFlags;
-  if (msgHdr.folder.isSpecialFolder(nsMsgFolderFlags.Drafts, true))
-    document.getElementById("editMessageBox").collapsed = false;
-}
-
-function ClearEditMessageBox()
-{
-  var editBox = document.getElementById("editMessageBox");
-  if (editBox)
-    editBox.collapsed = true;
-}
 
 /**
  * CopyWebsiteAddress takes the website address title button, extracts
@@ -2774,7 +2762,7 @@ nsDummyMsgHeader.prototype =
   markHasAttachments : function(hasAttachments) {},
   messageSize : 0,
   recipients : null,
-  from : null,
+  author: null,
   subject : "",
   get mime2DecodedSubject() { return this.subject; },
   ccList : null,
@@ -2795,8 +2783,8 @@ function onShowOtherActionsPopup()
 
   let openConversation = document.getElementById("otherActionsOpenConversation");
   openConversation.disabled = !glodaEnabled;
-  if (glodaEnabled && gFolderDisplay.selectedMessages.length > 0) {
-    let message = gFolderDisplay.selectedMessages[0];
+  if (glodaEnabled && gFolderDisplay.selectedCount > 0) {
+    let message = gFolderDisplay.selectedMessage;
     let isMessageIndexed = Gloda.isMessageIndexed(message);
     openConversation.disabled = !isMessageIndexed;
   }
@@ -2829,8 +2817,8 @@ ConversationOpener.prototype = {
     let glodaEnabled = Services.prefs
       .getBoolPref("mailnews.database.global.indexer.enabled");
 
-    if (glodaEnabled && gFolderDisplay.selectedMessages.length > 0) {
-      let message = gFolderDisplay.selectedMessages[0];
+    if (glodaEnabled && gFolderDisplay.selectedCount > 0) {
+      let message = gFolderDisplay.selectedMessage;
       return Gloda.isMessageIndexed(message);
     }
     return false;

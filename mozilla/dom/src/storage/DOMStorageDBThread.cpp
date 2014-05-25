@@ -35,22 +35,6 @@ namespace dom {
 
 DOMStorageDBBridge::DOMStorageDBBridge()
 {
-  mUsages.Init();
-}
-
-DOMStorageUsage*
-DOMStorageDBBridge::GetScopeUsage(const nsACString& aScope)
-{
-  DOMStorageUsage* usage;
-  if (mUsages.Get(aScope, &usage)) {
-    return usage;
-  }
-
-  usage = new DOMStorageUsage(aScope);
-  AsyncGetUsage(usage);
-  mUsages.Put(aScope, usage);
-
-  return usage;
 }
 
 
@@ -58,6 +42,7 @@ DOMStorageDBThread::DOMStorageDBThread()
 : mThread(nullptr)
 , mMonitor("DOMStorageThreadMonitor")
 , mStopIOThread(false)
+, mWALModeEnabled(false)
 , mDBReady(false)
 , mStatus(NS_OK)
 , mWorkerStatements(mWorkerConnection)
@@ -66,7 +51,6 @@ DOMStorageDBThread::DOMStorageDBThread()
 , mFlushImmediately(false)
 , mPriorityCounter(0)
 {
-  mScopesHavingData.Init();
 }
 
 nsresult
@@ -142,7 +126,7 @@ DOMStorageDBThread::SyncPreload(DOMStorageCacheBridge* aCache, bool aForceSync)
   // Bypass sync load when an update is pending in the queue to write, we would
   // get incosistent data in the cache.  Also don't allow sync main-thread preload
   // when DB open and init is still pending on the background thread.
-  if (mWALModeEnabled && mDBReady) {
+  if (mDBReady && mWALModeEnabled) {
     bool pendingTasks;
     {
       MonitorAutoLock monitor(mMonitor);
@@ -677,7 +661,7 @@ DOMStorageDBThread::TimeUntilFlush()
     return 0; // Do it now regardless the timeout.
   }
 
-  MOZ_STATIC_ASSERT(PR_INTERVAL_NO_TIMEOUT != 0,
+  static_assert(PR_INTERVAL_NO_TIMEOUT != 0,
       "PR_INTERVAL_NO_TIMEOUT must be non-zero");
 
   if (!mDirtyEpoch) {
@@ -855,7 +839,7 @@ DOMStorageDBThread::DBOperation::Perform(DOMStorageDBThread* aThread)
     rv = stmt->ExecuteStep(&exists);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    int64_t usage;
+    int64_t usage = 0;
     if (exists) {
       rv = stmt->GetInt64(0, &usage);
       NS_ENSURE_SUCCESS(rv, rv);
@@ -1026,8 +1010,6 @@ DOMStorageDBThread::DBOperation::Finalize(nsresult aRv)
 DOMStorageDBThread::PendingOperations::PendingOperations()
 : mFlushFailureCount(0)
 {
-  mClears.Init();
-  mUpdates.Init();
 }
 
 bool

@@ -18,11 +18,13 @@ static const char* sDiscardTimeoutPref = "image.mem.min_discard_timeout_ms";
 /* static */ nsCOMPtr<nsITimer> DiscardTracker::sTimer;
 /* static */ bool DiscardTracker::sInitialized = false;
 /* static */ bool DiscardTracker::sTimerOn = false;
-/* static */ int32_t DiscardTracker::sDiscardRunnablePending = 0;
+/* static */ Atomic<bool> DiscardTracker::sDiscardRunnablePending(false);
 /* static */ int64_t DiscardTracker::sCurrentDecodedImageBytes = 0;
 /* static */ uint32_t DiscardTracker::sMinDiscardTimeoutMs = 10000;
 /* static */ uint32_t DiscardTracker::sMaxDecodedImageKB = 42 * 1024;
-/* static */ PRLock * DiscardTracker::sAllocationLock = NULL;
+/* static */ PRLock * DiscardTracker::sAllocationLock = nullptr;
+/* static */ mozilla::Mutex* DiscardTracker::sNodeListMutex = nullptr;
+/* static */ Atomic<bool> DiscardTracker::sShutdown(false);
 
 /*
  * When we notice we're using too much memory for decoded images, we enqueue a
@@ -31,17 +33,16 @@ static const char* sDiscardTimeoutPref = "image.mem.min_discard_timeout_ms";
 NS_IMETHODIMP
 DiscardTracker::DiscardRunnable::Run()
 {
-  PR_ATOMIC_SET(&sDiscardRunnablePending, 0);
+  sDiscardRunnablePending = false;
 
   DiscardTracker::DiscardNow();
   return NS_OK;
 }
 
-int
+void
 DiscardTimeoutChangedCallback(const char* aPref, void *aClosure)
 {
   DiscardTracker::ReloadTimeout();
-  return 0;
 }
 
 nsresult
@@ -50,7 +51,7 @@ DiscardTracker::Reset(Node *node)
   // We shouldn't call Reset() with a null |img| pointer, on images which can't
   // be discarded, or on animated images (which should be marked as
   // non-discardable, anyway).
-  MOZ_ASSERT(NS_IsMainThread());
+  MutexAutoLock lock(*sNodeListMutex);
   MOZ_ASSERT(sInitialized);
   MOZ_ASSERT(node->img);
   MOZ_ASSERT(node->img->CanDiscard());
@@ -81,7 +82,11 @@ DiscardTracker::Reset(Node *node)
 void
 DiscardTracker::Remove(Node *node)
 {
-  MOZ_ASSERT(NS_IsMainThread());
+  if (sShutdown) {
+    // Already shutdown. List should be empty, so just return.
+    return;
+  }
+  MutexAutoLock lock(*sNodeListMutex);
 
   if (node->isInList())
     node->remove();
@@ -96,16 +101,19 @@ DiscardTracker::Remove(Node *node)
 void
 DiscardTracker::Shutdown()
 {
-  MOZ_ASSERT(NS_IsMainThread());
+  sShutdown = true;
 
   if (sTimer) {
     sTimer->Cancel();
-    sTimer = NULL;
+    sTimer = nullptr;
   }
 
   // Clear the sDiscardableImages linked list so that its destructor
   // (LinkedList.h) finds an empty array, which is required after bug 803688.
   DiscardAll();
+
+  delete sNodeListMutex;
+  sNodeListMutex = nullptr;
 }
 
 /*
@@ -114,7 +122,7 @@ DiscardTracker::Shutdown()
 void
 DiscardTracker::DiscardAll()
 {
-  MOZ_ASSERT(NS_IsMainThread());
+  MutexAutoLock lock(*sNodeListMutex);
 
   if (!sInitialized)
     return;
@@ -153,8 +161,6 @@ DiscardTracker::InformAllocation(int64_t bytes)
 nsresult
 DiscardTracker::Initialize()
 {
-  MOZ_ASSERT(NS_IsMainThread());
-
   // Watch the timeout pref for changes.
   Preferences::RegisterCallback(DiscardTimeoutChangedCallback,
                                 sDiscardTimeoutPref);
@@ -168,6 +174,10 @@ DiscardTracker::Initialize()
 
   // Create a lock for safegarding the 64-bit sCurrentDecodedImageBytes
   sAllocationLock = PR_NewLock();
+
+  // Create a lock for the node list.
+  MOZ_ASSERT(!sNodeListMutex);
+  sNodeListMutex = new Mutex("image::DiscardTracker");
 
   // Mark us as initialized
   sInitialized = true;
@@ -293,7 +303,7 @@ DiscardTracker::MaybeDiscardSoon()
   if (sCurrentDecodedImageBytes > sMaxDecodedImageKB * 1024 &&
       !sDiscardableImages.isEmpty()) {
     // Check if the value of sDiscardRunnablePending used to be false
-    if (!PR_ATOMIC_SET(&sDiscardRunnablePending, 1)) {
+    if (!sDiscardRunnablePending.exchange(true)) {
       nsRefPtr<DiscardRunnable> runnable = new DiscardRunnable();
       NS_DispatchToMainThread(runnable);
     }

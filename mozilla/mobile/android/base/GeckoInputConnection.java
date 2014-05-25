@@ -45,6 +45,10 @@ class GeckoInputConnection
     private static final boolean DEBUG = false;
     protected static final String LOGTAG = "GeckoInputConnection";
 
+    private static final String CUSTOM_HANDLER_TEST_METHOD = "testInputConnection";
+    private static final String CUSTOM_HANDLER_TEST_CLASS =
+        "org.mozilla.gecko.tests.components.GeckoViewComponent$TextInput";
+
     private static final int INLINE_IME_MIN_DISPLAY_SIZE = 480;
 
     private static Handler sBackgroundHandler;
@@ -135,6 +139,16 @@ class GeckoInputConnection
                 return;
             }
             runOnIcThread(icHandler, runnable);
+        }
+
+        public void sendEventFromUiThread(final Handler uiHandler,
+                                          final GeckoEditableClient client,
+                                          final GeckoEvent event) {
+            runOnIcThread(uiHandler, client, new Runnable() {
+                @Override public void run() {
+                    client.sendEvent(event);
+                }
+            });
         }
 
         public Editable getEditableForUiThread(final Handler uiHandler,
@@ -418,6 +432,13 @@ class GeckoInputConnection
     public void onTextChange(String text, int start, int oldEnd, int newEnd) {
 
         if (mUpdateRequest == null) {
+            // Android always expects selection updates when not in extracted mode;
+            // in extracted mode, the selection is reported through updateExtractedText
+            final Editable editable = getEditable();
+            if (editable != null) {
+                onSelectionChange(Selection.getSelectionStart(editable),
+                                  Selection.getSelectionEnd(editable));
+            }
             return;
         }
 
@@ -526,6 +547,11 @@ class GeckoInputConnection
                 // only return our own Handler to InputMethodManager
                 return true;
             }
+            if (CUSTOM_HANDLER_TEST_METHOD.equals(frame.getMethodName()) &&
+                CUSTOM_HANDLER_TEST_CLASS.equals(frame.getClassName())) {
+                // InputConnection tests should also run on the custom handler
+                return true;
+            }
         }
         return false;
     }
@@ -598,9 +624,9 @@ class GeckoInputConnection
                 outAttrs.inputType |= InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS;
             else if (mIMEModeHint.equalsIgnoreCase("titlecase"))
                 outAttrs.inputType |= InputType.TYPE_TEXT_FLAG_CAP_WORDS;
-            else if (mIMEModeHint.equalsIgnoreCase("autocapitalized"))
+            else if (!mIMEModeHint.equalsIgnoreCase("lowercase"))
                 outAttrs.inputType |= InputType.TYPE_TEXT_FLAG_CAP_SENTENCES;
-            // lowercase mode is the default
+            // auto-capitalized mode is the default
         }
 
         if (mIMEActionHint.equalsIgnoreCase("go"))
@@ -794,7 +820,8 @@ class GeckoInputConnection
 
         View view = getView();
         if (view == null) {
-            mEditableClient.sendEvent(GeckoEvent.createKeyEvent(event, 0));
+            InputThreadUtils.sInstance.sendEventFromUiThread(ThreadUtils.getUiHandler(),
+                mEditableClient, GeckoEvent.createKeyEvent(event, 0));
             return true;
         }
 
@@ -811,7 +838,7 @@ class GeckoInputConnection
         if (skip ||
             (down && !keyListener.onKeyDown(view, uiEditable, keyCode, event)) ||
             (!down && !keyListener.onKeyUp(view, uiEditable, keyCode, event))) {
-            mEditableClient.sendEvent(
+            InputThreadUtils.sInstance.sendEventFromUiThread(uiHandler, mEditableClient,
                 GeckoEvent.createKeyEvent(event, TextKeyListener.getMetaState(uiEditable)));
             if (skip && down) {
                 // Usually, the down key listener call above adjusts meta states for us.
@@ -903,6 +930,10 @@ class GeckoInputConnection
             case NOTIFY_IME_OF_BLUR:
                 // Showing/hiding vkb is done in notifyIMEContext
                 resetInputConnection();
+                break;
+
+            case NOTIFY_IME_OPEN_VKB:
+                showSoftInput();
                 break;
 
             default:

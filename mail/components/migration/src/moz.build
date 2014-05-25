@@ -3,9 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-MODULE = 'mailprofilemigration'
-
-CPP_SOURCES += [
+SOURCES += [
     'nsMailProfileMigratorUtils.cpp',
     'nsNetscapeProfileMigratorBase.cpp',
     'nsProfileMigrator.cpp',
@@ -13,7 +11,7 @@ CPP_SOURCES += [
 ]
 
 if CONFIG['OS_ARCH'] == 'WINNT':
-    CPP_SOURCES += [
+    SOURCES += [
         'nsEudoraProfileMigrator.cpp',
         'nsOEProfileMigrator.cpp',
         'nsOutlookProfileMigrator.cpp',
@@ -21,8 +19,10 @@ if CONFIG['OS_ARCH'] == 'WINNT':
     ]
 
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'cocoa':
-    CPP_SOURCES += [
+    SOURCES += [
         'nsEudoraProfileMigrator.cpp',
         'nsProfileMigratorBase.cpp',
     ]
+
+FINAL_LIBRARY = 'mailcomps'
 

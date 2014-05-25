@@ -17,7 +17,7 @@
 ; Beta since they share the same branding when building with other branches that
 ; set the update channel to beta.
 !define OFFICIAL
-!define URLStubDownload "http://download.mozilla.org/?product=firefox-latest&os=win&lang=${AB_CD}"
+!define URLStubDownload "http://download.mozilla.org/?os=win&lang=${AB_CD}&product=firefox-latest"
 !define URLManualDownload "https://www.mozilla.org/${AB_CD}/firefox/installer-help/?channel=release&installer_lang=${AB_CD}"
 !define Channel "release"
 
@@ -46,4 +46,3 @@
 !define OPTIONS_BKGRD_COLOR 0xF0F0F0
 !define INSTALL_BLURB_TEXT_COLOR 0x666666
 !define INSTALL_PROGRESS_TEXT_COLOR_NORMAL 0x666666
-!define INSTALL_PROGRESS_TEXT_COLOR_FADED 0x999999

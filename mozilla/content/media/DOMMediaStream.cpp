@@ -4,7 +4,6 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "DOMMediaStream.h"
-#include "nsDOMClassInfoID.h"
 #include "nsContentUtils.h"
 #include "mozilla/dom/MediaStreamBinding.h"
 #include "mozilla/dom/LocalMediaStreamBinding.h"
@@ -24,15 +23,20 @@ NS_INTERFACE_MAP_END
 
 NS_IMPL_CYCLE_COLLECTING_ADDREF(DOMMediaStream)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(DOMMediaStream)
+
+NS_IMPL_CYCLE_COLLECTION_CLASS(DOMMediaStream)
+
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(DOMMediaStream)
   tmp->Destroy();
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mWindow)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mTracks)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK(mConsumersToKeepAlive)
   NS_IMPL_CYCLE_COLLECTION_UNLINK_PRESERVED_WRAPPER
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(DOMMediaStream)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mWindow)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mTracks)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mConsumersToKeepAlive)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_SCRIPT_OBJECTS
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 NS_IMPL_CYCLE_COLLECTION_TRACE_WRAPPERCACHE(DOMMediaStream)
@@ -235,6 +239,14 @@ DOMMediaStream::CreateTrackUnionStream(nsIDOMWindow* aWindow, TrackTypeHints aHi
   return stream.forget();
 }
 
+void
+DOMMediaStream::SetTrackEnabled(TrackID aTrackID, bool aEnabled)
+{
+  if (mStream) {
+    mStream->SetTrackEnabled(aTrackID, aEnabled);
+  }
+}
+
 bool
 DOMMediaStream::CombineWithPrincipal(nsIPrincipal* aPrincipal)
 {
@@ -255,8 +267,7 @@ DOMMediaStream::CreateDOMTrack(TrackID aTrackID, MediaSegment::Type aType)
     mTrackTypesAvailable |= HINT_CONTENTS_VIDEO;
     break;
   default:
-    MOZ_NOT_REACHED("Unhandled track type");
-    return nullptr;
+    MOZ_CRASH("Unhandled track type");
   }
   mTracks.AppendElement(track);
 
@@ -286,6 +297,16 @@ DOMMediaStream::NotifyMediaStreamGraphShutdown()
   // to prevent leaks.
   mNotifiedOfMediaStreamGraphShutdown = true;
   mRunOnTracksAvailable.Clear();
+
+  mConsumersToKeepAlive.Clear();
+}
+
+void
+DOMMediaStream::NotifyStreamStateChanged()
+{
+  if (IsFinished()) {
+    mConsumersToKeepAlive.Clear();
+  }
 }
 
 void
@@ -303,6 +324,9 @@ DOMMediaStream::OnTracksAvailable(OnTracksAvailableCallback* aRunnable)
 void
 DOMMediaStream::CheckTracksAvailable()
 {
+  if (mTrackTypesAvailable == 0) {
+    return;
+  }
   nsTArray<nsAutoPtr<OnTracksAvailableCallback> > callbacks;
   callbacks.SwapElements(mRunOnTracksAvailable);
 

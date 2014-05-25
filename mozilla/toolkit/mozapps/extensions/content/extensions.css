@@ -84,6 +84,10 @@ setting[type="integer"] {
   -moz-binding: url("chrome://mozapps/content/extensions/setting.xml#setting-integer");
 }
 
+setting[type="integer"]:not([size]) textbox {
+  -moz-box-flex: 1;
+}
+
 setting[type="control"] {
   display: -moz-grid-line;
   -moz-binding: url("chrome://mozapps/content/extensions/setting.xml#setting-control");
@@ -191,6 +195,9 @@ setting[type="menulist"] {
 .addon .relnotes {
   -moz-user-select: text;
 }
+#detail-name, #detail-desc, #detail-fulldesc {
+  -moz-user-select: text;
+}
 
 /* Make sure we're not animating hidden images. See bug 623739. */
 #view-port:not([selectedIndex="0"]) #discover-view .loading,
@@ -205,6 +212,10 @@ richlistitem:not([selected]) * {
 
 #header-search {
   width: 22em;
+}
+
+#header-utils-btn {
+  -moz-user-focus: normal;
 }
 
 .discover-button[disabled="true"] {

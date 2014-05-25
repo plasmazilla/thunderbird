@@ -23,11 +23,7 @@ XPIDL_SOURCES += [
     'nsIRssService.idl',
 ]
 
-XPIDL_FLAGS += [
-    '-I$(topsrcdir)/mailnews/base/public',
-]
-
-MODULE = 'msglocal'
+XPIDL_MODULE = 'msglocal'
 
 EXPORTS += [
     'nsMsgLocalCID.h',

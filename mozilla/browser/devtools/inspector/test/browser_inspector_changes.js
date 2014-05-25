@@ -1,4 +1,4 @@
-/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: Javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -16,13 +16,15 @@ function test() {
     openInspector(runInspectorTests);
   }
 
-
-  function getInspectorProp(aName)
+  function getInspectorRuleProp(aName)
   {
-    let computedview = inspector.sidebar.getWindowForTab("computedview").computedview.view;
-    for each (let view in computedview.propertyViews) {
-      if (view.name == aName) {
-        return view;
+    let ruleview = inspector.sidebar.getWindowForTab("ruleview").ruleview.view;
+    let inlineStyles = ruleview._elementStyle.rules[0];
+
+    for (let key in inlineStyles.textProps) {
+      let prop = inlineStyles.textProps[key];
+      if (prop.name == aName) {
+        return prop;
       }
     }
     return null;
@@ -31,7 +33,8 @@ function test() {
   function runInspectorTests(aInspector)
   {
     inspector = aInspector;
-    inspector.sidebar.once("computedview-ready", function() {
+
+    waitForView("computedview", () => {
       info("Computed View ready");
       inspector.sidebar.select("computedview");
 
@@ -40,56 +43,97 @@ function test() {
       testDiv.style.fontSize = "10px";
 
       // Start up the style inspector panel...
-      Services.obs.addObserver(stylePanelTests, "StyleInspector-populated", false);
-
+      inspector.once("computed-view-refreshed", () => {
+        executeSoon(computedStylePanelTests);
+      });
       inspector.selection.setNode(testDiv);
     });
   }
 
-  function stylePanelTests()
+  function computedStylePanelTests()
   {
-    Services.obs.removeObserver(stylePanelTests, "StyleInspector-populated");
-
     let computedview = inspector.sidebar.getWindowForTab("computedview").computedview;
     ok(computedview, "Style Panel has a cssHtmlTree");
 
-    let propView = getInspectorProp("font-size");
-    is(propView.value, "10px", "Style inspector should be showing the correct font size.");
+    let fontSize = getComputedPropertyValue("font-size");
+    is(fontSize, "10px", "Style inspector should be showing the correct font size.");
 
-    Services.obs.addObserver(stylePanelAfterChange, "StyleInspector-populated", false);
+    testDiv.style.cssText = "font-size: 15px; color: red;";
 
-    testDiv.style.fontSize = "15px";
-    inspector.emit("layout-change");
+    // Wait until layout-change fires from mutation to skip earlier refresh event
+    inspector.once("layout-change", () => {
+      inspector.once("computed-view-refreshed", () => {
+        executeSoon(computedStylePanelAfterChange);
+      });
+    });
   }
 
-  function stylePanelAfterChange()
+  function computedStylePanelAfterChange()
   {
-    Services.obs.removeObserver(stylePanelAfterChange, "StyleInspector-populated");
+    let fontSize = getComputedPropertyValue("font-size");
+    is(fontSize, "15px", "Style inspector should be showing the new font size.");
 
-    let propView = getInspectorProp("font-size");
-    is(propView.value, "15px", "Style inspector should be showing the new font size.");
+    let color = getComputedPropertyValue("color");
+    is(color, "#F00", "Style inspector should be showing the new color.");
 
-    stylePanelNotActive();
+    computedStylePanelNotActive();
   }
 
-  function stylePanelNotActive()
+  function computedStylePanelNotActive()
   {
     // Tests changes made while the style panel is not active.
     inspector.sidebar.select("ruleview");
 
-    executeSoon(function() {
-      Services.obs.addObserver(stylePanelAfterSwitch, "StyleInspector-populated", false);
-      testDiv.style.fontSize = "20px";
-      inspector.sidebar.select("computedview");
+    testDiv.style.cssText = "font-size: 20px; color: blue; text-align: center";
+
+    inspector.once("computed-view-refreshed", () => {
+      executeSoon(computedStylePanelAfterSwitch);
     });
   }
 
-  function stylePanelAfterSwitch()
+  function computedStylePanelAfterSwitch()
   {
-    Services.obs.removeObserver(stylePanelAfterSwitch, "StyleInspector-populated");
+    let fontSize = getComputedPropertyValue("font-size");
+    is(fontSize, "20px", "Style inspector should be showing the new font size.");
 
-    let propView = getInspectorProp("font-size");
-    is(propView.value, "20px", "Style inspector should be showing the newest font size.");
+    let color = getComputedPropertyValue("color");
+    is(color, "#00F", "Style inspector should be showing the new color.");
+
+    let textAlign = getComputedPropertyValue("text-align");
+    is(textAlign, "center", "Style inspector should be showing the new text align.");
+
+    rulePanelTests();
+  }
+
+  function rulePanelTests()
+  {
+    inspector.sidebar.select("ruleview");
+    let ruleview = inspector.sidebar.getWindowForTab("ruleview").ruleview;
+    ok(ruleview, "Style Panel has a ruleview");
+
+    let propView = getInspectorRuleProp("text-align");
+    is(propView.value, "center", "Style inspector should be showing the new text align.");
+
+    testDiv.style.cssText = "font-size: 3em; color: lightgoldenrodyellow; text-align: right; text-transform: uppercase";
+
+    inspector.once("rule-view-refreshed", () => {
+      executeSoon(rulePanelAfterChange);
+    });
+  }
+
+  function rulePanelAfterChange()
+  {
+    let propView = getInspectorRuleProp("text-align");
+    is(propView.value, "right", "Style inspector should be showing the new text align.");
+
+    let propView = getInspectorRuleProp("color");
+    is(propView.value, "lightgoldenrodyellow", "Style inspector should be showing the new color.")
+
+    let propView = getInspectorRuleProp("font-size");
+    is(propView.value, "3em", "Style inspector should be showing the new font size.");
+
+    let propView = getInspectorRuleProp("text-transform");
+    is(propView.value, "uppercase", "Style inspector should be showing the new text transform.");
 
     finishTest();
   }
@@ -108,5 +152,5 @@ function test() {
     waitForFocus(createDocument, content);
   }, true);
 
-  content.location = "data:text/html,basic tests for inspector";
+  content.location = "data:text/html;charset=utf-8,browser_inspector_changes.js";
 }

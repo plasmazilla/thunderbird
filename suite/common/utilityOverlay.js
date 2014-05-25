@@ -346,9 +346,13 @@ function onViewToolbarsPopupShowing(aEvent, aInsertPoint)
   // Empty the menu
   var deadItems = popup.getElementsByAttribute("toolbarid", "*");
   for (let i = deadItems.length - 1; i >= 0; --i)
-    popup.removeChild(deadItems[i]);
+    deadItems[i].remove();
 
-  var firstMenuItem = aInsertPoint || popup.firstChild;
+  // Thunderbird/Lightning function signature is:
+  // onViewToolbarsPopupShowing(aEvent, toolboxIds, aInsertPoint)
+  // where toolboxIds is either a string or an array of strings.
+  var firstMenuItem = aInsertPoint instanceof XULElement ? aInsertPoint
+                                                         : popup.firstChild;
 
   var toolbar = document.popupNode || popup;
   while (toolbar.localName != "toolbar")
@@ -1226,7 +1230,7 @@ function popupNotificationMenuShowing(event)
 function RemovePopupsItems(parent)
 {
   while (parent.lastChild && ("popup" in parent.lastChild))
-    parent.removeChild(parent.lastChild);
+    parent.lastChild.remove();
 }
 
 function createShowPopupsMenu(parent, browser)

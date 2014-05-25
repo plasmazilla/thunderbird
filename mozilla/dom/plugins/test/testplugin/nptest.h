@@ -39,7 +39,7 @@
 #include "npapi.h"
 #include "npfunctions.h"
 #include "npruntime.h"
-#include "mozilla/StandardInteger.h"
+#include <stdint.h>
 #include <string>
 #include <sstream>
 
@@ -152,6 +152,7 @@ typedef struct InstanceData {
   NPAsyncSurface *backBuffer;
   int32_t mouseUpEventCount;
   int32_t bugMode;
+  std::string javaCodebase;
 } InstanceData;
 
 void notifyDidPaint(InstanceData* instanceData);

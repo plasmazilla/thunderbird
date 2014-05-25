@@ -28,7 +28,7 @@
 
 static NS_DEFINE_CID(kMsgSendLaterCID, NS_MSGSENDLATER_CID);
 
-NS_IMPL_THREADSAFE_ISUPPORTS5(nsMsgOfflineManager,
+NS_IMPL_ISUPPORTS5(nsMsgOfflineManager,
                               nsIMsgOfflineManager,
                               nsIMsgSendLaterListener,
                               nsIObserver,
@@ -342,7 +342,7 @@ nsMsgOfflineManager::OnStopRunningUrl(nsIURI * aUrl, nsresult aExitCode)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgOfflineManager::Observe(nsISupports *aSubject, const char *aTopic, const PRUnichar *someData)
+NS_IMETHODIMP nsMsgOfflineManager::Observe(nsISupports *aSubject, const char *aTopic, const char16_t *someData)
 {
   return NS_OK;
 }
@@ -380,14 +380,14 @@ NS_IMETHODIMP
 nsMsgOfflineManager::OnMessageSendError(uint32_t aCurrentMessage,
                                         nsIMsgDBHdr *aMessageHeader,
                                         nsresult aStatus,
-                                        const PRUnichar *aMsg)
+                                        const char16_t *aMsg)
 {
   return NS_OK;
 }
 
 NS_IMETHODIMP
 nsMsgOfflineManager::OnStopSending(nsresult aStatus,
-                                   const PRUnichar *aMsg, uint32_t aTotalTried, 
+                                   const char16_t *aMsg, uint32_t aTotalTried, 
                                    uint32_t aSuccessful)
 {
 #ifdef NS_DEBUG

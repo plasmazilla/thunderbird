@@ -5,18 +5,21 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "AudioNode.h"
-#include "AudioContext.h"
-#include "nsContentUtils.h"
 #include "mozilla/ErrorResult.h"
 #include "AudioNodeStream.h"
+#include "AudioNodeEngine.h"
+#include "mozilla/dom/AudioParam.h"
 
 namespace mozilla {
 namespace dom {
 
 static const uint32_t INVALID_PORT = 0xffffffff;
 
+NS_IMPL_CYCLE_COLLECTION_CLASS(AudioNode)
+
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(AudioNode, nsDOMEventTargetHelper)
   tmp->DisconnectFromGraph();
+  tmp->mContext->UpdateNodeCount(-1);
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mContext)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mOutputNodes)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mOutputParams)
@@ -49,7 +52,8 @@ AudioNode::AudioNode(AudioContext* aContext,
                      uint32_t aChannelCount,
                      ChannelCountMode aChannelCountMode,
                      ChannelInterpretation aChannelInterpretation)
-  : mContext(aContext)
+  : nsDOMEventTargetHelper(aContext->GetParentObject())
+  , mContext(aContext)
   , mChannelCount(aChannelCount)
   , mChannelCountMode(aChannelCountMode)
   , mChannelInterpretation(aChannelInterpretation)
@@ -57,6 +61,7 @@ AudioNode::AudioNode(AudioContext* aContext,
   MOZ_ASSERT(aContext);
   nsDOMEventTargetHelper::BindToOwner(aContext->GetParentObject());
   SetIsDOMBinding();
+  aContext->UpdateNodeCount(1);
 }
 
 AudioNode::~AudioNode()
@@ -64,6 +69,9 @@ AudioNode::~AudioNode()
   MOZ_ASSERT(mInputNodes.IsEmpty());
   MOZ_ASSERT(mOutputNodes.IsEmpty());
   MOZ_ASSERT(mOutputParams.IsEmpty());
+  if (mContext) {
+    mContext->UpdateNodeCount(-1);
+  }
 }
 
 template <class InputNode>
@@ -174,7 +182,6 @@ AudioNode::Connect(AudioNode& aDestination, uint32_t aOutput,
       ps->AllocateInputPort(mStream, MediaInputPort::FLAG_BLOCK_INPUT,
                             static_cast<uint16_t>(aInput),
                             static_cast<uint16_t>(aOutput));
-    aDestination.NotifyInputConnected();
   }
 
   // This connection may have connected a panner and a source.
@@ -267,16 +274,41 @@ AudioNode::Disconnect(uint32_t aOutput, ErrorResult& aRv)
     return;
   }
 
+  // An upstream node may be starting to play on the graph thread, and the
+  // engine for a downstream node may be sending a PlayingRefChangeHandler
+  // ADDREF message to this (main) thread.  Wait for a round trip before
+  // releasing nodes, to give engines receiving sound now time to keep their
+  // nodes alive.
+  class RunnableRelease : public nsRunnable {
+  public:
+    explicit RunnableRelease(already_AddRefed<AudioNode> aNode)
+      : mNode(aNode) {}
+
+    NS_IMETHODIMP Run() MOZ_OVERRIDE
+    {
+      mNode = nullptr;
+      return NS_OK;
+    }
+  private:
+    nsRefPtr<AudioNode> mNode;
+  };
+
   for (int32_t i = mOutputNodes.Length() - 1; i >= 0; --i) {
     AudioNode* dest = mOutputNodes[i];
     for (int32_t j = dest->mInputNodes.Length() - 1; j >= 0; --j) {
       InputNode& input = dest->mInputNodes[j];
       if (input.mInputNode == this && input.mOutputPort == aOutput) {
+        // Destroying the InputNode here sends a message to the graph thread
+        // to disconnect the streams, which should be sent before the
+        // RunAfterPendingUpdates() call below.
         dest->mInputNodes.RemoveElementAt(j);
         // Remove one instance of 'dest' from mOutputNodes. There could be
         // others, and it's not correct to remove them all since some of them
         // could be for different output ports.
+        nsRefPtr<nsIRunnable> runnable =
+          new RunnableRelease(mOutputNodes[i].forget());
         mOutputNodes.RemoveElementAt(i);
+        mStream->RunAfterPendingUpdates(runnable.forget());
         break;
       }
     }

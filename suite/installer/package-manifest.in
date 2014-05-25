@@ -110,7 +110,7 @@
 
 [browser]
 ; [Base Browser Files]
-#ifdef WIN_OR_OS2
+#ifdef XP_WIN32
 @BINPATH@/@MOZ_APP_NAME@.exe
 #else
 @BINPATH@/@MOZ_APP_NAME@-bin
@@ -121,13 +121,9 @@
 #ifdef MOZ_UPDATER
 @BINPATH@/update-settings.ini
 #endif
-#ifdef XP_OS2
-@BINPATH@/@DLL_PREFIX@mozsqlt3@DLL_SUFFIX@
-#else
 #ifndef MOZ_NATIVE_SQLITE
 #ifndef MOZ_FOLD_LIBS
 @BINPATH@/@DLL_PREFIX@mozsqlite3@DLL_SUFFIX@
-#endif
 #endif
 #endif
 @BINPATH@/license.txt
@@ -174,11 +170,7 @@
 @BINPATH@/components/dom_alarm.xpt
 @BINPATH@/components/dom_apps.xpt
 @BINPATH@/components/dom_base.xpt
-@BINPATH@/components/dom_battery.xpt
-@BINPATH@/components/dom_browserelement.xpt
-@BINPATH@/components/dom_camera.xpt
 @BINPATH@/components/dom_canvas.xpt
-@BINPATH@/components/dom_contacts.xpt
 @BINPATH@/components/dom_core.xpt
 @BINPATH@/components/dom_css.xpt
 @BINPATH@/components/dom_devicestorage.xpt
@@ -257,6 +249,7 @@
 @BINPATH@/components/necko.xpt
 @BINPATH@/components/necko_about.xpt
 @BINPATH@/components/necko_cache.xpt
+@BINPATH@/components/necko_cache2.xpt
 @BINPATH@/components/necko_cookie.xpt
 @BINPATH@/components/necko_dns.xpt
 @BINPATH@/components/necko_file.xpt
@@ -305,6 +298,8 @@
 @BINPATH@/components/SuiteFeeds.manifest
 @BINPATH@/components/suitemigration.xpt
 @BINPATH@/components/telemetry.xpt
+@BINPATH@/components/toolkit_finalizationwitness.xpt
+@BINPATH@/components/toolkit_osfile.xpt
 @BINPATH@/components/toolkitplaces.manifest
 @BINPATH@/components/toolkitprofile.xpt
 #ifdef UNIX_BUT_NOT_MAC
@@ -329,7 +324,6 @@
 #endif
 @BINPATH@/components/windowds.xpt
 @BINPATH@/components/windowwatcher.xpt
-@BINPATH@/components/xpautocomplete.xpt
 @BINPATH@/components/xpcom_base.xpt
 @BINPATH@/components/xpcom_components.xpt
 @BINPATH@/components/xpcom_ds.xpt
@@ -355,7 +349,7 @@
 @BINPATH@/components/BrowserElementParent.js
 @BINPATH@/components/BrowserElementParent.manifest
 @BINPATH@/components/ColorAnalyzer.js
-@BINPATH@/components/ConsoleAPI.js
+@BINPATH@/components/ConsoleAPIStorage.js
 @BINPATH@/components/ConsoleAPI.manifest
 @BINPATH@/components/ContactManager.js
 @BINPATH@/components/ContactManager.manifest
@@ -449,6 +443,8 @@
 #endif
 @BINPATH@/components/PermissionSettings.js
 @BINPATH@/components/PermissionSettings.manifest
+@BINPATH@/components/PhoneNumberService.js
+@BINPATH@/components/PhoneNumberService.manifest
 @BINPATH@/components/PlacesCategoriesStarter.js
 @BINPATH@/components/pluginGlue.manifest
 @BINPATH@/components/servicesComponents.manifest
@@ -458,16 +454,15 @@
 @BINPATH@/components/SiteSpecificUserAgent.manifest
 @BINPATH@/components/smileApplication.js
 @BINPATH@/components/smileApplication.manifest
-@BINPATH@/components/storage-Legacy.js
 @BINPATH@/components/storage-mozStorage.js
+@BINPATH@/components/SuiteProfileMigrator.js
+@BINPATH@/components/SuiteProfileMigrator.manifest
 #ifdef MOZ_SERVICES_SYNC
 @BINPATH@/components/SyncComponents.manifest
 #endif
 @BINPATH@/components/TCPSocket.js
 @BINPATH@/components/TCPSocket.manifest
 @BINPATH@/components/TCPSocketParentIntermediary.js
-@BINPATH@/components/TelemetryPing.js
-@BINPATH@/components/TelemetryPing.manifest
 @BINPATH@/components/txEXSLTRegExFunctions.js
 @BINPATH@/components/txEXSLTRegExFunctions.manifest
 #ifdef MOZ_SERVICES_SYNC
@@ -545,33 +540,31 @@
 #ifdef MOZ_UPDATER
 @BINPATH@/icons/updater.png
 #endif
-#elifdef WIN_OR_OS2
+#elifdef XP_WIN32
 @BINPATH@/chrome/icons/default/bookmarkproperties.ico
 @BINPATH@/chrome/icons/default/downloadManager.ico
 @BINPATH@/chrome/icons/default/editorWindow.ico
 @BINPATH@/chrome/icons/default/findBookmarkWindow.ico
 @BINPATH@/chrome/icons/default/findHistoryWindow.ico
-@BINPATH@/chrome/icons/default/history-window.ico
-@BINPATH@/chrome/icons/default/JSConsoleWindow.ico
-@BINPATH@/chrome/icons/default/main-window.ico
-@BINPATH@/chrome/icons/default/places.ico
-#ifdef XP_WIN32
 @BINPATH@/chrome/icons/default/gif-file.ico
+@BINPATH@/chrome/icons/default/history-window.ico
 @BINPATH@/chrome/icons/default/html-file.ico
-@BINPATH@/chrome/icons/default/misc-file.ico
 @BINPATH@/chrome/icons/default/image-file.ico
 @BINPATH@/chrome/icons/default/jpeg-file.ico
+@BINPATH@/chrome/icons/default/JSConsoleWindow.ico
+@BINPATH@/chrome/icons/default/main-window.ico
+@BINPATH@/chrome/icons/default/misc-file.ico
+@BINPATH@/chrome/icons/default/places.ico
 @BINPATH@/chrome/icons/default/script-file.ico
 @BINPATH@/chrome/icons/default/xml-file.ico
 @BINPATH@/chrome/icons/default/xul-file.ico
-#endif
 #endif
 ; Although venkman-window is an extension, its icon is still suite-specific
 #ifdef MOZ_GTK2
 @BINPATH@/chrome/icons/default/venkman-window.png
 @BINPATH@/chrome/icons/default/venkman-window16.png
 @BINPATH@/chrome/icons/default/venkman-window48.png
-#elifdef WIN_OR_OS2
+#elifdef XP_WIN32
 @BINPATH@/chrome/icons/default/venkman-window.ico
 #endif
 
@@ -700,6 +693,8 @@ bin/libfreebl_32int64_3.so
 ; [Crash Reporter]
 ;
 #ifdef MOZ_CRASHREPORTER
+@BINPATH@/components/CrashService.manifest
+@BINPATH@/components/CrashService.js
 #ifdef XP_MACOSX
 @BINPATH@/crashreporter.app/
 #else
@@ -713,13 +708,6 @@ bin/libfreebl_32int64_3.so
 #ifdef MOZ_CRASHREPORTER_INJECTOR
 @BINPATH@/breakpadinjector.dll
 #endif
-#endif
-
-; [OS/2]
-#ifdef XP_OS2
-@BINPATH@/MozSounds.cmd
-@BINPATH@/*.xqs
-@BINPATH@/components/*.xqs
 #endif
 
 [mail]
@@ -755,9 +743,12 @@ bin/libfreebl_32int64_3.so
 @BINPATH@/components/nsAbAutoCompleteMyDomain.js
 @BINPATH@/components/nsAbAutoCompleteSearch.js
 @BINPATH@/components/nsAbLDAPAttributeMap.js
+@BINPATH@/components/nsAbLDAPAutoCompleteSearch.js
 @BINPATH@/components/nsMailNewsCommandLineHandler.js
 @BINPATH@/components/nsMsgTraitService.js
 @BINPATH@/components/nsMsgTraitService.manifest
+@BINPATH@/components/nsNewsAutoCompleteSearch.js
+@BINPATH@/components/nsNewsAutoCompleteSearch.manifest
 @BINPATH@/components/nsSMTPProtocolHandler.js
 @BINPATH@/components/nsSMTPProtocolHandler.manifest
 @BINPATH@/components/offlineStartup.js
@@ -786,7 +777,7 @@ bin/libfreebl_32int64_3.so
 @BINPATH@/chrome/icons/default/msgcomposeWindow.png
 @BINPATH@/chrome/icons/default/msgcomposeWindow16.png
 @BINPATH@/chrome/icons/default/msgcomposeWindow48.png
-#elifdef WIN_OR_OS2
+#elifdef XP_WIN32
 @BINPATH@/chrome/icons/default/abcardWindow.ico
 @BINPATH@/chrome/icons/default/ablistWindow.ico
 @BINPATH@/chrome/icons/default/addressbookWindow.ico
@@ -832,7 +823,7 @@ bin/libfreebl_32int64_3.so
 #ifdef MOZ_GTK2
 @BINPATH@/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/icons/default/chatzilla-window.xpm
 @BINPATH@/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/icons/default/chatzilla-window16.xpm
-#elifdef WIN_OR_OS2
+#elifdef XP_WIN32
 @BINPATH@/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/icons/default/chatzilla-window.ico
 #endif
 @BINPATH@/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome.manifest
@@ -884,8 +875,6 @@ bin/libfreebl_32int64_3.so
 @BINPATH@/extensions/inspector@mozilla.org/platform/Linux/chrome/icons/default/winInspectorMain.xpm
 #elifdef XP_WIN32
 @BINPATH@/extensions/inspector@mozilla.org/platform/WINNT/chrome/icons/default/winInspectorMain.ico
-#elifdef XP_OS2
-@BINPATH@/extensions/inspector@mozilla.org/platform/OS2/chrome/icons/default/winInspectorMain.ico
 #endif
 @BINPATH@/extensions/inspector@mozilla.org/components/components.list
 @BINPATH@/extensions/inspector@mozilla.org/components/inspector-cmdline.js

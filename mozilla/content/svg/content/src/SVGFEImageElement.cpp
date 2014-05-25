@@ -4,13 +4,19 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/dom/SVGFEImageElement.h"
+
 #include "mozilla/dom/SVGFEImageElementBinding.h"
 #include "mozilla/dom/SVGFilterElement.h"
+#include "nsContentUtils.h"
 #include "nsLayoutUtils.h"
 #include "nsSVGUtils.h"
 #include "nsNetUtil.h"
+#include "imgIContainer.h"
+#include "gfx2DGlue.h"
 
 NS_IMPL_NS_NEW_NAMESPACED_SVG_ELEMENT(FEImage)
+
+using namespace mozilla::gfx;
 
 namespace mozilla {
 namespace dom {
@@ -38,7 +44,7 @@ NS_IMPL_ISUPPORTS_INHERITED6(SVGFEImageElement, SVGFEImageElementBase,
 //----------------------------------------------------------------------
 // Implementation
 
-SVGFEImageElement::SVGFEImageElement(already_AddRefed<nsINodeInfo> aNodeInfo)
+SVGFEImageElement::SVGFEImageElement(already_AddRefed<nsINodeInfo>& aNodeInfo)
   : SVGFEImageElementBase(aNodeInfo)
 {
   // We start out broken
@@ -184,58 +190,65 @@ SVGFEImageElement::Href()
 //----------------------------------------------------------------------
 // nsIDOMSVGFEImageElement methods
 
-nsresult
-SVGFEImageElement::Filter(nsSVGFilterInstance *instance,
-                          const nsTArray<const Image*>& aSources,
-                          const Image* aTarget,
-                          const nsIntRect& rect)
+FilterPrimitiveDescription
+SVGFEImageElement::GetPrimitiveDescription(nsSVGFilterInstance* aInstance,
+                                           const IntRect& aFilterSubregion,
+                                           const nsTArray<bool>& aInputsAreTainted,
+                                           nsTArray<RefPtr<SourceSurface>>& aInputImages)
 {
   nsIFrame* frame = GetPrimaryFrame();
-  if (!frame) return NS_ERROR_FAILURE;
+  if (!frame) {
+    return FilterPrimitiveDescription(FilterPrimitiveDescription::eNone);
+  }
 
   nsCOMPtr<imgIRequest> currentRequest;
   GetRequest(nsIImageLoadingContent::CURRENT_REQUEST,
              getter_AddRefs(currentRequest));
 
   nsCOMPtr<imgIContainer> imageContainer;
-  if (currentRequest)
+  if (currentRequest) {
     currentRequest->GetImage(getter_AddRefs(imageContainer));
-
-  nsRefPtr<gfxASurface> currentFrame;
-  if (imageContainer)
-    imageContainer->GetFrame(imgIContainer::FRAME_CURRENT,
-                             imgIContainer::FLAG_SYNC_DECODE,
-                             getter_AddRefs(currentFrame));
-
-  // We need to wrap the surface in a pattern to have somewhere to set the
-  // graphics filter.
-  nsRefPtr<gfxPattern> thebesPattern;
-  if (currentFrame)
-    thebesPattern = new gfxPattern(currentFrame);
-
-  if (thebesPattern) {
-    thebesPattern->SetFilter(nsLayoutUtils::GetGraphicsFilterForFrame(frame));
-
-    int32_t nativeWidth, nativeHeight;
-    imageContainer->GetWidth(&nativeWidth);
-    imageContainer->GetHeight(&nativeHeight);
-
-    const gfxRect& filterSubregion = aTarget->mFilterPrimitiveSubregion;
-
-    gfxMatrix viewBoxTM =
-      SVGContentUtils::GetViewBoxTransform(filterSubregion.Width(), filterSubregion.Height(),
-                                           0,0, nativeWidth, nativeHeight,
-                                           mPreserveAspectRatio);
-
-    gfxMatrix xyTM = gfxMatrix().Translate(gfxPoint(filterSubregion.X(), filterSubregion.Y()));
-
-    gfxMatrix TM = viewBoxTM * xyTM;
-    
-    nsRefPtr<gfxContext> ctx = new gfxContext(aTarget->mImage);
-    nsSVGUtils::CompositePatternMatrix(ctx, thebesPattern, TM, nativeWidth, nativeHeight, 1.0);
   }
 
-  return NS_OK;
+  nsRefPtr<gfxASurface> currentFrame;
+  if (imageContainer) {
+    currentFrame =
+      imageContainer->GetFrame(imgIContainer::FRAME_CURRENT,
+                               imgIContainer::FLAG_SYNC_DECODE);
+  }
+
+  if (!currentFrame) {
+    return FilterPrimitiveDescription(FilterPrimitiveDescription::eNone);
+  }
+
+  gfxPlatform* platform = gfxPlatform::GetPlatform();
+  DrawTarget* dt = platform->ScreenReferenceDrawTarget();
+  RefPtr<SourceSurface> image =
+    platform->GetSourceSurfaceForSurface(dt, currentFrame);
+
+  IntSize nativeSize;
+  imageContainer->GetWidth(&nativeSize.width);
+  imageContainer->GetHeight(&nativeSize.height);
+
+  Matrix viewBoxTM =
+    SVGContentUtils::GetViewBoxTransform(aFilterSubregion.width, aFilterSubregion.height,
+                                         0, 0, nativeSize.width, nativeSize.height,
+                                         mPreserveAspectRatio);
+  Matrix xyTM = Matrix().Translate(aFilterSubregion.x, aFilterSubregion.y);
+  Matrix TM = viewBoxTM * xyTM;
+
+  Filter filter = ToFilter(nsLayoutUtils::GetGraphicsFilterForFrame(frame));
+
+  FilterPrimitiveDescription descr(FilterPrimitiveDescription::eImage);
+  descr.Attributes().Set(eImageFilter, (uint32_t)filter);
+  descr.Attributes().Set(eImageTransform, TM);
+
+  // Append the image to aInputImages and store its index in the description.
+  size_t imageIndex = aInputImages.Length();
+  aInputImages.AppendElement(image);
+  descr.Attributes().Set(eImageInputIndex, (uint32_t)imageIndex);
+
+  return descr;
 }
 
 bool
@@ -249,14 +262,45 @@ SVGFEImageElement::AttributeAffectsRendering(int32_t aNameSpaceID,
           aAttribute == nsGkAtoms::preserveAspectRatio);
 }
 
-nsIntRect
-SVGFEImageElement::ComputeTargetBBox(const nsTArray<nsIntRect>& aSourceBBoxes,
-        const nsSVGFilterInstance& aInstance)
+bool
+SVGFEImageElement::OutputIsTainted(const nsTArray<bool>& aInputsAreTainted,
+                                   nsIPrincipal* aReferencePrincipal)
 {
-  // XXX can do better here ... we could check what we know of the source
-  // image bounds and compute an accurate bounding box for the filter
-  // primitive result.
-  return GetMaxRect();
+  nsresult rv;
+  nsCOMPtr<imgIRequest> currentRequest;
+  GetRequest(nsIImageLoadingContent::CURRENT_REQUEST,
+             getter_AddRefs(currentRequest));
+
+  if (!currentRequest) {
+    return false;
+  }
+
+  uint32_t status;
+  currentRequest->GetImageStatus(&status);
+  if ((status & imgIRequest::STATUS_LOAD_COMPLETE) == 0) {
+    // The load has not completed yet.
+    return false;
+  }
+
+  nsCOMPtr<nsIPrincipal> principal;
+  rv = currentRequest->GetImagePrincipal(getter_AddRefs(principal));
+  if (NS_FAILED(rv) || !principal) {
+    return true;
+  }
+
+  int32_t corsmode;
+  if (NS_SUCCEEDED(currentRequest->GetCORSMode(&corsmode)) &&
+      corsmode != imgIRequest::CORS_NONE) {
+    // If CORS was used to load the image, the page is allowed to read from it.
+    return false;
+  }
+
+  if (aReferencePrincipal->Subsumes(principal)) {
+    // The page is allowed to read from the image.
+    return false;
+  }
+
+  return true;
 }
 
 //----------------------------------------------------------------------

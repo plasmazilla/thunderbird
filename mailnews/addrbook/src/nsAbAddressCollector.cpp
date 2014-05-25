@@ -11,12 +11,14 @@
 #include "nsAbAddressCollector.h"
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
-#include "nsIMsgHeaderParser.h"
 #include "nsStringGlue.h"
 #include "prmem.h"
 #include "nsServiceManagerUtils.h"
 #include "nsComponentManagerUtils.h"
 #include "nsIAbManager.h"
+#include "mozilla/mailnews/MimeHeaderParser.h"
+
+using namespace mozilla::mailnews;
 
 NS_IMPL_ISUPPORTS2(nsAbAddressCollector, nsIAbAddressCollector, nsIObserver)
 
@@ -35,13 +37,12 @@ nsAbAddressCollector::~nsAbAddressCollector()
 }
 
 /**
- * Returns the first card found with a given property name/value pair. This
+ * Returns the first card found with the specified email address. This
  * returns an already addrefed pointer to the card if the card is found.
  */
 already_AddRefed<nsIAbCard>
-nsAbAddressCollector::GetCardFromProperty(const char *aName,
-                                          const nsACString &aValue,
-                                          nsIAbDirectory **aDirectory)
+nsAbAddressCollector::GetCardForAddress(const nsACString &aEmailAddress,
+                                        nsIAbDirectory **aDirectory)
 {
   nsresult rv;
   nsCOMPtr<nsIAbManager> abManager(do_GetService(NS_ABMANAGER_CONTRACTID, &rv));
@@ -66,9 +67,11 @@ nsAbAddressCollector::GetCardFromProperty(const char *aName,
 
     // Some implementations may return NS_ERROR_NOT_IMPLEMENTED here,
     // so just catch the value and continue.
-    if (NS_FAILED(directory->GetCardFromProperty(aName, aValue, true,
+    if (NS_FAILED(directory->CardForEmailAddress(aEmailAddress,
                                                  getter_AddRefs(result))))
+    {
       continue;
+    }
 
     if (result)
     {
@@ -91,48 +94,23 @@ nsAbAddressCollector::CollectAddress(const nsACString &aAddresses,
 
   // note that we're now setting the whole recipient list,
   // not just the pretty name of the first recipient.
-  uint32_t numAddresses;
-  char *names;
-  char *addresses;
-
-  nsresult rv;
-  nsCOMPtr<nsIMsgHeaderParser> pHeader = do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv,rv);
-
-  rv = pHeader->ParseHeaderAddresses(PromiseFlatCString(aAddresses).get(),
-                                     &names, &addresses, &numAddresses);
-  NS_ASSERTION(NS_SUCCEEDED(rv), "failed to parse, so can't collect");
-  if (NS_FAILED(rv))
-    return NS_OK;
-
-  char *curNamePtr = names;
-  char *curAddressPtr = addresses;
+  nsTArray<nsCString> names;
+  nsTArray<nsCString> addresses;
+  ExtractAllAddresses(EncodedHeader(aAddresses),
+    UTF16ArrayAdapter<>(names), UTF16ArrayAdapter<>(addresses));
+  uint32_t numAddresses = names.Length();
 
   for (uint32_t i = 0; i < numAddresses; i++)
   {
-    nsDependentCString curAddress(curAddressPtr);
-    curAddressPtr += curAddress.Length() + 1;
-
-    nsCString unquotedName;
-    rv = pHeader->UnquotePhraseOrAddr(curNamePtr, false,
-                                      getter_Copies(unquotedName));
-    curNamePtr += strlen(curNamePtr) + 1;
-    NS_ASSERTION(NS_SUCCEEDED(rv), "failed to unquote name");
-    if (NS_FAILED(rv))
-      continue;
-
     // Don't allow collection of addresses with no email address, it makes
     // no sense. Whilst we should never get here in most normal cases, we
     // should still be careful.
-    if (curAddress.IsEmpty())
+    if (addresses[i].IsEmpty())
       continue;
 
-    CollectSingleAddress(curAddress, unquotedName, aCreateCard, aSendFormat,
+    CollectSingleAddress(addresses[i], names[i], aCreateCard, aSendFormat,
                          false);
   }
-
-  PR_FREEIF(addresses);
-  PR_FREEIF(names);
   return NS_OK;
 }
 
@@ -147,25 +125,10 @@ nsAbAddressCollector::CollectSingleAddress(const nsACString &aEmail,
     return NS_OK;
 
   nsresult rv;
-  nsCOMPtr<nsIAbCard> card;
-  bool emailAddressIn2ndEmailColumn = false;
 
   nsCOMPtr<nsIAbDirectory> originDirectory;
-
-  if (!aSkipCheckExisting)
-  {
-    card = GetCardFromProperty(kPriEmailProperty, aEmail,
-                               getter_AddRefs(originDirectory));
-    // We've not found a card, but is this address actually in the additional
-    // email column?
-    if (!card)
-    {
-      card = GetCardFromProperty(k2ndEmailProperty, aEmail,
-                                 getter_AddRefs(originDirectory));
-      if (card)
-        emailAddressIn2ndEmailColumn = true;
-    }
-  }
+  nsCOMPtr<nsIAbCard> card = (!aSkipCheckExisting) ?
+    GetCardForAddress(aEmail, getter_AddRefs(originDirectory)) : nullptr;
 
   if (!card && (aCreateCard || aSkipCheckExisting))
   {
@@ -186,7 +149,7 @@ nsAbAddressCollector::CollectSingleAddress(const nsACString &aEmail,
       }
     }
   }
-  else if (card && !emailAddressIn2ndEmailColumn && originDirectory)
+  else if (card && originDirectory)
   {
     // It could be that the origin directory is read-only, so don't try and
     // write to it if it is.
@@ -300,7 +263,7 @@ nsAbAddressCollector::SplitFullName(const nsCString &aFullName, nsCString &aFirs
 // Observes the collected address book pref in case it changes.
 NS_IMETHODIMP
 nsAbAddressCollector::Observe(nsISupports *aSubject, const char *aTopic,
-                              const PRUnichar *aData)
+                              const char16_t *aData)
 {
   nsCOMPtr<nsIPrefBranch> prefBranch = do_QueryInterface(aSubject);
   if (!prefBranch) {

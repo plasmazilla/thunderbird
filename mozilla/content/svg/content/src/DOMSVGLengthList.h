@@ -42,6 +42,7 @@ class DOMSVGLength;
 class DOMSVGLengthList MOZ_FINAL : public nsISupports,
                                    public nsWrapperCache
 {
+  friend class AutoChangeLengthListNotifier;
   friend class DOMSVGLength;
 
 public:
@@ -93,6 +94,14 @@ public:
   /// Called to notify us to syncronize our length and detach excess items.
   void InternalListLengthWillChange(uint32_t aNewLength);
 
+  /**
+   * Returns true if our attribute is animating (in which case our animVal is
+   * not simply a mirror of our baseVal).
+   */
+  bool IsAnimating() const {
+    return mAList->IsAnimating();
+  }
+
   uint32_t NumberOfItems() const
   {
     if (IsAnimValList()) {
@@ -103,17 +112,10 @@ public:
   void Clear(ErrorResult& aError);
   already_AddRefed<nsIDOMSVGLength> Initialize(nsIDOMSVGLength *newItem,
                                                ErrorResult& error);
-  nsIDOMSVGLength* GetItem(uint32_t index, ErrorResult& error)
-  {
-    bool found;
-    nsIDOMSVGLength* item = IndexedGetter(index, found, error);
-    if (!found) {
-      error.Throw(NS_ERROR_DOM_INDEX_SIZE_ERR);
-    }
-    return item;
-  }
-  nsIDOMSVGLength* IndexedGetter(uint32_t index, bool& found,
-                                 ErrorResult& error);
+  already_AddRefed<nsIDOMSVGLength> GetItem(uint32_t index,
+                                            ErrorResult& error);
+  already_AddRefed<nsIDOMSVGLength> IndexedGetter(uint32_t index, bool& found,
+                                                  ErrorResult& error);
   already_AddRefed<nsIDOMSVGLength> InsertItemBefore(nsIDOMSVGLength *newItem,
                                                      uint32_t index,
                                                      ErrorResult& error);
@@ -163,8 +165,8 @@ private:
    */
   SVGLengthList& InternalList() const;
 
-  /// Creates a DOMSVGLength for aIndex, if it doesn't already exist.
-  void EnsureItemAt(uint32_t aIndex);
+  /// Returns the nsIDOMSVGLength at aIndex, creating it if necessary.
+  already_AddRefed<nsIDOMSVGLength> GetItemAt(uint32_t aIndex);
 
   void MaybeInsertNullInAnimValListAt(uint32_t aIndex);
   void MaybeRemoveItemFromAnimValListAt(uint32_t aIndex);

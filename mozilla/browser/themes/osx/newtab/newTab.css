@@ -10,10 +10,8 @@
 
 /* SCROLLBOX */
 #newtab-scrollbox:not([page-disabled]) {
-  background-color: rgb(229,229,229);
-  background-image: url(chrome://browser/skin/newtab/noise.png),
-                    linear-gradient(rgba(255,255,255,.5), rgba(255,255,255,.2));
-  background-attachment: fixed;
+  color: rgb(0,0,0);
+  background-color: hsl(0,0%,95%);
 }
 
 /* UNDO */
@@ -53,17 +51,6 @@
 #newtab-undo-close-button {
   padding: 0;
   border: none;
-  list-style-image: url("chrome://global/skin/icons/close.png");
-  -moz-image-region: rect(0, 16px, 16px, 0);
-  -moz-user-focus: normal;
-}
-
-#newtab-undo-close-button:hover {
-  -moz-image-region: rect(0, 32px, 16px, 16px);
-}
-
-#newtab-undo-close-button:hover:active {
-  -moz-image-region: rect(0, 48px, 16px, 32px);
 }
 
 #newtab-undo-close-button > .toolbarbutton-text {

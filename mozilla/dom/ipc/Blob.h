@@ -12,16 +12,13 @@
 #include "mozilla/dom/PBlobParent.h"
 #include "mozilla/dom/PBlobStreamChild.h"
 #include "mozilla/dom/PBlobStreamParent.h"
-#include "mozilla/dom/PContent.h"
 
 #include "nsAutoPtr.h"
 #include "nsCOMPtr.h"
 #include "nsTArray.h"
-#include "nsThreadUtils.h"
 
 class nsIDOMBlob;
-class nsIIPCSerializableInputStream;
-class nsIInputStream;
+template<class T> class nsRevocableEventPtr;
 
 namespace mozilla {
 namespace dom {
@@ -84,6 +81,12 @@ struct BlobTraits<Parent>
     }
 
   protected:
+    virtual StreamType*
+    AllocPBlobStreamParent() MOZ_OVERRIDE;
+
+    virtual bool
+    DeallocPBlobStreamParent(StreamType* aActor) MOZ_OVERRIDE;
+
     BaseType();
     virtual ~BaseType();
 
@@ -133,6 +136,12 @@ struct BlobTraits<Child>
     }
 
   protected:
+    virtual StreamType*
+    AllocPBlobStreamChild() MOZ_OVERRIDE;
+
+    virtual bool
+    DeallocPBlobStreamChild(StreamType* aActor) MOZ_OVERRIDE;
+
     BaseType()
     { }
 
@@ -150,6 +159,7 @@ class Blob : public BlobTraits<ActorFlavor>::BaseType
   friend class RemoteBlob<ActorFlavor>;
 
 public:
+  typedef typename BlobTraits<ActorFlavor>::ConcreteContentManagerType ContentManager;
   typedef typename BlobTraits<ActorFlavor>::ProtocolType ProtocolType;
   typedef typename BlobTraits<ActorFlavor>::StreamType StreamType;
   typedef typename BlobTraits<ActorFlavor>::ConstructorParamsType
@@ -159,7 +169,7 @@ public:
   typedef typename BlobTraits<ActorFlavor>::BaseType BaseType;
   typedef RemoteBlob<ActorFlavor> RemoteBlobType;
   typedef mozilla::ipc::IProtocolManager<
-                      mozilla::ipc::RPCChannel::RPCListener>::ActorDestroyReason
+                      mozilla::ipc::IProtocol>::ActorDestroyReason
           ActorDestroyReason;
 
 protected:
@@ -171,14 +181,14 @@ protected:
 public:
   // This create function is called on the sending side.
   static Blob*
-  Create(nsIDOMBlob* aBlob)
+  Create(ContentManager* aManager, nsIDOMBlob* aBlob)
   {
-    return new Blob(aBlob);
+    return new Blob(aManager, aBlob);
   }
 
   // This create function is called on the receiving side.
   static Blob*
-  Create(const ConstructorParamsType& aParams);
+  Create(ContentManager* aManager, const ConstructorParamsType& aParams);
 
   // Get the blob associated with this actor. This may always be called on the
   // sending side. It may also be called on the receiving side unless this is a
@@ -195,12 +205,17 @@ public:
   bool
   SetMysteryBlobInfo(const nsString& aContentType, uint64_t aLength);
 
+  ContentManager* Manager()
+  {
+    return mManager;
+  }
+
 private:
   // This constructor is called on the sending side.
-  Blob(nsIDOMBlob* aBlob);
+  Blob(ContentManager* aManager, nsIDOMBlob* aBlob);
 
   // This constructor is called on the receiving side.
-  Blob(const ConstructorParamsType& aParams);
+  Blob(ContentManager* aManager, const ConstructorParamsType& aParams);
 
   static already_AddRefed<RemoteBlobType>
   CreateRemoteBlob(const ConstructorParamsType& aParams);
@@ -218,11 +233,7 @@ private:
   virtual bool
   RecvPBlobStreamConstructor(StreamType* aActor) MOZ_OVERRIDE;
 
-  virtual StreamType*
-  AllocPBlobStream() MOZ_OVERRIDE;
-
-  virtual bool
-  DeallocPBlobStream(StreamType* aActor) MOZ_OVERRIDE;
+  nsRefPtr<ContentManager> mManager;
 };
 
 } // namespace ipc

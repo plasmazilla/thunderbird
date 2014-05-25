@@ -9,7 +9,10 @@
 <?xml-stylesheet href="chrome://messenger/skin/folderMenus.css" type="text/css"?>
 <?xml-stylesheet href="chrome://messenger-newsblog/skin/feed-subscriptions.css" type="text/css"?>
 
-<!DOCTYPE window SYSTEM "chrome://messenger-newsblog/locale/feed-subscriptions.dtd">
+<!DOCTYPE window [
+<!ENTITY % feedDTD SYSTEM "chrome://messenger-newsblog/locale/feed-subscriptions.dtd">
+  %feedDTD;
+]>
 
 <window id="subscriptionsDialog"
         flex="1"
@@ -25,15 +28,7 @@
         onmousedown="FeedSubscriptions.onMouseDown(event);">
 
   <script type="application/javascript"
-          src="chrome://messenger-newsblog/content/utils.js"/>
-  <script type="application/javascript"
           src="chrome://messenger-newsblog/content/feed-subscriptions.js"/>
-  <script type="application/javascript"
-          src="chrome://messenger-newsblog/content/Feed.js"/>
-  <script type="application/javascript"
-          src="chrome://messenger-newsblog/content/FeedItem.js"/>
-  <script type="application/javascript"
-          src="chrome://messenger-newsblog/content/feed-parser.js"/>
 
   <keyset id="extensionsKeys">
     <key id="key_close"
@@ -187,8 +182,6 @@
                 accesskey="&button.removeFeed.accesskey;"
                 oncommand="FeedSubscriptions.removeFeed(true);"/>
 
-        <spacer flex="1"/>
-
         <button id="importOPML"
                 label="&button.importOPML.label;"
                 accesskey="&button.importOPML.accesskey;"
@@ -199,6 +192,13 @@
                 accesskey="&button.exportOPML.accesskey;"
                 tooltiptext="&button.exportOPML.tooltip;"
                 oncommand="FeedSubscriptions.exportOPML(event);"/>
+
+        <spacer flex="1"/>
+
+        <button id="close"
+                label="&button.close.label;"
+                icon="close"
+                oncommand="window.close();"/>
       </hbox>
     </hbox>
   </vbox>

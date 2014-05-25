@@ -28,7 +28,7 @@ public:
     nsIntRect mRegion;
   };
 
-  D3D9SurfaceImage() : Image(NULL, D3D9_RGB32_TEXTURE), mSize(0, 0) {}
+  D3D9SurfaceImage() : Image(nullptr, ImageFormat::D3D9_RGB32_TEXTURE), mSize(0, 0) {}
   virtual ~D3D9SurfaceImage() {}
 
   // Copies the surface into a sharable texture's surface, and initializes
@@ -44,9 +44,10 @@ public:
   // complete.
   HANDLE GetShareHandle();
 
-  gfxIntSize GetSize() MOZ_OVERRIDE;
+  gfx::IntSize GetSize() MOZ_OVERRIDE;
 
-  already_AddRefed<gfxASurface> GetAsSurface() MOZ_OVERRIDE;
+  already_AddRefed<gfxASurface> DeprecatedGetAsSurface() MOZ_OVERRIDE;
+  virtual TemporaryRef<gfx::SourceSurface> GetAsSourceSurface() MOZ_OVERRIDE;
 
 private:
 
@@ -54,7 +55,7 @@ private:
   // is complete, whereupon the texture is safe to use.
   void EnsureSynchronized();
 
-  gfxIntSize mSize;
+  gfx::IntSize mSize;
   RefPtr<IDirect3DTexture9> mTexture;
   RefPtr<IDirect3DQuery9> mQuery;
   HANDLE mShareHandle;

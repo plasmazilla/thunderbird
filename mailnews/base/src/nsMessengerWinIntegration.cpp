@@ -374,7 +374,7 @@ nsMessengerWinIntegration::Init()
   // get application path
   WCHAR appPath[_MAX_PATH] = {0};
   ::GetModuleFileNameW(nullptr, appPath, sizeof(appPath));
-  mAppName.Assign((PRUnichar *)appPath);
+  mAppName.Assign((char16_t *)appPath);
 
   rv = ResetCurrent();
   NS_ENSURE_SUCCESS(rv,rv);
@@ -389,7 +389,7 @@ nsMessengerWinIntegration::OnItemPropertyChanged(nsIMsgFolder *, nsIAtom *, char
 }
 
 NS_IMETHODIMP
-nsMessengerWinIntegration::OnItemUnicharPropertyChanged(nsIMsgFolder *, nsIAtom *, const PRUnichar *, const PRUnichar *)
+nsMessengerWinIntegration::OnItemUnicharPropertyChanged(nsIMsgFolder *, nsIAtom *, const char16_t *, const char16_t *)
 {
   return NS_OK;
 }
@@ -448,7 +448,7 @@ nsresult nsMessengerWinIntegration::ShowAlertMessage(const nsString& aAlertTitle
                                                 NS_ConvertASCIItoUTF16(aFolderURI), this,
                                                 EmptyString(),
                                                 NS_LITERAL_STRING("auto"),
-                                                EmptyString());
+                                                EmptyString(), nullptr);
       mAlertInProgress = true;
     }
   }
@@ -646,7 +646,7 @@ nsresult nsMessengerWinIntegration::AlertClickedSimple()
 #endif MOZ_SUITE
 
 NS_IMETHODIMP
-nsMessengerWinIntegration::Observe(nsISupports* aSubject, const char* aTopic, const PRUnichar* aData)
+nsMessengerWinIntegration::Observe(nsISupports* aSubject, const char* aTopic, const char16_t* aData)
 {
   if (strcmp(aTopic, "alertfinished") == 0)
       return AlertFinished();
@@ -724,16 +724,16 @@ void nsMessengerWinIntegration::FillToolTipInfo()
         nsAutoString numNewMsgsText;
         numNewMsgsText.AppendInt(numNewMessages);
 
-        const PRUnichar *formatStrings[] =
+        const char16_t *formatStrings[] =
         {
           numNewMsgsText.get(),
         };
 
         nsString finalText;
         if (numNewMessages == 1)
-          bundle->FormatStringFromName(NS_LITERAL_STRING("biffNotification_message").get(), formatStrings, 1, getter_Copies(finalText));
+          bundle->FormatStringFromName(MOZ_UTF16("biffNotification_message"), formatStrings, 1, getter_Copies(finalText));
         else
-          bundle->FormatStringFromName(NS_LITERAL_STRING("biffNotification_messages").get(), formatStrings, 1, getter_Copies(finalText));
+          bundle->FormatStringFromName(MOZ_UTF16("biffNotification_messages"), formatStrings, 1, getter_Copies(finalText));
 
         // the alert message is special...we actually only want to show the first account with
         // new mail in the alert.

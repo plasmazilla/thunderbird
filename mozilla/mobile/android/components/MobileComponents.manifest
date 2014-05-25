@@ -43,12 +43,6 @@ category agent-style-sheets browser-content-stylesheet chrome://browser/skin/con
 component {C6E8C44D-9F39-4AF7-BCC0-76E38A8310F5} ContentPermissionPrompt.js
 contract @mozilla.org/content-permission/prompt;1 {C6E8C44D-9F39-4AF7-BCC0-76E38A8310F5}
 
-# AlertsService.js
-component {fe33c107-82a4-41d6-8c64-5353267e04c9} AlertsService.js
-
-# ToasterAlertsService : alias to AlertsService
-contract @mozilla.org/toaster-alerts-service;1 {fe33c107-82a4-41d6-8c64-5353267e04c9}
-
 # XPIDialogService.js
 component {c1242012-27d8-477e-a0f1-0b098ffc329b} XPIDialogService.js
 contract @mozilla.org/addons/web-install-prompt;1 {c1242012-27d8-477e-a0f1-0b098ffc329b}
@@ -105,3 +99,18 @@ contract @mozilla.org/payment/ui-glue;1 {3c6c9575-f57e-427b-a8aa-57bc3cbff48f}
 # FilePicker.js
 component {18a4e042-7c7c-424b-a583-354e68553a7f} FilePicker.js
 contract @mozilla.org/filepicker;1 {18a4e042-7c7c-424b-a583-354e68553a7f}
+
+# Snippets.js
+component {a78d7e59-b558-4321-a3d6-dffe2f1e76dd} Snippets.js
+contract @mozilla.org/snippets;1 {a78d7e59-b558-4321-a3d6-dffe2f1e76dd}
+category profile-after-change Snippets @mozilla.org/snippets;1
+category update-timer Snippets @mozilla.org/snippets;1,getService,snippets-update-timer,browser.snippets.updateInterval,86400
+
+# WebappsUpdateTimer.js
+component {8f7002cb-e959-4f0a-a2e8-563232564385} WebappsUpdateTimer.js
+contract @mozilla.org/b2g/webapps-update-timer;1 {8f7002cb-e959-4f0a-a2e8-563232564385}
+category update-timer WebappsUpdateTimer @mozilla.org/b2g/webapps-update-timer;1,getService,webapp-background-update-timer,browser.webapps.updateInterval,86400
+
+# ColorPicker.js
+component {430b987f-bb9f-46a3-99a5-241749220b29} ColorPicker.js
+contract @mozilla.org/colorpicker;1 {430b987f-bb9f-46a3-99a5-241749220b29}

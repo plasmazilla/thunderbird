@@ -11,8 +11,8 @@
 <?xml-stylesheet href="chrome://messenger/skin/folderMenus.css" type="text/css"?>
 
 <!DOCTYPE page [
-<!ENTITY % trashDTD SYSTEM "chrome://messenger/locale/am-server-top.dtd">%trashDTD;
-<!ENTITY % pickerDTD SYSTEM "chrome://messenger/locale/msgFolderPickerOverlay.dtd"> %pickerDTD;
+<!ENTITY % trashDTD SYSTEM "chrome://messenger/locale/am-server-top.dtd">
+%trashDTD;
 ]>
 
 <page xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
@@ -24,7 +24,6 @@
     <script type="application/javascript" src="chrome://messenger/content/am-server.js"/>
     <script type="application/javascript" src="chrome://messenger/content/am-prefs.js"/>
     <script type="application/javascript" src="chrome://messenger/content/amUtils.js"/>
-    <script type="application/javascript" src="chrome://messenger/content/widgetglue.js"/>
     <stringbundle id="bundle_messenger" src="chrome://messenger/locale/messenger.properties"/>
 
     <label hidden="true" wsm_persist="true" id="server.type"/>
@@ -225,7 +224,7 @@
       <label value="&deleteMessagePrefix.label;" align="left"
              control="imap.deleteModel"/>
     </hbox>
-    <hbox align="end">
+    <vbox>
       <hbox align="center"
             id="imap.deleteModel.box"
             hidefor="pop3,nntp,movemail"
@@ -245,14 +244,16 @@
                        value="1"
                        label="&modelMoveToTrash.label;"
                        accesskey="&modelMoveToTrash.accesskey;"/>
-                <menulist id="msgTrashFolderPicker"
+                <menulist id="msgTrashFolderPicker" flex="1"
+                          class="folderMenuItem"
+                          maxwidth="300" crop="center"
                           aria-labelledby="modelMoveToTrash"
-                          oncommand="folderPickerChange(event);">
+                          displayformat="verbose">
                   <menupopup id="msgTrashFolderPopup"
                              type="folder"
                              mode="filing"
                              showFileHereLabel="true"
-                             fileHereLabel="&filemessageschoosethis.label;"/>
+                             oncommand="folderPickerChange(event);"/>
                 </menulist>
               </row>
               <row align="center">
@@ -271,16 +272,18 @@
           </grid>
         </radiogroup>
       </hbox>
-      <!-- This button should have identical attributes to the
-           server.popAdvancedButton except the hidefor attribute. -->
-      <button label="&advancedButton.label;"
-              accesskey="&advancedButton.accesskey;"
-              oncommand="onAdvanced();"
-              wsm_persist="true"
-              id="server.imapAdvancedButton"
-              prefstring="mail.server.%serverkey%.advanced.disable"
-              hidefor="pop3,nntp,movemail"/>
-    </hbox>
+      <hbox pack="end">
+        <!-- This button should have identical attributes to the
+             server.popAdvancedButton except the hidefor attribute. -->
+        <button label="&advancedButton.label;"
+                accesskey="&advancedButton.accesskey;"
+                oncommand="onAdvanced();"
+                wsm_persist="true"
+                id="server.imapAdvancedButton"
+                prefstring="mail.server.%serverkey%.advanced.disable"
+                hidefor="pop3,nntp,movemail"/>
+      </hbox>
+    </vbox>
 
     <!-- Advanced IMAP settings -->
     <hbox flex="1" hidefor="pop3,nntp,movemail" hidden="true">

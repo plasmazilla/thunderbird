@@ -10,8 +10,6 @@
   %brandDTD;
   <!ENTITY % prefCertsDTD SYSTEM "chrome://pippki/locale/pref-certs.dtd">
   %prefCertsDTD;
-  <!ENTITY % prefValidationDTD SYSTEM "chrome://pippki/locale/pref-validation.dtd">
-  %prefValidationDTD;
   <!ENTITY % prefSslDTD SYSTEM "chrome://pippki/locale/pref-ssl.dtd">
   %prefSslDTD;
 ]>

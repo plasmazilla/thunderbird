@@ -9,9 +9,7 @@
 #include "nsIDOMValidityState.h"
 #include "nsIConstraintValidation.h"
 #include "nsWrapperCache.h"
-
-class JSObject;
-struct JSContext;
+#include "js/TypeDecls.h"
 
 namespace mozilla {
 namespace dom {
@@ -61,6 +59,10 @@ public:
   bool StepMismatch() const
   {
     return GetValidityState(nsIConstraintValidation::VALIDITY_STATE_STEP_MISMATCH);
+  }
+  bool BadInput() const
+  {
+    return GetValidityState(nsIConstraintValidation::VALIDITY_STATE_BAD_INPUT);
   }
   bool CustomError() const
   {

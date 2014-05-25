@@ -12,15 +12,21 @@ class GeckoInstance(object):
 
     required_prefs = {"marionette.defaultPrefs.enabled": True,
                       "marionette.defaultPrefs.port": 2828,
+                      "marionette.logging": True,
                       "startup.homepage_welcome_url": "about:blank",
+                      "browser.shell.checkDefaultBrowser": False,
+                      "browser.startup.page": 0,
+                      "browser.sessionstore.resume_from_crash": False,
                       "browser.warnOnQuit": False}
 
-    def __init__(self, host, port, bin, profile):
+    def __init__(self, host, port, bin, profile, app_args=None, symbols_path=None):
         self.marionette_host = host
         self.marionette_port = port
         self.bin = bin
         self.profile = profile
+        self.app_args = app_args or []
         self.runner = None
+        self.symbols_path = symbols_path
 
     def start(self):
         profile_path = self.profile
@@ -35,14 +41,26 @@ class GeckoInstance(object):
         self.gecko_log = os.path.abspath('gecko.log')
         if os.access(self.gecko_log, os.F_OK):
             os.remove(self.gecko_log)
+
+        env = os.environ.copy()
+
+        # environment variables needed for crashreporting
+        # https://developer.mozilla.org/docs/Environment_variables_affecting_crash_reporting
+        env.update({ 'MOZ_CRASHREPORTER': '1',
+                     'MOZ_CRASHREPORTER_NO_REPORT': '1', })
         self.runner = runner_class.create(
             binary=self.bin,
             profile_args=profile_args,
-            cmdargs=['-no-remote', '-marionette'],
+            cmdargs=['-no-remote', '-marionette'] + self.app_args,
+            env=env,
+            symbols_path=self.symbols_path,
             kp_kwargs={
                 'processOutputLine': [NullOutput()],
                 'logfile': self.gecko_log})
         self.runner.start()
+
+    def check_for_crashes(self):
+        return self.runner.check_for_crashes()
 
     def close(self):
         self.runner.stop()
@@ -53,7 +71,8 @@ class B2GDesktopInstance(GeckoInstance):
 
     required_prefs = {"focusmanager.testmode": True}
 
-apps = {'b2gdesktop': B2GDesktopInstance}
+apps = {'b2g': B2GDesktopInstance,
+        'b2gdesktop': B2GDesktopInstance}
 
 
 class CloneRunner(Runner):

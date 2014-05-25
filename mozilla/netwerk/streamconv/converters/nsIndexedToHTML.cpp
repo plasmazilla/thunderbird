@@ -4,21 +4,25 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsIndexedToHTML.h"
+#include "mozilla/dom/EncodingUtils.h"
 #include "nsNetUtil.h"
 #include "netCore.h"
 #include "nsStringStream.h"
 #include "nsIFileURL.h"
 #include "nsEscape.h"
 #include "nsIDirIndex.h"
-#include "prtime.h"
 #include "nsDateTimeFormatCID.h"
 #include "nsURLHelper.h"
-#include "nsCRT.h"
 #include "nsIPlatformCharset.h"
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
 #include "nsIPrefLocalizedString.h"
 #include "nsIChromeRegistry.h"
+#include "nsICharsetConverterManager.h"
+#include "nsIDateTimeFormat.h"
+#include "nsIStringBundle.h"
+#include "nsITextToSubURI.h"
+#include "nsXPIDLString.h"
 #include <algorithm>
 
 NS_IMPL_ISUPPORTS4(nsIndexedToHTML,
@@ -42,7 +46,7 @@ static void AppendNonAsciiToNCR(const nsAString& in, nsAFlatString& out)
       nsAutoString hex;
       hex.AppendInt(*start++, 16);
       out.Append(hex);
-      out.Append((PRUnichar)';');
+      out.Append((char16_t)';');
     }
   }
 }
@@ -529,13 +533,13 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
                                     unEscapeSpec.Length()));
 
     nsXPIDLString title;
-    const PRUnichar* formatTitle[] = {
+    const char16_t* formatTitle[] = {
         htmlEscSpec.get()
     };
 
-    rv = mBundle->FormatStringFromName(NS_LITERAL_STRING("DirTitle").get(),
+    rv = mBundle->FormatStringFromName(MOZ_UTF16("DirTitle"),
                                        formatTitle,
-                                       sizeof(formatTitle)/sizeof(PRUnichar*),
+                                       sizeof(formatTitle)/sizeof(char16_t*),
                                        getter_Copies(title));
     if (NS_FAILED(rv)) return rv;
 
@@ -586,13 +590,13 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
     buffer.Append(direction);
     buffer.AppendLiteral("\">\n<h1>");
     
-    const PRUnichar* formatHeading[] = {
+    const char16_t* formatHeading[] = {
         htmlEscSpec.get()
     };
 
-    rv = mBundle->FormatStringFromName(NS_LITERAL_STRING("DirTitle").get(),
+    rv = mBundle->FormatStringFromName(MOZ_UTF16("DirTitle"),
                                        formatHeading,
-                                       sizeof(formatHeading)/sizeof(PRUnichar*),
+                                       sizeof(formatHeading)/sizeof(char16_t*),
                                        getter_Copies(title));
     if (NS_FAILED(rv)) return rv;
     
@@ -601,7 +605,7 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
 
     if (!parentStr.IsEmpty()) {
         nsXPIDLString parentText;
-        rv = mBundle->GetStringFromName(NS_LITERAL_STRING("DirGoUp").get(),
+        rv = mBundle->GetStringFromName(MOZ_UTF16("DirGoUp"),
                                         getter_Copies(parentText));
         if (NS_FAILED(rv)) return rv;
 
@@ -618,7 +622,7 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
 
     if (isSchemeFile) {
         nsXPIDLString showHiddenText;
-        rv = mBundle->GetStringFromName(NS_LITERAL_STRING("ShowHidden").get(),
+        rv = mBundle->GetStringFromName(MOZ_UTF16("ShowHidden"),
                                         getter_Copies(showHiddenText));
         if (NS_FAILED(rv)) return rv;
 
@@ -635,21 +639,21 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
                          "  <tr>\n"
                          "   <th>");
 
-    rv = mBundle->GetStringFromName(NS_LITERAL_STRING("DirColName").get(),
+    rv = mBundle->GetStringFromName(MOZ_UTF16("DirColName"),
                                     getter_Copies(columnText));
     if (NS_FAILED(rv)) return rv;
     AppendNonAsciiToNCR(columnText, buffer);
     buffer.AppendLiteral("</th>\n"
                          "   <th>");
 
-    rv = mBundle->GetStringFromName(NS_LITERAL_STRING("DirColSize").get(),
+    rv = mBundle->GetStringFromName(MOZ_UTF16("DirColSize"),
                                     getter_Copies(columnText));
     if (NS_FAILED(rv)) return rv;
     AppendNonAsciiToNCR(columnText, buffer);
     buffer.AppendLiteral("</th>\n"
                          "   <th colspan=\"2\">");
 
-    rv = mBundle->GetStringFromName(NS_LITERAL_STRING("DirColMTime").get(),
+    rv = mBundle->GetStringFromName(MOZ_UTF16("DirColMTime"),
                                     getter_Copies(columnText));
     if (NS_FAILED(rv)) return rv;
     AppendNonAsciiToNCR(columnText, buffer);
@@ -694,7 +698,7 @@ nsIndexedToHTML::FormatInputStream(nsIRequest* aRequest, nsISupports *aContext, 
                                                           getter_AddRefs(mUnicodeEncoder));
         if (NS_SUCCEEDED(rv))
             rv = mUnicodeEncoder->SetOutputErrorBehavior(nsIUnicodeEncoder::kOnError_Replace, 
-                                                       nullptr, (PRUnichar)'?');
+                                                       nullptr, (char16_t)'?');
       }
     }
 
@@ -706,7 +710,7 @@ nsIndexedToHTML::FormatInputStream(nsIRequest* aRequest, nsISupports *aContext, 
       rv = mUnicodeEncoder->GetMaxLength(PromiseFlatString(aBuffer).get(), 
                                          unicharLength, &dstLength);
       if (NS_SUCCEEDED(rv)) {
-        buffer = (char *) nsMemory::Alloc(dstLength);
+        buffer = (char *) moz_malloc(dstLength);
         NS_ENSURE_TRUE(buffer, NS_ERROR_OUT_OF_MEMORY);
 
         rv = mUnicodeEncoder->Convert(PromiseFlatString(aBuffer).get(), &unicharLength, 
@@ -769,7 +773,7 @@ nsIndexedToHTML::OnIndexAvailable(nsIRequest *aRequest,
 
     nsXPIDLString description;
     aIndex->GetDescription(getter_Copies(description));
-    if (description.First() == PRUnichar('.'))
+    if (description.First() == char16_t('.'))
         pushBuffer.AppendLiteral(" class=\"hidden-object\"");
 
     pushBuffer.AppendLiteral(">\n <td sortable-data=\"");
@@ -790,7 +794,7 @@ nsIndexedToHTML::OnIndexAvailable(nsIRequest *aRequest,
             pushBuffer.AppendInt(2);
             break;
     }
-    PRUnichar* escaped = nsEscapeHTML2(description.get(), description.Length());
+    char16_t* escaped = nsEscapeHTML2(description.get(), description.Length());
     pushBuffer.Append(escaped);
 
     pushBuffer.AppendLiteral("\"><a class=\"");
@@ -848,30 +852,20 @@ nsIndexedToHTML::OnIndexAvailable(nsIRequest *aRequest,
     nsXPIDLCString loc;
     aIndex->GetLocation(getter_Copies(loc));
 
-    if (!mTextToSubURI) {
-        mTextToSubURI = do_GetService(NS_ITEXTTOSUBURI_CONTRACTID, &rv);
-        if (NS_FAILED(rv)) return rv;
-    }
-
     nsXPIDLCString encoding;
     rv = mParser->GetEncoding(getter_Copies(encoding));
     if (NS_FAILED(rv)) return rv;
 
-    nsXPIDLString unEscapeSpec;
-    rv = mTextToSubURI->UnEscapeAndConvert(encoding, loc,
-                                           getter_Copies(unEscapeSpec));
-    if (NS_FAILED(rv)) return rv;
+    // Don't byte-to-Unicode conversion here, it is lossy.
+    loc.SetLength(nsUnescapeCount(loc.BeginWriting()));
 
     // need to escape links
-    nsAutoCString escapeBuf;
-
-    NS_ConvertUTF16toUTF8 utf8UnEscapeSpec(unEscapeSpec);
+    nsAutoCString locEscaped;
 
     // Adding trailing slash helps to recognize whether the URL points to a file
     // or a directory (bug #214405).
-    if ((type == nsIDirIndex::TYPE_DIRECTORY) &&
-        (utf8UnEscapeSpec.Last() != '/')) {
-        utf8UnEscapeSpec.Append('/');
+    if ((type == nsIDirIndex::TYPE_DIRECTORY) && (loc.Last() != '/')) {
+        loc.Append('/');
     }
 
     // now minimally re-escape the location...
@@ -880,7 +874,7 @@ nsIndexedToHTML::OnIndexAvailable(nsIRequest *aRequest,
     // if so, and if the location indeed appears to be a valid URI, then go
     // ahead and treat it like one.
     if (mExpectAbsLoc &&
-        NS_SUCCEEDED(net_ExtractURLScheme(utf8UnEscapeSpec, nullptr, nullptr, nullptr))) {
+        NS_SUCCEEDED(net_ExtractURLScheme(loc, nullptr, nullptr, nullptr))) {
         // escape as absolute 
         escFlags = esc_Forced | esc_OnlyASCII | esc_AlwaysCopy | esc_Minimal;
     }
@@ -891,12 +885,37 @@ nsIndexedToHTML::OnIndexAvailable(nsIRequest *aRequest,
         // that directory will be incorrect
         escFlags = esc_Forced | esc_OnlyASCII | esc_AlwaysCopy | esc_FileBaseName | esc_Colon | esc_Directory;
     }
-    NS_EscapeURL(utf8UnEscapeSpec.get(), utf8UnEscapeSpec.Length(), escFlags, escapeBuf);
+    NS_EscapeURL(loc.get(), loc.Length(), escFlags, locEscaped);
     // esc_Directory does not escape the semicolons, so if a filename
     // contains semicolons we need to manually escape them.
     // This replacement should be removed in bug #473280
-    escapeBuf.ReplaceSubstring(";", "%3b");
-    NS_ConvertUTF8toUTF16 utf16URI(escapeBuf);
+    locEscaped.ReplaceSubstring(";", "%3b");
+    nsAutoString utf16URI;
+    if (encoding.EqualsLiteral("UTF-8")) {
+        // Try to convert non-ASCII bytes to Unicode using UTF-8 decoder.
+        nsCOMPtr<nsIUnicodeDecoder> decoder =
+            mozilla::dom::EncodingUtils::DecoderForEncoding("UTF-8");
+        decoder->SetInputErrorBehavior(nsIUnicodeDecoder::kOnError_Signal);
+
+        int32_t len = locEscaped.Length();
+        int32_t outlen = 0;
+        rv = decoder->GetMaxLength(locEscaped.get(), len, &outlen);
+        if (NS_FAILED(rv)) {
+            return rv;
+        }
+        nsAutoArrayPtr<char16_t> outbuf(new char16_t[outlen]);
+        rv = decoder->Convert(locEscaped.get(), &len, outbuf, &outlen);
+        // Use the result only if the sequence is valid as UTF-8.
+        if (rv == NS_OK) {
+            utf16URI.Append(outbuf, outlen);
+        }
+    }
+    if (utf16URI.IsEmpty()) {
+        // Escape all non-ASCII bytes to preserve the raw value.
+        nsAutoCString outstr;
+        NS_EscapeURL(locEscaped, esc_AlwaysCopy | esc_OnlyNonASCII, outstr);
+        CopyASCIItoUTF16(outstr, utf16URI);
+    }
     nsString htmlEscapedURL;
     htmlEscapedURL.Adopt(nsEscapeHTML2(utf16URI.get(), utf16URI.Length()));
     pushBuffer.Append(htmlEscapedURL);
@@ -905,12 +924,12 @@ nsIndexedToHTML::OnIndexAvailable(nsIRequest *aRequest,
 
     if (type == nsIDirIndex::TYPE_FILE || type == nsIDirIndex::TYPE_UNKNOWN) {
         pushBuffer.AppendLiteral("<img src=\"moz-icon://");
-        int32_t lastDot = escapeBuf.RFindChar('.');
+        int32_t lastDot = locEscaped.RFindChar('.');
         if (lastDot != kNotFound) {
-            escapeBuf.Cut(0, lastDot);
-            NS_ConvertUTF8toUTF16 utf16EscapeBuf(escapeBuf);
+            locEscaped.Cut(0, lastDot);
+            NS_ConvertUTF8toUTF16 utf16LocEscaped(locEscaped);
             nsString htmlFileExt;
-            htmlFileExt.Adopt(nsEscapeHTML2(utf16EscapeBuf.get(), utf16EscapeBuf.Length()));
+            htmlFileExt.Adopt(nsEscapeHTML2(utf16LocEscaped.get(), utf16LocEscaped.Length()));
             pushBuffer.Append(htmlFileExt);
         } else {
             pushBuffer.AppendLiteral("unknown");
@@ -918,7 +937,7 @@ nsIndexedToHTML::OnIndexAvailable(nsIRequest *aRequest,
         pushBuffer.AppendLiteral("?size=16\" alt=\"");
 
         nsXPIDLString altText;
-        rv = mBundle->GetStringFromName(NS_LITERAL_STRING("DirFileLabel").get(),
+        rv = mBundle->GetStringFromName(MOZ_UTF16("DirFileLabel"),
                                         getter_Copies(altText));
         if (NS_FAILED(rv)) return rv;
         AppendNonAsciiToNCR(altText, pushBuffer);
@@ -983,7 +1002,7 @@ nsIndexedToHTML::OnInformationAvailable(nsIRequest *aRequest,
                                         nsISupports *aCtxt,
                                         const nsAString& aInfo) {
     nsAutoString pushBuffer;
-    PRUnichar* escaped = nsEscapeHTML2(PromiseFlatString(aInfo).get());
+    char16_t* escaped = nsEscapeHTML2(PromiseFlatString(aInfo).get());
     if (!escaped)
         return NS_ERROR_OUT_OF_MEMORY;
     pushBuffer.AppendLiteral("<tr>\n <td>");

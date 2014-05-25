@@ -11,6 +11,7 @@
 
 #include "ASpdySession.h"
 #include "mozilla/Attributes.h"
+#include "nsAHttpConnection.h"
 #include "nsClassHashtable.h"
 #include "nsDataHashtable.h"
 #include "nsDeque.h"
@@ -21,6 +22,7 @@ class nsISocketTransport;
 
 namespace mozilla { namespace net {
 
+class SpdyPushedStream3;
 class SpdyStream3;
 
 class SpdySession3 MOZ_FINAL : public ASpdySession
@@ -29,7 +31,7 @@ class SpdySession3 MOZ_FINAL : public ASpdySession
                              , public nsAHttpSegmentWriter
 {
 public:
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSAHTTPTRANSACTION
   NS_DECL_NSAHTTPCONNECTION(mConnection)
   NS_DECL_NSAHTTPSEGMENTREADER
@@ -42,8 +44,11 @@ public:
   bool CanReuse() { return !mShouldGoAway && !mClosed; }
   bool RoomForMoreStreams();
 
-  // When the connection is active this is called every 1 second
-  void ReadTimeoutTick(PRIntervalTime now);
+  // When the connection is active this is called up to once every 1 second
+  // return the interval (in seconds) that the connection next wants to
+  // have this invoked. It might happen sooner depending on the needs of
+  // other connections.
+  uint32_t  ReadTimeoutTick(PRIntervalTime now);
 
   // Idle time represents time since "goodput".. e.g. a data or header frame
   PRIntervalTime IdleTime();

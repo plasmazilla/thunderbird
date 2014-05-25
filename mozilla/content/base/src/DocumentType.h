@@ -29,7 +29,7 @@ class DocumentTypeForward : public nsGenericDOMDataNode,
                             public nsIDOMDocumentType
 {
 public:
-  DocumentTypeForward(already_AddRefed<nsINodeInfo> aNodeInfo)
+  DocumentTypeForward(already_AddRefed<nsINodeInfo>& aNodeInfo)
     : nsGenericDOMDataNode(aNodeInfo)
   {
   }
@@ -38,10 +38,10 @@ public:
   NS_FORWARD_NSIDOMNODE_TO_NSINODE
 };
 
-class DocumentType : public DocumentTypeForward
+class DocumentType MOZ_FINAL : public DocumentTypeForward
 {
 public:
-  DocumentType(already_AddRefed<nsINodeInfo> aNodeInfo,
+  DocumentType(already_AddRefed<nsINodeInfo>& aNodeInfo,
                const nsAString& aPublicId,
                const nsAString& aSystemId,
                const nsAString& aInternalSubset);

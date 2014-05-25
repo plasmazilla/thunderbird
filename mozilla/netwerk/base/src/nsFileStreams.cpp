@@ -9,9 +9,6 @@
 #include <unistd.h>
 #elif defined(XP_WIN)
 #include <windows.h>
-#elif defined(XP_OS2)
-#define INCL_DOSERRORS
-#include <os2.h>
 #else
 // XXX add necessary include file for ftruncate (or equivalent)
 #endif
@@ -19,16 +16,11 @@
 #include "private/pprio.h"
 
 #include "nsFileStreams.h"
-#include "nsXPIDLString.h"
-#include "prerror.h"
-#include "nsCRT.h"
 #include "nsIFile.h"
-#include "nsDirectoryIndexStream.h"
-#include "nsMimeTypes.h"
 #include "nsReadLine.h"
-#include "nsNetUtil.h"
 #include "nsIClassInfoImpl.h"
 #include "mozilla/ipc/InputStreamUtils.h"
+#include "nsNetCID.h"
 
 #define NS_NO_INPUT_BUFFERING 1 // see http://bugzilla.mozilla.org/show_bug.cgi?id=41067
 
@@ -51,9 +43,9 @@ nsFileStreamBase::~nsFileStreamBase()
     Close();
 }
 
-NS_IMPL_THREADSAFE_ISUPPORTS2(nsFileStreamBase,
-                              nsISeekableStream,
-                              nsIFileMetadata)
+NS_IMPL_ISUPPORTS2(nsFileStreamBase,
+                   nsISeekableStream,
+                   nsIFileMetadata)
 
 NS_IMETHODIMP
 nsFileStreamBase::Seek(int32_t whence, int64_t offset)
@@ -97,7 +89,7 @@ nsFileStreamBase::SetEOF()
     if (mFD == nullptr)
         return NS_BASE_STREAM_CLOSED;
 
-#if defined(XP_UNIX) || defined(XP_OS2) || defined(XP_BEOS)
+#if defined(XP_UNIX) || defined(XP_BEOS)
     // Some system calls require an EOF offset.
     int64_t offset;
     rv = Tell(&offset);
@@ -112,11 +104,6 @@ nsFileStreamBase::SetEOF()
 #elif defined(XP_WIN)
     if (!SetEndOfFile((HANDLE) PR_FileDesc2NativeHandle(mFD))) {
         NS_ERROR("SetEndOfFile failed");
-        return NS_ERROR_FAILURE;
-    }
-#elif defined(XP_OS2)
-    if (DosSetFileSize((HFILE) PR_FileDesc2NativeHandle(mFD), offset) != NO_ERROR) {
-        NS_ERROR("DosSetFileSize failed");
         return NS_ERROR_FAILURE;
     }
 #else
@@ -370,7 +357,7 @@ nsFileStreamBase::DoPendingOpen()
 NS_IMPL_ADDREF_INHERITED(nsFileInputStream, nsFileStreamBase)
 NS_IMPL_RELEASE_INHERITED(nsFileInputStream, nsFileStreamBase)
 
-NS_IMPL_CLASSINFO(nsFileInputStream, NULL, nsIClassInfo::THREADSAFE,
+NS_IMPL_CLASSINFO(nsFileInputStream, nullptr, nsIClassInfo::THREADSAFE,
                   NS_LOCALFILEINPUTSTREAM_CID)
 
 NS_INTERFACE_MAP_BEGIN(nsFileInputStream)
@@ -621,7 +608,7 @@ nsFileInputStream::Deserialize(const InputStreamParams& aParams)
 NS_IMPL_ADDREF_INHERITED(nsPartialFileInputStream, nsFileStreamBase)
 NS_IMPL_RELEASE_INHERITED(nsPartialFileInputStream, nsFileStreamBase)
 
-NS_IMPL_CLASSINFO(nsPartialFileInputStream, NULL, nsIClassInfo::THREADSAFE,
+NS_IMPL_CLASSINFO(nsPartialFileInputStream, nullptr, nsIClassInfo::THREADSAFE,
                   NS_PARTIALLOCALFILEINPUTSTREAM_CID)
 
 // Don't forward to nsFileInputStream as we don't want to QI to
@@ -837,23 +824,23 @@ nsFileOutputStream::Init(nsIFile* file, int32_t ioFlags, int32_t perm,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// nsSafeFileOutputStream
+// nsAtomicFileOutputStream
 
-NS_IMPL_ISUPPORTS_INHERITED3(nsSafeFileOutputStream,
+NS_IMPL_ISUPPORTS_INHERITED3(nsAtomicFileOutputStream,
                              nsFileOutputStream,
                              nsISafeOutputStream,
                              nsIOutputStream,
                              nsIFileOutputStream)
 
 NS_IMETHODIMP
-nsSafeFileOutputStream::Init(nsIFile* file, int32_t ioFlags, int32_t perm,
+nsAtomicFileOutputStream::Init(nsIFile* file, int32_t ioFlags, int32_t perm,
                              int32_t behaviorFlags)
 {
     return nsFileOutputStream::Init(file, ioFlags, perm, behaviorFlags);
 }
 
 nsresult
-nsSafeFileOutputStream::DoOpen()
+nsAtomicFileOutputStream::DoOpen()
 {
     // Make sure mOpenParams.localFile will be empty if we bail somewhere in
     // this function
@@ -901,7 +888,7 @@ nsSafeFileOutputStream::DoOpen()
 }
 
 NS_IMETHODIMP
-nsSafeFileOutputStream::Close()
+nsAtomicFileOutputStream::Close()
 {
     nsresult rv = nsFileOutputStream::Close();
 
@@ -916,9 +903,8 @@ nsSafeFileOutputStream::Close()
 }
 
 NS_IMETHODIMP
-nsSafeFileOutputStream::Finish()
+nsAtomicFileOutputStream::Finish()
 {
-    Flush();
     nsresult rv = nsFileOutputStream::Close();
 
     // if there is no temp file, don't try to move it over the original target.
@@ -935,7 +921,7 @@ nsSafeFileOutputStream::Finish()
             // temp file we gave out was actually a reference to the target file.
             // since we succeeded in writing to the temp file (and hence succeeded
             // in writing to the target file), there is nothing more to do.
-#ifdef DEBUG      
+#ifdef DEBUG
             bool equal;
             if (NS_FAILED(mTargetFile->Equals(mTempFile, &equal)) || !equal)
                 NS_ERROR("mTempFile not equal to mTargetFile");
@@ -964,7 +950,7 @@ nsSafeFileOutputStream::Finish()
 }
 
 NS_IMETHODIMP
-nsSafeFileOutputStream::Write(const char *buf, uint32_t count, uint32_t *result)
+nsAtomicFileOutputStream::Write(const char *buf, uint32_t count, uint32_t *result)
 {
     nsresult rv = nsFileOutputStream::Write(buf, count, result);
     if (NS_SUCCEEDED(mWriteResult)) {
@@ -975,8 +961,18 @@ nsSafeFileOutputStream::Write(const char *buf, uint32_t count, uint32_t *result)
 
         if (NS_FAILED(mWriteResult) && count > 0)
             NS_WARNING("writing to output stream failed! data may be lost");
-    } 
+    }
     return rv;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// nsSafeFileOutputStream
+
+NS_IMETHODIMP
+nsSafeFileOutputStream::Finish()
+{
+    (void) Flush();
+    return nsAtomicFileOutputStream::Finish();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

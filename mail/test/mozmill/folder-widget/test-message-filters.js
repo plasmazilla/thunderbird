@@ -9,7 +9,7 @@ var MODULE_NAME = "test-message-filters";
 
 var RELATIVE_ROOT = "../shared-modules";
 var MODULE_REQUIRES = ["folder-display-helpers", "window-helpers",
-                       "test-nntp-helpers", "address-book-helpers",
+                       "nntp-helpers", "address-book-helpers",
                        "prompt-helpers"];
 
 var elib = {};
@@ -18,16 +18,9 @@ var folderA;
 
 function setupModule(module)
 {
-  let fdh = collector.getModule("folder-display-helpers");
-  fdh.installInto(module);
-  let wh = collector.getModule("window-helpers");
-  wh.installInto(module);
-  let nh = collector.getModule("test-nntp-helpers");
-  nh.installInto(module);
-  let abh = collector.getModule("address-book-helpers");
-  abh.installInto(module);
-  let ph = collector.getModule("prompt-helpers");
-  ph.installInto(module);
+  for (let lib of MODULE_REQUIRES) {
+    collector.getModule(lib).installInto(module);
+  }
 
   setupNNTPDaemon();
 
@@ -49,14 +42,6 @@ function setupModule(module)
   }
 }
 
-function assert_equals(a, b, comment)
-{
-  if (!comment)
-    comment = "a != b";
-  if (a != b)
-    throw new Error(comment + ": '"+ a + "' != '" + b + "'.");
-}
-
 /*
  * Test that the message filter list shows newsgroup servers.
  */
@@ -69,6 +54,7 @@ function test_message_filter_shows_newsgroup_server()
   plan_for_new_window("mailnews:filterlist");
   mc.menus.Tools.filtersCmd.click();
   let filterc = wait_for_new_window("mailnews:filterlist");
+  wait_for_window_focused(filterc.window);
 
   popup = filterc.eid("serverMenuPopup");
   filterc.assertNode(popup);
@@ -102,6 +88,7 @@ function test_message_filter_shows_newsgroup_server()
 function test_customize_toolbar_doesnt_double_get_mail_menu()
 {
   be_in_folder(folderA);
+  wait_for_window_focused(mc.window);
 
   /**
    * Get the getAllNewMessages menu and check the number of items.
@@ -127,8 +114,10 @@ function test_customize_toolbar_doesnt_double_get_mail_menu()
   // Open the customization dialog.
   mc.rightClick(mc.eid("mail-bar3"));
   mc.click(mc.eid("CustomizeMailToolbar"));
+  close_popup(mc, mc.eid("toolbar-context-menu"));
 
   let customc = wait_for_new_window("mailnews:customizeToolbar");
+  wait_for_window_focused(customc.window);
   plan_for_window_close(customc);
   customc.click(customc.eid("donebutton"));
   wait_for_window_close();

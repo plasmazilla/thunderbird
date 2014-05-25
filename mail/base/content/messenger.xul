@@ -9,6 +9,7 @@
 <?xml-stylesheet href="chrome://gloda/content/glodacomplete.css" type="text/css"?>
 <?xml-stylesheet href="chrome://messenger/content/tabmail.css" type="text/css"?>
 <?xml-stylesheet href="chrome://messenger/skin/tabmail.css" type="text/css"?>
+<?xml-stylesheet href="chrome://messenger/skin/messengerLWTheme.css" type="text/css"?>
 
 <?xul-overlay href="chrome://communicator/content/utilityOverlay.xul"?>
 <?xul-overlay href="chrome://messenger/content/msgHdrViewOverlay.xul"?>
@@ -19,6 +20,9 @@
 <?xul-overlay href="chrome://messenger/content/specialTabs.xul"?>
 <?xul-overlay href="chrome://messenger/content/webSearchTab.xul"?>
 <?xul-overlay href="chrome://messenger/content/quickFilterBar.xul"?>
+#ifdef XP_MACOSX
+<?xul-overlay href="chrome://messenger/content/macMessengerOverlay.xul"?>
+#endif
 
 <!DOCTYPE window [
 <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd" >
@@ -43,6 +47,7 @@
         title="&titledefault.label;@PRE_RELEASE_SUFFIX@"
         titlemodifier="&titledefault.label;@PRE_RELEASE_SUFFIX@"
         titlemenuseparator="&titleSeparator.label;"
+        defaultTabTitle="&defaultTabTitle.label;"
         onload="OnLoadMessenger()"
         onunload="OnUnloadMessenger()"
         screenX="10" screenY="10"
@@ -61,7 +66,6 @@
 </stringbundleset>
 
 <script type="application/javascript" src="chrome://global/content/globalOverlay.js"/>
-<script type="application/javascript" src="chrome://messenger/content/widgetglue.js"/>
 <script type="application/javascript" src="chrome://messenger/content/commandglue.js"/>
 <script type="application/javascript" src="chrome://messenger/content/shareglue.js"/>
 <script type="application/javascript" src="chrome://messenger/content/msgViewNavigation.js"/>
@@ -132,6 +136,8 @@
 <menupopup id="attachment-toolbar-context-menu"/>
 <menupopup id="copyUrlPopup"/>
 <menupopup id="toolbar-context-menu"/>
+<menupopup id="remoteContentOptions"/>
+<menupopup id="phishingOptions"/>
 
 <tooltip id="attachmentListTooltip"/>
 
@@ -145,8 +151,8 @@
               label="&AddDirectlyToAddressBook.label;"
               accesskey="&AddDirectlyToAddressBook.accesskey;"
               oncommand="AddContact(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'))"/>
-    <menuitem id="editContactItem" label="&EditContact.label;" hidden="true"
-              accesskey="&EditContact.accesskey;"
+    <menuitem id="editContactItem" label="&EditContact1.label;" hidden="true"
+              accesskey="&EditContact1.accesskey;"
               oncommand="EditContact(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'))"/>
     <menuitem id="viewContactItem" label="&ViewContact.label;" hidden="true"
               accesskey="&ViewContact.accesskey;"
@@ -246,7 +252,7 @@
 <tooltip id="tabmail-tabs-tooltip" onpopupshowing="document.getElementById('tabmail').createTooltip(event);"/>
 <tooltip id="folderpopup" class="folderSummaryPopup"/>
 
-<tooltip id="aHTMLTooltip" onpopupshowing="return FillInHTMLTooltip(document.tooltipNode);"/>
+<tooltip id="aHTMLTooltip" page="true"/>
 <tooltip id="tabmail-tabs-tooltip" onpopupshowing="document.getElementById('tabmail').createTooltip(event);"/>
 
 #ifdef CAN_DRAW_IN_TITLEBAR
@@ -411,73 +417,73 @@
                           keepcurrentinview="true"
                           disableKeyNavigation="true"
                           context="mailContext"
-                          onkeypress="ThreadPaneKeyPress(event);"
+                          onkeydown="ThreadPaneKeyDown(event);"
                           onselect="ThreadPaneSelectionChanged();"
                           >
-                      <treecols id="threadCols" pickertooltiptext="&columnChooser.tooltip;">
+                      <treecols id="threadCols" pickertooltiptext="&columnChooser2.tooltip;">
                         <treecol id="threadCol" fixed="true" cycler="true"
                                  class="treecol-image threadColumnHeader" currentView="unthreaded"
-                                 label="&threadColumn.label;" tooltiptext="&threadColumn.tooltip;"/>
+                                 label="&threadColumn.label;" tooltiptext="&threadColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="flaggedCol" fixed="true" cycler="true"
                                  class="treecol-image flagColumnHeader"
-                                 label="&starredColumn.label;" tooltiptext="&starredColumn.tooltip;"/>
+                                 label="&starredColumn.label;" tooltiptext="&starredColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="attachmentCol" fixed="true"
                                  class="treecol-image attachmentColumnHeader"
-                                 label="&attachmentColumn.label;" tooltiptext="&attachmentColumn.tooltip;"/>
+                                 label="&attachmentColumn.label;" tooltiptext="&attachmentColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="subjectCol" persist="width" flex="7" ignoreincolumnpicker="true"
-                                 label="&subjectColumn.label;" tooltiptext="&subjectColumn.tooltip;"/>
+                                 label="&subjectColumn.label;" tooltiptext="&subjectColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="unreadButtonColHeader" fixed="true" cycler="true"
                                  class="treecol-image readColumnHeader"
-                                 label="&readColumn.label;" tooltiptext="&readColumn.tooltip;"/>
+                                 label="&readColumn.label;" tooltiptext="&readColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="senderCol" persist="width" flex="4"
                                  hidden="false" swappedhidden="true"
-                                 label="&fromColumn.label;" tooltiptext="&fromColumn.tooltip;"/>
+                                 label="&fromColumn.label;" tooltiptext="&fromColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="recipientCol" persist="width" flex="4"
                                  hidden="true" swappedhidden="false"
-                                 label="&recipientColumn.label;" tooltiptext="&recipientColumn.tooltip;"/>
+                                 label="&recipientColumn.label;" tooltiptext="&recipientColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="junkStatusCol" persist="width" fixed="true" cycler="true"
                                  class="treecol-image junkStatusHeader"
-                                 label="&junkStatusColumn.label;" tooltiptext="&junkStatusColumn.tooltip;"/>
+                                 label="&junkStatusColumn.label;" tooltiptext="&junkStatusColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="receivedCol" persist="width temphidden" flex="2" hidden="true"
-                                 label="&receivedColumn.label;" tooltiptext="&receivedColumn.tooltip;"/>
+                                 label="&receivedColumn.label;" tooltiptext="&receivedColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="dateCol" persist="width" flex="2"
-                                 label="&dateColumn.label;" tooltiptext="&dateColumn.tooltip;"/>
+                                 label="&dateColumn.label;" tooltiptext="&dateColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="statusCol" persist="width" flex="1" hidden="true"
-                                 label="&statusColumn.label;" tooltiptext="&statusColumn.tooltip;"/>
+                                 label="&statusColumn.label;" tooltiptext="&statusColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="sizeCol" persist="width" flex="1" hidden="true"
-                                 label="&sizeColumn.label;" tooltiptext="&sizeColumn.tooltip;"/>
+                                 label="&sizeColumn.label;" tooltiptext="&sizeColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="tagsCol" persist="width" flex="1" hidden="true"
-                                 label="&tagsColumn.label;" tooltiptext="&tagsColumn.tooltip;"/>
+                                 label="&tagsColumn.label;" tooltiptext="&tagsColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="accountCol" persist="width" flex="1" hidden="true"
-                                 label="&accountColumn.label;" tooltiptext="&accountColumn.tooltip;"/>
+                                 label="&accountColumn.label;" tooltiptext="&accountColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="priorityCol" persist="width" flex="1" hidden="true"
-                                 label="&priorityColumn.label;" tooltiptext="&priorityColumn.tooltip;"/>
+                                 label="&priorityColumn.label;" tooltiptext="&priorityColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="unreadCol" persist="width" flex="1" hidden="true"
-                                 label="&unreadColumn.label;" tooltiptext="&unreadColumn.tooltip;"/>
+                                 label="&unreadColumn.label;" tooltiptext="&unreadColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="totalCol" persist="width" flex="1" hidden="true"
-                                 label="&totalColumn.label;" tooltiptext="&totalColumn.tooltip;"/>
+                                 label="&totalColumn.label;" tooltiptext="&totalColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="locationCol" persist="width" flex="1" hidden="true"
-                                 label="&locationColumn.label;" tooltiptext="&locationColumn.tooltip;"/>
+                                 label="&locationColumn.label;" tooltiptext="&locationColumn2.tooltip;"/>
                         <splitter class="tree-splitter"/>
                         <treecol id="idCol" persist="width" flex="1" hidden="true"
-                                 label="&idColumn.label;" tooltiptext="&idColumn.tooltip;"/>
+                                 label="&idColumn.label;" tooltiptext="&idColumn2.tooltip;"/>
                       </treecols>
                     <treechildren ondraggesture="ThreadPaneOnDragStart(event);"
                                   ondragover="ThreadPaneOnDragOver(event);"
@@ -513,8 +519,10 @@
                              autofind="false"/>
                     <vbox id="singlemessage" flex="1">
                       <hbox id="msgHeaderView"/>
-                      <hbox id="editMessageBox"/>
-                      <deck id="msgNotificationBar"/>
+                      <!-- The msgNotificationBar appears on top of the message
+                           and displays information like: junk, contains remote
+                           images, or is a suspected phishing URL. -->
+                      <notificationbox id="msgNotificationBar"/>
                       <!-- The messagepanewrapper hbox exists to allow
                            extensions to add sidebars to the message. -->
                       <hbox id="messagepanewrapper" flex="1">
@@ -559,9 +567,13 @@
   </statusbar>
 
   <svg:svg height="0">
-    <svg:clipPath id="tab-curve-clip-path" clipPathUnits="userSpaceOnUse">
-      <svg:path d="m 0,28 5,0 4,-3 3,-4 1,-5 1,-5 3,-5 4,-4 4,-2 5,0 0,31 -30,0 z"/>
-    </svg:clipPath>
+<svg:clipPath id="tab-curve-clip-path-start" clipPathUnits="objectBoundingBox">
+  <svg:path d="m 1,0.0625 0.05,0 0,0.938 -1,0 0,-0.028 C 0.32082458,0.95840561 0.4353096,0.81970962 0.48499998,0.5625 0.51819998,0.3905 0.535,0.0659 1,0.0625 z"/>
+</svg:clipPath>
+
+<svg:clipPath id="tab-curve-clip-path-end" clipPathUnits="objectBoundingBox">
+  <svg:path d="m 0,0.0625 -0.05,0 0,0.938 1,0 0,-0.028 C 0.67917542,0.95840561 0.56569036,0.81970962 0.51599998,0.5625 0.48279998,0.3905 0.465,0.0659 0,0.0625 z"/>
+</svg:clipPath>
   </svg:svg>
 
 </window>

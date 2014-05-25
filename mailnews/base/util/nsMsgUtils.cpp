@@ -7,6 +7,7 @@
 #include "nsIMsgHdr.h"
 #include "nsMsgUtils.h"
 #include "nsMsgFolderFlags.h"
+#include "nsMsgMessageFlags.h"
 #include "nsStringGlue.h"
 #include "nsIServiceManager.h"
 #include "nsCOMPtr.h"
@@ -69,8 +70,8 @@
 #include "nsIParserUtils.h"
 #include "nsICharsetConverterManager.h"
 #include "nsIDocumentEncoder.h"
+#include "mozilla/ArrayUtils.h"
 #include "mozilla/Services.h"
-#include "mozilla/Util.h"
 #include "locale.h"
 using namespace mozilla;
 
@@ -337,7 +338,7 @@ MsgFindCharInSet(const nsString &aString,
 #ifdef MOZILLA_INTERNAL_API
   return aString.FindCharInSet(aChars, aOffset);
 #else
-  const PRUnichar *str;
+  const char16_t *str;
   uint32_t len = aString.BeginReading(&str);
   int filter = GetFindInSetFilter(aChars);
   for (uint32_t index = aOffset; index < len; index++) {
@@ -365,8 +366,6 @@ static bool ConvertibleToNative(const nsAutoString& str)
 #if defined(XP_UNIX)
   const static uint32_t MAX_LEN = 55;
 #elif defined(XP_WIN32)
-  const static uint32_t MAX_LEN = 55;
-#elif defined(XP_OS2)
   const static uint32_t MAX_LEN = 55;
 #else
   #error need_to_define_your_max_filename_length
@@ -478,7 +477,7 @@ nsresult FormatFileSize(uint64_t size, bool useKB, nsAString &formattedSize)
   NS_NAMED_LITERAL_STRING(mbAbbr,   "megaByteAbbreviation2");
   NS_NAMED_LITERAL_STRING(gbAbbr,   "gigaByteAbbreviation2");
 
-  const PRUnichar *sizeAbbrNames[] = {
+  const char16_t *sizeAbbrNames[] = {
     byteAbbr.get(), kbAbbr.get(), mbAbbr.get(), gbAbbr.get()
   };
 
@@ -620,7 +619,6 @@ nsresult NS_MsgCreatePathStringFromFolderURI(const char *aFolderURI,
 bool NS_MsgStripRE(const char **stringP, uint32_t *lengthP, char **modifiedSubject)
 {
   const char *s, *s_end;
-  const char *last;
   uint32_t L;
   bool result = false;
   NS_ASSERTION(stringP, "bad null param");
@@ -658,7 +656,6 @@ bool NS_MsgStripRE(const char **stringP, uint32_t *lengthP, char **modifiedSubje
   L = lengthP ? *lengthP : strlen(s);
 
   s_end = s + L;
-  last = s;
 
  AGAIN:
 
@@ -766,28 +763,20 @@ char * NS_MsgSACopy (char **destination, const char *source)
   return *destination;
 }
 
-/*  Again like strdup but it concatinates and free's and uses Realloc
+/*  Again like strdup but it concatenates and free's and uses Realloc.
 */
 char * NS_MsgSACat (char **destination, const char *source)
 {
   if (source && *source)
-    if (*destination)
-    {
-      int length = PL_strlen (*destination);
-      *destination = (char *) PR_Realloc (*destination, length + PL_strlen(source) + 1);
-      if (*destination == nullptr)
-        return(nullptr);
+  {
+    int destLength = *destination ? PL_strlen(*destination) : 0;
+    char* newDestination = (char*) PR_Realloc(*destination, destLength + PL_strlen(source) + 1);
+    if (newDestination == nullptr)
+      return nullptr;
 
-      PL_strcpy (*destination + length, source);
-    }
-    else
-    {
-      *destination = (char *) PR_Malloc (PL_strlen(source) + 1);
-      if (*destination == nullptr)
-        return(nullptr);
-
-      PL_strcpy (*destination, source);
-    }
+    *destination = newDestination;
+    PL_strcpy(*destination + destLength, source);
+  }
   return *destination;
 }
 
@@ -1040,9 +1029,17 @@ nsresult IsRSSArticle(nsIURI * aMsgURI, bool *aIsRSSArticle)
   rv = GetMessageServiceFromURI(resourceURI, getter_AddRefs(msgService));
   NS_ENSURE_SUCCESS(rv, rv);
 
+  // Check if the message is a feed message, regardless of folder.
+  uint32_t flags;
   nsCOMPtr<nsIMsgDBHdr> msgHdr;
   rv = msgService->MessageURIToMsgHdr(resourceURI.get(), getter_AddRefs(msgHdr));
   NS_ENSURE_SUCCESS(rv, rv);
+  msgHdr->GetFlags(&flags);
+  if (flags & nsMsgMessageFlags::FeedMsg)
+  {
+    *aIsRSSArticle = true;
+    return rv;
+  }
 
   nsCOMPtr<nsIMsgMailNewsUrl> mailnewsUrl = do_QueryInterface(aMsgURI, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -1438,6 +1435,18 @@ nsresult MsgNewBufferedFileOutputStream(nsIOutputStream **aResult,
   return rv;
 }
 
+nsresult MsgNewSafeBufferedFileOutputStream(nsIOutputStream **aResult,
+                                        nsIFile* aFile,
+                                        int32_t aIOFlags,
+                                        int32_t aPerm)
+{
+  nsCOMPtr<nsIOutputStream> stream;
+  nsresult rv = NS_NewSafeLocalFileOutputStream(getter_AddRefs(stream), aFile, aIOFlags, aPerm);
+  if (NS_SUCCEEDED(rv))
+    rv = NS_NewBufferedOutputStream(aResult, stream, FOUR_K);
+  return rv;
+}
+
 bool MsgFindKeyword(const nsCString &keyword, nsCString &keywords, int32_t *aStartOfKeyword, int32_t *aLength)
 {
 #ifdef MOZILLA_INTERNAL_API
@@ -1785,7 +1794,7 @@ NS_MSG_BASE char *MsgEscapeHTML(const char *string)
   return(rv);
 }
 
-NS_MSG_BASE PRUnichar *MsgEscapeHTML2(const PRUnichar *aSourceBuffer,
+NS_MSG_BASE char16_t *MsgEscapeHTML2(const char16_t *aSourceBuffer,
                                       int32_t aSourceBufferLen)
 {
   // if the caller didn't calculate the length
@@ -1795,13 +1804,13 @@ NS_MSG_BASE PRUnichar *MsgEscapeHTML2(const PRUnichar *aSourceBuffer,
 
   /* XXX Hardcoded max entity len. */
   if (aSourceBufferLen >=
-    ((PR_UINT32_MAX - sizeof(PRUnichar)) / (6 * sizeof(PRUnichar))) )
+    ((PR_UINT32_MAX - sizeof(char16_t)) / (6 * sizeof(char16_t))) )
       return nullptr;
 
-  PRUnichar *resultBuffer = (PRUnichar *)nsMemory::Alloc(aSourceBufferLen *
-                            6 * sizeof(PRUnichar) + sizeof(PRUnichar('\0')));
+  char16_t *resultBuffer = (char16_t *)nsMemory::Alloc(aSourceBufferLen *
+                            6 * sizeof(char16_t) + sizeof(char16_t('\0')));
                                                         
-  PRUnichar *ptr = resultBuffer;
+  char16_t *ptr = resultBuffer;
 
   if (resultBuffer) {
     int32_t i;
@@ -1883,9 +1892,9 @@ NS_MSG_BASE void MsgCompressWhitespace(nsCString& aString)
   aString.SetLength(end - start);
 }
 
-NS_MSG_BASE void MsgReplaceChar(nsString& str, const char *set, const PRUnichar replacement)
+NS_MSG_BASE void MsgReplaceChar(nsString& str, const char *set, const char16_t replacement)
 {
-  PRUnichar *c_str = str.BeginWriting();
+  char16_t *c_str = str.BeginWriting();
   while (*set) {
     int32_t pos = 0;
     while ((pos = str.FindChar(*set, pos)) != -1) {
@@ -1926,7 +1935,7 @@ NS_MSG_BASE nsIAtom* MsgNewPermanentAtom(const char* aString)
 
 NS_MSG_BASE void MsgReplaceSubstring(nsAString &str, const nsAString &what, const nsAString &replacement)
 {
-  const PRUnichar* replacement_str;
+  const char16_t* replacement_str;
   uint32_t replacementLength = replacement.BeginReading(&replacement_str);
   uint32_t whatLength = what.Length();
   int32_t i = 0;
@@ -1959,7 +1968,7 @@ NS_MSG_BASE void MsgReplaceSubstring(nsACString &str, const char *what, const ch
 class MsgInterfaceRequestorAgg : public nsIInterfaceRequestor
 {
 public:
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIINTERFACEREQUESTOR
 
   MsgInterfaceRequestorAgg(nsIInterfaceRequestor *aFirst,
@@ -1971,7 +1980,7 @@ public:
 };
 
 // XXX This needs to support threadsafe refcounting until we fix bug 243591.
-NS_IMPL_THREADSAFE_ISUPPORTS1(MsgInterfaceRequestorAgg, nsIInterfaceRequestor)
+NS_IMPL_ISUPPORTS1(MsgInterfaceRequestorAgg, nsIInterfaceRequestor)
 
 NS_IMETHODIMP
 MsgInterfaceRequestorAgg::GetInterface(const nsIID &aIID, void **aResult)
@@ -2120,27 +2129,27 @@ NS_MSG_BASE nsresult MsgPromptLoginFailed(nsIMsgWindow *aMsgWindow,
 
   nsString message;
   NS_ConvertUTF8toUTF16 hostNameUTF16(aHostname);
-  const PRUnichar *formatStrings[] = { hostNameUTF16.get() };
+  const char16_t *formatStrings[] = { hostNameUTF16.get() };
 
-  rv = bundle->FormatStringFromName(NS_LITERAL_STRING("mailServerLoginFailed").get(),
+  rv = bundle->FormatStringFromName(MOZ_UTF16("mailServerLoginFailed"),
                                     formatStrings, 1,
                                     getter_Copies(message));
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsString title;
   rv = bundle->GetStringFromName(
-    NS_LITERAL_STRING("mailServerLoginFailedTitle").get(), getter_Copies(title));
+    MOZ_UTF16("mailServerLoginFailedTitle"), getter_Copies(title));
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsString button0;
   rv = bundle->GetStringFromName(
-    NS_LITERAL_STRING("mailServerLoginFailedRetryButton").get(),
+    MOZ_UTF16("mailServerLoginFailedRetryButton"),
     getter_Copies(button0));
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsString button2;
   rv = bundle->GetStringFromName(
-    NS_LITERAL_STRING("mailServerLoginFailedEnterNewPasswordButton").get(),
+    MOZ_UTF16("mailServerLoginFailedEnterNewPasswordButton"),
     getter_Copies(button2));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -2297,7 +2306,7 @@ MsgDetectCharsetFromFile(nsIFile *aFile, nsACString &aCharset)
   if (detector) {
     nsAutoCString buffer;
 
-    nsCOMPtr<CharsetDetectionObserver> observer = new CharsetDetectionObserver();
+    nsRefPtr<CharsetDetectionObserver> observer = new CharsetDetectionObserver();
 
     rv = detector->Init(observer);
     NS_ENSURE_SUCCESS(rv, rv);

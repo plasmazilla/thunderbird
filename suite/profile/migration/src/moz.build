@@ -3,12 +3,19 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-MODULE = 'suitemigration'
-
-CPP_SOURCES += [
+SOURCES += [
     'nsNetscapeProfileMigratorBase.cpp',
-    'nsProfileMigrator.cpp',
     'nsSuiteProfileMigratorUtils.cpp',
     'nsThunderbirdProfileMigrator.cpp',
 ]
+
+EXTRA_COMPONENTS += [
+    'SuiteProfileMigrator.manifest',
+]
+
+EXTRA_PP_COMPONENTS += [
+    'SuiteProfileMigrator.js',
+]
+
+FINAL_LIBRARY = 'suite'
 

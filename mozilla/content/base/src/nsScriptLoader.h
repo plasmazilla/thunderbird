@@ -65,7 +65,7 @@ public:
   {
     mObservers.RemoveObject(aObserver);
   }
-  
+
   /**
    * Process a script element. This will include both loading the 
    * source of the element if it is not inline and evaluating
@@ -207,6 +207,13 @@ public:
                           const nsAString &aCrossOrigin,
                           bool aScriptFromHead);
 
+  /**
+   * Process a request that was deferred so that the script could be compiled
+   * off thread.
+   */
+  nsresult ProcessOffThreadRequest(nsScriptLoadRequest *aRequest,
+                                   void **aOffThreadToken);
+
 private:
   /**
    * Unblocks the creator parser of the parser-blocking scripts.
@@ -261,14 +268,22 @@ private:
   bool AddPendingChildLoader(nsScriptLoader* aChild) {
     return mPendingChildLoaders.AppendElement(aChild) != nullptr;
   }
-  
-  nsresult ProcessRequest(nsScriptLoadRequest* aRequest);
+
+  nsresult AttemptAsyncScriptParse(nsScriptLoadRequest* aRequest);
+  nsresult ProcessRequest(nsScriptLoadRequest* aRequest,
+                          void **aOffThreadToken = nullptr);
   void FireScriptAvailable(nsresult aResult,
                            nsScriptLoadRequest* aRequest);
   void FireScriptEvaluated(nsresult aResult,
                            nsScriptLoadRequest* aRequest);
   nsresult EvaluateScript(nsScriptLoadRequest* aRequest,
-                          const nsAFlatString& aScript);
+                          const nsAFlatString& aScript,
+                          void **aOffThreadToken);
+
+  already_AddRefed<nsIScriptGlobalObject> GetScriptGlobalObject();
+  void FillCompileOptionsForRequest(nsScriptLoadRequest *aRequest,
+                                    JS::Handle<JSObject *> aScopeChain,
+                                    JS::CompileOptions *aOptions);
 
   nsresult PrepareLoadedRequest(nsScriptLoadRequest* aRequest,
                                 nsIStreamLoader* aLoader,
@@ -323,14 +338,14 @@ public:
       mLoader->SetEnabled(false);
     }
   }
-  
+
   ~nsAutoScriptLoaderDisabler()
   {
     if (mWasEnabled) {
       mLoader->SetEnabled(true);
     }
   }
-  
+
   bool mWasEnabled;
   nsRefPtr<nsScriptLoader> mLoader;
 };

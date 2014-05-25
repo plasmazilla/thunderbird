@@ -5,7 +5,6 @@
 
 #include "nsMsgCompFields.h"
 #include "nsMsgI18N.h"
-#include "nsIMsgHeaderParser.h"
 #include "nsMsgCompUtils.h"
 #include "nsMsgUtils.h"
 #include "prmem.h"
@@ -13,12 +12,14 @@
 #include "nsIMsgMdnGenerator.h"
 #include "nsServiceManagerUtils.h"
 #include "nsMsgMimeCID.h"
-#include "nsIMimeConverter.h"
 #include "nsArrayEnumerator.h"
 #include "nsMemory.h"
+#include "mozilla/mailnews/MimeHeaderParser.h"
+
+using namespace mozilla::mailnews;
 
 /* the following macro actually implement addref, release and query interface for our component. */
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsMsgCompFields, nsIMsgCompFields)
+NS_IMPL_ISUPPORTS1(nsMsgCompFields, nsIMsgCompFields)
 
 nsMsgCompFields::nsMsgCompFields()
 {
@@ -37,11 +38,12 @@ nsMsgCompFields::nsMsgCompFields()
   m_bodyIsAsciiOnly = false;
   m_forceMsgEncoding = false;
   m_needToCheckCharset = true;
+  m_attachmentReminder = false;
 
   // Get the default charset from pref, use this as a mail charset.
   nsString charset;
   NS_GetLocalizedUnicharPreferenceWithDefault(nullptr, "mailnews.send_default_charset",
-                                              NS_LITERAL_STRING("ISO-8859-1"), charset);
+                                              NS_LITERAL_STRING("UTF-8"), charset);
 
   LossyCopyUTF16toASCII(charset, m_DefaultCharacterSet); // Charsets better be ASCII
   SetCharacterSet(m_DefaultCharacterSet.get());
@@ -212,18 +214,6 @@ NS_IMETHODIMP nsMsgCompFields::GetSubject(nsAString &_retval)
   return GetUnicodeHeader(MSG_SUBJECT_HEADER_ID, _retval);
 }
 
-NS_IMETHODIMP nsMsgCompFields::SetTemporaryFiles(const char *value)
-{
-  NS_ERROR("nsMsgCompFields::SetTemporaryFiles is not supported anymore, please use nsMsgCompFields::AddAttachment");
-  return SetAsciiHeader(MSG_TEMPORARY_FILES_HEADER_ID, value);
-}
-
-NS_IMETHODIMP nsMsgCompFields::GetTemporaryFiles(char **_retval)
-{
-  *_retval = strdup(GetAsciiHeader(MSG_TEMPORARY_FILES_HEADER_ID));
-  return *_retval ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
-}
-
 NS_IMETHODIMP nsMsgCompFields::SetOrganization(const nsAString &value)
 {
   return SetUnicodeHeader(MSG_ORGANIZATION_HEADER_ID, value);
@@ -369,6 +359,18 @@ NS_IMETHODIMP nsMsgCompFields::GetAttachVCard(bool *_retval)
   return NS_OK;
 }
 
+NS_IMETHODIMP nsMsgCompFields::GetAttachmentReminder(bool *_retval)
+{
+  *_retval = m_attachmentReminder;
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgCompFields::SetAttachmentReminder(bool value)
+{
+  m_attachmentReminder = value;
+  return NS_OK;
+}
+
 NS_IMETHODIMP nsMsgCompFields::SetForcePlainText(bool value)
 {
   m_forcePlainText = value;
@@ -505,7 +507,7 @@ NS_IMETHODIMP
 nsMsgCompFields::SplitRecipients(const nsAString &aRecipients,
                                  bool aEmailAddressOnly,
                                  uint32_t *aLength,
-                                 PRUnichar*** aResult)
+                                 char16_t*** aResult)
 {
   NS_ENSURE_ARG_POINTER(aLength);
   NS_ENSURE_ARG_POINTER(aResult);
@@ -513,78 +515,21 @@ nsMsgCompFields::SplitRecipients(const nsAString &aRecipients,
   *aLength = 0;
   *aResult = nullptr;
 
-  nsresult rv;
-  nsCOMPtr<nsIMsgHeaderParser> parser =
-    do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMArray<msgIAddressObject> header(EncodedHeader(NS_ConvertUTF16toUTF8(aRecipients)));
+  nsTArray<nsString> results;
+  if (aEmailAddressOnly)
+    ExtractEmails(header, results);
+  else
+    ExtractDisplayAddresses(header, results);
+  
+  uint32_t count = results.Length();
+  char16_t **result = (char16_t **)NS_Alloc(sizeof(char16_t *) * count);
+  for (uint32_t i = 0; i < count; ++i)
+    result[i] = ToNewUnicode(results[i]);
 
-  nsCOMPtr<nsIMimeConverter> converter =
-    do_GetService(NS_MIME_CONVERTER_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  char * names;
-  char * addresses;
-  uint32_t numAddresses;
-
-  rv = parser->ParseHeaderAddresses(NS_ConvertUTF16toUTF8(aRecipients).get(),
-                                    &names, &addresses, &numAddresses);
-  if (NS_SUCCEEDED(rv))
-  {
-    uint32_t i = 0;
-    char * pNames = names;
-    char * pAddresses = addresses;
-    PRUnichar** result = (PRUnichar**) NS_Alloc(sizeof(PRUnichar*) * numAddresses);
-    if (!result)
-      return NS_ERROR_OUT_OF_MEMORY;
-
-    for (i = 0; i < numAddresses; ++i)
-    {
-      nsCString fullAddress;
-      nsAutoString recipient;
-      if (!aEmailAddressOnly)
-      {
-        nsCString decodedName;
-        converter->DecodeMimeHeaderToUTF8(nsDependentCString(pNames),
-                                          GetCharacterSet(), false, true,
-                                          decodedName);
-        rv = parser->MakeFullAddressString((!decodedName.IsEmpty() ?
-                                            decodedName.get() : pNames),
-                                           pAddresses,
-                                           getter_Copies(fullAddress));
-      }
-      if (NS_SUCCEEDED(rv) && !aEmailAddressOnly)
-        rv = ConvertToUnicode("UTF-8", fullAddress, recipient);
-      else
-        rv = ConvertToUnicode("UTF-8", nsDependentCString(pAddresses), recipient);
-      if (NS_FAILED(rv))
-        break;
-
-      result[i] = ToNewUnicode(recipient);
-      if (!result[i])
-      {
-        rv = NS_ERROR_OUT_OF_MEMORY;
-        break;
-      }
-
-      pNames += PL_strlen(pNames) + 1;
-      pAddresses += PL_strlen(pAddresses) + 1;
-    }
-
-    if (NS_FAILED(rv))
-    {
-      NS_FREE_XPCOM_ALLOCATED_POINTER_ARRAY(i, result);
-    }
-    else
-    {
-      *aResult = result;
-      *aLength = numAddresses;
-    }
-
-    PR_FREEIF(names);
-    PR_FREEIF(addresses);
-  }
-
-  return rv;
+  *aResult = result;
+  *aLength = count;
+  return NS_OK;
 }
 
 
@@ -592,62 +537,20 @@ nsMsgCompFields::SplitRecipients(const nsAString &aRecipients,
 nsresult nsMsgCompFields::SplitRecipientsEx(const nsAString &recipients,
                                             nsTArray<nsMsgRecipient> &aResult)
 {
-  nsresult rv;
+  nsTArray<nsString> names, addresses;
+  ExtractAllAddresses(EncodedHeader(NS_ConvertUTF16toUTF8(recipients)), names,
+    addresses);
 
-  nsCOMPtr<nsIMsgHeaderParser> parser =
-    do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-  nsCOMPtr<nsIMimeConverter> converter = do_GetService(NS_MIME_CONVERTER_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsAutoCString recipientsStr;
-  char *names;
-  char *addresses;
-  uint32_t numAddresses;
-
-  CopyUTF16toUTF8(recipients, recipientsStr);
-  rv = parser->ParseHeaderAddresses(recipientsStr.get(), &names,
-                                    &addresses, &numAddresses);
-  if (NS_SUCCEEDED(rv))
+  uint32_t numAddresses = names.Length();
+  for (uint32_t i = 0; i < numAddresses; ++i)
   {
-    char *pNames = names;
-    char *pAddresses = addresses;
-
-    for (uint32_t i = 0; i < numAddresses; ++i)
-    {
-      nsCString fullAddress;
-      nsCString decodedName;
-      converter->DecodeMimeHeaderToUTF8(nsDependentCString(pNames),
-                                        GetCharacterSet(), false, true,
-                                        decodedName);
-      rv = parser->MakeFullAddressString((!decodedName.IsEmpty() ?
-                                          decodedName.get() : pNames),
-                                         pAddresses,
-                                         getter_Copies(fullAddress));
-
-      nsMsgRecipient msgRecipient;
-
-      rv = ConvertToUnicode("UTF-8",
-                            NS_SUCCEEDED(rv) ? fullAddress.get() : pAddresses,
-                            msgRecipient.mAddress);
-      if (NS_FAILED(rv))
-        return rv;
-
-      rv = ConvertToUnicode("UTF-8", pAddresses, msgRecipient.mEmail);
-      if (NS_FAILED(rv))
-        return rv;
-
-      aResult.AppendElement(msgRecipient);
-
-      pNames += PL_strlen(pNames) + 1;
-      pAddresses += PL_strlen(pAddresses) + 1;
-    }
-
-    PR_FREEIF(names);
-    PR_FREEIF(addresses);
+    nsMsgRecipient msgRecipient;
+    msgRecipient.mEmail = addresses[i];
+    msgRecipient.mName = names[i];
+    aResult.AppendElement(msgRecipient);
   }
 
-  return rv;
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsMsgCompFields::ConvertBodyToPlainText()

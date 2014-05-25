@@ -11,7 +11,6 @@
 #include "nsISupports.h"
 #include "nsCOMPtr.h"
 #include "nsIProgrammingLanguage.h"
-#include "jsfriendapi.h"
 #include "jspubtd.h"
 #include "js/GCAPI.h"
 
@@ -28,12 +27,14 @@ class nsIDOMWindow;
 class nsIURI;
 
 #define NS_ISCRIPTCONTEXT_IID \
-{ 0xef0c91ce, 0x14f6, 0x41c9, \
-  { 0xa5, 0x77, 0xa6, 0xeb, 0xdc, 0x6d, 0x44, 0x7b } }
+{ 0x513c2c1a, 0xf4f1, 0x44da, \
+  { 0x8e, 0x38, 0xf4, 0x0c, 0x30, 0x9a, 0x5d, 0xef } }
 
 /* This MUST match JSVERSION_DEFAULT.  This version stuff if we don't
    know what language we have is a little silly... */
 #define SCRIPTVERSION_DEFAULT JSVERSION_DEFAULT
+
+class nsIOffThreadScriptReceiver;
 
 /**
  * It is used by the application to initialize a runtime and run scripts.
@@ -57,54 +58,15 @@ public:
    * @param aRetValue the result of executing the script.  Pass null if you
    *                  don't care about the result.  Note that asking for a
    *                  result will deoptimize your script somewhat in many cases.
+   * @param aOffThreadToken if specified, the result of compiling the script
+   *                        on another thread.
    */
   virtual nsresult EvaluateString(const nsAString& aScript,
                                   JS::Handle<JSObject*> aScopeObject,
                                   JS::CompileOptions& aOptions,
                                   bool aCoerceToString,
-                                  JS::Value* aRetValue) = 0;
-
-  /**
-   * Compile a script.
-   *
-   * @param aText a PRUnichar buffer containing script source
-   * @param aTextLength number of characters in aText
-   * @param aPrincipal the principal that produced the script
-   * @param aURL the URL or filename for error messages
-   * @param aLineNo the starting line number of the script for error messages
-   * @param aVersion the script language version to use when executing
-   * @param aScriptObject an executable object that's the result of compiling
-   *                      the script.
-   * @param aSaveSource force the source code to be saved by the JS engine in memory
-   *
-   * @return NS_OK if the script source was valid and got compiled.
-   *
-   **/
-  virtual nsresult CompileScript(const PRUnichar* aText,
-                                 int32_t aTextLength,
-                                 nsIPrincipal* aPrincipal,
-                                 const char* aURL,
-                                 uint32_t aLineNo,
-                                 uint32_t aVersion,
-                                 JS::MutableHandle<JSScript*> aScriptObject,
-                                 bool aSaveSource = false) = 0;
-
-  /**
-   * Execute a precompiled script object.
-   *
-   * @param aScriptObject an object representing the script to be executed
-   * @param aScopeObject an object telling the scope in which to execute,
-   *                     or nullptr to use a default scope
-   * @param aRetValue the result of executing the script, may be null in
-   *                  which case no result string is computed
-   * @param aIsUndefined true if the result of executing the script is the
-   *                     undefined value, may be null for "don't care"
-   *
-   * @return NS_OK if the script was valid and got executed
-   *
-   */
-  virtual nsresult ExecuteScript(JSScript* aScriptObject,
-                                 JSObject* aScopeObject) = 0;
+                                  JS::Value* aRetValue,
+                                  void **aOffThreadToken = nullptr) = 0;
 
   /**
    * Bind an already-compiled event handler function to the given
@@ -145,12 +107,6 @@ public:
   virtual JSContext* GetNativeContext() = 0;
 
   /**
-   * Return the native global object for this context.
-   *
-   **/
-  virtual JSObject* GetNativeGlobal() = 0;
-
-  /**
    * Initialize the context generally. Does not create a global object.
    **/
   virtual nsresult InitContext() = 0;
@@ -172,33 +128,6 @@ public:
    */
   virtual void GC(JS::gcreason::Reason aReason) = 0;
 
-  /**
-   * Inform the context that a script was evaluated.
-   * A GC may be done if "necessary."
-   * This call is necessary if script evaluation is done
-   * without using the EvaluateScript method.
-   * @param aTerminated If true then do script termination handling. Within DOM
-   *     this will always be true, but outside  callers (such as xpconnect) who
-   *     may do script evaluations nested inside inside DOM script evaluations
-   *     can pass false to avoid premature termination handling.
-   * @return NS_OK if the method is successful
-   */
-  virtual void ScriptEvaluated(bool aTerminated) = 0;
-
-  virtual nsresult Serialize(nsIObjectOutputStream* aStream,
-                             JS::Handle<JSScript*> aScriptObject) = 0;
-  
-  /* Deserialize a script from a stream.
-   */
-  virtual nsresult Deserialize(nsIObjectInputStream* aStream,
-                               JS::MutableHandle<JSScript*> aResult) = 0;
-
-  /**
-   * Called to disable/enable script execution in this context.
-   */
-  virtual bool GetScriptsEnabled() = 0;
-  virtual void SetScriptsEnabled(bool aEnabled, bool aFireTimeouts) = 0;
-
   // SetProperty is suspect and jst believes should not be needed.  Currenly
   // used only for "arguments".
   virtual nsresult SetProperty(JS::Handle<JSObject*> aTarget,
@@ -209,11 +138,6 @@ public:
    */
   virtual bool GetProcessingScriptTag() = 0;
   virtual void SetProcessingScriptTag(bool aResult) = 0;
-
-  /**
-   * Called to find out if this script context might be executing script.
-   */
-  virtual bool GetExecutingScript() = 0;
 
   /**
    * Initialize DOM classes on aGlobalObj, always call
@@ -233,11 +157,34 @@ public:
    */
   virtual void DidInitializeContext() = 0;
 
-  virtual void EnterModalState() = 0;
-  virtual void LeaveModalState() = 0;
+  /**
+   * Access the Window Proxy. The setter should only be called by nsGlobalWindow.
+   */
+  virtual void SetWindowProxy(JS::Handle<JSObject*> aWindowProxy) = 0;
+  virtual JSObject* GetWindowProxy() = 0;
+  virtual JSObject* GetWindowProxyPreserveColor() = 0;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIScriptContext, NS_ISCRIPTCONTEXT_IID)
+
+#define NS_IOFFTHREADSCRIPTRECEIVER_IID \
+{0x3a980010, 0x878d, 0x46a9,            \
+  {0x93, 0xad, 0xbc, 0xfd, 0xd3, 0x8e, 0xa0, 0xc2}}
+
+class nsIOffThreadScriptReceiver : public nsISupports
+{
+public:
+  NS_DECLARE_STATIC_IID_ACCESSOR(NS_IOFFTHREADSCRIPTRECEIVER_IID)
+
+  /**
+   * Notify this object that a previous CompileScript call specifying this as
+   * aOffThreadReceiver has completed. The script being passed in must be
+   * rooted before any call which could trigger GC.
+   */
+  NS_IMETHOD OnScriptCompileComplete(JSScript* aScript, nsresult aStatus) = 0;
+};
+
+NS_DEFINE_STATIC_IID_ACCESSOR(nsIOffThreadScriptReceiver, NS_IOFFTHREADSCRIPTRECEIVER_IID)
 
 #endif // nsIScriptContext_h__
 

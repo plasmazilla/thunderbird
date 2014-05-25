@@ -5,9 +5,8 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "MediaBufferDecoder.h"
-#include "AbstractMediaDecoder.h"
-#include "mozilla/Attributes.h"
-#include "mozilla/ReentrantMonitor.h"
+#include "BufferDecoder.h"
+#include "mozilla/dom/AudioContextBinding.h"
 #include <speex/speex_resampler.h>
 #include "nsXPCOMCIDInternal.h"
 #include "nsComponentManagerUtils.h"
@@ -16,14 +15,15 @@
 #include "DecoderTraits.h"
 #include "AudioContext.h"
 #include "AudioBuffer.h"
-#include "nsIScriptGlobalObject.h"
-#include "nsIScriptContext.h"
 #include "nsIScriptObjectPrincipal.h"
 #include "nsIScriptError.h"
 #include "nsMimeTypes.h"
 #include "nsCxPusher.h"
+#include "WebAudioUtils.h"
 
 namespace mozilla {
+
+NS_IMPL_CYCLE_COLLECTION_CLASS(WebAudioDecodeJob)
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(WebAudioDecodeJob)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mContext)
@@ -49,243 +49,6 @@ NS_IMPL_CYCLE_COLLECTION_ROOT_NATIVE(WebAudioDecodeJob, AddRef)
 NS_IMPL_CYCLE_COLLECTION_UNROOT_NATIVE(WebAudioDecodeJob, Release)
 
 using namespace dom;
-
-#ifdef PR_LOGGING
-extern PRLogModuleInfo* gMediaDecoderLog;
-#endif
-
-/**
- * This class provides a decoder object which decodes a media file that lives in
- * a memory buffer.
- */
-class BufferDecoder : public AbstractMediaDecoder
-{
-public:
-  // This class holds a weak pointer to MediaResouce.  It's the responsibility
-  // of the caller to manage the memory of the MediaResource object.
-  explicit BufferDecoder(MediaResource* aResource);
-  virtual ~BufferDecoder();
-
-  NS_DECL_ISUPPORTS
-
-  // This has to be called before decoding begins
-  void BeginDecoding(nsIThread* aDecodeThread)
-  {
-    MOZ_ASSERT(!mDecodeThread && aDecodeThread);
-    mDecodeThread = aDecodeThread;
-  }
-
-  virtual ReentrantMonitor& GetReentrantMonitor() MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual bool IsShutdown() const MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual bool OnStateMachineThread() const MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual bool OnDecodeThread() const MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual MediaResource* GetResource() const MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual void NotifyBytesConsumed(int64_t aBytes) MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual void NotifyDecodedFrames(uint32_t aParsed, uint32_t aDecoded) MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual int64_t GetEndMediaTime() const MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual int64_t GetMediaDuration() MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual void SetMediaDuration(int64_t aDuration) MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual void SetMediaSeekable(bool aMediaSeekable) MOZ_OVERRIDE;
-
-  virtual void SetTransportSeekable(bool aTransportSeekable) MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual VideoFrameContainer* GetVideoFrameContainer() MOZ_FINAL MOZ_OVERRIDE;
-  virtual mozilla::layers::ImageContainer* GetImageContainer() MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual bool IsTransportSeekable() MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual bool IsMediaSeekable() MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual void MetadataLoaded(int aChannels, int aRate, bool aHasAudio, bool aHasVideo, MetadataTags* aTags) MOZ_FINAL MOZ_OVERRIDE;
-  virtual void QueueMetadata(int64_t aTime, int aChannels, int aRate, bool aHasAudio, bool aHasVideo, MetadataTags* aTags) MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual void SetMediaEndTime(int64_t aTime) MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual void UpdatePlaybackPosition(int64_t aTime) MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual void OnReadMetadataCompleted() MOZ_FINAL MOZ_OVERRIDE;
-
-  virtual MediaDecoderOwner* GetOwner() MOZ_FINAL MOZ_OVERRIDE;
-
-private:
-  // This monitor object is not really used to synchronize access to anything.
-  // It's just there in order for us to be able to override
-  // GetReentrantMonitor correctly.
-  ReentrantMonitor mReentrantMonitor;
-  nsCOMPtr<nsIThread> mDecodeThread;
-  nsRefPtr<MediaResource> mResource;
-};
-
-NS_IMPL_THREADSAFE_ISUPPORTS0(BufferDecoder)
-
-BufferDecoder::BufferDecoder(MediaResource* aResource)
-  : mReentrantMonitor("BufferDecoder")
-  , mResource(aResource)
-{
-  MOZ_ASSERT(NS_IsMainThread());
-  MOZ_COUNT_CTOR(BufferDecoder);
-#ifdef PR_LOGGING
-  if (!gMediaDecoderLog) {
-    gMediaDecoderLog = PR_NewLogModule("MediaDecoder");
-  }
-#endif
-}
-
-BufferDecoder::~BufferDecoder()
-{
-  // The dtor may run on any thread, we cannot be sure.
-  MOZ_COUNT_DTOR(BufferDecoder);
-}
-
-ReentrantMonitor&
-BufferDecoder::GetReentrantMonitor()
-{
-  return mReentrantMonitor;
-}
-
-bool
-BufferDecoder::IsShutdown() const
-{
-  // BufferDecoder cannot be shut down.
-  return false;
-}
-
-bool
-BufferDecoder::OnStateMachineThread() const
-{
-  // BufferDecoder doesn't have the concept of a state machine.
-  return true;
-}
-
-bool
-BufferDecoder::OnDecodeThread() const
-{
-  MOZ_ASSERT(mDecodeThread, "Forgot to call BeginDecoding?");
-  return IsCurrentThread(mDecodeThread);
-}
-
-MediaResource*
-BufferDecoder::GetResource() const
-{
-  return mResource;
-}
-
-void
-BufferDecoder::NotifyBytesConsumed(int64_t aBytes)
-{
-  // ignore
-}
-
-void
-BufferDecoder::NotifyDecodedFrames(uint32_t aParsed, uint32_t aDecoded)
-{
-  // ignore
-}
-
-int64_t
-BufferDecoder::GetEndMediaTime() const
-{
-  // unknown
-  return -1;
-}
-
-int64_t
-BufferDecoder::GetMediaDuration()
-{
-  // unknown
-  return -1;
-}
-
-void
-BufferDecoder::SetMediaDuration(int64_t aDuration)
-{
-  // ignore
-}
-
-void
-BufferDecoder::SetMediaSeekable(bool aMediaSeekable)
-{
-  // ignore
-}
-
-void
-BufferDecoder::SetTransportSeekable(bool aTransportSeekable)
-{
-  // ignore
-}
-
-VideoFrameContainer*
-BufferDecoder::GetVideoFrameContainer()
-{
-  // no video frame
-  return nullptr;
-}
-
-layers::ImageContainer*
-BufferDecoder::GetImageContainer()
-{
-  // no image container
-  return nullptr;
-}
-
-bool
-BufferDecoder::IsTransportSeekable()
-{
-  return false;
-}
-
-bool
-BufferDecoder::IsMediaSeekable()
-{
-  return false;
-}
-
-void
-BufferDecoder::MetadataLoaded(int aChannels, int aRate, bool aHasAudio, bool aHasVideo, MetadataTags* aTags)
-{
-  // ignore
-}
-
-void
-BufferDecoder::QueueMetadata(int64_t aTime, int aChannels, int aRate, bool aHasAudio, bool aHasVideo, MetadataTags* aTags)
-{
-  // ignore
-}
-
-void
-BufferDecoder::SetMediaEndTime(int64_t aTime)
-{
-  // ignore
-}
-
-void
-BufferDecoder::UpdatePlaybackPosition(int64_t aTime)
-{
-  // ignore
-}
-
-void
-BufferDecoder::OnReadMetadataCompleted()
-{
-  // ignore
-}
-
-MediaDecoderOwner*
-BufferDecoder::GetOwner()
-{
-  // unknown
-  return nullptr;
-}
 
 class ReportResultTask : public nsRunnable
 {
@@ -378,8 +141,10 @@ private:
   void Cleanup()
   {
     MOZ_ASSERT(NS_IsMainThread());
-    mBufferDecoder = nullptr;
+    // MediaDecoderReader expects that BufferDecoder is alive.
+    // Destruct MediaDecoderReader first.
     mDecoderReader = nullptr;
+    mBufferDecoder = nullptr;
   }
 
 private:
@@ -462,8 +227,7 @@ MediaDecodeTask::RunNextPhase()
     break;
   case PhaseEnum::Decode:
   case PhaseEnum::Done:
-    MOZ_NOT_REACHED("Invalid phase Decode");
-    break;
+    MOZ_CRASH("Invalid phase Decode");
   }
 }
 
@@ -500,11 +264,14 @@ MediaDecodeTask::Decode()
 
   mBufferDecoder->BeginDecoding(NS_GetCurrentThread());
 
-  mDecoderReader->OnDecodeThreadStart();
+  // Tell the decoder reader that we are not going to play the data directly,
+  // and that we should not reject files with more channels than the audio
+  // bakend support.
+  mDecoderReader->SetIgnoreAudioOutputFormat();
 
-  VideoInfo videoInfo;
+  MediaInfo mediaInfo;
   nsAutoPtr<MetadataTags> tags;
-  nsresult rv = mDecoderReader->ReadMetadata(&videoInfo, getter_Transfers(tags));
+  nsresult rv = mDecoderReader->ReadMetadata(&mediaInfo, getter_Transfers(tags));
   if (NS_FAILED(rv)) {
     ReportFailureOnMainThread(WebAudioDecodeJob::InvalidContent);
     return;
@@ -520,12 +287,10 @@ MediaDecodeTask::Decode()
     continue;
   }
 
-  mDecoderReader->OnDecodeThreadFinish();
-
   MediaQueue<AudioData>& audioQueue = mDecoderReader->AudioQueue();
   uint32_t frameCount = audioQueue.FrameCount();
-  uint32_t channelCount = videoInfo.mAudioChannels;
-  uint32_t sampleRate = videoInfo.mAudioRate;
+  uint32_t channelCount = mediaInfo.mAudio.mChannels;
+  uint32_t sampleRate = mediaInfo.mAudio.mRate;
 
   if (!frameCount || !channelCount || !sampleRate) {
     ReportFailureOnMainThread(WebAudioDecodeJob::InvalidContent);
@@ -579,42 +344,23 @@ MediaDecodeTask::Decode()
       (audioData->mAudioBuffer->Data());
 
     if (sampleRate != destSampleRate) {
-      const uint32_t expectedOutSamples = static_cast<uint32_t>(
-          static_cast<uint64_t>(destSampleRate) *
-          static_cast<uint64_t>(audioData->mFrames) /
-          static_cast<uint64_t>(sampleRate)
-        );
-#ifdef MOZ_SAMPLE_TYPE_S16
-      AudioDataValue* resampledBuffer = new(fallible) AudioDataValue[channelCount * expectedOutSamples];
-#endif
+      const uint32_t maxOutSamples = resampledFrames - mDecodeJob.mWriteIndex;
 
       for (uint32_t i = 0; i < audioData->mChannels; ++i) {
         uint32_t inSamples = audioData->mFrames;
-        uint32_t outSamples = expectedOutSamples;
+        uint32_t outSamples = maxOutSamples;
 
-#ifdef MOZ_SAMPLE_TYPE_S16
-        speex_resampler_process_int(resampler, i, &bufferData[i * audioData->mFrames], &inSamples,
-                                    &resampledBuffer[i * expectedOutSamples],
-                                    &outSamples);
-
-        ConvertAudioSamples(&resampledBuffer[i * expectedOutSamples],
-                            mDecodeJob.mChannelBuffers[i] + mDecodeJob.mWriteIndex,
-                            outSamples);
-#else
-        speex_resampler_process_float(resampler, i, &bufferData[i * audioData->mFrames], &inSamples,
-                                      mDecodeJob.mChannelBuffers[i] + mDecodeJob.mWriteIndex,
-                                      &outSamples);
-#endif
+        WebAudioUtils::SpeexResamplerProcess(
+            resampler, i, &bufferData[i * audioData->mFrames], &inSamples,
+            mDecodeJob.mChannelBuffers[i] + mDecodeJob.mWriteIndex,
+            &outSamples);
 
         if (i == audioData->mChannels - 1) {
           mDecodeJob.mWriteIndex += outSamples;
           MOZ_ASSERT(mDecodeJob.mWriteIndex <= resampledFrames);
+          MOZ_ASSERT(inSamples == audioData->mFrames);
         }
       }
-
-#ifdef MOZ_SAMPLE_TYPE_S16
-      delete[] resampledBuffer;
-#endif
     } else {
       for (uint32_t i = 0; i < audioData->mChannels; ++i) {
         ConvertAudioSamples(&bufferData[i * audioData->mFrames],
@@ -629,50 +375,23 @@ MediaDecodeTask::Decode()
   }
 
   if (sampleRate != destSampleRate) {
-    int inputLatency = speex_resampler_get_input_latency(resampler);
-    int outputLatency = speex_resampler_get_output_latency(resampler);
-    AudioDataValue* zero = (AudioDataValue*)calloc(inputLatency, sizeof(AudioDataValue));
-
-#ifdef MOZ_SAMPLE_TYPE_S16
-    AudioDataValue* resampledBuffer = new(fallible) AudioDataValue[channelCount * outputLatency];
-    if (!resampledBuffer || !zero) {
-#else
-    if (!zero) {
-#endif
-      // Out of memory!
-      ReportFailureOnMainThread(WebAudioDecodeJob::UnknownError);
-      return;
-    }
-
+    uint32_t inputLatency = speex_resampler_get_input_latency(resampler);
+    const uint32_t maxOutSamples = resampledFrames - mDecodeJob.mWriteIndex;
     for (uint32_t i = 0; i < channelCount; ++i) {
       uint32_t inSamples = inputLatency;
-      uint32_t outSamples = outputLatency;
+      uint32_t outSamples = maxOutSamples;
 
-#ifdef MOZ_SAMPLE_TYPE_S16
-      speex_resampler_process_int(resampler, i, zero, &inSamples,
-                                  &resampledBuffer[i * outputLatency],
-                                  &outSamples);
-
-      ConvertAudioSamples(&resampledBuffer[i * outputLatency],
-                          mDecodeJob.mChannelBuffers[i] + mDecodeJob.mWriteIndex,
-                          outSamples);
-#else
-      speex_resampler_process_float(resampler, i, zero, &inSamples,
-                                    mDecodeJob.mChannelBuffers[i] + mDecodeJob.mWriteIndex,
-                                    &outSamples);
-#endif
+      WebAudioUtils::SpeexResamplerProcess(
+          resampler, i, (AudioDataValue*)nullptr, &inSamples,
+          mDecodeJob.mChannelBuffers[i] + mDecodeJob.mWriteIndex,
+          &outSamples);
 
       if (i == channelCount - 1) {
         mDecodeJob.mWriteIndex += outSamples;
         MOZ_ASSERT(mDecodeJob.mWriteIndex <= resampledFrames);
+        MOZ_ASSERT(inSamples == inputLatency);
       }
     }
-
-    free(zero);
-
-#ifdef MOZ_SAMPLE_TYPE_S16
-    delete[] resampledBuffer;
-#endif
   }
 
   mPhase = PhaseEnum::AllocateBuffer;
@@ -797,22 +516,12 @@ bool
 MediaBufferDecoder::EnsureThreadPoolInitialized()
 {
   if (!mThreadPool) {
-    mThreadPool = do_CreateInstance(NS_THREADPOOL_CONTRACTID);
+    mThreadPool = SharedThreadPool::Get(NS_LITERAL_CSTRING("MediaBufferDecoder"));
     if (!mThreadPool) {
       return false;
     }
-    mThreadPool->SetName(NS_LITERAL_CSTRING("MediaBufferDecoder"));
   }
   return true;
-}
-
-void
-MediaBufferDecoder::Shutdown() {
-  if (mThreadPool) {
-    mThreadPool->Shutdown();
-    mThreadPool = nullptr;
-  }
-  MOZ_ASSERT(!mThreadPool);
 }
 
 WebAudioDecodeJob::WebAudioDecodeJob(const nsACString& aContentType,
@@ -836,7 +545,7 @@ WebAudioDecodeJob::WebAudioDecodeJob(const nsACString& aContentType,
              (!aSuccessCallback && !aFailureCallback),
              "If a success callback is not passed, no failure callback should be passed either");
 
-  nsContentUtils::HoldJSObjects(this, NS_CYCLE_COLLECTION_PARTICIPANT(WebAudioDecodeJob));
+  mozilla::HoldJSObjects(this);
 }
 
 WebAudioDecodeJob::~WebAudioDecodeJob()
@@ -844,7 +553,7 @@ WebAudioDecodeJob::~WebAudioDecodeJob()
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_COUNT_DTOR(WebAudioDecodeJob);
   mArrayBuffer = nullptr;
-  nsContentUtils::DropJSObjects(this);
+  mozilla::DropJSObjects(this);
 }
 
 void
@@ -894,7 +603,7 @@ WebAudioDecodeJob::OnFailure(ErrorCode aErrorCode)
     doc = pWindow->GetExtantDoc();
   }
   nsContentUtils::ReportToConsole(nsIScriptError::errorFlag,
-                                  "Media",
+                                  NS_LITERAL_CSTRING("Media"),
                                   doc,
                                   nsContentUtils::eDOM_PROPERTIES,
                                   errorMessage);
@@ -907,6 +616,27 @@ WebAudioDecodeJob::OnFailure(ErrorCode aErrorCode)
   }
 
   mContext->RemoveFromDecodeQueue(this);
+}
+
+size_t
+WebAudioDecodeJob::SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const
+{
+  size_t amount = 0;
+  amount += mContentType.SizeOfExcludingThisMustBeUnshared(aMallocSizeOf);
+  if (mSuccessCallback) {
+    amount += mSuccessCallback->SizeOfIncludingThis(aMallocSizeOf);
+  }
+  if (mFailureCallback) {
+    amount += mFailureCallback->SizeOfIncludingThis(aMallocSizeOf);
+  }
+  if (mOutput) {
+    amount += mOutput->SizeOfIncludingThis(aMallocSizeOf);
+  }
+  amount += mChannelBuffers.SizeOfExcludingThis(aMallocSizeOf);
+  for (uint32_t i = 0; i < mChannelBuffers.Length(); ++i) {
+    amount += mChannelBuffers[i].SizeOfExcludingThis(aMallocSizeOf);
+  }
+  return amount;
 }
 
 }

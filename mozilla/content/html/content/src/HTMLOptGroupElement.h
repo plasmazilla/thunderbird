@@ -13,24 +13,17 @@
 namespace mozilla {
 namespace dom {
 
-class HTMLOptGroupElement : public nsGenericHTMLElement,
-                            public nsIDOMHTMLOptGroupElement
+class HTMLOptGroupElement MOZ_FINAL : public nsGenericHTMLElement,
+                                      public nsIDOMHTMLOptGroupElement
 {
 public:
-  HTMLOptGroupElement(already_AddRefed<nsINodeInfo> aNodeInfo);
+  HTMLOptGroupElement(already_AddRefed<nsINodeInfo>& aNodeInfo);
   virtual ~HTMLOptGroupElement();
+
+  NS_IMPL_FROMCONTENT_HTML_WITH_TAG(HTMLOptGroupElement, optgroup)
 
   // nsISupports
   NS_DECL_ISUPPORTS_INHERITED
-
-  // nsIDOMNode
-  NS_FORWARD_NSIDOMNODE_TO_NSINODE
-
-  // nsIDOMElement
-  NS_FORWARD_NSIDOMELEMENT_TO_GENERIC
-
-  // nsIDOMHTMLElement
-  NS_FORWARD_NSIDOMHTMLELEMENT_TO_GENERIC
 
   // nsIDOMHTMLOptGroupElement
   NS_DECL_NSIDOMHTMLOPTGROUPELEMENT

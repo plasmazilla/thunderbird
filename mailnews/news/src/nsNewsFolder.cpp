@@ -516,7 +516,7 @@ NS_IMETHODIMP nsMsgNewsFolder::CreateSubfolder(const nsAString& newsgroupName,
 {
   nsresult rv = NS_OK;
   if (newsgroupName.IsEmpty())
-    return NS_ERROR_FAILURE;
+    return NS_MSG_ERROR_INVALID_FOLDER_NAME;
 
   nsCOMPtr<nsIMsgFolder> child;
   // Create an empty database for this mail folder, set its name from the user
@@ -680,7 +680,7 @@ nsresult nsMsgNewsFolder::AbbreviatePrettyName(nsAString& prettyName, int32_t fu
   int32_t newword = 0;     // == 2 if done with all abbreviated words
 
   fullwords = 0;
-  PRUnichar currentChar;
+  char16_t currentChar;
   for (int32_t i = 1; i < length; i++)
   {
     // this temporary assignment is needed to fix an intel mac compiler bug.
@@ -793,7 +793,12 @@ NS_IMETHODIMP nsMsgNewsFolder::GetExpungedBytesCount(uint32_t *count)
 
 NS_IMETHODIMP nsMsgNewsFolder::GetDeletable(bool *deletable)
 {
+  NS_ENSURE_ARG_POINTER(deletable);
+
   *deletable = false;
+  // For legacy reasons, there can be Saved search folders under news accounts.
+  // Allow deleting those.
+  GetFlag(nsMsgFolderFlags::Virtual, deletable);
   return NS_OK;
 }
 
@@ -1359,7 +1364,7 @@ nsMsgNewsFolder::GetAuthenticationCredentials(nsIMsgWindow *aMsgWindow,
     {
       // Format the prompt text strings
       nsString promptTitle, promptText;
-      bundle->GetStringFromName(NS_LITERAL_STRING("enterUserPassTitle").get(),
+      bundle->GetStringFromName(MOZ_UTF16("enterUserPassTitle"),
         getter_Copies(promptTitle));
 
       nsString serverName;
@@ -1376,16 +1381,16 @@ nsMsgNewsFolder::GetAuthenticationCredentials(nsIMsgWindow *aMsgWindow,
       bool singleSignon = true;
       nntpServer->GetSingleSignon(&singleSignon);
 
-      const PRUnichar *params[2];
+      const char16_t *params[2];
       params[0] = mName.get();
       params[1] = serverName.get();
       if (singleSignon)
         bundle->FormatStringFromName(
-          NS_LITERAL_STRING("enterUserPassServer").get(),
+          MOZ_UTF16("enterUserPassServer"),
           &params[1], 1, getter_Copies(promptText));
       else
         bundle->FormatStringFromName(
-          NS_LITERAL_STRING("enterUserPassGroup").get(),
+          MOZ_UTF16("enterUserPassGroup"),
           params, 2, getter_Copies(promptText));
 
       // Fill the signon url for the dialog
@@ -1394,9 +1399,9 @@ nsMsgNewsFolder::GetAuthenticationCredentials(nsIMsgWindow *aMsgWindow,
       NS_ENSURE_SUCCESS(rv, rv);
 
       // Prefill saved username/password
-      PRUnichar *uniGroupUsername = ToNewUnicode(
+      char16_t *uniGroupUsername = ToNewUnicode(
         NS_ConvertASCIItoUTF16(mGroupUsername));
-      PRUnichar *uniGroupPassword = ToNewUnicode(
+      char16_t *uniGroupPassword = ToNewUnicode(
         NS_ConvertASCIItoUTF16(mGroupPassword));
 
       // Prompt for the dialog
@@ -1730,9 +1735,10 @@ NS_IMETHODIMP nsMsgNewsFolder::DownloadAllForOffline(nsIUrlListener *listener, n
       bool hasMore;
       while (NS_SUCCEEDED(rv = enumerator->HasMoreElements(&hasMore)) && hasMore)
       {
-        nsCOMPtr <nsIMsgDBHdr> pHeader;
-        rv = enumerator->GetNext(getter_AddRefs(pHeader));
+        nsCOMPtr <nsISupports> supports;
+        rv = enumerator->GetNext(getter_AddRefs(supports));
         NS_ASSERTION(NS_SUCCEEDED(rv), "nsMsgDBEnumerator broken");
+        nsCOMPtr <nsIMsgDBHdr> pHeader = do_QueryInterface(supports);
         if (pHeader && NS_SUCCEEDED(rv))
         {
           bool shouldStoreMsgOffline = false;

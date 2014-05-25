@@ -26,23 +26,27 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
-#include "YarrPattern.h"
+#include "yarr/YarrPattern.h"
 
-#include "Yarr.h"
-#include "YarrCanonicalizeUCS2.h"
-#include "YarrParser.h"
+#include "yarr/Yarr.h"
+#include "yarr/YarrCanonicalizeUCS2.h"
+#include "yarr/YarrParser.h"
 
 using namespace WTF;
 
 namespace JSC { namespace Yarr {
 
-#include "RegExpJitTables.h"
+#include "yarr/RegExpJitTables.h"
 
 #if WTF_CPU_SPARC
 # define BASE_FRAME_SIZE 24
 #else
 # define BASE_FRAME_SIZE 0
 #endif
+
+// Thanks, windows.h!
+#undef min
+#undef max
 
 class CharacterClassConstructor {
 public:
@@ -183,7 +187,7 @@ public:
 
     CharacterClass* charClass()
     {
-        CharacterClass* characterClass = js_new<CharacterClass>(PassRefPtr<CharacterClassTable>(0));
+        CharacterClass* characterClass = js_new<CharacterClass>();
 
         characterClass->m_matches.swap(m_matches);
         characterClass->m_ranges.swap(m_ranges);
@@ -277,6 +281,7 @@ class YarrPatternConstructor {
 public:
     YarrPatternConstructor(YarrPattern& pattern)
         : m_pattern(pattern)
+        , m_stackBase(nullptr)
         , m_characterClassConstructor(pattern.m_ignoreCase)
         , m_invertParentheticalAssertion(false)
     {
@@ -569,6 +574,14 @@ public:
     ErrorCode setupAlternativeOffsets(PatternAlternative* alternative, unsigned currentCallFrameSize, unsigned initialInputPosition,
                                       unsigned *callFrameSizeOut)
     {
+        /*
+         * Attempt detection of over-recursion:
+         * "1MB should be enough stack for anyone."
+         */
+        uint8_t stackDummy_;
+        if (m_stackBase - &stackDummy_ > 1024*1024)
+            return PatternTooLarge;
+
         alternative->m_hasFixedSize = true;
         Checked<unsigned> currentInputPosition = initialInputPosition;
 
@@ -766,7 +779,10 @@ public:
             if (term.type == PatternTerm::TypeParenthesesSubpattern) {
                 PatternDisjunction* nestedDisjunction = term.parentheses.disjunction;
                 for (unsigned alt = 0; alt < nestedDisjunction->m_alternatives.size(); ++alt) {
-                    if (containsCapturingTerms(nestedDisjunction->m_alternatives[alt], 0, nestedDisjunction->m_alternatives[alt]->m_terms.size() - 1))
+                    PatternAlternative *pattern = nestedDisjunction->m_alternatives[alt];
+                    if (pattern->m_terms.size() == 0)
+                        continue;
+                    if (containsCapturingTerms(pattern, 0, pattern->m_terms.size() - 1))
                         return true;
                 }
             }
@@ -834,8 +850,13 @@ public:
         }
     }
 
+    void setStackBase(uint8_t *stackBase) {
+        m_stackBase = stackBase;
+    }
+
 private:
     YarrPattern& m_pattern;
+    uint8_t * m_stackBase;
     PatternAlternative* m_alternative;
     CharacterClassConstructor m_characterClassConstructor;
     bool m_invertCharacterClass;
@@ -865,6 +886,9 @@ ErrorCode YarrPattern::compile(const String& patternString)
         ASSERT(!error);
         ASSERT(numSubpatterns == m_numSubpatterns);
     }
+
+    uint8_t stackDummy_;
+    constructor.setStackBase(&stackDummy_);
 
     constructor.checkForTerminalParentheses();
     constructor.optimizeDotStarWrappedExpressions();

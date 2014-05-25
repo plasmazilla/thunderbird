@@ -1,3 +1,5 @@
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* vim: set sw=4 ts=8 et tw=80 : */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -7,6 +9,7 @@
 
 #include "nsPIDNSService.h"
 #include "nsIIDNService.h"
+#include "nsIMemoryReporter.h"
 #include "nsIObserver.h"
 #include "nsHostResolver.h"
 #include "nsAutoPtr.h"
@@ -18,17 +21,25 @@
 
 class nsDNSService MOZ_FINAL : public nsPIDNSService
                              , public nsIObserver
+                             , public nsIMemoryReporter
 {
 public:
-    NS_DECL_ISUPPORTS
+    NS_DECL_THREADSAFE_ISUPPORTS
     NS_DECL_NSPIDNSSERVICE
     NS_DECL_NSIDNSSERVICE
     NS_DECL_NSIOBSERVER
+    NS_DECL_NSIMEMORYREPORTER
 
     nsDNSService();
     ~nsDNSService();
 
+    static nsIDNSService* GetXPCOMSingleton();
+
+    size_t SizeOfIncludingThis(mozilla::MallocSizeOf mallocSizeOf) const;
+
 private:
+    static nsDNSService* GetSingleton();
+
     uint16_t GetAFForLookup(const nsACString &host, uint32_t flags);
 
     nsRefPtr<nsHostResolver>  mResolver;

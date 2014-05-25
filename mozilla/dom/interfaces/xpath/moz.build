@@ -8,17 +8,10 @@ XPIDL_SOURCES += [
     'nsIDOMNSXPathExpression.idl',
     'nsIDOMXPathEvaluator.idl',
     'nsIDOMXPathExpression.idl',
-    'nsIDOMXPathNSResolver.idl',
     'nsIDOMXPathNamespace.idl',
+    'nsIDOMXPathNSResolver.idl',
     'nsIDOMXPathResult.idl',
 ]
 
 XPIDL_MODULE = 'dom_xpath'
-
-XPIDL_FLAGS += [
-    '-I$(topsrcdir)/dom/interfaces/base',
-    '-I$(topsrcdir)/dom/interfaces/core',
-]
-
-MODULE = 'dom'
 

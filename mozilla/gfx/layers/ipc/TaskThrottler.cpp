@@ -4,21 +4,21 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "base/basictypes.h"
-#include "base/message_loop.h"
 #include "TaskThrottler.h"
 
 namespace mozilla {
 namespace layers {
 
-TaskThrottler::TaskThrottler()
+TaskThrottler::TaskThrottler(const TimeStamp& aTimeStamp)
   : mOutstanding(false)
   , mQueuedTask(nullptr)
+  , mStartTime(aTimeStamp)
+  , mMean(1)
 { }
 
 void
 TaskThrottler::PostTask(const tracked_objects::Location& aLocation,
-                        CancelableTask* aTask)
+                        CancelableTask* aTask, const TimeStamp& aTimeStamp)
 {
   aTask->SetBirthPlace(aLocation);
 
@@ -28,22 +28,35 @@ TaskThrottler::PostTask(const tracked_objects::Location& aLocation,
     }
     mQueuedTask = aTask;
   } else {
+    mStartTime = aTimeStamp;
     aTask->Run();
     delete aTask;
     mOutstanding = true;
   }
 }
 
-bool
-TaskThrottler::TaskComplete()
+void
+TaskThrottler::TaskComplete(const TimeStamp& aTimeStamp)
 {
+  if (!mOutstanding) {
+    return;
+  }
+
+  mMean.insert(aTimeStamp - mStartTime);
+
   if (mQueuedTask) {
+    mStartTime = aTimeStamp;
     mQueuedTask->Run();
     mQueuedTask = nullptr;
-    return true;
+  } else {
+    mOutstanding = false;
   }
-  mOutstanding = false;
-  return false;
+}
+
+TimeDuration
+TaskThrottler::TimeSinceLastRequest(const TimeStamp& aTimeStamp)
+{
+  return aTimeStamp - mStartTime;
 }
 
 }

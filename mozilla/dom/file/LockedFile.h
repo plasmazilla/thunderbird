@@ -97,11 +97,11 @@ private:
   void
   OnRequestFinished();
 
-  inline already_AddRefed<FileRequest>
+  already_AddRefed<FileRequest>
   GenerateFileRequest();
 
   nsresult
-  WriteOrAppend(const jsval& aValue, JSContext* aCx,
+  WriteOrAppend(JS::Handle<JS::Value> aValue, JSContext* aCx,
                 nsISupports** _retval, bool aAppend);
 
   nsresult
@@ -126,7 +126,7 @@ class FinishHelper MOZ_FINAL : public nsIRunnable
   friend class LockedFile;
 
 public:
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIRUNNABLE
 
 private:

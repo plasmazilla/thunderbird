@@ -7,7 +7,7 @@
 #include "nsStringGlue.h"
 #include "nsAbOSXCard.h"
 #include "nsMemory.h"
-#include "mozilla/Util.h"
+#include "mozilla/ArrayUtils.h"
 using namespace mozilla;
 
 #include <AddressBook/AddressBook.h>
@@ -16,7 +16,7 @@ using namespace mozilla;
 NSString*
 WrapString(const nsString &aString)
 {
-    PRUnichar* chars = const_cast<PRUnichar*>(aString.get());
+    unichar* chars = reinterpret_cast<unichar*>(const_cast<char16_t*>(aString.get()));
 
     return [NSString stringWithCharacters:chars
                                    length:aString.Length()];

@@ -11,7 +11,6 @@
 #include "nsCOMPtr.h"
 #include "nsIStringBundle.h"
 #include "nsIImportMail.h"
-#include "nsISupportsArray.h"
 
 // logging facilities
 extern PRLogModuleInfo *APPLEMAILLOGMODULE;
@@ -32,6 +31,7 @@ extern PRLogModuleInfo *APPLEMAILLOGMODULE;
 #define kAppleMailSupportsString "mail"
 
 class nsIImportService;
+class nsIMutableArray;
 
 class nsAppleMailImportModule : public nsIImportModule
 {
@@ -40,7 +40,7 @@ class nsAppleMailImportModule : public nsIImportModule
   nsAppleMailImportModule();
   virtual ~nsAppleMailImportModule();
     
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIIMPORTMODULE
 
   private:
@@ -55,20 +55,20 @@ class nsAppleMailImportMail : public nsIImportMail
   nsAppleMailImportMail();
   virtual ~nsAppleMailImportMail();
 
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIIMPORTMAIL
 
   nsresult Initialize();
 
   private:
 
-  void FindAccountMailDirs(nsIFile *aRoot, nsISupportsArray *aMailboxDescs, nsIImportService *aImportService);
-  nsresult FindMboxDirs(nsIFile *aFolder, nsISupportsArray *aMailboxDescs, nsIImportService *aImportService);
-  nsresult AddMboxDir(nsIFile *aFolder, nsISupportsArray *aMailboxDescs, nsIImportService *aImportService);
+  void FindAccountMailDirs(nsIFile *aRoot, nsIMutableArray *aMailboxDescs, nsIImportService *aImportService);
+  nsresult FindMboxDirs(nsIFile *aFolder, nsIMutableArray *aMailboxDescs, nsIImportService *aImportService);
+  nsresult AddMboxDir(nsIFile *aFolder, nsIMutableArray *aMailboxDescs, nsIImportService *aImportService);
     
   // aInfoString is the format to a "foo %s" string. It may be NULL if the error string needs no such format.
   void ReportStatus(int32_t aErrorNum, nsString &aName, nsAString &aStream);
-  static void SetLogs(const nsAString& success, const nsAString& error, PRUnichar **aOutErrorLog, PRUnichar **aSuccessLog);
+  static void SetLogs(const nsAString& success, const nsAString& error, char16_t **aOutErrorLog, char16_t **aSuccessLog);
 
   nsCOMPtr<nsIStringBundle>  mBundle;
   uint32_t                   mProgress;

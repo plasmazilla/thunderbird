@@ -7,8 +7,9 @@
 #define MOZILLA_IMAGELIB_IMGDECODEROBSERVER_H_
 
 #include "nsRect.h"
-#include "mozilla/RefPtr.h"
 #include "mozilla/WeakPtr.h"
+
+struct nsIntRect;
 
 /**
  * imgDecoderObserver interface
@@ -35,6 +36,7 @@
 class imgDecoderObserver : public mozilla::RefCounted<imgDecoderObserver>
 {
 public:
+  MOZ_DECLARE_REFCOUNTED_TYPENAME(imgDecoderObserver)
   virtual ~imgDecoderObserver() = 0;
 
   /**

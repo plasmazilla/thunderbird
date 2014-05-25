@@ -9,7 +9,10 @@
 #include "gfxFT2Fonts.h"
 #include "gfxPlatform.h"
 #include "gfxUserFontSet.h"
+#include "nsCOMPtr.h"
 #include "nsTArray.h"
+
+class nsIMemoryReporter;
 
 namespace mozilla {
     namespace dom {
@@ -30,8 +33,8 @@ public:
     }
 
     virtual already_AddRefed<gfxASurface>
-    CreateOffscreenSurface(const gfxIntSize& size,
-                           gfxASurface::gfxContentType contentType);
+    CreateOffscreenSurface(const IntSize& size,
+                           gfxContentType contentType);
     
     virtual gfxImageFormat GetOffscreenFormat() { return mOffscreenFormat; }
     
@@ -74,6 +77,8 @@ public:
     FT_Library GetFTLibrary();
 
     virtual int GetScreenDepth() const;
+
+    virtual bool UseAcceleratedSkiaCanvas() MOZ_OVERRIDE;
 
 private:
     int mScreenDepth;

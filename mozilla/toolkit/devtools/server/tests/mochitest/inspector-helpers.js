@@ -1,6 +1,11 @@
 var Cu = Components.utils;
 
-Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/devtools/Loader.jsm");
+Cu.import("resource://gre/modules/devtools/dbg-client.jsm");
+Cu.import("resource://gre/modules/devtools/dbg-server.jsm");
+
+const Services = devtools.require("Services");
+const {_documentWalker} = devtools.require("devtools/server/actors/inspector");
 
 // Always log packets when running tests.
 Services.prefs.setBoolPref("devtools.debugger.log", true);
@@ -8,11 +13,6 @@ SimpleTest.registerCleanupFunction(function() {
   Services.prefs.clearUserPref("devtools.debugger.log");
 });
 
-Cu.import("resource://gre/modules/devtools/Loader.jsm");
-Cu.import("resource://gre/modules/devtools/dbg-client.jsm");
-Cu.import("resource://gre/modules/devtools/dbg-server.jsm");
-
-const {_documentWalker} = devtools.require("devtools/server/actors/inspector");
 
 if (!DebuggerServer.initialized) {
   DebuggerServer.init(() => true);
@@ -79,7 +79,7 @@ function attachURL(url, callback) {
 }
 
 function promiseOnce(target, event) {
-  let deferred = Promise.defer();
+  let deferred = promise.defer();
   target.on(event, (...args) => {
     if (args.length === 1) {
       deferred.resolve(args[0]);
@@ -101,7 +101,7 @@ function serverOwnershipSubtree(walker, node) {
   }
 
   let children = [];
-  let docwalker = _documentWalker(node);
+  let docwalker = _documentWalker(node, window);
   let child = docwalker.firstChild();
   while (child) {
     let item = serverOwnershipSubtree(walker, child);
@@ -160,11 +160,11 @@ function assertOwnershipTrees(walker) {
 
 // Verify that an actorID is inaccessible both from the client library and the server.
 function checkMissing(client, actorID) {
-  let deferred = Promise.defer();
+  let deferred = promise.defer();
   let front = client.getActor(actorID);
   ok(!front, "Front shouldn't be accessible from the client for actorID: " + actorID);
 
-  let deferred = Promise.defer();
+  let deferred = promise.defer();
   client.request({
     to: actorID,
     type: "request",
@@ -177,11 +177,11 @@ function checkMissing(client, actorID) {
 
 // Verify that an actorID is accessible both from the client library and the server.
 function checkAvailable(client, actorID) {
-  let deferred = Promise.defer();
+  let deferred = promise.defer();
   let front = client.getActor(actorID);
   ok(front, "Front should be accessible from the client for actorID: " + actorID);
 
-  let deferred = Promise.defer();
+  let deferred = promise.defer();
   client.request({
     to: actorID,
     type: "garbageAvailableTest",
@@ -235,6 +235,10 @@ function isChildList(change) {
   return change.type === "childList";
 }
 
+function isNewRoot(change) {
+  return change.type === "newRoot";
+}
+
 // Make sure an iframe's src attribute changed and then
 // strip that mutation out of the list.
 function assertSrcChange(mutations) {
@@ -262,7 +266,7 @@ function assertChildList(mutations) {
 // Load mutations aren't predictable, so keep accumulating mutations until
 // the one we're looking for shows up.
 function waitForMutation(walker, test, mutations=[]) {
-  let deferred = Promise.defer();
+  let deferred = promise.defer();
   for (let change of mutations) {
     if (test(change)) {
       deferred.resolve(mutations);
@@ -289,5 +293,11 @@ function runNextTest() {
     SimpleTest.finish()
     return;
   }
-  _tests.shift()();
+  var fn = _tests.shift();
+  try {
+    fn();
+  } catch (ex) {
+    info("Test function " + (fn.name ? "'" + fn.name + "' " : "") +
+         "threw an exception: " + ex);
+  }
 }

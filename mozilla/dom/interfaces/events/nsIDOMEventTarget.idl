@@ -6,12 +6,14 @@
 #include "domstubs.idl"
 
 %{C++
-#include "nsEvent.h"
+#include "mozilla/EventForwards.h"
 #include "mozilla/dom/Nullable.h"
+#include "js/TypeDecls.h"
 
 using mozilla::dom::Nullable;
 
 namespace mozilla {
+class EventListenerManager;
 namespace dom {
 class EventTarget;
 } // namespace dom
@@ -20,8 +22,6 @@ class EventTarget;
 class nsPresContext;
 class nsEventChainPreVisitor;
 class nsEventChainPostVisitor;
-struct JSContext;
-class nsEventListenerManager;
 %}
 
 /**
@@ -34,18 +34,18 @@ class nsEventListenerManager;
 
 [ref] native nsEventChainPreVisitorRef(nsEventChainPreVisitor);
 [ref] native nsEventChainPostVisitorRef(nsEventChainPostVisitor);
-[ptr] native nsEventPtr(nsEvent);
+[ptr] native WidgetEventPtr(mozilla::WidgetEvent);
 [ptr] native nsPresContextPtr(nsPresContext);
 [ptr] native nsEventStatusPtr(nsEventStatus);
 [ptr] native JSContextPtr(JSContext);
-[ptr] native nsEventListenerManagerPtr(nsEventListenerManager);
+[ptr] native EventListenerManagerPtr(mozilla::EventListenerManager);
 [ptr] native EventTargetPtr(mozilla::dom::EventTarget);
 
 interface nsIScriptContext;
 interface nsIDOMEventListener;
 interface nsIDOMEvent;
 
-[scriptable, builtinclass, uuid(31e92e56-4d23-4a4a-9cfe-a6d12cf434bc)]
+[scriptable, builtinclass, uuid(b128448c-7b53-4769-92cb-cd6eafee676c)]
 interface nsIDOMEventTarget : nsISupports
 {
   /**
@@ -248,7 +248,7 @@ interface nsIDOMEventTarget : nsISupports
    * Dispatch an event.
    * @param aEvent the event that is being dispatched.
    * @param aDOMEvent the event that is being dispatched, use if you want to
-   *                  dispatch nsIDOMEvent, not only nsEvent.
+   *                  dispatch nsIDOMEvent, not only WidgetEvent.
    * @param aPresContext the current presentation context, can be nullptr.
    * @param aEventStatus the status returned from the function, can be nullptr.
    *
@@ -262,19 +262,10 @@ interface nsIDOMEventTarget : nsISupports
    *             have been converted to use nsIDOMEventTarget::dispatchEvent.
    */
   [noscript, nostdcall]
-  void DispatchDOMEvent(in nsEventPtr aEvent,
+  void DispatchDOMEvent(in WidgetEventPtr aEvent,
                         in nsIDOMEvent aDOMEvent,
                         in nsPresContextPtr aPresContext,
                         in nsEventStatusPtr aEventStatus);
-
-  /**
-   * Get the event listener manager, the guy you talk to to register for events
-   * on this node.
-   * @param aMayCreate If PR_FALSE, returns a listener manager only if
-   *                   one already exists.
-   */
-  [notxpcom, nostdcall]
-  nsEventListenerManagerPtr GetListenerManager(in boolean aMayCreate);
 
   /**
    * Get the script context in which the event handlers should be run.
@@ -305,11 +296,12 @@ aClass::RemoveSystemEventListener(const nsAString& aType, \
                                   nsIDOMEventListener *aListener, \
                                   bool aUseCapture) \
 { \
-  nsEventListenerManager* listenerManager = GetListenerManager(false); \
+  mozilla::EventListenerManager* listenerManager = \
+    GetExistingListenerManager(); \
   if (!listenerManager) { \
     return NS_OK; \
   } \
-  mozilla::dom::EventListenerFlags flags; \
+  mozilla::EventListenerFlags flags; \
   flags.mInSystemGroup = true; \
   flags.mCapture = aUseCapture; \
   listenerManager->RemoveEventListenerByType(aListener, aType, flags); \

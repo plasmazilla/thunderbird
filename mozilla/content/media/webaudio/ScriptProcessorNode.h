@@ -11,13 +11,9 @@
 #include "nsAutoPtr.h"
 
 namespace mozilla {
-
-class AudioNodeStream;
-
 namespace dom {
 
 class AudioContext;
-class ScriptProcessorNodeEngine;
 class SharedBuffers;
 
 class ScriptProcessorNode : public AudioNode
@@ -30,7 +26,6 @@ public:
   virtual ~ScriptProcessorNode();
 
   NS_DECL_ISUPPORTS_INHERITED
-  NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(ScriptProcessorNode, AudioNode)
 
   IMPL_EVENT_HANDLER(audioprocess)
 
@@ -42,7 +37,7 @@ public:
   {
     AudioNode::Connect(aDestination, aOutput, aInput, aRv);
     if (!aRv.Failed()) {
-      mPlayingRef.Take(this);
+      MarkActive();
     }
   }
 
@@ -51,16 +46,31 @@ public:
   {
     AudioNode::Connect(aDestination, aOutput, aRv);
     if (!aRv.Failed()) {
-      mPlayingRef.Take(this);
+      MarkActive();
     }
   }
 
   virtual void Disconnect(uint32_t aOutput, ErrorResult& aRv) MOZ_OVERRIDE
   {
     AudioNode::Disconnect(aOutput, aRv);
-    if (!aRv.Failed()) {
-      mPlayingRef.Drop(this);
+    if (!aRv.Failed() && OutputNodes().IsEmpty() && OutputParams().IsEmpty()) {
+      MarkInactive();
     }
+  }
+
+  virtual void SetChannelCount(uint32_t aChannelCount, ErrorResult& aRv) MOZ_OVERRIDE
+  {
+    if (aChannelCount != ChannelCount()) {
+      aRv.Throw(NS_ERROR_DOM_NOT_SUPPORTED_ERR);
+    }
+    return;
+  }
+  virtual void SetChannelCountModeValue(ChannelCountMode aMode, ErrorResult& aRv) MOZ_OVERRIDE
+  {
+    if (aMode != ChannelCountMode::Explicit) {
+      aRv.Throw(NS_ERROR_DOM_NOT_SUPPORTED_ERR);
+    }
+    return;
   }
 
   uint32_t BufferSize() const
@@ -80,16 +90,10 @@ public:
 
   using nsDOMEventTargetHelper::DispatchTrustedEvent;
 
-  void Stop()
-  {
-    mPlayingRef.ForceDrop(this);
-  }
-
 private:
   nsAutoPtr<SharedBuffers> mSharedBuffers;
   const uint32_t mBufferSize;
   const uint32_t mNumberOfOutputChannels;
-  SelfCountedReference<ScriptProcessorNode> mPlayingRef; // a reference to self while planing
 };
 
 }

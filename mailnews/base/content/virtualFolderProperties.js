@@ -15,13 +15,12 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/virtualFolderWrapper.js");
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
+Components.utils.import("resource:///modules/MailUtils.js");
 
 function onLoad()
 {
   var windowArgs = window.arguments[0];
   var acceptButton = document.documentElement.getButton("accept");
-
-  document.getElementById("name").focus();
 
   // call this when OK is pressed
   msgWindow = windowArgs.msgWindow;
@@ -68,8 +67,12 @@ function onLoad()
       if (!windowArgs.folder.isServer)
         gSearchFolderURIs = windowArgs.folder.URI;
     }
+
+    folderNameField = document.getElementById("name");
+    folderNameField.hidden = false;
+    folderNameField.focus();
     if (windowArgs.newFolderName)
-      document.getElementById("name").value = windowArgs.newFolderName;
+      folderNameField.value = windowArgs.newFolderName;
     if (windowArgs.searchFolderURIs)
       gSearchFolderURIs = windowArgs.searchFolderURIs;
 
@@ -98,7 +101,7 @@ function updateOnlineSearchState()
   var srchFolderUriArray = gSearchFolderURIs.split('|');
   if (srchFolderUriArray[0])
   {
-    var realFolder = GetMsgFolderFromUri(srchFolderUriArray[0]);
+    var realFolder = MailUtils.getFolderForURI(srchFolderUriArray[0]);
     enableCheckbox =  realFolder.server.offlineSupportLevel; // anything greater than 0 is an online server like IMAP or news
   }
 
@@ -118,8 +121,8 @@ function InitDialogWithVirtualFolder(aVirtualFolder)
 
   // when editing an existing folder, hide the folder picker that stores the parent location of the folder
   document.getElementById("chooseFolderLocationRow").collapsed = true;
-  var folderNameField = document.getElementById("name");
-  folderNameField.disabled = true;
+  let folderNameField = document.getElementById("existingName");
+  folderNameField.hidden = false;
 
   gSearchFolderURIs = virtualFolderWrapper.searchFolderURIs;
   document.getElementById('searchOnline').checked = virtualFolderWrapper.onlineSearch;
@@ -128,18 +131,20 @@ function InitDialogWithVirtualFolder(aVirtualFolder)
   setupSearchRows(gSearchTermSession.searchTerms);
 
   // set the name of the folder
-  folderNameField.value = aVirtualFolder.prettyName;
-
+  let folderBundle = document.getElementById("bundle_folder");
+  let name = folderBundle.getFormattedString("verboseFolderFormat",
+               [aVirtualFolder.prettyName, aVirtualFolder.server.prettyName]);
+  folderNameField.setAttribute("label", name);
   // update the window title based on the name of the saved search
-  var messengerBundle = document.getElementById("bundle_messenger");
+  let messengerBundle = document.getElementById("bundle_messenger");
   document.title = messengerBundle.getFormattedString('editVirtualFolderPropertiesTitle',
                                                       [aVirtualFolder.prettyName]);
 }
 
 function onFolderPick(aEvent) {
   gPickedFolder = aEvent.target._folder;
-  document.getElementById("msgNewFolderPicker")
-          .setAttribute("label", gPickedFolder.prettyName);
+  document.getElementById("msgNewFolderPopup")
+          .selectFolder(gPickedFolder);
 }
 
 function onOK()
@@ -177,7 +182,7 @@ function onOK()
   if (name && uri) // create a new virtual folder
   {
     // check to see if we already have a folder with the same name and alert the user if so...
-    var parentFolder = GetMsgFolderFromUri(uri);
+    var parentFolder = MailUtils.getFolderForURI(uri);
 
     // sanity check the name based on the logic used by nsMsgBaseUtils.cpp. It can't start with a '.', it can't end with a '.', '~' or ' '.
     // it can't contain a ';' or '#'.

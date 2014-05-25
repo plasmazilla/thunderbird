@@ -225,12 +225,11 @@ add_task(function test_record_blocklist() {
 add_task(function test_record_app_update () {
   let storage = yield Metrics.Storage("record_update");
 
-  let now = new Date();
-
   Services.prefs.setBoolPref("app.update.enabled", true);
   Services.prefs.setBoolPref("app.update.auto", true);
   let provider = new AppInfoProvider();
   yield provider.init(storage);
+  let now = new Date();
   yield provider.collectDailyData();
 
   let m = provider.getMeasurement("update", 1);

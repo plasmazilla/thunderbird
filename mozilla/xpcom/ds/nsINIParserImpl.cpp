@@ -4,8 +4,6 @@
 
 #include "nsINIParserImpl.h"
 
-#include "nsIFile.h"
-
 #include "nsINIParser.h"
 #include "nsStringEnumerator.h"
 #include "nsTArray.h"
@@ -53,7 +51,8 @@ nsINIParserFactory::CreateInstance(nsISupports* aOuter,
                                    REFNSIID aIID,
                                    void **aResult)
 {
-  NS_ENSURE_NO_AGGREGATION(aOuter);
+  if (NS_WARN_IF(aOuter))
+    return NS_ERROR_NO_AGGREGATION;
 
   // We are our own singleton.
   return QueryInterface(aIID, aResult);

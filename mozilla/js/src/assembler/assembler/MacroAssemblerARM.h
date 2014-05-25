@@ -36,8 +36,8 @@
 
 #if ENABLE_ASSEMBLER && WTF_CPU_ARM_TRADITIONAL
 
-#include "ARMAssembler.h"
-#include "AbstractMacroAssembler.h"
+#include "assembler/assembler/ARMAssembler.h"
+#include "assembler/assembler/AbstractMacroAssembler.h"
 
 namespace JSC {
 
@@ -478,7 +478,7 @@ public:
     void store16(TrustedImm32 imm, BaseIndex address)
     {
         if (imm.m_isPointer)
-            JS_ASSERT("What are you trying to do with 16 bits of a pointer?");
+            MOZ_ASSUME_UNREACHABLE("What are you trying to do with 16 bits of a pointer?");
         else
             move(imm, ARMRegisters::S1);
         store16(ARMRegisters::S1, address);
@@ -486,7 +486,7 @@ public:
     void store16(TrustedImm32 imm, ImplicitAddress address)
     {
         if (imm.m_isPointer)
-            JS_ASSERT("What are you trying to do with 16 bits of a pointer?");
+            MOZ_ASSUME_UNREACHABLE("What are you trying to do with 16 bits of a pointer?");
         else
             move(imm, ARMRegisters::S1);
         store16(ARMRegisters::S1, address);
@@ -502,7 +502,7 @@ public:
     {
         m_assembler.ldr_un_imm(ARMRegisters::S0, reinterpret_cast<ARMWord>(address));
         if (imm.m_isPointer)
-            JS_ASSERT("What are you trying to do with 16 bits of a pointer?");
+            MOZ_ASSUME_UNREACHABLE("What are you trying to do with 16 bits of a pointer?");
         else
             m_assembler.moveImm(imm.m_value, ARMRegisters::S1);
         m_assembler.mem_imm_off(false, false, 16, true, ARMRegisters::S1, ARMRegisters::S0, 0);
@@ -521,7 +521,7 @@ public:
     void store8(TrustedImm32 imm, BaseIndex address)
     {
         if (imm.m_isPointer)
-            JS_ASSERT("What are you trying to do with 8 bits of a pointer?");
+            MOZ_ASSUME_UNREACHABLE("What are you trying to do with 8 bits of a pointer?");
         else
             move(imm, ARMRegisters::S1);
         store8(ARMRegisters::S1, address);
@@ -530,7 +530,7 @@ public:
     void store8(TrustedImm32 imm, ImplicitAddress address)
     {
         if (imm.m_isPointer)
-            JS_ASSERT("What are you trying to do with 16 bits of a pointer?");
+            MOZ_ASSUME_UNREACHABLE("What are you trying to do with 16 bits of a pointer?");
         else
             move(imm, ARMRegisters::S1);
         store8(ARMRegisters::S1, address);
@@ -546,7 +546,7 @@ public:
     {
         m_assembler.ldr_un_imm(ARMRegisters::S0, reinterpret_cast<ARMWord>(address));
         if (imm.m_isPointer)
-            JS_ASSERT("What are you trying to do with 16 bits of a pointer?");
+            MOZ_ASSUME_UNREACHABLE("What are you trying to do with 16 bits of a pointer?");
         else
             m_assembler.moveImm(imm.m_value, ARMRegisters::S1);
         m_assembler.mem_imm_off(false, false, 8, true, ARMRegisters::S1, ARMRegisters::S0, 0);
@@ -1111,17 +1111,17 @@ public:
     }
 
     // Floating point operators
-    bool supportsFloatingPoint() const
+    static bool supportsFloatingPoint()
     {
         return s_isVFPPresent;
     }
 
-    bool supportsFloatingPointTruncate() const
+    static bool supportsFloatingPointTruncate()
     {
         return true;
     }
 
-    bool supportsFloatingPointSqrt() const
+    static bool supportsFloatingPointSqrt()
     {
         return s_isVFPPresent;
     }

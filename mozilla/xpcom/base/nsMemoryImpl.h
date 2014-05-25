@@ -6,9 +6,10 @@
 #ifndef nsMemoryImpl_h__
 #define nsMemoryImpl_h__
 
+#include "mozilla/Atomics.h"
+
 #include "nsIMemory.h"
 #include "nsIRunnable.h"
-#include "prtime.h"
 
 // nsMemoryImpl is a static object. We can do this because it doesn't have
 // a constructor/destructor or any instance members. Please don't add
@@ -27,17 +28,17 @@ public:
     static nsresult Create(nsISupports* outer,
                            const nsIID& aIID, void **aResult);
 
-    NS_HIDDEN_(nsresult) FlushMemory(const PRUnichar* aReason, bool aImmediate);
-    NS_HIDDEN_(nsresult) RunFlushers(const PRUnichar* aReason);
+    NS_HIDDEN_(nsresult) FlushMemory(const char16_t* aReason, bool aImmediate);
+    NS_HIDDEN_(nsresult) RunFlushers(const char16_t* aReason);
 
 protected:
     struct FlushEvent : public nsIRunnable {
         NS_DECL_ISUPPORTS_INHERITED
         NS_DECL_NSIRUNNABLE
-        const PRUnichar* mReason;
+        const char16_t* mReason;
     };
 
-    static int32_t    sIsFlushing;
+    static mozilla::Atomic<bool> sIsFlushing;
     static FlushEvent sFlushEvent;
     static PRIntervalTime sLastFlushTime;
 };

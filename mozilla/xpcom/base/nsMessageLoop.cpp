@@ -31,6 +31,7 @@ class MessageLoopIdleTask
   , public SupportsWeakPtr<MessageLoopIdleTask>
 {
 public:
+  MOZ_DECLARE_REFCOUNTED_TYPENAME(MessageLoopIdleTask)
   MessageLoopIdleTask(nsIRunnable* aTask, uint32_t aEnsureRunsAfterMS);
   virtual ~MessageLoopIdleTask() {}
   virtual void Run();
@@ -87,7 +88,8 @@ nsresult
 MessageLoopIdleTask::Init(uint32_t aEnsureRunsAfterMS)
 {
   mTimer = do_CreateInstance("@mozilla.org/timer;1");
-  NS_ENSURE_STATE(mTimer);
+  if (NS_WARN_IF(!mTimer))
+    return NS_ERROR_UNEXPECTED;
 
   nsRefPtr<MessageLoopTimerCallback> callback =
     new MessageLoopTimerCallback(this);
@@ -153,7 +155,8 @@ nsMessageLoopConstructor(nsISupports* aOuter,
                          const nsIID& aIID,
                          void** aInstancePtr)
 {
-  NS_ENSURE_FALSE(aOuter, NS_ERROR_NO_AGGREGATION);
+  if (NS_WARN_IF(aOuter))
+    return NS_ERROR_NO_AGGREGATION;
   nsISupports* messageLoop = new nsMessageLoop();
   return messageLoop->QueryInterface(aIID, aInstancePtr);
 }

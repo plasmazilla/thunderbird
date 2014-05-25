@@ -112,9 +112,9 @@ function cleanUpText(aElem, aHidePrivateData) {
     // Delete uionly nodes.
     if (classList && classList.contains(CLASS_DATA_UIONLY)) {
       // Advance to the next node before removing the current node, since
-      // node.nextSibling is null after removeChild
+      // node.nextSibling is null after remove()
       let nextNode = node.nextSibling;
-      aElem.removeChild(node);
+      node.remove();
       node = nextNode;
       continue;
     }
@@ -184,6 +184,14 @@ function generateTextForElement(elem, aHidePrivateData, indent,
     textFragmentAccumulator.push(replaceFn(aHidePrivateData, indent + "  "));
     return;
   };
+
+#ifdef MOZ_CRASHREPORTER
+  if (elem.id == "crashes-table")
+  {
+    textFragmentAccumulator.push(getCrashesText(indent));
+    return;
+  }
+#endif
 
   let childCount = elem.childElementCount;
 

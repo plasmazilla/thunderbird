@@ -15,6 +15,7 @@
 #include "nsIFile.h"
 #include "nsISimpleEnumerator.h"
 #include "WMDebugLog.h"
+#include "prio.h"
 
 nsresult
 nsWMUtils::FindWMKey(nsIWindowsRegKey **aKey)
@@ -100,8 +101,11 @@ nsWMUtils::GetOEAccountFilesInFolder(nsIFile *aFolder,
 
   bool hasMore;
   while (NS_SUCCEEDED(entries->HasMoreElements(&hasMore)) && hasMore) {
-    nsCOMPtr<nsIFile> file;
-    rv = entries->GetNext(getter_AddRefs(file));
+    nsCOMPtr<nsISupports> supports;
+    rv = entries->GetNext(getter_AddRefs(supports));
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    nsCOMPtr<nsIFile> file = do_QueryInterface(supports);
     NS_ENSURE_SUCCESS(rv, rv);
 
     bool isDirectory;

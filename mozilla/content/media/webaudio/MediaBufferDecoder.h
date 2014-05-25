@@ -10,15 +10,15 @@
 #include "nsWrapperCache.h"
 #include "nsCOMPtr.h"
 #include "nsAutoPtr.h"
-#include "nsIThreadPool.h"
+#include "SharedThreadPool.h"
 #include "nsString.h"
 #include "nsTArray.h"
 #include "mozilla/dom/TypedArray.h"
-#include <utility>
+#include "mozilla/MemoryReporting.h"
+#include "mozilla/RefPtr.h"
 
 namespace mozilla {
 
-class MediaDecoderReader;
 namespace dom {
 class AudioBuffer;
 class AudioContext;
@@ -56,6 +56,7 @@ struct WebAudioDecodeJob MOZ_FINAL
 
   bool AllocateBuffer();
 
+  size_t SizeOfExcludingThis(mozilla::MallocSizeOf aMallocSizeOf) const;
 
   JS::Heap<JSObject*> mArrayBuffer;
   nsCString mContentType;
@@ -82,13 +83,16 @@ public:
   bool SyncDecodeMedia(const char* aContentType, uint8_t* aBuffer,
                        uint32_t aLength, WebAudioDecodeJob& aDecodeJob);
 
-  void Shutdown();
+  size_t SizeOfExcludingThis(mozilla::MallocSizeOf aMallocSizeOf) const
+  {
+    return 0;
+  }
 
 private:
   bool EnsureThreadPoolInitialized();
 
 private:
-  nsCOMPtr<nsIThreadPool> mThreadPool;
+  RefPtr<SharedThreadPool> mThreadPool;
 };
 
 }

@@ -1,4 +1,4 @@
-/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set sw=4 ts=8 et tw=80 : */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -14,6 +14,7 @@
 #include "nsIDOMFile.h"
 #include "nsIInputStream.h"
 #include "nsIIPCSerializableInputStream.h"
+#include "nsIMultiplexInputStream.h"
 #include "nsIRemoteBlob.h"
 #include "nsISeekableStream.h"
 
@@ -21,10 +22,13 @@
 #include "mozilla/unused.h"
 #include "mozilla/ipc/InputStreamUtils.h"
 #include "nsDOMFile.h"
+#include "nsProxyRelease.h"
 #include "nsThreadUtils.h"
+#include "jsapi.h"
 
 #include "ContentChild.h"
 #include "ContentParent.h"
+#include "nsNetCID.h"
 
 #define PRIVATE_REMOTE_INPUT_STREAM_IID \
   {0x30c7699f, 0x51d2, 0x48c8, {0xad, 0x56, 0xc0, 0x16, 0xd7, 0x6f, 0x71, 0x27}}
@@ -34,6 +38,24 @@ using namespace mozilla::dom::ipc;
 using namespace mozilla::ipc;
 
 namespace {
+
+/**
+ * Ensure that a nsCOMPtr/nsRefPtr is released on the main thread.
+ */
+template <template <class> class SmartPtr, class T>
+void
+ProxyReleaseToMainThread(SmartPtr<T>& aDoomed)
+{
+  MOZ_ASSERT(!NS_IsMainThread());
+
+  nsCOMPtr<nsIThread> mainThread = do_GetMainThread();
+  NS_ENSURE_TRUE_VOID(mainThread);
+
+  if (NS_FAILED(NS_ProxyRelease(mainThread, aDoomed, true))) {
+    NS_WARNING("Failed to proxy release to main thread!");
+  }
+}
+
 
 class NS_NO_VTABLE IPrivateRemoteInputStream : public nsISupports
 {
@@ -48,23 +70,97 @@ public:
 NS_DEFINE_STATIC_IID_ACCESSOR(IPrivateRemoteInputStream,
                               PRIVATE_REMOTE_INPUT_STREAM_IID)
 
+// This class exists to keep a blob alive at least as long as its internal
+// stream.
+class BlobInputStreamTether : public nsIMultiplexInputStream,
+                              public nsISeekableStream,
+                              public nsIIPCSerializableInputStream
+{
+  nsCOMPtr<nsIInputStream> mStream;
+  nsCOMPtr<nsIDOMBlob> mSourceBlob;
+
+  nsIMultiplexInputStream* mWeakMultiplexStream;
+  nsISeekableStream* mWeakSeekableStream;
+  nsIIPCSerializableInputStream* mWeakSerializableStream;
+
+public:
+  NS_DECL_THREADSAFE_ISUPPORTS
+  NS_FORWARD_NSIINPUTSTREAM(mStream->)
+  NS_FORWARD_SAFE_NSIMULTIPLEXINPUTSTREAM(mWeakMultiplexStream)
+  NS_FORWARD_SAFE_NSISEEKABLESTREAM(mWeakSeekableStream)
+  NS_FORWARD_SAFE_NSIIPCSERIALIZABLEINPUTSTREAM(mWeakSerializableStream)
+
+  BlobInputStreamTether(nsIInputStream* aStream, nsIDOMBlob* aSourceBlob)
+  : mStream(aStream), mSourceBlob(aSourceBlob), mWeakMultiplexStream(nullptr),
+    mWeakSeekableStream(nullptr), mWeakSerializableStream(nullptr)
+  {
+    MOZ_ASSERT(aStream);
+    MOZ_ASSERT(aSourceBlob);
+
+    nsCOMPtr<nsIMultiplexInputStream> multiplexStream =
+      do_QueryInterface(aStream);
+    if (multiplexStream) {
+      MOZ_ASSERT(SameCOMIdentity(aStream, multiplexStream));
+      mWeakMultiplexStream = multiplexStream;
+    }
+
+    nsCOMPtr<nsISeekableStream> seekableStream = do_QueryInterface(aStream);
+    if (seekableStream) {
+      MOZ_ASSERT(SameCOMIdentity(aStream, seekableStream));
+      mWeakSeekableStream = seekableStream;
+    }
+
+    nsCOMPtr<nsIIPCSerializableInputStream> serializableStream =
+      do_QueryInterface(aStream);
+    if (serializableStream) {
+      MOZ_ASSERT(SameCOMIdentity(aStream, serializableStream));
+      mWeakSerializableStream = serializableStream;
+    }
+  }
+
+protected:
+  virtual ~BlobInputStreamTether()
+  {
+    MOZ_ASSERT(mStream);
+    MOZ_ASSERT(mSourceBlob);
+
+    if (!NS_IsMainThread()) {
+      mStream = nullptr;
+      ProxyReleaseToMainThread(mSourceBlob);
+    }
+  }
+};
+
+NS_IMPL_ADDREF(BlobInputStreamTether)
+NS_IMPL_RELEASE(BlobInputStreamTether)
+
+NS_INTERFACE_MAP_BEGIN(BlobInputStreamTether)
+  NS_INTERFACE_MAP_ENTRY(nsIInputStream)
+  NS_INTERFACE_MAP_ENTRY_CONDITIONAL(nsIMultiplexInputStream,
+                                     mWeakMultiplexStream)
+  NS_INTERFACE_MAP_ENTRY_CONDITIONAL(nsISeekableStream, mWeakSeekableStream)
+  NS_INTERFACE_MAP_ENTRY_CONDITIONAL(nsIIPCSerializableInputStream,
+                                     mWeakSerializableStream)
+  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIInputStream)
+NS_INTERFACE_MAP_END
+
 class RemoteInputStream : public nsIInputStream,
                           public nsISeekableStream,
                           public nsIIPCSerializableInputStream,
                           public IPrivateRemoteInputStream
 {
   mozilla::Monitor mMonitor;
-  nsCOMPtr<nsIDOMBlob> mSourceBlob;
   nsCOMPtr<nsIInputStream> mStream;
-  nsCOMPtr<nsISeekableStream> mSeekableStream;
+  nsCOMPtr<nsIDOMBlob> mSourceBlob;
+  nsISeekableStream* mWeakSeekableStream;
   ActorFlavorEnum mOrigin;
 
 public:
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
 
   RemoteInputStream(nsIDOMBlob* aSourceBlob, ActorFlavorEnum aOrigin)
   : mMonitor("RemoteInputStream.mMonitor"), mSourceBlob(aSourceBlob),
-    mOrigin(aOrigin)
+    mWeakSeekableStream(nullptr), mOrigin(aOrigin)
   {
     MOZ_ASSERT(NS_IsMainThread());
     MOZ_ASSERT(aSourceBlob);
@@ -90,8 +186,7 @@ public:
   {
     // See InputStreamUtils.cpp to see how deserialization of a
     // RemoteInputStream is special-cased.
-    MOZ_NOT_REACHED("RemoteInputStream should never be deserialized");
-    return false;
+    MOZ_CRASH("RemoteInputStream should never be deserialized");
   }
 
   void
@@ -103,14 +198,16 @@ public:
     nsCOMPtr<nsIInputStream> stream = aStream;
     nsCOMPtr<nsISeekableStream> seekableStream = do_QueryInterface(aStream);
 
+    MOZ_ASSERT_IF(seekableStream, SameCOMIdentity(aStream, seekableStream));
+
     {
       mozilla::MonitorAutoLock lock(mMonitor);
 
       MOZ_ASSERT(!mStream);
-      MOZ_ASSERT(!mSeekableStream);
+      MOZ_ASSERT(!mWeakSeekableStream);
 
       mStream.swap(stream);
-      mSeekableStream.swap(seekableStream);
+      mWeakSeekableStream = seekableStream;
 
       mMonitor.Notify();
     }
@@ -188,12 +285,12 @@ public:
     nsresult rv = BlockAndWaitForStream();
     NS_ENSURE_SUCCESS(rv, rv);
 
-    if (!mSeekableStream) {
+    if (!mWeakSeekableStream) {
       NS_WARNING("Underlying blob stream is not seekable!");
       return NS_ERROR_NO_INTERFACE;
     }
 
-    rv = mSeekableStream->Seek(aWhence, aOffset);
+    rv = mWeakSeekableStream->Seek(aWhence, aOffset);
     NS_ENSURE_SUCCESS(rv, rv);
 
     return NS_OK;
@@ -213,12 +310,12 @@ public:
     nsresult rv = BlockAndWaitForStream();
     NS_ENSURE_SUCCESS(rv, rv);
 
-    if (!mSeekableStream) {
+    if (!mWeakSeekableStream) {
       NS_WARNING("Underlying blob stream is not seekable!");
       return NS_ERROR_NO_INTERFACE;
     }
 
-    rv = mSeekableStream->Tell(aResult);
+    rv = mWeakSeekableStream->Tell(aResult);
     NS_ENSURE_SUCCESS(rv, rv);
 
     return NS_OK;
@@ -230,12 +327,12 @@ public:
     nsresult rv = BlockAndWaitForStream();
     NS_ENSURE_SUCCESS(rv, rv);
 
-    if (!mSeekableStream) {
+    if (!mWeakSeekableStream) {
       NS_WARNING("Underlying blob stream is not seekable!");
       return NS_ERROR_NO_INTERFACE;
     }
 
-    rv = mSeekableStream->SetEOF();
+    rv = mWeakSeekableStream->SetEOF();
     NS_ENSURE_SUCCESS(rv, rv);
 
     return NS_OK;
@@ -254,7 +351,13 @@ public:
 
 private:
   virtual ~RemoteInputStream()
-  { }
+  {
+    if (!NS_IsMainThread()) {
+      mStream = nullptr;
+      mWeakSeekableStream = nullptr;
+      ProxyReleaseToMainThread(mSourceBlob);
+    }
+  }
 
   void
   ReallyBlockAndWaitForStream()
@@ -274,9 +377,9 @@ private:
     MOZ_ASSERT(mStream);
 
 #ifdef DEBUG
-    if (waited && mSeekableStream) {
+    if (waited && mWeakSeekableStream) {
       int64_t position;
-      MOZ_ASSERT(NS_SUCCEEDED(mSeekableStream->Tell(&position)),
+      MOZ_ASSERT(NS_SUCCEEDED(mWeakSeekableStream->Tell(&position)),
                  "Failed to determine initial stream position!");
       MOZ_ASSERT(!position, "Stream not starting at 0!");
     }
@@ -309,12 +412,12 @@ private:
       ReallyBlockAndWaitForStream();
     }
 
-    return !!mSeekableStream;
+    return !!mWeakSeekableStream;
   }
 };
 
-NS_IMPL_THREADSAFE_ADDREF(RemoteInputStream)
-NS_IMPL_THREADSAFE_RELEASE(RemoteInputStream)
+NS_IMPL_ADDREF(RemoteInputStream)
+NS_IMPL_RELEASE(RemoteInputStream)
 
 NS_INTERFACE_MAP_BEGIN(RemoteInputStream)
   NS_INTERFACE_MAP_ENTRY(nsIInputStream)
@@ -365,8 +468,8 @@ inline
 already_AddRefed<nsIDOMBlob>
 GetBlobFromParams(const SlicedBlobConstructorParams& aParams)
 {
-  MOZ_STATIC_ASSERT(ActorFlavor == mozilla::dom::ipc::Parent,
-                    "No other flavor is supported here!");
+  static_assert(ActorFlavor == Parent,
+                "No other flavor is supported here!");
 
   BlobParent* actor =
     const_cast<BlobParent*>(
@@ -626,7 +729,7 @@ BlobTraits<Parent>::BaseType::NoteRunnableCompleted(
     }
   }
 
-  MOZ_NOT_REACHED("Runnable not in our array!");
+  MOZ_CRASH("Runnable not in our array!");
 }
 
 template <ActorFlavorEnum ActorFlavor>
@@ -655,6 +758,24 @@ public:
 
 private:
   ActorType* mActor;
+
+  virtual ~RemoteBlob()
+  {
+    if (mActor) {
+      mActor->NoteDyingRemoteBlob();
+    }
+  }
+
+  nsresult
+  GetInternalStreamViaHelper(nsIInputStream** aStream)
+  {
+    if (!mActor) {
+      return NS_ERROR_UNEXPECTED;
+    }
+
+    nsRefPtr<StreamHelper> helper = new StreamHelper(mActor, this);
+    return helper->GetStream(aStream);
+  }
 
   class StreamHelper : public nsRunnable
   {
@@ -834,6 +955,8 @@ private:
       MOZ_ASSERT(!mSlice);
       MOZ_ASSERT(!mDone);
 
+      NS_ENSURE_TRUE_VOID(mActor->Manager());
+
       NormalBlobConstructorParams normalParams;
       normalParams.contentType() = mContentType;
       normalParams.length() = mLength;
@@ -841,7 +964,7 @@ private:
       typename ActorType::ConstructorParamsType params;
       ActorType::BaseType::SetBlobConstructorParams(params, normalParams);
 
-      ActorType* newActor = ActorType::Create(params);
+      ActorType* newActor = ActorType::Create(mActor->Manager(), params);
       MOZ_ASSERT(newActor);
 
       SlicedBlobConstructorParams slicedParams;
@@ -894,13 +1017,6 @@ public:
     mImmutable = true;
   }
 
-  virtual ~RemoteBlob()
-  {
-    if (mActor) {
-      mActor->NoteDyingRemoteBlob();
-    }
-  }
-
   void
   SetActor(ActorType* aActor)
   {
@@ -939,16 +1055,17 @@ public:
   }
 
   NS_IMETHOD
-  GetLastModifiedDate(JSContext* cx, JS::Value* aLastModifiedDate)
+  GetLastModifiedDate(JSContext* cx,
+                      JS::MutableHandle<JS::Value> aLastModifiedDate) MOZ_OVERRIDE
   {
     if (IsDateUnknown()) {
-      aLastModifiedDate->setNull();
+      aLastModifiedDate.setNull();
     } else {
       JSObject* date = JS_NewDateObjectMsec(cx, mLastModificationDate);
       if (!date) {
         return NS_ERROR_OUT_OF_MEMORY;
       }
-      aLastModifiedDate->setObject(*date);
+      aLastModifiedDate.setObject(*date);
     }
     return NS_OK;
   }
@@ -962,10 +1079,6 @@ RemoteBlob<Parent>::MaybeSetInputStream(const ConstructorParamsType& aParams)
       OptionalInputStreamParams::TInputStreamParams) {
     mInputStreamParams =
       aParams.optionalInputStreamParams().get_InputStreamParams();
-  }
-  else {
-    MOZ_ASSERT(aParams.blobParams().type() ==
-               ChildBlobConstructorParams::TMysteryBlobConstructorParams);
   }
 }
 
@@ -981,42 +1094,37 @@ NS_IMETHODIMP
 RemoteBlob<Parent>::GetInternalStream(nsIInputStream** aStream)
 {
   if (mInputStreamParams.type() != InputStreamParams::T__None) {
-    nsCOMPtr<nsIInputStream> stream = DeserializeInputStream(mInputStreamParams);
-    if (!stream) {
+    nsCOMPtr<nsIInputStream> realStream =
+      DeserializeInputStream(mInputStreamParams);
+    if (!realStream) {
       NS_WARNING("Failed to deserialize stream!");
       return NS_ERROR_UNEXPECTED;
     }
 
+    nsCOMPtr<nsIInputStream> stream =
+      new BlobInputStreamTether(realStream, this);
     stream.forget(aStream);
     return NS_OK;
   }
 
-  if (!mActor) {
-    return NS_ERROR_UNEXPECTED;
-  }
-
-  nsRefPtr<StreamHelper> helper = new StreamHelper(mActor, this);
-  return helper->GetStream(aStream);
+  return GetInternalStreamViaHelper(aStream);
 }
 
 template <>
 NS_IMETHODIMP
 RemoteBlob<Child>::GetInternalStream(nsIInputStream** aStream)
 {
-  if (!mActor) {
-    return NS_ERROR_UNEXPECTED;
-  }
-
-  nsRefPtr<StreamHelper> helper = new StreamHelper(mActor, this);
-  return helper->GetStream(aStream);
+  return GetInternalStreamViaHelper(aStream);
 }
 
 template <ActorFlavorEnum ActorFlavor>
-Blob<ActorFlavor>::Blob(nsIDOMBlob* aBlob)
-: mBlob(aBlob), mRemoteBlob(nullptr), mOwnsBlob(true), mBlobIsFile(false)
+Blob<ActorFlavor>::Blob(ContentManager* aManager, nsIDOMBlob* aBlob)
+: mBlob(aBlob), mRemoteBlob(nullptr), mOwnsBlob(true)
+, mBlobIsFile(false), mManager(aManager)
 {
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(aBlob);
+  MOZ_ASSERT(aManager);
   aBlob->AddRef();
 
   nsCOMPtr<nsIDOMFile> file = do_QueryInterface(aBlob);
@@ -1024,10 +1132,13 @@ Blob<ActorFlavor>::Blob(nsIDOMBlob* aBlob)
 }
 
 template <ActorFlavorEnum ActorFlavor>
-Blob<ActorFlavor>::Blob(const ConstructorParamsType& aParams)
-: mBlob(nullptr), mRemoteBlob(nullptr), mOwnsBlob(false), mBlobIsFile(false)
+Blob<ActorFlavor>::Blob(ContentManager* aManager,
+                        const ConstructorParamsType& aParams)
+: mBlob(nullptr), mRemoteBlob(nullptr), mOwnsBlob(false)
+, mBlobIsFile(false), mManager(aManager)
 {
   MOZ_ASSERT(NS_IsMainThread());
+  MOZ_ASSERT(aManager);
 
   ChildBlobConstructorParams::Type paramType =
     BaseType::GetBlobConstructorParams(aParams).type();
@@ -1049,7 +1160,8 @@ Blob<ActorFlavor>::Blob(const ConstructorParamsType& aParams)
 
 template <ActorFlavorEnum ActorFlavor>
 Blob<ActorFlavor>*
-Blob<ActorFlavor>::Create(const ConstructorParamsType& aParams)
+Blob<ActorFlavor>::Create(ContentManager* aManager,
+                          const ConstructorParamsType& aParams)
 {
   MOZ_ASSERT(NS_IsMainThread());
 
@@ -1060,7 +1172,7 @@ Blob<ActorFlavor>::Create(const ConstructorParamsType& aParams)
     case ChildBlobConstructorParams::TNormalBlobConstructorParams:
     case ChildBlobConstructorParams::TFileBlobConstructorParams:
     case ChildBlobConstructorParams::TMysteryBlobConstructorParams:
-      return new Blob<ActorFlavor>(aParams);
+      return new Blob<ActorFlavor>(aManager, aParams);
 
     case ChildBlobConstructorParams::TSlicedBlobConstructorParams: {
       const SlicedBlobConstructorParams& params =
@@ -1075,11 +1187,11 @@ Blob<ActorFlavor>::Create(const ConstructorParamsType& aParams)
                       getter_AddRefs(slice));
       NS_ENSURE_SUCCESS(rv, nullptr);
 
-      return new Blob<ActorFlavor>(slice);
+      return new Blob<ActorFlavor>(aManager, slice);
     }
 
     default:
-      MOZ_NOT_REACHED("Unknown params!");
+      MOZ_CRASH("Unknown params!");
   }
 
   return nullptr;
@@ -1120,7 +1232,6 @@ Blob<ActorFlavor>::SetMysteryBlobInfo(const nsString& aName,
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(mBlob);
   MOZ_ASSERT(mRemoteBlob);
-  MOZ_ASSERT(aLength);
   MOZ_ASSERT(aLastModifiedDate != UINT64_MAX);
 
   ToConcreteBlob(mBlob)->SetLazyData(aName, aContentType,
@@ -1139,7 +1250,6 @@ Blob<ActorFlavor>::SetMysteryBlobInfo(const nsString& aContentType,
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(mBlob);
   MOZ_ASSERT(mRemoteBlob);
-  MOZ_ASSERT(aLength);
 
   nsString voidString;
   voidString.SetIsVoid(true);
@@ -1185,13 +1295,13 @@ Blob<ActorFlavor>::CreateRemoteBlob(const ConstructorParamsType& aParams)
     }
 
     default:
-      MOZ_NOT_REACHED("Unknown params!");
+      MOZ_CRASH("Unknown params!");
   }
 
   MOZ_ASSERT(remoteBlob);
 
   if (NS_FAILED(remoteBlob->SetMutable(false))) {
-    MOZ_NOT_REACHED("Failed to make remote blob immutable!");
+    MOZ_CRASH("Failed to make remote blob immutable!");
   }
 
   return remoteBlob.forget();
@@ -1221,6 +1331,7 @@ Blob<ActorFlavor>::NoteDyingRemoteBlob()
 
   // Must do this before calling Send__delete__ or we'll crash there trying to
   // access a dangling pointer.
+  mBlob = nullptr;
   mRemoteBlob = nullptr;
 
   mozilla::unused << ProtocolType::Send__delete__(this);
@@ -1231,15 +1342,16 @@ void
 Blob<ActorFlavor>::ActorDestroy(ActorDestroyReason aWhy)
 {
   MOZ_ASSERT(NS_IsMainThread());
-  MOZ_ASSERT(mBlob);
 
   if (mRemoteBlob) {
     mRemoteBlob->SetActor(nullptr);
   }
 
-  if (mOwnsBlob) {
+  if (mBlob && mOwnsBlob) {
     mBlob->Release();
   }
+
+  mManager = nullptr;
 }
 
 template <ActorFlavorEnum ActorFlavor>
@@ -1278,7 +1390,7 @@ Blob<ActorFlavor>::RecvResolveMystery(const ResolveMysteryParams& aParams)
     }
 
     default:
-      MOZ_NOT_REACHED("Unknown params!");
+      MOZ_CRASH("Unknown params!");
   }
 
   return true;
@@ -1368,17 +1480,30 @@ Blob<Child>::RecvPBlobStreamConstructor(StreamType* aActor)
   return aActor->Send__delete__(aActor, params);
 }
 
-template <ActorFlavorEnum ActorFlavor>
-typename Blob<ActorFlavor>::StreamType*
-Blob<ActorFlavor>::AllocPBlobStream()
+BlobTraits<Parent>::StreamType*
+BlobTraits<Parent>::BaseType::AllocPBlobStreamParent()
 {
   MOZ_ASSERT(NS_IsMainThread());
-  return new InputStreamActor<ActorFlavor>();
+  return new InputStreamActor<Parent>();
 }
 
-template <ActorFlavorEnum ActorFlavor>
+BlobTraits<Child>::StreamType*
+BlobTraits<Child>::BaseType::AllocPBlobStreamChild()
+{
+  MOZ_ASSERT(NS_IsMainThread());
+  return new InputStreamActor<Child>();
+}
+
 bool
-Blob<ActorFlavor>::DeallocPBlobStream(StreamType* aActor)
+BlobTraits<Parent>::BaseType::DeallocPBlobStreamParent(BlobTraits<Parent>::StreamType* aActor)
+{
+  MOZ_ASSERT(NS_IsMainThread());
+  delete aActor;
+  return true;
+}
+
+bool
+BlobTraits<Child>::BaseType::DeallocPBlobStreamChild(BlobTraits<Child>::StreamType* aActor)
 {
   MOZ_ASSERT(NS_IsMainThread());
   delete aActor;

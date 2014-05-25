@@ -11,7 +11,7 @@ Components.utils.import("resource://gre/modules/LoginManagerContent.jsm");
 Components.utils.import("resource:///modules/Sanitizer.jsm");
 Components.utils.import("resource:///modules/mailnewsMigrator.js");
 
-var onContentLoaded = LoginManagerContent.onContentLoaded.bind(LoginManagerContent);
+var onFormPassword = LoginManagerContent.onFormPassword.bind(LoginManagerContent);
 var onUsernameInput = LoginManagerContent.onUsernameInput.bind(LoginManagerContent);
 
 XPCOMUtils.defineLazyModuleGetter(this, "NetUtil",
@@ -32,6 +32,9 @@ XPCOMUtils.defineLazyModuleGetter(this, "PlacesBackups",
 XPCOMUtils.defineLazyModuleGetter(this, "BookmarkHTMLUtils",
                                   "resource://gre/modules/BookmarkHTMLUtils.jsm");
 
+XPCOMUtils.defineLazyModuleGetter(this, "DebuggerServer",
+                                  "resource://gre/modules/devtools/dbg-server.jsm");
+
 // We try to backup bookmarks at idle times, to avoid doing that at shutdown.
 // Number of idle seconds before trying to backup bookmarks.  15 minutes.
 const BOOKMARKS_BACKUP_IDLE_TIME = 15 * 60;
@@ -39,6 +42,9 @@ const BOOKMARKS_BACKUP_IDLE_TIME = 15 * 60;
 const BOOKMARKS_BACKUP_INTERVAL = 86400 * 1000;
 // Maximum number of backups to create.  Old ones will be purged.
 const BOOKMARKS_BACKUP_MAX_BACKUPS = 10;
+// Devtools Preferences
+const DEBUGGER_REMOTE_ENABLED = "devtools.debugger.remote-enabled";
+const DEBUGGER_REMOTE_PORT = "devtools.debugger.remote-port";
 
 // Constructor
 
@@ -110,6 +116,24 @@ SuiteGlue.prototype = {
   observe: function(subject, topic, data)
   {
     switch(topic) {
+      case "nsPref:changed":
+        switch (data) {
+          case DEBUGGER_REMOTE_ENABLED:
+            if (this.dbgIsEnabled)
+              this.dbgStart();
+            else
+              this.dbgStop();
+            break;
+          case DEBUGGER_REMOTE_PORT:
+            /**
+             * If the server is not on, port changes have nothing to affect.
+             * The new value will be picked up if the server is started.
+             */
+            if (this.dbgIsEnabled)
+              this.dbgRestart();
+            break;
+        }
+        break;
       case "profile-before-change":
         this._onProfileShutdown();
         break;
@@ -192,13 +216,30 @@ SuiteGlue.prototype = {
       case "initial-migration":
         this._initialMigrationPerformed = true;
         break;
+      case "browser-search-engine-modified":
+        if (data != "engine-default" && data != "engine-current") {
+          break;
+        }
+        // Enforce that the search service's defaultEngine is always equal to
+        // its currentEngine. The search service will notify us any time either
+        // of them are changed (either by directly setting the relevant prefs,
+        // i.e. if add-ons try to change this directly, or if the
+        // nsIBrowserSearchService setters are called).
+        var ss = Services.search;
+        if (ss.currentEngine.name == ss.defaultEngine.name)
+          return;
+        if (data == "engine-current")
+          ss.defaultEngine = ss.currentEngine;
+        else
+          ss.currentEngine = ss.defaultEngine;
+        break;
     }
   },
 
   // nsIWebProgressListener partial implementation
   onLocationChange: function(aWebProgress, aRequest, aLocation, aFlags)
   {
-    if (aWebProgress.DOMWindow.top == aWebProgress.DOMWindow &&
+    if (aWebProgress.isTopLevel &&
         aWebProgress instanceof Components.interfaces.nsIDocShell &&
         aWebProgress.loadType & Components.interfaces.nsIDocShell.LOAD_CMD_NORMAL &&
         aWebProgress.useGlobalHistory &&
@@ -229,7 +270,7 @@ SuiteGlue.prototype = {
   },
 
   onStateChange: function(aWebProgress, aRequest, aStateFlags, aStatus) {
-    aWebProgress.DOMWindow.addEventListener("DOMContentLoaded", onContentLoaded, true);
+    aWebProgress.DOMWindow.addEventListener("DOMFormHasPassword", onFormPassword, true);
     aWebProgress.DOMWindow.addEventListener("DOMAutoComplete", onUsernameInput, true);
     aWebProgress.DOMWindow.addEventListener("change", onUsernameInput, true);
   },
@@ -255,6 +296,8 @@ SuiteGlue.prototype = {
     Services.obs.addObserver(this, "places-init-complete", true);
     Services.obs.addObserver(this, "places-database-locked", true);
     Services.obs.addObserver(this, "places-shutdown", true);
+    Services.obs.addObserver(this, "browser-search-engine-modified", true);
+    Services.prefs.addObserver("devtools.debugger.", this, true);
     Components.classes['@mozilla.org/docloaderservice;1']
               .getService(Components.interfaces.nsIWebProgress)
               .addProgressListener(this, Components.interfaces.nsIWebProgress.NOTIFY_LOCATION | Components.interfaces.nsIWebProgress.NOTIFY_STATE_DOCUMENT);
@@ -437,7 +480,7 @@ SuiteGlue.prototype = {
     if (pagecount < 2)
       return;
 
-    if (aQuitType != "restart")
+    if (aQuitType != "restart" && aQuitType != "lastwindow")
       aQuitType = "quit";
 
     var showPrompt = true;
@@ -467,10 +510,10 @@ SuiteGlue.prototype = {
       if (aQuitType == "restart")
         message = quitBundle.formatStringFromName("messageRestart",
                                                   [appName], 1);
-      else if (windowcount == 1)
+      else if (windowcount == 1)    /* close browser only, or quit application with only 1 browser window */
         message = quitBundle.formatStringFromName("messageNoWindows",
                                                   [appName], 1);
-      else
+      else                          /* quit application with 2 or more windows */
         message = quitBundle.formatStringFromName("message",
                                                   [appName], 1);
 
@@ -487,9 +530,10 @@ SuiteGlue.prototype = {
         button1Title = quitBundle.GetStringFromName("restartLaterTitle");
       } else {
         flags += Services.prompt.BUTTON_TITLE_IS_STRING * Services.prompt.BUTTON_POS_2;
-        button0Title = quitBundle.GetStringFromName("saveTitle");
+        button0Title = quitBundle.GetStringFromName(
+                        (aQuitType == "quit" ? "saveTitle" : "savelastwindowTitle"));
         button1Title = quitBundle.GetStringFromName("cancelTitle");
-        button2Title = quitBundle.GetStringFromName("quitTitle");
+        button2Title = quitBundle.GetStringFromName(aQuitType + "Title"); /* "quitTitle" or "lastwindowTitle" */
       }
 
       var mostRecentBrowserWindow = Services.wm.getMostRecentWindow("navigator:browser");
@@ -890,6 +934,36 @@ SuiteGlue.prototype = {
       Services.prefs.setBoolPref("browser.download.progress.closeWhenDone",
                                  !Services.prefs.getBoolPref("browser.download.progressDnldDialog.keepAlive"));
     } catch (e) {}
+  },
+
+  /**
+   * Devtools Debugger
+   */
+  get dbgIsEnabled()
+  {
+    return Services.prefs.getBoolPref(DEBUGGER_REMOTE_ENABLED);
+  },
+
+  dbgStart: function()
+  {
+    var port = Services.prefs.getIntPref(DEBUGGER_REMOTE_PORT);
+    if (!DebuggerServer.initialized) {
+      DebuggerServer.init();
+      DebuggerServer.addBrowserActors();
+    }
+    DebuggerServer.openListener(port);
+  },
+
+  dbgStop: function()
+  {
+    if (DebuggerServer.initialized)
+      DebuggerServer.closeListener();
+  },
+
+  dbgRestart: function()
+  {
+    this.dbgStop();
+    this.dbgStart();
   },
 
   // ------------------------------

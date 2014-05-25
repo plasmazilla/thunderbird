@@ -6,6 +6,7 @@
 #ifndef _nsMsgCopy_H_
 #define _nsMsgCopy_H_
 
+#include "mozilla/Attributes.h"
 #include "nscore.h"
 #include "nsIFile.h"
 #include "nsMsgSend.h"
@@ -33,17 +34,17 @@ public:
   virtual ~CopyListener(void);
 
   // nsISupports interface
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
 
-  NS_IMETHOD OnStartCopy();
+  NS_IMETHOD OnStartCopy() MOZ_OVERRIDE;
   
-  NS_IMETHOD OnProgress(uint32_t aProgress, uint32_t aProgressMax);
+  NS_IMETHOD OnProgress(uint32_t aProgress, uint32_t aProgressMax) MOZ_OVERRIDE;
 
-  NS_IMETHOD SetMessageKey(uint32_t aMessageKey);
+  NS_IMETHOD SetMessageKey(uint32_t aMessageKey) MOZ_OVERRIDE;
   
-  NS_IMETHOD GetMessageId(nsACString& aMessageId);
+  NS_IMETHOD GetMessageId(nsACString& aMessageId) MOZ_OVERRIDE;
   
-  NS_IMETHOD OnStopCopy(nsresult aStatus);
+  NS_IMETHOD OnStopCopy(nsresult aStatus) MOZ_OVERRIDE;
 
   NS_IMETHOD SetMsgComposeAndSendObject(nsIMsgSend *obj);
   

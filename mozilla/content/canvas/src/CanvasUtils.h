@@ -7,6 +7,7 @@
 #define _CANVASUTILS_H_
 
 #include "mozilla/CheckedInt.h"
+#include "jsapi.h"
 
 class nsIPrincipal;
 
@@ -119,7 +120,7 @@ JSValToDashArray(JSContext* cx, const JS::Value& patternArray,
         for (uint32_t i = 0; i < length; ++i) {
             JS::Rooted<JS::Value> elt(cx);
             double d;
-            if (!JS_GetElement(cx, obj, i, elt.address())) {
+            if (!JS_GetElement(cx, obj, i, &elt)) {
                 return NS_ERROR_FAILURE;
             }
             if (!(CoerceDouble(elt, &d) &&
@@ -157,7 +158,7 @@ DashArrayToJSVal(FallibleTArray<T>& dashes,
         return JSVAL_NULL;
     }
     JS::Rooted<JSObject*> obj(cx,
-        JS_NewArrayObject(cx, dashes.Length(), nullptr));
+        JS_NewArrayObject(cx, dashes.Length()));
     if (!obj) {
         rv.Throw(NS_ERROR_OUT_OF_MEMORY);
         return JSVAL_NULL;

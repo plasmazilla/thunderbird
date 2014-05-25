@@ -9,6 +9,7 @@
 #include "nsGlobalWindow.h"
 #include "nsIDocShell.h"
 #include "nsIScrollable.h"
+#include "nsIWebBrowserChrome.h"
 
 namespace mozilla {
 namespace dom {
@@ -16,9 +17,10 @@ namespace dom {
 //
 //  Basic (virtual) BarProp class implementation
 //
-BarProp::BarProp(nsGlobalWindow *aWindow)
+BarProp::BarProp(nsGlobalWindow* aWindow)
   : mDOMWindow(aWindow)
 {
+  MOZ_ASSERT(aWindow->IsInnerWindow());
   SetIsDOMBinding();
 }
 

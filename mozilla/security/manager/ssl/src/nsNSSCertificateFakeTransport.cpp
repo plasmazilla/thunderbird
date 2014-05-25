@@ -20,9 +20,10 @@ extern PRLogModuleInfo* gPIPNSSLog;
 
 /* nsNSSCertificateFakeTransport */
 
-NS_IMPL_THREADSAFE_ISUPPORTS3(nsNSSCertificateFakeTransport, nsIX509Cert,
-                                                nsISerializable,
-                                                nsIClassInfo)
+NS_IMPL_ISUPPORTS3(nsNSSCertificateFakeTransport,
+                   nsIX509Cert,
+                   nsISerializable,
+                   nsIClassInfo)
 
 nsNSSCertificateFakeTransport::nsNSSCertificateFakeTransport() :
   mCertSerialization(nullptr)
@@ -66,7 +67,7 @@ nsNSSCertificateFakeTransport::GetEmailAddress(nsAString &aEmailAddress)
 }
 
 NS_IMETHODIMP
-nsNSSCertificateFakeTransport::GetEmailAddresses(uint32_t *aLength, PRUnichar*** aAddresses)
+nsNSSCertificateFakeTransport::GetEmailAddresses(uint32_t *aLength, char16_t*** aAddresses)
 {
   NS_NOTREACHED("Unimplemented on content process");
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -199,7 +200,7 @@ NS_IMETHODIMP
 nsNSSCertificateFakeTransport::GetUsagesArray(bool localOnly,
                                  uint32_t *_verified,
                                  uint32_t *_count,
-                                 PRUnichar ***_usages)
+                                 char16_t ***_usages)
 {
   NS_NOTREACHED("Unimplemented on content process");
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -323,11 +324,11 @@ nsNSSCertificateFakeTransport::GetFlags(uint32_t *aFlags)
   return NS_OK;
 }
 
-static NS_DEFINE_CID(kNSSCertificateCID, NS_X509CERT_CID);
-
 NS_IMETHODIMP
 nsNSSCertificateFakeTransport::GetClassIDNoAlloc(nsCID *aClassIDNoAlloc)
 {
+  static NS_DEFINE_CID(kNSSCertificateCID, NS_X509CERT_CID);
+
   *aClassIDNoAlloc = kNSSCertificateCID;
   return NS_OK;
 }

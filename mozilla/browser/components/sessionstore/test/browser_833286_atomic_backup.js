@@ -2,13 +2,14 @@
    http://creativecommons.org/publicdomain/zero/1.0/ */
 
 // This tests are for a sessionstore.js atomic backup.
+// Each test will wait for a write to the Session Store
+// before executing.
 
 let tmp = {};
 Cu.import("resource://gre/modules/osfile.jsm", tmp);
-Cu.import("resource://gre/modules/Task.jsm", tmp);
-Cu.import("resource:///modules/sessionstore/_SessionFile.jsm", tmp);
+Cu.import("resource:///modules/sessionstore/SessionFile.jsm", tmp);
 
-const {OS, Task, _SessionFile} = tmp;
+const {OS, SessionFile} = tmp;
 
 const PREF_SS_INTERVAL = "browser.sessionstore.interval";
 // Full paths for sessionstore.js and sessionstore.bak.
@@ -23,7 +24,7 @@ let gDecoder = new TextDecoder();
 let gSSData;
 let gSSBakData;
 
-// waitForSaveStateComplete waits for a state write completion.
+// Wait for a state write to complete and then execute a callback.
 function waitForSaveStateComplete(aSaveStateCallback) {
   let topic = "sessionstore-state-write-complete";
 
@@ -41,6 +42,9 @@ function waitForSaveStateComplete(aSaveStateCallback) {
 // Register next test callback and trigger state saving change.
 function nextTest(testFunc) {
   waitForSaveStateComplete(testFunc);
+
+  // We set the interval for session store state saves to be zero
+  // to cause a save ASAP.
   Services.prefs.setIntPref(PREF_SS_INTERVAL, 0);
 }
 
@@ -53,21 +57,13 @@ registerCleanupFunction(function() {
 
 function test() {
   waitForExplicitFinish();
-  nextTest(testInitialWriteNoBackup);
+  nextTest(testAfterFirstWrite);
 }
 
-function testInitialWriteNoBackup() {
-  // Ensure that sessionstore.js is created, but not sessionstore.bak.
-  let ssExists = yield OS.File.exists(path);
-  let ssBackupExists = yield OS.File.exists(backupPath);
-  ok(ssExists, "sessionstore.js should be created.");
-  ok(!ssBackupExists, "sessionstore.bak should not have been created, yet.");
-
-  nextTest(testWriteNoBackup);
-}
-
-function testWriteNoBackup() {
-  // Ensure sessionstore.bak is not created.
+function testAfterFirstWrite() {
+  // Ensure sessionstore.bak is not created. We start with a clean
+  // profile so there was nothing to move to sessionstore.bak before
+  // initially writing sessionstore.js
   let ssExists = yield OS.File.exists(path);
   let ssBackupExists = yield OS.File.exists(backupPath);
   ok(ssExists, "sessionstore.js should exist.");
@@ -78,14 +74,14 @@ function testWriteNoBackup() {
   let array = yield OS.File.read(path);
   gSSData = gDecoder.decode(array);
 
-  // Manually trigger _SessionFile.createBackupCopy since the backup once
-  // promise is already resolved and backup would not be triggered again.
-  yield _SessionFile.createBackupCopy();
+  // Manually move to the backup since the first write has already happened
+  // and a backup would not be triggered again.
+  yield OS.File.move(path, backupPath);
 
-  nextTest(testWriteBackup);
+  nextTest(testReadBackup);
 }
 
-function testWriteBackup() {
+function testReadBackup() {
   // Ensure sessionstore.bak is finally created.
   let ssExists = yield OS.File.exists(path);
   let ssBackupExists = yield OS.File.exists(backupPath);
@@ -104,33 +100,24 @@ function testWriteBackup() {
   array = yield OS.File.read(path);
   gSSData = gDecoder.decode(array);
 
-  // Read sessionstore.js with _SessionFile.read.
-  let ssDataRead = yield _SessionFile.read();
-  is(ssDataRead, gSSData, "_SessionFile.read read sessionstore.js correctly.");
-
-  // Read sessionstore.js with _SessionFile.syncRead.
-  ssDataRead = _SessionFile.syncRead();
-  is(ssDataRead, gSSData,
-    "_SessionFile.syncRead read sessionstore.js correctly.");
+  // Read sessionstore.js with SessionFile.read.
+  let ssDataRead = yield SessionFile.read();
+  is(ssDataRead, gSSData, "SessionFile.read read sessionstore.js correctly.");
 
   // Remove sessionstore.js to test fallback onto sessionstore.bak.
   yield OS.File.remove(path);
   ssExists = yield OS.File.exists(path);
   ok(!ssExists, "sessionstore.js should be removed now.");
 
-  // Read sessionstore.bak with _SessionFile.read.
-  ssDataRead = yield _SessionFile.read();
+  // Read sessionstore.bak with SessionFile.read.
+  ssDataRead = yield SessionFile.read();
   is(ssDataRead, gSSBakData,
-    "_SessionFile.read read sessionstore.bak correctly.");
+    "SessionFile.read read sessionstore.bak correctly.");
 
-  // Read sessionstore.bak with _SessionFile.syncRead.
-  ssDataRead = _SessionFile.syncRead();
-  is(ssDataRead, gSSBakData,
-    "_SessionFile.syncRead read sessionstore.bak correctly.");
-  nextTest(testNoWriteBackup);
+  nextTest(testBackupUnchanged);
 }
 
-function testNoWriteBackup() {
+function testBackupUnchanged() {
   // Ensure sessionstore.bak is backed up only once.
 
   // Read sessionstore.bak data.

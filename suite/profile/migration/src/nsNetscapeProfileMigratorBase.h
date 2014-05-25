@@ -102,7 +102,7 @@ protected:
   virtual nsresult FillProfileDataFromRegistry() = 0;
 
   // General Utility Methods
-  nsresult GetSourceProfile(const PRUnichar* aProfile);
+  nsresult GetSourceProfile(const char16_t* aProfile);
   nsresult GetProfileDataFromProfilesIni(nsIFile* aDataDir,
                                          nsIMutableArray* aProfileNames,
                                          nsIMutableArray* aProfileLocations);
@@ -118,9 +118,7 @@ protected:
 
   // Generic Import Functions
   nsresult CopyCookies(bool aReplace);
-  nsresult CopyPasswords(bool aReplace);
   nsresult CopyUserSheet(const char* aFileName);
-  nsresult GetSignonFileName(bool aReplace, char** aFileName);
 
   // Browser Import Functions
   nsresult CopyBookmarks(bool aReplace);

@@ -7,7 +7,11 @@
 #define MOZILLA_MEDIASEGMENT_H_
 
 #include "nsTArray.h"
+#ifdef MOZILLA_INTERNAL_API
+#include "mozilla/TimeStamp.h"
+#endif
 #include <algorithm>
+#include "Latency.h"
 
 namespace mozilla {
 
@@ -34,6 +38,11 @@ inline MediaTime SecondsToMediaTime(double aS)
 inline double MediaTimeToSeconds(MediaTime aTime)
 {
   return aTime*(1.0/(1 << MEDIA_TIME_FRAC_BITS));
+}
+
+inline int64_t MediaTimeToMicroseconds(MediaTime aTime)
+{
+  return aTime*(1000000.0/(1 << MEDIA_TIME_FRAC_BITS));
 }
 
 /**
@@ -100,6 +109,10 @@ public:
    * Insert aDuration of null data at the end of the segment.
    */
   virtual void AppendNullData(TrackTicks aDuration) = 0;
+  /**
+   * Replace contents with disabled data of the same duration
+   */
+  virtual void ReplaceWithDisabled() = 0;
   /**
    * Remove all contents, setting duration to 0.
    */
@@ -176,6 +189,9 @@ public:
     } else {
       mChunks.InsertElementAt(0)->SetNull(aDuration);
     }
+#ifdef MOZILLA_INTERNAL_API
+    mChunks[0].mTimeStamp = mozilla::TimeStamp::Now();
+#endif
     mDuration += aDuration;
   }
   virtual void AppendNullData(TrackTicks aDuration)
@@ -189,6 +205,15 @@ public:
       mChunks.AppendElement()->SetNull(aDuration);
     }
     mDuration += aDuration;
+  }
+  virtual void ReplaceWithDisabled()
+  {
+    if (GetType() != AUDIO) {
+      MOZ_CRASH("Disabling unknown segment type");
+    }
+    TrackTicks duration = GetDuration();
+    Clear();
+    AppendNullData(duration);
   }
   virtual void Clear()
   {
@@ -213,6 +238,13 @@ public:
   {
     RemoveLeading(aDuration, 0);
   }
+
+#ifdef MOZILLA_INTERNAL_API
+  void GetStartTime(TimeStamp &aTime) {
+    aTime = mChunks[0].mTimeStamp;
+  }
+#endif
+
 protected:
   MediaSegmentBase(Type aType) : MediaSegment(aType) {}
 
@@ -236,8 +268,8 @@ protected:
                            TrackTicks aStart, TrackTicks aEnd)
   {
     NS_ASSERTION(aStart <= aEnd, "Endpoints inverted");
-    NS_ASSERTION(aStart >= 0 && aEnd <= aSource.mDuration,
-                 "Slice out of range");
+    NS_WARN_IF_FALSE(aStart >= 0 && aEnd <= aSource.mDuration,
+                     "Slice out of range");
     mDuration += aEnd - aStart;
     TrackTicks offset = 0;
     for (uint32_t i = 0; i < aSource.mChunks.Length() && offset < aEnd; ++i) {
@@ -309,6 +341,9 @@ protected:
   }
 
   nsTArray<Chunk> mChunks;
+#ifdef MOZILLA_INTERNAL_API
+  mozilla::TimeStamp mTimeStamp;
+#endif
 };
 
 }

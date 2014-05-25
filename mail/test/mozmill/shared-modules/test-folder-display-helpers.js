@@ -2,9 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-var Ci = Components.interfaces;
-var Cc = Components.classes;
-var Cu = Components.utils;
+const MODULE_NAME = "folder-display-helpers";
+
+const RELATIVE_ROOT = "../shared-modules";
+// we need window-helpers for augment_controller
+const MODULE_REQUIRES = ["window-helpers"];
 
 var elib = {};
 Cu.import('resource://mozmill/modules/elementslib.js', elib);
@@ -22,12 +24,6 @@ var utils = {};
 Cu.import('resource://mozmill/modules/utils.js', utils);
 
 Cu.import("resource:///modules/gloda/log4moz.js");
-
-const MODULE_NAME = 'folder-display-helpers';
-
-const RELATIVE_ROOT = '../shared-modules';
-// we need window-helpers for augment_controller
-const MODULE_REQUIRES = ['window-helpers'];
 
 const nsMsgViewIndex_None = 0xffffffff;
 Cu.import('resource:///modules/MailConsts.js');
@@ -57,8 +53,6 @@ const DO_NOT_EXPORT = {
   MODULE_NAME: true, DO_NOT_EXPORT: true, installInto: true,
   // imported modules
   elib: true, mozmill: true, controller: true, frame: true, os: true,
-  // convenience constants
-  Ci: true, Cc: true, Cu: true, Cr: true,
   // useful constants (we do export MailViewConstants)
   nsMsgViewIndex_None: true, MailConsts: true,
   // utility functions
@@ -474,7 +468,7 @@ function enter_folder(aFolder) {
     return mc.folderDisplay.displayedFolder == aFolder;
   }
   utils.waitFor(isDisplayedFolder,
-                "Timeout trying to enter folder" + aFolder.URI);
+                "Timeout trying to enter folder " + aFolder.URI);
 
   wait_for_all_messages_to_load();
 
@@ -653,7 +647,7 @@ function open_message_from_file(file) {
   mark_action("fdh", "open_message_from_file", ["file", file.nativePath]);
 
   let fileURL = Services.io.newFileURI(file)
-                        .QueryInterface(Components.interfaces.nsIFileURL);
+                        .QueryInterface(Ci.nsIFileURL);
   fileURL.query = "type=application/x-message-display";
 
   windowHelper.plan_for_new_window("mail:messageWindow");
@@ -909,6 +903,33 @@ function _normalize_view_index(aViewIndex, aController) {
     return aController.dbView.QueryInterface(Ci.nsITreeView).rowCount +
       aViewIndex;
   return aViewIndex;
+}
+
+/**
+ * Generic method to simulate a left click on a row in a <tree> element.
+ *
+ * @param aTree        The the element.
+ * @param aRowIndex    Index of a row in the tree to click on.
+ * @param aController  Controller object
+ */
+function click_tree_row(aTree, aRowIndex, aController) {
+  if (aRowIndex < 0 || aRowIndex >= aTree.view.rowCount)
+    throw new Error("Row " + aRowIndex + " does not exist in the tree " + aTree.id + "!");
+
+  let selection = aTree.view.selection;
+  selection.select(aRowIndex);
+  aTree.treeBoxObject.ensureRowIsVisible(aRowIndex);
+
+  // get cell coordinates
+  let x = {}, y = {}, width = {}, height = {};
+  let column = aTree.columns[0];
+  aTree.treeBoxObject.getCoordsForCellItem(aRowIndex, column, "text",
+                                           x, y, width, height);
+
+  aController.sleep(0);
+  EventUtils.synthesizeMouse(aTree.body, x.value + 4, y.value + 4,
+                             {}, aTree.ownerDocument.defaultView);
+  aController.sleep(0);
 }
 
 /**
@@ -1588,7 +1609,7 @@ function wait_for_message_display_completion(aController, aLoadDemanded) {
       return false;
     let uri = docShell.currentURI;
     // the URL will tell us if it is running, saves us from potential error
-    if (uri && (uri instanceof Components.interfaces.nsIMsgMailNewsUrl)) {
+    if (uri && (uri instanceof Ci.nsIMsgMailNewsUrl)) {
       let urlRunningObj = {};
       uri.GetUrlState(urlRunningObj);
       // GetUrlState returns true if the url is still running

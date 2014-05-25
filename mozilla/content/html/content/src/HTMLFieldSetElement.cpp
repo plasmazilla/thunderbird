@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "mozilla/BasicEvents.h"
 #include "mozilla/dom/HTMLFieldSetElement.h"
 #include "mozilla/dom/HTMLFieldSetElementBinding.h"
 #include "nsContentList.h"
@@ -13,18 +14,17 @@ NS_IMPL_NS_NEW_HTML_ELEMENT(FieldSet)
 namespace mozilla {
 namespace dom {
 
-HTMLFieldSetElement::HTMLFieldSetElement(already_AddRefed<nsINodeInfo> aNodeInfo)
+HTMLFieldSetElement::HTMLFieldSetElement(already_AddRefed<nsINodeInfo>& aNodeInfo)
   : nsGenericHTMLFormElement(aNodeInfo)
   , mElements(nullptr)
   , mFirstLegend(nullptr)
+  , mInvalidElementsCount(0)
 {
-  SetIsDOMBinding();
-
   // <fieldset> is always barred from constraint validation.
   SetBarredFromConstraintValidation(true);
 
-  // We start out enabled
-  AddStatesSilently(NS_EVENT_STATE_ENABLED);
+  // We start out enabled and valid.
+  AddStatesSilently(NS_EVENT_STATE_ENABLED | NS_EVENT_STATE_VALID);
 }
 
 HTMLFieldSetElement::~HTMLFieldSetElement()
@@ -45,12 +45,10 @@ NS_IMPL_RELEASE_INHERITED(HTMLFieldSetElement, Element)
 
 // QueryInterface implementation for HTMLFieldSetElement
 NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(HTMLFieldSetElement)
-  NS_HTML_CONTENT_INTERFACES(nsGenericHTMLFormElement)
   NS_INTERFACE_TABLE_INHERITED2(HTMLFieldSetElement,
                                 nsIDOMHTMLFieldSetElement,
                                 nsIConstraintValidation)
-  NS_INTERFACE_TABLE_TO_MAP_SEGUE
-NS_ELEMENT_INTERFACE_MAP_END
+NS_INTERFACE_TABLE_TAIL_INHERITING(nsGenericHTMLFormElement)
 
 NS_IMPL_ELEMENT_CLONE(HTMLFieldSetElement)
 
@@ -215,6 +213,101 @@ HTMLFieldSetElement::RemoveChildAt(uint32_t aIndex, bool aNotify)
 }
 
 void
+HTMLFieldSetElement::AddElement(nsGenericHTMLFormElement* aElement)
+{
+  mDependentElements.AppendElement(aElement);
+
+  // If the element that we are adding aElement is a fieldset, then all the
+  // invalid elements in aElement are also invalid elements of this.
+  HTMLFieldSetElement* fieldSet = FromContent(aElement);
+  if (fieldSet) {
+    if (fieldSet->mInvalidElementsCount > 0) {
+      // The order we call UpdateValidity and adjust mInvalidElementsCount is
+      // important. We need to first call UpdateValidity in case
+      // mInvalidElementsCount was 0 before the call and will be incremented to
+      // 1 and so we need to change state to invalid. After that is done, we
+      // are free to increment mInvalidElementsCount to the correct amount.
+      UpdateValidity(false);
+      mInvalidElementsCount += fieldSet->mInvalidElementsCount - 1;
+    }
+    return;
+  }
+
+  // We need to update the validity of the fieldset.
+  nsCOMPtr<nsIConstraintValidation> cvElmt = do_QueryObject(aElement);
+  if (cvElmt &&
+      cvElmt->IsCandidateForConstraintValidation() && !cvElmt->IsValid()) {
+    UpdateValidity(false);
+  }
+
+#if DEBUG
+  int32_t debugInvalidElementsCount = 0;
+  for (uint32_t i = 0; i < mDependentElements.Length(); i++) {
+    HTMLFieldSetElement* fieldSet = FromContent(mDependentElements[i]);
+    if (fieldSet) {
+      debugInvalidElementsCount += fieldSet->mInvalidElementsCount;
+      continue;
+    }
+    nsCOMPtr<nsIConstraintValidation>
+      cvElmt = do_QueryObject(mDependentElements[i]);
+    if (cvElmt &&
+        cvElmt->IsCandidateForConstraintValidation() &&
+        !(cvElmt->IsValid())) {
+      debugInvalidElementsCount += 1;
+    }
+  }
+  MOZ_ASSERT(debugInvalidElementsCount == mInvalidElementsCount);
+#endif
+}
+
+void
+HTMLFieldSetElement::RemoveElement(nsGenericHTMLFormElement* aElement)
+{
+  mDependentElements.RemoveElement(aElement);
+
+  // If the element that we are removing aElement is a fieldset, then all the
+  // invalid elements in aElement are also removed from this.
+  HTMLFieldSetElement* fieldSet = FromContent(aElement);
+  if (fieldSet) {
+    if (fieldSet->mInvalidElementsCount > 0) {
+      // The order we update mInvalidElementsCount and call UpdateValidity is
+      // important. We need to first decrement mInvalidElementsCount and then
+      // call UpdateValidity, in case mInvalidElementsCount hits 0 in the call
+      // of UpdateValidity and we have to change state to valid.
+      mInvalidElementsCount -= fieldSet->mInvalidElementsCount - 1;
+      UpdateValidity(true);
+    }
+    return;
+  }
+
+  // We need to update the validity of the fieldset.
+  nsCOMPtr<nsIConstraintValidation> cvElmt = do_QueryObject(aElement);
+  if (cvElmt &&
+      cvElmt->IsCandidateForConstraintValidation() && !cvElmt->IsValid()) {
+    UpdateValidity(true);
+  }
+
+#if DEBUG
+  int32_t debugInvalidElementsCount = 0;
+  for (uint32_t i = 0; i < mDependentElements.Length(); i++) {
+    HTMLFieldSetElement* fieldSet = FromContent(mDependentElements[i]);
+    if (fieldSet) {
+      debugInvalidElementsCount += fieldSet->mInvalidElementsCount;
+      continue;
+    }
+    nsCOMPtr<nsIConstraintValidation>
+      cvElmt = do_QueryObject(mDependentElements[i]);
+    if (cvElmt &&
+        cvElmt->IsCandidateForConstraintValidation() &&
+        !(cvElmt->IsValid())) {
+      debugInvalidElementsCount += 1;
+    }
+  }
+  MOZ_ASSERT(debugInvalidElementsCount == mInvalidElementsCount);
+#endif
+}
+
+void
 HTMLFieldSetElement::NotifyElementsForFirstLegendChange(bool aNotify)
 {
   /**
@@ -233,6 +326,46 @@ HTMLFieldSetElement::NotifyElementsForFirstLegendChange(bool aNotify)
     static_cast<nsGenericHTMLFormElement*>(mElements->Item(i))
       ->FieldSetFirstLegendChanged(aNotify);
   }
+}
+
+void
+HTMLFieldSetElement::UpdateValidity(bool aElementValidity)
+{
+  if (aElementValidity) {
+    --mInvalidElementsCount;
+  } else {
+    ++mInvalidElementsCount;
+  }
+
+  MOZ_ASSERT(mInvalidElementsCount >= 0);
+
+  // The fieldset validity has just changed if:
+  // - there are no more invalid elements ;
+  // - or there is one invalid elmement and an element just became invalid.
+  if (!mInvalidElementsCount || (mInvalidElementsCount == 1 && !aElementValidity)) {
+    UpdateState(true);
+  }
+
+  // We should propagate the change to the fieldset parent chain.
+  if (mFieldSet) {
+    mFieldSet->UpdateValidity(aElementValidity);
+  }
+
+  return;
+}
+
+nsEventStates
+HTMLFieldSetElement::IntrinsicState() const
+{
+  nsEventStates state = nsGenericHTMLFormElement::IntrinsicState();
+
+  if (mInvalidElementsCount) {
+    state |= NS_EVENT_STATE_INVALID;
+  } else {
+    state |= NS_EVENT_STATE_VALID;
+  }
+
+  return state;
 }
 
 JSObject*

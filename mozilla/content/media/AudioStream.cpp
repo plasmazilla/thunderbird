@@ -8,25 +8,13 @@
 #include "prlog.h"
 #include "prdtoa.h"
 #include "AudioStream.h"
-#include "nsAlgorithm.h"
 #include "VideoUtils.h"
 #include "mozilla/Monitor.h"
 #include "mozilla/Mutex.h"
 #include <algorithm>
 #include "mozilla/Preferences.h"
-
-#if defined(MOZ_CUBEB)
-#include "nsAutoRef.h"
-#include "cubeb/cubeb.h"
-
-template <>
-class nsAutoRefTraits<cubeb_stream> : public nsPointerRefTraits<cubeb_stream>
-{
-public:
-  static void Release(cubeb_stream* aStream) { cubeb_stream_destroy(aStream); }
-};
-
-#endif
+#include "soundtouch/SoundTouch.h"
+#include "Latency.h"
 
 namespace mozilla {
 
@@ -34,71 +22,94 @@ namespace mozilla {
 PRLogModuleInfo* gAudioStreamLog = nullptr;
 #endif
 
-#define PREF_VOLUME_SCALE "media.volume_scale"
-#define PREF_CUBEB_LATENCY "media.cubeb_latency_ms"
-
-static Mutex* gAudioPrefsLock = nullptr;
-static double gVolumeScale;
-static uint32_t gCubebLatency;
-
 /**
  * When MOZ_DUMP_AUDIO is set in the environment (to anything),
  * we'll drop a series of files in the current working directory named
- * dumped-audio-<nnn>.wav, one per nsBufferedAudioStream created, containing
+ * dumped-audio-<nnn>.wav, one per AudioStream created, containing
  * the audio for the stream including any skips due to underruns.
  */
 static int gDumpedAudioCount = 0;
 
-static int PrefChanged(const char* aPref, void* aClosure)
+#define PREF_VOLUME_SCALE "media.volume_scale"
+#define PREF_CUBEB_LATENCY "media.cubeb_latency_ms"
+
+static const uint32_t CUBEB_NORMAL_LATENCY_MS = 100;
+
+StaticMutex AudioStream::sMutex;
+cubeb* AudioStream::sCubebContext;
+uint32_t AudioStream::sPreferredSampleRate;
+double AudioStream::sVolumeScale;
+uint32_t AudioStream::sCubebLatency;
+bool AudioStream::sCubebLatencyPrefSet;
+
+/*static*/ void AudioStream::PrefChanged(const char* aPref, void* aClosure)
 {
   if (strcmp(aPref, PREF_VOLUME_SCALE) == 0) {
     nsAdoptingString value = Preferences::GetString(aPref);
-    MutexAutoLock lock(*gAudioPrefsLock);
+    StaticMutexAutoLock lock(sMutex);
     if (value.IsEmpty()) {
-      gVolumeScale = 1.0;
+      sVolumeScale = 1.0;
     } else {
       NS_ConvertUTF16toUTF8 utf8(value);
-      gVolumeScale = std::max<double>(0, PR_strtod(utf8.get(), nullptr));
+      sVolumeScale = std::max<double>(0, PR_strtod(utf8.get(), nullptr));
     }
   } else if (strcmp(aPref, PREF_CUBEB_LATENCY) == 0) {
     // Arbitrary default stream latency of 100ms.  The higher this
     // value, the longer stream volume changes will take to become
     // audible.
-    uint32_t value = Preferences::GetUint(aPref, 100);
-    MutexAutoLock lock(*gAudioPrefsLock);
-    gCubebLatency = std::min<uint32_t>(std::max<uint32_t>(value, 20), 1000);
+    sCubebLatencyPrefSet = Preferences::HasUserValue(aPref);
+    uint32_t value = Preferences::GetUint(aPref, CUBEB_NORMAL_LATENCY_MS);
+    StaticMutexAutoLock lock(sMutex);
+    sCubebLatency = std::min<uint32_t>(std::max<uint32_t>(value, 1), 1000);
   }
-  return 0;
 }
 
-static double GetVolumeScale()
+/*static*/ double AudioStream::GetVolumeScale()
 {
-  MutexAutoLock lock(*gAudioPrefsLock);
-  return gVolumeScale;
+  StaticMutexAutoLock lock(sMutex);
+  return sVolumeScale;
 }
 
-#if defined(MOZ_CUBEB)
-static cubeb* gCubebContext;
-
-static cubeb* GetCubebContext()
+/*static*/ cubeb* AudioStream::GetCubebContext()
 {
-  MutexAutoLock lock(*gAudioPrefsLock);
-  if (gCubebContext ||
-      cubeb_init(&gCubebContext, "AudioStream") == CUBEB_OK) {
-    return gCubebContext;
+  StaticMutexAutoLock lock(sMutex);
+  return GetCubebContextUnlocked();
+}
+
+/*static*/ void AudioStream::InitPreferredSampleRate()
+{
+  StaticMutexAutoLock lock(sMutex);
+  if (sPreferredSampleRate == 0 &&
+      cubeb_get_preferred_sample_rate(GetCubebContextUnlocked(),
+                                      &sPreferredSampleRate) != CUBEB_OK) {
+    sPreferredSampleRate = 44100;
+  }
+}
+
+/*static*/ cubeb* AudioStream::GetCubebContextUnlocked()
+{
+  sMutex.AssertCurrentThreadOwns();
+  if (sCubebContext ||
+      cubeb_init(&sCubebContext, "AudioStream") == CUBEB_OK) {
+    return sCubebContext;
   }
   NS_WARNING("cubeb_init failed");
   return nullptr;
 }
 
-static uint32_t GetCubebLatency()
+/*static*/ uint32_t AudioStream::GetCubebLatency()
 {
-  MutexAutoLock lock(*gAudioPrefsLock);
-  return gCubebLatency;
+  StaticMutexAutoLock lock(sMutex);
+  return sCubebLatency;
 }
-#endif
 
-#if defined(MOZ_CUBEB) && defined(__ANDROID__) && defined(MOZ_B2G)
+/*static*/ bool AudioStream::CubebLatencyPrefSet()
+{
+  StaticMutexAutoLock lock(sMutex);
+  return sCubebLatencyPrefSet;
+}
+
+#if defined(__ANDROID__) && defined(MOZ_B2G)
 static cubeb_stream_type ConvertChannelToCubebType(dom::AudioChannelType aType)
 {
   switch(aType) {
@@ -124,58 +135,73 @@ static cubeb_stream_type ConvertChannelToCubebType(dom::AudioChannelType aType)
 #endif
 
 AudioStream::AudioStream()
-: mInRate(0),
-  mOutRate(0),
-  mChannels(0),
-  mWritten(0),
-  mAudioClock(this)
-{}
-
-void AudioStream::InitLibrary()
+  : mMonitor("AudioStream")
+  , mInRate(0)
+  , mOutRate(0)
+  , mChannels(0)
+  , mOutChannels(0)
+  , mWritten(0)
+  , mAudioClock(MOZ_THIS_IN_INITIALIZER_LIST())
+  , mLatencyRequest(HighLatency)
+  , mReadPoint(0)
+  , mLostFrames(0)
+  , mDumpFile(nullptr)
+  , mVolume(1.0)
+  , mBytesPerFrame(0)
+  , mState(INITIALIZED)
 {
-#ifdef PR_LOGGING
-  gAudioStreamLog = PR_NewLogModule("AudioStream");
-#endif
-  gAudioPrefsLock = new Mutex("AudioStream::gAudioPrefsLock");
-  PrefChanged(PREF_VOLUME_SCALE, nullptr);
-  Preferences::RegisterCallback(PrefChanged, PREF_VOLUME_SCALE);
-#if defined(MOZ_CUBEB)
-  PrefChanged(PREF_CUBEB_LATENCY, nullptr);
-  Preferences::RegisterCallback(PrefChanged, PREF_CUBEB_LATENCY);
-#endif
-}
-
-void AudioStream::ShutdownLibrary()
-{
-  Preferences::UnregisterCallback(PrefChanged, PREF_VOLUME_SCALE);
-#if defined(MOZ_CUBEB)
-  Preferences::UnregisterCallback(PrefChanged, PREF_CUBEB_LATENCY);
-#endif
-  delete gAudioPrefsLock;
-  gAudioPrefsLock = nullptr;
-
-#if defined(MOZ_CUBEB)
-  if (gCubebContext) {
-    cubeb_destroy(gCubebContext);
-    gCubebContext = nullptr;
-  }
-#endif
+  // keep a ref in case we shut down later than nsLayoutStatics
+  mLatencyLog = AsyncLatencyLogger::Get(true);
 }
 
 AudioStream::~AudioStream()
 {
+  Shutdown();
+  if (mDumpFile) {
+    fclose(mDumpFile);
+  }
+}
+
+/*static*/ void AudioStream::InitLibrary()
+{
+#ifdef PR_LOGGING
+  gAudioStreamLog = PR_NewLogModule("AudioStream");
+#endif
+  PrefChanged(PREF_VOLUME_SCALE, nullptr);
+  Preferences::RegisterCallback(PrefChanged, PREF_VOLUME_SCALE);
+  PrefChanged(PREF_CUBEB_LATENCY, nullptr);
+  Preferences::RegisterCallback(PrefChanged, PREF_CUBEB_LATENCY);
+}
+
+/*static*/ void AudioStream::ShutdownLibrary()
+{
+  Preferences::UnregisterCallback(PrefChanged, PREF_VOLUME_SCALE);
+  Preferences::UnregisterCallback(PrefChanged, PREF_CUBEB_LATENCY);
+
+  StaticMutexAutoLock lock(sMutex);
+  if (sCubebContext) {
+    cubeb_destroy(sCubebContext);
+    sCubebContext = nullptr;
+  }
 }
 
 nsresult AudioStream::EnsureTimeStretcherInitialized()
 {
+  MonitorAutoLock mon(mMonitor);
+  return EnsureTimeStretcherInitializedUnlocked();
+}
+
+nsresult AudioStream::EnsureTimeStretcherInitializedUnlocked()
+{
+  mMonitor.AssertCurrentThreadOwns();
   if (!mTimeStretcher) {
     // SoundTouch does not support a number of channels > 2
-    if (mChannels > 2) {
+    if (mOutChannels > 2) {
       return NS_ERROR_FAILURE;
     }
     mTimeStretcher = new soundtouch::SoundTouch();
     mTimeStretcher->setSampleRate(mInRate);
-    mTimeStretcher->setChannels(mChannels);
+    mTimeStretcher->setChannels(mOutChannels);
     mTimeStretcher->setPitch(1.0);
   }
   return NS_OK;
@@ -196,7 +222,6 @@ nsresult AudioStream::SetPlaybackRate(double aPlaybackRate)
 
   mAudioClock.SetPlaybackRate(aPlaybackRate);
   mOutRate = mInRate / aPlaybackRate;
-
 
   if (mAudioClock.GetPreservesPitch()) {
     mTimeStretcher->setTempo(aPlaybackRate);
@@ -237,196 +262,24 @@ int64_t AudioStream::GetWritten()
   return mWritten;
 }
 
-#if defined(MOZ_CUBEB)
-class nsCircularByteBuffer
+/*static*/ int AudioStream::MaxNumberOfChannels()
 {
-public:
-  nsCircularByteBuffer()
-    : mBuffer(nullptr), mCapacity(0), mStart(0), mCount(0)
-  {}
-
-  // Set the capacity of the buffer in bytes.  Must be called before any
-  // call to append or pop elements.
-  void SetCapacity(uint32_t aCapacity) {
-    NS_ABORT_IF_FALSE(!mBuffer, "Buffer allocated.");
-    mCapacity = aCapacity;
-    mBuffer = new uint8_t[mCapacity];
+  cubeb* cubebContext = GetCubebContext();
+  uint32_t maxNumberOfChannels;
+  if (cubebContext &&
+      cubeb_get_max_channel_count(cubebContext,
+                                  &maxNumberOfChannels) == CUBEB_OK) {
+    return static_cast<int>(maxNumberOfChannels);
   }
 
-  uint32_t Length() {
-    return mCount;
-  }
-
-  uint32_t Capacity() {
-    return mCapacity;
-  }
-
-  uint32_t Available() {
-    return Capacity() - Length();
-  }
-
-  // Append aLength bytes from aSrc to the buffer.  Caller must check that
-  // sufficient space is available.
-  void AppendElements(const uint8_t* aSrc, uint32_t aLength) {
-    NS_ABORT_IF_FALSE(mBuffer && mCapacity, "Buffer not initialized.");
-    NS_ABORT_IF_FALSE(aLength <= Available(), "Buffer full.");
-
-    uint32_t end = (mStart + mCount) % mCapacity;
-
-    uint32_t toCopy = std::min(mCapacity - end, aLength);
-    memcpy(&mBuffer[end], aSrc, toCopy);
-    memcpy(&mBuffer[0], aSrc + toCopy, aLength - toCopy);
-    mCount += aLength;
-  }
-
-  // Remove aSize bytes from the buffer.  Caller must check returned size in
-  // aSize{1,2} before using the pointer returned in aData{1,2}.  Caller
-  // must not specify an aSize larger than Length().
-  void PopElements(uint32_t aSize, void** aData1, uint32_t* aSize1,
-                   void** aData2, uint32_t* aSize2) {
-    NS_ABORT_IF_FALSE(mBuffer && mCapacity, "Buffer not initialized.");
-    NS_ABORT_IF_FALSE(aSize <= Length(), "Request too large.");
-
-    *aData1 = &mBuffer[mStart];
-    *aSize1 = std::min(mCapacity - mStart, aSize);
-    *aData2 = &mBuffer[0];
-    *aSize2 = aSize - *aSize1;
-    mCount -= *aSize1 + *aSize2;
-    mStart += *aSize1 + *aSize2;
-    mStart %= mCapacity;
-  }
-
-private:
-  nsAutoArrayPtr<uint8_t> mBuffer;
-  uint32_t mCapacity;
-  uint32_t mStart;
-  uint32_t mCount;
-};
-
-class BufferedAudioStream : public AudioStream
-{
- public:
-  BufferedAudioStream();
-  ~BufferedAudioStream();
-
-  nsresult Init(int32_t aNumChannels, int32_t aRate,
-                const dom::AudioChannelType aAudioChannelType);
-  void Shutdown();
-  nsresult Write(const AudioDataValue* aBuf, uint32_t aFrames);
-  uint32_t Available();
-  void SetVolume(double aVolume);
-  void Drain();
-  void Start();
-  void Pause();
-  void Resume();
-  int64_t GetPosition();
-  int64_t GetPositionInFrames();
-  int64_t GetPositionInFramesInternal();
-  bool IsPaused();
-  // This method acquires the monitor and forward the call to the base
-  // class, to prevent a race on |mTimeStretcher|, in
-  // |AudioStream::EnsureTimeStretcherInitialized|.
-  nsresult EnsureTimeStretcherInitialized();
-
-private:
-  static long DataCallback_S(cubeb_stream*, void* aThis, void* aBuffer, long aFrames)
-  {
-    return static_cast<BufferedAudioStream*>(aThis)->DataCallback(aBuffer, aFrames);
-  }
-
-  static void StateCallback_S(cubeb_stream*, void* aThis, cubeb_state aState)
-  {
-    static_cast<BufferedAudioStream*>(aThis)->StateCallback(aState);
-  }
-
-  long DataCallback(void* aBuffer, long aFrames);
-  void StateCallback(cubeb_state aState);
-
-  long GetUnprocessed(void* aBuffer, long aFrames);
-
-  long GetTimeStretched(void* aBuffer, long aFrames);
-
-
-  // Shared implementation of underflow adjusted position calculation.
-  // Caller must own the monitor.
-  int64_t GetPositionInFramesUnlocked();
-
-  void StartUnlocked();
-
-  // The monitor is held to protect all access to member variables.  Write()
-  // waits while mBuffer is full; DataCallback() notifies as it consumes
-  // data from mBuffer.  Drain() waits while mState is DRAINING;
-  // StateCallback() notifies when mState is DRAINED.
-  Monitor mMonitor;
-
-  // Sum of silent frames written when DataCallback requests more frames
-  // than are available in mBuffer.
-  uint64_t mLostFrames;
-
-  // Output file for dumping audio
-  FILE* mDumpFile;
-
-  // Temporary audio buffer.  Filled by Write() and consumed by
-  // DataCallback().  Once mBuffer is full, Write() blocks until sufficient
-  // space becomes available in mBuffer.  mBuffer is sized in bytes, not
-  // frames.
-  nsCircularByteBuffer mBuffer;
-
-  // Software volume level.  Applied during the servicing of DataCallback().
-  double mVolume;
-
-  // Owning reference to a cubeb_stream.  cubeb_stream_destroy is called by
-  // nsAutoRef's destructor.
-  nsAutoRef<cubeb_stream> mCubebStream;
-
-  uint32_t mBytesPerFrame;
-
-  uint32_t BytesToFrames(uint32_t aBytes) {
-    NS_ASSERTION(aBytes % mBytesPerFrame == 0,
-                 "Byte count not aligned on frames size.");
-    return aBytes / mBytesPerFrame;
-  }
-
-  uint32_t FramesToBytes(uint32_t aFrames) {
-    return aFrames * mBytesPerFrame;
-  }
-
-
-  enum StreamState {
-    INITIALIZED, // Initialized, playback has not begun.
-    STARTED,     // Started by a call to Write() (iff INITIALIZED) or Resume().
-    STOPPED,     // Stopped by a call to Pause().
-    DRAINING,    // Drain requested.  DataCallback will indicate end of stream
-                 // once the remaining contents of mBuffer are requested by
-                 // cubeb, after which StateCallback will indicate drain
-                 // completion.
-    DRAINED,     // StateCallback has indicated that the drain is complete.
-    ERRORED      // Stream disabled due to an internal error.
-  };
-
-  StreamState mState;
-};
-#endif
-
-AudioStream* AudioStream::AllocateStream()
-{
-#if defined(MOZ_CUBEB)
-  return new BufferedAudioStream();
-#endif
-  return nullptr;
+  return 0;
 }
 
-int AudioStream::MaxNumberOfChannels()
+/*static*/ int AudioStream::PreferredSampleRate()
 {
-  uint32_t maxNumberOfChannels, rv;
-
-  rv = cubeb_get_max_channel_count(GetCubebContext(), &maxNumberOfChannels);
-
-  if (rv != CUBEB_OK) {
-    return 0;
-  }
-
-  return static_cast<int>(maxNumberOfChannels);
+  MOZ_ASSERT(sPreferredSampleRate,
+             "sPreferredSampleRate has not been initialized!");
+  return sPreferredSampleRate;
 }
 
 static void SetUint16LE(uint8_t* aDest, uint16_t aValue)
@@ -480,7 +333,7 @@ WriteDumpFile(FILE* aDumpFile, AudioStream* aStream, uint32_t aFrames,
   if (!aDumpFile)
     return;
 
-  uint32_t samples = aStream->GetChannels()*aFrames;
+  uint32_t samples = aStream->GetOutChannels()*aFrames;
   if (AUDIO_OUTPUT_FORMAT == AUDIO_FORMAT_S16) {
     fwrite(aBuffer, 2, samples, aDumpFile);
     return;
@@ -498,31 +351,10 @@ WriteDumpFile(FILE* aDumpFile, AudioStream* aStream, uint32_t aFrames,
   fflush(aDumpFile);
 }
 
-#if defined(MOZ_CUBEB)
-BufferedAudioStream::BufferedAudioStream()
-  : mMonitor("BufferedAudioStream"), mLostFrames(0), mDumpFile(nullptr),
-    mVolume(1.0), mBytesPerFrame(0), mState(INITIALIZED)
-{
-}
-
-BufferedAudioStream::~BufferedAudioStream()
-{
-  Shutdown();
-  if (mDumpFile) {
-    fclose(mDumpFile);
-  }
-}
-
 nsresult
-BufferedAudioStream::EnsureTimeStretcherInitialized()
-{
-  MonitorAutoLock mon(mMonitor);
-  return AudioStream::EnsureTimeStretcherInitialized();
-}
-
-nsresult
-BufferedAudioStream::Init(int32_t aNumChannels, int32_t aRate,
-                            const dom::AudioChannelType aAudioChannelType)
+AudioStream::Init(int32_t aNumChannels, int32_t aRate,
+                  const dom::AudioChannelType aAudioChannelType,
+                  LatencyRequest aLatencyRequest)
 {
   cubeb* cubebContext = GetCubebContext();
 
@@ -530,14 +362,18 @@ BufferedAudioStream::Init(int32_t aNumChannels, int32_t aRate,
     return NS_ERROR_FAILURE;
   }
 
+  PR_LOG(gAudioStreamLog, PR_LOG_DEBUG,
+    ("%s  channels: %d, rate: %d", __FUNCTION__, aNumChannels, aRate));
   mInRate = mOutRate = aRate;
   mChannels = aNumChannels;
+  mOutChannels = (aNumChannels > 2) ? 2 : aNumChannels;
+  mLatencyRequest = aLatencyRequest;
 
   mDumpFile = OpenDumpFile(this);
 
   cubeb_stream_params params;
   params.rate = aRate;
-  params.channels = aNumChannels;
+  params.channels = mOutChannels;
 #if defined(__ANDROID__)
 #if defined(MOZ_B2G)
   params.stream_type = ConvertChannelToCubebType(aAudioChannelType);
@@ -554,14 +390,26 @@ BufferedAudioStream::Init(int32_t aNumChannels, int32_t aRate,
   } else {
     params.format = CUBEB_SAMPLE_FLOAT32NE;
   }
-  mBytesPerFrame = sizeof(AudioDataValue) * aNumChannels;
+  mBytesPerFrame = sizeof(AudioDataValue) * mOutChannels;
 
   mAudioClock.Init();
 
+  // If the latency pref is set, use it. Otherwise, if this stream is intended
+  // for low latency playback, try to get the lowest latency possible.
+  // Otherwise, for normal streams, use 100ms.
+  uint32_t latency;
+  if (aLatencyRequest == LowLatency && !CubebLatencyPrefSet()) {
+    if (cubeb_get_min_latency(cubebContext, params, &latency) != CUBEB_OK) {
+      latency = GetCubebLatency();
+    }
+  } else {
+    latency = GetCubebLatency();
+  }
+
   {
     cubeb_stream* stream;
-    if (cubeb_stream_init(cubebContext, &stream, "BufferedAudioStream", params,
-                          GetCubebLatency(), DataCallback_S, StateCallback_S, this) == CUBEB_OK) {
+    if (cubeb_stream_init(cubebContext, &stream, "AudioStream", params,
+                          latency, DataCallback_S, StateCallback_S, this) == CUBEB_OK) {
       mCubebStream.own(stream);
     }
   }
@@ -577,11 +425,18 @@ BufferedAudioStream::Init(int32_t aNumChannels, int32_t aRate,
   NS_ABORT_IF_FALSE(bufferLimit % mBytesPerFrame == 0, "Must buffer complete frames");
   mBuffer.SetCapacity(bufferLimit);
 
+  // Start the stream right away when low latency has been requested. This means
+  // that the DataCallback will feed silence to cubeb, until the first frames
+  // are writtent to this AudioStream.
+  if (mLatencyRequest == LowLatency) {
+    Start();
+  }
+
   return NS_OK;
 }
 
 void
-BufferedAudioStream::Shutdown()
+AudioStream::Shutdown()
 {
   if (mState == STARTED) {
     Pause();
@@ -591,8 +446,9 @@ BufferedAudioStream::Shutdown()
   }
 }
 
+// aTime is the time in ms the samples were inserted into MediaStreamGraph
 nsresult
-BufferedAudioStream::Write(const AudioDataValue* aBuf, uint32_t aFrames)
+AudioStream::Write(const AudioDataValue* aBuf, uint32_t aFrames, TimeStamp *aTime)
 {
   MonitorAutoLock mon(mMonitor);
   if (!mCubebStream || mState == ERRORED) {
@@ -601,8 +457,32 @@ BufferedAudioStream::Write(const AudioDataValue* aBuf, uint32_t aFrames)
   NS_ASSERTION(mState == INITIALIZED || mState == STARTED,
     "Stream write in unexpected state.");
 
+  // Downmix to Stereo.
+  if (mChannels > 2 && mChannels <= 8) {
+    DownmixAudioToStereo(const_cast<AudioDataValue*> (aBuf), mChannels, aFrames);
+  }
+  else if (mChannels > 8) {
+    return NS_ERROR_FAILURE;
+  }
+
   const uint8_t* src = reinterpret_cast<const uint8_t*>(aBuf);
   uint32_t bytesToCopy = FramesToBytes(aFrames);
+
+  // XXX this will need to change if we want to enable this on-the-fly!
+  if (PR_LOG_TEST(GetLatencyLog(), PR_LOG_DEBUG)) {
+    // Record the position and time this data was inserted
+    int64_t timeMs;
+    if (aTime && !aTime->IsNull()) {
+      if (mStartTime.IsNull()) {
+        AsyncLatencyLogger::Get(true)->GetStartTime(mStartTime);
+      }
+      timeMs = (*aTime - mStartTime).ToMilliseconds();
+    } else {
+      timeMs = 0;
+    }
+    struct Inserts insert = { timeMs, aFrames};
+    mInserts.AppendElement(insert);
+  }
 
   while (bytesToCopy > 0) {
     uint32_t available = std::min(bytesToCopy, mBuffer.Available());
@@ -627,12 +507,11 @@ BufferedAudioStream::Write(const AudioDataValue* aBuf, uint32_t aFrames)
   }
 
   mWritten += aFrames;
-
   return NS_OK;
 }
 
 uint32_t
-BufferedAudioStream::Available()
+AudioStream::Available()
 {
   MonitorAutoLock mon(mMonitor);
   NS_ABORT_IF_FALSE(mBuffer.Length() % mBytesPerFrame == 0, "Buffer invariant violated.");
@@ -640,7 +519,7 @@ BufferedAudioStream::Available()
 }
 
 void
-BufferedAudioStream::SetVolume(double aVolume)
+AudioStream::SetVolume(double aVolume)
 {
   MonitorAutoLock mon(mMonitor);
   NS_ABORT_IF_FALSE(aVolume >= 0.0 && aVolume <= 1.0, "Invalid volume");
@@ -648,7 +527,7 @@ BufferedAudioStream::SetVolume(double aVolume)
 }
 
 void
-BufferedAudioStream::Drain()
+AudioStream::Drain()
 {
   MonitorAutoLock mon(mMonitor);
   if (mState != STARTED) {
@@ -662,14 +541,14 @@ BufferedAudioStream::Drain()
 }
 
 void
-BufferedAudioStream::Start()
+AudioStream::Start()
 {
   MonitorAutoLock mon(mMonitor);
   StartUnlocked();
 }
 
 void
-BufferedAudioStream::StartUnlocked()
+AudioStream::StartUnlocked()
 {
   mMonitor.AssertCurrentThreadOwns();
   if (!mCubebStream || mState != INITIALIZED) {
@@ -688,7 +567,7 @@ BufferedAudioStream::StartUnlocked()
 }
 
 void
-BufferedAudioStream::Pause()
+AudioStream::Pause()
 {
   MonitorAutoLock mon(mMonitor);
   if (!mCubebStream || mState != STARTED) {
@@ -706,7 +585,7 @@ BufferedAudioStream::Pause()
 }
 
 void
-BufferedAudioStream::Resume()
+AudioStream::Resume()
 {
   MonitorAutoLock mon(mMonitor);
   if (!mCubebStream || mState != STOPPED) {
@@ -724,7 +603,7 @@ BufferedAudioStream::Resume()
 }
 
 int64_t
-BufferedAudioStream::GetPosition()
+AudioStream::GetPosition()
 {
   return mAudioClock.GetPosition();
 }
@@ -734,7 +613,7 @@ BufferedAudioStream::GetPosition()
 #pragma optimize("", off)
 #endif
 int64_t
-BufferedAudioStream::GetPositionInFrames()
+AudioStream::GetPositionInFrames()
 {
   return mAudioClock.GetPositionInFrames();
 }
@@ -743,14 +622,14 @@ BufferedAudioStream::GetPositionInFrames()
 #endif
 
 int64_t
-BufferedAudioStream::GetPositionInFramesInternal()
+AudioStream::GetPositionInFramesInternal()
 {
   MonitorAutoLock mon(mMonitor);
   return GetPositionInFramesUnlocked();
 }
 
 int64_t
-BufferedAudioStream::GetPositionInFramesUnlocked()
+AudioStream::GetPositionInFramesUnlocked()
 {
   mMonitor.AssertCurrentThreadOwns();
 
@@ -775,15 +654,43 @@ BufferedAudioStream::GetPositionInFramesUnlocked()
   return std::min<uint64_t>(adjustedPosition, INT64_MAX);
 }
 
+int64_t
+AudioStream::GetLatencyInFrames()
+{
+  uint32_t latency;
+  if (cubeb_stream_get_latency(mCubebStream, &latency)) {
+    NS_WARNING("Could not get cubeb latency.");
+    return 0;
+  }
+  return static_cast<int64_t>(latency);
+}
+
 bool
-BufferedAudioStream::IsPaused()
+AudioStream::IsPaused()
 {
   MonitorAutoLock mon(mMonitor);
   return mState == STOPPED;
 }
 
+void
+AudioStream::GetBufferInsertTime(int64_t &aTimeMs)
+{
+  if (mInserts.Length() > 0) {
+    // Find the right block, but don't leave the array empty
+    while (mInserts.Length() > 1 && mReadPoint >= mInserts[0].mFrames) {
+      mReadPoint -= mInserts[0].mFrames;
+      mInserts.RemoveElementAt(0);
+    }
+    // offset for amount already read
+    // XXX Note: could misreport if we couldn't find a block in the right timeframe
+    aTimeMs = mInserts[0].mTimeMs + ((mReadPoint * 1000) / mOutRate);
+  } else {
+    aTimeMs = INT64_MAX;
+  }
+}
+
 long
-BufferedAudioStream::GetUnprocessed(void* aBuffer, long aFrames)
+AudioStream::GetUnprocessed(void* aBuffer, long aFrames, int64_t &aTimeMs)
 {
   uint8_t* wpos = reinterpret_cast<uint8_t*>(aBuffer);
 
@@ -803,16 +710,47 @@ BufferedAudioStream::GetUnprocessed(void* aBuffer, long aFrames)
   memcpy(wpos, input[0], input_size[0]);
   wpos += input_size[0];
   memcpy(wpos, input[1], input_size[1]);
+
+  // First time block now has our first returned sample
+  mReadPoint += BytesToFrames(available);
+  GetBufferInsertTime(aTimeMs);
+
   return BytesToFrames(available) + flushedFrames;
 }
 
+// Get unprocessed samples, and pad the beginning of the buffer with silence if
+// there is not enough data.
 long
-BufferedAudioStream::GetTimeStretched(void* aBuffer, long aFrames)
+AudioStream::GetUnprocessedWithSilencePadding(void* aBuffer, long aFrames, int64_t& aTimeMs)
+{
+  uint32_t toPopBytes = FramesToBytes(aFrames);
+  uint32_t available = std::min(toPopBytes, mBuffer.Length());
+  uint32_t silenceOffset = toPopBytes - available;
+
+  uint8_t* wpos = reinterpret_cast<uint8_t*>(aBuffer);
+
+  memset(wpos, 0, silenceOffset);
+  wpos += silenceOffset;
+
+  void* input[2];
+  uint32_t input_size[2];
+  mBuffer.PopElements(available, &input[0], &input_size[0], &input[1], &input_size[1]);
+  memcpy(wpos, input[0], input_size[0]);
+  wpos += input_size[0];
+  memcpy(wpos, input[1], input_size[1]);
+
+  GetBufferInsertTime(aTimeMs);
+
+  return aFrames;
+}
+
+long
+AudioStream::GetTimeStretched(void* aBuffer, long aFrames, int64_t &aTimeMs)
 {
   long processedFrames = 0;
 
   // We need to call the non-locking version, because we already have the lock.
-  if (AudioStream::EnsureTimeStretcherInitialized() != NS_OK) {
+  if (EnsureTimeStretcherInitializedUnlocked() != NS_OK) {
     return 0;
   }
 
@@ -832,6 +770,7 @@ BufferedAudioStream::GetTimeStretched(void* aBuffer, long aFrames)
       }
       mBuffer.PopElements(available, &input[0], &input_size[0],
                                      &input[1], &input_size[1]);
+      mReadPoint += BytesToFrames(available);
       for(uint32_t i = 0; i < 2; i++) {
         mTimeStretcher->putSamples(reinterpret_cast<AudioDataValue*>(input[i]), BytesToFrames(input_size[i]));
       }
@@ -841,33 +780,46 @@ BufferedAudioStream::GetTimeStretched(void* aBuffer, long aFrames)
     processedFrames += receivedFrames;
   } while (processedFrames < aFrames && !lowOnBufferedData);
 
+  GetBufferInsertTime(aTimeMs);
+
   return processedFrames;
 }
 
 long
-BufferedAudioStream::DataCallback(void* aBuffer, long aFrames)
+AudioStream::DataCallback(void* aBuffer, long aFrames)
 {
   MonitorAutoLock mon(mMonitor);
   uint32_t available = std::min(static_cast<uint32_t>(FramesToBytes(aFrames)), mBuffer.Length());
   NS_ABORT_IF_FALSE(available % mBytesPerFrame == 0, "Must copy complete frames");
+  AudioDataValue* output = reinterpret_cast<AudioDataValue*>(aBuffer);
   uint32_t underrunFrames = 0;
   uint32_t servicedFrames = 0;
+  int64_t insertTime;
 
   if (available) {
-    AudioDataValue* output = reinterpret_cast<AudioDataValue*>(aBuffer);
+    // When we are playing a low latency stream, and it is the first time we are
+    // getting data from the buffer, we prefer to add the silence for an
+    // underrun at the beginning of the buffer, so the first buffer is not cut
+    // in half by the silence inserted to compensate for the underrun.
     if (mInRate == mOutRate) {
-      servicedFrames = GetUnprocessed(output, aFrames);
+      if (mLatencyRequest == LowLatency && !mWritten) {
+        servicedFrames = GetUnprocessedWithSilencePadding(output, aFrames, insertTime);
+      } else {
+        servicedFrames = GetUnprocessed(output, aFrames, insertTime);
+      }
     } else {
-      servicedFrames = GetTimeStretched(output, aFrames);
+      servicedFrames = GetTimeStretched(output, aFrames, insertTime);
     }
     float scaled_volume = float(GetVolumeScale() * mVolume);
 
-    ScaleAudioSamples(output, aFrames * mChannels, scaled_volume);
+    ScaleAudioSamples(output, aFrames * mOutChannels, scaled_volume);
 
     NS_ABORT_IF_FALSE(mBuffer.Length() % mBytesPerFrame == 0, "Must copy complete frames");
 
     // Notify any blocked Write() call that more space is available in mBuffer.
     mon.NotifyAll();
+  } else {
+    GetBufferInsertTime(insertTime);
   }
 
   underrunFrames = aFrames - servicedFrames;
@@ -875,24 +827,36 @@ BufferedAudioStream::DataCallback(void* aBuffer, long aFrames)
   if (mState != DRAINING) {
     uint8_t* rpos = static_cast<uint8_t*>(aBuffer) + FramesToBytes(aFrames - underrunFrames);
     memset(rpos, 0, FramesToBytes(underrunFrames));
-#ifdef PR_LOGGING
     if (underrunFrames) {
       PR_LOG(gAudioStreamLog, PR_LOG_WARNING,
              ("AudioStream %p lost %d frames", this, underrunFrames));
     }
-#endif
     mLostFrames += underrunFrames;
     servicedFrames += underrunFrames;
   }
 
   WriteDumpFile(mDumpFile, this, aFrames, aBuffer);
+  // Don't log if we're not interested or if the stream is inactive
+  if (PR_LOG_TEST(GetLatencyLog(), PR_LOG_DEBUG) &&
+      insertTime != INT64_MAX && servicedFrames > underrunFrames) {
+    uint32_t latency = UINT32_MAX;
+    if (cubeb_stream_get_latency(mCubebStream, &latency)) {
+      NS_WARNING("Could not get latency from cubeb.");
+    }
+    TimeStamp now = TimeStamp::Now();
+
+    mLatencyLog->Log(AsyncLatencyLogger::AudioStream, reinterpret_cast<uint64_t>(this),
+                     insertTime, now);
+    mLatencyLog->Log(AsyncLatencyLogger::Cubeb, reinterpret_cast<uint64_t>(mCubebStream.get()),
+                     (latency * 1000) / mOutRate, now);
+  }
 
   mAudioClock.UpdateWritePosition(servicedFrames);
   return servicedFrames;
 }
 
 void
-BufferedAudioStream::StateCallback(cubeb_state aState)
+AudioStream::StateCallback(cubeb_state aState)
 {
   MonitorAutoLock mon(mMonitor);
   if (aState == CUBEB_STATE_DRAINED) {
@@ -902,8 +866,6 @@ BufferedAudioStream::StateCallback(cubeb_state aState)
   }
   mon.NotifyAll();
 }
-
-#endif
 
 AudioClock::AudioClock(AudioStream* aStream)
  :mAudioStream(aStream),
@@ -962,7 +924,7 @@ uint64_t AudioClock::GetPosition()
       (static_cast<float>(USECS_PER_S * diffOffset) / mOutRate));
     return position;
   }
-  return -1;
+  return UINT64_MAX;
 }
 
 uint64_t AudioClock::GetPositionInFrames()

@@ -76,7 +76,9 @@ const Cu = Components.utils;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
-Cu.import("resource://gre/modules/identity/IdentityUtils.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "getRandomId",
+                                  "resource://gre/modules/identity/IdentityUtils.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "IdentityService",
                                   "resource://gre/modules/identity/MinimalIdentity.jsm");
@@ -98,7 +100,7 @@ try {
 
 // JS shim that contains the callback functions that
 // live within the identity UI provisioning frame.
-const kIdentityShimFile = "chrome://browser/content/identity.js";
+const kIdentityShimFile = "chrome://b2g/content/identity.js";
 
 // Type of MozChromeEvents to handle id dialogs.
 const kOpenIdentityDialog = "id-dialog-open";
@@ -285,7 +287,7 @@ Pipe.prototype = {
             let frameLoader = frame.QueryInterface(Ci.nsIFrameLoaderOwner).frameLoader;
             mm = frameLoader.messageManager;
             try {
-              mm.loadFrameScript(kIdentityShimFile, true);
+              mm.loadFrameScript(kIdentityShimFile, true, true);
               log("Loaded shim", kIdentityShimFile);
             } catch (e) {
               log("Error loading", kIdentityShimFile, "as a frame script:", e);

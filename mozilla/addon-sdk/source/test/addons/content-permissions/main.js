@@ -3,19 +3,21 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
 
-const xulApp = require("sdk/system/xul-app");
 const { PageMod } = require("sdk/page-mod");
 const tabs = require("sdk/tabs");
+const { startServerAsync } = require("sdk/test/httpd");
+
+const serverPort = 8099;
+const TEST_TAB_URL = "about:mozilla";
 
 exports.testCrossDomainIframe = function(assert, done) {
-  let serverPort = 8099;
-  let server = require("sdk/test/httpd").startServerAsync(serverPort);
+  let server = startServerAsync(serverPort);
   server.registerPathHandler("/iframe", function handle(request, response) {
     response.write("<html><body>foo</body></html>");
   });
 
   let pageMod = PageMod({
-    include: "about:*",
+    include: TEST_TAB_URL,
     contentScript: "new " + function ContentScriptScope() {
       self.on("message", function (url) {
         let iframe = document.createElement("iframe");
@@ -31,25 +33,29 @@ exports.testCrossDomainIframe = function(assert, done) {
       w.on("message", function (body) {
         assert.equal(body, "foo", "received iframe html content");
         pageMod.destroy();
-        w.tab.close();
-        server.stop(done);
+        w.tab.close(function() {
+          server.stop(done);
+        });
       });
-      w.postMessage("http://localhost:8099/iframe");
+
+      w.postMessage("http://localhost:" + serverPort + "/iframe");
     }
   });
 
-  tabs.open("about:credits");
+  tabs.open({
+    url: TEST_TAB_URL,
+    inBackground: true
+  });
 };
 
 exports.testCrossDomainXHR = function(assert, done) {
-  let serverPort = 8099;
-  let server = require("sdk/test/httpd").startServerAsync(serverPort);
+  let server = startServerAsync(serverPort);
   server.registerPathHandler("/xhr", function handle(request, response) {
     response.write("foo");
   });
 
   let pageMod = PageMod({
-    include: "about:*",
+    include: TEST_TAB_URL,
     contentScript: "new " + function ContentScriptScope() {
       self.on("message", function (url) {
         let request = new XMLHttpRequest();
@@ -65,22 +71,19 @@ exports.testCrossDomainXHR = function(assert, done) {
       w.on("message", function (body) {
         assert.equal(body, "foo", "received XHR content");
         pageMod.destroy();
-        w.tab.close();
-        server.stop(done);
+        w.tab.close(function() {
+          server.stop(done);
+        });
       });
-      w.postMessage("http://localhost:8099/xhr");
+
+      w.postMessage("http://localhost:" + serverPort + "/xhr");
     }
   });
 
-  tabs.open("about:credits");
+  tabs.open({
+    url: TEST_TAB_URL,
+    inBackground: true
+  });
 };
-
-if (!xulApp.versionInRange(xulApp.platformVersion, "17.0a2", "*")) {
-  module.exports = {
-    "test Unsupported Application": function Unsupported (assert) {
-      assert.pass("This firefox version doesn't support cross-domain-content permission.");
-    }
-  };
-}
 
 require("sdk/test/runner").runTestsFromModule(module);

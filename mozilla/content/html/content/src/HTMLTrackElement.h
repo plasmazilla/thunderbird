@@ -6,9 +6,6 @@
 #ifndef mozilla_dom_HTMLTrackElement_h
 #define mozilla_dom_HTMLTrackElement_h
 
-#define WEBVTT_NO_CONFIG_H 1
-#define WEBVTT_STATIC 1
-
 #include "mozilla/Attributes.h"
 #include "mozilla/dom/HTMLMediaElement.h"
 #include "mozilla/dom/TextTrack.h"
@@ -24,13 +21,12 @@
 namespace mozilla {
 namespace dom {
 
-class WebVTTLoadListener;
+class WebVTTListener;
 
 class HTMLTrackElement MOZ_FINAL : public nsGenericHTMLElement
-                                 , public nsIDOMHTMLElement
 {
 public:
-  HTMLTrackElement(already_AddRefed<nsINodeInfo> aNodeInfo);
+  HTMLTrackElement(already_AddRefed<nsINodeInfo>& aNodeInfo);
   virtual ~HTMLTrackElement();
 
   // nsISupports
@@ -38,18 +34,12 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(HTMLTrackElement,
                                            nsGenericHTMLElement)
 
-  // nsIDOMNode
-  NS_FORWARD_NSIDOMNODE_TO_NSINODE
-
-  // nsIDOMElement
-  NS_FORWARD_NSIDOMELEMENT_TO_GENERIC
-
-  // nsIDOMHTMLElement
-  NS_FORWARD_NSIDOMHTMLELEMENT_TO_GENERIC
-
   // HTMLTrackElement WebIDL
-  TextTrackKind Kind() const;
-  void SetKind(TextTrackKind aKind, ErrorResult& aError);
+  void GetKind(DOMString& aKind) const;
+  void SetKind(const nsAString& aKind, ErrorResult& aError)
+  {
+    SetHTMLAttr(nsGkAtoms::kind, aKind, aError);
+  }
 
   void GetSrc(DOMString& aSrc) const
   {
@@ -97,20 +87,16 @@ public:
 
   // Constants for numeric readyState property values.
   enum {
-    NONE = 0U,
-    LOADING = 1U,
-    LOADED = 2U,
-    ERROR = 3U
+    READY_STATE_NONE = 0U,
+    READY_STATE_LOADING = 1U,
+    READY_STATE_LOADED = 2U,
+    READY_STATE_ERROR = 3U
   };
-  uint16_t ReadyState() const
-  {
-    return mReadyState;
-  }
+  uint16_t ReadyState() const;
 
   TextTrack* Track();
 
   virtual nsresult Clone(nsINodeInfo* aNodeInfo, nsINode** aResult) const MOZ_OVERRIDE;
-  virtual nsIDOMNode* AsDOMNode() MOZ_OVERRIDE { return this; }
 
   // For Track, ItemValue reflects the src attribute
   virtual void GetItemValueText(nsAString& aText) MOZ_OVERRIDE
@@ -147,19 +133,17 @@ protected:
                              JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
   void OnChannelRedirect(nsIChannel* aChannel, nsIChannel* aNewChannel,
                          uint32_t aFlags);
-  // Will open a new channel for the HTMLTrackElement's src attribute and load
-  // HTMLTrackElement's WebVTTLoadListener by calling WebVTTLoadListener's
-  // LoadResource().
+  // Open a new channel to the HTMLTrackElement's src attribute and call
+  // mListener's LoadResource().
   void LoadResource();
 
   friend class TextTrackCue;
-  friend class WebVTTLoadListener;
+  friend class WebVTTListener;
 
   nsRefPtr<TextTrack> mTrack;
   nsCOMPtr<nsIChannel> mChannel;
   nsRefPtr<HTMLMediaElement> mMediaParent;
-  nsRefPtr<WebVTTLoadListener> mLoadListener;
-  uint16_t mReadyState;
+  nsRefPtr<WebVTTListener> mListener;
 
   void CreateTextTrack();
 };

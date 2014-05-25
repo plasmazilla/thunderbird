@@ -69,6 +69,12 @@ this.PermissionsTable =  { geolocation: {
                              certified: ALLOW_ACTION,
                              access: ["read"]
                            },
+                           "device-storage:crashes": {
+                             app: DENY_ACTION,
+                             privileged: DENY_ACTION,
+                             certified: ALLOW_ACTION,
+                             access: ["read"]
+                           },
                            "device-storage:pictures": {
                              app: DENY_ACTION,
                              privileged: PROMPT_ACTION,
@@ -145,6 +151,11 @@ this.PermissionsTable =  { geolocation: {
                              privileged: DENY_ACTION,
                              certified: ALLOW_ACTION
                            },
+                           phonenumberservice: {
+                             app: DENY_ACTION,
+                             privileged: DENY_ACTION,
+                             certified: ALLOW_ACTION
+                           },
                            fmradio: {
                              app: DENY_ACTION,
                              privileged: ALLOW_ACTION,
@@ -216,8 +227,7 @@ this.PermissionsTable =  { geolocation: {
                              certified: ALLOW_ACTION,
                              substitute: [
                                "indexedDB-unlimited",
-                               "offline-app",
-                               "pin-app"
+                               "default-persistent-storage"
                              ]
                            },
                            "background-sensors": {
@@ -270,10 +280,51 @@ this.PermissionsTable =  { geolocation: {
                              privileged: DENY_ACTION,
                              certified: ALLOW_ACTION
                            },
-                           "keyboard": {
+                           "input": {
+                             app: DENY_ACTION,
+                             privileged: ALLOW_ACTION,
+                             certified: ALLOW_ACTION
+                           },
+                           "input-manage": {
                              app: DENY_ACTION,
                              privileged: DENY_ACTION,
                              certified: ALLOW_ACTION
+                           },
+                           "wappush": {
+                             app: DENY_ACTION,
+                             privileged: DENY_ACTION,
+                             certified: ALLOW_ACTION
+                           },
+                           "audio-capture": {
+                             app: PROMPT_ACTION,
+                             privileged: PROMPT_ACTION,
+                             certified: PROMPT_ACTION
+                           },
+                           "nfc": {
+                             app: DENY_ACTION,
+                             privileged: DENY_ACTION,
+                             certified: ALLOW_ACTION,
+                             access: ["read", "write"]
+                           },
+                           "nfc-manager": {
+                             app: DENY_ACTION,
+                             privileged: DENY_ACTION,
+                             certified: ALLOW_ACTION
+                           },
+                           "speaker-control": {
+                             app: DENY_ACTION,
+                             privileged: ALLOW_ACTION,
+                             certified: ALLOW_ACTION
+                           },
+                           "downloads": {
+                             app: DENY_ACTION,
+                             privileged: DENY_ACTION,
+                             certified: ALLOW_ACTION
+                           },
+                           "video-capture": {
+                             app: PROMPT_ACTION,
+                             privileged: PROMPT_ACTION,
+                             certified: PROMPT_ACTION
                            },
                          };
 

@@ -24,6 +24,7 @@
 #include "mozStoragePrivateHelpers.h"
 #include "mozStorageStatementRow.h"
 #include "mozStorageStatement.h"
+#include "nsDOMClassInfo.h"
 
 #include "prlog.h"
 
@@ -48,7 +49,9 @@ NS_IMPL_CI_INTERFACE_GETTER4(
 class AsyncStatementClassInfo : public nsIClassInfo
 {
 public:
-  NS_DECL_ISUPPORTS
+  MOZ_CONSTEXPR AsyncStatementClassInfo() {}
+
+  NS_DECL_ISUPPORTS_INHERITED
 
   NS_IMETHODIMP
   GetInterfaces(uint32_t *_count, nsIID ***_array)
@@ -137,10 +140,8 @@ AsyncStatement::initialize(Connection *aDBConnection,
   mDBConnection = aDBConnection;
   mSQLString = aSQLStatement;
 
-#ifdef PR_LOGGING
   PR_LOG(gStorageLog, PR_LOG_NOTICE, ("Inited async statement '%s' (0x%p)",
                                       mSQLString.get()));
-#endif
 
 #ifdef DEBUG
   // We want to try and test for LIKE and that consumers are using
@@ -262,8 +263,8 @@ AsyncStatement::cleanupJSHelpers()
 ////////////////////////////////////////////////////////////////////////////////
 //// nsISupports
 
-NS_IMPL_THREADSAFE_ADDREF(AsyncStatement)
-NS_IMPL_THREADSAFE_RELEASE(AsyncStatement)
+NS_IMPL_ADDREF(AsyncStatement)
+NS_IMPL_RELEASE(AsyncStatement)
 
 NS_INTERFACE_MAP_BEGIN(AsyncStatement)
   NS_INTERFACE_MAP_ENTRY(mozIStorageAsyncStatement)
@@ -301,22 +302,17 @@ AsyncStatement::getAsyncStatement(sqlite3_stmt **_stmt)
   if (!mAsyncStatement) {
     int rc = mDBConnection->prepareStatement(mSQLString, &mAsyncStatement);
     if (rc != SQLITE_OK) {
-#ifdef PR_LOGGING
       PR_LOG(gStorageLog, PR_LOG_ERROR,
              ("Sqlite statement prepare error: %d '%s'", rc,
               ::sqlite3_errmsg(mDBConnection->GetNativeConnection())));
       PR_LOG(gStorageLog, PR_LOG_ERROR,
              ("Statement was: '%s'", mSQLString.get()));
-#endif
       *_stmt = nullptr;
       return rc;
     }
-
-#ifdef PR_LOGGING
     PR_LOG(gStorageLog, PR_LOG_NOTICE, ("Initialized statement '%s' (0x%p)",
                                         mSQLString.get(),
                                         mAsyncStatement));
-#endif
   }
 
   *_stmt = mAsyncStatement;
@@ -368,10 +364,8 @@ AsyncStatement::Finalize()
 
   mFinalized = true;
 
-#ifdef PR_LOGGING
   PR_LOG(gStorageLog, PR_LOG_NOTICE, ("Finalizing statement '%s'",
                                       mSQLString.get()));
-#endif
 
   asyncFinalize();
   cleanupJSHelpers();

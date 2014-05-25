@@ -7,7 +7,6 @@
 #include "nsDOMCSSValueList.h"
 #include "mozilla/dom/CSSValueListBinding.h"
 #include "nsAutoPtr.h"
-#include "nsContentUtils.h"
 
 using namespace mozilla;
 
@@ -60,7 +59,7 @@ nsDOMCSSValueList::GetCssText(nsAString& aCssText)
     separator.AssignLiteral(", ");
   }
   else {
-    separator.Assign(PRUnichar(' '));
+    separator.Assign(char16_t(' '));
   }
 
   nsAutoString tmpStr;

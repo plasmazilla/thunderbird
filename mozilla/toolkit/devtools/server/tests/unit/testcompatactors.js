@@ -10,9 +10,7 @@ function createRootActor()
       this._tabActors = [];
       for each (let g in gTestGlobals) {
         let actor = new BrowserTabActor(this.conn);
-        actor.thread = new ThreadActor({});
-        actor.thread.addDebuggee(g);
-        actor.thread.global = g;
+        actor.thread = new ThreadActor({}, g);
 
         actor.json = function() {
           return { actor: actor.actorID,
@@ -40,7 +38,7 @@ function createRootActor()
                 url: s.url,
                 startLine: s.startLine,
                 lineCount: s.lineCount,
-                source: this.sources.source(s.url).form()
+                source: this.sources.source({ url: s.url }).form()
               };
               scripts.push(script);
             }
@@ -70,7 +68,7 @@ function createRootActor()
               url: aScript.url,
               startLine: aScript.startLine,
               lineCount: aScript.lineCount,
-              source: actor.thread.sources.source(aScript.url).form()
+              source: actor.thread.sources.source({ url: aScript.url }).form()
             });
           };
         }(actor.thread.onNewScript));
@@ -115,5 +113,6 @@ function createRootActor()
 
 DebuggerServer.addTestGlobal = function addTestGlobal(aGlobal)
 {
+  aGlobal.wrappedJSObject = aGlobal;
   gTestGlobals.push(aGlobal);
 }

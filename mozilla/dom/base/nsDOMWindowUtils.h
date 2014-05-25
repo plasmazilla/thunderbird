@@ -6,15 +6,18 @@
 #ifndef nsDOMWindowUtils_h_
 #define nsDOMWindowUtils_h_
 
-#include "nsAutoPtr.h"
 #include "nsWeakReference.h"
 
 #include "nsIDOMWindowUtils.h"
-#include "nsEvent.h"
 #include "mozilla/Attributes.h"
+#include "mozilla/BasicEvents.h"
 
 class nsGlobalWindow;
 class nsIPresShell;
+class nsIWidget;
+class nsPresContext;
+class nsPoint;
+class nsIDocument;
 
 class nsDOMWindowUtils MOZ_FINAL : public nsIDOMWindowUtils,
                                    public nsSupportsWeakReference
@@ -37,6 +40,7 @@ protected:
 
   nsIPresShell* GetPresShell();
   nsPresContext* GetPresContext();
+  nsIDocument* GetDocument();
 
   NS_IMETHOD SendMouseEventCommon(const nsAString& aType,
                                   float aX,
@@ -48,9 +52,25 @@ protected:
                                   float aPressure,
                                   unsigned short aInputSourceArg,
                                   bool aToWindow,
-                                  bool *aPreventDefault);
+                                  bool *aPreventDefault,
+                                  bool aIsSynthesized);
 
-  static mozilla::widget::Modifiers GetWidgetModifiers(int32_t aModifiers);
+  NS_IMETHOD SendTouchEventCommon(const nsAString& aType,
+                                  uint32_t* aIdentifiers,
+                                  int32_t* aXs,
+                                  int32_t* aYs,
+                                  uint32_t* aRxs,
+                                  uint32_t* aRys,
+                                  float* aRotationAngles,
+                                  float* aForces,
+                                  uint32_t aCount,
+                                  int32_t aModifiers,
+                                  bool aIgnoreRootScrollFrame,
+                                  bool aToWindow,
+                                  bool* aPreventDefault);
+
+
+  static mozilla::Modifiers GetWidgetModifiers(int32_t aModifiers);
 };
 
 #endif

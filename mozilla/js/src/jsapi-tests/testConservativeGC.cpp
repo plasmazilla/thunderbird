@@ -4,11 +4,10 @@
 
 #if !defined(JSGC_ROOT_ANALYSIS) && !defined(JSGC_USE_EXACT_ROOTING)
 
-#include "tests.h"
 #include "jsobj.h"
-#include "vm/String.h"
 
-#include "jsobjinlines.h"
+#include "jsapi-tests/tests.h"
+#include "vm/String.h"
 
 BEGIN_TEST(testConservativeGC)
 {
@@ -61,7 +60,6 @@ bool checkObjectFields(JSObject *savedCopy, JSObject *obj)
 {
     /* Ignore fields which are unstable across GCs. */
     CHECK(savedCopy->lastProperty() == obj->lastProperty());
-    CHECK(savedCopy->getProto() == obj->getProto());
     return true;
 }
 
@@ -73,7 +71,7 @@ BEGIN_TEST(testDerivedValues)
   JS::Anchor<JSString *> str_anchor(str);
   static const jschar expected[] = { 'o', 'n', 'c', 'e' };
   const jschar *ch = JS_GetStringCharsZ(cx, str);
-  str = NULL;
+  str = nullptr;
 
   /* Do a lot of allocation and collection. */
   for (int i = 0; i < 3; i++) {

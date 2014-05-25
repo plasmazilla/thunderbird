@@ -5,12 +5,16 @@
 
 package org.mozilla.gecko;
 
+import org.mozilla.gecko.mozglue.JNITarget;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
+import android.net.DhcpInfo;
 import android.net.NetworkInfo;
+import android.net.wifi.WifiManager;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
@@ -93,14 +97,21 @@ public class GeckoNetworkManager extends BroadcastReceiver {
         NETWORK_UNKNOWN
     }
 
+    private enum InfoType {
+        MCC,
+        MNC
+    }
+
     private Context mApplicationContext;
-    private NetworkType  mNetworkType = NetworkType.NETWORK_NONE;
-    private IntentFilter mNetworkFilter = new IntentFilter();
+    private NetworkType mNetworkType = NetworkType.NETWORK_NONE;
+    private final IntentFilter mNetworkFilter = new IntentFilter();
+
     // Whether the manager should be listening to Network Information changes.
     private boolean mShouldBeListening = false;
+
     // Whether the manager should notify Gecko that a change in Network
     // Information happened.
-    private boolean mShouldNotify      = false;
+    private boolean mShouldNotify = false;
 
     public static GeckoNetworkManager getInstance() {
         return sInstance;
@@ -111,13 +122,14 @@ public class GeckoNetworkManager extends BroadcastReceiver {
         updateNetworkType();
     }
 
-    public void init(Context context) {
-        mApplicationContext = context.getApplicationContext();
-        mNetworkFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
-        mNetworkType = getNetworkType();
-    }
+    public void start(final Context context) {
+        // Note that this initialization clause only runs once.
+        if (mApplicationContext == null) {
+            mApplicationContext = context.getApplicationContext();
+            mNetworkFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+            mNetworkType = getNetworkType();
+        }
 
-    public void start() {
         mShouldBeListening = true;
         updateNetworkType();
 
@@ -134,12 +146,33 @@ public class GeckoNetworkManager extends BroadcastReceiver {
         mShouldBeListening = false;
 
         if (mShouldNotify) {
-        stopListening();
+            stopListening();
         }
     }
 
     private void stopListening() {
         mApplicationContext.unregisterReceiver(sInstance);
+    }
+
+    private int wifiDhcpGatewayAddress() {
+        if (mNetworkType != NetworkType.NETWORK_WIFI) {
+            return 0;
+        }
+        try {
+            WifiManager mgr = (WifiManager)sInstance.mApplicationContext.getSystemService(Context.WIFI_SERVICE);
+            DhcpInfo d = mgr.getDhcpInfo();
+            if (d == null) {
+                return 0;
+            }
+
+            return d.gateway;
+
+        } catch (Exception ex) {
+            // getDhcpInfo() is not documented to require any permissions, but on some devices
+            // requires android.permission.ACCESS_WIFI_STATE. Just catching the generic exeption
+            // here and returning 0. Not logging because this could be noisy
+            return 0;
+        }
     }
 
     private void updateNetworkType() {
@@ -152,17 +185,22 @@ public class GeckoNetworkManager extends BroadcastReceiver {
 
         GeckoAppShell.sendEventToGecko(GeckoEvent.createNetworkEvent(
                                        getNetworkSpeed(mNetworkType),
-                                       isNetworkUsuallyMetered(mNetworkType)));
+                                       isNetworkUsuallyMetered(mNetworkType),
+                                       mNetworkType == NetworkType.NETWORK_WIFI,
+                                       wifiDhcpGatewayAddress()));
     }
 
     public double[] getCurrentInformation() {
         return new double[] { getNetworkSpeed(mNetworkType),
-                              isNetworkUsuallyMetered(mNetworkType) ? 1.0 : 0.0 };
+                              isNetworkUsuallyMetered(mNetworkType) ? 1.0 : 0.0,
+                              (mNetworkType == NetworkType.NETWORK_WIFI) ? 1.0 : 0.0,
+                              wifiDhcpGatewayAddress()};
     }
 
     public void enableNotifications() {
         // We set mShouldNotify *after* calling updateNetworkType() to make sure we
         // don't notify an eventual change in mNetworkType.
+        mNetworkType = NetworkType.NETWORK_NONE; // force a notification
         updateNetworkType();
         mShouldNotify = true;
 
@@ -187,7 +225,11 @@ public class GeckoNetworkManager extends BroadcastReceiver {
             return NetworkType.NETWORK_NONE;
         }
 
-        NetworkInfo ni = cm.getActiveNetworkInfo();
+        NetworkInfo ni = null;
+        try {
+            ni = cm.getActiveNetworkInfo();
+        } catch (SecurityException se) {} // if we don't have the permission, fall through to null check
+
         if (ni == null) {
             return NetworkType.NETWORK_NONE;
         }
@@ -293,5 +335,36 @@ public class GeckoNetworkManager extends BroadcastReceiver {
             Log.e(LOGTAG, "Got an unexpected network type!");
             return false;
         }
+    }
+
+    private static int getNetworkOperator(InfoType type) {
+        TelephonyManager tel = (TelephonyManager)sInstance.mApplicationContext.getSystemService(Context.TELEPHONY_SERVICE);
+        if (tel == null) {
+            Log.e(LOGTAG, "Telephony service does not exist");
+            return -1;
+        }
+
+        String networkOperator = tel.getNetworkOperator();
+        if (networkOperator == null || networkOperator.length() <= 3) {
+            return -1;
+        }
+        if (type == InfoType.MNC) {
+            return Integer.parseInt(networkOperator.substring(3));
+        } else if (type == InfoType.MCC) {
+            return Integer.parseInt(networkOperator.substring(0, 3));
+        }
+
+        return -1;
+    }
+
+    /* These are called from javascript c-types. Avoid letting pro-guard delete them */
+    @JNITarget
+    public static int getMCC() {
+        return getNetworkOperator(InfoType.MCC);
+    }
+
+    @JNITarget
+    public static int getMNC() {
+        return getNetworkOperator(InfoType.MNC);
     }
 }

@@ -7,23 +7,21 @@
 #define mozilla_dom_HTMLLinkElement_h
 
 #include "mozilla/Attributes.h"
+#include "mozilla/dom/Link.h"
 #include "nsGenericHTMLElement.h"
 #include "nsIDOMHTMLLinkElement.h"
-#include "nsILink.h"
 #include "nsStyleLinkElement.h"
-#include "mozilla/dom/Link.h"
 
 namespace mozilla {
 namespace dom {
 
-class HTMLLinkElement : public nsGenericHTMLElement,
-                        public nsIDOMHTMLLinkElement,
-                        public nsILink,
-                        public nsStyleLinkElement,
-                        public Link
+class HTMLLinkElement MOZ_FINAL : public nsGenericHTMLElement,
+                                  public nsIDOMHTMLLinkElement,
+                                  public nsStyleLinkElement,
+                                  public Link
 {
 public:
-  HTMLLinkElement(already_AddRefed<nsINodeInfo> aNodeInfo);
+  HTMLLinkElement(already_AddRefed<nsINodeInfo>& aNodeInfo);
   virtual ~HTMLLinkElement();
 
   // nsISupports
@@ -33,24 +31,14 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(HTMLLinkElement,
                                            nsGenericHTMLElement)
 
-  // nsIDOMNode
-  NS_FORWARD_NSIDOMNODE_TO_NSINODE
-
-  // nsIDOMElement
-  NS_FORWARD_NSIDOMELEMENT_TO_GENERIC
-
-  // nsIDOMHTMLElement
-  NS_FORWARD_NSIDOMHTMLELEMENT_TO_GENERIC
-
   // nsIDOMHTMLLinkElement
   NS_DECL_NSIDOMHTMLLINKELEMENT
 
   // DOM memory reporter participant
   NS_DECL_SIZEOF_EXCLUDING_THIS
 
-  // nsILink
-  NS_IMETHOD    LinkAdded() MOZ_OVERRIDE;
-  NS_IMETHOD    LinkRemoved() MOZ_OVERRIDE;
+  void LinkAdded();
+  void LinkRemoved();
 
   // nsIDOMEventTarget
   virtual nsresult PreHandleEvent(nsEventChainPreVisitor& aVisitor) MOZ_OVERRIDE;
@@ -58,7 +46,6 @@ public:
 
   // nsINode
   virtual nsresult Clone(nsINodeInfo* aNodeInfo, nsINode** aResult) const MOZ_OVERRIDE;
-  virtual nsIDOMNode* AsDOMNode() MOZ_OVERRIDE { return this; }
   virtual JSObject* WrapNode(JSContext* aCx,
                              JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
 
@@ -109,6 +96,7 @@ public:
   {
     SetHTMLAttr(nsGkAtoms::rel, aRel, aRv);
   }
+  nsDOMTokenList* RelList();
   // XPCOM GetMedia is fine.
   void SetMedia(const nsAString& aMedia, ErrorResult& aRv)
   {
@@ -153,6 +141,7 @@ protected:
   // nsGenericHTMLElement
   virtual void GetItemValueText(nsAString& text) MOZ_OVERRIDE;
   virtual void SetItemValueText(const nsAString& text) MOZ_OVERRIDE;
+  nsRefPtr<nsDOMTokenList > mRelList;
 };
 
 } // namespace dom

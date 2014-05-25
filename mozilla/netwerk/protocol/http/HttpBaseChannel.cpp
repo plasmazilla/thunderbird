@@ -18,13 +18,16 @@
 #include "nsISeekableStream.h"
 #include "nsITimedChannel.h"
 #include "nsIEncodedChannel.h"
-#include "nsIResumableChannel.h"
 #include "nsIApplicationCacheChannel.h"
-#include "nsILoadContext.h"
 #include "nsEscape.h"
 #include "nsStreamListenerWrapper.h"
+#include "nsISecurityConsoleMessage.h"
+#include "nsURLHelper.h"
+#include "nsICookieService.h"
+#include "nsIStreamConverterService.h"
+#include "nsCRT.h"
+#include "nsIObserverService.h"
 
-#include "prnetdb.h"
 #include <algorithm>
 
 namespace mozilla {
@@ -55,14 +58,13 @@ HttpBaseChannel::HttpBaseChannel()
   , mAllowSpdy(true)
   , mLoadAsBlocking(false)
   , mLoadUnblocked(false)
+  , mResponseTimeoutEnabled(true)
   , mSuspendCount(0)
   , mProxyResolveFlags(0)
   , mContentDispositionHint(UINT32_MAX)
+  , mHttpHandler(gHttpHandler)
 {
   LOG(("Creating HttpBaseChannel @%x\n", this));
-
-  // grab a reference to the handler to ensure that it doesn't go away.
-  NS_ADDREF(gHttpHandler);
 
   // Subfields of unions cannot be targeted in an initializer list
   mSelfAddr.raw.family = PR_AF_UNSPEC;
@@ -75,8 +77,6 @@ HttpBaseChannel::~HttpBaseChannel()
 
   // Make sure we don't leak
   CleanRedirectCacheChainIfNecessary();
-
-  gHttpHandler->Release();
 }
 
 nsresult
@@ -90,9 +90,6 @@ HttpBaseChannel::Init(nsIURI *aURI,
 
   NS_PRECONDITION(aURI, "null uri");
 
-  nsresult rv = nsHashPropertyBag::Init();
-  if (NS_FAILED(rv)) return rv;
-
   mURI = aURI;
   mOriginalURI = aURI;
   mDocumentURI = nullptr;
@@ -105,7 +102,7 @@ HttpBaseChannel::Init(nsIURI *aURI,
   int32_t port = -1;
   bool usingSSL = false;
 
-  rv = mURI->SchemeIs("https", &usingSSL);
+  nsresult rv = mURI->SchemeIs("https", &usingSSL);
   if (NS_FAILED(rv)) return rv;
 
   rv = mURI->GetAsciiHost(host);
@@ -202,6 +199,8 @@ HttpBaseChannel::GetLoadGroup(nsILoadGroup **aLoadGroup)
 NS_IMETHODIMP
 HttpBaseChannel::SetLoadGroup(nsILoadGroup *aLoadGroup)
 {
+  MOZ_ASSERT(NS_IsMainThread(), "Should only be called on the main thread.");
+  
   if (!CanSetLoadGroup(aLoadGroup)) {
     return NS_ERROR_FAILURE;
   }
@@ -286,6 +285,8 @@ HttpBaseChannel::GetNotificationCallbacks(nsIInterfaceRequestor **aCallbacks)
 NS_IMETHODIMP
 HttpBaseChannel::SetNotificationCallbacks(nsIInterfaceRequestor *aCallbacks)
 {
+  MOZ_ASSERT(NS_IsMainThread(), "Should only be called on the main thread.");
+  
   if (!CanSetCallbacks(aCallbacks)) {
     return NS_ERROR_FAILURE;
   }
@@ -854,13 +855,32 @@ HttpBaseChannel::SetReferrer(nsIURI *referrer)
   if (!referrer)
       return NS_OK;
 
+  // 0: never send referer
+  // 1: send referer for direct user action
+  // 2: always send referer
+  uint32_t userReferrerLevel = gHttpHandler->ReferrerLevel();
+
+  // false: use real referrer
+  // true: spoof with URI of the current request
+  bool userSpoofReferrerSource = gHttpHandler->SpoofReferrerSource();
+
+  // 0: full URI
+  // 1: scheme+host+port+path
+  // 2: scheme+host+port
+  int userReferrerTrimmingPolicy = gHttpHandler->ReferrerTrimmingPolicy();
+
+  // 0: send referer no matter what
+  // 1: send referer ONLY when base domains match
+  // 2: send referer ONLY when hosts match
+  int userReferrerXOriginPolicy = gHttpHandler->ReferrerXOriginPolicy();
+
   // check referrer blocking pref
   uint32_t referrerLevel;
   if (mLoadFlags & LOAD_INITIAL_DOCUMENT_URI)
     referrerLevel = 1; // user action
   else
     referrerLevel = 2; // inline content
-  if (gHttpHandler->ReferrerLevel() < referrerLevel)
+  if (userReferrerLevel < referrerLevel)
     return NS_OK;
 
   nsCOMPtr<nsIURI> referrerGrip;
@@ -871,9 +891,9 @@ HttpBaseChannel::SetReferrer(nsIURI *referrer)
   // Strip off "wyciwyg://123/" from wyciwyg referrers.
   //
   // XXX this really belongs elsewhere since wyciwyg URLs aren't part of necko.
-  //     perhaps some sort of generic nsINestedURI could be used.  then, if an URI
-  //     fails the whitelist test, then we could check for an inner URI and try
-  //     that instead.  though, that might be too automatic.
+  //   perhaps some sort of generic nsINestedURI could be used.  then, if an URI
+  //   fails the whitelist test, then we could check for an inner URI and try
+  //   that instead.  though, that might be too automatic.
   //
   rv = referrer->SchemeIs("wyciwyg", &match);
   if (NS_FAILED(rv)) return rv;
@@ -885,13 +905,13 @@ HttpBaseChannel::SetReferrer(nsIURI *referrer)
     uint32_t pathLength = path.Length();
     if (pathLength <= 2) return NS_ERROR_FAILURE;
 
-    // Path is of the form "//123/http://foo/bar", with a variable number of digits.
-    // To figure out where the "real" URL starts, search path for a '/', starting at
-    // the third character.
+    // Path is of the form "//123/http://foo/bar", with a variable number of
+    // digits. To figure out where the "real" URL starts, search path for a
+    // '/', starting at the third character.
     int32_t slashIndex = path.FindChar('/', 2);
     if (slashIndex == kNotFound) return NS_ERROR_FAILURE;
 
-    // Get the charset of the original URI so we can pass it to our fixed up URI.
+    // Get charset of the original URI so we can pass it to our fixed up URI.
     nsAutoCString charset;
     referrer->GetOriginCharset(charset);
 
@@ -911,7 +931,6 @@ HttpBaseChannel::SetReferrer(nsIURI *referrer)
     "http",
     "https",
     "ftp",
-    "gopher",
     nullptr
   };
   match = false;
@@ -963,13 +982,86 @@ HttpBaseChannel::SetReferrer(nsIURI *referrer)
   rv = referrer->CloneIgnoringRef(getter_AddRefs(clone));
   if (NS_FAILED(rv)) return rv;
 
+  nsAutoCString currentHost;
+  nsAutoCString referrerHost;
+
+  rv = mURI->GetAsciiHost(currentHost);
+  if (NS_FAILED(rv)) return rv;
+
+  rv = clone->GetAsciiHost(referrerHost);
+  if (NS_FAILED(rv)) return rv;
+
+  // check policy for sending ref only when hosts match
+  if (userReferrerXOriginPolicy == 2 && !currentHost.Equals(referrerHost))
+    return NS_OK;
+
+  if (userReferrerXOriginPolicy == 1) {
+    nsAutoCString currentDomain = currentHost;
+    nsAutoCString referrerDomain = referrerHost;
+    uint32_t extraDomains = 0;
+    nsCOMPtr<nsIEffectiveTLDService> eTLDService = do_GetService(
+      NS_EFFECTIVETLDSERVICE_CONTRACTID);
+    if (eTLDService) {
+      rv = eTLDService->GetBaseDomain(mURI, extraDomains, currentDomain);
+      if (NS_FAILED(rv)) return rv;
+      rv = eTLDService->GetBaseDomain(clone, extraDomains, referrerDomain); 
+      if (NS_FAILED(rv)) return rv;
+    }
+
+    // check policy for sending only when effective top level domain matches.
+    // this falls back on using host if eTLDService does not work
+    if (!currentDomain.Equals(referrerDomain))
+      return NS_OK;
+  }
+
+  // send spoofed referrer if desired
+  if (userSpoofReferrerSource) {
+    nsCOMPtr<nsIURI> mURIclone;
+    rv = mURI->CloneIgnoringRef(getter_AddRefs(mURIclone));
+    if (NS_FAILED(rv)) return rv;
+    clone = mURIclone;
+    currentHost = referrerHost;
+  }
+
   // strip away any userpass; we don't want to be giving out passwords ;-)
   rv = clone->SetUserPass(EmptyCString());
   if (NS_FAILED(rv)) return rv;
 
   nsAutoCString spec;
-  rv = clone->GetAsciiSpec(spec);
-  if (NS_FAILED(rv)) return rv;
+
+  // check how much referer to send
+  switch (userReferrerTrimmingPolicy) {
+
+  case 1: {
+    // scheme+host+port+path
+    nsAutoCString prepath, path;
+    rv = clone->GetPrePath(prepath);
+    if (NS_FAILED(rv)) return rv;
+
+    nsCOMPtr<nsIURL> url(do_QueryInterface(clone));
+    if (!url) {
+      // if this isn't a url, play it safe
+      // and just send the prepath
+      spec = prepath;
+      break;
+    }
+    rv = url->GetFilePath(path);
+    if (NS_FAILED(rv)) return rv;
+    spec = prepath + path;
+    break;
+  }
+  case 2:
+    // scheme+host+port
+    rv = clone->GetPrePath(spec);
+    if (NS_FAILED(rv)) return rv;
+    break;
+
+  default:
+    // full URI
+    rv = clone->GetAsciiSpec(spec);
+    if (NS_FAILED(rv)) return rv;
+    break;
+  }
 
   // finally, remember the referrer URI and set the Referer header.
   mReferrer = clone;
@@ -1222,6 +1314,33 @@ HttpBaseChannel::GetResponseVersion(uint32_t *major, uint32_t *minor)
   return NS_OK;
 }
 
+namespace {
+
+class CookieNotifierRunnable : public nsRunnable
+{
+public:
+  CookieNotifierRunnable(HttpBaseChannel* aChannel, char const * aCookie)
+    : mChannel(aChannel), mCookie(aCookie)
+  { }
+
+  NS_IMETHOD Run()
+  {
+    nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
+    if (obs) {
+      obs->NotifyObservers(static_cast<nsIChannel*>(mChannel.get()),
+                           "http-on-response-set-cookie",
+                           mCookie.get());
+    }
+    return NS_OK;
+  }
+
+private:
+  nsRefPtr<HttpBaseChannel> mChannel;
+  NS_ConvertASCIItoUTF16 mCookie;
+};
+
+} // anonymous namespace
+
 NS_IMETHODIMP
 HttpBaseChannel::SetCookie(const char *aCookieHeader)
 {
@@ -1235,9 +1354,15 @@ HttpBaseChannel::SetCookie(const char *aCookieHeader)
   nsICookieService *cs = gHttpHandler->GetCookieService();
   NS_ENSURE_TRUE(cs, NS_ERROR_FAILURE);
 
-  return cs->SetCookieStringFromHttp(mURI, nullptr, nullptr, aCookieHeader,
-                                     mResponseHead->PeekHeader(nsHttp::Date),
-                                     this);
+  nsresult rv =
+    cs->SetCookieStringFromHttp(mURI, nullptr, nullptr, aCookieHeader,
+                                mResponseHead->PeekHeader(nsHttp::Date), this);
+  if (NS_SUCCEEDED(rv)) {
+    nsRefPtr<CookieNotifierRunnable> r =
+      new CookieNotifierRunnable(this, aCookieHeader);
+    NS_DispatchToMainThread(r);
+  }
+  return rv;
 }
 
 NS_IMETHODIMP
@@ -1294,6 +1419,38 @@ HttpBaseChannel::GetLocalAddress(nsACString& addr)
   NetAddrToString(&mSelfAddr, addr.BeginWriting(), kIPv6CStrBufSize);
   addr.SetLength(strlen(addr.BeginReading()));
 
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+HttpBaseChannel::TakeAllSecurityMessages(
+    nsCOMArray<nsISecurityConsoleMessage> &aMessages)
+{
+  aMessages.Clear();
+  aMessages.SwapElements(mSecurityConsoleMessages);
+  return NS_OK;
+}
+
+/* Please use this method with care. This can cause the message
+ * queue to grow large and cause the channel to take up a lot
+ * of memory. Use only static string messages and do not add
+ * server side data to the queue, as that can be large.
+ * Add only a limited number of messages to the queue to keep
+ * the channel size down and do so only in rare erroneous situations.
+ * More information can be found here:
+ * https://bugzilla.mozilla.org/show_bug.cgi?id=846918
+ */
+NS_IMETHODIMP
+HttpBaseChannel::AddSecurityMessage(const nsAString &aMessageTag,
+    const nsAString &aMessageCategory)
+{
+  nsresult rv;
+  nsCOMPtr<nsISecurityConsoleMessage> message =
+    do_CreateInstance(NS_SECURITY_CONSOLE_MESSAGE_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+  message->SetTag(aMessageTag);
+  message->SetCategory(aMessageCategory);
+  mSecurityConsoleMessages.AppendElement(message);
   return NS_OK;
 }
 
@@ -1402,6 +1559,31 @@ HttpBaseChannel::SetLoadUnblocked(bool aLoadUnblocked)
   return NS_OK;
 }
 
+NS_IMETHODIMP
+HttpBaseChannel::GetApiRedirectToURI(nsIURI ** aResult)
+{
+  NS_ENSURE_ARG_POINTER(aResult);
+  NS_IF_ADDREF(*aResult = mAPIRedirectToURI);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+HttpBaseChannel::GetResponseTimeoutEnabled(bool *aEnable)
+{
+  if (NS_WARN_IF(!aEnable)) {
+    return NS_ERROR_NULL_POINTER;
+  }
+  *aEnable = mResponseTimeoutEnabled;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+HttpBaseChannel::SetResponseTimeoutEnabled(bool aEnable)
+{
+  mResponseTimeoutEnabled = aEnable;
+  return NS_OK;
+}
+
 //-----------------------------------------------------------------------------
 // HttpBaseChannel::nsISupportsPriority
 //-----------------------------------------------------------------------------
@@ -1494,6 +1676,8 @@ HttpBaseChannel::SetNewListener(nsIStreamListener *aListener, nsIStreamListener 
 void
 HttpBaseChannel::ReleaseListeners()
 {
+  MOZ_ASSERT(NS_IsMainThread(), "Should only be called on the main thread.");
+  
   mListener = nullptr;
   mListenerContext = nullptr;
   mCallbacks = nullptr;
@@ -1659,6 +1843,17 @@ HttpBaseChannel::SetupReplacementChannel(nsIURI       *newURI,
   httpChannel->SetAllowPipelining(mAllowPipelining);
   // convey the new redirection limit
   httpChannel->SetRedirectionLimit(mRedirectionLimit - 1);
+
+  // convey the Accept header value
+  {
+    nsAutoCString oldAcceptValue;
+    nsresult hasHeader = mRequestHead.GetHeader(nsHttp::Accept, oldAcceptValue);
+    if (NS_SUCCEEDED(hasHeader)) {
+      httpChannel->SetRequestHeader(NS_LITERAL_CSTRING("Accept"),
+                                    oldAcceptValue,
+                                    false);
+    }
+  }
 
   nsCOMPtr<nsIHttpChannelInternal> httpInternal = do_QueryInterface(newChannel);
   if (httpInternal) {

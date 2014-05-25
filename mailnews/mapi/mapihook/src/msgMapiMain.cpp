@@ -27,8 +27,6 @@ nsMAPIConfiguration::nsMAPIConfiguration()
 : m_nMaxSessions(MAX_SESSIONS)
 {
   m_Lock = PR_NewLock();
-  m_SessionMap.Init();
-  m_ProfileMap.Init();
 }
 
 nsMAPIConfiguration::~nsMAPIConfiguration()
@@ -48,7 +46,7 @@ void nsMAPIConfiguration::OpenConfiguration()
 }
 
 int16_t nsMAPIConfiguration::RegisterSession(uint32_t aHwnd,
-                const PRUnichar *aUserName, const PRUnichar *aPassword,
+                const char16_t *aUserName, const char16_t *aPassword,
                 bool aForceDownLoad, bool aNewSession,
                 uint32_t *aSession, const char *aIdKey)
 {
@@ -148,9 +146,9 @@ bool nsMAPIConfiguration::IsSessionValid(uint32_t aSessionID)
   return retValue;
 }
 
-PRUnichar *nsMAPIConfiguration::GetPassword(uint32_t aSessionID)
+char16_t *nsMAPIConfiguration::GetPassword(uint32_t aSessionID)
 {
-  PRUnichar *pResult = nullptr;
+  char16_t *pResult = nullptr;
 
   PR_Lock(m_Lock);
 
@@ -264,8 +262,8 @@ HRESULT nsMAPIConfiguration::GetMAPIErrorFromNSError (nsresult res)
 }
 
 
-nsMAPISession::nsMAPISession(uint32_t aHwnd, const PRUnichar *aUserName,
-                             const PRUnichar *aPassword, 
+nsMAPISession::nsMAPISession(uint32_t aHwnd, const char16_t *aUserName,
+                             const char16_t *aPassword, 
                              bool aForceDownLoad, const char *aKey)
 : m_bIsForcedDownLoad(aForceDownLoad),
   m_hAppHandle(aHwnd),
@@ -296,9 +294,9 @@ uint32_t nsMAPISession::GetSessionCount()
   return m_nShared;
 }
 
-PRUnichar *nsMAPISession::GetPassword()
+char16_t *nsMAPISession::GetPassword()
 {
-  return (PRUnichar *)m_pPassword.get();
+  return (char16_t *)m_pPassword.get();
 }
 
 void nsMAPISession::GetIdKey(nsCString& aKey)

@@ -29,12 +29,9 @@ NS_IMPL_RELEASE_INHERITED(HTMLSharedListElement, Element)
 
 // QueryInterface implementation for nsHTMLSharedListElement
 NS_INTERFACE_MAP_BEGIN(HTMLSharedListElement)
-  NS_HTML_CONTENT_INTERFACES_AMBIGUOUS(nsGenericHTMLElement,
-                                       nsIDOMHTMLOListElement)
   NS_INTERFACE_MAP_ENTRY_IF_TAG(nsIDOMHTMLOListElement, ol)
-  NS_INTERFACE_MAP_ENTRY_IF_TAG(nsIDOMHTMLDListElement, dl)
   NS_INTERFACE_MAP_ENTRY_IF_TAG(nsIDOMHTMLUListElement, ul)
-NS_ELEMENT_INTERFACE_MAP_END
+NS_INTERFACE_MAP_END_INHERITING(nsGenericHTMLElement)
 
 
 NS_IMPL_ELEMENT_CLONE(HTMLSharedListElement)
@@ -92,8 +89,9 @@ HTMLSharedListElement::ParseAttribute(int32_t aNamespaceID,
                                               aResult);
 }
 
-static void
-MapAttributesIntoRule(const nsMappedAttributes* aAttributes, nsRuleData* aData)
+void
+HTMLSharedListElement::MapAttributesIntoRule(const nsMappedAttributes* aAttributes,
+                                             nsRuleData* aData)
 {
   if (aData->mSIDs & NS_STYLE_INHERIT_BIT(List)) {
     nsCSSValue* listStyleType = aData->ValueForListStyleType();

@@ -4,10 +4,12 @@
 
 #include "mozilla/dom/DOMImplementation.h"
 
+#include "mozilla/ContentEvents.h"
 #include "mozilla/dom/DOMImplementationBinding.h"
 #include "nsContentCreatorFunctions.h"
 #include "nsContentUtils.h"
 #include "nsDOMClassInfoID.h"
+#include "nsIDOMDocument.h"
 #include "DocumentType.h"
 #include "nsTextNode.h"
 
@@ -86,7 +88,8 @@ DOMImplementation::CreateDocumentType(const nsAString& aQualifiedName,
                                       nsIDOMDocumentType** aReturn)
 {
   ErrorResult rv;
-  *aReturn = CreateDocumentType(aQualifiedName, aPublicId, aSystemId, rv).get();
+  *aReturn =
+    CreateDocumentType(aQualifiedName, aPublicId, aSystemId, rv).take();
   return rv.ErrorCode();
 }
 
@@ -103,7 +106,7 @@ DOMImplementation::CreateDocument(const nsAString& aNamespaceURI,
   nsresult rv;
   if (!aQualifiedName.IsEmpty()) {
     const nsAFlatString& qName = PromiseFlatString(aQualifiedName);
-    const PRUnichar *colon;
+    const char16_t *colon;
     rv = nsContentUtils::CheckQName(qName, true, &colon);
     NS_ENSURE_SUCCESS(rv, rv);
 

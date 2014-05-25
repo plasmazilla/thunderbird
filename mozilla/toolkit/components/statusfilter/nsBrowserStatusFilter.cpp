@@ -97,6 +97,13 @@ nsBrowserStatusFilter::GetIsLoadingDocument(bool *aIsLoadingDocument)
     return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+NS_IMETHODIMP
+nsBrowserStatusFilter::GetLoadType(uint32_t *aLoadType)
+{
+    *aLoadType = 0;
+    NS_NOTREACHED("nsBrowserStatusFilter::GetLoadType");
+    return NS_ERROR_NOT_IMPLEMENTED;
+}
 
 //-----------------------------------------------------------------------------
 // nsBrowserStatusFilter::nsIWebProgressListener
@@ -220,7 +227,7 @@ NS_IMETHODIMP
 nsBrowserStatusFilter::OnStatusChange(nsIWebProgress *aWebProgress,
                                       nsIRequest *aRequest,
                                       nsresult aStatus,
-                                      const PRUnichar *aMessage)
+                                      const char16_t *aMessage)
 {
     if (!mListener)
         return NS_OK;

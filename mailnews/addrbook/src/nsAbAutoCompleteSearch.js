@@ -80,6 +80,7 @@ nsAbAutoCompleteSearch.prototype = {
   _commentColumn: 0,
   _parser: MailServices.headerParser,
   _abManager: MailServices.ab,
+  applicableHeaders: Set(["addr_to", "addr_cc", "addr_bcc", "addr_reply"]),
 
   // Private methods
 
@@ -161,8 +162,9 @@ nsAbAutoCompleteSearch.prototype = {
    *
    * @param searchQuery  The boolean search query to use.
    * @param fullString   The full string that is being searched against. This
-   *                     is used as a "Begins with" check against the email
-   *                     addresses to ensure only matching results are added.
+   *                     is used as a "contains" check against the full email
+   *                     addresses to ensure all matching results are added.
+   *                     This value should be passed in lower case.
    * @param directory    An nsIAbDirectory to search.
    * @param result       The result element to append results to.
    */
@@ -183,11 +185,11 @@ nsAbAutoCompleteSearch.prototype = {
           this._addToResult(commentColumn, directory, card, "", false, result);
         else {
           let email = card.primaryEmail;
-          if (email && email.toLocaleLowerCase().startsWith(fullString))
+          if (email && email.toLocaleLowerCase().contains(fullString))
             this._addToResult(commentColumn, directory, card, email, true, result);
 
           email = card.getProperty("SecondEmail", "");
-          if (email && email.toLocaleLowerCase().startsWith(fullString))
+          if (email && email.toLocaleLowerCase().contains(fullString))
             this._addToResult(commentColumn, directory, card, email, false, result);
         }
       }
@@ -210,27 +212,27 @@ nsAbAutoCompleteSearch.prototype = {
                                     rest) {
     var i;
     if (card.isMailList) {
-      return card.displayName.toLocaleLowerCase().startsWith(fullString) ||
-        card.getProperty("Notes", "").toLocaleLowerCase().startsWith(fullString) ||
-        card.getProperty("NickName", "").toLocaleLowerCase().startsWith(fullString);
+      return card.displayName.toLocaleLowerCase().contains(fullString) ||
+        card.getProperty("Notes", "").toLocaleLowerCase().contains(fullString) ||
+        card.getProperty("NickName", "").toLocaleLowerCase().contains(fullString);
     }
 
     var firstName = card.firstName.toLocaleLowerCase();
     var lastName = card.lastName.toLocaleLowerCase();
-    if (card.displayName.toLocaleLowerCase().startsWith(fullString) ||
-        firstName.startsWith(fullString) ||
-        lastName.startsWith(fullString) ||
-        emailToUse.toLocaleLowerCase().startsWith(fullString))
+    if (card.displayName.toLocaleLowerCase().contains(fullString) ||
+        firstName.contains(fullString) ||
+        lastName.contains(fullString) ||
+        emailToUse.toLocaleLowerCase().contains(fullString))
       return true;
 
     if (firstWord && rest &&
-        ((firstName.startsWith(firstWord) &&
-          lastName.startsWith(rest)) ||
-         (firstName.startsWith(rest) &&
-          lastName.startsWith(firstWord))))
+        ((firstName.contains(firstWord) &&
+          lastName.contains(rest)) ||
+         (firstName.contains(rest) &&
+          lastName.contains(firstWord))))
       return true;
 
-    if (card.getProperty("NickName", "").toLocaleLowerCase().startsWith(fullString))
+    if (card.getProperty("NickName", "").toLocaleLowerCase().contains(fullString))
       return true;
 
     return false;
@@ -289,16 +291,10 @@ nsAbAutoCompleteSearch.prototype = {
   _addToResult: function _addToResult(commentColumn, directory, card,
                                       emailToUse, isPrimaryEmail, result) {
     var emailAddress =
-      this._parser.makeFullAddress(card.displayName,
-                                   card.isMailList ?
-                                   card.getProperty("Notes", "") || card.displayName :
-                                   emailToUse);
-
-    // The old code used to try it manually. I think if the parser can't work
-    // out the address from what we've supplied, then its busted and we're not
-    // going to do any better doing it manually.
-    if (!emailAddress)
-      return;
+      this._parser.makeMailboxObject(card.displayName,
+                                     card.isMailList ?
+                                     card.getProperty("Notes", "") || card.displayName :
+                                     emailToUse).toString();
 
     // If it is a duplicate, then just return and don't add it. The
     // _checkDuplicate function deals with it all for us.
@@ -344,7 +340,13 @@ nsAbAutoCompleteSearch.prototype = {
    */
   startSearch: function startSearch(aSearchString, aSearchParam,
                                     aPreviousResult, aListener) {
+    let params = JSON.parse(aSearchParam);
     var result = new nsAbAutoCompleteResult(aSearchString);
+    if (params.type && !this.applicableHeaders.has(params.type)) {
+      result.searchResult = ACR.RESULT_IGNORED;
+      aListener.onSearchResult(this, result);
+      return;
+    }
 
     // If the search string isn't value, or contains a comma, or the user
     // hasn't enabled autocomplete, then just return no matches / or the
@@ -401,11 +403,11 @@ nsAbAutoCompleteSearch.prototype = {
       // Construct the search query; using a query means we can optimise
       // on running the search through c++ which is better for string
       // comparisons (_checkEntry is relatively slow).
-      let searchQuery = "(or(DisplayName,bw,@V)(FirstName,bw,@V)(LastName,bw,@V)(NickName,bw,@V)(and(IsMailList,=,TRUE)(Notes,bw,@V)))";
+      let searchQuery = "(or(DisplayName,c,@V)(FirstName,c,@V)(LastName,c,@V)(NickName,c,@V)(and(IsMailList,=,TRUE)(Notes,c,@V)))";
       searchQuery = searchQuery.replace(/@V/g, encodeURIComponent(fullString));
 
       if (firstWord && rest) {
-        let searchFNLNPart = "(or(and(FirstName,bw,@V1)(LastName,bw,@V2))(and(FirstName,bw,@V2)(LastName,bw,@V1)))";
+        let searchFNLNPart = "(or(and(FirstName,c,@V1)(LastName,c,@V2))(and(FirstName,c,@V2)(LastName,c,@V1)))";
         searchFNLNPart = searchFNLNPart.replace(/@V1/g, encodeURIComponent(firstWord));
         searchFNLNPart = searchFNLNPart.replace(/@V2/g, encodeURIComponent(rest));
 
@@ -414,7 +416,7 @@ nsAbAutoCompleteSearch.prototype = {
 
       searchQuery = "?" + searchQuery;
 
-      let emailSearchQuery = "?(or(PrimaryEmail,bw,@V)(SecondEmail,bw,@V))";
+      let emailSearchQuery = "?(or(PrimaryEmail,c,@V)(SecondEmail,c,@V))";
       emailSearchQuery = emailSearchQuery.replace(/@V/g, encodeURIComponent(fullString));
 
       // Now do the searching
@@ -426,9 +428,8 @@ nsAbAutoCompleteSearch.prototype = {
       // just going to find duplicates.
       while (allABs.hasMoreElements()) {
         var dir = allABs.getNext();
-
         if (dir instanceof Components.interfaces.nsIAbDirectory &&
-            dir.useForAutocomplete(aSearchParam)) {
+            dir.useForAutocomplete(params.idKey)) {
           this._searchCards(searchQuery, dir, result);
           this._searchWithinEmails(emailSearchQuery, fullString, dir, result);
         }

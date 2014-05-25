@@ -6,19 +6,18 @@
 #define nsAsyncStreamCopier_h__
 
 #include "nsIAsyncStreamCopier.h"
-#include "nsIAsyncInputStream.h"
-#include "nsIAsyncOutputStream.h"
-#include "nsIRequestObserver.h"
 #include "mozilla/Mutex.h"
 #include "nsStreamUtils.h"
 #include "nsCOMPtr.h"
+
+class nsIRequestObserver;
 
 //-----------------------------------------------------------------------------
 
 class nsAsyncStreamCopier : public nsIAsyncStreamCopier
 {
 public:
-    NS_DECL_ISUPPORTS
+    NS_DECL_THREADSAFE_ISUPPORTS
     NS_DECL_NSIREQUEST
     NS_DECL_NSIASYNCSTREAMCOPIER
 

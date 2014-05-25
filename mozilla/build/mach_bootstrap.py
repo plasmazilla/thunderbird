@@ -28,11 +28,15 @@ SEARCH_PATHS = [
     'python/mach',
     'python/mozboot',
     'python/mozbuild',
+    'python/mozversioncontrol',
     'python/blessings',
+    'python/configobj',
     'python/psutil',
     'python/which',
     'build/pymake',
     'config',
+    'dom/bindings',
+    'dom/bindings/parser',
     'other-licenses/ply',
     'xpcom/idl-parser',
     'testing',
@@ -48,21 +52,33 @@ SEARCH_PATHS = [
     'testing/mozbase/mozprocess',
     'testing/mozbase/mozprofile',
     'testing/mozbase/mozrunner',
+    'testing/mozbase/mozsystemmonitor',
     'testing/mozbase/mozinfo',
+    'testing/mozbase/moztest',
+    'testing/mozbase/mozversion',
+    'testing/mozbase/manifestdestiny',
+    'xpcom/idl-parser',
 ]
 
 # Individual files providing mach commands.
 MACH_MODULES = [
     'addon-sdk/mach_commands.py',
+    'build/valgrind/mach_commands.py',
+    'dom/bindings/mach_commands.py',
     'layout/tools/reftest/mach_commands.py',
+    'python/mach_commands.py',
     'python/mach/mach/commands/commandinfo.py',
     'python/mozboot/mozboot/mach_commands.py',
-    'python/mozbuild/mozbuild/config.py',
     'python/mozbuild/mozbuild/mach_commands.py',
     'python/mozbuild/mozbuild/frontend/mach_commands.py',
+    'testing/mach_commands.py',
     'testing/marionette/mach_commands.py',
     'testing/mochitest/mach_commands.py',
     'testing/xpcshell/mach_commands.py',
+    'testing/talos/mach_commands.py',
+    'testing/xpcshell/mach_commands.py',
+    'tools/docs/mach_commands.py',
+    'tools/mercurial/mach_commands.py',
     'tools/mach_commands.py',
 ]
 
@@ -97,6 +113,11 @@ CATEGORIES = {
         'short': 'Potpourri',
         'long': 'Potent potables and assorted snacks.',
         'priority': 10,
+    },
+    'disabled': {
+        'short': 'Disabled',
+        'long': 'These commands are unavailable for your current context, run "mach <command>" to see why.',
+        'priority': 0,
     }
 }
 
@@ -127,9 +148,10 @@ def bootstrap(topsrcdir, mozilla_dir=None):
         if not os.path.exists(state_env_dir):
             print('Creating global state directory from environment variable: %s'
                 % state_env_dir)
-            os.makedirs(state_env_dir, mode=0777)
+            os.makedirs(state_env_dir, mode=0o770)
             print('Please re-run mach.')
             sys.exit(1)
+        state_dir = state_env_dir
     else:
         if not os.path.exists(state_user_dir):
             print(STATE_DIR_FIRST_RUN.format(userdir=state_user_dir))
@@ -145,6 +167,7 @@ def bootstrap(topsrcdir, mozilla_dir=None):
             os.mkdir(state_user_dir)
             print('Please re-run mach.')
             sys.exit(1)
+        state_dir = state_user_dir
 
     try:
         import mach.main
@@ -152,7 +175,13 @@ def bootstrap(topsrcdir, mozilla_dir=None):
         sys.path[0:0] = [os.path.join(mozilla_dir, path) for path in SEARCH_PATHS]
         import mach.main
 
-    mach = mach.main.Mach(topsrcdir)
+    def populate_context(context):
+        context.state_dir = state_dir
+        context.topdir = topsrcdir
+
+    mach = mach.main.Mach(os.getcwd())
+    mach.populate_context_handler = populate_context
+
     for category, meta in CATEGORIES.items():
         mach.define_category(category, meta['short'], meta['long'],
             meta['priority'])

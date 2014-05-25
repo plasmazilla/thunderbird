@@ -5,6 +5,7 @@
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource:///modules/MailUtils.js");
 
 // The actual filter that we're editing if it is a _saved_ filter or prefill;
 // void otherwise.
@@ -185,7 +186,7 @@ var gFolderListener = {
 
     if (eventType == "FolderCreateCompleted")
     {
-      SetFolderPicker(folder.URI, gActionTargetElement.id);
+      gActionTargetElement.selectFolder(folder);
       SetBusyCursor(window, false);
     }
     else if (eventType == "FolderCreateFailed")
@@ -643,13 +644,13 @@ function GetFirstSelectedMsgFolder()
   if (!selectedFolder)
     return null;
 
-  var msgFolder = GetMsgFolderFromUri(selectedFolder, true);
+  var msgFolder = MailUtils.getFolderForURI(selectedFolder, true);
   return msgFolder;
 }
 
 function SearchNewFolderOkCallback(name, uri)
 {
-  var msgFolder = GetMsgFolderFromUri(uri, true);
+  var msgFolder = MailUtils.getFolderForURI(uri, true);
   var imapFolder = null;
   try
   {
@@ -682,7 +683,8 @@ function SearchNewFolderOkCallback(name, uri)
   if (!imapFolder)
   {
     var curFolder = uri+"/"+encodeURIComponent(name);
-    SetFolderPicker(curFolder, gActionTargetElement.id);
+    let folder = MailUtils.getFolderForURI(curFolder);
+    gActionTargetElement.selectFolder(folder);
   }
 }
 

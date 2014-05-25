@@ -291,7 +291,7 @@ void nsMsgMailboxParser::UpdateStatusText (const char* stringName)
     if (NS_FAILED(rv))
       return;
     nsString finalString;
-    const PRUnichar * stringArray[] = { m_folderName.get() };
+    const char16_t * stringArray[] = { m_folderName.get() };
     rv = bundle->FormatStringFromName(NS_ConvertASCIItoUTF16(stringName).get(),
                                       stringArray, 1, getter_Copies(finalString));
     m_statusFeedback->ShowStatusString(finalString);
@@ -431,7 +431,7 @@ void nsMsgMailboxParser::OnNewMessage(nsIMsgWindow *msgWindow)
   Clear();
 }
 
-nsresult nsMsgMailboxParser::HandleLine(char *line, uint32_t lineLength)
+nsresult nsMsgMailboxParser::HandleLine(const char *line, uint32_t lineLength)
 {
   /* If this is the very first line of a non-empty folder, make sure it's an envelope */
   if (m_graph_progress_received == 0)
@@ -553,7 +553,6 @@ nsParseMailMessageState::nsParseMailMessageState()
      }
   }
   Clear();
-  m_HeaderAddressParser = do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID);
 }
 
 nsParseMailMessageState::~nsParseMailMessageState()
@@ -1452,61 +1451,16 @@ nsresult nsParseMailMessageState::FinalizeHeaders()
       }
       else if (recipient)
       {
-        // note that we're now setting the whole recipient list,
-        // not just the pretty name of the first recipient.
-        uint32_t numAddresses;
-        char  *names;
-        char  *addresses;
-
-        ret = m_HeaderAddressParser->ParseHeaderAddresses(recipient->value,
-                                                          &names, &addresses,
-                                                          &numAddresses);
-        if (NS_SUCCEEDED(ret))
-        {
-          m_newMsgHdr->SetRecipientsArray(names, addresses, numAddresses);
-          PR_Free(addresses);
-          PR_Free(names);
-        }
-        else {  // hmm, should we just use the original string?
-          m_newMsgHdr->SetRecipients(recipient->value);
-        }
+        m_newMsgHdr->SetRecipients(recipient->value);
       }
       if (ccList)
       {
-        uint32_t numAddresses;
-        char  *names;
-        char  *addresses;
-
-        ret = m_HeaderAddressParser->ParseHeaderAddresses(ccList->value,
-                                                          &names, &addresses,
-                                                          &numAddresses);
-        if (NS_SUCCEEDED(ret) && numAddresses > 0)
-        {
-          m_newMsgHdr->SetCCListArray(names, addresses, numAddresses);
-          PR_Free(addresses);
-          PR_Free(names);
-        }
-        else  // hmm, should we just use the original string?
-          m_newMsgHdr->SetCcList(ccList->value);
+        m_newMsgHdr->SetCcList(ccList->value);
       }
 
       if (bccList)
       {
-        uint32_t numAddresses;
-        char  *names;
-        char  *addresses;
-
-        ret = m_HeaderAddressParser->ParseHeaderAddresses(bccList->value,
-                                                          &names, &addresses,
-                                                          &numAddresses);
-        if (NS_SUCCEEDED(ret))
-        {
-          m_newMsgHdr->SetBCCListArray(names, addresses, numAddresses);
-          PR_Free(addresses);
-          PR_Free(names);
-        }
-        else  // hmm, should we just use the original string?
-          m_newMsgHdr->SetBccList(bccList->value);
+        m_newMsgHdr->SetBccList(bccList->value);
       }
 
       rv = InternSubject (subject);
@@ -2490,14 +2444,18 @@ nsresult nsParseNewMailState::MoveIncorporatedMessage(nsIMsgDBHdr *mailHdr,
     return NS_MSG_NOT_A_MAIL_FOLDER;
   }
 
-  nsCOMPtr <nsIMsgLocalMailFolder> destLocalFolder = do_QueryInterface(destIFolder);
-  if (destLocalFolder)
-  {
-    bool destFolderTooBig;
-    destLocalFolder->WarnIfLocalFileTooBig(msgWindow, &destFolderTooBig);
-    if (destFolderTooBig)
+  uint32_t messageLength;
+  mailHdr->GetMessageSize(&messageLength);
+
+  nsCOMPtr<nsIMsgLocalMailFolder> localFolder = do_QueryInterface(destIFolder);
+  if (localFolder) {
+    bool destFolderTooBig = true;
+    rv = localFolder->WarnIfLocalFileTooBig(msgWindow, messageLength,
+                                            &destFolderTooBig);
+    if (NS_FAILED(rv) || destFolderTooBig)
       return NS_MSG_ERROR_WRITING_MAIL_FOLDER;
   }
+
   nsCOMPtr<nsISupports> myISupports =
     do_QueryInterface(static_cast<nsIMsgParseMailMsgState*>(this));
 
@@ -2517,7 +2475,6 @@ nsresult nsParseNewMailState::MoveIncorporatedMessage(nsIMsgDBHdr *mailHdr,
     return NS_MSG_FOLDER_UNREADABLE;  // ### dmb
   }
 
-  nsCOMPtr<nsIMsgLocalMailFolder> localFolder = do_QueryInterface(destIFolder);
   nsCOMPtr<nsIMsgDatabase> destMailDB;
 
   if (!localFolder)
@@ -2537,8 +2494,6 @@ nsresult nsParseNewMailState::MoveIncorporatedMessage(nsIMsgDBHdr *mailHdr,
     rv = NS_ERROR_UNEXPECTED;
   if (NS_SUCCEEDED(rv))
   {
-    uint32_t messageLength;
-    mailHdr->GetMessageSize(&messageLength);
     rv = AppendMsgFromStream(inputStream, newHdr, messageLength,
                              destIFolder);
   }

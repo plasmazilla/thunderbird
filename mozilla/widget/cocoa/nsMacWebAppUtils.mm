@@ -23,18 +23,18 @@ NS_IMETHODIMP nsMacWebAppUtils::PathForAppWithIdentifier(const nsAString& bundle
 
   outPath.Truncate();
 
-  NSAutoreleasePool* ap = [[NSAutoreleasePool alloc] init];
+  nsAutoreleasePool localPool;
 
   //note that the result of this expression might be nil, meaning no matching app was found. 
   NSString* temp = [[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier:
-                        [NSString stringWithCharacters:((nsString)bundleIdentifier).get() length:((nsString)bundleIdentifier).Length()]];
+                        [NSString stringWithCharacters:reinterpret_cast<const unichar*>(((nsString)bundleIdentifier).get())
+                                                length:((nsString)bundleIdentifier).Length()]];
 
   if (temp) {
     // Copy out the resultant absolute path into outPath if non-nil.
     nsCocoaUtils::GetStringForNSString(temp, outPath);
   }
 
-  [ap release];
   return NS_OK;
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
@@ -43,18 +43,17 @@ NS_IMETHODIMP nsMacWebAppUtils::PathForAppWithIdentifier(const nsAString& bundle
 NS_IMETHODIMP nsMacWebAppUtils::LaunchAppWithIdentifier(const nsAString& bundleIdentifier) {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
-  NSAutoreleasePool* ap = [[NSAutoreleasePool alloc] init];
+  nsAutoreleasePool localPool;
 
   // Note this might return false, meaning the app wasnt launched for some reason. 
   BOOL success = [[NSWorkspace sharedWorkspace] launchAppWithBundleIdentifier:
-                        [NSString stringWithCharacters:((nsString)bundleIdentifier).get() length:((nsString)bundleIdentifier).Length()]
+                        [NSString stringWithCharacters:reinterpret_cast<const unichar*>(((nsString)bundleIdentifier).get())
+                                                length:((nsString)bundleIdentifier).Length()]
                         options: (NSWorkspaceLaunchOptions)0
                         additionalEventParamDescriptor: nil
                         launchIdentifier: NULL];
 
-
-  [ap release];
-  return NS_OK;
+  return success ? NS_OK : NS_ERROR_FAILURE;
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }

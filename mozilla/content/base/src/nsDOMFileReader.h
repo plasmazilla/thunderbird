@@ -34,6 +34,7 @@ class nsDOMFileReader : public mozilla::dom::FileIOObject,
                         public nsSupportsWeakReference
 {
   typedef mozilla::ErrorResult ErrorResult;
+  typedef mozilla::dom::GlobalObject GlobalObject;
 public:
   nsDOMFileReader();
   virtual ~nsDOMFileReader();
@@ -65,7 +66,7 @@ public:
 
   // WebIDL
   static already_AddRefed<nsDOMFileReader>
-  Constructor(const mozilla::dom::GlobalObject& aGlobal, ErrorResult& aRv);
+  Constructor(const GlobalObject& aGlobal, ErrorResult& aRv);
   void ReadAsArrayBuffer(JSContext* aCx, nsIDOMBlob* aBlob, ErrorResult& aRv)
   {
     MOZ_ASSERT(aBlob);
@@ -124,10 +125,9 @@ protected:
   void ReadFileContent(JSContext* aCx, nsIDOMBlob* aBlob,
                        const nsAString &aCharset, eDataFormat aDataFormat,
                        ErrorResult& aRv);
-  nsresult GetAsText(const nsACString &aCharset,
+  nsresult GetAsText(nsIDOMBlob *aFile, const nsACString &aCharset,
                      const char *aFileData, uint32_t aDataLen, nsAString &aResult);
   nsresult GetAsDataURL(nsIDOMBlob *aFile, const char *aFileData, uint32_t aDataLen, nsAString &aResult); 
-  nsresult ConvertStream(const char *aFileData, uint32_t aDataLen, const char *aCharset, nsAString &aResult); 
 
   void FreeFileData() {
     moz_free(mFileData);

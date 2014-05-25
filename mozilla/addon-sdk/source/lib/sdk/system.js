@@ -1,4 +1,3 @@
-/* vim:set ts=2 sw=2 sts=2 expandtab */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -54,7 +53,14 @@ exports.env = require('./system/environment').env;
  * 'success' code 0. To exit with failure use `1`.
  * TODO: Improve platform to actually quit with an exit code.
  */
+let forcedExit = false;
 exports.exit = function exit(code) {
+  if (forcedExit) {
+    // a forced exit was already tried
+    // NOTE: exit(0) is called twice sometimes (ex when using cfx testaddons)
+    return;
+  }
+
   // This is used by 'cfx' to find out exit code.
   if ('resultFile' in options && options.resultFile) {
     let mode = PR_WRONLY | PR_CREATE_FILE | PR_TRUNCATE;
@@ -65,27 +71,22 @@ exports.exit = function exit(code) {
     stream.close();
   }
 
+  if (code == 0) {
+    forcedExit = true;
+  }
   appStartup.quit(code ? E_ATTEMPT : E_FORCE);
 };
 
-exports.stdout = new function() {
-  let write = dump
-  if ('logFile' in options && options.logFile) {
-    let mode = PR_WRONLY | PR_CREATE_FILE | PR_APPEND;
-    let stream = openFile(options.logFile, mode);
-    write = function write(data) {
-      let text = String(data);
-      stream.write(text, text.length);
-      stream.flush();
-    }
-  }
-  return Object.freeze({ write: write });
-};
+// Adapter for nodejs's stdout & stderr:
+// http://nodejs.org/api/process.html#process_process_stdout
+let stdout = Object.freeze({ write: dump, end: dump });
+exports.stdout = stdout;
+exports.stderr = stdout;
 
 /**
  * Returns a path of the system's or application's special directory / file
  * associated with a given `id`. For list of possible `id`s please see:
- * https://developer.mozilla.org/en/Code_snippets/File_I%2F%2FO#Getting_special_files
+ * https://developer.mozilla.org/en-US/docs/Code_snippets/File_I_O#Getting_files_in_special_directories
  * http://mxr.mozilla.org/mozilla-central/source/xpcom/io/nsAppDirectoryServiceDefs.h
  * @example
  *
@@ -134,7 +135,7 @@ exports.build = appInfo.appBuildID;
 exports.id = appInfo.ID;
 
 /**
- * The name of the application. 
+ * The name of the application.
  */
 exports.name = appInfo.name;
 

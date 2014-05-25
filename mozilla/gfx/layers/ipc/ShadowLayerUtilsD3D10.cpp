@@ -8,6 +8,7 @@
 #include <d3d10_1.h>
 #include <dxgi.h>
 
+#include "mozilla/gfx/Point.h"
 #include "mozilla/layers/LayerManagerComposite.h"
 #include "mozilla/layers/PLayerTransaction.h"
 #include "ShadowLayers.h"
@@ -20,8 +21,8 @@ namespace layers {
 // Platform-specific shadow-layers interfaces.  See ShadowLayers.h.
 // D3D10 doesn't need all these yet.
 bool
-ISurfaceAllocator::PlatformAllocSurfaceDescriptor(const gfxIntSize&,
-                                                  gfxASurface::gfxContentType,
+ISurfaceAllocator::PlatformAllocSurfaceDescriptor(const gfx::IntSize&,
+                                                  gfxContentType,
                                                   uint32_t,
                                                   SurfaceDescriptor*)
 {
@@ -55,7 +56,17 @@ ShadowLayerForwarder::PlatformGetDescriptorSurfaceContentType(
 ShadowLayerForwarder::PlatformGetDescriptorSurfaceSize(
   const SurfaceDescriptor&,
   OpenMode,
-  gfxIntSize*,
+  gfx::IntSize*,
+  gfxASurface**)
+{
+  return false;
+}
+
+/*static*/ bool
+ShadowLayerForwarder::PlatformGetDescriptorSurfaceImageFormat(
+  const SurfaceDescriptor&,
+  OpenMode,
+  gfxImageFormat*,
   gfxASurface**)
 {
   return false;
@@ -76,14 +87,6 @@ bool
 ISurfaceAllocator::PlatformDestroySharedSurface(SurfaceDescriptor*)
 {
   return false;
-}
-
-/*static*/ already_AddRefed<TextureImage>
-LayerManagerComposite::OpenDescriptorForDirectTexturing(GLContext*,
-                                                        const SurfaceDescriptor&,
-                                                        GLenum)
-{
-  return nullptr;
 }
 
 /*static*/ bool

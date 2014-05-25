@@ -10,23 +10,18 @@
 
 #include "nsITimer.h"
 
-#include "nsIComponentManager.h"
-#include "nsIServiceManager.h"
 #include "nsFrameSelection.h"
 #include "nsIFrame.h"
 #include "nsIScrollableFrame.h"
 #include "nsIDOMNode.h"
-#include "nsIDOMRange.h"
 #include "nsISelection.h"
 #include "nsISelectionPrivate.h"
-#include "nsIDOMCharacterData.h"
 #include "nsIContent.h"
 #include "nsIPresShell.h"
 #include "nsRenderingContext.h"
 #include "nsPresContext.h"
 #include "nsBlockFrame.h"
 #include "nsISelectionController.h"
-#include "nsDisplayList.h"
 #include "nsCaret.h"
 #include "nsTextFrame.h"
 #include "nsXULPopupManager.h"
@@ -201,7 +196,7 @@ DrawCJKCaret(nsIFrame* aFrame, int32_t aOffset)
     return false;
   if (aOffset < 0 || uint32_t(aOffset) >= frag->GetLength())
     return false;
-  PRUnichar ch = frag->CharAt(aOffset);
+  char16_t ch = frag->CharAt(aOffset);
   return 0x2e80 <= ch && ch <= 0xd7ff;
 }
 
@@ -859,7 +854,8 @@ nsCaret::GetCaretFrameForNodeOffset(nsIContent*             aContentNode,
   return NS_OK;
 }
 
-nsresult nsCaret::CheckCaretDrawingState()
+void
+nsCaret::CheckCaretDrawingState()
 {
   if (mDrawn) {
     // The caret is drawn; if it shouldn't be, erase it.
@@ -872,7 +868,6 @@ nsresult nsCaret::CheckCaretDrawingState()
     if (mPendingDraw && (mVisible && MustDrawCaret(true)))
       DrawCaret(true);
   }
-  return NS_OK;
 }
 
 /*-----------------------------------------------------------------------------
@@ -1076,7 +1071,7 @@ nsCaret::UpdateCaretRects(nsIFrame* aFrame, int32_t aFrameOffset)
        * without drawing the caret in the old position.
        */ 
       mKeyboardRTL = isCaretRTL;
-      nsCOMPtr<nsISelection> domSelection = do_QueryReferent(mDomSelectionWeak);
+      nsCOMPtr<nsISelectionPrivate> domSelection = do_QueryReferent(mDomSelectionWeak);
       if (!domSelection ||
           NS_SUCCEEDED(domSelection->SelectionLanguageChange(mKeyboardRTL)))
         return false;

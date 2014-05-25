@@ -9,7 +9,6 @@
 #define _nsTextEquivUtils_H_
 
 #include "Accessible.h"
-#include "nsIStringBundle.h"
 #include "Role.h"
 
 class nsIContent;
@@ -55,11 +54,16 @@ public:
 
   /**
    * Calculates text equivalent from the subtree. Similar to GetNameFromSubtree.
-   * The difference it returns not empty result for things like HTML p, i.e.
-   * if the role has eNameFromSubtreeIfReq rule.
+   * However it returns not empty result for things like HTML p.
    */
   static void GetTextEquivFromSubtree(Accessible* aAccessible,
-                                      nsString& aTextEquiv);
+                                      nsString& aTextEquiv)
+  {
+    aTextEquiv.Truncate();
+
+    AppendFromAccessibleChildren(aAccessible, &aTextEquiv);
+    aTextEquiv.CompressWhitespace();
+  }
 
   /**
    * Calculates text equivalent for the given accessible from its IDRefs
@@ -136,18 +140,6 @@ private:
    */
   static bool AppendString(nsAString *aString,
                              const nsAString& aTextEquivalent);
-
-  /**
-   * Returns true if the given string is empty or contains whitespace symbols
-   * only. In contrast to nsWhitespaceTokenizer class it takes into account
-   * non-breaking space (0xa0).
-   */
-  static bool IsWhitespaceString(const nsSubstring& aString);
-
-  /**
-   * Returns true if the given character is whitespace symbol.
-   */
-  static bool IsWhitespace(PRUnichar aChar);
 
   /**
    * Returns the rule (constant of ETextEquivRule) for a given role.

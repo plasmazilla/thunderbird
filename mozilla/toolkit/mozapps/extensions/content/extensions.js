@@ -15,7 +15,7 @@ Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/PluralForm.jsm");
 Cu.import("resource://gre/modules/DownloadUtils.jsm");
 Cu.import("resource://gre/modules/AddonManager.jsm");
-Cu.import("resource://gre/modules/AddonRepository.jsm");
+Cu.import("resource://gre/modules/addons/AddonRepository.jsm");
 
 
 const PREF_DISCOVERURL = "extensions.webservice.discoverURL";
@@ -79,6 +79,42 @@ function initialize(event) {
     return;
   }
   document.removeEventListener("load", initialize, true);
+
+  let globalCommandSet = document.getElementById("globalCommandSet");
+  globalCommandSet.addEventListener("command", function(event) {
+    gViewController.doCommand(event.target.id);
+  });
+
+  let viewCommandSet = document.getElementById("viewCommandSet");
+  viewCommandSet.addEventListener("commandupdate", function(event) {
+    gViewController.updateCommands();
+  });
+  viewCommandSet.addEventListener("command", function(event) {
+    gViewController.doCommand(event.target.id);
+  });
+
+  let detailScreenshot = document.getElementById("detail-screenshot");
+  detailScreenshot.addEventListener("load", function(event) {
+    this.removeAttribute("loading");
+  });
+  detailScreenshot.addEventListener("error", function(event) {
+    this.setAttribute("loading", "error");
+  });
+
+  let addonPage = document.getElementById("addons-page");
+  addonPage.addEventListener("dragenter", function(event) {
+    gDragDrop.onDragOver(event);
+  });
+  addonPage.addEventListener("dragover", function(event) {
+    gDragDrop.onDragOver(event);
+  });
+  addonPage.addEventListener("drop", function(event) {
+    gDragDrop.onDrop(event);
+  });
+  addonPage.addEventListener("keypress", function(event) {
+    gHeader.onKeyPress(event);
+  });
+
   gViewController.initialize();
   gCategories.initialize();
   gHeader.initialize();
@@ -679,6 +715,13 @@ var gViewController = {
       }
     },
 
+    cmd_focusSearch: {
+      isEnabled: () => true,
+      doCommand: function cmd_focusSearch_doCommand() {
+        gHeader.focusSearchBox();
+      }
+    },
+
     cmd_restartApp: {
       isEnabled: function cmd_restartApp_isEnabled() true,
       doCommand: function cmd_restartApp_doCommand() {
@@ -927,6 +970,9 @@ var gViewController = {
         var windows = Services.wm.getEnumerator(null);
         while (windows.hasMoreElements()) {
           var win = windows.getNext();
+          if (win.closed) {
+            continue;
+          }
           if (win.document.documentURI == optionsURL) {
             win.focus();
             return;
@@ -1754,6 +1800,19 @@ var gHeader = {
   onKeyPress: function gHeader_onKeyPress(aEvent) {
     if (String.fromCharCode(aEvent.charCode) == "/") {
       this.focusSearchBox();
+      return;
+    }
+
+    // XXXunf Temporary until bug 371900 is fixed.
+    let key = document.getElementById("focusSearch").getAttribute("key");
+#ifdef XP_MACOSX
+    let keyModifier = aEvent.metaKey;
+#else
+    let keyModifier = aEvent.ctrlKey;
+#endif
+    if (String.fromCharCode(aEvent.charCode) == key && keyModifier) {
+      this.focusSearchBox();
+      return;
     }
   },
 
@@ -2090,8 +2149,7 @@ var gSearchView = {
 
     var self = this;
     this._listBox.addEventListener("keydown", function listbox_onKeydown(aEvent) {
-      if (aEvent.keyCode == aEvent.DOM_VK_ENTER ||
-          aEvent.keyCode == aEvent.DOM_VK_RETURN) {
+      if (aEvent.keyCode == aEvent.DOM_VK_RETURN) {
         var item = self._listBox.selectedItem;
         if (item)
           item.showInDetailView();
@@ -2408,8 +2466,7 @@ var gListView = {
 
     var self = this;
     this._listBox.addEventListener("keydown", function listbox_onKeydown(aEvent) {
-      if (aEvent.keyCode == aEvent.DOM_VK_ENTER ||
-          aEvent.keyCode == aEvent.DOM_VK_RETURN) {
+      if (aEvent.keyCode == aEvent.DOM_VK_RETURN) {
         var item = self._listBox.selectedItem;
         if (item)
           item.showInDetailView();
@@ -2980,7 +3037,7 @@ var gDetailView = {
         var settings = xml.querySelectorAll(":root > setting");
 
         var firstSetting = null;
-        for (let setting of settings) {
+        for (var setting of settings) {
 
           var desc = stripTextNodes(setting).trim();
           if (!setting.hasAttribute("desc"))
@@ -2989,6 +3046,13 @@ var gDetailView = {
           var type = setting.getAttribute("type");
           if (type == "file" || type == "directory")
             setting.setAttribute("fullpath", "true");
+
+          setting = document.importNode(setting, true);
+          var style = setting.getAttribute("style");
+          if (style) {
+            setting.removeAttribute("style");
+            setting.setAttribute("style", style);
+          }
 
           rows.appendChild(setting);
           var visible = window.getComputedStyle(setting, null).getPropertyValue("display") != "none";

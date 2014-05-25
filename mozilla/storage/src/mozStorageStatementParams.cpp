@@ -7,6 +7,8 @@
 #include "nsMemory.h"
 #include "nsString.h"
 
+#include "jsapi.h"
+
 #include "mozStoragePrivateHelpers.h"
 #include "mozStorageStatementParams.h"
 #include "mozIStorageStatement.h"
@@ -46,7 +48,7 @@ StatementParams::SetProperty(nsIXPConnectWrappedNative *aWrapper,
                              JSContext *aCtx,
                              JSObject *aScopeObj,
                              jsid aId,
-                             jsval *_vp,
+                             JS::Value *_vp,
                              bool *_retval)
 {
   NS_ENSURE_TRUE(mStatement, NS_ERROR_NOT_INITIALIZED);
@@ -126,10 +128,12 @@ StatementParams::NewEnumerate(nsIXPConnectWrappedNative *aWrapper,
       NS_ENSURE_TRUE(jsname, NS_ERROR_OUT_OF_MEMORY);
 
       // Set our name.
-      if (!::JS_ValueToId(aCtx, STRING_TO_JSVAL(jsname), _idp)) {
+      JS::Rooted<jsid> id(aCtx);
+      if (!::JS_ValueToId(aCtx, JS::StringValue(jsname), &id)) {
         *_retval = false;
         return NS_OK;
       }
+      *_idp = id;
 
       // And increment our index.
       *_statep = INT_TO_JSVAL(++index);

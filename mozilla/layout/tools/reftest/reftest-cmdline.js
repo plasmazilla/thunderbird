@@ -105,11 +105,45 @@ RefTestCmdLineHandler.prototype =
     // Checking whether two files are the same is slow on Windows.
     // Setting this pref makes tests run much faster there.
     branch.setBoolPref("security.fileuri.strict_origin_policy", false);
+    // Disable the thumbnailing service
+    branch.setBoolPref("browser.pagethumbnails.capturing_disabled", true);
+    // Enable APZC so we can test it
+    branch.setBoolPref("layers.async-pan-zoom.enabled", true);
+    // Since our tests are 800px wide, set the assume-designed-for width of all
+    // pages to be 800px (instead of the default of 980px). This ensures that
+    // in our 800px window we don't zoom out by default to try to fit the
+    // assumed 980px content.
+    branch.setIntPref("browser.viewport.desktopWidth", 800);
 
     var wwatch = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
                            .getService(nsIWindowWatcher);
-    wwatch.openWindow(null, "chrome://reftest/content/reftest.xul", "_blank",
-                      "chrome,dialog=no,all", args);
+
+    function loadReftests() {
+      wwatch.openWindow(null, "chrome://reftest/content/reftest.xul", "_blank",
+                        "chrome,dialog=no,all", args);
+    }
+
+    var remote = false;
+    try {
+      remote = prefs.getBoolPref("reftest.remote");
+    } catch (ex) {
+    }
+
+    // If we are running on a remote machine, assume that we can't open another
+    // window for transferring focus to when tests don't require focus.
+    if (remote) {
+      loadReftests();
+    }
+    else {
+      // This dummy window exists solely for enforcing proper focus discipline.
+      var dummy = wwatch.openWindow(null, "about:blank", "dummy",
+                                    "chrome,dialog=no,left=800,height=200,width=200,all", null);
+      dummy.onload = function dummyOnload() {
+        dummy.focus();
+        loadReftests();
+      }
+    }
+
     cmdLine.preventDefault = true;
   },
 

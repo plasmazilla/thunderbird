@@ -8,7 +8,6 @@
 
 #include "mozilla/Attributes.h"
 #include "nsSVGElement.h"
-#include "nsIDOMSVGAnimatedLength.h"
 
 class nsSVGLength2;
 class nsIDOMSVGLength;
@@ -16,24 +15,17 @@ class nsIDOMSVGLength;
 namespace mozilla {
 namespace dom {
 
-class SVGAnimatedLength MOZ_FINAL : public nsIDOMSVGAnimatedLength,
-                                    public nsWrapperCache
+class SVGAnimatedLength MOZ_FINAL : public nsWrapperCache
 {
 public:
-  NS_DECL_CYCLE_COLLECTING_ISUPPORTS
-  NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS(SVGAnimatedLength)
+  NS_INLINE_DECL_CYCLE_COLLECTING_NATIVE_REFCOUNTING(SVGAnimatedLength)
+  NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_NATIVE_CLASS(SVGAnimatedLength)
 
   SVGAnimatedLength(nsSVGLength2* aVal, nsSVGElement *aSVGElement)
     : mVal(aVal), mSVGElement(aSVGElement)
   { SetIsDOMBinding(); }
 
   ~SVGAnimatedLength();
-
-  NS_IMETHOD GetBaseVal(nsIDOMSVGLength **aBaseVal) MOZ_OVERRIDE
-    { *aBaseVal = BaseVal().get(); return NS_OK; }
-
-  NS_IMETHOD GetAnimVal(nsIDOMSVGLength **aAnimVal) MOZ_OVERRIDE
-    { *aAnimVal = AnimVal().get(); return NS_OK; }
 
   // WebIDL
   nsSVGElement* GetParentObject() { return mSVGElement; }

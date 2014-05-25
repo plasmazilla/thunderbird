@@ -107,6 +107,8 @@ function spellCheckStarted() {
   //  no misspelled word is found
   //  (different message when used for the first time)
   gFirstTime = false;
+
+  window.sizeToContent();
 }
 
 function InitLanguageMenu(aCurLang)
@@ -198,7 +200,7 @@ function InitLanguageMenu(aCurLang)
   // Remove any languages from the list.
   var languageMenuPopup = gDialog.LanguageMenulist.firstChild;
   while (languageMenuPopup.firstChild.localName != "menuseparator")
-    languageMenuPopup.removeChild(languageMenuPopup.firstChild);
+    languageMenuPopup.firstChild.remove();
 
   var defaultItem = null;
 

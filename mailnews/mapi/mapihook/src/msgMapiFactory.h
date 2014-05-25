@@ -8,7 +8,8 @@
 #include <windows.h>
 #include <objbase.h>
 #include "nspr.h"
-#include "mozilla/StandardInteger.h"
+#include "nsISupportsImpl.h" // ThreadSafeAutoRefCnt
+#include <stdint.h>
 
 
 class CMapiFactory : public IClassFactory
@@ -29,9 +30,8 @@ public :
     CMapiFactory ();
     ~CMapiFactory ();
 
-private :
-
-    int32_t m_cRef;
+private:
+    mozilla::ThreadSafeAutoRefCnt m_cRef;
 };
 
 #endif  // MSG_MAPI_FACTORY_H

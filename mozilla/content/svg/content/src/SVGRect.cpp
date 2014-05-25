@@ -4,11 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/dom/SVGRect.h"
-#include "nsContentUtils.h"
-#include "nsDOMClassInfoID.h"
 #include "nsSVGElement.h"
-
-DOMCI_DATA(SVGRect, mozilla::dom::SVGRect)
 
 namespace mozilla {
 namespace dom {

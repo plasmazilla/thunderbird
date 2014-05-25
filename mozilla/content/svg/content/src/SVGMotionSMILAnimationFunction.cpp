@@ -4,19 +4,22 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "SVGMotionSMILAnimationFunction.h"
-#include "nsSMILParserUtils.h"
-#include "nsSVGAngle.h"
-#include "SVGMotionSMILType.h"
-#include "SVGMotionSMILPathUtils.h"
-#include "nsSVGPathDataParser.h"
 #include "mozilla/dom/SVGAnimationElement.h"
 #include "mozilla/dom/SVGPathElement.h" // for nsSVGPathList
 #include "mozilla/dom/SVGMPathElement.h"
+#include "mozilla/gfx/2D.h"
+#include "nsAttrValue.h"
 #include "nsAttrValueInlines.h"
+#include "nsSMILParserUtils.h"
+#include "nsSVGAngle.h"
+#include "nsSVGPathDataParser.h"
+#include "SVGMotionSMILType.h"
+#include "SVGMotionSMILPathUtils.h"
+
+using namespace mozilla::dom;
+using namespace mozilla::gfx;
 
 namespace mozilla {
-
-using namespace dom;
 
 SVGMotionSMILAnimationFunction::SVGMotionSMILAnimationFunction()
   : mRotateType(eRotateType_Explicit),
@@ -165,8 +168,7 @@ SVGMotionSMILAnimationFunction::
     const nsAString& valuesStr = GetAttr(nsGkAtoms::values)->GetStringValue();
     SVGMotionSMILPathUtils::MotionValueParser parser(&pathGenerator,
                                                      &mPathVertices);
-    success =
-      NS_SUCCEEDED(nsSMILParserUtils::ParseValuesGeneric(valuesStr, parser));
+    success = nsSMILParserUtils::ParseValuesGeneric(valuesStr, parser);
   } else if (HasAttr(nsGkAtoms::to) || HasAttr(nsGkAtoms::by)) {
     // Apply 'from' value (or a dummy 0,0 'from' value)
     if (HasAttr(nsGkAtoms::from)) {
@@ -226,7 +228,7 @@ SVGMotionSMILAnimationFunction::
       bool ok =
         path.GetDistancesFromOriginToEndsOfVisibleSegments(&mPathVertices);
       if (ok && mPathVertices.Length()) {
-        mPath = pathElem->GetFlattenedPath(gfxMatrix());
+        mPath = pathElem->GetPathForLengthOrPositionMeasuring();
       }
     }
   }
@@ -238,20 +240,20 @@ SVGMotionSMILAnimationFunction::RebuildPathAndVerticesFromPathAttr()
   const nsAString& pathSpec = GetAttr(nsGkAtoms::path)->GetStringValue();
   mPathSourceType = ePathSourceType_PathAttr;
 
-  // Generate gfxFlattenedPath from |path| attr
+  // Generate Path from |path| attr
   SVGPathData path;
-  nsSVGPathDataParserToInternal pathParser(&path);
+  nsSVGPathDataParser pathParser(pathSpec, &path);
 
   // We ignore any failure returned from Parse() since the SVG spec says to
   // accept all segments up to the first invalid token. Instead we must
   // explicitly check that the parse produces at least one path segment (if
   // the path data doesn't begin with a valid "M", then it's invalid).
-  pathParser.Parse(pathSpec);
+  pathParser.Parse();
   if (!path.Length()) {
     return;
   }
 
-  mPath = path.ToFlattenedPath(gfxMatrix());
+  mPath = path.ToPathForLengthOrPositionMeasuring();
   bool ok = path.GetDistancesFromOriginToEndsOfVisibleSegments(&mPathVertices);
   if (!ok || !mPathVertices.Length()) {
     mPath = nullptr;
@@ -291,16 +293,16 @@ SVGMotionSMILAnimationFunction::
 
 bool
 SVGMotionSMILAnimationFunction::
-  GenerateValuesForPathAndPoints(gfxFlattenedPath* aPath,
+  GenerateValuesForPathAndPoints(Path* aPath,
                                  bool aIsKeyPoints,
-                                 nsTArray<double>& aPointDistances,
-                                 nsTArray<nsSMILValue>& aResult)
+                                 FallibleTArray<double>& aPointDistances,
+                                 nsSMILValueArray& aResult)
 {
   NS_ABORT_IF_FALSE(aResult.IsEmpty(), "outparam is non-empty");
 
   // If we're using "keyPoints" as our list of input distances, then we need
   // to de-normalize from the [0, 1] scale to the [0, totalPathLen] scale.
-  double distanceMultiplier = aIsKeyPoints ? aPath->GetLength() : 1.0;
+  double distanceMultiplier = aIsKeyPoints ? aPath->ComputeLength() : 1.0;
   const uint32_t numPoints = aPointDistances.Length();
   for (uint32_t i = 0; i < numPoints; ++i) {
     double curDist = aPointDistances[i] * distanceMultiplier;
@@ -332,9 +334,9 @@ SVGMotionSMILAnimationFunction::GetValues(const nsISMILAttr& aSMILAttr,
   // Now: Make the actual list of nsSMILValues (using keyPoints, if set)
   bool isUsingKeyPoints = !mKeyPoints.IsEmpty();
   bool success = GenerateValuesForPathAndPoints(mPath, isUsingKeyPoints,
-                                                  isUsingKeyPoints ?
+                                                isUsingKeyPoints ?
                                                   mKeyPoints : mPathVertices,
-                                                  aResult);
+                                                aResult);
   if (!success) {
     return NS_ERROR_OUT_OF_MEMORY;
   }
@@ -399,18 +401,13 @@ SVGMotionSMILAnimationFunction::SetKeyPoints(const nsAString& aKeyPoints,
   mKeyPoints.Clear();
   aResult.SetTo(aKeyPoints);
 
-  nsresult rv =
-    nsSMILParserUtils::ParseSemicolonDelimitedProgressList(aKeyPoints, false,
-                                                           mKeyPoints);
-
-  if (NS_SUCCEEDED(rv) && mKeyPoints.Length() < 1)
-    rv = NS_ERROR_FAILURE;
-
-  if (NS_FAILED(rv)) {
-    mKeyPoints.Clear();
-  }
-
   mHasChanged = true;
+
+  if (!nsSMILParserUtils::ParseSemicolonDelimitedProgressList(aKeyPoints, false,
+                                                              mKeyPoints)) {
+    mKeyPoints.Clear();
+    return NS_ERROR_FAILURE;
+  }
 
   return NS_OK;
 }

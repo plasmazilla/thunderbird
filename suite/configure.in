@@ -14,10 +14,9 @@ dnl Optional parts of the build.
 AC_SUBST(MOZ_MORK)
 if test "$MOZ_MORK"; then
   AC_DEFINE(MOZ_MORK)
-  MORK_COMPONENT=mork
   MORK_MODULE="MODULE(nsMorkModule)"
 fi
-if test "$OS_ARCH" != "WINNT" -a "$OS_ARCH" != "OS2"; then
+if test "$OS_ARCH" != "WINNT"; then
   MOZ_MOVEMAIL=1
   HAVE_MOVEMAIL=1
   AC_DEFINE(HAVE_MOVEMAIL)
@@ -30,9 +29,7 @@ if test "$COMM_BUILD" = "1"; then
 else
   commdir=$topsrcdir/..
 fi
-SUNBIRD_VERSION=`cat $commdir/calendar/sunbird/config/version.txt`
 THUNDERBIRD_VERSION=`cat $commdir/mail/config/version.txt`
-AC_SUBST(SUNBIRD_VERSION)
 AC_SUBST(THUNDERBIRD_VERSION)
 
 dnl =========================================================
@@ -60,11 +57,6 @@ MOZ_ARG_DISABLE_BOOL(ldap,
     MOZ_LDAP_XPCOM=1)
 
 if test "$MOZ_LDAP_XPCOM"; then
-    MOZ_ARG_ENABLE_BOOL(incomplete-toolkit-ldap-autocomplete,
-    [  --enable-incomplete-toolkit-ldap-autocomplete Builds a JavaScript component that implements an LDAP autocomplete component using the toolkit interfaces rather than the C++ component using the obsolete XPFE interfaces. ],
-        MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE=1,
-        MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE= )
-
     LDAP_CFLAGS='-I${DIST}/public/ldap'
     if test "$OS_ARCH" = "WINNT"; then
         if test -n "$GNU_CC"; then
@@ -72,24 +64,38 @@ if test "$MOZ_LDAP_XPCOM"; then
         else
             LDAP_LIBS='$(DIST)/lib/$(LIB_PREFIX)nsldap32v60.${IMPORT_LIB_SUFFIX} $(DIST)/lib/$(LIB_PREFIX)nsldappr32v60.${IMPORT_LIB_SUFFIX} $(DIST)/lib/$(LIB_PREFIX)nsldif32v60.${IMPORT_LIB_SUFFIX}'
         fi
-    elif test "$OS_ARCH" = "OS2"; then
-            LDAP_LIBS='$(DIST)/lib/$(LIB_PREFIX)ldap60.${IMPORT_LIB_SUFFIX} $(DIST)/lib/$(LIB_PREFIX)prldap60.${IMPORT_LIB_SUFFIX} $(DIST)/lib/$(LIB_PREFIX)ldif60.${IMPORT_LIB_SUFFIX}'
     else
         LDAP_LIBS='-L${DIST}/bin -L${DIST}/lib -lldap60 -lprldap60 -lldif60'
     fi
 
-    LDAP_COMPONENT=mozldap
     LDAP_MODULE="MODULE(nsLDAPProtocolModule)"
 fi
-AC_SUBST(MOZ_INCOMPLETE_TOOLKIT_LDAP_AUTOCOMPLETE)
 
 AC_SUBST(MOZ_LDAP_XPCOM)
 AC_SUBST(LDAP_CFLAGS)
 AC_SUBST(LDAP_LIBS)
 
+dnl =========================================================
+dnl = MAPI support (Windows only)
+dnl =========================================================
+
+if test "$_WIN32_MSVC"; then
+    MOZ_MAPI_SUPPORT=1
+fi
+
+MOZ_ARG_DISABLE_BOOL(mapi,
+[  --disable-mapi          Disable MAPI support],
+    MOZ_MAPI_SUPPORT= )
+
+AC_SUBST(MOZ_MAPI_SUPPORT)
+
+if test -n "$MOZ_MAPI_SUPPORT"; then
+    AC_DEFINE(MOZ_MAPI_SUPPORT)
+    MAIL_MODULE="$MAIL_MODULE MODULE(msgMapiModule)"
+fi
+
 if test -z "$MOZ_INCOMPLETE_EXTERNAL_LINKAGE"; then
-  MOZ_APP_COMPONENT_LIBS="xpautocomplete $MAIL_COMPONENT $LDAP_COMPONENT $MORK_COMPONENT"
-  MOZ_APP_COMPONENT_MODULES="MODULE(xpAutoComplete) $MAIL_MODULE $LDAP_MODULE $MORK_MODULE"
+  MOZ_APP_COMPONENT_MODULES="$MAIL_MODULE $LDAP_MODULE $MORK_MODULE"
   MOZ_APP_EXTRA_LIBS="$LDAP_LIBS"
 fi
 

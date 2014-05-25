@@ -12,13 +12,19 @@ namespace layers {
 
 class TargetConfig;
 class LayerTransactionParent;
+class AsyncCompositionManager;
 
 class ShadowLayersManager
 {
 public:
     virtual void ShadowLayersUpdated(LayerTransactionParent* aLayerTree,
                                      const TargetConfig& aTargetConfig,
-                                     bool isFirstPaint) = 0;
+                                     bool aIsFirstPaint,
+                                     bool aScheduleComposite) = 0;
+
+    virtual AsyncCompositionManager* GetCompositionManager(LayerTransactionParent* aLayerTree) { return nullptr; }
+
+    virtual void ForceComposite(LayerTransactionParent* aLayerTree) { }
 };
 
 } // layers

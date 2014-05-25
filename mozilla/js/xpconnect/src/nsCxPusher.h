@@ -5,7 +5,7 @@
 #define nsCxPusher_h
 
 #include "jsapi.h"
-#include "mozilla/Util.h"
+#include "mozilla/Maybe.h"
 #include "nsCOMPtr.h"
 
 namespace mozilla {
@@ -27,15 +27,19 @@ class MOZ_STACK_CLASS AutoCxPusher
 public:
   AutoCxPusher(JSContext *aCx, bool aAllowNull = false);
   // XPCShell uses an nsCxPusher, which contains an AutoCxPusher.
-  NS_EXPORT ~AutoCxPusher();
+  ~AutoCxPusher();
 
   nsIScriptContext* GetScriptContext() { return mScx; }
+
+  // Returns true if this AutoCxPusher performed the push that is currently at
+  // the top of the cx stack.
+  bool IsStackTop();
 
 private:
   mozilla::Maybe<JSAutoRequest> mAutoRequest;
   mozilla::Maybe<JSAutoCompartment> mAutoCompartment;
   nsCOMPtr<nsIScriptContext> mScx;
-  bool mScriptIsRunning;
+  uint32_t mStackDepthAfterPush;
 #ifdef DEBUG
   JSContext* mPushedContext;
   unsigned mCompartmentDepthOnEntry;
@@ -59,14 +63,6 @@ private:
 class MOZ_STACK_CLASS nsCxPusher
 {
 public:
-  // This destructor doesn't actually do anything, but it implicitly depends on
-  // the Maybe<AutoCxPusher> destructor, which in turn depends on the
-  // ~AutoCxPusher destructor. If we stick with the default destructor, the
-  // caller needs to be able to link against the AutoCxPusher destructor, which
-  // isn't possible with externally-linked consumers like xpcshell. Hoist this
-  // work into nsCxPusher.cpp and use NS_EXPORT to make it all work right.
-  NS_EXPORT ~nsCxPusher();
-
   // Returns false if something erroneous happened.
   bool Push(mozilla::dom::EventTarget *aCurrentTarget);
   // If nothing has been pushed to stack, this works like Push.
@@ -74,12 +70,12 @@ public:
   bool RePush(mozilla::dom::EventTarget *aCurrentTarget);
   // If a null JSContext is passed to Push(), that will cause no
   // push to happen and false to be returned.
-  NS_EXPORT_(void) Push(JSContext *cx);
+  void Push(JSContext *cx);
   // Explicitly push a null JSContext on the the stack
   void PushNull();
 
   // Pop() will be a no-op if Push() or PushNull() fail
-  NS_EXPORT_(void) Pop();
+  void Pop();
 
   nsIScriptContext* GetCurrentScriptContext() {
     return mPusher.empty() ? nullptr : mPusher.ref().GetScriptContext();
@@ -116,12 +112,43 @@ private:
 };
 
 /**
+ * Use ThreadsafeAutoJSContext when you want an AutoJSContext but might be
+ * running on a worker thread.
+ */
+class MOZ_STACK_CLASS ThreadsafeAutoJSContext {
+public:
+  ThreadsafeAutoJSContext(MOZ_GUARD_OBJECT_NOTIFIER_ONLY_PARAM);
+  operator JSContext*() const;
+
+private:
+  JSContext* mCx; // Used on workers.  Null means mainthread.
+  Maybe<JSAutoRequest> mRequest; // Used on workers.
+  Maybe<AutoJSContext> mAutoJSContext; // Used on main thread.
+  MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
+};
+
+/**
  * AutoSafeJSContext is similar to AutoJSContext but will only return the safe
  * JS context. That means it will never call ::GetCurrentJSContext().
  */
 class MOZ_STACK_CLASS AutoSafeJSContext : public AutoJSContext {
 public:
   AutoSafeJSContext(MOZ_GUARD_OBJECT_NOTIFIER_ONLY_PARAM);
+};
+
+/**
+ * Like AutoSafeJSContext but can be used safely on worker threads.
+ */
+class MOZ_STACK_CLASS ThreadsafeAutoSafeJSContext {
+public:
+  ThreadsafeAutoSafeJSContext(MOZ_GUARD_OBJECT_NOTIFIER_ONLY_PARAM);
+  operator JSContext*() const;
+
+private:
+  JSContext* mCx; // Used on workers.  Null means mainthread.
+  Maybe<JSAutoRequest> mRequest; // Used on workers.
+  Maybe<AutoSafeJSContext> mAutoSafeJSContext; // Used on main thread.
+  MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
 };
 
 /**

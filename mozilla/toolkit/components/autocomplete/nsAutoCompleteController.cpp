@@ -14,6 +14,7 @@
 #include "nsIAtomService.h"
 #include "nsReadableUtils.h"
 #include "nsUnicharUtils.h"
+#include "nsITreeBoxObject.h"
 #include "nsITreeColumns.h"
 #include "nsIObserverService.h"
 #include "nsIDOMKeyEvent.h"
@@ -21,6 +22,8 @@
 #include "mozilla/ModuleUtils.h"
 
 static const char *kAutoCompleteSearchCID = "@mozilla.org/autocomplete/search;1?name=";
+
+NS_IMPL_CYCLE_COLLECTION_CLASS(nsAutoCompleteController)
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsAutoCompleteController)
   tmp->SetInput(nullptr);
@@ -753,7 +756,7 @@ nsAutoCompleteController::GetColumnProperties(nsITreeColumn* col, nsAString& aPr
 NS_IMETHODIMP
 nsAutoCompleteController::GetImageSrc(int32_t row, nsITreeColumn* col, nsAString& _retval)
 {
-  const PRUnichar* colID;
+  const char16_t* colID;
   col->GetIdConst(&colID);
 
   if (NS_LITERAL_STRING("treecolAutoCompleteValue").Equals(colID))
@@ -779,7 +782,7 @@ nsAutoCompleteController::GetCellValue(int32_t row, nsITreeColumn* col, nsAStrin
 NS_IMETHODIMP
 nsAutoCompleteController::GetCellText(int32_t row, nsITreeColumn* col, nsAString& _retval)
 {
-  const PRUnichar* colID;
+  const char16_t* colID;
   col->GetIdConst(&colID);
 
   if (NS_LITERAL_STRING("treecolAutoCompleteValue").Equals(colID))
@@ -931,19 +934,19 @@ nsAutoCompleteController::Drop(int32_t row, int32_t orientation, nsIDOMDataTrans
 }
 
 NS_IMETHODIMP
-nsAutoCompleteController::PerformAction(const PRUnichar *action)
+nsAutoCompleteController::PerformAction(const char16_t *action)
 {
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsAutoCompleteController::PerformActionOnRow(const PRUnichar *action, int32_t row)
+nsAutoCompleteController::PerformActionOnRow(const char16_t *action, int32_t row)
 {
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsAutoCompleteController::PerformActionOnCell(const PRUnichar* action, int32_t row, nsITreeColumn* col)
+nsAutoCompleteController::PerformActionOnCell(const char16_t* action, int32_t row, nsITreeColumn* col)
 {
   return NS_OK;
 }
@@ -1724,15 +1727,15 @@ NS_DEFINE_NAMED_CID(NS_AUTOCOMPLETECONTROLLER_CID);
 NS_DEFINE_NAMED_CID(NS_AUTOCOMPLETESIMPLERESULT_CID);
 
 static const mozilla::Module::CIDEntry kAutoCompleteCIDs[] = {
-  { &kNS_AUTOCOMPLETECONTROLLER_CID, false, NULL, nsAutoCompleteControllerConstructor },
-  { &kNS_AUTOCOMPLETESIMPLERESULT_CID, false, NULL, nsAutoCompleteSimpleResultConstructor },
-  { NULL }
+  { &kNS_AUTOCOMPLETECONTROLLER_CID, false, nullptr, nsAutoCompleteControllerConstructor },
+  { &kNS_AUTOCOMPLETESIMPLERESULT_CID, false, nullptr, nsAutoCompleteSimpleResultConstructor },
+  { nullptr }
 };
 
 static const mozilla::Module::ContractIDEntry kAutoCompleteContracts[] = {
   { NS_AUTOCOMPLETECONTROLLER_CONTRACTID, &kNS_AUTOCOMPLETECONTROLLER_CID },
   { NS_AUTOCOMPLETESIMPLERESULT_CONTRACTID, &kNS_AUTOCOMPLETESIMPLERESULT_CID },
-  { NULL }
+  { nullptr }
 };
 
 static const mozilla::Module kAutoCompleteModule = {

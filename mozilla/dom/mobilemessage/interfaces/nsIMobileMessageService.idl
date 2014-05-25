@@ -14,12 +14,13 @@ interface nsIDOMMozSmsSegmentInfo;
 #define MOBILE_MESSAGE_SERVICE_CONTRACTID "@mozilla.org/mobilemessage/mobilemessageservice;1"
 %}
 
-[scriptable, builtinclass, uuid(bea56ecf-472d-4b6b-b462-66753f3c1179)]
+[scriptable, builtinclass, uuid(67d038b2-0039-11e3-9fd3-83de190730f7)]
 interface nsIMobileMessageService : nsISupports
 {
   [implicit_jscontext]
   nsIDOMMozSmsMessage createSmsMessage(in long      id,
                                        in unsigned long long threadId,
+                                       in DOMString iccId,
                                        in DOMString delivery,
                                        in DOMString deliveryStatus,
                                        in DOMString sender,
@@ -27,21 +28,26 @@ interface nsIMobileMessageService : nsISupports
                                        in DOMString body,
                                        in DOMString messageClass,
                                        in jsval     timestamp,
+                                       in jsval     sentTimestamp,
+                                       in jsval     deliveryTimestamp,
                                        in bool      read);
 
   [implicit_jscontext]
   nsIDOMMozMmsMessage createMmsMessage(in long      id,
                                        in unsigned long long threadId,
+                                       in DOMString iccId,
                                        in DOMString delivery,
-                                       in jsval     deliveryStatus,
+                                       in jsval     deliveryInfo,
                                        in DOMString sender,
                                        in jsval     receivers,
                                        in jsval     timestamp,
+                                       in jsval     sentTimestamp,
                                        in boolean   read,
                                        in DOMString subject,
                                        in DOMString smil,
                                        in jsval     attachments,
-                                       in jsval     expiryDate);
+                                       in jsval     expiryDate,
+                                       in boolean   readReportRequested);
 
   nsIDOMMozSmsSegmentInfo createSmsSegmentInfo(in long segments,
                                                in long charsPerSegment,
@@ -51,6 +57,7 @@ interface nsIMobileMessageService : nsISupports
   nsIDOMMozMobileMessageThread createThread(in unsigned long long id,
                                             in jsval              participants,
                                             in jsval              timestamp,
+                                            in DOMString          lastMessageSubject,
                                             in DOMString          body,
                                             in unsigned long long unreadCount,
                                             in DOMString          aLastMessageType);

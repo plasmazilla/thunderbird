@@ -1,6 +1,7 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+// IWYU pragma: private, include "nsIDocument.h"
 
 /*
  * This file contains the list of deprecated DOM operations.  It is
@@ -24,7 +25,6 @@ DEPRECATED_OPERATION(MozBeforePaint)
 DEPRECATED_OPERATION(DOMExceptionCode)
 DEPRECATED_OPERATION(NoExposedProps)
 DEPRECATED_OPERATION(MutationEvent)
-DEPRECATED_OPERATION(MozSlice)
 DEPRECATED_OPERATION(Components)
 DEPRECATED_OPERATION(PrefixedVisibilityAPI)
 DEPRECATED_OPERATION(NodeIteratorDetach)
@@ -32,3 +32,10 @@ DEPRECATED_OPERATION(MozAudioData)
 DEPRECATED_OPERATION(LenientThis)
 DEPRECATED_OPERATION(GetPreventDefault)
 DEPRECATED_OPERATION(GetSetUserData)
+DEPRECATED_OPERATION(MozGetAsFile)
+DEPRECATED_OPERATION(UseOfCaptureEvents)
+DEPRECATED_OPERATION(UseOfReleaseEvents)
+DEPRECATED_OPERATION(UseOfDOM3LoadMethod)
+DEPRECATED_OPERATION(ShowModalDialog)
+DEPRECATED_OPERATION(Window_Content)
+DEPRECATED_OPERATION(SyncXMLHttpRequest)
